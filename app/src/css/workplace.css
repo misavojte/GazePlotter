@@ -1,0 +1,56 @@
+#workplace {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: calc(100% - 80px);
+    margin: auto auto 120px;
+    padding: 80px 16px;
+    box-shadow: inset 0 2px 4px rgb(0 0 0 / 25%);
+    background-color: var(--c-l1);
+    background-image:
+            linear-gradient(rgba(255,255,255,.5) 2px, transparent 2px),
+            linear-gradient(90deg, rgba(255,255,255,.5) 2px, transparent 2px),
+            linear-gradient(rgba(255,255,255,.28) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,.28) 1px, transparent 1px);
+    background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+    background-position: -2px -2px, -2px -2px, -1px -1px, -1px -1px;
+}
+
+#loader-wrap {
+    background: var(--c-l2);
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgb(0 0 0 / 25%);
+    width: 100%;
+    max-width: 900px;
+    margin: 12px auto;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.bars-7 {
+    width: 20px;
+    height: 20px;
+    --c: linear-gradient(currentColor 0 0);
+    background:
+            var(--c) 0    0,
+            var(--c) 50%  50%,
+            var(--c) 100% 100%;
+    background-repeat: no-repeat;
+    animation:
+            b7 1s infinite alternate;
+}
+
+@keyframes b7 {
+    0%,
+    10%  {background-size:20%  100%}
+    50%  {background-size:20%  20%}
+    90%,
+    100% {background-size:100% 20%}
+}

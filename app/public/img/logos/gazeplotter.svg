@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.0" viewBox="0 0 100 100">
+<clipPath id="cut">
+<circle cx="50" cy="50" r="50"/>
+</clipPath>
+<g clip-path="url(#cut)">
+<circle cx="50" cy="50" r="49.9" fill="#cd1404"/>
+<circle cx="50" cy="50" r="20" stroke="#eeeeee" fill="none" stroke-width="14"/>
+<path stroke-width="14" stroke="#eeeeee" d="M0 18 L200 44 L0 87" fill="none"/>
+</g>
+</svg>
