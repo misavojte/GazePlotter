@@ -1,15 +1,12 @@
 import {AbstractController} from "../controller/AbstractController";
 import {UpdateMessage} from "../common/UpdateMessage";
+import {AbstractObserver} from "../common/AbstractObserver";
 
-export class AbstractView {
+export class AbstractView implements AbstractObserver {
 
-    get isView(): boolean {
-        return this._isView;
-    }
-
-    private _isView: boolean = true;
     element: HTMLElement;
     controller: AbstractController;
+    observerType: string = 'view';
 
     /**
      *
@@ -38,11 +35,6 @@ export class AbstractView {
      * Gets called by the AbstractModel::notify method.
      */
     update(data: UpdateMessage) {
-        console.log('update received', this);
-        this.handleUpdate(data);
-    }
-
-    handleUpdate(data: UpdateMessage) {
-        console.warn("update method in view not implemented", this, data)
+        console.warn("update method in view not implemented", this, data);
     }
 }

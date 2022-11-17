@@ -34,10 +34,10 @@ export class AbstractController {
      * Create new UpdateMessage and post it to AbstractModel
      * @param type - String providing information about type of update
      * @param body - Actual data of update message
-     * @param isViewOnly - Whether to propagate update by AbstractModel only to AbstractView
+     * @param observerTypes - Specification to which observers propagate update by AbstractModel (if empty, which is default value, propagation to all types)
      */
-    postUpdate(type: string, body: Object, isViewOnly: boolean = false) {
-        this.model.update(new UpdateMessage(type, body, isViewOnly))
+    postUpdate(type: string, body: Object = {}, observerTypes: string[] = []) {
+        this.model.update(new UpdateMessage(type, body, observerTypes))
     }
 
 }
