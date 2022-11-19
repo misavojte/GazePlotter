@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>EyeROI: Analyse AOIs of eye-trackig data</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="src/css/mainLayout.css">
+  <link rel="preload" href="src/css/bootstrap-icons.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="src/css/bootstrap-icons.css"></noscript>
+  <!-- favicon -->
+  <link rel="icon" href="/img/logos/gazeplotter.svg">
+  <!-- seo -->
+
+</head>
+<body>
+<header class="border-b">
+  <a id="gohome" href="/">
+    <img id="logo" width="35" height="35" src="/img/logos/gazeplotter.svg" alt="Logo">
+    <span id="sitetitle">GazePlotter</span>
+  </a>
+  <a href="https://github.com/misavojte/EyeROI" class="a-icon" rel="nofollow">
+    <i class="bi bi-github"></i>
+  </a>
+</header>
+<main>
+  <section class="main-section" id="firstsec">
+    <div class="intro holder">
+      <h1 class="">Analyse AOIs<br>of eye-tracking data</h1>
+      <p class="intro-text">Just upload data from an eye-tracker software you use. The app will create an interactive sequence chart and other analysis from eye gaze data for you. Multiplatform. For free.</p>
+      <div class="cont1">
+        <label tabindex="0" for="file-upload" class="btn intro-btn">
+          Upload file
+        </label>
+        <input id="file-upload" class="hide js-change" type="file" multiple/>
+        <div id="start-demo" tabindex="0" class="btn2 intro-btn js-click">
+          Try demo data
+        </div>
+      </div>
+    </div>
+    <img width="1482" height="824" id="intro-pic" style="width: 530px; height: 295px" src="/img/screen2.png" alt="">
+  </section>
+  <section class="main-section" id="about">
+    <h2>About EyeToolbox</h2>
+    <div class="about-grid">
+      <section class="grid-item">
+        <h3>It is a work in progress</h3>
+        <p>Keep in mind the tool is in an active development. Many features are missing and others could be buggy. If there is anything you want to be added, contact me at mail@vojtechovska.com</p>
+      </section>
+      <section class="grid-item">
+        <h3>Works with Tobii and SMI outputs</h3>
+        <p>Just upload data from an eye-tracker software you use. The app will create an interactive sequence chart and other analysis from eye gaze data for you. For free.</p>
+      </section>
+      <section class="grid-item">
+        <h3>Compatible in all modern browsers</h3>
+        <p>Just upload data from an eye-tracker software you use. The app will create an interactive sequence chart and other analysis from eye gaze data for you. For free.</p>
+      </section>
+    </div>
+  </section>
+</main>
+<footer class="border-t">
+  <div>
+    <p>GazePlotter, version 0.0.3 (20/08/2022)</p>
+    <p>Coded & designed by <a href="https://vojtechovska.com">Michaela Vojtěchovská</a></p>
+    <p>Idea by Stanislav Popelka</p>
+  </div>
+  <a rel="no-follow" href="https://geoinformatics.upol.cz/">
+    <img loading="lazy" id="dpt-logo" src="/img/logos/dpt.png" alt="" width="1704" height="366" style="width: 300px; height: 64px">
+  </a>
+</footer>
+<script defer type="module" src="src/ts/app.ts"></script>
+</body>
+</html>
