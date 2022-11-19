@@ -1,15 +1,16 @@
-import "../css/workplace.css"
-import {StartButtonsView} from "./view/StartButtonsView";
-import {StartButtonsModel} from "./model/StartButtonsModel";
-import { StartButtonsController } from "./controller/StartButtonsController";
-import {WorkplaceModel} from "./model/WorkplaceModel";
-import {WorkplaceView} from "./view/WorkplaceView";
-import { WorkplaceController } from "./controller/WorkplaceController";
+import '../css/workplace.css'
+import { StartButtonsController } from './Front/StartButtons/StartButtonsController'
+import { StartButtonsModel } from './Front/StartButtons/StartButtonsModel'
+import { StartButtonsView } from './Front/StartButtons/StartButtonsView'
+import { WorkplaceController } from './Front/Workplace/WorkplaceController'
+import { WorkplaceModel } from './Front/Workplace/WorkplaceModel'
+import { WorkplaceView } from './Front/Workplace/WorkplaceView'
 
-const startButtonModel = new StartButtonsModel();
-const workplaceModel = new WorkplaceModel();
-new StartButtonsView(new StartButtonsController(startButtonModel));
+const startButtonModel = new StartButtonsModel()
+const workplaceModel = new WorkplaceModel(startButtonModel)
 
-startButtonModel.addObserver(workplaceModel);
+void new StartButtonsView(new StartButtonsController(startButtonModel))
 
-new WorkplaceView(new WorkplaceController(workplaceModel));
+startButtonModel.addObserver(workplaceModel)
+
+void new WorkplaceView(new WorkplaceController(workplaceModel))

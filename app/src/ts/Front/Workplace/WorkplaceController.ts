@@ -1,0 +1,22 @@
+import { ControllerInterface } from '../Common/ControllerInterface'
+import { WorkplaceModel } from './WorkplaceModel'
+
+export class WorkplaceController implements ControllerInterface {
+  model: WorkplaceModel
+
+  constructor (model: WorkplaceModel) {
+    this.model = model
+  }
+
+  /**
+     * Fire according event type handler. These type handlers should be customized to do expected actions.
+     * @param e - Event passed from event listener in AbstractView
+     */
+  handleEvent (e: Event): void {
+    e.stopPropagation()
+    switch (e.type) {
+      case 'click' :
+        console.log('A')
+    }
+  }
+}
