@@ -1,23 +1,27 @@
-import { ControllerInterface } from '../Common/ControllerInterface'
+import { AbstractController } from '../Common/AbstractController'
 import { StartButtonsModel } from './StartButtonsModel'
 
-export class StartButtonsController implements ControllerInterface {
+export class StartButtonsController extends AbstractController {
   model: StartButtonsModel
 
   constructor (model: StartButtonsModel) {
+    super()
     this.model = model
   }
-
-  // handleChangeEvent(e: Event) {
-  //     const files = (<HTMLInputElement>e.target).files;
-  //     if (files !== null) this.postUpdate('newFile', files);
-  // }
 
   handleEvent (e: Event): void {
     e.stopPropagation()
     switch (e.type) {
       case 'click' :
-        this.model.startDemo()
+        return this.model.startDemo()
+      case 'change' :
+        this.handleChangeEvent(e)
     }
+  }
+
+  handleChangeEvent (e: Event): void {
+    if (!(e.target instanceof HTMLInputElement)) return
+    const files = e.target.files
+    if (files !== null) this.model.startNewFile(files)
   }
 }

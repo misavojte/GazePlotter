@@ -14,7 +14,7 @@ export abstract class AbstractPublisher extends AbstractObserver {
 
   /**
      * Remove an observer for changes from this.observers
-     * @param observer - Observer for Notifications
+     * @param observer - Observer for notifications
      */
   removeObserver (observer: AbstractObserver): void {
     const removeIndex = (observers: AbstractObserver[]): number => observers.findIndex((obs) => {
@@ -27,12 +27,13 @@ export abstract class AbstractPublisher extends AbstractObserver {
   }
 
   /**
-     * Loops over observingViews and observingModels and calls the update method on each of them.
-     * The method will be called everytime AbstractModel is updated, unless stopped from within.
-     * @param msg - UpdateMessage containing instructions how to update
-      * @param observerTypes
-     */
-  notify (msg: string, observerTypes: string[]): void {
+   * Loops over observingViews and observingModels and calls the update method on each of them.
+   * The method will be called everytime AbstractModel is updated, unless stopped from within.
+   * @param msg - String containing instructions how to process notification in AbstractObserver::update method
+   * @param observerTypes - Array of strings, if empty, notification will be posted to all observers.
+   * If not, notification will be sent only to those with matching AbstractObserver::observerType field
+   */
+  notify (msg: string, observerTypes: string[] = []): void {
     const isForObserverType = (observerType: string): boolean => {
       return observerTypes.length === 0 ? true : observerTypes.includes(observerType)
     }

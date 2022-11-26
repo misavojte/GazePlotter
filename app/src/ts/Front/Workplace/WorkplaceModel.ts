@@ -1,13 +1,16 @@
-import { AbstractPublisher } from '../Common/AbstractPublisher'
-import { ModelInterface } from '../Common/ModelInterface'
-import { EyeTrackingData } from './EDT'
+import { AbstractModel } from '../Common/AbstractModel'
+import { EyeTrackingData } from '../../Data/EyeTrackingData'
 import { StartButtonsModel } from '../StartButtons/StartButtonsModel'
+import { ScarfView } from '../Scarf/ScarfView'
+import { ScarfModel } from '../Scarf/ScarfModel'
+import { ScarfController } from '../Scarf/ScarfController'
 
-export class WorkplaceModel extends AbstractPublisher implements ModelInterface {
+export class WorkplaceModel extends AbstractModel {
   observerType = 'workplaceModel'
   isVisible: boolean = false
   data: EyeTrackingData | null = null
   startButtonsModel: StartButtonsModel
+  scarfs: ScarfView[] = []
 
   constructor (startButtonsModel: StartButtonsModel) {
     super()
@@ -35,5 +38,8 @@ export class WorkplaceModel extends AbstractPublisher implements ModelInterface 
     if (file === null) return
     this.data = new EyeTrackingData(file)
     this.startButtonsModel.jsonFile = null
+    this.scarfs.push(new ScarfView(new ScarfController(new ScarfModel(this.data, 0))))
+    this.notify('print', [])
+    this.scarfs[0].controller.model.isDetached = false
   }
 }

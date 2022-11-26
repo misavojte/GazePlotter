@@ -1,7 +1,6 @@
-import { AbstractPublisher } from '../Common/AbstractPublisher'
-import { ModelInterface } from '../Common/ModelInterface'
+import { AbstractModel } from '../Common/AbstractModel'
 
-export class StartButtonsModel extends AbstractPublisher implements ModelInterface {
+export class StartButtonsModel extends AbstractModel {
   readonly observerType = 'startModel'
 
   jsonFile: Object | null = null

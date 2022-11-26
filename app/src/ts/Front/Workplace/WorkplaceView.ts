@@ -1,8 +1,7 @@
-import { AbstractObserver } from '../Common/AbstractObserver'
 import { WorkplaceController } from './WorkplaceController'
-import { ViewInterface } from '../Common/ViewInterface'
+import { AbstractView } from '../Common/AbstractView'
 
-export class WorkplaceView extends AbstractObserver implements ViewInterface {
+export class WorkplaceView extends AbstractView {
   controller: WorkplaceController
   el: HTMLElement
 
@@ -10,18 +9,8 @@ export class WorkplaceView extends AbstractObserver implements ViewInterface {
     super()
     this.controller = controller
     this.el = this.creatWorkplaceElement()
-    this.registerEventListeners(this.el)
+    this.registerEventListeners(this.el, ['click', 'change'])
     this.controller.model.addObserver(this)
-  }
-
-  registerEventListeners (el: HTMLElement): void {
-    const EVENT_TYPES: string[] = ['click', 'change']
-    for (let eventIndex = 0; eventIndex < EVENT_TYPES.length; eventIndex++) {
-      const toRegisterEvents = el.getElementsByClassName(`js-${EVENT_TYPES[eventIndex]}`)
-      for (let i = 0; i < toRegisterEvents.length; i++) {
-        toRegisterEvents[i].addEventListener(EVENT_TYPES[eventIndex], this.controller)
-      }
-    }
   }
 
   creatWorkplaceElement (): HTMLElement {
@@ -41,6 +30,8 @@ export class WorkplaceView extends AbstractObserver implements ViewInterface {
         return this.reveal()
       case 'start' :
         return this.addLoader()
+      case 'print' :
+        return this.print()
     }
   }
 
@@ -52,6 +43,15 @@ export class WorkplaceView extends AbstractObserver implements ViewInterface {
     const el = document.getElementById('workplace')
     if (!(el instanceof HTMLElement)) throw ReferenceError('')
     el.innerHTML = this.createLoaderOuterHtml()
+  }
+
+  print (): void {
+    // TODO FIX
+    const el = this.controller.model.scarfs[0].el
+    const wp = document.getElementById('workplace')
+    if (!(wp instanceof HTMLElement)) throw ReferenceError('')
+    wp.innerHTML = ''
+    wp.append(el)
   }
 
   createStartingInnerHtml (): string {

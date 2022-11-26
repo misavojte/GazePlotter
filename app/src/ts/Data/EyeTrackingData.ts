@@ -100,7 +100,7 @@ export class EyeTrackingData {
     return { aoiId, originalName, displayedName, color }
   }
 
-  getCatInfo (categoryId: number): Object {
+  getCatInfo (categoryId: number): { originalName: string, displayedName: string } {
     const catArr = this.main.categories.data[categoryId]
     const originalName = catArr[0]
     const displayedName = catArr[1] ?? catArr[0]
@@ -108,7 +108,12 @@ export class EyeTrackingData {
   }
 
   // seg getter
-  getSegmentInfo (stimulusId: number, participantId: number, segmentId: number): Object {
+  getSegmentInfo (stimulusId: number, participantId: number, segmentId: number): {
+    start: number
+    end: number
+    category: number
+    aoi: number[]
+  } {
     const segmentArr = this.main.segments[stimulusId][participantId]?.[segmentId]
     if (segmentArr === undefined) throw new Error()
     const start = segmentArr[0]
