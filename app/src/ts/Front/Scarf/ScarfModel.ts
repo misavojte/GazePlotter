@@ -21,17 +21,53 @@ export class ScarfModel extends AbstractModel {
   zoomFrom: number = 100
   zoomTo: number = 100
   tooltipComponent: ScarfTooltipView
+  absoluteTimeline: AxisBreaks
+  highlightedType: string | null = null
 
   constructor (data: EyeTrackingData, stimulusId: number = 0) {
     super()
     this.data = data
-    this.stimulusId = stimulusId
     this.tooltipComponent = new ScarfTooltipView(new ScarfTooltipController(new ScarfTooltipModel(data)))
+    this.stimulusId = stimulusId
+    this.isTimelineRelative = false
+    this.absoluteTimeline = new AxisBreaks(this.data.getStimulHighestEndTime(stimulusId))
+  }
+
+  fireNewStimulus (stimulusId: number): void {
+    this.stimulusId = stimulusId
+    this.absoluteTimeline = new AxisBreaks(this.data.getStimulHighestEndTime(stimulusId))
+    this.tooltipComponent.controller.model.stimulusId = stimulusId
+    this.isTimelineRelative = false
+    this.notify('stimulus', [])
   }
 
   getData (): ScarfFilling {
     const data = this.data
     return new ScarfModelFillingFactory(this.stimulusId, data).getViewFilling()
+  }
+
+  getTimelineUnit (): string {
+    return this.isTimelineRelative ? '%' : 'ms'
+  }
+
+  getParticipantAbsoluteWidth (participantId: number): string {
+    return `${(this.data.getParticEndTime(this.stimulusId, participantId) / this.absoluteTimeline.maxLabel) * 100}%`
+  }
+
+  getParticipantToWidth (participantId: number): string {
+    return this.isTimelineRelative ? '100%' : this.getParticipantAbsoluteWidth(participantId)
+  }
+
+  getParticipantFromWidth (participantId: number): string {
+    return this.isTimelineRelative ? this.getParticipantAbsoluteWidth(participantId) : '100%'
+  }
+
+  getPatternWidth (): string {
+    return this.isTimelineRelative ? '10%' : `${(this.absoluteTimeline[1] / this.absoluteTimeline.maxLabel) * 100}%`
+  }
+
+  getTimeline (): AxisBreaks {
+    return this.isTimelineRelative ? new AxisBreaks(100) : this.absoluteTimeline
   }
 
   fireZoom (isZoomIn: boolean): void {
@@ -40,6 +76,11 @@ export class ScarfModel extends AbstractModel {
     this.zoomTo = isZoomIn ? newZoomFrom * 2 : newZoomFrom / 2
     this.zoomFrom = newZoomFrom
     this.notify('zoom', [])
+  }
+
+  fireTimelineChange (): void {
+    this.isTimelineRelative = !this.isTimelineRelative
+    this.notify('timeline', [])
   }
 }
 

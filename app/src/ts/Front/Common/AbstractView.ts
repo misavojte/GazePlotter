@@ -13,9 +13,16 @@ export abstract class AbstractView extends AbstractObserver {
   registerEventListeners (el: HTMLElement, eventTypes: string[]): void {
     for (let eventIndex = 0; eventIndex < eventTypes.length; eventIndex++) {
       const toRegisterEvents = el.getElementsByClassName(`js-${eventTypes[eventIndex]}`)
+      if (toRegisterEvents.length === 0) console.warn(`No elements with class name js-${eventTypes[eventIndex]} found.`, el)
       for (let i = 0; i < toRegisterEvents.length; i++) {
         toRegisterEvents[i].addEventListener(eventTypes[eventIndex], this.controller)
       }
     }
+  }
+
+  getElement (selector: string): Element {
+    const element = this.el.querySelector(selector)
+    if (!(element instanceof Element)) throw ReferenceError(`Element ${selector} not found in view`)
+    return element
   }
 }

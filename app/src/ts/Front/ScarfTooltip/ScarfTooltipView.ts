@@ -11,7 +11,6 @@ export class ScarfTooltipView extends AbstractView {
     this.el = document.createElement('div')
     this.el.className = 'scarf-tooltip'
     this.setVisibility()
-    this.registerEventListeners(this.el, ['mouseleave'])
   }
 
   handleUpdate (msg: string): void {
@@ -59,15 +58,15 @@ export class ScarfTooltipView extends AbstractView {
   </div>
   <div>
     <div>Event start</div>
-    <div>${model.start} ms</div>
+    <div>${model.start.toFixed(1)} ms</div>
   </div>
   <div>
     <div>Event end</div>
-    <div>${model.end} ms</div>
+    <div>${model.end.toFixed(1)} ms</div>
   </div>
   <div>
     <div>Event duration</div>
-    <div>${model.duration} ms</div>
+    <div>${model.duration.toFixed(1)} ms</div>
   </div>
   `
   }

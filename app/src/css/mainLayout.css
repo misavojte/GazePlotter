@@ -222,12 +222,12 @@ svg.btn4 {
     width: 100%;
 }
 
-.activebtn3 > .btn3-relative {
+.is-active > .btn3-relative {
     color: var(--c-l3);
     background: var(--c-red);
 }
 
-.activebtn3 > .btn3-absolute {
+.is-active > .btn3-absolute {
     color: #585858;
     background: var(--c-l3);
 }
@@ -271,7 +271,17 @@ svg.btn4 {
     background: var(--c-red2)
 }
 
-.chart-tooltip {
+.scarf {
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgb(0 0 0 / 25%);
+    width: 100%;
+    max-width: 900px;
+    background: var(--c-l2);
+    box-sizing: border-box;
+}
+
+.scarf-tooltip {
     position: absolute;
     width: 170px;
     border: 1px solid rgb(0 0 0 / 15%);
@@ -283,27 +293,17 @@ svg.btn4 {
     z-index: 10;
 }
 
-.chart-tooltip>div {
+.scarf-tooltip>div {
     padding: 5px;
 }
 
-.chart-tooltip>div:nth-child(odd) {
+.scarf-tooltip>div:nth-child(odd) {
     background: var(--c-l2);;
 }
 
-.chart-tooltip div div:first-child {
+.scarf-tooltip div div:first-child {
     font-size: 70%;
     text-transform: uppercase;
-}
-
-.scarf {
-    padding: 16px;
-    border-radius: 12px;
-    box-shadow: 0 2px 4px rgb(0 0 0 / 25%);
-    width: 100%;
-    max-width: 900px;
-    background: var(--c-l2);
-    box-sizing: border-box;
 }
 
 .cardtitle {

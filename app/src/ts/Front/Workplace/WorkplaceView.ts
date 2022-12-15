@@ -9,7 +9,7 @@ export class WorkplaceView extends AbstractView {
     super()
     this.controller = controller
     this.el = this.creatWorkplaceElement()
-    this.registerEventListeners(this.el, ['click', 'change'])
+    this.registerEventListeners(this.el, ['click'])
     this.controller.model.addObserver(this)
   }
 

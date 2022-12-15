@@ -11,13 +11,15 @@ export class ScarfView extends AbstractView {
     this.controller = controller
     this.el = this.#createElement()
     this.controller.model.addObserver(this)
-    this.registerEventListeners(this.el, ['click', 'change', 'dblclick', 'mouseover'])
-    this.el.append(this.controller.model.tooltipComponent.el)
+    this.registerEventListeners(this.el, ['click', 'change', 'dblclick', 'mouseover', 'mouseleave'])
+    this.el.querySelector('.tooltip-area')?.append(this.controller.model.tooltipComponent.el)
   }
 
   handleUpdate (msg: string): void {
     switch (msg) {
       case 'zoom': return this.#fireZoom()
+      case 'timeline': return this.#fireTimelineChange()
+      case 'stimulus' : return this.#fireStimulusChange()
     }
     super.handleUpdate(msg)
   }
@@ -35,14 +37,35 @@ export class ScarfView extends AbstractView {
   }
 
   /**
+   * Animate timeline change
+   * @private
+   */
+  #fireTimelineChange (): void {
+    const model = this.controller.model
+    const animateTag = this.el.getElementsByTagName('animate')
+    for (let i = 1; i < animateTag.length; i++) {
+      animateTag[i].setAttribute('from', model.getParticipantFromWidth(i - 1))
+      animateTag[i].setAttribute('to', model.getParticipantToWidth(i - 1))
+      animateTag[i].beginElement()
+    }
+    this.getElement('.btn3').classList.toggle('is-active')
+    this.getElement('.chxlabs').innerHTML = this.#createXAxisLabelsInnerHtml(model.getTimeline())
+    this.getElement('pattern').setAttribute('width', model.getPatternWidth())
+    this.getElement('.scarf-timeline-unit').innerHTML = model.getTimelineUnit()
+  }
+
+  #fireStimulusChange (): void {
+    this.getElement('.btn3').classList.remove('is-active')
+    this.getElement('.chartwrap').innerHTML = this.#createInnerPlotInnerHtml(this.controller.model.getData())
+  }
+
+  /**
    * Private method to create the scarf plot element
    * @private
    */
   #createElement (): HTMLElement {
     const el = document.createElement('div')
     el.className = 'anh anim scarf'
-    console.log('ScarfView: createElement')
-    console.log(this.controller)
     el.innerHTML = this.#createWholePlotInnerHtml(this.controller.model.getData())
     return el
   }
@@ -61,7 +84,7 @@ export class ScarfView extends AbstractView {
           return `<option value="${x.id}">${x.name}</option>`
           }).join('')}
     </select>
-    <div class="js-click btn3">
+    <div class="js-click btn3" data-event="change-timeline">
       <div class="btn3-absolute">Absolute timeline</div>
       <div class="btn3-relative">Relative timeline</div>
     </div>
@@ -70,8 +93,10 @@ export class ScarfView extends AbstractView {
       <i class="js-click svg-icon bi bi-download" data-event="open-modal" data-modal="download-scarf" data-parameter="0"></i>
       <i class="js-click svg-icon bi bi-wrench" data-event="open-modal" data-modal="scarf-settings"></i>
     </div>
-    <div class="js-mouseover chartwrap">
+    <div class="tooltip-area js-mouseleave">
+        <div class="js-mouseover chartwrap">
         ${this.#createInnerPlotInnerHtml(data)}
+        </div>
     </div>`
   }
 
@@ -81,6 +106,7 @@ export class ScarfView extends AbstractView {
    * @private
    */
   #createInnerPlotInnerHtml (data: ScarfFilling): string {
+    const model = this.controller.model
     return `
     <style>
         ${data.stylingAndLegend.aoi.map(aoi => `rect.${aoi.identifier}{fill:${aoi.color}}`).join('')}
@@ -93,7 +119,7 @@ export class ScarfView extends AbstractView {
         <svg xmlns='http://www.w3.org/2000/svg' id='charea' width='100%' height='${data.chartHeight}'>
             <animate attributeName='width' from='100%' to='100%' dur='0.3s' fill='freeze'/>
             <defs>
-                <pattern id='grid' width="${(data.timeline[1] / data.timeline.maxLabel) * 100}%"
+                <pattern id='grid' width="${model.getPatternWidth()}"
                          height="${data.heightOfBarWrap}" patternUnits="userSpaceOnUse">
                     <rect fill='none' width='100%' height='100%' stroke='#cbcbcb' stroke-width='1'/>
                 </pattern>
@@ -107,7 +133,7 @@ export class ScarfView extends AbstractView {
         </svg>
     </div>
     <div class='chxlab'>
-        Elapsed time [ms]
+        Elapsed time [<span class="scarf-timeline-unit">${model.getTimelineUnit()}</span>]
     </div>
     <div class="chlegendwrap">
         <div class="js-dblclick" data-event="open-modal" data-modal="edit-aoi">
