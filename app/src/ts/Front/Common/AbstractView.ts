@@ -20,6 +20,9 @@ export abstract class AbstractView extends AbstractObserver {
     }
   }
 
+  /** Method to get an element from the view.
+   * @param selector - CSS selector to get the element
+   */
   getElement (selector: string): Element {
     const element = this.el.querySelector(selector)
     if (!(element instanceof Element)) throw ReferenceError(`Element ${selector} not found in view`)
