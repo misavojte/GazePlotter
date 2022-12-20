@@ -20,6 +20,7 @@ export class ScarfView extends AbstractView {
       case 'zoom': return this.#fireZoom()
       case 'timeline': return this.#fireTimelineChange()
       case 'stimulus' : return this.#fireStimulusChange()
+      case 'highlight': return this.#fireHighlight()
     }
     super.handleUpdate(msg)
   }
@@ -59,6 +60,11 @@ export class ScarfView extends AbstractView {
     this.getElement('.chartwrap').innerHTML = this.#createInnerPlotInnerHtml(this.controller.model.getData())
   }
 
+  #fireHighlight (): void {
+    const model = this.controller.model
+    this.getElement('style').innerHTML = this.#createHighlightStyleInnerHtml(model.highlightedType)
+  }
+
   /**
    * Private method to create the scarf plot element
    * @private
@@ -77,6 +83,7 @@ export class ScarfView extends AbstractView {
    */
   #createWholePlotInnerHtml (data: ScarfFilling): string {
     return `
+    <style></style>
     <h3 class="cardtitle">Sequence chart (Scarf plot)</h3>
     <div class="btnholder">
     <select class="js-change">
@@ -190,5 +197,10 @@ export class ScarfView extends AbstractView {
             ${entity.name}
         </div>
     </div>`
+  }
+
+  #createHighlightStyleInnerHtml (identifier: string | null): string {
+    console.log(identifier)
+    return (identifier === null) ? '' : `rect[class^='a']{opacity:0.2}rect.${identifier}{opacity:1;stroke:#0000007d}line[class^='a']{opacity:0.2}line.${identifier}{opacity:1;stroke-width:100%}`
   }
 }

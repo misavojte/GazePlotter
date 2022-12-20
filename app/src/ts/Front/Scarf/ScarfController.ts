@@ -45,7 +45,9 @@ export class ScarfController implements AbstractController {
     if (segment instanceof Element) return this.handleMouseOverSegment(segment, e)
     const legendItem = el.closest('.legendItem')
     if (legendItem instanceof HTMLElement) {
-      this.handleMouseOverLegendItem(legendItem, e)
+      this.handleMouseOverLegendItem(legendItem)
+    } else {
+      this.model.fireHighlight(null)
     }
     this.model.tooltipComponent.controller.model.hide()
   }
@@ -61,10 +63,11 @@ export class ScarfController implements AbstractController {
    * Handle mouseover event over legend item.
    * It triggers the highlight of the segments belonging to the legend item.
    * @param legendItem - the legend item that was hovered over
-   * @param e - the mouseover event
    */
-  handleMouseOverLegendItem (legendItem: HTMLElement, e: MouseEvent): void {
-    console.log(legendItem, e)
+  handleMouseOverLegendItem (legendItem: HTMLElement): void {
+    const segmentIdentifier = legendItem.classList[0]
+    if (segmentIdentifier === '') throw new Error('No segment identifier found in legend item')
+    this.model.fireHighlight(segmentIdentifier)
   }
 
   /**
@@ -91,6 +94,10 @@ export class ScarfController implements AbstractController {
     this.model.tooltipComponent.controller.model.redraw(participantId, segmentId, x, y)
   }
 
+  /** Utility function to get the id of a segment or participant
+   * @param element - the element to get the id from
+   * @private
+   */
   #getId (element: Element): number {
     return Number(element.getAttribute('data-id'))
   }

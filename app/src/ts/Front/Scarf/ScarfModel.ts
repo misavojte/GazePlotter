@@ -82,6 +82,11 @@ export class ScarfModel extends AbstractModel {
     this.isTimelineRelative = !this.isTimelineRelative
     this.notify('timeline', [])
   }
+
+  fireHighlight (identifier: string | null): void {
+    this.highlightedType = identifier
+    this.notify('highlight', [])
+  }
 }
 
 class ScarfModelFillingFactory {
