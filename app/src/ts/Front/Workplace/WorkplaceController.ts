@@ -17,7 +17,7 @@ export class WorkplaceController extends AbstractController {
     e.stopPropagation()
     switch (e.type) {
       case 'click' :
-        console.log('A')
+        this.model.openWorkplaceModal()
     }
   }
 }

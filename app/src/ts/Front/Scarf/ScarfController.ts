@@ -27,12 +27,10 @@ export class ScarfController implements AbstractController {
    */
   handleClick (e: Event): void {
     const el = e.currentTarget as HTMLElement
-    const eType = el.dataset.event
-    switch (eType) {
-      case 'zoom-in' : return this.model.fireZoom(true)
-      case 'zoom-out' : return this.model.fireZoom(false)
-      case 'change-timeline' : return this.model.fireTimelineChange()
-    }
+    const hasClass = (name: string): boolean => el.classList.contains(name)
+    if (hasClass('bi-zoom-in')) return this.model.fireZoom(true)
+    if (hasClass('bi-zoom-out')) return this.model.fireZoom(false)
+    if (hasClass('btn3')) return this.model.fireTimelineChange()
   }
 
   /** Decide what to do when mouseover event is triggered

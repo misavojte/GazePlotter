@@ -1,0 +1,24 @@
+.scarf-tooltip {
+    position: absolute;
+    width: 170px;
+    border: 1px solid rgb(0 0 0 / 15%);
+    box-shadow: 0 2px 4px rgb(0 0 0 / 25%);
+    background: var(--c-l3);
+    font-size: 0.8rem;
+    border-radius: 5px;
+    animation: in-an .2s ease-in-out;
+    z-index: 10;
+}
+
+.scarf-tooltip>div {
+    padding: 5px;
+}
+
+.scarf-tooltip>div:nth-child(odd) {
+    background: var(--c-l2);
+}
+
+.scarf-tooltip div div:first-child {
+    font-size: 70%;
+    text-transform: uppercase;
+}

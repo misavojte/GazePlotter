@@ -1,0 +1,106 @@
+#modal-container {
+    position: fixed;
+    top: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #c9c9c9db;
+    animation: in-an .3s ease-in-out
+}
+
+#modal-container h2 {
+    font-size: 1rem;
+    font-weight: bold;
+    margin: 0;
+}
+
+.interModal {
+    width: 100%;
+    max-width: 400px;
+    background: var(--c-l1);
+    display: flex;
+    padding: 12px;
+    justify-content: center;
+    flex-direction: column;
+    box-shadow: 0 2px 4px rgb(0 0 0 / 25%);
+    border-radius: 7px;
+    text-align: center;
+    align-items: center;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 500;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.modalClose {
+    cursor: pointer;
+}
+
+.modalClose:hover {
+    opacity: .85;
+}
+
+.modal-body {
+    width: 100%;
+}
+
+.modal-body form {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    width: 100%;
+}
+
+.modal-body form>div {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.modal-body input, .modal-body select {
+    max-width: 150px;
+}
+
+.modal-body input[type="submit"] {
+    width: 100%;
+    max-width: 150px;
+    margin: 0.5rem auto 0;
+    box-shadow: 0 2px 4px rgb(0 0 0 / 25%);
+    background: var(--c-red);
+    color: var(--c-l1);
+    cursor: pointer;
+    transition: opacity .3s ease-in-out;
+    font-size: 14px;
+}
+
+.modal-body input[type="submit"]:hover {
+    opacity: 0.8;
+}
+
+input[type="color"] {
+    padding: 5px;
+    margin: 0;
+    width: 50px;
+}
+
+input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+    border-radius: 3px;
+    border: none;
+}
+
+input[type="color"]::-webkit-color-swatch {
+    padding: 0;
+    border-radius: 3px;
+    border: none;
+}

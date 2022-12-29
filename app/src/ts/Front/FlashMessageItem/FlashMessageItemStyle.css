@@ -1,0 +1,35 @@
+.flash-message-item {
+    transition: all .1s ease-in-out;
+    height: 0;
+    opacity: 0;
+    display: flex;
+    gap: 7px;
+    align-items: center;
+    padding: 7px;
+    border-radius: 7px;
+    font-size: 0.85rem;
+    width: fit-content;
+    max-width: 320px;
+    border: 1px solid;
+    box-shadow: 0 2px 4px rgb(0 0 0 / 10%);
+}
+
+.flash-message-item__close {
+    font-size: 0.5rem;
+}
+
+.info {
+    background-color: var(--c-l1);
+    border-color: rgb(0 0 0 / 10%);
+}
+
+.success {
+    background-color: #c3dcc3;
+    border-color: rgb(0 0 0 / 10%);
+}
+
+.info2 {
+    color: #41464b;
+    background-color: #e2e3e5;
+    border-color: #d3d6d8;
+}

@@ -1,0 +1,93 @@
+.scarf {
+    padding: 16px;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgb(0 0 0 / 25%);
+    width: 100%;
+    max-width: 900px;
+    background: var(--c-l2);
+    box-sizing: border-box;
+}
+
+.chartwrap {
+    display: grid;
+    grid-template-columns: min-content auto;
+    column-gap: 4px;
+}
+
+.charea-holder {
+    width: 100%;
+    overflow: auto;
+    padding: 0 1px
+}
+
+.charea-holder text {
+    alignment-baseline: hanging;
+    font-size: 12px;
+}
+
+#charea {
+    min-width: 500px;
+    margin-top: 1px;
+    display: block;
+}
+
+.chartwrap g:hover {
+    fill-opacity: 0.75;
+    stroke:black
+}
+
+.chlegendwrap {
+    grid-column: span 2;
+    margin-top: 5px;
+    align-items: center;
+    justify-content: center;
+    justify-self: center;
+    cursor: default;
+}
+
+.chlegend {
+    font-size: 14px;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+.chlegendtitle {
+    font-size: 11px;
+    text-align: center;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    margin-top: 12px;
+}
+
+.chxlab {
+    grid-column: span 2;
+    font-size: .85rem;
+    margin: auto;
+}
+
+.chylabs {
+    display: grid;
+    font-size: 14px;
+    max-width: 200px;
+    align-items: center;
+}
+
+.labs {
+    font-size: .85rem;
+    fill: var(--c-d3)
+}
+
+.legendItem {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+}
+
+.legendRect {
+    width: 12px;
+    height: 12px;
+}
