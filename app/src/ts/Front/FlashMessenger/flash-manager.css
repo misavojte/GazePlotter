@@ -1,3 +1,18 @@
+.flash-manager {
+    position: fixed;
+    bottom: 12px;
+    left: 12px;
+    max-width: calc(100% - 24px);
+    max-height: 100%;
+    z-index: 1000;
+    background: none;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+/* ---------------------------------------------- */
+
 .flash-message-item {
     transition: all .1s ease-in-out;
     height: 0;

@@ -8,7 +8,7 @@ import { AbstractModalModel } from '../Modal/AbstractModalModel'
 import { WorkplaceDownloadModalModel } from '../Modal/WorkplaceDownload/WorkplaceDownloadModalModel'
 import { WorkplaceDownloadModalController } from '../Modal/WorkplaceDownload/WorkplaceDownloadModalController'
 import { WorkplaceDownloadModalView } from '../Modal/WorkplaceDownload/WorkplaceDownloadModalView'
-import { FlashMessageManagerModel } from '../FlashMessageManager/FlashMessageManagerModel'
+import { FlashMessengerModel } from '../FlashMessenger/FlashMessengerModel'
 
 export class WorkplaceModel extends AbstractModel {
   observerType = 'workplaceModel'
@@ -17,7 +17,7 @@ export class WorkplaceModel extends AbstractModel {
   startButtonsModel: StartButtonsModel
   scarfs: ScarfView[] = []
   modal: AbstractModalModel | null = null
-  flashManager: FlashMessageManagerModel = new FlashMessageManagerModel()
+  flashManager: FlashMessengerModel = new FlashMessengerModel()
 
   constructor (startButtonsModel: StartButtonsModel) {
     super()
@@ -64,6 +64,6 @@ export class WorkplaceModel extends AbstractModel {
   fireFlashFromModal (): void {
     const flash = this.modal?.flashMessage
     if (flash == null) return
-    this.flashManager.addFlashFromModel(flash)
+    this.flashManager.addFlashMessage(flash.message, flash.type)
   }
 }

@@ -12,7 +12,7 @@ export class ScarfView extends AbstractView {
     this.el = this.#createElement()
     this.controller.model.addObserver(this)
     this.registerEventListeners(this.el, ['click', 'change', 'dblclick', 'mouseover', 'mouseleave'])
-    this.el.querySelector('.tooltip-area')?.append(this.controller.model.tooltipComponent.el)
+    this.getElement('.tooltip-area').append(this.controller.model.tooltipComponent.el)
   }
 
   handleUpdate (msg: string): void {
