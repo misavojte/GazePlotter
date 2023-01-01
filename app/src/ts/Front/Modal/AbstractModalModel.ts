@@ -6,6 +6,7 @@ export abstract class AbstractModalModel extends AbstractModel {
   data: EyeTrackingData
   title: string
   flashMessage: { message: string, type: 'error' | 'warn' | 'info' | 'success' } | null = null
+  isRequestingModal: boolean = false
 
   protected constructor (workplaceModel: WorkplaceModel, title: string) {
     super()

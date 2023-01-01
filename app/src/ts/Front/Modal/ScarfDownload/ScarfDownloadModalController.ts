@@ -7,4 +7,15 @@ export class ScarfDownloadModalController extends AbstractModalController {
     super()
     this.model = model
   }
+
+  handleSubmitEvent (e: Event): void {
+    const target = e.target as HTMLFormElement
+    const formData = new FormData(target)
+    const fileName = formData.get('file_name') as string
+    const fileType = formData.get('file_type') as string
+    const width = formData.get('width') as string
+    const scarf = document.getElementsByClassName('scarf')[this.model.scarfId]
+    if (!(scarf instanceof HTMLElement)) throw new Error('ScarfDownloadModalController.handleSubmitEvent() - scarf not HTMLElement')
+    this.model.downloadScarf(fileName, fileType, width, scarf)
+  }
 }

@@ -16,9 +16,11 @@ export class ScarfController implements AbstractController {
       case 'mouseover' :
         return this.handleMouseOver(e as MouseEvent)
       case 'mouseleave' :
-        return this.model.tooltipComponent.controller.model.hide()
+        return this.handleMouseLeave()
       case 'change' :
         return this.handleChange(e)
+      case 'dblclick' :
+        return this.handleDblClick(e)
     }
   }
 
@@ -31,6 +33,8 @@ export class ScarfController implements AbstractController {
     if (hasClass('bi-zoom-in')) return this.model.fireZoom(true)
     if (hasClass('bi-zoom-out')) return this.model.fireZoom(false)
     if (hasClass('btn3')) return this.model.fireTimelineChange()
+    if (hasClass('bi-wrench')) return this.model.fireOpenSettings()
+    if (hasClass('bi-download')) return this.model.fireDownload()
   }
 
   /** Decide what to do when mouseover event is triggered
@@ -48,6 +52,11 @@ export class ScarfController implements AbstractController {
       this.model.fireHighlight(null)
     }
     this.model.tooltipComponent.controller.model.hide()
+  }
+
+  handleMouseLeave (): void {
+    this.model.tooltipComponent.controller.model.hide()
+    this.model.fireHighlight(null)
   }
 
   /** On stimulus change, get stimulus id and update model */
@@ -90,6 +99,11 @@ export class ScarfController implements AbstractController {
     const x = e.pageX + WIDTH_OF_TOOLTIP > widthOfView ? widthOfView - WIDTH_OF_TOOLTIP : e.pageX
 
     this.model.tooltipComponent.controller.model.redraw(participantId, segmentId, x, y)
+  }
+
+  handleDblClick (e: Event): void {
+    const el = e.currentTarget as HTMLElement
+    if (el.dataset.modal === 'edit-aoi') this.model.fireOpenAoiSettings()
   }
 
   /** Utility function to get the id of a segment or participant

@@ -5,6 +5,7 @@ import { AxisBreaks, ScarfFilling, ScarfParticipant, ScarfSegment, ScarfStimuliI
 export class ScarfView extends AbstractView {
   controller: ScarfController
   el: HTMLElement
+  observerType: string = 'scarf-view'
 
   constructor (controller: ScarfController) {
     super()
@@ -213,7 +214,6 @@ export class ScarfView extends AbstractView {
   }
 
   #createHighlightStyleInnerHtml (identifier: string | null): string {
-    console.log(identifier)
     return (identifier === null) ? '' : `rect[class^='a']{opacity:0.2}rect.${identifier}{opacity:1;stroke:#0000007d}line[class^='a']{opacity:0.2}line.${identifier}{opacity:1;stroke-width:100%}`
   }
 }

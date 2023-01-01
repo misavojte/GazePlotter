@@ -11,6 +11,9 @@ export class ScarfSettingsModalView extends AbstractModalView {
   }
 
   printBodyHtml (): string {
-    return ''
+    return `
+    <button class="btn4 js-click" data-modal="aoi-settings">AOIs Settings</button>
+    <button class="btn4 js-click" data-modal="aoi-visibility">AOIs Visibility</button>
+    `
   }
 }

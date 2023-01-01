@@ -3,6 +3,7 @@ import { EyeTrackingData } from '../../Data/EyeTrackingData'
 import { ScarfTooltipView } from '../ScarfTooltip/ScarfTooltipView'
 import { ScarfTooltipController } from '../ScarfTooltip/ScarfTooltipController'
 import { ScarfTooltipModel } from '../ScarfTooltip/ScarfTooltipModel'
+import { WorkplaceModel } from '../Workplace/WorkplaceModel'
 
 /**
  * Model for scarf plot (sequence chart) showing eye-tracking segments for given stimuli and participants.
@@ -14,6 +15,7 @@ import { ScarfTooltipModel } from '../ScarfTooltip/ScarfTooltipModel'
  * @extends AbstractModel
  */
 export class ScarfModel extends AbstractModel {
+  scarfId: number = 0
   data: EyeTrackingData
   stimulusId: number
   isTimelineRelative: boolean = false
@@ -23,9 +25,13 @@ export class ScarfModel extends AbstractModel {
   tooltipComponent: ScarfTooltipView
   absoluteTimeline: AxisBreaks
   highlightedType: string | null = null
+  isRequestingModal: boolean = false
 
-  constructor (data: EyeTrackingData, stimulusId: number = 0) {
+  constructor (workplace: WorkplaceModel, stimulusId: number = 0) {
     super()
+    this.addObserver(workplace)
+    const data = workplace.data
+    if (data === null) throw new Error('ScarfModel.constructor() - workplace.data is null')
     this.data = data
     this.tooltipComponent = new ScarfTooltipView(new ScarfTooltipController(new ScarfTooltipModel(data)))
     this.stimulusId = stimulusId
@@ -37,6 +43,10 @@ export class ScarfModel extends AbstractModel {
     this.stimulusId = stimulusId
     this.absoluteTimeline = new AxisBreaks(this.data.getStimulHighestEndTime(stimulusId))
     this.tooltipComponent.controller.model.stimulusId = stimulusId
+    this.redraw()
+  }
+
+  redraw (): void {
     this.isTimelineRelative = false
     this.notify('stimulus', [])
   }
@@ -80,12 +90,27 @@ export class ScarfModel extends AbstractModel {
 
   fireTimelineChange (): void {
     this.isTimelineRelative = !this.isTimelineRelative
-    this.notify('timeline', [])
+    this.notify('timeline', ['scarf-view'])
   }
 
   fireHighlight (identifier: string | null): void {
     this.highlightedType = identifier
-    this.notify('highlight', [])
+    this.notify('highlight', ['scarf-view'])
+  }
+
+  fireOpenSettings (): void {
+    this.isRequestingModal = true
+    this.notify('open-scarf-settings-modal', ['workplaceModel'])
+  }
+
+  fireOpenAoiSettings (): void {
+    this.isRequestingModal = true
+    this.notify('open-aoi-settings-modal', ['workplaceModel'])
+  }
+
+  fireDownload (): void {
+    this.isRequestingModal = true
+    this.notify('open-scarf-download-modal', ['workplaceModel'])
   }
 }
 
