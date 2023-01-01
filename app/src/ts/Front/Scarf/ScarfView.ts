@@ -133,7 +133,7 @@ export class ScarfView extends AbstractView {
         ${data.stylingAndLegend.aoi.map(aoi => `rect.${aoi.identifier}{fill:${aoi.color}}`).join('')}
         ${data.stylingAndLegend.category.map(aoi => `rect.${aoi.identifier}{fill:${aoi.color}}`).join('')}
     </style>
-    <div class='chylabs' style='grid-auto-rows:${data.heightOfBarWrap}px'>
+    <div class='chylabs' style='grid-auto-rows:${data.heightOfBarWrap}px' data-gap='${data.heightOfBarWrap}'>
         ${data.participants.map((participant) => `<div>${participant.label}</div>`).join('')}
     </div>
     <div class='charea-holder'>

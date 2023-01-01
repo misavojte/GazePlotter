@@ -13,8 +13,10 @@ export class ScarfDownloadModalModel extends AbstractModalModel {
 
   downloadScarf (fileName: string, fileType: string, width: string, el: HTMLElement): void {
     this.addFlash('Rendering picture for export', 'info')
-    void new ScarfDownloader().download(fileName, fileType, width, el)
-    this.addFlash('Download started', 'success')
-    this.notify('close-modal')
+    const downloader = new ScarfDownloader(fileName, fileType, Number(width), el)
+    void downloader.download().then(() => {
+      this.addFlash('Download started', 'success')
+      this.notify('close-modal')
+    })
   }
 }
