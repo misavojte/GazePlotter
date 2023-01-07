@@ -48,7 +48,7 @@ export class ScarfModel extends AbstractModel {
 
   redraw (): void {
     this.isTimelineRelative = false
-    this.notify('stimulus', [])
+    this.notify('stimulus', ['scarf-view'])
   }
 
   getData (): ScarfFilling {

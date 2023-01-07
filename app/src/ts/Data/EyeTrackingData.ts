@@ -3,26 +3,25 @@ export interface ETDInterface {
   categories: ETDBaseAttributeHolder
   participants: ETDBaseAttributeHolder
   stimuli: ETDBaseAttributeHolder
-  segments: [[[number[]] | undefined]]
+  segments: number[][][][]
 }
 
 interface ETDAois {
-  data: [[string[]]]
-  orderVector: [number[] | undefined]
+  data: string[][][]
+  orderVector: [number[]] | []
 }
 
 interface ETDBaseAttributeHolder {
-  data: [string[]]
-  orderVector: [number[] | undefined]
+  data: string[][]
+  orderVector: [number[]] | []
 }
 
 export class EyeTrackingData {
   private readonly DEFAULT_COLORS: string[] = ['#66c5cc', '#f6cf71', '#f89c74', '#dcb0f2', '#87c55f', '#9eb9f3', '#fe88b1', '#c9db74', '#8be0a4', '#b497e7', '#d3b484', '#b3b3b3']
   main: ETDInterface
 
-  constructor (main: Object) {
-    // todo add validation! or proper casting
-    this.main = main as ETDInterface
+  constructor (main: ETDInterface) {
+    this.main = main
     console.log(this.main)
   }
 
@@ -128,7 +127,7 @@ export class EyeTrackingData {
   }
 
   getAoiOrderArray (stimulusIndex: number): number[] {
-    const order = this.main.aois.orderVector[stimulusIndex]
+    const order = this.main.aois.orderVector?.[stimulusIndex]
     // if it does not exist in data, return array of sequence from 0 to N
     // N ... number of aoi categories for given stimulus
     if (order == null) {

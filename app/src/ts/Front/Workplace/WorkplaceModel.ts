@@ -72,10 +72,10 @@ export class WorkplaceModel extends AbstractModel {
   }
 
   startPrintingFirstChart (): void {
-    const file = this.startButtonsModel.jsonFile
+    const file = this.startButtonsModel.eyeTrackingData
     if (file === null) return
     this.data = new EyeTrackingData(file)
-    this.startButtonsModel.jsonFile = null
+    this.startButtonsModel.eyeTrackingData = null
     this.scarfs.push(new ScarfView(new ScarfController(new ScarfModel(this, 0))))
     this.notify('print', [])
     this.scarfs[0].controller.model.isDetached = false

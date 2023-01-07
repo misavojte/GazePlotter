@@ -118,7 +118,7 @@ export class ScarfDownloader extends AbstractDownloader {
 
   #createSvgChartArea (el: HTMLElement): string {
     const svgArea = el.querySelector('.charea-holder') as HTMLElement
-    const leftOffset = svgArea.offsetLeft
+    const leftOffset = svgArea.offsetLeft - el.offsetLeft
     const svgAreaClone = svgArea.cloneNode(true) as HTMLElement
     const animateTags = svgAreaClone.getElementsByTagName('animate')
     while (animateTags.length > 0) {
@@ -129,7 +129,7 @@ export class ScarfDownloader extends AbstractDownloader {
 
   #createXAxisLabels (el: HTMLElement): string {
     const htmlLab = el.querySelector('.chxlab') as HTMLElement
-    return `<text x="50%" y="${htmlLab.offsetTop}" text-anchor="middle">${htmlLab.innerText}</text>`
+    return `<text x="50%" y="${htmlLab.offsetTop - el.offsetTop}" text-anchor="middle">${htmlLab.innerText}</text>`
   }
 
   #createLegendTitles (el: HTMLElement): string {
@@ -137,7 +137,7 @@ export class ScarfDownloader extends AbstractDownloader {
     let result = ''
     for (let i = 0; i < htmlTitles.length; i++) {
       const titleElement = htmlTitles[i] as HTMLElement
-      result += `<text x="50%" y="${titleElement.offsetTop}">${titleElement.innerHTML}</text>`
+      result += `<text x="50%" y="${titleElement.offsetTop - el.offsetTop}">${titleElement.innerHTML}</text>`
     }
     return `<g class="chltitles">${result}</g>`
   }
@@ -149,11 +149,13 @@ export class ScarfDownloader extends AbstractDownloader {
       const legendElement = htmlItems[i] as HTMLElement
       const symbol = legendElement.children[0] as SVGSVGElement
       const text = legendElement.children[1]
+      const y = legendElement.offsetTop - el.offsetTop
+      const x = legendElement.offsetLeft - el.offsetLeft
       const rectX = symbol.getBoundingClientRect().left - legendElement.getBoundingClientRect().left
       const rectY = symbol.getBoundingClientRect().top - legendElement.getBoundingClientRect().top
       const textX = text.getBoundingClientRect().left - legendElement.getBoundingClientRect().left
       result += `
-            <svg x="${legendElement.offsetLeft}" y="${legendElement.offsetTop}" width="${legendElement.offsetWidth}" height="${legendElement.offsetHeight}">
+            <svg x="${x}" y="${y}" width="${legendElement.offsetWidth}" height="${legendElement.offsetHeight}">
             <svg x="${rectX}" y="${rectY - 2}" width="${symbol.width.baseVal.valueInSpecifiedUnits}" height="${symbol.height.baseVal.valueInSpecifiedUnits}">${symbol.innerHTML}</svg>
             <text x="${textX}" y="50%" alignment-baseline="middle">${text.innerHTML}</text>
             </svg>`
