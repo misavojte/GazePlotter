@@ -68,7 +68,7 @@ export class EyeTrackingParser {
       case 'BeGaze Event':
         return new EyeTrackingParserBeGazeReducer(row)
       case 'Tobii':
-        return new EyeTrackingParserTobiiReducer()
+        return new EyeTrackingParserTobiiReducer(row)
       default:
         throw new Error('File type row reducer not implemented')
     }

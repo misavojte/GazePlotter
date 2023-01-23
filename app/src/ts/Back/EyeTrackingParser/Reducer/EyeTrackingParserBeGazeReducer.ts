@@ -17,7 +17,7 @@ export class EyeTrackingParserBeGazeReducer extends EyeTrackingParserAbstractRed
     this.cAoi = this.getIndex(header, 'AOI Name')
   }
 
-  reduce (row: string[]): { start: string, end: string, stimulus: string, participant: string, category: string, aoi: Array<string | null> } | null {
+  reduce (row: string[]): { start: string, end: string, stimulus: string, participant: string, category: string, aoi: string[] | null } | null {
     const start = row[this.cStart]
     const end = row[this.cEnd]
     const stimulus = row[this.cStimulus]
@@ -41,8 +41,8 @@ export class EyeTrackingParserBeGazeReducer extends EyeTrackingParserAbstractRed
     return category === 'Separator'
   }
 
-  transformAoi (aoi: string | null): Array<string | null> {
-    if (aoi === '-' || aoi === 'White Space') aoi = null
+  transformAoi (aoi: string | null): string[] | null {
+    if (aoi === '-' || aoi === 'White Space' || aoi === null) return null
     return [aoi]
   }
 }

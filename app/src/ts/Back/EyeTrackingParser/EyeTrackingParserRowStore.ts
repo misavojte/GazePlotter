@@ -13,7 +13,7 @@ export class EyeTrackingParserRowStore {
     segments: []
   }
 
-  add (row: { start: string, end: string, stimulus: string, participant: string, category: string, aoi: Array<string | null> }): void {
+  add (row: { start: string, end: string, stimulus: string, participant: string, category: string, aoi: string[] | null }): void {
     const stimulusIndex = this.processStimulus(row.stimulus)
     const participantIndex = this.processParticipant(row.participant, stimulusIndex)
     const aoiIDs = this.processAOIs(row.aoi, stimulusIndex)
@@ -73,7 +73,8 @@ export class EyeTrackingParserRowStore {
     return cIndex
   }
 
-  processAOIs (aNames: Array<string | null>, sIndex: number): null | number[] {
+  processAOIs (aNames: string[] | null, sIndex: number): null | number[] {
+    if (aNames === null) return null
     const aois: number[] = []
     for (let i = 0; i < aNames.length; i++) {
       const aoi = this.processAOI(aNames[i], sIndex)
