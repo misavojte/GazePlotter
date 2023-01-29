@@ -60,20 +60,20 @@ export class EyeTrackingParserTobiiReducer extends EyeTrackingParserAbstractRedu
     let result = null
     const stimulus = row[this.cStimulus]
     if (stimulus === '') return null // ignore empty rows
+    const time = Number(row[this.cTime])
+    if (time === 0) return null
     const participant = row[this.cParticipant] + '_' + row[this.cRecording]
     const category = row[this.cCategory]
     const aois = this.getAoisFromRow(row)
-    const time = Number(row[this.cTime])
 
     if (stimulus !== this.mLastStimulus || participant !== this.mLastParticipant) {
       result = this.getReduceDataFromMemory()
       this.mBaseTime = Number(row[this.cTime]) // set new base time
-      this.setLastValues(stimulus, participant, 0, category, aois)
+      this.setLastValues(stimulus, participant, time, category, aois)
     } else if (this.isAoiDifferent(aois) || category !== this.mLastCategory) {
       result = this.getReduceDataFromMemory()
       this.setLastValues(stimulus, participant, time, category, aois)
     }
-
     this.mLastSavedTime = time - this.mBaseTime
     return result
   }

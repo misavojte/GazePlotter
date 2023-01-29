@@ -12,6 +12,7 @@ export class EyeTrackingParserBeGazePostprocessor extends EyeTrackingParserAbstr
     for (let stimulusId = 0; stimulusId < noOfStimuli; stimulusId++) {
       for (let participantId = 0; participantId < noOfParticipants; participantId++) {
         const segmentPart = data.segments[stimulusId][participantId]
+        if (segmentPart === undefined) continue
         segmentPart.sort(sortFn)
       }
     }

@@ -7,7 +7,7 @@ import { EyeTrackingParserBeGazePostprocessor } from './Postprocessor/EyeTrackin
 
 export class EyeTrackingParser {
   lastRow: string = ''
-  rowIndex: number = 0
+  columnsIntegrity: number = 0 // for rows integrity check
   filesToParse: number = 0
   fileParsed: number = 0
   rowSeparator: string = '\t'
@@ -29,22 +29,26 @@ export class EyeTrackingParser {
     await this.isPreviousFileProcessed
     this.fileParsed++
     this.rowReducer = null
-    console.log(this.filesToParse, this.fileParsed)
     return (this.filesToParse === this.fileParsed) ? this.getData() : null
   }
 
   processPump (value: string): void {
     const rows = (this.lastRow + value).split('\r\n')
+    const maxIndex = rows.length - 1
+    let rowIndex = 0
     this.lastRow = rows[rows.length - 1]
     if (rows.length < 2) return
     if (this.rowReducer === null) {
       const header = rows[0].split(this.rowSeparator)
       const fileType = this.getFileType(header)
+      this.columnsIntegrity = header.length
       this.rowReducer = this.getRowReducer(fileType, header)
-      this.rowIndex++
+      rowIndex++
     }
-    for (let i = this.rowIndex; i < rows.length; i++) {
-      const reducedRow = this.rowReducer.reduce(rows[i].split(this.rowSeparator))
+    for (let i = rowIndex; i < maxIndex; i++) {
+      const columns = rows[i].split(this.rowSeparator)
+      if (columns.length !== this.columnsIntegrity) throw new Error('Row integrity error')
+      const reducedRow = this.rowReducer.reduce(columns)
       if (reducedRow !== null) this.rowStore.add(reducedRow)
     }
   }
