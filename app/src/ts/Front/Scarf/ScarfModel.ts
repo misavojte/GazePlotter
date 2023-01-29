@@ -145,13 +145,16 @@ class ScarfModelFillingFactory {
     this.aoiOrderedArr = data.getAoiOrderArray(stimulusId)
     this.participants = []
     const participantsCount = this.data.noOfParticipants
-    this.chartHeight = (participantsCount * this.heightOfBarWrap) + this.HEIGHT_OF_X_AXIS
-    this.stimuli = this.#prepareStimuliList()
-    this.timeline = new AxisBreaks(this.data.getStimulHighestEndTime(this.stimulusId))
-    this.stylingAndLegend = this.#prepareStylingAndLegend()
+    const highestEndTime = this.getHighestEndTime(participantsCount)
+    this.timeline = new AxisBreaks(highestEndTime)
     for (let i = 0; i < participantsCount; i++) {
-      this.participants.push(this.#prepareParticipant(i))
+      const participant = this.#prepareParticipant(i)
+      if (participant !== null) this.participants.push(participant)
     }
+    const participantsCountAfterFilter = this.participants.length
+    this.chartHeight = (participantsCountAfterFilter * this.heightOfBarWrap) + this.HEIGHT_OF_X_AXIS
+    this.stimuli = this.#prepareStimuliList()
+    this.stylingAndLegend = this.#prepareStylingAndLegend()
   }
 
   getViewFilling (): ScarfFilling {
@@ -165,6 +168,17 @@ class ScarfModelFillingFactory {
       timeline: this.timeline,
       stylingAndLegend: this.stylingAndLegend
     }
+  }
+
+  getHighestEndTime (participantsCount: number): number {
+    let highestEndTime = 0
+    for (let i = 0; i < participantsCount; i++) {
+      const numberOfSegments = this.data.getNoOfSegments(this.stimulusId, i)
+      if (numberOfSegments === 0) continue
+      const currentEndTime = this.data.getParticEndTime(this.stimulusId, i)
+      if (currentEndTime > highestEndTime) highestEndTime = currentEndTime
+    }
+    return highestEndTime
   }
 
   // todo nová helper class?
@@ -228,10 +242,10 @@ class ScarfModelFillingFactory {
     }
   }
 
-  #prepareParticipant (id: number): ScarfParticipant {
+  #prepareParticipant (id: number): ScarfParticipant | null {
     // todo připravit na řazení
-
     const iterateTo = this.data.getNoOfSegments(this.stimulusId, id)
+    if (iterateTo === 0) return null
     const sessionDuration = this.data.getParticEndTime(this.stimulusId, id)
     const label = this.data.getParticName(id)
     const width = `${(sessionDuration / this.timeline.maxLabel) * 100}%`

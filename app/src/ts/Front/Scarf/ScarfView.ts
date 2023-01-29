@@ -46,8 +46,10 @@ export class ScarfView extends AbstractView {
     const model = this.controller.model
     const animateTag = this.el.getElementsByTagName('animate')
     for (let i = 1; i < animateTag.length; i++) {
-      animateTag[i].setAttribute('from', model.getParticipantFromWidth(i - 1))
-      animateTag[i].setAttribute('to', model.getParticipantToWidth(i - 1))
+      const participantId = Number(animateTag[i].closest('.barwrap')?.getAttribute('data-id'))
+      if (isNaN(participantId)) throw new Error('Participant id is not a number')
+      animateTag[i].setAttribute('from', model.getParticipantFromWidth(participantId))
+      animateTag[i].setAttribute('to', model.getParticipantToWidth(participantId))
       animateTag[i].beginElement()
     }
     this.getElement('.btn3').classList.toggle('is-active')
