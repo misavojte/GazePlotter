@@ -4,16 +4,22 @@ import { EyeTrackingParserRowStore } from './EyeTrackingParserRowStore'
 import { EyeTrackingParserBeGazeReducer } from './Reducer/EyeTrackingParserBeGazeReducer'
 import { EyeTrackingParserTobiiReducer } from './Reducer/EyeTrackingParserTobiiReducer'
 import { EyeTrackingParserBeGazePostprocessor } from './Postprocessor/EyeTrackingParserBeGazePostprocessor'
+import { EyeTrackingParserTobiiPostprocessor } from './Postprocessor/EyeTrackingParserTobiiPostprocessor'
 
 export class EyeTrackingParser {
   lastRow: string = ''
   columnsIntegrity: number = 0 // for rows integrity check
-  filesToParse: number = 0
+  filesToParse: number
   fileParsed: number = 0
+  fileType: string | null = null
   rowSeparator: string = '\t'
   rowReducer: EyeTrackingParserAbstractReducer | null = null
   rowStore: EyeTrackingParserRowStore = new EyeTrackingParserRowStore()
   isPreviousFileProcessed: Promise<void> = Promise.resolve()
+
+  constructor (filesToParse: number) {
+    this.filesToParse = filesToParse
+  }
 
   async process (rs: ReadableStream): Promise<ETDInterface | null> {
     if (this.filesToParse === 0) throw new Error('Number of files to parse was not set')
@@ -40,9 +46,9 @@ export class EyeTrackingParser {
     if (rows.length < 2) return
     if (this.rowReducer === null) {
       const header = rows[0].split(this.rowSeparator)
-      const fileType = this.getFileType(header)
+      this.fileType = this.getFileType(header)
       this.columnsIntegrity = header.length
-      this.rowReducer = this.getRowReducer(fileType, header)
+      this.rowReducer = this.getRowReducer(this.fileType, header)
       rowIndex++
     }
     for (let i = rowIndex; i < maxIndex; i++) {
@@ -54,15 +60,18 @@ export class EyeTrackingParser {
   }
 
   getData (): ETDInterface {
-    // TODO: PŘEDĚLAT
-    return new EyeTrackingParserBeGazePostprocessor().process(this.rowStore.data)
+    const fileType = this.fileType
+    const data = this.rowStore.data
+    if (fileType === 'BeGaze Event') return new EyeTrackingParserBeGazePostprocessor().process(data)
+    if (fileType === 'Tobii') return new EyeTrackingParserTobiiPostprocessor().process(data)
+    throw new Error('File type for postprocessor not recognized')
   }
 
   getFileType (header: string[]): string {
     if (header.includes('RecordingTime [ms]')) return 'BeGaze Raw'
     if (header.includes('Event Start Trial Time [ms]') && header.includes('Event End Trial Time [ms]')) return 'BeGaze Event'
     if (header.includes('Recording timestamp')) return 'Tobii'
-    throw new Error('File type not recognized')
+    throw new Error('File type for reducer not recognized')
   }
 
   getRowReducer (fileType: string, row: string[]): EyeTrackingParserAbstractReducer {
