@@ -24,7 +24,11 @@ export class StartButtonsModel extends AbstractModel {
   startNewFile (file: Object): void {
     if (!(file instanceof FileList)) return
     this.notify('start', ['workplaceModel'])
-    this.worker.postMessage(file.length)
+    const filenames: string[] = []
+    for (let index = 0; index < file.length; index++) {
+      filenames.push(file[index].name)
+    }
+    this.worker.postMessage(filenames)
     this.processDataAsStream(file)
     this.worker.onmessage = (event) => {
       this.eyeTrackingData = event.data as ETDInterface
