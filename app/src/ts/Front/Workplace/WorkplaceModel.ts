@@ -21,9 +21,12 @@ import { ScarfDownloadModalController } from '../Modal/ScarfDownload/ScarfDownlo
 import { AoiSettingsModalModel } from '../Modal/AoiSettings/AoiSettingsModalModel'
 import { AoiSettingsModalView } from '../Modal/AoiSettings/AoiSettingsModalView'
 import { AoiSettingsModalController } from '../Modal/AoiSettings/AoiSettingsModalController'
+import { TobiiUploadModalController } from '../Modal/TobiiUpload/TobiiUploadModalController'
+import { TobiiUploadModalView } from '../Modal/TobiiUpload/TobiiUploadModalView'
+import { TobiiUploadModalModel } from '../Modal/TobiiUpload/TobiiUploadModalModel'
 
 export class WorkplaceModel extends AbstractModel {
-  observerType = 'workplaceModel'
+  readonly observerType = 'workplaceModel'
   isVisible: boolean = false
   data: EyeTrackingData | null = null
   startButtonsModel: StartButtonsModel
@@ -40,13 +43,14 @@ export class WorkplaceModel extends AbstractModel {
     switch (msg) {
       case 'start' : return this.startNewLoading()
       case 'eyeTrackingData' : return this.startPrintingFirstChart()
-      case 'close-modal' : this.modal = null; return
+      case 'close-modal' : return this.fireCloseModal()
       case 'modal-flash' : return this.fireFlashFromModal()
       case 'redraw' : return this.redraw()
       case 'open-scarf-settings-modal' : return this.initScarfSettingsModal()
       case 'open-aoi-visibility-modal' : return this.initAoiVisibilityModal()
       case 'open-scarf-download-modal' : return this.initScarfDownloadModal()
       case 'open-aoi-settings-modal' : return this.initAoiSettingsModal()
+      case 'open-tobii-upload-modal' : return this.initTobiiUploadModal()
       default : super.handleUpdate(msg)
     }
   }
@@ -56,6 +60,13 @@ export class WorkplaceModel extends AbstractModel {
     void new WorkplaceDownloadModalView(new WorkplaceDownloadModalController(modalModel)) // will be referenced by modalModel as observer
     this.modal = modalModel
     modalModel.fireOpen()
+  }
+
+  fireCloseModal (): void {
+    if (this.modal instanceof TobiiUploadModalModel) {
+      this.startButtonsModel.fireUploadWithUserInput(this.modal.parsingType)
+    }
+    this.modal = null
   }
 
   startNewLoading (): void {
@@ -121,6 +132,13 @@ export class WorkplaceModel extends AbstractModel {
     if (!(initiator instanceof ScarfSettingsModalModel) && !(initiator instanceof ScarfModel)) throw new Error('WorkplaceModel.initAoiSettingsModal() - modal initiator is not a scarf settings model or scarf')
     const modalModel = new AoiSettingsModalModel(this, initiator.stimulusId)
     void new AoiSettingsModalView(new AoiSettingsModalController(modalModel)) // will be referenced by modalModel as observer
+    this.modal = modalModel
+    modalModel.fireOpen()
+  }
+
+  initTobiiUploadModal (): void {
+    const modalModel = new TobiiUploadModalModel(this)
+    void new TobiiUploadModalView(new TobiiUploadModalController(modalModel))
     this.modal = modalModel
     modalModel.fireOpen()
   }

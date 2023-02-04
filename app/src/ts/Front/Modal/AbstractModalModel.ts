@@ -3,18 +3,22 @@ import { WorkplaceModel } from '../Workplace/WorkplaceModel'
 import { EyeTrackingData } from '../../Data/EyeTrackingData'
 
 export abstract class AbstractModalModel extends AbstractModel {
-  data: EyeTrackingData
+  _data: EyeTrackingData | null = null
   title: string
   flashMessage: { message: string, type: 'error' | 'warn' | 'info' | 'success' } | null = null
   isRequestingModal: boolean = false
 
   protected constructor (workplaceModel: WorkplaceModel, title: string) {
     super()
-    const data = workplaceModel.data
-    if (data === null) throw new Error('No workplace data available')
-    this.data = data
+    this._data = workplaceModel.data
     this.addObserver(workplaceModel)
     this.title = title
+  }
+
+  get data (): EyeTrackingData {
+    const data = this._data
+    if (data === null) throw new Error('No workplace data available in modal')
+    return data
   }
 
   fireClose (): void {

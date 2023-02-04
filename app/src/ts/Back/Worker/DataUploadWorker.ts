@@ -1,4 +1,5 @@
 import { EyeTrackingParser } from '../EyeTrackingParser/EyeTrackingParser'
+import { isWorkerSettingsMessage } from '../../Types/Parsing/WorkerSettingsMessage'
 
 let parser: EyeTrackingParser | null = null
 
@@ -6,12 +7,9 @@ self.onmessage = (e) => processEvent(e)
 
 function processEvent (e: MessageEvent): void {
   const data = e.data
-  if (Array.isArray(data)) {
-    // if all children strings, it is a list of file names
-    if (data.every((x) => typeof x === 'string')) {
-      parser = new EyeTrackingParser(data)
-      return
-    }
+  if (isWorkerSettingsMessage(data)) {
+    parser = new EyeTrackingParser(data)
+    return
   }
   if (data.constructor.name === 'ReadableStream') {
     return processReadableStream(data)
@@ -25,7 +23,7 @@ function processEvent (e: MessageEvent): void {
     })
     return processReadableStream(stream)
   }
-  throw new Error('Unknown data type in worker')
+  throw new Error('Unknown data type in worker', data)
 }
 
 function processReadableStream (stream: ReadableStream): void {

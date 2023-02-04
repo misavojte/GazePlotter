@@ -15,7 +15,7 @@
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-n": "^15.5.1",
     "eslint-plugin-promise": "^6.1.1",
-    "typescript": "~4.8",
+    "typescript": "5.0.0-beta",
     "vite": "^3.2.3",
     "vitest": "^0.25.3"
   },

@@ -1,10 +1,21 @@
 import { AbstractModel } from '../Common/AbstractModel'
 import { ETDInterface } from '../../Data/EyeTrackingData'
+import { StartButtonsService } from './StartButtonsService'
+import { StartButtonsPreParseSettingsType } from '../../Types/Parsing/StartButtonsPreParseSettingsType'
 
 export class StartButtonsModel extends AbstractModel {
   readonly observerType = 'startModel'
   eyeTrackingData: ETDInterface | null = null
   worker: Worker = new Worker(new URL('../../Back/Worker/DataUploadWorker.ts', import.meta.url), { type: 'module' })
+  service: StartButtonsService = new StartButtonsService()
+  parsingSettings: StartButtonsPreParseSettingsType | null = null
+
+  fireUploadWithUserInput (parsingType: string): void {
+    const settings = this.parsingSettings
+    if (settings === null) throw new Error('parsingSettings is null')
+    settings.workerSettings.userInputSetting = parsingType
+    this.startWorkerProcessing()
+  }
 
   startDemo (): void {
     this.notify('start', ['workplaceModel'])
@@ -24,24 +35,35 @@ export class StartButtonsModel extends AbstractModel {
   startNewFile (file: Object): void {
     if (!(file instanceof FileList)) return
     this.notify('start', ['workplaceModel'])
-    const filenames: string[] = []
-    for (let index = 0; index < file.length; index++) {
-      filenames.push(file[index].name)
-    }
-    this.worker.postMessage(filenames)
-    this.processDataAsStream(file)
+    const parsingSettingsPromise = this.service.preprocessEyeTrackingFiles(file)
+    void parsingSettingsPromise.then(
+      (parsingSettings) => {
+        this.parsingSettings = parsingSettings
+        const fileType = parsingSettings.workerSettings.type
+        if (fileType === 'tobii-with-event') {
+          this.notify('open-tobii-upload-modal', ['workplaceModel'])
+        } else {
+          this.startWorkerProcessing()
+        }
+      }
+    )
     this.worker.onmessage = (event) => {
       this.eyeTrackingData = event.data as ETDInterface
       this.notify('eyeTrackingData', ['workplaceModel'])
     }
   }
 
-  processDataAsStream (files: FileList): void {
+  startWorkerProcessing (): void {
+    const settings = this.parsingSettings
+    if (settings === null) throw new Error('parsingSettings is null')
+    this.worker.postMessage(settings.workerSettings)
+    this.processDataAsStream(settings.files)
+  }
+
+  processDataAsStream (files: File[]): void {
     for (let index = 0; index < files.length; index++) {
       const stream = files[index].stream()
       try {
-        // try to pass ReadableStream as transferable (RS not transferable in TS 4.7.4 thanks to its low support)
-        // @ts-expect-error
         this.worker.postMessage(stream, [stream])
       } catch (error) {
         void files[index].arrayBuffer().then((arrayBuffer) => {

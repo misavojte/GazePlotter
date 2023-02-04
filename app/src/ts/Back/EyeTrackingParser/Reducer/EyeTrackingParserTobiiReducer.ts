@@ -7,6 +7,7 @@ export class EyeTrackingParserTobiiReducer extends EyeTrackingParserAbstractRedu
   cParticipant: number
   cRecording: number
   cCategory: number
+  cEvent: number
   mIsOpen: boolean = false
   mLastStimulus: string = ''
   mLastParticipant: string = ''
@@ -17,14 +18,20 @@ export class EyeTrackingParserTobiiReducer extends EyeTrackingParserAbstractRedu
   mLastAoi: string[] | null = null
   mLastAoiString: string = ''
   TIME_MODIFIER: number = 0.001 // milliseconds needed, tobii uses microseconds
-  constructor (header: string[]) {
+  EVENT_START_STIMULUS: string = 'IntervalStart'
+  // EVENT_END_STIMULUS: string = 'IntervalEnd'
+  stimulusGetter: (row: string[]) => string
+
+  constructor (header: string[], parseThroughIntervals: boolean = false) {
     super()
     this.cTime = header.indexOf('Recording timestamp')
     this.cStimulus = header.indexOf('Presented Stimulus name')
     this.cParticipant = header.indexOf('Participant name')
     this.cRecording = header.indexOf('Recording name')
     this.cCategory = header.indexOf('Eye movement type')
+    this.cEvent = header.indexOf('Event')
     this.cAoiInfo = this.createAoiInfo(header, this.createStimuliDictionary(header))
+    this.stimulusGetter = parseThroughIntervals ? this.intervalStimulusGetter : this.baseStimulusGetter
   }
 
   createStimuliDictionary (header: string[]): string[] {
@@ -58,7 +65,7 @@ export class EyeTrackingParserTobiiReducer extends EyeTrackingParserAbstractRedu
 
   reduce (row: string[]): { start: string, end: string, stimulus: string, participant: string, category: string, aoi: string[] | null } | null {
     let result = null
-    const stimulus = row[this.cStimulus]
+    const stimulus = this.stimulusGetter(row)
     if (stimulus === '') return null // ignore empty rows
     const time = Number(row[this.cTime])
     if (time === 0) return null
@@ -103,5 +110,21 @@ export class EyeTrackingParserTobiiReducer extends EyeTrackingParserAbstractRedu
 
   isAoiDifferent (aoi: string[] | null): boolean {
     return this.mLastAoiString !== (aoi === null ? '' : aoi.join(';'))
+  }
+
+  baseStimulusGetter (row: string[]): string {
+    return row[this.cStimulus]
+  }
+
+  intervalStimulusGetter (row: string[]): string {
+    // there is now start of nes stimulus indicated in Event column by value in this format:
+    // "NAME_OF_STIMULUS IntervalStart"
+    const event = row[this.cEvent]
+    // if contains IntervalStart, then it is the start of a new stimulus
+    let stimulus = this.mLastStimulus
+    if (event.includes(this.EVENT_START_STIMULUS)) {
+      stimulus = event.replace(' ' + this.EVENT_START_STIMULUS, '')
+    }
+    return stimulus
   }
 }
