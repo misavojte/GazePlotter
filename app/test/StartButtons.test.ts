@@ -9,6 +9,7 @@ describe('StartButtonsService - preprocess EyeTrackingFile and determine its typ
   const service = new StartButtonsService()
   const tobiiFile = new File(['Recording timestamp\n...'], 'tobii.csv')
   const begazeFile = new File(['Event Start Trial Time [ms]\tEvent End Trial Time [ms]\n...'], 'smi.csv')
+  const randomFile = new File(['...'], 'random.txt')
   test('Type determination from file slice', async () => {
     expect(service.getTypeFromSlice(await service.getSlice(tobiiFile))).toBe('tobii')
     expect(service.getTypeFromSlice(await service.getSlice(begazeFile))).toBe('begaze')
@@ -20,11 +21,12 @@ describe('StartButtonsService - preprocess EyeTrackingFile and determine its typ
     expect(service.getTypeFromArray(['tobii', 'tobii'])).toBe('tobii')
   })
   test('Settings determination from file list', async () => {
-    const fileListMock = [tobiiFile, tobiiFile] as unknown as FileList
-    const { workerSettings } = await service.preprocessEyeTrackingFiles(fileListMock)
+    const fileListMock = [tobiiFile, tobiiFile, randomFile] as unknown as FileList
+    const { workerSettings, files } = await service.preprocessEyeTrackingFiles(fileListMock)
     expect(workerSettings.type).toBe('tobii')
     expect(workerSettings.rowDelimiter).toBe('\r\n')
     expect(workerSettings.columnDelimiter).toBe('\t')
+    expect(files.length).toBe(2) // randomFile is filtered out
   })
   test('Mixed type error from file list', async () => {
     const fileListError = [tobiiFile, begazeFile] as unknown as FileList
