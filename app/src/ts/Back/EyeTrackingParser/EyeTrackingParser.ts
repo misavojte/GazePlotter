@@ -77,6 +77,7 @@ export class EyeTrackingParser {
     const data = this.rowStore.data
     if (fileType === 'begaze') return new EyeTrackingParserBeGazePostprocessor().process(data)
     if (fileType === 'tobii' || fileType === 'tobii-with-event') return new EyeTrackingParserTobiiPostprocessor().process(data)
+    if (fileType === 'gazepoint') return data
     throw new Error('File type for postprocessor not recognized')
   }
 

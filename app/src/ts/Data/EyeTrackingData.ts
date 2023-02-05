@@ -23,6 +23,7 @@ export class EyeTrackingData {
   constructor (main: ETDInterface) {
     this.main = main
     console.log(this.main)
+    console.log(JSON.stringify(this.main))
   }
 
   // stimulus getters
@@ -48,20 +49,10 @@ export class EyeTrackingData {
   }
 
   getStimulHighestEndTime (stimulusIndex: number): number {
-    // determine which end time from the last segments of each participant has the highest value
-    // important for determing length of X axis in plots
-    const segmentsInfo = this.main.segments[stimulusIndex]
     let max = 0
-    for (let participantIndex = 0; participantIndex < segmentsInfo.length; participantIndex++) {
-      const participantSegments = segmentsInfo[participantIndex]
-      if (participantSegments === undefined) continue
-      const lastSegmentIndex = participantSegments.length - 1
-      if (lastSegmentIndex >= 0) {
-        const lastSegmentEndTime = participantSegments[lastSegmentIndex][1]
-        if (lastSegmentEndTime > max) {
-          max = lastSegmentEndTime
-        }
-      }
+    for (let participantIndex = 0; participantIndex < this.noOfParticipants; participantIndex++) {
+      const lastSegmentEndTime = this.getParticEndTime(stimulusIndex, participantIndex)
+      max = lastSegmentEndTime > max ? max = lastSegmentEndTime : max
     }
     return max
   }
@@ -79,7 +70,7 @@ export class EyeTrackingData {
 
   getParticEndTime (stimulusIndex: number, particIndex: number): number {
     const segmentsInfo = this.main.segments[stimulusIndex][particIndex]
-    return segmentsInfo === undefined ? 0 : segmentsInfo.length > 1 ? segmentsInfo[segmentsInfo.length - 1][1] : 0
+    return segmentsInfo === undefined ? 0 : segmentsInfo.length > 0 ? segmentsInfo[segmentsInfo.length - 1][1] : 0
   }
 
   getParticInfo (stimulusIndex: number, particIndex: number): Object {

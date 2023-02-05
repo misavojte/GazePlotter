@@ -30,25 +30,30 @@ export class EyeTrackingParserGazePointReducer extends EyeTrackingParserAbstract
     const stimulus = row[this.cStimulus]
     const isBlink = durationOfBlink !== '0.00000'
     const category = isBlink ? 'Fixation' : 'Blink'
+
     const hasFixationSegmentEnded = Number(durationOfFixation) === this.mDurationOfEvent
 
     let result = null
 
     if (this.mStimulus !== stimulus || isBlink || this.mAOI !== aoi || hasFixationSegmentEnded) {
       result = this.flush()
+    }
+
+    if ((this.mStimulus !== stimulus || isBlink || this.mAOI !== aoi) && !hasFixationSegmentEnded) {
       this.mStimulus = stimulus
-      this.mStartOfEvent = Number(startOfEvent)
-      this.mDurationOfEvent = isBlink ? Number(durationOfBlink) : Number(durationOfFixation)
       this.mAOI = aoi
       this.mCategory = category
     }
+
+    this.mStartOfEvent = Number(startOfEvent)
+    this.mDurationOfEvent = isBlink ? Number(durationOfBlink) : Number(durationOfFixation)
 
     return result
   }
 
   flush (): { start: string, end: string, stimulus: string, participant: string, category: string, aoi: string[] | null } | null {
-    if (this.mStartOfEvent === null || this.mDurationOfEvent === null || this.mAOI === null || this.mStimulus === null || this.mCategory === null) return null
-    const result = {
+    if (this.mAOI === null || this.mStimulus === null || this.mCategory === null) return null
+    return {
       aoi: [this.mAOI],
       category: 'Fixation',
       end: String(Number(this.mStartOfEvent) + Number(this.mDurationOfEvent)),
@@ -56,11 +61,5 @@ export class EyeTrackingParserGazePointReducer extends EyeTrackingParserAbstract
       start: String(this.mStartOfEvent),
       stimulus: this.mStimulus
     }
-    this.mStartOfEvent = null
-    this.mDurationOfEvent = null
-    this.mAOI = null
-    this.mStimulus = null
-    this.mCategory = null
-    return result
   }
 }
