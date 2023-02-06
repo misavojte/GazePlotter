@@ -32,4 +32,10 @@ describe('StartButtonsService - preprocess EyeTrackingFile and determine its typ
     const fileListError = [tobiiFile, begazeFile] as unknown as FileList
     await expect(async () => await service.preprocessEyeTrackingFiles(fileListError)).rejects.toThrowError('Mixed file types')
   })
+  test('Unknown type from file list', async () => {
+    const fileList = [randomFile, randomFile] as unknown as FileList
+    const { workerSettings, files } = await service.preprocessEyeTrackingFiles(fileList)
+    expect(workerSettings.type).toBe('unknown')
+    expect(files.length).toBe(0)
+  })
 })

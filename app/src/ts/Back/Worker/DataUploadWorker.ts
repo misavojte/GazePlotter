@@ -2,17 +2,20 @@ import { EyeTrackingParser } from '../EyeTrackingParser/EyeTrackingParser'
 import { isWorkerSettingsMessage } from '../../Types/Parsing/WorkerSettingsMessage'
 
 let parser: EyeTrackingParser | null = null
+const streams: ReadableStream[] = []
+let numberOfStreams = 0
 
-self.onmessage = (e) => processEvent(e)
+self.onmessage = async (e) => await processEvent(e)
 
-function processEvent (e: MessageEvent): void {
+async function processEvent (e: MessageEvent): Promise<void> {
   const data = e.data
   if (isWorkerSettingsMessage(data)) {
     parser = new EyeTrackingParser(data)
+    numberOfStreams = data.fileNames.length
     return
   }
   if (data.constructor.name === 'ReadableStream') {
-    return processReadableStream(data)
+    return await evalStreams(data)
   }
   if (data.constructor.name === 'ArrayBuffer') {
     const stream = new ReadableStream({
@@ -21,14 +24,20 @@ function processEvent (e: MessageEvent): void {
         controller.close()
       }
     })
-    return processReadableStream(stream)
+    return await evalStreams(stream)
   }
   throw new Error('Unknown data type in worker', data)
 }
 
-function processReadableStream (stream: ReadableStream): void {
+async function evalStreams (stream: ReadableStream): Promise<void> {
   if (parser === null) throw new Error('Parser not initialized in worker')
-  void parser.process(stream).then((data) => {
-    if (data !== null) self.postMessage(data)
-  })
+  streams.push(stream)
+  if (streams.length === numberOfStreams) {
+    for (const stream of streams) {
+      const response = await parser.process(stream)
+      if (response !== null) {
+        self.postMessage(response)
+      }
+    }
+  }
 }

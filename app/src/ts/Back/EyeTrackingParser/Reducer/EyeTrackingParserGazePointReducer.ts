@@ -1,65 +1,102 @@
 import { EyeTrackingParserAbstractReducer } from './EyeTrackingParserAbstractReducer'
 
 export class EyeTrackingParserGazePointReducer extends EyeTrackingParserAbstractReducer {
-  cStartOfEvent: number
+  cTime: number
   cDurationOfFixation: number
   cDurationOfBlink: number
   cAOI: number
   cStimulus: number
-  mStartOfEvent: number | null = null
+  cFixID: number
+  mTime: number | null = null
   mDurationOfEvent: number | null = null
+  mDurationOfFixation: number | null = null
   mAOI: string | null = null
   mStimulus: string | null = null
   mCategory: 'Fixation' | 'Blink' | null = null
+  mFixID: string | null = null
+  mHasFixationSegmentEnded: boolean = false
   participant: string // for this reducer, the participant is always the same (one file per participant)
   constructor (header: string[], participant: string) {
     super()
-    this.cStartOfEvent = header.indexOf('FPOGS')
+    this.cTime = header.indexOf('FPOGS') - 1
     this.cDurationOfFixation = header.indexOf('FPOGD')
     this.cDurationOfBlink = header.indexOf('BKDUR')
     this.cAOI = header.indexOf('AOI')
     this.cStimulus = header.indexOf('MEDIA_NAME')
+    this.cFixID = header.indexOf('FPOGID')
     this.participant = participant
   }
 
   reduce (row: string[]): { start: string, end: string, stimulus: string, participant: string, category: string, aoi: string[] | null } | null {
-    const startOfEvent = row[this.cStartOfEvent]
+    let result = null
+
+    const time = row[this.cTime]
     const durationOfFixation = row[this.cDurationOfFixation]
     const durationOfBlink = row[this.cDurationOfBlink]
-    const aoi = row[this.cAOI]
+    const aoi = row[this.cAOI] === '' ? null : row[this.cAOI]
     const stimulus = row[this.cStimulus]
+    const fixID = row[this.cFixID]
+
     const isBlink = durationOfBlink !== '0.00000'
-    const category = isBlink ? 'Fixation' : 'Blink'
+    const category = isBlink ? 'Blink' : 'Fixation'
 
     const hasFixationSegmentEnded = Number(durationOfFixation) === this.mDurationOfEvent
 
-    let result = null
+    const isToFlush = this.mStimulus !== stimulus || this.mFixID !== fixID || this.mCategory === 'Blink' || (hasFixationSegmentEnded && !this.mHasFixationSegmentEnded)
 
-    if (this.mStimulus !== stimulus || isBlink || this.mAOI !== aoi || hasFixationSegmentEnded) {
+    if (isToFlush) {
       result = this.flush()
     }
 
-    if ((this.mStimulus !== stimulus || isBlink || this.mAOI !== aoi) && !hasFixationSegmentEnded) {
+    if (this.mDurationOfFixation !== Number(durationOfFixation) || this.mStimulus !== stimulus || this.mFixID !== fixID || isBlink) {
       this.mStimulus = stimulus
       this.mAOI = aoi
       this.mCategory = category
+      this.mDurationOfEvent = isBlink ? Number(durationOfBlink) : Number(durationOfFixation)
+      this.mDurationOfFixation = Number(durationOfFixation)
+      this.mTime = Number(time)
+      this.mFixID = fixID
     }
-
-    this.mStartOfEvent = Number(startOfEvent)
-    this.mDurationOfEvent = isBlink ? Number(durationOfBlink) : Number(durationOfFixation)
+    this.mHasFixationSegmentEnded = hasFixationSegmentEnded
 
     return result
   }
 
+  finalize (): { start: string, end: string, stimulus: string, participant: string, category: string, aoi: string[] | null } | null {
+    return this.flush()
+  }
+
   flush (): { start: string, end: string, stimulus: string, participant: string, category: string, aoi: string[] | null } | null {
-    if (this.mAOI === null || this.mStimulus === null || this.mCategory === null) return null
-    return {
-      aoi: [this.mAOI],
-      category: 'Fixation',
-      end: String(Number(this.mStartOfEvent) + Number(this.mDurationOfEvent)),
+    if (this.mStimulus === null || this.mCategory === null || this.mTime === null || this.mDurationOfEvent === null) return null
+    const r = {
+      aoi: this.mAOI === null ? null : [this.mAOI],
+      category: this.mCategory,
+      end: String(this.mTime),
       participant: this.participant,
-      start: String(this.mStartOfEvent),
+      start: String(this.mTime - this.mDurationOfEvent),
       stimulus: this.mStimulus
     }
+    this.mTime = null
+    return r
   }
 }
+
+// const hasFixationSegmentEnded = Number(durationOfFixation) === this.mDurationOfEvent
+//
+// const isToFlush = this.mStimulus !== stimulus || this.mFixID !== fixID || this.mCategory === 'Blink' || (hasFixationSegmentEnded && !this.mHasFixationSegmentEnded)
+//
+// if (isToFlush) {
+//   result = this.flush()
+// }
+
+// if (isBlink || !hasFixationSegmentEnded || this.mStimulus !== stimulus || this.mFixID !== fixID) {
+//   this.mStimulus = stimulus
+//   this.mAOI = aoi
+//   this.mCategory = category
+//   this.mDurationOfEvent = isBlink ? Number(durationOfBlink) : Number(durationOfFixation)
+//   this.mTime = Number(time)
+//   this.mFixID = fixID
+// }
+// this.mHasFixationSegmentEnded = hasFixationSegmentEnded
+//
+// return result

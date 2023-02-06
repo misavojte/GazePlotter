@@ -33,20 +33,25 @@ export class EyeTrackingParser {
   }
 
   async process (rs: ReadableStream): Promise<ETDInterface | null> {
-    if (this.filesToParse === 0) throw new Error('Number of files to parse was not set')
     await this.isPreviousFileProcessed
     const reader = rs.pipeThrough(new TextDecoderStream()).getReader()
     const pump = async (reader: ReadableStreamDefaultReader<string>): Promise<void> => await reader.read()
       .then(({ value, done }) => {
-        if (done) return
+        if (done) {
+          if (this.rowReducer === null) throw new Error('No reducer initialized')
+          this.processRow(this.lastRow, this.rowReducer)
+          this.processReduced(this.rowReducer.finalize())
+          this.lastRow = ''
+          this.rowReducer = null
+          this.fileParsed++
+          return
+        }
         const shouldPumpingResume = this.processPump(value)
         if (!shouldPumpingResume) return
         return pump(reader)
       })
-    this.isPreviousFileProcessed = pump(reader)
-    await this.isPreviousFileProcessed
-    this.fileParsed++
-    this.rowReducer = null
+    await pump(reader)
+    this.isPreviousFileProcessed = Promise.resolve()
     return (this.filesToParse === this.fileParsed) ? this.getData() : null
   }
 
@@ -64,10 +69,7 @@ export class EyeTrackingParser {
       rowIndex++
     }
     for (let i = rowIndex; i < maxIndex; i++) {
-      const columns = rows[i].split(this.columnDelimiter)
-      if (columns.length !== this.columnsIntegrity) throw new Error('Row integrity error')
-      const reducedRow = this.rowReducer.reduce(columns)
-      if (reducedRow !== null) this.rowStore.add(reducedRow)
+      this.processRow(rows[i], this.rowReducer)
     }
     return true
   }
@@ -103,5 +105,15 @@ export class EyeTrackingParser {
     if (expectUserSettings && userInputSettings === null) throw new Error('User input settings not set')
     const parseThroughInterval = userInputSettings === 'event'
     return new EyeTrackingParserTobiiReducer(row, parseThroughInterval)
+  }
+
+  processRow (row: string, reducer: EyeTrackingParserAbstractReducer): void {
+    const columns = row.split(this.columnDelimiter)
+    if (columns.length !== this.columnsIntegrity) throw new Error('Row integrity error')
+    this.processReduced(reducer.reduce(columns))
+  }
+
+  processReduced (reducedRow: { start: string, end: string, stimulus: string, participant: string, category: string, aoi: string[] | null } | null): void {
+    if (reducedRow !== null) this.rowStore.add(reducedRow)
   }
 }
