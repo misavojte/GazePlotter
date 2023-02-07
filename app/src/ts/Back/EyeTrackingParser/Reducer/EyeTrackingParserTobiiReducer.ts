@@ -85,6 +85,10 @@ export class EyeTrackingParserTobiiReducer extends EyeTrackingParserAbstractRedu
     return result
   }
 
+  finalize (): { start: string, end: string, stimulus: string, participant: string, category: string, aoi: string[] | null } | null {
+    return this.getReduceDataFromMemory()
+  }
+
   getReduceDataFromMemory (): { start: string, end: string, stimulus: string, participant: string, category: string, aoi: string[] | null } | null {
     return this.mIsOpen
       ? {

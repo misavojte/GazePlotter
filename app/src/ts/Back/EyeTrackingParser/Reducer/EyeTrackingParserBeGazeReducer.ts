@@ -33,6 +33,10 @@ export class EyeTrackingParserBeGazeReducer extends EyeTrackingParserAbstractRed
     return { aoi: transformedAoi, category, end, participant, start, stimulus }
   }
 
+  finalize (): { start: string, end: string, stimulus: string, participant: string, category: string, aoi: string[] | null } | null {
+    return null
+  }
+
   isNan (value: string): boolean {
     return isNaN(Number(value))
   }

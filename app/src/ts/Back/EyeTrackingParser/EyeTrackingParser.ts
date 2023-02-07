@@ -39,7 +39,7 @@ export class EyeTrackingParser {
       .then(({ value, done }) => {
         if (done) {
           if (this.rowReducer === null) throw new Error('No reducer initialized')
-          this.processRow(this.lastRow, this.rowReducer)
+          if (this.lastRow.length > 0) this.processRow(this.lastRow, this.rowReducer) // if not empty
           this.processReduced(this.rowReducer.finalize())
           this.lastRow = ''
           this.rowReducer = null
@@ -109,7 +109,9 @@ export class EyeTrackingParser {
 
   processRow (row: string, reducer: EyeTrackingParserAbstractReducer): void {
     const columns = row.split(this.columnDelimiter)
-    if (columns.length !== this.columnsIntegrity) throw new Error('Row integrity error')
+    if (columns.length !== this.columnsIntegrity) {
+      throw new Error('Row integrity error')
+    }
     this.processReduced(reducer.reduce(columns))
   }
 
