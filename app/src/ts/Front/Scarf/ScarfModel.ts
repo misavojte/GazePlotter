@@ -26,6 +26,7 @@ export class ScarfModel extends AbstractModel {
   absoluteTimeline: AxisBreaks
   highlightedType: string | null = null
   isRequestingModal: boolean = false
+  participantIds: number[]
 
   constructor (workplace: WorkplaceModel, stimulusId: number = 0) {
     super()
@@ -36,12 +37,14 @@ export class ScarfModel extends AbstractModel {
     this.tooltipComponent = new ScarfTooltipView(new ScarfTooltipController(new ScarfTooltipModel(data)))
     this.stimulusId = stimulusId
     this.isTimelineRelative = false
-    this.absoluteTimeline = new AxisBreaks(this.data.getStimulHighestEndTime(stimulusId))
+    this.participantIds = this.getParticipantIdsToProcess()
+    this.absoluteTimeline = new AxisBreaks(this.getHighestEndTime(this.participantIds))
   }
 
   fireNewStimulus (stimulusId: number): void {
     this.stimulusId = stimulusId
-    this.absoluteTimeline = new AxisBreaks(this.data.getStimulHighestEndTime(stimulusId))
+    this.participantIds = this.getParticipantIdsToProcess()
+    this.absoluteTimeline = new AxisBreaks(this.getHighestEndTime(this.participantIds))
     this.tooltipComponent.controller.model.stimulusId = stimulusId
     this.redraw()
   }
@@ -52,8 +55,9 @@ export class ScarfModel extends AbstractModel {
   }
 
   getData (): ScarfFilling {
-    const data = this.data
-    return new ScarfModelFillingFactory(this.stimulusId, data).getViewFilling()
+    return new ScarfModelFillingFactory(
+      this.stimulusId, this.participantIds, this.absoluteTimeline, this.data
+    ).getViewFilling()
   }
 
   getTimelineUnit (): string {
@@ -112,6 +116,28 @@ export class ScarfModel extends AbstractModel {
     this.isRequestingModal = true
     this.notify('open-scarf-download-modal', ['workplaceModel'])
   }
+
+  getParticipantIdsToProcess (): number[] {
+    const stimulusId = this.stimulusId
+    const data = this.data
+    const participantIdsToProcess = []
+    for (let i = 0; i < data.noOfParticipants; i++) {
+      if (data.getNoOfSegments(stimulusId, i) > 0) participantIdsToProcess.push(i)
+    }
+    return participantIdsToProcess
+  }
+
+  getHighestEndTime (participantsIds: number[]): number {
+    let highestEndTime = 0
+    for (let i = 0; i < participantsIds.length; i++) {
+      const id = participantsIds[i]
+      const numberOfSegments = this.data.getNoOfSegments(this.stimulusId, id)
+      if (numberOfSegments === 0) continue
+      const currentEndTime = this.data.getParticEndTime(this.stimulusId, id)
+      if (currentEndTime > highestEndTime) highestEndTime = currentEndTime
+    }
+    return highestEndTime
+  }
 }
 
 export class ScarfModelFillingFactory {
@@ -129,38 +155,27 @@ export class ScarfModelFillingFactory {
   data: EyeTrackingData
   spaceAboveRect: number
   aoiOrderedArr: number[]
-  participants: ScarfParticipant[] = []
+  participants: ScarfParticipant[]
   timeline: AxisBreaks
   stimuli: ScarfStimuliInfo[]
   stylingAndLegend: ScarfStylingList
   chartHeight: number
 
-  constructor (stimulusId: number, data: EyeTrackingData, participGap: number = 10) {
+  constructor (stimulusId: number, participantIds: number[], axis: AxisBreaks, data: EyeTrackingData, participGap: number = 10) {
     this.stimulusId = stimulusId
     this.data = data
     this.spaceAboveRect = participGap / 2
     this.aoiOrderedArr = data.getAoiOrderArray(stimulusId)
-
-    const participantsIds = this.getParticipantIdsToProcess(data, stimulusId)
-    const highestEndTime = this.getHighestEndTime(participantsIds)
-    this.timeline = new AxisBreaks(highestEndTime)
-
-    for (let i = 0; i < participantsIds.length; i++) {
-      const participant = this.#prepareParticipant(participantsIds[i])
-      if (participant !== null) this.participants.push(participant)
+    this.timeline = axis
+    const participants = []
+    for (let i = 0; i < participantIds.length; i++) {
+      const participant = this.#prepareParticipant(participantIds[i])
+      if (participant !== null) participants.push(participant)
     }
-    const participantsCountAfterFilter = this.participants.length
-    this.chartHeight = (participantsCountAfterFilter * this.heightOfBarWrap) + this.HEIGHT_OF_X_AXIS
+    this.participants = participants
+    this.chartHeight = (participants.length * this.heightOfBarWrap) + this.HEIGHT_OF_X_AXIS
     this.stimuli = this.#prepareStimuliList()
     this.stylingAndLegend = this.#prepareStylingAndLegend()
-  }
-
-  getParticipantIdsToProcess (data: EyeTrackingData, stimulusId: number): number[] {
-    const participantIdsToProcess = []
-    for (let i = 0; i < data.noOfParticipants; i++) {
-      if (data.getNoOfSegments(stimulusId, i) > 0) participantIdsToProcess.push(i)
-    }
-    return participantIdsToProcess
   }
 
   getViewFilling (): ScarfFilling {
@@ -174,17 +189,6 @@ export class ScarfModelFillingFactory {
       timeline: this.timeline,
       stylingAndLegend: this.stylingAndLegend
     }
-  }
-
-  getHighestEndTime (participantsIds: number[]): number {
-    let highestEndTime = 0
-    for (let i = 0; i < participantsIds.length; i++) {
-      const numberOfSegments = this.data.getNoOfSegments(this.stimulusId, i)
-      if (numberOfSegments === 0) continue
-      const currentEndTime = this.data.getParticEndTime(this.stimulusId, i)
-      if (currentEndTime > highestEndTime) highestEndTime = currentEndTime
-    }
-    return highestEndTime
   }
 
   // todo nová helper class?
