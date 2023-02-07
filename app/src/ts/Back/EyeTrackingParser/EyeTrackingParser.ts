@@ -38,9 +38,12 @@ export class EyeTrackingParser {
     const pump = async (reader: ReadableStreamDefaultReader<string>): Promise<void> => await reader.read()
       .then(({ value, done }) => {
         if (done) {
-          if (this.rowReducer === null) throw new Error('No reducer initialized')
-          if (this.lastRow.length > 0) this.processRow(this.lastRow, this.rowReducer) // if not empty
-          this.processReduced(this.rowReducer.finalize())
+          if (this.rowReducer !== null) {
+            if (this.lastRow.length > 0) this.processRow(this.lastRow, this.rowReducer) // if not empty
+            this.processReduced(this.rowReducer.finalize())
+          } else {
+            console.warn('Empty file', this.currentFileName)
+          }
           this.lastRow = ''
           this.rowReducer = null
           this.fileParsed++
