@@ -22,8 +22,8 @@ export class EyeTrackingData {
 
   constructor (main: ETDInterface) {
     this.main = main
-    console.log(this.main)
-    console.log(JSON.stringify(this.main))
+    // console.log(this.main)
+    // console.log(JSON.stringify(this.main))
   }
 
   // stimulus getters

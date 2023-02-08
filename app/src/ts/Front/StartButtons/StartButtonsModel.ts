@@ -56,20 +56,40 @@ export class StartButtonsModel extends AbstractModel {
   startWorkerProcessing (): void {
     const settings = this.parsingSettings
     if (settings === null) throw new Error('parsingSettings is null')
-    this.worker.postMessage(settings.workerSettings)
-    this.processDataAsStream(settings.files)
+    this.worker.postMessage({ type: 'settings', data: settings.workerSettings })
+    if (this.isStreamTransferable()) {
+      this.processDataAsStream(settings.files)
+    } else {
+      void this.processDataAsArrayBuffer(settings.files)
+    }
   }
 
   processDataAsStream (files: File[]): void {
     for (let index = 0; index < files.length; index++) {
       const stream = files[index].stream()
-      try {
-        this.worker.postMessage(stream, [stream])
-      } catch (error) {
-        void files[index].arrayBuffer().then((arrayBuffer) => {
-          this.worker.postMessage(arrayBuffer, [arrayBuffer])
-        })
+      this.worker.postMessage({ type: 'stream', data: stream }, [stream])
+    }
+  }
+
+  async processDataAsArrayBuffer (files: File[]): Promise<void> {
+    for (let index = 0; index < files.length; index++) {
+      const buffer = await files[index].arrayBuffer()
+      this.worker.postMessage({ type: 'buffer', data: buffer }, [buffer])
+    }
+  }
+
+  isStreamTransferable (): boolean {
+    const stream = new ReadableStream({
+      start (controller) {
+        controller.enqueue(new Uint8Array([]))
+        controller.close()
       }
+    })
+    try {
+      this.worker.postMessage({ type: 'test-stream', stream }, [stream])
+      return true
+    } catch (error) {
+      return false
     }
   }
 }

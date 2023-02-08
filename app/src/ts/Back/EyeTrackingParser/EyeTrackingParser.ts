@@ -33,7 +33,6 @@ export class EyeTrackingParser {
   }
 
   async process (rs: ReadableStream): Promise<ETDInterface | null> {
-    await this.isPreviousFileProcessed
     const reader = rs.pipeThrough(new TextDecoderStream()).getReader()
     const pump = async (reader: ReadableStreamDefaultReader<string>): Promise<void> => await reader.read()
       .then(({ value, done }) => {

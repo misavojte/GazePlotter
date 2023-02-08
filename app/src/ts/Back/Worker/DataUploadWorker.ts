@@ -1,32 +1,36 @@
 import { EyeTrackingParser } from '../EyeTrackingParser/EyeTrackingParser'
-import { isWorkerSettingsMessage } from '../../Types/Parsing/WorkerSettingsMessage'
 
 let parser: EyeTrackingParser | null = null
-const streams: ReadableStream[] = []
+let streams: ReadableStream[] = []
 let numberOfStreams = 0
 
 self.onmessage = async (e) => await processEvent(e)
 
 async function processEvent (e: MessageEvent): Promise<void> {
-  const data = e.data
-  if (isWorkerSettingsMessage(data)) {
-    parser = new EyeTrackingParser(data)
-    numberOfStreams = data.fileNames.length
-    return
+  const { data, type } = e.data
+  switch (type) {
+    case 'settings':
+      parser = new EyeTrackingParser(data)
+      numberOfStreams = data.fileNames.length
+      return
+    case 'test-stream':
+      return
+    case 'stream':
+      return await evalStreams(data)
+    case 'buffer':
+      return await evalBuffer(data)
+    default:
+      throw new Error('Unknown data type in worker', data)
   }
-  if (data.constructor.name === 'ReadableStream') {
-    return await evalStreams(data)
-  }
-  if (data.constructor.name === 'ArrayBuffer') {
-    const stream = new ReadableStream({
-      start (controller) {
-        controller.enqueue(data)
-        controller.close()
-      }
-    })
-    return await evalStreams(stream)
-  }
-  throw new Error('Unknown data type in worker', data)
+}
+async function evalBuffer (buffer: ArrayBuffer): Promise<void> {
+  const stream = new ReadableStream({
+    start (controller) {
+      controller.enqueue(buffer)
+      controller.close()
+    }
+  })
+  return await evalStreams(stream)
 }
 
 async function evalStreams (stream: ReadableStream): Promise<void> {
@@ -36,6 +40,8 @@ async function evalStreams (stream: ReadableStream): Promise<void> {
     for (const stream of streams) {
       const response = await parser.process(stream)
       if (response !== null) {
+        numberOfStreams = 0
+        streams = []
         self.postMessage(response)
       }
     }

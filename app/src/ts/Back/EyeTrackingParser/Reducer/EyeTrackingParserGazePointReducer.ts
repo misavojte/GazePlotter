@@ -1,6 +1,7 @@
 import { EyeTrackingParserAbstractReducer } from './EyeTrackingParserAbstractReducer'
 
 export class EyeTrackingParserGazePointReducer extends EyeTrackingParserAbstractReducer {
+  cStart: number
   cTime: number
   cDurationOfFixation: number
   cDurationOfBlink: number
@@ -8,6 +9,7 @@ export class EyeTrackingParserGazePointReducer extends EyeTrackingParserAbstract
   cStimulus: number
   cFixID: number
   mTime: number | null = null
+  mStart: number | null = null
   mDurationOfEvent: number | null = null
   mDurationOfFixation: number | null = null
   mAOI: string | null = null
@@ -18,6 +20,7 @@ export class EyeTrackingParserGazePointReducer extends EyeTrackingParserAbstract
   participant: string // for this reducer, the participant is always the same (one file per participant)
   constructor (header: string[], participant: string) {
     super()
+    this.cStart = header.indexOf('FPOGS')
     this.cTime = header.indexOf('FPOGS') - 1
     this.cDurationOfFixation = header.indexOf('FPOGD')
     this.cDurationOfBlink = header.indexOf('BKDUR')
@@ -31,6 +34,7 @@ export class EyeTrackingParserGazePointReducer extends EyeTrackingParserAbstract
     let result = null
 
     const time = row[this.cTime]
+    const start = row[this.cStart]
     const durationOfFixation = row[this.cDurationOfFixation]
     const durationOfBlink = row[this.cDurationOfBlink]
     const aoi = row[this.cAOI] === '' ? null : row[this.cAOI]
@@ -55,6 +59,7 @@ export class EyeTrackingParserGazePointReducer extends EyeTrackingParserAbstract
       this.mDurationOfEvent = isBlink ? Number(durationOfBlink) : Number(durationOfFixation)
       this.mDurationOfFixation = Number(durationOfFixation)
       this.mTime = Number(time)
+      this.mStart = isBlink ? Number(time) - this.mDurationOfEvent : Number(start)
       this.mFixID = fixID
     }
     this.mHasFixationSegmentEnded = hasFixationSegmentEnded
@@ -67,16 +72,21 @@ export class EyeTrackingParserGazePointReducer extends EyeTrackingParserAbstract
   }
 
   flush (): { start: string, end: string, stimulus: string, participant: string, category: string, aoi: string[] | null } | null {
-    if (this.mStimulus === null || this.mCategory === null || this.mTime === null || this.mDurationOfEvent === null) return null
-    const r = {
+    if (this.mStimulus === null || this.mCategory === null || this.mStart === null || this.mDurationOfEvent === null) return null
+    let r: EyeTrackingParserGazePointReducerResult | null = {
       aoi: this.mAOI === null ? null : [this.mAOI],
       category: this.mCategory,
       end: String(this.mTime),
       participant: this.participant,
-      start: String(this.mTime - this.mDurationOfEvent),
+      start: String(this.mStart),
       stimulus: this.mStimulus
     }
+    if (this.mStart === 0 && this.mTime === 0) {
+      console.warn('start and end are 0 - Probable blink issue', this.mFixID, this.mStimulus, this.participant)
+      r = null
+    }
     this.mTime = null
+    this.mStart = null
     return r
   }
 }
@@ -100,3 +110,12 @@ export class EyeTrackingParserGazePointReducer extends EyeTrackingParserAbstract
 // this.mHasFixationSegmentEnded = hasFixationSegmentEnded
 //
 // return result
+
+interface EyeTrackingParserGazePointReducerResult {
+  aoi: string[] | null
+  category: 'Fixation' | 'Blink'
+  end: string
+  participant: string
+  start: string
+  stimulus: string
+}
