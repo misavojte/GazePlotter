@@ -13,7 +13,7 @@ interface ETDAois {
 
 interface ETDBaseAttributeHolder {
   data: string[][]
-  orderVector: [number[]] | []
+  orderVector: number[] | []
 }
 
 export class EyeTrackingData {

@@ -3,7 +3,9 @@ import { ETDInterface } from '../../../Data/EyeTrackingData'
 
 export class EyeTrackingParserBeGazePostprocessor extends EyeTrackingParserAbstractPostprocessor {
   process (data: ETDInterface): ETDInterface {
-    return this.mergeDuplicatedSegments(this.sortSegments(data))
+    data = this.mergeDuplicatedSegments(this.sortSegments(data))
+    this.orderAoisAlphabetically(data)
+    return data
   }
 
   sortSegments (data: ETDInterface): ETDInterface {
@@ -46,14 +48,14 @@ export class EyeTrackingParserBeGazePostprocessor extends EyeTrackingParserAbstr
 
         // if defined, not null...
         if (segmentPart !== undefined) {
-          let prevStart
-          let prevEnd
-          let segIdToJoin
+          let prevStart = null
+          let prevEnd = null
+          let segIdToJoin = null
           // go through every segment for given participant and stimulus
           for (let segmentId = 0; segmentId < segmentPart.length; segmentId++) {
             const currSegment = segmentPart[segmentId]
             // if fixation with identical start and end (than assuming, there are two AOIs to join))
-            if (currSegment[0] === prevStart && currSegment[1] === prevEnd && currSegment[2] === fixationCategoryId && segIdToJoin !== undefined) {
+            if (currSegment[0] === prevStart && currSegment[1] === prevEnd && currSegment[2] === fixationCategoryId && segIdToJoin !== null) {
               // //add AOI id to the previous one
               // //Control wheter the AOI is already in dataset
               if (!segmentPart[segIdToJoin].slice(3).includes(currSegment[3])) {
@@ -71,9 +73,6 @@ export class EyeTrackingParserBeGazePostprocessor extends EyeTrackingParserAbstr
             prevEnd = currSegment[1]
           }
         }
-
-        // const partiName = data.participants.data[particId][0]
-        // info[stimulName][partiName] = mergeCount - mergeCountBase
       }
     }
     return data
