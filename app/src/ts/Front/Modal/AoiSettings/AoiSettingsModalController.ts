@@ -14,7 +14,8 @@ export class AoiSettingsModalController extends AbstractModalController {
     const aoiNames = formData.getAll('displayed_name') as string[]
     const aoiColors = formData.getAll('color') as string[]
     const aoiIds = formData.getAll('aoi_id').map(x => Number(x))
-    this.model.fireUpdateAoi(aoiIds, aoiNames, aoiColors)
+    const applyColor = formData.get('apply_color') as string
+    this.model.fireUpdateAoi(aoiIds, aoiNames, aoiColors, applyColor)
   }
 
   handleOtherClickEvent (e: Event): void {

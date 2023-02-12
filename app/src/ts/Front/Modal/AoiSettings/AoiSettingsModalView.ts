@@ -37,6 +37,21 @@ return `
       </div>`
       }).join('')}
       </div>
+      <fieldset>
+        <legend>Apply color to other stimuli</legend>
+        <label>
+            <input type="radio" name="apply_color" value="no" checked>
+            No
+        </label>
+        <label>
+            <input type="radio" name="apply_color" value="by_original_name">
+            By original name
+        </label>
+        <label>
+            <input type="radio" name="apply_color" value="by_displayed_name">
+            By displayed name
+        </label>
+      </fieldset>
       <input type="submit" value="Apply changes">   
     </form>`
   }

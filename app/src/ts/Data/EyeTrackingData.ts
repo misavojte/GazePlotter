@@ -26,7 +26,9 @@ export class EyeTrackingData {
     // console.log(JSON.stringify(this.main))
   }
 
-  // stimulus getters
+  get noOfStimuli (): number {
+    return this.main.stimuli.data.length
+  }
 
   getStimulInfo (stimulusIndex: number): Object {
     return {

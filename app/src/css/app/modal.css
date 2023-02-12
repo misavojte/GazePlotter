@@ -104,3 +104,18 @@ input[type="color"]::-webkit-color-swatch {
     border-radius: 3px;
     border: none;
 }
+
+.modal-body>.gr-line {
+    margin-bottom: 7px;
+}
+
+fieldset {
+    border: 1px solid #dadada;
+    margin-block: 12px;
+    padding: 7px;
+}
+
+fieldset input {
+    height: unset;
+    box-shadow: unset;
+}
