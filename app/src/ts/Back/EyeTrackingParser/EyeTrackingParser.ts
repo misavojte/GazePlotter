@@ -8,6 +8,7 @@ import { EyeTrackingParserTobiiPostprocessor } from './Postprocessor/EyeTracking
 import { EyeTrackingParserGazePointReducer } from './Reducer/EyeTrackingParserGazePointReducer'
 import { WorkerSettingsMessage } from '../../Types/Parsing/WorkerSettingsMessage'
 import { EyeTrackingFileType } from '../../Types/Parsing/FileTypes'
+import { EyeTrackingParserGazePointPostprocessor } from './Postprocessor/EyeTrackingParserGazePointPostprocessor'
 
 export class EyeTrackingParser {
   lastRow: string = ''
@@ -81,7 +82,7 @@ export class EyeTrackingParser {
     const data = this.rowStore.data
     if (fileType === 'begaze') return new EyeTrackingParserBeGazePostprocessor().process(data)
     if (fileType === 'tobii' || fileType === 'tobii-with-event') return new EyeTrackingParserTobiiPostprocessor().process(data)
-    if (fileType === 'gazepoint') return data
+    if (fileType === 'gazepoint') return new EyeTrackingParserGazePointPostprocessor().process(data)
     throw new Error('File type for postprocessor not recognized')
   }
 
