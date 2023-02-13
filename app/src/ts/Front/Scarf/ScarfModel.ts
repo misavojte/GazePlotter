@@ -5,6 +5,7 @@ import { ScarfTooltipController } from '../ScarfTooltip/ScarfTooltipController'
 import { ScarfTooltipModel } from '../ScarfTooltip/ScarfTooltipModel'
 import { WorkplaceModel } from '../Workplace/WorkplaceModel'
 import { ScarfService } from './ScarfService'
+import { ScarfSettingsType } from '../../Types/Scarf/ScarfSettingsType'
 
 /**
  * Model for scarf plot (sequence chart) showing eye-tracking segments for given stimuli and participants.
@@ -28,6 +29,13 @@ export class ScarfModel extends AbstractModel {
   highlightedType: string | null = null
   isRequestingModal: boolean = false
   participantIds: number[]
+  settings: ScarfSettingsType = {
+    aoiVisibility: false,
+    generalWidth: 0,
+    stimuliWidth: []
+  }
+
+  flashMessage: { message: string, type: 'error' | 'warn' | 'info' | 'success' } | null = null
 
   constructor (workplace: WorkplaceModel, stimulusId: number = 0) {
     super()
@@ -57,7 +65,7 @@ export class ScarfModel extends AbstractModel {
 
   getData (): ScarfFilling {
     return new ScarfService(
-      this.stimulusId, this.participantIds, this.absoluteTimeline, this.data
+      this.stimulusId, this.participantIds, this.absoluteTimeline, this.data, this.settings
     ).getViewFilling()
   }
 
@@ -129,15 +137,27 @@ export class ScarfModel extends AbstractModel {
   }
 
   getHighestEndTime (participantsIds: number[]): number {
-    let highestEndTime = 0
+    const settingsWidth = this.settings.stimuliWidth[this.stimulusId] ?? this.settings.generalWidth
+    let highestEndTime = settingsWidth // if settingsWidth can be 0 (auto)
     for (let i = 0; i < participantsIds.length; i++) {
       const id = participantsIds[i]
       const numberOfSegments = this.data.getNoOfSegments(this.stimulusId, id)
       if (numberOfSegments === 0) continue
       const currentEndTime = this.data.getParticEndTime(this.stimulusId, id)
-      if (currentEndTime > highestEndTime) highestEndTime = currentEndTime
+      if (currentEndTime > highestEndTime) {
+        if (settingsWidth !== 0) {
+          this.addFlashMessage('warn', 'The set axis width is smaller than the highest end time of the participants.')
+          return highestEndTime
+        }
+        highestEndTime = currentEndTime
+      }
     }
     return highestEndTime
+  }
+
+  addFlashMessage (type: 'error' | 'warn' | 'info' | 'success', message: string): void {
+    this.flashMessage = { type, message }
+    this.notify('scarf-flash', ['workplaceModel'])
   }
 }
 

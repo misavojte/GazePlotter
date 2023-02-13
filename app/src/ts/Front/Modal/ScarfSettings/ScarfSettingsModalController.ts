@@ -17,4 +17,12 @@ export class ScarfSettingsModalController extends AbstractModalController {
         return this.model.openAoiVisibilityModal()
     }
   }
+
+  handleSubmitEvent (e: Event): void {
+    const form = e.target as HTMLFormElement
+    const applyToAll = form.x_axis_width_apply.value === 'all'
+    const width = Number(form.x_axis_width_value.value)
+    if (width < 0) throw new Error('Width cannot be negative')
+    this.model.fireWidthChange(width, applyToAll)
+  }
 }

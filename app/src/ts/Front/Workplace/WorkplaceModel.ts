@@ -45,6 +45,7 @@ export class WorkplaceModel extends AbstractModel {
       case 'eyeTrackingData' : return this.startPrintingFirstChart()
       case 'close-modal' : return this.fireCloseModal()
       case 'modal-flash' : return this.fireFlashFromModal()
+      case 'scarf-flash' : return this.fireFlashFromScarf()
       case 'redraw' : return this.redraw()
       case 'open-scarf-settings-modal' : return this.initScarfSettingsModal()
       case 'open-aoi-visibility-modal' : return this.initAoiVisibilityModal()
@@ -100,10 +101,16 @@ export class WorkplaceModel extends AbstractModel {
     this.flashManager.addFlashMessage(flash.message, flash.type)
   }
 
+  fireFlashFromScarf (): void {
+    const flash = this.scarfs[0].controller.model.flashMessage
+    if (flash == null) return
+    this.flashManager.addFlashMessage(flash.message, flash.type)
+  }
+
   initScarfSettingsModal (): void {
     const initiator = this.#getModalInitiator()
     if (!(initiator instanceof ScarfModel)) throw new Error('WorkplaceModel.initScarfSettingsModal() - modal initiator is not a scarf model')
-    const modalModel = new ScarfSettingsModalModel(this, initiator.stimulusId, initiator.scarfId)
+    const modalModel = new ScarfSettingsModalModel(this, initiator.settings, initiator.stimulusId, initiator.scarfId)
     void new ScarfSettingsModalView(new ScarfSettingsModalController(modalModel)) // will be referenced by modalModel as observer
     this.modal = modalModel
     modalModel.fireOpen()

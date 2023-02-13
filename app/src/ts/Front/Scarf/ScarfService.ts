@@ -9,6 +9,7 @@ import {
   ScarfStyling,
   ScarfStylingList
 } from './ScarfModel'
+import { ScarfSettingsType } from '../../Types/Scarf/ScarfSettingsType'
 
 export class ScarfService {
   IDENTIFIER_IS_AOI: string = 'a'
@@ -30,9 +31,11 @@ export class ScarfService {
   stimuli: ScarfStimuliInfo[]
   stylingAndLegend: ScarfStylingList
   chartHeight: number
+  settings: ScarfSettingsType
 
-  constructor (stimulusId: number, participantIds: number[], axis: AxisBreaks, data: EyeTrackingData, participGap: number = 10) {
+  constructor (stimulusId: number, participantIds: number[], axis: AxisBreaks, data: EyeTrackingData, settings: ScarfSettingsType, participGap: number = 10) {
     this.stimulusId = stimulusId
+    this.settings = settings
     this.data = data
     this.spaceAboveRect = participGap / 2
     this.aoiOrderedArr = data.getAoiOrderArray(stimulusId)

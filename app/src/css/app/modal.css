@@ -58,7 +58,7 @@
     width: 100%;
 }
 
-.modal-body form>div {
+.modal-body form>div, .flex-row {
     display: flex;
     width: 100%;
     justify-content: space-between;
@@ -111,11 +111,27 @@ input[type="color"]::-webkit-color-swatch {
 
 fieldset {
     border: 1px solid #dadada;
-    margin-block: 12px;
-    padding: 7px;
+    margin: 19px 0 12px;
+    padding: 19px 7px;
 }
 
-fieldset input {
+fieldset>legend {
+    line-height: 0;
+}
+
+fieldset input[type="radio"] {
     height: unset;
     box-shadow: unset;
+}
+
+.button-group {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-bottom: 7px;
+}
+
+input[type="number"] {
+    padding: 7px;
 }
