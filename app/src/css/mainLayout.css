@@ -107,7 +107,7 @@ main {
     overflow: hidden;
 }
 
-section:first-child {
+main>section:first-child {
     padding-block: 80px;
 }
 
@@ -384,7 +384,7 @@ td, th {
     #firstsec {
         grid-template-columns: 50% 1fr;
     }
-    section:first-child {
+    main>section:first-child {
         padding-block: 40px;
     }
 }
@@ -393,7 +393,7 @@ td, th {
     h1 {
         font-size: 2.2rem;
     }
-    section:first-child {
+    main>section:first-child {
         padding-block: 30px;
     }
     .intro-text {
