@@ -53,13 +53,13 @@ export class ScarfModel extends AbstractModel {
   fireNewStimulus (stimulusId: number): void {
     this.stimulusId = stimulusId
     this.participantIds = this.getParticipantIdsToProcess()
-    this.absoluteTimeline = new AxisBreaks(this.getHighestEndTime(this.participantIds))
     this.tooltipComponent.controller.model.stimulusId = stimulusId
     this.redraw()
   }
 
   redraw (): void {
     this.isTimelineRelative = false
+    this.absoluteTimeline = new AxisBreaks(this.getHighestEndTime(this.participantIds))
     this.notify('stimulus', ['scarf-view'])
   }
 

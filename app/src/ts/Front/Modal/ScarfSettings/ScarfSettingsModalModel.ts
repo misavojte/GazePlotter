@@ -34,7 +34,7 @@ export class ScarfSettingsModalModel extends AbstractModalModel {
     } else {
       this.scarfSettings.stimuliWidth[this.stimulusId] = width
     }
-    this.notify('width-change', ['workplaceModel'])
+    this.notify('redraw', ['workplaceModel'])
     this.fireClose()
   }
 }

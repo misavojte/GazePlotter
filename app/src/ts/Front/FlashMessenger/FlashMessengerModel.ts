@@ -54,8 +54,9 @@ export class FlashMessengerModel extends AbstractModel {
    *  @param type The type of the flash message - if it is an error, the timeout is longer.
    */
   getTimeout (id: number, type: FlashMessageType): NodeJS.Timeout {
+    const timeout = type === 'error' ? 10000 : (type === 'warn' ? 10000 : 2500)
     return setTimeout(() => {
       this.removeFlashMessage(id)
-    }, (type === 'error' ? 10000 : 3500))
+    }, timeout)
   }
 }

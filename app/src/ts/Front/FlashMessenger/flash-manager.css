@@ -43,6 +43,11 @@
     border-color: rgb(0 0 0 / 10%);
 }
 
+.warn {
+    background-color: #f7e3c3;
+    border-color: rgb(0 0 0 / 10%);
+}
+
 .info2 {
     color: #41464b;
     background-color: #e2e3e5;
