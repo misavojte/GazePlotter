@@ -31,6 +31,7 @@ export class ScarfModel extends AbstractModel {
   participantIds: number[]
   settings: ScarfSettingsType = {
     aoiVisibility: false,
+    ordinalTimeline: false,
     generalWidth: 0,
     stimuliWidth: []
   }
@@ -71,6 +72,10 @@ export class ScarfModel extends AbstractModel {
 
   getTimelineUnit (): string {
     return this.isTimelineRelative ? '%' : 'ms'
+  }
+
+  getXAxisLabel (): string {
+    return this.settings.ordinalTimeline ? 'Order index' : `Elapsed time [${this.getTimelineUnit()}]`
   }
 
   getParticipantAbsoluteWidth (participantId: number): string {
@@ -137,12 +142,17 @@ export class ScarfModel extends AbstractModel {
   }
 
   getHighestEndTime (participantsIds: number[]): number {
-    const settingsWidth = this.settings.stimuliWidth[this.stimulusId] ?? this.settings.generalWidth
+    const settings = this.settings
+    const settingsWidth = settings.stimuliWidth[this.stimulusId] ?? settings.generalWidth
     let highestEndTime = settingsWidth // if settingsWidth can be 0 (auto)
     for (let i = 0; i < participantsIds.length; i++) {
       const id = participantsIds[i]
       const numberOfSegments = this.data.getNoOfSegments(this.stimulusId, id)
       if (numberOfSegments === 0) continue
+      if (settings.ordinalTimeline) {
+        if (numberOfSegments > highestEndTime) highestEndTime = numberOfSegments
+        continue
+      }
       const currentEndTime = this.data.getParticEndTime(this.stimulusId, id)
       if (currentEndTime > highestEndTime) {
         if (settingsWidth !== 0) {

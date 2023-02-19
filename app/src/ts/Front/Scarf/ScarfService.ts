@@ -149,8 +149,10 @@ export class ScarfService {
    */
   #prepareSegment (participantId: number, segmentId: number, sessionDuration: number): ScarfSegment {
     const segment = this.data.getSegmentInfo(this.stimulusId, participantId, segmentId)
-    const x = `${(segment.start / sessionDuration) * 100}%`
-    const width = `${((segment.end - segment.start) / sessionDuration) * 100}%`
+    const start = this.settings.ordinalTimeline ? segmentId : segment.start
+    const end = this.settings.ordinalTimeline ? segmentId + 1 : segment.end
+    const x = `${(start / sessionDuration) * 100}%`
+    const width = `${((end - start) / sessionDuration) * 100}%`
     return { content: this.#prepareSegmentContents(segment, x, width) }
   }
 

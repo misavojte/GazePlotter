@@ -55,7 +55,7 @@ export class ScarfView extends AbstractView {
     this.getElement('.btn3').classList.toggle('is-active')
     this.getElement('.chxlabs').innerHTML = this.#createXAxisLabelsInnerHtml(model.getTimeline())
     this.getElement('pattern').setAttribute('width', model.getPatternWidth())
-    this.getElement('.scarf-timeline-unit').innerHTML = model.getTimelineUnit()
+    this.getElement('.chxlab').innerHTML = model.getXAxisLabel()
   }
 
   #fireStimulusChange (): void {
@@ -156,7 +156,7 @@ export class ScarfView extends AbstractView {
         </svg>
     </div>
     <div class='chxlab'>
-        Elapsed time [<span class="scarf-timeline-unit">${model.getTimelineUnit()}</span>]
+        ${model.getXAxisLabel()}
     </div>
     <div class="chlegendwrap">
         <div class="js-dblclick" data-event="open-modal" data-modal="edit-aoi">
