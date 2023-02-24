@@ -6,6 +6,7 @@ import { ETDInterface } from '../../Data/EyeTrackingData'
  */
 export class EyeTrackingParserRowStore {
   data: ETDInterface = {
+    isOrdinalOnly: false,
     stimuli: { data: [], orderVector: [] },
     participants: { data: [], orderVector: [] },
     categories: { data: [['Fixation'], ['Saccade']], orderVector: [] },

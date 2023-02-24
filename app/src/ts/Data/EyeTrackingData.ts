@@ -1,4 +1,5 @@
 export interface ETDInterface {
+  isOrdinalOnly: boolean
   aois: ETDAois
   categories: ETDBaseAttributeHolder
   participants: ETDBaseAttributeHolder

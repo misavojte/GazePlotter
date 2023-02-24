@@ -219,7 +219,7 @@ export class ScarfView extends AbstractView {
   }
 
   #createTimelineSwitchHtml (): string {
-    const isOnlyOrdinal = false // TODO IMPLEMENT!
+    const isOnlyOrdinal = this.controller.model.data.main.isOrdinalOnly
     if (isOnlyOrdinal) return ''
     return `
     <select class="js-change timeline-switch">
