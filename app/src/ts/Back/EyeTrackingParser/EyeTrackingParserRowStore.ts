@@ -1,4 +1,5 @@
 import { ETDInterface } from '../../Data/EyeTrackingData'
+import { ReducerSingleOutputType } from '../../Types/Parsing/ReducerOutputType'
 
 /**
  * Ať žije legacy code.
@@ -14,7 +15,7 @@ export class EyeTrackingParserRowStore {
     segments: []
   }
 
-  add (row: { start: string, end: string, stimulus: string, participant: string, category: string, aoi: string[] | null }): void {
+  add (row: ReducerSingleOutputType): void {
     const stimulusIndex = this.processStimulus(row.stimulus)
     const participantIndex = this.processParticipant(row.participant, stimulusIndex)
     const aoiIDs = this.processAOIs(row.aoi, stimulusIndex)

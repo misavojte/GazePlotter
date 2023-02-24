@@ -1,4 +1,5 @@
 import { EyeTrackingParserAbstractReducer } from './EyeTrackingParserAbstractReducer'
+import { ReducerSingleOutputType } from '../../../Types/Parsing/ReducerOutputType'
 
 export class EyeTrackingParserTobiiReducer extends EyeTrackingParserAbstractReducer {
   cAoiInfo: Array<{ columnPosition: number, aoiName: string, stimulusName: string }>
@@ -63,7 +64,7 @@ export class EyeTrackingParserTobiiReducer extends EyeTrackingParserAbstractRedu
     this.mIsOpen = true
   }
 
-  reduce (row: string[]): { start: string, end: string, stimulus: string, participant: string, category: string, aoi: string[] | null } | null {
+  reduce (row: string[]): ReducerSingleOutputType | null {
     let result = null
     const stimulus = this.stimulusGetter(row)
     if (stimulus === '') return null // ignore empty rows
@@ -85,7 +86,7 @@ export class EyeTrackingParserTobiiReducer extends EyeTrackingParserAbstractRedu
     return result
   }
 
-  finalize (): { start: string, end: string, stimulus: string, participant: string, category: string, aoi: string[] | null } | null {
+  finalize (): ReducerSingleOutputType | null {
     return this.getReduceDataFromMemory()
   }
 

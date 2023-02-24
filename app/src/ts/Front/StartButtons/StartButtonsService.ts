@@ -46,6 +46,7 @@ export class StartButtonsService {
     }
     if (this.isGazePoint(slice)) return 'gazepoint'
     if (this.isBeGaze(slice)) return 'begaze'
+    if (this.isOgama(slice)) return 'ogama'
     return 'unknown'
   }
 
@@ -59,5 +60,9 @@ export class StartButtonsService {
 
   isBeGaze (slice: string): boolean {
     return slice.includes('Event Start Trial Time [ms]') && slice.includes('Event End Trial Time [ms]')
+  }
+
+  isOgama (slice: string): boolean {
+    return slice.includes('# Contents: Similarity Measurements of scanpaths.')
   }
 }

@@ -9,6 +9,7 @@ import { EyeTrackingParserGazePointReducer } from './Reducer/EyeTrackingParserGa
 import { WorkerSettingsMessage } from '../../Types/Parsing/WorkerSettingsMessage'
 import { EyeTrackingFileType } from '../../Types/Parsing/FileTypes'
 import { EyeTrackingParserGazePointPostprocessor } from './Postprocessor/EyeTrackingParserGazePointPostprocessor'
+import { ReducerOutputType } from '../../Types/Parsing/ReducerOutputType'
 
 export class EyeTrackingParser {
   lastRow: string = ''
@@ -62,11 +63,11 @@ export class EyeTrackingParser {
   processPump (value: string): boolean {
     const rows = (this.lastRow + value).split(this.rowDelimiter)
     const maxIndex = rows.length - 1
-    let rowIndex = 0
+    let rowIndex = this.type === 'ogama' ? 8 : 0
     this.lastRow = rows[rows.length - 1]
     if (rows.length < 2) return true
     if (this.rowReducer === null) {
-      const header = rows[0].split(this.columnDelimiter)
+      const header = rows[rowIndex].split(this.columnDelimiter)
       this.columnsIntegrity = header.length
       this.rowReducer = this.getRowReducer(header)
       rowIndex++
@@ -118,7 +119,11 @@ export class EyeTrackingParser {
     this.processReduced(reducer.reduce(columns))
   }
 
-  processReduced (reducedRow: { start: string, end: string, stimulus: string, participant: string, category: string, aoi: string[] | null } | null): void {
+  processReduced (reducedRow: ReducerOutputType): void {
+    if (Array.isArray(reducedRow)) {
+      reducedRow.forEach(row => this.rowStore.add(row))
+      return
+    }
     if (reducedRow !== null) this.rowStore.add(reducedRow)
   }
 }

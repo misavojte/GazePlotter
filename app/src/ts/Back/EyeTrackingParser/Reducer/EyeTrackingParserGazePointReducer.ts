@@ -1,4 +1,5 @@
 import { EyeTrackingParserAbstractReducer } from './EyeTrackingParserAbstractReducer'
+import { ReducerSingleOutputType } from '../../../Types/Parsing/ReducerOutputType'
 
 export class EyeTrackingParserGazePointReducer extends EyeTrackingParserAbstractReducer {
   cStart: number
@@ -30,7 +31,7 @@ export class EyeTrackingParserGazePointReducer extends EyeTrackingParserAbstract
     this.participant = participant
   }
 
-  reduce (row: string[]): { start: string, end: string, stimulus: string, participant: string, category: string, aoi: string[] | null } | null {
+  reduce (row: string[]): ReducerSingleOutputType | null {
     let result = null
 
     const time = row[this.cTime]
@@ -67,7 +68,7 @@ export class EyeTrackingParserGazePointReducer extends EyeTrackingParserAbstract
     return result
   }
 
-  finalize (): { start: string, end: string, stimulus: string, participant: string, category: string, aoi: string[] | null } | null {
+  finalize (): ReducerSingleOutputType | null {
     return this.flush()
   }
 
