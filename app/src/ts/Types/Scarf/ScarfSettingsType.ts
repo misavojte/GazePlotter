@@ -1,6 +1,6 @@
 export interface ScarfSettingsType {
   aoiVisibility: boolean
-  ordinalTimeline: boolean
+  timeline: 'absolute' | 'relative' | 'ordinal'
   /**
    * The width of the scarf chart axis in set units.
    * 0 = width is automatically calculated.

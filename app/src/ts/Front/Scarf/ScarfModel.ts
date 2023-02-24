@@ -20,7 +20,6 @@ export class ScarfModel extends AbstractModel {
   scarfId: number = 0
   data: EyeTrackingData
   stimulusId: number
-  isTimelineRelative: boolean = false
   isDetached: boolean = true
   zoomFrom: number = 100
   zoomTo: number = 100
@@ -31,7 +30,7 @@ export class ScarfModel extends AbstractModel {
   participantIds: number[]
   settings: ScarfSettingsType = {
     aoiVisibility: false,
-    ordinalTimeline: false,
+    timeline: 'absolute',
     generalWidth: 0,
     stimuliWidth: []
   }
@@ -46,7 +45,6 @@ export class ScarfModel extends AbstractModel {
     this.data = data
     this.tooltipComponent = new ScarfTooltipView(new ScarfTooltipController(new ScarfTooltipModel(data)))
     this.stimulusId = stimulusId
-    this.isTimelineRelative = false
     this.participantIds = this.getParticipantIdsToProcess()
     this.absoluteTimeline = new AxisBreaks(this.getHighestEndTime(this.participantIds))
   }
@@ -59,43 +57,42 @@ export class ScarfModel extends AbstractModel {
   }
 
   redraw (): void {
-    this.isTimelineRelative = false
     this.absoluteTimeline = new AxisBreaks(this.getHighestEndTime(this.participantIds))
     this.notify('stimulus', ['scarf-view'])
   }
 
   getData (): ScarfFilling {
     return new ScarfService(
-      this.stimulusId, this.participantIds, this.absoluteTimeline, this.data, this.settings
+      this.stimulusId, this.participantIds, this.getTimeline(), this.data, this.settings
     ).getViewFilling()
   }
 
   getTimelineUnit (): string {
-    return this.isTimelineRelative ? '%' : 'ms'
+    return this.settings.timeline === 'relative' ? '%' : 'ms'
   }
 
   getXAxisLabel (): string {
-    return this.settings.ordinalTimeline ? 'Order index' : `Elapsed time [${this.getTimelineUnit()}]`
+    return this.settings.timeline === 'ordinal' ? 'Order index' : `Elapsed time [${this.getTimelineUnit()}]`
   }
 
-  getParticipantAbsoluteWidth (participantId: number): string {
-    return `${(this.data.getParticEndTime(this.stimulusId, participantId) / this.absoluteTimeline.maxLabel) * 100}%`
-  }
-
-  getParticipantToWidth (participantId: number): string {
-    return this.isTimelineRelative ? '100%' : this.getParticipantAbsoluteWidth(participantId)
-  }
-
-  getParticipantFromWidth (participantId: number): string {
-    return this.isTimelineRelative ? this.getParticipantAbsoluteWidth(participantId) : '100%'
-  }
+  // getParticipantAbsoluteWidth (participantId: number): string {
+  //   return `${(this.data.getParticEndTime(this.stimulusId, participantId) / this.absoluteTimeline.maxLabel) * 100}%`
+  // }
+  //
+  // getParticipantToWidth (participantId: number): string {
+  //   return this.settings.timeline === 'relative' ? '100%' : this.getParticipantAbsoluteWidth(participantId)
+  // }
+  //
+  // getParticipantFromWidth (participantId: number): string {
+  //   return this.settings.timeline === 'relative' ? this.getParticipantAbsoluteWidth(participantId) : '100%'
+  // }
 
   getPatternWidth (): string {
-    return this.isTimelineRelative ? '10%' : `${(this.absoluteTimeline[1] / this.absoluteTimeline.maxLabel) * 100}%`
+    return this.settings.timeline === 'relative' ? '10%' : `${(this.absoluteTimeline[1] / this.absoluteTimeline.maxLabel) * 100}%`
   }
 
   getTimeline (): AxisBreaks {
-    return this.isTimelineRelative ? new AxisBreaks(100) : this.absoluteTimeline
+    return this.settings.timeline === 'relative' ? new AxisBreaks(100) : this.absoluteTimeline
   }
 
   fireZoom (isZoomIn: boolean): void {
@@ -106,9 +103,13 @@ export class ScarfModel extends AbstractModel {
     this.notify('zoom', [])
   }
 
-  fireTimelineChange (): void {
-    if (this.settings.ordinalTimeline) throw new Error('ScarfModel.fireTimelineChange() - cannot change timeline if ordinal timeline is enabled')
-    this.isTimelineRelative = !this.isTimelineRelative
+  fireTimelineChange (timelineId: number): void {
+    switch (timelineId) {
+      case 0: this.settings.timeline = 'absolute'; break
+      case 1: this.settings.timeline = 'relative'; break
+      case 2: this.settings.timeline = 'ordinal'; break
+    }
+    this.absoluteTimeline = new AxisBreaks(this.getHighestEndTime(this.participantIds))
     this.notify('timeline', ['scarf-view'])
   }
 
@@ -144,13 +145,14 @@ export class ScarfModel extends AbstractModel {
 
   getHighestEndTime (participantsIds: number[]): number {
     const settings = this.settings
+    if (settings.timeline === 'relative') return 100
     const settingsWidth = settings.stimuliWidth[this.stimulusId] ?? settings.generalWidth
-    let highestEndTime = settingsWidth // if settingsWidth can be 0 (auto)
+    let highestEndTime = settings.timeline === 'absolute' ? settingsWidth : 0 // if settingsWidth can be 0 (auto)
     for (let i = 0; i < participantsIds.length; i++) {
       const id = participantsIds[i]
       const numberOfSegments = this.data.getNoOfSegments(this.stimulusId, id)
       if (numberOfSegments === 0) continue
-      if (settings.ordinalTimeline) {
+      if (settings.timeline === 'ordinal') {
         if (numberOfSegments > highestEndTime) highestEndTime = numberOfSegments
         continue
       }

@@ -19,7 +19,7 @@ export class ScarfView extends AbstractView {
   handleUpdate (msg: string): void {
     switch (msg) {
       case 'zoom': return this.#fireZoom()
-      case 'timeline': return this.#fireTimelineChange()
+      case 'timeline': return this.#fireStimulusChange()
       case 'stimulus' : return this.#fireStimulusChange()
       case 'highlight': return this.#fireHighlight()
     }
@@ -38,28 +38,30 @@ export class ScarfView extends AbstractView {
     animateTag.beginElement()
   }
 
-  /**
-   * Animate timeline change
-   * @private
-   */
-  #fireTimelineChange (): void {
-    const model = this.controller.model
-    const animateTag = this.el.getElementsByTagName('animate')
-    for (let i = 1; i < animateTag.length; i++) {
-      const participantId = Number(animateTag[i].closest('.barwrap')?.getAttribute('data-id'))
-      if (isNaN(participantId)) throw new Error('Participant id is not a number')
-      animateTag[i].setAttribute('from', model.getParticipantFromWidth(participantId))
-      animateTag[i].setAttribute('to', model.getParticipantToWidth(participantId))
-      animateTag[i].beginElement()
-    }
-    this.getElement('.btn3').classList.toggle('is-active')
-    this.getElement('.chxlabs').innerHTML = this.#createXAxisLabelsInnerHtml(model.getTimeline())
-    this.getElement('pattern').setAttribute('width', model.getPatternWidth())
-    this.getElement('.chxlab').innerHTML = model.getXAxisLabel()
-  }
+  // /**
+  //  * Animate timeline change
+  //  * @private
+  //  */
+  // #fireTimelineChange (): void {
+  //   // const model = this.controller.model
+  //   // const animateTag = this.el.getElementsByTagName('animate')
+  //   // for (let i = 1; i < animateTag.length; i++) {
+  //   //   const participantId = Number(animateTag[i].closest('.barwrap')?.getAttribute('data-id'))
+  //   //   if (isNaN(participantId)) throw new Error('Participant id is not a number')
+  //   //   animateTag[i].setAttribute('from', model.getParticipantFromWidth(participantId))
+  //   //   animateTag[i].setAttribute('to', model.getParticipantToWidth(participantId))
+  //   //   animateTag[i].beginElement()
+  //   // }
+  //   // // this.getElement('.btn3').classList.toggle('is-active')
+  //   // this.getElement('.timeline-switch').outerHTML = this.#createTimelineSwitchHtml()
+  //   // this.getElement('.chxlabs').innerHTML = this.#createXAxisLabelsInnerHtml(model.getTimeline())
+  //   // this.getElement('pattern').setAttribute('width', model.getPatternWidth())
+  //   // this.getElement('.chxlab').innerHTML = model.getXAxisLabel()
+  // }
 
   #fireStimulusChange (): void {
-    this.getElement('.btn3').classList.remove('is-active')
+    // this.getElement('.btn3').classList.remove('is-active')
+    // this.getElement('.timeline-switch').outerHTML = this.#createTimelineSwitchHtml()
     this.getElement('.chartwrap').innerHTML = this.#createInnerPlotInnerHtml(this.controller.model.getData())
   }
 
@@ -217,11 +219,18 @@ export class ScarfView extends AbstractView {
   }
 
   #createTimelineSwitchHtml (): string {
-    if (this.controller.model.settings.ordinalTimeline) return ''
+    const isOnlyOrdinal = false // TODO IMPLEMENT!
+    if (isOnlyOrdinal) return ''
     return `
-    <div class="js-click btn3">
-    <div class="btn3-absolute">Absolute timeline</div>
-    <div class="btn3-relative">Relative timeline</div>
-    </div>`
+    <select class="js-change timeline-switch">
+        <option value="0" selected>Absolute timeline</option>
+        <option value="1">Relative timeline</option>
+        <option value="2">Ordinal timeline</option>
+    </select>`
+    // return `
+    // <div class="js-click btn3">
+    // <div class="btn3-absolute">Absolute timeline</div>
+    // <div class="btn3-relative">Relative timeline</div>
+    // </div>`
   }
 }

@@ -129,8 +129,7 @@ export class ScarfService {
     const iterateTo = this.data.getNoOfSegments(this.stimulusId, id)
     const sessionDuration = this.data.getParticEndTime(this.stimulusId, id)
     const label = this.data.getParticName(id)
-    const width = `${(sessionDuration / this.timeline.maxLabel) * 100}%`
-
+    const width = this.settings.timeline === 'relative' ? '100%' : `${(sessionDuration / this.timeline.maxLabel) * 100}%`
     const segments = []
     for (let i = 0; i < iterateTo; i++) {
       segments.push(this.#prepareSegment(id, i, sessionDuration))
@@ -149,8 +148,9 @@ export class ScarfService {
    */
   #prepareSegment (participantId: number, segmentId: number, sessionDuration: number): ScarfSegment {
     const segment = this.data.getSegmentInfo(this.stimulusId, participantId, segmentId)
-    const start = this.settings.ordinalTimeline ? segmentId : segment.start
-    const end = this.settings.ordinalTimeline ? segmentId + 1 : segment.end
+    const isOrdinal = this.settings.timeline === 'ordinal'
+    const start = isOrdinal ? segmentId : segment.start
+    const end = isOrdinal ? segmentId + 1 : segment.end
     const x = `${(start / sessionDuration) * 100}%`
     const width = `${((end - start) / sessionDuration) * 100}%`
     return { content: this.#prepareSegmentContents(segment, x, width) }

@@ -32,7 +32,6 @@ export class ScarfController implements AbstractController {
     const hasClass = (name: string): boolean => el.classList.contains(name)
     if (hasClass('bi-zoom-in')) return this.model.fireZoom(true)
     if (hasClass('bi-zoom-out')) return this.model.fireZoom(false)
-    if (hasClass('btn3')) return this.model.fireTimelineChange()
     if (hasClass('bi-wrench')) return this.model.fireOpenSettings()
     if (hasClass('bi-download')) return this.model.fireDownload()
   }
@@ -62,6 +61,11 @@ export class ScarfController implements AbstractController {
   /** On stimulus change, get stimulus id and update model */
   handleChange (e: Event): void {
     const el = e.currentTarget as HTMLInputElement
+    if (el.classList.contains('timeline-switch')) {
+      const timelineId = Number(el.value)
+      this.model.fireTimelineChange(timelineId)
+      return
+    }
     const stimulusId = Number(el.value)
     this.model.fireNewStimulus(stimulusId)
   }
