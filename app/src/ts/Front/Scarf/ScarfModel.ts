@@ -43,6 +43,7 @@ export class ScarfModel extends AbstractModel {
     const data = workplace.data
     if (data === null) throw new Error('ScarfModel.constructor() - workplace.data is null')
     this.data = data
+    if (data.main.isOrdinalOnly) this.settings.timeline = 'ordinal'
     this.tooltipComponent = new ScarfTooltipView(new ScarfTooltipController(new ScarfTooltipModel(data)))
     this.stimulusId = stimulusId
     this.participantIds = this.getParticipantIdsToProcess()
@@ -58,6 +59,7 @@ export class ScarfModel extends AbstractModel {
 
   redraw (): void {
     this.absoluteTimeline = new AxisBreaks(this.getHighestEndTime(this.participantIds))
+    if (this.settings.timeline !== 'ordinal' && this.data.main.isOrdinalOnly) throw new Error('ScarfModel.redraw() - timeline is not ordinal but data is ordinal only')
     this.notify('stimulus', ['scarf-view'])
   }
 
