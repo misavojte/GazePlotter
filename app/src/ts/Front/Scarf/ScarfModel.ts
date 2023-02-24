@@ -107,6 +107,7 @@ export class ScarfModel extends AbstractModel {
   }
 
   fireTimelineChange (): void {
+    if (this.settings.ordinalTimeline) throw new Error('ScarfModel.fireTimelineChange() - cannot change timeline if ordinal timeline is enabled')
     this.isTimelineRelative = !this.isTimelineRelative
     this.notify('timeline', ['scarf-view'])
   }
