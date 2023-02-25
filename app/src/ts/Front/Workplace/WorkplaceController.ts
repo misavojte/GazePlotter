@@ -17,7 +17,15 @@ export class WorkplaceController extends AbstractController {
     e.stopPropagation()
     switch (e.type) {
       case 'click' :
-        this.model.openWorkplaceModal()
+        return this.handleClick(e)
+    }
+  }
+
+  handleClick (e: Event): void {
+    const target = e.target as HTMLElement
+    switch (target.id) {
+      case 'save-workplace' : return this.model.openWorkplaceModal()
+      case 'save-scan-graph' : return this.model.initScanGraphDownloadModal()
     }
   }
 }

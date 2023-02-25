@@ -24,6 +24,9 @@ import { AoiSettingsModalController } from '../Modal/AoiSettings/AoiSettingsModa
 import { TobiiUploadModalController } from '../Modal/TobiiUpload/TobiiUploadModalController'
 import { TobiiUploadModalView } from '../Modal/TobiiUpload/TobiiUploadModalView'
 import { TobiiUploadModalModel } from '../Modal/TobiiUpload/TobiiUploadModalModel'
+import { ScanGraphDownloadModalModel } from '../Modal/ScanGraphDownload/ScanGraphDownloadModalModel'
+import { ScanGraphDownloadModalView } from '../Modal/ScanGraphDownload/ScanGraphDownloadModalView'
+import { ScanGraphDownloadModalController } from '../Modal/ScanGraphDownload/ScanGraphDownloadModalController'
 
 export class WorkplaceModel extends AbstractModel {
   readonly observerType = 'workplaceModel'
@@ -61,6 +64,13 @@ export class WorkplaceModel extends AbstractModel {
     void new WorkplaceDownloadModalView(new WorkplaceDownloadModalController(modalModel)) // will be referenced by modalModel as observer
     this.modal = modalModel
     modalModel.fireOpen()
+  }
+
+  initScanGraphDownloadModal (): void {
+    const model = new ScanGraphDownloadModalModel(this)
+    void new ScanGraphDownloadModalView(new ScanGraphDownloadModalController(model))
+    this.modal = model
+    model.fireOpen()
   }
 
   fireCloseModal (): void {

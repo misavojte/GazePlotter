@@ -59,6 +59,7 @@ export class WorkplaceView extends AbstractView {
 <h2 class='main-section ana-title'>Your analysis and visualization</h2>
 <div class='btnholder left-align main-section'>
     <button id='save-workplace' class='btn4 js-click'>Save workplace</button>
+    <button id='save-scan-graph' class='btn4 js-click'>Save ScanGraph file</button>
 </div>
 <div id='workplace'>
 ${this.createLoaderOuterHtml()}
