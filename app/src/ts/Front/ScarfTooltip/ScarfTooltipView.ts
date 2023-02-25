@@ -43,7 +43,7 @@ export class ScarfTooltipView extends AbstractView {
 
   #createTooltipInnerHtml (): string {
     const model = this.controller.model
-    return `
+    let result = `
   <div>
     <div>Participant</div>
     <div>${model.participantName}</div>
@@ -57,6 +57,12 @@ export class ScarfTooltipView extends AbstractView {
     <div>${model.aoiNames}</div>
   </div>
   <div>
+    <div>Order index</div>
+    <div>${model.index}</div>
+  </div>`
+    if (!model.data.main.isOrdinalOnly) {
+      result += `
+  <div>
     <div>Event start</div>
     <div>${model.start.toFixed(1)} ms</div>
   </div>
@@ -67,7 +73,8 @@ export class ScarfTooltipView extends AbstractView {
   <div>
     <div>Event duration</div>
     <div>${model.duration.toFixed(1)} ms</div>
-  </div>
-  `
+  </div>`
+    }
+    return result
   }
 }

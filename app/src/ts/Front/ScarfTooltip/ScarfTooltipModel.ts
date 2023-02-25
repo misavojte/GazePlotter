@@ -12,6 +12,7 @@ export class ScarfTooltipModel extends AbstractModel {
   aoiNames: string = ''
   start: number = 0
   end: number = 0
+  index: number = 0
   data: EyeTrackingData
   constructor (data: EyeTrackingData) {
     super()
@@ -51,6 +52,7 @@ export class ScarfTooltipModel extends AbstractModel {
     this.aoiNames = segmentInfo.aoi.length > 0 ? segmentInfo.aoi.map(x => this.data.getAoiInfo(this.stimulusId, x).displayedName).join(', ') : 'No AOI hit'
     this.start = segmentInfo.start
     this.end = segmentInfo.end
+    this.index = segmentId
     this.notify('redraw', [])
   }
 }
