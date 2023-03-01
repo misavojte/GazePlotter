@@ -12,6 +12,7 @@ export class ScanGraphDownloadModalController extends AbstractModalController {
     const target = e.target as HTMLFormElement
     const formData = new FormData(target)
     const fileName = formData.get('file_name') as string
-    this.model.fireDownload(fileName)
+    const stimulus = formData.get('stimulus') as string
+    this.model.fireDownload(fileName, Number(stimulus))
   }
 }

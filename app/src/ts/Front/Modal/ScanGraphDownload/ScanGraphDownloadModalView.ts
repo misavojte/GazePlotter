@@ -20,11 +20,24 @@ export class ScanGraphDownloadModalView extends AbstractModalView {
             <input type="text" name="file_name" value="ScanGraph">
         </label>
         <label class="flex-row">
-        
+          Stimulus
+          <select name="stimulus">
+            ${this.printOptions()}
+          </select>
         </label>
     </fieldset>
     <input type="submit" value="Start Download">   
     </form>
     `
+  }
+
+  printOptions (): string {
+    const data = this.controller.model.data
+    const noOfStimuli = data.noOfStimuli
+    let options = ''
+    for (let i = 0; i < noOfStimuli; i++) {
+      options += `<option value="${i}" ${i === 0 ? 'selected' : ''}>${data.getStimulDisplayedName(i)}</option>`
+    }
+    return options
   }
 }
