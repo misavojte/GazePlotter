@@ -57,13 +57,18 @@ export class StartButtonsModel extends AbstractModel {
   }
 
   startWorkerProcessing (): void {
-    const settings = this.parsingSettings
-    if (settings === null) throw new Error('parsingSettings is null')
-    this.worker.postMessage({ type: 'settings', data: settings.workerSettings })
-    if (this.isStreamTransferable()) {
-      this.processDataAsStream(settings.files)
-    } else {
-      void this.processDataAsArrayBuffer(settings.files)
+    try {
+      const settings = this.parsingSettings
+      if (settings === null) throw new Error('parsingSettings is null')
+      this.worker.postMessage({ type: 'settings', data: settings.workerSettings })
+      if (this.isStreamTransferable()) {
+        this.processDataAsStream(settings.files)
+      } else {
+        void this.processDataAsArrayBuffer(settings.files)
+      }
+    } catch (e) {
+      console.error(e)
+      this.fail('Error while transferring data to worker')
     }
   }
 
