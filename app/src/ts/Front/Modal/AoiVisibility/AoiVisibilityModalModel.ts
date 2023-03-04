@@ -12,17 +12,31 @@ export class AoiVisibilityModalModel extends AbstractModalModel {
     this.settings = settings
   }
 
-  fireAddInfo (file: File): void {
-    console.log('AoiVisibilityModalModel.fireAddInfo()', file)
+  get participantOptions (): Array<[number, string]> {
+    const options: Array<[number, string]> = []
+    options.push([-1, 'All'])
+    for (let participantId = 0; participantId < this.data.noOfParticipants; participantId++) {
+      options.push([participantId, this.data.getParticName(participantId)])
+    }
+    return options
+  }
+
+  fireAddInfo (file: File, participantId: number | null): void {
     const fileType = file.name.split('.').pop()
-    if (fileType !== 'xml') return
+    if (fileType !== 'xml') {
+      this.addFlash('Not .xml file', 'error')
+      return
+    }
     void file.text().then(x => {
       const parser = new DOMParser()
       const xml = parser.parseFromString(x, 'application/xml')
-      new AoiVisibilityParser().addVisInfo(this.stimulusId, xml, this.data)
+      new AoiVisibilityParser().addVisInfo(this.stimulusId, participantId, xml, this.data)
       this.settings.aoiVisibility = true
+      this.addFlash('AOI visibility info added', 'success')
       this.notify('redraw', ['workplaceModel'])
-      this.fireClose()
+    }).catch(e => {
+      console.error(e)
+      this.addFlash('Error while adding AOI visibility info', 'error')
     })
   }
 }

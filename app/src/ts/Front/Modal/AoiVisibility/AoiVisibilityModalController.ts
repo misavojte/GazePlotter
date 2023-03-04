@@ -12,7 +12,8 @@ export class AoiVisibilityModalController extends AbstractModalController {
     const target = e.target as HTMLFormElement
     const formData = new FormData(target)
     const file = formData.get('file')
+    const participantId = Number(formData.get('participantId'))
     if (!(file instanceof File)) throw new Error('AoiVisibilityModalController.handleSubmitEvent() - file not File')
-    this.model.fireAddInfo(file)
+    this.model.fireAddInfo(file, participantId === -1 ? null : participantId)
   }
 }

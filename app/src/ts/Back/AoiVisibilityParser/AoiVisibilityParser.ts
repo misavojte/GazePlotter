@@ -1,15 +1,14 @@
 import { EyeTrackingData } from '../../Data/EyeTrackingData'
 
 export class AoiVisibilityParser {
-  addVisInfo (stimulusId: number, xml: Document, data: EyeTrackingData): void {
+  addVisInfo (stimulusId: number, participantId: number | null, xml: Document, data: EyeTrackingData): void {
     const aoiNodes = xml.getElementsByTagName('DynamicAOI')
     for (let i = 0; i < aoiNodes.length; i++) {
       const aoiName = aoiNodes[i].querySelector('Name')?.innerHTML
       if (aoiName === undefined) continue
       const aoiKeyFrames = aoiNodes[i].getElementsByTagName('KeyFrame')
       const aoiVisibilityArr = this.processKeyFrames(aoiKeyFrames, stimulusId, data)
-      data.addAoiVis(stimulusId, aoiName, aoiVisibilityArr)
-      console.log(data)
+      data.addAoiVis(stimulusId, aoiName, aoiVisibilityArr, participantId)
     }
   }
 

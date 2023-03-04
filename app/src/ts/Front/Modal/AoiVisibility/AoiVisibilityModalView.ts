@@ -16,10 +16,18 @@ export class AoiVisibilityModalView extends AbstractModalView {
         <div>
             Upload XML file containing AOIs visibility information. Only for SMI!
         </div>
-        <div>
-            <label for="file">File containing information</label>
-            <input type="file" name="file">
-        </div>
+        <fieldset>
+            <legend>Dynamic AOI visibility for current stimulus</legend>
+            <label class="flex-row">XML File
+                <input type="file" name="file">
+            </label>
+            <label class="flex-row">
+                Apply to participant
+                <select name="participantId">
+                    ${this.controller.model.participantOptions.map(([id, name]) => `<option value="${id}">${name}</option>`).join('')}
+                </select>
+            </label>
+        </fieldset>
         <input type="submit" value="Start Parsing">  
     </form>
     `
