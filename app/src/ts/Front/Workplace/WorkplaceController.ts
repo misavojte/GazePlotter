@@ -15,6 +15,7 @@ export class WorkplaceController extends AbstractController {
    */
   handleEvent (e: Event): void {
     e.stopPropagation()
+    if (this.model.isCrashed) return
     switch (e.type) {
       case 'click' :
         return this.handleClick(e)

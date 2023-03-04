@@ -9,6 +9,7 @@ export class StartButtonsModel extends AbstractModel {
   worker: Worker = new Worker(new URL('../../Back/Worker/DataUploadWorker.ts', import.meta.url), { type: 'module' })
   service: StartButtonsService = new StartButtonsService()
   parsingSettings: StartButtonsPreParseSettingsType | null = null
+  failMessage: string | null = null
 
   fireUploadWithUserInput (parsingType: string): void {
     const settings = this.parsingSettings
@@ -42,6 +43,8 @@ export class StartButtonsModel extends AbstractModel {
         const fileType = parsingSettings.workerSettings.type
         if (fileType === 'tobii-with-event') {
           this.notify('open-tobii-upload-modal', ['workplaceModel'])
+        } else if (fileType === 'unknown') {
+          this.fail('Unknown file type')
         } else {
           this.startWorkerProcessing()
         }
@@ -91,5 +94,10 @@ export class StartButtonsModel extends AbstractModel {
     } catch (error) {
       return false
     }
+  }
+
+  fail (message: string): void {
+    this.failMessage = message
+    this.notify('fail', ['workplaceModel'])
   }
 }

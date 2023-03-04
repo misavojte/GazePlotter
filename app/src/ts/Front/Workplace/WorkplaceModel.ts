@@ -31,6 +31,7 @@ import { ScanGraphDownloadModalController } from '../Modal/ScanGraphDownload/Sca
 export class WorkplaceModel extends AbstractModel {
   readonly observerType = 'workplaceModel'
   isVisible: boolean = false
+  isCrashed: boolean = false
   data: EyeTrackingData | null = null
   startButtonsModel: StartButtonsModel
   scarfs: ScarfView[] = []
@@ -49,6 +50,7 @@ export class WorkplaceModel extends AbstractModel {
       case 'close-modal' : return this.fireCloseModal()
       case 'modal-flash' : return this.fireFlashFromModal()
       case 'scarf-flash' : return this.fireFlashFromScarf()
+      case 'fail' : return this.resolveFail()
       case 'redraw' : return this.redraw()
       case 'open-scarf-settings-modal' : return this.initScarfSettingsModal()
       case 'open-aoi-visibility-modal' : return this.initAoiVisibilityModal()
@@ -57,6 +59,13 @@ export class WorkplaceModel extends AbstractModel {
       case 'open-tobii-upload-modal' : return this.initTobiiUploadModal()
       default : super.handleUpdate(msg)
     }
+  }
+
+  resolveFail (): void {
+    this.isCrashed = true
+    const message = this.startButtonsModel.failMessage
+    this.flashManager.addFlashMessage(message ?? 'Fatal error', 'error')
+    this.notify('fail')
   }
 
   openWorkplaceModal (): void {
@@ -81,6 +90,7 @@ export class WorkplaceModel extends AbstractModel {
   }
 
   startNewLoading (): void {
+    this.isCrashed = false
     this.flashManager.addFlashMessage('New workplace started', 'info')
     if (this.isVisible) {
       return this.notify('reload', [])

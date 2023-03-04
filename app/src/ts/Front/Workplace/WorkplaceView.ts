@@ -32,6 +32,8 @@ export class WorkplaceView extends AbstractView {
         return this.addLoader()
       case 'print' :
         return this.print()
+      case 'fail' :
+        return this.crash()
     }
   }
 
@@ -54,6 +56,12 @@ export class WorkplaceView extends AbstractView {
     wp.append(el)
   }
 
+  crash (): void {
+    const el = document.getElementById('workplace')
+    if (!(el instanceof HTMLElement)) throw ReferenceError('')
+    el.innerHTML = this.createCrashOuterHtml()
+  }
+
   createStartingInnerHtml (): string {
     return `
 <h2 class='main-section ana-title'>Your analysis and visualization</h2>
@@ -73,5 +81,12 @@ ${this.createLoaderOuterHtml()}
     <div>Processing your precious data</div>
 </div>
         `
+  }
+
+  createCrashOuterHtml (): string {
+    return `
+<div id='loader-wrap'>
+    <div>Error! Upload different file or try demo</div>
+</div>`
   }
 }
