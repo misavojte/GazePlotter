@@ -175,6 +175,7 @@ export class ScarfView extends AbstractView {
                 ${data.stylingAndLegend.category.map(category => this.#createLegendBasicItemOuterHtml(category)).join('')}
             </div>
         </div>
+        ${this.#createDynamicVisibilityLegendHtml(data)}
     </div>`
   }
 
@@ -258,5 +259,31 @@ export class ScarfView extends AbstractView {
     }
     css += `line{stroke-width:${visibilities[0].height};stroke-dasharray:1}`
     return css
+  }
+
+  #createDynamicVisibilityLegendHtml (data: ScarfFilling): string {
+    const visibilities = data.stylingAndLegend.visibility
+    if (visibilities.length === 0) return ''
+    return `
+    <div class="js-dblclick">
+        <div class='chlegendtitle'>
+            Dynamic AOI visibility
+        </div>
+        <div class='chlegend'>
+            ${visibilities.map(visibility => this.#createDynamicVisibilityLegendItemHtml(visibility)).join('')}
+        </div>
+    </div>`
+  }
+
+  #createDynamicVisibilityLegendItemHtml (entity: ScarfStyling): string {
+    return `
+    <div class="${entity.identifier} legendItem">
+        <svg width="12" height="12">
+            <line class="${entity.identifier}" x1="0" x2="100%" y1="50%" y2="50%"/>
+        </svg>
+        <div>
+            ${entity.name}
+        </div>
+    </div>`
   }
 }
