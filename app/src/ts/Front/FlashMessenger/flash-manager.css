@@ -48,6 +48,11 @@
     border-color: rgb(0 0 0 / 10%);
 }
 
+.error {
+    background-color: #f7c3c3;
+    border-color: rgb(0 0 0 / 10%);
+}
+
 .info2 {
     color: #41464b;
     background-color: #e2e3e5;
