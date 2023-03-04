@@ -42,7 +42,11 @@ export class ScarfService {
 
   get heightOfBarWrap (): number {
     const baseHeight = this.rectWrappedHeight
-    return this.settings.aoiVisibility ? baseHeight + (this.lineWrappedHeight * this.aoiOrderedArr.length) : baseHeight
+    return this.showAoiVisibility ? baseHeight + (this.lineWrappedHeight * this.aoiOrderedArr.length) : baseHeight
+  }
+
+  get showAoiVisibility (): boolean {
+    return this.settings.aoiVisibility && this.settings.timeline !== 'ordinal'
   }
 
   constructor (stimulusId: number, participantIds: number[], axis: AxisBreaks, data: EyeTrackingData, settings: ScarfSettingsType, participGap: number = 10) {
@@ -140,7 +144,7 @@ export class ScarfService {
   #prepareVisibilityStyling (): ScarfStyling[] {
     const iterateTo = this.aoiOrderedArr.length
     const response: ScarfStyling[] = []
-    if (!this.settings.aoiVisibility) return response
+    if (!this.showAoiVisibility) return response
     for (let i = 0; i < iterateTo; i++) {
       const currentAoiIndex = this.aoiOrderedArr[i]
       const aoiInfo = this.data.getAoiInfo(this.stimulusId, currentAoiIndex)
@@ -171,7 +175,7 @@ export class ScarfService {
 
   #prepareDynamicVisibility (participantId: number, sessionDuration: number): DynamicAoiVisibility[] {
     const response: DynamicAoiVisibility[] = []
-    if (!this.settings.aoiVisibility) return response
+    if (!this.showAoiVisibility) return response
     for (let aoiIndex = 0; aoiIndex < this.aoiOrderedArr.length; aoiIndex++) {
       const aoiId = this.aoiOrderedArr[aoiIndex]
       const visibility = this.data.getAoiVis(this.stimulusId, aoiId, participantId)
