@@ -129,7 +129,7 @@ export class WorkplaceModel extends AbstractModel {
   initAoiVisibilityModal (): void {
     const initiator = this.#getModalInitiator()
     if (!(initiator instanceof ScarfSettingsModalModel)) throw new Error('WorkplaceModel.initAoiVisibilityModal() - modal initiator is not a scarf settings modal model')
-    const modalModel = new AoiVisibilityModalModel(this, initiator.stimulusId, initiator.scarfId)
+    const modalModel = new AoiVisibilityModalModel(this, initiator.stimulusId, initiator.scarfSettings)
     void new AoiVisibilityModalView(new AoiVisibilityModalController(modalModel)) // will be referenced by modalModel as observer
     this.modal = modalModel
     modalModel.fireOpen()

@@ -1,6 +1,6 @@
 import { EyeTrackingData } from '../../Data/EyeTrackingData'
 import {
-  AxisBreaks,
+  AxisBreaks, DynamicAoiVisibility, DynamicAoiVisibilityContent,
   ScarfFilling,
   ScarfParticipant,
   ScarfSegment,
@@ -20,11 +20,11 @@ export class ScarfService {
   // todo move to settings
   showTheseSegmentCategories: number[] = [0, 1]
   heightOfBar: number = 20
-  heightOfBarWrap: number = 30
   heightOfNonFixation: number = 4
   stimulusId: number
   data: EyeTrackingData
   spaceAboveRect: number
+  spaceAboveLine: number = 2
   aoiOrderedArr: number[]
   participants: ScarfParticipant[]
   timeline: AxisBreaks
@@ -32,6 +32,18 @@ export class ScarfService {
   stylingAndLegend: ScarfStylingList
   chartHeight: number
   settings: ScarfSettingsType
+  get rectWrappedHeight (): number {
+    return this.heightOfBar + (this.spaceAboveRect * 2)
+  }
+
+  get lineWrappedHeight (): number {
+    return this.heightOfNonFixation + this.spaceAboveLine
+  }
+
+  get heightOfBarWrap (): number {
+    const baseHeight = this.rectWrappedHeight
+    return this.settings.aoiVisibility ? baseHeight + (this.lineWrappedHeight * this.aoiOrderedArr.length) : baseHeight
+  }
 
   constructor (stimulusId: number, participantIds: number[], axis: AxisBreaks, data: EyeTrackingData, settings: ScarfSettingsType, participGap: number = 10) {
     this.stimulusId = stimulusId
@@ -119,10 +131,28 @@ export class ScarfService {
     category.push(stylingOther)
 
     return {
-      visibility: [],
+      visibility: this.#prepareVisibilityStyling(),
       aoi,
       category
     }
+  }
+
+  #prepareVisibilityStyling (): ScarfStyling[] {
+    const iterateTo = this.aoiOrderedArr.length
+    const response: ScarfStyling[] = []
+    if (!this.settings.aoiVisibility) return response
+    for (let i = 0; i < iterateTo; i++) {
+      const currentAoiIndex = this.aoiOrderedArr[i]
+      const aoiInfo = this.data.getAoiInfo(this.stimulusId, currentAoiIndex)
+      const stylingBaseAoi: ScarfStyling = {
+        identifier: `${this.IDENTIFIER_IS_AOI}${aoiInfo.aoiId}`,
+        name: aoiInfo.displayedName,
+        color: aoiInfo.color,
+        height: this.heightOfNonFixation
+      }
+      response.push(stylingBaseAoi)
+    }
+    return response
   }
 
   #prepareParticipant (id: number): ScarfParticipant {
@@ -134,10 +164,37 @@ export class ScarfService {
     for (let i = 0; i < iterateTo; i++) {
       segments.push(this.#prepareSegment(id, i, sessionDuration))
     }
-
     // TODO napravit height
     // ?? dafak :D
-    return { aoiVisibility: [], id, label, segments, width }
+    return { dynamicAoiVisibility: this.#prepareDynamicVisibility(id, sessionDuration), id, label, segments, width }
+  }
+
+  #prepareDynamicVisibility (participantId: number, sessionDuration: number): DynamicAoiVisibility[] {
+    const response: DynamicAoiVisibility[] = []
+    if (!this.settings.aoiVisibility) return response
+    for (let aoiIndex = 0; aoiIndex < this.aoiOrderedArr.length; aoiIndex++) {
+      const aoiId = this.aoiOrderedArr[aoiIndex]
+      const visibility = this.data.getAoiVis(this.stimulusId, aoiId, participantId)
+      const visibilityContent: DynamicAoiVisibilityContent[] = []
+      if (visibility !== null) {
+        for (let i = 0; i < visibility.length; i = i + 2) {
+          const start = visibility[i]
+          const end = visibility[i + 1]
+          const y = this.rectWrappedHeight + (aoiIndex * this.lineWrappedHeight)
+          visibilityContent.push(this.#getDynamicAoiVisibilityContent(start, end, y, sessionDuration, aoiId))
+        }
+      }
+      const visibilityObj: DynamicAoiVisibility = { content: visibilityContent }
+      response.push(visibilityObj)
+    }
+    return response
+  }
+
+  #getDynamicAoiVisibilityContent (start: number, end: number, y: number, sessionDuration: number, aoiId: number): DynamicAoiVisibilityContent {
+    const x1 = `${(start / sessionDuration) * 100}%`
+    const x2 = `${(end / sessionDuration) * 100}%`
+    const identifier = `${this.IDENTIFIER_IS_AOI}${aoiId}`
+    return { x1, x2, y, identifier }
   }
 
   /**

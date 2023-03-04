@@ -11,7 +11,7 @@ export class EyeTrackingParserRowStore {
     stimuli: { data: [], orderVector: [] },
     participants: { data: [], orderVector: [] },
     categories: { data: [['Fixation'], ['Saccade']], orderVector: [] },
-    aois: { data: [], orderVector: [] },
+    aois: { data: [], orderVector: [], dynamicVisibility: {} },
     segments: []
   }
 

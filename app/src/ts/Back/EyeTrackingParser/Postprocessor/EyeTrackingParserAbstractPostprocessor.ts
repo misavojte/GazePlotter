@@ -6,17 +6,19 @@ export abstract class EyeTrackingParserAbstractPostprocessor {
   orderAoisAlphabetically (data: ETDInterface): void {
     const aois = data.aois
     for (let i = 0; i < aois.data.length; i++) {
-      const aoi = aois.data[i]
-      const orderVector: number[] = []
-      aoi.sort((a, b) => a[0].localeCompare(b[0])).forEach((_, index) => orderVector.push(index))
-      aois.orderVector[i] = orderVector
+      const currentAoiArray = aois.data[i]
+      const indexedArr = currentAoiArray.map((value, index) => ({ index, name: value[0] }))
+      indexedArr.sort((a, b) => a.name.localeCompare(b.name))
+      const sortedIndices = indexedArr.map((value) => value.index)
+      aois.orderVector[i] = sortedIndices
     }
   }
 
   orderParticipantsAlphabetically (data: ETDInterface): void {
     const participants = data.participants
-    const orderVector: number[] = []
-    participants.data.sort((a, b) => a[0].localeCompare(b[0])).forEach((_, index) => orderVector.push(index))
-    participants.orderVector = orderVector
+    const indexedArr = participants.data.map((value, index) => ({ index, name: value[0] }))
+    indexedArr.sort((a, b) => a.name.localeCompare(b.name))
+    const sortedIndices = indexedArr.map((value) => value.index)
+    participants.orderVector = sortedIndices
   }
 }

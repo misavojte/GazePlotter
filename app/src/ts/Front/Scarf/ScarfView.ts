@@ -133,6 +133,7 @@ export class ScarfView extends AbstractView {
     <style>
         ${data.stylingAndLegend.aoi.map(aoi => `rect.${aoi.identifier}{fill:${aoi.color}}`).join('')}
         ${data.stylingAndLegend.category.map(aoi => `rect.${aoi.identifier}{fill:${aoi.color}}`).join('')}
+        ${this.#createDynamicVisibilityCss(data)}
     </style>
     <div class='chylabs' style='grid-auto-rows:${data.heightOfBarWrap}px' data-gap='${data.heightOfBarWrap}'>
         ${data.participants.map((participant) => `<div>${participant.label}</div>`).join('')}
@@ -192,6 +193,7 @@ export class ScarfView extends AbstractView {
     <svg class='barwrap' y='${i * barHeight}' data-id='${participant.id}' height='${barHeight}' width='${participant.width}'>
       <animate attributeName='width' from='0%' to='${participant.width}' dur='0.4s' fill='freeze'/>
       ${participant.segments.map((segment, id) => this.#createSegmentOuterHtml(segment, id)).join('')}
+      ${this.#createDynamicVisibilityHtml(participant)}
     </svg>`
   }
 
@@ -232,5 +234,29 @@ export class ScarfView extends AbstractView {
     // <div class="btn3-absolute">Absolute timeline</div>
     // <div class="btn3-relative">Relative timeline</div>
     // </div>`
+  }
+
+  #createDynamicVisibilityHtml (participant: ScarfParticipant): string {
+    let html = ''
+    const visibility = participant.dynamicAoiVisibility
+    for (let aoiId = 0; aoiId < visibility.length; aoiId++) {
+      const aoiVisibility = visibility[aoiId].content
+      for (let i = 0; i < aoiVisibility.length; i++) {
+        const { identifier, x1, x2, y } = aoiVisibility[i]
+        html += `<line class="${identifier}" x1="${x1}" y1="${y}" x2="${x2}" y2="${y}"></line>`
+      }
+    }
+    return html
+  }
+
+  #createDynamicVisibilityCss (data: ScarfFilling): string {
+    let css = ''
+    const visibilities = data.stylingAndLegend.visibility
+    if (visibilities.length === 0) return css
+    for (let i = 0; i < visibilities.length; i++) {
+      css += `line.${visibilities[i].identifier}{stroke:${visibilities[i].color};}`
+    }
+    css += `line{stroke-width:${visibilities[0].height};stroke-dasharray:1}`
+    return css
   }
 }

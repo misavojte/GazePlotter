@@ -210,7 +210,7 @@ export interface ScarfParticipant {
   label: string
   width: string // in %!
   segments: ScarfSegment[]
-  aoiVisibility: [] // not applied
+  dynamicAoiVisibility: DynamicAoiVisibility[]
 }
 
 export interface ScarfSegment {
@@ -222,6 +222,17 @@ export interface ScarfSegmentContent {
   width: string // with %
   y: number
   height: number
+  identifier: string
+}
+
+export interface DynamicAoiVisibility {
+  content: DynamicAoiVisibilityContent[]
+}
+
+export interface DynamicAoiVisibilityContent {
+  x1: string // with %
+  x2: string // with %
+  y: number
   identifier: string
 }
 

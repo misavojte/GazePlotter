@@ -9,7 +9,28 @@ export interface ETDInterface {
 
 interface ETDAois {
   data: string[][][]
-  orderVector: [number[]] | []
+  orderVector: number[][] | []
+  dynamicVisibility: AoiVisibility
+}
+
+/**
+ * An object that represents the visibility blocks for AOIs.
+ *
+ * The object has string keys in the form of AAAxBBBxCCC, where AAA is the stimulusId, BBB is the aoiId,
+ * and CCC is the participantId.
+ *
+ * The associated value is an array of numbers representing the visibility blocks for the AOI.
+ * Each pair of consecutive numbers in the array represents the start and end values of a visibility block for the AOI.
+ * The length of the array must be even, and each pair of consecutive numbers must represent a valid visibility block for the AOI.
+ *
+ * @example
+ * const myAoiVisibility: AoiVisibility = {
+ *   '001_002_003': [0, 100, 104, 120],
+ *   '004_005_006': [10, 20, 30, 40, 50, 60],
+ * };
+ */
+interface AoiVisibility {
+  [key: string]: number[]
 }
 
 interface ETDBaseAttributeHolder {
@@ -153,13 +174,25 @@ export class EyeTrackingData {
     }
   }
 
-  // addAoiVis (stimulusId : number, aoiName : string, visibilityArr : Object) : boolean {
-  //   const aoiData = this.main.aois.data[stimulusId]
-  //   const aoiId = aoiData.findIndex(el => el[0] === aoiName)
-  //   if (aoiId > -1) {
-  //     aoiData[aoiId][3] = visibilityArr
-  //     return true
-  //   }
-  //   return false
-  // }
+  addAoiVis (stimulusId: number, aoiName: string, visibilityArr: number[], participantId: number | null = null): boolean {
+    const aoiData = this.main.aois.data[stimulusId]
+    const aoiId = aoiData.findIndex(el => el[0] === aoiName)
+    let key = `${stimulusId}_${aoiId}`
+    if (participantId != null) key += `_${participantId}`
+    if (aoiId > -1) {
+      this.main.aois.dynamicVisibility[key] = visibilityArr
+      return true
+    }
+    return false
+  }
+
+  getAoiVis (stimulusId: number, aoiId: number, participantId: number | null = null): number[] | null {
+    const baseKey = `${stimulusId}_${aoiId}`
+    let result = this.main.aois.dynamicVisibility[baseKey] ?? null
+    if (participantId != null) {
+      const extendedKey = `${baseKey}_${participantId}`
+      result = this.main.aois.dynamicVisibility[extendedKey] ?? result
+    }
+    return result
+  }
 }
