@@ -14,6 +14,7 @@ export class ScanGraphDownloadModalView extends AbstractModalView {
     return `
     <form class="js-submit">
     <fieldset>
+    <p>Warning! If multiple AOI hits are present in one segment, only the first by order will be exported.</p>
     <legend>For further visualizations in <a href="http://eyetracking.upol.cz/scangraph/">ScanGraph</a> tool</legend>
         <label class="flex-row">
             File name
