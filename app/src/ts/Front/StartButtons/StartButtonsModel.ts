@@ -36,6 +36,7 @@ export class StartButtonsModel extends AbstractModel {
   startNewFile (file: Object): void {
     if (!(file instanceof FileList)) return
     this.notify('start', ['workplaceModel'])
+    if (file[0].name.endsWith('.json')) return this.loadJsonFile(file[0])
     const parsingSettingsPromise = this.service.preprocessEyeTrackingFiles(file)
     void parsingSettingsPromise.then(
       (parsingSettings) => {
@@ -104,5 +105,15 @@ export class StartButtonsModel extends AbstractModel {
   fail (message: string): void {
     this.failMessage = message
     this.notify('fail', ['workplaceModel'])
+  }
+
+  loadJsonFile (file: File): void {
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      if (event.target === null) return
+      this.eyeTrackingData = JSON.parse(event.target.result as string).main as ETDInterface
+      this.notify('eyeTrackingData', ['workplaceModel'])
+    }
+    reader.readAsText(file)
   }
 }
