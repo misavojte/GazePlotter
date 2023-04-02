@@ -133,8 +133,14 @@ export class EyeTrackingData {
     const start = segmentArr[0]
     const end = segmentArr[1]
     const category = segmentArr[2]
-    const aoi = segmentArr.slice(3)
+    const aoi = this.orderAoisIdsByOrderVector(stimulusId, segmentArr.slice(3))
     return { start, end, category, aoi }
+  }
+
+  orderAoisIdsByOrderVector (stimulusId: number, aoiIds: number[]): number[] {
+    const orderVector = this.main.aois.orderVector?.[stimulusId]
+    if (orderVector == null) return aoiIds
+    return aoiIds.sort((a, b) => orderVector.indexOf(a) - orderVector.indexOf(b))
   }
 
   getNoOfSegments (stimulusId: number, participantId: number): number {
