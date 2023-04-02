@@ -24,6 +24,7 @@ export class ScanGraphDownloader extends AbstractDownloader {
       }
       result += '\r\n'
     }
+    aoiKey.sort()
     return this.getHeaderString(aoiKey.join(', ')) + result
   }
 
