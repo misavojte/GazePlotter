@@ -249,19 +249,13 @@ export class ScarfService {
     const height = this.heightOfBar / segment.aoi.length
     let yOfOneContent = this.spaceAboveRect
     const result = []
-    // going through all possible AOI categories in the selected stimulus
-    // to ensure AOIs are ordered as specified by order array
-    for (let aoiIndex = 0; aoiIndex < this.aoiOrderedArr.length; aoiIndex++) {
-      const aoiId = this.aoiOrderedArr[aoiIndex]
-      // coercing to string - otherwise would be always false!
-      if (segment.aoi.includes(aoiId)) {
-        typeDistinctionIdentifier = aoiId.toString()
-        const fixationWithAoiContent: ScarfSegmentContent = {
-          x, y: yOfOneContent, width, height, identifier: getIdentifier()
-        }
-        result.push(fixationWithAoiContent)
-        yOfOneContent += height
+    for (const aoiIndex of segment.aoi) {
+      typeDistinctionIdentifier = aoiIndex.toString()
+      const fixationWithAoiContent: ScarfSegmentContent = {
+        x, y: yOfOneContent, width, height, identifier: getIdentifier()
       }
+      result.push(fixationWithAoiContent)
+      yOfOneContent += height
     }
     return result
   }
