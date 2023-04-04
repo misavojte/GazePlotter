@@ -3,12 +3,13 @@ import { ScarfTooltipModel } from '../src/ts/Front/ScarfTooltip/ScarfTooltipMode
 import { ScarfTooltipController } from '../src/ts/Front/ScarfTooltip/ScarfTooltipController'
 import { ScarfTooltipView } from '../src/ts/Front/ScarfTooltip/ScarfTooltipView'
 import { demoData } from '../src/ts/Data/DemoData'
+import { EyeTrackingData } from '../src/ts/Data/EyeTrackingData'
 
 /**
  * @vitest-environment jsdom
  */
 
-const model = new ScarfTooltipModel(demoData)
+const model = new ScarfTooltipModel(new EyeTrackingData(demoData))
 const controller = new ScarfTooltipController(model)
 const view = new ScarfTooltipView(controller)
 

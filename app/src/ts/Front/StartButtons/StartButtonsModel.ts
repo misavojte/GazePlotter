@@ -20,17 +20,12 @@ export class StartButtonsModel extends AbstractModel {
 
   startDemo (): void {
     this.notify('start', ['workplaceModel'])
-    fetch('/demodata.json')
-      .then(async response => {
-        return await response.json()
-      })
-      .then(x => {
-        this.eyeTrackingData = x as ETDInterface // TODO: validate
-        this.notify('eyeTrackingData', ['workplaceModel'])
-      }).catch(e => {
-        console.log(e)
-      }
-      )
+    void import('../../Data/DemoData').then(x => {
+      this.eyeTrackingData = x.demoData
+      this.notify('eyeTrackingData', ['workplaceModel'])
+    }).catch(e => {
+      console.log(e)
+    })
   }
 
   startNewFile (file: Object): void {
