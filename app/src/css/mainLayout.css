@@ -322,10 +322,6 @@ input {
     box-sizing: border-box;
 }
 
-input[type="text"] {
-    padding: 5px;
-}
-
 main.text-page section>* {
     max-width: 800px;
 }

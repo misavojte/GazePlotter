@@ -6,7 +6,7 @@ export class ScarfDownloadModalModel extends AbstractModalModel {
   stimulus: number
   scarfId: number
   constructor (workplace: WorkplaceModel, stimulus: number, scarfId: number) {
-    super(workplace, 'Scarf Chart Settings')
+    super(workplace, 'Scarf Chart Download')
     this.stimulus = stimulus
     this.scarfId = scarfId
   }

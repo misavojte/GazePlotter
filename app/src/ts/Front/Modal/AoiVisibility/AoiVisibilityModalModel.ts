@@ -32,8 +32,8 @@ export class AoiVisibilityModalModel extends AbstractModalModel {
       const xml = parser.parseFromString(x, 'application/xml')
       new AoiVisibilityParser().addVisInfo(this.stimulusId, participantId, xml, this.data)
       this.settings.aoiVisibility = true
-      this.addFlash('AOI visibility info added', 'success')
       this.notify('redraw', ['workplaceModel'])
+      this.addFlash('AOI visibility info added', 'success')
     }).catch(e => {
       console.error(e)
       this.addFlash('Error while adding AOI visibility info', 'error')
