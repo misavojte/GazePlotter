@@ -19,9 +19,13 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+        with:
+          folder: app
 
       - name: Build
         run: npm run build
+        with:
+          folder: app
 
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@4.1.2
