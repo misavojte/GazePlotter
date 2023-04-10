@@ -8,7 +8,6 @@ GazePlotter uses Vite.js to build the app from TypeScript modules. The developme
 ### Quick start
 To start Vite server and run dev version of project locally, use:
 ```
-cd app
 npm install
 npm run dev
 ```
