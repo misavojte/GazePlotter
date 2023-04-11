@@ -2,28 +2,39 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>EyeROI: Analyse AOIs of eye-trackig data</title>
+  <title>Gazeplotter | Analyse AOIs of eye-trackig data by sequence charts</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="src/css/mainLayout.css">
+  <link rel="icon" href="/img/logos/gazeplotter.ico">
   <link rel="icon" href="/img/logos/gazeplotter.svg">
 </head>
 <body>
 <header class="border-b">
-  <a id="gohome" href="/public">
-    <img id="logo" width="35" height="35" src="/img/logos/gazeplotter.svg" alt="Logo">
-    <span id="sitetitle">GazePlotter</span>
-  </a>
-  <a href="https://github.com/misavojte/GazePlotter" class="a-icon" rel="nofollow">
-    <svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" fill="currentColor" class="icon" viewBox="0 0 16 16">
-      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
-    </svg>
-  </a>
+  <div>
+    <a id="gohome" href="/">
+      <img id="logo" width="30" height="30" src="/img/logos/gazeplotter.svg" alt="Logo">
+      <span id="sitetitle">GazePlotter</span>
+    </a>
+    <nav>
+      <a class="external-link" target="_blank" href="https://docs.gazeplotter.com/">
+        Guide
+        <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" height="24px" viewBox="0 0 24 24" width="24px" class="icon" data-v-f3ed0000=""><path d="M0 0h24v24H0V0z" fill="none"></path><path d="M9 5v2h6.59L4 18.59 5.41 20 17 8.41V15h2V5H9z"></path></svg>
+      </a>
+      <a href="https://github.com/misavojte/GazePlotter" target="_blank" class="a-icon" rel="nofollow">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="icon" viewBox="0 0 16 16">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+      </a>
+    </nav>
+  </div>
 </header>
 <main>
   <section class="main-section" id="firstsec">
     <div class="intro holder">
-      <h1 class="">Analyse AOIs<br>of eye-tracking data</h1>
-      <p class="intro-text">Just upload data from an eye-tracker software you use. The app will create an interactive sequence chart and other analysis from eye gaze data for you. Multiplatform. For free.</p>
+      <h1 class="">
+        <span class="red">GazePlotter</span><br>Sequence charts for eye‑tracking visualization
+      </h1>
+      <p class="intro-text">Easily upload data from your eye-tracker software. The&nbsp;app will automatically create an interactive sequence chart (scarf plot) from eye gaze data for free.</p>
       <div class="cont1">
         <label tabindex="0" for="file-upload" class="btn intro-btn">
           Upload file
@@ -40,29 +51,51 @@
     <h2>About GazePlotter</h2>
     <div class="about-grid">
       <section class="grid-item">
-        <h3>It is a work in progress</h3>
-        <p>Keep in mind the tool is in an active development. Many features are missing and others could be buggy. If there is anything you want to be added, contact me at mail@vojtechovska.com</p>
+        <h3>Suggest features & report bugs</h3>
+        <p>
+            GazePlotter is still in active development. If you have any suggestions or you found a bug, please let me know via mail. I will be happy to hear from you.
+        </p>
+        <a href="mailto:mail@vojtechovska.com">mail@vojtechovska.com</a>
       </section>
       <section class="grid-item">
-        <h3>Works with Tobii and SMI outputs</h3>
-        <p>Just upload data from an eye-tracker software you use. The app will create an interactive sequence chart and other analysis from eye gaze data for you. For free.</p>
+        <h3>Works with Tobii, SMI & more</h3>
+        <p>
+          Just upload data from an eye-tracker software you use. The app will create an interactive sequence chart and other analysis from eye gaze data for you.
+        </p>
+        <a href="https://docs.gazeplotter.com/upload-data">Which file to upload? (Guide)</a>
       </section>
       <section class="grid-item">
-        <h3>Compatible in all modern browsers</h3>
-        <p>Just upload data from an eye-tracker software you use. The app will create an interactive sequence chart and other analysis from eye gaze data for you. For free.</p>
+        <h3>Server-less processing</h3>
+        <p>
+            GazePlotter does not store your data on a server, thus ensuring data privacy. All processing is done in your browser. You can use it on PCs, Macs, tablets, even off-line!
+        </p>
       </section>
     </div>
   </section>
 </main>
 <footer class="border-t">
   <div>
-    <p>GazePlotter, beta version 0.1 (04/04/2023)</p>
-    <p>Coded & designed by <a href="https://vojtechovska.com">Michaela Vojtěchovská</a></p>
-    <p>Idea by Stanislav Popelka</p>
+    <div>
+      <p>GazePlotter, beta version 0.2 (11/04/2023)</p>
+      <p>Coded & designed by <a href="https://vojtechovska.com" target="_blank">Michaela Vojtěchovská</a>, idea by Stanislav Popelka</p>
+      <p><a href="https://geoinformatics.upol.cz" target="_blank" rel="nofollow">Department of Geoinformatics</a>, Palacký University Olomouc
+      </p>
+    </div>
+    <nav>
+      <a class="external-link" target="_blank" href="https://docs.gazeplotter.com/">
+        Guide
+        <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" height="24px" viewBox="0 0 24 24" width="24px" class="icon" data-v-f3ed0000=""><path d="M0 0h24v24H0V0z" fill="none"></path><path d="M9 5v2h6.59L4 18.59 5.41 20 17 8.41V15h2V5H9z"></path></svg>
+      </a>
+      <a href="https://github.com/misavojte/GazePlotter" target="_blank" class="a-icon" rel="nofollow">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="icon" viewBox="0 0 16 16">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+      </a>
+    </nav>
+<!--    <a rel="no-follow" href="https://geoinformatics.upol.cz/">-->
+<!--      <img loading="lazy" id="dpt-logo" src="/img/logos/dpt.png" alt="" width="500" height="107" style="width: 225px; height: 48px">-->
+<!--    </a>-->
   </div>
-  <a rel="no-follow" href="https://geoinformatics.upol.cz/">
-    <img loading="lazy" id="dpt-logo" src="/img/logos/dpt.png" alt="" width="1704" height="366" style="width: 300px; height: 64px">
-  </a>
 </footer>
 <script defer type="module" src="src/ts/index.ts"></script>
 </body>
