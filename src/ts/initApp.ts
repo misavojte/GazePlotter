@@ -12,6 +12,6 @@ export function initApp (): void {
   void new StartButtonsView(new StartButtonsController(startButtonModel))
 
   startButtonModel.addObserver(workplaceModel)
-
   void new WorkplaceView(new WorkplaceController(workplaceModel))
+  void startButtonModel.startDemo()
 }
