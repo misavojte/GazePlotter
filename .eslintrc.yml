@@ -10,3 +10,5 @@ parserOptions:
 rules: {
   "@typescript-eslint/no-explicit-any": error
 }
+ignorePatterns:
+  - "vite.config.ts"

@@ -17,6 +17,7 @@
     "eslint-plugin-promise": "^6.1.1",
     "typescript": "5.0.0-beta",
     "vite": "^3.2.3",
+    "vite-plugin-pwa": "^0.14.7",
     "vitest": "^0.25.3"
   },
   "dependencies": {
