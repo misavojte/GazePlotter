@@ -8,7 +8,8 @@ export class EyeTrackingParserOgamaReducer extends EyeTrackingParserAbstractRedu
   constructor (header: string[], fileName: string) {
     super()
     // extract name from file name (SimilarityXXX.txt) where XXX is the stimulus name
-    this.stimulusName = fileName.split('.')[0].split('Similarity')[1]
+    // this.stimulusName = fileName.split('.')[0].split('Similarity')[1]
+    this.stimulusName = fileName.split('.')[0]
     this.cParticipant = this.getIndex(header, 'Sequence Similarity')
     this.cSegments = this.getIndex(header, 'Scanpath string')
   }
