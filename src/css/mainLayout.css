@@ -128,10 +128,6 @@ main>section:first-child {
     margin-right: auto;
 }
 
-#intro-pic {
-    transform: rotate(-3deg);
-}
-
 #analysis, #about {
     margin: auto;
 }
