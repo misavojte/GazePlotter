@@ -476,10 +476,6 @@ p {
     .intro-text {
         font-size: 1.2rem;
     }
-    #intro-pic {
-        width: 500px;
-        height: auto;
-    }
     .about-grid {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -494,9 +490,6 @@ p {
     }
     .intro-text {
         font-size: 1.1rem;
-    }
-    #intro-pic {
-        width: 480px;
     }
     footer {
         font-size: 0.9rem;
@@ -577,4 +570,8 @@ p {
     0%   {opacity: 1}
     50% {opacity: 1}
     100% {opacity: 0}
+}
+
+.cont1.disabled > * {
+    cursor: not-allowed;
 }

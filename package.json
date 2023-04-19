@@ -1,12 +1,13 @@
 {
-  "name": "app",
+  "name": "gazeplotter",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "node_modules/.bin/vite",
     "build": "node_modules/.bin/tsc && vite build",
-    "preview": "node_modules/.bin/vite preview"
+    "preview": "node_modules/.bin/vite preview",
+    "eslint": "node_modules/.bin/eslint src/ts --ext .ts"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.43.0",
@@ -21,7 +22,6 @@
     "vitest": "^0.25.3"
   },
   "dependencies": {
-    "app": "^0.1.0",
     "jsdom": "^20.0.3"
   }
 }

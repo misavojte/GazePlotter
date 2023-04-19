@@ -5,6 +5,7 @@ import { StartButtonsPreParseSettingsType } from '../../Types/Parsing/StartButto
 
 export class StartButtonsModel extends AbstractModel {
   readonly observerType = 'startModel'
+  isProcessing: boolean = false
   eyeTrackingData: ETDInterface | null = null
   worker: Worker = new Worker(new URL('../../Back/Worker/DataUploadWorker.ts', import.meta.url), { type: 'module' })
   service: StartButtonsService = new StartButtonsService()
@@ -19,18 +20,21 @@ export class StartButtonsModel extends AbstractModel {
   }
 
   startDemo (): void {
-    this.notify('start', ['workplaceModel'])
+    this.isProcessing = true
+    this.notify('start', [])
     void import('../../Data/DemoData').then(x => {
       this.eyeTrackingData = x.demoData
-      this.notify('eyeTrackingData', ['workplaceModel'])
+      this.isProcessing = false
+      this.notify('eyeTrackingData', [])
     }).catch(e => {
       console.log(e)
     })
   }
 
   startNewFile (file: Object): void {
+    this.isProcessing = true
     if (!(file instanceof FileList)) return
-    this.notify('start', ['workplaceModel'])
+    this.notify('start', [])
     if (file[0].name.endsWith('.json')) return this.loadJsonFile(file[0])
     const parsingSettingsPromise = this.service.preprocessEyeTrackingFiles(file)
     void parsingSettingsPromise.then(
@@ -47,8 +51,9 @@ export class StartButtonsModel extends AbstractModel {
       }
     )
     this.worker.onmessage = (event) => {
+      this.isProcessing = false
       this.eyeTrackingData = event.data as ETDInterface
-      this.notify('eyeTrackingData', ['workplaceModel'])
+      this.notify('eyeTrackingData', [])
     }
   }
 
@@ -99,7 +104,7 @@ export class StartButtonsModel extends AbstractModel {
 
   fail (message: string): void {
     this.failMessage = message
-    this.notify('fail', ['workplaceModel'])
+    this.notify('fail', [])
   }
 
   loadJsonFile (file: File): void {
@@ -107,7 +112,7 @@ export class StartButtonsModel extends AbstractModel {
     reader.onload = (event) => {
       if (event.target === null) return
       this.eyeTrackingData = JSON.parse(event.target.result as string).main as ETDInterface
-      this.notify('eyeTrackingData', ['workplaceModel'])
+      this.notify('eyeTrackingData', [])
     }
     reader.readAsText(file)
   }

@@ -93,7 +93,7 @@ export class WorkplaceModel extends AbstractModel {
     this.isCrashed = false
     this.flashManager.addFlashMessage('New workplace started', 'info')
     if (this.isVisible) {
-      return this.notify('reload', [])
+      return this.notify('start', [])
     }
     this.notify('reveal', [])
     this.isVisible = true

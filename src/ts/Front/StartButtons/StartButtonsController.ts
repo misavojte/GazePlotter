@@ -13,10 +13,14 @@ export class StartButtonsController extends AbstractController {
     e.stopPropagation()
     switch (e.type) {
       case 'click' :
-        return this.model.startDemo()
+        return this.handleDemoClick()
       case 'change' :
         this.handleChangeEvent(e)
     }
+  }
+
+  handleDemoClick (): void {
+    if (!this.model.isProcessing) this.model.startDemo()
   }
 
   handleChangeEvent (e: Event): void {
