@@ -140,7 +140,8 @@ export class ScarfModel extends AbstractModel {
     const data = this.data
     const participantIdsToProcess = []
     for (let i = 0; i < data.noOfParticipants; i++) {
-      if (data.getNoOfSegments(stimulusId, i) > 0) participantIdsToProcess.push(i)
+      const participantIdInOrder = data.main.participants.orderVector[i] ?? i
+      if (data.getNoOfSegments(stimulusId, participantIdInOrder) > 0) participantIdsToProcess.push(participantIdInOrder)
     }
     return participantIdsToProcess
   }
