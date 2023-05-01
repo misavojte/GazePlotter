@@ -5,7 +5,7 @@ export class EyeTrackingParserBeGazePostprocessor extends EyeTrackingParserAbstr
   process (data: ETDInterface): ETDInterface {
     data = this.mergeDuplicatedSegments(this.sortSegments(data))
     this.orderAoisAlphabetically(data)
-    console.log(data)
+    this.orderParticipantsAlphabetically(data)
     return data
   }
 
