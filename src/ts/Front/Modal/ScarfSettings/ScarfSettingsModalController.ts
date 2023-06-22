@@ -20,9 +20,16 @@ export class ScarfSettingsModalController extends AbstractModalController {
 
   handleSubmitEvent (e: Event): void {
     const form = e.target as HTMLFormElement
-    const applyToAll = form.x_axis_width_apply.value === 'all'
-    const width = Number(form.x_axis_width_value.value)
-    if (width < 0) throw new Error('Width cannot be negative')
-    this.model.fireWidthChange(width, applyToAll)
+    const types = ['absolute', 'ordinal'] as const
+    for (const type of types) {
+      this.#handleTimelineChange(form, type)
+    }
+    this.model.fireRedraw()
+  }
+
+  #handleTimelineChange (form: HTMLFormElement, timelineType: 'absolute' | 'ordinal'): void {
+    const applyToAll = form[`${timelineType}_timeline_apply`].value === 'all'
+    const width = parseInt(form[`${timelineType}_timeline_last_val`].value)
+    this.model.modifyTimelineSettings(timelineType, width, applyToAll)
   }
 }

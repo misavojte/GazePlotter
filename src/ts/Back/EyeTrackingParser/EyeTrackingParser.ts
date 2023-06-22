@@ -39,7 +39,7 @@ export class EyeTrackingParser {
   async process (rs: ReadableStream): Promise<ETDInterface | null> {
     const reader = rs.pipeThrough(new TextDecoderStream()).getReader()
     const pump = async (reader: ReadableStreamDefaultReader<string>): Promise<void> => await reader.read()
-      .then(({ value, done }) => {
+      .then(async ({ value, done }) => {
         if (done) {
           if (this.rowReducer !== null) {
             if (this.lastRow.length > 0) this.processRow(this.lastRow, this.rowReducer) // if not empty
@@ -54,7 +54,7 @@ export class EyeTrackingParser {
         }
         const shouldPumpingResume = this.processPump(value)
         if (!shouldPumpingResume) return
-        return pump(reader)
+        return await pump(reader)
       })
     await pump(reader)
     this.isPreviousFileProcessed = Promise.resolve()

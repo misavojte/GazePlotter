@@ -6,8 +6,12 @@ export class ScarfSettingsModalModel extends AbstractModalModel {
   stimulusId: number
   scarfId: number
   scarfSettings: ScarfSettingsType
-  get width (): number {
-    return this.scarfSettings.stimuliWidth[this.stimulusId] ?? this.scarfSettings.generalWidth
+  get absoluteLastVal (): number {
+    return this.scarfSettings.absoluteStimuliLastVal[this.stimulusId] ?? this.scarfSettings.absoluteGeneralLastVal
+  }
+
+  get ordinalLastVal (): number {
+    return this.scarfSettings.ordinalStimuliLastVal[this.stimulusId] ?? this.scarfSettings.ordinalGeneralLastVal
   }
 
   constructor (workplace: WorkplaceModel, settings: ScarfSettingsType, stimulusId: number, scarfId: number) {
@@ -27,13 +31,16 @@ export class ScarfSettingsModalModel extends AbstractModalModel {
     this.notify('open-aoi-visibility-modal', ['workplaceModel'])
   }
 
-  fireWidthChange (width: number, applyToAll: boolean): void {
+  modifyTimelineSettings (timeline: 'absolute' | 'ordinal', lastVal: number, applyToAll: boolean): void {
     if (applyToAll) {
-      this.scarfSettings.generalWidth = width
-      this.scarfSettings.stimuliWidth = []
+      this.scarfSettings[`${timeline}GeneralLastVal`] = lastVal
+      this.scarfSettings[`${timeline}StimuliLastVal`] = []
     } else {
-      this.scarfSettings.stimuliWidth[this.stimulusId] = width
+      this.scarfSettings[`${timeline}StimuliLastVal`][this.stimulusId] = lastVal
     }
+  }
+
+  fireRedraw (): void {
     this.notify('redraw', ['workplaceModel'])
     this.fireClose()
   }

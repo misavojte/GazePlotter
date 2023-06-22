@@ -31,8 +31,10 @@ export class ScarfModel extends AbstractModel {
   settings: ScarfSettingsType = {
     aoiVisibility: false,
     timeline: 'absolute',
-    generalWidth: 0,
-    stimuliWidth: []
+    absoluteGeneralLastVal: 0,
+    absoluteStimuliLastVal: [],
+    ordinalGeneralLastVal: 0,
+    ordinalStimuliLastVal: []
   }
 
   flashMessage: { message: string, type: 'error' | 'warn' | 'info' | 'success' } | null = null
@@ -149,19 +151,29 @@ export class ScarfModel extends AbstractModel {
   getHighestEndTime (participantsIds: number[]): number {
     const settings = this.settings
     if (settings.timeline === 'relative') return 100
-    const settingsWidth = settings.stimuliWidth[this.stimulusId] ?? settings.generalWidth
-    let highestEndTime = settings.timeline === 'absolute' ? settingsWidth : 0 // if settingsWidth can be 0 (auto)
+
+    const absoluteTimelineLastVal = settings.absoluteStimuliLastVal[this.stimulusId] ?? settings.absoluteGeneralLastVal
+    const ordinalTimelineLastVal = settings.ordinalStimuliLastVal[this.stimulusId] ?? settings.ordinalGeneralLastVal
+
+    let highestEndTime = settings.timeline === 'absolute' ? absoluteTimelineLastVal : ordinalTimelineLastVal // if absoluteTimelineLastVal can be 0 (auto)
+    // go through all participants and find the highest end time
     for (let i = 0; i < participantsIds.length; i++) {
       const id = participantsIds[i]
       const numberOfSegments = this.data.getNoOfSegments(this.stimulusId, id)
       if (numberOfSegments === 0) continue
       if (settings.timeline === 'ordinal') {
-        if (numberOfSegments > highestEndTime) highestEndTime = numberOfSegments
+        if (numberOfSegments > highestEndTime) {
+          if (ordinalTimelineLastVal !== 0) {
+            this.addFlashMessage('warn', 'The set axis width is smaller than the highest end time of the participants.')
+            return highestEndTime
+          }
+          highestEndTime = numberOfSegments
+        }
         continue
       }
       const currentEndTime = this.data.getParticEndTime(this.stimulusId, id)
       if (currentEndTime > highestEndTime) {
-        if (settingsWidth !== 0) {
+        if (absoluteTimelineLastVal !== 0) {
           this.addFlashMessage('warn', 'The set axis width is smaller than the highest end time of the participants.')
           return highestEndTime
         }

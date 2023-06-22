@@ -11,32 +11,39 @@ export class ScarfSettingsModalView extends AbstractModalView {
   }
 
   printBodyHtml (): string {
-    const model = this.controller.model
     return `
     <div class="button-group">
         <button class="btn4 js-click" data-modal="aoi-settings">AOIs Settings</button>
         <button class="btn4 js-click" data-modal="aoi-visibility">AOIs Visibility</button>
     </div>
     <form class="js-submit">
-        <fieldset>
-            <legend>X axis width [ms]</legend>
-            <div style="margin-bottom:7px">
-            <label>
-                <input type="radio" name="x_axis_width_apply" value="this" checked>
-                This stimulus
-            </label>
-            <label>
-                <input type="radio" name="x_axis_width_apply" value="all">
-                All stimuli
-            </label>
-            </div>
-            <label class="flex-row">
-                Value (0 = auto width)
-                <input type="number" name="x_axis_width_value" value="${model.width}" min="0" step="1">
-            </label>
-        </fieldset>
+        ${this.#printTimelineFieldset('absolute')}
+        ${this.#printTimelineFieldset('ordinal')}
         <input type="submit" value="Confirm changes">  
     </form>
     `
+  }
+
+  #printTimelineFieldset (timelineType: 'absolute' | 'ordinal'): string {
+    const typeLastVal = this.controller.model[`${timelineType}LastVal`]
+    const title = timelineType === 'absolute' ? 'Absolute timeline [ms] settings' : 'Ordinal timeline [indices] settings'
+    return `
+    <fieldset>
+      <legend>${title}</legend>
+    <div style="margin-bottom:7px">
+    <label>
+      <input type="radio" name="${timelineType}_timeline_apply" value="this" checked>
+    This stimulus
+    </label>
+    <label>
+    <input type="radio" name="${timelineType}_timeline_apply" value="all">
+      All stimuli
+    </label>
+    </div>
+    <label class="flex-row">
+      Last chart value (0 = auto)
+    <input type="number" name="${timelineType}_timeline_last_val" value="${typeLastVal}" min="0" step="1">
+      </label>
+      </fieldset>`
   }
 }
