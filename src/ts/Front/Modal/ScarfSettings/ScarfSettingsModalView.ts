@@ -11,14 +11,14 @@ export class ScarfSettingsModalView extends AbstractModalView {
   }
 
   printBodyHtml (): string {
+    const fieldsetsHtml = this.controller.model.timelines.map(type => this.#printTimelineFieldset(type)).join('')
     return `
     <div class="button-group">
         <button class="btn4 js-click" data-modal="aoi-settings">AOIs Settings</button>
         <button class="btn4 js-click" data-modal="aoi-visibility">AOIs Visibility</button>
     </div>
     <form class="js-submit">
-        ${this.#printTimelineFieldset('absolute')}
-        ${this.#printTimelineFieldset('ordinal')}
+        ${fieldsetsHtml}
         <input type="submit" value="Confirm changes">  
     </form>
     `

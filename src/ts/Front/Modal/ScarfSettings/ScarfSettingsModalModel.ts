@@ -6,6 +6,7 @@ export class ScarfSettingsModalModel extends AbstractModalModel {
   stimulusId: number
   scarfId: number
   scarfSettings: ScarfSettingsType
+  timelines: Array<'absolute' | 'ordinal'>
   get absoluteLastVal (): number {
     return this.scarfSettings.absoluteStimuliLastVal[this.stimulusId] ?? this.scarfSettings.absoluteGeneralLastVal
   }
@@ -19,6 +20,9 @@ export class ScarfSettingsModalModel extends AbstractModalModel {
     this.stimulusId = stimulusId
     this.scarfId = scarfId
     this.scarfSettings = settings
+    const data = workplace.data
+    if (data === null) throw new Error('ScarfSettingsModalModel.constructor() - workplace.data is null')
+    this.timelines = data.main.isOrdinalOnly ? ['ordinal'] : ['absolute', 'ordinal']
   }
 
   openAoiSettingsModal (): void {

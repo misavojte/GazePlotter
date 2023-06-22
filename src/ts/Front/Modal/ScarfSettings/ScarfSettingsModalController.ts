@@ -20,7 +20,7 @@ export class ScarfSettingsModalController extends AbstractModalController {
 
   handleSubmitEvent (e: Event): void {
     const form = e.target as HTMLFormElement
-    const types = ['absolute', 'ordinal'] as const
+    const types = this.model.timelines
     for (const type of types) {
       this.#handleTimelineChange(form, type)
     }
