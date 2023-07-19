@@ -3,34 +3,38 @@ import { ReducerSingleOutputType } from '../../../Types/Parsing/ReducerOutputTyp
 
 export class EyeTrackingParserTobiiReducer extends EyeTrackingParserAbstractReducer {
   cAoiInfo: Array<{ columnPosition: number, aoiName: string, stimulusName: string }>
-  cTime: number
+  cRecordingTimestamp: number
   cStimulus: number
   cParticipant: number
   cRecording: number
   cCategory: number
   cEvent: number
-  mIsOpen: boolean = false
-  mLastStimulus: string = ''
-  mLastParticipant: string = ''
-  mLastStartTime: number = 0
-  mLastSavedTime: number = 0
-  mBaseTime: number = 0
-  mLastCategory: string = ''
-  mLastAoi: string[] | null = null
-  mLastAoiString: string = ''
+  cEyeMovementTypeIndex: number
+  mStimulus: string = ''
+  mParticipant: string = ''
+  mRecordingStart: string = ''
+  mEyeMovementTypeIndex: string = ''
+  mRecordingLast: string = ''
+  mCategory: string = ''
+  mAoi: string[] | null = null
+  mBaseTime: string = ''
+  stimuliRevisit: Record<string, number> = {} // Using an object to track the stimulus_participant revisit count
   TIME_MODIFIER: number = 0.001 // milliseconds needed, tobii uses microseconds
-  EVENT_START_STIMULUS: string = 'IntervalStart'
-  // EVENT_END_STIMULUS: string = 'IntervalEnd'
+  EVENT_BASE_START_STIMULUS_MARKER: string = 'IntervalStart'
+  EVENT_BASE_END_STIMULUS_MARKER: string = 'IntervalEnd'
+  EVENT_CUSTOM_WEB_NAVIGATION_START_STIMULUS_MARKER: string = '_start'
+  EVENT_CUSTOM_WEB_NAVIGATION_END_STIMULUS_MARKER: string = '_end'
   stimulusGetter: (row: string[]) => string
 
   constructor (header: string[], parseThroughIntervals: boolean = false) {
     super()
-    this.cTime = header.indexOf('Recording timestamp')
+    this.cRecordingTimestamp = header.indexOf('Recording timestamp')
     this.cStimulus = header.indexOf('Presented Stimulus name')
     this.cParticipant = header.indexOf('Participant name')
     this.cRecording = header.indexOf('Recording name')
     this.cCategory = header.indexOf('Eye movement type')
     this.cEvent = header.indexOf('Event')
+    this.cEyeMovementTypeIndex = header.indexOf('Eye movement type index')
     this.cAoiInfo = this.createAoiInfo(header, this.createStimuliDictionary(header))
     this.stimulusGetter = parseThroughIntervals ? this.intervalStimulusGetter : this.baseStimulusGetter
   }
@@ -54,53 +58,71 @@ export class EyeTrackingParserTobiiReducer extends EyeTrackingParserAbstractRedu
     return aoiInfo
   }
 
-  setLastValues (stimulus: string, participant: string, startTime: number, category: string, aoi: string[] | null): void {
-    this.mLastStimulus = stimulus
-    this.mLastParticipant = participant
-    this.mLastStartTime = startTime - this.mBaseTime
-    this.mLastCategory = category
-    this.mLastAoi = aoi
-    this.mLastAoiString = aoi === null ? '' : aoi.join(';')
-    this.mIsOpen = true
-  }
-
   reduce (row: string[]): ReducerSingleOutputType | null {
-    let result = null
-    const stimulus = this.stimulusGetter(row)
-    if (stimulus === '') return null // ignore empty rows
-    const time = Number(row[this.cTime])
-    if (time === 0) return null
-    const participant = row[this.cParticipant] + '_' + row[this.cRecording]
     const category = row[this.cCategory]
-    const aois = this.getAoisFromRow(row)
+    if (category === '') return null // skip empty rows
 
-    if (stimulus !== this.mLastStimulus || participant !== this.mLastParticipant) {
-      result = this.getReduceDataFromMemory()
-      this.mBaseTime = Number(row[this.cTime]) // set new base time
-      this.setLastValues(stimulus, participant, time, category, aois)
-    } else if (this.isAoiDifferent(aois) || category !== this.mLastCategory) {
-      result = this.getReduceDataFromMemory()
-      this.setLastValues(stimulus, participant, time, category, aois)
+    const eyeMovementTypeIndex = row[this.cEyeMovementTypeIndex]
+    const recordingTimestamp = row[this.cRecordingTimestamp]
+
+    if (eyeMovementTypeIndex === this.mEyeMovementTypeIndex) {
+      const stimulus = this.stimulusGetter(row)
+      if (stimulus !== this.mStimulus && stimulus !== '') {
+        this.mBaseTime = this.mRecordingStart
+        const key = this.mStimulus + this.mParticipant
+        if (this.mStimulus !== '') {
+          this.stimuliRevisit[key] = this.stimuliRevisit[key] !== undefined ? this.stimuliRevisit[key] + 1 : 0
+        }
+        this.mStimulus = stimulus
+      }
+      this.mRecordingLast = recordingTimestamp
+      return null
+    } // if not a new segment, return null immediately
+
+    this.mEyeMovementTypeIndex = eyeMovementTypeIndex
+
+    const previousSegment = this.getPreviousSegment()
+
+    const stimulus = this.stimulusGetter(row)
+    const participant = row[this.cRecording] + '_' + row[this.cParticipant]
+    // const category = row[this.cCategory]
+    const aoi = this.getAoisFromRow(row)
+
+    // change base time if change of stimulus / participant
+    if (stimulus !== this.mStimulus || participant !== this.mParticipant || this.mBaseTime === '') {
+      this.mBaseTime = recordingTimestamp
+      const key = this.mStimulus + this.mParticipant
+      if (this.mStimulus !== '') {
+        this.stimuliRevisit[key] = this.stimuliRevisit[key] !== undefined ? this.stimuliRevisit[key] + 1 : 0
+      }
+      this.mStimulus = stimulus
     }
-    this.mLastSavedTime = time - this.mBaseTime
-    return result
+
+    // save newly began segment
+    this.mParticipant = participant
+    this.mStimulus = stimulus
+    this.mRecordingStart = recordingTimestamp
+    this.mCategory = category
+    this.mAoi = aoi
+    this.mRecordingLast = recordingTimestamp
+
+    return previousSegment
   }
 
   finalize (): ReducerSingleOutputType | null {
-    return this.getReduceDataFromMemory()
+    return this.getPreviousSegment()
   }
 
-  getReduceDataFromMemory (): { start: string, end: string, stimulus: string, participant: string, category: string, aoi: string[] | null } | null {
-    return this.mIsOpen
-      ? {
-          start: (this.mLastStartTime * this.TIME_MODIFIER).toString(),
-          end: (this.mLastSavedTime * this.TIME_MODIFIER).toString(),
-          stimulus: this.mLastStimulus,
-          participant: this.mLastParticipant,
-          category: this.mLastCategory,
-          aoi: this.mLastAoi
-        }
-      : null
+  getPreviousSegment (): ReducerSingleOutputType | null {
+    if (this.mParticipant === '' || this.mStimulus === '' || this.mRecordingStart === '' || this.mRecordingLast === this.mRecordingStart) return null
+    return {
+      stimulus: this.getNonDuplicateStimulus(this.mStimulus),
+      participant: this.mParticipant,
+      start: String((Number(this.mRecordingStart) - Number(this.mBaseTime)) * this.TIME_MODIFIER),
+      end: String((Number(this.mRecordingLast) - Number(this.mBaseTime)) * this.TIME_MODIFIER),
+      category: this.mCategory,
+      aoi: this.mAoi
+    }
   }
 
   getAoisFromRow (row: string[]): string[] {
@@ -113,10 +135,6 @@ export class EyeTrackingParserTobiiReducer extends EyeTrackingParserAbstractRedu
     return aois
   }
 
-  isAoiDifferent (aoi: string[] | null): boolean {
-    return this.mLastAoiString !== (aoi === null ? '' : aoi.join(';'))
-  }
-
   baseStimulusGetter (row: string[]): string {
     return row[this.cStimulus]
   }
@@ -126,9 +144,25 @@ export class EyeTrackingParserTobiiReducer extends EyeTrackingParserAbstractRedu
     // "NAME_OF_STIMULUS IntervalStart"
     const event = row[this.cEvent]
     // if contains IntervalStart, then it is the start of a new stimulus
-    let stimulus = this.mLastStimulus
-    if (event.includes(this.EVENT_START_STIMULUS)) {
-      stimulus = event.replace(' ' + this.EVENT_START_STIMULUS, '')
+    let stimulus = this.mStimulus
+    if (event.includes(this.EVENT_BASE_START_STIMULUS_MARKER)) {
+      stimulus = event.replace(' ' + this.EVENT_BASE_START_STIMULUS_MARKER, '')
+    }
+    if (event.includes(this.EVENT_CUSTOM_WEB_NAVIGATION_START_STIMULUS_MARKER)) {
+      stimulus = event.replace(this.EVENT_CUSTOM_WEB_NAVIGATION_START_STIMULUS_MARKER, '')
+    }
+    if (event.includes(this.EVENT_CUSTOM_WEB_NAVIGATION_END_STIMULUS_MARKER) || event.includes(this.EVENT_BASE_END_STIMULUS_MARKER)) {
+      stimulus = ''
+    }
+    return stimulus
+  }
+
+  getNonDuplicateStimulus (stimulus: string): string {
+    if (stimulus !== '') {
+      const participantKey = stimulus + this.mParticipant
+      if (participantKey in this.stimuliRevisit) {
+        stimulus = stimulus + ' (' + String(this.stimuliRevisit[participantKey]) + ')'
+      }
     }
     return stimulus
   }
