@@ -1,7 +1,8 @@
 import { EyeTrackingParserAbstractPostprocessor } from './EyeTrackingParserAbstractPostprocessor'
 import { ETDInterface } from '../../../Data/EyeTrackingData'
 
-export class EyeTrackingParserTobiiPostprocessor extends EyeTrackingParserAbstractPostprocessor {
+// Currently used for BeGaze, Tobii and Varjo
+export class EyeTrackingParserBasePostprocessor extends EyeTrackingParserAbstractPostprocessor {
   process (data: ETDInterface): ETDInterface {
     this.orderAoisAlphabetically(data)
     this.orderParticipantsAlphabetically(data)

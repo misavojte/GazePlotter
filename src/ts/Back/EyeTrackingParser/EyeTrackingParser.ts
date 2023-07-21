@@ -4,14 +4,14 @@ import { EyeTrackingParserRowStore } from './EyeTrackingParserRowStore'
 import { EyeTrackingParserBeGazeReducer } from './Reducer/EyeTrackingParserBeGazeReducer'
 import { EyeTrackingParserTobiiReducer } from './Reducer/EyeTrackingParserTobiiReducer'
 import { EyeTrackingParserBeGazePostprocessor } from './Postprocessor/EyeTrackingParserBeGazePostprocessor'
-import { EyeTrackingParserTobiiPostprocessor } from './Postprocessor/EyeTrackingParserTobiiPostprocessor'
 import { EyeTrackingParserGazePointReducer } from './Reducer/EyeTrackingParserGazePointReducer'
 import { WorkerSettingsMessage } from '../../Types/Parsing/WorkerSettingsMessage'
 import { EyeTrackingFileType } from '../../Types/Parsing/FileTypes'
-import { EyeTrackingParserGazePointPostprocessor } from './Postprocessor/EyeTrackingParserGazePointPostprocessor'
+import { EyeTrackingParserBasePostprocessor } from './Postprocessor/EyeTrackingParserBasePostprocessor'
 import { ReducerOutputType } from '../../Types/Parsing/ReducerOutputType'
 import { EyeTrackingParserOgamaReducer } from './Reducer/EyeTrackingParserOgamaReducer'
 import { EyeTrackingParserOgamaPostprocessor } from './Postprocessor/EyeTrackingParserOgamaPostprocessor'
+import { EyeTrackingParserVarjoReducer } from './Reducer/EyeTrackingParserVarjoReducer'
 
 export class EyeTrackingParser {
   lastRow: string = ''
@@ -84,8 +84,7 @@ export class EyeTrackingParser {
     const fileType = this.type
     const data = this.rowStore.data
     if (fileType === 'begaze') return new EyeTrackingParserBeGazePostprocessor().process(data)
-    if (fileType === 'tobii' || fileType === 'tobii-with-event') return new EyeTrackingParserTobiiPostprocessor().process(data)
-    if (fileType === 'gazepoint') return new EyeTrackingParserGazePointPostprocessor().process(data)
+    if (fileType === 'tobii' || fileType === 'tobii-with-event' || fileType === 'gazepoint' || fileType === 'varjo') return new EyeTrackingParserBasePostprocessor().process(data)
     if (fileType === 'ogama') return new EyeTrackingParserOgamaPostprocessor().process(data)
     throw new Error('File type for postprocessor not recognized')
   }
@@ -98,12 +97,12 @@ export class EyeTrackingParser {
         return this.getTobiiReducer(row, false)
       case 'tobii-with-event':
         return this.getTobiiReducer(row, true)
-      case 'gazepoint': {
-        const participant = this.currentFileName.split('_')[0]
-        return new EyeTrackingParserGazePointReducer(row, participant)
-      }
+      case 'gazepoint':
+        return new EyeTrackingParserGazePointReducer(row, this.currentFileName)
       case 'ogama':
         return new EyeTrackingParserOgamaReducer(row, this.currentFileName)
+      case 'varjo':
+        return new EyeTrackingParserVarjoReducer(row, this.currentFileName)
       default:
         throw new Error('File type row reducer not implemented')
     }
@@ -119,7 +118,7 @@ export class EyeTrackingParser {
   processRow (row: string, reducer: EyeTrackingParserAbstractReducer): void {
     const columns = row.split(this.columnDelimiter)
     if (columns.length !== this.columnsIntegrity) {
-      throw new Error('Row integrity error')
+      if (this.type !== 'varjo') throw new Error('Row integrity error')
     }
     this.processReduced(reducer.reduce(columns))
   }

@@ -17,7 +17,7 @@ export class StartButtonsService {
     }
     const type = this.getTypeFromArray(types)
     const rowDelimiter = '\r\n'
-    const columnDelimiter = type === 'gazepoint' ? ',' : '\t'
+    const columnDelimiter = this.getColumnDelimiter(type)
     return { workerSettings: { type, rowDelimiter, columnDelimiter, fileNames, userInputSetting: null }, files }
   }
 
@@ -47,7 +47,24 @@ export class StartButtonsService {
     if (this.isGazePoint(slice)) return 'gazepoint'
     if (this.isBeGaze(slice)) return 'begaze'
     if (this.isOgama(slice)) return 'ogama'
+    if (this.isVarjo(slice)) return 'varjo'
     return 'unknown'
+  }
+
+  getColumnDelimiter (type: EyeTrackingFileType): string {
+    switch (type) {
+      case 'tobii':
+      case 'tobii-with-event':
+      case 'begaze':
+      case 'ogama':
+        return '\t'
+      case 'gazepoint':
+        return ','
+      case 'varjo':
+        return ';'
+      default:
+        throw new Error('Unknown file type')
+    }
   }
 
   isTobii (slice: string): boolean {
@@ -64,5 +81,9 @@ export class StartButtonsService {
 
   isOgama (slice: string): boolean {
     return slice.includes('# Contents: Similarity Measurements of scanpaths.')
+  }
+
+  isVarjo (slice: string): boolean {
+    return slice.includes('Time') && slice.includes('Actor Label')
   }
 }

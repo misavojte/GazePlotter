@@ -19,7 +19,7 @@ export class EyeTrackingParserGazePointReducer extends EyeTrackingParserAbstract
   mFixID: string | null = null
   mHasFixationSegmentEnded: boolean = false
   participant: string // for this reducer, the participant is always the same (one file per participant)
-  constructor (header: string[], participant: string) {
+  constructor (header: string[], fileName: string) {
     super()
     this.cStart = header.indexOf('FPOGS')
     this.cTime = header.indexOf('FPOGS') - 1
@@ -28,7 +28,7 @@ export class EyeTrackingParserGazePointReducer extends EyeTrackingParserAbstract
     this.cAOI = header.indexOf('AOI')
     this.cStimulus = header.indexOf('MEDIA_NAME')
     this.cFixID = header.indexOf('FPOGID')
-    this.participant = participant
+    this.participant = fileName.split('_')[0]
   }
 
   reduce (row: string[]): ReducerSingleOutputType | null {
