@@ -12,6 +12,7 @@ import { ReducerOutputType } from '../../Types/Parsing/ReducerOutputType'
 import { EyeTrackingParserOgamaReducer } from './Reducer/EyeTrackingParserOgamaReducer'
 import { EyeTrackingParserOgamaPostprocessor } from './Postprocessor/EyeTrackingParserOgamaPostprocessor'
 import { EyeTrackingParserVarjoReducer } from './Reducer/EyeTrackingParserVarjoReducer'
+import {EyeTrackingParserCsvReducer} from "./Reducer/EyeTrackingParserCsvReducer";
 
 export class EyeTrackingParser {
   lastRow: string = ''
@@ -84,7 +85,7 @@ export class EyeTrackingParser {
     const fileType = this.type
     const data = this.rowStore.data
     if (fileType === 'begaze') return new EyeTrackingParserBeGazePostprocessor().process(data)
-    if (fileType === 'tobii' || fileType === 'tobii-with-event' || fileType === 'gazepoint' || fileType === 'varjo') return new EyeTrackingParserBasePostprocessor().process(data)
+    if (fileType === 'tobii' || fileType === 'tobii-with-event' || fileType === 'gazepoint' || fileType === 'varjo' || fileType === 'csv') return new EyeTrackingParserBasePostprocessor().process(data)
     if (fileType === 'ogama') return new EyeTrackingParserOgamaPostprocessor().process(data)
     throw new Error('File type for postprocessor not recognized')
   }
@@ -103,6 +104,8 @@ export class EyeTrackingParser {
         return new EyeTrackingParserOgamaReducer(row, this.currentFileName)
       case 'varjo':
         return new EyeTrackingParserVarjoReducer(row, this.currentFileName)
+      case 'csv':
+        return new EyeTrackingParserCsvReducer(row)
       default:
         throw new Error('File type row reducer not implemented')
     }

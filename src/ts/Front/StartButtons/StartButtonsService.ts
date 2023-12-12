@@ -48,6 +48,7 @@ export class StartButtonsService {
     if (this.isBeGaze(slice)) return 'begaze'
     if (this.isOgama(slice)) return 'ogama'
     if (this.isVarjo(slice)) return 'varjo'
+    if (this.isCsv(slice)) return 'csv'
     return 'unknown'
   }
 
@@ -59,6 +60,7 @@ export class StartButtonsService {
       case 'ogama':
         return '\t'
       case 'gazepoint':
+      case 'csv':
         return ','
       case 'varjo':
         return ';'
@@ -85,5 +87,9 @@ export class StartButtonsService {
 
   isVarjo (slice: string): boolean {
     return slice.includes('Time') && slice.includes('Actor Label')
+  }
+
+  isCsv (slice: string): boolean {
+     return slice.includes('Time') && slice.includes('AOI') && slice.includes('Participant') && slice.includes('Stimulus')
   }
 }
