@@ -6,6 +6,7 @@ export class EyeTrackingParserBasePostprocessor extends EyeTrackingParserAbstrac
   process (data: ETDInterface): ETDInterface {
     this.orderAoisAlphabetically(data)
     this.orderParticipantsAlphabetically(data)
+    this.sortSegments(data)
     return data
   }
 }

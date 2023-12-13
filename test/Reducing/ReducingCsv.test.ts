@@ -27,8 +27,14 @@ const sampleCsvContent = `Time,Participant,Stimulus,AOI
 2,Participant_4,Map_D,Region_3
 3,Participant_4,Map_D,Region_4
 4,Participant_4,Map_D,Region_5
-5,Participant_4,Map_D,Region_1
-`
+5,Participant_4,Map_D,Region_1`
+
+const sampleCsvContent2 = `Time,Participant,Stimulus,AOI
+9,Participant_1,Map_A,Region_3
+10,Participant_1,Map_A,Region_4
+11,Participant_1,Map_A,Region_4
+12,Participant_2,Map_B,Region_1
+13,Participant_2,Map_B,Region_1`
 
 /**
  * @vitest-environment jsdom
@@ -136,6 +142,43 @@ describe ('Reducer', () => {
 
     })
 
+    test ('Sample 2 - baseTime between segments', () => {
+        const sut = new EyeTrackingParserCsvReducer(header)
+        const csvRows2 = sampleCsvContent2.split('\n')
+        const row1 = csvRows2[1].split(',')
+        const row2 = csvRows2[2].split(',')
+        const row3 = csvRows2[3].split(',')
+        const row4 = csvRows2[4].split(',')
+        void sut.reduce(row1)
+        void sut.reduce(row2)
+        void sut.reduce(row3)
+        const result = sut.reduce(row4)
+        expect(result).toEqual({
+            aoi: ['Region_4'],
+            category: 'Fixation',
+            start: '1',
+            end: '2',
+            participant: 'Participant_1',
+            stimulus: 'Map_A'
+        })
+    })
+
+    test ('Sample 2 - no duplicity segments with 0,0', () => {
+        const sut = new EyeTrackingParserCsvReducer(header)
+        const csvRows2 = sampleCsvContent2.split('\n')
+        const row1 = csvRows2[1].split(',')
+        const row2 = csvRows2[2].split(',')
+        const row3 = csvRows2[3].split(',')
+        const row4 = csvRows2[4].split(',')
+        const row5 = csvRows2[5].split(',')
+        void sut.reduce(row1)
+        void sut.reduce(row2)
+        void sut.reduce(row3)
+        void sut.reduce(row4)
+        const result = sut.reduce(row5)
+        expect(result).toBeNull()
+    })
+
 })
 
 describe ('Parser', async () => {
@@ -186,7 +229,7 @@ describe ('Parser', async () => {
 
         sut.columnsIntegrity = 4 // normally set in pump
 
-        for (let i = 1; i < rows.length - 1; i++) {
+        for (let i = 1; i < rows.length; i++) {
             const row = rows[i]
             sut.processRow(row, reducer)
         }

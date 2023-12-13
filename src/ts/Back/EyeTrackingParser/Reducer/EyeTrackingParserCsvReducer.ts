@@ -32,7 +32,7 @@ export class EyeTrackingParserCsvReducer extends EyeTrackingParserAbstractReduce
 
     let output: ReducerSingleOutputType | null = null
 
-    if (isNewTimebase) this.mTimeBase = Number(time)
+    if (this.mTimeBase === null) this.mTimeBase = Number(time)
     if (isNewSegment) {
       output = this.finalize()
       this.mTimeStart = time // if a new segment starts, set the start time
@@ -40,6 +40,7 @@ export class EyeTrackingParserCsvReducer extends EyeTrackingParserAbstractReduce
       this.mParticipant = participant
       this.mStimulus = stimulus
     }
+    if (isNewTimebase) this.mTimeBase = Number(time)
     this.mTimeLast = time
     return output
   }
@@ -49,14 +50,6 @@ export class EyeTrackingParserCsvReducer extends EyeTrackingParserAbstractReduce
     if (baseTime === null) throw new Error('Base time is null')
     const aoi = this.mAoi
     if (aoi === null) return null
-    console.log({
-      aoi: aoi === '' ? null : [aoi],
-      category: 'Fixation', // Not really, but for now let's assume that all the data is fixations
-      start: String(Number(this.mTimeStart) - baseTime),
-      end: String(Number(this.mTimeLast) - baseTime),
-      participant: this.mParticipant,
-      stimulus: this.mStimulus
-    })
     return {
       aoi: aoi === '' ? null : [aoi],
       category: 'Fixation', // Not really, but for now let's assume that all the data is fixations

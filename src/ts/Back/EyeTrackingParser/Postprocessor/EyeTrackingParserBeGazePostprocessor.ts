@@ -9,23 +9,6 @@ export class EyeTrackingParserBeGazePostprocessor extends EyeTrackingParserAbstr
     return data
   }
 
-  sortSegments (data: ETDInterface): ETDInterface {
-    const noOfStimuli = data.segments.length
-    const noOfParticipants = data.participants.data.length
-    for (let stimulusId = 0; stimulusId < noOfStimuli; stimulusId++) {
-      for (let participantId = 0; participantId < noOfParticipants; participantId++) {
-        const segmentPart = data.segments[stimulusId][participantId]
-        if (segmentPart === undefined) continue
-        segmentPart.sort(sortFn)
-      }
-    }
-    // sort by start time in segment array (index 0)
-    function sortFn (a: number[], b: number[]): number {
-      return a[0] - b[0]
-    }
-    return data
-  }
-
   mergeDuplicatedSegments (data: ETDInterface): ETDInterface {
     // must be sorted beforehand
     const noOfStimuli = data.segments.length

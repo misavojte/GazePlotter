@@ -9,8 +9,7 @@ export abstract class EyeTrackingParserAbstractPostprocessor {
       const currentAoiArray = aois.data[i]
       const indexedArr = currentAoiArray.map((value, index) => ({ index, name: value[0] }))
       indexedArr.sort((a, b) => a.name.localeCompare(b.name))
-      const sortedIndices = indexedArr.map((value) => value.index)
-      aois.orderVector[i] = sortedIndices
+      aois.orderVector[i] = indexedArr.map((value) => value.index)
     }
   }
 
@@ -18,7 +17,23 @@ export abstract class EyeTrackingParserAbstractPostprocessor {
     const participants = data.participants
     const indexedArr = participants.data.map((value, index) => ({ index, name: value[0] }))
     indexedArr.sort((a, b) => a.name.localeCompare(b.name))
-    const sortedIndices = indexedArr.map((value) => value.index)
-    participants.orderVector = sortedIndices
+    participants.orderVector = indexedArr.map((value) => value.index)
+  }
+
+  sortSegments (data: ETDInterface): ETDInterface {
+    const noOfStimuli = data.segments.length
+    const noOfParticipants = data.participants.data.length
+    for (let stimulusId = 0; stimulusId < noOfStimuli; stimulusId++) {
+      for (let participantId = 0; participantId < noOfParticipants; participantId++) {
+        const segmentPart = data.segments[stimulusId][participantId]
+        if (segmentPart === undefined) continue
+        segmentPart.sort(sortFn)
+      }
+    }
+    // sort by start time in segment array (index 0)
+    function sortFn (a: number[], b: number[]): number {
+      return a[0] - b[0]
+    }
+    return data
   }
 }
