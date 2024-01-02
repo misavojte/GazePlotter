@@ -1,1 +1,1 @@
-// Reexport your entry components here
+export { default as GazePlotter } from "$lib/components/GazePlotter.svelte";
