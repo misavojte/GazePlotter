@@ -16,7 +16,7 @@
 <style>
     .plot {
         border-radius: 20px;
-        box-shadow: 0 2px 10px rgb(0 0 0 / 25%);
+        box-shadow: 0 2px 10px rgb(0 0 0 / 15%);
         width: 100%;
         background: #fff;
         box-sizing: border-box;

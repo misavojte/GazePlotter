@@ -85,24 +85,11 @@
     </section>
 </main>
 <footer class="border-t">
-    <div>
-        <div>
-            <p>GazePlotter, version 1.2 (12/12/2023)</p>
-            <p>Coded & designed by <a href="https://vojtechovska.com" target="_blank">Michaela Vojtěchovská</a>, idea by Stanislav Popelka</p>
-            <p><a href="https://geoinformatics.upol.cz" target="_blank" rel="nofollow">Department of Geoinformatics</a>, Palacký University Olomouc
-            </p>
-        </div>
-        <nav>
-            <a class="external-link" target="_blank" href="https://docs.gazeplotter.com/">
-                Guide
-                <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" height="24px" viewBox="0 0 24 24" width="24px" class="icon" data-v-f3ed0000=""><path d="M0 0h24v24H0V0z" fill="none"></path><path d="M9 5v2h6.59L4 18.59 5.41 20 17 8.41V15h2V5H9z"></path></svg>
-            </a>
-            <a href="https://github.com/misavojte/GazePlotter" target="_blank" class="a-icon" rel="nofollow">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="icon" viewBox="0 0 16 16">
-                    <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
-                </svg>
-            </a>
-        </nav>
+     <div>
+         <p>GazePlotter, version 1.2 (12/12/2023)</p>
+         <p>Coded & designed by <a href="https://vojtechovska.com" target="_blank">Michaela Vojtěchovská</a>, idea by Stanislav Popelka</p>
+         <p><a href="https://geoinformatics.upol.cz" target="_blank" rel="nofollow">Department of Geoinformatics</a>, Palacký University Olomouc</p>
+         <img class="up-logo" src="/logos/upol.png" alt="Palacký University Olomouc logo" width="300" height="137" />
     </div>
 </footer>
 
@@ -112,6 +99,7 @@
         --c-brand: #cd1404;
         --c-brand-dark: #a20d03;
         --c-white: #fff;
+        --c-darkwhite: #f5f5f5;
         --c-lightgrey: #ebebef;
         --c-darkgrey: #e4e4e9;
         --c-black: rgba(0, 0, 0, 0.75);
@@ -147,7 +135,7 @@
         margin-inline: auto;
     }
 
-    footer > div, header > div {
+    header > div {
         width: 100%;
         margin: auto;
         padding: 32px;
@@ -169,6 +157,22 @@
     footer {
         margin-top: 60px;
     }
+
+    footer > div {
+        text-align: center;
+        padding: 32px;
+        font-size: 14px;
+        box-sizing: border-box;
+
+    }
+
+    .up-logo {
+        margin-top: 30px;
+        width: 150px;
+        height: auto;
+        user-select: none;
+    }
+
     header {
         display: flex;
         align-items: center;
@@ -207,8 +211,7 @@
     }
 
     main>section:first-child {
-        padding-block: 80px;
-        padding-bottom: 0;
+        padding-top: 60px;
     }
 
     .main-section {
@@ -248,7 +251,6 @@
     }
 
     footer p {
-        font-weight: 200;
         margin: 0;
     }
 
@@ -355,8 +357,7 @@
             padding-inline: 24px;
         }
         main>section:first-child {
-            padding-block: 40px;
-            padding-bottom: 0;
+            padding-top: 40px;
         }
     }
 
@@ -365,8 +366,7 @@
             font-size: 2.2rem;
         }
         main>section:first-child {
-            padding-block: 30px;
-            padding-bottom: 0;
+            padding-top: 30px;
         }
         .intro-text {
             font-size: 1.2rem;

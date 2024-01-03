@@ -1,27 +1,17 @@
 <script lang="ts">
 
-  import ScarfPlot from './Plot/ScarfPlot/ScarfPlot.svelte'
-  import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
-  import { scarfPlotStates, setDefaultScarfPlotState } from '../stores/scarfPlotsStore'
+  import { setDefaultScarfPlotState } from '../stores/scarfPlotsStore.ts'
   import Toaster from './Toaster/Toaster.svelte'
   import Modal from './Modal/Modal.svelte'
   import Panel from './Panel/Panel.svelte'
   import { onMount } from 'svelte'
-  import EmptyPlot from './Plot/EmptyPlot/EmptyPlot.svelte'
+  import Workspace from "$lib/components/Workspace/Workspace.svelte";
+  import {processingFileStateStore} from "$lib/stores/processingFileStateStore.js";
 
-  $: isProcessingFile = $processingFileStateStore
-
-  $: switch (isProcessingFile) {
-    case 'done':
-      console.log('done GPS')
-      setDefaultScarfPlotState()
-      break
-  }
-
-  $: scarfs = $scarfPlotStates
 
   onMount(() => {
     setDefaultScarfPlotState()
+    processingFileStateStore.set('done')
   })
 </script>
 
@@ -29,37 +19,18 @@
     <div class="panel-container">
         <Panel />
     </div>
-    <main>
-        {#each scarfs as scarf (scarf.scarfPlotId)}
-            <ScarfPlot scarfPlotId={scarf.scarfPlotId} />
-        {/each}
-        {#if scarfs.length === 0}
-            <EmptyPlot />
-        {/if}
-    </main>
+    <Workspace />
     <Modal />
     <Toaster />
 </div>
 
 <style>
 
-    main {
-        display: flex;
-        gap: 20px;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        width: 100%;
-        margin: auto;
-        padding: 80px 16px;
-        box-shadow: inset 0 2px 10px rgb(0 0 0 / 25%);
-        background-color: var(--c-lightgrey);
-        background-image: linear-gradient(var(--c-darkgrey) 1px, transparent 1px), linear-gradient(90deg, var(--c-darkgrey) 1px, transparent 1px);
-        background-size: 30px 30px;
-    }
     :global(:root) {
         --c-brand: #cd1404;
+        --c-brand-dark: #a20d03;
         --c-white: #fff;
+        --c-darkwhite: #f3f3f5;
         --c-lightgrey: #ebebef;
         --c-darkgrey: #e4e4e9;
         --c-black: rgba(0, 0, 0, 0.75);

@@ -40,7 +40,6 @@
       return fillingFactory.getFilling()
     }
 
-    console.log('co', participantIds, stimulusId, settings)
     let absoluteTimeline: PlotAxisBreaks = getAxisBreaks(participantIds, stimulusId, settings)
     let data = getFilling(stimulusId, participantIds, absoluteTimeline, settings)
     let patternWidth = settings.timeline === 'relative' ? '10%' : `${(absoluteTimeline[1] / absoluteTimeline.maxLabel) * 100}%`
