@@ -33,7 +33,7 @@
         letter-spacing: 0.0333333333em;
         text-transform: uppercase;
         color: rgba(0, 0, 0, 0.6);
-        background: #ebebef;
+        background: var(--c-darkgrey);
         padding-inline: 4px;
         left: 10px;
     }
@@ -44,7 +44,7 @@
         color: rgba(0, 0, 0, 0.87);
         border-radius: 4px;
         border: 1px solid rgba(0, 0, 0, 0.23);
-        background-color: #ebebef;
+        background-color: var(--c-darkgrey);
         transition: border-color 0.2s ease-in-out;
         font-size: 14px;
         width: 140px;

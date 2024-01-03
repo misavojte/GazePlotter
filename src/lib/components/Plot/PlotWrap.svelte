@@ -27,7 +27,7 @@
         justify-content: space-between;
         align-items: center;
         padding: 15px 30px;
-        background: #ebebef;
+        background: var(--c-darkgrey);
         flex-wrap: wrap;
         gap: 0 20px;
     }

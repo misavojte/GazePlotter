@@ -13,5 +13,5 @@
 </script>
 
 <MajorControlButton on:click={handleClick}>
-    Load demo data
+    Reload demo
 </MajorControlButton>
