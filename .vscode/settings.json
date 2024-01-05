@@ -1,0 +1,9 @@
+{
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": true,
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "svelte"
+  ],
+}
