@@ -1,18 +1,8 @@
 <script lang="ts">
-
-  import { setDefaultScarfPlotState } from '../stores/scarfPlotsStore.ts'
   import Toaster from './Toaster/Toaster.svelte'
   import Modal from './Modal/Modal.svelte'
   import Panel from './Panel/Panel.svelte'
-  import { onMount } from 'svelte'
   import Workspace from "$lib/components/Workspace/Workspace.svelte";
-  import {processingFileStateStore} from "$lib/stores/processingFileStateStore.js";
-
-
-  onMount(() => {
-    setDefaultScarfPlotState()
-    processingFileStateStore.set('done')
-  })
 </script>
 
 <div id="GP-gazeplotter">

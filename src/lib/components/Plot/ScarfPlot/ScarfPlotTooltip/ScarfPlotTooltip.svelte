@@ -61,7 +61,7 @@
         color: rgba(255, 255, 255, 0.8);
         transition: 0.3s ease-in-out;
         border-radius: 3px;
-        z-index: 3;
+        z-index: 993;
     }
     .tooltip > div {
         padding: 5px;

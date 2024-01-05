@@ -13,6 +13,8 @@
     isOpen = !isOpen
   }
 
+  let window: Window
+
   let menuElement: HTMLDivElement
 
   const handleOutsideClick = (event: MouseEvent) => {
@@ -29,14 +31,17 @@
   }
 
   onMount(() => {
+    window = document.defaultView
     window.addEventListener('click', handleOutsideClick)
     window.addEventListener('keydown', handleKeydown)
   })
 
   onDestroy(() => {
+    if (!window) return
     window.removeEventListener('click', handleOutsideClick)
     window.removeEventListener('keydown', handleKeydown)
   })
+
 </script>
 
 <div class="wrap" bind:this={menuElement}>

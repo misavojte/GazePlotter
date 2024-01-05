@@ -1,3 +1,3 @@
 import { writable } from 'svelte/store'
 
-export const processingFileStateStore = writable<'idle' | 'processing' | 'done' | 'fail' | 'success'>('processing')
+export const processingFileStateStore = writable<'idle' | 'processing' | 'done' | 'fail' | 'success'>('done')

@@ -1,7 +1,27 @@
 import { get, writable } from 'svelte/store'
 import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.ts'
 
-export const scarfPlotStates = writable<ScarfSettingsType[]>([])
+const getUniqueScarfPlotId = (): number => {
+    return Date.now() + Math.floor(Math.random() * 1000)
+}
+const returnDefaultScarfPlotState = (): ScarfSettingsType[] => {
+    return [{
+        scarfPlotId: getUniqueScarfPlotId(),
+        stimulusId: 0,
+        zoomLevel: 0,
+        aoiVisibility: false,
+        timeline: 'absolute',
+        absoluteGeneralLastVal: 0,
+        absoluteStimuliLastVal: [],
+        ordinalGeneralLastVal: 0,
+        ordinalStimuliLastVal: []
+    }]
+}
+export const scarfPlotStates = writable<ScarfSettingsType[]>(returnDefaultScarfPlotState())
+
+export const setDefaultScarfPlotState = (): void => {
+    scarfPlotStates.set(returnDefaultScarfPlotState())
+}
 
 export const removeScarfPlotState = (scarfPlotId: number): void => {
   scarfPlotStates.update((prev) => prev.filter((state) => state.scarfPlotId !== scarfPlotId))
@@ -106,22 +126,4 @@ export const updateAoiVisibilityForAll = (value: boolean): void => {
       return newState
     }
   )
-}
-
-export const setDefaultScarfPlotState = (): void => {
-  scarfPlotStates.set([{
-    scarfPlotId: getUniqueScarfPlotId(),
-    stimulusId: 0,
-    zoomLevel: 0,
-    aoiVisibility: false,
-    timeline: 'absolute',
-    absoluteGeneralLastVal: 0,
-    absoluteStimuliLastVal: [],
-    ordinalGeneralLastVal: 0,
-    ordinalStimuliLastVal: []
-  }])
-}
-
-const getUniqueScarfPlotId = (): number => {
-  return Date.now() + Math.floor(Math.random() * 1000)
 }

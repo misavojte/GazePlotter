@@ -1,9 +1,10 @@
 <script lang="ts">
    import MajorControlButton from '../../General/GeneralButton/GeneralButtonMajor.svelte'
-   import { EyeWorkerService } from '$lib/class/WorkerService/EyeWorkerService.js'
-   import type { DataType } from '$lib/type/Data/DataType.js'
-   import { processingFileStateStore } from '$lib/stores/processingFileStateStore.js'
-   import { setData } from '$lib/stores/dataStore.js'
+   import { EyeWorkerService } from '$lib/class/WorkerService/EyeWorkerService.ts'
+   import type { DataType } from '$lib/type/Data/DataType.ts'
+   import { processingFileStateStore } from '$lib/stores/processingFileStateStore.ts'
+   import { setData } from '$lib/stores/dataStore.ts'
+   import {scarfPlotStates, setDefaultScarfPlotState} from "$lib/stores/scarfPlotsStore.ts";
 
     let input: HTMLInputElement
     let workerService: EyeWorkerService | null = null
@@ -12,6 +13,7 @@
       const files = (e.target as HTMLInputElement).files
       if (!(files instanceof FileList)) return
       if (files.length === 0) return
+      scarfPlotStates.set([])
       processingFileStateStore.set('processing')
       workerService = new EyeWorkerService(handleEyeData)
       workerService.sendFiles(files)
@@ -23,6 +25,7 @@
     const handleEyeData = (data: DataType) => {
       processingFileStateStore.set('done')
       setData(data)
+      setDefaultScarfPlotState()
     }
 
 </script>

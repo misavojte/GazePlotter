@@ -16,7 +16,7 @@
     import ScarfPlotSelectGroup from './ScarfPlotSelect/ScarfPlotSelectGroup.svelte'
     import ScarfPlotSelectStimulus from './ScarfPlotSelect/ScarfPlotSelectStimulus.svelte'
     import ScarfPlotButtonMenu from './ScarfPlotButton/ScarfPlotButtonMenu.svelte'
-    import { onDestroy } from 'svelte'
+    import {onDestroy, onMount} from 'svelte'
 
     export let scarfPlotId: number
 
@@ -29,6 +29,8 @@
 
     let highlightedType: string | null = null
     const participantIds: number[] = getParticipantOrderVector()
+
+    let window: Window
 
     const getAxisBreaks = (participantIds: number[], stimulusId: number, settings: ScarfSettingsType) => {
       const axisFactory = new ScarfPlotAxisFactory(participantIds, stimulusId, settings)
@@ -77,6 +79,7 @@
 
     const cancelTooltip = () => {
       clearTimeout(timeout)
+      if (!window) return
       timeout = window.setTimeout(() => {
         tooltip = null
       }, 200)
@@ -90,6 +93,14 @@
       cancelHighlight()
       cancelTooltip()
     }
+
+    onMount(() => {
+      window = document.defaultView as Window
+      const tooltipArea = document.querySelector(`#scarf-plot-area-${scarfPlotId} .js-mouseleave`)
+      if (!tooltipArea) return
+      tooltipArea.addEventListener('mouseleave', cancelInteractivity)
+      tooltipArea.addEventListener('mousemove', decideInteractivity)
+    })
 
     const processGElement = (gElement: SVGGElement, event: MouseEvent) => {
       const segmentId = gElement.dataset.id

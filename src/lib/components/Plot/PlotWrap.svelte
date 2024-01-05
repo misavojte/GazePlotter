@@ -1,9 +1,8 @@
 <script lang="ts">
     export let title: string
-    export let maxWidth: string = '900px'
 </script>
 
-<div class="plot" style="max-width: {maxWidth}">
+<div class="plot">
     <div class="header">
         <h3>{title}</h3>
         <slot name="header"></slot>
