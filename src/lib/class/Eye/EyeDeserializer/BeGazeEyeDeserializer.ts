@@ -1,4 +1,4 @@
-import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput.js'
+import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput.ts'
 import { AbstractEyeDeserializer } from './AbstractEyeDeserializer.ts'
 
 export class BeGazeEyeDeserializer extends AbstractEyeDeserializer {
