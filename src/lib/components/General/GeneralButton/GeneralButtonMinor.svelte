@@ -3,19 +3,13 @@
   const dispatch = createEventDispatcher()
 
   export let isDisabled = false
-  export let marginTop =
-    '7px' /* For usage with compact selects in headers of plots */
 
   const handleClick = () => {
     dispatch('click')
   }
 </script>
 
-<button
-  disabled={isDisabled}
-  on:click={handleClick}
-  style="margin-top: {marginTop}"
->
+<button disabled={isDisabled} on:click={handleClick}>
   <slot />
 </button>
 
@@ -25,15 +19,12 @@
     border: 1px solid rgba(0, 0, 0, 0.23);
     border-radius: 4px;
     color: rgba(0, 0, 0, 0.87);
-    padding: 0;
+    padding: 0.25em 0.5em;
     text-align: center;
     text-decoration: none;
-    display: inline-flex;
-    align-items: center;
+    align-items: baseline;
     justify-content: center;
     font-size: 16px;
-    width: 34px;
-    height: 34px;
     cursor: pointer;
   }
   button:hover {
