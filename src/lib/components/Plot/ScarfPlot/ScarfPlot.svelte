@@ -19,6 +19,7 @@
   import { onDestroy, onMount } from 'svelte'
 
   export let scarfPlotId: number
+  let tooltipArea: HTMLElement
 
   const firstSettings: ScarfSettingsType | undefined = $scarfPlotStates.find(
     setting => setting.scarfPlotId === scarfPlotId
@@ -68,12 +69,16 @@
     stimulusId,
     settings
   )
+
   let data = getFilling(stimulusId, participantIds, absoluteTimeline, settings)
+
   let patternWidth =
     settings.timeline === 'relative'
       ? '10%'
       : `${(absoluteTimeline[1] / absoluteTimeline.maxLabel) * 100}%`
+
   let timelineUnit = settings.timeline === 'relative' ? '%' : 'ms'
+
   let xAxisLabel =
     settings.timeline === 'ordinal'
       ? 'Order index'
@@ -131,10 +136,6 @@
 
   onMount(() => {
     window = document.defaultView as Window
-    const tooltipArea = document.querySelector(
-      `#scarf-plot-area-${scarfPlotId} .js-mouseleave`
-    )
-    if (!tooltipArea) return
     tooltipArea.addEventListener('mouseleave', cancelInteractivity)
     tooltipArea.addEventListener('mousemove', decideInteractivity)
   })
@@ -161,9 +162,6 @@
       event.pageX + WIDTH_OF_TOOLTIP > widthOfView
         ? widthOfView - WIDTH_OF_TOOLTIP
         : event.pageX
-    // const x = gElement.getBoundingClientRect().right + window.scrollX + WIDTH_OF_TOOLTIP + 8 > widthOfView ? widthOfView - WIDTH_OF_TOOLTIP : gElement.getBoundingClientRect().right + window.scrollX + 8
-
-    console.log(widthOfView, x)
 
     const filling: ScarfTooltipFillingType = {
       x,
@@ -178,7 +176,8 @@
     tooltip = filling
   }
 
-  const decideInteractivity = (event: MouseEvent) => {
+  const decideInteractivity = (event: Event) => {
+    if (!(event instanceof MouseEvent)) throw new Error('Not a mouse event')
     const target = event.target as HTMLElement
     const gElement = target.closest('g')
     if (gElement) return processGElement(gElement, event)
@@ -189,6 +188,8 @@
 
   onDestroy(() => {
     cancelInteractivity()
+    tooltipArea.removeEventListener('mouseleave', cancelInteractivity)
+    tooltipArea.removeEventListener('mousemove', decideInteractivity)
   })
 
   const unsubscribe = scarfPlotStates.subscribe(
@@ -236,7 +237,11 @@
     on:mouseleave={cancelInteractivity}
   >
     <!-- scarf plot id is used to identify the plot by other components (e.g. for download) -->
-    <div class="chartwrap" id="scarf-plot-area-{scarfPlotId}">
+    <div
+      class="chartwrap"
+      id="scarf-plot-area-{scarfPlotId}"
+      bind:this={tooltipArea}
+    >
       {@html dynamicStyle}
       <div
         class="chylabs"
