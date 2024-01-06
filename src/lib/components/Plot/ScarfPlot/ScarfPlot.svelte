@@ -32,6 +32,7 @@
   let zoomWidth = 100 * 2 ** settings.zoomLevel
 
   let highlightedType: string | null = null
+
   const participantIds: number[] = getParticipantOrderVector()
 
   let window: Window
@@ -155,8 +156,6 @@
 
   onMount(() => {
     window = document.defaultView as Window
-    tooltipArea.addEventListener('mouseleave', cancelInteractivity)
-    tooltipArea.addEventListener('mousemove', decideInteractivity)
   })
 
   const processGElement = (gElement: SVGGElement, event: MouseEvent) => {
@@ -203,8 +202,7 @@
     highlightedType = type
   }
 
-  const decideInteractivity = (event: Event) => {
-    if (!(event instanceof MouseEvent)) throw new Error('Not a mouse event')
+  const decideInteractivity = (event: MouseEvent) => {
     const target = event.target as HTMLElement
     const gElement = target.closest('g')
     if (gElement) return processGElement(gElement, event)
