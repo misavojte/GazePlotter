@@ -7,16 +7,23 @@ import type {
   SingleSegmentScarfFillingType,
   SingleStylingScarfFillingType,
   StimulusScarfFillingType,
-  StylingScarfFillingType
+  StylingScarfFillingType,
 } from '$lib/type/Filling/ScarfFilling/index.js'
 import { PlotAxisBreaks } from '../PlotAxisBreaks/PlotAxisBreaks.ts'
 import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.js'
-import { IDENTIFIER_IS_AOI, IDENTIFIER_IS_OTHER_CATEGORY, IDENTIFIER_NOT_DEFINED } from '$lib/const/identifiers.ts'
 import {
-  getAois, getAoiVisibility,
-  getNumberOfSegments, getParticipant,
-  getParticipantEndTime, getSegment,
-  getStimuli
+  IDENTIFIER_IS_AOI,
+  IDENTIFIER_IS_OTHER_CATEGORY,
+  IDENTIFIER_NOT_DEFINED,
+} from '$lib/const/identifiers.ts'
+import {
+  getAois,
+  getAoiVisibility,
+  getNumberOfSegments,
+  getParticipant,
+  getParticipantEndTime,
+  getSegment,
+  getStimuli,
 } from '$lib/stores/dataStore.js'
 import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType.js'
 import type { BaseInterpretedDataType } from '$lib/type/Data/InterpretedData/BaseInterpretedDataType.js'
@@ -46,24 +53,32 @@ export class ScarfPlotFillingFactoryS {
   chartHeight: number
   settings: ScarfSettingsType
 
-  get rectWrappedHeight (): number {
-    return this.heightOfBar + (this.spaceAboveRect * 2)
+  get rectWrappedHeight(): number {
+    return this.heightOfBar + this.spaceAboveRect * 2
   }
 
-  get lineWrappedHeight (): number {
+  get lineWrappedHeight(): number {
     return this.heightOfNonFixation + this.spaceAboveLine
   }
 
-  get heightOfBarWrap (): number {
+  get heightOfBarWrap(): number {
     const baseHeight = this.rectWrappedHeight
-    return this.showAoiVisibility ? baseHeight + (this.lineWrappedHeight * this.aoiData.length) : baseHeight
+    return this.showAoiVisibility
+      ? baseHeight + this.lineWrappedHeight * this.aoiData.length
+      : baseHeight
   }
 
-  get showAoiVisibility (): boolean {
+  get showAoiVisibility(): boolean {
     return this.settings.aoiVisibility && this.settings.timeline !== 'ordinal'
   }
 
-  constructor (stimulusId: number, participantIds: number[], axis: PlotAxisBreaks, settings: ScarfSettingsType, participGap = 10) {
+  constructor(
+    stimulusId: number,
+    participantIds: number[],
+    axis: PlotAxisBreaks,
+    settings: ScarfSettingsType,
+    participGap = 10
+  ) {
     this.stimulusId = stimulusId
     this.settings = settings
     this.spaceAboveRect = participGap / 2
@@ -77,12 +92,13 @@ export class ScarfPlotFillingFactoryS {
       if (participant !== null) participants.push(participant)
     }
     this.participants = participants
-    this.chartHeight = (participants.length * this.heightOfBarWrap) + this.HEIGHT_OF_X_AXIS
+    this.chartHeight =
+      participants.length * this.heightOfBarWrap + this.HEIGHT_OF_X_AXIS
     this.stimuli = this.#prepareStimuliList()
     this.stylingAndLegend = this.#prepareStylingAndLegend()
   }
 
-  getFilling (): ScarfFillingType {
+  getFilling(): ScarfFillingType {
     return {
       barHeight: this.heightOfBar,
       stimulusId: this.stimulusId,
@@ -91,26 +107,27 @@ export class ScarfPlotFillingFactoryS {
       stimuli: this.stimuli,
       participants: this.participants,
       timeline: this.timeline,
-      stylingAndLegend: this.stylingAndLegend
+      stylingAndLegend: this.stylingAndLegend,
     }
   }
 
-  #prepareStimuliList (): StimulusScarfFillingType[] {
+  #prepareStimuliList(): StimulusScarfFillingType[] {
     return this.stimuliData.map(stimulus => {
       return {
         id: stimulus.id,
-        name: stimulus.displayedName
+        name: stimulus.displayedName,
       }
     })
   }
 
-  #prepareStylingAndLegend (): StylingScarfFillingType {
-    const aoi = this.aoiData.map(aoi => {
+  #prepareStylingAndLegend(): StylingScarfFillingType {
+    const aoi: SingleStylingScarfFillingType[] = this.aoiData.map(aoi => {
       return {
         identifier: `${IDENTIFIER_IS_AOI}${aoi.id}`,
         name: aoi.displayedName,
         color: aoi.color,
-        height: this.heightOfBar
+        height: this.heightOfBar,
+        heighOfLegendItem: this.heightOfBar,
       }
     })
 
@@ -118,7 +135,8 @@ export class ScarfPlotFillingFactoryS {
       identifier: `${IDENTIFIER_IS_AOI}${IDENTIFIER_NOT_DEFINED}`,
       name: 'No AOI hit',
       color: '#a6a6a6',
-      height: this.heightOfBar
+      height: this.heightOfBar,
+      heighOfLegendItem: this.heightOfBar,
     }
     aoi.push(stylingFixationButNoAoi)
     // TODO PŘEDĚLAT
@@ -130,13 +148,15 @@ export class ScarfPlotFillingFactoryS {
       identifier: `${IDENTIFIER_IS_OTHER_CATEGORY}${1}`,
       name: 'Saccade',
       color: '#555555',
-      height: this.heightOfNonFixation
+      height: this.heightOfNonFixation,
+      heighOfLegendItem: this.heightOfBar,
     }
     const stylingOther: SingleStylingScarfFillingType = {
       identifier: `${IDENTIFIER_IS_OTHER_CATEGORY}${IDENTIFIER_NOT_DEFINED}`,
       name: 'Other',
       color: '#a6a6a6',
-      height: this.heightOfNonFixation
+      height: this.heightOfNonFixation,
+      heighOfLegendItem: this.heightOfBar,
     }
     const category = []
     category.push(stylingSaccade)
@@ -145,11 +165,11 @@ export class ScarfPlotFillingFactoryS {
     return {
       visibility: this.#prepareVisibilityStyling(),
       aoi,
-      category
+      category,
     }
   }
 
-  #prepareVisibilityStyling (): SingleStylingScarfFillingType[] {
+  #prepareVisibilityStyling(): SingleStylingScarfFillingType[] {
     const iterateTo = this.aoiData.length
     const response: SingleStylingScarfFillingType[] = []
     if (!this.showAoiVisibility) return response
@@ -159,18 +179,22 @@ export class ScarfPlotFillingFactoryS {
         identifier: `${IDENTIFIER_IS_AOI}${currentAoi.id}`,
         name: currentAoi.displayedName,
         color: currentAoi.color,
-        height: this.heightOfNonFixation
+        height: this.heightOfNonFixation,
+        heighOfLegendItem: this.heightOfBar,
       }
       response.push(stylingBaseAoi)
     }
     return response
   }
 
-  #prepareParticipant (id: number): ParticipantScarfFillingType {
+  #prepareParticipant(id: number): ParticipantScarfFillingType {
     const iterateTo = getNumberOfSegments(this.stimulusId, id)
     const sessionDuration = getParticipantEndTime(this.stimulusId, id)
     const label = getParticipant(id).displayedName
-    const width = this.settings.timeline === 'relative' ? '100%' : `${(sessionDuration / this.timeline.maxLabel) * 100}%`
+    const width =
+      this.settings.timeline === 'relative'
+        ? '100%'
+        : `${(sessionDuration / this.timeline.maxLabel) * 100}%`
     const segments = []
     for (let i = 0; i < iterateTo; i++) {
       segments.push(this.#prepareSegment(id, i, sessionDuration))
@@ -182,11 +206,14 @@ export class ScarfPlotFillingFactoryS {
       id,
       label,
       segments,
-      width
+      width,
     }
   }
 
-  #prepareDynamicVisibility (participantId: number, sessionDuration: number): AoiVisibilityScarfFillingType[] {
+  #prepareDynamicVisibility(
+    participantId: number,
+    sessionDuration: number
+  ): AoiVisibilityScarfFillingType[] {
     const response: AoiVisibilityScarfFillingType[] = []
     if (!this.showAoiVisibility) return response
     for (let aoiIndex = 0; aoiIndex < this.aoiData.length; aoiIndex++) {
@@ -197,17 +224,33 @@ export class ScarfPlotFillingFactoryS {
         for (let i = 0; i < visibility.length; i = i + 2) {
           const start = visibility[i]
           const end = visibility[i + 1]
-          const y = this.rectWrappedHeight + (aoiIndex * this.lineWrappedHeight)
-          visibilityContent.push(this.#getDynamicAoiVisibilityContent(start, end, y, sessionDuration, aoiId))
+          const y = this.rectWrappedHeight + aoiIndex * this.lineWrappedHeight
+          visibilityContent.push(
+            this.#getDynamicAoiVisibilityContent(
+              start,
+              end,
+              y,
+              sessionDuration,
+              aoiId
+            )
+          )
         }
       }
-      const visibilityObj: AoiVisibilityScarfFillingType = { content: visibilityContent }
+      const visibilityObj: AoiVisibilityScarfFillingType = {
+        content: visibilityContent,
+      }
       response.push(visibilityObj)
     }
     return response
   }
 
-  #getDynamicAoiVisibilityContent (start: number, end: number, y: number, sessionDuration: number, aoiId: number): SingleAoiVisibilityScarfFillingType {
+  #getDynamicAoiVisibilityContent(
+    start: number,
+    end: number,
+    y: number,
+    sessionDuration: number,
+    aoiId: number
+  ): SingleAoiVisibilityScarfFillingType {
     const x1 = `${(start / sessionDuration) * 100}%`
     const x2 = `${(end / sessionDuration) * 100}%`
     const identifier = `${IDENTIFIER_IS_AOI}${aoiId}`
@@ -215,7 +258,7 @@ export class ScarfPlotFillingFactoryS {
       x1,
       x2,
       y,
-      identifier
+      identifier,
     }
   }
 
@@ -225,7 +268,11 @@ export class ScarfPlotFillingFactoryS {
    * @param {int} segmentId
    * @param sessionDuration total session duration [ms] for given participant
    */
-  #prepareSegment (participantId: number, segmentId: number, sessionDuration: number): SegmentScarfFillingType {
+  #prepareSegment(
+    participantId: number,
+    segmentId: number,
+    sessionDuration: number
+  ): SegmentScarfFillingType {
     const segment = getSegment(this.stimulusId, participantId, segmentId)
     const isOrdinal = this.settings.timeline === 'ordinal'
     const start = isOrdinal ? segmentId : segment.start
@@ -235,7 +282,11 @@ export class ScarfPlotFillingFactoryS {
     return { content: this.#prepareSegmentContents(segment, x, width) }
   }
 
-  #prepareSegmentContents (segment: SegmentInterpretedDataType, x: string, width: string): SingleSegmentScarfFillingType[] {
+  #prepareSegmentContents(
+    segment: SegmentInterpretedDataType,
+    x: string,
+    width: string
+  ): SingleSegmentScarfFillingType[] {
     let aoiOrNotIdentifier = IDENTIFIER_IS_AOI
     let typeDistinctionIdentifier = IDENTIFIER_NOT_DEFINED
 
@@ -249,14 +300,15 @@ export class ScarfPlotFillingFactoryS {
 
       aoiOrNotIdentifier = IDENTIFIER_IS_OTHER_CATEGORY
 
-      if (this.showTheseSegmentCategories.includes(segment.category.id)) typeDistinctionIdentifier = segment.category.id.toString()
+      if (this.showTheseSegmentCategories.includes(segment.category.id))
+        typeDistinctionIdentifier = segment.category.id.toString()
 
       const nonFixationSegmentContent: SingleSegmentScarfFillingType = {
         x,
         y,
         width,
         height,
-        identifier: getIdentifier()
+        identifier: getIdentifier(),
       }
       return [nonFixationSegmentContent]
     }
@@ -267,7 +319,7 @@ export class ScarfPlotFillingFactoryS {
         y: this.spaceAboveRect,
         width,
         height: this.heightOfBar,
-        identifier: getIdentifier()
+        identifier: getIdentifier(),
       }
       return [fixationWithoutAoiContent]
     }
@@ -282,7 +334,7 @@ export class ScarfPlotFillingFactoryS {
         y: yOfOneContent,
         width,
         height,
-        identifier: getIdentifier()
+        identifier: getIdentifier(),
       }
       result.push(fixationWithAoiContent)
       yOfOneContent += height

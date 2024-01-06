@@ -89,25 +89,44 @@
     const visibilities = data.stylingAndLegend.visibility
     if (visibilities.length === 0) return css
     for (let i = 0; i < visibilities.length; i++) {
-      css += `line.${visibilities[i].identifier}{stroke:${visibilities[i].color};}`
+      css += `#scarf-plot-area-${scarfPlotId} line.${visibilities[i].identifier}{stroke:${visibilities[i].color};}`
     }
-    css += `line{stroke-width:${visibilities[0].height};stroke-dasharray:1}`
+    css += `#scarf-plot-area-${scarfPlotId} line{stroke-width:${visibilities[0].height};stroke-dasharray:1}`
     return css
   }
 
-  const getDynamicStyle = (data: ScarfFillingType): string => {
+  const getDynamicStyle = (
+    data: ScarfFillingType,
+    highlightedType: string | null = null
+  ): string => {
     return `<style>
         ${data.stylingAndLegend.aoi
-          .map(aoi => `rect.${aoi.identifier}{fill:${aoi.color}}`)
+          .map(
+            aoi =>
+              `#scarf-plot-area-${scarfPlotId} rect.${aoi.identifier}{fill:${aoi.color}}`
+          )
           .join('')}
         ${data.stylingAndLegend.category
-          .map(aoi => `rect.${aoi.identifier}{fill:${aoi.color}}`)
+          .map(
+            aoi =>
+              `#scarf-plot-area-${scarfPlotId} rect.${aoi.identifier}{fill:${aoi.color}}`
+          )
           .join('')}
         ${getDynamicVisibilityCss(data)}
+        ${
+          highlightedType
+            ? `#scarf-plot-area-${scarfPlotId} rect:not(.${highlightedType}) {opacity:0.2}`
+            : ''
+        }
+        ${
+          highlightedType
+            ? `#scarf-plot-area-${scarfPlotId} line:not(.${highlightedType}) {opacity:0.2} #scarf-plot-area-${scarfPlotId} line.${highlightedType} {stroke-width:100%}`
+            : ''
+        }
     </style>`
   }
 
-  let dynamicStyle: string = getDynamicStyle(data)
+  $: dynamicStyle = getDynamicStyle(data, highlightedType)
 
   let tooltip: ScarfTooltipFillingType | null = null
   let timeout = 0
@@ -176,6 +195,14 @@
     tooltip = filling
   }
 
+  const processLegendItem = (legendItem: Element) => {
+    const type = legendItem.classList[1]
+    console.log(type)
+    if (!type) return cancelInteractivity()
+    if (highlightedType === type) return
+    highlightedType = type
+  }
+
   const decideInteractivity = (event: Event) => {
     if (!(event instanceof MouseEvent)) throw new Error('Not a mouse event')
     const target = event.target as HTMLElement
@@ -183,13 +210,14 @@
     if (gElement) return processGElement(gElement, event)
     const tooltip = target.closest('aside')
     if (tooltip) return cancelHighlightKeepTooltip()
+    const legendItem = target.closest('.legendItem')
+    if (legendItem) return processLegendItem(legendItem)
     cancelInteractivity()
   }
 
   onDestroy(() => {
     cancelInteractivity()
-    tooltipArea.removeEventListener('mouseleave', cancelInteractivity)
-    tooltipArea.removeEventListener('mousemove', decideInteractivity)
+    if (!tooltipArea) return
   })
 
   const unsubscribe = scarfPlotStates.subscribe(
@@ -261,7 +289,7 @@
         >
           <defs>
             <pattern
-              id="grid"
+              id="grid-{scarfPlotId}"
               width={patternWidth}
               height={data.heightOfBarWrap}
               patternUnits="userSpaceOnUse"
@@ -276,7 +304,7 @@
             </pattern>
           </defs>
           <rect
-            fill="url(#grid)"
+            fill="url(#grid-{scarfPlotId})"
             stroke="#cbcbcb"
             stroke-width="1"
             width="100%"
