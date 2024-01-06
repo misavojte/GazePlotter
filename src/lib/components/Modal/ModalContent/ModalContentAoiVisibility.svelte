@@ -8,8 +8,8 @@ import { addErrorToast, addSuccessToast } from '$lib/stores/toastStore.js'
 import { updateAoiVisibilityForAll } from '$lib/stores/scarfPlotsStore.js'
 
 let files: FileList | null = null
-let selectedStimulusId: string = '0'
-let selectedParticipantId: string = 'all'
+let selectedStimulusId = '0'
+let selectedParticipantId = 'all'
 
 const stimuliOptions = getStimuli().map(stimulus => {
   return {

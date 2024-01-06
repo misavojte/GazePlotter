@@ -21,9 +21,9 @@ const isReadableStream = (data: unknown): data is ReadableStream => {
   return typeof (data as ReadableStream).getReader === 'function'
 }
 
-self.onmessage = async (e) => await processEvent(e)
+self.onmessage = async e => await processEvent(e)
 
-async function processEvent (e: MessageEvent): Promise<void> {
+async function processEvent(e: MessageEvent): Promise<void> {
   const { data, type } = e.data
   switch (type) {
     case 'file-names':
@@ -32,7 +32,8 @@ async function processEvent (e: MessageEvent): Promise<void> {
       pipeline = new EyePipeline(fileNames)
       return
     case 'test-stream':
-      if (!isReadableStream(data)) throw new Error('Stream is not ReadableStream')
+      if (!isReadableStream(data))
+        throw new Error('Stream is not ReadableStream')
       return
     case 'stream':
       return await evalStream(data)
@@ -51,14 +52,14 @@ const evalBuffer = async (buffer: ArrayBuffer): Promise<void> => {
   const chunkSize = 1024 * 1024
   const chunks = Math.ceil(buffer.byteLength / chunkSize)
   const stream = new ReadableStream({
-    start (controller) {
+    start(controller) {
       for (let i = 0; i < chunks; i++) {
         const start = i * chunkSize
         const end = Math.min(start + chunkSize, buffer.byteLength)
         controller.enqueue(new Uint8Array(buffer.slice(start, end)))
       }
       controller.close()
-    }
+    },
   })
   await evalStream(stream)
 }

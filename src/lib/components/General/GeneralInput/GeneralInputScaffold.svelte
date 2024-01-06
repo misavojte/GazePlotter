@@ -4,15 +4,15 @@
 </script>
 
 <div class="input">
-    <label for={id}>{legend}</label>
-    <slot itemtype="input"></slot>
+  <label for={id}>{legend}</label>
+  <slot itemtype="input" />
 </div>
 
 <style>
-    .input {
-        display: flex;
-        flex-direction: column;
-        margin-bottom: 15px;
-        gap: 5px;
-    }
+  .input {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+    gap: 5px;
+  }
 </style>

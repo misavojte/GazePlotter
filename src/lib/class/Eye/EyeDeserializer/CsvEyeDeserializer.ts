@@ -8,12 +8,12 @@ export class CsvEyeDeserializer extends AbstractEyeDeserializer {
   cParticipant: number
   cStimulus: number
   cAoi: number
-  mTimeStart: string = ''
-  mTimeLast: string = ''
+  mTimeStart = ''
+  mTimeLast = ''
   mTimeBase: number | null = null
   mAoi: string | null = null
-  mParticipant: string = 'CsvParticipant'
-  mStimulus: string = 'CsvFile'
+  mParticipant = 'CsvParticipant'
+  mStimulus = 'CsvFile'
   constructor (header: string[]) {
     super()
     this.cTime = this.getIndex(header, 'Time')

@@ -1,5 +1,5 @@
 export class PlotAxisBreaks extends Array {
-  constructor (numberToBreak: number, numberOfSteps: number = 10) {
+  constructor (numberToBreak: number, numberOfSteps = 10) {
     const {
       step,
       length

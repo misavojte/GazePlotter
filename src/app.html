@@ -1,56 +1,57 @@
 <!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" href="%sveltekit.assets%/icons/icon-128x128.png" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		%sveltekit.head%
-		<script type="application/ld+json">
-			{
-				"@context": "http://schema.org",
-				"@type": "SoftwareApplication",
-				"name": "GazePlotter",
-				"description": "GazePlotter is a versatile application compatible with major eye-tracking software like Tobii, SMI, and GazePoint. It specializes in generating scarf plots (or sequence charts) for comprehensive analysis of eye-tracking data across various fields.",
-				"url": "https://gazeplotter.com/",
-				"author": {
-					"@type": "Person",
-					"name": "Michaela Vojtechovska",
-					"url": "https://vojtechovska.com/",
-					"affiliation": {
-						"@type": "EducationalOrganization",
-						"name": "Palacky University Olomouc"
-					}
-				},
-				"applicationCategory": "Research & Development",
-				"downloadUrl": "https://github.com/misavojte/GazePlotter",
-				"operatingSystem": "Cross-platform",
-				"softwareVersion": "1.3.0",
-				"isAccessibleForFree": true,
-				"sourceOrganization": {
-					"@type": "Organization",
-					"name": "GitHub",
-					"url": "https://github.com"
-				},
-				"codeRepository": "https://github.com/misavojte/GazePlotter"
-			}
-		</script>
-	</head>
-	<style>
-		html, body {
-			margin: 0;
-		}
-		body {
-			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
-			Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-			sans-serif;
-			-webkit-font-smoothing: antialiased;
-			-moz-osx-font-smoothing: grayscale;
-			display: flex;
-			flex-flow: column;
-			min-height: 100vh;
-		}
-	</style>
-	<body data-sveltekit-preload-data="hover">
-		<div>%sveltekit.body%</div>
-	</body>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%sveltekit.assets%/icons/icon-128x128.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    %sveltekit.head%
+    <script type="application/ld+json">
+      {
+        "@context": "http://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "GazePlotter",
+        "description": "GazePlotter is a versatile application compatible with major eye-tracking software like Tobii, SMI, and GazePoint. It specializes in generating scarf plots (or sequence charts) for comprehensive analysis of eye-tracking data across various fields.",
+        "url": "https://gazeplotter.com/",
+        "author": {
+          "@type": "Person",
+          "name": "Michaela Vojtechovska",
+          "url": "https://vojtechovska.com/",
+          "affiliation": {
+            "@type": "EducationalOrganization",
+            "name": "Palacky University Olomouc"
+          }
+        },
+        "applicationCategory": "Research & Development",
+        "downloadUrl": "https://github.com/misavojte/GazePlotter",
+        "operatingSystem": "Cross-platform",
+        "softwareVersion": "1.3.0",
+        "isAccessibleForFree": true,
+        "sourceOrganization": {
+          "@type": "Organization",
+          "name": "GitHub",
+          "url": "https://github.com"
+        },
+        "codeRepository": "https://github.com/misavojte/GazePlotter"
+      }
+    </script>
+  </head>
+  <style>
+    html,
+    body {
+      margin: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+        Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+        sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      display: flex;
+      flex-flow: column;
+      min-height: 100vh;
+    }
+  </style>
+  <body data-sveltekit-preload-data="hover">
+    <div>%sveltekit.body%</div>
+  </body>
 </html>

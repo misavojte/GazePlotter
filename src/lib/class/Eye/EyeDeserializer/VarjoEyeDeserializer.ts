@@ -4,8 +4,8 @@ import { AbstractEyeDeserializer } from './AbstractEyeDeserializer.ts'
 export class VarjoEyeDeserializer extends AbstractEyeDeserializer {
   cTime: number
   cActorLabel: number // ActorLabel stands for AOI
-  mTimeStart: string = ''
-  mTimeLast: string = ''
+  mTimeStart = ''
+  mTimeLast = ''
   mTimeBase: number | null = null
   mActorLabel: string | null = null
   mParticipant: string

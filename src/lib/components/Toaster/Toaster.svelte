@@ -1,63 +1,70 @@
 <script lang="ts">
-  import { flip } from 'svelte/animate'
-  import { fly } from 'svelte/transition'
-  import type { ToastFillingType } from '$lib/type/Filling/ToastFilling/ToastFillingType'
-  import { toastStore } from '$lib/stores/toastStore'
+    import { flip } from "svelte/animate";
+    import { fly } from "svelte/transition";
+    import type { ToastFillingType } from "$lib/type/Filling/ToastFilling/ToastFillingType.ts";
+    import { toastStore } from "$lib/stores/toastStore.ts";
 
-  const timers = new Map<number, ReturnType<typeof setTimeout>>()
-  const clearTimer = (id: number) => {
-    if (timers.has(id)) {
-      clearTimeout(timers.get(id))
-      timers.delete(id)
-    }
-  }
-  const setRemovalTimer = (toast: ToastFillingType) => {
-    if (!toast.duration) return
-    const timer = setTimeout(() => {
-      removeToast(toast.id)
-    }, toast.duration)
-    timers.set(toast.id, timer)
-  }
-  const removeToast = (id: number) => {
-    toastStore.update(n => n.filter(t => t.id !== id))
-    clearTimer(id)
-  }
+    const timers = new Map<number, ReturnType<typeof setTimeout>>();
+    const clearTimer = (id: number) => {
+        if (timers.has(id)) {
+            clearTimeout(timers.get(id));
+            timers.delete(id);
+        }
+    };
+    const setRemovalTimer = (toast: ToastFillingType) => {
+        if (!toast.duration) return;
+        const timer = setTimeout(() => {
+            removeToast(toast.id);
+        }, toast.duration);
+        timers.set(toast.id, timer);
+    };
+    const removeToast = (id: number) => {
+        toastStore.update((n) => n.filter((t) => t.id !== id));
+        clearTimer(id);
+    };
 
-  let toasts: ToastFillingType[] = []
-  toastStore.subscribe(
-    (value) => {
-      toasts = value
-      toasts.forEach(setRemovalTimer)
-    }
-  )
-
+    let toasts: ToastFillingType[] = [];
+    toastStore.subscribe((value) => {
+        toasts = value;
+        toasts.forEach(setRemovalTimer);
+    });
 </script>
 
 <div class="toaster">
-{#each toasts as { id, type, title, message } (id)}
-    <div class="toast" animate:flip={{ duration: 500 }} in:fly={{ duration: 150, x: '100%' }} out:fly={{ duration: 150, x: '100%' }}>
-        <div class="toast-header">
-            <div class="title">
-                <strong>{title}</strong>
-                {#if type === 'success'}
-                    <span class="circle success"></span>
-                {:else if type === 'error'}
-                    <span class="circle error"></span>
-                {:else if type === 'warning'}
-                    <span class="circle warning"></span>
-                {:else if type === 'info'}
-                    <span class="circle info"></span>
-                {/if}
+    {#each toasts as { id, type, title, message } (id)}
+        <div
+            class="toast"
+            animate:flip={{ duration: 500 }}
+            in:fly={{ duration: 150, x: "100%" }}
+            out:fly={{ duration: 150, x: "100%" }}
+        >
+            <div class="toast-header">
+                <div class="title">
+                    <strong>{title}</strong>
+                    {#if type === "success"}
+                        <span class="circle success"></span>
+                    {:else if type === "error"}
+                        <span class="circle error"></span>
+                    {:else if type === "warning"}
+                        <span class="circle warning"></span>
+                    {:else if type === "info"}
+                        <span class="circle info"></span>
+                    {/if}
+                </div>
+                <button
+                    type="button"
+                    class="close"
+                    aria-label="Close"
+                    on:click={() => removeToast(id)}
+                >
+                    ×
+                </button>
             </div>
-            <button type="button" class="close" aria-label="Close" on:click={() => removeToast(id)}>
-                ×
-            </button>
+            <div class="toast-body">
+                {message}
+            </div>
         </div>
-        <div class="toast-body">
-            {message}
-        </div>
-    </div>
-{/each}
+    {/each}
 </div>
 
 <style>

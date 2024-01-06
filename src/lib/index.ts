@@ -1,1 +1,1 @@
-export { default as GazePlotter } from "$lib/components/GazePlotter.svelte";
+export { default as GazePlotter } from '$lib/components/GazePlotter.svelte'

@@ -1,4 +1,4 @@
-import type {ScarfSettingsType} from "$lib/type/Settings/ScarfSettings/ScarfSettingsType.js";
+import type { ScarfSettingsType } from "$lib/type/Settings/ScarfSettings/ScarfSettingsType.ts";
 
 /**
  * Fillings for the workspace determining position and width (via grid columns) of items in the workspace.
@@ -8,6 +8,6 @@ export interface WorkspaceFillingType {
     id: number;
     size: 'small' | 'medium' | 'large';
     position: 'left' | 'right' | 'center';
-    content: 'load' | 'empty' | 'alone-enforcer' | ScarfSettingsType;
+    content: 'load' | 'empty' | ScarfSettingsType;
     isAlone: boolean;
 }

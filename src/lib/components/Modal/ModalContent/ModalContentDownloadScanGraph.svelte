@@ -5,7 +5,7 @@
     import GeneralInputText from '../../General/GeneralInput/GeneralInputText.svelte'
     import MajorButton from '../../General/GeneralButton/GeneralButtonMajor.svelte'
 
-    let stimulusId: string = '0'
+    let stimulusId = '0'
     let fileName = 'GazePlotter-ScanGraph'
 
     const options = getStimuli().map((stimulus) => {

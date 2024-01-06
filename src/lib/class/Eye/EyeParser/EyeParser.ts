@@ -8,7 +8,7 @@ export class EyeParser {
   readonly rs: ReadableStream
   readonly reader: ReadableStreamDefaultReader<string>
 
-  isDone: boolean = false
+  isDone = false
 
   constructor (rs: ReadableStream, decoder: TextDecoderStream = new TextDecoderStream()) {
     this.rs = rs.pipeThrough(decoder)

@@ -1,19 +1,19 @@
 <script>
-import PanelButtonUpload from './PanelButton/PanelButtonUpload.svelte'
-import PanelButtonScanGraph from './PanelButton/PanelButtonScanGraph.svelte'
-import PanelButtonDemo from './PanelButton/PanelButtonDemo.svelte'
-import PanelButtonExportWorkplace from './PanelButton/PanelButtonExportWorkplace.svelte'
+  import PanelButtonUpload from './PanelButton/PanelButtonUpload.svelte'
+  import PanelButtonScanGraph from './PanelButton/PanelButtonScanGraph.svelte'
+  import PanelButtonDemo from './PanelButton/PanelButtonDemo.svelte'
+  import PanelButtonExportWorkplace from './PanelButton/PanelButtonExportWorkplace.svelte'
 </script>
 
 <div class="controls">
-    <PanelButtonUpload />
-    <PanelButtonDemo />
-    <PanelButtonExportWorkplace />
-    <PanelButtonScanGraph />
+  <PanelButtonUpload />
+  <PanelButtonDemo />
+  <PanelButtonExportWorkplace />
+  <PanelButtonScanGraph />
 </div>
 
 <style>
-.controls {
+  .controls {
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -23,5 +23,5 @@ import PanelButtonExportWorkplace from './PanelButton/PanelButtonExportWorkplace
     height: 100%;
     gap: 5px;
     margin-bottom: 25px;
-}
+  }
 </style>

@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { SingleStylingScarfFillingType } from '$lib/type/Filling/ScarfFilling'
   export let legend: SingleStylingScarfFillingType
-  export let isVisibility: boolean = false
+  export let isVisibility = false
 </script>
 
 <div class="legendItem {legend.identifier}">

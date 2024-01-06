@@ -1,14 +1,14 @@
 import { AbstractDownloader } from './AbstractDownloader.ts'
 
 export class ScarfDownloader extends AbstractDownloader {
-  minimalWidth: number = 300
+  minimalWidth = 300
   width: number
   height: number
   fileType: '.jpg' | '.png' | '.svg' | '.webp'
   fileName: string
   staticSvg: SVGElement
 
-  constructor (fileName: string, fileType: string, width: number, el: HTMLElement) {
+  constructor(fileName: string, fileType: string, width: number, el: HTMLElement) {
     super()
     if (Number(width) < this.minimalWidth) throw new Error(`Minimal width is ${this.minimalWidth}`)
     if (fileType !== '.svg' && fileType !== '.png' && fileType !== '.jpg' && fileType !== '.webp') throw new Error('File type not supported')
@@ -26,7 +26,7 @@ export class ScarfDownloader extends AbstractDownloader {
     el.style.width = ''
   }
 
-  async download (): Promise<void> {
+  async download(): Promise<void> {
     return await new Promise((resolve) => {
       void this.buildContent().then(content => {
         super.triggerDownload(content, this.fileName, this.fileType)
@@ -35,7 +35,7 @@ export class ScarfDownloader extends AbstractDownloader {
     })
   }
 
-  async buildContent (): Promise<string> {
+  async buildContent(): Promise<string> {
     return await new Promise(resolve => {
       const svgUrl = this.#getSvgUrl(this.staticSvg)
       if (this.fileType !== '.svg') {
@@ -48,13 +48,13 @@ export class ScarfDownloader extends AbstractDownloader {
     })
   }
 
-  #getSvgUrl (svg: SVGElement): string {
+  #getSvgUrl(svg: SVGElement): string {
     const blob = new Blob([svg.outerHTML], { type: 'image/svg+xml;charset=utf-8' })
     const pageURL = window.URL // || window.webkitURL || window
     return pageURL.createObjectURL(blob)
   }
 
-  async #getRasterCanvasUrl (svgUrl: string): Promise<string> {
+  async #getRasterCanvasUrl(svgUrl: string): Promise<string> {
     const width = this.width
     const height = this.height
 
@@ -90,7 +90,7 @@ export class ScarfDownloader extends AbstractDownloader {
     })
   }
 
-  #createInnerHtml (el: HTMLElement): string {
+  #createInnerHtml(el: HTMLElement): string {
     const styleInnerHtml = el.querySelector('style')?.innerHTML
     if (styleInnerHtml == null) throw new Error('No style found')
     return `
@@ -102,7 +102,7 @@ export class ScarfDownloader extends AbstractDownloader {
         ${this.#createLegendItems(el)}`
   }
 
-  #createParticipantLabelsHtml (el: HTMLElement): string {
+  #createParticipantLabelsHtml(el: HTMLElement): string {
     const htmlCollection = el.querySelector('.chylabs')?.children
     if (htmlCollection == null) throw new Error('No participant labels found')
 
@@ -125,7 +125,7 @@ export class ScarfDownloader extends AbstractDownloader {
     return `<defs>${clipPath}</defs>${result}`
   }
 
-  #createSvgChartArea (el: HTMLElement): string {
+  #createSvgChartArea(el: HTMLElement): string {
     const svgArea = el.querySelector('.charea-holder') as HTMLElement
     const leftOffset = svgArea.offsetLeft - el.offsetLeft
     const svgAreaClone = svgArea.cloneNode(true) as HTMLElement
@@ -136,12 +136,12 @@ export class ScarfDownloader extends AbstractDownloader {
     return `<svg x="${leftOffset}" width="${el.offsetWidth - leftOffset}">${svgAreaClone.innerHTML}</svg>`
   }
 
-  #createXAxisLabels (el: HTMLElement): string {
+  #createXAxisLabels(el: HTMLElement): string {
     const htmlLab = el.querySelector('.chxlab') as HTMLElement
     return `<text x="100%" y="${htmlLab.offsetTop - el.offsetTop}" text-anchor="end">${htmlLab.innerText}</text>`
   }
 
-  #createLegendTitles (el: HTMLElement): string {
+  #createLegendTitles(el: HTMLElement): string {
     const htmlTitles = el.getElementsByClassName('chlegendtitle')
     let result = ''
     for (let i = 0; i < htmlTitles.length; i++) {
@@ -153,7 +153,7 @@ export class ScarfDownloader extends AbstractDownloader {
     return `${result}`
   }
 
-  #createLegendItems (el: HTMLElement): string {
+  #createLegendItems(el: HTMLElement): string {
     const htmlItems = el.getElementsByClassName('legendItem')
     let result = ''
     for (let i = 0; i < htmlItems.length; i++) {

@@ -10,8 +10,8 @@
   type fileType = '.svg' | '.png' | '.jpg' | '.webp'
 
   let typeOfExport: fileType = '.svg'
-  let width: number = 800 /* in px */
-  let fileName: string = 'GazePlotter-ScarfPlot'
+  let width = 800 /* in px */
+  let fileName = 'GazePlotter-ScarfPlot'
 
   const options = [
     { value: '.svg', label: 'SVG (recommended)' },

@@ -16,6 +16,6 @@
  * @example <rect class="aN" ...></rect> - The segment is a fixation without AOI.
  * @example <rect class="acN" ...></rect> - The segment is a fixation with category other than AOI which is not defined.
  */
-export const IDENTIFIER_IS_AOI: string = 'a'
-export const IDENTIFIER_IS_OTHER_CATEGORY: string = 'ac'
-export const IDENTIFIER_NOT_DEFINED: string = 'N'
+export const IDENTIFIER_IS_AOI = 'a'
+export const IDENTIFIER_IS_OTHER_CATEGORY = 'ac'
+export const IDENTIFIER_NOT_DEFINED = 'N'

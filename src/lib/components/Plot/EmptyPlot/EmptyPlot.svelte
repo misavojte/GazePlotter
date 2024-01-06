@@ -8,26 +8,26 @@
   const reloadViews = () => {
     setDefaultScarfPlotState()
   }
-
 </script>
 
-<PlotWrap title="Workspace empty" maxWidth="550px">
-    <div slot="body">
-        <p>
-            All data views erased. However, data is still available in the memory. You can upload new data, load sample data or reload current data.
-        </p>
-        <div class="box">
-            <GeneralButtonMajor on:click={reloadViews}>
-                Reload views
-            </GeneralButtonMajor>
-            <PanelButtonUpload />
-            <PanelButtonDemo />
-        </div>
+<PlotWrap title="Workspace empty">
+  <div slot="body">
+    <p>
+      All data views erased. However, data is still available in the memory. You
+      can upload new data, load sample data or reload current data.
+    </p>
+    <div class="box">
+      <GeneralButtonMajor on:click={reloadViews}>
+        Reload views
+      </GeneralButtonMajor>
+      <PanelButtonUpload />
+      <PanelButtonDemo />
     </div>
+  </div>
 </PlotWrap>
 
 <style>
-    p {
-        margin: 0 0 30px;
-    }
-    </style>
+  p {
+    margin: 0 0 30px;
+  }
+</style>

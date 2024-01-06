@@ -1,11 +1,11 @@
 <script lang="ts">
 
   import type { SingleStylingScarfFillingType } from '$lib/type/Filling/ScarfFilling/index.js'
-  import ScarfPlotLegendItem from './ScarfPlotLegendItem.svelte'
+  import ScarfPlotLegendItem from '$lib/components/Plot/ScarfPlot/ScarfPlotLegend/ScarfPlotLegendItem.svelte'
 
   export let fillings: SingleStylingScarfFillingType[]
   export let title: string
-  export let isVisibility: boolean = false
+  export let isVisibility = false
 </script>
 
     <div class='chlegendtitle'>

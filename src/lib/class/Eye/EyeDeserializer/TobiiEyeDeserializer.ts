@@ -10,23 +10,23 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   cCategory: number
   cEvent: number
   cEyeMovementTypeIndex: number
-  mStimulus: string = ''
-  mParticipant: string = ''
-  mRecordingStart: string = ''
-  mEyeMovementTypeIndex: string = ''
-  mRecordingLast: string = ''
-  mCategory: string = ''
+  mStimulus = ''
+  mParticipant = ''
+  mRecordingStart = ''
+  mEyeMovementTypeIndex = ''
+  mRecordingLast = ''
+  mCategory = ''
   mAoi: string[] | null = null
-  mBaseTime: string = ''
+  mBaseTime = ''
   stimuliRevisit: Record<string, number> = {} // Using an object to track the stimulus_participant revisit count
-  TIME_MODIFIER: number = 0.001 // milliseconds needed, tobii uses microseconds
-  EVENT_BASE_START_STIMULUS_MARKER: string = 'IntervalStart'
-  EVENT_BASE_END_STIMULUS_MARKER: string = 'IntervalEnd'
-  EVENT_CUSTOM_WEB_NAVIGATION_START_STIMULUS_MARKER: string = '_start'
-  EVENT_CUSTOM_WEB_NAVIGATION_END_STIMULUS_MARKER: string = '_end'
+  TIME_MODIFIER = 0.001 // milliseconds needed, tobii uses microseconds
+  EVENT_BASE_START_STIMULUS_MARKER = 'IntervalStart'
+  EVENT_BASE_END_STIMULUS_MARKER = 'IntervalEnd'
+  EVENT_CUSTOM_WEB_NAVIGATION_START_STIMULUS_MARKER = '_start'
+  EVENT_CUSTOM_WEB_NAVIGATION_END_STIMULUS_MARKER = '_end'
   stimulusGetter: (row: string[]) => string
 
-  constructor (header: string[], parseThroughIntervals: boolean = false) {
+  constructor (header: string[], parseThroughIntervals = false) {
     super()
     this.cRecordingTimestamp = header.indexOf('Recording timestamp')
     this.cStimulus = header.indexOf('Presented Stimulus name')

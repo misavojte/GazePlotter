@@ -1,16 +1,16 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import type { ExtendedInterpretedDataType } from '../../../type/Data/InterpretedData/ExtendedInterpretedDataType'
-  import { getAois, getStimuli, updateMultipleAoi } from '../../../stores/dataStore'
-  import GeneralSelectBase from '../../General/GeneralSelect/GeneralSelectBase.svelte'
-  import GeneralButtonMinor from '../../General/GeneralButton/GeneralButtonMinor.svelte'
+  import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType.ts'
+  import { getAois, getStimuli, updateMultipleAoi } from '$lib/stores/dataStore.ts'
+  import GeneralSelectBase from '$lib/components/General/GeneralSelect/GeneralSelectBase.svelte'
+  import GeneralButtonMinor from '$lib/components/General/GeneralButton/GeneralButtonMinor.svelte'
   import { flip } from 'svelte/animate'
-  import GeneralRadio from '../../General/GeneralRadio/GeneralRadio.svelte'
-  import GeneralButtonMajor from '../../General/GeneralButton/GeneralButtonMajor.svelte'
-  import { addErrorToast, addInfoToast, addSuccessToast } from '../../../stores/toastStore'
+  import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
+  import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
+  import { addErrorToast, addInfoToast, addSuccessToast } from '$lib/stores/toastStore.ts'
 
-  export let selectedStimulus: string = '0'
-  export let userSelected: string = 'this'
+  export let selectedStimulus = '0'
+  export let userSelected = 'this'
   let aoiObjects: ExtendedInterpretedDataType[] = [] /* Order in array is also important */
 
   $: {

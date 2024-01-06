@@ -8,7 +8,7 @@ import type { EyeSettingsType } from '$lib/type/Settings/EyeSettings/EyeSettings
  */
 export class EyeSplitter {
   readonly rowDelimiter: string
-  lastRow: string = ''
+  lastRow = ''
 
   constructor (settings: EyeSettingsType) {
     this.rowDelimiter = settings.rowDelimiter

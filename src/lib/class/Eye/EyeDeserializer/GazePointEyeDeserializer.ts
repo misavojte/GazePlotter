@@ -17,7 +17,7 @@ export class GazePointEyeDeserializer extends AbstractEyeDeserializer {
   mStimulus: string | null = null
   mCategory: 'Fixation' | 'Blink' | null = null
   mFixID: string | null = null
-  mHasFixationSegmentEnded: boolean = false
+  mHasFixationSegmentEnded = false
   participant: string // for this reducer, the participant is always the same (one file per participant)
   constructor (header: string[], fileName: string) {
     super()

@@ -14,7 +14,7 @@ const createModalStore = () => {
 
   return {
     subscribe,
-    open: (component: ComponentConstructor, title: string, props?: Record<string, any>) => set({component, title, props}),
+    open: (component: ComponentConstructor, title: string, props?: Record<string, any>) => set({ component, title, props }),
     close: () => set(null)
   };
 }

@@ -26,15 +26,15 @@ import type { SegmentInterpretedDataType } from '$lib/type/Data/InterpretedData/
  * Factory for data filling which is used to render scarf plot.
  */
 export class ScarfPlotFillingFactoryS {
-  HEIGHT_OF_X_AXIS: number = 20
+  HEIGHT_OF_X_AXIS = 20
 
   // todo move to settings
   showTheseSegmentCategories: number[] = [0, 1]
-  heightOfBar: number = 20
-  heightOfNonFixation: number = 4
+  heightOfBar = 20
+  heightOfNonFixation = 4
   stimulusId: number
   spaceAboveRect: number
-  spaceAboveLine: number = 2
+  spaceAboveLine = 2
 
   aoiData: ExtendedInterpretedDataType[]
   stimuliData: BaseInterpretedDataType[]
@@ -63,7 +63,7 @@ export class ScarfPlotFillingFactoryS {
     return this.settings.aoiVisibility && this.settings.timeline !== 'ordinal'
   }
 
-  constructor (stimulusId: number, participantIds: number[], axis: PlotAxisBreaks, settings: ScarfSettingsType, participGap: number = 10) {
+  constructor (stimulusId: number, participantIds: number[], axis: PlotAxisBreaks, settings: ScarfSettingsType, participGap = 10) {
     this.stimulusId = stimulusId
     this.settings = settings
     this.spaceAboveRect = participGap / 2
