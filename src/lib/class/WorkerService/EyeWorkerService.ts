@@ -1,3 +1,4 @@
+import { addInfoToast } from '$lib/stores/toastStore.ts'
 import type { DataType } from '$lib/type/Data/DataType.ts'
 
 /**
@@ -28,6 +29,9 @@ export class EyeWorkerService {
    */
   sendFiles(files: FileList): void {
     const fileNames = []
+    // check extension of first file
+    const extension = files[0].name.split('.').pop()
+    if (extension === 'json') return this.processJsonWorkspace(files[0])
     for (let index = 0; index < files.length; index++) {
       fileNames.push(files[index].name)
     }
@@ -73,6 +77,19 @@ export class EyeWorkerService {
       const buffer = await files[index].arrayBuffer()
       this.worker.postMessage({ type: 'buffer', data: buffer }, [buffer])
     }
+  }
+
+  processJsonWorkspace(file: File): void {
+    addInfoToast(
+      'Loading workspace from JSON file. GazePlotter accepts only JSON files exported from its environment'
+    )
+    addInfoToast('Only the first file will be loaded')
+    const reader = new FileReader()
+    reader.onload = () => {
+      const json = JSON.parse(reader.result as string) as DataType
+      this.onData(json)
+    }
+    reader.readAsText(file)
   }
 
   protected handleMessage(event: MessageEvent): void {
