@@ -1,4 +1,4 @@
-import { EyePipeline } from '../class/Eye/EyePipeline/EyePipeline.ts'
+import { EyePipeline } from '$lib/class/Eye/EyePipeline/EyePipeline.ts'
 
 /**
  * A worker file handling whole eyefiles processing.

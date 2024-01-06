@@ -1,10 +1,24 @@
-import { AbstractWorkerService } from './AbstractWorkerService.ts'
 import type { DataType } from '$lib/type/Data/DataType.ts'
 
-export class EyeWorkerService extends AbstractWorkerService {
+/**
+ * Creates a worker to handle whole eyefiles processing.
+ * It is a separate file to avoid blocking the main thread.
+ *
+ * Workers must be instantiated in a specific way to work with TypeScript modules in Vite:
+ *    new Worker(new URL('path/to/typescriptWorker.ts', import.meta.url), { type: 'module' })
+ */
+export class EyeWorkerService {
+  worker: Worker
   onData: (data: DataType) => void
-  constructor (onData: (data: DataType) => void) {
-    super(new URL('../../worker/eyePipelineWorker.ts', import.meta.url))
+  constructor(onData: (data: DataType) => void) {
+    this.worker = new Worker(
+      new URL('$lib/worker/eyePipelineWorker.ts', import.meta.url),
+      {
+        type: 'module',
+      }
+    )
+    this.worker.onmessage = this.handleMessage.bind(this)
+    this.worker.onerror = this.handleError.bind(this)
     this.onData = onData
   }
 
@@ -12,7 +26,7 @@ export class EyeWorkerService extends AbstractWorkerService {
    * Sends the given files to the worker.
    * @param files - The files to send.
    */
-  sendFiles (files: FileList): void {
+  sendFiles(files: FileList): void {
     const fileNames = []
     for (let index = 0; index < files.length; index++) {
       fileNames.push(files[index].name)
@@ -32,12 +46,12 @@ export class EyeWorkerService extends AbstractWorkerService {
    *
    * @returns {boolean} - Whether the browser supports transferable streams.
    */
-  isStreamTransferable (): boolean {
+  isStreamTransferable(): boolean {
     const stream = new ReadableStream({
-      start (controller) {
+      start(controller) {
         controller.enqueue(new Uint8Array([]))
         controller.close()
-      }
+      },
     })
     try {
       this.worker.postMessage({ type: 'test-stream', data: stream }, [stream])
@@ -47,21 +61,21 @@ export class EyeWorkerService extends AbstractWorkerService {
     }
   }
 
-  processDataAsStream (files: FileList): void {
+  processDataAsStream(files: FileList): void {
     for (let index = 0; index < files.length; index++) {
       const stream = files[index].stream()
       this.worker.postMessage({ type: 'stream', data: stream }, [stream])
     }
   }
 
-  async processDataAsArrayBuffer (files: FileList): Promise<void> {
+  async processDataAsArrayBuffer(files: FileList): Promise<void> {
     for (let index = 0; index < files.length; index++) {
       const buffer = await files[index].arrayBuffer()
       this.worker.postMessage({ type: 'buffer', data: buffer }, [buffer])
     }
   }
 
-  protected handleMessage (event: MessageEvent): void {
+  protected handleMessage(event: MessageEvent): void {
     switch (event.data.type) {
       case 'done':
         this.onData(event.data.data)
@@ -74,7 +88,7 @@ export class EyeWorkerService extends AbstractWorkerService {
     }
   }
 
-  protected handleError (event: ErrorEvent): void {
+  protected handleError(event: ErrorEvent): void {
     console.log(event.error)
     console.error('EyeWorkerService.handleError() - event:', event)
   }

@@ -3,28 +3,14 @@
 </script>
 
 <svelte:head>
-  <meta charset="utf-8" />
   <title
     >GazePlotter | Free eye-tracking data visualisation via scarf plots</title
   >
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link
-    rel="icon"
-    type="image/png"
-    sizes="72x72"
-    href="/img/icons/icon-72x72.png"
-  />
-  <link
-    rel="icon"
-    type="image/png"
-    sizes="128x128"
-    href="/img/icons/icon-128x128.png"
-  />
 </svelte:head>
 
 <header class="border-b">
   <div>
-    <a id="go-home" href="/public">
+    <a id="go-home" href="/">
       <img
         id="logo"
         width="24"
