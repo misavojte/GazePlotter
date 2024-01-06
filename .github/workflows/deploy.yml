@@ -33,6 +33,11 @@ jobs:
         with:
           node-version: '20'  # Specify the Node version
 
+      - name: Clear node_modules and package-lock.json
+        run: |
+          rm -rf node_modules
+          rm -rf package-lock.json
+
       - name: Install Dependencies
         run: npm install
 
