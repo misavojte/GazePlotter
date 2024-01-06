@@ -32,6 +32,7 @@
   let zoomWidth = 100 * 2 ** settings.zoomLevel
 
   let highlightedType: string | null = null
+  let removeHighlight: null | (() => void) = null
 
   const participantIds: number[] = getParticipantOrderVector()
 
@@ -141,8 +142,14 @@
     clearTimeout(timeout)
     if (!window) return
     timeout = window.setTimeout(() => {
-      tooltip = null
+      cancelTooltipInstantly()
     }, 200)
+  }
+
+  const cancelTooltipInstantly = () => {
+    clearTimeout(timeout)
+    tooltip = null
+    removeHighlight?.()
   }
 
   const cancelHighlight = () => {
@@ -173,6 +180,12 @@
     )
       return
 
+    removeHighlight?.()
+    gElement.classList.add('focus')
+    removeHighlight = () => {
+      gElement.classList.remove('focus')
+    }
+
     const WIDTH_OF_TOOLTIP = 155
     const y = gElement.getBoundingClientRect().bottom + window.scrollY + 8
     const widthOfView = window.scrollX + document.body.clientWidth
@@ -199,6 +212,7 @@
     console.log(type)
     if (!type) return cancelInteractivity()
     if (highlightedType === type) return
+    cancelTooltipInstantly()
     highlightedType = type
   }
 
@@ -278,7 +292,7 @@
           <div>{participant.label}</div>
         {/each}
       </div>
-      <div class="charea-holder">
+      <div class="charea-holder" class:isHiglighted={tooltip}>
         <svg
           xmlns="http://www.w3.org/2000/svg"
           id="charea"
@@ -301,13 +315,15 @@
               />
             </pattern>
           </defs>
-          <rect
-            fill="url(#grid-{scarfPlotId})"
-            stroke="#cbcbcb"
-            stroke-width="1"
-            width="100%"
-            height={data.chartHeight - 20}
-          />
+          <g>
+            <rect
+              fill="url(#grid-{scarfPlotId})"
+              stroke="#cbcbcb"
+              stroke-width="1"
+              width="100%"
+              height={data.chartHeight - 20}
+            />
+          </g>
           <svg y={data.chartHeight - 14} class="chxlabs">
             <text x="0" y="0" text-anchor="start" dominant-baseline="hanging"
               >0</text
@@ -410,5 +426,11 @@
   }
   .charea-holder {
     overflow: auto;
+  }
+  .isHiglighted g {
+    opacity: 0.2;
+  }
+  .focus {
+    opacity: 1 !important;
   }
 </style>
