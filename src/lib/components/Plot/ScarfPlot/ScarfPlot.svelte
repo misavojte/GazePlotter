@@ -1,22 +1,17 @@
 <script lang="ts">
   import { PlotAxisBreaks } from '$lib/class/Plot/PlotAxisBreaks/PlotAxisBreaks.ts'
-  import { ScarfPlotFillingFactoryS } from '$lib/class/Plot/ScarfPlot/ScarfPlotFillingFactoryS.ts'
   import { ScarfPlotAxisFactory } from '$lib/class/Plot/ScarfPlot/ScarfPlotAxisFactory.ts'
-  import ScarfPlotLegend from './ScarfPlotLegend/ScarfPlotLegend.svelte'
-  import { getParticipantOrderVector } from '$lib/stores/dataStore.ts'
+  import { ScarfPlotFillingFactoryS } from '$lib/class/Plot/ScarfPlot/ScarfPlotFillingFactoryS.ts'
   import PlotWrap from '$lib/components/Plot/PlotWrap.svelte'
-  import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.ts'
+  import { getParticipantOrderVector } from '$lib/stores/dataStore.ts'
+  import { scarfPlotStates } from '$lib/stores/scarfPlotsStore.ts'
   import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType.ts'
   import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType.ts'
-  import ScarfPlotTooltip from './ScarfPlotTooltip/ScarfPlotTooltip.svelte'
-  import ZoomInButton from './ScarfPlotButton/ScarfPlotButtonZoomIn.svelte'
-  import ZoomOutButton from './ScarfPlotButton/ScarfPlotButtonZoomOut.svelte'
-  import { scarfPlotStates } from '$lib/stores/scarfPlotsStore.ts'
-  import ScarfTimelineSelect from './ScarfPlotSelect/ScarfPlotSelectTimeline.svelte'
-  import ScarfPlotSelectGroup from './ScarfPlotSelect/ScarfPlotSelectGroup.svelte'
-  import ScarfPlotSelectStimulus from './ScarfPlotSelect/ScarfPlotSelectStimulus.svelte'
-  import ScarfPlotButtonMenu from './ScarfPlotButton/ScarfPlotButtonMenu.svelte'
+  import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.ts'
   import { onDestroy, onMount } from 'svelte'
+  import ScarfPlotHeader from './ScarfPlotHeader/ScarfPlotHeader.svelte'
+  import ScarfPlotLegend from './ScarfPlotLegend/ScarfPlotLegend.svelte'
+  import ScarfPlotTooltip from './ScarfPlotTooltip/ScarfPlotTooltip.svelte'
 
   export let scarfPlotId: number
   let tooltipArea: HTMLElement
@@ -262,14 +257,7 @@
 </script>
 
 <PlotWrap title="Scarf Plot">
-  <div class="nav" slot="header">
-    <ScarfPlotSelectStimulus scarfId={scarfPlotId} />
-    <ScarfTimelineSelect scarfId={scarfPlotId} />
-    <ScarfPlotSelectGroup scarfId={scarfPlotId} />
-    <ZoomInButton scarfId={scarfPlotId}></ZoomInButton>
-    <ZoomOutButton scarfId={scarfPlotId}></ZoomOutButton>
-    <ScarfPlotButtonMenu scarfId={scarfPlotId}></ScarfPlotButtonMenu>
-  </div>
+  <ScarfPlotHeader slot="header" scarfId={scarfPlotId} />
   <figure
     slot="body"
     class="tooltip-area js-mouseleave"
