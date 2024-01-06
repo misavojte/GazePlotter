@@ -1,4 +1,4 @@
-import { addInfoToast } from '$lib/stores/toastStore.ts'
+import { addErrorToast, addInfoToast } from '$lib/stores/toastStore.ts'
 import type { DataType } from '$lib/type/Data/DataType.ts'
 
 /**
@@ -19,7 +19,7 @@ export class EyeWorkerService {
       }
     )
     this.worker.onmessage = this.handleMessage.bind(this)
-    this.worker.onerror = this.handleError.bind(this)
+    this.worker.onerror = (event: ErrorEvent) => this.handleError(event)
     this.onData = onData
   }
 
@@ -106,7 +106,8 @@ export class EyeWorkerService {
   }
 
   protected handleError(event: ErrorEvent): void {
-    console.log(event.error)
+    addErrorToast('Could not process the file')
+    console.error(event.error)
     console.error('EyeWorkerService.handleError() - event:', event)
   }
 }

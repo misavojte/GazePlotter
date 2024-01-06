@@ -4,7 +4,7 @@ import type { ToastFillingType } from '$lib/type/Filling/ToastFilling/ToastFilli
 export const toastStore = writable<ToastFillingType[]>([])
 
 export const addToast = (toast: ToastFillingType): void => {
-  toastStore.update((toasts) => [...toasts, toast])
+  toastStore.update(toasts => [...toasts, toast])
 }
 
 export const addErrorToast = (message: string): void => {
@@ -13,7 +13,7 @@ export const addErrorToast = (message: string): void => {
     title: 'Error',
     message,
     type: 'error',
-    duration: 8000
+    duration: 8000,
   })
 }
 
@@ -23,7 +23,7 @@ export const addSuccessToast = (message: string): void => {
     title: 'Success',
     message,
     type: 'success',
-    duration: 3000
+    duration: 3000,
   })
 }
 
@@ -33,7 +33,7 @@ export const addInfoToast = (message: string): void => {
     title: 'Info',
     message,
     type: 'info',
-    duration: 8000
+    duration: 8000,
   })
 }
 

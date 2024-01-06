@@ -8,6 +8,7 @@
     scarfPlotStates,
     setDefaultScarfPlotState,
   } from '$lib/stores/scarfPlotsStore.ts'
+  import { addErrorToast, addSuccessToast } from '$lib/stores/toastStore.ts'
 
   let input: HTMLInputElement
   let workerService: EyeWorkerService | null = null
@@ -18,14 +19,21 @@
     if (files.length === 0) return
     scarfPlotStates.set([])
     processingFileStateStore.set('processing')
-    workerService = new EyeWorkerService(handleEyeData)
-    workerService.sendFiles(files)
+    try {
+      workerService = new EyeWorkerService(handleEyeData)
+      workerService.sendFiles(files)
+    } catch (e) {
+      console.error(e)
+      addErrorToast('Unable to set up file processing service')
+    }
+    input.value = ''
   }
   const triggerFileUpload = () => {
     input.click()
   }
 
   const handleEyeData = (data: DataType) => {
+    addSuccessToast('Data loaded')
     processingFileStateStore.set('done')
     setData(data)
     setDefaultScarfPlotState()
