@@ -1,6 +1,7 @@
 <script lang="ts">
   import MinorButton from './GeneralButtonMinor.svelte'
   import { onMount, onDestroy } from 'svelte'
+  import MoreVertical from 'lucide-svelte/icons/more-vertical'
 
   interface ActionItem {
     label: string
@@ -45,11 +46,7 @@
 
 <div class="wrap" bind:this={menuElement}>
   <MinorButton on:click={handleClick}>
-    <span class:isOpen>
-      <span></span>
-      <span></span>
-      <span></span>
-    </span>
+    <MoreVertical size={'1em'} />
   </MinorButton>
   {#if isOpen}
     <ul class="menu">
@@ -65,6 +62,7 @@
 <style>
   .wrap {
     position: relative;
+    display: flex;
   }
   .menu {
     position: absolute;
@@ -95,18 +93,5 @@
   }
   .menu button:hover {
     background: #f5f5f5;
-  }
-  span {
-    display: inline-block;
-    justify-content: center;
-    align-items: center;
-  }
-  span > span {
-    display: block;
-    width: 3px;
-    height: 3px;
-    background-color: currentColor;
-    border-radius: 50%;
-    margin: 2px;
   }
 </style>

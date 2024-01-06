@@ -1,12 +1,14 @@
 <script lang="ts">
-  export let options: Array<{ value: string; label: string }>
-  export let label: string
-  export let value = ''
-  const name = label.toLowerCase().replace(/ /g, '-')
+  import ChevronDown from "lucide-svelte/icons/chevron-down";
+
+  export let options: Array<{ value: string; label: string }>;
+  export let label: string;
+  export let value: string = "";
+  const name = label.toLowerCase().replace(/ /g, "-");
   const handleChange = (e: Event) => {
-    const target = e.target as HTMLSelectElement
-    value = target.value
-  }
+    const target = e.target as HTMLSelectElement;
+    value = target.value;
+  };
 </script>
 
 <div class="wrap">
@@ -19,6 +21,7 @@
         >
       {/each}
     </select>
+    <ChevronDown />
   </div>
 </div>
 
@@ -32,8 +35,7 @@
   select {
     font-weight: 400;
     color: rgba(0, 0, 0, 0.87);
-    border-radius: 4px;
-    border: 1px solid rgba(0, 0, 0, 0.23);
+    border: none;
     background: none;
     transition: border-color 0.2s ease-in-out;
     font-size: 14px;
@@ -47,21 +49,12 @@
   }
 
   .select-wrap {
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.23);
     position: relative;
     width: 170px;
-  }
-
-  .select-wrap:after {
-    content: '⌄';
-    position: absolute;
-    top: 0;
-    right: 17px;
-    color: rgba(0, 0, 0, 0.54);
-    width: 1px;
-    height: 100%;
-    box-sizing: border-box;
-    padding-top: 1px;
-    pointer-events: none;
+    display: flex;
+    align-items: center;
   }
   select:focus {
     outline: none;

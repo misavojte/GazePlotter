@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ChevronDown from 'lucide-svelte/icons/chevron-down'
   export let options: Array<{ value: string; label: string }>
   export let label: string
   export let value: string = options[0].value
@@ -9,19 +10,22 @@
   }
 </script>
 
-<div>
+<div class="select-wrapper">
   <label for={name}>{label}</label>
-  <select {name} id="GP-{name}" on:change={handleChange}>
-    {#each options as option}
-      <option value={option.value} selected={option.value === value}
-        >{option.label}</option
-      >
-    {/each}
-  </select>
+  <div class="option-wrapper">
+    <select {name} id="GP-{name}" on:change={handleChange}>
+      {#each options as option}
+        <option value={option.value} selected={option.value === value}
+          >{option.label}</option
+        >
+      {/each}
+    </select>
+    <ChevronDown strokeWidth={1} />
+  </div>
 </div>
 
 <style>
-  div {
+  .select-wrapper {
     display: flex;
     flex-direction: column;
     position: relative;
@@ -37,14 +41,21 @@
     background: var(--c-darkgrey);
     padding-inline: 4px;
     left: 10px;
+    top: -1em;
+  }
+  .option-wrapper {
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.23);
+    padding: 0.25em 0.5em;
   }
   select {
     font-weight: 400;
     line-height: 1.5rem;
     letter-spacing: 0.00938em;
     color: rgba(0, 0, 0, 0.87);
-    border-radius: 4px;
-    border: 1px solid rgba(0, 0, 0, 0.23);
+    border: none;
     background-color: var(--c-darkgrey);
     transition: border-color 0.2s ease-in-out;
     font-size: 14px;
@@ -53,22 +64,6 @@
     -moz-appearance: none;
     appearance: none;
     cursor: pointer;
-    padding: 5px 23px 3px 13px;
-    margin: 7px 0 0;
-    height: 34px;
-  }
-
-  div:after {
-    content: '⌄';
-    position: absolute;
-    top: 0;
-    right: 17px;
-    color: rgba(0, 0, 0, 0.54);
-    width: 1px;
-    height: 100%;
-    box-sizing: border-box;
-    padding-top: 8px;
-    pointer-events: none;
   }
 
   select:focus {
