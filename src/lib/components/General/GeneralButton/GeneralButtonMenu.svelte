@@ -1,9 +1,10 @@
 <script lang="ts">
   import MinorButton from './GeneralButtonMinor.svelte'
-  import { onMount, onDestroy } from 'svelte'
+  import { onMount, onDestroy, type ComponentType } from 'svelte'
   import MoreVertical from 'lucide-svelte/icons/more-vertical'
 
   interface ActionItem {
+    icon: ComponentType
     label: string
     action: () => void
   }
@@ -14,7 +15,7 @@
     isOpen = !isOpen
   }
 
-  let window: Window
+  let window: Window | null
 
   let menuElement: HTMLDivElement
 
@@ -33,8 +34,8 @@
 
   onMount(() => {
     window = document.defaultView
-    window.addEventListener('click', handleOutsideClick)
-    window.addEventListener('keydown', handleKeydown)
+    window?.addEventListener('click', handleOutsideClick)
+    window?.addEventListener('keydown', handleKeydown)
   })
 
   onDestroy(() => {
@@ -52,7 +53,10 @@
     <ul class="menu">
       {#each items as item}
         <li>
-          <button on:click={item.action}>{item.label}</button>
+          <button on:click={item.action}>
+            <svelte:component this={item.icon} size={'1em'} />
+            {item.label}
+          </button>
         </li>
       {/each}
     </ul>
@@ -77,7 +81,7 @@
   .menu,
   li {
     list-style: none;
-    width: 150px;
+    min-width: 175px;
     margin: 0;
     padding: 0;
   }
@@ -90,6 +94,9 @@
     cursor: pointer;
     width: 100%;
     text-align: left;
+    display: flex;
+    align-items: baseline;
+    gap: 0.5em;
   }
   .menu button:hover {
     background: #f5f5f5;
