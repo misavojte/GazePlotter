@@ -1,24 +1,18 @@
-# create-svelte
+# GazePlotter
 
-Everything you need to build a Svelte library, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/main/packages/create-svelte).
+GazePlotter is a Svelte application for visualizing eye-tracking data. It automatically transforms eye gaze data to interactive scarf plots.
 
-Read more about creating a library [in the docs](https://kit.svelte.dev/docs/packaging).
+You can use it in your Svelte project as it can be imported as Svelte component via npm package `gazeplotter`.
 
-## Creating a project
-
-If you're seeing this, you've probably already done this step. Congrats!
-
-```bash
-# create a new project in the current directory
-npm create svelte@latest
-
-# create a new project in my-app
-npm create svelte@latest my-app
-```
+Go to:
+- [Working GazePlotter app](https://gazeplotter.com)
+- [Guide](https://docs.gazeplotter.com)
+- [Guide repo](https://github.com/misavojte/GazePlotterDocs/)
+- [npm package] (https://www.npmjs.com/package/gazeplotter)
 
 ## Developing
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+Once you've cloned a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
 
 ```bash
 npm run dev
@@ -27,11 +21,11 @@ npm run dev
 npm run dev -- --open
 ```
 
-Everything inside `src/lib` is part of your library, everything inside `src/routes` can be used as a showcase or preview app.
+Everything inside `src/lib` is part of the GazepLOTTER library, everything inside `src/routes` is used as a showcase or preview app.
 
 ## Building
 
-To build your library:
+To build GazePlotter library:
 
 ```bash
 npm run package
@@ -45,13 +39,11 @@ npm run build
 
 You can preview the production build with `npm run preview`.
 
-> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
+> For deploy on GH Pages, there is a static [adapter](https://kit.svelte.dev/docs/adapters).
 
 ## Publishing
 
-Go into the `package.json` and give your package the desired name through the `"name"` option. Also consider adding a `"license"` field and point it to a `LICENSE` file which you can create from a template (one popular option is the [MIT license](https://opensource.org/license/mit/)).
-
-To publish your library to [npm](https://www.npmjs.com):
+To publish library to [npm](https://www.npmjs.com):
 
 ```bash
 npm publish
