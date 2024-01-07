@@ -18,12 +18,14 @@
     background: none;
     border: 1px solid rgba(0, 0, 0, 0.23);
     border-radius: 4px;
-    color: rgba(0, 0, 0, 0.87);
+    color: rgba(0, 0, 0, 0.7);
     padding: 0.25em 0.5em;
     text-align: center;
     text-decoration: none;
-    align-items: baseline;
+    align-items: center;
     justify-content: center;
+    display: inline-flex;
+    height: 34px;
     font-size: 16px;
     cursor: pointer;
   }

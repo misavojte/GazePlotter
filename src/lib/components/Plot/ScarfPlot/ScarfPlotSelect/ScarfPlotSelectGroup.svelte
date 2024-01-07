@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Select from '$lib/components/General/GeneralSelect/GeneralSelectCompact.svelte'
+  import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
 
   export let scarfId: number
 
@@ -10,4 +10,4 @@
   $: console.log(value, scarfId)
 </script>
 
-<Select label="Group" options={groupOptions} bind:value></Select>
+<Select label="Group" options={groupOptions} bind:value compact={true}></Select>

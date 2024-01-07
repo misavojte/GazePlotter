@@ -34,6 +34,6 @@
     padding: 30px;
   }
   h3 {
-    margin: 5px 0 0;
+    margin: 0;
   }
 </style>

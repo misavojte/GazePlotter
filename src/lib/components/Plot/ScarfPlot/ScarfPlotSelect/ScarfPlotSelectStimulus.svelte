@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Select from '$lib/components/General/GeneralSelect/GeneralSelectCompact.svelte'
+  import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import { getStimuli } from '$lib/stores/dataStore.js'
   import { updateStimulusId } from '$lib/stores/scarfPlotsStore.js'
 
@@ -22,4 +22,5 @@
   }
 </script>
 
-<Select label="Stimulus" options={stimuliOption} bind:value></Select>
+<Select label="Stimulus" options={stimuliOption} bind:value compact={true}
+></Select>

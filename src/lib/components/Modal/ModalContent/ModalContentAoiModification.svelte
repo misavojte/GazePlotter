@@ -2,7 +2,7 @@
   import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralButtonMinor from '$lib/components/General/GeneralButton/GeneralButtonMinor.svelte'
   import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
-  import GeneralSelectBase from '$lib/components/General/GeneralSelect/GeneralSelectBase.svelte'
+  import GeneralSelectBase from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import {
     getAois,
     getStimuli,

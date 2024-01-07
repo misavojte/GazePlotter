@@ -95,7 +95,7 @@
     width: 100%;
     text-align: left;
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 0.5em;
   }
   .menu button:hover {
