@@ -139,7 +139,7 @@
 </main>
 <footer class="border-t">
   <div>
-    <p>GazePlotter, version 1.2 (12/12/2023)</p>
+    <p>GazePlotter, version 1.3 (January 7, 2023)</p>
     <p>
       Coded & designed by <a href="https://vojtechovska.com" target="_blank"
         >Michaela Vojtěchovská</a
@@ -391,6 +391,7 @@
     font-weight: 600;
     color: var(--c-brand);
     text-decoration: none;
+    margin-top: auto;
   }
   .box a:hover,
   .box a:focus {
