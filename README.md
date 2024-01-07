@@ -7,8 +7,8 @@ You can use it in your Svelte project as it can be imported as Svelte component 
 Go to:
 - [Working GazePlotter app](https://gazeplotter.com)
 - [Guide](https://docs.gazeplotter.com)
-- [Guide repo](https://github.com/misavojte/GazePlotterDocs/)
-- [npm package] (https://www.npmjs.com/package/gazeplotter)
+- [Guide repo](https://github.com/misavojte/GazePlotterDocs)
+- [npm package](https://www.npmjs.com/package/gazeplotter)
 
 ## Developing
 
@@ -21,7 +21,7 @@ npm run dev
 npm run dev -- --open
 ```
 
-Everything inside `src/lib` is part of the GazepLOTTER library, everything inside `src/routes` is used as a showcase or preview app.
+Everything inside `src/lib` is part of the GazePlotter library, everything inside `src/routes` is used as a showcase or preview app.
 
 ## Building
 
