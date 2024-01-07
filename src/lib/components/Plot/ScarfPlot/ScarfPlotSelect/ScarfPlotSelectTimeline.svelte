@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Select from '$lib/components/General/GeneralSelect/GeneralSelectCompact.svelte'
+  import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import { updateTimeline } from '$lib/stores/scarfPlotsStore.js'
 
   export let scarfId: number
@@ -24,4 +24,5 @@
   }
 </script>
 
-<Select label="Timeline" options={timelineOptions} bind:value></Select>
+<Select label="Timeline" options={timelineOptions} bind:value compact={true}
+></Select>

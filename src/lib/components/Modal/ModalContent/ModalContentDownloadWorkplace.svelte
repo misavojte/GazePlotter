@@ -1,7 +1,7 @@
 <script lang="ts">
   import MajorButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralInputText from '$lib/components/General/GeneralInput/GeneralInputText.svelte'
-  import GeneralSelectBase from '$lib/components/General/GeneralSelect/GeneralSelectBase.svelte'
+  import GeneralSelectBase from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import { WorkplaceDownloader } from '$lib/class/Downloader/WorkplaceDownloader.js'
   import { getData } from '$lib/stores/dataStore.js'
 

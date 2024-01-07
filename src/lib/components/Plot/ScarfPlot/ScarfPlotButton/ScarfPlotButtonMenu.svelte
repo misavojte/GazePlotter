@@ -1,16 +1,23 @@
 <script lang="ts">
   import MenuButton from '$lib/components/General/GeneralButton/GeneralButtonMenu.svelte'
-  import { modalStore } from '$lib/stores/modalStore.js'
   import ModalContentScarfPlotClip from '$lib/components/Modal/ModalContent/ModalContentScarfPlotClip.svelte'
+  import { modalStore } from '$lib/stores/modalStore.js'
   import {
     duplicateScarfPlotState,
     getScarfPlotState,
     removeScarfPlotState,
     scarfPlotStates,
   } from '$lib/stores/scarfPlotsStore.js'
-  import ModalContentDownloadScarfPlot from '../../../Modal/ModalContent/ModalContentDownloadScarfPlot.svelte'
+  import Copy from 'lucide-svelte/icons/copy'
+  import Download from 'lucide-svelte/icons/download'
+  import Scissors from 'lucide-svelte/icons/scissors-line-dashed'
+  import Settings from 'lucide-svelte/icons/settings-2'
+  import Trash from 'lucide-svelte/icons/trash'
+  import View from 'lucide-svelte/icons/view'
+  import type { ComponentProps } from 'svelte'
   import ModalContentAoiModification from '../../../Modal/ModalContent/ModalContentAoiModification.svelte'
   import ModalContentAoiVisibility from '../../../Modal/ModalContent/ModalContentAoiVisibility.svelte'
+  import ModalContentDownloadScarfPlot from '../../../Modal/ModalContent/ModalContentDownloadScarfPlot.svelte'
 
   export let scarfId: number
   let currentStimulusId: number
@@ -54,13 +61,17 @@
     duplicateScarfPlotState(scarfId)
   }
 
-  const items: { label: string; action: () => void }[] = [
-    { label: 'AOI customization', action: openAoiModificationModal },
-    { label: 'AOI visibility', action: openAoiVisibilityModal },
-    { label: 'Clip timeline', action: openClipModal },
-    { label: 'Download plot', action: downloadPlot },
-    { label: 'Duplicate scarf', action: duplicateScarf },
-    { label: 'Delete scarf', action: deleteScarf },
+  const items: ComponentProps<MenuButton>['items'] = [
+    {
+      label: 'AOI customization',
+      action: openAoiModificationModal,
+      icon: Settings,
+    },
+    { label: 'AOI visibility', action: openAoiVisibilityModal, icon: View },
+    { label: 'Clip timeline', action: openClipModal, icon: Scissors },
+    { label: 'Download plot', action: downloadPlot, icon: Download },
+    { label: 'Duplicate scarf', action: duplicateScarf, icon: Copy },
+    { label: 'Delete scarf', action: deleteScarf, icon: Trash },
   ]
 </script>
 
