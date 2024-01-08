@@ -1,7 +1,7 @@
 <script lang="ts">
   import MinorButton from '$lib/components/General/GeneralButton/GeneralButtonMinor.svelte'
   import { scarfPlotStates, updateZoom } from '$lib/stores/scarfPlotsStore.js'
-  import Minus from 'lucide-svelte/icons/minus'
+  import ZoomOut from 'lucide-svelte/icons/zoom-out'
   export let scarfId: number
 
   let zoom: number
@@ -20,5 +20,5 @@
 </script>
 
 <MinorButton on:click={handleClick} {isDisabled}>
-  <Minus size={'1em'} strokeWidth={1} />
+  <ZoomOut strokeWidth={1} />
 </MinorButton>

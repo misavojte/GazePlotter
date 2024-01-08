@@ -26,6 +26,7 @@
     justify-content: center;
     display: inline-flex;
     height: 34px;
+    width: 34px;
     font-size: 16px;
     cursor: pointer;
   }
