@@ -21,6 +21,7 @@ export class EyeClassifier {
     if (this.isOgama(slice)) return 'ogama'
     if (this.isVarjo(slice)) return 'varjo'
     if (this.isCsv(slice)) return 'csv'
+    if (this.isCsvSegmented(slice)) return 'csv-segmented'
     return 'unknown'
   }
 
@@ -63,5 +64,9 @@ export class EyeClassifier {
 
   isCsv (slice: string): boolean {
     return slice.includes('Time') && slice.includes('Participant') && slice.includes('Stimulus') && slice.includes('AOI')
+  }
+
+  isCsvSegmented (slice: string): boolean {
+    return slice.includes('From') && slice.includes('To') && slice.includes('Participant') && slice.includes('Stimulus') && slice.includes('AOI')
   }
 }
