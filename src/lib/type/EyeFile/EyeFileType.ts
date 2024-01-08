@@ -12,4 +12,5 @@ export type EyeFileType = 'tobii' |
 'tobii-with-event' |
 'ogama' |
 'varjo' |
-'csv'
+'csv' |
+'csv-segmented'
