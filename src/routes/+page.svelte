@@ -139,7 +139,7 @@
 </main>
 <footer class="border-t">
   <div>
-    <p>GazePlotter, version 1.3 (January 7, 2023)</p>
+    <p>GazePlotter, version 1.3.1 (January 8, 2024)</p>
     <p>
       Coded & designed by <a href="https://vojtechovska.com" target="_blank"
         >Michaela Vojtěchovská</a
