@@ -5,6 +5,7 @@ import { demoData } from '$lib/const/demoData.ts'
 import type { BaseInterpretedDataType } from '$lib/type/Data/InterpretedData/BaseInterpretedDataType.ts'
 import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType.ts'
 import type { SegmentInterpretedDataType } from '$lib/type/Data/InterpretedData/SegmentInterpretedDataType.ts'
+import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup.ts'
 
 export const getDemoDataWritable = (): Writable<DataType> => {
   return writable<DataType>(demoData)
@@ -35,39 +36,55 @@ export const getNumberOfParticipants = (): number => {
  */
 export const getStimulus = (id: number): BaseInterpretedDataType => {
   const stimulusArray = getData().stimuli.data[id]
-  if (stimulusArray === undefined) throw new Error('Stimulus with this id does not exist')
+  if (stimulusArray === undefined)
+    throw new Error('Stimulus with this id does not exist')
   const originalName = stimulusArray[0]
   const displayedName = stimulusArray[1] ?? originalName
   return {
     id,
     originalName,
-    displayedName
+    displayedName,
   }
 }
 
 export const getStimulusHighestEndTime = (stimulusIndex: number): number => {
   let max = 0
-  for (let participantIndex = 0; participantIndex < getNumberOfParticipants(); participantIndex++) {
-    const lastSegmentEndTime = getParticipantEndTime(stimulusIndex, participantIndex)
-    max = lastSegmentEndTime > max ? max = lastSegmentEndTime : max
+  for (
+    let participantIndex = 0;
+    participantIndex < getNumberOfParticipants();
+    participantIndex++
+  ) {
+    const lastSegmentEndTime = getParticipantEndTime(
+      stimulusIndex,
+      participantIndex
+    )
+    max = lastSegmentEndTime > max ? (max = lastSegmentEndTime) : max
   }
   return max
 }
 
-export const getParticipantEndTime = (stimulusIndex: number, particIndex: number): number => {
+export const getParticipantEndTime = (
+  stimulusIndex: number,
+  particIndex: number
+): number => {
   const segmentsInfo = getData().segments[stimulusIndex][particIndex]
-  return segmentsInfo === undefined ? 0 : segmentsInfo.length > 0 ? segmentsInfo[segmentsInfo.length - 1][1] : 0
+  return segmentsInfo === undefined
+    ? 0
+    : segmentsInfo.length > 0
+      ? segmentsInfo[segmentsInfo.length - 1][1]
+      : 0
 }
 
 export const getParticipant = (id: number): BaseInterpretedDataType => {
   const participantArray = getData().participants.data[id]
-  if (participantArray === undefined) throw new Error('Participant with this id does not exist')
+  if (participantArray === undefined)
+    throw new Error('Participant with this id does not exist')
   const originalName = participantArray[0]
   const displayedName = participantArray[1] ?? originalName
   return {
     id,
     displayedName,
-    originalName
+    originalName,
   }
 }
 
@@ -76,9 +93,15 @@ const getDefaultColor = (index: number): string => {
   return COLORS[index % COLORS.length]
 }
 
-export const getAoi = (stimulusId: number, aoiId: number): ExtendedInterpretedDataType => {
+export const getAoi = (
+  stimulusId: number,
+  aoiId: number
+): ExtendedInterpretedDataType => {
   const aoiArray = getData().aois.data[stimulusId][aoiId]
-  if (aoiArray === undefined) throw new Error(`AOI with id ${aoiId} does not exist in stimulus with id ${stimulusId}`)
+  if (aoiArray === undefined)
+    throw new Error(
+      `AOI with id ${aoiId} does not exist in stimulus with id ${stimulusId}`
+    )
   const originalName = aoiArray[0]
   const displayedName = aoiArray[1] ?? originalName
   const color = aoiArray[2] ?? getDefaultColor(aoiId)
@@ -86,13 +109,14 @@ export const getAoi = (stimulusId: number, aoiId: number): ExtendedInterpretedDa
     id: aoiId,
     originalName,
     displayedName,
-    color
+    color,
   }
 }
 
 export const getCategory = (id: number): ExtendedInterpretedDataType => {
   const categoryArray = getData().categories.data[id]
-  if (categoryArray === undefined) throw new Error(`Category with id ${id} does not exist`)
+  if (categoryArray === undefined)
+    throw new Error(`Category with id ${id} does not exist`)
   const originalName = categoryArray[0]
   const displayedName = categoryArray[1] ?? originalName
   const color = categoryArray[2] ?? '#626262'
@@ -100,13 +124,20 @@ export const getCategory = (id: number): ExtendedInterpretedDataType => {
     id,
     originalName,
     displayedName,
-    color
+    color,
   }
 }
 
-export const getSegment = (stimulusId: number, participantId: number, id: number): SegmentInterpretedDataType => {
+export const getSegment = (
+  stimulusId: number,
+  participantId: number,
+  id: number
+): SegmentInterpretedDataType => {
   const segmentArray = getData().segments[stimulusId][participantId][id]
-  if (segmentArray === undefined) throw new Error(`Segment with id ${id} does not exist in stimulus with id ${stimulusId} and participant with id ${participantId}`)
+  if (segmentArray === undefined)
+    throw new Error(
+      `Segment with id ${id} does not exist in stimulus with id ${stimulusId} and participant with id ${participantId}`
+    )
   const start = segmentArray[0]
   const end = segmentArray[1]
   const aoiIds = getSortedAoiIdsByOrderVector(stimulusId, segmentArray.slice(3))
@@ -118,7 +149,7 @@ export const getSegment = (stimulusId: number, participantId: number, id: number
     start,
     end,
     aoi,
-    category
+    category,
   }
 }
 
@@ -127,12 +158,18 @@ export const getSegment = (stimulusId: number, participantId: number, id: number
  * @param stimulusId - id of the stimulus as AOIs are stimulus specific (thus, order vectors too)
  * @param aoiIds - array of aoi ids to be sorted
  */
-const getSortedAoiIdsByOrderVector = (stimulusId: number, aoiIds: number[]): number[] => {
+const getSortedAoiIdsByOrderVector = (
+  stimulusId: number,
+  aoiIds: number[]
+): number[] => {
   const orderVector = getAoiOrderVector(stimulusId)
   return aoiIds.sort((a, b) => orderVector.indexOf(a) - orderVector.indexOf(b))
 }
 
-export const getNumberOfSegments = (stimulusId: number, participantId: number): number => {
+export const getNumberOfSegments = (
+  stimulusId: number,
+  participantId: number
+): number => {
   return getData().segments[stimulusId][participantId]?.length ?? 0
 }
 
@@ -181,10 +218,27 @@ export const getStimuli = (): BaseInterpretedDataType[] => {
 
 export const getParticipants = (): BaseInterpretedDataType[] => {
   const participantsIds = getParticipantOrderVector()
-  return participantsIds.map((participantId: number) => getParticipant(participantId))
+  return participantsIds.map((participantId: number) =>
+    getParticipant(participantId)
+  )
 }
 
-export const getAoiVisibility = (stimulusId: number, aoiId: number, participantId: number | null = null): number[] | null => {
+export const getParticipantsGroups = () => {
+  return getData().participantsGroups
+}
+
+export const updateParticipantsGroups = (groups: ParticipantsGroup[]) => {
+  data.update(data => {
+    data.participantsGroups = groups
+    return data
+  })
+}
+
+export const getAoiVisibility = (
+  stimulusId: number,
+  aoiId: number,
+  participantId: number | null = null
+): number[] | null => {
   const baseKey = `${stimulusId}_${aoiId}`
   let result = getData().aois.dynamicVisibility[baseKey] ?? null
   if (participantId != null) {
@@ -211,7 +265,9 @@ export const updateMultipleAoiVisibility = (
     aoiNames.forEach((aoiName, index) => {
       const aoiId = aoiData.findIndex(el => el[0] === aoiName)
       if (aoiId === -1) {
-        console.warn(`AOI with name ${aoiName} not found for stimulusId: ${stimulusId}`)
+        console.warn(
+          `AOI with name ${aoiName} not found for stimulusId: ${stimulusId}`
+        )
         return // Continue to next AOI name if current one not found
       }
 
@@ -227,25 +283,35 @@ export const updateMultipleAoiVisibility = (
   })
 }
 
-export const updateMultipleAoi = (aoi: ExtendedInterpretedDataType[], stimulusId: number, applyTo: 'this_stimulus' | 'all_by_original_name' | 'all_by_displayed_name'): void => {
-  data.update((data) => {
+export const updateMultipleAoi = (
+  aoi: ExtendedInterpretedDataType[],
+  stimulusId: number,
+  applyTo: 'this_stimulus' | 'all_by_original_name' | 'all_by_displayed_name'
+): void => {
+  data.update(data => {
     if (data.aois.data[stimulusId] === undefined) {
-      throw new Error(`Stimulus with id ${stimulusId} does not exist in AOIs data`)
+      throw new Error(
+        `Stimulus with id ${stimulusId} does not exist in AOIs data`
+      )
     }
     if (aoi.length !== data.aois.data[stimulusId].length) {
-      throw new Error(`Number of AOIs in stimulus with id ${stimulusId} does not match number of AOIs in given array`)
+      throw new Error(
+        `Number of AOIs in stimulus with id ${stimulusId} does not match number of AOIs in given array`
+      )
     }
-    aoi.forEach((aoi) => {
+    aoi.forEach(aoi => {
       const aoiArray = [aoi.originalName, aoi.displayedName, aoi.color]
       if (data.aois.data[stimulusId][aoi.id] === undefined) {
-        throw new Error(`AOI with id ${aoi.id} does not exist in stimulus with id ${stimulusId}`)
+        throw new Error(
+          `AOI with id ${aoi.id} does not exist in stimulus with id ${stimulusId}`
+        )
       }
       data.aois.data[stimulusId][aoi.id] = aoiArray
     })
     if (applyTo === 'all_by_original_name') {
-      const originalNames = aoi.map((aoi) => aoi.originalName)
-      const displayedNames = aoi.map((aoi) => aoi.displayedName)
-      const colors = aoi.map((aoi) => aoi.color)
+      const originalNames = aoi.map(aoi => aoi.originalName)
+      const displayedNames = aoi.map(aoi => aoi.displayedName)
+      const colors = aoi.map(aoi => aoi.color)
       const noOfStimuli = data.stimuli.data.length
       for (let stimulusId = 0; stimulusId < noOfStimuli; stimulusId++) {
         const aois = data.aois.data[stimulusId]
@@ -261,8 +327,8 @@ export const updateMultipleAoi = (aoi: ExtendedInterpretedDataType[], stimulusId
       }
     }
     if (applyTo === 'all_by_displayed_name') {
-      const displayedNames = aoi.map((aoi) => aoi.displayedName)
-      const colors = aoi.map((aoi) => aoi.color)
+      const displayedNames = aoi.map(aoi => aoi.displayedName)
+      const colors = aoi.map(aoi => aoi.color)
       const noOfStimuli = data.stimuli.data.length
       for (let stimulusId = 0; stimulusId < noOfStimuli; stimulusId++) {
         const aois = data.aois.data[stimulusId]

@@ -1,5 +1,6 @@
 import type { AoiDataType } from './AoiDataType/AoiDataType.ts'
 import type { AttributeDataType } from './AttributeDataType/AttributeDataType.ts'
+import type { ParticipantsGroup } from './ParticipantsGroup.ts'
 
 /**
  * Data for workplace are stored in this unique format.
@@ -17,6 +18,7 @@ export interface DataType {
   aois: AoiDataType
   categories: AttributeDataType
   participants: AttributeDataType
+  participantsGroups: ParticipantsGroup[]
   stimuli: AttributeDataType
   segments: number[][][][]
 }

@@ -81,7 +81,7 @@
   .menu,
   li {
     list-style: none;
-    min-width: 175px;
+    min-width: 220px;
     margin: 0;
     padding: 0;
   }

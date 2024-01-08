@@ -13,11 +13,13 @@
   import Scissors from 'lucide-svelte/icons/scissors-line-dashed'
   import Settings from 'lucide-svelte/icons/settings-2'
   import Trash from 'lucide-svelte/icons/trash'
+  import Users from 'lucide-svelte/icons/users'
   import View from 'lucide-svelte/icons/view'
   import type { ComponentProps } from 'svelte'
   import ModalContentAoiModification from '../../../Modal/ModalContent/ModalContentAoiModification.svelte'
   import ModalContentAoiVisibility from '../../../Modal/ModalContent/ModalContentAoiVisibility.svelte'
   import ModalContentDownloadScarfPlot from '../../../Modal/ModalContent/ModalContentDownloadScarfPlot.svelte'
+  import ModalContentParticipantsGroups from '$lib/components/Modal/ModalContent/ModalContentParticipantsGroups.svelte'
 
   export let scarfId: number
   let currentStimulusId: number
@@ -46,6 +48,10 @@
     modalStore.open(ModalContentAoiVisibility, 'AOI visibility')
   }
 
+  const openUserGroupsModal = () => {
+    modalStore.open(ModalContentParticipantsGroups, 'Participants groups')
+  }
+
   const downloadPlot = () => {
     modalStore.open(ModalContentDownloadScarfPlot, 'Download scarf plot', {
       scarfId,
@@ -68,6 +74,11 @@
       icon: Settings,
     },
     { label: 'AOI visibility', action: openAoiVisibilityModal, icon: View },
+    {
+      label: 'Setup participants groups',
+      action: openUserGroupsModal,
+      icon: Users,
+    },
     { label: 'Clip timeline', action: openClipModal, icon: Scissors },
     { label: 'Download plot', action: downloadPlot, icon: Download },
     { label: 'Duplicate scarf', action: duplicateScarf, icon: Copy },
