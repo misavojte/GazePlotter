@@ -40,7 +40,7 @@ To maintain a clear and consistent log, we require the use of specific emojis in
 - :green_heart: `:green_heart:` - Fixing CI build
 - :lock: `:lock:` - Security fix
 - :arrow_up: `:arrow_up:`` - Upgrading dependencies
-- :arrow_down: ``:arrow_down:`` - Downgrading dependencies
+- :arrow_down: `:arrow_down:` - Downgrading dependencies
 - :rotating_light: ``:rotating_light:`` - Removing linter warnings
 
 Please ensure your commit message or PR title starts with the relevant emoji. This not only standardizes our logs but also adds a visual ease in identifying the type of changes made.
