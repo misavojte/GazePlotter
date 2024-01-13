@@ -8,10 +8,22 @@ export class ScarfDownloader extends AbstractDownloader {
   fileName: string
   staticSvg: SVGElement
 
-  constructor(fileName: string, fileType: string, width: number, el: HTMLElement) {
+  constructor(
+    fileName: string,
+    fileType: string,
+    width: number,
+    el: HTMLElement
+  ) {
     super()
-    if (Number(width) < this.minimalWidth) throw new Error(`Minimal width is ${this.minimalWidth}`)
-    if (fileType !== '.svg' && fileType !== '.png' && fileType !== '.jpg' && fileType !== '.webp') throw new Error('File type not supported')
+    if (Number(width) < this.minimalWidth)
+      throw new Error(`Minimal width is ${this.minimalWidth}`)
+    if (
+      fileType !== '.svg' &&
+      fileType !== '.png' &&
+      fileType !== '.jpg' &&
+      fileType !== '.webp'
+    )
+      throw new Error('File type not supported')
     this.width = width
     this.fileType = fileType
     this.fileName = fileName
@@ -21,13 +33,14 @@ export class ScarfDownloader extends AbstractDownloader {
     svg.setAttribute('width', el.offsetWidth.toString())
     svg.setAttribute('height', this.height.toString())
     svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    svg.id = this.getSvgId(el) /** See getSvgId() why this is crucial */
     svg.innerHTML = this.#createInnerHtml(el)
     this.staticSvg = svg
     el.style.width = ''
   }
 
   async download(): Promise<void> {
-    return await new Promise((resolve) => {
+    return await new Promise(resolve => {
       void this.buildContent().then(content => {
         super.triggerDownload(content, this.fileName, this.fileType)
         resolve()
@@ -49,7 +62,9 @@ export class ScarfDownloader extends AbstractDownloader {
   }
 
   #getSvgUrl(svg: SVGElement): string {
-    const blob = new Blob([svg.outerHTML], { type: 'image/svg+xml;charset=utf-8' })
+    const blob = new Blob([svg.outerHTML], {
+      type: 'image/svg+xml;charset=utf-8',
+    })
     const pageURL = window.URL // || window.webkitURL || window
     return pageURL.createObjectURL(blob)
   }
@@ -81,7 +96,7 @@ export class ScarfDownloader extends AbstractDownloader {
     const chartAreaImg = new Image()
     chartAreaImg.src = svgUrl
 
-    return await new Promise((resolve) => {
+    return await new Promise(resolve => {
       chartAreaImg.onload = () => {
         ctx.imageSmoothingEnabled = false
         ctx.drawImage(chartAreaImg, 0, 0, width, height)
@@ -113,7 +128,7 @@ export class ScarfDownloader extends AbstractDownloader {
 
     // Define your clipPath dimensions and position here
     const clipWidth = 130
-    const clipHeight = yPos + (gap * htmlCollection.length) // Adjusted height based on content
+    const clipHeight = yPos + gap * htmlCollection.length // Adjusted height based on content
     const clipPath = `<clipPath id="${clipPathId}"><rect width="${clipWidth}" height="${clipHeight}" x="0" y="0"/></clipPath>`
 
     for (let i = 0; i < htmlCollection.length; i++) {
@@ -133,12 +148,16 @@ export class ScarfDownloader extends AbstractDownloader {
     while (animateTags.length > 0) {
       animateTags[0].remove()
     }
-    return `<svg x="${leftOffset}" width="${el.offsetWidth - leftOffset}">${svgAreaClone.innerHTML}</svg>`
+    return `<svg x="${leftOffset}" width="${el.offsetWidth - leftOffset}">${
+      svgAreaClone.innerHTML
+    }</svg>`
   }
 
   #createXAxisLabels(el: HTMLElement): string {
     const htmlLab = el.querySelector('.chxlab') as HTMLElement
-    return `<text x="100%" y="${htmlLab.offsetTop - el.offsetTop}" text-anchor="end">${htmlLab.innerText}</text>`
+    return `<text x="100%" y="${
+      htmlLab.offsetTop - el.offsetTop
+    }" text-anchor="end">${htmlLab.innerText}</text>`
   }
 
   #createLegendTitles(el: HTMLElement): string {
@@ -162,15 +181,44 @@ export class ScarfDownloader extends AbstractDownloader {
       const text = legendElement.children[1]
       const y = legendElement.offsetTop - el.offsetTop
       const x = legendElement.offsetLeft - el.offsetLeft
-      const rectX = symbol.getBoundingClientRect().left - legendElement.getBoundingClientRect().left
-      const rectY = symbol.getBoundingClientRect().top - legendElement.getBoundingClientRect().top
-      const textX = text.getBoundingClientRect().left - legendElement.getBoundingClientRect().left
+      const rectX =
+        symbol.getBoundingClientRect().left -
+        legendElement.getBoundingClientRect().left
+      const rectY =
+        symbol.getBoundingClientRect().top -
+        legendElement.getBoundingClientRect().top
+      const textX =
+        text.getBoundingClientRect().left -
+        legendElement.getBoundingClientRect().left
       result += `
-            <svg x="${x}" y="${y}" width="${legendElement.offsetWidth}" height="${legendElement.offsetHeight}">
-            <svg x="${rectX}" y="${rectY - 2}" width="${symbol.width.baseVal.valueInSpecifiedUnits}" height="${symbol.height.baseVal.valueInSpecifiedUnits}">${symbol.innerHTML}</svg>
-            <text x="${textX}" y="50%" alignment-baseline="middle">${text.innerHTML}</text>
+            <svg x="${x}" y="${y}" width="${
+              legendElement.offsetWidth
+            }" height="${legendElement.offsetHeight}">
+            <svg x="${rectX}" y="${rectY - 2}" width="${
+              symbol.width.baseVal.valueInSpecifiedUnits
+            }" height="${symbol.height.baseVal.valueInSpecifiedUnits}">${
+              symbol.innerHTML
+            }</svg>
+            <text x="${textX}" y="50%" alignment-baseline="middle">${
+              text.innerHTML
+            }</text>
             </svg>`
     }
     return `<g class="chlitems">${result}</g>`
+  }
+
+  /**
+   * Returns the id of the chartwrap element.
+   *
+   * This is needed for correct styling of the svg,
+   * because colors are applied to rect elements which are children of the given id.
+   *
+   * Example: #id-of-chartwrap rect { fill: red; }
+   *
+   * @param el Whole scarf plot element
+   * @returns id of the chartwrap element
+   */
+  private getSvgId(el: HTMLElement): string {
+    return el.id
   }
 }
