@@ -27,20 +27,20 @@ We're excited to see what you bring to the project!
 ## Using Emojis in Commits and PR Titles
 To maintain a clear and consistent log, we require the use of specific emojis in all commit messages and PR (Pull Request) titles. This helps in quickly identifying the purpose or nature of changes. Refer to the list below for the appropriate emoji to use:
 
-:sparkles: `:sparkles:` - New feature
-:bug: `:bug:` - Bug fix
-:memo: `:memo:` - Documentation update
-:lipstick: `:lipstick:` - UI/Style update
-:recycle: `:recycle:` - Refactoring code
-:zap: `:zap:` - Performance improvement
-:white_check_mark: `:white_check_mark:` - Adding tests
-:fire: `:fire:` - Removing code/files
-:construction: `:construction:` - Work in progress
-:hammer: `:hammer:` - Build tool or external dependencies update
-:green_heart: `:green_heart:` - Fixing CI build
-:lock: `:lock:` - Security fix
-:arrow_up: `:arrow_up:`` - Upgrading dependencies
-:arrow_down: ``:arrow_down:`` - Downgrading dependencies
-:rotating_light: ``:rotating_light:`` - Removing linter warnings
+- :sparkles: `:sparkles:` - New feature
+- :bug: `:bug:` - Bug fix
+- :memo: `:memo:` - Documentation update
+- :lipstick: `:lipstick:` - UI/Style update
+- :recycle: `:recycle:` - Refactoring code
+- :zap: `:zap:` - Performance improvement
+- :white_check_mark: `:white_check_mark:` - Adding tests
+- :fire: `:fire:` - Removing code/files
+- :construction: `:construction:` - Work in progress
+- :hammer: `:hammer:` - Build tool or external dependencies update
+- :green_heart: `:green_heart:` - Fixing CI build
+- :lock: `:lock:` - Security fix
+- :arrow_up: `:arrow_up:`` - Upgrading dependencies
+- :arrow_down: ``:arrow_down:`` - Downgrading dependencies
+- :rotating_light: ``:rotating_light:`` - Removing linter warnings
 
 Please ensure your commit message or PR title starts with the relevant emoji. This not only standardizes our logs but also adds a visual ease in identifying the type of changes made.
