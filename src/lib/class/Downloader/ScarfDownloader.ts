@@ -33,6 +33,7 @@ export class ScarfDownloader extends AbstractDownloader {
     svg.setAttribute('width', el.offsetWidth.toString())
     svg.setAttribute('height', this.height.toString())
     svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    svg.id = this.getSvgId(el) /** See getSvgId() why this is crucial */
     svg.innerHTML = this.#createInnerHtml(el)
     this.staticSvg = svg
     el.style.width = ''
@@ -204,5 +205,20 @@ export class ScarfDownloader extends AbstractDownloader {
             </svg>`
     }
     return `<g class="chlitems">${result}</g>`
+  }
+
+  /**
+   * Returns the id of the chartwrap element.
+   *
+   * This is needed for correct styling of the svg,
+   * because colors are applied to rect elements which are children of the given id.
+   *
+   * Example: #id-of-chartwrap rect { fill: red; }
+   *
+   * @param el Whole scarf plot element
+   * @returns id of the chartwrap element
+   */
+  private getSvgId(el: HTMLElement): string {
+    return el.id
   }
 }
