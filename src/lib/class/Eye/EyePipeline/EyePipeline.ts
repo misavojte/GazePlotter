@@ -12,6 +12,7 @@ import type { EyeSettingsType } from '$lib/type/Settings/EyeSettings/EyeSettings
 import { EyeSplitter } from '../EyeSplitter/EyeSplitter.ts'
 import type { DataType } from '$lib/type/Data/DataType.js'
 import { EyeRefiner } from '../EyeRefiner/EyeRefiner.ts'
+import { CsvSegmentedEyeDeserializer } from '../EyeDeserializer/CsvSegmentedEyeDeserializer.ts'
 
 export class EyePipeline {
   fileNames: string[]
@@ -23,21 +24,21 @@ export class EyePipeline {
 
   rowIndex = 0
 
-  get isAllProcessed (): boolean {
+  get isAllProcessed(): boolean {
     return this.fileCount === this.fileNames.length - 1
   }
 
-  get currentFileName (): string {
+  get currentFileName(): string {
     const name = this.fileNames[this.fileCount + 1]
     if (name === undefined) throw new Error('File name is undefined')
     return name
   }
 
-  constructor (fileNames: string[]) {
+  constructor(fileNames: string[]) {
     this.fileNames = fileNames
   }
 
-  async addNewStream (stream: ReadableStream): Promise<DataType | null> {
+  async addNewStream(stream: ReadableStream): Promise<DataType | null> {
     const parser = new EyeParser(stream)
     const firstTextChunk = await parser.getTextChunk()
     const settings = await this.classify(firstTextChunk)
@@ -58,29 +59,36 @@ export class EyePipeline {
     return null
   }
 
-  releaseAfterFile (splitter: EyeSplitter, settings: EyeSettingsType): void {
+  releaseAfterFile(splitter: EyeSplitter, settings: EyeSettingsType): void {
     const dataFromSplitter = splitter.release()
     for (let i = 0; i < dataFromSplitter.length; i++) {
-      this.processRow(dataFromSplitter[i].split(settings.columnDelimiter), settings)
+      this.processRow(
+        dataFromSplitter[i].split(settings.columnDelimiter),
+        settings
+      )
     }
     this.fileCount++
     this.rowIndex = 0
     this.deserializer = null
   }
 
-  classify (chunk: string): EyeSettingsType {
+  classify(chunk: string): EyeSettingsType {
     const classifier = this.classifier
     return classifier.classify(chunk)
   }
 
-  processChunk (chunk: string, settings: EyeSettingsType, splitter: EyeSplitter): void {
+  processChunk(
+    chunk: string,
+    settings: EyeSettingsType,
+    splitter: EyeSplitter
+  ): void {
     const rows = splitter.splitChunk(chunk)
     for (let i = 0; i < rows.length; i++) {
       this.processRow(rows[i].split(settings.columnDelimiter), settings)
     }
   }
 
-  private processRow (row: string[], settings: EyeSettingsType): void {
+  private processRow(row: string[], settings: EyeSettingsType): void {
     const headerRowId = settings.headerRowId
 
     if (this.rowIndex < headerRowId) {
@@ -89,7 +97,11 @@ export class EyePipeline {
     }
 
     if (this.rowIndex === headerRowId) {
-      this.deserializer = this.getDeserializer(row, this.currentFileName, settings)
+      this.deserializer = this.getDeserializer(
+        row,
+        this.currentFileName,
+        settings
+      )
       this.rowIndex++
       return
     }
@@ -98,11 +110,16 @@ export class EyePipeline {
     this.rowIndex++
     const parsedRow = this.deserializer.deserialize(row)
     if (parsedRow === null) return
-    if (Array.isArray(parsedRow)) return parsedRow.forEach((row) => this.writer.add(row))
+    if (Array.isArray(parsedRow))
+      return parsedRow.forEach(row => this.writer.add(row))
     this.writer.add(parsedRow)
   }
 
-  private getDeserializer (row: string[], fileName: string, settings: EyeSettingsType): AbstractEyeDeserializer {
+  private getDeserializer(
+    row: string[],
+    fileName: string,
+    settings: EyeSettingsType
+  ): AbstractEyeDeserializer {
     switch (settings.type) {
       case 'begaze':
         return new BeGazeEyeDeserializer(row)
@@ -118,12 +135,17 @@ export class EyePipeline {
         return new VarjoEyeDeserializer(row, fileName)
       case 'csv':
         return new CsvEyeDeserializer(row)
+      case 'csv-segmented':
+        return new CsvSegmentedEyeDeserializer(row)
       default:
         throw new Error('File type row reducer not implemented')
     }
   }
 
-  private getTobiiReducer (row: string[], parseThroughInterval: boolean): TobiiEyeDeserializer {
+  private getTobiiReducer(
+    row: string[],
+    parseThroughInterval: boolean
+  ): TobiiEyeDeserializer {
     return new TobiiEyeDeserializer(row, parseThroughInterval)
   }
 }

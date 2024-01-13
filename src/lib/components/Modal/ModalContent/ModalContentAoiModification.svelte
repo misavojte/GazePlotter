@@ -1,21 +1,23 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
-  import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType.ts'
+  import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
+  import GeneralButtonMinor from '$lib/components/General/GeneralButton/GeneralButtonMinor.svelte'
+  import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
+  import GeneralSelectBase from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import {
     getAois,
     getStimuli,
     updateMultipleAoi,
   } from '$lib/stores/dataStore.ts'
-  import GeneralSelectBase from '$lib/components/General/GeneralSelect/GeneralSelectBase.svelte'
-  import GeneralButtonMinor from '$lib/components/General/GeneralButton/GeneralButtonMinor.svelte'
-  import { flip } from 'svelte/animate'
-  import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
-  import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import {
     addErrorToast,
     addInfoToast,
     addSuccessToast,
   } from '$lib/stores/toastStore.ts'
+  import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType.ts'
+  import ArrowDown from 'lucide-svelte/icons/arrow-down'
+  import ArrowUp from 'lucide-svelte/icons/arrow-up'
+  import { onMount } from 'svelte'
+  import { flip } from 'svelte/animate'
 
   export let selectedStimulus = '0'
   export let userSelected = 'this'
@@ -130,13 +132,15 @@
               <GeneralButtonMinor
                 isDisabled={aoiObjects.indexOf(aoi) === 0}
                 on:click={() => handleObjectPositionUp(aoi)}
-                >↑</GeneralButtonMinor
               >
+                <ArrowUp size={'1em'} />
+              </GeneralButtonMinor>
               <GeneralButtonMinor
                 isDisabled={aoiObjects.indexOf(aoi) === aoiObjects.length - 1}
                 on:click={() => handleObjectPositionDown(aoi)}
-                >↓</GeneralButtonMinor
               >
+                <ArrowDown size={'1em'} />
+              </GeneralButtonMinor>
             </div>
           </td>
         </tr>
