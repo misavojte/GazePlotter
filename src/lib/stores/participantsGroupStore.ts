@@ -1,7 +1,10 @@
 import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup.ts'
 import { writable } from 'svelte/store'
-import { getParticipantsGroups } from './dataStore.ts'
+import { getParticipantsGroups, data } from './dataStore.ts'
 
+/**
+ * Store for participants groups data in working memory of modal
+ */
 export const participantsGroupsStore = writable(getParticipantsGroups())
 
 export const addGroup = (groups: ParticipantsGroup[]) => {
@@ -18,3 +21,12 @@ export const addGroup = (groups: ParticipantsGroup[]) => {
 export const removeGroup = (id: number) => {
   participantsGroupsStore.update(groups => groups.filter(d => d.id !== id))
 }
+
+/**
+ * It must refresh the store when the data is changed.
+ * Otherwise, it could happen that after uploading new data,
+ * the old groups would be displayed.
+ */
+data.subscribe(d => {
+  participantsGroupsStore.set(getParticipantsGroups())
+})
