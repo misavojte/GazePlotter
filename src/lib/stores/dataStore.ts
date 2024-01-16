@@ -216,15 +216,75 @@ export const getStimuli = (): BaseInterpretedDataType[] => {
   return stimuliIds.map((stimulusId: number) => getStimulus(stimulusId))
 }
 
-export const getParticipants = (): BaseInterpretedDataType[] => {
+/**
+ * Get all participants of given group ID.
+ * Only groups with non-negative ID truly exist.
+ * Values -1 and -2 are used for "All participants" and "Non-empty participants" default groups.
+ * @param groupId Id of participants group. If not provided, -1 is used as default value
+ * @returns participants of given group
+ * @throws Error if group with given id does not exist and is not -1 or -2
+ */
+export const getParticipants = (groupId = -1): BaseInterpretedDataType[] => {
+  if (groupId === -1) {
+    return getAllParticipants()
+  }
+  if (groupId === -2) {
+    return getNonEmptyParticipants()
+  }
+  const group = getParticipantsGroup(groupId)
+  const participantsIds = getParticipantOrderVector()
+  const groupParticipantsIds = participantsIds.filter(participantId =>
+    group.participantsIds.includes(participantId)
+  )
+  return groupParticipantsIds.map(participantId =>
+    getParticipant(participantId)
+  )
+}
+
+export const getAllParticipants = (): BaseInterpretedDataType[] => {
   const participantsIds = getParticipantOrderVector()
   return participantsIds.map((participantId: number) =>
     getParticipant(participantId)
   )
 }
 
-export const getParticipantsGroups = () => {
-  return getData().participantsGroups
+export const getNonEmptyParticipants = (): BaseInterpretedDataType[] => {
+  const participantsIds = getParticipantOrderVector()
+  const nonEmptyParticipantsIds = participantsIds.filter(
+    participantId => getNumberOfSegments(0, participantId) > 0
+  )
+  return nonEmptyParticipantsIds.map(participantId =>
+    getParticipant(participantId)
+  )
+}
+
+export const getParticipantsGroups = (
+  isDefault = false
+): ParticipantsGroup[] => {
+  const defaultGroups: ParticipantsGroup[] = []
+  if (isDefault) {
+    defaultGroups.push({
+      id: -1,
+      name: 'All participants',
+      participantsIds: getParticipantOrderVector(),
+    })
+    defaultGroups.push({
+      id: -2,
+      name: 'Non-empty',
+      participantsIds: getNonEmptyParticipants().map(
+        participant => participant.id
+      ),
+    })
+  }
+  return [...defaultGroups, ...getData().participantsGroups]
+}
+
+export const getParticipantsGroup = (groupId: number): ParticipantsGroup => {
+  const group = getParticipantsGroups().find(group => group.id === groupId)
+  if (group === undefined) {
+    throw new Error(`Participants group with id ${groupId} does not exist`)
+  }
+  return group
 }
 
 export const updateParticipantsGroups = (groups: ParticipantsGroup[]) => {

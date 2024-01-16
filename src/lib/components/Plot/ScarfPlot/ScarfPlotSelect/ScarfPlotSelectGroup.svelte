@@ -1,13 +1,22 @@
 <script lang="ts">
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
+  import { getParticipantsGroups } from '$lib/stores/dataStore.ts'
+  import { updateGroup } from '$lib/stores/scarfPlotsStore.ts'
 
   export let scarfId: number
 
-  let value = 'all'
+  let value = '-1'
 
-  const groupOptions = [{ value: 'all', label: 'All participants' }]
+  const groups = getParticipantsGroups(true)
 
-  $: console.log(value, scarfId)
+  const groupOptions = groups.map(group => {
+    return {
+      label: group.name,
+      value: group.id.toString(),
+    }
+  })
+
+  $: updateGroup(scarfId, parseInt(value))
 </script>
 
 <Select label="Group" options={groupOptions} bind:value compact={true}></Select>

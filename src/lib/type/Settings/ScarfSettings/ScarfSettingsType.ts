@@ -1,6 +1,7 @@
 export interface ScarfSettingsType {
   scarfPlotId: number
   stimulusId: number
+  groupId: number
   zoomLevel: number // 0 = 100%, 1 = 200%, 2 = 400%, 3 = 800%, 4 = 1600%
   aoiVisibility: boolean
   timeline: 'absolute' | 'relative' | 'ordinal'
