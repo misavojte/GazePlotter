@@ -13,7 +13,10 @@ export const demoData: DataType = {
     data: [['Agnes'], ['Bartholomeus'], ['Frida'], ['Martin']],
     orderVector: [],
   },
-  participantsGroups: [],
+  participantsGroups: [
+    { id: 0, name: 'Group 1', participantsIds: [0, 1] },
+    { id: 1, name: 'Group 2', participantsIds: [2, 3] },
+  ],
   categories: {
     data: [['Fixation'], ['Saccade'], ['EyesNotFound'], ['Unclassified']],
     orderVector: [],

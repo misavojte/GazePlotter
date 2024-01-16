@@ -1,7 +1,7 @@
 <script lang="ts">
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore.js'
 
-  let isDisabled = false
+  export let isDisabled = false
 
   processingFileStateStore.subscribe(isProcessingFile => {
     isDisabled = isProcessingFile === 'processing'
