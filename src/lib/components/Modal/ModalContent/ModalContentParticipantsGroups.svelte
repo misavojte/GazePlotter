@@ -62,11 +62,6 @@
   }
 </script>
 
-<p>
-  Create custom groups of participants to compare their gaze behavior. Default
-  groups "All" and "Non-empty" cannot be modified or deleted.
-</p>
-
 {#if toggledGroupId !== null}
   <ModalContentParticipantsGroupsChecklist
     group={participantsGroups.find(g => g.id === toggledGroupId)}
