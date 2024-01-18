@@ -78,7 +78,7 @@ export class ScarfPlotDynamicStyleFactory {
    * Main method of the class. Generates dynamic CSS for scarf plot.
    * @param stylingData Given styling data from ScarfFillingFactory
    * @param highlightedType CSS class identifier of the highlighted elements
-   * @returns dynamic CSS for scarf plot
+   * @returns dynamic CSS for scarf plot in the form of <style> tag
    */
   generateCss(
     stylingData: StylingScarfFillingType,
