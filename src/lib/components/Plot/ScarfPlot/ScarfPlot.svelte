@@ -10,8 +10,8 @@
   import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.ts'
   import { onDestroy, onMount } from 'svelte'
   import ScarfPlotHeader from './ScarfPlotHeader/ScarfPlotHeader.svelte'
-  import ScarfPlotLegend from './ScarfPlotLegend/ScarfPlotLegend.svelte'
   import ScarfPlotTooltip from './ScarfPlotTooltip/ScarfPlotTooltip.svelte'
+  import ScarfPlotFigure from './ScarfPlotFigure/ScarfPlotFigure.svelte'
 
   export let scarfPlotId: number
   let tooltipArea: HTMLElement
@@ -24,7 +24,6 @@
   let settings: ScarfSettingsType = firstSettings
 
   let stimulusId: number = settings.stimulusId
-  let zoomWidth = 100 * 2 ** settings.zoomLevel
 
   let highlightedType: string | null = null
   let removeHighlight: null | (() => void) = null
@@ -70,62 +69,6 @@
   )
 
   let data = getFilling(stimulusId, participantIds, absoluteTimeline, settings)
-
-  let patternWidth =
-    settings.timeline === 'relative'
-      ? '10%'
-      : `${(absoluteTimeline[1] / absoluteTimeline.maxLabel) * 100}%`
-
-  let timelineUnit = settings.timeline === 'relative' ? '%' : 'ms'
-
-  let xAxisLabel =
-    settings.timeline === 'ordinal'
-      ? 'Order index'
-      : `Elapsed time [${timelineUnit}]`
-
-  const getDynamicVisibilityCss = (data: ScarfFillingType): string => {
-    let css = ''
-    const visibilities = data.stylingAndLegend.visibility
-    if (visibilities.length === 0) return css
-    for (let i = 0; i < visibilities.length; i++) {
-      css += `#scarf-plot-area-${scarfPlotId} line.${visibilities[i].identifier}{stroke:${visibilities[i].color};}`
-    }
-    css += `#scarf-plot-area-${scarfPlotId} line{stroke-width:${visibilities[0].height};stroke-dasharray:1}`
-    return css
-  }
-
-  const getDynamicStyle = (
-    data: ScarfFillingType,
-    highlightedType: string | null = null
-  ): string => {
-    return `<style>
-        ${data.stylingAndLegend.aoi
-          .map(
-            aoi =>
-              `#scarf-plot-area-${scarfPlotId} rect.${aoi.identifier}{fill:${aoi.color}}`
-          )
-          .join('')}
-        ${data.stylingAndLegend.category
-          .map(
-            aoi =>
-              `#scarf-plot-area-${scarfPlotId} rect.${aoi.identifier}{fill:${aoi.color}}`
-          )
-          .join('')}
-        ${getDynamicVisibilityCss(data)}
-        ${
-          highlightedType
-            ? `#scarf-plot-area-${scarfPlotId} rect:not(.${highlightedType}) {opacity:0.2}`
-            : ''
-        }
-        ${
-          highlightedType
-            ? `#scarf-plot-area-${scarfPlotId} line:not(.${highlightedType}) {opacity:0.2} #scarf-plot-area-${scarfPlotId} line.${highlightedType} {stroke-width:100%}`
-            : ''
-        }
-    </style>`
-  }
-
-  $: dynamicStyle = getDynamicStyle(data, highlightedType)
 
   let tooltip: ScarfTooltipFillingType | null = null
   let timeout = 0
@@ -244,186 +187,27 @@
         participant => participant.id
       )
       stimulusId = settings.stimulusId
-      zoomWidth = 100 * 2 ** settings.zoomLevel
       absoluteTimeline = getAxisBreaks(participantIds, stimulusId, settings)
       data = getFilling(stimulusId, participantIds, absoluteTimeline, settings)
-      patternWidth =
-        settings.timeline === 'relative'
-          ? '10%'
-          : `${(absoluteTimeline[1] / absoluteTimeline.maxLabel) * 100}%`
-      timelineUnit = settings.timeline === 'relative' ? '%' : 'ms'
-      xAxisLabel =
-        settings.timeline === 'ordinal'
-          ? 'Order index'
-          : `Elapsed time [${timelineUnit}]`
-      dynamicStyle = getDynamicStyle(data)
     }
   )
 </script>
 
 <PlotWrap title="Scarf Plot">
   <ScarfPlotHeader slot="header" scarfId={scarfPlotId} />
-  <figure
-    slot="body"
-    class="tooltip-area js-mouseleave"
-    on:mousemove={decideInteractivity}
-    on:mouseleave={cancelInteractivity}
-  >
-    <!-- scarf plot id is used to identify the plot by other components (e.g. for download) -->
-    <div
-      class="chartwrap"
-      id="scarf-plot-area-{scarfPlotId}"
-      bind:this={tooltipArea}
-    >
-      {@html dynamicStyle}
-      <div
-        class="chylabs"
-        style="grid-auto-rows:{data.heightOfBarWrap}px"
-        data-gap={data.heightOfBarWrap}
-      >
-        {#each data.participants as participant}
-          <div>{participant.label}</div>
-        {/each}
-      </div>
-      <div class="charea-holder" class:isHiglighted={tooltip}>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          id="charea"
-          width="{zoomWidth}%"
-          height={data.chartHeight}
-        >
-          <defs>
-            <pattern
-              id="grid-{scarfPlotId}"
-              width={patternWidth}
-              height={data.heightOfBarWrap}
-              patternUnits="userSpaceOnUse"
-            >
-              <rect
-                fill="none"
-                width="100%"
-                height="100%"
-                stroke="#cbcbcb"
-                stroke-width="1"
-              />
-            </pattern>
-          </defs>
-          <g>
-            <rect
-              fill="url(#grid-{scarfPlotId})"
-              stroke="#cbcbcb"
-              stroke-width="1"
-              width="100%"
-              height={data.chartHeight - 20}
-            />
-          </g>
-          <svg y={data.chartHeight - 14} class="chxlabs">
-            <text x="0" y="0" text-anchor="start" dominant-baseline="hanging"
-              >0</text
-            >
-            {#each data.timeline.slice(1, -1) as label}
-              <text
-                x="{(label / data.timeline.maxLabel) * 100}%"
-                dominant-baseline="hanging"
-                text-anchor="middle">{label}</text
-              >
-            {/each}
-            <text x="100%" dominant-baseline="hanging" text-anchor="end"
-              >{data.timeline.maxLabel}</text
-            >
-          </svg>
-          <!-- Start of barwrap, each is a participant -->
-          {#each data.participants as participant, i}
-            <svg
-              class="barwrap"
-              y={i * data.heightOfBarWrap}
-              data-id={participant.id}
-              height={data.heightOfBarWrap}
-              width={participant.width}
-            >
-              {#each participant.segments as segment, segmentId}
-                <g data-id={segmentId}>
-                  {#each segment.content as rectangle}
-                    <rect
-                      class={rectangle.identifier}
-                      height={rectangle.height}
-                      x={rectangle.x}
-                      width={rectangle.width}
-                      y={rectangle.y}
-                    ></rect>
-                  {/each}
-                </g>
-              {/each}
-              {#each participant.dynamicAoiVisibility as visibility}
-                {#each visibility.content as visibilityItem}
-                  <line
-                    class={visibilityItem.identifier}
-                    x1={visibilityItem.x1}
-                    y1={visibilityItem.y}
-                    x2={visibilityItem.x2}
-                    y2={visibilityItem.y}
-                  ></line>
-                {/each}
-              {/each}
-            </svg>
-          {/each}
-          <!-- End of barwrap -->
-        </svg>
-      </div>
-      <div class="chxlab">{xAxisLabel}</div>
-      <ScarfPlotLegend filling={data.stylingAndLegend} />
-    </div>
+  <svelte:fragment slot="body">
+    <ScarfPlotFigure
+      on:mouseleave={cancelInteractivity}
+      on:mousemove={decideInteractivity}
+      {scarfPlotId}
+      tooltipAreaElement={tooltipArea}
+      {data}
+      {settings}
+      axisBreaks={absoluteTimeline}
+      highlightedIdentifier={highlightedType}
+    />
     {#if tooltip}
       <ScarfPlotTooltip {...tooltip} />
     {/if}
-  </figure>
+  </svelte:fragment>
 </PlotWrap>
-
-<style>
-  figure {
-    margin: 0;
-  }
-  .chartwrap {
-    display: grid;
-    grid-template-columns: 125px 1fr;
-    grid-gap: 10px;
-  }
-  .chxlab {
-    grid-column: 2;
-    text-align: right;
-    font-size: 12px;
-    margin-top: -10px;
-  }
-  .chylabs {
-    display: grid;
-    font-size: 14px;
-    grid-template-columns: 1fr;
-    align-items: center;
-  }
-  .chylabs > div {
-    overflow-wrap: break-word;
-    width: 125px;
-    line-height: 1;
-  }
-  text {
-    font-family: sans-serif;
-    font-size: 12px;
-  }
-  .nav {
-    display: flex;
-    gap: 5px;
-    flex-wrap: wrap;
-  }
-  #charea {
-    transition: 1s width ease-in-out;
-  }
-  .charea-holder {
-    overflow: auto;
-  }
-  .isHiglighted g {
-    opacity: 0.2;
-  }
-  .focus {
-    opacity: 1 !important;
-  }
-</style>
