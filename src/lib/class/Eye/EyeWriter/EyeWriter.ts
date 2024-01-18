@@ -1,6 +1,4 @@
-import type {
-  SingleDeserializerOutput
-} from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput.js'
+import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput.js'
 import type { DataType } from '$lib/type/Data/DataType.js'
 
 export class EyeWriter {
@@ -8,18 +6,22 @@ export class EyeWriter {
     isOrdinalOnly: false,
     stimuli: { data: [], orderVector: [] },
     participants: { data: [], orderVector: [] },
+    participantsGroups: [],
     categories: { data: [['Fixation'], ['Saccade']], orderVector: [] },
     aois: { data: [], orderVector: [], dynamicVisibility: {} },
-    segments: []
+    segments: [],
   }
 
   lastData: SingleDeserializerOutput | null = null
 
-  add (row: SingleDeserializerOutput): void {
+  add(row: SingleDeserializerOutput): void {
     this.lastData = row
 
     const stimulusIndex = this.processStimulus(row.stimulus)
-    const participantIndex = this.processParticipant(row.participant, stimulusIndex)
+    const participantIndex = this.processParticipant(
+      row.participant,
+      stimulusIndex
+    )
     const aoiIDs = this.processAOIs(row.aoi, stimulusIndex)
     const categoryID = this.processCategory(row.category)
 
@@ -36,7 +38,7 @@ export class EyeWriter {
     this.data.segments[stimulusIndex][participantIndex].push(segment)
   }
 
-  processStimulus (sName: string): number {
+  processStimulus(sName: string): number {
     // check if Stimulus name (string) is already recorded in "const"
     // the original name is always saved to a new array object to index position 0
     const sData = this.data.stimuli.data // this could be dangerous
@@ -52,7 +54,7 @@ export class EyeWriter {
     return sIndex
   }
 
-  processParticipant (pName: string, sIndex: number): number {
+  processParticipant(pName: string, sIndex: number): number {
     // check if Stimulus name (string) is already recorded in "const"
     // the original name is always saved to a new array object to index position 0
     const pData = this.data.participants.data
@@ -67,7 +69,7 @@ export class EyeWriter {
     return pIndex
   }
 
-  processCategory (cName: string): number {
+  processCategory(cName: string): number {
     const cData = this.data.categories.data
     let cIndex = cData.findIndex(el => el[0] === cName)
     if (cIndex === -1) {
@@ -77,7 +79,7 @@ export class EyeWriter {
     return cIndex
   }
 
-  processAOIs (aNames: string[] | null, sIndex: number): null | number[] {
+  processAOIs(aNames: string[] | null, sIndex: number): null | number[] {
     if (aNames === null) return null
     const aois: number[] = []
     for (let i = 0; i < aNames.length; i++) {
@@ -88,7 +90,7 @@ export class EyeWriter {
     return aois
   }
 
-  processAOI (aName: string | null, sIndex: number): null | number {
+  processAOI(aName: string | null, sIndex: number): null | number {
     // if no AOI, skip
     if (aName === null) return null
 

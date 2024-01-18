@@ -3,13 +3,14 @@
   const dispatch = createEventDispatcher()
 
   export let isDisabled = false
+  export let isIcon = true
 
   const handleClick = () => {
     dispatch('click')
   }
 </script>
 
-<button disabled={isDisabled} on:click={handleClick}>
+<button disabled={isDisabled} on:click={handleClick} class:isIcon>
   <slot />
 </button>
 
@@ -26,9 +27,12 @@
     justify-content: center;
     display: inline-flex;
     height: 34px;
-    width: 34px;
+    min-width: 34px;
     font-size: 16px;
     cursor: pointer;
+  }
+  button.isIcon {
+    width: 34px;
   }
   button:hover {
     border: 1px solid #cd1404;

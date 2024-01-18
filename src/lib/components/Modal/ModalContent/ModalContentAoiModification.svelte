@@ -1,6 +1,5 @@
 <script lang="ts">
   import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
-  import GeneralButtonMinor from '$lib/components/General/GeneralButton/GeneralButtonMinor.svelte'
   import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
   import GeneralSelectBase from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import {
@@ -14,10 +13,10 @@
     addSuccessToast,
   } from '$lib/stores/toastStore.ts'
   import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType.ts'
-  import ArrowDown from 'lucide-svelte/icons/arrow-down'
-  import ArrowUp from 'lucide-svelte/icons/arrow-up'
   import { onMount } from 'svelte'
   import { flip } from 'svelte/animate'
+  import GeneralPositionControl from '$lib/components/General/GeneralPositionControl/GeneralPositionControl.svelte'
+  import GeneralEmpty from '$lib/components/General/GeneralEmpty/GeneralEmpty.svelte'
 
   export let selectedStimulus = '0'
   export let userSelected = 'this'
@@ -101,7 +100,7 @@
   />
 </div>
 {#if aoiObjects.length === 0}
-  <div>No AOIs found</div>
+  <GeneralEmpty message="No AOIs found in stimulus" />
 {/if}
 {#if aoiObjects.length > 0}
   <table class="grid content">
@@ -129,18 +128,12 @@
           </td>
           <td>
             <div class="button-group">
-              <GeneralButtonMinor
-                isDisabled={aoiObjects.indexOf(aoi) === 0}
-                on:click={() => handleObjectPositionUp(aoi)}
-              >
-                <ArrowUp size={'1em'} />
-              </GeneralButtonMinor>
-              <GeneralButtonMinor
-                isDisabled={aoiObjects.indexOf(aoi) === aoiObjects.length - 1}
-                on:click={() => handleObjectPositionDown(aoi)}
-              >
-                <ArrowDown size={'1em'} />
-              </GeneralButtonMinor>
+              <GeneralPositionControl
+                isFirst={aoiObjects.indexOf(aoi) === 0}
+                isLast={aoiObjects.indexOf(aoi) === aoiObjects.length - 1}
+                onMoveDown={() => handleObjectPositionDown(aoi)}
+                onMoveUp={() => handleObjectPositionUp(aoi)}
+              />
             </div>
           </td>
         </tr>

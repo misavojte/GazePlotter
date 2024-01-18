@@ -3,7 +3,7 @@
   import { ScarfPlotAxisFactory } from '$lib/class/Plot/ScarfPlot/ScarfPlotAxisFactory.ts'
   import { ScarfPlotFillingFactoryS } from '$lib/class/Plot/ScarfPlot/ScarfPlotFillingFactoryS.ts'
   import PlotWrap from '$lib/components/Plot/PlotWrap.svelte'
-  import { getParticipantOrderVector } from '$lib/stores/dataStore.ts'
+  import { getParticipants } from '$lib/stores/dataStore.ts'
   import { scarfPlotStates } from '$lib/stores/scarfPlotsStore.ts'
   import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType.ts'
   import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType.ts'
@@ -29,7 +29,9 @@
   let highlightedType: string | null = null
   let removeHighlight: null | (() => void) = null
 
-  const participantIds: number[] = getParticipantOrderVector()
+  let participantIds: number[] = getParticipants(settings.groupId).map(
+    participant => participant.id
+  )
 
   let window: Window
 
@@ -238,6 +240,9 @@
         return
       }
       settings = newSetting
+      participantIds = getParticipants(settings.groupId).map(
+        participant => participant.id
+      )
       stimulusId = settings.stimulusId
       zoomWidth = 100 * 2 ** settings.zoomLevel
       absoluteTimeline = getAxisBreaks(participantIds, stimulusId, settings)

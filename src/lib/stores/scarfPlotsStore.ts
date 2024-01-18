@@ -11,6 +11,7 @@ const returnDefaultScarfPlotState = (
     {
       scarfPlotId: isPrerendered ? 0 : getUniqueScarfPlotId(),
       stimulusId: 0,
+      groupId: -1,
       zoomLevel: 0,
       aoiVisibility: false,
       timeline: 'absolute',
@@ -143,5 +144,13 @@ export const updateAoiVisibilityForAll = (value: boolean): void => {
       state.aoiVisibility = value
     })
     return newState
+  })
+}
+
+export const updateGroup = (scarfPlotId: number, groupId: number): void => {
+  scarfPlotStates.update(prev => {
+    const newState = getDefinedScarfPlotState(prev, scarfPlotId)
+    newState.groupId = groupId
+    return prev
   })
 }
