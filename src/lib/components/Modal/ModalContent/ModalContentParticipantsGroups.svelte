@@ -17,10 +17,8 @@
   import ArrowUp from 'lucide-svelte/icons/arrow-up'
   import UserCog from 'lucide-svelte/icons/user-cog'
   import Bin from 'lucide-svelte/icons/trash'
-  import { fly, fade } from 'svelte/transition'
   import ModalContentParticipantsGroupsChecklist from '$lib/components/Modal/ModalContent/ModalContentParticipantsGroupsChecklist.svelte'
 
-  const participants = getParticipants().map(d => d.displayedName)
   let participantsGroups: ParticipantsGroup[] = []
   participantsGroupsStore.subscribe(value => (participantsGroups = value))
   let toggledGroupId: null | number = null
@@ -148,17 +146,6 @@
 </div>
 
 <style>
-  p {
-    max-width: 50ch;
-  }
-  ul.participants {
-    display: flex;
-    list-style: none;
-    padding: 0;
-    gap: 0.5em;
-    margin-bottom: 2em;
-    flex-direction: column;
-  }
   .select-wrapper {
     margin-bottom: 1em;
     display: flex;
@@ -185,8 +172,7 @@
     font-size: 12px;
     gap: 0.5em;
   }
-  th,
-  .title {
+  th {
     text-align: left;
     font-size: 14px;
     font-weight: bold;
