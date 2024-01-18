@@ -1,27 +1,23 @@
 <script lang="ts">
-  import {
-    getParticipants,
-    updateParticipantsGroups,
-  } from '$lib/stores/dataStore.ts'
+  import { updateParticipantsGroups } from '$lib/stores/dataStore.ts'
   import {
     addGroup,
     participantsGroupsStore,
   } from '$lib/stores/participantsGroupStore.ts'
-  import { addSuccessToast } from '$lib/stores/toastStore.ts'
+  import { addSuccessToast, addErrorToast } from '$lib/stores/toastStore.ts'
   import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup.ts'
   import MajorButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralButtonMinor from '$lib/components/General/GeneralButton/GeneralButtonMinor.svelte'
+  import GeneralPositionControl from '$lib/components/General/GeneralPositionControl/GeneralPositionControl.svelte'
   import { flip } from 'svelte/animate'
-  import ListX from 'lucide-svelte/icons/list-x'
-  import ArrowDown from 'lucide-svelte/icons/arrow-down'
-  import ArrowUp from 'lucide-svelte/icons/arrow-up'
   import UserCog from 'lucide-svelte/icons/user-cog'
   import Bin from 'lucide-svelte/icons/trash'
+  import GeneralEmpty from '$lib/components/General/GeneralEmpty/GeneralEmpty.svelte'
   import ModalContentParticipantsGroupsChecklist from '$lib/components/Modal/ModalContent/ModalContentParticipantsGroupsChecklist.svelte'
 
   let participantsGroups: ParticipantsGroup[] = []
   participantsGroupsStore.subscribe(value => (participantsGroups = value))
-  let toggledGroupId: null | number = null
+  let toggledGroup: null | ParticipantsGroup = null
 
   const handleObjectPositionUp = (group: ParticipantsGroup) => {
     const index = participantsGroups.indexOf(group)
@@ -50,7 +46,7 @@
   const resetGroups = () => {
     participantsGroupsStore.set([])
     updateParticipantsGroups(participantsGroups)
-    toggledGroupId = null
+    toggledGroup = null
     addSuccessToast(`Cleared groups.`)
   }
 
@@ -58,23 +54,35 @@
     updateParticipantsGroups(participantsGroups)
     addSuccessToast(`Set ${participantsGroups.length} groups.`)
   }
+
+  const toggleGroup = (groupId: number | null = null) => {
+    console.log(groupId)
+    if (groupId === null) {
+      toggledGroup = null
+      return
+    }
+    let localToggledGroup = participantsGroups.find(g => g.id === groupId)
+    console.log(localToggledGroup)
+    if (localToggledGroup === undefined) {
+      addErrorToast(`Group not found.`)
+      return
+    }
+    toggledGroup = localToggledGroup
+  }
 </script>
 
-{#if toggledGroupId !== null}
+{#if toggledGroup !== null}
   <ModalContentParticipantsGroupsChecklist
-    group={participantsGroups.find(g => g.id === toggledGroupId)}
-    on:click={() => (toggledGroupId = null)}
+    group={toggledGroup}
+    on:click={() => (toggledGroup = null)}
   />
 {/if}
-{#if participantsGroups.length === 0 && toggledGroupId === null}
+{#if participantsGroups.length === 0 && toggledGroup === null}
   <div class="select-wrapper">
-    <div class="empty">
-      <ListX size={'1em'} />
-      <span>You did not yet create any groups.</span>
-    </div>
+    <GeneralEmpty message="No custom groups yet." />
   </div>
 {/if}
-{#if participantsGroups.length > 0 && toggledGroupId === null}
+{#if participantsGroups.length > 0 && toggledGroup === null}
   <table class="grid content">
     <thead>
       <tr class="gr-line header">
@@ -92,7 +100,7 @@
           <td>
             <GeneralButtonMinor
               isIcon={false}
-              on:click={() => (toggledGroupId = group.id)}
+              on:click={() => toggleGroup(group.id)}
             >
               <span class="participant-edit-button-inner">
                 <UserCog size={'1em'} />
@@ -102,19 +110,13 @@
           </td>
           <td>
             <div class="button-group">
-              <GeneralButtonMinor
-                isDisabled={participantsGroups.indexOf(group) === 0}
-                on:click={() => handleObjectPositionUp(group)}
-              >
-                <ArrowUp size={'1em'} />
-              </GeneralButtonMinor>
-              <GeneralButtonMinor
-                isDisabled={participantsGroups.indexOf(group) ===
+              <GeneralPositionControl
+                isFirst={participantsGroups.indexOf(group) === 0}
+                isLast={participantsGroups.indexOf(group) ===
                   participantsGroups.length - 1}
-                on:click={() => handleObjectPositionDown(group)}
-              >
-                <ArrowDown size={'1em'} />
-              </GeneralButtonMinor>
+                onMoveUp={() => handleObjectPositionUp(group)}
+                onMoveDown={() => handleObjectPositionDown(group)}
+              />
               <GeneralButtonMinor
                 on:click={() => {
                   participantsGroupsStore.set(
@@ -132,18 +134,17 @@
     </tbody>
   </table>
 {/if}
-{#if toggledGroupId === null}
-  <MajorButton on:click={() => addGroup(participantsGroups)}>
-    {participantsGroups.length < 1 ? 'Create' : 'Add'} group</MajorButton
-  >
+{#if toggledGroup === null}
+  <div class="footer">
+    <MajorButton on:click={() => addGroup(participantsGroups)}>
+      {participantsGroups.length < 1 ? 'Create' : 'Add'} group</MajorButton
+    >
+    <!-- TODO: disable save button if store is empty -->
+    <MajorButton on:click={resetGroups}>Clear groups</MajorButton>
+    <!-- TODO: disable save button if store is equal to data.participantsGroups -->
+    <MajorButton isDisabled={false} on:click={handleSubmit}>Save</MajorButton>
+  </div>
 {/if}
-
-<div class="footer">
-  <!-- TODO: disable save button if store is empty -->
-  <MajorButton on:click={resetGroups}>Clear groups</MajorButton>
-  <!-- TODO: disable save button if store is equal to data.participantsGroups -->
-  <MajorButton isDisabled={false} on:click={handleSubmit}>Save</MajorButton>
-</div>
 
 <style>
   .select-wrapper {
@@ -151,20 +152,6 @@
     display: flex;
     flex-direction: column;
     gap: 1em;
-  }
-  /* TOOD: extract into new component, empty? */
-  .empty {
-    padding: 1em;
-    border: 1px solid #ebebef;
-    border-radius: 3px;
-    color: gray;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5em;
-  }
-  .footer {
-    margin-top: 2em;
   }
   .participant-edit-button-inner {
     display: flex;
@@ -185,7 +172,13 @@
     margin: 0;
     padding: 0.5rem;
   }
-  table {
-    margin-bottom: 1em;
+  .button-group {
+    display: flex;
+    gap: 5px;
+    flex-direction: row;
+    flex-wrap: nowrap;
+  }
+  .footer {
+    margin-top: 2rem;
   }
 </style>

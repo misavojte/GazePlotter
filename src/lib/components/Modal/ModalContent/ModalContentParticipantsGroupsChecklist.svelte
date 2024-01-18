@@ -1,8 +1,8 @@
 <script lang="ts">
   import { getParticipants } from '$lib/stores/dataStore.ts'
-  import GeneralButtonMinor from '$lib/components/General/GeneralButton/GeneralButtonMinor.svelte'
-  import UserCog from 'lucide-svelte/icons/user-cog'
+  import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup.ts'
   import MajorButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
+  import GeneralInputCheck from '$lib/components/General/GeneralInput/GeneralInputCheck.svelte'
 
   export let group: ParticipantsGroup
 
@@ -40,19 +40,20 @@
 </div>
 <ul class="participants">
   {#each participants as participant, participantId}
-    <li id={`${participant}-${participantId}`}>
-      <input
-        type="checkbox"
+    <li>
+      <GeneralInputCheck
         checked={group.participantsIds.includes(participantId)}
+        label={participant}
         on:change={() => toggleParticipant(group, participantId)}
       />
-      <span>{participant}</span>
     </li>
   {/each}
 </ul>
-<MajorButton on:click>Return to groups</MajorButton>
-<MajorButton on:click={selectAll}>Select all</MajorButton>
-<MajorButton on:click={deselectAll}>Deselect all</MajorButton>
+<div class="footer">
+  <MajorButton on:click>Return to groups</MajorButton>
+  <MajorButton on:click={selectAll}>Select all</MajorButton>
+  <MajorButton on:click={deselectAll}>Deselect all</MajorButton>
+</div>
 
 <style>
   .space-between {
@@ -72,5 +73,8 @@
     text-align: left;
     font-size: 14px;
     font-weight: bold;
+  }
+  .footer {
+    margin-top: 2em;
   }
 </style>
