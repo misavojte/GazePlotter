@@ -1,10 +1,17 @@
 <script lang="ts">
   import type { SingleStylingScarfFillingType } from '$lib/type/Filling/ScarfFilling/index.ts'
+  import { createEventDispatcher } from 'svelte'
   export let legend: SingleStylingScarfFillingType
   export let isVisibility = false
+
+  const dispatch = createEventDispatcher()
+
+  const handleClick = () => {
+    dispatch('legendIdentifier', legend.identifier)
+  }
 </script>
 
-<div class="legendItem {legend.identifier}">
+<div class="legendItem {legend.identifier}" on:click={handleClick}>
   <svg width="20" height={legend.heighOfLegendItem}>
     {#if isVisibility}
       <line
@@ -38,5 +45,6 @@
     align-items: center;
     width: 115px;
     line-height: 1;
+    cursor: pointer;
   }
 </style>
