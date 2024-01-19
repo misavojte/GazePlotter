@@ -55,7 +55,7 @@
       { value: 'all_stimuli', label: 'All stimuli' },
     ]}
     legend="Apply to"
-    bind:value={absoluteTimelineApply}
+    bind:userSelected={absoluteTimelineApply}
   />
 </GeneralFieldset>
 <GeneralFieldset legend="Ordinal timeline [indices]">
@@ -69,7 +69,7 @@
       { value: 'all_stimuli', label: 'All stimuli' },
     ]}
     legend="Apply to"
-    bind:value={ordinalTimelineApply}
+    bind:userSelected={ordinalTimelineApply}
   />
 </GeneralFieldset>
 <MajorButton on:click={handleSubmit}>Apply</MajorButton>

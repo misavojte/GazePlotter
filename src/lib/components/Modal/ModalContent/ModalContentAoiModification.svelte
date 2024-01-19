@@ -19,7 +19,7 @@
   import GeneralEmpty from '$lib/components/General/GeneralEmpty/GeneralEmpty.svelte'
 
   export let selectedStimulus = '0'
-  export let value = 'this'
+  export let userSelected = 'this'
   let aoiObjects: ExtendedInterpretedDataType[] =
     [] /* Order in array is also important */
 
@@ -71,9 +71,9 @@
       | 'this_stimulus'
       | 'all_by_original_name'
       | 'all_by_displayed_name' = 'this_stimulus'
-    if (value === 'all_original')
+    if (userSelected === 'all_original')
       handlerTypeForAoiStore = 'all_by_original_name'
-    if (value === 'all_displayed')
+    if (userSelected === 'all_displayed')
       handlerTypeForAoiStore = 'all_by_displayed_name'
     try {
       updateMultipleAoi(
@@ -148,7 +148,7 @@
         { label: 'All by original name', value: 'all_original' },
         { label: 'All by displayed name', value: 'all_displayed' },
       ]}
-      bind:value
+      bind:userSelected
     />
   </div>
   <GeneralButtonMajor on:click={handleSubmit}>Apply</GeneralButtonMajor>

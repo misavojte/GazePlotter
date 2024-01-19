@@ -28,5 +28,5 @@
 
 <Story
   name="Last option preselected"
-  args={{ value: meta.args.options[meta.args.options.length - 1].value }}
+  args={{ userSelected: meta.args.options[meta.args.options.length - 1].value }}
 />
