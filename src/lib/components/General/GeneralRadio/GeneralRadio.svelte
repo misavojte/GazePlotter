@@ -1,7 +1,7 @@
 <script lang="ts">
   export let options: { value: string; label: string }[]
   export let legend: string
-  export let userSelected: string = options[0].value
+  export let value: string = options[0].value
 
   const uniqueID: number = Math.floor(Math.random() * 100)
 
@@ -21,7 +21,7 @@
       class="sr-only"
       type="radio"
       id="{slugify(label)}-{uniqueID}"
-      bind:group={userSelected}
+      bind:group={value}
       {value}
     />
     <label for="{slugify(label)}-{uniqueID}"> {label} </label>
