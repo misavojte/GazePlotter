@@ -19,7 +19,7 @@
 
 <Template let:args>
   <GeneralFieldset {...args}>
-    <GeneralInputNumber legend="A number input" />
+    <GeneralInputNumber label="A number input" />
     <GeneralRadio
       options={[
         { value: 'this_stimulus', label: 'This stimulus' },

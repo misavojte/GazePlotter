@@ -1,16 +1,16 @@
 <script lang="ts">
   import GeneralInputScaffold from '$lib/components/General/GeneralInput/GeneralInputScaffold.svelte'
 
-  export let legend: string
+  export let label: string
   export let files: FileList | null = null
   export let multiple = false
   export let accept: string[] =
     [] /* e.g. ['image/*', '.pdf'], if empty, allows all */
 
-  const id = `file-${legend.toLowerCase().replace(/\s+/g, '-')}`
+  const id = `file-${label.toLowerCase().replace(/\s+/g, '-')}`
 </script>
 
-<GeneralInputScaffold {legend} {id}>
+<GeneralInputScaffold {label} {id}>
   <input type="file" {multiple} accept={accept.join(',')} bind:files />
 </GeneralInputScaffold>
 

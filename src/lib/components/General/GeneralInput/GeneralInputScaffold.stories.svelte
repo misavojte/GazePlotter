@@ -6,7 +6,7 @@
     component: GeneralInputScaffold,
     tags: ['autodocs'],
     args: {
-      legend: 'Any input works',
+      label: 'Any input works',
       id: 'input_id',
     },
   }

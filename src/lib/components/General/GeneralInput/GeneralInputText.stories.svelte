@@ -6,7 +6,7 @@
     component: GeneralInputText,
     tags: ['autodocs'],
     args: {
-      legend: 'legend label',
+      label: 'legend label',
       value: 'lorem ipsum',
     },
   }

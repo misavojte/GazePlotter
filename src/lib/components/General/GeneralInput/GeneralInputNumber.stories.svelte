@@ -6,7 +6,7 @@
     component: GeneralInputNumber,
     tags: ['autodocs'],
     args: {
-      legend: 'My favourite number',
+      label: 'My favourite number',
     },
   }
 </script>

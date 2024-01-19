@@ -62,7 +62,7 @@
     options={participantOptions}
     bind:value={selectedParticipantId}
   />
-  <GeneralInputFile legend="AOI visibility file" bind:files />
+  <GeneralInputFile label="AOI visibility file" bind:files />
 </div>
 <GeneralButtonMajor on:click={handleSubmit}>Apply</GeneralButtonMajor>
 

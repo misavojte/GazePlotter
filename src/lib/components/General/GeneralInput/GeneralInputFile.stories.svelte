@@ -6,7 +6,7 @@
     component: GeneralInputFile,
     tags: ['autodocs'],
     args: {
-      legend: 'My favourite file',
+      label: 'My favourite file',
     },
   }
 </script>
@@ -23,10 +23,10 @@
 
 <Story
   name="Accept only pdfs"
-  args={{ ...meta.args, legend: 'My favourite pdf', accept: ['.pdf'] }}
+  args={{ ...meta.args, label: 'My favourite pdf', accept: ['.pdf'] }}
 />
 
 <Story
   name="Accepts multiple files"
-  args={{ ...meta.args, legend: 'My favourite files', multiple: true }}
+  args={{ ...meta.args, label: 'My favourite files', multiple: true }}
 />

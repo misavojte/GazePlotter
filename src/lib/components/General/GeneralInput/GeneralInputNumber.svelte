@@ -2,11 +2,11 @@
   import GeneralInputScaffold from '$lib/components/General/GeneralInput/GeneralInputScaffold.svelte'
   export let value = 0
   export let min = 0
-  export let legend: string
-  const id = `text-${legend.toLowerCase().replace(/\s+/g, '-')}`
+  export let label: string
+  const id = `text-${label.toLowerCase().replace(/\s+/g, '-')}`
 </script>
 
-<GeneralInputScaffold {legend} {id}>
+<GeneralInputScaffold {label} {id}>
   <input {id} type="number" bind:value {min} />
 </GeneralInputScaffold>
 

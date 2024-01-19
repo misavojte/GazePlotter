@@ -1,10 +1,10 @@
 <script lang="ts">
-  export let legend: string | null
+  export let label: string | null
   export let id: string
 </script>
 
 <div class="input">
-  <label for={id}>{legend}</label>
+  <label for={id}>{label}</label>
   <slot itemtype="input" />
 </div>
 
