@@ -19,4 +19,7 @@
     width: 170px;
     box-sizing: border-box;
   }
+  input:out-of-range {
+    border-color: red;
+  }
 </style>

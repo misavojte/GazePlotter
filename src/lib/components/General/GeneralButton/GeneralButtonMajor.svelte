@@ -17,7 +17,7 @@
     background-color: #ebebef;
     border: none;
     color: var(--c-black);
-    padding: 10px 20px;
+    padding: 0.75em 1.5em;
     border-radius: 20px;
     text-align: center;
     text-decoration: none;

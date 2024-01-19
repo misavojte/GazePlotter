@@ -19,8 +19,8 @@
     cursor: pointer;
   }
   input::file-selector-button {
-    border-radius: 4px;
-    padding: 0.5rem;
+    border-radius: 20px;
+    padding: 0.75em 1.5em;
     background: #eee;
     border: 1px solid #ccc;
     color: #666;
