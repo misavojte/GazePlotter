@@ -41,22 +41,11 @@
   .group-name {
     font-weight: bold;
   }
-  .drag-zone {
-    display: flex;
-    flex-direction: column;
-    place-items: center;
-    border: 1px dashed grey;
-    border-radius: 3px;
-    padding: 0.5em;
-    & .empty {
-      color: lightgrey;
-    }
-  }
   button {
     background: white;
     border: none;
     padding: 0.5em;
-    border-radius: 3px;
+    border-radius: var(--rounded);
     aspect-ratio: 1;
     border: 1px solid lightgray;
     transition: background 0.25s;

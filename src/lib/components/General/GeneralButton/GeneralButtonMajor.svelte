@@ -14,11 +14,11 @@
 
 <style>
   button {
-    background-color: #ebebef;
+    background-color: var(--c-lightgrey);
     border: none;
     color: var(--c-black);
     padding: 0.75em 1.5em;
-    border-radius: 20px;
+    border-radius: var(--rounded-lg);
     text-align: center;
     text-decoration: none;
     display: inline-block;
@@ -27,11 +27,11 @@
     font-weight: 600;
   }
   button:hover {
-    background-color: #e4e4e9;
+    background-color: var(--c-grey);
   }
   button:disabled {
-    background-color: #cccccc;
-    color: #666666;
+    background-color: var(--c-darkgrey);
+    color: var(--black);
     cursor: not-allowed;
   }
 </style>

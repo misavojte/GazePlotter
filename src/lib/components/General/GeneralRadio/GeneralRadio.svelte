@@ -68,13 +68,13 @@
     width: 1em;
     height: 1em;
     background: transparent;
-    border: 1px solid var(--gray, #ccc);
+    border: 1px solid var(--c-darkgrey, #ccc);
     border-radius: 50%;
     top: 0.2em;
   }
 
   input[type='radio']:checked + label::before {
-    border: 1px solid var(--gray, #ccc);
+    border: 1px solid var(--c-darkgrey, #ccc);
     border-radius: 50%;
   }
 
@@ -98,11 +98,11 @@
   }
 
   input[type='radio']:disabled + label {
-    color: var(--gray, #ccc);
+    color: var(--c-grey, #ccc);
   }
 
   input[type='radio']:disabled + label::before {
-    background: var(--gray, #ccc);
+    background: var(--c-grey, #ccc);
   }
 
   input[type='radio'] + label::after {

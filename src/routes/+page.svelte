@@ -161,15 +161,6 @@
 </footer>
 
 <style>
-  :global(:root) {
-    --c-brand: #cd1404;
-    --c-brand-dark: #a20d03;
-    --c-white: #fff;
-    --c-darkwhite: #f5f5f5;
-    --c-lightgrey: #ebebef;
-    --c-darkgrey: #e4e4e9;
-    --c-black: rgba(0, 0, 0, 0.75);
-  }
   main,
   header {
     color: var(--c-black);

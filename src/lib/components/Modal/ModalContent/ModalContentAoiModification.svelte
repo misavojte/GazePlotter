@@ -160,7 +160,7 @@
     height: 34px;
     box-sizing: border-box;
     border: 1px solid #ccc;
-    border-radius: 4px;
+    border-radius: var(--rounded);
     margin: 0;
     padding: 0.5rem;
   }
@@ -185,7 +185,7 @@
   .original-name {
     font-size: 14px;
     padding-right: 10px;
-    color: #999;
+    color: var(--c-darkgrey);
     cursor: not-allowed;
   }
   .content {

@@ -23,5 +23,6 @@
     display: flex;
     gap: 5px;
     flex-wrap: wrap;
+    background: inherit;
   }
 </style>

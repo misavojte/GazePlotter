@@ -12,8 +12,8 @@
 <style>
   input {
     padding: 0.5rem;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    border: 1px solid var(--c-darkgrey);
+    border-radius: var(--rounded);
     font-size: 14px;
     width: 170px;
     box-sizing: border-box;

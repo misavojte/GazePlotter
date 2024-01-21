@@ -17,9 +17,9 @@
 <style>
   button {
     background: none;
-    border: 1px solid rgba(0, 0, 0, 0.23);
-    border-radius: 4px;
-    color: rgba(0, 0, 0, 0.7);
+    border: 1px solid var(--c-black);
+    border-radius: var(--rounded);
+    color: var(--c-black);
     padding: 0.25em 0.5em;
     text-align: center;
     text-decoration: none;
@@ -35,12 +35,15 @@
     width: 34px;
   }
   button:hover {
-    border: 1px solid #cd1404;
-    color: #cd1404;
+    border: 1px solid var(--c-brand);
+    color: var(--c-brand);
   }
   button:disabled {
     cursor: not-allowed;
-    color: rgba(0, 0, 0, 0.26);
-    border: 1px solid rgba(0, 0, 0, 0.12);
+    color: (--c-darkgrey);
+    border: 1px solid var(--c-darkgrey);
+    &:hover {
+      color: inherit;
+    }
   }
 </style>

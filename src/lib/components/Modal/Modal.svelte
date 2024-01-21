@@ -60,7 +60,7 @@
     transform: translate(-50%, -50%);
     z-index: 1001;
     background-color: white;
-    border-radius: 0.5rem;
+    border-radius: var(--rounded-md);
     min-width: 420px;
     font-size: 14px;
   }

@@ -9,7 +9,8 @@
 
 <style>
   fieldset {
-    border: 1px solid #ccc;
+    border: 1px solid var(--c-darkgrey);
+    border-radius: var(--rounded);
     padding: 10px;
     margin-bottom: 20px;
   }

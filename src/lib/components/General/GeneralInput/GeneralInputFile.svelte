@@ -19,10 +19,11 @@
     cursor: pointer;
   }
   input::file-selector-button {
-    border-radius: 20px;
+    border-radius: var(--rounded-lg);
     padding: 0.75em 1.5em;
-    background: #eee;
-    border: 1px solid #ccc;
-    color: #666;
+    background: var(--c-lightgrey);
+    border: none;
+    font-weight: 600;
+    color: var(--c-black);
   }
 </style>

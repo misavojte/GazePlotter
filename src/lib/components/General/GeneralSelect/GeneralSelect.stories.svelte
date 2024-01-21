@@ -21,12 +21,18 @@
 </script>
 
 <Template let:args>
-  <GeneralSelect {...args}></GeneralSelect>
+  <div style={'background: white;'}>
+    <GeneralSelect {...args}></GeneralSelect>
+  </div>
 </Template>
 
 <Story name="Default" />
 
+<Story name="Disabled" args={{ disabled: true }} />
+
 <Story name="Compact" args={{ compact: true }} />
+
+<Story name="Compact disabled" args={{ compact: true, disabled: true }} />
 
 <Story
   name="Last option preselected"

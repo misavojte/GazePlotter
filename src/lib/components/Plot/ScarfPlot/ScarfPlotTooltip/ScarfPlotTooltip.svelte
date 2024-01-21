@@ -62,7 +62,7 @@
     background: #6d6d6d;
     color: rgba(255, 255, 255, 0.8);
     transition: 0.3s ease-in-out;
-    border-radius: 3px;
+    border-radius: var(--rounded);
     z-index: 993;
   }
   .tooltip > div {
