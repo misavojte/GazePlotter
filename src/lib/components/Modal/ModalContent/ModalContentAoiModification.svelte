@@ -159,8 +159,8 @@
   input {
     height: 34px;
     box-sizing: border-box;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    border: 1px solid var(--c-darkgrey);
+    border-radius: var(--rounded);
     margin: 0;
     padding: 0.5rem;
   }
@@ -170,6 +170,7 @@
     width: 50px;
     padding: 4px;
     background: none;
+    cursor: pointer;
   }
 
   .button-group {
@@ -185,7 +186,7 @@
   .original-name {
     font-size: 14px;
     padding-right: 10px;
-    color: #999;
+    color: var(--c-midgrey);
     cursor: not-allowed;
   }
   .content {

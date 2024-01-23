@@ -10,6 +10,8 @@
   } from '$lib/stores/scarfPlotsStore.ts'
   import { addErrorToast, addSuccessToast } from '$lib/stores/toastStore.ts'
 
+  $: isDisabled = $processingFileStateStore === 'processing'
+
   let input: HTMLInputElement
   let workerService: EyeWorkerService | null = null
 
@@ -40,7 +42,7 @@
   }
 </script>
 
-<MajorControlButton on:click={triggerFileUpload}>
+<MajorControlButton {isDisabled} on:click={triggerFileUpload}>
   <label for="GP-file-upload">
     Upload file
     <input

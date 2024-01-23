@@ -2,6 +2,7 @@
   import ChevronDown from 'lucide-svelte/icons/chevron-down'
 
   export let options: Array<{ value: string; label: string }>
+  export let disabled: boolean = false
   export let label: string
   export let value: string = options[0].value
   export let compact: boolean = false
@@ -15,7 +16,7 @@
 <div class="select-wrapper" class:compact>
   <label for={name}>{label}</label>
   <div class="option-wrapper">
-    <select {name} id="GP-{name}" on:change={handleChange}>
+    <select {disabled} {name} id="GP-{name}" on:change={handleChange}>
       {#each options as option}
         <option value={option.value} selected={option.value === value}
           >{option.label}</option
@@ -40,6 +41,9 @@
     width: 140px;
     margin-bottom: 0;
   }
+  .compact {
+    background: inherit;
+  }
   .compact label {
     font-size: 8px;
     position: absolute;
@@ -47,8 +51,8 @@
     line-height: 1rem;
     letter-spacing: 0.0333333333em;
     text-transform: uppercase;
-    color: rgba(0, 0, 0, 0.6);
-    background: var(--c-darkgrey);
+    color: var(--c-darkgrey);
+    background: inherit;
     padding-inline: 4px;
     left: 10px;
     top: -0.9em;
@@ -57,18 +61,22 @@
   .option-wrapper {
     display: flex;
     align-items: center;
-    border-radius: 4px;
-    border: 1px solid rgba(0, 0, 0, 0.23);
+    border-radius: var(--rounded);
+    border: 1px solid var(--c-darkgrey);
     position: relative;
     height: 34px;
     overflow: hidden;
     box-sizing: border-box;
+    &:has(select:disabled) {
+      border-color: var(--c-grey);
+    }
   }
   select {
+    background: inherit;
     font-weight: 400;
     line-height: 1.5rem;
     letter-spacing: 0.00938em;
-    color: rgba(0, 0, 0, 0.87);
+    color: var(--c-black);
     border: none;
     transition: border-color 0.2s ease-in-out;
     font-size: 14px;
@@ -82,7 +90,7 @@
     padding-inline: 0.5em 22px;
   }
   .compact select {
-    background-color: var(--c-darkgrey);
+    background: inherit;
     padding-inline: 14px 22px;
   }
   .svg-wrap {
@@ -95,7 +103,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: rgba(0, 0, 0, 0.54);
+    color: var(--c-darkgrey);
   }
 
   select:focus {
@@ -103,8 +111,7 @@
     border-color: #1976d2;
   }
   select:disabled {
-    background-color: rgba(0, 0, 0, 0.12);
-    color: rgba(0, 0, 0, 0.38);
+    color: var(--c-darkgrey);
     cursor: not-allowed;
   }
 </style>

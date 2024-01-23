@@ -15,15 +15,6 @@
 </div>
 
 <style>
-  :global(:root) {
-    --c-brand: #cd1404;
-    --c-brand-dark: #a20d03;
-    --c-white: #fff;
-    --c-darkwhite: #f3f3f5;
-    --c-lightgrey: #ebebef;
-    --c-darkgrey: #e4e4e9;
-    --c-black: rgba(0, 0, 0, 0.75);
-  }
   #GP-gazeplotter {
     font-family: inherit;
     font-size: 16px;

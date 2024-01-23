@@ -11,9 +11,9 @@
 <style>
   .empty {
     padding: 1em;
-    border: 1px solid #ebebef;
-    border-radius: 3px;
-    color: gray;
+    border: 1px solid var(--c-lightgrey);
+    border-radius: var(--rounded);
+    color: var(--c-darkgrey);
     display: flex;
     align-items: center;
     justify-content: center;

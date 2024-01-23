@@ -144,15 +144,15 @@
     display: flex;
     gap: 0.5em;
     border: 1px solid;
-    border-radius: 3px;
+    border-radius: var(--rounded);
     padding: 0.25em;
     &:has(input:focus, button:focus) {
       outline: auto;
       outline-width: thin;
     }
     &:has(input:invalid) {
-      box-shadow: 0 0 5px red;
-      outline: solid medium red;
+      box-shadow: 0 0 5px var(--c-error);
+      outline: solid medium var(--c-error);
     }
   }
   input {
@@ -169,8 +169,8 @@
   .tag {
     display: flex;
     align-items: stretch;
-    background-color: #ebebef;
-    border-radius: 3px;
+    background-color: var(--c-lightgrey);
+    border-radius: var(--rounded);
     & span {
       padding: 0.15rem 0.25rem;
     }

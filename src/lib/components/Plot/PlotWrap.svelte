@@ -14,10 +14,10 @@
 
 <style>
   .plot {
-    border-radius: 20px;
+    border-radius: var(--rounded-lg);
     box-shadow: 0 2px 10px rgb(0 0 0 / 15%);
     width: 100%;
-    background: #fff;
+    background: var(--c-white);
     box-sizing: border-box;
     overflow: hidden;
   }
@@ -26,7 +26,7 @@
     justify-content: space-between;
     align-items: center;
     padding: 15px 30px;
-    background: var(--c-darkgrey);
+    background: var(--c-lightgrey);
     flex-wrap: wrap;
     gap: 0 20px;
   }

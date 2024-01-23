@@ -34,11 +34,11 @@
   }
 </script>
 
-<GeneralInputNumber legend="Width in px" bind:value={width} />
+<GeneralInputNumber label="Width in px" bind:value={width} />
 <GeneralSelectBase
   label="Output file type"
   {options}
   bind:value={typeOfExport}
 />
-<GeneralInputText legend="Output file name" bind:value={fileName} />
+<GeneralInputText label="Output file name" bind:value={fileName} />
 <MajorButton on:click={handleSubmit}>Download</MajorButton>

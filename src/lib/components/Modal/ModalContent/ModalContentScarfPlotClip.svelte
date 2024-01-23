@@ -46,7 +46,7 @@
 
 <GeneralFieldset legend="Absolute timeline [ms]">
   <GeneralInputNumber
-    legend="Last value (0 = automatic)"
+    label="Last value (0 = automatic)"
     bind:value={absoluteVal}
   />
   <GeneralRadio
@@ -60,7 +60,7 @@
 </GeneralFieldset>
 <GeneralFieldset legend="Ordinal timeline [indices]">
   <GeneralInputNumber
-    legend="Last value (0 = automatic)"
+    label="Last value (0 = automatic)"
     bind:value={ordinalVal}
   />
   <GeneralRadio

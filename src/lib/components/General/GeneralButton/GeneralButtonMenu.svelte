@@ -72,10 +72,10 @@
     position: absolute;
     top: calc(100% + 5px);
     right: 0;
-    background: #fff;
+    background: var(--c-white);
     border: 1px solid #ccc;
-    border-radius: 4px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    border-radius: var(--rounded);
+    box-shadow: 0 0 10px var(--c-grey);
     overflow: hidden;
   }
   .menu,

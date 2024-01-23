@@ -76,7 +76,7 @@
     width: 250px;
   }
   .toast {
-    border-radius: 0.5rem;
+    border-radius: var(--rounded-md);
     background: var(--c-white);
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     color: var(--c-black);
@@ -95,19 +95,19 @@
   }
 
   .success {
-    background: #22c55e;
+    background: var(--c-success);
   }
 
   .error {
-    background: #ff4d4f;
+    background: var(--c-error);
   }
 
   .warning {
-    background: #faad14;
+    background: var(--c-warning);
   }
 
   .info {
-    background: #1890ff;
+    background: var(--c-info);
   }
 
   .toast-header {
