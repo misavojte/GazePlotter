@@ -1,11 +1,5 @@
 <script lang="ts">
-  import { processingFileStateStore } from '$lib/stores/processingFileStateStore.js'
-
   export let isDisabled = false
-
-  processingFileStateStore.subscribe(isProcessingFile => {
-    isDisabled = isProcessingFile === 'processing'
-  })
 </script>
 
 <button disabled={isDisabled} on:click>
@@ -30,8 +24,8 @@
     background-color: var(--c-grey);
   }
   button:disabled {
-    background-color: var(--c-darkgrey);
-    color: var(--black);
+    color: var(--c-midgrey);
+    background-color: var(--c-lightgrey);
     cursor: not-allowed;
   }
 </style>
