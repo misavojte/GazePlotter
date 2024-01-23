@@ -51,7 +51,7 @@
     line-height: 1rem;
     letter-spacing: 0.0333333333em;
     text-transform: uppercase;
-    color: var(--c-black);
+    color: var(--c-darkgrey);
     background: inherit;
     padding-inline: 4px;
     left: 10px;
@@ -62,13 +62,13 @@
     display: flex;
     align-items: center;
     border-radius: var(--rounded);
-    border: 1px solid var(--c-black);
+    border: 1px solid var(--c-darkgrey);
     position: relative;
     height: 34px;
     overflow: hidden;
     box-sizing: border-box;
     &:has(select:disabled) {
-      border-color: var(--c-darkgrey);
+      border-color: var(--c-grey);
     }
   }
   select {
@@ -103,7 +103,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--c-black);
+    color: var(--c-darkgrey);
   }
 
   select:focus {

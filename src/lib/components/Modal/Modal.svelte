@@ -79,14 +79,14 @@
     align-items: center;
   }
   button:hover {
-    background-color: #eee;
+    background-color: var(--c-lightgrey);
   }
   .modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 0.5rem 1rem;
-    border-bottom: 1px solid #ccc;
+    border-bottom: 1px solid var(--c-midgrey);
     flex-wrap: wrap;
     gap: 0 20px;
   }

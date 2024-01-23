@@ -17,7 +17,7 @@
 <style>
   button {
     background: none;
-    border: 1px solid var(--c-black);
+    border: 1px solid var(--c-darkgrey);
     border-radius: var(--rounded);
     color: var(--c-black);
     padding: 0.25em 0.5em;
@@ -40,10 +40,7 @@
   }
   button:disabled {
     cursor: not-allowed;
-    color: (--c-darkgrey);
-    border: 1px solid var(--c-darkgrey);
-    &:hover {
-      color: inherit;
-    }
+    color: var(--c-darkgrey);
+    border: 1px solid var(--c-midgrey);
   }
 </style>
