@@ -28,9 +28,10 @@
   let highlightedType: string | null = null
   let removeHighlight: null | (() => void) = null
 
-  let participantIds: number[] = getParticipants(settings.groupId).map(
-    participant => participant.id
-  )
+  let participantIds: number[] = getParticipants(
+    settings.groupId,
+    stimulusId
+  ).map(participant => participant.id)
 
   let window: Window
 
@@ -183,10 +184,10 @@
         return
       }
       settings = newSetting
-      participantIds = getParticipants(settings.groupId).map(
+      stimulusId = settings.stimulusId
+      participantIds = getParticipants(settings.groupId, stimulusId).map(
         participant => participant.id
       )
-      stimulusId = settings.stimulusId
       absoluteTimeline = getAxisBreaks(participantIds, stimulusId, settings)
       data = getFilling(stimulusId, participantIds, absoluteTimeline, settings)
     }
