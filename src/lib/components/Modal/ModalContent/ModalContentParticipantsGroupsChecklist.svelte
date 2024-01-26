@@ -6,7 +6,7 @@
 
   export let group: ParticipantsGroup
 
-  const participants = getParticipants().map(d => d.displayedName)
+  const participants = getParticipants()
 
   const toggleParticipant = (
     group: ParticipantsGroup,
@@ -39,12 +39,12 @@
   </span>
 </div>
 <ul class="participants">
-  {#each participants as participant, participantId}
+  {#each participants as participant (participant.id)}
     <li>
       <GeneralInputCheck
-        checked={group.participantsIds.includes(participantId)}
-        label={participant}
-        on:change={() => toggleParticipant(group, participantId)}
+        checked={group.participantsIds.includes(participant.id)}
+        label={participant.displayedName}
+        on:change={() => toggleParticipant(group, participant.id)}
       />
     </li>
   {/each}
