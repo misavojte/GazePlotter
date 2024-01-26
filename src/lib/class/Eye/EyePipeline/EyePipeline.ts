@@ -43,6 +43,8 @@ export class EyePipeline {
     const firstTextChunk = await parser.getTextChunk()
     const settings = await this.classify(firstTextChunk)
     const splitter = new EyeSplitter(settings)
+    const userStringInput: string =
+      settings.type === 'tobii-with-event' ? await this.requestUserInput() : ''
     this.processChunk(firstTextChunk, settings, splitter)
 
     while (!parser.isDone) {
@@ -147,5 +149,10 @@ export class EyePipeline {
     parseThroughInterval: boolean
   ): TobiiEyeDeserializer {
     return new TobiiEyeDeserializer(row, parseThroughInterval)
+  }
+
+  requestUserInput(): Promise<string> {
+    // TODO: implement
+    return new Promise(resolve => resolve(''))
   }
 }
