@@ -224,12 +224,16 @@ export const getStimuli = (): BaseInterpretedDataType[] => {
  * @returns participants of given group
  * @throws Error if group with given id does not exist and is not -1 or -2
  */
-export const getParticipants = (groupId = -1): BaseInterpretedDataType[] => {
+export const getParticipants = (
+  groupId = -1,
+  stimulusId = 0
+): BaseInterpretedDataType[] => {
   if (groupId === -1) {
     return getAllParticipants()
   }
   if (groupId === -2) {
-    return getNonEmptyParticipants()
+    console.log('non empty')
+    return getNonEmptyParticipants(stimulusId)
   }
   const group = getParticipantsGroup(groupId)
   const participantsIds = getParticipantOrderVector()
@@ -248,10 +252,12 @@ export const getAllParticipants = (): BaseInterpretedDataType[] => {
   )
 }
 
-export const getNonEmptyParticipants = (): BaseInterpretedDataType[] => {
+export const getNonEmptyParticipants = (
+  stimulusId: number
+): BaseInterpretedDataType[] => {
   const participantsIds = getParticipantOrderVector()
   const nonEmptyParticipantsIds = participantsIds.filter(
-    participantId => getNumberOfSegments(0, participantId) > 0
+    participantId => getNumberOfSegments(stimulusId, participantId) > 0
   )
   return nonEmptyParticipantsIds.map(participantId =>
     getParticipant(participantId)
@@ -259,7 +265,8 @@ export const getNonEmptyParticipants = (): BaseInterpretedDataType[] => {
 }
 
 export const getParticipantsGroups = (
-  isDefault = false
+  isDefault = false,
+  stimulusId = 0
 ): ParticipantsGroup[] => {
   const defaultGroups: ParticipantsGroup[] = []
   if (isDefault) {
@@ -271,7 +278,7 @@ export const getParticipantsGroups = (
     defaultGroups.push({
       id: -2,
       name: 'Non-empty',
-      participantsIds: getNonEmptyParticipants().map(
+      participantsIds: getNonEmptyParticipants(stimulusId).map(
         participant => participant.id
       ),
     })

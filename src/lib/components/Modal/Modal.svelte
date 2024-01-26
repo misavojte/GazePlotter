@@ -95,5 +95,7 @@
   }
   .modal .body {
     padding: 1rem;
+    max-height: calc(100vh - 200px);
+    overflow: auto;
   }
 </style>
