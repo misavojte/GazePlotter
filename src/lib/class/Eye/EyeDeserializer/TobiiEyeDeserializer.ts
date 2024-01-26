@@ -2,7 +2,11 @@ import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/Sing
 import { AbstractEyeDeserializer } from './AbstractEyeDeserializer.ts'
 
 export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
-  cAoiInfo: Array<{ columnPosition: number, aoiName: string, stimulusName: string }>
+  cAoiInfo: Array<{
+    columnPosition: number
+    aoiName: string
+    stimulusName: string
+  }>
   cRecordingTimestamp: number
   cStimulus: number
   cParticipant: number
@@ -26,7 +30,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   EVENT_CUSTOM_WEB_NAVIGATION_END_STIMULUS_MARKER = '_end'
   stimulusGetter: (row: string[]) => string
 
-  constructor (header: string[], parseThroughIntervals = false) {
+  constructor(header: string[], parseThroughIntervals = false) {
     super()
     this.cRecordingTimestamp = header.indexOf('Recording timestamp')
     this.cStimulus = header.indexOf('Presented Stimulus name')
@@ -35,19 +39,37 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     this.cCategory = header.indexOf('Eye movement type')
     this.cEvent = header.indexOf('Event')
     this.cEyeMovementTypeIndex = header.indexOf('Eye movement type index')
-    this.cAoiInfo = this.createAoiInfo(header, this.createStimuliDictionary(header))
-    this.stimulusGetter = parseThroughIntervals ? this.intervalStimulusGetter : this.baseStimulusGetter
+    this.cAoiInfo = this.createAoiInfo(
+      header,
+      this.createStimuliDictionary(header)
+    )
+    this.stimulusGetter = parseThroughIntervals
+      ? this.intervalStimulusGetter
+      : this.baseStimulusGetter
   }
 
-  createStimuliDictionary (header: string[]): string[] {
-    const aoiColumns = header.filter((x) => (x.startsWith('AOI hit [')))
-    return [...new Set(aoiColumns.map(x => x.replace(/AOI hit \[|\s-.*?]/g, '')).sort())]
+  createStimuliDictionary(header: string[]): string[] {
+    const aoiColumns = header.filter(x => x.startsWith('AOI hit ['))
+    return [
+      ...new Set(
+        aoiColumns.map(x => x.replace(/AOI hit \[|\s-.*?]/g, '')).sort()
+      ),
+    ]
   }
 
-  createAoiInfo (header: string[], stimuliDictionary: string[]): Array<{ columnPosition: number, aoiName: string, stimulusName: string }> {
-    const aoiInfo: Array<{ columnPosition: number, aoiName: string, stimulusName: string }> = []
+  createAoiInfo(
+    header: string[],
+    stimuliDictionary: string[]
+  ): Array<{ columnPosition: number; aoiName: string; stimulusName: string }> {
+    const aoiInfo: Array<{
+      columnPosition: number
+      aoiName: string
+      stimulusName: string
+    }> = []
     for (const stimulus of stimuliDictionary) {
-      const aoiColumns = header.filter((x) => (x.startsWith('AOI hit [' + stimulus)))
+      const aoiColumns = header.filter(x =>
+        x.startsWith('AOI hit [' + stimulus)
+      )
       const positionOfFirstColumn = header.indexOf(aoiColumns[0])
       aoiColumns.forEach((aoiItem, index) => {
         const columnPosition = positionOfFirstColumn + index
@@ -58,7 +80,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     return aoiInfo
   }
 
-  deserialize (row: string[]): SingleDeserializerOutput | null {
+  deserialize(row: string[]): SingleDeserializerOutput | null {
     const category = row[this.cCategory]
     if (category === '') return null // skip empty rows
 
@@ -71,7 +93,10 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
         this.mBaseTime = this.mRecordingStart
         const key = this.mStimulus + this.mParticipant
         if (this.mStimulus !== '') {
-          this.stimuliRevisit[key] = this.stimuliRevisit[key] !== undefined ? this.stimuliRevisit[key] + 1 : 0
+          this.stimuliRevisit[key] =
+            this.stimuliRevisit[key] !== undefined
+              ? this.stimuliRevisit[key] + 1
+              : 0
         }
         this.mStimulus = stimulus
       }
@@ -89,11 +114,18 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     const aoi = this.getAoisFromRow(row)
 
     // change base time if change of stimulus / participant
-    if (stimulus !== this.mStimulus || participant !== this.mParticipant || this.mBaseTime === '') {
+    if (
+      stimulus !== this.mStimulus ||
+      participant !== this.mParticipant ||
+      this.mBaseTime === ''
+    ) {
       this.mBaseTime = recordingTimestamp
       const key = this.mStimulus + this.mParticipant
       if (this.mStimulus !== '') {
-        this.stimuliRevisit[key] = this.stimuliRevisit[key] !== undefined ? this.stimuliRevisit[key] + 1 : 0
+        this.stimuliRevisit[key] =
+          this.stimuliRevisit[key] !== undefined
+            ? this.stimuliRevisit[key] + 1
+            : 0
       }
       this.mStimulus = stimulus
     }
@@ -109,23 +141,35 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     return previousSegment
   }
 
-  finalize (): SingleDeserializerOutput | null {
+  finalize(): SingleDeserializerOutput | null {
     return this.getPreviousSegment()
   }
 
-  getPreviousSegment (): SingleDeserializerOutput | null {
-    if (this.mParticipant === '' || this.mStimulus === '' || this.mRecordingStart === '' || this.mRecordingLast === this.mRecordingStart) return null
+  getPreviousSegment(): SingleDeserializerOutput | null {
+    if (
+      this.mParticipant === '' ||
+      this.mStimulus === '' ||
+      this.mRecordingStart === '' ||
+      this.mRecordingLast === this.mRecordingStart
+    )
+      return null
     return {
       stimulus: this.getNonDuplicateStimulus(this.mStimulus),
       participant: this.mParticipant,
-      start: String((Number(this.mRecordingStart) - Number(this.mBaseTime)) * this.TIME_MODIFIER),
-      end: String((Number(this.mRecordingLast) - Number(this.mBaseTime)) * this.TIME_MODIFIER),
+      start: String(
+        (Number(this.mRecordingStart) - Number(this.mBaseTime)) *
+          this.TIME_MODIFIER
+      ),
+      end: String(
+        (Number(this.mRecordingLast) - Number(this.mBaseTime)) *
+          this.TIME_MODIFIER
+      ),
       category: this.mCategory,
-      aoi: this.mAoi
+      aoi: this.mAoi,
     }
   }
 
-  getAoisFromRow (row: string[]): string[] {
+  getAoisFromRow(row: string[]): string[] {
     const aois: string[] = []
     for (const aoiInfo of this.cAoiInfo) {
       if (row[aoiInfo.columnPosition] === '1') {
@@ -135,33 +179,43 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     return aois
   }
 
-  baseStimulusGetter (row: string[]): string {
+  baseStimulusGetter(row: string[]): string {
     return row[this.cStimulus]
   }
 
-  intervalStimulusGetter (row: string[]): string {
+  intervalStimulusGetter(row: string[]): string {
     // there is now start of nes stimulus indicated in Event column by value in this format:
     // "NAME_OF_STIMULUS IntervalStart"
     const event = row[this.cEvent]
     // if contains IntervalStart, then it is the start of a new stimulus
     let stimulus = this.mStimulus
+    if (event === '' || event === undefined) return stimulus
     if (event.includes(this.EVENT_BASE_START_STIMULUS_MARKER)) {
       stimulus = event.replace(' ' + this.EVENT_BASE_START_STIMULUS_MARKER, '')
     }
-    if (event.includes(this.EVENT_CUSTOM_WEB_NAVIGATION_START_STIMULUS_MARKER)) {
-      stimulus = event.replace(this.EVENT_CUSTOM_WEB_NAVIGATION_START_STIMULUS_MARKER, '')
+    if (
+      event.includes(this.EVENT_CUSTOM_WEB_NAVIGATION_START_STIMULUS_MARKER)
+    ) {
+      stimulus = event.replace(
+        this.EVENT_CUSTOM_WEB_NAVIGATION_START_STIMULUS_MARKER,
+        ''
+      )
     }
-    if (event.includes(this.EVENT_CUSTOM_WEB_NAVIGATION_END_STIMULUS_MARKER) || event.includes(this.EVENT_BASE_END_STIMULUS_MARKER)) {
+    if (
+      event.includes(this.EVENT_CUSTOM_WEB_NAVIGATION_END_STIMULUS_MARKER) ||
+      event.includes(this.EVENT_BASE_END_STIMULUS_MARKER)
+    ) {
       stimulus = ''
     }
     return stimulus
   }
 
-  getNonDuplicateStimulus (stimulus: string): string {
+  getNonDuplicateStimulus(stimulus: string): string {
     if (stimulus !== '') {
       const participantKey = stimulus + this.mParticipant
       if (participantKey in this.stimuliRevisit) {
-        stimulus = stimulus + ' (' + String(this.stimuliRevisit[participantKey]) + ')'
+        stimulus =
+          stimulus + ' (' + String(this.stimuliRevisit[participantKey]) + ')'
       }
     }
     return stimulus
