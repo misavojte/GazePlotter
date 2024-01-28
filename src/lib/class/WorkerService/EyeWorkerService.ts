@@ -1,4 +1,10 @@
-import { addErrorToast, addInfoToast } from '$lib/stores/toastStore.ts'
+import ModalContentTobiiParsingInput from '$lib/components/Modal/ModalContent/ModalContentTobiiParsingInput.svelte'
+import { modalStore } from '$lib/stores/modalStore.ts'
+import {
+  addErrorToast,
+  addInfoToast,
+  toastStore,
+} from '$lib/stores/toastStore.ts'
 import type { DataType } from '$lib/type/Data/DataType.ts'
 
 /**
@@ -100,6 +106,9 @@ export class EyeWorkerService {
       case 'fail':
         this.handleError(event.data.data)
         break
+      case 'request-user-input':
+        this.handleUserInputProcess()
+        break
       default:
         console.error('EyeWorkerService.handleMessage() - event:', event)
     }
@@ -109,5 +118,34 @@ export class EyeWorkerService {
     addErrorToast('Could not process the file')
     console.error(event.error)
     console.error('EyeWorkerService.handleError() - event:', event)
+  }
+
+  handleUserInputProcess(): void {
+    this.requestUserInput()
+      .then(userInput => {
+        this.worker.postMessage({ type: 'user-input', data: userInput })
+        modalStore.close()
+      })
+      .catch(() => {
+        addInfoToast(
+          'User input was not provided. The file will be processed as Tobii without events'
+        )
+        this.worker.postMessage({ type: 'user-input', data: '' })
+      })
+  }
+
+  /**
+   * Requests user input for further processing,
+   * to determine how to parse stimuli in the file.
+   *
+   * The user input is then sent to the worker which resumes processing.
+   */
+  requestUserInput(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      modalStore.open(ModalContentTobiiParsingInput, 'Tobii Parsing Input', {
+        valuePromiseResolve: resolve,
+        valuePromiseReject: reject,
+      })
+    })
   }
 }

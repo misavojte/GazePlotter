@@ -24,13 +24,10 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   mBaseTime = ''
   stimuliRevisit: Record<string, number> = {} // Using an object to track the stimulus_participant revisit count
   TIME_MODIFIER = 0.001 // milliseconds needed, tobii uses microseconds
-  EVENT_BASE_START_STIMULUS_MARKER = 'IntervalStart'
-  EVENT_BASE_END_STIMULUS_MARKER = 'IntervalEnd'
-  EVENT_CUSTOM_WEB_NAVIGATION_START_STIMULUS_MARKER = '_start'
-  EVENT_CUSTOM_WEB_NAVIGATION_END_STIMULUS_MARKER = '_end'
+  intervalMarkers: { start: string; end: string } | null = null
   stimulusGetter: (row: string[]) => string
 
-  constructor(header: string[], parseThroughIntervals = false) {
+  constructor(header: string[], userInput: string) {
     super()
     this.cRecordingTimestamp = header.indexOf('Recording timestamp')
     this.cStimulus = header.indexOf('Presented Stimulus name')
@@ -43,9 +40,10 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
       header,
       this.createStimuliDictionary(header)
     )
-    this.stimulusGetter = parseThroughIntervals
-      ? this.intervalStimulusGetter
-      : this.baseStimulusGetter
+    this.stimulusGetter =
+      userInput === ''
+        ? this.baseStimulusGetter
+        : this.getIntervalStimulusGetter(userInput)
   }
 
   createStimuliDictionary(header: string[]): string[] {
@@ -183,31 +181,24 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     return row[this.cStimulus]
   }
 
-  intervalStimulusGetter(row: string[]): string {
-    // there is now start of nes stimulus indicated in Event column by value in this format:
-    // "NAME_OF_STIMULUS IntervalStart"
-    const event = row[this.cEvent]
-    // if contains IntervalStart, then it is the start of a new stimulus
-    let stimulus = this.mStimulus
-    if (event === '' || event === undefined) return stimulus
-    if (event.includes(this.EVENT_BASE_START_STIMULUS_MARKER)) {
-      stimulus = event.replace(' ' + this.EVENT_BASE_START_STIMULUS_MARKER, '')
+  getIntervalStimulusGetter(userInput: string): (row: string[]) => string {
+    const { startMarker, endMarker } = this.getIntervalMarkers(userInput)
+    const stimulusGetterFunction = (row: string[]): string => {
+      // there is now start of nes stimulus indicated in Event column by value in this format:
+      // "NAME_OF_STIMULUS IntervalStart"
+      const event = row[this.cEvent]
+      // if contains IntervalStart, then it is the start of a new stimulus
+      let stimulus = this.mStimulus
+      if (event === '' || event === undefined) return stimulus
+      if (event.includes(startMarker)) {
+        stimulus = event.replace(startMarker, '')
+      }
+      if (event.includes(endMarker)) {
+        stimulus = ''
+      }
+      return stimulus
     }
-    if (
-      event.includes(this.EVENT_CUSTOM_WEB_NAVIGATION_START_STIMULUS_MARKER)
-    ) {
-      stimulus = event.replace(
-        this.EVENT_CUSTOM_WEB_NAVIGATION_START_STIMULUS_MARKER,
-        ''
-      )
-    }
-    if (
-      event.includes(this.EVENT_CUSTOM_WEB_NAVIGATION_END_STIMULUS_MARKER) ||
-      event.includes(this.EVENT_BASE_END_STIMULUS_MARKER)
-    ) {
-      stimulus = ''
-    }
-    return stimulus
+    return stimulusGetterFunction
   }
 
   getNonDuplicateStimulus(stimulus: string): string {
@@ -219,5 +210,16 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
       }
     }
     return stimulus
+  }
+
+  getIntervalMarkers(userInput: string): {
+    startMarker: string
+    endMarker: string
+  } {
+    const markers = userInput.split(';')
+    if (markers.length !== 2) {
+      throw new Error('Invalid interval markers')
+    }
+    return { startMarker: markers[0], endMarker: markers[1] }
   }
 }
