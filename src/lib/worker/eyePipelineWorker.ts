@@ -48,7 +48,7 @@ async function processEvent(e: MessageEvent): Promise<void> {
     case 'buffer':
       return await evalBuffer(data)
     case 'user-input':
-      userInputResolver(data.value)
+      return userInputResolver(data)
     default:
       throw new Error('Unknown const type in worker', data)
   }

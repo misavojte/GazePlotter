@@ -1,6 +1,7 @@
 <script lang="ts">
   import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
   import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
+  import { onDestroy } from 'svelte'
   export let valuePromiseResolve: (value: string) => void
   export let valuePromiseReject: (reason?: any) => void
   let value: string
