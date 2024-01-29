@@ -23,9 +23,7 @@ import { AbstractEyeDeserializer } from './AbstractEyeDeserializer.ts'
  * @member mAoi - Current AOIs.
  * @member mBaseTime - Current base time.
  * @member stimuliRevisit - Object containing information about revisited stimuli.
- * @member TIME_MODIFIER - Time modifier for converting microseconds to milliseconds.
  * @member stimulusGetter - Function that returns the stimulus name, either from the Presented Stimulus name column or from the Event column.
- *
  */
 export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   cAoiInfo: Array<{
@@ -49,9 +47,12 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   mCategory = ''
   mAoi: string[] | null = null
   mBaseTime = ''
-  stimuliRevisit: Record<string, number> = {} // Using an object to track the stimulus_participant revisit count
-  TIME_MODIFIER = 0.001 // milliseconds needed, tobii uses microseconds
+  /* stimuliRevisit: Record<string, number> = {} // Using an object to track the stimulus_participant revisit count */
   stimulusGetter: (row: string[]) => string
+  stimuliBaseTimes: Map<string, string> = new Map()
+
+  static readonly TYPE = 'tobii'
+  static readonly TIME_MODIFIER = 0.001 // microseconds to milliseconds
 
   /**
    * @group Initialization
@@ -218,12 +219,13 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     const previousSegment = this.getPreviousSegment()
 
     const stimulus = this.stimulusGetter(row)
+
     const participant = row[this.cRecording] + ' ' + row[this.cParticipant]
     // const category = row[this.cCategory]
     const aoi = this.getAoisFromRow(row)
 
     // change base time if change of stimulus / participant
-    if (
+    /*if (
       stimulus !== this.mStimulus ||
       participant !== this.mParticipant ||
       this.mBaseTime === ''
@@ -237,6 +239,10 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
             : 0
       }
       this.mStimulus = stimulus
+    }*/
+
+    if (this.stimuliBaseTimes.get(stimulus + participant) === undefined) {
+      this.stimuliBaseTimes.set(stimulus + participant, recordingTimestamp)
     }
 
     // save newly began segment
@@ -246,7 +252,6 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     this.mCategory = row[this.cCategory]
     this.mAoi = aoi
     this.mRecordingLast = recordingTimestamp
-
     return previousSegment
   }
 
@@ -292,16 +297,19 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
       this.mRecordingLast === this.mRecordingStart
     )
       return null
+    const baseTime = this.stimuliBaseTimes.get(
+      this.mStimulus + this.mParticipant
+    )
     return {
-      stimulus: this.getNonDuplicateStimulus(this.mStimulus),
+      stimulus: this.mStimulus,
       participant: this.mParticipant,
       start: String(
-        (Number(this.mRecordingStart) - Number(this.mBaseTime)) *
-          this.TIME_MODIFIER
+        (Number(this.mRecordingStart) - Number(baseTime)) *
+          TobiiEyeDeserializer.TIME_MODIFIER
       ),
       end: String(
-        (Number(this.mRecordingLast) - Number(this.mBaseTime)) *
-          this.TIME_MODIFIER
+        (Number(this.mRecordingLast) - Number(baseTime)) *
+          TobiiEyeDeserializer.TIME_MODIFIER
       ),
       category: this.mCategory,
       aoi: this.mAoi,
@@ -327,7 +335,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
    * @param {string[]} row - Row of data.
    * @returns {string} Stimulus name.
    */
-  getNonDuplicateStimulus(stimulus: string): string {
+  /*getNonDuplicateStimulus(stimulus: string): string {
     if (stimulus !== '') {
       const participantKey = stimulus + this.mParticipant
       if (participantKey in this.stimuliRevisit) {
@@ -336,5 +344,5 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
       }
     }
     return stimulus
-  }
+  }*/
 }
