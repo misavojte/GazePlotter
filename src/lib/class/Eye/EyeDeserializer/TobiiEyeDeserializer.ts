@@ -1,6 +1,32 @@
 import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput.js'
 import { AbstractEyeDeserializer } from './AbstractEyeDeserializer.ts'
 
+/**
+ * Deserializer for Tobii eyetracking files.
+ * @extends AbstractEyeDeserializer
+ * @category Eye
+ * @subcategory Deserializer
+ * @member cAoiInfo - Array of objects containing information about AOI columns. It's being iterated over to find active AOIs, so Array > Map here.
+ * @member cRecordingTimestamp - Index of the Recording timestamp column.
+ * @member cStimulus - Index of the Presented Stimulus name column.
+ * @member cParticipant - Index of the Participant name column.
+ * @member cRecording - Index of the Recording name column.
+ * @member cCategory - Index of the Eye movement type column.
+ * @member cEvent - Index of the Event column.
+ * @member cEyeMovementTypeIndex - Index of the Eye movement type index column.
+ * @member mStimulus - Current stimulus name.
+ * @member mParticipant - Current participant name.
+ * @member mRecordingStart - Current recording start timestamp.
+ * @member mEyeMovementTypeIndex - Current eye movement type index.
+ * @member mRecordingLast - Current recording last timestamp.
+ * @member mCategory - Current eye movement type.
+ * @member mAoi - Current AOIs.
+ * @member mBaseTime - Current base time.
+ * @member stimuliRevisit - Object containing information about revisited stimuli.
+ * @member TIME_MODIFIER - Time modifier for converting microseconds to milliseconds.
+ * @member stimulusGetter - Function that returns the stimulus name, either from the Presented Stimulus name column or from the Event column.
+ *
+ */
 export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   cAoiInfo: Array<{
     columnPosition: number
@@ -24,9 +50,14 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   mBaseTime = ''
   stimuliRevisit: Record<string, number> = {} // Using an object to track the stimulus_participant revisit count
   TIME_MODIFIER = 0.001 // milliseconds needed, tobii uses microseconds
-  intervalMarkers: { start: string; end: string } | null = null
   stimulusGetter: (row: string[]) => string
 
+  /**
+   * @group Initialization
+   * @description Initializes the deserializer with headers and user input.
+   * @param {string[]} header - Array of header names.
+   * @param {string} userInput - User-defined input for interval markers.
+   */
   constructor(header: string[], userInput: string) {
     super()
     this.cRecordingTimestamp = header.indexOf('Recording timestamp')
@@ -36,17 +67,23 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     this.cCategory = header.indexOf('Eye movement type')
     this.cEvent = header.indexOf('Event')
     this.cEyeMovementTypeIndex = header.indexOf('Eye movement type index')
-    this.cAoiInfo = this.createAoiInfo(
+    this.cAoiInfo = this.constructAoiMapping(
       header,
-      this.createStimuliDictionary(header)
+      this.constructStimuliDictionary(header)
     )
     this.stimulusGetter =
       userInput === ''
         ? this.baseStimulusGetter
-        : this.getIntervalStimulusGetter(userInput)
+        : this.constructIntervalStimulusGetter(userInput)
   }
 
-  createStimuliDictionary(header: string[]): string[] {
+  /**
+   * @group Initialization
+   * @description Creates a dictionary of stimuli from the header. Specifically, it looks for columns starting with 'AOI hit [STIMULUS_NAME' and extracts the stimulus name.
+   * @param {string[]} header - Array of header names.
+   * @returns {string[]} Array of unique stimuli names based on AOI hit columns.
+   */
+  constructStimuliDictionary(header: string[]): string[] {
     const aoiColumns = header.filter(x => x.startsWith('AOI hit ['))
     return [
       ...new Set(
@@ -55,7 +92,15 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     ]
   }
 
-  createAoiInfo(
+  /**
+   * @group Initialization
+   * @description Creates an array of objects containing information about AOI columns.
+   * @param {string[]} header - Array of header names.
+   * @param {string[]} stimuliDictionary - Array of unique stimuli names based on AOI hit columns.
+   * @returns {Array<{ columnPosition: number; aoiName: string; stimulusName: string }>} Array of objects containing information about AOI columns.
+   * @example [{ columnPosition: 5, aoiName: 'AOI_1', stimulusName: 'Stimulus_1' }]
+   */
+  constructAoiMapping(
     header: string[],
     stimuliDictionary: string[]
   ): Array<{ columnPosition: number; aoiName: string; stimulusName: string }> {
@@ -78,6 +123,60 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     return aoiInfo
   }
 
+  /**
+   * @group Initialization
+   * @description Creates a function that returns the stimulus name based on interval information in the Event column.
+   * @param {string} userInput - User-defined input for interval markers.
+   * @returns {(row: string[]) => string} Function that returns the stimulus name based on the Event column.
+   */
+  constructIntervalStimulusGetter(
+    userInput: string
+  ): (row: string[]) => string {
+    const { startMarker, endMarker } = this.constructIntervalMarkers(userInput)
+    const stimulusGetterFunction = (row: string[]): string => {
+      // there is now start of nes stimulus indicated in Event column by value in this format:
+      // "NAME_OF_STIMULUS IntervalStart"
+      const event = row[this.cEvent]
+      // if contains IntervalStart, then it is the start of a new stimulus
+      let stimulus = this.mStimulus
+      if (event === '' || event === undefined) return stimulus
+      if (event.includes(startMarker)) {
+        stimulus = event.replace(startMarker, '')
+      }
+      if (event.includes(endMarker)) {
+        stimulus = ''
+      }
+      return stimulus
+    }
+    return stimulusGetterFunction
+  }
+
+  /**
+   * @group Initialization
+   * @description Extracts interval markers from user input to be used in the Event column for stimulus name extraction.
+   * @param {string} userInput - User-defined input for interval markers.
+   * @returns {{ startMarker: string; endMarker: string }} Object containing start and end interval markers.
+   * @example { startMarker: ' IntervalStart', endMarker: ' IntervalEnd' }
+   * @throws {Error} Throws an error if the user input does not contain exactly two interval markers.
+   */
+  constructIntervalMarkers(userInput: string): {
+    startMarker: string
+    endMarker: string
+  } {
+    const markers = userInput.split(';')
+    if (markers.length !== 2) {
+      throw new Error('Invalid interval markers')
+    }
+    return { startMarker: markers[0], endMarker: markers[1] }
+  }
+
+  /**
+   * @group Deserialization
+   * @description Deserializes a row of data.
+   * @param {string[]} row - Row of data.
+   * @returns {SingleDeserializerOutput | null} Deserialized data.
+   * @example { stimulus: 'Stimulus_1', participant: 'Participant_1', start: '0', end: '1000', category: 'Fixation', aoi: ['AOI_1'] }
+   */
   deserialize(row: string[]): SingleDeserializerOutput | null {
     const category = row[this.cCategory]
     if (category === '') return null // skip empty rows
@@ -139,10 +238,20 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     return previousSegment
   }
 
+  /**
+   * @group Deserialization
+   * @description Finalizes the deserialization process. Releases the last segment. Used when there is no more data to deserialize.
+   * @returns {SingleDeserializerOutput | null} Deserialized data.
+   */
   finalize(): SingleDeserializerOutput | null {
     return this.getPreviousSegment()
   }
 
+  /**
+   * @group Deserialization
+   * @description Releases the last segment. Used either when there is no more data to deserialize or when a new segment is encountered.
+   * @returns {SingleDeserializerOutput | null} Deserialized data.
+   */
   getPreviousSegment(): SingleDeserializerOutput | null {
     if (
       this.mParticipant === '' ||
@@ -167,6 +276,13 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     }
   }
 
+  /**
+   * @group Deserialization
+   * @description Extracts AOIs from a row of data. Iterates over the array of AOI information objects to find active AOIs.
+   * @param {string[]} row - Row of data.
+   * @returns {string[]} Array of AOIs.
+   * @example ['AOI_1', 'AOI_2']
+   */
   getAoisFromRow(row: string[]): string[] {
     const aois: string[] = []
     for (const aoiInfo of this.cAoiInfo) {
@@ -177,30 +293,22 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     return aois
   }
 
+  /**
+   * @group Deserialization
+   * @description Returns the stimulus name from the Presented Stimulus name column.
+   * @param {string[]} row - Row of data.
+   * @returns {string} Stimulus name.
+   */
   baseStimulusGetter(row: string[]): string {
     return row[this.cStimulus]
   }
 
-  getIntervalStimulusGetter(userInput: string): (row: string[]) => string {
-    const { startMarker, endMarker } = this.getIntervalMarkers(userInput)
-    const stimulusGetterFunction = (row: string[]): string => {
-      // there is now start of nes stimulus indicated in Event column by value in this format:
-      // "NAME_OF_STIMULUS IntervalStart"
-      const event = row[this.cEvent]
-      // if contains IntervalStart, then it is the start of a new stimulus
-      let stimulus = this.mStimulus
-      if (event === '' || event === undefined) return stimulus
-      if (event.includes(startMarker)) {
-        stimulus = event.replace(startMarker, '')
-      }
-      if (event.includes(endMarker)) {
-        stimulus = ''
-      }
-      return stimulus
-    }
-    return stimulusGetterFunction
-  }
-
+  /**
+   * @group Deserialization
+   * @description Returns the stimulus name from the Event column.
+   * @param {string[]} row - Row of data.
+   * @returns {string} Stimulus name.
+   */
   getNonDuplicateStimulus(stimulus: string): string {
     if (stimulus !== '') {
       const participantKey = stimulus + this.mParticipant
@@ -210,16 +318,5 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
       }
     }
     return stimulus
-  }
-
-  getIntervalMarkers(userInput: string): {
-    startMarker: string
-    endMarker: string
-  } {
-    const markers = userInput.split(';')
-    if (markers.length !== 2) {
-      throw new Error('Invalid interval markers')
-    }
-    return { startMarker: markers[0], endMarker: markers[1] }
   }
 }
