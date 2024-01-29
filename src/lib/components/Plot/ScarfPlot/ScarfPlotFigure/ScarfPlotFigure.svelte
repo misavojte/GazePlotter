@@ -189,9 +189,11 @@
     align-items: center;
   }
   .chylabs > div {
-    overflow-wrap: break-word;
     width: 125px;
     line-height: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
   }
   text {
     font-family: sans-serif;
