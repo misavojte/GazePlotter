@@ -23,17 +23,13 @@
 </script>
 
 {#if modal}
-  <div class="modal-overlay" on:click={handleClose} aria-hidden="true" in:fly>
-    <div
-      class="modal"
-      role="dialog"
-      aria-modal="true"
-      on:click|stopPropagation
-      in:fly
-    >
+  <div class="modal-overlay" aria-hidden="true" in:fly>
+    <div class="modal" role="dialog" aria-modal="true" in:fly>
       <div class="modal-header">
         <h3>{modal.title}</h3>
-        <button on:click={handleClose}>×</button>
+        <button on:click={handleClose}>
+          <span aria-hidden="true">&times;</span>
+        </button>
       </div>
       <div class="body">
         <svelte:component this={modal.component} {...modal.props} />

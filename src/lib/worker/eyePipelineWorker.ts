@@ -8,6 +8,7 @@ import { EyePipeline } from '$lib/class/Eye/EyePipeline/EyePipeline.ts'
 let fileNames: string[] = []
 let pipeline: EyePipeline | null = null
 let streams: ReadableStream[] = []
+let userInputResolver: (value: string) => void
 
 const isStringArray = (data: unknown): data is string[] => {
   if (!Array.isArray(data)) return false
@@ -21,6 +22,13 @@ const isReadableStream = (data: unknown): data is ReadableStream => {
   return typeof (data as ReadableStream).getReader === 'function'
 }
 
+const requestUserInput = (): Promise<string> => {
+  self.postMessage({ type: 'request-user-input' })
+  return new Promise(resolve => {
+    userInputResolver = resolve
+  })
+}
+
 self.onmessage = async e => await processEvent(e)
 
 async function processEvent(e: MessageEvent): Promise<void> {
@@ -29,7 +37,7 @@ async function processEvent(e: MessageEvent): Promise<void> {
     case 'file-names':
       if (!isStringArray(data)) throw new Error('File names are not string[]')
       fileNames = data
-      pipeline = new EyePipeline(fileNames)
+      pipeline = new EyePipeline(fileNames, requestUserInput)
       return
     case 'test-stream':
       if (!isReadableStream(data))
@@ -39,6 +47,8 @@ async function processEvent(e: MessageEvent): Promise<void> {
       return await evalStream(data)
     case 'buffer':
       return await evalBuffer(data)
+    case 'user-input':
+      return userInputResolver(data)
     default:
       throw new Error('Unknown const type in worker', data)
   }

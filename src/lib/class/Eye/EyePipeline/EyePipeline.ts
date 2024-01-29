@@ -22,6 +22,7 @@ export class EyePipeline {
   writer: EyeWriter = new EyeWriter()
   deserializer: AbstractEyeDeserializer | null = null
 
+  requestUserInputCallback: () => Promise<string>
   rowIndex = 0
 
   get isAllProcessed(): boolean {
@@ -34,8 +35,12 @@ export class EyePipeline {
     return name
   }
 
-  constructor(fileNames: string[]) {
+  constructor(
+    fileNames: string[],
+    requestUserInputCallback: () => Promise<string>
+  ) {
     this.fileNames = fileNames
+    this.requestUserInputCallback = requestUserInputCallback
   }
 
   async addNewStream(stream: ReadableStream): Promise<DataType | null> {
@@ -43,14 +48,18 @@ export class EyePipeline {
     const firstTextChunk = await parser.getTextChunk()
     const settings = await this.classify(firstTextChunk)
     const splitter = new EyeSplitter(settings)
-    this.processChunk(firstTextChunk, settings, splitter)
+    const userStringInput: string =
+      settings.type === 'tobii-with-event'
+        ? await this.requestUserInputCallback()
+        : ''
+    this.processChunk(firstTextChunk, settings, splitter, userStringInput)
 
     while (!parser.isDone) {
       const chunk = await parser.getTextChunk()
-      this.processChunk(chunk, settings, splitter)
+      this.processChunk(chunk, settings, splitter, userStringInput)
     }
 
-    this.releaseAfterFile(splitter, settings)
+    this.releaseAfterFile(splitter, settings, userStringInput)
 
     if (this.isAllProcessed) {
       const refiner = new EyeRefiner()
@@ -59,12 +68,17 @@ export class EyePipeline {
     return null
   }
 
-  releaseAfterFile(splitter: EyeSplitter, settings: EyeSettingsType): void {
+  releaseAfterFile(
+    splitter: EyeSplitter,
+    settings: EyeSettingsType,
+    userStringInput: string
+  ): void {
     const dataFromSplitter = splitter.release()
     for (let i = 0; i < dataFromSplitter.length; i++) {
       this.processRow(
         dataFromSplitter[i].split(settings.columnDelimiter),
-        settings
+        settings,
+        userStringInput
       )
     }
     this.fileCount++
@@ -80,15 +94,24 @@ export class EyePipeline {
   processChunk(
     chunk: string,
     settings: EyeSettingsType,
-    splitter: EyeSplitter
+    splitter: EyeSplitter,
+    userStringInput: string
   ): void {
     const rows = splitter.splitChunk(chunk)
     for (let i = 0; i < rows.length; i++) {
-      this.processRow(rows[i].split(settings.columnDelimiter), settings)
+      this.processRow(
+        rows[i].split(settings.columnDelimiter),
+        settings,
+        userStringInput
+      )
     }
   }
 
-  private processRow(row: string[], settings: EyeSettingsType): void {
+  private processRow(
+    row: string[],
+    settings: EyeSettingsType,
+    userStringInput: string
+  ): void {
     const headerRowId = settings.headerRowId
 
     if (this.rowIndex < headerRowId) {
@@ -100,7 +123,8 @@ export class EyePipeline {
       this.deserializer = this.getDeserializer(
         row,
         this.currentFileName,
-        settings
+        settings,
+        userStringInput
       )
       this.rowIndex++
       return
@@ -118,15 +142,16 @@ export class EyePipeline {
   private getDeserializer(
     row: string[],
     fileName: string,
-    settings: EyeSettingsType
+    settings: EyeSettingsType,
+    userStringInput: string
   ): AbstractEyeDeserializer {
     switch (settings.type) {
       case 'begaze':
         return new BeGazeEyeDeserializer(row)
       case 'tobii':
-        return this.getTobiiReducer(row, false)
+        return this.getTobiiReducer(row, userStringInput)
       case 'tobii-with-event':
-        return this.getTobiiReducer(row, false) // TODO: REPAIR if TRUE
+        return this.getTobiiReducer(row, userStringInput)
       case 'gazepoint':
         return new GazePointEyeDeserializer(row, fileName)
       case 'ogama':
@@ -144,8 +169,8 @@ export class EyePipeline {
 
   private getTobiiReducer(
     row: string[],
-    parseThroughInterval: boolean
+    userInput: string
   ): TobiiEyeDeserializer {
-    return new TobiiEyeDeserializer(row, parseThroughInterval)
+    return new TobiiEyeDeserializer(row, userInput)
   }
 }

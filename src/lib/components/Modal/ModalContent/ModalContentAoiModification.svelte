@@ -15,6 +15,7 @@
   import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType.ts'
   import { onMount } from 'svelte'
   import { flip } from 'svelte/animate'
+  import { fade } from 'svelte/transition'
   import GeneralPositionControl from '$lib/components/General/GeneralPositionControl/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/components/General/GeneralEmpty/GeneralEmpty.svelte'
 
@@ -113,8 +114,8 @@
       </tr>
     </thead>
     <tbody>
-      {#each aoiObjects as aoi (aoi.id)}
-        <tr class="gr-line" animate:flip>
+      {#each aoiObjects as aoi (aoi.id + selectedStimulus)}
+        <tr class="gr-line" animate:flip in:fade>
           <td class="original-name">{aoi.originalName}</td>
           <td>
             <input
