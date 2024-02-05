@@ -154,3 +154,7 @@ export const updateGroup = (scarfPlotId: number, groupId: number): void => {
     return prev
   })
 }
+
+export const redrawScarfPlotStates = (): void => {
+  scarfPlotStates.update(currentStates => [...currentStates])
+}
