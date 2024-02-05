@@ -44,7 +44,7 @@ export class ScarfPlotDynamicStyleFactory {
    */
   generateLineCss(stylingType: SingleStylingScarfFillingType): string {
     const { color, identifier, height } = stylingType
-    const selector = `.${identifier}`
+    const selector = `line.${identifier}`
     const properties = `stroke:${color};stroke-width:${height};stroke-dasharray:1;`
     return this.generateCssRule(selector, properties)
   }
