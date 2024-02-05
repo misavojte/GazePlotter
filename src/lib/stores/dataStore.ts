@@ -355,6 +355,7 @@ export const updateMultipleAoi = (
   stimulusId: number,
   applyTo: 'this_stimulus' | 'all_by_original_name' | 'all_by_displayed_name'
 ): void => {
+  console.log('updateMultipleAoi', aoi)
   data.update(data => {
     if (data.aois.data[stimulusId] === undefined) {
       throw new Error(
@@ -375,6 +376,8 @@ export const updateMultipleAoi = (
       }
       data.aois.data[stimulusId][aoi.id] = aoiArray
     })
+    // Update order vector, only for this stimulus, it is too hard to guess what to do in the other stimuli
+    data.aois.orderVector[stimulusId] = aoi.map(aoi => aoi.id)
     if (applyTo === 'all_by_original_name') {
       const originalNames = aoi.map(aoi => aoi.originalName)
       const displayedNames = aoi.map(aoi => aoi.displayedName)
