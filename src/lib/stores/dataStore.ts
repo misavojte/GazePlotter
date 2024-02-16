@@ -1,7 +1,7 @@
 import { writable, get } from 'svelte/store'
 import type { Writable } from 'svelte/store'
 import type { DataType } from '$lib/type/Data/DataType.ts'
-import { demoData } from '$lib/const/demoData.ts'
+import { demoData } from '$lib/const/demoDataTwo.ts'
 import type { BaseInterpretedDataType } from '$lib/type/Data/InterpretedData/BaseInterpretedDataType.ts'
 import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType.ts'
 import type { SegmentInterpretedDataType } from '$lib/type/Data/InterpretedData/SegmentInterpretedDataType.ts'
