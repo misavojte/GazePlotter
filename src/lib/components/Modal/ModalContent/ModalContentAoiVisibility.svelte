@@ -5,7 +5,6 @@
   import GeneralButtonMajor from '../../General/GeneralButton/GeneralButtonMajor.svelte'
   import { AoiVisibilityParser } from '$lib/class/AoiVisibilityParser/AoiVisibilityParser.js'
   import { addErrorToast, addSuccessToast } from '$lib/stores/toastStore.js'
-  import { updateAoiVisibilityForAll } from '$lib/stores/scarfPlotsStore.js'
 
   let files: FileList | null = null
   let selectedStimulusId = '0'
@@ -41,7 +40,7 @@
             ? null
             : parseInt(selectedParticipantId)
         new AoiVisibilityParser().addVisInfo(stimulusId, participantId, xml)
-        updateAoiVisibilityForAll(true)
+        //
         addSuccessToast('File was read successfully')
       })
       .catch(e => {

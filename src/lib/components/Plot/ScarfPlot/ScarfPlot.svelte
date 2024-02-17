@@ -5,7 +5,6 @@
   import PlotWrap from '$lib/components/Plot/PlotWrap.svelte'
   import { getParticipants } from '$lib/stores/dataStore.ts'
   import { scarfPlotStates } from '$lib/stores/scarfPlotsStore.ts'
-  import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType.ts'
   import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType.ts'
   import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.ts'
   import { onDestroy, onMount } from 'svelte'

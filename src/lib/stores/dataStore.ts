@@ -1,7 +1,7 @@
 import { writable, get } from 'svelte/store'
 import type { Writable } from 'svelte/store'
 import type { DataType } from '$lib/type/Data/DataType.ts'
-import { demoData } from '$lib/const/demoData.ts'
+import { demoData } from '$lib/const/demoDataTwo.ts'
 import type { BaseInterpretedDataType } from '$lib/type/Data/InterpretedData/BaseInterpretedDataType.ts'
 import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType.ts'
 import type { SegmentInterpretedDataType } from '$lib/type/Data/InterpretedData/SegmentInterpretedDataType.ts'
@@ -301,6 +301,14 @@ export const updateParticipantsGroups = (groups: ParticipantsGroup[]) => {
   })
 }
 
+/**
+ * Returns the visibility of the AOI for the given stimulus and participant.
+ * Remember the AOI dynamic visibility are stored under the key "stimulusId_aoiId_participantId"
+ * @param stimulusId numeric id of the stimulus
+ * @param aoiId numeric id of the AOI for the given stimulus (notice that AOI ids are stimulus specific)
+ * @param participantId numeric id of the participant (these are global for all stimuli)
+ * @returns
+ */
 export const getAoiVisibility = (
   stimulusId: number,
   aoiId: number,
@@ -312,8 +320,20 @@ export const getAoiVisibility = (
     const extendedKey = `${baseKey}_${participantId}`
     result = getData().aois.dynamicVisibility[extendedKey] ?? result
   }
-  console.log(getData().aois)
   return result
+}
+
+/**
+ * Returns boolean value indicating if the AOI has any visibility set for the given stimulus.
+ * Remember the AOI dynamic visibility are stored under the key "stimulusId_aoiId_participantId".
+ * Thus, we need to check if there is any key starting with "stimulusId_".
+ * @param stimulusId numeric id of the stimulus
+ * @returns boolean value indicating if the AOI has any visibility set for the given stimulus
+ */
+export const hasStimulusAoiVisibility = (stimulusId: number): boolean => {
+  return Object.keys(getData().aois.dynamicVisibility).some(key =>
+    key.startsWith(`${stimulusId}_`)
+  )
 }
 
 export const updateMultipleAoiVisibility = (

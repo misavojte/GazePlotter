@@ -24,6 +24,7 @@ import {
   getParticipantEndTime,
   getSegment,
   getStimuli,
+  hasStimulusAoiVisibility,
 } from '$lib/stores/dataStore.js'
 import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType.js'
 import type { BaseInterpretedDataType } from '$lib/type/Data/InterpretedData/BaseInterpretedDataType.js'
@@ -53,6 +54,8 @@ export class ScarfPlotFillingFactoryS {
   chartHeight: number
   settings: ScarfSettingsType
 
+  hasAtLeastOneAoiVisibility = false
+
   get rectWrappedHeight(): number {
     return this.heightOfBar + this.spaceAboveRect * 2
   }
@@ -69,7 +72,9 @@ export class ScarfPlotFillingFactoryS {
   }
 
   get showAoiVisibility(): boolean {
-    return this.settings.aoiVisibility && this.settings.timeline !== 'ordinal'
+    return (
+      this.hasAtLeastOneAoiVisibility && this.settings.timeline !== 'ordinal'
+    )
   }
 
   constructor(
@@ -80,13 +85,13 @@ export class ScarfPlotFillingFactoryS {
     participGap = 10
   ) {
     this.stimulusId = stimulusId
+    this.hasAtLeastOneAoiVisibility = hasStimulusAoiVisibility(stimulusId)
     this.settings = settings
     this.spaceAboveRect = participGap / 2
     this.aoiData = getAois(stimulusId)
     this.stimuliData = getStimuli()
     this.timeline = axis
     const participants = []
-    console.log(participantIds)
     for (let i = 0; i < participantIds.length; i++) {
       const participant = this.#prepareParticipant(participantIds[i])
       if (participant !== null) participants.push(participant)

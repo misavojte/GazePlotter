@@ -1,9 +1,0 @@
-export type * from './ScarfFillingType.ts';
-export type * from './StimulusScarfFilling/StimulusScarfFillingType.ts';
-export type * from './StylingScarfFilling/StylingScarfFillingType.ts';
-export type * from './StylingScarfFilling/SingleStylingScarfFillingType.ts';
-export type * from './ParticipantScarfFilling/ParticipantScarfFillingType.ts';
-export type * from './SegmentScarfFilling/SegmentScarfFillingType.ts';
-export type * from './SegmentScarfFilling/SingleSegmentScarfFillingType.ts';
-export type * from './AoiVisibilityScarfFilling/AoiVisibilityScarfFillingType.ts';
-export type * from './AoiVisibilityScarfFilling/SingleAoiVisibilityScarfFillingType.ts';
