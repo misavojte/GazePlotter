@@ -1,7 +1,6 @@
 import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput.js'
 import { AbstractEyeDeserializer } from './AbstractEyeDeserializer.ts'
 
-
 // BEWARE! If only one timestamp for whole segment, start and end are the same!
 export class CsvEyeDeserializer extends AbstractEyeDeserializer {
   cTime: number
@@ -14,7 +13,7 @@ export class CsvEyeDeserializer extends AbstractEyeDeserializer {
   mAoi: string | null = null
   mParticipant = 'CsvParticipant'
   mStimulus = 'CsvFile'
-  constructor (header: string[]) {
+  constructor(header: string[]) {
     super()
     this.cTime = this.getIndex(header, 'Time')
     this.cAoi = this.getIndex(header, 'AOI')
@@ -22,14 +21,25 @@ export class CsvEyeDeserializer extends AbstractEyeDeserializer {
     this.cStimulus = this.getIndex(header, 'Stimulus')
   }
 
-  deserialize (row: string[]): SingleDeserializerOutput | null {
+  /**
+   * Deserialize a csv row into a SingleDeserializerOutput object
+   * @param row is a string array with the values of the csv row
+   * @returns a SingleDeserializerOutput object or null if the row is not a valid fixation
+   */
+  deserialize(row: string[]): SingleDeserializerOutput | null {
     const time = row[this.cTime]
     const aoi = row[this.cAoi]
     const participant = row[this.cParticipant]
     const stimulus = row[this.cStimulus]
 
-    const isNewSegment = (aoi !== this.mAoi) || (participant !== this.mParticipant) || (stimulus !== this.mStimulus)
-    const isNewTimebase = (this.mTimeBase === null) || (participant !== this.mParticipant) || (stimulus !== this.mStimulus)
+    const isNewSegment =
+      aoi !== this.mAoi ||
+      participant !== this.mParticipant ||
+      stimulus !== this.mStimulus
+    const isNewTimebase =
+      this.mTimeBase === null ||
+      participant !== this.mParticipant ||
+      stimulus !== this.mStimulus
 
     let output: SingleDeserializerOutput | null = null
 
@@ -46,7 +56,7 @@ export class CsvEyeDeserializer extends AbstractEyeDeserializer {
     return output
   }
 
-  finalize (): SingleDeserializerOutput | null {
+  finalize(): SingleDeserializerOutput | null {
     const baseTime = this.mTimeBase
     if (baseTime === null) throw new Error('Base time is null')
     const aoi = this.mAoi
@@ -57,7 +67,7 @@ export class CsvEyeDeserializer extends AbstractEyeDeserializer {
       start: String(Number(this.mTimeStart) - baseTime),
       end: String(Number(this.mTimeLast) - baseTime),
       participant: this.mParticipant,
-      stimulus: this.mStimulus
+      stimulus: this.mStimulus,
     }
   }
 }
