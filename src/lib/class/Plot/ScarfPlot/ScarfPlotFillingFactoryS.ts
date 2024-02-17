@@ -92,7 +92,6 @@ export class ScarfPlotFillingFactoryS {
     this.stimuliData = getStimuli()
     this.timeline = axis
     const participants = []
-    console.log(participantIds)
     for (let i = 0; i < participantIds.length; i++) {
       const participant = this.#prepareParticipant(participantIds[i])
       if (participant !== null) participants.push(participant)

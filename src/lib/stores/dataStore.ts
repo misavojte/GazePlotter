@@ -312,7 +312,6 @@ export const getAoiVisibility = (
     const extendedKey = `${baseKey}_${participantId}`
     result = getData().aois.dynamicVisibility[extendedKey] ?? result
   }
-  console.log(getData().aois)
   return result
 }
 
