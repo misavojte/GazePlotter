@@ -13,7 +13,6 @@ const returnDefaultScarfPlotState = (
       stimulusId: 0,
       groupId: -1,
       zoomLevel: 0,
-      aoiVisibility: false,
       timeline: 'absolute',
       absoluteGeneralLastVal: 0,
       absoluteStimuliLastVal: [],
@@ -134,16 +133,6 @@ export const duplicateScarfPlotState = (scarfPlotId: number): void => {
       scarfPlotId: getUniqueScarfPlotId(),
     })
     return prev
-  })
-}
-
-export const updateAoiVisibilityForAll = (value: boolean): void => {
-  scarfPlotStates.update(prev => {
-    const newState = [...prev]
-    newState.forEach(state => {
-      state.aoiVisibility = value
-    })
-    return newState
   })
 }
 

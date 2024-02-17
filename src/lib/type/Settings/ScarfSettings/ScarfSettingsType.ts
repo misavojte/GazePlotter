@@ -3,7 +3,6 @@ export interface ScarfSettingsType {
   stimulusId: number
   groupId: number
   zoomLevel: number // 0 = 100%, 1 = 200%, 2 = 400%, 3 = 800%, 4 = 1600%
-  aoiVisibility: boolean
   timeline: 'absolute' | 'relative' | 'ordinal'
   /**
    * The width of the scarf chart axis in set units.

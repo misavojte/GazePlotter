@@ -316,6 +316,14 @@ export const getAoiVisibility = (
   return result
 }
 
+export const hasStimulusAoiVisibility = (stimulusId: number): boolean => {
+  // remember that dynamicVisibility keys are in format "stimulusId_aoiId_participantId"
+  // thus, we need to check if there is any key starting with "stimulusId_"
+  return Object.keys(getData().aois.dynamicVisibility).some(key =>
+    key.startsWith(`${stimulusId}_`)
+  )
+}
+
 export const updateMultipleAoiVisibility = (
   stimulusId: number,
   aoiNames: string[],
