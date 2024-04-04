@@ -86,6 +86,7 @@
   "types": "./dist/index.d.ts",
   "type": "module",
   "dependencies": {
-    "lucide-svelte": "^0.306.0"
+    "lucide-svelte": "^0.306.0",
+    "svelte-grid": "^5.1.2"
   }
 }
