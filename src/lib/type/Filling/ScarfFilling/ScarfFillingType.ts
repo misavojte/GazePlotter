@@ -18,7 +18,9 @@ import type { ParticipantScarfFillingType } from './ParticipantScarfFilling/Part
  * @param stimuli - array of ScarfStimuliInfo objects containing information about stimuli (for stimuli selection)
  */
 export interface ScarfFillingType {
+  id: number
   stimulusId: number
+  timelineType: 'absolute' | 'relative' | 'ordinal'
   timeline: PlotAxisBreaks
   stylingAndLegend: StylingScarfFillingType
   barHeight: number

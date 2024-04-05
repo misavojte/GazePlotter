@@ -1,10 +1,10 @@
 <script lang="ts">
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import { getParticipantsGroups, data } from '$lib/stores/dataStore.ts'
-  import { updateGroup } from '$lib/stores/scarfPlotsStore.ts'
   import { onDestroy } from 'svelte'
 
-  export let scarfId: number
+  import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.ts'
+  export let settings: ScarfSettingsType
 
   let value = '-1'
 
@@ -18,7 +18,7 @@
     console.log(groupOptions)
   })
 
-  $: updateGroup(scarfId, parseInt(value))
+  $: settings.groupId = parseInt(value)
 
   onDestroy(() => {
     unsubscribe()

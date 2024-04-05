@@ -1,5 +1,5 @@
 export interface ScarfSettingsType {
-  scarfPlotId: number
+  id: number
   stimulusId: number
   groupId: number
   zoomLevel: number // 0 = 100%, 1 = 200%, 2 = 400%, 3 = 800%, 4 = 1600%

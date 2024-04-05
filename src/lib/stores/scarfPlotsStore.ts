@@ -9,7 +9,7 @@ const returnDefaultScarfPlotState = (
 ): ScarfSettingsType[] => {
   return [
     {
-      scarfPlotId: isPrerendered ? 0 : getUniqueScarfPlotId(),
+      id: isPrerendered ? 0 : getUniqueScarfPlotId(),
       stimulusId: 0,
       groupId: -1,
       zoomLevel: 0,
@@ -29,16 +29,14 @@ export const setDefaultScarfPlotState = (): void => {
 }
 
 export const removeScarfPlotState = (scarfPlotId: number): void => {
-  scarfPlotStates.update(prev =>
-    prev.filter(state => state.scarfPlotId !== scarfPlotId)
-  )
+  scarfPlotStates.update(prev => prev.filter(state => state.id !== scarfPlotId))
 }
 
 export const getScarfPlotState = (
   scarfStates: ScarfSettingsType[],
   scarfPlotId: number
 ): ScarfSettingsType | undefined => {
-  return scarfStates.find(state => state.scarfPlotId === scarfPlotId)
+  return scarfStates.find(state => state.id === scarfPlotId)
 }
 
 const getDefinedScarfPlotState = (
@@ -130,16 +128,8 @@ export const duplicateScarfPlotState = (scarfPlotId: number): void => {
     const scarfPlotState = getDefinedScarfPlotState(prev, scarfPlotId)
     prev.push({
       ...scarfPlotState,
-      scarfPlotId: getUniqueScarfPlotId(),
+      id: getUniqueScarfPlotId(),
     })
-    return prev
-  })
-}
-
-export const updateGroup = (scarfPlotId: number, groupId: number): void => {
-  scarfPlotStates.update(prev => {
-    const newState = getDefinedScarfPlotState(prev, scarfPlotId)
-    newState.groupId = groupId
     return prev
   })
 }

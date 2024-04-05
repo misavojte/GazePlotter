@@ -1,24 +1,17 @@
 <script lang="ts">
   import MinorButton from '$lib/components/General/GeneralButton/GeneralButtonMinor.svelte'
-  import { scarfPlotStates, updateZoom } from '$lib/stores/scarfPlotsStore.js'
   import ZoomOut from 'lucide-svelte/icons/zoom-out'
-  export let scarfId: number
+  import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.ts'
+  export let settings: ScarfSettingsType
 
-  let zoom: number
-  scarfPlotStates.subscribe(prev => {
-    let scarfPlotState = prev.find(
-      scarfPlotState => scarfPlotState.scarfPlotId === scarfId
-    )
-    if (scarfPlotState) zoom = scarfPlotState.zoomLevel
-  })
-  $: isDisabled = zoom <= 0
+  $: isDisabled = settings.zoomLevel <= 0
   const handleClick = () => {
     if (!isDisabled) {
-      updateZoom(scarfId, zoom - 1)
+      settings.zoomLevel = settings.zoomLevel - 1
     }
   }
 </script>
 
 <MinorButton on:click={handleClick} {isDisabled}>
-  <ZoomOut strokeWidth={1} />
+  <ZoomOut size={'1em'} strokeWidth={1} />
 </MinorButton>

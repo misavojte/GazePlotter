@@ -53,7 +53,7 @@
     <ul class="menu">
       {#each items as item}
         <li>
-          <button on:click={item.action}>
+          <button on:pointerdown|stopPropagation on:click={item.action}>
             <svelte:component this={item.icon} size={'1em'} />
             {item.label}
           </button>
@@ -70,13 +70,13 @@
   }
   .menu {
     position: absolute;
-    top: calc(100% + 5px);
     right: 0;
     background: var(--c-white);
     border: 1px solid #ccc;
     border-radius: var(--rounded);
     box-shadow: 0 0 10px var(--c-grey);
     overflow: hidden;
+    z-index: 1000;
   }
   .menu,
   li {

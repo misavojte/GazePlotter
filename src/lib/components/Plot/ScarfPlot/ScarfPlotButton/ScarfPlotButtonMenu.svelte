@@ -2,12 +2,7 @@
   import MenuButton from '$lib/components/General/GeneralButton/GeneralButtonMenu.svelte'
   import ModalContentScarfPlotClip from '$lib/components/Modal/ModalContent/ModalContentScarfPlotClip.svelte'
   import { modalStore } from '$lib/stores/modalStore.js'
-  import {
-    duplicateScarfPlotState,
-    getScarfPlotState,
-    removeScarfPlotState,
-    scarfPlotStates,
-  } from '$lib/stores/scarfPlotsStore.js'
+  import type { GridStoreType } from '$lib/stores/gridStore.ts'
   import Copy from 'lucide-svelte/icons/copy'
   import Download from 'lucide-svelte/icons/download'
   import Scissors from 'lucide-svelte/icons/scissors-line-dashed'
@@ -20,27 +15,23 @@
   import ModalContentAoiVisibility from '../../../Modal/ModalContent/ModalContentAoiVisibility.svelte'
   import ModalContentDownloadScarfPlot from '../../../Modal/ModalContent/ModalContentDownloadScarfPlot.svelte'
   import ModalContentParticipantsGroups from '$lib/components/Modal/ModalContent/ModalContentParticipantsGroups.svelte'
+  import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.ts'
+  import { getContext } from 'svelte'
 
-  export let scarfId: number
-  let currentStimulusId: number
-  const unsubscribe = scarfPlotStates.subscribe(states => {
-    const state = getScarfPlotState(states, scarfId)
-    if (!state) {
-      unsubscribe()
-      return
-    }
-    currentStimulusId = state.stimulusId
-  })
+  export let settings: ScarfSettingsType
+  const store = getContext<GridStoreType>('gridStore')
+
+  console.log('settings', store)
 
   const openClipModal = () => {
     modalStore.open(ModalContentScarfPlotClip, 'Clip scarf timeline', {
-      scarfId,
+      settings,
     })
   }
 
   const openAoiModificationModal = () => {
     modalStore.open(ModalContentAoiModification, 'AOI customization', {
-      selectedStimulus: currentStimulusId.toString(),
+      selectedStimulus: settings.stimulusId.toString(),
     })
   }
 
@@ -54,17 +45,16 @@
 
   const downloadPlot = () => {
     modalStore.open(ModalContentDownloadScarfPlot, 'Download scarf plot', {
-      scarfId,
+      settings,
     })
   }
 
   const deleteScarf = () => {
-    unsubscribe()
-    removeScarfPlotState(scarfId)
+    store.removeItem(settings.id)
   }
 
   const duplicateScarf = () => {
-    duplicateScarfPlotState(scarfId)
+    store.duplicateItem(settings)
   }
 
   const items: ComponentProps<MenuButton>['items'] = [

@@ -14,12 +14,13 @@
 
 <style>
   .plot {
-    border-radius: var(--rounded-lg);
+    border-radius: var(--rounded-lg) var(--rounded-lg) 0;
     box-shadow: 0 2px 10px rgb(0 0 0 / 15%);
     width: 100%;
     background: var(--c-white);
     box-sizing: border-box;
     overflow: hidden;
+    height: 100%;
   }
   .header {
     display: flex;

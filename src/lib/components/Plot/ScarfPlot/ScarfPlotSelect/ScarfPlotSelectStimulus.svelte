@@ -1,9 +1,9 @@
 <script lang="ts">
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import { getStimuli } from '$lib/stores/dataStore.js'
-  import { updateStimulusId } from '$lib/stores/scarfPlotsStore.js'
 
-  export let scarfId: number
+  import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.ts'
+  export let settings: ScarfSettingsType
 
   let value: string
 
@@ -18,7 +18,8 @@
   })
 
   $: if (parseInt(value) >= 0) {
-    updateStimulusId(scarfId, parseInt(value))
+    // updateStimulusId(scarfId, parseInt(value))
+    settings.stimulusId = parseInt(value)
   }
 </script>
 

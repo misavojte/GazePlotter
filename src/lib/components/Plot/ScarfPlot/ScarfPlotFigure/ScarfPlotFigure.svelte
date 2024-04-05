@@ -6,7 +6,6 @@
   import { ScarfPlotDynamicStyleFactory } from '$lib/class/Plot/ScarfPlot/ScarfPlotDynamicStyleFactory.ts'
   import { addInfoToast } from '$lib/stores/toastStore.ts'
 
-  export let scarfPlotId: number
   export let tooltipAreaElement: HTMLElement
   export let data: ScarfFillingType
   export let settings: ScarfSettingsType
@@ -42,7 +41,7 @@
   $: xAxisLabel = getXAxisLabel(settings)
   $: zoomWidth = getZoomWidth(settings)
 
-  const scarfPlotAreaId = `scarf-plot-area-${scarfPlotId}`
+  const scarfPlotAreaId = `scarf-plot-area-${settings.id}`
   const styleFactory = new ScarfPlotDynamicStyleFactory(scarfPlotAreaId)
 
   const handleFixedHighlight = (event: CustomEvent<string>) => {
@@ -83,7 +82,7 @@
       >
         <defs>
           <pattern
-            id="grid-{scarfPlotId}"
+            id="grid-{settings.id}"
             width={patternWidth}
             height={data.heightOfBarWrap}
             patternUnits="userSpaceOnUse"
@@ -99,7 +98,7 @@
         </defs>
         <g>
           <rect
-            fill="url(#grid-{scarfPlotId})"
+            fill="url(#grid-{settings.id})"
             stroke="#cbcbcb"
             stroke-width="1"
             width="100%"
@@ -170,6 +169,7 @@
 <style>
   figure {
     margin: 0;
+    cursor: default;
   }
   .chartwrap {
     display: grid;

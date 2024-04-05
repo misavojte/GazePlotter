@@ -1,8 +1,8 @@
 <script lang="ts">
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
-  import { updateTimeline } from '$lib/stores/scarfPlotsStore.js'
 
-  export let scarfId: number
+  import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.ts'
+  export let settings: ScarfSettingsType
 
   let value = 'absolute'
 
@@ -16,8 +16,7 @@
     case 'absolute':
     case 'relative':
     case 'ordinal':
-      console.log(`Updating timeline for scarf ${scarfId} to ${value}`)
-      updateTimeline(scarfId, value)
+      settings.timeline = value
       break
     default:
       console.warn(`Invalid timeline value: ${value}`)
