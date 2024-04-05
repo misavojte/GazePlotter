@@ -18,7 +18,7 @@
   let highlightedType: string | null = null
   let removeHighlight: null | (() => void) = null
 
-  let participantIds: number[] = getParticipants(
+  $: participantIds = getParticipants(
     settings.groupId,
     settings.stimulusId
   ).map(participant => participant.id)

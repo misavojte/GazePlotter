@@ -13,31 +13,30 @@
   import GeneralInputNumber from '$lib/components/General/GeneralInput/GeneralInputNumber.svelte'
   import { addSuccessToast } from '$lib/stores/toastStore.js'
 
-  export let scarfId: number
-  const scarfState = getScarfPlotState($scarfPlotStates, scarfId)
-  if (!scarfState) throw new Error('Invalid scarfId')
-  const stimulusId = getStimulusId(scarfId)
+  import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.ts'
+  export let settings: ScarfSettingsType
+
   const allStimuliId = getStimuliOrderVector()
 
   let absoluteTimelineApply: 'this_stimulus' | 'all_stimuli' = 'this_stimulus'
   let ordinalTimelineApply: 'this_stimulus' | 'all_stimuli' = 'this_stimulus'
 
-  let absoluteVal = getStimulusLastValue(scarfId, stimulusId, 'absolute')
-  let ordinalVal = getStimulusLastValue(scarfId, stimulusId, 'ordinal')
+  let absoluteVal = settings.absoluteGeneralLastVal
+  let ordinalVal = settings.ordinalGeneralLastVal
 
   const handleSubmit = () => {
     if (absoluteTimelineApply === 'this_stimulus') {
-      updateStimulusLastValue(scarfId, stimulusId, absoluteVal, 'absolute')
+      settings.absoluteStimuliLastVal[settings.stimulusId] = absoluteVal
     } else {
       allStimuliId.forEach(stimulusId => {
-        updateStimulusLastValue(scarfId, stimulusId, absoluteVal, 'absolute')
+        settings.absoluteStimuliLastVal[stimulusId] = absoluteVal
       })
     }
     if (ordinalTimelineApply === 'this_stimulus') {
-      updateStimulusLastValue(scarfId, stimulusId, ordinalVal, 'ordinal')
+      settings.ordinalStimuliLastVal[settings.stimulusId] = ordinalVal
     } else {
       allStimuliId.forEach(stimulusId => {
-        updateStimulusLastValue(scarfId, stimulusId, ordinalVal, 'ordinal')
+        settings.ordinalStimuliLastVal[stimulusId] = ordinalVal
       })
     }
     addSuccessToast('Clipping values updated')
