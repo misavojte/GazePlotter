@@ -21,11 +21,10 @@
   export let settings: ScarfSettingsType
   const store = getContext<GridStoreType>('gridStore')
 
-  console.log('settings', store)
-
   const openClipModal = () => {
     modalStore.open(ModalContentScarfPlotClip, 'Clip scarf timeline', {
       settings,
+      store,
     })
   }
 

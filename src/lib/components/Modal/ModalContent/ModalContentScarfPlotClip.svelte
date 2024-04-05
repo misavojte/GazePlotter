@@ -14,15 +14,22 @@
   import { addSuccessToast } from '$lib/stores/toastStore.js'
 
   import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.ts'
+  import type { GridStoreType } from '$lib/stores/gridStore.ts'
+
   export let settings: ScarfSettingsType
+  export let store: GridStoreType
 
   const allStimuliId = getStimuliOrderVector()
 
   let absoluteTimelineApply: 'this_stimulus' | 'all_stimuli' = 'this_stimulus'
   let ordinalTimelineApply: 'this_stimulus' | 'all_stimuli' = 'this_stimulus'
 
-  let absoluteVal = settings.absoluteGeneralLastVal
-  let ordinalVal = settings.ordinalGeneralLastVal
+  let absoluteVal =
+    settings.absoluteStimuliLastVal[settings.stimulusId] ??
+    settings.absoluteGeneralLastVal
+  let ordinalVal =
+    settings.ordinalStimuliLastVal[settings.stimulusId] ??
+    settings.ordinalGeneralLastVal
 
   const handleSubmit = () => {
     if (absoluteTimelineApply === 'this_stimulus') {
@@ -39,6 +46,7 @@
         settings.ordinalStimuliLastVal[stimulusId] = ordinalVal
       })
     }
+    store.updateSettings(settings)
     addSuccessToast('Clipping values updated')
   }
 </script>

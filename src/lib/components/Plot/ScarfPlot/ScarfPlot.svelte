@@ -167,6 +167,8 @@
     cancelInteractivity()
     if (!tooltipArea) return
   })
+
+  $: console.log(settings)
 </script>
 
 <PlotWrap title="Scarf Plot">

@@ -51,10 +51,22 @@ export const createGridStore = (
     )
   }
 
+  const updateSettings = (settings: AllGridTypes) => {
+    store.update(items =>
+      items.map(item => {
+        if (item.id === settings.id) {
+          return { ...item, ...settings }
+        }
+        return item
+      })
+    )
+  }
+
   return {
     subscribe: store.subscribe,
     set: store.set,
     update: store.update,
+    updateSettings,
     removeItem,
     duplicateItem,
   }
