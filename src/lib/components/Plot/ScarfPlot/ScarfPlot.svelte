@@ -5,13 +5,13 @@
   import PlotWrap from '$lib/components/Plot/PlotWrap.svelte'
   import { getParticipants } from '$lib/stores/dataStore.ts'
   import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType.ts'
-  import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.ts'
   import { onDestroy, onMount } from 'svelte'
   import ScarfPlotHeader from './ScarfPlotHeader/ScarfPlotHeader.svelte'
-  import ScarfPlotTooltip from './ScarfPlotTooltip/ScarfPlotTooltip.svelte'
   import ScarfPlotFigure from './ScarfPlotFigure/ScarfPlotFigure.svelte'
+  import type { ScarfGridType } from '$lib/type/gridType.ts'
+  import { tooltipScarfService } from '$lib/services/tooltipServices.ts'
 
-  export let settings: ScarfSettingsType
+  export let settings: ScarfGridType
   export let id: number
 
   let tooltipArea: HTMLElement
@@ -29,7 +29,7 @@
   const getAxisBreaks = (
     participantIds: number[],
     stimulusId: number,
-    settings: ScarfSettingsType
+    settings: ScarfGridType
   ) => {
     const axisFactory = new ScarfPlotAxisFactory(
       participantIds,
@@ -43,7 +43,7 @@
     stimulusId: number,
     participantIds: number[],
     timeline: PlotAxisBreaks,
-    settings: ScarfSettingsType
+    settings: ScarfGridType
   ) => {
     const fillingFactory = new ScarfPlotFillingFactoryS(
       stimulusId,
@@ -67,7 +67,6 @@
     settings
   )
 
-  let tooltip: ScarfTooltipFillingType | null = null
   let timeout = 0
 
   const cancelHighlightKeepTooltip = () => {
@@ -85,7 +84,7 @@
 
   const cancelTooltipInstantly = () => {
     clearTimeout(timeout)
-    tooltip = null
+    tooltipScarfService(null)
     removeHighlight?.()
   }
 
@@ -111,11 +110,7 @@
     const participantId = parent.dataset.id
     if (!participantId) return cancelInteractivity()
 
-    if (
-      parseInt(segmentId) === tooltip?.segmentId &&
-      parseInt(participantId) === tooltip?.participantId
-    )
-      return
+    // TODO: There was removed things (tooltip?.participantId !== participantId || tooltip?.segmentId !== segmentId)
 
     removeHighlight?.()
     gElement.classList.add('focus')
@@ -141,7 +136,7 @@
     }
 
     clearTimeout(timeout)
-    tooltip = filling
+    tooltipScarfService(filling)
   }
 
   const processLegendItem = (legendItem: Element) => {
@@ -181,8 +176,5 @@
       axisBreaks={absoluteTimeline}
       highlightedIdentifier={highlightedType}
     />
-    {#if tooltip}
-      <ScarfPlotTooltip {...tooltip} />
-    {/if}
   </svelte:fragment>
 </PlotWrap>

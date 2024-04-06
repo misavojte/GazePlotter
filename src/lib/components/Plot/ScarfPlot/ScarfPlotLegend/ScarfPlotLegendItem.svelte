@@ -11,7 +11,11 @@
   }
 </script>
 
-<div class="legendItem {legend.identifier}" on:click={handleClick}>
+<div
+  class="legendItem {legend.identifier}"
+  on:pointerdown|stopPropagation
+  on:click={handleClick}
+>
   <svg width="20" height={legend.heighOfLegendItem}>
     {#if isVisibility}
       <line

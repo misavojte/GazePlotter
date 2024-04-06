@@ -80,31 +80,6 @@
         width="{zoomWidth}%"
         height={data.chartHeight}
       >
-        <defs>
-          <pattern
-            id="grid-{settings.id}"
-            width={patternWidth}
-            height={data.heightOfBarWrap}
-            patternUnits="userSpaceOnUse"
-          >
-            <rect
-              fill="none"
-              width="100%"
-              height="100%"
-              stroke="#cbcbcb"
-              stroke-width="1"
-            />
-          </pattern>
-        </defs>
-        <g>
-          <rect
-            fill="url(#grid-{settings.id})"
-            stroke="#cbcbcb"
-            stroke-width="1"
-            width="100%"
-            height={data.chartHeight - 20}
-          />
-        </g>
         <svg y={data.chartHeight - 14} class="chxlabs">
           <text x="0" y="0" text-anchor="start" dominant-baseline="hanging"
             >0</text
@@ -122,6 +97,13 @@
         </svg>
         <!-- Start of barwrap, each is a participant -->
         {#each data.participants as participant, i}
+          <line
+            x1="0"
+            x2="100%"
+            y1={i * data.heightOfBarWrap + 0.5}
+            y2={i * data.heightOfBarWrap + 0.5}
+            stroke="#cbcbcb"
+          ></line>
           <svg
             class="barwrap"
             y={i * data.heightOfBarWrap}
@@ -156,6 +138,13 @@
           </svg>
         {/each}
         <!-- End of barwrap -->
+        <line
+          x1="0"
+          x2="100%"
+          y1={data.participants.length * data.heightOfBarWrap - 0.5}
+          y2={data.participants.length * data.heightOfBarWrap - 0.5}
+          stroke="#cbcbcb"
+        />
       </svg>
     </div>
     <div class="chxlab">{xAxisLabel}</div>

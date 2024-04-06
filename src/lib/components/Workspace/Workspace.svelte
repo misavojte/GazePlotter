@@ -13,7 +13,8 @@
 
   const itemSize = { height: 40 }
 
-  export let gridController: GridController
+  let gridController: GridController
+
   const findPositionForItem = (w: number, h: number) => {
     if (gridController) {
       const result = gridController.getFirstAvailablePosition(w, h)
