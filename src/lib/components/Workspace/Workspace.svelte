@@ -72,9 +72,17 @@
       store.set(loadingGridStoreState)
       break
   }
+
+  $: heightBasedOnGrid = $store.reduce((acc, item) => {
+    // Calculate the bottom edge position of the current item
+    const itemBottomEdge = (item.y + item.h) * (itemSize.height + 10) + 10
+
+    // Compare with the current maximum to find the greatest bottom edge value
+    return Math.max(acc, itemBottomEdge)
+  }, 0)
 </script>
 
-<div class="wrap">
+<div class="wrap" style="height: {heightBasedOnGrid}px;">
   <Grid
     {itemSize}
     cols={12}
@@ -118,12 +126,11 @@
     background-size: 40px 40px;
     box-shadow: inset 0 2px 10px rgb(0 0 0 / 15%);
     z-index: 1;
-    min-height: 720px;
     padding: 30px;
+    transition: height 0.3s;
   }
 
   :global(.workspace-wrapper) {
-    height: 100%;
     z-index: 1;
   }
 
