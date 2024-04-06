@@ -4,10 +4,6 @@
   import type { DataType } from '$lib/type/Data/DataType.ts'
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore.ts'
   import { setData } from '$lib/stores/dataStore.ts'
-  import {
-    scarfPlotStates,
-    setDefaultScarfPlotState,
-  } from '$lib/stores/scarfPlotsStore.ts'
   import { addErrorToast, addSuccessToast } from '$lib/stores/toastStore.ts'
 
   $: isDisabled = $processingFileStateStore === 'processing'
@@ -19,7 +15,6 @@
     const files = (e.target as HTMLInputElement).files
     if (!(files instanceof FileList)) return
     if (files.length === 0) return
-    scarfPlotStates.set([])
     processingFileStateStore.set('processing')
     try {
       workerService = new EyeWorkerService(handleEyeData)
@@ -35,10 +30,9 @@
   }
 
   const handleEyeData = (data: DataType) => {
+    setData(data)
     addSuccessToast('Data loaded')
     processingFileStateStore.set('done')
-    setData(data)
-    setDefaultScarfPlotState()
   }
 </script>
 

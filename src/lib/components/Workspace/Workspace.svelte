@@ -8,11 +8,12 @@
   import type { GridController } from 'svelte-grid-extended'
   import { setContext } from 'svelte'
   import type { AllGridTypes } from '$lib/type/gridType.ts'
+  import { processingFileStateStore } from '$lib/stores/processingFileStateStore.ts'
+  import { getScarfGridHeightFromCurrentData } from '$lib/services/scarfServices.ts'
 
   const itemSize = { height: 40 }
 
   export let gridController: GridController
-
   const findPositionForItem = (w: number, h: number) => {
     if (gridController) {
       const result = gridController.getFirstAvailablePosition(w, h)
@@ -22,28 +23,54 @@
     }
   }
 
-  let defaultGridStoreState: AllGridTypes[] = [
+  const loadingGridStoreState: AllGridTypes[] = [
     {
-      id: 0,
+      id: -12,
       x: 3,
       y: 0,
       w: 6,
-      h: 11,
-      min: { w: 3 },
-      type: 'scarf',
-      stimulusId: 0,
-      groupId: -1,
-      zoomLevel: 0,
-      timeline: 'absolute',
-      absoluteGeneralLastVal: 0,
-      absoluteStimuliLastVal: [],
-      ordinalGeneralLastVal: 0,
-      ordinalStimuliLastVal: [],
+      h: 6,
+      min: { w: 3, h: 3 },
+      type: 'load',
     },
   ]
 
-  let store = createGridStore(defaultGridStoreState, findPositionForItem)
+  const returnDefaultGridStoreState = (): AllGridTypes[] => {
+    return [
+      {
+        id: 0,
+        x: 3,
+        y: 0,
+        w: 6,
+        h: getScarfGridHeightFromCurrentData(0, false, -1),
+        min: { w: 3, h: 3 },
+        type: 'scarf',
+        stimulusId: 0,
+        groupId: -1,
+        zoomLevel: 0,
+        timeline: 'absolute',
+        absoluteGeneralLastVal: 0,
+        absoluteStimuliLastVal: [],
+        ordinalGeneralLastVal: 0,
+        ordinalStimuliLastVal: [],
+        dynamicAOI: true,
+      },
+    ]
+  }
+
+  let state = returnDefaultGridStoreState()
+  let store = createGridStore(state, findPositionForItem)
   setContext('gridStore', store)
+
+  $: switch ($processingFileStateStore) {
+    case 'done':
+      store.set(returnDefaultGridStoreState())
+      processingFileStateStore.set('idle')
+      break
+    case 'processing':
+      store.set(loadingGridStoreState)
+      break
+  }
 </script>
 
 <div class="wrap">
@@ -64,16 +91,17 @@
           bind:y={item.y}
           bind:w={item.w}
           bind:h={item.h}
-          min={{ w: 3, h: 6 }}
+          min={item.min}
+          class={'wsi'}
         >
           {#if item.type === 'scarf'}
-            <ScarfPlot settings={item} />
+            <ScarfPlot id={item.id} settings={item} />
           {/if}
           {#if item.type === 'empty'}
-            <EmptyPlot />
+            <EmptyPlot id={item.id} />
           {/if}
           {#if item.type === 'load'}
-            <LoadPlot />
+            <LoadPlot id={item.id} />
           {/if}
         </GridItem>
       </div>

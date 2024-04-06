@@ -19,7 +19,7 @@ export const createGridStore = (
           y: 0,
           w: 6,
           h: 5,
-          min: { w: 3 },
+          min: { w: 3, h: 5 },
           type: 'empty',
         },
       ])
@@ -44,7 +44,6 @@ export const createGridStore = (
     store.update(items =>
       items.concat({
         ...item,
-        id: getNewId(),
         x: newX,
         y: newY,
       })

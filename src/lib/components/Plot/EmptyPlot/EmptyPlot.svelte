@@ -1,16 +1,17 @@
-<script>
+<script lang="ts">
   import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import PlotWrap from '../PlotWrap.svelte'
-  import { setDefaultScarfPlotState } from '$lib/stores/scarfPlotsStore.ts'
   import PanelButtonUpload from '$lib/components/Panel/PanelButton/PanelButtonUpload.svelte'
   import PanelButtonDemo from '$lib/components/Panel/PanelButton/PanelButtonDemo.svelte'
+  import { processingFileStateStore } from '$lib/stores/processingFileStateStore.ts'
+  export let id: number
 
   const reloadViews = () => {
-    setDefaultScarfPlotState()
+    processingFileStateStore.set('done')
   }
 </script>
 
-<PlotWrap title="Workspace empty">
+<PlotWrap {id} title="Workspace empty">
   <div slot="body">
     <p>
       All data views erased. However, data is still available in the memory. You

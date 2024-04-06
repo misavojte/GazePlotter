@@ -1,8 +1,9 @@
 <script lang="ts">
   export let title: string
+  export let id: number
 </script>
 
-<div class="plot">
+<div class="gpplot" id="gpplot{id}">
   <div class="header">
     <h3>{title}</h3>
     <slot name="header" />
@@ -13,7 +14,7 @@
 </div>
 
 <style>
-  .plot {
+  .gpplot {
     border-radius: var(--rounded-lg) var(--rounded-lg) 0;
     box-shadow: 0 2px 10px rgb(0 0 0 / 15%);
     width: 100%;

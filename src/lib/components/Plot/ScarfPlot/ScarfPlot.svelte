@@ -12,6 +12,7 @@
   import ScarfPlotFigure from './ScarfPlotFigure/ScarfPlotFigure.svelte'
 
   export let settings: ScarfSettingsType
+  export let id: number
 
   let tooltipArea: HTMLElement
 
@@ -145,7 +146,6 @@
 
   const processLegendItem = (legendItem: Element) => {
     const type = legendItem.classList[1]
-    console.log(type)
     if (!type) return cancelInteractivity()
     if (highlightedType === type) return
     cancelTooltipInstantly()
@@ -167,11 +167,9 @@
     cancelInteractivity()
     if (!tooltipArea) return
   })
-
-  $: console.log(settings)
 </script>
 
-<PlotWrap title="Scarf Plot">
+<PlotWrap {id} title="Scarf Plot">
   <ScarfPlotHeader slot="header" bind:settings />
   <svelte:fragment slot="body">
     <ScarfPlotFigure

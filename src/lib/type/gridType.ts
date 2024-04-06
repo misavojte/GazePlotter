@@ -4,7 +4,7 @@ export interface GridType {
   y: number
   w: number
   h: number
-  min: { w: number }
+  min: { w: number; h: number }
   type: 'scarf' | 'empty' | 'load'
 }
 
@@ -18,6 +18,7 @@ export interface ScarfGridType extends GridType {
   absoluteStimuliLastVal: number[]
   ordinalGeneralLastVal: number
   ordinalStimuliLastVal: number[]
+  dynamicAOI: boolean
 }
 
 export interface EmptyGridType extends GridType {

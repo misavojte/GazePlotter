@@ -1,11 +1,4 @@
 <script lang="ts">
-  import {
-    getScarfPlotState,
-    getStimulusId,
-    getStimulusLastValue,
-    scarfPlotStates,
-    updateStimulusLastValue,
-  } from '$lib/stores/scarfPlotsStore.ts'
   import { getStimuliOrderVector } from '$lib/stores/dataStore.ts'
   import MajorButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralFieldset from '$lib/components/General/GeneralFieldset/GeneralFieldset.svelte'

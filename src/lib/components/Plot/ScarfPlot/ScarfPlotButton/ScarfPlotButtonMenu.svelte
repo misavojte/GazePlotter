@@ -15,10 +15,10 @@
   import ModalContentAoiVisibility from '../../../Modal/ModalContent/ModalContentAoiVisibility.svelte'
   import ModalContentDownloadScarfPlot from '../../../Modal/ModalContent/ModalContentDownloadScarfPlot.svelte'
   import ModalContentParticipantsGroups from '$lib/components/Modal/ModalContent/ModalContentParticipantsGroups.svelte'
-  import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.ts'
   import { getContext } from 'svelte'
+  import type { ScarfGridType } from '$lib/type/gridType.ts'
 
-  export let settings: ScarfSettingsType
+  export let settings: ScarfGridType
   const store = getContext<GridStoreType>('gridStore')
 
   const openClipModal = () => {
@@ -31,6 +31,7 @@
   const openAoiModificationModal = () => {
     modalStore.open(ModalContentAoiModification, 'AOI customization', {
       selectedStimulus: settings.stimulusId.toString(),
+      gridStore: store,
     })
   }
 

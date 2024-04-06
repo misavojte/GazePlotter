@@ -18,10 +18,13 @@
   import { fade } from 'svelte/transition'
   import GeneralPositionControl from '$lib/components/General/GeneralPositionControl/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/components/General/GeneralEmpty/GeneralEmpty.svelte'
-  import { redrawScarfPlotStates } from '$lib/stores/scarfPlotsStore.ts'
+  import type { GridStoreType } from '$lib/stores/gridStore.ts'
+  import { get } from 'svelte/store'
 
   export let selectedStimulus = '0'
   export let userSelected = 'this'
+  export let gridStore: GridStoreType
+
   let aoiObjects: ExtendedInterpretedDataType[] =
     [] /* Order in array is also important */
 
@@ -91,7 +94,7 @@
     if (handlerTypeForAoiStore !== 'this_stimulus') {
       addInfoToast('Ordering of AOIs is not updated for other stimuli')
     }
-    redrawScarfPlotStates()
+    gridStore.set(get(gridStore))
   }
 </script>
 

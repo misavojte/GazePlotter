@@ -29,6 +29,7 @@ import {
 import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType.js'
 import type { BaseInterpretedDataType } from '$lib/type/Data/InterpretedData/BaseInterpretedDataType.js'
 import type { SegmentInterpretedDataType } from '$lib/type/Data/InterpretedData/SegmentInterpretedDataType.js'
+import { getScarfParticipantBarHeight } from '$lib/services/scarfServices.ts'
 
 /**
  * Factory for data filling which is used to render scarf plot.
@@ -65,10 +66,13 @@ export class ScarfPlotFillingFactoryS {
   }
 
   get heightOfBarWrap(): number {
-    const baseHeight = this.rectWrappedHeight
-    return this.showAoiVisibility
-      ? baseHeight + this.lineWrappedHeight * this.aoiData.length
-      : baseHeight
+    return getScarfParticipantBarHeight(
+      this.heightOfBar,
+      this.spaceAboveRect,
+      this.aoiData.length,
+      this.showAoiVisibility,
+      this.lineWrappedHeight
+    )
   }
 
   get showAoiVisibility(): boolean {
@@ -105,6 +109,8 @@ export class ScarfPlotFillingFactoryS {
 
   getFilling(): ScarfFillingType {
     return {
+      id: this.stimulusId,
+      timelineType: this.settings.timeline,
       barHeight: this.heightOfBar,
       stimulusId: this.stimulusId,
       heightOfBarWrap: this.heightOfBarWrap,
