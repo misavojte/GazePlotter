@@ -11,7 +11,7 @@
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore.ts'
   import { getScarfGridHeightFromCurrentData } from '$lib/services/scarfServices.ts'
 
-  const itemSize = { height: 40 }
+  const itemSize = { height: 40, width: 40 }
 
   let gridController: GridController
 
@@ -40,11 +40,11 @@
     return [
       {
         id: 0,
-        x: 3,
+        x: 0,
         y: 0,
-        w: 6,
+        w: 20,
         h: getScarfGridHeightFromCurrentData(0, false, -1),
-        min: { w: 3, h: 3 },
+        min: { w: 14, h: 3 },
         type: 'scarf',
         stimulusId: 0,
         groupId: -1,
@@ -75,7 +75,7 @@
 
   const calculateHeight = (store: AllGridTypes[]) => {
     return store.reduce((acc, item) => {
-      const itemBottomEdge = (item.y + item.h) * (itemSize.height + 10) + 10
+      const itemBottomEdge = (item.y + item.h) * (itemSize.height + 10) + 15
       return Math.max(acc, itemBottomEdge)
     }, 0)
   }
@@ -86,7 +86,6 @@
 <div class="wrap" style="height: {heightBasedOnGrid}px;">
   <Grid
     {itemSize}
-    cols={12}
     collision="push"
     bind:controller={gridController}
     class={'workspace-wrapper'}
@@ -105,10 +104,10 @@
           class={'wsi'}
         >
           {#if item.type === 'scarf'}
-            <ScarfPlot id={item.id} settings={item} />
+            <ScarfPlot settings={item} />
           {/if}
           {#if item.type === 'empty'}
-            <EmptyPlot id={item.id} />
+            <EmptyPlot />
           {/if}
           {#if item.type === 'load'}
             <LoadPlot id={item.id} />
@@ -129,10 +128,12 @@
     z-index: 1;
     padding: 30px;
     transition: height 0.3s;
+    overflow-x: scroll;
   }
 
   :global(.workspace-wrapper) {
     z-index: 1;
+    min-width: 1600px;
   }
 
   :global(.preview) {
