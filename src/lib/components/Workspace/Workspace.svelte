@@ -27,10 +27,10 @@
   const loadingGridStoreState: AllGridTypes[] = [
     {
       id: -12,
-      x: 3,
+      x: 4,
       y: 0,
-      w: 6,
-      h: 6,
+      w: 4,
+      h: 4,
       min: { w: 3, h: 3 },
       type: 'load',
     },
@@ -80,7 +80,7 @@
     }, 0)
   }
 
-  let heightBasedOnGrid = calculateHeight($store)
+  $: heightBasedOnGrid = calculateHeight($store) // Better than using on:change events of the grid which are not reliable
 </script>
 
 <div class="wrap" style="height: {heightBasedOnGrid}px;">
@@ -91,9 +91,6 @@
     bind:controller={gridController}
     class={'workspace-wrapper'}
     bounds={true}
-    on:change={() => {
-      heightBasedOnGrid = calculateHeight($store)
-    }}
   >
     {#each $store as item (item.id)}
       <div transition:fade={{ duration: 300 }}>
@@ -142,5 +139,13 @@
     opacity: 0.25;
     border-radius: var(--rounded-lg) var(--rounded-lg) 0;
     background: var(--c-brand);
+  }
+
+  :global(.wsi) {
+    border-radius: var(--rounded-lg) var(--rounded-lg) 0;
+    background: var(--c-white);
+    box-shadow: 0 2px 10px rgb(0 0 0 / 15%);
+    display: flex;
+    flex-direction: column;
   }
 </style>

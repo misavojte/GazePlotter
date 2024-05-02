@@ -37,6 +37,8 @@ export const getScarfHeight = (
   const LINE_WRAPPED_HEIGHT = 6
   const NUMBER_PER_ROW = 4
 
+  const ADD_HEIGHT = 210
+
   const baseHeight = getScarfParticipantBarHeight(
     HEIGHT_OF_BAR,
     SPACE_ABOVE_RECT,
@@ -65,7 +67,7 @@ export const getScarfHeight = (
     heightOfParticipantBars +
     heightOfLegend +
     heightOfLegendMovementType +
-    180 +
+    ADD_HEIGHT +
     heightOfDynamicAoiLegend
   )
 }
