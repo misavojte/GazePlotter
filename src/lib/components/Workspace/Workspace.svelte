@@ -73,13 +73,14 @@
       break
   }
 
-  $: heightBasedOnGrid = $store.reduce((acc, item) => {
-    // Calculate the bottom edge position of the current item
-    const itemBottomEdge = (item.y + item.h) * (itemSize.height + 10) + 10
+  const calculateHeight = (store: AllGridTypes[]) => {
+    return store.reduce((acc, item) => {
+      const itemBottomEdge = (item.y + item.h) * (itemSize.height + 10) + 10
+      return Math.max(acc, itemBottomEdge)
+    }, 0)
+  }
 
-    // Compare with the current maximum to find the greatest bottom edge value
-    return Math.max(acc, itemBottomEdge)
-  }, 0)
+  let heightBasedOnGrid = calculateHeight($store)
 </script>
 
 <div class="wrap" style="height: {heightBasedOnGrid}px;">
@@ -90,6 +91,9 @@
     bind:controller={gridController}
     class={'workspace-wrapper'}
     bounds={true}
+    on:change={() => {
+      heightBasedOnGrid = calculateHeight($store)
+    }}
   >
     {#each $store as item (item.id)}
       <div transition:fade={{ duration: 300 }}>
