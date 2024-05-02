@@ -6,10 +6,10 @@
   import GeneralInputNumber from '$lib/components/General/GeneralInput/GeneralInputNumber.svelte'
   import { addSuccessToast } from '$lib/stores/toastStore.js'
 
-  import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.ts'
+  import type { ScarfGridType } from '$lib/type/gridType.ts'
   import type { GridStoreType } from '$lib/stores/gridStore.ts'
 
-  export let settings: ScarfSettingsType
+  export let settings: ScarfGridType
   export let store: GridStoreType
 
   const allStimuliId = getStimuliOrderVector()
