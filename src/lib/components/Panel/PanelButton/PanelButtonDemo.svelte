@@ -1,6 +1,6 @@
 <script lang="ts">
   import MajorControlButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
-  import { demoData } from '$lib/const/demoData.ts'
+  import { demoData } from '$lib/const/demoDataTwo.ts'
   import { data } from '$lib/stores/dataStore.ts'
   import { addSuccessToast } from '$lib/stores/toastStore.ts'
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore.ts'
