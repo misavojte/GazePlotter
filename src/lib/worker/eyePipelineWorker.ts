@@ -33,24 +33,29 @@ self.onmessage = async e => await processEvent(e)
 
 async function processEvent(e: MessageEvent): Promise<void> {
   const { data, type } = e.data
-  switch (type) {
-    case 'file-names':
-      if (!isStringArray(data)) throw new Error('File names are not string[]')
-      fileNames = data
-      pipeline = new EyePipeline(fileNames, requestUserInput)
-      return
-    case 'test-stream':
-      if (!isReadableStream(data))
-        throw new Error('Stream is not ReadableStream')
-      return
-    case 'stream':
-      return await evalStream(data)
-    case 'buffer':
-      return await evalBuffer(data)
-    case 'user-input':
-      return userInputResolver(data)
-    default:
-      throw new Error('Unknown const type in worker', data)
+  try {
+    switch (type) {
+      case 'file-names':
+        if (!isStringArray(data)) throw new Error('File names are not string[]')
+        fileNames = data
+        pipeline = new EyePipeline(fileNames, requestUserInput)
+        return
+      case 'test-stream':
+        if (!isReadableStream(data))
+          throw new Error('Stream is not ReadableStream')
+        return
+      case 'stream':
+        return await evalStream(data)
+      case 'buffer':
+        return await evalBuffer(data)
+      case 'user-input':
+        return userInputResolver(data)
+      default:
+        throw new Error('Unknown const type in worker', data)
+    }
+  } catch (error) {
+    console.error('Error in worker', error)
+    self.postMessage({ type: 'fail', data: error })
   }
 }
 
