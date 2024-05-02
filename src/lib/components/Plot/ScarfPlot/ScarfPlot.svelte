@@ -4,32 +4,24 @@
   import { ScarfPlotFillingFactoryS } from '$lib/class/Plot/ScarfPlot/ScarfPlotFillingFactoryS.ts'
   import PlotWrap from '$lib/components/Plot/PlotWrap.svelte'
   import { getParticipants } from '$lib/stores/dataStore.ts'
-  import { scarfPlotStates } from '$lib/stores/scarfPlotsStore.ts'
   import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType.ts'
-  import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.ts'
   import { onDestroy, onMount } from 'svelte'
   import ScarfPlotHeader from './ScarfPlotHeader/ScarfPlotHeader.svelte'
-  import ScarfPlotTooltip from './ScarfPlotTooltip/ScarfPlotTooltip.svelte'
   import ScarfPlotFigure from './ScarfPlotFigure/ScarfPlotFigure.svelte'
+  import type { ScarfGridType } from '$lib/type/gridType.ts'
+  import { tooltipScarfService } from '$lib/services/tooltipServices.ts'
 
-  export let scarfPlotId: number
+  export let settings: ScarfGridType
+  export let id: number
+
   let tooltipArea: HTMLElement
-
-  const firstSettings: ScarfSettingsType | undefined = $scarfPlotStates.find(
-    setting => setting.scarfPlotId === scarfPlotId
-  )
-  if (!firstSettings)
-    throw new Error(`Could not find scarf plot settings for id ${scarfPlotId}`)
-  let settings: ScarfSettingsType = firstSettings
-
-  let stimulusId: number = settings.stimulusId
 
   let highlightedType: string | null = null
   let removeHighlight: null | (() => void) = null
 
-  let participantIds: number[] = getParticipants(
+  $: participantIds = getParticipants(
     settings.groupId,
-    stimulusId
+    settings.stimulusId
   ).map(participant => participant.id)
 
   let window: Window
@@ -37,7 +29,7 @@
   const getAxisBreaks = (
     participantIds: number[],
     stimulusId: number,
-    settings: ScarfSettingsType
+    settings: ScarfGridType
   ) => {
     const axisFactory = new ScarfPlotAxisFactory(
       participantIds,
@@ -51,7 +43,7 @@
     stimulusId: number,
     participantIds: number[],
     timeline: PlotAxisBreaks,
-    settings: ScarfSettingsType
+    settings: ScarfGridType
   ) => {
     const fillingFactory = new ScarfPlotFillingFactoryS(
       stimulusId,
@@ -62,15 +54,19 @@
     return fillingFactory.getFilling()
   }
 
-  let absoluteTimeline: PlotAxisBreaks = getAxisBreaks(
+  $: absoluteTimeline = getAxisBreaks(
     participantIds,
-    stimulusId,
+    settings.stimulusId,
     settings
   )
 
-  let data = getFilling(stimulusId, participantIds, absoluteTimeline, settings)
+  $: data = getFilling(
+    settings.stimulusId,
+    participantIds,
+    absoluteTimeline,
+    settings
+  )
 
-  let tooltip: ScarfTooltipFillingType | null = null
   let timeout = 0
 
   const cancelHighlightKeepTooltip = () => {
@@ -88,7 +84,7 @@
 
   const cancelTooltipInstantly = () => {
     clearTimeout(timeout)
-    tooltip = null
+    tooltipScarfService(null)
     removeHighlight?.()
   }
 
@@ -114,11 +110,7 @@
     const participantId = parent.dataset.id
     if (!participantId) return cancelInteractivity()
 
-    if (
-      parseInt(segmentId) === tooltip?.segmentId &&
-      parseInt(participantId) === tooltip?.participantId
-    )
-      return
+    // TODO: There was removed things (tooltip?.participantId !== participantId || tooltip?.segmentId !== segmentId)
 
     removeHighlight?.()
     gElement.classList.add('focus')
@@ -140,16 +132,15 @@
       width: WIDTH_OF_TOOLTIP,
       participantId: parseInt(participantId),
       segmentId: parseInt(segmentId),
-      stimulusId,
+      stimulusId: settings.stimulusId,
     }
 
     clearTimeout(timeout)
-    tooltip = filling
+    tooltipScarfService(filling)
   }
 
   const processLegendItem = (legendItem: Element) => {
     const type = legendItem.classList[1]
-    console.log(type)
     if (!type) return cancelInteractivity()
     if (highlightedType === type) return
     cancelTooltipInstantly()
@@ -171,43 +162,19 @@
     cancelInteractivity()
     if (!tooltipArea) return
   })
-
-  const unsubscribe = scarfPlotStates.subscribe(
-    (newSettings: ScarfSettingsType[]) => {
-      // find by id
-      const newSetting = newSettings.find(
-        setting => setting.scarfPlotId === scarfPlotId
-      )
-      if (!newSetting) {
-        unsubscribe()
-        return
-      }
-      settings = newSetting
-      stimulusId = settings.stimulusId
-      participantIds = getParticipants(settings.groupId, stimulusId).map(
-        participant => participant.id
-      )
-      absoluteTimeline = getAxisBreaks(participantIds, stimulusId, settings)
-      data = getFilling(stimulusId, participantIds, absoluteTimeline, settings)
-    }
-  )
 </script>
 
-<PlotWrap title="Scarf Plot">
-  <ScarfPlotHeader slot="header" scarfId={scarfPlotId} />
+<PlotWrap {id} title="Scarf Plot">
+  <ScarfPlotHeader slot="header" bind:settings />
   <svelte:fragment slot="body">
     <ScarfPlotFigure
       on:mouseleave={cancelInteractivity}
       on:mousemove={decideInteractivity}
-      {scarfPlotId}
       tooltipAreaElement={tooltipArea}
       {data}
       {settings}
       axisBreaks={absoluteTimeline}
       highlightedIdentifier={highlightedType}
     />
-    {#if tooltip}
-      <ScarfPlotTooltip {...tooltip} />
-    {/if}
   </svelte:fragment>
 </PlotWrap>

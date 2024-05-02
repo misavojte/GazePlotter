@@ -5,17 +5,18 @@
   import ScarfPlotButtonMenu from '../ScarfPlotButton/ScarfPlotButtonMenu.svelte'
   import ScarfTimelineSelect from '../ScarfPlotSelect/ScarfPlotSelectTimeline.svelte'
   import ScarfPlotSelectGroup from '../ScarfPlotSelect/ScarfPlotSelectGroup.svelte'
+  import type { ScarfGridType } from '$lib/type/gridType.ts'
 
-  export let scarfId: number
+  export let settings: ScarfGridType
 </script>
 
 <div class="nav">
-  <ScarfPlotSelectStimulus {scarfId} />
-  <ScarfTimelineSelect {scarfId} />
-  <ScarfPlotSelectGroup {scarfId} />
-  <ZoomInButton {scarfId} />
-  <ZoomOutButton {scarfId} />
-  <ScarfPlotButtonMenu {scarfId} />
+  <ScarfPlotSelectStimulus bind:settings />
+  <ScarfTimelineSelect bind:settings />
+  <ScarfPlotSelectGroup bind:settings />
+  <ZoomInButton bind:settings />
+  <ZoomOutButton bind:settings />
+  <ScarfPlotButtonMenu bind:settings />
 </div>
 
 <style>

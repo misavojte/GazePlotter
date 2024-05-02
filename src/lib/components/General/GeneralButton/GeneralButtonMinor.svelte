@@ -10,7 +10,11 @@
   }
 </script>
 
-<button disabled={isDisabled} on:click={handleClick} class:isIcon>
+<button
+  disabled={isDisabled}
+  on:pointerdown|stopPropagation
+  on:click={handleClick}
+>
   <slot />
 </button>
 

@@ -1,26 +1,17 @@
 <script lang="ts">
   export let title: string
+  export let id: number
 </script>
 
-<div class="plot">
-  <div class="header">
-    <h3>{title}</h3>
-    <slot name="header" />
-  </div>
-  <div class="body">
-    <slot name="body" />
-  </div>
+<div class="header">
+  <h3>{title}</h3>
+  <slot name="header" />
+</div>
+<div class="body">
+  <slot name="body" />
 </div>
 
 <style>
-  .plot {
-    border-radius: var(--rounded-lg);
-    box-shadow: 0 2px 10px rgb(0 0 0 / 15%);
-    width: 100%;
-    background: var(--c-white);
-    box-sizing: border-box;
-    overflow: hidden;
-  }
   .header {
     display: flex;
     justify-content: space-between;
@@ -28,10 +19,12 @@
     padding: 15px 30px;
     background: var(--c-lightgrey);
     flex-wrap: wrap;
-    gap: 0 20px;
+    gap: 10px 20px;
   }
   .body {
     padding: 30px;
+    flex-grow: 1;
+    overflow: auto;
   }
   h3 {
     margin: 0;

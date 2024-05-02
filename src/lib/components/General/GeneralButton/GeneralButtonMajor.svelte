@@ -2,7 +2,7 @@
   export let isDisabled = false
 </script>
 
-<button disabled={isDisabled} on:click>
+<button disabled={isDisabled} on:pointerdown|stopPropagation on:click>
   <slot />
 </button>
 

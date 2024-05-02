@@ -1,11 +1,20 @@
 <script lang="ts">
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
-  import { getStimuli } from '$lib/stores/dataStore.js'
-  import { updateStimulusId } from '$lib/stores/scarfPlotsStore.js'
+  import {
+    getStimuli,
+    hasStimulusAoiVisibility,
+  } from '$lib/stores/dataStore.js'
+  import {
+    getDynamicAoiBoolean,
+    getScarfGridHeightFromCurrentData,
+  } from '$lib/services/scarfServices.ts'
+  import type { GridStoreType } from '$lib/stores/gridStore.ts'
+  import { getContext } from 'svelte'
+  import type { ScarfGridType } from '$lib/type/gridType.ts'
+  let store = getContext<GridStoreType>('gridStore')
+  export let settings: ScarfGridType
 
-  export let scarfId: number
-
-  let value: string
+  let value: string = settings.stimulusId.toString()
 
   /**
    * TODO: Make reactive in the future (when stimuli can be updated)
@@ -17,8 +26,20 @@
     }
   })
 
-  $: if (parseInt(value) >= 0) {
-    updateStimulusId(scarfId, parseInt(value))
+  $: fireChange(parseInt(value))
+
+  const fireChange = (stimulusId: number) => {
+    const h = getScarfGridHeightFromCurrentData(
+      stimulusId,
+      getDynamicAoiBoolean(
+        settings.timeline,
+        settings.dynamicAOI,
+        hasStimulusAoiVisibility(stimulusId)
+      ),
+      settings.groupId
+    )
+    const newSettings = { ...settings, stimulusId, h }
+    store.updateSettings(newSettings)
   }
 </script>
 

@@ -1,8 +1,9 @@
 <script lang="ts">
   import PlotWrap from '$lib/components/Plot/PlotWrap.svelte'
+  export let id: number
 </script>
 
-<PlotWrap title="Loading data">
+<PlotWrap {id} title="Loading data">
   <div class="loading" slot="body">
     <div class="spinner"></div>
     <div>Rendering charts</div>

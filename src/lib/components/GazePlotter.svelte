@@ -3,6 +3,7 @@
   import Modal from '$lib/components/Modal/Modal.svelte'
   import Panel from '$lib/components/Panel/Panel.svelte'
   import Workspace from '$lib/components/Workspace/Workspace.svelte'
+  import Tooltip from './Tooltip.svelte'
 </script>
 
 <div id="GP-gazeplotter">
@@ -12,6 +13,7 @@
   <Workspace />
   <Modal />
   <Toaster />
+  <Tooltip />
 </div>
 
 <style>

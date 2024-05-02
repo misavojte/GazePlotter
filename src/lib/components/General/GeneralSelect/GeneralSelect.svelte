@@ -13,7 +13,7 @@
   }
 </script>
 
-<div class="select-wrapper" class:compact>
+<div class="select-wrapper" class:compact on:pointerdown|stopPropagation>
   <label for={name}>{label}</label>
   <div class="option-wrapper">
     <select {disabled} {name} id="GP-{name}" on:change={handleChange}>

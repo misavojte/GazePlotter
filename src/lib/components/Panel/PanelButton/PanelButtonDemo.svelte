@@ -2,7 +2,6 @@
   import MajorControlButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import { demoData } from '$lib/const/demoData.ts'
   import { data } from '$lib/stores/dataStore.ts'
-  import { setDefaultScarfPlotState } from '$lib/stores/scarfPlotsStore.ts'
   import { addSuccessToast } from '$lib/stores/toastStore.ts'
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore.ts'
 
@@ -10,7 +9,7 @@
 
   const handleClick = async () => {
     data.set(demoData)
-    setDefaultScarfPlotState()
+    processingFileStateStore.set('done')
     addSuccessToast('Demo data loaded')
   }
 </script>
