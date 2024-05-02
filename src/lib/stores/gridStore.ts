@@ -12,17 +12,7 @@ export const createGridStore = (
   const removeItem = (id: number) => {
     store.update(items => items.filter(item => item.id !== id))
     if (get(store).length === 0) {
-      store.set([
-        {
-          id: 0,
-          x: 3,
-          y: 0,
-          w: 6,
-          h: 5,
-          min: { w: 3, h: 5 },
-          type: 'empty',
-        },
-      ])
+      store.set([])
     }
   }
 
