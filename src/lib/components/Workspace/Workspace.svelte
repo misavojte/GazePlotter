@@ -80,8 +80,8 @@
 </script>
 
 <div class="wrap" style="height: {heightBasedOnGrid}px;">
-  {#if $store && width && $processingFileStateStore === 'idle'}
-    {#if $store.length === 0}
+  {#if $store && width && ($processingFileStateStore === 'idle' || $processingFileStateStore === 'fail')}
+    {#if $store.length === 0 || $processingFileStateStore === 'fail'}
       <div class="wsi false-grid-item">
         <EmptyPlot />
       </div>

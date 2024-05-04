@@ -17,7 +17,7 @@
     if (files.length === 0) return
     processingFileStateStore.set('processing')
     try {
-      workerService = new EyeWorkerService(handleEyeData)
+      workerService = new EyeWorkerService(handleEyeData, handleFail)
       workerService.sendFiles(files)
     } catch (e) {
       console.error(e)
@@ -33,6 +33,11 @@
     setData(data)
     addSuccessToast('Data loaded')
     processingFileStateStore.set('done')
+  }
+
+  const handleFail = () => {
+    addErrorToast('Data processing failed')
+    processingFileStateStore.set('fail')
   }
 </script>
 
