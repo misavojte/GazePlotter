@@ -112,8 +112,8 @@ export class EyeWorkerService {
     }
   }
 
-  protected handleError(event: ErrorEvent): void {
-    const message = event.error?.message ?? 'Unknown error'
+  protected handleError(error: Error): void {
+    const message = error?.message ?? 'Unknown error'
     addErrorToast('Could not process the file: ' + message)
     console.error('EyeWorkerService.handleError() - event:', event)
     this.onFail()
