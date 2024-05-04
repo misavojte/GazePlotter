@@ -1,4 +1,4 @@
-import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.js'
+import type { ScarfGridType } from '$lib/type/gridType.ts'
 import {
   getNumberOfSegments,
   getParticipantEndTime,
@@ -7,14 +7,14 @@ import { PlotAxisBreaks } from '../PlotAxisBreaks/PlotAxisBreaks.ts'
 
 export class ScarfPlotAxisFactory {
   stimulusId: number
-  settings: ScarfSettingsType
+  settings: ScarfGridType
   participantIds: number[]
   isCut: boolean
 
   constructor(
     participantIds: number[],
     stimulusId: number,
-    settings: ScarfSettingsType
+    settings: ScarfGridType
   ) {
     this.settings = settings
     this.participantIds = participantIds

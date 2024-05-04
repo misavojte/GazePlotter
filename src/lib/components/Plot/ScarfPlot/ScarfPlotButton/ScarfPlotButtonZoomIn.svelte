@@ -2,8 +2,8 @@
   import MinorButton from '$lib/components/General/GeneralButton/GeneralButtonMinor.svelte'
   import ZoomIn from 'lucide-svelte/icons/zoom-in'
 
-  import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.ts'
-  export let settings: ScarfSettingsType
+  import type { ScarfGridType } from '$lib/type/gridType.ts'
+  export let settings: ScarfGridType
 
   $: isDisabled = settings.zoomLevel > 3
   const handleClick = () => {

@@ -4,14 +4,13 @@
   import PanelButtonUpload from '$lib/components/Panel/PanelButton/PanelButtonUpload.svelte'
   import PanelButtonDemo from '$lib/components/Panel/PanelButton/PanelButtonDemo.svelte'
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore.ts'
-  export let id: number
 
   const reloadViews = () => {
     processingFileStateStore.set('done')
   }
 </script>
 
-<PlotWrap {id} title="Workspace empty">
+<PlotWrap title="Workspace empty">
   <div slot="body">
     <p>
       All data views erased. However, data is still available in the memory. You
