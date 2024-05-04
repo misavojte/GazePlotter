@@ -1,5 +1,12 @@
 import { getAois, getParticipants } from '$lib/stores/dataStore.ts'
 
+/**
+ * Helper function to calculate the height of the scarf legend group based on the current data in pixels.
+ * @param length length of the scarf legend item in pixels
+ * @param height height of the scarf legend item in pixels
+ * @param numberPerRow number of items per row in the scarf legend
+ * @returns the height of the scarf legend in pixels
+ */
 export const getScarfLegendHeight = (
   length: number,
   height: number,
@@ -8,6 +15,15 @@ export const getScarfLegendHeight = (
   return height * (length / numberPerRow)
 }
 
+/**
+ * Helper function to calculate the height of the scarf participant bar based on the current data in pixels.
+ * @param heightOfBar height of the participant bar in pixels
+ * @param spaceAboveRect space above the rectangle in pixels
+ * @param aoiDataLength number of AOIs in the current data
+ * @param showAoiVisibility boolean indicating whether AOI visibility is shown
+ * @param lineWrappedHeight height of the line indicating AOI visibility in pixels
+ * @returns the height of the scarf participant bar in pixels
+ */
 export const getScarfParticipantBarHeight = (
   heightOfBar: number,
   spaceAboveRect: number,
@@ -25,6 +41,13 @@ export const getScarfParticipantBarHeight = (
     : baseHeight
 }
 
+/**
+ * Helper function to calculate the height of the scarf grid based on the current data in pixels.
+ * @param participantIds array of participant IDs
+ * @param isAoiVisible boolean indicating whether AOI is visible in the current context
+ * @param aoiDataLength number of AOIs in the current data
+ * @returns the height of the scarf based on the current data in pixels
+ */
 export const getScarfHeight = (
   participantIds: number[],
   isAoiVisible: boolean,
@@ -49,7 +72,7 @@ export const getScarfHeight = (
   const heightOfParticipantBars = baseHeight * participantIds.length
 
   const heightOfLegend = getScarfLegendHeight(
-    aoiDataLength + 1,
+    aoiDataLength + 1, // +1 for the no AOI category fixation
     HEIGHT_OF_LEGEND_BAR,
     NUMBER_PER_ROW
   )
@@ -72,6 +95,15 @@ export const getScarfHeight = (
   )
 }
 
+/**
+ * Helper function to calculate the height of the scarf grid based on the current data.
+ * For the workspace component (grid view). Returns the height of the scarf grid in grid units.
+ * It uses constant UNIT_OF_GRID_HEIGHT to convert the height in pixels to grid units.
+ * @param stimulusId selected stimulus ID
+ * @param dynamicAOI is dynamic AOI shown in the current data view?
+ * @param groupId selected group ID
+ * @returns the height of the scarf grid based on the current data in grid units
+ */
 export const getScarfGridHeightFromCurrentData = (
   stimulusId: number,
   dynamicAOI: boolean,
@@ -91,6 +123,13 @@ export const getScarfGridHeightFromCurrentData = (
   )
 }
 
+/**
+ * Helper function determining whether dynamic AOI is displayed in the current context.
+ * @param timeline the timeline type
+ * @param dynamicAOIAllowed is dynamic AOI allowed by the settings?
+ * @param dynamicAOIInData is dynamic AOI present in the current data (stimulus)?
+ * @returns a boolean indicating whether dynamic AOI is allowed in the current context
+ */
 export const getDynamicAoiBoolean = (
   timeline: 'ordinal' | 'absolute' | 'relative',
   dynamicAOIAllowed: boolean,

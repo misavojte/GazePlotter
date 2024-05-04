@@ -7,7 +7,6 @@
 
   const reloadViews = () => {
     processingFileStateStore.set('done')
-    console.log('reload views', $processingFileStateStore)
   }
 </script>
 
