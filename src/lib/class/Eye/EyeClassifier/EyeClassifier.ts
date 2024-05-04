@@ -74,11 +74,13 @@ export class EyeClassifier {
   }
 
   isCsv(slice: string): boolean {
+    const header = slice.split('\r\n')[0]
+    const headerColumns = header.split(',')
     return (
-      slice.includes('Time') &&
-      slice.includes('Participant') &&
-      slice.includes('Stimulus') &&
-      slice.includes('AOI')
+      headerColumns.includes('Time') &&
+      headerColumns.includes('Participant') &&
+      headerColumns.includes('Stimulus') &&
+      headerColumns.includes('AOI')
     )
   }
 

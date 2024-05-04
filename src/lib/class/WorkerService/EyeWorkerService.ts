@@ -1,10 +1,6 @@
 import ModalContentTobiiParsingInput from '$lib/components/Modal/ModalContent/ModalContentTobiiParsingInput.svelte'
 import { modalStore } from '$lib/stores/modalStore.ts'
-import {
-  addErrorToast,
-  addInfoToast,
-  toastStore,
-} from '$lib/stores/toastStore.ts'
+import { addErrorToast, addInfoToast } from '$lib/stores/toastStore.ts'
 import type { DataType } from '$lib/type/Data/DataType.ts'
 
 /**
@@ -17,7 +13,8 @@ import type { DataType } from '$lib/type/Data/DataType.ts'
 export class EyeWorkerService {
   worker: Worker
   onData: (data: DataType) => void
-  constructor(onData: (data: DataType) => void) {
+  onFail: () => void
+  constructor(onData: (data: DataType) => void, onFail: () => void) {
     this.worker = new Worker(
       new URL('$lib/worker/eyePipelineWorker.ts', import.meta.url),
       {
@@ -27,6 +24,7 @@ export class EyeWorkerService {
     this.worker.onmessage = this.handleMessage.bind(this)
     this.worker.onerror = (event: ErrorEvent) => this.handleError(event)
     this.onData = onData
+    this.onFail = onFail
   }
 
   /**
@@ -114,10 +112,11 @@ export class EyeWorkerService {
     }
   }
 
-  protected handleError(event: ErrorEvent): void {
-    addErrorToast('Could not process the file')
-    console.error(event.error)
+  protected handleError(error: Error): void {
+    const message = error?.message ?? 'Unknown error'
+    addErrorToast('Could not process the file: ' + message)
     console.error('EyeWorkerService.handleError() - event:', event)
+    this.onFail()
   }
 
   handleUserInputProcess(): void {
