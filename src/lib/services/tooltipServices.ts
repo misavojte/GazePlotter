@@ -2,6 +2,12 @@ import { getParticipant, getSegment } from '$lib/stores/dataStore.ts'
 import { tooltipStore } from '$lib/stores/tooltipStore.ts'
 import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType.ts'
 
+/**
+ * Service function to fill the tooltip with data.
+ * Updates the tooltip store with the provided data.
+ * @param filling data to fill the tooltip with
+ * @returns void
+ */
 export const tooltipScarfService = (
   filling: ScarfTooltipFillingType | null
 ) => {

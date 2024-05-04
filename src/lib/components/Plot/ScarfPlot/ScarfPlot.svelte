@@ -12,7 +12,6 @@
   import { tooltipScarfService } from '$lib/services/tooltipServices.ts'
 
   export let settings: ScarfGridType
-  export let id: number
 
   let tooltipArea: HTMLElement
 
@@ -164,7 +163,7 @@
   })
 </script>
 
-<PlotWrap {id} title="Scarf Plot">
+<PlotWrap title="Scarf Plot">
   <ScarfPlotHeader slot="header" bind:settings />
   <svelte:fragment slot="body">
     <ScarfPlotFigure

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType.ts'
-  import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.ts'
+  import type { ScarfGridType } from '$lib/type/gridType.ts'
   import { PlotAxisBreaks } from '$lib/class/Plot/PlotAxisBreaks/PlotAxisBreaks.ts'
   import ScarfPlotLegend from '$lib/components/Plot/ScarfPlot/ScarfPlotLegend/ScarfPlotLegend.svelte'
   import { ScarfPlotDynamicStyleFactory } from '$lib/class/Plot/ScarfPlot/ScarfPlotDynamicStyleFactory.ts'
@@ -8,7 +8,7 @@
 
   export let tooltipAreaElement: HTMLElement
   export let data: ScarfFillingType
-  export let settings: ScarfSettingsType
+  export let settings: ScarfGridType
   export let axisBreaks: PlotAxisBreaks
   export let highlightedIdentifier: string | null = null
 
@@ -16,24 +16,24 @@
   $: usedHighlight = fixedHighlight ?? highlightedIdentifier
 
   const getGridPatternWidth = (
-    settings: ScarfSettingsType,
+    settings: ScarfGridType,
     axisBreaks: PlotAxisBreaks
   ): string => {
     if (settings.timeline === 'relative') return '10%'
     return `${(axisBreaks.maxLabel / axisBreaks.maxLabel) * 100}%`
   }
 
-  const getTimelineUnit = (settings: ScarfSettingsType): string => {
+  const getTimelineUnit = (settings: ScarfGridType): string => {
     return settings.timeline === 'relative' ? '%' : 'ms'
   }
 
-  const getXAxisLabel = (settings: ScarfSettingsType): string => {
+  const getXAxisLabel = (settings: ScarfGridType): string => {
     return settings.timeline === 'ordinal'
       ? 'Order index'
       : `Elapsed time [${getTimelineUnit(settings)}]`
   }
 
-  const getZoomWidth = (settings: ScarfSettingsType): number => {
+  const getZoomWidth = (settings: ScarfGridType): number => {
     return 100 * 2 ** settings.zoomLevel
   }
 

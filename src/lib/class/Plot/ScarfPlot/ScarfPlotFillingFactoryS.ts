@@ -10,7 +10,7 @@ import type {
   StylingScarfFillingType,
 } from '$lib/type/Filling/ScarfFilling/index.js'
 import { PlotAxisBreaks } from '../PlotAxisBreaks/PlotAxisBreaks.ts'
-import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.js'
+import type { ScarfGridType } from '$lib/type/gridType.ts'
 import {
   IDENTIFIER_IS_AOI,
   IDENTIFIER_IS_OTHER_CATEGORY,
@@ -53,7 +53,7 @@ export class ScarfPlotFillingFactoryS {
   stimuli: StimulusScarfFillingType[]
   stylingAndLegend: StylingScarfFillingType
   chartHeight: number
-  settings: ScarfSettingsType
+  settings: ScarfGridType
 
   hasAtLeastOneAoiVisibility = false
 
@@ -85,7 +85,7 @@ export class ScarfPlotFillingFactoryS {
     stimulusId: number,
     participantIds: number[],
     axis: PlotAxisBreaks,
-    settings: ScarfSettingsType,
+    settings: ScarfGridType,
     participGap = 10
   ) {
     this.stimulusId = stimulusId
