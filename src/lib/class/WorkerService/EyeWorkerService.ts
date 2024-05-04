@@ -22,7 +22,7 @@ export class EyeWorkerService {
       }
     )
     this.worker.onmessage = this.handleMessage.bind(this)
-    this.worker.onerror = (event: ErrorEvent) => this.handleError(event)
+    this.worker.onerror = (event: ErrorEvent) => this.handleError(event.error)
     this.onData = onData
     this.onFail = onFail
   }
