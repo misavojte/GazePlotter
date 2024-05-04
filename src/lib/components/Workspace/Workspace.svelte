@@ -11,7 +11,6 @@
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore.ts'
   import { getScarfGridHeightFromCurrentData } from '$lib/services/scarfServices.ts'
   import { onMount } from 'svelte'
-  import type { Writable } from 'svelte/store'
 
   const itemSize = { height: 40, width: 40 }
 
@@ -58,27 +57,18 @@
   let store = createGridStore([], findPositionForItem)
   setContext('gridStore', store)
 
-  const evaluate = (
-    processingFileStateStore: Writable<string>,
-    store: Writable<AllGridTypes[]>,
-    width: number | null,
-    processingFileStateStoreVal: string
-  ) => {
-    if (processingFileStateStoreVal === 'done' && width) {
-      store.set(returnDefaultGridStoreState())
-      processingFileStateStore.set('idle')
-    }
+  let width: number | null = null
+
+  $: if ($processingFileStateStore === 'done' && width) {
+    store.set(returnDefaultGridStoreState())
+    processingFileStateStore.set('idle')
   }
 
-  let width: number | null = null
-  $: evaluate(processingFileStateStore, store, width, $processingFileStateStore)
-
   const calculateHeight = (store: AllGridTypes[]) => {
-    const storeValue = store.reduce((acc, item) => {
-      const itemBottomEdge = (item.y + item.h) * (itemSize.height + 10) + 15
+    return store.reduce((acc, item) => {
+      const itemBottomEdge = (item.y + item.h) * (itemSize.height + 10) + 30
       return Math.max(acc, itemBottomEdge)
-    }, 0)
-    return storeValue !== 0 ? storeValue : 615
+    }, 615)
   }
 
   $: heightBasedOnGrid = calculateHeight($store) // Better than using on:change events of the grid which are not reliable
@@ -142,8 +132,9 @@
     box-shadow: inset 0 2px 10px rgb(0 0 0 / 15%);
     z-index: 1;
     padding: 30px;
-    transition: height 0.3s;
+    transition: height 0.3s ease-out;
     overflow-x: scroll;
+    overflow-y: hidden;
   }
 
   :global(.workspace-wrapper) {
