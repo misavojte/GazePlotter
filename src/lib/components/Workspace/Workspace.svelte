@@ -128,10 +128,11 @@
     background-color: var(--c-darkwhite);
     background-image: linear-gradient(var(--c-lightgrey) 1px, transparent 1px),
       linear-gradient(90deg, var(--c-lightgrey) 1px, transparent 1px);
-    background-size: 40px 40px;
+    background-size: 50px 50px;
+    background-position: -21px -21px;
     box-shadow: inset 0 2px 10px rgb(0 0 0 / 15%);
     z-index: 1;
-    padding: 30px;
+    padding: 25px;
     transition: height 0.3s ease-out;
     overflow-x: scroll;
     overflow-y: hidden;
@@ -158,5 +159,7 @@
   .false-grid-item {
     max-width: 520px;
     margin: auto;
+    margin-block: 8px;
+    overflow: hidden;
   }
 </style>

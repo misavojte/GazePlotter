@@ -13,8 +13,8 @@
 <PlotWrap title="Workspace empty">
   <div slot="body">
     <p>
-      All data views erased. However, data is still available in the memory. You
-      can upload new data, load sample data or reload current data.
+      No data views in the workspace. However, data is still available in the
+      memory. You can upload new data, load sample data or reload current data.
     </p>
     <div class="box">
       <GeneralButtonMajor on:click={reloadViews}>
