@@ -60,7 +60,12 @@
   )
 </script>
 
-<figure class="tooltip-area" on:mousemove on:mouseleave>
+<figure
+  class="tooltip-area"
+  on:mousemove
+  on:mouseleave
+  on:pointerdown|stopPropagation
+>
   <!-- scarf plot id is used to identify the plot by other components (e.g. for download) -->
   <div class="chartwrap" id={scarfPlotAreaId} bind:this={tooltipAreaElement}>
     {@html dynamicStyle}
