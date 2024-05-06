@@ -36,7 +36,9 @@
   }
 
   const openAoiVisibilityModal = () => {
-    modalStore.open(ModalContentAoiVisibility, 'AOI visibility')
+    modalStore.open(ModalContentAoiVisibility, 'AOI visibility', {
+      gridStore: store,
+    })
   }
 
   const openUserGroupsModal = () => {
