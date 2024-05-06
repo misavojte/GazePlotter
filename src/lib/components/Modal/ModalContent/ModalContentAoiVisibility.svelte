@@ -3,8 +3,12 @@
   import { getParticipants, getStimuli } from '$lib/stores/dataStore.js'
   import GeneralInputFile from '../../General/GeneralInput/GeneralInputFile.svelte'
   import GeneralButtonMajor from '../../General/GeneralButton/GeneralButtonMajor.svelte'
-  import { AoiVisibilityParser } from '$lib/class/AoiVisibilityParser/AoiVisibilityParser.js'
   import { addErrorToast, addSuccessToast } from '$lib/stores/toastStore.js'
+  import { processAoiVisibility } from '$lib/services/aoiVisibilityServices.ts'
+  import type { GridStoreType } from '$lib/stores/gridStore.ts'
+  import { get } from 'svelte/store'
+
+  export let gridStore: GridStoreType
 
   let files: FileList | null = null
   let selectedStimulusId = '0'
@@ -29,24 +33,19 @@
       addErrorToast('No file selected')
       return
     }
-    files[0]
-      .text()
-      .then(x => {
-        const parser = new DOMParser()
-        const xml = parser.parseFromString(x, 'application/xml')
-        const stimulusId = parseInt(selectedStimulusId)
-        const participantId =
-          selectedParticipantId === 'all'
-            ? null
-            : parseInt(selectedParticipantId)
-        new AoiVisibilityParser().addVisInfo(stimulusId, participantId, xml)
-        //
-        addSuccessToast('File was read successfully')
+    try {
+      const stimulusId = parseInt(selectedStimulusId)
+      const participantId =
+        selectedParticipantId === 'all' ? null : parseInt(selectedParticipantId)
+      processAoiVisibility(stimulusId, participantId, files).then(() => {
+        addSuccessToast('AOI visibility updated')
+        gridStore.set(get(gridStore))
       })
-      .catch(e => {
-        console.error(e)
-        addErrorToast('Could not add AOI visibility. See console')
-      })
+    } catch (e) {
+      console.error(e)
+      const message = e instanceof Error ? e.message : 'Unknown error'
+      addErrorToast('Could not read file. ' + message)
+    }
   }
 </script>
 
