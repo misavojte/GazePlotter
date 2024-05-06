@@ -1,3 +1,8 @@
+/**
+ * Service functions for processing AOI visibility data
+ * @category Services
+ * @module services/aoiVisibilityServices
+ */
 import {
   getStimulusHighestEndTime,
   updateMultipleAoiVisibility,
@@ -252,6 +257,7 @@ export const processTobii = (
  * REMEMBER! Dynamic AOIs are in seconds, not milliseconds!
  * @param keyFrames keyframes of the AOI
  * @returns an array of timestamps when the AOI is visible
+ * @throws if the number of keyframes is odd (not closed AOI visibility data interval)
  */
 export const processTobiiKeyFrames = (
   keyFrames: Record<number, { IsActive: boolean; Seconds: number }>
@@ -270,6 +276,9 @@ export const processTobiiKeyFrames = (
       visibilityArr.push(seconds * 1000) // ms
       isAoiCurrentlyVisible = false
     }
+  }
+  if (visibilityArr.length % 2 !== 0) {
+    throw new Error('Odd number of keyframes in AOI visibility data')
   }
   return visibilityArr
 }

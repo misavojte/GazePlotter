@@ -11,7 +11,7 @@
   }
 
   // display legend name is max 13 characters, if it is longer, it will be cut and '...' will be added
-  const displayLegendName =
+  let displayLegendName =
     legend.name.length > 12 ? legend.name.slice(0, 10) + '...' : legend.name
 </script>
 
