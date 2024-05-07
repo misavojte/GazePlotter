@@ -9,14 +9,14 @@ export class VarjoEyeDeserializer extends AbstractEyeDeserializer {
   mTimeBase: number | null = null
   mActorLabel: string | null = null
   mParticipant: string
-  constructor (header: string[], fileName: string) {
+  constructor(header: string[], fileName: string) {
     super()
     this.cTime = this.getIndex(header, 'Time')
     this.cActorLabel = this.getIndex(header, 'Actor Label')
     this.mParticipant = fileName.split('.')[0]
   }
 
-  deserialize (row: string[]): SingleDeserializerOutput | null {
+  deserialize(row: string[]): SingleDeserializerOutput | null {
     const time = row[this.cTime]
     const actorLabel = row[this.cActorLabel]
     const isNewSegment = actorLabel !== this.mActorLabel
@@ -33,7 +33,7 @@ export class VarjoEyeDeserializer extends AbstractEyeDeserializer {
     return output
   }
 
-  finalize (): SingleDeserializerOutput | null {
+  finalize(): SingleDeserializerOutput | null {
     const baseTime = this.mTimeBase
     if (baseTime === null) throw new Error('Base time is null')
     const actorLabel = this.mActorLabel
@@ -44,11 +44,11 @@ export class VarjoEyeDeserializer extends AbstractEyeDeserializer {
       start: String(this.convertStringTime(this.mTimeStart) - baseTime),
       end: String(this.convertStringTime(this.mTimeLast) - baseTime),
       participant: this.mParticipant,
-      stimulus: 'VarjoScene'
+      stimulus: 'VarjoScene',
     }
   }
 
-  convertStringTime (time: string): number {
+  convertStringTime(time: string): number {
     // From format "2022:11:11:15:50:18:30"
     const timeArray = time.split(':')
     return new Date(
