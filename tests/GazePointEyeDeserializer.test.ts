@@ -1,3 +1,10 @@
+/**
+ * Vitest tests for GazePointEyeDeserializer
+ *
+ * @module GazePointEyeDeserializer
+ * @see src/lib/class/Eye/EyeDeserializer/GazePointEyeDeserializer.ts
+ */
+
 import { test, expect, describe } from 'vitest'
 import { GazePointEyeDeserializer } from '$lib/class/Eye/EyeDeserializer/GazePointEyeDeserializer.ts'
 

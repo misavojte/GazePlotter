@@ -1,3 +1,10 @@
+/**
+ * Vitest tests for CsvEyeDeserializer
+ *
+ * @module CsvEyeDeserializer
+ * @see src/lib/class/Eye/EyeDeserializer/CsvEyeDeserializer.ts
+ */
+
 import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput.ts'
 import { CsvEyeDeserializer } from '../src/lib/class/Eye/EyeDeserializer/CsvEyeDeserializer.ts'
 import { test, expect, describe } from 'vitest'
