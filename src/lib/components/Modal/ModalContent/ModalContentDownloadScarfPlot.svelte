@@ -3,9 +3,11 @@
   import GeneralSelectBase from '../../General/GeneralSelect/GeneralSelect.svelte'
   import GeneralInputText from '../../General/GeneralInput/GeneralInputText.svelte'
   import MajorButton from '../../General/GeneralButton/GeneralButtonMajor.svelte'
-  import { ScarfDownloader } from '$lib/class/Downloader/ScarfDownloader.js'
+  import { ScarfDownloader } from '$lib/class/Downloader/ScarfDownloader.ts'
+  import type { ScarfGridType } from '$lib/type/gridType.ts'
+  import { addErrorToast } from '$lib/stores/toastStore.ts'
 
-  export let scarfId: number
+  export let settings: ScarfGridType
 
   type fileType = '.svg' | '.png' | '.jpg' | '.webp'
 
@@ -21,9 +23,11 @@
   ]
 
   const handleSubmit = () => {
-    const scarfPlot = document.getElementById(`scarf-plot-area-${scarfId}`)
+    const scarfPlot = document.getElementById(`scarf-plot-area-${settings.id}`)
     if (!scarfPlot)
-      throw new Error(`No scarf plot with id ${scarfId} found in DOM.`)
+      return addErrorToast(
+        `No scarf plot with id ${settings.id} found in DOM. Cannot download, report this issue to the developers.`
+      )
     const scarfPlotDownloader = new ScarfDownloader(
       fileName,
       typeOfExport,
