@@ -4,21 +4,23 @@
   export let filling: StylingScarfFillingType
 </script>
 
-<ScarfPlotLegendGroup
-  on:legendIdentifier
-  title="Fixations"
-  fillings={filling.aoi}
-/>
-<ScarfPlotLegendGroup
-  on:legendIdentifier
-  title="Non-fixations"
-  fillings={filling.category}
-/>
-{#if filling.visibility.length > 0}
+{#key filling}
   <ScarfPlotLegendGroup
     on:legendIdentifier
-    title="Is AOI visible"
-    fillings={filling.visibility}
-    isVisibility={true}
+    title="Fixations"
+    fillings={filling.aoi}
   />
-{/if}
+  <ScarfPlotLegendGroup
+    on:legendIdentifier
+    title="Non-fixations"
+    fillings={filling.category}
+  />
+  {#if filling.visibility.length > 0}
+    <ScarfPlotLegendGroup
+      on:legendIdentifier
+      title="Is AOI visible"
+      fillings={filling.visibility}
+      isVisibility={true}
+    />
+  {/if}
+{/key}

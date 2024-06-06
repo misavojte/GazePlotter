@@ -15,14 +15,6 @@
   let fixedHighlight: string | null = null
   $: usedHighlight = fixedHighlight ?? highlightedIdentifier
 
-  const getGridPatternWidth = (
-    settings: ScarfGridType,
-    axisBreaks: PlotAxisBreaks
-  ): string => {
-    if (settings.timeline === 'relative') return '10%'
-    return `${(axisBreaks.maxLabel / axisBreaks.maxLabel) * 100}%`
-  }
-
   const getTimelineUnit = (settings: ScarfGridType): string => {
     return settings.timeline === 'relative' ? '%' : 'ms'
   }
@@ -37,7 +29,6 @@
     return 100 * 2 ** settings.zoomLevel
   }
 
-  $: patternWidth = getGridPatternWidth(settings, axisBreaks)
   $: xAxisLabel = getXAxisLabel(settings)
   $: zoomWidth = getZoomWidth(settings)
 
