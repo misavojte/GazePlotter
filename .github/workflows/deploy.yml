@@ -45,7 +45,7 @@ jobs:
         run: npm run build  # Ensure your package.json has a 'build' script for SvelteKit
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v2
+        uses: actions/upload-pages-artifact@v3
         with:
           path: ./build  # Ensure this path is correct for your SvelteKit build output
 
