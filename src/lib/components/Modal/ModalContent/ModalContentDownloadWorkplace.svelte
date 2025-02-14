@@ -13,13 +13,27 @@
       value: 'inner-json',
       label: 'GazePlotter',
     },
+    {
+      value: 'csv',
+      label: 'CSV',
+    },
+    {
+      value: 'individual-csv',
+      label: 'Individual CSV',
+    },
   ]
 
   console.log(options)
 
   const handleSubmit = () => {
     const downloader = new WorkplaceDownloader()
-    downloader.download(getData(), fileName)
+    if (type === 'inner-json') {
+      downloader.download(getData(), fileName)
+    } else if (type === 'csv') {
+      downloader.downloadCSV(getData(), fileName)
+    } else {
+      downloader.downloadIndividualCSV(getData(), fileName)
+    }
   }
 </script>
 
