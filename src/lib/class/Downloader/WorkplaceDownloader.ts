@@ -25,7 +25,11 @@ export class WorkplaceDownloader extends AbstractDownloader {
     super.triggerDownload(content, fileName, '.csv')
   }
 
-  async downloadIndividualCSV(data: DataType, fileName: string): Promise<void> {
+  async downloadIndividualCSV(
+    data: DataType,
+    fileName: string,
+    filterFixations: boolean = false
+  ): Promise<void> {
     const csvPreData = convertDataStructure(data)
     const zip = new JSZip()
 
@@ -37,7 +41,13 @@ export class WorkplaceDownloader extends AbstractDownloader {
         const combinedData = csvPreData.filter(
           item => item.participant === participant && item.stimulus === stimulus
         )
-        const csvData = combinedData
+
+        // Filter out non-fixation data if the option is enabled
+        const filteredData = filterFixations
+          ? combinedData.filter(item => item.eyemovementtype === '0')
+          : combinedData
+
+        const csvData = filteredData
           .map(item =>
             [
               item.timestamp,
