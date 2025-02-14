@@ -32,7 +32,7 @@
     } else if (type === 'csv') {
       downloader.downloadCSV(getData(), fileName)
     } else {
-      downloader.downloadIndividualCSV(getData(), fileName)
+      downloader.downloadIndividualCSV(getData(), fileName, true)
     }
   }
 </script>
