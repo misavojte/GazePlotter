@@ -1,8 +1,9 @@
-name: Deploy SvelteKit with GitHub Pages dependencies preinstalled
+name: Deploy SvelteKit to GitHub Pages
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -11,7 +12,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
+  group: pages
   cancel-in-progress: false
 
 jobs:
@@ -26,12 +27,8 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Clear node_modules and package-lock.json
-        run: |
-          rm -rf node_modules package-lock.json
-
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build SvelteKit project
         run: npm run build
