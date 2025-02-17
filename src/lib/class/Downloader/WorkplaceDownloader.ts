@@ -15,9 +15,20 @@ export class WorkplaceDownloader extends AbstractDownloader {
   downloadCSV(data: DataType, fileName: string): void {
     const csvPreData = convertDataStructure(data)
     const csvData = csvPreData
-      .map(item => Object.values(item).join(','))
+      .map(item => {
+        const aoiNames = item.AOI ? item.AOI.join(';') : ''
+        return [
+          item.stimulus,
+          item.participant,
+          item.timestamp,
+          item.duration,
+          item.eyemovementtype,
+          aoiNames,
+        ].join(',')
+      })
       .join('\n')
-    const csvHeader = Object.keys(csvPreData[0]).join(',')
+    const csvHeader =
+      'stimulus,participant,timestamp,duration,eyemovementtype,AOI'
     const csvContent = `${csvHeader}\n${csvData}`
     const content = URL.createObjectURL(
       new Blob([csvContent], { type: 'text/csv' })
@@ -48,14 +59,15 @@ export class WorkplaceDownloader extends AbstractDownloader {
           : combinedData
 
         const csvData = filteredData
-          .map(item =>
-            [
+          .map(item => {
+            const aoiNames = item.AOI ? item.AOI.join(';') : ''
+            return [
               item.timestamp,
               item.duration,
               item.eyemovementtype,
-              item.AOI,
+              aoiNames,
             ].join(',')
-          )
+          })
           .join('\n')
         const csvHeader = 'timestamp,duration,eyemovementtype,AOI'
         const csvContent = `${csvHeader}\n${csvData}`
