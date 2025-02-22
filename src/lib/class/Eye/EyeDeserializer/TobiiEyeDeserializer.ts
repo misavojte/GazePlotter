@@ -14,6 +14,8 @@ import { AbstractEyeDeserializer } from './AbstractEyeDeserializer.ts'
  * @member cCategory - Index of the Eye movement type column.
  * @member cEvent - Index of the Event column.
  * @member cEyeMovementTypeIndex - Index of the Eye movement type index column.
+ * @member cGazeX - Index of the Gaze point X column.
+ * @member cGazeY - Index of the Gaze point Y column.
  * @member mStimulus - Current stimulus name.
  * @member mParticipant - Current participant name.
  * @member mRecordingStart - Current recording start timestamp.
@@ -24,6 +26,7 @@ import { AbstractEyeDeserializer } from './AbstractEyeDeserializer.ts'
  * @member mBaseTime - Current base time.
  * @member stimuliRevisit - Object containing information about revisited stimuli.
  * @member stimulusGetter - Function that returns the stimulus name, either from the Presented Stimulus name column or from the Event column.
+ * @member mGazeCoordinates - Current gaze coordinates.
  */
 export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   cAoiInfo: Array<{
@@ -38,6 +41,8 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   cCategory: number
   cEvent: number
   cEyeMovementTypeIndex: number
+  cGazeX: number
+  cGazeY: number
 
   mStimulus = ''
   mParticipant = ''
@@ -50,6 +55,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   /* stimuliRevisit: Record<string, number> = {} // Using an object to track the stimulus_participant revisit count */
   stimulusGetter: (row: string[]) => string
   stimuliBaseTimes: Map<string, string> = new Map()
+  mGazeCoordinates: [number, number] | null = null
 
   static readonly TYPE = 'tobii'
   static readonly TIME_MODIFIER = 0.001 // microseconds to milliseconds
@@ -69,6 +75,8 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     this.cCategory = header.indexOf('Eye movement type')
     this.cEvent = header.indexOf('Event')
     this.cEyeMovementTypeIndex = header.indexOf('Eye movement type index')
+    this.cGazeX = header.indexOf('Gaze point X')
+    this.cGazeY = header.indexOf('Gaze point Y')
     this.cAoiInfo = this.constructAoiMapping(
       header,
       this.constructStimuliDictionary(header)
@@ -252,6 +260,17 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     this.mCategory = row[this.cCategory]
     this.mAoi = aoi
     this.mRecordingLast = recordingTimestamp
+
+    if (this.cGazeX !== -1 && this.cGazeY !== -1) {
+      const gazeX = Number(row[this.cGazeX])
+      const gazeY = Number(row[this.cGazeY])
+      if (!isNaN(gazeX) && !isNaN(gazeY)) {
+        this.mGazeCoordinates = [gazeX, gazeY]
+      } else {
+        this.mGazeCoordinates = null
+      }
+    }
+
     return previousSegment
   }
 
@@ -297,10 +316,12 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
       this.mRecordingLast === this.mRecordingStart
     )
       return null
+
     const baseTime = this.stimuliBaseTimes.get(
       this.mStimulus + this.mParticipant
     )
-    return {
+
+    const output: SingleDeserializerOutput = {
       stimulus: this.mStimulus,
       participant: this.mParticipant,
       start: String(
@@ -314,6 +335,12 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
       category: this.mCategory,
       aoi: this.mAoi,
     }
+
+    if (this.mGazeCoordinates) {
+      output.coordinates = this.mGazeCoordinates
+    }
+
+    return output
   }
 
   /**

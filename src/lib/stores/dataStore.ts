@@ -128,6 +128,13 @@ export const getCategory = (id: number): ExtendedInterpretedDataType => {
   }
 }
 
+/**
+ * Returns the segment with the given id. If it is a fixation, it will return the AOIs that were fixated, also x,y coordinates.
+ * @param stimulusId - id of the stimulus
+ * @param participantId - id of the participant
+ * @param id - id of the segment
+ * @returns SegmentInterpretedDataType
+ */
 export const getSegment = (
   stimulusId: number,
   participantId: number,
@@ -140,17 +147,44 @@ export const getSegment = (
     )
   const start = segmentArray[0]
   const end = segmentArray[1]
-  const aoiIds = getSortedAoiIdsByOrderVector(stimulusId, segmentArray.slice(3))
-  const aoi = aoiIds.map((aoiId: number) => getAoi(stimulusId, aoiId))
-  const categoryId = segmentArray[2]
-  const category = getCategory(categoryId)
-  return {
+  const category = segmentArray[2]
+
+  // Handle coordinates for fixations if present
+  const hasCoordinates = getData().hasCoordinates
+  const coordOffset = hasCoordinates && category === 0 ? 2 : 0
+  const coordinates =
+    hasCoordinates && category === 0
+      ? ([segmentArray[3], segmentArray[4]] as [number, number])
+      : undefined
+
+  // Only process AOIs for fixations (category 0)
+  let aoi: ExtendedInterpretedDataType[] = []
+  if (category === 0) {
+    // Start slicing after the coordinates if they exist
+    const aoiStartIndex = 3 + coordOffset
+    const aoiIds = getSortedAoiIdsByOrderVector(
+      stimulusId,
+      segmentArray.slice(aoiStartIndex)
+    )
+
+    aoi = aoiIds.map((aoiId: number) => {
+      if (aoiId > 100) {
+        console.log(aoiIds, 'debug', segmentArray)
+      }
+      return getAoi(stimulusId, aoiId)
+    })
+  }
+
+  const output = {
     id,
     start,
     end,
     aoi,
-    category,
+    category: getCategory(category),
+    coordinates,
   }
+
+  return output
 }
 
 /**
@@ -208,6 +242,7 @@ export const getParticipantOrderVector = (): number[] => {
 
 export const getAois = (stimulusId: number): ExtendedInterpretedDataType[] => {
   const aoiIds = getAoiOrderVector(stimulusId)
+  console.log('log', aoiIds)
   return aoiIds.map((aoiId: number) => getAoi(stimulusId, aoiId))
 }
 

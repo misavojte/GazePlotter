@@ -15,6 +15,7 @@ import type { ParticipantsGroup } from './ParticipantsGroup.ts'
 
 export interface DataType {
   isOrdinalOnly: boolean
+  hasCoordinates?: boolean // FLAG ADDED IN 2025-02-22
   aois: AoiDataType
   categories: AttributeDataType
   participants: AttributeDataType

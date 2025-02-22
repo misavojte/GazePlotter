@@ -4,6 +4,7 @@ import type { DataType } from '$lib/type/Data/DataType.js'
 export class EyeWriter {
   data: DataType = {
     isOrdinalOnly: false,
+    hasCoordinates: false,
     stimuli: { data: [], orderVector: [] },
     participants: { data: [], orderVector: [] },
     participantsGroups: [],
@@ -28,6 +29,13 @@ export class EyeWriter {
     // generation of Segment info array:
     // 0: start time [ms], 1: end time [ms], 2: category ID, 3+: AOI ID(s)
     let segment = [Number(row.start), Number(row.end), categoryID]
+
+    if (row.coordinates) {
+      this.data.hasCoordinates = true
+      segment.push(row.coordinates[0])
+      segment.push(row.coordinates[1])
+    }
+
     if (aoiIDs !== null) {
       segment = segment.concat(aoiIDs)
     }

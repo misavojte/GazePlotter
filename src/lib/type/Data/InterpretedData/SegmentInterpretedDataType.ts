@@ -6,4 +6,5 @@ export interface SegmentInterpretedDataType {
   end: number
   category: ExtendedInterpretedDataType
   aoi: ExtendedInterpretedDataType[]
+  coordinates?: [number, number]
 }

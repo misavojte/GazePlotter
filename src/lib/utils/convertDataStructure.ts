@@ -10,6 +10,7 @@ export const convertDataStructure = (
   duration: string
   eyemovementtype: string
   AOI: string[] | null
+  coordinates?: [number, number]
 }> => {
   const result: Array<{
     stimulus: string
@@ -18,6 +19,7 @@ export const convertDataStructure = (
     duration: string
     eyemovementtype: string
     AOI: string[] | null
+    coordinates?: [number, number]
   }> = []
 
   for (
@@ -33,18 +35,31 @@ export const convertDataStructure = (
       const segments = data.segments[stimulusIndex][participantIndex]
       if (segments) {
         for (const segment of segments) {
-          const [start, end, category, ...aoiIds] = segment
+          const [start, end, category, ...rest] = segment
+          let coordinates: [number, number] | undefined
+          let aoiIds: number[]
+
+          // Only process coordinates for fixations (category 0)
+          if (data.hasCoordinates && category === 0) {
+            coordinates = [rest[0], rest[1]]
+            aoiIds = rest.slice(2)
+          } else {
+            aoiIds = []
+          }
+
           const aoiNames =
             aoiIds.length > 0
               ? aoiIds.map(id => getAoi(stimulusIndex, id).displayedName)
               : null
+
           result.push({
             stimulus: data.stimuli.data[stimulusIndex][0],
             participant: data.participants.data[participantIndex][0],
             timestamp: String(start),
-            duration: String(Number(end) - Number(start)), // Calculate duration
+            duration: String(Number(end) - Number(start)),
             eyemovementtype: String(category),
             AOI: aoiNames,
+            coordinates,
           })
         }
       }

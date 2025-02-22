@@ -17,6 +17,9 @@ export class WorkplaceDownloader extends AbstractDownloader {
     const csvData = csvPreData
       .map(item => {
         const aoiNames = item.AOI ? item.AOI.join(';') : ''
+        const coords = item.coordinates
+          ? `${item.coordinates[0]},${item.coordinates[1]}`
+          : ','
         return [
           item.stimulus,
           item.participant,
@@ -24,11 +27,12 @@ export class WorkplaceDownloader extends AbstractDownloader {
           item.duration,
           item.eyemovementtype,
           aoiNames,
+          ...coords.split(','),
         ].join(',')
       })
       .join('\n')
     const csvHeader =
-      'stimulus,participant,timestamp,duration,eyemovementtype,AOI'
+      'stimulus,participant,timestamp,duration,eyemovementtype,AOI,x,y'
     const csvContent = `${csvHeader}\n${csvData}`
     const content = URL.createObjectURL(
       new Blob([csvContent], { type: 'text/csv' })
@@ -61,15 +65,19 @@ export class WorkplaceDownloader extends AbstractDownloader {
         const csvData = filteredData
           .map(item => {
             const aoiNames = item.AOI ? item.AOI.join(';') : ''
+            const coords = item.coordinates
+              ? `${item.coordinates[0]},${item.coordinates[1]}`
+              : ','
             return [
               item.timestamp,
               item.duration,
               item.eyemovementtype,
               aoiNames,
+              ...coords.split(','),
             ].join(',')
           })
           .join('\n')
-        const csvHeader = 'timestamp,duration,eyemovementtype,AOI'
+        const csvHeader = 'timestamp,duration,eyemovementtype,AOI,x,y'
         const csvContent = `${csvHeader}\n${csvData}`
 
         zip.file(`${stimulus}_${participant}_${fileName}.csv`, csvContent)
