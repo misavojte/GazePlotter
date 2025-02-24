@@ -25,192 +25,177 @@
   export let userSelected = 'this'
   export let gridStore: GridStoreType
 
-  let aoiObjects: ExtendedInterpretedDataType[] =
-    [] /* Order in array is also important */
+  // Pure functions for AOI manipulation
+  const isValidMatch = (displayedName: string): boolean =>
+    typeof displayedName === 'string' &&
+    displayedName.trim() !== '' &&
+    displayedName !== undefined
 
-  $: {
-    aoiObjects = getAois(parseInt(selectedStimulus))
-  }
-
-  const isValidMatch = (displayedName: string): boolean => {
-    return (
-      typeof displayedName === 'string' &&
-      displayedName.trim() !== '' &&
-      displayedName !== undefined
-    )
-  }
-
-  $: {
-    // Create a new array to avoid direct mutation
-    const reorderedAois = [...aoiObjects]
-
-    // First, find all unique valid displayed names and their first occurrences
+  const reorderAois = (
+    aois: ExtendedInterpretedDataType[]
+  ): ExtendedInterpretedDataType[] => {
     const nameGroups = new Map()
 
-    reorderedAois.forEach((aoi, index) => {
-      if (isValidMatch(aoi.displayedName)) {
-        if (!nameGroups.has(aoi.displayedName)) {
-          nameGroups.set(aoi.displayedName, {
-            firstIndex: index,
-            color: aoi.color,
-          })
-        }
-      }
-    })
-
-    // Now reorder all AOIs at once
-    const result: ExtendedInterpretedDataType[] = []
-    const processed = new Set()
-
-    // First, add all AOIs that don't have valid matches
-    reorderedAois.forEach(aoi => {
+    // Find first occurrences of valid displayed names
+    aois.forEach((aoi, index) => {
       if (
-        !isValidMatch(aoi.displayedName) ||
+        isValidMatch(aoi.displayedName) &&
         !nameGroups.has(aoi.displayedName)
       ) {
-        result.push(aoi)
+        nameGroups.set(aoi.displayedName, {
+          firstIndex: index,
+          color: aoi.color,
+        })
       }
     })
 
-    // Then add all grouped AOIs in order
-    nameGroups.forEach((group, name) => {
-      const matchingAois = reorderedAois.filter(
-        aoi => isValidMatch(aoi.displayedName) && aoi.displayedName === name
-      )
+    // Group AOIs by validity and matching names
+    const ungroupedAois = aois.filter(
+      aoi =>
+        !isValidMatch(aoi.displayedName) || !nameGroups.has(aoi.displayedName)
+    )
 
-      matchingAois.forEach(aoi => {
-        aoi.color = group.color // Apply the color from the first occurrence
-        result.push(aoi)
-      })
-    })
+    const groupedAois = Array.from(nameGroups.entries()).flatMap(
+      ([name, group]) => {
+        const matchingAois = aois.filter(
+          aoi => isValidMatch(aoi.displayedName) && aoi.displayedName === name
+        )
+        return matchingAois.map(aoi => ({ ...aoi, color: group.color }))
+      }
+    )
 
-    // Update aoiObjects if the order has changed
-    if (JSON.stringify(result) !== JSON.stringify(aoiObjects)) {
-      aoiObjects = result
-    }
+    return [...ungroupedAois, ...groupedAois]
   }
 
-  /**
-   * TODO: Make reactive in the future (when stimuli can be updated)
-   */
-  const stimuliOption = getStimuli().map(stimulus => {
-    return {
-      label: stimulus.displayedName,
-      value: stimulus.id.toString(),
-    }
-  })
-
-  onMount(() => {
-    aoiObjects = getAois(parseInt(selectedStimulus))
-    console.log(aoiObjects)
-  })
-
-  const handleObjectPositionUp = (aoi: ExtendedInterpretedDataType) => {
-    // If this AOI is part of a group, find all AOIs in the group
+  const moveItem = (
+    aois: ExtendedInterpretedDataType[],
+    aoi: ExtendedInterpretedDataType,
+    direction: 'up' | 'down'
+  ): ExtendedInterpretedDataType[] => {
     const groupedAois = isValidMatch(aoi.displayedName)
-      ? aoiObjects.filter(a => a.displayedName === aoi.displayedName)
+      ? aois.filter(a => a.displayedName === aoi.displayedName)
       : [aoi]
 
-    const firstGroupIndex = aoiObjects.indexOf(groupedAois[0])
-    const currentIndex = aoiObjects.indexOf(aoi)
+    const firstGroupIndex = aois.indexOf(groupedAois[0])
+    const currentIndex = aois.indexOf(aoi)
+    const newAois = [...aois]
 
-    if (currentIndex > 0) {
-      // For single items, allow moving past groups
+    if (direction === 'up' && currentIndex > 0) {
       if (groupedAois.length === 1) {
-        // Find the previous item or group's start
         const prevItemIndex = currentIndex - 1
-        const prevItemDisplayedName = aoiObjects[prevItemIndex].displayedName
+        const prevItemDisplayedName = aois[prevItemIndex].displayedName
 
-        // If previous item is part of a group, move above the entire group
         if (isValidMatch(prevItemDisplayedName)) {
-          const prevGroup = aoiObjects.filter(
+          const prevGroup = aois.filter(
             (a, i) =>
               i < currentIndex && a.displayedName === prevItemDisplayedName
           )
-          const prevGroupStart = aoiObjects.indexOf(prevGroup[0])
+          const prevGroupStart = aois.indexOf(prevGroup[0])
 
-          aoiObjects = [
-            ...aoiObjects.slice(0, prevGroupStart),
+          return [
+            ...aois.slice(0, prevGroupStart),
             aoi,
-            ...aoiObjects.slice(prevGroupStart, currentIndex),
-            ...aoiObjects.slice(currentIndex + 1),
+            ...aois.slice(prevGroupStart, currentIndex),
+            ...aois.slice(currentIndex + 1),
           ]
-        } else {
-          // Normal swap for non-grouped items
-          const beforeGroup = aoiObjects.slice(0, currentIndex - 1)
-          const afterGroup = aoiObjects.slice(currentIndex + 1)
-          const swapItem = aoiObjects[currentIndex - 1]
-
-          aoiObjects = [...beforeGroup, aoi, swapItem, ...afterGroup]
         }
-      } else if (firstGroupIndex > 0) {
-        // For groups, move the entire group up
-        const beforeGroup = aoiObjects.slice(0, firstGroupIndex - 1)
-        const afterGroup = aoiObjects.slice(
-          firstGroupIndex + groupedAois.length
-        )
-        const swapItem = aoiObjects[firstGroupIndex - 1]
 
-        aoiObjects = [...beforeGroup, ...groupedAois, swapItem, ...afterGroup]
+        return [
+          ...aois.slice(0, currentIndex - 1),
+          aois[currentIndex],
+          aois[currentIndex - 1],
+          ...aois.slice(currentIndex + 1),
+        ]
+      } else if (firstGroupIndex > 0) {
+        const prevItem = aois[firstGroupIndex - 1]
+        const prevGroup = isValidMatch(prevItem.displayedName)
+          ? aois.filter(a => a.displayedName === prevItem.displayedName)
+          : [prevItem]
+        const prevGroupStart = aois.indexOf(prevGroup[0])
+
+        return [
+          ...aois.slice(0, prevGroupStart),
+          ...groupedAois,
+          ...prevGroup,
+          ...aois.slice(firstGroupIndex + groupedAois.length),
+        ]
       }
     }
+
+    if (direction === 'down' && currentIndex < aois.length - 1) {
+      if (groupedAois.length === 1) {
+        return [
+          ...aois.slice(0, currentIndex),
+          aois[currentIndex + 1],
+          aois[currentIndex],
+          ...aois.slice(currentIndex + 2),
+        ]
+      } else if (firstGroupIndex < aois.length - groupedAois.length) {
+        const beforeGroup = aois.slice(0, firstGroupIndex)
+        const afterGroup = aois.slice(firstGroupIndex + groupedAois.length + 1)
+        const swapItem = aois[firstGroupIndex + groupedAois.length]
+        return [...beforeGroup, swapItem, ...groupedAois, ...afterGroup]
+      }
+    }
+
+    return newAois
+  }
+
+  // Reactive declarations
+  let aoiObjects: ExtendedInterpretedDataType[] = []
+
+  $: {
+    aoiObjects = getAois(parseInt(selectedStimulus))
+  }
+
+  $: {
+    const reorderedResult = reorderAois([...aoiObjects])
+    if (JSON.stringify(reorderedResult) !== JSON.stringify(aoiObjects)) {
+      aoiObjects = reorderedResult
+    }
+  }
+
+  // Event handlers
+  const handleObjectPositionUp = (aoi: ExtendedInterpretedDataType) => {
+    aoiObjects = moveItem(aoiObjects, aoi, 'up')
   }
 
   const handleObjectPositionDown = (aoi: ExtendedInterpretedDataType) => {
-    // If this AOI is part of a group, find all AOIs in the group
-    const groupedAois = isValidMatch(aoi.displayedName)
-      ? aoiObjects.filter(a => a.displayedName === aoi.displayedName)
-      : [aoi]
-
-    const firstGroupIndex = aoiObjects.indexOf(groupedAois[0])
-    const currentIndex = aoiObjects.indexOf(aoi)
-
-    if (currentIndex < aoiObjects.length - 1) {
-      // For single items, allow moving past groups
-      if (groupedAois.length === 1) {
-        const beforeGroup = aoiObjects.slice(0, currentIndex)
-        const afterGroup = aoiObjects.slice(currentIndex + 2)
-        const swapItem = aoiObjects[currentIndex + 1]
-
-        aoiObjects = [...beforeGroup, swapItem, aoi, ...afterGroup]
-      } else if (firstGroupIndex < aoiObjects.length - groupedAois.length) {
-        // For groups, move the entire group down
-        const beforeGroup = aoiObjects.slice(0, firstGroupIndex)
-        const afterGroup = aoiObjects.slice(
-          firstGroupIndex + groupedAois.length + 1
-        )
-        const swapItem = aoiObjects[firstGroupIndex + groupedAois.length]
-
-        aoiObjects = [...beforeGroup, swapItem, ...groupedAois, ...afterGroup]
-      }
-    }
+    aoiObjects = moveItem(aoiObjects, aoi, 'down')
   }
 
   const handleSubmit = () => {
-    let handlerTypeForAoiStore:
-      | 'this_stimulus'
-      | 'all_by_original_name'
-      | 'all_by_displayed_name' = 'this_stimulus'
-    if (userSelected === 'all_original')
-      handlerTypeForAoiStore = 'all_by_original_name'
-    if (userSelected === 'all_displayed')
-      handlerTypeForAoiStore = 'all_by_displayed_name'
+    const handlerTypeMap = {
+      this: 'this_stimulus',
+      all_original: 'all_by_original_name',
+      all_displayed: 'all_by_displayed_name',
+    } as const
+
+    const handlerType =
+      handlerTypeMap[userSelected as keyof typeof handlerTypeMap]
+
     try {
-      updateMultipleAoi(
-        aoiObjects,
-        parseInt(selectedStimulus),
-        handlerTypeForAoiStore
-      )
+      updateMultipleAoi(aoiObjects, parseInt(selectedStimulus), handlerType)
+      addSuccessToast('AOIs updated successfully')
+      if (handlerType !== 'this_stimulus') {
+        addInfoToast('Ordering of AOIs is not updated for other stimuli')
+      }
+      gridStore.set(get(gridStore))
     } catch (e) {
       console.error(e)
       addErrorToast('Error while updating AOIs. See console for more details.')
     }
-    addSuccessToast('AOIs updated successfully')
-    if (handlerTypeForAoiStore !== 'this_stimulus') {
-      addInfoToast('Ordering of AOIs is not updated for other stimuli')
-    }
-    gridStore.set(get(gridStore))
   }
+
+  // Initialize
+  const stimuliOption = getStimuli().map(stimulus => ({
+    label: stimulus.displayedName,
+    value: stimulus.id.toString(),
+  }))
+
+  onMount(() => {
+    aoiObjects = getAois(parseInt(selectedStimulus))
+  })
 </script>
 
 <div class="content">
