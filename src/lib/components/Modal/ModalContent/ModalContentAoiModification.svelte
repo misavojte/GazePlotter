@@ -32,6 +32,64 @@
     aoiObjects = getAois(parseInt(selectedStimulus))
   }
 
+  const isValidMatch = (displayedName: string): boolean => {
+    return (
+      typeof displayedName === 'string' &&
+      displayedName.trim() !== '' &&
+      displayedName !== undefined
+    )
+  }
+
+  $: {
+    // Create a new array to avoid direct mutation
+    const reorderedAois = [...aoiObjects]
+
+    // First, find all unique valid displayed names and their first occurrences
+    const nameGroups = new Map()
+
+    reorderedAois.forEach((aoi, index) => {
+      if (isValidMatch(aoi.displayedName)) {
+        if (!nameGroups.has(aoi.displayedName)) {
+          nameGroups.set(aoi.displayedName, {
+            firstIndex: index,
+            color: aoi.color,
+          })
+        }
+      }
+    })
+
+    // Now reorder all AOIs at once
+    const result: ExtendedInterpretedDataType[] = []
+    const processed = new Set()
+
+    // First, add all AOIs that don't have valid matches
+    reorderedAois.forEach(aoi => {
+      if (
+        !isValidMatch(aoi.displayedName) ||
+        !nameGroups.has(aoi.displayedName)
+      ) {
+        result.push(aoi)
+      }
+    })
+
+    // Then add all grouped AOIs in order
+    nameGroups.forEach((group, name) => {
+      const matchingAois = reorderedAois.filter(
+        aoi => isValidMatch(aoi.displayedName) && aoi.displayedName === name
+      )
+
+      matchingAois.forEach(aoi => {
+        aoi.color = group.color // Apply the color from the first occurrence
+        result.push(aoi)
+      })
+    })
+
+    // Update aoiObjects if the order has changed
+    if (JSON.stringify(result) !== JSON.stringify(aoiObjects)) {
+      aoiObjects = result
+    }
+  }
+
   /**
    * TODO: Make reactive in the future (when stimuli can be updated)
    */
@@ -48,26 +106,83 @@
   })
 
   const handleObjectPositionUp = (aoi: ExtendedInterpretedDataType) => {
-    const index = aoiObjects.indexOf(aoi)
-    if (index > 0) {
-      aoiObjects = [
-        ...aoiObjects.slice(0, index - 1),
-        aoiObjects[index],
-        aoiObjects[index - 1],
-        ...aoiObjects.slice(index + 1),
-      ]
+    // If this AOI is part of a group, find all AOIs in the group
+    const groupedAois = isValidMatch(aoi.displayedName)
+      ? aoiObjects.filter(a => a.displayedName === aoi.displayedName)
+      : [aoi]
+
+    const firstGroupIndex = aoiObjects.indexOf(groupedAois[0])
+    const currentIndex = aoiObjects.indexOf(aoi)
+
+    if (currentIndex > 0) {
+      // For single items, allow moving past groups
+      if (groupedAois.length === 1) {
+        // Find the previous item or group's start
+        const prevItemIndex = currentIndex - 1
+        const prevItemDisplayedName = aoiObjects[prevItemIndex].displayedName
+
+        // If previous item is part of a group, move above the entire group
+        if (isValidMatch(prevItemDisplayedName)) {
+          const prevGroup = aoiObjects.filter(
+            (a, i) =>
+              i < currentIndex && a.displayedName === prevItemDisplayedName
+          )
+          const prevGroupStart = aoiObjects.indexOf(prevGroup[0])
+
+          aoiObjects = [
+            ...aoiObjects.slice(0, prevGroupStart),
+            aoi,
+            ...aoiObjects.slice(prevGroupStart, currentIndex),
+            ...aoiObjects.slice(currentIndex + 1),
+          ]
+        } else {
+          // Normal swap for non-grouped items
+          const beforeGroup = aoiObjects.slice(0, currentIndex - 1)
+          const afterGroup = aoiObjects.slice(currentIndex + 1)
+          const swapItem = aoiObjects[currentIndex - 1]
+
+          aoiObjects = [...beforeGroup, aoi, swapItem, ...afterGroup]
+        }
+      } else if (firstGroupIndex > 0) {
+        // For groups, move the entire group up
+        const beforeGroup = aoiObjects.slice(0, firstGroupIndex - 1)
+        const afterGroup = aoiObjects.slice(
+          firstGroupIndex + groupedAois.length
+        )
+        const swapItem = aoiObjects[firstGroupIndex - 1]
+
+        aoiObjects = [...beforeGroup, ...groupedAois, swapItem, ...afterGroup]
+      }
     }
   }
 
   const handleObjectPositionDown = (aoi: ExtendedInterpretedDataType) => {
-    const index = aoiObjects.indexOf(aoi)
-    if (index < aoiObjects.length - 1) {
-      aoiObjects = [
-        ...aoiObjects.slice(0, index),
-        aoiObjects[index + 1],
-        aoiObjects[index],
-        ...aoiObjects.slice(index + 2),
-      ]
+    // If this AOI is part of a group, find all AOIs in the group
+    const groupedAois = isValidMatch(aoi.displayedName)
+      ? aoiObjects.filter(a => a.displayedName === aoi.displayedName)
+      : [aoi]
+
+    const firstGroupIndex = aoiObjects.indexOf(groupedAois[0])
+    const currentIndex = aoiObjects.indexOf(aoi)
+
+    if (currentIndex < aoiObjects.length - 1) {
+      // For single items, allow moving past groups
+      if (groupedAois.length === 1) {
+        const beforeGroup = aoiObjects.slice(0, currentIndex)
+        const afterGroup = aoiObjects.slice(currentIndex + 2)
+        const swapItem = aoiObjects[currentIndex + 1]
+
+        aoiObjects = [...beforeGroup, swapItem, aoi, ...afterGroup]
+      } else if (firstGroupIndex < aoiObjects.length - groupedAois.length) {
+        // For groups, move the entire group down
+        const beforeGroup = aoiObjects.slice(0, firstGroupIndex)
+        const afterGroup = aoiObjects.slice(
+          firstGroupIndex + groupedAois.length + 1
+        )
+        const swapItem = aoiObjects[firstGroupIndex + groupedAois.length]
+
+        aoiObjects = [...beforeGroup, swapItem, ...groupedAois, ...afterGroup]
+      }
     }
   }
 
@@ -129,19 +244,29 @@
               bind:value={aoi.displayedName}
             />
           </td>
-          <td>
-            <input type="color" id={aoi.id + 'color'} bind:value={aoi.color} />
-          </td>
-          <td>
-            <div class="button-group">
-              <GeneralPositionControl
-                isFirst={aoiObjects.indexOf(aoi) === 0}
-                isLast={aoiObjects.indexOf(aoi) === aoiObjects.length - 1}
-                onMoveDown={() => handleObjectPositionDown(aoi)}
-                onMoveUp={() => handleObjectPositionUp(aoi)}
+          {#if !isValidMatch(aoi.displayedName) || aoiObjects.findIndex(a => isValidMatch(a.displayedName) && a.displayedName === aoi.displayedName) === aoiObjects.indexOf(aoi)}
+            <td>
+              <input
+                type="color"
+                id={aoi.id + 'color'}
+                bind:value={aoi.color}
               />
-            </div>
-          </td>
+            </td>
+            <td>
+              <div class="button-group">
+                <GeneralPositionControl
+                  isFirst={aoiObjects.indexOf(aoi) === 0}
+                  isLast={aoiObjects.indexOf(aoi) === aoiObjects.length - 1}
+                  onMoveDown={() => handleObjectPositionDown(aoi)}
+                  onMoveUp={() => handleObjectPositionUp(aoi)}
+                />
+              </div>
+            </td>
+          {:else}
+            <td colspan="2" class="group-info"
+              >change name to detach from group</td
+            >
+          {/if}
         </tr>
       {/each}
     </tbody>
@@ -201,5 +326,15 @@
   .original-name {
     line-height: 1;
     white-space: nowrap;
+  }
+  .group-info {
+    font-size: 12px;
+    color: var(--c-midgrey);
+    font-style: italic;
+    width: 90px;
+    line-height: 1.1;
+    border: 1px solid var(--c-midgrey);
+    border-radius: 5px;
+    padding: 3px 7px;
   }
 </style>
