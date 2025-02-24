@@ -25,77 +25,177 @@
   export let userSelected = 'this'
   export let gridStore: GridStoreType
 
-  let aoiObjects: ExtendedInterpretedDataType[] =
-    [] /* Order in array is also important */
+  // Pure functions for AOI manipulation
+  const isValidMatch = (displayedName: string): boolean =>
+    typeof displayedName === 'string' &&
+    displayedName.trim() !== '' &&
+    displayedName !== undefined
+
+  const reorderAois = (
+    aois: ExtendedInterpretedDataType[]
+  ): ExtendedInterpretedDataType[] => {
+    const nameGroups = new Map()
+
+    // Find first occurrences of valid displayed names
+    aois.forEach((aoi, index) => {
+      if (
+        isValidMatch(aoi.displayedName) &&
+        !nameGroups.has(aoi.displayedName)
+      ) {
+        nameGroups.set(aoi.displayedName, {
+          firstIndex: index,
+          color: aoi.color,
+        })
+      }
+    })
+
+    // Group AOIs by validity and matching names
+    const ungroupedAois = aois.filter(
+      aoi =>
+        !isValidMatch(aoi.displayedName) || !nameGroups.has(aoi.displayedName)
+    )
+
+    const groupedAois = Array.from(nameGroups.entries()).flatMap(
+      ([name, group]) => {
+        const matchingAois = aois.filter(
+          aoi => isValidMatch(aoi.displayedName) && aoi.displayedName === name
+        )
+        return matchingAois.map(aoi => ({ ...aoi, color: group.color }))
+      }
+    )
+
+    return [...ungroupedAois, ...groupedAois]
+  }
+
+  const moveItem = (
+    aois: ExtendedInterpretedDataType[],
+    aoi: ExtendedInterpretedDataType,
+    direction: 'up' | 'down'
+  ): ExtendedInterpretedDataType[] => {
+    const groupedAois = isValidMatch(aoi.displayedName)
+      ? aois.filter(a => a.displayedName === aoi.displayedName)
+      : [aoi]
+
+    const firstGroupIndex = aois.indexOf(groupedAois[0])
+    const currentIndex = aois.indexOf(aoi)
+    const newAois = [...aois]
+
+    if (direction === 'up' && currentIndex > 0) {
+      if (groupedAois.length === 1) {
+        const prevItemIndex = currentIndex - 1
+        const prevItemDisplayedName = aois[prevItemIndex].displayedName
+
+        if (isValidMatch(prevItemDisplayedName)) {
+          const prevGroup = aois.filter(
+            (a, i) =>
+              i < currentIndex && a.displayedName === prevItemDisplayedName
+          )
+          const prevGroupStart = aois.indexOf(prevGroup[0])
+
+          return [
+            ...aois.slice(0, prevGroupStart),
+            aoi,
+            ...aois.slice(prevGroupStart, currentIndex),
+            ...aois.slice(currentIndex + 1),
+          ]
+        }
+
+        return [
+          ...aois.slice(0, currentIndex - 1),
+          aois[currentIndex],
+          aois[currentIndex - 1],
+          ...aois.slice(currentIndex + 1),
+        ]
+      } else if (firstGroupIndex > 0) {
+        const prevItem = aois[firstGroupIndex - 1]
+        const prevGroup = isValidMatch(prevItem.displayedName)
+          ? aois.filter(a => a.displayedName === prevItem.displayedName)
+          : [prevItem]
+        const prevGroupStart = aois.indexOf(prevGroup[0])
+
+        return [
+          ...aois.slice(0, prevGroupStart),
+          ...groupedAois,
+          ...prevGroup,
+          ...aois.slice(firstGroupIndex + groupedAois.length),
+        ]
+      }
+    }
+
+    if (direction === 'down' && currentIndex < aois.length - 1) {
+      if (groupedAois.length === 1) {
+        return [
+          ...aois.slice(0, currentIndex),
+          aois[currentIndex + 1],
+          aois[currentIndex],
+          ...aois.slice(currentIndex + 2),
+        ]
+      } else if (firstGroupIndex < aois.length - groupedAois.length) {
+        const beforeGroup = aois.slice(0, firstGroupIndex)
+        const afterGroup = aois.slice(firstGroupIndex + groupedAois.length + 1)
+        const swapItem = aois[firstGroupIndex + groupedAois.length]
+        return [...beforeGroup, swapItem, ...groupedAois, ...afterGroup]
+      }
+    }
+
+    return newAois
+  }
+
+  // Reactive declarations
+  let aoiObjects: ExtendedInterpretedDataType[] = []
 
   $: {
     aoiObjects = getAois(parseInt(selectedStimulus))
   }
 
-  /**
-   * TODO: Make reactive in the future (when stimuli can be updated)
-   */
-  const stimuliOption = getStimuli().map(stimulus => {
-    return {
-      label: stimulus.displayedName,
-      value: stimulus.id.toString(),
+  $: {
+    const reorderedResult = reorderAois([...aoiObjects])
+    if (JSON.stringify(reorderedResult) !== JSON.stringify(aoiObjects)) {
+      aoiObjects = reorderedResult
     }
-  })
+  }
 
-  onMount(() => {
-    aoiObjects = getAois(parseInt(selectedStimulus))
-    console.log(aoiObjects)
-  })
-
+  // Event handlers
   const handleObjectPositionUp = (aoi: ExtendedInterpretedDataType) => {
-    const index = aoiObjects.indexOf(aoi)
-    if (index > 0) {
-      aoiObjects = [
-        ...aoiObjects.slice(0, index - 1),
-        aoiObjects[index],
-        aoiObjects[index - 1],
-        ...aoiObjects.slice(index + 1),
-      ]
-    }
+    aoiObjects = moveItem(aoiObjects, aoi, 'up')
   }
 
   const handleObjectPositionDown = (aoi: ExtendedInterpretedDataType) => {
-    const index = aoiObjects.indexOf(aoi)
-    if (index < aoiObjects.length - 1) {
-      aoiObjects = [
-        ...aoiObjects.slice(0, index),
-        aoiObjects[index + 1],
-        aoiObjects[index],
-        ...aoiObjects.slice(index + 2),
-      ]
-    }
+    aoiObjects = moveItem(aoiObjects, aoi, 'down')
   }
 
   const handleSubmit = () => {
-    let handlerTypeForAoiStore:
-      | 'this_stimulus'
-      | 'all_by_original_name'
-      | 'all_by_displayed_name' = 'this_stimulus'
-    if (userSelected === 'all_original')
-      handlerTypeForAoiStore = 'all_by_original_name'
-    if (userSelected === 'all_displayed')
-      handlerTypeForAoiStore = 'all_by_displayed_name'
+    const handlerTypeMap = {
+      this: 'this_stimulus',
+      all_original: 'all_by_original_name',
+      all_displayed: 'all_by_displayed_name',
+    } as const
+
+    const handlerType =
+      handlerTypeMap[userSelected as keyof typeof handlerTypeMap]
+
     try {
-      updateMultipleAoi(
-        aoiObjects,
-        parseInt(selectedStimulus),
-        handlerTypeForAoiStore
-      )
+      updateMultipleAoi(aoiObjects, parseInt(selectedStimulus), handlerType)
+      addSuccessToast('AOIs updated successfully')
+      if (handlerType !== 'this_stimulus') {
+        addInfoToast('Ordering of AOIs is not updated for other stimuli')
+      }
+      gridStore.set(get(gridStore))
     } catch (e) {
       console.error(e)
       addErrorToast('Error while updating AOIs. See console for more details.')
     }
-    addSuccessToast('AOIs updated successfully')
-    if (handlerTypeForAoiStore !== 'this_stimulus') {
-      addInfoToast('Ordering of AOIs is not updated for other stimuli')
-    }
-    gridStore.set(get(gridStore))
   }
+
+  // Initialize
+  const stimuliOption = getStimuli().map(stimulus => ({
+    label: stimulus.displayedName,
+    value: stimulus.id.toString(),
+  }))
+
+  onMount(() => {
+    aoiObjects = getAois(parseInt(selectedStimulus))
+  })
 </script>
 
 <div class="content">
@@ -129,19 +229,29 @@
               bind:value={aoi.displayedName}
             />
           </td>
-          <td>
-            <input type="color" id={aoi.id + 'color'} bind:value={aoi.color} />
-          </td>
-          <td>
-            <div class="button-group">
-              <GeneralPositionControl
-                isFirst={aoiObjects.indexOf(aoi) === 0}
-                isLast={aoiObjects.indexOf(aoi) === aoiObjects.length - 1}
-                onMoveDown={() => handleObjectPositionDown(aoi)}
-                onMoveUp={() => handleObjectPositionUp(aoi)}
+          {#if !isValidMatch(aoi.displayedName) || aoiObjects.findIndex(a => isValidMatch(a.displayedName) && a.displayedName === aoi.displayedName) === aoiObjects.indexOf(aoi)}
+            <td>
+              <input
+                type="color"
+                id={aoi.id + 'color'}
+                bind:value={aoi.color}
               />
-            </div>
-          </td>
+            </td>
+            <td>
+              <div class="button-group">
+                <GeneralPositionControl
+                  isFirst={aoiObjects.indexOf(aoi) === 0}
+                  isLast={aoiObjects.indexOf(aoi) === aoiObjects.length - 1}
+                  onMoveDown={() => handleObjectPositionDown(aoi)}
+                  onMoveUp={() => handleObjectPositionUp(aoi)}
+                />
+              </div>
+            </td>
+          {:else}
+            <td colspan="2" class="group-info"
+              >change name to detach from group</td
+            >
+          {/if}
         </tr>
       {/each}
     </tbody>
@@ -201,5 +311,15 @@
   .original-name {
     line-height: 1;
     white-space: nowrap;
+  }
+  .group-info {
+    font-size: 12px;
+    color: var(--c-midgrey);
+    font-style: italic;
+    width: 90px;
+    line-height: 1.1;
+    border: 1px solid var(--c-midgrey);
+    border-radius: 5px;
+    padding: 3px 7px;
   }
 </style>
