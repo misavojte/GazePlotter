@@ -1,11 +1,13 @@
 <script lang="ts">
-  // No imports needed anymore
+  export let insideGridItem = true
 </script>
 
-<div class="loading">
-  <div class="spinner"></div>
-  <div>Rendering charts</div>
-</div>
+{#if insideGridItem}
+  <div class="loading">
+    <div class="spinner"></div>
+    <div>Rendering charts</div>
+  </div>
+{/if}
 
 <style>
   .loading {

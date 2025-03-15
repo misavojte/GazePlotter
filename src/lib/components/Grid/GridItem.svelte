@@ -243,6 +243,8 @@
 
 <div
   class="grid-item"
+  aria-label="Grid item"
+  role="figure"
   class:dragging={isDragging}
   class:resizing={isResizing}
   {style}

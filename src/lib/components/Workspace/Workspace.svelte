@@ -1,8 +1,8 @@
 <script lang="ts">
-  import EmptyPlot from '$lib/components/Plot/EmptyPlot/EmptyPlot.svelte'
   import ScarfPlot from '$lib/components/Plot/ScarfPlot/ScarfPlot.svelte'
-  import LoadPlot from '$lib/components/Plot/LoadPlot/LoadPlot.svelte'
   import GridItem from '$lib/components/Workspace/WorkspaceItem.svelte'
+  import WorkspaceIndicatorEmpty from '$lib/components/Workspace/WorkspaceIndicatorEmpty.svelte'
+  import WorkspaceIndicatorLoading from '$lib/components/Workspace/WorkspaceIndicatorLoading.svelte'
   import { fade } from 'svelte/transition'
   import { setContext } from 'svelte'
   import { writable, get, derived } from 'svelte/store'
@@ -16,6 +16,13 @@
     type GridItemPosition,
     type GridConfig,
   } from '$lib/stores/gridStore'
+
+  // ---------------------------------------------------
+  // State tracking
+  // ---------------------------------------------------
+
+  // Create a store to track if we're in loading state
+  const isLoading = writable(false)
 
   // ---------------------------------------------------
   // Visualization Registry - Central configuration for plot types
@@ -57,24 +64,6 @@
       getDefaultHeight: (stimulusId = 0) =>
         getScarfGridHeightFromCurrentData(stimulusId, false, -1),
       getDefaultWidth: () => 20,
-    },
-    empty: {
-      name: 'Empty Plot',
-      component: EmptyPlot,
-      getDefaultConfig: () => ({
-        min: { w: 14, h: 3 },
-      }),
-      getDefaultHeight: () => 5,
-      getDefaultWidth: () => 14,
-    },
-    load: {
-      name: 'Loading...',
-      component: LoadPlot,
-      getDefaultConfig: () => ({
-        min: { w: 14, h: 3 },
-      }),
-      getDefaultHeight: () => 5,
-      getDefaultWidth: () => 14,
     },
   }
 
@@ -126,46 +115,6 @@
     } as AllGridTypes
   }
 
-  // Ensure there's always at least one item in the grid store
-  const ensureGridContent = () => {
-    if ($gridStore.length === 0) {
-      if ($processingFileStateStore === 'processing') {
-        // Show loading plot when processing
-        gridStore.addItem(
-          createGridItem('load', {
-            id: -1,
-            x: 0,
-            y: 0,
-            resizable: false,
-            draggable: false,
-          })
-        )
-      } else if ($processingFileStateStore === 'fail') {
-        // Show empty plot on failure
-        gridStore.addItem(
-          createGridItem('empty', {
-            id: -1,
-            x: 0,
-            y: 0,
-            resizable: false,
-            draggable: false,
-          })
-        )
-      } else {
-        // Default empty state
-        gridStore.addItem(
-          createGridItem('empty', {
-            id: -1,
-            x: 0,
-            y: 0,
-            resizable: false,
-            draggable: false,
-          })
-        )
-      }
-    }
-  }
-
   // Generate the default grid state with a centered scarf plot
   const createDefaultGridState = (): AllGridTypes[] => {
     return [
@@ -213,19 +162,25 @@
   const isEmpty = derived(gridStore, $gridStore => $gridStore.length === 0)
 
   // Reactive grid height calculation
-  const gridHeight = derived(positions, $positions => {
-    // Get the max grid unit
-    const maxY =
-      $positions.length > 0
-        ? Math.max(...$positions.map(item => item.y + item.h))
-        : 0
+  const gridHeight = derived(
+    [positions, isEmpty, isLoading],
+    ([$positions, $isEmpty, $isLoading]) => {
+      // Get the max grid unit
+      const maxY =
+        $positions.length > 0
+          ? Math.max(...$positions.map(item => item.y + item.h))
+          : 0
 
-    // Convert to pixels and add padding
-    return Math.max(
-      300, // Minimum height
-      maxY * (gridConfig.cellSize.height + gridConfig.gap) + gridConfig.gap + 40 // Add some padding
-    )
-  })
+      // Convert to pixels and add padding
+      // If the grid is empty or loading, ensure we have enough height for the indicators
+      return Math.max(
+        $isEmpty || $isLoading ? 500 : 300, // Higher minimum height when empty/loading for better indicator display
+        maxY * (gridConfig.cellSize.height + gridConfig.gap) +
+          gridConfig.gap +
+          40 // Add some padding
+      )
+    }
+  )
 
   // ---------------------------------------------------
   // Enhanced grid store with additional methods
@@ -326,36 +281,23 @@
     }, 50)
   }
 
-  // When the processing state changes, update the grid
+  // When the processing state changes, update the grid and loading state
   $: if ($processingFileStateStore === 'done') {
+    isLoading.set(false)
     enhancedGridStore.resetGrid(createDefaultGridState())
     processingFileStateStore.set('idle')
   } else if ($processingFileStateStore === 'processing') {
-    enhancedGridStore.resetGrid([
-      createGridItem('load', {
-        id: -1,
-        x: 0,
-        y: 0,
-        resizable: false,
-        draggable: false,
-      }),
-    ])
+    isLoading.set(true)
+    enhancedGridStore.resetGrid([]) // Clear the grid while loading
   } else if ($processingFileStateStore === 'fail') {
-    enhancedGridStore.resetGrid([
-      createGridItem('empty', {
-        id: -1,
-        x: 0,
-        y: 0,
-        resizable: false,
-        draggable: false,
-      }),
-    ])
+    isLoading.set(false)
+    enhancedGridStore.resetGrid([]) // Set to empty grid - the empty indicator will show
   }
 
-  // Ensure there's always at least one item in the grid
-  $: if ($gridStore.length === 0) {
-    ensureGridContent()
-  }
+  // Note: Previously, we would add grid items for both empty and loading states.
+  // Now we maintain a truly empty grid and display dedicated indicator components
+  // when appropriate. This provides a more integrated and visually appealing user
+  // experience without artificially creating grid items.
 </script>
 
 <div class="workspace-container" style="height: {$gridHeight}px;">
@@ -396,10 +338,19 @@
       </div>
     {/each}
   </div>
+
+  {#if $isEmpty && !$isLoading}
+    <WorkspaceIndicatorEmpty />
+  {/if}
+
+  {#if $isLoading}
+    <WorkspaceIndicatorLoading />
+  {/if}
 </div>
 
 <style>
   .workspace-container {
+    box-sizing: border-box;
     position: relative;
     width: 100%;
     background-color: var(--c-darkwhite);
