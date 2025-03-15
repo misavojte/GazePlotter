@@ -6,15 +6,20 @@
   import GridItem from '$lib/components/Grid/GridItem.svelte'
   import { fade } from 'svelte/transition'
   import { setContext } from 'svelte'
-  import { writable, get } from 'svelte/store'
+  import { writable, get, derived } from 'svelte/store'
   import {
     createGridSystem,
     type GridItemPosition,
+    type Position,
   } from '$lib/components/Grid/GridSystem'
   import type { AllGridTypes } from '$lib/type/gridType'
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
   import { getScarfGridHeightFromCurrentData } from '$lib/services/scarfServices'
   import { onMount } from 'svelte'
+
+  // ---------------------------------------------------
+  // Configuration and stores
+  // ---------------------------------------------------
 
   // Configuration for grid cells
   const cellSize = { width: 40, height: 40 }
@@ -22,126 +27,12 @@
   const minWidth = 14
   const minHeight = 3
 
-  // Create a store to hold grid items
+  // Track width for centered layout
+  let width: number | null = null
+  let heightBasedOnGrid = 615
+
+  // Create a typed store to hold grid items
   const gridStore = writable<AllGridTypes[]>([])
-
-  // Add the required functions to match the expected gridStore interface
-  const enhancedGridStore = {
-    subscribe: gridStore.subscribe,
-    set: gridStore.set,
-    update: gridStore.update,
-
-    // Add the missing updateSettings function that ScarfPlotSelectStimulus is looking for
-    updateSettings: (settings: AllGridTypes) => {
-      gridStore.update(items =>
-        items.map(item => {
-          if (item.id === settings.id) {
-            return { ...item, ...settings }
-          }
-          return item
-        })
-      )
-
-      // Also update the grid system for layout
-      const gridItems = convertToGridItems([settings])
-      const item = gridItems[0]
-
-      // If height changes, update the grid item size to match
-      const currentPositions = get(positions)
-      const currentItem = currentPositions.find(p => p.id === item.id)
-      if (currentItem && currentItem.h !== item.h) {
-        system.updateItemSize(item.id, item.w, item.h, true)
-      }
-    },
-
-    // Add other functions from the original gridStore
-    removeItem: (id: number) => {
-      gridStore.update(items => items.filter(item => item.id !== id))
-      if (get(gridStore).length === 0) {
-        gridStore.set([])
-      }
-
-      // Also remove from grid system
-      system.removeItem(id)
-    },
-
-    duplicateItem: (item: AllGridTypes) => {
-      // generate new, unique id
-      const newId = Date.now() + Math.floor(Math.random() * 1000)
-      const newItem = { ...item, id: newId }
-
-      // Get max grid width based on the workspace width
-      const maxGridWidth = width
-        ? Math.floor(width / (cellSize.width + gap))
-        : 100
-
-      // Find a smart position for the duplicate using the new method
-      const newPosition = system.findDuplicationPosition(
-        item.x,
-        item.y,
-        item.w,
-        item.h,
-        maxGridWidth
-      )
-
-      // Final safety check: Make sure we're not stacking items
-      // This is a belt-and-suspenders approach to absolutely prevent stacking
-      const currentItems = get(positions)
-      let movedDown = false
-
-      for (const existingItem of currentItems) {
-        // Check if the new position would overlap with any existing item
-        if (
-          newPosition.x < existingItem.x + existingItem.w &&
-          newPosition.x + newItem.w > existingItem.x &&
-          newPosition.y < existingItem.y + existingItem.h &&
-          newPosition.y + newItem.h > existingItem.y
-        ) {
-          // If overlap detected, find another position by shifting down
-          newPosition.y = Math.max(...currentItems.map(i => i.y + i.h)) + 1
-          movedDown = true
-          break
-        }
-      }
-
-      // Create the grid item first
-      const gridItem = {
-        id: newId,
-        x: newPosition.x,
-        y: newPosition.y,
-        w: newItem.w,
-        h: newItem.h,
-      }
-
-      // CRITICAL: Explicitly occupy the grid matrix BEFORE updating the stores
-      // This ensures subsequent duplications will see this item and avoid stacking
-      system.occupyItem(
-        newId,
-        newPosition.x,
-        newPosition.y,
-        newItem.w,
-        newItem.h
-      )
-
-      // Then update the stores
-      gridStore.update(items =>
-        items.concat({
-          ...newItem,
-          x: newPosition.x,
-          y: newPosition.y,
-        })
-      )
-
-      // Update positions store last
-      positions.update(pos => [...pos, gridItem])
-
-      // Critical: Update the grid height calculation after adding a new item
-      // This ensures the container expands when items are added to a new row at the bottom
-      heightBasedOnGrid = system.getGridHeight()
-    },
-  }
-
-  setContext('gridStore', enhancedGridStore)
 
   // Initialize the grid system with configuration
   const { system, positions } = createGridSystem({
@@ -151,12 +42,15 @@
     minHeight,
   })
 
-  // Track width for centered layout
-  let width: number | null = null
-  let heightBasedOnGrid = 615
+  // Reactive derivation of whether the grid is empty
+  const isEmpty = derived(gridStore, $gridStore => $gridStore.length === 0)
+
+  // ---------------------------------------------------
+  // Utility functions
+  // ---------------------------------------------------
 
   // Calculate the center position for the initial grid item
-  const findCenterX = (width: number | null) => {
+  const findCenterX = (width: number | null): number => {
     if (!width) return 0
     return Math.max(0, Math.floor((width - 1190) / 2 / 40))
   }
@@ -196,22 +90,138 @@
     ]
   }
 
-  // When the processing state changes to 'done', initialize the grid with default state
-  $: if ($processingFileStateStore === 'done' && width) {
-    const defaultState = createDefaultGridState()
-    gridStore.set(defaultState)
+  // ---------------------------------------------------
+  // Enhanced grid store with additional methods
+  // ---------------------------------------------------
 
-    // Initialize the grid system with default items
-    positions.set(convertToGridItems(defaultState))
+  // Add the required functions to match the expected gridStore interface
+  const enhancedGridStore = {
+    subscribe: gridStore.subscribe,
+    set: gridStore.set,
+    update: gridStore.update,
 
-    // Update the calculated height
-    heightBasedOnGrid = system.getGridHeight()
+    // Add the missing updateSettings function that ScarfPlotSelectStimulus is looking for
+    updateSettings: (settings: AllGridTypes) => {
+      gridStore.update(items =>
+        items.map(item =>
+          item.id === settings.id ? { ...item, ...settings } : item
+        )
+      )
 
-    processingFileStateStore.set('idle')
+      // Also update the grid system for layout
+      const gridItems = convertToGridItems([settings])
+      const item = gridItems[0]
+
+      // If height changes, update the grid item size to match
+      const currentPositions = get(positions)
+      const currentItem = currentPositions.find(p => p.id === item.id)
+      if (currentItem && currentItem.h !== item.h) {
+        system.updateItemSize(item.id, item.w, item.h, true)
+      }
+    },
+
+    // Add other functions from the original gridStore
+    removeItem: (id: number) => {
+      gridStore.update(items => items.filter(item => item.id !== id))
+
+      // Clean up empty state
+      if (get(gridStore).length === 0) {
+        gridStore.set([])
+      }
+
+      // Also remove from grid system
+      system.removeItem(id)
+
+      // Update height after removing an item
+      heightBasedOnGrid = system.getGridHeight()
+    },
+
+    duplicateItem: (item: AllGridTypes) => {
+      // Generate new, unique id
+      const newId = Date.now() + Math.floor(Math.random() * 1000)
+      const newItem = { ...item, id: newId }
+
+      // Get max grid width based on the workspace width
+      const maxGridWidth = width
+        ? Math.floor(width / (cellSize.width + gap))
+        : 100
+
+      // Find a smart position for the duplicate using the new method
+      const newPosition = system.findDuplicationPosition(
+        item.x,
+        item.y,
+        item.w,
+        item.h,
+        maxGridWidth
+      )
+
+      // Final safety check: Make sure we're not stacking items
+      // This is a belt-and-suspenders approach to absolutely prevent stacking
+      const currentItems = get(positions)
+      let movedDown = false
+
+      for (const existingItem of currentItems) {
+        // Check if the new position would overlap with any existing item
+        if (
+          newPosition.x < existingItem.x + existingItem.w &&
+          newPosition.x + newItem.w > existingItem.x &&
+          newPosition.y < existingItem.y + existingItem.h &&
+          newPosition.y + newItem.h > existingItem.y
+        ) {
+          // If overlap detected, find another position by shifting down
+          newPosition.y = Math.max(...currentItems.map(i => i.y + i.h)) + 1
+          movedDown = true
+          break
+        }
+      }
+
+      // Create the grid item first
+      const gridItem: GridItemPosition = {
+        id: newId,
+        x: newPosition.x,
+        y: newPosition.y,
+        w: newItem.w,
+        h: newItem.h,
+      }
+
+      // CRITICAL: Explicitly occupy the grid matrix BEFORE updating the stores
+      // This ensures subsequent duplications will see this item and avoid stacking
+      system.occupyItem(
+        newId,
+        newPosition.x,
+        newPosition.y,
+        newItem.w,
+        newItem.h
+      )
+
+      // Then update the stores
+      gridStore.update(items =>
+        items.concat({
+          ...newItem,
+          x: newPosition.x,
+          y: newPosition.y,
+        })
+      )
+
+      // Update positions store last
+      positions.update(pos => [...pos, gridItem])
+
+      // Critical: Recalculate height after adding a new item
+      heightBasedOnGrid = system.getGridHeight()
+    },
   }
 
-  // Handle grid item movement
-  const handleItemMove = (event: CustomEvent) => {
+  // Make the enhanced store available to child components
+  setContext('gridStore', enhancedGridStore)
+
+  // ---------------------------------------------------
+  // Event handlers and reactivity
+  // ---------------------------------------------------
+
+  // Handle item movement
+  const handleItemMove = (
+    event: CustomEvent<{ id: number; x: number; y: number }>
+  ) => {
     const { id, x, y } = event.detail
 
     // Update the grid system with collision detection
@@ -219,14 +229,13 @@
 
     // Get the updated positions after collision resolution
     const updatedPositions = get(positions)
-
-    // Find the updated item
     const updatedItem = updatedPositions.find(item => item.id === id)
     if (!updatedItem) return
 
-    // Update the gridStore with the new positions
+    // Update the gridStore with the new positions - using a single update for better performance
     gridStore.update(items => {
       return items.map(item => {
+        // Update the moved item
         if (item.id === id) {
           return {
             ...item,
@@ -252,12 +261,14 @@
       })
     })
 
-    // Update the calculated height
+    // Update height after items are moved (especially if items move down)
     heightBasedOnGrid = system.getGridHeight()
   }
 
   // Handle grid item resizing
-  const handleItemResize = (event: CustomEvent) => {
+  const handleItemResize = (
+    event: CustomEvent<{ id: number; w: number; h: number }>
+  ) => {
     const { id, w, h } = event.detail
 
     // Update the grid system with collision detection
@@ -265,14 +276,13 @@
 
     // Get the updated positions after collision resolution
     const updatedPositions = get(positions)
-
-    // Find the updated item
     const updatedItem = updatedPositions.find(item => item.id === id)
     if (!updatedItem) return
 
-    // Update the gridStore with the new dimensions
+    // Update the gridStore with the new dimensions - using a single update for better performance
     gridStore.update(items => {
       return items.map(item => {
+        // Update the resized item
         if (item.id === id) {
           return {
             ...item,
@@ -294,55 +304,74 @@
       })
     })
 
-    // Update the calculated height
+    // Update height after items are resized (especially if resize moves items down)
     heightBasedOnGrid = system.getGridHeight()
   }
 
-  // Sync positions store with gridStore when the latter changes
-  $: {
-    if ($gridStore.length > 0) {
-      const gridItems = convertToGridItems($gridStore)
-
-      // Only update if there are actual changes to avoid loops
-      const currentPositions = get(positions)
-      const needsUpdate =
-        gridItems.length !== currentPositions.length ||
-        gridItems.some((item, index) => {
-          const current = currentPositions[index]
-          return (
-            !current ||
-            item.id !== current.id ||
-            item.x !== current.x ||
-            item.y !== current.y ||
-            item.w !== current.w ||
-            item.h !== current.h
-          )
-        })
-
-      if (needsUpdate) {
-        positions.set(gridItems)
-        heightBasedOnGrid = system.getGridHeight()
-      }
-    }
+  // Handle grid height changes
+  const handleGridHeightChange = (event: CustomEvent<number>) => {
+    heightBasedOnGrid = event.detail
   }
 
-  // When the positions store changes, update the grid height
-  $: {
-    if ($positions && $positions.length > 0) {
-      // Recalculate height whenever positions change
+  // When the processing state changes to 'done', initialize the grid with default state
+  $: if ($processingFileStateStore === 'done' && width) {
+    const defaultState = createDefaultGridState()
+    gridStore.set(defaultState)
+
+    // Initialize the grid system with default items
+    positions.set(convertToGridItems(defaultState))
+
+    processingFileStateStore.set('idle')
+  }
+
+  // Sync positions store with gridStore when the latter changes, avoiding loops
+  $: if ($gridStore.length > 0) {
+    const gridItems = convertToGridItems($gridStore)
+
+    // Only update if there are actual changes to avoid loops
+    const currentPositions = get(positions)
+    const needsUpdate =
+      gridItems.length !== currentPositions.length ||
+      gridItems.some((item, index) => {
+        const current = currentPositions[index]
+        return (
+          !current ||
+          item.id !== current.id ||
+          item.x !== current.x ||
+          item.y !== current.y ||
+          item.w !== current.w ||
+          item.h !== current.h
+        )
+      })
+
+    if (needsUpdate) {
+      positions.set(gridItems)
+      // Ensure height is recalculated when positions change
       heightBasedOnGrid = system.getGridHeight()
     }
   }
 
+  // Initialize window width when component mounts
   onMount(() => {
     if (typeof window === 'undefined') return
     width = window.innerWidth
+
+    // Listen for window resize events to update the layout
+    const handleResize = () => {
+      width = window.innerWidth
+    }
+
+    window.addEventListener('resize', handleResize)
+
+    return () => {
+      window.removeEventListener('resize', handleResize)
+    }
   })
 </script>
 
 <div class="workspace-container" style="height: {heightBasedOnGrid}px;">
   {#if width && ($processingFileStateStore === 'idle' || $processingFileStateStore === 'fail')}
-    {#if $gridStore.length === 0 || $processingFileStateStore === 'fail'}
+    {#if $isEmpty || $processingFileStateStore === 'fail'}
       <div class="empty-container">
         <EmptyPlot />
       </div>
@@ -355,6 +384,7 @@
         {minHeight}
         on:move={handleItemMove}
         on:resize={handleItemResize}
+        on:heightChange={handleGridHeightChange}
       >
         {#each $gridStore as item (item.id)}
           <div transition:fade={{ duration: 300 }}>
@@ -403,10 +433,10 @@
     box-shadow: inset 0 2px 10px rgb(0 0 0 / 15%);
     z-index: 1;
     transition: height 0.3s ease-out;
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow-x: auto; /* Allow horizontal scrolling */
+    overflow-y: visible; /* Allow vertical expansion */
     min-height: 300px; /* Ensure minimum height for small grids */
-    padding-bottom: 20px; /* Add some padding at the bottom */
+    padding: 25px; /* Consistent padding throughout */
   }
 
   .empty-container {

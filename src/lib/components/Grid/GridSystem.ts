@@ -17,6 +17,9 @@ export interface GridItemPosition {
   h: number
 }
 
+// Position without ID
+export type Position = Omit<GridItemPosition, 'id'>
+
 // Grid configuration
 export interface GridConfig {
   cellSize: {
@@ -57,10 +60,17 @@ class GridMatrix {
   clearItem(id: number): void {
     if (!Number.isFinite(id)) return
 
+    // More efficient array iteration with for...of
+    const keysToDelete: string[] = []
     for (const [key, value] of this.matrix.entries()) {
       if (value === id) {
-        this.matrix.delete(key)
+        keysToDelete.push(key)
       }
+    }
+
+    // Batch delete operations
+    for (const key of keysToDelete) {
+      this.matrix.delete(key)
     }
   }
 
@@ -73,6 +83,12 @@ class GridMatrix {
   occupyArea(x: number, y: number, w: number, h: number, id: number): void {
     // Prevent invalid values
     if (x < 0 || y < 0 || w <= 0 || h <= 0 || !Number.isFinite(id)) return
+
+    // Optimize for very small areas (1-2 cells)
+    if (w === 1 && h === 1) {
+      this.occupy(x, y, id)
+      return
+    }
 
     for (let i = 0; i < w; i++) {
       for (let j = 0; j < h; j++) {
@@ -92,7 +108,13 @@ class GridMatrix {
     // Quick bounds check to avoid unnecessary iteration
     if (x < 0 || y < 0 || w <= 0 || h <= 0) return false
 
-    // Check all cells
+    // Optimize for single cell case
+    if (w === 1 && h === 1) {
+      const occupierId = this.getOccupier(x, y)
+      return occupierId === -1 || occupierId === ignoreId
+    }
+
+    // For small areas, check each cell individually
     for (let i = 0; i < w; i++) {
       for (let j = 0; j < h; j++) {
         const occupierId = this.getOccupier(x + i, y + j)
@@ -117,7 +139,16 @@ class GridMatrix {
     // Quick bounds check to avoid unnecessary iteration
     if (x < 0 || y < 0 || w <= 0 || h <= 0) return collisions
 
-    // Check all cells
+    // Optimize for single cell case
+    if (w === 1 && h === 1) {
+      const occupierId = this.getOccupier(x, y)
+      if (occupierId !== -1 && occupierId !== ignoreId) {
+        collisions.add(occupierId)
+      }
+      return collisions
+    }
+
+    // Check all cells in the area
     for (let i = 0; i < w; i++) {
       for (let j = 0; j < h; j++) {
         const occupierId = this.getOccupier(x + i, y + j)
@@ -143,7 +174,7 @@ export class GridSystem {
   constructor(config: GridConfig, initialPositions: GridItemPosition[] = []) {
     this.gridMatrix = new GridMatrix()
     this.config = config
-    this.positions = writable([]) // Start with empty array for safety
+    this.positions = writable<GridItemPosition[]>([]) // Explicit typing for better intellisense
 
     try {
       // Validate and filter incoming positions
@@ -184,34 +215,47 @@ export class GridSystem {
   }
 
   /**
+   * Validate dimension inputs against minimum constraints
+   * @private
+   */
+  private validateDimensions(
+    w: number,
+    h: number
+  ): { width: number; height: number } {
+    return {
+      width: Math.max(
+        this.config.minWidth,
+        Math.floor(w) || this.config.minWidth
+      ),
+      height: Math.max(
+        this.config.minHeight,
+        Math.floor(h) || this.config.minHeight
+      ),
+    }
+  }
+
+  /**
    * Add a new item to the grid at the first available position
    */
   addItem(w: number, h: number): number {
     // Validate inputs
-    const width = Math.max(
-      this.config.minWidth,
-      Math.floor(w) || this.config.minWidth
-    )
-    const height = Math.max(
-      this.config.minHeight,
-      Math.floor(h) || this.config.minHeight
-    )
+    const { width, height } = this.validateDimensions(w, h)
 
     const id = ++this.maxId
     const position = this.findFirstAvailablePosition(width, height)
 
     try {
+      // Create the new item
+      const newItem: GridItemPosition = {
+        id,
+        x: position.x,
+        y: position.y,
+        w: width,
+        h: height,
+      }
+
       // Add the new item
-      this.positions.update(items => {
-        items.push({
-          id,
-          x: position.x,
-          y: position.y,
-          w: width,
-          h: height,
-        })
-        return items
-      })
+      this.positions.update(items => [...items, newItem])
 
       // Mark the grid as occupied
       this.gridMatrix.occupyArea(position.x, position.y, width, height, id)
@@ -229,10 +273,7 @@ export class GridSystem {
     if (!Number.isFinite(id)) return
 
     try {
-      this.positions.update(items => {
-        const filtered = items.filter(item => item.id !== id)
-        return filtered
-      })
+      this.positions.update(items => items.filter(item => item.id !== id))
 
       // Clear the item's occupied cells
       this.gridMatrix.clearItem(id)
@@ -310,14 +351,15 @@ export class GridSystem {
         newY = oldY
       }
 
-      // Update the item's position directly
+      // Update the item's position directly - using direct update for better performance
       this.positions.update(items => {
-        const index = items.findIndex(item => item.id === id)
-        if (index !== -1) {
-          items[index].x = newX
-          items[index].y = newY
+        const updatedItems = [...items]
+        updatedItems[itemIndex] = {
+          ...item,
+          x: newX,
+          y: newY,
         }
-        return items
+        return updatedItems
       })
 
       // Re-occupy the grid with the new position
@@ -342,8 +384,7 @@ export class GridSystem {
     }
 
     // Enforce minimum dimensions
-    const newW = Math.max(this.config.minWidth, Math.floor(w))
-    const newH = Math.max(this.config.minHeight, Math.floor(h))
+    const { width: newW, height: newH } = this.validateDimensions(w, h)
 
     try {
       // Find the item
@@ -395,14 +436,15 @@ export class GridSystem {
         return
       }
 
-      // Update the item's size directly
+      // Update the item's size directly - using direct update for better performance
       this.positions.update(items => {
-        const index = items.findIndex(item => item.id === id)
-        if (index !== -1) {
-          items[index].w = newW
-          items[index].h = newH
+        const updatedItems = [...items]
+        updatedItems[itemIndex] = {
+          ...item,
+          w: newW,
+          h: newH,
         }
-        return items
+        return updatedItems
       })
 
       // Re-occupy the grid with the new size
@@ -415,46 +457,39 @@ export class GridSystem {
   /**
    * Find the first available position for a new item
    */
-  findFirstAvailablePosition(w: number, h: number): { x: number; y: number } {
+  findFirstAvailablePosition(w: number, h: number): Position {
     // Validate inputs
-    const width = Math.max(
-      this.config.minWidth,
-      Math.floor(w) || this.config.minWidth
-    )
-    const height = Math.max(
-      this.config.minHeight,
-      Math.floor(h) || this.config.minHeight
-    )
+    const { width, height } = this.validateDimensions(w, h)
 
     try {
       const currentPositions = get(this.positions)
 
       // If no items exist, start at the top-left
       if (currentPositions.length === 0) {
-        return { x: 0, y: 0 }
+        return { x: 0, y: 0, w: width, h: height }
       }
 
       // Find the max Y position to start placing below existing items
       let maxY = 0
-      currentPositions.forEach(item => {
+      for (const item of currentPositions) {
         maxY = Math.max(maxY, item.y + item.h)
-      })
+      }
 
       // First try to find space at the same vertical level
       for (let x = 0; x < 100; x++) {
         // Limit horizontal search to 100 columns
         for (let y = 0; y < maxY; y++) {
           if (this.gridMatrix.isAreaAvailable(x, y, width, height)) {
-            return { x, y }
+            return { x, y, w: width, h: height }
           }
         }
       }
 
       // If we can't fit it at the current level, place it below
-      return { x: 0, y: maxY }
+      return { x: 0, y: maxY, w: width, h: height }
     } catch (error) {
       console.error('Error finding available position:', error)
-      return { x: 0, y: 0 }
+      return { x: 0, y: 0, w: width, h: height }
     }
   }
 
@@ -467,11 +502,11 @@ export class GridSystem {
       let maxY = 0
 
       // Calculate the maximum Y position + height for all items
-      currentPositions.forEach(item => {
+      for (const item of currentPositions) {
         // Ensure we're accounting for the bottom edge of each item
         const itemBottom = item.y + item.h
         maxY = Math.max(maxY, itemBottom)
-      })
+      }
 
       // Convert grid units to pixel height, adding extra padding at the bottom
       return Math.max(
@@ -494,30 +529,50 @@ export class GridSystem {
     newItem: { x: number; y: number; w: number; h: number }
   ): void {
     const currentPositions = get(this.positions)
-    const collidingItems = currentPositions.filter(item =>
-      collisions.has(item.id)
-    )
+
+    // Find all colliding items upfront to avoid multiple Array.filter operations
+    const collidingItems: GridItemPosition[] = []
+    for (const item of currentPositions) {
+      if (collisions.has(item.id)) {
+        collidingItems.push(item)
+      }
+    }
 
     if (collidingItems.length === 0) return
 
     // Move colliding items downward
     const bottomEdge = newItem.y + newItem.h
 
-    collidingItems.forEach(item => {
-      // Update the grid matrix and positions
-      this.gridMatrix.clearItem(item.id)
+    // Process all colliding items at once
+    this.positions.update(items => {
+      // Make a single copy of the array for all updates
+      const updatedItems = [...items]
 
-      // Update the position directly
-      this.positions.update(items => {
-        const index = items.findIndex(i => i.id === item.id)
+      for (const item of collidingItems) {
+        // First clear the item from the grid matrix
+        this.gridMatrix.clearItem(item.id)
+
+        // Find index in the array
+        const index = updatedItems.findIndex(i => i.id === item.id)
         if (index !== -1) {
-          items[index].y = bottomEdge
-        }
-        return items
-      })
+          // Update the position directly
+          updatedItems[index] = {
+            ...updatedItems[index],
+            y: bottomEdge,
+          }
 
-      // Reoccupy the grid matrix
-      this.gridMatrix.occupyArea(item.x, bottomEdge, item.w, item.h, item.id)
+          // Reoccupy the grid matrix
+          this.gridMatrix.occupyArea(
+            item.x,
+            bottomEdge,
+            item.w,
+            item.h,
+            item.id
+          )
+        }
+      }
+
+      return updatedItems
     })
   }
 
@@ -537,8 +592,7 @@ export class GridSystem {
     }
 
     // Ensure item has minimum dimensions
-    const width = Math.max(this.config.minWidth, Math.floor(w))
-    const height = Math.max(this.config.minHeight, Math.floor(h))
+    const { width, height } = this.validateDimensions(w, h)
 
     // Explicitly occupy the grid matrix for this item
     this.gridMatrix.occupyArea(x, y, width, height, id)
@@ -556,17 +610,10 @@ export class GridSystem {
     width: number,
     height: number,
     maxGridWidth: number = 100
-  ): { x: number; y: number } {
+  ): Position {
     try {
       // Validate inputs
-      const w = Math.max(
-        this.config.minWidth,
-        Math.floor(width) || this.config.minWidth
-      )
-      const h = Math.max(
-        this.config.minHeight,
-        Math.floor(height) || this.config.minHeight
-      )
+      const { width: w, height: h } = this.validateDimensions(width, height)
 
       // First try: to the right of original (using grid units)
       const rightX = originalX + w // use w for width in grid units
@@ -587,7 +634,7 @@ export class GridSystem {
           h
         )
         if (collisions.size === 0) {
-          return { x: rightX, y: originalY }
+          return { x: rightX, y: originalY, w, h }
         }
       }
 
@@ -604,7 +651,7 @@ export class GridSystem {
           h
         )
         if (collisions.size === 0) {
-          return { x: originalX, y: belowY }
+          return { x: originalX, y: belowY, w, h }
         }
       }
 
@@ -613,7 +660,7 @@ export class GridSystem {
         // Do a final collision check
         const collisions = this.gridMatrix.findCollisions(0, belowY, w, h)
         if (collisions.size === 0) {
-          return { x: 0, y: belowY }
+          return { x: 0, y: belowY, w, h }
         }
       }
 
@@ -623,18 +670,17 @@ export class GridSystem {
           // Do a final collision check
           const collisions = this.gridMatrix.findCollisions(x, belowY, w, h)
           if (collisions.size === 0) {
-            return { x, y: belowY }
+            return { x, y: belowY, w, h }
           }
         }
       }
 
       // Keep moving down and scanning the entire row until we find space
       let currentY = belowY
-      const foundPosition = false
       const maxIterations = 100 // Safety limit
       let iterations = 0
 
-      while (!foundPosition && iterations < maxIterations) {
+      while (iterations < maxIterations) {
         iterations++
         currentY++
 
@@ -643,7 +689,7 @@ export class GridSystem {
             // Do a final collision check
             const collisions = this.gridMatrix.findCollisions(x, currentY, w, h)
             if (collisions.size === 0) {
-              return { x, y: currentY }
+              return { x, y: currentY, w, h }
             }
           }
         }

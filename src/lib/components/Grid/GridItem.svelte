@@ -2,6 +2,7 @@
   import { createEventDispatcher, onMount } from 'svelte'
   import type { GridItemPosition } from './GridSystem'
 
+  // GridItem properties
   export let id: number
   export let x: number
   export let y: number
@@ -14,7 +15,20 @@
   export let resizable = true
   export let draggable = true
 
-  const dispatch = createEventDispatcher()
+  // Types for custom events
+  type DragEvent = { id: number; x: number; y: number; w: number; h: number }
+  type ResizeEvent = { id: number; x: number; y: number; w: number; h: number }
+
+  // Create typed event dispatcher
+  const dispatch = createEventDispatcher<{
+    move: DragEvent
+    resize: ResizeEvent
+    dragstart: DragEvent
+    dragend: DragEvent
+    resizestart: ResizeEvent
+    resizeend: ResizeEvent
+    contextmenu: MouseEvent
+  }>()
 
   // Handle rendering and interactions
   let element: HTMLElement
@@ -27,7 +41,7 @@
   let startW = 0
   let startH = 0
 
-  // Calculate pixel positions and dimensions from grid units
+  // Calculate pixel positions and dimensions from grid units - memoized with reactive declarations
   $: transformX = x * (cellSize.width + gap)
   $: transformY = y * (cellSize.height + gap)
   $: width = w * cellSize.width + (w - 1) * gap
@@ -173,6 +187,10 @@
   on:contextmenu
   {style}
   data-id={id}
+  data-grid-x={x}
+  data-grid-y={y}
+  data-grid-w={w}
+  data-grid-h={h}
 >
   <div class="content">
     <slot />
@@ -197,6 +215,8 @@
     /* Add GPU acceleration but in a way that doesn't interfere with events */
     will-change: transform;
     transition: box-shadow 0.2s ease;
+    /* Prevent text selection during drag */
+    user-select: none;
   }
 
   .grid-item.dragging,
@@ -204,7 +224,6 @@
     z-index: 10;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     transition: none;
-    user-select: none;
   }
 
   .content {
@@ -222,6 +241,8 @@
     height: 16px;
     cursor: se-resize;
     background: transparent;
+    /* Increase touch target for mobile */
+    touch-action: none;
   }
 
   .resize-handle::after {
