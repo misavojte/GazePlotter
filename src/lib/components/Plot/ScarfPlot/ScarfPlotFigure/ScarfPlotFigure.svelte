@@ -5,6 +5,7 @@
   import ScarfPlotLegend from '$lib/components/Plot/ScarfPlot/ScarfPlotLegend/ScarfPlotLegend.svelte'
   import { generateScarfPlotCSS } from '$lib/utils/scarfPlotTransformations'
   import { addInfoToast } from '$lib/stores/toastStore'
+  import { afterUpdate } from 'svelte'
 
   export let tooltipAreaElement: HTMLElement
   export let data: ScarfFillingType
@@ -43,11 +44,30 @@
     addInfoToast(`Highlight fixed. Click the same item in the legend to remove`)
   }
 
+  // Create a derived value that changes when any input that would affect the style changes
+  $: styleInputs = {
+    id: settings.id,
+    data: data.stylingAndLegend,
+    highlight: usedHighlight,
+  }
+
   $: dynamicStyle = generateScarfPlotCSS(
     scarfPlotAreaId,
     data.stylingAndLegend,
     usedHighlight
   )
+
+  // Force CSS update after the component updates
+  afterUpdate(() => {
+    // The dynamicStyle is already reactive, but this ensures it's applied
+    // after DOM updates when IDs change
+    const styleElement = document.querySelector(`#${scarfPlotAreaId} style`)
+    if (styleElement) {
+      styleElement.textContent = dynamicStyle
+        .replace('<style>', '')
+        .replace('</style>', '')
+    }
+  })
 </script>
 
 <figure
@@ -58,7 +78,9 @@
 >
   <!-- scarf plot id is used to identify the plot by other components (e.g. for download) -->
   <div class="chartwrap" id={scarfPlotAreaId} bind:this={tooltipAreaElement}>
-    {@html dynamicStyle}
+    {#key styleInputs}
+      {@html dynamicStyle}
+    {/key}
     <div
       class="chylabs"
       style="grid-auto-rows:{data.heightOfBarWrap}px"
@@ -69,78 +91,80 @@
       {/each}
     </div>
     <div class="charea-holder" class:isHiglighted={highlightedIdentifier}>
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        id="charea"
-        width="{zoomWidth}%"
-        height={data.chartHeight}
-      >
-        <svg y={data.chartHeight - 14} class="chxlabs">
-          <text x="0" y="0" text-anchor="start" dominant-baseline="hanging"
-            >0</text
-          >
-          {#each data.timeline.slice(1, -1) as label}
-            <text
-              x="{(label / data.timeline.maxLabel) * 100}%"
-              dominant-baseline="hanging"
-              text-anchor="middle">{label}</text
+      {#key data.participants}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          id="charea"
+          width="{zoomWidth}%"
+          height={data.chartHeight}
+        >
+          <svg y={data.chartHeight - 14} class="chxlabs">
+            <text x="0" y="0" text-anchor="start" dominant-baseline="hanging"
+              >0</text
             >
+            {#each data.timeline.slice(1, -1) as label}
+              <text
+                x="{(label / data.timeline.maxLabel) * 100}%"
+                dominant-baseline="hanging"
+                text-anchor="middle">{label}</text
+              >
+            {/each}
+            <text x="100%" dominant-baseline="hanging" text-anchor="end"
+              >{data.timeline.maxLabel}</text
+            >
+          </svg>
+          <!-- Start of barwrap, each is a participant -->
+          {#each data.participants as participant, i}
+            <line
+              x1="0"
+              x2="100%"
+              y1={i * data.heightOfBarWrap + 0.5}
+              y2={i * data.heightOfBarWrap + 0.5}
+              stroke="#cbcbcb"
+            ></line>
+            <svg
+              class="barwrap"
+              y={i * data.heightOfBarWrap}
+              data-id={participant.id}
+              height={data.heightOfBarWrap}
+              width={participant.width}
+            >
+              {#each participant.segments as segment, segmentId}
+                <g data-id={segmentId}>
+                  {#each segment.content as rectangle}
+                    <rect
+                      class={rectangle.identifier}
+                      height={rectangle.height}
+                      x={rectangle.x}
+                      width={rectangle.width}
+                      y={rectangle.y}
+                    ></rect>
+                  {/each}
+                </g>
+              {/each}
+              {#each participant.dynamicAoiVisibility as visibility}
+                {#each visibility.content as visibilityItem}
+                  <line
+                    class={visibilityItem.identifier}
+                    x1={visibilityItem.x1}
+                    y1={visibilityItem.y}
+                    x2={visibilityItem.x2}
+                    y2={visibilityItem.y}
+                  ></line>
+                {/each}
+              {/each}
+            </svg>
           {/each}
-          <text x="100%" dominant-baseline="hanging" text-anchor="end"
-            >{data.timeline.maxLabel}</text
-          >
-        </svg>
-        <!-- Start of barwrap, each is a participant -->
-        {#each data.participants as participant, i}
+          <!-- End of barwrap -->
           <line
             x1="0"
             x2="100%"
-            y1={i * data.heightOfBarWrap + 0.5}
-            y2={i * data.heightOfBarWrap + 0.5}
+            y1={data.participants.length * data.heightOfBarWrap - 0.5}
+            y2={data.participants.length * data.heightOfBarWrap - 0.5}
             stroke="#cbcbcb"
-          ></line>
-          <svg
-            class="barwrap"
-            y={i * data.heightOfBarWrap}
-            data-id={participant.id}
-            height={data.heightOfBarWrap}
-            width={participant.width}
-          >
-            {#each participant.segments as segment, segmentId}
-              <g data-id={segmentId}>
-                {#each segment.content as rectangle}
-                  <rect
-                    class={rectangle.identifier}
-                    height={rectangle.height}
-                    x={rectangle.x}
-                    width={rectangle.width}
-                    y={rectangle.y}
-                  ></rect>
-                {/each}
-              </g>
-            {/each}
-            {#each participant.dynamicAoiVisibility as visibility}
-              {#each visibility.content as visibilityItem}
-                <line
-                  class={visibilityItem.identifier}
-                  x1={visibilityItem.x1}
-                  y1={visibilityItem.y}
-                  x2={visibilityItem.x2}
-                  y2={visibilityItem.y}
-                ></line>
-              {/each}
-            {/each}
-          </svg>
-        {/each}
-        <!-- End of barwrap -->
-        <line
-          x1="0"
-          x2="100%"
-          y1={data.participants.length * data.heightOfBarWrap - 0.5}
-          y2={data.participants.length * data.heightOfBarWrap - 0.5}
-          stroke="#cbcbcb"
-        />
-      </svg>
+          />
+        </svg>
+      {/key}
     </div>
     <div class="chxlab">{xAxisLabel}</div>
     <ScarfPlotLegend
