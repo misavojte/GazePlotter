@@ -117,7 +117,7 @@
     margin-bottom: 5px;
   }
 
-  button {
+  button.close {
     border: none;
     background-color: transparent;
     font-size: 1rem;

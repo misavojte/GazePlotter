@@ -1,7 +1,5 @@
 <script lang="ts">
   import { PlotAxisBreaks } from '$lib/class/Plot/PlotAxisBreaks/PlotAxisBreaks'
-  import { ScarfPlotAxisFactory } from '$lib/class/Plot/ScarfPlot/ScarfPlotAxisFactory'
-  import { ScarfPlotFillingFactoryS } from '$lib/class/Plot/ScarfPlot/ScarfPlotFillingFactoryS'
   import PlotWrap from '$lib/components/Plot/PlotWrap.svelte'
   import { getParticipants } from '$lib/stores/dataStore'
   import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType'
@@ -10,6 +8,7 @@
   import ScarfPlotFigure from './ScarfPlotFigure/ScarfPlotFigure.svelte'
   import type { ScarfGridType } from '$lib/type/gridType'
   import { tooltipScarfService } from '$lib/services/tooltipServices'
+  import { transformDataToScarfPlot } from '$lib/utils/scarfPlotTransformations'
 
   export let settings: ScarfGridType
 
@@ -25,46 +24,13 @@
 
   let window: Window
 
-  const getAxisBreaks = (
-    participantIds: number[],
-    stimulusId: number,
-    settings: ScarfGridType
-  ) => {
-    const axisFactory = new ScarfPlotAxisFactory(
-      participantIds,
-      stimulusId,
-      settings
-    )
-    return axisFactory.getAxis()
-  }
-
-  const getFilling = (
-    stimulusId: number,
-    participantIds: number[],
-    timeline: PlotAxisBreaks,
-    settings: ScarfGridType
-  ) => {
-    const fillingFactory = new ScarfPlotFillingFactoryS(
-      stimulusId,
-      participantIds,
-      timeline,
-      settings
-    )
-    return fillingFactory.getFilling()
-  }
-
-  $: absoluteTimeline = getAxisBreaks(
-    participantIds,
+  $: data = transformDataToScarfPlot(
     settings.stimulusId,
+    participantIds,
     settings
   )
 
-  $: data = getFilling(
-    settings.stimulusId,
-    participantIds,
-    absoluteTimeline,
-    settings
-  )
+  $: absoluteTimeline = data.timeline
 
   let timeout = 0
 

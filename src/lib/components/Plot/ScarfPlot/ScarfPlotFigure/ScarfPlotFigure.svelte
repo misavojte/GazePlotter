@@ -3,7 +3,7 @@
   import type { ScarfGridType } from '$lib/type/gridType'
   import { PlotAxisBreaks } from '$lib/class/Plot/PlotAxisBreaks/PlotAxisBreaks'
   import ScarfPlotLegend from '$lib/components/Plot/ScarfPlot/ScarfPlotLegend/ScarfPlotLegend.svelte'
-  import { ScarfPlotDynamicStyleFactory } from '$lib/class/Plot/ScarfPlot/ScarfPlotDynamicStyleFactory'
+  import { generateScarfPlotCSS } from '$lib/utils/scarfPlotTransformations'
   import { addInfoToast } from '$lib/stores/toastStore'
 
   export let tooltipAreaElement: HTMLElement
@@ -33,7 +33,6 @@
   $: zoomWidth = getZoomWidth(settings)
 
   const scarfPlotAreaId = `scarf-plot-area-${settings.id}`
-  const styleFactory = new ScarfPlotDynamicStyleFactory(scarfPlotAreaId)
 
   const handleFixedHighlight = (event: CustomEvent<string>) => {
     if (fixedHighlight === event.detail) {
@@ -45,7 +44,8 @@
     addInfoToast(`Highlight fixed. Click the same item in the legend to remove`)
   }
 
-  $: dynamicStyle = styleFactory.generateCss(
+  $: dynamicStyle = generateScarfPlotCSS(
+    scarfPlotAreaId,
     data.stylingAndLegend,
     usedHighlight
   )
