@@ -47,8 +47,15 @@ sw.addEventListener('fetch', event => {
   // ignore POST requests etc
   if (event.request.method !== 'GET') return
 
+  // Skip caching for chrome extension URLs - they can't be cached
+  const url = new URL(event.request.url)
+  if (url.protocol === 'chrome-extension:') {
+    // Just fetch from network without caching
+    event.respondWith(fetch(event.request))
+    return
+  }
+
   async function respond() {
-    const url = new URL(event.request.url)
     const cache = await caches.open(CACHE)
 
     // `build`/`files` can always be served from the cache
@@ -72,7 +79,10 @@ sw.addEventListener('fetch', event => {
       }
 
       if (response.status === 200) {
-        cache.put(event.request, response.clone())
+        // Only cache if not a chrome-extension URL (double check)
+        if (!event.request.url.startsWith('chrome-extension:')) {
+          cache.put(event.request, response.clone())
+        }
       }
 
       return response
