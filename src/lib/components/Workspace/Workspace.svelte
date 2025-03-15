@@ -29,6 +29,9 @@
   const isDragging = writable(false)
   const draggedItemId = writable<number | null>(null)
 
+  // Add a new store to track if dragged item is over trash
+  const isDragOverTrash = writable(false)
+
   // Store to track temporary height adjustment during drag operations
   const temporaryDragHeight = writable<number | null>(null)
 
@@ -300,9 +303,21 @@
   ) => {
     const { id, x, y, dragComplete } = event.detail
 
+    // Check if item was dropped over trash
+    if ($isDragOverTrash && $draggedItemId === id) {
+      // Remove the item
+      gridStore.removeItem(id)
+      isDragging.set(false)
+      draggedItemId.set(null)
+      isDragOverTrash.set(false)
+      temporaryDragHeight.set(null)
+      return
+    }
+
     // Reset dragging state
     isDragging.set(false)
     draggedItemId.set(null)
+    isDragOverTrash.set(false)
     // Reset temporary drag height
     temporaryDragHeight.set(null)
 
@@ -374,16 +389,28 @@
 
   // Handle toolbar actions
   const handleToolbarAction = (
-    event: CustomEvent<{ id: string; event: MouseEvent }>
+    event: CustomEvent<{ id: string; vizType?: string; event: MouseEvent }>
   ) => {
-    const { id } = event.detail
+    const { id, vizType } = event.detail
 
-    // For future implementation:
-    // This can handle specific actions based on the toolbar item id
-    console.log(`Toolbar action triggered: ${id}`)
+    if (id === 'add-visualization' && vizType) {
+      // Add the new visualization
+      enhancedGridStore.addItem(vizType, {
+        x: 0, // You might want to calculate a better position
+        y: get(gridStore).length, // Place it below existing items
+      })
+    }
+  }
 
-    // Future implementation will add new plots based on the action
-    // Example: enhancedGridStore.addItem('scarf', { x: 0, y: maxY + 1 });
+  // Handle trash area events
+  const handleTrashDragEnter = () => {
+    if ($isDragging && $draggedItemId !== null) {
+      isDragOverTrash.set(true)
+    }
+  }
+
+  const handleTrashDragLeave = () => {
+    isDragOverTrash.set(false)
   }
 
   // When the processing state changes, update the grid and loading state
@@ -406,8 +433,14 @@
 </script>
 
 <div class="workspace-wrapper">
-  <!-- Toolbar is now a sibling to workspace, positioned with pure CSS -->
-  <WorkspaceToolbar on:action={handleToolbarAction} />
+  <!-- Update toolbar with drag state -->
+  <WorkspaceToolbar
+    on:action={handleToolbarAction}
+    isDragging={$isDragging}
+    dragOverTrash={$isDragOverTrash}
+    on:trash-dragenter={handleTrashDragEnter}
+    on:trash-dragleave={handleTrashDragLeave}
+  />
 
   <div class="workspace-container" style="height: {$gridHeight}px;">
     <div class="grid-container">
@@ -496,7 +529,7 @@
     padding: 35px; /* Consistent padding throughout */
     /* Performance optimizations */
     will-change: height;
-    border-left: 1px solid #8888889c;
+    border-left: 1px solid #88888862;
     transform: translateZ(0);
   }
 

@@ -134,6 +134,7 @@
     let startWindowScrollY: number
     let workspaceElement: HTMLElement | null
     let autoScrollInterval: number | null = null
+    let isDraggedOverToolbar = false
 
     // Auto-scroll configuration
     const autoScrollSettings = {
@@ -850,5 +851,11 @@
   h3 {
     margin: 0;
     flex-grow: 1;
+  }
+
+  /* Add additional styles for dragging towards delete */
+  .grid-item.is-being-dragged.over-toolbar {
+    border-color: #e74c3c;
+    box-shadow: 0 0 15px rgba(231, 76, 60, 0.5);
   }
 </style>
