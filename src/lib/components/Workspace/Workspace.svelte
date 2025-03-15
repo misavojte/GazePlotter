@@ -3,6 +3,7 @@
   import GridItem from '$lib/components/Workspace/WorkspaceItem.svelte'
   import WorkspaceIndicatorEmpty from '$lib/components/Workspace/WorkspaceIndicatorEmpty.svelte'
   import WorkspaceIndicatorLoading from '$lib/components/Workspace/WorkspaceIndicatorLoading.svelte'
+  import WorkspaceToolbar from '$lib/components/Workspace/WorkspaceToolbar.svelte'
   import { fade } from 'svelte/transition'
   import { setContext } from 'svelte'
   import { writable, get, derived } from 'svelte/store'
@@ -371,6 +372,20 @@
     temporaryDragHeight.set(null)
   }
 
+  // Handle toolbar actions
+  const handleToolbarAction = (
+    event: CustomEvent<{ id: string; event: MouseEvent }>
+  ) => {
+    const { id } = event.detail
+
+    // For future implementation:
+    // This can handle specific actions based on the toolbar item id
+    console.log(`Toolbar action triggered: ${id}`)
+
+    // Future implementation will add new plots based on the action
+    // Example: enhancedGridStore.addItem('scarf', { x: 0, y: maxY + 1 });
+  }
+
   // When the processing state changes, update the grid and loading state
   $: if ($processingFileStateStore === 'done') {
     isLoading.set(false)
@@ -390,66 +405,80 @@
   // experience without artificially creating grid items.
 </script>
 
-<div class="workspace-container" style="height: {$gridHeight}px;">
-  <div class="grid-container">
-    {#each $gridStore as item (item.id)}
-      {@const visConfig = getVisualizationConfig(item.type)}
-      <div transition:fade={{ duration: 300 }}>
-        <GridItem
-          id={item.id}
-          x={item.x}
-          y={item.y}
-          w={item.w}
-          h={item.h}
-          minW={item.min?.w || gridConfig.minWidth}
-          minH={item.min?.h || gridConfig.minHeight}
-          cellSize={gridConfig.cellSize}
-          gap={gridConfig.gap}
-          resizable={item.resizable !== false}
-          draggable={item.draggable !== false}
-          title={visConfig.name}
-          on:previewmove={handleItemPreviewMove}
-          on:move={handleItemMove}
-          on:resize={handleItemResize}
-          on:resizeend={handleResizeEnd}
-          on:dragstart={handleDragStart}
-          on:dragend={handleDragEnd}
-          on:drag-height-update={handleDragHeightUpdate}
-        >
-          <div slot="header">
-            {#if visConfig.headerComponent}
-              <svelte:component
-                this={visConfig.headerComponent}
-                bind:settings={item}
-              />
-            {/if}
-          </div>
+<div class="workspace-wrapper">
+  <!-- Toolbar is now a sibling to workspace, positioned with pure CSS -->
+  <WorkspaceToolbar on:action={handleToolbarAction} />
 
-          <div slot="body">
-            <svelte:component this={visConfig.component} settings={item} />
-          </div>
-        </GridItem>
-      </div>
-    {/each}
+  <div class="workspace-container" style="height: {$gridHeight}px;">
+    <div class="grid-container">
+      {#each $gridStore as item (item.id)}
+        {@const visConfig = getVisualizationConfig(item.type)}
+        <div transition:fade={{ duration: 300 }}>
+          <GridItem
+            id={item.id}
+            x={item.x}
+            y={item.y}
+            w={item.w}
+            h={item.h}
+            minW={item.min?.w || gridConfig.minWidth}
+            minH={item.min?.h || gridConfig.minHeight}
+            cellSize={gridConfig.cellSize}
+            gap={gridConfig.gap}
+            resizable={item.resizable !== false}
+            draggable={item.draggable !== false}
+            title={visConfig.name}
+            on:previewmove={handleItemPreviewMove}
+            on:move={handleItemMove}
+            on:resize={handleItemResize}
+            on:resizeend={handleResizeEnd}
+            on:dragstart={handleDragStart}
+            on:dragend={handleDragEnd}
+            on:drag-height-update={handleDragHeightUpdate}
+          >
+            <div slot="header">
+              {#if visConfig.headerComponent}
+                <svelte:component
+                  this={visConfig.headerComponent}
+                  bind:settings={item}
+                />
+              {/if}
+            </div>
+
+            <div slot="body">
+              <svelte:component this={visConfig.component} settings={item} />
+            </div>
+          </GridItem>
+        </div>
+      {/each}
+    </div>
+
+    {#if $isDragging}
+      <div
+        class="pointer-events-blocker"
+        transition:fade={{ duration: 50 }}
+      ></div>
+    {/if}
+
+    {#if $isEmpty && !$isLoading}
+      <WorkspaceIndicatorEmpty />
+    {/if}
+
+    {#if $isLoading}
+      <WorkspaceIndicatorLoading />
+    {/if}
   </div>
-
-  {#if $isDragging}
-    <div
-      class="pointer-events-blocker"
-      transition:fade={{ duration: 50 }}
-    ></div>
-  {/if}
-
-  {#if $isEmpty && !$isLoading}
-    <WorkspaceIndicatorEmpty />
-  {/if}
-
-  {#if $isLoading}
-    <WorkspaceIndicatorLoading />
-  {/if}
 </div>
 
 <style>
+  .workspace-wrapper {
+    position: relative;
+    display: flex;
+    min-height: 300px; /* Minimum height to ensure toolbar is visible */
+    display: grid;
+    border: 1px solid #8888889c;
+    grid-template-columns: 48px 1fr;
+  }
+
   .workspace-container {
     box-sizing: border-box;
     position: relative;
@@ -459,7 +488,6 @@
       linear-gradient(90deg, var(--c-lightgrey) 1px, transparent 1px);
     background-size: 50px 50px;
     background-position: -21px -21px;
-    box-shadow: inset 0 2px 10px rgb(0 0 0 / 15%);
     z-index: 1;
     transition: height 0.3s ease-out;
     overflow-x: auto; /* Allow horizontal scrolling */
@@ -468,6 +496,7 @@
     padding: 35px; /* Consistent padding throughout */
     /* Performance optimizations */
     will-change: height;
+    border-left: 1px solid #8888889c;
     transform: translateZ(0);
   }
 
