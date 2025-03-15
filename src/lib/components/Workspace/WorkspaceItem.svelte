@@ -20,6 +20,36 @@
   // Track state for visual feedback
   let isDragging = false
   let isResizing = false
+  let dragPosition = { x: 0, y: 0 }
+  let showDragPlaceholder = false
+
+  // DOM nodes for manipulation
+  let headerNode: HTMLElement
+  let bodyNode: HTMLElement
+  let placeholderNode: HTMLElement
+  let itemNode: HTMLElement
+
+  // Calculate actual pixel dimensions and position
+  $: itemWidth = w * cellSize.width + (w - 1) * gap
+  $: itemHeight = h * cellSize.height + (h - 1) * gap
+  $: itemX = x * (cellSize.width + gap)
+  $: itemY = y * (cellSize.height + gap)
+
+  // Style for the actual item (always at its real position)
+  $: itemStyle = `
+    transform: translate(${itemX}px, ${itemY}px);
+    width: ${itemWidth}px;
+    height: ${itemHeight}px;
+  `
+
+  // Style for the drag placeholder
+  $: placeholderStyle = showDragPlaceholder
+    ? `
+    transform: translate(${dragPosition.x * (cellSize.width + gap)}px, ${dragPosition.y * (cellSize.height + gap)}px);
+    width: ${itemWidth}px;
+    height: ${itemHeight}px;
+  `
+    : ''
 
   // Svelte action for handling drag functionality
   function draggable_action(node: HTMLElement, options: { enabled: boolean }) {
@@ -40,6 +70,15 @@
       startY = event.clientY
       startPosX = x
       startPosY = y
+
+      // Initialize the drag position to the current position
+      dragPosition = { x, y }
+      showDragPlaceholder = true
+
+      // Add semi-transparent highlight to the stationary item
+      if (itemNode) {
+        itemNode.classList.add('is-being-dragged')
+      }
 
       // Dispatch drag start event
       dispatch('dragstart', { id, x, y, w, h })
@@ -62,29 +101,44 @@
       const gridDeltaX = Math.round(deltaX / (cellSize.width + gap))
       const gridDeltaY = Math.round(deltaY / (cellSize.height + gap))
 
-      // Calculate new position
+      // Calculate new position for the placeholder
       const newX = Math.max(0, startPosX + gridDeltaX)
       const newY = Math.max(0, startPosY + gridDeltaY)
 
-      // Update only if position changed
-      if (newX !== x || newY !== y) {
-        // Update local variables immediately for visual feedback
-        x = newX
-        y = newY
+      // Only update the drag placeholder position, not the actual item
+      dragPosition = { x: newX, y: newY }
 
-        // Dispatch move event to parent components
-        dispatch('move', { id, x: newX, y: newY, w, h })
-      }
+      // Dispatch preview event instead of regular move - this should be handled differently by parent
+      dispatch('previewmove', {
+        id,
+        previewX: newX,
+        previewY: newY,
+        currentX: x,
+        currentY: y,
+        w,
+        h,
+      })
     }
 
     function handleMouseUp() {
       if (!isDragging) return
 
+      // Clean up visual effects
+      showDragPlaceholder = false
+
+      if (itemNode) {
+        itemNode.classList.remove('is-being-dragged')
+      }
+
+      // Only now, at the end of drag, dispatch the actual move event with final position
+      // This prevents the parent from updating the store during the drag
+      dispatch('move', { id, x: dragPosition.x, y: dragPosition.y, w, h })
+
       // Dispatch drag end event
       dispatch('dragend', {
         id,
-        x,
-        y,
+        x: dragPosition.x,
+        y: dragPosition.y,
         w,
         h,
         dragComplete: true,
@@ -214,6 +268,15 @@
   // Create typed event dispatcher
   const dispatch = createEventDispatcher<{
     move: { id: number; x: number; y: number; w: number; h: number }
+    previewmove: {
+      id: number
+      previewX: number
+      previewY: number
+      currentX: number
+      currentY: number
+      w: number
+      h: number
+    }
     resize: { id: number; x: number; y: number; w: number; h: number }
     dragstart: { id: number; x: number; y: number; w: number; h: number }
     dragend: {
@@ -228,24 +291,14 @@
     resizeend: { id: number; x: number; y: number; w: number; h: number }
     contextmenu: MouseEvent
   }>()
-
-  // Reactive styles using Svelte's reactivity
-  $: transformX = x * (cellSize.width + gap)
-  $: transformY = y * (cellSize.height + gap)
-  $: width = w * cellSize.width + (w - 1) * gap
-  $: height = h * cellSize.height + (h - 1) * gap
-  $: style = `
-    transform: translate(${transformX}px, ${transformY}px);
-    width: ${width}px;
-    height: ${height}px;
-  `
 </script>
 
+<!-- Actual grid item (stays in place until drag is complete) -->
 <div
   class="grid-item"
-  class:dragging={isDragging}
+  class:is-being-dragged={isDragging}
   class:resizing={isResizing}
-  {style}
+  style={itemStyle}
   data-id={id}
   data-grid-x={x}
   data-grid-y={y}
@@ -253,9 +306,10 @@
   data-grid-h={h}
   transition:fade={{ duration: 150 }}
   on:contextmenu
+  bind:this={itemNode}
 >
   <!-- PlotWrap header -->
-  <div class="header">
+  <div class="header" bind:this={headerNode}>
     {#if draggable}
       <div class="drag-handle" use:draggable_action={{ enabled: draggable }}>
         <svg
@@ -284,7 +338,7 @@
   </div>
 
   <!-- PlotWrap body -->
-  <div class="body">
+  <div class="body" bind:this={bodyNode}>
     <slot name="body">
       <slot />
     </slot>
@@ -299,6 +353,16 @@
   {/if}
 </div>
 
+<!-- Lightweight placeholder that moves during drag -->
+{#if showDragPlaceholder}
+  <div
+    class="grid-item placeholder"
+    style={placeholderStyle}
+    data-id={`placeholder-${id}`}
+    transition:fade={{ duration: 100 }}
+  ></div>
+{/if}
+
 <style>
   .grid-item {
     position: absolute;
@@ -312,23 +376,28 @@
     z-index: 1;
     /* Add GPU acceleration but in a way that doesn't interfere with events */
     will-change: transform;
-    transition:
-      box-shadow 0.2s ease,
-      opacity 0.2s ease;
+    transition: all 0.15s ease-out;
     /* Prevent text selection during drag */
     user-select: none;
   }
 
-  .grid-item.dragging {
-    z-index: 1000; /* Very high z-index during drag */
-    opacity: 0.7; /* Reduced opacity */
-    transition: none;
-    background-color: rgba(
-      255,
-      245,
-      245,
-      1
-    ); /* Slight red tint to the background */
+  /* Styles for the actual item that's being dragged */
+  .grid-item.is-being-dragged {
+    z-index: 5;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    opacity: 0.3;
+    pointer-events: none;
+    border: 1px solid rgba(200, 180, 180, 0.3);
+  }
+
+  /* Styles for the lightweight placeholder */
+  .grid-item.placeholder {
+    z-index: 1000;
+    background-color: rgba(255, 235, 235, 0.85);
+    border: 2px dashed rgba(200, 120, 120, 0.5);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+    opacity: 0.9;
+    pointer-events: none;
   }
 
   .grid-item.resizing {
@@ -368,7 +437,7 @@
     padding: 15px 30px;
     background: var(--c-lightgrey);
     flex-wrap: wrap;
-    gap: 10px 20px;
+    gap: 2px 5px;
   }
 
   .header-content {
@@ -385,11 +454,20 @@
     margin-right: 10px;
     padding: 5px;
     border-radius: 4px;
-    color: var(--c-grey, #666);
+    color: var(--c-darkgrey, #666);
+    background: var(--c-grey);
+    stroke: var(--c-darkgrey);
+    stroke-width: 1px;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    fill: var(--c-grey);
+    transition: all 0.15s ease-out;
   }
 
   .drag-handle:hover {
-    background-color: rgba(0, 0, 0, 0.05);
+    transform: scale(1.1);
+    background: var(--c-darkgrey);
+    color: var(--c-white);
   }
 
   .body {

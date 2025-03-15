@@ -165,19 +165,23 @@
   const gridHeight = derived(
     [positions, isEmpty, isLoading],
     ([$positions, $isEmpty, $isLoading]) => {
-      // Get the max grid unit
+      // If empty or loading, use fixed height for better performance
+      if ($isEmpty || $isLoading) {
+        return 500 // Fixed height for empty/loading state
+      }
+
+      // Only calculate max height when we have items
       const maxY =
         $positions.length > 0
           ? Math.max(...$positions.map(item => item.y + item.h))
           : 0
 
       // Convert to pixels and add padding
-      // If the grid is empty or loading, ensure we have enough height for the indicators
       return Math.max(
-        $isEmpty || $isLoading ? 500 : 300, // Higher minimum height when empty/loading for better indicator display
+        300, // Minimum height
         maxY * (gridConfig.cellSize.height + gridConfig.gap) +
           gridConfig.gap +
-          40 // Add some padding
+          40 // Add padding
       )
     }
   )
@@ -219,7 +223,28 @@
   // Event handlers and reactivity
   // ---------------------------------------------------
 
-  // Handle item movement
+  // Handle item movement preview during drag (doesn't update actual position)
+  const handleItemPreviewMove = (
+    event: CustomEvent<{
+      id: number
+      previewX: number
+      previewY: number
+      currentX: number
+      currentY: number
+      w: number
+      h: number
+    }>
+  ) => {
+    // During drag preview, we don't update the actual position in the store
+    // We can still check for collisions, etc. if needed, but we don't
+    // modify the grid store
+    const { id, previewX, previewY } = event.detail
+
+    // For now, we don't need to do anything here except handle the event
+    // This avoids updating the actual grid item during drag
+  }
+
+  // Handle actual item movement (only at the end of drag)
   const handleItemMove = (
     event: CustomEvent<{
       id: number
@@ -230,7 +255,7 @@
     }>
   ) => {
     const { id, x, y, w, h } = event.detail
-    // Update position in store - during drag, don't check for collisions
+    // Update position in store - when drag is complete
     gridStore.updateItemPosition(id, x, y, false)
   }
 
@@ -318,6 +343,7 @@
           resizable={item.resizable !== false}
           draggable={item.draggable !== false}
           title={visConfig.name}
+          on:previewmove={handleItemPreviewMove}
           on:move={handleItemMove}
           on:resize={handleItemResize}
           on:dragend={handleDragEnd}
@@ -365,6 +391,9 @@
     overflow-y: hidden; /* Prevent vertical scrolling */
     min-height: 300px; /* Ensure minimum height for small grids */
     padding: 25px; /* Consistent padding throughout */
+    /* Performance optimizations */
+    will-change: height;
+    transform: translateZ(0);
   }
 
   .grid-container {
@@ -375,5 +404,8 @@
     transition: height 0.3s ease-out;
     overflow-x: visible; /* Allow content to flow naturally */
     overflow-y: visible; /* Allow content to expand the container */
+    /* Prevent unnecessary repaints */
+    will-change: contents;
+    transform: translateZ(0);
   }
 </style>
