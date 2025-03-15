@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte'
+  import { createEventDispatcher, onMount, onDestroy } from 'svelte'
   import { fade } from 'svelte/transition'
   import type { GridItemPosition } from '$lib/stores/gridStore'
+  import { writable } from 'svelte/store'
 
   // GridItem properties
   export let id: number
@@ -28,6 +29,74 @@
   let bodyNode: HTMLElement
   let placeholderNode: HTMLElement
   let itemNode: HTMLElement
+  let workspaceElement: HTMLElement | null = null
+
+  // Create a store to track scroll position (both window and workspace)
+  const scrollPosition = writable({
+    workspace: { x: 0, y: 0 },
+    window: { x: 0, y: 0 },
+  })
+
+  // Helper to find the workspace container
+  const findWorkspaceContainer = () => {
+    if (!workspaceElement && itemNode) {
+      workspaceElement = itemNode.closest('.workspace-container')
+    }
+    return workspaceElement
+  }
+
+  // Update scroll position store
+  const updateScrollPosition = () => {
+    const workspace = findWorkspaceContainer()
+
+    scrollPosition.update(state => ({
+      workspace: {
+        x: workspace ? workspace.scrollLeft : 0,
+        y: workspace ? workspace.scrollTop : 0,
+      },
+      window: {
+        x:
+          window.scrollX ||
+          window.pageXOffset ||
+          document.documentElement.scrollLeft,
+        y:
+          window.scrollY ||
+          window.pageYOffset ||
+          document.documentElement.scrollTop,
+      },
+    }))
+  }
+
+  // Set up scroll watchers once the component is mounted
+  onMount(() => {
+    const workspace = findWorkspaceContainer()
+
+    // Initial scroll position
+    updateScrollPosition()
+
+    // Add scroll listener to the workspace if it exists
+    if (workspace) {
+      workspace.addEventListener('scroll', updateScrollPosition, {
+        passive: true,
+      })
+    }
+
+    // Add window scroll listener
+    window.addEventListener('scroll', updateScrollPosition, { passive: true })
+
+    // Return cleanup function
+    return () => {
+      if (workspace) {
+        workspace.removeEventListener('scroll', updateScrollPosition)
+      }
+      window.removeEventListener('scroll', updateScrollPosition)
+    }
+  })
+
+  // Cleanup on destroy
+  onDestroy(() => {
+    workspaceElement = null
+  })
 
   // Calculate actual pixel dimensions and position
   $: itemWidth = w * cellSize.width + (w - 1) * gap
@@ -59,10 +128,153 @@
     let startY: number
     let startPosX: number
     let startPosY: number
+    let startScrollX: number
+    let startScrollY: number
+    let startWindowScrollX: number
+    let startWindowScrollY: number
+    let workspaceElement: HTMLElement | null
+    let autoScrollInterval: number | null = null
+
+    // Auto-scroll configuration
+    const autoScrollSettings = {
+      edgeThreshold: 80, // pixels from edge to start scrolling
+      maxSpeed: 15, // maximum scroll speed in pixels
+      interval: 16, // ms between scroll updates (60fps)
+    }
+
+    // Helper function to handle auto-scrolling near edges
+    function setupAutoScroll(clientX: number, clientY: number) {
+      // Clear any existing interval
+      if (autoScrollInterval !== null) {
+        clearInterval(autoScrollInterval)
+        autoScrollInterval = null
+      }
+
+      // First check workspace edges if workspace exists
+      if (workspaceElement) {
+        // Get workspace dimensions and position
+        const rect = workspaceElement.getBoundingClientRect()
+        const { left, right, top, bottom } = rect
+
+        // Calculate distances from edges
+        const distanceFromLeft = clientX - left
+        const distanceFromRight = right - clientX
+        const distanceFromTop = clientY - top
+        const distanceFromBottom = bottom - clientY
+
+        // Determine if we need to scroll and in which direction
+        let scrollX = 0
+        let scrollY = 0
+
+        // Calculate horizontal scroll
+        if (distanceFromLeft < autoScrollSettings.edgeThreshold) {
+          // Scroll left - negative value
+          scrollX = -calculateScrollSpeed(distanceFromLeft)
+        } else if (distanceFromRight < autoScrollSettings.edgeThreshold) {
+          // Scroll right - positive value
+          scrollX = calculateScrollSpeed(distanceFromRight)
+        }
+
+        // Calculate vertical scroll
+        if (distanceFromTop < autoScrollSettings.edgeThreshold) {
+          // Scroll up - negative value
+          scrollY = -calculateScrollSpeed(distanceFromTop)
+        } else if (distanceFromBottom < autoScrollSettings.edgeThreshold) {
+          // Scroll down - positive value
+          scrollY = calculateScrollSpeed(distanceFromBottom)
+        }
+
+        // Only set interval if we need to scroll the workspace
+        if (scrollX !== 0 || scrollY !== 0) {
+          autoScrollInterval = setInterval(() => {
+            if (workspaceElement) {
+              workspaceElement.scrollLeft += scrollX
+              workspaceElement.scrollTop += scrollY
+
+              // Force a mousemove event to update drag position
+              const mouseEvent = new MouseEvent('mousemove', {
+                bubbles: true,
+                cancelable: true,
+                view: window,
+                clientX: clientX,
+                clientY: clientY,
+              })
+              document.dispatchEvent(mouseEvent)
+            }
+          }, autoScrollSettings.interval) as unknown as number
+
+          // We're already scrolling the workspace, so don't check window edges
+          return
+        }
+      }
+
+      // If we're not scrolling the workspace, check window edges
+      // These are viewport edges
+      const viewportWidth =
+        window.innerWidth || document.documentElement.clientWidth
+      const viewportHeight =
+        window.innerHeight || document.documentElement.clientHeight
+
+      const distanceFromWindowLeft = clientX
+      const distanceFromWindowRight = viewportWidth - clientX
+      const distanceFromWindowTop = clientY
+      const distanceFromWindowBottom = viewportHeight - clientY
+
+      // Determine if we need to scroll the window
+      let windowScrollX = 0
+      let windowScrollY = 0
+
+      // Calculate horizontal window scroll
+      if (distanceFromWindowLeft < autoScrollSettings.edgeThreshold) {
+        // Scroll window left
+        windowScrollX = -calculateScrollSpeed(distanceFromWindowLeft)
+      } else if (distanceFromWindowRight < autoScrollSettings.edgeThreshold) {
+        // Scroll window right
+        windowScrollX = calculateScrollSpeed(distanceFromWindowRight)
+      }
+
+      // Calculate vertical window scroll
+      if (distanceFromWindowTop < autoScrollSettings.edgeThreshold) {
+        // Scroll window up
+        windowScrollY = -calculateScrollSpeed(distanceFromWindowTop)
+      } else if (distanceFromWindowBottom < autoScrollSettings.edgeThreshold) {
+        // Scroll window down
+        windowScrollY = calculateScrollSpeed(distanceFromWindowBottom)
+      }
+
+      // Only set interval if we need to scroll the window
+      if (windowScrollX !== 0 || windowScrollY !== 0) {
+        autoScrollInterval = setInterval(() => {
+          window.scrollBy(windowScrollX, windowScrollY)
+
+          // Force a mousemove event to update drag position
+          const mouseEvent = new MouseEvent('mousemove', {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            clientX: clientX,
+            clientY: clientY,
+          })
+          document.dispatchEvent(mouseEvent)
+        }, autoScrollSettings.interval) as unknown as number
+      }
+    }
+
+    // Helper to calculate scroll speed based on distance from edge
+    function calculateScrollSpeed(distance: number): number {
+      if (distance >= autoScrollSettings.edgeThreshold) return 0
+
+      // Create a smooth curve from edge (max speed) to threshold (zero speed)
+      const ratio = 1 - distance / autoScrollSettings.edgeThreshold
+      return Math.ceil(ratio * ratio * autoScrollSettings.maxSpeed)
+    }
 
     function handleMouseDown(event: MouseEvent) {
       // Only handle left-button clicks
       if (event.button !== 0) return
+
+      // Find the workspace container for scroll position tracking
+      workspaceElement = node.closest('.workspace-container')
 
       // Start dragging
       isDragging = true
@@ -70,6 +282,18 @@
       startY = event.clientY
       startPosX = x
       startPosY = y
+
+      // Store initial scroll positions - both workspace and window
+      startScrollX = workspaceElement ? workspaceElement.scrollLeft : 0
+      startScrollY = workspaceElement ? workspaceElement.scrollTop : 0
+      startWindowScrollX =
+        window.scrollX ||
+        window.pageXOffset ||
+        document.documentElement.scrollLeft
+      startWindowScrollY =
+        window.scrollY ||
+        window.pageYOffset ||
+        document.documentElement.scrollTop
 
       // Initialize the drag position to the current position
       dragPosition = { x, y }
@@ -94,9 +318,34 @@
     function handleMouseMove(event: MouseEvent) {
       if (!isDragging) return
 
-      // Calculate delta movement in pixels
-      const deltaX = event.clientX - startX
-      const deltaY = event.clientY - startY
+      // Setup auto-scrolling if near edges
+      setupAutoScroll(event.clientX, event.clientY)
+
+      // Get current scroll positions - both workspace and window
+      const currentScrollX = workspaceElement ? workspaceElement.scrollLeft : 0
+      const currentScrollY = workspaceElement ? workspaceElement.scrollTop : 0
+      const currentWindowScrollX =
+        window.scrollX ||
+        window.pageXOffset ||
+        document.documentElement.scrollLeft
+      const currentWindowScrollY =
+        window.scrollY ||
+        window.pageYOffset ||
+        document.documentElement.scrollTop
+
+      // Calculate total scroll deltas (both workspace and window)
+      const scrollDeltaX =
+        currentScrollX -
+        startScrollX +
+        (currentWindowScrollX - startWindowScrollX)
+      const scrollDeltaY =
+        currentScrollY -
+        startScrollY +
+        (currentWindowScrollY - startWindowScrollY)
+
+      // Calculate delta movement in pixels, accounting for all scroll changes
+      const deltaX = event.clientX - startX + scrollDeltaX
+      const deltaY = event.clientY - startY + scrollDeltaY
 
       // Convert to grid units
       const gridDeltaX = Math.round(deltaX / (cellSize.width + gap))
@@ -119,10 +368,26 @@
         w,
         h,
       })
+
+      // Also dispatch a workspace resize event to ensure workspace expands as needed
+      // This will inform the parent Workspace component that it might need to adjust its height
+      dispatch('drag-height-update', {
+        id,
+        y: newY,
+        h,
+        // Include the bottom edge position in grid units for height calculations
+        bottomEdge: newY + h,
+      })
     }
 
     function handleMouseUp() {
       if (!isDragging) return
+
+      // Clear auto-scroll interval if active
+      if (autoScrollInterval !== null) {
+        clearInterval(autoScrollInterval)
+        autoScrollInterval = null
+      }
 
       // Clean up visual effects
       showDragPlaceholder = false
@@ -147,6 +412,7 @@
 
       // Reset state
       isDragging = false
+      workspaceElement = null
 
       // Clean up event listeners
       document.removeEventListener('mousemove', handleMouseMove, {
@@ -161,6 +427,12 @@
     // Return destroy method to clean up
     return {
       destroy() {
+        // Clear auto-scroll interval if it was somehow left running
+        if (autoScrollInterval !== null) {
+          clearInterval(autoScrollInterval)
+          autoScrollInterval = null
+        }
+
         node.removeEventListener('mousedown', handleMouseDown)
         document.removeEventListener('mousemove', handleMouseMove, {
           capture: true,
@@ -188,10 +460,18 @@
     let startY: number
     let startW: number
     let startH: number
+    let startScrollX: number
+    let startScrollY: number
+    let startWindowScrollX: number
+    let startWindowScrollY: number
+    let workspaceElement: HTMLElement | null
 
     function handleMouseDown(event: MouseEvent) {
       // Only handle left-button clicks
       if (event.button !== 0) return
+
+      // Find the workspace container for scroll position tracking
+      workspaceElement = node.closest('.workspace-container')
 
       // Start resizing
       isResizing = true
@@ -199,6 +479,18 @@
       startY = event.clientY
       startW = w
       startH = h
+
+      // Store initial scroll positions - both workspace and window
+      startScrollX = workspaceElement ? workspaceElement.scrollLeft : 0
+      startScrollY = workspaceElement ? workspaceElement.scrollTop : 0
+      startWindowScrollX =
+        window.scrollX ||
+        window.pageXOffset ||
+        document.documentElement.scrollLeft
+      startWindowScrollY =
+        window.scrollY ||
+        window.pageYOffset ||
+        document.documentElement.scrollTop
 
       // Dispatch resize start event
       dispatch('resizestart', { id, x, y, w, h })
@@ -214,9 +506,31 @@
     function handleMouseMove(event: MouseEvent) {
       if (!isResizing) return
 
-      // Calculate delta in pixels
-      const deltaX = event.clientX - startX
-      const deltaY = event.clientY - startY
+      // Get current scroll positions - both workspace and window
+      const currentScrollX = workspaceElement ? workspaceElement.scrollLeft : 0
+      const currentScrollY = workspaceElement ? workspaceElement.scrollTop : 0
+      const currentWindowScrollX =
+        window.scrollX ||
+        window.pageXOffset ||
+        document.documentElement.scrollLeft
+      const currentWindowScrollY =
+        window.scrollY ||
+        window.pageYOffset ||
+        document.documentElement.scrollTop
+
+      // Calculate total scroll deltas (both workspace and window)
+      const scrollDeltaX =
+        currentScrollX -
+        startScrollX +
+        (currentWindowScrollX - startWindowScrollX)
+      const scrollDeltaY =
+        currentScrollY -
+        startScrollY +
+        (currentWindowScrollY - startWindowScrollY)
+
+      // Calculate delta in pixels, accounting for all scroll changes
+      const deltaX = event.clientX - startX + scrollDeltaX
+      const deltaY = event.clientY - startY + scrollDeltaY
 
       // Convert to grid units
       const gridDeltaW = Math.round(deltaX / (cellSize.width + gap))
@@ -234,6 +548,14 @@
 
         // Dispatch resize event to parent components
         dispatch('resize', { id, x, y, w: newW, h: newH })
+
+        // Also dispatch height update event to ensure workspace extends during resize
+        dispatch('drag-height-update', {
+          id,
+          y,
+          h: newH,
+          bottomEdge: y + newH,
+        })
       }
     }
 
@@ -245,6 +567,7 @@
 
       // Reset state
       isResizing = false
+      workspaceElement = null
 
       // Clean up event listeners
       document.removeEventListener('mousemove', handleMouseMove, {
@@ -303,6 +626,12 @@
     resizestart: { id: number; x: number; y: number; w: number; h: number }
     resizeend: { id: number; x: number; y: number; w: number; h: number }
     contextmenu: MouseEvent
+    'drag-height-update': {
+      id: number
+      y: number
+      h: number
+      bottomEdge: number
+    }
   }>()
 </script>
 
@@ -370,6 +699,7 @@
 {#if showDragPlaceholder}
   <div
     class="grid-item placeholder"
+    class:dragging={isDragging}
     style={placeholderStyle}
     data-id={`placeholder-${id}`}
     transition:fade={{ duration: 100 }}
@@ -401,6 +731,7 @@
     opacity: 0.3;
     pointer-events: none;
     border: 1px solid rgba(200, 180, 180, 0.3);
+    transform-origin: center center;
   }
 
   /* Styles for the lightweight placeholder */
@@ -412,6 +743,31 @@
     opacity: 0.9;
     /* Allow the placeholder to receive pointer events during drag */
     pointer-events: none;
+    transform-origin: center center;
+    transition:
+      transform 0.05s ease-out,
+      width 0.15s ease-out,
+      height 0.15s ease-out;
+  }
+
+  /* Enhance the placeholder during active dragging */
+  .grid-item.placeholder.dragging {
+    animation: pulse 2s infinite ease-in-out;
+  }
+
+  @keyframes pulse {
+    0% {
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+      border-color: rgba(200, 120, 120, 0.5);
+    }
+    50% {
+      box-shadow: 0 8px 28px rgba(200, 100, 100, 0.25);
+      border-color: rgba(200, 120, 120, 0.8);
+    }
+    100% {
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+      border-color: rgba(200, 120, 120, 0.5);
+    }
   }
 
   .grid-item.resizing {

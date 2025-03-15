@@ -28,6 +28,9 @@
   const isDragging = writable(false)
   const draggedItemId = writable<number | null>(null)
 
+  // Store to track temporary height adjustment during drag operations
+  const temporaryDragHeight = writable<number | null>(null)
+
   // ---------------------------------------------------
   // Visualization Registry - Central configuration for plot types
   // ---------------------------------------------------
@@ -167,11 +170,16 @@
 
   // Reactive grid height calculation
   const gridHeight = derived(
-    [positions, isEmpty, isLoading],
-    ([$positions, $isEmpty, $isLoading]) => {
+    [positions, isEmpty, isLoading, temporaryDragHeight],
+    ([$positions, $isEmpty, $isLoading, $temporaryDragHeight]) => {
       // If empty or loading, use fixed height for better performance
       if ($isEmpty || $isLoading) {
         return 500 // Fixed height for empty/loading state
+      }
+
+      // If we have a temporary drag height, use it to ensure the workspace extends during drag
+      if ($temporaryDragHeight !== null) {
+        return $temporaryDragHeight
       }
 
       // Only calculate max height when we have items
@@ -294,6 +302,8 @@
     // Reset dragging state
     isDragging.set(false)
     draggedItemId.set(null)
+    // Reset temporary drag height
+    temporaryDragHeight.set(null)
 
     if (!dragComplete) return
 
@@ -306,6 +316,29 @@
     setTimeout(() => {
       gridStore.resolveItemPositionCollisions(id)
     }, 50) // Short delay for better visual feedback
+  }
+
+  // Handle dynamic height adjustment during drag operations
+  const handleDragHeightUpdate = (
+    event: CustomEvent<{
+      id: number
+      y: number
+      h: number
+      bottomEdge: number
+    }>
+  ) => {
+    const { bottomEdge } = event.detail
+
+    // Calculate the required height based on the bottom edge of the dragged item
+    const requiredHeight = Math.max(
+      300, // Minimum height
+      bottomEdge * (gridConfig.cellSize.height + gridConfig.gap) +
+        gridConfig.gap +
+        90 // Add padding
+    )
+
+    // Update the temporary drag height
+    temporaryDragHeight.set(requiredHeight)
   }
 
   // Handle grid item resizing
@@ -327,7 +360,15 @@
     setTimeout(() => {
       // Use the store's method to resolve collisions for this item
       gridStore.resolveItemPositionCollisions(id)
+      // Reset temporary drag height after resize is complete
+      temporaryDragHeight.set(null)
     }, 50)
+  }
+
+  // Handle resize end - clean up temporary height
+  const handleResizeEnd = () => {
+    // Reset temporary height after resize is complete
+    temporaryDragHeight.set(null)
   }
 
   // When the processing state changes, update the grid and loading state
@@ -370,8 +411,10 @@
           on:previewmove={handleItemPreviewMove}
           on:move={handleItemMove}
           on:resize={handleItemResize}
+          on:resizeend={handleResizeEnd}
           on:dragstart={handleDragStart}
           on:dragend={handleDragEnd}
+          on:drag-height-update={handleDragHeightUpdate}
         >
           <div slot="header">
             {#if visConfig.headerComponent}
