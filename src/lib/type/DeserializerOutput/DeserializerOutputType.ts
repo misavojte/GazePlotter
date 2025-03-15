@@ -1,3 +1,6 @@
-import type { SingleDeserializerOutput } from './SingleDeserializerOutput/SingleDeserializerOutput.ts'
+import type { SingleDeserializerOutput } from './SingleDeserializerOutput/SingleDeserializerOutput'
 
-export type DeserializerOutputType = SingleDeserializerOutput | null | SingleDeserializerOutput[]
+export type DeserializerOutputType =
+  | SingleDeserializerOutput
+  | null
+  | SingleDeserializerOutput[]

@@ -8,7 +8,7 @@
  * @see src/lib/class/Eye/EyeDeserializer/OgamaEyeDeserializer.ts
  */
 
-import { OgamaEyeDeserializer } from '$lib/class/Eye/EyeDeserializer/OgamaEyeDeserializer.ts'
+import { OgamaEyeDeserializer } from '$lib/class/Eye/EyeDeserializer/OgamaEyeDeserializer'
 import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput.js'
 import { test, expect, describe } from 'vitest'
 

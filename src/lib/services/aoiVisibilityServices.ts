@@ -6,7 +6,7 @@
 import {
   getStimulusHighestEndTime,
   updateMultipleAoiVisibility,
-} from '$lib/stores/dataStore.ts'
+} from '$lib/stores/dataStore'
 
 /**
  * Main function to process the AOI visibility data

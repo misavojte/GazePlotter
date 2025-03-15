@@ -4,12 +4,12 @@
   import LoadPlot from '$lib/components/Plot/LoadPlot/LoadPlot.svelte'
   import Grid, { GridItem } from 'svelte-grid-extended'
   import { fade } from 'svelte/transition'
-  import { createGridStore } from '$lib/stores/gridStore.ts'
+  import { createGridStore } from '$lib/stores/gridStore'
   import type { GridController } from 'svelte-grid-extended'
   import { setContext } from 'svelte'
-  import type { AllGridTypes } from '$lib/type/gridType.ts'
-  import { processingFileStateStore } from '$lib/stores/processingFileStateStore.ts'
-  import { getScarfGridHeightFromCurrentData } from '$lib/services/scarfServices.ts'
+  import type { AllGridTypes } from '$lib/type/gridType'
+  import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
+  import { getScarfGridHeightFromCurrentData } from '$lib/services/scarfServices'
   import { onMount } from 'svelte'
 
   const itemSize = { height: 40, width: 40 }

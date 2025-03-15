@@ -1,11 +1,11 @@
 <script lang="ts">
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
-  import type { GridStoreType } from '$lib/stores/gridStore.ts'
-  import { getDynamicAoiBoolean } from '$lib/services/scarfServices.ts'
-  import { hasStimulusAoiVisibility } from '$lib/stores/dataStore.ts'
+  import type { GridStoreType } from '$lib/stores/gridStore'
+  import { getDynamicAoiBoolean } from '$lib/services/scarfServices'
+  import { hasStimulusAoiVisibility } from '$lib/stores/dataStore'
   import { getContext } from 'svelte'
-  import { getScarfGridHeightFromCurrentData } from '$lib/services/scarfServices.ts'
-  import type { ScarfGridType } from '$lib/type/gridType.ts'
+  import { getScarfGridHeightFromCurrentData } from '$lib/services/scarfServices'
+  import type { ScarfGridType } from '$lib/type/gridType'
   let store = getContext<GridStoreType>('gridStore')
   export let settings: ScarfGridType
 

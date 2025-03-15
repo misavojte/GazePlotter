@@ -9,13 +9,13 @@ import type {
   StimulusScarfFillingType,
   StylingScarfFillingType,
 } from '$lib/type/Filling/ScarfFilling/index.js'
-import { PlotAxisBreaks } from '../PlotAxisBreaks/PlotAxisBreaks.ts'
-import type { ScarfGridType } from '$lib/type/gridType.ts'
+import { PlotAxisBreaks } from '../PlotAxisBreaks/PlotAxisBreaks'
+import type { ScarfGridType } from '$lib/type/gridType'
 import {
   IDENTIFIER_IS_AOI,
   IDENTIFIER_IS_OTHER_CATEGORY,
   IDENTIFIER_NOT_DEFINED,
-} from '$lib/const/identifiers.ts'
+} from '$lib/const/identifiers'
 import {
   getAois,
   getAoiVisibility,
@@ -29,7 +29,7 @@ import {
 import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType.js'
 import type { BaseInterpretedDataType } from '$lib/type/Data/InterpretedData/BaseInterpretedDataType.js'
 import type { SegmentInterpretedDataType } from '$lib/type/Data/InterpretedData/SegmentInterpretedDataType.js'
-import { getScarfParticipantBarHeight } from '$lib/services/scarfServices.ts'
+import { getScarfParticipantBarHeight } from '$lib/services/scarfServices'
 
 /**
  * Factory for data filling which is used to render scarf plot.

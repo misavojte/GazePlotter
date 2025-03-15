@@ -1,7 +1,7 @@
 import type {
   SingleStylingScarfFillingType,
   StylingScarfFillingType,
-} from '$lib/type/Filling/ScarfFilling/index.ts'
+} from '$lib/type/Filling/ScarfFilling/index'
 
 /**
  * Class that generates dynamic CSS for SVG segments in scarf plot.

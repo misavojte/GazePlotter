@@ -1,4 +1,4 @@
-import type { BaseInterpretedDataType } from './BaseInterpretedDataType.ts'
+import type { BaseInterpretedDataType } from './BaseInterpretedDataType'
 
 /**
  * Used for AOI and category basic information.

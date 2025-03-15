@@ -4,15 +4,15 @@
     getParticipantsGroups,
     data,
     hasStimulusAoiVisibility,
-  } from '$lib/stores/dataStore.ts'
+  } from '$lib/stores/dataStore'
   import { onDestroy } from 'svelte'
   import {
     getDynamicAoiBoolean,
     getScarfGridHeightFromCurrentData,
-  } from '$lib/services/scarfServices.ts'
-  import type { ScarfGridType } from '$lib/type/gridType.ts'
+  } from '$lib/services/scarfServices'
+  import type { ScarfGridType } from '$lib/type/gridType'
   import { getContext } from 'svelte'
-  import type { GridStoreType } from '$lib/stores/gridStore.ts'
+  import type { GridStoreType } from '$lib/stores/gridStore'
   let store = getContext<GridStoreType>('gridStore')
   export let settings: ScarfGridType
   let value = settings.groupId.toString()

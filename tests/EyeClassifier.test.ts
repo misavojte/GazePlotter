@@ -5,7 +5,7 @@
  * @see $lib/class/Eye/EyeClassifier/EyeClassifier.ts
  */
 
-import { EyeClassifier } from '$lib/class/Eye/EyeClassifier/EyeClassifier.ts'
+import { EyeClassifier } from '$lib/class/Eye/EyeClassifier/EyeClassifier'
 import { test, expect, describe } from 'vitest'
 
 const mockBeGazeData = `Event Start Trial Time [ms],Event End Trial Time [ms],Stimulus,Participant,Category,AOI Name

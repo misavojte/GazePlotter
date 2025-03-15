@@ -1,5 +1,5 @@
-import type { DeserializerOutputType } from '$lib/type/DeserializerOutput/DeserializerOutputType.ts'
-import { AbstractEyeDeserializer } from './AbstractEyeDeserializer.ts'
+import type { DeserializerOutputType } from '$lib/type/DeserializerOutput/DeserializerOutputType'
+import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
 
 /**
  * This class is used to deserialize eye data from a CSV file which contains segments.

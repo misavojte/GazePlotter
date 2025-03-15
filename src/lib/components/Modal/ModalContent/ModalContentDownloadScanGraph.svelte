@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { ScanGraphDownloader } from '$lib/class/Downloader/ScanGraphDownloader.ts'
-  import { getStimuli } from '$lib/stores/dataStore.ts'
+  import { ScanGraphDownloader } from '$lib/class/Downloader/ScanGraphDownloader'
+  import { getStimuli } from '$lib/stores/dataStore'
   import GeneralSelectBase from '../../General/GeneralSelect/GeneralSelect.svelte'
   import GeneralInputText from '../../General/GeneralInput/GeneralInputText.svelte'
   import MajorButton from '../../General/GeneralButton/GeneralButtonMajor.svelte'

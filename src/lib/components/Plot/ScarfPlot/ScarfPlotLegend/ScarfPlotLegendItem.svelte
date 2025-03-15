@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { SingleStylingScarfFillingType } from '$lib/type/Filling/ScarfFilling/index.ts'
+  import type { SingleStylingScarfFillingType } from '$lib/type/Filling/ScarfFilling/index'
   import { createEventDispatcher } from 'svelte'
   export let legend: SingleStylingScarfFillingType
   export let isVisibility = false

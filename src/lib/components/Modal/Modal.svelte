@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, type SvelteComponent } from 'svelte'
-  import { modalStore } from '$lib/stores/modalStore.ts'
+  import { modalStore } from '$lib/stores/modalStore'
   import { fly } from 'svelte/transition'
 
   type Modal = {

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { getParticipants } from '$lib/stores/dataStore.ts'
-  import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup.ts'
+  import { getParticipants } from '$lib/stores/dataStore'
+  import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup'
   import MajorButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralInputCheck from '$lib/components/General/GeneralInput/GeneralInputCheck.svelte'
 

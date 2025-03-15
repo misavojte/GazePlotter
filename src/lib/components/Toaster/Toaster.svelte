@@ -1,8 +1,8 @@
 <script lang="ts">
   import { flip } from 'svelte/animate'
   import { fly } from 'svelte/transition'
-  import type { ToastFillingType } from '$lib/type/Filling/ToastFilling/ToastFillingType.ts'
-  import { toastStore } from '$lib/stores/toastStore.ts'
+  import type { ToastFillingType } from '$lib/type/Filling/ToastFilling/ToastFillingType'
+  import { toastStore } from '$lib/stores/toastStore'
 
   const timers = new Map<number, ReturnType<typeof setTimeout>>()
   const clearTimer = (id: number) => {

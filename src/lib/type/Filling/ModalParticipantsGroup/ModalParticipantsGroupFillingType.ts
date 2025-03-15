@@ -1,4 +1,4 @@
-import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup.ts'
+import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup'
 
 export interface ModalParticipantsGroupType extends ParticipantsGroup {
   id: number

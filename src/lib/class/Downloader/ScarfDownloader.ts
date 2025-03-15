@@ -1,4 +1,4 @@
-import { AbstractDownloader } from './AbstractDownloader.ts'
+import { AbstractDownloader } from './AbstractDownloader'
 
 export class ScarfDownloader extends AbstractDownloader {
   minimalWidth = 300

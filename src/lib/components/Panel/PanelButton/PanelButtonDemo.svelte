@@ -1,9 +1,9 @@
 <script lang="ts">
   import MajorControlButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
-  import { demoData } from '$lib/const/demoDataTwo.ts'
-  import { data } from '$lib/stores/dataStore.ts'
-  import { addSuccessToast } from '$lib/stores/toastStore.ts'
-  import { processingFileStateStore } from '$lib/stores/processingFileStateStore.ts'
+  import { demoData } from '$lib/const/demoDataTwo'
+  import { data } from '$lib/stores/dataStore'
+  import { addSuccessToast } from '$lib/stores/toastStore'
+  import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
 
   $: isDisabled = $processingFileStateStore === 'processing'
 

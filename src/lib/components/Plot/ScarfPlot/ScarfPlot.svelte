@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { PlotAxisBreaks } from '$lib/class/Plot/PlotAxisBreaks/PlotAxisBreaks.ts'
-  import { ScarfPlotAxisFactory } from '$lib/class/Plot/ScarfPlot/ScarfPlotAxisFactory.ts'
-  import { ScarfPlotFillingFactoryS } from '$lib/class/Plot/ScarfPlot/ScarfPlotFillingFactoryS.ts'
+  import { PlotAxisBreaks } from '$lib/class/Plot/PlotAxisBreaks/PlotAxisBreaks'
+  import { ScarfPlotAxisFactory } from '$lib/class/Plot/ScarfPlot/ScarfPlotAxisFactory'
+  import { ScarfPlotFillingFactoryS } from '$lib/class/Plot/ScarfPlot/ScarfPlotFillingFactoryS'
   import PlotWrap from '$lib/components/Plot/PlotWrap.svelte'
-  import { getParticipants } from '$lib/stores/dataStore.ts'
-  import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType.ts'
+  import { getParticipants } from '$lib/stores/dataStore'
+  import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType'
   import { onDestroy, onMount } from 'svelte'
   import ScarfPlotHeader from './ScarfPlotHeader/ScarfPlotHeader.svelte'
   import ScarfPlotFigure from './ScarfPlotFigure/ScarfPlotFigure.svelte'
-  import type { ScarfGridType } from '$lib/type/gridType.ts'
-  import { tooltipScarfService } from '$lib/services/tooltipServices.ts'
+  import type { ScarfGridType } from '$lib/type/gridType'
+  import { tooltipScarfService } from '$lib/services/tooltipServices'
 
   export let settings: ScarfGridType
 

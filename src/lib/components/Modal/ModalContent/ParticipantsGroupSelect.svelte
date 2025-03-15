@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { getParticipants } from '$lib/stores/dataStore.ts'
-  import { removeGroup } from '$lib/stores/participantsGroupStore.ts'
-  import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup.ts'
+  import { getParticipants } from '$lib/stores/dataStore'
+  import { removeGroup } from '$lib/stores/participantsGroupStore'
+  import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup'
   import Pencil from 'lucide-svelte/icons/pencil'
   import Trash from 'lucide-svelte/icons/trash'
   import TagsInput from '../../TagsInput/TagsInput.svelte'

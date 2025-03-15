@@ -5,8 +5,8 @@
  * @see src/lib/class/Eye/EyeDeserializer/CsvEyeDeserializer.ts
  */
 
-import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput.ts'
-import { CsvEyeDeserializer } from '../src/lib/class/Eye/EyeDeserializer/CsvEyeDeserializer.ts'
+import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput'
+import { CsvEyeDeserializer } from '../src/lib/class/Eye/EyeDeserializer/CsvEyeDeserializer'
 import { test, expect, describe } from 'vitest'
 
 const csvMockDataOne = `Time,Participant,Stimulus,AOI

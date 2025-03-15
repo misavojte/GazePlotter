@@ -1,5 +1,5 @@
 import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput.js'
-import { AbstractEyeDeserializer } from './AbstractEyeDeserializer.ts'
+import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
 
 export class VarjoEyeDeserializer extends AbstractEyeDeserializer {
   cTime: number

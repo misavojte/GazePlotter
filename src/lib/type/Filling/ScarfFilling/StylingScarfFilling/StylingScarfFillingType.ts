@@ -1,4 +1,4 @@
-import type { SingleStylingScarfFillingType } from './SingleStylingScarfFillingType.ts'
+import type { SingleStylingScarfFillingType } from './SingleStylingScarfFillingType'
 
 export interface StylingScarfFillingType {
   aoi: SingleStylingScarfFillingType[]

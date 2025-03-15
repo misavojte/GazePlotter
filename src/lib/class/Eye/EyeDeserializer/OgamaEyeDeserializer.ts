@@ -1,11 +1,11 @@
 import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput.js'
-import { AbstractEyeDeserializer } from './AbstractEyeDeserializer.ts'
+import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
 
 export class OgamaEyeDeserializer extends AbstractEyeDeserializer {
   stimulusName: string
   cParticipant: number
   cSegments: number
-  constructor (header: string[], fileName: string) {
+  constructor(header: string[], fileName: string) {
     super()
     // extract name from file name (SimilarityXXX.txt) where XXX is the stimulus name
     // this.stimulusName = fileName.split('.')[0].split('Similarity')[1]
@@ -14,11 +14,11 @@ export class OgamaEyeDeserializer extends AbstractEyeDeserializer {
     this.cSegments = this.getIndex(header, 'Scanpath string')
   }
 
-  finalize (): null {
+  finalize(): null {
     return null
   }
 
-  deserialize (row: string[]): SingleDeserializerOutput[] {
+  deserialize(row: string[]): SingleDeserializerOutput[] {
     const segments = row[this.cSegments] // just letters - each one fixation
     if (segments === undefined) return []
     const participant = row[this.cParticipant]

@@ -3,9 +3,9 @@
   import GeneralSelectBase from '../../General/GeneralSelect/GeneralSelect.svelte'
   import GeneralInputText from '../../General/GeneralInput/GeneralInputText.svelte'
   import MajorButton from '../../General/GeneralButton/GeneralButtonMajor.svelte'
-  import { ScarfDownloader } from '$lib/class/Downloader/ScarfDownloader.ts'
-  import type { ScarfGridType } from '$lib/type/gridType.ts'
-  import { addErrorToast } from '$lib/stores/toastStore.ts'
+  import { ScarfDownloader } from '$lib/class/Downloader/ScarfDownloader'
+  import type { ScarfGridType } from '$lib/type/gridType'
+  import { addErrorToast } from '$lib/stores/toastStore'
 
   export let settings: ScarfGridType
 

@@ -2,7 +2,7 @@
   import MenuButton from '$lib/components/General/GeneralButton/GeneralButtonMenu.svelte'
   import ModalContentScarfPlotClip from '$lib/components/Modal/ModalContent/ModalContentScarfPlotClip.svelte'
   import { modalStore } from '$lib/stores/modalStore.js'
-  import type { GridStoreType } from '$lib/stores/gridStore.ts'
+  import type { GridStoreType } from '$lib/stores/gridStore'
   import Copy from 'lucide-svelte/icons/copy'
   import Download from 'lucide-svelte/icons/download'
   import Scissors from 'lucide-svelte/icons/scissors-line-dashed'
@@ -16,7 +16,7 @@
   import ModalContentDownloadScarfPlot from '../../../Modal/ModalContent/ModalContentDownloadScarfPlot.svelte'
   import ModalContentParticipantsGroups from '$lib/components/Modal/ModalContent/ModalContentParticipantsGroups.svelte'
   import { getContext } from 'svelte'
-  import type { ScarfGridType } from '$lib/type/gridType.ts'
+  import type { ScarfGridType } from '$lib/type/gridType'
 
   export let settings: ScarfGridType
   const store = getContext<GridStoreType>('gridStore')

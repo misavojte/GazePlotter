@@ -4,8 +4,8 @@
   import GeneralInputFile from '../../General/GeneralInput/GeneralInputFile.svelte'
   import GeneralButtonMajor from '../../General/GeneralButton/GeneralButtonMajor.svelte'
   import { addErrorToast, addSuccessToast } from '$lib/stores/toastStore.js'
-  import { processAoiVisibility } from '$lib/services/aoiVisibilityServices.ts'
-  import type { GridStoreType } from '$lib/stores/gridStore.ts'
+  import { processAoiVisibility } from '$lib/services/aoiVisibilityServices'
+  import type { GridStoreType } from '$lib/stores/gridStore'
   import { get } from 'svelte/store'
 
   export let gridStore: GridStoreType

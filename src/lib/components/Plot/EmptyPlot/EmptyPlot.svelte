@@ -3,7 +3,7 @@
   import PlotWrap from '../PlotWrap.svelte'
   import PanelButtonUpload from '$lib/components/Panel/PanelButton/PanelButtonUpload.svelte'
   import PanelButtonDemo from '$lib/components/Panel/PanelButton/PanelButtonDemo.svelte'
-  import { processingFileStateStore } from '$lib/stores/processingFileStateStore.ts'
+  import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
 
   const reloadViews = () => {
     processingFileStateStore.set('done')

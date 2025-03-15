@@ -5,7 +5,7 @@
   import ScarfPlotButtonMenu from '../ScarfPlotButton/ScarfPlotButtonMenu.svelte'
   import ScarfTimelineSelect from '../ScarfPlotSelect/ScarfPlotSelectTimeline.svelte'
   import ScarfPlotSelectGroup from '../ScarfPlotSelect/ScarfPlotSelectGroup.svelte'
-  import type { ScarfGridType } from '$lib/type/gridType.ts'
+  import type { ScarfGridType } from '$lib/type/gridType'
 
   export let settings: ScarfGridType
 </script>

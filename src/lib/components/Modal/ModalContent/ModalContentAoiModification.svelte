@@ -2,23 +2,19 @@
   import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
   import GeneralSelectBase from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
-  import {
-    getAois,
-    getStimuli,
-    updateMultipleAoi,
-  } from '$lib/stores/dataStore.ts'
+  import { getAois, getStimuli, updateMultipleAoi } from '$lib/stores/dataStore'
   import {
     addErrorToast,
     addInfoToast,
     addSuccessToast,
-  } from '$lib/stores/toastStore.ts'
-  import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType.ts'
+  } from '$lib/stores/toastStore'
+  import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType'
   import { onMount } from 'svelte'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'
   import GeneralPositionControl from '$lib/components/General/GeneralPositionControl/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/components/General/GeneralEmpty/GeneralEmpty.svelte'
-  import type { GridStoreType } from '$lib/stores/gridStore.ts'
+  import type { GridStoreType } from '$lib/stores/gridStore'
   import { get } from 'svelte/store'
 
   export let selectedStimulus = '0'

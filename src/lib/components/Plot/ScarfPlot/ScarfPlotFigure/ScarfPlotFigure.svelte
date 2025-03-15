@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType.ts'
-  import type { ScarfGridType } from '$lib/type/gridType.ts'
-  import { PlotAxisBreaks } from '$lib/class/Plot/PlotAxisBreaks/PlotAxisBreaks.ts'
+  import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType'
+  import type { ScarfGridType } from '$lib/type/gridType'
+  import { PlotAxisBreaks } from '$lib/class/Plot/PlotAxisBreaks/PlotAxisBreaks'
   import ScarfPlotLegend from '$lib/components/Plot/ScarfPlot/ScarfPlotLegend/ScarfPlotLegend.svelte'
-  import { ScarfPlotDynamicStyleFactory } from '$lib/class/Plot/ScarfPlot/ScarfPlotDynamicStyleFactory.ts'
-  import { addInfoToast } from '$lib/stores/toastStore.ts'
+  import { ScarfPlotDynamicStyleFactory } from '$lib/class/Plot/ScarfPlot/ScarfPlotDynamicStyleFactory'
+  import { addInfoToast } from '$lib/stores/toastStore'
 
   export let tooltipAreaElement: HTMLElement
   export let data: ScarfFillingType

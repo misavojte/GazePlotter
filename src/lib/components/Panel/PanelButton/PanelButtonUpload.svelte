@@ -1,10 +1,10 @@
 <script lang="ts">
   import MajorControlButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
-  import { EyeWorkerService } from '$lib/class/WorkerService/EyeWorkerService.ts'
-  import type { DataType } from '$lib/type/Data/DataType.ts'
-  import { processingFileStateStore } from '$lib/stores/processingFileStateStore.ts'
-  import { setData } from '$lib/stores/dataStore.ts'
-  import { addErrorToast, addSuccessToast } from '$lib/stores/toastStore.ts'
+  import { EyeWorkerService } from '$lib/class/WorkerService/EyeWorkerService'
+  import type { DataType } from '$lib/type/Data/DataType'
+  import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
+  import { setData } from '$lib/stores/dataStore'
+  import { addErrorToast, addSuccessToast } from '$lib/stores/toastStore'
 
   $: isDisabled = $processingFileStateStore === 'processing'
 

@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { updateParticipantsGroups } from '$lib/stores/dataStore.ts'
+  import { updateParticipantsGroups } from '$lib/stores/dataStore'
   import {
     addGroup,
     participantsGroupsStore,
-  } from '$lib/stores/participantsGroupStore.ts'
-  import { addSuccessToast, addErrorToast } from '$lib/stores/toastStore.ts'
-  import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup.ts'
+  } from '$lib/stores/participantsGroupStore'
+  import { addSuccessToast, addErrorToast } from '$lib/stores/toastStore'
+  import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup'
   import MajorButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralButtonMinor from '$lib/components/General/GeneralButton/GeneralButtonMinor.svelte'
   import GeneralPositionControl from '$lib/components/General/GeneralPositionControl/GeneralPositionControl.svelte'

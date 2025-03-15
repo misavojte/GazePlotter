@@ -1,5 +1,5 @@
-import type { DataType } from '$lib/type/Data/DataType.ts'
-import { getAoi } from '$lib/stores/dataStore.ts'
+import type { DataType } from '$lib/type/Data/DataType'
+import { getAoi } from '$lib/stores/dataStore'
 
 export const convertDataStructure = (
   data: DataType

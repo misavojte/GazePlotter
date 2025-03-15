@@ -1,6 +1,6 @@
 <script lang="ts">
   import ScarfPlotLegendGroup from '$lib/components/Plot/ScarfPlot/ScarfPlotLegend/ScarfPlotLegendGroup.svelte'
-  import type { StylingScarfFillingType } from '$lib/type/Filling/ScarfFilling/index.ts'
+  import type { StylingScarfFillingType } from '$lib/type/Filling/ScarfFilling/index'
   export let filling: StylingScarfFillingType
 </script>
 

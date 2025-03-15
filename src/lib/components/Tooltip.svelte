@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tooltipStore } from '$lib/stores/tooltipStore.ts'
+  import { tooltipStore } from '$lib/stores/tooltipStore'
   import { fade } from 'svelte/transition'
 </script>
 

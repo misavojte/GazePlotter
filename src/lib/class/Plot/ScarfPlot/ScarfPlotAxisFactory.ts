@@ -1,9 +1,9 @@
-import type { ScarfGridType } from '$lib/type/gridType.ts'
+import type { ScarfGridType } from '$lib/type/gridType'
 import {
   getNumberOfSegments,
   getParticipantEndTime,
 } from '$lib/stores/dataStore.js'
-import { PlotAxisBreaks } from '../PlotAxisBreaks/PlotAxisBreaks.ts'
+import { PlotAxisBreaks } from '../PlotAxisBreaks/PlotAxisBreaks'
 
 export class ScarfPlotAxisFactory {
   stimulusId: number

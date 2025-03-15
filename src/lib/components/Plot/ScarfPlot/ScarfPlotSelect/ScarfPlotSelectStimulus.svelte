@@ -7,10 +7,10 @@
   import {
     getDynamicAoiBoolean,
     getScarfGridHeightFromCurrentData,
-  } from '$lib/services/scarfServices.ts'
-  import type { GridStoreType } from '$lib/stores/gridStore.ts'
+  } from '$lib/services/scarfServices'
+  import type { GridStoreType } from '$lib/stores/gridStore'
   import { getContext } from 'svelte'
-  import type { ScarfGridType } from '$lib/type/gridType.ts'
+  import type { ScarfGridType } from '$lib/type/gridType'
   let store = getContext<GridStoreType>('gridStore')
   export let settings: ScarfGridType
 

@@ -1,5 +1,5 @@
 import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput.js'
-import { AbstractEyeDeserializer } from './AbstractEyeDeserializer.ts'
+import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
 
 export class GazePointEyeDeserializer extends AbstractEyeDeserializer {
   cStart: number
@@ -19,7 +19,7 @@ export class GazePointEyeDeserializer extends AbstractEyeDeserializer {
   mFixID: string | null = null
   mHasFixationSegmentEnded = false
   participant: string // for this reducer, the participant is always the same (one file per participant)
-  constructor (header: string[], fileName: string) {
+  constructor(header: string[], fileName: string) {
     super()
     this.cStart = header.indexOf('FPOGS')
     this.cTime = header.indexOf('FPOGS') - 1
@@ -31,7 +31,7 @@ export class GazePointEyeDeserializer extends AbstractEyeDeserializer {
     this.participant = fileName.split('_')[0]
   }
 
-  deserialize (row: string[]): SingleDeserializerOutput | null {
+  deserialize(row: string[]): SingleDeserializerOutput | null {
     let result = null
 
     const time = row[this.cTime]
@@ -45,22 +45,36 @@ export class GazePointEyeDeserializer extends AbstractEyeDeserializer {
     const isBlink = durationOfBlink !== '0.00000'
     const category = isBlink ? 'Blink' : 'Fixation'
 
-    const hasFixationSegmentEnded = Number(durationOfFixation) === this.mDurationOfEvent
+    const hasFixationSegmentEnded =
+      Number(durationOfFixation) === this.mDurationOfEvent
 
-    const isToFlush = this.mStimulus !== stimulus || this.mFixID !== fixID || this.mCategory === 'Blink' || (hasFixationSegmentEnded && !this.mHasFixationSegmentEnded)
+    const isToFlush =
+      this.mStimulus !== stimulus ||
+      this.mFixID !== fixID ||
+      this.mCategory === 'Blink' ||
+      (hasFixationSegmentEnded && !this.mHasFixationSegmentEnded)
 
     if (isToFlush) {
       result = this.flush()
     }
 
-    if (this.mDurationOfFixation !== Number(durationOfFixation) || this.mStimulus !== stimulus || this.mFixID !== fixID || isBlink) {
+    if (
+      this.mDurationOfFixation !== Number(durationOfFixation) ||
+      this.mStimulus !== stimulus ||
+      this.mFixID !== fixID ||
+      isBlink
+    ) {
       this.mStimulus = stimulus
       this.mAOI = aoi
       this.mCategory = category
-      this.mDurationOfEvent = isBlink ? Number(durationOfBlink) : Number(durationOfFixation)
+      this.mDurationOfEvent = isBlink
+        ? Number(durationOfBlink)
+        : Number(durationOfFixation)
       this.mDurationOfFixation = Number(durationOfFixation)
       this.mTime = Number(time)
-      this.mStart = isBlink ? Number(time) - this.mDurationOfEvent : Number(start)
+      this.mStart = isBlink
+        ? Number(time) - this.mDurationOfEvent
+        : Number(start)
       this.mFixID = fixID
     }
     this.mHasFixationSegmentEnded = hasFixationSegmentEnded
@@ -68,22 +82,40 @@ export class GazePointEyeDeserializer extends AbstractEyeDeserializer {
     return result
   }
 
-  finalize (): SingleDeserializerOutput | null {
+  finalize(): SingleDeserializerOutput | null {
     return this.flush()
   }
 
-  flush (): { start: string, end: string, stimulus: string, participant: string, category: string, aoi: string[] | null } | null {
-    if (this.mStimulus === null || this.mCategory === null || this.mStart === null || this.mDurationOfEvent === null) return null
+  flush(): {
+    start: string
+    end: string
+    stimulus: string
+    participant: string
+    category: string
+    aoi: string[] | null
+  } | null {
+    if (
+      this.mStimulus === null ||
+      this.mCategory === null ||
+      this.mStart === null ||
+      this.mDurationOfEvent === null
+    )
+      return null
     let r: EyeTrackingParserGazePointReducerResult | null = {
       aoi: this.mAOI === null ? null : [this.mAOI],
       category: this.mCategory,
       end: String(this.mTime),
       participant: this.participant,
       start: String(this.mStart),
-      stimulus: this.mStimulus
+      stimulus: this.mStimulus,
     }
     if (this.mStart === 0 && this.mTime === 0) {
-      console.warn('start and end are 0 - Probable blink issue', this.mFixID, this.mStimulus, this.participant)
+      console.warn(
+        'start and end are 0 - Probable blink issue',
+        this.mFixID,
+        this.mStimulus,
+        this.participant
+      )
       r = null
     }
     this.mTime = null

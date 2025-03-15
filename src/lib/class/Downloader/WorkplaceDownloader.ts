@@ -1,6 +1,6 @@
-import { AbstractDownloader } from './AbstractDownloader.ts'
-import type { DataType } from '$lib/type/Data/DataType.ts'
-import { convertDataStructure } from '$lib/utils/convertDataStructure.ts'
+import { AbstractDownloader } from './AbstractDownloader'
+import type { DataType } from '$lib/type/Data/DataType'
+import { convertDataStructure } from '$lib/utils/convertDataStructure'
 import JSZip from 'jszip'
 
 export class WorkplaceDownloader extends AbstractDownloader {

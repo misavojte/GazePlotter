@@ -1,5 +1,5 @@
 import { writable, get } from 'svelte/store'
-import type { AllGridTypes } from '$lib/type/gridType.ts'
+import type { AllGridTypes } from '$lib/type/gridType'
 
 export type GridStoreType = ReturnType<typeof createGridStore>
 

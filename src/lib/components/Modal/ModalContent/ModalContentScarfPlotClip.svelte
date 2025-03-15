@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { getStimuliOrderVector } from '$lib/stores/dataStore.ts'
+  import { getStimuliOrderVector } from '$lib/stores/dataStore'
   import MajorButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralFieldset from '$lib/components/General/GeneralFieldset/GeneralFieldset.svelte'
   import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
   import GeneralInputNumber from '$lib/components/General/GeneralInput/GeneralInputNumber.svelte'
   import { addSuccessToast } from '$lib/stores/toastStore.js'
 
-  import type { ScarfGridType } from '$lib/type/gridType.ts'
-  import type { GridStoreType } from '$lib/stores/gridStore.ts'
+  import type { ScarfGridType } from '$lib/type/gridType'
+  import type { GridStoreType } from '$lib/stores/gridStore'
 
   export let settings: ScarfGridType
   export let store: GridStoreType
