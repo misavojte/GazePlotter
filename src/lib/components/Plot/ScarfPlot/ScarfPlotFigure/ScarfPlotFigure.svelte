@@ -9,7 +9,6 @@
   export let tooltipAreaElement: HTMLElement
   export let data: ScarfFillingType
   export let settings: ScarfGridType
-  export let axisBreaks: PlotAxisBreaks
   export let highlightedIdentifier: string | null = null
 
   let fixedHighlight: string | null = null
