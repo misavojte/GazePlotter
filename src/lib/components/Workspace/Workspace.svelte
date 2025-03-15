@@ -24,6 +24,10 @@
   // Create a store to track if we're in loading state
   const isLoading = writable(false)
 
+  // Create a store to track if an item is being dragged
+  const isDragging = writable(false)
+  const draggedItemId = writable<number | null>(null)
+
   // ---------------------------------------------------
   // Visualization Registry - Central configuration for plot types
   // ---------------------------------------------------
@@ -181,7 +185,7 @@
         300, // Minimum height
         maxY * (gridConfig.cellSize.height + gridConfig.gap) +
           gridConfig.gap +
-          40 // Add padding
+          90 // Add padding
       )
     }
   )
@@ -259,6 +263,21 @@
     gridStore.updateItemPosition(id, x, y, false)
   }
 
+  // Handle drag start - set global dragging state
+  const handleDragStart = (
+    event: CustomEvent<{
+      id: number
+      x: number
+      y: number
+      w: number
+      h: number
+    }>
+  ) => {
+    const { id } = event.detail
+    isDragging.set(true)
+    draggedItemId.set(id)
+  }
+
   // Handle drag end - now we resolve collisions
   const handleDragEnd = (
     event: CustomEvent<{
@@ -271,6 +290,11 @@
     }>
   ) => {
     const { id, x, y, dragComplete } = event.detail
+
+    // Reset dragging state
+    isDragging.set(false)
+    draggedItemId.set(null)
+
     if (!dragComplete) return
 
     // First update position with the final coordinates
@@ -346,6 +370,7 @@
           on:previewmove={handleItemPreviewMove}
           on:move={handleItemMove}
           on:resize={handleItemResize}
+          on:dragstart={handleDragStart}
           on:dragend={handleDragEnd}
         >
           <div slot="header">
@@ -364,6 +389,13 @@
       </div>
     {/each}
   </div>
+
+  {#if $isDragging}
+    <div
+      class="pointer-events-blocker"
+      transition:fade={{ duration: 50 }}
+    ></div>
+  {/if}
 
   {#if $isEmpty && !$isLoading}
     <WorkspaceIndicatorEmpty />
@@ -390,7 +422,7 @@
     overflow-x: auto; /* Allow horizontal scrolling */
     overflow-y: hidden; /* Prevent vertical scrolling */
     min-height: 300px; /* Ensure minimum height for small grids */
-    padding: 25px; /* Consistent padding throughout */
+    padding: 35px; /* Consistent padding throughout */
     /* Performance optimizations */
     will-change: height;
     transform: translateZ(0);
@@ -407,5 +439,19 @@
     /* Prevent unnecessary repaints */
     will-change: contents;
     transform: translateZ(0);
+  }
+
+  .pointer-events-blocker {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 5; /* Above regular items but below the placeholder */
+    background-color: transparent;
+    /* Block all pointer events */
+    pointer-events: all;
+    /* Visual feedback that interaction is blocked */
+    cursor: grabbing;
   }
 </style>

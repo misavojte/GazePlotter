@@ -83,9 +83,10 @@
       // Dispatch drag start event
       dispatch('dragstart', { id, x, y, w, h })
 
-      // Add drag tracking events
-      window.addEventListener('mousemove', handleMouseMove)
-      window.addEventListener('mouseup', handleMouseUp)
+      // Add drag tracking events to document instead of window
+      // This ensures we always get the events, even with pointer-events blocking overlays
+      document.addEventListener('mousemove', handleMouseMove, { capture: true })
+      document.addEventListener('mouseup', handleMouseUp, { capture: true })
 
       event.preventDefault()
     }
@@ -148,8 +149,10 @@
       isDragging = false
 
       // Clean up event listeners
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
+      document.removeEventListener('mousemove', handleMouseMove, {
+        capture: true,
+      })
+      document.removeEventListener('mouseup', handleMouseUp, { capture: true })
     }
 
     // Add initial event listener
@@ -159,8 +162,12 @@
     return {
       destroy() {
         node.removeEventListener('mousedown', handleMouseDown)
-        window.removeEventListener('mousemove', handleMouseMove)
-        window.removeEventListener('mouseup', handleMouseUp)
+        document.removeEventListener('mousemove', handleMouseMove, {
+          capture: true,
+        })
+        document.removeEventListener('mouseup', handleMouseUp, {
+          capture: true,
+        })
       },
       update(newOptions: { enabled: boolean }) {
         if (!newOptions.enabled) {
@@ -196,9 +203,9 @@
       // Dispatch resize start event
       dispatch('resizestart', { id, x, y, w, h })
 
-      // Add resize tracking events
-      window.addEventListener('mousemove', handleMouseMove)
-      window.addEventListener('mouseup', handleMouseUp)
+      // Add resize tracking events using document level listeners with capture
+      document.addEventListener('mousemove', handleMouseMove, { capture: true })
+      document.addEventListener('mouseup', handleMouseUp, { capture: true })
 
       event.preventDefault()
       event.stopPropagation()
@@ -240,8 +247,10 @@
       isResizing = false
 
       // Clean up event listeners
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
+      document.removeEventListener('mousemove', handleMouseMove, {
+        capture: true,
+      })
+      document.removeEventListener('mouseup', handleMouseUp, { capture: true })
     }
 
     // Add initial event listener
@@ -251,8 +260,12 @@
     return {
       destroy() {
         node.removeEventListener('mousedown', handleMouseDown)
-        window.removeEventListener('mousemove', handleMouseMove)
-        window.removeEventListener('mouseup', handleMouseUp)
+        document.removeEventListener('mousemove', handleMouseMove, {
+          capture: true,
+        })
+        document.removeEventListener('mouseup', handleMouseUp, {
+          capture: true,
+        })
       },
       update(newOptions: { enabled: boolean }) {
         if (!newOptions.enabled) {
@@ -397,6 +410,7 @@
     border: 2px dashed rgba(200, 120, 120, 0.5);
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
     opacity: 0.9;
+    /* Allow the placeholder to receive pointer events during drag */
     pointer-events: none;
   }
 
