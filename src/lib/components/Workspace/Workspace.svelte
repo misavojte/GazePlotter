@@ -241,6 +241,10 @@
     duplicateItem: (item: AllGridTypes) => {
       return gridStore.duplicateItem(item)
     },
+    // Add batch duplication support
+    batchDuplicateItems: (items: AllGridTypes[]) => {
+      return gridStore.batchDuplicateItems(items)
+    },
     addItem: (type: string, options: Partial<AllGridTypes> = {}) => {
       const newItem = createGridItem(type, options)
       return gridStore.addItem(newItem)
@@ -289,8 +293,15 @@
     const { id, x, y, dragComplete } = event.detail
     if (!dragComplete) return
 
-    // First update position with the final coordinates and resolve collisions
-    gridStore.updateItemPosition(id, x, y, true)
+    // First update position with the final coordinates
+    gridStore.updateItemPosition(id, x, y, false)
+
+    // Then explicitly resolve any collisions
+    // This two-step approach ensures we get good visual feedback
+    // First the item moves to where the user dropped it, then it resolves collisions
+    setTimeout(() => {
+      gridStore.resolveItemPositionCollisions(id)
+    }, 50) // Short delay for better visual feedback
   }
 
   // Handle grid item resizing
@@ -303,10 +314,16 @@
       h: number
     }>
   ) => {
-    const { id, x, y, w, h } = event.detail
+    const { id, w, h } = event.detail
 
-    // Update size with collision detection
-    gridStore.updateItemSize(id, w, h, true)
+    // First update size without collision resolution
+    gridStore.updateItemSize(id, w, h, false)
+
+    // Then resolve collisions with a slight delay for better visual feedback
+    setTimeout(() => {
+      // Use the store's method to resolve collisions for this item
+      gridStore.resolveItemPositionCollisions(id)
+    }, 50)
   }
 
   // When the processing state changes, update the grid

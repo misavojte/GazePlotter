@@ -19,6 +19,12 @@
   import type { ScarfGridType } from '$lib/type/gridType'
 
   export let settings: ScarfGridType
+  export let multipleSettings: ScarfGridType[] = []
+
+  $: isMultiSelection = multipleSettings.length > 0
+
+  $: effectiveSettings = isMultiSelection ? multipleSettings : [settings]
+
   const store = getContext<GridStoreType>('gridStore')
 
   const openClipModal = () => {
@@ -52,30 +58,69 @@
   }
 
   const deleteScarf = () => {
-    store.removeItem(settings.id)
+    if (isMultiSelection) {
+      for (const setting of effectiveSettings) {
+        store.removeItem(setting.id)
+      }
+    } else {
+      store.removeItem(settings.id)
+    }
   }
 
   const duplicateScarf = () => {
-    store.duplicateItem(settings)
+    if (isMultiSelection) {
+      store.batchDuplicateItems(effectiveSettings)
+    } else {
+      store.duplicateItem(settings)
+    }
   }
 
-  const items: ComponentProps<MenuButton>['items'] = [
+  $: items = [
     {
       label: 'AOI customization',
       action: openAoiModificationModal,
       icon: Settings,
+      disabled: isMultiSelection,
     },
-    { label: 'AOI visibility', action: openAoiVisibilityModal, icon: View },
+    {
+      label: 'AOI visibility',
+      action: openAoiVisibilityModal,
+      icon: View,
+      disabled: isMultiSelection,
+    },
     {
       label: 'Setup participants groups',
       action: openUserGroupsModal,
       icon: Users,
+      disabled: isMultiSelection,
     },
-    { label: 'Clip timeline', action: openClipModal, icon: Scissors },
-    { label: 'Download plot', action: downloadPlot, icon: Download },
-    { label: 'Duplicate scarf', action: duplicateScarf, icon: Copy },
-    { label: 'Delete scarf', action: deleteScarf, icon: Trash },
-  ]
+    {
+      label: 'Clip timeline',
+      action: openClipModal,
+      icon: Scissors,
+      disabled: isMultiSelection,
+    },
+    {
+      label: 'Download plot',
+      action: downloadPlot,
+      icon: Download,
+      disabled: isMultiSelection,
+    },
+    {
+      label: isMultiSelection
+        ? `Duplicate ${effectiveSettings.length} scarfs`
+        : 'Duplicate scarf',
+      action: duplicateScarf,
+      icon: Copy,
+    },
+    {
+      label: isMultiSelection
+        ? `Delete ${effectiveSettings.length} scarfs`
+        : 'Delete scarf',
+      action: deleteScarf,
+      icon: Trash,
+    },
+  ] as ComponentProps<MenuButton>['items']
 </script>
 
 <MenuButton {items} />
