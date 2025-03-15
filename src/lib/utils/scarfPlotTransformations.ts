@@ -586,7 +586,7 @@ export function generateScarfPlotCSS(
       #${plotAreaId} rect:not(.${highlightedType}){opacity:0.2;}
       #${plotAreaId} line:not(.${highlightedType}){opacity:0.2;}
       #${plotAreaId} line.${highlightedType}{stroke-width:100%;}
-    `.replace(/\s+/g, '')
+    `
   }
 
   return '<style>' + rectRules + lineRules + highlightRules + '</style>'
