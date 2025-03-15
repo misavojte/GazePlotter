@@ -1,13 +1,11 @@
 <script lang="ts">
-  import PlotWrap from '$lib/components/Plot/PlotWrap.svelte'
+  // No imports needed anymore
 </script>
 
-<PlotWrap title="Loading data">
-  <div class="loading" slot="body">
-    <div class="spinner"></div>
-    <div>Rendering charts</div>
-  </div>
-</PlotWrap>
+<div class="loading">
+  <div class="spinner"></div>
+  <div>Rendering charts</div>
+</div>
 
 <style>
   .loading {

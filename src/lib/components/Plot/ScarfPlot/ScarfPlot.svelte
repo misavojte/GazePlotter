@@ -1,10 +1,8 @@
 <script lang="ts">
   import { PlotAxisBreaks } from '$lib/class/Plot/PlotAxisBreaks/PlotAxisBreaks'
-  import PlotWrap from '$lib/components/Plot/PlotWrap.svelte'
   import { getParticipants } from '$lib/stores/dataStore'
   import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType'
   import { onDestroy, onMount } from 'svelte'
-  import ScarfPlotHeader from './ScarfPlotHeader/ScarfPlotHeader.svelte'
   import ScarfPlotFigure from './ScarfPlotFigure/ScarfPlotFigure.svelte'
   import type { ScarfGridType } from '$lib/type/gridType'
   import { tooltipScarfService } from '$lib/services/tooltipServices'
@@ -129,17 +127,12 @@
   })
 </script>
 
-<PlotWrap title="Scarf Plot">
-  <ScarfPlotHeader slot="header" bind:settings />
-  <svelte:fragment slot="body">
-    <ScarfPlotFigure
-      on:mouseleave={cancelInteractivity}
-      on:mousemove={decideInteractivity}
-      tooltipAreaElement={tooltipArea}
-      {data}
-      {settings}
-      axisBreaks={absoluteTimeline}
-      highlightedIdentifier={highlightedType}
-    />
-  </svelte:fragment>
-</PlotWrap>
+<ScarfPlotFigure
+  on:mouseleave={cancelInteractivity}
+  on:mousemove={decideInteractivity}
+  tooltipAreaElement={tooltipArea}
+  {data}
+  {settings}
+  axisBreaks={absoluteTimeline}
+  highlightedIdentifier={highlightedType}
+/>
