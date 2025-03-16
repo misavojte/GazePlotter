@@ -1,7 +1,7 @@
 <script lang="ts">
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
-  import { createDropdownMenu, melt } from '@melt-ui/svelte'
   import { fade } from 'svelte/transition'
+  import { writable } from 'svelte/store'
   import WorkspaceToolbarItem from './WorkspaceToolbarItem.svelte'
 
   // Configuration for toolbar items
@@ -44,36 +44,58 @@
     visualizations = [], // Default empty array for visualizations
   }: Props = $props()
 
-  // Create dropdown menu using melt-ui
-  const {
-    elements: { trigger, menu, item },
-    states: { open },
-  } = createDropdownMenu({
-    positioning: {
-      placement: 'right-start',
-      gutter: 13,
-      strategy: 'fixed',
-    },
-    portal: null,
-    preventScroll: false, // Allow scrolling of the main window
+  // Create a store for context menu
+  const contextMenuState = writable({
+    visible: false,
+    x: 0,
+    y: 0,
   })
+
+  let addVisualizationButton: HTMLElement
 
   function handleVisualizationSelect(vizType: string) {
     onaction({
       id: 'add-visualization',
       vizType,
     })
-    $open = false
+    contextMenuState.set({ visible: false, x: 0, y: 0 })
+  }
+
+  // Function to toggle context menu
+  function toggleContextMenu(event: MouseEvent) {
+    event.preventDefault()
+    event.stopPropagation()
+
+    if (addVisualizationButton) {
+      const rect = addVisualizationButton.getBoundingClientRect()
+      contextMenuState.update(state => ({
+        visible: !state.visible,
+        x: rect.right + 5,
+        y: rect.top,
+      }))
+    }
   }
 
   // Handle toolbar item click
   function handleItemClick(event: { id: string; event?: any }) {
+    if (event.id === 'add-visualization') {
+      toggleContextMenu(event.event as MouseEvent)
+      return
+    }
+
     onaction({
       id: event.id,
       event: event.event,
     })
   }
+
+  // Close menu when clicking outside
+  function handleClickOutside(event: MouseEvent) {
+    contextMenuState.set({ visible: false, x: 0, y: 0 })
+  }
 </script>
+
+<svelte:window on:click={handleClickOutside} />
 
 <div
   class="workspace-toolbar"
@@ -91,28 +113,29 @@
       />
 
       <!-- Add Visualization button with dropdown -->
-      <WorkspaceToolbarItem
-        id="add-visualization"
-        label={actionItems[1].label}
-        icon={actionItems[1].icon}
-        useDropdown={true}
-        dropdownTrigger={$trigger}
-      />
+      <div bind:this={addVisualizationButton}>
+        <WorkspaceToolbarItem
+          id="add-visualization"
+          label={actionItems[1].label}
+          icon={actionItems[1].icon}
+          onclick={handleItemClick}
+        />
+      </div>
     {/if}
   </div>
 </div>
 
-{#if $open}
+{#if $contextMenuState.visible}
   <div
     class="context-menu"
-    use:melt={$menu}
+    style="left: {$contextMenuState.x}px; top: {$contextMenuState.y}px;"
     transition:fade={{ duration: 100 }}
+    on:click|stopPropagation={() => {}}
   >
     {#each visualizations as viz}
       <button
         class="context-menu-item"
-        use:melt={$item}
-        onclick={() => handleVisualizationSelect(viz.id)}
+        on:click={() => handleVisualizationSelect(viz.id)}
       >
         {viz.label}
       </button>
@@ -154,22 +177,6 @@
     pointer-events: auto;
     isolation: isolate; /* Create a new stacking context */
     contain: layout; /* Optimize rendering */
-  }
-
-  /* Create a portal container for the menu */
-  :global(body > [data-portal]) {
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 0; /* Set height to 0 to prevent scroll blocking */
-    pointer-events: none; /* Let scroll events pass through */
-    z-index: 2100;
-  }
-
-  /* Only enable pointer events on the actual menu */
-  :global(body > [data-portal] > *) {
-    pointer-events: auto;
   }
 
   .context-menu-item {

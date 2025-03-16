@@ -1,18 +1,18 @@
 <script lang="ts">
-  import { melt, createTooltip } from '@melt-ui/svelte'
-  import { fade } from 'svelte/transition'
+  import { onDestroy } from 'svelte'
+  import { tooltipStore } from '$lib/stores/tooltipStore'
 
   interface Props {
-    label?: string;
-    icon?: string;
-    action?: string;
-    tooltip?: string;
-    disabled?: boolean;
-    useAction?: boolean;
-    actionParams?: any;
-    actionFn?: any;
-    children?: import('svelte').Snippet;
-    onclick?: (event: CustomEvent) => void;
+    label?: string
+    icon?: string
+    action?: string
+    tooltip?: string
+    disabled?: boolean
+    useAction?: boolean
+    actionParams?: any
+    actionFn?: any
+    children?: import('svelte').Snippet
+    onclick?: (event: CustomEvent) => void
   }
 
   let {
@@ -25,8 +25,10 @@
     actionParams = {},
     actionFn = null,
     children,
-    onclick = () => {}
-  }: Props = $props();
+    onclick = () => {},
+  }: Props = $props()
+
+  let buttonElement: HTMLElement
 
   function handleClick() {
     if (!disabled && !useAction) {
@@ -34,22 +36,25 @@
     }
   }
 
-  // Create tooltip with proper configuration
-  const {
-    elements: {
-      trigger: tooltipTrigger,
-      content: tooltipContent,
-      arrow: tooltipArrow,
-    },
-    states: { open: tooltipOpen },
-  } = createTooltip({
-    positioning: {
-      placement: 'top',
-      gutter: 5,
-    },
-    openDelay: 300,
-    closeDelay: 100,
-    disabled: disabled,
+  function showTooltip(event: MouseEvent) {
+    if (disabled) return
+
+    const rect = buttonElement.getBoundingClientRect()
+    tooltipStore.set({
+      visible: true,
+      content: [{ key: '', value: tooltip || label }],
+      x: rect.left,
+      y: rect.top - 35 + window.scrollY,
+      width: Math.max(100, (tooltip || label).length * 8),
+    })
+  }
+
+  function hideTooltip() {
+    tooltipStore.set(null)
+  }
+
+  onDestroy(() => {
+    hideTooltip()
   })
 </script>
 
@@ -60,7 +65,9 @@
       class:disabled
       onclick={handleClick}
       aria-label={label || tooltip}
-      use:melt={$tooltipTrigger}
+      bind:this={buttonElement}
+      onmouseenter={showTooltip}
+      onmouseleave={hideTooltip}
       use:actionFn={actionParams}
     >
       {#if children}{@render children()}{:else}
@@ -78,7 +85,9 @@
       class:disabled
       onclick={handleClick}
       aria-label={label || tooltip}
-      use:melt={$tooltipTrigger}
+      bind:this={buttonElement}
+      onmouseenter={showTooltip}
+      onmouseleave={hideTooltip}
     >
       {#if children}{@render children()}{:else}
         {#if icon}
@@ -89,17 +98,6 @@
         {/if}
       {/if}
     </button>
-  {/if}
-
-  {#if $tooltipOpen}
-    <div
-      class="tooltip"
-      use:melt={$tooltipContent}
-      transition:fade={{ duration: 150 }}
-    >
-      <div use:melt={$tooltipArrow} class="tooltip-arrow"></div>
-      {tooltip || label}
-    </div>
   {/if}
 </div>
 
@@ -149,32 +147,6 @@
 
   .label {
     margin-left: 4px;
-  }
-
-  .tooltip {
-    z-index: 2500;
-    background-color: var(--c-darkgrey);
-    color: white;
-    padding: 6px 10px;
-    border-radius: 4px;
-    font-size: 12px;
-    line-height: 1.5;
-    width: auto;
-    height: auto;
-    white-space: nowrap;
-    pointer-events: none;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-    overflow: visible;
-  }
-
-  .tooltip-arrow {
-    position: absolute;
-    width: 8px;
-    height: 8px;
-    background-color: var(--c-darkgrey);
-    transform: rotate(45deg);
-    bottom: -4px;
-    pointer-events: none;
   }
 
   /* Global style to help with tooltip overflow */

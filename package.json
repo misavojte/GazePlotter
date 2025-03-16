@@ -1,6 +1,6 @@
 {
   "name": "gazeplotter",
-  "version": "1.4.3",
+  "version": "1.5.0",
   "license": "GPL-3.0-only",
   "description": "Gazeplotter is a Svelte application for visualizing eye-tracking data.",
   "repository": {
@@ -27,10 +27,7 @@
     "prepublishOnly": "npm run package",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-    "test": "vitest",
-    "lint": "eslint .",
-    "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "test": "vitest"
   },
   "exports": {
     ".": {
@@ -44,29 +41,19 @@
     "!dist/**/*.spec.*"
   ],
   "peerDependencies": {
-    "svelte": "^4.0.0 || ^5.0.0"
+    "svelte": "^5.0.0"
   },
   "devDependencies": {
-    "@melt-ui/pp": "^0.3.2",
     "@sveltejs/adapter-static": "^3.0.1",
     "@sveltejs/kit": "^2.5.0",
     "@sveltejs/package": "^2.3.0",
     "@sveltejs/vite-plugin-svelte": "^3.0.0",
-    "@types/eslint": "8.56.0",
-    "@typescript-eslint/eslint-plugin": "^7.0.0",
-    "@typescript-eslint/parser": "^7.0.0",
-    "eslint": "^8.56.0",
-    "eslint-plugin-svelte": "^3.1.0",
     "jszip": "^3.10.1",
-    "lucide-svelte": "^0.306.0",
     "prettier": "^3.1.0",
     "prettier-plugin-svelte": "^3.2.0",
     "publint": "^0.1.9",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
     "svelte": "^5.0.0",
     "svelte-check": "^3.6.0",
-    "svelte-sequential-preprocessor": "^2.0.0",
     "tslib": "^2.4.1",
     "typescript": "^5.0.0",
     "vite": "^5.0.0",
@@ -76,7 +63,6 @@
   "types": "./dist/index.d.ts",
   "type": "module",
   "dependencies": {
-    "@melt-ui/svelte": "^0.86.0",
-    "melt": "^0.17.3"
+    "lucide-svelte": "^0.482.0"
   }
 }

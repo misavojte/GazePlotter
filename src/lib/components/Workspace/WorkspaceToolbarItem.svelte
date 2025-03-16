@@ -1,8 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { melt, createTooltip } from '@melt-ui/svelte'
   import { fade } from 'svelte/transition'
-  import { derived, writable } from 'svelte/store'
+  import { tooltipStore } from '$lib/stores/tooltipStore'
 
   // Props for the toolbar item
   interface Props {
@@ -11,7 +10,6 @@
     icon: string
     action?: (() => void) | null
     useDropdown?: boolean
-    dropdownTrigger?: any
     onclick?: (event: { id: string; event: MouseEvent }) => void
   }
 
@@ -21,112 +19,56 @@
     icon,
     action = null,
     useDropdown = false,
-    dropdownTrigger = null,
     onclick = () => {},
   }: Props = $props()
 
-  // Create a store to track whether the dropdown is open
-  const isDropdownOpen = writable(false)
+  let buttonElement: HTMLElement
 
-  // Create tooltip with proper configuration
-  const {
-    elements: {
-      trigger: tooltipTrigger,
-      content: tooltipContent,
-      arrow: tooltipArrow,
-    },
-    states: { open: tooltipOpen },
-  } = createTooltip({
-    positioning: {
-      placement: 'right',
-      gutter: 13,
-    },
-    openDelay: 300,
-    closeDelay: 100,
-    portal: true,
-    // Disable the tooltip when dropdown is open
-    disabled: derived(isDropdownOpen, $isOpen => useDropdown && $isOpen),
-  })
+  function showTooltip(event: MouseEvent) {
+    const rect = buttonElement.getBoundingClientRect()
+    tooltipStore.set({
+      visible: true,
+      content: [{ key: '', value: label }],
+      x: rect.left + 35,
+      y: rect.top + window.scrollY, // Position above
+      width: 100, // Approximate width based on content
+    })
+  }
 
-  // Watch for dropdown state changes
+  function hideTooltip() {
+    tooltipStore.set(null)
+  }
+
+  // Clean up on mount
   onMount(() => {
-    if (useDropdown && dropdownTrigger) {
-      // Get the actual dropdown store
-      const dropdownOpenStore = dropdownTrigger?.open
-
-      if (dropdownOpenStore) {
-        // Set up a subscription to update our local state
-        const unsubscribe = dropdownOpenStore.subscribe(value => {
-          isDropdownOpen.set(value)
-
-          // When dropdown opens, ensure tooltip is closed
-          if (value) {
-            tooltipOpen.set(false)
-          }
-        })
-
-        return unsubscribe
-      }
+    return () => {
+      hideTooltip()
     }
   })
 
   // Handle item click
-  function handleClick(event) {
+  function handleClick(event: MouseEvent) {
     if (action) {
       action()
     }
 
-    if (!useDropdown) {
-      onclick({ id, event })
-    }
+    onclick({ id, event })
   }
 </script>
 
-{#if useDropdown}
-  <!-- Wrapper div with tooltip -->
-  <div class="tooltip-wrapper" use:melt={$tooltipTrigger}>
-    <!-- Button with dropdown -->
-    <button class="toolbar-item" use:melt={dropdownTrigger}>
-      <div class="toolbar-item-icon">
-        {@html icon}
-      </div>
-    </button>
-
-    {#if $tooltipOpen}
-      <div
-        class="tooltip"
-        use:melt={$tooltipContent}
-        transition:fade={{ duration: 150 }}
-      >
-        <div use:melt={$tooltipArrow} class="tooltip-arrow"></div>
-        {label}
-      </div>
-    {/if}
-  </div>
-{:else}
-  <div class="tooltip-wrapper">
-    <button
-      class="toolbar-item"
-      use:melt={$tooltipTrigger}
-      onclick={handleClick}
-    >
-      <div class="toolbar-item-icon">
-        {@html icon}
-      </div>
-    </button>
-
-    {#if $tooltipOpen}
-      <div
-        class="tooltip"
-        use:melt={$tooltipContent}
-        transition:fade={{ duration: 150 }}
-      >
-        <div use:melt={$tooltipArrow} class="tooltip-arrow"></div>
-        {label}
-      </div>
-    {/if}
-  </div>
-{/if}
+<div class="tooltip-wrapper">
+  <button
+    class="toolbar-item"
+    bind:this={buttonElement}
+    on:click={handleClick}
+    on:mouseenter={showTooltip}
+    on:mouseleave={hideTooltip}
+  >
+    <div class="toolbar-item-icon">
+      {@html icon}
+    </div>
+  </button>
+</div>
 
 <style>
   .tooltip-wrapper {
@@ -163,28 +105,5 @@
     display: flex;
     align-items: center;
     justify-content: center;
-  }
-
-  .tooltip {
-    z-index: 2500;
-    background-color: var(--c-darkgrey);
-    color: white;
-    padding: 6px 10px;
-    border-radius: 4px;
-    font-size: 12px;
-    line-height: 1.5;
-    white-space: nowrap;
-    pointer-events: none;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-  }
-
-  .tooltip-arrow {
-    position: absolute;
-    width: 8px;
-    height: 8px;
-    background-color: var(--c-darkgrey);
-    transform: rotate(45deg);
-    left: -4px;
-    pointer-events: none;
   }
 </style>
