@@ -4,6 +4,7 @@
   import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType'
   import { onDestroy, onMount } from 'svelte'
   import ScarfPlotFigure from './ScarfPlotFigure/ScarfPlotFigure.svelte'
+  import ScarfPlotHeader from './ScarfPlotHeader/ScarfPlotHeader.svelte'
   import type { ScarfGridType } from '$lib/type/gridType'
   import { tooltipScarfService } from '$lib/services/tooltipServices'
   import { transformDataToScarfPlot } from '$lib/utils/scarfPlotTransformations'
@@ -127,12 +128,39 @@
   })
 </script>
 
-<ScarfPlotFigure
-  on:mouseleave={cancelInteractivity}
-  on:mousemove={decideInteractivity}
-  tooltipAreaElement={tooltipArea}
-  {data}
-  {settings}
-  axisBreaks={absoluteTimeline}
-  highlightedIdentifier={highlightedType}
-/>
+<div class="scarf-plot-container">
+  <div class="header">
+    <ScarfPlotHeader bind:settings />
+  </div>
+
+  <div class="figure">
+    <ScarfPlotFigure
+      on:mouseleave={cancelInteractivity}
+      on:mousemove={decideInteractivity}
+      tooltipAreaElement={tooltipArea}
+      {data}
+      {settings}
+      axisBreaks={absoluteTimeline}
+      highlightedIdentifier={highlightedType}
+    />
+  </div>
+</div>
+
+<style>
+  .scarf-plot-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+  }
+
+  .header {
+    padding: 0 0 10px 0;
+    margin-bottom: 10px;
+  }
+
+  .figure {
+    flex: 1;
+    overflow: auto;
+  }
+</style>

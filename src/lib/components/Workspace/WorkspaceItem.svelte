@@ -3,6 +3,7 @@
   import { fade } from 'svelte/transition'
   import type { GridItemPosition } from '$lib/stores/gridStore'
   import { writable } from 'svelte/store'
+  import WorkspaceItemButton from './WorkspaceItemButton.svelte'
 
   // GridItem properties
   export let id: number
@@ -17,6 +18,7 @@
   export let resizable = true
   export let draggable = true
   export let title: string = ''
+  export let removable = true
 
   // Track state for visual feedback
   let isDragging = false
@@ -24,8 +26,6 @@
   let dragPosition = { x: 0, y: 0 }
   let showDragPlaceholder = false
 
-  // DOM nodes for manipulation
-  let headerNode: HTMLElement
   let bodyNode: HTMLElement
   let placeholderNode: HTMLElement
   let itemNode: HTMLElement
@@ -633,6 +633,8 @@
       h: number
       bottomEdge: number
     }
+    remove: { id: number }
+    duplicate: { id: number }
   }>()
 </script>
 
@@ -650,9 +652,10 @@
   transition:fade={{ duration: 150 }}
   on:contextmenu
   bind:this={itemNode}
+  role="figure"
 >
   <!-- PlotWrap header -->
-  <div class="header" bind:this={headerNode}>
+  <div class="header">
     {#if draggable}
       <div class="drag-handle" use:draggable_action={{ enabled: draggable }}>
         <svg
@@ -672,11 +675,51 @@
           <circle cx="16" cy="16" r="1.5" />
         </svg>
       </div>
+      <WorkspaceItemButton
+        action="duplicate"
+        tooltip="Duplicate item"
+        on:click={() => dispatch('duplicate', { id })}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="8" y="8" width="12" height="12" rx="2" ry="2" />
+          <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+        </svg>
+      </WorkspaceItemButton>
     {/if}
     <h3>{title}</h3>
-    <!-- Slot for additional header content -->
     <div class="header-content">
-      <slot name="header" />
+      {#if removable}
+        <WorkspaceItemButton
+          action="remove"
+          tooltip="Remove item"
+          on:click={() => dispatch('remove', { id })}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </WorkspaceItemButton>
+      {/if}
     </div>
   </div>
 
@@ -806,7 +849,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 15px 30px;
+    padding: 10px 20px;
     background: var(--c-lightgrey);
     flex-wrap: wrap;
     gap: 2px 5px;
@@ -823,7 +866,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-right: 10px;
     padding: 5px;
     border-radius: 4px;
     color: var(--c-darkgrey, #666);
@@ -843,19 +885,15 @@
   }
 
   .body {
-    padding: 30px;
+    padding: 20px;
     flex-grow: 1;
     overflow: auto;
   }
 
-  h3 {
+  .header h3 {
     margin: 0;
     flex-grow: 1;
-  }
-
-  /* Add additional styles for dragging towards delete */
-  .grid-item.is-being-dragged.over-toolbar {
-    border-color: #e74c3c;
-    box-shadow: 0 0 15px rgba(231, 76, 60, 0.5);
+    font-size: 14px;
+    font-weight: 500;
   }
 </style>

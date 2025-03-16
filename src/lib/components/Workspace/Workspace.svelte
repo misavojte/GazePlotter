@@ -60,7 +60,6 @@
     scarf: {
       name: 'Scarf Plot',
       component: ScarfPlot,
-      headerComponent: ScarfPlotHeader,
       getDefaultConfig: (
         params?: { stimulusId?: number; groupId?: number } = {}
       ) => ({
@@ -82,7 +81,6 @@
     aoiTransitionMatrix: {
       name: 'AOI Transition Matrix',
       component: AOITransitionMatrixPlot,
-      headerComponent: AOITransitionMatrixHeader,
       getDefaultConfig: (
         params?: { stimulusId?: number; groupId?: number } = {}
       ) => ({
@@ -398,6 +396,23 @@
     temporaryDragHeight.set(null)
   }
 
+  // Handle item removal
+  const handleItemRemove = (event: CustomEvent<{ id: number }>) => {
+    const { id } = event.detail
+    gridStore.removeItem(id)
+  }
+
+  // Handle item duplication
+  const handleItemDuplicate = (event: CustomEvent<{ id: number }>) => {
+    const { id } = event.detail
+    // Find the item to duplicate
+    const itemToDuplicate = get(gridStore).find(item => item.id === id)
+    if (itemToDuplicate) {
+      // Use the duplicate method from the grid store
+      gridStore.duplicateItem(itemToDuplicate)
+    }
+  }
+
   // Handle toolbar actions
   const handleToolbarAction = (
     event: CustomEvent<{ id: string; vizType?: string; event: MouseEvent }>
@@ -461,32 +476,9 @@
             on:dragstart={handleDragStart}
             on:dragend={handleDragEnd}
             on:drag-height-update={handleDragHeightUpdate}
+            on:remove={handleItemRemove}
+            on:duplicate={handleItemDuplicate}
           >
-            <div slot="header">
-              {#if visConfig.headerComponent}
-                <!-- For AOI Transition Matrix, we need to pass max transition value -->
-                {#if item.type === 'aoiTransitionMatrix'}
-                  <svelte:component
-                    this={visConfig.headerComponent}
-                    bind:settings={item}
-                    maxTransitionValue={window._aoiTransitionData?.[item.id]
-                      ?.maxValue || 10}
-                    on:filterChange={e => {
-                      // Forward the event to the handler from our global store
-                      if (window._aoiTransitionHandlers?.[item.id]) {
-                        window._aoiTransitionHandlers[item.id](e)
-                      }
-                    }}
-                  />
-                {:else}
-                  <svelte:component
-                    this={visConfig.headerComponent}
-                    bind:settings={item}
-                  />
-                {/if}
-              {/if}
-            </div>
-
             <div slot="body">
               <svelte:component this={visConfig.component} settings={item} />
             </div>

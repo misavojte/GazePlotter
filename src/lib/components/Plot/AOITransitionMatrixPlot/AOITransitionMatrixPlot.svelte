@@ -2,6 +2,7 @@
   import { onDestroy, onMount, tick } from 'svelte'
   import { getParticipants } from '$lib/stores/dataStore'
   import AOITransitionMatrixFigure from './AOITransitionMatrixFigure/AOITransitionMatrixFigure.svelte'
+  import AOITransitionMatrixHeader from './AOITransitionMatrixHeader/AOITransitionMatrixHeader.svelte'
   import type { ScarfGridType } from '$lib/type/gridType'
   import { calculateTransitionMatrix } from '$lib/utils/aoiTransitionMatrixTransformations'
 
@@ -56,18 +57,6 @@
         settings.stimulusId,
         participantIds
       )
-
-      // Update a separate property on settings that doesn't create a cyclical dependency
-      if (settings.id !== undefined) {
-        // Use a non-reactive property to store data
-        // @ts-ignore
-        window._aoiTransitionData = window._aoiTransitionData || {}
-        // @ts-ignore
-        window._aoiTransitionData[settings.id] = {
-          maxValue: transitionData.maxValue,
-        }
-      }
-
       applyFilter()
     }
   }
@@ -110,24 +99,11 @@
   // Instead of storing on settings, we'll set up a global handler
   // This approach avoids circular references
   onMount(async () => {
-    // @ts-ignore
-    window._aoiTransitionHandlers = window._aoiTransitionHandlers || {}
-    // @ts-ignore
-    window._aoiTransitionHandlers[settings.id] = handleFilterChange
-
     // Initial data calculation
     transitionData = calculateTransitionMatrix(
       settings.stimulusId,
       participantIds
     )
-
-    // Store the data in our global object
-    // @ts-ignore
-    window._aoiTransitionData = window._aoiTransitionData || {}
-    // @ts-ignore
-    window._aoiTransitionData[settings.id] = {
-      maxValue: transitionData.maxValue,
-    }
 
     applyFilter()
 
@@ -152,20 +128,6 @@
 
   // Clean up our global references on destroy
   onDestroy(() => {
-    // @ts-ignore
-    if (
-      window._aoiTransitionHandlers &&
-      window._aoiTransitionHandlers[settings.id]
-    ) {
-      // @ts-ignore
-      delete window._aoiTransitionHandlers[settings.id]
-    }
-    // @ts-ignore
-    if (window._aoiTransitionData && window._aoiTransitionData[settings.id]) {
-      // @ts-ignore
-      delete window._aoiTransitionData[settings.id]
-    }
-
     // Clean up resize handler
     window.removeEventListener('resize', handleResize)
     if (resizeTimeout) clearTimeout(resizeTimeout)
@@ -195,22 +157,42 @@
   }
 </script>
 
-<div class="aoi-transition-matrix-plot" bind:this={container}>
-  <AOITransitionMatrixFigure
-    data={filteredData}
-    {settings}
-    width={animating ? targetWidth : containerWidth}
-    height={animating ? targetHeight : containerHeight}
-    {animating}
-  />
+<div class="aoi-transition-matrix-plot-container">
+  <div class="header">
+    <AOITransitionMatrixHeader
+      bind:settings
+      maxTransitionValue={transitionData.maxValue}
+      on:filterChange={handleFilterChange}
+    />
+  </div>
+
+  <div class="figure" bind:this={container}>
+    <AOITransitionMatrixFigure
+      data={filteredData}
+      {settings}
+      width={animating ? targetWidth : containerWidth}
+      height={animating ? targetHeight : containerHeight}
+      {animating}
+    />
+  </div>
 </div>
 
 <style>
-  .aoi-transition-matrix-plot {
+  .aoi-transition-matrix-plot-container {
     display: flex;
     flex-direction: column;
     width: 100%;
     height: 100%;
+  }
+
+  .header {
+    padding: 0 0 10px 0;
+    margin-bottom: 10px;
+  }
+
+  .figure {
+    flex: 1;
     overflow: hidden;
+    position: relative;
   }
 </style>
