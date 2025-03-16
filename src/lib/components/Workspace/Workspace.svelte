@@ -605,10 +605,9 @@
     position: relative;
     width: 100%;
     background-color: var(--c-darkwhite);
-    background-image: linear-gradient(var(--c-lightgrey) 1px, transparent 1px),
-      linear-gradient(90deg, var(--c-lightgrey) 1px, transparent 1px);
+    background-image: radial-gradient(circle, var(--c-grey) 2px, transparent 2px);
     background-size: 50px 50px;
-    background-position: -21px -21px;
+    background-position: 5px 5px;
     z-index: 1;
     transition: height 0.3s ease-out;
     overflow-x: auto; /* Allow horizontal scrolling */

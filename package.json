@@ -76,6 +76,7 @@
   "types": "./dist/index.d.ts",
   "type": "module",
   "dependencies": {
-    "@melt-ui/svelte": "^0.86.0"
+    "@melt-ui/svelte": "^0.86.0",
+    "melt": "^0.17.3"
   }
 }

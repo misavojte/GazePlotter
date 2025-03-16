@@ -1,6 +1,5 @@
 <script>
   import GazePlotter from '$lib/components/GazePlotter.svelte'
-  import AoiTransitionMatrixPlotDemo from '$lib/components/Plot/AOITransitionMatrixPlot/AoiTransitionMatrixPlotDemo.svelte'
 </script>
 
 <svelte:head>
@@ -136,7 +135,6 @@
         <a href="https://eyetracking.upol.cz/tools/">More eye tracking tools</a>
       </section>
     </div>
-    <AoiTransitionMatrixPlotDemo width={300} height={500} />
   </section>
 </main>
 <footer class="border-t">

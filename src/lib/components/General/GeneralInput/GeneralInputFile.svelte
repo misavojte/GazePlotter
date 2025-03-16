@@ -11,24 +11,16 @@
 
   let {
     label,
-    files = null,
+    files = $bindable(null),
     multiple = false,
     accept = [],
     onchange = () => {},
   }: Props = $props()
 
-  // Use state instead of bindable
-  let selectedFiles = $state<FileList | null>(files)
-
-  // Update selectedFiles when props files changes
-  $effect(() => {
-    selectedFiles = files
-  })
-
   function handleChange(event: Event) {
     const target = event.target as HTMLInputElement
-    selectedFiles = target.files
-    onchange(new CustomEvent('change', { detail: selectedFiles }))
+    files = target.files
+    onchange(new CustomEvent('change', { detail: files }))
   }
 
   const id = `file-${label.toLowerCase().replace(/\s+/g, '-')}`

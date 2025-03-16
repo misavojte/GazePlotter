@@ -14,6 +14,6 @@
   }
 </script>
 
-<MajorControlButton {isDisabled} on:click={handleClick}
+<MajorControlButton {isDisabled} onclick={handleClick}
   >Reload demo</MajorControlButton
 >

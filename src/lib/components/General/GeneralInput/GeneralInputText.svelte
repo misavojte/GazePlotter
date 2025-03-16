@@ -6,27 +6,19 @@
     oninput?: (event: CustomEvent) => void
   }
 
-  let { value = '', label, oninput = () => {} }: Props = $props()
-
-  // Use state instead of bindable
-  let inputValue = $state(value)
-
-  // Update inputValue when props value changes
-  $effect(() => {
-    inputValue = value
-  })
+  let { value = $bindable(''), label, oninput = () => {} }: Props = $props()
 
   function handleInput(event: Event) {
     const target = event.target as HTMLInputElement
-    inputValue = target.value
-    oninput(new CustomEvent('input', { detail: inputValue }))
+    value = target.value
+    oninput(new CustomEvent('input', { detail: value }))
   }
 
   const id = `text-${label.toLowerCase().replace(/\s+/g, '-')}`
 </script>
 
 <GeneralInputScaffold {label} {id}>
-  <input {id} type="text" value={inputValue} oninput={handleInput} />
+  <input {id} type="text" bind:value oninput={handleInput} />
 </GeneralInputScaffold>
 
 <style>

@@ -41,7 +41,7 @@
   }
 </script>
 
-<MajorControlButton {isDisabled} on:click={triggerFileUpload}>
+<MajorControlButton {isDisabled} onclick={triggerFileUpload}>
   <label for="GP-file-upload">
     Upload file
     <input

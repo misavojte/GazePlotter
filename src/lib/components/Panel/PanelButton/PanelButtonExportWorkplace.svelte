@@ -11,6 +11,6 @@
   }
 </script>
 
-<MajorControlButton {isDisabled} on:click={handleClick}>
+<MajorControlButton {isDisabled} onclick={handleClick}>
   Download workspace
 </MajorControlButton>

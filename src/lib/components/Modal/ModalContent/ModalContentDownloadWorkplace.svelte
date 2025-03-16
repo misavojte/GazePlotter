@@ -40,7 +40,7 @@
 <GeneralSelect label="Export type" {options} bind:value={type} />
 <GeneralInputText label="File name" bind:value={fileName} />
 <div class="mt-30">
-  <MajorButton on:click={handleSubmit}>Download</MajorButton>
+  <MajorButton onclick={handleSubmit}>Download</MajorButton>
 </div>
 
 <style>

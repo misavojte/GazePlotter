@@ -7,32 +7,150 @@
 
   // GridItem properties
   interface Props {
-    id: number;
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-    minW?: number;
-    minH?: number;
-    cellSize?: any;
-    gap?: number;
-    resizable?: boolean;
-    draggable?: boolean;
-    title?: string;
-    removable?: boolean;
-    body?: import('svelte').Snippet;
-    children?: import('svelte').Snippet;
-    onmove?: (event: CustomEvent) => void;
-    onpreviewmove?: (event: CustomEvent) => void;
-    onpreviewresize?: (event: CustomEvent) => void;
-    onresize?: (event: CustomEvent) => void;
-    ondragstart?: (event: CustomEvent) => void;
-    ondragend?: (event: CustomEvent) => void;
-    onresizestart?: (event: CustomEvent) => void;
-    onresizeend?: (event: CustomEvent) => void;
-    onremove?: (event: CustomEvent) => void;
-    onduplicate?: (event: CustomEvent) => void;
-    ondrag_height_update?: (event: CustomEvent) => void;
+    id: number
+    x: number
+    y: number
+    w: number
+    h: number
+    minW?: number
+    minH?: number
+    cellSize?: any
+    gap?: number
+    resizable?: boolean
+    draggable?: boolean
+    title?: string
+    removable?: boolean
+    body?: import('svelte').Snippet
+    children?: import('svelte').Snippet
+    onmove?: ({
+      id,
+      x,
+      y,
+      w,
+      h,
+    }: {
+      id: number
+      x: number
+      y: number
+      w: number
+      h: number
+    }) => void
+    onpreviewmove?: ({
+      id,
+      previewX,
+      previewY,
+      currentX,
+      currentY,
+      w,
+      h,
+    }: {
+      id: number
+      previewX: number
+      previewY: number
+      currentX: number
+      currentY: number
+      w: number
+      h: number
+    }) => void
+    onpreviewresize?: ({
+      id,
+      x,
+      y,
+      currentW,
+      currentH,
+      w,
+      h,
+    }: {
+      id: number
+      x: number
+      y: number
+      currentW: number
+      currentH: number
+      w: number
+      h: number
+    }) => void
+    onresize?: ({
+      id,
+      x,
+      y,
+      w,
+      h,
+    }: {
+      id: number
+      x: number
+      y: number
+      w: number
+      h: number
+    }) => void
+    ondragstart?: ({
+      id,
+      x,
+      y,
+      w,
+      h,
+    }: {
+      id: number
+      x: number
+      y: number
+      w: number
+      h: number
+    }) => void
+    ondragend?: ({
+      id,
+      x,
+      y,
+      w,
+      h,
+      dragComplete,
+    }: {
+      id: number
+      x: number
+      y: number
+      w: number
+      h: number
+      dragComplete: boolean
+    }) => void
+    onresizestart?: ({
+      id,
+      x,
+      y,
+      w,
+      h,
+    }: {
+      id: number
+      x: number
+      y: number
+      w: number
+      h: number
+    }) => void
+    onresizeend?: ({
+      id,
+      x,
+      y,
+      w,
+      h,
+      resizeComplete,
+    }: {
+      id: number
+      x: number
+      y: number
+      w: number
+      h: number
+      resizeComplete: boolean
+    }) => void
+    onremove?: ({ id }: { id: number }) => void
+    onduplicate?: ({ id }: { id: number }) => void
+    ondrag_height_update?: ({
+      id,
+      y,
+      h,
+      bottomEdge,
+    }: {
+      id: number
+      y: number
+      h: number
+      bottomEdge: number
+    }) => void
   }
 
   let {
@@ -62,7 +180,7 @@
     onremove = () => {},
     onduplicate = () => {},
     ondrag_height_update = () => {},
-  }: Props = $props();
+  }: Props = $props()
 
   // Track state for visual feedback
   let isDragging = $state(false)
@@ -72,9 +190,9 @@
   let showDragPlaceholder = $state(false)
   let showResizePlaceholder = $state(false)
 
-  let bodyNode: HTMLElement = $state()
-  let placeholderNode: HTMLElement
-  let itemNode: HTMLElement = $state()
+  let bodyNode: HTMLElement | null = $state(null)
+  let placeholderNode: HTMLElement | null = $state(null)
+  let itemNode: HTMLElement | null = $state(null)
   let workspaceElement: HTMLElement | null = null
 
   // Create a store to track scroll position (both window and workspace)
@@ -158,19 +276,21 @@
   `)
 
   // Style for the drag placeholder
-  let placeholderStyle = $derived(showDragPlaceholder
-    ? `
+  let placeholderStyle = $derived(
+    showDragPlaceholder
+      ? `
     transform: translate(${dragPosition.x * (cellSize.width + gap)}px, ${dragPosition.y * (cellSize.height + gap)}px);
     width: ${itemWidth}px;
     height: ${itemHeight}px;
   `
-    : showResizePlaceholder
-      ? `
+      : showResizePlaceholder
+        ? `
     transform: translate(${itemX}px, ${itemY}px);
     width: ${resizePosition.w * cellSize.width + (resizePosition.w - 1) * gap}px;
     height: ${resizePosition.h * cellSize.height + (resizePosition.h - 1) * gap}px;
   `
-      : '')
+        : ''
+  )
 
   // Svelte action for handling drag functionality
   function draggable_action(node: HTMLElement, options: { enabled: boolean }) {
@@ -424,13 +544,13 @@
 
       // Also dispatch a workspace resize event to ensure workspace expands as needed
       // This will inform the parent Workspace component that it might need to adjust its height
-      ondrag_height_update({ 
+      ondrag_height_update({
         id,
         y: newY,
         h,
-        bottomEdge: newY + h
+        bottomEdge: newY + h,
       })
-      
+
       // Don't call onmove during drag - only on drag end
     }
 
@@ -628,13 +748,13 @@
         })
 
         // Also dispatch height update event to ensure workspace extends during resize
-        ondrag_height_update({ 
+        ondrag_height_update({
           id,
           y,
           h: newH,
-          bottomEdge: y + newH
+          bottomEdge: y + newH,
         })
-        
+
         // Don't call onmove during resize - only on resize end
       }
     }
@@ -697,7 +817,6 @@
       },
     }
   }
-
 </script>
 
 <!-- Actual grid item (stays in place until drag is complete) -->
