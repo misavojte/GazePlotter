@@ -35,9 +35,6 @@
   const isDragging = writable(false)
   const draggedItemId = writable<number | null>(null)
 
-  // Add a new store to track if dragged item is over trash
-  const isDragOverTrash = writable(false)
-
   // Store to track temporary height adjustment during drag operations
   const temporaryDragHeight = writable<number | null>(null)
 
@@ -329,21 +326,9 @@
   ) => {
     const { id, x, y, dragComplete } = event.detail
 
-    // Check if item was dropped over trash
-    if ($isDragOverTrash && $draggedItemId === id) {
-      // Remove the item
-      gridStore.removeItem(id)
-      isDragging.set(false)
-      draggedItemId.set(null)
-      isDragOverTrash.set(false)
-      temporaryDragHeight.set(null)
-      return
-    }
-
     // Reset dragging state
     isDragging.set(false)
     draggedItemId.set(null)
-    isDragOverTrash.set(false)
     // Reset temporary drag height
     temporaryDragHeight.set(null)
 
@@ -428,17 +413,6 @@
     }
   }
 
-  // Handle trash area events
-  const handleTrashDragEnter = () => {
-    if ($isDragging && $draggedItemId !== null) {
-      isDragOverTrash.set(true)
-    }
-  }
-
-  const handleTrashDragLeave = () => {
-    isDragOverTrash.set(false)
-  }
-
   // When the processing state changes, update the grid and loading state
   $: if ($processingFileStateStore === 'done') {
     isLoading.set(false)
@@ -459,14 +433,8 @@
 </script>
 
 <div class="workspace-wrapper">
-  <!-- Update toolbar with drag state -->
-  <WorkspaceToolbar
-    on:action={handleToolbarAction}
-    isDragging={$isDragging}
-    dragOverTrash={$isDragOverTrash}
-    on:trash-dragenter={handleTrashDragEnter}
-    on:trash-dragleave={handleTrashDragLeave}
-  />
+  <!-- Update toolbar, removing drag-related props -->
+  <WorkspaceToolbar on:action={handleToolbarAction} />
 
   <div class="workspace-container" style="height: {$gridHeight}px;">
     <div class="grid-container">

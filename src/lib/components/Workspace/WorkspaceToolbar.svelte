@@ -32,9 +32,6 @@
   ]
   export let width = '48px'
   export let accentColor = 'var(--c-primary)'
-  // Add a new prop to track dragging state
-  export let isDragging = false
-  export let dragOverTrash = false
 
   // Create dropdown menu using melt-ui
   const {
@@ -69,62 +66,14 @@
     const { id } = event.detail
     dispatch('action', { id, event: event.detail.event })
   }
-
-  // Track when an item is dragged over the trash area
-  // Only track when hovering over the icon specifically, not the entire toolbar
-  function handleTrashIconEnter() {
-    if (isDragging) {
-      dragOverTrash = true
-      dispatch('trash-dragenter')
-    }
-  }
-
-  function handleTrashIconLeave() {
-    if (isDragging) {
-      dragOverTrash = false
-      dispatch('trash-dragleave')
-    }
-  }
 </script>
 
 <div
   class="workspace-toolbar"
-  class:dragging={isDragging}
   style="--toolbar-width: {width}; --accent-color: {accentColor};"
 >
   <div class="toolbar-content">
-    {#if isDragging}
-      <div class="trash-container">
-        <!-- The trash icon is the only drop target -->
-        <div
-          class="trash-icon"
-          class:drag-over={dragOverTrash}
-          on:mouseenter={handleTrashIconEnter}
-          on:mouseleave={handleTrashIconLeave}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <polyline points="3 6 5 6 21 6"></polyline>
-            <path
-              d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-            ></path>
-            <line x1="10" y1="11" x2="10" y2="17"></line>
-            <line x1="14" y1="11" x2="14" y2="17"></line>
-          </svg>
-        </div>
-        <!-- Space reserved for future options like bookmarks -->
-        <div class="future-options-space"></div>
-      </div>
-    {:else if actionItems.length > 0}
+    {#if actionItems.length > 0}
       <!-- Reset Layout button -->
       <WorkspaceToolbarItem
         id="reset-layout"
@@ -183,57 +132,6 @@
     flex-direction: column;
     align-items: center;
     padding: 22px 0;
-  }
-
-  /* Trash container styles */
-  .trash-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 100%;
-    height: 100%;
-    padding: 10px 0;
-  }
-
-  /* The trash icon is now the only drop target, with clear visual feedback */
-  .trash-icon {
-    position: sticky;
-    top: 20px;
-    width: 36px;
-    height: 76px; /* Elongated height */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #e74c3c;
-    background-color: rgba(231, 76, 60, 0.08);
-    border: 2px dashed rgba(231, 76, 60, 0.3);
-    border-radius: 8px;
-    margin-bottom: 15px;
-    transition: all 0.2s ease;
-    cursor: pointer;
-  }
-
-  /* Visual feedback when dragging over the trash icon specifically */
-  .trash-icon.drag-over {
-    background-color: rgba(231, 76, 60, 0.2);
-    border-color: #e74c3c;
-    transform: scale(1.05);
-    box-shadow: 0 0 8px rgba(231, 76, 60, 0.3);
-  }
-
-  .trash-icon svg {
-    height: 24px;
-    width: 24px;
-    transition: transform 0.2s ease;
-  }
-
-  .trash-icon.drag-over svg {
-    transform: scale(1.1);
-  }
-
-  /* Reserved space for future features */
-  .future-options-space {
-    height: 60px; /* Reserve space for future options */
   }
 
   .context-menu {
