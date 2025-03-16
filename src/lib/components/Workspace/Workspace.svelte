@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { run } from 'svelte/legacy';
-
   import ScarfPlot from '$lib/components/Plot/ScarfPlot/ScarfPlot.svelte'
   import GridItem from '$lib/components/Workspace/WorkspaceItem.svelte'
   import WorkspaceIndicatorEmpty from '$lib/components/Workspace/WorkspaceIndicatorEmpty.svelte'
@@ -256,7 +254,7 @@
 
   // Handle item movement preview during drag (doesn't update actual position)
   const handleItemPreviewMove = (
-    event: CustomEvent<{
+    event: {
       id: number
       previewX: number
       previewY: number
@@ -264,12 +262,12 @@
       currentY: number
       w: number
       h: number
-    }>
+    }
   ) => {
     // During drag preview, we don't update the actual position in the store
     // We can still check for collisions, etc. if needed, but we don't
     // modify the grid store
-    const { id, previewX, previewY } = event.detail
+    const { id, previewX, previewY } = event
 
     // For now, we don't need to do anything here except handle the event
     // This avoids updating the actual grid item during drag
@@ -277,46 +275,46 @@
 
   // Handle actual item movement (only at the end of drag)
   const handleItemMove = (
-    event: CustomEvent<{
+    event: {
       id: number
       x: number
       y: number
       w: number
       h: number
-    }>
+    }
   ) => {
-    const { id, x, y, w, h } = event.detail
+    const { id, x, y } = event
     // Update position in store - when drag is complete
     gridStore.updateItemPosition(id, x, y, false)
   }
 
   // Handle drag start - set global dragging state
   const handleDragStart = (
-    event: CustomEvent<{
+    event: {
       id: number
       x: number
       y: number
       w: number
       h: number
-    }>
+    }
   ) => {
-    const { id } = event.detail
+    const { id } = event
     isDragging.set(true)
     draggedItemId.set(id)
   }
 
   // Handle drag end - now we resolve collisions
   const handleDragEnd = (
-    event: CustomEvent<{
+    event: {
       id: number
       x: number
       y: number
       w: number
       h: number
       dragComplete: boolean
-    }>
+    }
   ) => {
-    const { id, x, y, dragComplete } = event.detail
+    const { id, x, y, dragComplete } = event
 
     // Reset dragging state
     isDragging.set(false)
@@ -339,14 +337,14 @@
 
   // Handle dynamic height adjustment during drag operations with safety check
   const handleDragHeightUpdate = (
-    event: CustomEvent<{
+    event: {
       id: number
       y: number
       h: number
       bottomEdge: number
-    }>
+    }
   ) => {
-    const { bottomEdge, id } = event.detail
+    const { bottomEdge, id } = event
     const currentItems = get(gridStore)
 
     // Calculate the bottom edge of the item being moved
@@ -375,7 +373,7 @@
 
   // Handle item resize preview with safety check
   const handleItemPreviewResize = (
-    event: CustomEvent<{
+    event: {
       id: number
       x: number
       y: number
@@ -383,9 +381,9 @@
       h: number
       currentW: number
       currentH: number
-    }>
+    }
   ) => {
-    const { id, y, h } = event.detail
+    const { id, y, h } = event
     const currentItems = get(gridStore)
 
     // Calculate bottom edge position of the resizing item
@@ -413,15 +411,15 @@
 
   // Enhanced handleItemResize to ensure we respect other elements' space needs
   const handleItemResize = (
-    event: CustomEvent<{
+    event: {
       id: number
       x: number
       y: number
       w: number
       h: number
-    }>
+    }
   ) => {
-    const { id, w, h } = event.detail
+    const { id, w, h } = event
     const currentItems = get(gridStore)
     const currentItem = currentItems.find(item => item.id === id)
 
@@ -455,19 +453,19 @@
 
   // Handle resize end - clean up and resolve collisions
   const handleResizeEnd = (
-    event: CustomEvent<{
+    event: {
       id: number
       x: number
       y: number
       w: number
       h: number
       resizeComplete: boolean
-    }>
+    }
   ) => {
     // Reset temporary height after resize is complete
     temporaryDragHeight.set(null)
 
-    const { id, resizeComplete } = event.detail
+    const { id, resizeComplete } = event
 
     if (!resizeComplete) return
 
@@ -478,14 +476,14 @@
   }
 
   // Handle item removal
-  const handleItemRemove = (event: CustomEvent<{ id: number }>) => {
-    const { id } = event.detail
+  const handleItemRemove = (event: { id: number }) => {
+    const { id } = event
     gridStore.removeItem(id)
   }
 
   // Handle item duplication
-  const handleItemDuplicate = (event: CustomEvent<{ id: number }>) => {
-    const { id } = event.detail
+  const handleItemDuplicate = (event: { id: number }) => {
+    const { id } = event
     // Find the item to duplicate
     const itemToDuplicate = get(gridStore).find(item => item.id === id)
     if (itemToDuplicate) {
@@ -496,9 +494,11 @@
 
   // Handle toolbar actions
   const handleToolbarAction = (
-    event: CustomEvent<{ id: string; vizType?: string; event: MouseEvent }>
+    event: { id: string; vizType?: string; event: MouseEvent }
   ) => {
-    const { id, vizType } = event.detail
+    const { id, vizType } = event
+
+    console.log('handleToolbarAction', event)
 
     if (id === 'add-visualization' && vizType) {
       // Add the new visualization
@@ -510,7 +510,7 @@
   }
 
   // When the processing state changes, update the grid and loading state
-  run(() => {
+  $effect(() => {
     if ($processingFileStateStore === 'done') {
       isLoading.set(false)
       enhancedGridStore.resetGrid(createDefaultGridState())
@@ -532,7 +532,7 @@
 
 <div class="workspace-wrapper">
   <!-- Update toolbar, removing drag-related props -->
-  <WorkspaceToolbar on:action={handleToolbarAction} />
+  <WorkspaceToolbar onaction={handleToolbarAction} />
 
   <div class="workspace-container" style="height: {$gridHeight}px;">
     <div class="grid-container">
@@ -552,22 +552,32 @@
             resizable={item.resizable !== false}
             draggable={item.draggable !== false}
             title={visConfig.name}
-            on:previewmove={handleItemPreviewMove}
-            on:move={handleItemMove}
-            on:previewresize={handleItemPreviewResize}
-            on:resize={handleItemResize}
-            on:resizeend={handleResizeEnd}
-            on:dragstart={handleDragStart}
-            on:dragend={handleDragEnd}
-            on:drag-height-update={handleDragHeightUpdate}
-            on:remove={handleItemRemove}
-            on:duplicate={handleItemDuplicate}
+            onpreviewmove={handleItemPreviewMove}
+            onmove={handleItemMove}
+            onpreviewresize={handleItemPreviewResize}
+            onresize={handleItemResize}
+            onresizeend={handleResizeEnd}
+            ondragstart={handleDragStart}
+            ondragend={handleDragEnd}
+            ondrag_height_update={handleDragHeightUpdate}
+            onremove={handleItemRemove}
+            onduplicate={handleItemDuplicate}
           >
             {#snippet body()}
-                        <div >
-                <visConfig.component settings={item} />
+              <div class="grid-item-content">
+                <visConfig.component
+                  settings={item}
+                  settingsChange={(newSettings) => {
+                    console.log('newSettings', newSettings)
+                    // Update settings in the grid store
+                    gridStore.updateSettings({
+                      ...item,
+                      ...newSettings
+                    });
+                  }}
+                />
               </div>
-                      {/snippet}
+            {/snippet}
           </GridItem>
         </div>
       {/each}

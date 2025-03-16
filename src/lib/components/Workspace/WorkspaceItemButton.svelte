@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte'
   import { melt, createTooltip } from '@melt-ui/svelte'
   import { fade } from 'svelte/transition'
 
@@ -13,6 +12,7 @@
     actionParams?: any;
     actionFn?: any;
     children?: import('svelte').Snippet;
+    onclick?: (event: CustomEvent) => void;
   }
 
   let {
@@ -24,16 +24,13 @@
     useAction = false,
     actionParams = {},
     actionFn = null,
-    children
+    children,
+    onclick = () => {}
   }: Props = $props();
-
-  const dispatch = createEventDispatcher<{
-    click: { action: string }
-  }>()  
 
   function handleClick() {
     if (!disabled && !useAction) {
-      dispatch('click', { action })
+      onclick(new CustomEvent('click', { detail: { action } }))
     }
   }
 

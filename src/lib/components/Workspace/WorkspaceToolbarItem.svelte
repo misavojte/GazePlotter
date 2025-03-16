@@ -1,17 +1,18 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte'
+  import { onMount } from 'svelte'
   import { melt, createTooltip } from '@melt-ui/svelte'
   import { fade } from 'svelte/transition'
   import { derived, writable } from 'svelte/store'
 
   // Props for the toolbar item
   interface Props {
-    id: string;
-    label: string;
-    icon: string;
-    action?: (() => void) | null;
-    useDropdown?: boolean;
-    dropdownTrigger?: any;
+    id: string
+    label: string
+    icon: string
+    action?: (() => void) | null
+    useDropdown?: boolean
+    dropdownTrigger?: any
+    onclick?: (event: { id: string; event: MouseEvent }) => void
   }
 
   let {
@@ -20,8 +21,9 @@
     icon,
     action = null,
     useDropdown = false,
-    dropdownTrigger = null
-  }: Props = $props();
+    dropdownTrigger = null,
+    onclick = () => {},
+  }: Props = $props()
 
   // Create a store to track whether the dropdown is open
   const isDropdownOpen = writable(false)
@@ -68,9 +70,6 @@
     }
   })
 
-  // Event dispatcher
-  const dispatch = createEventDispatcher()
-
   // Handle item click
   function handleClick(event) {
     if (action) {
@@ -78,7 +77,7 @@
     }
 
     if (!useDropdown) {
-      dispatch('click', { id, event })
+      onclick({ id, event })
     }
   }
 </script>

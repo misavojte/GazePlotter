@@ -2,24 +2,45 @@
   import GeneralInputScaffold from '$lib/components/General/GeneralInput/GeneralInputScaffold.svelte'
 
   interface Props {
-    label: string;
-    files?: FileList | null;
-    multiple?: boolean;
-    accept?: string[];
+    label: string
+    files?: FileList | null
+    multiple?: boolean
+    accept?: string[]
+    onchange?: (event: CustomEvent) => void
   }
 
   let {
     label,
-    files = $bindable(null),
+    files = null,
     multiple = false,
-    accept = []
-  }: Props = $props();
+    accept = [],
+    onchange = () => {},
+  }: Props = $props()
+
+  // Use state instead of bindable
+  let selectedFiles = $state<FileList | null>(files)
+
+  // Update selectedFiles when props files changes
+  $effect(() => {
+    selectedFiles = files
+  })
+
+  function handleChange(event: Event) {
+    const target = event.target as HTMLInputElement
+    selectedFiles = target.files
+    onchange(new CustomEvent('change', { detail: selectedFiles }))
+  }
 
   const id = `file-${label.toLowerCase().replace(/\s+/g, '-')}`
 </script>
 
 <GeneralInputScaffold {label} {id}>
-  <input type="file" {multiple} accept={accept.join(',')} bind:files />
+  <input
+    type="file"
+    {multiple}
+    accept={accept.join(',')}
+    onchange={handleChange}
+  />
 </GeneralInputScaffold>
 
 <style>

@@ -1,9 +1,6 @@
 <script lang="ts">
   import { interpolateColor, createColorGradient } from '../utils/colorUtils'
-  import { createEventDispatcher } from 'svelte'
   import { tick } from 'svelte'
-
-  const dispatch = createEventDispatcher()
 
   let {
     width = 500,

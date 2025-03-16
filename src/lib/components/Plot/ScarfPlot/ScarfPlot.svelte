@@ -10,32 +10,54 @@
   import { transformDataToScarfPlot } from '$lib/utils/scarfPlotTransformations'
 
   interface Props {
-    settings: ScarfGridType;
+    settings: ScarfGridType
+    settingsChange: (settings: Partial<ScarfGridType>) => void
   }
 
-  let { settings = $bindable() }: Props = $props();
+  let { settings, settingsChange }: Props = $props()
 
   let tooltipArea: HTMLElement
-
-  let highlightedType: string | null = $state(null)
-  let removeHighlight: null | (() => void) = null
-
-  let participantIds = $derived(getParticipants(
-    settings.groupId,
-    settings.stimulusId
-  ).map(participant => participant.id))
-
-  let window: Window
-
-  let data = $derived(transformDataToScarfPlot(
-    settings.stimulusId,
-    participantIds,
-    settings
-  ))
-
-  let absoluteTimeline = $derived(data.timeline)
-
+  let windowObj: Window
   let timeout = 0
+
+  let highlightedType = $state<string | null>(null)
+  let removeHighlight = $state<null | (() => void)>(null)
+
+  let currentGroupId = $state(settings.groupId)
+  let currentStimulusId = $state(settings.stimulusId)
+  let currentParticipantIds = $state<number[]>([])
+
+  $effect(() => {
+    currentGroupId = settings.groupId
+    currentStimulusId = settings.stimulusId
+
+    const participants = getParticipants(currentGroupId, currentStimulusId)
+    currentParticipantIds = participants.map(participant => participant.id)
+  })
+
+  let scarfData = $state(
+    transformDataToScarfPlot(
+      settings.stimulusId,
+      currentParticipantIds,
+      settings
+    )
+  )
+
+  $effect(() => {
+    scarfData = transformDataToScarfPlot(
+      settings.stimulusId,
+      currentParticipantIds,
+      settings
+    )
+  })
+
+  let absoluteTimeline = $derived(scarfData.timeline)
+
+  function handleSettingsChange(newSettings: Partial<ScarfGridType>) {
+    if (settingsChange) {
+      settingsChange(newSettings)
+    }
+  }
 
   const cancelHighlightKeepTooltip = () => {
     clearTimeout(timeout)
@@ -44,8 +66,8 @@
 
   const cancelTooltip = () => {
     clearTimeout(timeout)
-    if (!window) return
-    timeout = window.setTimeout(() => {
+    if (!windowObj) return
+    timeout = windowObj.setTimeout(() => {
       cancelTooltipInstantly()
     }, 200)
   }
@@ -66,7 +88,7 @@
   }
 
   onMount(() => {
-    window = document.defaultView as Window
+    windowObj = document.defaultView as Window
   })
 
   const processGElement = (gElement: SVGGElement, event: MouseEvent) => {
@@ -87,8 +109,8 @@
     }
 
     const WIDTH_OF_TOOLTIP = 155
-    const y = gElement.getBoundingClientRect().bottom + window.scrollY + 8
-    const widthOfView = window.scrollX + document.body.clientWidth
+    const y = gElement.getBoundingClientRect().bottom + windowObj.scrollY + 8
+    const widthOfView = windowObj.scrollX + document.body.clientWidth
     const x =
       event.pageX + WIDTH_OF_TOOLTIP > widthOfView
         ? widthOfView - WIDTH_OF_TOOLTIP
@@ -134,15 +156,15 @@
 
 <div class="scarf-plot-container">
   <div class="header">
-    <ScarfPlotHeader bind:settings />
+    <ScarfPlotHeader {settings} settingsChange={handleSettingsChange} />
   </div>
 
   <div class="figure">
     <ScarfPlotFigure
-      on:mouseleave={cancelInteractivity}
-      on:mousemove={decideInteractivity}
+      onmouseleave={cancelInteractivity}
+      onmousemove={decideInteractivity}
       tooltipAreaElement={tooltipArea}
-      {data}
+      data={scarfData}
       {settings}
       axisBreaks={absoluteTimeline}
       highlightedIdentifier={highlightedType}

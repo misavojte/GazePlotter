@@ -1,37 +1,49 @@
 <script lang="ts">
-  import { createBubbler, stopPropagation } from 'svelte/legacy';
-
-  const bubble = createBubbler();
   import ChevronDown from 'lucide-svelte/icons/chevron-down'
 
   interface Props {
-    options: Array<{ value: string; label: string }>;
-    disabled?: boolean;
-    label: string;
-    value?: string;
-    compact?: boolean;
+    options: Array<{ value: string; label: string }>
+    disabled?: boolean
+    label: string
+    value?: string
+    compact?: boolean
+    onchange?: (event: CustomEvent) => void
   }
 
   let {
     options,
     disabled = false,
     label,
-    value = $bindable(options[0].value),
-    compact = false
-  }: Props = $props();
+    value = options[0]?.value || '',
+    compact = false,
+    onchange = () => {},
+  }: Props = $props()
+
+  // Convert to state
+  let selectedValue = $state(value)
+
+  // Update selectedValue when props value changes
+  $effect(() => {
+    selectedValue = value
+  })
+
   const name = label.toLowerCase().replace(/ /g, '-')
+
   const handleChange = (e: Event) => {
     const target = e.target as HTMLSelectElement
-    value = target.value
+    selectedValue = target.value
+
+    // Call the onchange callback with the new value
+    onchange(new CustomEvent('change', { detail: selectedValue }))
   }
 </script>
 
-<div class="select-wrapper" class:compact onpointerdown={stopPropagation(bubble('pointerdown'))}>
+<div class="select-wrapper" class:compact>
   <label for={name}>{label}</label>
   <div class="option-wrapper">
     <select {disabled} {name} id="GP-{name}" onchange={handleChange}>
       {#each options as option}
-        <option value={option.value} selected={option.value === value}
+        <option value={option.value} selected={option.value === selectedValue}
           >{option.label}</option
         >
       {/each}

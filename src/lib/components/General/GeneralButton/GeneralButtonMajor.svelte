@@ -1,16 +1,17 @@
 <script lang="ts">
-  import { createBubbler, stopPropagation } from 'svelte/legacy';
-
-  const bubble = createBubbler();
   interface Props {
     isDisabled?: boolean;
     children?: import('svelte').Snippet;
+    onclick?: (event: MouseEvent) => void;
   }
 
-  let { isDisabled = false, children }: Props = $props();
+  let { isDisabled = false, children, onclick = () => {} }: Props = $props();
 </script>
 
-<button disabled={isDisabled} onpointerdown={stopPropagation(bubble('pointerdown'))} onclick={bubble('click')}>
+<button 
+  disabled={isDisabled} 
+  {onclick}
+>
   {@render children?.()}
 </button>
 

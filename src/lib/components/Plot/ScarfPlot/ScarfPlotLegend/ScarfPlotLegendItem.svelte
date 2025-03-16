@@ -1,20 +1,22 @@
 <script lang="ts">
-  import { createBubbler, stopPropagation } from 'svelte/legacy';
-
-  const bubble = createBubbler();
   import type { SingleStylingScarfFillingType } from '$lib/type/Filling/ScarfFilling/index'
-  import { createEventDispatcher } from 'svelte'
+
   interface Props {
-    legend: SingleStylingScarfFillingType;
-    isVisibility?: boolean;
+    legend: SingleStylingScarfFillingType
+    isVisibility?: boolean
+    onlegendIdentifier?: (event: CustomEvent) => void
   }
 
-  let { legend, isVisibility = false }: Props = $props();
-
-  const dispatch = createEventDispatcher()
+  let {
+    legend,
+    isVisibility = false,
+    onlegendIdentifier = () => {},
+  }: Props = $props()
 
   const handleClick = () => {
-    dispatch('legendIdentifier', legend.identifier)
+    onlegendIdentifier(
+      new CustomEvent('legendIdentifier', { detail: legend.identifier })
+    )
   }
 
   // display legend name is max 13 characters, if it is longer, it will be cut and '...' will be added
@@ -22,11 +24,7 @@
     legend.name.length > 12 ? legend.name.slice(0, 10) + '...' : legend.name
 </script>
 
-<div
-  class="legendItem {legend.identifier}"
-  onpointerdown={stopPropagation(bubble('pointerdown'))}
-  onclick={handleClick}
->
+<div class="legendItem {legend.identifier}" onclick={handleClick}>
   <svg width="20" height={legend.heighOfLegendItem}>
     {#if isVisibility}
       <line

@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { run } from 'svelte/legacy';
-
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import {
     getParticipantsGroups,
@@ -13,28 +11,39 @@
     getScarfGridHeightFromCurrentData,
   } from '$lib/services/scarfServices'
   import type { ScarfGridType } from '$lib/type/gridType'
-  import { getContext } from 'svelte'
-  import type { GridStoreType } from '$lib/stores/gridStore'
-  let store = getContext<GridStoreType>('gridStore')
+
   interface Props {
-    settings: ScarfGridType;
+    settings: ScarfGridType
+    settingsChange?: (settings: Partial<ScarfGridType>) => void
   }
 
-  let { settings }: Props = $props();
-  let value = $state(settings.groupId.toString())
+  // Use callback props instead of event dispatching
+  let { settings, settingsChange = () => {} }: Props = $props()
 
-  let groupOptions: { value: string; label: string }[] = $state()
+  // Track selected group
+  let selectedGroupId = $state(settings.groupId.toString())
 
+  // Update selectedGroupId when settings change
+  $effect(() => {
+    selectedGroupId = settings.groupId.toString()
+  })
+
+  let groupOptions: { value: string; label: string }[] = $state([])
+
+  // Subscribe to data changes to update group options
   const unsubscribe = data.subscribe(() => {
     groupOptions = getParticipantsGroups(true).map(group => ({
       value: group.id.toString(),
       label: group.name,
     }))
-    console.log(groupOptions)
   })
 
+  // Handle group change
+  function handleGroupChange(event: CustomEvent) {
+    const groupId = parseInt(event.detail)
+    selectedGroupId = groupId.toString()
 
-  const fireChange = (groupId: number) => {
+    // Calculate new height based on selected group
     const h = getScarfGridHeightFromCurrentData(
       settings.stimulusId,
       getDynamicAoiBoolean(
@@ -44,16 +53,23 @@
       ),
       groupId
     )
-    const newSettings = { ...settings, groupId, h }
-    store.updateSettings(newSettings)
+
+    // Call the callback prop with the updated settings
+    settingsChange({
+      groupId,
+      h,
+    })
   }
 
   onDestroy(() => {
     unsubscribe()
   })
-  run(() => {
-    fireChange(parseInt(value))
-  });
 </script>
 
-<Select label="Group" options={groupOptions} bind:value compact={true}></Select>
+<Select
+  label="Group"
+  options={groupOptions}
+  value={selectedGroupId}
+  onchange={handleGroupChange}
+  compact={true}
+/>

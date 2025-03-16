@@ -1,7 +1,4 @@
 <script lang="ts">
-  import { createBubbler, stopPropagation } from 'svelte/legacy';
-
-  const bubble = createBubbler();
   import MinorButton from './GeneralButtonMinor.svelte'
   import { onMount, onDestroy, type ComponentType } from 'svelte'
   import MoreVertical from 'lucide-svelte/icons/more-vertical'
@@ -13,11 +10,14 @@
   }
 
   interface Props {
-    isOpen?: boolean;
-    items: ActionItem[];
+    items: ActionItem[]
   }
 
-  let { isOpen = $bindable(false), items }: Props = $props();
+  let { items }: Props = $props()
+
+  // Use state instead of bindable
+  let isOpen = $state(false)
+
   const handleClick = () => {
     isOpen = !isOpen
   }
@@ -53,14 +53,14 @@
 </script>
 
 <div class="wrap" bind:this={menuElement}>
-  <MinorButton on:click={handleClick}>
+  <MinorButton onclick={handleClick}>
     <MoreVertical size={'1em'} />
   </MinorButton>
   {#if isOpen}
     <ul class="menu">
       {#each items as item}
         <li>
-          <button onpointerdown={stopPropagation(bubble('pointerdown'))} onclick={item.action}>
+          <button onclick={item.action}>
             <item.icon size={'1em'} />
             {item.label}
           </button>

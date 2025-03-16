@@ -1,8 +1,5 @@
 <script lang="ts">
-  import { createBubbler } from 'svelte/legacy';
-
-  const bubble = createBubbler();
-  import { createEventDispatcher, onMount, onDestroy } from 'svelte'
+  import { onMount, onDestroy } from 'svelte'
   import { fade } from 'svelte/transition'
   import type { GridItemPosition } from '$lib/stores/gridStore'
   import { writable } from 'svelte/store'
@@ -25,6 +22,17 @@
     removable?: boolean;
     body?: import('svelte').Snippet;
     children?: import('svelte').Snippet;
+    onmove?: (event: CustomEvent) => void;
+    onpreviewmove?: (event: CustomEvent) => void;
+    onpreviewresize?: (event: CustomEvent) => void;
+    onresize?: (event: CustomEvent) => void;
+    ondragstart?: (event: CustomEvent) => void;
+    ondragend?: (event: CustomEvent) => void;
+    onresizestart?: (event: CustomEvent) => void;
+    onresizeend?: (event: CustomEvent) => void;
+    onremove?: (event: CustomEvent) => void;
+    onduplicate?: (event: CustomEvent) => void;
+    ondrag_height_update?: (event: CustomEvent) => void;
   }
 
   let {
@@ -42,7 +50,18 @@
     title = '',
     removable = true,
     body,
-    children
+    children,
+    onmove = () => {},
+    onpreviewmove = () => {},
+    onpreviewresize = () => {},
+    onresize = () => {},
+    ondragstart = () => {},
+    ondragend = () => {},
+    onresizestart = () => {},
+    onresizeend = () => {},
+    onremove = () => {},
+    onduplicate = () => {},
+    ondrag_height_update = () => {},
   }: Props = $props();
 
   // Track state for visual feedback
@@ -339,7 +358,7 @@
       }
 
       // Dispatch drag start event
-      dispatch('dragstart', { id, x, y, w, h })
+      ondragstart({ id, x, y, w, h })
 
       // Add drag tracking events to document instead of window
       // This ensures we always get the events, even with pointer-events blocking overlays
@@ -393,7 +412,7 @@
       dragPosition = { x: newX, y: newY }
 
       // Dispatch preview event instead of regular move - this should be handled differently by parent
-      dispatch('previewmove', {
+      onpreviewmove({
         id,
         previewX: newX,
         previewY: newY,
@@ -405,13 +424,15 @@
 
       // Also dispatch a workspace resize event to ensure workspace expands as needed
       // This will inform the parent Workspace component that it might need to adjust its height
-      dispatch('drag-height-update', {
+      ondrag_height_update({ 
         id,
         y: newY,
         h,
-        // Include the bottom edge position in grid units for height calculations
-        bottomEdge: newY + h,
+        bottomEdge: newY + h
       })
+      
+      // Update regular position for tracking
+      onmove({ id, x: newX, y: newY, w, h })
     }
 
     function handleMouseUp() {
@@ -432,10 +453,10 @@
 
       // Only now, at the end of drag, dispatch the actual move event with final position
       // This prevents the parent from updating the store during the drag
-      dispatch('move', { id, x: dragPosition.x, y: dragPosition.y, w, h })
+      onmove({ id, x: dragPosition.x, y: dragPosition.y, w, h })
 
       // Dispatch drag end event
-      dispatch('dragend', {
+      ondragend({
         id,
         x: dragPosition.x,
         y: dragPosition.y,
@@ -540,7 +561,7 @@
         document.documentElement.scrollTop
 
       // Dispatch resize start event
-      dispatch('resizestart', { id, x, y, w, h })
+      onresizestart({ id, x, y, w, h })
 
       // Add resize tracking events using document level listeners with capture
       document.addEventListener('mousemove', handleMouseMove, { capture: true })
@@ -597,7 +618,7 @@
         resizePosition = { w: newW, h: newH }
 
         // Dispatch preview resize event instead of actual resize
-        dispatch('previewresize', {
+        onpreviewresize({
           id,
           x,
           y,
@@ -608,12 +629,15 @@
         })
 
         // Also dispatch height update event to ensure workspace extends during resize
-        dispatch('drag-height-update', {
+        ondrag_height_update({ 
           id,
           y,
           h: newH,
-          bottomEdge: y + newH,
+          bottomEdge: y + newH
         })
+        
+        // Update regular position for tracking
+        onmove({ id, x, y, w: newW, h: newH })
       }
     }
 
@@ -628,16 +652,10 @@
       }
 
       // Only update the actual size at the end of resize
-      dispatch('resize', {
-        id,
-        x,
-        y,
-        w: resizePosition.w,
-        h: resizePosition.h,
-      })
+      onresize({ id, x, y, w: resizePosition.w, h: resizePosition.h })
 
       // Dispatch resize end event
-      dispatch('resizeend', {
+      onresizeend({
         id,
         x,
         y,
@@ -682,56 +700,6 @@
     }
   }
 
-  // Create typed event dispatcher
-  const dispatch = createEventDispatcher<{
-    move: { id: number; x: number; y: number; w: number; h: number }
-    previewmove: {
-      id: number
-      previewX: number
-      previewY: number
-      currentX: number
-      currentY: number
-      w: number
-      h: number
-    }
-    previewresize: {
-      id: number
-      x: number
-      y: number
-      w: number
-      h: number
-      currentW: number
-      currentH: number
-    }
-    resize: { id: number; x: number; y: number; w: number; h: number }
-    dragstart: { id: number; x: number; y: number; w: number; h: number }
-    dragend: {
-      id: number
-      x: number
-      y: number
-      w: number
-      h: number
-      dragComplete: boolean
-    }
-    resizestart: { id: number; x: number; y: number; w: number; h: number }
-    resizeend: {
-      id: number
-      x: number
-      y: number
-      w: number
-      h: number
-      resizeComplete: boolean
-    }
-    contextmenu: MouseEvent
-    'drag-height-update': {
-      id: number
-      y: number
-      h: number
-      bottomEdge: number
-    }
-    remove: { id: number }
-    duplicate: { id: number }
-  }>()
 </script>
 
 <!-- Actual grid item (stays in place until drag is complete) -->
@@ -746,7 +714,6 @@
   data-grid-w={w}
   data-grid-h={h}
   transition:fade={{ duration: 150 }}
-  oncontextmenu={bubble('contextmenu')}
   bind:this={itemNode}
   role="figure"
 >
@@ -779,7 +746,7 @@
       <WorkspaceItemButton
         action="duplicate"
         tooltip="Duplicate item"
-        on:click={() => dispatch('duplicate', { id })}
+        onclick={() => onduplicate({ id })}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -803,7 +770,7 @@
         <WorkspaceItemButton
           action="remove"
           tooltip="Remove item"
-          on:click={() => dispatch('remove', { id })}
+          onclick={() => onremove({ id })}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"

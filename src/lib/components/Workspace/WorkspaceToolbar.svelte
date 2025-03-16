@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte'
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
   import { createDropdownMenu, melt } from '@melt-ui/svelte'
   import { fade } from 'svelte/transition'
@@ -7,35 +6,41 @@
 
   // Configuration for toolbar items
   interface Props {
-    actionItems?: any;
-    width?: string;
-    accentColor?: string;
+    actionItems?: any
+    width?: string
+    accentColor?: string
+    onaction?: (event: { id: string; vizType?: string; event?: any }) => void
   }
 
-  let { actionItems = [
-    {
-      id: 'reset-layout',
-      label: 'Reset Layout',
-      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  let {
+    actionItems = [
+      {
+        id: 'reset-layout',
+        label: 'Reset Layout',
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 2v6h6"></path>
             <path d="M21 12A9 9 0 0 0 6 5.3L3 8"></path>
             <path d="M21 22v-6h-6"></path>
             <path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"></path>
           </svg>`,
-      action: () => {
-        processingFileStateStore.set('done')
+        action: () => {
+          processingFileStateStore.set('done')
+        },
       },
-    },
-    {
-      id: 'add-visualization',
-      label: 'Add Visualization',
-      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      {
+        id: 'add-visualization',
+        label: 'Add Visualization',
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 5v14"></path>
             <path d="M5 12h14"></path>
           </svg>`,
-      action: null, // Will be handled by context menu
-    },
-  ], width = '48px', accentColor = 'var(--c-primary)' }: Props = $props();
+        action: null, // Will be handled by context menu
+      },
+    ],
+    width = '48px',
+    accentColor = 'var(--c-primary)',
+    onaction = () => {},
+  }: Props = $props()
 
   // Create dropdown menu using melt-ui
   const {
@@ -57,18 +62,20 @@
     // Add more visualization types here as they become available
   ]
 
-  // Event dispatcher for toolbar actions
-  const dispatch = createEventDispatcher()
-
   function handleVisualizationSelect(vizType: string) {
-    dispatch('action', { id: 'add-visualization', vizType })
+    onaction({
+      id: 'add-visualization',
+      vizType,
+    })
     $open = false
   }
 
   // Handle toolbar item click
   function handleItemClick(event) {
-    const { id } = event.detail
-    dispatch('action', { id, event: event.detail.event })
+    onaction({
+      id: event.id,
+      event: event.event,
+    })
   }
 </script>
 
@@ -84,7 +91,7 @@
         label={actionItems[0].label}
         icon={actionItems[0].icon}
         action={actionItems[0].action}
-        on:click={handleItemClick}
+        onclick={handleItemClick}
       />
 
       <!-- Add Visualization button with dropdown -->

@@ -1,11 +1,30 @@
 <script lang="ts">
   interface Props {
-    options: { value: string; label: string }[];
-    legend: string;
-    userSelected?: string;
+    options: { value: string; label: string }[]
+    legend: string
+    value?: string
+    onchange?: (event: CustomEvent) => void
   }
 
-  let { options, legend, userSelected = $bindable(options[0].value) }: Props = $props();
+  let {
+    options,
+    legend,
+    value = options[0]?.value || '',
+    onchange = () => {},
+  }: Props = $props()
+
+  // Use state instead of bindable
+  let selectedValue = $state(value)
+
+  // Update selectedValue when props value changes
+  $effect(() => {
+    selectedValue = value
+  })
+
+  function handleChange(newValue: string) {
+    selectedValue = newValue
+    onchange(new CustomEvent('change', { detail: selectedValue }))
+  }
 
   const uniqueID: number = Math.floor(Math.random() * 100)
 
@@ -25,8 +44,10 @@
       class="sr-only"
       type="radio"
       id="{slugify(label)}-{uniqueID}"
-      bind:group={userSelected}
+      name={`group-${uniqueID}`}
       {value}
+      checked={selectedValue === value}
+      onchange={() => handleChange(value)}
     />
     <label for="{slugify(label)}-{uniqueID}"> {label} </label>
   {/each}

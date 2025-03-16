@@ -1,21 +1,25 @@
 <script lang="ts">
-  import { run } from 'svelte/legacy';
-
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
-  import type { GridStoreType } from '$lib/stores/gridStore'
   import { getDynamicAoiBoolean } from '$lib/services/scarfServices'
   import { hasStimulusAoiVisibility } from '$lib/stores/dataStore'
-  import { getContext } from 'svelte'
   import { getScarfGridHeightFromCurrentData } from '$lib/services/scarfServices'
   import type { ScarfGridType } from '$lib/type/gridType'
-  let store = getContext<GridStoreType>('gridStore')
+
   interface Props {
-    settings: ScarfGridType;
+    settings: ScarfGridType
+    settingsChange?: (settings: Partial<ScarfGridType>) => void
   }
 
-  let { settings }: Props = $props();
+  // Use callback props instead of event dispatching
+  let { settings, settingsChange = () => {} }: Props = $props()
 
-  let value = $state(settings.timeline)
+  // Track selected timeline
+  let selectedTimeline = $state(settings.timeline)
+
+  // Update selectedTimeline when settings change
+  $effect(() => {
+    selectedTimeline = settings.timeline
+  })
 
   const timelineOptions = [
     { value: 'absolute', label: 'Absolute' },
@@ -23,33 +27,36 @@
     { value: 'ordinal', label: 'Ordinal' },
   ]
 
+  // Handle timeline change
+  function handleTimelineChange(event: CustomEvent) {
+    const timeline = event.detail as 'absolute' | 'relative' | 'ordinal'
+    selectedTimeline = timeline
 
-  const fireChange = (timeline: 'absolute' | 'relative' | 'ordinal') => {
+    // Calculate dynamic AOI and height based on the selected timeline
     const isDynamicAoi = getDynamicAoiBoolean(
       timeline,
       settings.dynamicAOI,
       hasStimulusAoiVisibility(settings.stimulusId)
     )
+
     const h = getScarfGridHeightFromCurrentData(
       settings.stimulusId,
       isDynamicAoi,
       settings.groupId
     )
-    const newSettings = { ...settings, timeline, h }
-    store.updateSettings(newSettings)
+
+    // Call the callback prop with the updated settings
+    settingsChange({
+      timeline,
+      h,
+    })
   }
-  run(() => {
-    switch (value) {
-      case 'absolute':
-      case 'relative':
-      case 'ordinal':
-        fireChange(value)
-        break
-      default:
-        console.warn(`Invalid timeline value: ${value}`)
-    }
-  });
 </script>
 
-<Select label="Timeline" options={timelineOptions} bind:value compact={true}
-></Select>
+<Select
+  label="Timeline"
+  options={timelineOptions}
+  value={selectedTimeline}
+  onchange={handleTimelineChange}
+  compact={true}
+/>

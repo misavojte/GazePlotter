@@ -1,16 +1,32 @@
 <script lang="ts">
   import GeneralInputScaffold from '$lib/components/General/GeneralInput/GeneralInputScaffold.svelte'
   interface Props {
-    value?: string;
-    label: string;
+    value?: string
+    label: string
+    oninput?: (event: CustomEvent) => void
   }
 
-  let { value = $bindable(''), label }: Props = $props();
+  let { value = '', label, oninput = () => {} }: Props = $props()
+
+  // Use state instead of bindable
+  let inputValue = $state(value)
+
+  // Update inputValue when props value changes
+  $effect(() => {
+    inputValue = value
+  })
+
+  function handleInput(event: Event) {
+    const target = event.target as HTMLInputElement
+    inputValue = target.value
+    oninput(new CustomEvent('input', { detail: inputValue }))
+  }
+
   const id = `text-${label.toLowerCase().replace(/\s+/g, '-')}`
 </script>
 
 <GeneralInputScaffold {label} {id}>
-  <input {id} type="text" bind:value />
+  <input {id} type="text" value={inputValue} oninput={handleInput} />
 </GeneralInputScaffold>
 
 <style>

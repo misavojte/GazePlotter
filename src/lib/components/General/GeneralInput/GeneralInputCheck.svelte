@@ -1,17 +1,29 @@
 <script lang="ts">
-  import { createBubbler } from 'svelte/legacy';
-
-  const bubble = createBubbler();
   interface Props {
-    label: string;
-    checked?: boolean;
+    label: string
+    checked?: boolean
+    onchange?: (event: CustomEvent) => void
   }
 
-  let { label, checked = $bindable(false) }: Props = $props();
+  let { label, checked = false, onchange = () => {} }: Props = $props()
+
+  // Use state instead of bindable
+  let isChecked = $state(checked)
+
+  // Update isChecked when props checked changes
+  $effect(() => {
+    isChecked = checked
+  })
+
+  function handleChange(event: Event) {
+    const target = event.target as HTMLInputElement
+    isChecked = target.checked
+    onchange(new CustomEvent('change', { detail: isChecked }))
+  }
 </script>
 
 <label>
-  <input type="checkbox" bind:checked onchange={bubble('change')} />
+  <input type="checkbox" checked={isChecked} onchange={handleChange} />
   {label}
 </label>
 

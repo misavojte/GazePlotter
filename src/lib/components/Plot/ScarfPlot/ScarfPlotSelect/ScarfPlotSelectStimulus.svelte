@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { run } from 'svelte/legacy';
-
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import {
     getStimuli,
@@ -10,17 +8,22 @@
     getDynamicAoiBoolean,
     getScarfGridHeightFromCurrentData,
   } from '$lib/services/scarfServices'
-  import type { GridStoreType } from '$lib/stores/gridStore'
-  import { getContext } from 'svelte'
   import type { ScarfGridType } from '$lib/type/gridType'
-  let store = getContext<GridStoreType>('gridStore')
+
   interface Props {
-    settings: ScarfGridType;
+    settings: ScarfGridType
+    settingsChange?: (settings: Partial<ScarfGridType>) => void
   }
 
-  let { settings }: Props = $props();
+  // Use callback props instead of event dispatching
+  let { settings, settingsChange = () => {} }: Props = $props()
 
-  let value: string = $state(settings.stimulusId.toString())
+  let selectedStimulusId = $state(settings.stimulusId.toString())
+
+  // Update selectedStimulusId when settings change
+  $effect(() => {
+    selectedStimulusId = settings.stimulusId.toString()
+  })
 
   /**
    * TODO: Make reactive in the future (when stimuli can be updated)
@@ -32,8 +35,10 @@
     }
   })
 
+  function handleSelectChange(event: CustomEvent) {
+    const stimulusId = parseInt(event.detail)
+    selectedStimulusId = stimulusId.toString()
 
-  const fireChange = (stimulusId: number) => {
     const h = getScarfGridHeightFromCurrentData(
       stimulusId,
       getDynamicAoiBoolean(
@@ -43,13 +48,21 @@
       ),
       settings.groupId
     )
-    const newSettings = { ...settings, stimulusId, h }
-    store.updateSettings(newSettings)
+
+    // Call the callback prop with the updated settings
+    if (settingsChange) {
+      settingsChange({
+        stimulusId,
+        h,
+      })
+    }
   }
-  run(() => {
-    fireChange(parseInt(value))
-  });
 </script>
 
-<Select label="Stimulus" options={stimuliOption} bind:value compact={true}
-></Select>
+<Select
+  label="Stimulus"
+  options={stimuliOption}
+  value={selectedStimulusId}
+  onchange={handleSelectChange}
+  compact={true}
+/>
