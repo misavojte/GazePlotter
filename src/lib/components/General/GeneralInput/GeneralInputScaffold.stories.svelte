@@ -1,4 +1,4 @@
-<script context="module" lang="ts">
+<script module lang="ts">
   import GeneralInputScaffold from './GeneralInputScaffold.svelte'
 
   export const meta = {

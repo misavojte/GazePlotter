@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { run } from 'svelte/legacy';
+
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import {
     getParticipantsGroups,
@@ -14,10 +16,14 @@
   import { getContext } from 'svelte'
   import type { GridStoreType } from '$lib/stores/gridStore'
   let store = getContext<GridStoreType>('gridStore')
-  export let settings: ScarfGridType
-  let value = settings.groupId.toString()
+  interface Props {
+    settings: ScarfGridType;
+  }
 
-  let groupOptions: { value: string; label: string }[]
+  let { settings }: Props = $props();
+  let value = $state(settings.groupId.toString())
+
+  let groupOptions: { value: string; label: string }[] = $state()
 
   const unsubscribe = data.subscribe(() => {
     groupOptions = getParticipantsGroups(true).map(group => ({
@@ -27,7 +33,6 @@
     console.log(groupOptions)
   })
 
-  $: fireChange(parseInt(value))
 
   const fireChange = (groupId: number) => {
     const h = getScarfGridHeightFromCurrentData(
@@ -46,6 +51,9 @@
   onDestroy(() => {
     unsubscribe()
   })
+  run(() => {
+    fireChange(parseInt(value))
+  });
 </script>
 
 <Select label="Group" options={groupOptions} bind:value compact={true}></Select>

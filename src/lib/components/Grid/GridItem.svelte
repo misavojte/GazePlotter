@@ -1,25 +1,51 @@
 <script lang="ts">
+  import { createBubbler } from 'svelte/legacy';
+
+  const bubble = createBubbler();
   import { createEventDispatcher, onMount } from 'svelte'
   import { fade } from 'svelte/transition'
   import type { GridItemPosition } from '$lib/stores/gridStore'
 
   // GridItem properties
-  export let id: number
-  export let x: number
-  export let y: number
-  export let w: number
-  export let h: number
-  export let minW: number = 1
-  export let minH: number = 1
-  export let cellSize = { width: 40, height: 40 }
-  export let gap = 10
-  export let resizable = true
-  export let draggable = true
-  export let title: string = ''
+  interface Props {
+    id: number;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    minW?: number;
+    minH?: number;
+    cellSize?: any;
+    gap?: number;
+    resizable?: boolean;
+    draggable?: boolean;
+    title?: string;
+    header?: import('svelte').Snippet;
+    body?: import('svelte').Snippet;
+    children?: import('svelte').Snippet;
+  }
+
+  let {
+    id,
+    x = $bindable(),
+    y = $bindable(),
+    w = $bindable(),
+    h = $bindable(),
+    minW = 1,
+    minH = 1,
+    cellSize = { width: 40, height: 40 },
+    gap = 10,
+    resizable = true,
+    draggable = true,
+    title = '',
+    header,
+    body,
+    children
+  }: Props = $props();
 
   // Track state for visual feedback
-  let isDragging = false
-  let isResizing = false
+  let isDragging = $state(false)
+  let isResizing = $state(false)
 
   // Svelte action for handling drag functionality
   function draggable_action(node: HTMLElement, options: { enabled: boolean }) {
@@ -230,15 +256,15 @@
   }>()
 
   // Reactive styles using Svelte's reactivity
-  $: transformX = x * (cellSize.width + gap)
-  $: transformY = y * (cellSize.height + gap)
-  $: width = w * cellSize.width + (w - 1) * gap
-  $: height = h * cellSize.height + (h - 1) * gap
-  $: style = `
+  let transformX = $derived(x * (cellSize.width + gap))
+  let transformY = $derived(y * (cellSize.height + gap))
+  let width = $derived(w * cellSize.width + (w - 1) * gap)
+  let height = $derived(h * cellSize.height + (h - 1) * gap)
+  let style = $derived(`
     transform: translate(${transformX}px, ${transformY}px);
     width: ${width}px;
     height: ${height}px;
-  `
+  `)
 </script>
 
 <div
@@ -254,7 +280,7 @@
   data-grid-w={w}
   data-grid-h={h}
   transition:fade={{ duration: 150 }}
-  on:contextmenu
+  oncontextmenu={bubble('contextmenu')}
 >
   <!-- PlotWrap header -->
   <div class="header">
@@ -281,15 +307,15 @@
     <h3>{title}</h3>
     <!-- Slot for additional header content -->
     <div class="header-content">
-      <slot name="header" />
+      {@render header?.()}
     </div>
   </div>
 
   <!-- PlotWrap body -->
   <div class="body">
-    <slot name="body">
-      <slot />
-    </slot>
+    {#if body}{@render body()}{:else}
+      {@render children?.()}
+    {/if}
   </div>
 
   {#if resizable}

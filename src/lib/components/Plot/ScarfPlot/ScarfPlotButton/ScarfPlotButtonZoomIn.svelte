@@ -3,9 +3,13 @@
   import ZoomIn from 'lucide-svelte/icons/zoom-in'
 
   import type { ScarfGridType } from '$lib/type/gridType'
-  export let settings: ScarfGridType
+  interface Props {
+    settings: ScarfGridType;
+  }
 
-  $: isDisabled = settings.zoomLevel > 3
+  let { settings = $bindable() }: Props = $props();
+
+  let isDisabled = $derived(settings.zoomLevel > 3)
   const handleClick = () => {
     if (!isDisabled) {
       settings.zoomLevel = settings.zoomLevel + 1

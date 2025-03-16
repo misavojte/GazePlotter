@@ -18,12 +18,16 @@
   import { getContext } from 'svelte'
   import type { ScarfGridType } from '$lib/type/gridType'
 
-  export let settings: ScarfGridType
-  export let multipleSettings: ScarfGridType[] = []
+  interface Props {
+    settings: ScarfGridType;
+    multipleSettings?: ScarfGridType[];
+  }
 
-  $: isMultiSelection = multipleSettings.length > 0
+  let { settings, multipleSettings = [] }: Props = $props();
 
-  $: effectiveSettings = isMultiSelection ? multipleSettings : [settings]
+  let isMultiSelection = $derived(multipleSettings.length > 0)
+
+  let effectiveSettings = $derived(isMultiSelection ? multipleSettings : [settings])
 
   const store = getContext<GridStoreType>('gridStore')
 
@@ -75,7 +79,7 @@
     }
   }
 
-  $: items = [
+  let items = $derived([
     {
       label: 'AOI customization',
       action: openAoiModificationModal,
@@ -120,7 +124,7 @@
       action: deleteScarf,
       icon: Trash,
     },
-  ] as ComponentProps<MenuButton>['items']
+  ] as ComponentProps<MenuButton>['items'])
 </script>
 
 <MenuButton {items} />

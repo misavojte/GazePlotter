@@ -9,27 +9,31 @@
   import { tooltipScarfService } from '$lib/services/tooltipServices'
   import { transformDataToScarfPlot } from '$lib/utils/scarfPlotTransformations'
 
-  export let settings: ScarfGridType
+  interface Props {
+    settings: ScarfGridType;
+  }
+
+  let { settings = $bindable() }: Props = $props();
 
   let tooltipArea: HTMLElement
 
-  let highlightedType: string | null = null
+  let highlightedType: string | null = $state(null)
   let removeHighlight: null | (() => void) = null
 
-  $: participantIds = getParticipants(
+  let participantIds = $derived(getParticipants(
     settings.groupId,
     settings.stimulusId
-  ).map(participant => participant.id)
+  ).map(participant => participant.id))
 
   let window: Window
 
-  $: data = transformDataToScarfPlot(
+  let data = $derived(transformDataToScarfPlot(
     settings.stimulusId,
     participantIds,
     settings
-  )
+  ))
 
-  $: absoluteTimeline = data.timeline
+  let absoluteTimeline = $derived(data.timeline)
 
   let timeout = 0
 

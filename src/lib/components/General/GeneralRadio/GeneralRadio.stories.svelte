@@ -1,4 +1,4 @@
-<script context="module" lang="ts">
+<script module lang="ts">
   import GeneralRadio from './GeneralRadio.svelte'
 
   export const meta = {
@@ -20,8 +20,10 @@
   import { Story, Template } from '@storybook/addon-svelte-csf'
 </script>
 
-<Template let:args>
-  <GeneralRadio {...args}></GeneralRadio>
+<Template >
+  {#snippet children({ args })}
+    <GeneralRadio {...args}></GeneralRadio>
+  {/snippet}
 </Template>
 
 <Story name="Default" />

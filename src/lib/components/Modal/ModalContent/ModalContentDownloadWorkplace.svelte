@@ -5,8 +5,8 @@
   import { WorkplaceDownloader } from '$lib/class/Downloader/WorkplaceDownloader.js'
   import { getData } from '$lib/stores/dataStore.js'
 
-  let type = 'inner-json'
-  let fileName = 'GazePlotter-Workplace'
+  let type = $state('inner-json')
+  let fileName = $state('GazePlotter-Workplace')
 
   const options = [
     {

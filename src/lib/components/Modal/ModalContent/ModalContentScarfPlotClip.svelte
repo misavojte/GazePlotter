@@ -9,20 +9,24 @@
   import type { ScarfGridType } from '$lib/type/gridType'
   import type { GridStoreType } from '$lib/stores/gridStore'
 
-  export let settings: ScarfGridType
-  export let store: GridStoreType
+  interface Props {
+    settings: ScarfGridType;
+    store: GridStoreType;
+  }
+
+  let { settings = $bindable(), store }: Props = $props();
 
   const allStimuliId = getStimuliOrderVector()
 
-  let absoluteTimelineApply: 'this_stimulus' | 'all_stimuli' = 'this_stimulus'
-  let ordinalTimelineApply: 'this_stimulus' | 'all_stimuli' = 'this_stimulus'
+  let absoluteTimelineApply: 'this_stimulus' | 'all_stimuli' = $state('this_stimulus')
+  let ordinalTimelineApply: 'this_stimulus' | 'all_stimuli' = $state('this_stimulus')
 
   let absoluteVal =
-    settings.absoluteStimuliLastVal[settings.stimulusId] ??
-    settings.absoluteGeneralLastVal
+    $state(settings.absoluteStimuliLastVal[settings.stimulusId] ??
+    settings.absoluteGeneralLastVal)
   let ordinalVal =
-    settings.ordinalStimuliLastVal[settings.stimulusId] ??
-    settings.ordinalGeneralLastVal
+    $state(settings.ordinalStimuliLastVal[settings.stimulusId] ??
+    settings.ordinalGeneralLastVal)
 
   const handleSubmit = () => {
     if (absoluteTimelineApply === 'this_stimulus') {

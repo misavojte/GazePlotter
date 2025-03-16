@@ -1,8 +1,15 @@
 <script lang="ts">
+  import { createBubbler, stopPropagation } from 'svelte/legacy';
+
+  const bubble = createBubbler();
   import type { SingleStylingScarfFillingType } from '$lib/type/Filling/ScarfFilling/index'
   import { createEventDispatcher } from 'svelte'
-  export let legend: SingleStylingScarfFillingType
-  export let isVisibility = false
+  interface Props {
+    legend: SingleStylingScarfFillingType;
+    isVisibility?: boolean;
+  }
+
+  let { legend, isVisibility = false }: Props = $props();
 
   const dispatch = createEventDispatcher()
 
@@ -17,8 +24,8 @@
 
 <div
   class="legendItem {legend.identifier}"
-  on:pointerdown|stopPropagation
-  on:click={handleClick}
+  onpointerdown={stopPropagation(bubble('pointerdown'))}
+  onclick={handleClick}
 >
   <svg width="20" height={legend.heighOfLegendItem}>
     {#if isVisibility}

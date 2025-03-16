@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { createBubbler } from 'svelte/legacy';
+
+  const bubble = createBubbler();
   import { createEventDispatcher, onMount, onDestroy } from 'svelte'
   import { fade } from 'svelte/transition'
   import type { GridItemPosition } from '$lib/stores/gridStore'
@@ -6,31 +9,53 @@
   import WorkspaceItemButton from './WorkspaceItemButton.svelte'
 
   // GridItem properties
-  export let id: number
-  export let x: number
-  export let y: number
-  export let w: number
-  export let h: number
-  export let minW: number = 1
-  export let minH: number = 1
-  export let cellSize = { width: 40, height: 40 }
-  export let gap = 10
-  export let resizable = true
-  export let draggable = true
-  export let title: string = ''
-  export let removable = true
+  interface Props {
+    id: number;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    minW?: number;
+    minH?: number;
+    cellSize?: any;
+    gap?: number;
+    resizable?: boolean;
+    draggable?: boolean;
+    title?: string;
+    removable?: boolean;
+    body?: import('svelte').Snippet;
+    children?: import('svelte').Snippet;
+  }
+
+  let {
+    id,
+    x,
+    y,
+    w,
+    h,
+    minW = 1,
+    minH = 1,
+    cellSize = { width: 40, height: 40 },
+    gap = 10,
+    resizable = true,
+    draggable = true,
+    title = '',
+    removable = true,
+    body,
+    children
+  }: Props = $props();
 
   // Track state for visual feedback
-  let isDragging = false
-  let isResizing = false
-  let dragPosition = { x: 0, y: 0 }
-  let resizePosition = { w: 0, h: 0 }
-  let showDragPlaceholder = false
-  let showResizePlaceholder = false
+  let isDragging = $state(false)
+  let isResizing = $state(false)
+  let dragPosition = $state({ x: 0, y: 0 })
+  let resizePosition = $state({ w: 0, h: 0 })
+  let showDragPlaceholder = $state(false)
+  let showResizePlaceholder = $state(false)
 
-  let bodyNode: HTMLElement
+  let bodyNode: HTMLElement = $state()
   let placeholderNode: HTMLElement
-  let itemNode: HTMLElement
+  let itemNode: HTMLElement = $state()
   let workspaceElement: HTMLElement | null = null
 
   // Create a store to track scroll position (both window and workspace)
@@ -101,20 +126,20 @@
   })
 
   // Calculate actual pixel dimensions and position
-  $: itemWidth = w * cellSize.width + (w - 1) * gap
-  $: itemHeight = h * cellSize.height + (h - 1) * gap
-  $: itemX = x * (cellSize.width + gap)
-  $: itemY = y * (cellSize.height + gap)
+  let itemWidth = $derived(w * cellSize.width + (w - 1) * gap)
+  let itemHeight = $derived(h * cellSize.height + (h - 1) * gap)
+  let itemX = $derived(x * (cellSize.width + gap))
+  let itemY = $derived(y * (cellSize.height + gap))
 
   // Style for the actual item (always at its real position)
-  $: itemStyle = `
+  let itemStyle = $derived(`
     transform: translate(${itemX}px, ${itemY}px);
     width: ${itemWidth}px;
     height: ${itemHeight}px;
-  `
+  `)
 
   // Style for the drag placeholder
-  $: placeholderStyle = showDragPlaceholder
+  let placeholderStyle = $derived(showDragPlaceholder
     ? `
     transform: translate(${dragPosition.x * (cellSize.width + gap)}px, ${dragPosition.y * (cellSize.height + gap)}px);
     width: ${itemWidth}px;
@@ -126,7 +151,7 @@
     width: ${resizePosition.w * cellSize.width + (resizePosition.w - 1) * gap}px;
     height: ${resizePosition.h * cellSize.height + (resizePosition.h - 1) * gap}px;
   `
-      : ''
+      : '')
 
   // Svelte action for handling drag functionality
   function draggable_action(node: HTMLElement, options: { enabled: boolean }) {
@@ -721,7 +746,7 @@
   data-grid-w={w}
   data-grid-h={h}
   transition:fade={{ duration: 150 }}
-  on:contextmenu
+  oncontextmenu={bubble('contextmenu')}
   bind:this={itemNode}
   role="figure"
 >
@@ -801,9 +826,9 @@
 
   <!-- PlotWrap body -->
   <div class="body" bind:this={bodyNode}>
-    <slot name="body">
-      <slot />
-    </slot>
+    {#if body}{@render body()}{:else}
+      {@render children?.()}
+    {/if}
   </div>
 
   {#if resizable}

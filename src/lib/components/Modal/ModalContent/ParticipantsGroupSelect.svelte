@@ -6,7 +6,11 @@
   import Trash from 'lucide-svelte/icons/trash'
   import TagsInput from '../../TagsInput/TagsInput.svelte'
 
-  export let group: ParticipantsGroup
+  interface Props {
+    group: ParticipantsGroup;
+  }
+
+  let { group }: Props = $props();
 
   const participants = getParticipants().map(d => d.displayedName)
 </script>
@@ -17,7 +21,7 @@
     <button>
       <Pencil size={'1em'} />
     </button>
-    <button on:click={() => removeGroup(group.id)}>
+    <button onclick={() => removeGroup(group.id)}>
       <Trash size={'1em'} />
     </button>
   </div>

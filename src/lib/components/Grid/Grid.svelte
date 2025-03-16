@@ -1,14 +1,28 @@
 <script lang="ts">
+  import { run } from 'svelte/legacy';
+
   import { onMount, createEventDispatcher } from 'svelte'
   import type { GridItemPosition, GridConfig } from '$lib/stores/gridStore'
   import { writable, derived } from 'svelte/store'
 
   // Grid configuration
-  export let cellSize = { width: 40, height: 40 }
-  export let gap = 10
-  export let items: GridItemPosition[] = []
-  export let minWidth = 1
-  export let minHeight = 1
+  interface Props {
+    cellSize?: any;
+    gap?: number;
+    items?: GridItemPosition[];
+    minWidth?: number;
+    minHeight?: number;
+    children?: import('svelte').Snippet;
+  }
+
+  let {
+    cellSize = { width: 40, height: 40 },
+    gap = 10,
+    items = [],
+    minWidth = 1,
+    minHeight = 1,
+    children
+  }: Props = $props();
 
   // Create event dispatcher
   const dispatch = createEventDispatcher<{
@@ -28,13 +42,7 @@
   // Local writable store for grid positions
   const positionsStore = writable<GridItemPosition[]>(items)
 
-  // Update positions store when external items change
-  $: positionsStore.set(items)
 
-  // Reactive grid height calculation
-  $: gridConfig = { cellSize, gap, minWidth, minHeight }
-  $: gridHeight = calculateGridHeight($positionsStore)
-  $: dispatch('heightChange', gridHeight)
 
   // Calculate grid height based on item positions
   function calculateGridHeight(positions: GridItemPosition[]): number {
@@ -50,6 +58,16 @@
       maxY * (cellSize.height + gap) + gap + 40 // Add some padding
     )
   }
+  // Update positions store when external items change
+  run(() => {
+    positionsStore.set(items)
+  });
+  // Reactive grid height calculation
+  let gridConfig = $derived({ cellSize, gap, minWidth, minHeight })
+  let gridHeight = $derived(calculateGridHeight($positionsStore))
+  run(() => {
+    dispatch('heightChange', gridHeight)
+  });
 </script>
 
 <div
@@ -57,20 +75,20 @@
   style="height: {gridHeight}px;"
   aria-label="Grid container"
   role="figure"
-  on:move={event => {
+  onmove={event => {
     const { id, x, y, w, h } = event.detail
     dispatch('move', { id, x, y, w, h })
   }}
-  on:resize={event => {
+  onresize={event => {
     const { id, x, y, w, h } = event.detail
     dispatch('resize', { id, x, y, w, h })
   }}
-  on:dragend={event => {
+  ondragend={event => {
     const { id, x, y, w, h, dragComplete } = event.detail
     dispatch('dragend', { id, x, y, w, h, dragComplete })
   }}
 >
-  <slot />
+  {@render children?.()}
 </div>
 
 <style>

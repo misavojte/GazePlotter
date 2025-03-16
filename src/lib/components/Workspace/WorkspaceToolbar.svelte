@@ -6,7 +6,13 @@
   import WorkspaceToolbarItem from './WorkspaceToolbarItem.svelte'
 
   // Configuration for toolbar items
-  export let actionItems = [
+  interface Props {
+    actionItems?: any;
+    width?: string;
+    accentColor?: string;
+  }
+
+  let { actionItems = [
     {
       id: 'reset-layout',
       label: 'Reset Layout',
@@ -29,9 +35,7 @@
           </svg>`,
       action: null, // Will be handled by context menu
     },
-  ]
-  export let width = '48px'
-  export let accentColor = 'var(--c-primary)'
+  ], width = '48px', accentColor = 'var(--c-primary)' }: Props = $props();
 
   // Create dropdown menu using melt-ui
   const {
@@ -105,7 +109,7 @@
       <button
         class="context-menu-item"
         use:melt={$item}
-        on:click={() => handleVisualizationSelect(viz.id)}
+        onclick={() => handleVisualizationSelect(viz.id)}
       >
         {viz.label}
       </button>

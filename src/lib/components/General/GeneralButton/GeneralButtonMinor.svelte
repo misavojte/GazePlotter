@@ -1,9 +1,17 @@
 <script lang="ts">
+  import { createBubbler, stopPropagation } from 'svelte/legacy';
+
+  const bubble = createBubbler();
   import { createEventDispatcher } from 'svelte'
   const dispatch = createEventDispatcher()
 
-  export let isDisabled = false
-  export let isIcon = true
+  interface Props {
+    isDisabled?: boolean;
+    isIcon?: boolean;
+    children?: import('svelte').Snippet;
+  }
+
+  let { isDisabled = false, isIcon = true, children }: Props = $props();
 
   const handleClick = () => {
     dispatch('click')
@@ -12,10 +20,10 @@
 
 <button
   disabled={isDisabled}
-  on:pointerdown|stopPropagation
-  on:click={handleClick}
+  onpointerdown={stopPropagation(bubble('pointerdown'))}
+  onclick={handleClick}
 >
-  <slot />
+  {@render children?.()}
 </button>
 
 <style>

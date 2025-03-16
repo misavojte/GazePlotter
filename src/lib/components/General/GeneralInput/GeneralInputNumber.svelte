@@ -1,8 +1,12 @@
 <script lang="ts">
   import GeneralInputScaffold from '$lib/components/General/GeneralInput/GeneralInputScaffold.svelte'
-  export let value = 0
-  export let min = 0
-  export let label: string
+  interface Props {
+    value?: number;
+    min?: number;
+    label: string;
+  }
+
+  let { value = $bindable(0), min = 0, label }: Props = $props();
   const id = `text-${label.toLowerCase().replace(/\s+/g, '-')}`
 </script>
 

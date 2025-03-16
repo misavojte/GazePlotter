@@ -1,10 +1,15 @@
 <script lang="ts">
-  export let legend: string
+  interface Props {
+    legend: string;
+    children?: import('svelte').Snippet;
+  }
+
+  let { legend, children }: Props = $props();
 </script>
 
 <fieldset>
   <legend>{legend}</legend>
-  <slot />
+  {@render children?.()}
 </fieldset>
 
 <style>

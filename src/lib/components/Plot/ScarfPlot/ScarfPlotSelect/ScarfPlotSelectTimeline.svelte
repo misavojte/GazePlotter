@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { run } from 'svelte/legacy';
+
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import type { GridStoreType } from '$lib/stores/gridStore'
   import { getDynamicAoiBoolean } from '$lib/services/scarfServices'
@@ -7,9 +9,13 @@
   import { getScarfGridHeightFromCurrentData } from '$lib/services/scarfServices'
   import type { ScarfGridType } from '$lib/type/gridType'
   let store = getContext<GridStoreType>('gridStore')
-  export let settings: ScarfGridType
+  interface Props {
+    settings: ScarfGridType;
+  }
 
-  let value = settings.timeline
+  let { settings }: Props = $props();
+
+  let value = $state(settings.timeline)
 
   const timelineOptions = [
     { value: 'absolute', label: 'Absolute' },
@@ -17,15 +23,6 @@
     { value: 'ordinal', label: 'Ordinal' },
   ]
 
-  $: switch (value) {
-    case 'absolute':
-    case 'relative':
-    case 'ordinal':
-      fireChange(value)
-      break
-    default:
-      console.warn(`Invalid timeline value: ${value}`)
-  }
 
   const fireChange = (timeline: 'absolute' | 'relative' | 'ordinal') => {
     const isDynamicAoi = getDynamicAoiBoolean(
@@ -41,6 +38,17 @@
     const newSettings = { ...settings, timeline, h }
     store.updateSettings(newSettings)
   }
+  run(() => {
+    switch (value) {
+      case 'absolute':
+      case 'relative':
+      case 'ordinal':
+        fireChange(value)
+        break
+      default:
+        console.warn(`Invalid timeline value: ${value}`)
+    }
+  });
 </script>
 
 <Select label="Timeline" options={timelineOptions} bind:value compact={true}

@@ -1,11 +1,16 @@
 <script lang="ts">
-  export let label: string | null
-  export let id: string
+  interface Props {
+    label: string | null;
+    id: string;
+    children?: import('svelte').Snippet<[any]>;
+  }
+
+  let { label, id, children }: Props = $props();
 </script>
 
 <div class="input">
   <label for={id}>{label}</label>
-  <slot itemtype="input" />
+  {@render children?.({ itemtype: "input", })}
 </div>
 
 <style>

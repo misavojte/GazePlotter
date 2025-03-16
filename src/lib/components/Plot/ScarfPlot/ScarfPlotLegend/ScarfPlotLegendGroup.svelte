@@ -2,9 +2,13 @@
   import type { SingleStylingScarfFillingType } from '$lib/type/Filling/ScarfFilling/index.js'
   import ScarfPlotLegendItem from '$lib/components/Plot/ScarfPlot/ScarfPlotLegend/ScarfPlotLegendItem.svelte'
 
-  export let fillings: SingleStylingScarfFillingType[]
-  export let title: string
-  export let isVisibility = false
+  interface Props {
+    fillings: SingleStylingScarfFillingType[];
+    title: string;
+    isVisibility?: boolean;
+  }
+
+  let { fillings, title, isVisibility = false }: Props = $props();
 </script>
 
 <div class="chlegendtitle">

@@ -8,11 +8,15 @@
   import type { GridStoreType } from '$lib/stores/gridStore'
   import { get } from 'svelte/store'
 
-  export let gridStore: GridStoreType
+  interface Props {
+    gridStore: GridStoreType;
+  }
 
-  let files: FileList | null = null
-  let selectedStimulusId = '0'
-  let selectedParticipantId = 'all'
+  let { gridStore }: Props = $props();
+
+  let files: FileList | null = $state(null)
+  let selectedStimulusId = $state('0')
+  let selectedParticipantId = $state('all')
 
   const stimuliOptions = getStimuli().map(stimulus => {
     return {

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { run } from 'svelte/legacy';
+
   import ScarfPlot from '$lib/components/Plot/ScarfPlot/ScarfPlot.svelte'
   import GridItem from '$lib/components/Workspace/WorkspaceItem.svelte'
   import WorkspaceIndicatorEmpty from '$lib/components/Workspace/WorkspaceIndicatorEmpty.svelte'
@@ -508,17 +510,19 @@
   }
 
   // When the processing state changes, update the grid and loading state
-  $: if ($processingFileStateStore === 'done') {
-    isLoading.set(false)
-    enhancedGridStore.resetGrid(createDefaultGridState())
-    processingFileStateStore.set('idle')
-  } else if ($processingFileStateStore === 'processing') {
-    isLoading.set(true)
-    enhancedGridStore.resetGrid([]) // Clear the grid while loading
-  } else if ($processingFileStateStore === 'fail') {
-    isLoading.set(false)
-    enhancedGridStore.resetGrid([]) // Set to empty grid - the empty indicator will show
-  }
+  run(() => {
+    if ($processingFileStateStore === 'done') {
+      isLoading.set(false)
+      enhancedGridStore.resetGrid(createDefaultGridState())
+      processingFileStateStore.set('idle')
+    } else if ($processingFileStateStore === 'processing') {
+      isLoading.set(true)
+      enhancedGridStore.resetGrid([]) // Clear the grid while loading
+    } else if ($processingFileStateStore === 'fail') {
+      isLoading.set(false)
+      enhancedGridStore.resetGrid([]) // Set to empty grid - the empty indicator will show
+    }
+  });
 
   // Note: Previously, we would add grid items for both empty and loading states.
   // Now we maintain a truly empty grid and display dedicated indicator components
@@ -559,9 +563,11 @@
             on:remove={handleItemRemove}
             on:duplicate={handleItemDuplicate}
           >
-            <div slot="body">
-              <svelte:component this={visConfig.component} settings={item} />
-            </div>
+            {#snippet body()}
+                        <div >
+                <visConfig.component settings={item} />
+              </div>
+                      {/snippet}
           </GridItem>
         </div>
       {/each}

@@ -5,12 +5,23 @@
   import { derived, writable } from 'svelte/store'
 
   // Props for the toolbar item
-  export let id: string
-  export let label: string
-  export let icon: string
-  export let action: (() => void) | null = null
-  export let useDropdown = false
-  export let dropdownTrigger = null
+  interface Props {
+    id: string;
+    label: string;
+    icon: string;
+    action?: (() => void) | null;
+    useDropdown?: boolean;
+    dropdownTrigger?: any;
+  }
+
+  let {
+    id,
+    label,
+    icon,
+    action = null,
+    useDropdown = false,
+    dropdownTrigger = null
+  }: Props = $props();
 
   // Create a store to track whether the dropdown is open
   const isDropdownOpen = writable(false)
@@ -88,7 +99,7 @@
         use:melt={$tooltipContent}
         transition:fade={{ duration: 150 }}
       >
-        <div use:melt={$tooltipArrow} class="tooltip-arrow" />
+        <div use:melt={$tooltipArrow} class="tooltip-arrow"></div>
         {label}
       </div>
     {/if}
@@ -98,7 +109,7 @@
     <button
       class="toolbar-item"
       use:melt={$tooltipTrigger}
-      on:click={handleClick}
+      onclick={handleClick}
     >
       <div class="toolbar-item-icon">
         {@html icon}
@@ -111,7 +122,7 @@
         use:melt={$tooltipContent}
         transition:fade={{ duration: 150 }}
       >
-        <div use:melt={$tooltipArrow} class="tooltip-arrow" />
+        <div use:melt={$tooltipArrow} class="tooltip-arrow"></div>
         {label}
       </div>
     {/if}

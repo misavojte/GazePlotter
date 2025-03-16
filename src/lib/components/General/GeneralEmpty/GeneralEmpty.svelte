@@ -1,6 +1,10 @@
 <script lang="ts">
   import ListX from 'lucide-svelte/icons/list-x'
-  export let message: string
+  interface Props {
+    message: string;
+  }
+
+  let { message }: Props = $props();
 </script>
 
 <div class="empty">

@@ -1,17 +1,21 @@
-<svelte:options accessors={true} />
+<svelte:options ={true} />
 
 <script lang="ts">
   import X from 'lucide-svelte/icons/x'
   import { writable } from 'svelte/store'
 
-  export let value: string[] = [] // tag list
-  export let suggestions: string[] = [] // a list of tag suggestion
-  let input = '' // input value
+  interface Props {
+    value?: string[];
+    suggestions?: string[];
+  }
+
+  let { value = $bindable([]), suggestions = [] }: Props = $props();
+  let input = $state('') // input value
 
   const selectedTag = writable<number | undefined>(undefined)
   const validSuggestions = writable<string[]>(suggestions)
 
-  let inputNode: HTMLInputElement
+  let inputNode: HTMLInputElement = $state()
 
   const isValidInput = (input: string) => {
     if (
@@ -105,6 +109,11 @@
       $validSuggestions = [...$validSuggestions, new_suggestion]
     value = [...value.filter((_, idx) => tagIdx !== idx)]
   }
+
+  export {
+  	value,
+  	suggestions,
+  }
 </script>
 
 <div>
@@ -116,7 +125,7 @@
             <span>{t}</span>
             <button
               class:selected={i === $selectedTag}
-              on:click={() => handleClick(i)}><X size="1em" /></button
+              onclick={() => handleClick(i)}><X size="1em" /></button
             >
           </div>
         {/each}
@@ -128,7 +137,7 @@
       type="text"
       pattern={$validSuggestions.filter(d => !value.includes(d)).join('|')}
       bind:this={inputNode}
-      on:keyup={pressed}
+      onkeyup={pressed}
       bind:value={input}
     />
   </div>

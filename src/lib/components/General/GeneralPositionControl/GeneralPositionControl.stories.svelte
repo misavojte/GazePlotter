@@ -1,4 +1,4 @@
-<script context="module" lang="ts">
+<script module lang="ts">
   import GeneralPositionControl from './GeneralPositionControl.svelte'
 
   export const meta = {
@@ -12,8 +12,10 @@
   import { Story, Template } from '@storybook/addon-svelte-csf'
 </script>
 
-<Template let:args>
-  <GeneralPositionControl {...args}></GeneralPositionControl>
+<Template >
+  {#snippet children({ args })}
+    <GeneralPositionControl {...args}></GeneralPositionControl>
+  {/snippet}
 </Template>
 
 <Story name="Default" />

@@ -1,4 +1,4 @@
-<script context="module" lang="ts">
+<script module lang="ts">
   import GeneralEmpty from './GeneralEmpty.svelte'
 
   export const meta = {
@@ -15,8 +15,10 @@
   import { Story, Template } from '@storybook/addon-svelte-csf'
 </script>
 
-<Template let:args>
-  <GeneralEmpty {...args} />
+<Template >
+  {#snippet children({ args })}
+    <GeneralEmpty {...args} />
+  {/snippet}
 </Template>
 
 <Story name="Default" />

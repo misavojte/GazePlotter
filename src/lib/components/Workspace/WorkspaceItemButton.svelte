@@ -3,14 +3,29 @@
   import { melt, createTooltip } from '@melt-ui/svelte'
   import { fade } from 'svelte/transition'
 
-  export let label: string = ''
-  export let icon: string = ''
-  export let action: string = ''
-  export let tooltip: string = ''
-  export let disabled: boolean = false
-  export let useAction = false // Flag to indicate we're using a custom action
-  export let actionParams = {} // Parameters for the custom action
-  export let actionFn = null // The custom action function to use
+  interface Props {
+    label?: string;
+    icon?: string;
+    action?: string;
+    tooltip?: string;
+    disabled?: boolean;
+    useAction?: boolean;
+    actionParams?: any;
+    actionFn?: any;
+    children?: import('svelte').Snippet;
+  }
+
+  let {
+    label = '',
+    icon = '',
+    action = '',
+    tooltip = '',
+    disabled = false,
+    useAction = false,
+    actionParams = {},
+    actionFn = null,
+    children
+  }: Props = $props();
 
   const dispatch = createEventDispatcher<{
     click: { action: string }
@@ -46,36 +61,36 @@
     <button
       class="workspace-item-button"
       class:disabled
-      on:click={handleClick}
+      onclick={handleClick}
       aria-label={label || tooltip}
       use:melt={$tooltipTrigger}
       use:actionFn={actionParams}
     >
-      <slot>
+      {#if children}{@render children()}{:else}
         {#if icon}
           {@html icon}
         {/if}
         {#if label}
           <span class="label">{label}</span>
         {/if}
-      </slot>
+      {/if}
     </button>
   {:else}
     <button
       class="workspace-item-button"
       class:disabled
-      on:click={handleClick}
+      onclick={handleClick}
       aria-label={label || tooltip}
       use:melt={$tooltipTrigger}
     >
-      <slot>
+      {#if children}{@render children()}{:else}
         {#if icon}
           {@html icon}
         {/if}
         {#if label}
           <span class="label">{label}</span>
         {/if}
-      </slot>
+      {/if}
     </button>
   {/if}
 
@@ -85,7 +100,7 @@
       use:melt={$tooltipContent}
       transition:fade={{ duration: 150 }}
     >
-      <div use:melt={$tooltipArrow} class="tooltip-arrow" />
+      <div use:melt={$tooltipArrow} class="tooltip-arrow"></div>
       {tooltip || label}
     </div>
   {/if}

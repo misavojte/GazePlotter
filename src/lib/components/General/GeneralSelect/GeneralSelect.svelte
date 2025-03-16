@@ -1,11 +1,24 @@
 <script lang="ts">
+  import { createBubbler, stopPropagation } from 'svelte/legacy';
+
+  const bubble = createBubbler();
   import ChevronDown from 'lucide-svelte/icons/chevron-down'
 
-  export let options: Array<{ value: string; label: string }>
-  export let disabled: boolean = false
-  export let label: string
-  export let value: string = options[0].value
-  export let compact: boolean = false
+  interface Props {
+    options: Array<{ value: string; label: string }>;
+    disabled?: boolean;
+    label: string;
+    value?: string;
+    compact?: boolean;
+  }
+
+  let {
+    options,
+    disabled = false,
+    label,
+    value = $bindable(options[0].value),
+    compact = false
+  }: Props = $props();
   const name = label.toLowerCase().replace(/ /g, '-')
   const handleChange = (e: Event) => {
     const target = e.target as HTMLSelectElement
@@ -13,10 +26,10 @@
   }
 </script>
 
-<div class="select-wrapper" class:compact on:pointerdown|stopPropagation>
+<div class="select-wrapper" class:compact onpointerdown={stopPropagation(bubble('pointerdown'))}>
   <label for={name}>{label}</label>
   <div class="option-wrapper">
-    <select {disabled} {name} id="GP-{name}" on:change={handleChange}>
+    <select {disabled} {name} id="GP-{name}" onchange={handleChange}>
       {#each options as option}
         <option value={option.value} selected={option.value === value}
           >{option.label}</option

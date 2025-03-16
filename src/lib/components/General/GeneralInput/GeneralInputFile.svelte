@@ -1,11 +1,19 @@
 <script lang="ts">
   import GeneralInputScaffold from '$lib/components/General/GeneralInput/GeneralInputScaffold.svelte'
 
-  export let label: string
-  export let files: FileList | null = null
-  export let multiple = false
-  export let accept: string[] =
-    [] /* e.g. ['image/*', '.pdf'], if empty, allows all */
+  interface Props {
+    label: string;
+    files?: FileList | null;
+    multiple?: boolean;
+    accept?: string[];
+  }
+
+  let {
+    label,
+    files = $bindable(null),
+    multiple = false,
+    accept = []
+  }: Props = $props();
 
   const id = `file-${label.toLowerCase().replace(/\s+/g, '-')}`
 </script>

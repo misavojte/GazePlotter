@@ -7,7 +7,11 @@
   import ScarfPlotSelectGroup from '../ScarfPlotSelect/ScarfPlotSelectGroup.svelte'
   import type { ScarfGridType } from '$lib/type/gridType'
 
-  export let settings: ScarfGridType
+  interface Props {
+    settings: ScarfGridType;
+  }
+
+  let { settings = $bindable() }: Props = $props();
 </script>
 
 <div class="nav">

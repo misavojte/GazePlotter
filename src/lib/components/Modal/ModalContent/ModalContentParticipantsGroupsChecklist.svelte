@@ -4,7 +4,11 @@
   import MajorButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralInputCheck from '$lib/components/General/GeneralInput/GeneralInputCheck.svelte'
 
-  export let group: ParticipantsGroup
+  interface Props {
+    group: ParticipantsGroup;
+  }
+
+  let { group = $bindable() }: Props = $props();
 
   const participants = getParticipants()
 

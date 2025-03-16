@@ -1,10 +1,17 @@
 <script lang="ts">
-  export let label: string
-  export let checked: boolean = false
+  import { createBubbler } from 'svelte/legacy';
+
+  const bubble = createBubbler();
+  interface Props {
+    label: string;
+    checked?: boolean;
+  }
+
+  let { label, checked = $bindable(false) }: Props = $props();
 </script>
 
 <label>
-  <input type="checkbox" bind:checked on:change />
+  <input type="checkbox" bind:checked onchange={bubble('change')} />
   {label}
 </label>
 

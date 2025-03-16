@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { run } from 'svelte/legacy';
+
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import {
     getStimuli,
@@ -12,9 +14,13 @@
   import { getContext } from 'svelte'
   import type { ScarfGridType } from '$lib/type/gridType'
   let store = getContext<GridStoreType>('gridStore')
-  export let settings: ScarfGridType
+  interface Props {
+    settings: ScarfGridType;
+  }
 
-  let value: string = settings.stimulusId.toString()
+  let { settings }: Props = $props();
+
+  let value: string = $state(settings.stimulusId.toString())
 
   /**
    * TODO: Make reactive in the future (when stimuli can be updated)
@@ -26,7 +32,6 @@
     }
   })
 
-  $: fireChange(parseInt(value))
 
   const fireChange = (stimulusId: number) => {
     const h = getScarfGridHeightFromCurrentData(
@@ -41,6 +46,9 @@
     const newSettings = { ...settings, stimulusId, h }
     store.updateSettings(newSettings)
   }
+  run(() => {
+    fireChange(parseInt(value))
+  });
 </script>
 
 <Select label="Stimulus" options={stimuliOption} bind:value compact={true}

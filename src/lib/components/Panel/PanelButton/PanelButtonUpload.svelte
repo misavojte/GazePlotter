@@ -6,9 +6,9 @@
   import { setData } from '$lib/stores/dataStore'
   import { addErrorToast, addSuccessToast } from '$lib/stores/toastStore'
 
-  $: isDisabled = $processingFileStateStore === 'processing'
+  let isDisabled = $derived($processingFileStateStore === 'processing')
 
-  let input: HTMLInputElement
+  let input: HTMLInputElement = $state()
   let workerService: EyeWorkerService | null = null
 
   const handleFileUpload = async (e: Event) => {
@@ -49,7 +49,7 @@
       name="GP-file-upload"
       multiple
       accept=".csv, .txt, .tsv, .json"
-      on:change={handleFileUpload}
+      onchange={handleFileUpload}
       bind:this={input}
     />
   </label>

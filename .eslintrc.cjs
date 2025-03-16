@@ -1,7 +1,12 @@
 /** @type { import("eslint").Linter.Config } */
 module.exports = {
   root: true,
-  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'plugin:svelte/recommended', 'plugin:storybook/recommended'],
+  extends: [
+    'eslint:recommended',
+    'plugin:@typescript-eslint/recommended',
+    'plugin:svelte/recommended',
+    'plugin:storybook/recommended',
+  ],
   parser: '@typescript-eslint/parser',
   plugins: ['@typescript-eslint'],
   parserOptions: {
@@ -23,4 +28,11 @@ module.exports = {
       },
     },
   ],
+  settings: {
+    svelte: {
+      compileOptions: {
+        svelte5: true,
+      },
+    },
+  },
 }

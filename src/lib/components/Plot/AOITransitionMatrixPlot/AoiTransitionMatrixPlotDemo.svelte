@@ -3,7 +3,7 @@
   import GeneralInputText from '$lib/components/General/GeneralInput/GeneralInputText.svelte'
 
   // Demo AOI labels
-  let aoiLabels = ['Text', 'Image', 'Button', 'Menu', 'Header']
+  let aoiLabels = $state(['Text', 'Image', 'Button', 'Menu', 'Header'])
 
   // Demo transition matrix
   let transitionMatrix = [
@@ -23,7 +23,7 @@
   let colorScale = ['#f7fbff', '#08306b']
 
   // For adding new AOI
-  let newAoiName = ''
+  let newAoiName = $state('')
 
   function addAoi() {
     if (newAoiName.trim() === '') return
@@ -77,10 +77,10 @@
     <h3>Controls</h3>
     <div class="input-group">
       <GeneralInputText bind:value={newAoiName} label="New AOI Name" />
-      <button on:click={addAoi}>Add AOI</button>
+      <button onclick={addAoi}>Add AOI</button>
     </div>
     <div class="button-group">
-      <button on:click={resetDemo}>Reset Demo</button>
+      <button onclick={resetDemo}>Reset Demo</button>
     </div>
   </div>
 </div>

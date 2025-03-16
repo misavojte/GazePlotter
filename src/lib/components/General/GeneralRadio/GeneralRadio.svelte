@@ -1,7 +1,11 @@
 <script lang="ts">
-  export let options: { value: string; label: string }[]
-  export let legend: string
-  export let userSelected: string = options[0].value
+  interface Props {
+    options: { value: string; label: string }[];
+    legend: string;
+    userSelected?: string;
+  }
+
+  let { options, legend, userSelected = $bindable(options[0].value) }: Props = $props();
 
   const uniqueID: number = Math.floor(Math.random() * 100)
 

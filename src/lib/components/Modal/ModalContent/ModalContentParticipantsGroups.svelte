@@ -15,9 +15,9 @@
   import GeneralEmpty from '$lib/components/General/GeneralEmpty/GeneralEmpty.svelte'
   import ModalContentParticipantsGroupsChecklist from '$lib/components/Modal/ModalContent/ModalContentParticipantsGroupsChecklist.svelte'
 
-  let participantsGroups: ParticipantsGroup[] = []
+  let participantsGroups: ParticipantsGroup[] = $state([])
   participantsGroupsStore.subscribe(value => (participantsGroups = value))
-  let toggledGroup: null | ParticipantsGroup = null
+  let toggledGroup: null | ParticipantsGroup = $state(null)
 
   const handleObjectPositionUp = (group: ParticipantsGroup) => {
     const index = participantsGroups.indexOf(group)

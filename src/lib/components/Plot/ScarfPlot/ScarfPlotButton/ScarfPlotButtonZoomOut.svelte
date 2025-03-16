@@ -2,9 +2,13 @@
   import MinorButton from '$lib/components/General/GeneralButton/GeneralButtonMinor.svelte'
   import ZoomOut from 'lucide-svelte/icons/zoom-out'
   import type { ScarfGridType } from '$lib/type/gridType'
-  export let settings: ScarfGridType
+  interface Props {
+    settings: ScarfGridType;
+  }
 
-  $: isDisabled = settings.zoomLevel <= 0
+  let { settings = $bindable() }: Props = $props();
+
+  let isDisabled = $derived(settings.zoomLevel <= 0)
   const handleClick = () => {
     if (!isDisabled) {
       settings.zoomLevel = settings.zoomLevel - 1

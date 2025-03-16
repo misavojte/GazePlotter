@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { createBubbler, stopPropagation } from 'svelte/legacy';
+
+  const bubble = createBubbler();
   import MinorButton from './GeneralButtonMinor.svelte'
   import { onMount, onDestroy, type ComponentType } from 'svelte'
   import MoreVertical from 'lucide-svelte/icons/more-vertical'
@@ -9,15 +12,19 @@
     action: () => void
   }
 
-  export let isOpen = false
-  export let items: ActionItem[]
+  interface Props {
+    isOpen?: boolean;
+    items: ActionItem[];
+  }
+
+  let { isOpen = $bindable(false), items }: Props = $props();
   const handleClick = () => {
     isOpen = !isOpen
   }
 
   let window: Window | null
 
-  let menuElement: HTMLDivElement
+  let menuElement: HTMLDivElement = $state()
 
   const handleOutsideClick = (event: MouseEvent) => {
     const target = event.target as HTMLElement
@@ -53,8 +60,8 @@
     <ul class="menu">
       {#each items as item}
         <li>
-          <button on:pointerdown|stopPropagation on:click={item.action}>
-            <svelte:component this={item.icon} size={'1em'} />
+          <button onpointerdown={stopPropagation(bubble('pointerdown'))} onclick={item.action}>
+            <item.icon size={'1em'} />
             {item.label}
           </button>
         </li>

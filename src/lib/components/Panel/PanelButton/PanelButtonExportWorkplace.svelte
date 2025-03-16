@@ -4,7 +4,7 @@
   import ModalContentDownloadWorkplace from '$lib/components/Modal/ModalContent/ModalContentDownloadWorkplace.svelte'
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
 
-  $: isDisabled = $processingFileStateStore === 'processing'
+  let isDisabled = $derived($processingFileStateStore === 'processing')
 
   const handleClick = () => {
     modalStore.open(ModalContentDownloadWorkplace, 'Download workplace')

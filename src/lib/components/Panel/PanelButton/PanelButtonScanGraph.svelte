@@ -4,7 +4,7 @@
   import ModalContentDownloadScanGraph from '$lib/components/Modal/ModalContent/ModalContentDownloadScanGraph.svelte'
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
 
-  $: isDisabled = $processingFileStateStore === 'processing'
+  let isDisabled = $derived($processingFileStateStore === 'processing')
 
   const handleClick = () => {
     modalStore.open(ModalContentDownloadScanGraph, 'Export to ScanGraph')

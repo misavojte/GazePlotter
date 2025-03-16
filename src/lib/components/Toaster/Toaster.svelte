@@ -23,7 +23,7 @@
     clearTimer(id)
   }
 
-  let toasts: ToastFillingType[] = []
+  let toasts: ToastFillingType[] = $state([])
   toastStore.subscribe(value => {
     toasts = value
     toasts.forEach(setRemovalTimer)
@@ -55,7 +55,7 @@
           type="button"
           class="close"
           aria-label="Close"
-          on:click={() => removeToast(id)}
+          onclick={() => removeToast(id)}
         >
           ×
         </button>

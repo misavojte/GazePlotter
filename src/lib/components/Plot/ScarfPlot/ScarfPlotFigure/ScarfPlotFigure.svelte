@@ -1,3 +1,4 @@
+<!-- @migration-task Error while migrating Svelte code: Can't migrate code with afterUpdate. Please migrate by hand. -->
 <script lang="ts">
   import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType'
   import type { ScarfGridType } from '$lib/type/gridType'

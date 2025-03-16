@@ -5,7 +5,7 @@
   import { addSuccessToast } from '$lib/stores/toastStore'
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
 
-  $: isDisabled = $processingFileStateStore === 'processing'
+  let isDisabled = $derived($processingFileStateStore === 'processing')
 
   const handleClick = async () => {
     data.set(demoData)

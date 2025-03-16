@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { run } from 'svelte/legacy';
+
   import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
   import GeneralSelectBase from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
@@ -17,9 +19,13 @@
   import type { GridStoreType } from '$lib/stores/gridStore'
   import { get } from 'svelte/store'
 
-  export let selectedStimulus = '0'
-  export let userSelected = 'this'
-  export let gridStore: GridStoreType
+  interface Props {
+    selectedStimulus?: string;
+    userSelected?: string;
+    gridStore: GridStoreType;
+  }
+
+  let { selectedStimulus = $bindable('0'), userSelected = $bindable('this'), gridStore }: Props = $props();
 
   // Pure functions for AOI manipulation
   const isValidMatch = (displayedName: string): boolean =>
@@ -138,18 +144,18 @@
   }
 
   // Reactive declarations
-  let aoiObjects: ExtendedInterpretedDataType[] = []
+  let aoiObjects: ExtendedInterpretedDataType[] = $state([])
 
-  $: {
+  run(() => {
     aoiObjects = getAois(parseInt(selectedStimulus))
-  }
+  });
 
-  $: {
+  run(() => {
     const reorderedResult = reorderAois([...aoiObjects])
     if (JSON.stringify(reorderedResult) !== JSON.stringify(aoiObjects)) {
       aoiObjects = reorderedResult
     }
-  }
+  });
 
   // Event handlers
   const handleObjectPositionUp = (aoi: ExtendedInterpretedDataType) => {

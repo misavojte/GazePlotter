@@ -1,4 +1,4 @@
-<script context="module" lang="ts">
+<script module lang="ts">
   import GeneralInputNumber from './GeneralInputNumber.svelte'
 
   export const meta = {
@@ -15,8 +15,10 @@
   import { Story, Template } from '@storybook/addon-svelte-csf'
 </script>
 
-<Template let:args>
-  <GeneralInputNumber {...args} />
+<Template >
+  {#snippet children({ args })}
+    <GeneralInputNumber {...args} />
+  {/snippet}
 </Template>
 
 <Story name="Default" />
