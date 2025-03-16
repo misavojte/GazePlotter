@@ -14,7 +14,7 @@
 
   const dispatch = createEventDispatcher<{
     click: { action: string }
-  }>()
+  }>()  
 
   function handleClick() {
     if (!disabled && !useAction) {
