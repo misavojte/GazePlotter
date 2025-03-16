@@ -17,12 +17,6 @@
     type GridItemPosition,
     type GridConfig,
   } from '$lib/stores/gridStore'
-  import AOITransitionMatrixPlot from '$lib/components/Plot/AOITransitionMatrixPlot/AOITransitionMatrixPlot.svelte'
-  import AOITransitionMatrixHeader from '$lib/components/Plot/AOITransitionMatrixPlot/AOITransitionMatrixHeader/AOITransitionMatrixHeader.svelte'
-  import {
-    getTransitionMatrixHeight,
-    getTransitionMatrixWidth,
-  } from '$lib/utils/aoiTransitionMatrixTransformations'
 
   // ---------------------------------------------------
   // State tracking
@@ -77,20 +71,6 @@
       getDefaultHeight: (stimulusId = 0) =>
         getScarfGridHeightFromCurrentData(stimulusId, false, -1),
       getDefaultWidth: (stimulusId = 0) => 20,
-    },
-    aoiTransitionMatrix: {
-      name: 'AOI Transition Matrix',
-      component: AOITransitionMatrixPlot,
-      getDefaultConfig: (
-        params?: { stimulusId?: number; groupId?: number } = {}
-      ) => ({
-        stimulusId: params.stimulusId ?? 0,
-        groupId: params.groupId ?? -1,
-        min: { w: 4, h: 4 },
-      }),
-      getDefaultHeight: (stimulusId = 0) =>
-        getTransitionMatrixHeight(stimulusId),
-      getDefaultWidth: (stimulusId = 0) => getTransitionMatrixWidth(stimulusId),
     },
   }
 
@@ -147,10 +127,6 @@
   const createDefaultGridState = (): AllGridTypes[] => {
     return [
       createGridItem('scarf', {
-        x: 0, // Always start at x=0
-        y: 0,
-      }),
-      createGridItem('aoiTransitionMatrix', {
         x: 0, // Always start at x=0
         y: 0,
       }),
