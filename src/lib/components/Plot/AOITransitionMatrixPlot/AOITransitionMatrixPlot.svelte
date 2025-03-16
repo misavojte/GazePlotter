@@ -20,44 +20,36 @@
   let { settings, settingsChange }: Props = $props()
 
   // Constants for space taken by headers, controls, and padding
-  const HEADER_HEIGHT = 140 // Estimated space for header and controls
+  const HEADER_HEIGHT = 150 // Estimated space for header and controls
   const HORIZONTAL_PADDING = 50 // Horizontal padding inside the container
   const CONTENT_PADDING = 20 // Padding around the plot content
 
   // Visualization settings (now reactive)
-  let width = $state(600)
-  let height = $state(600)
-  let cellSize = $state(60)
-  const colorScale = ['#f7fbff', '#08306b'] // Blue gradient
-  let minThreshold = 0
-
-  // For tracking AOI labels (needed for cell size calculation)
-  let aoiLabels = $state([])
-
-  // Reactive width and height based on grid settings
-  $effect(() => {
-    // Use the utility to calculate available plot dimensions
-    const plotDimensions = calculatePlotDimensionsWithHeader(
+  let plotDimensions = $derived.by(() =>
+    calculatePlotDimensionsWithHeader(
       settings.w,
       settings.h,
       DEFAULT_GRID_CONFIG,
       HEADER_HEIGHT,
-      HORIZONTAL_PADDING,
-      CONTENT_PADDING
+      HORIZONTAL_PADDING
     )
+  )
 
-    // Update width and height
-    width = plotDimensions.width
-    height = plotDimensions.height
+  // For tracking AOI labels (needed for cell size calculation)
+  let aoiLabels = $state([])
 
-    // Update cell size to maintain proportions
+  let cellSize = $derived.by(() => {
     if (aoiLabels.length > 0) {
-      cellSize = Math.min(
-        Math.floor(width / aoiLabels.length),
-        Math.floor(height / aoiLabels.length)
+      return Math.min(
+        Math.floor(plotDimensions.width / aoiLabels.length),
+        Math.floor(plotDimensions.height / aoiLabels.length)
       )
     }
+    return 60
   })
+
+  const colorScale = ['#f7fbff', '#08306b'] // Blue gradient
+  let minThreshold = 0
 
   // Aggregation method selection
   let aggregationMethod = $state(AggregationMethod.SUM)
@@ -91,14 +83,6 @@
       )
 
       aoiLabels = labels
-
-      // Recalculate cell size when labels change
-      if (labels.length > 0) {
-        cellSize = Math.min(
-          Math.floor(width / labels.length),
-          Math.floor(height / labels.length)
-        )
-      }
     }
   })
 </script>
@@ -135,8 +119,8 @@
         <AoiTransitionMatrixPlotFigure
           aoiTransitionMatrix={matrix}
           {aoiLabels}
-          {width}
-          {height}
+          width={plotDimensions.width}
+          height={plotDimensions.height}
           {cellSize}
           {colorScale}
           xLabel="To AOI"

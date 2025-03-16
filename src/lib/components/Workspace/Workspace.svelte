@@ -151,8 +151,10 @@
         y: 0,
       }),
       createGridItem('aoiTransitionMatrix', {
-        x: 14,
+        x: 20,
         y: 0,
+        w: 10,
+        h: 12,
       }),
     ]
   }
@@ -164,12 +166,7 @@
   // Configuration for grid cells - use the default config
   const gridConfig: GridConfig = { ...DEFAULT_GRID_CONFIG };
 
-  const initialItems: AllGridTypes[] = [
-    createGridItem('scarf', {
-      x: 0, // Always start at x=0
-      y: 0,
-    }),
-  ]
+  const initialItems: AllGridTypes[] = createDefaultGridState()
 
   // Create our simplified grid store
   const gridStore = createGridStore(gridConfig, initialItems)
