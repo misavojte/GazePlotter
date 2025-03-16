@@ -657,7 +657,12 @@
   <!-- PlotWrap header -->
   <div class="header">
     {#if draggable}
-      <div class="drag-handle" use:draggable_action={{ enabled: draggable }}>
+      <WorkspaceItemButton
+        tooltip="Drag to move"
+        useAction={true}
+        actionFn={draggable_action}
+        actionParams={{ enabled: draggable }}
+      >
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="16"
@@ -674,7 +679,7 @@
           <circle cx="16" cy="8" r="1.5" />
           <circle cx="16" cy="16" r="1.5" />
         </svg>
-      </div>
+      </WorkspaceItemButton>
       <WorkspaceItemButton
         action="duplicate"
         tooltip="Duplicate item"
@@ -861,24 +866,12 @@
     gap: 5px;
   }
 
-  .drag-handle {
+  /* Apply drag-handle styles to the WorkspaceItemButton used for dragging */
+  :global(.header > .tooltip-wrapper:first-child .workspace-item-button) {
     cursor: grab;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 5px;
-    border-radius: 4px;
-    color: var(--c-darkgrey, #666);
-    background: var(--c-grey);
-    stroke: var(--c-darkgrey);
-    stroke-width: 1px;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    fill: var(--c-grey);
-    transition: all 0.15s ease-out;
   }
 
-  .drag-handle:hover {
+  :global(.header > .tooltip-wrapper:first-child .workspace-item-button:hover) {
     transform: scale(1.1);
     background: var(--c-darkgrey);
     color: var(--c-white);
