@@ -6,15 +6,31 @@
   import ScarfPlotLegend from '$lib/components/Plot/ScarfPlot/ScarfPlotLegend/ScarfPlotLegend.svelte'
   import { generateScarfPlotCSS } from '$lib/utils/scarfPlotTransformations'
   import { addInfoToast } from '$lib/stores/toastStore'
-  import { afterUpdate } from 'svelte'
 
-  export let tooltipAreaElement: HTMLElement
-  export let data: ScarfFillingType
-  export let settings: ScarfGridType
-  export let highlightedIdentifier: string | null = null
+  interface Props {
+    tooltipAreaElement: HTMLElement
+    data: ScarfFillingType
+    settings: ScarfGridType
+    highlightedIdentifier: string | null
+    onLegendClick: (identifier: string) => void
+    onmousemove?: (event: MouseEvent) => void
+    onmouseleave?: (event: MouseEvent) => void
+    onpointerdown?: (event: PointerEvent) => void
+  }
 
-  let fixedHighlight: string | null = null
-  $: usedHighlight = fixedHighlight ?? highlightedIdentifier
+  let {
+    tooltipAreaElement,
+    data,
+    settings,
+    highlightedIdentifier = null,
+    onLegendClick = () => {},
+    onmousemove = () => {},
+    onmouseleave = () => {},
+    onpointerdown = () => {},
+  }: Props = $props()
+
+  let fixedHighlight = $state<string | null>(null)
+  let usedHighlight = $derived(fixedHighlight ?? highlightedIdentifier)
 
   const getTimelineUnit = (settings: ScarfGridType): string => {
     return settings.timeline === 'relative' ? '%' : 'ms'
@@ -30,36 +46,38 @@
     return 100 * 2 ** settings.zoomLevel
   }
 
-  $: xAxisLabel = getXAxisLabel(settings)
-  $: zoomWidth = getZoomWidth(settings)
+  let xAxisLabel = $derived(getXAxisLabel(settings))
+  let zoomWidth = $derived(getZoomWidth(settings))
 
-  const scarfPlotAreaId = `scarf-plot-area-${settings.id}`
+  let scarfPlotAreaId = $derived(`scarf-plot-area-${settings.id}`)
 
-  const handleFixedHighlight = (event: CustomEvent<string>) => {
-    if (fixedHighlight === event.detail) {
+  const handleFixedHighlight = (identifier: string) => {
+    if (fixedHighlight === identifier) {
       fixedHighlight = null
       highlightedIdentifier = null
       return
     }
-    fixedHighlight = event.detail
+    fixedHighlight = identifier
     addInfoToast(`Highlight fixed. Click the same item in the legend to remove`)
   }
 
+  const handleStopPropagation = (event: MouseEvent) => {
+    event.stopPropagation()
+  }
+
   // Create a derived value that changes when any input that would affect the style changes
-  $: styleInputs = {
+  let styleInputs = $derived({
     id: settings.id,
     data: data.stylingAndLegend,
     highlight: usedHighlight,
-  }
+  })
 
-  $: dynamicStyle = generateScarfPlotCSS(
-    scarfPlotAreaId,
-    data.stylingAndLegend,
-    usedHighlight
+  let dynamicStyle = $derived(
+    generateScarfPlotCSS(scarfPlotAreaId, data.stylingAndLegend, usedHighlight)
   )
 
-  // Force CSS update after the component updates
-  afterUpdate(() => {
+  // Replace afterUpdate with $effect
+  $effect(() => {
     // The dynamicStyle is already reactive, but this ensures it's applied
     // after DOM updates when IDs change
     const styleElement = document.querySelector(`#${scarfPlotAreaId} style`)
@@ -69,14 +87,16 @@
         .replace('</style>', '')
     }
   })
+
+  // Handle legend identifier click - ensure proper function passing
+  const handleLegendIdentifier = (identifier: string) => {
+    // Handle both local fixed highlight and external app state
+    handleFixedHighlight(identifier)
+    onLegendClick(identifier)
+  }
 </script>
 
-<figure
-  class="tooltip-area"
-  on:mousemove
-  on:mouseleave
-  on:pointerdown|stopPropagation
->
+<figure class="tooltip-area" {onmousemove} {onmouseleave} {onpointerdown}>
   <!-- scarf plot id is used to identify the plot by other components (e.g. for download) -->
   <div class="chartwrap" id={scarfPlotAreaId} bind:this={tooltipAreaElement}>
     {#key styleInputs}
@@ -170,7 +190,7 @@
     <div class="chxlab">{xAxisLabel}</div>
     <ScarfPlotLegend
       filling={data.stylingAndLegend}
-      on:legendIdentifier={handleFixedHighlight}
+      onlegendIdentifier={handleLegendIdentifier}
     />
   </div>
 </figure>

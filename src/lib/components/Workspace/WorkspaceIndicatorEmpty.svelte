@@ -49,8 +49,7 @@
       reload the views, upload new data, or explore our sample data.
     </p>
     <div class="actions">
-      <GeneralButtonMajor on:click={reloadViews}
-        >Reload Views</GeneralButtonMajor
+      <GeneralButtonMajor onclick={reloadViews}>Reload Views</GeneralButtonMajor
       >
       <PanelButtonUpload />
       <PanelButtonDemo />

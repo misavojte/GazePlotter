@@ -4,7 +4,7 @@
   interface Props {
     legend: SingleStylingScarfFillingType
     isVisibility?: boolean
-    onlegendIdentifier?: (event: CustomEvent) => void
+    onlegendIdentifier?: (identifier: string) => void
   }
 
   let {
@@ -14,9 +14,11 @@
   }: Props = $props()
 
   const handleClick = () => {
-    onlegendIdentifier(
-      new CustomEvent('legendIdentifier', { detail: legend.identifier })
-    )
+    if (typeof onlegendIdentifier === 'function') {
+      onlegendIdentifier(legend.identifier)
+    } else {
+      console.warn('onlegendIdentifier is not a function', onlegendIdentifier)
+    }
   }
 
   // display legend name is max 13 characters, if it is longer, it will be cut and '...' will be added

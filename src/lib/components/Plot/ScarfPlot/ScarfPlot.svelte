@@ -129,12 +129,10 @@
     tooltipScarfService(filling)
   }
 
-  const processLegendItem = (legendItem: Element) => {
-    const type = legendItem.classList[1]
-    if (!type) return cancelInteractivity()
-    if (highlightedType === type) return
+  const handleLegendClick = (identifier: string) => {
+    if (highlightedType === identifier) return
     cancelTooltipInstantly()
-    highlightedType = type
+    highlightedType = identifier
   }
 
   const decideInteractivity = (event: MouseEvent) => {
@@ -143,8 +141,7 @@
     if (gElement) return processGElement(gElement, event)
     const tooltip = target.closest('aside')
     if (tooltip) return cancelHighlightKeepTooltip()
-    const legendItem = target.closest('.legendItem')
-    if (legendItem) return processLegendItem(legendItem)
+    // We no longer need to handle legend item clicks here as they're handled directly
     cancelInteractivity()
   }
 
@@ -166,8 +163,8 @@
       tooltipAreaElement={tooltipArea}
       data={scarfData}
       {settings}
-      axisBreaks={absoluteTimeline}
       highlightedIdentifier={highlightedType}
+      onLegendClick={handleLegendClick}
     />
   </div>
 </div>

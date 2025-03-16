@@ -4,23 +4,18 @@
   import GeneralButtonMinor from '$lib/components/General/GeneralButton/GeneralButtonMinor.svelte'
 
   interface Props {
-    onMoveUp: () => void;
-    onMoveDown: () => void;
-    isFirst: boolean;
-    isLast: boolean;
+    onMoveUp: () => void
+    onMoveDown: () => void
+    isFirst: boolean
+    isLast: boolean
   }
 
-  let {
-    onMoveUp,
-    onMoveDown,
-    isFirst,
-    isLast
-  }: Props = $props();
+  let { onMoveUp, onMoveDown, isFirst, isLast }: Props = $props()
 </script>
 
-<GeneralButtonMinor isDisabled={isFirst} on:click={onMoveUp}>
+<GeneralButtonMinor isDisabled={isFirst} onclick={onMoveUp}>
   <ArrowUp size={'1em'} />
 </GeneralButtonMinor>
-<GeneralButtonMinor isDisabled={isLast} on:click={onMoveDown}>
+<GeneralButtonMinor isDisabled={isLast} onclick={onMoveDown}>
   <ArrowDown size={'1em'} />
 </GeneralButtonMinor>
