@@ -9,20 +9,12 @@
   let {
     options,
     legend,
-    userSelected = options[0]?.value || '',
+    userSelected = $bindable(options[0].value),
     onchange = () => {},
   }: Props = $props()
 
-  // Use state instead of bindable
-  let selectedValue = $state(userSelected)
-
-  // Update selectedValue when props value changes
-  $effect(() => {
-    selectedValue = userSelected
-  })
-
   function handleChange(newValue: string) {
-    selectedValue = newValue
+    userSelected = newValue
 
     // Call the onchange callback with the new value directly
     if (typeof onchange === 'function') {
@@ -50,7 +42,7 @@
       id="{slugify(label)}-{uniqueID}"
       name={`group-${uniqueID}`}
       {value}
-      checked={selectedValue === value}
+      checked={userSelected === value}
       onchange={() => handleChange(value)}
     />
     <label for="{slugify(label)}-{uniqueID}"> {label} </label>

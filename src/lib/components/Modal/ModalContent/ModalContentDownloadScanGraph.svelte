@@ -27,7 +27,7 @@
 <GeneralSelectBase label="Stimulus" {options} bind:value={stimulusId} />
 <GeneralInputText label="File name" bind:value={fileName} />
 <div class="mt-30">
-  <MajorButton on:click={handleSubmit}>Download</MajorButton>
+  <MajorButton onclick={handleSubmit}>Download</MajorButton>
 </div>
 
 <style>

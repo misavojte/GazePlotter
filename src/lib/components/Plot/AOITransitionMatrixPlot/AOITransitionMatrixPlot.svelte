@@ -57,6 +57,10 @@
     { value: AggregationMethod.SUM, label: 'Transition Count' },
     { value: AggregationMethod.PROBABILITY, label: 'Transition Probability' },
     { value: AggregationMethod.DWELL_TIME, label: 'Avg Dwell Time' },
+    {
+      value: AggregationMethod.SEGMENT_DWELL_TIME,
+      label: 'Segment Dwell Time',
+    },
   ]
 
   function handleSettingsChange(
@@ -101,9 +105,11 @@
       case AggregationMethod.SUM:
         return 'Transition Count'
       case AggregationMethod.PROBABILITY:
-        return 'Transition Probability'
+        return 'Transition Probability (%)'
       case AggregationMethod.DWELL_TIME:
         return 'Dwell Time (ms)'
+      case AggregationMethod.SEGMENT_DWELL_TIME:
+        return 'Segment Dwell Time (ms)'
       default:
         return 'Transition Value'
     }

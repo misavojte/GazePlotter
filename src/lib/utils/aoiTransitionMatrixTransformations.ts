@@ -25,6 +25,7 @@ export enum AggregationMethod {
   SUM = 'sum',
   PROBABILITY = 'probability',
   DWELL_TIME = 'dwellTime',
+  SEGMENT_DWELL_TIME = 'segmentDwellTime',
 }
 
 /**
@@ -52,6 +53,10 @@ export function calculateTransitionMatrix(
   console.log(
     `Starting transition matrix calculation for stimulusId=${stimulusId}, groupId=${groupId}`
   )
+
+  if (aggregationMethod === AggregationMethod.SEGMENT_DWELL_TIME) {
+    return calculateSegmentDwellTimeMatrix(stimulusId, groupId)
+  }
 
   // Get participants for the selected group and stimulus
   const participants = getParticipants(groupId, stimulusId)
@@ -292,7 +297,8 @@ function calculateTransitionProbabilityMatrix(matrix: number[][]): number[][] {
 
     // Calculate the probability for each transition
     for (let j = 0; j < matrix[i].length; j++) {
-      result[i][j] = matrix[i][j] / rowSum
+      // Convert to percentage
+      result[i][j] = ((matrix[i][j] / rowSum) * 100).toFixed(1)
     }
   }
 
@@ -338,7 +344,9 @@ function calculateDwellTimeMatrix(
         dwellTimeData[i][j] &&
         dwellTimeData[i][j].count > 0
       ) {
-        result[i][j] = dwellTimeData[i][j].totalTime / dwellTimeData[i][j].count
+        result[i][j] = (
+          dwellTimeData[i][j].totalTime / dwellTimeData[i][j].count
+        ).toFixed(1)
       }
     }
   }
@@ -370,4 +378,149 @@ export function normalizeTransitionMatrix(matrix: number[][]): number[][] {
   if (total === 0) return matrix.map(row => [...row])
 
   return matrix.map(row => row.map(value => (value / total) * 100))
+}
+
+/**
+ * Calculate segment-based dwell time transition matrix
+ *
+ * This function analyzes consecutive fixations within the same AOI(s) to calculate
+ * average dwell time for segments before transitions.
+ *
+ * @param stimulusId ID of the stimulus to analyze
+ * @param groupId ID of the participant group (-1 for all participants)
+ * @returns Object containing the segment dwell time matrix, AOI labels, and AOI list
+ */
+export function calculateSegmentDwellTimeMatrix(
+  stimulusId: number,
+  groupId: number
+): AoiTransitionMatrixData {
+  // Get participants for the selected group and stimulus
+  const participants = getParticipants(groupId, stimulusId)
+  const participantIds = participants.map(participant => participant.id)
+
+  // Get AOIs for the current stimulus
+  const aoiList = getAois(stimulusId)
+
+  // Add "NO AOI" as the last item
+  const aoiLabels = [...aoiList.map(aoi => aoi.displayedName), 'NO AOI']
+
+  // Matrix size including the "NO AOI" category
+  const matrixSize = aoiList.length + 1
+  const outsideAoiIndex = aoiList.length // Index for "NO AOI"
+
+  if (participantIds.length === 0) {
+    const emptyMatrix = Array(matrixSize)
+      .fill(0)
+      .map(() => Array(matrixSize).fill(0))
+    return { matrix: emptyMatrix, aoiLabels, aoiList }
+  }
+
+  // Data structure for segment dwell time tracking
+  const segmentDwellTimeData: {
+    [fromIdx: number]: {
+      [toIdx: number]: { totalTime: number; count: number }
+    }
+  } = {}
+
+  // Process each participant's data
+  for (const participantId of participantIds) {
+    const segmentCount = getNumberOfSegments(stimulusId, participantId)
+
+    // Skip if no segments or only one segment
+    if (segmentCount <= 1) continue
+
+    // For segment-based dwell time tracking
+    let currentAoiIndices: number[] = []
+    let segmentStartTime = 0
+    let isTrackingSegment = false
+
+    // Process fixation segments
+    for (let i = 0; i < segmentCount; i++) {
+      const currentSegment = getSegment(stimulusId, participantId, i)
+
+      // Only consider fixations (category.id === 0)
+      if (currentSegment.category.id !== 0) continue
+
+      // Get current AOI indices
+      const aoiIndices: number[] = []
+      if (currentSegment.aoi.length === 0) {
+        aoiIndices.push(outsideAoiIndex)
+      } else {
+        for (const aoi of currentSegment.aoi) {
+          const index = aoiList.findIndex(a => a.id === aoi.id)
+          if (index !== -1) {
+            aoiIndices.push(index)
+          }
+        }
+      }
+
+      // If we haven't started tracking a segment yet
+      if (!isTrackingSegment) {
+        currentAoiIndices = [...aoiIndices]
+        segmentStartTime = currentSegment.start
+        isTrackingSegment = true
+      }
+      // If AOIs changed, record the segment and start a new one
+      else if (!arraysHaveSameElements(currentAoiIndices, aoiIndices)) {
+        const segmentDuration = currentSegment.start - segmentStartTime
+
+        // Record segment dwell time for each transition
+        for (const fromIdx of currentAoiIndices) {
+          for (const toIdx of aoiIndices) {
+            // Initialize nested objects if they don't exist
+            if (!segmentDwellTimeData[fromIdx])
+              segmentDwellTimeData[fromIdx] = {}
+            if (!segmentDwellTimeData[fromIdx][toIdx]) {
+              segmentDwellTimeData[fromIdx][toIdx] = { totalTime: 0, count: 0 }
+            }
+
+            // Add this segment's duration to the total
+            segmentDwellTimeData[fromIdx][toIdx].totalTime += segmentDuration
+            segmentDwellTimeData[fromIdx][toIdx].count++
+          }
+        }
+
+        // Start new segment
+        currentAoiIndices = [...aoiIndices]
+        segmentStartTime = currentSegment.start
+      }
+      // If same AOI, continue the current segment
+    }
+  }
+
+  // Initialize result matrix with zeros
+  const resultMatrix = Array(matrixSize)
+    .fill(0)
+    .map(() => Array(matrixSize).fill(0))
+
+  // Calculate average dwell time for each transition
+  for (let i = 0; i < matrixSize; i++) {
+    for (let j = 0; j < matrixSize; j++) {
+      if (
+        segmentDwellTimeData[i] &&
+        segmentDwellTimeData[i][j] &&
+        segmentDwellTimeData[i][j].count > 0
+      ) {
+        resultMatrix[i][j] = (
+          segmentDwellTimeData[i][j].totalTime /
+          segmentDwellTimeData[i][j].count
+        ).toFixed(1)
+      }
+    }
+  }
+
+  return { matrix: resultMatrix, aoiLabels, aoiList }
+}
+
+/**
+ * Helper function to check if two arrays have the same elements (order doesn't matter)
+ * Used for comparing AOI indices for segment-based dwell time
+ */
+function arraysHaveSameElements(arr1: number[], arr2: number[]): boolean {
+  if (arr1.length !== arr2.length) return false
+
+  const sortedArr1 = [...arr1].sort()
+  const sortedArr2 = [...arr2].sort()
+
+  return sortedArr1.every((val, idx) => val === sortedArr2[idx])
 }

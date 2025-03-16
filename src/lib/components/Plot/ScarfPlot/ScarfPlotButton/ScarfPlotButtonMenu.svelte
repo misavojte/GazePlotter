@@ -55,7 +55,7 @@
 
   const openAoiVisibilityModal = () => {
     modalStore.open(ModalContentAoiVisibility, 'AOI visibility', {
-      gridStore: store,
+      settingsChange,
     })
   }
 

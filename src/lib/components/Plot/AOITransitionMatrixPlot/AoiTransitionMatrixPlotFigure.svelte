@@ -327,11 +327,7 @@
             font-size="10"
             fill={getContrastTextColor(getCellColor(cell))}
           >
-            {#if legendTitle === 'Transition Probability'}
-              {cell.toFixed(2)}
-            {:else}
-              {cell.toFixed(0)}
-            {/if}
+            {cell}
           </text>
         {/if}
       {/each}

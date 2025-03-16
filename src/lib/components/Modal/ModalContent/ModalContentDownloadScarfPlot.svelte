@@ -8,10 +8,10 @@
   import { addErrorToast } from '$lib/stores/toastStore'
 
   interface Props {
-    settings: ScarfGridType;
+    settings: ScarfGridType
   }
 
-  let { settings }: Props = $props();
+  let { settings }: Props = $props()
 
   type fileType = '.svg' | '.png' | '.jpg' | '.webp'
 
@@ -49,4 +49,4 @@
   bind:value={typeOfExport}
 />
 <GeneralInputText label="Output file name" bind:value={fileName} />
-<MajorButton on:click={handleSubmit}>Download</MajorButton>
+<MajorButton onclick={handleSubmit}>Download</MajorButton>
