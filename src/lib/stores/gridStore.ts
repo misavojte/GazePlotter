@@ -123,8 +123,7 @@ export function createGridStore(
     return collisionIds
   }
 
-  // Resolve collisions with a smarter algorithm
-  // This tries to minimize total displacement
+  // Enhanced resolveCollisions function to be more careful with vertical space
   function resolveCollisions(
     collisionSet: Set<number>,
     newItem: { x: number; y: number; w: number; h: number; id?: number }

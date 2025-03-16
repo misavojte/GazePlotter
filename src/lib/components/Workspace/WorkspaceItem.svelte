@@ -24,7 +24,9 @@
   let isDragging = false
   let isResizing = false
   let dragPosition = { x: 0, y: 0 }
+  let resizePosition = { w: 0, h: 0 }
   let showDragPlaceholder = false
+  let showResizePlaceholder = false
 
   let bodyNode: HTMLElement
   let placeholderNode: HTMLElement
@@ -118,7 +120,13 @@
     width: ${itemWidth}px;
     height: ${itemHeight}px;
   `
-    : ''
+    : showResizePlaceholder
+      ? `
+    transform: translate(${itemX}px, ${itemY}px);
+    width: ${resizePosition.w * cellSize.width + (resizePosition.w - 1) * gap}px;
+    height: ${resizePosition.h * cellSize.height + (resizePosition.h - 1) * gap}px;
+  `
+      : ''
 
   // Svelte action for handling drag functionality
   function draggable_action(node: HTMLElement, options: { enabled: boolean }) {
@@ -485,6 +493,15 @@
       lastW = w
       lastH = h
 
+      // Initialize resize placeholder with current dimensions
+      resizePosition = { w, h }
+      showResizePlaceholder = true
+
+      // Add semi-transparent highlight to the stationary item
+      if (itemNode) {
+        itemNode.classList.add('is-being-resized')
+      }
+
       // Store initial scroll positions - both workspace and window
       startScrollX = workspaceElement ? workspaceElement.scrollLeft : 0
       startScrollY = workspaceElement ? workspaceElement.scrollTop : 0
@@ -546,18 +563,24 @@
       const newH = Math.max(minH, startH + gridDeltaH)
 
       // Only update if size changed AND exceeds minimum dimensions
-      // This prevents the jittery behavior when trying to resize below minimum
       if ((newW !== lastW || newH !== lastH) && newW >= minW && newH >= minH) {
-        // Update local variables
+        // Update local variables for tracking
         lastW = newW
         lastH = newH
 
-        // Only update the actual display variables if we're not below minimum
-        w = newW
-        h = newH
+        // Update placeholder dimensions
+        resizePosition = { w: newW, h: newH }
 
-        // Dispatch resize event to parent components
-        dispatch('resize', { id, x, y, w: newW, h: newH })
+        // Dispatch preview resize event instead of actual resize
+        dispatch('previewresize', {
+          id,
+          x,
+          y,
+          w: newW,
+          h: newH,
+          currentW: w,
+          currentH: h,
+        })
 
         // Also dispatch height update event to ensure workspace extends during resize
         dispatch('drag-height-update', {
@@ -572,8 +595,31 @@
     function handleMouseUp() {
       if (!isResizing) return
 
+      // Clean up visual effects
+      showResizePlaceholder = false
+
+      if (itemNode) {
+        itemNode.classList.remove('is-being-resized')
+      }
+
+      // Only update the actual size at the end of resize
+      dispatch('resize', {
+        id,
+        x,
+        y,
+        w: resizePosition.w,
+        h: resizePosition.h,
+      })
+
       // Dispatch resize end event
-      dispatch('resizeend', { id, x, y, w, h })
+      dispatch('resizeend', {
+        id,
+        x,
+        y,
+        w: resizePosition.w,
+        h: resizePosition.h,
+        resizeComplete: true,
+      })
 
       // Reset state
       isResizing = false
@@ -623,6 +669,15 @@
       w: number
       h: number
     }
+    previewresize: {
+      id: number
+      x: number
+      y: number
+      w: number
+      h: number
+      currentW: number
+      currentH: number
+    }
     resize: { id: number; x: number; y: number; w: number; h: number }
     dragstart: { id: number; x: number; y: number; w: number; h: number }
     dragend: {
@@ -634,7 +689,14 @@
       dragComplete: boolean
     }
     resizestart: { id: number; x: number; y: number; w: number; h: number }
-    resizeend: { id: number; x: number; y: number; w: number; h: number }
+    resizeend: {
+      id: number
+      x: number
+      y: number
+      w: number
+      h: number
+      resizeComplete: boolean
+    }
     contextmenu: MouseEvent
     'drag-height-update': {
       id: number
@@ -753,11 +815,12 @@
   {/if}
 </div>
 
-<!-- Lightweight placeholder that moves during drag -->
-{#if showDragPlaceholder}
+<!-- Lightweight placeholder that moves during drag or resize -->
+{#if showDragPlaceholder || showResizePlaceholder}
   <div
     class="grid-item placeholder"
     class:dragging={isDragging}
+    class:resizing={isResizing}
     style={placeholderStyle}
     data-id={`placeholder-${id}`}
     transition:fade={{ duration: 100 }}
@@ -783,8 +846,9 @@
     user-select: none;
   }
 
-  /* Styles for the actual item that's being dragged */
-  .grid-item.is-being-dragged {
+  /* Styles for the actual item that's being dragged or resized */
+  .grid-item.is-being-dragged,
+  .grid-item.is-being-resized {
     z-index: 5;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
     opacity: 0.3;
@@ -809,8 +873,9 @@
       height 0.15s ease-out;
   }
 
-  /* Enhance the placeholder during active dragging */
-  .grid-item.placeholder.dragging {
+  /* Enhance the placeholder during active dragging or resizing */
+  .grid-item.placeholder.dragging,
+  .grid-item.placeholder.resizing {
     animation: pulse 2s infinite ease-in-out;
   }
 
