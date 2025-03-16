@@ -431,8 +431,7 @@
         bottomEdge: newY + h
       })
       
-      // Update regular position for tracking
-      onmove({ id, x: newX, y: newY, w, h })
+      // Don't call onmove during drag - only on drag end
     }
 
     function handleMouseUp() {
@@ -636,8 +635,7 @@
           bottomEdge: y + newH
         })
         
-        // Update regular position for tracking
-        onmove({ id, x, y, w: newW, h: newH })
+        // Don't call onmove during resize - only on resize end
       }
     }
 
