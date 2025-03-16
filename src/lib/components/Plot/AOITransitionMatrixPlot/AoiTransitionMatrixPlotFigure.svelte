@@ -221,7 +221,7 @@
   // Get max value for legend
   const maxValue = $derived.by(() => {
     const flatMatrix = aoiTransitionMatrix.flat()
-    return flatMatrix.length > 0 ? Math.max(...flatMatrix) : 0
+    return flatMatrix.length > 0 ? Math.ceil(Math.max(...flatMatrix)) : 0
   })
 </script>
 
@@ -292,7 +292,11 @@
             font-size="10"
             fill={getContrastTextColor(getCellColor(cell))}
           >
-            {cell}
+            {#if legendTitle === 'Transition Average'}
+              {cell.toFixed(2)}
+            {:else}
+              {cell.toFixed(0)}
+            {/if}
           </text>
         {/if}
       {/each}

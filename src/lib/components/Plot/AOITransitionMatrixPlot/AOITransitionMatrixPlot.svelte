@@ -6,9 +6,9 @@
     AggregationMethod,
   } from '$lib/utils/aoiTransitionMatrixTransformations'
   import type { AOITransitionMatrixGridType } from '$lib/type/gridType'
-  import ScarfPlotSelectStimulus from '../ScarfPlot/ScarfPlotSelect/ScarfPlotSelectStimulus.svelte'
-  import ScarfPlotSelectGroup from '../ScarfPlot/ScarfPlotSelect/ScarfPlotSelectGroup.svelte'
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
+  import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
+  import { calculatePlotDimensionsWithHeader } from '$lib/utils/plotSizeUtility'
   import AoiTransitionMatrixSelectStimulus from './AoiTransitionMatrixSelectStimulus.svelte'
   import AoiTransitionMatrixSelectGroup from './AoiTransitionMatrixSelectGroup.svelte'
 
@@ -19,12 +19,45 @@
 
   let { settings, settingsChange }: Props = $props()
 
-  // Visualization settings
-  const width = 600
-  const height = 600
-  const cellSize = 60
+  // Constants for space taken by headers, controls, and padding
+  const HEADER_HEIGHT = 140 // Estimated space for header and controls
+  const HORIZONTAL_PADDING = 50 // Horizontal padding inside the container
+  const CONTENT_PADDING = 20 // Padding around the plot content
+
+  // Visualization settings (now reactive)
+  let width = $state(600)
+  let height = $state(600)
+  let cellSize = $state(60)
   const colorScale = ['#f7fbff', '#08306b'] // Blue gradient
   let minThreshold = 0
+
+  // For tracking AOI labels (needed for cell size calculation)
+  let aoiLabels = $state([])
+
+  // Reactive width and height based on grid settings
+  $effect(() => {
+    // Use the utility to calculate available plot dimensions
+    const plotDimensions = calculatePlotDimensionsWithHeader(
+      settings.w,
+      settings.h,
+      DEFAULT_GRID_CONFIG,
+      HEADER_HEIGHT,
+      HORIZONTAL_PADDING,
+      CONTENT_PADDING
+    )
+
+    // Update width and height
+    width = plotDimensions.width
+    height = plotDimensions.height
+
+    // Update cell size to maintain proportions
+    if (aoiLabels.length > 0) {
+      cellSize = Math.min(
+        Math.floor(width / aoiLabels.length),
+        Math.floor(height / aoiLabels.length)
+      )
+    }
+  })
 
   // Aggregation method selection
   let aggregationMethod = $state(AggregationMethod.SUM)
@@ -48,9 +81,25 @@
     aggregationMethod = event.detail as AggregationMethod
   }
 
-  // Calculate matrix based on current settings
+  // Update AOI labels when data changes
   $effect(() => {
-    // This will re-run when settings change
+    if (settings?.stimulusId !== undefined) {
+      const { aoiLabels: labels } = calculateTransitionMatrix(
+        settings.stimulusId,
+        settings.groupId,
+        aggregationMethod
+      )
+
+      aoiLabels = labels
+
+      // Recalculate cell size when labels change
+      if (labels.length > 0) {
+        cellSize = Math.min(
+          Math.floor(width / labels.length),
+          Math.floor(height / labels.length)
+        )
+      }
+    }
   })
 </script>
 
@@ -75,48 +124,42 @@
     </div>
   </div>
 
-  <div class="matrix-content">
-    {#if settings?.stimulusId !== undefined}
-      {#key `${settings.stimulusId}-${settings.groupId}-${aggregationMethod}`}
-        {@const { matrix, aoiLabels } = calculateTransitionMatrix(
-          settings.stimulusId,
-          settings.groupId,
-          aggregationMethod
-        )}
-        {#if aoiLabels.length > 0}
-          <div class="matrix-wrapper">
-            <AoiTransitionMatrixPlotFigure
-              aoiTransitionMatrix={matrix}
-              {aoiLabels}
-              {width}
-              {height}
-              {cellSize}
-              {colorScale}
-              xLabel="To AOI"
-              yLabel="From AOI"
-              legendTitle={`Transition ${
-                aggregationMethod === AggregationMethod.SUM
-                  ? 'Count'
-                  : aggregationMethod === AggregationMethod.AVERAGE
-                    ? 'Average'
-                    : 'Median'
-              }`}
-              {minThreshold}
-              onThresholdChange={handleThresholdChange}
-            />
-          </div>
-        {:else}
-          <div class="no-data">
-            No AOI data available for the selected stimulus.
-          </div>
-        {/if}
-      {/key}
-    {:else}
-      <div class="no-data">
-        Please select a stimulus to view transition data.
-      </div>
-    {/if}
-  </div>
+  {#if settings?.stimulusId !== undefined}
+    {#key `${settings.stimulusId}-${settings.groupId}-${aggregationMethod}`}
+      {@const { matrix, aoiLabels } = calculateTransitionMatrix(
+        settings.stimulusId,
+        settings.groupId,
+        aggregationMethod
+      )}
+      {#if aoiLabels.length > 0}
+        <AoiTransitionMatrixPlotFigure
+          aoiTransitionMatrix={matrix}
+          {aoiLabels}
+          {width}
+          {height}
+          {cellSize}
+          {colorScale}
+          xLabel="To AOI"
+          yLabel="From AOI"
+          legendTitle={`Transition ${
+            aggregationMethod === AggregationMethod.SUM
+              ? 'Count'
+              : aggregationMethod === AggregationMethod.AVERAGE
+                ? 'Average'
+                : 'Median'
+          }`}
+          {minThreshold}
+          onThresholdChange={handleThresholdChange}
+        />
+      {:else}
+        <div class="no-data">
+          No AOI data available for the selected stimulus.
+        </div>
+      {/if}
+    {/key}
+  {:else}
+    <div class="no-data">Please select a stimulus to view transition data.</div>
+  {/if}
 </div>
 
 <style>
@@ -138,19 +181,6 @@
     gap: 5px;
     flex-wrap: wrap;
     background: inherit;
-  }
-
-  .aggregation-control {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    margin-left: 10px;
-  }
-
-  .aggregation-control select {
-    padding: 2px 5px;
-    border-radius: 3px;
-    border: 1px solid var(--c-lightgrey);
   }
 
   .matrix-content {

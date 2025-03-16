@@ -22,6 +22,9 @@
     onThresholdChange?: (threshold: number) => void
   }>()
 
+  // Ensure maxValue is always a whole number (rounded up)
+  maxValue = Math.ceil(maxValue)
+
   let minThreshold = $state(0)
 
   // Constants for legend based on the width - adaptive constants based on available space
@@ -46,10 +49,12 @@
   let sliderTrackEl: SVGRectElement
   let sliderHandleEl: SVGGElement
 
-  // Generate color gradient steps
-  const gradientColors = $derived.by(() =>
-    createColorGradient(colorScale[0], colorScale[1], STEPS)
-  )
+  // Generate a unique ID for the gradient
+  const gradientId = `gradient-${Math.random().toString(36).substring(2, 11)}`
+  const inactiveGradientId = `inactive-gradient-${Math.random().toString(36).substring(2, 11)}`
+
+  // No longer need to create gradient steps as SVG will handle interpolation
+  // Color gradient background will be defined in the defs section
 
   // Calculate the normalized threshold position
   const thresholdPosition = $derived.by(() => {
@@ -244,9 +249,9 @@
   {width}
   {height}
   overflow="visible"
-  on:mousemove={handleMouseMove}
-  on:mouseup={handleMouseUp}
-  on:mouseleave={handleMouseUp}
+  onmousemove={handleMouseMove}
+  onmouseup={handleMouseUp}
+  onmouseleave={handleMouseUp}
   aria-label="Threshold slider for filtering values"
 >
   <!-- Title -->
@@ -273,32 +278,30 @@
     stroke-width="1"
   />
 
-  <!-- Active track portion (left of handle) -->
-  <rect
-    x={LEGEND_MARGIN}
-    y={20}
-    width={thresholdPosition}
-    height={LEGEND_HEIGHT}
-    rx={LEGEND_HEIGHT / 2}
-    ry={LEGEND_HEIGHT / 2}
-    fill={SLIDER_TRACK_ACTIVE_COLOR}
-  />
-
-  <!-- Color gradient with interactive bars -->
+  <!-- Color gradient with overlay approach -->
   <g>
-    {#each gradientColors as color, i}
-      <!-- Add a small overlap to avoid gaps -->
+    <!-- Full gradient background (always present, never changes) -->
+    <rect
+      x={LEGEND_MARGIN}
+      y={20}
+      width={LEGEND_WIDTH}
+      height={LEGEND_HEIGHT}
+      fill={`url(#${gradientId})`}
+      mask="url(#sliderMask)"
+    />
+
+    <!-- Gray overlay covering inactive/filtered part (left of threshold) -->
+    {#if minThreshold > 0}
       <rect
-        x={LEGEND_MARGIN + (i * LEGEND_WIDTH) / STEPS}
+        x={LEGEND_MARGIN}
         y={20}
-        width={LEGEND_WIDTH / STEPS + 0.5}
+        width={thresholdPosition}
         height={LEGEND_HEIGHT}
-        fill={(i * LEGEND_WIDTH) / STEPS < thresholdPosition
-          ? INACTIVE_COLOR
-          : color}
+        fill={INACTIVE_COLOR}
+        opacity="0.9"
         mask="url(#sliderMask)"
       />
-    {/each}
+    {/if}
 
     <!-- Border around gradient -->
     <rect
@@ -335,9 +338,9 @@
     height={LEGEND_HEIGHT + DRAG_AREA_HEIGHT}
     fill="transparent"
     cursor="pointer"
-    on:click={handleTrackClick}
-    on:mouseenter={() => handleSliderHover(true)}
-    on:mouseleave={() => handleSliderHover(false)}
+    onclick={handleTrackClick}
+    onmouseenter={() => handleSliderHover(true)}
+    onmouseleave={() => handleSliderHover(false)}
     aria-hidden="true"
   />
 
@@ -380,13 +383,13 @@
     cursor="grab"
     class:grabbing={isDragging}
     class:focused={isFocused}
-    on:mousedown={handleMouseDown}
-    on:touchstart={handleTouchStart}
-    on:mouseenter={() => handleHandleHover(true)}
-    on:mouseleave={() => handleHandleHover(false)}
-    on:focus={handleFocus}
-    on:blur={handleBlur}
-    on:keydown={handleKeyDown}
+    onmousedown={handleMouseDown}
+    ontouchstart={handleTouchStart}
+    onmouseenter={() => handleHandleHover(true)}
+    onmouseleave={() => handleHandleHover(false)}
+    onfocus={handleFocus}
+    onblur={handleBlur}
+    onkeydown={handleKeyDown}
     tabindex="0"
     role="slider"
     aria-valuemin="0"
@@ -449,7 +452,7 @@
     {/if}
   </g>
 
-  <!-- Definition for the slider mask - helps with smooth rendering -->
+  <!-- Definition for the slider mask and gradients -->
   <defs>
     <mask id="sliderMask">
       <rect
@@ -462,6 +465,18 @@
         ry={LEGEND_HEIGHT / 2}
       />
     </mask>
+
+    <!-- Main color gradient definition -->
+    <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color={colorScale[0]} />
+      <stop offset="100%" stop-color={colorScale[1]} />
+    </linearGradient>
+
+    <!-- Inactive (filtered) gradient definition -->
+    <linearGradient id={inactiveGradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color={INACTIVE_COLOR} />
+      <stop offset="100%" stop-color={INACTIVE_COLOR} />
+    </linearGradient>
   </defs>
 </svg>
 
