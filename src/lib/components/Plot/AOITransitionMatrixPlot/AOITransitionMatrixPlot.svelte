@@ -9,6 +9,9 @@
   import ScarfPlotSelectStimulus from '../ScarfPlot/ScarfPlotSelect/ScarfPlotSelectStimulus.svelte'
   import ScarfPlotSelectGroup from '../ScarfPlot/ScarfPlotSelect/ScarfPlotSelectGroup.svelte'
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
+  import AoiTransitionMatrixSelectStimulus from './AoiTransitionMatrixSelectStimulus.svelte'
+  import AoiTransitionMatrixSelectGroup from './AoiTransitionMatrixSelectGroup.svelte'
+
   interface Props {
     settings: AOITransitionMatrixGridType
     settingsChange: (settings: Partial<AOITransitionMatrixGridType>) => void
@@ -54,11 +57,14 @@
 <div class="aoi-matrix-container">
   <div class="header">
     <div class="controls">
-      <ScarfPlotSelectStimulus
+      <AoiTransitionMatrixSelectStimulus
         {settings}
         settingsChange={handleSettingsChange}
       />
-      <ScarfPlotSelectGroup {settings} settingsChange={handleSettingsChange} />
+      <AoiTransitionMatrixSelectGroup
+        {settings}
+        settingsChange={handleSettingsChange}
+      />
       <Select
         label="Aggregation"
         options={aggregationOptions}

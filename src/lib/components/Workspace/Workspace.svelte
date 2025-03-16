@@ -159,7 +159,7 @@
   const gridConfig: GridConfig = {
     cellSize: { width: 40, height: 40 },
     gap: 10,
-    minWidth: 14,
+    minWidth: 3,
     minHeight: 3,
   }
 
@@ -443,7 +443,7 @@
 
     if (!currentItem) return
 
-    // Enforce minimum dimensions from the item's own min values and global config
+    // Enforce minimum dimensions based on the item's type
     const minWidth = Math.max(
       gridConfig.minWidth,
       currentItem.min?.w || gridConfig.minWidth
