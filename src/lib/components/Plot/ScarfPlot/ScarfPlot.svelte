@@ -51,8 +51,6 @@
     )
   })
 
-  let absoluteTimeline = $derived(scarfData.timeline)
-
   function handleSettingsChange(newSettings: Partial<ScarfGridType>) {
     if (settingsChange) {
       settingsChange(newSettings)

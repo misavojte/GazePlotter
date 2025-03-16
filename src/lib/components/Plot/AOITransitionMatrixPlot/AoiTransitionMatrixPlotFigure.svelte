@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { AOI } from '../types/AOI.js'
   import AoiTransitionMatrixLegend from './AoiTransitionMatrixLegend.svelte'
   import { getColorForValue, getContrastTextColor } from '../utils/colorUtils'
+  import { tooltipStore } from '$lib/stores/tooltipStore'
 
   // SVG layout constants - minimal but not zero to ensure spacing
   const MARGIN = 10
@@ -77,7 +77,7 @@
     // Find the length of the longest label
     const maxLabelLength = Math.min(
       MAX_LABEL_LENGTH,
-      Math.max(...aoiLabels.map(label => label.length))
+      Math.max(...aoiLabels.map((label: string) => label.length))
     )
 
     // Base offset + extra space per character
@@ -87,15 +87,6 @@
   // Additional offsets for axis labels to prevent collisions
   const AXIS_LABEL_MARGIN = 25
   const INDIVIDUAL_LABEL_MARGIN = 10
-
-  // Hover state for tooltip
-  let hoverCell: {
-    row: number
-    col: number
-    value: number
-    x: number
-    y: number
-  } | null = $state(null)
 
   // Throttle mouse events
   let lastMouseMoveTime = $state(0)
@@ -180,22 +171,52 @@
         col >= 0 &&
         col < aoiTransitionMatrix[0].length
       ) {
-        hoverCell = {
-          row,
-          col,
-          value: aoiTransitionMatrix[row][col],
+        // IDEAL X COORDINATE FOR THE TOOLTIP
+        // BASED ON ACTUAL GRID ROW AND COLUMN
+        // WITH RESPECT TO THE DISTANCE OF THE START OF PLOT AREA FROM THE LEFT EDGE OF THE WINDOW
+        // not to the event, but to the start of the plot area
+        const idealX =
+          rect.left + xOffset + col * optimalCellSize + optimalCellSize + 10
+
+        // IDEAL Y COORDINATE FOR THE TOOLTIP
+        // BASED ON ACTUAL GRID ROW AND COLUMN
+        // WITH RESPECT TO THE DISTANCE OF THE START OF PLOT AREA FROM THE TOP EDGE OF THE WINDOW
+        // ADD SCROLL OFFSET
+        const scrollOffset = window.scrollY
+        const idealY =
+          rect.top +
+          yOffset +
+          row * optimalCellSize +
+          optimalCellSize +
+          10 +
+          scrollOffset
+
+        // log the best coordinates for the tooltip in viewport
+        console.log('Best coordinates:', {
           x: event.clientX,
           y: event.clientY,
-        }
+        })
+
+        tooltipStore.set({
+          x: idealX,
+          y: idealY,
+          content: [
+            { key: 'From', value: aoiLabels[row] },
+            { key: 'To', value: aoiLabels[col] },
+            { key: 'Count', value: aoiTransitionMatrix[row][col] },
+          ],
+          visible: true,
+          width: 150,
+        })
+
         return
       }
     }
-
-    hoverCell = null
+    tooltipStore.set(null)
   }
 
   function handleMouseLeave() {
-    hoverCell = null
+    tooltipStore.set(null)
   }
 
   // Calculate color based on value
@@ -341,31 +362,6 @@
       onThresholdChange={handleThresholdChange}
     />
   </svg>
-
-  <!-- Tooltip -->
-  {#if hoverCell}
-    <div style="position: fixed; top: 0; left: 0; pointer-events: none;">
-      <div
-        class="tooltip"
-        style="
-          transform: translate3d({Math.min(
-          hoverCell.x + 15,
-          window.innerWidth - 120
-        )}px, 
-            {Math.min(hoverCell.y + 15, window.innerHeight - 80)}px, 
-            0
-          )
-        "
-      >
-        <div class="tooltip-content">
-          <strong>From: {aoiLabels[hoverCell.row]}</strong><br />
-          <strong>To: {aoiLabels[hoverCell.col]}</strong><br />
-          Count: {hoverCell.value}<br />
-          {hoverCell.value < minThreshold ? '(Filtered out)' : ''}
-        </div>
-      </div>
-    </div>
-  {/if}
 </div>
 
 <style>
@@ -376,14 +372,13 @@
   }
 
   .tooltip {
-    position: fixed;
     pointer-events: none;
-    z-index: 10000;
     background: rgba(255, 255, 255, 0.95);
     border: 1px solid #ccc;
     border-radius: 4px;
     padding: 5px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    max-width: 200px;
   }
 
   .tooltip-content {
