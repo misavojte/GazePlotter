@@ -5,14 +5,6 @@
   import GeneralButtonMajor from '../../General/GeneralButton/GeneralButtonMajor.svelte'
   import { addErrorToast, addSuccessToast } from '$lib/stores/toastStore.js'
   import { processAoiVisibility } from '$lib/services/aoiVisibilityServices'
-  import type { GridStoreType } from '$lib/stores/gridStore'
-  import { get } from 'svelte/store'
-
-  interface Props {
-    gridStore: GridStoreType;
-  }
-
-  let { gridStore }: Props = $props();
 
   let files: FileList | null = $state(null)
   let selectedStimulusId = $state('0')
@@ -43,7 +35,6 @@
         selectedParticipantId === 'all' ? null : parseInt(selectedParticipantId)
       processAoiVisibility(stimulusId, participantId, files).then(() => {
         addSuccessToast('AOI visibility updated')
-        gridStore.set(get(gridStore))
       })
     } catch (e) {
       console.error(e)

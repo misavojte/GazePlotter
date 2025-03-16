@@ -2,15 +2,15 @@
   interface Props {
     isDisabled?: boolean;
     children?: import('svelte').Snippet;
-    onclick?: (event: MouseEvent) => void;
+    onclick: (event: MouseEvent) => void;
   }
 
-  let { isDisabled = false, children, onclick = () => {} }: Props = $props();
+  let { isDisabled = false, children, onclick}: Props = $props();
 </script>
 
 <button 
   disabled={isDisabled} 
-  {onclick}
+  onclick={event => onclick(event)}
 >
   {@render children?.()}
 </button>

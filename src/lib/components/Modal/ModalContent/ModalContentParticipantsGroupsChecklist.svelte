@@ -5,10 +5,11 @@
   import GeneralInputCheck from '$lib/components/General/GeneralInput/GeneralInputCheck.svelte'
 
   interface Props {
-    group: ParticipantsGroup;
+    group: ParticipantsGroup
+    onclick: (event: MouseEvent) => void
   }
 
-  let { group = $bindable() }: Props = $props();
+  let { group = $bindable(), onclick }: Props = $props()
 
   const participants = getParticipants()
 
@@ -48,15 +49,15 @@
       <GeneralInputCheck
         checked={group.participantsIds.includes(participant.id)}
         label={participant.displayedName}
-        on:change={() => toggleParticipant(group, participant.id)}
+        onchange={() => toggleParticipant(group, participant.id)}
       />
     </li>
   {/each}
 </ul>
 <div class="footer">
-  <MajorButton on:click>Return to groups</MajorButton>
-  <MajorButton on:click={selectAll}>Select all</MajorButton>
-  <MajorButton on:click={deselectAll}>Deselect all</MajorButton>
+  <MajorButton onclick={e => onclick(e)}>Return to groups</MajorButton>
+  <MajorButton onclick={e => selectAll(e)}>Select all</MajorButton>
+  <MajorButton onclick={e => deselectAll(e)}>Deselect all</MajorButton>
 </div>
 
 <style>
