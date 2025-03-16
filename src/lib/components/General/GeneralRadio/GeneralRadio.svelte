@@ -2,28 +2,32 @@
   interface Props {
     options: { value: string; label: string }[]
     legend: string
-    value?: string
-    onchange?: (event: CustomEvent) => void
+    userSelected?: string
+    onchange?: (value: string) => void
   }
 
   let {
     options,
     legend,
-    value = options[0]?.value || '',
+    userSelected = options[0]?.value || '',
     onchange = () => {},
   }: Props = $props()
 
   // Use state instead of bindable
-  let selectedValue = $state(value)
+  let selectedValue = $state(userSelected)
 
   // Update selectedValue when props value changes
   $effect(() => {
-    selectedValue = value
+    selectedValue = userSelected
   })
 
   function handleChange(newValue: string) {
     selectedValue = newValue
-    onchange(new CustomEvent('change', { detail: selectedValue }))
+
+    // Call the onchange callback with the new value directly
+    if (typeof onchange === 'function') {
+      onchange(newValue)
+    }
   }
 
   const uniqueID: number = Math.floor(Math.random() * 100)

@@ -19,15 +19,22 @@
   import type { ScarfGridType } from '$lib/type/gridType'
 
   interface Props {
-    settings: ScarfGridType;
-    multipleSettings?: ScarfGridType[];
+    settings: ScarfGridType
+    multipleSettings?: ScarfGridType[]
+    settingsChange?: (newSettings: Partial<ScarfGridType>) => void
   }
 
-  let { settings, multipleSettings = [] }: Props = $props();
+  let {
+    settings,
+    multipleSettings = [],
+    settingsChange = () => {},
+  }: Props = $props()
 
   let isMultiSelection = $derived(multipleSettings.length > 0)
 
-  let effectiveSettings = $derived(isMultiSelection ? multipleSettings : [settings])
+  let effectiveSettings = $derived(
+    isMultiSelection ? multipleSettings : [settings]
+  )
 
   const store = getContext<GridStoreType>('gridStore')
 
@@ -35,6 +42,7 @@
     modalStore.open(ModalContentScarfPlotClip, 'Clip scarf timeline', {
       settings,
       store,
+      settingsChange,
     })
   }
 

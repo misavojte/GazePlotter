@@ -4,7 +4,7 @@
     value?: number
     min?: number
     label: string
-    oninput?: (event: CustomEvent) => void
+    oninput?: (event: Event) => void
   }
 
   let { value = 0, min = 0, label, oninput = () => {} }: Props = $props()
@@ -20,7 +20,11 @@
   function handleInput(event: Event) {
     const target = event.target as HTMLInputElement
     inputValue = target.valueAsNumber
-    oninput(new CustomEvent('input', { detail: inputValue }))
+
+    // Call the oninput callback with the original event
+    if (typeof oninput === 'function') {
+      oninput(event)
+    }
   }
 
   const id = `text-${label.toLowerCase().replace(/\s+/g, '-')}`
