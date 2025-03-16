@@ -17,6 +17,12 @@
     type GridItemPosition,
     type GridConfig,
   } from '$lib/stores/gridStore'
+  import {
+    DEFAULT_GRID_CONFIG,
+    calculateGridHeight,
+    calculateRequiredWorkspaceHeight,
+    calculateBottomEdgePosition
+  } from '$lib/utils/gridSizingUtils'
 
   // ---------------------------------------------------
   // State tracking
@@ -155,13 +161,8 @@
   // Configuration and state
   // ---------------------------------------------------
 
-  // Configuration for grid cells
-  const gridConfig: GridConfig = {
-    cellSize: { width: 40, height: 40 },
-    gap: 10,
-    minWidth: 3,
-    minHeight: 3,
-  }
+  // Configuration for grid cells - use the default config
+  const gridConfig: GridConfig = { ...DEFAULT_GRID_CONFIG };
 
   const initialItems: AllGridTypes[] = [
     createGridItem('scarf', {
@@ -189,18 +190,8 @@
 
   // Create store to track minimum workspace height required by all items
   const requiredWorkspaceHeight = derived(positions, $positions => {
-    if ($positions.length === 0) return 300 // Default minimum height
-
-    // Calculate the bottom edge position of each item
-    const bottomEdges = $positions.map(
-      item =>
-        (item.y + item.h) * (gridConfig.cellSize.height + gridConfig.gap) +
-        gridConfig.gap
-    )
-
-    // Return the maximum bottom edge plus padding
-    return Math.max(300, Math.max(...bottomEdges) + 90)
-  })
+    return calculateRequiredWorkspaceHeight($positions, gridConfig);
+  });
 
   // Enhanced gridHeight calculation to respect minimum required height
   const gridHeight = derived(
@@ -218,18 +209,13 @@
       $temporaryDragHeight,
       $requiredWorkspaceHeight,
     ]) => {
-      // If empty or loading, use fixed height for better performance
-      if ($isEmpty || $isLoading) {
-        return 500 // Fixed height for empty/loading state
-      }
-
-      // During drag operations, use the temporary height but ensure it's not less than required
-      if ($temporaryDragHeight !== null) {
-        return Math.max($temporaryDragHeight, $requiredWorkspaceHeight)
-      }
-
-      // Use the calculated required height
-      return $requiredWorkspaceHeight
+      return calculateGridHeight(
+        $positions, 
+        $isEmpty, 
+        $isLoading, 
+        $temporaryDragHeight,
+        gridConfig
+      );
     }
   )
 
@@ -366,20 +352,14 @@
     const currentItems = get(gridStore)
 
     // Calculate the bottom edge of the item being moved
-    const itemBottomEdge =
-      bottomEdge * (gridConfig.cellSize.height + gridConfig.gap) +
-      gridConfig.gap
+    const itemBottomEdge = calculateBottomEdgePosition(event.y, event.h, gridConfig);
 
     // Calculate the maximum bottom edge of all OTHER items (not the one being dragged)
     const otherItemsMaxBottom = Math.max(
       300, // Minimum fallback
       ...currentItems
         .filter(item => item.id !== id)
-        .map(
-          item =>
-            (item.y + item.h) * (gridConfig.cellSize.height + gridConfig.gap) +
-            gridConfig.gap
-        )
+        .map(item => calculateBottomEdgePosition(item.y, item.h, gridConfig))
     )
 
     // Calculate required height - taking maximum of dragged item bottom edge and other items' max bottom edge
@@ -405,19 +385,14 @@
     const currentItems = get(gridStore)
 
     // Calculate bottom edge position of the resizing item
-    const itemBottomEdge =
-      (y + h) * (gridConfig.cellSize.height + gridConfig.gap) + gridConfig.gap
+    const itemBottomEdge = calculateBottomEdgePosition(y, h, gridConfig);
 
     // Calculate the maximum bottom edge of all OTHER items
     const otherItemsMaxBottom = Math.max(
       300, // Minimum fallback
       ...currentItems
         .filter(item => item.id !== id)
-        .map(
-          item =>
-            (item.y + item.h) * (gridConfig.cellSize.height + gridConfig.gap) +
-            gridConfig.gap
-        )
+        .map(item => calculateBottomEdgePosition(item.y, item.h, gridConfig))
     )
 
     // Use the maximum of these values to ensure we don't shrink below what's needed
