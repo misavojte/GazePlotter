@@ -3,7 +3,7 @@
   import {
     calculateTransitionMatrix,
     AggregationMethod,
-  } from '$lib/utils/AoiTransitionMatrixTransformations'
+  } from '$lib/utils/aoiTransitionMatrixTransformations'
   import type { AoiTransitionMatrixGridType } from '$lib/type/gridType'
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
