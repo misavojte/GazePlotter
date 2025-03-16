@@ -28,6 +28,8 @@
    * @param xLabel - Label for X-axis (TO AOI)
    * @param yLabel - Label for Y-axis (FROM AOI)
    * @param legendTitle - Title for the color legend
+   * @param customMaxValue - Optional custom maximum value for color scale
+   * @param useAutoMax - Whether to use auto-calculated max value or custom max
    */
   let {
     aoiTransitionMatrix = [],
@@ -39,6 +41,10 @@
     xLabel = 'To AOI',
     yLabel = 'From AOI',
     legendTitle = 'Transition Count',
+    customMaxValue,
+    useAutoMax = true,
+    onMaxValueChange = (value: number) => {},
+    minThreshold = 0,
   } = $props<{
     aoiTransitionMatrix: number[][]
     aoiLabels: string[]
@@ -49,10 +55,11 @@
     xLabel?: string
     yLabel?: string
     legendTitle?: string
+    customMaxValue?: number
+    useAutoMax?: boolean
+    minThreshold: number
+    onMaxValueChange?: (value: number) => void
   }>()
-
-  // State for filter threshold
-  let minThreshold = $state(0)
 
   // Handler for threshold change
   function handleThresholdChange(event: number) {
@@ -191,12 +198,6 @@
           10 +
           scrollOffset
 
-        // log the best coordinates for the tooltip in viewport
-        console.log('Best coordinates:', {
-          x: event.clientX,
-          y: event.clientY,
-        })
-
         tooltipStore.set({
           x: idealX,
           y: idealY,
@@ -219,11 +220,23 @@
     tooltipStore.set(null)
   }
 
+  // Calculate the auto max value from the matrix
+  const calculatedMaxValue = $derived.by(() => {
+    const flatMatrix = aoiTransitionMatrix.flat()
+    return flatMatrix.length > 0 ? Math.ceil(Math.max(...flatMatrix)) : 0
+  })
+
+  // Use either auto or custom max value based on configuration
+  const effectiveMaxValue = $derived.by(() => {
+    if (useAutoMax) {
+      return calculatedMaxValue
+    }
+    return customMaxValue || calculatedMaxValue
+  })
+
   // Calculate color based on value
   function getColor(value: number): string {
-    // Find max value in matrix for normalization
-    const maxValue = Math.max(...aoiTransitionMatrix.flat())
-    return getColorForValue(value, maxValue, colorScale)
+    return getColorForValue(value, effectiveMaxValue, colorScale)
   }
 
   // Function to check if a cell should be grayed out based on threshold
@@ -239,10 +252,11 @@
     return getColor(value)
   }
 
-  // Get max value for legend
-  const maxValue = $derived.by(() => {
-    const flatMatrix = aoiTransitionMatrix.flat()
-    return flatMatrix.length > 0 ? Math.ceil(Math.max(...flatMatrix)) : 0
+  // Update parent when calculated max value changes
+  $effect(() => {
+    if (calculatedMaxValue > 0) {
+      onMaxValueChange(calculatedMaxValue)
+    }
   })
 </script>
 
@@ -357,7 +371,7 @@
       y={yOffset + actualGridHeight + 10}
       x={xOffset}
       {colorScale}
-      {maxValue}
+      maxValue={effectiveMaxValue}
       title={legendTitle}
       onThresholdChange={handleThresholdChange}
     />

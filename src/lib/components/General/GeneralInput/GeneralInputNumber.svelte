@@ -7,19 +7,16 @@
     oninput?: (event: Event) => void
   }
 
-  let { value = 0, min = 0, label, oninput = () => {} }: Props = $props()
-
-  // Use state instead of bindable
-  let inputValue = $state(value)
-
-  // Update inputValue when props value changes
-  $effect(() => {
-    inputValue = value
-  })
+  let {
+    value = $bindable(0),
+    min = 0,
+    label,
+    oninput = () => {},
+  }: Props = $props()
 
   function handleInput(event: Event) {
     const target = event.target as HTMLInputElement
-    inputValue = target.valueAsNumber
+    value = target.valueAsNumber
 
     // Call the oninput callback with the original event
     if (typeof oninput === 'function') {
@@ -31,7 +28,7 @@
 </script>
 
 <GeneralInputScaffold {label} {id}>
-  <input {id} type="number" value={inputValue} {min} oninput={handleInput} />
+  <input {id} type="number" bind:value {min} oninput={handleInput} />
 </GeneralInputScaffold>
 
 <style>

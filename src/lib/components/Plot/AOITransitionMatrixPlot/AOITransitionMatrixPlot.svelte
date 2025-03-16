@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
   import AoiTransitionMatrixPlotFigure from './AoiTransitionMatrixPlotFigure.svelte'
   import {
     calculateTransitionMatrix,
@@ -11,6 +10,7 @@
   import { calculatePlotDimensionsWithHeader } from '$lib/utils/plotSizeUtility'
   import AoiTransitionMatrixSelectStimulus from './AoiTransitionMatrixSelectStimulus.svelte'
   import AoiTransitionMatrixSelectGroup from './AoiTransitionMatrixSelectGroup.svelte'
+  import AoiTransitionMatrixButtonMenu from './AoiTransitionMatrixButtonMenu.svelte'
 
   interface Props {
     settings: AOITransitionMatrixGridType
@@ -36,7 +36,7 @@
   )
 
   // For tracking AOI labels (needed for cell size calculation)
-  let aoiLabels = $state([])
+  let aoiLabels = $state<string[]>([])
 
   let cellSize = $derived.by(() => {
     if (aoiLabels.length > 0) {
@@ -49,10 +49,10 @@
   })
 
   const colorScale = ['#f7fbff', '#08306b'] // Blue gradient
-  let minThreshold = 0
+  let minThreshold = $state(0)
+  let calculatedMaxValue = $state(0)
 
-  // Aggregation method selection
-  let aggregationMethod = $state(AggregationMethod.SUM)
+  // Aggregation method options - keep these as constants
   const aggregationOptions = [
     { value: AggregationMethod.SUM, label: 'Sum' },
     { value: AggregationMethod.AVERAGE, label: 'Average' },
@@ -70,7 +70,16 @@
   }
 
   function handleAggregationChange(event: CustomEvent) {
-    aggregationMethod = event.detail as AggregationMethod
+    // Update the aggregation method in grid settings
+    settingsChange({ aggregationMethod: event.detail })
+  }
+
+  function handleCalculatedMaxChange(value: number) {
+    calculatedMaxValue = value
+  }
+
+  function handleMaxValueChange(value: number) {
+    settingsChange({ maxColorValue: value })
   }
 
   // Update AOI labels when data changes
@@ -79,7 +88,7 @@
       const { aoiLabels: labels } = calculateTransitionMatrix(
         settings.stimulusId,
         settings.groupId,
-        aggregationMethod
+        settings.aggregationMethod
       )
 
       aoiLabels = labels
@@ -101,19 +110,27 @@
       <Select
         label="Aggregation"
         options={aggregationOptions}
-        value={aggregationMethod}
+        value={settings.aggregationMethod}
         onchange={handleAggregationChange}
         compact={true}
       />
+      <div class="menu-button">
+        <AoiTransitionMatrixButtonMenu
+          {settings}
+          settingsChange={handleSettingsChange}
+          {calculatedMaxValue}
+          onMaxValueChange={handleMaxValueChange}
+        />
+      </div>
     </div>
   </div>
 
   {#if settings?.stimulusId !== undefined}
-    {#key `${settings.stimulusId}-${settings.groupId}-${aggregationMethod}`}
+    {#key `${settings.stimulusId}-${settings.groupId}-${settings.aggregationMethod}`}
       {@const { matrix, aoiLabels } = calculateTransitionMatrix(
         settings.stimulusId,
         settings.groupId,
-        aggregationMethod
+        settings.aggregationMethod
       )}
       {#if aoiLabels.length > 0}
         <AoiTransitionMatrixPlotFigure
@@ -126,14 +143,17 @@
           xLabel="To AOI"
           yLabel="From AOI"
           legendTitle={`Transition ${
-            aggregationMethod === AggregationMethod.SUM
+            settings.aggregationMethod === AggregationMethod.SUM
               ? 'Count'
-              : aggregationMethod === AggregationMethod.AVERAGE
+              : settings.aggregationMethod === AggregationMethod.AVERAGE
                 ? 'Average'
                 : 'Median'
           }`}
           {minThreshold}
           onThresholdChange={handleThresholdChange}
+          customMaxValue={settings.maxColorValue}
+          useAutoMax={settings.maxColorValue === 0}
+          onMaxValueChange={handleCalculatedMaxChange}
         />
       {:else}
         <div class="no-data">
@@ -165,22 +185,6 @@
     gap: 5px;
     flex-wrap: wrap;
     background: inherit;
-  }
-
-  .matrix-content {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    overflow: auto;
-    position: relative;
-  }
-
-  .matrix-wrapper {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: auto;
   }
 
   .no-data {

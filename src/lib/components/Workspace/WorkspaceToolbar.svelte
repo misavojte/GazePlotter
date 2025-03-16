@@ -10,6 +10,7 @@
     width?: string
     accentColor?: string
     onaction?: (event: { id: string; vizType?: string; event?: any }) => void
+    visualizations?: Array<{ id: string; label: string }>
   }
 
   let {
@@ -40,6 +41,7 @@
     width = '48px',
     accentColor = 'var(--c-primary)',
     onaction = () => {},
+    visualizations = [], // Default empty array for visualizations
   }: Props = $props()
 
   // Create dropdown menu using melt-ui
@@ -52,15 +54,9 @@
       gutter: 13,
       strategy: 'fixed',
     },
-    portal: true, // Ensure menu is portalled to body
+    portal: null,
     preventScroll: false, // Allow scrolling of the main window
   })
-
-  // Available visualizations
-  const visualizations = [
-    { id: 'scarf', label: 'Scarf Plot' },
-    // Add more visualization types here as they become available
-  ]
 
   function handleVisualizationSelect(vizType: string) {
     onaction({
@@ -71,7 +67,7 @@
   }
 
   // Handle toolbar item click
-  function handleItemClick(event) {
+  function handleItemClick(event: { id: string; event?: any }) {
     onaction({
       id: event.id,
       event: event.event,

@@ -25,6 +25,8 @@ export interface AOITransitionMatrixGridType extends GridType {
   type: 'aoiTransitionMatrix'
   stimulusId: number
   groupId: number
+  maxColorValue: number // 0 means auto-calculate from data
+  aggregationMethod: string // Store the aggregation method in settings
 }
 
 // now create a type that is a union of all the grid types

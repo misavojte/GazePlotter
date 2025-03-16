@@ -10,18 +10,12 @@
   import type { AllGridTypes } from '$lib/type/gridType'
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
   import { getScarfGridHeightFromCurrentData } from '$lib/services/scarfServices'
-  import { onMount } from 'svelte'
-  import ScarfPlotHeader from '$lib/components/Plot/ScarfPlot/ScarfPlotHeader/ScarfPlotHeader.svelte'
-  import {
-    createGridStore,
-    type GridItemPosition,
-    type GridConfig,
-  } from '$lib/stores/gridStore'
+  import { createGridStore, type GridConfig } from '$lib/stores/gridStore'
   import {
     DEFAULT_GRID_CONFIG,
     calculateGridHeight,
     calculateRequiredWorkspaceHeight,
-    calculateBottomEdgePosition
+    calculateBottomEdgePosition,
   } from '$lib/utils/gridSizingUtils'
 
   // ---------------------------------------------------
@@ -43,14 +37,12 @@
   // ---------------------------------------------------
 
   // Import visualization components and headers
-  import type { ComponentType, SvelteComponent } from 'svelte'
   import AoiTransitionMatrixPlot from '$lib/components/Plot/AOITransitionMatrixPlot/AoiTransitionMatrixPlot.svelte'
 
   // Define a type for visualization registry entries
   type VisualizationConfig = {
     name: string
-    component: ComponentType<SvelteComponent>
-    headerComponent?: ComponentType<SvelteComponent>
+    component: any
     getDefaultConfig: (params?: any) => Partial<AllGridTypes>
     getDefaultHeight: (params?: any) => number
     getDefaultWidth: (params?: any) => number
@@ -62,7 +54,7 @@
       name: 'Scarf Plot',
       component: ScarfPlot,
       getDefaultConfig: (
-        params?: { stimulusId?: number; groupId?: number } = {}
+        params: { stimulusId?: number; groupId?: number } = {}
       ) => ({
         stimulusId: params.stimulusId ?? 0,
         groupId: params.groupId ?? -1,
@@ -83,11 +75,11 @@
       name: 'AOI Transition Matrix',
       component: AoiTransitionMatrixPlot,
       getDefaultConfig: (
-        params?: { stimulusId?: number; groupId?: number } = {}
+        params: { stimulusId?: number; groupId?: number } = {}
       ) => ({
-        stimulusId: params.stimulusId ?? 0, 
+        stimulusId: params.stimulusId ?? 0,
         groupId: params.groupId ?? -1,
-        min: { w: 10, h: 12 },
+        min: { w: 11, h: 12 },
       }),
       getDefaultHeight: () => 12, // Default square size
       getDefaultWidth: () => 12,
@@ -96,7 +88,10 @@
 
   // Helper function to get visualization config
   const getVisualizationConfig = (type: string): VisualizationConfig => {
-    return visualizationRegistry[type] || visualizationRegistry['empty']
+    return (
+      visualizationRegistry[type] ||
+      new Error(`Visualization config not found for type: ${type}`)
+    )
   }
 
   // ---------------------------------------------------
@@ -153,7 +148,7 @@
       createGridItem('aoiTransitionMatrix', {
         x: 20,
         y: 0,
-        w: 10,
+        w: 11,
         h: 12,
       }),
     ]
@@ -164,7 +159,7 @@
   // ---------------------------------------------------
 
   // Configuration for grid cells - use the default config
-  const gridConfig: GridConfig = { ...DEFAULT_GRID_CONFIG };
+  const gridConfig: GridConfig = { ...DEFAULT_GRID_CONFIG }
 
   const initialItems: AllGridTypes[] = createDefaultGridState()
 
@@ -187,8 +182,8 @@
 
   // Create store to track minimum workspace height required by all items
   const requiredWorkspaceHeight = derived(positions, $positions => {
-    return calculateRequiredWorkspaceHeight($positions, gridConfig);
-  });
+    return calculateRequiredWorkspaceHeight($positions, gridConfig)
+  })
 
   // Enhanced gridHeight calculation to respect minimum required height
   const gridHeight = derived(
@@ -207,12 +202,12 @@
       $requiredWorkspaceHeight,
     ]) => {
       return calculateGridHeight(
-        $positions, 
-        $isEmpty, 
-        $isLoading, 
+        $positions,
+        $isEmpty,
+        $isLoading,
         $temporaryDragHeight,
         gridConfig
-      );
+      )
     }
   )
 
@@ -254,17 +249,15 @@
   // ---------------------------------------------------
 
   // Handle item movement preview during drag (doesn't update actual position)
-  const handleItemPreviewMove = (
-    event: {
-      id: number
-      previewX: number
-      previewY: number
-      currentX: number
-      currentY: number
-      w: number
-      h: number
-    }
-  ) => {
+  const handleItemPreviewMove = (event: {
+    id: number
+    previewX: number
+    previewY: number
+    currentX: number
+    currentY: number
+    w: number
+    h: number
+  }) => {
     // During drag preview, we don't update the actual position in the store
     // We can still check for collisions, etc. if needed, but we don't
     // modify the grid store
@@ -275,46 +268,40 @@
   }
 
   // Handle actual item movement (only at the end of drag)
-  const handleItemMove = (
-    event: {
-      id: number
-      x: number
-      y: number
-      w: number
-      h: number
-    }
-  ) => {
+  const handleItemMove = (event: {
+    id: number
+    x: number
+    y: number
+    w: number
+    h: number
+  }) => {
     const { id, x, y } = event
     // Update position in store - when drag is complete
     gridStore.updateItemPosition(id, x, y, false)
   }
 
   // Handle drag start - set global dragging state
-  const handleDragStart = (
-    event: {
-      id: number
-      x: number
-      y: number
-      w: number
-      h: number
-    }
-  ) => {
+  const handleDragStart = (event: {
+    id: number
+    x: number
+    y: number
+    w: number
+    h: number
+  }) => {
     const { id } = event
     isDragging.set(true)
     draggedItemId.set(id)
   }
 
   // Handle drag end - now we resolve collisions
-  const handleDragEnd = (
-    event: {
-      id: number
-      x: number
-      y: number
-      w: number
-      h: number
-      dragComplete: boolean
-    }
-  ) => {
+  const handleDragEnd = (event: {
+    id: number
+    x: number
+    y: number
+    w: number
+    h: number
+    dragComplete: boolean
+  }) => {
     const { id, x, y, dragComplete } = event
 
     // Reset dragging state
@@ -337,19 +324,21 @@
   }
 
   // Handle dynamic height adjustment during drag operations with safety check
-  const handleDragHeightUpdate = (
-    event: {
-      id: number
-      y: number
-      h: number
-      bottomEdge: number
-    }
-  ) => {
+  const handleDragHeightUpdate = (event: {
+    id: number
+    y: number
+    h: number
+    bottomEdge: number
+  }) => {
     const { bottomEdge, id } = event
     const currentItems = get(gridStore)
 
     // Calculate the bottom edge of the item being moved
-    const itemBottomEdge = calculateBottomEdgePosition(event.y, event.h, gridConfig);
+    const itemBottomEdge = calculateBottomEdgePosition(
+      event.y,
+      event.h,
+      gridConfig
+    )
 
     // Calculate the maximum bottom edge of all OTHER items (not the one being dragged)
     const otherItemsMaxBottom = Math.max(
@@ -367,22 +356,20 @@
   }
 
   // Handle item resize preview with safety check
-  const handleItemPreviewResize = (
-    event: {
-      id: number
-      x: number
-      y: number
-      w: number
-      h: number
-      currentW: number
-      currentH: number
-    }
-  ) => {
+  const handleItemPreviewResize = (event: {
+    id: number
+    x: number
+    y: number
+    w: number
+    h: number
+    currentW: number
+    currentH: number
+  }) => {
     const { id, y, h } = event
     const currentItems = get(gridStore)
 
     // Calculate bottom edge position of the resizing item
-    const itemBottomEdge = calculateBottomEdgePosition(y, h, gridConfig);
+    const itemBottomEdge = calculateBottomEdgePosition(y, h, gridConfig)
 
     // Calculate the maximum bottom edge of all OTHER items
     const otherItemsMaxBottom = Math.max(
@@ -400,15 +387,13 @@
   }
 
   // Enhanced handleItemResize to ensure we respect other elements' space needs
-  const handleItemResize = (
-    event: {
-      id: number
-      x: number
-      y: number
-      w: number
-      h: number
-    }
-  ) => {
+  const handleItemResize = (event: {
+    id: number
+    x: number
+    y: number
+    w: number
+    h: number
+  }) => {
     const { id, w, h } = event
     const currentItems = get(gridStore)
     const currentItem = currentItems.find(item => item.id === id)
@@ -442,16 +427,14 @@
   }
 
   // Handle resize end - clean up and resolve collisions
-  const handleResizeEnd = (
-    event: {
-      id: number
-      x: number
-      y: number
-      w: number
-      h: number
-      resizeComplete: boolean
-    }
-  ) => {
+  const handleResizeEnd = (event: {
+    id: number
+    x: number
+    y: number
+    w: number
+    h: number
+    resizeComplete: boolean
+  }) => {
     // Reset temporary height after resize is complete
     temporaryDragHeight.set(null)
 
@@ -483,9 +466,7 @@
   }
 
   // Handle toolbar actions
-  const handleToolbarAction = (
-    event: { id: string; vizType?: string; event: MouseEvent }
-  ) => {
+  const handleToolbarAction = (event: { id: string; vizType?: string }) => {
     const { id, vizType } = event
 
     console.log('handleToolbarAction', event)
@@ -512,7 +493,7 @@
       isLoading.set(false)
       enhancedGridStore.resetGrid([]) // Set to empty grid - the empty indicator will show
     }
-  });
+  })
 
   // Note: Previously, we would add grid items for both empty and loading states.
   // Now we maintain a truly empty grid and display dedicated indicator components
@@ -522,7 +503,15 @@
 
 <div class="workspace-wrapper">
   <!-- Update toolbar, removing drag-related props -->
-  <WorkspaceToolbar onaction={handleToolbarAction} />
+  <WorkspaceToolbar
+    onaction={handleToolbarAction}
+    visualizations={Object.entries(visualizationRegistry).map(
+      ([id, config]) => ({
+        id,
+        label: config.name,
+      })
+    )}
+  />
 
   <div class="workspace-container" style="height: {$gridHeight}px;">
     <div class="grid-container">
@@ -539,8 +528,8 @@
             minH={item.min?.h || gridConfig.minHeight}
             cellSize={gridConfig.cellSize}
             gap={gridConfig.gap}
-            resizable={item.resizable !== false}
-            draggable={item.draggable !== false}
+            resizable={true}
+            draggable={true}
             title={visConfig.name}
             onpreviewmove={handleItemPreviewMove}
             onmove={handleItemMove}
@@ -557,13 +546,11 @@
               <div class="grid-item-content">
                 <visConfig.component
                   settings={item}
-                  settingsChange={(newSettings) => {
-                    console.log('newSettings', newSettings)
-                    // Update settings in the grid store
+                  settingsChange={newSettings => {
                     gridStore.updateSettings({
                       ...item,
-                      ...newSettings
-                    });
+                      ...newSettings,
+                    })
                   }}
                 />
               </div>
@@ -605,7 +592,11 @@
     position: relative;
     width: 100%;
     background-color: var(--c-darkwhite);
-    background-image: radial-gradient(circle, var(--c-grey) 2px, transparent 2px);
+    background-image: radial-gradient(
+      circle,
+      var(--c-grey) 2px,
+      transparent 2px
+    );
     background-size: 50px 50px;
     background-position: 5px 5px;
     z-index: 1;

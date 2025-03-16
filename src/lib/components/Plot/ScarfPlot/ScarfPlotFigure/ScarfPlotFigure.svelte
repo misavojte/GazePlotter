@@ -8,7 +8,7 @@
   import { addInfoToast } from '$lib/stores/toastStore'
 
   interface Props {
-    tooltipAreaElement: HTMLElement
+    tooltipAreaElement: HTMLElement | null
     data: ScarfFillingType
     settings: ScarfGridType
     highlightedIdentifier: string | null

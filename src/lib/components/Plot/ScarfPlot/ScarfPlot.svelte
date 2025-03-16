@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { PlotAxisBreaks } from '$lib/class/Plot/PlotAxisBreaks/PlotAxisBreaks'
   import { getParticipants } from '$lib/stores/dataStore'
   import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType'
   import { onDestroy, onMount } from 'svelte'
@@ -16,40 +15,27 @@
 
   let { settings, settingsChange }: Props = $props()
 
-  let tooltipArea: HTMLElement
+  let tooltipArea: HTMLElement | null = null
   let windowObj: Window
   let timeout = 0
 
   let highlightedType = $state<string | null>(null)
   let removeHighlight = $state<null | (() => void)>(null)
 
-  let currentGroupId = $state(settings.groupId)
-  let currentStimulusId = $state(settings.stimulusId)
-  let currentParticipantIds = $state<number[]>([])
-
-  $effect(() => {
-    currentGroupId = settings.groupId
-    currentStimulusId = settings.stimulusId
-
+  const currentGroupId = $derived.by(() => settings.groupId)
+  const currentStimulusId = $derived.by(() => settings.stimulusId)
+  const currentParticipantIds = $derived.by(() => {
     const participants = getParticipants(currentGroupId, currentStimulusId)
-    currentParticipantIds = participants.map(participant => participant.id)
+    return participants.map(participant => participant.id)
   })
 
-  let scarfData = $state(
+  const scarfData = $derived.by(() =>
     transformDataToScarfPlot(
       settings.stimulusId,
       currentParticipantIds,
       settings
     )
   )
-
-  $effect(() => {
-    scarfData = transformDataToScarfPlot(
-      settings.stimulusId,
-      currentParticipantIds,
-      settings
-    )
-  })
 
   function handleSettingsChange(newSettings: Partial<ScarfGridType>) {
     if (settingsChange) {
