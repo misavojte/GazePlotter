@@ -38,6 +38,7 @@
 
   // Import visualization components and headers
   import type { ComponentType, SvelteComponent } from 'svelte'
+  import AoiTransitionMatrixPlot from '$lib/components/Plot/AOITransitionMatrixPlot/AoiTransitionMatrixPlot.svelte'
 
   // Define a type for visualization registry entries
   type VisualizationConfig = {
@@ -71,6 +72,19 @@
       getDefaultHeight: (stimulusId = 0) =>
         getScarfGridHeightFromCurrentData(stimulusId, false, -1),
       getDefaultWidth: (stimulusId = 0) => 20,
+    },
+    aoiTransitionMatrix: {
+      name: 'AOI Transition Matrix',
+      component: AoiTransitionMatrixPlot,
+      getDefaultConfig: (
+        params?: { stimulusId?: number; groupId?: number } = {}
+      ) => ({
+        stimulusId: params.stimulusId ?? 0, 
+        groupId: params.groupId ?? -1,
+        min: { w: 10, h: 12 },
+      }),
+      getDefaultHeight: () => 12, // Default square size
+      getDefaultWidth: () => 12,
     },
   }
 
@@ -128,6 +142,10 @@
     return [
       createGridItem('scarf', {
         x: 0, // Always start at x=0
+        y: 0,
+      }),
+      createGridItem('aoiTransitionMatrix', {
+        x: 14,
         y: 0,
       }),
     ]

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import AoiTransitionMatrixPlot from './AoiTransitionMatrixPlot.svelte'
+  import AoiTransitionMatrixPlotFigure from './AoiTransitionMatrixPlotFigure.svelte'
   import GeneralInputText from '$lib/components/General/GeneralInput/GeneralInputText.svelte'
 
   // Demo AOI labels
@@ -128,7 +128,7 @@
   </div>
 
   <div class="plot-container" style="width: {width}px; height: {height}px;">
-    <AoiTransitionMatrixPlot
+    <AoiTransitionMatrixPlotFigure
       aoiTransitionMatrix={transitionMatrix}
       {aoiLabels}
       {width}
