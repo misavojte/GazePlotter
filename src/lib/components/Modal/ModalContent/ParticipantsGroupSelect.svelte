@@ -1,12 +1,16 @@
 <script lang="ts">
-  import { getParticipants } from '$lib/stores/dataStore.ts'
-  import { removeGroup } from '$lib/stores/participantsGroupStore.ts'
-  import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup.ts'
+  import { getParticipants } from '$lib/stores/dataStore'
+  import { removeGroup } from '$lib/stores/participantsGroupStore'
+  import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup'
   import Pencil from 'lucide-svelte/icons/pencil'
   import Trash from 'lucide-svelte/icons/trash'
   import TagsInput from '../../TagsInput/TagsInput.svelte'
 
-  export let group: ParticipantsGroup
+  interface Props {
+    group: ParticipantsGroup;
+  }
+
+  let { group }: Props = $props();
 
   const participants = getParticipants().map(d => d.displayedName)
 </script>
@@ -17,7 +21,7 @@
     <button>
       <Pencil size={'1em'} />
     </button>
-    <button on:click={() => removeGroup(group.id)}>
+    <button onclick={() => removeGroup(group.id)}>
       <Trash size={'1em'} />
     </button>
   </div>

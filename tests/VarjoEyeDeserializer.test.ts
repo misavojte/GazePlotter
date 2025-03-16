@@ -5,9 +5,9 @@
  * @see src/lib/class/Eye/EyeDeserializer/VarjoEyeDeserializer.ts
  */
 
-import { VarjoEyeDeserializer } from '$lib/class/Eye/EyeDeserializer/VarjoEyeDeserializer.ts'
+import { VarjoEyeDeserializer } from '$lib/class/Eye/EyeDeserializer/VarjoEyeDeserializer'
 import { test, expect, describe } from 'vitest'
-import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput.ts'
+import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput'
 
 /*
   constructor (header: string[], fileName: string) {

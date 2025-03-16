@@ -1,10 +1,29 @@
 <script lang="ts">
-  export let label: string
-  export let checked: boolean = false
+  interface Props {
+    label: string
+    checked?: boolean
+    onchange?: (event: CustomEvent) => void
+  }
+
+  let { label, checked = false, onchange = () => {} }: Props = $props()
+
+  // Use state instead of bindable
+  let isChecked = $state(checked)
+
+  // Update isChecked when props checked changes
+  $effect(() => {
+    isChecked = checked
+  })
+
+  function handleChange(event: Event) {
+    const target = event.target as HTMLInputElement
+    isChecked = target.checked
+    onchange(new CustomEvent('change', { detail: isChecked }))
+  }
 </script>
 
 <label>
-  <input type="checkbox" bind:checked on:change />
+  <input type="checkbox" checked={isChecked} onchange={handleChange} />
   {label}
 </label>
 

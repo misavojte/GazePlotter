@@ -1,13 +1,34 @@
 <script lang="ts">
   import GeneralInputScaffold from '$lib/components/General/GeneralInput/GeneralInputScaffold.svelte'
-  export let value = 0
-  export let min = 0
-  export let label: string
+  interface Props {
+    value?: number
+    min?: number
+    label: string
+    oninput?: (event: Event) => void
+  }
+
+  let {
+    value = $bindable(0),
+    min = 0,
+    label,
+    oninput = () => {},
+  }: Props = $props()
+
+  function handleInput(event: Event) {
+    const target = event.target as HTMLInputElement
+    value = target.valueAsNumber
+
+    // Call the oninput callback with the original event
+    if (typeof oninput === 'function') {
+      oninput(event)
+    }
+  }
+
   const id = `text-${label.toLowerCase().replace(/\s+/g, '-')}`
 </script>
 
 <GeneralInputScaffold {label} {id}>
-  <input {id} type="number" bind:value {min} />
+  <input {id} type="number" bind:value {min} oninput={handleInput} />
 </GeneralInputScaffold>
 
 <style>

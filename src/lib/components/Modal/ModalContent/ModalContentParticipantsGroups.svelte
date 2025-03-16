@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { updateParticipantsGroups } from '$lib/stores/dataStore.ts'
+  import { updateParticipantsGroups } from '$lib/stores/dataStore'
   import {
     addGroup,
     participantsGroupsStore,
-  } from '$lib/stores/participantsGroupStore.ts'
-  import { addSuccessToast, addErrorToast } from '$lib/stores/toastStore.ts'
-  import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup.ts'
+  } from '$lib/stores/participantsGroupStore'
+  import { addSuccessToast, addErrorToast } from '$lib/stores/toastStore'
+  import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup'
   import MajorButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralButtonMinor from '$lib/components/General/GeneralButton/GeneralButtonMinor.svelte'
   import GeneralPositionControl from '$lib/components/General/GeneralPositionControl/GeneralPositionControl.svelte'
@@ -15,9 +15,9 @@
   import GeneralEmpty from '$lib/components/General/GeneralEmpty/GeneralEmpty.svelte'
   import ModalContentParticipantsGroupsChecklist from '$lib/components/Modal/ModalContent/ModalContentParticipantsGroupsChecklist.svelte'
 
-  let participantsGroups: ParticipantsGroup[] = []
+  let participantsGroups: ParticipantsGroup[] = $state([])
   participantsGroupsStore.subscribe(value => (participantsGroups = value))
-  let toggledGroup: null | ParticipantsGroup = null
+  let toggledGroup: null | ParticipantsGroup = $state(null)
 
   const handleObjectPositionUp = (group: ParticipantsGroup) => {
     const index = participantsGroups.indexOf(group)
@@ -74,7 +74,7 @@
 {#if toggledGroup !== null}
   <ModalContentParticipantsGroupsChecklist
     group={toggledGroup}
-    on:click={() => (toggledGroup = null)}
+    onclick={() => (toggledGroup = null)}
   />
 {/if}
 {#if participantsGroups.length === 0 && toggledGroup === null}
@@ -100,7 +100,7 @@
           <td>
             <GeneralButtonMinor
               isIcon={false}
-              on:click={() => toggleGroup(group.id)}
+              onclick={() => toggleGroup(group.id)}
             >
               <span class="participant-edit-button-inner">
                 <UserCog size={'1em'} />
@@ -118,7 +118,7 @@
                 onMoveDown={() => handleObjectPositionDown(group)}
               />
               <GeneralButtonMinor
-                on:click={() => {
+                onclick={() => {
                   participantsGroupsStore.set(
                     participantsGroups.filter(g => g.id !== group.id)
                   )
@@ -136,13 +136,13 @@
 {/if}
 {#if toggledGroup === null}
   <div class="footer">
-    <MajorButton on:click={() => addGroup(participantsGroups)}>
+    <MajorButton onclick={() => addGroup(participantsGroups)}>
       {participantsGroups.length < 1 ? 'Create' : 'Add'} group</MajorButton
     >
     <!-- TODO: disable save button if store is empty -->
-    <MajorButton on:click={resetGroups}>Clear groups</MajorButton>
+    <MajorButton onclick={resetGroups}>Clear groups</MajorButton>
     <!-- TODO: disable save button if store is equal to data.participantsGroups -->
-    <MajorButton isDisabled={false} on:click={handleSubmit}>Save</MajorButton>
+    <MajorButton isDisabled={false} onclick={handleSubmit}>Save</MajorButton>
   </div>
 {/if}
 

@@ -1,16 +1,16 @@
 <script lang="ts">
   import MajorControlButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
-  import { modalStore } from '$lib/stores/modalStore.ts'
+  import { modalStore } from '$lib/stores/modalStore'
   import ModalContentDownloadWorkplace from '$lib/components/Modal/ModalContent/ModalContentDownloadWorkplace.svelte'
-  import { processingFileStateStore } from '$lib/stores/processingFileStateStore.ts'
+  import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
 
-  $: isDisabled = $processingFileStateStore === 'processing'
+  let isDisabled = $derived($processingFileStateStore === 'processing')
 
   const handleClick = () => {
     modalStore.open(ModalContentDownloadWorkplace, 'Download workplace')
   }
 </script>
 
-<MajorControlButton {isDisabled} on:click={handleClick}>
+<MajorControlButton {isDisabled} onclick={handleClick}>
   Download workspace
 </MajorControlButton>

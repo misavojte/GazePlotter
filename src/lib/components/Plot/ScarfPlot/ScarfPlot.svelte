@@ -1,72 +1,47 @@
 <script lang="ts">
-  import { PlotAxisBreaks } from '$lib/class/Plot/PlotAxisBreaks/PlotAxisBreaks.ts'
-  import { ScarfPlotAxisFactory } from '$lib/class/Plot/ScarfPlot/ScarfPlotAxisFactory.ts'
-  import { ScarfPlotFillingFactoryS } from '$lib/class/Plot/ScarfPlot/ScarfPlotFillingFactoryS.ts'
-  import PlotWrap from '$lib/components/Plot/PlotWrap.svelte'
-  import { getParticipants } from '$lib/stores/dataStore.ts'
-  import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType.ts'
+  import { getParticipants } from '$lib/stores/dataStore'
+  import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType'
   import { onDestroy, onMount } from 'svelte'
-  import ScarfPlotHeader from './ScarfPlotHeader/ScarfPlotHeader.svelte'
   import ScarfPlotFigure from './ScarfPlotFigure/ScarfPlotFigure.svelte'
-  import type { ScarfGridType } from '$lib/type/gridType.ts'
-  import { tooltipScarfService } from '$lib/services/tooltipServices.ts'
+  import ScarfPlotHeader from './ScarfPlotHeader/ScarfPlotHeader.svelte'
+  import type { ScarfGridType } from '$lib/type/gridType'
+  import { tooltipScarfService } from '$lib/services/tooltipServices'
+  import { transformDataToScarfPlot } from '$lib/utils/scarfPlotTransformations'
 
-  export let settings: ScarfGridType
-
-  let tooltipArea: HTMLElement
-
-  let highlightedType: string | null = null
-  let removeHighlight: null | (() => void) = null
-
-  $: participantIds = getParticipants(
-    settings.groupId,
-    settings.stimulusId
-  ).map(participant => participant.id)
-
-  let window: Window
-
-  const getAxisBreaks = (
-    participantIds: number[],
-    stimulusId: number,
+  interface Props {
     settings: ScarfGridType
-  ) => {
-    const axisFactory = new ScarfPlotAxisFactory(
-      participantIds,
-      stimulusId,
-      settings
-    )
-    return axisFactory.getAxis()
+    settingsChange: (settings: Partial<ScarfGridType>) => void
   }
 
-  const getFilling = (
-    stimulusId: number,
-    participantIds: number[],
-    timeline: PlotAxisBreaks,
-    settings: ScarfGridType
-  ) => {
-    const fillingFactory = new ScarfPlotFillingFactoryS(
-      stimulusId,
-      participantIds,
-      timeline,
-      settings
-    )
-    return fillingFactory.getFilling()
-  }
+  let { settings, settingsChange }: Props = $props()
 
-  $: absoluteTimeline = getAxisBreaks(
-    participantIds,
-    settings.stimulusId,
-    settings
-  )
-
-  $: data = getFilling(
-    settings.stimulusId,
-    participantIds,
-    absoluteTimeline,
-    settings
-  )
-
+  let tooltipArea: HTMLElement | null = null
+  let windowObj: Window
   let timeout = 0
+
+  let highlightedType = $state<string | null>(null)
+  let removeHighlight = $state<null | (() => void)>(null)
+
+  const currentGroupId = $derived.by(() => settings.groupId)
+  const currentStimulusId = $derived.by(() => settings.stimulusId)
+  const currentParticipantIds = $derived.by(() => {
+    const participants = getParticipants(currentGroupId, currentStimulusId)
+    return participants.map(participant => participant.id)
+  })
+
+  const scarfData = $derived.by(() =>
+    transformDataToScarfPlot(
+      settings.stimulusId,
+      currentParticipantIds,
+      settings
+    )
+  )
+
+  function handleSettingsChange(newSettings: Partial<ScarfGridType>) {
+    if (settingsChange) {
+      settingsChange(newSettings)
+    }
+  }
 
   const cancelHighlightKeepTooltip = () => {
     clearTimeout(timeout)
@@ -75,8 +50,8 @@
 
   const cancelTooltip = () => {
     clearTimeout(timeout)
-    if (!window) return
-    timeout = window.setTimeout(() => {
+    if (!windowObj) return
+    timeout = windowObj.setTimeout(() => {
       cancelTooltipInstantly()
     }, 200)
   }
@@ -97,7 +72,7 @@
   }
 
   onMount(() => {
-    window = document.defaultView as Window
+    windowObj = document.defaultView as Window
   })
 
   const processGElement = (gElement: SVGGElement, event: MouseEvent) => {
@@ -118,8 +93,8 @@
     }
 
     const WIDTH_OF_TOOLTIP = 155
-    const y = gElement.getBoundingClientRect().bottom + window.scrollY + 8
-    const widthOfView = window.scrollX + document.body.clientWidth
+    const y = gElement.getBoundingClientRect().bottom + windowObj.scrollY + 8
+    const widthOfView = windowObj.scrollX + document.body.clientWidth
     const x =
       event.pageX + WIDTH_OF_TOOLTIP > widthOfView
         ? widthOfView - WIDTH_OF_TOOLTIP
@@ -138,12 +113,10 @@
     tooltipScarfService(filling)
   }
 
-  const processLegendItem = (legendItem: Element) => {
-    const type = legendItem.classList[1]
-    if (!type) return cancelInteractivity()
-    if (highlightedType === type) return
+  const handleLegendClick = (identifier: string) => {
+    if (highlightedType === identifier) return
     cancelTooltipInstantly()
-    highlightedType = type
+    highlightedType = identifier
   }
 
   const decideInteractivity = (event: MouseEvent) => {
@@ -152,8 +125,7 @@
     if (gElement) return processGElement(gElement, event)
     const tooltip = target.closest('aside')
     if (tooltip) return cancelHighlightKeepTooltip()
-    const legendItem = target.closest('.legendItem')
-    if (legendItem) return processLegendItem(legendItem)
+    // We no longer need to handle legend item clicks here as they're handled directly
     cancelInteractivity()
   }
 
@@ -163,17 +135,40 @@
   })
 </script>
 
-<PlotWrap title="Scarf Plot">
-  <ScarfPlotHeader slot="header" bind:settings />
-  <svelte:fragment slot="body">
+<div class="scarf-plot-container">
+  <div class="header">
+    <ScarfPlotHeader {settings} settingsChange={handleSettingsChange} />
+  </div>
+
+  <div class="figure">
     <ScarfPlotFigure
-      on:mouseleave={cancelInteractivity}
-      on:mousemove={decideInteractivity}
+      onmouseleave={cancelInteractivity}
+      onmousemove={decideInteractivity}
       tooltipAreaElement={tooltipArea}
-      {data}
+      data={scarfData}
       {settings}
-      axisBreaks={absoluteTimeline}
       highlightedIdentifier={highlightedType}
+      onLegendClick={handleLegendClick}
     />
-  </svelte:fragment>
-</PlotWrap>
+  </div>
+</div>
+
+<style>
+  .scarf-plot-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+  }
+
+  .header {
+    padding: 0 0 10px 0;
+    margin-bottom: 10px;
+    background-color: var(--c-white);
+  }
+
+  .figure {
+    flex: 1;
+    overflow: auto;
+  }
+</style>

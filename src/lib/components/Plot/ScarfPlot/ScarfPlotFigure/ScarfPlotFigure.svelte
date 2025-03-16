@@ -1,19 +1,36 @@
+<!-- @migration-task Error while migrating Svelte code: Can't migrate code with afterUpdate. Please migrate by hand. -->
 <script lang="ts">
-  import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType.ts'
-  import type { ScarfGridType } from '$lib/type/gridType.ts'
-  import { PlotAxisBreaks } from '$lib/class/Plot/PlotAxisBreaks/PlotAxisBreaks.ts'
+  import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType'
+  import type { ScarfGridType } from '$lib/type/gridType'
+  import { PlotAxisBreaks } from '$lib/class/Plot/PlotAxisBreaks/PlotAxisBreaks'
   import ScarfPlotLegend from '$lib/components/Plot/ScarfPlot/ScarfPlotLegend/ScarfPlotLegend.svelte'
-  import { ScarfPlotDynamicStyleFactory } from '$lib/class/Plot/ScarfPlot/ScarfPlotDynamicStyleFactory.ts'
-  import { addInfoToast } from '$lib/stores/toastStore.ts'
+  import { generateScarfPlotCSS } from '$lib/utils/scarfPlotTransformations'
+  import { addInfoToast } from '$lib/stores/toastStore'
 
-  export let tooltipAreaElement: HTMLElement
-  export let data: ScarfFillingType
-  export let settings: ScarfGridType
-  export let axisBreaks: PlotAxisBreaks
-  export let highlightedIdentifier: string | null = null
+  interface Props {
+    tooltipAreaElement: HTMLElement | null
+    data: ScarfFillingType
+    settings: ScarfGridType
+    highlightedIdentifier: string | null
+    onLegendClick: (identifier: string) => void
+    onmousemove?: (event: MouseEvent) => void
+    onmouseleave?: (event: MouseEvent) => void
+    onpointerdown?: (event: PointerEvent) => void
+  }
 
-  let fixedHighlight: string | null = null
-  $: usedHighlight = fixedHighlight ?? highlightedIdentifier
+  let {
+    tooltipAreaElement,
+    data,
+    settings,
+    highlightedIdentifier = null,
+    onLegendClick = () => {},
+    onmousemove = () => {},
+    onmouseleave = () => {},
+    onpointerdown = () => {},
+  }: Props = $props()
+
+  let fixedHighlight = $state<string | null>(null)
+  let usedHighlight = $derived(fixedHighlight ?? highlightedIdentifier)
 
   const getTimelineUnit = (settings: ScarfGridType): string => {
     return settings.timeline === 'relative' ? '%' : 'ms'
@@ -29,37 +46,62 @@
     return 100 * 2 ** settings.zoomLevel
   }
 
-  $: xAxisLabel = getXAxisLabel(settings)
-  $: zoomWidth = getZoomWidth(settings)
+  let xAxisLabel = $derived(getXAxisLabel(settings))
+  let zoomWidth = $derived(getZoomWidth(settings))
 
-  const scarfPlotAreaId = `scarf-plot-area-${settings.id}`
-  const styleFactory = new ScarfPlotDynamicStyleFactory(scarfPlotAreaId)
+  let scarfPlotAreaId = $derived(`scarf-plot-area-${settings.id}`)
 
-  const handleFixedHighlight = (event: CustomEvent<string>) => {
-    if (fixedHighlight === event.detail) {
+  const handleFixedHighlight = (identifier: string) => {
+    if (fixedHighlight === identifier) {
       fixedHighlight = null
       highlightedIdentifier = null
       return
     }
-    fixedHighlight = event.detail
+    fixedHighlight = identifier
     addInfoToast(`Highlight fixed. Click the same item in the legend to remove`)
   }
 
-  $: dynamicStyle = styleFactory.generateCss(
-    data.stylingAndLegend,
-    usedHighlight
+  const handleStopPropagation = (event: MouseEvent) => {
+    event.stopPropagation()
+  }
+
+  // Create a derived value that changes when any input that would affect the style changes
+  let styleInputs = $derived({
+    id: settings.id,
+    data: data.stylingAndLegend,
+    highlight: usedHighlight,
+  })
+
+  let dynamicStyle = $derived(
+    generateScarfPlotCSS(scarfPlotAreaId, data.stylingAndLegend, usedHighlight)
   )
+
+  // Replace afterUpdate with $effect
+  $effect(() => {
+    // The dynamicStyle is already reactive, but this ensures it's applied
+    // after DOM updates when IDs change
+    const styleElement = document.querySelector(`#${scarfPlotAreaId} style`)
+    if (styleElement) {
+      styleElement.textContent = dynamicStyle
+        .replace('<style>', '')
+        .replace('</style>', '')
+    }
+  })
+
+  // Handle legend identifier click - ensure proper function passing
+  const handleLegendIdentifier = (identifier: string) => {
+    // Handle both local fixed highlight and external app state
+    handleFixedHighlight(identifier)
+    onLegendClick(identifier)
+  }
 </script>
 
-<figure
-  class="tooltip-area"
-  on:mousemove
-  on:mouseleave
-  on:pointerdown|stopPropagation
->
+<figure class="tooltip-area" {onmousemove} {onmouseleave} {onpointerdown}>
   <!-- scarf plot id is used to identify the plot by other components (e.g. for download) -->
   <div class="chartwrap" id={scarfPlotAreaId} bind:this={tooltipAreaElement}>
-    {@html dynamicStyle}
+    {#key styleInputs}
+      {@html dynamicStyle}
+    {/key}
     <div
       class="chylabs"
       style="grid-auto-rows:{data.heightOfBarWrap}px"
@@ -70,83 +112,85 @@
       {/each}
     </div>
     <div class="charea-holder" class:isHiglighted={highlightedIdentifier}>
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        id="charea"
-        width="{zoomWidth}%"
-        height={data.chartHeight}
-      >
-        <svg y={data.chartHeight - 14} class="chxlabs">
-          <text x="0" y="0" text-anchor="start" dominant-baseline="hanging"
-            >0</text
-          >
-          {#each data.timeline.slice(1, -1) as label}
-            <text
-              x="{(label / data.timeline.maxLabel) * 100}%"
-              dominant-baseline="hanging"
-              text-anchor="middle">{label}</text
+      {#key data.participants}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          id="charea"
+          width="{zoomWidth}%"
+          height={data.chartHeight}
+        >
+          <svg y={data.chartHeight - 14} class="chxlabs">
+            <text x="0" y="0" text-anchor="start" dominant-baseline="hanging"
+              >0</text
             >
+            {#each data.timeline.slice(1, -1) as label}
+              <text
+                x="{(label / data.timeline.maxLabel) * 100}%"
+                dominant-baseline="hanging"
+                text-anchor="middle">{label}</text
+              >
+            {/each}
+            <text x="100%" dominant-baseline="hanging" text-anchor="end"
+              >{data.timeline.maxLabel}</text
+            >
+          </svg>
+          <!-- Start of barwrap, each is a participant -->
+          {#each data.participants as participant, i}
+            <line
+              x1="0"
+              x2="100%"
+              y1={i * data.heightOfBarWrap + 0.5}
+              y2={i * data.heightOfBarWrap + 0.5}
+              stroke="#cbcbcb"
+            ></line>
+            <svg
+              class="barwrap"
+              y={i * data.heightOfBarWrap}
+              data-id={participant.id}
+              height={data.heightOfBarWrap}
+              width={participant.width}
+            >
+              {#each participant.segments as segment, segmentId}
+                <g data-id={segmentId}>
+                  {#each segment.content as rectangle}
+                    <rect
+                      class={rectangle.identifier}
+                      height={rectangle.height}
+                      x={rectangle.x}
+                      width={rectangle.width}
+                      y={rectangle.y}
+                    ></rect>
+                  {/each}
+                </g>
+              {/each}
+              {#each participant.dynamicAoiVisibility as visibility}
+                {#each visibility.content as visibilityItem}
+                  <line
+                    class={visibilityItem.identifier}
+                    x1={visibilityItem.x1}
+                    y1={visibilityItem.y}
+                    x2={visibilityItem.x2}
+                    y2={visibilityItem.y}
+                  ></line>
+                {/each}
+              {/each}
+            </svg>
           {/each}
-          <text x="100%" dominant-baseline="hanging" text-anchor="end"
-            >{data.timeline.maxLabel}</text
-          >
-        </svg>
-        <!-- Start of barwrap, each is a participant -->
-        {#each data.participants as participant, i}
+          <!-- End of barwrap -->
           <line
             x1="0"
             x2="100%"
-            y1={i * data.heightOfBarWrap + 0.5}
-            y2={i * data.heightOfBarWrap + 0.5}
+            y1={data.participants.length * data.heightOfBarWrap - 0.5}
+            y2={data.participants.length * data.heightOfBarWrap - 0.5}
             stroke="#cbcbcb"
-          ></line>
-          <svg
-            class="barwrap"
-            y={i * data.heightOfBarWrap}
-            data-id={participant.id}
-            height={data.heightOfBarWrap}
-            width={participant.width}
-          >
-            {#each participant.segments as segment, segmentId}
-              <g data-id={segmentId}>
-                {#each segment.content as rectangle}
-                  <rect
-                    class={rectangle.identifier}
-                    height={rectangle.height}
-                    x={rectangle.x}
-                    width={rectangle.width}
-                    y={rectangle.y}
-                  ></rect>
-                {/each}
-              </g>
-            {/each}
-            {#each participant.dynamicAoiVisibility as visibility}
-              {#each visibility.content as visibilityItem}
-                <line
-                  class={visibilityItem.identifier}
-                  x1={visibilityItem.x1}
-                  y1={visibilityItem.y}
-                  x2={visibilityItem.x2}
-                  y2={visibilityItem.y}
-                ></line>
-              {/each}
-            {/each}
-          </svg>
-        {/each}
-        <!-- End of barwrap -->
-        <line
-          x1="0"
-          x2="100%"
-          y1={data.participants.length * data.heightOfBarWrap - 0.5}
-          y2={data.participants.length * data.heightOfBarWrap - 0.5}
-          stroke="#cbcbcb"
-        />
-      </svg>
+          />
+        </svg>
+      {/key}
     </div>
     <div class="chxlab">{xAxisLabel}</div>
     <ScarfPlotLegend
       filling={data.stylingAndLegend}
-      on:legendIdentifier={handleFixedHighlight}
+      onlegendIdentifier={handleLegendIdentifier}
     />
   </div>
 </figure>

@@ -1,4 +1,4 @@
-import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType.ts'
+import type { ScarfSettingsType } from '$lib/type/Settings/ScarfSettings/ScarfSettingsType'
 
 /**
  * Fillings for the workspace determining position and width (via grid columns) of items in the workspace.

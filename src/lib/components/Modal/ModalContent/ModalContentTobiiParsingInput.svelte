@@ -2,9 +2,13 @@
   import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
   import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import { onDestroy } from 'svelte'
-  export let valuePromiseResolve: (value: string) => void
-  export let valuePromiseReject: (reason?: any) => void
-  let value: string
+  interface Props {
+    valuePromiseResolve: (value: string) => void
+    valuePromiseReject: (reason?: any) => void
+  }
+
+  let { valuePromiseResolve, valuePromiseReject }: Props = $props()
+  let value: string = $state('')
 
   onDestroy(() => {
     valuePromiseReject(new Error('Modal closed without value'))
@@ -32,7 +36,12 @@
     bind:userSelected={value}
   />
 </div>
-<GeneralButtonMajor on:click={() => valuePromiseResolve(value)}>
+<GeneralButtonMajor
+  onclick={() => {
+    console.log('value', value)
+    valuePromiseResolve(value)
+  }}
+>
   Apply
 </GeneralButtonMajor>
 

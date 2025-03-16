@@ -1,8 +1,8 @@
 <script lang="ts">
   import { flip } from 'svelte/animate'
   import { fly } from 'svelte/transition'
-  import type { ToastFillingType } from '$lib/type/Filling/ToastFilling/ToastFillingType.ts'
-  import { toastStore } from '$lib/stores/toastStore.ts'
+  import type { ToastFillingType } from '$lib/type/Filling/ToastFilling/ToastFillingType'
+  import { toastStore } from '$lib/stores/toastStore'
 
   const timers = new Map<number, ReturnType<typeof setTimeout>>()
   const clearTimer = (id: number) => {
@@ -23,7 +23,7 @@
     clearTimer(id)
   }
 
-  let toasts: ToastFillingType[] = []
+  let toasts: ToastFillingType[] = $state([])
   toastStore.subscribe(value => {
     toasts = value
     toasts.forEach(setRemovalTimer)
@@ -55,7 +55,7 @@
           type="button"
           class="close"
           aria-label="Close"
-          on:click={() => removeToast(id)}
+          onclick={() => removeToast(id)}
         >
           ×
         </button>
@@ -117,7 +117,7 @@
     margin-bottom: 5px;
   }
 
-  button {
+  button.close {
     border: none;
     background-color: transparent;
     font-size: 1rem;

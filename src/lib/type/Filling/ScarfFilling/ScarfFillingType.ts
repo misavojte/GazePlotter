@@ -1,7 +1,7 @@
-import { PlotAxisBreaks } from '../../../class/Plot/PlotAxisBreaks/PlotAxisBreaks.ts'
-import type { StimulusScarfFillingType } from './StimulusScarfFilling/StimulusScarfFillingType.ts'
-import type { StylingScarfFillingType } from './StylingScarfFilling/StylingScarfFillingType.ts'
-import type { ParticipantScarfFillingType } from './ParticipantScarfFilling/ParticipantScarfFillingType.ts'
+import { PlotAxisBreaks } from '../../../class/Plot/PlotAxisBreaks/PlotAxisBreaks'
+import type { StimulusScarfFillingType } from './StimulusScarfFilling/StimulusScarfFillingType'
+import type { StylingScarfFillingType } from './StylingScarfFilling/StylingScarfFillingType'
+import type { ParticipantScarfFillingType } from './ParticipantScarfFilling/ParticipantScarfFillingType'
 
 /**
  * Object that contains all information needed to draw a scarf plot for a single stimulus.

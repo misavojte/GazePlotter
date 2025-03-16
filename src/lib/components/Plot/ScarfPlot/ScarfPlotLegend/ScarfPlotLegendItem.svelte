@@ -1,13 +1,24 @@
 <script lang="ts">
-  import type { SingleStylingScarfFillingType } from '$lib/type/Filling/ScarfFilling/index.ts'
-  import { createEventDispatcher } from 'svelte'
-  export let legend: SingleStylingScarfFillingType
-  export let isVisibility = false
+  import type { SingleStylingScarfFillingType } from '$lib/type/Filling/ScarfFilling/index'
 
-  const dispatch = createEventDispatcher()
+  interface Props {
+    legend: SingleStylingScarfFillingType
+    isVisibility?: boolean
+    onlegendIdentifier?: (identifier: string) => void
+  }
+
+  let {
+    legend,
+    isVisibility = false,
+    onlegendIdentifier = () => {},
+  }: Props = $props()
 
   const handleClick = () => {
-    dispatch('legendIdentifier', legend.identifier)
+    if (typeof onlegendIdentifier === 'function') {
+      onlegendIdentifier(legend.identifier)
+    } else {
+      console.warn('onlegendIdentifier is not a function', onlegendIdentifier)
+    }
   }
 
   // display legend name is max 13 characters, if it is longer, it will be cut and '...' will be added
@@ -15,11 +26,7 @@
     legend.name.length > 12 ? legend.name.slice(0, 10) + '...' : legend.name
 </script>
 
-<div
-  class="legendItem {legend.identifier}"
-  on:pointerdown|stopPropagation
-  on:click={handleClick}
->
+<div class="legendItem {legend.identifier}" onclick={handleClick}>
   <svg width="20" height={legend.heighOfLegendItem}>
     {#if isVisibility}
       <line

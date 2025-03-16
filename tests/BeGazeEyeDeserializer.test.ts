@@ -5,7 +5,7 @@
  * @see $lib/class/Eye/EyeDeserializer/BeGazeEyeDeserializer.ts
  */
 
-import { BeGazeEyeDeserializer } from '$lib/class/Eye/EyeDeserializer/BeGazeEyeDeserializer.ts'
+import { BeGazeEyeDeserializer } from '$lib/class/Eye/EyeDeserializer/BeGazeEyeDeserializer'
 import { test, expect, describe } from 'vitest'
 
 const begazeMockData = `Event Start Trial Time [ms],Event End Trial Time [ms],Stimulus,Participant,Category,AOI Name

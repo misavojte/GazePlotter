@@ -1,15 +1,22 @@
-import { AbstractDownloader } from './AbstractDownloader.ts'
-import { getNumberOfParticipants, getNumberOfSegments, getParticipant, getSegment } from '$lib/stores/dataStore.ts'
-import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType.ts'
+import { AbstractDownloader } from './AbstractDownloader'
+import {
+  getNumberOfParticipants,
+  getNumberOfSegments,
+  getParticipant,
+  getSegment,
+} from '$lib/stores/dataStore'
+import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType'
 
 export class ScanGraphDownloader extends AbstractDownloader {
-  download (stimulusId: number, fileName: string): void {
+  download(stimulusId: number, fileName: string): void {
     const content = this.getStimulusScanGraphString(stimulusId)
-    const txtFileContent = URL.createObjectURL(new Blob([content], { type: 'text/plain' }))
+    const txtFileContent = URL.createObjectURL(
+      new Blob([content], { type: 'text/plain' })
+    )
     this.triggerDownload(txtFileContent, fileName, '.txt')
   }
 
-  getStimulusScanGraphString (stimulusId: number): string {
+  getStimulusScanGraphString(stimulusId: number): string {
     let result = ''
     const aoiKey: string[] = []
     const alreadyUsedAoiIds: number[] = []
@@ -30,7 +37,7 @@ export class ScanGraphDownloader extends AbstractDownloader {
     return this.getHeaderString(aoiKey.join(', ')) + result
   }
 
-  getHeaderString (aoiKey: string): string {
+  getHeaderString(aoiKey: string): string {
     return `#
 #
 #
@@ -43,16 +50,16 @@ Sequence Similarity\tScanpath string
 `
   }
 
-  getAoiString (aoi: ExtendedInterpretedDataType[]): string {
+  getAoiString(aoi: ExtendedInterpretedDataType[]): string {
     if (aoi.length === 0) return '#'
     return this.getAoiLetter(aoi[0].id)
   }
 
-  getAoiLetter (aoi: number): string {
+  getAoiLetter(aoi: number): string {
     return String.fromCharCode(65 + aoi)
   }
 
-  getAoiKeyPart (aoi: ExtendedInterpretedDataType[]): string {
+  getAoiKeyPart(aoi: ExtendedInterpretedDataType[]): string {
     if (aoi.length === 0) return ''
     const name = aoi[0].displayedName
     return `${this.getAoiLetter(aoi[0].id)} = ${name}`

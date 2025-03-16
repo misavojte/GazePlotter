@@ -12,7 +12,7 @@ import {
   processTobii,
   isTobiiJson,
   processTobiiKeyFrames,
-} from '$lib/services/aoiVisibilityServices.ts'
+} from '$lib/services/aoiVisibilityServices'
 import { expect, test } from 'vitest'
 
 test('Input Tobii JSON validation - False inputs', () => {

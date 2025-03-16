@@ -1,7 +1,26 @@
 <script lang="ts">
-  export let options: { value: string; label: string }[]
-  export let legend: string
-  export let userSelected: string = options[0].value
+  interface Props {
+    options: { value: string; label: string }[]
+    legend: string
+    userSelected?: string
+    onchange?: (value: string) => void
+  }
+
+  let {
+    options,
+    legend,
+    userSelected = $bindable(options[0].value),
+    onchange = () => {},
+  }: Props = $props()
+
+  function handleChange(newValue: string) {
+    userSelected = newValue
+
+    // Call the onchange callback with the new value directly
+    if (typeof onchange === 'function') {
+      onchange(newValue)
+    }
+  }
 
   const uniqueID: number = Math.floor(Math.random() * 100)
 
@@ -21,8 +40,10 @@
       class="sr-only"
       type="radio"
       id="{slugify(label)}-{uniqueID}"
-      bind:group={userSelected}
+      name={`group-${uniqueID}`}
       {value}
+      checked={userSelected === value}
+      onchange={() => handleChange(value)}
     />
     <label for="{slugify(label)}-{uniqueID}"> {label} </label>
   {/each}

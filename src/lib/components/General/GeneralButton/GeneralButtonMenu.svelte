@@ -9,15 +9,22 @@
     action: () => void
   }
 
-  export let isOpen = false
-  export let items: ActionItem[]
+  interface Props {
+    items: ActionItem[]
+  }
+
+  let { items }: Props = $props()
+
+  // Use state instead of bindable
+  let isOpen = $state(false)
+
   const handleClick = () => {
     isOpen = !isOpen
   }
 
   let window: Window | null
 
-  let menuElement: HTMLDivElement
+  let menuElement: HTMLDivElement = $state()
 
   const handleOutsideClick = (event: MouseEvent) => {
     const target = event.target as HTMLElement
@@ -46,15 +53,15 @@
 </script>
 
 <div class="wrap" bind:this={menuElement}>
-  <MinorButton on:click={handleClick}>
+  <MinorButton onclick={handleClick}>
     <MoreVertical size={'1em'} />
   </MinorButton>
   {#if isOpen}
     <ul class="menu">
       {#each items as item}
         <li>
-          <button on:pointerdown|stopPropagation on:click={item.action}>
-            <svelte:component this={item.icon} size={'1em'} />
+          <button onclick={item.action}>
+            <item.icon size={'1em'} />
             {item.label}
           </button>
         </li>

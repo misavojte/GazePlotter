@@ -1,4 +1,4 @@
-import type { ExtendedInterpretedDataType } from './ExtendedInterpretedDataType.ts'
+import type { ExtendedInterpretedDataType } from './ExtendedInterpretedDataType'
 
 export interface SegmentInterpretedDataType {
   id: number

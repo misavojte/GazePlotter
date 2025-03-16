@@ -1,4 +1,4 @@
-import { getAois, getParticipants } from '$lib/stores/dataStore.ts'
+import { getAois, getParticipants } from '$lib/stores/dataStore'
 
 /**
  * Helper function to calculate the height of the scarf legend group based on the current data in pixels.

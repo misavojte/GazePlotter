@@ -1,6 +1,6 @@
-import type { AoiDataType } from './AoiDataType/AoiDataType.ts'
-import type { AttributeDataType } from './AttributeDataType/AttributeDataType.ts'
-import type { ParticipantsGroup } from './ParticipantsGroup.ts'
+import type { AoiDataType } from './AoiDataType/AoiDataType'
+import type { AttributeDataType } from './AttributeDataType/AttributeDataType'
+import type { ParticipantsGroup } from './ParticipantsGroup'
 
 /**
  * Data for workplace are stored in this unique format.

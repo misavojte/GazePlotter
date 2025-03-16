@@ -5,8 +5,8 @@
   import { WorkplaceDownloader } from '$lib/class/Downloader/WorkplaceDownloader.js'
   import { getData } from '$lib/stores/dataStore.js'
 
-  let type = 'inner-json'
-  let fileName = 'GazePlotter-Workplace'
+  let type = $state('inner-json')
+  let fileName = $state('GazePlotter-Workplace')
 
   const options = [
     {
@@ -40,7 +40,7 @@
 <GeneralSelect label="Export type" {options} bind:value={type} />
 <GeneralInputText label="File name" bind:value={fileName} />
 <div class="mt-30">
-  <MajorButton on:click={handleSubmit}>Download</MajorButton>
+  <MajorButton onclick={handleSubmit}>Download</MajorButton>
 </div>
 
 <style>

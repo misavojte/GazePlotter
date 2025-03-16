@@ -1,11 +1,11 @@
 import { writable, get } from 'svelte/store'
 import type { Writable } from 'svelte/store'
-import type { DataType } from '$lib/type/Data/DataType.ts'
-import { demoData } from '$lib/const/demoDataTwo.ts'
-import type { BaseInterpretedDataType } from '$lib/type/Data/InterpretedData/BaseInterpretedDataType.ts'
-import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType.ts'
-import type { SegmentInterpretedDataType } from '$lib/type/Data/InterpretedData/SegmentInterpretedDataType.ts'
-import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup.ts'
+import type { DataType } from '$lib/type/Data/DataType'
+import { demoData } from '$lib/const/demoDataTwo'
+import type { BaseInterpretedDataType } from '$lib/type/Data/InterpretedData/BaseInterpretedDataType'
+import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType'
+import type { SegmentInterpretedDataType } from '$lib/type/Data/InterpretedData/SegmentInterpretedDataType'
+import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup'
 
 export const getDemoDataWritable = (): Writable<DataType> => {
   return writable<DataType>(demoData)

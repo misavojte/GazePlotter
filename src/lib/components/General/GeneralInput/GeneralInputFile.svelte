@@ -1,17 +1,38 @@
 <script lang="ts">
   import GeneralInputScaffold from '$lib/components/General/GeneralInput/GeneralInputScaffold.svelte'
 
-  export let label: string
-  export let files: FileList | null = null
-  export let multiple = false
-  export let accept: string[] =
-    [] /* e.g. ['image/*', '.pdf'], if empty, allows all */
+  interface Props {
+    label: string
+    files?: FileList | null
+    multiple?: boolean
+    accept?: string[]
+    onchange?: (event: CustomEvent) => void
+  }
+
+  let {
+    label,
+    files = $bindable(null),
+    multiple = false,
+    accept = [],
+    onchange = () => {},
+  }: Props = $props()
+
+  function handleChange(event: Event) {
+    const target = event.target as HTMLInputElement
+    files = target.files
+    onchange(new CustomEvent('change', { detail: files }))
+  }
 
   const id = `file-${label.toLowerCase().replace(/\s+/g, '-')}`
 </script>
 
 <GeneralInputScaffold {label} {id}>
-  <input type="file" {multiple} accept={accept.join(',')} bind:files />
+  <input
+    type="file"
+    {multiple}
+    accept={accept.join(',')}
+    onchange={handleChange}
+  />
 </GeneralInputScaffold>
 
 <style>

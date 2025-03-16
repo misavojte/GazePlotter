@@ -4,15 +4,19 @@
   import GeneralInputFile from '../../General/GeneralInput/GeneralInputFile.svelte'
   import GeneralButtonMajor from '../../General/GeneralButton/GeneralButtonMajor.svelte'
   import { addErrorToast, addSuccessToast } from '$lib/stores/toastStore.js'
-  import { processAoiVisibility } from '$lib/services/aoiVisibilityServices.ts'
-  import type { GridStoreType } from '$lib/stores/gridStore.ts'
-  import { get } from 'svelte/store'
+  import { processAoiVisibility } from '$lib/services/aoiVisibilityServices'
 
-  export let gridStore: GridStoreType
+  import type { ScarfGridType } from '$lib/type/gridType'
 
-  let files: FileList | null = null
-  let selectedStimulusId = '0'
-  let selectedParticipantId = 'all'
+  interface Props {
+    settingsChange?: (newSettings: Partial<ScarfGridType>) => void
+  }
+
+  let { settingsChange = () => {} }: Props = $props()
+
+  let files: FileList | null = $state(null)
+  let selectedStimulusId = $state('0')
+  let selectedParticipantId = $state('all')
 
   const stimuliOptions = getStimuli().map(stimulus => {
     return {
@@ -39,7 +43,7 @@
         selectedParticipantId === 'all' ? null : parseInt(selectedParticipantId)
       processAoiVisibility(stimulusId, participantId, files).then(() => {
         addSuccessToast('AOI visibility updated')
-        gridStore.set(get(gridStore))
+        settingsChange({ stimulusId })
       })
     } catch (e) {
       console.error(e)
@@ -62,7 +66,7 @@
   />
   <GeneralInputFile label="AOI visibility file" bind:files />
 </div>
-<GeneralButtonMajor on:click={handleSubmit}>Apply</GeneralButtonMajor>
+<GeneralButtonMajor onclick={handleSubmit}>Apply</GeneralButtonMajor>
 
 <style>
   .content {

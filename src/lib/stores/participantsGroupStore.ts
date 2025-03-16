@@ -1,6 +1,6 @@
-import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup.ts'
+import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup'
 import { writable } from 'svelte/store'
-import { getParticipantsGroups, data } from './dataStore.ts'
+import { getParticipantsGroups, data } from './dataStore'
 
 /**
  * Store for participants groups data in working memory of modal

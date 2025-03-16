@@ -1,4 +1,4 @@
-<script context="module" lang="ts">
+<script module lang="ts">
   import GeneralSelect from './GeneralSelect.svelte'
 
   export const meta = {
@@ -20,10 +20,12 @@
   import { Story, Template } from '@storybook/addon-svelte-csf'
 </script>
 
-<Template let:args>
-  <div style={'background: white;'}>
-    <GeneralSelect {...args}></GeneralSelect>
-  </div>
+<Template >
+  {#snippet children({ args })}
+    <div style={'background: white;'}>
+      <GeneralSelect {...args}></GeneralSelect>
+    </div>
+  {/snippet}
 </Template>
 
 <Story name="Default" />

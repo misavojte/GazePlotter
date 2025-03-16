@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, type SvelteComponent } from 'svelte'
-  import { modalStore } from '$lib/stores/modalStore.ts'
+  import { modalStore } from '$lib/stores/modalStore'
   import { fly } from 'svelte/transition'
 
   type Modal = {
@@ -9,7 +9,7 @@
     props?: Record<string, any> // Add props here
   }
 
-  let modal: Modal | null = null
+  let modal: Modal | null = $state(null)
 
   const unsubscribe = modalStore.subscribe(a => {
     modal = a
@@ -27,12 +27,12 @@
     <div class="modal" role="dialog" aria-modal="true" in:fly>
       <div class="modal-header">
         <h3>{modal.title}</h3>
-        <button on:click={handleClose}>
+        <button onclick={handleClose}>
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
       <div class="body">
-        <svelte:component this={modal.component} {...modal.props} />
+        <modal.component {...modal.props} />
       </div>
     </div>
   </div>

@@ -2,9 +2,26 @@
   import type { SingleStylingScarfFillingType } from '$lib/type/Filling/ScarfFilling/index.js'
   import ScarfPlotLegendItem from '$lib/components/Plot/ScarfPlot/ScarfPlotLegend/ScarfPlotLegendItem.svelte'
 
-  export let fillings: SingleStylingScarfFillingType[]
-  export let title: string
-  export let isVisibility = false
+  interface Props {
+    fillings: SingleStylingScarfFillingType[]
+    title: string
+    isVisibility?: boolean
+    onlegendIdentifier?: (identifier: string) => void
+  }
+
+  let {
+    fillings,
+    title,
+    isVisibility = false,
+    onlegendIdentifier = () => {},
+  }: Props = $props()
+
+  // Wrapped handler function to ensure we're passing a function
+  const handleIdentifier = (identifier: string) => {
+    if (typeof onlegendIdentifier === 'function') {
+      onlegendIdentifier(identifier)
+    }
+  }
 </script>
 
 <div class="chlegendtitle">
@@ -12,7 +29,11 @@
 </div>
 <div class="chlegend">
   {#each fillings as filling}
-    <ScarfPlotLegendItem on:legendIdentifier legend={filling} {isVisibility} />
+    <ScarfPlotLegendItem
+      onlegendIdentifier={handleIdentifier}
+      legend={filling}
+      {isVisibility}
+    />
   {/each}
 </div>
 

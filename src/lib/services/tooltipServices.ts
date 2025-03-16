@@ -1,6 +1,6 @@
-import { getParticipant, getSegment } from '$lib/stores/dataStore.ts'
-import { tooltipStore } from '$lib/stores/tooltipStore.ts'
-import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType.ts'
+import { getParticipant, getSegment } from '$lib/stores/dataStore'
+import { tooltipStore } from '$lib/stores/tooltipStore'
+import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType'
 
 /**
  * Service function to fill the tooltip with data.

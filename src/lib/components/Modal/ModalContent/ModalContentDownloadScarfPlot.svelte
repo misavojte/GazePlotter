@@ -3,17 +3,21 @@
   import GeneralSelectBase from '../../General/GeneralSelect/GeneralSelect.svelte'
   import GeneralInputText from '../../General/GeneralInput/GeneralInputText.svelte'
   import MajorButton from '../../General/GeneralButton/GeneralButtonMajor.svelte'
-  import { ScarfDownloader } from '$lib/class/Downloader/ScarfDownloader.ts'
-  import type { ScarfGridType } from '$lib/type/gridType.ts'
-  import { addErrorToast } from '$lib/stores/toastStore.ts'
+  import { ScarfDownloader } from '$lib/class/Downloader/ScarfDownloader'
+  import type { ScarfGridType } from '$lib/type/gridType'
+  import { addErrorToast } from '$lib/stores/toastStore'
 
-  export let settings: ScarfGridType
+  interface Props {
+    settings: ScarfGridType
+  }
+
+  let { settings }: Props = $props()
 
   type fileType = '.svg' | '.png' | '.jpg' | '.webp'
 
-  let typeOfExport: fileType = '.svg'
-  let width = 800 /* in px */
-  let fileName = 'GazePlotter-ScarfPlot'
+  let typeOfExport: fileType = $state('.svg')
+  let width = $state(800) /* in px */
+  let fileName = $state('GazePlotter-ScarfPlot')
 
   const options = [
     { value: '.svg', label: 'SVG (recommended)' },
@@ -45,4 +49,4 @@
   bind:value={typeOfExport}
 />
 <GeneralInputText label="Output file name" bind:value={fileName} />
-<MajorButton on:click={handleSubmit}>Download</MajorButton>
+<MajorButton onclick={handleSubmit}>Download</MajorButton>

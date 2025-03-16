@@ -1,5 +1,5 @@
-import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput.ts'
-import { AbstractEyeDeserializer } from './AbstractEyeDeserializer.ts'
+import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput'
+import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
 
 export class BeGazeEyeDeserializer extends AbstractEyeDeserializer {
   cStart: number
@@ -8,7 +8,7 @@ export class BeGazeEyeDeserializer extends AbstractEyeDeserializer {
   cParticipant: number
   cCategory: number
   cAoi: number
-  constructor (header: string[]) {
+  constructor(header: string[]) {
     super()
     this.cStart = this.getIndex(header, 'Event Start Trial Time [ms]')
     this.cEnd = this.getIndex(header, 'Event End Trial Time [ms]')
@@ -18,7 +18,7 @@ export class BeGazeEyeDeserializer extends AbstractEyeDeserializer {
     this.cAoi = this.getIndex(header, 'AOI Name')
   }
 
-  deserialize (row: string[]): SingleDeserializerOutput | null {
+  deserialize(row: string[]): SingleDeserializerOutput | null {
     const start = row[this.cStart]
     const end = row[this.cEnd]
     const stimulus = row[this.cStimulus]
@@ -34,19 +34,19 @@ export class BeGazeEyeDeserializer extends AbstractEyeDeserializer {
     return { aoi: transformedAoi, category, end, participant, start, stimulus }
   }
 
-  finalize (): null {
+  finalize(): null {
     return null
   }
 
-  isNan (value: string): boolean {
+  isNan(value: string): boolean {
     return isNaN(Number(value))
   }
 
-  isInvalidCategory (category: string): boolean {
+  isInvalidCategory(category: string): boolean {
     return category === 'Separator'
   }
 
-  transformAoi (aoi: string | null): string[] | null {
+  transformAoi(aoi: string | null): string[] | null {
     if (aoi === '-' || aoi === 'White Space' || aoi === null) return null
     return [aoi]
   }

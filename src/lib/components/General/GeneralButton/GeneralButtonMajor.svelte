@@ -1,9 +1,15 @@
 <script lang="ts">
-  export let isDisabled = false
+  interface Props {
+    isDisabled?: boolean
+    children?: import('svelte').Snippet
+    onclick: (event: MouseEvent) => void
+  }
+
+  let { isDisabled = false, children, onclick }: Props = $props()
 </script>
 
-<button disabled={isDisabled} on:pointerdown|stopPropagation on:click>
-  <slot />
+<button disabled={isDisabled} {onclick}>
+  {@render children?.()}
 </button>
 
 <style>

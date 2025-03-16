@@ -1,15 +1,25 @@
 <script lang="ts">
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
-  import type { GridStoreType } from '$lib/stores/gridStore.ts'
-  import { getDynamicAoiBoolean } from '$lib/services/scarfServices.ts'
-  import { hasStimulusAoiVisibility } from '$lib/stores/dataStore.ts'
-  import { getContext } from 'svelte'
-  import { getScarfGridHeightFromCurrentData } from '$lib/services/scarfServices.ts'
-  import type { ScarfGridType } from '$lib/type/gridType.ts'
-  let store = getContext<GridStoreType>('gridStore')
-  export let settings: ScarfGridType
+  import { getDynamicAoiBoolean } from '$lib/services/scarfServices'
+  import { hasStimulusAoiVisibility } from '$lib/stores/dataStore'
+  import { getScarfGridHeightFromCurrentData } from '$lib/services/scarfServices'
+  import type { ScarfGridType } from '$lib/type/gridType'
 
-  let value = settings.timeline
+  interface Props {
+    settings: ScarfGridType
+    settingsChange?: (settings: Partial<ScarfGridType>) => void
+  }
+
+  // Use callback props instead of event dispatching
+  let { settings, settingsChange = () => {} }: Props = $props()
+
+  // Track selected timeline
+  let selectedTimeline = $state(settings.timeline)
+
+  // Update selectedTimeline when settings change
+  $effect(() => {
+    selectedTimeline = settings.timeline
+  })
 
   const timelineOptions = [
     { value: 'absolute', label: 'Absolute' },
@@ -17,31 +27,36 @@
     { value: 'ordinal', label: 'Ordinal' },
   ]
 
-  $: switch (value) {
-    case 'absolute':
-    case 'relative':
-    case 'ordinal':
-      fireChange(value)
-      break
-    default:
-      console.warn(`Invalid timeline value: ${value}`)
-  }
+  // Handle timeline change
+  function handleTimelineChange(event: CustomEvent) {
+    const timeline = event.detail as 'absolute' | 'relative' | 'ordinal'
+    selectedTimeline = timeline
 
-  const fireChange = (timeline: 'absolute' | 'relative' | 'ordinal') => {
+    // Calculate dynamic AOI and height based on the selected timeline
     const isDynamicAoi = getDynamicAoiBoolean(
       timeline,
       settings.dynamicAOI,
       hasStimulusAoiVisibility(settings.stimulusId)
     )
+
     const h = getScarfGridHeightFromCurrentData(
       settings.stimulusId,
       isDynamicAoi,
       settings.groupId
     )
-    const newSettings = { ...settings, timeline, h }
-    store.updateSettings(newSettings)
+
+    // Call the callback prop with the updated settings
+    settingsChange({
+      timeline,
+      h,
+    })
   }
 </script>
 
-<Select label="Timeline" options={timelineOptions} bind:value compact={true}
-></Select>
+<Select
+  label="Timeline"
+  options={timelineOptions}
+  value={selectedTimeline}
+  onchange={handleTimelineChange}
+  compact={true}
+/>

@@ -1,14 +1,14 @@
 import ModalContentTobiiParsingInput from '$lib/components/Modal/ModalContent/ModalContentTobiiParsingInput.svelte'
-import { modalStore } from '$lib/stores/modalStore.ts'
-import { addErrorToast, addInfoToast } from '$lib/stores/toastStore.ts'
-import type { DataType } from '$lib/type/Data/DataType.ts'
+import { modalStore } from '$lib/stores/modalStore'
+import { addErrorToast, addInfoToast } from '$lib/stores/toastStore'
+import type { DataType } from '$lib/type/Data/DataType'
 
 /**
  * Creates a worker to handle whole eyefiles processing.
  * It is a separate file to avoid blocking the main thread.
  *
  * Workers must be instantiated in a specific way to work with TypeScript modules in Vite:
- *    new Worker(new URL('path/to/typescriptWorker.ts', import.meta.url), { type: 'module' })
+ *    new Worker(new URL('path/to/typescriptWorker', import.meta.url), { type: 'module' })
  */
 export class EyeWorkerService {
   worker: Worker
@@ -16,7 +16,7 @@ export class EyeWorkerService {
   onFail: () => void
   constructor(onData: (data: DataType) => void, onFail: () => void) {
     this.worker = new Worker(
-      new URL('$lib/worker/eyePipelineWorker.ts', import.meta.url),
+      new URL('$lib/worker/eyePipelineWorker', import.meta.url),
       {
         type: 'module',
       }

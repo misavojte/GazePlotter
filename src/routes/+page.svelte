@@ -1,5 +1,5 @@
 <script>
-  import GazePlotter from '../lib/components/GazePlotter.svelte'
+  import GazePlotter from '$lib/components/GazePlotter.svelte'
 </script>
 
 <svelte:head>
@@ -139,7 +139,7 @@
 </main>
 <footer class="border-t">
   <div>
-    <p>GazePlotter, version 1.4.3 (February 24, 2025)</p>
+    <p>GazePlotter, version 1.5.0 (March 16, 2025)</p>
     <p>
       Coded & designed by <a href="https://vojtechovska.com" target="_blank"
         >Michaela Vojtěchovská</a

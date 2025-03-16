@@ -1,12 +1,12 @@
 <script lang="ts">
-  import { ScanGraphDownloader } from '$lib/class/Downloader/ScanGraphDownloader.ts'
-  import { getStimuli } from '$lib/stores/dataStore.ts'
+  import { ScanGraphDownloader } from '$lib/class/Downloader/ScanGraphDownloader'
+  import { getStimuli } from '$lib/stores/dataStore'
   import GeneralSelectBase from '../../General/GeneralSelect/GeneralSelect.svelte'
   import GeneralInputText from '../../General/GeneralInput/GeneralInputText.svelte'
   import MajorButton from '../../General/GeneralButton/GeneralButtonMajor.svelte'
 
-  let stimulusId = '0'
-  let fileName = 'GazePlotter-ScanGraph'
+  let stimulusId = $state('0')
+  let fileName = $state('GazePlotter-ScanGraph')
 
   const options = getStimuli().map(stimulus => {
     return {
@@ -27,7 +27,7 @@
 <GeneralSelectBase label="Stimulus" {options} bind:value={stimulusId} />
 <GeneralInputText label="File name" bind:value={fileName} />
 <div class="mt-30">
-  <MajorButton on:click={handleSubmit}>Download</MajorButton>
+  <MajorButton onclick={handleSubmit}>Download</MajorButton>
 </div>
 
 <style>

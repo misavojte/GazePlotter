@@ -6,7 +6,7 @@
  */
 
 import { test, expect, describe } from 'vitest'
-import { GazePointEyeDeserializer } from '$lib/class/Eye/EyeDeserializer/GazePointEyeDeserializer.ts'
+import { GazePointEyeDeserializer } from '$lib/class/Eye/EyeDeserializer/GazePointEyeDeserializer'
 
 const separator = ','
 const header =

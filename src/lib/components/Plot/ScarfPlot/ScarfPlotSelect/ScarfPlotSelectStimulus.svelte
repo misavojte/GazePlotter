@@ -7,14 +7,23 @@
   import {
     getDynamicAoiBoolean,
     getScarfGridHeightFromCurrentData,
-  } from '$lib/services/scarfServices.ts'
-  import type { GridStoreType } from '$lib/stores/gridStore.ts'
-  import { getContext } from 'svelte'
-  import type { ScarfGridType } from '$lib/type/gridType.ts'
-  let store = getContext<GridStoreType>('gridStore')
-  export let settings: ScarfGridType
+  } from '$lib/services/scarfServices'
+  import type { ScarfGridType } from '$lib/type/gridType'
 
-  let value: string = settings.stimulusId.toString()
+  interface Props {
+    settings: ScarfGridType
+    settingsChange?: (settings: Partial<ScarfGridType>) => void
+  }
+
+  // Use callback props instead of event dispatching
+  let { settings, settingsChange = () => {} }: Props = $props()
+
+  let selectedStimulusId = $state(settings.stimulusId.toString())
+
+  // Update selectedStimulusId when settings change
+  $effect(() => {
+    selectedStimulusId = settings.stimulusId.toString()
+  })
 
   /**
    * TODO: Make reactive in the future (when stimuli can be updated)
@@ -26,9 +35,10 @@
     }
   })
 
-  $: fireChange(parseInt(value))
+  function handleSelectChange(event: CustomEvent) {
+    const stimulusId = parseInt(event.detail)
+    selectedStimulusId = stimulusId.toString()
 
-  const fireChange = (stimulusId: number) => {
     const h = getScarfGridHeightFromCurrentData(
       stimulusId,
       getDynamicAoiBoolean(
@@ -38,10 +48,21 @@
       ),
       settings.groupId
     )
-    const newSettings = { ...settings, stimulusId, h }
-    store.updateSettings(newSettings)
+
+    // Call the callback prop with the updated settings
+    if (settingsChange) {
+      settingsChange({
+        stimulusId,
+        h,
+      })
+    }
   }
 </script>
 
-<Select label="Stimulus" options={stimuliOption} bind:value compact={true}
-></Select>
+<Select
+  label="Stimulus"
+  options={stimuliOption}
+  value={selectedStimulusId}
+  onchange={handleSelectChange}
+  compact={true}
+/>

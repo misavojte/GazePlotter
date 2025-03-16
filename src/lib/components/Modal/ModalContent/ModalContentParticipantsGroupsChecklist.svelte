@@ -1,10 +1,15 @@
 <script lang="ts">
-  import { getParticipants } from '$lib/stores/dataStore.ts'
-  import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup.ts'
+  import { getParticipants } from '$lib/stores/dataStore'
+  import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup'
   import MajorButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralInputCheck from '$lib/components/General/GeneralInput/GeneralInputCheck.svelte'
 
-  export let group: ParticipantsGroup
+  interface Props {
+    group: ParticipantsGroup
+    onclick: (event: MouseEvent) => void
+  }
+
+  let { group = $bindable(), onclick }: Props = $props()
 
   const participants = getParticipants()
 
@@ -44,15 +49,15 @@
       <GeneralInputCheck
         checked={group.participantsIds.includes(participant.id)}
         label={participant.displayedName}
-        on:change={() => toggleParticipant(group, participant.id)}
+        onchange={() => toggleParticipant(group, participant.id)}
       />
     </li>
   {/each}
 </ul>
 <div class="footer">
-  <MajorButton on:click>Return to groups</MajorButton>
-  <MajorButton on:click={selectAll}>Select all</MajorButton>
-  <MajorButton on:click={deselectAll}>Deselect all</MajorButton>
+  <MajorButton onclick={e => onclick(e)}>Return to groups</MajorButton>
+  <MajorButton onclick={e => selectAll(e)}>Select all</MajorButton>
+  <MajorButton onclick={e => deselectAll(e)}>Deselect all</MajorButton>
 </div>
 
 <style>

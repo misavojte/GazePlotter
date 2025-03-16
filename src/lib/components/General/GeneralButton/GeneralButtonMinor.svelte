@@ -1,21 +1,20 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte'
-  const dispatch = createEventDispatcher()
-
-  export let isDisabled = false
-  export let isIcon = true
-
-  const handleClick = () => {
-    dispatch('click')
+  interface Props {
+    isDisabled?: boolean;
+    isIcon?: boolean;
+    children?: import('svelte').Snippet;
+    onclick?: (event: MouseEvent) => void;
   }
+
+  let { isDisabled = false, isIcon = true, children, onclick = () => {} }: Props = $props();
 </script>
 
 <button
   disabled={isDisabled}
-  on:pointerdown|stopPropagation
-  on:click={handleClick}
+  class:isIcon={isIcon}
+  {onclick}
 >
-  <slot />
+  {@render children?.()}
 </button>
 
 <style>
