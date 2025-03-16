@@ -378,8 +378,26 @@
   ) => {
     const { id, w, h } = event.detail
 
+    // Get the current item to check its minimum size
+    const currentItem = get(gridStore).find(item => item.id === id)
+    if (!currentItem) return
+
+    // Enforce minimum dimensions from the item's own min values and global config
+    const minWidth = Math.max(
+      gridConfig.minWidth,
+      currentItem.min?.w || gridConfig.minWidth
+    )
+    const minHeight = Math.max(
+      gridConfig.minHeight,
+      currentItem.min?.h || gridConfig.minHeight
+    )
+
+    // Ensure we don't resize below minimum dimensions
+    const constrainedW = Math.max(minWidth, w)
+    const constrainedH = Math.max(minHeight, h)
+
     // First update size without collision resolution
-    gridStore.updateItemSize(id, w, h, false)
+    gridStore.updateItemSize(id, constrainedW, constrainedH, false)
 
     // Then resolve collisions with a slight delay for better visual feedback
     setTimeout(() => {

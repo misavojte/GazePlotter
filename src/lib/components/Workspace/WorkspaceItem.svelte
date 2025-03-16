@@ -466,6 +466,8 @@
     let startWindowScrollX: number
     let startWindowScrollY: number
     let workspaceElement: HTMLElement | null
+    let lastW: number = w
+    let lastH: number = h
 
     function handleMouseDown(event: MouseEvent) {
       // Only handle left-button clicks
@@ -480,6 +482,8 @@
       startY = event.clientY
       startW = w
       startH = h
+      lastW = w
+      lastH = h
 
       // Store initial scroll positions - both workspace and window
       startScrollX = workspaceElement ? workspaceElement.scrollLeft : 0
@@ -533,17 +537,22 @@
       const deltaX = event.clientX - startX + scrollDeltaX
       const deltaY = event.clientY - startY + scrollDeltaY
 
-      // Convert to grid units
+      // Convert to grid units with smarter rounding
       const gridDeltaW = Math.round(deltaX / (cellSize.width + gap))
       const gridDeltaH = Math.round(deltaY / (cellSize.height + gap))
 
-      // Calculate new size with constraints
+      // Calculate new size with strict constraints
       const newW = Math.max(minW, startW + gridDeltaW)
       const newH = Math.max(minH, startH + gridDeltaH)
 
-      // Update only if size changed
-      if (newW !== w || newH !== h) {
-        // Update local variables immediately for visual feedback
+      // Only update if size changed AND exceeds minimum dimensions
+      // This prevents the jittery behavior when trying to resize below minimum
+      if ((newW !== lastW || newH !== lastH) && newW >= minW && newH >= minH) {
+        // Update local variables
+        lastW = newW
+        lastH = newH
+
+        // Only update the actual display variables if we're not below minimum
         w = newW
         h = newH
 
