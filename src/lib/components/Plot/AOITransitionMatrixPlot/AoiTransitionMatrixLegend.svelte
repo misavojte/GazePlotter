@@ -33,7 +33,6 @@
   )
   const LEGEND_HEIGHT = 15
   const LEGEND_WIDTH = $derived.by(() => width - 2 * LEGEND_MARGIN)
-  const STEPS = 100 // Number of gradient steps
 
   // SVG Slider constants
   const HANDLE_RADIUS = 8

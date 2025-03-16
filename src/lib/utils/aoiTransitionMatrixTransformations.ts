@@ -23,8 +23,8 @@ import type { SegmentInterpretedDataType } from '$lib/type/Data/InterpretedData/
  */
 export enum AggregationMethod {
   SUM = 'sum',
-  AVERAGE = 'average',
-  MEDIAN = 'median',
+  PROBABILITY = 'probability',
+  DWELL_TIME = 'dwellTime',
 }
 
 /**
@@ -86,6 +86,9 @@ export function calculateTransitionMatrix(
   // Create an array to store individual participant matrices for averaging/median
   const participantMatrices: number[][][] = []
   let totalTransitionsFound = 0
+
+  // Add to the main function, before the participant loop
+  const dwellTimeData: DwellTimeData = {}
 
   // Process each participant's data
   for (const participantId of participantIds) {
@@ -171,6 +174,24 @@ export function calculateTransitionMatrix(
             // console.log(`    Recorded transition: ${fromIdx} -> ${toIdx}`)
           }
         }
+
+        // For dwell time calculation, we need the duration of the lastFixation
+        const fixationDuration = currentSegment.end - currentSegment.start
+
+        // Record dwell time for each transition
+        for (const fromIdx of fromIndices) {
+          for (const toIdx of toIndices) {
+            // Initialize nested objects if they don't exist
+            if (!dwellTimeData[fromIdx]) dwellTimeData[fromIdx] = {}
+            if (!dwellTimeData[fromIdx][toIdx]) {
+              dwellTimeData[fromIdx][toIdx] = { totalTime: 0, count: 0 }
+            }
+
+            // Add this fixation's duration to the total
+            dwellTimeData[fromIdx][toIdx].totalTime += fixationDuration
+            dwellTimeData[fromIdx][toIdx].count++
+          }
+        }
       }
 
       // Update lastFixation for the next iteration
@@ -190,18 +211,22 @@ export function calculateTransitionMatrix(
   let resultMatrix: number[][]
 
   switch (aggregationMethod) {
-    case AggregationMethod.AVERAGE:
-      resultMatrix = calculateAverageMatrix(participantMatrices)
-      // console.log('Using AVERAGE aggregation method')
+    case AggregationMethod.PROBABILITY:
+      // First calculate the sum matrix, then normalize by row
+      resultMatrix = calculateTransitionProbabilityMatrix(
+        calculateSumMatrix(participantMatrices)
+      )
       break
-    case AggregationMethod.MEDIAN:
-      resultMatrix = calculateMedianMatrix(participantMatrices)
-      // console.log('Using MEDIAN aggregation method')
+    case AggregationMethod.DWELL_TIME:
+      // For dwell time, we need to calculate additional data during processing
+      resultMatrix = calculateDwellTimeMatrix(
+        participantMatrices,
+        dwellTimeData
+      )
       break
     case AggregationMethod.SUM:
     default:
       resultMatrix = calculateSumMatrix(participantMatrices)
-      // console.log('Using SUM aggregation method')
       break
   }
 
@@ -245,38 +270,29 @@ function calculateSumMatrix(matrices: number[][][]): number[][] {
 }
 
 /**
- * Calculates the average (mean) of all participant matrices
+ * Calculates transition probabilities for each origin AOI
+ * This normalizes each row of the matrix so the sum equals 1 (100%)
  *
- * @param matrices Array of participant matrices
- * @returns A new matrix with average values
+ * @param matrix The transition count matrix
+ * @returns A new matrix with normalized probability values (0-1)
  */
-function calculateAverageMatrix(matrices: number[][][]): number[][] {
-  if (matrices.length === 0) return []
-
-  const rows = matrices[0].length
-  const cols = matrices[0][0].length
-  const activeParticipantCount =
-    matrices.filter(matrix => matrix.some(row => row.some(cell => cell > 0)))
-      .length || 1 // Use 1 as divisor if no active participants
-
-  // Initialize result matrix with zeros
-  const result = Array(rows)
+function calculateTransitionProbabilityMatrix(matrix: number[][]): number[][] {
+  // Create a new matrix of the same size
+  const result = Array(matrix.length)
     .fill(0)
-    .map(() => Array(cols).fill(0))
+    .map((_, i) => Array(matrix[0].length).fill(0))
 
-  // Sum up all matrices
-  for (const matrix of matrices) {
-    for (let i = 0; i < rows; i++) {
-      for (let j = 0; j < cols; j++) {
-        result[i][j] += matrix[i][j]
-      }
-    }
-  }
+  // Process each row (source AOI)
+  for (let i = 0; i < matrix.length; i++) {
+    // Calculate the total transitions from this AOI
+    const rowSum = matrix[i].reduce((sum, value) => sum + value, 0)
 
-  // Divide by number of active participants
-  for (let i = 0; i < rows; i++) {
-    for (let j = 0; j < cols; j++) {
-      result[i][j] = result[i][j] / activeParticipantCount
+    // If no transitions from this AOI, leave as zeros
+    if (rowSum === 0) continue
+
+    // Calculate the probability for each transition
+    for (let j = 0; j < matrix[i].length; j++) {
+      result[i][j] = matrix[i][j] / rowSum
     }
   }
 
@@ -284,34 +300,46 @@ function calculateAverageMatrix(matrices: number[][][]): number[][] {
 }
 
 /**
- * Calculates the median of all participant matrices
+ * Calculates the average dwell time before transitions between AOIs
+ *
+ * Note: This is a more advanced calculation that requires tracking
+ * fixation durations during the initial data processing phase.
  *
  * @param matrices Array of participant matrices
- * @returns A new matrix with median values
+ * @param dwellTimeData Collected dwell time data during processing
+ * @returns A matrix with average dwell times
  */
-function calculateMedianMatrix(matrices: number[][][]): number[][] {
-  if (matrices.length === 0) return []
+interface DwellTimeData {
+  [fromIdx: number]: {
+    [toIdx: number]: {
+      totalTime: number
+      count: number
+    }
+  }
+}
 
+function calculateDwellTimeMatrix(
+  matrices: number[][][],
+  dwellTimeData: DwellTimeData
+): number[][] {
+  // Create a matrix of the same size as our transition matrices
   const rows = matrices[0].length
   const cols = matrices[0][0].length
 
-  // Initialize result matrix
   const result = Array(rows)
     .fill(0)
     .map(() => Array(cols).fill(0))
 
-  // Calculate median for each cell position
+  // Calculate average dwell time for each transition
   for (let i = 0; i < rows; i++) {
     for (let j = 0; j < cols; j++) {
-      // Get all values at this position
-      const values = matrices.map(matrix => matrix[i][j]).sort((a, b) => a - b)
-
-      // Calculate median
-      const mid = Math.floor(values.length / 2)
-      result[i][j] =
-        values.length % 2 === 0
-          ? (values[mid - 1] + values[mid]) / 2
-          : values[mid]
+      if (
+        dwellTimeData[i] &&
+        dwellTimeData[i][j] &&
+        dwellTimeData[i][j].count > 0
+      ) {
+        result[i][j] = dwellTimeData[i][j].totalTime / dwellTimeData[i][j].count
+      }
     }
   }
 

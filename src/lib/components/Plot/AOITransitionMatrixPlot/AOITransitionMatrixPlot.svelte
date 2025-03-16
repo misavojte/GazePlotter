@@ -52,11 +52,11 @@
   let minThreshold = $state(0)
   let calculatedMaxValue = $state(0)
 
-  // Aggregation method options - keep these as constants
+  // Simplified aggregation method options
   const aggregationOptions = [
-    { value: AggregationMethod.SUM, label: 'Sum' },
-    { value: AggregationMethod.AVERAGE, label: 'Average' },
-    { value: AggregationMethod.MEDIAN, label: 'Median' },
+    { value: AggregationMethod.SUM, label: 'Transition Count' },
+    { value: AggregationMethod.PROBABILITY, label: 'Transition Probability' },
+    { value: AggregationMethod.DWELL_TIME, label: 'Avg Dwell Time' },
   ]
 
   function handleSettingsChange(
@@ -94,6 +94,20 @@
       aoiLabels = labels
     }
   })
+
+  // Update the legend title based on the aggregation method
+  function getLegendTitle(method: string): string {
+    switch (method) {
+      case AggregationMethod.SUM:
+        return 'Transition Count'
+      case AggregationMethod.PROBABILITY:
+        return 'Transition Probability'
+      case AggregationMethod.DWELL_TIME:
+        return 'Dwell Time (ms)'
+      default:
+        return 'Transition Value'
+    }
+  }
 </script>
 
 <div class="aoi-matrix-container">
@@ -142,13 +156,7 @@
           {colorScale}
           xLabel="To AOI"
           yLabel="From AOI"
-          legendTitle={`Transition ${
-            settings.aggregationMethod === AggregationMethod.SUM
-              ? 'Count'
-              : settings.aggregationMethod === AggregationMethod.AVERAGE
-                ? 'Average'
-                : 'Median'
-          }`}
+          legendTitle={getLegendTitle(settings.aggregationMethod)}
           {minThreshold}
           onThresholdChange={handleThresholdChange}
           customMaxValue={settings.maxColorValue}
