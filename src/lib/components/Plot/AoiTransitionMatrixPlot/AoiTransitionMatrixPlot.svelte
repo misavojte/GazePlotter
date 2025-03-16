@@ -3,8 +3,8 @@
   import {
     calculateTransitionMatrix,
     AggregationMethod,
-  } from '$lib/utils/aoiTransitionMatrixTransformations'
-  import type { AOITransitionMatrixGridType } from '$lib/type/gridType'
+  } from '$lib/utils/AoiTransitionMatrixTransformations'
+  import type { AoiTransitionMatrixGridType } from '$lib/type/gridType'
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
   import { calculatePlotDimensionsWithHeader } from '$lib/utils/plotSizeUtility'
@@ -13,8 +13,8 @@
   import AoiTransitionMatrixButtonMenu from './AoiTransitionMatrixButtonMenu.svelte'
 
   interface Props {
-    settings: AOITransitionMatrixGridType
-    settingsChange: (settings: Partial<AOITransitionMatrixGridType>) => void
+    settings: AoiTransitionMatrixGridType
+    settingsChange: (settings: Partial<AoiTransitionMatrixGridType>) => void
   }
 
   let { settings, settingsChange }: Props = $props()
@@ -64,7 +64,7 @@
   ]
 
   function handleSettingsChange(
-    newSettings: Partial<AOITransitionMatrixGridType>
+    newSettings: Partial<AoiTransitionMatrixGridType>
   ) {
     settingsChange(newSettings)
   }
@@ -154,7 +154,7 @@
       )}
       {#if aoiLabels.length > 0}
         <AoiTransitionMatrixPlotFigure
-          aoiTransitionMatrix={matrix}
+          AoiTransitionMatrix={matrix}
           {aoiLabels}
           width={plotDimensions.width}
           height={plotDimensions.height}

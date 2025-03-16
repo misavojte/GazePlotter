@@ -1,5 +1,6 @@
 <script lang="ts">
   import ScarfPlot from '$lib/components/Plot/ScarfPlot/ScarfPlot.svelte'
+  import AoiTransitionMatrixPlot from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixPlot.svelte'
   import GridItem from '$lib/components/Workspace/WorkspaceItem.svelte'
   import WorkspaceIndicatorEmpty from '$lib/components/Workspace/WorkspaceIndicatorEmpty.svelte'
   import WorkspaceIndicatorLoading from '$lib/components/Workspace/WorkspaceIndicatorLoading.svelte'
@@ -36,9 +37,6 @@
   // Visualization Registry - Central configuration for plot types
   // ---------------------------------------------------
 
-  // Import visualization components and headers
-  import AoiTransitionMatrixPlot from '$lib/components/Plot/AOITransitionMatrixPlot/AoiTransitionMatrixPlot.svelte'
-
   // Define a type for visualization registry entries
   type VisualizationConfig = {
     name: string
@@ -71,7 +69,7 @@
         getScarfGridHeightFromCurrentData(stimulusId, false, -1),
       getDefaultWidth: (stimulusId = 0) => 20,
     },
-    aoiTransitionMatrix: {
+    AoiTransitionMatrix: {
       name: 'AOI Transition Matrix',
       component: AoiTransitionMatrixPlot,
       getDefaultConfig: (
@@ -145,7 +143,7 @@
         x: 0, // Always start at x=0
         y: 0,
       }),
-      createGridItem('aoiTransitionMatrix', {
+      createGridItem('AoiTransitionMatrix', {
         x: 20,
         y: 0,
         w: 11,
