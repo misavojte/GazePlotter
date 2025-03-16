@@ -121,7 +121,7 @@
     width: var(--toolbar-width);
     height: 100%;
     background-color: var(--c-grey);
-    z-index: 2000;
+    z-index: 2;
     transition: background-color 0.3s ease;
   }
 
