@@ -17,6 +17,12 @@
     type GridItemPosition,
     type GridConfig,
   } from '$lib/stores/gridStore'
+  import AOITransitionMatrixPlot from '$lib/components/Plot/AOITransitionMatrixPlot/AOITransitionMatrixPlot.svelte'
+  import AOITransitionMatrixHeader from '$lib/components/Plot/AOITransitionMatrixPlot/AOITransitionMatrixHeader/AOITransitionMatrixHeader.svelte'
+  import {
+    getTransitionMatrixHeight,
+    getTransitionMatrixWidth,
+  } from '$lib/utils/aoiTransitionMatrixTransformations'
 
   // ---------------------------------------------------
   // State tracking
@@ -49,7 +55,7 @@
     headerComponent?: ComponentType<SvelteComponent>
     getDefaultConfig: (params?: any) => Partial<AllGridTypes>
     getDefaultHeight: (params?: any) => number
-    getDefaultWidth: () => number
+    getDefaultWidth: (params?: any) => number
   }
 
   // Visualization registry - a map of all available visualization types
@@ -74,7 +80,22 @@
       }),
       getDefaultHeight: (stimulusId = 0) =>
         getScarfGridHeightFromCurrentData(stimulusId, false, -1),
-      getDefaultWidth: () => 20,
+      getDefaultWidth: (stimulusId = 0) => 20,
+    },
+    aoiTransitionMatrix: {
+      name: 'AOI Transition Matrix',
+      component: AOITransitionMatrixPlot,
+      headerComponent: AOITransitionMatrixHeader,
+      getDefaultConfig: (
+        params?: { stimulusId?: number; groupId?: number } = {}
+      ) => ({
+        stimulusId: params.stimulusId ?? 0,
+        groupId: params.groupId ?? -1,
+        min: { w: 4, h: 4 },
+      }),
+      getDefaultHeight: (stimulusId = 0) =>
+        getTransitionMatrixHeight(stimulusId),
+      getDefaultWidth: (stimulusId = 0) => getTransitionMatrixWidth(stimulusId),
     },
   }
 
@@ -104,10 +125,11 @@
   ): AllGridTypes => {
     const config = getVisualizationConfig(type)
     const id = options.id || getNewId()
+    const stimulusId = options.stimulusId ?? 0
 
     // Get default dimensions from config
-    const defaultWidth = config.getDefaultWidth()
-    const defaultHeight = config.getDefaultHeight(options.stimulusId)
+    const defaultWidth = config.getDefaultWidth(stimulusId)
+    const defaultHeight = config.getDefaultHeight(stimulusId)
 
     // Set default position if not provided
     const x = options.x !== undefined ? options.x : 0 // Always start at x=0
@@ -130,6 +152,10 @@
   const createDefaultGridState = (): AllGridTypes[] => {
     return [
       createGridItem('scarf', {
+        x: 0, // Always start at x=0
+        y: 0,
+      }),
+      createGridItem('aoiTransitionMatrix', {
         x: 0, // Always start at x=0
         y: 0,
       }),
@@ -470,10 +496,26 @@
           >
             <div slot="header">
               {#if visConfig.headerComponent}
-                <svelte:component
-                  this={visConfig.headerComponent}
-                  bind:settings={item}
-                />
+                <!-- For AOI Transition Matrix, we need to pass max transition value -->
+                {#if item.type === 'aoiTransitionMatrix'}
+                  <svelte:component
+                    this={visConfig.headerComponent}
+                    bind:settings={item}
+                    maxTransitionValue={window._aoiTransitionData?.[item.id]
+                      ?.maxValue || 10}
+                    on:filterChange={e => {
+                      // Forward the event to the handler from our global store
+                      if (window._aoiTransitionHandlers?.[item.id]) {
+                        window._aoiTransitionHandlers[item.id](e)
+                      }
+                    }}
+                  />
+                {:else}
+                  <svelte:component
+                    this={visConfig.headerComponent}
+                    bind:settings={item}
+                  />
+                {/if}
               {/if}
             </div>
 

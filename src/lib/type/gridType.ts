@@ -5,7 +5,7 @@ export interface GridType {
   w: number
   h: number
   min: { w: number; h: number }
-  type: 'scarf' | 'empty' | 'load'
+  type: 'scarf' | 'aoiTransitionMatrix'
 }
 
 export interface ScarfGridType extends GridType {
@@ -21,13 +21,11 @@ export interface ScarfGridType extends GridType {
   dynamicAOI: boolean
 }
 
-export interface EmptyGridType extends GridType {
-  type: 'empty'
-}
-
-export interface LoadGridType extends GridType {
-  type: 'load'
+export interface AOITransitionMatrixGridType extends GridType {
+  type: 'aoiTransitionMatrix'
+  stimulusId: number
+  groupId: number
 }
 
 // now create a type that is a union of all the grid types
-export type AllGridTypes = ScarfGridType | EmptyGridType | LoadGridType
+export type AllGridTypes = ScarfGridType | AOITransitionMatrixGridType
