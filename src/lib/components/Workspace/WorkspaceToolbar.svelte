@@ -95,7 +95,7 @@
   }
 </script>
 
-<svelte:window on:click={handleClickOutside} />
+<svelte:window onclick={handleClickOutside} />
 
 <div
   class="workspace-toolbar"
@@ -130,12 +130,14 @@
     class="context-menu"
     style="left: {$contextMenuState.x}px; top: {$contextMenuState.y}px;"
     transition:fade={{ duration: 100 }}
-    on:click|stopPropagation={() => {}}
+    onclick={() => {
+      event.stopPropagation()
+    }}
   >
     {#each visualizations as viz}
       <button
         class="context-menu-item"
-        on:click={() => handleVisualizationSelect(viz.id)}
+        onclick={() => handleVisualizationSelect(viz.id)}
       >
         {viz.label}
       </button>

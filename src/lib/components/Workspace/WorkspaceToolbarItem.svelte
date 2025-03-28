@@ -60,9 +60,9 @@
   <button
     class="toolbar-item"
     bind:this={buttonElement}
-    on:click={handleClick}
-    on:mouseenter={showTooltip}
-    on:mouseleave={hideTooltip}
+    onclick={handleClick}
+    onmouseenter={showTooltip}
+    onmouseleave={hideTooltip}
   >
     <div class="toolbar-item-icon">
       {@html icon}

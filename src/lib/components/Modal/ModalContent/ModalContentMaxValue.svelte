@@ -57,7 +57,7 @@
           type="radio"
           name="valueMode"
           checked={!useAutoValue}
-          on:change={() => toggleAutoValue(false)}
+          onchange={() => toggleAutoValue(false)}
         />
         <span>Custom value</span>
       </label>
@@ -66,7 +66,7 @@
           type="radio"
           name="valueMode"
           checked={useAutoValue}
-          on:change={() => toggleAutoValue(true)}
+          onchange={() => toggleAutoValue(true)}
         />
         <span>Auto (calculated from data: {calculatedValue})</span>
       </label>

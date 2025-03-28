@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { run } from 'svelte/legacy';
+  import { run } from 'svelte/legacy'
 
   import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
@@ -20,12 +20,16 @@
   import { get } from 'svelte/store'
 
   interface Props {
-    selectedStimulus?: string;
-    userSelected?: string;
-    gridStore: GridStoreType;
+    selectedStimulus?: string
+    userSelected?: string
+    gridStore: GridStoreType
   }
 
-  let { selectedStimulus = $bindable('0'), userSelected = $bindable('this'), gridStore }: Props = $props();
+  let {
+    selectedStimulus = $bindable('0'),
+    userSelected = $bindable('this'),
+    gridStore,
+  }: Props = $props()
 
   // Pure functions for AOI manipulation
   const isValidMatch = (displayedName: string): boolean =>
@@ -148,14 +152,14 @@
 
   run(() => {
     aoiObjects = getAois(parseInt(selectedStimulus))
-  });
+  })
 
   run(() => {
     const reorderedResult = reorderAois([...aoiObjects])
     if (JSON.stringify(reorderedResult) !== JSON.stringify(aoiObjects)) {
       aoiObjects = reorderedResult
     }
-  });
+  })
 
   // Event handlers
   const handleObjectPositionUp = (aoi: ExtendedInterpretedDataType) => {
@@ -269,7 +273,7 @@
       bind:userSelected
     />
   </div>
-  <GeneralButtonMajor on:click={handleSubmit}>Apply</GeneralButtonMajor>
+  <GeneralButtonMajor onclick={handleSubmit}>Apply</GeneralButtonMajor>
 {/if}
 
 <style>
