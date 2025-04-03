@@ -126,6 +126,21 @@
   // Reactive derivation of whether the grid is empty
   const isEmpty = derived(gridStore, $gridStore => $gridStore.length === 0)
 
+  // Calculate the required workspace width based on grid items
+  const requiredWorkspaceWidth = derived(positions, $positions => {
+    if ($positions.length === 0) return 1000 // Default minimum width
+
+    // Find the rightmost edge of all items
+    const maxRightEdge = Math.max(
+      ...$positions.map(
+        item => (item.x + item.w) * (gridConfig.cellSize.width + gridConfig.gap)
+      )
+    )
+
+    // Add padding and ensure minimum width
+    return Math.max(1000, maxRightEdge + 300) // Extra padding for new items
+  })
+
   // Create store to track minimum workspace height required by all items
   const requiredWorkspaceHeight = derived(positions, $positions => {
     return calculateRequiredWorkspaceHeight($positions, gridConfig)
@@ -544,6 +559,13 @@
     on:mousedown={handleWorkspacePanStart}
     class:is-panning={$isPanning}
   >
+    <!-- Fixed background pattern layer -->
+    <div
+      class="background-pattern"
+      style="width: {$requiredWorkspaceWidth}px;"
+    ></div>
+
+    <!-- Scrollable content layer -->
     <div class="grid-container">
       {#each $gridStore as item (item.id)}
         {@const visConfig = getVisualizationConfig(item.type)}
@@ -621,14 +643,7 @@
     box-sizing: border-box;
     position: relative;
     width: 100%;
-    background-color: var(--c-darkwhite);
-    background-image: radial-gradient(
-      circle,
-      var(--c-grey) 2px,
-      transparent 2px
-    );
-    background-size: 50px 50px;
-    background-position: 5px 5px;
+    background-color: transparent; /* Remove background from container */
     z-index: 1;
     transition: height 0.3s ease-out;
     overflow-x: auto; /* Allow horizontal scrolling */
@@ -642,6 +657,25 @@
     cursor: grab; /* Show grab cursor to indicate draggable area */
   }
 
+  /* Fixed background pattern that doesn't scroll */
+  .background-pattern {
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    background-color: var(--c-darkwhite);
+    background-image: radial-gradient(
+      circle,
+      var(--c-grey) 2px,
+      transparent 2px
+    );
+    background-size: 50px 50px;
+    background-position: 5px 5px;
+    z-index: -1; /* Place behind content */
+    pointer-events: none; /* Allow clicking through to container */
+    min-width: 100%; /* Always at least as wide as the container */
+  }
+
   /* Cursor styling for panning */
   .workspace-container.is-panning {
     cursor: grabbing;
@@ -651,7 +685,7 @@
     position: relative;
     width: 100%;
     min-height: 200px;
-    background-color: transparent;
+    background-color: transparent; /* Keep transparent to show fixed background */
     transition: height 0.3s ease-out;
     overflow-x: visible; /* Allow content to flow naturally */
     overflow-y: visible; /* Allow content to expand the container */
