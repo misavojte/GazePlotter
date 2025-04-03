@@ -31,6 +31,12 @@
   const isDragging = writable(false)
   const draggedItemId = writable<number | null>(null)
 
+  // Add state for workspace panning
+  const isPanning = writable(false)
+  let lastPanX = 0
+  let lastPanY = 0
+  let workspaceContainer: HTMLElement | null = null
+
   // Store to track temporary height adjustment during drag operations
   const temporaryDragHeight = writable<number | null>(null)
 
@@ -424,6 +430,79 @@
     }
   }
 
+  // --- Workspace panning handlers ---
+
+  // Handle panning start when clicking on the workspace background
+  const handleWorkspacePanStart = (event: MouseEvent) => {
+    // Only handle primary mouse button
+    if (event.button !== 0) return
+
+    // Only handle clicks on the workspace background, not on grid items
+    if ((event.target as HTMLElement).closest('.grid-item')) return
+
+    // Prevent default to avoid text selection during panning
+    event.preventDefault()
+
+    // Set panning state
+    isPanning.set(true)
+
+    // Store initial position
+    lastPanX = event.clientX
+    lastPanY = event.clientY
+
+    // Apply cursor style to entire document during pan to avoid flickering
+    document.body.style.cursor = 'grabbing'
+
+    // Add move and end event listeners
+    document.addEventListener('mousemove', handleWorkspacePanMove)
+    document.addEventListener('mouseup', handleWorkspacePanEnd)
+  }
+
+  // Improved panning with smoothing and reduced sensitivity
+  const handleWorkspacePanMove = (event: MouseEvent) => {
+    if (!get(isPanning) || !workspaceContainer) return
+
+    // Calculate raw delta
+    const rawDeltaX = event.clientX - lastPanX
+    const rawDeltaY = event.clientY - lastPanY
+
+    // Apply damping factor to reduce sensitivity and smooth movement
+    // Lower values make movement smoother but less responsive
+    const dampingFactor = 0.6
+
+    // Apply damping to create smoother motion
+    const deltaX = rawDeltaX * dampingFactor
+    const deltaY = rawDeltaY * dampingFactor
+
+    // Update the last position for next calculation
+    lastPanX = event.clientX
+    lastPanY = event.clientY
+
+    // Apply horizontal scrolling to the workspace container
+    if (Math.abs(deltaX) > 0.5) {
+      // Small threshold to ignore tiny movements
+      workspaceContainer.scrollLeft -= deltaX
+    }
+
+    // Apply vertical scrolling to the window with threshold
+    if (Math.abs(deltaY) > 0.5) {
+      window.scrollBy(0, -deltaY)
+    }
+  }
+
+  // Handle panning end
+  const handleWorkspacePanEnd = () => {
+    // Reset panning state
+    isPanning.set(false)
+
+    // Reset cursor style
+    document.body.style.cursor = ''
+
+    // Remove event listeners
+    document.removeEventListener('mousemove', handleWorkspacePanMove)
+    document.removeEventListener('mouseup', handleWorkspacePanEnd)
+  }
+
   // When the processing state changes, update the grid and loading state
   $effect(() => {
     if ($processingFileStateStore === 'done') {
@@ -457,7 +536,14 @@
     )}
   />
 
-  <div class="workspace-container" style="height: {$gridHeight}px;">
+  <!-- Bind the workspace container and add mousedown for panning -->
+  <div
+    class="workspace-container"
+    style="height: {$gridHeight}px;"
+    bind:this={workspaceContainer}
+    on:mousedown={handleWorkspacePanStart}
+    class:is-panning={$isPanning}
+  >
     <div class="grid-container">
       {#each $gridStore as item (item.id)}
         {@const visConfig = getVisualizationConfig(item.type)}
@@ -504,7 +590,7 @@
       {/each}
     </div>
 
-    {#if $isDragging}
+    {#if $isDragging || $isPanning}
       <div
         class="pointer-events-blocker"
         transition:fade={{ duration: 50 }}
@@ -553,6 +639,12 @@
     will-change: height;
     border-left: 1px solid #88888862;
     transform: translateZ(0);
+    cursor: grab; /* Show grab cursor to indicate draggable area */
+  }
+
+  /* Cursor styling for panning */
+  .workspace-container.is-panning {
+    cursor: grabbing;
   }
 
   .grid-container {
