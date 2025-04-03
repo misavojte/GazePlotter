@@ -1,6 +1,4 @@
 <script lang="ts">
-  import ScarfPlot from '$lib/components/Plot/ScarfPlot/ScarfPlot.svelte'
-  import AoiTransitionMatrixPlot from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixPlot.svelte'
   import GridItem from '$lib/components/Workspace/WorkspaceItem.svelte'
   import WorkspaceIndicatorEmpty from '$lib/components/Workspace/WorkspaceIndicatorEmpty.svelte'
   import WorkspaceIndicatorLoading from '$lib/components/Workspace/WorkspaceIndicatorLoading.svelte'
@@ -10,7 +8,6 @@
   import { writable, get, derived } from 'svelte/store'
   import type { AllGridTypes } from '$lib/type/gridType'
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
-  import { getScarfGridHeightFromCurrentData } from '$lib/services/scarfServices'
   import { createGridStore, type GridConfig } from '$lib/stores/gridStore'
   import {
     DEFAULT_GRID_CONFIG,
@@ -18,6 +15,10 @@
     calculateRequiredWorkspaceHeight,
     calculateBottomEdgePosition,
   } from '$lib/utils/gridSizingUtils'
+  import {
+    visualizationRegistry,
+    getVisualizationConfig,
+  } from '$lib/const/vizRegistry'
 
   // ---------------------------------------------------
   // State tracking
@@ -32,65 +33,6 @@
 
   // Store to track temporary height adjustment during drag operations
   const temporaryDragHeight = writable<number | null>(null)
-
-  // ---------------------------------------------------
-  // Visualization Registry - Central configuration for plot types
-  // ---------------------------------------------------
-
-  // Define a type for visualization registry entries
-  type VisualizationConfig = {
-    name: string
-    component: any
-    getDefaultConfig: (params?: any) => Partial<AllGridTypes>
-    getDefaultHeight: (params?: any) => number
-    getDefaultWidth: (params?: any) => number
-  }
-
-  // Visualization registry - a map of all available visualization types
-  const visualizationRegistry: Record<string, VisualizationConfig> = {
-    scarf: {
-      name: 'Scarf Plot',
-      component: ScarfPlot,
-      getDefaultConfig: (
-        params: { stimulusId?: number; groupId?: number } = {}
-      ) => ({
-        stimulusId: params.stimulusId ?? 0,
-        groupId: params.groupId ?? -1,
-        zoomLevel: 0,
-        timeline: 'absolute',
-        absoluteGeneralLastVal: 0,
-        absoluteStimuliLastVal: [],
-        ordinalGeneralLastVal: 0,
-        ordinalStimuliLastVal: [],
-        dynamicAOI: true,
-        min: { w: 14, h: 3 },
-      }),
-      getDefaultHeight: (stimulusId = 0) =>
-        getScarfGridHeightFromCurrentData(stimulusId, false, -1),
-      getDefaultWidth: (stimulusId = 0) => 20,
-    },
-    AoiTransitionMatrix: {
-      name: 'AOI Transition Matrix',
-      component: AoiTransitionMatrixPlot,
-      getDefaultConfig: (
-        params: { stimulusId?: number; groupId?: number } = {}
-      ) => ({
-        stimulusId: params.stimulusId ?? 0,
-        groupId: params.groupId ?? -1,
-        min: { w: 11, h: 12 },
-      }),
-      getDefaultHeight: () => 12, // Default square size
-      getDefaultWidth: () => 12,
-    },
-  }
-
-  // Helper function to get visualization config
-  const getVisualizationConfig = (type: string): VisualizationConfig => {
-    return (
-      visualizationRegistry[type] ||
-      new Error(`Visualization config not found for type: ${type}`)
-    )
-  }
 
   // ---------------------------------------------------
   // Utility functions
@@ -544,7 +486,7 @@
               <div class="grid-item-content">
                 <visConfig.component
                   settings={item}
-                  settingsChange={newSettings => {
+                  settingsChange={(newSettings: any) => {
                     gridStore.updateSettings({
                       ...item,
                       ...newSettings,
