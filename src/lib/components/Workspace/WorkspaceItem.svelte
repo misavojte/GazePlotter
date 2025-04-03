@@ -309,6 +309,7 @@
     let workspaceElement: HTMLElement | null
     let autoScrollInterval: number | null = null
     let isDraggedOverToolbar = false
+    let touchId: number | null = null // For tracking the specific touch
 
     // Auto-scroll configuration
     const autoScrollSettings = {
@@ -444,17 +445,29 @@
       return Math.ceil(ratio * ratio * autoScrollSettings.maxSpeed)
     }
 
-    function handleMouseDown(event: MouseEvent) {
-      // Only handle left-button clicks
-      if (event.button !== 0) return
+    function handleStart(event: MouseEvent | TouchEvent) {
+      // Handle both touch and mouse events
+      const isTouchEvent = 'touches' in event
+
+      // For mouse, only handle left-button clicks
+      if (!isTouchEvent && (event as MouseEvent).button !== 0) return
+
+      // For touch, store the touch identifier for tracking
+      if (isTouchEvent) {
+        const touch = (event as TouchEvent).touches[0]
+        touchId = touch.identifier
+        startX = touch.clientX
+        startY = touch.clientY
+      } else {
+        startX = (event as MouseEvent).clientX
+        startY = (event as MouseEvent).clientY
+      }
 
       // Find the workspace container for scroll position tracking
       workspaceElement = node.closest('.workspace-container')
 
       // Start dragging
       isDragging = true
-      startX = event.clientX
-      startY = event.clientY
       startPosX = x
       startPosY = y
 
@@ -482,19 +495,57 @@
       // Dispatch drag start event
       ondragstart({ id, x, y, w, h })
 
-      // Add drag tracking events to document instead of window
-      // This ensures we always get the events, even with pointer-events blocking overlays
-      document.addEventListener('mousemove', handleMouseMove, { capture: true })
-      document.addEventListener('mouseup', handleMouseUp, { capture: true })
+      // Add appropriate event listeners based on event type
+      if (isTouchEvent) {
+        document.addEventListener('touchmove', handleMove, {
+          passive: false,
+          capture: true,
+        })
+        document.addEventListener('touchend', handleEnd, { capture: true })
+        document.addEventListener('touchcancel', handleEnd, { capture: true })
+      } else {
+        document.addEventListener('mousemove', handleMove, { capture: true })
+        document.addEventListener('mouseup', handleEnd, { capture: true })
+      }
 
       event.preventDefault()
     }
 
-    function handleMouseMove(event: MouseEvent) {
+    function handleMove(event: MouseEvent | TouchEvent) {
       if (!isDragging) return
 
+      // Handle both touch and mouse events
+      const isTouchEvent = 'touches' in event
+      let clientX: number, clientY: number
+
+      // For touch events, find the touch that matches our stored ID
+      if (isTouchEvent) {
+        // Prevent default for touch events to stop scrolling
+        event.preventDefault()
+
+        // Find the touch that matches our starting touch
+        const touchList = (event as TouchEvent).touches
+        let activeTouch: Touch | undefined
+
+        for (let i = 0; i < touchList.length; i++) {
+          if (touchList[i].identifier === touchId) {
+            activeTouch = touchList[i]
+            break
+          }
+        }
+
+        // If we couldn't find the touch, abort
+        if (!activeTouch) return
+
+        clientX = activeTouch.clientX
+        clientY = activeTouch.clientY
+      } else {
+        clientX = (event as MouseEvent).clientX
+        clientY = (event as MouseEvent).clientY
+      }
+
       // Setup auto-scrolling if near edges
-      setupAutoScroll(event.clientX, event.clientY)
+      setupAutoScroll(clientX, clientY)
 
       // Get current scroll positions - both workspace and window
       const currentScrollX = workspaceElement ? workspaceElement.scrollLeft : 0
@@ -519,8 +570,8 @@
         (currentWindowScrollY - startWindowScrollY)
 
       // Calculate delta movement in pixels, accounting for all scroll changes
-      const deltaX = event.clientX - startX + scrollDeltaX
-      const deltaY = event.clientY - startY + scrollDeltaY
+      const deltaX = clientX - startX + scrollDeltaX
+      const deltaY = clientY - startY + scrollDeltaY
 
       // Convert to grid units
       const gridDeltaX = Math.round(deltaX / (cellSize.width + gap))
@@ -556,8 +607,11 @@
       // Don't call onmove during drag - only on drag end
     }
 
-    function handleMouseUp() {
+    function handleEnd(event?: MouseEvent | TouchEvent) {
       if (!isDragging) return
+
+      // Clear the touch ID
+      touchId = null
 
       // Clear auto-scroll interval if active
       if (autoScrollInterval !== null) {
@@ -590,15 +644,17 @@
       isDragging = false
       workspaceElement = null
 
-      // Clean up event listeners
-      document.removeEventListener('mousemove', handleMouseMove, {
-        capture: true,
-      })
-      document.removeEventListener('mouseup', handleMouseUp, { capture: true })
+      // Clean up all event listeners
+      document.removeEventListener('mousemove', handleMove, { capture: true })
+      document.removeEventListener('mouseup', handleEnd, { capture: true })
+      document.removeEventListener('touchmove', handleMove, { capture: true })
+      document.removeEventListener('touchend', handleEnd, { capture: true })
+      document.removeEventListener('touchcancel', handleEnd, { capture: true })
     }
 
-    // Add initial event listener
-    node.addEventListener('mousedown', handleMouseDown)
+    // Add initial event listeners for both mouse and touch
+    node.addEventListener('mousedown', handleStart)
+    node.addEventListener('touchstart', handleStart, { passive: false })
 
     // Return destroy method to clean up
     return {
@@ -609,19 +665,24 @@
           autoScrollInterval = null
         }
 
-        node.removeEventListener('mousedown', handleMouseDown)
-        document.removeEventListener('mousemove', handleMouseMove, {
-          capture: true,
-        })
-        document.removeEventListener('mouseup', handleMouseUp, {
+        // Remove all event listeners
+        node.removeEventListener('mousedown', handleStart)
+        node.removeEventListener('touchstart', handleStart)
+        document.removeEventListener('mousemove', handleMove, { capture: true })
+        document.removeEventListener('mouseup', handleEnd, { capture: true })
+        document.removeEventListener('touchmove', handleMove, { capture: true })
+        document.removeEventListener('touchend', handleEnd, { capture: true })
+        document.removeEventListener('touchcancel', handleEnd, {
           capture: true,
         })
       },
       update(newOptions: { enabled: boolean }) {
         if (!newOptions.enabled) {
-          node.removeEventListener('mousedown', handleMouseDown)
+          node.removeEventListener('mousedown', handleStart)
+          node.removeEventListener('touchstart', handleStart)
         } else if (!options.enabled) {
-          node.addEventListener('mousedown', handleMouseDown)
+          node.addEventListener('mousedown', handleStart)
+          node.addEventListener('touchstart', handleStart, { passive: false })
         }
         options = newOptions
       },
@@ -643,18 +704,31 @@
     let workspaceElement: HTMLElement | null
     let lastW: number = w
     let lastH: number = h
+    let touchId: number | null = null // For tracking the specific touch
 
-    function handleMouseDown(event: MouseEvent) {
-      // Only handle left-button clicks
-      if (event.button !== 0) return
+    function handleStart(event: MouseEvent | TouchEvent) {
+      // Handle both touch and mouse events
+      const isTouchEvent = 'touches' in event
+
+      // For mouse, only handle left-button clicks
+      if (!isTouchEvent && (event as MouseEvent).button !== 0) return
+
+      // For touch, store the touch identifier for tracking
+      if (isTouchEvent) {
+        const touch = (event as TouchEvent).touches[0]
+        touchId = touch.identifier
+        startX = touch.clientX
+        startY = touch.clientY
+      } else {
+        startX = (event as MouseEvent).clientX
+        startY = (event as MouseEvent).clientY
+      }
 
       // Find the workspace container for scroll position tracking
       workspaceElement = node.closest('.workspace-container')
 
       // Start resizing
       isResizing = true
-      startX = event.clientX
-      startY = event.clientY
       startW = w
       startH = h
       lastW = w
@@ -693,16 +767,55 @@
       // Dispatch resize start event
       onresizestart({ id, x, y, w, h })
 
-      // Add resize tracking events using document level listeners with capture
-      document.addEventListener('mousemove', handleMouseMove, { capture: true })
-      document.addEventListener('mouseup', handleMouseUp, { capture: true })
+      // Add appropriate event listeners based on event type
+      if (isTouchEvent) {
+        document.addEventListener('touchmove', handleMove, {
+          passive: false,
+          capture: true,
+        })
+        document.addEventListener('touchend', handleEnd, { capture: true })
+        document.addEventListener('touchcancel', handleEnd, { capture: true })
+      } else {
+        document.addEventListener('mousemove', handleMove, { capture: true })
+        document.addEventListener('mouseup', handleEnd, { capture: true })
+      }
 
       event.preventDefault()
       event.stopPropagation()
     }
 
-    function handleMouseMove(event: MouseEvent) {
+    function handleMove(event: MouseEvent | TouchEvent) {
       if (!isResizing) return
+
+      // Handle both touch and mouse events
+      const isTouchEvent = 'touches' in event
+      let clientX: number, clientY: number
+
+      // For touch events, find the touch that matches our stored ID
+      if (isTouchEvent) {
+        // Prevent default for touch events to stop scrolling
+        event.preventDefault()
+
+        // Find the touch that matches our starting touch
+        const touchList = (event as TouchEvent).touches
+        let activeTouch: Touch | undefined
+
+        for (let i = 0; i < touchList.length; i++) {
+          if (touchList[i].identifier === touchId) {
+            activeTouch = touchList[i]
+            break
+          }
+        }
+
+        // If we couldn't find the touch, abort
+        if (!activeTouch) return
+
+        clientX = activeTouch.clientX
+        clientY = activeTouch.clientY
+      } else {
+        clientX = (event as MouseEvent).clientX
+        clientY = (event as MouseEvent).clientY
+      }
 
       // Get current scroll positions - both workspace and window
       const currentScrollX = workspaceElement ? workspaceElement.scrollLeft : 0
@@ -727,8 +840,8 @@
         (currentWindowScrollY - startWindowScrollY)
 
       // Calculate delta in pixels, accounting for all scroll changes
-      const deltaX = event.clientX - startX + scrollDeltaX
-      const deltaY = event.clientY - startY + scrollDeltaY
+      const deltaX = clientX - startX + scrollDeltaX
+      const deltaY = clientY - startY + scrollDeltaY
 
       // Convert to grid units with smarter rounding
       const gridDeltaW = Math.round(deltaX / (cellSize.width + gap))
@@ -770,8 +883,11 @@
       }
     }
 
-    function handleMouseUp() {
+    function handleEnd(event?: MouseEvent | TouchEvent) {
       if (!isResizing) return
+
+      // Clear the touch ID
+      touchId = null
 
       // Clean up visual effects
       showResizePlaceholder = false
@@ -804,15 +920,17 @@
       isResizing = false
       workspaceElement = null
 
-      // Clean up event listeners
-      document.removeEventListener('mousemove', handleMouseMove, {
-        capture: true,
-      })
-      document.removeEventListener('mouseup', handleMouseUp, { capture: true })
+      // Clean up all event listeners
+      document.removeEventListener('mousemove', handleMove, { capture: true })
+      document.removeEventListener('mouseup', handleEnd, { capture: true })
+      document.removeEventListener('touchmove', handleMove, { capture: true })
+      document.removeEventListener('touchend', handleEnd, { capture: true })
+      document.removeEventListener('touchcancel', handleEnd, { capture: true })
     }
 
-    // Add initial event listener
-    node.addEventListener('mousedown', handleMouseDown)
+    // Add initial event listeners for both mouse and touch
+    node.addEventListener('mousedown', handleStart)
+    node.addEventListener('touchstart', handleStart, { passive: false })
 
     // Return destroy method to clean up
     return {
@@ -825,19 +943,25 @@
             styleEl.remove()
           }
         }
-        node.removeEventListener('mousedown', handleMouseDown)
-        document.removeEventListener('mousemove', handleMouseMove, {
-          capture: true,
-        })
-        document.removeEventListener('mouseup', handleMouseUp, {
+
+        // Remove all event listeners
+        node.removeEventListener('mousedown', handleStart)
+        node.removeEventListener('touchstart', handleStart)
+        document.removeEventListener('mousemove', handleMove, { capture: true })
+        document.removeEventListener('mouseup', handleEnd, { capture: true })
+        document.removeEventListener('touchmove', handleMove, { capture: true })
+        document.removeEventListener('touchend', handleEnd, { capture: true })
+        document.removeEventListener('touchcancel', handleEnd, {
           capture: true,
         })
       },
       update(newOptions: { enabled: boolean }) {
         if (!newOptions.enabled) {
-          node.removeEventListener('mousedown', handleMouseDown)
+          node.removeEventListener('mousedown', handleStart)
+          node.removeEventListener('touchstart', handleStart)
         } else if (!options.enabled) {
-          node.addEventListener('mousedown', handleMouseDown)
+          node.addEventListener('mousedown', handleStart)
+          node.addEventListener('touchstart', handleStart, { passive: false })
         }
         options = newOptions
       },

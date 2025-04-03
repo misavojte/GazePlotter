@@ -457,12 +457,17 @@
   // --- Workspace panning handlers ---
 
   // Handle panning start when clicking on the workspace background
-  const handleWorkspacePanStart = (event: MouseEvent) => {
-    // Only handle primary mouse button
-    if (event.button !== 0) return
+  const handleWorkspacePanStart = (event: MouseEvent | TouchEvent) => {
+    // Handle both mouse and touch events
+    const isTouchEvent = 'touches' in event
 
-    // Only handle clicks on the workspace background, not on grid items
+    // For mouse events, only handle primary button
+    if (!isTouchEvent && (event as MouseEvent).button !== 0) return
+
+    // Get the target element
     const targetEl = event.target as HTMLElement
+
+    // Only handle clicks/touches on the workspace background, not on grid items
     if (
       targetEl.closest('.grid-item') ||
       targetEl.closest('.grid-item-content')
@@ -475,28 +480,60 @@
     // Set panning state
     isPanning.set(true)
 
-    // Store initial position
-    lastPanX = event.clientX
-    lastPanY = event.clientY
+    // Store initial position (handle both mouse and touch)
+    if (isTouchEvent) {
+      const touch = (event as TouchEvent).touches[0]
+      lastPanX = touch.clientX
+      lastPanY = touch.clientY
+    } else {
+      lastPanX = (event as MouseEvent).clientX
+      lastPanY = (event as MouseEvent).clientY
+    }
 
-    // Set cursor directly for immediate feedback
+    // Set cursor directly for immediate feedback (mouse only)
     document.body.style.cursor = 'grabbing'
     if (workspaceContainer) {
       workspaceContainer.style.cursor = 'grabbing'
     }
 
-    // Add move and end event listeners
-    document.addEventListener('mousemove', handleWorkspacePanMove)
-    document.addEventListener('mouseup', handleWorkspacePanEnd)
+    // Add appropriate event listeners based on event type
+    if (isTouchEvent) {
+      document.addEventListener('touchmove', handleWorkspacePanMove, {
+        passive: false,
+      })
+      document.addEventListener('touchend', handleWorkspacePanEnd)
+      document.addEventListener('touchcancel', handleWorkspacePanEnd)
+    } else {
+      document.addEventListener('mousemove', handleWorkspacePanMove)
+      document.addEventListener('mouseup', handleWorkspacePanEnd)
+    }
   }
 
   // Improved panning with smoothing and reduced sensitivity
-  const handleWorkspacePanMove = (event: MouseEvent) => {
+  const handleWorkspacePanMove = (event: MouseEvent | TouchEvent) => {
     if (!get(isPanning) || !workspaceContainer) return
 
+    // Prevent default for touch events to stop scrolling
+    if ('touches' in event) {
+      event.preventDefault()
+    }
+
+    // Get current position based on event type
+    const isTouchEvent = 'touches' in event
+    let currentX: number, currentY: number
+
+    if (isTouchEvent) {
+      const touch = (event as TouchEvent).touches[0]
+      currentX = touch.clientX
+      currentY = touch.clientY
+    } else {
+      currentX = (event as MouseEvent).clientX
+      currentY = (event as MouseEvent).clientY
+    }
+
     // Calculate raw delta
-    const rawDeltaX = event.clientX - lastPanX
-    const rawDeltaY = event.clientY - lastPanY
+    const rawDeltaX = currentX - lastPanX
+    const rawDeltaY = currentY - lastPanY
 
     // Apply damping factor to reduce sensitivity and smooth movement
     // Lower values make movement smoother but less responsive
@@ -507,8 +544,8 @@
     const deltaY = rawDeltaY * dampingFactor
 
     // Update the last position for next calculation
-    lastPanX = event.clientX
-    lastPanY = event.clientY
+    lastPanX = currentX
+    lastPanY = currentY
 
     // Apply horizontal scrolling to the workspace container
     if (Math.abs(deltaX) > 0.5) {
@@ -523,7 +560,7 @@
   }
 
   // Handle panning end
-  const handleWorkspacePanEnd = () => {
+  const handleWorkspacePanEnd = (event?: MouseEvent | TouchEvent) => {
     // Reset panning state
     isPanning.set(false)
 
@@ -533,9 +570,12 @@
       workspaceContainer.style.cursor = 'grab'
     }
 
-    // Remove event listeners
+    // Remove all event listeners
     document.removeEventListener('mousemove', handleWorkspacePanMove)
     document.removeEventListener('mouseup', handleWorkspacePanEnd)
+    document.removeEventListener('touchmove', handleWorkspacePanMove)
+    document.removeEventListener('touchend', handleWorkspacePanEnd)
+    document.removeEventListener('touchcancel', handleWorkspacePanEnd)
   }
 
   // When the processing state changes, update the grid and loading state
@@ -571,12 +611,13 @@
     )}
   />
 
-  <!-- Bind the workspace container and add mousedown for panning -->
+  <!-- Bind the workspace container and add mouse/touch events for panning -->
   <div
     class="workspace-container"
     style="height: {$gridHeight}px;"
     bind:this={workspaceContainer}
     on:mousedown={handleWorkspacePanStart}
+    on:touchstart={handleWorkspacePanStart}
     class:is-panning={$isPanning}
   >
     <!-- Scrollable content layer with background pattern -->
