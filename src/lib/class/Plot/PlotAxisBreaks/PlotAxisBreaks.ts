@@ -20,9 +20,13 @@ export class PlotAxisBreaks extends Array {
     while (step === PlotAxisBreaks.getStep(numberToBreak, numberOfSteps - 1)) {
       numberOfSteps--
     }
+
+    const minLength = Math.ceil(numberToBreak / step) + 1
+    const length = Math.max(numberOfSteps + 1, minLength)
+
     return {
       step,
-      length: numberOfSteps + 1,
+      length,
     }
   }
 
@@ -30,12 +34,14 @@ export class PlotAxisBreaks extends Array {
     let res = numberToBreak / numberOfSteps
     const numOfDigits = ((Math.log(res) * Math.LOG10E + 1) | 0) - 1
     res = Math.ceil(res / 10 ** numOfDigits)
+
     if (res % 2 === 1 && res % 5 > 0 && res !== 1) {
       res++
     }
     if (res % 6 === 0 || res % 8 === 0) {
       res = 10
     }
+
     return res * 10 ** numOfDigits
   }
 }

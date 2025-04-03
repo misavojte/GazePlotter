@@ -2,7 +2,6 @@
 <script lang="ts">
   import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType'
   import type { ScarfGridType } from '$lib/type/gridType'
-  import { PlotAxisBreaks } from '$lib/class/Plot/PlotAxisBreaks/PlotAxisBreaks'
   import ScarfPlotLegend from '$lib/components/Plot/ScarfPlot/ScarfPlotLegend/ScarfPlotLegend.svelte'
   import { generateScarfPlotCSS } from '$lib/utils/scarfPlotTransformations'
   import { addInfoToast } from '$lib/stores/toastStore'
@@ -59,10 +58,6 @@
     }
     fixedHighlight = identifier
     addInfoToast(`Highlight fixed. Click the same item in the legend to remove`)
-  }
-
-  const handleStopPropagation = (event: MouseEvent) => {
-    event.stopPropagation()
   }
 
   // Create a derived value that changes when any input that would affect the style changes
