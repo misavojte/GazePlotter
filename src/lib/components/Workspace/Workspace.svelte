@@ -579,13 +579,7 @@
     on:mousedown={handleWorkspacePanStart}
     class:is-panning={$isPanning}
   >
-    <!-- Fixed background pattern layer -->
-    <div
-      class="background-pattern"
-      style="width: {$requiredWorkspaceWidth}px;"
-    ></div>
-
-    <!-- Scrollable content layer -->
+    <!-- Scrollable content layer with background pattern -->
     <div class="grid-container">
       {#each $gridStore as item (item.id)}
         {@const visConfig = getVisualizationConfig(item.type)}
@@ -664,7 +658,6 @@
     box-sizing: border-box;
     position: relative;
     width: 100%;
-    background-color: transparent; /* Remove background from container */
     z-index: 1;
     transition: height 0.3s ease-out;
     overflow-x: auto; /* Allow horizontal scrolling */
@@ -677,14 +670,7 @@
     transform: translateZ(0);
     /* Base cursor for empty areas */
     cursor: grab;
-  }
-
-  /* Fixed background pattern that doesn't scroll */
-  .background-pattern {
-    position: absolute;
-    top: 0;
-    left: 0;
-    bottom: 0;
+    /* Dynamic background pattern */
     background-color: var(--c-darkwhite);
     background-image: radial-gradient(
       circle,
@@ -693,9 +679,7 @@
     );
     background-size: 50px 50px;
     background-position: 5px 5px;
-    z-index: -1; /* Place behind content */
-    pointer-events: none; /* Allow clicking through to container */
-    min-width: 100%; /* Always at least as wide as the container */
+    background-attachment: local; /* Key property to make pattern scroll with content */
   }
 
   /* Cursor styling for panning */
@@ -707,7 +691,7 @@
     position: relative;
     width: 100%;
     min-height: 200px;
-    background-color: transparent; /* Keep transparent to show fixed background */
+    background-color: transparent;
     transition: height 0.3s ease-out;
     overflow-x: visible; /* Allow content to flow naturally */
     overflow-y: visible; /* Allow content to expand the container */
