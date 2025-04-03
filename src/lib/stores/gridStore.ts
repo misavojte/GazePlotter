@@ -39,37 +39,6 @@ export function createGridStore(
     }))
   )
 
-  // Create a simple matrix map for collision detection
-  // This is much simpler than the previous GridMatrix class
-  function createOccupancyMap(
-    gridItems: GridItemPosition[],
-    excludeId: number = -1,
-    includeId: number = -1
-  ) {
-    const map = new Map<string, number>()
-
-    for (const item of gridItems) {
-      if (item.id === excludeId) continue
-      if (includeId !== -1 && item.id !== includeId) continue
-
-      for (let x = item.x; x < item.x + item.w; x++) {
-        for (let y = item.y; y < item.y + item.h; y++) {
-          map.set(`${x},${y}`, item.id)
-        }
-      }
-    }
-
-    return map
-  }
-
-  // We're removing the cache as it's causing collision detection to fail
-  // Instead, optimize the map creation
-  function getOccupancyMap(excludeId: number = -1): Map<string, number> {
-    // Direct creation of map with latest data - no caching
-    const currentPositions = get(positions)
-    return createOccupancyMap(currentPositions, excludeId)
-  }
-
   // Check if an area is available (no collisions)
   function isAreaAvailable(
     x: number,
@@ -80,34 +49,49 @@ export function createGridStore(
   ) {
     if (x < 0 || y < 0) return false
 
-    // Get fresh occupancy map
-    const occupancyMap = getOccupancyMap(excludeId)
-
-    // Simplified check - just iterate through each cell in the target area
-    for (let i = 0; i < w; i++) {
-      for (let j = 0; j < h; j++) {
-        if (occupancyMap.has(`${x + i},${y + j}`)) {
-          return false
-        }
-      }
-    }
-
-    return true
+    // Use the unified collision detection with returnBoolean flag
+    return !detectCollisions(x, y, w, h, {
+      excludeIds: excludeId,
+      returnBoolean: true,
+    })
   }
 
-  // Find collisions for a given area with improved rectangle intersection algorithm
-  function findCollisions(
+  // Unified collision detection function that supports multiple approaches
+  function detectCollisions(
     x: number,
     y: number,
     w: number,
     h: number,
-    excludeId: number = -1
+    options: {
+      excludeIds?: Set<number> | number
+      itemsToCheck?: any[]
+      returnSet?: boolean
+      returnBoolean?: boolean
+    } = {}
   ) {
-    const collisionIds = new Set<number>()
-    const currentPositions = get(positions)
+    const {
+      excludeIds = -1,
+      itemsToCheck,
+      returnSet = true,
+      returnBoolean = false,
+    } = options
 
-    for (const item of currentPositions) {
-      if (item.id === excludeId) continue
+    // Process excludeIds to handle both number and Set cases
+    const excludeIdSet =
+      typeof excludeIds === 'number'
+        ? excludeIds >= 0
+          ? new Set([excludeIds])
+          : new Set<number>()
+        : excludeIds
+
+    // Determine which items to check for collisions
+    const itemsToProcess = itemsToCheck || get(positions)
+
+    const collisionIds = new Set<number>()
+
+    for (const item of itemsToProcess) {
+      // Skip excluded items
+      if (excludeIdSet.has(item.id)) continue
 
       // Optimized rectangle intersection test
       if (
@@ -116,11 +100,46 @@ export function createGridStore(
         y < item.y + item.h &&
         y + h > item.y
       ) {
-        collisionIds.add(item.id)
+        if (returnBoolean) {
+          return true // Early return if we only need to know if ANY collision exists
+        }
+
+        if (returnSet) {
+          collisionIds.add(item.id)
+        }
       }
     }
 
-    return collisionIds
+    return returnBoolean ? false : collisionIds
+  }
+
+  // Helper functions that use the main collision detection function
+  const findCollisions = (
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    excludeId: number = -1
+  ) => {
+    return detectCollisions(x, y, w, h, {
+      excludeIds: excludeId,
+      returnSet: true,
+    }) as Set<number>
+  }
+
+  const positionCausesCollisions = (
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    itemsToCheck: any[],
+    excludeIds: Set<number>
+  ): boolean => {
+    return detectCollisions(x, y, w, h, {
+      excludeIds,
+      itemsToCheck,
+      returnBoolean: true,
+    }) as boolean
   }
 
   // Enhanced resolveCollisions function to be more careful with vertical space
@@ -210,6 +229,213 @@ export function createGridStore(
     })
   }
 
+  // New unified function for intelligent grid conflict resolution
+  // This handles all types of grid operations (add, move, resize, duplicate)
+  function resolveGridConflicts(priorityItem: {
+    id: number
+    x: number
+    y: number
+    w: number
+    h: number
+    operation: 'move' | 'resize' | 'add' | 'duplicate'
+  }) {
+    // Step 1: Find all items that collide with our priority item
+    const primaryCollisions = findCollisions(
+      priorityItem.x,
+      priorityItem.y,
+      priorityItem.w,
+      priorityItem.h,
+      priorityItem.id
+    )
+
+    if (primaryCollisions.size === 0) return false // No conflicts to resolve
+
+    // Step 2: Create a working copy of all items for manipulation
+    const currentItems = get(items)
+    let workingItems = [...currentItems]
+
+    // Get the priority item from working items (for current state)
+    const currentPriorityItem = workingItems.find(
+      item => item.id === priorityItem.id
+    )
+
+    if (!currentPriorityItem) return false // Priority item not found
+
+    // Step 3: Create a list of items to reposition, ordered by best candidates first
+    const itemsToReposition = workingItems
+      .filter(item => primaryCollisions.has(item.id))
+      .sort((a, b) => {
+        // Sorting criteria to determine which items to move:
+
+        // 1. Prefer moving items with less overlap area (lighter collision)
+        const overlapA = calculateOverlapArea(currentPriorityItem, a)
+        const overlapB = calculateOverlapArea(currentPriorityItem, b)
+        if (overlapA !== overlapB) return overlapA - overlapB
+
+        // 2. Prefer moving smaller items
+        const areaA = a.w * a.h
+        const areaB = b.w * b.h
+        if (areaA !== areaB) return areaA - areaB
+
+        // 3. Prefer moving items below rather than above
+        const aBelow = a.y >= currentPriorityItem.y + currentPriorityItem.h
+        const bBelow = b.y >= currentPriorityItem.y + currentPriorityItem.h
+        if (aBelow !== bBelow) return aBelow ? -1 : 1
+
+        // 4. If all else equal, prefer moving by proximity to bottom edge
+        return (
+          Math.abs(a.y - (currentPriorityItem.y + currentPriorityItem.h)) -
+          Math.abs(b.y - (currentPriorityItem.y + currentPriorityItem.h))
+        )
+      })
+
+    // Step 4: Process each item that needs repositioning
+    for (const itemToMove of itemsToReposition) {
+      // Determine best strategy for this item
+      let bestPosition: { x: number; y: number } | null = null
+
+      // Strategy 1: Try to move below the priority item (most common case)
+      bestPosition = {
+        x: itemToMove.x,
+        y: currentPriorityItem.y + currentPriorityItem.h,
+      }
+
+      // Check if this position causes secondary collisions
+      const positionCauses = positionCausesCollisions(
+        bestPosition.x,
+        bestPosition.y,
+        itemToMove.w,
+        itemToMove.h,
+        workingItems,
+        new Set([itemToMove.id, priorityItem.id])
+      )
+
+      // If position has collisions, find alternatives
+      if (positionCauses) {
+        // Strategy 2: Find the lowest Y position that doesn't cause collisions
+        // Start from bottom of priority item and scan downward
+        const lowestY = findLowestAvailableY(
+          itemToMove.x,
+          currentPriorityItem.y + currentPriorityItem.h,
+          itemToMove.w,
+          itemToMove.h,
+          workingItems,
+          new Set([itemToMove.id, priorityItem.id])
+        )
+
+        if (lowestY !== null) {
+          bestPosition = { x: itemToMove.x, y: lowestY }
+        } else {
+          // Strategy 3: Try an alternative X position if vertical stacking doesn't work
+          // Check to the right of the priority item
+          const rightX = currentPriorityItem.x + currentPriorityItem.w
+          if (
+            !positionCausesCollisions(
+              rightX,
+              itemToMove.y,
+              itemToMove.w,
+              itemToMove.h,
+              workingItems,
+              new Set([itemToMove.id, priorityItem.id])
+            )
+          ) {
+            bestPosition = { x: rightX, y: itemToMove.y }
+          } else {
+            // Strategy 4: Last resort - find any available position using the grid scanner
+            bestPosition = findOptimalPosition(itemToMove.w, itemToMove.h, {
+              preferredX: itemToMove.x,
+              preferredY: itemToMove.y,
+              strategy: 'new',
+            })
+          }
+        }
+      }
+
+      // Apply the best position to our working copy
+      workingItems = workingItems.map(item =>
+        item.id === itemToMove.id
+          ? { ...item, x: bestPosition!.x, y: bestPosition!.y }
+          : item
+      )
+    }
+
+    // Step 5: Apply all changes at once to avoid multiple reflows
+    items.update($items => {
+      return $items.map(item => {
+        // Find corresponding item in working copy
+        const updatedItem = workingItems.find(w => w.id === item.id)
+        if (!updatedItem) return item
+
+        // If this is a collision item that was moved, return updated position
+        if (primaryCollisions.has(item.id)) {
+          return { ...item, x: updatedItem.x, y: updatedItem.y }
+        }
+
+        // Otherwise return the unchanged item
+        return item
+      })
+    })
+
+    return true // Conflicts were found and resolved
+  }
+
+  // Helper function to calculate overlap area between two grid items
+  function calculateOverlapArea(item1: any, item2: any): number {
+    // Calculate the intersection
+    const xOverlap = Math.max(
+      0,
+      Math.min(item1.x + item1.w, item2.x + item2.w) -
+        Math.max(item1.x, item2.x)
+    )
+    const yOverlap = Math.max(
+      0,
+      Math.min(item1.y + item1.h, item2.y + item2.h) -
+        Math.max(item1.y, item2.y)
+    )
+
+    // Return the area of overlap
+    return xOverlap * yOverlap
+  }
+
+  // Helper function to find the lowest available Y position
+  function findLowestAvailableY(
+    x: number,
+    startY: number,
+    w: number,
+    h: number,
+    itemsToCheck: any[],
+    excludeIds: Set<number>
+  ): number | null {
+    // Get all items sorted by their Y position
+    const sortedItems = [...itemsToCheck]
+      .filter(item => !excludeIds.has(item.id))
+      .sort((a, b) => a.y - b.y)
+
+    if (sortedItems.length === 0) return startY
+
+    // Check if the starting position works
+    if (!positionCausesCollisions(x, startY, w, h, sortedItems, excludeIds)) {
+      return startY
+    }
+
+    // Find each potential Y position (bottom edge of each item)
+    const potentialYPositions = sortedItems
+      .map(item => item.y + item.h)
+      .filter(y => y > startY)
+      .sort((a, b) => a - b)
+
+    // Try each position from top to bottom
+    for (const y of potentialYPositions) {
+      if (!positionCausesCollisions(x, y, w, h, sortedItems, excludeIds)) {
+        return y
+      }
+    }
+
+    // If all positions cause collisions, try one position below the last item
+    const maxY = Math.max(...itemsToCheck.map(item => item.y + item.h))
+    return maxY
+  }
+
   // Generate a new unique ID
   function getNewId() {
     return Date.now() + Math.floor(Math.random() * 1000)
@@ -227,58 +453,69 @@ export function createGridStore(
     )
   }
 
-  // Find position for duplicated item - improved algorithm
-  function findDuplicationPosition(
-    originalX: number,
-    originalY: number,
+  // Unified position finder that handles multiple scenarios
+  function findOptimalPosition(
     w: number,
     h: number,
-    maxGridWidth: number = 100
+    options: {
+      preferredX?: number
+      preferredY?: number
+      referenceItem?: { x: number; y: number; w: number; h: number }
+      strategy?: 'duplicate' | 'new' | 'bottom' | 'right'
+      excludeIds?: Set<number>
+      maxGridWidth?: number
+    } = {}
   ) {
-    // First try: to the right of the original
-    const rightX = originalX + w
-    const maxAllowedX = maxGridWidth - Math.ceil(w * 0.25)
+    const {
+      preferredX,
+      preferredY,
+      referenceItem,
+      strategy = 'new',
+      excludeIds = new Set<number>(),
+      maxGridWidth = 100,
+    } = options
 
-    // Queue of positions to try, in priority order
-    const positionsToTry = [
-      // Right of original (if within bounds)
-      ...(rightX <= maxAllowedX ? [{ x: rightX, y: originalY }] : []),
-      // Below original
-      { x: originalX, y: originalY + h },
-      // Below and left-aligned to grid origin
-      ...(originalX > 0 ? [{ x: 0, y: originalY + h }] : []),
-      // Diagonally down-right
-      { x: originalX + 1, y: originalY + 1 },
-    ]
-
-    // Try each position in order
-    for (const pos of positionsToTry) {
-      if (isAreaAvailable(pos.x, pos.y, w, h)) {
-        return pos
-      }
-    }
-
-    // If no quick suggestions work, do a more thorough search
-    return findAvailablePosition(w, h)
-  }
-
-  // Improved finder that uses a more efficient algorithm
-  function findAvailablePosition(
-    w: number,
-    h: number,
-    preferredX?: number,
-    preferredY?: number
-  ) {
     const currentItems = get(items)
 
     // Ensure minimum dimensions
     const width = Math.max(config.minWidth, w || config.minWidth)
     const height = Math.max(config.minHeight, h || config.minHeight)
 
-    const startX = preferredX ?? 0
-    const startY = preferredY ?? 0
+    // Set starting position based on strategy
+    let startX = preferredX ?? 0
+    let startY = preferredY ?? 0
 
-    // If no items exist or preferred position is available, use that
+    // If we're duplicating and have a reference item
+    if (strategy === 'duplicate' && referenceItem) {
+      // Generate position candidates based on the reference item
+      const originalX = referenceItem.x
+      const originalY = referenceItem.y
+      const rightX = originalX + referenceItem.w
+      const maxAllowedX = maxGridWidth - Math.ceil(width * 0.25)
+
+      // Try specific positions in order of preference
+      const positionsToTry = [
+        // Right of original (if within bounds)
+        ...(rightX <= maxAllowedX ? [{ x: rightX, y: originalY }] : []),
+        // Below original
+        { x: originalX, y: originalY + referenceItem.h },
+        // Below and left-aligned to grid origin
+        ...(originalX > 0 ? [{ x: 0, y: originalY + referenceItem.h }] : []),
+        // Diagonally down-right
+        { x: originalX + 1, y: originalY + 1 },
+      ]
+
+      // Try each position from our preferred list
+      for (const pos of positionsToTry) {
+        if (isAreaAvailable(pos.x, pos.y, width, height)) {
+          return pos
+        }
+      }
+
+      // If no candidate position works, fall through to general positioning
+    }
+
+    // If no items exist or preferred position is explicitly provided and available
     if (
       currentItems.length === 0 ||
       (preferredX !== undefined &&
@@ -289,23 +526,40 @@ export function createGridStore(
     }
 
     // Find the lowest occupied position
-    const maxY = Math.max(...currentItems.map(item => item.y + item.h))
+    const maxY =
+      currentItems.length > 0
+        ? Math.max(...currentItems.map(item => item.y + item.h))
+        : 0
 
-    // Quick check: bottom of the grid
-    if (isAreaAvailable(0, maxY, width, height)) {
-      return { x: 0, y: maxY }
+    // For 'bottom' strategy or as fallback, try bottom of grid
+    if (strategy === 'bottom' || strategy === 'new') {
+      if (isAreaAvailable(0, maxY, width, height)) {
+        return { x: 0, y: maxY }
+      }
     }
 
-    // Use a more intelligent scanning pattern - first try placement near existing items
+    // For 'right' strategy, try right side
+    if (strategy === 'right' && referenceItem) {
+      const rightX = referenceItem.x + referenceItem.w
+      if (isAreaAvailable(rightX, referenceItem.y, width, height)) {
+        return { x: rightX, y: referenceItem.y }
+      }
+    }
+
+    // Fall back to intelligent scanning - first try near existing items
     // to promote more compact layouts, then fall back to scanning the grid
 
     // 1. Scan horizontally at existing item bottom edges
     const yPositions = [
-      ...new Set(currentItems.map(item => item.y + item.h)),
+      ...new Set(
+        currentItems
+          .filter(item => !excludeIds.has(item.id))
+          .map(item => item.y + item.h)
+      ),
     ].sort((a, b) => a - b)
 
     for (const scanY of yPositions) {
-      for (let scanX = 0; scanX < 100; scanX += 1) {
+      for (let scanX = 0; scanX < maxGridWidth; scanX += 1) {
         if (isAreaAvailable(scanX, scanY, width, height)) {
           return { x: scanX, y: scanY }
         }
@@ -314,7 +568,7 @@ export function createGridStore(
 
     // 2. Scan grid systematically if needed
     for (let scanY = 0; scanY <= maxY + 1; scanY++) {
-      for (let scanX = 0; scanX < 100; scanX++) {
+      for (let scanX = 0; scanX < maxGridWidth; scanX++) {
         if (isAreaAvailable(scanX, scanY, width, height)) {
           return { x: scanX, y: scanY }
         }
@@ -323,6 +577,32 @@ export function createGridStore(
 
     // If all else fails, place at the bottom
     return { x: 0, y: maxY + 1 }
+  }
+
+  // Helper functions that use the main position finder with specific strategies
+  const findAvailablePosition = (
+    w: number,
+    h: number,
+    preferredX?: number,
+    preferredY?: number
+  ) => {
+    return findOptimalPosition(w, h, {
+      preferredX,
+      preferredY,
+      strategy: 'new',
+    })
+  }
+
+  const findDuplicationPosition = (
+    originalX: number,
+    originalY: number,
+    w: number,
+    h: number
+  ) => {
+    return findOptimalPosition(w, h, {
+      referenceItem: { x: originalX, y: originalY, w, h },
+      strategy: 'duplicate',
+    })
   }
 
   // Duplicate an item
@@ -339,24 +619,15 @@ export function createGridStore(
 
     items.update($items => [...$items, newItem])
 
-    // Check for collisions after adding
-    const collisions = findCollisions(
-      newPosition.x,
-      newPosition.y,
-      item.w,
-      item.h,
-      newId
-    )
-
-    if (collisions.size > 0) {
-      resolveCollisions(collisions, {
-        x: newPosition.x,
-        y: newPosition.y,
-        w: item.w,
-        h: item.h,
-        id: newId, // Ensure we pass the ID so it's excluded from secondary collisions
-      })
-    }
+    // Use the new unified system for conflict resolution
+    resolveGridConflicts({
+      id: newId,
+      x: newPosition.x,
+      y: newPosition.y,
+      w: item.w,
+      h: item.h,
+      operation: 'duplicate',
+    })
 
     return newId
   }
@@ -401,35 +672,27 @@ export function createGridStore(
     // Add all new items at once to the real store
     items.update($items => [...$items, ...newItems])
 
-    // Resolve collisions after all items are added
-
-    // First, handle collisions with existing items
-    // For each new item, check if it collides with any existing item
+    // Use the unified conflict resolution for each new item
     const currentItems = get(items)
 
-    for (const newItem of newItems) {
+    // Process in reverse order so that earlier items (generally more important)
+    // maintain their positions better
+    for (let i = newItems.length - 1; i >= 0; i--) {
+      const newItem = newItems[i]
+
       // Get a fresh reference to the item from the current state
       const currentNewItem = currentItems.find(item => item.id === newItem.id)
       if (!currentNewItem) continue
 
-      // Find collisions with existing items only
-      const collisionsWithExisting = findCollisions(
-        currentNewItem.x,
-        currentNewItem.y,
-        currentNewItem.w,
-        currentNewItem.h,
-        currentNewItem.id
-      )
-
-      if (collisionsWithExisting.size > 0) {
-        resolveCollisions(collisionsWithExisting, {
-          x: currentNewItem.x,
-          y: currentNewItem.y,
-          w: currentNewItem.w,
-          h: currentNewItem.h,
-          id: currentNewItem.id,
-        })
-      }
+      // Resolve conflicts for this item
+      resolveGridConflicts({
+        id: currentNewItem.id,
+        x: currentNewItem.x,
+        y: currentNewItem.y,
+        w: currentNewItem.w,
+        h: currentNewItem.h,
+        operation: 'duplicate',
+      })
     }
 
     return newIds
@@ -479,24 +742,15 @@ export function createGridStore(
 
       items.update($items => [...$items, newItem])
 
-      // Check if there are any collisions (should be rare since we use findAvailablePosition)
-      const collisions = findCollisions(
-        newPosition.x,
-        newPosition.y,
-        item.w,
-        item.h,
-        newId
-      )
-
-      if (collisions.size > 0) {
-        // Resolve any unexpected collisions
-        resolveCollisions(collisions, {
-          x: newPosition.x,
-          y: newPosition.y,
-          w: item.w,
-          h: item.h,
-        })
-      }
+      // Use unified conflict resolution
+      resolveGridConflicts({
+        id: newId,
+        x: newPosition.x,
+        y: newPosition.y,
+        w: item.w,
+        h: item.h,
+        operation: 'add',
+      })
 
       return newId
     },
@@ -526,18 +780,15 @@ export function createGridStore(
 
       // Then resolve collisions if requested
       if (shouldResolveCollisions) {
-        // Find and resolve collisions
-        const collisions = findCollisions(newX, newY, item.w, item.h, id)
-        if (collisions.size > 0) {
-          // Immediately resolve collisions - this is important for drag end
-          resolveCollisions(collisions, {
-            x: newX,
-            y: newY,
-            w: item.w,
-            h: item.h,
-            id,
-          })
-        }
+        // Use the new unified conflict resolution system
+        resolveGridConflicts({
+          id,
+          x: newX,
+          y: newY,
+          w: item.w,
+          h: item.h,
+          operation: 'move',
+        })
       }
     },
 
@@ -575,18 +826,15 @@ export function createGridStore(
 
       // Only check for collisions if we're resizing outward and collisions should be resolved
       if (shouldResolveCollisions && !isResizingInward) {
-        // Find and resolve collisions
-        const collisions = findCollisions(item.x, item.y, newW, newH, id)
-        if (collisions.size > 0) {
-          // Immediate collision resolution for resize operations
-          resolveCollisions(collisions, {
-            x: item.x,
-            y: item.y,
-            w: newW,
-            h: newH,
-            id,
-          })
-        }
+        // Use the new unified conflict resolution system
+        resolveGridConflicts({
+          id,
+          x: item.x,
+          y: item.y,
+          w: newW,
+          h: newH,
+          operation: 'resize',
+        })
       }
 
       return true
@@ -598,20 +846,15 @@ export function createGridStore(
       const item = currentItems.find(item => item.id === id)
       if (!item) return
 
-      // Find and resolve any existing collisions for this item
-      const collisions = findCollisions(item.x, item.y, item.w, item.h, id)
-      if (collisions.size > 0) {
-        // Use immediate collision resolution for drag end
-        resolveCollisions(collisions, {
-          x: item.x,
-          y: item.y,
-          w: item.w,
-          h: item.h,
-          id,
-        })
-        return true // Return true if collisions were found and resolved
-      }
-      return false // Return false if no collisions were found
+      // Use the new unified conflict resolution system
+      return resolveGridConflicts({
+        id,
+        x: item.x,
+        y: item.y,
+        w: item.w,
+        h: item.h,
+        operation: 'move',
+      })
     },
 
     // Get the total grid height

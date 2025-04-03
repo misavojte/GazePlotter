@@ -171,6 +171,8 @@
     },
     addItem: (type: string, options: Partial<AllGridTypes> = {}) => {
       const newItem = createGridItem(type, options)
+      // Let the grid store handle layout and collision resolution
+      // Our unified system will intelligently place items and resolve any conflicts
       return gridStore.addItem(newItem)
     },
     resetGrid: (newState: AllGridTypes[] = []) => {
@@ -188,7 +190,28 @@
   // Event handlers and reactivity
   // ---------------------------------------------------
 
-  // Handle item movement preview during drag (doesn't update actual position)
+  // Unified height calculation for preview operations
+  const calculateWorkspaceHeight = (id: number, y: number, h: number) => {
+    const currentItems = get(gridStore)
+
+    // Calculate bottom edge of the item being manipulated
+    const itemBottomEdge = calculateBottomEdgePosition(y, h, gridConfig)
+
+    // Calculate maximum bottom edge of all OTHER items
+    const otherItemsMaxBottom = Math.max(
+      300, // Minimum fallback
+      ...currentItems
+        .filter(item => item.id !== id)
+        .map(item => calculateBottomEdgePosition(item.y, item.h, gridConfig))
+    )
+
+    // Return maximum + padding
+    return Math.max(otherItemsMaxBottom, itemBottomEdge) + 90 // Add padding
+  }
+
+  // --- Preview handlers (visual feedback only) ---
+
+  // Handle item movement preview - no actual state changes
   const handleItemPreviewMove = (event: {
     id: number
     previewX: number
@@ -198,29 +221,43 @@
     w: number
     h: number
   }) => {
-    // During drag preview, we don't update the actual position in the store
-    // We can still check for collisions, etc. if needed, but we don't
-    // modify the grid store
-    const { id, previewX, previewY } = event
-
-    // For now, we don't need to do anything here except handle the event
-    // This avoids updating the actual grid item during drag
+    // Update height during preview to ensure workspace expands as needed
+    temporaryDragHeight.set(
+      calculateWorkspaceHeight(event.id, event.previewY, event.h)
+    )
   }
 
-  // Handle actual item movement (only at the end of drag)
-  const handleItemMove = (event: {
+  // Handle item resize preview
+  const handleItemPreviewResize = (event: {
     id: number
     x: number
     y: number
     w: number
     h: number
+    currentW: number
+    currentH: number
   }) => {
-    const { id, x, y } = event
-    // Update position in store - when drag is complete
-    gridStore.updateItemPosition(id, x, y, false)
+    // Update height during preview
+    temporaryDragHeight.set(
+      calculateWorkspaceHeight(event.id, event.y, event.h)
+    )
   }
 
-  // Handle drag start - set global dragging state
+  // Handle workspace height updates (unified for both drag & resize)
+  const handleDragHeightUpdate = (event: {
+    id: number
+    y: number
+    h: number
+    bottomEdge: number
+  }) => {
+    temporaryDragHeight.set(
+      calculateWorkspaceHeight(event.id, event.y, event.h)
+    )
+  }
+
+  // --- Operation start handlers ---
+
+  // Handle operation start (sets global state)
   const handleDragStart = (event: {
     id: number
     x: number
@@ -233,7 +270,44 @@
     draggedItemId.set(id)
   }
 
-  // Handle drag end - now we resolve collisions
+  // --- Operation end handlers ---
+
+  // Unified handler for completing operations with collision resolution
+  const completeOperation = (
+    id: number,
+    updateFn: () => void,
+    complete: boolean = true
+  ) => {
+    // Reset states
+    isDragging.set(false)
+    draggedItemId.set(null)
+    temporaryDragHeight.set(null)
+
+    if (!complete) return
+
+    // Apply update first without collision resolution
+    updateFn()
+
+    // Then resolve collisions with a slight delay for better UX
+    setTimeout(() => {
+      gridStore.resolveItemPositionCollisions(id)
+    }, 50) // Short delay for better visual feedback
+  }
+
+  // Handle drag completion
+  const handleItemMove = (event: {
+    id: number
+    x: number
+    y: number
+    w: number
+    h: number
+  }) => {
+    const { id, x, y } = event
+    // Update position without resolving collisions
+    gridStore.updateItemPosition(id, x, y, false)
+  }
+
+  // Handle drag end
   const handleDragEnd = (event: {
     id: number
     x: number
@@ -244,89 +318,14 @@
   }) => {
     const { id, x, y, dragComplete } = event
 
-    // Reset dragging state
-    isDragging.set(false)
-    draggedItemId.set(null)
-    // Reset temporary drag height
-    temporaryDragHeight.set(null)
-
-    if (!dragComplete) return
-
-    // First update position with the final coordinates
-    gridStore.updateItemPosition(id, x, y, false)
-
-    // Then explicitly resolve any collisions
-    // This two-step approach ensures we get good visual feedback
-    // First the item moves to where the user dropped it, then it resolves collisions
-    setTimeout(() => {
-      gridStore.resolveItemPositionCollisions(id)
-    }, 50) // Short delay for better visual feedback
+    completeOperation(
+      id,
+      () => gridStore.updateItemPosition(id, x, y, false),
+      dragComplete
+    )
   }
 
-  // Handle dynamic height adjustment during drag operations with safety check
-  const handleDragHeightUpdate = (event: {
-    id: number
-    y: number
-    h: number
-    bottomEdge: number
-  }) => {
-    const { bottomEdge, id } = event
-    const currentItems = get(gridStore)
-
-    // Calculate the bottom edge of the item being moved
-    const itemBottomEdge = calculateBottomEdgePosition(
-      event.y,
-      event.h,
-      gridConfig
-    )
-
-    // Calculate the maximum bottom edge of all OTHER items (not the one being dragged)
-    const otherItemsMaxBottom = Math.max(
-      300, // Minimum fallback
-      ...currentItems
-        .filter(item => item.id !== id)
-        .map(item => calculateBottomEdgePosition(item.y, item.h, gridConfig))
-    )
-
-    // Calculate required height - taking maximum of dragged item bottom edge and other items' max bottom edge
-    const requiredHeight = Math.max(otherItemsMaxBottom, itemBottomEdge) + 90 // Add padding
-
-    // Update the temporary drag height
-    temporaryDragHeight.set(requiredHeight)
-  }
-
-  // Handle item resize preview with safety check
-  const handleItemPreviewResize = (event: {
-    id: number
-    x: number
-    y: number
-    w: number
-    h: number
-    currentW: number
-    currentH: number
-  }) => {
-    const { id, y, h } = event
-    const currentItems = get(gridStore)
-
-    // Calculate bottom edge position of the resizing item
-    const itemBottomEdge = calculateBottomEdgePosition(y, h, gridConfig)
-
-    // Calculate the maximum bottom edge of all OTHER items
-    const otherItemsMaxBottom = Math.max(
-      300, // Minimum fallback
-      ...currentItems
-        .filter(item => item.id !== id)
-        .map(item => calculateBottomEdgePosition(item.y, item.h, gridConfig))
-    )
-
-    // Use the maximum of these values to ensure we don't shrink below what's needed
-    const requiredHeight = Math.max(otherItemsMaxBottom, itemBottomEdge) + 90 // Add padding
-
-    // Update the temporary height
-    temporaryDragHeight.set(requiredHeight)
-  }
-
-  // Enhanced handleItemResize to ensure we respect other elements' space needs
+  // Handle resize
   const handleItemResize = (event: {
     id: number
     x: number
@@ -335,12 +334,11 @@
     h: number
   }) => {
     const { id, w, h } = event
-    const currentItems = get(gridStore)
-    const currentItem = currentItems.find(item => item.id === id)
+    const currentItem = get(gridStore).find(item => item.id === id)
 
     if (!currentItem) return
 
-    // Enforce minimum dimensions based on the item's type
+    // Enforce minimum dimensions
     const minWidth = Math.max(
       gridConfig.minWidth,
       currentItem.min?.w || gridConfig.minWidth
@@ -350,23 +348,15 @@
       currentItem.min?.h || gridConfig.minHeight
     )
 
-    // Ensure we don't resize below minimum dimensions
+    // Apply constraints
     const constrainedW = Math.max(minWidth, w)
     const constrainedH = Math.max(minHeight, h)
 
-    // Update size without collision resolution first
+    // Update without collision resolution
     gridStore.updateItemSize(id, constrainedW, constrainedH, false)
-
-    // Then resolve collisions with a slight delay for better visual feedback
-    setTimeout(() => {
-      // Use the store's method to resolve collisions for this item
-      gridStore.resolveItemPositionCollisions(id)
-      // Reset temporary drag height after resize is complete
-      temporaryDragHeight.set(null)
-    }, 50)
   }
 
-  // Handle resize end - clean up and resolve collisions
+  // Handle resize end
   const handleResizeEnd = (event: {
     id: number
     x: number
@@ -375,17 +365,31 @@
     h: number
     resizeComplete: boolean
   }) => {
-    // Reset temporary height after resize is complete
-    temporaryDragHeight.set(null)
+    const { id, w, h, resizeComplete } = event
 
-    const { id, resizeComplete } = event
+    completeOperation(
+      id,
+      () => {
+        const currentItem = get(gridStore).find(item => item.id === id)
+        if (currentItem) {
+          // Ensure dimensions are constrained
+          const minWidth = Math.max(
+            gridConfig.minWidth,
+            currentItem.min?.w || gridConfig.minWidth
+          )
+          const minHeight = Math.max(
+            gridConfig.minHeight,
+            currentItem.min?.h || gridConfig.minHeight
+          )
 
-    if (!resizeComplete) return
+          const constrainedW = Math.max(minWidth, w)
+          const constrainedH = Math.max(minHeight, h)
 
-    // Explicitly resolve any collisions
-    setTimeout(() => {
-      gridStore.resolveItemPositionCollisions(id)
-    }, 50) // Short delay for better visual feedback
+          gridStore.updateItemSize(id, constrainedW, constrainedH, false)
+        }
+      },
+      resizeComplete
+    )
   }
 
   // Handle item removal
