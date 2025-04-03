@@ -1,18 +1,20 @@
+<script module lang="ts">
+  export type Modal = {
+    component: typeof import('svelte').SvelteComponent
+    title: string
+    props?: Record<string, any>
+  }
+</script>
+
 <script lang="ts">
-  import { onDestroy, type SvelteComponent } from 'svelte'
+  import { onDestroy, onMount, type SvelteComponent } from 'svelte'
   import { modalStore } from '$lib/stores/modalStore'
   import { fly } from 'svelte/transition'
 
-  type Modal = {
-    component: typeof SvelteComponent
-    title: string
-    props?: Record<string, any> // Add props here
-  }
-
   let modal: Modal | null = $state(null)
 
-  const unsubscribe = modalStore.subscribe(a => {
-    modal = a
+  const unsubscribe = modalStore.subscribe(value => {
+    modal = value as Modal | null
   })
 
   onDestroy(unsubscribe)
@@ -20,14 +22,56 @@
   const handleClose = () => {
     modalStore.close()
   }
+
+  // Add keyboard event handler for Escape key
+  function handleKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape' && modal) {
+      handleClose()
+    }
+  }
+
+  // Track fullscreen state to prevent accidental closing
+  let isFullscreen = false
+
+  function handleFullscreenChange() {
+    isFullscreen = !!document.fullscreenElement
+  }
+
+  onMount(() => {
+    // Add event listeners
+    window.addEventListener('keydown', handleKeydown)
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+
+    return () => {
+      // Remove event listeners on component destruction
+      window.removeEventListener('keydown', handleKeydown)
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    }
+  })
 </script>
 
 {#if modal}
-  <div class="modal-overlay" aria-hidden="true" in:fly>
-    <div class="modal" role="dialog" aria-modal="true" in:fly>
+  <div
+    class="modal-overlay"
+    aria-hidden="true"
+    in:fly
+    onclick={e => {
+      // Close only if clicking the overlay, not when in fullscreen
+      if (e.target === e.currentTarget && !isFullscreen) {
+        handleClose()
+      }
+    }}
+  >
+    <div
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+      in:fly
+    >
       <div class="modal-header">
-        <h3>{modal.title}</h3>
-        <button onclick={handleClose}>
+        <h3 id="modal-title">{modal.title}</h3>
+        <button onclick={handleClose} aria-label="Close modal">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>

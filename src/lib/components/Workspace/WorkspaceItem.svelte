@@ -308,7 +308,6 @@
     let startWindowScrollY: number
     let workspaceElement: HTMLElement | null
     let autoScrollInterval: number | null = null
-    let isDraggedOverToolbar = false
     let touchId: number | null = null // For tracking the specific touch
 
     // Auto-scroll configuration
