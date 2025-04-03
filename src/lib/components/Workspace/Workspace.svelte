@@ -4,7 +4,7 @@
   import WorkspaceIndicatorLoading from '$lib/components/Workspace/WorkspaceIndicatorLoading.svelte'
   import WorkspaceToolbar from '$lib/components/Workspace/WorkspaceToolbar.svelte'
   import { fade } from 'svelte/transition'
-  import { setContext, onMount } from 'svelte'
+  import { setContext } from 'svelte'
   import { writable, get, derived } from 'svelte/store'
   import type { AllGridTypes } from '$lib/type/gridType'
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
@@ -37,12 +37,9 @@
 
   // Add state for workspace panning
   const isPanning = writable(false)
-  // Add state for tracking fullscreen mode
-  const isFullscreen = writable(false)
   let lastPanX = 0
   let lastPanY = 0
   let workspaceContainer: HTMLElement | null = null
-  let workspaceWrapper: HTMLDivElement | null = null
 
   // Store to track temporary height adjustment during drag operations
   const temporaryDragHeight = writable<number | null>(null)
@@ -454,57 +451,10 @@
         y: get(gridStore).length, // Place it below existing items
       })
     } else if (id === 'toggle-fullscreen') {
-      toggleFullscreen()
+      // Delegate fullscreen toggle to the toolbar
+      // The toolbar component will handle fullscreen functionality itself
     }
   }
-
-  // Function to toggle fullscreen mode
-  const toggleFullscreen = () => {
-    // Use requestFullscreen API in the most Svelte way
-    if (workspaceWrapper) {
-      if (!document.fullscreenElement) {
-        // Enter fullscreen
-        const enterFullscreen = async () => {
-          try {
-            if (workspaceWrapper) {
-              await workspaceWrapper.requestFullscreen()
-              isFullscreen.set(true)
-            }
-          } catch (err) {
-            console.error(
-              `Error attempting to enable fullscreen: ${err instanceof Error ? err.message : String(err)}`
-            )
-          }
-        }
-        enterFullscreen()
-      } else {
-        // Exit fullscreen
-        const exitFullscreen = async () => {
-          try {
-            await document.exitFullscreen()
-            isFullscreen.set(false)
-          } catch (err) {
-            console.error(
-              `Error attempting to exit fullscreen: ${err instanceof Error ? err.message : String(err)}`
-            )
-          }
-        }
-        exitFullscreen()
-      }
-    }
-  }
-
-  // Listen for fullscreen change events
-  onMount(() => {
-    const handleFullscreenChange = () => {
-      isFullscreen.set(!!document.fullscreenElement)
-    }
-    document.addEventListener('fullscreenchange', handleFullscreenChange)
-
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange)
-    }
-  })
 
   // --- Workspace panning handlers ---
 
@@ -568,15 +518,9 @@
       workspaceContainer.scrollLeft -= deltaX
     }
 
-    // Apply vertical scrolling based on fullscreen state
+    // Apply vertical scrolling to the window with threshold
     if (Math.abs(deltaY) > 0.5) {
-      // In fullscreen mode, scroll the container instead of the window
-      if (get(isFullscreen)) {
-        workspaceContainer.scrollTop -= deltaY
-      } else {
-        // Not in fullscreen - use window scrolling as before
-        window.scrollBy(0, -deltaY)
-      }
+      window.scrollBy(0, -deltaY)
     }
   }
 
@@ -617,11 +561,7 @@
   // experience without artificially creating grid items.
 </script>
 
-<div
-  class="workspace-wrapper"
-  class:is-fullscreen={$isFullscreen}
-  bind:this={workspaceWrapper}
->
+<div class="workspace-wrapper">
   <!-- Update toolbar, removing drag-related props -->
   <WorkspaceToolbar
     onaction={handleToolbarAction}
@@ -722,26 +662,6 @@
     grid-template-columns: 48px 1fr;
   }
 
-  /* Fullscreen specific styles */
-  .workspace-wrapper.is-fullscreen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    z-index: 9999;
-    background: var(--c-darkwhite, #f0f0f0);
-    border: none;
-  }
-
-  /* In fullscreen mode, ensure container takes full height */
-  .workspace-wrapper.is-fullscreen .workspace-container {
-    height: 100vh !important;
-    max-height: 100vh;
-    border-left: none;
-    overflow-y: auto; /* Enable vertical scrolling in fullscreen mode */
-  }
-
   .workspace-container {
     box-sizing: border-box;
     position: relative;
@@ -778,15 +698,6 @@
     z-index: -1; /* Place behind content */
     pointer-events: none; /* Allow clicking through to container */
     min-width: 100%; /* Always at least as wide as the container */
-    min-height: 100%; /* Ensure pattern covers full height */
-    height: 100%; /* Match container height */
-  }
-
-  /* Ensure background pattern extends when scrolling in fullscreen */
-  .workspace-wrapper.is-fullscreen .background-pattern {
-    height: 100%;
-    position: absolute; /* Allow background to scroll with container */
-    min-height: 100vh; /* Ensure it covers at least viewport height */
   }
 
   /* Cursor styling for panning */
