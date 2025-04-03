@@ -482,11 +482,7 @@ export function transformDataToScarfPlot(
   const aoiData = getAois(stimulusId)
   const stimuliData = getStimuli()
   const timeline = createScarfPlotAxis(participantIds, stimulusId, settings)
-  const { maxValue } = calculateTimelineMax(
-    participantIds,
-    stimulusId,
-    settings
-  )
+  const maxValue = timeline.maxLabel
 
   const showAoiVisibility =
     hasStimulusAoiVisibility(stimulusId) && settings.timeline !== 'ordinal'
