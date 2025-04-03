@@ -472,7 +472,7 @@ export function createGridStore(
       referenceItem,
       strategy = 'new',
       excludeIds = new Set<number>(),
-      maxGridWidth = 100,
+      maxGridWidth = 30, // Reduced default max width to prevent overstretching
     } = options
 
     const currentItems = get(items)
@@ -481,40 +481,6 @@ export function createGridStore(
     const width = Math.max(config.minWidth, w || config.minWidth)
     const height = Math.max(config.minHeight, h || config.minHeight)
 
-    // Set starting position based on strategy
-    let startX = preferredX ?? 0
-    let startY = preferredY ?? 0
-
-    // If we're duplicating and have a reference item
-    if (strategy === 'duplicate' && referenceItem) {
-      // Generate position candidates based on the reference item
-      const originalX = referenceItem.x
-      const originalY = referenceItem.y
-      const rightX = originalX + referenceItem.w
-      const maxAllowedX = maxGridWidth - Math.ceil(width * 0.25)
-
-      // Try specific positions in order of preference
-      const positionsToTry = [
-        // Right of original (if within bounds)
-        ...(rightX <= maxAllowedX ? [{ x: rightX, y: originalY }] : []),
-        // Below original
-        { x: originalX, y: originalY + referenceItem.h },
-        // Below and left-aligned to grid origin
-        ...(originalX > 0 ? [{ x: 0, y: originalY + referenceItem.h }] : []),
-        // Diagonally down-right
-        { x: originalX + 1, y: originalY + 1 },
-      ]
-
-      // Try each position from our preferred list
-      for (const pos of positionsToTry) {
-        if (isAreaAvailable(pos.x, pos.y, width, height)) {
-          return pos
-        }
-      }
-
-      // If no candidate position works, fall through to general positioning
-    }
-
     // If no items exist or preferred position is explicitly provided and available
     if (
       currentItems.length === 0 ||
@@ -522,61 +488,90 @@ export function createGridStore(
         preferredY !== undefined &&
         isAreaAvailable(preferredX, preferredY, width, height))
     ) {
-      return { x: startX, y: startY }
+      return { x: preferredX ?? 0, y: preferredY ?? 0 }
     }
 
-    // Find the lowest occupied position
-    const maxY =
-      currentItems.length > 0
-        ? Math.max(...currentItems.map(item => item.y + item.h))
-        : 0
+    // --- UNIFIED POSITIONING STRATEGY ---
+    // First, try specific positions based on strategy
 
-    // For 'bottom' strategy or as fallback, try bottom of grid
-    if (strategy === 'bottom' || strategy === 'new') {
-      if (isAreaAvailable(0, maxY, width, height)) {
-        return { x: 0, y: maxY }
+    // Option 1: For duplicates, try specific relative positions first
+    if (strategy === 'duplicate' && referenceItem) {
+      const originalX = referenceItem.x
+      const originalY = referenceItem.y
+
+      // Limit horizontal expansion to prevent overstretching
+      const rightX = originalX + referenceItem.w
+      const canPlaceRight = rightX < maxGridWidth
+
+      // Try positions in a prioritized order
+      const positionsToTry = [
+        // Right of original (if within bounds)
+        ...(canPlaceRight ? [{ x: rightX, y: originalY }] : []),
+        // Below original (our preferred fallback)
+        { x: originalX, y: originalY + referenceItem.h },
+        // Left-aligned below (if original is not at origin)
+        ...(originalX > 0 ? [{ x: 0, y: originalY + referenceItem.h }] : []),
+      ]
+
+      for (const pos of positionsToTry) {
+        if (isAreaAvailable(pos.x, pos.y, width, height)) {
+          return pos
+        }
       }
     }
 
-    // For 'right' strategy, try right side
-    if (strategy === 'right' && referenceItem) {
-      const rightX = referenceItem.x + referenceItem.w
-      if (isAreaAvailable(rightX, referenceItem.y, width, height)) {
-        return { x: rightX, y: referenceItem.y }
-      }
+    // Option 2: Find first available position through systematic scanning
+    // This approach works for both new items and as a fallback for duplicates
+
+    // Calculate the currently occupied grid bounds
+    let maxOccupiedX = 0
+    let maxOccupiedY = 0
+
+    if (currentItems.length > 0) {
+      maxOccupiedX = Math.max(...currentItems.map(item => item.x + item.w))
+      maxOccupiedY = Math.max(...currentItems.map(item => item.y + item.h))
     }
 
-    // Fall back to intelligent scanning - first try near existing items
-    // to promote more compact layouts, then fall back to scanning the grid
-
-    // 1. Scan horizontally at existing item bottom edges
-    const yPositions = [
-      ...new Set(
-        currentItems
-          .filter(item => !excludeIds.has(item.id))
-          .map(item => item.y + item.h)
-      ),
-    ].sort((a, b) => a - b)
-
-    for (const scanY of yPositions) {
-      for (let scanX = 0; scanX < maxGridWidth; scanX += 1) {
+    // First pass: scan row by row within currently occupied space
+    // This helps fill gaps in the existing layout
+    for (let scanY = 0; scanY <= maxOccupiedY; scanY++) {
+      for (
+        let scanX = 0;
+        scanX < Math.min(maxGridWidth, maxOccupiedX + 1);
+        scanX++
+      ) {
         if (isAreaAvailable(scanX, scanY, width, height)) {
           return { x: scanX, y: scanY }
         }
       }
     }
 
-    // 2. Scan grid systematically if needed
-    for (let scanY = 0; scanY <= maxY + 1; scanY++) {
-      for (let scanX = 0; scanX < maxGridWidth; scanX++) {
+    // Second pass: try placing at the bottom of the current layout
+    // This is good for adding new rows without stretching too far horizontally
+    for (let scanX = 0; scanX < Math.min(10, maxGridWidth); scanX++) {
+      if (isAreaAvailable(scanX, maxOccupiedY, width, height)) {
+        return { x: scanX, y: maxOccupiedY }
+      }
+    }
+
+    // Third pass: careful expansion in both dimensions
+    // We prioritize vertical expansion over horizontal when maxWidth is approached
+    for (let scanY = 0; scanY < maxOccupiedY + 10; scanY++) {
+      // Limit horizontal scanning based on remaining space
+      const horizontalLimit =
+        scanY <= maxOccupiedY
+          ? maxGridWidth // Full width for existing rows
+          : Math.min(15, maxGridWidth) // Limited width for new rows
+
+      for (let scanX = 0; scanX < horizontalLimit; scanX++) {
         if (isAreaAvailable(scanX, scanY, width, height)) {
           return { x: scanX, y: scanY }
         }
       }
     }
 
-    // If all else fails, place at the bottom
-    return { x: 0, y: maxY + 1 }
+    // If all else fails, place at the bottom left
+    return { x: 0, y: maxOccupiedY + 1 }
   }
 
   // Helper functions that use the main position finder with specific strategies

@@ -445,11 +445,9 @@
     console.log('handleToolbarAction', event)
 
     if (id === 'add-visualization' && vizType) {
-      // Add the new visualization
-      enhancedGridStore.addItem(vizType, {
-        x: 0, // You might want to calculate a better position
-        y: get(gridStore).length, // Place it below existing items
-      })
+      // Add the new visualization at the first available position
+      // instead of automatically placing it below all existing items
+      enhancedGridStore.addItem(vizType)
     } else if (id === 'toggle-fullscreen') {
       // Delegate fullscreen toggle to the toolbar
       // The toolbar component will handle fullscreen functionality itself
