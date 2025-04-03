@@ -19,6 +19,13 @@
     visualizationRegistry,
     getVisualizationConfig,
   } from '$lib/const/vizRegistry'
+  import { throttleByRaf } from '$lib/utils/throttle'
+
+  // --- Constants ---
+  const WORKSPACE_BOTTOM_PADDING = 90
+  const WORKSPACE_RIGHT_PADDING = 300
+  const MIN_WORKSPACE_HEIGHT = 300 // Also used as fallback in height calculation
+  const DEFAULT_WORKSPACE_WIDTH = 1000
 
   // ---------------------------------------------------
   // State tracking
@@ -48,6 +55,63 @@
   // Utility functions
   // ---------------------------------------------------
 
+  // Higher-order function for creating operation handlers with common behavior
+  const createOperationHandler = <T extends { id: number }>(options: {
+    operationType?: 'move' | 'resize' | 'preview' | 'start' | 'end'
+    stateUpdater?: (id: number, isActive: boolean) => void
+    heightUpdater?: (event: T) => void
+    gridAction?: (event: T) => void
+    shouldResolveCollisions?: boolean
+  }) => {
+    const {
+      operationType,
+      stateUpdater,
+      heightUpdater,
+      gridAction,
+      shouldResolveCollisions = false,
+    } = options
+
+    return (event: T) => {
+      const { id } = event
+
+      // Update operation state if needed
+      if (stateUpdater && operationType !== 'end') {
+        stateUpdater(id, true)
+      }
+
+      // Update temporary height for preview operations
+      if (
+        heightUpdater &&
+        (operationType === 'preview' ||
+          operationType === 'move' ||
+          operationType === 'resize')
+      ) {
+        heightUpdater(event)
+      }
+
+      // Perform grid action if provided
+      if (gridAction) {
+        gridAction(event)
+      }
+
+      // Reset states for end operations
+      if (operationType === 'end') {
+        isDragging.set(false)
+        draggedItemId.set(null)
+        isResizing.set(false)
+        resizedItemId.set(null)
+        temporaryDragHeight.set(null)
+
+        // Resolve collisions if needed after a slight delay
+        if (shouldResolveCollisions && id) {
+          setTimeout(() => {
+            gridStore.resolveItemPositionCollisions(id)
+          }, 50)
+        }
+      }
+    }
+  }
+
   // Calculate the center position for the initial grid item
   const findCenterX = (width: number | null): number => {
     return 0 // Always start from x=0
@@ -58,49 +122,35 @@
     return Date.now() + Math.floor(Math.random() * 1000)
   }
 
-  // Factory function to create grid items with proper defaults based on type
-  const createGridItem = (
-    type: string,
-    options: Partial<AllGridTypes> = {}
-  ): AllGridTypes => {
-    const config = getVisualizationConfig(type)
-    const id = options.id || getNewId()
-    const stimulusId = options.stimulusId ?? 0
+  // Unified height calculation for preview operations
+  const calculateWorkspaceHeight = (id: number, y: number, h: number) => {
+    const currentItems = get(gridStore)
 
-    // Get default dimensions from config
-    const defaultWidth = config.getDefaultWidth(stimulusId)
-    const defaultHeight = config.getDefaultHeight(stimulusId)
+    // Calculate bottom edge of the item being manipulated
+    const itemBottomEdge = calculateBottomEdgePosition(y, h, gridConfig)
 
-    // Set default position if not provided
-    const x = options.x !== undefined ? options.x : 0 // Always start at x=0
-    const y = options.y !== undefined ? options.y : 0
+    // Calculate maximum bottom edge of all OTHER items
+    const otherItemsMaxBottom = Math.max(
+      MIN_WORKSPACE_HEIGHT, // Use constant for minimum fallback
+      ...currentItems
+        .filter(item => item.id !== id)
+        .map(item => calculateBottomEdgePosition(item.y, item.h, gridConfig))
+    )
 
-    // Merge defaults with provided options
-    return {
-      id,
-      type,
-      x,
-      y,
-      w: options.w || defaultWidth,
-      h: options.h || defaultHeight,
-      ...config.getDefaultConfig(options),
-      ...options,
-    } as AllGridTypes
+    // Return maximum + padding
+    return (
+      Math.max(otherItemsMaxBottom, itemBottomEdge) + WORKSPACE_BOTTOM_PADDING
+    )
   }
 
   // Generate the default grid state with a centered scarf plot
-  const createDefaultGridState = (): AllGridTypes[] => {
+  const createDefaultGridStateData = (): Array<
+    Partial<AllGridTypes> & { type: string }
+  > => {
+    // Return data needed to create items, not the items themselves
     return [
-      createGridItem('scarf', {
-        x: 0, // Always start at x=0
-        y: 0,
-      }),
-      createGridItem('AoiTransitionMatrix', {
-        x: 20,
-        y: 0,
-        w: 11,
-        h: 12,
-      }),
+      { type: 'scarf', x: 0, y: 0 },
+      { type: 'AoiTransitionMatrix', x: 20, y: 0, w: 11, h: 12 },
     ]
   }
 
@@ -111,10 +161,10 @@
   // Configuration for grid cells - use the default config
   const gridConfig: GridConfig = { ...DEFAULT_GRID_CONFIG }
 
-  const initialItems: AllGridTypes[] = createDefaultGridState()
+  const initialItemData = createDefaultGridStateData()
 
   // Create our simplified grid store
-  const gridStore = createGridStore(gridConfig, initialItems)
+  const gridStore = createGridStore(gridConfig, initialItemData)
 
   // Reactive derivation of grid positions for the Grid component
   const positions = derived(gridStore, $gridStore =>
@@ -132,7 +182,7 @@
 
   // Calculate the required workspace width based on grid items
   const requiredWorkspaceWidth = derived(positions, $positions => {
-    if ($positions.length === 0) return 1000 // Default minimum width
+    if ($positions.length === 0) return DEFAULT_WORKSPACE_WIDTH // Use constant
 
     // Find the rightmost edge of all items
     const maxRightEdge = Math.max(
@@ -142,7 +192,10 @@
     )
 
     // Add padding and ensure minimum width
-    return Math.max(1000, maxRightEdge + 300) // Extra padding for new items
+    return Math.max(
+      DEFAULT_WORKSPACE_WIDTH,
+      maxRightEdge + WORKSPACE_RIGHT_PADDING
+    )
   })
 
   // Create store to track minimum workspace height required by all items
@@ -177,231 +230,124 @@
   )
 
   // ---------------------------------------------------
-  // Enhanced grid store with additional methods
+  // Event handlers created using the factory
   // ---------------------------------------------------
-
-  // Add the required functions to match the expected gridStore interface
-  const enhancedGridStore = {
-    subscribe: gridStore.subscribe,
-    set: gridStore.set,
-    update: gridStore.update,
-    updateSettings: gridStore.updateSettings,
-    removeItem: gridStore.removeItem,
-    duplicateItem: (item: AllGridTypes) => {
-      return gridStore.duplicateItem(item)
-    },
-    // Add batch duplication support
-    batchDuplicateItems: (items: AllGridTypes[]) => {
-      return gridStore.batchDuplicateItems(items)
-    },
-    addItem: (type: string, options: Partial<AllGridTypes> = {}) => {
-      const newItem = createGridItem(type, options)
-      // Let the grid store handle layout and collision resolution
-      // Our unified system will intelligently place items and resolve any conflicts
-      return gridStore.addItem(newItem)
-    },
-    resetGrid: (newState: AllGridTypes[] = []) => {
-      gridStore.set(newState)
-    },
-  }
-
-  // Make the enhanced store available to child components
-  setContext('gridStore', enhancedGridStore)
-
-  // Also make visualization registry available to child components
-  setContext('visualizationRegistry', visualizationRegistry)
-
-  // ---------------------------------------------------
-  // Event handlers and reactivity
-  // ---------------------------------------------------
-
-  // Unified height calculation for preview operations
-  const calculateWorkspaceHeight = (id: number, y: number, h: number) => {
-    const currentItems = get(gridStore)
-
-    // Calculate bottom edge of the item being manipulated
-    const itemBottomEdge = calculateBottomEdgePosition(y, h, gridConfig)
-
-    // Calculate maximum bottom edge of all OTHER items
-    const otherItemsMaxBottom = Math.max(
-      300, // Minimum fallback
-      ...currentItems
-        .filter(item => item.id !== id)
-        .map(item => calculateBottomEdgePosition(item.y, item.h, gridConfig))
-    )
-
-    // Return maximum + padding
-    return Math.max(otherItemsMaxBottom, itemBottomEdge) + 90 // Add padding
-  }
 
   // --- Preview handlers (visual feedback only) ---
 
-  // Handle item movement preview - no actual state changes
-  const handleItemPreviewMove = (event: {
-    id: number
-    previewX: number
-    previewY: number
-    currentX: number
-    currentY: number
-    w: number
-    h: number
-  }) => {
-    // Update height during preview to ensure workspace expands as needed
-    temporaryDragHeight.set(
-      calculateWorkspaceHeight(event.id, event.previewY, event.h)
-    )
-  }
+  // Handle item movement preview
+  const handleItemPreviewMove = createOperationHandler({
+    operationType: 'preview',
+    heightUpdater: (event: { id: number; previewY: number; h: number }) => {
+      temporaryDragHeight.set(
+        calculateWorkspaceHeight(event.id, event.previewY, event.h)
+      )
+    },
+  })
 
   // Handle item resize preview
-  const handleItemPreviewResize = (event: {
-    id: number
-    x: number
-    y: number
-    w: number
-    h: number
-    currentW: number
-    currentH: number
-  }) => {
-    // Update height during preview
-    isResizing.set(true)
-    resizedItemId.set(event.id)
-    temporaryDragHeight.set(
-      calculateWorkspaceHeight(event.id, event.y, event.h)
-    )
-  }
+  const handleItemPreviewResize = createOperationHandler({
+    operationType: 'preview',
+    stateUpdater: id => {
+      isResizing.set(true)
+      resizedItemId.set(id)
+    },
+    heightUpdater: (event: { id: number; y: number; h: number }) => {
+      temporaryDragHeight.set(
+        calculateWorkspaceHeight(event.id, event.y, event.h)
+      )
+    },
+  })
 
-  // Handle workspace height updates (unified for both drag & resize)
-  const handleDragHeightUpdate = (event: {
-    id: number
-    y: number
-    h: number
-    bottomEdge: number
-  }) => {
-    temporaryDragHeight.set(
-      calculateWorkspaceHeight(event.id, event.y, event.h)
-    )
-  }
+  // Handle workspace height updates
+  const handleDragHeightUpdate = createOperationHandler({
+    operationType: 'preview',
+    heightUpdater: (event: { id: number; y: number; h: number }) => {
+      temporaryDragHeight.set(
+        calculateWorkspaceHeight(event.id, event.y, event.h)
+      )
+    },
+  })
 
   // --- Operation start handlers ---
 
-  // Handle operation start (sets global state)
-  const handleDragStart = (event: {
-    id: number
-    x: number
-    y: number
-    w: number
-    h: number
-  }) => {
-    const { id } = event
-    isDragging.set(true)
-    draggedItemId.set(id)
-  }
+  // Handle drag operation start
+  const handleDragStart = createOperationHandler({
+    operationType: 'start',
+    stateUpdater: id => {
+      isDragging.set(true)
+      draggedItemId.set(id)
+    },
+  })
+
+  // --- Movement and resizing handlers ---
+
+  // Handle drag movement
+  const handleItemMove = createOperationHandler({
+    operationType: 'move',
+    gridAction: (event: { id: number; x: number; y: number }) => {
+      gridStore.updateItemPosition(event.id, event.x, event.y, false)
+    },
+  })
+
+  // Handle resize
+  const handleItemResize = createOperationHandler({
+    operationType: 'resize',
+    gridAction: (event: { id: number; w: number; h: number }) => {
+      const currentItem = get(gridStore).find(item => item.id === event.id)
+
+      if (!currentItem) return
+
+      // Enforce minimum dimensions
+      const minWidth = Math.max(
+        gridConfig.minWidth,
+        currentItem.min?.w || gridConfig.minWidth
+      )
+      const minHeight = Math.max(
+        gridConfig.minHeight,
+        currentItem.min?.h || gridConfig.minHeight
+      )
+
+      // Apply constraints
+      const constrainedW = Math.max(minWidth, event.w)
+      const constrainedH = Math.max(minHeight, event.h)
+
+      // Update without collision resolution
+      gridStore.updateItemSize(event.id, constrainedW, constrainedH, false)
+    },
+  })
 
   // --- Operation end handlers ---
 
-  // Unified handler for completing operations with collision resolution
-  const completeOperation = (
-    id: number,
-    updateFn: () => void,
-    complete: boolean = true
-  ) => {
-    // Reset states
-    isDragging.set(false)
-    draggedItemId.set(null)
-    isResizing.set(false)
-    resizedItemId.set(null)
-    temporaryDragHeight.set(null)
-
-    if (!complete) return
-
-    // Apply update first without collision resolution
-    updateFn()
-
-    // Then resolve collisions with a slight delay for better UX
-    setTimeout(() => {
-      gridStore.resolveItemPositionCollisions(id)
-    }, 50) // Short delay for better visual feedback
-  }
-
-  // Handle drag completion
-  const handleItemMove = (event: {
-    id: number
-    x: number
-    y: number
-    w: number
-    h: number
-  }) => {
-    const { id, x, y } = event
-    // Update position without resolving collisions
-    gridStore.updateItemPosition(id, x, y, false)
-  }
-
   // Handle drag end
-  const handleDragEnd = (event: {
-    id: number
-    x: number
-    y: number
-    w: number
-    h: number
-    dragComplete: boolean
-  }) => {
-    const { id, x, y, dragComplete } = event
-
-    completeOperation(
-      id,
-      () => gridStore.updateItemPosition(id, x, y, false),
-      dragComplete
-    )
-  }
-
-  // Handle resize
-  const handleItemResize = (event: {
-    id: number
-    x: number
-    y: number
-    w: number
-    h: number
-  }) => {
-    const { id, w, h } = event
-    const currentItem = get(gridStore).find(item => item.id === id)
-
-    if (!currentItem) return
-
-    // Enforce minimum dimensions
-    const minWidth = Math.max(
-      gridConfig.minWidth,
-      currentItem.min?.w || gridConfig.minWidth
-    )
-    const minHeight = Math.max(
-      gridConfig.minHeight,
-      currentItem.min?.h || gridConfig.minHeight
-    )
-
-    // Apply constraints
-    const constrainedW = Math.max(minWidth, w)
-    const constrainedH = Math.max(minHeight, h)
-
-    // Update without collision resolution
-    gridStore.updateItemSize(id, constrainedW, constrainedH, false)
-  }
+  const handleDragEnd = createOperationHandler({
+    operationType: 'end',
+    gridAction: (event: {
+      id: number
+      x: number
+      y: number
+      dragComplete: boolean
+    }) => {
+      if (event.dragComplete) {
+        gridStore.updateItemPosition(event.id, event.x, event.y, false)
+      }
+    },
+    shouldResolveCollisions: true,
+  })
 
   // Handle resize end
-  const handleResizeEnd = (event: {
-    id: number
-    x: number
-    y: number
-    w: number
-    h: number
-    resizeComplete: boolean
-  }) => {
-    const { id, w, h, resizeComplete } = event
-
-    completeOperation(
-      id,
-      () => {
-        const currentItem = get(gridStore).find(item => item.id === id)
+  const handleResizeEnd = createOperationHandler({
+    operationType: 'end',
+    gridAction: (event: {
+      id: number
+      w: number
+      h: number
+      resizeComplete: boolean
+    }) => {
+      if (event.resizeComplete) {
+        const currentItem = get(gridStore).find(item => item.id === event.id)
         if (currentItem) {
-          // Ensure dimensions are constrained
+          // Enforce minimum dimensions
           const minWidth = Math.max(
             gridConfig.minWidth,
             currentItem.min?.w || gridConfig.minWidth
@@ -411,43 +357,44 @@
             currentItem.min?.h || gridConfig.minHeight
           )
 
-          const constrainedW = Math.max(minWidth, w)
-          const constrainedH = Math.max(minHeight, h)
+          // Apply constraints
+          const constrainedW = Math.max(minWidth, event.w)
+          const constrainedH = Math.max(minHeight, event.h)
 
-          gridStore.updateItemSize(id, constrainedW, constrainedH, false)
+          gridStore.updateItemSize(event.id, constrainedW, constrainedH, false)
         }
-      },
-      resizeComplete
-    )
-  }
+      }
+    },
+    shouldResolveCollisions: true,
+  })
+
+  // --- Simple action handlers ---
 
   // Handle item removal
-  const handleItemRemove = (event: { id: number }) => {
-    const { id } = event
-    gridStore.removeItem(id)
-  }
+  const handleItemRemove = createOperationHandler({
+    gridAction: (event: { id: number }) => {
+      gridStore.removeItem(event.id)
+    },
+  })
 
   // Handle item duplication
-  const handleItemDuplicate = (event: { id: number }) => {
-    const { id } = event
-    // Find the item to duplicate
-    const itemToDuplicate = get(gridStore).find(item => item.id === id)
-    if (itemToDuplicate) {
-      // Use the duplicate method from the grid store
-      gridStore.duplicateItem(itemToDuplicate)
-    }
-  }
+  const handleItemDuplicate = createOperationHandler({
+    gridAction: (event: { id: number }) => {
+      const itemToDuplicate = get(gridStore).find(item => item.id === event.id)
+      if (itemToDuplicate) {
+        gridStore.duplicateItem(itemToDuplicate)
+      }
+    },
+  })
 
   // Handle toolbar actions
   const handleToolbarAction = (event: { id: string; vizType?: string }) => {
     const { id, vizType } = event
 
-    console.log('handleToolbarAction', event)
-
     if (id === 'add-visualization' && vizType) {
       // Add the new visualization at the first available position
       // instead of automatically placing it below all existing items
-      enhancedGridStore.addItem(vizType)
+      gridStore.addItem(vizType)
     } else if (id === 'toggle-fullscreen') {
       // Delegate fullscreen toggle to the toolbar
       // The toolbar component will handle fullscreen functionality itself
@@ -509,55 +456,57 @@
     }
   }
 
-  // Improved panning with smoothing and reduced sensitivity
-  const handleWorkspacePanMove = (event: MouseEvent | TouchEvent) => {
-    if (!get(isPanning) || !workspaceContainer) return
+  // Improved panning with smoothing and reduced sensitivity - NOW THROTTLED by RAF
+  const handleWorkspacePanMove = throttleByRaf(
+    (event: MouseEvent | TouchEvent) => {
+      if (!get(isPanning) || !workspaceContainer) return
 
-    // Prevent default for touch events to stop scrolling
-    if ('touches' in event) {
-      event.preventDefault()
+      // Prevent default for touch events to stop scrolling
+      if ('touches' in event) {
+        event.preventDefault()
+      }
+
+      // Get current position based on event type
+      const isTouchEvent = 'touches' in event
+      let currentX: number, currentY: number
+
+      if (isTouchEvent) {
+        const touch = (event as TouchEvent).touches[0]
+        currentX = touch.clientX
+        currentY = touch.clientY
+      } else {
+        currentX = (event as MouseEvent).clientX
+        currentY = (event as MouseEvent).clientY
+      }
+
+      // Calculate raw delta
+      const rawDeltaX = currentX - lastPanX
+      const rawDeltaY = currentY - lastPanY
+
+      // Apply damping factor to reduce sensitivity and smooth movement
+      // Lower values make movement smoother but less responsive
+      const dampingFactor = 0.6
+
+      // Apply damping to create smoother motion
+      const deltaX = rawDeltaX * dampingFactor
+      const deltaY = rawDeltaY * dampingFactor
+
+      // Update the last position for next calculation
+      lastPanX = currentX
+      lastPanY = currentY
+
+      // Apply horizontal scrolling to the workspace container
+      if (Math.abs(deltaX) > 0.5) {
+        // Small threshold to ignore tiny movements
+        workspaceContainer.scrollLeft -= deltaX
+      }
+
+      // Apply vertical scrolling to the window with threshold
+      if (Math.abs(deltaY) > 0.5) {
+        window.scrollBy(0, -deltaY)
+      }
     }
-
-    // Get current position based on event type
-    const isTouchEvent = 'touches' in event
-    let currentX: number, currentY: number
-
-    if (isTouchEvent) {
-      const touch = (event as TouchEvent).touches[0]
-      currentX = touch.clientX
-      currentY = touch.clientY
-    } else {
-      currentX = (event as MouseEvent).clientX
-      currentY = (event as MouseEvent).clientY
-    }
-
-    // Calculate raw delta
-    const rawDeltaX = currentX - lastPanX
-    const rawDeltaY = currentY - lastPanY
-
-    // Apply damping factor to reduce sensitivity and smooth movement
-    // Lower values make movement smoother but less responsive
-    const dampingFactor = 0.6
-
-    // Apply damping to create smoother motion
-    const deltaX = rawDeltaX * dampingFactor
-    const deltaY = rawDeltaY * dampingFactor
-
-    // Update the last position for next calculation
-    lastPanX = currentX
-    lastPanY = currentY
-
-    // Apply horizontal scrolling to the workspace container
-    if (Math.abs(deltaX) > 0.5) {
-      // Small threshold to ignore tiny movements
-      workspaceContainer.scrollLeft -= deltaX
-    }
-
-    // Apply vertical scrolling to the window with threshold
-    if (Math.abs(deltaY) > 0.5) {
-      window.scrollBy(0, -deltaY)
-    }
-  }
+  )
 
   // Handle panning end
   const handleWorkspacePanEnd = (event?: MouseEvent | TouchEvent) => {
@@ -582,14 +531,25 @@
   $effect(() => {
     if ($processingFileStateStore === 'done') {
       isLoading.set(false)
-      enhancedGridStore.resetGrid(createDefaultGridState())
+      // Reset by providing initial data to the store's set method
+      // Note: The store doesn't have a reset method that accepts initial data directly.
+      // We might need to adjust the store or handle reset differently.
+      // For now, let's recreate the store or set the parsed initial items.
+      // const defaultItems = createDefaultGridStateData().map(data =>
+      //   gridStore.addItem(data.type, data) // This adds items one by one, might not be ideal reset
+      // );
+      // A better approach might be needed for a clean reset that uses the initial data pattern.
+      // Option 1: Enhance gridStore.set to accept initial data.
+      // Option 2: Re-initialize the gridStore (might be complex with reactivity).
+      // Let's stick to clearing and adding for now, but note this could be improved.
+      gridStore.reset(createDefaultGridStateData())
       processingFileStateStore.set('idle')
     } else if ($processingFileStateStore === 'processing') {
       isLoading.set(true)
-      enhancedGridStore.resetGrid([]) // Clear the grid while loading
+      gridStore.reset([]) // Reset to empty state
     } else if ($processingFileStateStore === 'fail') {
       isLoading.set(false)
-      enhancedGridStore.resetGrid([]) // Set to empty grid - the empty indicator will show
+      gridStore.reset([]) // Reset to empty state
     }
   })
 
@@ -597,9 +557,12 @@
   // Now we maintain a truly empty grid and display dedicated indicator components
   // when appropriate. This provides a more integrated and visually appealing user
   // experience without artificially creating grid items.
+
+  // Make constants available as CSS variables
+  const styleProps = `--min-workspace-height: ${MIN_WORKSPACE_HEIGHT}px; --grid-container-min-height: ${MIN_WORKSPACE_HEIGHT - 100}px;`
 </script>
 
-<div class="workspace-wrapper">
+<div class="workspace-wrapper" style={styleProps}>
   <!-- Update toolbar, removing drag-related props -->
   <WorkspaceToolbar
     onaction={handleToolbarAction}
@@ -654,11 +617,11 @@
               <div class="grid-item-content">
                 <visConfig.component
                   settings={item}
-                  settingsChange={(newSettings: any) => {
+                  settingsChange={(newSettings: Partial<AllGridTypes>) => {
                     gridStore.updateSettings({
                       ...item,
                       ...newSettings,
-                    })
+                    } as AllGridTypes)
                   }}
                 />
               </div>
@@ -689,7 +652,7 @@
   .workspace-wrapper {
     position: relative;
     display: flex;
-    min-height: 300px; /* Minimum height to ensure toolbar is visible */
+    min-height: var(--min-workspace-height); /* Minimum height */
     display: grid;
     border: 1px solid #8888889c;
     grid-template-columns: 48px 1fr;
@@ -703,7 +666,7 @@
     transition: height 0.3s ease-out;
     overflow-x: auto; /* Allow horizontal scrolling */
     overflow-y: hidden; /* Prevent vertical scrolling */
-    min-height: 300px; /* Ensure minimum height for small grids */
+    min-height: var(--min-workspace-height); /* Ensure minimum height */
     padding: 35px; /* Consistent padding throughout */
     /* Performance optimizations */
     will-change: height;
@@ -731,7 +694,7 @@
   .grid-container {
     position: relative;
     width: 100%;
-    min-height: 200px;
+    min-height: var(--grid-container-min-height); /* Adjusted min height */
     background-color: transparent;
     transition: height 0.3s ease-out;
     overflow-x: visible; /* Allow content to flow naturally */
