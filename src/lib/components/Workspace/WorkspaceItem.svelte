@@ -20,6 +20,7 @@
     draggable?: boolean
     title?: string
     removable?: boolean
+    class?: string
     body?: import('svelte').Snippet
     children?: import('svelte').Snippet
     onmove?: ({
@@ -167,6 +168,7 @@
     draggable = true,
     title = '',
     removable = true,
+    class: customClass = '',
     body,
     children,
     onmove = () => {},
@@ -667,6 +669,9 @@
         itemNode.classList.add('is-being-resized')
       }
 
+      // Add global class to ensure resize cursor takes precedence everywhere
+      document.body.classList.add('resize-in-progress')
+
       // Store initial scroll positions - both workspace and window
       startScrollX = workspaceElement ? workspaceElement.scrollLeft : 0
       startScrollY = workspaceElement ? workspaceElement.scrollTop : 0
@@ -769,6 +774,9 @@
         itemNode.classList.remove('is-being-resized')
       }
 
+      // Remove global class to reset cursor styles
+      document.body.classList.remove('resize-in-progress')
+
       // Only update the actual size at the end of resize
       onresize({ id, x, y, w: resizePosition.w, h: resizePosition.h })
 
@@ -799,6 +807,10 @@
     // Return destroy method to clean up
     return {
       destroy() {
+        // Make sure to remove the global class if component is destroyed during resize
+        if (isResizing) {
+          document.body.classList.remove('resize-in-progress')
+        }
         node.removeEventListener('mousedown', handleMouseDown)
         document.removeEventListener('mousemove', handleMouseMove, {
           capture: true,
@@ -821,7 +833,7 @@
 
 <!-- Actual grid item (stays in place until drag is complete) -->
 <div
-  class="grid-item"
+  class="grid-item {customClass}"
   class:is-being-dragged={isDragging}
   class:resizing={isResizing}
   style={itemStyle}

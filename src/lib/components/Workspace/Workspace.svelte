@@ -31,6 +31,10 @@
   const isDragging = writable(false)
   const draggedItemId = writable<number | null>(null)
 
+  // Add state for tracking resize operations
+  const isResizing = writable(false)
+  const resizedItemId = writable<number | null>(null)
+
   // Add state for workspace panning
   const isPanning = writable(false)
   let lastPanX = 0
@@ -259,6 +263,9 @@
     currentH: number
   }) => {
     // Update height during preview
+    isResizing.set(true)
+    resizedItemId.set(event.id)
+    document.body.classList.add('resize-in-progress')
     temporaryDragHeight.set(
       calculateWorkspaceHeight(event.id, event.y, event.h)
     )
@@ -302,6 +309,9 @@
     // Reset states
     isDragging.set(false)
     draggedItemId.set(null)
+    isResizing.set(false)
+    resizedItemId.set(null)
+    document.body.classList.remove('resize-in-progress')
     temporaryDragHeight.set(null)
 
     if (!complete) return
@@ -453,7 +463,12 @@
     if (event.button !== 0) return
 
     // Only handle clicks on the workspace background, not on grid items
-    if ((event.target as HTMLElement).closest('.grid-item')) return
+    const targetEl = event.target as HTMLElement
+    if (
+      targetEl.closest('.grid-item') ||
+      targetEl.closest('.grid-item-content')
+    )
+      return
 
     // Prevent default to avoid text selection during panning
     event.preventDefault()
@@ -583,6 +598,7 @@
             resizable={true}
             draggable={true}
             title={visConfig.name}
+            class={item.id === $resizedItemId ? 'is-being-resized' : ''}
             onpreviewmove={handleItemPreviewMove}
             onmove={handleItemMove}
             onpreviewresize={handleItemPreviewResize}
@@ -654,7 +670,8 @@
     will-change: height;
     border-left: 1px solid #88888862;
     transform: translateZ(0);
-    cursor: grab; /* Show grab cursor to indicate draggable area */
+    /* Base cursor for empty areas */
+    cursor: grab;
   }
 
   /* Fixed background pattern that doesn't scroll */
@@ -692,6 +709,49 @@
     /* Prevent unnecessary repaints */
     will-change: contents;
     transform: translateZ(0);
+  }
+
+  /* Override cursor for all grid items */
+  :global(.grid-item),
+  :global(.grid-item *) {
+    cursor: default !important;
+  }
+
+  /* Allow specific cursors for functional handles */
+  :global(.resize-handle) {
+    cursor: se-resize !important;
+    z-index: 100 !important; /* Ensure it's above other elements */
+  }
+
+  /* Ensure resize cursor has the highest precedence during resize operations */
+  :global(body.resize-in-progress),
+  :global(body.resize-in-progress *) {
+    cursor: se-resize !important;
+  }
+
+  /* Maintain resize cursor when item is being resized */
+  :global(.grid-item.is-being-resized),
+  :global(.grid-item.is-being-resized *) {
+    cursor: se-resize !important;
+  }
+
+  /* Apply resize cursor to the resize handle with highest specificity */
+  :global(.resize-handle),
+  :global(.resize-handle:hover),
+  :global(.resize-handle:active) {
+    cursor: se-resize !important;
+  }
+
+  /* Allow specific cursor for drag handle button */
+  :global(.header > .tooltip-wrapper:first-child .workspace-item-button) {
+    cursor: grab !important;
+  }
+
+  /* Show grabbing cursor when actively dragging */
+  :global(
+      .header > .tooltip-wrapper:first-child .workspace-item-button:active
+    ) {
+    cursor: grabbing !important;
   }
 
   .pointer-events-blocker {

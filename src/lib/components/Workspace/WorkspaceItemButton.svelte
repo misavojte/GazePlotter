@@ -70,14 +70,16 @@
       onmouseleave={hideTooltip}
       use:actionFn={actionParams}
     >
-      {#if children}{@render children()}{:else}
-        {#if icon}
-          {@html icon}
+      <span class="workspace-item-button-content">
+        {#if children}{@render children()}{:else}
+          {#if icon}
+            {@html icon}
+          {/if}
+          {#if label}
+            <span class="label">{label}</span>
+          {/if}
         {/if}
-        {#if label}
-          <span class="label">{label}</span>
-        {/if}
-      {/if}
+      </span>
     </button>
   {:else}
     <button
@@ -126,6 +128,12 @@
     fill: var(--c-grey);
     transition: all 0.15s ease-out;
     border: none;
+  }
+
+  .workspace-item-button-content {
+    user-select: none;
+    pointer-events: none;
+    display: contents;
   }
 
   .workspace-item-button:hover {
