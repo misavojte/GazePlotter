@@ -265,7 +265,6 @@
     // Update height during preview
     isResizing.set(true)
     resizedItemId.set(event.id)
-    document.body.classList.add('resize-in-progress')
     temporaryDragHeight.set(
       calculateWorkspaceHeight(event.id, event.y, event.h)
     )
@@ -311,7 +310,6 @@
     draggedItemId.set(null)
     isResizing.set(false)
     resizedItemId.set(null)
-    document.body.classList.remove('resize-in-progress')
     temporaryDragHeight.set(null)
 
     if (!complete) return
@@ -480,8 +478,11 @@
     lastPanX = event.clientX
     lastPanY = event.clientY
 
-    // Apply cursor style to entire document during pan to avoid flickering
+    // Set cursor directly for immediate feedback
     document.body.style.cursor = 'grabbing'
+    if (workspaceContainer) {
+      workspaceContainer.style.cursor = 'grabbing'
+    }
 
     // Add move and end event listeners
     document.addEventListener('mousemove', handleWorkspacePanMove)
@@ -525,8 +526,11 @@
     // Reset panning state
     isPanning.set(false)
 
-    // Reset cursor style
+    // Reset cursor styles
     document.body.style.cursor = ''
+    if (workspaceContainer) {
+      workspaceContainer.style.cursor = 'grab'
+    }
 
     // Remove event listeners
     document.removeEventListener('mousemove', handleWorkspacePanMove)
@@ -712,34 +716,14 @@
   }
 
   /* Override cursor for all grid items */
-  :global(.grid-item),
-  :global(.grid-item *) {
-    cursor: default !important;
+  :global(.grid-item) {
+    cursor: default;
   }
 
   /* Allow specific cursors for functional handles */
   :global(.resize-handle) {
     cursor: se-resize !important;
     z-index: 100 !important; /* Ensure it's above other elements */
-  }
-
-  /* Ensure resize cursor has the highest precedence during resize operations */
-  :global(body.resize-in-progress),
-  :global(body.resize-in-progress *) {
-    cursor: se-resize !important;
-  }
-
-  /* Maintain resize cursor when item is being resized */
-  :global(.grid-item.is-being-resized),
-  :global(.grid-item.is-being-resized *) {
-    cursor: se-resize !important;
-  }
-
-  /* Apply resize cursor to the resize handle with highest specificity */
-  :global(.resize-handle),
-  :global(.resize-handle:hover),
-  :global(.resize-handle:active) {
-    cursor: se-resize !important;
   }
 
   /* Allow specific cursor for drag handle button */

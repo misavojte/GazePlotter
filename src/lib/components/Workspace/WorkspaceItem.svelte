@@ -669,8 +669,14 @@
         itemNode.classList.add('is-being-resized')
       }
 
-      // Add global class to ensure resize cursor takes precedence everywhere
-      document.body.classList.add('resize-in-progress')
+      // Apply resize cursor globally immediately for better UX
+      document.body.style.setProperty('cursor', 'se-resize', 'important')
+
+      // Create a style element to override all other cursors
+      const styleEl = document.createElement('style')
+      styleEl.id = 'resize-cursor-override'
+      styleEl.textContent = '* { cursor: se-resize !important; }'
+      document.head.appendChild(styleEl)
 
       // Store initial scroll positions - both workspace and window
       startScrollX = workspaceElement ? workspaceElement.scrollLeft : 0
@@ -774,8 +780,12 @@
         itemNode.classList.remove('is-being-resized')
       }
 
-      // Remove global class to reset cursor styles
-      document.body.classList.remove('resize-in-progress')
+      // Remove resize cursor override
+      document.body.style.cursor = ''
+      const styleEl = document.getElementById('resize-cursor-override')
+      if (styleEl) {
+        styleEl.remove()
+      }
 
       // Only update the actual size at the end of resize
       onresize({ id, x, y, w: resizePosition.w, h: resizePosition.h })
@@ -807,9 +817,13 @@
     // Return destroy method to clean up
     return {
       destroy() {
-        // Make sure to remove the global class if component is destroyed during resize
+        // Make sure to remove cursor override if component is destroyed during resize
         if (isResizing) {
-          document.body.classList.remove('resize-in-progress')
+          document.body.style.cursor = ''
+          const styleEl = document.getElementById('resize-cursor-override')
+          if (styleEl) {
+            styleEl.remove()
+          }
         }
         node.removeEventListener('mousedown', handleMouseDown)
         document.removeEventListener('mousemove', handleMouseMove, {
