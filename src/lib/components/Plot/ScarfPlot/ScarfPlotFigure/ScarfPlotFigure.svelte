@@ -5,11 +5,9 @@
   import ScarfPlotLegend from '$lib/components/Plot/ScarfPlot/ScarfPlotLegend/ScarfPlotLegend.svelte'
   import { generateScarfPlotCSS } from '$lib/utils/scarfPlotTransformations'
   import { addInfoToast } from '$lib/stores/toastStore'
-  import { calculatePlotDimensionsWithHeader } from '$lib/utils/plotSizeUtility'
-  import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
 
   interface Props {
-    tooltipAreaElement: HTMLElement | null
+    tooltipAreaElement: HTMLElement | SVGElement | null
     data: ScarfFillingType
     settings: ScarfGridType
     highlightedIdentifier: string | null
@@ -17,6 +15,8 @@
     onmousemove?: (event: MouseEvent) => void
     onmouseleave?: (event: MouseEvent) => void
     onpointerdown?: (event: PointerEvent) => void
+    chartWidth: number
+    absoluteZoomedWidth: number
   }
 
   let {
@@ -28,13 +28,16 @@
     onmousemove = () => {},
     onmouseleave = () => {},
     onpointerdown = () => {},
+    chartWidth = 0,
+    absoluteZoomedWidth = 0,
   }: Props = $props()
 
-  // Constants for space calculations (similar to AoiTransitionMatrixPlot)
-  const HEADER_HEIGHT = 150
-  const HORIZONTAL_PADDING = 50
-  const CONTENT_PADDING = 20
-  const LEFT_LABEL_WIDTH = 125 // Width of the participant labels column
+  // Constants for SVG layout
+  const LEFT_LABEL_WIDTH = 125 // Width for participant labels
+  const AXIS_LABEL_HEIGHT = 30 // Height for the x-axis label
+  const LEGEND_HEIGHT = 100 // Height for the legend
+  const LABEL_FONT_SIZE = 12
+  const PADDING = 10
 
   let fixedHighlight = $state<string | null>(null)
   let usedHighlight = $derived(fixedHighlight ?? highlightedIdentifier)
@@ -49,33 +52,15 @@
       : `Elapsed time [${getTimelineUnit(settings)}]`
   }
 
-  const getZoomWidth = (settings: ScarfGridType): number => {
-    return 100 * 2 ** settings.zoomLevel
-  }
-
-  // Calculate plot dimensions based on settings
-  const plotDimensions = $derived.by(() =>
-    calculatePlotDimensionsWithHeader(
-      settings.w,
-      settings.h,
-      DEFAULT_GRID_CONFIG,
-      HEADER_HEIGHT,
-      HORIZONTAL_PADDING
-    )
-  )
-
-  // Calculate the chart width from plot dimensions
-  const chartWidth = $derived(
-    plotDimensions.width - LEFT_LABEL_WIDTH - CONTENT_PADDING
-  )
-
-  // Apply zoom factor to get actual width
   let xAxisLabel = $derived(getXAxisLabel(settings))
-  let zoomWidth = $derived(getZoomWidth(settings))
-  let absoluteZoomedWidth = $derived(chartWidth * (zoomWidth / 100))
 
-  // Calculate zoom factor for use in position calculations
-  let zoomFactor = $derived(zoomWidth / 100)
+  // Total SVG width and height calculation
+  const totalWidth = $derived(
+    LEFT_LABEL_WIDTH + absoluteZoomedWidth + PADDING * 2
+  )
+  const totalHeight = $derived(
+    data.chartHeight + AXIS_LABEL_HEIGHT + LEGEND_HEIGHT
+  )
 
   let scarfPlotAreaId = $derived(`scarf-plot-area-${settings.id}`)
 
@@ -226,48 +211,69 @@
   }
 </script>
 
-<figure class="tooltip-area" {onmousemove} {onmouseleave} {onpointerdown}>
-  <!-- scarf plot id is used to identify the plot by other components (e.g. for download) -->
-  <div class="chartwrap" id={scarfPlotAreaId} bind:this={tooltipAreaElement}>
-    {#key styleInputs}
-      {@html dynamicStyle}
-    {/key}
-    <div
-      class="chylabs"
-      style="grid-auto-rows:{data.heightOfBarWrap}px"
-      data-gap={data.heightOfBarWrap}
-    >
-      {#each data.participants as participant}
-        <div>{participant.label}</div>
-      {/each}
-    </div>
-    <div class="charea-holder" class:isHiglighted={highlightedIdentifier}>
-      {#key data.participants}
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          id="charea"
-          width={absoluteZoomedWidth}
-          height={data.chartHeight}
-        >
-          <svg y={data.chartHeight - 12} class="chxlabs">
-            <text x="0" y="0" text-anchor="start" dominant-baseline="hanging"
-              >0</text
-            >
-            {#each data.timeline.slice(1, -1) as label}
-              <text
-                x={getAbsoluteX(label)}
-                dominant-baseline="hanging"
-                text-anchor="middle">{label}</text
-              >
-            {/each}
-            <text
-              x={absoluteZoomedWidth}
-              dominant-baseline="hanging"
-              text-anchor="end">{data.timeline.maxLabel}</text
-            >
-          </svg>
+<!-- Container for dynamic styles and the plot -->
+<figure class="plot-container" id={scarfPlotAreaId}>
+  {#key styleInputs}
+    {@html dynamicStyle}
+  {/key}
 
-          <!-- Add x-axis ticks -->
+  <svg
+    class="scarf-plot-figure"
+    width={totalWidth}
+    height={data.chartHeight + AXIS_LABEL_HEIGHT}
+    {onmousemove}
+    {onmouseleave}
+    {onpointerdown}
+    bind:this={tooltipAreaElement}
+    data-component="scarfplot"
+  >
+    <!-- Participant Labels (Left Side) -->
+    <g class="participants-labels">
+      {#each data.participants as participant, i}
+        <text
+          x={PADDING}
+          y={i * data.heightOfBarWrap + data.heightOfBarWrap / 2}
+          font-size={LABEL_FONT_SIZE}
+          text-anchor="start"
+          dominant-baseline="middle"
+          class="participant-label">{participant.label}</text
+        >
+      {/each}
+    </g>
+
+    <!-- Main Chart Area -->
+    <g
+      class="chart-area"
+      transform={`translate(${LEFT_LABEL_WIDTH}, 0)`}
+      class:isHiglighted={highlightedIdentifier}
+    >
+      {#key data.participants}
+        <!-- Timeline Axis Labels -->
+        <g
+          class="timeline-labels"
+          transform={`translate(0, ${data.chartHeight - 12})`}
+        >
+          <text x="0" y="0" text-anchor="start" dominant-baseline="hanging"
+            >0</text
+          >
+
+          {#each data.timeline.slice(1, -1) as label}
+            <text
+              x={getAbsoluteX(label)}
+              dominant-baseline="hanging"
+              text-anchor="middle">{label}</text
+            >
+          {/each}
+
+          <text
+            x={absoluteZoomedWidth}
+            dominant-baseline="hanging"
+            text-anchor="end">{data.timeline.maxLabel}</text
+          >
+        </g>
+
+        <!-- X-Axis Ticks -->
+        <g class="axis-ticks">
           <line
             x1="0"
             y1={data.participants.length * data.heightOfBarWrap - 0.5}
@@ -276,6 +282,7 @@
             stroke="#cbcbcb"
             stroke-width="1.5"
           ></line>
+
           {#each data.timeline.slice(1, -1) as label}
             <line
               x1={getAbsoluteX(label)}
@@ -286,6 +293,7 @@
               stroke-width="1.5"
             ></line>
           {/each}
+
           <line
             x1={absoluteZoomedWidth}
             y1={data.participants.length * data.heightOfBarWrap - 0.5}
@@ -294,102 +302,119 @@
             stroke="#cbcbcb"
             stroke-width="1.5"
           ></line>
+        </g>
 
-          <!-- Start of barwrap, each is a participant -->
-          {#each data.participants as participant, i}
-            <line
-              x1="0"
-              x2={absoluteZoomedWidth}
-              y1={i * data.heightOfBarWrap + 0.5}
-              y2={i * data.heightOfBarWrap + 0.5}
-              stroke="#cbcbcb"
-            ></line>
-            <svg
-              class="barwrap"
-              y={i * data.heightOfBarWrap}
-              data-id={participant.id}
-              height={data.heightOfBarWrap}
-              width={absoluteZoomedWidth}
-            >
-              {#each participant.segments as segment, segmentId}
-                <g data-id={segmentId}>
-                  {#each segment.content as rectangle}
-                    <rect
-                      class={rectangle.identifier}
-                      height={rectangle.height}
-                      x={settings.timeline === 'ordinal'
-                        ? getSegmentX(rectangle.x, segmentId)
-                        : getSegmentX(
-                            rectangle.x,
-                            undefined,
-                            settings.timeline === 'absolute'
-                              ? participant.width
-                              : undefined
-                          )}
-                      width={settings.timeline === 'ordinal'
-                        ? getSegmentWidth(rectangle.width, segmentId)
-                        : getSegmentWidth(
-                            rectangle.width,
-                            undefined,
-                            settings.timeline === 'absolute'
-                              ? participant.width
-                              : undefined
-                          )}
-                      y={rectangle.y}
-                    ></rect>
-                  {/each}
-                </g>
-              {/each}
-              {#each participant.dynamicAoiVisibility as visibility, visibilityIndex}
-                {#each visibility.content as visibilityItem, itemIndex}
-                  <!-- Calculate maximum width for this participant WITH ZOOM -->
-                  {@const maxWidth =
-                    settings.timeline === 'absolute' && participant.width
-                      ? (parseFloat(participant.width) / 100) *
-                        absoluteZoomedWidth
-                      : absoluteZoomedWidth}
-
-                  <!-- Calculate visibility line x positions with capping -->
-                  {@const x1 = getVisibilityLineX(
-                    visibilityItem.x1,
-                    settings.timeline === 'absolute'
-                      ? participant.width
-                      : undefined
-                  )}
-
-                  {@const x2 = getVisibilityLineX(
-                    visibilityItem.x2,
-                    settings.timeline === 'absolute'
-                      ? participant.width
-                      : undefined
-                  )}
-
-                  <!-- Only render if in bounds and not in ordinal mode -->
-                  {#if settings.timeline !== 'ordinal' && x1 <= maxWidth && x2 <= maxWidth}
-                    <line
-                      class={visibilityItem.identifier}
-                      {x1}
-                      y1={visibilityItem.y}
-                      {x2}
-                      y2={visibilityItem.y}
-                    ></line>
-                  {/if}
-                {/each}
-              {/each}
-            </svg>
-          {/each}
-          <!-- End of barwrap -->
+        <!-- Horizontal Grid Lines and Data -->
+        {#each data.participants as participant, i}
+          <!-- Horizontal Grid Line -->
           <line
             x1="0"
             x2={absoluteZoomedWidth}
-            y1={data.participants.length * data.heightOfBarWrap - 0.5}
-            y2={data.participants.length * data.heightOfBarWrap - 0.5}
+            y1={i * data.heightOfBarWrap + 0.5}
+            y2={i * data.heightOfBarWrap + 0.5}
             stroke="#cbcbcb"
-          />
-        </svg>
+          ></line>
+
+          <!-- Participant Segments -->
+          <g
+            class="participant-segments"
+            transform={`translate(0, ${i * data.heightOfBarWrap})`}
+            data-id={participant.id}
+            data-participant="true"
+          >
+            {#each participant.segments as segment, segmentId}
+              <g data-id={segmentId} data-segment="true">
+                {#each segment.content as rectangle}
+                  <rect
+                    class={rectangle.identifier}
+                    height={rectangle.height}
+                    x={settings.timeline === 'ordinal'
+                      ? getSegmentX(rectangle.x, segmentId)
+                      : getSegmentX(
+                          rectangle.x,
+                          undefined,
+                          settings.timeline === 'absolute'
+                            ? participant.width
+                            : undefined
+                        )}
+                    width={settings.timeline === 'ordinal'
+                      ? getSegmentWidth(rectangle.width, segmentId)
+                      : getSegmentWidth(
+                          rectangle.width,
+                          undefined,
+                          settings.timeline === 'absolute'
+                            ? participant.width
+                            : undefined
+                        )}
+                    y={rectangle.y}
+                  ></rect>
+                {/each}
+              </g>
+            {/each}
+
+            <!-- AOI Visibility Lines -->
+            {#each participant.dynamicAoiVisibility as visibility, visibilityIndex}
+              {#each visibility.content as visibilityItem, itemIndex}
+                <!-- Calculate maximum width for this participant WITH ZOOM -->
+                {@const maxWidth =
+                  settings.timeline === 'absolute' && participant.width
+                    ? (parseFloat(participant.width) / 100) *
+                      absoluteZoomedWidth
+                    : absoluteZoomedWidth}
+
+                <!-- Calculate visibility line x positions with capping -->
+                {@const x1 = getVisibilityLineX(
+                  visibilityItem.x1,
+                  settings.timeline === 'absolute'
+                    ? participant.width
+                    : undefined
+                )}
+
+                {@const x2 = getVisibilityLineX(
+                  visibilityItem.x2,
+                  settings.timeline === 'absolute'
+                    ? participant.width
+                    : undefined
+                )}
+
+                <!-- Only render if in bounds and not in ordinal mode -->
+                {#if settings.timeline !== 'ordinal' && x1 <= maxWidth && x2 <= maxWidth}
+                  <line
+                    class={visibilityItem.identifier}
+                    {x1}
+                    y1={visibilityItem.y}
+                    {x2}
+                    y2={visibilityItem.y}
+                  ></line>
+                {/if}
+              {/each}
+            {/each}
+          </g>
+        {/each}
+
+        <!-- Bottom Border Line -->
+        <line
+          x1="0"
+          x2={absoluteZoomedWidth}
+          y1={data.participants.length * data.heightOfBarWrap - 0.5}
+          y2={data.participants.length * data.heightOfBarWrap - 0.5}
+          stroke="#cbcbcb"
+        />
       {/key}
-    </div>
-    <div class="chxlab">{xAxisLabel}</div>
+
+      <!-- X-Axis Label -->
+      <text
+        x={absoluteZoomedWidth / 2}
+        y={data.chartHeight + 15}
+        text-anchor="middle"
+        font-size={LABEL_FONT_SIZE}
+        class="x-axis-label">{xAxisLabel}</text
+      >
+    </g>
+  </svg>
+
+  <!-- Legend below the SVG -->
+  <div class="legend-container">
     <ScarfPlotLegend
       filling={data.stylingAndLegend}
       onlegendIdentifier={handleLegendIdentifier}
@@ -398,39 +423,30 @@
 </figure>
 
 <style>
-  figure {
+  .plot-container {
     margin: 0;
+    padding: 0;
     cursor: default;
   }
-  .chartwrap {
-    display: grid;
-    grid-template-columns: 125px 1fr;
-    grid-gap: 10px;
+
+  .scarf-plot-figure {
+    font-family: sans-serif;
   }
-  .chxlab {
-    grid-column: 2;
-    text-align: center;
-    font-size: 12px;
-    margin-top: -10px;
-  }
-  .chylabs {
-    display: grid;
-    font-size: 14px;
-    grid-template-columns: 1fr;
-    align-items: center;
-  }
-  .chylabs > div {
-    width: 125px;
-    line-height: 1;
+
+  .participant-label {
     text-overflow: ellipsis;
     white-space: nowrap;
     overflow: hidden;
+    max-width: 125px;
   }
+
   text {
     font-family: sans-serif;
     font-size: 12px;
   }
-  .charea-holder {
-    overflow: auto;
+
+  .legend-container {
+    margin-top: 10px;
+    width: 100%;
   }
 </style>
