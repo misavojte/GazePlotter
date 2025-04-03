@@ -114,7 +114,7 @@
           width="{zoomWidth}%"
           height={data.chartHeight}
         >
-          <svg y={data.chartHeight - 14} class="chxlabs">
+          <svg y={data.chartHeight - 12} class="chxlabs">
             <text x="0" y="0" text-anchor="start" dominant-baseline="hanging"
               >0</text
             >
@@ -129,6 +129,35 @@
               >{data.timeline.maxLabel}</text
             >
           </svg>
+
+          <!-- Add x-axis ticks -->
+          <line
+            x1="0"
+            y1={data.participants.length * data.heightOfBarWrap - 0.5}
+            x2="0"
+            y2={data.participants.length * data.heightOfBarWrap + 5}
+            stroke="#cbcbcb"
+            stroke-width="1.5"
+          ></line>
+          {#each data.timeline.slice(1, -1) as label}
+            <line
+              x1="{(label / data.timeline.maxLabel) * 100}%"
+              y1={data.participants.length * data.heightOfBarWrap - 0.5}
+              x2="{(label / data.timeline.maxLabel) * 100}%"
+              y2={data.participants.length * data.heightOfBarWrap + 5}
+              stroke="#cbcbcb"
+              stroke-width="1.5"
+            ></line>
+          {/each}
+          <line
+            x1="100%"
+            y1={data.participants.length * data.heightOfBarWrap - 0.5}
+            x2="100%"
+            y2={data.participants.length * data.heightOfBarWrap + 5}
+            stroke="#cbcbcb"
+            stroke-width="1.5"
+          ></line>
+
           <!-- Start of barwrap, each is a participant -->
           {#each data.participants as participant, i}
             <line
