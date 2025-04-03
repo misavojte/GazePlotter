@@ -5,6 +5,8 @@
   import ScarfPlotLegend from '$lib/components/Plot/ScarfPlot/ScarfPlotLegend/ScarfPlotLegend.svelte'
   import { generateScarfPlotCSS } from '$lib/utils/scarfPlotTransformations'
   import { addInfoToast } from '$lib/stores/toastStore'
+  import { calculatePlotDimensionsWithHeader } from '$lib/utils/plotSizeUtility'
+  import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
 
   interface Props {
     tooltipAreaElement: HTMLElement | null
@@ -28,6 +30,12 @@
     onpointerdown = () => {},
   }: Props = $props()
 
+  // Constants for space calculations (similar to AoiTransitionMatrixPlot)
+  const HEADER_HEIGHT = 150
+  const HORIZONTAL_PADDING = 50
+  const CONTENT_PADDING = 20
+  const LEFT_LABEL_WIDTH = 125 // Width of the participant labels column
+
   let fixedHighlight = $state<string | null>(null)
   let usedHighlight = $derived(fixedHighlight ?? highlightedIdentifier)
 
@@ -45,10 +53,137 @@
     return 100 * 2 ** settings.zoomLevel
   }
 
+  // Calculate plot dimensions based on settings
+  const plotDimensions = $derived.by(() =>
+    calculatePlotDimensionsWithHeader(
+      settings.w,
+      settings.h,
+      DEFAULT_GRID_CONFIG,
+      HEADER_HEIGHT,
+      HORIZONTAL_PADDING
+    )
+  )
+
+  // Calculate the chart width from plot dimensions
+  const chartWidth = $derived(
+    plotDimensions.width - LEFT_LABEL_WIDTH - CONTENT_PADDING
+  )
+
+  // Apply zoom factor to get actual width
   let xAxisLabel = $derived(getXAxisLabel(settings))
   let zoomWidth = $derived(getZoomWidth(settings))
+  let absoluteZoomedWidth = $derived(chartWidth * (zoomWidth / 100))
+
+  // Calculate zoom factor for use in position calculations
+  let zoomFactor = $derived(zoomWidth / 100)
 
   let scarfPlotAreaId = $derived(`scarf-plot-area-${settings.id}`)
+
+  // Function to calculate the absolute X position for a timeline value
+  const getAbsoluteX = (value: number): number => {
+    if (!chartWidth) return 0
+
+    // Handle different timeline types
+    if (settings.timeline === 'ordinal') {
+      // For ordinal, each label gets an evenly spaced position
+      const lastIndex = data.timeline.length - 1
+      const indexPosition = data.timeline.findIndex(v => v === value)
+      // Apply zoom factor to the position
+      return indexPosition >= 0
+        ? (indexPosition / lastIndex) * absoluteZoomedWidth
+        : 0
+    } else {
+      // For absolute and relative, use the same calculation for axis labels
+      // Apply zoom factor to the position
+      return (value / data.timeline.maxLabel) * absoluteZoomedWidth
+    }
+  }
+
+  // Function to calculate X position for segments based on timeline type
+  const getSegmentX = (
+    x: string,
+    segmentIndex?: number,
+    participantWidth?: string
+  ): number => {
+    if (!chartWidth) return 0
+
+    if (settings.timeline === 'ordinal' && typeof segmentIndex === 'number') {
+      // For ordinal timeline, we position based on segment index
+      const totalSegments = data.timeline.maxLabel
+      // Apply zoom factor to the position
+      return (segmentIndex / totalSegments) * absoluteZoomedWidth
+    } else if (settings.timeline === 'absolute' && participantWidth) {
+      // For absolute timeline, the width of each participant can be different
+      // Parse the participant width (which is in percentage format)
+      const participantWidthPercent = parseFloat(participantWidth)
+      // Convert the segment x (also in percentage) to the actual x position
+      const segmentXPercent = parseFloat(x)
+      // Calculate the actual width of this participant in pixels WITH ZOOM
+      const actualParticipantWidth =
+        (participantWidthPercent / 100) * absoluteZoomedWidth
+      // Get the segment's absolute position within this participant's area
+      return (segmentXPercent / 100) * actualParticipantWidth
+    } else {
+      // For relative timeline, convert percentage directly WITH ZOOM
+      const percentage = parseFloat(x)
+      return (percentage / 100) * absoluteZoomedWidth
+    }
+  }
+
+  // Function to calculate width for segments based on timeline type
+  const getSegmentWidth = (
+    width: string,
+    segmentIndex?: number,
+    participantWidth?: string
+  ): number => {
+    if (!chartWidth) return 0
+
+    if (settings.timeline === 'ordinal' && typeof segmentIndex === 'number') {
+      // For ordinal timeline, each segment has equal width WITH ZOOM
+      const totalSegments = data.timeline.maxLabel
+      return absoluteZoomedWidth / totalSegments
+    } else if (settings.timeline === 'absolute' && participantWidth) {
+      // For absolute timeline, the width of each participant can be different
+      const participantWidthPercent = parseFloat(participantWidth)
+      const segmentWidthPercent = parseFloat(width)
+      // Calculate width WITH ZOOM
+      const actualParticipantWidth =
+        (participantWidthPercent / 100) * absoluteZoomedWidth
+      return (segmentWidthPercent / 100) * actualParticipantWidth
+    } else {
+      // For relative timeline, convert percentage directly WITH ZOOM
+      const percentage = parseFloat(width)
+      return (percentage / 100) * absoluteZoomedWidth
+    }
+  }
+
+  // Function to calculate X position for AOI visibility lines
+  const getVisibilityLineX = (x: string, participantWidth?: string): number => {
+    if (!chartWidth) return 0
+
+    if (settings.timeline === 'ordinal') {
+      return 0 // Not applicable in ordinal mode
+    } else if (settings.timeline === 'absolute' && participantWidth) {
+      // For absolute timeline, we need to scale by participant width
+      const participantWidthPercent = parseFloat(participantWidth)
+      const xPercent = parseFloat(x)
+
+      // Ensure the visibility line doesn't exceed the participant's width
+      const cappedXPercent = Math.min(xPercent, 100)
+
+      // First calculate the participant's actual width in pixels WITH ZOOM
+      const actualParticipantWidth =
+        (participantWidthPercent / 100) * absoluteZoomedWidth
+
+      // Then calculate position within that participant's area (capped)
+      return (cappedXPercent / 100) * actualParticipantWidth
+    } else {
+      // For relative timeline, the percentage is relative to the full chart width WITH ZOOM
+      // but should still be capped at 100%
+      const percentage = Math.min(parseFloat(x), 100)
+      return (percentage / 100) * absoluteZoomedWidth
+    }
+  }
 
   const handleFixedHighlight = (identifier: string) => {
     if (fixedHighlight === identifier) {
@@ -111,7 +246,7 @@
         <svg
           xmlns="http://www.w3.org/2000/svg"
           id="charea"
-          width="{zoomWidth}%"
+          width={absoluteZoomedWidth}
           height={data.chartHeight}
         >
           <svg y={data.chartHeight - 12} class="chxlabs">
@@ -120,13 +255,15 @@
             >
             {#each data.timeline.slice(1, -1) as label}
               <text
-                x="{(label / data.timeline.maxLabel) * 100}%"
+                x={getAbsoluteX(label)}
                 dominant-baseline="hanging"
                 text-anchor="middle">{label}</text
               >
             {/each}
-            <text x="100%" dominant-baseline="hanging" text-anchor="end"
-              >{data.timeline.maxLabel}</text
+            <text
+              x={absoluteZoomedWidth}
+              dominant-baseline="hanging"
+              text-anchor="end">{data.timeline.maxLabel}</text
             >
           </svg>
 
@@ -141,18 +278,18 @@
           ></line>
           {#each data.timeline.slice(1, -1) as label}
             <line
-              x1="{(label / data.timeline.maxLabel) * 100}%"
+              x1={getAbsoluteX(label)}
               y1={data.participants.length * data.heightOfBarWrap - 0.5}
-              x2="{(label / data.timeline.maxLabel) * 100}%"
+              x2={getAbsoluteX(label)}
               y2={data.participants.length * data.heightOfBarWrap + 5}
               stroke="#cbcbcb"
               stroke-width="1.5"
             ></line>
           {/each}
           <line
-            x1="100%"
+            x1={absoluteZoomedWidth}
             y1={data.participants.length * data.heightOfBarWrap - 0.5}
-            x2="100%"
+            x2={absoluteZoomedWidth}
             y2={data.participants.length * data.heightOfBarWrap + 5}
             stroke="#cbcbcb"
             stroke-width="1.5"
@@ -162,7 +299,7 @@
           {#each data.participants as participant, i}
             <line
               x1="0"
-              x2="100%"
+              x2={absoluteZoomedWidth}
               y1={i * data.heightOfBarWrap + 0.5}
               y2={i * data.heightOfBarWrap + 0.5}
               stroke="#cbcbcb"
@@ -172,7 +309,7 @@
               y={i * data.heightOfBarWrap}
               data-id={participant.id}
               height={data.heightOfBarWrap}
-              width={participant.width}
+              width={absoluteZoomedWidth}
             >
               {#each participant.segments as segment, segmentId}
                 <g data-id={segmentId}>
@@ -180,22 +317,63 @@
                     <rect
                       class={rectangle.identifier}
                       height={rectangle.height}
-                      x={rectangle.x}
-                      width={rectangle.width}
+                      x={settings.timeline === 'ordinal'
+                        ? getSegmentX(rectangle.x, segmentId)
+                        : getSegmentX(
+                            rectangle.x,
+                            undefined,
+                            settings.timeline === 'absolute'
+                              ? participant.width
+                              : undefined
+                          )}
+                      width={settings.timeline === 'ordinal'
+                        ? getSegmentWidth(rectangle.width, segmentId)
+                        : getSegmentWidth(
+                            rectangle.width,
+                            undefined,
+                            settings.timeline === 'absolute'
+                              ? participant.width
+                              : undefined
+                          )}
                       y={rectangle.y}
                     ></rect>
                   {/each}
                 </g>
               {/each}
-              {#each participant.dynamicAoiVisibility as visibility}
-                {#each visibility.content as visibilityItem}
-                  <line
-                    class={visibilityItem.identifier}
-                    x1={visibilityItem.x1}
-                    y1={visibilityItem.y}
-                    x2={visibilityItem.x2}
-                    y2={visibilityItem.y}
-                  ></line>
+              {#each participant.dynamicAoiVisibility as visibility, visibilityIndex}
+                {#each visibility.content as visibilityItem, itemIndex}
+                  <!-- Calculate maximum width for this participant WITH ZOOM -->
+                  {@const maxWidth =
+                    settings.timeline === 'absolute' && participant.width
+                      ? (parseFloat(participant.width) / 100) *
+                        absoluteZoomedWidth
+                      : absoluteZoomedWidth}
+
+                  <!-- Calculate visibility line x positions with capping -->
+                  {@const x1 = getVisibilityLineX(
+                    visibilityItem.x1,
+                    settings.timeline === 'absolute'
+                      ? participant.width
+                      : undefined
+                  )}
+
+                  {@const x2 = getVisibilityLineX(
+                    visibilityItem.x2,
+                    settings.timeline === 'absolute'
+                      ? participant.width
+                      : undefined
+                  )}
+
+                  <!-- Only render if in bounds and not in ordinal mode -->
+                  {#if settings.timeline !== 'ordinal' && x1 <= maxWidth && x2 <= maxWidth}
+                    <line
+                      class={visibilityItem.identifier}
+                      {x1}
+                      y1={visibilityItem.y}
+                      {x2}
+                      y2={visibilityItem.y}
+                    ></line>
+                  {/if}
                 {/each}
               {/each}
             </svg>
@@ -203,7 +381,7 @@
           <!-- End of barwrap -->
           <line
             x1="0"
-            x2="100%"
+            x2={absoluteZoomedWidth}
             y1={data.participants.length * data.heightOfBarWrap - 0.5}
             y2={data.participants.length * data.heightOfBarWrap - 0.5}
             stroke="#cbcbcb"
@@ -231,7 +409,7 @@
   }
   .chxlab {
     grid-column: 2;
-    text-align: right;
+    text-align: center;
     font-size: 12px;
     margin-top: -10px;
   }
@@ -251,9 +429,6 @@
   text {
     font-family: sans-serif;
     font-size: 12px;
-  }
-  #charea {
-    transition: 1s width ease-in-out;
   }
   .charea-holder {
     overflow: auto;
