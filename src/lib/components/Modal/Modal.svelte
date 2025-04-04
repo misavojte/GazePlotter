@@ -55,7 +55,7 @@
     class="modal-overlay"
     aria-hidden="true"
     in:fly
-    onclick={e => {
+    onpointerdown={e => {
       // Close only if clicking the overlay, not when in fullscreen
       if (e.target === e.currentTarget && !isFullscreen) {
         handleClose()
