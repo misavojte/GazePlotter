@@ -472,8 +472,6 @@
               x={rect.x}
               y={rect.y}
               width={rect.width}
-              data-participant-id={rect.participantId}
-              data-segment-id={rect.segmentId}
             />
           {/each}
         </g>
@@ -487,7 +485,6 @@
               y1={line.y1}
               x2={line.x2}
               y2={line.y2}
-              data-participant-id={line.participantId}
             />
           {/each}
         </g>
