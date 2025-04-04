@@ -398,6 +398,10 @@ export function createAoiVisibility(
   // Calculate the visible timeline range
   const visibleRange = timelineMax - timelineMin
 
+  // Get the actual participant data bounds to crop visibility lines
+  const participantStart = 0 // Always start at 0
+  const participantEnd = sessionDuration // Use actual session duration
+
   for (let aoiIndex = 0; aoiIndex < aoiData.length; aoiIndex++) {
     const aoiId = aoiData[aoiIndex].id
     const visibility = getAoiVisibility(stimulusId, aoiId, participantId)
@@ -407,6 +411,14 @@ export function createAoiVisibility(
       for (let i = 0; i < visibility.length; i += 2) {
         let start = visibility[i]
         let end = visibility[i + 1]
+
+        // Crop visibility to participant's data range first
+        if (end <= participantStart || start >= participantEnd) {
+          continue
+        }
+
+        if (start < participantStart) start = participantStart
+        if (end > participantEnd) end = participantEnd
 
         // Only apply filtering for absolute timeline mode
         if (shouldApplyLimits) {
