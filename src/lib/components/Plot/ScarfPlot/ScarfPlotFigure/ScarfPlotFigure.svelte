@@ -7,6 +7,7 @@
   import ScarfPlotLegend from '$lib/components/Plot/ScarfPlot/ScarfPlotLegend/ScarfPlotLegend.svelte'
   import SvgText from '$lib/components/Plot/SvgText.svelte'
   import { calculateLabelOffset } from '$lib/components/Plot/utils/textUtils'
+  import { draggable } from '$lib/actions/draggable'
 
   // CONSTANTS - layout dimensions and styling
   const LAYOUT = {
@@ -44,7 +45,7 @@
       y: number
     }) => void
     onTooltipDeactivation: () => void
-    onpointerdown?: (event: PointerEvent) => void
+    onDragStepX?: (stepChange: number) => void
     chartWidth: number
   }
 
@@ -57,7 +58,7 @@
     onLegendClick = () => {},
     onTooltipActivation = () => {},
     onTooltipDeactivation = () => {},
-    onpointerdown = () => {},
+    onDragStepX = () => {},
     chartWidth = 0,
   }: Props = $props()
 
@@ -241,9 +242,9 @@
     if (!plotAreaWidth) return 0
 
     if (settings.timeline === 'ordinal' && typeof segmentIndex === 'number') {
-      // Ordinal timeline - position by segment index
-      const totalSegments = data.timeline.maxValue || 1
-      return (segmentIndex / totalSegments) * plotAreaWidth
+      // For ordinal mode, we need to use the same exact calculations as in scarfPlotTransformations.ts
+      // The percentage x is already correctly set there, so we should just parse and apply it
+      return (parseFloat(x) / 100) * plotAreaWidth
     } else if (settings.timeline === 'absolute' && participantWidth) {
       // Absolute timeline - calculate based on participant width
       const participantWidthPercent = parseFloat(participantWidth)
@@ -264,9 +265,8 @@
     if (!plotAreaWidth) return 0
 
     if (settings.timeline === 'ordinal' && typeof segmentIndex === 'number') {
-      // Ordinal timeline - equal widths for all segments
-      const totalSegments = data.timeline.maxValue || 1
-      return plotAreaWidth / totalSegments
+      // For ordinal mode, use the width as calculated in scarfPlotTransformations.ts
+      return (parseFloat(width) / 100) * plotAreaWidth
     } else if (settings.timeline === 'absolute' && participantWidth) {
       // Absolute timeline - scaled by participant width
       const segmentWidthPercent = parseFloat(width)
@@ -371,6 +371,11 @@
       onTooltipDeactivation()
     }
   }
+
+  // Handlers for drag events
+  function handleDragStepX(event: CustomEvent) {
+    onDragStepX(event.detail.stepChange)
+  }
 </script>
 
 <!-- Container for dynamic styles and the plot -->
@@ -385,9 +390,12 @@
     height={totalHeight}
     onmousemove={handleMouseMove}
     onmouseleave={handleMouseLeave}
-    {onpointerdown}
+    use:draggable
     bind:this={tooltipAreaElement}
     data-component="scarfplot"
+    {...{
+      ondragStepX: handleDragStepX,
+    }}
   >
     <!-- Participant Labels (Left Side) -->
     <g class="participants-labels">
