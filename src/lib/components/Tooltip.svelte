@@ -1,5 +1,5 @@
 <script lang="ts" context="module">
-  import { tooltipStore } from '$lib/stores/tooltipStore'
+  import { tooltipStore, updateTooltip } from '$lib/stores/tooltipStore'
 
   /**
    * @description This is a tooltip action that is used to create a tooltip.
@@ -88,7 +88,7 @@
           y = rect.top - offset + window.scrollY
       }
 
-      tooltipStore.set({
+      updateTooltip({
         visible: true,
         content,
         x,
@@ -98,7 +98,7 @@
     }
 
     function hideTooltip() {
-      tooltipStore.set(null)
+      updateTooltip(null)
     }
 
     // Add event listeners
@@ -145,6 +145,7 @@
     transition: 0.3s ease-in-out;
     border-radius: var(--rounded);
     z-index: 993;
+    pointer-events: none;
   }
   .tooltip > div {
     padding: 5px;

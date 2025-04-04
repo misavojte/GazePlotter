@@ -1,7 +1,7 @@
 <script lang="ts">
   import AoiTransitionMatrixLegend from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixLegend.svelte'
   import { getColorForValue, getContrastTextColor } from '../utils/colorUtils'
-  import { tooltipStore } from '$lib/stores/tooltipStore'
+  import { updateTooltip } from '$lib/stores/tooltipStore'
   import SvgText from '$lib/components/Plot/SvgText.svelte'
   import { calculateLabelOffset } from '../utils/textUtils'
 
@@ -177,7 +177,7 @@
           10 +
           scrollOffset
 
-        tooltipStore.set({
+        updateTooltip({
           x: idealX,
           y: idealY,
           content: [
@@ -192,11 +192,11 @@
         return
       }
     }
-    tooltipStore.set(null)
+    updateTooltip(null)
   }
 
   function handleMouseLeave() {
-    tooltipStore.set(null)
+    updateTooltip(null)
   }
 
   // Calculate the auto max value from the matrix
