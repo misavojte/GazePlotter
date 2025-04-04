@@ -1,5 +1,5 @@
 <script lang="ts">
-  import AoiTransitionMatrixPlotFigure from './AoiTransitionMatrixPlotFigure.svelte'
+  import AoiTransitionMatrixPlotFigure from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixPlotFigure.svelte'
   import {
     calculateTransitionMatrix,
     AggregationMethod,
@@ -8,9 +8,9 @@
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
   import { calculatePlotDimensionsWithHeader } from '$lib/utils/plotSizeUtility'
-  import AoiTransitionMatrixSelectStimulus from './AoiTransitionMatrixSelectStimulus.svelte'
-  import AoiTransitionMatrixSelectGroup from './AoiTransitionMatrixSelectGroup.svelte'
-  import AoiTransitionMatrixButtonMenu from './AoiTransitionMatrixButtonMenu.svelte'
+  import AoiTransitionMatrixSelectStimulus from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixSelectStimulus.svelte'
+  import AoiTransitionMatrixSelectGroup from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixSelectGroup.svelte'
+  import AoiTransitionMatrixButtonMenu from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixButtonMenu.svelte'
 
   interface Props {
     settings: AoiTransitionMatrixGridType

@@ -1,7 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
-  import { fade } from 'svelte/transition'
-  import { tooltipStore } from '$lib/stores/tooltipStore'
+  import { tooltipAction } from '../Tooltip.svelte'
 
   // Props for the toolbar item
   interface Props {
@@ -9,42 +7,12 @@
     label: string
     icon: string
     action?: (() => void) | null
-    useDropdown?: boolean
     onclick?: (event: { id: string; event: MouseEvent }) => void
   }
 
-  let {
-    id,
-    label,
-    icon,
-    action = null,
-    useDropdown = false,
-    onclick = () => {},
-  }: Props = $props()
+  let { id, label, icon, action = null, onclick = () => {} }: Props = $props()
 
   let buttonElement: HTMLElement
-
-  function showTooltip(event: MouseEvent) {
-    const rect = buttonElement.getBoundingClientRect()
-    tooltipStore.set({
-      visible: true,
-      content: [{ key: '', value: label }],
-      x: rect.left + 35,
-      y: rect.top + window.scrollY, // Position above
-      width: 100, // Approximate width based on content
-    })
-  }
-
-  function hideTooltip() {
-    tooltipStore.set(null)
-  }
-
-  // Clean up on mount
-  onMount(() => {
-    return () => {
-      hideTooltip()
-    }
-  })
 
   // Handle item click
   function handleClick(event: MouseEvent) {
@@ -60,9 +28,12 @@
   <button
     class="toolbar-item"
     bind:this={buttonElement}
-    onclick={handleClick}
-    onmouseenter={showTooltip}
-    onmouseleave={hideTooltip}
+    on:click={handleClick}
+    use:tooltipAction={{
+      content: label,
+      position: 'right',
+      width: 100,
+    }}
   >
     <div class="toolbar-item-icon">
       {@html icon}

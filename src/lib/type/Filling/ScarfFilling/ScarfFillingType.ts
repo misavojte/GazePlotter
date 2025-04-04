@@ -1,4 +1,4 @@
-import { PlotAxisBreaks } from '../../../class/Plot/PlotAxisBreaks/PlotAxisBreaks'
+import { AdaptiveTimeline } from '../../../class/Plot/AdaptiveTimeline/AdaptiveTimeline'
 import type { StimulusScarfFillingType } from './StimulusScarfFilling/StimulusScarfFillingType'
 import type { StylingScarfFillingType } from './StylingScarfFilling/StylingScarfFillingType'
 import type { ParticipantScarfFillingType } from './ParticipantScarfFilling/ParticipantScarfFillingType'
@@ -9,7 +9,7 @@ import type { ParticipantScarfFillingType } from './ParticipantScarfFilling/Part
  * Raw const are too complicated to be used directly in the scarf component.
  *
  * @param stimulusId - ID of the stimulus to be plotted
- * @param timeline - PlotAxisBreaks object containing information about the timeline
+ * @param timeline - AdaptiveTimeline object containing information about the timeline ticks and bounds
  * @param stylingAndLegend - ScarfStylingList object containing information about the styling of the scarf plot
  * @param barHeight - height of the bar representing a single participant
  * @param heightOfBarWrap - height of the bar with all the elements (participant bar, aoi bars, non-fixation bars)
@@ -21,7 +21,7 @@ export interface ScarfFillingType {
   id: number
   stimulusId: number
   timelineType: 'absolute' | 'relative' | 'ordinal'
-  timeline: PlotAxisBreaks
+  timeline: AdaptiveTimeline
   stylingAndLegend: StylingScarfFillingType
   barHeight: number
   heightOfBarWrap: number

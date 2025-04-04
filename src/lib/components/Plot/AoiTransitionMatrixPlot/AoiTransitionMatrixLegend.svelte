@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { interpolateColor, createColorGradient } from '../utils/colorUtils'
-  import { tick } from 'svelte'
+  import SvgText from '$lib/components/Plot/SvgText.svelte'
 
   let {
     width = 500,
@@ -253,16 +252,14 @@
   onmouseleave={handleMouseUp}
   aria-label="Threshold slider for filtering values"
 >
-  <!-- Title -->
-  <text
+  <SvgText
+    text={title}
     x={width / 2}
     y={10}
-    text-anchor="middle"
-    dominant-baseline="middle"
-    font-size="12px"
-  >
-    {title}
-  </text>
+    textAnchor="middle"
+    dominantBaseline="middle"
+    fontSize="12"
+  />
 
   <!-- Slider track background - for visual clarity -->
   <rect
@@ -344,36 +341,33 @@
   />
 
   <!-- Min and max labels -->
-  <text
+  <SvgText
+    text={'0'}
     x={LEGEND_MARGIN}
     y={20 + LEGEND_HEIGHT + 15}
-    text-anchor="middle"
-    font-size="10"
-  >
-    0
-  </text>
+    textAnchor="middle"
+    dominantBaseline="middle"
+    fontSize="10"
+  />
 
-  <text
+  <SvgText
+    text={maxValue.toString()}
     x={LEGEND_MARGIN + LEGEND_WIDTH}
     y={20 + LEGEND_HEIGHT + 15}
-    text-anchor="middle"
-    font-size="10"
-  >
-    {maxValue}
-  </text>
-
+    textAnchor="middle"
+    dominantBaseline="middle"
+    fontSize="10"
+  />
   <!-- Threshold value label -->
   {#if minThreshold > 0}
-    <text
-      x={handleX}
+    <SvgText
+      text={`Threshold: ${minThreshold}`}
+      x={width / 2}
       y={20 + LEGEND_HEIGHT + 15}
-      text-anchor="middle"
-      font-size="10"
-      fill="#ff5555"
-      font-weight="bold"
-    >
-      {minThreshold}
-    </text>
+      textAnchor="middle"
+      dominantBaseline="middle"
+      fontSize="10"
+    />
   {/if}
 
   <!-- Slider handle -->
