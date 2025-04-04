@@ -106,7 +106,7 @@
   const xAxisLabel = $derived(getXAxisLabel(settings))
   const scarfPlotAreaId = $derived(`scarf-plot-area-${settings.id}`)
 
-  // SVG size calculations
+  // SVG size calculations - MOVE THESE BEFORE RECTANGLE/LINE CALCULATIONS
   const totalWidth = $derived(chartWidth)
 
   // Calculate actual plot area width (without label area and with right margin)
@@ -126,6 +126,64 @@
   const totalHeight = $derived(
     chartHeight + LAYOUT.AXIS_LABEL_HEIGHT + legendHeight
   )
+
+  // Separate derived stores for rectangle and line segments
+  const rectangleSegments = $derived.by(() => {
+    // Guard against plotAreaWidth not being initialized
+    if (!plotAreaWidth) return []
+
+    return data.participants.flatMap((participant, participantIndex) => {
+      const isOrdinal = settings.timeline === 'ordinal'
+      const isAbsolute = settings.timeline === 'absolute'
+      const pWidth = isAbsolute ? participant.width : undefined
+      const y0 = participantIndex * data.heightOfBarWrap
+
+      return participant.segments.flatMap((segment, segmentId) =>
+        segment.content.map(rectangle => ({
+          className: rectangle.identifier,
+          height: rectangle.height,
+          x:
+            LEFT_LABEL_WIDTH +
+            (isOrdinal
+              ? getSegmentX(rectangle.x, segmentId)
+              : getSegmentX(rectangle.x, undefined, pWidth)),
+          y: y0 + rectangle.y,
+          width: isOrdinal
+            ? getSegmentWidth(rectangle.width, segmentId)
+            : getSegmentWidth(rectangle.width, undefined, pWidth),
+          participantId: participant.id,
+          segmentId,
+        }))
+      )
+    })
+  })
+
+  const lineSegments = $derived.by(() => {
+    // Guard against plotAreaWidth not being initialized
+    if (!plotAreaWidth) return []
+
+    return data.participants.flatMap((participant, participantIndex) => {
+      const isOrdinal = settings.timeline === 'ordinal'
+      const isAbsolute = settings.timeline === 'absolute'
+      const pWidth = isAbsolute ? participant.width : undefined
+      const y0 = participantIndex * data.heightOfBarWrap
+
+      // Don't process lines in ordinal mode
+      if (isOrdinal) return []
+
+      return participant.dynamicAoiVisibility.flatMap(visibility => {
+        // Remove the unnecessary maxWidth calculation and filtering
+        return visibility.content.map(item => ({
+          className: item.identifier,
+          x1: LEFT_LABEL_WIDTH + getVisibilityLineX(item.x1, pWidth),
+          y1: y0 + item.y,
+          x2: LEFT_LABEL_WIDTH + getVisibilityLineX(item.x2, pWidth),
+          y2: y0 + item.y,
+          participantId: participant.id,
+        }))
+      })
+    })
+  })
 
   // Style management
   const styleInputs = $derived({
@@ -180,9 +238,8 @@
       // Absolute timeline - calculate based on participant width
       const participantWidthPercent = parseFloat(participantWidth)
       const segmentXPercent = parseFloat(x)
-      const actualParticipantWidth =
-        (participantWidthPercent / 100) * plotAreaWidth
-      return (segmentXPercent / 100) * actualParticipantWidth
+      // Don't scale by participant width, just use the segment's percentage
+      return (segmentXPercent / 100) * plotAreaWidth
     } else {
       // Relative timeline - direct percentage calculation
       return (parseFloat(x) / 100) * plotAreaWidth
@@ -202,11 +259,9 @@
       return plotAreaWidth / totalSegments
     } else if (settings.timeline === 'absolute' && participantWidth) {
       // Absolute timeline - scaled by participant width
-      const participantWidthPercent = parseFloat(participantWidth)
       const segmentWidthPercent = parseFloat(width)
-      const actualParticipantWidth =
-        (participantWidthPercent / 100) * plotAreaWidth
-      return (segmentWidthPercent / 100) * actualParticipantWidth
+      // Don't scale by participant width, just use the segment's percentage
+      return (segmentWidthPercent / 100) * plotAreaWidth
     } else {
       // Relative timeline - direct percentage calculation
       return (parseFloat(width) / 100) * plotAreaWidth
@@ -219,17 +274,9 @@
     if (settings.timeline === 'ordinal') {
       return 0 // Not applicable in ordinal mode
     } else if (settings.timeline === 'absolute' && participantWidth) {
-      // Absolute timeline - scale within participant width
-      const participantWidthPercent = parseFloat(participantWidth)
+      // Absolute timeline - keep consistent with how segments are positioned
       const xPercent = Math.min(parseFloat(x), 100) // Cap at 100%
-      const actualParticipantWidth =
-        (participantWidthPercent / 100) * plotAreaWidth
-
-      // Ensure the line is within timeline bounds
-      return Math.min(
-        actualParticipantWidth,
-        (xPercent / 100) * actualParticipantWidth
-      )
+      return (xPercent / 100) * plotAreaWidth
     } else {
       // Relative timeline - cap at 100% of chart width
       const xPercent = Math.min(parseFloat(x), 100) // Cap at 100%
@@ -338,67 +385,36 @@
             stroke={LAYOUT.GRID_COLOR}
             stroke-width={LAYOUT.GRID_STROKE_WIDTH}
           />
-
-          <!-- Participant Segments -->
-          <g
-            class="participant-segments"
-            data-id={participant.id}
-            data-participant="true"
-          >
-            {#each participant.segments as segment, segmentId}
-              <g data-id={segmentId} data-segment="true">
-                {#each segment.content as rectangle}
-                  {@const isOrdinal = settings.timeline === 'ordinal'}
-                  {@const isAbsolute = settings.timeline === 'absolute'}
-                  {@const pWidth = isAbsolute ? participant.width : undefined}
-
-                  <rect
-                    class={rectangle.identifier}
-                    height={rectangle.height}
-                    x={LEFT_LABEL_WIDTH +
-                      (isOrdinal
-                        ? getSegmentX(rectangle.x, segmentId)
-                        : getSegmentX(rectangle.x, undefined, pWidth))}
-                    y={i * data.heightOfBarWrap + rectangle.y}
-                    width={isOrdinal
-                      ? getSegmentWidth(rectangle.width, segmentId)
-                      : getSegmentWidth(rectangle.width, undefined, pWidth)}
-                  />
-                {/each}
-              </g>
-            {/each}
-
-            <!-- AOI Visibility Lines -->
-            {#each participant.dynamicAoiVisibility as visibility}
-              {#each visibility.content as visibilityItem}
-                {@const isAbsolute = settings.timeline === 'absolute'}
-                {@const isOrdinal = settings.timeline === 'ordinal'}
-                {@const pWidth = isAbsolute ? participant.width : undefined}
-
-                <!-- Calculate maximum width for this participant -->
-                {@const maxWidth =
-                  isAbsolute && participant.width
-                    ? (parseFloat(participant.width) / 100) * plotAreaWidth
-                    : plotAreaWidth}
-
-                <!-- Calculate visibility line x positions with capping -->
-                {@const x1 = getVisibilityLineX(visibilityItem.x1, pWidth)}
-                {@const x2 = getVisibilityLineX(visibilityItem.x2, pWidth)}
-
-                <!-- Only render if in bounds and not in ordinal mode -->
-                {#if !isOrdinal && x1 <= maxWidth && x2 <= maxWidth}
-                  <line
-                    class={visibilityItem.identifier}
-                    x1={LEFT_LABEL_WIDTH + x1}
-                    y1={i * data.heightOfBarWrap + visibilityItem.y}
-                    x2={LEFT_LABEL_WIDTH + x2}
-                    y2={i * data.heightOfBarWrap + visibilityItem.y}
-                  />
-                {/if}
-              {/each}
-            {/each}
-          </g>
         {/each}
+
+        <!-- Render rectangles from derived store -->
+        <g class="all-rectangles">
+          {#each rectangleSegments as rect}
+            <rect
+              class={rect.className}
+              height={rect.height}
+              x={rect.x}
+              y={rect.y}
+              width={rect.width}
+              data-participant-id={rect.participantId}
+              data-segment-id={rect.segmentId}
+            />
+          {/each}
+        </g>
+
+        <!-- Render lines from derived store -->
+        <g class="all-lines">
+          {#each lineSegments as line}
+            <line
+              class={line.className}
+              x1={line.x1}
+              y1={line.y1}
+              x2={line.x2}
+              y2={line.y2}
+              data-participant-id={line.participantId}
+            />
+          {/each}
+        </g>
 
         <!-- Bottom Border Line -->
         <line
