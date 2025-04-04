@@ -2,6 +2,11 @@
   import MinorButton from '$lib/components/General/GeneralButton/GeneralButtonMinor.svelte'
   import ZoomIn from 'lucide-svelte/icons/zoom-in'
   import type { ScarfGridType } from '$lib/type/gridType'
+  import {
+    getNumberOfSegments,
+    getParticipantEndTime,
+    getParticipants,
+  } from '$lib/stores/dataStore'
 
   interface Props {
     settings: ScarfGridType
@@ -17,6 +22,30 @@
   // No need for isDisabled - we can always zoom in further by shrinking the range
   let isDisabled = $derived(false)
 
+  // Function to calculate the actual max value for a stimulus when limits are [0, 0]
+  function calculateActualMax(stimulusId: number): number {
+    const participants = getParticipants(settings.groupId, stimulusId)
+    const participantIds = participants.map(p => p.id)
+
+    if (settings.timeline === 'absolute') {
+      // For absolute timeline, max is the longest participant timeline
+      return participantIds.reduce(
+        (max, participantId) =>
+          Math.max(max, getParticipantEndTime(stimulusId, participantId)),
+        0
+      )
+    } else if (settings.timeline === 'ordinal') {
+      // For ordinal timeline, max is the largest segment count
+      return participantIds.reduce(
+        (max, participantId) =>
+          Math.max(max, getNumberOfSegments(stimulusId, participantId)),
+        0
+      )
+    }
+
+    return 100 // Default for relative timeline
+  }
+
   const handleClick = () => {
     const stimulusId = settings.stimulusId
 
@@ -28,7 +57,13 @@
     if (settings.timeline === 'absolute') {
       const limits = settings.absoluteStimuliLimits[stimulusId] || [0, 0]
       currentMin = limits[0]
-      currentMax = limits[1]
+
+      // If currentMax is 0, it means auto-calculate from data
+      if (limits[1] === 0) {
+        currentMax = calculateActualMax(stimulusId)
+      } else {
+        currentMax = limits[1]
+      }
 
       // Calculate new range (shrink by ZOOM_PERCENTAGE from both sides)
       const range = currentMax - currentMin
@@ -47,7 +82,13 @@
     } else if (settings.timeline === 'ordinal') {
       const limits = settings.ordinalStimuliLimits[stimulusId] || [0, 0]
       currentMin = limits[0]
-      currentMax = limits[1]
+
+      // If currentMax is 0, it means auto-calculate from data
+      if (limits[1] === 0) {
+        currentMax = calculateActualMax(stimulusId)
+      } else {
+        currentMax = limits[1]
+      }
 
       // Calculate new range (shrink by ZOOM_PERCENTAGE from both sides)
       const range = currentMax - currentMin
