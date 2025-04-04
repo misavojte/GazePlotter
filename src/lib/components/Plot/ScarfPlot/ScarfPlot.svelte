@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getParticipants } from '$lib/stores/dataStore'
+  import { getParticipantEndTime, getParticipants } from '$lib/stores/dataStore'
   import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType'
   import { onDestroy, onMount } from 'svelte'
   import ScarfPlotFigure from './ScarfPlotFigure/ScarfPlotFigure.svelte'
@@ -63,6 +63,31 @@
 
   // Available width for chart content
   const chartWidth = $derived(plotDimensions.width)
+
+  // Calculate, based on current stimulus, the min value for the timeline
+  const timelineMinValue = $derived(
+    settings.absoluteStimuliLimits[currentStimulusId]?.[0] ?? 0
+  )
+
+  // Same for max value, however, if the max value is 0, then use the max value of the data
+  const timelineMaxValue = $derived.by(() => {
+    const maxValue = settings.absoluteStimuliLimits[currentStimulusId]?.[1] ?? 0
+    return maxValue === 0
+      ? currentParticipantIds.reduce(
+          (max, participantId) =>
+            Math.max(
+              max,
+              getParticipantEndTime(currentStimulusId, participantId)
+            ),
+          0
+        )
+      : maxValue
+  })
+
+  $effect(() => {
+    console.log('timelineMinValue', timelineMinValue)
+    console.log('timelineMaxValue', timelineMaxValue)
+  })
 
   // Tooltip and interaction handlers
   function handleSettingsChange(newSettings: Partial<ScarfGridType>) {
