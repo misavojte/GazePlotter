@@ -1,6 +1,7 @@
 <script lang="ts">
   import ZoomInButton from '../ScarfPlotButton/ScarfPlotButtonZoomIn.svelte'
   import ZoomOutButton from '../ScarfPlotButton/ScarfPlotButtonZoomOut.svelte'
+  import ResetViewButton from '../ScarfPlotButton/ScarfPlotButtonResetView.svelte'
   import ScarfPlotSelectStimulus from '../ScarfPlotSelect/ScarfPlotSelectStimulus.svelte'
   import ScarfPlotButtonMenu from '../ScarfPlotButton/ScarfPlotButtonMenu.svelte'
   import ScarfTimelineSelect from '../ScarfPlotSelect/ScarfPlotSelectTimeline.svelte'
@@ -32,6 +33,7 @@
   <ScarfPlotSelectGroup {settings} settingsChange={handleSettingsChange} />
   <ZoomInButton {settings} settingsChange={handleSettingsChange} />
   <ZoomOutButton {settings} settingsChange={handleSettingsChange} />
+  <ResetViewButton {settings} settingsChange={handleSettingsChange} />
   <ScarfPlotButtonMenu {settings} settingsChange={handleSettingsChange} />
 </div>
 
