@@ -15,6 +15,7 @@
     LEGEND_HEIGHT: 100, // Height for the legend
     LABEL_FONT_SIZE: 12, // Font size for labels
     PADDING: 0, // General padding
+    RIGHT_MARGIN: 15, // Right margin to prevent tick label cropping
     MIN_CHART_HEIGHT: 50, // Minimum chart height
     TICK_LENGTH: 5, // Length of axis ticks
     AXIS_OFFSET: 12, // Offset for axis labels
@@ -108,9 +109,12 @@
   // SVG size calculations
   const totalWidth = $derived(chartWidth)
 
-  // Calculate actual plot area width (without label area)
+  // Calculate actual plot area width (without label area and with right margin)
   const plotAreaWidth = $derived(
-    Math.max(0, chartWidth - LEFT_LABEL_WIDTH - LAYOUT.PADDING * 2)
+    Math.max(
+      0,
+      chartWidth - LEFT_LABEL_WIDTH - LAYOUT.PADDING * 2 - LAYOUT.RIGHT_MARGIN
+    )
   )
 
   const chartHeight = $derived(
@@ -293,11 +297,7 @@
                   x={LEFT_LABEL_WIDTH + tick.position * plotAreaWidth}
                   y={data.chartHeight - LAYOUT.AXIS_OFFSET}
                   dominantBaseline="hanging"
-                  textAnchor={tick.position === 0
-                    ? 'start'
-                    : tick.position === 1
-                      ? 'end'
-                      : 'middle'}
+                  textAnchor="middle"
                 />
               {/if}
             {/each}
