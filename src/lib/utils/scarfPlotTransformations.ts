@@ -101,33 +101,27 @@ export function calculateTimelineRange(
   let maxValue = 0
 
   if (settings.timeline === 'absolute') {
-    // Get absolute timeline limits
+    // Get absolute timeline limits for the specific stimulus
     const stimulusSpecificLimits = settings.absoluteStimuliLimits?.[stimulusId]
-    const generalLimits = settings.absoluteGeneralLimits
 
-    // Use stimulus-specific limits if available, otherwise use general limits
+    // Use stimulus-specific limits if available, otherwise use default [0, 0]
     if (
       Array.isArray(stimulusSpecificLimits) &&
       stimulusSpecificLimits.length === 2
     ) {
       ;[minValue, maxValue] = stimulusSpecificLimits
-    } else if (Array.isArray(generalLimits) && generalLimits.length === 2) {
-      ;[minValue, maxValue] = generalLimits
     }
   } else {
     // 'ordinal' timeline
-    // Get ordinal timeline limits
+    // Get ordinal timeline limits for the specific stimulus
     const stimulusSpecificLimits = settings.ordinalStimuliLimits?.[stimulusId]
-    const generalLimits = settings.ordinalGeneralLimits
 
-    // Use stimulus-specific limits if available, otherwise use general limits
+    // Use stimulus-specific limits if available, otherwise use default [0, 0]
     if (
       Array.isArray(stimulusSpecificLimits) &&
       stimulusSpecificLimits.length === 2
     ) {
       ;[minValue, maxValue] = stimulusSpecificLimits
-    } else if (Array.isArray(generalLimits) && generalLimits.length === 2) {
-      ;[minValue, maxValue] = generalLimits
     }
   }
 

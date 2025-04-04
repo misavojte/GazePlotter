@@ -29,27 +29,19 @@
 
   // Initialize start and end values for both timeline types
   let absoluteStartVal = $state(
-    settings.absoluteStimuliLimits?.[settings.stimulusId]?.[0] ??
-      settings.absoluteGeneralLimits?.[0] ??
-      0
+    settings.absoluteStimuliLimits?.[settings.stimulusId]?.[0] ?? 0
   )
 
   let absoluteEndVal = $state(
-    settings.absoluteStimuliLimits?.[settings.stimulusId]?.[1] ??
-      settings.absoluteGeneralLimits?.[1] ??
-      0
+    settings.absoluteStimuliLimits?.[settings.stimulusId]?.[1] ?? 0
   )
 
   let ordinalStartVal = $state(
-    settings.ordinalStimuliLimits?.[settings.stimulusId]?.[0] ??
-      settings.ordinalGeneralLimits?.[0] ??
-      0
+    settings.ordinalStimuliLimits?.[settings.stimulusId]?.[0] ?? 0
   )
 
   let ordinalEndVal = $state(
-    settings.ordinalStimuliLimits?.[settings.stimulusId]?.[1] ??
-      settings.ordinalGeneralLimits?.[1] ??
-      0
+    settings.ordinalStimuliLimits?.[settings.stimulusId]?.[1] ?? 0
   )
 
   const handleAbsoluteStartValChange = (event: Event) => {
@@ -99,14 +91,6 @@
         absoluteEndVal,
       ]
     } else {
-      // Initialize the general limits if not already set
-      if (!newSettings.absoluteGeneralLimits) {
-        newSettings.absoluteGeneralLimits = [0, 0]
-      }
-
-      // Set the general limits
-      newSettings.absoluteGeneralLimits = [absoluteStartVal, absoluteEndVal]
-
       // Apply to all stimuli
       allStimuliId.forEach(stimulusId => {
         newSettings.absoluteStimuliLimits[stimulusId] = [
@@ -122,14 +106,6 @@
         ordinalEndVal,
       ]
     } else {
-      // Initialize the general limits if not already set
-      if (!newSettings.ordinalGeneralLimits) {
-        newSettings.ordinalGeneralLimits = [0, 0]
-      }
-
-      // Set the general limits
-      newSettings.ordinalGeneralLimits = [ordinalStartVal, ordinalEndVal]
-
       // Apply to all stimuli
       allStimuliId.forEach(stimulusId => {
         newSettings.ordinalStimuliLimits[stimulusId] = [

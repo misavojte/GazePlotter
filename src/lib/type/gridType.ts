@@ -15,23 +15,11 @@ export interface ScarfGridType extends GridType {
   zoomLevel: number
   timeline: 'absolute' | 'relative' | 'ordinal'
   /**
-   * General range for absolute timeline in [start, end] format.
-   * For start (index 0): 0 means start at the beginning of the timeline.
-   * For end (index 1): 0 means automatically use the full data range.
-   */
-  absoluteGeneralLimits: [number, number]
-  /**
    * Stimulus-specific ranges for absolute timeline in [start, end] format.
    * For start (index 0): 0 means start at the beginning of the timeline.
    * For end (index 1): 0 means automatically use the full data range.
    */
   absoluteStimuliLimits: [number, number][]
-  /**
-   * General range for ordinal timeline in [start, end] format.
-   * For start (index 0): 0 means start at the beginning of the timeline.
-   * For end (index 1): 0 means automatically use the full data range.
-   */
-  ordinalGeneralLimits: [number, number]
   /**
    * Stimulus-specific ranges for ordinal timeline in [start, end] format.
    * For start (index 0): 0 means start at the beginning of the timeline.
