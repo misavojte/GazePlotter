@@ -1,16 +1,30 @@
 <script lang="ts">
-  import AoiTransitionMatrixPlotFigure from './AoiTransitionMatrixPlotFigure.svelte'
+  import AoiTransitionMatrixPlotFigure from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixPlotFigure.svelte'
   import {
     calculateTransitionMatrix,
     AggregationMethod,
   } from '$lib/utils/aoiTransitionMatrixTransformations'
   import type { AoiTransitionMatrixGridType } from '$lib/type/gridType'
-  import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
+  import Select from '$lib/components/Common/Select/Select.svelte'
   import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
   import { calculatePlotDimensionsWithHeader } from '$lib/utils/plotSizeUtility'
-  import AoiTransitionMatrixSelectStimulus from './AoiTransitionMatrixSelectStimulus.svelte'
-  import AoiTransitionMatrixSelectGroup from './AoiTransitionMatrixSelectGroup.svelte'
-  import AoiTransitionMatrixButtonMenu from './AoiTransitionMatrixButtonMenu.svelte'
+  import AoiTransitionMatrixSelectStimulus from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixSelectStimulus.svelte'
+  import AoiTransitionMatrixSelectGroup from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixSelectGroup.svelte'
+  import AoiTransitionMatrixButtonMenu from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixButtonMenu.svelte'
+  import { onMount, onDestroy } from 'svelte'
+  import type { PlotData } from '$lib/types'
+  import type {
+    AoiTransitionMatrix,
+    FixationSequence,
+    GazeDataStimuliCache,
+  } from '$lib/stores/gazeDataStore'
+  import { eventBus } from '$lib/utils/eventBus'
+  import { generateTransitionMatrix } from '$lib/utils/generateTransitionMatrix'
+  import {
+    stimulusStore,
+    selectedStimuliStore,
+  } from '$lib/stores/stimulusStore'
+  import { FixationType } from '$lib/types'
 
   interface Props {
     settings: AoiTransitionMatrixGridType

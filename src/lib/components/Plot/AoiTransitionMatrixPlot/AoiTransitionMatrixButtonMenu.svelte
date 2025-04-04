@@ -2,12 +2,8 @@
   import MenuButton from '$lib/components/General/GeneralButton/GeneralButtonMenu.svelte'
   import { modalStore } from '$lib/stores/modalStore.js'
   import type { AoiTransitionMatrixGridType } from '$lib/type/gridType'
-  import Settings from 'lucide-svelte/icons/settings-2'
-  import Download from 'lucide-svelte/icons/download'
   import BarChart from 'lucide-svelte/icons/bar-chart'
-  import type { ComponentProps } from 'svelte'
   import ModalContentMaxValue from '$lib/components/Modal/ModalContent/ModalContentMaxValue.svelte'
-  import type { SvelteComponent } from 'svelte'
 
   interface Props {
     settings: AoiTransitionMatrixGridType

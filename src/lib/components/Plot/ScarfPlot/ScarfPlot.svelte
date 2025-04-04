@@ -10,6 +10,18 @@
   import { calculatePlotDimensionsWithHeader } from '$lib/utils/plotSizeUtility'
   import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
 
+  // CONSTANTS - centralized for easier maintenance
+  const LAYOUT = {
+    HEADER_HEIGHT: 150,
+    HORIZONTAL_PADDING: 50,
+    CONTENT_PADDING: 20,
+    LEFT_LABEL_WIDTH: 125,
+    TOOLTIP_WIDTH: 155,
+    TOOLTIP_OFFSET_Y: 8,
+    TOOLTIP_HIDE_DELAY: 200,
+  }
+
+  // Component Props using Svelte 5 $props() rune
   interface Props {
     settings: ScarfGridType
     settingsChange: (settings: Partial<ScarfGridType>) => void
@@ -17,101 +29,90 @@
 
   let { settings, settingsChange }: Props = $props()
 
-  // Constants for space calculations (moved from ScarfPlotFigure)
-  const HEADER_HEIGHT = 150
-  const HORIZONTAL_PADDING = 50
-  const CONTENT_PADDING = 20
-  const LEFT_LABEL_WIDTH = 125 // Width of the participant labels column
-
-  let tooltipArea: HTMLElement | null = null
-  let windowObj: Window
-  let timeout = 0
-
+  // State management with Svelte 5 runes
+  let tooltipArea = $state<HTMLElement | SVGElement | null>(null)
+  let windowObj = $state<Window | null>(null)
+  let timeout = $state(0)
   let highlightedType = $state<string | null>(null)
   let removeHighlight = $state<null | (() => void)>(null)
 
-  const currentGroupId = $derived.by(() => settings.groupId)
-  const currentStimulusId = $derived.by(() => settings.stimulusId)
+  // Derived values using Svelte 5 $derived and $derived.by runes
+  const currentGroupId = $derived(settings.groupId)
+  const currentStimulusId = $derived(settings.stimulusId)
+
   const currentParticipantIds = $derived.by(() => {
     const participants = getParticipants(currentGroupId, currentStimulusId)
     return participants.map(participant => participant.id)
   })
 
   const scarfData = $derived.by(() =>
-    transformDataToScarfPlot(
-      settings.stimulusId,
-      currentParticipantIds,
-      settings
-    )
+    transformDataToScarfPlot(currentStimulusId, currentParticipantIds, settings)
   )
 
-  // Calculate plot dimensions based on settings (moved from ScarfPlotFigure)
+  // Calculate plot dimensions using a more descriptive approach
   const plotDimensions = $derived.by(() =>
     calculatePlotDimensionsWithHeader(
       settings.w,
       settings.h,
       DEFAULT_GRID_CONFIG,
-      HEADER_HEIGHT,
-      HORIZONTAL_PADDING
+      LAYOUT.HEADER_HEIGHT,
+      LAYOUT.HORIZONTAL_PADDING,
+      LAYOUT.CONTENT_PADDING
     )
   )
 
-  // Calculate the chart width from plot dimensions (moved from ScarfPlotFigure)
-  const chartWidth = $derived(
-    plotDimensions.width - LEFT_LABEL_WIDTH - CONTENT_PADDING
+  // Available width for chart content
+  const availableWidth = $derived(
+    plotDimensions.width - LAYOUT.LEFT_LABEL_WIDTH - LAYOUT.CONTENT_PADDING
   )
 
-  // Apply zoom factor to get actual width (moved from ScarfPlotFigure)
-  const getZoomWidth = (settings: ScarfGridType): number => {
-    return 100 * 2 ** settings.zoomLevel
-  }
+  // Calculate zoom factor as a percentage
+  const zoomPercentage = $derived(100 * 2 ** settings.zoomLevel)
 
-  let zoomWidth = $derived(getZoomWidth(settings))
-  let absoluteZoomedWidth = $derived(chartWidth * (zoomWidth / 100))
+  // Apply zoom to get the actual width for rendering
+  const zoomedContentWidth = $derived(availableWidth * (zoomPercentage / 100))
 
+  // Tooltip and interaction handlers
   function handleSettingsChange(newSettings: Partial<ScarfGridType>) {
-    if (settingsChange) {
-      settingsChange(newSettings)
-    }
+    settingsChange?.(newSettings)
   }
 
-  const cancelHighlightKeepTooltip = () => {
+  // Clear functions with more descriptive names
+  function clearHighlightKeepTooltip() {
     clearTimeout(timeout)
-    cancelHighlight()
+    clearHighlight()
   }
 
-  const cancelTooltip = () => {
+  function scheduleTooltipHide() {
     clearTimeout(timeout)
     if (!windowObj) return
+
     timeout = windowObj.setTimeout(() => {
-      cancelTooltipInstantly()
-    }, 200)
+      hideTooltipAndHighlight()
+    }, LAYOUT.TOOLTIP_HIDE_DELAY)
   }
 
-  const cancelTooltipInstantly = () => {
+  function hideTooltipAndHighlight() {
     clearTimeout(timeout)
     tooltipScarfService(null)
     removeHighlight?.()
   }
 
-  const cancelHighlight = () => {
+  function clearHighlight() {
     highlightedType = null
   }
 
-  const cancelInteractivity = () => {
-    cancelHighlight()
-    cancelTooltip()
+  function clearAllInteractions() {
+    clearHighlight()
+    scheduleTooltipHide()
   }
 
-  onMount(() => {
-    windowObj = document.defaultView as Window
-  })
-
-  const processGElement = (gElement: SVGGElement, event: MouseEvent) => {
+  // Process tooltip when hovering over a segment or participant
+  function processGElement(gElement: SVGGElement, event: MouseEvent) {
     const segmentId = gElement.dataset.id
-    if (!segmentId) return cancelInteractivity()
+    if (!segmentId) return clearAllInteractions()
 
-    // Find the participant g element
+    // Find the participant ID using data attributes
     let participantId = null
     if (gElement.dataset.segment) {
       // If this is a segment element, find its parent with data-participant
@@ -124,54 +125,68 @@
       participantId = gElement.dataset.id
     }
 
-    if (!participantId) return cancelInteractivity()
+    if (!participantId) return clearAllInteractions()
 
+    // Apply visual highlight
     removeHighlight?.()
     gElement.classList.add('focus')
     removeHighlight = () => {
       gElement.classList.remove('focus')
     }
 
-    const WIDTH_OF_TOOLTIP = 155
-    const y = gElement.getBoundingClientRect().bottom + windowObj.scrollY + 8
-    const widthOfView = windowObj.scrollX + document.body.clientWidth
-    const x =
-      event.pageX + WIDTH_OF_TOOLTIP > widthOfView
-        ? widthOfView - WIDTH_OF_TOOLTIP
-        : event.pageX
+    // Calculate tooltip position
+    const elementBottom =
+      gElement.getBoundingClientRect().bottom + window.scrollY
+    const viewportRightEdge = windowObj!.scrollX + document.body.clientWidth
 
-    const filling: ScarfTooltipFillingType = {
+    const y = elementBottom + LAYOUT.TOOLTIP_OFFSET_Y
+    const x = Math.min(event.pageX, viewportRightEdge - LAYOUT.TOOLTIP_WIDTH)
+
+    // Prepare tooltip data
+    const tooltipData: ScarfTooltipFillingType = {
       x,
       y,
-      width: WIDTH_OF_TOOLTIP,
+      width: LAYOUT.TOOLTIP_WIDTH,
       participantId: parseInt(participantId),
       segmentId: parseInt(segmentId),
-      stimulusId: settings.stimulusId,
+      stimulusId: currentStimulusId,
     }
 
+    // Show tooltip
     clearTimeout(timeout)
-    tooltipScarfService(filling)
+    tooltipScarfService(tooltipData)
   }
 
-  const handleLegendClick = (identifier: string) => {
+  // Handle legend item clicks
+  function handleLegendClick(identifier: string) {
     if (highlightedType === identifier) return
-    cancelTooltipInstantly()
+    hideTooltipAndHighlight()
     highlightedType = identifier
   }
 
-  const decideInteractivity = (event: MouseEvent) => {
+  // Determine what to do based on mouse target
+  function handleMouseInteraction(event: MouseEvent) {
     const target = event.target as HTMLElement
+
+    // Check if hovering over a chart element
     const gElement = target.closest('g')
-    if (gElement) return processGElement(gElement, event)
+    if (gElement) return processGElement(gElement as SVGGElement, event)
+
+    // Check if hovering over tooltip
     const tooltip = target.closest('aside')
-    if (tooltip) return cancelHighlightKeepTooltip()
-    // We no longer need to handle legend item clicks here as they're handled directly
-    cancelInteractivity()
+    if (tooltip) return clearHighlightKeepTooltip()
+
+    // Otherwise, clear all interactions
+    clearAllInteractions()
   }
 
+  // Lifecycle hooks
+  onMount(() => {
+    windowObj = window
+  })
+
   onDestroy(() => {
-    cancelInteractivity()
-    if (!tooltipArea) return
+    clearAllInteractions()
   })
 </script>
 
@@ -182,15 +197,15 @@
 
   <div class="figure">
     <ScarfPlotFigure
-      onmouseleave={cancelInteractivity}
-      onmousemove={decideInteractivity}
+      onmouseleave={clearAllInteractions}
+      onmousemove={handleMouseInteraction}
       tooltipAreaElement={tooltipArea}
       data={scarfData}
       {settings}
       highlightedIdentifier={highlightedType}
       onLegendClick={handleLegendClick}
-      {chartWidth}
-      {absoluteZoomedWidth}
+      chartWidth={availableWidth}
+      absoluteZoomedWidth={zoomedContentWidth}
     />
   </div>
 </div>

@@ -2,9 +2,28 @@
 <script lang="ts">
   import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType'
   import type { ScarfGridType } from '$lib/type/gridType'
-  import ScarfPlotLegend from '$lib/components/Plot/ScarfPlot/ScarfPlotLegend/ScarfPlotLegend.svelte'
   import { generateScarfPlotCSS } from '$lib/utils/scarfPlotTransformations'
   import { addInfoToast } from '$lib/stores/toastStore'
+  import ScarfPlotLegend from '$lib/components/Plot/ScarfPlot/ScarfPlotLegend/ScarfPlotLegend.svelte'
+  import SvgText from '$lib/components/Plot/SvgText.svelte'
+  import { calculateLabelOffset } from '$lib/components/Plot/utils/textUtils'
+
+  // CONSTANTS - layout dimensions and styling
+  const LAYOUT = {
+    LEFT_LABEL_MAX_WIDTH: 125, // Width for participant labels
+    AXIS_LABEL_HEIGHT: 30, // Height for the x-axis label
+    LEGEND_HEIGHT: 100, // Height for the legend
+    LABEL_FONT_SIZE: 12, // Font size for labels
+    PADDING: 0, // General padding
+    MIN_CHART_HEIGHT: 50, // Minimum chart height
+    TICK_LENGTH: 5, // Length of axis ticks
+    AXIS_OFFSET: 12, // Offset for axis labels
+    GRID_COLOR: '#cbcbcb', // Color for grid lines
+    GRID_STROKE_WIDTH: 1, // Stroke width for grid lines
+    LEGEND_ITEM_WIDTH: 100, // Width of each legend item
+    LEGEND_ITEM_HEIGHT: 15, // Height of each legend item
+    LEGEND_ITEMS_PER_ROW: 3, // Number of legend items per row
+  }
 
   interface Props {
     tooltipAreaElement: HTMLElement | SVGElement | null
@@ -19,6 +38,7 @@
     absoluteZoomedWidth: number
   }
 
+  // Component props using Svelte 5 $props rune
   let {
     tooltipAreaElement,
     data,
@@ -32,169 +52,88 @@
     absoluteZoomedWidth = 0,
   }: Props = $props()
 
-  // Constants for SVG layout
-  const LEFT_LABEL_WIDTH = 125 // Width for participant labels
-  const AXIS_LABEL_HEIGHT = 30 // Height for the x-axis label
-  const LEGEND_HEIGHT = 100 // Height for the legend
-  const LABEL_FONT_SIZE = 12
-  const PADDING = 10
+  // Calculate legend height based on content
+  function calculateLegendHeight(): number {
+    if (!data.stylingAndLegend) return LAYOUT.LEGEND_HEIGHT
 
-  let fixedHighlight = $state<string | null>(null)
-  let usedHighlight = $derived(fixedHighlight ?? highlightedIdentifier)
+    const LEGEND_CONFIG = {
+      TITLE_HEIGHT: 18,
+      ITEM_HEIGHT: LAYOUT.LEGEND_ITEM_HEIGHT,
+      ITEM_PADDING: 4,
+      ITEM_PER_ROW: LAYOUT.LEGEND_ITEMS_PER_ROW,
+      GROUP_SPACING: 10,
+    }
 
-  const getTimelineUnit = (settings: ScarfGridType): string => {
-    return settings.timeline === 'relative' ? '%' : 'ms'
-  }
-
-  const getXAxisLabel = (settings: ScarfGridType): string => {
-    return settings.timeline === 'ordinal'
-      ? 'Order index'
-      : `Elapsed time [${getTimelineUnit(settings)}]`
-  }
-
-  let xAxisLabel = $derived(getXAxisLabel(settings))
-
-  // Total SVG width and height calculation
-  const totalWidth = $derived(
-    LEFT_LABEL_WIDTH + absoluteZoomedWidth + PADDING * 2
-  )
-  const totalHeight = $derived(
-    data.chartHeight + AXIS_LABEL_HEIGHT + LEGEND_HEIGHT
-  )
-
-  let scarfPlotAreaId = $derived(`scarf-plot-area-${settings.id}`)
-
-  // Function to calculate the absolute X position for a timeline value
-  const getAbsoluteX = (value: number): number => {
-    if (!chartWidth) return 0
-
-    // Handle different timeline types
-    if (settings.timeline === 'ordinal') {
-      // For ordinal, each label gets an evenly spaced position
-      const lastIndex = data.timeline.length - 1
-      const indexPosition = data.timeline.findIndex(v => v === value)
-      // Apply zoom factor to the position
-      return indexPosition >= 0
-        ? (indexPosition / lastIndex) * absoluteZoomedWidth
+    // Calculate row counts for each section
+    const aoiRows = Math.ceil(
+      data.stylingAndLegend.aoi.length / LEGEND_CONFIG.ITEM_PER_ROW
+    )
+    const categoryRows = Math.ceil(
+      data.stylingAndLegend.category.length / LEGEND_CONFIG.ITEM_PER_ROW
+    )
+    const visibilityRows =
+      data.stylingAndLegend.visibility.length > 0
+        ? Math.ceil(
+            data.stylingAndLegend.visibility.length / LEGEND_CONFIG.ITEM_PER_ROW
+          )
         : 0
-    } else {
-      // For absolute and relative, use the same calculation for axis labels
-      // Apply zoom factor to the position
-      return (value / data.timeline.maxLabel) * absoluteZoomedWidth
-    }
+
+    // Calculate total height with spacing
+    const groupCount = visibilityRows > 0 ? 3 : 2
+    const totalRows = aoiRows + categoryRows + visibilityRows
+
+    return (
+      LEGEND_CONFIG.TITLE_HEIGHT * groupCount +
+      totalRows * (LEGEND_CONFIG.ITEM_HEIGHT + LEGEND_CONFIG.ITEM_PADDING) +
+      (groupCount - 1) * LEGEND_CONFIG.GROUP_SPACING +
+      LAYOUT.PADDING
+    )
   }
 
-  // Function to calculate X position for segments based on timeline type
-  const getSegmentX = (
-    x: string,
-    segmentIndex?: number,
-    participantWidth?: string
-  ): number => {
-    if (!chartWidth) return 0
+  const LEFT_LABEL_WIDTH = $derived(
+    // use calculateLabelOffset to calculate the width of the participant labels
+    calculateLabelOffset(
+      data.participants.map(p => p.label),
+      LAYOUT.LABEL_FONT_SIZE
+    ) + 10
+  )
 
-    if (settings.timeline === 'ordinal' && typeof segmentIndex === 'number') {
-      // For ordinal timeline, we position based on segment index
-      const totalSegments = data.timeline.maxLabel
-      // Apply zoom factor to the position
-      return (segmentIndex / totalSegments) * absoluteZoomedWidth
-    } else if (settings.timeline === 'absolute' && participantWidth) {
-      // For absolute timeline, the width of each participant can be different
-      // Parse the participant width (which is in percentage format)
-      const participantWidthPercent = parseFloat(participantWidth)
-      // Convert the segment x (also in percentage) to the actual x position
-      const segmentXPercent = parseFloat(x)
-      // Calculate the actual width of this participant in pixels WITH ZOOM
-      const actualParticipantWidth =
-        (participantWidthPercent / 100) * absoluteZoomedWidth
-      // Get the segment's absolute position within this participant's area
-      return (segmentXPercent / 100) * actualParticipantWidth
-    } else {
-      // For relative timeline, convert percentage directly WITH ZOOM
-      const percentage = parseFloat(x)
-      return (percentage / 100) * absoluteZoomedWidth
-    }
-  }
+  // State management with Svelte 5 runes
+  let fixedHighlight = $state<string | null>(null)
 
-  // Function to calculate width for segments based on timeline type
-  const getSegmentWidth = (
-    width: string,
-    segmentIndex?: number,
-    participantWidth?: string
-  ): number => {
-    if (!chartWidth) return 0
+  // Derived values using Svelte 5 $derived rune
+  const usedHighlight = $derived(fixedHighlight ?? highlightedIdentifier)
+  const xAxisLabel = $derived(getXAxisLabel(settings))
+  const scarfPlotAreaId = $derived(`scarf-plot-area-${settings.id}`)
 
-    if (settings.timeline === 'ordinal' && typeof segmentIndex === 'number') {
-      // For ordinal timeline, each segment has equal width WITH ZOOM
-      const totalSegments = data.timeline.maxLabel
-      return absoluteZoomedWidth / totalSegments
-    } else if (settings.timeline === 'absolute' && participantWidth) {
-      // For absolute timeline, the width of each participant can be different
-      const participantWidthPercent = parseFloat(participantWidth)
-      const segmentWidthPercent = parseFloat(width)
-      // Calculate width WITH ZOOM
-      const actualParticipantWidth =
-        (participantWidthPercent / 100) * absoluteZoomedWidth
-      return (segmentWidthPercent / 100) * actualParticipantWidth
-    } else {
-      // For relative timeline, convert percentage directly WITH ZOOM
-      const percentage = parseFloat(width)
-      return (percentage / 100) * absoluteZoomedWidth
-    }
-  }
+  // SVG size calculations
+  const totalWidth = $derived(
+    LEFT_LABEL_WIDTH + absoluteZoomedWidth + LAYOUT.PADDING * 2
+  )
 
-  // Function to calculate X position for AOI visibility lines
-  const getVisibilityLineX = (x: string, participantWidth?: string): number => {
-    if (!chartWidth) return 0
+  const chartHeight = $derived(
+    Math.max(data.chartHeight, LAYOUT.MIN_CHART_HEIGHT)
+  )
 
-    if (settings.timeline === 'ordinal') {
-      return 0 // Not applicable in ordinal mode
-    } else if (settings.timeline === 'absolute' && participantWidth) {
-      // For absolute timeline, we need to scale by participant width
-      const participantWidthPercent = parseFloat(participantWidth)
-      const xPercent = parseFloat(x)
+  const legendHeight = $derived(calculateLegendHeight())
 
-      // Ensure the visibility line doesn't exceed the participant's width
-      const cappedXPercent = Math.min(xPercent, 100)
+  const totalHeight = $derived(
+    chartHeight + LAYOUT.AXIS_LABEL_HEIGHT + legendHeight
+  )
 
-      // First calculate the participant's actual width in pixels WITH ZOOM
-      const actualParticipantWidth =
-        (participantWidthPercent / 100) * absoluteZoomedWidth
-
-      // Then calculate position within that participant's area (capped)
-      return (cappedXPercent / 100) * actualParticipantWidth
-    } else {
-      // For relative timeline, the percentage is relative to the full chart width WITH ZOOM
-      // but should still be capped at 100%
-      const percentage = Math.min(parseFloat(x), 100)
-      return (percentage / 100) * absoluteZoomedWidth
-    }
-  }
-
-  const handleFixedHighlight = (identifier: string) => {
-    if (fixedHighlight === identifier) {
-      fixedHighlight = null
-      highlightedIdentifier = null
-      return
-    }
-    fixedHighlight = identifier
-    addInfoToast(`Highlight fixed. Click the same item in the legend to remove`)
-  }
-
-  // Create a derived value that changes when any input that would affect the style changes
-  let styleInputs = $derived({
+  // Style management
+  const styleInputs = $derived({
     id: settings.id,
     data: data.stylingAndLegend,
     highlight: usedHighlight,
   })
 
-  let dynamicStyle = $derived(
+  const dynamicStyle = $derived(
     generateScarfPlotCSS(scarfPlotAreaId, data.stylingAndLegend, usedHighlight)
   )
 
-  // Replace afterUpdate with $effect
+  // Apply styles when component updates
   $effect(() => {
-    // The dynamicStyle is already reactive, but this ensures it's applied
-    // after DOM updates when IDs change
     const styleElement = document.querySelector(`#${scarfPlotAreaId} style`)
     if (styleElement) {
       styleElement.textContent = dynamicStyle
@@ -203,8 +142,120 @@
     }
   })
 
-  // Handle legend identifier click - ensure proper function passing
-  const handleLegendIdentifier = (identifier: string) => {
+  // Helper functions
+  function getTimelineUnit(settings: ScarfGridType): string {
+    return settings.timeline === 'relative' ? '%' : 'ms'
+  }
+
+  function getXAxisLabel(settings: ScarfGridType): string {
+    return settings.timeline === 'ordinal'
+      ? 'Order index'
+      : `Elapsed time [${getTimelineUnit(settings)}]`
+  }
+
+  // Calculation functions for positioning elements
+  function getAbsoluteX(value: number): number {
+    if (!chartWidth) return 0
+
+    if (settings.timeline === 'ordinal') {
+      // For ordinal timeline, position based on index
+      const lastIndex = data.timeline.length - 1
+      if (lastIndex === 0) return 0
+
+      const indexPosition = data.timeline.findIndex(v => v === value)
+      return indexPosition >= 0
+        ? (indexPosition / lastIndex) * absoluteZoomedWidth
+        : 0
+    } else {
+      // For absolute and relative timelines
+      return (value / data.timeline.maxLabel) * absoluteZoomedWidth
+    }
+  }
+
+  function getSegmentX(
+    x: string,
+    segmentIndex?: number,
+    participantWidth?: string
+  ): number {
+    if (!chartWidth) return 0
+
+    if (settings.timeline === 'ordinal' && typeof segmentIndex === 'number') {
+      // Ordinal timeline - position by segment index
+      const totalSegments = data.timeline.maxLabel || 1
+      return (segmentIndex / totalSegments) * absoluteZoomedWidth
+    } else if (settings.timeline === 'absolute' && participantWidth) {
+      // Absolute timeline - calculate based on participant width
+      const participantWidthPercent = parseFloat(participantWidth)
+      const segmentXPercent = parseFloat(x)
+      const actualParticipantWidth =
+        (participantWidthPercent / 100) * absoluteZoomedWidth
+      return (segmentXPercent / 100) * actualParticipantWidth
+    } else {
+      // Relative timeline - direct percentage calculation
+      const percentage = parseFloat(x)
+      return (percentage / 100) * absoluteZoomedWidth
+    }
+  }
+
+  function getSegmentWidth(
+    width: string,
+    segmentIndex?: number,
+    participantWidth?: string
+  ): number {
+    if (!chartWidth) return 0
+
+    if (settings.timeline === 'ordinal' && typeof segmentIndex === 'number') {
+      // Ordinal timeline - equal widths for all segments
+      const totalSegments = data.timeline.maxLabel || 1
+      return absoluteZoomedWidth / totalSegments
+    } else if (settings.timeline === 'absolute' && participantWidth) {
+      // Absolute timeline - scaled by participant width
+      const participantWidthPercent = parseFloat(participantWidth)
+      const segmentWidthPercent = parseFloat(width)
+      const actualParticipantWidth =
+        (participantWidthPercent / 100) * absoluteZoomedWidth
+      return (segmentWidthPercent / 100) * actualParticipantWidth
+    } else {
+      // Relative timeline - direct percentage calculation
+      const percentage = parseFloat(width)
+      return (percentage / 100) * absoluteZoomedWidth
+    }
+  }
+
+  function getVisibilityLineX(x: string, participantWidth?: string): number {
+    if (!chartWidth) return 0
+
+    if (settings.timeline === 'ordinal') {
+      return 0 // Not applicable in ordinal mode
+    } else if (settings.timeline === 'absolute' && participantWidth) {
+      // Absolute timeline - scale within participant width
+      const participantWidthPercent = parseFloat(participantWidth)
+      const xPercent = Math.min(parseFloat(x), 100) // Cap at 100%
+      const actualParticipantWidth =
+        (participantWidthPercent / 100) * absoluteZoomedWidth
+      return (xPercent / 100) * actualParticipantWidth
+    } else {
+      // Relative timeline - cap at 100% of chart width
+      const percentage = Math.min(parseFloat(x), 100)
+      return (percentage / 100) * absoluteZoomedWidth
+    }
+  }
+
+  // Interaction handlers
+  function handleFixedHighlight(identifier: string) {
+    if (fixedHighlight === identifier) {
+      // If already highlighted, clear it
+      fixedHighlight = null
+      highlightedIdentifier = null
+      return
+    }
+
+    // Otherwise, set the fixed highlight
+    fixedHighlight = identifier
+    addInfoToast(`Highlight fixed. Click the same item in the legend to remove`)
+  }
+
+  function handleLegendIdentifier(identifier: string) {
     // Handle both local fixed highlight and external app state
     handleFixedHighlight(identifier)
     onLegendClick(identifier)
@@ -220,7 +271,7 @@
   <svg
     class="scarf-plot-figure"
     width={totalWidth}
-    height={data.chartHeight + AXIS_LABEL_HEIGHT}
+    height={totalHeight}
     {onmousemove}
     {onmouseleave}
     {onpointerdown}
@@ -230,95 +281,106 @@
     <!-- Participant Labels (Left Side) -->
     <g class="participants-labels">
       {#each data.participants as participant, i}
-        <text
-          x={PADDING}
+        <SvgText
+          text={participant.label}
+          x={LAYOUT.PADDING}
           y={i * data.heightOfBarWrap + data.heightOfBarWrap / 2}
-          font-size={LABEL_FONT_SIZE}
-          text-anchor="start"
-          dominant-baseline="middle"
-          class="participant-label">{participant.label}</text
-        >
+          fontSize={LAYOUT.LABEL_FONT_SIZE}
+          textAnchor="start"
+          dominantBaseline="middle"
+          className="participant-label"
+        />
       {/each}
     </g>
 
     <!-- Main Chart Area -->
-    <g
-      class="chart-area"
-      transform={`translate(${LEFT_LABEL_WIDTH}, 0)`}
-      class:isHiglighted={highlightedIdentifier}
-    >
+    <g class="chart-area" class:isHiglighted={highlightedIdentifier}>
       {#key data.participants}
         <!-- Timeline Axis Labels -->
-        <g
-          class="timeline-labels"
-          transform={`translate(0, ${data.chartHeight - 12})`}
-        >
-          <text x="0" y="0" text-anchor="start" dominant-baseline="hanging"
-            >0</text
-          >
+        <g class="timeline-labels">
+          <!-- Start label -->
+          <SvgText
+            text="0"
+            x={LEFT_LABEL_WIDTH}
+            y={data.chartHeight - LAYOUT.AXIS_OFFSET}
+            textAnchor="start"
+            dominantBaseline="hanging"
+          />
 
+          <!-- Middle labels -->
           {#each data.timeline.slice(1, -1) as label}
-            <text
-              x={getAbsoluteX(label)}
-              dominant-baseline="hanging"
-              text-anchor="middle">{label}</text
-            >
+            <SvgText
+              text={label.toString()}
+              x={LEFT_LABEL_WIDTH + getAbsoluteX(label)}
+              y={data.chartHeight - LAYOUT.AXIS_OFFSET}
+              dominantBaseline="hanging"
+              textAnchor="middle"
+            />
           {/each}
 
-          <text
-            x={absoluteZoomedWidth}
-            dominant-baseline="hanging"
-            text-anchor="end">{data.timeline.maxLabel}</text
-          >
+          <!-- End label -->
+          <SvgText
+            text={data.timeline.maxLabel.toString()}
+            x={LEFT_LABEL_WIDTH + absoluteZoomedWidth}
+            y={data.chartHeight - LAYOUT.AXIS_OFFSET}
+            dominantBaseline="hanging"
+            textAnchor="end"
+          />
         </g>
 
         <!-- X-Axis Ticks -->
         <g class="axis-ticks">
+          <!-- Start tick -->
           <line
-            x1="0"
+            x1={LEFT_LABEL_WIDTH}
             y1={data.participants.length * data.heightOfBarWrap - 0.5}
-            x2="0"
-            y2={data.participants.length * data.heightOfBarWrap + 5}
-            stroke="#cbcbcb"
+            x2={LEFT_LABEL_WIDTH}
+            y2={data.participants.length * data.heightOfBarWrap +
+              LAYOUT.TICK_LENGTH}
+            stroke={LAYOUT.GRID_COLOR}
             stroke-width="1.5"
-          ></line>
+          />
 
+          <!-- Middle ticks -->
           {#each data.timeline.slice(1, -1) as label}
             <line
-              x1={getAbsoluteX(label)}
+              x1={LEFT_LABEL_WIDTH + getAbsoluteX(label)}
               y1={data.participants.length * data.heightOfBarWrap - 0.5}
-              x2={getAbsoluteX(label)}
-              y2={data.participants.length * data.heightOfBarWrap + 5}
-              stroke="#cbcbcb"
+              x2={LEFT_LABEL_WIDTH + getAbsoluteX(label)}
+              y2={data.participants.length * data.heightOfBarWrap +
+                LAYOUT.TICK_LENGTH}
+              stroke={LAYOUT.GRID_COLOR}
               stroke-width="1.5"
-            ></line>
+            />
           {/each}
 
+          <!-- End tick -->
           <line
-            x1={absoluteZoomedWidth}
+            x1={LEFT_LABEL_WIDTH + absoluteZoomedWidth}
             y1={data.participants.length * data.heightOfBarWrap - 0.5}
-            x2={absoluteZoomedWidth}
-            y2={data.participants.length * data.heightOfBarWrap + 5}
-            stroke="#cbcbcb"
+            x2={LEFT_LABEL_WIDTH + absoluteZoomedWidth}
+            y2={data.participants.length * data.heightOfBarWrap +
+              LAYOUT.TICK_LENGTH}
+            stroke={LAYOUT.GRID_COLOR}
             stroke-width="1.5"
-          ></line>
+          />
         </g>
 
         <!-- Horizontal Grid Lines and Data -->
         {#each data.participants as participant, i}
           <!-- Horizontal Grid Line -->
           <line
-            x1="0"
-            x2={absoluteZoomedWidth}
+            x1={LEFT_LABEL_WIDTH}
+            x2={LEFT_LABEL_WIDTH + absoluteZoomedWidth}
             y1={i * data.heightOfBarWrap + 0.5}
             y2={i * data.heightOfBarWrap + 0.5}
-            stroke="#cbcbcb"
-          ></line>
+            stroke={LAYOUT.GRID_COLOR}
+            stroke-width={LAYOUT.GRID_STROKE_WIDTH}
+          />
 
           <!-- Participant Segments -->
           <g
             class="participant-segments"
-            transform={`translate(0, ${i * data.heightOfBarWrap})`}
             data-id={participant.id}
             data-participant="true"
           >
@@ -328,15 +390,17 @@
                   <rect
                     class={rectangle.identifier}
                     height={rectangle.height}
-                    x={settings.timeline === 'ordinal'
-                      ? getSegmentX(rectangle.x, segmentId)
-                      : getSegmentX(
-                          rectangle.x,
-                          undefined,
-                          settings.timeline === 'absolute'
-                            ? participant.width
-                            : undefined
-                        )}
+                    x={LEFT_LABEL_WIDTH +
+                      (settings.timeline === 'ordinal'
+                        ? getSegmentX(rectangle.x, segmentId)
+                        : getSegmentX(
+                            rectangle.x,
+                            undefined,
+                            settings.timeline === 'absolute'
+                              ? participant.width
+                              : undefined
+                          ))}
+                    y={i * data.heightOfBarWrap + rectangle.y}
                     width={settings.timeline === 'ordinal'
                       ? getSegmentWidth(rectangle.width, segmentId)
                       : getSegmentWidth(
@@ -346,15 +410,14 @@
                             ? participant.width
                             : undefined
                         )}
-                    y={rectangle.y}
-                  ></rect>
+                  />
                 {/each}
               </g>
             {/each}
 
             <!-- AOI Visibility Lines -->
-            {#each participant.dynamicAoiVisibility as visibility, visibilityIndex}
-              {#each visibility.content as visibilityItem, itemIndex}
+            {#each participant.dynamicAoiVisibility as visibility}
+              {#each visibility.content as visibilityItem}
                 <!-- Calculate maximum width for this participant WITH ZOOM -->
                 {@const maxWidth =
                   settings.timeline === 'absolute' && participant.width
@@ -381,11 +444,11 @@
                 {#if settings.timeline !== 'ordinal' && x1 <= maxWidth && x2 <= maxWidth}
                   <line
                     class={visibilityItem.identifier}
-                    {x1}
-                    y1={visibilityItem.y}
-                    {x2}
-                    y2={visibilityItem.y}
-                  ></line>
+                    x1={LEFT_LABEL_WIDTH + x1}
+                    y1={i * data.heightOfBarWrap + visibilityItem.y}
+                    x2={LEFT_LABEL_WIDTH + x2}
+                    y2={i * data.heightOfBarWrap + visibilityItem.y}
+                  />
                 {/if}
               {/each}
             {/each}
@@ -394,32 +457,39 @@
 
         <!-- Bottom Border Line -->
         <line
-          x1="0"
-          x2={absoluteZoomedWidth}
+          x1={LEFT_LABEL_WIDTH}
+          x2={LEFT_LABEL_WIDTH + absoluteZoomedWidth}
           y1={data.participants.length * data.heightOfBarWrap - 0.5}
           y2={data.participants.length * data.heightOfBarWrap - 0.5}
-          stroke="#cbcbcb"
+          stroke={LAYOUT.GRID_COLOR}
+          stroke-width={LAYOUT.GRID_STROKE_WIDTH}
         />
       {/key}
 
       <!-- X-Axis Label -->
-      <text
-        x={absoluteZoomedWidth / 2}
-        y={data.chartHeight + 15}
-        text-anchor="middle"
-        font-size={LABEL_FONT_SIZE}
-        class="x-axis-label">{xAxisLabel}</text
-      >
+      <SvgText
+        text={xAxisLabel}
+        x={LEFT_LABEL_WIDTH + absoluteZoomedWidth / 2}
+        y={chartHeight + 15}
+        textAnchor="middle"
+        fontSize={LAYOUT.LABEL_FONT_SIZE}
+        className="x-axis-label"
+      />
     </g>
-  </svg>
 
-  <!-- Legend below the SVG -->
-  <div class="legend-container">
-    <ScarfPlotLegend
-      filling={data.stylingAndLegend}
-      onlegendIdentifier={handleLegendIdentifier}
-    />
-  </div>
+    <!-- Legend Section - Using ScarfPlotLegend component -->
+    {#if data.stylingAndLegend}
+      <ScarfPlotLegend
+        filling={data.stylingAndLegend}
+        onlegendIdentifier={handleLegendIdentifier}
+        availableWidth={totalWidth}
+        fixedItemWidth={LAYOUT.LEGEND_ITEM_WIDTH}
+        itemsPerRow={0}
+        x={LAYOUT.PADDING}
+        y={chartHeight + LAYOUT.AXIS_LABEL_HEIGHT}
+      />
+    {/if}
+  </svg>
 </figure>
 
 <style>
@@ -427,10 +497,13 @@
     margin: 0;
     padding: 0;
     cursor: default;
+    display: flex;
+    flex-direction: column;
   }
 
   .scarf-plot-figure {
     font-family: sans-serif;
+    display: block;
   }
 
   .participant-label {
@@ -445,8 +518,11 @@
     font-size: 12px;
   }
 
-  .legend-container {
-    margin-top: 10px;
-    width: 100%;
+  .x-axis-label {
+    font-weight: 500;
+  }
+
+  .legend-title {
+    font-weight: 500;
   }
 </style>

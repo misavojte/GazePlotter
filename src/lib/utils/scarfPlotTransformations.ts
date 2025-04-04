@@ -579,9 +579,10 @@ export function generateScarfPlotCSS(
   let highlightRules = ''
   if (highlightedType) {
     highlightRules = `
-      #${plotAreaId} rect:not(.${highlightedType}){opacity:0.2;}
-      #${plotAreaId} line:not(.${highlightedType}){opacity:0.2;}
-      #${plotAreaId} line.${highlightedType}{stroke-width:100%;}
+      #${plotAreaId} rect:not(.${highlightedType}){opacity:0.15;}
+      #${plotAreaId} line:not(.${highlightedType}){opacity:0.15;}
+      #${plotAreaId} rect.${highlightedType}{stroke:#333333;stroke-width:0.5px;}
+      #${plotAreaId} line.${highlightedType}{stroke-width:3px;stroke-linecap:butt;stroke-dasharray:none;}
     `
   }
 
