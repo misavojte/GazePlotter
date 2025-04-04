@@ -20,7 +20,7 @@
   const ZOOM_PERCENTAGE = 15
 
   // No need for isDisabled - we can always zoom in further by shrinking the range
-  let isDisabled = $derived(false)
+  let isDisabled = $derived(settings.timeline === 'relative')
 
   // Function to calculate the actual max value for a stimulus when limits are [0, 0]
   function calculateActualMax(stimulusId: number): number {

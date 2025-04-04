@@ -90,16 +90,22 @@ export class AdaptiveTimeline {
     // Ensure there's a tick at the max value if not already there
     const lastTick = this._ticks[this._ticks.length - 1]
     if (lastTick.value < this._maxValue) {
-      // Check if max value is a "nice" value (multiple of step size)
-      const isNiceValue =
-        Math.abs(Math.round(this._maxValue / step) * step - this._maxValue) <
-        0.0001
-
       this._ticks.push({
         label: this._formatTickLabel(this._maxValue),
         value: this._maxValue,
         position: 1,
-        isNice: isNiceValue,
+        isNice: false,
+      })
+    }
+
+    // Ensure there is a tick at the min value if not already there
+    const firstTick = this._ticks[0]
+    if (firstTick.value > this._minValue) {
+      this._ticks.unshift({
+        label: this._formatTickLabel(this._minValue),
+        value: this._minValue,
+        position: 0,
+        isNice: false,
       })
     }
   }

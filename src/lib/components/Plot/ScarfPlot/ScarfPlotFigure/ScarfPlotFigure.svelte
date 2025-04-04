@@ -110,6 +110,9 @@
 
   // State management with Svelte 5 runes
   let fixedHighlight = $state<string | null>(null)
+  let isDragging = $state(false) // New state to track if actively dragging
+  let isHoveringSegment = $state(false) // Track if hovering or recently hovering a segment
+  let hoverTimeout: number | null = $state(null) // Timeout ID
 
   // Derived values using Svelte 5 $derived rune
   const usedHighlight = $derived(fixedHighlight ?? highlightedIdentifier)
@@ -343,6 +346,15 @@
         orderId: hoveredSegment.orderId,
       }
 
+      // Set hovering state to true
+      isHoveringSegment = true
+
+      // Clear any existing timeout
+      if (hoverTimeout !== null) {
+        window.clearTimeout(hoverTimeout)
+        hoverTimeout = null
+      }
+
       const XUnderTheRect = event.clientX + window.scrollX + 5
       const YUnderTheRect =
         hoveredSegment.y +
@@ -361,6 +373,16 @@
       // If moved out of a segment but still in SVG
       currentHoveredSegment = null
       onTooltipDeactivation()
+
+      // Set delayed reset of hovering state
+      if (hoverTimeout !== null) {
+        window.clearTimeout(hoverTimeout)
+      }
+
+      hoverTimeout = window.setTimeout(() => {
+        isHoveringSegment = false
+        hoverTimeout = null
+      }, 150) // Keep default cursor for 150ms after leaving segment
     }
   }
 
@@ -369,12 +391,31 @@
     if (currentHoveredSegment) {
       currentHoveredSegment = null
       onTooltipDeactivation()
+
+      // Set delayed reset of hovering state
+      if (hoverTimeout !== null) {
+        window.clearTimeout(hoverTimeout)
+      }
+
+      hoverTimeout = window.setTimeout(() => {
+        isHoveringSegment = false
+        hoverTimeout = null
+      }, 150) // Keep default cursor for 150ms after leaving segment
     }
   }
 
   // Handlers for drag events
   function handleDragStepX(event: CustomEvent) {
     onDragStepX(event.detail.stepChange)
+  }
+
+  // Update dragging state
+  function handleDragStart() {
+    isDragging = true
+  }
+
+  function handleDragEnd() {
+    isDragging = false
   }
 </script>
 
@@ -390,12 +431,8 @@
     height={totalHeight}
     onmousemove={handleMouseMove}
     onmouseleave={handleMouseLeave}
-    use:draggable
     bind:this={tooltipAreaElement}
     data-component="scarfplot"
-    {...{
-      ondragStepX: handleDragStepX,
-    }}
   >
     <!-- Participant Labels (Left Side) -->
     <g class="participants-labels">
@@ -412,7 +449,20 @@
       {/each}
     </g>
 
-    <!-- Main Chart Area -->
+    <!-- Horizontal Grid Lines and Data -->
+    {#each data.participants as participant, i}
+      <!-- Horizontal Grid Line -->
+      <line
+        x1={LEFT_LABEL_WIDTH}
+        x2={LEFT_LABEL_WIDTH + plotAreaWidth}
+        y1={i * data.heightOfBarWrap + 0.5}
+        y2={i * data.heightOfBarWrap + 0.5}
+        stroke={LAYOUT.GRID_COLOR}
+        stroke-width={LAYOUT.GRID_STROKE_WIDTH}
+      />
+    {/each}
+
+    <!-- Main Chart Area - Now with draggable action -->
     <g class="chart-area" class:isHiglighted={highlightedIdentifier}>
       {#key data.participants}
         <!-- Timeline Axis Labels -->
@@ -450,19 +500,6 @@
           {/if}
         </g>
 
-        <!-- Horizontal Grid Lines and Data -->
-        {#each data.participants as participant, i}
-          <!-- Horizontal Grid Line -->
-          <line
-            x1={LEFT_LABEL_WIDTH}
-            x2={LEFT_LABEL_WIDTH + plotAreaWidth}
-            y1={i * data.heightOfBarWrap + 0.5}
-            y2={i * data.heightOfBarWrap + 0.5}
-            stroke={LAYOUT.GRID_COLOR}
-            stroke-width={LAYOUT.GRID_STROKE_WIDTH}
-          />
-        {/each}
-
         <!-- Render rectangles from derived store -->
         <g class="all-rectangles">
           {#each rectangleSegments as rect}
@@ -499,6 +536,25 @@
           stroke-width={LAYOUT.GRID_STROKE_WIDTH}
         />
       {/key}
+
+      <!-- Draggable overlay rectangle -->
+      <rect
+        class="drag-overlay"
+        class:dragging={isDragging}
+        class:hovering-segment={isHoveringSegment}
+        x={LEFT_LABEL_WIDTH}
+        y={0}
+        width={plotAreaWidth}
+        height={data.participants.length * data.heightOfBarWrap}
+        fill="transparent"
+        use:draggable
+        {...{
+          ondragStepX: handleDragStepX,
+          onpointerdown: handleDragStart,
+          onpointerup: handleDragEnd,
+          onpointercancel: handleDragEnd,
+        }}
+      />
 
       <!-- X-Axis Label -->
       <SvgText
@@ -553,5 +609,18 @@
 
   .legend-title {
     font-weight: 500;
+  }
+
+  /* Cursor styles for draggable overlay */
+  .drag-overlay {
+    cursor: grab;
+  }
+
+  .drag-overlay.dragging {
+    cursor: grabbing;
+  }
+
+  .drag-overlay.hovering-segment {
+    cursor: default;
   }
 </style>
