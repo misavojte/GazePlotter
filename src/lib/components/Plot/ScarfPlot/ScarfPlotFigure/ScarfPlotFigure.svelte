@@ -158,20 +158,7 @@
   // Calculation functions for positioning elements
   function getAbsoluteX(value: number): number {
     if (!plotAreaWidth) return 0
-
-    if (settings.timeline === 'ordinal') {
-      // For ordinal timeline, position based on index
-      const lastIndex = data.timeline.length - 1
-      if (lastIndex === 0) return 0
-
-      const indexPosition = data.timeline.findIndex(v => v === value)
-      return indexPosition >= 0
-        ? (indexPosition / lastIndex) * plotAreaWidth
-        : 0
-    } else {
-      // For absolute and relative timelines
-      return (value / data.timeline.maxLabel) * plotAreaWidth
-    }
+    return data.timeline.getPositionRatio(value) * plotAreaWidth
   }
 
   function getSegmentX(
@@ -183,7 +170,7 @@
 
     if (settings.timeline === 'ordinal' && typeof segmentIndex === 'number') {
       // Ordinal timeline - position by segment index
-      const totalSegments = data.timeline.maxLabel || 1
+      const totalSegments = data.timeline.maxValue || 1
       return (segmentIndex / totalSegments) * plotAreaWidth
     } else if (settings.timeline === 'absolute' && participantWidth) {
       // Absolute timeline - calculate based on participant width
@@ -207,7 +194,7 @@
 
     if (settings.timeline === 'ordinal' && typeof segmentIndex === 'number') {
       // Ordinal timeline - equal widths for all segments
-      const totalSegments = data.timeline.maxLabel || 1
+      const totalSegments = data.timeline.maxValue || 1
       return plotAreaWidth / totalSegments
     } else if (settings.timeline === 'absolute' && participantWidth) {
       // Absolute timeline - scaled by participant width
@@ -297,72 +284,41 @@
       {#key data.participants}
         <!-- Timeline Axis Labels -->
         <g class="timeline-labels">
-          <!-- Start label -->
-          <SvgText
-            text="0"
-            x={LEFT_LABEL_WIDTH}
-            y={data.chartHeight - LAYOUT.AXIS_OFFSET}
-            textAnchor="start"
-            dominantBaseline="hanging"
-          />
-
-          <!-- Middle labels -->
-          {#each data.timeline.slice(1, -1) as label}
-            <SvgText
-              text={label.toString()}
-              x={LEFT_LABEL_WIDTH + getAbsoluteX(label)}
-              y={data.chartHeight - LAYOUT.AXIS_OFFSET}
-              dominantBaseline="hanging"
-              textAnchor="middle"
-            />
-          {/each}
-
-          <!-- End label -->
-          <SvgText
-            text={data.timeline.maxLabel.toString()}
-            x={LEFT_LABEL_WIDTH + plotAreaWidth}
-            y={data.chartHeight - LAYOUT.AXIS_OFFSET}
-            dominantBaseline="hanging"
-            textAnchor="end"
-          />
+          {#if data.timeline.ticks.length > 0}
+            {#each data.timeline.ticks as tick}
+              <!-- Only show label text if it's a nice tick -->
+              {#if tick.isNice}
+                <SvgText
+                  text={tick.label}
+                  x={LEFT_LABEL_WIDTH + tick.position * plotAreaWidth}
+                  y={data.chartHeight - LAYOUT.AXIS_OFFSET}
+                  dominantBaseline="hanging"
+                  textAnchor={tick.position === 0
+                    ? 'start'
+                    : tick.position === 1
+                      ? 'end'
+                      : 'middle'}
+                />
+              {/if}
+            {/each}
+          {/if}
         </g>
 
-        <!-- X-Axis Ticks -->
+        <!-- X-Axis Ticks - Always show all ticks -->
         <g class="axis-ticks">
-          <!-- Start tick -->
-          <line
-            x1={LEFT_LABEL_WIDTH}
-            y1={data.participants.length * data.heightOfBarWrap - 0.5}
-            x2={LEFT_LABEL_WIDTH}
-            y2={data.participants.length * data.heightOfBarWrap +
-              LAYOUT.TICK_LENGTH}
-            stroke={LAYOUT.GRID_COLOR}
-            stroke-width="1.5"
-          />
-
-          <!-- Middle ticks -->
-          {#each data.timeline.slice(1, -1) as label}
-            <line
-              x1={LEFT_LABEL_WIDTH + getAbsoluteX(label)}
-              y1={data.participants.length * data.heightOfBarWrap - 0.5}
-              x2={LEFT_LABEL_WIDTH + getAbsoluteX(label)}
-              y2={data.participants.length * data.heightOfBarWrap +
-                LAYOUT.TICK_LENGTH}
-              stroke={LAYOUT.GRID_COLOR}
-              stroke-width="1.5"
-            />
-          {/each}
-
-          <!-- End tick -->
-          <line
-            x1={LEFT_LABEL_WIDTH + plotAreaWidth}
-            y1={data.participants.length * data.heightOfBarWrap - 0.5}
-            x2={LEFT_LABEL_WIDTH + plotAreaWidth}
-            y2={data.participants.length * data.heightOfBarWrap +
-              LAYOUT.TICK_LENGTH}
-            stroke={LAYOUT.GRID_COLOR}
-            stroke-width="1.5"
-          />
+          {#if data.timeline.ticks.length > 0}
+            {#each data.timeline.ticks as tick}
+              <line
+                x1={LEFT_LABEL_WIDTH + tick.position * plotAreaWidth}
+                y1={data.participants.length * data.heightOfBarWrap - 0.5}
+                x2={LEFT_LABEL_WIDTH + tick.position * plotAreaWidth}
+                y2={data.participants.length * data.heightOfBarWrap +
+                  LAYOUT.TICK_LENGTH}
+                stroke={LAYOUT.GRID_COLOR}
+                stroke-width="1.5"
+              />
+            {/each}
+          {/if}
         </g>
 
         <!-- Horizontal Grid Lines and Data -->

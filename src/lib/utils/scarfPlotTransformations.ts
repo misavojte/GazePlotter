@@ -35,7 +35,7 @@ import {
   getStimuli,
   hasStimulusAoiVisibility,
 } from '$lib/stores/dataStore'
-import { PlotAxisBreaks } from '$lib/class/Plot/PlotAxisBreaks/PlotAxisBreaks'
+import { AdaptiveTimeline } from '../class/Plot/AdaptiveTimeline/AdaptiveTimeline'
 import {
   IDENTIFIER_IS_AOI,
   IDENTIFIER_IS_OTHER_CATEGORY,
@@ -94,10 +94,12 @@ export function calculateTimelineMax(
 ): { maxValue: number; isCut: boolean } {
   const isCut = false
 
+  // For relative mode, we always use 100 as the max value (percentage)
   if (settings.timeline === 'relative') {
     return { maxValue: 100, isCut: false }
   }
 
+  // Get previously configured max values if available
   const absoluteTimelineLastVal =
     settings.absoluteStimuliLastVal[stimulusId] ??
     settings.absoluteGeneralLastVal
@@ -105,6 +107,7 @@ export function calculateTimelineMax(
   const ordinalTimelineLastVal =
     settings.ordinalStimuliLastVal[stimulusId] ?? settings.ordinalGeneralLastVal
 
+  // Initial max value based on configured settings
   let highestEndTime =
     settings.timeline === 'absolute'
       ? absoluteTimelineLastVal
@@ -118,19 +121,24 @@ export function calculateTimelineMax(
 
     if (settings.timeline === 'ordinal') {
       if (numberOfSegments > highestEndTime) {
+        // If there's a configured limit and we exceed it, respect the limit
         if (ordinalTimelineLastVal !== 0) {
           return { maxValue: highestEndTime, isCut: true }
         }
+        // Otherwise use the actual highest count
         highestEndTime = numberOfSegments
       }
       continue
     }
 
+    // For absolute mode, find the actual end time
     const currentEndTime = getParticipantEndTime(stimulusId, participantId)
     if (currentEndTime > highestEndTime) {
+      // If there's a configured limit and we exceed it, respect the limit
       if (absoluteTimelineLastVal !== 0) {
         return { maxValue: highestEndTime, isCut: true }
       }
+      // Otherwise use the actual highest end time
       highestEndTime = currentEndTime
     }
   }
@@ -144,19 +152,30 @@ export function calculateTimelineMax(
  * @param participantIds Array of participant IDs to include
  * @param stimulusId ID of the stimulus to display
  * @param settings Configuration settings for the grid
- * @returns PlotAxisBreaks object with calculated breaks
+ * @returns AdaptiveTimeline object with calculated ticks and bounds
  */
 export function createScarfPlotAxis(
   participantIds: number[],
   stimulusId: number,
   settings: ScarfGridType
-): PlotAxisBreaks {
+): AdaptiveTimeline {
   const { maxValue } = calculateTimelineMax(
     participantIds,
     stimulusId,
     settings
   )
-  return new PlotAxisBreaks(maxValue)
+
+  // Create timeline with the appropriate range based on mode
+  if (settings.timeline === 'relative') {
+    // For relative mode, always use 0-100 range
+    return new AdaptiveTimeline(0, 100)
+  } else if (settings.timeline === 'ordinal') {
+    // For ordinal mode, use 0 to highest segment count (integer values)
+    return new AdaptiveTimeline(0, maxValue, Math.min(10, maxValue))
+  } else {
+    // For absolute mode, use 0 to actual max value in ms
+    return new AdaptiveTimeline(0, maxValue)
+  }
 }
 
 /**
@@ -482,7 +501,7 @@ export function transformDataToScarfPlot(
   const aoiData = getAois(stimulusId)
   const stimuliData = getStimuli()
   const timeline = createScarfPlotAxis(participantIds, stimulusId, settings)
-  const maxValue = timeline.maxLabel
+  const maxValue = timeline.maxValue
 
   const showAoiVisibility =
     hasStimulusAoiVisibility(stimulusId) && settings.timeline !== 'ordinal'
