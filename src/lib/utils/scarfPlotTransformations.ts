@@ -347,6 +347,7 @@ export function createSegmentContents(
  * @param lineWrappedHeight Height of the wrapped line
  * @param showAoiVisibility Whether to show AOI visibility
  * @param timelineMax Maximum timeline value
+ * @param timelineMode The timeline mode (absolute, relative, ordinal)
  * @returns Array of AOI visibility objects for visualization
  */
 export function createAoiVisibility(
@@ -357,13 +358,17 @@ export function createAoiVisibility(
   rectWrappedHeight: number,
   lineWrappedHeight: number,
   showAoiVisibility: boolean,
-  timelineMax: number = sessionDuration
+  timelineMax: number = sessionDuration,
+  timelineMode: string = 'absolute'
 ): AoiVisibilityScarfFillingType[] {
   if (!showAoiVisibility) {
     return []
   }
 
   const result: AoiVisibilityScarfFillingType[] = []
+  // Only apply timeline limits for absolute mode
+  const shouldApplyLimits =
+    timelineMode !== 'relative' && timelineMode !== 'ordinal'
 
   for (let aoiIndex = 0; aoiIndex < aoiData.length; aoiIndex++) {
     const aoiId = aoiData[aoiIndex].id
@@ -375,14 +380,17 @@ export function createAoiVisibility(
         let start = visibility[i]
         let end = visibility[i + 1]
 
-        // Skip visibility ranges entirely outside the timeline
-        if (end <= 0 || start >= timelineMax) {
-          continue
-        }
+        // Only apply filtering for absolute timeline mode
+        if (shouldApplyLimits) {
+          // Skip visibility ranges entirely outside the timeline
+          if (end <= 0 || start >= timelineMax) {
+            continue
+          }
 
-        // Crop visibility ranges partially outside the timeline
-        if (start < 0) start = 0
-        if (end > timelineMax) end = timelineMax
+          // Crop visibility ranges partially outside the timeline
+          if (start < 0) start = 0
+          if (end > timelineMax) end = timelineMax
+        }
 
         const y = rectWrappedHeight + aoiIndex * lineWrappedHeight
 
@@ -446,20 +454,24 @@ export function createParticipantData(
   for (let segmentId = 0; segmentId < segmentCount; segmentId++) {
     const segment = getSegment(stimulusId, participantId, segmentId)
     const isOrdinal = timeline === 'ordinal'
+    const isRelative = timeline === 'relative'
 
     let start = isOrdinal ? segmentId : segment.start
     let end = isOrdinal ? segmentId + 1 : segment.end
 
-    // Skip segments entirely outside the timeline range
-    if (end <= 0 || start >= timelineMax) {
-      continue
+    // For absolute timeline mode only: Skip or crop segments outside timeline range
+    if (!isRelative && !isOrdinal) {
+      // Skip segments entirely outside the timeline range
+      if (end <= 0 || start >= timelineMax) {
+        continue
+      }
+
+      // Crop segments that are partially outside the timeline range
+      if (start < 0) start = 0
+      if (end > timelineMax) end = timelineMax
     }
 
-    // Crop segments that are partially outside the timeline range
-    if (start < 0) start = 0
-    if (end > timelineMax) end = timelineMax
-
-    // Calculate segment position as percentage
+    // Calculate segment position as percentage of the session duration
     const x = `${(start / sessionDuration) * 100}%`
     const width = `${((end - start) / sessionDuration) * 100}%`
 
@@ -494,7 +506,8 @@ export function createParticipantData(
       rectWrappedHeight,
       lineWrappedHeight,
       showAoiVisibility,
-      timelineMax
+      timelineMax,
+      timeline
     ),
   }
 }
