@@ -116,6 +116,12 @@
     border: none;
   }
 
+  .workspace-item-button-content {
+    user-select: none;
+    pointer-events: none;
+    display: contents;
+  }
+
   .workspace-item-button:hover {
     transform: scale(1.1);
     background: var(--c-darkgrey);

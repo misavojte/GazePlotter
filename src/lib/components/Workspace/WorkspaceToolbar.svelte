@@ -3,6 +3,7 @@
   import { fade } from 'svelte/transition'
   import { writable } from 'svelte/store'
   import WorkspaceToolbarItem from './WorkspaceToolbarItem.svelte'
+  import { onMount } from 'svelte'
 
   // Configuration for toolbar items
   interface Props {
@@ -11,6 +12,56 @@
     accentColor?: string
     onaction?: (event: { id: string; vizType?: string; event?: any }) => void
     visualizations?: Array<{ id: string; label: string }>
+  }
+
+  // Track fullscreen state
+  let isFullscreen = false
+
+  // Function to toggle fullscreen mode
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement
+        .requestFullscreen()
+        .then(() => {
+          isFullscreen = true
+        })
+        .catch(err => {
+          console.error('Error attempting to enable fullscreen:', err)
+        })
+    } else {
+      if (document.exitFullscreen) {
+        document
+          .exitFullscreen()
+          .then(() => {
+            isFullscreen = false
+          })
+          .catch(err => {
+            console.error('Error attempting to exit fullscreen:', err)
+          })
+      }
+    }
+  }
+
+  // Listen for fullscreen change events
+  function handleFullscreenChange() {
+    isFullscreen = !!document.fullscreenElement
+
+    // Update the icon based on fullscreen state
+    if (actionItems[2] && actionItems[2].id === 'toggle-fullscreen') {
+      actionItems[2].icon = isFullscreen
+        ? `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 14 10 14 10 20"></polyline>
+            <polyline points="20 10 14 10 14 4"></polyline>
+            <line x1="14" y1="10" x2="21" y2="3"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+          </svg>`
+        : `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <polyline points="9 21 3 21 3 15"></polyline>
+            <line x1="21" y1="3" x2="14" y2="10"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+          </svg>`
+    }
   }
 
   let {
@@ -36,6 +87,19 @@
             <path d="M5 12h14"></path>
           </svg>`,
         action: null, // Will be handled by context menu
+      },
+      {
+        id: 'toggle-fullscreen',
+        label: 'Toggle Fullscreen',
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <polyline points="9 21 3 21 3 15"></polyline>
+            <line x1="21" y1="3" x2="14" y2="10"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+          </svg>`,
+        action: () => {
+          toggleFullscreen()
+        },
       },
     ],
     width = '48px',
@@ -93,9 +157,17 @@
   function handleClickOutside(event: MouseEvent) {
     contextMenuState.set({ visible: false, x: 0, y: 0 })
   }
+
+  // Set up event listener when component mounts
+  onMount(() => {
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    }
+  })
 </script>
 
-<svelte:window on:click={handleClickOutside} />
+<svelte:window onclick={handleClickOutside} />
 
 <div
   class="workspace-toolbar"
@@ -121,6 +193,15 @@
           onclick={handleItemClick}
         />
       </div>
+
+      <!-- Fullscreen toggle button -->
+      <WorkspaceToolbarItem
+        id="toggle-fullscreen"
+        label={actionItems[2].label}
+        icon={actionItems[2].icon}
+        action={actionItems[2].action}
+        onclick={handleItemClick}
+      />
     {/if}
   </div>
 </div>
@@ -130,12 +211,14 @@
     class="context-menu"
     style="left: {$contextMenuState.x}px; top: {$contextMenuState.y}px;"
     transition:fade={{ duration: 100 }}
-    on:click|stopPropagation={() => {}}
+    onclick={e => {
+      e.stopPropagation()
+    }}
   >
     {#each visualizations as viz}
       <button
         class="context-menu-item"
-        on:click={() => handleVisualizationSelect(viz.id)}
+        onclick={() => handleVisualizationSelect(viz.id)}
       >
         {viz.label}
       </button>
