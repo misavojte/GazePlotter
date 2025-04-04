@@ -224,10 +224,16 @@
       const xPercent = Math.min(parseFloat(x), 100) // Cap at 100%
       const actualParticipantWidth =
         (participantWidthPercent / 100) * plotAreaWidth
-      return (xPercent / 100) * actualParticipantWidth
+
+      // Ensure the line is within timeline bounds
+      return Math.min(
+        actualParticipantWidth,
+        (xPercent / 100) * actualParticipantWidth
+      )
     } else {
       // Relative timeline - cap at 100% of chart width
-      return (Math.min(parseFloat(x), 100) / 100) * plotAreaWidth
+      const xPercent = Math.min(parseFloat(x), 100) // Cap at 100%
+      return (xPercent / 100) * plotAreaWidth
     }
   }
 

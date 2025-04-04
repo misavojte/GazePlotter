@@ -346,6 +346,7 @@ export function createSegmentContents(
  * @param rectWrappedHeight Height of the wrapped rectangle
  * @param lineWrappedHeight Height of the wrapped line
  * @param showAoiVisibility Whether to show AOI visibility
+ * @param timelineMax Maximum timeline value
  * @returns Array of AOI visibility objects for visualization
  */
 export function createAoiVisibility(
@@ -355,7 +356,8 @@ export function createAoiVisibility(
   sessionDuration: number,
   rectWrappedHeight: number,
   lineWrappedHeight: number,
-  showAoiVisibility: boolean
+  showAoiVisibility: boolean,
+  timelineMax: number = sessionDuration
 ): AoiVisibilityScarfFillingType[] {
   if (!showAoiVisibility) {
     return []
@@ -370,8 +372,18 @@ export function createAoiVisibility(
 
     if (visibility !== null) {
       for (let i = 0; i < visibility.length; i += 2) {
-        const start = visibility[i]
-        const end = visibility[i + 1]
+        let start = visibility[i]
+        let end = visibility[i + 1]
+
+        // Skip visibility ranges entirely outside the timeline
+        if (end <= 0 || start >= timelineMax) {
+          continue
+        }
+
+        // Crop visibility ranges partially outside the timeline
+        if (start < 0) start = 0
+        if (end > timelineMax) end = timelineMax
+
         const y = rectWrappedHeight + aoiIndex * lineWrappedHeight
 
         visibilityContent.push({
@@ -435,9 +447,19 @@ export function createParticipantData(
     const segment = getSegment(stimulusId, participantId, segmentId)
     const isOrdinal = timeline === 'ordinal'
 
-    const start = isOrdinal ? segmentId : segment.start
-    const end = isOrdinal ? segmentId + 1 : segment.end
+    let start = isOrdinal ? segmentId : segment.start
+    let end = isOrdinal ? segmentId + 1 : segment.end
 
+    // Skip segments entirely outside the timeline range
+    if (end <= 0 || start >= timelineMax) {
+      continue
+    }
+
+    // Crop segments that are partially outside the timeline range
+    if (start < 0) start = 0
+    if (end > timelineMax) end = timelineMax
+
+    // Calculate segment position as percentage
     const x = `${(start / sessionDuration) * 100}%`
     const width = `${((end - start) / sessionDuration) * 100}%`
 
@@ -471,7 +493,8 @@ export function createParticipantData(
       sessionDuration,
       rectWrappedHeight,
       lineWrappedHeight,
-      showAoiVisibility
+      showAoiVisibility,
+      timelineMax
     ),
   }
 }
