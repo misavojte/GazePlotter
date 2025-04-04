@@ -35,7 +35,6 @@
     onmouseleave?: (event: MouseEvent) => void
     onpointerdown?: (event: PointerEvent) => void
     chartWidth: number
-    absoluteZoomedWidth: number
   }
 
   // Component props using Svelte 5 $props rune
@@ -49,9 +48,9 @@
     onmouseleave = () => {},
     onpointerdown = () => {},
     chartWidth = 0,
-    absoluteZoomedWidth = 0,
   }: Props = $props()
 
+  console.log('chartWidth', chartWidth)
   // Calculate legend height based on content
   function calculateLegendHeight(): number {
     if (!data.stylingAndLegend) return LAYOUT.LEGEND_HEIGHT
@@ -107,8 +106,11 @@
   const scarfPlotAreaId = $derived(`scarf-plot-area-${settings.id}`)
 
   // SVG size calculations
-  const totalWidth = $derived(
-    LEFT_LABEL_WIDTH + absoluteZoomedWidth + LAYOUT.PADDING * 2
+  const totalWidth = $derived(chartWidth)
+
+  // Calculate actual plot area width (without label area)
+  const plotAreaWidth = $derived(
+    Math.max(0, chartWidth - LEFT_LABEL_WIDTH - LAYOUT.PADDING * 2)
   )
 
   const chartHeight = $derived(
@@ -155,7 +157,7 @@
 
   // Calculation functions for positioning elements
   function getAbsoluteX(value: number): number {
-    if (!chartWidth) return 0
+    if (!plotAreaWidth) return 0
 
     if (settings.timeline === 'ordinal') {
       // For ordinal timeline, position based on index
@@ -164,11 +166,11 @@
 
       const indexPosition = data.timeline.findIndex(v => v === value)
       return indexPosition >= 0
-        ? (indexPosition / lastIndex) * absoluteZoomedWidth
+        ? (indexPosition / lastIndex) * plotAreaWidth
         : 0
     } else {
       // For absolute and relative timelines
-      return (value / data.timeline.maxLabel) * absoluteZoomedWidth
+      return (value / data.timeline.maxLabel) * plotAreaWidth
     }
   }
 
@@ -177,23 +179,22 @@
     segmentIndex?: number,
     participantWidth?: string
   ): number {
-    if (!chartWidth) return 0
+    if (!plotAreaWidth) return 0
 
     if (settings.timeline === 'ordinal' && typeof segmentIndex === 'number') {
       // Ordinal timeline - position by segment index
       const totalSegments = data.timeline.maxLabel || 1
-      return (segmentIndex / totalSegments) * absoluteZoomedWidth
+      return (segmentIndex / totalSegments) * plotAreaWidth
     } else if (settings.timeline === 'absolute' && participantWidth) {
       // Absolute timeline - calculate based on participant width
       const participantWidthPercent = parseFloat(participantWidth)
       const segmentXPercent = parseFloat(x)
       const actualParticipantWidth =
-        (participantWidthPercent / 100) * absoluteZoomedWidth
+        (participantWidthPercent / 100) * plotAreaWidth
       return (segmentXPercent / 100) * actualParticipantWidth
     } else {
       // Relative timeline - direct percentage calculation
-      const percentage = parseFloat(x)
-      return (percentage / 100) * absoluteZoomedWidth
+      return (parseFloat(x) / 100) * plotAreaWidth
     }
   }
 
@@ -202,28 +203,27 @@
     segmentIndex?: number,
     participantWidth?: string
   ): number {
-    if (!chartWidth) return 0
+    if (!plotAreaWidth) return 0
 
     if (settings.timeline === 'ordinal' && typeof segmentIndex === 'number') {
       // Ordinal timeline - equal widths for all segments
       const totalSegments = data.timeline.maxLabel || 1
-      return absoluteZoomedWidth / totalSegments
+      return plotAreaWidth / totalSegments
     } else if (settings.timeline === 'absolute' && participantWidth) {
       // Absolute timeline - scaled by participant width
       const participantWidthPercent = parseFloat(participantWidth)
       const segmentWidthPercent = parseFloat(width)
       const actualParticipantWidth =
-        (participantWidthPercent / 100) * absoluteZoomedWidth
+        (participantWidthPercent / 100) * plotAreaWidth
       return (segmentWidthPercent / 100) * actualParticipantWidth
     } else {
       // Relative timeline - direct percentage calculation
-      const percentage = parseFloat(width)
-      return (percentage / 100) * absoluteZoomedWidth
+      return (parseFloat(width) / 100) * plotAreaWidth
     }
   }
 
   function getVisibilityLineX(x: string, participantWidth?: string): number {
-    if (!chartWidth) return 0
+    if (!plotAreaWidth) return 0
 
     if (settings.timeline === 'ordinal') {
       return 0 // Not applicable in ordinal mode
@@ -232,12 +232,11 @@
       const participantWidthPercent = parseFloat(participantWidth)
       const xPercent = Math.min(parseFloat(x), 100) // Cap at 100%
       const actualParticipantWidth =
-        (participantWidthPercent / 100) * absoluteZoomedWidth
+        (participantWidthPercent / 100) * plotAreaWidth
       return (xPercent / 100) * actualParticipantWidth
     } else {
       // Relative timeline - cap at 100% of chart width
-      const percentage = Math.min(parseFloat(x), 100)
-      return (percentage / 100) * absoluteZoomedWidth
+      return (Math.min(parseFloat(x), 100) / 100) * plotAreaWidth
     }
   }
 
@@ -321,7 +320,7 @@
           <!-- End label -->
           <SvgText
             text={data.timeline.maxLabel.toString()}
-            x={LEFT_LABEL_WIDTH + absoluteZoomedWidth}
+            x={LEFT_LABEL_WIDTH + plotAreaWidth}
             y={data.chartHeight - LAYOUT.AXIS_OFFSET}
             dominantBaseline="hanging"
             textAnchor="end"
@@ -356,9 +355,9 @@
 
           <!-- End tick -->
           <line
-            x1={LEFT_LABEL_WIDTH + absoluteZoomedWidth}
+            x1={LEFT_LABEL_WIDTH + plotAreaWidth}
             y1={data.participants.length * data.heightOfBarWrap - 0.5}
-            x2={LEFT_LABEL_WIDTH + absoluteZoomedWidth}
+            x2={LEFT_LABEL_WIDTH + plotAreaWidth}
             y2={data.participants.length * data.heightOfBarWrap +
               LAYOUT.TICK_LENGTH}
             stroke={LAYOUT.GRID_COLOR}
@@ -371,7 +370,7 @@
           <!-- Horizontal Grid Line -->
           <line
             x1={LEFT_LABEL_WIDTH}
-            x2={LEFT_LABEL_WIDTH + absoluteZoomedWidth}
+            x2={LEFT_LABEL_WIDTH + plotAreaWidth}
             y1={i * data.heightOfBarWrap + 0.5}
             y2={i * data.heightOfBarWrap + 0.5}
             stroke={LAYOUT.GRID_COLOR}
@@ -387,29 +386,21 @@
             {#each participant.segments as segment, segmentId}
               <g data-id={segmentId} data-segment="true">
                 {#each segment.content as rectangle}
+                  {@const isOrdinal = settings.timeline === 'ordinal'}
+                  {@const isAbsolute = settings.timeline === 'absolute'}
+                  {@const pWidth = isAbsolute ? participant.width : undefined}
+
                   <rect
                     class={rectangle.identifier}
                     height={rectangle.height}
                     x={LEFT_LABEL_WIDTH +
-                      (settings.timeline === 'ordinal'
+                      (isOrdinal
                         ? getSegmentX(rectangle.x, segmentId)
-                        : getSegmentX(
-                            rectangle.x,
-                            undefined,
-                            settings.timeline === 'absolute'
-                              ? participant.width
-                              : undefined
-                          ))}
+                        : getSegmentX(rectangle.x, undefined, pWidth))}
                     y={i * data.heightOfBarWrap + rectangle.y}
-                    width={settings.timeline === 'ordinal'
+                    width={isOrdinal
                       ? getSegmentWidth(rectangle.width, segmentId)
-                      : getSegmentWidth(
-                          rectangle.width,
-                          undefined,
-                          settings.timeline === 'absolute'
-                            ? participant.width
-                            : undefined
-                        )}
+                      : getSegmentWidth(rectangle.width, undefined, pWidth)}
                   />
                 {/each}
               </g>
@@ -418,30 +409,22 @@
             <!-- AOI Visibility Lines -->
             {#each participant.dynamicAoiVisibility as visibility}
               {#each visibility.content as visibilityItem}
-                <!-- Calculate maximum width for this participant WITH ZOOM -->
+                {@const isAbsolute = settings.timeline === 'absolute'}
+                {@const isOrdinal = settings.timeline === 'ordinal'}
+                {@const pWidth = isAbsolute ? participant.width : undefined}
+
+                <!-- Calculate maximum width for this participant -->
                 {@const maxWidth =
-                  settings.timeline === 'absolute' && participant.width
-                    ? (parseFloat(participant.width) / 100) *
-                      absoluteZoomedWidth
-                    : absoluteZoomedWidth}
+                  isAbsolute && participant.width
+                    ? (parseFloat(participant.width) / 100) * plotAreaWidth
+                    : plotAreaWidth}
 
                 <!-- Calculate visibility line x positions with capping -->
-                {@const x1 = getVisibilityLineX(
-                  visibilityItem.x1,
-                  settings.timeline === 'absolute'
-                    ? participant.width
-                    : undefined
-                )}
-
-                {@const x2 = getVisibilityLineX(
-                  visibilityItem.x2,
-                  settings.timeline === 'absolute'
-                    ? participant.width
-                    : undefined
-                )}
+                {@const x1 = getVisibilityLineX(visibilityItem.x1, pWidth)}
+                {@const x2 = getVisibilityLineX(visibilityItem.x2, pWidth)}
 
                 <!-- Only render if in bounds and not in ordinal mode -->
-                {#if settings.timeline !== 'ordinal' && x1 <= maxWidth && x2 <= maxWidth}
+                {#if !isOrdinal && x1 <= maxWidth && x2 <= maxWidth}
                   <line
                     class={visibilityItem.identifier}
                     x1={LEFT_LABEL_WIDTH + x1}
@@ -458,7 +441,7 @@
         <!-- Bottom Border Line -->
         <line
           x1={LEFT_LABEL_WIDTH}
-          x2={LEFT_LABEL_WIDTH + absoluteZoomedWidth}
+          x2={LEFT_LABEL_WIDTH + plotAreaWidth}
           y1={data.participants.length * data.heightOfBarWrap - 0.5}
           y2={data.participants.length * data.heightOfBarWrap - 0.5}
           stroke={LAYOUT.GRID_COLOR}
@@ -469,7 +452,7 @@
       <!-- X-Axis Label -->
       <SvgText
         text={xAxisLabel}
-        x={LEFT_LABEL_WIDTH + absoluteZoomedWidth / 2}
+        x={LEFT_LABEL_WIDTH + plotAreaWidth / 2}
         y={chartHeight + 15}
         textAnchor="middle"
         fontSize={LAYOUT.LABEL_FONT_SIZE}
@@ -511,11 +494,6 @@
     white-space: nowrap;
     overflow: hidden;
     max-width: 125px;
-  }
-
-  text {
-    font-family: sans-serif;
-    font-size: 12px;
   }
 
   .x-axis-label {

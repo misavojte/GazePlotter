@@ -62,15 +62,7 @@
   )
 
   // Available width for chart content
-  const availableWidth = $derived(
-    plotDimensions.width - LAYOUT.LEFT_LABEL_WIDTH - LAYOUT.CONTENT_PADDING
-  )
-
-  // Calculate zoom factor as a percentage
-  const zoomPercentage = $derived(100 * 2 ** settings.zoomLevel)
-
-  // Apply zoom to get the actual width for rendering
-  const zoomedContentWidth = $derived(availableWidth * (zoomPercentage / 100))
+  const chartWidth = $derived(plotDimensions.width)
 
   // Tooltip and interaction handlers
   function handleSettingsChange(newSettings: Partial<ScarfGridType>) {
@@ -204,8 +196,7 @@
       {settings}
       highlightedIdentifier={highlightedType}
       onLegendClick={handleLegendClick}
-      chartWidth={availableWidth}
-      absoluteZoomedWidth={zoomedContentWidth}
+      {chartWidth}
     />
   </div>
 </div>
