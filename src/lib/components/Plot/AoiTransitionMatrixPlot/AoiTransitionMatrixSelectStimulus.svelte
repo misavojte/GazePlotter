@@ -7,6 +7,7 @@
     settings: AoiTransitionMatrixGridType
     settingsChange?: (settings: Partial<AoiTransitionMatrixGridType>) => void
   }
+  a
 
   // Use callback props instead of event dispatching
   let { settings, settingsChange = () => {} }: Props = $props()
