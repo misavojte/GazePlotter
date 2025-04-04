@@ -294,6 +294,7 @@ export function createStylingAndLegend(
  * @param nonFixationHeight Height of non-fixation elements
  * @param spaceAboveRect Space above the rectangle
  * @param segmentCategories Array of segment categories to show
+ * @param orderId The original order ID of the segment
  * @returns Array of segment content objects for visualization
  */
 export function createSegmentContents(
@@ -303,7 +304,8 @@ export function createSegmentContents(
   barHeight = DEFAULT_BAR_HEIGHT,
   nonFixationHeight = DEFAULT_NON_FIXATION_HEIGHT,
   spaceAboveRect = DEFAULT_SPACE_ABOVE_RECT,
-  segmentCategories = DEFAULT_SEGMENT_CATEGORIES
+  segmentCategories = DEFAULT_SEGMENT_CATEGORIES,
+  orderId: number
 ): SingleSegmentScarfFillingType[] {
   // Handle non-fixation segment (e.g., saccade)
   if (segment.category.id !== 0) {
@@ -322,6 +324,7 @@ export function createSegmentContents(
         width,
         height,
         identifier: `${IDENTIFIER_IS_OTHER_CATEGORY}${typeIdentifier}`,
+        orderId,
       },
     ]
   }
@@ -335,6 +338,7 @@ export function createSegmentContents(
         width,
         height: barHeight,
         identifier: `${IDENTIFIER_IS_AOI}${IDENTIFIER_NOT_DEFINED}`,
+        orderId,
       },
     ]
   }
@@ -351,6 +355,7 @@ export function createSegmentContents(
       width,
       height,
       identifier: `${IDENTIFIER_IS_AOI}${aoi.id}`,
+      orderId,
     })
     yPosition += height
   }
@@ -558,7 +563,9 @@ export function createParticipantData(
         width,
         barHeight,
         nonFixationHeight,
-        spaceAboveRect
+        spaceAboveRect,
+        undefined, // use default segment categories
+        segmentId
       ),
     })
   }

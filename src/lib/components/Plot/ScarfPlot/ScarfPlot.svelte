@@ -99,77 +99,11 @@
     scheduleTooltipHide()
   }
 
-  // Process tooltip when hovering over a segment or participant
-  function processGElement(gElement: SVGGElement, event: MouseEvent) {
-    const segmentId = gElement.dataset.id
-    if (!segmentId) return clearAllInteractions()
-
-    // Find the participant ID using data attributes
-    let participantId = null
-    if (gElement.dataset.segment) {
-      // If this is a segment element, find its parent with data-participant
-      const participantElement = gElement.closest('[data-participant="true"]')
-      if (participantElement) {
-        participantId = participantElement.getAttribute('data-id')
-      }
-    } else if (gElement.dataset.participant) {
-      // If this is already a participant element
-      participantId = gElement.dataset.id
-    }
-
-    if (!participantId) return clearAllInteractions()
-
-    // Apply visual highlight
-    removeHighlight?.()
-    gElement.classList.add('focus')
-    removeHighlight = () => {
-      gElement.classList.remove('focus')
-    }
-
-    // Calculate tooltip position
-    const elementBottom =
-      gElement.getBoundingClientRect().bottom + window.scrollY
-    const viewportRightEdge = windowObj!.scrollX + document.body.clientWidth
-
-    const y = elementBottom + LAYOUT.TOOLTIP_OFFSET_Y
-    const x = Math.min(event.pageX, viewportRightEdge - LAYOUT.TOOLTIP_WIDTH)
-
-    // Prepare tooltip data
-    const tooltipData: ScarfTooltipFillingType = {
-      x,
-      y,
-      width: LAYOUT.TOOLTIP_WIDTH,
-      participantId: parseInt(participantId),
-      segmentId: parseInt(segmentId),
-      stimulusId: currentStimulusId,
-    }
-
-    // Show tooltip
-    clearTimeout(timeout)
-    tooltipScarfService(tooltipData)
-  }
-
   // Handle legend item clicks
   function handleLegendClick(identifier: string) {
     if (highlightedType === identifier) return
     hideTooltipAndHighlight()
     highlightedType = identifier
-  }
-
-  // Determine what to do based on mouse target
-  function handleMouseInteraction(event: MouseEvent) {
-    const target = event.target as HTMLElement
-
-    // Check if hovering over a chart element
-    const gElement = target.closest('g')
-    if (gElement) return processGElement(gElement as SVGGElement, event)
-
-    // Check if hovering over tooltip
-    const tooltip = target.closest('aside')
-    if (tooltip) return clearHighlightKeepTooltip()
-
-    // Otherwise, clear all interactions
-    clearAllInteractions()
   }
 
   // Lifecycle hooks
@@ -180,6 +114,33 @@
   onDestroy(() => {
     clearAllInteractions()
   })
+
+  function handleTooltipActivation(event: {
+    segmentOrderId: number
+    participantId: number
+    x: number
+    y: number
+  }) {
+    console.log('Tooltip activated', event)
+    // Prepare tooltip data
+    const tooltipData: ScarfTooltipFillingType = {
+      x: event.x,
+      y: event.y,
+      width: LAYOUT.TOOLTIP_WIDTH,
+      participantId: event.participantId,
+      segmentId: event.segmentOrderId,
+      stimulusId: currentStimulusId,
+    }
+
+    // Show tooltip
+    clearTimeout(timeout)
+    tooltipScarfService(tooltipData)
+  }
+
+  function handleTooltipDeactivation() {
+    clearTimeout(timeout)
+    tooltipScarfService(null)
+  }
 </script>
 
 <div class="scarf-plot-container">
@@ -189,8 +150,8 @@
 
   <div class="figure">
     <ScarfPlotFigure
-      onmouseleave={clearAllInteractions}
-      onmousemove={handleMouseInteraction}
+      onTooltipActivation={handleTooltipActivation}
+      onTooltipDeactivation={handleTooltipDeactivation}
       tooltipAreaElement={tooltipArea}
       data={scarfData}
       {settings}

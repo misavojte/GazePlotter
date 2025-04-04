@@ -4,4 +4,5 @@ export interface SingleSegmentScarfFillingType {
   y: number
   height: number
   identifier: string
+  orderId: number // Original segment order ID
 }

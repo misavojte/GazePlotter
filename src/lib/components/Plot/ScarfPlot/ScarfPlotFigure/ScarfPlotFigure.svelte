@@ -32,8 +32,18 @@
     settings: ScarfGridType
     highlightedIdentifier: string | null
     onLegendClick: (identifier: string) => void
-    onmousemove?: (event: MouseEvent) => void
-    onmouseleave?: (event: MouseEvent) => void
+    onTooltipActivation: ({
+      segmentOrderId,
+      participantId,
+      x,
+      y,
+    }: {
+      segmentOrderId: number
+      participantId: number
+      x: number
+      y: number
+    }) => void
+    onTooltipDeactivation: () => void
     onpointerdown?: (event: PointerEvent) => void
     chartWidth: number
   }
@@ -45,13 +55,12 @@
     settings,
     highlightedIdentifier = null,
     onLegendClick = () => {},
-    onmousemove = () => {},
-    onmouseleave = () => {},
+    onTooltipActivation = () => {},
+    onTooltipDeactivation = () => {},
     onpointerdown = () => {},
     chartWidth = 0,
   }: Props = $props()
 
-  console.log('chartWidth', chartWidth)
   // Calculate legend height based on content
   function calculateLegendHeight(): number {
     if (!data.stylingAndLegend) return LAYOUT.LEGEND_HEIGHT
@@ -109,6 +118,12 @@
   // SVG size calculations - MOVE THESE BEFORE RECTANGLE/LINE CALCULATIONS
   const totalWidth = $derived(chartWidth)
 
+  // Track the currently hovered segment
+  let currentHoveredSegment = $state<{
+    participantId: string | number
+    orderId: number
+  } | null>(null)
+
   // Calculate actual plot area width (without label area and with right margin)
   const plotAreaWidth = $derived(
     Math.max(
@@ -153,6 +168,7 @@
             : getSegmentWidth(rectangle.width, undefined, pWidth),
           participantId: participant.id,
           segmentId,
+          orderId: rectangle.orderId,
         }))
       )
     })
@@ -215,12 +231,6 @@
     return settings.timeline === 'ordinal'
       ? 'Order index'
       : `Elapsed time [${getTimelineUnit(settings)}]`
-  }
-
-  // Calculation functions for positioning elements
-  function getAbsoluteX(value: number): number {
-    if (!plotAreaWidth) return 0
-    return data.timeline.getPositionRatio(value) * plotAreaWidth
   }
 
   function getSegmentX(
@@ -303,6 +313,64 @@
     handleFixedHighlight(identifier)
     onLegendClick(identifier)
   }
+
+  // Custom handlers for mouse events
+  function handleMouseMove(event: MouseEvent) {
+    // Get mouse position relative to the SVG
+    const svgElement = event.currentTarget as SVGElement
+    const svgRect = svgElement.getBoundingClientRect()
+    const mouseX = event.clientX - svgRect.left
+    const mouseY = event.clientY - svgRect.top
+
+    // Find the segment under the mouse pointer using rectangleSegments data
+    const hoveredSegment = rectangleSegments.find(
+      rect =>
+        mouseX >= rect.x &&
+        mouseX <= rect.x + rect.width &&
+        mouseY >= rect.y &&
+        mouseY <= rect.y + rect.height
+    )
+
+    // If hovering over a new segment, log it
+    if (
+      hoveredSegment &&
+      (!currentHoveredSegment ||
+        hoveredSegment.participantId !== currentHoveredSegment.participantId ||
+        hoveredSegment.orderId !== currentHoveredSegment.orderId)
+    ) {
+      currentHoveredSegment = {
+        participantId: hoveredSegment.participantId,
+        orderId: hoveredSegment.orderId,
+      }
+
+      const XUnderTheRect = event.clientX + window.scrollX + 5
+      const YUnderTheRect =
+        hoveredSegment.y +
+        hoveredSegment.height +
+        svgRect.top +
+        window.scrollY +
+        5
+
+      onTooltipActivation({
+        segmentOrderId: hoveredSegment.orderId,
+        participantId: hoveredSegment.participantId,
+        x: XUnderTheRect,
+        y: YUnderTheRect,
+      })
+    } else if (!hoveredSegment && currentHoveredSegment) {
+      // If moved out of a segment but still in SVG
+      currentHoveredSegment = null
+      onTooltipDeactivation()
+    }
+  }
+
+  function handleMouseLeave() {
+    // If there was a hovered segment, log that hover has stopped
+    if (currentHoveredSegment) {
+      currentHoveredSegment = null
+      onTooltipDeactivation()
+    }
+  }
 </script>
 
 <!-- Container for dynamic styles and the plot -->
@@ -315,8 +383,8 @@
     class="scarf-plot-figure"
     width={totalWidth}
     height={totalHeight}
-    {onmousemove}
-    {onmouseleave}
+    onmousemove={handleMouseMove}
+    onmouseleave={handleMouseLeave}
     {onpointerdown}
     bind:this={tooltipAreaElement}
     data-component="scarfplot"
