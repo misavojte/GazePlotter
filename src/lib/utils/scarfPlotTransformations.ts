@@ -80,60 +80,61 @@ export function getScarfParticipantBarHeight(
 }
 
 /**
- * Calculates the maximum timeline value for the plot based on settings and participant data
+ * Calculates the timeline range for the plot based on settings and participant data
  *
  * @param participantIds Array of participant IDs to include
  * @param stimulusId ID of the stimulus to display
  * @param settings Configuration settings for the grid
- * @returns The timeline range and whether data is cut
+ * @returns The timeline range values
  */
-export function calculateTimelineMax(
+export function calculateTimelineRange(
   participantIds: number[],
   stimulusId: number,
   settings: ScarfGridType
-): {
-  minValue: number
-  maxValue: number
-  isStartCut: boolean
-  isEndCut: boolean
-} {
-  // For relative mode, we always use 0-100 as the range (percentage)
+): { minValue: number; maxValue: number } {
+  // For relative mode, we always use 0-100 range (percentage)
   if (settings.timeline === 'relative') {
-    return { minValue: 0, maxValue: 100, isStartCut: false, isEndCut: false }
+    return { minValue: 0, maxValue: 100 }
   }
 
-  // Initialize cut flags
-  const isStartCut = false
-  const isEndCut = false
-
-  // Get previously configured limits if available
   let minValue = 0
   let maxValue = 0
 
   if (settings.timeline === 'absolute') {
     // Get absolute timeline limits
-    const absoluteLimits =
-      settings.absoluteStimuliLimits[stimulusId] ??
-      settings.absoluteGeneralLimits
+    const stimulusSpecificLimits = settings.absoluteStimuliLimits?.[stimulusId]
+    const generalLimits = settings.absoluteGeneralLimits
 
-    // Use the configured start value if available
-    minValue = absoluteLimits?.[0] ?? 0
-
-    // Use the configured end value if available, otherwise determine from data
-    maxValue = absoluteLimits?.[1] ?? 0
+    // Use stimulus-specific limits if available, otherwise use general limits
+    if (
+      Array.isArray(stimulusSpecificLimits) &&
+      stimulusSpecificLimits.length === 2
+    ) {
+      ;[minValue, maxValue] = stimulusSpecificLimits
+    } else if (Array.isArray(generalLimits) && generalLimits.length === 2) {
+      ;[minValue, maxValue] = generalLimits
+    }
   } else {
+    // 'ordinal' timeline
     // Get ordinal timeline limits
-    const ordinalLimits =
-      settings.ordinalStimuliLimits[stimulusId] ?? settings.ordinalGeneralLimits
+    const stimulusSpecificLimits = settings.ordinalStimuliLimits?.[stimulusId]
+    const generalLimits = settings.ordinalGeneralLimits
 
-    // Use the configured start value if available
-    minValue = ordinalLimits?.[0] ?? 0
-
-    // Use the configured end value if available, otherwise determine from data
-    maxValue = ordinalLimits?.[1] ?? 0
+    // Use stimulus-specific limits if available, otherwise use general limits
+    if (
+      Array.isArray(stimulusSpecificLimits) &&
+      stimulusSpecificLimits.length === 2
+    ) {
+      ;[minValue, maxValue] = stimulusSpecificLimits
+    } else if (Array.isArray(generalLimits) && generalLimits.length === 2) {
+      ;[minValue, maxValue] = generalLimits
+    }
   }
 
-  // If maxValue is 0 (auto), find the highest end time among participants
+  // Ensure minValue is at least 0
+  minValue = Math.max(0, minValue)
+
+  // If maxValue is 0 (auto), calculate it from data
   if (maxValue === 0) {
     for (const participantId of participantIds) {
       const numberOfSegments = getNumberOfSegments(stimulusId, participantId)
@@ -144,18 +145,23 @@ export function calculateTimelineMax(
         if (numberOfSegments > maxValue) {
           maxValue = numberOfSegments
         }
-        continue
-      }
-
-      // For absolute mode, find the actual end time
-      const currentEndTime = getParticipantEndTime(stimulusId, participantId)
-      if (currentEndTime > maxValue) {
-        maxValue = currentEndTime
+      } else {
+        // 'absolute' timeline
+        const endTime = getParticipantEndTime(stimulusId, participantId)
+        if (endTime > maxValue) {
+          maxValue = endTime
+        }
       }
     }
   }
 
-  return { minValue, maxValue, isStartCut, isEndCut }
+  // If the calculated maxValue is less than or equal to minValue after auto-calculation,
+  // add a small buffer to ensure a valid range
+  if (maxValue <= minValue) {
+    maxValue = minValue + (settings.timeline === 'ordinal' ? 10 : 1000) // 10 segments or 1000ms
+  }
+
+  return { minValue, maxValue }
 }
 
 /**
@@ -171,7 +177,7 @@ export function createScarfPlotAxis(
   stimulusId: number,
   settings: ScarfGridType
 ): AdaptiveTimeline {
-  const { minValue, maxValue } = calculateTimelineMax(
+  const { minValue, maxValue } = calculateTimelineRange(
     participantIds,
     stimulusId,
     settings
@@ -364,7 +370,7 @@ export function createSegmentContents(
  * @param showAoiVisibility Whether to show AOI visibility
  * @param timelineMax Maximum timeline value
  * @param timelineMode The timeline mode (absolute, relative, ordinal)
- * @param timelineMin Minimum timeline value (default 0)
+ * @param timelineMin Minimum timeline value
  * @returns Array of AOI visibility objects for visualization
  */
 export function createAoiVisibility(
@@ -384,9 +390,13 @@ export function createAoiVisibility(
   }
 
   const result: AoiVisibilityScarfFillingType[] = []
+
   // Only apply timeline limits for absolute mode
   const shouldApplyLimits =
     timelineMode !== 'relative' && timelineMode !== 'ordinal'
+
+  // Calculate the visible timeline range
+  const visibleRange = timelineMax - timelineMin
 
   for (let aoiIndex = 0; aoiIndex < aoiData.length; aoiIndex++) {
     const aoiId = aoiData[aoiIndex].id
@@ -412,13 +422,22 @@ export function createAoiVisibility(
 
         const y = rectWrappedHeight + aoiIndex * lineWrappedHeight
 
-        // Calculate position and width relative to the visible range
-        const range = timelineMax - timelineMin
-        const adjustedStart = start - timelineMin
+        // Calculate position as percentage of the visible range
+        let x1: string
+        let x2: string
 
-        // Position as percentage of the viewable range
-        const x1 = `${(adjustedStart / range) * 100}%`
-        const x2 = `${((end - timelineMin) / range) * 100}%`
+        if (timelineMode === 'relative') {
+          // For relative timeline, position is calculated relative to the session duration
+          x1 = `${(start / sessionDuration) * 100}%`
+          x2 = `${(end / sessionDuration) * 100}%`
+        } else {
+          // For absolute/ordinal, position is calculated relative to the visible range
+          const adjustedStart = start - timelineMin
+          const adjustedEnd = end - timelineMin
+
+          x1 = `${(adjustedStart / visibleRange) * 100}%`
+          x2 = `${(adjustedEnd / visibleRange) * 100}%`
+        }
 
         visibilityContent.push({
           x1,
@@ -479,6 +498,10 @@ export function createParticipantData(
 
   // Create segments
   const segments: SegmentScarfFillingType[] = []
+
+  // Calculate the visible timeline range
+  const visibleRange = timelineMax - timelineMin
+
   for (let segmentId = 0; segmentId < segmentCount; segmentId++) {
     const segment = getSegment(stimulusId, participantId, segmentId)
     const isOrdinal = timeline === 'ordinal'
@@ -488,6 +511,7 @@ export function createParticipantData(
     let end = isOrdinal ? segmentId + 1 : segment.end
 
     // Skip segments entirely outside the timeline range
+    // For relative timeline, we don't apply cropping
     if (!isRelative) {
       if (end <= timelineMin || start >= timelineMax) {
         continue
@@ -498,23 +522,28 @@ export function createParticipantData(
       if (end > timelineMax) end = timelineMax
     }
 
-    // Calculate position and width relative to the viewable range
-    const range = isRelative ? sessionDuration : timelineMax - timelineMin
-    const offset = isRelative ? 0 : timelineMin
+    // Calculate position and width relative to the visible range
+    let x: string
+    let width: string
 
-    // Adjust the start position to account for the timeline minimum
-    const adjustedStart = start - offset
-    const width = end - start
+    if (isRelative) {
+      // For relative timeline, position is relative to the session duration
+      x = `${(start / sessionDuration) * 100}%`
+      width = `${((end - start) / sessionDuration) * 100}%`
+    } else {
+      // For absolute/ordinal timeline, position is relative to the visible range
+      const adjustedStart = start - timelineMin
+      const segmentWidth = end - start
 
-    // Position as percentage of the viewable range
-    const x = `${(adjustedStart / range) * 100}%`
-    const widthPct = `${(width / range) * 100}%`
+      x = `${(adjustedStart / visibleRange) * 100}%`
+      width = `${(segmentWidth / visibleRange) * 100}%`
+    }
 
     segments.push({
       content: createSegmentContents(
         segment,
         x,
-        widthPct,
+        width,
         barHeight,
         nonFixationHeight,
         spaceAboveRect
@@ -522,14 +551,14 @@ export function createParticipantData(
     })
   }
 
-  // Calculate width based on timeline type and visible range
+  // Calculate width based on timeline type
   let width: string
+
   if (timeline === 'relative') {
     width = '100%'
   } else {
-    // For absolute/ordinal, width depends on the visible timelineMax-timelineMin range
-    const visibleRange = timelineMax - timelineMin
-    width = `${(sessionDuration / visibleRange) * 100}%`
+    // For absolute/ordinal, the width depends on session duration and visible range
+    width = `${((Math.min(sessionDuration, timelineMax) - Math.max(0, timelineMin)) / visibleRange) * 100}%`
   }
 
   return {
