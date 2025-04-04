@@ -11,6 +11,7 @@
 
   interface Props {
     settings: ScarfGridType
+    store?: any
     settingsChange?: (newSettings: Partial<ScarfGridType>) => void
   }
 
@@ -26,39 +27,57 @@
     'this_stimulus'
   )
 
-  // Make sure to initialize with actual values or defaults
-  let absoluteVal = $state(
-    settings.absoluteStimuliLastVal?.[settings.stimulusId] ??
-      settings.absoluteGeneralLastVal ??
+  // Initialize start and end values for both timeline types
+  let absoluteStartVal = $state(
+    settings.absoluteStimuliLimits?.[settings.stimulusId]?.[0] ??
+      settings.absoluteGeneralLimits?.[0] ??
       0
   )
 
-  let ordinalVal = $state(
-    settings.ordinalStimuliLastVal?.[settings.stimulusId] ??
-      settings.ordinalGeneralLastVal ??
+  let absoluteEndVal = $state(
+    settings.absoluteStimuliLimits?.[settings.stimulusId]?.[1] ??
+      settings.absoluteGeneralLimits?.[1] ??
       0
   )
 
-  const handleAbsoluteValChange = (event: Event) => {
+  let ordinalStartVal = $state(
+    settings.ordinalStimuliLimits?.[settings.stimulusId]?.[0] ??
+      settings.ordinalGeneralLimits?.[0] ??
+      0
+  )
+
+  let ordinalEndVal = $state(
+    settings.ordinalStimuliLimits?.[settings.stimulusId]?.[1] ??
+      settings.ordinalGeneralLimits?.[1] ??
+      0
+  )
+
+  const handleAbsoluteStartValChange = (event: Event) => {
     const target = event.target as HTMLInputElement
-    absoluteVal = +target.value
+    absoluteStartVal = +target.value
   }
 
-  const handleOrdinalValChange = (event: Event) => {
+  const handleAbsoluteEndValChange = (event: Event) => {
     const target = event.target as HTMLInputElement
-    ordinalVal = +target.value
+    absoluteEndVal = +target.value
   }
 
-  const handleAbsoluteTimelineApplyChange = (
-    value: 'this_stimulus' | 'all_stimuli'
-  ) => {
-    absoluteTimelineApply = value
+  const handleOrdinalStartValChange = (event: Event) => {
+    const target = event.target as HTMLInputElement
+    ordinalStartVal = +target.value
   }
 
-  const handleOrdinalTimelineApplyChange = (
-    value: 'this_stimulus' | 'all_stimuli'
-  ) => {
-    ordinalTimelineApply = value
+  const handleOrdinalEndValChange = (event: Event) => {
+    const target = event.target as HTMLInputElement
+    ordinalEndVal = +target.value
+  }
+
+  const handleAbsoluteTimelineApplyChange = (value: string) => {
+    absoluteTimelineApply = value as 'this_stimulus' | 'all_stimuli'
+  }
+
+  const handleOrdinalTimelineApplyChange = (value: string) => {
+    ordinalTimelineApply = value as 'this_stimulus' | 'all_stimuli'
   }
 
   const handleSubmit = () => {
@@ -66,38 +85,66 @@
     const newSettings = { ...settings }
 
     // Initialize arrays if they don't exist
-    if (!Array.isArray(newSettings.absoluteStimuliLastVal)) {
-      newSettings.absoluteStimuliLastVal = []
+    if (!Array.isArray(newSettings.absoluteStimuliLimits)) {
+      newSettings.absoluteStimuliLimits = []
     }
 
-    if (!Array.isArray(newSettings.ordinalStimuliLastVal)) {
-      newSettings.ordinalStimuliLastVal = []
+    if (!Array.isArray(newSettings.ordinalStimuliLimits)) {
+      newSettings.ordinalStimuliLimits = []
     }
 
     if (absoluteTimelineApply === 'this_stimulus') {
-      newSettings.absoluteStimuliLastVal[settings.stimulusId] = absoluteVal
+      newSettings.absoluteStimuliLimits[settings.stimulusId] = [
+        absoluteStartVal,
+        absoluteEndVal,
+      ]
     } else {
+      // Initialize the general limits if not already set
+      if (!newSettings.absoluteGeneralLimits) {
+        newSettings.absoluteGeneralLimits = [0, 0]
+      }
+
+      // Set the general limits
+      newSettings.absoluteGeneralLimits = [absoluteStartVal, absoluteEndVal]
+
+      // Apply to all stimuli
       allStimuliId.forEach(stimulusId => {
-        newSettings.absoluteStimuliLastVal[stimulusId] = absoluteVal
+        newSettings.absoluteStimuliLimits[stimulusId] = [
+          absoluteStartVal,
+          absoluteEndVal,
+        ]
       })
     }
 
     if (ordinalTimelineApply === 'this_stimulus') {
-      newSettings.ordinalStimuliLastVal[settings.stimulusId] = ordinalVal
+      newSettings.ordinalStimuliLimits[settings.stimulusId] = [
+        ordinalStartVal,
+        ordinalEndVal,
+      ]
     } else {
+      // Initialize the general limits if not already set
+      if (!newSettings.ordinalGeneralLimits) {
+        newSettings.ordinalGeneralLimits = [0, 0]
+      }
+
+      // Set the general limits
+      newSettings.ordinalGeneralLimits = [ordinalStartVal, ordinalEndVal]
+
+      // Apply to all stimuli
       allStimuliId.forEach(stimulusId => {
-        newSettings.ordinalStimuliLastVal[stimulusId] = ordinalVal
+        newSettings.ordinalStimuliLimits[stimulusId] = [
+          ordinalStartVal,
+          ordinalEndVal,
+        ]
       })
     }
-
-    console.log('Updating settings with new values:', newSettings)
 
     // Update through the settingsChange function for component updates
     if (settingsChange) {
       settingsChange(newSettings)
     }
 
-    addSuccessToast('Clipping values updated')
+    addSuccessToast('Timeline range updated')
 
     // Close the modal after applying changes
     modalStore.close()
@@ -106,9 +153,14 @@
 
 <GeneralFieldset legend="Absolute timeline [ms]">
   <GeneralInputNumber
-    label="Last value (0 = automatic)"
-    value={absoluteVal}
-    oninput={handleAbsoluteValChange}
+    label="Start value (0 = beginning of timeline)"
+    value={absoluteStartVal}
+    oninput={handleAbsoluteStartValChange}
+  />
+  <GeneralInputNumber
+    label="End value (0 = automatic)"
+    value={absoluteEndVal}
+    oninput={handleAbsoluteEndValChange}
   />
   <GeneralRadio
     options={[
@@ -122,9 +174,14 @@
 </GeneralFieldset>
 <GeneralFieldset legend="Ordinal timeline [indices]">
   <GeneralInputNumber
-    label="Last value (0 = automatic)"
-    value={ordinalVal}
-    oninput={handleOrdinalValChange}
+    label="Start value (0 = beginning of timeline)"
+    value={ordinalStartVal}
+    oninput={handleOrdinalStartValChange}
+  />
+  <GeneralInputNumber
+    label="End value (0 = automatic)"
+    value={ordinalEndVal}
+    oninput={handleOrdinalEndValChange}
   />
   <GeneralRadio
     options={[

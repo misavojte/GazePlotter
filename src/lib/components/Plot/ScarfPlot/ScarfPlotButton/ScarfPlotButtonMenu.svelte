@@ -17,6 +17,7 @@
   import ModalContentParticipantsGroups from '$lib/components/Modal/ModalContent/ModalContentParticipantsGroups.svelte'
   import { getContext } from 'svelte'
   import type { ScarfGridType } from '$lib/type/gridType'
+  import type { SvelteComponent } from 'svelte'
 
   interface Props {
     settings: ScarfGridType
@@ -39,34 +40,53 @@
   const store = getContext<GridStoreType>('gridStore')
 
   const openClipModal = () => {
-    modalStore.open(ModalContentScarfPlotClip, 'Clip scarf timeline', {
-      settings,
-      store,
-      settingsChange,
-    })
+    modalStore.open(
+      ModalContentScarfPlotClip as unknown as typeof SvelteComponent,
+      'Clip scarf timeline',
+      {
+        settings,
+        store,
+        settingsChange,
+      }
+    )
   }
 
   const openAoiModificationModal = () => {
-    modalStore.open(ModalContentAoiModification, 'AOI customization', {
-      selectedStimulus: settings.stimulusId.toString(),
-      gridStore: store,
-    })
+    modalStore.open(
+      ModalContentAoiModification as unknown as typeof SvelteComponent,
+      'AOI customization',
+      {
+        selectedStimulus: settings.stimulusId.toString(),
+        gridStore: store,
+      }
+    )
   }
 
   const openAoiVisibilityModal = () => {
-    modalStore.open(ModalContentAoiVisibility, 'AOI visibility', {
-      settingsChange,
-    })
+    modalStore.open(
+      ModalContentAoiVisibility as unknown as typeof SvelteComponent,
+      'AOI visibility',
+      {
+        settingsChange,
+      }
+    )
   }
 
   const openUserGroupsModal = () => {
-    modalStore.open(ModalContentParticipantsGroups, 'Participants groups')
+    modalStore.open(
+      ModalContentParticipantsGroups as unknown as typeof SvelteComponent,
+      'Participants groups'
+    )
   }
 
   const downloadPlot = () => {
-    modalStore.open(ModalContentDownloadScarfPlot, 'Download scarf plot', {
-      settings,
-    })
+    modalStore.open(
+      ModalContentDownloadScarfPlot as unknown as typeof SvelteComponent,
+      'Download scarf plot',
+      {
+        settings,
+      }
+    )
   }
 
   const deleteScarf = () => {
@@ -132,7 +152,7 @@
       action: deleteScarf,
       icon: Trash,
     },
-  ] as ComponentProps<MenuButton>['items'])
+  ] as ComponentProps<typeof MenuButton>['items'])
 </script>
 
 <MenuButton {items} />
