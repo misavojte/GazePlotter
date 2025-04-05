@@ -85,8 +85,20 @@ const getAoisRawFromData = (
   )
 }
 
-// Create a derived store for AOI ID mappings
-// This will automatically update whenever the data store changes
+/**
+ * A derived Svelte store that maintains mappings from original AOI IDs to their representative IDs.
+ *
+ * This store automatically updates whenever the underlying data changes. It maps each AOI ID
+ * to the ID of the first AOI that shares the same displayed name. This allows AOIs with the
+ * same displayed name to be treated as a single group in visualizations.
+ *
+ * The mapping follows these rules:
+ * - AOIs with the same displayed name map to the ID of the first AOI with that name
+ * - AOIs with unique displayed names or empty names map to their own ID (self-mapping)
+ * - The mapping is maintained per stimulus
+ *
+ * Format: { [stimulusId]: { [aoiId]: mappedAoiId } }
+ */
 const aoiIdMappings: Readable<{
   [stimulusId: number]: { [aoiId: number]: number }
 }> = derived(data, $data => {
@@ -137,7 +149,17 @@ const aoiIdMappings: Readable<{
   return mappings
 })
 
-// Helper to get AOI ID mapping
+/**
+ * Gets the representative AOI ID for a given AOI based on the current grouping.
+ *
+ * This function uses the AOI ID mappings to determine which AOI ID should represent
+ * the given AOI in visualizations. AOIs with the same displayed name share a single
+ * representative ID (the ID of the first AOI with that name).
+ *
+ * @param stimulusId - The numeric ID of the stimulus
+ * @param aoiId - The original AOI ID
+ * @returns The mapped (representative) AOI ID, or the original ID if no mapping exists
+ */
 export const getAoiIdMapping = (stimulusId: number, aoiId: number): number => {
   const mappings = get(aoiIdMappings)
   return mappings[stimulusId]?.[aoiId] ?? aoiId
@@ -185,7 +207,13 @@ const getAoisRaw = (stimulusId: number): ExtendedInterpretedDataType[] => {
 
 /**
  * Returns all AOIs for a stimulus, including duplicates with the same displayed name.
- * This should be used in UI components that need to edit all AOIs individually.
+ *
+ * This function returns the complete set of AOIs without any grouping applied.
+ * It should be used in UI components that need to edit all AOIs individually,
+ * such as the AOI modification panel.
+ *
+ * @param stimulusId - The numeric ID of the stimulus
+ * @returns An array of all AOIs for the given stimulus
  */
 export const getAllAois = (
   stimulusId: number
@@ -196,8 +224,18 @@ export const getAllAois = (
 
 /**
  * Returns AOIs for a stimulus with groups consolidated.
- * AOIs with the same displayed name will appear as a single AOI.
- * This should be used for visualization components.
+ *
+ * This function returns a deduplicated set of AOIs where those with the same
+ * displayed name appear as a single AOI. This should be used for visualization
+ * components where grouped AOIs need to be treated as a single entity.
+ *
+ * The consolidation works as follows:
+ * 1. For each AOI ID, get its mapped (representative) ID
+ * 2. Remove duplicate mapped IDs to ensure each group appears only once
+ * 3. Return the AOI data for each unique representative ID
+ *
+ * @param stimulusId - The numeric ID of the stimulus
+ * @returns An array of deduplicated AOIs for the given stimulus
  */
 export const getAois = (stimulusId: number): ExtendedInterpretedDataType[] => {
   const aoiIds = getAoiOrderVector(stimulusId)
@@ -445,12 +483,24 @@ export const updateParticipantsGroups = (groups: ParticipantsGroup[]) => {
 
 /**
  * Returns the visibility of the AOI for the given stimulus and participant.
- * When AOIs are grouped (same displayed name), it merges visibility from all AOIs in the group.
- * Remember the AOI dynamic visibility are stored under the key "stimulusId_aoiId_participantId"
- * @param stimulusId numeric id of the stimulus
- * @param aoiId numeric id of the AOI for the given stimulus (notice that AOI ids are stimulus specific)
- * @param participantId numeric id of the participant (these are global for all stimuli)
- * @returns An array of timestamps where visibility toggles (on to off or off to on)
+ *
+ * When AOIs are grouped (same displayed name), it merges visibility data from all AOIs in the group.
+ * The visibility data consists of an array of toggle points where AOI visibility changes
+ * from visible to invisible or vice versa. The array should have an even number of elements,
+ * with each pair representing a time range (visible from first time to second time).
+ *
+ * The merging process:
+ * 1. Converts toggle points to time ranges for each AOI in the group
+ * 2. Sorts and merges overlapping ranges
+ * 3. Converts merged ranges back to toggle points
+ *
+ * This ensures that if any AOI in the group is visible at a given time,
+ * the grouped AOI will be visible at that time.
+ *
+ * @param stimulusId - Numeric ID of the stimulus
+ * @param aoiId - Numeric ID of the AOI
+ * @param participantId - Optional numeric ID of the participant (if null, global visibility is used)
+ * @returns An array of timestamps where visibility toggles (on to off or off to on), or null if no visibility data exists
  */
 export const getAoiVisibility = (
   stimulusId: number,
