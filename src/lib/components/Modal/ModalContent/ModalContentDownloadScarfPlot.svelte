@@ -22,10 +22,9 @@
   let fileName = $state('GazePlotter-ScarfPlot')
 
   // States for preview
-  let showPreview = $state(false)
-  let previewHeight = $state(0)
   let highlightedIdentifier = $state<string | null>(null)
   let tooltipAreaElement = $state<HTMLElement | SVGElement | null>(null)
+  let previewContainer = $state<HTMLDivElement | null>(null)
 
   const options = [
     { value: '.svg', label: 'SVG (recommended)' },
@@ -34,22 +33,10 @@
     { value: '.webp', label: 'WEBP' },
   ]
 
-  // Calculate preview height when showing preview
-  $effect(() => {
-    if (showPreview) {
-      // Calculate appropriate height based on data and width
-      const aspectRatio = data.chartHeight / width
-      previewHeight = Math.round(width * aspectRatio) + 150 // Add extra space for legend and labels
-    }
-  })
-
-  const handlePreview = () => {
-    showPreview = true
-  }
-
-  const handleBackToSettings = () => {
-    showPreview = false
-  }
+  // Calculate preview height based on data and width using $derived
+  const previewHeight = $derived(
+    Math.round((data.chartHeight / width) * width) + 150
+  )
 
   // Handlers for ScarfPlotFigure
   const handleLegendClick = (identifier: string) => {
@@ -60,7 +47,7 @@
   const handleTooltipActivation = () => {}
   const handleTooltipDeactivation = () => {}
 
-  // Props to pass to the ScarfPlotFigure component
+  // Props to pass to the ScarfPlotFigure component using $derived
   const scarfPlotProps = $derived({
     data,
     settings,
@@ -69,39 +56,79 @@
     onLegendClick: handleLegendClick,
     onTooltipActivation: handleTooltipActivation,
     onTooltipDeactivation: handleTooltipDeactivation,
-    chartWidth: width,
+    chartWidth: width, // Use width directly
   })
 </script>
 
-{#if !showPreview}
-  <!-- Settings Screen -->
-  <div class="settings-container">
-    <GeneralInputNumber label="Width in px" bind:value={width} />
-    <GeneralSelectBase
-      label="Output file type"
-      {options}
-      bind:value={typeOfExport}
-    />
-    <GeneralInputText label="Output file name" bind:value={fileName} />
-    <MajorButton onclick={handlePreview}>Preview</MajorButton>
+<div class="single-view-container">
+  <!-- Settings Section -->
+  <div class="settings-section">
+    <h3>Export Settings</h3>
+    <div class="settings-container">
+      <GeneralInputNumber label="Width in px" bind:value={width} />
+      <GeneralSelectBase
+        label="Output file type"
+        {options}
+        bind:value={typeOfExport}
+      />
+      <GeneralInputText label="Output file name" bind:value={fileName} />
+    </div>
   </div>
-{:else}
-  <!-- Preview Screen using the reusable component with children prop -->
-  <GeneralSvgPreview
-    {fileName}
-    fileType={typeOfExport}
-    {width}
-    height={previewHeight}
-    onBack={handleBackToSettings}
-    children={ScarfPlotFigure}
-    childProps={scarfPlotProps}
-  />
-{/if}
+
+  <!-- Preview Section -->
+  <div class="preview-section">
+    <div class="preview-heading">
+      <h3>Your exported plot</h3>
+    </div>
+    <div bind:this={previewContainer}>
+      <GeneralSvgPreview
+        {fileName}
+        fileType={typeOfExport}
+        {width}
+        height={previewHeight}
+        children={ScarfPlotFigure}
+        childProps={scarfPlotProps}
+        showDownloadButton={true}
+      />
+    </div>
+  </div>
+</div>
 
 <style>
+  .single-view-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    max-height: 80vh;
+    max-width: 830px;
+  }
+
+  .settings-section h3,
+  .preview-heading h3 {
+    margin-top: 0;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+  }
+
   .settings-container {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+  }
+
+  .download-button {
+    margin-top: 0.5rem;
+  }
+
+  .preview-section {
+    flex-grow: 1;
+    overflow: auto;
+  }
+
+  /* Responsive layout for wider screens */
+  @media (min-width: 768px) {
+    .single-view-container {
+      max-height: none;
+    }
   }
 </style>

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import MinorButton from '../GeneralButton/GeneralButtonMinor.svelte'
   import MajorButton from '../GeneralButton/GeneralButtonMajor.svelte'
   import { addErrorToast } from '$lib/stores/toastStore'
   import type { ComponentType, SvelteComponent } from 'svelte'
@@ -11,7 +10,7 @@
     width: number
     height?: number
     onDownload?: () => void
-    onBack?: () => void
+    showDownloadButton?: boolean
     children: any // Using any to avoid type conflicts
     childProps?: Record<string, any>
   }
@@ -22,7 +21,7 @@
     width,
     height = 0,
     onDownload,
-    onBack = () => {},
+    showDownloadButton = false, // default to false for integrated view
     children,
     childProps = {},
   }: Props = $props()
@@ -36,19 +35,28 @@
   let svgExtracted = $state(false)
   let svgContent = $state<string>('')
 
+  // Use a composite key that changes when any relevant prop changes
+  const componentKey = $derived(
+    `${width}-${fileType}-${JSON.stringify(childProps)}`
+  )
+
   // Determine if we need to show the canvas preview (for non-SVG formats)
   const shouldShowCanvas = $derived(fileType !== '.svg')
   const displayHeight = $derived(height || 'auto')
 
-  // Effect to handle component rendering and SVG extraction
+  // Function to extract SVG from component when the container is available
   $effect(() => {
-    if (sourceContainer) {
-      // Give the component time to render inside the hidden container
-      setTimeout(extractSvgFromComponent, 100)
+    if (sourceContainer && componentKey) {
+      // Reset extraction state when key changes
+      svgExtracted = false
+      svgContent = ''
+
+      // Delay extraction to ensure component has rendered
+      setTimeout(extractSvgFromComponent, 250)
     }
   })
 
-  // Re-render whenever format changes
+  // Function to render to canvas when needed (simpler than effect)
   $effect(() => {
     if (svgExtracted && shouldShowCanvas && canvasPreview) {
       renderSvgToCanvas()
@@ -78,10 +86,7 @@
       svgExtracted = true
       extractingSvg = false
 
-      // If we need canvas preview, trigger it
-      if (shouldShowCanvas && canvasPreview) {
-        renderSvgToCanvas()
-      }
+      // If we need canvas preview, renderSvgToCanvas will be called by the effect
     } catch (error) {
       console.error('Error extracting SVG from component', error)
       extractingSvg = false
@@ -214,60 +219,56 @@
 </script>
 
 <div class="preview-container">
-  <div class="preview-header">
-    <h3>Preview: {fileName}{fileType}</h3>
-    <p>
-      Width: {width}px
-      {#if height}
-        , Height: ~{height}px
-      {/if}
-    </p>
-  </div>
-
   <!-- Hidden container to render the original component -->
   <div class="hidden-source" bind:this={sourceContainer}>
-    <svelte:component this={children} {...childProps} />
+    <!-- Using componentKey to force re-render when relevant props change -->
+    {#key componentKey}
+      <svelte:component this={children} {...childProps} />
+    {/key}
   </div>
 
-  <div
-    class="preview-wrapper"
-    style="width: {width}px; height: {displayHeight};"
-  >
-    <!-- Extracted SVG preview (for SVG format) -->
-    {#if !shouldShowCanvas && svgExtracted}
-      <div class="svg-container" bind:this={svgContainer}>
-        {@html svgContent}
-      </div>
-    {/if}
+  <div class="overflow-container">
+    <div
+      class="preview-wrapper"
+      style="width: {width}px; height: {displayHeight};"
+    >
+      <!-- Extracted SVG preview (for SVG format) -->
+      {#if !shouldShowCanvas && svgExtracted}
+        <div class="svg-container" bind:this={svgContainer}>
+          {@html svgContent}
+        </div>
+      {/if}
 
-    <!-- Loading indicator for SVG extraction -->
-    {#if extractingSvg}
-      <div class="loading-overlay">
-        <p>Preparing SVG preview...</p>
-      </div>
-    {/if}
+      <!-- Loading indicator for SVG extraction -->
+      {#if extractingSvg}
+        <div class="loading-overlay">
+          <p>Preparing SVG preview...</p>
+        </div>
+      {/if}
 
-    <!-- Canvas preview for non-SVG formats -->
-    {#if shouldShowCanvas}
-      <div class="canvas-container">
-        <canvas bind:this={canvasPreview} {width} {height}></canvas>
-        {#if convertingToCanvas}
-          <div class="loading-overlay">
-            <p>
-              Converting to {fileType.substring(1).toUpperCase()} preview...
-            </p>
-          </div>
-        {/if}
-      </div>
-    {/if}
+      <!-- Canvas preview for non-SVG formats -->
+      {#if shouldShowCanvas}
+        <div class="canvas-container">
+          <canvas bind:this={canvasPreview} {width} {height}></canvas>
+          {#if convertingToCanvas}
+            <div class="loading-overlay">
+              <p>
+                Converting to {fileType.substring(1).toUpperCase()} preview...
+              </p>
+            </div>
+          {/if}
+        </div>
+      {/if}
+    </div>
   </div>
 
-  <div class="preview-actions">
-    {#if onBack}
-      <MinorButton onclick={onBack}>Back</MinorButton>
-    {/if}
-    <MajorButton onclick={handleDownload}>Download</MajorButton>
-  </div>
+  {#if showDownloadButton}
+    <div class="preview-actions">
+      <MajorButton onclick={handleDownload}
+        >Download {fileName}{fileType}</MajorButton
+      >
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -275,21 +276,6 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
-  }
-
-  .preview-header {
-    margin-bottom: 0.5rem;
-  }
-
-  .preview-header h3 {
-    margin: 0 0 0.5rem 0;
-    font-weight: 600;
-  }
-
-  .preview-header p {
-    margin: 0;
-    color: #666;
-    font-size: 0.9rem;
   }
 
   .preview-wrapper {
@@ -335,7 +321,13 @@
 
   .preview-actions {
     display: flex;
-    justify-content: space-between;
+    justify-content: start;
     margin-top: 0.5rem;
+  }
+
+  .overflow-container {
+    overflow: auto;
+    max-height: 80vh;
+    max-width: 100%;
   }
 </style>
