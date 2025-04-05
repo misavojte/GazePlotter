@@ -244,7 +244,11 @@
 
 <div class="scarf-plot-container">
   <div class="header">
-    <ScarfPlotHeader {settings} settingsChange={handleSettingsChange} />
+    <ScarfPlotHeader
+      {settings}
+      {scarfData}
+      settingsChange={handleSettingsChange}
+    />
   </div>
 
   <div class="figure">

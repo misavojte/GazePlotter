@@ -18,8 +18,9 @@
   import { getContext } from 'svelte'
   import type { ScarfGridType } from '$lib/type/gridType'
   import type { SvelteComponent } from 'svelte'
-
+  import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType'
   interface Props {
+    scarfData: ScarfFillingType
     settings: ScarfGridType
     multipleSettings?: ScarfGridType[]
     settingsChange?: (newSettings: Partial<ScarfGridType>) => void
@@ -27,6 +28,7 @@
 
   let {
     settings,
+    scarfData,
     multipleSettings = [],
     settingsChange = () => {},
   }: Props = $props()
@@ -85,6 +87,7 @@
       'Download scarf plot',
       {
         settings,
+        data: scarfData,
       }
     )
   }
