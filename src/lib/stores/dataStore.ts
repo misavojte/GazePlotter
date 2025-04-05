@@ -504,14 +504,6 @@ export const updateParticipantsGroups = (groups: ParticipantsGroup[]) => {
  * from visible to invisible or vice versa. The array should have an even number of elements,
  * with each pair representing a time range (visible from first time to second time).
  *
- * The merging process:
- * 1. Converts toggle points to time ranges for each AOI in the group
- * 2. Sorts and merges overlapping ranges
- * 3. Converts merged ranges back to toggle points
- *
- * This ensures that if any AOI in the group is visible at a given time,
- * the grouped AOI will be visible at that time.
- *
  * @param stimulusId - Numeric ID of the stimulus
  * @param aoiId - Numeric ID of the AOI
  * @param participantId - Optional numeric ID of the participant (if null, global visibility is used)
@@ -570,47 +562,55 @@ export const getAoiVisibility = (
         }
       }
 
+      console.log('allVisibilities', allVisibilities)
+
       // If we have multiple visibility arrays to merge
-      if (allVisibilities.length > 1) {
-        // Convert toggle points to ranges for proper merging
-        const visibilityRanges: [number, number][] = []
+      if (allVisibilities.length > 0) {
+        // Convert each visibility array to ranges (start, end)
+        const ranges: Array<[number, number]> = []
 
-        for (const toggles of allVisibilities) {
-          if (!toggles || toggles.length === 0) continue
+        for (const visibility of allVisibilities) {
+          if (!visibility || visibility.length === 0) continue
 
-          // Sort toggles just in case
-          const sortedToggles = [...toggles].sort((a, b) => a - b)
+          // Make sure the visibility array is sorted
+          const sortedVisibility = [...visibility].sort((a, b) => a - b)
 
-          // Convert toggle points to ranges
-          for (let i = 0; i < sortedToggles.length; i += 2) {
-            const start = sortedToggles[i]
-            // If we have an odd number of toggles, use Infinity as the end of the last range
+          // Process toggle points into ranges
+          for (let i = 0; i < sortedVisibility.length; i += 2) {
+            const start = sortedVisibility[i]
+            // If we have an odd number of toggles, use a very large number as the end
             const end =
-              i + 1 < sortedToggles.length ? sortedToggles[i + 1] : Infinity
-            visibilityRanges.push([start, end])
+              i + 1 < sortedVisibility.length
+                ? sortedVisibility[i + 1]
+                : Number.MAX_SAFE_INTEGER
+
+            ranges.push([start, end])
           }
         }
 
-        if (visibilityRanges.length === 0) {
+        if (ranges.length === 0) {
           return null
         }
 
         // Sort ranges by start time
-        visibilityRanges.sort((a, b) => a[0] - b[0])
+        ranges.sort((a, b) => a[0] - b[0])
 
         // Merge overlapping ranges
-        const mergedRanges: [number, number][] = []
-        let currentRange = visibilityRanges[0]
+        const mergedRanges: Array<[number, number]> = []
+        let currentRange = ranges[0]
 
-        for (let i = 1; i < visibilityRanges.length; i++) {
-          const nextRange = visibilityRanges[i]
+        for (let i = 1; i < ranges.length; i++) {
+          const nextRange = ranges[i]
 
-          // If ranges overlap or are adjacent
-          if (nextRange[0] <= currentRange[1]) {
-            // Extend current range if next range ends later
+          // Check for overlap or adjacency (considering floating point precision)
+          if (
+            nextRange[0] <= currentRange[1] ||
+            Math.abs(nextRange[0] - currentRange[1]) < 1e-10
+          ) {
+            // Extend current range if needed
             currentRange[1] = Math.max(currentRange[1], nextRange[1])
           } else {
-            // No overlap, add current range to results and move to next
+            // No overlap, add current range and move to next
             mergedRanges.push([...currentRange])
             currentRange = nextRange
           }
@@ -623,8 +623,8 @@ export const getAoiVisibility = (
         const mergedToggles: number[] = []
         for (const [start, end] of mergedRanges) {
           mergedToggles.push(start)
-          // Only add end toggle point if it's not Infinity
-          if (end !== Infinity) {
+          // Only add end toggle if it's not "infinity"
+          if (end < Number.MAX_SAFE_INTEGER) {
             mergedToggles.push(end)
           }
         }
