@@ -4,6 +4,7 @@
   import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
   import GeneralSelectBase from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
+  import GeneralInfoCallout from '$lib/components/General/GeneralInfoCallout/GeneralInfoCallout.svelte'
   import {
     getAllAois,
     getStimuli,
@@ -209,12 +210,20 @@
 </script>
 
 <div class="content">
+  <GeneralInfoCallout
+    title="AOI Grouping Tip"
+    maxWidth="400px"
+    paragraphs={[
+      'AOIs with identical displayed names will be treated as a single group in visualizations. To create groups, give multiple AOIs the same displayed name. The color of the first AOI with each name will be used for the entire group.',
+    ]}
+  ></GeneralInfoCallout>
   <GeneralSelectBase
     label="For stimulus"
     options={stimuliOption}
     bind:value={selectedStimulus}
   />
 </div>
+
 {#if aoiObjects.length === 0}
   <GeneralEmpty message="No AOIs found in stimulus" />
 {/if}
