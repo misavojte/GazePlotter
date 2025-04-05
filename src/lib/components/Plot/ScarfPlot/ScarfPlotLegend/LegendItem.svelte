@@ -14,6 +14,8 @@
     textPadding?: number
     type?: 'rect' | 'line'
     onClick: (identifier: string) => void
+    highlighted?: boolean
+    anyHighlightActive?: boolean
   }
 
   let {
@@ -29,22 +31,60 @@
     textPadding = 8,
     type = 'rect',
     onClick,
+    highlighted = false,
+    anyHighlightActive = false,
   }: Props = $props()
 
   // Function to truncate legend text
   const truncateText = (text: string, maxLength = 12) => {
     return text.length > maxLength ? text.slice(0, maxLength - 3) + '...' : text
   }
+
+  // Calculate styles based on highlight state
+  const highlightStyles = $derived.by(() => {
+    if (highlighted) {
+      return {
+        bgFill: 'rgba(0, 0, 0, 0.05)',
+        textWeight: 'bold',
+        rectStroke: '#333333',
+        rectStrokeWidth: 1,
+        lineStrokeWidth: 3,
+        opacity: 1.0,
+      }
+    } else if (anyHighlightActive) {
+      return {
+        bgFill: 'transparent',
+        textWeight: 'normal',
+        rectStroke: 'none',
+        rectStrokeWidth: 0,
+        lineStrokeWidth: 2,
+        opacity: 0.15,
+      }
+    } else {
+      return {
+        bgFill: 'transparent',
+        textWeight: 'normal',
+        rectStroke: 'none',
+        rectStrokeWidth: 0,
+        lineStrokeWidth: 2,
+        opacity: 1.0,
+      }
+    }
+  })
 </script>
 
-<g class="legend-item {identifier}" on:click={() => onClick(identifier)}>
+<g
+  class="legend-item {identifier}"
+  class:highlighted
+  on:click={() => onClick(identifier)}
+>
   <rect
     {x}
     {y}
     class="legend-item-bg"
     width={fixedItemWidth}
     height={itemHeight}
-    fill="transparent"
+    fill={highlightStyles.bgFill}
     rx="2"
   />
 
@@ -56,6 +96,9 @@
       width={iconWidth}
       {height}
       fill={color}
+      stroke={highlightStyles.rectStroke}
+      stroke-width={highlightStyles.rectStrokeWidth}
+      opacity={highlightStyles.opacity}
     />
   {:else}
     <line
@@ -64,17 +107,21 @@
       x2={x + iconWidth}
       y2={y + itemHeight / 2}
       stroke={color}
-      stroke-width="2px"
+      stroke-width={highlightStyles.lineStrokeWidth}
+      opacity={highlightStyles.opacity}
       class={identifier}
     />
   {/if}
 
-  <SvgText
-    text={truncateText(name)}
-    x={x + iconWidth + textPadding}
-    y={y + itemHeight - 4}
-    fontSize="12px"
-  />
+  <g opacity={highlightStyles.opacity}>
+    <SvgText
+      text={truncateText(name)}
+      x={x + iconWidth + textPadding}
+      y={y + itemHeight - 4}
+      fontSize="12px"
+      fontWeight={highlightStyles.textWeight}
+    />
+  </g>
 </g>
 
 <style>
@@ -83,6 +130,10 @@
   }
 
   .legend-item:hover .legend-item-bg {
+    fill: rgba(0, 0, 0, 0.05);
+  }
+
+  .highlighted .legend-item-bg {
     fill: rgba(0, 0, 0, 0.05);
   }
 </style>

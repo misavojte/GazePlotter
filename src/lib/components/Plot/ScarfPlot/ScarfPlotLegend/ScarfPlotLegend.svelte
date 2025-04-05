@@ -10,6 +10,7 @@
     itemsPerRow?: number
     x?: number
     y?: number
+    highlightedIdentifier?: string | null
   }
 
   let {
@@ -20,6 +21,7 @@
     itemsPerRow = 0,
     x = 0,
     y = 0,
+    highlightedIdentifier = null,
   }: Props = $props()
 
   // Constants for SVG layout
@@ -128,6 +130,7 @@
     textPadding={LAYOUT.TEXT_PADDING}
     type="rect"
     onItemClick={onlegendIdentifier}
+    {highlightedIdentifier}
   />
 
   <!-- Non-fixations Group -->
@@ -146,6 +149,7 @@
     textPadding={LAYOUT.TEXT_PADDING}
     type="rect"
     onItemClick={onlegendIdentifier}
+    {highlightedIdentifier}
   />
 
   <!-- AOI Visibility Group - Only shown if there are visibility items -->
@@ -165,6 +169,7 @@
       textPadding={LAYOUT.TEXT_PADDING}
       type="line"
       onItemClick={onlegendIdentifier}
+      {highlightedIdentifier}
     />
   {/if}
 </svg>

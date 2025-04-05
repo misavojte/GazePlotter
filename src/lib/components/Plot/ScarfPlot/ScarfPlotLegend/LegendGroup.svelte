@@ -18,6 +18,7 @@
     textPadding?: number
     type?: 'rect' | 'line'
     onItemClick: (identifier: string) => void
+    highlightedIdentifier?: string | null
   }
 
   let {
@@ -35,6 +36,7 @@
     textPadding = 8,
     type = 'rect',
     onItemClick,
+    highlightedIdentifier = null,
   }: Props = $props()
 
   // Calculate width for the group
@@ -73,6 +75,8 @@
         {textPadding}
         {type}
         onClick={onItemClick}
+        highlighted={item.identifier === highlightedIdentifier}
+        anyHighlightActive={highlightedIdentifier !== null}
       />
     {/each}
   </g>

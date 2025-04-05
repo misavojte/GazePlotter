@@ -636,6 +636,7 @@
         itemsPerRow={0}
         x={LAYOUT.PADDING}
         y={chartHeight + LAYOUT.AXIS_LABEL_HEIGHT}
+        highlightedIdentifier={usedHighlight}
       />
     {/if}
   </svg>
