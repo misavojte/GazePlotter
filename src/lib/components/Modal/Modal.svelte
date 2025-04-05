@@ -67,7 +67,6 @@
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
-      in:fly
     >
       <div class="modal-header">
         <h3 id="modal-title">{modal.title}</h3>

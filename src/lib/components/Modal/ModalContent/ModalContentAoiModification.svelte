@@ -16,7 +16,6 @@
     addSuccessToast,
   } from '$lib/stores/toastStore'
   import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType'
-  import { onMount } from 'svelte'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'
   import GeneralPositionControl from '$lib/components/General/GeneralPositionControl/GeneralPositionControl.svelte'
@@ -36,7 +35,6 @@
     gridStore,
   }: Props = $props()
 
-  // Pure functions for AOI manipulation
   const isValidMatch = (displayedName: string): boolean =>
     typeof displayedName === 'string' &&
     displayedName.trim() !== '' &&
@@ -47,7 +45,6 @@
   ): ExtendedInterpretedDataType[] => {
     const nameGroups = new Map()
 
-    // Find first occurrences of valid displayed names
     aois.forEach((aoi, index) => {
       if (
         isValidMatch(aoi.displayedName) &&
@@ -60,7 +57,6 @@
       }
     })
 
-    // Group AOIs by validity and matching names
     const ungroupedAois = aois.filter(
       aoi =>
         !isValidMatch(aoi.displayedName) || !nameGroups.has(aoi.displayedName)
@@ -89,7 +85,6 @@
 
     const firstGroupIndex = aois.indexOf(groupedAois[0])
     const currentIndex = aois.indexOf(aoi)
-    const newAois = [...aois]
 
     if (direction === 'up' && currentIndex > 0) {
       if (groupedAois.length === 1) {
@@ -149,24 +144,38 @@
       }
     }
 
-    return newAois
+    return aois
   }
 
-  // Reactive declarations
-  let aoiObjects: ExtendedInterpretedDataType[] = $state([])
+  const deepCopyAois = (
+    aois: ExtendedInterpretedDataType[]
+  ): ExtendedInterpretedDataType[] =>
+    aois.map(aoi => ({
+      id: aoi.id,
+      originalName: aoi.originalName,
+      displayedName: aoi.displayedName,
+      color: aoi.color,
+    }))
 
-  run(() => {
-    aoiObjects = getAllAois(parseInt(selectedStimulus))
+  const rawAois = getAllAois(parseInt(selectedStimulus))
+  let aoiObjects: ExtendedInterpretedDataType[] = $state(deepCopyAois(rawAois))
+  let lastSelectedStimulus = $state(selectedStimulus)
+
+  $effect(() => {
+    if (selectedStimulus !== lastSelectedStimulus) {
+      const rawAois = getAllAois(parseInt(selectedStimulus))
+      aoiObjects = deepCopyAois(rawAois)
+      lastSelectedStimulus = selectedStimulus
+    }
   })
 
-  run(() => {
+  $effect(() => {
     const reorderedResult = reorderAois([...aoiObjects])
     if (JSON.stringify(reorderedResult) !== JSON.stringify(aoiObjects)) {
       aoiObjects = reorderedResult
     }
   })
 
-  // Event handlers
   const handleObjectPositionUp = (aoi: ExtendedInterpretedDataType) => {
     aoiObjects = moveItem(aoiObjects, aoi, 'up')
   }
@@ -186,27 +195,30 @@
       handlerTypeMap[userSelected as keyof typeof handlerTypeMap]
 
     try {
-      updateMultipleAoi(aoiObjects, parseInt(selectedStimulus), handlerType)
+      const aoiObjectsCopy = deepCopyAois(aoiObjects)
+      updateMultipleAoi(aoiObjectsCopy, parseInt(selectedStimulus), handlerType)
       addSuccessToast('AOIs updated successfully')
+
       if (handlerType !== 'this_stimulus') {
         addInfoToast('Ordering of AOIs is not updated for other stimuli')
       }
-      gridStore.set(get(gridStore))
+
+      // Use a requestAnimationFrame instead of setTimeout to ensure UI updates properly
+      requestAnimationFrame(() => {
+        const refreshedAois = getAllAois(parseInt(selectedStimulus))
+        aoiObjects = deepCopyAois(refreshedAois)
+        gridStore.set(get(gridStore))
+      })
     } catch (e) {
       console.error(e)
       addErrorToast('Error while updating AOIs. See console for more details.')
     }
   }
 
-  // Initialize
   const stimuliOption = getStimuli().map(stimulus => ({
     label: stimulus.displayedName,
     value: stimulus.id.toString(),
   }))
-
-  onMount(() => {
-    aoiObjects = getAllAois(parseInt(selectedStimulus))
-  })
 </script>
 
 <div class="content">
@@ -239,7 +251,11 @@
     </thead>
     <tbody>
       {#each aoiObjects as aoi (aoi.id + selectedStimulus)}
-        <tr class="gr-line" animate:flip in:fade>
+        <tr
+          class="gr-line"
+          animate:flip={{ duration: 250 }}
+          in:fade={{ duration: 200 }}
+        >
           <td class="original-name">{aoi.originalName}</td>
           <td>
             <input

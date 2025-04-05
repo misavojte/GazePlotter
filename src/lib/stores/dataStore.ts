@@ -66,6 +66,8 @@ const getAoiRaw = (
   const originalName = aoiArray[0]
   const displayedName = aoiArray[1] ?? originalName
   const color = aoiArray[2] ?? getDefaultColor(aoiId)
+
+  // Return a new object to ensure no reference sharing
   return {
     id: aoiId,
     originalName,
@@ -80,6 +82,7 @@ const getAoisRawFromData = (
   dataSnapshot: DataType
 ): ExtendedInterpretedDataType[] => {
   const aoiIds = getAoiOrderVectorFromData(stimulusId, dataSnapshot)
+  // Create a new array with each AOI to prevent reference sharing
   return aoiIds.map((aoiId: number) =>
     getAoiRaw(stimulusId, aoiId, dataSnapshot)
   )
@@ -212,6 +215,8 @@ const getAoisRaw = (stimulusId: number): ExtendedInterpretedDataType[] => {
  * It should be used in UI components that need to edit all AOIs individually,
  * such as the AOI modification panel.
  *
+ * Each AOI is returned as a new object to prevent reference sharing.
+ *
  * @param stimulusId - The numeric ID of the stimulus
  * @returns An array of all AOIs for the given stimulus
  */
@@ -219,7 +224,17 @@ export const getAllAois = (
   stimulusId: number
 ): ExtendedInterpretedDataType[] => {
   const aoiIds = getAoiOrderVector(stimulusId)
-  return aoiIds.map((aoiId: number) => getAoiRaw(stimulusId, aoiId, getData()))
+  // Create a new array with deep-copied AOIs
+  return aoiIds.map((aoiId: number) => {
+    const aoi = getAoiRaw(stimulusId, aoiId, getData())
+    // Explicitly create a new object to prevent reference sharing
+    return {
+      id: aoi.id,
+      originalName: aoi.originalName,
+      displayedName: aoi.displayedName,
+      color: aoi.color,
+    }
+  })
 }
 
 /**
@@ -669,74 +684,168 @@ export const updateMultipleAoiVisibility = (
   })
 }
 
+/**
+ * Updates multiple AOIs for a stimulus with optional propagation to other stimuli.
+ *
+ * @param aois - Array of AOIs with updated properties
+ * @param stimulusId - ID of the stimulus to update
+ * @param applyTo - Strategy for applying changes:
+ *   - 'this_stimulus': Only update the specified stimulus
+ *   - 'all_by_original_name': Update AOIs with matching original names across all stimuli
+ *   - 'all_by_displayed_name': Update AOIs with matching displayed names across all stimuli
+ */
 export const updateMultipleAoi = (
-  aoi: ExtendedInterpretedDataType[],
+  aois: ExtendedInterpretedDataType[],
   stimulusId: number,
   applyTo: 'this_stimulus' | 'all_by_original_name' | 'all_by_displayed_name'
 ): void => {
-  console.log('updateMultipleAoi', aoi)
-  data.update(data => {
-    if (data.aois.data[stimulusId] === undefined) {
-      throw new Error(
-        `Stimulus with id ${stimulusId} does not exist in AOIs data`
-      )
-    }
-    if (aoi.length !== data.aois.data[stimulusId].length) {
-      throw new Error(
-        `Number of AOIs in stimulus with id ${stimulusId} does not match number of AOIs in given array`
-      )
-    }
-    aoi.forEach(aoi => {
-      const aoiArray = [aoi.originalName, aoi.displayedName, aoi.color]
-      if (data.aois.data[stimulusId][aoi.id] === undefined) {
-        throw new Error(
-          `AOI with id ${aoi.id} does not exist in stimulus with id ${stimulusId}`
-        )
+  console.log('updateMultipleAoi', { aois, stimulusId, applyTo })
+
+  // Get current data state
+  const currentState = get(data)
+
+  // Validate inputs
+  if (!currentState.aois.data[stimulusId]) {
+    throw new Error(
+      `Stimulus with id ${stimulusId} does not exist in AOIs data`
+    )
+  }
+
+  // Create a brand new deep copy to avoid any reference issues
+  const newState = structuredClone(currentState)
+
+  // EXTREME ISOLATION FOR SINGLE STIMULUS UPDATES
+  if (applyTo === 'this_stimulus') {
+    // Create an entirely new data object for this specific stimulus
+    const newAoiData = [...newState.aois.data]
+
+    // Create a new array for this specific stimulus
+    newAoiData[stimulusId] = [...newAoiData[stimulusId]]
+
+    // Update each AOI in isolation
+    aois.forEach(aoi => {
+      if (aoi.id >= 0 && aoi.id < newAoiData[stimulusId].length) {
+        // Create a brand new array for each AOI to ensure complete isolation
+        newAoiData[stimulusId][aoi.id] = [
+          aoi.originalName,
+          aoi.displayedName,
+          aoi.color,
+        ]
       }
-      data.aois.data[stimulusId][aoi.id] = aoiArray
     })
-    // Update order vector, only for this stimulus
-    data.aois.orderVector[stimulusId] = aoi.map(aoi => aoi.id)
 
-    if (applyTo === 'all_by_original_name') {
-      const originalNames = aoi.map(aoi => aoi.originalName)
-      const displayedNames = aoi.map(aoi => aoi.displayedName)
-      const colors = aoi.map(aoi => aoi.color)
-      const noOfStimuli = data.stimuli.data.length
-      for (let stimulusId = 0; stimulusId < noOfStimuli; stimulusId++) {
-        const aois = data.aois.data[stimulusId]
-        for (const aoi of aois) {
-          if (aoi === undefined) continue
-          const originalName = aoi[0]
-          if (originalNames.includes(originalName)) {
-            const index = originalNames.indexOf(originalName)
-            aoi[1] = displayedNames[index]
-            aoi[2] = colors[index]
-          }
-        }
-        // No need to manually update mappings anymore
-      }
-    }
-    if (applyTo === 'all_by_displayed_name') {
-      const displayedNames = aoi.map(aoi => aoi.displayedName)
-      const colors = aoi.map(aoi => aoi.color)
-      const noOfStimuli = data.stimuli.data.length
-      for (let stimulusId = 0; stimulusId < noOfStimuli; stimulusId++) {
-        const aois = data.aois.data[stimulusId]
-        for (const aoi of aois) {
-          if (aoi === undefined) continue
-          const displayedName = aoi[1]
-          if (displayedNames.includes(displayedName)) {
-            const index = displayedNames.indexOf(displayedName)
-            aoi[1] = displayedNames[index]
-            aoi[2] = colors[index]
-          }
-        }
-        // No need to manually update mappings anymore
-      }
+    // Update order vector
+    const newOrderVector = { ...newState.aois.orderVector }
+    newOrderVector[stimulusId] = [...aois.map(aoi => aoi.id)]
+
+    // Create a completely new state object
+    const finalState = {
+      ...newState,
+      aois: {
+        ...newState.aois,
+        data: newAoiData,
+        orderVector: newOrderVector,
+      },
     }
 
-    // No need to manually update mappings anymore, as the derived store will handle it
-    return data
-  })
+    // Set the entire state at once
+    data.set(finalState)
+    return
+  }
+
+  // Handle 'all_by_original_name' and 'all_by_displayed_name' cases
+  if (applyTo === 'all_by_original_name') {
+    // Create lookup maps for names to values
+    const originalNameToValues = new Map<
+      string,
+      { displayedName: string; color: string }
+    >()
+
+    // Populate maps with values from the target stimulus
+    aois.forEach(aoi => {
+      originalNameToValues.set(aoi.originalName, {
+        displayedName: aoi.displayedName,
+        color: aoi.color,
+      })
+    })
+
+    // Update the target stimulus first
+    aois.forEach(aoi => {
+      newState.aois.data[stimulusId][aoi.id] = [
+        aoi.originalName,
+        aoi.displayedName,
+        aoi.color,
+      ]
+    })
+
+    // Update order vector
+    newState.aois.orderVector[stimulusId] = [...aois.map(aoi => aoi.id)]
+
+    // Then update other stimuli based on original name
+    for (let i = 0; i < newState.stimuli.data.length; i++) {
+      if (i === stimulusId) continue // Skip the already updated stimulus
+
+      const stimAois = newState.aois.data[i]
+      if (!stimAois) continue
+
+      for (let j = 0; j < stimAois.length; j++) {
+        const aoiArray = stimAois[j]
+        if (!aoiArray) continue
+
+        const originalName = aoiArray[0]
+        const values = originalNameToValues.get(originalName)
+
+        if (values) {
+          // Create a new array to ensure no reference sharing
+          stimAois[j] = [originalName, values.displayedName, values.color]
+        }
+      }
+    }
+  } else if (applyTo === 'all_by_displayed_name') {
+    // Create lookup for displayed names to colors
+    const displayedNameToColor = new Map<string, string>()
+
+    // Populate lookup
+    aois.forEach(aoi => {
+      if (aoi.displayedName && aoi.displayedName.trim() !== '') {
+        displayedNameToColor.set(aoi.displayedName, aoi.color)
+      }
+    })
+
+    // Update the target stimulus first
+    aois.forEach(aoi => {
+      newState.aois.data[stimulusId][aoi.id] = [
+        aoi.originalName,
+        aoi.displayedName,
+        aoi.color,
+      ]
+    })
+
+    // Update order vector
+    newState.aois.orderVector[stimulusId] = [...aois.map(aoi => aoi.id)]
+
+    // Then update other stimuli based on displayed name
+    for (let i = 0; i < newState.stimuli.data.length; i++) {
+      if (i === stimulusId) continue // Skip the already updated stimulus
+
+      const stimAois = newState.aois.data[i]
+      if (!stimAois) continue
+
+      for (let j = 0; j < stimAois.length; j++) {
+        const aoiArray = stimAois[j]
+        if (!aoiArray) continue
+
+        const displayedName = aoiArray[1] || aoiArray[0] // Fallback to original name
+        const color = displayedNameToColor.get(displayedName)
+
+        if (color) {
+          // Create a new array with the updated color but preserving other fields
+          stimAois[j] = [aoiArray[0], aoiArray[1], color]
+        }
+      }
+    }
+  }
+
+  // Set the entire state at once
+  data.set(newState)
 }
