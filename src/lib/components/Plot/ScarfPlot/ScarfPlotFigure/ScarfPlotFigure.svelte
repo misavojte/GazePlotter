@@ -2,7 +2,6 @@
 <script lang="ts">
   import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType'
   import type { ScarfGridType } from '$lib/type/gridType'
-  import { generateScarfPlotCSS } from '$lib/utils/scarfPlotTransformations'
   import { addInfoToast } from '$lib/stores/toastStore'
   import ScarfPlotLegend from '$lib/components/Plot/ScarfPlot/ScarfPlotLegend/ScarfPlotLegend.svelte'
   import SvgText from '$lib/components/Plot/SvgText.svelte'
@@ -146,6 +145,106 @@
     chartHeight + LAYOUT.AXIS_LABEL_HEIGHT + legendHeight
   )
 
+  // Style lookup maps for efficient style access - O(1) instead of O(n)
+  const rectStyleMap = $derived.by(() => {
+    if (!data.stylingAndLegend) return new Map()
+
+    const map = new Map()
+
+    // Pre-compute all rectangle styles (AOI and category)
+    ;[...data.stylingAndLegend.aoi, ...data.stylingAndLegend.category].forEach(
+      style => {
+        map.set(style.identifier, { fill: style.color })
+      }
+    )
+
+    return map
+  })
+
+  const lineStyleMap = $derived.by(() => {
+    if (!data.stylingAndLegend) return new Map()
+
+    const map = new Map()
+
+    // Pre-compute all line styles (visibility)
+    data.stylingAndLegend.visibility.forEach(style => {
+      map.set(style.identifier, {
+        stroke: style.color,
+        strokeWidth: style.height,
+        strokeDasharray: '1',
+      })
+    })
+
+    return map
+  })
+
+  // Helper functions for calculating styles - now with O(1) lookups
+  function getStyleForRect(
+    identifier: string,
+    isHighlighted: boolean
+  ): { fill: string; opacity?: number; stroke?: string; strokeWidth?: number } {
+    // Get pre-computed style or fallback
+    const baseStyle = rectStyleMap.get(identifier) || { fill: '#ccc' }
+
+    // Apply highlighting effects
+    if (usedHighlight) {
+      if (identifier === usedHighlight) {
+        // This is the highlighted element
+        return {
+          ...baseStyle,
+          stroke: '#333333',
+          strokeWidth: 0.5,
+        }
+      } else {
+        // This is not the highlighted element
+        return {
+          ...baseStyle,
+          opacity: 0.15,
+        }
+      }
+    }
+
+    return baseStyle
+  }
+
+  function getStyleForLine(
+    identifier: string,
+    isHighlighted: boolean
+  ): {
+    stroke: string
+    strokeWidth: number
+    opacity?: number
+    strokeDasharray?: string
+    strokeLinecap?: 'butt' | 'inherit' | 'round' | 'square' | null
+  } {
+    // Get pre-computed style or fallback
+    const baseStyle = lineStyleMap.get(identifier) || {
+      stroke: '#ccc',
+      strokeWidth: 1,
+    }
+
+    // Apply highlighting effects
+    if (usedHighlight) {
+      if (identifier === usedHighlight) {
+        // This is the highlighted element
+        return {
+          stroke: baseStyle.stroke,
+          strokeWidth: 3,
+          strokeLinecap: 'butt',
+          strokeDasharray: 'none',
+        }
+      } else {
+        // This is not the highlighted element
+        return {
+          ...baseStyle,
+          opacity: 0.15,
+        }
+      }
+    }
+
+    return baseStyle
+  }
+
   // Separate derived stores for rectangle and line segments
   const rectangleSegments = $derived.by(() => {
     // Guard against plotAreaWidth not being initialized
@@ -158,22 +257,31 @@
       const y0 = participantIndex * data.heightOfBarWrap
 
       return participant.segments.flatMap((segment, segmentId) =>
-        segment.content.map(rectangle => ({
-          className: rectangle.identifier,
-          height: rectangle.height,
-          x:
-            LEFT_LABEL_WIDTH +
-            (isOrdinal
-              ? getSegmentX(rectangle.x, segmentId)
-              : getSegmentX(rectangle.x, undefined, pWidth)),
-          y: y0 + rectangle.y,
-          width: isOrdinal
-            ? getSegmentWidth(rectangle.width, segmentId)
-            : getSegmentWidth(rectangle.width, undefined, pWidth),
-          participantId: participant.id,
-          segmentId,
-          orderId: rectangle.orderId,
-        }))
+        segment.content.map(rectangle => {
+          const identifier = rectangle.identifier
+          const isHighlighted = identifier === usedHighlight
+          const style = getStyleForRect(identifier, isHighlighted)
+
+          return {
+            identifier: identifier, // Keep identifier for event handling
+            height: rectangle.height,
+            x:
+              LEFT_LABEL_WIDTH +
+              (isOrdinal ? getSegmentX(rectangle.x) : getSegmentX(rectangle.x)),
+            y: y0 + rectangle.y,
+            width: isOrdinal
+              ? getSegmentWidth(rectangle.width)
+              : getSegmentWidth(rectangle.width),
+            participantId: participant.id,
+            segmentId,
+            orderId: rectangle.orderId,
+            // Include style properties
+            fill: style.fill,
+            opacity: style.opacity,
+            stroke: style.stroke,
+            strokeWidth: style.strokeWidth,
+          }
+        })
       )
     })
   })
@@ -192,38 +300,28 @@
       if (isOrdinal) return []
 
       return participant.dynamicAoiVisibility.flatMap(visibility => {
-        // Remove the unnecessary maxWidth calculation and filtering
-        return visibility.content.map(item => ({
-          className: item.identifier,
-          x1: LEFT_LABEL_WIDTH + getVisibilityLineX(item.x1, pWidth),
-          y1: y0 + item.y,
-          x2: LEFT_LABEL_WIDTH + getVisibilityLineX(item.x2, pWidth),
-          y2: y0 + item.y,
-          participantId: participant.id,
-        }))
+        return visibility.content.map(item => {
+          const identifier = item.identifier
+          const isHighlighted = identifier === usedHighlight
+          const style = getStyleForLine(identifier, isHighlighted)
+
+          return {
+            identifier: identifier, // Keep identifier for event handling
+            x1: LEFT_LABEL_WIDTH + getVisibilityLineX(item.x1, pWidth),
+            y1: y0 + item.y,
+            x2: LEFT_LABEL_WIDTH + getVisibilityLineX(item.x2, pWidth),
+            y2: y0 + item.y,
+            participantId: participant.id,
+            // Include style properties
+            stroke: style.stroke,
+            strokeWidth: style.strokeWidth,
+            opacity: style.opacity,
+            strokeDasharray: style.strokeDasharray,
+            strokeLinecap: style.strokeLinecap,
+          }
+        })
       })
     })
-  })
-
-  // Style management
-  const styleInputs = $derived({
-    id: settings.id,
-    data: data.stylingAndLegend,
-    highlight: usedHighlight,
-  })
-
-  const dynamicStyle = $derived(
-    generateScarfPlotCSS(scarfPlotAreaId, data.stylingAndLegend, usedHighlight)
-  )
-
-  // Apply styles when component updates
-  $effect(() => {
-    const styleElement = document.querySelector(`#${scarfPlotAreaId} style`)
-    if (styleElement) {
-      styleElement.textContent = dynamicStyle
-        .replace('<style>', '')
-        .replace('</style>', '')
-    }
   })
 
   // Helper functions
@@ -237,63 +335,29 @@
       : `Elapsed time [${getTimelineUnit(settings)}]`
   }
 
-  function getSegmentX(
-    x: string,
-    segmentIndex?: number,
-    participantWidth?: string
-  ): number {
+  function getSegmentX(x: number): number {
     if (!plotAreaWidth) return 0
 
-    if (settings.timeline === 'ordinal' && typeof segmentIndex === 'number') {
-      // For ordinal mode, we need to use the same exact calculations as in scarfPlotTransformations.ts
-      // The percentage x is already correctly set there, so we should just parse and apply it
-      return (parseFloat(x) / 100) * plotAreaWidth
-    } else if (settings.timeline === 'absolute' && participantWidth) {
-      // Absolute timeline - calculate based on participant width
-      const participantWidthPercent = parseFloat(participantWidth)
-      const segmentXPercent = parseFloat(x)
-      // Don't scale by participant width, just use the segment's percentage
-      return (segmentXPercent / 100) * plotAreaWidth
-    } else {
-      // Relative timeline - direct percentage calculation
-      return (parseFloat(x) / 100) * plotAreaWidth
-    }
+    // All calculations now use the numeric value directly
+    return x * plotAreaWidth
   }
 
-  function getSegmentWidth(
-    width: string,
-    segmentIndex?: number,
-    participantWidth?: string
-  ): number {
+  function getSegmentWidth(width: number): number {
     if (!plotAreaWidth) return 0
 
-    if (settings.timeline === 'ordinal' && typeof segmentIndex === 'number') {
-      // For ordinal mode, use the width as calculated in scarfPlotTransformations.ts
-      return (parseFloat(width) / 100) * plotAreaWidth
-    } else if (settings.timeline === 'absolute' && participantWidth) {
-      // Absolute timeline - scaled by participant width
-      const segmentWidthPercent = parseFloat(width)
-      // Don't scale by participant width, just use the segment's percentage
-      return (segmentWidthPercent / 100) * plotAreaWidth
-    } else {
-      // Relative timeline - direct percentage calculation
-      return (parseFloat(width) / 100) * plotAreaWidth
-    }
+    // All calculations now use the numeric value directly
+    return width * plotAreaWidth
   }
 
-  function getVisibilityLineX(x: string, participantWidth?: string): number {
+  function getVisibilityLineX(x: number, participantWidth?: number): number {
     if (!plotAreaWidth) return 0
 
     if (settings.timeline === 'ordinal') {
       return 0 // Not applicable in ordinal mode
-    } else if (settings.timeline === 'absolute' && participantWidth) {
-      // Absolute timeline - keep consistent with how segments are positioned
-      const xPercent = Math.min(parseFloat(x), 100) // Cap at 100%
-      return (xPercent / 100) * plotAreaWidth
     } else {
-      // Relative timeline - cap at 100% of chart width
-      const xPercent = Math.min(parseFloat(x), 100) // Cap at 100%
-      return (xPercent / 100) * plotAreaWidth
+      // Cap at 1.0 (100%)
+      const xValue = Math.min(x, 1.0)
+      return xValue * plotAreaWidth
     }
   }
 
@@ -421,10 +485,6 @@
 
 <!-- Container for dynamic styles and the plot -->
 <figure class="plot-container" id={scarfPlotAreaId}>
-  {#key styleInputs}
-    {@html dynamicStyle}
-  {/key}
-
   <svg
     class="scarf-plot-figure"
     width={totalWidth}
@@ -433,6 +493,8 @@
     onmouseleave={handleMouseLeave}
     bind:this={tooltipAreaElement}
     data-component="scarfplot"
+    role="img"
+    aria-label="Scarf plot visualization"
   >
     <!-- Participant Labels (Left Side) -->
     <g class="participants-labels">
@@ -464,28 +526,27 @@
 
     <!-- Main Chart Area - Now with draggable action -->
     <g class="chart-area" class:isHiglighted={highlightedIdentifier}>
-      {#key data.participants}
-        <!-- Timeline Axis Labels -->
-        <g class="timeline-labels">
-          {#if data.timeline.ticks.length > 0}
-            {#each data.timeline.ticks as tick}
-              <!-- Only show label text if it's a nice tick -->
-              {#if tick.isNice}
-                <SvgText
-                  text={tick.label}
-                  x={LEFT_LABEL_WIDTH + tick.position * plotAreaWidth}
-                  y={data.chartHeight - LAYOUT.AXIS_OFFSET}
-                  dominantBaseline="hanging"
-                  textAnchor="middle"
-                />
-              {/if}
-            {/each}
-          {/if}
-        </g>
+      <!-- Timeline Axis Labels -->
+      <g class="timeline-labels">
+        {#if data.timeline.ticks.length > 0}
+          {#each data.timeline.ticks as tick}
+            <!-- Only show label text if it's a nice tick -->
+            {#if tick.isNice}
+              <SvgText
+                text={tick.label}
+                x={LEFT_LABEL_WIDTH + tick.position * plotAreaWidth}
+                y={data.chartHeight - LAYOUT.AXIS_OFFSET}
+                dominantBaseline="hanging"
+                textAnchor="middle"
+              />
+            {/if}
+          {/each}
+        {/if}
+      </g>
 
-        <!-- X-Axis Ticks and Bottom Border Line -->
-        <path
-          d={`
+      <!-- X-Axis Ticks and Bottom Border Line -->
+      <path
+        d={`
             ${data.timeline.ticks
               .map(tick => {
                 const x = LEFT_LABEL_WIDTH + tick.position * plotAreaWidth
@@ -497,37 +558,43 @@
             M ${LEFT_LABEL_WIDTH},${data.participants.length * data.heightOfBarWrap - 0.5}
             H ${LEFT_LABEL_WIDTH + plotAreaWidth}
           `}
-          stroke={LAYOUT.GRID_COLOR}
-          stroke-width="1.5"
-          fill="none"
-        />
+        stroke={LAYOUT.GRID_COLOR}
+        stroke-width="1.5"
+        fill="none"
+      />
 
-        <!-- Render rectangles from derived store -->
-        <g class="all-rectangles">
-          {#each rectangleSegments as rect}
-            <rect
-              class={rect.className}
-              height={rect.height}
-              x={rect.x}
-              y={rect.y}
-              width={rect.width}
-            />
-          {/each}
-        </g>
+      <!-- Render rectangles from derived store -->
+      <g class="all-rectangles">
+        {#each rectangleSegments as rect}
+          <rect
+            height={rect.height}
+            x={rect.x}
+            y={rect.y}
+            width={rect.width}
+            fill={rect.fill}
+            opacity={rect.opacity}
+            stroke={rect.stroke}
+            stroke-width={rect.strokeWidth}
+          />
+        {/each}
+      </g>
 
-        <!-- Render lines from derived store -->
-        <g class="all-lines">
-          {#each lineSegments as line}
-            <line
-              class={line.className}
-              x1={line.x1}
-              y1={line.y1}
-              x2={line.x2}
-              y2={line.y2}
-            />
-          {/each}
-        </g>
-      {/key}
+      <!-- Render lines from derived store -->
+      <g class="all-lines">
+        {#each lineSegments as line}
+          <line
+            x1={line.x1}
+            y1={line.y1}
+            x2={line.x2}
+            y2={line.y2}
+            stroke={line.stroke}
+            stroke-width={line.strokeWidth}
+            opacity={line.opacity}
+            stroke-dasharray={line.strokeDasharray}
+            stroke-linecap={line.strokeLinecap}
+          />
+        {/each}
+      </g>
 
       <!-- Draggable overlay rectangle -->
       <rect
@@ -586,21 +653,6 @@
   .scarf-plot-figure {
     font-family: sans-serif;
     display: block;
-  }
-
-  .participant-label {
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    overflow: hidden;
-    max-width: 125px;
-  }
-
-  .x-axis-label {
-    font-weight: 500;
-  }
-
-  .legend-title {
-    font-weight: 500;
   }
 
   /* Cursor styles for draggable overlay */

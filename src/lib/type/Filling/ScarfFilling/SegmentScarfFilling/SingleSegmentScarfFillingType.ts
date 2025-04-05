@@ -1,6 +1,6 @@
 export interface SingleSegmentScarfFillingType {
-  x: string // with %
-  width: string // with %
+  x: number // decimal 0-1 (instead of percentage string)
+  width: number // decimal 0-1 (instead of percentage string)
   y: number
   height: number
   identifier: string

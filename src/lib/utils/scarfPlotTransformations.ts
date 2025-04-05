@@ -282,8 +282,8 @@ export function createStylingAndLegend(
  * Creates a single segment content object for visualization
  *
  * @param segment Segment data
- * @param x X position as percentage string
- * @param width Width as percentage string
+ * @param x X position as decimal (0-1)
+ * @param width Width as decimal (0-1)
  * @param barHeight Height of the main bar
  * @param nonFixationHeight Height of non-fixation elements
  * @param spaceAboveRect Space above the rectangle
@@ -293,8 +293,8 @@ export function createStylingAndLegend(
  */
 export function createSegmentContents(
   segment: SegmentInterpretedDataType,
-  x: string,
-  width: string,
+  x: number,
+  width: number,
   barHeight = DEFAULT_BAR_HEIGHT,
   nonFixationHeight = DEFAULT_NON_FIXATION_HEIGHT,
   spaceAboveRect = DEFAULT_SPACE_ABOVE_RECT,
@@ -433,21 +433,21 @@ export function createAoiVisibility(
 
         const y = rectWrappedHeight + aoiIndex * lineWrappedHeight
 
-        // Calculate position as percentage of the visible range
-        let x1: string
-        let x2: string
+        // Calculate position as decimal (0-1) of the visible range
+        let x1: number
+        let x2: number
 
         if (timelineMode === 'relative') {
           // For relative timeline, position is calculated relative to the session duration
-          x1 = `${(start / sessionDuration) * 100}%`
-          x2 = `${(end / sessionDuration) * 100}%`
+          x1 = start / sessionDuration
+          x2 = end / sessionDuration
         } else {
           // For absolute/ordinal, position is calculated relative to the visible range
           const adjustedStart = start - timelineMin
           const adjustedEnd = end - timelineMin
 
-          x1 = `${(adjustedStart / visibleRange) * 100}%`
-          x2 = `${(adjustedEnd / visibleRange) * 100}%`
+          x1 = adjustedStart / visibleRange
+          x2 = adjustedEnd / visibleRange
         }
 
         visibilityContent.push({
@@ -533,21 +533,21 @@ export function createParticipantData(
       if (end > timelineMax) end = timelineMax
     }
 
-    // Calculate position and width relative to the visible range
-    let x: string
-    let width: string
+    // Calculate position and width as decimals (0-1)
+    let x: number
+    let width: number
 
     if (isRelative) {
       // For relative timeline, position is relative to the session duration
-      x = `${(start / sessionDuration) * 100}%`
-      width = `${((end - start) / sessionDuration) * 100}%`
+      x = start / sessionDuration
+      width = (end - start) / sessionDuration
     } else {
       // For absolute/ordinal timeline, position is relative to the visible range
       const adjustedStart = start - timelineMin
       const segmentWidth = end - start
 
-      x = `${(adjustedStart / visibleRange) * 100}%`
-      width = `${(segmentWidth / visibleRange) * 100}%`
+      x = adjustedStart / visibleRange
+      width = segmentWidth / visibleRange
     }
 
     segments.push({
@@ -564,14 +564,16 @@ export function createParticipantData(
     })
   }
 
-  // Calculate width based on timeline type
-  let width: string
+  // Calculate width as decimal (0-1)
+  let width: number
 
   if (timeline === 'relative') {
-    width = '100%'
+    width = 1.0 // equivalent to 100%
   } else {
     // For absolute/ordinal, the width depends on session duration and visible range
-    width = `${((Math.min(sessionDuration, timelineMax) - Math.max(0, timelineMin)) / visibleRange) * 100}%`
+    width =
+      (Math.min(sessionDuration, timelineMax) - Math.max(0, timelineMin)) /
+      visibleRange
   }
 
   return {
@@ -681,49 +683,4 @@ export function transformDataToScarfPlot(
     timeline,
     stylingAndLegend,
   }
-}
-
-/**
- * Generates CSS rules for a scarf plot
- *
- * @param plotAreaId ID of the plot area element
- * @param stylingData Styling data for the plot
- * @param highlightedType Type identifier for highlighted elements
- * @returns CSS string for the plot
- */
-export function generateScarfPlotCSS(
-  plotAreaId: string,
-  stylingData: StylingScarfFillingType,
-  highlightedType: string | null
-): string {
-  const { aoi, category, visibility } = stylingData
-
-  // Generate CSS rules for rectangles
-  const rectRules = [...aoi, ...category]
-    .map(style => {
-      const { color, identifier } = style
-      return `#${plotAreaId} .${identifier}{fill:${color};}`
-    })
-    .join('')
-
-  // Generate CSS rules for lines
-  const lineRules = visibility
-    .map(style => {
-      const { color, identifier, height } = style
-      return `#${plotAreaId} line.${identifier}{stroke:${color};stroke-width:${height};stroke-dasharray:1;}`
-    })
-    .join('')
-
-  // Generate highlight rules
-  let highlightRules = ''
-  if (highlightedType) {
-    highlightRules = `
-      #${plotAreaId} rect:not(.${highlightedType}){opacity:0.15;}
-      #${plotAreaId} line:not(.${highlightedType}){opacity:0.15;}
-      #${plotAreaId} rect.${highlightedType}{stroke:#333333;stroke-width:0.5px;}
-      #${plotAreaId} line.${highlightedType}{stroke-width:3px;stroke-linecap:butt;stroke-dasharray:none;}
-    `
-  }
-
-  return '<style>' + rectRules + lineRules + highlightRules + '</style>'
 }

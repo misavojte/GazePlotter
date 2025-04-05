@@ -1,9 +1,0 @@
-import type { SegmentScarfFillingType } from '../SegmentScarfFilling/SegmentScarfFillingType'
-import type { AoiVisibilityScarfFillingType } from '../AoiVisibilityScarfFilling/AoiVisibilityScarfFillingType'
-export interface ParticipantScarfFillingType {
-  id: number
-  label: string
-  width: string
-  segments: SegmentScarfFillingType[]
-  dynamicAoiVisibility: AoiVisibilityScarfFillingType[]
-}
