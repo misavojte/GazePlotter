@@ -40,6 +40,14 @@
     return text.length > maxLength ? text.slice(0, maxLength - 3) + '...' : text
   }
 
+  type StrokeLinecap =
+    | 'butt'
+    | 'inherit'
+    | 'round'
+    | 'square'
+    | null
+    | undefined
+
   // Calculate styles based on highlight state
   const highlightStyles = $derived.by(() => {
     if (highlighted) {
@@ -49,6 +57,8 @@
         rectStroke: '#333333',
         rectStrokeWidth: 1,
         lineStrokeWidth: 3,
+        lineDasharray: 'none',
+        lineStrokeLinecap: 'butt' as StrokeLinecap,
         opacity: 1.0,
       }
     } else if (anyHighlightActive) {
@@ -58,6 +68,8 @@
         rectStroke: 'none',
         rectStrokeWidth: 0,
         lineStrokeWidth: 2,
+        lineDasharray: '1',
+        lineStrokeLinecap: null as StrokeLinecap,
         opacity: 0.15,
       }
     } else {
@@ -67,6 +79,8 @@
         rectStroke: 'none',
         rectStrokeWidth: 0,
         lineStrokeWidth: 2,
+        lineDasharray: '1',
+        lineStrokeLinecap: null as StrokeLinecap,
         opacity: 1.0,
       }
     }
@@ -108,6 +122,8 @@
       y2={y + itemHeight / 2}
       stroke={color}
       stroke-width={highlightStyles.lineStrokeWidth}
+      stroke-dasharray={highlightStyles.lineDasharray}
+      stroke-linecap={highlightStyles.lineStrokeLinecap}
       opacity={highlightStyles.opacity}
       class={identifier}
     />
