@@ -445,23 +445,130 @@ export const updateParticipantsGroups = (groups: ParticipantsGroup[]) => {
 
 /**
  * Returns the visibility of the AOI for the given stimulus and participant.
+ * When AOIs are grouped (same displayed name), it merges visibility from all AOIs in the group.
  * Remember the AOI dynamic visibility are stored under the key "stimulusId_aoiId_participantId"
  * @param stimulusId numeric id of the stimulus
  * @param aoiId numeric id of the AOI for the given stimulus (notice that AOI ids are stimulus specific)
  * @param participantId numeric id of the participant (these are global for all stimuli)
- * @returns
+ * @returns An array of timestamps where visibility toggles (on to off or off to on)
  */
 export const getAoiVisibility = (
   stimulusId: number,
   aoiId: number,
   participantId: number | null = null
 ): number[] | null => {
-  const baseKey = `${stimulusId}_${aoiId}`
+  const mappedAoiId = getAoiIdMapping(stimulusId, aoiId)
+
+  // First, try to find direct visibility data for the mapped AOI ID
+  const baseKey = `${stimulusId}_${mappedAoiId}`
   let result = getData().aois.dynamicVisibility[baseKey] ?? null
+
   if (participantId != null) {
+    // Try participant-specific visibility for the mapped AOI ID
     const extendedKey = `${baseKey}_${participantId}`
     result = getData().aois.dynamicVisibility[extendedKey] ?? result
   }
+
+  // If this is a grouped AOI (where other AOIs map to this one),
+  // we need to merge visibility from all AOIs in the group
+  if (mappedAoiId === aoiId) {
+    // This is the representative AOI for a group
+    // Get all AOI IDs that map to this representative ID
+    const mappings = get(aoiIdMappings)
+    const mappedAoiIds = Object.entries(mappings[stimulusId] || {})
+      .filter(
+        ([_id, mappedId]) => mappedId === mappedAoiId && Number(_id) !== aoiId
+      )
+      .map(([id]) => Number(id))
+
+    // If there are other AOIs mapped to this one, merge their visibility data
+    if (mappedAoiIds.length > 0) {
+      // Collect all visibility toggle arrays
+      const allVisibilities: (number[] | null)[] = result ? [result] : []
+
+      for (const otherAoiId of mappedAoiIds) {
+        // Try to get visibility for the other AOI
+        const otherKey = `${stimulusId}_${otherAoiId}`
+        let otherVisibility = getData().aois.dynamicVisibility[otherKey] ?? null
+
+        if (participantId != null) {
+          // Try participant-specific visibility for the other AOI
+          const otherExtendedKey = `${otherKey}_${participantId}`
+          otherVisibility =
+            getData().aois.dynamicVisibility[otherExtendedKey] ??
+            otherVisibility
+        }
+
+        // Add to the collection if it exists
+        if (otherVisibility) {
+          allVisibilities.push(otherVisibility)
+        }
+      }
+
+      // If we have multiple visibility arrays to merge
+      if (allVisibilities.length > 1) {
+        // Convert toggle points to ranges for proper merging
+        const visibilityRanges: [number, number][] = []
+
+        for (const toggles of allVisibilities) {
+          if (!toggles || toggles.length === 0) continue
+
+          // Sort toggles just in case
+          const sortedToggles = [...toggles].sort((a, b) => a - b)
+
+          // Convert toggle points to ranges
+          for (let i = 0; i < sortedToggles.length; i += 2) {
+            const start = sortedToggles[i]
+            // If we have an odd number of toggles, use Infinity as the end of the last range
+            const end =
+              i + 1 < sortedToggles.length ? sortedToggles[i + 1] : Infinity
+            visibilityRanges.push([start, end])
+          }
+        }
+
+        if (visibilityRanges.length === 0) {
+          return null
+        }
+
+        // Sort ranges by start time
+        visibilityRanges.sort((a, b) => a[0] - b[0])
+
+        // Merge overlapping ranges
+        const mergedRanges: [number, number][] = []
+        let currentRange = visibilityRanges[0]
+
+        for (let i = 1; i < visibilityRanges.length; i++) {
+          const nextRange = visibilityRanges[i]
+
+          // If ranges overlap or are adjacent
+          if (nextRange[0] <= currentRange[1]) {
+            // Extend current range if next range ends later
+            currentRange[1] = Math.max(currentRange[1], nextRange[1])
+          } else {
+            // No overlap, add current range to results and move to next
+            mergedRanges.push([...currentRange])
+            currentRange = nextRange
+          }
+        }
+
+        // Add the last range
+        mergedRanges.push([...currentRange])
+
+        // Convert merged ranges back to toggle points
+        const mergedToggles: number[] = []
+        for (const [start, end] of mergedRanges) {
+          mergedToggles.push(start)
+          // Only add end toggle point if it's not Infinity
+          if (end !== Infinity) {
+            mergedToggles.push(end)
+          }
+        }
+
+        result = mergedToggles
+      }
+    }
+  }
+
   return result
 }
 
