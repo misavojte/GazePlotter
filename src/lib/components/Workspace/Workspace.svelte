@@ -112,16 +112,6 @@
     }
   }
 
-  // Calculate the center position for the initial grid item
-  const findCenterX = (width: number | null): number => {
-    return 0 // Always start from x=0
-  }
-
-  // Generate a new unique ID
-  const getNewId = () => {
-    return Date.now() + Math.floor(Math.random() * 1000)
-  }
-
   // Unified height calculation for preview operations
   const calculateWorkspaceHeight = (id: number, y: number, h: number) => {
     const currentItems = get(gridStore)
@@ -165,6 +155,9 @@
 
   // Create our simplified grid store
   const gridStore = createGridStore(gridConfig, initialItemData)
+
+  // set gridStore to context (old ScarfPlot dependency)
+  setContext('gridStore', gridStore)
 
   // Reactive derivation of grid positions for the Grid component
   const positions = derived(gridStore, $gridStore =>

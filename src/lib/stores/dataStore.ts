@@ -1,5 +1,5 @@
-import { writable, get } from 'svelte/store'
-import type { Writable } from 'svelte/store'
+import { writable, get, derived } from 'svelte/store'
+import type { Writable, Readable } from 'svelte/store'
 import type { DataType } from '$lib/type/Data/DataType'
 import { demoData } from '$lib/const/demoDataTwo'
 import type { BaseInterpretedDataType } from '$lib/type/Data/InterpretedData/BaseInterpretedDataType'
@@ -7,17 +7,20 @@ import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData
 import type { SegmentInterpretedDataType } from '$lib/type/Data/InterpretedData/SegmentInterpretedDataType'
 import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup'
 
+// Initialize the main data store
 export const getDemoDataWritable = (): Writable<DataType> => {
   return writable<DataType>(demoData)
 }
 export const data = getDemoDataWritable()
 
-export const setData = (newData: DataType): void => {
-  data.set(newData)
-}
-
+// Basic data access functions
 export const getData = (): DataType => {
   return get(data)
+}
+
+export const setData = (newData: DataType): void => {
+  data.set(newData)
+  // No need to manually update mappings as the derived store will handle it
 }
 
 export const getNumberOfStimuli = (): number => {
@@ -26,6 +29,187 @@ export const getNumberOfStimuli = (): number => {
 
 export const getNumberOfParticipants = (): number => {
   return getData().participants.data.length
+}
+
+// Helper functions for AOI data access
+const getDefaultColor = (index: number): string => {
+  const COLORS = ['#66c5cc', '#f6cf71', '#f89c74', '#dcb0f2', '#87c55f']
+  return COLORS[index % COLORS.length]
+}
+
+// Helper to get the order vector for a stimulus directly from data
+const getAoiOrderVectorFromData = (
+  stimulusId: number,
+  dataSnapshot: DataType
+): number[] => {
+  const order = dataSnapshot.aois.orderVector?.[stimulusId]
+  // if it does not exist in const, return array of sequence from 0 to N
+  // N ... number of aoi categories for given stimulus
+  if (order == null) {
+    const noOfAois = dataSnapshot.aois.data[stimulusId].length
+    return [...Array(noOfAois).keys()]
+  }
+  return order
+}
+
+// Helper function to get AOI data without applying mapping
+const getAoiRaw = (
+  stimulusId: number,
+  aoiId: number,
+  dataSnapshot: DataType
+): ExtendedInterpretedDataType => {
+  const aoiArray = dataSnapshot.aois.data[stimulusId][aoiId]
+  if (aoiArray === undefined)
+    throw new Error(
+      `AOI with id ${aoiId} does not exist in stimulus with id ${stimulusId}`
+    )
+  const originalName = aoiArray[0]
+  const displayedName = aoiArray[1] ?? originalName
+  const color = aoiArray[2] ?? getDefaultColor(aoiId)
+  return {
+    id: aoiId,
+    originalName,
+    displayedName,
+    color,
+  }
+}
+
+// Get all AOIs for a stimulus from a data snapshot
+const getAoisRawFromData = (
+  stimulusId: number,
+  dataSnapshot: DataType
+): ExtendedInterpretedDataType[] => {
+  const aoiIds = getAoiOrderVectorFromData(stimulusId, dataSnapshot)
+  return aoiIds.map((aoiId: number) =>
+    getAoiRaw(stimulusId, aoiId, dataSnapshot)
+  )
+}
+
+// Create a derived store for AOI ID mappings
+// This will automatically update whenever the data store changes
+const aoiIdMappings: Readable<{
+  [stimulusId: number]: { [aoiId: number]: number }
+}> = derived(data, $data => {
+  const mappings: { [stimulusId: number]: { [aoiId: number]: number } } = {}
+  const stimuliCount = $data.stimuli.data.length
+
+  // Process each stimulus
+  for (let stimulusId = 0; stimulusId < stimuliCount; stimulusId++) {
+    try {
+      const aois = getAoisRawFromData(stimulusId, $data)
+      const nameToFirstId = new Map<string, number>()
+      const mapping: { [aoiId: number]: number } = {}
+
+      // First pass: find first occurrence of each displayed name
+      aois.forEach(aoi => {
+        if (
+          !nameToFirstId.has(aoi.displayedName) &&
+          aoi.displayedName.trim() !== ''
+        ) {
+          nameToFirstId.set(aoi.displayedName, aoi.id)
+        }
+      })
+
+      // Second pass: create mapping
+      aois.forEach(aoi => {
+        if (
+          aoi.displayedName.trim() !== '' &&
+          nameToFirstId.has(aoi.displayedName)
+        ) {
+          mapping[aoi.id] = nameToFirstId.get(aoi.displayedName)!
+        } else {
+          mapping[aoi.id] = aoi.id // Self-map for AOIs without grouping
+        }
+      })
+
+      mappings[stimulusId] = mapping
+    } catch (e) {
+      // In case of any error, use identity mapping
+      const noOfAois = $data.aois.data[stimulusId]?.length || 0
+      const identityMapping: { [aoiId: number]: number } = {}
+      for (let i = 0; i < noOfAois; i++) {
+        identityMapping[i] = i
+      }
+      mappings[stimulusId] = identityMapping
+    }
+  }
+
+  return mappings
+})
+
+// Helper to get AOI ID mapping
+export const getAoiIdMapping = (stimulusId: number, aoiId: number): number => {
+  const mappings = get(aoiIdMappings)
+  return mappings[stimulusId]?.[aoiId] ?? aoiId
+}
+
+// Public API functions
+export const getAoiOrderVector = (stimulusId: number): number[] => {
+  const order = getData().aois.orderVector?.[stimulusId]
+  // if it does not exist in const, return array of sequence from 0 to N
+  // N ... number of aoi categories for given stimulus
+  if (order == null) {
+    const noOfAois = getData().aois.data[stimulusId].length
+    return [...Array(noOfAois).keys()]
+  }
+  return order
+}
+
+export const getStimuliOrderVector = (): number[] => {
+  const order = getData().stimuli.orderVector
+  // if it does not exist in const, return array of sequence from 0 to N
+  // N ... number of aoi categories for given stimulus
+  if (order.length === 0) {
+    const noOfStimuli = getData().stimuli.data.length
+    return [...Array(noOfStimuli).keys()]
+  }
+  return order
+}
+
+export const getParticipantOrderVector = (): number[] => {
+  const order = getData().participants.orderVector
+  // if it does not exist in const, return array of sequence from 0 to N
+  // N ... number of aoi categories for given stimulus
+  if (order.length === 0) {
+    const noOfParticipants = getData().participants.data.length
+    return [...Array(noOfParticipants).keys()]
+  }
+  return order
+}
+
+// Get raw AOIs without applying ID mapping (using current data)
+const getAoisRaw = (stimulusId: number): ExtendedInterpretedDataType[] => {
+  const aoiIds = getAoiOrderVector(stimulusId)
+  return aoiIds.map((aoiId: number) => getAoiRaw(stimulusId, aoiId, getData()))
+}
+
+/**
+ * Returns all AOIs for a stimulus, including duplicates with the same displayed name.
+ * This should be used in UI components that need to edit all AOIs individually.
+ */
+export const getAllAois = (
+  stimulusId: number
+): ExtendedInterpretedDataType[] => {
+  const aoiIds = getAoiOrderVector(stimulusId)
+  return aoiIds.map((aoiId: number) => getAoiRaw(stimulusId, aoiId, getData()))
+}
+
+/**
+ * Returns AOIs for a stimulus with groups consolidated.
+ * AOIs with the same displayed name will appear as a single AOI.
+ * This should be used for visualization components.
+ */
+export const getAois = (stimulusId: number): ExtendedInterpretedDataType[] => {
+  const aoiIds = getAoiOrderVector(stimulusId)
+
+  // Apply mapping and ensure uniqueness
+  const mappedAoiIds = [
+    ...new Set(aoiIds.map(aoiId => getAoiIdMapping(stimulusId, aoiId))),
+  ]
+
+  return mappedAoiIds.map((aoiId: number) =>
+    getAoiRaw(stimulusId, aoiId, getData())
+  )
 }
 
 /**
@@ -45,6 +229,11 @@ export const getStimulus = (id: number): BaseInterpretedDataType => {
     originalName,
     displayedName,
   }
+}
+
+export const getStimuli = (): BaseInterpretedDataType[] => {
+  const stimuliIds = getStimuliOrderVector()
+  return stimuliIds.map((stimulusId: number) => getStimulus(stimulusId))
 }
 
 export const getStimulusHighestEndTime = (stimulusIndex: number): number => {
@@ -88,29 +277,15 @@ export const getParticipant = (id: number): BaseInterpretedDataType => {
   }
 }
 
-const getDefaultColor = (index: number): string => {
-  const COLORS = ['#66c5cc', '#f6cf71', '#f89c74', '#dcb0f2', '#87c55f']
-  return COLORS[index % COLORS.length]
-}
-
 export const getAoi = (
   stimulusId: number,
   aoiId: number
 ): ExtendedInterpretedDataType => {
-  const aoiArray = getData().aois.data[stimulusId][aoiId]
-  if (aoiArray === undefined)
-    throw new Error(
-      `AOI with id ${aoiId} does not exist in stimulus with id ${stimulusId}`
-    )
-  const originalName = aoiArray[0]
-  const displayedName = aoiArray[1] ?? originalName
-  const color = aoiArray[2] ?? getDefaultColor(aoiId)
-  return {
-    id: aoiId,
-    originalName,
-    displayedName,
-    color,
-  }
+  // Map the aoiId to the representative ID (first one with same displayed name)
+  const mappedAoiId = getAoiIdMapping(stimulusId, aoiId)
+
+  // Use the mapped ID to get the AOI data
+  return getAoiRaw(stimulusId, mappedAoiId, getData())
 }
 
 export const getCategory = (id: number): ExtendedInterpretedDataType => {
@@ -140,8 +315,18 @@ export const getSegment = (
     )
   const start = segmentArray[0]
   const end = segmentArray[1]
+
+  // Get AOI IDs and apply mapping to remove duplicates
   const aoiIds = getSortedAoiIdsByOrderVector(stimulusId, segmentArray.slice(3))
-  const aoi = aoiIds.map((aoiId: number) => getAoi(stimulusId, aoiId))
+
+  // Use a Set to ensure uniqueness after mapping
+  const mappedAoiIds = [
+    ...new Set(aoiIds.map(aoiId => getAoiIdMapping(stimulusId, aoiId))),
+  ]
+
+  const aoi = mappedAoiIds.map((aoiId: number) =>
+    getAoiRaw(stimulusId, aoiId, getData())
+  )
   const categoryId = segmentArray[2]
   const category = getCategory(categoryId)
   return {
@@ -171,49 +356,6 @@ export const getNumberOfSegments = (
   participantId: number
 ): number => {
   return getData().segments[stimulusId][participantId]?.length ?? 0
-}
-
-export const getAoiOrderVector = (stimulusId: number): number[] => {
-  const order = getData().aois.orderVector?.[stimulusId]
-  // if it does not exist in const, return array of sequence from 0 to N
-  // N ... number of aoi categories for given stimulus
-  if (order == null) {
-    const noOfAois = getData().aois.data[stimulusId].length
-    return [...Array(noOfAois).keys()]
-  }
-  return order
-}
-
-export const getStimuliOrderVector = (): number[] => {
-  const order = getData().stimuli.orderVector
-  // if it does not exist in const, return array of sequence from 0 to N
-  // N ... number of aoi categories for given stimulus
-  if (order.length === 0) {
-    const noOfStimuli = getData().stimuli.data.length
-    return [...Array(noOfStimuli).keys()]
-  }
-  return order
-}
-
-export const getParticipantOrderVector = (): number[] => {
-  const order = getData().participants.orderVector
-  // if it does not exist in const, return array of sequence from 0 to N
-  // N ... number of aoi categories for given stimulus
-  if (order.length === 0) {
-    const noOfParticipants = getData().participants.data.length
-    return [...Array(noOfParticipants).keys()]
-  }
-  return order
-}
-
-export const getAois = (stimulusId: number): ExtendedInterpretedDataType[] => {
-  const aoiIds = getAoiOrderVector(stimulusId)
-  return aoiIds.map((aoiId: number) => getAoi(stimulusId, aoiId))
-}
-
-export const getStimuli = (): BaseInterpretedDataType[] => {
-  const stimuliIds = getStimuliOrderVector()
-  return stimuliIds.map((stimulusId: number) => getStimulus(stimulusId))
 }
 
 /**
@@ -396,8 +538,9 @@ export const updateMultipleAoi = (
       }
       data.aois.data[stimulusId][aoi.id] = aoiArray
     })
-    // Update order vector, only for this stimulus, it is too hard to guess what to do in the other stimuli
+    // Update order vector, only for this stimulus
     data.aois.orderVector[stimulusId] = aoi.map(aoi => aoi.id)
+
     if (applyTo === 'all_by_original_name') {
       const originalNames = aoi.map(aoi => aoi.originalName)
       const displayedNames = aoi.map(aoi => aoi.displayedName)
@@ -414,6 +557,7 @@ export const updateMultipleAoi = (
             aoi[2] = colors[index]
           }
         }
+        // No need to manually update mappings anymore
       }
     }
     if (applyTo === 'all_by_displayed_name') {
@@ -431,8 +575,11 @@ export const updateMultipleAoi = (
             aoi[2] = colors[index]
           }
         }
+        // No need to manually update mappings anymore
       }
     }
+
+    // No need to manually update mappings anymore, as the derived store will handle it
     return data
   })
 }

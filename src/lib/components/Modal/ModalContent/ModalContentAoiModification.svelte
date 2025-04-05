@@ -4,7 +4,11 @@
   import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
   import GeneralSelectBase from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
-  import { getAois, getStimuli, updateMultipleAoi } from '$lib/stores/dataStore'
+  import {
+    getAllAois,
+    getStimuli,
+    updateMultipleAoi,
+  } from '$lib/stores/dataStore'
   import {
     addErrorToast,
     addInfoToast,
@@ -151,7 +155,7 @@
   let aoiObjects: ExtendedInterpretedDataType[] = $state([])
 
   run(() => {
-    aoiObjects = getAois(parseInt(selectedStimulus))
+    aoiObjects = getAllAois(parseInt(selectedStimulus))
   })
 
   run(() => {
@@ -200,7 +204,7 @@
   }))
 
   onMount(() => {
-    aoiObjects = getAois(parseInt(selectedStimulus))
+    aoiObjects = getAllAois(parseInt(selectedStimulus))
   })
 </script>
 

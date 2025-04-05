@@ -450,17 +450,17 @@
     </g>
 
     <!-- Horizontal Grid Lines and Data -->
-    {#each data.participants as participant, i}
-      <!-- Horizontal Grid Line -->
-      <line
-        x1={LEFT_LABEL_WIDTH}
-        x2={LEFT_LABEL_WIDTH + plotAreaWidth}
-        y1={i * data.heightOfBarWrap + 0.5}
-        y2={i * data.heightOfBarWrap + 0.5}
-        stroke={LAYOUT.GRID_COLOR}
-        stroke-width={LAYOUT.GRID_STROKE_WIDTH}
-      />
-    {/each}
+    <path
+      d={data.participants
+        .map((_, i) => {
+          const y = i * data.heightOfBarWrap + 0.5
+          return `M ${LEFT_LABEL_WIDTH},${y} H ${LEFT_LABEL_WIDTH + plotAreaWidth}`
+        })
+        .join(' ')}
+      stroke={LAYOUT.GRID_COLOR}
+      stroke-width={LAYOUT.GRID_STROKE_WIDTH}
+      fill="none"
+    />
 
     <!-- Main Chart Area - Now with draggable action -->
     <g class="chart-area" class:isHiglighted={highlightedIdentifier}>
@@ -483,22 +483,24 @@
           {/if}
         </g>
 
-        <!-- X-Axis Ticks - Always show all ticks -->
-        <g class="axis-ticks">
-          {#if data.timeline.ticks.length > 0}
-            {#each data.timeline.ticks as tick}
-              <line
-                x1={LEFT_LABEL_WIDTH + tick.position * plotAreaWidth}
-                y1={data.participants.length * data.heightOfBarWrap - 0.5}
-                x2={LEFT_LABEL_WIDTH + tick.position * plotAreaWidth}
-                y2={data.participants.length * data.heightOfBarWrap +
-                  LAYOUT.TICK_LENGTH}
-                stroke={LAYOUT.GRID_COLOR}
-                stroke-width="1.5"
-              />
-            {/each}
-          {/if}
-        </g>
+        <!-- X-Axis Ticks and Bottom Border Line -->
+        <path
+          d={`
+            ${data.timeline.ticks
+              .map(tick => {
+                const x = LEFT_LABEL_WIDTH + tick.position * plotAreaWidth
+                const y1 = data.participants.length * data.heightOfBarWrap - 0.5
+                const y2 = y1 + LAYOUT.TICK_LENGTH
+                return `M ${x},${y1} V ${y2}`
+              })
+              .join(' ')}
+            M ${LEFT_LABEL_WIDTH},${data.participants.length * data.heightOfBarWrap - 0.5}
+            H ${LEFT_LABEL_WIDTH + plotAreaWidth}
+          `}
+          stroke={LAYOUT.GRID_COLOR}
+          stroke-width="1.5"
+          fill="none"
+        />
 
         <!-- Render rectangles from derived store -->
         <g class="all-rectangles">
@@ -525,16 +527,6 @@
             />
           {/each}
         </g>
-
-        <!-- Bottom Border Line -->
-        <line
-          x1={LEFT_LABEL_WIDTH}
-          x2={LEFT_LABEL_WIDTH + plotAreaWidth}
-          y1={data.participants.length * data.heightOfBarWrap - 0.5}
-          y2={data.participants.length * data.heightOfBarWrap - 0.5}
-          stroke={LAYOUT.GRID_COLOR}
-          stroke-width={LAYOUT.GRID_STROKE_WIDTH}
-        />
       {/key}
 
       <!-- Draggable overlay rectangle -->
