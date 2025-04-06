@@ -3,7 +3,9 @@
   import { modalStore } from '$lib/stores/modalStore.js'
   import type { AoiTransitionMatrixGridType } from '$lib/type/gridType'
   import BarChart from 'lucide-svelte/icons/bar-chart'
+  import Download from 'lucide-svelte/icons/download'
   import ModalContentMaxValue from '$lib/components/Modal/ModalContent/ModalContentMaxValue.svelte'
+  import ModalContentDownloadAoiTransitionMatrix from '$lib/components/Modal/ModalContent/ModalContentDownloadAoiTransitionMatrix.svelte'
 
   interface Props {
     settings: AoiTransitionMatrixGridType
@@ -36,11 +38,30 @@
     }
   }
 
+  const openDownloadModal = () => {
+    try {
+      modalStore.open(
+        ModalContentDownloadAoiTransitionMatrix as any,
+        'Download AOI Transition Matrix',
+        {
+          settings,
+        }
+      )
+    } catch (error) {
+      console.error('Error opening download modal:', error)
+    }
+  }
+
   let items = $derived([
     {
       label: 'Set max color scale value',
       action: openMaxValueModal,
       icon: BarChart,
+    },
+    {
+      label: 'Download plot',
+      action: openDownloadModal,
+      icon: Download,
     },
   ] as any)
 </script>

@@ -75,7 +75,7 @@
 
   function handleAggregationChange(event: CustomEvent) {
     // Update the aggregation method in grid settings
-    settingsChange({ aggregationMethod: event.detail })
+    settingsChange({ aggregationMethod: event.detail as AggregationMethod })
   }
 
   function handleCalculatedMaxChange(value: number) {
@@ -92,7 +92,7 @@
       const { aoiLabels: labels } = calculateTransitionMatrix(
         settings.stimulusId,
         settings.groupId,
-        settings.aggregationMethod
+        settings.aggregationMethod as AggregationMethod
       )
 
       aoiLabels = labels
@@ -150,7 +150,7 @@
       {@const { matrix, aoiLabels } = calculateTransitionMatrix(
         settings.stimulusId,
         settings.groupId,
-        settings.aggregationMethod
+        settings.aggregationMethod as AggregationMethod
       )}
       {#if aoiLabels.length > 0}
         <AoiTransitionMatrixPlotFigure
@@ -164,10 +164,8 @@
           yLabel="From AOI"
           legendTitle={getLegendTitle(settings.aggregationMethod)}
           {minThreshold}
-          onThresholdChange={handleThresholdChange}
           customMaxValue={settings.maxColorValue}
           useAutoMax={settings.maxColorValue === 0}
-          onMaxValueChange={handleCalculatedMaxChange}
         />
       {:else}
         <div class="no-data">
