@@ -93,11 +93,11 @@
   on:click={() => onClick(identifier)}
 >
   <rect
-    {x}
-    {y}
+    x={x - 5}
+    y={y - 5}
     class="legend-item-bg"
-    width={fixedItemWidth}
-    height={itemHeight}
+    width={fixedItemWidth + 5}
+    height={itemHeight + 10}
     fill={highlightStyles.bgFill}
     rx="2"
   />

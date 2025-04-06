@@ -42,7 +42,11 @@
 
   // Determine if we need to show the canvas preview (for non-SVG formats)
   const shouldShowCanvas = $derived(fileType !== '.svg')
-  const displayHeight = $derived(height || 'auto')
+  const displayHeight = $derived(height ? height + 'px' : 'auto')
+
+  $effect(() => {
+    console.log('height', height)
+  })
 
   // Function to extract SVG from component when the container is available
   $effect(() => {
@@ -230,7 +234,7 @@
   <div class="overflow-container">
     <div
       class="preview-wrapper"
-      style="width: {width}px; height: {displayHeight};"
+      style="width: {width}px; min-height: {displayHeight};"
     >
       <!-- Extracted SVG preview (for SVG format) -->
       {#if !shouldShowCanvas && svgExtracted}
