@@ -9,6 +9,10 @@
     fileType: string
     width: number
     height?: number
+    marginTop?: number
+    marginRight?: number
+    marginBottom?: number
+    marginLeft?: number
     onDownload?: () => void
     showDownloadButton?: boolean
     children: any // Using any to avoid type conflicts
@@ -20,6 +24,10 @@
     fileType,
     width,
     height = 0,
+    marginTop = 0,
+    marginRight = 0,
+    marginBottom = 0,
+    marginLeft = 0,
     onDownload,
     showDownloadButton = false, // default to false for integrated view
     children,
@@ -34,18 +42,39 @@
   let extractingSvg = $state(false)
   let svgExtracted = $state(false)
   let svgContent = $state<string>('')
+  let originalSvgContent = $state<string>('')
 
   // Use a composite key that changes when any relevant prop changes
   const componentKey = $derived(
-    `${width}-${fileType}-${JSON.stringify(childProps)}`
+    `${width}-${fileType}-${marginTop}-${marginRight}-${marginBottom}-${marginLeft}-${JSON.stringify(childProps)}`
   )
 
   // Determine if we need to show the canvas preview (for non-SVG formats)
   const shouldShowCanvas = $derived(fileType !== '.svg')
   const displayHeight = $derived(height ? height + 'px' : 'auto')
 
+  // Calculate the effective dimensions for the content (adjusted for margins)
+  const effectiveWidth = $derived(width - (marginLeft + marginRight))
+  const effectiveHeight = $derived(
+    height ? height - (marginTop + marginBottom) : 0
+  )
+
+  // Calculate final output dimensions
+  const outputHeight = $derived(
+    height || effectiveHeight + marginTop + marginBottom
+  )
+
+  // Adjust child props to account for margins
+  const adjustedChildProps = $derived({
+    ...childProps,
+    chartWidth: effectiveWidth, // Override chartWidth if it exists
+  })
+
   $effect(() => {
     console.log('height', height)
+    console.log('margins', marginTop, marginRight, marginBottom, marginLeft)
+    console.log('effective dimensions', effectiveWidth, effectiveHeight)
+    console.log('output dimensions', width, outputHeight)
   })
 
   // Function to extract SVG from component when the container is available
@@ -54,6 +83,7 @@
       // Reset extraction state when key changes
       svgExtracted = false
       svgContent = ''
+      originalSvgContent = ''
 
       // Delay extraction to ensure component has rendered
       setTimeout(extractSvgFromComponent, 250)
@@ -80,11 +110,31 @@
         throw new Error('SVG element not found in component')
       }
 
-      // Get the SVG content
-      const svgData = new XMLSerializer().serializeToString(svgElement)
+      // Clone the SVG to avoid modifying the original
+      const clonedSvg = svgElement.cloneNode(true) as SVGElement
 
-      // Store the SVG content
-      svgContent = svgData
+      // Store the original SVG content (for reference if needed)
+      originalSvgContent = new XMLSerializer().serializeToString(svgElement)
+
+      // Apply margins to the SVG by adjusting the viewBox
+      // If viewBox exists, parse it
+      let viewBox = clonedSvg.getAttribute('viewBox')
+      let vbValues = viewBox
+        ? viewBox.split(' ').map(v => parseFloat(v))
+        : [0, 0, effectiveWidth, effectiveHeight]
+
+      // Create a new viewBox that accounts for directional margins
+      // Negative margins crop the content (move viewBox inward)
+      // Positive margins add space (move viewBox outward)
+      const newViewBox = `${vbValues[0] - marginLeft} ${vbValues[1] - marginTop} ${vbValues[2] + marginLeft + marginRight} ${vbValues[3] + marginTop + marginBottom}`
+      clonedSvg.setAttribute('viewBox', newViewBox)
+
+      // Ensure width and height are set correctly for the final output dimensions
+      clonedSvg.setAttribute('width', `${width}`)
+      clonedSvg.setAttribute('height', `${outputHeight}`)
+
+      // Get the modified SVG content
+      svgContent = new XMLSerializer().serializeToString(clonedSvg)
 
       // Update state
       svgExtracted = true
@@ -121,24 +171,25 @@
           return
         }
 
-        // Set canvas dimensions
+        // Set canvas dimensions to match output size exactly
         canvasPreview.width = width
-        canvasPreview.height = height
+        canvasPreview.height = outputHeight
 
         // Draw the image on the canvas
         const ctx = canvasPreview.getContext('2d')
         if (ctx) {
           // Clear canvas
-          ctx.clearRect(0, 0, width, height)
+          ctx.clearRect(0, 0, canvasPreview.width, canvasPreview.height)
 
           // Set background (for formats that don't support transparency)
           if (fileType === '.jpg') {
             ctx.fillStyle = 'white'
-            ctx.fillRect(0, 0, width, height)
+            ctx.fillRect(0, 0, canvasPreview.width, canvasPreview.height)
           }
 
-          // Draw the image
-          ctx.drawImage(img, 0, 0, width, height)
+          // IMPORTANT: Draw the image exactly to match the SVG dimensions
+          // No scaling or repositioning beyond what the SVG already does
+          ctx.drawImage(img, 0, 0, canvasPreview.width, canvasPreview.height)
           convertingToCanvas = false
         }
 
@@ -227,7 +278,7 @@
   <div class="hidden-source" bind:this={sourceContainer}>
     <!-- Using componentKey to force re-render when relevant props change -->
     {#key componentKey}
-      <svelte:component this={children} {...childProps} />
+      <svelte:component this={children} {...adjustedChildProps} />
     {/key}
   </div>
 
@@ -253,7 +304,8 @@
       <!-- Canvas preview for non-SVG formats -->
       {#if shouldShowCanvas}
         <div class="canvas-container">
-          <canvas bind:this={canvasPreview} {width} {height}></canvas>
+          <canvas bind:this={canvasPreview} {width} height={outputHeight}
+          ></canvas>
           {#if convertingToCanvas}
             <div class="loading-overlay">
               <p>
