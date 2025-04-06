@@ -6,10 +6,10 @@
   import { calculateLabelOffset } from '../utils/textUtils'
 
   // SVG layout constants - minimal but not zero to ensure spacing
-  const MARGIN = 10
+  const MARGIN = 5
   const BASE_LABEL_OFFSET = 5
-  const TOP_MARGIN = 40
-  const LEFT_MARGIN = 40
+  const TOP_MARGIN = 30
+  const LEFT_MARGIN = 30
   const LEGEND_HEIGHT = 40
   const MAX_LABEL_LENGTH = 10 // Maximum number of characters before truncation
   const MIN_CELL_SIZE = 20 // Minimum cell size in pixels
@@ -70,8 +70,8 @@
   }
 
   // Additional offsets for axis labels to prevent collisions
-  const AXIS_LABEL_MARGIN = 25
-  const INDIVIDUAL_LABEL_MARGIN = 10
+  const AXIS_LABEL_MARGIN = 20
+  const INDIVIDUAL_LABEL_MARGIN = 8
 
   // Throttle mouse events
   let lastMouseMoveTime = $state(0)
@@ -89,8 +89,8 @@
     const xAxisSpace = TOP_MARGIN + labelOffset + AXIS_LABEL_MARGIN
     const bottomSpace = MARGIN + LEGEND_HEIGHT
 
-    // Calculate maximum available space
-    const availableWidth = width - yAxisSpace - MARGIN
+    // Calculate maximum available space - be more aggressive with space usage
+    const availableWidth = width - yAxisSpace
     const availableHeight = height - xAxisSpace - bottomSpace
 
     return { availableWidth, availableHeight }
@@ -106,10 +106,13 @@
     const cellSizeByHeight = maxPlotArea.availableHeight / aoiLabels.length
 
     // Use the smaller of the two to ensure everything fits
-    const idealCellSize = Math.min(cellSizeByWidth, cellSizeByHeight)
+    // Don't restrict by user cellSize to maximize space usage
+    const idealCellSize = Math.max(
+      MIN_CELL_SIZE,
+      Math.min(cellSizeByWidth, cellSizeByHeight)
+    )
 
-    // Constrain between minimum size and user-specified cellSize
-    return Math.max(MIN_CELL_SIZE, Math.min(idealCellSize, cellSize))
+    return idealCellSize
   })
 
   // Calculate actual grid size based on optimal cell size
