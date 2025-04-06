@@ -51,9 +51,6 @@
   const gradientId = `gradient-${Math.random().toString(36).substring(2, 11)}`
   const inactiveGradientId = `inactive-gradient-${Math.random().toString(36).substring(2, 11)}`
 
-  // No longer need to create gradient steps as SVG will handle interpolation
-  // Color gradient background will be defined in the defs section
-
   // Calculate the normalized threshold position
   const thresholdPosition = $derived.by(() => {
     return maxValue > 0 ? (minThreshold / maxValue) * LEGEND_WIDTH : 0
@@ -247,9 +244,8 @@
   {width}
   {height}
   overflow="visible"
-  onmousemove={handleMouseMove}
-  onmouseup={handleMouseUp}
-  onmouseleave={handleMouseUp}
+  viewBox={`0 0 ${width} ${height}`}
+  preserveAspectRatio="none"
   aria-label="Threshold slider for filtering values"
 >
   <SvgText
@@ -261,22 +257,22 @@
     fontSize="12"
   />
 
-  <!-- Slider track background - for visual clarity -->
-  <rect
-    x={LEGEND_MARGIN}
-    y={20}
-    width={LEGEND_WIDTH}
-    height={LEGEND_HEIGHT}
-    rx={LEGEND_HEIGHT / 2}
-    ry={LEGEND_HEIGHT / 2}
-    fill={SLIDER_TRACK_COLOR}
-    stroke="#ddd"
-    stroke-width="1"
-  />
+  <defs>
+    <linearGradient
+      id={gradientId}
+      x1="0"
+      y1="0"
+      x2="1"
+      y2="0"
+      gradientUnits="objectBoundingBox"
+    >
+      <stop offset="0%" stop-color={colorScale[0]} />
+      <stop offset="100%" stop-color={colorScale[1]} />
+    </linearGradient>
+  </defs>
 
-  <!-- Color gradient with overlay approach -->
   <g>
-    <!-- Full gradient background (always present, never changes) -->
+    <!-- Full gradient background -->
     <rect
       x={LEGEND_MARGIN}
       y={20}
@@ -306,7 +302,7 @@
       width={LEGEND_WIDTH}
       height={LEGEND_HEIGHT}
       fill="none"
-      stroke={isHoveringSlider ? '#888' : '#666'}
+      stroke="#666"
       stroke-width="1"
       rx={LEGEND_HEIGHT / 2}
       ry={LEGEND_HEIGHT / 2}
@@ -324,51 +320,6 @@
       />
     {/if}
   </g>
-
-  <!-- Interactive slider area - wider clickable zone -->
-  <rect
-    bind:this={sliderTrackEl}
-    x={LEGEND_MARGIN}
-    y={20 - DRAG_AREA_HEIGHT / 2}
-    width={LEGEND_WIDTH}
-    height={LEGEND_HEIGHT + DRAG_AREA_HEIGHT}
-    fill="transparent"
-    cursor="pointer"
-    onclick={handleTrackClick}
-    onmouseenter={() => handleSliderHover(true)}
-    onmouseleave={() => handleSliderHover(false)}
-    aria-hidden="true"
-  />
-
-  <!-- Min and max labels -->
-  <SvgText
-    text={'0'}
-    x={LEGEND_MARGIN}
-    y={20 + LEGEND_HEIGHT + 15}
-    textAnchor="middle"
-    dominantBaseline="middle"
-    fontSize="10"
-  />
-
-  <SvgText
-    text={maxValue.toString()}
-    x={LEGEND_MARGIN + LEGEND_WIDTH}
-    y={20 + LEGEND_HEIGHT + 15}
-    textAnchor="middle"
-    dominantBaseline="middle"
-    fontSize="10"
-  />
-  <!-- Threshold value label -->
-  {#if minThreshold > 0}
-    <SvgText
-      text={`Threshold: ${minThreshold}`}
-      x={width / 2}
-      y={20 + LEGEND_HEIGHT + 15}
-      textAnchor="middle"
-      dominantBaseline="middle"
-      fontSize="10"
-    />
-  {/if}
 
   <!-- Slider handle -->
   <g
@@ -423,54 +374,37 @@
       stroke-width={HANDLE_STROKE_WIDTH}
       fill="white"
     />
-
-    <!-- Decorative markings -->
-    {#if minThreshold > 0}
-      <line
-        x1={handleX - 3}
-        y1={20 + LEGEND_HEIGHT / 2 - 2}
-        x2={handleX + 3}
-        y2={20 + LEGEND_HEIGHT / 2 - 2}
-        stroke="#ff5555"
-        stroke-width="1.5"
-      />
-      <line
-        x1={handleX - 3}
-        y1={20 + LEGEND_HEIGHT / 2 + 2}
-        x2={handleX + 3}
-        y2={20 + LEGEND_HEIGHT / 2 + 2}
-        stroke="#ff5555"
-        stroke-width="1.5"
-      />
-    {/if}
   </g>
 
-  <!-- Definition for the slider mask and gradients -->
-  <defs>
-    <mask id="sliderMask">
-      <rect
-        x={LEGEND_MARGIN}
-        y={20}
-        width={LEGEND_WIDTH}
-        height={LEGEND_HEIGHT}
-        fill="white"
-        rx={LEGEND_HEIGHT / 2}
-        ry={LEGEND_HEIGHT / 2}
-      />
-    </mask>
+  <rect
+    bind:this={sliderTrackEl}
+    x={LEGEND_MARGIN}
+    y={20 - DRAG_AREA_HEIGHT / 2}
+    width={LEGEND_WIDTH}
+    height={LEGEND_HEIGHT + DRAG_AREA_HEIGHT}
+    fill="transparent"
+    cursor="pointer"
+    onclick={handleTrackClick}
+    aria-hidden="true"
+  />
 
-    <!-- Main color gradient definition -->
-    <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color={colorScale[0]} />
-      <stop offset="100%" stop-color={colorScale[1]} />
-    </linearGradient>
+  <SvgText
+    text={'0'}
+    x={LEGEND_MARGIN}
+    y={20 + LEGEND_HEIGHT + 15}
+    textAnchor="middle"
+    dominantBaseline="middle"
+    fontSize="10"
+  />
 
-    <!-- Inactive (filtered) gradient definition -->
-    <linearGradient id={inactiveGradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color={INACTIVE_COLOR} />
-      <stop offset="100%" stop-color={INACTIVE_COLOR} />
-    </linearGradient>
-  </defs>
+  <SvgText
+    text={maxValue.toString()}
+    x={LEGEND_MARGIN + LEGEND_WIDTH}
+    y={20 + LEGEND_HEIGHT + 15}
+    textAnchor="middle"
+    dominantBaseline="middle"
+    fontSize="10"
+  />
 </svg>
 
 <style>
