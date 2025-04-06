@@ -1,5 +1,9 @@
 <script lang="ts">
-  import { getParticipants } from '$lib/stores/dataStore'
+  import {
+    getNumberOfSegments,
+    getParticipantEndTime,
+    getParticipants,
+  } from '$lib/stores/dataStore'
   import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType'
   import { onDestroy, onMount } from 'svelte'
   import ScarfPlotFigure from './ScarfPlotFigure/ScarfPlotFigure.svelte'
@@ -7,7 +11,21 @@
   import type { ScarfGridType } from '$lib/type/gridType'
   import { tooltipScarfService } from '$lib/services/tooltipServices'
   import { transformDataToScarfPlot } from '$lib/utils/scarfPlotTransformations'
+  import { calculatePlotDimensionsWithHeader } from '$lib/utils/plotSizeUtility'
+  import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
 
+  // CONSTANTS - centralized for easier maintenance
+  const LAYOUT = {
+    HEADER_HEIGHT: 150,
+    HORIZONTAL_PADDING: 50,
+    CONTENT_PADDING: 20,
+    LEFT_LABEL_WIDTH: 125,
+    TOOLTIP_WIDTH: 155,
+    TOOLTIP_OFFSET_Y: 8,
+    TOOLTIP_HIDE_DELAY: 200,
+  }
+
+  // Component Props using Svelte 5 $props() rune
   interface Props {
     settings: ScarfGridType
     settingsChange: (settings: Partial<ScarfGridType>) => void
@@ -15,140 +33,235 @@
 
   let { settings, settingsChange }: Props = $props()
 
-  let tooltipArea: HTMLElement | null = null
-  let windowObj: Window
-  let timeout = 0
-
+  // State management with Svelte 5 runes
+  let tooltipArea = $state<HTMLElement | SVGElement | null>(null)
+  let windowObj = $state<Window | null>(null)
+  let timeout = $state(0)
   let highlightedType = $state<string | null>(null)
   let removeHighlight = $state<null | (() => void)>(null)
 
-  const currentGroupId = $derived.by(() => settings.groupId)
-  const currentStimulusId = $derived.by(() => settings.stimulusId)
+  // Derived values using Svelte 5 $derived and $derived.by runes
+  const currentGroupId = $derived(settings.groupId)
+  const currentStimulusId = $derived(settings.stimulusId)
+
   const currentParticipantIds = $derived.by(() => {
     const participants = getParticipants(currentGroupId, currentStimulusId)
     return participants.map(participant => participant.id)
   })
 
   const scarfData = $derived.by(() =>
-    transformDataToScarfPlot(
-      settings.stimulusId,
-      currentParticipantIds,
-      settings
+    transformDataToScarfPlot(currentStimulusId, currentParticipantIds, settings)
+  )
+
+  // Calculate plot dimensions using a more descriptive approach
+  const plotDimensions = $derived.by(() =>
+    calculatePlotDimensionsWithHeader(
+      settings.w,
+      settings.h,
+      DEFAULT_GRID_CONFIG,
+      LAYOUT.HEADER_HEIGHT,
+      LAYOUT.HORIZONTAL_PADDING,
+      LAYOUT.CONTENT_PADDING
     )
   )
 
-  function handleSettingsChange(newSettings: Partial<ScarfGridType>) {
-    if (settingsChange) {
-      settingsChange(newSettings)
+  // Available width for chart content
+  const chartWidth = $derived(plotDimensions.width)
+
+  // Calculate, based on current stimulus, the min value for the timeline
+  const timelineMinValue = $derived.by(() => {
+    if (settings.timeline === 'absolute') {
+      return settings.absoluteStimuliLimits[currentStimulusId]?.[0] ?? 0
+    } else if (settings.timeline === 'ordinal') {
+      return settings.ordinalStimuliLimits[currentStimulusId]?.[0] ?? 0
+    } else {
+      return 0 // relative timeline has always a min value of 0
     }
+  })
+
+  // Same for max value, however, if the max value is 0, then use the max value of the data
+  const timelineMaxValue = $derived.by(() => {
+    if (settings.timeline === 'absolute') {
+      const maxValue =
+        settings.absoluteStimuliLimits[currentStimulusId]?.[1] ?? 0
+      return maxValue === 0
+        ? currentParticipantIds.reduce(
+            (max, participantId) =>
+              Math.max(
+                max,
+                getParticipantEndTime(currentStimulusId, participantId)
+              ),
+            0
+          )
+        : maxValue
+    } else if (settings.timeline === 'ordinal') {
+      const maxValue =
+        settings.ordinalStimuliLimits[currentStimulusId]?.[1] ?? 0
+      return maxValue === 0
+        ? currentParticipantIds.reduce(
+            (max, participantId) =>
+              Math.max(
+                max,
+                getNumberOfSegments(currentStimulusId, participantId)
+              ),
+            0
+          )
+        : maxValue
+    } else {
+      return 100 // relative timeline has always a max value of 100
+    }
+  })
+
+  $effect(() => {
+    console.log('timelineMinValue', timelineMinValue)
+    console.log('timelineMaxValue', timelineMaxValue)
+  })
+
+  // Tooltip and interaction handlers
+  function handleSettingsChange(newSettings: Partial<ScarfGridType>) {
+    settingsChange?.(newSettings)
   }
 
-  const cancelHighlightKeepTooltip = () => {
+  // Clear functions with more descriptive names
+  function clearHighlightKeepTooltip() {
     clearTimeout(timeout)
-    cancelHighlight()
+    clearHighlight()
   }
 
-  const cancelTooltip = () => {
+  function scheduleTooltipHide() {
     clearTimeout(timeout)
     if (!windowObj) return
+
     timeout = windowObj.setTimeout(() => {
-      cancelTooltipInstantly()
-    }, 200)
+      hideTooltipAndHighlight()
+    }, LAYOUT.TOOLTIP_HIDE_DELAY)
   }
 
-  const cancelTooltipInstantly = () => {
+  function hideTooltipAndHighlight() {
     clearTimeout(timeout)
     tooltipScarfService(null)
     removeHighlight?.()
   }
 
-  const cancelHighlight = () => {
+  function clearHighlight() {
     highlightedType = null
   }
 
-  const cancelInteractivity = () => {
-    cancelHighlight()
-    cancelTooltip()
+  function clearAllInteractions() {
+    clearHighlight()
+    scheduleTooltipHide()
   }
 
-  onMount(() => {
-    windowObj = document.defaultView as Window
-  })
-
-  const processGElement = (gElement: SVGGElement, event: MouseEvent) => {
-    const segmentId = gElement.dataset.id
-    if (!segmentId) return cancelInteractivity()
-    // now access barwrap (closest svg) and get participant id
-    const parent = gElement.closest('svg')
-    if (!parent) return cancelInteractivity()
-    const participantId = parent.dataset.id
-    if (!participantId) return cancelInteractivity()
-
-    // TODO: There was removed things (tooltip?.participantId !== participantId || tooltip?.segmentId !== segmentId)
-
-    removeHighlight?.()
-    gElement.classList.add('focus')
-    removeHighlight = () => {
-      gElement.classList.remove('focus')
-    }
-
-    const WIDTH_OF_TOOLTIP = 155
-    const y = gElement.getBoundingClientRect().bottom + windowObj.scrollY + 8
-    const widthOfView = windowObj.scrollX + document.body.clientWidth
-    const x =
-      event.pageX + WIDTH_OF_TOOLTIP > widthOfView
-        ? widthOfView - WIDTH_OF_TOOLTIP
-        : event.pageX
-
-    const filling: ScarfTooltipFillingType = {
-      x,
-      y,
-      width: WIDTH_OF_TOOLTIP,
-      participantId: parseInt(participantId),
-      segmentId: parseInt(segmentId),
-      stimulusId: settings.stimulusId,
-    }
-
-    clearTimeout(timeout)
-    tooltipScarfService(filling)
-  }
-
-  const handleLegendClick = (identifier: string) => {
+  // Handle legend item clicks
+  function handleLegendClick(identifier: string) {
     if (highlightedType === identifier) return
-    cancelTooltipInstantly()
+    hideTooltipAndHighlight()
     highlightedType = identifier
   }
 
-  const decideInteractivity = (event: MouseEvent) => {
-    const target = event.target as HTMLElement
-    const gElement = target.closest('g')
-    if (gElement) return processGElement(gElement, event)
-    const tooltip = target.closest('aside')
-    if (tooltip) return cancelHighlightKeepTooltip()
-    // We no longer need to handle legend item clicks here as they're handled directly
-    cancelInteractivity()
+  // Handle chart dragging
+  function handleDragStepX(stepChange: number) {
+    // Convert pixels to time/percentage units based on the timeline type
+    // For a negative stepChange (drag right), move the view window left
+    // For a positive stepChange (drag left), move the view window right
+
+    // Calculate the current visible range as a percentage of the total range
+    const currentRange = timelineMaxValue - timelineMinValue
+
+    // Scale factor to convert pixels to timeline units
+    // Using chartWidth to determine how many timeline units per pixel
+    const scaleFactorX = currentRange / chartWidth
+
+    // Calculate the actual units to move based on the drag amount and scale factor
+    const moveAmount = -stepChange * scaleFactorX // Negative to make drag direction intuitive
+
+    // Get current limits
+    const currentMin = timelineMinValue
+    const currentMax = timelineMaxValue
+
+    // Calculate new limits with constraints
+    let newMin = Math.max(0, currentMin + moveAmount) // Ensure left edge doesn't go below zero
+    let newMax = currentMax + moveAmount + (newMin - (currentMin + moveAmount)) // Adjust right edge if left was constrained
+
+    console.log(
+      `Dragging: min=${newMin}, max=${newMax}, moveAmount=${moveAmount}`
+    )
+
+    // Update the settings based on the timeline type
+    if (settings.timeline === 'absolute') {
+      const updatedLimits = { ...settings.absoluteStimuliLimits }
+      updatedLimits[currentStimulusId] = [newMin, newMax]
+
+      handleSettingsChange({
+        absoluteStimuliLimits: updatedLimits,
+      })
+    } else if (settings.timeline === 'ordinal') {
+      const updatedLimits = { ...settings.ordinalStimuliLimits }
+      updatedLimits[currentStimulusId] = [newMin, newMax]
+
+      handleSettingsChange({
+        ordinalStimuliLimits: updatedLimits,
+      })
+    }
+    // For relative timeline, there's typically nothing to update as it's fixed at 0-100%
   }
 
-  onDestroy(() => {
-    cancelInteractivity()
-    if (!tooltipArea) return
+  // Lifecycle hooks
+  onMount(() => {
+    windowObj = window
   })
+
+  onDestroy(() => {
+    clearAllInteractions()
+  })
+
+  function handleTooltipActivation(event: {
+    segmentOrderId: number
+    participantId: number
+    x: number
+    y: number
+  }) {
+    // Prepare tooltip data
+    const tooltipData: ScarfTooltipFillingType = {
+      x: event.x,
+      y: event.y,
+      width: LAYOUT.TOOLTIP_WIDTH,
+      participantId: event.participantId,
+      segmentId: event.segmentOrderId,
+      stimulusId: currentStimulusId,
+    }
+
+    // Show tooltip
+    clearTimeout(timeout)
+    tooltipScarfService(tooltipData)
+  }
+
+  function handleTooltipDeactivation() {
+    clearTimeout(timeout)
+    tooltipScarfService(null)
+  }
 </script>
 
 <div class="scarf-plot-container">
   <div class="header">
-    <ScarfPlotHeader {settings} settingsChange={handleSettingsChange} />
+    <ScarfPlotHeader
+      {settings}
+      {scarfData}
+      settingsChange={handleSettingsChange}
+    />
   </div>
 
   <div class="figure">
     <ScarfPlotFigure
-      onmouseleave={cancelInteractivity}
-      onmousemove={decideInteractivity}
+      onTooltipActivation={handleTooltipActivation}
+      onTooltipDeactivation={handleTooltipDeactivation}
       tooltipAreaElement={tooltipArea}
       data={scarfData}
       {settings}
       highlightedIdentifier={highlightedType}
       onLegendClick={handleLegendClick}
+      onDragStepX={handleDragStepX}
+      {chartWidth}
     />
   </div>
 </div>

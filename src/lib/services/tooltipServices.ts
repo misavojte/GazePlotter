@@ -1,5 +1,5 @@
 import { getParticipant, getSegment } from '$lib/stores/dataStore'
-import { tooltipStore } from '$lib/stores/tooltipStore'
+import { updateTooltip } from '$lib/stores/tooltipStore'
 import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType'
 
 /**
@@ -12,7 +12,7 @@ export const tooltipScarfService = (
   filling: ScarfTooltipFillingType | null
 ) => {
   if (filling === null) {
-    tooltipStore.set(null)
+    updateTooltip(null)
     return
   }
   const segment = getSegment(
@@ -44,7 +44,7 @@ export const tooltipScarfService = (
     { key: 'Duration', value: duration.toString() }
   )
 
-  tooltipStore.set({
+  updateTooltip({
     visible: true,
     content,
     x: filling.x,

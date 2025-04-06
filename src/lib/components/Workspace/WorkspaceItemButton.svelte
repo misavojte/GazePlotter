@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte'
-  import { tooltipStore } from '$lib/stores/tooltipStore'
+  import { tooltipAction } from '../Tooltip.svelte'
 
   interface Props {
     label?: string
@@ -35,27 +34,6 @@
       onclick(new CustomEvent('click', { detail: { action } }))
     }
   }
-
-  function showTooltip(event: MouseEvent) {
-    if (disabled) return
-
-    const rect = buttonElement.getBoundingClientRect()
-    tooltipStore.set({
-      visible: true,
-      content: [{ key: '', value: tooltip || label }],
-      x: rect.left,
-      y: rect.top - 35 + window.scrollY,
-      width: Math.max(100, (tooltip || label).length * 8),
-    })
-  }
-
-  function hideTooltip() {
-    tooltipStore.set(null)
-  }
-
-  onDestroy(() => {
-    hideTooltip()
-  })
 </script>
 
 <div class="tooltip-wrapper">
@@ -66,11 +44,16 @@
       onclick={handleClick}
       aria-label={label || tooltip}
       bind:this={buttonElement}
-      onmouseenter={showTooltip}
-      onmouseleave={hideTooltip}
+      use:tooltipAction={{
+        content: tooltip || label,
+        position: 'top',
+        offset: 35,
+      }}
       use:actionFn={actionParams}
     >
-      {#if children}{@render children()}{:else}
+      {#if children}
+        <svelte:component this={children} />
+      {:else}
         {#if icon}
           {@html icon}
         {/if}
@@ -86,10 +69,15 @@
       onclick={handleClick}
       aria-label={label || tooltip}
       bind:this={buttonElement}
-      onmouseenter={showTooltip}
-      onmouseleave={hideTooltip}
+      use:tooltipAction={{
+        content: tooltip || label,
+        position: 'top',
+        offset: 35,
+      }}
     >
-      {#if children}{@render children()}{:else}
+      {#if children}
+        <svelte:component this={children} />
+      {:else}
         {#if icon}
           {@html icon}
         {/if}
@@ -126,6 +114,12 @@
     fill: var(--c-grey);
     transition: all 0.15s ease-out;
     border: none;
+  }
+
+  .workspace-item-button-content {
+    user-select: none;
+    pointer-events: none;
+    display: contents;
   }
 
   .workspace-item-button:hover {

@@ -35,7 +35,7 @@ import {
   getStimuli,
   hasStimulusAoiVisibility,
 } from '$lib/stores/dataStore'
-import { PlotAxisBreaks } from '$lib/class/Plot/PlotAxisBreaks/PlotAxisBreaks'
+import { AdaptiveTimeline } from '../class/Plot/AdaptiveTimeline/AdaptiveTimeline'
 import {
   IDENTIFIER_IS_AOI,
   IDENTIFIER_IS_OTHER_CATEGORY,
@@ -80,62 +80,82 @@ export function getScarfParticipantBarHeight(
 }
 
 /**
- * Calculates the maximum timeline value for the plot based on settings and participant data
+ * Calculates the timeline range for the plot based on settings and participant data
  *
  * @param participantIds Array of participant IDs to include
  * @param stimulusId ID of the stimulus to display
  * @param settings Configuration settings for the grid
- * @returns The maximum timeline value and whether data is cut
+ * @returns The timeline range values
  */
-export function calculateTimelineMax(
+export function calculateTimelineRange(
   participantIds: number[],
   stimulusId: number,
   settings: ScarfGridType
-): { maxValue: number; isCut: boolean } {
-  const isCut = false
-
+): { minValue: number; maxValue: number } {
+  // For relative mode, we always use 0-100 range (percentage)
   if (settings.timeline === 'relative') {
-    return { maxValue: 100, isCut: false }
+    return { minValue: 0, maxValue: 100 }
   }
 
-  const absoluteTimelineLastVal =
-    settings.absoluteStimuliLastVal[stimulusId] ??
-    settings.absoluteGeneralLastVal
+  let minValue = 0
+  let maxValue = 0
 
-  const ordinalTimelineLastVal =
-    settings.ordinalStimuliLastVal[stimulusId] ?? settings.ordinalGeneralLastVal
+  if (settings.timeline === 'absolute') {
+    // Get absolute timeline limits for the specific stimulus
+    const stimulusSpecificLimits = settings.absoluteStimuliLimits?.[stimulusId]
 
-  let highestEndTime =
-    settings.timeline === 'absolute'
-      ? absoluteTimelineLastVal
-      : ordinalTimelineLastVal
+    // Use stimulus-specific limits if available, otherwise use default [0, 0]
+    if (
+      Array.isArray(stimulusSpecificLimits) &&
+      stimulusSpecificLimits.length === 2
+    ) {
+      ;[minValue, maxValue] = stimulusSpecificLimits
+    }
+  } else {
+    // 'ordinal' timeline
+    // Get ordinal timeline limits for the specific stimulus
+    const stimulusSpecificLimits = settings.ordinalStimuliLimits?.[stimulusId]
 
-  // Find the highest end time among participants
-  for (const participantId of participantIds) {
-    const numberOfSegments = getNumberOfSegments(stimulusId, participantId)
+    // Use stimulus-specific limits if available, otherwise use default [0, 0]
+    if (
+      Array.isArray(stimulusSpecificLimits) &&
+      stimulusSpecificLimits.length === 2
+    ) {
+      ;[minValue, maxValue] = stimulusSpecificLimits
+    }
+  }
 
-    if (numberOfSegments === 0) continue
+  // Ensure minValue is at least 0
+  minValue = Math.max(0, minValue)
 
-    if (settings.timeline === 'ordinal') {
-      if (numberOfSegments > highestEndTime) {
-        if (ordinalTimelineLastVal !== 0) {
-          return { maxValue: highestEndTime, isCut: true }
+  // If maxValue is 0 (auto), calculate it from data
+  if (maxValue === 0) {
+    for (const participantId of participantIds) {
+      const numberOfSegments = getNumberOfSegments(stimulusId, participantId)
+
+      if (numberOfSegments === 0) continue
+
+      if (settings.timeline === 'ordinal') {
+        if (numberOfSegments > maxValue) {
+          maxValue = numberOfSegments
         }
-        highestEndTime = numberOfSegments
+      } else {
+        // 'absolute' timeline
+        const endTime = getParticipantEndTime(stimulusId, participantId)
+        if (endTime > maxValue) {
+          maxValue = endTime
+        }
       }
-      continue
-    }
-
-    const currentEndTime = getParticipantEndTime(stimulusId, participantId)
-    if (currentEndTime > highestEndTime) {
-      if (absoluteTimelineLastVal !== 0) {
-        return { maxValue: highestEndTime, isCut: true }
-      }
-      highestEndTime = currentEndTime
     }
   }
 
-  return { maxValue: highestEndTime, isCut }
+  // If the calculated maxValue is less than or equal to minValue after auto-calculation,
+  // add a small buffer to ensure a valid range
+  if (maxValue <= minValue) {
+    maxValue = minValue + (settings.timeline === 'ordinal' ? 10 : 1000) // 10 segments or 1000ms
+  }
+
+  return { minValue, maxValue }
 }
 
 /**
@@ -144,19 +164,34 @@ export function calculateTimelineMax(
  * @param participantIds Array of participant IDs to include
  * @param stimulusId ID of the stimulus to display
  * @param settings Configuration settings for the grid
- * @returns PlotAxisBreaks object with calculated breaks
+ * @returns AdaptiveTimeline object with calculated ticks and bounds
  */
 export function createScarfPlotAxis(
   participantIds: number[],
   stimulusId: number,
   settings: ScarfGridType
-): PlotAxisBreaks {
-  const { maxValue } = calculateTimelineMax(
+): AdaptiveTimeline {
+  const { minValue, maxValue } = calculateTimelineRange(
     participantIds,
     stimulusId,
     settings
   )
-  return new PlotAxisBreaks(maxValue)
+
+  // Create timeline with the appropriate range based on mode
+  if (settings.timeline === 'relative') {
+    // For relative mode, always use 0-100 range
+    return new AdaptiveTimeline(0, 100)
+  } else if (settings.timeline === 'ordinal') {
+    // For ordinal mode, use minValue to maxValue (integer values)
+    return new AdaptiveTimeline(
+      minValue,
+      maxValue,
+      Math.min(10, maxValue - minValue)
+    )
+  } else {
+    // For absolute mode, use minValue to maxValue in ms
+    return new AdaptiveTimeline(minValue, maxValue)
+  }
 }
 
 /**
@@ -247,22 +282,24 @@ export function createStylingAndLegend(
  * Creates a single segment content object for visualization
  *
  * @param segment Segment data
- * @param x X position as percentage string
- * @param width Width as percentage string
+ * @param x X position as decimal (0-1)
+ * @param width Width as decimal (0-1)
  * @param barHeight Height of the main bar
  * @param nonFixationHeight Height of non-fixation elements
  * @param spaceAboveRect Space above the rectangle
  * @param segmentCategories Array of segment categories to show
+ * @param orderId The original order ID of the segment
  * @returns Array of segment content objects for visualization
  */
 export function createSegmentContents(
   segment: SegmentInterpretedDataType,
-  x: string,
-  width: string,
+  x: number,
+  width: number,
   barHeight = DEFAULT_BAR_HEIGHT,
   nonFixationHeight = DEFAULT_NON_FIXATION_HEIGHT,
   spaceAboveRect = DEFAULT_SPACE_ABOVE_RECT,
-  segmentCategories = DEFAULT_SEGMENT_CATEGORIES
+  segmentCategories = DEFAULT_SEGMENT_CATEGORIES,
+  orderId: number
 ): SingleSegmentScarfFillingType[] {
   // Handle non-fixation segment (e.g., saccade)
   if (segment.category.id !== 0) {
@@ -281,6 +318,7 @@ export function createSegmentContents(
         width,
         height,
         identifier: `${IDENTIFIER_IS_OTHER_CATEGORY}${typeIdentifier}`,
+        orderId,
       },
     ]
   }
@@ -294,6 +332,7 @@ export function createSegmentContents(
         width,
         height: barHeight,
         identifier: `${IDENTIFIER_IS_AOI}${IDENTIFIER_NOT_DEFINED}`,
+        orderId,
       },
     ]
   }
@@ -310,6 +349,7 @@ export function createSegmentContents(
       width,
       height,
       identifier: `${IDENTIFIER_IS_AOI}${aoi.id}`,
+      orderId,
     })
     yPosition += height
   }
@@ -327,6 +367,9 @@ export function createSegmentContents(
  * @param rectWrappedHeight Height of the wrapped rectangle
  * @param lineWrappedHeight Height of the wrapped line
  * @param showAoiVisibility Whether to show AOI visibility
+ * @param timelineMax Maximum timeline value
+ * @param timelineMode The timeline mode (absolute, relative, ordinal)
+ * @param timelineMin Minimum timeline value
  * @returns Array of AOI visibility objects for visualization
  */
 export function createAoiVisibility(
@@ -336,13 +379,27 @@ export function createAoiVisibility(
   sessionDuration: number,
   rectWrappedHeight: number,
   lineWrappedHeight: number,
-  showAoiVisibility: boolean
+  showAoiVisibility: boolean,
+  timelineMax: number = sessionDuration,
+  timelineMode: string = 'absolute',
+  timelineMin: number = 0
 ): AoiVisibilityScarfFillingType[] {
   if (!showAoiVisibility) {
     return []
   }
 
   const result: AoiVisibilityScarfFillingType[] = []
+
+  // Only apply timeline limits for absolute mode
+  const shouldApplyLimits =
+    timelineMode !== 'relative' && timelineMode !== 'ordinal'
+
+  // Calculate the visible timeline range
+  const visibleRange = timelineMax - timelineMin
+
+  // Get the actual participant data bounds to crop visibility lines
+  const participantStart = 0 // Always start at 0
+  const participantEnd = sessionDuration // Use actual session duration
 
   for (let aoiIndex = 0; aoiIndex < aoiData.length; aoiIndex++) {
     const aoiId = aoiData[aoiIndex].id
@@ -351,13 +408,51 @@ export function createAoiVisibility(
 
     if (visibility !== null) {
       for (let i = 0; i < visibility.length; i += 2) {
-        const start = visibility[i]
-        const end = visibility[i + 1]
+        let start = visibility[i]
+        let end = visibility[i + 1]
+
+        // Crop visibility to participant's data range first
+        if (end <= participantStart || start >= participantEnd) {
+          continue
+        }
+
+        if (start < participantStart) start = participantStart
+        if (end > participantEnd) end = participantEnd
+
+        // Only apply filtering for absolute timeline mode
+        if (shouldApplyLimits) {
+          // Skip visibility ranges entirely outside the timeline
+          if (end <= timelineMin || start >= timelineMax) {
+            continue
+          }
+
+          // Crop visibility ranges partially outside the timeline
+          if (start < timelineMin) start = timelineMin
+          if (end > timelineMax) end = timelineMax
+        }
+
         const y = rectWrappedHeight + aoiIndex * lineWrappedHeight
 
+        // Calculate position as decimal (0-1) of the visible range
+        let x1: number
+        let x2: number
+
+        if (timelineMode === 'relative') {
+          // For relative timeline, position is calculated relative to the session duration
+          x1 = start / sessionDuration
+          x2 = end / sessionDuration
+        } else {
+          // For absolute/ordinal, position is calculated relative to the visible range
+          const adjustedStart = start - timelineMin
+          const adjustedEnd = end - timelineMin
+
+          x1 = adjustedStart / visibleRange
+          x2 = adjustedEnd / visibleRange
+        }
+
         visibilityContent.push({
-          x1: `${(start / sessionDuration) * 100}%`,
-          x2: `${(end / sessionDuration) * 100}%`,
+          x1,
+          x2,
           y,
           identifier: `${IDENTIFIER_IS_AOI}${aoiId}`,
         })
@@ -376,6 +471,7 @@ export function createAoiVisibility(
  * @param participantId ID of the participant
  * @param stimulusId ID of the stimulus
  * @param timeline Timeline settings
+ * @param timelineMin Minimum timeline value
  * @param timelineMax Maximum timeline value
  * @param barHeight Height of the main bar
  * @param nonFixationHeight Height of non-fixation elements
@@ -388,6 +484,7 @@ export function createParticipantData(
   participantId: number,
   stimulusId: number,
   timeline: string,
+  timelineMin: number,
   timelineMax: number,
   barHeight = DEFAULT_BAR_HEIGHT,
   nonFixationHeight = DEFAULT_NON_FIXATION_HEIGHT,
@@ -412,15 +509,46 @@ export function createParticipantData(
 
   // Create segments
   const segments: SegmentScarfFillingType[] = []
+
+  // Calculate the visible timeline range
+  const visibleRange = timelineMax - timelineMin
+
   for (let segmentId = 0; segmentId < segmentCount; segmentId++) {
     const segment = getSegment(stimulusId, participantId, segmentId)
     const isOrdinal = timeline === 'ordinal'
+    const isRelative = timeline === 'relative'
 
-    const start = isOrdinal ? segmentId : segment.start
-    const end = isOrdinal ? segmentId + 1 : segment.end
+    let start = isOrdinal ? segmentId : segment.start
+    let end = isOrdinal ? segmentId + 1 : segment.end
 
-    const x = `${(start / sessionDuration) * 100}%`
-    const width = `${((end - start) / sessionDuration) * 100}%`
+    // Skip segments entirely outside the timeline range
+    // For relative timeline, we don't apply cropping
+    if (!isRelative) {
+      if (end <= timelineMin || start >= timelineMax) {
+        continue
+      }
+
+      // Crop segments that are partially outside the timeline range
+      if (start < timelineMin) start = timelineMin
+      if (end > timelineMax) end = timelineMax
+    }
+
+    // Calculate position and width as decimals (0-1)
+    let x: number
+    let width: number
+
+    if (isRelative) {
+      // For relative timeline, position is relative to the session duration
+      x = start / sessionDuration
+      width = (end - start) / sessionDuration
+    } else {
+      // For absolute/ordinal timeline, position is relative to the visible range
+      const adjustedStart = start - timelineMin
+      const segmentWidth = end - start
+
+      x = adjustedStart / visibleRange
+      width = segmentWidth / visibleRange
+    }
 
     segments.push({
       content: createSegmentContents(
@@ -429,16 +557,24 @@ export function createParticipantData(
         width,
         barHeight,
         nonFixationHeight,
-        spaceAboveRect
+        spaceAboveRect,
+        undefined, // use default segment categories
+        segmentId
       ),
     })
   }
 
-  // Calculate width based on timeline type
-  const width =
-    timeline === 'relative'
-      ? '100%'
-      : `${(sessionDuration / timelineMax) * 100}%`
+  // Calculate width as decimal (0-1)
+  let width: number
+
+  if (timeline === 'relative') {
+    width = 1.0 // equivalent to 100%
+  } else {
+    // For absolute/ordinal, the width depends on session duration and visible range
+    width =
+      (Math.min(sessionDuration, timelineMax) - Math.max(0, timelineMin)) /
+      visibleRange
+  }
 
   return {
     id: participantId,
@@ -452,7 +588,10 @@ export function createParticipantData(
       sessionDuration,
       rectWrappedHeight,
       lineWrappedHeight,
-      showAoiVisibility
+      showAoiVisibility,
+      timelineMax,
+      timeline,
+      timelineMin
     ),
   }
 }
@@ -482,11 +621,8 @@ export function transformDataToScarfPlot(
   const aoiData = getAois(stimulusId)
   const stimuliData = getStimuli()
   const timeline = createScarfPlotAxis(participantIds, stimulusId, settings)
-  const { maxValue } = calculateTimelineMax(
-    participantIds,
-    stimulusId,
-    settings
-  )
+  const minValue = timeline.minValue
+  const maxValue = timeline.maxValue
 
   const showAoiVisibility =
     hasStimulusAoiVisibility(stimulusId) && settings.timeline !== 'ordinal'
@@ -509,6 +645,7 @@ export function transformDataToScarfPlot(
       participantId,
       stimulusId,
       settings.timeline,
+      minValue,
       maxValue,
       barHeight,
       nonFixationHeight,
@@ -546,48 +683,4 @@ export function transformDataToScarfPlot(
     timeline,
     stylingAndLegend,
   }
-}
-
-/**
- * Generates CSS rules for a scarf plot
- *
- * @param plotAreaId ID of the plot area element
- * @param stylingData Styling data for the plot
- * @param highlightedType Type identifier for highlighted elements
- * @returns CSS string for the plot
- */
-export function generateScarfPlotCSS(
-  plotAreaId: string,
-  stylingData: StylingScarfFillingType,
-  highlightedType: string | null
-): string {
-  const { aoi, category, visibility } = stylingData
-
-  // Generate CSS rules for rectangles
-  const rectRules = [...aoi, ...category]
-    .map(style => {
-      const { color, identifier } = style
-      return `#${plotAreaId} .${identifier}{fill:${color};}`
-    })
-    .join('')
-
-  // Generate CSS rules for lines
-  const lineRules = visibility
-    .map(style => {
-      const { color, identifier, height } = style
-      return `#${plotAreaId} line.${identifier}{stroke:${color};stroke-width:${height};stroke-dasharray:1;}`
-    })
-    .join('')
-
-  // Generate highlight rules
-  let highlightRules = ''
-  if (highlightedType) {
-    highlightRules = `
-      #${plotAreaId} rect:not(.${highlightedType}){opacity:0.2;}
-      #${plotAreaId} line:not(.${highlightedType}){opacity:0.2;}
-      #${plotAreaId} line.${highlightedType}{stroke-width:100%;}
-    `
-  }
-
-  return '<style>' + rectRules + lineRules + highlightRules + '</style>'
 }

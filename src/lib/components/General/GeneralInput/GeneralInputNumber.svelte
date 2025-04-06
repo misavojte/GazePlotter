@@ -5,6 +5,7 @@
     min?: number
     label: string
     oninput?: (event: Event) => void
+    disabled?: boolean
   }
 
   let {
@@ -12,6 +13,7 @@
     min = 0,
     label,
     oninput = () => {},
+    disabled = false,
   }: Props = $props()
 
   function handleInput(event: Event) {
@@ -28,7 +30,7 @@
 </script>
 
 <GeneralInputScaffold {label} {id}>
-  <input {id} type="number" bind:value {min} oninput={handleInput} />
+  <input {id} type="number" bind:value {min} {disabled} oninput={handleInput} />
 </GeneralInputScaffold>
 
 <style>
@@ -42,5 +44,11 @@
   }
   input:out-of-range {
     border-color: var(--c-error);
+  }
+
+  input:disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+    opacity: 0.7;
   }
 </style>

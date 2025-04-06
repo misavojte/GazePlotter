@@ -1,6 +1,4 @@
 <script lang="ts">
-  import ScarfPlot from '$lib/components/Plot/ScarfPlot/ScarfPlot.svelte'
-  import AoiTransitionMatrixPlot from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixPlot.svelte'
   import GridItem from '$lib/components/Workspace/WorkspaceItem.svelte'
   import WorkspaceIndicatorEmpty from '$lib/components/Workspace/WorkspaceIndicatorEmpty.svelte'
   import WorkspaceIndicatorLoading from '$lib/components/Workspace/WorkspaceIndicatorLoading.svelte'
@@ -10,14 +8,24 @@
   import { writable, get, derived } from 'svelte/store'
   import type { AllGridTypes } from '$lib/type/gridType'
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
-  import { getScarfGridHeightFromCurrentData } from '$lib/services/scarfServices'
   import { createGridStore, type GridConfig } from '$lib/stores/gridStore'
+  import { onDestroy, onMount } from 'svelte'
   import {
     DEFAULT_GRID_CONFIG,
     calculateGridHeight,
     calculateRequiredWorkspaceHeight,
     calculateBottomEdgePosition,
+    calculateGridWidth,
+    WORKSPACE_BOTTOM_PADDING,
+    WORKSPACE_RIGHT_PADDING,
+    MIN_WORKSPACE_HEIGHT,
+    DEFAULT_WORKSPACE_WIDTH,
   } from '$lib/utils/gridSizingUtils'
+  import {
+    visualizationRegistry,
+    getVisualizationConfig,
+  } from '$lib/const/vizRegistry'
+  import { throttleByRaf } from '$lib/utils/throttle'
 
   // ---------------------------------------------------
   // State tracking
@@ -30,125 +38,173 @@
   const isDragging = writable(false)
   const draggedItemId = writable<number | null>(null)
 
+  // Add state for tracking resize operations
+  const isResizing = writable(false)
+  const resizedItemId = writable<number | null>(null)
+
+  // Add state for workspace panning
+  const isPanning = writable(false)
+  let lastPanX = 0
+  let lastPanY = 0
+
+  // Add state for auto-scrolling
+  const isAutoScrolling = writable(false)
+  const autoScrollDirection = writable({ x: 0, y: 0 })
+  let autoScrollInterval: number | null = null
+  const AUTO_SCROLL_AMOUNT = 5 // Number of grid cells to scroll by
+
+  // Track current scroll speeds outside interval function to preserve momentum
+  let currentSpeedX = 0
+  let currentSpeedY = 0
+
+  let workspaceContainer: HTMLElement | null = null
+
+  if (workspaceContainer) {
+    ;(workspaceContainer as HTMLElement).scrollLeft = 0
+  }
+
+  // Initialize the workspace position on mount
+  onMount(() => {
+    if (workspaceContainer) {
+      // Get the top position of the workspace relative to the document
+      const workspaceRect = workspaceContainer.getBoundingClientRect()
+      scrollStartY = workspaceRect.top + window.scrollY
+
+      // Make sure initial scroll is at the correct position
+      setWorkspaceScrollX(scrollStartX)
+    }
+  })
+
   // Store to track temporary height adjustment during drag operations
   const temporaryDragHeight = writable<number | null>(null)
+  const temporaryDragWidth = writable<number | null>(null)
 
-  // ---------------------------------------------------
-  // Visualization Registry - Central configuration for plot types
-  // ---------------------------------------------------
+  // scroll Starting position (where x = 0, y = 0 are truly located)
+  // these will be used to calculate the scroll position of the workspace
+  let scrollStartX = 30 // this wont change as this is fixed :)
+  let scrollStartY = 0 // this will change on Mount as the workspace is placed below the header in the DOM
 
-  // Define a type for visualization registry entries
-  type VisualizationConfig = {
-    name: string
-    component: any
-    getDefaultConfig: (params?: any) => Partial<AllGridTypes>
-    getDefaultHeight: (params?: any) => number
-    getDefaultWidth: (params?: any) => number
+  const getWorkspaceScrollX = () => {
+    if (workspaceContainer) {
+      return workspaceContainer.scrollLeft
+    }
+    return 0
   }
 
-  // Visualization registry - a map of all available visualization types
-  const visualizationRegistry: Record<string, VisualizationConfig> = {
-    scarf: {
-      name: 'Scarf Plot',
-      component: ScarfPlot,
-      getDefaultConfig: (
-        params: { stimulusId?: number; groupId?: number } = {}
-      ) => ({
-        stimulusId: params.stimulusId ?? 0,
-        groupId: params.groupId ?? -1,
-        zoomLevel: 0,
-        timeline: 'absolute',
-        absoluteGeneralLastVal: 0,
-        absoluteStimuliLastVal: [],
-        ordinalGeneralLastVal: 0,
-        ordinalStimuliLastVal: [],
-        dynamicAOI: true,
-        min: { w: 14, h: 3 },
-      }),
-      getDefaultHeight: (stimulusId = 0) =>
-        getScarfGridHeightFromCurrentData(stimulusId, false, -1),
-      getDefaultWidth: (stimulusId = 0) => 20,
-    },
-    AoiTransitionMatrix: {
-      name: 'AOI Transition Matrix',
-      component: AoiTransitionMatrixPlot,
-      getDefaultConfig: (
-        params: { stimulusId?: number; groupId?: number } = {}
-      ) => ({
-        stimulusId: params.stimulusId ?? 0,
-        groupId: params.groupId ?? -1,
-        min: { w: 11, h: 12 },
-      }),
-      getDefaultHeight: () => 12, // Default square size
-      getDefaultWidth: () => 12,
-    },
+  const getWorkspaceScrollY = () => {
+    // this is from window.scrollY
+    if (window) {
+      return window.scrollY
+    }
+    return 0
   }
 
-  // Helper function to get visualization config
-  const getVisualizationConfig = (type: string): VisualizationConfig => {
-    return (
-      visualizationRegistry[type] ||
-      new Error(`Visualization config not found for type: ${type}`)
-    )
+  const setWorkspaceScrollX = (x: number) => {
+    if (workspaceContainer) {
+      workspaceContainer.scrollLeft = x
+    }
+  }
+
+  const setWorkspaceScrollY = (y: number) => {
+    if (window) {
+      window.scrollTo(0, y)
+    }
   }
 
   // ---------------------------------------------------
   // Utility functions
   // ---------------------------------------------------
 
-  // Calculate the center position for the initial grid item
-  const findCenterX = (width: number | null): number => {
-    return 0 // Always start from x=0
+  // Higher-order function for creating operation handlers with common behavior
+  const createOperationHandler = <T extends { id: number }>(options: {
+    operationType?: 'move' | 'resize' | 'preview' | 'start' | 'end'
+    stateUpdater?: (id: number, isActive: boolean) => void
+    heightUpdater?: (event: T) => void
+    gridAction?: (event: T) => void
+    shouldResolveCollisions?: boolean
+  }) => {
+    const {
+      operationType,
+      stateUpdater,
+      heightUpdater,
+      gridAction,
+      shouldResolveCollisions = false,
+    } = options
+
+    return (event: T) => {
+      const { id } = event
+
+      // Update operation state if needed
+      if (stateUpdater && operationType !== 'end') {
+        stateUpdater(id, true)
+      }
+
+      // Update temporary height for preview operations
+      if (
+        heightUpdater &&
+        (operationType === 'preview' ||
+          operationType === 'move' ||
+          operationType === 'resize')
+      ) {
+        heightUpdater(event)
+      }
+
+      // Perform grid action if provided
+      if (gridAction) {
+        gridAction(event)
+      }
+
+      // Reset states for end operations
+      if (operationType === 'end') {
+        isDragging.set(false)
+        draggedItemId.set(null)
+        isResizing.set(false)
+        resizedItemId.set(null)
+        temporaryDragHeight.set(null)
+        temporaryDragWidth.set(null)
+
+        // End auto-scrolling if active
+        endItemEdgeScroll()
+
+        // Resolve collisions if needed after a slight delay
+        if (shouldResolveCollisions && id) {
+          setTimeout(() => {
+            gridStore.resolveItemPositionCollisions(id)
+          }, 50)
+        }
+      }
+    }
   }
 
-  // Generate a new unique ID
-  const getNewId = () => {
-    return Date.now() + Math.floor(Math.random() * 1000)
-  }
+  // Unified height calculation for preview operations
+  const calculateWorkspaceHeight = (id: number, y: number, h: number) => {
+    const currentItems = get(gridStore)
 
-  // Factory function to create grid items with proper defaults based on type
-  const createGridItem = (
-    type: string,
-    options: Partial<AllGridTypes> = {}
-  ): AllGridTypes => {
-    const config = getVisualizationConfig(type)
-    const id = options.id || getNewId()
-    const stimulusId = options.stimulusId ?? 0
+    // Calculate bottom edge of the item being manipulated
+    const itemBottomEdge = calculateBottomEdgePosition(y, h, gridConfig)
 
-    // Get default dimensions from config
-    const defaultWidth = config.getDefaultWidth(stimulusId)
-    const defaultHeight = config.getDefaultHeight(stimulusId)
+    // Calculate maximum bottom edge of all OTHER items
+    const otherItemsMaxBottom = Math.max(
+      MIN_WORKSPACE_HEIGHT, // Use constant for minimum fallback
+      ...currentItems
+        .filter(item => item.id !== id)
+        .map(item => calculateBottomEdgePosition(item.y, item.h, gridConfig))
+    )
 
-    // Set default position if not provided
-    const x = options.x !== undefined ? options.x : 0 // Always start at x=0
-    const y = options.y !== undefined ? options.y : 0
-
-    // Merge defaults with provided options
-    return {
-      id,
-      type,
-      x,
-      y,
-      w: options.w || defaultWidth,
-      h: options.h || defaultHeight,
-      ...config.getDefaultConfig(options),
-      ...options,
-    } as AllGridTypes
+    // Return maximum + padding
+    return (
+      Math.max(otherItemsMaxBottom, itemBottomEdge) + WORKSPACE_BOTTOM_PADDING
+    )
   }
 
   // Generate the default grid state with a centered scarf plot
-  const createDefaultGridState = (): AllGridTypes[] => {
+  const createDefaultGridStateData = (): Array<
+    Partial<AllGridTypes> & { type: string }
+  > => {
+    // Return data needed to create items, not the items themselves
     return [
-      createGridItem('scarf', {
-        x: 0, // Always start at x=0
-        y: 0,
-      }),
-      createGridItem('AoiTransitionMatrix', {
-        x: 20,
-        y: 0,
-        w: 11,
-        h: 12,
-      }),
+      { type: 'scarf', x: 0, y: 0 },
+      { type: 'AoiTransitionMatrix', x: 20, y: 0, w: 11, h: 12 },
     ]
   }
 
@@ -159,10 +215,25 @@
   // Configuration for grid cells - use the default config
   const gridConfig: GridConfig = { ...DEFAULT_GRID_CONFIG }
 
-  const initialItems: AllGridTypes[] = createDefaultGridState()
+  const initialItemData = createDefaultGridStateData()
 
   // Create our simplified grid store
-  const gridStore = createGridStore(gridConfig, initialItems)
+  const gridStore = createGridStore(gridConfig, initialItemData)
+
+  // set gridStore to context (old ScarfPlot dependency)
+  setContext('gridStore', gridStore)
+
+  // Monitor auto-scrolling state changes
+  $effect(() => {
+    if ($isAutoScrolling) {
+      console.log('Auto-scrolling active, direction:', $autoScrollDirection)
+    }
+  })
+
+  // Clean up auto-scrolling on component destroy
+  onDestroy(() => {
+    endItemEdgeScroll()
+  })
 
   // Reactive derivation of grid positions for the Grid component
   const positions = derived(gridStore, $gridStore =>
@@ -178,6 +249,24 @@
   // Reactive derivation of whether the grid is empty
   const isEmpty = derived(gridStore, $gridStore => $gridStore.length === 0)
 
+  // Calculate the required workspace width based on grid items
+  const requiredWorkspaceWidth = derived(positions, $positions => {
+    if ($positions.length === 0) return DEFAULT_WORKSPACE_WIDTH // Use constant
+
+    // Find the rightmost edge of all items
+    const maxRightEdge = Math.max(
+      ...$positions.map(
+        item => (item.x + item.w) * (gridConfig.cellSize.width + gridConfig.gap)
+      )
+    )
+
+    // Add padding and ensure minimum width
+    return Math.max(
+      DEFAULT_WORKSPACE_WIDTH,
+      maxRightEdge + WORKSPACE_RIGHT_PADDING
+    )
+  })
+
   // Create store to track minimum workspace height required by all items
   const requiredWorkspaceHeight = derived(positions, $positions => {
     return calculateRequiredWorkspaceHeight($positions, gridConfig)
@@ -192,13 +281,7 @@
       temporaryDragHeight,
       requiredWorkspaceHeight,
     ],
-    ([
-      $positions,
-      $isEmpty,
-      $isLoading,
-      $temporaryDragHeight,
-      $requiredWorkspaceHeight,
-    ]) => {
+    ([$positions, $isEmpty, $isLoading, $temporaryDragHeight]) => {
       return calculateGridHeight(
         $positions,
         $isEmpty,
@@ -209,272 +292,553 @@
     }
   )
 
-  // ---------------------------------------------------
-  // Enhanced grid store with additional methods
-  // ---------------------------------------------------
-
-  // Add the required functions to match the expected gridStore interface
-  const enhancedGridStore = {
-    subscribe: gridStore.subscribe,
-    set: gridStore.set,
-    update: gridStore.update,
-    updateSettings: gridStore.updateSettings,
-    removeItem: gridStore.removeItem,
-    duplicateItem: (item: AllGridTypes) => {
-      return gridStore.duplicateItem(item)
-    },
-    // Add batch duplication support
-    batchDuplicateItems: (items: AllGridTypes[]) => {
-      return gridStore.batchDuplicateItems(items)
-    },
-    addItem: (type: string, options: Partial<AllGridTypes> = {}) => {
-      const newItem = createGridItem(type, options)
-      return gridStore.addItem(newItem)
-    },
-    resetGrid: (newState: AllGridTypes[] = []) => {
-      gridStore.set(newState)
-    },
-  }
-
-  // Make the enhanced store available to child components
-  setContext('gridStore', enhancedGridStore)
-
-  // Also make visualization registry available to child components
-  setContext('visualizationRegistry', visualizationRegistry)
+  const gridWidth = derived(
+    [positions, temporaryDragWidth],
+    ([$positions, $temporaryDragWidth]) => {
+      return calculateGridWidth($positions, $temporaryDragWidth, gridConfig)
+    }
+  )
 
   // ---------------------------------------------------
-  // Event handlers and reactivity
+  // Event handlers created using the factory
   // ---------------------------------------------------
 
-  // Handle item movement preview during drag (doesn't update actual position)
-  const handleItemPreviewMove = (event: {
-    id: number
-    previewX: number
-    previewY: number
-    currentX: number
-    currentY: number
-    w: number
-    h: number
-  }) => {
-    // During drag preview, we don't update the actual position in the store
-    // We can still check for collisions, etc. if needed, but we don't
-    // modify the grid store
-    const { id, previewX, previewY } = event
+  // --- Preview handlers (visual feedback only) ---
 
-    // For now, we don't need to do anything here except handle the event
-    // This avoids updating the actual grid item during drag
+  // Handle item movement preview
+  const handleItemPreviewMove = createOperationHandler({
+    operationType: 'preview',
+    heightUpdater: (event: { id: number; previewY: number; h: number }) => {
+      temporaryDragHeight.set(
+        calculateWorkspaceHeight(event.id, event.previewY, event.h)
+      )
+    },
+  })
+
+  // Handle edge detection for auto-scrolling
+  const handleItemEdgeDetection = (event: {
+    id: number
+    itemBounds: {
+      left: number
+      right: number
+      top: number
+      bottom: number
+    }
+    viewportBounds: {
+      left: number
+      right: number
+      top: number
+      bottom: number
+    }
+  }) => {
+    handleItemEdgeScroll(event)
   }
 
-  // Handle actual item movement (only at the end of drag)
-  const handleItemMove = (event: {
-    id: number
-    x: number
-    y: number
-    w: number
-    h: number
-  }) => {
-    const { id, x, y } = event
-    // Update position in store - when drag is complete
-    gridStore.updateItemPosition(id, x, y, false)
-  }
+  // Handle item resize preview
+  const handleItemPreviewResize = createOperationHandler({
+    operationType: 'preview',
+    stateUpdater: id => {
+      isResizing.set(true)
+      resizedItemId.set(id)
+    },
+    heightUpdater: (event: { id: number; y: number; h: number }) => {
+      temporaryDragHeight.set(
+        calculateWorkspaceHeight(event.id, event.y, event.h)
+      )
+    },
+  })
 
-  // Handle drag start - set global dragging state
-  const handleDragStart = (event: {
-    id: number
-    x: number
-    y: number
-    w: number
-    h: number
-  }) => {
-    const { id } = event
-    isDragging.set(true)
-    draggedItemId.set(id)
-  }
+  // Handle workspace height updates
+  const handleDragHeightUpdate = createOperationHandler({
+    operationType: 'preview',
+    heightUpdater: (event: { id: number; y: number; h: number }) => {
+      temporaryDragHeight.set(
+        calculateWorkspaceHeight(event.id, event.y, event.h)
+      )
+    },
+  })
 
-  // Handle drag end - now we resolve collisions
-  const handleDragEnd = (event: {
-    id: number
-    x: number
-    y: number
-    w: number
-    h: number
-    dragComplete: boolean
-  }) => {
-    const { id, x, y, dragComplete } = event
+  // --- Operation start handlers ---
 
-    // Reset dragging state
-    isDragging.set(false)
-    draggedItemId.set(null)
-    // Reset temporary drag height
-    temporaryDragHeight.set(null)
+  // Handle drag operation start
+  const handleDragStart = createOperationHandler({
+    operationType: 'start',
+    stateUpdater: id => {
+      isDragging.set(true)
+      draggedItemId.set(id)
+    },
+  })
 
-    if (!dragComplete) return
+  // --- Movement and resizing handlers ---
 
-    // First update position with the final coordinates
-    gridStore.updateItemPosition(id, x, y, false)
+  // Handle drag movement
+  const handleItemMove = createOperationHandler({
+    operationType: 'move',
+    gridAction: (event: { id: number; x: number; y: number }) => {
+      gridStore.updateItemPosition(event.id, event.x, event.y, false)
+    },
+  })
 
-    // Then explicitly resolve any collisions
-    // This two-step approach ensures we get good visual feedback
-    // First the item moves to where the user dropped it, then it resolves collisions
-    setTimeout(() => {
-      gridStore.resolveItemPositionCollisions(id)
-    }, 50) // Short delay for better visual feedback
-  }
+  // Handle resize
+  const handleItemResize = createOperationHandler({
+    operationType: 'resize',
+    gridAction: (event: { id: number; w: number; h: number }) => {
+      const currentItem = get(gridStore).find(item => item.id === event.id)
 
-  // Handle dynamic height adjustment during drag operations with safety check
-  const handleDragHeightUpdate = (event: {
-    id: number
-    y: number
-    h: number
-    bottomEdge: number
-  }) => {
-    const { bottomEdge, id } = event
-    const currentItems = get(gridStore)
+      if (!currentItem) return
 
-    // Calculate the bottom edge of the item being moved
-    const itemBottomEdge = calculateBottomEdgePosition(
-      event.y,
-      event.h,
-      gridConfig
-    )
+      // Enforce minimum dimensions
+      const minWidth = Math.max(
+        gridConfig.minWidth,
+        currentItem.min?.w || gridConfig.minWidth
+      )
+      const minHeight = Math.max(
+        gridConfig.minHeight,
+        currentItem.min?.h || gridConfig.minHeight
+      )
 
-    // Calculate the maximum bottom edge of all OTHER items (not the one being dragged)
-    const otherItemsMaxBottom = Math.max(
-      300, // Minimum fallback
-      ...currentItems
-        .filter(item => item.id !== id)
-        .map(item => calculateBottomEdgePosition(item.y, item.h, gridConfig))
-    )
+      // Apply constraints
+      const constrainedW = Math.max(minWidth, event.w)
+      const constrainedH = Math.max(minHeight, event.h)
 
-    // Calculate required height - taking maximum of dragged item bottom edge and other items' max bottom edge
-    const requiredHeight = Math.max(otherItemsMaxBottom, itemBottomEdge) + 90 // Add padding
+      // Update without collision resolution
+      gridStore.updateItemSize(event.id, constrainedW, constrainedH, false)
+    },
+  })
 
-    // Update the temporary drag height
-    temporaryDragHeight.set(requiredHeight)
-  }
+  // --- Operation end handlers ---
 
-  // Handle item resize preview with safety check
-  const handleItemPreviewResize = (event: {
-    id: number
-    x: number
-    y: number
-    w: number
-    h: number
-    currentW: number
-    currentH: number
-  }) => {
-    const { id, y, h } = event
-    const currentItems = get(gridStore)
+  // Handle drag end
+  const handleDragEnd = createOperationHandler({
+    operationType: 'end',
+    gridAction: (event: {
+      id: number
+      x: number
+      y: number
+      dragComplete: boolean
+    }) => {
+      if (event.dragComplete) {
+        gridStore.updateItemPosition(event.id, event.x, event.y, false)
+      }
+      // Stop any active auto-scrolling
+      endItemEdgeScroll()
+    },
+    shouldResolveCollisions: true,
+  })
 
-    // Calculate bottom edge position of the resizing item
-    const itemBottomEdge = calculateBottomEdgePosition(y, h, gridConfig)
+  // Handle resize end
+  const handleResizeEnd = createOperationHandler({
+    operationType: 'end',
+    gridAction: (event: {
+      id: number
+      w: number
+      h: number
+      resizeComplete: boolean
+    }) => {
+      if (event.resizeComplete) {
+        const currentItem = get(gridStore).find(item => item.id === event.id)
+        if (currentItem) {
+          // Enforce minimum dimensions
+          const minWidth = Math.max(
+            gridConfig.minWidth,
+            currentItem.min?.w || gridConfig.minWidth
+          )
+          const minHeight = Math.max(
+            gridConfig.minHeight,
+            currentItem.min?.h || gridConfig.minHeight
+          )
 
-    // Calculate the maximum bottom edge of all OTHER items
-    const otherItemsMaxBottom = Math.max(
-      300, // Minimum fallback
-      ...currentItems
-        .filter(item => item.id !== id)
-        .map(item => calculateBottomEdgePosition(item.y, item.h, gridConfig))
-    )
+          // Apply constraints
+          const constrainedW = Math.max(minWidth, event.w)
+          const constrainedH = Math.max(minHeight, event.h)
 
-    // Use the maximum of these values to ensure we don't shrink below what's needed
-    const requiredHeight = Math.max(otherItemsMaxBottom, itemBottomEdge) + 90 // Add padding
+          gridStore.updateItemSize(event.id, constrainedW, constrainedH, false)
+        }
+      }
+      // Stop any active auto-scrolling
+      endItemEdgeScroll()
+    },
+    shouldResolveCollisions: true,
+  })
 
-    // Update the temporary height
-    temporaryDragHeight.set(requiredHeight)
-  }
-
-  // Enhanced handleItemResize to ensure we respect other elements' space needs
-  const handleItemResize = (event: {
-    id: number
-    x: number
-    y: number
-    w: number
-    h: number
-  }) => {
-    const { id, w, h } = event
-    const currentItems = get(gridStore)
-    const currentItem = currentItems.find(item => item.id === id)
-
-    if (!currentItem) return
-
-    // Enforce minimum dimensions based on the item's type
-    const minWidth = Math.max(
-      gridConfig.minWidth,
-      currentItem.min?.w || gridConfig.minWidth
-    )
-    const minHeight = Math.max(
-      gridConfig.minHeight,
-      currentItem.min?.h || gridConfig.minHeight
-    )
-
-    // Ensure we don't resize below minimum dimensions
-    const constrainedW = Math.max(minWidth, w)
-    const constrainedH = Math.max(minHeight, h)
-
-    // Update size without collision resolution first
-    gridStore.updateItemSize(id, constrainedW, constrainedH, false)
-
-    // Then resolve collisions with a slight delay for better visual feedback
-    setTimeout(() => {
-      // Use the store's method to resolve collisions for this item
-      gridStore.resolveItemPositionCollisions(id)
-      // Reset temporary drag height after resize is complete
-      temporaryDragHeight.set(null)
-    }, 50)
-  }
-
-  // Handle resize end - clean up and resolve collisions
-  const handleResizeEnd = (event: {
-    id: number
-    x: number
-    y: number
-    w: number
-    h: number
-    resizeComplete: boolean
-  }) => {
-    // Reset temporary height after resize is complete
-    temporaryDragHeight.set(null)
-
-    const { id, resizeComplete } = event
-
-    if (!resizeComplete) return
-
-    // Explicitly resolve any collisions
-    setTimeout(() => {
-      gridStore.resolveItemPositionCollisions(id)
-    }, 50) // Short delay for better visual feedback
-  }
+  // --- Simple action handlers ---
 
   // Handle item removal
-  const handleItemRemove = (event: { id: number }) => {
-    const { id } = event
-    gridStore.removeItem(id)
-  }
+  const handleItemRemove = createOperationHandler({
+    gridAction: (event: { id: number }) => {
+      gridStore.removeItem(event.id)
+    },
+  })
 
   // Handle item duplication
-  const handleItemDuplicate = (event: { id: number }) => {
-    const { id } = event
-    // Find the item to duplicate
-    const itemToDuplicate = get(gridStore).find(item => item.id === id)
-    if (itemToDuplicate) {
-      // Use the duplicate method from the grid store
-      gridStore.duplicateItem(itemToDuplicate)
-    }
-  }
+  const handleItemDuplicate = createOperationHandler({
+    gridAction: (event: { id: number }) => {
+      const itemToDuplicate = get(gridStore).find(item => item.id === event.id)
+      if (itemToDuplicate) {
+        gridStore.duplicateItem(itemToDuplicate)
+      }
+    },
+  })
 
   // Handle toolbar actions
   const handleToolbarAction = (event: { id: string; vizType?: string }) => {
     const { id, vizType } = event
 
-    console.log('handleToolbarAction', event)
-
     if (id === 'add-visualization' && vizType) {
-      // Add the new visualization
-      enhancedGridStore.addItem(vizType, {
-        x: 0, // You might want to calculate a better position
-        y: get(gridStore).length, // Place it below existing items
+      // Add the new visualization at the first available position
+      // instead of automatically placing it below all existing items
+      gridStore.addItem(vizType)
+    } else if (id === 'toggle-fullscreen') {
+      // Delegate fullscreen toggle to the toolbar
+      // The toolbar component will handle fullscreen functionality itself
+    }
+  }
+
+  // --- Workspace panning handlers ---
+
+  // Handle panning start when clicking on the workspace background
+  const handleWorkspacePanStart = (event: MouseEvent | TouchEvent) => {
+    // Handle both mouse and touch events
+    const isTouchEvent = 'touches' in event
+
+    // For mouse events, only handle primary button
+    if (!isTouchEvent && (event as MouseEvent).button !== 0) return
+
+    // Get the target element
+    const targetEl = event.target as HTMLElement
+
+    // Only handle clicks/touches on the workspace background, not on grid items
+    if (
+      targetEl.closest('.grid-item') ||
+      targetEl.closest('.grid-item-content')
+    )
+      return
+
+    // Prevent default to avoid text selection during panning
+    event.preventDefault()
+
+    // Set panning state
+    isPanning.set(true)
+
+    // Store initial position (handle both mouse and touch)
+    if (isTouchEvent) {
+      const touch = (event as TouchEvent).touches[0]
+      lastPanX = touch.clientX
+      lastPanY = touch.clientY
+    } else {
+      lastPanX = (event as MouseEvent).clientX
+      lastPanY = (event as MouseEvent).clientY
+    }
+
+    // Set cursor directly for immediate feedback (mouse only)
+    document.body.style.cursor = 'grabbing'
+    if (workspaceContainer) {
+      workspaceContainer.style.cursor = 'grabbing'
+    }
+
+    // Add appropriate event listeners based on event type
+    if (isTouchEvent) {
+      document.addEventListener('touchmove', handleWorkspacePanMove, {
+        passive: false,
       })
+      document.addEventListener('touchend', handleWorkspacePanEnd)
+      document.addEventListener('touchcancel', handleWorkspacePanEnd)
+    } else {
+      document.addEventListener('mousemove', handleWorkspacePanMove)
+      document.addEventListener('mouseup', handleWorkspacePanEnd)
+    }
+  }
+
+  // Improved panning with smoothing and reduced sensitivity - NOW THROTTLED by RAF
+  const handleWorkspacePanMove = throttleByRaf(
+    (event: MouseEvent | TouchEvent) => {
+      if (!get(isPanning) || !workspaceContainer) return
+
+      // Prevent default for touch events to stop scrolling
+      if ('touches' in event) {
+        event.preventDefault()
+      }
+
+      // Get current position based on event type
+      const isTouchEvent = 'touches' in event
+      let currentX: number, currentY: number
+
+      if (isTouchEvent) {
+        const touch = (event as TouchEvent).touches[0]
+        currentX = touch.clientX
+        currentY = touch.clientY
+      } else {
+        currentX = (event as MouseEvent).clientX
+        currentY = (event as MouseEvent).clientY
+      }
+
+      // Calculate raw delta
+      const rawDeltaX = currentX - lastPanX
+      const rawDeltaY = currentY - lastPanY
+
+      // Apply damping factor to reduce sensitivity and smooth movement
+      // Lower values make movement smoother but less responsive
+      const dampingFactor = 0.6
+
+      // Apply damping to create smoother motion
+      const deltaX = rawDeltaX * dampingFactor
+      const deltaY = rawDeltaY * dampingFactor
+
+      // Update the last position for next calculation
+      lastPanX = currentX
+      lastPanY = currentY
+
+      // Apply horizontal scrolling to the workspace container
+      if (Math.abs(deltaX) > 0.5) {
+        // Small threshold to ignore tiny movements
+        // Get current X scroll position and update it
+        const currentScrollX = getWorkspaceScrollX()
+        setWorkspaceScrollX(currentScrollX - deltaX)
+      }
+
+      // Apply vertical scrolling to the window with threshold
+      if (Math.abs(deltaY) > 0.5) {
+        // Get current Y scroll position and update it
+        const currentScrollY = getWorkspaceScrollY()
+        setWorkspaceScrollY(currentScrollY - deltaY)
+      }
+    }
+  )
+
+  // Handle panning end
+  const handleWorkspacePanEnd = (event?: MouseEvent | TouchEvent) => {
+    // Reset panning state
+    isPanning.set(false)
+
+    // Reset cursor styles
+    document.body.style.cursor = ''
+    if (workspaceContainer) {
+      workspaceContainer.style.cursor = 'grab'
+    }
+
+    // Stop any active auto-scrolling
+    endItemEdgeScroll()
+
+    // Remove all event listeners
+    document.removeEventListener('mousemove', handleWorkspacePanMove)
+    document.removeEventListener('mouseup', handleWorkspacePanEnd)
+    document.removeEventListener('touchmove', handleWorkspacePanMove)
+    document.removeEventListener('touchend', handleWorkspacePanEnd)
+    document.removeEventListener('touchcancel', handleWorkspacePanEnd)
+  }
+
+  // Handle auto-scrolling when an item is dragged to the edge of the workspace
+  const handleItemEdgeScroll = (event: {
+    id: number
+    itemBounds: {
+      left: number
+      right: number
+      top: number
+      bottom: number
+    }
+    viewportBounds: {
+      left: number
+      right: number
+      top: number
+      bottom: number
+    }
+  }) => {
+    if (!workspaceContainer) return
+
+    const { itemBounds } = event
+    const edgeThreshold = 150 // Keep the large threshold
+
+    // Get the actual viewport bounds
+    const viewportBounds = {
+      left: 0,
+      top: 0,
+      right: window.innerWidth,
+      bottom: window.innerHeight,
+    }
+
+    // Check if we're at special sentinel values (used to force stop auto-scrolling)
+    if (itemBounds.left > 999999 || itemBounds.right < -999999) {
+      // This is our signal to stop auto-scrolling
+      if (autoScrollInterval !== null) {
+        clearInterval(autoScrollInterval)
+        autoScrollInterval = null
+        isAutoScrolling.set(false)
+        autoScrollDirection.set({ x: 0, y: 0 })
+        currentSpeedX = 0
+        currentSpeedY = 0
+      }
+      return
+    }
+
+    // Calculate scroll direction based on item bounds relative to viewport
+    let scrollX = 0
+    let scrollY = 0
+
+    // Check horizontal edges (relative to viewport)
+    if (itemBounds.right >= viewportBounds.right - edgeThreshold) {
+      // Need to scroll right
+      scrollX = 1
+
+      // Expand workspace width if needed
+      const gridCellWidth = gridConfig.cellSize.width + gridConfig.gap
+      temporaryDragWidth.set(
+        (get(gridWidth) / gridCellWidth + AUTO_SCROLL_AMOUNT) * gridCellWidth
+      )
+    } else if (itemBounds.left <= edgeThreshold) {
+      // Need to scroll left (only if we can scroll left)
+      if (getWorkspaceScrollX() > 0) {
+        scrollX = -1
+      }
+    }
+
+    // Check vertical edges (relative to viewport)
+    if (itemBounds.bottom >= viewportBounds.bottom - edgeThreshold) {
+      // Need to scroll down
+      scrollY = 1
+
+      // Expand workspace height if needed
+      const gridCellHeight = gridConfig.cellSize.height + gridConfig.gap
+      temporaryDragHeight.set(
+        (get(gridHeight) / gridCellHeight + AUTO_SCROLL_AMOUNT) * gridCellHeight
+      )
+    } else if (itemBounds.top <= edgeThreshold) {
+      // Need to scroll up (only if we can scroll up)
+      if (getWorkspaceScrollY() > 0) {
+        scrollY = -1
+      }
+    }
+
+    // Only continue if we need to scroll
+    if (scrollX !== 0 || scrollY !== 0) {
+      // Check if we're already scrolling
+      const wasAlreadyScrolling = !!autoScrollInterval
+
+      // Update scroll direction if different from current
+      const currentDirection = get(autoScrollDirection)
+      if (currentDirection.x !== scrollX || currentDirection.y !== scrollY) {
+        autoScrollDirection.set({ x: scrollX, y: scrollY })
+      }
+
+      // Always set the flag to true
+      isAutoScrolling.set(true)
+
+      // Get current scroll positions
+      let currentScrollX = getWorkspaceScrollX()
+      let currentScrollY = getWorkspaceScrollY()
+
+      // Config values - adjusted for smoother feel
+      const maxSpeed = 14 // Lower maximum speed for smoother scrolling
+      const initialSpeed = 0.5 // Start with a small initial speed
+      const acceleration = 0.1 // Lower acceleration for smoother ramp-up
+      const deceleration = 0.1 // Lower deceleration for smoother slow-down
+
+      // Only create a new interval if we weren't already scrolling
+      if (!wasAlreadyScrolling) {
+        // Set a small initial speed in the direction of scrolling
+        currentSpeedX = scrollX * initialSpeed
+        currentSpeedY = scrollY * initialSpeed
+
+        autoScrollInterval = setInterval(() => {
+          // Get fresh direction values from the store
+          const scrollDirection = get(autoScrollDirection)
+
+          // Calculate new speeds with smooth acceleration
+          if (scrollDirection.x !== 0) {
+            // Get current scroll position for edge detection
+            const currentX = getWorkspaceScrollX()
+            let effectiveMaxSpeed = maxSpeed
+
+            // Create much more dramatic edge slow-down effect
+            if (scrollDirection.x < 0 && currentX < 150) {
+              // Make slow-down effect much stronger with a cubic curve
+              const normalizedDistance = currentX / 150 // 0 at edge, 1 at threshold
+              // Use a more dramatic curve - this will create a more visible slowdown
+              const easeOutFactor = Math.pow(normalizedDistance, 2) // Stronger curve
+              // Apply a much more drastic speed reduction near edges
+              effectiveMaxSpeed = maxSpeed * easeOutFactor
+            }
+
+            // Calculate target speed with the dramatic max speed reduction
+            const targetSpeed = scrollDirection.x * effectiveMaxSpeed
+
+            // Apply smooth acceleration toward target, but faster to feel responsive
+            currentSpeedX =
+              currentSpeedX + (targetSpeed - currentSpeedX) * acceleration // Higher acceleration
+          } else {
+            // Gradual deceleration when not scrolling this direction
+            currentSpeedX =
+              Math.abs(currentSpeedX) > 0.1
+                ? currentSpeedX * (1 - deceleration)
+                : 0
+          }
+
+          if (scrollDirection.y !== 0) {
+            // Get current scroll position for edge detection
+            const currentY = getWorkspaceScrollY()
+            let effectiveMaxSpeed = maxSpeed
+
+            // Create much more dramatic edge slow-down effect
+            if (scrollDirection.y < 0 && currentY < 150) {
+              // Make slow-down effect much stronger with a cubic curve
+              const normalizedDistance = currentY / 150 // 0 at edge, 1 at threshold
+              // Use a more dramatic curve - this will create a more visible slowdown
+              const easeOutFactor = Math.pow(normalizedDistance, 2) // Stronger curve
+              // Apply a much more drastic speed reduction near edges
+              effectiveMaxSpeed = maxSpeed * easeOutFactor
+            }
+
+            // Calculate target speed with the dramatic max speed reduction
+            const targetSpeed = scrollDirection.y * effectiveMaxSpeed
+
+            // Apply smooth acceleration toward target, but faster to feel responsive
+            currentSpeedY =
+              currentSpeedY + (targetSpeed - currentSpeedY) * acceleration // Higher acceleration
+          } else {
+            // Gradual deceleration when not scrolling this direction
+            currentSpeedY =
+              Math.abs(currentSpeedY) > 0.1
+                ? currentSpeedY * (1 - deceleration)
+                : 0
+          }
+
+          // Apply the current speed to scroll positions
+          if (Math.abs(currentSpeedX) > 0.1) {
+            currentScrollX += currentSpeedX
+            setWorkspaceScrollX(currentScrollX)
+          }
+
+          if (Math.abs(currentSpeedY) > 0.1) {
+            currentScrollY += currentSpeedY
+            setWorkspaceScrollY(currentScrollY)
+          }
+
+          // Stop the interval if we've slowed down enough
+          if (Math.abs(currentSpeedX) < 0.1 && Math.abs(currentSpeedY) < 0.1) {
+            if (autoScrollInterval !== null) {
+              clearInterval(autoScrollInterval)
+              autoScrollInterval = null
+              isAutoScrolling.set(false)
+              autoScrollDirection.set({ x: 0, y: 0 })
+            }
+          }
+        }, 16) as unknown as number // ~60fps for smooth animation
+      }
+    } else if (autoScrollInterval !== null) {
+      // We're no longer at an edge but interval is running - let it decelerate naturally
+      // by setting direction to zero
+      autoScrollDirection.set({ x: 0, y: 0 })
+    }
+  }
+
+  // End auto-scrolling
+  const endItemEdgeScroll = () => {
+    if (autoScrollInterval !== null) {
+      clearInterval(autoScrollInterval)
+      autoScrollInterval = null
+      isAutoScrolling.set(false)
+      autoScrollDirection.set({ x: 0, y: 0 })
+      currentSpeedX = 0
+      currentSpeedY = 0
     }
   }
 
@@ -482,14 +846,25 @@
   $effect(() => {
     if ($processingFileStateStore === 'done') {
       isLoading.set(false)
-      enhancedGridStore.resetGrid(createDefaultGridState())
+      // Reset by providing initial data to the store's set method
+      // Note: The store doesn't have a reset method that accepts initial data directly.
+      // We might need to adjust the store or handle reset differently.
+      // For now, let's recreate the store or set the parsed initial items.
+      // const defaultItems = createDefaultGridStateData().map(data =>
+      //   gridStore.addItem(data.type, data) // This adds items one by one, might not be ideal reset
+      // );
+      // A better approach might be needed for a clean reset that uses the initial data pattern.
+      // Option 1: Enhance gridStore.set to accept initial data.
+      // Option 2: Re-initialize the gridStore (might be complex with reactivity).
+      // Let's stick to clearing and adding for now, but note this could be improved.
+      gridStore.reset(createDefaultGridStateData())
       processingFileStateStore.set('idle')
     } else if ($processingFileStateStore === 'processing') {
       isLoading.set(true)
-      enhancedGridStore.resetGrid([]) // Clear the grid while loading
+      gridStore.reset([]) // Reset to empty state
     } else if ($processingFileStateStore === 'fail') {
       isLoading.set(false)
-      enhancedGridStore.resetGrid([]) // Set to empty grid - the empty indicator will show
+      gridStore.reset([]) // Reset to empty state
     }
   })
 
@@ -497,9 +872,12 @@
   // Now we maintain a truly empty grid and display dedicated indicator components
   // when appropriate. This provides a more integrated and visually appealing user
   // experience without artificially creating grid items.
+
+  // Make constants available as CSS variables
+  const styleProps = `--min-workspace-height: ${MIN_WORKSPACE_HEIGHT}px; --grid-container-min-height: ${MIN_WORKSPACE_HEIGHT - 100}px;`
 </script>
 
-<div class="workspace-wrapper">
+<div class="workspace-wrapper" style={styleProps}>
   <!-- Update toolbar, removing drag-related props -->
   <WorkspaceToolbar
     onaction={handleToolbarAction}
@@ -511,8 +889,17 @@
     )}
   />
 
-  <div class="workspace-container" style="height: {$gridHeight}px;">
-    <div class="grid-container">
+  <!-- Bind the workspace container and add mouse/touch events for panning -->
+  <div
+    class="workspace-container"
+    style="height: {$gridHeight}px;"
+    bind:this={workspaceContainer}
+    on:mousedown={handleWorkspacePanStart}
+    on:touchstart={handleWorkspacePanStart}
+    class:is-panning={$isPanning}
+  >
+    <!-- Scrollable content layer with background pattern -->
+    <div class="grid-container" style="width: {$gridWidth}px;">
       {#each $gridStore as item (item.id)}
         {@const visConfig = getVisualizationConfig(item.type)}
         <div transition:fade={{ duration: 300 }}>
@@ -529,6 +916,7 @@
             resizable={true}
             draggable={true}
             title={visConfig.name}
+            class={item.id === $resizedItemId ? 'is-being-resized' : ''}
             onpreviewmove={handleItemPreviewMove}
             onmove={handleItemMove}
             onpreviewresize={handleItemPreviewResize}
@@ -539,16 +927,17 @@
             ondrag_height_update={handleDragHeightUpdate}
             onremove={handleItemRemove}
             onduplicate={handleItemDuplicate}
+            onedgedetection={handleItemEdgeDetection}
           >
             {#snippet body()}
               <div class="grid-item-content">
                 <visConfig.component
                   settings={item}
-                  settingsChange={newSettings => {
+                  settingsChange={(newSettings: Partial<AllGridTypes>) => {
                     gridStore.updateSettings({
                       ...item,
                       ...newSettings,
-                    })
+                    } as AllGridTypes)
                   }}
                 />
               </div>
@@ -558,7 +947,7 @@
       {/each}
     </div>
 
-    {#if $isDragging}
+    {#if $isDragging || $isPanning}
       <div
         class="pointer-events-blocker"
         transition:fade={{ duration: 50 }}
@@ -579,7 +968,7 @@
   .workspace-wrapper {
     position: relative;
     display: flex;
-    min-height: 300px; /* Minimum height to ensure toolbar is visible */
+    min-height: var(--min-workspace-height); /* Minimum height */
     display: grid;
     border: 1px solid #8888889c;
     grid-template-columns: 48px 1fr;
@@ -589,6 +978,19 @@
     box-sizing: border-box;
     position: relative;
     width: 100%;
+    z-index: 1;
+    transition: height 0.3s ease-out;
+    overflow-x: auto; /* Allow horizontal scrolling */
+    overflow-y: hidden; /* Prevent vertical scrolling */
+    min-height: var(--min-workspace-height); /* Ensure minimum height */
+    padding: 35px; /* Consistent padding throughout */
+    /* Performance optimizations */
+    will-change: height;
+    border-left: 1px solid #88888862;
+    transform: translateZ(0);
+    /* Base cursor for empty areas */
+    cursor: grab;
+    /* Dynamic background pattern */
     background-color: var(--c-darkwhite);
     background-image: radial-gradient(
       circle,
@@ -597,22 +999,18 @@
     );
     background-size: 50px 50px;
     background-position: 5px 5px;
-    z-index: 1;
-    transition: height 0.3s ease-out;
-    overflow-x: auto; /* Allow horizontal scrolling */
-    overflow-y: hidden; /* Prevent vertical scrolling */
-    min-height: 300px; /* Ensure minimum height for small grids */
-    padding: 35px; /* Consistent padding throughout */
-    /* Performance optimizations */
-    will-change: height;
-    border-left: 1px solid #88888862;
-    transform: translateZ(0);
+    background-attachment: local; /* Key property to make pattern scroll with content */
+  }
+
+  /* Cursor styling for panning */
+  .workspace-container.is-panning {
+    cursor: grabbing;
   }
 
   .grid-container {
     position: relative;
     width: 100%;
-    min-height: 200px;
+    min-height: var(--grid-container-min-height); /* Adjusted min height */
     background-color: transparent;
     transition: height 0.3s ease-out;
     overflow-x: visible; /* Allow content to flow naturally */
@@ -620,6 +1018,29 @@
     /* Prevent unnecessary repaints */
     will-change: contents;
     transform: translateZ(0);
+  }
+
+  /* Override cursor for all grid items */
+  :global(.grid-item) {
+    cursor: default;
+  }
+
+  /* Allow specific cursors for functional handles */
+  :global(.resize-handle) {
+    cursor: se-resize !important;
+    z-index: 100 !important; /* Ensure it's above other elements */
+  }
+
+  /* Allow specific cursor for drag handle button */
+  :global(.header > .tooltip-wrapper:first-child .workspace-item-button) {
+    cursor: grab !important;
+  }
+
+  /* Show grabbing cursor when actively dragging */
+  :global(
+      .header > .tooltip-wrapper:first-child .workspace-item-button:active
+    ) {
+    cursor: grabbing !important;
   }
 
   .pointer-events-blocker {

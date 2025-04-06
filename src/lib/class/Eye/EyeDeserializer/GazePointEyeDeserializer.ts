@@ -1,148 +1,215 @@
 import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput.js'
 import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
 
+/**
+ * Deserializer for GazePoint eye tracking data.
+ *
+ * GazePoint data format specifics:
+ * - FPOGS: Start time of fixation
+ * - FPOGD: Duration of fixation
+ * - FPOGID: Fixation ID
+ * - FPOGV: Fixation validity (1 = valid, 0 = invalid)
+ * - BKDUR: Duration of blink
+ */
 export class GazePointEyeDeserializer extends AbstractEyeDeserializer {
-  cStart: number
+  // Column indices
   cTime: number
+  cStart: number
   cDurationOfFixation: number
   cDurationOfBlink: number
   cAOI: number
   cStimulus: number
   cFixID: number
-  mTime: number | null = null
-  mStart: number | null = null
-  mDurationOfEvent: number | null = null
-  mDurationOfFixation: number | null = null
-  mAOI: string | null = null
-  mStimulus: string | null = null
-  mCategory: 'Fixation' | 'Blink' | null = null
-  mFixID: string | null = null
-  mHasFixationSegmentEnded = false
+  cValidity: number
+
+  // State variables
+  mCurrentFixation: {
+    fixID: string
+    start: number
+    end: number
+    aoi: string | null
+    stimulus: string
+    category: 'Fixation' | 'Blink'
+  } | null = null
+
   participant: string // for this reducer, the participant is always the same (one file per participant)
+
   constructor(header: string[], fileName: string) {
     super()
+
+    // Find essential columns
+    this.cTime = this.findTimeColumn(header)
     this.cStart = header.indexOf('FPOGS')
-    this.cTime = header.indexOf('FPOGS') - 1
     this.cDurationOfFixation = header.indexOf('FPOGD')
     this.cDurationOfBlink = header.indexOf('BKDUR')
     this.cAOI = header.indexOf('AOI')
     this.cStimulus = header.indexOf('MEDIA_NAME')
     this.cFixID = header.indexOf('FPOGID')
+    this.cValidity = header.indexOf('FPOGV')
+
+    // Extract participant ID from filename
     this.participant = fileName.split('_')[0]
   }
 
-  deserialize(row: string[]): SingleDeserializerOutput | null {
-    let result = null
+  /**
+   * Find the time column in the header
+   * GazePoint files may have different time column names
+   */
+  private findTimeColumn(header: string[]): number {
+    // Try common time column names
+    const timeIndex = header.indexOf('TIME')
+    if (timeIndex !== -1) return timeIndex
 
-    const time = row[this.cTime]
-    const start = row[this.cStart]
-    const durationOfFixation = row[this.cDurationOfFixation]
-    const durationOfBlink = row[this.cDurationOfBlink]
+    // Look for column with TIME in the name
+    const timeColumnIndex = header.findIndex(col => col.includes('TIME'))
+    if (timeColumnIndex !== -1) return timeColumnIndex
+
+    // If not found, use the index before FPOGS as fallback
+    return header.indexOf('FPOGS') - 1
+  }
+
+  deserialize(row: string[]): SingleDeserializerOutput | null {
+    // Extract values from row
+    const time = Number(row[this.cTime])
+    const fixationStart = Number(row[this.cStart])
+    const durationOfFixation = Number(row[this.cDurationOfFixation])
+    const durationOfBlink = Number(row[this.cDurationOfBlink])
     const aoi = row[this.cAOI] === '' ? null : row[this.cAOI]
     const stimulus = row[this.cStimulus]
     const fixID = row[this.cFixID]
+    const isValidFixation = row[this.cValidity] === '1'
 
-    const isBlink = durationOfBlink !== '0.00000'
+    // Determine if this is a blink
+    const isBlink = durationOfBlink > 0
     const category = isBlink ? 'Blink' : 'Fixation'
 
-    const hasFixationSegmentEnded =
-      Number(durationOfFixation) === this.mDurationOfEvent
+    let result: SingleDeserializerOutput | null = null
 
-    const isToFlush =
-      this.mStimulus !== stimulus ||
-      this.mFixID !== fixID ||
-      this.mCategory === 'Blink' ||
-      (hasFixationSegmentEnded && !this.mHasFixationSegmentEnded)
+    // Case 1: We have a current fixation
+    if (this.mCurrentFixation !== null) {
+      const needToEndCurrentFixation =
+        isBlink || // A blink always ends the current fixation
+        this.mCurrentFixation.fixID !== fixID || // The fixation ID changed
+        this.mCurrentFixation.stimulus !== stimulus || // The stimulus changed
+        (!isValidFixation && this.mCurrentFixation.category === 'Fixation') // Fixation became invalid
 
-    if (isToFlush) {
-      result = this.flush()
+      if (needToEndCurrentFixation) {
+        // Flush the current fixation and return it
+        result = this.flushCurrentFixation()
+
+        // Start a new fixation if valid
+        if ((isValidFixation && category === 'Fixation') || isBlink) {
+          this.startNewFixation(
+            fixationStart,
+            time,
+            durationOfFixation,
+            durationOfBlink,
+            aoi,
+            stimulus,
+            fixID,
+            category
+          )
+        }
+      } else {
+        // Update the end time of the current fixation
+        this.mCurrentFixation.end = time
+      }
     }
-
-    if (
-      this.mDurationOfFixation !== Number(durationOfFixation) ||
-      this.mStimulus !== stimulus ||
-      this.mFixID !== fixID ||
-      isBlink
-    ) {
-      this.mStimulus = stimulus
-      this.mAOI = aoi
-      this.mCategory = category
-      this.mDurationOfEvent = isBlink
-        ? Number(durationOfBlink)
-        : Number(durationOfFixation)
-      this.mDurationOfFixation = Number(durationOfFixation)
-      this.mTime = Number(time)
-      this.mStart = isBlink
-        ? Number(time) - this.mDurationOfEvent
-        : Number(start)
-      this.mFixID = fixID
+    // Case 2: We don't have a current fixation
+    else if ((isValidFixation && category === 'Fixation') || isBlink) {
+      // Start a new fixation/blink
+      this.startNewFixation(
+        fixationStart,
+        time,
+        durationOfFixation,
+        durationOfBlink,
+        aoi,
+        stimulus,
+        fixID,
+        category
+      )
     }
-    this.mHasFixationSegmentEnded = hasFixationSegmentEnded
 
     return result
   }
 
-  finalize(): SingleDeserializerOutput | null {
-    return this.flush()
+  /**
+   * Start a new fixation with the given parameters
+   */
+  private startNewFixation(
+    fixationStart: number,
+    time: number,
+    durationOfFixation: number,
+    durationOfBlink: number,
+    aoi: string | null,
+    stimulus: string,
+    fixID: string,
+    category: 'Fixation' | 'Blink'
+  ): void {
+    const startTime =
+      category === 'Blink'
+        ? time - durationOfBlink // For blinks, calculate start time from current time - duration
+        : fixationStart // For fixations, use the reported start time
+
+    // Validate that startTime is valid (not NaN and not Infinity)
+    if (!isFinite(startTime)) return
+
+    this.mCurrentFixation = {
+      fixID,
+      start: startTime,
+      end: time,
+      aoi,
+      stimulus,
+      category,
+    }
   }
 
-  flush(): {
-    start: string
-    end: string
-    stimulus: string
-    participant: string
-    category: string
-    aoi: string[] | null
-  } | null {
+  /**
+   * Flush the current fixation and return it as a serialized output
+   */
+  private flushCurrentFixation(): SingleDeserializerOutput | null {
+    if (!this.mCurrentFixation) return null
+
+    // Only return if we have valid timing data
     if (
-      this.mStimulus === null ||
-      this.mCategory === null ||
-      this.mStart === null ||
-      this.mDurationOfEvent === null
-    )
+      !isFinite(this.mCurrentFixation.start) ||
+      !isFinite(this.mCurrentFixation.end)
+    ) {
+      this.mCurrentFixation = null
       return null
-    let r: EyeTrackingParserGazePointReducerResult | null = {
-      aoi: this.mAOI === null ? null : [this.mAOI],
-      category: this.mCategory,
-      end: String(this.mTime),
-      participant: this.participant,
-      start: String(this.mStart),
-      stimulus: this.mStimulus,
     }
-    if (this.mStart === 0 && this.mTime === 0) {
+
+    // Avoid zero-duration events
+    if (this.mCurrentFixation.start === this.mCurrentFixation.end) {
       console.warn(
-        'start and end are 0 - Probable blink issue',
-        this.mFixID,
-        this.mStimulus,
+        'Zero duration event detected and skipped',
+        this.mCurrentFixation.fixID,
+        this.mCurrentFixation.stimulus,
         this.participant
       )
-      r = null
+      this.mCurrentFixation = null
+      return null
     }
-    this.mTime = null
-    this.mStart = null
-    return r
+
+    const result: SingleDeserializerOutput = {
+      aoi:
+        this.mCurrentFixation.aoi === null ? null : [this.mCurrentFixation.aoi],
+      category: this.mCurrentFixation.category,
+      end: String(this.mCurrentFixation.end),
+      participant: this.participant,
+      start: String(this.mCurrentFixation.start),
+      stimulus: this.mCurrentFixation.stimulus,
+    }
+
+    this.mCurrentFixation = null
+    return result
+  }
+
+  finalize(): SingleDeserializerOutput | null {
+    // Flush any remaining fixation when we reach the end of the file
+    return this.flushCurrentFixation()
   }
 }
-
-// const hasFixationSegmentEnded = Number(durationOfFixation) === this.mDurationOfEvent
-//
-// const isToFlush = this.mStimulus !== stimulus || this.mFixID !== fixID || this.mCategory === 'Blink' || (hasFixationSegmentEnded && !this.mHasFixationSegmentEnded)
-//
-// if (isToFlush) {
-//   result = this.flush()
-// }
-
-// if (isBlink || !hasFixationSegmentEnded || this.mStimulus !== stimulus || this.mFixID !== fixID) {
-//   this.mStimulus = stimulus
-//   this.mAOI = aoi
-//   this.mCategory = category
-//   this.mDurationOfEvent = isBlink ? Number(durationOfBlink) : Number(durationOfFixation)
-//   this.mTime = Number(time)
-//   this.mFixID = fixID
-// }
-// this.mHasFixationSegmentEnded = hasFixationSegmentEnded
-//
-// return result
 
 interface EyeTrackingParserGazePointReducerResult {
   aoi: string[] | null

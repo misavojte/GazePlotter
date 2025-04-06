@@ -4,7 +4,7 @@ import type { AoiVisibilityScarfFillingType } from '../AoiVisibilityScarfFilling
 export interface ParticipantScarfFillingType {
   id: number
   label: string
-  width: string // in %!
+  width: number // decimal 0-1 (instead of percentage string)
   segments: SegmentScarfFillingType[]
   dynamicAoiVisibility: AoiVisibilityScarfFillingType[]
 }

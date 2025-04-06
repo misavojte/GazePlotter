@@ -3,23 +3,25 @@
   import GeneralSelectBase from '../../General/GeneralSelect/GeneralSelect.svelte'
   import GeneralInputText from '../../General/GeneralInput/GeneralInputText.svelte'
   import GeneralButtonPreset from '../../General/GeneralButton/GeneralButtonPreset.svelte'
-  import type { ScarfGridType } from '$lib/type/gridType'
-  import ScarfPlotFigure from '$lib/components/Plot/ScarfPlot/ScarfPlotFigure/ScarfPlotFigure.svelte'
-  import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType'
+  import type { AoiTransitionMatrixGridType } from '$lib/type/gridType'
+  import AoiTransitionMatrixPlotFigure from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixPlotFigure.svelte'
   import GeneralSvgPreview from '../../General/GeneralSvgPreview/GeneralSvgPreview.svelte'
+  import {
+    calculateTransitionMatrix,
+    AggregationMethod,
+  } from '$lib/utils/aoiTransitionMatrixTransformations'
 
   interface Props {
-    settings: ScarfGridType
-    data: ScarfFillingType
+    settings: AoiTransitionMatrixGridType
   }
 
-  let { settings, data }: Props = $props()
+  let { settings }: Props = $props()
 
   type fileType = '.svg' | '.png' | '.jpg' | '.webp'
 
   let typeOfExport = $state<fileType>('.svg')
   let width = $state(800) /* in px */
-  let fileName = $state('GazePlotter-ScarfPlot')
+  let fileName = $state('GazePlotter-AoiTransitionMatrix')
   let dpi = $state(96) /* standard web DPI */
 
   // Replace single margin with directional margins
@@ -53,10 +55,19 @@
   // Calculate the effective width (what will be available for the chart after margins)
   const effectiveWidth = $derived(width - (marginLeft + marginRight))
 
+  // Calculate matrix data for preview
+  const { matrix, aoiLabels } = $derived(
+    calculateTransitionMatrix(
+      settings.stimulusId,
+      settings.groupId,
+      settings.aggregationMethod as AggregationMethod
+    )
+  )
+
   // Use the height directly from the data with additional space for legend and axes
   // Add fixed padding (150px) plus margins to maintain proper spacing
   const previewHeight = $derived(
-    data.chartHeight + 150 + marginTop + marginBottom
+    width + 150 + marginTop + marginBottom // Square matrix + legend + margins
   )
 
   // Function to set all margins at once
@@ -72,25 +83,20 @@
     dpi = value
   }
 
-  // Handlers for ScarfPlotFigure
-  const handleLegendClick = (identifier: string) => {
-    highlightedIdentifier =
-      identifier === highlightedIdentifier ? null : identifier
-  }
-
-  const handleTooltipActivation = () => {}
-  const handleTooltipDeactivation = () => {}
-
-  // Props to pass to the ScarfPlotFigure component using $derived
-  const scarfPlotProps = $derived({
-    data,
-    settings,
-    highlightedIdentifier,
-    tooltipAreaElement,
-    onLegendClick: handleLegendClick,
-    onTooltipActivation: handleTooltipActivation,
-    onTooltipDeactivation: handleTooltipDeactivation,
-    chartWidth: effectiveWidth, // IMPORTANT: Use effectiveWidth for the chart
+  // Props to pass to the AoiTransitionMatrixPlotFigure component
+  const matrixPlotProps = $derived({
+    AoiTransitionMatrix: matrix,
+    aoiLabels,
+    width: effectiveWidth,
+    height: effectiveWidth, // Keep it square
+    cellSize: 30,
+    colorScale: ['#f7fbff', '#08306b'],
+    xLabel: 'To AOI',
+    yLabel: 'From AOI',
+    legendTitle: 'Transition Count',
+    minThreshold: 0,
+    customMaxValue: settings.maxColorValue,
+    useAutoMax: settings.maxColorValue === 0,
   })
 </script>
 
@@ -208,8 +214,8 @@
         {marginBottom}
         {marginLeft}
         {dpi}
-        children={ScarfPlotFigure}
-        childProps={scarfPlotProps}
+        children={AoiTransitionMatrixPlotFigure}
+        childProps={matrixPlotProps}
         showDownloadButton={true}
       />
     </div>
