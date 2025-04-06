@@ -152,6 +152,25 @@
       h: number
       bottomEdge: number
     }) => void
+    onedgedetection?: ({
+      id,
+      itemBounds,
+      viewportBounds,
+    }: {
+      id: number
+      itemBounds: {
+        left: number
+        right: number
+        top: number
+        bottom: number
+      }
+      viewportBounds: {
+        left: number
+        right: number
+        top: number
+        bottom: number
+      }
+    }) => void
   }
 
   let {
@@ -182,6 +201,7 @@
     onremove = () => {},
     onduplicate = () => {},
     ondrag_height_update = () => {},
+    onedgedetection = () => {},
   }: Props = $props()
 
   // Track state for visual feedback
@@ -307,143 +327,9 @@
     let startWindowScrollX: number
     let startWindowScrollY: number
     let workspaceElement: HTMLElement | null
-    let autoScrollInterval: number | null = null
     let touchId: number | null = null // For tracking the specific touch
 
-    // Auto-scroll configuration
-    const autoScrollSettings = {
-      edgeThreshold: 80, // pixels from edge to start scrolling
-      maxSpeed: 15, // maximum scroll speed in pixels
-      interval: 16, // ms between scroll updates (60fps)
-    }
-
-    // Helper function to handle auto-scrolling near edges
-    function setupAutoScroll(clientX: number, clientY: number) {
-      // Clear any existing interval
-      if (autoScrollInterval !== null) {
-        clearInterval(autoScrollInterval)
-        autoScrollInterval = null
-      }
-
-      // First check workspace edges if workspace exists
-      if (workspaceElement) {
-        // Get workspace dimensions and position
-        const rect = workspaceElement.getBoundingClientRect()
-        const { left, right, top, bottom } = rect
-
-        // Calculate distances from edges
-        const distanceFromLeft = clientX - left
-        const distanceFromRight = right - clientX
-        const distanceFromTop = clientY - top
-        const distanceFromBottom = bottom - clientY
-
-        // Determine if we need to scroll and in which direction
-        let scrollX = 0
-        let scrollY = 0
-
-        // Calculate horizontal scroll
-        if (distanceFromLeft < autoScrollSettings.edgeThreshold) {
-          // Scroll left - negative value
-          scrollX = -calculateScrollSpeed(distanceFromLeft)
-        } else if (distanceFromRight < autoScrollSettings.edgeThreshold) {
-          // Scroll right - positive value
-          scrollX = calculateScrollSpeed(distanceFromRight)
-        }
-
-        // Calculate vertical scroll
-        if (distanceFromTop < autoScrollSettings.edgeThreshold) {
-          // Scroll up - negative value
-          scrollY = -calculateScrollSpeed(distanceFromTop)
-        } else if (distanceFromBottom < autoScrollSettings.edgeThreshold) {
-          // Scroll down - positive value
-          scrollY = calculateScrollSpeed(distanceFromBottom)
-        }
-
-        // Only set interval if we need to scroll the workspace
-        if (scrollX !== 0 || scrollY !== 0) {
-          autoScrollInterval = setInterval(() => {
-            if (workspaceElement) {
-              workspaceElement.scrollLeft += scrollX
-              workspaceElement.scrollTop += scrollY
-
-              // Force a mousemove event to update drag position
-              const mouseEvent = new MouseEvent('mousemove', {
-                bubbles: true,
-                cancelable: true,
-                view: window,
-                clientX: clientX,
-                clientY: clientY,
-              })
-              document.dispatchEvent(mouseEvent)
-            }
-          }, autoScrollSettings.interval) as unknown as number
-
-          // We're already scrolling the workspace, so don't check window edges
-          return
-        }
-      }
-
-      // If we're not scrolling the workspace, check window edges
-      // These are viewport edges
-      const viewportWidth =
-        window.innerWidth || document.documentElement.clientWidth
-      const viewportHeight =
-        window.innerHeight || document.documentElement.clientHeight
-
-      const distanceFromWindowLeft = clientX
-      const distanceFromWindowRight = viewportWidth - clientX
-      const distanceFromWindowTop = clientY
-      const distanceFromWindowBottom = viewportHeight - clientY
-
-      // Determine if we need to scroll the window
-      let windowScrollX = 0
-      let windowScrollY = 0
-
-      // Calculate horizontal window scroll
-      if (distanceFromWindowLeft < autoScrollSettings.edgeThreshold) {
-        // Scroll window left
-        windowScrollX = -calculateScrollSpeed(distanceFromWindowLeft)
-      } else if (distanceFromWindowRight < autoScrollSettings.edgeThreshold) {
-        // Scroll window right
-        windowScrollX = calculateScrollSpeed(distanceFromWindowRight)
-      }
-
-      // Calculate vertical window scroll
-      if (distanceFromWindowTop < autoScrollSettings.edgeThreshold) {
-        // Scroll window up
-        windowScrollY = -calculateScrollSpeed(distanceFromWindowTop)
-      } else if (distanceFromWindowBottom < autoScrollSettings.edgeThreshold) {
-        // Scroll window down
-        windowScrollY = calculateScrollSpeed(distanceFromWindowBottom)
-      }
-
-      // Only set interval if we need to scroll the window
-      if (windowScrollX !== 0 || windowScrollY !== 0) {
-        autoScrollInterval = setInterval(() => {
-          window.scrollBy(windowScrollX, windowScrollY)
-
-          // Force a mousemove event to update drag position
-          const mouseEvent = new MouseEvent('mousemove', {
-            bubbles: true,
-            cancelable: true,
-            view: window,
-            clientX: clientX,
-            clientY: clientY,
-          })
-          document.dispatchEvent(mouseEvent)
-        }, autoScrollSettings.interval) as unknown as number
-      }
-    }
-
-    // Helper to calculate scroll speed based on distance from edge
-    function calculateScrollSpeed(distance: number): number {
-      if (distance >= autoScrollSettings.edgeThreshold) return 0
-
-      // Create a smooth curve from edge (max speed) to threshold (zero speed)
-      const ratio = 1 - distance / autoScrollSettings.edgeThreshold
-      return Math.ceil(ratio * ratio * autoScrollSettings.maxSpeed)
-    }
-
+    // Helper function to handle the start of dragging
     function handleStart(event: MouseEvent | TouchEvent) {
       // Handle both touch and mouse events
       const isTouchEvent = 'touches' in event
@@ -543,8 +429,35 @@
         clientY = (event as MouseEvent).clientY
       }
 
-      // Setup auto-scrolling if near edges
-      setupAutoScroll(clientX, clientY)
+      // Get viewport dimensions - always get these fresh on each move
+      const viewportWidth = window.innerWidth
+      const viewportHeight = window.innerHeight
+
+      // Always get the workspace element to ensure we're detecting edges correctly
+      const workspace = findWorkspaceContainer()
+      const workspaceRect = workspace ? workspace.getBoundingClientRect() : null
+
+      // Calculate item bounds for edge detection
+      // Important: check the mouse cursor position against viewport edges
+      // This makes auto-scrolling trigger when the cursor is near an edge
+      const cursorPos = {
+        left: clientX,
+        right: clientX,
+        top: clientY,
+        bottom: clientY,
+      }
+
+      // Call the edge detection handler with cursor position and viewport bounds
+      onedgedetection({
+        id,
+        itemBounds: cursorPos,
+        viewportBounds: {
+          left: 0,
+          right: viewportWidth,
+          top: 0,
+          bottom: viewportHeight,
+        },
+      })
 
       // Get current scroll positions - both workspace and window
       const currentScrollX = workspaceElement ? workspaceElement.scrollLeft : 0
@@ -612,18 +525,29 @@
       // Clear the touch ID
       touchId = null
 
-      // Clear auto-scroll interval if active
-      if (autoScrollInterval !== null) {
-        clearInterval(autoScrollInterval)
-        autoScrollInterval = null
-      }
-
       // Clean up visual effects
       showDragPlaceholder = false
 
       if (itemNode) {
         itemNode.classList.remove('is-being-dragged')
       }
+
+      // Send a special event to stop any auto-scrolling
+      onedgedetection({
+        id,
+        itemBounds: {
+          left: 1000000,
+          right: -1000000,
+          top: 1000000,
+          bottom: -1000000,
+        },
+        viewportBounds: {
+          left: 0,
+          right: 0,
+          top: 0,
+          bottom: 0,
+        },
+      })
 
       // Only now, at the end of drag, dispatch the actual move event with final position
       // This prevents the parent from updating the store during the drag
@@ -658,12 +582,6 @@
     // Return destroy method to clean up
     return {
       destroy() {
-        // Clear auto-scroll interval if it was somehow left running
-        if (autoScrollInterval !== null) {
-          clearInterval(autoScrollInterval)
-          autoScrollInterval = null
-        }
-
         // Remove all event listeners
         node.removeEventListener('mousedown', handleStart)
         node.removeEventListener('touchstart', handleStart)
@@ -1126,7 +1044,7 @@
     pointer-events: none;
     transform-origin: center center;
     transition:
-      transform 0.05s ease-out,
+      transform 0.15s ease-out,
       width 0.15s ease-out,
       height 0.15s ease-out;
   }

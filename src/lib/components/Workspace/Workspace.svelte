@@ -9,6 +9,7 @@
   import type { AllGridTypes } from '$lib/type/gridType'
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
   import { createGridStore, type GridConfig } from '$lib/stores/gridStore'
+  import { onDestroy, onMount } from 'svelte'
   import {
     DEFAULT_GRID_CONFIG,
     calculateGridHeight,
@@ -46,18 +47,41 @@
   let lastPanX = 0
   let lastPanY = 0
 
+  // Add state for auto-scrolling
+  const isAutoScrolling = writable(false)
+  const autoScrollDirection = writable({ x: 0, y: 0 })
+  let autoScrollInterval: number | null = null
+  const AUTO_SCROLL_AMOUNT = 5 // Number of grid cells to scroll by
+
+  // Track current scroll speeds outside interval function to preserve momentum
+  let currentSpeedX = 0
+  let currentSpeedY = 0
+
   let workspaceContainer: HTMLElement | null = null
 
   if (workspaceContainer) {
     ;(workspaceContainer as HTMLElement).scrollLeft = 0
   }
 
+  // Initialize the workspace position on mount
+  onMount(() => {
+    if (workspaceContainer) {
+      // Get the top position of the workspace relative to the document
+      const workspaceRect = workspaceContainer.getBoundingClientRect()
+      scrollStartY = workspaceRect.top + window.scrollY
+
+      // Make sure initial scroll is at the correct position
+      setWorkspaceScrollX(scrollStartX)
+    }
+  })
+
   // Store to track temporary height adjustment during drag operations
   const temporaryDragHeight = writable<number | null>(null)
   const temporaryDragWidth = writable<number | null>(null)
 
-  // scroll Starting position
-  let scrollStartX = 0
+  // scroll Starting position (where x = 0, y = 0 are truly located)
+  // these will be used to calculate the scroll position of the workspace
+  let scrollStartX = 30 // this wont change as this is fixed :)
   let scrollStartY = 0 // this will change on Mount as the workspace is placed below the header in the DOM
 
   const getWorkspaceScrollX = () => {
@@ -138,6 +162,10 @@
         resizedItemId.set(null)
         temporaryDragHeight.set(null)
         temporaryDragWidth.set(null)
+
+        // End auto-scrolling if active
+        endItemEdgeScroll()
+
         // Resolve collisions if needed after a slight delay
         if (shouldResolveCollisions && id) {
           setTimeout(() => {
@@ -194,6 +222,18 @@
 
   // set gridStore to context (old ScarfPlot dependency)
   setContext('gridStore', gridStore)
+
+  // Monitor auto-scrolling state changes
+  $effect(() => {
+    if ($isAutoScrolling) {
+      console.log('Auto-scrolling active, direction:', $autoScrollDirection)
+    }
+  })
+
+  // Clean up auto-scrolling on component destroy
+  onDestroy(() => {
+    endItemEdgeScroll()
+  })
 
   // Reactive derivation of grid positions for the Grid component
   const positions = derived(gridStore, $gridStore =>
@@ -274,6 +314,25 @@
       )
     },
   })
+
+  // Handle edge detection for auto-scrolling
+  const handleItemEdgeDetection = (event: {
+    id: number
+    itemBounds: {
+      left: number
+      right: number
+      top: number
+      bottom: number
+    }
+    viewportBounds: {
+      left: number
+      right: number
+      top: number
+      bottom: number
+    }
+  }) => {
+    handleItemEdgeScroll(event)
+  }
 
   // Handle item resize preview
   const handleItemPreviewResize = createOperationHandler({
@@ -361,6 +420,8 @@
       if (event.dragComplete) {
         gridStore.updateItemPosition(event.id, event.x, event.y, false)
       }
+      // Stop any active auto-scrolling
+      endItemEdgeScroll()
     },
     shouldResolveCollisions: true,
   })
@@ -394,6 +455,8 @@
           gridStore.updateItemSize(event.id, constrainedW, constrainedH, false)
         }
       }
+      // Stop any active auto-scrolling
+      endItemEdgeScroll()
     },
     shouldResolveCollisions: true,
   })
@@ -528,12 +591,16 @@
       // Apply horizontal scrolling to the workspace container
       if (Math.abs(deltaX) > 0.5) {
         // Small threshold to ignore tiny movements
-        workspaceContainer.scrollLeft -= deltaX
+        // Get current X scroll position and update it
+        const currentScrollX = getWorkspaceScrollX()
+        setWorkspaceScrollX(currentScrollX - deltaX)
       }
 
       // Apply vertical scrolling to the window with threshold
       if (Math.abs(deltaY) > 0.5) {
-        window.scrollBy(0, -deltaY)
+        // Get current Y scroll position and update it
+        const currentScrollY = getWorkspaceScrollY()
+        setWorkspaceScrollY(currentScrollY - deltaY)
       }
     }
   )
@@ -549,12 +616,244 @@
       workspaceContainer.style.cursor = 'grab'
     }
 
+    // Stop any active auto-scrolling
+    endItemEdgeScroll()
+
     // Remove all event listeners
     document.removeEventListener('mousemove', handleWorkspacePanMove)
     document.removeEventListener('mouseup', handleWorkspacePanEnd)
     document.removeEventListener('touchmove', handleWorkspacePanMove)
     document.removeEventListener('touchend', handleWorkspacePanEnd)
     document.removeEventListener('touchcancel', handleWorkspacePanEnd)
+  }
+
+  // Handle auto-scrolling when an item is dragged to the edge of the workspace
+  const handleItemEdgeScroll = (event: {
+    id: number
+    itemBounds: {
+      left: number
+      right: number
+      top: number
+      bottom: number
+    }
+    viewportBounds: {
+      left: number
+      right: number
+      top: number
+      bottom: number
+    }
+  }) => {
+    if (!workspaceContainer) return
+
+    const { itemBounds } = event
+    const edgeThreshold = 150 // Keep the large threshold
+
+    // Get the actual viewport bounds
+    const viewportBounds = {
+      left: 0,
+      top: 0,
+      right: window.innerWidth,
+      bottom: window.innerHeight,
+    }
+
+    // Check if we're at special sentinel values (used to force stop auto-scrolling)
+    if (itemBounds.left > 999999 || itemBounds.right < -999999) {
+      // This is our signal to stop auto-scrolling
+      if (autoScrollInterval !== null) {
+        clearInterval(autoScrollInterval)
+        autoScrollInterval = null
+        isAutoScrolling.set(false)
+        autoScrollDirection.set({ x: 0, y: 0 })
+        currentSpeedX = 0
+        currentSpeedY = 0
+      }
+      return
+    }
+
+    // Calculate scroll direction based on item bounds relative to viewport
+    let scrollX = 0
+    let scrollY = 0
+
+    // Check horizontal edges (relative to viewport)
+    if (itemBounds.right >= viewportBounds.right - edgeThreshold) {
+      // Need to scroll right
+      scrollX = 1
+
+      // Expand workspace width if needed
+      const gridCellWidth = gridConfig.cellSize.width + gridConfig.gap
+      temporaryDragWidth.set(
+        (get(gridWidth) / gridCellWidth + AUTO_SCROLL_AMOUNT) * gridCellWidth
+      )
+    } else if (itemBounds.left <= edgeThreshold) {
+      // Need to scroll left (only if we can scroll left)
+      if (getWorkspaceScrollX() > 0) {
+        scrollX = -1
+      }
+    }
+
+    // Check vertical edges (relative to viewport)
+    if (itemBounds.bottom >= viewportBounds.bottom - edgeThreshold) {
+      // Need to scroll down
+      scrollY = 1
+
+      // Expand workspace height if needed
+      const gridCellHeight = gridConfig.cellSize.height + gridConfig.gap
+      temporaryDragHeight.set(
+        (get(gridHeight) / gridCellHeight + AUTO_SCROLL_AMOUNT) * gridCellHeight
+      )
+    } else if (itemBounds.top <= edgeThreshold) {
+      // Need to scroll up (only if we can scroll up)
+      if (getWorkspaceScrollY() > 0) {
+        scrollY = -1
+      }
+    }
+
+    // Only continue if we need to scroll
+    if (scrollX !== 0 || scrollY !== 0) {
+      // Check if we're already scrolling
+      const wasAlreadyScrolling = !!autoScrollInterval
+
+      // Update scroll direction if different from current
+      const currentDirection = get(autoScrollDirection)
+      if (currentDirection.x !== scrollX || currentDirection.y !== scrollY) {
+        autoScrollDirection.set({ x: scrollX, y: scrollY })
+      }
+
+      // Always set the flag to true
+      isAutoScrolling.set(true)
+
+      // Get current scroll positions
+      let currentScrollX = getWorkspaceScrollX()
+      let currentScrollY = getWorkspaceScrollY()
+
+      // Config values - adjusted for smoother feel
+      const maxSpeed = 14 // Lower maximum speed for smoother scrolling
+      const initialSpeed = 0.5 // Start with a small initial speed
+      const acceleration = 0.1 // Lower acceleration for smoother ramp-up
+      const deceleration = 0.1 // Lower deceleration for smoother slow-down
+
+      // Only create a new interval if we weren't already scrolling
+      if (!wasAlreadyScrolling) {
+        // Set a small initial speed in the direction of scrolling
+        currentSpeedX = scrollX * initialSpeed
+        currentSpeedY = scrollY * initialSpeed
+
+        autoScrollInterval = setInterval(() => {
+          // Get fresh direction values from the store
+          const scrollDirection = get(autoScrollDirection)
+
+          // Calculate new speeds with smooth acceleration
+          if (scrollDirection.x !== 0) {
+            // Get current scroll position for edge detection
+            const currentX = getWorkspaceScrollX()
+            let effectiveMaxSpeed = maxSpeed
+
+            // Create much more dramatic edge slow-down effect
+            if (scrollDirection.x < 0 && currentX < 150) {
+              // Make slow-down effect much stronger with a cubic curve
+              const normalizedDistance = currentX / 150 // 0 at edge, 1 at threshold
+              // Use a more dramatic curve - this will create a more visible slowdown
+              const easeOutFactor = Math.pow(normalizedDistance, 2) // Stronger curve
+              // Apply a much more drastic speed reduction near edges
+              effectiveMaxSpeed = maxSpeed * easeOutFactor
+
+              // Visual debugging in console
+              if (currentX % 10 < 0.5) {
+                // Log occasionally to avoid console spam
+                console.log(
+                  `X SLOW-DOWN: ${currentX.toFixed(1)}px from edge, speed factor: ${easeOutFactor.toFixed(2)}`
+                )
+              }
+            }
+
+            // Calculate target speed with the dramatic max speed reduction
+            const targetSpeed = scrollDirection.x * effectiveMaxSpeed
+
+            // Apply smooth acceleration toward target, but faster to feel responsive
+            currentSpeedX = currentSpeedX + (targetSpeed - currentSpeedX) * 0.2 // Higher acceleration
+          } else {
+            // Gradual deceleration when not scrolling this direction
+            currentSpeedX =
+              Math.abs(currentSpeedX) > 0.1
+                ? currentSpeedX * (1 - deceleration)
+                : 0
+          }
+
+          if (scrollDirection.y !== 0) {
+            // Get current scroll position for edge detection
+            const currentY = getWorkspaceScrollY()
+            let effectiveMaxSpeed = maxSpeed
+
+            // Create much more dramatic edge slow-down effect
+            if (scrollDirection.y < 0 && currentY < 150) {
+              // Make slow-down effect much stronger with a cubic curve
+              const normalizedDistance = currentY / 150 // 0 at edge, 1 at threshold
+              // Use a more dramatic curve - this will create a more visible slowdown
+              const easeOutFactor = Math.pow(normalizedDistance, 2) // Stronger curve
+              // Apply a much more drastic speed reduction near edges
+              effectiveMaxSpeed = maxSpeed * easeOutFactor
+
+              // Visual debugging in console
+              if (currentY % 10 < 0.5) {
+                // Log occasionally to avoid console spam
+                console.log(
+                  `Y SLOW-DOWN: ${currentY.toFixed(1)}px from edge, speed factor: ${easeOutFactor.toFixed(2)}`
+                )
+              }
+            }
+
+            // Calculate target speed with the dramatic max speed reduction
+            const targetSpeed = scrollDirection.y * effectiveMaxSpeed
+
+            // Apply smooth acceleration toward target, but faster to feel responsive
+            currentSpeedY = currentSpeedY + (targetSpeed - currentSpeedY) * 0.2 // Higher acceleration
+          } else {
+            // Gradual deceleration when not scrolling this direction
+            currentSpeedY =
+              Math.abs(currentSpeedY) > 0.1
+                ? currentSpeedY * (1 - deceleration)
+                : 0
+          }
+
+          // Apply the current speed to scroll positions
+          if (Math.abs(currentSpeedX) > 0.1) {
+            currentScrollX += currentSpeedX
+            setWorkspaceScrollX(currentScrollX)
+          }
+
+          if (Math.abs(currentSpeedY) > 0.1) {
+            currentScrollY += currentSpeedY
+            setWorkspaceScrollY(currentScrollY)
+          }
+
+          // Stop the interval if we've slowed down enough
+          if (Math.abs(currentSpeedX) < 0.1 && Math.abs(currentSpeedY) < 0.1) {
+            if (autoScrollInterval !== null) {
+              clearInterval(autoScrollInterval)
+              autoScrollInterval = null
+              isAutoScrolling.set(false)
+              autoScrollDirection.set({ x: 0, y: 0 })
+            }
+          }
+        }, 16) as unknown as number // ~60fps for smooth animation
+      }
+    } else if (autoScrollInterval !== null) {
+      // We're no longer at an edge but interval is running - let it decelerate naturally
+      // by setting direction to zero
+      autoScrollDirection.set({ x: 0, y: 0 })
+    }
+  }
+
+  // End auto-scrolling
+  const endItemEdgeScroll = () => {
+    if (autoScrollInterval !== null) {
+      clearInterval(autoScrollInterval)
+      autoScrollInterval = null
+      isAutoScrolling.set(false)
+      autoScrollDirection.set({ x: 0, y: 0 })
+      currentSpeedX = 0
+      currentSpeedY = 0
+    }
   }
 
   // When the processing state changes, update the grid and loading state
@@ -642,6 +941,7 @@
             ondrag_height_update={handleDragHeightUpdate}
             onremove={handleItemRemove}
             onduplicate={handleItemDuplicate}
+            onedgedetection={handleItemEdgeDetection}
           >
             {#snippet body()}
               <div class="grid-item-content">
