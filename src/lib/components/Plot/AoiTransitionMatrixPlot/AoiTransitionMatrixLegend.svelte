@@ -1,5 +1,6 @@
 <script lang="ts">
   import SvgText from '$lib/components/Plot/SvgText.svelte'
+  import { draggable } from '$lib/actions/draggable'
 
   let {
     width = 500,
@@ -40,16 +41,9 @@
 
   // Color for inactive/filtered items
   const INACTIVE_COLOR = '#e0e0e0' // Light gray
-  const SLIDER_TRACK_COLOR = '#f0f0f0' // Very light gray for track
-  const SLIDER_TRACK_ACTIVE_COLOR = '#d0d0d0' // Darker gray for active track
-
-  // Store element references for keyboard/programmatic control
-  let sliderTrackEl: SVGRectElement
-  let sliderHandleEl: SVGGElement
 
   // Generate a unique ID for the gradient
   const gradientId = `gradient-${Math.random().toString(36).substring(2, 11)}`
-  const inactiveGradientId = `inactive-gradient-${Math.random().toString(36).substring(2, 11)}`
 
   // Calculate the normalized threshold position
   const thresholdPosition = $derived.by(() => {
@@ -59,182 +53,33 @@
   // Get handle position in pixels
   const handleX = $derived.by(() => LEGEND_MARGIN + thresholdPosition)
 
-  // State for interaction
-  let isDragging = $state(false)
-  let isHoveringHandle = $state(false)
-  let isHoveringSlider = $state(false)
-  let isFocused = $state(false)
-  let startX = $state(0) // For touch and mouse events
+  function updateThreshold(newPosition: number) {
+    // Convert position to percentage
+    const percentage = newPosition / LEGEND_WIDTH
 
-  // Update threshold based on handle position
-  function updateThresholdFromPosition(posX: number) {
-    // Convert position to value
-    const normalizedPos = Math.max(
+    // Convert percentage to threshold value
+    const newValue = Math.max(
       0,
-      Math.min(posX - LEGEND_MARGIN, LEGEND_WIDTH)
+      Math.min(maxValue, Math.round(percentage * maxValue))
     )
-    const percentage = normalizedPos / LEGEND_WIDTH
-    const newValue = Math.round(percentage * maxValue)
 
-    // Only update if the value has changed
+    // Only update if changed (prevents unnecessary re-renders)
     if (newValue !== minThreshold) {
       minThreshold = newValue
-      // Dispatch event to parent
-      onThresholdChange(newValue)
-      console.log('Legend updated threshold to:', minThreshold)
+      onThresholdChange?.(newValue)
     }
   }
 
-  // Handle mouse down on the slider handle
-  function handleMouseDown(e: MouseEvent) {
-    isDragging = true
-    startX = e.clientX
+  // Dragging state
+  let isDragging = $state(false)
 
-    // Add window-level event listeners for capturing mouse up outside component
-    window.addEventListener('mousemove', handleGlobalMouseMove)
-    window.addEventListener('mouseup', handleGlobalMouseUp)
-
-    // Prevent text selection during drag
-    e.preventDefault()
-  }
-
-  // Global mouse move handler - more robust for drags outside component
-  function handleGlobalMouseMove(e: MouseEvent) {
-    if (!isDragging) return
-
-    if (sliderTrackEl) {
-      const trackRect = sliderTrackEl.getBoundingClientRect()
-      const dragX = e.clientX - trackRect.left
-      updateThresholdFromPosition(dragX)
-    }
-  }
-
-  // Global mouse up handler
-  function handleGlobalMouseUp() {
-    isDragging = false
-
-    // Clean up global event listeners
-    window.removeEventListener('mousemove', handleGlobalMouseMove)
-    window.removeEventListener('mouseup', handleGlobalMouseUp)
-  }
-
-  // Handle mouse move for component-level tracking
-  function handleMouseMove(e: MouseEvent) {
-    // This is now just for hover effects
-    // Actual dragging is handled by the global handler
-  }
-
-  // Handle mouse up to end dragging
-  function handleMouseUp() {
-    // Use global handler instead
-  }
-
-  // Handle click on the slider track to immediately jump to that position
-  function handleTrackClick(e: MouseEvent) {
-    if (isDragging) return // Don't respond to clicks while dragging
-
-    const trackRect = (
-      e.currentTarget as SVGRectElement
-    ).getBoundingClientRect()
-    const clickX = e.clientX - trackRect.left
-    updateThresholdFromPosition(clickX)
-
-    // Focus the handle after click
-    if (sliderHandleEl) {
-      sliderHandleEl.focus()
-    }
-  }
-
-  // Show visual feedback when hovering over slider elements
-  function handleSliderHover(isHovering: boolean) {
-    isHoveringSlider = isHovering
-  }
-
-  function handleHandleHover(isHovering: boolean) {
-    isHoveringHandle = isHovering
-  }
-
-  // Touch event handlers for better mobile support
-  function handleTouchStart(e: TouchEvent) {
-    if (e.touches.length !== 1) return
-
-    isDragging = true
-    startX = e.touches[0].clientX
-    e.preventDefault()
-
-    // Add window-level event listeners
-    window.addEventListener('touchmove', handleGlobalTouchMove, {
-      passive: false,
-    })
-    window.addEventListener('touchend', handleGlobalTouchEnd)
-  }
-
-  function handleGlobalTouchMove(e: TouchEvent) {
-    if (!isDragging || e.touches.length !== 1) return
-
-    if (sliderTrackEl) {
-      const trackRect = sliderTrackEl.getBoundingClientRect()
-      const touchX = e.touches[0].clientX - trackRect.left
-      updateThresholdFromPosition(touchX)
-    }
-
-    e.preventDefault() // Prevent scrolling while dragging
-  }
-
-  function handleGlobalTouchEnd() {
-    isDragging = false
-
-    // Clean up global event listeners
-    window.removeEventListener('touchmove', handleGlobalTouchMove)
-    window.removeEventListener('touchend', handleGlobalTouchEnd)
-  }
-
-  // Keyboard accessibility
-  function handleKeyDown(e: KeyboardEvent) {
-    let change = 0
-
-    switch (e.key) {
-      case 'ArrowLeft':
-      case 'ArrowDown':
-        change = -1
-        break
-      case 'ArrowRight':
-      case 'ArrowUp':
-        change = 1
-        break
-      case 'Home':
-        minThreshold = 0
-        break
-      case 'End':
-        minThreshold = maxValue
-        break
-      case 'PageDown':
-        change = -Math.max(1, Math.floor(maxValue * 0.1))
-        break
-      case 'PageUp':
-        change = Math.max(1, Math.floor(maxValue * 0.1))
-        break
-      default:
-        return // Don't handle other keys
-    }
-
-    if (change !== 0) {
-      const newValue = Math.max(0, Math.min(maxValue, minThreshold + change))
-      if (newValue !== minThreshold) {
-        minThreshold = newValue
-        onThresholdChange(newValue)
-      }
-    }
-
-    e.preventDefault()
-  }
-
-  function handleFocus() {
-    isFocused = true
-  }
-
-  function handleBlur() {
-    isFocused = false
+  // Handle drag step
+  function handleDragStepX(event: CustomEvent) {
+    const newPos = Math.max(
+      0,
+      Math.min(LEGEND_WIDTH, thresholdPosition + event.detail.stepChange)
+    )
+    updateThreshold(newPos)
   }
 </script>
 
@@ -279,10 +124,11 @@
       width={LEGEND_WIDTH}
       height={LEGEND_HEIGHT}
       fill={`url(#${gradientId})`}
-      mask="url(#sliderMask)"
+      stroke="#ddd"
+      stroke-width="1"
     />
 
-    <!-- Gray overlay covering inactive/filtered part (left of threshold) -->
+    <!-- Gray overlay covering inactive/filtered part -->
     {#if minThreshold > 0}
       <rect
         x={LEGEND_MARGIN}
@@ -291,7 +137,6 @@
         height={LEGEND_HEIGHT}
         fill={INACTIVE_COLOR}
         opacity="0.9"
-        mask="url(#sliderMask)"
       />
     {/if}
 
@@ -304,8 +149,6 @@
       fill="none"
       stroke="#666"
       stroke-width="1"
-      rx={LEGEND_HEIGHT / 2}
-      ry={LEGEND_HEIGHT / 2}
     />
 
     <!-- Threshold indicator line -->
@@ -321,70 +164,13 @@
     {/if}
   </g>
 
-  <!-- Slider handle -->
-  <g
-    bind:this={sliderHandleEl}
-    cursor="grab"
-    class:grabbing={isDragging}
-    class:focused={isFocused}
-    onmousedown={handleMouseDown}
-    ontouchstart={handleTouchStart}
-    onmouseenter={() => handleHandleHover(true)}
-    onmouseleave={() => handleHandleHover(false)}
-    onfocus={handleFocus}
-    onblur={handleBlur}
-    onkeydown={handleKeyDown}
-    tabindex="0"
-    role="slider"
-    aria-valuemin="0"
-    aria-valuemax={maxValue}
-    aria-valuenow={minThreshold}
-    aria-valuetext={`Threshold: ${minThreshold}`}
-    aria-label="Filter threshold"
-  >
-    <!-- Focus ring (visible when focused via keyboard) -->
-    {#if isFocused}
-      <circle
-        cx={handleX}
-        cy={20 + LEGEND_HEIGHT / 2}
-        r={HANDLE_RADIUS + 4}
-        fill="none"
-        stroke="#4d90fe"
-        stroke-width="1.5"
-        stroke-dasharray="3,1"
-      />
-    {/if}
-
-    <!-- Shadow/glow effect for hover -->
-    {#if isHoveringHandle || isDragging}
-      <circle
-        cx={handleX}
-        cy={20 + LEGEND_HEIGHT / 2}
-        r={HANDLE_RADIUS + 2}
-        fill="rgba(255, 85, 85, 0.2)"
-      />
-    {/if}
-
-    <!-- Handle circle -->
-    <circle
-      cx={handleX}
-      cy={20 + LEGEND_HEIGHT / 2}
-      r={HANDLE_RADIUS}
-      stroke="#ff5555"
-      stroke-width={HANDLE_STROKE_WIDTH}
-      fill="white"
-    />
-  </g>
-
+  <!-- Interactive track area -->
   <rect
-    bind:this={sliderTrackEl}
     x={LEGEND_MARGIN}
     y={20 - DRAG_AREA_HEIGHT / 2}
     width={LEGEND_WIDTH}
     height={LEGEND_HEIGHT + DRAG_AREA_HEIGHT}
     fill="transparent"
-    cursor="pointer"
-    onclick={handleTrackClick}
     aria-hidden="true"
   />
 
@@ -405,14 +191,26 @@
     dominantBaseline="middle"
     fontSize="10"
   />
+
+  <!-- Slider handle -->
+  <!-- Handle circle -->
+  <circle
+    cx={handleX}
+    cy={20 + LEGEND_HEIGHT / 2}
+    r={HANDLE_RADIUS}
+    stroke="#ff5555"
+    stroke-width={HANDLE_STROKE_WIDTH}
+    fill="white"
+    use:draggable
+    {...{
+      ondragStepX: handleDragStepX,
+    }}
+  />
 </svg>
 
 <style>
-  .grabbing {
-    cursor: grabbing;
-  }
-
-  .focused {
-    outline: none; /* We're using a custom focus ring */
+  circle {
+    cursor: pointer;
+    touch-action: none; /* Prevents scrolling on touch devices while dragging */
   }
 </style>

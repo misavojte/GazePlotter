@@ -779,22 +779,6 @@
     margin-top: 0.5rem;
   }
 
-  .dpi-info {
-    font-size: 0.8rem;
-    color: #666;
-  }
-
-  .dpi-details {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .dpi-label,
-  .physical-size {
-    white-space: nowrap;
-  }
-
   .overflow-container {
     overflow: auto;
     max-width: 100%;
