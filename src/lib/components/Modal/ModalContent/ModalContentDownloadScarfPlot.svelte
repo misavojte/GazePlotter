@@ -20,6 +20,7 @@
   let typeOfExport = $state<fileType>('.svg')
   let width = $state(800) /* in px */
   let fileName = $state('GazePlotter-ScarfPlot')
+  let dpi = $state(96) /* standard web DPI */
 
   // Replace single margin with directional margins
   let marginTop = $state(20) /* in px */
@@ -32,11 +33,21 @@
   let tooltipAreaElement = $state<HTMLElement | SVGElement | null>(null)
   let previewContainer = $state<HTMLDivElement | null>(null)
 
+  // Check if DPI should be enabled (only for canvas-based formats)
+  const isDpiEnabled = $derived(typeOfExport !== '.svg')
+
+  // Common DPI presets
+  const dpiPresets = [
+    { value: 96, label: '96 DPI (Screen)' },
+    { value: 150, label: '150 DPI (Medium)' },
+    { value: 300, label: '300 DPI (Print)' },
+    { value: 600, label: '600 DPI (High Quality)' },
+  ]
+
   const options = [
     { value: '.svg', label: 'SVG (recommended)' },
     { value: '.png', label: 'PNG' },
     { value: '.jpg', label: 'JPG' },
-    { value: '.webp', label: 'WEBP' },
   ]
 
   // Calculate the effective width (what will be available for the chart after margins)
@@ -54,6 +65,11 @@
     marginRight = value
     marginBottom = value
     marginLeft = value
+  }
+
+  // Function to set DPI to a preset value
+  function setDpi(value: number) {
+    dpi = value
   }
 
   // Handlers for ScarfPlotFigure
@@ -96,7 +112,35 @@
       <div class="settings-item">
         <GeneralInputText label="Output file name" bind:value={fileName} />
       </div>
+
+      <!-- DPI Settings -->
+      <div class="settings-item">
+        <div class="dpi-container" class:disabled={!isDpiEnabled}>
+          <GeneralInputNumber
+            label="DPI (Resolution)"
+            bind:value={dpi}
+            min={72}
+            disabled={!isDpiEnabled}
+          />
+        </div>
+      </div>
     </div>
+
+    <!-- DPI Presets -->
+    {#if isDpiEnabled}
+      <div class="dpi-presets">
+        <span class="presets-label">DPI Presets:</span>
+        {#each dpiPresets as preset}
+          <button
+            class="preset-btn"
+            class:active={dpi === preset.value}
+            onclick={() => setDpi(preset.value)}
+          >
+            {preset.label}
+          </button>
+        {/each}
+      </div>
+    {/if}
 
     <!-- Margin Settings -->
     <div class="margin-settings">
@@ -155,6 +199,7 @@
         {marginRight}
         {marginBottom}
         {marginLeft}
+        {dpi}
         children={ScarfPlotFigure}
         childProps={scarfPlotProps}
         showDownloadButton={true}
@@ -208,6 +253,58 @@
     align-items: start;
   }
 
+  .dpi-container {
+    position: relative;
+  }
+
+  .dpi-container.disabled {
+    opacity: 0.7;
+  }
+
+  .dpi-presets {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.5rem 0;
+  }
+
+  .dpi-help {
+    width: 100%;
+    margin-top: 0.25rem;
+  }
+
+  .dpi-hint {
+    font-size: 0.7rem;
+    color: #777;
+    font-style: italic;
+  }
+
+  .presets-label {
+    font-size: 0.8rem;
+    color: #555;
+  }
+
+  .preset-btn {
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+  }
+
+  .preset-btn:hover {
+    background-color: #e0e0e0;
+  }
+
+  .preset-btn.active {
+    background-color: #007bff;
+    color: white;
+    border-color: #0069d9;
+  }
+
   .all-margins {
     grid-column: span 4;
     display: flex;
@@ -255,6 +352,11 @@
 
     .all-margins {
       grid-column: span 1;
+    }
+
+    .dpi-presets {
+      flex-direction: column;
+      align-items: flex-start;
     }
   }
 </style>
