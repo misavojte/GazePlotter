@@ -17,7 +17,7 @@ export const DEFAULT_GRID_CONFIG: GridConfig = {
 
 // --- Constants ---
 export const WORKSPACE_BOTTOM_PADDING = 90
-export const WORKSPACE_RIGHT_PADDING = 300
+export const WORKSPACE_RIGHT_PADDING = 0
 export const MIN_WORKSPACE_HEIGHT = 300 // Also used as fallback in height calculation
 export const DEFAULT_WORKSPACE_WIDTH = 1000
 
