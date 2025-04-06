@@ -89,11 +89,11 @@
     const xAxisSpace = TOP_MARGIN + labelOffset + AXIS_LABEL_MARGIN
     const bottomSpace = MARGIN + LEGEND_HEIGHT
 
-    // Calculate maximum available square area
+    // Calculate maximum available space
     const availableWidth = width - yAxisSpace - MARGIN
     const availableHeight = height - xAxisSpace - bottomSpace
 
-    return Math.min(availableWidth, availableHeight)
+    return { availableWidth, availableHeight }
   })
 
   // Calculate optimal cell size based on available space and number of AOIs
@@ -101,7 +101,12 @@
     if (aoiLabels.length === 0) return MIN_CELL_SIZE
 
     // Calculate the ideal cell size to fit all cells in the available area
-    const idealCellSize = maxPlotArea / aoiLabels.length
+    // We'll use the maximum possible size that fits within both width and height
+    const cellSizeByWidth = maxPlotArea.availableWidth / aoiLabels.length
+    const cellSizeByHeight = maxPlotArea.availableHeight / aoiLabels.length
+
+    // Use the smaller of the two to ensure everything fits
+    const idealCellSize = Math.min(cellSizeByWidth, cellSizeByHeight)
 
     // Constrain between minimum size and user-specified cellSize
     return Math.max(MIN_CELL_SIZE, Math.min(idealCellSize, cellSize))
@@ -113,11 +118,19 @@
 
   // Center the grid within available space
   const xOffset = $derived.by(() => {
-    return LEFT_MARGIN + labelOffset + (maxPlotArea - actualGridWidth) / 2
+    return (
+      LEFT_MARGIN +
+      labelOffset +
+      (maxPlotArea.availableWidth - actualGridWidth) / 2
+    )
   })
 
   const yOffset = $derived.by(() => {
-    return TOP_MARGIN + labelOffset + (maxPlotArea - actualGridHeight) / 2
+    return (
+      TOP_MARGIN +
+      labelOffset +
+      (maxPlotArea.availableHeight - actualGridHeight) / 2
+    )
   })
   function handleMouseMove(event: MouseEvent) {
     const currentTime = performance.now()
