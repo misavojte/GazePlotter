@@ -756,21 +756,14 @@
               const easeOutFactor = Math.pow(normalizedDistance, 2) // Stronger curve
               // Apply a much more drastic speed reduction near edges
               effectiveMaxSpeed = maxSpeed * easeOutFactor
-
-              // Visual debugging in console
-              if (currentX % 10 < 0.5) {
-                // Log occasionally to avoid console spam
-                console.log(
-                  `X SLOW-DOWN: ${currentX.toFixed(1)}px from edge, speed factor: ${easeOutFactor.toFixed(2)}`
-                )
-              }
             }
 
             // Calculate target speed with the dramatic max speed reduction
             const targetSpeed = scrollDirection.x * effectiveMaxSpeed
 
             // Apply smooth acceleration toward target, but faster to feel responsive
-            currentSpeedX = currentSpeedX + (targetSpeed - currentSpeedX) * 0.2 // Higher acceleration
+            currentSpeedX =
+              currentSpeedX + (targetSpeed - currentSpeedX) * acceleration // Higher acceleration
           } else {
             // Gradual deceleration when not scrolling this direction
             currentSpeedX =
@@ -792,21 +785,14 @@
               const easeOutFactor = Math.pow(normalizedDistance, 2) // Stronger curve
               // Apply a much more drastic speed reduction near edges
               effectiveMaxSpeed = maxSpeed * easeOutFactor
-
-              // Visual debugging in console
-              if (currentY % 10 < 0.5) {
-                // Log occasionally to avoid console spam
-                console.log(
-                  `Y SLOW-DOWN: ${currentY.toFixed(1)}px from edge, speed factor: ${easeOutFactor.toFixed(2)}`
-                )
-              }
             }
 
             // Calculate target speed with the dramatic max speed reduction
             const targetSpeed = scrollDirection.y * effectiveMaxSpeed
 
             // Apply smooth acceleration toward target, but faster to feel responsive
-            currentSpeedY = currentSpeedY + (targetSpeed - currentSpeedY) * 0.2 // Higher acceleration
+            currentSpeedY =
+              currentSpeedY + (targetSpeed - currentSpeedY) * acceleration // Higher acceleration
           } else {
             // Gradual deceleration when not scrolling this direction
             currentSpeedY =
