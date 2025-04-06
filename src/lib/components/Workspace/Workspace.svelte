@@ -77,6 +77,18 @@
     return 0
   }
 
+  const setWorkspaceScrollX = (x: number) => {
+    if (workspaceContainer) {
+      workspaceContainer.scrollLeft = x
+    }
+  }
+
+  const setWorkspaceScrollY = (y: number) => {
+    if (window) {
+      window.scrollTo(0, y)
+    }
+  }
+
   // ---------------------------------------------------
   // Utility functions
   // ---------------------------------------------------
