@@ -15,18 +15,16 @@
     calculateRequiredWorkspaceHeight,
     calculateBottomEdgePosition,
     calculateGridWidth,
+    WORKSPACE_BOTTOM_PADDING,
+    WORKSPACE_RIGHT_PADDING,
+    MIN_WORKSPACE_HEIGHT,
+    DEFAULT_WORKSPACE_WIDTH,
   } from '$lib/utils/gridSizingUtils'
   import {
     visualizationRegistry,
     getVisualizationConfig,
   } from '$lib/const/vizRegistry'
   import { throttleByRaf } from '$lib/utils/throttle'
-
-  // --- Constants ---
-  const WORKSPACE_BOTTOM_PADDING = 90
-  const WORKSPACE_RIGHT_PADDING = 300
-  const MIN_WORKSPACE_HEIGHT = 300 // Also used as fallback in height calculation
-  const DEFAULT_WORKSPACE_WIDTH = 1000
 
   // ---------------------------------------------------
   // State tracking

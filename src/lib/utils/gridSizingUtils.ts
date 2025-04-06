@@ -15,6 +15,12 @@ export const DEFAULT_GRID_CONFIG: GridConfig = {
   minHeight: 3,
 }
 
+// --- Constants ---
+export const WORKSPACE_BOTTOM_PADDING = 90
+export const WORKSPACE_RIGHT_PADDING = 300
+export const MIN_WORKSPACE_HEIGHT = 300 // Also used as fallback in height calculation
+export const DEFAULT_WORKSPACE_WIDTH = 1000
+
 /**
  * Calculates the bottom edge position in pixels for a grid item
  *
@@ -93,6 +99,25 @@ export function calculateGridHeight(
   return requiredHeight
 }
 
+export function calculateRequiredWorkspaceWidth(
+  positions: { x: number; w: number }[],
+  gridConfig: GridConfig
+): number {
+  if (positions.length === 0) return DEFAULT_WORKSPACE_WIDTH // Use constant
+
+  // Find the rightmost edge of all items
+  const maxRightEdge = Math.max(
+    ...positions.map(
+      item => (item.x + item.w) * (gridConfig.cellSize.width + gridConfig.gap)
+    )
+  )
+
+  return Math.max(
+    DEFAULT_WORKSPACE_WIDTH,
+    maxRightEdge + WORKSPACE_RIGHT_PADDING
+  )
+}
+
 export function calculateGridWidth(
   positions: { x: number; w: number }[],
   temporaryDragWidth: number | null,
@@ -100,10 +125,7 @@ export function calculateGridWidth(
 ): number {
   if (positions.length === 0) return 0
 
-  const requiredWidth =
-    Math.max(...positions.map(item => item.x + item.w)) *
-      (gridConfig.cellSize.width + gridConfig.gap) -
-    gridConfig.gap
+  const requiredWidth = calculateRequiredWorkspaceWidth(positions, gridConfig)
 
   if (temporaryDragWidth !== null) {
     return Math.max(temporaryDragWidth, requiredWidth)
