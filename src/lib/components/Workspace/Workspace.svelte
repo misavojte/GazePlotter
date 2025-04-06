@@ -14,6 +14,7 @@
     calculateGridHeight,
     calculateRequiredWorkspaceHeight,
     calculateBottomEdgePosition,
+    calculateGridWidth,
   } from '$lib/utils/gridSizingUtils'
   import {
     visualizationRegistry,
@@ -46,10 +47,35 @@
   const isPanning = writable(false)
   let lastPanX = 0
   let lastPanY = 0
+
   let workspaceContainer: HTMLElement | null = null
+
+  if (workspaceContainer) {
+    ;(workspaceContainer as HTMLElement).scrollLeft = 0
+  }
 
   // Store to track temporary height adjustment during drag operations
   const temporaryDragHeight = writable<number | null>(null)
+  const temporaryDragWidth = writable<number | null>(null)
+
+  // scroll Starting position
+  let scrollStartX = 0
+  let scrollStartY = 0 // this will change on Mount as the workspace is placed below the header in the DOM
+
+  const getWorkspaceScrollX = () => {
+    if (workspaceContainer) {
+      return workspaceContainer.scrollLeft
+    }
+    return 0
+  }
+
+  const getWorkspaceScrollY = () => {
+    // this is from window.scrollY
+    if (window) {
+      return window.scrollY
+    }
+    return 0
+  }
 
   // ---------------------------------------------------
   // Utility functions
@@ -101,7 +127,7 @@
         isResizing.set(false)
         resizedItemId.set(null)
         temporaryDragHeight.set(null)
-
+        temporaryDragWidth.set(null)
         // Resolve collisions if needed after a slight delay
         if (shouldResolveCollisions && id) {
           setTimeout(() => {
@@ -205,13 +231,7 @@
       temporaryDragHeight,
       requiredWorkspaceHeight,
     ],
-    ([
-      $positions,
-      $isEmpty,
-      $isLoading,
-      $temporaryDragHeight,
-      $requiredWorkspaceHeight,
-    ]) => {
+    ([$positions, $isEmpty, $isLoading, $temporaryDragHeight]) => {
       return calculateGridHeight(
         $positions,
         $isEmpty,
@@ -219,6 +239,13 @@
         $temporaryDragHeight,
         gridConfig
       )
+    }
+  )
+
+  const gridWidth = derived(
+    [positions, temporaryDragWidth],
+    ([$positions, $temporaryDragWidth]) => {
+      return calculateGridWidth($positions, $temporaryDragWidth, gridConfig)
     }
   )
 
@@ -577,7 +604,7 @@
     class:is-panning={$isPanning}
   >
     <!-- Scrollable content layer with background pattern -->
-    <div class="grid-container">
+    <div class="grid-container" style="width: {$gridWidth}px;">
       {#each $gridStore as item (item.id)}
         {@const visConfig = getVisualizationConfig(item.type)}
         <div transition:fade={{ duration: 300 }}>

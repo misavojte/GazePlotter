@@ -93,6 +93,25 @@ export function calculateGridHeight(
   return requiredHeight
 }
 
+export function calculateGridWidth(
+  positions: { x: number; w: number }[],
+  temporaryDragWidth: number | null,
+  gridConfig: GridConfig
+): number {
+  if (positions.length === 0) return 0
+
+  const requiredWidth =
+    Math.max(...positions.map(item => item.x + item.w)) *
+      (gridConfig.cellSize.width + gridConfig.gap) -
+    gridConfig.gap
+
+  if (temporaryDragWidth !== null) {
+    return Math.max(temporaryDragWidth, requiredWidth)
+  }
+
+  return requiredWidth
+}
+
 /**
  * Converts grid coordinates to pixel positions
  *
