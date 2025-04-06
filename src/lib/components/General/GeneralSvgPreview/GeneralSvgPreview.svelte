@@ -327,7 +327,8 @@
 
   .overflow-container {
     overflow: auto;
-    max-height: 80vh;
     max-width: 100%;
+    border: 1px dotted #ddd;
+    padding: 0.5rem;
   }
 </style>
