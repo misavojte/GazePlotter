@@ -2,7 +2,7 @@
   import GeneralInputNumber from '../../General/GeneralInput/GeneralInputNumber.svelte'
   import GeneralSelectBase from '../../General/GeneralSelect/GeneralSelect.svelte'
   import GeneralInputText from '../../General/GeneralInput/GeneralInputText.svelte'
-  import MajorButton from '../../General/GeneralButton/GeneralButtonMajor.svelte'
+  import GeneralButtonPreset from '../../General/GeneralButton/GeneralButtonPreset.svelte'
   import type { ScarfGridType } from '$lib/type/gridType'
   import ScarfPlotFigure from '$lib/components/Plot/ScarfPlot/ScarfPlotFigure/ScarfPlotFigure.svelte'
   import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType'
@@ -131,13 +131,11 @@
       <div class="dpi-presets">
         <span class="presets-label">DPI Presets:</span>
         {#each dpiPresets as preset}
-          <button
-            class="preset-btn"
-            class:active={dpi === preset.value}
-            onclick={() => setDpi(preset.value)}
-          >
-            {preset.label}
-          </button>
+          <GeneralButtonPreset
+            label={preset.label}
+            isActive={dpi === preset.value}
+            on:click={() => setDpi(preset.value)}
+          />
         {/each}
       </div>
     {/if}
@@ -173,12 +171,22 @@
           />
         </div>
         <div class="settings-item all-margins">
-          <button class="set-all-btn" onclick={() => setAllMargins(20)}
-            >Set all to 20px</button
-          >
-          <button class="set-all-btn" onclick={() => setAllMargins(0)}
-            >Set all to 0px</button
-          >
+          <GeneralButtonPreset
+            label="Set all to 20px"
+            isActive={marginTop === 20 &&
+              marginRight === 20 &&
+              marginBottom === 20 &&
+              marginLeft === 20}
+            on:click={() => setAllMargins(20)}
+          />
+          <GeneralButtonPreset
+            label="Set all to 0px"
+            isActive={marginTop === 0 &&
+              marginRight === 0 &&
+              marginBottom === 0 &&
+              marginLeft === 0}
+            on:click={() => setAllMargins(0)}
+          />
         </div>
       </div>
     </div>
@@ -212,7 +220,7 @@
   .single-view-container {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 1.5rem;
     max-height: 80vh;
     max-width: 830px;
   }
@@ -221,12 +229,12 @@
   .preview-heading h3,
   .margin-settings h4 {
     margin-top: 0;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
     font-weight: 600;
   }
 
   .margin-settings {
-    margin-top: 0.75rem;
+    margin-top: 1rem;
   }
 
   .margin-settings h4 {
@@ -241,15 +249,15 @@
 
   .settings-grid-main {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
     align-items: start;
   }
 
   .settings-grid-margins {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
     align-items: start;
   }
 
@@ -266,65 +274,20 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 0.5rem;
-    margin: 0.5rem 0;
-  }
-
-  .dpi-help {
-    width: 100%;
-    margin-top: 0.25rem;
-  }
-
-  .dpi-hint {
-    font-size: 0.7rem;
-    color: #777;
-    font-style: italic;
+    margin: 0.75rem 0;
   }
 
   .presets-label {
     font-size: 0.8rem;
-    color: #555;
-  }
-
-  .preset-btn {
-    background-color: #f0f0f0;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: background-color 0.2s;
-  }
-
-  .preset-btn:hover {
-    background-color: #e0e0e0;
-  }
-
-  .preset-btn.active {
-    background-color: #007bff;
-    color: white;
-    border-color: #0069d9;
+    color: var(--c-darkgrey);
   }
 
   .all-margins {
-    grid-column: span 4;
+    grid-column: 1 / -1;
     display: flex;
     gap: 0.5rem;
     justify-content: flex-start;
-    margin-top: 0.25rem;
-  }
-
-  .set-all-btn {
-    background-color: #f0f0f0;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.8rem;
-    cursor: pointer;
-    transition: background-color 0.2s;
-  }
-
-  .set-all-btn:hover {
-    background-color: #e0e0e0;
+    margin-top: 0.5rem;
   }
 
   .settings-item {

@@ -53,6 +53,7 @@
     position: relative;
     width: 170px;
     margin-bottom: 15px;
+    gap: 5px;
     font-family:
       system-ui,
       -apple-system,
@@ -72,10 +73,8 @@
   }
 
   label {
-    margin-bottom: 4px;
     font-size: 14px;
-    color: var(--c-black, #333);
-    font-weight: 500;
+    color: var(--c-black);
   }
 
   .compact label {
