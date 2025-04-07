@@ -646,7 +646,8 @@
     if (!workspaceContainer) return
 
     const { itemBounds } = event
-    const edgeThreshold = 150 // Keep the large threshold
+    // Make edge threshold smaller
+    const edgeThreshold = 25 // Reduced from 150 to 80 for smaller edge detection area
 
     // Get the actual viewport bounds
     const viewportBounds = {
@@ -674,7 +675,7 @@
     let scrollX = 0
     let scrollY = 0
 
-    // Check horizontal edges (relative to viewport)
+    // Check if we're moving to the right edge - only trigger if item is near right edge
     if (itemBounds.right >= viewportBounds.right - edgeThreshold) {
       // Need to scroll right
       scrollX = 1
@@ -684,14 +685,16 @@
       temporaryDragWidth.set(
         (get(gridWidth) / gridCellWidth + AUTO_SCROLL_AMOUNT) * gridCellWidth
       )
-    } else if (itemBounds.left <= edgeThreshold) {
+    }
+    // Check if we're moving to the left edge - only trigger if item is near left edge
+    else if (itemBounds.left <= edgeThreshold) {
       // Need to scroll left (only if we can scroll left)
       if (getWorkspaceScrollX() > 0) {
         scrollX = -1
       }
     }
 
-    // Check vertical edges (relative to viewport)
+    // Check if we're moving to the bottom edge - only trigger if item is near bottom edge
     if (itemBounds.bottom >= viewportBounds.bottom - edgeThreshold) {
       // Need to scroll down
       scrollY = 1
@@ -701,11 +704,10 @@
       temporaryDragHeight.set(
         (get(gridHeight) / gridCellHeight + AUTO_SCROLL_AMOUNT) * gridCellHeight
       )
-    } else if (itemBounds.top <= edgeThreshold) {
-      // Need to scroll up (only if we can scroll up)
-      if (getWorkspaceScrollY() > 0) {
-        scrollY = -1
-      }
+    }
+    // Check if we're moving to the top edge - only trigger if item is near top edge and we can scroll up
+    else if (itemBounds.top <= edgeThreshold && getWorkspaceScrollY() > 0) {
+      scrollY = -1
     }
 
     // Only continue if we need to scroll
