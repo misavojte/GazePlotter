@@ -6,7 +6,7 @@
     width = 500,
     y = 0,
     x = 0,
-    height = 40,
+    height = 80,
     colorScale = ['#f7fbff', '#08306b'],
     maxValue = 100,
     title = 'Transition Count',

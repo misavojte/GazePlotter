@@ -515,7 +515,7 @@
       return
 
     // Prevent default to avoid text selection during panning
-    event.preventDefault()
+    // event.preventDefault()
 
     // Set panning state
     isPanning.set(true)
@@ -556,7 +556,7 @@
 
       // Prevent default for touch events to stop scrolling
       if ('touches' in event) {
-        event.preventDefault()
+        // event.preventDefault()
       }
 
       // Get current position based on event type

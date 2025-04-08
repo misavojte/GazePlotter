@@ -98,11 +98,7 @@
   }
 </script>
 
-<svg
-  {width}
-  height={GRADIENT_HEIGHT + 20}
-  style="position: absolute; top: {y}px"
->
+<svg {width} height={GRADIENT_HEIGHT + 20} {y}>
   <!-- Define the gradient -->
   <defs>
     <linearGradient id="gradient" x1="0" y1="0" x2="1" y2="0">
