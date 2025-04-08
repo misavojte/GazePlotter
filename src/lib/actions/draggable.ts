@@ -9,7 +9,7 @@ export function draggable(node: HTMLElement | SVGElement) {
   let previousY: number | null = null
 
   // Minimum distance to consider a drag significant
-  const MIN_DRAG_DISTANCE = 2
+  const MIN_DRAG_DISTANCE = 0
 
   // Custom event dispatchers
   function dispatchDragStepX(stepChange: number) {
