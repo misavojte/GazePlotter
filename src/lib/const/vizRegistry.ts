@@ -42,6 +42,7 @@ export const visualizationRegistry: Record<string, VisualizationConfig> = {
     ) => ({
       stimulusId: params.stimulusId ?? 0,
       groupId: params.groupId ?? -1,
+      colorValueRange: [0, 0],
       min: { w: 11, h: 12 },
     }),
     getDefaultHeight: () => 12, // Default square size

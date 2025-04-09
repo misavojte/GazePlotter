@@ -2,22 +2,23 @@
   import { modalStore } from '$lib/stores/modalStore'
   import NumberInput from '$lib/components/General/GeneralInput/GeneralInputNumber.svelte'
   import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
+  import type { AoiTransitionMatrixGridType } from '$lib/type/gridType'
 
   interface Props {
-    currentMaxValue: number
-    calculatedValue: number
-    isAuto: boolean
-    onConfirm: (maxValue: number) => void
+    settings: AoiTransitionMatrixGridType
+    settingsChange: (newSettings: Partial<AoiTransitionMatrixGridType>) => void
   }
 
-  let { currentMaxValue, calculatedValue, isAuto, onConfirm }: Props = $props()
+  let { settings, settingsChange }: Props = $props()
 
-  let newMaxValue = $state(currentMaxValue)
-  let useAutoValue = $state(isAuto)
+  let newMaxValue = $state(settings.colorValueRange[1])
+  let useAutoValue = $state(settings.colorValueRange[1] === 0)
 
   function handleConfirm() {
     // When auto is selected, use 0 to indicate auto calculation
-    onConfirm(useAutoValue ? 0 : newMaxValue)
+    settingsChange({
+      colorValueRange: useAutoValue ? [0, 0] : [0, newMaxValue],
+    })
     modalStore.close()
   }
 
@@ -28,7 +29,7 @@
   function toggleAutoValue(value: boolean) {
     useAutoValue = value
     if (useAutoValue) {
-      newMaxValue = calculatedValue
+      newMaxValue = settings.colorValueRange[1]
     }
   }
 
@@ -68,7 +69,7 @@
           checked={useAutoValue}
           onchange={() => toggleAutoValue(true)}
         />
-        <span>Auto (calculated from data: {calculatedValue})</span>
+        <span>Auto (calculated from data's max value)</span>
       </label>
     </div>
 

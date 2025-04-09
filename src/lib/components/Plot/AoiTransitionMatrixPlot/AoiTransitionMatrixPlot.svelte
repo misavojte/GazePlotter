@@ -22,7 +22,6 @@
   // Constants for space taken by headers, controls, and padding
   const HEADER_HEIGHT = 150 // Estimated space for header and controls
   const HORIZONTAL_PADDING = 50 // Horizontal padding inside the container
-  const CONTENT_PADDING = 20 // Padding around the plot content
 
   // Visualization settings (now reactive)
   let plotDimensions = $derived.by(() =>
@@ -49,8 +48,6 @@
   })
 
   const colorScale = ['#f7fbff', '#08306b'] // Blue gradient
-  let minThreshold = $state(0)
-  let calculatedMaxValue = $state(0)
 
   // Simplified aggregation method options
   const aggregationOptions = [
@@ -69,21 +66,13 @@
     settingsChange(newSettings)
   }
 
-  function handleThresholdChange(threshold: number) {
-    minThreshold = threshold
-  }
-
   function handleAggregationChange(event: CustomEvent) {
     // Update the aggregation method in grid settings
     settingsChange({ aggregationMethod: event.detail as AggregationMethod })
   }
 
-  function handleCalculatedMaxChange(value: number) {
-    calculatedMaxValue = value
-  }
-
-  function handleMaxValueChange(value: number) {
-    settingsChange({ maxColorValue: value })
+  function handleColorValueRangeChange(value: [number, number]) {
+    settingsChange({ colorValueRange: value })
   }
 
   // Update AOI labels when data changes
@@ -138,8 +127,6 @@
         <AoiTransitionMatrixButtonMenu
           {settings}
           settingsChange={handleSettingsChange}
-          {calculatedMaxValue}
-          onMaxValueChange={handleMaxValueChange}
         />
       </div>
     </div>
@@ -163,9 +150,7 @@
           xLabel="To AOI"
           yLabel="From AOI"
           legendTitle={getLegendTitle(settings.aggregationMethod)}
-          {minThreshold}
-          customMaxValue={settings.maxColorValue}
-          useAutoMax={settings.maxColorValue === 0}
+          colorValueRange={settings.colorValueRange}
         />
       {:else}
         <div class="no-data">

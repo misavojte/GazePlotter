@@ -10,7 +10,7 @@
     colorScale = ['#f7fbff', '#08306b'],
     maxValue = 100,
     title = 'Transition Count',
-    onThresholdChange,
+    onColorValueRangeChange,
   } = $props<{
     width: number
     y: number
@@ -19,7 +19,7 @@
     colorScale?: string[]
     maxValue: number
     title?: string
-    onThresholdChange?: (minThreshold: number, maxThreshold: number) => void
+    onColorValueRangeChange?: (colorValueRange: [number, number]) => void
   }>()
 
   // Ensure maxValue is always a whole number (rounded up)
@@ -30,12 +30,12 @@
 
   function handleMinChange(newMin: number) {
     minThreshold = newMin
-    onThresholdChange?.(minThreshold, maxThreshold)
+    onColorValueRangeChange?.(minThreshold, maxThreshold)
   }
 
   function handleMaxChange(newMax: number) {
     maxThreshold = newMax
-    onThresholdChange?.(minThreshold, maxThreshold)
+    onColorValueRangeChange?.(minThreshold, maxThreshold)
   }
 </script>
 

@@ -10,16 +10,9 @@
   interface Props {
     settings: AoiTransitionMatrixGridType
     settingsChange: (newSettings: Partial<AoiTransitionMatrixGridType>) => void
-    calculatedMaxValue: number
-    onMaxValueChange: (newMaxValue: number) => void
   }
 
-  let {
-    settings,
-    settingsChange = () => {},
-    calculatedMaxValue,
-    onMaxValueChange = () => {},
-  }: Props = $props()
+  let { settings, settingsChange = () => {} }: Props = $props()
 
   const openMaxValueModal = () => {
     try {
@@ -27,10 +20,8 @@
         ModalContentMaxValue as any,
         'Set maximum color scale value',
         {
-          currentMaxValue: settings.maxColorValue || calculatedMaxValue,
-          calculatedValue: calculatedMaxValue,
-          isAuto: settings.maxColorValue === 0,
-          onConfirm: onMaxValueChange,
+          settings,
+          settingsChange,
         }
       )
     } catch (error) {

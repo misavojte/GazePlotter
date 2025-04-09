@@ -95,8 +95,8 @@
     yLabel: 'From AOI',
     legendTitle: 'Transition Count',
     minThreshold: 0,
-    customMaxValue: settings.maxColorValue,
-    useAutoMax: settings.maxColorValue === 0,
+    customMaxValue: settings.colorValueRange[1],
+    useAutoMax: settings.colorValueRange[1] === 0,
   })
 </script>
 

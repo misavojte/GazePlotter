@@ -33,7 +33,7 @@ export interface AoiTransitionMatrixGridType extends GridType {
   type: 'AoiTransitionMatrix'
   stimulusId: number
   groupId: number
-  maxColorValue: number // 0 means auto-calculate from data
+  colorValueRange: [number, number] // [min, max] for color mapping, if max is 0, it means auto-calculate from data
   aggregationMethod: string // Store the aggregation method in settings
 }
 

@@ -43,10 +43,8 @@
     xLabel = 'To AOI',
     yLabel = 'From AOI',
     legendTitle = 'Transition Count',
-    customMaxValue,
-    useAutoMax = true,
-    onMaxValueChange = (value: number) => {},
-    minThreshold = 0,
+    colorValueRange = [0, 0],
+    onColorValueRangeChange = () => {},
   } = $props<{
     AoiTransitionMatrix: number[][]
     aoiLabels: string[]
@@ -57,17 +55,9 @@
     xLabel?: string
     yLabel?: string
     legendTitle?: string
-    customMaxValue?: number
-    useAutoMax?: boolean
-    minThreshold: number
-    onMaxValueChange?: (value: number) => void
+    colorValueRange: [number, number]
+    onColorValueRangeChange?: (value: [number, number]) => void
   }>()
-
-  // Handler for threshold change
-  function handleThresholdChange(event: number) {
-    minThreshold = event
-    console.log('Parent received new threshold:', event)
-  }
 
   // Additional offsets for axis labels to prevent collisions
   const AXIS_LABEL_MARGIN = 20
@@ -222,11 +212,12 @@
   })
 
   // Use either auto or custom max value based on configuration
-  const effectiveMaxValue = $derived.by(() => {
-    if (useAutoMax) {
-      return calculatedMaxValue
-    }
-    return customMaxValue || calculatedMaxValue
+  const effectiveMaxValue = $derived(
+    colorValueRange[1] == 0 ? calculatedMaxValue : colorValueRange[1]
+  )
+
+  $effect(() => {
+    console.log('effectiveMaxValue', effectiveMaxValue)
   })
 
   // Calculate color based on value
@@ -234,9 +225,9 @@
     return getColorForValue(value, effectiveMaxValue, colorScale)
   }
 
-  // Function to check if a cell should be grayed out based on threshold
+  // Function to check if a cell should be grayed out based on color value range
   function isBelowThreshold(value: number): boolean {
-    return value < minThreshold
+    return value < colorValueRange[0] || value > effectiveMaxValue
   }
 
   // Get cell color based on value and threshold
@@ -246,13 +237,6 @@
     }
     return getColor(value)
   }
-
-  // Update parent when calculated max value changes
-  $effect(() => {
-    if (calculatedMaxValue > 0) {
-      onMaxValueChange(calculatedMaxValue)
-    }
-  })
 </script>
 
 <div class="plot-container">
@@ -361,7 +345,7 @@
       {colorScale}
       maxValue={effectiveMaxValue}
       title={legendTitle}
-      onThresholdChange={handleThresholdChange}
+      {onColorValueRangeChange}
     />
   </svg>
 </div>
