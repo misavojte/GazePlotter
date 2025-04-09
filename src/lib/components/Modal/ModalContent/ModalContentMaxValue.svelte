@@ -11,13 +11,12 @@
 
   let { settings, settingsChange }: Props = $props()
 
+  let newMinValue = $state(settings.colorValueRange[0])
   let newMaxValue = $state(settings.colorValueRange[1])
-  let useAutoValue = $state(settings.colorValueRange[1] === 0)
 
   function handleConfirm() {
-    // When auto is selected, use 0 to indicate auto calculation
     settingsChange({
-      colorValueRange: useAutoValue ? [0, 0] : [0, newMaxValue],
+      colorValueRange: [newMinValue, newMaxValue],
     })
     modalStore.close()
   }
@@ -26,59 +25,44 @@
     modalStore.close()
   }
 
-  function toggleAutoValue(value: boolean) {
-    useAutoValue = value
-    if (useAutoValue) {
-      newMaxValue = settings.colorValueRange[1]
-    }
+  function handleMinValueChange(event: Event) {
+    const target = event.target as HTMLInputElement
+    newMinValue = target.valueAsNumber
   }
 
-  function handleValueChange(event: Event) {
+  function handleMaxValueChange(event: Event) {
     const target = event.target as HTMLInputElement
     newMaxValue = target.valueAsNumber
   }
 </script>
 
-<div class="max-value-modal">
+<div class="value-range-modal">
   <div class="description">
     <p>
-      Set the maximum value for the color scale. This affects how transitions
-      are colored in the matrix.
+      Set the minimum and maximum values for the color scale. This affects how
+      transitions are colored in the matrix.
     </p>
     <p class="note">
-      Setting a consistent maximum value across multiple matrices makes them
-      directly comparable.
+      Setting consistent values across multiple matrices makes them directly
+      comparable.
     </p>
   </div>
 
   <div class="input-container">
-    <div class="radio-group">
-      <label>
-        <input
-          type="radio"
-          name="valueMode"
-          checked={!useAutoValue}
-          onchange={() => toggleAutoValue(false)}
-        />
-        <span>Custom value</span>
-      </label>
-      <label>
-        <input
-          type="radio"
-          name="valueMode"
-          checked={useAutoValue}
-          onchange={() => toggleAutoValue(true)}
-        />
-        <span>Auto (calculated from data's max value)</span>
-      </label>
+    <div class="number-input">
+      <NumberInput
+        value={newMinValue}
+        min={0}
+        label="Minimum value"
+        oninput={handleMinValueChange}
+      />
     </div>
-
-    <div class="number-input" class:disabled={useAutoValue}>
+    <div class="number-input">
       <NumberInput
         value={newMaxValue}
-        min={1}
-        label="Maximum value"
-        oninput={useAutoValue ? undefined : handleValueChange}
+        min={0}
+        label="Maximum value (0 for auto)"
+        oninput={handleMaxValueChange}
       />
     </div>
   </div>
@@ -90,7 +74,7 @@
 </div>
 
 <style>
-  .max-value-modal {
+  .value-range-modal {
     padding: 1rem;
     max-width: 400px;
   }
@@ -107,24 +91,6 @@
 
   .input-container {
     margin-bottom: 1.5rem;
-  }
-
-  .radio-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-  }
-
-  .radio-group label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
-  }
-
-  .number-input.disabled {
-    opacity: 0.5;
   }
 
   .button-container {
