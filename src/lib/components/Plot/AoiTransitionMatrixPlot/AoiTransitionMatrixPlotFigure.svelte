@@ -222,7 +222,12 @@
 
   // Calculate color based on value
   function getColor(value: number): string {
-    return getColorForValue(value, effectiveMaxValue, colorScale)
+    return getColorForValue(
+      value,
+      colorValueRange[0],
+      effectiveMaxValue,
+      colorScale
+    )
   }
 
   // Function to check if a cell should be grayed out based on color value range
@@ -342,7 +347,7 @@
       height={LEGEND_HEIGHT}
       y={yOffset + actualGridHeight + 10}
       x={xOffset}
-      {colorScale}
+      minValue={colorValueRange[0]}
       maxValue={effectiveMaxValue}
       title={legendTitle}
       {onColorValueRangeChange}

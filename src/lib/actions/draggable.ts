@@ -80,8 +80,10 @@ export function draggable(node: HTMLElement | SVGElement) {
     previousX = pointerEvent.clientX
     previousY = pointerEvent.clientY
 
-    // Capture pointer to ensure events are directed to this element
-    node.setPointerCapture(pointerEvent.pointerId)
+    // Check if setPointerCapture is supported and the pointerId is valid
+    if (node.setPointerCapture && pointerEvent.pointerId) {
+      node.setPointerCapture(pointerEvent.pointerId)
+    }
   }
 
   function handlePointerMove(event: Event) {
@@ -144,8 +146,10 @@ export function draggable(node: HTMLElement | SVGElement) {
     previousX = null
     previousY = null
 
-    // Release pointer capture
-    node.releasePointerCapture(pointerEvent.pointerId)
+    // Check if releasePointerCapture is supported and the pointerId is valid
+    if (node.releasePointerCapture && pointerEvent.pointerId) {
+      node.releasePointerCapture(pointerEvent.pointerId)
+    }
   }
 
   function handleTouchStart(event: TouchEvent) {

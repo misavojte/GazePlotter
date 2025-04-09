@@ -37,6 +37,7 @@ export function interpolateColor(
  */
 export function getColorForValue(
   value: number,
+  minValue: number,
   maxValue: number,
   colorScale: string[]
 ): string {
@@ -44,7 +45,7 @@ export function getColorForValue(
   if (value === 0 || maxValue === 0) return colorScale[0]
 
   // Normalize value to get factor between 0 and 1
-  const normalizedValue = value / maxValue
+  const normalizedValue = (value - minValue) / (maxValue - minValue)
 
   // Use interpolation to get the color
   return interpolateColor(colorScale[0], colorScale[1], normalizedValue)

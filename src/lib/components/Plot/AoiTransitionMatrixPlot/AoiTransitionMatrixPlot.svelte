@@ -151,6 +151,7 @@
           yLabel="From AOI"
           legendTitle={getLegendTitle(settings.aggregationMethod)}
           colorValueRange={settings.colorValueRange}
+          onColorValueRangeChange={handleColorValueRangeChange}
         />
       {:else}
         <div class="no-data">
