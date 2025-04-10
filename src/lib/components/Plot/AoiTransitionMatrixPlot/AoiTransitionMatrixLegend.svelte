@@ -36,13 +36,11 @@
   const sliderXOffset = $derived((width - SLIDER_WIDTH) / 2)
 
   function handleMinChange(newMin: number) {
-    minThreshold = newMin
-    onColorValueRangeChange?.([minThreshold, maxThreshold])
+    onColorValueRangeChange?.([newMin, maxThreshold])
   }
 
   function handleMaxChange(newMax: number) {
-    maxThreshold = newMax
-    onColorValueRangeChange?.([minThreshold, maxThreshold])
+    onColorValueRangeChange?.([minThreshold, newMax])
   }
 </script>
 

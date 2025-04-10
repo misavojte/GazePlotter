@@ -10,11 +10,6 @@
   // Use state instead of bindable
   let isChecked = $state(checked)
 
-  // Update isChecked when props checked changes
-  $effect(() => {
-    isChecked = checked
-  })
-
   function handleChange(event: Event) {
     const target = event.target as HTMLInputElement
     isChecked = target.checked

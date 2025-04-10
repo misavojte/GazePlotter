@@ -42,9 +42,6 @@
     width: 170px;
     box-sizing: border-box;
   }
-  input:out-of-range {
-    border-color: var(--c-error);
-  }
 
   input:disabled {
     background-color: #f5f5f5;

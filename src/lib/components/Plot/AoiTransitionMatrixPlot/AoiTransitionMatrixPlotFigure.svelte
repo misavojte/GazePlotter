@@ -1,9 +1,6 @@
 <script lang="ts">
   import AoiTransitionMatrixLegend from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixLegend.svelte'
-  import {
-    getColorForValue,
-    getContrastTextColor,
-  } from '../../../utils/colorUtils'
+  import { getColorForValue, getContrastTextColor } from '$lib/utils/colorUtils'
   import { updateTooltip } from '$lib/stores/tooltipStore'
   import SvgText from '$lib/components/Plot/SvgText.svelte'
   import { calculateLabelOffset } from '../utils/textUtils'
