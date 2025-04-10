@@ -25,10 +25,10 @@
   // State for popup positioning
   let popupPosition = $state({ top: 0, left: 0 })
 
-  // State for custom color picker
+  // State for HSV model (this better matches the visual color picker)
   let hue = $state(0)
-  let saturation = $state(100)
-  let lightness = $state(50)
+  let saturationHsv = $state(100)
+  let valueHsv = $state(100)
 
   // Create a portal for the color popup with click-outside behavior
   const portal = (node: HTMLElement) => {
@@ -101,8 +101,16 @@
     s: number,
     l: number
   ): { r: number; g: number; b: number } => {
-    s /= 100
-    l /= 100
+    // Ensure values are in the correct range
+    h = Math.max(0, Math.min(360, h))
+    s = Math.max(0, Math.min(100, s)) / 100
+    l = Math.max(0, Math.min(100, l)) / 100
+
+    if (s === 0) {
+      // Achromatic (gray)
+      const v = Math.round(l * 255)
+      return { r: v, g: v, b: v }
+    }
 
     const c = (1 - Math.abs(2 * l - 1)) * s
     const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
@@ -317,24 +325,113 @@
     return value
   }
 
-  // Update HSL values from hex
-  const updateHslFromHex = (hexColor: string) => {
-    const rgb = hexToRgb(hexColor)
-    const hslValues = rgbToHsl(rgb.r, rgb.g, rgb.b)
+  // Add HSV to HSL conversion
+  const hsvToHsl = (
+    h: number,
+    s: number,
+    v: number
+  ): { h: number; s: number; l: number } => {
+    // Convert HSV to HSL
+    // H stays the same in both models
+    // Input s and v are 0-100
+    s = s / 100
+    v = v / 100
 
-    hue = hslValues.h
-    saturation = hslValues.s
-    lightness = hslValues.l
+    const l = v * (1 - s / 2)
+    const newS = l === 0 || l === 1 ? 0 : (v - l) / Math.min(l, 1 - l)
+
+    return {
+      h,
+      s: Math.round(newS * 100),
+      l: Math.round(l * 100),
+    }
   }
 
-  // Update color from HSL
-  const updateColorFromHsl = () => {
-    const rgb = hslToRgb(hue, saturation, lightness)
+  // Add HSL to HSV conversion for when we load a color
+  const hslToHsv = (
+    h: number,
+    s: number,
+    l: number
+  ): { h: number; s: number; v: number } => {
+    // Convert HSL to HSV
+    // H stays the same in both models
+    // Input s and l are 0-100
+    s = s / 100
+    l = l / 100
+
+    const v = l + s * Math.min(l, 1 - l)
+    const newS = v === 0 ? 0 : 2 * (1 - l / v)
+
+    return {
+      h,
+      s: Math.round(newS * 100),
+      v: Math.round(v * 100),
+    }
+  }
+
+  // Update HSV values from hex
+  const updateHsvFromHex = (hexColor: string) => {
+    const rgb = hexToRgb(hexColor)
+    const hslValues = rgbToHsl(rgb.r, rgb.g, rgb.b)
+    const hsvValues = hslToHsv(hslValues.h, hslValues.s, hslValues.l)
+
+    hue = hsvValues.h
+    saturationHsv = hsvValues.s
+    valueHsv = hsvValues.v
+  }
+
+  // Update color from HSV
+  const updateColorFromHsv = () => {
+    const hslValues = hsvToHsl(hue, saturationHsv, valueHsv)
+    const rgb = hslToRgb(hslValues.h, hslValues.s, hslValues.l)
     const hexValue = rgbToHex(rgb.r, rgb.g, rgb.b)
 
     value = hexValue
     inputValue = hexValue
     oninput(new CustomEvent('input', { detail: hexValue }))
+  }
+
+  // Handle saturation/value (brightness) change in HSV model
+  const handleSatValueChange = (e: MouseEvent) => {
+    const target = e.currentTarget as HTMLDivElement
+    const rect = target.getBoundingClientRect()
+
+    // X maps directly to saturation (0-100%)
+    saturationHsv = Math.max(
+      0,
+      Math.min(100, Math.round(((e.clientX - rect.left) / rect.width) * 100))
+    )
+
+    // Y maps inversely to value/brightness (100-0%)
+    valueHsv = Math.max(
+      0,
+      Math.min(
+        100,
+        Math.round(100 - ((e.clientY - rect.top) / rect.height) * 100)
+      )
+    )
+
+    updateColorFromHsv()
+  }
+
+  // Toggle color picker
+  const toggleColorPicker = async () => {
+    isOpen = !isOpen
+    if (isOpen) {
+      inputValue = value
+      updateHsvFromHex(value)
+
+      // Calculate position once when opening
+      await calculatePopupPosition()
+    }
+  }
+
+  // Handle palette color selection
+  const selectPaletteColor = (paletteColor: string) => {
+    value = paletteColor
+    inputValue = paletteColor
+    updateHsvFromHex(paletteColor)
+    oninput(new CustomEvent('input', { detail: paletteColor }))
   }
 
   // Handle manual text input
@@ -346,7 +443,7 @@
     if (format !== 'invalid') {
       const hexValue = convertToHex(inputValue)
       value = hexValue
-      updateHslFromHex(hexValue)
+      updateHsvFromHex(hexValue)
       oninput(new CustomEvent('input', { detail: hexValue }))
     }
   }
@@ -355,44 +452,14 @@
   const handleHueChange = (e: Event) => {
     const input = e.target as HTMLInputElement
     hue = parseInt(input.value, 10)
-    updateColorFromHsl()
+    updateColorFromHsv()
   }
 
-  // Handle saturation/lightness change
-  const handleSatLightChange = (e: MouseEvent) => {
-    const target = e.currentTarget as HTMLDivElement
-    const rect = target.getBoundingClientRect()
-
-    // Calculate saturation and lightness based on click position
-    saturation = Math.round(((e.clientX - rect.left) / rect.width) * 100)
-    lightness = Math.round(100 - ((e.clientY - rect.top) / rect.height) * 100)
-
-    // Constrain values
-    saturation = Math.max(0, Math.min(100, saturation))
-    lightness = Math.max(0, Math.min(100, lightness))
-
-    updateColorFromHsl()
-  }
-
-  // Toggle color picker
-  const toggleColorPicker = async () => {
-    isOpen = !isOpen
-    if (isOpen) {
-      inputValue = value
-      updateHslFromHex(value)
-
-      // Calculate position once when opening
-      await calculatePopupPosition()
-    }
-  }
-
-  // Handle palette color selection
-  const selectPaletteColor = (paletteColor: string) => {
-    value = paletteColor
-    inputValue = paletteColor
-    updateHslFromHex(paletteColor)
-    oninput(new CustomEvent('input', { detail: paletteColor }))
-  }
+  // Calculate the position of the saturation-value selector
+  const selectorPosition = $derived({
+    left: `${saturationHsv}%`,
+    top: `${100 - valueHsv}%`,
+  })
 
   // Format color value for display - return a string not a function
   const formatColorValue = $derived(
@@ -401,12 +468,6 @@
 
   // Calculate current color in HSL format for the saturation-lightness picker background
   const hueColor = $derived(`hsl(${hue}, 100%, 50%)`)
-
-  // Calculate the position of the saturation-lightness selector
-  const selectorPosition = $derived({
-    left: `${saturation}%`,
-    bottom: `${lightness}%`,
-  })
 
   // Calculate contrast text color for better readability
   const contrastTextColor = $derived(getContrastTextColor(formatColorValue))
@@ -462,17 +523,17 @@
         out:fade={{ duration: 100 }}
       >
         <div class="color-picker-container">
-          <!-- Saturation/Lightness picker -->
+          <!-- Saturation/Value picker -->
           <div
             class="sat-light-picker"
             style:background-color={hueColor}
-            onmousedown={handleSatLightChange}
-            onmousemove={e => e.buttons && handleSatLightChange(e)}
+            onmousedown={handleSatValueChange}
+            onmousemove={e => e.buttons && handleSatValueChange(e)}
           >
             <div
               class="sat-light-selector"
               style:left={selectorPosition.left}
-              style:bottom={selectorPosition.bottom}
+              style:top={selectorPosition.top}
               style:background-color={formatColorValue}
               style:border-color={selectorBorderColor}
             ></div>
@@ -581,7 +642,7 @@
     position: absolute;
     width: 12px;
     height: 12px;
-    transform: translate(-50%, 50%);
+    transform: translate(-50%, -50%);
     border: 2px solid white;
     border-radius: 50%;
     box-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
