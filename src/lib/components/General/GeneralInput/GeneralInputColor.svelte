@@ -7,7 +7,7 @@
   interface Props {
     value?: string
     label: string
-    oninput?: (event: CustomEvent) => void
+    oninput?: (event: CustomEvent<string>) => void
   }
 
   let {
@@ -325,7 +325,10 @@
     return value
   }
 
-  // Add HSV to HSL conversion
+  /**
+   * Converts HSV (Hue, Saturation, Value) to HSL (Hue, Saturation, Lightness)
+   * This is needed because the visual picker uses HSV model but we output HSL colors
+   */
   const hsvToHsl = (
     h: number,
     s: number,
@@ -347,7 +350,10 @@
     }
   }
 
-  // Add HSL to HSV conversion for when we load a color
+  /**
+   * Converts HSL (Hue, Saturation, Lightness) to HSV (Hue, Saturation, Value)
+   * Used when loading a color to position the picker correctly
+   */
   const hslToHsv = (
     h: number,
     s: number,
@@ -523,7 +529,7 @@
         out:fade={{ duration: 100 }}
       >
         <div class="color-picker-container">
-          <!-- Saturation/Value picker -->
+          <!-- Saturation/Value (HSV) picker -->
           <div
             class="sat-light-picker"
             style:background-color={hueColor}
