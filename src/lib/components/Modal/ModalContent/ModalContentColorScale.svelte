@@ -17,11 +17,9 @@
   )
 
   // Initialize colors with current values or defaults
-  let startColor = $state(settings.colorScale?.[0] || '#f7fbff')
-  let middleColor = $state(settings.colorScale?.[1] || '#08306b')
-  let endColor = $state(
-    colorPoints === 'three' ? settings.colorScale?.[2] || '#08306b' : '#08306b'
-  )
+  let colorOne = $state(settings.colorScale?.[0] || '#f7fbff')
+  let colorTwo = $state(settings.colorScale?.[1] || '#08306b')
+  let colorThree = $state(settings.colorScale?.[2] || '#08306b')
 
   // Color scale presets
   const presets = [
@@ -32,7 +30,7 @@
     },
     {
       name: 'Green to Red',
-      colors: ['#e5f5e0', '#31a354', '#a50f15'], // Light green to dark green to dark red
+      colors: ['#31a354', '#f7fcb9', '#a50f15'], // dark green to light yellow to dark red
       description: 'Traffic light style (low to high)',
     },
     {
@@ -51,8 +49,8 @@
   // Get current color scale based on settings
   const getCurrentColorScale = (): string[] => {
     return colorPoints === 'three'
-      ? [startColor, middleColor, endColor]
-      : [startColor, endColor]
+      ? [colorOne, colorTwo, colorThree]
+      : [colorOne, colorTwo]
   }
 
   // Preview gradient style
@@ -69,13 +67,13 @@
   function handlePresetSelect(preset: (typeof presets)[0]): void {
     if (preset.colors.length === 2) {
       colorPoints = 'two'
-      startColor = preset.colors[0]
-      endColor = preset.colors[1]
+      colorOne = preset.colors[0]
+      colorTwo = preset.colors[1]
     } else {
       colorPoints = 'three'
-      startColor = preset.colors[0]
-      middleColor = preset.colors[1]
-      endColor = preset.colors[2]
+      colorOne = preset.colors[0]
+      colorTwo = preset.colors[1]
+      colorThree = preset.colors[2]
     }
   }
 
@@ -87,17 +85,17 @@
   // Handle color changes
   function handleStartColorChange(event: Event): void {
     const input = event.target as HTMLInputElement
-    startColor = input.value
+    colorOne = input.value
   }
 
   function handleMiddleColorChange(event: Event): void {
     const input = event.target as HTMLInputElement
-    middleColor = input.value
+    colorTwo = input.value
   }
 
   function handleEndColorChange(event: Event): void {
     const input = event.target as HTMLInputElement
-    endColor = input.value
+    colorThree = input.value
   }
 
   // Apply changes and close modal
@@ -134,36 +132,40 @@
     <div class="section-header">Color Selection</div>
     <div class="color-inputs">
       <div class="color-input">
-        <label for="startColor">Min Value Color</label>
+        <label for="colorOne">Min Value Color</label>
         <input
           type="color"
-          id="startColor"
-          value={startColor}
-          on:input={handleStartColorChange}
+          id="colorOne"
+          value={colorOne}
+          oninput={handleStartColorChange}
+        />
+      </div>
+
+      <div class="color-input">
+        <label for="colorTwo"
+          >{colorPoints === 'three'
+            ? 'Middle Value Color'
+            : 'Max Value Color'}</label
+        >
+        <input
+          type="color"
+          id="colorTwo"
+          value={colorTwo}
+          oninput={handleMiddleColorChange}
         />
       </div>
 
       {#if colorPoints === 'three'}
         <div class="color-input">
-          <label for="middleColor">Middle Value Color</label>
+          <label for="colorThree">Max Value Color</label>
           <input
             type="color"
-            id="middleColor"
-            value={middleColor}
-            on:input={handleMiddleColorChange}
+            id="colorThree"
+            value={colorThree}
+            oninput={handleEndColorChange}
           />
         </div>
       {/if}
-
-      <div class="color-input">
-        <label for="endColor">Max Value Color</label>
-        <input
-          type="color"
-          id="endColor"
-          value={endColor}
-          on:input={handleEndColorChange}
-        />
-      </div>
     </div>
 
     <div class="preview-section">
@@ -176,7 +178,7 @@
       {#each presets as preset}
         <button
           class="preset-button"
-          on:click={() => handlePresetSelect(preset)}
+          onclick={() => handlePresetSelect(preset)}
         >
           <div class="preset-header">
             <span class="preset-name">{preset.name}</span>

@@ -37,13 +37,26 @@
   ]
 
   // Predefined color options
-  const colorOptions = [
+  const maxColorOptions = [
     { value: '#e0e0e0', label: 'Gray' },
     { value: '#cccccc', label: 'Light Gray' },
     { value: '#f0f0f0', label: 'Very Light Gray' },
     { value: '#ffffff', label: 'White' },
-    { value: '#f8e0e0', label: 'Light Red' },
-    { value: '#e0f8e0', label: 'Light Green' },
+    {
+      value:
+        settings.colorScale?.length === 3
+          ? settings.colorScale?.[2]
+          : settings.colorScale?.[1],
+      label: 'Scale Color',
+    },
+  ]
+
+  const minColorOptions = [
+    { value: '#e0e0e0', label: 'Gray' },
+    { value: '#cccccc', label: 'Light Gray' },
+    { value: '#f0f0f0', label: 'Very Light Gray' },
+    { value: '#ffffff', label: 'White' },
+    { value: settings.colorScale?.[0], label: 'Scale Color' },
   ]
 
   let rangeApply = $state<'this_stimulus' | 'all_stimuli'>('this_stimulus')
@@ -156,7 +169,7 @@
         <div class="color-selection">
           <div class="color-label">Color:</div>
           <div class="color-options">
-            {#each colorOptions as option}
+            {#each minColorOptions as option}
               <button
                 class="color-option"
                 class:selected={belowMinColor === option.value}
@@ -189,7 +202,7 @@
         <div class="color-selection">
           <div class="color-label">Color:</div>
           <div class="color-options">
-            {#each colorOptions as option}
+            {#each maxColorOptions as option}
               <button
                 class="color-option"
                 class:selected={aboveMaxColor === option.value}
