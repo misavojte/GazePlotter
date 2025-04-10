@@ -6,6 +6,7 @@
   let {
     width = 500,
     y = 0,
+    x = 0,
     colorScale,
     maxValue = 100,
     minValue = 0,
@@ -17,6 +18,7 @@
   } = $props<{
     width: number
     y: number
+    x?: number
     colorScale: string[]
     maxValue: number
     minValue: number
@@ -34,6 +36,9 @@
   const HANDLE_WIDTH = 10
   const ARROW_OFFSET = 15
   const gradientWidth = width - (LABEL_WIDTH * 2 + LABEL_PADDING * 2)
+
+  // Calculate base position with x offset
+  const baseX = $derived(x + LABEL_WIDTH + LABEL_PADDING)
 
   let maxDraggingLeft = $state(false)
   let maxDraggingRight = $state(false)
@@ -98,7 +103,7 @@
   }
 </script>
 
-<svg {width} height={GRADIENT_HEIGHT + 20} {y}>
+<svg {width} height={GRADIENT_HEIGHT + 20} {y} {x}>
   <!-- Define the gradient -->
   <defs>
     <linearGradient id="gradient" x1="0" y1="0" x2="1" y2="0">

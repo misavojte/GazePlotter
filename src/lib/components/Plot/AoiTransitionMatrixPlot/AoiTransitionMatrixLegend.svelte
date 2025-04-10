@@ -30,6 +30,11 @@
   let minThreshold = $derived(minValue)
   let maxThreshold = $derived(maxValue)
 
+  // Fixed width for slider
+  const SLIDER_WIDTH = 300
+  // Calculate x offset to center the slider
+  const sliderXOffset = $derived((width - SLIDER_WIDTH) / 2)
+
   function handleMinChange(newMin: number) {
     minThreshold = newMin
     onColorValueRangeChange?.([minThreshold, maxThreshold])
@@ -61,7 +66,8 @@
   />
 
   <GradientRangeSlider
-    {width}
+    width={SLIDER_WIDTH}
+    x={sliderXOffset}
     {colorScale}
     {maxValue}
     y={20}
