@@ -61,7 +61,6 @@
     maxRemainder = newValue - roundedValue
 
     onMaxValueChange?.(roundedValue)
-
     // Update dragging direction
     maxDraggingLeft = stepChange < 0
     maxDraggingRight = stepChange > 0
