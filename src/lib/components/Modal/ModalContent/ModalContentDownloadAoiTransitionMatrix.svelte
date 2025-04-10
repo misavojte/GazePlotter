@@ -94,7 +94,7 @@
     width: effectiveWidth,
     height: effectiveWidth, // Keep it square
     cellSize: 30,
-    colorScale: ['#f7fbff', '#08306b'],
+    colorScale: settings.colorScale,
     xLabel: 'To AOI',
     yLabel: 'From AOI',
     legendTitle: 'Transition Count',

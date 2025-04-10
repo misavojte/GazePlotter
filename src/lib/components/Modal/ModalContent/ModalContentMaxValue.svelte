@@ -5,6 +5,7 @@
   import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
   import { getStimuliOrderVector } from '$lib/stores/dataStore'
   import type { AoiTransitionMatrixGridType } from '$lib/type/gridType'
+  import GeneralInfoCallout from '$lib/components/General/GeneralInfoCallout/GeneralInfoCallout.svelte'
 
   interface Props {
     settings: AoiTransitionMatrixGridType
@@ -124,14 +125,13 @@
 
 <div class="value-range-modal">
   <div class="description">
-    <p>
-      Set the minimum and maximum values for the color scale. This affects how
-      transitions are colored in the matrix.
-    </p>
-    <p class="note">
-      Setting consistent values across multiple matrices makes them directly
-      comparable.
-    </p>
+    <GeneralInfoCallout
+      title="Color Scale Cropping"
+      paragraphs={[
+        'Set the minimum and maximum values for the color scale.',
+        'Setting consistent values across multiple matrices makes them directly comparable.',
+      ]}
+    />
   </div>
 
   <div class="input-container">
@@ -175,13 +175,13 @@
                 class:selected={belowMinColor === option.value}
                 style="background-color: {option.value}"
                 title={option.label}
-                on:click={() => handleBelowMinColorChange(option.value)}
+                onclick={() => handleBelowMinColorChange(option.value)}
               ></button>
             {/each}
             <input
               type="color"
               value={belowMinColor}
-              on:input={e => handleBelowMinColorChange(e.currentTarget.value)}
+              oninput={e => handleBelowMinColorChange(e.currentTarget.value)}
               title="Custom color"
               class="color-picker"
             />
@@ -208,13 +208,13 @@
                 class:selected={aboveMaxColor === option.value}
                 style="background-color: {option.value}"
                 title={option.label}
-                on:click={() => handleAboveMaxColorChange(option.value)}
+                onclick={() => handleAboveMaxColorChange(option.value)}
               ></button>
             {/each}
             <input
               type="color"
               value={aboveMaxColor}
-              on:input={e => handleAboveMaxColorChange(e.currentTarget.value)}
+              oninput={e => handleAboveMaxColorChange(e.currentTarget.value)}
               title="Custom color"
               class="color-picker"
             />
