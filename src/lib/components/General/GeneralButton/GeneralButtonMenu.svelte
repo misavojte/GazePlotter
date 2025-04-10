@@ -1,6 +1,6 @@
 <script lang="ts">
   import MinorButton from './GeneralButtonMinor.svelte'
-  import { onMount, onDestroy, type ComponentType } from 'svelte'
+  import { type ComponentType } from 'svelte'
   import MoreVertical from 'lucide-svelte/icons/more-vertical'
 
   interface ActionItem {
@@ -22,13 +22,11 @@
     isOpen = !isOpen
   }
 
-  let window: Window | null
-
-  let menuElement: HTMLDivElement = $state()
+  let menuElement: HTMLDivElement | null = $state(null)
 
   const handleOutsideClick = (event: MouseEvent) => {
     const target = event.target as HTMLElement
-    if (!menuElement.contains(target)) {
+    if (menuElement && !menuElement.contains(target)) {
       isOpen = false
     }
   }
@@ -38,19 +36,9 @@
       isOpen = false
     }
   }
-
-  onMount(() => {
-    window = document.defaultView
-    window?.addEventListener('click', handleOutsideClick)
-    window?.addEventListener('keydown', handleKeydown)
-  })
-
-  onDestroy(() => {
-    if (!window) return
-    window.removeEventListener('click', handleOutsideClick)
-    window.removeEventListener('keydown', handleKeydown)
-  })
 </script>
+
+<svelte:window onclick={handleOutsideClick} onkeydown={handleKeydown} />
 
 <div class="wrap" bind:this={menuElement}>
   <MinorButton onclick={handleClick}>

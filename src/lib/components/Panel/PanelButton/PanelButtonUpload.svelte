@@ -8,7 +8,7 @@
 
   let isDisabled = $derived($processingFileStateStore === 'processing')
 
-  let input: HTMLInputElement = $state()
+  let input: HTMLInputElement | undefined = $state()
   let workerService: EyeWorkerService | null = null
 
   const handleFileUpload = async (e: Event) => {
@@ -23,10 +23,14 @@
       console.error(e)
       addErrorToast('Unable to set up file processing service')
     }
-    input.value = ''
+    if (input) {
+      input.value = ''
+    }
   }
   const triggerFileUpload = () => {
-    input.click()
+    if (input) {
+      input.click()
+    }
   }
 
   const handleEyeData = (data: DataType) => {

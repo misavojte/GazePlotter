@@ -115,7 +115,7 @@
     y: 0,
   })
 
-  let addVisualizationButton: HTMLElement
+  let addVisualizationButton: HTMLElement | null = $state(null)
 
   function handleVisualizationSelect(vizType: string) {
     onaction({
@@ -211,9 +211,6 @@
     class="context-menu"
     style="left: {$contextMenuState.x}px; top: {$contextMenuState.y}px;"
     transition:fade={{ duration: 100 }}
-    onclick={e => {
-      e.stopPropagation()
-    }}
   >
     {#each visualizations as viz}
       <button

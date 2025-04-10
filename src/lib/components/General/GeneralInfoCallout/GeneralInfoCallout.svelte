@@ -93,6 +93,7 @@
 
   .message p {
     margin: 0;
+    margin-bottom: 0.25rem;
     font-size: 0.9rem;
   }
 </style>

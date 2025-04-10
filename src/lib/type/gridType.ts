@@ -33,8 +33,15 @@ export interface AoiTransitionMatrixGridType extends GridType {
   type: 'AoiTransitionMatrix'
   stimulusId: number
   groupId: number
-  maxColorValue: number // 0 means auto-calculate from data
+  stimuliColorValueRanges: [number, number][] // Per-stimulus color ranges
   aggregationMethod: string // Store the aggregation method in settings
+  // Display options for values outside the color range
+  belowMinColor: string // Color for values below minimum (default: gray)
+  aboveMaxColor: string // Color for values above maximum (default: gray)
+  showBelowMinLabels: boolean // Whether to show labels for values below minimum (default: false)
+  showAboveMaxLabels: boolean // Whether to show labels for values above maximum (default: false)
+  // Custom color scale (2 or 3 points gradient)
+  colorScale: string[] // Array of 2 or 3 colors for gradient (min, [middle], max)
 }
 
 // now create a type that is a union of all the grid types

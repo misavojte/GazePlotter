@@ -12,8 +12,6 @@
 
   let { id, label, icon, action = null, onclick = () => {} }: Props = $props()
 
-  let buttonElement: HTMLElement
-
   // Handle item click
   function handleClick(event: MouseEvent) {
     if (action) {
@@ -27,8 +25,7 @@
 <div class="tooltip-wrapper">
   <button
     class="toolbar-item"
-    bind:this={buttonElement}
-    on:click={handleClick}
+    onclick={handleClick}
     use:tooltipAction={{
       content: label,
       position: 'right',

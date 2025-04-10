@@ -27,8 +27,6 @@
     onclick = () => {},
   }: Props = $props()
 
-  let buttonElement: HTMLElement
-
   function handleClick() {
     if (!disabled && !useAction) {
       onclick(new CustomEvent('click', { detail: { action } }))
@@ -43,7 +41,6 @@
       class:disabled
       onclick={handleClick}
       aria-label={label || tooltip}
-      bind:this={buttonElement}
       use:tooltipAction={{
         content: tooltip || label,
         position: 'top',
@@ -52,7 +49,7 @@
       use:actionFn={actionParams}
     >
       {#if children}
-        <svelte:component this={children} />
+        {@render children()}
       {:else}
         {#if icon}
           {@html icon}
@@ -68,7 +65,6 @@
       class:disabled
       onclick={handleClick}
       aria-label={label || tooltip}
-      bind:this={buttonElement}
       use:tooltipAction={{
         content: tooltip || label,
         position: 'top',
@@ -76,7 +72,7 @@
       }}
     >
       {#if children}
-        <svelte:component this={children} />
+        {@render children()}
       {:else}
         {#if icon}
           {@html icon}
@@ -114,12 +110,6 @@
     fill: var(--c-grey);
     transition: all 0.15s ease-out;
     border: none;
-  }
-
-  .workspace-item-button-content {
-    user-select: none;
-    pointer-events: none;
-    display: contents;
   }
 
   .workspace-item-button:hover {

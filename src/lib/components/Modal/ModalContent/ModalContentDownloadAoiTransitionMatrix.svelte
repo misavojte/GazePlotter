@@ -31,8 +31,6 @@
   let marginLeft = $state(20) /* in px */
 
   // States for preview
-  let highlightedIdentifier = $state<string | null>(null)
-  let tooltipAreaElement = $state<HTMLElement | SVGElement | null>(null)
   let previewContainer = $state<HTMLDivElement | null>(null)
 
   // Check if DPI should be enabled (only for canvas-based formats)
@@ -64,6 +62,12 @@
     )
   )
 
+  // Get current stimulus-specific color range or use default values
+  const currentStimulusColorRange = $derived.by(() => {
+    const stimulusId = settings.stimulusId
+    return settings.stimuliColorValueRanges?.[stimulusId] || [0, 0]
+  })
+
   // Use the height directly from the data with additional space for legend and axes
   // Add fixed padding (150px) plus margins to maintain proper spacing
   const previewHeight = $derived(
@@ -87,16 +91,18 @@
   const matrixPlotProps = $derived({
     AoiTransitionMatrix: matrix,
     aoiLabels,
-    width: effectiveWidth,
-    height: effectiveWidth, // Keep it square
+    width: effectiveWidth - (marginLeft + marginRight), // Subtract margins from width
+    height: effectiveWidth - (marginBottom + marginTop), // Keep it square
     cellSize: 30,
-    colorScale: ['#f7fbff', '#08306b'],
+    colorScale: settings.colorScale,
     xLabel: 'To AOI',
     yLabel: 'From AOI',
     legendTitle: 'Transition Count',
-    minThreshold: 0,
-    customMaxValue: settings.maxColorValue,
-    useAutoMax: settings.maxColorValue === 0,
+    colorValueRange: currentStimulusColorRange,
+    belowMinColor: settings.belowMinColor,
+    aboveMaxColor: settings.aboveMaxColor,
+    showBelowMinLabels: settings.showBelowMinLabels,
+    showAboveMaxLabels: settings.showAboveMaxLabels,
   })
 </script>
 
@@ -140,7 +146,7 @@
           <GeneralButtonPreset
             label={preset.label}
             isActive={dpi === preset.value}
-            on:click={() => setDpi(preset.value)}
+            onclick={() => setDpi(preset.value)}
           />
         {/each}
       </div>
@@ -183,7 +189,7 @@
               marginRight === 20 &&
               marginBottom === 20 &&
               marginLeft === 20}
-            on:click={() => setAllMargins(20)}
+            onclick={() => setAllMargins(20)}
           />
           <GeneralButtonPreset
             label="Set all to 0px"
@@ -191,7 +197,7 @@
               marginRight === 0 &&
               marginBottom === 0 &&
               marginLeft === 0}
-            on:click={() => setAllMargins(0)}
+            onclick={() => setAllMargins(0)}
           />
         </div>
       </div>
@@ -214,10 +220,10 @@
         {marginBottom}
         {marginLeft}
         {dpi}
-        children={AoiTransitionMatrixPlotFigure}
-        childProps={matrixPlotProps}
         showDownloadButton={true}
-      />
+      >
+        <AoiTransitionMatrixPlotFigure {...matrixPlotProps} />
+      </GeneralSvgPreview>
     </div>
   </div>
 </div>

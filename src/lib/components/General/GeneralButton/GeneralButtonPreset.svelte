@@ -2,12 +2,13 @@
   interface Props {
     label: string
     isActive?: boolean
+    onclick?: (event: MouseEvent) => void
   }
 
-  let { label, isActive = false }: Props = $props()
+  let { label, isActive = false, onclick = () => {} }: Props = $props()
 </script>
 
-<button class="preset-btn" class:active={isActive} on:click>
+<button class="preset-btn" class:active={isActive} {onclick}>
   {label}
 </button>
 

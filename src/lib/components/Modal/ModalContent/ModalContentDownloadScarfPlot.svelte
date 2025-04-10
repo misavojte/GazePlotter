@@ -56,7 +56,7 @@
   // Use the height directly from the data with additional space for legend and axes
   // Add fixed padding (150px) plus margins to maintain proper spacing
   const previewHeight = $derived(
-    data.chartHeight + 150 + marginTop + marginBottom
+    data.chartHeight + 130 + marginTop + marginBottom
   )
 
   // Function to set all margins at once
@@ -134,7 +134,7 @@
           <GeneralButtonPreset
             label={preset.label}
             isActive={dpi === preset.value}
-            on:click={() => setDpi(preset.value)}
+            onclick={() => setDpi(preset.value)}
           />
         {/each}
       </div>
@@ -177,7 +177,7 @@
               marginRight === 20 &&
               marginBottom === 20 &&
               marginLeft === 20}
-            on:click={() => setAllMargins(20)}
+            onclick={() => setAllMargins(20)}
           />
           <GeneralButtonPreset
             label="Set all to 0px"
@@ -185,7 +185,7 @@
               marginRight === 0 &&
               marginBottom === 0 &&
               marginLeft === 0}
-            on:click={() => setAllMargins(0)}
+            onclick={() => setAllMargins(0)}
           />
         </div>
       </div>
@@ -208,10 +208,10 @@
         {marginBottom}
         {marginLeft}
         {dpi}
-        children={ScarfPlotFigure}
-        childProps={scarfPlotProps}
         showDownloadButton={true}
-      />
+      >
+        <ScarfPlotFigure {...scarfPlotProps} />
+      </GeneralSvgPreview>
     </div>
   </div>
 </div>

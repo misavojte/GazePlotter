@@ -31,12 +31,14 @@ export function interpolateColor(
 /**
  * Generates a color for a value based on a color scale
  * @param value - The numeric value to get a color for
+ * @param minValue - Minimum possible value for normalization
  * @param maxValue - Maximum possible value for normalization
- * @param colorScale - Array of two hex colors representing min and max colors
+ * @param colorScale - Array of two or three hex colors representing min, (middle), and max colors
  * @returns Hex color corresponding to the value
  */
 export function getColorForValue(
   value: number,
+  minValue: number,
   maxValue: number,
   colorScale: string[]
 ): string {
@@ -44,9 +46,25 @@ export function getColorForValue(
   if (value === 0 || maxValue === 0) return colorScale[0]
 
   // Normalize value to get factor between 0 and 1
-  const normalizedValue = value / maxValue
+  const normalizedValue = (value - minValue) / (maxValue - minValue)
 
-  // Use interpolation to get the color
+  // Handle three-color scale (min, middle, max)
+  if (colorScale.length === 3) {
+    // Determine if we're in the first or second half of the gradient
+    if (normalizedValue <= 0.5) {
+      // First half: interpolate between first and second color (min and middle)
+      return interpolateColor(colorScale[0], colorScale[1], normalizedValue * 2)
+    } else {
+      // Second half: interpolate between second and third color (middle and max)
+      return interpolateColor(
+        colorScale[1],
+        colorScale[2],
+        (normalizedValue - 0.5) * 2
+      )
+    }
+  }
+
+  // Default two-color scale (min, max)
   return interpolateColor(colorScale[0], colorScale[1], normalizedValue)
 }
 

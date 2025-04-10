@@ -22,7 +22,12 @@
   // Constants for space taken by headers, controls, and padding
   const HEADER_HEIGHT = 150 // Estimated space for header and controls
   const HORIZONTAL_PADDING = 50 // Horizontal padding inside the container
-  const CONTENT_PADDING = 20 // Padding around the plot content
+
+  // Get current stimulus-specific color range or use default values
+  const currentStimulusColorRange = $derived.by(() => {
+    const stimulusId = settings.stimulusId
+    return settings.stimuliColorValueRanges?.[stimulusId] || [0, 0]
+  })
 
   // Visualization settings (now reactive)
   let plotDimensions = $derived.by(() =>
@@ -48,10 +53,6 @@
     return 60
   })
 
-  const colorScale = ['#f7fbff', '#08306b'] // Blue gradient
-  let minThreshold = $state(0)
-  let calculatedMaxValue = $state(0)
-
   // Simplified aggregation method options
   const aggregationOptions = [
     { value: AggregationMethod.SUM, label: 'Transition Count' },
@@ -69,21 +70,22 @@
     settingsChange(newSettings)
   }
 
-  function handleThresholdChange(threshold: number) {
-    minThreshold = threshold
-  }
-
   function handleAggregationChange(event: CustomEvent) {
     // Update the aggregation method in grid settings
     settingsChange({ aggregationMethod: event.detail as AggregationMethod })
   }
 
-  function handleCalculatedMaxChange(value: number) {
-    calculatedMaxValue = value
-  }
+  function handleColorValueRangeChange(value: [number, number]) {
+    // Create a new array for stimulus-specific color ranges
+    const stimuliColorValueRanges = [
+      ...(settings.stimuliColorValueRanges || []),
+    ]
+    stimuliColorValueRanges[settings.stimulusId] = value
 
-  function handleMaxValueChange(value: number) {
-    settingsChange({ maxColorValue: value })
+    // Update settings with new values
+    settingsChange({
+      stimuliColorValueRanges,
+    })
   }
 
   // Update AOI labels when data changes
@@ -138,8 +140,6 @@
         <AoiTransitionMatrixButtonMenu
           {settings}
           settingsChange={handleSettingsChange}
-          {calculatedMaxValue}
-          onMaxValueChange={handleMaxValueChange}
         />
       </div>
     </div>
@@ -159,13 +159,16 @@
           width={plotDimensions.width}
           height={plotDimensions.height}
           {cellSize}
-          {colorScale}
+          colorScale={settings.colorScale}
           xLabel="To AOI"
           yLabel="From AOI"
           legendTitle={getLegendTitle(settings.aggregationMethod)}
-          {minThreshold}
-          customMaxValue={settings.maxColorValue}
-          useAutoMax={settings.maxColorValue === 0}
+          colorValueRange={currentStimulusColorRange}
+          onColorValueRangeChange={handleColorValueRangeChange}
+          belowMinColor={settings.belowMinColor}
+          aboveMaxColor={settings.aboveMaxColor}
+          showBelowMinLabels={settings.showBelowMinLabels}
+          showAboveMaxLabels={settings.showAboveMaxLabels}
         />
       {:else}
         <div class="no-data">

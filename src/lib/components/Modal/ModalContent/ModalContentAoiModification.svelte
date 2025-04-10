@@ -1,10 +1,9 @@
 <script lang="ts">
-  import { run } from 'svelte/legacy'
-
   import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
   import GeneralSelectBase from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import GeneralInfoCallout from '$lib/components/General/GeneralInfoCallout/GeneralInfoCallout.svelte'
+  import GeneralInputColor from '$lib/components/General/GeneralInput/GeneralInputColor.svelte'
   import {
     getAllAois,
     getStimuli,
@@ -265,12 +264,8 @@
             />
           </td>
           {#if !isValidMatch(aoi.displayedName) || aoiObjects.findIndex(a => isValidMatch(a.displayedName) && a.displayedName === aoi.displayedName) === aoiObjects.indexOf(aoi)}
-            <td>
-              <input
-                type="color"
-                id={aoi.id + 'color'}
-                bind:value={aoi.color}
-              />
+            <td class="color-cell">
+              <GeneralInputColor label="" bind:value={aoi.color} />
             </td>
             <td>
               <div class="button-group">
@@ -316,12 +311,16 @@
     padding: 0.5rem;
   }
 
-  input[type='color'] {
-    height: 34px;
-    width: 50px;
-    padding: 4px;
-    background: none;
-    cursor: pointer;
+  .color-cell {
+    padding: 0;
+  }
+
+  .color-cell :global(.input) {
+    margin-bottom: 0;
+  }
+
+  .color-cell :global(label) {
+    display: none;
   }
 
   .button-group {
