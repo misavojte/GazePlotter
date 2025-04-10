@@ -99,6 +99,10 @@
     yLabel: 'From AOI',
     legendTitle: 'Transition Count',
     colorValueRange: currentStimulusColorRange,
+    belowMinColor: settings.belowMinColor,
+    aboveMaxColor: settings.aboveMaxColor,
+    showBelowMinLabels: settings.showBelowMinLabels,
+    showAboveMaxLabels: settings.showAboveMaxLabels,
   })
 </script>
 

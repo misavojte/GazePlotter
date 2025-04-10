@@ -44,6 +44,10 @@ export const visualizationRegistry: Record<string, VisualizationConfig> = {
       groupId: params.groupId ?? -1,
       stimuliColorValueRanges: [],
       aggregationMethod: 'sum',
+      belowMinColor: '#e0e0e0', // Default gray for values below minimum
+      aboveMaxColor: '#e0e0e0', // Default gray for values above maximum
+      showBelowMinLabels: false, // Don't show labels for values below minimum by default
+      showAboveMaxLabels: false, // Don't show labels for values above maximum by default
       min: { w: 11, h: 12 },
     }),
     getDefaultHeight: () => 12, // Default square size

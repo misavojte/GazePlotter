@@ -14,8 +14,8 @@
   const MAX_LABEL_LENGTH = 10 // Maximum number of characters before truncation
   const MIN_CELL_SIZE = 20 // Minimum cell size in pixels
 
-  // Color for inactive/filtered cells
-  const INACTIVE_COLOR = '#e0e0e0' // Light gray
+  // Default color for inactive/filtered cells
+  const DEFAULT_INACTIVE_COLOR = '#e0e0e0' // Light gray
 
   /**
    * Props for the AOI Transition Matrix Plot
@@ -30,6 +30,10 @@
    * @param xLabel - Label for X-axis (TO AOI)
    * @param yLabel - Label for Y-axis (FROM AOI)
    * @param legendTitle - Title for the color legend
+   * @param belowMinColor - Color for values below minimum threshold
+   * @param aboveMaxColor - Color for values above maximum threshold
+   * @param showBelowMinLabels - Whether to show labels for values below minimum
+   * @param showAboveMaxLabels - Whether to show labels for values above maximum
    */
   let {
     AoiTransitionMatrix = [],
@@ -43,6 +47,10 @@
     legendTitle = 'Transition Count',
     colorValueRange = [0, 0],
     onColorValueRangeChange = () => {},
+    belowMinColor = DEFAULT_INACTIVE_COLOR,
+    aboveMaxColor = DEFAULT_INACTIVE_COLOR,
+    showBelowMinLabels = false,
+    showAboveMaxLabels = false,
   } = $props<{
     AoiTransitionMatrix: number[][]
     aoiLabels: string[]
@@ -55,6 +63,10 @@
     legendTitle?: string
     colorValueRange: [number, number]
     onColorValueRangeChange?: (value: [number, number]) => void
+    belowMinColor?: string
+    aboveMaxColor?: string
+    showBelowMinLabels?: boolean
+    showAboveMaxLabels?: boolean
   }>()
 
   // Additional offsets for axis labels to prevent collisions
@@ -228,17 +240,34 @@
     )
   }
 
-  // Function to check if a cell should be grayed out based on color value range
-  function isBelowThreshold(value: number): boolean {
-    return value < colorValueRange[0] || value > effectiveMaxValue
+  // Check if a value is below the minimum threshold
+  function isBelowMinimum(value: number): boolean {
+    return value < colorValueRange[0]
   }
 
-  // Get cell color based on value and threshold
+  // Check if a value is above the maximum threshold
+  function isAboveMaximum(value: number): boolean {
+    return value > effectiveMaxValue && colorValueRange[1] !== 0
+  }
+
+  // Get the appropriate color for a cell based on its value and the thresholds
   function getCellColor(value: number): string {
-    if (isBelowThreshold(value)) {
-      return INACTIVE_COLOR
+    if (isBelowMinimum(value)) {
+      return belowMinColor
+    } else if (isAboveMaximum(value)) {
+      return aboveMaxColor
     }
     return getColor(value)
+  }
+
+  // Determine whether to show a label for a cell based on its value and settings
+  function shouldShowLabel(value: number): boolean {
+    if (isBelowMinimum(value)) {
+      return showBelowMinLabels
+    } else if (isAboveMaximum(value)) {
+      return showAboveMaxLabels
+    }
+    return true // Always show labels for values within range
   }
 </script>
 
@@ -297,8 +326,8 @@
           stroke-width="1"
         />
 
-        <!-- Show cell value if above threshold -->
-        {#if !isBelowThreshold(cell)}
+        <!-- Show cell value based on visibility settings -->
+        {#if shouldShowLabel(cell)}
           <SvgText
             text={cell.toString()}
             x={xOffset + colIndex * optimalCellSize + optimalCellSize / 2}

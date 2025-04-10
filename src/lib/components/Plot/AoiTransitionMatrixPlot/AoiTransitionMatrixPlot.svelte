@@ -167,6 +167,10 @@
           legendTitle={getLegendTitle(settings.aggregationMethod)}
           colorValueRange={currentStimulusColorRange}
           onColorValueRangeChange={handleColorValueRangeChange}
+          belowMinColor={settings.belowMinColor}
+          aboveMaxColor={settings.aboveMaxColor}
+          showBelowMinLabels={settings.showBelowMinLabels}
+          showAboveMaxLabels={settings.showAboveMaxLabels}
         />
       {:else}
         <div class="no-data">
