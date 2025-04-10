@@ -162,7 +162,7 @@
     </div>
 
     <div class="preview-section">
-      <label>Preview:</label>
+      <div class="preview-label">Preview:</div>
       <div class="gradient-preview" style:background={gradientStyle}></div>
     </div>
 
@@ -226,10 +226,6 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-  }
-
-  .color-input label {
-    font-size: 0.9rem;
   }
 
   .preview-section {

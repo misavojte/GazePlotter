@@ -497,7 +497,8 @@
   // --- Workspace panning handlers ---
 
   // Handle panning start when clicking on the workspace background
-  const handleWorkspacePanStart = (event: MouseEvent | TouchEvent) => {
+  // NO TOUCH SUPPORT - This is intentional as this would clash with the native touch events which effectively pans the workspace
+  const handleWorkspacePanStart = (event: MouseEvent) => {
     // Handle both mouse and touch events
     const isTouchEvent = 'touches' in event
 
@@ -521,14 +522,8 @@
     isPanning.set(true)
 
     // Store initial position (handle both mouse and touch)
-    if (isTouchEvent) {
-      const touch = (event as TouchEvent).touches[0]
-      lastPanX = touch.clientX
-      lastPanY = touch.clientY
-    } else {
-      lastPanX = (event as MouseEvent).clientX
-      lastPanY = (event as MouseEvent).clientY
-    }
+    lastPanX = (event as MouseEvent).clientX
+    lastPanY = (event as MouseEvent).clientY
 
     // Set cursor directly for immediate feedback (mouse only)
     document.body.style.cursor = 'grabbing'
@@ -537,73 +532,52 @@
     }
 
     // Add appropriate event listeners based on event type
-    if (isTouchEvent) {
-      document.addEventListener('touchmove', handleWorkspacePanMove, {
-        passive: false,
-      })
-      document.addEventListener('touchend', handleWorkspacePanEnd)
-      document.addEventListener('touchcancel', handleWorkspacePanEnd)
-    } else {
-      document.addEventListener('mousemove', handleWorkspacePanMove)
-      document.addEventListener('mouseup', handleWorkspacePanEnd)
-    }
+
+    document.addEventListener('mousemove', handleWorkspacePanMove)
+    document.addEventListener('mouseup', handleWorkspacePanEnd)
   }
 
   // Improved panning with smoothing and reduced sensitivity - NOW THROTTLED by RAF
-  const handleWorkspacePanMove = throttleByRaf(
-    (event: MouseEvent | TouchEvent) => {
-      if (!get(isPanning) || !workspaceContainer) return
+  const handleWorkspacePanMove = throttleByRaf((event: MouseEvent) => {
+    if (!get(isPanning) || !workspaceContainer) return
 
-      // Prevent default for touch events to stop scrolling
-      if ('touches' in event) {
-        // event.preventDefault()
-      }
+    // Get current position based on event type
+    const isTouchEvent = 'touches' in event
+    let currentX: number, currentY: number
 
-      // Get current position based on event type
-      const isTouchEvent = 'touches' in event
-      let currentX: number, currentY: number
+    currentX = (event as MouseEvent).clientX
+    currentY = (event as MouseEvent).clientY
+    // Calculate raw delta
+    const rawDeltaX = currentX - lastPanX
+    const rawDeltaY = currentY - lastPanY
 
-      if (isTouchEvent) {
-        const touch = (event as TouchEvent).touches[0]
-        currentX = touch.clientX
-        currentY = touch.clientY
-      } else {
-        currentX = (event as MouseEvent).clientX
-        currentY = (event as MouseEvent).clientY
-      }
+    // Apply damping factor to reduce sensitivity and smooth movement
+    // Lower values make movement smoother but less responsive
+    const dampingFactor = 0.6
 
-      // Calculate raw delta
-      const rawDeltaX = currentX - lastPanX
-      const rawDeltaY = currentY - lastPanY
+    // Apply damping to create smoother motion
+    const deltaX = rawDeltaX * dampingFactor
+    const deltaY = rawDeltaY * dampingFactor
 
-      // Apply damping factor to reduce sensitivity and smooth movement
-      // Lower values make movement smoother but less responsive
-      const dampingFactor = 0.6
+    // Update the last position for next calculation
+    lastPanX = currentX
+    lastPanY = currentY
 
-      // Apply damping to create smoother motion
-      const deltaX = rawDeltaX * dampingFactor
-      const deltaY = rawDeltaY * dampingFactor
-
-      // Update the last position for next calculation
-      lastPanX = currentX
-      lastPanY = currentY
-
-      // Apply horizontal scrolling to the workspace container
-      if (Math.abs(deltaX) > 0.5) {
-        // Small threshold to ignore tiny movements
-        // Get current X scroll position and update it
-        const currentScrollX = getWorkspaceScrollX()
-        setWorkspaceScrollX(currentScrollX - deltaX)
-      }
-
-      // Apply vertical scrolling to the window with threshold
-      if (Math.abs(deltaY) > 0.5) {
-        // Get current Y scroll position and update it
-        const currentScrollY = getWorkspaceScrollY()
-        setWorkspaceScrollY(currentScrollY - deltaY)
-      }
+    // Apply horizontal scrolling to the workspace container
+    if (Math.abs(deltaX) > 0.5) {
+      // Small threshold to ignore tiny movements
+      // Get current X scroll position and update it
+      const currentScrollX = getWorkspaceScrollX()
+      setWorkspaceScrollX(currentScrollX - deltaX)
     }
-  )
+
+    // Apply vertical scrolling to the window with threshold
+    if (Math.abs(deltaY) > 0.5) {
+      // Get current Y scroll position and update it
+      const currentScrollY = getWorkspaceScrollY()
+      setWorkspaceScrollY(currentScrollY - deltaY)
+    }
+  })
 
   // Handle panning end
   const handleWorkspacePanEnd = (event?: MouseEvent | TouchEvent) => {
@@ -622,9 +596,6 @@
     // Remove all event listeners
     document.removeEventListener('mousemove', handleWorkspacePanMove)
     document.removeEventListener('mouseup', handleWorkspacePanEnd)
-    document.removeEventListener('touchmove', handleWorkspacePanMove)
-    document.removeEventListener('touchend', handleWorkspacePanEnd)
-    document.removeEventListener('touchcancel', handleWorkspacePanEnd)
   }
 
   // Handle auto-scrolling when an item is dragged to the edge of the workspace
@@ -896,8 +867,8 @@
     class="workspace-container"
     style="height: {$gridHeight}px;"
     bind:this={workspaceContainer}
-    on:mousedown={handleWorkspacePanStart}
-    on:touchstart={handleWorkspacePanStart}
+    onmousedown={handleWorkspacePanStart}
+    role="none"
     class:is-panning={$isPanning}
   >
     <!-- Scrollable content layer with background pattern -->

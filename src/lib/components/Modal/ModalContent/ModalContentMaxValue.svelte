@@ -189,6 +189,7 @@
                 style="background-color: {option.value}"
                 title={option.label}
                 onclick={() => handleBelowMinColorChange(option.value)}
+                aria-label={option.label}
               ></button>
             {/each}
             <GeneralInputColor
@@ -221,6 +222,7 @@
                 style="background-color: {option.value}"
                 title={option.label}
                 onclick={() => handleAboveMaxColorChange(option.value)}
+                aria-label={option.label}
               ></button>
             {/each}
             <GeneralInputColor

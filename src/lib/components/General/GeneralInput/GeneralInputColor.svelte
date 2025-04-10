@@ -552,6 +552,7 @@
             style:background-color={hueColor}
             onmousedown={handleSatValueChange}
             onmousemove={e => e.buttons && handleSatValueChange(e)}
+            role="none"
           >
             <div
               class="sat-light-selector"

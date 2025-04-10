@@ -81,9 +81,3 @@
     {/each}
   </g>
 </g>
-
-<style>
-  .legend-title {
-    font-weight: 500;
-  }
-</style>

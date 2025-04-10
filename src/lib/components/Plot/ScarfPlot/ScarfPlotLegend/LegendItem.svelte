@@ -90,7 +90,15 @@
 <g
   class="legend-item {identifier}"
   class:highlighted
-  on:click={() => onClick(identifier)}
+  onclick={() => onClick(identifier)}
+  onkeydown={event => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      onClick(identifier)
+    }
+  }}
+  role="button"
+  tabindex="0"
 >
   <rect
     x={x - 5}

@@ -91,8 +91,8 @@
   const matrixPlotProps = $derived({
     AoiTransitionMatrix: matrix,
     aoiLabels,
-    width: effectiveWidth,
-    height: effectiveWidth, // Keep it square
+    width: effectiveWidth - (marginLeft + marginRight), // Subtract margins from width
+    height: effectiveWidth - (marginBottom + marginTop), // Keep it square
     cellSize: 30,
     colorScale: settings.colorScale,
     xLabel: 'To AOI',
@@ -146,7 +146,7 @@
           <GeneralButtonPreset
             label={preset.label}
             isActive={dpi === preset.value}
-            on:click={() => setDpi(preset.value)}
+            onclick={() => setDpi(preset.value)}
           />
         {/each}
       </div>
@@ -189,7 +189,7 @@
               marginRight === 20 &&
               marginBottom === 20 &&
               marginLeft === 20}
-            on:click={() => setAllMargins(20)}
+            onclick={() => setAllMargins(20)}
           />
           <GeneralButtonPreset
             label="Set all to 0px"
@@ -197,7 +197,7 @@
               marginRight === 0 &&
               marginBottom === 0 &&
               marginLeft === 0}
-            on:click={() => setAllMargins(0)}
+            onclick={() => setAllMargins(0)}
           />
         </div>
       </div>
@@ -220,10 +220,10 @@
         {marginBottom}
         {marginLeft}
         {dpi}
-        children={AoiTransitionMatrixPlotFigure}
-        childProps={matrixPlotProps}
         showDownloadButton={true}
-      />
+      >
+        <AoiTransitionMatrixPlotFigure {...matrixPlotProps} />
+      </GeneralSvgPreview>
     </div>
   </div>
 </div>

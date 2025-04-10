@@ -16,7 +16,6 @@
     onDownload?: () => void
     showDownloadButton?: boolean
     children: any // Using any to avoid type conflicts
-    childProps?: Record<string, any>
   }
 
   let {
@@ -32,7 +31,6 @@
     onDownload,
     showDownloadButton = false, // default to false for integrated view
     children,
-    childProps = {},
   }: Props = $props()
 
   // States
@@ -47,29 +45,15 @@
 
   // Use a composite key that changes when any relevant prop changes
   const componentKey = $derived(
-    `${width}-${fileType}-${marginTop}-${marginRight}-${marginBottom}-${marginLeft}-${dpi}-${JSON.stringify(childProps)}`
+    `${width}-${fileType}-${marginTop}-${marginRight}-${marginBottom}-${marginLeft}-${dpi}}`
   )
 
   // Determine if we need to show the canvas preview (for non-SVG formats)
   const shouldShowCanvas = $derived(fileType !== '.svg')
   const displayHeight = $derived(height ? height + 'px' : 'auto')
 
-  // Calculate the effective dimensions for the content (adjusted for margins)
-  const effectiveWidth = $derived(width - (marginLeft + marginRight))
-  const effectiveHeight = $derived(
-    height ? height - (marginTop + marginBottom) : 0
-  )
-
   // Calculate final output dimensions
-  const outputHeight = $derived(
-    height || effectiveHeight + marginTop + marginBottom
-  )
-
-  // Adjust child props to account for margins
-  const adjustedChildProps = $derived({
-    ...childProps,
-    chartWidth: effectiveWidth, // Override chartWidth if it exists
-  })
+  const outputHeight = $derived(height)
 
   // Function to extract SVG from component when the container is available
   $effect(() => {
@@ -115,7 +99,7 @@
       let viewBox = clonedSvg.getAttribute('viewBox')
       let vbValues = viewBox
         ? viewBox.split(' ').map(v => parseFloat(v))
-        : [0, 0, effectiveWidth, effectiveHeight]
+        : [0, 0, width, height]
 
       // Create a new viewBox that accounts for directional margins
       // Negative margins crop the content (move viewBox inward)
@@ -125,7 +109,7 @@
 
       // Ensure width and height are set correctly for the final output dimensions
       clonedSvg.setAttribute('width', `${width}`)
-      clonedSvg.setAttribute('height', `${outputHeight}`)
+      clonedSvg.setAttribute('height', `${height}`)
 
       // Get the modified SVG content
       svgContent = new XMLSerializer().serializeToString(clonedSvg)
@@ -168,7 +152,7 @@
         // Important: Set CSS width and height for display
         // This controls the physical size that appears on screen
         canvasPreview.style.width = width + 'px'
-        canvasPreview.style.height = outputHeight + 'px'
+        canvasPreview.style.height = height + 'px'
 
         // Calculate DPI scale (relative to 96 DPI standard)
         const dpiScale = dpi / 96
@@ -176,7 +160,7 @@
         // Set canvas DOM dimensions for the desired DPI
         // This controls the pixel density (resolution)
         canvasPreview.width = Math.ceil(width * dpiScale)
-        canvasPreview.height = Math.ceil(outputHeight * dpiScale)
+        canvasPreview.height = Math.ceil(height * dpiScale)
 
         // Get context and prepare for drawing
         const ctx = canvasPreview.getContext('2d')
@@ -197,14 +181,7 @@
           // Draw the image at the original dimensions
           // Since the context is scaled, this preserves the physical size
           // while increasing the pixel density
-          ctx.drawImage(img, 0, 0, width, outputHeight)
-
-          console.log(
-            `Canvas set to ${canvasPreview.width}x${canvasPreview.height} pixels (${dpiScale}x scale) for ${dpi} DPI`
-          )
-          console.log(
-            `Physical dimensions preserved at ${width}x${outputHeight}px`
-          )
+          ctx.drawImage(img, 0, 0, width, height)
         }
 
         convertingToCanvas = false
@@ -674,7 +651,7 @@
   <div class="hidden-source" bind:this={sourceContainer}>
     <!-- Using componentKey to force re-render when relevant props change -->
     {#key componentKey}
-      <svelte:component this={children} {...adjustedChildProps} />
+      {@render children()}
     {/key}
   </div>
 

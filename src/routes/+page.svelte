@@ -46,6 +46,7 @@
         target="_blank"
         class="a-icon"
         rel="nofollow"
+        aria-label="GitHub"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
