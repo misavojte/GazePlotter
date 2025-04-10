@@ -2,6 +2,7 @@
   import GeneralInputScaffold from '$lib/components/General/GeneralInput/GeneralInputScaffold.svelte'
   import { getContrastTextColor, isDarkColor } from '$lib/utils/colorUtils'
   import { tick } from 'svelte'
+  import { fade } from 'svelte/transition'
 
   interface Props {
     value?: string
@@ -457,6 +458,8 @@
         style:top="{popupPosition.top}px"
         style:left="{popupPosition.left}px"
         bind:this={popupElement}
+        in:fade={{ duration: 100 }}
+        out:fade={{ duration: 100 }}
       >
         <div class="color-picker-container">
           <!-- Saturation/Lightness picker -->
