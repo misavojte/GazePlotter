@@ -47,10 +47,9 @@
   let maxRemainder = $state(0)
   let minRemainder = $state(0)
 
-  function handleMaxDragStepX(event: CustomEvent) {
-    const { stepChange } = event.detail
+  function handleMaxDragStepX(stepChangeX: number, stepChangeY: number) {
     const pixelToValue = (maxValue - minValue) / gradientWidth
-    const rawValue = currentMax + stepChange * pixelToValue
+    const rawValue = currentMax + stepChangeX * pixelToValue
 
     // Add the previous remainder to the raw value
     const valueWithRemainder = rawValue + maxRemainder
@@ -62,20 +61,22 @@
 
     onMaxValueChange?.(roundedValue)
     // Update dragging direction
-    maxDraggingLeft = stepChange < 0
-    maxDraggingRight = stepChange > 0
+    maxDraggingLeft = stepChangeX < 0
+    maxDraggingRight = stepChangeX > 0
   }
 
-  function handleMaxDragFinishedX(event: CustomEvent) {
+  function handleMaxDragFinishedX(
+    totalDragDistanceX: number,
+    totalDragDistanceY: number
+  ) {
     maxDraggingLeft = false
     maxDraggingRight = false
     maxRemainder = 0
   }
 
-  function handleMinDragStepX(event: CustomEvent) {
-    const { stepChange } = event.detail
+  function handleMinDragStepX(stepChangeX: number, stepChangeY: number) {
     const pixelToValue = (maxValue - minValue) / gradientWidth
-    const rawValue = currentMin + stepChange * pixelToValue
+    const rawValue = currentMin + stepChangeX * pixelToValue
 
     // Add the previous remainder to the raw value
     const valueWithRemainder = rawValue + minRemainder
@@ -91,11 +92,14 @@
     onMinValueChange?.(roundedValue)
 
     // Update dragging direction
-    minDraggingLeft = stepChange < 0
-    minDraggingRight = stepChange > 0
+    minDraggingLeft = stepChangeX < 0
+    minDraggingRight = stepChangeX > 0
   }
 
-  function handleMinDragFinishedX(event: CustomEvent) {
+  function handleMinDragFinishedX(
+    totalDragDistanceX: number,
+    totalDragDistanceY: number
+  ) {
     minDraggingLeft = false
     minDraggingRight = false
     minRemainder = 0
@@ -129,10 +133,9 @@
   <!-- Min handle -->
   <g
     class="min-handle"
-    use:draggable
-    {...{
-      ondragStepX: handleMinDragStepX,
-      ondragFinishedX: handleMinDragFinishedX,
+    use:draggable={{
+      onDragStep: handleMinDragStepX,
+      onDragFinished: handleMinDragFinishedX,
     }}
   >
     <!-- Min value handle -->
@@ -272,10 +275,9 @@
     stroke="currentColor"
     stroke-width="1"
     cursor="ew-resize"
-    use:draggable
-    {...{
-      ondragStepX: handleMaxDragStepX,
-      ondragFinishedX: handleMaxDragFinishedX,
+    use:draggable={{
+      onDragStep: handleMaxDragStepX,
+      onDragFinished: handleMaxDragFinishedX,
     }}
   />
 

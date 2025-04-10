@@ -469,13 +469,9 @@
   }
 
   // Handlers for drag events
-  function handleDragStepX(event: CustomEvent) {
-    onDragStepX(event.detail.stepChange)
-  }
-
-  // Update dragging state
-  function handleDragStart() {
-    isDragging = true
+  function handleDragStepX(stepChangeX: number, stepChangeY: number) {
+    if (!isDragging) isDragging = true
+    onDragStepX(stepChangeX)
   }
 
   function handleDragEnd() {
@@ -606,12 +602,10 @@
         width={plotAreaWidth}
         height={data.participants.length * data.heightOfBarWrap}
         fill="transparent"
-        use:draggable
-        {...{
-          ondragStepX: handleDragStepX,
-          onpointerdown: handleDragStart,
-          onpointerup: handleDragEnd,
-          onpointercancel: handleDragEnd,
+        use:draggable={{
+          minDragDistance: 1,
+          onDragStep: handleDragStepX,
+          onDragFinished: handleDragEnd,
         }}
       />
 
