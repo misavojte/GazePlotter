@@ -48,6 +48,7 @@ export const visualizationRegistry: Record<string, VisualizationConfig> = {
       aboveMaxColor: '#e0e0e0', // Default gray for values above maximum
       showBelowMinLabels: false, // Don't show labels for values below minimum by default
       showAboveMaxLabels: false, // Don't show labels for values above maximum by default
+      colorScale: ['#f7fbff', '#08306b'], // Default blue gradient
       min: { w: 11, h: 12 },
     }),
     getDefaultHeight: () => 12, // Default square size

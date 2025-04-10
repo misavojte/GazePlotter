@@ -6,7 +6,7 @@
   let {
     width = 500,
     y = 0,
-    colorScale = ['#f7fbff', '#08306b'],
+    colorScale,
     maxValue = 100,
     minValue = 0,
     currentMin = 0,
@@ -17,7 +17,7 @@
   } = $props<{
     width: number
     y: number
-    colorScale?: string[]
+    colorScale: string[]
     maxValue: number
     minValue: number
     currentMin: number
@@ -102,8 +102,14 @@
   <!-- Define the gradient -->
   <defs>
     <linearGradient id="gradient" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color={colorScale[0]} />
-      <stop offset="100%" stop-color={colorScale[1]} />
+      {#if colorScale.length === 3}
+        <stop offset="0%" stop-color={colorScale[0]} />
+        <stop offset="50%" stop-color={colorScale[1]} />
+        <stop offset="100%" stop-color={colorScale[2]} />
+      {:else}
+        <stop offset="0%" stop-color={colorScale[0]} />
+        <stop offset="100%" stop-color={colorScale[1]} />
+      {/if}
     </linearGradient>
   </defs>
 
@@ -116,88 +122,95 @@
     fill="url(#gradient)"
   />
 
-  <!-- Min value handle -->
-  <rect
-    x={LABEL_WIDTH + LABEL_PADDING}
-    y="0"
-    width={HANDLE_WIDTH}
-    height={GRADIENT_HEIGHT}
-    fill="white"
-    stroke="currentColor"
-    stroke-width="1"
-    cursor="ew-resize"
+  <!-- Min handle -->
+  <g
+    class="min-handle"
     use:draggable
-    on:dragStepX={handleMinDragStepX}
-    on:dragFinishedX={handleMinDragFinishedX}
-  />
+    {...{
+      ondragStepX: handleMinDragStepX,
+      ondragFinishedX: handleMinDragFinishedX,
+    }}
+  >
+    <!-- Min value handle -->
+    <rect
+      x={LABEL_WIDTH + LABEL_PADDING}
+      y="0"
+      width={HANDLE_WIDTH}
+      height={GRADIENT_HEIGHT}
+      fill="white"
+      stroke="currentColor"
+      stroke-width="1"
+      cursor="ew-resize"
+    />
 
-  <!-- Direction indicators for min handle -->
-  {#if minDraggingLeft}
-    {@const baseX = LABEL_WIDTH + LABEL_PADDING - ARROW_OFFSET}
-    <g transition:fade={{ duration: 150 }}>
-      {#if currentMin === 0}
-        <!-- Circle -->
-        <circle
-          cx={baseX + 3}
-          cy={GRADIENT_HEIGHT / 2}
-          r="6"
-          fill="transparent"
-          stroke="#222"
-          stroke-width="2"
-        />
-        <!-- Diagonal line -->
-        <line
-          x1={baseX - 4.24 + 3}
-          y1={GRADIENT_HEIGHT / 2 - 4.24}
-          x2={baseX + 4.24 + 3}
-          y2={GRADIENT_HEIGHT / 2 + 4.24}
-          stroke="#222"
-          stroke-width="2"
-        />
-      {:else}
-        <path
-          d="M {baseX} {GRADIENT_HEIGHT / 2} l 8 -4 l 0 8 z"
-          fill="transparent"
-          stroke="#222"
-          stroke-width="2"
-        />
-      {/if}
-    </g>
-  {/if}
-  {#if minDraggingRight}
-    {@const baseX = LABEL_WIDTH + LABEL_PADDING + HANDLE_WIDTH + ARROW_OFFSET}
-    {#if currentMin < currentMax - step}
+    <!-- Direction indicators for min handle -->
+    {#if minDraggingLeft}
+      {@const baseX = LABEL_WIDTH + LABEL_PADDING - ARROW_OFFSET}
       <g transition:fade={{ duration: 150 }}>
-        <path
-          d="M {baseX} {GRADIENT_HEIGHT / 2} l -8 -4 l 0 8 z"
-          fill="transparent"
-          stroke="#222"
-          stroke-width="2"
-        />
-      </g>
-    {:else}
-      <g transition:fade={{ duration: 150 }}>
-        <!-- Circle -->
-        <circle
-          cx={baseX - 3}
-          cy={GRADIENT_HEIGHT / 2}
-          r="6"
-          fill="transparent"
-          stroke="#222"
-          stroke-width="2"
-        />
-        <!-- Diagonal line -->
-        <line
-          x1={baseX - 4.24 - 3}
-          y1={GRADIENT_HEIGHT / 2 - 4.24}
-          x2={baseX + 4.24 - 3}
-          y2={GRADIENT_HEIGHT / 2 + 4.24}
-          stroke="#222"
-          stroke-width="2"
-        />
+        {#if currentMin === 0}
+          <!-- Circle -->
+          <circle
+            cx={baseX + 3}
+            cy={GRADIENT_HEIGHT / 2}
+            r="6"
+            fill="transparent"
+            stroke="#222"
+            stroke-width="2"
+          />
+          <!-- Diagonal line -->
+          <line
+            x1={baseX - 4.24 + 3}
+            y1={GRADIENT_HEIGHT / 2 - 4.24}
+            x2={baseX + 4.24 + 3}
+            y2={GRADIENT_HEIGHT / 2 + 4.24}
+            stroke="#222"
+            stroke-width="2"
+          />
+        {:else}
+          <path
+            d="M {baseX} {GRADIENT_HEIGHT / 2} l 8 -4 l 0 8 z"
+            fill="transparent"
+            stroke="#222"
+            stroke-width="2"
+          />
+        {/if}
       </g>
     {/if}
-  {/if}
+    {#if minDraggingRight}
+      {@const baseX = LABEL_WIDTH + LABEL_PADDING + HANDLE_WIDTH + ARROW_OFFSET}
+      {#if currentMin < currentMax - step}
+        <g transition:fade={{ duration: 150 }}>
+          <path
+            d="M {baseX} {GRADIENT_HEIGHT / 2} l -8 -4 l 0 8 z"
+            fill="transparent"
+            stroke="#222"
+            stroke-width="2"
+          />
+        </g>
+      {:else}
+        <g transition:fade={{ duration: 150 }}>
+          <!-- Circle -->
+          <circle
+            cx={baseX - 3}
+            cy={GRADIENT_HEIGHT / 2}
+            r="6"
+            fill="transparent"
+            stroke="#222"
+            stroke-width="2"
+          />
+          <!-- Diagonal line -->
+          <line
+            x1={baseX - 4.24 - 3}
+            y1={GRADIENT_HEIGHT / 2 - 4.24}
+            x2={baseX + 4.24 - 3}
+            y2={GRADIENT_HEIGHT / 2 + 4.24}
+            stroke="#222"
+            stroke-width="2"
+          />
+        </g>
+      {/if}
+    {/if}
+  </g>
 
   <!-- Direction indicators for max handle -->
   {#if maxDraggingLeft}
@@ -256,8 +269,10 @@
     stroke-width="1"
     cursor="ew-resize"
     use:draggable
-    on:dragStepX={handleMaxDragStepX}
-    on:dragFinishedX={handleMaxDragFinishedX}
+    {...{
+      ondragStepX: handleMaxDragStepX,
+      ondragFinishedX: handleMaxDragFinishedX,
+    }}
   />
 
   <!-- Labels -->

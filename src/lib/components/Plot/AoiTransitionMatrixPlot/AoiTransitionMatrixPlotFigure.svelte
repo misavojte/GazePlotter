@@ -377,6 +377,7 @@
       minValue={colorValueRange[0]}
       maxValue={effectiveMaxValue}
       title={legendTitle}
+      {colorScale}
       {onColorValueRangeChange}
     />
   </svg>

@@ -4,7 +4,9 @@
   import type { AoiTransitionMatrixGridType } from '$lib/type/gridType'
   import BarChart from 'lucide-svelte/icons/bar-chart'
   import Download from 'lucide-svelte/icons/download'
+  import Palette from 'lucide-svelte/icons/palette'
   import ModalContentMaxValue from '$lib/components/Modal/ModalContent/ModalContentMaxValue.svelte'
+  import ModalContentColorScale from '$lib/components/Modal/ModalContent/ModalContentColorScale.svelte'
   import ModalContentDownloadAoiTransitionMatrix from '$lib/components/Modal/ModalContent/ModalContentDownloadAoiTransitionMatrix.svelte'
 
   interface Props {
@@ -29,6 +31,17 @@
     }
   }
 
+  const openColorScaleModal = () => {
+    try {
+      modalStore.open(ModalContentColorScale as any, 'Customize color scale', {
+        settings,
+        settingsChange,
+      })
+    } catch (error) {
+      console.error('Error opening color scale modal:', error)
+    }
+  }
+
   const openDownloadModal = () => {
     try {
       modalStore.open(
@@ -45,9 +58,14 @@
 
   let items = $derived([
     {
-      label: 'Set max color scale value',
+      label: 'Set color range values',
       action: openMaxValueModal,
       icon: BarChart,
+    },
+    {
+      label: 'Customize color scale',
+      action: openColorScaleModal,
+      icon: Palette,
     },
     {
       label: 'Download plot',

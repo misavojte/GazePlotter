@@ -53,8 +53,6 @@
     return 60
   })
 
-  const colorScale = ['#f7fbff', '#08306b'] // Blue gradient
-
   // Simplified aggregation method options
   const aggregationOptions = [
     { value: AggregationMethod.SUM, label: 'Transition Count' },
@@ -161,7 +159,7 @@
           width={plotDimensions.width}
           height={plotDimensions.height}
           {cellSize}
-          {colorScale}
+          colorScale={settings.colorScale}
           xLabel="To AOI"
           yLabel="From AOI"
           legendTitle={getLegendTitle(settings.aggregationMethod)}

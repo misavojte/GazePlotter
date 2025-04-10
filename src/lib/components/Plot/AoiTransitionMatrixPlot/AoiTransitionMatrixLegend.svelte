@@ -7,7 +7,7 @@
     y = 0,
     x = 0,
     height = 80,
-    colorScale = ['#f7fbff', '#08306b'],
+    colorScale,
     maxValue = 100,
     minValue = 0,
     title = 'Transition Count',
@@ -17,7 +17,7 @@
     y: number
     x?: number
     height: number
-    colorScale?: string[]
+    colorScale: string[]
     maxValue: number
     minValue: number
     title?: string

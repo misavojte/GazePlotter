@@ -40,6 +40,8 @@ export interface AoiTransitionMatrixGridType extends GridType {
   aboveMaxColor: string // Color for values above maximum (default: gray)
   showBelowMinLabels: boolean // Whether to show labels for values below minimum (default: false)
   showAboveMaxLabels: boolean // Whether to show labels for values above maximum (default: false)
+  // Custom color scale (2 or 3 points gradient)
+  colorScale: string[] // Array of 2 or 3 colors for gradient (min, [middle], max)
 }
 
 // now create a type that is a union of all the grid types
