@@ -23,6 +23,12 @@
   const HEADER_HEIGHT = 150 // Estimated space for header and controls
   const HORIZONTAL_PADDING = 50 // Horizontal padding inside the container
 
+  // Get current stimulus-specific color range or use default values
+  const currentStimulusColorRange = $derived.by(() => {
+    const stimulusId = settings.stimulusId
+    return settings.stimuliColorValueRanges?.[stimulusId] || [0, 0]
+  })
+
   // Visualization settings (now reactive)
   let plotDimensions = $derived.by(() =>
     calculatePlotDimensionsWithHeader(
@@ -72,7 +78,16 @@
   }
 
   function handleColorValueRangeChange(value: [number, number]) {
-    settingsChange({ colorValueRange: value })
+    // Create a new array for stimulus-specific color ranges
+    const stimuliColorValueRanges = [
+      ...(settings.stimuliColorValueRanges || []),
+    ]
+    stimuliColorValueRanges[settings.stimulusId] = value
+
+    // Update settings with new values
+    settingsChange({
+      stimuliColorValueRanges,
+    })
   }
 
   // Update AOI labels when data changes
@@ -150,7 +165,7 @@
           xLabel="To AOI"
           yLabel="From AOI"
           legendTitle={getLegendTitle(settings.aggregationMethod)}
-          colorValueRange={settings.colorValueRange}
+          colorValueRange={currentStimulusColorRange}
           onColorValueRangeChange={handleColorValueRangeChange}
         />
       {:else}

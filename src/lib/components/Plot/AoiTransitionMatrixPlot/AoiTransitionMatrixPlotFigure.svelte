@@ -30,8 +30,6 @@
    * @param xLabel - Label for X-axis (TO AOI)
    * @param yLabel - Label for Y-axis (FROM AOI)
    * @param legendTitle - Title for the color legend
-   * @param customMaxValue - Optional custom maximum value for color scale
-   * @param useAutoMax - Whether to use auto-calculated max value or custom max
    */
   let {
     AoiTransitionMatrix = [],

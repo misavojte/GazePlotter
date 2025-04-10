@@ -31,8 +31,6 @@
   let marginLeft = $state(20) /* in px */
 
   // States for preview
-  let highlightedIdentifier = $state<string | null>(null)
-  let tooltipAreaElement = $state<HTMLElement | SVGElement | null>(null)
   let previewContainer = $state<HTMLDivElement | null>(null)
 
   // Check if DPI should be enabled (only for canvas-based formats)
@@ -64,6 +62,12 @@
     )
   )
 
+  // Get current stimulus-specific color range or use default values
+  const currentStimulusColorRange = $derived.by(() => {
+    const stimulusId = settings.stimulusId
+    return settings.stimuliColorValueRanges?.[stimulusId] || [0, 0]
+  })
+
   // Use the height directly from the data with additional space for legend and axes
   // Add fixed padding (150px) plus margins to maintain proper spacing
   const previewHeight = $derived(
@@ -94,9 +98,7 @@
     xLabel: 'To AOI',
     yLabel: 'From AOI',
     legendTitle: 'Transition Count',
-    minThreshold: 0,
-    customMaxValue: settings.colorValueRange[1],
-    useAutoMax: settings.colorValueRange[1] === 0,
+    colorValueRange: currentStimulusColorRange,
   })
 </script>
 
