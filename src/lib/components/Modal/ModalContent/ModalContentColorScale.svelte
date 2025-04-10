@@ -2,6 +2,7 @@
   import { modalStore } from '$lib/stores/modalStore'
   import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
+  import GeneralInputColor from '$lib/components/General/GeneralInput/GeneralInputColor.svelte'
   import type { AoiTransitionMatrixGridType } from '$lib/type/gridType'
 
   interface Props {
@@ -83,19 +84,16 @@
   }
 
   // Handle color changes
-  function handleStartColorChange(event: Event): void {
-    const input = event.target as HTMLInputElement
-    colorOne = input.value
+  function handleStartColorChange(event: CustomEvent<string>): void {
+    colorOne = event.detail
   }
 
-  function handleMiddleColorChange(event: Event): void {
-    const input = event.target as HTMLInputElement
-    colorTwo = input.value
+  function handleMiddleColorChange(event: CustomEvent<string>): void {
+    colorTwo = event.detail
   }
 
-  function handleEndColorChange(event: Event): void {
-    const input = event.target as HTMLInputElement
-    colorThree = input.value
+  function handleEndColorChange(event: CustomEvent<string>): void {
+    colorThree = event.detail
   }
 
   // Apply changes and close modal
@@ -132,36 +130,31 @@
     <div class="section-header">Color Selection</div>
     <div class="color-inputs">
       <div class="color-input">
-        <label for="colorOne">Min Value Color</label>
-        <input
-          type="color"
-          id="colorOne"
+        <GeneralInputColor
+          label="Min Value Color"
           value={colorOne}
+          width={120}
           oninput={handleStartColorChange}
         />
       </div>
 
       <div class="color-input">
-        <label for="colorTwo"
-          >{colorPoints === 'three'
+        <GeneralInputColor
+          label={colorPoints === 'three'
             ? 'Middle Value Color'
-            : 'Max Value Color'}</label
-        >
-        <input
-          type="color"
-          id="colorTwo"
+            : 'Max Value Color'}
           value={colorTwo}
+          width={120}
           oninput={handleMiddleColorChange}
         />
       </div>
 
       {#if colorPoints === 'three'}
         <div class="color-input">
-          <label for="colorThree">Max Value Color</label>
-          <input
-            type="color"
-            id="colorThree"
+          <GeneralInputColor
+            label="Max Value Color"
             value={colorThree}
+            width={120}
             oninput={handleEndColorChange}
           />
         </div>
@@ -239,15 +232,6 @@
     font-size: 0.9rem;
   }
 
-  .color-input input[type='color'] {
-    width: 100%;
-    height: 40px;
-    padding: 0;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-
   .preview-section {
     margin: 1rem 0;
   }
@@ -304,7 +288,6 @@
 
   .button-container {
     display: flex;
-    justify-content: flex-end;
     gap: 0.5rem;
   }
 </style>

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { modalStore } from '$lib/stores/modalStore'
   import NumberInput from '$lib/components/General/GeneralInput/GeneralInputNumber.svelte'
+  import GeneralInputColor from '$lib/components/General/GeneralInput/GeneralInputColor.svelte'
   import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
   import { getStimuliOrderVector } from '$lib/stores/dataStore'
@@ -114,6 +115,14 @@
     aboveMaxColor = value
   }
 
+  function handleBelowMinCustomColorChange(event: CustomEvent<string>) {
+    belowMinColor = event.detail
+  }
+
+  function handleAboveMaxCustomColorChange(event: CustomEvent<string>) {
+    aboveMaxColor = event.detail
+  }
+
   function handleBelowMinLabelsChange(value: string) {
     showBelowMinLabels = value
   }
@@ -136,31 +145,35 @@
 
   <div class="input-container">
     <div class="section-header">Range Values</div>
-    <div class="number-input">
-      <NumberInput
-        value={newMinValue}
-        min={0}
-        label="Minimum value"
-        oninput={handleMinValueChange}
+    <div class="grid-layout">
+      <div class="input-column">
+        <NumberInput
+          value={newMinValue}
+          min={0}
+          label="Minimum value"
+          oninput={handleMinValueChange}
+        />
+      </div>
+      <div class="input-column">
+        <NumberInput
+          value={newMaxValue}
+          min={0}
+          label="Maximum value (0 for auto)"
+          oninput={handleMaxValueChange}
+        />
+      </div>
+    </div>
+    <div class="radio-wrapper">
+      <GeneralRadio
+        options={[
+          { value: 'this_stimulus', label: 'This stimulus' },
+          { value: 'all_stimuli', label: 'All stimuli' },
+        ]}
+        legend="Apply to"
+        userSelected={rangeApply}
+        onchange={handleRangeApplyChange}
       />
     </div>
-    <div class="number-input">
-      <NumberInput
-        value={newMaxValue}
-        min={0}
-        label="Maximum value (0 for auto)"
-        oninput={handleMaxValueChange}
-      />
-    </div>
-    <GeneralRadio
-      options={[
-        { value: 'this_stimulus', label: 'This stimulus' },
-        { value: 'all_stimuli', label: 'All stimuli' },
-      ]}
-      legend="Apply to"
-      userSelected={rangeApply}
-      onchange={handleRangeApplyChange}
-    />
 
     <div class="section-header">Values Outside Range</div>
     <div class="outside-range-settings">
@@ -178,12 +191,11 @@
                 onclick={() => handleBelowMinColorChange(option.value)}
               ></button>
             {/each}
-            <input
-              type="color"
+            <GeneralInputColor
+              label=""
               value={belowMinColor}
-              oninput={e => handleBelowMinColorChange(e.currentTarget.value)}
-              title="Custom color"
-              class="color-picker"
+              width={120}
+              oninput={handleBelowMinCustomColorChange}
             />
           </div>
         </div>
@@ -211,12 +223,11 @@
                 onclick={() => handleAboveMaxColorChange(option.value)}
               ></button>
             {/each}
-            <input
-              type="color"
+            <GeneralInputColor
+              label=""
               value={aboveMaxColor}
-              oninput={e => handleAboveMaxColorChange(e.currentTarget.value)}
-              title="Custom color"
-              class="color-picker"
+              width={120}
+              oninput={handleAboveMaxCustomColorChange}
             />
           </div>
         </div>
@@ -241,17 +252,11 @@
 <style>
   .value-range-modal {
     padding: 1rem;
-    max-width: 450px;
+    max-width: 520px;
   }
 
   .description {
     margin-bottom: 1.5rem;
-  }
-
-  .note {
-    font-style: italic;
-    font-size: 0.9em;
-    opacity: 0.8;
   }
 
   .input-container {
@@ -265,9 +270,24 @@
     border-bottom: 1px solid #eaeaea;
   }
 
+  .grid-layout {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .input-column {
+    min-width: 0;
+  }
+
+  .radio-wrapper {
+    margin-bottom: 1rem;
+  }
+
   .outside-range-settings {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
     gap: 1rem;
     margin-top: 0.5rem;
   }
@@ -279,11 +299,16 @@
     padding: 0.75rem;
     background-color: #f9f9f9;
     border-radius: 4px;
+    height: 100%;
+    min-width: 0;
+    box-sizing: border-box;
   }
 
   .section-title {
     font-weight: 500;
     margin-bottom: 0.25rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    padding-bottom: 0.25rem;
   }
 
   .color-selection {
@@ -293,12 +318,16 @@
   .color-label {
     font-size: 0.9rem;
     margin-bottom: 0.25rem;
+    font-weight: 500;
   }
 
   .color-options {
     display: flex;
     gap: 0.5rem;
     flex-wrap: wrap;
+    align-items: center;
+    padding: 0.25rem 0;
+    margin-bottom: 0.5rem;
   }
 
   .color-option {
@@ -316,22 +345,21 @@
       0 0 0 3px #666;
   }
 
-  .color-picker {
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-
   .radio-container {
     margin-top: 0.5rem;
   }
 
   .button-container {
     display: flex;
-    justify-content: flex-end;
+    margin-top: 1rem;
     gap: 0.5rem;
+  }
+
+  /* Media query for smaller screens */
+  @media (max-width: 480px) {
+    .grid-layout,
+    .outside-range-settings {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

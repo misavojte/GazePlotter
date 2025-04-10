@@ -4,17 +4,31 @@
   import { tick } from 'svelte'
   import { fade } from 'svelte/transition'
 
+  /**
+   * Color picker input component
+   * A customizable color picker with HSV model that renders a color value
+   * Supports hex, RGB and RGBA color formats
+   */
+
   interface Props {
     value?: string
     label: string
+    width?: number
     oninput?: (event: CustomEvent<string>) => void
   }
 
   let {
     value = $bindable('#000000'),
     label,
+    width = $bindable(140),
     oninput = () => {},
   }: Props = $props()
+
+  // Ensure minimum width constraint is met
+  const actualWidth = $derived(Math.max(35, width))
+
+  // Determine if there's enough space to display the hex code
+  const showHexCode = $derived(actualWidth >= 100)
 
   // State for color picker popup
   let isOpen = $state(false)
@@ -510,11 +524,14 @@
       class="color-preview"
       onclick={toggleColorPicker}
       style:background-color={formatColorValue}
+      style:width="{actualWidth}px"
       bind:this={triggerElement}
     >
-      <span class="color-value" style:color={contrastTextColor}>
-        {formatColorValue}
-      </span>
+      {#if showHexCode}
+        <span class="color-value" style:color={contrastTextColor}>
+          {formatColorValue}
+        </span>
+      {/if}
     </button>
 
     {#if isOpen}
@@ -598,12 +615,12 @@
   .color-preview {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
     padding: 0.5rem;
     border: 1px solid var(--c-darkgrey);
     border-radius: var(--rounded);
     font-size: 14px;
-    width: 120px;
     height: 34px;
     cursor: pointer;
     background-color: white;
@@ -615,11 +632,11 @@
   }
 
   .color-value {
-    margin-left: auto;
-    margin-right: auto;
     font-family: monospace;
     font-size: 13px;
     font-weight: 500;
+    text-align: center;
+    flex-grow: 1;
   }
 
   .color-popup {
