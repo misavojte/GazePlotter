@@ -499,11 +499,8 @@
   // Handle panning start when clicking on the workspace background
   // NO TOUCH SUPPORT - This is intentional as this would clash with the native touch events which effectively pans the workspace
   const handleWorkspacePanStart = (event: MouseEvent) => {
-    // Handle both mouse and touch events
-    const isTouchEvent = 'touches' in event
-
     // For mouse events, only handle primary button
-    if (!isTouchEvent && (event as MouseEvent).button !== 0) return
+    if ((event as MouseEvent).button !== 0) return
 
     // Get the target element
     const targetEl = event.target as HTMLElement
@@ -516,7 +513,8 @@
       return
 
     // Prevent default to avoid text selection during panning
-    // event.preventDefault()
+    // This is important as without it
+    event.preventDefault()
 
     // Set panning state
     isPanning.set(true)
@@ -614,7 +612,9 @@
       bottom: number
     }
   }) => {
-    if (!workspaceContainer) return
+    // if no workspace container, return
+    // if already panning, return
+    if (!workspaceContainer || $isPanning) return
 
     const { itemBounds } = event
     // Make edge threshold smaller

@@ -140,7 +140,7 @@
 </main>
 <footer class="border-t">
   <div>
-    <p>GazePlotter, version 1.6.0 (April 6, 2025)</p>
+    <p>GazePlotter, version 1.6.1 (April 11, 2025)</p>
     <p>
       Coded & designed by <a href="https://vojtechovska.com" target="_blank"
         >Michaela Vojtěchovská</a
