@@ -21,169 +21,111 @@ export function draggable(
       totalDragDistanceX: number,
       totalDragDistanceY: number
     ) => void
-    /** How much horizontal movement bias is needed to consider it a drag vs scroll (0-1) */
-    horizontalBias?: number
   } = {}
 ) {
   // Configuration
   const MIN_DRAG_DISTANCE = options.minDragDistance ?? 3
 
-  // State (using immutable patterns where appropriate)
-  type Point = Readonly<{ x: number; y: number }>
-  type DragState = Readonly<{
-    startPos: Point | null
-    currentPos: Point | null
-    previousPos: Point | null
-    isDragging: boolean
-    pointerId: number | null
-    animationFrameId: number | null
-    totalDeltaX: number
-    totalDeltaY: number
-  }>
-
-  // Initial state
-  let state: DragState = {
-    startPos: null,
-    currentPos: null,
-    previousPos: null,
-    isDragging: false,
-    pointerId: null,
-    animationFrameId: null,
-    totalDeltaX: 0,
-    totalDeltaY: 0,
-  }
-
-  // Flag to track if we should block scrolling - maintained separately for performance
-  let blockAllScrolling = false
+  // Simple state variables instead of complex objects for better performance
+  let startX: number | null = null
+  let startY: number | null = null
+  let currentX: number | null = null
+  let currentY: number | null = null
+  let previousX: number | null = null
+  let previousY: number | null = null
+  let isDragging = false
+  let touchId: number | null = null
+  let animationFrameId: number | null = null
 
   /**
-   * Updates state in a functional way, returning a new state object
-   */
-  const updateState = (newValues: Partial<DragState>): DragState => {
-    return { ...state, ...newValues }
-  }
-
-  /**
-   * Processes drag movement and calls step callbacks
+   * Process drag movement
    */
   const processDragMove = () => {
-    if (!state.currentPos || !state.previousPos) return
+    if (!previousX || !previousY || !currentX || !currentY) return
 
-    const stepChangeX = state.currentPos.x - state.previousPos.x
-    const stepChangeY = state.currentPos.y - state.previousPos.y
+    const stepChangeX = currentX - previousX
+    const stepChangeY = currentY - previousY
 
-    if (state.isDragging && (stepChangeX !== 0 || stepChangeY !== 0)) {
-      options.onDragStep?.(stepChangeX, stepChangeY)
-    }
-
-    // Reset animation frame ID to allow future processing
-    state = updateState({ animationFrameId: null })
-  }
-
-  /**
-   * Starts a drag operation
-   */
-  const startDrag = (
-    x: number,
-    y: number,
-    pointerId: number,
-    pointerType?: string
-  ): void => {
-    blockAllScrolling = false
-    const newPos = { x, y }
-    state = updateState({
-      startPos: newPos,
-      currentPos: newPos,
-      previousPos: newPos,
-      isDragging: false,
-      pointerId,
-      totalDeltaX: 0,
-      totalDeltaY: 0,
-    })
-
-    // Use pointer capture to improve performance and reliability for pointer events
-    if (
-      typeof node.setPointerCapture === 'function' &&
-      pointerType !== 'touch'
-    ) {
+    if (isDragging && (stepChangeX !== 0 || stepChangeY !== 0)) {
       try {
-        node.setPointerCapture(pointerId)
+        // Apply visual transform to the element during drag
+        //node.style.transition = 'none'
+        //node.style.transform = `translate(${stepChangeX}px, ${stepChangeY}px)`
+
+        // Call the callback
+        options.onDragStep?.(stepChangeX, stepChangeY)
       } catch (e) {
-        // Some browsers might not fully support this
+        console.error('Error in drag step:', e)
       }
     }
+
+    animationFrameId = null
   }
 
   /**
-   * Determines if the movement should be considered a drag based on direction and distance
-   * This is critical for touch devices to distinguish between scrolling and dragging
+   * Start tracking a drag operation
    */
-  const shouldBeDrag = (dx: number, dy: number): boolean => {
-    // Always a drag if we've already decided it is
-    if (blockAllScrolling) return true
+  const startDrag = (x: number, y: number, id?: number) => {
+    startX = x
+    startY = y
+    currentX = x
+    currentY = y
+    previousX = x
+    previousY = y
+    isDragging = false
+    touchId = id !== undefined ? id : null
 
-    // Already dragging - continue dragging
-    if (state.isDragging) return true
-
-    // Not yet at threshold - not dragging yet
-    const absDx = Math.abs(dx)
-    const absDy = Math.abs(dy)
-    if (absDx < MIN_DRAG_DISTANCE && absDy < MIN_DRAG_DISTANCE) return false
-    return true
+    // Add visual feedback classes
+    //document.body.classList.add('draggable-active')
   }
 
   /**
-   * Updates a drag operation
+   * Update the drag position
    */
-  const updateDrag = (x: number, y: number): void => {
-    if (!state.startPos) return
+  const updateDrag = (x: number, y: number) => {
+    if (startX === null || startY === null) return
 
-    const previousPos = state.currentPos
-    const currentPos = { x, y }
+    previousX = currentX
+    previousY = currentY
+    currentX = x
+    currentY = y
 
-    // Calculate movement
-    const dx = x - (state.startPos?.x ?? 0)
-    const dy = y - (state.startPos?.y ?? 0)
+    // Check if we should start dragging
+    if (!isDragging) {
+      const dx = Math.abs(x - startX)
+      const dy = Math.abs(y - startY)
 
-    // Update total deltas
-    const totalDeltaX = dx
-    const totalDeltaY = dy
-
-    // Determine if we should consider this a drag
-    const isDragging = shouldBeDrag(totalDeltaX, totalDeltaY)
-
-    // If we just started dragging, set the block scrolling flag
-    if (isDragging && !state.isDragging) {
-      blockAllScrolling = true
+      if (dx > MIN_DRAG_DISTANCE || dy > MIN_DRAG_DISTANCE) {
+        isDragging = true
+        //node.classList.add('being-dragged')
+      }
     }
 
-    // Update state
-    state = updateState({
-      previousPos,
-      currentPos,
-      isDragging,
-      totalDeltaX,
-      totalDeltaY,
-    })
-
-    // Schedule movement processing on animation frame for better performance
-    if (state.animationFrameId === null) {
-      const frameId = requestAnimationFrame(processDragMove)
-      state = updateState({ animationFrameId: frameId })
+    // Schedule movement processing
+    if (animationFrameId === null) {
+      animationFrameId = requestAnimationFrame(processDragMove)
     }
   }
 
   /**
-   * Ends a drag operation and cleans up
+   * End the drag operation
    */
-  const endDrag = (): void => {
-    if (state.animationFrameId !== null) {
-      cancelAnimationFrame(state.animationFrameId)
+  const endDrag = () => {
+    if (animationFrameId !== null) {
+      cancelAnimationFrame(animationFrameId)
+      animationFrameId = null
     }
 
-    if (state.isDragging && state.startPos && state.currentPos) {
-      const totalDragDistanceX = state.currentPos.x - state.startPos.x
-      const totalDragDistanceY = state.currentPos.y - state.startPos.y
+    // Only calculate total distance if we were actually dragging
+    if (
+      isDragging &&
+      startX !== null &&
+      startY !== null &&
+      currentX !== null &&
+      currentY !== null
+    ) {
+      const totalDragDistanceX = currentX - startX
+      const totalDragDistanceY = currentY - startY
 
       if (
         Math.abs(totalDragDistanceX) >= MIN_DRAG_DISTANCE ||
@@ -191,70 +133,59 @@ export function draggable(
       ) {
         options.onDragFinished?.(totalDragDistanceX, totalDragDistanceY)
       }
+
+      // Reset node styling
+      //node.classList.remove('being-dragged')
+      //node.style.transform = ''
+      //node.style.transition = ''
     }
 
-    // Release pointer capture if used
-    if (
-      typeof node.releasePointerCapture === 'function' &&
-      state.pointerId !== null
-    ) {
-      try {
-        node.releasePointerCapture(state.pointerId)
-      } catch (e) {
-        // Ignore errors from releasing capture on pointers that no longer exist
-      }
-    }
+    // Clean up visual feedback
+    //document.body.classList.remove('draggable-active')
 
     // Reset state
-    blockAllScrolling = false
-    state = updateState({
-      startPos: null,
-      currentPos: null,
-      previousPos: null,
-      isDragging: false,
-      pointerId: null,
-      animationFrameId: null,
-      totalDeltaX: 0,
-      totalDeltaY: 0,
-    })
+    startX = null
+    startY = null
+    currentX = null
+    currentY = null
+    previousX = null
+    previousY = null
+    isDragging = false
+    touchId = null
   }
 
-  // Modern pointer events for unified mouse/touch handling
-  const handlePointerDown = (event: Event): void => {
-    const pointerEvent = event as PointerEvent
-    if (pointerEvent.pointerType === 'touch') {
-      // For touch pointers, we'll use touch-specific handling to better control
-      // scroll vs. drag behavior
-      return
-    }
+  // Mouse event handlers
+  const handleMouseDown = (event: Event) => {
+    const mouseEvent = event as MouseEvent
+    // Only handle left mouse button
+    if (mouseEvent.button !== 0) return
 
-    // Only handle primary button (usually left mouse button)
-    if (pointerEvent.button !== 0) return
+    // Start dragging
+    startDrag(mouseEvent.clientX, mouseEvent.clientY)
 
-    startDrag(
-      pointerEvent.clientX,
-      pointerEvent.clientY,
-      pointerEvent.pointerId,
-      pointerEvent.pointerType
-    )
+    // Add document-level event listeners
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+
+    // Prevent default to avoid text selection
+    event.preventDefault()
   }
 
-  const handlePointerMove = (event: Event): void => {
-    const pointerEvent = event as PointerEvent
-    if (state.pointerId !== pointerEvent.pointerId) return
-
-    updateDrag(pointerEvent.clientX, pointerEvent.clientY)
+  const handleMouseMove = (event: Event) => {
+    const mouseEvent = event as MouseEvent
+    updateDrag(mouseEvent.clientX, mouseEvent.clientY)
   }
 
-  const handlePointerUp = (event: Event): void => {
-    const pointerEvent = event as PointerEvent
-    if (state.pointerId !== pointerEvent.pointerId) return
-
+  const handleMouseUp = (event: Event) => {
     endDrag()
+
+    // Remove document-level event listeners
+    document.removeEventListener('mousemove', handleMouseMove)
+    document.removeEventListener('mouseup', handleMouseUp)
   }
 
-  // Touch-specific handling for better scroll discrimination
-  const handleTouchStart = (event: Event): void => {
+  // Touch event handlers
+  const handleTouchStart = (event: Event) => {
     const touchEvent = event as TouchEvent
     if (touchEvent.touches.length !== 1) {
       endDrag()
@@ -263,79 +194,96 @@ export function draggable(
 
     const touch = touchEvent.touches[0]
     startDrag(touch.clientX, touch.clientY, touch.identifier)
+
+    // No need to prevent default on touchstart (to allow native scrolling to start)
   }
 
-  const handleTouchMove = (event: Event): void => {
-    // Immediately prevent default if we've previously determined this is a drag
-    if (blockAllScrolling) {
-      event.preventDefault()
+  const handleTouchMove = (event: Event) => {
+    const touchEvent = event as TouchEvent
+    // Find the touch that matches our ID
+    let activeTouch: Touch | undefined
 
-      // Continue processing the touch for drag movement
-      const touchEvent = event as TouchEvent
-      if (touchEvent.touches.length === 1) {
-        const touch = touchEvent.touches[0]
-        updateDrag(touch.clientX, touch.clientY)
+    for (let i = 0; i < touchEvent.touches.length; i++) {
+      if (touchId === null || touchEvent.touches[i].identifier === touchId) {
+        activeTouch = touchEvent.touches[i]
+        break
       }
-      return
     }
 
-    const touchEvent = event as TouchEvent
-    if (touchEvent.touches.length !== 1) {
+    if (!activeTouch) {
       endDrag()
       return
     }
 
-    const touch = touchEvent.touches[0]
-    updateDrag(touch.clientX, touch.clientY)
+    updateDrag(activeTouch.clientX, activeTouch.clientY)
 
-    // Prevent default if we just decided this is a drag
-    if (state.isDragging) {
+    // If we've determined this is a drag, prevent scrolling
+    if (isDragging) {
       event.preventDefault()
     }
   }
 
-  const handleTouchEnd = (event: Event): void => {
-    endDrag()
-  }
+  const handleTouchEnd = (event: Event) => {
+    const touchEvent = event as TouchEvent
+    // Check if our tracked touch is still active
+    let touchActive = false
 
-  // Add event listeners using a functional approach
-  const addEventListeners = () => {
-    // Pointer events for mouse (and possibly some touch devices)
-    node.addEventListener('pointerdown', handlePointerDown)
-    document.addEventListener('pointermove', handlePointerMove)
-    document.addEventListener('pointerup', handlePointerUp)
-    document.addEventListener('pointercancel', handlePointerUp)
-
-    // Specific touch handlers that provide better control over scroll behavior
-    node.addEventListener('touchstart', handleTouchStart, { passive: true })
-    document.addEventListener('touchmove', handleTouchMove, { passive: false })
-    document.addEventListener('touchend', handleTouchEnd, { passive: true })
-    document.addEventListener('touchcancel', handleTouchEnd, { passive: true })
-  }
-
-  const removeEventListeners = () => {
-    node.removeEventListener('pointerdown', handlePointerDown)
-    document.removeEventListener('pointermove', handlePointerMove)
-    document.removeEventListener('pointerup', handlePointerUp)
-    document.removeEventListener('pointercancel', handlePointerUp)
-
-    node.removeEventListener('touchstart', handleTouchStart)
-    document.removeEventListener('touchmove', handleTouchMove)
-    document.removeEventListener('touchend', handleTouchEnd)
-    document.removeEventListener('touchcancel', handleTouchEnd)
-
-    // Clean up any pending animation frame
-    if (state.animationFrameId !== null) {
-      cancelAnimationFrame(state.animationFrameId)
+    if (touchId !== null) {
+      for (let i = 0; i < touchEvent.touches.length; i++) {
+        if (touchEvent.touches[i].identifier === touchId) {
+          touchActive = true
+          break
+        }
+      }
     }
+
+    // End drag if our touch is gone
+    if (!touchActive) {
+      endDrag()
+    }
+
+    // No need to remove listeners - they stay active on the document
   }
 
-  // Initialize
-  addEventListeners()
+  // Add all event listeners
+  node.addEventListener('mousedown', handleMouseDown)
 
+  // Use capture: true for touch events to ensure we get all events
+  node.addEventListener('touchstart', handleTouchStart, { passive: true })
+  document.addEventListener('touchmove', handleTouchMove, { passive: false })
+  document.addEventListener('touchend', handleTouchEnd, { passive: true })
+  document.addEventListener('touchcancel', handleTouchEnd, { passive: true })
+
+  // Use regular cursor on the node
+  const originalCursor = getComputedStyle(node).cursor
+  //node.style.cursor = 'grab'
+
+  // Return the action object
   return {
     destroy() {
-      removeEventListeners()
+      // Clean up all event listeners
+      node.removeEventListener('mousedown', handleMouseDown)
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+
+      node.removeEventListener('touchstart', handleTouchStart)
+      document.removeEventListener('touchmove', handleTouchMove)
+      document.removeEventListener('touchend', handleTouchEnd)
+      document.removeEventListener('touchcancel', handleTouchEnd)
+
+      // Cancel any pending animation
+      if (animationFrameId !== null) {
+        cancelAnimationFrame(animationFrameId)
+      }
+
+      // Reset styles
+      //node.style.cursor = originalCursor
+      //node.classList.remove('being-dragged')
+      //node.style.transform = ''
+      //node.style.transition = ''
+
+      // Remove any lingering body classes
+      //document.body.classList.remove('draggable-active')
     },
   }
 }
