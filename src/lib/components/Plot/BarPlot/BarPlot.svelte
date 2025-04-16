@@ -6,6 +6,8 @@
   import { getBarPlotData } from '$lib/utils/barPlotUtils'
   import GeneralSelect from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import { getStimuli, getParticipantsGroups } from '$lib/stores/dataStore'
+  import BarPlotButtonMenu from './BarPlotButtonMenu.svelte'
+
   // CONSTANTS - centralized for easier maintenance
   const LAYOUT = {
     HEADER_HEIGHT: 150,
@@ -37,7 +39,6 @@
   const barPlotResult = $derived.by(() => getBarPlotData(settings))
   const labelededBarPlotData = $derived(barPlotResult.data)
   const timeline = $derived(barPlotResult.timeline)
-  const barPlottingType = $derived(settings.barPlottingType)
 
   function handleBarPlottingTypeChange(event: CustomEvent) {
     const newType = event.detail as 'vertical' | 'horizontal'
@@ -66,69 +67,98 @@
       aggregationMethod: newAggregationMethod,
     })
   }
+
+  // Handle all settings changes via this function to ensure consistent handling
+  function handleSettingsChange(newSettings: Partial<BarPlotGridType>) {
+    if (settingsChange) {
+      settingsChange(newSettings)
+    }
+  }
+
   $effect(() => {
     console.log()
   })
 </script>
 
 <div class="bar-plot-container">
-  <GeneralSelect
-    label="Stimulus"
-    options={getStimuli().map(stimulus => ({
-      value: stimulus.id.toString(),
-      label: stimulus.displayedName,
-    }))}
-    compact
-    value={settings.stimulusId.toString()}
-    onchange={handleStimulusChange}
-  />
-  <GeneralSelect
-    label="Group"
-    options={getParticipantsGroups(true).map(group => ({
-      value: group.id.toString(),
-      label: group.name,
-    }))}
-    compact
-    value={settings.groupId.toString()}
-    onchange={handleGroupChange}
-  />
-  <GeneralSelect
-    label="Aggregation Method"
-    options={[
-      { value: 'absoluteTime', label: 'Absolute Time' },
-      { value: 'relativeTime', label: 'Relative Time' },
-    ]}
-    compact
-    value={settings.aggregationMethod}
-    onchange={handleAggregationMethodChange}
-  />
-  <GeneralSelect
-    label="Bar Plotting Type"
-    options={[
-      { value: 'vertical', label: 'Vertical' },
-      { value: 'horizontal', label: 'Horizontal' },
-    ]}
-    compact
-    value={barPlottingType}
-    onchange={handleBarPlottingTypeChange}
+  <div class="header">
+    <div class="controls">
+      <GeneralSelect
+        label="Stimulus"
+        options={getStimuli().map(stimulus => ({
+          value: stimulus.id.toString(),
+          label: stimulus.displayedName,
+        }))}
+        compact
+        value={settings.stimulusId.toString()}
+        onchange={handleStimulusChange}
+      />
+      <GeneralSelect
+        label="Group"
+        options={getParticipantsGroups(true).map(group => ({
+          value: group.id.toString(),
+          label: group.name,
+        }))}
+        compact
+        value={settings.groupId.toString()}
+        onchange={handleGroupChange}
+      />
+      <GeneralSelect
+        label="Aggregation Method"
+        options={[
+          { value: 'absoluteTime', label: 'Absolute Time' },
+          { value: 'relativeTime', label: 'Relative Time' },
+        ]}
+        compact
+        value={settings.aggregationMethod}
+        onchange={handleAggregationMethodChange}
+      />
+      <!-- <GeneralSelect
+        label="Bar Plotting Type"
+        options={[
+          { value: 'vertical', label: 'Vertical' },
+          { value: 'horizontal', label: 'Horizontal' },
+        ]}
+        compact
+        value={settings.barPlottingType}
+        onchange={handleBarPlottingTypeChange}
+      /> -->
+      <div class="menu-button">
+        <BarPlotButtonMenu {settings} settingsChange={handleSettingsChange} />
+      </div>
+    </div>
+  </div>
+
+  <BarPlotFigure
+    width={plotDimensions.width}
+    height={plotDimensions.height}
+    data={labelededBarPlotData}
+    {timeline}
+    barPlottingType={settings.barPlottingType}
+    barWidth={200}
+    barSpacing={20}
+    onDataHover={() => {}}
   />
 </div>
-
-<BarPlotFigure
-  width={plotDimensions.width}
-  height={plotDimensions.height}
-  data={labelededBarPlotData}
-  {timeline}
-  {barPlottingType}
-  barWidth={200}
-  barSpacing={20}
-  onDataHover={() => {}}
-/>
 
 <style>
   .bar-plot-container {
     display: flex;
-    background-color: white;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+  }
+
+  .header {
+    padding: 0 0 10px 0;
+    margin-bottom: 10px;
+    background-color: var(--c-white);
+  }
+
+  .controls {
+    display: flex;
     gap: 5px;
+    flex-wrap: wrap;
+    background: inherit;
   }
 </style>
