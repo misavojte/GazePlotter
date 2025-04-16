@@ -15,6 +15,8 @@
   const GRID_COLOR = '#e0e0e0'
   const GRID_STROKE_WIDTH = 1
   const BAR_SPACING_TOLERANCE = 20 // Additional spacing on both sides
+  const VALUE_LABEL_OFFSET = 5 // Space between bar and value label
+  const CATEGORY_LABEL_OFFSET = 15 // Space between plot area and category labels
 
   type BarPlotFigureProps = {
     width: number
@@ -49,8 +51,14 @@
   let lastMouseMoveTime = $state(0)
   const FRAME_TIME = 1000 / 30 // Throttle to 30fps
 
+  // Calculate dynamic left margin based on plotting type and label lengths
   const trueLeftMargin = $derived(
-    Math.min(150, calculateLabelOffset(data.map(item => item.label)))
+    barPlottingType === 'horizontal'
+      ? Math.min(150, calculateLabelOffset(data.map(item => item.label)))
+      : Math.max(
+          35,
+          calculateLabelOffset(timeline.ticks.map(tick => tick.label))
+        )
   )
 
   // Calculate plot area dimensions
@@ -260,8 +268,10 @@
         text={bar.value.toString()}
         x={barPlottingType === 'vertical'
           ? bar.x + bar.width / 2
-          : bar.x + bar.width + 5}
-        y={barPlottingType === 'vertical' ? bar.y - 5 : bar.y + bar.height / 2}
+          : bar.x + bar.width + VALUE_LABEL_OFFSET}
+        y={barPlottingType === 'vertical'
+          ? bar.y - VALUE_LABEL_OFFSET
+          : bar.y + bar.height / 2}
         textAnchor={barPlottingType === 'vertical' ? 'middle' : 'start'}
         dominantBaseline={barPlottingType === 'vertical'
           ? 'text-after-edge'
@@ -276,14 +286,16 @@
         text={bar.label}
         x={barPlottingType === 'vertical'
           ? bar.x + bar.width / 2
-          : trueLeftMargin - 5}
+          : trueLeftMargin - VALUE_LABEL_OFFSET}
         y={barPlottingType === 'vertical'
-          ? MARGIN.TOP + plotAreaHeight + 15
+          ? MARGIN.TOP + plotAreaHeight + CATEGORY_LABEL_OFFSET
           : bar.y + bar.height / 2}
         textAnchor={barPlottingType === 'vertical' ? 'middle' : 'end'}
         dominantBaseline="middle"
         fontSize={LABEL_FONT_SIZE}
-        maxLength={14}
+        maxLength={barPlottingType === 'vertical'
+          ? Math.floor(bar.width / (LABEL_FONT_SIZE * 0.6))
+          : 14}
         truncate={true}
       />
     {/each}
@@ -324,11 +336,11 @@
         <SvgText
           text={tick.label}
           x={barPlottingType === 'vertical'
-            ? trueLeftMargin - 10
+            ? trueLeftMargin - VALUE_LABEL_OFFSET
             : trueLeftMargin + tick.position * plotAreaWidth}
           y={barPlottingType === 'vertical'
             ? MARGIN.TOP + plotAreaHeight - tick.position * plotAreaHeight
-            : MARGIN.TOP + plotAreaHeight + 20}
+            : MARGIN.TOP + plotAreaHeight + CATEGORY_LABEL_OFFSET}
           textAnchor={barPlottingType === 'vertical' ? 'end' : 'middle'}
           dominantBaseline={barPlottingType === 'vertical'
             ? 'middle'
