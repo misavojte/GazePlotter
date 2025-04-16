@@ -112,20 +112,9 @@
     }
   })
 
-  $effect(() => {
-    console.log('timelineMinValue', timelineMinValue)
-    console.log('timelineMaxValue', timelineMaxValue)
-  })
-
   // Tooltip and interaction handlers
   function handleSettingsChange(newSettings: Partial<ScarfGridType>) {
     settingsChange?.(newSettings)
-  }
-
-  // Clear functions with more descriptive names
-  function clearHighlightKeepTooltip() {
-    clearTimeout(timeout)
-    clearHighlight()
   }
 
   function scheduleTooltipHide() {
