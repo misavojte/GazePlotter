@@ -56,8 +56,8 @@
 </ul>
 <div class="footer">
   <MajorButton onclick={e => onclick(e)}>Return to groups</MajorButton>
-  <MajorButton onclick={e => selectAll(e)}>Select all</MajorButton>
-  <MajorButton onclick={e => deselectAll(e)}>Deselect all</MajorButton>
+  <MajorButton onclick={e => selectAll()}>Select all</MajorButton>
+  <MajorButton onclick={e => deselectAll()}>Deselect all</MajorButton>
 </div>
 
 <style>
