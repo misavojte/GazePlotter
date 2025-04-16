@@ -5,7 +5,7 @@ export interface GridType {
   w: number
   h: number
   min: { w: number; h: number }
-  type: 'scarf' | 'AoiTransitionMatrix'
+  type: 'scarf' | 'AoiTransitionMatrix' | 'barPlot'
 }
 
 export interface ScarfGridType extends GridType {
@@ -44,5 +44,17 @@ export interface AoiTransitionMatrixGridType extends GridType {
   colorScale: string[] // Array of 2 or 3 colors for gradient (min, [middle], max)
 }
 
+export interface BarPlotGridType extends GridType {
+  type: 'barPlot'
+  stimulusId: number
+  groupId: number
+  barPlottingType: 'vertical' | 'horizontal'
+  sortBars: 'none' | 'ascending' | 'descending' // Sorting option for bars
+  aggregationMethod: 'absoluteTime' | 'relativeTime'
+}
+
 // now create a type that is a union of all the grid types
-export type AllGridTypes = ScarfGridType | AoiTransitionMatrixGridType
+export type AllGridTypes =
+  | ScarfGridType
+  | AoiTransitionMatrixGridType
+  | BarPlotGridType

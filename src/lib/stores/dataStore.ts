@@ -849,3 +849,93 @@ export const updateMultipleAoi = (
   // Set the entire state at once
   data.set(newState)
 }
+
+/**
+ * Returns segments for a given stimulus and participant, optionally filtered by categories.
+ * This function is optimized for performance using direct array access and minimal object creation.
+ *
+ * @param stimulusId - The numeric ID of the stimulus
+ * @param participantId - The numeric ID of the participant
+ * @param whereCategories - Optional array of category IDs to filter by. If null, all categories are included.
+ * @returns Array of SegmentInterpretedDataType matching the criteria
+ */
+export const getSegments = (
+  stimulusId: number,
+  participantId: number,
+  whereCategories: number[] | null = null
+): SegmentInterpretedDataType[] => {
+  const segmentsInfo = getData().segments[stimulusId]?.[participantId]
+  if (!segmentsInfo) return []
+
+  const result: SegmentInterpretedDataType[] = []
+  const segmentsLength = segmentsInfo.length
+
+  // If no category filter, return all segments
+  if (!whereCategories) {
+    for (let i = 0; i < segmentsLength; i++) {
+      const segmentArray = segmentsInfo[i]
+      const start = segmentArray[0]
+      const end = segmentArray[1]
+      const categoryId = segmentArray[2]
+
+      // Get AOI IDs and apply mapping to remove duplicates
+      const aoiIds = getSortedAoiIdsByOrderVector(
+        stimulusId,
+        segmentArray.slice(3)
+      )
+      const mappedAoiIds = [
+        ...new Set(aoiIds.map(aoiId => getAoiIdMapping(stimulusId, aoiId))),
+      ]
+
+      const aoi = mappedAoiIds.map(aoiId =>
+        getAoiRaw(stimulusId, aoiId, getData())
+      )
+      const category = getCategory(categoryId)
+
+      result.push({
+        id: i,
+        start,
+        end,
+        aoi,
+        category,
+      })
+    }
+    return result
+  }
+
+  // With category filter, only include matching segments
+  for (let i = 0; i < segmentsLength; i++) {
+    const segmentArray = segmentsInfo[i]
+    const categoryId = segmentArray[2]
+
+    // Skip if category doesn't match filter
+    if (!whereCategories.includes(categoryId)) continue
+
+    const start = segmentArray[0]
+    const end = segmentArray[1]
+
+    // Get AOI IDs and apply mapping to remove duplicates
+    const aoiIds = getSortedAoiIdsByOrderVector(
+      stimulusId,
+      segmentArray.slice(3)
+    )
+    const mappedAoiIds = [
+      ...new Set(aoiIds.map(aoiId => getAoiIdMapping(stimulusId, aoiId))),
+    ]
+
+    const aoi = mappedAoiIds.map(aoiId =>
+      getAoiRaw(stimulusId, aoiId, getData())
+    )
+    const category = getCategory(categoryId)
+
+    result.push({
+      id: i,
+      start,
+      end,
+      aoi,
+      category,
+    })
+  }
+
+  return result
+}

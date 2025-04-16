@@ -63,26 +63,9 @@
     ;(workspaceContainer as HTMLElement).scrollLeft = 0
   }
 
-  // Initialize the workspace position on mount
-  onMount(() => {
-    if (workspaceContainer) {
-      // Get the top position of the workspace relative to the document
-      const workspaceRect = workspaceContainer.getBoundingClientRect()
-      scrollStartY = workspaceRect.top + window.scrollY
-
-      // Make sure initial scroll is at the correct position
-      setWorkspaceScrollX(scrollStartX)
-    }
-  })
-
   // Store to track temporary height adjustment during drag operations
   const temporaryDragHeight = writable<number | null>(null)
   const temporaryDragWidth = writable<number | null>(null)
-
-  // scroll Starting position (where x = 0, y = 0 are truly located)
-  // these will be used to calculate the scroll position of the workspace
-  let scrollStartX = 30 // this wont change as this is fixed :)
-  let scrollStartY = 0 // this will change on Mount as the workspace is placed below the header in the DOM
 
   const getWorkspaceScrollX = () => {
     if (workspaceContainer) {
@@ -205,6 +188,7 @@
     return [
       { type: 'scarf', x: 0, y: 0 },
       { type: 'AoiTransitionMatrix', x: 20, y: 0, w: 11, h: 12 },
+      { type: 'barPlot', x: 0, y: 12, w: 11, h: 12 },
     ]
   }
 
@@ -830,7 +814,16 @@
       // Option 1: Enhance gridStore.set to accept initial data.
       // Option 2: Re-initialize the gridStore (might be complex with reactivity).
       // Let's stick to clearing and adding for now, but note this could be improved.
-      gridStore.reset(createDefaultGridStateData())
+      //gridStore.reset(createDefaultGridStateData())
+      gridStore.reset([])
+      const defaultItems = createDefaultGridStateData().map(item => {
+        gridStore.addItem(item.type, item)
+        return {
+          ...item,
+          x: 0,
+          y: 0,
+        }
+      })
       processingFileStateStore.set('idle')
     } else if ($processingFileStateStore === 'processing') {
       isLoading.set(true)

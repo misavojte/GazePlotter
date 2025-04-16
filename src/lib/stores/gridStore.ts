@@ -1,10 +1,7 @@
 import { writable, get, derived } from 'svelte/store'
 import type { AllGridTypes } from '$lib/type/gridType'
 // Import necessary dependencies moved from Workspace.svelte
-import {
-  visualizationRegistry, // Assuming this is okay to import here
-  getVisualizationConfig,
-} from '$lib/const/vizRegistry'
+import { getVisualizationConfig } from '$lib/const/vizRegistry'
 
 export interface GridItemPosition {
   id: number
@@ -110,7 +107,7 @@ export function createGridStore(
   )
 
   // Create the main store
-  const items = writable<AllGridTypes[]>(initialItems)
+  const items = writable<AllGridTypes[]>([])
 
   // Create a derived store for grid positions only (for collision detection)
   const positions = derived(items, $items =>
@@ -122,6 +119,10 @@ export function createGridStore(
       h: item.h,
     }))
   )
+
+  initialItems.forEach(item => {
+    addItem(item.type, item)
+  })
 
   // --- Core Collision Detection Logic ---
 
