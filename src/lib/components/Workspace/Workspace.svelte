@@ -799,9 +799,10 @@
     }
   }
 
+  let isInitialLoad = true
   // When the processing state changes, update the grid and loading state
   $effect(() => {
-    if ($processingFileStateStore === 'done') {
+    if ($processingFileStateStore === 'done' && !isInitialLoad) {
       isLoading.set(false)
       // Reset by providing initial data to the store's set method
       // Note: The store doesn't have a reset method that accepts initial data directly.
@@ -816,13 +817,8 @@
       // Let's stick to clearing and adding for now, but note this could be improved.
       //gridStore.reset(createDefaultGridStateData())
       gridStore.reset([])
-      const defaultItems = createDefaultGridStateData().map(item => {
+      createDefaultGridStateData().forEach(item => {
         gridStore.addItem(item.type, item)
-        return {
-          ...item,
-          x: 0,
-          y: 0,
-        }
       })
       processingFileStateStore.set('idle')
     } else if ($processingFileStateStore === 'processing') {
@@ -832,6 +828,7 @@
       isLoading.set(false)
       gridStore.reset([]) // Reset to empty state
     }
+    isInitialLoad = false
   })
 
   // Note: Previously, we would add grid items for both empty and loading states.
