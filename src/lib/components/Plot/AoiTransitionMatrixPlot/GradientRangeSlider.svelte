@@ -104,12 +104,14 @@
     minDraggingRight = false
     minRemainder = 0
   }
+
+  const randomUid = Math.random().toString(36).substring(2, 15)
 </script>
 
 <svg {width} height={GRADIENT_HEIGHT + 20} {y} {x}>
   <!-- Define the gradient -->
   <defs>
-    <linearGradient id="gradient" x1="0" y1="0" x2="1" y2="0">
+    <linearGradient id={randomUid} x1="0" y1="0" x2="1" y2="0">
       {#if colorScale.length === 3}
         <stop offset="0%" stop-color={colorScale[0]} />
         <stop offset="50%" stop-color={colorScale[1]} />
@@ -127,7 +129,7 @@
     y="0"
     width={gradientWidth}
     height={GRADIENT_HEIGHT}
-    fill="url(#gradient)"
+    fill={`url(#${randomUid})`}
   />
 
   <!-- Min handle -->
