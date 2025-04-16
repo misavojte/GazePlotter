@@ -59,6 +59,13 @@
       groupId: parseInt(newGroupId),
     })
   }
+
+  function handleAggregationMethodChange(event: CustomEvent) {
+    const newAggregationMethod = event.detail as 'absoluteTime' | 'relativeTime'
+    settingsChange({
+      aggregationMethod: newAggregationMethod,
+    })
+  }
   $effect(() => {
     console.log()
   })
@@ -84,6 +91,16 @@
     compact
     value={settings.groupId.toString()}
     onchange={handleGroupChange}
+  />
+  <GeneralSelect
+    label="Aggregation Method"
+    options={[
+      { value: 'absoluteTime', label: 'Absolute Time' },
+      { value: 'relativeTime', label: 'Relative Time' },
+    ]}
+    compact
+    value={settings.aggregationMethod}
+    onchange={handleAggregationMethodChange}
   />
   <GeneralSelect
     label="Bar Plotting Type"
