@@ -1,6 +1,6 @@
 {
   "name": "gazeplotter",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "license": "GPL-3.0-only",
   "description": "Gazeplotter is a Svelte application for visualizing eye-tracking data.",
   "repository": {
