@@ -9,7 +9,6 @@
     TOP: 30,
     RIGHT: 20,
     BOTTOM: 30,
-    LEFT: 60,
   }
   const LABEL_FONT_SIZE = 12
   const TICK_LENGTH = 5
@@ -50,23 +49,13 @@
   let lastMouseMoveTime = $state(0)
   const FRAME_TIME = 1000 / 30 // Throttle to 30fps
 
+  const trueLeftMargin = $derived(
+    Math.min(150, calculateLabelOffset(data.map(item => item.label)))
+  )
+
   // Calculate plot area dimensions
-  const plotAreaWidth = $derived(width - MARGIN.LEFT - MARGIN.RIGHT)
+  const plotAreaWidth = $derived(width - trueLeftMargin - MARGIN.RIGHT)
   const plotAreaHeight = $derived(height - MARGIN.TOP - MARGIN.BOTTOM)
-
-  // Calculate label offsets
-  const labelOffset = $derived.by(() => {
-    const labels = data.map(d => d.label)
-    return calculateLabelOffset(labels, LABEL_FONT_SIZE)
-  })
-
-  // Find min/max values for scaling
-  const valueMin = $derived.by(() =>
-    data.length > 0 ? Math.min(...data.map(d => d.value)) : 0
-  )
-  const valueMax = $derived.by(() =>
-    data.length > 0 ? Math.max(...data.map(d => d.value)) : 1
-  )
 
   // Scale values to plot area using AdaptiveTimeline
   function scaleValue(value: number): number {
@@ -109,7 +98,7 @@
       if (barPlottingType === 'vertical') {
         return {
           x:
-            MARGIN.LEFT +
+            trueLeftMargin +
             startPosition +
             index * (optimalBarWidth + barSpacing),
           y: MARGIN.TOP + plotAreaHeight - scaledValue,
@@ -121,7 +110,7 @@
         }
       } else {
         return {
-          x: MARGIN.LEFT,
+          x: trueLeftMargin,
           y:
             MARGIN.TOP + startPosition + index * (optimalBarWidth + barSpacing),
           width: scaledValue,
@@ -212,7 +201,7 @@
   >
     <!-- Main border for the plot area -->
     <rect
-      x={MARGIN.LEFT}
+      x={trueLeftMargin}
       y={MARGIN.TOP}
       width={plotAreaWidth}
       height={plotAreaHeight}
@@ -229,7 +218,7 @@
           .map(tick => {
             const y =
               MARGIN.TOP + plotAreaHeight - tick.position * plotAreaHeight
-            return `M ${MARGIN.LEFT},${y} H ${MARGIN.LEFT + plotAreaWidth}`
+            return `M ${trueLeftMargin},${y} H ${trueLeftMargin + plotAreaWidth}`
           })
           .join(' ')}
         stroke={GRID_COLOR}
@@ -241,7 +230,7 @@
         d={timeline.ticks
           .filter(tick => tick.isNice)
           .map(tick => {
-            const x = MARGIN.LEFT + tick.position * plotAreaWidth
+            const x = trueLeftMargin + tick.position * plotAreaWidth
             return `M ${x},${MARGIN.TOP} V ${MARGIN.TOP + plotAreaHeight}`
           })
           .join(' ')}
@@ -287,14 +276,14 @@
         text={bar.label}
         x={barPlottingType === 'vertical'
           ? bar.x + bar.width / 2
-          : MARGIN.LEFT - 5}
+          : trueLeftMargin - 5}
         y={barPlottingType === 'vertical'
           ? MARGIN.TOP + plotAreaHeight + 15
           : bar.y + bar.height / 2}
         textAnchor={barPlottingType === 'vertical' ? 'middle' : 'end'}
         dominantBaseline="middle"
         fontSize={LABEL_FONT_SIZE}
-        maxLength={15}
+        maxLength={14}
         truncate={true}
       />
     {/each}
@@ -307,7 +296,7 @@
           .map(tick => {
             const y =
               MARGIN.TOP + plotAreaHeight - tick.position * plotAreaHeight
-            return `M ${MARGIN.LEFT - TICK_LENGTH},${y} H ${MARGIN.LEFT}`
+            return `M ${trueLeftMargin - TICK_LENGTH},${y} H ${trueLeftMargin}`
           })
           .join(' ')}
         stroke="#666"
@@ -319,7 +308,7 @@
         d={timeline.ticks
           .filter(tick => tick.isNice)
           .map(tick => {
-            const x = MARGIN.LEFT + tick.position * plotAreaWidth
+            const x = trueLeftMargin + tick.position * plotAreaWidth
             return `M ${x},${MARGIN.TOP + plotAreaHeight} V ${MARGIN.TOP + plotAreaHeight + TICK_LENGTH}`
           })
           .join(' ')}
@@ -335,8 +324,8 @@
         <SvgText
           text={tick.label}
           x={barPlottingType === 'vertical'
-            ? MARGIN.LEFT - 10
-            : MARGIN.LEFT + tick.position * plotAreaWidth}
+            ? trueLeftMargin - 10
+            : trueLeftMargin + tick.position * plotAreaWidth}
           y={barPlottingType === 'vertical'
             ? MARGIN.TOP + plotAreaHeight - tick.position * plotAreaHeight
             : MARGIN.TOP + plotAreaHeight + 20}
