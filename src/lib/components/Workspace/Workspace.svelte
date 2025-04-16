@@ -188,6 +188,7 @@
     return [
       { type: 'scarf', x: 0, y: 0 },
       { type: 'AoiTransitionMatrix', x: 20, y: 0, w: 11, h: 12 },
+      { type: 'barPlot', x: 0, y: 12, w: 11, h: 12 },
     ]
   }
 
@@ -813,7 +814,16 @@
       // Option 1: Enhance gridStore.set to accept initial data.
       // Option 2: Re-initialize the gridStore (might be complex with reactivity).
       // Let's stick to clearing and adding for now, but note this could be improved.
-      gridStore.reset(createDefaultGridStateData())
+      //gridStore.reset(createDefaultGridStateData())
+      gridStore.reset([])
+      const defaultItems = createDefaultGridStateData().map(item => {
+        gridStore.addItem(item.type, item)
+        return {
+          ...item,
+          x: 0,
+          y: 0,
+        }
+      })
       processingFileStateStore.set('idle')
     } else if ($processingFileStateStore === 'processing') {
       isLoading.set(true)
