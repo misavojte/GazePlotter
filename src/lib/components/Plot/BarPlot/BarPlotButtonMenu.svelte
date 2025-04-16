@@ -8,9 +8,11 @@
   import Users from 'lucide-svelte/icons/users'
   import Copy from 'lucide-svelte/icons/copy'
   import Trash from 'lucide-svelte/icons/trash'
+  import BarChartIcon from 'lucide-svelte/icons/bar-chart'
   import ModalContentAoiModification from '$lib/components/Modal/ModalContent/ModalContentAoiModification.svelte'
   import ModalContentParticipantsGroups from '$lib/components/Modal/ModalContent/ModalContentParticipantsGroups.svelte'
   import ModalContentDownloadBarPlot from '$lib/components/Modal/ModalContent/ModalContentDownloadBarPlot.svelte'
+  import ModalContentBarChartAxes from '$lib/components/Modal/ModalContent/ModalContentBarChartAxes.svelte'
   import { getContext } from 'svelte'
   import type { GridStoreType } from '$lib/stores/gridStore'
   import type { ComponentProps } from 'svelte'
@@ -42,6 +44,17 @@
     )
   }
 
+  const openBarChartAxesModal = () => {
+    modalStore.open(
+      ModalContentBarChartAxes as unknown as typeof SvelteComponent,
+      'Bar Chart Axes',
+      {
+        settings,
+        settingsChange,
+      }
+    )
+  }
+
   const downloadPlot = () => {
     modalStore.open(
       ModalContentDownloadBarPlot as unknown as typeof SvelteComponent,
@@ -61,6 +74,11 @@
   }
 
   let items = $derived([
+    {
+      label: 'Bar Chart Axes',
+      action: openBarChartAxesModal,
+      icon: BarChartIcon,
+    },
     {
       label: 'AOI customization',
       action: openAoiModificationModal,

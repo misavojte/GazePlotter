@@ -11,7 +11,7 @@ export interface BarPlotDataItem {
 export function getBarPlotData(
   settings: Pick<
     BarPlotGridType,
-    'stimulusId' | 'groupId' | 'aggregationMethod'
+    'stimulusId' | 'groupId' | 'aggregationMethod' | 'sortBars'
   >
 ) {
   const aois = getAois(settings.stimulusId)
@@ -48,11 +48,24 @@ export function getBarPlotData(
 
   const maxValue = Math.max(...processedData)
 
-  const labeledData = processedData.map((value, index) => ({
+  // Create data items with label and color
+  let labeledData = processedData.map((value, index) => ({
     value: Number(value.toFixed(1)),
     label: aois[index].displayedName,
     color: aois[index].color,
   }))
+
+  // Sort the data based on sortBars setting
+  const sortBars = settings.sortBars || 'none'
+  if (sortBars !== 'none') {
+    labeledData = [...labeledData].sort((a, b) => {
+      if (sortBars === 'ascending') {
+        return a.value - b.value
+      } else {
+        return b.value - a.value
+      }
+    })
+  }
 
   const timeline = new AdaptiveTimeline(0, maxValue, 6)
 
