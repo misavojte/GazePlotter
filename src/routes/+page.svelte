@@ -1,6 +1,13 @@
+<script context="module" lang="ts">
+  // TypeScript declaration for the global variable
+  // from vite.config.ts
+  declare global {
+    const __APP_VERSION__: string
+  }
+</script>
+
 <script>
   import GazePlotter from '$lib/components/GazePlotter.svelte'
-  import { version } from '../../package.json'
 
   // Format the current date
   const currentDate = new Date()
@@ -9,6 +16,9 @@
     day: 'numeric',
     year: 'numeric',
   }).format(currentDate)
+
+  // Use the version from vite.config.ts
+  const version = __APP_VERSION__
 </script>
 
 <svelte:head>
