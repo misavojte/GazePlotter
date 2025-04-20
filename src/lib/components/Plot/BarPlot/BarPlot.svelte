@@ -40,13 +40,6 @@
   const labelededBarPlotData = $derived(barPlotResult.data)
   const timeline = $derived(barPlotResult.timeline)
 
-  function handleBarPlottingTypeChange(event: CustomEvent) {
-    const newType = event.detail as 'vertical' | 'horizontal'
-    settingsChange({
-      barPlottingType: newType,
-    })
-  }
-
   function handleStimulusChange(event: CustomEvent) {
     const newStimulusId = event.detail as string
     settingsChange({
@@ -62,7 +55,13 @@
   }
 
   function handleAggregationMethodChange(event: CustomEvent) {
-    const newAggregationMethod = event.detail as 'absoluteTime' | 'relativeTime'
+    const newAggregationMethod = event.detail as
+      | 'absoluteTime'
+      | 'relativeTime'
+      | 'timeToFirstFixation'
+      | 'avgFixationDuration'
+      | 'avgFirstFixationDuration'
+      | 'averageFixationCount'
     settingsChange({
       aggregationMethod: newAggregationMethod,
     })
@@ -108,21 +107,21 @@
         options={[
           { value: 'absoluteTime', label: 'Absolute Time' },
           { value: 'relativeTime', label: 'Relative Time' },
+          { value: 'timeToFirstFixation', label: 'Time to First Fixation' },
+          { value: 'avgFixationDuration', label: 'Avg Fixation Duration' },
+          {
+            value: 'avgFirstFixationDuration',
+            label: 'Avg First Fixation Duration',
+          },
+          {
+            value: 'averageFixationCount',
+            label: 'Average Fixation Count',
+          },
         ]}
         compact
         value={settings.aggregationMethod}
         onchange={handleAggregationMethodChange}
       />
-      <!-- <GeneralSelect
-        label="Bar Plotting Type"
-        options={[
-          { value: 'vertical', label: 'Vertical' },
-          { value: 'horizontal', label: 'Horizontal' },
-        ]}
-        compact
-        value={settings.barPlottingType}
-        onchange={handleBarPlottingTypeChange}
-      /> -->
       <div class="menu-button">
         <BarPlotButtonMenu {settings} settingsChange={handleSettingsChange} />
       </div>

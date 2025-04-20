@@ -851,18 +851,22 @@ export const updateMultipleAoi = (
 }
 
 /**
- * Returns segments for a given stimulus and participant, optionally filtered by categories.
+ * Returns segments for a given stimulus and participant, optionally filtered by categories and/or AOIs.
  * This function is optimized for performance using direct array access and minimal object creation.
  *
  * @param stimulusId - The numeric ID of the stimulus
  * @param participantId - The numeric ID of the participant
  * @param whereCategories - Optional array of category IDs to filter by. If null, all categories are included.
- * @returns Array of SegmentInterpretedDataType matching the criteria
+ * @param whereAois - Optional array of AOI IDs to filter by. If null, all AOIs are included.
+ * @param limit - Optional maximum number of segments to return. If null, all matching segments are returned.
+ * @returns Array of SegmentInterpretedDataType matching the criteria, limited by the limit parameter if provided
  */
 export const getSegments = (
   stimulusId: number,
   participantId: number,
-  whereCategories: number[] | null = null
+  whereCategories: number[] | null = null,
+  whereAois: number[] | null = null,
+  limit: number | null = null
 ): SegmentInterpretedDataType[] => {
   const segmentsInfo = getData().segments[stimulusId]?.[participantId]
   if (!segmentsInfo) return []
@@ -870,9 +874,16 @@ export const getSegments = (
   const result: SegmentInterpretedDataType[] = []
   const segmentsLength = segmentsInfo.length
 
-  // If no category filter, return all segments
-  if (!whereCategories) {
-    for (let i = 0; i < segmentsLength; i++) {
+  // Early return check for empty limit
+  if (limit === 0) return []
+
+  // Fast path: if no filters are applied, return all segments (possibly limited)
+  if (!whereCategories && !whereAois) {
+    // Determine how many segments to process
+    const processCount =
+      limit !== null ? Math.min(segmentsLength, limit) : segmentsLength
+
+    for (let i = 0; i < processCount; i++) {
       const segmentArray = segmentsInfo[i]
       const start = segmentArray[0]
       const end = segmentArray[1]
@@ -903,22 +914,50 @@ export const getSegments = (
     return result
   }
 
-  // With category filter, only include matching segments
+  // Apply filters (category and/or AOI) with optional limit
   for (let i = 0; i < segmentsLength; i++) {
+    // Check if we've reached the limit (if specified)
+    if (limit !== null && result.length >= limit) {
+      break // Stop processing more segments once we've reached the limit
+    }
+
     const segmentArray = segmentsInfo[i]
     const categoryId = segmentArray[2]
 
-    // Skip if category doesn't match filter
-    if (!whereCategories.includes(categoryId)) continue
+    // Apply category filter if specified
+    if (whereCategories && !whereCategories.includes(categoryId)) {
+      continue // Skip if category doesn't match filter
+    }
 
-    const start = segmentArray[0]
-    const end = segmentArray[1]
-
-    // Get AOI IDs and apply mapping to remove duplicates
+    // Get AOI IDs for this segment
     const aoiIds = getSortedAoiIdsByOrderVector(
       stimulusId,
       segmentArray.slice(3)
     )
+
+    // Apply AOI filter if specified
+    if (whereAois) {
+      // Map the AOI IDs using the AOI ID mapping system
+      const mappedAoiIds = aoiIds.map(aoiId =>
+        getAoiIdMapping(stimulusId, aoiId)
+      )
+
+      // Check if this segment contains at least one of the specified AOIs
+      // Using Set intersection for performance - if intersection is empty, skip this segment
+      const hasMatchingAoi = mappedAoiIds.some(aoiId =>
+        whereAois.includes(aoiId)
+      )
+
+      if (!hasMatchingAoi) {
+        continue // Skip if none of the segment's AOIs match the filter
+      }
+    }
+
+    // At this point, the segment has passed all filters
+    const start = segmentArray[0]
+    const end = segmentArray[1]
+
+    // Apply mapping to remove duplicates (for display purposes)
     const mappedAoiIds = [
       ...new Set(aoiIds.map(aoiId => getAoiIdMapping(stimulusId, aoiId))),
     ]

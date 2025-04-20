@@ -1,5 +1,14 @@
 <script>
   import GazePlotter from '$lib/components/GazePlotter.svelte'
+  import { version } from '../../package.json'
+
+  // Format the current date
+  const currentDate = new Date()
+  const formattedDate = new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(currentDate)
 </script>
 
 <svelte:head>
@@ -140,7 +149,7 @@
 </main>
 <footer class="border-t">
   <div>
-    <p>GazePlotter, version 1.6.2 (April 16, 2025)</p>
+    <p>GazePlotter, version {version} ({formattedDate})</p>
     <p>
       Coded & designed by <a href="https://vojtechovska.com" target="_blank"
         >Michaela Vojtěchovská</a

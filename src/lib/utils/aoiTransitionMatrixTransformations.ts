@@ -13,7 +13,7 @@
 import {
   getParticipants,
   getAois,
-  getSegment,
+  getSegments,
   getNumberOfSegments,
 } from '$lib/stores/dataStore'
 import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType'
@@ -116,40 +116,26 @@ export function calculateTransitionMatrix(
 
     let participantTransitions = 0
 
-    let lastFixation: SegmentInterpretedDataType | null = null
+    // Get all fixation segments for this participant efficiently
+    // Filter for only fixations (category.id === 0)
+    const allSegments = getSegments(stimulusId, participantId, [0])
+
     // Process transitions between fixation segments
-    for (let i = 0; i < segmentCount; i++) {
-      const currentSegment = getSegment(stimulusId, participantId, i)
-
-      // Only consider FIXATIONS (category.id === 0)
-      if (currentSegment.category.id !== 0) {
-        // console.log(
-        //   `  Segment ${i}: Not a fixation (category=${currentSegment.category.id}), skipping`
-        // )
-        continue
-      }
-
-      // console.log(
-      //   `  Segment ${i}: Fixation found (category=${currentSegment.category.id}, AOIs=${currentSegment.aoi.map(a => a.id).join(',')})`
-      // )
-
+    let lastFixation: SegmentInterpretedDataType | null = null
+    for (const currentSegment of allSegments) {
       // If we have a previous fixation, record a transition
       if (lastFixation !== null) {
-        // console.log(`  Processing transition: segment ${i - 1} -> segment ${i}`)
-
         // Determine the "from" AOI indices
         const fromIndices: number[] = []
         if (lastFixation.aoi.length === 0) {
           // If no AOIs, mark as "NO AOI"
           fromIndices.push(outsideAoiIndex)
-          // console.log(`    From: NO AOI (${outsideAoiIndex})`)
         } else {
           // Otherwise add all AOIs that were hit
           for (const aoi of lastFixation.aoi) {
             const index = aoiList.findIndex(a => a.id === aoi.id)
             if (index !== -1) {
               fromIndices.push(index)
-              // console.log(`    From: AOI ${aoi.id} (index ${index})`)
             }
           }
         }
@@ -159,14 +145,12 @@ export function calculateTransitionMatrix(
         if (currentSegment.aoi.length === 0) {
           // If no AOIs, mark as "NO AOI"
           toIndices.push(outsideAoiIndex)
-          // console.log(`    To: NO AOI (${outsideAoiIndex})`)
         } else {
           // Otherwise add all AOIs that were hit
           for (const aoi of currentSegment.aoi) {
             const index = aoiList.findIndex(a => a.id === aoi.id)
             if (index !== -1) {
               toIndices.push(index)
-              // console.log(`    To: AOI ${aoi.id} (index ${index})`)
             }
           }
         }
@@ -176,12 +160,11 @@ export function calculateTransitionMatrix(
           for (const toIdx of toIndices) {
             participantMatrix[fromIdx][toIdx]++
             participantTransitions++
-            // console.log(`    Recorded transition: ${fromIdx} -> ${toIdx}`)
           }
         }
 
         // For dwell time calculation, we need the duration of the lastFixation
-        const fixationDuration = currentSegment.end - currentSegment.start
+        const fixationDuration = lastFixation.end - lastFixation.start
 
         // Record dwell time for each transition
         for (const fromIdx of fromIndices) {
@@ -429,18 +412,17 @@ export function calculateSegmentDwellTimeMatrix(
     // Skip if no segments or only one segment
     if (segmentCount <= 1) continue
 
+    // Get all fixation segments for this participant efficiently
+    // Filter for only fixations (category.id === 0)
+    const fixationSegments = getSegments(stimulusId, participantId, [0])
+
     // For segment-based dwell time tracking
     let currentAoiIndices: number[] = []
     let segmentStartTime = 0
     let isTrackingSegment = false
 
     // Process fixation segments
-    for (let i = 0; i < segmentCount; i++) {
-      const currentSegment = getSegment(stimulusId, participantId, i)
-
-      // Only consider fixations (category.id === 0)
-      if (currentSegment.category.id !== 0) continue
-
+    for (const currentSegment of fixationSegments) {
       // Get current AOI indices
       const aoiIndices: number[] = []
       if (currentSegment.aoi.length === 0) {

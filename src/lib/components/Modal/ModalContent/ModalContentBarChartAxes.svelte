@@ -2,6 +2,8 @@
   import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
   import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import type { BarPlotGridType } from '$lib/type/gridType'
+  import GeneralFieldset from '$lib/components/General/GeneralFieldset/GeneralFieldset.svelte'
+  import GeneralInputNumber from '$lib/components/General/GeneralInput/GeneralInputNumber.svelte'
 
   interface Props {
     settings: BarPlotGridType
@@ -14,10 +16,29 @@
   let barPlottingType = $state(settings.barPlottingType)
   let sortBars = $state(settings.sortBars)
 
+  // Scale range settings
+  let minValue = $state(
+    settings.scaleRange ? parseFloat(settings.scaleRange[0].toString()) : 0
+  )
+  let maxValue = $state(
+    settings.scaleRange ? parseFloat(settings.scaleRange[1].toString()) : 0
+  )
+  let useCustomScale = $state(
+    settings.scaleRange &&
+      !(settings.scaleRange[0] === 0 && settings.scaleRange[1] === 0)
+  )
+
   const handleSubmit = () => {
+    // Create a new scaleRange based on the inputs
+    let newScaleRange: [number, number] = [0, 0] // Default to auto if not using custom scale
+
+    // Use the numeric values directly
+    newScaleRange = [minValue || 0, maxValue || 0]
+
     settingsChange({
       barPlottingType,
       sortBars,
+      scaleRange: newScaleRange,
     })
   }
 </script>
@@ -48,6 +69,25 @@
     />
   </div>
 
+  <div class="axes-section">
+    <GeneralFieldset legend="Scale Range">
+      <div class="scale-range-section">
+        <div class="scale-inputs">
+          <GeneralInputNumber label="Min Value" bind:value={minValue} min={0} />
+
+          <div class="max-value-container">
+            <GeneralInputNumber
+              label="Max Value"
+              bind:value={maxValue}
+              min={0}
+            />
+            <div class="hint-text">Use 0 for automatic max scale</div>
+          </div>
+        </div>
+      </div></GeneralFieldset
+    >
+  </div>
+
   <div class="buttons-container">
     <GeneralButtonMajor onclick={handleSubmit}>Apply</GeneralButtonMajor>
   </div>
@@ -62,6 +102,29 @@
 
   .axes-section {
     margin-bottom: 8px;
+  }
+
+  .scale-range-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .scale-inputs {
+    display: flex;
+    gap: 16px;
+    margin-top: 8px;
+  }
+
+  .max-value-container {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .hint-text {
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
   }
 
   .buttons-container {

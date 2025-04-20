@@ -50,7 +50,19 @@ export interface BarPlotGridType extends GridType {
   groupId: number
   barPlottingType: 'vertical' | 'horizontal'
   sortBars: 'none' | 'ascending' | 'descending' // Sorting option for bars
-  aggregationMethod: 'absoluteTime' | 'relativeTime'
+  aggregationMethod:
+    | 'absoluteTime'
+    | 'relativeTime'
+    | 'timeToFirstFixation'
+    | 'avgFixationDuration'
+    | 'avgFirstFixationDuration'
+    | 'averageFixationCount'
+  /**
+   * Scale range in [start, end] format.
+   * For start (index 0): The minimum value for the scale.
+   * For end (index 1): The maximum value for the scale. 0 means automatically use the data range.
+   */
+  scaleRange: [number, number]
 }
 
 // now create a type that is a union of all the grid types
