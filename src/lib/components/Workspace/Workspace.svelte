@@ -475,6 +475,12 @@
     } else if (id === 'toggle-fullscreen') {
       // Delegate fullscreen toggle to the toolbar
       // The toolbar component will handle fullscreen functionality itself
+    } else if (id === 'reset-layout') {
+      // Reset the workspace to the default grid state
+      gridStore.reset([])
+      createDefaultGridStateData().forEach(item => {
+        gridStore.addItem(item.type)
+      })
     }
   }
 
