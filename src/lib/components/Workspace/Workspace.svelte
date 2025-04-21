@@ -26,6 +26,7 @@
     getVisualizationConfig,
   } from '$lib/const/vizRegistry'
   import { throttleByRaf } from '$lib/utils/throttle'
+  import { browser } from '$app/environment'
 
   // ---------------------------------------------------
   // State tracking
@@ -477,10 +478,7 @@
       // The toolbar component will handle fullscreen functionality itself
     } else if (id === 'reset-layout') {
       // Reset the workspace to the default grid state
-      gridStore.reset([])
-      createDefaultGridStateData().forEach(item => {
-        gridStore.addItem(item.type)
-      })
+      processingFileStateStore.set('done')
     }
   }
 
@@ -805,10 +803,11 @@
     }
   }
 
-  let isInitialLoad = true
-  // When the processing state changes, update the grid and loading state
-  $effect(() => {
-    if ($processingFileStateStore === 'done' && !isInitialLoad) {
+  // on change of processingFileStateStore, set isInitialLoad to false
+  // dont use $effect, use a subscribe
+  // only trigger if DIFFERS from previous state
+  processingFileStateStore.subscribe(newState => {
+    if (newState === 'done') {
       isLoading.set(false)
       // Reset by providing initial data to the store's set method
       // Note: The store doesn't have a reset method that accepts initial data directly.
@@ -827,14 +826,13 @@
         gridStore.addItem(item.type, item)
       })
       processingFileStateStore.set('idle')
-    } else if ($processingFileStateStore === 'processing') {
+    } else if (newState === 'processing') {
       isLoading.set(true)
       gridStore.reset([]) // Reset to empty state
-    } else if ($processingFileStateStore === 'fail') {
+    } else if (newState === 'fail') {
       isLoading.set(false)
       gridStore.reset([]) // Reset to empty state
     }
-    isInitialLoad = false
   })
 
   // Note: Previously, we would add grid items for both empty and loading states.
