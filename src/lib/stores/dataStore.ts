@@ -853,6 +853,7 @@ export const updateMultipleAoi = (
 /**
  * Returns segments for a given stimulus and participant, optionally filtered by categories and/or AOIs.
  * This function is optimized for performance using direct array access and minimal object creation.
+ * It applies AOI ID mapping to remove duplicates and ensure grouped AOIs are treated as a single entity.
  *
  * @param stimulusId - The numeric ID of the stimulus
  * @param participantId - The numeric ID of the participant

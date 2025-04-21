@@ -18,6 +18,12 @@ import {
 } from '$lib/stores/dataStore'
 import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType'
 import type { SegmentInterpretedDataType } from '$lib/type/Data/InterpretedData/SegmentInterpretedDataType'
+import {
+  createMatrix,
+  formatDecimal,
+  sumArray,
+  arraysHaveSameElements,
+} from './mathUtils'
 /**
  * Defines available aggregation methods for transition matrices
  */
@@ -82,9 +88,7 @@ export function calculateTransitionMatrix(
 
   if (participantIds.length === 0) {
     // console.log('No participants found, returning empty matrix')
-    const emptyMatrix = Array(matrixSize)
-      .fill(0)
-      .map(() => Array(matrixSize).fill(0))
+    const emptyMatrix = createMatrix(matrixSize, matrixSize, 0)
     return { matrix: emptyMatrix, aoiLabels, aoiList }
   }
 
@@ -100,9 +104,7 @@ export function calculateTransitionMatrix(
     // console.log(`\nProcessing participant ${participantId}`)
 
     // Initialize a matrix for this participant
-    const participantMatrix = Array(matrixSize)
-      .fill(0)
-      .map(() => Array(matrixSize).fill(0))
+    const participantMatrix = createMatrix(matrixSize, matrixSize, 0)
 
     const segmentCount = getNumberOfSegments(stimulusId, participantId)
     // console.log(`  Participant has ${segmentCount} segments`)
@@ -218,13 +220,6 @@ export function calculateTransitionMatrix(
       break
   }
 
-  // Log the total transitions in the final matrix
-  const totalInFinalMatrix = resultMatrix.reduce(
-    (sum, row) => sum + row.reduce((rowSum, cell) => rowSum + cell, 0),
-    0
-  )
-  // console.log(`Total value in final matrix: ${totalInFinalMatrix}`)
-
   return { matrix: resultMatrix, aoiLabels, aoiList }
 }
 
@@ -241,9 +236,7 @@ function calculateSumMatrix(matrices: number[][][]): number[][] {
   const cols = matrices[0][0].length
 
   // Initialize result matrix with zeros
-  const result = Array(rows)
-    .fill(0)
-    .map(() => Array(cols).fill(0))
+  const result = createMatrix(rows, cols, 0)
 
   // Sum up all matrices
   for (const matrix of matrices) {
@@ -266,14 +259,12 @@ function calculateSumMatrix(matrices: number[][][]): number[][] {
  */
 function calculateTransitionProbabilityMatrix(matrix: number[][]): number[][] {
   // Create a new matrix of the same size
-  const result = Array(matrix.length)
-    .fill(0)
-    .map((_, i) => Array(matrix[0].length).fill(0))
+  const result = createMatrix(matrix.length, matrix[0].length, 0)
 
   // Process each row (source AOI)
   for (let i = 0; i < matrix.length; i++) {
     // Calculate the total transitions from this AOI
-    const rowSum = matrix[i].reduce((sum, value) => sum + value, 0)
+    const rowSum = sumArray(matrix[i])
 
     // If no transitions from this AOI, leave as zeros
     if (rowSum === 0) continue
@@ -281,7 +272,7 @@ function calculateTransitionProbabilityMatrix(matrix: number[][]): number[][] {
     // Calculate the probability for each transition
     for (let j = 0; j < matrix[i].length; j++) {
       // Convert to percentage
-      result[i][j] = ((matrix[i][j] / rowSum) * 100).toFixed(1)
+      result[i][j] = formatDecimal((matrix[i][j] / rowSum) * 100)
     }
   }
 
@@ -315,9 +306,7 @@ function calculateDwellTimeMatrix(
   const rows = matrices[0].length
   const cols = matrices[0][0].length
 
-  const result = Array(rows)
-    .fill(0)
-    .map(() => Array(cols).fill(0))
+  const result = createMatrix(rows, cols, 0)
 
   // Calculate average dwell time for each transition
   for (let i = 0; i < rows; i++) {
@@ -327,9 +316,9 @@ function calculateDwellTimeMatrix(
         dwellTimeData[i][j] &&
         dwellTimeData[i][j].count > 0
       ) {
-        result[i][j] = (
+        result[i][j] = formatDecimal(
           dwellTimeData[i][j].totalTime / dwellTimeData[i][j].count
-        ).toFixed(1)
+        )
       }
     }
   }
@@ -344,10 +333,11 @@ function calculateDwellTimeMatrix(
  * @returns Total number of transitions
  */
 export function getTotalTransitions(matrix: number[][]): number {
-  return matrix.reduce(
-    (total, row) => total + row.reduce((rowTotal, cell) => rowTotal + cell, 0),
-    0
-  )
+  let total = 0
+  for (let i = 0; i < matrix.length; i++) {
+    total += sumArray(matrix[i])
+  }
+  return total
 }
 
 /**
@@ -360,14 +350,29 @@ export function normalizeTransitionMatrix(matrix: number[][]): number[][] {
   const total = getTotalTransitions(matrix)
   if (total === 0) return matrix.map(row => [...row])
 
-  return matrix.map(row => row.map(value => (value / total) * 100))
+  const result = createMatrix(matrix.length, matrix[0].length, 0)
+
+  for (let i = 0; i < matrix.length; i++) {
+    for (let j = 0; j < matrix[i].length; j++) {
+      result[i][j] = (matrix[i][j] / total) * 100
+    }
+  }
+
+  return result
 }
 
 /**
  * Calculate segment-based dwell time transition matrix
  *
  * This function analyzes consecutive fixations within the same AOI(s) to calculate
- * average dwell time for segments before transitions.
+ * average dwell time for segments before transitions. For example, if the sequence
+ * is A, A, A, A, B, it will sum the duration of each individual A fixation (end-start)
+ * before the transition to B. This means it measures the total time spent on a set of AOIs
+ * by summing the actual durations of each fixation before transitioning to a different set of AOIs.
+ *
+ * The dwell time is calculated by summing the individual fixation durations (end-start) of
+ * consecutive fixations on the same AOI(s). This ensures we capture the actual time spent
+ * on each fixation before any transition occurs.
  *
  * @param stimulusId ID of the stimulus to analyze
  * @param groupId ID of the participant group (-1 for all participants)
@@ -392,9 +397,7 @@ export function calculateSegmentDwellTimeMatrix(
   const outsideAoiIndex = aoiList.length // Index for "NO AOI"
 
   if (participantIds.length === 0) {
-    const emptyMatrix = Array(matrixSize)
-      .fill(0)
-      .map(() => Array(matrixSize).fill(0))
+    const emptyMatrix = createMatrix(matrixSize, matrixSize, 0)
     return { matrix: emptyMatrix, aoiLabels, aoiList }
   }
 
@@ -418,7 +421,7 @@ export function calculateSegmentDwellTimeMatrix(
 
     // For segment-based dwell time tracking
     let currentAoiIndices: number[] = []
-    let segmentStartTime = 0
+    let currentSegmentTotalDuration = 0
     let isTrackingSegment = false
 
     // Process fixation segments
@@ -439,13 +442,11 @@ export function calculateSegmentDwellTimeMatrix(
       // If we haven't started tracking a segment yet
       if (!isTrackingSegment) {
         currentAoiIndices = [...aoiIndices]
-        segmentStartTime = currentSegment.start
+        currentSegmentTotalDuration = currentSegment.end - currentSegment.start
         isTrackingSegment = true
       }
       // If AOIs changed, record the segment and start a new one
       else if (!arraysHaveSameElements(currentAoiIndices, aoiIndices)) {
-        const segmentDuration = currentSegment.start - segmentStartTime
-
         // Record segment dwell time for each transition
         for (const fromIdx of currentAoiIndices) {
           for (const toIdx of aoiIndices) {
@@ -456,24 +457,26 @@ export function calculateSegmentDwellTimeMatrix(
               segmentDwellTimeData[fromIdx][toIdx] = { totalTime: 0, count: 0 }
             }
 
-            // Add this segment's duration to the total
-            segmentDwellTimeData[fromIdx][toIdx].totalTime += segmentDuration
+            // Add this segment's total duration to the total
+            segmentDwellTimeData[fromIdx][toIdx].totalTime +=
+              currentSegmentTotalDuration
             segmentDwellTimeData[fromIdx][toIdx].count++
           }
         }
 
         // Start new segment
         currentAoiIndices = [...aoiIndices]
-        segmentStartTime = currentSegment.start
+        currentSegmentTotalDuration = currentSegment.end - currentSegment.start
       }
-      // If same AOI, continue the current segment
+      // If same AOI, add this fixation's duration to the current segment
+      else {
+        currentSegmentTotalDuration += currentSegment.end - currentSegment.start
+      }
     }
   }
 
   // Initialize result matrix with zeros
-  const resultMatrix = Array(matrixSize)
-    .fill(0)
-    .map(() => Array(matrixSize).fill(0))
+  const resultMatrix = createMatrix(matrixSize, matrixSize, 0)
 
   // Calculate average dwell time for each transition
   for (let i = 0; i < matrixSize; i++) {
@@ -483,26 +486,13 @@ export function calculateSegmentDwellTimeMatrix(
         segmentDwellTimeData[i][j] &&
         segmentDwellTimeData[i][j].count > 0
       ) {
-        resultMatrix[i][j] = (
+        resultMatrix[i][j] = formatDecimal(
           segmentDwellTimeData[i][j].totalTime /
-          segmentDwellTimeData[i][j].count
-        ).toFixed(1)
+            segmentDwellTimeData[i][j].count
+        )
       }
     }
   }
 
   return { matrix: resultMatrix, aoiLabels, aoiList }
-}
-
-/**
- * Helper function to check if two arrays have the same elements (order doesn't matter)
- * Used for comparing AOI indices for segment-based dwell time
- */
-function arraysHaveSameElements(arr1: number[], arr2: number[]): boolean {
-  if (arr1.length !== arr2.length) return false
-
-  const sortedArr1 = [...arr1].sort()
-  const sortedArr2 = [...arr2].sort()
-
-  return sortedArr1.every((val, idx) => val === sortedArr2[idx])
 }

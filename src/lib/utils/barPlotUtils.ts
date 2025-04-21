@@ -4,6 +4,12 @@ import type { BarPlotGridType } from '$lib/type/gridType'
 import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType'
 import type { SegmentInterpretedDataType } from '$lib/type/Data/InterpretedData/SegmentInterpretedDataType'
 import type { BaseInterpretedDataType } from '$lib/type/Data/InterpretedData/BaseInterpretedDataType'
+import {
+  formatDecimal,
+  calculateAverage,
+  normalizeToPercentages,
+  createArray,
+} from './mathUtils'
 
 export interface BarPlotDataItem {
   value: number
@@ -51,7 +57,7 @@ export function getBarPlotData(
         settings.groupId,
         aois
       )
-      processedData = convertToRelativeValues(absoluteTimes)
+      processedData = normalizeToPercentages(absoluteTimes)
       break
 
     case 'timeToFirstFixation':
@@ -115,7 +121,7 @@ export function collectDwellTimeData(
 
   // Data structures for time tracking
   let noAoiTotalTime = 0
-  const aoisSumTimes = new Array(aois.length).fill(0)
+  const aoisSumTimes = createArray(aois.length, 0)
 
   // Process each participant
   for (const participant of participants) {
@@ -150,13 +156,7 @@ export function collectDwellTimeData(
  * Converts absolute time values to relative percentages
  */
 export function convertToRelativeValues(absoluteValues: number[]): number[] {
-  const totalTime = absoluteValues.reduce((sum, time) => sum + time, 0)
-
-  if (totalTime === 0) {
-    return new Array(absoluteValues.length).fill(0)
-  }
-
-  return absoluteValues.map(time => (time / totalTime) * 100)
+  return normalizeToPercentages(absoluteValues)
 }
 
 /**
@@ -179,7 +179,7 @@ export function collectTimeToFirstFixationData(
   // Process each participant
   for (const participant of participants) {
     // Track first fixation for this participant
-    const participantFirstFixationTimes = new Array(aois.length).fill(-1)
+    const participantFirstFixationTimes = createArray(aois.length, -1)
     let participantFirstFixatedNoAoi = false
 
     // Get fixation segments in chronological order
@@ -216,14 +216,13 @@ export function collectTimeToFirstFixationData(
   // Calculate average first fixation time for each AOI
   const avgFirstFixationTimes = aoiFirstFixationTimes.map(times => {
     if (times.length === 0) return -1
-    return times.reduce((sum, time) => sum + time, 0) / times.length
+    return calculateAverage(times)
   })
 
   // Calculate average for no-AOI
   const noAoiAvgFirstFixation =
     noAoiFirstFixationTimes.length > 0
-      ? noAoiFirstFixationTimes.reduce((sum, time) => sum + time, 0) /
-        noAoiFirstFixationTimes.length
+      ? calculateAverage(noAoiFirstFixationTimes)
       : -1
 
   // Return combined array with normalized values (replace -1 with 0 for visualization)
@@ -277,16 +276,13 @@ export function collectAvgFixationDurationData(
   // Calculate average fixation duration for each AOI
   const avgFixationDurations = aoiFixationDurations.map(durations => {
     if (durations.length === 0) return 0
-    return (
-      durations.reduce((sum, duration) => sum + duration, 0) / durations.length
-    )
+    return calculateAverage(durations)
   })
 
   // Calculate average for no-AOI
   const noAoiAvgDuration =
     noAoiFixationDurations.length > 0
-      ? noAoiFixationDurations.reduce((sum, duration) => sum + duration, 0) /
-        noAoiFixationDurations.length
+      ? calculateAverage(noAoiFixationDurations)
       : 0
 
   // Return combined array
@@ -305,15 +301,15 @@ export function collectAvgFirstFixationDurationData(
   const participants = getParticipants(groupId, stimulusId)
 
   // Data structures for first fixation durations
-  const aoiFirstFixationDurations: number[] = Array(aois.length).fill(0)
-  const aoiFirstFixationCounts: number[] = Array(aois.length).fill(0)
+  const aoiFirstFixationDurations = createArray(aois.length, 0)
+  const aoiFirstFixationCounts = createArray(aois.length, 0)
   let noAoiFirstFixationDuration = 0
   let noAoiFirstFixationCount = 0
 
   // Process each participant
   for (const participant of participants) {
     // Tracking for first fixation per participant
-    const participantFirstFixated = new Array(aois.length).fill(false)
+    const participantFirstFixated = createArray(aois.length, false)
     let participantFirstFixatedNoAoi = false
 
     // Get fixation segments
@@ -376,7 +372,7 @@ export function collectAverageFixationCountData(
 
   // Skip if no participants
   if (participants.length === 0) {
-    return [...new Array(aois.length + 1).fill(0)]
+    return createArray(aois.length + 1, 0)
   }
 
   // Arrays to store fixation counts for each participant
@@ -388,7 +384,7 @@ export function collectAverageFixationCountData(
   // Process each participant
   for (const participant of participants) {
     // Initialize counters for this participant
-    const participantAoiCounts = new Array(aois.length).fill(0)
+    const participantAoiCounts = createArray(aois.length, 0)
     let participantNoAoiCount = 0
 
     // Get all fixation segments
@@ -424,14 +420,11 @@ export function collectAverageFixationCountData(
     if (counts.length === 0) return 0
 
     // Calculate average fixation count across participants
-    const total = counts.reduce((sum, count) => sum + count, 0)
-    return total / participants.length
+    return calculateAverage(counts)
   })
 
   // Calculate average no-AOI fixation count
-  const avgNoAoiFixationCount =
-    noAoiFixationCounts.reduce((sum, count) => sum + count, 0) /
-    participants.length
+  const avgNoAoiFixationCount = calculateAverage(noAoiFixationCounts)
 
   // Return combined array
   return [...avgAoiFixationCounts, avgNoAoiFixationCount]
@@ -449,7 +442,7 @@ export function createLabeledData(
 
   return rawData.map((value, index) => {
     // Format value to 1 decimal place
-    const formattedValue = Number(value.toFixed(1))
+    const formattedValue = formatDecimal(value)
 
     // Handle last element (No AOI)
     if (index === aois.length) {

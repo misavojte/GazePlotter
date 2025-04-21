@@ -1,3 +1,5 @@
+import { sumArray } from '$lib/utils/mathUtils'
+
 /**
  * Utility functions for text measurement and manipulation in SVG elements
  */
@@ -89,7 +91,7 @@ export function calculateTextMetrics(
     estimateTextWidth(text, fontSize, fontFamily)
   )
   const maxWidth = Math.max(...widths)
-  const totalWidth = widths.reduce((sum, width) => sum + width, 0)
+  const totalWidth = sumArray(widths)
   const averageWidth = totalWidth / widths.length
 
   return {

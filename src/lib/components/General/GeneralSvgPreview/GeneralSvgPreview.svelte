@@ -220,17 +220,6 @@
       if (fileType !== '.svg' && canvasPreview) {
         getBlobForDownload(fileType, fileType === '.jpg' ? 0.95 : 1.0)
           .then(blob => {
-            // Calculate file size for logging
-            const fileSizeMB = (blob.size / (1024 * 1024)).toFixed(2)
-            const { physicalWidth, physicalHeight } = getPhysicalDimensions()
-
-            console.log(
-              `Exporting ${fileType} file at ${dpi} DPI (${fileSizeMB} MB)`
-            )
-            console.log(
-              `Physical size: ${physicalWidth.toFixed(2)}in × ${physicalHeight.toFixed(2)}in`
-            )
-
             // Create download link
             const url = URL.createObjectURL(blob)
             const a = document.createElement('a')
