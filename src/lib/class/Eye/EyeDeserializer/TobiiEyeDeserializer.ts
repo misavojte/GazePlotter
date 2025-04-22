@@ -145,26 +145,26 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     const { startMarker, endMarker } = this.constructIntervalMarkers(userInput)
     const stimulusGetterFunction = (row: string[]): string | string[] => {
       const event = row[this.cEvent]
-      const participant = row[this.cRecording] + ' ' + row[this.cParticipant]
 
       // If event is empty or undefined, return current stimuli stack
       if (event === '' || event === undefined) {
         return this.intervalStack.length > 0 ? this.intervalStack : ''
       }
 
-      // Handle interval start - add to stack
+      // Handle interval start - add to stack if not already present
       if (event.includes(startMarker)) {
         const newStimulus = event.replace(startMarker, '')
-        // Only add if not already in the stack
+        // Only add to stack if it's not already in the stack (prevent duplicates)
         if (!this.intervalStack.includes(newStimulus)) {
           this.intervalStack.push(newStimulus)
         }
-        return this.intervalStack.length > 0 ? this.intervalStack : ''
+        return this.intervalStack
       }
 
-      // Handle interval end - remove specific stimulus from stack
+      // Handle interval end - remove from stack if present
       if (event.includes(endMarker)) {
         const endingStimulus = event.replace(endMarker, '')
+        // Find the stimulus in the stack and remove it
         const index = this.intervalStack.indexOf(endingStimulus)
         if (index !== -1) {
           this.intervalStack.splice(index, 1)
@@ -237,37 +237,43 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     const previousSegment = this.getPreviousSegment()
 
     const stimulusResult = this.stimulusGetter(row)
-    const participant = row[this.cRecording] + ' ' + row[this.cParticipant]
-    const category = row[this.cCategory]
-    const aoi = this.getAoisFromRow(row)
 
-    // Handle array of stimuli or single stimulus
+    // If no active intervals, skip this segment entirely
+    if (
+      stimulusResult === '' ||
+      (Array.isArray(stimulusResult) && stimulusResult.length === 0)
+    ) {
+      // Clear current segment data since no stimulus is active
+      this.mStimulus = ''
+      return previousSegment
+    }
+
+    const participant = row[this.cRecording] + ' ' + row[this.cParticipant]
+    const aoi = this.getAoisFromRow(row)
+    const category = row[this.cCategory]
+
+    // Handle multiple active stimuli
     if (Array.isArray(stimulusResult) && stimulusResult.length > 0) {
-      // Ensure we have base times for all stimuli in the stack for this participant
+      // Ensure we have base times for all stimuli
       stimulusResult.forEach(stimulus => {
         if (this.stimuliBaseTimes.get(stimulus + participant) === undefined) {
           this.stimuliBaseTimes.set(stimulus + participant, recordingTimestamp)
         }
       })
 
-      // Set top-level stimulus to the most recent one in the stack
+      // Update state with the most recent stimulus for future reference
       this.mStimulus = stimulusResult[stimulusResult.length - 1]
     } else {
-      // Handle single stimulus case
-      const stimulus = Array.isArray(stimulusResult) ? '' : stimulusResult
-
-      if (
-        stimulus !== '' &&
-        this.stimuliBaseTimes.get(stimulus + participant) === undefined
-      ) {
+      // Single stimulus case
+      const stimulus = stimulusResult as string
+      if (this.stimuliBaseTimes.get(stimulus + participant) === undefined) {
         this.stimuliBaseTimes.set(stimulus + participant, recordingTimestamp)
       }
 
-      // Set current stimulus
       this.mStimulus = stimulus
     }
 
-    // Save segment data
+    // Save common segment data
     this.mParticipant = participant
     this.mRecordingStart = recordingTimestamp
     this.mCategory = category
@@ -314,19 +320,14 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   getPreviousSegment(): DeserializerOutputType {
     if (
       this.mParticipant === '' ||
+      this.mStimulus === '' ||
       this.mRecordingStart === '' ||
       this.mRecordingLast === this.mRecordingStart
-    ) {
+    )
       return null
-    }
 
-    // If we have an empty stimulus but active intervals, use the intervals
-    if (this.mStimulus === '' && this.intervalStack.length > 0) {
-      this.mStimulus = this.intervalStack[this.intervalStack.length - 1]
-    }
-
-    // If we have an interval stack and it has multiple entries, create a segment for each
-    if (this.intervalStack.length > 1) {
+    // If we have active intervals in the stack, create segments for each one
+    if (this.intervalStack.length > 0) {
       return this.intervalStack.map(stimulus => {
         const baseTime =
           this.stimuliBaseTimes.get(stimulus + this.mParticipant) ||
@@ -347,8 +348,8 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
           aoi: this.mAoi,
         }
       })
-    } else if (this.mStimulus !== '') {
-      // Single stimulus case
+    } else {
+      // Single stimulus case (could be the last remaining one or a non-interval stimulus)
       const baseTime =
         this.stimuliBaseTimes.get(this.mStimulus + this.mParticipant) ||
         this.mRecordingStart
@@ -368,8 +369,6 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
         aoi: this.mAoi,
       }
     }
-
-    return null
   }
 
   /**
