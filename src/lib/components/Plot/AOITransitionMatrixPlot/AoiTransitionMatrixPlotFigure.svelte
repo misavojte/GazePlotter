@@ -9,7 +9,6 @@
   const BASE_LABEL_OFFSET = 5
   const TOP_MARGIN = 30
   const LEFT_MARGIN = 30
-  const LEGEND_HEIGHT = 40
   const MAX_LABEL_LENGTH = 10 // Maximum number of characters before truncation
   const MIN_CELL_SIZE = 20 // Minimum cell size in pixels
 
