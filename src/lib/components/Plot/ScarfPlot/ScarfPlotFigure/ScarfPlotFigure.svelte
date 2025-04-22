@@ -98,6 +98,7 @@
   let lastMouseY = $state(0)
   let dragStartX = $state(0)
   let pixelRatio = $state(1)
+  let renderScheduled = $state(false) // Track if a render is scheduled
 
   // Derived values using Svelte 5 $derived rune
   const usedHighlight = $derived(fixedHighlight ?? highlightedIdentifier)
@@ -119,10 +120,6 @@
       chartWidth - LEFT_LABEL_WIDTH - LAYOUT.PADDING * 2 - LAYOUT.RIGHT_MARGIN
     )
   )
-
-  const chartHeight = $derived(calculatedHeights.chartHeight)
-
-  const legendHeight = $derived(calculatedHeights.legendHeight)
 
   const totalHeight = $derived(calculatedHeights.totalHeight)
 
@@ -1075,6 +1072,20 @@
     }
   }
 
+  // Create a render scheduler
+  function scheduleRender() {
+    if (!renderScheduled) {
+      renderScheduled = true
+      requestAnimationFrame(() => {
+        if (canvas && canvasCtx) {
+          resizeCanvas()
+          renderCanvas()
+        }
+        renderScheduled = false
+      })
+    }
+  }
+
   // Lifecycle hooks
   onMount(() => {
     setupCanvas()
@@ -1107,12 +1118,8 @@
       usedHighlight,
     ]
 
-    if (canvas && canvasCtx) {
-      // Always resize the canvas when dimensions change
-      resizeCanvas()
-      // Always redraw after changes
-      renderCanvas()
-    }
+    // Schedule a render instead of immediate execution
+    scheduleRender()
   })
 </script>
 
