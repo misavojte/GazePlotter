@@ -1,4 +1,8 @@
-import { getAois, getParticipants } from '$lib/stores/dataStore'
+import {
+  getAois,
+  getParticipants,
+  hasStimulusAoiVisibility,
+} from '$lib/stores/dataStore'
 
 /**
  * Helper function to calculate the height of the scarf legend group based on the current data in pixels.
@@ -12,7 +16,7 @@ export const getScarfLegendHeight = (
   height: number,
   numberPerRow: number
 ) => {
-  return height * (length / numberPerRow)
+  return height * Math.ceil(length / numberPerRow)
 }
 
 /**
@@ -31,9 +35,7 @@ export const getScarfParticipantBarHeight = (
   showAoiVisibility: boolean,
   lineWrappedHeight: number
 ): number => {
-  // Placeholder logic for calculating bar height based on parameters
   const baseHeight = heightOfBar + spaceAboveRect * 2
-  // Adjust baseHeight based on dynamicAOI, gaps, etc., using additionalParameters as needed
 
   // Conditionally adjust the height if AOI visibility is shown
   return showAoiVisibility
@@ -53,13 +55,11 @@ export const getScarfHeight = (
   isAoiVisible: boolean,
   aoiDataLength: number
 ) => {
-  // Placeholder logic for calculating grid height based on parameters
   const HEIGHT_OF_BAR = 20
   const HEIGHT_OF_LEGEND_BAR = 32
   const SPACE_ABOVE_RECT = 5
   const LINE_WRAPPED_HEIGHT = 6
   const NUMBER_PER_ROW = 4
-
   const ADD_HEIGHT = 210
 
   const baseHeight = getScarfParticipantBarHeight(
@@ -110,7 +110,6 @@ export const getScarfGridHeightFromCurrentData = (
   groupId: number
 ): number => {
   const participants = getParticipants(groupId, stimulusId)
-  console.log(participants)
   const aois = getAois(stimulusId)
   const UNIT_OF_GRID_HEIGHT = 50
 
@@ -134,10 +133,8 @@ export const getDynamicAoiBoolean = (
   timeline: 'ordinal' | 'absolute' | 'relative',
   dynamicAOIAllowed: boolean,
   dynamicAOIInData: boolean
-) => {
-  return timeline === 'ordinal'
-    ? false
-    : !dynamicAOIAllowed
-      ? false
-      : dynamicAOIInData
+): boolean => {
+  if (timeline === 'ordinal') return false
+  if (!dynamicAOIAllowed) return false
+  return dynamicAOIInData
 }

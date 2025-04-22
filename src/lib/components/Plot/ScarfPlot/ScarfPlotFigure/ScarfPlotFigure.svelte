@@ -11,7 +11,6 @@
   const LAYOUT = {
     LEFT_LABEL_MAX_WIDTH: 125, // Width for participant labels
     AXIS_LABEL_HEIGHT: 30, // Height for the x-axis label
-    LEGEND_HEIGHT: 100, // Height for the legend
     LABEL_FONT_SIZE: 12, // Font size for labels
     PADDING: 0, // General padding
     RIGHT_MARGIN: 15, // Right margin to prevent tick label cropping
@@ -60,41 +59,128 @@
     chartWidth = 0,
   }: Props = $props()
 
-  // Calculate legend height based on content
-  function calculateLegendHeight(): number {
-    if (!data.stylingAndLegend) return LAYOUT.LEGEND_HEIGHT
+  // Legend constants
+  const LEGEND = {
+    TITLE_HEIGHT: 18,
+    ITEM_HEIGHT: 15,
+    ITEM_PADDING: 8,
+    GROUP_SPACING: 10, // Increased for better separation between groups
+    GROUP_TITLE_SPACING: 5, // Increased for better space between title and items
+    ICON_WIDTH: 20,
+    TEXT_PADDING: 8,
+    ITEM_SPACING: 15,
+    FONT_SIZE: 12,
+    BG_HOVER_COLOR: 'rgba(0, 0, 0, 0.05)',
+    RECT_HIGHLIGHT_STROKE: '#333333',
+    RECT_HIGHLIGHT_STROKE_WIDTH: 1,
+    LINE_HIGHLIGHT_STROKE_WIDTH: 3,
+    ITEMS_PER_ROW: 3,
+  }
 
-    const LEGEND_CONFIG = {
-      TITLE_HEIGHT: 18,
-      ITEM_HEIGHT: LAYOUT.LEGEND_ITEM_HEIGHT,
-      ITEM_PADDING: 4,
-      ITEM_PER_ROW: LAYOUT.LEGEND_ITEMS_PER_ROW,
-      GROUP_SPACING: 10,
+  // Calculate legend items per row based on available width
+  function getItemsPerRow({
+    chartWidth,
+    leftLabelWidth,
+    padding,
+    iconWidth,
+    textPadding,
+    itemSpacing,
+    avgTextWidth = 90, // Default value for average text width
+  }: {
+    chartWidth: number
+    leftLabelWidth: number
+    padding: number
+    iconWidth: number
+    textPadding: number
+    itemSpacing: number
+    avgTextWidth?: number
+  }): number {
+    if (!chartWidth || chartWidth <= 0) {
+      return 3 // Default if no width provided
     }
 
+    // Calculate how many items can fit in the available width with spacing
+    const availableWidth = chartWidth - leftLabelWidth - padding * 2
+
+    // Account for item width (icon + text + padding)
+    const itemFullWidth = iconWidth + textPadding + avgTextWidth + itemSpacing
+
+    const maxItems = Math.floor(availableWidth / itemFullWidth)
+
+    // Return at least 1 item per row, or as many as will fit
+    return Math.max(1, maxItems)
+  }
+
+  // Calculate legend height based on content
+  function calculateLegendHeight({
+    aoiItemsLength,
+    categoryItemsLength,
+    visibilityItemsLength,
+    chartWidth,
+    leftLabelWidth,
+    titleHeight,
+    itemHeight,
+    itemPadding,
+    groupSpacing,
+    groupTitleSpacing,
+    padding,
+    iconWidth,
+    textPadding,
+    itemSpacing,
+  }: {
+    aoiItemsLength: number
+    categoryItemsLength: number
+    visibilityItemsLength: number
+    chartWidth: number
+    leftLabelWidth: number
+    titleHeight: number
+    itemHeight: number
+    itemPadding: number
+    groupSpacing: number
+    groupTitleSpacing: number
+    padding: number
+    iconWidth: number
+    textPadding: number
+    itemSpacing: number
+  }): number {
+    const itemsPerRow = getItemsPerRow({
+      chartWidth,
+      leftLabelWidth,
+      padding,
+      iconWidth,
+      textPadding,
+      itemSpacing,
+    })
+
     // Calculate row counts for each section
-    const aoiRows = Math.ceil(
-      data.stylingAndLegend.aoi.length / LEGEND_CONFIG.ITEM_PER_ROW
-    )
-    const categoryRows = Math.ceil(
-      data.stylingAndLegend.category.length / LEGEND_CONFIG.ITEM_PER_ROW
-    )
+    const aoiRows = Math.ceil(aoiItemsLength / itemsPerRow)
+    const categoryRows = Math.ceil(categoryItemsLength / itemsPerRow)
     const visibilityRows =
-      data.stylingAndLegend.visibility.length > 0
-        ? Math.ceil(
-            data.stylingAndLegend.visibility.length / LEGEND_CONFIG.ITEM_PER_ROW
-          )
+      visibilityItemsLength > 0
+        ? Math.ceil(visibilityItemsLength / itemsPerRow)
         : 0
 
-    // Calculate total height with spacing
-    const groupCount = visibilityRows > 0 ? 3 : 2
-    const totalRows = aoiRows + categoryRows + visibilityRows
+    // Calculate section heights
+    const aoiSectionHeight =
+      titleHeight + groupTitleSpacing + aoiRows * (itemHeight + itemPadding)
+    const categorySectionHeight =
+      titleHeight +
+      groupTitleSpacing +
+      categoryRows * (itemHeight + itemPadding)
+    const visibilitySectionHeight =
+      visibilityItemsLength > 0
+        ? titleHeight +
+          groupTitleSpacing +
+          visibilityRows * (itemHeight + itemPadding)
+        : 0
 
     return (
-      LEGEND_CONFIG.TITLE_HEIGHT * groupCount +
-      totalRows * (LEGEND_CONFIG.ITEM_HEIGHT + LEGEND_CONFIG.ITEM_PADDING) +
-      (groupCount - 1) * LEGEND_CONFIG.GROUP_SPACING +
-      LAYOUT.PADDING
+      padding + // Top padding
+      aoiSectionHeight + // AOI section
+      groupSpacing + // Spacing between AOI and Category
+      categorySectionHeight + // Category section
+      (visibilityItemsLength > 0 ? groupSpacing + visibilitySectionHeight : 0) + // Visibility section if exists
+      padding // Bottom padding
     )
   }
 
@@ -121,7 +207,6 @@
   // Derived values using Svelte 5 $derived rune
   const usedHighlight = $derived(fixedHighlight ?? highlightedIdentifier)
   const xAxisLabel = $derived(getXAxisLabel(settings))
-  const scarfPlotAreaId = $derived(`scarf-plot-area-${settings.id}`)
 
   // SVG size calculations - MOVE THESE BEFORE RECTANGLE/LINE CALCULATIONS
   const totalWidth = $derived(chartWidth)
@@ -144,7 +229,24 @@
     Math.max(data.chartHeight, LAYOUT.MIN_CHART_HEIGHT)
   )
 
-  const legendHeight = $derived(calculateLegendHeight())
+  const legendHeight = $derived(
+    calculateLegendHeight({
+      aoiItemsLength: data.stylingAndLegend.aoi.length,
+      categoryItemsLength: data.stylingAndLegend.category.length,
+      visibilityItemsLength: data.stylingAndLegend.visibility.length,
+      chartWidth,
+      leftLabelWidth: LEFT_LABEL_WIDTH,
+      titleHeight: LEGEND.TITLE_HEIGHT,
+      itemHeight: LEGEND.ITEM_HEIGHT,
+      itemPadding: LEGEND.ITEM_PADDING,
+      groupSpacing: LEGEND.GROUP_SPACING,
+      groupTitleSpacing: LEGEND.GROUP_TITLE_SPACING,
+      padding: LAYOUT.PADDING,
+      iconWidth: LEGEND.ICON_WIDTH,
+      textPadding: LEGEND.TEXT_PADDING,
+      itemSpacing: LEGEND.ITEM_SPACING,
+    })
+  )
 
   const totalHeight = $derived(
     chartHeight + LAYOUT.AXIS_LABEL_HEIGHT + legendHeight
@@ -257,8 +359,6 @@
 
     return data.participants.flatMap((participant, participantIndex) => {
       const isOrdinal = settings.timeline === 'ordinal'
-      const isAbsolute = settings.timeline === 'absolute'
-      const pWidth = isAbsolute ? participant.width : undefined
       const y0 = participantIndex * data.heightOfBarWrap
 
       return participant.segments.flatMap((segment, segmentId) =>
@@ -607,52 +707,18 @@
     )
   }
 
-  // Legend constants
-  const LEGEND = {
-    TITLE_HEIGHT: 18,
-    ITEM_HEIGHT: 15,
-    ITEM_PADDING: 8,
-    GROUP_SPACING: 10, // Increased for better separation between groups
-    GROUP_TITLE_SPACING: 5, // Increased for better space between title and items
-    ICON_WIDTH: 20,
-    TEXT_PADDING: 8,
-    ITEM_SPACING: 15,
-    FONT_SIZE: 12,
-    BG_HOVER_COLOR: 'rgba(0, 0, 0, 0.05)',
-    RECT_HIGHLIGHT_STROKE: '#333333',
-    RECT_HIGHLIGHT_STROKE_WIDTH: 1,
-    LINE_HIGHLIGHT_STROKE_WIDTH: 3,
-  }
-
-  // Calculate legend items per row based on available width
-  function getItemsPerRow() {
-    if (!chartWidth || chartWidth <= 0) {
-      return 3 // Default if no width provided
-    }
-
-    // Calculate how many items can fit in the available width with spacing
-    const availableWidth = chartWidth - LEFT_LABEL_WIDTH - LAYOUT.PADDING * 2
-
-    // Account for item width (icon + text + padding)
-    // Use average text width estimation (approx 6px per character, assuming average item name length of 15 chars)
-    const avgTextWidth = 90 // ~15 chars * 6px
-    const itemFullWidth =
-      LEGEND.ICON_WIDTH +
-      LEGEND.TEXT_PADDING +
-      avgTextWidth +
-      LEGEND.ITEM_SPACING
-
-    const maxItems = Math.floor(availableWidth / itemFullWidth)
-
-    // Return at least 1 item per row, or as many as will fit
-    return Math.max(1, maxItems)
-  }
-
   // Calculate legend geometry - for rendering and hit detection
   function calculateLegendGeometry() {
     if (!data.stylingAndLegend) return { items: [], height: 0, groupTitles: [] }
 
-    const itemsPerRow = getItemsPerRow()
+    const itemsPerRow = getItemsPerRow({
+      chartWidth,
+      leftLabelWidth: LEFT_LABEL_WIDTH,
+      padding: LAYOUT.PADDING,
+      iconWidth: LEGEND.ICON_WIDTH,
+      textPadding: LEGEND.TEXT_PADDING,
+      itemSpacing: LEGEND.ITEM_SPACING,
+    })
     const legendX = LEFT_LABEL_WIDTH + LAYOUT.PADDING
     const legendY = chartHeight + LAYOUT.AXIS_LABEL_HEIGHT
 
@@ -1178,31 +1244,19 @@
   })
 </script>
 
-<figure class="plot-container" id={scarfPlotAreaId}>
-  <canvas
-    class="scarf-plot-figure"
-    width={totalWidth}
-    height={totalHeight}
-    on:mousemove={handleMouseMove}
-    on:mouseleave={handleMouseLeave}
-    on:mousedown={handleMouseDown}
-    bind:this={canvas}
-    data-component="scarfplot"
-    role="img"
-    aria-label="Scarf plot visualization"
-  ></canvas>
-</figure>
+<canvas
+  class="scarf-plot-figure"
+  width={totalWidth}
+  height={totalHeight}
+  onmousemove={handleMouseMove}
+  onmouseleave={handleMouseLeave}
+  onmousedown={handleMouseDown}
+  bind:this={canvas}
+  data-component="scarfplot"
+  aria-label="Scarf plot visualization"
+></canvas>
 
 <style>
-  .plot-container {
-    margin: 0;
-    padding: 0;
-    cursor: default;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-  }
-
   .scarf-plot-figure {
     font-family: sans-serif;
     display: block;
