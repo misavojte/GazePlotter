@@ -1,5 +1,6 @@
 import type { DeserializerOutputType } from '$lib/type/DeserializerOutput/DeserializerOutputType.js'
 import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
+import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput.js'
 
 type TobiiEyeDeserializerSetup = {
   whichStimulus: 'default' | 'interval'
@@ -537,16 +538,30 @@ export function getNewTobiiBaseStimulusFromRow(
 /**
  * Extracts a new base time for a given row of data if based on the new stimulus change.
  * @param {string[]} row - Row of data.
- * @param {string[]} stimuli - Array of stimuli.
  * @param {number} indexOfRecordingTimestampColumn - Index of the recording timestamp column.
- * @returns {string} New base time.
+ * @param {string | null} addedStimulus - New stimulus.
+ * @param {Map<string, string>} baseTimeMap - Map of stimuli to base times.
+ * @returns {Map<string, string>} New base time.
  */
-export function getNewTobiiStimulusBaseTimeFromRow(
+export function getNewTobiiBaseTimeForStimuli(
   row: string[],
-  indexOfRecordingTimestampColumn: number
-): string {
-  return row[indexOfRecordingTimestampColumn]
+  indexOfRecordingTimestampColumn: number,
+  addedStimulus: string | null,
+  baseTimeMap: Map<string, string>
+): Map<string, string> {
+  if (addedStimulus === null || baseTimeMap.has(addedStimulus)) {
+    return baseTimeMap
+  }
+  const baseTime = row[indexOfRecordingTimestampColumn]
+  baseTimeMap.set(addedStimulus, baseTime)
+  return baseTimeMap
 }
+
+/**
+ * Internal segment state for interval-based deserialization.
+ * Combines a de/serializer output with a UID for tracking.
+ */
+type SegmentState = SingleDeserializerOutput & { uid: string }
 
 export function deserializeTobiiIntervalStimulusData(
   row: string[],
@@ -555,10 +570,23 @@ export function deserializeTobiiIntervalStimulusData(
   endMarker: string,
   baseTimeMap: Map<string, string>,
   indexOfEventColumn: number,
-  indexOfStimulusColumn: number,
   indexOfRecordingTimestampColumn: number,
-  indexOfParticipantNameColumn: number
-): DeserializerOutputType {
+  indexOfParticipantNameColumn: number,
+  indexOfCategoryColumn: number,
+  indexOfEyeMovementTypeIndexColumn: number,
+  activeSegments: SegmentState[],
+  aoiInfo: Array<{
+    columnPosition: number
+    aoiName: string
+    stimulusName: string
+  }>
+): {
+  newStimuli: string[]
+  newBaseTimeMap: Map<string, string>
+  newActiveSegments: SegmentState[]
+  outputs: SingleDeserializerOutput[]
+} {
+  // 1. Determine interval-based stimuli changes
   const { newStimuli, addedStimulus } = getNewTobiiIntervalStimulusFromRow(
     row,
     stimuli,
@@ -567,11 +595,76 @@ export function deserializeTobiiIntervalStimulusData(
     endMarker
   )
 
-  if (addedStimulus !== null) {
-    const baseTime = getNewTobiiStimulusBaseTimeFromRow(
-      row,
-      indexOfRecordingTimestampColumn
-    )
-    baseTimeMap.set(addedStimulus, baseTime)
+  // 2. Update base times if a new stimulus was added
+  const newBaseTimeMap = getNewTobiiBaseTimeForStimuli(
+    row,
+    indexOfRecordingTimestampColumn,
+    addedStimulus,
+    baseTimeMap
+  )
+
+  // 3. Extract fields for UID and participant
+  const participant = row[indexOfParticipantNameColumn]
+  const category = row[indexOfCategoryColumn]
+  const eyeMovementTypeIndex = row[indexOfEyeMovementTypeIndexColumn]
+  // Extract AOIs for this row
+  const aoi = aoiInfo
+    .filter(info => row[info.columnPosition] === '1')
+    .map(info => info.aoiName)
+
+  const uidPrefix = `${category}-${eyeMovementTypeIndex}`
+
+  // 4. Build a lookup for currently active segments
+  const segmentMap = new Map<string, SegmentState>(
+    activeSegments.map(seg => [seg.uid, { ...seg }])
+  )
+
+  const outputs: SingleDeserializerOutput[] = []
+  // 5. Finalize segments that ended or changed movement
+  for (const seg of activeSegments) {
+    const [segCategory, segIndex, segStim] = seg.uid.split('-')
+    const segUidPrefix = `${segCategory}-${segIndex}`
+    if (segUidPrefix !== uidPrefix || !newStimuli.includes(segStim)) {
+      const { uid, ...out } = seg
+      outputs.push(out)
+      segmentMap.delete(seg.uid)
+    }
+  }
+
+  // 6. Update existing or create new segments for active stimuli
+  for (const stim of newStimuli) {
+    const uid = `${uidPrefix}-${stim}`
+    const rawTime = row[indexOfRecordingTimestampColumn]
+    const baseTime = newBaseTimeMap.get(stim) || rawTime
+    const elapsed = (
+      (Number(rawTime) - Number(baseTime)) *
+      TIME_MODIFIER
+    ).toString()
+
+    if (segmentMap.has(uid)) {
+      // just update end time
+      const existing = segmentMap.get(uid)!
+      existing.end = elapsed
+      segmentMap.set(uid, existing)
+    } else {
+      // start a new segment
+      const newSeg: SegmentState = {
+        uid,
+        stimulus: stim,
+        participant,
+        category,
+        aoi,
+        start: elapsed,
+        end: elapsed,
+      }
+      segmentMap.set(uid, newSeg)
+    }
+  }
+
+  return {
+    newStimuli,
+    newBaseTimeMap,
+    newActiveSegments: Array.from(segmentMap.values()),
+    outputs,
   }
 }
