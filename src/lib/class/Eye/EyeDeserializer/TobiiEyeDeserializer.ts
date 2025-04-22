@@ -439,3 +439,139 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     return result
   }
 }
+
+/**
+ * Extracts changes in stimuli (Interval tracking) from a row of data.
+ * @param {string[]} row - Row of data.
+ * @param {string[]} stimuli - Array of stimuli.
+ * @param {number} indexOfEventColumn - Index of the event column.
+ * @param {string} startMarker - Start marker.
+ * @param {string} endMarker - End marker.
+ * @returns {{
+ *   newStimuli: string[],
+ *   addedStimulus: string | null
+ * }} Object containing the new stimuli and the added stimulus.
+ */
+export function getNewTobiiIntervalStimulusFromRow(
+  row: string[],
+  stimuli: string[],
+  indexOfEventColumn: number,
+  startMarker: string,
+  endMarker: string
+): {
+  newStimuli: string[]
+  addedStimulus: string | null
+} {
+  const event = row[indexOfEventColumn]
+  if (!event) {
+    return {
+      newStimuli: stimuli,
+      addedStimulus: null,
+    } // unchanged, early return
+  }
+
+  // Handle interval start
+  if (event.includes(startMarker)) {
+    const newStimulus = event.replace(startMarker, '')
+    if (!stimuli.includes(newStimulus)) {
+      return {
+        newStimuli: [...stimuli, newStimulus],
+        addedStimulus: newStimulus,
+      }
+    }
+  }
+
+  // Handle interval end
+  if (event.includes(endMarker)) {
+    const endingStimulus = event.replace(endMarker, '')
+    const index = stimuli.indexOf(endingStimulus)
+    if (index !== -1) {
+      return {
+        newStimuli: stimuli.slice(0, index),
+        addedStimulus: null,
+      }
+    }
+  }
+
+  return {
+    newStimuli: stimuli,
+    addedStimulus: null,
+  }
+}
+
+/**
+ * Extracts changes in stimuli (Base tracking) from a row of data.
+ * @param {string[]} row - Row of data.
+ * @param {string[]} stimuli - Array of stimuli.
+ * @param {number} indexOfStimulusColumn - Index of the stimulus column.
+ * @returns {{
+ *   newStimuli: [string],
+ *   addedStimulus: string | null
+ * }} Object containing the new stimuli (only one item in this case) and the added stimulus.
+ */
+export function getNewTobiiBaseStimulusFromRow(
+  row: string[],
+  stimuli: string[],
+  indexOfStimulusColumn: number
+): {
+  newStimuli: [string]
+  addedStimulus: string | null
+} {
+  const newStimulus = row[indexOfStimulusColumn]
+  if (
+    !newStimulus ||
+    newStimulus === EMPTY_STRING ||
+    stimuli.includes(newStimulus)
+  ) {
+    return {
+      newStimuli: [stimuli[0]],
+      addedStimulus: null,
+    }
+  }
+  return {
+    newStimuli: [newStimulus],
+    addedStimulus: newStimulus,
+  }
+}
+
+/**
+ * Extracts a new base time for a given row of data if based on the new stimulus change.
+ * @param {string[]} row - Row of data.
+ * @param {string[]} stimuli - Array of stimuli.
+ * @param {number} indexOfRecordingTimestampColumn - Index of the recording timestamp column.
+ * @returns {string} New base time.
+ */
+export function getNewTobiiStimulusBaseTimeFromRow(
+  row: string[],
+  indexOfRecordingTimestampColumn: number
+): string {
+  return row[indexOfRecordingTimestampColumn]
+}
+
+export function deserializeTobiiIntervalStimulusData(
+  row: string[],
+  stimuli: string[],
+  startMarker: string,
+  endMarker: string,
+  baseTimeMap: Map<string, string>,
+  indexOfEventColumn: number,
+  indexOfStimulusColumn: number,
+  indexOfRecordingTimestampColumn: number,
+  indexOfParticipantNameColumn: number
+): DeserializerOutputType {
+  const { newStimuli, addedStimulus } = getNewTobiiIntervalStimulusFromRow(
+    row,
+    stimuli,
+    indexOfEventColumn,
+    startMarker,
+    endMarker
+  )
+
+  if (addedStimulus !== null) {
+    const baseTime = getNewTobiiStimulusBaseTimeFromRow(
+      row,
+      indexOfRecordingTimestampColumn
+    )
+    baseTimeMap.set(addedStimulus, baseTime)
+  }
+}
