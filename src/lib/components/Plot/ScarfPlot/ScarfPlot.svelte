@@ -151,8 +151,8 @@
   // Handle chart dragging
   function handleDragStepX(stepChange: number) {
     // Convert pixels to time/percentage units based on the timeline type
-    // For a negative stepChange (drag right), move the view window left
-    // For a positive stepChange (drag left), move the view window right
+    // For a positive stepChange (drag right), move the view window right
+    // For a negative stepChange (drag left), move the view window left
 
     // Calculate the current visible range as a percentage of the total range
     const currentRange = timelineMaxValue - timelineMinValue
@@ -162,7 +162,8 @@
     const scaleFactorX = currentRange / chartWidth
 
     // Calculate the actual units to move based on the drag amount and scale factor
-    const moveAmount = -stepChange * scaleFactorX // Negative to make drag direction intuitive
+    // Negative to make drag direction intuitive
+    const moveAmount = -stepChange * scaleFactorX
 
     // Get current limits
     const currentMin = timelineMinValue
