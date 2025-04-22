@@ -1,60 +1,47 @@
 import type { DeserializerOutputType } from '$lib/type/DeserializerOutput/DeserializerOutputType.js'
 import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
 
+const TIME_MODIFIER = 0.001 // microseconds to milliseconds
+const EMPTY_STRING = ''
+const AOI_HIT_PREFIX = 'AOI hit ['
+
 /**
  * Deserializer for Tobii eyetracking files.
  * @extends AbstractEyeDeserializer
  * @category Eye
  * @subcategory Deserializer
- * @member cAoiInfo - Array of objects containing information about AOI columns. It's being iterated over to find active AOIs, so Array > Map here.
- * @member cRecordingTimestamp - Index of the Recording timestamp column.
- * @member cStimulus - Index of the Presented Stimulus name column.
- * @member cParticipant - Index of the Participant name column.
- * @member cRecording - Index of the Recording name column.
- * @member cCategory - Index of the Eye movement type column.
- * @member cEvent - Index of the Event column.
- * @member cEyeMovementTypeIndex - Index of the Eye movement type index column.
- * @member mStimulus - Current stimulus name.
- * @member mParticipant - Current participant name.
- * @member mRecordingStart - Current recording start timestamp.
- * @member mEyeMovementTypeIndex - Current eye movement type index.
- * @member mRecordingLast - Current recording last timestamp.
- * @member mCategory - Current eye movement type.
- * @member mAoi - Current AOIs.
- * @member mBaseTime - Current base time.
- * @member stimuliRevisit - Object containing information about revisited stimuli.
- * @member stimulusGetter - Function that returns the stimulus name, either from the Presented Stimulus name column or from the Event column.
- * @member intervalStack - Stack of active intervals for nested interval handling.
  */
 export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
-  cAoiInfo: Array<{
+  // Column indices in the data file
+  private readonly cRecordingTimestamp: number
+  private readonly cStimulus: number
+  private readonly cParticipant: number
+  private readonly cRecording: number
+  private readonly cCategory: number
+  private readonly cEvent: number
+  private readonly cEyeMovementTypeIndex: number
+  private readonly cAoiInfo: Array<{
     columnPosition: number
     aoiName: string
     stimulusName: string
   }>
-  cRecordingTimestamp: number
-  cStimulus: number
-  cParticipant: number
-  cRecording: number
-  cCategory: number
-  cEvent: number
-  cEyeMovementTypeIndex: number
 
-  mStimulus = ''
-  mParticipant = ''
-  mRecordingStart = ''
-  mEyeMovementTypeIndex = ''
-  mRecordingLast = ''
-  mCategory = ''
-  mAoi: string[] | null = null
-  mBaseTime = ''
-  /* stimuliRevisit: Record<string, number> = {} // Using an object to track the stimulus_participant revisit count */
-  stimulusGetter: (row: string[]) => string | string[]
-  stimuliBaseTimes: Map<string, string> = new Map()
-  intervalStack: string[] = []
+  // Current segment state
+  private mStimulus = EMPTY_STRING
+  private mParticipant = EMPTY_STRING
+  private mRecordingStart = EMPTY_STRING
+  private mEyeMovementTypeIndex = EMPTY_STRING
+  private mRecordingLast = EMPTY_STRING
+  private mCategory = EMPTY_STRING
+  private mAoi: string[] | null = null
 
+  // Stimulus tracking
+  private readonly stimulusGetter: (row: string[]) => string | string[]
+  private readonly stimuliBaseTimes: Map<string, string> = new Map()
+  private readonly intervalStack: string[] = []
+
+  // Constants
   static readonly TYPE = 'tobii'
-  static readonly TIME_MODIFIER = 0.001 // microseconds to milliseconds
 
   /**
    * @group Initialization
@@ -64,35 +51,37 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
    */
   constructor(header: string[], userInput: string) {
     super()
-    const basicStimulusColumnIndex = header.indexOf('Presented Stimulus name')
     this.cRecordingTimestamp = header.indexOf('Recording timestamp')
+
+    const basicStimulusColumnIndex = header.indexOf('Presented Stimulus name')
     this.cStimulus =
       basicStimulusColumnIndex === -1
         ? header.indexOf('Recording media name')
         : basicStimulusColumnIndex
+
     this.cParticipant = header.indexOf('Participant name')
     this.cRecording = header.indexOf('Recording name')
     this.cCategory = header.indexOf('Eye movement type')
     this.cEvent = header.indexOf('Event')
     this.cEyeMovementTypeIndex = header.indexOf('Eye movement type index')
-    this.cAoiInfo = this.constructAoiMapping(
-      header,
-      this.constructStimuliDictionary(header)
-    )
+
+    const stimuliDictionary = this.constructStimuliDictionary(header)
+    this.cAoiInfo = this.constructAoiMapping(header, stimuliDictionary)
+
     this.stimulusGetter =
-      userInput === ''
+      userInput === EMPTY_STRING
         ? this.constructBaseStimulusGetter()
         : this.constructIntervalStimulusGetter(userInput)
   }
 
   /**
    * @group Initialization
-   * @description Creates a dictionary of stimuli from the header. Specifically, it looks for columns starting with 'AOI hit [STIMULUS_NAME' and extracts the stimulus name.
+   * @description Creates a dictionary of stimuli from the header.
    * @param {string[]} header - Array of header names.
    * @returns {string[]} Array of unique stimuli names based on AOI hit columns.
    */
-  constructStimuliDictionary(header: string[]): string[] {
-    const aoiColumns = header.filter(x => x.startsWith('AOI hit ['))
+  private constructStimuliDictionary(header: string[]): string[] {
+    const aoiColumns = header.filter(x => x.startsWith(AOI_HIT_PREFIX))
     return [
       ...new Set(
         aoiColumns.map(x => x.replace(/AOI hit \[|\s-.*?]/g, '')).sort()
@@ -105,59 +94,67 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
    * @description Creates an array of objects containing information about AOI columns.
    * @param {string[]} header - Array of header names.
    * @param {string[]} stimuliDictionary - Array of unique stimuli names based on AOI hit columns.
-   * @returns {Array<{ columnPosition: number; aoiName: string; stimulusName: string }>} Array of objects containing information about AOI columns.
-   * @example [{ columnPosition: 5, aoiName: 'AOI_1', stimulusName: 'Stimulus_1' }]
+   * @returns {Array<{ columnPosition: number; aoiName: string; stimulusName: string }>} AOI column info objects.
    */
-  constructAoiMapping(
+  private constructAoiMapping(
     header: string[],
     stimuliDictionary: string[]
   ): Array<{ columnPosition: number; aoiName: string; stimulusName: string }> {
-    return stimuliDictionary.flatMap(stimulus => {
-      return header
-        .filter(x => x.startsWith(`AOI hit [${stimulus}`))
-        .map(aoiItem => ({
-          columnPosition: header.indexOf(aoiItem),
-          aoiName: aoiItem.replace(/A.*?- |]/g, ''),
-          stimulusName: stimulus,
-        }))
-    })
+    const result: Array<{
+      columnPosition: number
+      aoiName: string
+      stimulusName: string
+    }> = []
+
+    for (const stimulus of stimuliDictionary) {
+      const aoiPrefix = `${AOI_HIT_PREFIX}${stimulus}`
+
+      for (let i = 0; i < header.length; i++) {
+        const headerItem = header[i]
+        if (headerItem.startsWith(aoiPrefix)) {
+          result.push({
+            columnPosition: i,
+            aoiName: headerItem.replace(/A.*?- |]/g, ''),
+            stimulusName: stimulus,
+          })
+        }
+      }
+    }
+
+    return result
   }
 
   /**
    * @group StimulusGetterInitialization
    * @description Creates a function that returns the stimulus name from the Presented Stimulus name column.
-   * @returns {(row: string[]) => string} Function that returns the stimulus name from the Presented Stimulus name column.
-   * @example (row: string[]) => row[5]
+   * @returns {(row: string[]) => string} Function that returns the stimulus name.
    */
-  constructBaseStimulusGetter(): (row: string[]) => string {
-    const stimulusGetterFunction = (row: string[]): string => {
-      return row[this.cStimulus]
-    }
-    return stimulusGetterFunction
+  private constructBaseStimulusGetter(): (row: string[]) => string {
+    return (row: string[]): string => row[this.cStimulus]
   }
 
   /**
    * @group StimulusGetterInitialization
-   * @description Creates a function that returns the stimulus name based on interval information in the Event column.
+   * @description Creates a function that returns the stimulus name based on interval information.
    * @param {string} userInput - User-defined input for interval markers.
-   * @returns {(row: string[]) => string | string[]} Function that returns the stimulus name or array of stimuli based on the Event column.
+   * @returns {(row: string[]) => string | string[]} Function for interval-based stimulus tracking.
    */
-  constructIntervalStimulusGetter(
+  private constructIntervalStimulusGetter(
     userInput: string
   ): (row: string[]) => string | string[] {
     const { startMarker, endMarker } = this.constructIntervalMarkers(userInput)
-    const stimulusGetterFunction = (row: string[]): string | string[] => {
+
+    return (row: string[]): string | string[] => {
       const event = row[this.cEvent]
 
       // If event is empty or undefined, return current stimuli stack
-      if (event === '' || event === undefined) {
-        return this.intervalStack.length > 0 ? this.intervalStack : ''
+      if (!event) {
+        return this.intervalStack.length > 0 ? this.intervalStack : EMPTY_STRING
       }
 
       // Handle interval start - add to stack if not already present
       if (event.includes(startMarker)) {
         const newStimulus = event.replace(startMarker, '')
-        // Only add to stack if it's not already in the stack (prevent duplicates)
         if (!this.intervalStack.includes(newStimulus)) {
           this.intervalStack.push(newStimulus)
         }
@@ -167,29 +164,25 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
       // Handle interval end - remove from stack if present
       if (event.includes(endMarker)) {
         const endingStimulus = event.replace(endMarker, '')
-        // Find the stimulus in the stack and remove it
         const index = this.intervalStack.indexOf(endingStimulus)
         if (index !== -1) {
           this.intervalStack.splice(index, 1)
         }
-        return this.intervalStack.length > 0 ? this.intervalStack : ''
+        return this.intervalStack.length > 0 ? this.intervalStack : EMPTY_STRING
       }
 
       // Return current stimulus stack if no interval changes
-      return this.intervalStack.length > 0 ? this.intervalStack : ''
+      return this.intervalStack.length > 0 ? this.intervalStack : EMPTY_STRING
     }
-    return stimulusGetterFunction
   }
 
   /**
    * @group StimulusGetterInitialization
-   * @description Extracts interval markers from user input to be used in the Event column for stimulus name extraction.
+   * @description Extracts interval markers from user input.
    * @param {string} userInput - User-defined input for interval markers.
    * @returns {{ startMarker: string; endMarker: string }} Object containing start and end interval markers.
-   * @example { startMarker: ' IntervalStart', endMarker: ' IntervalEnd' }
-   * @throws {Error} Throws an error if the user input does not contain exactly two interval markers.
    */
-  constructIntervalMarkers(userInput: string): {
+  private constructIntervalMarkers(userInput: string): {
     startMarker: string
     endMarker: string
   } {
@@ -209,112 +202,117 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
    * @returns {DeserializerOutputType} Deserialized data.
    */
   deserialize(row: string[]): DeserializerOutputType {
-    if (this.isEmptyRow(row)) return null // skip empty rows
-    if (this.isSameSegment(row)) return this.deserializeSameSegment(row)
+    if (this.isEmptyRow(row)) return null
+    if (this.isSameSegment(row)) {
+      this.mRecordingLast = row[this.cRecordingTimestamp]
+      return null
+    }
     return this.deserializeNewSegment(row)
   }
 
   /**
    * @group Deserialization
-   * @description Deserializes a row of data that belongs to the same segment as the previous row. Always returns null. Saves the last timestamp of the segment to be used in case of a new segment in the next row.
-   * @param {string[]} row - Row of data.
-   * @returns {null} Always returns null.
-   */
-  deserializeSameSegment(row: string[]): null {
-    this.mRecordingLast = row[this.cRecordingTimestamp]
-    return null
-  }
-
-  /**
-   * @group Deserialization
-   * @description Deserializes a row of data that belongs to a new segment. Releases the previous segment and starts a new one.
+   * @description Deserializes a row from a new segment.
    * @param {string[]} row - Row of data.
    * @returns {DeserializerOutputType} Deserialized data.
    */
-  deserializeNewSegment(row: string[]): DeserializerOutputType {
-    const eyeMovementTypeIndex = row[this.cEyeMovementTypeIndex]
+  private deserializeNewSegment(row: string[]): DeserializerOutputType {
     const recordingTimestamp = row[this.cRecordingTimestamp]
-
-    this.mEyeMovementTypeIndex = eyeMovementTypeIndex
+    this.mEyeMovementTypeIndex = row[this.cEyeMovementTypeIndex]
 
     const previousSegment = this.getPreviousSegment()
-
     const stimulusResult = this.stimulusGetter(row)
 
-    // If no active intervals, skip this segment entirely
+    // Skip segment if no active stimulus
     if (
-      stimulusResult === '' ||
+      stimulusResult === EMPTY_STRING ||
       (Array.isArray(stimulusResult) && stimulusResult.length === 0)
     ) {
-      // Clear current segment data since no stimulus is active
-      this.mStimulus = ''
+      this.mStimulus = EMPTY_STRING
       return previousSegment
     }
 
-    const participant = row[this.cRecording] + ' ' + row[this.cParticipant]
-    const aoi = this.getAoisFromRow(row)
-    const category = row[this.cCategory]
+    const participant = `${row[this.cRecording]} ${row[this.cParticipant]}`
 
     // Handle multiple active stimuli
     if (Array.isArray(stimulusResult) && stimulusResult.length > 0) {
-      // Ensure we have base times for all stimuli
-      stimulusResult.forEach(stimulus => {
-        if (this.stimuliBaseTimes.get(stimulus + participant) === undefined) {
-          this.stimuliBaseTimes.set(stimulus + participant, recordingTimestamp)
-        }
-      })
-
-      // Update state with the most recent stimulus for future reference
+      this.updateStimuliBaseTimes(
+        stimulusResult,
+        participant,
+        recordingTimestamp
+      )
       this.mStimulus = stimulusResult[stimulusResult.length - 1]
     } else {
       // Single stimulus case
       const stimulus = stimulusResult as string
-      if (this.stimuliBaseTimes.get(stimulus + participant) === undefined) {
-        this.stimuliBaseTimes.set(stimulus + participant, recordingTimestamp)
-      }
+      const stimulusParticipantKey = stimulus + participant
 
+      if (!this.stimuliBaseTimes.has(stimulusParticipantKey)) {
+        this.stimuliBaseTimes.set(stimulusParticipantKey, recordingTimestamp)
+      }
       this.mStimulus = stimulus
     }
 
     // Save common segment data
     this.mParticipant = participant
     this.mRecordingStart = recordingTimestamp
-    this.mCategory = category
-    this.mAoi = aoi
+    this.mCategory = row[this.cCategory]
+    this.mAoi = this.getAoisFromRow(row)
     this.mRecordingLast = recordingTimestamp
 
     return previousSegment
   }
 
   /**
-   * @group Deserialization
-   * @description Checks if a row is empty based on the Category column.
-   * @param {string[]} row - Row of data.
-   * @returns {boolean} True if the row is empty, false otherwise.
+   * Updates base times for multiple stimuli
+   * @param stimuli Array of stimulus names
+   * @param participant Participant identifier
+   * @param timestamp Recording timestamp
    */
-  isEmptyRow = (row: string[]): boolean => {
-    return row[this.cCategory] === ''
+  private updateStimuliBaseTimes(
+    stimuli: string[],
+    participant: string,
+    timestamp: string
+  ): void {
+    for (const stimulus of stimuli) {
+      const key = stimulus + participant
+      if (!this.stimuliBaseTimes.has(key)) {
+        this.stimuliBaseTimes.set(key, timestamp)
+      }
+    }
   }
 
   /**
    * @group Deserialization
-   * @description Checks if a row is still part of the same segment as the previous row.
+   * @description Checks if a row is empty.
    * @param {string[]} row - Row of data.
-   * @returns {boolean} True if the row is part of the same segment, false otherwise.
+   * @returns {boolean} True if the row is empty.
    */
-  isSameSegment(row: string[]): boolean {
-    const isSameMove =
-      row[this.cEyeMovementTypeIndex] === this.mEyeMovementTypeIndex
+  private isEmptyRow(row: string[]): boolean {
+    return row[this.cCategory] === EMPTY_STRING
+  }
+
+  /**
+   * @group Deserialization
+   * @description Checks if a row is part of the same segment.
+   * @param {string[]} row - Row of data.
+   * @returns {boolean} True if the row is part of the same segment.
+   */
+  private isSameSegment(row: string[]): boolean {
+    if (row[this.cEyeMovementTypeIndex] !== this.mEyeMovementTypeIndex) {
+      return false
+    }
+
     const stimulusResult = this.stimulusGetter(row)
-    const isSameStimulus = Array.isArray(stimulusResult)
+
+    return Array.isArray(stimulusResult)
       ? stimulusResult.includes(this.mStimulus)
       : stimulusResult === this.mStimulus
-    return isSameMove && isSameStimulus
   }
 
   /**
    * @group Deserialization
-   * @description Finalizes the deserialization process. Releases the last segment. Used when there is no more data to deserialize.
+   * @description Finalizes the deserialization process.
    * @returns {DeserializerOutputType} Deserialized data.
    */
   finalize(): DeserializerOutputType {
@@ -323,90 +321,94 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
   /**
    * @group Deserialization
-   * @description Releases the last segment. Used either when there is no more data to deserialize or when a new segment is encountered.
+   * @description Releases the previous segment.
    * @returns {DeserializerOutputType} Deserialized data.
    */
-  getPreviousSegment(): DeserializerOutputType {
+  private getPreviousSegment(): DeserializerOutputType {
+    // Early return if we don't have valid segment data
     if (
-      this.mParticipant === '' ||
-      this.mStimulus === '' ||
-      this.mRecordingStart === '' ||
+      this.mParticipant === EMPTY_STRING ||
+      this.mStimulus === EMPTY_STRING ||
+      this.mRecordingStart === EMPTY_STRING ||
       this.mRecordingLast === this.mRecordingStart
-    )
+    ) {
       return null
+    }
 
-    // If we have active intervals in the stack, create segments for each one
+    // Handle active intervals in the stack
     if (this.intervalStack.length > 0) {
-      return this.intervalStack.map(stimulus => {
-        const baseTime =
-          this.stimuliBaseTimes.get(stimulus + this.mParticipant) ||
-          this.mRecordingStart
+      return this.createSegmentsForIntervals()
+    }
 
-        return {
-          stimulus: stimulus,
-          participant: this.mParticipant,
-          start: String(
-            (Number(this.mRecordingStart) - Number(baseTime)) *
-              TobiiEyeDeserializer.TIME_MODIFIER
-          ),
-          end: String(
-            (Number(this.mRecordingLast) - Number(baseTime)) *
-              TobiiEyeDeserializer.TIME_MODIFIER
-          ),
-          category: this.mCategory,
-          aoi: this.mAoi,
-        }
-      })
-    } else {
-      // Single stimulus case (could be the last remaining one or a non-interval stimulus)
+    // Handle single stimulus case
+    return this.createSegmentForSingleStimulus()
+  }
+
+  /**
+   * Creates segments for all active intervals
+   * @returns Array of segment data for each active interval
+   */
+  private createSegmentsForIntervals(): DeserializerOutputType {
+    return this.intervalStack.map(stimulus => {
+      const participantKey = stimulus + this.mParticipant
       const baseTime =
-        this.stimuliBaseTimes.get(this.mStimulus + this.mParticipant) ||
-        this.mRecordingStart
+        this.stimuliBaseTimes.get(participantKey) || this.mRecordingStart
+
+      const startTime =
+        (Number(this.mRecordingStart) - Number(baseTime)) * TIME_MODIFIER
+      const endTime =
+        (Number(this.mRecordingLast) - Number(baseTime)) * TIME_MODIFIER
 
       return {
-        stimulus: this.mStimulus,
+        stimulus,
         participant: this.mParticipant,
-        start: String(
-          (Number(this.mRecordingStart) - Number(baseTime)) *
-            TobiiEyeDeserializer.TIME_MODIFIER
-        ),
-        end: String(
-          (Number(this.mRecordingLast) - Number(baseTime)) *
-            TobiiEyeDeserializer.TIME_MODIFIER
-        ),
+        start: String(startTime),
+        end: String(endTime),
         category: this.mCategory,
         aoi: this.mAoi,
       }
+    })
+  }
+
+  /**
+   * Creates a segment for a single stimulus
+   * @returns Segment data for the current stimulus
+   */
+  private createSegmentForSingleStimulus(): DeserializerOutputType {
+    const participantKey = this.mStimulus + this.mParticipant
+    const baseTime =
+      this.stimuliBaseTimes.get(participantKey) || this.mRecordingStart
+
+    const startTime =
+      (Number(this.mRecordingStart) - Number(baseTime)) * TIME_MODIFIER
+    const endTime =
+      (Number(this.mRecordingLast) - Number(baseTime)) * TIME_MODIFIER
+
+    return {
+      stimulus: this.mStimulus,
+      participant: this.mParticipant,
+      start: String(startTime),
+      end: String(endTime),
+      category: this.mCategory,
+      aoi: this.mAoi,
     }
   }
 
   /**
    * @group Deserialization
-   * @description Extracts AOIs from a row of data. Iterates over the array of AOI information objects to find active AOIs.
+   * @description Extracts active AOIs from a row of data.
    * @param {string[]} row - Row of data.
-   * @returns {string[]} Array of AOIs.
-   * @example ['AOI_1', 'AOI_2']
+   * @returns {string[]} Array of active AOI names.
    */
-  getAoisFromRow(row: string[]): string[] {
-    return this.cAoiInfo
-      .filter(aoiInfo => row[aoiInfo.columnPosition] === '1')
-      .map(aoiInfo => aoiInfo.aoiName)
-  }
+  private getAoisFromRow(row: string[]): string[] {
+    const result: string[] = []
 
-  /**
-   * @group Deserialization
-   * @description Returns the stimulus name from the Event column.
-   * @param {string[]} row - Row of data.
-   * @returns {string} Stimulus name.
-   */
-  /*getNonDuplicateStimulus(stimulus: string): string {
-    if (stimulus !== '') {
-      const participantKey = stimulus + this.mParticipant
-      if (participantKey in this.stimuliRevisit) {
-        stimulus =
-          stimulus + ' (' + String(this.stimuliRevisit[participantKey]) + ')'
+    for (const aoiInfo of this.cAoiInfo) {
+      if (row[aoiInfo.columnPosition] === '1') {
+        result.push(aoiInfo.aoiName)
       }
     }
-    return stimulus
-  }*/
+
+    return result
+  }
 }
