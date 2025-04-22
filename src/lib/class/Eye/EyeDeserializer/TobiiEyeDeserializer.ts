@@ -1,4 +1,3 @@
-import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput.js'
 import type { DeserializerOutputType } from '$lib/type/DeserializerOutput/DeserializerOutputType.js'
 import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
 
@@ -65,8 +64,12 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
    */
   constructor(header: string[], userInput: string) {
     super()
+    const basicStimulusColumnIndex = header.indexOf('Presented Stimulus name')
     this.cRecordingTimestamp = header.indexOf('Recording timestamp')
-    this.cStimulus = header.indexOf('Presented Stimulus name')
+    this.cStimulus =
+      basicStimulusColumnIndex === -1
+        ? header.indexOf('Recording media name')
+        : basicStimulusColumnIndex
     this.cParticipant = header.indexOf('Participant name')
     this.cRecording = header.indexOf('Recording name')
     this.cCategory = header.indexOf('Eye movement type')
@@ -300,7 +303,13 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
    * @returns {boolean} True if the row is part of the same segment, false otherwise.
    */
   isSameSegment(row: string[]): boolean {
-    return row[this.cEyeMovementTypeIndex] === this.mEyeMovementTypeIndex
+    const isSameMove =
+      row[this.cEyeMovementTypeIndex] === this.mEyeMovementTypeIndex
+    const stimulusResult = this.stimulusGetter(row)
+    const isSameStimulus = Array.isArray(stimulusResult)
+      ? stimulusResult.includes(this.mStimulus)
+      : stimulusResult === this.mStimulus
+    return isSameMove && isSameStimulus
   }
 
   /**
