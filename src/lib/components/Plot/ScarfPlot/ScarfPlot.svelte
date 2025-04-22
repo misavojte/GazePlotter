@@ -13,17 +13,10 @@
   import { transformDataToScarfPlot } from '$lib/utils/scarfPlotTransformations'
   import { calculatePlotDimensionsWithHeader } from '$lib/utils/plotSizeUtility'
   import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
-
-  // CONSTANTS - centralized for easier maintenance
-  const LAYOUT = {
-    HEADER_HEIGHT: 150,
-    HORIZONTAL_PADDING: 50,
-    CONTENT_PADDING: 20,
-    LEFT_LABEL_WIDTH: 125,
-    TOOLTIP_WIDTH: 155,
-    TOOLTIP_OFFSET_Y: 8,
-    TOOLTIP_HIDE_DELAY: 200,
-  }
+  import {
+    SCARF_LAYOUT,
+    calculateScarfHeights,
+  } from '$lib/services/scarfServices'
 
   // Component Props using Svelte 5 $props() rune
   interface Props {
@@ -59,14 +52,24 @@
       settings.w,
       settings.h,
       DEFAULT_GRID_CONFIG,
-      LAYOUT.HEADER_HEIGHT,
-      LAYOUT.HORIZONTAL_PADDING,
-      LAYOUT.CONTENT_PADDING
+      SCARF_LAYOUT.HEADER_HEIGHT,
+      SCARF_LAYOUT.HORIZONTAL_PADDING,
+      SCARF_LAYOUT.CONTENT_PADDING
     )
   )
 
   // Available width for chart content
   const chartWidth = $derived(plotDimensions.width)
+
+  // Use the unified height calculation from the service
+  const heightCalculations = $derived.by(() =>
+    calculateScarfHeights(
+      currentParticipantIds,
+      scarfData.stylingAndLegend.aoi.length - 1, // Subtract 1 for "No AOI hit" which is added in styling
+      scarfData.stylingAndLegend.visibility.length > 0,
+      chartWidth
+    )
+  )
 
   // Calculate, based on current stimulus, the min value for the timeline
   const timelineMinValue = $derived.by(() => {
@@ -123,7 +126,7 @@
 
     timeout = windowObj.setTimeout(() => {
       hideTooltipAndHighlight()
-    }, LAYOUT.TOOLTIP_HIDE_DELAY)
+    }, SCARF_LAYOUT.TOOLTIP_HIDE_DELAY)
   }
 
   function hideTooltipAndHighlight() {
@@ -173,10 +176,6 @@
     let newMin = Math.max(0, currentMin + moveAmount) // Ensure left edge doesn't go below zero
     let newMax = currentMax + moveAmount + (newMin - (currentMin + moveAmount)) // Adjust right edge if left was constrained
 
-    console.log(
-      `Dragging: min=${newMin}, max=${newMax}, moveAmount=${moveAmount}`
-    )
-
     // Update the settings based on the timeline type
     if (settings.timeline === 'absolute') {
       const updatedLimits = { ...settings.absoluteStimuliLimits }
@@ -215,7 +214,7 @@
     const tooltipData: ScarfTooltipFillingType = {
       x: event.x,
       y: event.y,
-      width: LAYOUT.TOOLTIP_WIDTH,
+      width: SCARF_LAYOUT.TOOLTIP_WIDTH,
       participantId: event.participantId,
       segmentId: event.segmentOrderId,
       stimulusId: currentStimulusId,
@@ -252,6 +251,7 @@
       onLegendClick={handleLegendClick}
       onDragStepX={handleDragStepX}
       {chartWidth}
+      calculatedHeights={heightCalculations}
     />
   </div>
 </div>

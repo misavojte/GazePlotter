@@ -6,23 +6,15 @@
   import { calculateLabelOffset } from '$lib/components/Plot/utils/textUtils'
   import { draggable } from '$lib/actions/draggable'
   import { onMount } from 'svelte'
+  import {
+    SCARF_LAYOUT,
+    getItemsPerRow,
+    getXAxisLabel,
+    getTimelineUnit,
+  } from '$lib/services/scarfServices'
 
   // CONSTANTS - layout dimensions and styling
-  const LAYOUT = {
-    LEFT_LABEL_MAX_WIDTH: 125, // Width for participant labels
-    AXIS_LABEL_HEIGHT: 30, // Height for the x-axis label
-    LABEL_FONT_SIZE: 12, // Font size for labels
-    PADDING: 0, // General padding
-    RIGHT_MARGIN: 15, // Right margin to prevent tick label cropping
-    MIN_CHART_HEIGHT: 50, // Minimum chart height
-    TICK_LENGTH: 5, // Length of axis ticks
-    AXIS_OFFSET: 12, // Offset for axis labels
-    GRID_COLOR: '#cbcbcb', // Color for grid lines
-    GRID_STROKE_WIDTH: 1, // Stroke width for grid lines
-    LEGEND_ITEM_WIDTH: 100, // Width of each legend item
-    LEGEND_ITEM_HEIGHT: 15, // Height of each legend item
-    LEGEND_ITEMS_PER_ROW: 3, // Number of legend items per row
-  }
+  const LAYOUT = SCARF_LAYOUT
 
   interface Props {
     tooltipAreaElement: HTMLElement | SVGElement | null
@@ -44,6 +36,15 @@
     onTooltipDeactivation: () => void
     onDragStepX?: (stepChange: number) => void
     chartWidth: number
+    calculatedHeights: {
+      participantBarHeight: number
+      heightOfParticipantBars: number
+      chartHeight: number
+      legendHeight: number
+      totalHeight: number
+      axisLabelY: number
+      legendY: number
+    }
   }
 
   // Component props using Svelte 5 $props rune
@@ -57,131 +58,25 @@
     onTooltipDeactivation = () => {},
     onDragStepX = () => {},
     chartWidth = 0,
+    calculatedHeights,
   }: Props = $props()
 
   // Legend constants
   const LEGEND = {
-    TITLE_HEIGHT: 18,
-    ITEM_HEIGHT: 15,
-    ITEM_PADDING: 8,
-    GROUP_SPACING: 10, // Increased for better separation between groups
-    GROUP_TITLE_SPACING: 5, // Increased for better space between title and items
-    ICON_WIDTH: 20,
-    TEXT_PADDING: 8,
-    ITEM_SPACING: 15,
-    FONT_SIZE: 12,
-    BG_HOVER_COLOR: 'rgba(0, 0, 0, 0.05)',
-    RECT_HIGHLIGHT_STROKE: '#333333',
-    RECT_HIGHLIGHT_STROKE_WIDTH: 1,
-    LINE_HIGHLIGHT_STROKE_WIDTH: 3,
-    ITEMS_PER_ROW: 3,
-  }
-
-  // Calculate legend items per row based on available width
-  function getItemsPerRow({
-    chartWidth,
-    leftLabelWidth,
-    padding,
-    iconWidth,
-    textPadding,
-    itemSpacing,
-    avgTextWidth = 90, // Default value for average text width
-  }: {
-    chartWidth: number
-    leftLabelWidth: number
-    padding: number
-    iconWidth: number
-    textPadding: number
-    itemSpacing: number
-    avgTextWidth?: number
-  }): number {
-    if (!chartWidth || chartWidth <= 0) {
-      return 3 // Default if no width provided
-    }
-
-    // Calculate how many items can fit in the available width with spacing
-    const availableWidth = chartWidth - leftLabelWidth - padding * 2
-
-    // Account for item width (icon + text + padding)
-    const itemFullWidth = iconWidth + textPadding + avgTextWidth + itemSpacing
-
-    const maxItems = Math.floor(availableWidth / itemFullWidth)
-
-    // Return at least 1 item per row, or as many as will fit
-    return Math.max(1, maxItems)
-  }
-
-  // Calculate legend height based on content
-  function calculateLegendHeight({
-    aoiItemsLength,
-    categoryItemsLength,
-    visibilityItemsLength,
-    chartWidth,
-    leftLabelWidth,
-    titleHeight,
-    itemHeight,
-    itemPadding,
-    groupSpacing,
-    groupTitleSpacing,
-    padding,
-    iconWidth,
-    textPadding,
-    itemSpacing,
-  }: {
-    aoiItemsLength: number
-    categoryItemsLength: number
-    visibilityItemsLength: number
-    chartWidth: number
-    leftLabelWidth: number
-    titleHeight: number
-    itemHeight: number
-    itemPadding: number
-    groupSpacing: number
-    groupTitleSpacing: number
-    padding: number
-    iconWidth: number
-    textPadding: number
-    itemSpacing: number
-  }): number {
-    const itemsPerRow = getItemsPerRow({
-      chartWidth,
-      leftLabelWidth,
-      padding,
-      iconWidth,
-      textPadding,
-      itemSpacing,
-    })
-
-    // Calculate row counts for each section
-    const aoiRows = Math.ceil(aoiItemsLength / itemsPerRow)
-    const categoryRows = Math.ceil(categoryItemsLength / itemsPerRow)
-    const visibilityRows =
-      visibilityItemsLength > 0
-        ? Math.ceil(visibilityItemsLength / itemsPerRow)
-        : 0
-
-    // Calculate section heights
-    const aoiSectionHeight =
-      titleHeight + groupTitleSpacing + aoiRows * (itemHeight + itemPadding)
-    const categorySectionHeight =
-      titleHeight +
-      groupTitleSpacing +
-      categoryRows * (itemHeight + itemPadding)
-    const visibilitySectionHeight =
-      visibilityItemsLength > 0
-        ? titleHeight +
-          groupTitleSpacing +
-          visibilityRows * (itemHeight + itemPadding)
-        : 0
-
-    return (
-      padding + // Top padding
-      aoiSectionHeight + // AOI section
-      groupSpacing + // Spacing between AOI and Category
-      categorySectionHeight + // Category section
-      (visibilityItemsLength > 0 ? groupSpacing + visibilitySectionHeight : 0) + // Visibility section if exists
-      padding // Bottom padding
-    )
+    TITLE_HEIGHT: LAYOUT.LEGEND_TITLE_HEIGHT,
+    ITEM_HEIGHT: LAYOUT.LEGEND_ITEM_HEIGHT,
+    ITEM_PADDING: LAYOUT.LEGEND_ITEM_PADDING,
+    GROUP_SPACING: LAYOUT.LEGEND_GROUP_SPACING,
+    GROUP_TITLE_SPACING: LAYOUT.LEGEND_GROUP_TITLE_SPACING,
+    ICON_WIDTH: LAYOUT.LEGEND_ICON_WIDTH,
+    TEXT_PADDING: LAYOUT.LEGEND_TEXT_PADDING,
+    ITEM_SPACING: LAYOUT.LEGEND_ITEM_SPACING,
+    FONT_SIZE: LAYOUT.LEGEND_FONT_SIZE,
+    BG_HOVER_COLOR: LAYOUT.LEGEND_BG_HOVER_COLOR,
+    RECT_HIGHLIGHT_STROKE: LAYOUT.LEGEND_RECT_HIGHLIGHT_STROKE,
+    RECT_HIGHLIGHT_STROKE_WIDTH: LAYOUT.LEGEND_RECT_HIGHLIGHT_STROKE_WIDTH,
+    LINE_HIGHLIGHT_STROKE_WIDTH: LAYOUT.LEGEND_LINE_HIGHLIGHT_STROKE_WIDTH,
+    ITEMS_PER_ROW: LAYOUT.LEGEND_ITEMS_PER_ROW,
   }
 
   const LEFT_LABEL_WIDTH = $derived(
@@ -206,7 +101,7 @@
 
   // Derived values using Svelte 5 $derived rune
   const usedHighlight = $derived(fixedHighlight ?? highlightedIdentifier)
-  const xAxisLabel = $derived(getXAxisLabel(settings))
+  const xAxisLabel = $derived(getXAxisLabel(settings.timeline))
 
   // SVG size calculations - MOVE THESE BEFORE RECTANGLE/LINE CALCULATIONS
   const totalWidth = $derived(chartWidth)
@@ -225,32 +120,11 @@
     )
   )
 
-  const chartHeight = $derived(
-    Math.max(data.chartHeight, LAYOUT.MIN_CHART_HEIGHT)
-  )
+  const chartHeight = $derived(calculatedHeights.chartHeight)
 
-  const legendHeight = $derived(
-    calculateLegendHeight({
-      aoiItemsLength: data.stylingAndLegend.aoi.length,
-      categoryItemsLength: data.stylingAndLegend.category.length,
-      visibilityItemsLength: data.stylingAndLegend.visibility.length,
-      chartWidth,
-      leftLabelWidth: LEFT_LABEL_WIDTH,
-      titleHeight: LEGEND.TITLE_HEIGHT,
-      itemHeight: LEGEND.ITEM_HEIGHT,
-      itemPadding: LEGEND.ITEM_PADDING,
-      groupSpacing: LEGEND.GROUP_SPACING,
-      groupTitleSpacing: LEGEND.GROUP_TITLE_SPACING,
-      padding: LAYOUT.PADDING,
-      iconWidth: LEGEND.ICON_WIDTH,
-      textPadding: LEGEND.TEXT_PADDING,
-      itemSpacing: LEGEND.ITEM_SPACING,
-    })
-  )
+  const legendHeight = $derived(calculatedHeights.legendHeight)
 
-  const totalHeight = $derived(
-    chartHeight + LAYOUT.AXIS_LABEL_HEIGHT + legendHeight
-  )
+  const totalHeight = $derived(calculatedHeights.totalHeight)
 
   // Style lookup maps for efficient style access - O(1) instead of O(n)
   const rectStyleMap = $derived.by(() => {
@@ -429,17 +303,6 @@
     })
   })
 
-  // Helper functions
-  function getTimelineUnit(settings: ScarfGridType): string {
-    return settings.timeline === 'relative' ? '%' : 'ms'
-  }
-
-  function getXAxisLabel(settings: ScarfGridType): string {
-    return settings.timeline === 'ordinal'
-      ? 'Order index'
-      : `Elapsed time [${getTimelineUnit(settings)}]`
-  }
-
   function getSegmentX(x: number): number {
     if (!plotAreaWidth) return 0
 
@@ -516,13 +379,16 @@
   function resizeCanvas() {
     if (!canvas || !canvasCtx) return
 
+    // Use total height from calculatedHeights directly
+    const actualTotalHeight = calculatedHeights.totalHeight
+
     // Set actual canvas dimensions (scaled for high DPI)
     canvas.width = totalWidth * pixelRatio
-    canvas.height = totalHeight * pixelRatio
+    canvas.height = actualTotalHeight * pixelRatio
 
     // Set display size (css pixels)
     canvas.style.width = `${totalWidth}px`
-    canvas.style.height = `${totalHeight}px`
+    canvas.style.height = `${actualTotalHeight}px`
   }
 
   function renderCanvas() {
@@ -584,12 +450,20 @@
     canvasCtx.lineWidth = LAYOUT.GRID_STROKE_WIDTH
 
     data.participants.forEach((_, i) => {
-      const y = i * data.heightOfBarWrap + 0.5
+      // Draw grid lines exactly at bar boundaries
+      const y = i * calculatedHeights.participantBarHeight
       canvasCtx!.beginPath()
       canvasCtx!.moveTo(LEFT_LABEL_WIDTH, y)
       canvasCtx!.lineTo(LEFT_LABEL_WIDTH + plotAreaWidth, y)
       canvasCtx!.stroke()
     })
+
+    // Draw final grid line at the bottom
+    const y = calculatedHeights.heightOfParticipantBars
+    canvasCtx!.beginPath()
+    canvasCtx!.moveTo(LEFT_LABEL_WIDTH, y)
+    canvasCtx!.lineTo(LEFT_LABEL_WIDTH + plotAreaWidth, y)
+    canvasCtx!.stroke()
   }
 
   function drawTimelineLabels() {
@@ -600,12 +474,15 @@
     canvasCtx.textAlign = 'center'
     canvasCtx.textBaseline = 'hanging'
 
+    // Position labels just 5px below the participant bars
+    const yPos = calculatedHeights.heightOfParticipantBars + 10
+
     data.timeline.ticks.forEach(tick => {
       if (tick.isNice) {
         canvasCtx!.fillText(
           tick.label,
           LEFT_LABEL_WIDTH + tick.position * plotAreaWidth,
-          data.chartHeight - LAYOUT.AXIS_OFFSET
+          yPos
         )
       }
     })
@@ -617,11 +494,14 @@
     canvasCtx.strokeStyle = LAYOUT.GRID_COLOR
     canvasCtx.lineWidth = 1.5
 
-    // Draw ticks
+    // Use the exact height from calculatedHeights
+    const yLine = calculatedHeights.heightOfParticipantBars
+
+    // Draw ticks - make them shorter (3px instead of LAYOUT.TICK_LENGTH)
     data.timeline.ticks.forEach(tick => {
       const x = LEFT_LABEL_WIDTH + tick.position * plotAreaWidth
-      const y1 = data.participants.length * data.heightOfBarWrap - 0.5
-      const y2 = y1 + LAYOUT.TICK_LENGTH
+      const y1 = yLine
+      const y2 = y1 + 5
 
       canvasCtx!.beginPath()
       canvasCtx!.moveTo(x, y1)
@@ -631,14 +511,8 @@
 
     // Draw bottom border line
     canvasCtx.beginPath()
-    canvasCtx.moveTo(
-      LEFT_LABEL_WIDTH,
-      data.participants.length * data.heightOfBarWrap - 0.5
-    )
-    canvasCtx.lineTo(
-      LEFT_LABEL_WIDTH + plotAreaWidth,
-      data.participants.length * data.heightOfBarWrap - 0.5
-    )
+    canvasCtx.moveTo(LEFT_LABEL_WIDTH, yLine)
+    canvasCtx.lineTo(LEFT_LABEL_WIDTH + plotAreaWidth, yLine)
     canvasCtx.stroke()
   }
 
@@ -700,11 +574,10 @@
     canvasCtx.textAlign = 'center'
     canvasCtx.textBaseline = 'top'
 
-    canvasCtx.fillText(
-      xAxisLabel,
-      LEFT_LABEL_WIDTH + plotAreaWidth / 2,
-      chartHeight + 15
-    )
+    // Position the label using exact coordinates from calculatedHeights
+    const labelY = calculatedHeights.axisLabelY
+
+    canvasCtx.fillText(xAxisLabel, LEFT_LABEL_WIDTH + plotAreaWidth / 2, labelY)
   }
 
   // Calculate legend geometry - for rendering and hit detection
@@ -719,8 +592,10 @@
       textPadding: LEGEND.TEXT_PADDING,
       itemSpacing: LEGEND.ITEM_SPACING,
     })
+
+    // Use exact coordinates from calculatedHeights
     const legendX = LEFT_LABEL_WIDTH + LAYOUT.PADDING
-    const legendY = chartHeight + LAYOUT.AXIS_LABEL_HEIGHT
+    const legendY = calculatedHeights.legendY
 
     // Calculate rows for each section
     const aoiItemCount = data.stylingAndLegend.aoi.length
@@ -1223,16 +1098,13 @@
   $effect(() => {
     // These direct references create dependencies on data changes
     const _ = [
-      data.chartHeight,
       data.heightOfBarWrap,
       data.participants.length,
-      totalHeight,
       totalWidth,
-      chartHeight,
-      highlightedIdentifier,
-      usedHighlight,
       // Reference timeline data to update when it changes
       data.timeline.ticks.length,
+      highlightedIdentifier,
+      usedHighlight,
     ]
 
     if (canvas && canvasCtx) {
