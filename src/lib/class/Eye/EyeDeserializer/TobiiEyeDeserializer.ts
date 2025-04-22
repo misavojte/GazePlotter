@@ -1,6 +1,13 @@
 import type { DeserializerOutputType } from '$lib/type/DeserializerOutput/DeserializerOutputType.js'
 import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
 
+type TobiiEyeDeserializerSetup = {
+  whichStimulus: 'default' | 'interval'
+  whichBaseTime: 'stimulus' | 'participant'
+  intervalStartMarker: string
+  intervalEndMarker: string
+}
+
 // Constants for performance
 const TIME_MODIFIER = 0.001 // microseconds to milliseconds
 const EMPTY_STRING = ''
