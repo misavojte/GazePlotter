@@ -390,10 +390,10 @@
 
         if (isBelowMinimum(value)) {
           cellColor = belowMinColor
-          textColor = '#000'
+          textColor = getContrastTextColor(belowMinColor)
         } else if (isAboveMaximum(value)) {
           cellColor = aboveMaxColor
-          textColor = '#fff'
+          textColor = getContrastTextColor(aboveMaxColor)
         } else {
           cellColor = getColor(value)
           textColor = getContrastTextColor(cellColor)
