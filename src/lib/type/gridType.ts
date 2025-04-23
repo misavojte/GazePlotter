@@ -6,6 +6,7 @@ export interface GridType {
   h: number
   min: { w: number; h: number }
   type: 'scarf' | 'AoiTransitionMatrix' | 'barPlot'
+  redrawTimestamp: number
 }
 
 export interface ScarfGridType extends GridType {

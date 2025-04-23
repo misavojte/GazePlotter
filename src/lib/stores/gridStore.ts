@@ -64,38 +64,36 @@ export function createGridStore(
   }
 
   /**
-   * Creates a fully formed grid item object from its type and partial options.
-   * Fetches defaults from the visualization registry and merges with provided options.
-   *
-   * @param type The type identifier of the visualization.
-   * @param options Partial configuration options for the item.
-   * @returns A complete AllGridTypes object.
+   * Creates a grid item with appropriate defaults for the given visualization type
    */
-  // Moved item creation logic here
   function createGridItemFromData(
     type: string,
     options: Partial<AllGridTypes> = {}
   ): AllGridTypes {
+    // Get configuration for this visualization type
     const vizConfig = getVisualizationConfig(type)
-    const id = options.id || getNewId()
-    const stimulusId = options.stimulusId ?? 0
 
-    // Get default dimensions from config
-    const defaultWidth = vizConfig.getDefaultWidth(stimulusId)
-    const defaultHeight = vizConfig.getDefaultHeight(stimulusId)
+    // Generate a new ID if not provided
+    const newId = options.id ?? getNewId()
 
-    // Set default position if not provided (placement handled later by addItem)
-    const x = options.x !== undefined ? options.x : 0
-    const y = options.y !== undefined ? options.y : 0
+    // Set initial timestamp for redrawing
+    const initialTimestamp = Date.now()
+
+    // Create base properties common to all grid items
+    const baseProperties = {
+      id: newId,
+      x: options.x ?? 0,
+      y: options.y ?? 0,
+      w: options.w ?? vizConfig.getDefaultWidth(options.stimulusId ?? 0),
+      h: options.h ?? vizConfig.getDefaultHeight(options.stimulusId ?? 0),
+      min: options.min ?? vizConfig.getDefaultConfig().min,
+      type,
+      redrawTimestamp: initialTimestamp,
+    }
 
     // Merge defaults with provided options
     return {
-      id,
-      type,
-      x, // Initial position, will be potentially overridden by placement logic
-      y,
-      w: options.w ?? defaultWidth,
-      h: options.h ?? defaultHeight,
+      ...baseProperties,
       ...vizConfig.getDefaultConfig(options), // Apply viz-specific defaults
       ...options, // Apply user overrides
     } as AllGridTypes
@@ -608,6 +606,25 @@ export function createGridStore(
     /** Updates the store's internal items array using an updater function. */
     update: (updater: (items: AllGridTypes[]) => AllGridTypes[]) => {
       items.update(updater)
+    },
+
+    /**
+     * Triggers a redraw by updating the redrawTimestamp of all items or a specific item.
+     * @param id Optional ID of a specific item to redraw. If not provided, all items will be redrawn.
+     */
+    triggerRedraw: (id?: number) => {
+      const timestamp = Date.now()
+      items.update($items => {
+        if (id !== undefined) {
+          // Update only the specified item
+          return $items.map(item =>
+            item.id === id ? { ...item, redrawTimestamp: timestamp } : item
+          )
+        } else {
+          // Update all items
+          return $items.map(item => ({ ...item, redrawTimestamp: timestamp }))
+        }
+      })
     },
 
     /**

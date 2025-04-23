@@ -107,9 +107,8 @@
       requestAnimationFrame(() => {
         const refreshedParticipants = getAllParticipants()
         participantObjects = deepCopyParticipants(refreshedParticipants)
-        settingsChange({
-          ...settings,
-        })
+        // Trigger a redraw of all visualizations
+        gridStore.triggerRedraw()
       })
     } catch (e) {
       console.error(e)

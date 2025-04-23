@@ -37,8 +37,17 @@
   // Derived values using Svelte 5 $derived and $derived.by runes
   const currentGroupId = $derived(settings.groupId)
   const currentStimulusId = $derived(settings.stimulusId)
+  const redrawTimestamp = $derived(settings.redrawTimestamp)
 
   const currentParticipantIds = $derived.by(() => {
+    // Force re-evaluation when redrawTimestamp changes
+    if (redrawTimestamp) {
+      console.debug(
+        'Scarf plot redraw triggered at:',
+        new Date(redrawTimestamp).toISOString()
+      )
+    }
+
     const participants = getParticipants(currentGroupId, currentStimulusId)
     return participants.map(participant => participant.id)
   })
