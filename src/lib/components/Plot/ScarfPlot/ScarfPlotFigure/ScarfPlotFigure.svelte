@@ -102,6 +102,7 @@
   let dragStartX = $state(0)
   let pixelRatio = $state(1)
   let renderScheduled = $state(false) // Track if a render is scheduled
+  let canvasRect = $state<DOMRect | null>(null) // Store the canvas rect for stable calculations
 
   // Derived values using Svelte 5 $derived rune
   const usedHighlight = $derived(fixedHighlight ?? highlightedIdentifier)
@@ -375,6 +376,9 @@
     if (!canvasCtx) return
 
     resizeCanvas()
+
+    // Store initial canvas rect for consistent coordinate calculations
+    canvasRect = canvas.getBoundingClientRect()
 
     // Initial render
     renderCanvas()
@@ -901,14 +905,36 @@
     return null
   }
 
+  // Get correct mouse position considering DPI scaling
+  function getScaledMousePosition(event: MouseEvent) {
+    if (!canvas) return { x: 0, y: 0 }
+
+    // Update canvasRect on each mouse event for accuracy
+    canvasRect = canvas.getBoundingClientRect()
+
+    // Calculate the CSS pixel position
+    const cssX = event.clientX - canvasRect.left
+    const cssY = event.clientY - canvasRect.top
+
+    // Convert from CSS pixels to canvas pixels
+    // This accounts for the scaling difference between the canvas's
+    // internal coordinate system and its displayed size
+    const canvasX = cssX * (canvas.width / canvasRect.width)
+    const canvasY = cssY * (canvas.height / canvasRect.height)
+
+    // Convert to logical coordinates (pre-scaling)
+    const x = canvasX / pixelRatio
+    const y = canvasY / pixelRatio
+
+    return { x, y }
+  }
+
   // Mouse event handling for canvas
   function handleMouseMove(event: MouseEvent) {
     if (!canvas) return
 
-    // Get mouse position relative to the canvas with pixel ratio correction
-    const rect = canvas.getBoundingClientRect()
-    const mouseX = (event.clientX - rect.left) / pixelRatio
-    const mouseY = (event.clientY - rect.top) / pixelRatio
+    // Get mouse position with correct scaling
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(event)
 
     lastMouseX = mouseX
     lastMouseY = mouseY
@@ -966,16 +992,26 @@
         hoverTimeout = null
       }
 
-      const XUnderTheRect = event.clientX + window.scrollX + 5
-      const YUnderTheRect =
-        hoveredSegment.y + hoveredSegment.height + rect.top + window.scrollY + 5
+      // Get consistent tooltip position
+      // Use the same scaling method for tooltip as for hit detection
+      if (canvasRect) {
+        const tooltipX = event.clientX + window.scrollX + 5
+        const tooltipY =
+          hoveredSegment.y *
+            ((canvasRect.height / canvas.height) * pixelRatio) +
+          hoveredSegment.height *
+            ((canvasRect.height / canvas.height) * pixelRatio) +
+          canvasRect.top +
+          window.scrollY +
+          5
 
-      onTooltipActivation({
-        segmentOrderId: hoveredSegment.orderId,
-        participantId: hoveredSegment.participantId,
-        x: XUnderTheRect,
-        y: YUnderTheRect,
-      })
+        onTooltipActivation({
+          segmentOrderId: hoveredSegment.orderId,
+          participantId: hoveredSegment.participantId,
+          x: tooltipX,
+          y: tooltipY,
+        })
+      }
     } else if (!hoveredSegment && currentHoveredSegment) {
       // If moved out of a segment but still in canvas
       currentHoveredSegment = null
@@ -1020,9 +1056,8 @@
   function handleMouseDown(event: MouseEvent) {
     if (!canvas) return
 
-    const rect = canvas.getBoundingClientRect()
-    const mouseX = (event.clientX - rect.left) / pixelRatio
-    const mouseY = (event.clientY - rect.top) / pixelRatio
+    // Get mouse position with correct scaling
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(event)
 
     // Check if clicking on a legend item
     const clickedLegendItem = isMouseOverLegendItem(mouseX, mouseY)
@@ -1058,9 +1093,8 @@
   function handleDrag(event: MouseEvent) {
     if (!isDragging || !canvas) return
 
-    const rect = canvas.getBoundingClientRect()
-    const mouseX = (event.clientX - rect.left) / pixelRatio
-    const mouseY = (event.clientY - rect.top) / pixelRatio
+    // Get mouse position with correct scaling
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(event)
 
     // Check if mouse is over legend - stop dragging if it is
     const hoveredLegendItem = isMouseOverLegendItem(mouseX, mouseY)
@@ -1128,6 +1162,63 @@
 
     // Schedule a render instead of immediate execution
     scheduleRender()
+
+    // Update canvasRect when data changes that could affect canvas size
+    if (canvas) {
+      canvasRect = canvas.getBoundingClientRect()
+    }
+  })
+
+  // Update DPI and canvasRect when window moves or resizes
+  function updateDpiAndRect() {
+    if (!canvas || dpiOverride !== null) return
+
+    const newPixelRatio = window.devicePixelRatio || 1
+
+    // Only update if DPI actually changed
+    if (newPixelRatio !== pixelRatio) {
+      pixelRatio = newPixelRatio
+      resizeCanvas()
+      renderCanvas()
+    }
+
+    // Update canvas rect
+    canvasRect = canvas.getBoundingClientRect()
+  }
+
+  // Add resize observer to update canvasRect when canvas size changes
+  $effect(() => {
+    if (!canvas) return
+
+    // Update on resize
+    const resizeObserver = new ResizeObserver(() => {
+      if (canvas) {
+        // Fix linter error by checking canvas is not null
+        canvasRect = canvas.getBoundingClientRect()
+      }
+    })
+
+    resizeObserver.observe(canvas)
+
+    // Update DPI and rect when window moves between monitors
+    window.addEventListener('resize', updateDpiAndRect)
+
+    // Extra event listener for when the window moves between displays
+    // This is more reliable than just resize for DPI changes
+    if (window.matchMedia) {
+      const mediaQueryList = window.matchMedia('(resolution: 1dppx)')
+      mediaQueryList.addEventListener('change', updateDpiAndRect)
+    }
+
+    return () => {
+      resizeObserver.disconnect()
+      window.removeEventListener('resize', updateDpiAndRect)
+
+      if (window.matchMedia) {
+        const mediaQueryList = window.matchMedia('(resolution: 1dppx)')
+        mediaQueryList.removeEventListener('change', updateDpiAndRect)
+      }
+    }
   })
 
   // Add effect to watch for dpiOverride changes
