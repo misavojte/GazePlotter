@@ -2,11 +2,11 @@
   import DownloadPlotSettings from '$lib/components/Modal/Shared/DownloadPlotSettings.svelte'
   import type { AoiTransitionMatrixGridType } from '$lib/type/gridType'
   import AoiTransitionMatrixPlotFigure from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixPlotFigure.svelte'
-  import GeneralSvgPreview from '$lib/components/General/GeneralSvgPreview/GeneralSvgPreview.svelte'
   import {
     calculateTransitionMatrix,
     AggregationMethod,
   } from '$lib/utils/aoiTransitionMatrixTransformations'
+  import GeneralCanvasPreview from '$lib/components/General/GeneralCanvasPreview/GeneralCanvasPreview.svelte'
 
   interface Props {
     settings: AoiTransitionMatrixGridType
@@ -15,7 +15,7 @@
   let { settings }: Props = $props()
 
   // Export settings state
-  let typeOfExport = $state<'.svg' | '.png' | '.jpg' | '.webp'>('.svg')
+  let typeOfExport = $state<'.png' | '.jpg'>('.png')
   let width = $state(800) /* in px */
   let fileName = $state('GazePlotter-AoiTransitionMatrix')
   let dpi = $state(96) /* standard web DPI */
@@ -23,9 +23,6 @@
   let marginRight = $state(20) /* in px */
   let marginBottom = $state(20) /* in px */
   let marginLeft = $state(20) /* in px */
-
-  // States for preview
-  let previewContainer = $state<HTMLDivElement | null>(null)
 
   // Calculate matrix data for preview
   const { matrix, aoiLabels } = $derived(
@@ -45,28 +42,46 @@
   // Calculate the effective width (what will be available for the chart after margins)
   const effectiveWidth = $derived(width - (marginLeft + marginRight))
 
-  // Use the height directly from the data with additional space for legend and axes
-  // Add fixed padding (150px) plus margins to maintain proper spacing
-  const previewHeight = $derived(
-    width + 150 + marginTop + marginBottom // Square matrix + legend + margins
-  )
+  // Calculate the effective height for the matrix plot
+  // AOI Transition matrix is ideally square with additional space for legend
+  const effectiveHeight = $derived(effectiveWidth)
+
+  // Total height with legend space
+  const totalHeight = $derived(effectiveWidth) // Square matrix + more legend space (increased from 150)
+
+  // Update the legend title based on the aggregation method
+  function getLegendTitle(method: string): string {
+    switch (method) {
+      case AggregationMethod.SUM:
+        return 'Transition Count'
+      case AggregationMethod.PROBABILITY:
+        return 'Transition Probability (%)'
+      case AggregationMethod.DWELL_TIME:
+        return 'Dwell Time (ms)'
+      case AggregationMethod.SEGMENT_DWELL_TIME:
+        return 'Segment Dwell Time (ms)'
+      default:
+        return 'Transition Value'
+    }
+  }
 
   // Props to pass to the AoiTransitionMatrixPlotFigure component
   const matrixPlotProps = $derived({
     AoiTransitionMatrix: matrix,
     aoiLabels,
-    width: effectiveWidth - (marginLeft + marginRight), // Subtract margins from width
-    height: effectiveWidth - (marginBottom + marginTop), // Keep it square
+    width: effectiveWidth,
+    height: effectiveHeight,
     cellSize: 30,
     colorScale: settings.colorScale,
     xLabel: 'To AOI',
     yLabel: 'From AOI',
-    legendTitle: 'Transition Count',
+    legendTitle: getLegendTitle(settings.aggregationMethod),
     colorValueRange: currentStimulusColorRange,
     belowMinColor: settings.belowMinColor,
     aboveMaxColor: settings.aboveMaxColor,
     showBelowMinLabels: settings.showBelowMinLabels,
     showAboveMaxLabels: settings.showAboveMaxLabels,
+    dpiOverride: dpi, // Pass the dpi directly to the component
   })
 </script>
 
@@ -89,12 +104,12 @@
     <div class="preview-heading">
       <h3>Your exported plot</h3>
     </div>
-    <div bind:this={previewContainer}>
-      <GeneralSvgPreview
+    <div>
+      <GeneralCanvasPreview
         {fileName}
         fileType={typeOfExport}
         {width}
-        height={previewHeight}
+        height={totalHeight + marginTop + marginBottom}
         {marginTop}
         {marginRight}
         {marginBottom}
@@ -103,7 +118,7 @@
         showDownloadButton={true}
       >
         <AoiTransitionMatrixPlotFigure {...matrixPlotProps} />
-      </GeneralSvgPreview>
+      </GeneralCanvasPreview>
     </div>
   </div>
 </div>
@@ -125,20 +140,5 @@
 
   .preview-section {
     flex-grow: 1;
-    overflow: auto;
-  }
-
-  /* Responsive layout for wider screens */
-  @media (min-width: 768px) {
-    .single-view-container {
-      max-height: none;
-    }
-  }
-
-  /* Mobile layout adjustments */
-  @media (max-width: 600px) {
-    .preview-section {
-      overflow-x: auto;
-    }
   }
 </style>

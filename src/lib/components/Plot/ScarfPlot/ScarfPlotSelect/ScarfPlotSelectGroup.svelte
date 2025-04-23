@@ -1,15 +1,8 @@
 <script lang="ts">
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
-  import {
-    getParticipantsGroups,
-    data,
-    hasStimulusAoiVisibility,
-  } from '$lib/stores/dataStore'
+  import { getParticipantsGroups, data } from '$lib/stores/dataStore'
   import { onDestroy } from 'svelte'
-  import {
-    getDynamicAoiBoolean,
-    getScarfGridHeightFromCurrentData,
-  } from '$lib/services/scarfServices'
+  import { handleScarfSelectionChange } from '$lib/services/scarfSelectService'
   import type { ScarfGridType } from '$lib/type/gridType'
 
   interface Props {
@@ -43,22 +36,8 @@
     const groupId = parseInt(event.detail)
     selectedGroupId = groupId.toString()
 
-    // Calculate new height based on selected group
-    const h = getScarfGridHeightFromCurrentData(
-      settings.stimulusId,
-      getDynamicAoiBoolean(
-        settings.timeline,
-        settings.dynamicAOI,
-        hasStimulusAoiVisibility(settings.stimulusId)
-      ),
-      groupId
-    )
-
-    // Call the callback prop with the updated settings
-    settingsChange({
-      groupId,
-      h,
-    })
+    // Use the shared service to handle the change
+    handleScarfSelectionChange(settings, { groupId }, settingsChange)
   }
 
   onDestroy(() => {

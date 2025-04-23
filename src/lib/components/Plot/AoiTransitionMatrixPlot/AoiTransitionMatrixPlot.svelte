@@ -11,6 +11,9 @@
   import AoiTransitionMatrixSelectStimulus from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixSelectStimulus.svelte'
   import AoiTransitionMatrixSelectGroup from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixSelectGroup.svelte'
   import AoiTransitionMatrixButtonMenu from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixButtonMenu.svelte'
+  import { modalStore } from '$lib/stores/modalStore.js'
+  import ModalContentMaxValue from '$lib/components/Modal/ModalContent/ModalContentMaxValue.svelte'
+  import ModalContentColorScale from '$lib/components/Modal/ModalContent/ModalContentColorScale.svelte'
 
   interface Props {
     settings: AoiTransitionMatrixGridType
@@ -116,6 +119,32 @@
         return 'Transition Value'
     }
   }
+
+  function handleGradientClick() {
+    try {
+      modalStore.open(ModalContentColorScale as any, 'Customize color scale', {
+        settings,
+        settingsChange,
+      })
+    } catch (error) {
+      console.error('Error opening color scale modal:', error)
+    }
+  }
+
+  function handleValueClick(isMin: boolean) {
+    try {
+      modalStore.open(
+        ModalContentMaxValue as any,
+        'Set maximum color scale value',
+        {
+          settings,
+          settingsChange,
+        }
+      )
+    } catch (error) {
+      console.error('Error opening modal:', error)
+    }
+  }
 </script>
 
 <div class="aoi-matrix-container">
@@ -153,23 +182,26 @@
         settings.aggregationMethod as AggregationMethod
       )}
       {#if aoiLabels.length > 0}
-        <AoiTransitionMatrixPlotFigure
-          AoiTransitionMatrix={matrix}
-          {aoiLabels}
-          width={plotDimensions.width}
-          height={plotDimensions.height}
-          {cellSize}
-          colorScale={settings.colorScale}
-          xLabel="To AOI"
-          yLabel="From AOI"
-          legendTitle={getLegendTitle(settings.aggregationMethod)}
-          colorValueRange={currentStimulusColorRange}
-          onColorValueRangeChange={handleColorValueRangeChange}
-          belowMinColor={settings.belowMinColor}
-          aboveMaxColor={settings.aboveMaxColor}
-          showBelowMinLabels={settings.showBelowMinLabels}
-          showAboveMaxLabels={settings.showAboveMaxLabels}
-        />
+        <div class="figure-container">
+          <AoiTransitionMatrixPlotFigure
+            AoiTransitionMatrix={matrix}
+            {aoiLabels}
+            width={plotDimensions.width}
+            height={plotDimensions.height}
+            {cellSize}
+            colorScale={settings.colorScale}
+            xLabel="To AOI"
+            yLabel="From AOI"
+            legendTitle={getLegendTitle(settings.aggregationMethod)}
+            colorValueRange={currentStimulusColorRange}
+            belowMinColor={settings.belowMinColor}
+            aboveMaxColor={settings.aboveMaxColor}
+            showBelowMinLabels={settings.showBelowMinLabels}
+            showAboveMaxLabels={settings.showAboveMaxLabels}
+            onGradientClick={handleGradientClick}
+            onValueClick={handleValueClick}
+          />
+        </div>
       {:else}
         <div class="no-data">
           No AOI data available for the selected stimulus.
@@ -200,6 +232,12 @@
     gap: 5px;
     flex-wrap: wrap;
     background: inherit;
+  }
+
+  .figure-container {
+    flex: 1;
+    position: relative;
+    height: calc(100% - 60px);
   }
 
   .no-data {
