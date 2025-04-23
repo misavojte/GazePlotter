@@ -702,8 +702,8 @@
   function updateHoverAnimation(timestamp: number) {
     if (!isAnimating) return
 
-    // Calculate delta time (normalized to 300ms duration)
-    const deltaTime = (timestamp - animationLastTime) / 300
+    // Calculate delta time
+    const deltaTime = (timestamp - animationLastTime) / 300 // 300ms for full animation
     animationLastTime = timestamp
 
     // Update progress based on which direction we're animating
@@ -712,7 +712,6 @@
       hoverAnimationProgress = Math.min(1, hoverAnimationProgress + deltaTime)
       if (hoverAnimationProgress >= 1) {
         hoverAnimationProgress = 1
-        isAnimating = false
       } else {
         requestAnimationFrame(updateHoverAnimation)
       }
@@ -733,9 +732,11 @@
 
   // Start the animation
   function startHoverAnimation() {
-    isAnimating = true
-    animationLastTime = performance.now()
-    requestAnimationFrame(updateHoverAnimation)
+    if (!isAnimating) {
+      isAnimating = true
+      animationLastTime = performance.now()
+      requestAnimationFrame(updateHoverAnimation)
+    }
   }
 
   // Handle mouse movement over the canvas
