@@ -45,6 +45,7 @@
       axisLabelY: number
       legendY: number
     }
+    dpiOverride?: number | null // Override for DPI settings when exporting
   }
 
   // Component props using Svelte 5 $props rune
@@ -59,6 +60,7 @@
     onDragStepX = () => {},
     chartWidth = 0,
     calculatedHeights,
+    dpiOverride = null,
   }: Props = $props()
 
   // Legend constants
@@ -357,12 +359,13 @@
   function setupCanvas() {
     if (!canvas) return
 
+    // Use DPI override if provided, otherwise use device pixel ratio
+    pixelRatio =
+      dpiOverride !== null ? dpiOverride / 96 : window.devicePixelRatio || 1
+
     // Get and save the context
     canvasCtx = canvas.getContext('2d')
     if (!canvasCtx) return
-
-    // Set up for high-DPI displays
-    pixelRatio = window.devicePixelRatio || 1
 
     resizeCanvas()
 
@@ -1120,6 +1123,15 @@
 
     // Schedule a render instead of immediate execution
     scheduleRender()
+  })
+
+  // Add effect to watch for dpiOverride changes
+  $effect(() => {
+    if (canvas && canvasCtx && dpiOverride !== null) {
+      pixelRatio = dpiOverride / 96
+      resizeCanvas()
+      renderCanvas()
+    }
   })
 </script>
 

@@ -43,7 +43,6 @@
 
   // Available export options
   const options = [
-    { label: 'SVG (Vector)', value: '.svg' },
     { label: 'PNG (Transparent)', value: '.png' },
     { label: 'JPG (White Background)', value: '.jpg' },
   ]

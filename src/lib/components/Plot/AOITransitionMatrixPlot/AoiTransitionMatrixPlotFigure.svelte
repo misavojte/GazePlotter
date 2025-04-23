@@ -35,6 +35,7 @@
    * @param onClickLegend - Callback when legend is clicked
    * @param onValueClick - Callback when min/max values are clicked
    * @param onGradientClick - Callback when gradient bar is clicked
+   * @param dpiOverride - Optional DPI override for exports
    */
   let {
     AoiTransitionMatrix = [],
@@ -54,6 +55,7 @@
     showAboveMaxLabels = false,
     onValueClick = () => {},
     onGradientClick = () => {},
+    dpiOverride = null,
   } = $props<{
     AoiTransitionMatrix: number[][]
     aoiLabels: string[]
@@ -72,6 +74,7 @@
     showAboveMaxLabels?: boolean
     onValueClick?: (isMin: boolean) => void
     onGradientClick?: () => void
+    dpiOverride?: number | null
   }>()
 
   // Additional offsets for axis labels to prevent collisions
@@ -179,8 +182,9 @@
   function setupCanvas() {
     if (!canvas) return
 
-    // Get the device pixel ratio
-    pixelRatio = window.devicePixelRatio || 1
+    // Get the device pixel ratio or use override if provided
+    pixelRatio =
+      dpiOverride !== null ? dpiOverride / 96 : window.devicePixelRatio || 1
 
     // Get the canvas context
     canvasCtx = canvas.getContext('2d')
@@ -877,6 +881,15 @@
   $effect(() => {
     if (canvas && canvasCtx) {
       scheduleRender()
+    }
+  })
+
+  // Watch for changes in dpiOverride
+  $effect(() => {
+    if (canvas && canvasCtx && dpiOverride !== null) {
+      pixelRatio = dpiOverride / 96
+      resizeCanvas()
+      renderCanvas()
     }
   })
 
