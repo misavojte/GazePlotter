@@ -107,6 +107,12 @@
   const usedHighlight = $derived(fixedHighlight ?? highlightedIdentifier)
   const xAxisLabel = $derived(getXAxisLabel(settings.timeline))
 
+  // Memoize legend geometry to avoid recalculating on every mouse move
+  const legendGeometry = $derived.by(() => {
+    if (!data.stylingAndLegend) return { items: [], height: 0, groupTitles: [] }
+    return calculateLegendGeometry()
+  })
+
   // SVG size calculations - MOVE THESE BEFORE RECTANGLE/LINE CALCULATIONS
   const totalWidth = $derived(chartWidth)
 
@@ -754,8 +760,6 @@
   function drawLegend() {
     if (!canvasCtx) return
 
-    const legendGeometry = calculateLegendGeometry()
-
     // Skip legend if no content
     if (
       !legendGeometry ||
@@ -878,10 +882,11 @@
   function isMouseOverLegendItem(mouseX: number, mouseY: number) {
     if (!data.stylingAndLegend) return null
 
-    const legendGeometry = calculateLegendGeometry()
+    // Use the memoized legend geometry
+    const items = legendGeometry.items
 
     // Check each legend item
-    for (const item of legendGeometry.items) {
+    for (const item of items) {
       // Add some padding for easier clicking
       if (
         mouseX >= item.x - 5 &&
