@@ -7,9 +7,8 @@
 
   // SVG layout constants - minimal but not zero to ensure spacing
   const BASE_LABEL_OFFSET = 5
-  const TOP_MARGIN = 30
+  const TOP_MARGIN = 10
   const LEFT_MARGIN = 30
-  const LEGEND_HEIGHT = 40
   const MAX_LABEL_LENGTH = 10 // Maximum number of characters before truncation
   const MIN_CELL_SIZE = 20 // Minimum cell size in pixels
 
@@ -33,6 +32,9 @@
    * @param aboveMaxColor - Color for values above maximum threshold
    * @param showBelowMinLabels - Whether to show labels for values below minimum
    * @param showAboveMaxLabels - Whether to show labels for values above maximum
+   * @param onClickLegend - Callback when legend is clicked
+   * @param onValueClick - Callback when min/max values are clicked
+   * @param onGradientClick - Callback when gradient bar is clicked
    */
   let {
     AoiTransitionMatrix = [],
@@ -50,6 +52,8 @@
     aboveMaxColor = DEFAULT_INACTIVE_COLOR,
     showBelowMinLabels = false,
     showAboveMaxLabels = false,
+    onValueClick = () => {},
+    onGradientClick = () => {},
   } = $props<{
     AoiTransitionMatrix: number[][]
     aoiLabels: string[]
@@ -66,6 +70,8 @@
     aboveMaxColor?: string
     showBelowMinLabels?: boolean
     showAboveMaxLabels?: boolean
+    onValueClick?: (isMin: boolean) => void
+    onGradientClick?: () => void
   }>()
 
   // Additional offsets for axis labels to prevent collisions
@@ -92,7 +98,7 @@
     const xAxisSpace = TOP_MARGIN + labelOffset + AXIS_LABEL_MARGIN
 
     // Space needed for legend (title + gradient + values)
-    const legendSpace = 80 // Fixed space for legend components
+    const legendSpace = 50
 
     // Calculate maximum available space respecting the absolute max height
     const availableWidth = width - yAxisSpace
@@ -167,30 +173,6 @@
       }
     }
     return positions
-  })
-
-  // Calculate total required height but respect max height
-  const totalRequiredHeight = $derived.by(() => {
-    // This is what we'd ideally need
-    const matrixHeight = actualGridHeight
-    const legendTitleHeight = 20
-    const legendGradientHeight = 20
-    const legendValuesHeight = 15
-    const legendSpacing = 10
-    const matrixToLegendSpacing = 30
-    const legendSectionHeight =
-      legendTitleHeight +
-      legendSpacing +
-      legendGradientHeight +
-      legendSpacing +
-      legendValuesHeight
-
-    // Calculate the ideal total height
-    const idealHeight =
-      yOffset + matrixHeight + matrixToLegendSpacing + legendSectionHeight + 20
-
-    // But respect the max height
-    return Math.min(idealHeight, height)
   })
 
   // Setup canvas and context
@@ -417,13 +399,9 @@
         canvasCtx.fillStyle = cellColor
         canvasCtx.fillRect(x, y, optimalCellSize, optimalCellSize)
 
-        // Draw cell value if there's enough space and value warrants display
-        if (
-          optimalCellSize >= 15 &&
-          ((value > 0 && !isBelowMinimum(value)) ||
-            (isBelowMinimum(value) && showBelowMinLabels) ||
-            (isAboveMaximum(value) && showAboveMaxLabels))
-        ) {
+        // Draw cell value if there's enough space
+        // Now always show values, including zero values
+        if (optimalCellSize >= 15) {
           canvasCtx.font = `${valueFontSize}px sans-serif`
           canvasCtx.fillStyle = textColor
           canvasCtx.textAlign = 'center'
@@ -438,98 +416,55 @@
     }
   }
 
-  // Draw the color legend
-  function drawLegend() {
-    if (!canvasCtx) return
+  // Tracking for legend hover effect
+  let hoverState = $state<'none' | 'gradient' | 'minValue' | 'maxValue'>('none')
+  let hoverAnimationProgress = $state(0)
+  let animationLastTime = $state(0)
+  let isAnimating = $state(false)
 
-    // Calculate available space for legend
-    const matrixBottom = yOffset + actualGridHeight
-    const availableLegendSpace = height - matrixBottom - 10 // Reserve 10px padding at bottom
+  // Zone definitions for interaction
+  let minValueZone = $state<{ x: number; y: number; radius: number } | null>(
+    null
+  )
+  let maxValueZone = $state<{ x: number; y: number; radius: number } | null>(
+    null
+  )
+  let gradientZone = $state<{
+    x: number
+    y: number
+    width: number
+    height: number
+    radius: number
+  } | null>(null)
 
-    // If almost no space is available, draw a minimalist legend
-    if (availableLegendSpace < 30) {
-      // Very compact legend, just the gradient with tiny text
-      drawMinimalistLegend(matrixBottom + 5)
-      return
-    }
+  // Legend data for general interaction
+  let legendData = $state<{
+    x: number
+    y: number
+    width: number
+    height: number
+    minValue: number
+    maxValue: number
+  } | null>(null)
 
-    // Calculate legend position with available space
-    const legendTop = matrixBottom + Math.min(25, availableLegendSpace * 0.25) // Reduced spacing
+  // Check if a value is below the minimum threshold
+  function isBelowMinimum(value: number): boolean {
+    return value < colorValueRange[0]
+  }
 
-    // Use width proportional to the matrix
-    const legendWidth = Math.min(300, actualGridWidth * 0.8)
+  // Check if a value is above the maximum threshold
+  function isAboveMaximum(value: number): boolean {
+    return value > effectiveMaxValue && colorValueRange[1] !== 0
+  }
 
-    // Center legend horizontally with the matrix
-    const legendX = xOffset + (actualGridWidth - legendWidth) / 2
-
-    // Legend components vertical positioning
-    const titleY = legendTop
-    const gradientY = titleY + Math.min(18, availableLegendSpace * 0.2) // Reduced spacing
-    const gradientHeight = Math.min(12, availableLegendSpace * 0.2) // Thinner gradient bar
-    const valuesY = gradientY + gradientHeight + 4 // Reduced spacing
-
-    // Draw legend title if there's room
-    if (availableLegendSpace > 40) {
-      canvasCtx.font = '12px sans-serif' // Reduced from 12px to 12px
-      canvasCtx.fillStyle = '#000'
-      canvasCtx.textAlign = 'center'
-      canvasCtx.textBaseline = 'top'
-      canvasCtx.fillText(legendTitle, xOffset + actualGridWidth / 2, titleY)
-    }
-
-    // Create gradient
-    const gradient = canvasCtx.createLinearGradient(
-      legendX,
-      0,
-      legendX + legendWidth,
-      0
+  // Calculate color based on value
+  function getColor(value: number): string {
+    return getColorForValue(
+      value,
+      colorValueRange[0],
+      effectiveMaxValue,
+      colorScale
     )
-
-    if (colorScale.length === 3) {
-      gradient.addColorStop(0, colorScale[0])
-      gradient.addColorStop(0.5, colorScale[1])
-      gradient.addColorStop(1, colorScale[2])
-    } else {
-      gradient.addColorStop(0, colorScale[0])
-      gradient.addColorStop(1, colorScale[1])
-    }
-
-    // Draw gradient rectangle
-    canvasCtx.fillStyle = gradient
-    canvasCtx.fillRect(legendX, gradientY, legendWidth, gradientHeight)
-
-    // Draw border around gradient
-    canvasCtx.strokeStyle = '#666'
-    canvasCtx.lineWidth = 0.5
-    canvasCtx.strokeRect(legendX, gradientY, legendWidth, gradientHeight)
-
-    // Draw min and max values if there's room
-    if (availableLegendSpace > 35) {
-      canvasCtx.font = '12px sans-serif' // Reduced from 12px to 10px
-      canvasCtx.fillStyle = '#000'
-      canvasCtx.textAlign = 'center'
-      canvasCtx.textBaseline = 'top'
-
-      // Min value
-      canvasCtx.fillText(colorValueRange[0].toString(), legendX, valuesY)
-
-      // Max value
-      canvasCtx.fillText(
-        effectiveMaxValue.toString(),
-        legendX + legendWidth,
-        valuesY
-      )
-    }
-
-    // Store legend data for interaction
-    legendData = {
-      x: legendX,
-      y: gradientY,
-      width: legendWidth,
-      height: gradientHeight,
-      minValue: colorValueRange[0],
-      maxValue: effectiveMaxValue,
-    }
   }
 
   // Fallback function to draw a minimalist legend when space is tight
@@ -580,38 +515,228 @@
     }
   }
 
-  // Check if a value is below the minimum threshold
-  function isBelowMinimum(value: number): boolean {
-    return value < colorValueRange[0]
-  }
+  // Draw the color legend
+  function drawLegend() {
+    if (!canvasCtx) return
 
-  // Check if a value is above the maximum threshold
-  function isAboveMaximum(value: number): boolean {
-    return value > effectiveMaxValue && colorValueRange[1] !== 0
-  }
+    // Calculate available space for legend
+    const matrixBottom = yOffset + actualGridHeight
+    const availableLegendSpace = height - matrixBottom - 10 // Reserve 10px padding at bottom
 
-  // Calculate color based on value
-  function getColor(value: number): string {
-    return getColorForValue(
-      value,
-      colorValueRange[0],
-      effectiveMaxValue,
-      colorScale
+    // If almost no space is available, draw a minimalist legend
+    if (availableLegendSpace < 30) {
+      // Very compact legend, just the gradient with tiny text
+      drawMinimalistLegend(matrixBottom + 5)
+      return
+    }
+
+    // Calculate legend position with available space
+    const legendTop = matrixBottom + Math.min(25, availableLegendSpace * 0.25) // Reduced spacing
+
+    // Use width proportional to the matrix
+    const legendWidth = Math.min(300, actualGridWidth * 0.8)
+
+    // Center legend horizontally with the matrix
+    const legendX = xOffset + (actualGridWidth - legendWidth) / 2
+
+    // Legend components vertical positioning
+    const titleY = legendTop
+    const gradientY = titleY + Math.min(20, availableLegendSpace * 0.25) // Reduced spacing
+    const gradientHeight = Math.min(12, availableLegendSpace * 0.2) // Thinner gradient bar
+    const valuesY = gradientY + gradientHeight + 4 // Reduced spacing
+
+    // The circle radius for value zones
+    const valueRadius = Math.max(15, gradientHeight * 1.5)
+
+    // Define interaction zones
+    minValueZone = {
+      x: legendX,
+      y: valuesY + 6, // Center of the text
+      radius: valueRadius,
+    }
+
+    maxValueZone = {
+      x: legendX + legendWidth,
+      y: valuesY + 6, // Center of the text
+      radius: valueRadius,
+    }
+
+    gradientZone = {
+      x: legendX - 5,
+      y: gradientY - 5,
+      width: legendWidth + 10,
+      height: gradientHeight + 10,
+      radius: 5, // Border radius for rounded corners
+    }
+
+    // Draw hover effects based on the current hover state and animation progress
+    if (hoverState !== 'none' && hoverAnimationProgress > 0) {
+      const alpha = 0.2 * hoverAnimationProgress // Ease in the opacity
+
+      if (hoverState === 'minValue' && minValueZone) {
+        // Draw circle highlight for min value
+        canvasCtx.fillStyle = `rgba(200, 200, 200, ${alpha})`
+        canvasCtx.beginPath()
+        canvasCtx.arc(
+          minValueZone.x,
+          minValueZone.y,
+          minValueZone.radius * (0.8 + 0.2 * hoverAnimationProgress), // Slightly grow the circle
+          0,
+          Math.PI * 2
+        )
+        canvasCtx.fill()
+      } else if (hoverState === 'maxValue' && maxValueZone) {
+        // Draw circle highlight for max value
+        canvasCtx.fillStyle = `rgba(200, 200, 200, ${alpha})`
+        canvasCtx.beginPath()
+        canvasCtx.arc(
+          maxValueZone.x,
+          maxValueZone.y,
+          maxValueZone.radius * (0.8 + 0.2 * hoverAnimationProgress), // Slightly grow the circle
+          0,
+          Math.PI * 2
+        )
+        canvasCtx.fill()
+      } else if (hoverState === 'gradient' && gradientZone) {
+        // Draw rounded rectangle highlight for gradient
+        canvasCtx.fillStyle = `rgba(200, 200, 200, ${alpha})`
+        drawRoundedRect(
+          canvasCtx,
+          gradientZone.x,
+          gradientZone.y,
+          gradientZone.width,
+          gradientZone.height,
+          gradientZone.radius
+        )
+      }
+    }
+
+    // Draw legend title if there's room
+    if (availableLegendSpace > 40) {
+      canvasCtx.font = '12px sans-serif'
+      canvasCtx.fillStyle = '#000'
+      canvasCtx.textAlign = 'center'
+      canvasCtx.textBaseline = 'top'
+      canvasCtx.fillText(legendTitle, xOffset + actualGridWidth / 2, titleY)
+    }
+
+    // Create gradient
+    const gradient = canvasCtx.createLinearGradient(
+      legendX,
+      0,
+      legendX + legendWidth,
+      0
     )
+
+    if (colorScale.length === 3) {
+      gradient.addColorStop(0, colorScale[0])
+      gradient.addColorStop(0.5, colorScale[1])
+      gradient.addColorStop(1, colorScale[2])
+    } else {
+      gradient.addColorStop(0, colorScale[0])
+      gradient.addColorStop(1, colorScale[1])
+    }
+
+    // Draw gradient rectangle
+    canvasCtx.fillStyle = gradient
+    canvasCtx.fillRect(legendX, gradientY, legendWidth, gradientHeight)
+
+    // Draw border around gradient
+    canvasCtx.strokeStyle = '#666'
+    canvasCtx.lineWidth = 0.5
+    canvasCtx.strokeRect(legendX, gradientY, legendWidth, gradientHeight)
+
+    // Draw min and max values if there's room
+    if (availableLegendSpace > 35) {
+      canvasCtx.font = '12px sans-serif'
+      canvasCtx.fillStyle = '#000'
+      canvasCtx.textAlign = 'center'
+      canvasCtx.textBaseline = 'top'
+
+      // Min value
+      canvasCtx.fillText(colorValueRange[0].toString(), legendX, valuesY)
+
+      // Max value
+      canvasCtx.fillText(
+        effectiveMaxValue.toString(),
+        legendX + legendWidth,
+        valuesY
+      )
+    }
+
+    // Store legend data for interaction with expanded area
+    legendData = {
+      x: legendX - 10,
+      y: titleY - 5,
+      width: legendWidth + 20,
+      height: valuesY + 15 - (titleY - 5),
+      minValue: colorValueRange[0],
+      maxValue: effectiveMaxValue,
+    }
   }
 
-  // Store legend data for interaction
-  let legendData = $state<{
-    x: number
-    y: number
-    width: number
-    height: number
-    minValue: number
-    maxValue: number
-  } | null>(null)
+  // Function to draw rounded rectangle
+  function drawRoundedRect(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    radius: number
+  ) {
+    ctx.beginPath()
+    ctx.moveTo(x + radius, y)
+    ctx.lineTo(x + width - radius, y)
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius)
+    ctx.lineTo(x + width, y + height - radius)
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height)
+    ctx.lineTo(x + radius, y + height)
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius)
+    ctx.lineTo(x, y + radius)
+    ctx.quadraticCurveTo(x, y, x + radius, y)
+    ctx.closePath()
+    ctx.fill()
+  }
 
-  // Store for wrapper because we need to keep a reference
-  let onColorValueRangeChangeWrapper = $state(onColorValueRangeChange)
+  // Animation function for hover effects
+  function updateHoverAnimation(timestamp: number) {
+    if (!isAnimating) return
+
+    // Calculate delta time (normalized to 300ms duration)
+    const deltaTime = (timestamp - animationLastTime) / 300
+    animationLastTime = timestamp
+
+    // Update progress based on which direction we're animating
+    if (hoverState !== 'none') {
+      // Animate in
+      hoverAnimationProgress = Math.min(1, hoverAnimationProgress + deltaTime)
+      if (hoverAnimationProgress >= 1) {
+        hoverAnimationProgress = 1
+        isAnimating = false
+      } else {
+        requestAnimationFrame(updateHoverAnimation)
+      }
+    } else {
+      // Animate out
+      hoverAnimationProgress = Math.max(0, hoverAnimationProgress - deltaTime)
+      if (hoverAnimationProgress <= 0) {
+        hoverAnimationProgress = 0
+        isAnimating = false
+      } else {
+        requestAnimationFrame(updateHoverAnimation)
+      }
+    }
+
+    // Redraw the canvas
+    scheduleRender()
+  }
+
+  // Start the animation
+  function startHoverAnimation() {
+    isAnimating = true
+    animationLastTime = performance.now()
+    requestAnimationFrame(updateHoverAnimation)
+  }
 
   // Handle mouse movement over the canvas
   function handleMouseMove(event: MouseEvent) {
@@ -658,67 +783,115 @@
         visible: true,
         width: 150,
       })
-
-      canvas.style.cursor = 'pointer'
       return
     }
 
-    // Check if mouse is over the legend's gradient area (for sliding)
+    // Store previous hover state to detect changes
+    const prevHoverState = hoverState
+
+    // Check if mouse is over min value
     if (
-      legendData &&
-      mouseX >= legendData.x &&
-      mouseX <= legendData.x + legendData.width &&
-      mouseY >= legendData.y &&
-      mouseY <= legendData.y + legendData.height
+      minValueZone &&
+      Math.hypot(mouseX - minValueZone.x, mouseY - minValueZone.y) <=
+        minValueZone.radius
     ) {
+      hoverState = 'minValue'
       canvas.style.cursor = 'pointer'
-      return
+    }
+    // Check if mouse is over max value
+    else if (
+      maxValueZone &&
+      Math.hypot(mouseX - maxValueZone.x, mouseY - maxValueZone.y) <=
+        maxValueZone.radius
+    ) {
+      hoverState = 'maxValue'
+      canvas.style.cursor = 'pointer'
+    }
+    // Check if mouse is over gradient
+    else if (
+      gradientZone &&
+      mouseX >= gradientZone.x &&
+      mouseX <= gradientZone.x + gradientZone.width &&
+      mouseY >= gradientZone.y &&
+      mouseY <= gradientZone.y + gradientZone.height
+    ) {
+      hoverState = 'gradient'
+      canvas.style.cursor = 'pointer'
+    }
+    // Not hovering over any interactive element
+    else {
+      hoverState = 'none'
+      canvas.style.cursor = 'default'
     }
 
-    // Reset cursor and hide tooltip if not over any interactive element
-    canvas.style.cursor = 'default'
-    updateTooltip(null)
+    // Start animation if hover state changed
+    if (hoverState !== prevHoverState) {
+      startHoverAnimation()
+    }
+
+    // Reset tooltip if not over a cell
+    if (hoverState === 'none') {
+      updateTooltip(null)
+    }
   }
 
   // Handle mouse leaving the canvas
   function handleMouseLeave() {
     updateTooltip(null)
+
+    // Reset hover state
+    if (hoverState !== 'none') {
+      hoverState = 'none'
+      startHoverAnimation()
+    }
+
+    if (canvas) {
+      canvas.style.cursor = 'default'
+    }
   }
 
-  // Handle mouse clicks on the legend's gradient area
+  // Handle mouse clicks - now with different callbacks for different zones
   function handleMouseDown(event: MouseEvent) {
-    if (!canvas || !legendData) return
+    if (!canvas) return
     const rect = canvas.getBoundingClientRect()
 
     // Get mouse position relative to the canvas
     const mouseX = (event.clientX - rect.left) / pixelRatio
     const mouseY = (event.clientY - rect.top) / pixelRatio
 
-    // Check if clicked on the legend gradient
+    // Check which zone was clicked
     if (
+      minValueZone &&
+      Math.hypot(mouseX - minValueZone.x, mouseY - minValueZone.y) <=
+        minValueZone.radius
+    ) {
+      // Min value clicked
+      onValueClick(true)
+    } else if (
+      maxValueZone &&
+      Math.hypot(mouseX - maxValueZone.x, mouseY - maxValueZone.y) <=
+        maxValueZone.radius
+    ) {
+      // Max value clicked
+      onValueClick(false)
+    } else if (
+      gradientZone &&
+      mouseX >= gradientZone.x &&
+      mouseX <= gradientZone.x + gradientZone.width &&
+      mouseY >= gradientZone.y &&
+      mouseY <= gradientZone.y + gradientZone.height
+    ) {
+      // Gradient clicked
+      onGradientClick()
+    } else if (
+      legendData &&
       mouseX >= legendData.x &&
       mouseX <= legendData.x + legendData.width &&
       mouseY >= legendData.y &&
       mouseY <= legendData.y + legendData.height
     ) {
-      // Calculate percentage along gradient
-      const percentage = (mouseX - legendData.x) / legendData.width
-
-      // Calculate value based on percentage
-      const range = legendData.maxValue - legendData.minValue
-      const newValue = legendData.minValue + range * percentage
-
-      // Round to integer (or appropriate precision)
-      const roundedValue = Math.round(newValue)
-
-      // Update color value range
-      if (percentage < 0.5) {
-        // Closer to min, adjust min value
-        onColorValueRangeChangeWrapper?.([roundedValue, colorValueRange[1]])
-      } else {
-        // Closer to max, adjust max value
-        onColorValueRangeChangeWrapper?.([colorValueRange[0], roundedValue])
-      }
+      // Legend clicked
+      void 0
     }
   }
 
@@ -749,7 +922,7 @@
 
     // Effect to update when color value range changes
     $effect(() => {
-      onColorValueRangeChangeWrapper = onColorValueRangeChange
+      onColorValueRangeChange = onColorValueRangeChange
     })
   })
 
@@ -761,9 +934,9 @@
 <div class="canvas-container">
   <canvas
     bind:this={canvas}
-    on:mousemove={handleMouseMove}
-    on:mouseleave={handleMouseLeave}
-    on:mousedown={handleMouseDown}
+    onmousemove={handleMouseMove}
+    onmouseleave={handleMouseLeave}
+    onmousedown={handleMouseDown}
   ></canvas>
 </div>
 
