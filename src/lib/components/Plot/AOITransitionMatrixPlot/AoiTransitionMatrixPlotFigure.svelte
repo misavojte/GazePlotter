@@ -1,5 +1,4 @@
 <script lang="ts">
-  import AoiTransitionMatrixLegend from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixLegend.svelte'
   import { getColorForValue, getContrastTextColor } from '$lib/utils/colorUtils'
   import { updateTooltip } from '$lib/stores/tooltipStore'
   import { calculateLabelOffset } from '../utils/textUtils'
