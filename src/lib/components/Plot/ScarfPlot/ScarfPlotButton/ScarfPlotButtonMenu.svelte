@@ -19,6 +19,8 @@
   import type { ScarfGridType } from '$lib/type/gridType'
   import type { SvelteComponent } from 'svelte'
   import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType'
+  import ModalContentParticipantModification from '../../../Modal/ModalContent/ModalContentParticipantModification.svelte'
+
   interface Props {
     scarfData: ScarfFillingType
     settings: ScarfGridType
@@ -81,6 +83,18 @@
     )
   }
 
+  const openParticipantModificationModal = () => {
+    modalStore.open(
+      ModalContentParticipantModification as unknown as typeof SvelteComponent,
+      'Participant customization',
+      {
+        gridStore: store,
+        settingsChange,
+        settings,
+      }
+    )
+  }
+
   const downloadPlot = () => {
     modalStore.open(
       ModalContentDownloadScarfPlot as unknown as typeof SvelteComponent,
@@ -121,6 +135,12 @@
       label: 'AOI visibility',
       action: openAoiVisibilityModal,
       icon: View,
+      disabled: isMultiSelection,
+    },
+    {
+      label: 'Participant customization',
+      action: openParticipantModificationModal,
+      icon: Users,
       disabled: isMultiSelection,
     },
     {
