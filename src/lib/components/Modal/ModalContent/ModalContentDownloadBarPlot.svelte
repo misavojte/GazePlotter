@@ -2,8 +2,8 @@
   import DownloadPlotSettings from '$lib/components/Modal/Shared/DownloadPlotSettings.svelte'
   import type { BarPlotGridType } from '$lib/type/gridType'
   import BarPlotFigure from '$lib/components/Plot/BarPlot/BarPlotFigure.svelte'
-  import GeneralSvgPreview from '$lib/components/General/GeneralSvgPreview/GeneralSvgPreview.svelte'
   import { getBarPlotData } from '$lib/utils/barPlotUtils'
+  import GeneralCanvasPreview from '$lib/components/General/GeneralCanvasPreview/GeneralCanvasPreview.svelte'
 
   interface Props {
     settings: BarPlotGridType
@@ -12,7 +12,7 @@
   let { settings }: Props = $props()
 
   // Export settings state
-  let typeOfExport = $state<'.svg' | '.png' | '.jpg' | '.webp'>('.svg')
+  let typeOfExport = $state<'.png' | '.jpg'>('.png')
   let width = $state(800) /* in px */
   let fileName = $state('GazePlotter-BarPlot')
   let dpi = $state(96) /* standard web DPI */
@@ -22,22 +22,23 @@
   let marginLeft = $state(20) /* in px */
 
   // Calculate the effective dimensions
-  const effectiveWidth = $derived(width)
-  const effectiveHeight = $derived(width * 0.6) // Using a 5:3 aspect ratio
+  const effectiveWidth = $derived(width - (marginLeft + marginRight))
+  const effectiveHeight = $derived(width * 0.6 - (marginTop + marginBottom)) // Using a 5:3 aspect ratio
 
   // Get bar plot data and prepare props for the figure
   const { data, timeline } = getBarPlotData(settings)
 
   // Props to pass to the BarPlotFigure component
   const barPlotProps = $derived({
-    width: effectiveWidth - (marginLeft + marginRight),
-    height: effectiveHeight - (marginTop + marginBottom),
+    width: effectiveWidth,
+    height: effectiveHeight,
     data,
     timeline,
     barPlottingType: settings.barPlottingType,
     barWidth: 200,
     barSpacing: 20,
     onDataHover: () => {},
+    dpiOverride: dpi,
   })
 </script>
 
@@ -60,11 +61,11 @@
       <h3>Your exported plot</h3>
     </div>
     <div>
-      <GeneralSvgPreview
+      <GeneralCanvasPreview
         {fileName}
         fileType={typeOfExport}
         {width}
-        height={effectiveHeight}
+        height={effectiveHeight + marginTop + marginBottom}
         {marginTop}
         {marginRight}
         {marginBottom}
@@ -73,7 +74,7 @@
         showDownloadButton={true}
       >
         <BarPlotFigure {...barPlotProps} />
-      </GeneralSvgPreview>
+      </GeneralCanvasPreview>
     </div>
   </div>
 </div>
@@ -95,6 +96,5 @@
 
   .preview-section {
     flex-grow: 1;
-    height: auto;
   }
 </style>

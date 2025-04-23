@@ -979,3 +979,45 @@ export const getSegments = (
 
   return result
 }
+
+export const updateMultipleParticipants = (
+  participants: BaseInterpretedDataType[]
+): void => {
+  console.log('updateMultipleParticipants', { participants })
+
+  // Get current data state
+  const currentState = get(data)
+
+  // Create a brand new deep copy to avoid any reference issues
+  const newState = structuredClone(currentState)
+
+  // Create a new array for participants data
+  const newParticipantsData = [...newState.participants.data]
+
+  // Update each participant in isolation
+  participants.forEach(participant => {
+    if (participant.id >= 0 && participant.id < newParticipantsData.length) {
+      // Create a brand new array for each participant to ensure complete isolation
+      newParticipantsData[participant.id] = [
+        participant.originalName,
+        participant.displayedName,
+      ]
+    }
+  })
+
+  // Update order vector
+  const newOrderVector = [...participants.map(participant => participant.id)]
+
+  // Create a completely new state object
+  const finalState = {
+    ...newState,
+    participants: {
+      ...newState.participants,
+      data: newParticipantsData,
+      orderVector: newOrderVector,
+    },
+  }
+
+  // Set the entire state at once
+  data.set(finalState)
+}

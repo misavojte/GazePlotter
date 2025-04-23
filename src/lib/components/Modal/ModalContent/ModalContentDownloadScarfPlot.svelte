@@ -3,7 +3,7 @@
   import type { ScarfGridType } from '$lib/type/gridType'
   import ScarfPlotFigure from '$lib/components/Plot/ScarfPlot/ScarfPlotFigure/ScarfPlotFigure.svelte'
   import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType'
-  import GeneralSvgPreview from '$lib/components/General/GeneralSvgPreview/GeneralSvgPreview.svelte'
+  import GeneralCanvasPreview from '$lib/components/General/GeneralCanvasPreview/GeneralCanvasPreview.svelte'
 
   interface Props {
     settings: ScarfGridType
@@ -13,7 +13,7 @@
   let { settings, data }: Props = $props()
 
   // Export settings state
-  let typeOfExport = $state<'.svg' | '.png' | '.jpg' | '.webp'>('.svg')
+  let typeOfExport = $state<'.png' | '.jpg'>('.png')
   let width = $state(800) /* in px */
   let fileName = $state('GazePlotter-ScarfPlot')
   let dpi = $state(96) /* standard web DPI */
@@ -22,19 +22,15 @@
   let marginBottom = $state(20) /* in px */
   let marginLeft = $state(20) /* in px */
 
-  // States for preview
+  // States for interaction
   let highlightedIdentifier = $state<string | null>(null)
   let tooltipAreaElement = $state<HTMLElement | SVGElement | null>(null)
-  let previewContainer = $state<HTMLDivElement | null>(null)
 
   // Calculate the effective width (what will be available for the chart after margins)
   const effectiveWidth = $derived(width - (marginLeft + marginRight))
 
-  // Use the height directly from the data with additional space for legend and axes
-  // Add fixed padding (150px) plus margins to maintain proper spacing
-  const previewHeight = $derived(
-    data.chartHeight + 130 + marginTop + marginBottom
-  )
+  // Calculate the total height
+  const totalHeight = $derived(data.chartHeight + 130)
 
   // Handlers for ScarfPlotFigure
   const handleLegendClick = (identifier: string) => {
@@ -45,7 +41,28 @@
   const handleTooltipActivation = () => {}
   const handleTooltipDeactivation = () => {}
 
-  // Props to pass to the ScarfPlotFigure component using $derived
+  // Calculate heights for ScarfPlotFigure
+  const calculatedHeights = $derived({
+    participantBarHeight: data.heightOfBarWrap,
+    heightOfParticipantBars: data.participants.length * data.heightOfBarWrap,
+    chartHeight: data.chartHeight,
+    // Calculate a reasonable legend height
+    legendHeight: data.stylingAndLegend
+      ? Math.max(
+          50,
+          ((data.stylingAndLegend.aoi.length +
+            data.stylingAndLegend.category.length +
+            data.stylingAndLegend.visibility.length) *
+            30) /
+            3
+        )
+      : 50,
+    totalHeight: totalHeight,
+    axisLabelY: data.participants.length * data.heightOfBarWrap + 40,
+    legendY: data.participants.length * data.heightOfBarWrap + 80,
+  })
+
+  // Props to pass to the ScarfPlotFigure component
   const scarfPlotProps = $derived({
     data,
     settings,
@@ -54,7 +71,9 @@
     onLegendClick: handleLegendClick,
     onTooltipActivation: handleTooltipActivation,
     onTooltipDeactivation: handleTooltipDeactivation,
-    chartWidth: effectiveWidth, // IMPORTANT: Use effectiveWidth for the chart
+    chartWidth: effectiveWidth,
+    calculatedHeights,
+    dpiOverride: dpi,
   })
 </script>
 
@@ -77,12 +96,12 @@
     <div class="preview-heading">
       <h3>Your exported plot</h3>
     </div>
-    <div bind:this={previewContainer}>
-      <GeneralSvgPreview
+    <div>
+      <GeneralCanvasPreview
         {fileName}
         fileType={typeOfExport}
         {width}
-        height={previewHeight}
+        height={totalHeight + marginTop + marginBottom}
         {marginTop}
         {marginRight}
         {marginBottom}
@@ -91,7 +110,7 @@
         showDownloadButton={true}
       >
         <ScarfPlotFigure {...scarfPlotProps} />
-      </GeneralSvgPreview>
+      </GeneralCanvasPreview>
     </div>
   </div>
 </div>
@@ -113,20 +132,5 @@
 
   .preview-section {
     flex-grow: 1;
-    overflow: auto;
-  }
-
-  /* Responsive layout for wider screens */
-  @media (min-width: 768px) {
-    .single-view-container {
-      max-height: none;
-    }
-  }
-
-  /* Mobile layout adjustments */
-  @media (max-width: 600px) {
-    .preview-section {
-      overflow-x: auto;
-    }
   }
 </style>

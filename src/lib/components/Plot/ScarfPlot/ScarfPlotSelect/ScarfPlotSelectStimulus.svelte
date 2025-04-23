@@ -1,13 +1,7 @@
 <script lang="ts">
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
-  import {
-    getStimuli,
-    hasStimulusAoiVisibility,
-  } from '$lib/stores/dataStore.js'
-  import {
-    getDynamicAoiBoolean,
-    getScarfGridHeightFromCurrentData,
-  } from '$lib/services/scarfServices'
+  import { getStimuli } from '$lib/stores/dataStore.js'
+  import { handleScarfSelectionChange } from '$lib/services/scarfSelectService'
   import type { ScarfGridType } from '$lib/type/gridType'
 
   interface Props {
@@ -39,23 +33,8 @@
     const stimulusId = parseInt(event.detail)
     selectedStimulusId = stimulusId.toString()
 
-    const h = getScarfGridHeightFromCurrentData(
-      stimulusId,
-      getDynamicAoiBoolean(
-        settings.timeline,
-        settings.dynamicAOI,
-        hasStimulusAoiVisibility(stimulusId)
-      ),
-      settings.groupId
-    )
-
-    // Call the callback prop with the updated settings
-    if (settingsChange) {
-      settingsChange({
-        stimulusId,
-        h,
-      })
-    }
+    // Use the shared service to handle the change
+    handleScarfSelectionChange(settings, { stimulusId }, settingsChange)
   }
 </script>
 
