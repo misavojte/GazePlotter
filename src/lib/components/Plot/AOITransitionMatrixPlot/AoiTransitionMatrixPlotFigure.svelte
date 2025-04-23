@@ -418,9 +418,6 @@
 
   // Tracking for legend hover effect
   let hoverState = $state<'none' | 'gradient' | 'minValue' | 'maxValue'>('none')
-  let hoverAnimationProgress = $state(0)
-  let animationLastTime = $state(0)
-  let isAnimating = $state(false)
 
   // Zone definitions for interaction
   let minValueZone = $state<{ x: number; y: number; radius: number } | null>(
@@ -562,16 +559,16 @@
     }
 
     gradientZone = {
-      x: legendX - 5,
-      y: gradientY - 5,
-      width: legendWidth + 10,
-      height: gradientHeight + 10,
-      radius: 5, // Border radius for rounded corners
+      x: legendX - 10, // Increased buffer from 5 to 15
+      y: gradientY - 10, // Increased buffer from 5 to 15
+      width: legendWidth + 20, // Increased buffer from 10 to 30
+      height: gradientHeight + 20, // Increased buffer from 10 to 30
+      radius: 15, // Border radius for rounded corners
     }
 
-    // Draw hover effects based on the current hover state and animation progress
-    if (hoverState !== 'none' && hoverAnimationProgress > 0) {
-      const alpha = 0.2 * hoverAnimationProgress // Ease in the opacity
+    // Draw hover effects based on the current hover state
+    if (hoverState !== 'none') {
+      const alpha = 0.2 // Fixed opacity without animation
 
       if (hoverState === 'minValue' && minValueZone) {
         // Draw circle highlight for min value
@@ -580,7 +577,7 @@
         canvasCtx.arc(
           minValueZone.x,
           minValueZone.y,
-          minValueZone.radius * (0.8 + 0.2 * hoverAnimationProgress), // Slightly grow the circle
+          minValueZone.radius,
           0,
           Math.PI * 2
         )
@@ -592,7 +589,7 @@
         canvasCtx.arc(
           maxValueZone.x,
           maxValueZone.y,
-          maxValueZone.radius * (0.8 + 0.2 * hoverAnimationProgress), // Slightly grow the circle
+          maxValueZone.radius,
           0,
           Math.PI * 2
         )
@@ -698,47 +695,6 @@
     ctx.fill()
   }
 
-  // Animation function for hover effects
-  function updateHoverAnimation(timestamp: number) {
-    if (!isAnimating) return
-
-    // Calculate delta time
-    const deltaTime = (timestamp - animationLastTime) / 300 // 300ms for full animation
-    animationLastTime = timestamp
-
-    // Update progress based on which direction we're animating
-    if (hoverState !== 'none') {
-      // Animate in
-      hoverAnimationProgress = Math.min(1, hoverAnimationProgress + deltaTime)
-      if (hoverAnimationProgress >= 1) {
-        hoverAnimationProgress = 1
-      } else {
-        requestAnimationFrame(updateHoverAnimation)
-      }
-    } else {
-      // Animate out
-      hoverAnimationProgress = Math.max(0, hoverAnimationProgress - deltaTime)
-      if (hoverAnimationProgress <= 0) {
-        hoverAnimationProgress = 0
-        isAnimating = false
-      } else {
-        requestAnimationFrame(updateHoverAnimation)
-      }
-    }
-
-    // Redraw the canvas
-    scheduleRender()
-  }
-
-  // Start the animation
-  function startHoverAnimation() {
-    if (!isAnimating) {
-      isAnimating = true
-      animationLastTime = performance.now()
-      requestAnimationFrame(updateHoverAnimation)
-    }
-  }
-
   // Handle mouse movement over the canvas
   function handleMouseMove(event: MouseEvent) {
     const currentTime = performance.now()
@@ -825,9 +781,9 @@
       canvas.style.cursor = 'default'
     }
 
-    // Start animation if hover state changed
+    // Redraw if hover state changed
     if (hoverState !== prevHoverState) {
-      startHoverAnimation()
+      scheduleRender()
     }
 
     // Reset tooltip if not over a cell
@@ -843,7 +799,7 @@
     // Reset hover state
     if (hoverState !== 'none') {
       hoverState = 'none'
-      startHoverAnimation()
+      scheduleRender()
     }
 
     if (canvas) {
