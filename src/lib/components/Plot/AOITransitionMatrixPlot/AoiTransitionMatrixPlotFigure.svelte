@@ -399,18 +399,25 @@
         canvasCtx.fillStyle = cellColor
         canvasCtx.fillRect(x, y, optimalCellSize, optimalCellSize)
 
-        // Draw cell value if there's enough space
-        // Now always show values, including zero values
+        // Draw cell value if there's enough space and labels are enabled
         if (optimalCellSize >= 15) {
-          canvasCtx.font = `${valueFontSize}px sans-serif`
-          canvasCtx.fillStyle = textColor
-          canvasCtx.textAlign = 'center'
-          canvasCtx.textBaseline = 'middle'
-          canvasCtx.fillText(
-            value.toString(),
-            x + optimalCellSize / 2,
-            y + optimalCellSize / 2
-          )
+          // Check if we should show the value based on settings
+          const shouldShowValue =
+            (!isBelowMinimum(value) && !isAboveMaximum(value)) || // Always show values within range
+            (isBelowMinimum(value) && showBelowMinLabels) || // Show below min if enabled
+            (isAboveMaximum(value) && showAboveMaxLabels) // Show above max if enabled
+
+          if (shouldShowValue) {
+            canvasCtx.font = `${valueFontSize}px sans-serif`
+            canvasCtx.fillStyle = textColor
+            canvasCtx.textAlign = 'center'
+            canvasCtx.textBaseline = 'middle'
+            canvasCtx.fillText(
+              value.toString(),
+              x + optimalCellSize / 2,
+              y + optimalCellSize / 2
+            )
+          }
         }
       }
     }
