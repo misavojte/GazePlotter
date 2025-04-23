@@ -103,7 +103,7 @@
         onchange={handleGroupChange}
       />
       <GeneralSelect
-        label="Aggregation Method"
+        label="Aggregation"
         options={[
           { value: 'absoluteTime', label: 'Absolute Time' },
           { value: 'relativeTime', label: 'Relative Time' },
@@ -115,7 +115,7 @@
           },
           {
             value: 'averageFixationCount',
-            label: 'Average Fixation Count',
+            label: 'Avg Fixation Count',
           },
         ]}
         compact

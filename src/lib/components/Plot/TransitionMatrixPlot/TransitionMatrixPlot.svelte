@@ -1,23 +1,23 @@
 <script lang="ts">
-  import AoiTransitionMatrixPlotFigure from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixPlotFigure.svelte'
+  import TransitionMatrixPlotFigure from '$lib/components/Plot/TransitionMatrixPlot/TransitionMatrixPlotFigure.svelte'
   import {
     calculateTransitionMatrix,
     AggregationMethod,
-  } from '$lib/utils/aoiTransitionMatrixTransformations'
-  import type { AoiTransitionMatrixGridType } from '$lib/type/gridType'
+  } from '$lib/utils/transitionMatrixTransformations'
+  import type { TransitionMatrixGridType } from '$lib/type/gridType'
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
   import { calculatePlotDimensionsWithHeader } from '$lib/utils/plotSizeUtility'
-  import AoiTransitionMatrixSelectStimulus from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixSelectStimulus.svelte'
-  import AoiTransitionMatrixSelectGroup from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixSelectGroup.svelte'
-  import AoiTransitionMatrixButtonMenu from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixButtonMenu.svelte'
+  import TransitionMatrixSelectStimulus from '$lib/components/Plot/TransitionMatrixPlot/TransitionMatrixSelectStimulus.svelte'
+  import TransitionMatrixSelectGroup from '$lib/components/Plot/TransitionMatrixPlot/TransitionMatrixSelectGroup.svelte'
+  import TransitionMatrixButtonMenu from '$lib/components/Plot/TransitionMatrixPlot/TransitionMatrixButtonMenu.svelte'
   import { modalStore } from '$lib/stores/modalStore.js'
   import ModalContentMaxValue from '$lib/components/Modal/ModalContent/ModalContentMaxValue.svelte'
   import ModalContentColorScale from '$lib/components/Modal/ModalContent/ModalContentColorScale.svelte'
 
   interface Props {
-    settings: AoiTransitionMatrixGridType
-    settingsChange: (settings: Partial<AoiTransitionMatrixGridType>) => void
+    settings: TransitionMatrixGridType
+    settingsChange: (settings: Partial<TransitionMatrixGridType>) => void
   }
 
   let { settings, settingsChange }: Props = $props()
@@ -68,7 +68,7 @@
   ]
 
   function handleSettingsChange(
-    newSettings: Partial<AoiTransitionMatrixGridType>
+    newSettings: Partial<TransitionMatrixGridType>
   ) {
     settingsChange(newSettings)
   }
@@ -150,11 +150,11 @@
 <div class="aoi-matrix-container">
   <div class="header">
     <div class="controls">
-      <AoiTransitionMatrixSelectStimulus
+      <TransitionMatrixSelectStimulus
         {settings}
         settingsChange={handleSettingsChange}
       />
-      <AoiTransitionMatrixSelectGroup
+      <TransitionMatrixSelectGroup
         {settings}
         settingsChange={handleSettingsChange}
       />
@@ -166,7 +166,7 @@
         compact={true}
       />
       <div class="menu-button">
-        <AoiTransitionMatrixButtonMenu
+        <TransitionMatrixButtonMenu
           {settings}
           settingsChange={handleSettingsChange}
         />
@@ -183,8 +183,8 @@
       )}
       {#if aoiLabels.length > 0}
         <div class="figure-container">
-          <AoiTransitionMatrixPlotFigure
-            AoiTransitionMatrix={matrix}
+          <TransitionMatrixPlotFigure
+            TransitionMatrix={matrix}
             {aoiLabels}
             width={plotDimensions.width}
             height={plotDimensions.height}

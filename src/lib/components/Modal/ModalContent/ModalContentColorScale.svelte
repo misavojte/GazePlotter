@@ -3,11 +3,11 @@
   import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
   import GeneralInputColor from '$lib/components/General/GeneralInput/GeneralInputColor.svelte'
-  import type { AoiTransitionMatrixGridType } from '$lib/type/gridType'
+  import type { TransitionMatrixGridType } from '$lib/type/gridType'
 
   interface Props {
-    settings: AoiTransitionMatrixGridType
-    settingsChange: (newSettings: Partial<AoiTransitionMatrixGridType>) => void
+    settings: TransitionMatrixGridType
+    settingsChange: (newSettings: Partial<TransitionMatrixGridType>) => void
   }
 
   let { settings, settingsChange }: Props = $props()

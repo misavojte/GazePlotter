@@ -1,15 +1,15 @@
 <script lang="ts">
   import DownloadPlotSettings from '$lib/components/Modal/Shared/DownloadPlotSettings.svelte'
-  import type { AoiTransitionMatrixGridType } from '$lib/type/gridType'
-  import AoiTransitionMatrixPlotFigure from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixPlotFigure.svelte'
+  import type { TransitionMatrixGridType } from '$lib/type/gridType'
+  import TransitionMatrixPlotFigure from '$lib/components/Plot/TransitionMatrixPlot/TransitionMatrixPlotFigure.svelte'
   import {
     calculateTransitionMatrix,
     AggregationMethod,
-  } from '$lib/utils/aoiTransitionMatrixTransformations'
+  } from '$lib/utils/transitionMatrixTransformations'
   import GeneralCanvasPreview from '$lib/components/General/GeneralCanvasPreview/GeneralCanvasPreview.svelte'
 
   interface Props {
-    settings: AoiTransitionMatrixGridType
+    settings: TransitionMatrixGridType
   }
 
   let { settings }: Props = $props()
@@ -17,7 +17,7 @@
   // Export settings state
   let typeOfExport = $state<'.png' | '.jpg'>('.png')
   let width = $state(800) /* in px */
-  let fileName = $state('GazePlotter-AoiTransitionMatrix')
+  let fileName = $state('GazePlotter-TransitionMatrix')
   let dpi = $state(96) /* standard web DPI */
   let marginTop = $state(20) /* in px */
   let marginRight = $state(20) /* in px */
@@ -43,7 +43,7 @@
   const effectiveWidth = $derived(width - (marginLeft + marginRight))
 
   // Calculate the effective height for the matrix plot
-  // AOI Transition matrix is ideally square with additional space for legend
+  // Transition Matrix is ideally square with additional space for legend
   const effectiveHeight = $derived(effectiveWidth)
 
   // Total height with legend space
@@ -65,9 +65,9 @@
     }
   }
 
-  // Props to pass to the AoiTransitionMatrixPlotFigure component
+  // Props to pass to the TransitionMatrixPlotFigure component
   const matrixPlotProps = $derived({
-    AoiTransitionMatrix: matrix,
+    TransitionMatrix: matrix,
     aoiLabels,
     width: effectiveWidth,
     height: effectiveHeight,
@@ -117,7 +117,7 @@
         {dpi}
         showDownloadButton={true}
       >
-        <AoiTransitionMatrixPlotFigure {...matrixPlotProps} />
+        <TransitionMatrixPlotFigure {...matrixPlotProps} />
       </GeneralCanvasPreview>
     </div>
   </div>

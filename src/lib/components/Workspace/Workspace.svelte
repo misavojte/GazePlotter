@@ -188,7 +188,7 @@
     // Return data needed to create items, not the items themselves
     return [
       { type: 'scarf', x: 0, y: 0 },
-      { type: 'AoiTransitionMatrix', x: 20, y: 0, w: 11, h: 12 },
+      { type: 'TransitionMatrix', x: 20, y: 0, w: 11, h: 12 },
       { type: 'barPlot', x: 0, y: 12, w: 11, h: 12 },
     ]
   }

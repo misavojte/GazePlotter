@@ -1,17 +1,17 @@
 <script lang="ts">
   import MenuButton from '$lib/components/General/GeneralButton/GeneralButtonMenu.svelte'
   import { modalStore } from '$lib/stores/modalStore.js'
-  import type { AoiTransitionMatrixGridType } from '$lib/type/gridType'
+  import type { TransitionMatrixGridType } from '$lib/type/gridType'
   import BarChart from 'lucide-svelte/icons/bar-chart'
   import Download from 'lucide-svelte/icons/download'
   import Palette from 'lucide-svelte/icons/palette'
   import ModalContentMaxValue from '$lib/components/Modal/ModalContent/ModalContentMaxValue.svelte'
   import ModalContentColorScale from '$lib/components/Modal/ModalContent/ModalContentColorScale.svelte'
-  import ModalContentDownloadAoiTransitionMatrix from '$lib/components/Modal/ModalContent/ModalContentDownloadAoiTransitionMatrix.svelte'
+  import ModalContentDownloadTransitionMatrix from '$lib/components/Modal/ModalContent/ModalContentDownloadTransitionMatrix.svelte'
 
   interface Props {
-    settings: AoiTransitionMatrixGridType
-    settingsChange: (newSettings: Partial<AoiTransitionMatrixGridType>) => void
+    settings: TransitionMatrixGridType
+    settingsChange: (newSettings: Partial<TransitionMatrixGridType>) => void
   }
 
   let { settings, settingsChange = () => {} }: Props = $props()
@@ -45,8 +45,8 @@
   const openDownloadModal = () => {
     try {
       modalStore.open(
-        ModalContentDownloadAoiTransitionMatrix as any,
-        'Download AOI Transition Matrix',
+        ModalContentDownloadTransitionMatrix as any,
+        'Download Transition Matrix',
         {
           settings,
         }

@@ -1,6 +1,6 @@
 import ScarfPlot from '$lib/components/Plot/ScarfPlot/ScarfPlot.svelte'
 // Revert casing to lowercase 'a' based on linter "already included" message
-import AoiTransitionMatrixPlot from '$lib/components/Plot/AoiTransitionMatrixPlot/AoiTransitionMatrixPlot.svelte' // Use lowercase 'a'
+import TransitionMatrixPlot from '$lib/components/Plot/TransitionMatrixPlot/TransitionMatrixPlot.svelte' // Use lowercase 'a'
 import BarPlot from '$lib/components/Plot/BarPlot/BarPlot.svelte'
 import type { AllGridTypes, BarPlotGridType } from '$lib/type/gridType'
 import { getScarfGridHeightFromCurrentData } from '$lib/services/scarfServices'
@@ -34,9 +34,9 @@ export const visualizationRegistry: Record<string, VisualizationConfig> = {
       getScarfGridHeightFromCurrentData(stimulusId, false, -1),
     getDefaultWidth: (_stimulusId = 0) => 20, // Renamed unused parameter
   },
-  AoiTransitionMatrix: {
-    name: 'AOI Transition Matrix',
-    component: AoiTransitionMatrixPlot,
+  TransitionMatrix: {
+    name: 'Transition Matrix',
+    component: TransitionMatrixPlot,
     getDefaultConfig: (
       params: { stimulusId?: number; groupId?: number } = {}
     ) => ({

@@ -4,6 +4,18 @@
   import { calculateLabelOffset } from '../utils/textUtils'
   import { fadeIn } from '$lib/actions/fadeIn'
   import { onMount, onDestroy } from 'svelte'
+  import {
+    createCanvasState,
+    setupCanvas,
+    resizeCanvas,
+    getScaledMousePosition,
+    getTooltipPosition,
+    setupDpiChangeListeners,
+    createRenderScheduler,
+    beginCanvasDrawing,
+    finishCanvasDrawing,
+    type CanvasState,
+  } from '$lib/utils/canvasUtils'
 
   // SVG layout constants - minimal but not zero to ensure spacing
   const BASE_LABEL_OFFSET = 5
@@ -16,8 +28,8 @@
   const DEFAULT_INACTIVE_COLOR = '#e0e0e0' // Light gray
 
   /**
-   * Props for the AOI Transition Matrix Plot
-   * @param AoiTransitionMatrix - 2D array where:
+   * Props for the Transition Matrix Plot
+   * @param TransitionMatrix - 2D array where:
    *   - ROWS represent "FROM" AOI (displayed on Y-axis)
    *   - COLUMNS represent "TO" AOI (displayed on X-axis)
    * @param aoiLabels - Labels for the AOIs
@@ -38,7 +50,7 @@
    * @param dpiOverride - Optional DPI override for exports
    */
   let {
-    AoiTransitionMatrix = [],
+    TransitionMatrix = [],
     aoiLabels = [],
     height = 500,
     width = 500,
@@ -57,7 +69,7 @@
     onGradientClick = () => {},
     dpiOverride = null,
   } = $props<{
-    AoiTransitionMatrix: number[][]
+    TransitionMatrix: number[][]
     aoiLabels: string[]
     height?: number
     width?: number
@@ -81,11 +93,9 @@
   const AXIS_LABEL_MARGIN = 20
   const INDIVIDUAL_LABEL_MARGIN = 10
 
-  // Canvas and rendering state
+  // Canvas and rendering state using our utility
   let canvas = $state<HTMLCanvasElement | null>(null)
-  let canvasCtx = $state<CanvasRenderingContext2D | null>(null)
-  let pixelRatio = $state(1)
-  let renderScheduled = $state(false)
+  let canvasState = $state<CanvasState>(createCanvasState())
   let lastMouseMoveTime = $state(0)
   const FRAME_TIME = 1000 / 40 // Throttle to 40 fps
 
@@ -150,7 +160,7 @@
 
   // Calculate the auto max value from the matrix
   const calculatedMaxValue = $derived.by(() => {
-    const flatMatrix = AoiTransitionMatrix.flat()
+    const flatMatrix = TransitionMatrix.flat()
     return flatMatrix.length > 0 ? Math.ceil(Math.max(...flatMatrix)) : 0
   })
 
@@ -171,134 +181,96 @@
           y: yOffset + row * optimalCellSize,
           width: optimalCellSize,
           height: optimalCellSize,
-          value: AoiTransitionMatrix[row]?.[col] ?? 0,
+          value: TransitionMatrix[row]?.[col] ?? 0,
         })
       }
     }
     return positions
   })
 
-  // Setup canvas and context
-  function setupCanvas() {
+  // Setup canvas and context using our utilities
+  function initCanvas() {
     if (!canvas) return
 
-    // Get the device pixel ratio or use override if provided
-    pixelRatio =
-      dpiOverride !== null ? dpiOverride / 96 : window.devicePixelRatio || 1
+    // Initialize canvas with our utility
+    canvasState = setupCanvas(canvasState, canvas, dpiOverride)
 
-    // Get the canvas context
-    canvasCtx = canvas.getContext('2d')
-    if (!canvasCtx) return
-
-    // Apply initial sizing
-    resizeCanvas()
-
-    // Render the initial state
+    // Resize and render initially
+    canvasState = resizeCanvas(canvasState, width, height)
     renderCanvas()
-  }
-
-  // Resize canvas to match container size and device pixel ratio
-  function resizeCanvas() {
-    if (!canvas || !canvasCtx) return
-
-    // Set actual canvas dimensions (scaled for high DPI)
-    // Width and height are now treated as absolute maximums
-    canvas.width = width * pixelRatio
-    canvas.height = height * pixelRatio
-
-    // Set display size (css pixels)
-    canvas.style.width = `${width}px`
-    canvas.style.height = `${height}px`
-  }
-
-  // Clear the canvas
-  function clearCanvas() {
-    if (!canvasCtx || !canvas) return
-    canvasCtx.clearRect(0, 0, canvas.width, canvas.height)
   }
 
   // Render everything to canvas
   function renderCanvas() {
-    if (!canvasCtx || !canvas) return
-    clearCanvas()
+    beginCanvasDrawing(canvasState, true)
+
+    // Get context from state
+    const ctx = canvasState.context
+    if (!ctx) return
 
     // Check if there's actually content to draw
     if (aoiLabels.length === 0) {
       // Draw "No data" message
-      canvasCtx.save()
-      canvasCtx.scale(pixelRatio, pixelRatio)
-      canvasCtx.font = '12px sans-serif'
-      canvasCtx.fillStyle = '#666'
-      canvasCtx.textAlign = 'center'
-      canvasCtx.textBaseline = 'middle'
-      canvasCtx.fillText('No AOI data available', width / 2, height / 2)
-      canvasCtx.restore()
+      ctx.font = '12px sans-serif'
+      ctx.fillStyle = '#666'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('No AOI data available', width / 2, height / 2)
+      finishCanvasDrawing(canvasState)
       return
     }
 
-    // Scale all drawing operations by the device pixel ratio
-    canvasCtx.save()
-    canvasCtx.scale(pixelRatio, pixelRatio)
-
     // Draw axis labels
-    drawAxisLabels()
+    drawAxisLabels(ctx)
 
     // Draw grid and cell labels
-    drawGrid()
+    drawGrid(ctx)
 
     // Draw the matrix cells
-    drawCells()
+    drawCells(ctx)
 
     // Draw the legend
-    drawLegend()
+    drawLegend(ctx)
 
-    // Reset transformations
-    canvasCtx.restore()
+    // Finish drawing
+    finishCanvasDrawing(canvasState)
   }
 
   // Draw the X and Y axis labels
-  function drawAxisLabels() {
-    if (!canvasCtx) return
-
+  function drawAxisLabels(ctx: CanvasRenderingContext2D) {
     // Make sure there's enough space for labels
     if (actualGridWidth < 50 || actualGridHeight < 50) return
 
     // Setup text styling
-    canvasCtx.font = '12px sans-serif'
-    canvasCtx.fillStyle = '#000'
-    canvasCtx.textBaseline = 'middle'
+    ctx.font = '12px sans-serif'
+    ctx.fillStyle = '#000'
+    ctx.textBaseline = 'middle'
 
     // Draw X-axis label (To AOI)
-    canvasCtx.textAlign = 'center'
-    canvasCtx.fillText(
-      xLabel,
-      xOffset + actualGridWidth / 2,
-      yOffset - labelOffset
-    )
+    ctx.textAlign = 'center'
+    ctx.fillText(xLabel, xOffset + actualGridWidth / 2, yOffset - labelOffset)
 
     // Draw Y-axis label (From AOI)
-    canvasCtx.save()
-    canvasCtx.translate(xOffset - labelOffset, yOffset + actualGridHeight / 2)
-    canvasCtx.rotate(-Math.PI / 2)
-    canvasCtx.fillText(yLabel, 0, 0)
-    canvasCtx.restore()
+    ctx.save()
+    ctx.translate(xOffset - labelOffset, yOffset + actualGridHeight / 2)
+    ctx.rotate(-Math.PI / 2)
+    ctx.fillText(yLabel, 0, 0)
+    ctx.restore()
   }
 
   // Draw grid and labels
-  function drawGrid() {
-    if (!canvasCtx) return
-
+  function drawGrid(ctx: CanvasRenderingContext2D) {
     // Setup text styling for AOI labels
-    canvasCtx.font = '12px sans-serif'
-    canvasCtx.fillStyle = '#000'
-    canvasCtx.textBaseline = 'middle'
+    ctx.font = '12px sans-serif'
+    ctx.fillStyle = '#000'
+    ctx.textBaseline = 'middle'
 
     // Adjust font size based on available space
     const labelFontSize = Math.min(12, Math.max(8, optimalCellSize / 3))
-    canvasCtx.font = `${labelFontSize}px sans-serif`
+    ctx.font = `${labelFontSize}px sans-serif`
 
     // Draw column labels (top) - moved 5px higher
-    canvasCtx.textAlign = 'left'
+    ctx.textAlign = 'left'
     for (let col = 0; col < aoiLabels.length; col++) {
       const x = xOffset + col * optimalCellSize + optimalCellSize / 2
       const y = yOffset - INDIVIDUAL_LABEL_MARGIN // Added 5px offset to move higher
@@ -308,19 +280,19 @@
 
       // Rotate labels if they're too long or there are too many
       if (isSpaceTight) {
-        canvasCtx.save()
-        canvasCtx.translate(x, y)
-        canvasCtx.rotate(-Math.PI / 4)
-        canvasCtx.fillText(
+        ctx.save()
+        ctx.translate(x, y)
+        ctx.rotate(-Math.PI / 4)
+        ctx.fillText(
           aoiLabels[col].length > MAX_LABEL_LENGTH
             ? aoiLabels[col].substring(0, MAX_LABEL_LENGTH) + '...'
             : aoiLabels[col],
           0,
           0
         )
-        canvasCtx.restore()
+        ctx.restore()
       } else {
-        canvasCtx.fillText(
+        ctx.fillText(
           aoiLabels[col].length > MAX_LABEL_LENGTH
             ? aoiLabels[col].substring(0, MAX_LABEL_LENGTH) + '...'
             : aoiLabels[col],
@@ -331,7 +303,7 @@
     }
 
     // Draw row labels (left side)
-    canvasCtx.textAlign = 'end'
+    ctx.textAlign = 'end'
     for (let row = 0; row < aoiLabels.length; row++) {
       const x = xOffset - INDIVIDUAL_LABEL_MARGIN
       const y = yOffset + row * optimalCellSize + optimalCellSize / 2
@@ -342,43 +314,41 @@
           ? aoiLabels[row].substring(0, MAX_LABEL_LENGTH) + '...'
           : aoiLabels[row]
 
-      canvasCtx.fillText(labelText, x, y)
+      ctx.fillText(labelText, x, y)
     }
 
     // Draw grid lines
-    canvasCtx.strokeStyle = '#ddd'
-    canvasCtx.lineWidth = 0.5
+    ctx.strokeStyle = '#ddd'
+    ctx.lineWidth = 0.5
 
     // Vertical grid lines
     for (let col = 0; col <= aoiLabels.length; col++) {
       const x = xOffset + col * optimalCellSize
-      canvasCtx.beginPath()
-      canvasCtx.moveTo(x, yOffset)
-      canvasCtx.lineTo(x, yOffset + actualGridHeight)
-      canvasCtx.stroke()
+      ctx.beginPath()
+      ctx.moveTo(x, yOffset)
+      ctx.lineTo(x, yOffset + actualGridHeight)
+      ctx.stroke()
     }
 
     // Horizontal grid lines
     for (let row = 0; row <= aoiLabels.length; row++) {
       const y = yOffset + row * optimalCellSize
-      canvasCtx.beginPath()
-      canvasCtx.moveTo(xOffset, y)
-      canvasCtx.lineTo(xOffset + actualGridWidth, y)
-      canvasCtx.stroke()
+      ctx.beginPath()
+      ctx.moveTo(xOffset, y)
+      ctx.lineTo(xOffset + actualGridWidth, y)
+      ctx.stroke()
     }
   }
 
   // Draw matrix cells
-  function drawCells() {
-    if (!canvasCtx) return
-
+  function drawCells(ctx: CanvasRenderingContext2D) {
     // Adjust text size based on cell size
     const valueFontSize = Math.min(12, Math.max(8, optimalCellSize / 3))
 
     // Draw each cell based on its value
     for (let row = 0; row < aoiLabels.length; row++) {
       for (let col = 0; col < aoiLabels.length; col++) {
-        const value = AoiTransitionMatrix[row]?.[col] ?? 0
+        const value = TransitionMatrix[row]?.[col] ?? 0
 
         // Calculate cell position
         const x = xOffset + col * optimalCellSize
@@ -400,8 +370,8 @@
         }
 
         // Draw cell background
-        canvasCtx.fillStyle = cellColor
-        canvasCtx.fillRect(x, y, optimalCellSize, optimalCellSize)
+        ctx.fillStyle = cellColor
+        ctx.fillRect(x, y, optimalCellSize, optimalCellSize)
 
         // Draw cell value if there's enough space and labels are enabled
         if (optimalCellSize >= 15) {
@@ -412,11 +382,11 @@
             (isAboveMaximum(value) && showAboveMaxLabels) // Show above max if enabled
 
           if (shouldShowValue) {
-            canvasCtx.font = `${valueFontSize}px sans-serif`
-            canvasCtx.fillStyle = textColor
-            canvasCtx.textAlign = 'center'
-            canvasCtx.textBaseline = 'middle'
-            canvasCtx.fillText(
+            ctx.font = `${valueFontSize}px sans-serif`
+            ctx.fillStyle = textColor
+            ctx.textAlign = 'center'
+            ctx.textBaseline = 'middle'
+            ctx.fillText(
               value.toString(),
               x + optimalCellSize / 2,
               y + optimalCellSize / 2
@@ -476,7 +446,10 @@
   }
 
   // Fallback function to draw a minimalist legend when space is tight
-  function drawMinimalistLegend(yPosition: number) {
+  function drawMinimalistLegend(
+    ctx: CanvasRenderingContext2D,
+    yPosition: number
+  ) {
     // Use width proportional to the matrix
     const legendWidth = Math.min(200, actualGridWidth * 0.7)
 
@@ -487,7 +460,7 @@
     const gradientHeight = 8 // Reduced from 10px to 8px
 
     // Create gradient
-    const gradient = canvasCtx!.createLinearGradient(
+    const gradient = ctx.createLinearGradient(
       legendX,
       0,
       legendX + legendWidth,
@@ -504,13 +477,13 @@
     }
 
     // Draw gradient rectangle
-    canvasCtx!.fillStyle = gradient
-    canvasCtx!.fillRect(legendX, yPosition, legendWidth, gradientHeight)
+    ctx.fillStyle = gradient
+    ctx.fillRect(legendX, yPosition, legendWidth, gradientHeight)
 
     // Draw border around gradient
-    canvasCtx!.strokeStyle = '#666'
-    canvasCtx!.lineWidth = 0.5
-    canvasCtx!.strokeRect(legendX, yPosition, legendWidth, gradientHeight)
+    ctx.strokeStyle = '#666'
+    ctx.lineWidth = 0.5
+    ctx.strokeRect(legendX, yPosition, legendWidth, gradientHeight)
 
     // Store legend data for interaction
     legendData = {
@@ -524,9 +497,7 @@
   }
 
   // Draw the color legend
-  function drawLegend() {
-    if (!canvasCtx) return
-
+  function drawLegend(ctx: CanvasRenderingContext2D) {
     // Calculate available space for legend
     const matrixBottom = yOffset + actualGridHeight
     const availableLegendSpace = height - matrixBottom - 10 // Reserve 10px padding at bottom
@@ -534,7 +505,7 @@
     // If almost no space is available, draw a minimalist legend
     if (availableLegendSpace < 30) {
       // Very compact legend, just the gradient with tiny text
-      drawMinimalistLegend(matrixBottom + 5)
+      drawMinimalistLegend(ctx, matrixBottom + 5)
       return
     }
 
@@ -583,33 +554,33 @@
 
       if (hoverState === 'minValue' && minValueZone) {
         // Draw circle highlight for min value
-        canvasCtx.fillStyle = `rgba(200, 200, 200, ${alpha})`
-        canvasCtx.beginPath()
-        canvasCtx.arc(
+        ctx.fillStyle = `rgba(200, 200, 200, ${alpha})`
+        ctx.beginPath()
+        ctx.arc(
           minValueZone.x,
           minValueZone.y,
           minValueZone.radius,
           0,
           Math.PI * 2
         )
-        canvasCtx.fill()
+        ctx.fill()
       } else if (hoverState === 'maxValue' && maxValueZone) {
         // Draw circle highlight for max value
-        canvasCtx.fillStyle = `rgba(200, 200, 200, ${alpha})`
-        canvasCtx.beginPath()
-        canvasCtx.arc(
+        ctx.fillStyle = `rgba(200, 200, 200, ${alpha})`
+        ctx.beginPath()
+        ctx.arc(
           maxValueZone.x,
           maxValueZone.y,
           maxValueZone.radius,
           0,
           Math.PI * 2
         )
-        canvasCtx.fill()
+        ctx.fill()
       } else if (hoverState === 'gradient' && gradientZone) {
         // Draw rounded rectangle highlight for gradient
-        canvasCtx.fillStyle = `rgba(200, 200, 200, ${alpha})`
+        ctx.fillStyle = `rgba(200, 200, 200, ${alpha})`
         drawRoundedRect(
-          canvasCtx,
+          ctx,
           gradientZone.x,
           gradientZone.y,
           gradientZone.width,
@@ -621,15 +592,15 @@
 
     // Draw legend title if there's room
     if (availableLegendSpace > 40) {
-      canvasCtx.font = '12px sans-serif'
-      canvasCtx.fillStyle = '#000'
-      canvasCtx.textAlign = 'center'
-      canvasCtx.textBaseline = 'top'
-      canvasCtx.fillText(legendTitle, xOffset + actualGridWidth / 2, titleY)
+      ctx.font = '12px sans-serif'
+      ctx.fillStyle = '#000'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'top'
+      ctx.fillText(legendTitle, xOffset + actualGridWidth / 2, titleY)
     }
 
     // Create gradient
-    const gradient = canvasCtx.createLinearGradient(
+    const gradient = ctx.createLinearGradient(
       legendX,
       0,
       legendX + legendWidth,
@@ -646,30 +617,26 @@
     }
 
     // Draw gradient rectangle
-    canvasCtx.fillStyle = gradient
-    canvasCtx.fillRect(legendX, gradientY, legendWidth, gradientHeight)
+    ctx.fillStyle = gradient
+    ctx.fillRect(legendX, gradientY, legendWidth, gradientHeight)
 
     // Draw border around gradient
-    canvasCtx.strokeStyle = '#666'
-    canvasCtx.lineWidth = 0.5
-    canvasCtx.strokeRect(legendX, gradientY, legendWidth, gradientHeight)
+    ctx.strokeStyle = '#666'
+    ctx.lineWidth = 0.5
+    ctx.strokeRect(legendX, gradientY, legendWidth, gradientHeight)
 
     // Draw min and max values if there's room
     if (availableLegendSpace > 35) {
-      canvasCtx.font = '12px sans-serif'
-      canvasCtx.fillStyle = '#000'
-      canvasCtx.textAlign = 'center'
-      canvasCtx.textBaseline = 'top'
+      ctx.font = '12px sans-serif'
+      ctx.fillStyle = '#000'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'top'
 
       // Min value
-      canvasCtx.fillText(colorValueRange[0].toString(), legendX, valuesY)
+      ctx.fillText(colorValueRange[0].toString(), legendX, valuesY)
 
       // Max value
-      canvasCtx.fillText(
-        effectiveMaxValue.toString(),
-        legendX + legendWidth,
-        valuesY
-      )
+      ctx.fillText(effectiveMaxValue.toString(), legendX + legendWidth, valuesY)
     }
 
     // Store legend data for interaction with expanded area
@@ -706,126 +673,141 @@
     ctx.fill()
   }
 
-  // Handle mouse movement over the canvas
+  // Create a render scheduler using our utility
+  const scheduleRender = $derived.by(() =>
+    createRenderScheduler(canvasState, renderCanvas)
+  )
+
+  // Handle mouse movement over the canvas using our scaled position utility
   function handleMouseMove(event: MouseEvent) {
-    const currentTime = performance.now()
-    if (currentTime - lastMouseMoveTime < FRAME_TIME) {
-      return
-    }
-    lastMouseMoveTime = currentTime
-
+    // Remove throttling completely - process every event
     if (!canvas) return
-    const rect = canvas.getBoundingClientRect()
 
-    // Get mouse position relative to the canvas
-    const mouseX = (event.clientX - rect.left) / pixelRatio
-    const mouseY = (event.clientY - rect.top) / pixelRatio
+    // Get properly scaled mouse position
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
 
-    // Check if mouse is over a cell
-    const hoveredCell = cellPositions.find(
-      cell =>
+    // Store previous state
+    const oldHoverState = hoverState
+
+    // Check for hovering over a cell first
+    let isOverCell = false
+    let hoveredCellInfo = null
+
+    for (const cell of cellPositions) {
+      if (
         mouseX >= cell.x &&
         mouseX <= cell.x + cell.width &&
         mouseY >= cell.y &&
         mouseY <= cell.y + cell.height
-    )
+      ) {
+        isOverCell = true
+        hoveredCellInfo = {
+          row: cell.row,
+          col: cell.col,
+          value: cell.value,
+          x: cell.x,
+          y: cell.y,
+          width: cell.width,
+          height: cell.height,
+        }
+        break
+      }
+    }
 
-    if (hoveredCell) {
-      const row = hoveredCell.row
-      const col = hoveredCell.col
-      const value = hoveredCell.value
-
-      // Show tooltip with cell information
-      const idealX = rect.left + hoveredCell.x + hoveredCell.width + 10
-      const idealY =
-        rect.top + hoveredCell.y + hoveredCell.height / 2 + window.scrollY
+    // If over a cell, show tooltip and clear hover state
+    if (isOverCell && hoveredCellInfo) {
+      const tooltipPos = getTooltipPosition(
+        canvasState,
+        hoveredCellInfo.x + hoveredCellInfo.width,
+        hoveredCellInfo.y + hoveredCellInfo.height / 2,
+        { x: 10, y: 0 }
+      )
 
       updateTooltip({
-        x: idealX,
-        y: idealY,
+        x: tooltipPos.x,
+        y: tooltipPos.y,
         content: [
-          { key: 'From', value: aoiLabels[row] },
-          { key: 'To', value: aoiLabels[col] },
-          { key: 'Value', value: value.toString() },
+          { key: 'From', value: aoiLabels[hoveredCellInfo.row] },
+          { key: 'To', value: aoiLabels[hoveredCellInfo.col] },
+          { key: 'Value', value: hoveredCellInfo.value.toString() },
         ],
         visible: true,
         width: 150,
       })
-      return
-    }
 
-    // Store previous hover state to detect changes
-    const prevHoverState = hoverState
-
-    // Check if mouse is over min value
-    if (
-      minValueZone &&
-      Math.hypot(mouseX - minValueZone.x, mouseY - minValueZone.y) <=
-        minValueZone.radius
-    ) {
-      hoverState = 'minValue'
-      canvas.style.cursor = 'pointer'
-    }
-    // Check if mouse is over max value
-    else if (
-      maxValueZone &&
-      Math.hypot(mouseX - maxValueZone.x, mouseY - maxValueZone.y) <=
-        maxValueZone.radius
-    ) {
-      hoverState = 'maxValue'
-      canvas.style.cursor = 'pointer'
-    }
-    // Check if mouse is over gradient
-    else if (
-      gradientZone &&
-      mouseX >= gradientZone.x &&
-      mouseX <= gradientZone.x + gradientZone.width &&
-      mouseY >= gradientZone.y &&
-      mouseY <= gradientZone.y + gradientZone.height
-    ) {
-      hoverState = 'gradient'
-      canvas.style.cursor = 'pointer'
-    }
-    // Not hovering over any interactive element
-    else {
+      // Force hover state to none when over cells
       hoverState = 'none'
-      canvas.style.cursor = 'default'
     }
-
-    // Redraw if hover state changed
-    if (hoverState !== prevHoverState) {
-      scheduleRender()
-    }
-
-    // Reset tooltip if not over a cell
-    if (hoverState === 'none') {
+    // Not over a cell, check legend elements
+    else {
+      // Clear tooltip when not over a cell
       updateTooltip(null)
+
+      // Reset hover state first
+      hoverState = 'none'
+
+      // Check min value circle
+      if (
+        minValueZone &&
+        Math.hypot(mouseX - minValueZone.x, mouseY - minValueZone.y) <=
+          minValueZone.radius
+      ) {
+        hoverState = 'minValue'
+      }
+      // Check max value circle
+      else if (
+        maxValueZone &&
+        Math.hypot(mouseX - maxValueZone.x, mouseY - maxValueZone.y) <=
+          maxValueZone.radius
+      ) {
+        hoverState = 'maxValue'
+      }
+      // Check gradient area
+      else if (
+        gradientZone &&
+        mouseX >= gradientZone.x &&
+        mouseX <= gradientZone.x + gradientZone.width &&
+        mouseY >= gradientZone.y &&
+        mouseY <= gradientZone.y + gradientZone.height
+      ) {
+        hoverState = 'gradient'
+      }
+    }
+
+    // Update cursor style
+    canvas.style.cursor = hoverState !== 'none' ? 'pointer' : 'default'
+
+    // Always redraw on state change
+    if (oldHoverState !== hoverState) {
+      // Force immediate redraw without scheduling
+      renderCanvas()
     }
   }
 
-  // Handle mouse leaving the canvas
+  // Make mouse leave handler more aggressive
   function handleMouseLeave() {
     updateTooltip(null)
 
-    // Reset hover state
-    if (hoverState !== 'none') {
-      hoverState = 'none'
-      scheduleRender()
-    }
+    // Always reset hover state
+    const oldHoverState = hoverState
+    hoverState = 'none'
 
     if (canvas) {
       canvas.style.cursor = 'default'
+    }
+
+    // Force redraw if state changed
+    if (oldHoverState !== 'none') {
+      renderCanvas()
     }
   }
 
   // Handle mouse clicks - now with different callbacks for different zones
   function handleMouseDown(event: MouseEvent) {
     if (!canvas) return
-    const rect = canvas.getBoundingClientRect()
 
-    // Get mouse position relative to the canvas
-    const mouseX = (event.clientX - rect.left) / pixelRatio
-    const mouseY = (event.clientY - rect.top) / pixelRatio
+    // Get properly scaled mouse position
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
 
     // Check which zone was clicked
     if (
@@ -863,48 +845,50 @@
     }
   }
 
-  // Create a render scheduler
-  function scheduleRender() {
-    if (!renderScheduled) {
-      renderScheduled = true
-      requestAnimationFrame(() => {
-        if (canvas && canvasCtx) {
-          resizeCanvas()
-          renderCanvas()
-        }
-        renderScheduled = false
-      })
-    }
-  }
-
   // Watch for changes in props and re-render
   $effect(() => {
-    if (canvas && canvasCtx) {
+    if (canvasState.canvas && canvasState.context) {
       scheduleRender()
     }
   })
 
-  // Watch for changes in dpiOverride
+  // Update canvas when DPI override changes
   $effect(() => {
-    if (canvas && canvasCtx && dpiOverride !== null) {
-      pixelRatio = dpiOverride / 96
-      resizeCanvas()
+    if (canvasState.canvas && canvasState.context && dpiOverride !== null) {
+      // Reset canvas state with new DPI override
+      canvasState = setupCanvas(canvasState, canvasState.canvas, dpiOverride)
+      canvasState = resizeCanvas(canvasState, width, height)
       renderCanvas()
     }
   })
 
   // Lifecycle hooks
   onMount(() => {
-    setupCanvas()
+    if (canvas) {
+      initCanvas()
 
-    // Effect to update when color value range changes
-    $effect(() => {
-      onColorValueRangeChange = onColorValueRangeChange
-    })
-  })
+      // Setup DPI and position change listeners with proper state management
+      const cleanup = setupDpiChangeListeners(
+        // State getter function that always returns the current state
+        () => canvasState,
+        // State setter function to properly update the state
+        newState => {
+          canvasState = newState
+          // Resize with new pixel ratio if it changed
+          if (canvasState.canvas) {
+            canvasState = resizeCanvas(canvasState, width, height)
+            renderCanvas() // Ensure canvas redraws after state update
+          }
+        },
+        dpiOverride,
+        renderCanvas
+      )
 
-  onDestroy(() => {
-    // Clean up event listeners if needed
+      // Clean up event listeners and interval on destroy
+      return () => {
+        cleanup()
+      }
+    }
   })
 </script>
 

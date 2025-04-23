@@ -1,5 +1,5 @@
 /**
- * AOI Transition Matrix Data Transformation Utilities
+ * Transition Matrix Data Transformation Utilities
  *
  * This module contains pure functions for transforming eye tracking data
  * into transition matrices for AOI (Areas of Interest) analysis.
@@ -35,9 +35,9 @@ export enum AggregationMethod {
 }
 
 /**
- * Interface representing an AOI transition matrix with labels
+ * Interface representing an Transition Matrix with labels
  */
-export interface AoiTransitionMatrixData {
+export interface TransitionMatrixData {
   matrix: number[][]
   aoiLabels: string[]
   aoiList: ExtendedInterpretedDataType[]
@@ -55,7 +55,7 @@ export function calculateTransitionMatrix(
   stimulusId: number,
   groupId: number,
   aggregationMethod: AggregationMethod = AggregationMethod.SUM
-): AoiTransitionMatrixData {
+): TransitionMatrixData {
   console.log(
     `Starting transition matrix calculation for stimulusId=${stimulusId}, groupId=${groupId}`
   )
@@ -381,7 +381,7 @@ export function normalizeTransitionMatrix(matrix: number[][]): number[][] {
 export function calculateSegmentDwellTimeMatrix(
   stimulusId: number,
   groupId: number
-): AoiTransitionMatrixData {
+): TransitionMatrixData {
   // Get participants for the selected group and stimulus
   const participants = getParticipants(groupId, stimulusId)
   const participantIds = participants.map(participant => participant.id)

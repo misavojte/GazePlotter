@@ -2,11 +2,11 @@
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import { getParticipantsGroups, data } from '$lib/stores/dataStore'
   import { onDestroy } from 'svelte'
-  import type { AoiTransitionMatrixGridType } from '$lib/type/gridType'
+  import type { TransitionMatrixGridType } from '$lib/type/gridType'
 
   interface Props {
-    settings: AoiTransitionMatrixGridType
-    settingsChange?: (settings: Partial<AoiTransitionMatrixGridType>) => void
+    settings: TransitionMatrixGridType
+    settingsChange?: (settings: Partial<TransitionMatrixGridType>) => void
   }
 
   // Use callback props instead of event dispatching

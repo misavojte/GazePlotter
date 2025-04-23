@@ -5,7 +5,7 @@ export interface GridType {
   w: number
   h: number
   min: { w: number; h: number }
-  type: 'scarf' | 'AoiTransitionMatrix' | 'barPlot'
+  type: 'scarf' | 'TransitionMatrix' | 'barPlot'
   redrawTimestamp: number
 }
 
@@ -30,8 +30,8 @@ export interface ScarfGridType extends GridType {
   dynamicAOI: boolean
 }
 
-export interface AoiTransitionMatrixGridType extends GridType {
-  type: 'AoiTransitionMatrix'
+export interface TransitionMatrixGridType extends GridType {
+  type: 'TransitionMatrix'
   stimulusId: number
   groupId: number
   stimuliColorValueRanges: [number, number][] // Per-stimulus color ranges
@@ -69,5 +69,5 @@ export interface BarPlotGridType extends GridType {
 // now create a type that is a union of all the grid types
 export type AllGridTypes =
   | ScarfGridType
-  | AoiTransitionMatrixGridType
+  | TransitionMatrixGridType
   | BarPlotGridType
