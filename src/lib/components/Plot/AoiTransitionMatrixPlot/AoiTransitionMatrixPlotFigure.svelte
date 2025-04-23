@@ -2,6 +2,7 @@
   import { getColorForValue, getContrastTextColor } from '$lib/utils/colorUtils'
   import { updateTooltip } from '$lib/stores/tooltipStore'
   import { calculateLabelOffset } from '../utils/textUtils'
+  import { fadeIn } from '$lib/actions/fadeIn'
   import { onMount, onDestroy } from 'svelte'
 
   // SVG layout constants - minimal but not zero to ensure spacing
@@ -910,6 +911,7 @@
 <div class="canvas-container">
   <canvas
     bind:this={canvas}
+    use:fadeIn
     onmousemove={handleMouseMove}
     onmouseleave={handleMouseLeave}
     onmousedown={handleMouseDown}

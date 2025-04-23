@@ -2,6 +2,7 @@
   import type { AdaptiveTimeline } from '$lib/class/Plot/AdaptiveTimeline/AdaptiveTimeline'
   import { calculateLabelOffset } from '$lib/components/Plot/utils/textUtils'
   import { updateTooltip } from '$lib/stores/tooltipStore'
+  import { fadeIn } from '$lib/actions/fadeIn'
   import { onMount, onDestroy } from 'svelte'
 
   // Layout constants
@@ -537,6 +538,7 @@
 <div class="plot-container">
   <canvas
     bind:this={canvas}
+    use:fadeIn
     onmousemove={handleMouseMove}
     onmouseleave={handleMouseLeave}
     aria-label="Bar plot visualization"

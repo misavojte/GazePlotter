@@ -5,6 +5,7 @@
   import { addInfoToast } from '$lib/stores/toastStore'
   import { calculateLabelOffset } from '$lib/components/Plot/utils/textUtils'
   import { draggable } from '$lib/actions/draggable'
+  import { fadeIn } from '$lib/actions/fadeIn'
   import { onMount } from 'svelte'
   import {
     SCARF_LAYOUT,
@@ -1092,7 +1093,6 @@
   // Lifecycle hooks
   onMount(() => {
     setupCanvas()
-
     // Add global event listeners for drag handling
     window.addEventListener('mousemove', handleDrag)
     window.addEventListener('mouseup', handleMouseUp)
@@ -1137,6 +1137,7 @@
 
 <canvas
   class="scarf-plot-figure"
+  use:fadeIn
   width={totalWidth}
   height={totalHeight}
   onmousemove={handleMouseMove}
