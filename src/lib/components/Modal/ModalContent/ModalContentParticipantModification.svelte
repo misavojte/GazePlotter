@@ -23,6 +23,10 @@
   let findText = $state('')
   let replaceText = $state('')
 
+  // Sorting state
+  let sortColumn = $state<'originalName' | 'displayedName' | null>(null)
+  let sortDirection = $state<'asc' | 'desc' | null>(null)
+
   const WILDCARD_PATTERNS = [
     { label: 'Any number (e.g., 123)', value: '\\d+' },
     { label: 'Any space', value: '\\s' },
@@ -74,10 +78,14 @@
 
   const handleObjectPositionUp = (participant: BaseInterpretedDataType) => {
     participantObjects = moveItem(participantObjects, participant, 'up')
+    sortColumn = null
+    sortDirection = null
   }
 
   const handleObjectPositionDown = (participant: BaseInterpretedDataType) => {
     participantObjects = moveItem(participantObjects, participant, 'down')
+    sortColumn = null
+    sortDirection = null
   }
 
   const handlePatternRename = () => {
@@ -122,6 +130,64 @@
 
   const handlePatternButtonClick = (pattern: string) => {
     findText += pattern
+  }
+
+  // Natural sort function for alphanumeric strings
+  const naturalSort = (a: string, b: string): number => {
+    const aParts = a.match(/(\d+|\D+)/g) || []
+    const bParts = b.match(/(\d+|\D+)/g) || []
+
+    for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
+      const aPart = aParts[i]
+      const bPart = bParts[i]
+
+      // If both parts are numbers, compare numerically
+      if (/^\d+$/.test(aPart) && /^\d+$/.test(bPart)) {
+        const numA = parseInt(aPart, 10)
+        const numB = parseInt(bPart, 10)
+        if (numA !== numB) return numA - numB
+      } else {
+        // Otherwise compare as strings
+        const strCompare = aPart.localeCompare(bPart)
+        if (strCompare !== 0) return strCompare
+      }
+    }
+
+    return aParts.length - bParts.length
+  }
+
+  const handleSort = (column: 'originalName' | 'displayedName') => {
+    if (sortColumn === column) {
+      // Cycle through: asc -> desc -> null
+      if (sortDirection === 'asc') {
+        sortDirection = 'desc'
+      } else if (sortDirection === 'desc') {
+        sortColumn = null
+        sortDirection = null
+      } else {
+        sortDirection = 'asc'
+      }
+    } else {
+      sortColumn = column
+      sortDirection = 'asc'
+    }
+
+    if (sortColumn && sortDirection) {
+      participantObjects = [...participantObjects].sort((a, b) => {
+        const compare = naturalSort(a[column], b[column])
+        return sortDirection === 'asc' ? compare : -compare
+      })
+    } else {
+      // Reset to original order
+      participantObjects = deepCopyParticipants(rawParticipants)
+    }
+  }
+
+  // SVG icons
+  const sortIcons = {
+    up: `<svg width="8" height="14" viewBox="0 0 8 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 1L6 3M4 1L2 3M4 1V9" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>`,
+    down: `<svg width="8" height="14" viewBox="0 0 8 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 9L2 7M4 9L6 7M4 9V1" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>`,
+    both: `<svg width="8" height="14" viewBox="0 0 8 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 1L6 3M4 1L2 3M4 1V9M4 9L2 7M4 9L6 7" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>`,
   }
 </script>
 
@@ -177,8 +243,30 @@
   <table class="grid content">
     <thead>
       <tr class="gr-line header">
-        <th>Name</th>
-        <th>Displayed name</th>
+        <th>
+          <div class="sort-header" on:click={() => handleSort('originalName')}>
+            Original name
+            <span class="sort-icon">
+              {@html sortColumn === 'originalName'
+                ? sortDirection === 'asc'
+                  ? sortIcons.up
+                  : sortIcons.down
+                : sortIcons.both}
+            </span>
+          </div>
+        </th>
+        <th>
+          <div class="sort-header" on:click={() => handleSort('displayedName')}>
+            Displayed name
+            <span class="sort-icon">
+              {@html sortColumn === 'displayedName'
+                ? sortDirection === 'asc'
+                  ? sortIcons.up
+                  : sortIcons.down
+                : sortIcons.both}
+            </span>
+          </div>
+        </th>
         <th>Order</th>
       </tr>
     </thead>
@@ -290,5 +378,33 @@
 
   .apply-button {
     margin-top: 10px;
+  }
+
+  .sort-header {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .sort-header:hover {
+    color: var(--c-primary);
+  }
+
+  .sort-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    color: #999999;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+  }
+
+  .sort-header:hover .sort-icon {
+    background-color: #999999;
+    color: white;
   }
 </style>
