@@ -8,7 +8,6 @@
   // Configuration for toolbar items
   interface Props {
     actionItems?: any
-    width?: string
     accentColor?: string
     onaction?: (event: { id: string; vizType?: string; event?: any }) => void
     visualizations?: Array<{ id: string; label: string }>
@@ -102,7 +101,6 @@
         },
       },
     ],
-    width = '48px',
     accentColor = 'var(--c-primary)',
     onaction = () => {},
     visualizations = [], // Default empty array for visualizations
@@ -169,10 +167,7 @@
 
 <svelte:window onclick={handleClickOutside} />
 
-<div
-  class="workspace-toolbar"
-  style="--toolbar-width: {width}; --accent-color: {accentColor};"
->
+<div class="workspace-toolbar" style="--accent-color: {accentColor};">
   <div class="toolbar-content">
     {#if actionItems.length > 0}
       <!-- Reset Layout button -->
@@ -225,14 +220,16 @@
 
 <style>
   .workspace-toolbar {
-    position: relative;
+    position: absolute;
     top: 0;
     left: 0;
-    width: var(--toolbar-width);
+    width: 46px;
     height: 100%;
-    background-color: var(--c-grey);
+    background-color: var(--c-lightgrey, #eaeaea);
     z-index: 2;
     transition: background-color 0.3s ease;
+    border-right: 1px solid #88888862;
+    box-sizing: border-box;
   }
 
   .toolbar-content {
@@ -241,7 +238,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 22px 0;
+    padding: 17px 0;
+    gap: 4px;
   }
 
   .context-menu {

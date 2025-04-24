@@ -944,9 +944,7 @@
     position: relative;
     display: flex;
     min-height: var(--min-workspace-height); /* Minimum height */
-    display: grid;
     border: 1px solid #8888889c;
-    grid-template-columns: 48px 1fr;
   }
 
   .workspace-container {
@@ -959,10 +957,9 @@
     overflow-y: hidden; /* Prevent vertical scrolling */
     min-height: var(--min-workspace-height); /* Ensure minimum height */
     padding: 35px; /* Consistent padding throughout */
+    padding-left: 85px;
     /* Performance optimizations */
     will-change: height;
-    border-left: 1px solid #88888862;
-    transform: translateZ(0);
     /* Base cursor for empty areas */
     cursor: grab;
     /* Dynamic background pattern */
