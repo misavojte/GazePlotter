@@ -3,7 +3,19 @@
   import { calculateLabelOffset } from '$lib/components/Plot/utils/textUtils'
   import { updateTooltip } from '$lib/stores/tooltipStore'
   import { fadeIn } from '$lib/actions/fadeIn'
-  import { onMount, onDestroy } from 'svelte'
+  import { onMount, untrack } from 'svelte'
+  import { browser } from '$app/environment'
+  import {
+    createCanvasState,
+    setupCanvas,
+    resizeCanvas,
+    getScaledMousePosition,
+    getTooltipPosition,
+    setupDpiChangeListeners,
+    beginCanvasDrawing,
+    finishCanvasDrawing,
+    type CanvasState,
+  } from '$lib/utils/canvasUtils'
 
   // Layout constants
   const MARGIN = {
@@ -55,11 +67,9 @@
   let lastMouseMoveTime = $state(0)
   const FRAME_TIME = 1000 / 30 // Throttle to 30fps
 
-  // Canvas and rendering state
+  // Canvas and rendering state using our utility
   let canvas = $state<HTMLCanvasElement | null>(null)
-  let canvasCtx = $state<CanvasRenderingContext2D | null>(null)
-  let pixelRatio = $state(1)
-  let renderScheduled = $state(false)
+  let canvasState = $state<CanvasState>(createCanvasState())
 
   // Calculate dynamic left margin based on plotting type and label lengths
   const trueLeftMargin = $derived(
@@ -173,96 +183,73 @@
     })
   })
 
-  // Setup canvas and context
-  function setupCanvas() {
+  // Create a render scheduler function
+  function scheduleRender() {
+    if (!canvasState.renderScheduled && browser) {
+      canvasState.renderScheduled = true
+      requestAnimationFrame(() => {
+        renderCanvas()
+        canvasState.renderScheduled = false
+      })
+    }
+  }
+
+  // Setup canvas and context using our utilities
+  function initCanvas() {
     if (!canvas) return
 
-    // Get the device pixel ratio or use override if provided
-    pixelRatio =
-      dpiOverride !== null ? dpiOverride / 96 : window.devicePixelRatio || 1
+    // Initialize canvas with our utility
+    canvasState = setupCanvas(canvasState, canvas, dpiOverride)
 
-    // Get the canvas context
-    canvasCtx = canvas.getContext('2d')
-    if (!canvasCtx) return
-
-    // Apply initial sizing
-    resizeCanvas()
-
-    // Render the initial state
+    // Resize and render initially
+    canvasState = resizeCanvas(canvasState, width, height)
     renderCanvas()
-  }
-
-  // Resize canvas to match container size and device pixel ratio
-  function resizeCanvas() {
-    if (!canvas || !canvasCtx) return
-
-    // Set actual canvas dimensions (scaled for high DPI)
-    canvas.width = width * pixelRatio
-    canvas.height = height * pixelRatio
-
-    // Set display size (css pixels)
-    canvas.style.width = `${width}px`
-    canvas.style.height = `${height}px`
-  }
-
-  // Clear the canvas
-  function clearCanvas() {
-    if (!canvasCtx || !canvas) return
-    canvasCtx.clearRect(0, 0, canvas.width, canvas.height)
   }
 
   // Render everything to canvas
   function renderCanvas() {
-    if (!canvasCtx || !canvas) return
-    clearCanvas()
+    beginCanvasDrawing(canvasState, true)
 
-    // Scale all drawing operations by the device pixel ratio
-    canvasCtx.save()
-    canvasCtx.scale(pixelRatio, pixelRatio)
+    // Get context from state
+    const ctx = canvasState.context
+    if (!ctx) return
 
     // Draw plot area border
-    drawPlotBorder()
+    drawPlotBorder(ctx)
 
     // Draw grid lines
-    drawGridLines()
+    drawGridLines(ctx)
 
     // Draw bars
-    drawBars()
+    drawBars(ctx)
 
     // Draw value labels
-    drawValueLabels()
+    drawValueLabels(ctx)
 
     // Draw category labels
-    drawCategoryLabels()
+    drawCategoryLabels(ctx)
 
     // Draw axis ticks
-    drawAxisTicks()
+    drawAxisTicks(ctx)
 
     // Draw tick labels
-    drawTickLabels()
+    drawTickLabels(ctx)
 
-    // Reset transformations
-    canvasCtx.restore()
+    // Finish drawing
+    finishCanvasDrawing(canvasState)
   }
 
   // Draw plot area border
-  function drawPlotBorder() {
-    if (!canvasCtx) return
-    canvasCtx.strokeStyle = '#ccc'
-    canvasCtx.lineWidth = 1
-    canvasCtx.strokeRect(
-      trueLeftMargin,
-      MARGIN.TOP,
-      plotAreaWidth,
-      plotAreaHeight
-    )
+  function drawPlotBorder(ctx: CanvasRenderingContext2D) {
+    ctx.strokeStyle = '#ccc'
+    ctx.lineWidth = 1
+    ctx.strokeRect(trueLeftMargin, MARGIN.TOP, plotAreaWidth, plotAreaHeight)
   }
 
   // Draw grid lines
-  function drawGridLines() {
-    if (!canvasCtx) return
-    canvasCtx.strokeStyle = GRID_COLOR
-    canvasCtx.lineWidth = GRID_STROKE_WIDTH
+  function drawGridLines(ctx: CanvasRenderingContext2D) {
+    ctx.strokeStyle = GRID_COLOR
+    ctx.lineWidth = GRID_STROKE_WIDTH
 
     if (barPlottingType === 'vertical') {
       // Horizontal grid lines for vertical bars
@@ -270,10 +257,10 @@
         .filter(tick => tick.isNice)
         .forEach(tick => {
           const y = MARGIN.TOP + plotAreaHeight - tick.position * plotAreaHeight
-          canvasCtx!.beginPath()
-          canvasCtx!.moveTo(trueLeftMargin, y)
-          canvasCtx!.lineTo(trueLeftMargin + plotAreaWidth, y)
-          canvasCtx!.stroke()
+          ctx.beginPath()
+          ctx.moveTo(trueLeftMargin, y)
+          ctx.lineTo(trueLeftMargin + plotAreaWidth, y)
+          ctx.stroke()
         })
     } else {
       // Vertical grid lines for horizontal bars
@@ -281,31 +268,28 @@
         .filter(tick => tick.isNice)
         .forEach(tick => {
           const x = trueLeftMargin + tick.position * plotAreaWidth
-          canvasCtx!.beginPath()
-          canvasCtx!.moveTo(x, MARGIN.TOP)
-          canvasCtx!.lineTo(x, MARGIN.TOP + plotAreaHeight)
-          canvasCtx!.stroke()
+          ctx.beginPath()
+          ctx.moveTo(x, MARGIN.TOP)
+          ctx.lineTo(x, MARGIN.TOP + plotAreaHeight)
+          ctx.stroke()
         })
     }
   }
 
   // Draw the bars
-  function drawBars() {
-    if (!canvasCtx) return
-
+  function drawBars(ctx: CanvasRenderingContext2D) {
     // Draw each bar
     bars.forEach((bar, index) => {
       const style = getBarStyle(index, bar.color)
-      canvasCtx!.fillStyle = style.fill
-      canvasCtx!.fillRect(bar.x, bar.y, bar.width, bar.height)
+      ctx.fillStyle = style.fill
+      ctx.fillRect(bar.x, bar.y, bar.width, bar.height)
     })
   }
 
   // Draw value labels
-  function drawValueLabels() {
-    if (!canvasCtx) return
-    canvasCtx.font = `${LABEL_FONT_SIZE}px sans-serif`
-    canvasCtx.fillStyle = '#000'
+  function drawValueLabels(ctx: CanvasRenderingContext2D) {
+    ctx.font = `${LABEL_FONT_SIZE}px sans-serif`
+    ctx.fillStyle = '#000'
 
     bars.forEach(bar => {
       const text = bar.value.toString()
@@ -323,17 +307,16 @@
         textBaseline = 'middle'
       }
 
-      canvasCtx!.textAlign = textAlign as CanvasTextAlign
-      canvasCtx!.textBaseline = textBaseline as CanvasTextBaseline
-      canvasCtx!.fillText(text, x, y)
+      ctx.textAlign = textAlign as CanvasTextAlign
+      ctx.textBaseline = textBaseline as CanvasTextBaseline
+      ctx.fillText(text, x, y)
     })
   }
 
   // Draw category labels
-  function drawCategoryLabels() {
-    if (!canvasCtx) return
-    canvasCtx.font = `${LABEL_FONT_SIZE}px sans-serif`
-    canvasCtx.fillStyle = '#000'
+  function drawCategoryLabels(ctx: CanvasRenderingContext2D) {
+    ctx.font = `${LABEL_FONT_SIZE}px sans-serif`
+    ctx.fillStyle = '#000'
 
     bars.forEach(bar => {
       let text = bar.label
@@ -362,17 +345,16 @@
         textBaseline = 'middle'
       }
 
-      canvasCtx!.textAlign = textAlign as CanvasTextAlign
-      canvasCtx!.textBaseline = textBaseline as CanvasTextBaseline
-      canvasCtx!.fillText(text, x, y)
+      ctx.textAlign = textAlign as CanvasTextAlign
+      ctx.textBaseline = textBaseline as CanvasTextBaseline
+      ctx.fillText(text, x, y)
     })
   }
 
   // Draw axis ticks
-  function drawAxisTicks() {
-    if (!canvasCtx) return
-    canvasCtx.strokeStyle = '#666'
-    canvasCtx.lineWidth = 1
+  function drawAxisTicks(ctx: CanvasRenderingContext2D) {
+    ctx.strokeStyle = '#666'
+    ctx.lineWidth = 1
 
     // Draw ticks
     if (barPlottingType === 'vertical') {
@@ -380,29 +362,28 @@
         .filter(tick => tick.isNice)
         .forEach(tick => {
           const y = MARGIN.TOP + plotAreaHeight - tick.position * plotAreaHeight
-          canvasCtx!.beginPath()
-          canvasCtx!.moveTo(trueLeftMargin - TICK_LENGTH, y)
-          canvasCtx!.lineTo(trueLeftMargin, y)
-          canvasCtx!.stroke()
+          ctx.beginPath()
+          ctx.moveTo(trueLeftMargin - TICK_LENGTH, y)
+          ctx.lineTo(trueLeftMargin, y)
+          ctx.stroke()
         })
     } else {
       timeline.ticks
         .filter(tick => tick.isNice)
         .forEach(tick => {
           const x = trueLeftMargin + tick.position * plotAreaWidth
-          canvasCtx!.beginPath()
-          canvasCtx!.moveTo(x, MARGIN.TOP + plotAreaHeight)
-          canvasCtx!.lineTo(x, MARGIN.TOP + plotAreaHeight + TICK_LENGTH)
-          canvasCtx!.stroke()
+          ctx.beginPath()
+          ctx.moveTo(x, MARGIN.TOP + plotAreaHeight)
+          ctx.lineTo(x, MARGIN.TOP + plotAreaHeight + TICK_LENGTH)
+          ctx.stroke()
         })
     }
   }
 
   // Draw tick labels
-  function drawTickLabels() {
-    if (!canvasCtx) return
-    canvasCtx.font = `${LABEL_FONT_SIZE}px sans-serif`
-    canvasCtx.fillStyle = '#000'
+  function drawTickLabels(ctx: CanvasRenderingContext2D) {
+    ctx.font = `${LABEL_FONT_SIZE}px sans-serif`
+    ctx.fillStyle = '#000'
 
     timeline.ticks
       .filter(tick => tick.isNice)
@@ -421,9 +402,9 @@
           textBaseline = 'hanging'
         }
 
-        canvasCtx!.textAlign = textAlign as CanvasTextAlign
-        canvasCtx!.textBaseline = textBaseline as CanvasTextBaseline
-        canvasCtx!.fillText(tick.label, x, y)
+        ctx.textAlign = textAlign as CanvasTextAlign
+        ctx.textBaseline = textBaseline as CanvasTextBaseline
+        ctx.fillText(tick.label, x, y)
       })
   }
 
@@ -436,9 +417,9 @@
     lastMouseMoveTime = currentTime
 
     if (!canvas) return
-    const rect = canvas.getBoundingClientRect()
-    const mouseX = (event.clientX - rect.left) / pixelRatio
-    const mouseY = (event.clientY - rect.top) / pixelRatio
+
+    // Get properly scaled mouse position
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
 
     // Find hovered bar
     const hoveredIndex = bars.findIndex(bar => {
@@ -454,13 +435,17 @@
       hoveredBarIndex = hoveredIndex
       const bar = bars[hoveredIndex]
 
-      // Calculate tooltip position
-      const idealX = rect.left + bar.x + bar.width + 10
-      const idealY = rect.top + bar.y + window.scrollY
+      // Calculate tooltip position using utility
+      const tooltipPos = getTooltipPosition(
+        canvasState,
+        bar.x + bar.width,
+        bar.y,
+        { x: 10, y: 0 }
+      )
 
       updateTooltip({
-        x: idealX,
-        y: idealY,
+        x: tooltipPos.x,
+        y: tooltipPos.y,
         content: [
           { key: 'Label', value: bar.label },
           { key: 'Value', value: bar.value.toString() },
@@ -499,39 +484,52 @@
     }
   }
 
-  // Create a render scheduler
-  function scheduleRender() {
-    if (!renderScheduled) {
-      renderScheduled = true
-      requestAnimationFrame(() => {
-        if (canvas && canvasCtx) {
-          resizeCanvas()
-          renderCanvas()
-        }
-        renderScheduled = false
-      })
-    }
-  }
-
-  // Watch for changes in props and re-render
+  // Track data changes and schedule renders
   $effect(() => {
-    if (canvas && canvasCtx) {
-      scheduleRender()
-    }
-  })
+    // Just track the data dependencies
+    const _ = [data, timeline, barPlottingType, barWidth, barSpacing]
 
-  // Watch for changes in dpiOverride
-  $effect(() => {
-    if (canvas && canvasCtx && dpiOverride !== null) {
-      pixelRatio = dpiOverride / 96
-      resizeCanvas()
-      renderCanvas()
-    }
+    untrack(() => {
+      if (canvasState.canvas && canvasState.context) {
+        // Reset canvas state with new DPI override
+        canvasState = setupCanvas(canvasState, canvasState.canvas, dpiOverride)
+        canvasState = resizeCanvas(canvasState, width, height)
+      }
+
+      // Schedule a render if we have a valid canvas
+      if (canvasState.canvas && canvasState.context) {
+        scheduleRender()
+      }
+    })
   })
 
   // Lifecycle hooks
   onMount(() => {
-    setupCanvas()
+    if (canvas) {
+      initCanvas()
+
+      // Setup DPI and position change listeners with proper state management
+      const cleanup = setupDpiChangeListeners(
+        // State getter function that always returns the current state
+        () => canvasState,
+        // State setter function to properly update the state
+        newState => {
+          canvasState = newState
+          // Resize with new pixel ratio if it changed
+          if (canvasState.canvas) {
+            canvasState = resizeCanvas(canvasState, width, height)
+            renderCanvas() // Ensure canvas redraws after state update
+          }
+        },
+        dpiOverride,
+        renderCanvas
+      )
+
+      // Clean up event listeners and interval on destroy
+      return () => {
+        cleanup()
+      }
+    }
   })
 </script>
 
