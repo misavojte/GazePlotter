@@ -27,10 +27,12 @@
         id => id !== participantId
       )
     }
+    // Force update by creating a new array reference
+    group.participantsIds = [...group.participantsIds]
   }
 
   const selectAll = () => {
-    group.participantsIds = participants.map((_, i) => i)
+    group.participantsIds = [...participants.map((_, i) => i)]
   }
 
   const deselectAll = () => {

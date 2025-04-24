@@ -5,20 +5,20 @@
     onchange?: (event: CustomEvent) => void
   }
 
-  let { label, checked = false, onchange = () => {} }: Props = $props()
-
-  // Use state instead of bindable
-  let isChecked = $state(checked)
+  let {
+    label,
+    checked = $bindable(false),
+    onchange = () => {},
+  }: Props = $props()
 
   function handleChange(event: Event) {
     const target = event.target as HTMLInputElement
-    isChecked = target.checked
-    onchange(new CustomEvent('change', { detail: isChecked }))
+    onchange(new CustomEvent('change', { detail: target.checked }))
   }
 </script>
 
 <label>
-  <input type="checkbox" checked={isChecked} onchange={handleChange} />
+  <input type="checkbox" {checked} onchange={handleChange} />
   {label}
 </label>
 
