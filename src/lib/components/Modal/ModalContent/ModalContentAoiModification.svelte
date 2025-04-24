@@ -173,12 +173,63 @@
     }
   })
 
+  // Sorting state
+  let sortColumn = $state<'originalName' | 'displayedName' | null>(null)
+  let sortDirection = $state<'asc' | 'desc' | null>(null)
+
+  // SVG icons
+  const sortIcons = {
+    up: `<svg width="8" height="14" viewBox="0 0 8 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 1L6 3M4 1L2 3M4 1V9" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>`,
+    down: `<svg width="8" height="14" viewBox="0 0 8 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 9L2 7M4 9L6 7M4 9V1" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>`,
+    both: `<svg width="8" height="14" viewBox="0 0 8 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 1L6 3M4 1L2 3M4 1V9M4 9L2 7M4 9L6 7" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>`,
+  }
+
+  // Natural sort function for alphanumeric strings
+  const naturalSort = (a: string, b: string): number => {
+    const aParts = a.match(/(\d+|\D+)/g) || []
+    const bParts = b.match(/(\d+|\D+)/g) || []
+
+    for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
+      const aPart = aParts[i]
+      const bPart = bParts[i]
+
+      if (/^\d+$/.test(aPart) && /^\d+$/.test(bPart)) {
+        const numA = parseInt(aPart, 10)
+        const numB = parseInt(bPart, 10)
+        if (numA !== numB) return numA - numB
+      } else {
+        const strCompare = aPart.localeCompare(bPart)
+        if (strCompare !== 0) return strCompare
+      }
+    }
+
+    return aParts.length - bParts.length
+  }
+
+  const handleSort = (column: 'originalName' | 'displayedName') => {
+    if (sortColumn === column) {
+      sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'
+    } else {
+      sortColumn = column
+      sortDirection = 'asc'
+    }
+
+    aoiObjects = [...aoiObjects].sort((a, b) => {
+      const compare = naturalSort(a[column], b[column])
+      return sortDirection === 'asc' ? compare : -compare
+    })
+  }
+
   const handleObjectPositionUp = (aoi: ExtendedInterpretedDataType) => {
     aoiObjects = moveItem(aoiObjects, aoi, 'up')
+    sortColumn = null
+    sortDirection = null
   }
 
   const handleObjectPositionDown = (aoi: ExtendedInterpretedDataType) => {
     aoiObjects = moveItem(aoiObjects, aoi, 'down')
+    sortColumn = null
+    sortDirection = null
   }
 
   const handleSubmit = () => {
@@ -235,8 +286,30 @@
   <table class="grid content">
     <thead>
       <tr class="gr-line header">
-        <th>Name</th>
-        <th>Displayed name</th>
+        <th>
+          <div class="sort-header" on:click={() => handleSort('originalName')}>
+            Name
+            <span class="sort-icon">
+              {@html sortColumn === 'originalName'
+                ? sortDirection === 'asc'
+                  ? sortIcons.up
+                  : sortIcons.down
+                : sortIcons.both}
+            </span>
+          </div>
+        </th>
+        <th>
+          <div class="sort-header" on:click={() => handleSort('displayedName')}>
+            Displayed name
+            <span class="sort-icon">
+              {@html sortColumn === 'displayedName'
+                ? sortDirection === 'asc'
+                  ? sortIcons.up
+                  : sortIcons.down
+                : sortIcons.both}
+            </span>
+          </div>
+        </th>
         <th>Color</th>
         <th>Order</th>
       </tr>
@@ -348,5 +421,29 @@
     border: 1px solid var(--c-midgrey);
     border-radius: 5px;
     padding: 3px 7px;
+  }
+
+  .sort-header {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .sort-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    color: #999999;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+  }
+
+  .sort-header:hover .sort-icon {
+    background-color: #999999;
+    color: white;
   }
 </style>

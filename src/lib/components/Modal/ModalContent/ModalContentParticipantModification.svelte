@@ -158,29 +158,17 @@
 
   const handleSort = (column: 'originalName' | 'displayedName') => {
     if (sortColumn === column) {
-      // Cycle through: asc -> desc -> null
-      if (sortDirection === 'asc') {
-        sortDirection = 'desc'
-      } else if (sortDirection === 'desc') {
-        sortColumn = null
-        sortDirection = null
-      } else {
-        sortDirection = 'asc'
-      }
+      // Just toggle between asc and desc
+      sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'
     } else {
       sortColumn = column
       sortDirection = 'asc'
     }
 
-    if (sortColumn && sortDirection) {
-      participantObjects = [...participantObjects].sort((a, b) => {
-        const compare = naturalSort(a[column], b[column])
-        return sortDirection === 'asc' ? compare : -compare
-      })
-    } else {
-      // Reset to original order
-      participantObjects = deepCopyParticipants(rawParticipants)
-    }
+    participantObjects = [...participantObjects].sort((a, b) => {
+      const compare = naturalSort(a[column], b[column])
+      return sortDirection === 'asc' ? compare : -compare
+    })
   }
 
   // SVG icons
