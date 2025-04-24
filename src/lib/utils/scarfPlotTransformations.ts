@@ -301,13 +301,20 @@ export function createSegmentContents(
   orderId: number
 ): SingleSegmentScarfFillingType[] {
   // Handle non-fixation segment (e.g., saccade)
-  if (segment.category.id !== 0) {
+  const categoryId = segment.category.id
+  if (categoryId !== 0) {
     const height = nonFixationHeight
-    const y = spaceAboveRect + barHeight / 2 - height / 2
+    /*
+     * We vertically center the non-fixation segment by adding half the height of the bar
+     * to the space above the rectangle and then subtracting half the height of the segment.
+     * We use bitwise operations to improve performance, as the downsides are bearable
+     * in this case.
+     */
+    const y = spaceAboveRect + (barHeight >> 1) - (height >> 1)
 
     let typeIdentifier = IDENTIFIER_NOT_DEFINED
-    if (segmentCategories.includes(segment.category.id)) {
-      typeIdentifier = segment.category.id.toString()
+    if (segmentCategories.includes(categoryId)) {
+      typeIdentifier = categoryId.toString()
     }
 
     return [
@@ -389,9 +396,10 @@ export function createAoiVisibility(
 
   const result: AoiVisibilityScarfFillingType[] = []
 
-  // Only apply timeline limits for absolute mode
-  const shouldApplyLimits =
-    timelineMode !== 'relative' && timelineMode !== 'ordinal'
+  // Cache this calculation that's repeated in multiple places
+  const isRel = timelineMode === 'relative'
+  const isOrd = timelineMode === 'ordinal'
+  const shouldApplyLimits = !isRel && !isOrd
 
   // Calculate the visible timeline range
   const visibleRange = timelineMax - timelineMin
@@ -400,13 +408,15 @@ export function createAoiVisibility(
   const participantStart = 0 // Always start at 0
   const participantEnd = sessionDuration // Use actual session duration
 
-  for (let aoiIndex = 0; aoiIndex < aoiData.length; aoiIndex++) {
+  const numberOfAois = aoiData.length
+  for (let aoiIndex = 0; aoiIndex < numberOfAois; aoiIndex++) {
     const aoiId = aoiData[aoiIndex].id
     const visibility = getAoiVisibility(stimulusId, aoiId, participantId)
     const visibilityContent: SingleAoiVisibilityScarfFillingType[] = []
 
     if (visibility !== null) {
-      for (let i = 0; i < visibility.length; i += 2) {
+      const numberOfVisibilityRanges = visibility.length
+      for (let i = 0; i < numberOfVisibilityRanges; i += 2) {
         let start = visibility[i]
         let end = visibility[i + 1]
 
@@ -436,7 +446,7 @@ export function createAoiVisibility(
         let x1: number
         let x2: number
 
-        if (timelineMode === 'relative') {
+        if (isRel) {
           // For relative timeline, position is calculated relative to the session duration
           x1 = start / sessionDuration
           x2 = end / sessionDuration
@@ -530,16 +540,21 @@ export function transformDataToScarfPlot(
     participantId: number
   }> = []
 
-  for (let pIndex = 0; pIndex < participantIds.length; pIndex++) {
+  // Cache this calculation that's repeated in multiple places
+  const isOrdinal = settings.timeline === 'ordinal'
+  const isRelative = settings.timeline === 'relative'
+
+  const numberOfParticipants = participantIds.length
+  for (let pIndex = 0; pIndex < numberOfParticipants; pIndex++) {
     const participantId = participantIds[pIndex]
     const segmentCount = getNumberOfSegments(stimulusId, participantId)
 
     if (segmentCount === 0) continue
 
     const sessionDuration = getParticipantEndTime(stimulusId, participantId)
-    const participant = getParticipant(participantId)
+    const { displayedName } = getParticipant(participantId)
 
-    const rectWrappedHeight = barHeight + spaceAboveRect * 2
+    const rectWrappedHeight = barHeight + (spaceAboveRect << 1) // just a bit faster instead of * 2
 
     // Calculate the visible timeline range
     const visibleRange = maxValue - minValue
@@ -548,8 +563,6 @@ export function transformDataToScarfPlot(
     // Process all segments directly into flattened array
     for (let segmentId = 0; segmentId < segmentCount; segmentId++) {
       const segment = getSegment(stimulusId, participantId, segmentId)
-      const isOrdinal = settings.timeline === 'ordinal'
-      const isRelative = settings.timeline === 'relative'
 
       let start = isOrdinal ? segmentId : segment.start
       let end = isOrdinal ? segmentId + 1 : segment.end
@@ -638,8 +651,12 @@ export function transformDataToScarfPlot(
 
     // Pre-flatten visibility lines
     if (showAoiVisibility) {
-      dynamicAoiVisibility.forEach(visibility => {
-        visibility.content.forEach(line => {
+      const dvLen = dynamicAoiVisibility.length
+      for (let v = 0; v < dvLen; v++) {
+        const content = dynamicAoiVisibility[v].content
+        const cLen = content.length
+        for (let c = 0; c < cLen; c++) {
+          const line = content[c]
           flattenedLines.push({
             identifier: line.identifier,
             rawX1: line.x1,
@@ -647,13 +664,13 @@ export function transformDataToScarfPlot(
             y: yOffset + line.y,
             participantId,
           })
-        })
-      })
+        }
+      }
     }
 
     participants.push({
       id: participantId,
-      label: participant.displayedName,
+      label: displayedName,
       width,
     })
   }
@@ -668,7 +685,7 @@ export function transformDataToScarfPlot(
   const stimuli = createStimuliList(stimuliData)
 
   // Calculate chart height
-  const chartHeight = participants.length * barWrapHeight + HEIGHT_OF_X_AXIS
+  const chartHeight = numberOfParticipants * barWrapHeight + HEIGHT_OF_X_AXIS
 
   return {
     id: stimulusId,
