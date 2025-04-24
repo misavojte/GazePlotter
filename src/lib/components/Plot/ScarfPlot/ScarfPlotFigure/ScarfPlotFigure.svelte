@@ -238,37 +238,28 @@
     // Guard against plotAreaWidth not being initialized
     if (!plotAreaWidth) return []
 
-    return data.participants.flatMap((participant, participantIndex) => {
-      const isOrdinal = settings.timeline === 'ordinal'
-      const y0 = participantIndex * data.heightOfBarWrap
+    // Use the pre-flattened rectangles for performance
+    return data.flattenedRectangles.map(rect => {
+      const identifier = rect.identifier
+      const isHighlighted = identifier === usedHighlight
+      const style = getStyleForRect(identifier, isHighlighted)
 
-      return participant.segments.flatMap((segment, segmentId) =>
-        segment.content.map(rectangle => {
-          const identifier = rectangle.identifier
-          const isHighlighted = identifier === usedHighlight
-          const style = getStyleForRect(identifier, isHighlighted)
-
-          return {
-            identifier: identifier, // Keep identifier for event handling
-            height: rectangle.height,
-            x:
-              LEFT_LABEL_WIDTH +
-              (isOrdinal ? getSegmentX(rectangle.x) : getSegmentX(rectangle.x)),
-            y: y0 + rectangle.y,
-            width: isOrdinal
-              ? getSegmentWidth(rectangle.width)
-              : getSegmentWidth(rectangle.width),
-            participantId: participant.id,
-            segmentId,
-            orderId: rectangle.orderId,
-            // Include style properties
-            fill: style.fill,
-            opacity: style.opacity ?? 1,
-            stroke: style.stroke,
-            strokeWidth: style.strokeWidth,
-          }
-        })
-      )
+      // Calculate final screen position from raw values
+      return {
+        identifier: identifier,
+        height: rect.height,
+        x: LEFT_LABEL_WIDTH + rect.rawX * plotAreaWidth,
+        y: rect.y,
+        width: rect.rawWidth * plotAreaWidth,
+        participantId: rect.participantId,
+        segmentId: rect.segmentId,
+        orderId: rect.orderId,
+        // Include style properties
+        fill: style.fill,
+        opacity: style.opacity ?? 1,
+        stroke: style.stroke,
+        strokeWidth: style.strokeWidth,
+      }
     })
   })
 
@@ -276,65 +267,28 @@
     // Guard against plotAreaWidth not being initialized
     if (!plotAreaWidth) return []
 
-    return data.participants.flatMap((participant, participantIndex) => {
-      const isOrdinal = settings.timeline === 'ordinal'
-      const isAbsolute = settings.timeline === 'absolute'
-      const pWidth = isAbsolute ? participant.width : undefined
-      const y0 = participantIndex * data.heightOfBarWrap
+    // Use the pre-flattened lines for performance
+    return data.flattenedLines.map(line => {
+      const identifier = line.identifier
+      const isHighlighted = identifier === usedHighlight
+      const style = getStyleForLine(identifier, isHighlighted)
 
-      // Don't process lines in ordinal mode
-      if (isOrdinal) return []
-
-      return participant.dynamicAoiVisibility.flatMap(visibility => {
-        return visibility.content.map(item => {
-          const identifier = item.identifier
-          const isHighlighted = identifier === usedHighlight
-          const style = getStyleForLine(identifier, isHighlighted)
-
-          return {
-            identifier: identifier, // Keep identifier for event handling
-            x1: LEFT_LABEL_WIDTH + getVisibilityLineX(item.x1, pWidth),
-            y1: y0 + item.y,
-            x2: LEFT_LABEL_WIDTH + getVisibilityLineX(item.x2, pWidth),
-            y2: y0 + item.y,
-            participantId: participant.id,
-            // Include style properties
-            stroke: style.stroke,
-            strokeWidth: style.strokeWidth,
-            opacity: style.opacity ?? 1,
-            strokeDasharray: style.strokeDasharray,
-            strokeLinecap: style.strokeLinecap,
-          }
-        })
-      })
+      return {
+        identifier: identifier,
+        x1: LEFT_LABEL_WIDTH + line.rawX1 * plotAreaWidth,
+        y1: line.y,
+        x2: LEFT_LABEL_WIDTH + line.rawX2 * plotAreaWidth,
+        y2: line.y,
+        participantId: line.participantId,
+        // Include style properties
+        stroke: style.stroke,
+        strokeWidth: style.strokeWidth,
+        opacity: style.opacity ?? 1,
+        strokeDasharray: style.strokeDasharray,
+        strokeLinecap: style.strokeLinecap,
+      }
     })
   })
-
-  function getSegmentX(x: number): number {
-    if (!plotAreaWidth) return 0
-
-    // All calculations now use the numeric value directly
-    return x * plotAreaWidth
-  }
-
-  function getSegmentWidth(width: number): number {
-    if (!plotAreaWidth) return 0
-
-    // All calculations now use the numeric value directly
-    return width * plotAreaWidth
-  }
-
-  function getVisibilityLineX(x: number, participantWidth?: number): number {
-    if (!plotAreaWidth) return 0
-
-    if (settings.timeline === 'ordinal') {
-      return 0 // Not applicable in ordinal mode
-    } else {
-      // Cap at 1.0 (100%)
-      const xValue = Math.min(x, 1.0)
-      return xValue * plotAreaWidth
-    }
-  }
 
   // Interaction handlers
   function handleFixedHighlight(identifier: string) {

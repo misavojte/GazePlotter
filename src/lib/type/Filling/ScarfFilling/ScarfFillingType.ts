@@ -17,15 +17,33 @@ import type { ParticipantScarfFillingType } from './ParticipantScarfFilling/Part
  * @param participants - array of ScarfParticipant objects containing information about participants
  * @param stimuli - array of ScarfStimuliInfo objects containing information about stimuli (for stimuli selection)
  */
-export interface ScarfFillingType {
+export type ScarfFillingType = {
   id: number
-  stimulusId: number
-  timelineType: 'absolute' | 'relative' | 'ordinal'
-  timeline: AdaptiveTimeline
-  stylingAndLegend: StylingScarfFillingType
+  timelineType: string
   barHeight: number
+  stimulusId: number
   heightOfBarWrap: number
   chartHeight: number
-  participants: ParticipantScarfFillingType[]
   stimuli: StimulusScarfFillingType[]
+  participants: ParticipantScarfFillingType[]
+  timeline: AdaptiveTimeline
+  stylingAndLegend: StylingScarfFillingType
+  // Pre-flattened data for performance optimization
+  flattenedRectangles: Array<{
+    identifier: string
+    height: number
+    rawX: number
+    rawWidth: number
+    y: number
+    participantId: number
+    segmentId: number
+    orderId: number
+  }>
+  flattenedLines: Array<{
+    identifier: string
+    rawX1: number
+    rawX2: number
+    y: number
+    participantId: number
+  }>
 }

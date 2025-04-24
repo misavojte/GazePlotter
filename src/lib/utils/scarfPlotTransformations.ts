@@ -18,7 +18,6 @@ import type {
   AoiVisibilityScarfFillingType,
   ParticipantScarfFillingType,
   ScarfFillingType,
-  SegmentScarfFillingType,
   SingleAoiVisibilityScarfFillingType,
   SingleSegmentScarfFillingType,
   SingleStylingScarfFillingType,
@@ -466,137 +465,6 @@ export function createAoiVisibility(
 }
 
 /**
- * Creates a participant data object for visualization
- *
- * @param participantId ID of the participant
- * @param stimulusId ID of the stimulus
- * @param timeline Timeline settings
- * @param timelineMin Minimum timeline value
- * @param timelineMax Maximum timeline value
- * @param barHeight Height of the main bar
- * @param nonFixationHeight Height of non-fixation elements
- * @param spaceAboveRect Space above the rectangle
- * @param spaceAboveLine Space above the line
- * @param aoiData AOI data for the current stimulus
- * @returns Participant data object for visualization or null if no segments
- */
-export function createParticipantData(
-  participantId: number,
-  stimulusId: number,
-  timeline: string,
-  timelineMin: number,
-  timelineMax: number,
-  barHeight = DEFAULT_BAR_HEIGHT,
-  nonFixationHeight = DEFAULT_NON_FIXATION_HEIGHT,
-  spaceAboveRect = DEFAULT_SPACE_ABOVE_RECT,
-  spaceAboveLine = DEFAULT_SPACE_ABOVE_LINE,
-  aoiData: ExtendedInterpretedDataType[] = []
-): ParticipantScarfFillingType | null {
-  const segmentCount = getNumberOfSegments(stimulusId, participantId)
-
-  if (segmentCount === 0) {
-    return null
-  }
-
-  const sessionDuration = getParticipantEndTime(stimulusId, participantId)
-  const participant = getParticipant(participantId)
-
-  const rectWrappedHeight = barHeight + spaceAboveRect * 2
-  const lineWrappedHeight = nonFixationHeight + spaceAboveLine
-
-  const showAoiVisibility =
-    hasStimulusAoiVisibility(stimulusId) && timeline !== 'ordinal'
-
-  // Create segments
-  const segments: SegmentScarfFillingType[] = []
-
-  // Calculate the visible timeline range
-  const visibleRange = timelineMax - timelineMin
-
-  for (let segmentId = 0; segmentId < segmentCount; segmentId++) {
-    const segment = getSegment(stimulusId, participantId, segmentId)
-    const isOrdinal = timeline === 'ordinal'
-    const isRelative = timeline === 'relative'
-
-    let start = isOrdinal ? segmentId : segment.start
-    let end = isOrdinal ? segmentId + 1 : segment.end
-
-    // Skip segments entirely outside the timeline range
-    // For relative timeline, we don't apply cropping
-    if (!isRelative) {
-      if (end <= timelineMin || start >= timelineMax) {
-        continue
-      }
-
-      // Crop segments that are partially outside the timeline range
-      if (start < timelineMin) start = timelineMin
-      if (end > timelineMax) end = timelineMax
-    }
-
-    // Calculate position and width as decimals (0-1)
-    let x: number
-    let width: number
-
-    if (isRelative) {
-      // For relative timeline, position is relative to the session duration
-      x = start / sessionDuration
-      width = (end - start) / sessionDuration
-    } else {
-      // For absolute/ordinal timeline, position is relative to the visible range
-      const adjustedStart = start - timelineMin
-      const segmentWidth = end - start
-
-      x = adjustedStart / visibleRange
-      width = segmentWidth / visibleRange
-    }
-
-    segments.push({
-      content: createSegmentContents(
-        segment,
-        x,
-        width,
-        barHeight,
-        nonFixationHeight,
-        spaceAboveRect,
-        undefined, // use default segment categories
-        segmentId
-      ),
-    })
-  }
-
-  // Calculate width as decimal (0-1)
-  let width: number
-
-  if (timeline === 'relative') {
-    width = 1.0 // equivalent to 100%
-  } else {
-    // For absolute/ordinal, the width depends on session duration and visible range
-    width =
-      (Math.min(sessionDuration, timelineMax) - Math.max(0, timelineMin)) /
-      visibleRange
-  }
-
-  return {
-    id: participantId,
-    label: participant.displayedName,
-    segments,
-    width,
-    dynamicAoiVisibility: createAoiVisibility(
-      stimulusId,
-      participantId,
-      aoiData,
-      sessionDuration,
-      rectWrappedHeight,
-      lineWrappedHeight,
-      showAoiVisibility,
-      timelineMax,
-      timeline,
-      timelineMin
-    ),
-  }
-}
-
-/**
  * Transforms DataType into ScarfFillingType for visualization
  *
  * @param stimulusId ID of the stimulus to display
@@ -640,23 +508,154 @@ export function transformDataToScarfPlot(
 
   // Create participants data
   const participants: ParticipantScarfFillingType[] = []
-  for (const participantId of participantIds) {
-    const participant = createParticipantData(
-      participantId,
+
+  // Pre-flattened segments array for performance optimization
+  const flattenedRectangles: Array<{
+    identifier: string
+    height: number
+    rawX: number
+    rawWidth: number
+    y: number
+    participantId: number
+    segmentId: number
+    orderId: number
+  }> = []
+
+  // Pre-flattened visibility lines array
+  const flattenedLines: Array<{
+    identifier: string
+    rawX1: number
+    rawX2: number
+    y: number
+    participantId: number
+  }> = []
+
+  for (let pIndex = 0; pIndex < participantIds.length; pIndex++) {
+    const participantId = participantIds[pIndex]
+    const segmentCount = getNumberOfSegments(stimulusId, participantId)
+
+    if (segmentCount === 0) continue
+
+    const sessionDuration = getParticipantEndTime(stimulusId, participantId)
+    const participant = getParticipant(participantId)
+
+    const rectWrappedHeight = barHeight + spaceAboveRect * 2
+
+    // Calculate the visible timeline range
+    const visibleRange = maxValue - minValue
+    const yOffset = pIndex * barWrapHeight
+
+    // Process all segments directly into flattened array
+    for (let segmentId = 0; segmentId < segmentCount; segmentId++) {
+      const segment = getSegment(stimulusId, participantId, segmentId)
+      const isOrdinal = settings.timeline === 'ordinal'
+      const isRelative = settings.timeline === 'relative'
+
+      let start = isOrdinal ? segmentId : segment.start
+      let end = isOrdinal ? segmentId + 1 : segment.end
+
+      // Skip segments entirely outside the timeline range
+      // For relative timeline, we don't apply cropping
+      if (!isRelative) {
+        if (end <= minValue || start >= maxValue) {
+          continue
+        }
+
+        // Crop segments that are partially outside the timeline range
+        if (start < minValue) start = minValue
+        if (end > maxValue) end = maxValue
+      }
+
+      // Calculate position and width as decimals (0-1)
+      let x: number
+      let width: number
+
+      if (isRelative) {
+        // For relative timeline, position is relative to the session duration
+        x = start / sessionDuration
+        width = (end - start) / sessionDuration
+      } else {
+        // For absolute/ordinal timeline, position is relative to the visible range
+        const adjustedStart = start - minValue
+        const segmentWidth = end - start
+
+        x = adjustedStart / visibleRange
+        width = segmentWidth / visibleRange
+      }
+
+      // Create segment content directly into flattened array
+      const contents = createSegmentContents(
+        segment,
+        x,
+        width,
+        barHeight,
+        nonFixationHeight,
+        spaceAboveRect,
+        undefined,
+        segmentId
+      )
+
+      // Add to the flattened rectangles array with pre-calculated y offset
+      for (const rectangle of contents) {
+        flattenedRectangles.push({
+          identifier: rectangle.identifier,
+          height: rectangle.height,
+          rawX: rectangle.x,
+          rawWidth: rectangle.width,
+          y: yOffset + rectangle.y,
+          participantId,
+          segmentId,
+          orderId: rectangle.orderId,
+        })
+      }
+    }
+
+    // Calculate width as decimal (0-1)
+    let width: number
+
+    if (settings.timeline === 'relative') {
+      width = 1.0 // equivalent to 100%
+    } else {
+      // For absolute/ordinal, the width depends on session duration and visible range
+      width =
+        (Math.min(sessionDuration, maxValue) - Math.max(0, minValue)) /
+        visibleRange
+    }
+
+    // Process AOI visibility lines
+    const dynamicAoiVisibility = createAoiVisibility(
       stimulusId,
-      settings.timeline,
-      minValue,
+      participantId,
+      aoiData,
+      sessionDuration,
+      rectWrappedHeight,
+      lineWrappedHeight,
+      showAoiVisibility,
       maxValue,
-      barHeight,
-      nonFixationHeight,
-      spaceAboveRect,
-      spaceAboveLine,
-      aoiData
+      settings.timeline,
+      minValue
     )
 
-    if (participant) {
-      participants.push(participant)
+    // Pre-flatten visibility lines
+    if (showAoiVisibility) {
+      dynamicAoiVisibility.forEach(visibility => {
+        visibility.content.forEach(line => {
+          flattenedLines.push({
+            identifier: line.identifier,
+            rawX1: line.x1,
+            rawX2: line.x2,
+            y: yOffset + line.y,
+            participantId,
+          })
+        })
+      })
     }
+
+    participants.push({
+      id: participantId,
+      label: participant.displayedName,
+      width,
+    })
   }
 
   // Create styling and stimulus list
@@ -682,5 +681,7 @@ export function transformDataToScarfPlot(
     participants,
     timeline,
     stylingAndLegend,
+    flattenedRectangles,
+    flattenedLines,
   }
 }
