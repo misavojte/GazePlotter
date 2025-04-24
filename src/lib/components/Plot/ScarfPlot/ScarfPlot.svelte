@@ -3,7 +3,6 @@
     getNumberOfSegments,
     getParticipantEndTime,
     getParticipants,
-    getParticipantOrderVector,
   } from '$lib/stores/dataStore'
   import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType'
   import { onDestroy, onMount } from 'svelte'
