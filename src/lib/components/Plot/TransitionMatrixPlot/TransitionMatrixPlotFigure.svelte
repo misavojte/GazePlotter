@@ -19,8 +19,8 @@
 
   // SVG layout constants - minimal but not zero to ensure spacing
   const BASE_LABEL_OFFSET = 5
-  const TOP_MARGIN = 10
-  const LEFT_MARGIN = 30
+  const TOP_MARGIN = 30 // Increased to ensure "To AOI" label is visible
+  const LEFT_MARGIN = 30 // Increased to ensure "From AOI" label is visible
   const MAX_LABEL_LENGTH = 10 // Maximum number of characters before truncation
   const MIN_CELL_SIZE = 20 // Minimum cell size in pixels
 
@@ -108,7 +108,8 @@
 
   // Dynamic offsets based on labels using the new utility
   const labelOffset = $derived.by(() => {
-    return calculateLabelOffset(aoiLabels, 12, BASE_LABEL_OFFSET)
+    // Use a fixed offset based on MAX_LABEL_LENGTH instead of calculating from actual labels
+    return Math.min(40, BASE_LABEL_OFFSET + MAX_LABEL_LENGTH * 5) // 5px per character is a more balanced estimate
   })
 
   // Calculate max plotable area first (similar to RecurrencePlot's plotSize)
@@ -255,11 +256,18 @@
 
     // Draw X-axis label (To AOI)
     ctx.textAlign = 'center'
-    ctx.fillText(xLabel, xOffset + actualGridWidth / 2, yOffset - labelOffset)
+    ctx.fillText(
+      xLabel,
+      xOffset + actualGridWidth / 2,
+      yOffset - labelOffset - AXIS_LABEL_MARGIN
+    )
 
     // Draw Y-axis label (From AOI)
     ctx.save()
-    ctx.translate(xOffset - labelOffset, yOffset + actualGridHeight / 2)
+    ctx.translate(
+      xOffset - labelOffset - AXIS_LABEL_MARGIN,
+      yOffset + actualGridHeight / 2
+    )
     ctx.rotate(-Math.PI / 2)
     ctx.fillText(yLabel, 0, 0)
     ctx.restore()
