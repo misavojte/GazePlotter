@@ -11,11 +11,10 @@
 
   interface Props {
     settings: ScarfGridType
-    store?: any
-    settingsChange?: (newSettings: Partial<ScarfGridType>) => void
+    settingsChange: (newSettings: Partial<ScarfGridType>) => void
   }
 
-  let { settings, store, settingsChange = () => {} }: Props = $props()
+  let { settings, settingsChange }: Props = $props()
 
   const allStimuliId = getStimuliOrderVector()
 

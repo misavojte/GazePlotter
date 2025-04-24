@@ -19,10 +19,11 @@
 
   interface Props {
     settings: BarPlotGridType
-    settingsChange?: (newSettings: Partial<BarPlotGridType>) => void
+    settingsChange: (newSettings: Partial<BarPlotGridType>) => void
+    forceRedraw: () => void
   }
 
-  let { settings, settingsChange = () => {} }: Props = $props()
+  let { settings, settingsChange, forceRedraw }: Props = $props()
 
   const store = getContext<GridStoreType>('gridStore')
 
@@ -32,7 +33,7 @@
       'AOI customization',
       {
         selectedStimulus: settings.stimulusId.toString(),
-        gridStore: store,
+        forceRedraw,
       }
     )
   }
@@ -40,7 +41,10 @@
   const openUserGroupsModal = () => {
     modalStore.open(
       ModalContentParticipantsGroups as unknown as typeof SvelteComponent,
-      'Participants groups'
+      'Participants groups',
+      {
+        forceRedraw,
+      }
     )
   }
 

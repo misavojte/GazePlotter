@@ -19,19 +19,17 @@
   import { fade } from 'svelte/transition'
   import GeneralPositionControl from '$lib/components/General/GeneralPositionControl/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/components/General/GeneralEmpty/GeneralEmpty.svelte'
-  import type { GridStoreType } from '$lib/stores/gridStore'
-  import { get } from 'svelte/store'
 
   interface Props {
     selectedStimulus?: string
     userSelected?: string
-    gridStore: GridStoreType
+    forceRedraw: () => void
   }
 
   let {
     selectedStimulus = $bindable('0'),
     userSelected = $bindable('this'),
-    gridStore,
+    forceRedraw,
   }: Props = $props()
 
   const isValidMatch = (displayedName: string): boolean =>
@@ -202,12 +200,7 @@
         addInfoToast('Ordering of AOIs is not updated for other stimuli')
       }
 
-      // Use a requestAnimationFrame instead of setTimeout to ensure UI updates properly
-      requestAnimationFrame(() => {
-        const refreshedAois = getAllAois(parseInt(selectedStimulus))
-        aoiObjects = deepCopyAois(refreshedAois)
-        gridStore.set(get(gridStore))
-      })
+      forceRedraw()
     } catch (e) {
       console.error(e)
       addErrorToast('Error while updating AOIs. See console for more details.')

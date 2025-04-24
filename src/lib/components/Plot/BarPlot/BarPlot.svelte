@@ -19,9 +19,10 @@
   interface Props {
     settings: BarPlotGridType
     settingsChange: (settings: Partial<BarPlotGridType>) => void
+    forceRedraw: () => void
   }
 
-  let { settings, settingsChange }: Props = $props()
+  let { settings, settingsChange, forceRedraw }: Props = $props()
 
   // Calculate plot dimensions using a more descriptive approach
   const plotDimensions = $derived.by(() =>
@@ -123,7 +124,11 @@
         onchange={handleAggregationMethodChange}
       />
       <div class="menu-button">
-        <BarPlotButtonMenu {settings} settingsChange={handleSettingsChange} />
+        <BarPlotButtonMenu
+          {settings}
+          settingsChange={handleSettingsChange}
+          {forceRedraw}
+        />
       </div>
     </div>
   </div>

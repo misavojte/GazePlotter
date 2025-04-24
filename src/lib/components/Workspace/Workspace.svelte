@@ -835,6 +835,10 @@
     }
   })
 
+  const getNewTimestamp = () => {
+    return Date.now()
+  }
+
   // Note: Previously, we would add grid items for both empty and loading states.
   // Now we maintain a truly empty grid and display dedicated indicator components
   // when appropriate. This provides a more integrated and visually appealing user
@@ -900,10 +904,14 @@
               <div class="grid-item-content">
                 <visConfig.component
                   settings={item}
+                  forceRedraw={() => {
+                    gridStore.triggerRedraw()
+                  }}
                   settingsChange={(newSettings: Partial<AllGridTypes>) => {
                     gridStore.updateSettings({
                       ...item,
                       ...newSettings,
+                      redrawTimestamp: getNewTimestamp(),
                     } as AllGridTypes)
                   }}
                 />

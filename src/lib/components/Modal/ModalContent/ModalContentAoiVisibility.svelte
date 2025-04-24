@@ -6,13 +6,11 @@
   import { addErrorToast, addSuccessToast } from '$lib/stores/toastStore.js'
   import { processAoiVisibility } from '$lib/services/aoiVisibilityServices'
 
-  import type { ScarfGridType } from '$lib/type/gridType'
-
   interface Props {
-    settingsChange?: (newSettings: Partial<ScarfGridType>) => void
+    forceRedraw: () => void
   }
 
-  let { settingsChange = () => {} }: Props = $props()
+  let { forceRedraw }: Props = $props()
 
   let files: FileList | null = $state(null)
   let selectedStimulusId = $state('0')
@@ -43,7 +41,7 @@
         selectedParticipantId === 'all' ? null : parseInt(selectedParticipantId)
       processAoiVisibility(stimulusId, participantId, files).then(() => {
         addSuccessToast('AOI visibility updated')
-        settingsChange({ stimulusId })
+        forceRedraw()
       })
     } catch (e) {
       console.error(e)

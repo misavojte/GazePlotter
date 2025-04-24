@@ -15,6 +15,12 @@
   import GeneralEmpty from '$lib/components/General/GeneralEmpty/GeneralEmpty.svelte'
   import ModalContentParticipantsGroupsChecklist from '$lib/components/Modal/ModalContent/ModalContentParticipantsGroupsChecklist.svelte'
 
+  interface Props {
+    forceRedraw: () => void
+  }
+
+  let { forceRedraw }: Props = $props()
+
   let participantsGroups: ParticipantsGroup[] = $state([])
   participantsGroupsStore.subscribe(value => (participantsGroups = value))
   let toggledGroup: null | ParticipantsGroup = $state(null)
@@ -46,12 +52,14 @@
   const resetGroups = () => {
     participantsGroupsStore.set([])
     updateParticipantsGroups(participantsGroups)
+    forceRedraw()
     toggledGroup = null
     addSuccessToast(`Cleared groups.`)
   }
 
   const handleSubmit = () => {
     updateParticipantsGroups(participantsGroups)
+    forceRedraw()
     addSuccessToast(`Set ${participantsGroups.length} groups.`)
   }
 

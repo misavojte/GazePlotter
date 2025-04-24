@@ -14,13 +14,14 @@
   import { modalStore } from '$lib/stores/modalStore.js'
   import ModalContentMaxValue from '$lib/components/Modal/ModalContent/ModalContentMaxValue.svelte'
   import ModalContentColorScale from '$lib/components/Modal/ModalContent/ModalContentColorScale.svelte'
-
+  import { untrack } from 'svelte'
   interface Props {
     settings: TransitionMatrixGridType
     settingsChange: (settings: Partial<TransitionMatrixGridType>) => void
+    forceRedraw: () => void
   }
 
-  let { settings, settingsChange }: Props = $props()
+  let { settings, settingsChange, forceRedraw }: Props = $props()
 
   // Constants for space taken by headers, controls, and padding
   const HEADER_HEIGHT = 150 // Estimated space for header and controls
@@ -45,6 +46,7 @@
 
   // For tracking AOI labels (needed for cell size calculation)
   let aoiLabels = $state<string[]>([])
+  let matrix = $state<number[][]>([])
 
   let cellSize = $derived.by(() => {
     if (aoiLabels.length > 0) {
@@ -78,30 +80,24 @@
     settingsChange({ aggregationMethod: event.detail as AggregationMethod })
   }
 
-  function handleColorValueRangeChange(value: [number, number]) {
-    // Create a new array for stimulus-specific color ranges
-    const stimuliColorValueRanges = [
-      ...(settings.stimuliColorValueRanges || []),
-    ]
-    stimuliColorValueRanges[settings.stimulusId] = value
-
-    // Update settings with new values
-    settingsChange({
-      stimuliColorValueRanges,
-    })
-  }
-
+  const redrawTimestamp = $derived.by(() => settings.redrawTimestamp)
   // Update AOI labels when data changes
   $effect(() => {
-    if (settings?.stimulusId !== undefined) {
-      const { aoiLabels: labels } = calculateTransitionMatrix(
-        settings.stimulusId,
-        settings.groupId,
-        settings.aggregationMethod as AggregationMethod
-      )
+    console.log('redrawTimestampTransitionMatrix', redrawTimestamp)
+
+    untrack(() => {
+      // Logic that should run only when redrawTimestamp changes
+      // This is to prevent unnecessary recalculations when settings change in other components in the workspace
+      const { aoiLabels: labels, matrix: calculatedMatrix } =
+        calculateTransitionMatrix(
+          settings.stimulusId,
+          settings.groupId,
+          settings.aggregationMethod as AggregationMethod
+        )
 
       aoiLabels = labels
-    }
+      matrix = calculatedMatrix
+    })
   })
 
   // Update the legend title based on the aggregation method
@@ -169,45 +165,39 @@
         <TransitionMatrixButtonMenu
           {settings}
           settingsChange={handleSettingsChange}
+          {forceRedraw}
         />
       </div>
     </div>
   </div>
 
   {#if settings?.stimulusId !== undefined}
-    {#key `${settings.stimulusId}-${settings.groupId}-${settings.aggregationMethod}`}
-      {@const { matrix, aoiLabels } = calculateTransitionMatrix(
-        settings.stimulusId,
-        settings.groupId,
-        settings.aggregationMethod as AggregationMethod
-      )}
-      {#if aoiLabels.length > 0}
-        <div class="figure-container">
-          <TransitionMatrixPlotFigure
-            TransitionMatrix={matrix}
-            {aoiLabels}
-            width={plotDimensions.width}
-            height={plotDimensions.height}
-            {cellSize}
-            colorScale={settings.colorScale}
-            xLabel="To AOI"
-            yLabel="From AOI"
-            legendTitle={getLegendTitle(settings.aggregationMethod)}
-            colorValueRange={currentStimulusColorRange}
-            belowMinColor={settings.belowMinColor}
-            aboveMaxColor={settings.aboveMaxColor}
-            showBelowMinLabels={settings.showBelowMinLabels}
-            showAboveMaxLabels={settings.showAboveMaxLabels}
-            onGradientClick={handleGradientClick}
-            onValueClick={handleValueClick}
-          />
-        </div>
-      {:else}
-        <div class="no-data">
-          No AOI data available for the selected stimulus.
-        </div>
-      {/if}
-    {/key}
+    {#if aoiLabels.length > 0}
+      <div class="figure-container">
+        <TransitionMatrixPlotFigure
+          TransitionMatrix={matrix}
+          {aoiLabels}
+          width={plotDimensions.width}
+          height={plotDimensions.height}
+          {cellSize}
+          colorScale={settings.colorScale}
+          xLabel="To AOI"
+          yLabel="From AOI"
+          legendTitle={getLegendTitle(settings.aggregationMethod)}
+          colorValueRange={currentStimulusColorRange}
+          belowMinColor={settings.belowMinColor}
+          aboveMaxColor={settings.aboveMaxColor}
+          showBelowMinLabels={settings.showBelowMinLabels}
+          showAboveMaxLabels={settings.showAboveMaxLabels}
+          onGradientClick={handleGradientClick}
+          onValueClick={handleValueClick}
+        />
+      </div>
+    {:else}
+      <div class="no-data">
+        No AOI data available for the selected stimulus.
+      </div>
+    {/if}
   {:else}
     <div class="no-data">Please select a stimulus to view transition data.</div>
   {/if}

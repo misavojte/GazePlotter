@@ -25,14 +25,16 @@
     scarfData: ScarfFillingType
     settings: ScarfGridType
     multipleSettings?: ScarfGridType[]
-    settingsChange?: (newSettings: Partial<ScarfGridType>) => void
+    settingsChange: (newSettings: Partial<ScarfGridType>) => void
+    forceRedraw: () => void
   }
 
   let {
     settings,
     scarfData,
     multipleSettings = [],
-    settingsChange = () => {},
+    settingsChange,
+    forceRedraw,
   }: Props = $props()
 
   let isMultiSelection = $derived(multipleSettings.length > 0)
@@ -49,7 +51,6 @@
       'Clip scarf timeline',
       {
         settings,
-        store,
         settingsChange,
       }
     )
@@ -61,7 +62,7 @@
       'AOI customization',
       {
         selectedStimulus: settings.stimulusId.toString(),
-        gridStore: store,
+        forceRedraw,
       }
     )
   }
@@ -71,7 +72,7 @@
       ModalContentAoiVisibility as unknown as typeof SvelteComponent,
       'AOI visibility',
       {
-        settingsChange,
+        forceRedraw,
       }
     )
   }
@@ -88,9 +89,7 @@
       ModalContentParticipantModification as unknown as typeof SvelteComponent,
       'Participant customization',
       {
-        gridStore: store,
-        settingsChange,
-        settings,
+        forceRedraw,
       }
     )
   }

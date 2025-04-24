@@ -23,9 +23,10 @@
   interface Props {
     settings: ScarfGridType
     settingsChange: (settings: Partial<ScarfGridType>) => void
+    forceRedraw: () => void
   }
 
-  let { settings, settingsChange }: Props = $props()
+  let { settings, settingsChange, forceRedraw }: Props = $props()
 
   // State management with Svelte 5 runes
   let tooltipArea = $state<HTMLElement | SVGElement | null>(null)
@@ -247,6 +248,7 @@
       {settings}
       {scarfData}
       settingsChange={handleSettingsChange}
+      {forceRedraw}
     />
   </div>
 

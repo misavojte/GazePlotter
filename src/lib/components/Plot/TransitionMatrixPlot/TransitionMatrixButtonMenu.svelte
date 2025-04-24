@@ -12,9 +12,10 @@
   interface Props {
     settings: TransitionMatrixGridType
     settingsChange: (newSettings: Partial<TransitionMatrixGridType>) => void
+    forceRedraw: () => void
   }
 
-  let { settings, settingsChange = () => {} }: Props = $props()
+  let { settings, settingsChange, forceRedraw }: Props = $props()
 
   const openMaxValueModal = () => {
     try {

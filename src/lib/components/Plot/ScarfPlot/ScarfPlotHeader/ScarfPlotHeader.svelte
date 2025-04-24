@@ -12,9 +12,10 @@
     settings: ScarfGridType
     scarfData: ScarfFillingType
     settingsChange: (settings: Partial<ScarfGridType>) => void
+    forceRedraw: () => void
   }
 
-  let { settings, scarfData, settingsChange }: Props = $props()
+  let { settings, scarfData, settingsChange, forceRedraw }: Props = $props()
 
   function handleSettingsChange(newSettings: Partial<ScarfGridType>) {
     if (settingsChange) {
@@ -37,6 +38,7 @@
   <ResetViewButton {settings} settingsChange={handleSettingsChange} />
   <ScarfPlotButtonMenu
     {settings}
+    {forceRedraw}
     {scarfData}
     settingsChange={handleSettingsChange}
   />

@@ -1,7 +1,6 @@
 <script lang="ts">
   import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralButtonPreset from '$lib/components/General/GeneralButton/GeneralButtonPreset.svelte'
-  import GeneralInfoCallout from '$lib/components/General/GeneralInfoCallout/GeneralInfoCallout.svelte'
   import GeneralInputText from '$lib/components/General/GeneralInput/GeneralInputText.svelte'
   import {
     getAllParticipants,
@@ -13,17 +12,12 @@
   import { fade } from 'svelte/transition'
   import GeneralPositionControl from '$lib/components/General/GeneralPositionControl/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/components/General/GeneralEmpty/GeneralEmpty.svelte'
-  import type { GridStoreType } from '$lib/stores/gridStore'
-  import type { ScarfGridType } from '$lib/type/gridType'
-  import { get } from 'svelte/store'
 
   interface Props {
-    gridStore: GridStoreType
-    settings: ScarfGridType
-    settingsChange: (settings: Partial<ScarfGridType>) => void
+    forceRedraw: () => void
   }
 
-  let { gridStore, settings, settingsChange }: Props = $props()
+  let { forceRedraw }: Props = $props()
 
   // Pattern renaming state
   let findText = $state('')
@@ -108,7 +102,7 @@
         const refreshedParticipants = getAllParticipants()
         participantObjects = deepCopyParticipants(refreshedParticipants)
         // Trigger a redraw of all visualizations
-        gridStore.triggerRedraw()
+        forceRedraw()
       })
     } catch (e) {
       console.error(e)
