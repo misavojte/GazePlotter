@@ -3,7 +3,8 @@
   import { updateTooltip } from '$lib/stores/tooltipStore'
   import { calculateLabelOffset } from '../utils/textUtils'
   import { fadeIn } from '$lib/actions/fadeIn'
-  import { onMount, onDestroy } from 'svelte'
+  import { onMount, untrack } from 'svelte'
+  import { browser } from '$app/environment'
   import {
     createCanvasState,
     setupCanvas,
@@ -11,7 +12,6 @@
     getScaledMousePosition,
     getTooltipPosition,
     setupDpiChangeListeners,
-    createRenderScheduler,
     beginCanvasDrawing,
     finishCanvasDrawing,
     type CanvasState,
@@ -19,8 +19,8 @@
 
   // SVG layout constants - minimal but not zero to ensure spacing
   const BASE_LABEL_OFFSET = 5
-  const TOP_MARGIN = 10
-  const LEFT_MARGIN = 30
+  const TOP_MARGIN = 30 // Increased to ensure "To AOI" label is visible
+  const LEFT_MARGIN = 30 // Increased to ensure "From AOI" label is visible
   const MAX_LABEL_LENGTH = 10 // Maximum number of characters before truncation
   const MIN_CELL_SIZE = 20 // Minimum cell size in pixels
 
@@ -54,13 +54,11 @@
     aoiLabels = [],
     height = 500,
     width = 500,
-    cellSize = 30,
     colorScale = ['#f7fbff', '#08306b'],
     xLabel = 'To AOI',
     yLabel = 'From AOI',
     legendTitle = 'Transition Count',
     colorValueRange = [0, 0],
-    onColorValueRangeChange = () => {},
     belowMinColor = DEFAULT_INACTIVE_COLOR,
     aboveMaxColor = DEFAULT_INACTIVE_COLOR,
     showBelowMinLabels = false,
@@ -96,12 +94,22 @@
   // Canvas and rendering state using our utility
   let canvas = $state<HTMLCanvasElement | null>(null)
   let canvasState = $state<CanvasState>(createCanvasState())
-  let lastMouseMoveTime = $state(0)
-  const FRAME_TIME = 1000 / 40 // Throttle to 40 fps
+
+  // Create a render scheduler function
+  function scheduleRender() {
+    if (!canvasState.renderScheduled && browser) {
+      canvasState.renderScheduled = true
+      requestAnimationFrame(() => {
+        renderCanvas()
+        canvasState.renderScheduled = false
+      })
+    }
+  }
 
   // Dynamic offsets based on labels using the new utility
   const labelOffset = $derived.by(() => {
-    return calculateLabelOffset(aoiLabels, 12, BASE_LABEL_OFFSET)
+    // Use a fixed offset based on MAX_LABEL_LENGTH instead of calculating from actual labels
+    return Math.min(40, BASE_LABEL_OFFSET + MAX_LABEL_LENGTH * 5) // 5px per character is a more balanced estimate
   })
 
   // Calculate max plotable area first (similar to RecurrencePlot's plotSize)
@@ -248,11 +256,18 @@
 
     // Draw X-axis label (To AOI)
     ctx.textAlign = 'center'
-    ctx.fillText(xLabel, xOffset + actualGridWidth / 2, yOffset - labelOffset)
+    ctx.fillText(
+      xLabel,
+      xOffset + actualGridWidth / 2,
+      yOffset - labelOffset - AXIS_LABEL_MARGIN
+    )
 
     // Draw Y-axis label (From AOI)
     ctx.save()
-    ctx.translate(xOffset - labelOffset, yOffset + actualGridHeight / 2)
+    ctx.translate(
+      xOffset - labelOffset - AXIS_LABEL_MARGIN,
+      yOffset + actualGridHeight / 2
+    )
     ctx.rotate(-Math.PI / 2)
     ctx.fillText(yLabel, 0, 0)
     ctx.restore()
@@ -673,11 +688,6 @@
     ctx.fill()
   }
 
-  // Create a render scheduler using our utility
-  const scheduleRender = $derived.by(() =>
-    createRenderScheduler(canvasState, renderCanvas)
-  )
-
   // Handle mouse movement over the canvas using our scaled position utility
   function handleMouseMove(event: MouseEvent) {
     // Remove throttling completely - process every event
@@ -845,21 +855,24 @@
     }
   }
 
-  // Watch for changes in props and re-render
+  // Track data changes and schedule renders
   $effect(() => {
-    if (canvasState.canvas && canvasState.context) {
-      scheduleRender()
-    }
-  })
+    // Just track the data dependencies
+    const _ = [TransitionMatrix, aoiLabels, colorValueRange, colorScale]
+    // UNTRACK IS ABSOLUTELY NECESSARY HERE
+    // TO AVOID INFINITE RENDER LOOP
+    untrack(() => {
+      if (canvasState.canvas && canvasState.context) {
+        // Reset canvas state with new DPI override
+        canvasState = setupCanvas(canvasState, canvasState.canvas, dpiOverride)
+        canvasState = resizeCanvas(canvasState, width, height)
+      }
 
-  // Update canvas when DPI override changes
-  $effect(() => {
-    if (canvasState.canvas && canvasState.context && dpiOverride !== null) {
-      // Reset canvas state with new DPI override
-      canvasState = setupCanvas(canvasState, canvasState.canvas, dpiOverride)
-      canvasState = resizeCanvas(canvasState, width, height)
-      renderCanvas()
-    }
+      // Schedule a render if we have a valid canvas
+      if (canvasState.canvas && canvasState.context) {
+        scheduleRender()
+      }
+    })
   })
 
   // Lifecycle hooks

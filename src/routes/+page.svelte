@@ -1,21 +1,22 @@
 <script context="module" lang="ts">
-  // TypeScript declaration for the global variable
+  // TypeScript declaration for the global variables
   // from vite.config.ts
   declare global {
     const __APP_VERSION__: string
+    const __BUILD_DATE__: string
   }
 </script>
 
 <script>
   import GazePlotter from '$lib/components/GazePlotter.svelte'
 
-  // Format the current date
-  const currentDate = new Date()
+  // Format the build date
+  const buildDate = new Date(__BUILD_DATE__)
   const formattedDate = new Intl.DateTimeFormat('en-US', {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
-  }).format(currentDate)
+  }).format(buildDate)
 
   // Use the version from vite.config.ts
   const version = __APP_VERSION__
