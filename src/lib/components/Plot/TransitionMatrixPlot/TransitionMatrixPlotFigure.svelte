@@ -3,7 +3,8 @@
   import { updateTooltip } from '$lib/stores/tooltipStore'
   import { calculateLabelOffset } from '../utils/textUtils'
   import { fadeIn } from '$lib/actions/fadeIn'
-  import { onMount, onDestroy } from 'svelte'
+  import { onMount, untrack } from 'svelte'
+  import { browser } from '$app/environment'
   import {
     createCanvasState,
     setupCanvas,
@@ -11,7 +12,6 @@
     getScaledMousePosition,
     getTooltipPosition,
     setupDpiChangeListeners,
-    createRenderScheduler,
     beginCanvasDrawing,
     finishCanvasDrawing,
     type CanvasState,
@@ -54,13 +54,11 @@
     aoiLabels = [],
     height = 500,
     width = 500,
-    cellSize = 30,
     colorScale = ['#f7fbff', '#08306b'],
     xLabel = 'To AOI',
     yLabel = 'From AOI',
     legendTitle = 'Transition Count',
     colorValueRange = [0, 0],
-    onColorValueRangeChange = () => {},
     belowMinColor = DEFAULT_INACTIVE_COLOR,
     aboveMaxColor = DEFAULT_INACTIVE_COLOR,
     showBelowMinLabels = false,
@@ -96,8 +94,17 @@
   // Canvas and rendering state using our utility
   let canvas = $state<HTMLCanvasElement | null>(null)
   let canvasState = $state<CanvasState>(createCanvasState())
-  let lastMouseMoveTime = $state(0)
-  const FRAME_TIME = 1000 / 40 // Throttle to 40 fps
+
+  // Create a render scheduler function
+  function scheduleRender() {
+    if (!canvasState.renderScheduled && browser) {
+      canvasState.renderScheduled = true
+      requestAnimationFrame(() => {
+        renderCanvas()
+        canvasState.renderScheduled = false
+      })
+    }
+  }
 
   // Dynamic offsets based on labels using the new utility
   const labelOffset = $derived.by(() => {
@@ -673,11 +680,6 @@
     ctx.fill()
   }
 
-  // Create a render scheduler using our utility
-  const scheduleRender = $derived.by(() =>
-    createRenderScheduler(canvasState, renderCanvas)
-  )
-
   // Handle mouse movement over the canvas using our scaled position utility
   function handleMouseMove(event: MouseEvent) {
     // Remove throttling completely - process every event
@@ -845,21 +847,24 @@
     }
   }
 
-  // Watch for changes in props and re-render
+  // Track data changes and schedule renders
   $effect(() => {
-    if (canvasState.canvas && canvasState.context) {
-      scheduleRender()
-    }
-  })
+    // Just track the data dependencies
+    const _ = [TransitionMatrix, aoiLabels, colorValueRange, colorScale]
+    // UNTRACK IS ABSOLUTELY NECESSARY HERE
+    // TO AVOID INFINITE RENDER LOOP
+    untrack(() => {
+      if (canvasState.canvas && canvasState.context) {
+        // Reset canvas state with new DPI override
+        canvasState = setupCanvas(canvasState, canvasState.canvas, dpiOverride)
+        canvasState = resizeCanvas(canvasState, width, height)
+      }
 
-  // Update canvas when DPI override changes
-  $effect(() => {
-    if (canvasState.canvas && canvasState.context && dpiOverride !== null) {
-      // Reset canvas state with new DPI override
-      canvasState = setupCanvas(canvasState, canvasState.canvas, dpiOverride)
-      canvasState = resizeCanvas(canvasState, width, height)
-      renderCanvas()
-    }
+      // Schedule a render if we have a valid canvas
+      if (canvasState.canvas && canvasState.context) {
+        scheduleRender()
+      }
+    })
   })
 
   // Lifecycle hooks
