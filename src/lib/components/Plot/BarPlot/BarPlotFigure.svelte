@@ -81,8 +81,30 @@
         )
   )
 
+  const dynamicRightMargin = $derived.by(() => {
+    if (barPlottingType !== 'horizontal') return MARGIN.RIGHT
+
+    const maxValue = Math.max(...data.map(d => d.value))
+    const timelineMax = timeline.ticks[timeline.ticks.length - 1].value
+
+    // Approximate initial plot area width (using current fixed right margin)
+    const estimatedPlotAreaWidth = width - trueLeftMargin - MARGIN.RIGHT
+
+    // Simulate where the value label would appear
+    const barEndX =
+      trueLeftMargin + (maxValue / timelineMax) * estimatedPlotAreaWidth
+
+    const labelText = maxValue.toString()
+    const labelWidth = labelText.length * LABEL_FONT_SIZE * 0.6
+    const labelRightEdge = barEndX + VALUE_LABEL_OFFSET + labelWidth
+
+    const overflow = Math.max(0, labelRightEdge - width)
+
+    return MARGIN.RIGHT + overflow
+  })
+
   // Calculate plot area dimensions
-  const plotAreaWidth = $derived(width - trueLeftMargin - MARGIN.RIGHT)
+  const plotAreaWidth = $derived(width - trueLeftMargin - dynamicRightMargin)
   const plotAreaHeight = $derived(height - MARGIN.TOP - MARGIN.BOTTOM)
 
   // Scale values to plot area using AdaptiveTimeline

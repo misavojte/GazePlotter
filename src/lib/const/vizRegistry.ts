@@ -62,7 +62,7 @@ export const visualizationRegistry: Record<string, VisualizationConfig> = {
     ) => ({
       stimulusId: params.stimulusId ?? 0,
       groupId: params.groupId ?? -1,
-      barPlottingType: 'vertical',
+      barPlottingType: 'horizontal',
       sortBars: 'none',
       aggregationMethod: 'absoluteTime',
       min: { w: 12, h: 12 },
