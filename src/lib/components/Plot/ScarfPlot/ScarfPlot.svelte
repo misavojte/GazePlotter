@@ -50,7 +50,11 @@
     console.log('redrawTimestampScarfPlot', redrawTimestamp)
     return transformDataToScarfPlot(
       untrack(() => currentStimulusId),
-      untrack(() => currentParticipantIds),
+      untrack(() =>
+        getParticipants(currentGroupId, currentStimulusId).map(
+          participant => participant.id
+        )
+      ),
       untrack(() => settings)
     )
   })
