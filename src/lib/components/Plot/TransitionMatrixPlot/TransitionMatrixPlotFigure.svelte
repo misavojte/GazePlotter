@@ -154,7 +154,7 @@
     return (
       LEFT_MARGIN +
       labelOffset +
-      (maxPlotArea.availableWidth - actualGridWidth) / 2
+      ((maxPlotArea.availableWidth - actualGridWidth) >> 1)
     )
   })
 
@@ -162,7 +162,7 @@
     return (
       TOP_MARGIN +
       labelOffset +
-      (maxPlotArea.availableHeight - actualGridHeight) / 2
+      ((maxPlotArea.availableHeight - actualGridHeight) >> 1)
     )
   })
 
@@ -223,7 +223,7 @@
       ctx.fillStyle = '#666'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText('No AOI data available', width / 2, height / 2)
+      ctx.fillText('No AOI data available', width >> 1, height >> 1)
       finishCanvasDrawing(canvasState)
       return
     }
@@ -258,7 +258,7 @@
     ctx.textAlign = 'center'
     ctx.fillText(
       xLabel,
-      xOffset + actualGridWidth / 2,
+      xOffset + (actualGridWidth >> 1),
       yOffset - labelOffset - AXIS_LABEL_MARGIN
     )
 
@@ -266,9 +266,9 @@
     ctx.save()
     ctx.translate(
       xOffset - labelOffset - AXIS_LABEL_MARGIN,
-      yOffset + actualGridHeight / 2
+      yOffset + (actualGridHeight >> 1)
     )
-    ctx.rotate(-Math.PI / 2)
+    ctx.rotate(-Math.PI / 2) // Rotate 90 degrees counterclockwise. No bitwise operator here.
     ctx.fillText(yLabel, 0, 0)
     ctx.restore()
   }
@@ -287,7 +287,7 @@
     // Draw column labels (top) - moved 5px higher
     ctx.textAlign = 'left'
     for (let col = 0; col < aoiLabels.length; col++) {
-      const x = xOffset + col * optimalCellSize + optimalCellSize / 2
+      const x = xOffset + col * optimalCellSize + (optimalCellSize >> 1)
       const y = yOffset - INDIVIDUAL_LABEL_MARGIN // Added 5px offset to move higher
 
       // Determine if space is tight
@@ -321,7 +321,7 @@
     ctx.textAlign = 'end'
     for (let row = 0; row < aoiLabels.length; row++) {
       const x = xOffset - INDIVIDUAL_LABEL_MARGIN
-      const y = yOffset + row * optimalCellSize + optimalCellSize / 2
+      const y = yOffset + row * optimalCellSize + (optimalCellSize >> 1)
 
       // Truncate text if needed
       const labelText =
@@ -403,8 +403,8 @@
             ctx.textBaseline = 'middle'
             ctx.fillText(
               value.toString(),
-              x + optimalCellSize / 2,
-              y + optimalCellSize / 2
+              x + (optimalCellSize >> 1),
+              y + (optimalCellSize >> 1)
             )
           }
         }
@@ -469,7 +469,7 @@
     const legendWidth = Math.min(200, actualGridWidth * 0.7)
 
     // Center legend horizontally with the matrix
-    const legendX = xOffset + (actualGridWidth - legendWidth) / 2
+    const legendX = xOffset + ((actualGridWidth - legendWidth) >> 1)
 
     // Minimal gradient height
     const gradientHeight = 8 // Reduced from 10px to 8px
@@ -531,7 +531,7 @@
     const legendWidth = Math.min(300, actualGridWidth * 0.8)
 
     // Center legend horizontally with the matrix
-    const legendX = xOffset + (actualGridWidth - legendWidth) / 2
+    const legendX = xOffset + ((actualGridWidth - legendWidth) >> 1)
 
     // Legend components vertical positioning
     const titleY = legendTop
@@ -576,7 +576,7 @@
           minValueZone.y,
           minValueZone.radius,
           0,
-          Math.PI * 2
+          Math.PI << 1
         )
         ctx.fill()
       } else if (hoverState === 'maxValue' && maxValueZone) {
@@ -588,7 +588,7 @@
           maxValueZone.y,
           maxValueZone.radius,
           0,
-          Math.PI * 2
+          Math.PI << 1
         )
         ctx.fill()
       } else if (hoverState === 'gradient' && gradientZone) {
@@ -611,7 +611,7 @@
       ctx.fillStyle = '#000'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'top'
-      ctx.fillText(legendTitle, xOffset + actualGridWidth / 2, titleY)
+      ctx.fillText(legendTitle, xOffset + (actualGridWidth >> 1), titleY)
     }
 
     // Create gradient
@@ -729,7 +729,7 @@
       const tooltipPos = getTooltipPosition(
         canvasState,
         hoveredCellInfo.x + hoveredCellInfo.width,
-        hoveredCellInfo.y + hoveredCellInfo.height / 2,
+        hoveredCellInfo.y + (hoveredCellInfo.height >> 1),
         { x: 10, y: 0 }
       )
 

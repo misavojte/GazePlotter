@@ -127,7 +127,10 @@
   const plotAreaWidth = $derived(
     Math.max(
       0,
-      chartWidth - LEFT_LABEL_WIDTH - LAYOUT.PADDING * 2 - LAYOUT.RIGHT_MARGIN
+      chartWidth -
+        LEFT_LABEL_WIDTH -
+        (LAYOUT.PADDING << 1) -
+        LAYOUT.RIGHT_MARGIN
     )
   )
 
@@ -403,7 +406,7 @@
       canvasCtx!.fillText(
         participant.label,
         LAYOUT.PADDING,
-        i * data.heightOfBarWrap + data.heightOfBarWrap / 2
+        i * data.heightOfBarWrap + (data.heightOfBarWrap >> 1)
       )
     })
   }
@@ -542,7 +545,11 @@
     // Position the label using exact coordinates from calculatedHeights
     const labelY = calculatedHeights.axisLabelY
 
-    canvasCtx.fillText(xAxisLabel, LEFT_LABEL_WIDTH + plotAreaWidth / 2, labelY)
+    canvasCtx.fillText(
+      xAxisLabel,
+      LEFT_LABEL_WIDTH + (plotAreaWidth >> 1),
+      labelY
+    )
   }
 
   // Calculate legend geometry - for rendering and hit detection
@@ -627,7 +634,7 @@
       categorySectionHeight +
       visibilitySectionHeight +
       (visibilityItemCount > 0
-        ? LEGEND.GROUP_SPACING * 2
+        ? LEGEND.GROUP_SPACING << 1
         : LEGEND.GROUP_SPACING)
 
     // Generate geometry data for all legend items
@@ -767,7 +774,7 @@
           canvasCtx!.fillStyle = item.color
           canvasCtx!.fillRect(
             item.x,
-            item.y + (LEGEND.ITEM_HEIGHT - item.height) / 2,
+            item.y + ((LEGEND.ITEM_HEIGHT - item.height) >> 1),
             LEGEND.ICON_WIDTH,
             item.height
           )
@@ -778,7 +785,7 @@
             canvasCtx!.lineWidth = LEGEND.RECT_HIGHLIGHT_STROKE_WIDTH
             canvasCtx!.strokeRect(
               item.x,
-              item.y + (LEGEND.ITEM_HEIGHT - item.height) / 2,
+              item.y + ((LEGEND.ITEM_HEIGHT - item.height) >> 1),
               LEGEND.ICON_WIDTH,
               item.height
             )
@@ -798,10 +805,10 @@
           }
 
           canvasCtx!.beginPath()
-          canvasCtx!.moveTo(item.x, item.y + LEGEND.ITEM_HEIGHT / 2)
+          canvasCtx!.moveTo(item.x, item.y + (LEGEND.ITEM_HEIGHT >> 1))
           canvasCtx!.lineTo(
             item.x + LEGEND.ICON_WIDTH,
-            item.y + LEGEND.ITEM_HEIGHT / 2
+            item.y + (LEGEND.ITEM_HEIGHT >> 1)
           )
           canvasCtx!.stroke()
 
