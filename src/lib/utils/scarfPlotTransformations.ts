@@ -548,11 +548,8 @@ export function transformDataToScarfPlot(
   for (let pIndex = 0; pIndex < numberOfParticipants; pIndex++) {
     const participantId = participantIds[pIndex]
     const segmentCount = getNumberOfSegments(stimulusId, participantId)
-
-    if (segmentCount === 0) continue
-
-    const sessionDuration = getParticipantEndTime(stimulusId, participantId)
     const { displayedName } = getParticipant(participantId)
+    const sessionDuration = getParticipantEndTime(stimulusId, participantId)
 
     const rectWrappedHeight = barHeight + (spaceAboveRect << 1) // just a bit faster instead of * 2
 
@@ -560,66 +557,71 @@ export function transformDataToScarfPlot(
     const visibleRange = maxValue - minValue
     const yOffset = pIndex * barWrapHeight
 
-    // Process all segments directly into flattened array
-    for (let segmentId = 0; segmentId < segmentCount; segmentId++) {
-      const segment = getSegment(stimulusId, participantId, segmentId)
+    // Only process segments if there are any
+    if (segmentCount > 0) {
+      // Process all segments directly into flattened array
+      for (let segmentId = 0; segmentId < segmentCount; segmentId++) {
+        const segment = getSegment(stimulusId, participantId, segmentId)
 
-      let start = isOrdinal ? segmentId : segment.start
-      let end = isOrdinal ? segmentId + 1 : segment.end
+        let start = isOrdinal ? segmentId : segment.start
+        let end = isOrdinal ? segmentId + 1 : segment.end
 
-      // Skip segments entirely outside the timeline range
-      // For relative timeline, we don't apply cropping
-      if (!isRelative) {
-        if (end <= minValue || start >= maxValue) {
-          continue
+        // Skip segments entirely outside the timeline range
+        // For relative timeline, we don't apply cropping
+        if (!isRelative) {
+          if (end <= minValue || start >= maxValue) {
+            continue
+          }
+
+          // Crop segments that are partially outside the timeline range
+          if (start < minValue) start = minValue
+          if (end > maxValue) end = maxValue
         }
 
-        // Crop segments that are partially outside the timeline range
-        if (start < minValue) start = minValue
-        if (end > maxValue) end = maxValue
-      }
+        // Calculate position and width as decimals (0-1)
+        let x: number
+        let width: number
 
-      // Calculate position and width as decimals (0-1)
-      let x: number
-      let width: number
+        if (isRelative) {
+          // For relative timeline, position is relative to the session duration
+          // Prevent division by zero
+          const safeDuration = sessionDuration > 0 ? sessionDuration : 1
+          x = start / safeDuration
+          width = (end - start) / safeDuration
+        } else {
+          // For absolute/ordinal timeline, position is relative to the visible range
+          const adjustedStart = start - minValue
+          const segmentWidth = end - start
 
-      if (isRelative) {
-        // For relative timeline, position is relative to the session duration
-        x = start / sessionDuration
-        width = (end - start) / sessionDuration
-      } else {
-        // For absolute/ordinal timeline, position is relative to the visible range
-        const adjustedStart = start - minValue
-        const segmentWidth = end - start
+          x = adjustedStart / visibleRange
+          width = segmentWidth / visibleRange
+        }
 
-        x = adjustedStart / visibleRange
-        width = segmentWidth / visibleRange
-      }
+        // Create segment content directly into flattened array
+        const contents = createSegmentContents(
+          segment,
+          x,
+          width,
+          barHeight,
+          nonFixationHeight,
+          spaceAboveRect,
+          undefined,
+          segmentId
+        )
 
-      // Create segment content directly into flattened array
-      const contents = createSegmentContents(
-        segment,
-        x,
-        width,
-        barHeight,
-        nonFixationHeight,
-        spaceAboveRect,
-        undefined,
-        segmentId
-      )
-
-      // Add to the flattened rectangles array with pre-calculated y offset
-      for (const rectangle of contents) {
-        flattenedRectangles.push({
-          identifier: rectangle.identifier,
-          height: rectangle.height,
-          rawX: rectangle.x,
-          rawWidth: rectangle.width,
-          y: yOffset + rectangle.y,
-          participantId,
-          segmentId,
-          orderId: rectangle.orderId,
-        })
+        // Add to the flattened rectangles array with pre-calculated y offset
+        for (const rectangle of contents) {
+          flattenedRectangles.push({
+            identifier: rectangle.identifier,
+            height: rectangle.height,
+            rawX: rectangle.x,
+            rawWidth: rectangle.width,
+            y: yOffset + rectangle.y,
+            participantId,
+            segmentId,
+            orderId: rectangle.orderId,
+          })
+        }
       }
     }
 
@@ -630,9 +632,12 @@ export function transformDataToScarfPlot(
       width = 1.0 // equivalent to 100%
     } else {
       // For absolute/ordinal, the width depends on session duration and visible range
+      // For empty participants, use a default width of 0
       width =
-        (Math.min(sessionDuration, maxValue) - Math.max(0, minValue)) /
-        visibleRange
+        sessionDuration > 0
+          ? (Math.min(sessionDuration, maxValue) - Math.max(0, minValue)) /
+            visibleRange
+          : 0
     }
 
     // Process AOI visibility lines
@@ -668,6 +673,7 @@ export function transformDataToScarfPlot(
       }
     }
 
+    // Always add the participant, even with zero segments
     participants.push({
       id: participantId,
       label: displayedName,
