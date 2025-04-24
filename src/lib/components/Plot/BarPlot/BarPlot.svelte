@@ -7,7 +7,7 @@
   import GeneralSelect from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import { getStimuli, getParticipantsGroups } from '$lib/stores/dataStore'
   import BarPlotButtonMenu from './BarPlotButtonMenu.svelte'
-
+  import { untrack } from 'svelte'
   // CONSTANTS - centralized for easier maintenance
   const LAYOUT = {
     HEADER_HEIGHT: 150,
@@ -37,9 +37,9 @@
   )
 
   // Get bar plot data and timeline from utility function
-  const barPlotResult = $derived.by(() => getBarPlotData(settings))
-  const labelededBarPlotData = $derived(barPlotResult.data)
-  const timeline = $derived(barPlotResult.timeline)
+  let barPlotResult = $state(getBarPlotData(settings))
+  let labelededBarPlotData = $state(barPlotResult.data)
+  let timeline = $state(barPlotResult.timeline)
 
   function handleStimulusChange(event: CustomEvent) {
     const newStimulusId = event.detail as string
@@ -75,8 +75,18 @@
     }
   }
 
+  /**
+   * This is to prevent unnecessary recalculations when settings change in other components in the workspace
+   */
+  const redrawTimestamp = $derived.by(() => settings.redrawTimestamp)
   $effect(() => {
-    console.log()
+    console.log('redrawTimestampBarPlot', redrawTimestamp)
+
+    untrack(() => {
+      barPlotResult = getBarPlotData(settings)
+      labelededBarPlotData = barPlotResult.data
+      timeline = barPlotResult.timeline
+    })
   })
 </script>
 

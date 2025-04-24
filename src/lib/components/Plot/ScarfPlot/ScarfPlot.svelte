@@ -18,7 +18,7 @@
     SCARF_LAYOUT,
     calculateScarfHeights,
   } from '$lib/services/scarfServices'
-
+  import { untrack } from 'svelte'
   // Component Props using Svelte 5 $props() rune
   interface Props {
     settings: ScarfGridType
@@ -40,22 +40,20 @@
   const currentStimulusId = $derived(settings.stimulusId)
   const redrawTimestamp = $derived(settings.redrawTimestamp)
 
-  const currentParticipantIds = $derived.by(() => {
-    // Force re-evaluation when redrawTimestamp changes
-    if (redrawTimestamp) {
-      console.debug(
-        'Scarf plot redraw triggered at:',
-        new Date(redrawTimestamp).toISOString()
-      )
-    }
-
-    const participants = getParticipants(currentGroupId, currentStimulusId)
-    return participants.map(participant => participant.id)
-  })
-
-  const scarfData = $derived.by(() =>
-    transformDataToScarfPlot(currentStimulusId, currentParticipantIds, settings)
+  const currentParticipantIds = $derived(
+    getParticipants(currentGroupId, currentStimulusId).map(
+      participant => participant.id
+    )
   )
+
+  const scarfData = $derived.by(() => {
+    console.log('redrawTimestampScarfPlot', redrawTimestamp)
+    return transformDataToScarfPlot(
+      untrack(() => currentStimulusId),
+      untrack(() => currentParticipantIds),
+      untrack(() => settings)
+    )
+  })
 
   // Calculate plot dimensions using a more descriptive approach
   const plotDimensions = $derived.by(() =>
@@ -247,8 +245,8 @@
     <ScarfPlotHeader
       {settings}
       {scarfData}
-      settingsChange={handleSettingsChange}
       {forceRedraw}
+      settingsChange={handleSettingsChange}
     />
   </div>
 
