@@ -114,11 +114,6 @@
   const usedHighlight = $derived(fixedHighlight ?? highlightedIdentifier)
   const xAxisLabel = $derived(getXAxisLabel(settings.timeline))
 
-  // Add derived stores for data properties
-  const heightOfBarWrap = $derived(data.heightOfBarWrap)
-  const participantCount = $derived(data.participants.length)
-  const tickCount = $derived(data.timeline.ticks.length)
-
   // Memoize legend geometry to avoid recalculating on every mouse move
   const legendGeometry = $derived.by(() => {
     if (!data.stylingAndLegend) return { items: [], height: 0, groupTitles: [] }
@@ -147,18 +142,139 @@
 
   const totalHeight = $derived(calculatedHeights.totalHeight)
 
+  // Create a unified identifier mapping system for all style types
+  // Using a single integer id space for maximum performance
+  const identifierSystem = $derived.by(() => {
+    // Create fast lookup maps
+    const idToIndex = new Map<string, number>()
+    const indexToId = new Map<number, string>()
+    const idToType = new Map<string, 'aoi' | 'category' | 'visibility'>()
+
+    // Track if we need to check for overlap (same identifier in multiple types)
+    let hasOverlap = false
+    const allIdentifiers = new Set<string>()
+
+    // Count total identifiers to pre-allocate arrays
+    let totalIdentifiers = 0
+    let aoiCount = 0
+    let categoryCount = 0
+    let visibilityCount = 0
+
+    if (data.stylingAndLegend) {
+      totalIdentifiers =
+        data.stylingAndLegend.aoi.length +
+        data.stylingAndLegend.category.length +
+        data.stylingAndLegend.visibility.length
+
+      aoiCount = data.stylingAndLegend.aoi.length
+      categoryCount = data.stylingAndLegend.category.length
+      visibilityCount = data.stylingAndLegend.visibility.length
+
+      // Populate maps with sequential indices
+      let idx = 0
+
+      // First handle AOI styles (typically most numerous)
+      for (const style of data.stylingAndLegend.aoi) {
+        indexToId.set(idx, style.identifier)
+        idToIndex.set(style.identifier, idx++)
+        idToType.set(style.identifier, 'aoi')
+
+        // Check for potential overlap
+        if (allIdentifiers.has(style.identifier)) {
+          hasOverlap = true
+        } else {
+          allIdentifiers.add(style.identifier)
+        }
+      }
+
+      // Then category styles
+      for (const style of data.stylingAndLegend.category) {
+        indexToId.set(idx, style.identifier)
+        idToIndex.set(style.identifier, idx++)
+        idToType.set(style.identifier, 'category')
+
+        // Check for potential overlap
+        if (allIdentifiers.has(style.identifier)) {
+          hasOverlap = true
+        } else {
+          allIdentifiers.add(style.identifier)
+        }
+      }
+
+      // Finally visibility styles
+      for (const style of data.stylingAndLegend.visibility) {
+        indexToId.set(idx, style.identifier)
+        idToIndex.set(style.identifier, idx++)
+        idToType.set(style.identifier, 'visibility')
+
+        // Check for potential overlap
+        if (allIdentifiers.has(style.identifier)) {
+          hasOverlap = true
+        } else {
+          allIdentifiers.add(style.identifier)
+        }
+      }
+    }
+
+    // Return complete identifier system for fast lookups
+    return {
+      idToIndex,
+      indexToId,
+      idToType,
+      hasOverlap,
+      totalIdentifiers,
+      counts: {
+        aoi: aoiCount,
+        category: categoryCount,
+        visibility: visibilityCount,
+      },
+    }
+  })
+
   // Style lookup maps for efficient style access - O(1) instead of O(n)
   const rectStyleMap = $derived.by(() => {
     if (!data.stylingAndLegend) return new Map()
 
     const map = new Map()
+    const aoi = data.stylingAndLegend.aoi
+    const category = data.stylingAndLegend.category
+    const aoiLen = aoi.length
+    const catLen = category.length
 
-    // Pre-compute all rectangle styles (AOI and category)
-    ;[...data.stylingAndLegend.aoi, ...data.stylingAndLegend.category].forEach(
-      style => {
-        map.set(style.identifier, { fill: style.color })
-      }
-    )
+    // Pre-compute all rectangle styles (AOI and category) with highlight states
+    for (let i = 0; i < aoiLen; i++) {
+      const style = aoi[i]
+      const baseStyle = { fill: style.color }
+      map.set(style.identifier, {
+        normal: baseStyle,
+        highlighted: {
+          ...baseStyle,
+          stroke: '#333333',
+          strokeWidth: 0.5,
+        },
+        dimmed: {
+          ...baseStyle,
+          opacity: 0.15,
+        },
+      })
+    }
+
+    for (let i = 0; i < catLen; i++) {
+      const style = category[i]
+      const baseStyle = { fill: style.color }
+      map.set(style.identifier, {
+        normal: baseStyle,
+        highlighted: {
+          ...baseStyle,
+          stroke: '#333333',
+          strokeWidth: 0.5,
+        },
+        dimmed: {
+          ...baseStyle,
+          opacity: 0.15,
+        },
+      })
+    }
 
     return map
   })
@@ -167,141 +283,148 @@
     if (!data.stylingAndLegend) return new Map()
 
     const map = new Map()
+    const visibility = data.stylingAndLegend.visibility
+    const len = visibility.length
 
-    // Pre-compute all line styles (visibility)
-    data.stylingAndLegend.visibility.forEach(style => {
-      map.set(style.identifier, {
+    // Pre-compute all line styles (visibility) with highlight states
+    for (let i = 0; i < len; i++) {
+      const style = visibility[i]
+      const baseStyle = {
         stroke: style.color,
         strokeWidth: style.height,
         strokeDasharray: '1',
+      }
+      map.set(style.identifier, {
+        normal: baseStyle,
+        highlighted: {
+          stroke: style.color,
+          strokeWidth: 3,
+          strokeLinecap: 'butt',
+          strokeDasharray: 'none',
+        },
+        dimmed: {
+          ...baseStyle,
+          opacity: 0.15,
+        },
       })
-    })
+    }
 
     return map
   })
 
-  // Helper functions for calculating styles - now with O(1) lookups
-  function getStyleForRect(
-    identifier: string,
-    isHighlighted: boolean
-  ): { fill: string; opacity?: number; stroke?: string; strokeWidth?: number } {
-    // Get pre-computed style or fallback
-    const baseStyle = rectStyleMap.get(identifier) || { fill: '#ccc' }
-
-    // Apply highlighting effects
-    if (usedHighlight) {
-      if (identifier === usedHighlight) {
-        // This is the highlighted element
-        return {
-          ...baseStyle,
-          stroke: '#333333',
-          strokeWidth: 0.5,
-        }
-      } else {
-        // This is not the highlighted element
-        return {
-          ...baseStyle,
-          opacity: 0.15,
-        }
-      }
-    }
-
-    return baseStyle
-  }
-
-  function getStyleForLine(
-    identifier: string,
-    isHighlighted: boolean
-  ): {
-    stroke: string
-    strokeWidth: number
-    opacity?: number
-    strokeDasharray?: string
-    strokeLinecap?: 'butt' | 'inherit' | 'round' | 'square' | null
-  } {
-    // Get pre-computed style or fallback
-    const baseStyle = lineStyleMap.get(identifier) || {
-      stroke: '#ccc',
-      strokeWidth: 1,
-    }
-
-    // Apply highlighting effects
-    if (usedHighlight) {
-      if (identifier === usedHighlight) {
-        // This is the highlighted element
-        return {
-          stroke: baseStyle.stroke,
-          strokeWidth: 3,
-          strokeLinecap: 'butt',
-          strokeDasharray: 'none',
-        }
-      } else {
-        // This is not the highlighted element
-        return {
-          ...baseStyle,
-          opacity: 0.15,
-        }
-      }
-    }
-
-    return baseStyle
-  }
-
   // Separate derived stores for rectangle and line segments
   const rectangleSegments = $derived.by(() => {
     // Guard against plotAreaWidth not being initialized
-    if (!plotAreaWidth) return []
+    if (!plotAreaWidth) return new Float32Array(0)
 
     // Use the pre-flattened rectangles for performance
-    return data.flattenedRectangles.map(rect => {
-      const identifier = rect.identifier
-      const isHighlighted = identifier === usedHighlight
-      const style = getStyleForRect(identifier, isHighlighted)
+    const segments = data.flattenedRectangles
+    const len = segments.length
 
-      // Calculate final screen position from raw values
-      return {
-        identifier: identifier,
-        height: rect.height,
-        x: LEFT_LABEL_WIDTH + rect.rawX * plotAreaWidth,
-        y: rect.y,
-        width: rect.rawWidth * plotAreaWidth,
-        participantId: rect.participantId,
-        segmentId: rect.segmentId,
-        orderId: rect.orderId,
-        // Include style properties
-        fill: style.fill,
-        opacity: style.opacity ?? 1,
-        stroke: style.stroke,
-        strokeWidth: style.strokeWidth,
-      }
-    })
+    // Each rect needs: x, y, width, height, identifierIndex, participantId, segmentId, orderId, styleData
+    // 12 values per rectangle
+    const RECT_STRIDE = 12
+    const buffer = new Float32Array(len * RECT_STRIDE)
+
+    const isUsedHighlight = usedHighlight !== null
+    // Get fast lookup maps
+    const { idToIndex } = identifierSystem
+
+    // Process all rectangles in a single loop for best performance
+    for (let i = 0; i < len; i++) {
+      const rect = segments[i]
+      const idx = i * RECT_STRIDE
+      const identifier = rect.identifier
+
+      // Get style index - must exist in the map
+      const identifierIdx = idToIndex.get(identifier) ?? 0
+
+      // Calculate x and width based on the plot area - done once per rect
+      const x = LEFT_LABEL_WIDTH + rect.rawX * plotAreaWidth
+      const width = rect.rawWidth * plotAreaWidth
+
+      // Store basic geometry
+      buffer[idx] = x // x
+      buffer[idx + 1] = rect.y // y
+      buffer[idx + 2] = width // width
+      buffer[idx + 3] = rect.height // height
+      buffer[idx + 4] = identifierIdx // identifier index
+      buffer[idx + 5] = rect.participantId // participantId
+      buffer[idx + 6] = rect.segmentId // segmentId
+      buffer[idx + 7] = rect.orderId // orderId
+
+      // Style flags - compute only once
+      const isHighlighted = isUsedHighlight && identifier === usedHighlight
+      const isDimmed = isUsedHighlight && identifier !== usedHighlight
+
+      // 8: highlighted (0/1)
+      buffer[idx + 8] = isHighlighted ? 1 : 0
+
+      // 9: dimmed (0/1)
+      buffer[idx + 9] = isDimmed ? 1 : 0
+
+      // 10-11: reserved for future use
+      buffer[idx + 10] = 0
+      buffer[idx + 11] = 0
+    }
+
+    return buffer
   })
 
   const lineSegments = $derived.by(() => {
     // Guard against plotAreaWidth not being initialized
-    if (!plotAreaWidth) return []
+    if (!plotAreaWidth) return new Float32Array(0)
 
     // Use the pre-flattened lines for performance
-    return data.flattenedLines.map(line => {
-      const identifier = line.identifier
-      const isHighlighted = identifier === usedHighlight
-      const style = getStyleForLine(identifier, isHighlighted)
+    const segments = data.flattenedLines
+    const len = segments.length
 
-      return {
-        identifier: identifier,
-        x1: LEFT_LABEL_WIDTH + line.rawX1 * plotAreaWidth,
-        y1: line.y,
-        x2: LEFT_LABEL_WIDTH + line.rawX2 * plotAreaWidth,
-        y2: line.y,
-        participantId: line.participantId,
-        // Include style properties
-        stroke: style.stroke,
-        strokeWidth: style.strokeWidth,
-        opacity: style.opacity ?? 1,
-        strokeDasharray: style.strokeDasharray,
-        strokeLinecap: style.strokeLinecap,
-      }
-    })
+    // Each line needs: x1, y1, x2, y2, identifierIndex, participantId, styleData
+    // 10 values per line
+    const LINE_STRIDE = 10
+    const buffer = new Float32Array(len * LINE_STRIDE)
+
+    const isUsedHighlight = usedHighlight !== null
+    // Get fast lookup maps
+    const { idToIndex } = identifierSystem
+
+    // Process all lines in a single loop for best performance
+    for (let i = 0; i < len; i++) {
+      const line = segments[i]
+      const idx = i * LINE_STRIDE
+      const identifier = line.identifier
+
+      // Get style index - must exist in the map
+      const identifierIdx = idToIndex.get(identifier) ?? 0
+
+      // Calculate coordinates based on the plot area - done once per line
+      const x1 = LEFT_LABEL_WIDTH + line.rawX1 * plotAreaWidth
+      const x2 = LEFT_LABEL_WIDTH + line.rawX2 * plotAreaWidth
+
+      // Store basic geometry
+      buffer[idx] = x1 // x1
+      buffer[idx + 1] = line.y // y1
+      buffer[idx + 2] = x2 // x2
+      buffer[idx + 3] = line.y // y2
+      buffer[idx + 4] = identifierIdx // identifier index
+      buffer[idx + 5] = line.participantId // participantId
+
+      // Style flags - compute only once
+      const isHighlighted = isUsedHighlight && identifier === usedHighlight
+      const isDimmed = isUsedHighlight && identifier !== usedHighlight
+
+      // 6: highlighted (0/1)
+      buffer[idx + 6] = isHighlighted ? 1 : 0
+
+      // 7: dimmed (0/1)
+      buffer[idx + 7] = isDimmed ? 1 : 0
+
+      // 8-9: reserved for future use
+      buffer[idx + 8] = 0
+      buffer[idx + 9] = 0
+    }
+
+    return buffer
   })
 
   // Interaction handlers
@@ -367,27 +490,34 @@
     ctx.textAlign = 'start'
     ctx.textBaseline = 'middle'
 
-    data.participants.forEach((participant, i) => {
+    const participants = data.participants
+    const len = participants.length
+
+    for (let i = 0; i < len; i++) {
+      const participant = participants[i]
       ctx.fillText(
         participant.label,
         LAYOUT.PADDING,
         i * data.heightOfBarWrap + (data.heightOfBarWrap >> 1)
       )
-    })
+    }
   }
 
   function drawHorizontalGridLines(ctx: CanvasRenderingContext2D) {
     ctx.strokeStyle = LAYOUT.GRID_COLOR
     ctx.lineWidth = LAYOUT.GRID_STROKE_WIDTH
 
-    data.participants.forEach((_, i) => {
+    const participants = data.participants
+    const len = participants.length
+
+    for (let i = 0; i < len; i++) {
       // Draw grid lines exactly at bar boundaries
       const y = i * calculatedHeights.participantBarHeight
       ctx.beginPath()
       ctx.moveTo(LEFT_LABEL_WIDTH, y)
       ctx.lineTo(LEFT_LABEL_WIDTH + plotAreaWidth, y)
       ctx.stroke()
-    })
+    }
 
     // Draw final grid line at the bottom
     const y = calculatedHeights.heightOfParticipantBars
@@ -398,7 +528,9 @@
   }
 
   function drawTimelineLabels(ctx: CanvasRenderingContext2D) {
-    if (data.timeline.ticks.length === 0) return
+    const ticks = data.timeline.ticks
+    const len = ticks.length
+    if (len === 0) return
 
     ctx.font = `${LAYOUT.LABEL_FONT_SIZE}px sans-serif`
     ctx.fillStyle = '#000'
@@ -408,7 +540,8 @@
     // Position labels just 5px below the participant bars
     const yPos = calculatedHeights.heightOfParticipantBars + 10
 
-    data.timeline.ticks.forEach(tick => {
+    for (let i = 0; i < len; i++) {
+      const tick = ticks[i]
       if (tick.isNice) {
         ctx.fillText(
           tick.label,
@@ -416,7 +549,7 @@
           yPos
         )
       }
-    })
+    }
   }
 
   function drawXAxisTicksAndBorder(ctx: CanvasRenderingContext2D) {
@@ -425,9 +558,12 @@
 
     // Use the exact height from calculatedHeights
     const yLine = calculatedHeights.heightOfParticipantBars
+    const ticks = data.timeline.ticks
+    const len = ticks.length
 
     // Draw ticks - make them shorter (3px instead of LAYOUT.TICK_LENGTH)
-    data.timeline.ticks.forEach(tick => {
+    for (let i = 0; i < len; i++) {
+      const tick = ticks[i]
       const x = LEFT_LABEL_WIDTH + tick.position * plotAreaWidth
       const y1 = yLine
       const y2 = y1 + 5
@@ -436,7 +572,7 @@
       ctx.moveTo(x, y1)
       ctx.lineTo(x, y2)
       ctx.stroke()
-    })
+    }
 
     // Draw bottom border line
     ctx.beginPath()
@@ -446,47 +582,202 @@
   }
 
   function drawRectangles(ctx: CanvasRenderingContext2D) {
-    rectangleSegments.forEach(rect => {
-      ctx.globalAlpha = rect.opacity
-      ctx.fillStyle = rect.fill
+    const segments = rectangleSegments
+    if (segments.length === 0) return
 
-      ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
+    const RECT_STRIDE = 12
 
-      if (rect.stroke) {
-        ctx.strokeStyle = rect.stroke
-        ctx.lineWidth = rect.strokeWidth || 1
-        ctx.strokeRect(rect.x, rect.y, rect.width, rect.height)
+    // Local references for faster access
+    const rectStyles = rectStyleMap
+    const { indexToId } = identifierSystem
+
+    // Use the pre-computed style buckets
+    const styleBuckets = rectangleStyleBuckets
+
+    // Separate alpha states for maximum rendering efficiency
+    ctx.globalAlpha = 1.0 // Normal/highlighted elements
+
+    // First draw normal and highlighted elements
+    // Iterate through unique styles - typically 10-20 styles instead of 100k segments
+    styleBuckets.forEach((segmentIndices, styleIdx) => {
+      const identifier = indexToId.get(styleIdx) ?? ''
+      const styleSet = rectStyles.get(identifier) ?? {
+        normal: { fill: '#ccc' },
+        highlighted: { fill: '#ccc', stroke: '#333333', strokeWidth: 0.5 },
+        dimmed: { fill: '#ccc', opacity: 0.15 },
+      }
+
+      // Process normal segments for this style - minimal state changes
+      let normalCount = 0
+      ctx.fillStyle = styleSet.normal.fill
+
+      for (const i of segmentIndices) {
+        const idx = i * RECT_STRIDE
+        const isHighlighted = segments[idx + 8] === 1
+        const isDimmed = segments[idx + 9] === 1
+
+        if (!isHighlighted && !isDimmed) {
+          normalCount++
+          ctx.fillRect(
+            segments[idx],
+            segments[idx + 1],
+            segments[idx + 2],
+            segments[idx + 3]
+          )
+        }
+      }
+
+      // Process highlighted segments for this style - stroke requires separate pass
+      let highlightCount = 0
+      if (styleSet.highlighted.stroke) {
+        ctx.fillStyle = styleSet.highlighted.fill || styleSet.normal.fill
+        ctx.strokeStyle = styleSet.highlighted.stroke
+        ctx.lineWidth = styleSet.highlighted.strokeWidth ?? 0.5
+
+        for (const i of segmentIndices) {
+          const idx = i * RECT_STRIDE
+          const isHighlighted = segments[idx + 8] === 1
+
+          if (isHighlighted) {
+            highlightCount++
+            const x = segments[idx]
+            const y = segments[idx + 1]
+            const width = segments[idx + 2]
+            const height = segments[idx + 3]
+
+            ctx.fillRect(x, y, width, height)
+            ctx.strokeRect(x, y, width, height)
+          }
+        }
       }
     })
 
+    // Draw dimmed elements with single alpha change
+    ctx.globalAlpha = 0.15
+
+    styleBuckets.forEach((segmentIndices, styleIdx) => {
+      const identifier = indexToId.get(styleIdx) ?? ''
+      const styleSet = rectStyles.get(identifier) ?? {
+        normal: { fill: '#ccc' },
+      }
+
+      ctx.fillStyle = styleSet.normal.fill
+
+      // Single pass for dimmed elements of this style
+      for (const i of segmentIndices) {
+        const idx = i * RECT_STRIDE
+        const isDimmed = segments[idx + 9] === 1
+
+        if (isDimmed) {
+          ctx.fillRect(
+            segments[idx],
+            segments[idx + 1],
+            segments[idx + 2],
+            segments[idx + 3]
+          )
+        }
+      }
+    })
+
+    // Reset alpha
     ctx.globalAlpha = 1
   }
 
   function drawLines(ctx: CanvasRenderingContext2D) {
-    lineSegments.forEach(line => {
-      ctx.globalAlpha = line.opacity
-      ctx.strokeStyle = line.stroke
-      ctx.lineWidth = line.strokeWidth
+    const segments = lineSegments
+    if (segments.length === 0) return
 
-      // Handle line dash
-      if (line.strokeDasharray && line.strokeDasharray !== 'none') {
-        ctx.setLineDash([2, 2]) // Simple dash pattern
-      } else {
-        ctx.setLineDash([])
+    const LINE_STRIDE = 10
+
+    // Local references for fast access
+    const lineStyles = lineStyleMap
+    const { indexToId } = identifierSystem
+
+    // Use the pre-computed style buckets
+    const styleBuckets = lineStyleBuckets
+
+    // Draw normal lines first with dashed style
+    ctx.globalAlpha = 1.0
+    ctx.setLineDash([2, 2])
+
+    styleBuckets.forEach((segmentIndices, styleIdx) => {
+      const identifier = indexToId.get(styleIdx) ?? ''
+      const styleSet = lineStyles.get(identifier) ?? {
+        normal: { stroke: '#ccc', strokeWidth: 1 },
       }
 
-      // Handle line cap
-      if (line.strokeLinecap) {
-        ctx.lineCap = line.strokeLinecap as CanvasLineCap
-      }
+      // Configure line style once per style
+      ctx.strokeStyle = styleSet.normal.stroke
+      ctx.lineWidth = styleSet.normal.strokeWidth ?? 1
 
-      ctx.beginPath()
-      ctx.moveTo(line.x1, line.y1)
-      ctx.lineTo(line.x2, line.y2)
-      ctx.stroke()
+      for (const i of segmentIndices) {
+        const idx = i * LINE_STRIDE
+        const isHighlighted = segments[idx + 6] === 1
+        const isDimmed = segments[idx + 7] === 1
+
+        if (!isHighlighted && !isDimmed) {
+          ctx.beginPath()
+          ctx.moveTo(segments[idx], segments[idx + 1])
+          ctx.lineTo(segments[idx + 2], segments[idx + 3])
+          ctx.stroke()
+        }
+      }
     })
 
-    // Reset
+    // Draw highlighted lines with solid style
+    ctx.setLineDash([]) // Solid line
+    ctx.lineCap = 'butt'
+
+    styleBuckets.forEach((segmentIndices, styleIdx) => {
+      const identifier = indexToId.get(styleIdx) ?? ''
+      const styleSet = lineStyles.get(identifier) ?? {
+        highlighted: { stroke: '#ccc', strokeWidth: 3 },
+      }
+
+      const highlightedStyle = styleSet.highlighted
+      ctx.strokeStyle = highlightedStyle.stroke
+      ctx.lineWidth = highlightedStyle.strokeWidth ?? 3
+
+      for (const i of segmentIndices) {
+        const idx = i * LINE_STRIDE
+        const isHighlighted = segments[idx + 6] === 1
+
+        if (isHighlighted) {
+          ctx.beginPath()
+          ctx.moveTo(segments[idx], segments[idx + 1])
+          ctx.lineTo(segments[idx + 2], segments[idx + 3])
+          ctx.stroke()
+        }
+      }
+    })
+
+    // Draw dimmed lines with transparency
+    ctx.globalAlpha = 0.15
+    ctx.setLineDash([2, 2]) // Dashed line
+
+    styleBuckets.forEach((segmentIndices, styleIdx) => {
+      const identifier = indexToId.get(styleIdx) ?? ''
+      const styleSet = lineStyles.get(identifier) ?? {
+        normal: { stroke: '#ccc', strokeWidth: 1 },
+      }
+
+      ctx.strokeStyle = styleSet.normal.stroke
+      ctx.lineWidth = styleSet.normal.strokeWidth ?? 1
+
+      for (const i of segmentIndices) {
+        const idx = i * LINE_STRIDE
+        const isDimmed = segments[idx + 7] === 1
+
+        if (isDimmed) {
+          ctx.beginPath()
+          ctx.moveTo(segments[idx], segments[idx + 1])
+          ctx.lineTo(segments[idx + 2], segments[idx + 3])
+          ctx.stroke()
+        }
+      }
+    })
+
+    // Reset rendering state
     ctx.globalAlpha = 1
     ctx.setLineDash([])
   }
@@ -689,14 +980,22 @@
       ctx.textAlign = 'left'
       ctx.textBaseline = 'top'
 
-      legendGeometry.groupTitles.forEach(group => {
+      const titles = legendGeometry.groupTitles
+      const len = titles.length
+
+      for (let i = 0; i < len; i++) {
+        const group = titles[i]
         ctx.fillText(group.title, group.x, group.y)
-      })
+      }
     }
 
     // Draw each legend item
     if (legendGeometry.items && legendGeometry.items.length > 0) {
-      legendGeometry.items.forEach(item => {
+      const items = legendGeometry.items
+      const len = items.length
+
+      for (let i = 0; i < len; i++) {
+        const item = items[i]
         const isHighlighted = item.identifier === usedHighlight
         const anyHighlightActive = usedHighlight !== null
 
@@ -780,7 +1079,7 @@
           item.x + LEGEND.ICON_WIDTH + LEGEND.TEXT_PADDING,
           item.y + LEGEND.ITEM_HEIGHT - 4
         )
-      })
+      }
     }
 
     // Reset opacity
@@ -845,14 +1144,8 @@
       canvas.style.cursor = 'default'
     }
 
-    // Find the segment under the mouse pointer
-    const hoveredSegment = rectangleSegments.find(
-      rect =>
-        mouseX >= rect.x &&
-        mouseX <= rect.x + rect.width &&
-        mouseY >= rect.y &&
-        mouseY <= rect.y + rect.height
-    )
+    // Find the segment under the mouse pointer using TypedArray
+    const hoveredSegment = findHoveredRectSegment(mouseX, mouseY)
 
     // If hovering over a new segment, handle it
     if (
@@ -879,7 +1172,7 @@
       const tooltipPos = getTooltipPosition(
         canvasState,
         hoveredSegment.x + hoveredSegment.width,
-        hoveredSegment.y + (hoveredSegment.height >> 1),
+        hoveredSegment.y + hoveredSegment.height / 2,
         { x: 5, y: 0 }
       )
 
@@ -1067,6 +1360,102 @@
       resizeCanvas(canvasState, totalWidth, totalHeight)
       scheduleRender()
     })
+  })
+
+  function findHoveredRectSegment(mouseX: number, mouseY: number) {
+    const segments = rectangleSegments
+    if (segments.length === 0) return null
+
+    const RECT_STRIDE = 12
+    const len = segments.length / RECT_STRIDE
+
+    // Fast identifier lookup
+    const { indexToId } = identifierSystem
+
+    // Check in reverse order (top to bottom visually) to match z-index behavior
+    for (let i = len - 1; i >= 0; i--) {
+      const idx = i * RECT_STRIDE
+
+      const x = segments[idx]
+      const y = segments[idx + 1]
+      const width = segments[idx + 2]
+      const height = segments[idx + 3]
+      const identifierIdx = segments[idx + 4]
+      const participantId = segments[idx + 5]
+      const segmentId = segments[idx + 6]
+      const orderId = segments[idx + 7]
+
+      if (
+        mouseX >= x &&
+        mouseX <= x + width &&
+        mouseY >= y &&
+        mouseY <= y + height
+      ) {
+        return {
+          x,
+          y,
+          width,
+          height,
+          identifier: indexToId.get(identifierIdx) ?? '',
+          participantId,
+          segmentId,
+          orderId,
+        }
+      }
+    }
+
+    return null
+  }
+
+  // Create derived stores for style buckets that update only when segment data changes
+  const rectangleStyleBuckets = $derived.by(() => {
+    const segments = rectangleSegments
+    if (segments.length === 0) return new Map<number, number[]>()
+
+    const RECT_STRIDE = 12
+    const len = segments.length / RECT_STRIDE
+    const styleBuckets = new Map<number, number[]>()
+
+    // Single pass to populate buckets by style index - O(n)
+    for (let i = 0; i < len; i++) {
+      const idx = i * RECT_STRIDE
+      const identifierIdx = segments[idx + 4]
+
+      // Get or create bucket for this style
+      let bucket = styleBuckets.get(identifierIdx)
+      if (!bucket) {
+        bucket = []
+        styleBuckets.set(identifierIdx, bucket)
+      }
+      bucket.push(i)
+    }
+
+    return styleBuckets
+  })
+
+  const lineStyleBuckets = $derived.by(() => {
+    const segments = lineSegments
+    if (segments.length === 0) return new Map<number, number[]>()
+
+    const LINE_STRIDE = 10
+    const len = segments.length / LINE_STRIDE
+    const styleBuckets = new Map<number, number[]>()
+
+    // Single pass to populate buckets by style index - O(n)
+    for (let i = 0; i < len; i++) {
+      const idx = i * LINE_STRIDE
+      const identifierIdx = segments[idx + 4]
+
+      // Get or create bucket for this style
+      let bucket = styleBuckets.get(identifierIdx)
+      if (!bucket) {
+        bucket = []
+        styleBuckets.set(identifierIdx, bucket)
+      }
+      bucket.push(i)
+    }
+
+    return styleBuckets
   })
 </script>
 

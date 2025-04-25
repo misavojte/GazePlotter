@@ -7,6 +7,10 @@ import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData
 import type { SegmentInterpretedDataType } from '$lib/type/Data/InterpretedData/SegmentInterpretedDataType'
 import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup'
 
+// Constants for fast AOI mapping store
+const MAX_STIMULUS = 256 // Maximum number of stimuli we can handle
+const MAX_AOI_PER_STIMULUS = 256 // Maximum number of AOIs per stimulus
+
 // Initialize the main data store
 export const getDemoDataWritable = (): Writable<DataType> => {
   return writable<DataType>(demoData)
@@ -153,19 +157,119 @@ const aoiIdMappings: Readable<{
 })
 
 /**
- * Gets the representative AOI ID for a given AOI based on the current grouping.
+ * High-performance AOI ID mapping store using TypedArrays
  *
- * This function uses the AOI ID mappings to determine which AOI ID should represent
- * the given AOI in visualizations. AOIs with the same displayed name share a single
- * representative ID (the ID of the first AOI with that name).
+ * This store uses a flat Uint16Array to store all AOI mappings for ultra-fast lookups:
+ * - Each stimulus has a fixed-size block of MAX_AOI_PER_STIMULUS entries
+ * - Access pattern: mappingArray[stimulusId * MAX_AOI_PER_STIMULUS + aoiId]
+ * - Value of 65535 (0xFFFF) indicates no mapping exists (fallback to identity)
+ *
+ * This structure eliminates object creation and property access during lookups
+ * for maximum performance in hot paths like segment rendering.
+ */
+const fastAoiIdMappings: Readable<{
+  array: Uint16Array // The actual mapping data
+  stimuliCount: number // Number of stimuli with mappings
+  aoiCounts: Uint16Array // Number of AOIs per stimulus (for bound checking)
+}> = derived(data, $data => {
+  const stimuliCount = Math.min($data.stimuli.data.length, MAX_STIMULUS)
+
+  // Create a single TypedArray for all mappings
+  // Size: stimuliCount * MAX_AOI_PER_STIMULUS entries
+  const array = new Uint16Array(stimuliCount * MAX_AOI_PER_STIMULUS)
+
+  // Track AOI counts per stimulus for bounds checking
+  const aoiCounts = new Uint16Array(stimuliCount)
+
+  // Initialize with identity mapping (each AOI maps to itself)
+  array.fill(0xffff) // Use 0xFFFF (65535) as sentinel for "no mapping"
+
+  // Process each stimulus
+  for (let stimulusId = 0; stimulusId < stimuliCount; stimulusId++) {
+    try {
+      // Get all AOIs for this stimulus
+      const aois = getAoisRawFromData(stimulusId, $data)
+      aoiCounts[stimulusId] = aois.length
+
+      // Skip if no AOIs for this stimulus
+      if (!aois.length) continue
+
+      // First pass: find first occurrence of each displayed name
+      const nameToFirstId = new Map<string, number>()
+
+      for (const aoi of aois) {
+        if (
+          !nameToFirstId.has(aoi.displayedName) &&
+          aoi.displayedName.trim() !== ''
+        ) {
+          nameToFirstId.set(aoi.displayedName, aoi.id)
+        }
+      }
+
+      // Calculate offset for this stimulus in the flat array
+      const offset = stimulusId * MAX_AOI_PER_STIMULUS
+
+      // Second pass: populate the mapping array
+      for (const aoi of aois) {
+        if (
+          aoi.displayedName.trim() !== '' &&
+          nameToFirstId.has(aoi.displayedName)
+        ) {
+          array[offset + aoi.id] = nameToFirstId.get(aoi.displayedName)!
+        } else {
+          array[offset + aoi.id] = aoi.id // Self-map for AOIs without grouping
+        }
+      }
+    } catch (e) {
+      // On error, use identity mapping (each AOI maps to itself)
+      const noOfAois = $data.aois.data[stimulusId]?.length || 0
+      aoiCounts[stimulusId] = noOfAois
+
+      const offset = stimulusId * MAX_AOI_PER_STIMULUS
+      for (let i = 0; i < noOfAois; i++) {
+        array[offset + i] = i
+      }
+    }
+  }
+
+  return {
+    array,
+    stimuliCount,
+    aoiCounts,
+  }
+})
+
+/**
+ * Fast AOI ID mapping lookup using TypedArrays.
+ *
+ * This function provides the same functionality as getAoiIdMapping but with
+ * significantly higher performance for hot code paths. It uses a flat TypedArray
+ * with direct indexing to eliminate object property lookups and reduce GC pressure.
  *
  * @param stimulusId - The numeric ID of the stimulus
  * @param aoiId - The original AOI ID
  * @returns The mapped (representative) AOI ID, or the original ID if no mapping exists
  */
 export const getAoiIdMapping = (stimulusId: number, aoiId: number): number => {
-  const mappings = get(aoiIdMappings)
-  return mappings[stimulusId]?.[aoiId] ?? aoiId
+  const { array, stimuliCount, aoiCounts } = get(fastAoiIdMappings)
+
+  // Bounds checking for maximum performance
+  if (
+    stimulusId < 0 ||
+    stimulusId >= stimuliCount ||
+    aoiId < 0 ||
+    aoiId >= aoiCounts[stimulusId] ||
+    aoiId >= MAX_AOI_PER_STIMULUS
+  ) {
+    return aoiId // Return identity mapping for out-of-bounds indices
+  }
+
+  // Direct index calculation for O(1) access
+  const index = stimulusId * MAX_AOI_PER_STIMULUS + aoiId
+  const mappedId = array[index]
+
+  // Check for sentinel value (no mapping)
+  return mappedId === 0xffff ? aoiId : mappedId
 }
 
 // Public API functions
@@ -202,11 +306,11 @@ export const getParticipantOrderVector = (): number[] => {
   return order
 }
 
-// Get raw AOIs without applying ID mapping (using current data)
+/* // Get raw AOIs without applying ID mapping (using current data)
 const getAoisRaw = (stimulusId: number): ExtendedInterpretedDataType[] => {
   const aoiIds = getAoiOrderVector(stimulusId)
   return aoiIds.map((aoiId: number) => getAoiRaw(stimulusId, aoiId, getData()))
-}
+} */
 
 /**
  * Returns all AOIs for a stimulus, including duplicates with the same displayed name.
@@ -359,49 +463,22 @@ export const getCategory = (id: number): ExtendedInterpretedDataType => {
 export const getSegment = (
   stimulusId: number,
   participantId: number,
-  id: number
+  segmentId: number
 ): SegmentInterpretedDataType => {
-  const segmentArray = getData().segments[stimulusId][participantId][id]
-  if (segmentArray === undefined)
-    throw new Error(
-      `Segment with id ${id} does not exist in stimulus with id ${stimulusId} and participant with id ${participantId}`
-    )
-  const start = segmentArray[0]
-  const end = segmentArray[1]
-
-  // Get AOI IDs and apply mapping to remove duplicates
-  const aoiIds = getSortedAoiIdsByOrderVector(stimulusId, segmentArray.slice(3))
-
-  // Use a Set to ensure uniqueness after mapping
-  const mappedAoiIds = [
-    ...new Set(aoiIds.map(aoiId => getAoiIdMapping(stimulusId, aoiId))),
-  ]
-
-  const aoi = mappedAoiIds.map((aoiId: number) =>
-    getAoiRaw(stimulusId, aoiId, getData())
+  const segments = getSegments(
+    stimulusId,
+    participantId,
+    null,
+    null,
+    1,
+    segmentId
   )
-  const categoryId = segmentArray[2]
-  const category = getCategory(categoryId)
-  return {
-    id,
-    start,
-    end,
-    aoi,
-    category,
+  if (segments.length === 0) {
+    throw new Error(
+      `Segment ${segmentId} not found for stimulus ${stimulusId} and participant ${participantId}`
+    )
   }
-}
-
-/**
- * Returns given array of aoi ids sorted by its order vector.
- * @param stimulusId - id of the stimulus as AOIs are stimulus specific (thus, order vectors too)
- * @param aoiIds - array of aoi ids to be sorted
- */
-const getSortedAoiIdsByOrderVector = (
-  stimulusId: number,
-  aoiIds: number[]
-): number[] => {
-  const orderVector = getAoiOrderVector(stimulusId)
-  return aoiIds.sort((a, b) => orderVector.indexOf(a) - orderVector.indexOf(b))
+  return segments[0]
 }
 
 export const getNumberOfSegments = (
@@ -860,6 +937,7 @@ export const updateMultipleAoi = (
  * @param whereCategories - Optional array of category IDs to filter by. If null, all categories are included.
  * @param whereAois - Optional array of AOI IDs to filter by. If null, all AOIs are included.
  * @param limit - Optional maximum number of segments to return. If null, all matching segments are returned.
+ * @param offset - Optional starting index for the segments
  * @returns Array of SegmentInterpretedDataType matching the criteria, limited by the limit parameter if provided
  */
 export const getSegments = (
@@ -867,43 +945,105 @@ export const getSegments = (
   participantId: number,
   whereCategories: number[] | null = null,
   whereAois: number[] | null = null,
-  limit: number | null = null
+  limit: number | null = null,
+  offset: number = 0
 ): SegmentInterpretedDataType[] => {
-  const segmentsInfo = getData().segments[stimulusId]?.[participantId]
-  if (!segmentsInfo) return []
+  // Get current data snapshot - do this only once
+  const currentData = getData()
+  const segmentsInfo = currentData.segments[stimulusId]?.[participantId]
 
-  const result: SegmentInterpretedDataType[] = []
-  const segmentsLength = segmentsInfo.length
-
-  // Early return check for empty limit
+  // Early returns for empty data
+  if (!segmentsInfo || segmentsInfo.length === 0) return []
   if (limit === 0) return []
+  if (offset >= segmentsInfo.length) return []
+
+  // Pre-allocate result array with estimated capacity
+  const segmentsLength = segmentsInfo.length
+  const estimatedResultSize =
+    limit !== null
+      ? Math.min(segmentsLength - offset, limit)
+      : segmentsLength - offset
+  const result: SegmentInterpretedDataType[] = []
+  result.length = estimatedResultSize // Pre-allocate space for better memory efficiency
+  result.length = 0 // Reset length but keep allocated memory
+
+  // Pre-compute category filter lookup for O(1) checks
+  const categoryFilter = whereCategories ? new Set(whereCategories) : null
+
+  // Pre-compute AOI filter lookup for O(1) checks
+  const aoiFilter = whereAois ? new Set(whereAois) : null
+
+  // Cache frequently-used objects for reuse
+  const {
+    array: mappingArray,
+    stimuliCount,
+    aoiCounts,
+  } = get(fastAoiIdMappings)
+  const mappingOffset = stimulusId * MAX_AOI_PER_STIMULUS
+  const orderVector = getAoiOrderVector(stimulusId)
+
+  // Create a single reusable Set for deduplication
+  const uniqueAoiIds = new Set<number>()
 
   // Fast path: if no filters are applied, return all segments (possibly limited)
-  if (!whereCategories && !whereAois) {
+  if (!categoryFilter && !aoiFilter) {
     // Determine how many segments to process
     const processCount =
-      limit !== null ? Math.min(segmentsLength, limit) : segmentsLength
+      limit !== null
+        ? Math.min(segmentsLength - offset, limit)
+        : segmentsLength - offset
 
-    for (let i = 0; i < processCount; i++) {
+    for (let i = offset; i < offset + processCount; i++) {
       const segmentArray = segmentsInfo[i]
       const start = segmentArray[0]
       const end = segmentArray[1]
       const categoryId = segmentArray[2]
 
-      // Get AOI IDs and apply mapping to remove duplicates
-      const aoiIds = getSortedAoiIdsByOrderVector(
-        stimulusId,
-        segmentArray.slice(3)
-      )
-      const mappedAoiIds = [
-        ...new Set(aoiIds.map(aoiId => getAoiIdMapping(stimulusId, aoiId))),
-      ]
+      // Get AOI IDs with minimal allocations
+      const aoiRawIds = segmentArray.slice(3)
+      const aoiCount = aoiRawIds.length
 
-      const aoi = mappedAoiIds.map(aoiId =>
-        getAoiRaw(stimulusId, aoiId, getData())
+      // Clear the Set for reuse instead of creating a new one
+      uniqueAoiIds.clear()
+
+      // First collect and sort by order vector (avoiding temp arrays)
+      const sortedIds: number[] = []
+
+      // Apply the order vector sorting
+      for (let j = 0; j < orderVector.length; j++) {
+        const orderedId = orderVector[j]
+        if (aoiRawIds.includes(orderedId)) {
+          sortedIds.push(orderedId)
+        }
+      }
+
+      // Then map and deduplicate in a single pass
+      for (let j = 0; j < sortedIds.length; j++) {
+        const aoiId = sortedIds[j]
+
+        // Fast mapping via TypedArray
+        let mappedId = aoiId
+        if (
+          stimulusId < stimuliCount &&
+          aoiId < aoiCounts[stimulusId] &&
+          aoiId < MAX_AOI_PER_STIMULUS
+        ) {
+          const mappedValue = mappingArray[mappingOffset + aoiId]
+          mappedId = mappedValue === 0xffff ? aoiId : mappedValue
+        }
+
+        uniqueAoiIds.add(mappedId)
+      }
+
+      // Convert the unique IDs to AOI objects (unavoidable allocation)
+      const aoi = Array.from(uniqueAoiIds).map(aoiId =>
+        getAoiRaw(stimulusId, aoiId, currentData)
       )
+
+      // Get category (unavoidable allocation)
       const category = getCategory(categoryId)
 
+      // Add the segment to results
       result.push({
         id: i,
         start,
@@ -915,42 +1055,50 @@ export const getSegments = (
     return result
   }
 
-  // Apply filters (category and/or AOI) with optional limit
-  for (let i = 0; i < segmentsLength; i++) {
-    // Check if we've reached the limit (if specified)
-    if (limit !== null && result.length >= limit) {
-      break // Stop processing more segments once we've reached the limit
-    }
-
+  // Filtered path with early termination
+  let resultCount = 0
+  for (
+    let i = offset;
+    i < segmentsLength && (limit === null || resultCount < limit);
+    i++
+  ) {
     const segmentArray = segmentsInfo[i]
     const categoryId = segmentArray[2]
 
-    // Apply category filter if specified
-    if (whereCategories && !whereCategories.includes(categoryId)) {
+    // Fast category filter check
+    if (categoryFilter && !categoryFilter.has(categoryId)) {
       continue // Skip if category doesn't match filter
     }
 
-    // Get AOI IDs for this segment
-    const aoiIds = getSortedAoiIdsByOrderVector(
-      stimulusId,
-      segmentArray.slice(3)
-    )
+    // Process AOI filter if needed
+    if (aoiFilter) {
+      // Get raw AOI IDs
+      const aoiRawIds = segmentArray.slice(3)
+      let hasMatchingAoi = false
 
-    // Apply AOI filter if specified
-    if (whereAois) {
-      // Map the AOI IDs using the AOI ID mapping system
-      const mappedAoiIds = aoiIds.map(aoiId =>
-        getAoiIdMapping(stimulusId, aoiId)
-      )
+      // Early exit optimization: check each AOI until we find a match
+      for (let j = 0; j < aoiRawIds.length; j++) {
+        const aoiId = aoiRawIds[j]
 
-      // Check if this segment contains at least one of the specified AOIs
-      // Using Set intersection for performance - if intersection is empty, skip this segment
-      const hasMatchingAoi = mappedAoiIds.some(aoiId =>
-        whereAois.includes(aoiId)
-      )
+        // Fast mapping via TypedArray
+        let mappedId = aoiId
+        if (
+          stimulusId < stimuliCount &&
+          aoiId < aoiCounts[stimulusId] &&
+          aoiId < MAX_AOI_PER_STIMULUS
+        ) {
+          const mappedValue = mappingArray[mappingOffset + aoiId]
+          mappedId = mappedValue === 0xffff ? aoiId : mappedValue
+        }
+
+        if (aoiFilter.has(mappedId)) {
+          hasMatchingAoi = true
+          break // Found a match, no need to check more
+        }
+      }
 
       if (!hasMatchingAoi) {
-        continue // Skip if none of the segment's AOIs match the filter
+        continue // Skip if no matching AOIs found
       }
     }
 
@@ -958,16 +1106,50 @@ export const getSegments = (
     const start = segmentArray[0]
     const end = segmentArray[1]
 
-    // Apply mapping to remove duplicates (for display purposes)
-    const mappedAoiIds = [
-      ...new Set(aoiIds.map(aoiId => getAoiIdMapping(stimulusId, aoiId))),
-    ]
+    // Get AOI IDs with minimal allocations
+    const aoiRawIds = segmentArray.slice(3)
 
-    const aoi = mappedAoiIds.map(aoiId =>
-      getAoiRaw(stimulusId, aoiId, getData())
+    // Clear the Set for reuse instead of creating a new one
+    uniqueAoiIds.clear()
+
+    // First collect and sort by order vector (avoiding temp arrays)
+    const sortedIds: number[] = []
+
+    // Apply the order vector sorting
+    for (let j = 0; j < orderVector.length; j++) {
+      const orderedId = orderVector[j]
+      if (aoiRawIds.includes(orderedId)) {
+        sortedIds.push(orderedId)
+      }
+    }
+
+    // Then map and deduplicate in a single pass
+    for (let j = 0; j < sortedIds.length; j++) {
+      const aoiId = sortedIds[j]
+
+      // Fast mapping via TypedArray
+      let mappedId = aoiId
+      if (
+        stimulusId < stimuliCount &&
+        aoiId < aoiCounts[stimulusId] &&
+        aoiId < MAX_AOI_PER_STIMULUS
+      ) {
+        const mappedValue = mappingArray[mappingOffset + aoiId]
+        mappedId = mappedValue === 0xffff ? aoiId : mappedValue
+      }
+
+      uniqueAoiIds.add(mappedId)
+    }
+
+    // Convert the unique IDs to AOI objects (unavoidable allocation)
+    const aoi = Array.from(uniqueAoiIds).map(aoiId =>
+      getAoiRaw(stimulusId, aoiId, currentData)
     )
+
+    // Get category (unavoidable allocation)
     const category = getCategory(categoryId)
 
+    // Add the segment to results
     result.push({
       id: i,
       start,
@@ -975,6 +1157,8 @@ export const getSegments = (
       aoi,
       category,
     })
+
+    resultCount++
   }
 
   return result

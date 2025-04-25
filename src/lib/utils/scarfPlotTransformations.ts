@@ -31,6 +31,7 @@ import {
   getParticipant,
   getParticipantEndTime,
   getSegment,
+  getSegments,
   getStimuli,
   hasStimulusAoiVisibility,
 } from '$lib/stores/dataStore'
@@ -547,7 +548,6 @@ export function transformDataToScarfPlot(
   const numberOfParticipants = participantIds.length
   for (let pIndex = 0; pIndex < numberOfParticipants; pIndex++) {
     const participantId = participantIds[pIndex]
-    const segmentCount = getNumberOfSegments(stimulusId, participantId)
     const { displayedName } = getParticipant(participantId)
     const sessionDuration = getParticipantEndTime(stimulusId, participantId)
 
@@ -556,12 +556,14 @@ export function transformDataToScarfPlot(
     // Calculate the visible timeline range
     const visibleRange = maxValue - minValue
     const yOffset = pIndex * barWrapHeight
+    const segments = getSegments(stimulusId, participantId, null, null, null, 0)
+    const segmentCount = segments.length
 
     // Only process segments if there are any
     if (segmentCount > 0) {
       // Process all segments directly into flattened array
       for (let segmentId = 0; segmentId < segmentCount; segmentId++) {
-        const segment = getSegment(stimulusId, participantId, segmentId)
+        const segment = segments[segmentId]
 
         let start = isOrdinal ? segmentId : segment.start
         let end = isOrdinal ? segmentId + 1 : segment.end
