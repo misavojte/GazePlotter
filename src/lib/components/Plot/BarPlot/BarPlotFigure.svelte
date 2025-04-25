@@ -48,6 +48,10 @@
       data: { value: number; label: string; color: string } | null
     ) => void
     dpiOverride?: number | null // Override for DPI settings when exporting
+    marginTop?: number
+    marginRight?: number
+    marginBottom?: number
+    marginLeft?: number
   }
 
   let {
@@ -60,6 +64,10 @@
     barSpacing,
     onDataHover,
     dpiOverride = null,
+    marginTop = 0,
+    marginRight = 0,
+    marginBottom = 0,
+    marginLeft = 0,
   }: BarPlotFigureProps = $props()
 
   // State management
@@ -74,21 +82,23 @@
   // Calculate dynamic left margin based on plotting type and label lengths
   const trueLeftMargin = $derived(
     barPlottingType === 'horizontal'
-      ? Math.min(150, calculateLabelOffset(data.map(item => item.label)))
+      ? Math.min(150, calculateLabelOffset(data.map(item => item.label))) +
+          marginLeft
       : Math.max(
           35,
           calculateLabelOffset(timeline.ticks.map(tick => tick.label))
-        )
+        ) + marginLeft
   )
 
   const dynamicRightMargin = $derived.by(() => {
-    if (barPlottingType !== 'horizontal') return MARGIN.RIGHT
+    if (barPlottingType !== 'horizontal') return MARGIN.RIGHT + marginRight
 
     const maxValue = Math.max(...data.map(d => d.value))
     const timelineMax = timeline.ticks[timeline.ticks.length - 1].value
 
     // Approximate initial plot area width (using current fixed right margin)
-    const estimatedPlotAreaWidth = width - trueLeftMargin - MARGIN.RIGHT
+    const estimatedPlotAreaWidth =
+      width - trueLeftMargin - MARGIN.RIGHT - marginRight
 
     // Simulate where the value label would appear
     const barEndX =
@@ -100,12 +110,14 @@
 
     const overflow = Math.max(0, labelRightEdge - width)
 
-    return MARGIN.RIGHT + overflow
+    return MARGIN.RIGHT + overflow + marginRight
   })
 
   // Calculate plot area dimensions
   const plotAreaWidth = $derived(width - trueLeftMargin - dynamicRightMargin)
-  const plotAreaHeight = $derived(height - MARGIN.TOP - MARGIN.BOTTOM)
+  const plotAreaHeight = $derived(
+    height - MARGIN.TOP - MARGIN.BOTTOM - marginTop - marginBottom
+  )
 
   // Scale values to plot area using AdaptiveTimeline
   function scaleValue(value: number): number {
@@ -181,7 +193,7 @@
             trueLeftMargin +
             startPosition +
             index * (optimalBarWidth + effectiveBarSpacing),
-          y: MARGIN.TOP + plotAreaHeight - scaledValue,
+          y: MARGIN.TOP + marginTop + plotAreaHeight - scaledValue,
           width: optimalBarWidth,
           height: scaledValue,
           value: item.value,
@@ -193,6 +205,7 @@
           x: trueLeftMargin,
           y:
             MARGIN.TOP +
+            marginTop +
             startPosition +
             index * (optimalBarWidth + effectiveBarSpacing),
           width: scaledValue,
@@ -224,7 +237,11 @@
     canvasState = setupCanvas(canvasState, canvas, dpiOverride)
 
     // Resize and render initially
-    canvasState = resizeCanvas(canvasState, width, height)
+    canvasState = resizeCanvas(
+      canvasState,
+      width + marginLeft + marginRight,
+      height + marginTop + marginBottom
+    )
     renderCanvas()
   }
 
@@ -265,7 +282,12 @@
   function drawPlotBorder(ctx: CanvasRenderingContext2D) {
     ctx.strokeStyle = '#ccc'
     ctx.lineWidth = 1
-    ctx.strokeRect(trueLeftMargin, MARGIN.TOP, plotAreaWidth, plotAreaHeight)
+    ctx.strokeRect(
+      trueLeftMargin,
+      MARGIN.TOP + marginTop,
+      plotAreaWidth,
+      plotAreaHeight
+    )
   }
 
   // Draw grid lines
@@ -278,7 +300,11 @@
       timeline.ticks
         .filter(tick => tick.isNice)
         .forEach(tick => {
-          const y = MARGIN.TOP + plotAreaHeight - tick.position * plotAreaHeight
+          const y =
+            MARGIN.TOP +
+            marginTop +
+            plotAreaHeight -
+            tick.position * plotAreaHeight
           ctx.beginPath()
           ctx.moveTo(trueLeftMargin, y)
           ctx.lineTo(trueLeftMargin + plotAreaWidth, y)
@@ -291,8 +317,8 @@
         .forEach(tick => {
           const x = trueLeftMargin + tick.position * plotAreaWidth
           ctx.beginPath()
-          ctx.moveTo(x, MARGIN.TOP)
-          ctx.lineTo(x, MARGIN.TOP + plotAreaHeight)
+          ctx.moveTo(x, MARGIN.TOP + marginTop)
+          ctx.lineTo(x, MARGIN.TOP + marginTop + plotAreaHeight)
           ctx.stroke()
         })
     }
@@ -352,7 +378,7 @@
         }
 
         x = bar.x + bar.width / 2
-        y = MARGIN.TOP + plotAreaHeight + CATEGORY_LABEL_OFFSET
+        y = MARGIN.TOP + marginTop + plotAreaHeight + CATEGORY_LABEL_OFFSET
         textAlign = 'center'
         textBaseline = 'middle'
       } else {
@@ -383,7 +409,11 @@
       timeline.ticks
         .filter(tick => tick.isNice)
         .forEach(tick => {
-          const y = MARGIN.TOP + plotAreaHeight - tick.position * plotAreaHeight
+          const y =
+            MARGIN.TOP +
+            marginTop +
+            plotAreaHeight -
+            tick.position * plotAreaHeight
           ctx.beginPath()
           ctx.moveTo(trueLeftMargin - TICK_LENGTH, y)
           ctx.lineTo(trueLeftMargin, y)
@@ -395,8 +425,8 @@
         .forEach(tick => {
           const x = trueLeftMargin + tick.position * plotAreaWidth
           ctx.beginPath()
-          ctx.moveTo(x, MARGIN.TOP + plotAreaHeight)
-          ctx.lineTo(x, MARGIN.TOP + plotAreaHeight + TICK_LENGTH)
+          ctx.moveTo(x, MARGIN.TOP + marginTop + plotAreaHeight)
+          ctx.lineTo(x, MARGIN.TOP + marginTop + plotAreaHeight + TICK_LENGTH)
           ctx.stroke()
         })
     }
@@ -414,12 +444,16 @@
 
         if (barPlottingType === 'vertical') {
           x = trueLeftMargin - VALUE_LABEL_OFFSET
-          y = MARGIN.TOP + plotAreaHeight - tick.position * plotAreaHeight
+          y =
+            MARGIN.TOP +
+            marginTop +
+            plotAreaHeight -
+            tick.position * plotAreaHeight
           textAlign = 'right'
           textBaseline = 'middle'
         } else {
           x = trueLeftMargin + tick.position * plotAreaWidth
-          y = MARGIN.TOP + plotAreaHeight + CATEGORY_LABEL_OFFSET
+          y = MARGIN.TOP + marginTop + plotAreaHeight + CATEGORY_LABEL_OFFSET
           textAlign = 'center'
           textBaseline = 'hanging'
         }
@@ -516,6 +550,10 @@
       barWidth,
       barSpacing,
       dpiOverride,
+      marginTop,
+      marginRight,
+      marginBottom,
+      marginLeft,
     ]
 
     untrack(() => {
@@ -528,7 +566,11 @@
             dpiOverride
           )
         }
-        canvasState = resizeCanvas(canvasState, width, height)
+        canvasState = resizeCanvas(
+          canvasState,
+          width + marginLeft + marginRight,
+          height + marginTop + marginBottom
+        )
         scheduleRender()
       }
     })
@@ -548,7 +590,11 @@
           canvasState = newState
           // Resize with new pixel ratio if it changed
           if (canvasState.canvas) {
-            canvasState = resizeCanvas(canvasState, width, height)
+            canvasState = resizeCanvas(
+              canvasState,
+              width + marginLeft + marginRight,
+              height + marginTop + marginBottom
+            )
             renderCanvas() // Ensure canvas redraws after state update
           }
         },

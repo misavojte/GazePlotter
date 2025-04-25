@@ -58,6 +58,10 @@
       legendY: number
     }
     dpiOverride?: number | null // Override for DPI settings when exporting
+    marginTop?: number
+    marginRight?: number
+    marginBottom?: number
+    marginLeft?: number
   }
 
   // Component props using Svelte 5 $props rune
@@ -73,6 +77,10 @@
     chartWidth = 0,
     calculatedHeights,
     dpiOverride = null,
+    marginTop = 0,
+    marginRight = 0,
+    marginBottom = 0,
+    marginLeft = 0,
   }: Props = $props()
 
   // Legend constants
@@ -121,7 +129,7 @@
   })
 
   // SVG size calculations - MOVE THESE BEFORE RECTANGLE/LINE CALCULATIONS
-  const totalWidth = $derived(chartWidth)
+  const totalWidth = $derived(chartWidth + marginLeft + marginRight)
 
   // Track the currently hovered segment
   let currentHoveredSegment = $state<{
@@ -140,7 +148,9 @@
     )
   )
 
-  const totalHeight = $derived(calculatedHeights.totalHeight)
+  const totalHeight = $derived(
+    calculatedHeights.totalHeight + marginTop + marginBottom
+  )
 
   // Create a unified identifier mapping system for all style types
   // Using a single integer id space for maximum performance
@@ -340,12 +350,13 @@
       const identifierIdx = idToIndex.get(identifier) ?? 0
 
       // Calculate x and width based on the plot area - done once per rect
-      const x = LEFT_LABEL_WIDTH + rect.rawX * plotAreaWidth
+      const x = LEFT_LABEL_WIDTH + rect.rawX * plotAreaWidth + marginLeft
       const width = rect.rawWidth * plotAreaWidth
+      const y = rect.y + marginTop
 
       // Store basic geometry
       buffer[idx] = x // x
-      buffer[idx + 1] = rect.y // y
+      buffer[idx + 1] = y // y
       buffer[idx + 2] = width // width
       buffer[idx + 3] = rect.height // height
       buffer[idx + 4] = identifierIdx // identifier index
@@ -398,14 +409,15 @@
       const identifierIdx = idToIndex.get(identifier) ?? 0
 
       // Calculate coordinates based on the plot area - done once per line
-      const x1 = LEFT_LABEL_WIDTH + line.rawX1 * plotAreaWidth
-      const x2 = LEFT_LABEL_WIDTH + line.rawX2 * plotAreaWidth
+      const x1 = LEFT_LABEL_WIDTH + line.rawX1 * plotAreaWidth + marginLeft
+      const x2 = LEFT_LABEL_WIDTH + line.rawX2 * plotAreaWidth + marginLeft
+      const y = line.y + marginTop
 
       // Store basic geometry
       buffer[idx] = x1 // x1
-      buffer[idx + 1] = line.y // y1
+      buffer[idx + 1] = y // y1
       buffer[idx + 2] = x2 // x2
-      buffer[idx + 3] = line.y // y2
+      buffer[idx + 3] = y // y2
       buffer[idx + 4] = identifierIdx // identifier index
       buffer[idx + 5] = line.participantId // participantId
 
@@ -497,8 +509,8 @@
       const participant = participants[i]
       ctx.fillText(
         participant.label,
-        LAYOUT.PADDING,
-        i * data.heightOfBarWrap + (data.heightOfBarWrap >> 1)
+        LAYOUT.PADDING + marginLeft,
+        i * data.heightOfBarWrap + (data.heightOfBarWrap >> 1) + marginTop
       )
     }
   }
@@ -512,18 +524,18 @@
 
     for (let i = 0; i < len; i++) {
       // Draw grid lines exactly at bar boundaries
-      const y = i * calculatedHeights.participantBarHeight
+      const y = i * calculatedHeights.participantBarHeight + marginTop
       ctx.beginPath()
-      ctx.moveTo(LEFT_LABEL_WIDTH, y)
-      ctx.lineTo(LEFT_LABEL_WIDTH + plotAreaWidth, y)
+      ctx.moveTo(LEFT_LABEL_WIDTH + marginLeft, y)
+      ctx.lineTo(LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft, y)
       ctx.stroke()
     }
 
     // Draw final grid line at the bottom
-    const y = calculatedHeights.heightOfParticipantBars
+    const y = calculatedHeights.heightOfParticipantBars + marginTop
     ctx.beginPath()
-    ctx.moveTo(LEFT_LABEL_WIDTH, y)
-    ctx.lineTo(LEFT_LABEL_WIDTH + plotAreaWidth, y)
+    ctx.moveTo(LEFT_LABEL_WIDTH + marginLeft, y)
+    ctx.lineTo(LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft, y)
     ctx.stroke()
   }
 
@@ -538,14 +550,14 @@
     ctx.textBaseline = 'hanging'
 
     // Position labels just 5px below the participant bars
-    const yPos = calculatedHeights.heightOfParticipantBars + 10
+    const yPos = calculatedHeights.heightOfParticipantBars + 10 + marginTop
 
     for (let i = 0; i < len; i++) {
       const tick = ticks[i]
       if (tick.isNice) {
         ctx.fillText(
           tick.label,
-          LEFT_LABEL_WIDTH + tick.position * plotAreaWidth,
+          LEFT_LABEL_WIDTH + tick.position * plotAreaWidth + marginLeft,
           yPos
         )
       }
@@ -557,14 +569,14 @@
     ctx.lineWidth = 1.5
 
     // Use the exact height from calculatedHeights
-    const yLine = calculatedHeights.heightOfParticipantBars
+    const yLine = calculatedHeights.heightOfParticipantBars + marginTop
     const ticks = data.timeline.ticks
     const len = ticks.length
 
     // Draw ticks - make them shorter (3px instead of LAYOUT.TICK_LENGTH)
     for (let i = 0; i < len; i++) {
       const tick = ticks[i]
-      const x = LEFT_LABEL_WIDTH + tick.position * plotAreaWidth
+      const x = LEFT_LABEL_WIDTH + tick.position * plotAreaWidth + marginLeft
       const y1 = yLine
       const y2 = y1 + 5
 
@@ -576,8 +588,8 @@
 
     // Draw bottom border line
     ctx.beginPath()
-    ctx.moveTo(LEFT_LABEL_WIDTH, yLine)
-    ctx.lineTo(LEFT_LABEL_WIDTH + plotAreaWidth, yLine)
+    ctx.moveTo(LEFT_LABEL_WIDTH + marginLeft, yLine)
+    ctx.lineTo(LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft, yLine)
     ctx.stroke()
   }
 
@@ -789,9 +801,13 @@
     ctx.textBaseline = 'top'
 
     // Position the label using exact coordinates from calculatedHeights
-    const labelY = calculatedHeights.axisLabelY
+    const labelY = calculatedHeights.axisLabelY + marginTop
 
-    ctx.fillText(xAxisLabel, LEFT_LABEL_WIDTH + (plotAreaWidth >> 1), labelY)
+    ctx.fillText(
+      xAxisLabel,
+      LEFT_LABEL_WIDTH + (plotAreaWidth >> 1) + marginLeft,
+      labelY
+    )
   }
 
   // Calculate legend geometry - for rendering and hit detection
@@ -808,8 +824,8 @@
     })
 
     // Use exact coordinates from calculatedHeights
-    const legendX = LEFT_LABEL_WIDTH + LAYOUT.PADDING
-    const legendY = calculatedHeights.legendY
+    const legendX = LEFT_LABEL_WIDTH + LAYOUT.PADDING + marginLeft
+    const legendY = calculatedHeights.legendY + marginTop
 
     // Calculate rows for each section
     const aoiItemCount = data.stylingAndLegend.aoi.length
@@ -1130,10 +1146,10 @@
 
     // Check if mouse is in the draggable area
     const inDraggableArea =
-      mouseX >= LEFT_LABEL_WIDTH &&
-      mouseX <= LEFT_LABEL_WIDTH + plotAreaWidth &&
-      mouseY >= 0 &&
-      mouseY <= data.participants.length * data.heightOfBarWrap
+      mouseX >= LEFT_LABEL_WIDTH + marginLeft &&
+      mouseX <= LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft &&
+      mouseY >= marginTop &&
+      mouseY <= data.participants.length * data.heightOfBarWrap + marginTop
 
     // Update cursor based on dragging state and location
     if (isDragging) {
@@ -1239,10 +1255,10 @@
 
     // Only start drag in the chart area
     if (
-      mouseX >= LEFT_LABEL_WIDTH &&
-      mouseX <= LEFT_LABEL_WIDTH + plotAreaWidth &&
-      mouseY >= 0 &&
-      mouseY <= data.participants.length * data.heightOfBarWrap &&
+      mouseX >= LEFT_LABEL_WIDTH + marginLeft &&
+      mouseX <= LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft &&
+      mouseY >= marginTop &&
+      mouseY <= data.participants.length * data.heightOfBarWrap + marginTop &&
       !isHoveringSegment
     ) {
       isDragging = true
