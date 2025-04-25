@@ -48,10 +48,6 @@
    * @param onValueClick - Callback when min/max values are clicked
    * @param onGradientClick - Callback when gradient bar is clicked
    * @param dpiOverride - Optional DPI override for exports
-   * @param marginTop - Additional top margin (default 0)
-   * @param marginRight - Additional right margin (default 0)
-   * @param marginBottom - Additional bottom margin (default 0)
-   * @param marginLeft - Additional left margin (default 0)
    */
   let {
     TransitionMatrix = [],
@@ -70,10 +66,6 @@
     onValueClick = () => {},
     onGradientClick = () => {},
     dpiOverride = null,
-    marginTop = 0,
-    marginRight = 0,
-    marginBottom = 0,
-    marginLeft = 0,
   } = $props<{
     TransitionMatrix: number[][]
     aoiLabels: string[]
@@ -93,10 +85,6 @@
     onValueClick?: (isMin: boolean) => void
     onGradientClick?: () => void
     dpiOverride?: number | null
-    marginTop?: number
-    marginRight?: number
-    marginBottom?: number
-    marginLeft?: number
   }>()
 
   // Additional offsets for axis labels to prevent collisions
@@ -127,15 +115,14 @@
   // Calculate max plotable area first (similar to RecurrencePlot's plotSize)
   const maxPlotArea = $derived.by(() => {
     // Calculate space needed for labels
-    const yAxisSpace =
-      LEFT_MARGIN + labelOffset + AXIS_LABEL_MARGIN + marginLeft
-    const xAxisSpace = TOP_MARGIN + labelOffset + AXIS_LABEL_MARGIN + marginTop
+    const yAxisSpace = LEFT_MARGIN + labelOffset + AXIS_LABEL_MARGIN
+    const xAxisSpace = TOP_MARGIN + labelOffset + AXIS_LABEL_MARGIN
 
     // Space needed for legend (title + gradient + values)
-    const legendSpace = 50 + marginBottom
+    const legendSpace = 50
 
     // Calculate maximum available space respecting the absolute max height
-    const availableWidth = width - yAxisSpace - marginRight
+    const availableWidth = width - yAxisSpace
     const availableHeight = height - xAxisSpace - legendSpace
 
     return { availableWidth, availableHeight }
@@ -167,8 +154,7 @@
     return (
       LEFT_MARGIN +
       labelOffset +
-      ((maxPlotArea.availableWidth - actualGridWidth) >> 1) +
-      marginLeft
+      ((maxPlotArea.availableWidth - actualGridWidth) >> 1)
     )
   })
 
@@ -176,8 +162,7 @@
     return (
       TOP_MARGIN +
       labelOffset +
-      ((maxPlotArea.availableHeight - actualGridHeight) >> 1) +
-      marginTop
+      ((maxPlotArea.availableHeight - actualGridHeight) >> 1)
     )
   })
 
@@ -219,11 +204,7 @@
     canvasState = setupCanvas(canvasState, canvas, dpiOverride)
 
     // Resize and render initially
-    canvasState = resizeCanvas(
-      canvasState,
-      width + marginLeft + marginRight,
-      height + marginTop + marginBottom
-    )
+    canvasState = resizeCanvas(canvasState, width, height)
     renderCanvas()
   }
 
@@ -892,10 +873,6 @@
       showBelowMinLabels,
       showAboveMaxLabels,
       dpiOverride,
-      marginTop,
-      marginRight,
-      marginBottom,
-      marginLeft,
     ]
 
     untrack(() => {
@@ -908,11 +885,7 @@
             dpiOverride
           )
         }
-        canvasState = resizeCanvas(
-          canvasState,
-          width + marginLeft + marginRight,
-          height + marginTop + marginBottom
-        )
+        canvasState = resizeCanvas(canvasState, width, height)
         scheduleRender()
       }
     })
@@ -932,11 +905,7 @@
           canvasState = newState
           // Resize with new pixel ratio if it changed
           if (canvasState.canvas) {
-            canvasState = resizeCanvas(
-              canvasState,
-              width + marginLeft + marginRight,
-              height + marginTop + marginBottom
-            )
+            canvasState = resizeCanvas(canvasState, width, height)
             renderCanvas() // Ensure canvas redraws after state update
           }
         },
