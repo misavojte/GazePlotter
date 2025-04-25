@@ -77,7 +77,6 @@
     bind:marginRight
     bind:marginBottom
     bind:marginLeft
-    allowNegativeMargins={true}
   />
 
   <!-- Preview Section -->

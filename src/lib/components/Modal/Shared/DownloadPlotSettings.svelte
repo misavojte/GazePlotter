@@ -14,7 +14,6 @@
     marginRight: number
     marginBottom: number
     marginLeft: number
-    allowNegativeMargins?: boolean
   }
 
   // Declare props with defaults and mark them as bindable
@@ -27,7 +26,6 @@
     marginRight = $bindable(),
     marginBottom = $bindable(),
     marginLeft = $bindable(),
-    allowNegativeMargins = false,
   }: Props = $props()
 
   // Check if DPI should be enabled (only for canvas-based formats)
@@ -108,38 +106,28 @@
   <!-- Margin Settings -->
   <div class="margin-settings">
     <h4>
-      Margins {#if allowNegativeMargins}<span class="hint"
-          >(negative values will crop the image)</span
-        >{/if}
+      Margins <span class="hint">(negative values will crop the image)</span>
     </h4>
     <div class="settings-grid-margins">
       <div class="settings-item">
-        <GeneralInputNumber
-          min={allowNegativeMargins ? -9999 : 0}
-          label="Top"
-          bind:value={marginTop}
-        />
+        <GeneralInputNumber min={-9999} label="Top" bind:value={marginTop} />
       </div>
       <div class="settings-item">
         <GeneralInputNumber
-          min={allowNegativeMargins ? -9999 : 0}
+          min={-9999}
           label="Right"
           bind:value={marginRight}
         />
       </div>
       <div class="settings-item">
         <GeneralInputNumber
-          min={allowNegativeMargins ? -9999 : 0}
+          min={-9999}
           label="Bottom"
           bind:value={marginBottom}
         />
       </div>
       <div class="settings-item">
-        <GeneralInputNumber
-          min={allowNegativeMargins ? -9999 : 0}
-          label="Left"
-          bind:value={marginLeft}
-        />
+        <GeneralInputNumber min={-9999} label="Left" bind:value={marginLeft} />
       </div>
     </div>
     <div class="margin-presets">
