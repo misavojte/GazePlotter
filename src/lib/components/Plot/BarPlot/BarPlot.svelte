@@ -8,6 +8,9 @@
   import { getStimuli, getParticipantsGroups } from '$lib/stores/dataStore'
   import BarPlotButtonMenu from './BarPlotButtonMenu.svelte'
   import { untrack } from 'svelte'
+  import PlotPlaceholder from '../Common/PlotPlaceholder.svelte'
+  import { fade } from 'svelte/transition'
+  import { onMount } from 'svelte'
   // CONSTANTS - centralized for easier maintenance
   const LAYOUT = {
     HEADER_HEIGHT: 150,
@@ -88,6 +91,11 @@
       timeline = barPlotResult.timeline
     })
   })
+
+  let mounted = $state(false)
+  onMount(() => {
+    mounted = true
+  })
 </script>
 
 <div class="bar-plot-container">
@@ -143,19 +151,41 @@
     </div>
   </div>
 
-  <BarPlotFigure
-    width={plotDimensions.width}
-    height={plotDimensions.height}
-    data={labelededBarPlotData}
-    {timeline}
-    barPlottingType={settings.barPlottingType}
-    barWidth={200}
-    barSpacing={20}
-    onDataHover={() => {}}
-  />
+  <div class="figure" style="height: {plotDimensions.height}px">
+    {#if mounted}
+      <div
+        class="figure-content"
+        in:fade={{ duration: 300 }}
+        style="height: {plotDimensions.height}px"
+      >
+        <BarPlotFigure
+          width={plotDimensions.width}
+          height={plotDimensions.height}
+          data={labelededBarPlotData}
+          {timeline}
+          barPlottingType={settings.barPlottingType}
+          barWidth={200}
+          barSpacing={20}
+          onDataHover={() => {}}
+        />
+      </div>
+    {:else}
+      <div class="figure-content" out:fade={{ duration: 300 }}>
+        <PlotPlaceholder
+          width={plotDimensions.width}
+          height={plotDimensions.height}
+        />
+      </div>
+    {/if}
+  </div>
 </div>
 
 <style>
+  .figure {
+    position: relative;
+    overflow: hidden;
+  }
+
   .bar-plot-container {
     display: flex;
     flex-direction: column;

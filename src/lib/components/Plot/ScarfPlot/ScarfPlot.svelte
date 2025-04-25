@@ -18,6 +18,8 @@
     calculateScarfHeights,
   } from '$lib/services/scarfServices'
   import { untrack } from 'svelte'
+  import PlotPlaceholder from '$lib/components/Plot/Common/PlotPlaceholder.svelte'
+  import { fade } from 'svelte/transition'
   // Component Props using Svelte 5 $props() rune
   interface Props {
     settings: ScarfGridType
@@ -207,9 +209,11 @@
     // For relative timeline, there's typically nothing to update as it's fixed at 0-100%
   }
 
+  let mounted = $state(false)
   // Lifecycle hooks
   onMount(() => {
     windowObj = window
+    mounted = true
   })
 
   onDestroy(() => {
@@ -253,19 +257,30 @@
     />
   </div>
 
-  <div class="figure">
-    <ScarfPlotFigure
-      onTooltipActivation={handleTooltipActivation}
-      onTooltipDeactivation={handleTooltipDeactivation}
-      tooltipAreaElement={tooltipArea}
-      data={scarfData}
-      {settings}
-      highlightedIdentifier={highlightedType}
-      onLegendClick={handleLegendClick}
-      onDragStepX={handleDragStepX}
-      {chartWidth}
-      calculatedHeights={heightCalculations}
-    />
+  <div class="figure" style="height: {heightCalculations.totalHeight}px">
+    {#if mounted}
+      <div class="figure-content" in:fade={{ duration: 300 }}>
+        <ScarfPlotFigure
+          onTooltipActivation={handleTooltipActivation}
+          onTooltipDeactivation={handleTooltipDeactivation}
+          tooltipAreaElement={tooltipArea}
+          data={scarfData}
+          {settings}
+          highlightedIdentifier={highlightedType}
+          onLegendClick={handleLegendClick}
+          onDragStepX={handleDragStepX}
+          {chartWidth}
+          calculatedHeights={heightCalculations}
+        />
+      </div>
+    {:else}
+      <div class="figure-content" out:fade={{ duration: 300 }}>
+        <PlotPlaceholder
+          width={chartWidth}
+          height={heightCalculations.totalHeight}
+        />
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -284,7 +299,13 @@
   }
 
   .figure {
-    flex: 1;
+    position: relative;
     overflow: auto;
+  }
+
+  .figure-content {
+    position: absolute;
+    width: 100%;
+    height: 100%;
   }
 </style>

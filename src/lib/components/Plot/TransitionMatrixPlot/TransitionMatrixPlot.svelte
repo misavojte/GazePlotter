@@ -15,6 +15,8 @@
   import ModalContentMaxValue from '$lib/components/Modal/ModalContent/ModalContentMaxValue.svelte'
   import ModalContentColorScale from '$lib/components/Modal/ModalContent/ModalContentColorScale.svelte'
   import { untrack } from 'svelte'
+  import PlotPlaceholder from '$lib/components/Plot/Common/PlotPlaceholder.svelte'
+  import { fade } from 'svelte/transition'
   interface Props {
     settings: TransitionMatrixGridType
     settingsChange: (settings: Partial<TransitionMatrixGridType>) => void
@@ -173,7 +175,7 @@
 
   {#if settings?.stimulusId !== undefined}
     {#if aoiLabels.length > 0}
-      <div class="figure-container">
+      <div class="figure-container" in:fade={{ duration: 300 }}>
         <TransitionMatrixPlotFigure
           TransitionMatrix={matrix}
           {aoiLabels}
@@ -194,12 +196,20 @@
         />
       </div>
     {:else}
-      <div class="no-data">
-        No AOI data available for the selected stimulus.
+      <div class="figure-container" in:fade={{ duration: 300 }}>
+        <PlotPlaceholder
+          width={plotDimensions.width}
+          height={plotDimensions.height}
+        />
       </div>
     {/if}
   {:else}
-    <div class="no-data">Please select a stimulus to view transition data.</div>
+    <div class="figure-container" in:fade={{ duration: 300 }}>
+      <PlotPlaceholder
+        width={plotDimensions.width}
+        height={plotDimensions.height}
+      />
+    </div>
   {/if}
 </div>
 
