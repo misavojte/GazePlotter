@@ -4,7 +4,6 @@
   import { addInfoToast } from '$lib/stores/toastStore'
   import { calculateLabelOffset } from '$lib/components/Plot/utils/textUtils'
   import { draggable } from '$lib/actions/draggable'
-  import { fadeIn } from '$lib/actions/fadeIn'
   import { onMount, untrack } from 'svelte'
   import { browser } from '$app/environment'
   import {
@@ -1482,7 +1481,6 @@
 
 <canvas
   class="scarf-plot-figure"
-  use:fadeIn
   width={totalWidth}
   height={totalHeight}
   onmousemove={handleMouseMove}

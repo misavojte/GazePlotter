@@ -4,13 +4,26 @@
   import ScarfPlotFigure from '$lib/components/Plot/ScarfPlot/ScarfPlotFigure/ScarfPlotFigure.svelte'
   import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType'
   import GeneralCanvasPreview from '$lib/components/General/GeneralCanvasPreview/GeneralCanvasPreview.svelte'
+  import { transformDataToScarfPlot } from '$lib/utils/scarfPlotTransformations'
+  import { getParticipants } from '$lib/stores/dataStore'
+  import { untrack } from 'svelte'
 
   interface Props {
     settings: ScarfGridType
     data: ScarfFillingType
   }
 
-  let { settings, data }: Props = $props()
+  let { settings }: Props = $props()
+
+  const obtainedData = transformDataToScarfPlot(
+    untrack(() => settings.stimulusId),
+    untrack(() =>
+      getParticipants(settings.groupId, settings.stimulusId).map(
+        participant => participant.id
+      )
+    ),
+    untrack(() => settings)
+  )
 
   // Export settings state
   let typeOfExport = $state<'.png' | '.jpg'>('.png')
@@ -22,26 +35,11 @@
   let marginBottom = $state(20) /* in px */
   let marginLeft = $state(20) /* in px */
 
-  // States for interaction
-  let highlightedIdentifier = $state<string | null>(null)
-  let tooltipAreaElement = $state<HTMLElement | SVGElement | null>(null)
-
-  const obtainedData = data // NON REACTIVE DATA
-
   // Calculate the effective width (what will be available for the chart after margins)
   const effectiveWidth = $derived(width - (marginLeft + marginRight))
 
   // Calculate the total height
   const totalHeight = obtainedData.chartHeight + 130
-
-  // Handlers for ScarfPlotFigure
-  const handleLegendClick = (identifier: string) => {
-    highlightedIdentifier =
-      identifier === highlightedIdentifier ? null : identifier
-  }
-
-  const handleTooltipActivation = () => {}
-  const handleTooltipDeactivation = () => {}
 
   // Calculate heights for ScarfPlotFigure
   const calculatedHeights = $derived({
@@ -65,20 +63,6 @@
       obtainedData.participants.length * obtainedData.heightOfBarWrap + 40,
     legendY:
       obtainedData.participants.length * obtainedData.heightOfBarWrap + 80,
-  })
-
-  // Props to pass to the ScarfPlotFigure component
-  const scarfPlotProps = $derived({
-    data: obtainedData,
-    settings,
-    highlightedIdentifier,
-    tooltipAreaElement,
-    onLegendClick: handleLegendClick,
-    onTooltipActivation: handleTooltipActivation,
-    onTooltipDeactivation: handleTooltipDeactivation,
-    chartWidth: effectiveWidth,
-    calculatedHeights,
-    dpiOverride: dpi,
   })
 </script>
 
@@ -105,16 +89,24 @@
       <GeneralCanvasPreview
         {fileName}
         fileType={typeOfExport}
-        {width}
-        height={totalHeight + marginTop + marginBottom}
-        {marginTop}
-        {marginRight}
-        {marginBottom}
-        {marginLeft}
-        {dpi}
         showDownloadButton={true}
       >
-        <ScarfPlotFigure {...scarfPlotProps} />
+        <ScarfPlotFigure
+          dpiOverride={dpi}
+          {marginTop}
+          {marginRight}
+          {marginBottom}
+          {marginLeft}
+          data={obtainedData}
+          {settings}
+          chartWidth={effectiveWidth}
+          {calculatedHeights}
+          highlightedIdentifier={null}
+          tooltipAreaElement={null}
+          onLegendClick={() => {}}
+          onTooltipActivation={() => {}}
+          onTooltipDeactivation={() => {}}
+        />
       </GeneralCanvasPreview>
     </div>
   </div>

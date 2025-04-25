@@ -82,6 +82,10 @@
     showBelowMinLabels: settings.showBelowMinLabels,
     showAboveMaxLabels: settings.showAboveMaxLabels,
     dpiOverride: dpi, // Pass the dpi directly to the component
+    marginTop,
+    marginRight,
+    marginBottom,
+    marginLeft,
   })
 </script>
 
@@ -108,13 +112,6 @@
       <GeneralCanvasPreview
         {fileName}
         fileType={typeOfExport}
-        {width}
-        height={totalHeight + marginTop + marginBottom}
-        {marginTop}
-        {marginRight}
-        {marginBottom}
-        {marginLeft}
-        {dpi}
         showDownloadButton={true}
       >
         <TransitionMatrixPlotFigure {...matrixPlotProps} />

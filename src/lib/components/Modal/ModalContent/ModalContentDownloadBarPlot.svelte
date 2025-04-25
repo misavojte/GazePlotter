@@ -39,6 +39,10 @@
     barSpacing: 20,
     onDataHover: () => {},
     dpiOverride: dpi,
+    marginTop,
+    marginRight,
+    marginBottom,
+    marginLeft,
   })
 </script>
 
@@ -64,13 +68,6 @@
       <GeneralCanvasPreview
         {fileName}
         fileType={typeOfExport}
-        {width}
-        height={effectiveHeight + marginTop + marginBottom}
-        {marginTop}
-        {marginRight}
-        {marginBottom}
-        {marginLeft}
-        {dpi}
         showDownloadButton={true}
       >
         <BarPlotFigure {...barPlotProps} />
