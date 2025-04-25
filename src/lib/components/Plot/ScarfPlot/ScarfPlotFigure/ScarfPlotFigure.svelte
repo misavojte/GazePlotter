@@ -1369,6 +1369,10 @@
       usedHighlight,
       chartWidth,
       dpiOverride, // Add dpiOverride to the dependency list
+      marginLeft,
+      marginRight,
+      marginTop,
+      marginBottom,
     ]
 
     // Schedule a render instead of immediate execution

@@ -141,24 +141,25 @@
           bind:value={marginLeft}
         />
       </div>
-      <div class="settings-item all-margins">
-        <GeneralButtonPreset
-          label="Set all to 20px"
-          isActive={marginTop === 20 &&
-            marginRight === 20 &&
-            marginBottom === 20 &&
-            marginLeft === 20}
-          onclick={() => setAllMargins(20)}
-        />
-        <GeneralButtonPreset
-          label="Set all to 0px"
-          isActive={marginTop === 0 &&
-            marginRight === 0 &&
-            marginBottom === 0 &&
-            marginLeft === 0}
-          onclick={() => setAllMargins(0)}
-        />
-      </div>
+    </div>
+    <div class="margin-presets">
+      <span class="presets-label">Margin Presets:</span>
+      <GeneralButtonPreset
+        label="20px"
+        isActive={marginTop === 20 &&
+          marginRight === 20 &&
+          marginBottom === 20 &&
+          marginLeft === 20}
+        onclick={() => setAllMargins(20)}
+      />
+      <GeneralButtonPreset
+        label="0px"
+        isActive={marginTop === 0 &&
+          marginRight === 0 &&
+          marginBottom === 0 &&
+          marginLeft === 0}
+        onclick={() => setAllMargins(0)}
+      />
     </div>
   </div>
 </div>
@@ -186,17 +187,15 @@
   }
 
   .settings-grid-main {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 1rem;
-    align-items: start;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
   }
 
   .settings-grid-margins {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 1rem;
-    align-items: start;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
   }
 
   .dpi-container {
@@ -220,30 +219,32 @@
     color: var(--c-darkgrey);
   }
 
-  .all-margins {
-    grid-column: 1 / -1;
+  .margin-presets {
     display: flex;
-    gap: 0.5rem;
-    justify-content: flex-start;
-    margin-top: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
+    margin-top: 7px;
   }
 
   .settings-item {
-    min-width: 0;
+    max-width: 180px;
+    width: 100%;
+    flex: 1;
   }
 
   /* Mobile layout adjustments */
   @media (max-width: 600px) {
     .settings-grid-main,
     .settings-grid-margins {
-      grid-template-columns: 1fr;
+      flex-direction: column;
     }
 
-    .all-margins {
-      grid-column: span 1;
+    .settings-item {
+      max-width: 100%;
     }
 
-    .dpi-presets {
+    .margin-presets {
       flex-direction: column;
       align-items: flex-start;
     }
