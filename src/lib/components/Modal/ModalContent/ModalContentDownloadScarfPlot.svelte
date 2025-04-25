@@ -26,11 +26,13 @@
   let highlightedIdentifier = $state<string | null>(null)
   let tooltipAreaElement = $state<HTMLElement | SVGElement | null>(null)
 
+  const obtainedData = data // NON REACTIVE DATA
+
   // Calculate the effective width (what will be available for the chart after margins)
   const effectiveWidth = $derived(width - (marginLeft + marginRight))
 
   // Calculate the total height
-  const totalHeight = $derived(data.chartHeight + 130)
+  const totalHeight = obtainedData.chartHeight + 130
 
   // Handlers for ScarfPlotFigure
   const handleLegendClick = (identifier: string) => {
@@ -43,28 +45,31 @@
 
   // Calculate heights for ScarfPlotFigure
   const calculatedHeights = $derived({
-    participantBarHeight: data.heightOfBarWrap,
-    heightOfParticipantBars: data.participants.length * data.heightOfBarWrap,
-    chartHeight: data.chartHeight,
+    participantBarHeight: obtainedData.heightOfBarWrap,
+    heightOfParticipantBars:
+      obtainedData.participants.length * obtainedData.heightOfBarWrap,
+    chartHeight: obtainedData.chartHeight,
     // Calculate a reasonable legend height
-    legendHeight: data.stylingAndLegend
+    legendHeight: obtainedData.stylingAndLegend
       ? Math.max(
           50,
-          ((data.stylingAndLegend.aoi.length +
-            data.stylingAndLegend.category.length +
-            data.stylingAndLegend.visibility.length) *
+          ((obtainedData.stylingAndLegend.aoi.length +
+            obtainedData.stylingAndLegend.category.length +
+            obtainedData.stylingAndLegend.visibility.length) *
             30) /
             3
         )
       : 50,
     totalHeight: totalHeight,
-    axisLabelY: data.participants.length * data.heightOfBarWrap + 40,
-    legendY: data.participants.length * data.heightOfBarWrap + 80,
+    axisLabelY:
+      obtainedData.participants.length * obtainedData.heightOfBarWrap + 40,
+    legendY:
+      obtainedData.participants.length * obtainedData.heightOfBarWrap + 80,
   })
 
   // Props to pass to the ScarfPlotFigure component
   const scarfPlotProps = $derived({
-    data,
+    data: obtainedData,
     settings,
     highlightedIdentifier,
     tooltipAreaElement,
