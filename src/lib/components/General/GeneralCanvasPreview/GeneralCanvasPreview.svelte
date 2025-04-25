@@ -1,7 +1,6 @@
 <script lang="ts">
   import MajorButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import { addErrorToast } from '$lib/stores/toastStore'
-  import { onMount } from 'svelte'
 
   // Component props
   interface Props {
@@ -20,9 +19,7 @@
 
   // States
   let componentContainer = $state<HTMLElement | null>(null) // Container for the child component
-
   let isGeneratingDownload = $state(false)
-  let isLoading = $state(true) // New state for initial loading
 
   // Function to generate high-resolution download
   async function generateDownload() {
@@ -37,8 +34,30 @@
       const mimeType = fileType === '.png' ? 'image/png' : 'image/jpeg'
       const quality = fileType === '.jpg' ? 0.95 : undefined
 
+      let exportCanvas = childCanvas
+
+      // Only add white background for JPG
+      if (fileType === '.jpg') {
+        // Create a temporary canvas with white background
+        const tempCanvas = document.createElement('canvas')
+        const ctx = tempCanvas.getContext('2d')
+        if (!ctx) throw new Error('Failed to get canvas context')
+
+        // Set the same dimensions as the original canvas
+        tempCanvas.width = childCanvas.width
+        tempCanvas.height = childCanvas.height
+
+        // Fill with white background
+        ctx.fillStyle = 'white'
+        ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height)
+
+        // Draw the original canvas content on top
+        ctx.drawImage(childCanvas, 0, 0)
+        exportCanvas = tempCanvas
+      }
+
       const blob = await new Promise<Blob | null>(resolve => {
-        childCanvas.toBlob(resolve, mimeType, quality)
+        exportCanvas.toBlob(resolve, mimeType, quality)
       })
 
       if (!blob) throw new Error('Failed to create image blob')
@@ -68,14 +87,6 @@
   function handleDownload() {
     generateDownload()
   }
-
-  // Initial render after component mounts
-  onMount(() => {
-    // Set loading state for 1 second
-    setTimeout(() => {
-      isLoading = false
-    }, 1000)
-  })
 </script>
 
 <div class="preview-container">
@@ -83,25 +94,20 @@
   <div class="component-container" bind:this={componentContainer}>
     <!-- Preview area -->
     <div class="preview-wrapper">
-      {#if isLoading}
-        <div class="loading-overlay">
-          <div class="spinner"></div>
-          <p>Loading preview...</p>
-        </div>
-      {:else}
-        <div class="child-wrapper">
-          {@render children()}
-        </div>
-      {/if}
+      <div
+        class="child-wrapper"
+        style="background-color: {fileType === '.jpg'
+          ? 'white'
+          : 'transparent'};"
+      >
+        {@render children()}
+      </div>
     </div>
 
     <!-- Download button -->
     {#if showDownloadButton}
       <div class="preview-actions">
-        <MajorButton
-          onclick={handleDownload}
-          isDisabled={isGeneratingDownload || isLoading}
-        >
+        <MajorButton onclick={handleDownload} isDisabled={isGeneratingDownload}>
           {isGeneratingDownload
             ? `Generating ${fileType.substring(1).toUpperCase()}...`
             : `Download ${fileName}${fileType}`}
@@ -143,39 +149,6 @@
       0 10px,
       10px -10px,
       -10px 0px;
-  }
-
-  .loading-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(255, 255, 255, 0.8);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    font-weight: 500;
-    gap: 1rem;
-  }
-
-  .spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #3498db;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    0% {
-      transform: rotate(0deg);
-    }
-    100% {
-      transform: rotate(360deg);
-    }
   }
 
   .preview-actions {
