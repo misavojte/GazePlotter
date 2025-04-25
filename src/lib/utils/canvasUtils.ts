@@ -14,6 +14,7 @@ export interface CanvasState {
   pixelRatio: number
   canvasRect: DOMRect | null
   renderScheduled: boolean
+  dpiOverride: number | null
 }
 
 /**
@@ -26,6 +27,7 @@ export function createCanvasState(): CanvasState {
     pixelRatio: browser ? window.devicePixelRatio || 1 : 1,
     canvasRect: null,
     renderScheduled: false,
+    dpiOverride: null,
   }
 }
 
@@ -39,7 +41,7 @@ export function createCanvasState(): CanvasState {
 export function setupCanvas(
   state: CanvasState,
   canvas: HTMLCanvasElement,
-  dpiOverride: number | null = null
+  dpiOverride: number | null
 ): CanvasState {
   if (!browser) return state
 
@@ -59,6 +61,7 @@ export function setupCanvas(
     context,
     pixelRatio,
     canvasRect,
+    dpiOverride,
   }
 }
 
@@ -173,11 +176,12 @@ export function forceCanvasRedraw(
   height: number,
   renderCallback: () => void
 ): CanvasState {
-  const { canvas } = state
+  const { canvas, dpiOverride } = state
   if (!canvas || !browser) return state
 
-  // Get the current DPI
-  const pixelRatio = window.devicePixelRatio || 1
+  // Get the current DPI or use override
+  const pixelRatio =
+    dpiOverride !== null ? dpiOverride / 96 : window.devicePixelRatio || 1
 
   // Create a new state with updated values
   const newState = {
@@ -211,17 +215,23 @@ export function updateDpiAndRect(
 
   const state = getState()
   const { canvas } = state
-  if (!canvas || dpiOverride !== null) return
+  if (!canvas) return
 
-  const newPixelRatio = window.devicePixelRatio || 1
+  // Check if dpiOverride changed
+  const dpiChanged = state.dpiOverride !== dpiOverride
 
-  // Only update if DPI actually changed
-  if (newPixelRatio !== state.pixelRatio) {
-    // Update the state with new pixel ratio
+  // If dpiOverride is provided, use it to calculate pixelRatio
+  const newPixelRatio =
+    dpiOverride !== null ? dpiOverride / 96 : window.devicePixelRatio || 1
+
+  // Update if DPI changed or dpiOverride changed
+  if (newPixelRatio !== state.pixelRatio || dpiChanged) {
+    // Update the state with new pixel ratio and dpiOverride
     const newState = {
       ...state,
       pixelRatio: newPixelRatio,
       canvasRect: canvas.getBoundingClientRect(),
+      dpiOverride,
     }
 
     // Set the new state
@@ -253,6 +263,9 @@ export function setupDpiChangeListeners(
   renderCallback: () => void
 ): () => void {
   if (!browser) return () => {}
+
+  // Initially update with the dpiOverride
+  updateDpiAndRect(getState, setStateFn, dpiOverride, renderCallback)
 
   // Update handler that always gets fresh state
   const handleUpdate = () => {

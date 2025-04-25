@@ -1353,10 +1353,15 @@
       highlightedIdentifier,
       usedHighlight,
       chartWidth,
+      dpiOverride, // Add dpiOverride to the dependency list
     ]
 
     // Schedule a render instead of immediate execution
     untrack(() => {
+      // If dpiOverride changed, reinitialize the canvas with the new value
+      if (canvas && canvasState.dpiOverride !== dpiOverride) {
+        canvasState = setupCanvas(canvasState, canvas, dpiOverride)
+      }
       resizeCanvas(canvasState, totalWidth, totalHeight)
       scheduleRender()
     })

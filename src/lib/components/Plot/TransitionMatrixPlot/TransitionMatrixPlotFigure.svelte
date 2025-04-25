@@ -857,19 +857,35 @@
 
   // Track data changes and schedule renders
   $effect(() => {
-    // Just track the data dependencies
-    const _ = [TransitionMatrix, aoiLabels, colorValueRange, colorScale]
-    // UNTRACK IS ABSOLUTELY NECESSARY HERE
-    // TO AVOID INFINITE RENDER LOOP
+    // These direct references create dependencies on relevant data
+    const _ = [
+      TransitionMatrix,
+      aoiLabels,
+      width,
+      height,
+      colorScale,
+      xLabel,
+      yLabel,
+      legendTitle,
+      colorValueRange,
+      belowMinColor,
+      aboveMaxColor,
+      showBelowMinLabels,
+      showAboveMaxLabels,
+      dpiOverride,
+    ]
+
     untrack(() => {
       if (canvasState.canvas && canvasState.context) {
-        // Reset canvas state with new DPI override
-        canvasState = setupCanvas(canvasState, canvasState.canvas, dpiOverride)
+        // Reset canvas state with new DPI override if it changed
+        if (canvasState.dpiOverride !== dpiOverride) {
+          canvasState = setupCanvas(
+            canvasState,
+            canvasState.canvas,
+            dpiOverride
+          )
+        }
         canvasState = resizeCanvas(canvasState, width, height)
-      }
-
-      // Schedule a render if we have a valid canvas
-      if (canvasState.canvas && canvasState.context) {
         scheduleRender()
       }
     })

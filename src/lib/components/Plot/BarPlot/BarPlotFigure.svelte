@@ -509,17 +509,26 @@
   // Track data changes and schedule renders
   $effect(() => {
     // Just track the data dependencies
-    const _ = [data, timeline, barPlottingType, barWidth, barSpacing]
+    const _ = [
+      data,
+      timeline,
+      barPlottingType,
+      barWidth,
+      barSpacing,
+      dpiOverride,
+    ]
 
     untrack(() => {
       if (canvasState.canvas && canvasState.context) {
-        // Reset canvas state with new DPI override
-        canvasState = setupCanvas(canvasState, canvasState.canvas, dpiOverride)
+        // Reset canvas state with new DPI override if needed
+        if (canvasState.dpiOverride !== dpiOverride) {
+          canvasState = setupCanvas(
+            canvasState,
+            canvasState.canvas,
+            dpiOverride
+          )
+        }
         canvasState = resizeCanvas(canvasState, width, height)
-      }
-
-      // Schedule a render if we have a valid canvas
-      if (canvasState.canvas && canvasState.context) {
         scheduleRender()
       }
     })
