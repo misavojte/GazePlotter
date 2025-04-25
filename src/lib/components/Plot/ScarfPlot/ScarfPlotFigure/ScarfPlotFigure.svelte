@@ -1,4 +1,3 @@
-<!-- @migration-task Error while migrating Svelte code: Can't migrate code with afterUpdate. Please migrate by hand. -->
 <script lang="ts">
   import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType'
   import type { ScarfGridType } from '$lib/type/gridType'
@@ -6,13 +5,25 @@
   import { calculateLabelOffset } from '$lib/components/Plot/utils/textUtils'
   import { draggable } from '$lib/actions/draggable'
   import { fadeIn } from '$lib/actions/fadeIn'
-  import { onMount } from 'svelte'
+  import { onMount, untrack } from 'svelte'
+  import { browser } from '$app/environment'
   import {
     SCARF_LAYOUT,
     getItemsPerRow,
     getXAxisLabel,
     getTimelineUnit,
   } from '$lib/services/scarfServices'
+  import {
+    createCanvasState,
+    setupCanvas,
+    resizeCanvas,
+    getScaledMousePosition,
+    getTooltipPosition,
+    setupDpiChangeListeners,
+    beginCanvasDrawing,
+    finishCanvasDrawing,
+    type CanvasState,
+  } from '$lib/utils/canvasUtils'
 
   // CONSTANTS - layout dimensions and styling
   const LAYOUT = SCARF_LAYOUT
@@ -96,17 +107,17 @@
   let isHoveringSegment = $state(false) // Track if hovering or recently hovering a segment
   let hoverTimeout: number | null = $state(null) // Timeout ID
   let canvas = $state<HTMLCanvasElement | null>(null)
-  let canvasCtx = $state<CanvasRenderingContext2D | null>(null)
-  let lastMouseX = $state(0)
-  let lastMouseY = $state(0)
-  let dragStartX = $state(0)
-  let pixelRatio = $state(1)
-  let renderScheduled = $state(false) // Track if a render is scheduled
-  let canvasRect = $state<DOMRect | null>(null) // Store the canvas rect for stable calculations
+  let canvasState = $state<CanvasState>(createCanvasState())
+  let dragStartX = $state(0) // Track drag start position
 
   // Derived values using Svelte 5 $derived rune
   const usedHighlight = $derived(fixedHighlight ?? highlightedIdentifier)
   const xAxisLabel = $derived(getXAxisLabel(settings.timeline))
+
+  // Add derived stores for data properties
+  const heightOfBarWrap = $derived(data.heightOfBarWrap)
+  const participantCount = $derived(data.participants.length)
+  const tickCount = $derived(data.timeline.ticks.length)
 
   // Memoize legend geometry to avoid recalculating on every mouse move
   const legendGeometry = $derived.by(() => {
@@ -299,14 +310,14 @@
       // If already highlighted, clear it
       fixedHighlight = null
       highlightedIdentifier = null
-      renderCanvas() // Redraw canvas
+      //renderCanvas() // Redraw canvas
       return
     }
 
     // Otherwise, set the fixed highlight
     fixedHighlight = identifier
     addInfoToast(`Highlight fixed. Click the same item in the legend to remove`)
-    renderCanvas() // Redraw canvas
+    //renderCanvas() // Redraw canvas
   }
 
   function handleLegendIdentifier(identifier: string) {
@@ -316,94 +327,48 @@
   }
 
   // Canvas drawing functions
-  function clearCanvas() {
-    if (!canvasCtx || !canvas) return
-    canvasCtx.clearRect(0, 0, canvas.width, canvas.height)
-  }
-
-  function setupCanvas() {
-    if (!canvas) return
-
-    // Use DPI override if provided, otherwise use device pixel ratio
-    pixelRatio =
-      dpiOverride !== null ? dpiOverride / 96 : window.devicePixelRatio || 1
-
-    // Get and save the context
-    canvasCtx = canvas.getContext('2d')
-    if (!canvasCtx) return
-
-    resizeCanvas()
-
-    // Store initial canvas rect for consistent coordinate calculations
-    canvasRect = canvas.getBoundingClientRect()
-
-    // Initial render
-    renderCanvas()
-
-    // Bind the tooltip area element
-    tooltipAreaElement = canvas
-  }
-
-  function resizeCanvas() {
-    if (!canvas || !canvasCtx) return
-
-    // Use total height from calculatedHeights directly
-    const actualTotalHeight = calculatedHeights.totalHeight
-
-    // Set actual canvas dimensions (scaled for high DPI)
-    canvas.width = totalWidth * pixelRatio
-    canvas.height = actualTotalHeight * pixelRatio
-
-    // Set display size (css pixels)
-    canvas.style.width = `${totalWidth}px`
-    canvas.style.height = `${actualTotalHeight}px`
-  }
-
   function renderCanvas() {
-    if (!canvasCtx || !canvas) return
-    clearCanvas()
+    beginCanvasDrawing(canvasState, true)
 
-    // Scale all drawing operations by the device pixel ratio
-    canvasCtx.save()
-    canvasCtx.scale(pixelRatio, pixelRatio)
+    // Get context from state
+    const ctx = canvasState.context
+    if (!ctx) return
 
     // Draw participant labels (Left Side)
-    drawParticipantLabels()
+    drawParticipantLabels(ctx)
 
     // Draw horizontal grid lines
-    drawHorizontalGridLines()
+    drawHorizontalGridLines(ctx)
 
     // Draw timeline axis labels and ticks
-    drawTimelineLabels()
+    drawTimelineLabels(ctx)
 
     // Draw X-Axis ticks and bottom border
-    drawXAxisTicksAndBorder()
+    drawXAxisTicksAndBorder(ctx)
 
     // Draw rectangle segments
-    drawRectangles()
+    drawRectangles(ctx)
 
     // Draw line segments
-    drawLines()
+    drawLines(ctx)
 
     // Draw X-Axis label
-    drawXAxisLabel()
+    drawXAxisLabel(ctx)
 
     // Draw the legend
-    drawLegend()
+    drawLegend(ctx)
 
-    canvasCtx.restore()
+    finishCanvasDrawing(canvasState)
   }
 
-  function drawParticipantLabels() {
-    if (!canvasCtx) return
-
-    canvasCtx.font = `${LAYOUT.LABEL_FONT_SIZE}px sans-serif`
-    canvasCtx.fillStyle = '#000'
-    canvasCtx.textAlign = 'start'
-    canvasCtx.textBaseline = 'middle'
+  function drawParticipantLabels(ctx: CanvasRenderingContext2D) {
+    ctx.font = `${LAYOUT.LABEL_FONT_SIZE}px sans-serif`
+    ctx.fillStyle = '#000'
+    ctx.textAlign = 'start'
+    ctx.textBaseline = 'middle'
 
     data.participants.forEach((participant, i) => {
-      canvasCtx!.fillText(
+      ctx.fillText(
         participant.label,
         LAYOUT.PADDING,
         i * data.heightOfBarWrap + (data.heightOfBarWrap >> 1)
@@ -411,43 +376,41 @@
     })
   }
 
-  function drawHorizontalGridLines() {
-    if (!canvasCtx) return
-
-    canvasCtx.strokeStyle = LAYOUT.GRID_COLOR
-    canvasCtx.lineWidth = LAYOUT.GRID_STROKE_WIDTH
+  function drawHorizontalGridLines(ctx: CanvasRenderingContext2D) {
+    ctx.strokeStyle = LAYOUT.GRID_COLOR
+    ctx.lineWidth = LAYOUT.GRID_STROKE_WIDTH
 
     data.participants.forEach((_, i) => {
       // Draw grid lines exactly at bar boundaries
       const y = i * calculatedHeights.participantBarHeight
-      canvasCtx!.beginPath()
-      canvasCtx!.moveTo(LEFT_LABEL_WIDTH, y)
-      canvasCtx!.lineTo(LEFT_LABEL_WIDTH + plotAreaWidth, y)
-      canvasCtx!.stroke()
+      ctx.beginPath()
+      ctx.moveTo(LEFT_LABEL_WIDTH, y)
+      ctx.lineTo(LEFT_LABEL_WIDTH + plotAreaWidth, y)
+      ctx.stroke()
     })
 
     // Draw final grid line at the bottom
     const y = calculatedHeights.heightOfParticipantBars
-    canvasCtx!.beginPath()
-    canvasCtx!.moveTo(LEFT_LABEL_WIDTH, y)
-    canvasCtx!.lineTo(LEFT_LABEL_WIDTH + plotAreaWidth, y)
-    canvasCtx!.stroke()
+    ctx.beginPath()
+    ctx.moveTo(LEFT_LABEL_WIDTH, y)
+    ctx.lineTo(LEFT_LABEL_WIDTH + plotAreaWidth, y)
+    ctx.stroke()
   }
 
-  function drawTimelineLabels() {
-    if (!canvasCtx || data.timeline.ticks.length === 0) return
+  function drawTimelineLabels(ctx: CanvasRenderingContext2D) {
+    if (data.timeline.ticks.length === 0) return
 
-    canvasCtx.font = `${LAYOUT.LABEL_FONT_SIZE}px sans-serif`
-    canvasCtx.fillStyle = '#000'
-    canvasCtx.textAlign = 'center'
-    canvasCtx.textBaseline = 'hanging'
+    ctx.font = `${LAYOUT.LABEL_FONT_SIZE}px sans-serif`
+    ctx.fillStyle = '#000'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'hanging'
 
     // Position labels just 5px below the participant bars
     const yPos = calculatedHeights.heightOfParticipantBars + 10
 
     data.timeline.ticks.forEach(tick => {
       if (tick.isNice) {
-        canvasCtx!.fillText(
+        ctx.fillText(
           tick.label,
           LEFT_LABEL_WIDTH + tick.position * plotAreaWidth,
           yPos
@@ -456,11 +419,9 @@
     })
   }
 
-  function drawXAxisTicksAndBorder() {
-    if (!canvasCtx) return
-
-    canvasCtx.strokeStyle = LAYOUT.GRID_COLOR
-    canvasCtx.lineWidth = 1.5
+  function drawXAxisTicksAndBorder(ctx: CanvasRenderingContext2D) {
+    ctx.strokeStyle = LAYOUT.GRID_COLOR
+    ctx.lineWidth = 1.5
 
     // Use the exact height from calculatedHeights
     const yLine = calculatedHeights.heightOfParticipantBars
@@ -471,85 +432,75 @@
       const y1 = yLine
       const y2 = y1 + 5
 
-      canvasCtx!.beginPath()
-      canvasCtx!.moveTo(x, y1)
-      canvasCtx!.lineTo(x, y2)
-      canvasCtx!.stroke()
+      ctx.beginPath()
+      ctx.moveTo(x, y1)
+      ctx.lineTo(x, y2)
+      ctx.stroke()
     })
 
     // Draw bottom border line
-    canvasCtx.beginPath()
-    canvasCtx.moveTo(LEFT_LABEL_WIDTH, yLine)
-    canvasCtx.lineTo(LEFT_LABEL_WIDTH + plotAreaWidth, yLine)
-    canvasCtx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(LEFT_LABEL_WIDTH, yLine)
+    ctx.lineTo(LEFT_LABEL_WIDTH + plotAreaWidth, yLine)
+    ctx.stroke()
   }
 
-  function drawRectangles() {
-    if (!canvasCtx) return
-
+  function drawRectangles(ctx: CanvasRenderingContext2D) {
     rectangleSegments.forEach(rect => {
-      canvasCtx!.globalAlpha = rect.opacity
-      canvasCtx!.fillStyle = rect.fill
+      ctx.globalAlpha = rect.opacity
+      ctx.fillStyle = rect.fill
 
-      canvasCtx!.fillRect(rect.x, rect.y, rect.width, rect.height)
+      ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
 
       if (rect.stroke) {
-        canvasCtx!.strokeStyle = rect.stroke
-        canvasCtx!.lineWidth = rect.strokeWidth || 1
-        canvasCtx!.strokeRect(rect.x, rect.y, rect.width, rect.height)
+        ctx.strokeStyle = rect.stroke
+        ctx.lineWidth = rect.strokeWidth || 1
+        ctx.strokeRect(rect.x, rect.y, rect.width, rect.height)
       }
     })
 
-    canvasCtx.globalAlpha = 1
+    ctx.globalAlpha = 1
   }
 
-  function drawLines() {
-    if (!canvasCtx) return
-
+  function drawLines(ctx: CanvasRenderingContext2D) {
     lineSegments.forEach(line => {
-      canvasCtx!.globalAlpha = line.opacity
-      canvasCtx!.strokeStyle = line.stroke
-      canvasCtx!.lineWidth = line.strokeWidth
+      ctx.globalAlpha = line.opacity
+      ctx.strokeStyle = line.stroke
+      ctx.lineWidth = line.strokeWidth
 
       // Handle line dash
       if (line.strokeDasharray && line.strokeDasharray !== 'none') {
-        canvasCtx!.setLineDash([2, 2]) // Simple dash pattern
+        ctx.setLineDash([2, 2]) // Simple dash pattern
       } else {
-        canvasCtx!.setLineDash([])
+        ctx.setLineDash([])
       }
 
       // Handle line cap
       if (line.strokeLinecap) {
-        canvasCtx!.lineCap = line.strokeLinecap as CanvasLineCap
+        ctx.lineCap = line.strokeLinecap as CanvasLineCap
       }
 
-      canvasCtx!.beginPath()
-      canvasCtx!.moveTo(line.x1, line.y1)
-      canvasCtx!.lineTo(line.x2, line.y2)
-      canvasCtx!.stroke()
+      ctx.beginPath()
+      ctx.moveTo(line.x1, line.y1)
+      ctx.lineTo(line.x2, line.y2)
+      ctx.stroke()
     })
 
     // Reset
-    canvasCtx.globalAlpha = 1
-    canvasCtx.setLineDash([])
+    ctx.globalAlpha = 1
+    ctx.setLineDash([])
   }
 
-  function drawXAxisLabel() {
-    if (!canvasCtx) return
-
-    canvasCtx.font = `${LAYOUT.LABEL_FONT_SIZE}px sans-serif`
-    canvasCtx.fillStyle = '#000'
-    canvasCtx.textAlign = 'center'
-    canvasCtx.textBaseline = 'top'
+  function drawXAxisLabel(ctx: CanvasRenderingContext2D) {
+    ctx.font = `${LAYOUT.LABEL_FONT_SIZE}px sans-serif`
+    ctx.fillStyle = '#000'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'top'
 
     // Position the label using exact coordinates from calculatedHeights
     const labelY = calculatedHeights.axisLabelY
 
-    canvasCtx.fillText(
-      xAxisLabel,
-      LEFT_LABEL_WIDTH + (plotAreaWidth >> 1),
-      labelY
-    )
+    ctx.fillText(xAxisLabel, LEFT_LABEL_WIDTH + (plotAreaWidth >> 1), labelY)
   }
 
   // Calculate legend geometry - for rendering and hit detection
@@ -722,9 +673,7 @@
   }
 
   // Draw the legend on the canvas
-  function drawLegend() {
-    if (!canvasCtx) return
-
+  function drawLegend(ctx: CanvasRenderingContext2D) {
     // Skip legend if no content
     if (
       !legendGeometry ||
@@ -735,13 +684,13 @@
 
     // Draw group titles
     if (legendGeometry.groupTitles && legendGeometry.groupTitles.length > 0) {
-      canvasCtx.font = `bold ${LEGEND.FONT_SIZE}px sans-serif`
-      canvasCtx.fillStyle = '#000'
-      canvasCtx.textAlign = 'left'
-      canvasCtx.textBaseline = 'top'
+      ctx.font = `bold ${LEGEND.FONT_SIZE}px sans-serif`
+      ctx.fillStyle = '#000'
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'top'
 
       legendGeometry.groupTitles.forEach(group => {
-        canvasCtx!.fillText(group.title, group.x, group.y)
+        ctx.fillText(group.title, group.x, group.y)
       })
     }
 
@@ -753,15 +702,15 @@
 
         // Set opacity based on highlight state
         if (anyHighlightActive) {
-          canvasCtx!.globalAlpha = isHighlighted ? 1.0 : 0.15
+          ctx.globalAlpha = isHighlighted ? 1.0 : 0.15
         } else {
-          canvasCtx!.globalAlpha = 1.0
+          ctx.globalAlpha = 1.0
         }
 
         // Draw item background (highlight or hover effect)
         if (isHighlighted) {
-          canvasCtx!.fillStyle = LEGEND.BG_HOVER_COLOR
-          canvasCtx!.fillRect(
+          ctx.fillStyle = LEGEND.BG_HOVER_COLOR
+          ctx.fillRect(
             item.x - 5,
             item.y - 5,
             item.width + 5,
@@ -771,8 +720,8 @@
 
         // Draw the appropriate icon type (rect or line)
         if (item.type === 'rect') {
-          canvasCtx!.fillStyle = item.color
-          canvasCtx!.fillRect(
+          ctx.fillStyle = item.color
+          ctx.fillRect(
             item.x,
             item.y + ((LEGEND.ITEM_HEIGHT - item.height) >> 1),
             LEGEND.ICON_WIDTH,
@@ -781,9 +730,9 @@
 
           // Add stroke if highlighted
           if (isHighlighted) {
-            canvasCtx!.strokeStyle = LEGEND.RECT_HIGHLIGHT_STROKE
-            canvasCtx!.lineWidth = LEGEND.RECT_HIGHLIGHT_STROKE_WIDTH
-            canvasCtx!.strokeRect(
+            ctx.strokeStyle = LEGEND.RECT_HIGHLIGHT_STROKE
+            ctx.lineWidth = LEGEND.RECT_HIGHLIGHT_STROKE_WIDTH
+            ctx.strokeRect(
               item.x,
               item.y + ((LEGEND.ITEM_HEIGHT - item.height) >> 1),
               LEGEND.ICON_WIDTH,
@@ -792,41 +741,41 @@
           }
         } else {
           // Draw line for visibility items
-          canvasCtx!.strokeStyle = item.color
-          canvasCtx!.lineWidth = isHighlighted
+          ctx.strokeStyle = item.color
+          ctx.lineWidth = isHighlighted
             ? LEGEND.LINE_HIGHLIGHT_STROKE_WIDTH
             : item.height
 
           if (!isHighlighted) {
-            canvasCtx!.setLineDash([2, 2])
+            ctx.setLineDash([2, 2])
           } else {
-            canvasCtx!.setLineDash([])
-            canvasCtx!.lineCap = 'butt'
+            ctx.setLineDash([])
+            ctx.lineCap = 'butt'
           }
 
-          canvasCtx!.beginPath()
-          canvasCtx!.moveTo(item.x, item.y + (LEGEND.ITEM_HEIGHT >> 1))
-          canvasCtx!.lineTo(
+          ctx.beginPath()
+          ctx.moveTo(item.x, item.y + (LEGEND.ITEM_HEIGHT >> 1))
+          ctx.lineTo(
             item.x + LEGEND.ICON_WIDTH,
             item.y + (LEGEND.ITEM_HEIGHT >> 1)
           )
-          canvasCtx!.stroke()
+          ctx.stroke()
 
           // Reset dash array
-          canvasCtx!.setLineDash([])
+          ctx.setLineDash([])
         }
 
         // Draw item text
-        canvasCtx!.fillStyle = '#000'
-        canvasCtx!.font = isHighlighted
+        ctx.fillStyle = '#000'
+        ctx.font = isHighlighted
           ? `bold ${LEGEND.FONT_SIZE}px sans-serif`
           : `${LEGEND.FONT_SIZE}px sans-serif`
-        canvasCtx!.textAlign = 'start'
-        canvasCtx!.textBaseline = 'alphabetic'
+        ctx.textAlign = 'start'
+        ctx.textBaseline = 'alphabetic'
 
         // Truncate text if too long
         const truncatedName = truncateText(item.name)
-        canvasCtx!.fillText(
+        ctx.fillText(
           truncatedName,
           item.x + LEGEND.ICON_WIDTH + LEGEND.TEXT_PADDING,
           item.y + LEGEND.ITEM_HEIGHT - 4
@@ -835,7 +784,7 @@
     }
 
     // Reset opacity
-    canvasCtx.globalAlpha = 1.0
+    ctx.globalAlpha = 1.0
   }
 
   // Helper to truncate text if too long
@@ -866,39 +815,12 @@
     return null
   }
 
-  // Get correct mouse position considering DPI scaling
-  function getScaledMousePosition(event: MouseEvent) {
-    if (!canvas) return { x: 0, y: 0 }
-
-    // Update canvasRect on each mouse event for accuracy
-    canvasRect = canvas.getBoundingClientRect()
-
-    // Calculate the CSS pixel position
-    const cssX = event.clientX - canvasRect.left
-    const cssY = event.clientY - canvasRect.top
-
-    // Convert from CSS pixels to canvas pixels
-    // This accounts for the scaling difference between the canvas's
-    // internal coordinate system and its displayed size
-    const canvasX = cssX * (canvas.width / canvasRect.width)
-    const canvasY = cssY * (canvas.height / canvasRect.height)
-
-    // Convert to logical coordinates (pre-scaling)
-    const x = canvasX / pixelRatio
-    const y = canvasY / pixelRatio
-
-    return { x, y }
-  }
-
   // Mouse event handling for canvas
   function handleMouseMove(event: MouseEvent) {
     if (!canvas) return
 
     // Get mouse position with correct scaling
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(event)
-
-    lastMouseX = mouseX
-    lastMouseY = mouseY
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
 
     // Check if mouse is over a legend item
     const hoveredLegendItem = isMouseOverLegendItem(mouseX, mouseY)
@@ -954,25 +876,19 @@
       }
 
       // Get consistent tooltip position
-      // Use the same scaling method for tooltip as for hit detection
-      if (canvasRect) {
-        const tooltipX = event.clientX + window.scrollX + 5
-        const tooltipY =
-          hoveredSegment.y *
-            ((canvasRect.height / canvas.height) * pixelRatio) +
-          hoveredSegment.height *
-            ((canvasRect.height / canvas.height) * pixelRatio) +
-          canvasRect.top +
-          window.scrollY +
-          5
+      const tooltipPos = getTooltipPosition(
+        canvasState,
+        hoveredSegment.x + hoveredSegment.width,
+        hoveredSegment.y + (hoveredSegment.height >> 1),
+        { x: 5, y: 0 }
+      )
 
-        onTooltipActivation({
-          segmentOrderId: hoveredSegment.orderId,
-          participantId: hoveredSegment.participantId,
-          x: tooltipX,
-          y: tooltipY,
-        })
-      }
+      onTooltipActivation({
+        segmentOrderId: hoveredSegment.orderId,
+        participantId: hoveredSegment.participantId,
+        x: tooltipPos.x,
+        y: tooltipPos.y,
+      })
     } else if (!hoveredSegment && currentHoveredSegment) {
       // If moved out of a segment but still in canvas
       currentHoveredSegment = null
@@ -1018,7 +934,7 @@
     if (!canvas) return
 
     // Get mouse position with correct scaling
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(event)
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
 
     // Check if clicking on a legend item
     const clickedLegendItem = isMouseOverLegendItem(mouseX, mouseY)
@@ -1055,7 +971,7 @@
     if (!isDragging || !canvas) return
 
     // Get mouse position with correct scaling
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(event)
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
 
     // Check if mouse is over legend - stop dragging if it is
     const hoveredLegendItem = isMouseOverLegendItem(mouseX, mouseY)
@@ -1078,31 +994,55 @@
 
   // Create a render scheduler
   function scheduleRender() {
-    if (!renderScheduled) {
-      renderScheduled = true
+    //console.log('scheduleRender', new Date().toISOString())
+    if (!canvasState.renderScheduled && browser) {
+      canvasState.renderScheduled = true
       requestAnimationFrame(() => {
-        if (canvas && canvasCtx) {
-          resizeCanvas()
-          renderCanvas()
-        }
-        renderScheduled = false
+        renderCanvas()
+        canvasState.renderScheduled = false
       })
     }
   }
 
   // Lifecycle hooks
   onMount(() => {
-    setupCanvas()
-    // Add global event listeners for drag handling
-    window.addEventListener('mousemove', handleDrag)
-    window.addEventListener('mouseup', handleMouseUp)
+    if (canvas) {
+      // Initialize canvas with our utility
+      canvasState = setupCanvas(canvasState, canvas, dpiOverride)
 
-    return () => {
-      window.removeEventListener('mousemove', handleDrag)
-      window.removeEventListener('mouseup', handleMouseUp)
+      // Resize and render initially
+      canvasState = resizeCanvas(canvasState, totalWidth, totalHeight)
+      renderCanvas()
 
-      if (hoverTimeout !== null) {
-        window.clearTimeout(hoverTimeout)
+      // Setup DPI and position change listeners with proper state management
+      const cleanup = setupDpiChangeListeners(
+        // State getter function that always returns the current state
+        () => canvasState,
+        // State setter function to properly update the state
+        newState => {
+          canvasState = newState
+          // Resize with new pixel ratio if it changed
+          if (canvasState.canvas) {
+            canvasState = resizeCanvas(canvasState, totalWidth, totalHeight)
+            renderCanvas() // Ensure canvas redraws after state update
+          }
+        },
+        dpiOverride,
+        renderCanvas
+      )
+
+      // Add global event listeners for drag handling
+      window.addEventListener('mousemove', handleDrag)
+      window.addEventListener('mouseup', handleMouseUp)
+
+      return () => {
+        cleanup()
+        window.removeEventListener('mousemove', handleDrag)
+        window.removeEventListener('mouseup', handleMouseUp)
+
+        if (hoverTimeout !== null) {
+          window.clearTimeout(hoverTimeout)
+        }
       }
     }
   })
@@ -1110,85 +1050,23 @@
   // Create direct dependencies on key data properties to ensure canvas updates
   // when any of these values change
   $effect(() => {
+    // These derived values will only trigger the effect when they actually change
     // These direct references create dependencies on data changes
     const _ = [
-      data.heightOfBarWrap,
-      data.participants.length,
+      data,
+      settings,
       totalWidth,
       // Reference timeline data to update when it changes
-      data.timeline.ticks.length,
       highlightedIdentifier,
       usedHighlight,
+      chartWidth,
     ]
 
     // Schedule a render instead of immediate execution
-    scheduleRender()
-
-    // Update canvasRect when data changes that could affect canvas size
-    if (canvas) {
-      canvasRect = canvas.getBoundingClientRect()
-    }
-  })
-
-  // Update DPI and canvasRect when window moves or resizes
-  function updateDpiAndRect() {
-    if (!canvas || dpiOverride !== null) return
-
-    const newPixelRatio = window.devicePixelRatio || 1
-
-    // Only update if DPI actually changed
-    if (newPixelRatio !== pixelRatio) {
-      pixelRatio = newPixelRatio
-      resizeCanvas()
-      renderCanvas()
-    }
-
-    // Update canvas rect
-    canvasRect = canvas.getBoundingClientRect()
-  }
-
-  // Add resize observer to update canvasRect when canvas size changes
-  $effect(() => {
-    if (!canvas) return
-
-    // Update on resize
-    const resizeObserver = new ResizeObserver(() => {
-      if (canvas) {
-        // Fix linter error by checking canvas is not null
-        canvasRect = canvas.getBoundingClientRect()
-      }
+    untrack(() => {
+      resizeCanvas(canvasState, totalWidth, totalHeight)
+      scheduleRender()
     })
-
-    resizeObserver.observe(canvas)
-
-    // Update DPI and rect when window moves between monitors
-    window.addEventListener('resize', updateDpiAndRect)
-
-    // Extra event listener for when the window moves between displays
-    // This is more reliable than just resize for DPI changes
-    if (window.matchMedia) {
-      const mediaQueryList = window.matchMedia('(resolution: 1dppx)')
-      mediaQueryList.addEventListener('change', updateDpiAndRect)
-    }
-
-    return () => {
-      resizeObserver.disconnect()
-      window.removeEventListener('resize', updateDpiAndRect)
-
-      if (window.matchMedia) {
-        const mediaQueryList = window.matchMedia('(resolution: 1dppx)')
-        mediaQueryList.removeEventListener('change', updateDpiAndRect)
-      }
-    }
-  })
-
-  // Add effect to watch for dpiOverride changes
-  $effect(() => {
-    if (canvas && canvasCtx && dpiOverride !== null) {
-      pixelRatio = dpiOverride / 96
-      resizeCanvas()
-      renderCanvas()
-    }
   })
 </script>
 
