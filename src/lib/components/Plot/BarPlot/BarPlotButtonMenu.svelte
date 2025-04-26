@@ -13,6 +13,7 @@
   import ModalContentParticipantsGroups from '$lib/components/Modal/ModalContent/ModalContentParticipantsGroups.svelte'
   import ModalContentDownloadBarPlot from '$lib/components/Modal/ModalContent/ModalContentDownloadBarPlot.svelte'
   import ModalContentBarChartAxes from '$lib/components/Modal/ModalContent/ModalContentBarChartAxes.svelte'
+  import ModalContentStimulusModification from '$lib/components/Modal/ModalContent/ModalContentStimulusModification.svelte'
   import { getContext } from 'svelte'
   import type { GridStoreType } from '$lib/stores/gridStore'
   import type { ComponentProps } from 'svelte'
@@ -33,6 +34,16 @@
       'AOI customization',
       {
         selectedStimulus: settings.stimulusId.toString(),
+        forceRedraw,
+      }
+    )
+  }
+
+  const openStimulusModificationModal = () => {
+    modalStore.open(
+      ModalContentStimulusModification as unknown as typeof SvelteComponent,
+      'Stimulus customization',
+      {
         forceRedraw,
       }
     )
@@ -86,6 +97,11 @@
     {
       label: 'AOI customization',
       action: openAoiModificationModal,
+      icon: Settings,
+    },
+    {
+      label: 'Stimulus customization',
+      action: openStimulusModificationModal,
       icon: Settings,
     },
     {

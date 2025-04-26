@@ -12,17 +12,17 @@
   let { settings, settingsChange = () => {} }: Props = $props()
 
   let selectedStimulusId = $state(settings.stimulusId.toString())
+  let stimuliOptions = $state<{ label: string; value: string }[]>([])
 
   // Update selectedStimulusId when settings change
   $effect(() => {
     selectedStimulusId = settings.stimulusId.toString()
-  })
-
-  const stimuliOption = getStimuli().map(stimulus => {
-    return {
-      label: stimulus.displayedName,
-      value: stimulus.id.toString(),
-    }
+    stimuliOptions = getStimuli().map(stimulus => {
+      return {
+        label: stimulus.displayedName,
+        value: stimulus.id.toString(),
+      }
+    })
   })
 
   function handleSelectChange(event: CustomEvent) {
@@ -38,7 +38,7 @@
 
 <Select
   label="Stimulus"
-  options={stimuliOption}
+  options={stimuliOptions}
   value={selectedStimulusId}
   onchange={handleSelectChange}
   compact={true}

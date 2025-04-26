@@ -19,6 +19,7 @@
   import type { ScarfGridType } from '$lib/type/gridType'
   import type { SvelteComponent } from 'svelte'
   import ModalContentParticipantModification from '../../../Modal/ModalContent/ModalContentParticipantModification.svelte'
+  import ModalContentStimulusModification from '$lib/components/Modal/ModalContent/ModalContentStimulusModification.svelte'
 
   interface Props {
     settings: ScarfGridType
@@ -59,6 +60,16 @@
       'AOI customization',
       {
         selectedStimulus: settings.stimulusId.toString(),
+        forceRedraw,
+      }
+    )
+  }
+
+  const openStimulusModificationModal = () => {
+    modalStore.open(
+      ModalContentStimulusModification as unknown as typeof SvelteComponent,
+      'Stimulus customization',
+      {
         forceRedraw,
       }
     )
@@ -123,6 +134,12 @@
     {
       label: 'AOI customization',
       action: openAoiModificationModal,
+      icon: Settings,
+      disabled: isMultiSelection,
+    },
+    {
+      label: 'Stimulus customization',
+      action: openStimulusModificationModal,
       icon: Settings,
       disabled: isMultiSelection,
     },

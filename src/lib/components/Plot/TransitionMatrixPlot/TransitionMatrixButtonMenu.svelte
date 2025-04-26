@@ -5,9 +5,11 @@
   import BarChart from 'lucide-svelte/icons/bar-chart'
   import Download from 'lucide-svelte/icons/download'
   import Palette from 'lucide-svelte/icons/palette'
+  import Settings from 'lucide-svelte/icons/settings-2'
   import ModalContentMaxValue from '$lib/components/Modal/ModalContent/ModalContentMaxValue.svelte'
   import ModalContentColorScale from '$lib/components/Modal/ModalContent/ModalContentColorScale.svelte'
   import ModalContentDownloadTransitionMatrix from '$lib/components/Modal/ModalContent/ModalContentDownloadTransitionMatrix.svelte'
+  import ModalContentStimulusModification from '$lib/components/Modal/ModalContent/ModalContentStimulusModification.svelte'
 
   interface Props {
     settings: TransitionMatrixGridType
@@ -18,29 +20,27 @@
   let { settings, settingsChange, forceRedraw }: Props = $props()
 
   const openMaxValueModal = () => {
-    try {
-      modalStore.open(
-        ModalContentMaxValue as any,
-        'Set maximum color scale value',
-        {
-          settings,
-          settingsChange,
-        }
-      )
-    } catch (error) {
-      console.error('Error opening modal:', error)
-    }
+    modalStore.open(ModalContentMaxValue as any, 'Set color range values', {
+      settings,
+      settingsChange,
+    })
+  }
+
+  const openStimulusModificationModal = () => {
+    modalStore.open(
+      ModalContentStimulusModification as any,
+      'Stimulus customization',
+      {
+        forceRedraw,
+      }
+    )
   }
 
   const openColorScaleModal = () => {
-    try {
-      modalStore.open(ModalContentColorScale as any, 'Customize color scale', {
-        settings,
-        settingsChange,
-      })
-    } catch (error) {
-      console.error('Error opening color scale modal:', error)
-    }
+    modalStore.open(ModalContentColorScale as any, 'Customize color scale', {
+      settings,
+      settingsChange,
+    })
   }
 
   const openDownloadModal = () => {
@@ -62,6 +62,11 @@
       label: 'Set color range values',
       action: openMaxValueModal,
       icon: BarChart,
+    },
+    {
+      label: 'Stimulus customization',
+      action: openStimulusModificationModal,
+      icon: Settings,
     },
     {
       label: 'Customize color scale',

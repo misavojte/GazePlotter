@@ -1205,3 +1205,32 @@ export const updateMultipleParticipants = (
   // Set the entire state at once
   data.set(finalState)
 }
+
+export const updateMultipleStimuli = (
+  stimuli: BaseInterpretedDataType[]
+): void => {
+  console.log('updateMultipleStimuli', { stimuli })
+
+  // Get current data state
+  const currentState = get(data)
+
+  // Create a brand new deep copy to avoid any reference issues
+  const newState = structuredClone(currentState)
+
+  // Update each stimulus in isolation
+  stimuli.forEach(stimulus => {
+    if (stimulus.id >= 0 && stimulus.id < newState.stimuli.data.length) {
+      // Create a brand new array for each stimulus to ensure complete isolation
+      newState.stimuli.data[stimulus.id] = [
+        stimulus.originalName,
+        stimulus.displayedName,
+      ]
+    }
+  })
+
+  // Update order vector
+  newState.stimuli.orderVector = [...stimuli.map(stimulus => stimulus.id)]
+
+  // Set the entire state at once
+  data.set(newState)
+}

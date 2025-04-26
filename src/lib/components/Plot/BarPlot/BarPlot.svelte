@@ -78,6 +78,8 @@
     }
   }
 
+  let stimulusOptions = $state<{ label: string; value: string }[]>([])
+
   /**
    * This is to prevent unnecessary recalculations when settings change in other components in the workspace
    */
@@ -89,6 +91,12 @@
       barPlotResult = getBarPlotData(settings)
       labelededBarPlotData = barPlotResult.data
       timeline = barPlotResult.timeline
+      stimulusOptions = getStimuli().map(stimulus => {
+        return {
+          label: stimulus.displayedName,
+          value: stimulus.id.toString(),
+        }
+      })
     })
   })
 
@@ -103,10 +111,7 @@
     <div class="controls">
       <GeneralSelect
         label="Stimulus"
-        options={getStimuli().map(stimulus => ({
-          value: stimulus.id.toString(),
-          label: stimulus.displayedName,
-        }))}
+        options={stimulusOptions}
         compact
         value={settings.stimulusId.toString()}
         onchange={handleStimulusChange}

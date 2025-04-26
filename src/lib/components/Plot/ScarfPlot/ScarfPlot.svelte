@@ -251,7 +251,6 @@
   <div class="header">
     <ScarfPlotHeader
       {settings}
-      {scarfData}
       {forceRedraw}
       settingsChange={handleSettingsChange}
     />
