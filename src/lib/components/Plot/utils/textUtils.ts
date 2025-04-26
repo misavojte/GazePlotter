@@ -123,3 +123,53 @@ export function calculateLabelOffset(
   // Add some padding based on the maximum text width
   return baseOffset + maxWidth
 }
+
+/**
+ * Truncates text to fit within a specified pixel width, adding ellipsis if needed
+ *
+ * @param text The text string to truncate
+ * @param maxWidthPx Maximum width in pixels
+ * @param fontSize Font size in pixels
+ * @param fontFamily Font family (defaults to sans-serif)
+ * @param ellipsis Ellipsis string to append (defaults to "...")
+ * @returns Truncated text with ellipsis if necessary
+ */
+export function truncateTextToPixelWidth(
+  text: string,
+  maxWidthPx: number,
+  fontSize: number = 12,
+  fontFamily: string = 'sans-serif',
+  ellipsis: string = '...'
+): string {
+  // If text is already shorter than max width, return it as is
+  const originalWidth = estimateTextWidth(text, fontSize, fontFamily)
+  if (originalWidth <= maxWidthPx) return text
+
+  // Calculate ellipsis width
+  const ellipsisWidth = estimateTextWidth(ellipsis, fontSize, fontFamily)
+
+  // Available width for text content
+  const availableWidth = maxWidthPx - ellipsisWidth
+
+  // If no room for any text plus ellipsis
+  if (availableWidth <= 0) return ellipsis
+
+  // Binary search for the optimal truncation point
+  let low = 0
+  let high = text.length
+
+  while (low < high) {
+    const mid = Math.floor((low + high + 1) / 2)
+    const truncated = text.substring(0, mid)
+    const truncatedWidth = estimateTextWidth(truncated, fontSize, fontFamily)
+
+    if (truncatedWidth <= availableWidth) {
+      low = mid
+    } else {
+      high = mid - 1
+    }
+  }
+
+  // Return the truncated text with ellipsis
+  return text.substring(0, low) + ellipsis
+}

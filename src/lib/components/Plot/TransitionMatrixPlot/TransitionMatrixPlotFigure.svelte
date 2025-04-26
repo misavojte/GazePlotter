@@ -1,7 +1,10 @@
 <script lang="ts">
   import { getColorForValue, getContrastTextColor } from '$lib/utils/colorUtils'
   import { updateTooltip } from '$lib/stores/tooltipStore'
-  import { calculateLabelOffset } from '../utils/textUtils'
+  import {
+    calculateLabelOffset,
+    truncateTextToPixelWidth,
+  } from '../utils/textUtils'
   import { onMount, untrack } from 'svelte'
   import { browser } from '$app/environment'
   import {
@@ -20,8 +23,8 @@
   const BASE_LABEL_OFFSET = 5
   const TOP_MARGIN = 30 // Increased to ensure "To AOI" label is visible
   const LEFT_MARGIN = 30 // Increased to ensure "From AOI" label is visible
-  const MAX_LABEL_LENGTH = 10 // Maximum number of characters before truncation
   const MIN_CELL_SIZE = 20 // Minimum cell size in pixels
+  const MAX_LABEL_LENGTH = 85 // Maximum width of the label in pixels
 
   // Default color for inactive/filtered cells
   const DEFAULT_INACTIVE_COLOR = '#e0e0e0' // Light gray
@@ -120,7 +123,13 @@
   // Dynamic offsets based on labels using the new utility
   const labelOffset = $derived.by(() => {
     // Use a fixed offset based on MAX_LABEL_LENGTH instead of calculating from actual labels
-    return Math.min(40, BASE_LABEL_OFFSET + MAX_LABEL_LENGTH * 5) // 5px per character is a more balanced estimate
+    // NO, calculate from actual labels using the text utils
+    const calculatedOffset = calculateLabelOffset(
+      aoiLabels,
+      12,
+      BASE_LABEL_OFFSET
+    )
+    return Math.min(calculatedOffset, MAX_LABEL_LENGTH)
   })
 
   // Calculate max plotable area first (similar to RecurrencePlot's plotSize)
@@ -308,31 +317,22 @@
       const x = xOffset + col * optimalCellSize + (optimalCellSize >> 1)
       const y = yOffset - INDIVIDUAL_LABEL_MARGIN // Added 5px offset to move higher
 
-      // Determine if space is tight
-      const isSpaceTight = aoiLabels.length > 6 || optimalCellSize < 30
-
       // Rotate labels if they're too long or there are too many
-      if (isSpaceTight) {
-        ctx.save()
-        ctx.translate(x, y)
-        ctx.rotate(-Math.PI / 4)
-        ctx.fillText(
-          aoiLabels[col].length > MAX_LABEL_LENGTH
-            ? aoiLabels[col].substring(0, MAX_LABEL_LENGTH) + '...'
-            : aoiLabels[col],
-          0,
-          0
-        )
-        ctx.restore()
-      } else {
-        ctx.fillText(
-          aoiLabels[col].length > MAX_LABEL_LENGTH
-            ? aoiLabels[col].substring(0, MAX_LABEL_LENGTH) + '...'
-            : aoiLabels[col],
-          x,
-          y
-        )
-      }
+      ctx.save()
+      ctx.translate(x, y)
+      ctx.rotate(-Math.PI / 4)
+      ctx.fillText(
+        truncateTextToPixelWidth(
+          aoiLabels[col],
+          MAX_LABEL_LENGTH * 1.5, // 1.5x the max label length to account for rotation
+          12,
+          'sans-serif',
+          '...'
+        ),
+        0,
+        0
+      )
+      ctx.restore()
     }
 
     // Draw row labels (left side)
@@ -342,10 +342,13 @@
       const y = yOffset + row * optimalCellSize + (optimalCellSize >> 1)
 
       // Truncate text if needed
-      const labelText =
-        aoiLabels[row].length > MAX_LABEL_LENGTH
-          ? aoiLabels[row].substring(0, MAX_LABEL_LENGTH) + '...'
-          : aoiLabels[row]
+      const labelText = truncateTextToPixelWidth(
+        aoiLabels[row],
+        MAX_LABEL_LENGTH,
+        12,
+        'sans-serif',
+        '...'
+      )
 
       ctx.fillText(labelText, x, y)
     }
