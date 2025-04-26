@@ -196,7 +196,7 @@
         />
       </div>
     {:else}
-      <div class="figure-container" in:fade={{ duration: 300 }}>
+      <div class="figure-container" style="height: {plotDimensions.height}px">
         <PlotPlaceholder
           width={plotDimensions.width}
           height={plotDimensions.height}
@@ -204,7 +204,7 @@
       </div>
     {/if}
   {:else}
-    <div class="figure-container" in:fade={{ duration: 300 }}>
+    <div class="figure-container" style="height: {plotDimensions.height}px">
       <PlotPlaceholder
         width={plotDimensions.width}
         height={plotDimensions.height}

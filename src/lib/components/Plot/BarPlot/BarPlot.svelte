@@ -170,7 +170,7 @@
         />
       </div>
     {:else}
-      <div class="figure-content" out:fade={{ duration: 300 }}>
+      <div class="figure-content" style="height: {plotDimensions.height}px">
         <PlotPlaceholder
           width={plotDimensions.width}
           height={plotDimensions.height}

@@ -274,7 +274,10 @@
         />
       </div>
     {:else}
-      <div class="figure-content" out:fade={{ duration: 300 }}>
+      <div
+        class="figure-content"
+        style="height: {heightCalculations.totalHeight}px"
+      >
         <PlotPlaceholder
           width={chartWidth}
           height={heightCalculations.totalHeight}
