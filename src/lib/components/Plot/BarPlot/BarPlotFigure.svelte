@@ -1,6 +1,9 @@
 <script lang="ts">
   import type { AdaptiveTimeline } from '$lib/class/Plot/AdaptiveTimeline/AdaptiveTimeline'
-  import { calculateLabelOffset } from '$lib/components/Plot/utils/textUtils'
+  import {
+    calculateLabelOffset,
+    truncateTextToPixelWidth,
+  } from '$lib/utils/textUtils'
   import { updateTooltip } from '$lib/stores/tooltipStore'
   import { onMount, untrack } from 'svelte'
   import { browser } from '$app/environment'
@@ -370,21 +373,20 @@
       let x, y, textAlign, textBaseline
 
       if (barPlottingType === 'vertical') {
-        // For vertical bars, truncate text if needed
-        const maxLength = Math.floor(bar.width / (LABEL_FONT_SIZE * 0.6))
-        if (text.length > maxLength) {
-          text = text.substring(0, maxLength - 3) + '...'
-        }
+        // For vertical bars, truncate text based on pixel width
+        text = truncateTextToPixelWidth(text, bar.width, LABEL_FONT_SIZE)
 
         x = bar.x + bar.width / 2
         y = MARGIN.TOP + marginTop + plotAreaHeight + CATEGORY_LABEL_OFFSET
         textAlign = 'center'
         textBaseline = 'middle'
       } else {
-        // For horizontal bars, truncate text if needed
-        if (text.length > 14) {
-          text = text.substring(0, 11) + '...'
-        }
+        // For horizontal bars, truncate text based on pixel width
+        text = truncateTextToPixelWidth(
+          text,
+          trueLeftMargin - VALUE_LABEL_OFFSET - 10, // Leave some padding
+          LABEL_FONT_SIZE
+        )
 
         x = trueLeftMargin - VALUE_LABEL_OFFSET
         y = bar.y + bar.height / 2

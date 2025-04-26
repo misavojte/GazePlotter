@@ -2,7 +2,10 @@
   import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType'
   import type { ScarfGridType } from '$lib/type/gridType'
   import { addInfoToast } from '$lib/stores/toastStore'
-  import { calculateLabelOffset } from '$lib/components/Plot/utils/textUtils'
+  import {
+    calculateLabelOffset,
+    truncateTextToPixelWidth,
+  } from '$lib/utils/textUtils'
   import { draggable } from '$lib/actions/draggable'
   import { onMount, untrack } from 'svelte'
   import { browser } from '$app/environment'
@@ -1087,8 +1090,12 @@
         ctx.textAlign = 'start'
         ctx.textBaseline = 'alphabetic'
 
-        // Truncate text if too long
-        const truncatedName = truncateText(item.name)
+        // Truncate text if too long using pixel width
+        const truncatedName = truncateTextToPixelWidth(
+          item.name,
+          item.width - LEGEND.ICON_WIDTH - LEGEND.TEXT_PADDING,
+          LEGEND.FONT_SIZE
+        )
         ctx.fillText(
           truncatedName,
           item.x + LEGEND.ICON_WIDTH + LEGEND.TEXT_PADDING,
@@ -1099,11 +1106,6 @@
 
     // Reset opacity
     ctx.globalAlpha = 1.0
-  }
-
-  // Helper to truncate text if too long
-  function truncateText(text: string, maxLength = 12) {
-    return text.length > maxLength ? text.slice(0, maxLength - 3) + '...' : text
   }
 
   // Check if a mouse click or hover is on a legend item
