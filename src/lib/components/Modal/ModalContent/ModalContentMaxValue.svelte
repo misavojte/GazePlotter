@@ -38,12 +38,16 @@
     { value: 'hide', label: 'Hide labels' },
   ]
 
-  // Predefined color options
-  const maxColorOptions = [
+  const colorOptionsBase = [
     { value: '#e0e0e0', label: 'Gray' },
     { value: '#cccccc', label: 'Light Gray' },
     { value: '#f0f0f0', label: 'Very Light Gray' },
     { value: '#ffffff', label: 'White' },
+  ]
+
+  // Predefined color options
+  const maxColorOptions = [
+    ...colorOptionsBase,
     {
       value:
         settings.colorScale?.length === 3
@@ -54,10 +58,7 @@
   ]
 
   const minColorOptions = [
-    { value: '#e0e0e0', label: 'Gray' },
-    { value: '#cccccc', label: 'Light Gray' },
-    { value: '#f0f0f0', label: 'Very Light Gray' },
-    { value: '#ffffff', label: 'White' },
+    ...colorOptionsBase,
     { value: settings.colorScale?.[0], label: 'Scale Color' },
   ]
 
