@@ -2,6 +2,7 @@
   import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralButtonPreset from '$lib/components/General/GeneralButton/GeneralButtonPreset.svelte'
   import GeneralInputText from '$lib/components/General/GeneralInput/GeneralInputText.svelte'
+  import SortableTableHeader from '$lib/components/Modal/Shared/SortableTableHeader.svelte'
   import { getStimuli, updateMultipleStimuli } from '$lib/stores/dataStore'
   import { addErrorToast, addSuccessToast } from '$lib/stores/toastStore'
   import type { BaseInterpretedDataType } from '$lib/type/Data/InterpretedData/BaseInterpretedDataType'
@@ -153,26 +154,17 @@
     return aParts.length - bParts.length
   }
 
-  const handleSort = (column: 'originalName' | 'displayedName') => {
-    if (sortColumn === column) {
-      // Just toggle between asc and desc
-      sortDirection = sortDirection === 'asc' ? 'desc' : 'asc'
-    } else {
-      sortColumn = column
-      sortDirection = 'asc'
-    }
+  const handleSort = (params: {
+    column: 'originalName' | 'displayedName'
+    newSortDirection: 'asc' | 'desc'
+  }) => {
+    sortColumn = params.column
+    sortDirection = params.newSortDirection
 
     stimulusObjects = [...stimulusObjects].sort((a, b) => {
-      const compare = naturalSort(a[column], b[column])
-      return sortDirection === 'asc' ? compare : -compare
+      const compare = naturalSort(a[params.column], b[params.column])
+      return params.newSortDirection === 'asc' ? compare : -compare
     })
-  }
-
-  // SVG icons
-  const sortIcons = {
-    up: `<svg width="8" height="14" viewBox="0 0 8 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 1L6 3M4 1L2 3M4 1V9" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>`,
-    down: `<svg width="8" height="14" viewBox="0 0 8 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 9L2 7M4 9L6 7M4 9V1" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>`,
-    both: `<svg width="8" height="14" viewBox="0 0 8 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 1L6 3M4 1L2 3M4 1V9M4 9L2 7M4 9L6 7" stroke="currentColor" stroke-width="1" stroke-linecap="round"/></svg>`,
   }
 </script>
 
@@ -229,28 +221,22 @@
     <thead>
       <tr class="gr-line header">
         <th>
-          <div class="sort-header" on:click={() => handleSort('originalName')}>
-            Original name
-            <span class="sort-icon">
-              {@html sortColumn === 'originalName'
-                ? sortDirection === 'asc'
-                  ? sortIcons.up
-                  : sortIcons.down
-                : sortIcons.both}
-            </span>
-          </div>
+          <SortableTableHeader
+            column="originalName"
+            label="Original name"
+            {sortColumn}
+            {sortDirection}
+            onSort={handleSort}
+          />
         </th>
         <th>
-          <div class="sort-header" on:click={() => handleSort('displayedName')}>
-            Displayed name
-            <span class="sort-icon">
-              {@html sortColumn === 'displayedName'
-                ? sortDirection === 'asc'
-                  ? sortIcons.up
-                  : sortIcons.down
-                : sortIcons.both}
-            </span>
-          </div>
+          <SortableTableHeader
+            column="displayedName"
+            label="Displayed name"
+            {sortColumn}
+            {sortDirection}
+            onSort={handleSort}
+          />
         </th>
         <th>Order</th>
       </tr>
@@ -363,33 +349,5 @@
 
   .apply-button {
     margin-top: 10px;
-  }
-
-  .sort-header {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    cursor: pointer;
-    user-select: none;
-  }
-
-  .sort-header:hover {
-    color: var(--c-primary);
-  }
-
-  .sort-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    color: #999999;
-    border-radius: 50%;
-    transition: all 0.2s ease;
-  }
-
-  .sort-header:hover .sort-icon {
-    background-color: #999999;
-    color: white;
   }
 </style>
