@@ -41,8 +41,8 @@
 
   // Get bar plot data and timeline from utility function
   let barPlotResult = $state(getBarPlotData(settings))
-  let labelededBarPlotData = $state(barPlotResult.data)
-  let timeline = $state(barPlotResult.timeline)
+  const labelededBarPlotData = $derived(barPlotResult.data)
+  const timeline = $derived(barPlotResult.timeline)
 
   function handleStimulusChange(event: CustomEvent) {
     const newStimulusId = event.detail as string
@@ -89,8 +89,6 @@
 
     untrack(() => {
       barPlotResult = getBarPlotData(settings)
-      labelededBarPlotData = barPlotResult.data
-      timeline = barPlotResult.timeline
       stimulusOptions = getStimuli().map(stimulus => {
         return {
           label: stimulus.displayedName,
