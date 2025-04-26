@@ -7,7 +7,7 @@
   import { getStimuliOrderVector } from '$lib/stores/dataStore'
   import type { TransitionMatrixGridType } from '$lib/type/gridType'
   import GeneralInfoCallout from '$lib/components/General/GeneralInfoCallout/GeneralInfoCallout.svelte'
-
+  import SectionHeader from '../Shared/SectionHeader.svelte'
   interface Props {
     settings: TransitionMatrixGridType
     settingsChange: (newSettings: Partial<TransitionMatrixGridType>) => void
@@ -144,7 +144,7 @@
   </div>
 
   <div class="input-container">
-    <div class="section-header">Range Values</div>
+    <SectionHeader text="Range Values" />
     <div class="grid-layout">
       <div class="input-column">
         <NumberInput
@@ -175,7 +175,7 @@
       />
     </div>
 
-    <div class="section-header">Values Outside Range</div>
+    <SectionHeader text="Values Outside Range" />
     <div class="outside-range-settings">
       <div class="outside-range-section">
         <div class="section-title">Below Minimum:</div>
@@ -263,13 +263,6 @@
 
   .input-container {
     margin-bottom: 1.5rem;
-  }
-
-  .section-header {
-    font-weight: 600;
-    margin: 1.5rem 0 0.5rem;
-    padding-bottom: 0.25rem;
-    border-bottom: 1px solid #eaeaea;
   }
 
   .grid-layout {

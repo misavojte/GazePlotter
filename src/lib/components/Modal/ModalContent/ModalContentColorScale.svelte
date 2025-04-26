@@ -4,6 +4,7 @@
   import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
   import GeneralInputColor from '$lib/components/General/GeneralInput/GeneralInputColor.svelte'
   import type { TransitionMatrixGridType } from '$lib/type/gridType'
+  import SectionHeader from '../Shared/SectionHeader.svelte'
 
   interface Props {
     settings: TransitionMatrixGridType
@@ -119,7 +120,7 @@
   </div>
 
   <div class="input-container">
-    <div class="section-header">Gradient Type</div>
+    <SectionHeader text="Gradient Type" />
     <GeneralRadio
       options={colorPointOptions}
       userSelected={colorPoints}
@@ -127,7 +128,7 @@
       legend="Color Points"
     />
 
-    <div class="section-header">Color Selection</div>
+    <SectionHeader text="Color Selection" />
     <div class="color-inputs">
       <div class="color-input">
         <GeneralInputColor
@@ -166,7 +167,7 @@
       <div class="gradient-preview" style:background={gradientStyle}></div>
     </div>
 
-    <div class="section-header">Presets</div>
+    <SectionHeader text="Presets" />
     <div class="presets-container">
       {#each presets as preset}
         <button
@@ -206,13 +207,6 @@
 
   .input-container {
     margin-bottom: 1.5rem;
-  }
-
-  .section-header {
-    font-weight: 600;
-    margin: 1.5rem 0 0.5rem;
-    padding-bottom: 0.25rem;
-    border-bottom: 1px solid #eaeaea;
   }
 
   .color-inputs {
