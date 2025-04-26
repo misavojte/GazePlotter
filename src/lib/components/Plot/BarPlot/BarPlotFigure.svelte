@@ -382,11 +382,7 @@
         textBaseline = 'middle'
       } else {
         // For horizontal bars, truncate text based on pixel width
-        text = truncateTextToPixelWidth(
-          text,
-          trueLeftMargin - VALUE_LABEL_OFFSET - 10, // Leave some padding
-          LABEL_FONT_SIZE
-        )
+        text = truncateTextToPixelWidth(text, trueLeftMargin, LABEL_FONT_SIZE)
 
         x = trueLeftMargin - VALUE_LABEL_OFFSET
         y = bar.y + bar.height / 2
