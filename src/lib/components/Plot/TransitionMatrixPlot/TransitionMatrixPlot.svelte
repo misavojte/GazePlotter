@@ -239,14 +239,4 @@
     position: relative;
     height: calc(100% - 60px);
   }
-
-  .no-data {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    text-align: center;
-    font-size: 16px;
-    color: var(--c-darkgrey);
-  }
 </style>

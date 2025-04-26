@@ -7,7 +7,7 @@
     truncateTextToPixelWidth,
   } from '$lib/utils/textUtils'
   import { draggable } from '$lib/actions/draggable'
-  import { onMount, untrack } from 'svelte'
+  import { onMount, onDestroy, untrack } from 'svelte'
   import { browser } from '$app/environment'
   import {
     SCARF_LAYOUT,
@@ -26,6 +26,7 @@
     finishCanvasDrawing,
     type CanvasState,
   } from '$lib/utils/canvasUtils'
+  import { updateTooltip } from '$lib/stores/tooltipStore'
 
   // CONSTANTS - layout dimensions and styling
   const LAYOUT = SCARF_LAYOUT
@@ -119,6 +120,7 @@
   let canvas = $state<HTMLCanvasElement | null>(null)
   let canvasState = $state<CanvasState>(createCanvasState())
   let dragStartX = $state(0) // Track drag start position
+  let hoveredLegendItem = $state<any>(null) // Track currently hovered legend item
 
   // Derived values using Svelte 5 $derived rune
   const usedHighlight = $derived(fixedHighlight ?? highlightedIdentifier)
@@ -1139,7 +1141,43 @@
     const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
 
     // Check if mouse is over a legend item
-    const hoveredLegendItem = isMouseOverLegendItem(mouseX, mouseY)
+    const legendItem = isMouseOverLegendItem(mouseX, mouseY)
+
+    // Handle legend item tooltips
+    if (legendItem !== hoveredLegendItem) {
+      if (legendItem) {
+        // Show tooltip with "Highlight [FULLNAMEOFAOI]" or "Dehighlight [FULLNAMEOFAOI]" text
+        hoveredLegendItem = legendItem
+        const isHighlighted = legendItem.identifier === usedHighlight
+        const tooltipContent = [
+          {
+            key: '',
+            value: `${isHighlighted ? 'Dehighlight' : 'Highlight'} ${legendItem.name}`,
+          },
+        ]
+
+        // Get tooltip position using the same utility as segment tooltips
+        const tooltipPos = getTooltipPosition(
+          canvasState,
+          legendItem.x + legendItem.width / 2, // Center horizontally
+          legendItem.y + LEGEND.ITEM_HEIGHT, // Position at bottom of legend item
+          { x: 0, y: 7 } // 7px below the legend item
+        )
+
+        updateTooltip({
+          visible: true,
+          content: tooltipContent,
+          x: tooltipPos.x,
+          y: tooltipPos.y,
+          width: 150,
+        })
+      } else if (hoveredLegendItem) {
+        // Hide tooltip when mouse leaves legend item
+        hoveredLegendItem = null
+        updateTooltip(null)
+      }
+    }
+
     if (hoveredLegendItem) {
       canvas.style.cursor = 'pointer'
       return
@@ -1217,6 +1255,12 @@
   }
 
   function handleMouseLeave() {
+    // Hide legend tooltip when mouse leaves canvas
+    if (hoveredLegendItem) {
+      hoveredLegendItem = null
+      updateTooltip(null)
+    }
+
     // If there was a hovered segment, log that hover has stopped
     if (currentHoveredSegment) {
       currentHoveredSegment = null
@@ -1353,6 +1397,11 @@
         if (hoverTimeout !== null) {
           window.clearTimeout(hoverTimeout)
         }
+
+        // Clean up any remaining tooltips
+        if (hoveredLegendItem) {
+          updateTooltip(null)
+        }
       }
     }
   })
@@ -1482,6 +1531,13 @@
     }
 
     return styleBuckets
+  })
+
+  // Clean up tooltip when unmounting
+  onDestroy(() => {
+    if (hoveredLegendItem) {
+      updateTooltip(null)
+    }
   })
 </script>
 
