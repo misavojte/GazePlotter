@@ -3,6 +3,7 @@
   import GeneralButtonPreset from '$lib/components/General/GeneralButton/GeneralButtonPreset.svelte'
   import GeneralInputText from '$lib/components/General/GeneralInput/GeneralInputText.svelte'
   import SortableTableHeader from '$lib/components/Modal/Shared/SortableTableHeader.svelte'
+  import SectionHeader from '$lib/components/Modal/Shared/SectionHeader.svelte'
   import {
     getAllParticipants,
     updateMultipleParticipants,
@@ -173,7 +174,7 @@
 
 <div class="content">
   <div class="pattern-tool">
-    <div class="section-header">Pattern Renaming</div>
+    <SectionHeader text="Pattern Renaming" />
     <div class="pattern-inputs">
       <div class="input-row">
         <div class="input-group">
@@ -215,7 +216,7 @@
   </div>
 </div>
 
-<div class="section-header">Participants</div>
+<SectionHeader text="Participants" />
 {#if participantObjects.length === 0}
   <GeneralEmpty message="No participants found" />
 {/if}
@@ -316,13 +317,6 @@
   .pattern-tool {
     margin: 20px 0;
     margin-bottom: 30px;
-  }
-
-  .section-header {
-    font-weight: 600;
-    margin: 0 0 0.5rem;
-    padding-bottom: 0.25rem;
-    border-bottom: 1px solid #eaeaea;
   }
 
   .input-row {

@@ -5,6 +5,7 @@
   import GeneralInfoCallout from '$lib/components/General/GeneralInfoCallout/GeneralInfoCallout.svelte'
   import GeneralInputColor from '$lib/components/General/GeneralInput/GeneralInputColor.svelte'
   import SortableTableHeader from '$lib/components/Modal/Shared/SortableTableHeader.svelte'
+  import SectionHeader from '$lib/components/Modal/Shared/SectionHeader.svelte'
   import {
     getAllAois,
     getStimuli,
@@ -272,6 +273,7 @@
   />
 </div>
 
+<SectionHeader text="AOIs" />
 {#if aoiObjects.length === 0}
   <GeneralEmpty message="No AOIs found in stimulus" />
 {/if}

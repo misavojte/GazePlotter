@@ -3,6 +3,7 @@
   import GeneralSelectBase from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import GeneralInputText from '$lib/components/General/GeneralInput/GeneralInputText.svelte'
   import GeneralButtonPreset from '$lib/components/General/GeneralButton/GeneralButtonPreset.svelte'
+  import SectionHeader from '$lib/components/Modal/Shared/SectionHeader.svelte'
 
   // Define the props interface
   interface Props {
@@ -60,7 +61,7 @@
 </script>
 
 <div class="settings-section">
-  <h3>Export Settings</h3>
+  <SectionHeader text="Export Settings" />
   <div class="settings-grid-main">
     <div class="settings-item">
       <GeneralInputNumber label="Width in px" bind:value={width} />
@@ -105,9 +106,8 @@
 
   <!-- Margin Settings -->
   <div class="margin-settings">
-    <h4>
-      Margins <span class="hint">(negative values will crop the image)</span>
-    </h4>
+    <SectionHeader text="Margins" />
+    <span class="hint">(negative values will crop the image)</span>
     <div class="settings-grid-margins">
       <div class="settings-item">
         <GeneralInputNumber min={-9999} label="Top" bind:value={marginTop} />
@@ -153,19 +153,8 @@
 </div>
 
 <style>
-  .settings-section h3,
-  .margin-settings h4 {
-    margin-top: 0;
-    margin-bottom: 0.75rem;
-    font-weight: 600;
-  }
-
   .margin-settings {
     margin-top: 1rem;
-  }
-
-  .margin-settings h4 {
-    font-size: 0.9rem;
   }
 
   .hint {

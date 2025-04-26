@@ -7,6 +7,7 @@
   import { transformDataToScarfPlot } from '$lib/utils/scarfPlotTransformations'
   import { getParticipants } from '$lib/stores/dataStore'
   import { untrack } from 'svelte'
+  import SectionHeader from '$lib/components/Modal/Shared/SectionHeader.svelte'
 
   interface Props {
     settings: ScarfGridType
@@ -81,9 +82,7 @@
 
   <!-- Preview Section -->
   <div class="preview-section">
-    <div class="preview-heading">
-      <h3>Your exported plot</h3>
-    </div>
+    <SectionHeader text="Your exported plot" />
     <div>
       <GeneralCanvasPreview
         {fileName}
@@ -118,12 +117,6 @@
     gap: 1.5rem;
     max-height: 80vh;
     max-width: 830px;
-  }
-
-  .preview-heading h3 {
-    margin-top: 0;
-    margin-bottom: 0.75rem;
-    font-weight: 600;
   }
 
   .preview-section {
