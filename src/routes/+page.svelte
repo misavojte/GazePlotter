@@ -8,7 +8,7 @@
 </script>
 
 <script>
-  import GazePlotter from '$lib/components/GazePlotter.svelte'
+  import { GazePlotter } from '$lib'
 
   // Format the build date
   const buildDate = new Date(__BUILD_DATE__)

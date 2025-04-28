@@ -6,7 +6,7 @@
 import {
   getStimulusHighestEndTime,
   updateMultipleAoiVisibility,
-} from '$lib/stores/dataStore'
+} from '$lib/gaze-data/front-process/stores/dataStore'
 
 /**
  * Main function to process the AOI visibility data

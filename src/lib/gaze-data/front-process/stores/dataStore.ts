@@ -1,11 +1,13 @@
 import { writable, get, derived } from 'svelte/store'
 import type { Writable, Readable } from 'svelte/store'
-import type { DataType } from '$lib/type/Data/DataType'
-import { demoData } from '$lib/const/demoDataTwo'
-import type { BaseInterpretedDataType } from '$lib/type/Data/InterpretedData/BaseInterpretedDataType'
-import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType'
-import type { SegmentInterpretedDataType } from '$lib/type/Data/InterpretedData/SegmentInterpretedDataType'
-import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup'
+import type {
+  DataType,
+  BaseInterpretedDataType,
+  ExtendedInterpretedDataType,
+  SegmentInterpretedDataType,
+  ParticipantsGroup,
+} from '$lib/type/Data'
+import { demoData } from '$lib/gaze-data/front-process/const/demoDataTwo'
 
 // Constants for fast AOI mapping store
 const MAX_STIMULUS = 256 // Maximum number of stimuli we can handle

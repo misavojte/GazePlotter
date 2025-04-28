@@ -1,9 +1,9 @@
 <script lang="ts">
-  import Toaster from '$lib/components/Toaster/Toaster.svelte'
+  import Toaster from '$lib/toaster/components/Toaster.svelte'
   import { Modal } from '$lib/modals'
   import Panel from '$lib/components/Panel/Panel.svelte'
-  import Workspace from '$lib/components/Workspace/Workspace.svelte'
-  import Tooltip from './Tooltip.svelte'
+  import Workspace from '$lib/workspace/components/Workspace.svelte'
+  import Tooltip from '$lib/tooltip/components/Tooltip.svelte'
 </script>
 
 <div id="GP-gazeplotter">

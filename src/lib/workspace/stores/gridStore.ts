@@ -1,7 +1,7 @@
 import { writable, get, derived } from 'svelte/store'
-import type { AllGridTypes } from '$lib/type/gridType'
+import type { AllGridTypes } from '$lib/workspace/type/gridType'
 // Import necessary dependencies moved from Workspace.svelte
-import { getVisualizationConfig } from '$lib/const/vizRegistry'
+import { getVisualizationConfig } from '$lib/workspace/const'
 
 export interface GridItemPosition {
   id: number

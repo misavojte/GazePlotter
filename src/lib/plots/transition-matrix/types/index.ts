@@ -1,4 +1,4 @@
-import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType'
+import type { ExtendedInterpretedDataType } from '$lib/type/Data'
 
 /**
  * Interface representing an Transition Matrix with labels

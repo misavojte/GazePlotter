@@ -1,7 +1,7 @@
 import { ModalContentTobiiParsingInput } from '$lib/modals'
 import { modalStore } from '$lib/modals/shared/stores/modalStore'
-import { addErrorToast, addInfoToast } from '$lib/stores/toastStore'
-import type { DataType } from '$lib/type/Data/DataType'
+import { addErrorToast, addInfoToast } from '$lib/toaster'
+import type { DataType } from '$lib/type/Data'
 
 /**
  * Creates a worker to handle whole eyefiles processing.

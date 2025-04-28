@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { updateParticipantsGroups } from '$lib/stores/dataStore'
+  import { updateParticipantsGroups } from '$lib/gaze-data/front-process/stores/dataStore'
   import {
     addGroup,
     participantsGroupsStore,
   } from '$lib/modals/modification/stores/participantsGroupStore'
   import { addSuccessToast, addErrorToast } from '$lib/toaster'
-  import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup'
+  import type { ParticipantsGroup } from '$lib/type/Data'
   import {
     GeneralButtonMajor,
     GeneralButtonMinor,

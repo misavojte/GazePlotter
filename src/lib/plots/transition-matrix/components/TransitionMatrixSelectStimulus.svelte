@@ -1,6 +1,6 @@
 <script lang="ts">
-  import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
-  import type { TransitionMatrixGridType } from '$lib/type/gridType'
+  import Select from '$lib/shared/components/GeneralSelect.svelte'
+  import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
 
   interface Props {

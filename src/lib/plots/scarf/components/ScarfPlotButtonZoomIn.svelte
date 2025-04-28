@@ -1,12 +1,12 @@
 <script lang="ts">
-  import MinorButton from '$lib/components/General/GeneralButton/GeneralButtonMinor.svelte'
+  import { GeneralButtonMinor } from '$lib/shared/components'
   import ZoomIn from 'lucide-svelte/icons/zoom-in'
-  import type { ScarfGridType } from '$lib/type/gridType'
+  import type { ScarfGridType } from '$lib/workspace/type/gridType'
   import {
     getNumberOfSegments,
     getParticipantEndTime,
     getParticipants,
-  } from '$lib/stores/dataStore'
+  } from '$lib/gaze-data/front-process/stores/dataStore'
 
   interface Props {
     settings: ScarfGridType
@@ -112,6 +112,6 @@
   }
 </script>
 
-<MinorButton onclick={handleClick} {isDisabled}>
+<GeneralButtonMinor onclick={handleClick} {isDisabled}>
   <ZoomIn size={'1em'} strokeWidth={1} />
-</MinorButton>
+</GeneralButtonMinor>

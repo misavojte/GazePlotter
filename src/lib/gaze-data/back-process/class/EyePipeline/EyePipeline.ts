@@ -10,7 +10,7 @@ import { CsvEyeDeserializer } from '../EyeDeserializer/CsvEyeDeserializer'
 import { TobiiEyeDeserializer } from '../EyeDeserializer/TobiiEyeDeserializer'
 import type { EyeSettingsType } from '$lib/type/Settings/EyeSettings/EyeSettingsType.js'
 import { EyeSplitter } from '../EyeSplitter/EyeSplitter'
-import type { DataType } from '$lib/type/Data/DataType.js'
+import type { DataType } from '$lib/type/Data'
 import { EyeRefiner } from '../EyeRefiner/EyeRefiner'
 import { CsvSegmentedEyeDeserializer } from '../EyeDeserializer/CsvSegmentedEyeDeserializer'
 

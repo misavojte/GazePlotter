@@ -3,9 +3,12 @@
   import GeneralButtonPreset from '$lib/shared/components/GeneralButtonPreset.svelte'
   import GeneralInputText from '$lib/shared/components/GeneralInputText.svelte'
   import { SortableTableHeader, SectionHeader } from '$lib/modals'
-  import { getStimuli, updateMultipleStimuli } from '$lib/stores/dataStore'
+  import {
+    getStimuli,
+    updateMultipleStimuli,
+  } from '$lib/gaze-data/front-process/stores/dataStore'
   import { addErrorToast, addSuccessToast } from '$lib/toaster'
-  import type { BaseInterpretedDataType } from '$lib/type/Data/InterpretedData/BaseInterpretedDataType'
+  import type { BaseInterpretedDataType } from '$lib/type/Data'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'

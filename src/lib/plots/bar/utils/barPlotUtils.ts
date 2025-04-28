@@ -1,7 +1,11 @@
-import { getAois, getParticipants, getSegments } from '$lib/stores/dataStore'
+import {
+  getAois,
+  getParticipants,
+  getSegments,
+} from '$lib/gaze-data/front-process/stores/dataStore'
 import { AdaptiveTimeline } from '$lib/plots/shared/class/AdaptiveTimeline'
-import type { BarPlotGridType } from '$lib/type/gridType'
-import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType'
+import type { BarPlotGridType } from '$lib/workspace/type/gridType'
+import type { ExtendedInterpretedDataType } from '$lib/type/Data'
 import {
   formatDecimal,
   calculateAverage,

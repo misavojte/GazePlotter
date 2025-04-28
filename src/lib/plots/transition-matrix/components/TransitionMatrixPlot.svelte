@@ -10,19 +10,19 @@
     TransitionMatrixSelectGroup,
     TransitionMatrixButtonMenu,
   } from '$lib/plots/transition-matrix/components'
-  import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
+  import Select from '$lib/shared/components/GeneralSelect.svelte'
   import { PlotPlaceholder } from '$lib/plots/shared/components'
   import { ModalContentMaxValue, ModalContentColorScale } from '$lib/modals'
 
   // Utilities and stores
-  import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
+  import { DEFAULT_GRID_CONFIG } from '$lib/shared/utils/gridSizingUtils'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { calculateTransitionMatrix } from '$lib/plots/transition-matrix/utils'
   import { AggregationMethod } from '$lib/plots/transition-matrix/const'
 
   // Types
-  import type { TransitionMatrixGridType } from '$lib/type/gridType'
+  import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
 
   interface Props {
     settings: TransitionMatrixGridType

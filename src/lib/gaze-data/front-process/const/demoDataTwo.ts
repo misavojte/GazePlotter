@@ -1,4 +1,4 @@
-import type { DataType } from '$lib/type/Data/DataType'
+import type { DataType } from '$lib/type/Data'
 
 /**
  * A variable that stores demo data for testing and showcasing.

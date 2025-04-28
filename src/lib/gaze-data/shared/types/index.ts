@@ -17,3 +17,9 @@
 export interface VisibilityAoiDataType {
   [key: string]: number[]
 }
+
+export interface AoiDataType {
+  data: string[][][]
+  orderVector: number[][] | []
+  dynamicVisibility: VisibilityAoiDataType
+}

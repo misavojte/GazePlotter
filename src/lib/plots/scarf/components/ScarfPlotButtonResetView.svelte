@@ -1,7 +1,7 @@
 <script lang="ts">
-  import MinorButton from '$lib/components/General/GeneralButton/GeneralButtonMinor.svelte'
+  import { GeneralButtonMinor } from '$lib/shared/components'
   import RefreshCcw from 'lucide-svelte/icons/refresh-ccw'
-  import type { ScarfGridType } from '$lib/type/gridType'
+  import type { ScarfGridType } from '$lib/workspace/type/gridType'
 
   interface Props {
     settings: ScarfGridType
@@ -49,6 +49,6 @@
   }
 </script>
 
-<MinorButton onclick={handleClick} {isDisabled}>
+<GeneralButtonMinor onclick={handleClick} {isDisabled}>
   <RefreshCcw size={'1em'} strokeWidth={1} />
-</MinorButton>
+</GeneralButtonMinor>

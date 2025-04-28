@@ -13,7 +13,7 @@
  * making them easily testable and composable.
  */
 
-import type { ScarfGridType } from '$lib/type/gridType'
+import type { ScarfGridType } from '$lib/workspace/type/gridType'
 import type {
   AoiVisibilityScarfFillingType,
   ParticipantScarfFillingType,
@@ -33,16 +33,18 @@ import {
   getSegments,
   getStimuli,
   hasStimulusAoiVisibility,
-} from '$lib/stores/dataStore'
+} from '$lib/gaze-data/front-process/stores/dataStore'
 import { AdaptiveTimeline } from '../../plots/shared/class/AdaptiveTimeline'
 import {
   IDENTIFIER_IS_AOI,
   IDENTIFIER_IS_OTHER_CATEGORY,
   IDENTIFIER_NOT_DEFINED,
 } from '$lib/plots/scarf/const/identifiers'
-import type { BaseInterpretedDataType } from '$lib/type/Data/InterpretedData/BaseInterpretedDataType'
-import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType'
-import type { SegmentInterpretedDataType } from '$lib/type/Data/InterpretedData/SegmentInterpretedDataType'
+import type {
+  BaseInterpretedDataType,
+  ExtendedInterpretedDataType,
+  SegmentInterpretedDataType,
+} from '$lib/type/Data'
 
 // Constants
 const HEIGHT_OF_X_AXIS = 20

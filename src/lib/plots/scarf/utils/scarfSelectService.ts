@@ -1,9 +1,9 @@
-import type { ScarfGridType } from '$lib/type/gridType'
+import type { ScarfGridType } from '$lib/workspace/type/gridType'
 import {
   getDynamicAoiBoolean,
   getScarfGridHeightFromCurrentData,
 } from './scarfServices'
-import { hasStimulusAoiVisibility } from '$lib/stores/dataStore'
+import { hasStimulusAoiVisibility } from '$lib/gaze-data/front-process/stores/dataStore'
 
 /**
  * Handles the selection changes for Scarf Plot select components

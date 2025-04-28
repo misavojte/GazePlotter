@@ -1,4 +1,4 @@
-import { getStimuli } from '$lib/stores/dataStore'
+import { getStimuli } from '$lib/gaze-data/front-process/stores/dataStore'
 
 /**
  * Get the stimuli options for a plot

@@ -1,9 +1,9 @@
 <script lang="ts">
-  import MajorControlButton from '$lib/shared/components/GeneralButtonMajor.svelte'
-  import { EyeWorkerService } from '$lib/class/WorkerService/EyeWorkerService'
-  import type { DataType } from '$lib/type/Data/DataType'
+  import { GeneralButtonMajor } from '$lib/shared/components'
+  import { EyeWorkerService } from '$lib/gaze-data/front-process/class/EyeWorkerService'
+  import type { DataType } from '$lib/type/Data'
   import { processingFileStateStore } from '$lib/workspace'
-  import { setData } from '$lib/stores/dataStore'
+  import { setData } from '$lib/gaze-data/front-process/stores/dataStore'
   import { addErrorToast, addSuccessToast } from '$lib/toaster'
 
   let isDisabled = $derived($processingFileStateStore === 'processing')
@@ -45,7 +45,7 @@
   }
 </script>
 
-<MajorControlButton {isDisabled} onclick={triggerFileUpload}>
+<GeneralButtonMajor {isDisabled} onclick={triggerFileUpload}>
   <label for="GP-file-upload">
     Upload file
     <input
@@ -57,7 +57,7 @@
       bind:this={input}
     />
   </label>
-</MajorControlButton>
+</GeneralButtonMajor>
 
 <style>
   label {

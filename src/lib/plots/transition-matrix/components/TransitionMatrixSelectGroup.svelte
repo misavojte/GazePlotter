@@ -1,8 +1,11 @@
 <script lang="ts">
-  import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
-  import { getParticipantsGroups, data } from '$lib/stores/dataStore'
+  import Select from '$lib/shared/components/GeneralSelect.svelte'
+  import {
+    getParticipantsGroups,
+    data,
+  } from '$lib/gaze-data/front-process/stores/dataStore'
   import { onDestroy } from 'svelte'
-  import type { TransitionMatrixGridType } from '$lib/type/gridType'
+  import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
 
   interface Props {
     settings: TransitionMatrixGridType

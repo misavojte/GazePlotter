@@ -1,6 +1,6 @@
 <script lang="ts">
   import GeneralSelectBase from '$lib/shared/components/GeneralSelect.svelte'
-  import { getParticipants } from '$lib/stores/dataStore.js'
+  import { getParticipants } from '$lib/gaze-data/front-process/stores/dataStore.js'
   import { GeneralInputFile, GeneralButtonMajor } from '$lib/shared/components'
   import { addErrorToast, addSuccessToast } from '$lib/toaster'
   import { processAoiVisibility } from '$lib/modals/import/utility/aoiVisibilityServices'

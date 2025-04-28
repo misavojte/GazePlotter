@@ -1,7 +1,7 @@
 <script lang="ts">
-  import MajorControlButton from '$lib/shared/components/GeneralButtonMajor.svelte'
-  import { demoData } from '$lib/const/demoDataTwo'
-  import { data } from '$lib/stores/dataStore'
+  import { GeneralButtonMajor } from '$lib/shared/components'
+  import { demoData } from '$lib/gaze-data/front-process/const/demoDataTwo'
+  import { data } from '$lib/gaze-data/front-process/stores/dataStore'
   import { addSuccessToast } from '$lib/toaster'
   import { processingFileStateStore } from '$lib/workspace'
 
@@ -14,6 +14,6 @@
   }
 </script>
 
-<MajorControlButton {isDisabled} onclick={handleClick}
-  >Reload demo</MajorControlButton
->
+<GeneralButtonMajor {isDisabled} onclick={handleClick}>
+  Reload demo
+</GeneralButtonMajor>

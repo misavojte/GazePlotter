@@ -1,6 +1,8 @@
 import type { AdaptiveTimeline } from '$lib/plots/shared/class'
-import type { BaseInterpretedDataType } from '$lib/type/Data/InterpretedData/BaseInterpretedDataType'
-import type { SegmentInterpretedDataType } from '$lib/type/Data/InterpretedData/SegmentInterpretedDataType'
+import type {
+  BaseInterpretedDataType,
+  SegmentInterpretedDataType,
+} from '$lib/type/Data'
 
 export interface BarPlotDataItem {
   value: number

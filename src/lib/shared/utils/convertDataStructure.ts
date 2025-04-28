@@ -1,5 +1,5 @@
-import type { DataType } from '$lib/type/Data/DataType'
-import { getAoi } from '$lib/stores/dataStore'
+import type { DataType } from '$lib/type/Data'
+import { getAoi } from '$lib/gaze-data/front-process/stores/dataStore'
 
 /**
  * Converts the complex hierarchical eye-tracking data structure to a flat array format.

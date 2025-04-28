@@ -4,8 +4,8 @@ import {
   getNumberOfSegments,
   getParticipant,
   getSegment,
-} from '$lib/stores/dataStore'
-import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType'
+} from '$lib/gaze-data/front-process/stores/dataStore'
+import type { ExtendedInterpretedDataType } from '$lib/type/Data'
 
 export class ScanGraphDownloader extends AbstractDownloader {
   download(stimulusId: number, fileName: string): void {

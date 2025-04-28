@@ -1,5 +1,5 @@
 import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput.js'
-import type { DataType } from '$lib/type/Data/DataType.js'
+import type { DataType } from '$lib/type/Data'
 
 export class EyeWriter {
   data: DataType = {

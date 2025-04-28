@@ -4,9 +4,12 @@
   import GeneralInfoCallout from '$lib/shared/components/GeneralInfoCallout.svelte'
   import { GeneralInputColor, GeneralButtonMajor } from '$lib/shared/components'
   import { SortableTableHeader, SectionHeader } from '$lib/modals'
-  import { getAllAois, updateMultipleAoi } from '$lib/stores/dataStore'
+  import {
+    getAllAois,
+    updateMultipleAoi,
+  } from '$lib/gaze-data/front-process/stores/dataStore'
   import { addErrorToast, addInfoToast, addSuccessToast } from '$lib/toaster'
-  import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType'
+  import type { ExtendedInterpretedDataType } from '$lib/type/Data'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'

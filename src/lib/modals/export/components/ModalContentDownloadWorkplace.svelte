@@ -2,7 +2,7 @@
   import { GeneralButtonMajor, GeneralInputText } from '$lib/shared/components'
   import GeneralSelect from '$lib/shared/components/GeneralSelect.svelte'
   import { WorkplaceDownloader } from '$lib/modals/export/class/WorkplaceDownloader.js'
-  import { getData } from '$lib/stores/dataStore.js'
+  import { getData } from '$lib/gaze-data/front-process/stores/dataStore.js'
 
   let type = $state('inner-json')
   let fileName = $state('GazePlotter-Workplace')

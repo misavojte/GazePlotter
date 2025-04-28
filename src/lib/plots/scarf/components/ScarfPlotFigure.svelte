@@ -1,12 +1,12 @@
 <script lang="ts">
   import type { ScarfFillingType } from '$lib/plots/scarf/types'
-  import type { ScarfGridType } from '$lib/type/gridType'
+  import type { ScarfGridType } from '$lib/workspace/type/gridType'
   import { addInfoToast } from '$lib/toaster'
   import {
     calculateLabelOffset,
     truncateTextToPixelWidth,
-  } from '$lib/utils/textUtils'
-  import { draggable } from '$lib/actions/draggable'
+  } from '$lib/shared/utils/textUtils'
+  import { draggable } from '$lib/shared/actions/draggable'
   import { onMount, onDestroy, untrack } from 'svelte'
   import { browser } from '$app/environment'
   import {
@@ -25,7 +25,7 @@
     beginCanvasDrawing,
     finishCanvasDrawing,
     type CanvasState,
-  } from '$lib/utils/canvasUtils'
+  } from '$lib/shared/utils/canvasUtils'
   import { updateTooltip } from '$lib/tooltip'
 
   // CONSTANTS - layout dimensions and styling

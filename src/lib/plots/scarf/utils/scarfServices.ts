@@ -1,4 +1,7 @@
-import { getAois, getParticipants } from '$lib/stores/dataStore'
+import {
+  getAois,
+  getParticipants,
+} from '$lib/gaze-data/front-process/stores/dataStore'
 import { getScarfParticipantBarHeight as getBarHeight } from '$lib/plots/scarf/utils/transformations'
 
 // Constants duplicated from scarfPlotTransformations.ts for better independence

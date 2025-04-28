@@ -1,6 +1,9 @@
-import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup'
+import type { ParticipantsGroup } from '$lib/type/Data'
 import { writable } from 'svelte/store'
-import { getParticipantsGroups, data } from '$lib/stores/dataStore'
+import {
+  getParticipantsGroups,
+  data,
+} from '$lib/gaze-data/front-process/stores/dataStore'
 
 /**
  * Store for participants groups data in working memory of modal

@@ -1,4 +1,7 @@
-import { getParticipant, getSegment } from '$lib/stores/dataStore'
+import {
+  getParticipant,
+  getSegment,
+} from '$lib/gaze-data/front-process/stores/dataStore'
 import { updateTooltip } from '$lib/tooltip/stores/tooltipStore'
 import type { ScarfTooltipFillingType } from '$lib/plots/scarf/types/ScarfTooltipFillingType'
 

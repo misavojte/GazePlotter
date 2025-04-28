@@ -1,10 +1,13 @@
 <script lang="ts">
-  import { getColorForValue, getContrastTextColor } from '$lib/utils/colorUtils'
+  import {
+    getColorForValue,
+    getContrastTextColor,
+  } from '$lib/shared/utils/colorUtils'
   import { updateTooltip } from '$lib/tooltip'
   import {
     calculateLabelOffset,
     truncateTextToPixelWidth,
-  } from '$lib/utils/textUtils'
+  } from '$lib/shared/utils/textUtils'
   import { onMount, untrack } from 'svelte'
   import { browser } from '$app/environment'
   import {
@@ -17,7 +20,7 @@
     beginCanvasDrawing,
     finishCanvasDrawing,
     type CanvasState,
-  } from '$lib/utils/canvasUtils'
+  } from '$lib/shared/utils/canvasUtils'
 
   // SVG layout constants - minimal but not zero to ensure spacing
   const BASE_LABEL_OFFSET = 5

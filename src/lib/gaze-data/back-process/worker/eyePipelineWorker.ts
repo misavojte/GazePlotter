@@ -1,4 +1,4 @@
-import { EyePipeline } from '$lib/class/Eye/EyePipeline/EyePipeline'
+import { EyePipeline } from '$lib/gaze-data/back-process'
 
 /**
  * A worker file handling whole eyefiles processing.

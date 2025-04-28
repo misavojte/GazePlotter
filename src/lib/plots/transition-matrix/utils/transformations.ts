@@ -15,8 +15,8 @@ import {
   getAois,
   getSegments,
   getNumberOfSegments,
-} from '$lib/stores/dataStore'
-import type { SegmentInterpretedDataType } from '$lib/type/Data/InterpretedData/SegmentInterpretedDataType'
+} from '$lib/gaze-data/front-process/stores/dataStore'
+import type { SegmentInterpretedDataType } from '$lib/type/Data'
 import {
   createMatrix,
   formatDecimal,
@@ -351,7 +351,8 @@ export function normalizeTransitionMatrix(matrix: number[][]): number[][] {
  * This function analyzes consecutive fixations within the same AOI(s) to calculate
  * average dwell time for segments before transitions. For example, if the sequence
  * is A, A, A, A, B, it will sum the duration of each individual A fixation (end-start)
- * before the transition to B. This means it measures the total time spent on a set of AOIs
+ * before the transition to B. This means it measures the total time spent
+ * on a set of AOIs
  * by summing the actual durations of each fixation before transitioning to a different set of AOIs.
  *
  * The dwell time is calculated by summing the individual fixation durations (end-start) of

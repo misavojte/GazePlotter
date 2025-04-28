@@ -1,5 +1,5 @@
 <script lang="ts" context="module">
-  import { tooltipStore, updateTooltip } from '$lib/stores/tooltipStore'
+  import { tooltipStore, updateTooltip } from '$lib/tooltip'
 
   /**
    * @description This is a tooltip action that is used to create a tooltip.
