@@ -4,7 +4,7 @@
     getParticipantEndTime,
     getParticipants,
   } from '$lib/stores/dataStore'
-  import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType'
+  import type { ScarfTooltipFillingType } from '$lib/plots/scarf/types/ScarfTooltipFillingType'
   import { onDestroy, onMount } from 'svelte'
   import { ScarfPlotFigure, ScarfPlotHeader } from '$lib/plots/scarf/components'
   import type { ScarfGridType } from '$lib/type/gridType'
@@ -15,7 +15,7 @@
     calculateScarfHeights,
   } from '$lib/plots/scarf/utils'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils'
-  import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
+  import { DEFAULT_GRID_CONFIG } from '$lib/shared/utils/gridSizingUtils'
   import { untrack } from 'svelte'
   import { PlotPlaceholder } from '$lib/plots/shared/components'
   import { fade } from 'svelte/transition'
