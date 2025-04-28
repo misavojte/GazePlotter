@@ -4,8 +4,7 @@
   import GeneralSelectBase from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import GeneralInfoCallout from '$lib/components/General/GeneralInfoCallout/GeneralInfoCallout.svelte'
   import GeneralInputColor from '$lib/components/General/GeneralInput/GeneralInputColor.svelte'
-  import SortableTableHeader from '$lib/components/Modal/Shared/SortableTableHeader.svelte'
-  import SectionHeader from '$lib/components/Modal/Shared/SectionHeader.svelte'
+  import { SortableTableHeader, SectionHeader } from '$lib/modals'
   import { getAllAois, updateMultipleAoi } from '$lib/stores/dataStore'
   import {
     addErrorToast,

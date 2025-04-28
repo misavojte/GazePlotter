@@ -12,15 +12,12 @@
   } from '$lib/plots/transition-matrix/components'
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import { PlotPlaceholder } from '$lib/plots/shared/components'
-  import {
-    ModalContentMaxValue,
-    ModalContentColorScale,
-  } from '$lib/components/Modal'
+  import { ModalContentMaxValue, ModalContentColorScale } from '$lib/modals'
 
   // Utilities and stores
   import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils'
-  import { modalStore } from '$lib/stores/modalStore'
+  import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { calculateTransitionMatrix } from '$lib/plots/transition-matrix/utils'
   import { AggregationMethod } from '$lib/plots/transition-matrix/const'
 

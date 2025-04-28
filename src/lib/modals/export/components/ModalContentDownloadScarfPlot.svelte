@@ -1,12 +1,11 @@
 <script lang="ts">
-  import DownloadPlotSettings from '$lib/components/Modal/Shared/DownloadPlotSettings.svelte'
   import type { ScarfGridType } from '$lib/type/gridType'
   import type { ScarfFillingType } from '$lib/plots/scarf/types'
   import { transformDataToScarfPlot, ScarfPlotFigure } from '$lib/plots'
   import GeneralCanvasPreview from '$lib/components/General/GeneralCanvasPreview/GeneralCanvasPreview.svelte'
   import { getParticipants } from '$lib/stores/dataStore'
   import { untrack } from 'svelte'
-  import SectionHeader from '$lib/components/Modal/Shared/SectionHeader.svelte'
+  import { SectionHeader, DownloadPlotSettings } from '$lib/modals'
 
   interface Props {
     settings: ScarfGridType

@@ -1,15 +1,17 @@
 <script lang="ts">
   import MenuButton from '$lib/components/General/GeneralButton/GeneralButtonMenu.svelte'
-  import { modalStore } from '$lib/stores/modalStore.js'
+  import { modalStore } from '$lib/modals/shared/stores/modalStore.js'
   import type { TransitionMatrixGridType } from '$lib/type/gridType'
   import BarChart from 'lucide-svelte/icons/bar-chart'
   import Download from 'lucide-svelte/icons/download'
   import Palette from 'lucide-svelte/icons/palette'
   import Settings from 'lucide-svelte/icons/settings-2'
-  import ModalContentMaxValue from '$lib/components/Modal/ModalContent/ModalContentMaxValue.svelte'
-  import ModalContentColorScale from '$lib/components/Modal/ModalContent/ModalContentColorScale.svelte'
-  import ModalContentDownloadTransitionMatrix from '$lib/components/Modal/ModalContent/ModalContentDownloadTransitionMatrix.svelte'
-  import ModalContentStimulusModification from '$lib/components/Modal/ModalContent/ModalContentStimulusModification.svelte'
+  import {
+    ModalContentMaxValue,
+    ModalContentColorScale,
+    ModalContentDownloadTransitionMatrix,
+    ModalContentStimulusModification,
+  } from '$lib/modals'
 
   interface Props {
     settings: TransitionMatrixGridType

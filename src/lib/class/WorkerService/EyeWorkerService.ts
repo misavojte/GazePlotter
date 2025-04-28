@@ -1,5 +1,5 @@
-import ModalContentTobiiParsingInput from '$lib/components/Modal/ModalContent/ModalContentTobiiParsingInput.svelte'
-import { modalStore } from '$lib/stores/modalStore'
+import { ModalContentTobiiParsingInput } from '$lib/modals'
+import { modalStore } from '$lib/modals/shared/stores/modalStore'
 import { addErrorToast, addInfoToast } from '$lib/stores/toastStore'
 import type { DataType } from '$lib/type/Data/DataType'
 
@@ -253,10 +253,14 @@ export class EyeWorkerService {
    */
   requestUserInput(): Promise<string> {
     return new Promise((resolve, reject) => {
-      modalStore.open(ModalContentTobiiParsingInput, 'Tobii Parsing Input', {
-        valuePromiseResolve: resolve,
-        valuePromiseReject: reject,
-      })
+      modalStore.open(
+        ModalContentTobiiParsingInput as any,
+        'Tobii Parsing Input',
+        {
+          valuePromiseResolve: resolve,
+          valuePromiseReject: reject,
+        }
+      )
     })
   }
 }

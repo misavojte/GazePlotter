@@ -3,7 +3,7 @@
   import GeneralSelectBase from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import GeneralInputText from '$lib/components/General/GeneralInput/GeneralInputText.svelte'
   import GeneralButtonPreset from '$lib/components/General/GeneralButton/GeneralButtonPreset.svelte'
-  import SectionHeader from '$lib/components/Modal/Shared/SectionHeader.svelte'
+  import { SectionHeader } from '$lib/modals'
 
   // Define the props interface
   interface Props {

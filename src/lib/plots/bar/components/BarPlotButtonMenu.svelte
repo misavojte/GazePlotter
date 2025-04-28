@@ -1,6 +1,6 @@
 <script lang="ts">
   import MenuButton from '$lib/components/General/GeneralButton/GeneralButtonMenu.svelte'
-  import { modalStore } from '$lib/stores/modalStore'
+  import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import type { BarPlotGridType } from '$lib/type/gridType'
   import type { SvelteComponent } from 'svelte'
   import Download from 'lucide-svelte/icons/download'
@@ -9,11 +9,13 @@
   import Copy from 'lucide-svelte/icons/copy'
   import Trash from 'lucide-svelte/icons/trash'
   import BarChartIcon from 'lucide-svelte/icons/bar-chart'
-  import ModalContentAoiModification from '$lib/components/Modal/ModalContent/ModalContentAoiModification.svelte'
-  import ModalContentParticipantsGroups from '$lib/components/Modal/ModalContent/ModalContentParticipantsGroups.svelte'
-  import ModalContentDownloadBarPlot from '$lib/components/Modal/ModalContent/ModalContentDownloadBarPlot.svelte'
-  import ModalContentBarChartAxes from '$lib/components/Modal/ModalContent/ModalContentBarChartAxes.svelte'
-  import ModalContentStimulusModification from '$lib/components/Modal/ModalContent/ModalContentStimulusModification.svelte'
+  import {
+    ModalContentAoiModification,
+    ModalContentParticipantsGroups,
+    ModalContentDownloadBarPlot,
+    ModalContentBarChartAxes,
+    ModalContentStimulusModification,
+  } from '$lib/modals'
   import { getContext } from 'svelte'
   import type { GridStoreType } from '$lib/stores/gridStore'
   import type { ComponentProps } from 'svelte'

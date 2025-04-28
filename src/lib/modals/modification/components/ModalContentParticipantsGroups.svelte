@@ -13,7 +13,7 @@
   import UserCog from 'lucide-svelte/icons/user-cog'
   import Bin from 'lucide-svelte/icons/trash'
   import GeneralEmpty from '$lib/components/General/GeneralEmpty/GeneralEmpty.svelte'
-  import ModalContentParticipantsGroupsChecklist from '$lib/components/Modal/ModalContent/ModalContentParticipantsGroupsChecklist.svelte'
+  import { ModalContentParticipantsGroupsChecklist } from '$lib/modals'
 
   interface Props {
     forceRedraw: () => void

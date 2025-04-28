@@ -1,7 +1,6 @@
 <script lang="ts">
   import MenuButton from '$lib/components/General/GeneralButton/GeneralButtonMenu.svelte'
-  import ModalContentScarfPlotClip from '$lib/components/Modal/ModalContent/ModalContentScarfPlotClip.svelte'
-  import { modalStore } from '$lib/stores/modalStore.js'
+  import { modalStore } from '$lib/modals/shared/stores/modalStore.js'
   import type { GridStoreType } from '$lib/stores/gridStore'
   import Copy from 'lucide-svelte/icons/copy'
   import Download from 'lucide-svelte/icons/download'
@@ -11,15 +10,18 @@
   import Users from 'lucide-svelte/icons/users'
   import View from 'lucide-svelte/icons/view'
   import type { ComponentProps } from 'svelte'
-  import ModalContentAoiModification from '$lib/components/Modal/ModalContent/ModalContentAoiModification.svelte'
-  import ModalContentAoiVisibility from '$lib/components/Modal/ModalContent/ModalContentAoiVisibility.svelte'
-  import ModalContentDownloadScarfPlot from '$lib/components/Modal/ModalContent/ModalContentDownloadScarfPlot.svelte'
-  import ModalContentParticipantsGroups from '$lib/components/Modal/ModalContent/ModalContentParticipantsGroups.svelte'
   import { getContext } from 'svelte'
   import type { ScarfGridType } from '$lib/type/gridType'
   import type { SvelteComponent } from 'svelte'
-  import ModalContentParticipantModification from '$lib/components/Modal/ModalContent/ModalContentParticipantModification.svelte'
-  import ModalContentStimulusModification from '$lib/components/Modal/ModalContent/ModalContentStimulusModification.svelte'
+  import {
+    ModalContentParticipantModification,
+    ModalContentStimulusModification,
+    ModalContentScarfPlotClip,
+    ModalContentAoiModification,
+    ModalContentAoiVisibility,
+    ModalContentDownloadScarfPlot,
+    ModalContentParticipantsGroups,
+  } from '$lib/modals'
 
   interface Props {
     settings: ScarfGridType

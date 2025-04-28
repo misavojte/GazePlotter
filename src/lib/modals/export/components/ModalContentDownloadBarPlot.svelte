@@ -1,10 +1,9 @@
 <script lang="ts">
-  import DownloadPlotSettings from '$lib/components/Modal/Shared/DownloadPlotSettings.svelte'
   import type { BarPlotGridType } from '$lib/type/gridType'
   import BarPlotFigure from '$lib/plots/bar/components/BarPlotFigure.svelte'
   import { getBarPlotData } from '$lib/plots/bar/utils/barPlotUtils'
   import GeneralCanvasPreview from '$lib/components/General/GeneralCanvasPreview/GeneralCanvasPreview.svelte'
-  import SectionHeader from '$lib/components/Modal/Shared/SectionHeader.svelte'
+  import { SectionHeader, DownloadPlotSettings } from '$lib/modals'
 
   interface Props {
     settings: BarPlotGridType

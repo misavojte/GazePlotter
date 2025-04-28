@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { modalStore } from '$lib/stores/modalStore'
+  import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
   import GeneralInputColor from '$lib/components/General/GeneralInput/GeneralInputColor.svelte'
   import type { TransitionMatrixGridType } from '$lib/type/gridType'
-  import SectionHeader from '../Shared/SectionHeader.svelte'
+  import { SectionHeader } from '$lib/modals'
 
   interface Props {
     settings: TransitionMatrixGridType

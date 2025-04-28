@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { modalStore } from '$lib/stores/modalStore'
+  import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import NumberInput from '$lib/components/General/GeneralInput/GeneralInputNumber.svelte'
   import GeneralInputColor from '$lib/components/General/GeneralInput/GeneralInputColor.svelte'
   import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
@@ -7,7 +7,7 @@
   import { getStimuliOrderVector } from '$lib/stores/dataStore'
   import type { TransitionMatrixGridType } from '$lib/type/gridType'
   import GeneralInfoCallout from '$lib/components/General/GeneralInfoCallout/GeneralInfoCallout.svelte'
-  import SectionHeader from '../Shared/SectionHeader.svelte'
+  import { SectionHeader } from '$lib/modals'
   interface Props {
     settings: TransitionMatrixGridType
     settingsChange: (newSettings: Partial<TransitionMatrixGridType>) => void

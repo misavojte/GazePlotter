@@ -1,8 +1,8 @@
 <script lang="ts">
   import { ScanGraphDownloader } from '$lib/class/Downloader/ScanGraphDownloader'
-  import GeneralSelectBase from '../../General/GeneralSelect/GeneralSelect.svelte'
-  import GeneralInputText from '../../General/GeneralInput/GeneralInputText.svelte'
-  import MajorButton from '../../General/GeneralButton/GeneralButtonMajor.svelte'
+  import GeneralSelectBase from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
+  import GeneralInputText from '$lib/components/General/GeneralInput/GeneralInputText.svelte'
+  import MajorButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
   let stimulusId = $state('0')
   let fileName = $state('GazePlotter-ScanGraph')

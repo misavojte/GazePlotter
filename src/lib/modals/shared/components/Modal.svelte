@@ -8,7 +8,7 @@
 
 <script lang="ts">
   import { onDestroy, onMount, type SvelteComponent } from 'svelte'
-  import { modalStore } from '$lib/stores/modalStore'
+  import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { fly } from 'svelte/transition'
 
   let modal: Modal | null = $state(null)

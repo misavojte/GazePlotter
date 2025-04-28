@@ -5,7 +5,7 @@
   import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
   import GeneralInputNumber from '$lib/components/General/GeneralInput/GeneralInputNumber.svelte'
   import { addSuccessToast } from '$lib/stores/toastStore.js'
-  import { modalStore } from '$lib/stores/modalStore.js'
+  import { modalStore } from '$lib/modals/shared/stores/modalStore.js'
 
   import type { ScarfGridType } from '$lib/type/gridType'
 

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import DownloadPlotSettings from '$lib/components/Modal/Shared/DownloadPlotSettings.svelte'
   import type { TransitionMatrixGridType } from '$lib/type/gridType'
   import TransitionMatrixPlotFigure from '$lib/plots/transition-matrix/components/TransitionMatrixPlotFigure.svelte'
   import {
@@ -7,7 +6,7 @@
     AggregationMethod,
   } from '$lib/plots/transition-matrix/'
   import GeneralCanvasPreview from '$lib/components/General/GeneralCanvasPreview/GeneralCanvasPreview.svelte'
-  import SectionHeader from '$lib/components/Modal/Shared/SectionHeader.svelte'
+  import { SectionHeader, DownloadPlotSettings } from '$lib/modals'
 
   interface Props {
     settings: TransitionMatrixGridType
