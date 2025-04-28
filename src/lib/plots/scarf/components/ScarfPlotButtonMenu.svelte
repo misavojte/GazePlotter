@@ -7,7 +7,7 @@
   import Users from 'lucide-svelte/icons/users'
   import View from 'lucide-svelte/icons/view'
   import type { ComponentProps } from 'svelte'
-  import type { ScarfGridType } from '$lib/type/gridType'
+  import type { ScarfGridType } from '$lib/workspace/type/gridType'
   import type { SvelteComponent } from 'svelte'
   import {
     ModalContentParticipantModification,

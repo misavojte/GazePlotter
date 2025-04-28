@@ -13,10 +13,10 @@
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils/plotSizeUtility'
   import { getBarPlotData } from '$lib/plots/bar/utils/barPlotUtils'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
-  import { getParticipantsGroups } from '$lib/stores/dataStore'
+  import { getParticipantsGroups } from '$lib/gaze-data/front-process/stores/dataStore'
 
   // Types
-  import type { BarPlotGridType } from '$lib/type/gridType'
+  import type { BarPlotGridType } from '$lib/workspace/type/gridType'
 
   // CONSTANTS - centralized for easier maintenance
   const LAYOUT = {

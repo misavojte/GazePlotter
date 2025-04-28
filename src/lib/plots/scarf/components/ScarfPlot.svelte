@@ -3,11 +3,11 @@
     getNumberOfSegments,
     getParticipantEndTime,
     getParticipants,
-  } from '$lib/stores/dataStore'
+  } from '$lib/gaze-data/front-process/stores/dataStore'
   import type { ScarfTooltipFillingType } from '$lib/plots/scarf/types/ScarfTooltipFillingType'
   import { onDestroy, onMount } from 'svelte'
   import { ScarfPlotFigure, ScarfPlotHeader } from '$lib/plots/scarf/components'
-  import type { ScarfGridType } from '$lib/type/gridType'
+  import type { ScarfGridType } from '$lib/workspace/type/gridType'
   import {
     tooltipScarfService,
     transformDataToScarfPlot,

@@ -6,8 +6,8 @@
     GeneralButtonMajor,
   } from '$lib/shared/components'
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
-  import { getStimuliOrderVector } from '$lib/stores/dataStore'
-  import type { TransitionMatrixGridType } from '$lib/type/gridType'
+  import { getStimuliOrderVector } from '$lib/gaze-data/front-process/stores/dataStore'
+  import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
   import GeneralInfoCallout from '$lib/shared/components/GeneralInfoCallout.svelte'
   import { SectionHeader } from '$lib/modals'
   interface Props {

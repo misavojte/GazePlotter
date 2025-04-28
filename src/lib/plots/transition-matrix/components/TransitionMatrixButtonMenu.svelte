@@ -1,7 +1,7 @@
 <script lang="ts">
   import { GeneralButtonMenu as MenuButton } from '$lib/shared/components'
   import { modalStore } from '$lib/modals/shared/stores/modalStore.js'
-  import type { TransitionMatrixGridType } from '$lib/type/gridType'
+  import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
   import BarChart from 'lucide-svelte/icons/bar-chart'
   import Download from 'lucide-svelte/icons/download'
   import Palette from 'lucide-svelte/icons/palette'

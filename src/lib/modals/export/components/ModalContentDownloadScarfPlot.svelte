@@ -1,9 +1,9 @@
 <script lang="ts">
-  import type { ScarfGridType } from '$lib/type/gridType'
+  import type { ScarfGridType } from '$lib/workspace/type/gridType'
   import type { ScarfFillingType } from '$lib/plots/scarf/types'
   import { transformDataToScarfPlot, ScarfPlotFigure } from '$lib/plots'
   import GeneralCanvasPreview from '$lib/modals/shared/components/CanvasPreview.svelte'
-  import { getParticipants } from '$lib/stores/dataStore'
+  import { getParticipants } from '$lib/gaze-data/front-process/stores/dataStore'
   import { untrack } from 'svelte'
   import { SectionHeader, DownloadPlotSettings } from '$lib/modals'
 

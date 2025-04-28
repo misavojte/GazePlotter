@@ -13,7 +13,7 @@
   import { fade } from 'svelte/transition'
   import { setContext } from 'svelte'
   import { writable, get, derived } from 'svelte/store'
-  import type { AllGridTypes } from '$lib/type/gridType'
+  import type { AllGridTypes } from '$lib/workspace/type/gridType'
   import { onDestroy } from 'svelte'
   import {
     DEFAULT_GRID_CONFIG,

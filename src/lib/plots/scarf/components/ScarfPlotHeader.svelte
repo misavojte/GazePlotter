@@ -8,7 +8,7 @@
     ScarfPlotButtonZoomOut,
     ScarfPlotButtonResetView,
   } from '$lib/plots/scarf/components'
-  import type { ScarfGridType } from '$lib/type/gridType'
+  import type { ScarfGridType } from '$lib/workspace/type/gridType'
   interface Props {
     settings: ScarfGridType
     settingsChange: (settings: Partial<ScarfGridType>) => void

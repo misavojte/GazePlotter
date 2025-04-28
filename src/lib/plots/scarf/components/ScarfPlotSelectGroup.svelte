@@ -1,9 +1,12 @@
 <script lang="ts">
   import Select from '$lib/shared/components/GeneralSelect.svelte'
-  import { getParticipantsGroups, data } from '$lib/stores/dataStore'
+  import {
+    getParticipantsGroups,
+    data,
+  } from '$lib/gaze-data/front-process/stores/dataStore'
   import { onDestroy } from 'svelte'
   import { handleScarfSelectionChange } from '$lib/plots/scarf/utils/scarfSelectService'
-  import type { ScarfGridType } from '$lib/type/gridType'
+  import type { ScarfGridType } from '$lib/workspace/type/gridType'
 
   interface Props {
     settings: ScarfGridType

@@ -16,7 +16,10 @@ export class EyeWorkerService {
   onFail: () => void
   constructor(onData: (data: DataType) => void, onFail: () => void) {
     this.worker = new Worker(
-      new URL('$lib/worker/eyePipelineWorker', import.meta.url),
+      new URL(
+        '$lib/gaze-data/back-process/worker/eyePipelineWorker.ts', // Must be a full path, not via index.ts
+        import.meta.url
+      ),
       {
         type: 'module',
       }
@@ -227,7 +230,7 @@ export class EyeWorkerService {
   protected handleError(error: Error): void {
     const message = error?.message ?? 'Unknown error'
     addErrorToast('Could not process the file: ' + message)
-    console.error('EyeWorkerService.handleError() - event:', event)
+    console.error('EyeWorkerService.handleError() - error:', error)
     this.onFail()
   }
 

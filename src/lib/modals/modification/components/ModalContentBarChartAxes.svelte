@@ -4,7 +4,7 @@
     GeneralButtonMajor,
     GeneralInputNumber,
   } from '$lib/shared/components'
-  import type { BarPlotGridType } from '$lib/type/gridType'
+  import type { BarPlotGridType } from '$lib/workspace/type/gridType'
   import GeneralFieldset from '$lib/shared/components/GeneralFieldset.svelte'
 
   interface Props {

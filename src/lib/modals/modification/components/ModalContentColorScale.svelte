@@ -2,7 +2,7 @@
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { GeneralButtonMajor, GeneralInputColor } from '$lib/shared/components'
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
-  import type { TransitionMatrixGridType } from '$lib/type/gridType'
+  import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
   import { SectionHeader } from '$lib/modals'
 
   interface Props {

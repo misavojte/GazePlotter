@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getStimuliOrderVector } from '$lib/stores/dataStore'
+  import { getStimuliOrderVector } from '$lib/gaze-data/front-process/stores/dataStore'
   import MajorButton from '$lib/shared/components/GeneralButtonMajor.svelte'
   import GeneralFieldset from '$lib/shared/components/GeneralFieldset.svelte'
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
@@ -7,7 +7,7 @@
   import { addSuccessToast } from '$lib/toaster'
   import { modalStore } from '$lib/modals/shared/stores/modalStore.js'
 
-  import type { ScarfGridType } from '$lib/type/gridType'
+  import type { ScarfGridType } from '$lib/workspace/type/gridType'
 
   interface Props {
     settings: ScarfGridType

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { TransitionMatrixGridType } from '$lib/type/gridType'
+  import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
   import TransitionMatrixPlotFigure from '$lib/plots/transition-matrix/components/TransitionMatrixPlotFigure.svelte'
   import {
     calculateTransitionMatrix,
