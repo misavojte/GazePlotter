@@ -1,6 +1,6 @@
 import { getParticipant, getSegment } from '$lib/stores/dataStore'
-import { updateTooltip } from '$lib/stores/tooltipStore'
-import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType'
+import { updateTooltip } from '$lib/tooltip/stores/tooltipStore'
+import type { ScarfTooltipFillingType } from '$lib/plots/scarf/types/ScarfTooltipFillingType'
 
 /**
  * Service function to fill the tooltip with data.
