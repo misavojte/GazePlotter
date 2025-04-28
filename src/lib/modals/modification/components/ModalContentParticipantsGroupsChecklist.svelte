@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getParticipants } from '$lib/gaze-data/front-process/stores/dataStore'
-  import type { ParticipantsGroup } from '$lib/type/Data'
+  import type { ParticipantsGroup } from '$lib/gaze-data/shared/types'
   import { GeneralButtonMajor } from '$lib/shared/components'
   import GeneralInputCheck from '$lib/shared/components/GeneralInputCheck.svelte'
 

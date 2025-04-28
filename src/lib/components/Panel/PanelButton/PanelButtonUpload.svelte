@@ -1,7 +1,7 @@
 <script lang="ts">
   import { GeneralButtonMajor } from '$lib/shared/components'
   import { EyeWorkerService } from '$lib/gaze-data/front-process/class/EyeWorkerService'
-  import type { DataType } from '$lib/type/Data'
+  import type { DataType } from '$lib/gaze-data/shared/types'
   import { processingFileStateStore } from '$lib/workspace'
   import { setData } from '$lib/gaze-data/front-process/stores/dataStore'
   import { addErrorToast, addSuccessToast } from '$lib/toaster'

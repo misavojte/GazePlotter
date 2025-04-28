@@ -9,7 +9,7 @@
     updateMultipleAoi,
   } from '$lib/gaze-data/front-process/stores/dataStore'
   import { addErrorToast, addInfoToast, addSuccessToast } from '$lib/toaster'
-  import type { ExtendedInterpretedDataType } from '$lib/type/Data'
+  import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'

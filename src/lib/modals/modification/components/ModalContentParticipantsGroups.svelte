@@ -5,7 +5,7 @@
     participantsGroupsStore,
   } from '$lib/modals/modification/stores/participantsGroupStore'
   import { addSuccessToast, addErrorToast } from '$lib/toaster'
-  import type { ParticipantsGroup } from '$lib/type/Data'
+  import type { ParticipantsGroup } from '$lib/gaze-data/shared/types'
   import {
     GeneralButtonMajor,
     GeneralButtonMinor,

@@ -8,7 +8,7 @@
     updateMultipleStimuli,
   } from '$lib/gaze-data/front-process/stores/dataStore'
   import { addErrorToast, addSuccessToast } from '$lib/toaster'
-  import type { BaseInterpretedDataType } from '$lib/type/Data'
+  import type { BaseInterpretedDataType } from '$lib/gaze-data/shared/types'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
