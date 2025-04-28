@@ -6,7 +6,7 @@
  */
 
 import { CsvSegmentedEyeDeserializer } from '$lib/class/Eye/EyeDeserializer/CsvSegmentedEyeDeserializer'
-import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput'
+import type { SingleDeserializerOutput } from '$lib/gaze-data/back-process/types/SingleDeserializerOutput'
 import { test, expect, describe } from 'vitest'
 
 const csvMockDataOne = `From,To,Participant,Stimulus,AOI

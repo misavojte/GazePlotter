@@ -9,7 +9,7 @@
  */
 
 import { OgamaEyeDeserializer } from '$lib/class/Eye/EyeDeserializer/OgamaEyeDeserializer'
-import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput.js'
+import type { SingleDeserializerOutput } from '$lib/gaze-data/back-process/types/SingleDeserializerOutput.js'
 import { test, expect, describe } from 'vitest'
 
 const ogamaMockDataOne = `Sequence Similarity,Scanpath string
