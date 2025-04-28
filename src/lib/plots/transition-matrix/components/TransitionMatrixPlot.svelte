@@ -19,10 +19,8 @@
   import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils/plotSizeUtility'
   import { modalStore } from '$lib/stores/modalStore.js'
-  import {
-    calculateTransitionMatrix,
-    AggregationMethod,
-  } from '$lib/plots/transition-matrix/utils/transformations'
+  import { calculateTransitionMatrix } from '$lib/plots/transition-matrix/utils/transformations'
+  import { AggregationMethod } from '$lib/plots/transition-matrix/const'
 
   // Types
   import type { TransitionMatrixGridType } from '$lib/type/gridType'

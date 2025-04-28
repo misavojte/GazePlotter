@@ -16,7 +16,6 @@ import {
   getSegments,
   getNumberOfSegments,
 } from '$lib/stores/dataStore'
-import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType'
 import type { SegmentInterpretedDataType } from '$lib/type/Data/InterpretedData/SegmentInterpretedDataType'
 import {
   createMatrix,
@@ -24,24 +23,9 @@ import {
   sumArray,
   arraysHaveSameElements,
 } from '$lib/utils/mathUtils'
-/**
- * Defines available aggregation methods for transition matrices
- */
-export enum AggregationMethod {
-  SUM = 'sum',
-  PROBABILITY = 'probability',
-  DWELL_TIME = 'dwellTime',
-  SEGMENT_DWELL_TIME = 'segmentDwellTime',
-}
 
-/**
- * Interface representing an Transition Matrix with labels
- */
-export interface TransitionMatrixData {
-  matrix: number[][]
-  aoiLabels: string[]
-  aoiList: ExtendedInterpretedDataType[]
-}
+import { AggregationMethod } from '$lib/plots/transition-matrix/const'
+import type { TransitionMatrixData } from '$lib/plots/transition-matrix/types'
 
 /**
  * Calculates the transition matrix between AOIs for the specified stimulus and group

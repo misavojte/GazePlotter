@@ -4,7 +4,7 @@
   import {
     calculateLabelOffset,
     truncateTextToPixelWidth,
-  } from '../../../utils/textUtils'
+  } from '$lib/utils/textUtils'
   import { onMount, untrack } from 'svelte'
   import { browser } from '$app/environment'
   import {

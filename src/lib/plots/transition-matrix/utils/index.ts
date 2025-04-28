@@ -1,1 +1,1 @@
-export * from './transitionMatrixTransformations'
+export * from './transformations'
