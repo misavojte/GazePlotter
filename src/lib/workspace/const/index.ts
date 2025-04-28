@@ -4,6 +4,7 @@ import TransitionMatrixPlot from '$lib/plots/transition-matrix/components/Transi
 import BarPlot from '$lib/plots/bar/components/BarPlot.svelte'
 import type { AllGridTypes } from '$lib/type/gridType'
 import { getScarfGridHeightFromCurrentData } from '$lib/plots/scarf/utils/scarfServices'
+
 // Define a type for visualization registry entries
 export type VisualizationConfig = {
   name: string

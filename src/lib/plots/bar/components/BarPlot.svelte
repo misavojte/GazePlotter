@@ -6,10 +6,10 @@
   // Local components
   import { BarPlotFigure, BarPlotButtonMenu } from '$lib/plots/bar/components'
   import { PlotPlaceholder } from '$lib/plots/shared/components'
-  import GeneralSelect from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
+  import GeneralSelect from '$lib/shared/components/GeneralSelect.svelte'
 
   // Utilities and stores
-  import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
+  import { DEFAULT_GRID_CONFIG } from '$lib/shared/utils/gridSizingUtils'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils/plotSizeUtility'
   import { getBarPlotData } from '$lib/plots/bar/utils/barPlotUtils'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'

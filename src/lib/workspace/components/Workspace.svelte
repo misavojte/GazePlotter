@@ -7,6 +7,8 @@
     processingFileStateStore,
     createGridStore,
     type GridConfig,
+    visualizationRegistry, // Constant
+    getVisualizationConfig, // Constant
   } from '$lib/workspace'
   import { fade } from 'svelte/transition'
   import { setContext } from 'svelte'
@@ -24,10 +26,6 @@
     MIN_WORKSPACE_HEIGHT,
     DEFAULT_WORKSPACE_WIDTH,
   } from '$lib/shared/utils/gridSizingUtils'
-  import {
-    visualizationRegistry,
-    getVisualizationConfig,
-  } from '$lib/const/vizRegistry'
   import { throttleByRaf } from '$lib/shared/utils/throttle'
 
   // ---------------------------------------------------
