@@ -5,7 +5,7 @@
   import {
     calculateTransitionMatrix,
     AggregationMethod,
-  } from '$lib/plots/transition-matrix/utils/transitionMatrixTransformations'
+  } from '$lib/plots/transition-matrix/utils/transformations'
   import GeneralCanvasPreview from '$lib/components/General/GeneralCanvasPreview/GeneralCanvasPreview.svelte'
   import SectionHeader from '$lib/components/Modal/Shared/SectionHeader.svelte'
 

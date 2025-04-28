@@ -1,5 +1,6 @@
 import type { GridConfig } from '$lib/stores/gridStore'
 import { gridToPixelDimensions } from '$lib/utils/gridSizingUtils'
+import type { PlotDimensions } from '$lib/plots/shared/types'
 
 /**
  * Plot sizing utilities
@@ -7,14 +8,6 @@ import { gridToPixelDimensions } from '$lib/utils/gridSizingUtils'
  * This module contains functions for calculating available plot sizes
  * based on grid dimensions and container requirements.
  */
-
-/**
- * Interface for plot dimensions in pixels
- */
-export interface PlotDimensions {
-  width: number
-  height: number
-}
 
 /**
  * Calculates the available plot area dimensions in pixels

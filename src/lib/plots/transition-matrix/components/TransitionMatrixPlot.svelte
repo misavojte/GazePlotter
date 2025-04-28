@@ -22,7 +22,7 @@
   import {
     calculateTransitionMatrix,
     AggregationMethod,
-  } from '$lib/plots/transition-matrix/utils/transitionMatrixTransformations'
+  } from '$lib/plots/transition-matrix/utils/transformations'
 
   // Types
   import type { TransitionMatrixGridType } from '$lib/type/gridType'

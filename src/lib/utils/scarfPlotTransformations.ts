@@ -23,7 +23,7 @@ import type {
   SingleStylingScarfFillingType,
   StimulusScarfFillingType,
   StylingScarfFillingType,
-} from '$lib/type/Filling/ScarfFilling/index'
+} from '$lib/plots/scarf/types/index'
 import {
   getAois,
   getAoiVisibility,

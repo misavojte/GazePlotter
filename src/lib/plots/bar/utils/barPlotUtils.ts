@@ -2,30 +2,13 @@ import { getAois, getParticipants, getSegments } from '$lib/stores/dataStore'
 import { AdaptiveTimeline } from '$lib/plots/shared/class/AdaptiveTimeline'
 import type { BarPlotGridType } from '$lib/type/gridType'
 import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType'
-import type { SegmentInterpretedDataType } from '$lib/type/Data/InterpretedData/SegmentInterpretedDataType'
-import type { BaseInterpretedDataType } from '$lib/type/Data/InterpretedData/BaseInterpretedDataType'
 import {
   formatDecimal,
   calculateAverage,
   normalizeToPercentages,
   createArray,
 } from '$lib/utils/mathUtils'
-
-export interface BarPlotDataItem {
-  value: number
-  label: string
-  color: string
-}
-
-export interface BarPlotResult {
-  data: BarPlotDataItem[]
-  timeline: AdaptiveTimeline
-}
-
-export interface ParticipantSegmentData {
-  participant: BaseInterpretedDataType
-  segments: SegmentInterpretedDataType[]
-}
+import type { BarPlotResult, BarPlotDataItem } from '$lib/plots/bar/types'
 
 /**
  * Main function to get bar plot data based on selected settings
