@@ -1,4 +1,4 @@
-import type { DataType } from '$lib/type/Data'
+import type { DataType } from '$lib/gaze-data/shared/types'
 
 /**
  * A variable that stores demo data for testing and showcasing.

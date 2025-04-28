@@ -1,5 +1,5 @@
-import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput.js'
-import type { DataType } from '$lib/type/Data'
+import type { SingleDeserializerOutput } from '$lib/gaze-data/back-process/types/SingleDeserializerOutput.js'
+import type { DataType } from '$lib/gaze-data/shared/types'
 
 export class EyeWriter {
   data: DataType = {

@@ -16,7 +16,7 @@ import {
   getSegments,
   getNumberOfSegments,
 } from '$lib/gaze-data/front-process/stores/dataStore'
-import type { SegmentInterpretedDataType } from '$lib/type/Data'
+import type { SegmentInterpretedDataType } from '$lib/gaze-data/shared/types'
 import {
   createMatrix,
   formatDecimal,

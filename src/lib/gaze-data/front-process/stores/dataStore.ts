@@ -6,7 +6,7 @@ import type {
   ExtendedInterpretedDataType,
   SegmentInterpretedDataType,
   ParticipantsGroup,
-} from '$lib/type/Data'
+} from '$lib/gaze-data/shared/types'
 import { demoData } from '$lib/gaze-data/front-process/const/demoDataTwo'
 
 // Constants for fast AOI mapping store

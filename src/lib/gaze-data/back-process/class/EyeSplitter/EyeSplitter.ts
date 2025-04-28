@@ -1,4 +1,4 @@
-import type { EyeSettingsType } from '$lib/type/Settings/EyeSettings/EyeSettingsType.js'
+import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSettingsType.js'
 
 /**
  * Splits a string chunks produced by EyeParser into rows and columns.
@@ -10,11 +10,11 @@ export class EyeSplitter {
   readonly rowDelimiter: string
   lastRow = ''
 
-  constructor (settings: EyeSettingsType) {
+  constructor(settings: EyeSettingsType) {
     this.rowDelimiter = settings.rowDelimiter
   }
 
-  splitChunk (chunk: string): string[] {
+  splitChunk(chunk: string): string[] {
     const completeRows = (this.lastRow + chunk).split(this.rowDelimiter)
     const completeRowsLength = completeRows.length
 
@@ -28,8 +28,8 @@ export class EyeSplitter {
     return completeRows.slice(0, completeRowsLength - 1)
   }
 
-  release (): string[] {
-    const lastRow = this.lastRow+this.rowDelimiter
+  release(): string[] {
+    const lastRow = this.lastRow + this.rowDelimiter
     return lastRow.split(this.rowDelimiter)
   }
 }

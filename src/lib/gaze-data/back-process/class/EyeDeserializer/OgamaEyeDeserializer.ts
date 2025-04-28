@@ -1,4 +1,4 @@
-import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput.js'
+import type { SingleDeserializerOutput } from '$lib/gaze-data/back-process/types/SingleDeserializerOutput.js'
 import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
 
 export class OgamaEyeDeserializer extends AbstractEyeDeserializer {

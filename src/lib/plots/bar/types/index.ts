@@ -2,7 +2,7 @@ import type { AdaptiveTimeline } from '$lib/plots/shared/class'
 import type {
   BaseInterpretedDataType,
   SegmentInterpretedDataType,
-} from '$lib/type/Data'
+} from '$lib/gaze-data/shared/types'
 
 export interface BarPlotDataItem {
   value: number

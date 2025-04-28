@@ -1,4 +1,4 @@
-import type { DeserializerOutputType } from '$lib/type/DeserializerOutput/DeserializerOutputType.js'
+import type { DeserializerOutputType } from '$lib/gaze-data/back-process/types/DeserializerOutputType.js'
 
 export abstract class AbstractEyeDeserializer {
   abstract deserialize(row: string[]): DeserializerOutputType

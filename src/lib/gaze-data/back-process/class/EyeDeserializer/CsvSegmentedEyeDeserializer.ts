@@ -1,4 +1,4 @@
-import type { DeserializerOutputType } from '$lib/type/DeserializerOutput/DeserializerOutputType'
+import type { DeserializerOutputType } from '$lib/gaze-data/back-process/types/DeserializerOutputType'
 import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
 
 /**

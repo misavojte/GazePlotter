@@ -1,5 +1,5 @@
 import { AbstractDownloader } from './AbstractDownloader'
-import type { DataType } from '$lib/type/Data'
+import type { DataType } from '$lib/gaze-data/shared/types'
 import { convertDataStructure } from '$lib/shared/utils/convertDataStructure'
 import JSZip from 'jszip'
 

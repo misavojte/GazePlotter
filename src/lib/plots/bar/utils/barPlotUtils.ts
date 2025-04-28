@@ -5,7 +5,7 @@ import {
 } from '$lib/gaze-data/front-process/stores/dataStore'
 import { AdaptiveTimeline } from '$lib/plots/shared/class/AdaptiveTimeline'
 import type { BarPlotGridType } from '$lib/workspace/type/gridType'
-import type { ExtendedInterpretedDataType } from '$lib/type/Data'
+import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
 import {
   formatDecimal,
   calculateAverage,

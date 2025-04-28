@@ -44,7 +44,7 @@ import type {
   BaseInterpretedDataType,
   ExtendedInterpretedDataType,
   SegmentInterpretedDataType,
-} from '$lib/type/Data'
+} from '$lib/gaze-data/shared/types'
 
 // Constants
 const HEIGHT_OF_X_AXIS = 20

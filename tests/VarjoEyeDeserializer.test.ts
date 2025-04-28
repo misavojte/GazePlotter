@@ -7,7 +7,7 @@
 
 import { VarjoEyeDeserializer } from '$lib/class/Eye/EyeDeserializer/VarjoEyeDeserializer'
 import { test, expect, describe } from 'vitest'
-import type { SingleDeserializerOutput } from '$lib/type/DeserializerOutput/SingleDeserializerOutput/SingleDeserializerOutput'
+import type { SingleDeserializerOutput } from '$lib/gaze-data/back-process/types/SingleDeserializerOutput'
 
 /*
   constructor (header: string[], fileName: string) {

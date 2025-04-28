@@ -1,4 +1,4 @@
-import type { DataType } from '$lib/type/Data'
+import type { DataType } from '$lib/gaze-data/shared/types'
 
 /**
  * Refines the const. It is the last step of the pipeline.

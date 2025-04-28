@@ -1,4 +1,4 @@
-import type { DeserializerOutputType } from '$lib/type/DeserializerOutput/DeserializerOutputType.js'
+import type { DeserializerOutputType } from '$lib/gaze-data/back-process/types/DeserializerOutputType.js'
 import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
 
 const TIME_MODIFIER = 0.001 // microseconds to milliseconds

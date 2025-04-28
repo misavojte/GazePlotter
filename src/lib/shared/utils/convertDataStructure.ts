@@ -1,4 +1,4 @@
-import type { DataType } from '$lib/type/Data'
+import type { DataType } from '$lib/gaze-data/shared/types'
 import { getAoi } from '$lib/gaze-data/front-process/stores/dataStore'
 
 /**

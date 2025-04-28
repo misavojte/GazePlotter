@@ -1,7 +1,7 @@
 import { ModalContentTobiiParsingInput } from '$lib/modals'
 import { modalStore } from '$lib/modals/shared/stores/modalStore'
 import { addErrorToast, addInfoToast } from '$lib/toaster'
-import type { DataType } from '$lib/type/Data'
+import type { DataType } from '$lib/gaze-data/shared/types'
 
 /**
  * Creates a worker to handle whole eyefiles processing.

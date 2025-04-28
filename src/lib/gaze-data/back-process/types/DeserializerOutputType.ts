@@ -1,4 +1,4 @@
-import type { SingleDeserializerOutput } from './SingleDeserializerOutput/SingleDeserializerOutput'
+import type { SingleDeserializerOutput } from './SingleDeserializerOutput'
 
 export type DeserializerOutputType =
   | SingleDeserializerOutput

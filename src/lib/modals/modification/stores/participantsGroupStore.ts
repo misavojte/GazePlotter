@@ -1,4 +1,4 @@
-import type { ParticipantsGroup } from '$lib/type/Data'
+import type { ParticipantsGroup } from '$lib/gaze-data/shared/types'
 import { writable } from 'svelte/store'
 import {
   getParticipantsGroups,
