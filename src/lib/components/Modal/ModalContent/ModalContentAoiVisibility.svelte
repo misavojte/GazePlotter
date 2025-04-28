@@ -5,7 +5,7 @@
   import GeneralButtonMajor from '../../General/GeneralButton/GeneralButtonMajor.svelte'
   import { addErrorToast, addSuccessToast } from '$lib/stores/toastStore.js'
   import { processAoiVisibility } from '$lib/services/aoiVisibilityServices'
-  import { getStimuliOptions } from '$lib/utils/sharedPlotUtils'
+  import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
   interface Props {
     forceRedraw: () => void
   }

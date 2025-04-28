@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
-
   let { width, height } = $props<{ width: number; height: number }>()
 </script>
 

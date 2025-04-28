@@ -11,14 +11,14 @@
   import Users from 'lucide-svelte/icons/users'
   import View from 'lucide-svelte/icons/view'
   import type { ComponentProps } from 'svelte'
-  import ModalContentAoiModification from '../../../Modal/ModalContent/ModalContentAoiModification.svelte'
-  import ModalContentAoiVisibility from '../../../Modal/ModalContent/ModalContentAoiVisibility.svelte'
-  import ModalContentDownloadScarfPlot from '../../../Modal/ModalContent/ModalContentDownloadScarfPlot.svelte'
+  import ModalContentAoiModification from '$lib/components/Modal/ModalContent/ModalContentAoiModification.svelte'
+  import ModalContentAoiVisibility from '$lib/components/Modal/ModalContent/ModalContentAoiVisibility.svelte'
+  import ModalContentDownloadScarfPlot from '$lib/components/Modal/ModalContent/ModalContentDownloadScarfPlot.svelte'
   import ModalContentParticipantsGroups from '$lib/components/Modal/ModalContent/ModalContentParticipantsGroups.svelte'
   import { getContext } from 'svelte'
   import type { ScarfGridType } from '$lib/type/gridType'
   import type { SvelteComponent } from 'svelte'
-  import ModalContentParticipantModification from '../../../Modal/ModalContent/ModalContentParticipantModification.svelte'
+  import ModalContentParticipantModification from '$lib/components/Modal/ModalContent/ModalContentParticipantModification.svelte'
   import ModalContentStimulusModification from '$lib/components/Modal/ModalContent/ModalContentStimulusModification.svelte'
 
   interface Props {

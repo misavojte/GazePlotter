@@ -30,12 +30,11 @@ import {
   getNumberOfSegments,
   getParticipant,
   getParticipantEndTime,
-  getSegment,
   getSegments,
   getStimuli,
   hasStimulusAoiVisibility,
 } from '$lib/stores/dataStore'
-import { AdaptiveTimeline } from '../plots/shared/class/AdaptiveTimeline'
+import { AdaptiveTimeline } from '$lib/plots/shared/class/AdaptiveTimeline'
 import {
   IDENTIFIER_IS_AOI,
   IDENTIFIER_IS_OTHER_CATEGORY,

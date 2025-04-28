@@ -17,7 +17,7 @@
   import { fade } from 'svelte/transition'
   import GeneralPositionControl from '$lib/components/General/GeneralPositionControl/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/components/General/GeneralEmpty/GeneralEmpty.svelte'
-  import { getStimuliOptions } from '$lib/utils/sharedPlotUtils'
+  import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
   interface Props {
     selectedStimulus?: string
     userSelected?: string

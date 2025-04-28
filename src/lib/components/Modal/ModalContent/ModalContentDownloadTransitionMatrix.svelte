@@ -1,11 +1,11 @@
 <script lang="ts">
   import DownloadPlotSettings from '$lib/components/Modal/Shared/DownloadPlotSettings.svelte'
   import type { TransitionMatrixGridType } from '$lib/type/gridType'
-  import TransitionMatrixPlotFigure from '$lib/components/Plot/TransitionMatrixPlot/TransitionMatrixPlotFigure.svelte'
+  import TransitionMatrixPlotFigure from '$lib/plots/transition-matrix/components/TransitionMatrixPlotFigure.svelte'
   import {
     calculateTransitionMatrix,
     AggregationMethod,
-  } from '$lib/utils/transitionMatrixTransformations'
+  } from '$lib/plots/transition-matrix/utils/transitionMatrixTransformations'
   import GeneralCanvasPreview from '$lib/components/General/GeneralCanvasPreview/GeneralCanvasPreview.svelte'
   import SectionHeader from '$lib/components/Modal/Shared/SectionHeader.svelte'
 

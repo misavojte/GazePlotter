@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { AdaptiveTimeline } from '$lib/class/Plot/AdaptiveTimeline/AdaptiveTimeline'
+  import type { AdaptiveTimeline } from '$lib/plots/shared/class/AdaptiveTimeline'
   import {
     calculateLabelOffset,
     truncateTextToPixelWidth,

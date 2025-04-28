@@ -3,7 +3,7 @@
   import GeneralSelectBase from '../../General/GeneralSelect/GeneralSelect.svelte'
   import GeneralInputText from '../../General/GeneralInput/GeneralInputText.svelte'
   import MajorButton from '../../General/GeneralButton/GeneralButtonMajor.svelte'
-  import { getStimuliOptions } from '$lib/utils/sharedPlotUtils'
+  import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
   let stimulusId = $state('0')
   let fileName = $state('GazePlotter-ScanGraph')
 

@@ -6,19 +6,19 @@
   } from '$lib/stores/dataStore'
   import type { ScarfTooltipFillingType } from '$lib/type/Filling/ScarfTooltipFilling/ScarfTooltipFillingType'
   import { onDestroy, onMount } from 'svelte'
-  import ScarfPlotFigure from './ScarfPlotFigure/ScarfPlotFigure.svelte'
-  import ScarfPlotHeader from './ScarfPlotHeader/ScarfPlotHeader.svelte'
+  import ScarfPlotFigure from './ScarfPlotFigure.svelte'
+  import ScarfPlotHeader from './ScarfPlotHeader.svelte'
   import type { ScarfGridType } from '$lib/type/gridType'
   import { tooltipScarfService } from '$lib/services/tooltipServices'
-  import { transformDataToScarfPlot } from '$lib/utils/scarfPlotTransformations'
-  import { calculatePlotDimensionsWithHeader } from '$lib/utils/plotSizeUtility'
+  import { transformDataToScarfPlot } from '$lib/plots/scarf/utils/scarfPlotTransformations'
+  import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils/plotSizeUtility'
   import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
   import {
     SCARF_LAYOUT,
     calculateScarfHeights,
   } from '$lib/services/scarfServices'
   import { untrack } from 'svelte'
-  import PlotPlaceholder from '$lib/components/Plot/Common/PlotPlaceholder.svelte'
+  import PlotPlaceholder from '$lib/plots/shared/components/PlotPlaceholder.svelte'
   import { fade } from 'svelte/transition'
   // Component Props using Svelte 5 $props() rune
   interface Props {

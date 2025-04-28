@@ -1,17 +1,17 @@
 <script lang="ts">
   import BarPlotFigure from './BarPlotFigure.svelte'
-  import { calculatePlotDimensionsWithHeader } from '$lib/utils/plotSizeUtility'
+  import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils/plotSizeUtility'
   import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
   import type { BarPlotGridType } from '$lib/type/gridType'
-  import { getBarPlotData } from '$lib/utils/barPlotUtils'
+  import { getBarPlotData } from '$lib/plots/bar/utils/barPlotUtils'
   import GeneralSelect from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
-  import { getStimuli, getParticipantsGroups } from '$lib/stores/dataStore'
+  import { getParticipantsGroups } from '$lib/stores/dataStore'
   import BarPlotButtonMenu from './BarPlotButtonMenu.svelte'
   import { untrack } from 'svelte'
-  import PlotPlaceholder from '../Common/PlotPlaceholder.svelte'
+  import PlotPlaceholder from '$lib/plots/shared/components/PlotPlaceholder.svelte'
   import { fade } from 'svelte/transition'
   import { onMount } from 'svelte'
-  import { getStimuliOptions } from '$lib/utils/sharedPlotUtils'
+  import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
   // CONSTANTS - centralized for easier maintenance
   const LAYOUT = {
     HEADER_HEIGHT: 150,

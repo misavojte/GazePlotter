@@ -1,11 +1,11 @@
 <script lang="ts">
-  import ZoomInButton from '../ScarfPlotButton/ScarfPlotButtonZoomIn.svelte'
-  import ZoomOutButton from '../ScarfPlotButton/ScarfPlotButtonZoomOut.svelte'
-  import ResetViewButton from '../ScarfPlotButton/ScarfPlotButtonResetView.svelte'
-  import ScarfPlotSelectStimulus from '../ScarfPlotSelect/ScarfPlotSelectStimulus.svelte'
-  import ScarfPlotButtonMenu from '../ScarfPlotButton/ScarfPlotButtonMenu.svelte'
-  import ScarfTimelineSelect from '../ScarfPlotSelect/ScarfPlotSelectTimeline.svelte'
-  import ScarfPlotSelectGroup from '../ScarfPlotSelect/ScarfPlotSelectGroup.svelte'
+  import ZoomInButton from '$lib/plots/scarf/components/ScarfPlotButtonZoomIn.svelte'
+  import ZoomOutButton from '$lib/plots/scarf/components/ScarfPlotButtonZoomOut.svelte'
+  import ResetViewButton from '$lib/plots/scarf/components/ScarfPlotButtonResetView.svelte'
+  import ScarfPlotSelectStimulus from '$lib/plots/scarf/components/ScarfPlotSelectStimulus.svelte'
+  import ScarfPlotButtonMenu from '$lib/plots/scarf/components/ScarfPlotButtonMenu.svelte'
+  import ScarfTimelineSelect from '$lib/plots/scarf/components/ScarfPlotSelectTimeline.svelte'
+  import ScarfPlotSelectGroup from '$lib/plots/scarf/components/ScarfPlotSelectGroup.svelte'
   import type { ScarfGridType } from '$lib/type/gridType'
   interface Props {
     settings: ScarfGridType

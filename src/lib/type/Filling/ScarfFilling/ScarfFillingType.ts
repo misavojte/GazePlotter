@@ -1,4 +1,4 @@
-import { AdaptiveTimeline } from '../../../class/Plot/AdaptiveTimeline/AdaptiveTimeline'
+import { AdaptiveTimeline } from '../../../plots/shared/class/AdaptiveTimeline'
 import type { StimulusScarfFillingType } from './StimulusScarfFilling/StimulusScarfFillingType'
 import type { StylingScarfFillingType } from './StylingScarfFilling/StylingScarfFillingType'
 import type { ParticipantScarfFillingType } from './ParticipantScarfFilling/ParticipantScarfFillingType'

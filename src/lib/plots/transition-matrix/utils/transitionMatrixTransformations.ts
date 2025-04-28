@@ -23,7 +23,7 @@ import {
   formatDecimal,
   sumArray,
   arraysHaveSameElements,
-} from './mathUtils'
+} from '$lib/utils/mathUtils'
 /**
  * Defines available aggregation methods for transition matrices
  */

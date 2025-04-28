@@ -1,22 +1,32 @@
 <script lang="ts">
-  import TransitionMatrixPlotFigure from '$lib/components/Plot/TransitionMatrixPlot/TransitionMatrixPlotFigure.svelte'
+  // Svelte core imports
+  import { fade } from 'svelte/transition'
+  import { untrack } from 'svelte'
+
+  // Local components
+  import {
+    TransitionMatrixPlotFigure,
+    TransitionMatrixSelectStimulus,
+    TransitionMatrixSelectGroup,
+    TransitionMatrixButtonMenu,
+  } from '$lib/plots/transition-matrix/components'
+  import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
+  import PlotPlaceholder from '$lib/plots/shared/components/PlotPlaceholder.svelte'
+  import ModalContentMaxValue from '$lib/components/Modal/ModalContent/ModalContentMaxValue.svelte'
+  import ModalContentColorScale from '$lib/components/Modal/ModalContent/ModalContentColorScale.svelte'
+
+  // Utilities and stores
+  import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
+  import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils/plotSizeUtility'
+  import { modalStore } from '$lib/stores/modalStore.js'
   import {
     calculateTransitionMatrix,
     AggregationMethod,
-  } from '$lib/utils/transitionMatrixTransformations'
+  } from '$lib/plots/transition-matrix/utils/transitionMatrixTransformations'
+
+  // Types
   import type { TransitionMatrixGridType } from '$lib/type/gridType'
-  import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
-  import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
-  import { calculatePlotDimensionsWithHeader } from '$lib/utils/plotSizeUtility'
-  import TransitionMatrixSelectStimulus from '$lib/components/Plot/TransitionMatrixPlot/TransitionMatrixSelectStimulus.svelte'
-  import TransitionMatrixSelectGroup from '$lib/components/Plot/TransitionMatrixPlot/TransitionMatrixSelectGroup.svelte'
-  import TransitionMatrixButtonMenu from '$lib/components/Plot/TransitionMatrixPlot/TransitionMatrixButtonMenu.svelte'
-  import { modalStore } from '$lib/stores/modalStore.js'
-  import ModalContentMaxValue from '$lib/components/Modal/ModalContent/ModalContentMaxValue.svelte'
-  import ModalContentColorScale from '$lib/components/Modal/ModalContent/ModalContentColorScale.svelte'
-  import { untrack } from 'svelte'
-  import PlotPlaceholder from '$lib/components/Plot/Common/PlotPlaceholder.svelte'
-  import { fade } from 'svelte/transition'
+
   interface Props {
     settings: TransitionMatrixGridType
     settingsChange: (settings: Partial<TransitionMatrixGridType>) => void

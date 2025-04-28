@@ -1,8 +1,8 @@
 <script lang="ts">
   import DownloadPlotSettings from '$lib/components/Modal/Shared/DownloadPlotSettings.svelte'
   import type { BarPlotGridType } from '$lib/type/gridType'
-  import BarPlotFigure from '$lib/components/Plot/BarPlot/BarPlotFigure.svelte'
-  import { getBarPlotData } from '$lib/utils/barPlotUtils'
+  import BarPlotFigure from '$lib/plots/bar/components/BarPlotFigure.svelte'
+  import { getBarPlotData } from '$lib/plots/bar/utils/barPlotUtils'
   import GeneralCanvasPreview from '$lib/components/General/GeneralCanvasPreview/GeneralCanvasPreview.svelte'
   import SectionHeader from '$lib/components/Modal/Shared/SectionHeader.svelte'
 

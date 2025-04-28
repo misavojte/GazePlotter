@@ -1,8 +1,8 @@
-import ScarfPlot from '$lib/components/Plot/ScarfPlot/ScarfPlot.svelte'
+import ScarfPlot from '$lib/plots/scarf/components/ScarfPlot.svelte'
 // Revert casing to lowercase 'a' based on linter "already included" message
-import TransitionMatrixPlot from '$lib/components/Plot/TransitionMatrixPlot/TransitionMatrixPlot.svelte' // Use lowercase 'a'
-import BarPlot from '$lib/components/Plot/BarPlot/BarPlot.svelte'
-import type { AllGridTypes, BarPlotGridType } from '$lib/type/gridType'
+import TransitionMatrixPlot from '$lib/plots/transition-matrix/components/TransitionMatrixPlot.svelte' // Use lowercase 'a'
+import BarPlot from '$lib/plots/bar/components/BarPlot.svelte'
+import type { AllGridTypes } from '$lib/type/gridType'
 import { getScarfGridHeightFromCurrentData } from '$lib/services/scarfServices'
 // Define a type for visualization registry entries
 export type VisualizationConfig = {

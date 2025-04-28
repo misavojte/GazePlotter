@@ -1,5 +1,5 @@
 import { getAois, getParticipants, getSegments } from '$lib/stores/dataStore'
-import { AdaptiveTimeline } from '$lib/class/Plot/AdaptiveTimeline/AdaptiveTimeline'
+import { AdaptiveTimeline } from '$lib/plots/shared/class/AdaptiveTimeline'
 import type { BarPlotGridType } from '$lib/type/gridType'
 import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType'
 import type { SegmentInterpretedDataType } from '$lib/type/Data/InterpretedData/SegmentInterpretedDataType'
@@ -9,7 +9,7 @@ import {
   calculateAverage,
   normalizeToPercentages,
   createArray,
-} from './mathUtils'
+} from '$lib/utils/mathUtils'
 
 export interface BarPlotDataItem {
   value: number
