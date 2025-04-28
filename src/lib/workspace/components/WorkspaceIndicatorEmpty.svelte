@@ -1,7 +1,7 @@
 <script lang="ts">
   import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
-  import PanelButtonUpload from '$lib/components/Panel/PanelButton/PanelButtonUpload.svelte'
-  import PanelButtonDemo from '$lib/components/Panel/PanelButton/PanelButtonDemo.svelte'
+  import PanelButtonUpload from '$lib/workspace/panel/components/PanelButtonUpload.svelte'
+  import PanelButtonDemo from '$lib/workspace/panel/components/PanelButtonDemo.svelte'
   import { processingFileStateStore } from '$lib/workspace'
   import { fade } from 'svelte/transition'
 

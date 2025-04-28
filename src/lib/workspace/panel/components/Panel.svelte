@@ -1,8 +1,8 @@
 <script>
-  import PanelButtonUpload from './PanelButton/PanelButtonUpload.svelte'
-  import PanelButtonScanGraph from './PanelButton/PanelButtonScanGraph.svelte'
-  import PanelButtonDemo from './PanelButton/PanelButtonDemo.svelte'
-  import PanelButtonExportWorkplace from './PanelButton/PanelButtonExportWorkplace.svelte'
+  import PanelButtonUpload from '$lib/workspace/panel/components/PanelButtonUpload.svelte'
+  import PanelButtonScanGraph from '$lib/workspace/panel/components/PanelButtonScanGraph.svelte'
+  import PanelButtonDemo from '$lib/workspace/panel/components/PanelButtonDemo.svelte'
+  import PanelButtonExportWorkplace from '$lib/workspace/panel/components/PanelButtonExportWorkplace.svelte'
 </script>
 
 <div class="controls">
