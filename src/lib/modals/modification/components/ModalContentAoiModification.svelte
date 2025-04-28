@@ -1,17 +1,16 @@
 <script lang="ts">
-  import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
-  import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
-  import GeneralSelectBase from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
-  import GeneralInfoCallout from '$lib/components/General/GeneralInfoCallout/GeneralInfoCallout.svelte'
-  import GeneralInputColor from '$lib/components/General/GeneralInput/GeneralInputColor.svelte'
+  import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
+  import GeneralSelectBase from '$lib/shared/components/GeneralSelect.svelte'
+  import GeneralInfoCallout from '$lib/shared/components/GeneralInfoCallout.svelte'
+  import { GeneralInputColor, GeneralButtonMajor } from '$lib/shared/components'
   import { SortableTableHeader, SectionHeader } from '$lib/modals'
   import { getAllAois, updateMultipleAoi } from '$lib/stores/dataStore'
   import { addErrorToast, addInfoToast, addSuccessToast } from '$lib/toaster'
   import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'
-  import GeneralPositionControl from '$lib/components/General/GeneralPositionControl/GeneralPositionControl.svelte'
-  import GeneralEmpty from '$lib/components/General/GeneralEmpty/GeneralEmpty.svelte'
+  import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
+  import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
   interface Props {
     selectedStimulus?: string

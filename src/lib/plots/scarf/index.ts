@@ -6,3 +6,6 @@ export type * from './types'
 
 // Export scarf plot utilities
 export * from './utils'
+
+// Export scarf plot constants
+export * from './const'

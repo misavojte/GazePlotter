@@ -1,6 +1,6 @@
 import { AbstractDownloader } from './AbstractDownloader'
 import type { DataType } from '$lib/type/Data/DataType'
-import { convertDataStructure } from '$lib/utils/convertDataStructure'
+import { convertDataStructure } from '$lib/shared/utils/convertDataStructure'
 import JSZip from 'jszip'
 
 export class WorkplaceDownloader extends AbstractDownloader {

@@ -4,7 +4,7 @@ import {
   calculateTextMetrics,
   calculateLabelOffset,
   truncateTextToPixelWidth,
-} from '$lib/utils/textUtils'
+} from '$lib/shared/utils/textUtils'
 
 describe('textUtils', () => {
   describe('estimateTextWidth', () => {

@@ -1,8 +1,7 @@
 <script lang="ts">
-  import MajorButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
-  import GeneralInputText from '$lib/components/General/GeneralInput/GeneralInputText.svelte'
-  import GeneralSelect from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
-  import { WorkplaceDownloader } from '$lib/class/Downloader/WorkplaceDownloader.js'
+  import { GeneralButtonMajor, GeneralInputText } from '$lib/shared/components'
+  import GeneralSelect from '$lib/shared/components/GeneralSelect.svelte'
+  import { WorkplaceDownloader } from '$lib/modals/export/class/WorkplaceDownloader.js'
   import { getData } from '$lib/stores/dataStore.js'
 
   let type = $state('inner-json')
@@ -40,7 +39,7 @@
 <GeneralSelect label="Export type" {options} bind:value={type} />
 <GeneralInputText label="File name" bind:value={fileName} />
 <div class="mt-30">
-  <MajorButton onclick={handleSubmit}>Download</MajorButton>
+  <GeneralButtonMajor onclick={handleSubmit}>Download</GeneralButtonMajor>
 </div>
 
 <style>

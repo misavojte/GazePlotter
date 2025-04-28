@@ -1,5 +1,5 @@
 <script lang="ts">
-  import MajorButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
+  import MajorButton from '$lib/shared/components/GeneralButtonMajor.svelte'
   import { addErrorToast } from '$lib/toaster'
 
   // Component props

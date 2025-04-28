@@ -1,12 +1,14 @@
 <script lang="ts">
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
-  import NumberInput from '$lib/components/General/GeneralInput/GeneralInputNumber.svelte'
-  import GeneralInputColor from '$lib/components/General/GeneralInput/GeneralInputColor.svelte'
-  import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
-  import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
+  import {
+    GeneralInputNumber,
+    GeneralInputColor,
+    GeneralButtonMajor,
+  } from '$lib/shared/components'
+  import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import { getStimuliOrderVector } from '$lib/stores/dataStore'
   import type { TransitionMatrixGridType } from '$lib/type/gridType'
-  import GeneralInfoCallout from '$lib/components/General/GeneralInfoCallout/GeneralInfoCallout.svelte'
+  import GeneralInfoCallout from '$lib/shared/components/GeneralInfoCallout.svelte'
   import { SectionHeader } from '$lib/modals'
   interface Props {
     settings: TransitionMatrixGridType
@@ -148,7 +150,7 @@
     <SectionHeader text="Range Values" />
     <div class="grid-layout">
       <div class="input-column">
-        <NumberInput
+        <GeneralInputNumber
           value={newMinValue}
           min={0}
           label="Minimum value"
@@ -156,7 +158,7 @@
         />
       </div>
       <div class="input-column">
-        <NumberInput
+        <GeneralInputNumber
           value={newMaxValue}
           min={0}
           label="Maximum value (0 for auto)"

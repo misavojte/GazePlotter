@@ -1,8 +1,8 @@
 <script lang="ts">
   import { getParticipants } from '$lib/stores/dataStore'
   import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup'
-  import MajorButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
-  import GeneralInputCheck from '$lib/components/General/GeneralInput/GeneralInputCheck.svelte'
+  import { GeneralButtonMajor } from '$lib/shared/components'
+  import GeneralInputCheck from '$lib/shared/components/GeneralInputCheck.svelte'
 
   interface Props {
     group: ParticipantsGroup
@@ -57,9 +57,13 @@
   {/each}
 </ul>
 <div class="footer">
-  <MajorButton onclick={e => onclick(e)}>Return to groups</MajorButton>
-  <MajorButton onclick={e => selectAll()}>Select all</MajorButton>
-  <MajorButton onclick={e => deselectAll()}>Deselect all</MajorButton>
+  <GeneralButtonMajor onclick={e => onclick(e)}
+    >Return to groups</GeneralButtonMajor
+  >
+  <GeneralButtonMajor onclick={e => selectAll()}>Select all</GeneralButtonMajor>
+  <GeneralButtonMajor onclick={e => deselectAll()}>
+    Deselect all
+  </GeneralButtonMajor>
 </div>
 
 <style>

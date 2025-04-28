@@ -3,8 +3,8 @@
   import {
     calculateLabelOffset,
     truncateTextToPixelWidth,
-  } from '$lib/utils/textUtils'
-  import { updateTooltip } from '$lib/stores/tooltipStore'
+  } from '$lib/shared/utils/textUtils'
+  import { updateTooltip } from '$lib/tooltip'
   import { onMount, untrack } from 'svelte'
   import { browser } from '$app/environment'
   import {
@@ -17,7 +17,7 @@
     beginCanvasDrawing,
     finishCanvasDrawing,
     type CanvasState,
-  } from '$lib/utils/canvasUtils'
+  } from '$lib/shared/utils/canvasUtils'
 
   // Layout constants
   const MARGIN = {

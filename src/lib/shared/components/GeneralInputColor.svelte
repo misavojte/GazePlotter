@@ -1,6 +1,9 @@
 <script lang="ts">
-  import GeneralInputScaffold from '$lib/components/General/GeneralInput/GeneralInputScaffold.svelte'
-  import { getContrastTextColor, isDarkColor } from '$lib/utils/colorUtils'
+  import GeneralInputScaffold from '$lib/shared/components/GeneralInputScaffold.svelte'
+  import {
+    getContrastTextColor,
+    isDarkColor,
+  } from '$lib/shared/utils/colorUtils'
   import { tick } from 'svelte'
   import { fade } from 'svelte/transition'
 

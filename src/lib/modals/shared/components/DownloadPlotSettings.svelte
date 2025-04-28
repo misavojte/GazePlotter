@@ -1,8 +1,10 @@
 <script lang="ts">
-  import GeneralInputNumber from '$lib/components/General/GeneralInput/GeneralInputNumber.svelte'
-  import GeneralSelectBase from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
-  import GeneralInputText from '$lib/components/General/GeneralInput/GeneralInputText.svelte'
-  import GeneralButtonPreset from '$lib/components/General/GeneralButton/GeneralButtonPreset.svelte'
+  import {
+    GeneralInputNumber,
+    GeneralSelect,
+    GeneralInputText,
+    GeneralButtonPreset,
+  } from '$lib/shared/components'
   import { SectionHeader } from '$lib/modals'
 
   // Define the props interface
@@ -67,7 +69,7 @@
       <GeneralInputNumber label="Width in px" bind:value={width} />
     </div>
     <div class="settings-item">
-      <GeneralSelectBase
+      <GeneralSelect
         label="Output file type"
         {options}
         bind:value={typeOfExport}

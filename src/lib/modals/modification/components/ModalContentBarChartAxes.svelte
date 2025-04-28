@@ -1,9 +1,11 @@
 <script lang="ts">
-  import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
-  import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
+  import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
+  import {
+    GeneralButtonMajor,
+    GeneralInputNumber,
+  } from '$lib/shared/components'
   import type { BarPlotGridType } from '$lib/type/gridType'
-  import GeneralFieldset from '$lib/components/General/GeneralFieldset/GeneralFieldset.svelte'
-  import GeneralInputNumber from '$lib/components/General/GeneralInput/GeneralInputNumber.svelte'
+  import GeneralFieldset from '$lib/shared/components/GeneralFieldset.svelte'
 
   interface Props {
     settings: BarPlotGridType

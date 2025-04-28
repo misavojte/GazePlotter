@@ -1,8 +1,7 @@
 <script lang="ts">
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
-  import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
-  import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
-  import GeneralInputColor from '$lib/components/General/GeneralInput/GeneralInputColor.svelte'
+  import { GeneralButtonMajor, GeneralInputColor } from '$lib/shared/components'
+  import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import type { TransitionMatrixGridType } from '$lib/type/gridType'
   import { SectionHeader } from '$lib/modals'
 

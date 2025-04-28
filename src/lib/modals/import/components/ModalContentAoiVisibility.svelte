@@ -1,8 +1,7 @@
 <script lang="ts">
-  import GeneralSelectBase from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
+  import GeneralSelectBase from '$lib/shared/components/GeneralSelect.svelte'
   import { getParticipants } from '$lib/stores/dataStore.js'
-  import GeneralInputFile from '$lib/components/General/GeneralInput/GeneralInputFile.svelte'
-  import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
+  import { GeneralInputFile, GeneralButtonMajor } from '$lib/shared/components'
   import { addErrorToast, addSuccessToast } from '$lib/toaster'
   import { processAoiVisibility } from '$lib/modals/import/utility/aoiVisibilityServices'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'

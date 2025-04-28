@@ -7,7 +7,7 @@ import {
   normalizeToPercentages,
   arraysHaveSameElements,
   createArray,
-} from '$lib/utils/mathUtils'
+} from '$lib/shared/utils/mathUtils'
 
 describe('mathUtils', () => {
   describe('createArray', () => {

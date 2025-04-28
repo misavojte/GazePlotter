@@ -1,6 +1,6 @@
 <script lang="ts">
-  import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
-  import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
+  import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
+  import { GeneralButtonMajor } from '$lib/shared/components'
   import { onDestroy } from 'svelte'
   interface Props {
     valuePromiseResolve: (value: string) => void

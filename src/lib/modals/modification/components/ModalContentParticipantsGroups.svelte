@@ -6,13 +6,15 @@
   } from '$lib/modals/modification/stores/participantsGroupStore'
   import { addSuccessToast, addErrorToast } from '$lib/toaster'
   import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup'
-  import MajorButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
-  import GeneralButtonMinor from '$lib/components/General/GeneralButton/GeneralButtonMinor.svelte'
-  import GeneralPositionControl from '$lib/components/General/GeneralPositionControl/GeneralPositionControl.svelte'
+  import {
+    GeneralButtonMajor,
+    GeneralButtonMinor,
+  } from '$lib/shared/components'
+  import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
   import { flip } from 'svelte/animate'
   import UserCog from 'lucide-svelte/icons/user-cog'
   import Bin from 'lucide-svelte/icons/trash'
-  import GeneralEmpty from '$lib/components/General/GeneralEmpty/GeneralEmpty.svelte'
+  import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
   import { ModalContentParticipantsGroupsChecklist } from '$lib/modals'
 
   interface Props {
@@ -144,13 +146,15 @@
 {/if}
 {#if toggledGroup === null}
   <div class="footer">
-    <MajorButton onclick={() => addGroup(participantsGroups)}>
-      {participantsGroups.length < 1 ? 'Create' : 'Add'} group</MajorButton
-    >
+    <GeneralButtonMajor onclick={() => addGroup(participantsGroups)}>
+      {participantsGroups.length < 1 ? 'Create' : 'Add'} group
+    </GeneralButtonMajor>
     <!-- TODO: disable save button if store is empty -->
-    <MajorButton onclick={resetGroups}>Clear groups</MajorButton>
+    <GeneralButtonMajor onclick={resetGroups}>Clear groups</GeneralButtonMajor>
     <!-- TODO: disable save button if store is equal to data.participantsGroups -->
-    <MajorButton isDisabled={false} onclick={handleSubmit}>Save</MajorButton>
+    <GeneralButtonMajor isDisabled={false} onclick={handleSubmit}>
+      Save
+    </GeneralButtonMajor>
   </div>
 {/if}
 

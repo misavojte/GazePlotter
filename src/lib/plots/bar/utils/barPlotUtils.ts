@@ -7,7 +7,7 @@ import {
   calculateAverage,
   normalizeToPercentages,
   createArray,
-} from '$lib/utils/mathUtils'
+} from '$lib/shared/utils/mathUtils'
 import type { BarPlotResult, BarPlotDataItem } from '$lib/plots/bar/types'
 
 /**

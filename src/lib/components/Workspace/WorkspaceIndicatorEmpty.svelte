@@ -1,5 +1,5 @@
 <script lang="ts">
-  import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
+  import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
   import PanelButtonUpload from '$lib/components/Panel/PanelButton/PanelButtonUpload.svelte'
   import PanelButtonDemo from '$lib/components/Panel/PanelButton/PanelButtonDemo.svelte'
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore'

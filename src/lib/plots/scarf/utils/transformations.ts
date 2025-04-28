@@ -39,7 +39,7 @@ import {
   IDENTIFIER_IS_AOI,
   IDENTIFIER_IS_OTHER_CATEGORY,
   IDENTIFIER_NOT_DEFINED,
-} from '$lib/const/identifiers'
+} from '$lib/plots/scarf/const/identifiers'
 import type { BaseInterpretedDataType } from '$lib/type/Data/InterpretedData/BaseInterpretedDataType'
 import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType'
 import type { SegmentInterpretedDataType } from '$lib/type/Data/InterpretedData/SegmentInterpretedDataType'

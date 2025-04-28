@@ -1,5 +1,5 @@
 <script lang="ts">
-  import MajorControlButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
+  import MajorControlButton from '$lib/shared/components/GeneralButtonMajor.svelte'
   import { demoData } from '$lib/const/demoDataTwo'
   import { data } from '$lib/stores/dataStore'
   import { addSuccessToast } from '$lib/toaster'

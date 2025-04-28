@@ -1,4 +1,4 @@
-import { sumArray } from '$lib/utils/mathUtils'
+import { sumArray } from '$lib/shared/utils/mathUtils'
 
 /**
  * Utility functions for text measurement and manipulation in SVG elements

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import MajorControlButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
+  import MajorControlButton from '$lib/shared/components/GeneralButtonMajor.svelte'
   import { EyeWorkerService } from '$lib/class/WorkerService/EyeWorkerService'
   import type { DataType } from '$lib/type/Data/DataType'
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore'

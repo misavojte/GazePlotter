@@ -1,15 +1,15 @@
 <script lang="ts">
-  import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
-  import GeneralButtonPreset from '$lib/components/General/GeneralButton/GeneralButtonPreset.svelte'
-  import GeneralInputText from '$lib/components/General/GeneralInput/GeneralInputText.svelte'
+  import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
+  import GeneralButtonPreset from '$lib/shared/components/GeneralButtonPreset.svelte'
+  import GeneralInputText from '$lib/shared/components/GeneralInputText.svelte'
   import { SortableTableHeader, SectionHeader } from '$lib/modals'
   import { getStimuli, updateMultipleStimuli } from '$lib/stores/dataStore'
   import { addErrorToast, addSuccessToast } from '$lib/toaster'
   import type { BaseInterpretedDataType } from '$lib/type/Data/InterpretedData/BaseInterpretedDataType'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'
-  import GeneralPositionControl from '$lib/components/General/GeneralPositionControl/GeneralPositionControl.svelte'
-  import GeneralEmpty from '$lib/components/General/GeneralEmpty/GeneralEmpty.svelte'
+  import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
+  import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
 
   interface Props {
     forceRedraw: () => void

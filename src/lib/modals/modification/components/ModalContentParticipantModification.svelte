@@ -1,7 +1,9 @@
 <script lang="ts">
-  import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
-  import GeneralButtonPreset from '$lib/components/General/GeneralButton/GeneralButtonPreset.svelte'
-  import GeneralInputText from '$lib/components/General/GeneralInput/GeneralInputText.svelte'
+  import {
+    GeneralButtonMajor,
+    GeneralButtonPreset,
+    GeneralInputText,
+  } from '$lib/shared/components'
   import { SortableTableHeader, SectionHeader } from '$lib/modals'
   import {
     getAllParticipants,
@@ -11,8 +13,8 @@
   import type { BaseInterpretedDataType } from '$lib/type/Data/InterpretedData/BaseInterpretedDataType'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'
-  import GeneralPositionControl from '$lib/components/General/GeneralPositionControl/GeneralPositionControl.svelte'
-  import GeneralEmpty from '$lib/components/General/GeneralEmpty/GeneralEmpty.svelte'
+  import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
+  import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
 
   interface Props {
     forceRedraw: () => void
@@ -107,12 +109,7 @@
       updateMultipleParticipants(participantObjectsCopy)
       addSuccessToast('Participants updated successfully')
       // Refresh the participants list after the store update
-      requestAnimationFrame(() => {
-        const refreshedParticipants = getAllParticipants()
-        participantObjects = deepCopyParticipants(refreshedParticipants)
-        // Trigger a redraw of all visualizations
-        forceRedraw()
-      })
+      forceRedraw()
     } catch (e) {
       console.error(e)
       addErrorToast(

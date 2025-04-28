@@ -2,7 +2,7 @@
   import type { ScarfGridType } from '$lib/type/gridType'
   import type { ScarfFillingType } from '$lib/plots/scarf/types'
   import { transformDataToScarfPlot, ScarfPlotFigure } from '$lib/plots'
-  import GeneralCanvasPreview from '$lib/components/General/GeneralCanvasPreview/GeneralCanvasPreview.svelte'
+  import GeneralCanvasPreview from '$lib/modals/shared/components/CanvasPreview.svelte'
   import { getParticipants } from '$lib/stores/dataStore'
   import { untrack } from 'svelte'
   import { SectionHeader, DownloadPlotSettings } from '$lib/modals'

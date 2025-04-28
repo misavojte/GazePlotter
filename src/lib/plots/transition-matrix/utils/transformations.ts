@@ -22,7 +22,7 @@ import {
   formatDecimal,
   sumArray,
   arraysHaveSameElements,
-} from '$lib/utils/mathUtils'
+} from '$lib/shared/utils/mathUtils'
 
 import { AggregationMethod } from '$lib/plots/transition-matrix/const'
 import type { TransitionMatrixData } from '$lib/plots/transition-matrix/types'

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import MenuButton from '$lib/components/General/GeneralButton/GeneralButtonMenu.svelte'
+  import { GeneralButtonMenu as MenuButton } from '$lib/shared/components'
   import { modalStore } from '$lib/modals/shared/stores/modalStore.js'
   import type { GridStoreType } from '$lib/stores/gridStore'
   import Copy from 'lucide-svelte/icons/copy'

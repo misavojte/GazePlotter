@@ -1,8 +1,7 @@
 <script lang="ts">
-  import { ScanGraphDownloader } from '$lib/class/Downloader/ScanGraphDownloader'
-  import GeneralSelectBase from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
-  import GeneralInputText from '$lib/components/General/GeneralInput/GeneralInputText.svelte'
-  import MajorButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
+  import { ScanGraphDownloader } from '$lib/modals/export/class/ScanGraphDownloader'
+  import GeneralSelectBase from '$lib/shared/components/GeneralSelect.svelte'
+  import { GeneralInputText, GeneralButtonMajor } from '$lib/shared/components'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
   let stimulusId = $state('0')
   let fileName = $state('GazePlotter-ScanGraph')
@@ -19,7 +18,7 @@
 <GeneralSelectBase label="Stimulus" {options} bind:value={stimulusId} />
 <GeneralInputText label="File name" bind:value={fileName} />
 <div class="mt-30">
-  <MajorButton onclick={handleSubmit}>Download</MajorButton>
+  <GeneralButtonMajor onclick={handleSubmit}>Download</GeneralButtonMajor>
 </div>
 
 <style>

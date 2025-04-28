@@ -1,7 +1,7 @@
 <script lang="ts">
   import ArrowDown from 'lucide-svelte/icons/arrow-down'
   import ArrowUp from 'lucide-svelte/icons/arrow-up'
-  import GeneralButtonMinor from '$lib/components/General/GeneralButton/GeneralButtonMinor.svelte'
+  import GeneralButtonMinor from '$lib/shared/components/GeneralButtonMinor.svelte'
 
   interface Props {
     onMoveUp: () => void

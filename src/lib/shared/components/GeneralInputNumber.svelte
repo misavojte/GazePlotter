@@ -1,5 +1,5 @@
 <script lang="ts">
-  import GeneralInputScaffold from '$lib/components/General/GeneralInput/GeneralInputScaffold.svelte'
+  import GeneralInputScaffold from '$lib/shared/components/GeneralInputScaffold.svelte'
   interface Props {
     value?: number
     min?: number

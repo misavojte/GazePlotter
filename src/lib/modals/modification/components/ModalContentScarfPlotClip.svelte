@@ -1,9 +1,9 @@
 <script lang="ts">
   import { getStimuliOrderVector } from '$lib/stores/dataStore'
-  import MajorButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
-  import GeneralFieldset from '$lib/components/General/GeneralFieldset/GeneralFieldset.svelte'
-  import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
-  import GeneralInputNumber from '$lib/components/General/GeneralInput/GeneralInputNumber.svelte'
+  import MajorButton from '$lib/shared/components/GeneralButtonMajor.svelte'
+  import GeneralFieldset from '$lib/shared/components/GeneralFieldset.svelte'
+  import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
+  import GeneralInputNumber from '$lib/shared/components/GeneralInputNumber.svelte'
   import { addSuccessToast } from '$lib/toaster'
   import { modalStore } from '$lib/modals/shared/stores/modalStore.js'
 

@@ -1,5 +1,5 @@
 import type { GridConfig } from '$lib/stores/gridStore'
-import { gridToPixelDimensions } from '$lib/utils/gridSizingUtils'
+import { gridToPixelDimensions } from '$lib/shared/utils/gridSizingUtils'
 import type { PlotDimensions } from '$lib/plots/shared/types'
 
 /**

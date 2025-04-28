@@ -1,5 +1,5 @@
 <script lang="ts">
-  import MajorControlButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
+  import MajorControlButton from '$lib/shared/components/GeneralButtonMajor.svelte'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { ModalContentDownloadWorkplace } from '$lib/modals'
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
