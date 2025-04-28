@@ -17,7 +17,6 @@
     ModalContentStimulusModification,
   } from '$lib/modals'
   import { getContext } from 'svelte'
-  import type { GridStoreType } from '$lib/stores/gridStore'
   import type { ComponentProps } from 'svelte'
 
   interface Props {
@@ -27,8 +26,6 @@
   }
 
   let { settings, settingsChange, forceRedraw }: Props = $props()
-
-  const store = getContext<GridStoreType>('gridStore')
 
   const openAoiModificationModal = () => {
     modalStore.open(
@@ -82,14 +79,6 @@
     )
   }
 
-  const deletePlot = () => {
-    store.removeItem(settings.id)
-  }
-
-  const duplicatePlot = () => {
-    store.duplicateItem(settings)
-  }
-
   let items = $derived([
     {
       label: 'Bar Chart Axes',
@@ -115,16 +104,6 @@
       label: 'Download plot',
       action: downloadPlot,
       icon: Download,
-    },
-    {
-      label: 'Duplicate bar plot',
-      action: duplicatePlot,
-      icon: Copy,
-    },
-    {
-      label: 'Delete bar plot',
-      action: deletePlot,
-      icon: Trash,
     },
   ] as ComponentProps<typeof MenuButton>['items'])
 </script>

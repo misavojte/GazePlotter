@@ -1,16 +1,12 @@
 <script lang="ts">
   import { GeneralButtonMenu as MenuButton } from '$lib/shared/components'
   import { modalStore } from '$lib/modals/shared/stores/modalStore.js'
-  import type { GridStoreType } from '$lib/stores/gridStore'
-  import Copy from 'lucide-svelte/icons/copy'
   import Download from 'lucide-svelte/icons/download'
   import Scissors from 'lucide-svelte/icons/scissors-line-dashed'
   import Settings from 'lucide-svelte/icons/settings-2'
-  import Trash from 'lucide-svelte/icons/trash'
   import Users from 'lucide-svelte/icons/users'
   import View from 'lucide-svelte/icons/view'
   import type { ComponentProps } from 'svelte'
-  import { getContext } from 'svelte'
   import type { ScarfGridType } from '$lib/type/gridType'
   import type { SvelteComponent } from 'svelte'
   import {
@@ -30,20 +26,7 @@
     forceRedraw: () => void
   }
 
-  let {
-    settings,
-    multipleSettings = [],
-    settingsChange,
-    forceRedraw,
-  }: Props = $props()
-
-  let isMultiSelection = $derived(multipleSettings.length > 0)
-
-  let effectiveSettings = $derived(
-    isMultiSelection ? multipleSettings : [settings]
-  )
-
-  const store = getContext<GridStoreType>('gridStore')
+  let { settings, settingsChange, forceRedraw }: Props = $props()
 
   const openClipModal = () => {
     modalStore.open(
@@ -117,80 +100,41 @@
     )
   }
 
-  const deleteScarf = () => {
-    if (isMultiSelection) {
-      for (const setting of effectiveSettings) {
-        store.removeItem(setting.id)
-      }
-    } else {
-      store.removeItem(settings.id)
-    }
-  }
-
-  const duplicateScarf = () => {
-    if (isMultiSelection) {
-      store.batchDuplicateItems(effectiveSettings)
-    } else {
-      store.duplicateItem(settings)
-    }
-  }
-
   let items = $derived([
     {
       label: 'AOI customization',
       action: openAoiModificationModal,
       icon: Settings,
-      disabled: isMultiSelection,
     },
     {
       label: 'Stimulus customization',
       action: openStimulusModificationModal,
       icon: Settings,
-      disabled: isMultiSelection,
     },
     {
       label: 'AOI visibility',
       action: openAoiVisibilityModal,
       icon: View,
-      disabled: isMultiSelection,
     },
     {
       label: 'Participant customization',
       action: openParticipantModificationModal,
       icon: Users,
-      disabled: isMultiSelection,
     },
     {
       label: 'Setup participants groups',
       action: openUserGroupsModal,
       icon: Users,
-      disabled: isMultiSelection,
     },
     {
       label: 'Clip timeline',
       action: openClipModal,
       icon: Scissors,
-      disabled: isMultiSelection,
     },
     {
       label: 'Download plot',
       action: downloadPlot,
       icon: Download,
-      disabled: isMultiSelection,
-    },
-    {
-      label: isMultiSelection
-        ? `Duplicate ${effectiveSettings.length} scarfs`
-        : 'Duplicate scarf',
-      action: duplicateScarf,
-      icon: Copy,
-    },
-    {
-      label: isMultiSelection
-        ? `Delete ${effectiveSettings.length} scarfs`
-        : 'Delete scarf',
-      action: deleteScarf,
-      icon: Trash,
     },
   ] as ComponentProps<typeof MenuButton>['items'])
 </script>

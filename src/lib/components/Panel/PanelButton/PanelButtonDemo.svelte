@@ -3,7 +3,7 @@
   import { demoData } from '$lib/const/demoDataTwo'
   import { data } from '$lib/stores/dataStore'
   import { addSuccessToast } from '$lib/toaster'
-  import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
+  import { processingFileStateStore } from '$lib/workspace'
 
   let isDisabled = $derived($processingFileStateStore === 'processing')
 

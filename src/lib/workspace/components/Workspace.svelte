@@ -1,15 +1,18 @@
 <script lang="ts">
-  import GridItem from '$lib/components/Workspace/WorkspaceItem.svelte'
-  import WorkspaceIndicatorEmpty from '$lib/components/Workspace/WorkspaceIndicatorEmpty.svelte'
-  import WorkspaceIndicatorLoading from '$lib/components/Workspace/WorkspaceIndicatorLoading.svelte'
-  import WorkspaceToolbar from '$lib/components/Workspace/WorkspaceToolbar.svelte'
+  import {
+    WorkspaceItem,
+    WorkspaceIndicatorEmpty,
+    WorkspaceIndicatorLoading,
+    WorkspaceToolbar,
+    processingFileStateStore,
+    createGridStore,
+    type GridConfig,
+  } from '$lib/workspace'
   import { fade } from 'svelte/transition'
   import { setContext } from 'svelte'
   import { writable, get, derived } from 'svelte/store'
   import type { AllGridTypes } from '$lib/type/gridType'
-  import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
-  import { createGridStore, type GridConfig } from '$lib/stores/gridStore'
-  import { onDestroy, onMount } from 'svelte'
+  import { onDestroy } from 'svelte'
   import {
     DEFAULT_GRID_CONFIG,
     calculateGridHeight,
@@ -20,13 +23,12 @@
     WORKSPACE_RIGHT_PADDING,
     MIN_WORKSPACE_HEIGHT,
     DEFAULT_WORKSPACE_WIDTH,
-  } from '$lib/utils/gridSizingUtils'
+  } from '$lib/shared/utils/gridSizingUtils'
   import {
     visualizationRegistry,
     getVisualizationConfig,
   } from '$lib/const/vizRegistry'
-  import { throttleByRaf } from '$lib/utils/throttle'
-  import { browser } from '$app/environment'
+  import { throttleByRaf } from '$lib/shared/utils/throttle'
 
   // ---------------------------------------------------
   // State tracking
@@ -874,7 +876,7 @@
       {#each $gridStore as item (item.id)}
         {@const visConfig = getVisualizationConfig(item.type)}
         <div transition:fade={{ duration: 300 }}>
-          <GridItem
+          <WorkspaceItem
             id={item.id}
             x={item.x}
             y={item.y}
@@ -917,7 +919,7 @@
                 />
               </div>
             {/snippet}
-          </GridItem>
+          </WorkspaceItem>
         </div>
       {/each}
     </div>

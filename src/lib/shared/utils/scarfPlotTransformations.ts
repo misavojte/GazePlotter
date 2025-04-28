@@ -30,7 +30,6 @@ import {
   getNumberOfSegments,
   getParticipant,
   getParticipantEndTime,
-  getSegment,
   getSegments,
   getStimuli,
   hasStimulusAoiVisibility,

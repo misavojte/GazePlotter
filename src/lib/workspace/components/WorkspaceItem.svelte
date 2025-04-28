@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte'
   import { fade } from 'svelte/transition'
-  import type { GridItemPosition } from '$lib/stores/gridStore'
   import { writable } from 'svelte/store'
   import WorkspaceItemButton from './WorkspaceItemButton.svelte'
 

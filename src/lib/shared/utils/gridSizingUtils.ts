@@ -1,4 +1,4 @@
-import type { GridConfig } from '$lib/stores/gridStore'
+import type { GridConfig } from '$lib/workspace/stores/gridStore'
 
 /**
  * Grid sizing and positioning utilities

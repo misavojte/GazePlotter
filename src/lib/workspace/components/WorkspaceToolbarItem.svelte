@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tooltipAction } from '../Tooltip.svelte'
+  import { tooltipAction } from '$lib/tooltip/components/Tooltip.svelte'
 
   // Props for the toolbar item
   interface Props {

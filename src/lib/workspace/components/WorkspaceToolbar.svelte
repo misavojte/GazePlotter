@@ -1,8 +1,10 @@
 <script lang="ts">
-  import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
+  import {
+    processingFileStateStore,
+    WorkspaceToolbarItem,
+  } from '$lib/workspace'
   import { fade } from 'svelte/transition'
   import { writable } from 'svelte/store'
-  import WorkspaceToolbarItem from './WorkspaceToolbarItem.svelte'
   import { onMount } from 'svelte'
 
   // Configuration for toolbar items
