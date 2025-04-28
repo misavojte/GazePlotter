@@ -12,8 +12,10 @@
   } from '$lib/plots/transition-matrix/components'
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import { PlotPlaceholder } from '$lib/plots/shared/components'
-  import ModalContentMaxValue from '$lib/components/Modal/ModalContent/ModalContentMaxValue.svelte'
-  import ModalContentColorScale from '$lib/components/Modal/ModalContent/ModalContentColorScale.svelte'
+  import {
+    ModalContentMaxValue,
+    ModalContentColorScale,
+  } from '$lib/components/Modal'
 
   // Utilities and stores
   import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
