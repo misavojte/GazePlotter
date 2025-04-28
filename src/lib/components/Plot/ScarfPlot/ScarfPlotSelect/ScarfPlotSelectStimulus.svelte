@@ -1,8 +1,8 @@
 <script lang="ts">
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
-  import { getStimuli } from '$lib/stores/dataStore.js'
   import { handleScarfSelectionChange } from '$lib/services/scarfSelectService'
   import type { ScarfGridType } from '$lib/type/gridType'
+  import { getStimuliOptions } from '$lib/utils/sharedPlotUtils'
 
   interface Props {
     settings: ScarfGridType
@@ -13,17 +13,13 @@
   let { settings, settingsChange = () => {} }: Props = $props()
 
   let selectedStimulusId = $state(settings.stimulusId.toString())
-  let stimuliOptions = $state<{ label: string; value: string }[]>([])
+  let stimuliOptions =
+    $state<{ label: string; value: string }[]>(getStimuliOptions())
 
   // Update selectedStimulusId when settings change
   $effect(() => {
     selectedStimulusId = settings.stimulusId.toString()
-    stimuliOptions = getStimuli().map(stimulus => {
-      return {
-        label: stimulus.displayedName,
-        value: stimulus.id.toString(),
-      }
-    })
+    stimuliOptions = getStimuliOptions()
   })
 
   function handleSelectChange(event: CustomEvent) {

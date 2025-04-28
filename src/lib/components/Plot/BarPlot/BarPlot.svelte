@@ -11,6 +11,7 @@
   import PlotPlaceholder from '../Common/PlotPlaceholder.svelte'
   import { fade } from 'svelte/transition'
   import { onMount } from 'svelte'
+  import { getStimuliOptions } from '$lib/utils/sharedPlotUtils'
   // CONSTANTS - centralized for easier maintenance
   const LAYOUT = {
     HEADER_HEIGHT: 150,
@@ -78,7 +79,8 @@
     }
   }
 
-  let stimulusOptions = $state<{ label: string; value: string }[]>([])
+  let stimulusOptions =
+    $state<{ label: string; value: string }[]>(getStimuliOptions())
 
   /**
    * This is to prevent unnecessary recalculations when settings change in other components in the workspace
@@ -89,12 +91,7 @@
 
     untrack(() => {
       barPlotResult = getBarPlotData(settings)
-      stimulusOptions = getStimuli().map(stimulus => {
-        return {
-          label: stimulus.displayedName,
-          value: stimulus.id.toString(),
-        }
-      })
+      stimulusOptions = getStimuliOptions()
     })
   })
 

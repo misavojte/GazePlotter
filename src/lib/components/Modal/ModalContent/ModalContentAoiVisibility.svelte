@@ -1,11 +1,11 @@
 <script lang="ts">
   import GeneralSelectBase from '../../General/GeneralSelect/GeneralSelect.svelte'
-  import { getParticipants, getStimuli } from '$lib/stores/dataStore.js'
+  import { getParticipants } from '$lib/stores/dataStore.js'
   import GeneralInputFile from '../../General/GeneralInput/GeneralInputFile.svelte'
   import GeneralButtonMajor from '../../General/GeneralButton/GeneralButtonMajor.svelte'
   import { addErrorToast, addSuccessToast } from '$lib/stores/toastStore.js'
   import { processAoiVisibility } from '$lib/services/aoiVisibilityServices'
-
+  import { getStimuliOptions } from '$lib/utils/sharedPlotUtils'
   interface Props {
     forceRedraw: () => void
   }
@@ -16,12 +16,7 @@
   let selectedStimulusId = $state('0')
   let selectedParticipantId = $state('all')
 
-  const stimuliOptions = getStimuli().map(stimulus => {
-    return {
-      label: stimulus.displayedName,
-      value: stimulus.id.toString(),
-    }
-  })
+  const stimuliOptions = getStimuliOptions()
   const participantOptions = [{ label: 'To all', value: 'all' }].concat(
     getParticipants().map(participant => {
       return {

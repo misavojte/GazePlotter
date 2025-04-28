@@ -6,11 +6,7 @@
   import GeneralInputColor from '$lib/components/General/GeneralInput/GeneralInputColor.svelte'
   import SortableTableHeader from '$lib/components/Modal/Shared/SortableTableHeader.svelte'
   import SectionHeader from '$lib/components/Modal/Shared/SectionHeader.svelte'
-  import {
-    getAllAois,
-    getStimuli,
-    updateMultipleAoi,
-  } from '$lib/stores/dataStore'
+  import { getAllAois, updateMultipleAoi } from '$lib/stores/dataStore'
   import {
     addErrorToast,
     addInfoToast,
@@ -21,7 +17,7 @@
   import { fade } from 'svelte/transition'
   import GeneralPositionControl from '$lib/components/General/GeneralPositionControl/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/components/General/GeneralEmpty/GeneralEmpty.svelte'
-
+  import { getStimuliOptions } from '$lib/utils/sharedPlotUtils'
   interface Props {
     selectedStimulus?: string
     userSelected?: string
@@ -252,10 +248,7 @@
     }
   }
 
-  const stimuliOption = getStimuli().map(stimulus => ({
-    label: stimulus.displayedName,
-    value: stimulus.id.toString(),
-  }))
+  const stimuliOption = getStimuliOptions()
 </script>
 
 <div class="content">
