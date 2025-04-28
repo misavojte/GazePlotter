@@ -1,17 +1,23 @@
 <script lang="ts">
-  import BarPlotFigure from './BarPlotFigure.svelte'
-  import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils/plotSizeUtility'
-  import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
-  import type { BarPlotGridType } from '$lib/type/gridType'
-  import { getBarPlotData } from '$lib/plots/bar/utils/barPlotUtils'
-  import GeneralSelect from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
-  import { getParticipantsGroups } from '$lib/stores/dataStore'
-  import BarPlotButtonMenu from './BarPlotButtonMenu.svelte'
-  import { untrack } from 'svelte'
-  import PlotPlaceholder from '$lib/plots/shared/components/PlotPlaceholder.svelte'
+  // Svelte core imports
   import { fade } from 'svelte/transition'
-  import { onMount } from 'svelte'
+  import { untrack, onMount } from 'svelte'
+
+  // Local components
+  import { BarPlotFigure, BarPlotButtonMenu } from '$lib/plots/bar/components'
+  import { PlotPlaceholder } from '$lib/plots/shared/components'
+  import GeneralSelect from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
+
+  // Utilities and stores
+  import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
+  import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils/plotSizeUtility'
+  import { getBarPlotData } from '$lib/plots/bar/utils/barPlotUtils'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
+  import { getParticipantsGroups } from '$lib/stores/dataStore'
+
+  // Types
+  import type { BarPlotGridType } from '$lib/type/gridType'
+
   // CONSTANTS - centralized for easier maintenance
   const LAYOUT = {
     HEADER_HEIGHT: 150,

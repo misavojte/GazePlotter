@@ -11,15 +11,15 @@
     TransitionMatrixButtonMenu,
   } from '$lib/plots/transition-matrix/components'
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
-  import PlotPlaceholder from '$lib/plots/shared/components/PlotPlaceholder.svelte'
+  import { PlotPlaceholder } from '$lib/plots/shared/components'
   import ModalContentMaxValue from '$lib/components/Modal/ModalContent/ModalContentMaxValue.svelte'
   import ModalContentColorScale from '$lib/components/Modal/ModalContent/ModalContentColorScale.svelte'
 
   // Utilities and stores
   import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
-  import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils/plotSizeUtility'
-  import { modalStore } from '$lib/stores/modalStore.js'
-  import { calculateTransitionMatrix } from '$lib/plots/transition-matrix/utils/transformations'
+  import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils'
+  import { modalStore } from '$lib/stores/modalStore'
+  import { calculateTransitionMatrix } from '$lib/plots/transition-matrix/utils'
   import { AggregationMethod } from '$lib/plots/transition-matrix/const'
 
   // Types

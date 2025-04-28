@@ -1,3 +1,6 @@
+// Export all modules through a central interface
+// This allows importing like: import { ScarfPlotFigure, transformDataToScarfPlot } from '$lib/plots'
+
 // Export shared components and utilities
 export * from './shared'
 

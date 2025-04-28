@@ -23,7 +23,7 @@ import type {
   SingleStylingScarfFillingType,
   StimulusScarfFillingType,
   StylingScarfFillingType,
-} from '$lib/plots/scarf/types/index'
+} from '$lib/plots/scarf/types'
 import {
   getAois,
   getAoiVisibility,
@@ -34,7 +34,7 @@ import {
   getStimuli,
   hasStimulusAoiVisibility,
 } from '$lib/stores/dataStore'
-import { AdaptiveTimeline } from '$lib/plots/shared/class/AdaptiveTimeline'
+import { AdaptiveTimeline } from '$lib/plots/shared/class'
 import {
   IDENTIFIER_IS_AOI,
   IDENTIFIER_IS_OTHER_CATEGORY,

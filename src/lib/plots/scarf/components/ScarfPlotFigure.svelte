@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType'
+  import type { ScarfFillingType } from '$lib/plots/scarf/types'
   import type { ScarfGridType } from '$lib/type/gridType'
   import { addInfoToast } from '$lib/stores/toastStore'
   import {
