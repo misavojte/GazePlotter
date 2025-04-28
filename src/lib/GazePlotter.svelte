@@ -1,7 +1,7 @@
 <script lang="ts">
   import Toaster from '$lib/toaster/components/Toaster.svelte'
   import { Modal } from '$lib/modals'
-  import Panel from '$lib/components/Panel/Panel.svelte'
+  import Panel from '$lib/workspace/panel/components/Panel.svelte'
   import Workspace from '$lib/workspace/components/Workspace.svelte'
   import Tooltip from '$lib/tooltip/components/Tooltip.svelte'
 </script>
