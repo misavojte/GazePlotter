@@ -7,15 +7,13 @@
   import ScarfTimelineSelect from '../ScarfPlotSelect/ScarfPlotSelectTimeline.svelte'
   import ScarfPlotSelectGroup from '../ScarfPlotSelect/ScarfPlotSelectGroup.svelte'
   import type { ScarfGridType } from '$lib/type/gridType'
-  import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType'
   interface Props {
     settings: ScarfGridType
-    scarfData: ScarfFillingType
     settingsChange: (settings: Partial<ScarfGridType>) => void
     forceRedraw: () => void
   }
 
-  let { settings, scarfData, settingsChange, forceRedraw }: Props = $props()
+  let { settings, settingsChange, forceRedraw }: Props = $props()
 
   function handleSettingsChange(newSettings: Partial<ScarfGridType>) {
     if (settingsChange) {
@@ -39,7 +37,6 @@
   <ScarfPlotButtonMenu
     {settings}
     {forceRedraw}
-    {scarfData}
     settingsChange={handleSettingsChange}
   />
 </div>
