@@ -2,7 +2,7 @@
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
   import { getParticipantsGroups, data } from '$lib/stores/dataStore'
   import { onDestroy } from 'svelte'
-  import { handleScarfSelectionChange } from '$lib/services/scarfSelectService'
+  import { handleScarfSelectionChange } from '$lib/plots/scarf/utils/scarfSelectService'
   import type { ScarfGridType } from '$lib/type/gridType'
 
   interface Props {

@@ -1,5 +1,5 @@
 import { getAois, getParticipants } from '$lib/stores/dataStore'
-import { getScarfParticipantBarHeight as getBarHeight } from '$lib/plots/scarf/utils/scarfPlotTransformations'
+import { getScarfParticipantBarHeight as getBarHeight } from '$lib/plots/scarf/utils/transformations'
 
 // Constants duplicated from scarfPlotTransformations.ts for better independence
 const HEIGHT_OF_X_AXIS = 20

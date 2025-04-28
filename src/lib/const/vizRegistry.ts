@@ -3,7 +3,7 @@ import ScarfPlot from '$lib/plots/scarf/components/ScarfPlot.svelte'
 import TransitionMatrixPlot from '$lib/plots/transition-matrix/components/TransitionMatrixPlot.svelte' // Use lowercase 'a'
 import BarPlot from '$lib/plots/bar/components/BarPlot.svelte'
 import type { AllGridTypes } from '$lib/type/gridType'
-import { getScarfGridHeightFromCurrentData } from '$lib/services/scarfServices'
+import { getScarfGridHeightFromCurrentData } from '$lib/plots/scarf/utils/scarfServices'
 // Define a type for visualization registry entries
 export type VisualizationConfig = {
   name: string

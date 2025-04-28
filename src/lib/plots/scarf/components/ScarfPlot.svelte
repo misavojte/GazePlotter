@@ -9,14 +9,14 @@
   import ScarfPlotFigure from './ScarfPlotFigure.svelte'
   import ScarfPlotHeader from './ScarfPlotHeader.svelte'
   import type { ScarfGridType } from '$lib/type/gridType'
-  import { tooltipScarfService } from '$lib/services/tooltipServices'
-  import { transformDataToScarfPlot } from '$lib/plots/scarf/utils/scarfPlotTransformations'
+  import { tooltipScarfService } from '$lib/plots/scarf/utils/tooltip'
+  import { transformDataToScarfPlot } from '$lib/plots/scarf/utils/transformations'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils/plotSizeUtility'
   import { DEFAULT_GRID_CONFIG } from '$lib/utils/gridSizingUtils'
   import {
     SCARF_LAYOUT,
     calculateScarfHeights,
-  } from '$lib/services/scarfServices'
+  } from '$lib/plots/scarf/utils/scarfServices'
   import { untrack } from 'svelte'
   import PlotPlaceholder from '$lib/plots/shared/components/PlotPlaceholder.svelte'
   import { fade } from 'svelte/transition'

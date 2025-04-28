@@ -1,6 +1,6 @@
 <script lang="ts">
   import Select from '$lib/components/General/GeneralSelect/GeneralSelect.svelte'
-  import { handleScarfSelectionChange } from '$lib/services/scarfSelectService'
+  import { handleScarfSelectionChange } from '$lib/plots/scarf/utils/scarfSelectService'
   import type { ScarfGridType } from '$lib/type/gridType'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
 

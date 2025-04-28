@@ -14,7 +14,7 @@
     getItemsPerRow,
     getXAxisLabel,
     getTimelineUnit,
-  } from '$lib/services/scarfServices'
+  } from '$lib/plots/scarf/utils/scarfServices'
   import {
     createCanvasState,
     setupCanvas,
