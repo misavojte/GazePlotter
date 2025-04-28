@@ -3,7 +3,7 @@
   import { getParticipants } from '$lib/stores/dataStore.js'
   import GeneralInputFile from '$lib/components/General/GeneralInput/GeneralInputFile.svelte'
   import GeneralButtonMajor from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
-  import { addErrorToast, addSuccessToast } from '$lib/stores/toastStore.js'
+  import { addErrorToast, addSuccessToast } from '$lib/toaster'
   import { processAoiVisibility } from '$lib/modals/import/utility/aoiVisibilityServices'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
   interface Props {

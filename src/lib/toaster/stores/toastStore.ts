@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store'
-import type { ToastFillingType } from '$lib/type/Filling/ToastFilling/ToastFillingType'
+import type { ToastFillingType } from '$lib/toaster/types/ToastFillingType'
 
 export const toastStore = writable<ToastFillingType[]>([])
 

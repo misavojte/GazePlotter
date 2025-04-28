@@ -7,7 +7,7 @@
     getAllParticipants,
     updateMultipleParticipants,
   } from '$lib/stores/dataStore'
-  import { addErrorToast, addSuccessToast } from '$lib/stores/toastStore'
+  import { addErrorToast, addSuccessToast } from '$lib/toaster'
   import type { BaseInterpretedDataType } from '$lib/type/Data/InterpretedData/BaseInterpretedDataType'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'

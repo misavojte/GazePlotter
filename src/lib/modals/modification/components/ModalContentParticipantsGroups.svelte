@@ -3,8 +3,8 @@
   import {
     addGroup,
     participantsGroupsStore,
-  } from '$lib/stores/participantsGroupStore'
-  import { addSuccessToast, addErrorToast } from '$lib/stores/toastStore'
+  } from '$lib/modals/modification/stores/participantsGroupStore'
+  import { addSuccessToast, addErrorToast } from '$lib/toaster'
   import type { ParticipantsGroup } from '$lib/type/Data/ParticipantsGroup'
   import MajorButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import GeneralButtonMinor from '$lib/components/General/GeneralButton/GeneralButtonMinor.svelte'

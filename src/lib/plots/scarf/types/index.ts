@@ -7,3 +7,6 @@ export type * from './SegmentScarfFilling/SegmentScarfFillingType'
 export type * from './SegmentScarfFilling/SingleSegmentScarfFillingType'
 export type * from './AoiVisibilityScarfFilling/AoiVisibilityScarfFillingType'
 export type * from './AoiVisibilityScarfFilling/SingleAoiVisibilityScarfFillingType'
+
+// scarf tooltip types
+export type * from './ScarfTooltipFillingType'

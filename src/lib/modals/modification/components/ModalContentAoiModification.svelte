@@ -6,11 +6,7 @@
   import GeneralInputColor from '$lib/components/General/GeneralInput/GeneralInputColor.svelte'
   import { SortableTableHeader, SectionHeader } from '$lib/modals'
   import { getAllAois, updateMultipleAoi } from '$lib/stores/dataStore'
-  import {
-    addErrorToast,
-    addInfoToast,
-    addSuccessToast,
-  } from '$lib/stores/toastStore'
+  import { addErrorToast, addInfoToast, addSuccessToast } from '$lib/toaster'
   import type { ExtendedInterpretedDataType } from '$lib/type/Data/InterpretedData/ExtendedInterpretedDataType'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'

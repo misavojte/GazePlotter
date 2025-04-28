@@ -2,7 +2,7 @@
   import MajorControlButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
   import { demoData } from '$lib/const/demoDataTwo'
   import { data } from '$lib/stores/dataStore'
-  import { addSuccessToast } from '$lib/stores/toastStore'
+  import { addSuccessToast } from '$lib/toaster'
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
 
   let isDisabled = $derived($processingFileStateStore === 'processing')

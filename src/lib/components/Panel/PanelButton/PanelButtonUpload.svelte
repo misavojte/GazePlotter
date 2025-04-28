@@ -4,7 +4,7 @@
   import type { DataType } from '$lib/type/Data/DataType'
   import { processingFileStateStore } from '$lib/stores/processingFileStateStore'
   import { setData } from '$lib/stores/dataStore'
-  import { addErrorToast, addSuccessToast } from '$lib/stores/toastStore'
+  import { addErrorToast, addSuccessToast } from '$lib/toaster'
 
   let isDisabled = $derived($processingFileStateStore === 'processing')
 

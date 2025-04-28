@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { ScarfFillingType } from '$lib/plots/scarf/types'
   import type { ScarfGridType } from '$lib/type/gridType'
-  import { addInfoToast } from '$lib/stores/toastStore'
+  import { addInfoToast } from '$lib/toaster'
   import {
     calculateLabelOffset,
     truncateTextToPixelWidth,

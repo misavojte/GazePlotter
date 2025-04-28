@@ -4,7 +4,7 @@
   import GeneralFieldset from '$lib/components/General/GeneralFieldset/GeneralFieldset.svelte'
   import GeneralRadio from '$lib/components/General/GeneralRadio/GeneralRadio.svelte'
   import GeneralInputNumber from '$lib/components/General/GeneralInput/GeneralInputNumber.svelte'
-  import { addSuccessToast } from '$lib/stores/toastStore.js'
+  import { addSuccessToast } from '$lib/toaster'
   import { modalStore } from '$lib/modals/shared/stores/modalStore.js'
 
   import type { ScarfGridType } from '$lib/type/gridType'

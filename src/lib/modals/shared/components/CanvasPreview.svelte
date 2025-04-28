@@ -1,6 +1,6 @@
 <script lang="ts">
   import MajorButton from '$lib/components/General/GeneralButton/GeneralButtonMajor.svelte'
-  import { addErrorToast } from '$lib/stores/toastStore'
+  import { addErrorToast } from '$lib/toaster'
 
   // Component props
   interface Props {

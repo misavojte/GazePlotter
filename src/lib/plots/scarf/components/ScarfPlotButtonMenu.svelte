@@ -90,7 +90,10 @@
   const openUserGroupsModal = () => {
     modalStore.open(
       ModalContentParticipantsGroups as unknown as typeof SvelteComponent,
-      'Participants groups'
+      'Participants groups',
+      {
+        forceRedraw,
+      }
     )
   }
 
