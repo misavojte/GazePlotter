@@ -2,7 +2,7 @@
   import DownloadPlotSettings from '$lib/components/Modal/Shared/DownloadPlotSettings.svelte'
   import type { ScarfGridType } from '$lib/type/gridType'
   import ScarfPlotFigure from '$lib/plots/scarf/components/ScarfPlotFigure.svelte'
-  import type { ScarfFillingType } from '$lib/type/Filling/ScarfFilling/ScarfFillingType'
+  import type { ScarfFillingType } from '$lib/plots/scarf/types/ScarfFillingType'
   import GeneralCanvasPreview from '$lib/components/General/GeneralCanvasPreview/GeneralCanvasPreview.svelte'
   import { transformDataToScarfPlot } from '$lib/plots/scarf/utils/transformations'
   import { getParticipants } from '$lib/stores/dataStore'
