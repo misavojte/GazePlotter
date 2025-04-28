@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getColorForValue, getContrastTextColor } from '$lib/utils/colorUtils'
-  import { updateTooltip } from '$lib/stores/tooltipStore'
+  import { updateTooltip } from '$lib/tooltip'
   import {
     calculateLabelOffset,
     truncateTextToPixelWidth,

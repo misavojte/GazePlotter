@@ -26,7 +26,7 @@
     finishCanvasDrawing,
     type CanvasState,
   } from '$lib/utils/canvasUtils'
-  import { updateTooltip } from '$lib/stores/tooltipStore'
+  import { updateTooltip } from '$lib/tooltip'
 
   // CONSTANTS - layout dimensions and styling
   const LAYOUT = SCARF_LAYOUT
