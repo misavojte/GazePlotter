@@ -934,6 +934,9 @@ export const updateMultipleAoi = (
  * This function is optimized for performance using direct array access and minimal object creation.
  * It applies AOI ID mapping to remove duplicates and ensure grouped AOIs are treated as a single entity.
  *
+ * We avoid using .splice() and similar more readable methods to avoid unnecessary allocations as
+ * this is frequently called function with a lot of querying.
+ *
  * @param stimulusId - The numeric ID of the stimulus
  * @param participantId - The numeric ID of the participant
  * @param whereCategories - Optional array of category IDs to filter by. If null, all categories are included.
@@ -995,15 +998,17 @@ export const getSegments = (
         ? Math.min(segmentsLength - offset, limit)
         : segmentsLength - offset
 
-    for (let i = offset; i < offset + processCount; i++) {
+    const processTo = offset + processCount
+    for (let i = offset; i < processTo; i++) {
       const segmentArray = segmentsInfo[i]
       const start = segmentArray[0]
       const end = segmentArray[1]
       const categoryId = segmentArray[2]
 
-      // Get AOI IDs with minimal allocations
-      const aoiRawIds = segmentArray.slice(3)
-      const aoiCount = aoiRawIds.length
+      // Access AOI IDs directly from the segment array (start at index 3)
+      // const aoiRawIds = segmentArray.slice(3)
+      // const aoiCount = aoiRawIds.length
+      const aoiCount = segmentArray.length - 3
 
       // Clear the Set for reuse instead of creating a new one
       uniqueAoiIds.clear()
@@ -1014,7 +1019,15 @@ export const getSegments = (
       // Apply the order vector sorting
       for (let j = 0; j < orderVector.length; j++) {
         const orderedId = orderVector[j]
-        if (aoiRawIds.includes(orderedId)) {
+        // Check if orderedId exists in the segment array (starting from index 3)
+        let exists = false
+        for (let k = 3; k < segmentArray.length; k++) {
+          if (segmentArray[k] === orderedId) {
+            exists = true
+            break
+          }
+        }
+        if (exists) {
           sortedIds.push(orderedId)
         }
       }
@@ -1074,13 +1087,13 @@ export const getSegments = (
 
     // Process AOI filter if needed
     if (aoiFilter) {
-      // Get raw AOI IDs
-      const aoiRawIds = segmentArray.slice(3)
+      // Access AOI IDs directly from segmentArray starting at index 3
+      // const aoiRawIds = segmentArray.slice(3)
       let hasMatchingAoi = false
 
       // Early exit optimization: check each AOI until we find a match
-      for (let j = 0; j < aoiRawIds.length; j++) {
-        const aoiId = aoiRawIds[j]
+      for (let j = 3; j < segmentArray.length; j++) {
+        const aoiId = segmentArray[j]
 
         // Fast mapping via TypedArray
         let mappedId = aoiId
@@ -1108,8 +1121,8 @@ export const getSegments = (
     const start = segmentArray[0]
     const end = segmentArray[1]
 
-    // Get AOI IDs with minimal allocations
-    const aoiRawIds = segmentArray.slice(3)
+    // Access AOI IDs directly from the segment array
+    // const aoiRawIds = segmentArray.slice(3)
 
     // Clear the Set for reuse instead of creating a new one
     uniqueAoiIds.clear()
@@ -1120,7 +1133,15 @@ export const getSegments = (
     // Apply the order vector sorting
     for (let j = 0; j < orderVector.length; j++) {
       const orderedId = orderVector[j]
-      if (aoiRawIds.includes(orderedId)) {
+      // Check if orderedId exists in the segment array (starting from index 3)
+      let exists = false
+      for (let k = 3; k < segmentArray.length; k++) {
+        if (segmentArray[k] === orderedId) {
+          exists = true
+          break
+        }
+      }
+      if (exists) {
         sortedIds.push(orderedId)
       }
     }
