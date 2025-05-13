@@ -570,7 +570,8 @@ export const getParticipantsGroup = (groupId: number): ParticipantsGroup => {
 
 export const updateParticipantsGroups = (groups: ParticipantsGroup[]) => {
   data.update(data => {
-    data.participantsGroups = groups
+    // Create a deep copy of the groups to avoid reference sharing
+    data.participantsGroups = structuredClone(groups)
     return data
   })
 }

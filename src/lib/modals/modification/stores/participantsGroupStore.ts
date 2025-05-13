@@ -7,8 +7,11 @@ import {
 
 /**
  * Store for participants groups data in working memory of modal
+ * Using structuredClone to ensure complete isolation from the main data store
  */
-export const participantsGroupsStore = writable(getParticipantsGroups())
+export const participantsGroupsStore = writable(
+  structuredClone(getParticipantsGroups())
+)
 
 export const addGroup = (groups: ParticipantsGroup[]) => {
   const id = (groups.map(d => d.id).sort((a, b) => b - a)[0] ?? 0) + 1
@@ -24,12 +27,3 @@ export const addGroup = (groups: ParticipantsGroup[]) => {
 export const removeGroup = (id: number) => {
   participantsGroupsStore.update(groups => groups.filter(d => d.id !== id))
 }
-
-/**
- * It must refresh the store when the data is changed.
- * Otherwise, it could happen that after uploading new data,
- * the old groups would be displayed.
- */
-data.subscribe(d => {
-  participantsGroupsStore.set(getParticipantsGroups())
-})
