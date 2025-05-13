@@ -46,17 +46,26 @@
     )
   )
 
-  const scarfData = $derived.by(() => {
-    console.log('redrawTimestampScarfPlot', redrawTimestamp)
-    return transformDataToScarfPlot(
-      untrack(() => currentStimulusId),
-      untrack(() =>
-        getParticipants(currentGroupId, currentStimulusId).map(
-          participant => participant.id
-        )
-      ),
-      untrack(() => settings)
+  // Local timestamp that updates whenever participant IDs change
+  const localTimestamp = $derived.by(() => {
+    // This will update whenever currentParticipantIds changes
+    return (
+      Date.now() + '-' + currentParticipantIds.length + '-' + redrawTimestamp
     )
+  })
+
+  const scarfData = $derived.by(() => {
+    // Force recalculation when redrawTimestamp changes
+    // Also use localTimestamp to force recalculation when participants change
+    const _ = localTimestamp
+
+    // Get the latest participant IDs directly instead of using untrack
+    const participantIds = getParticipants(
+      currentGroupId,
+      currentStimulusId
+    ).map(participant => participant.id)
+
+    return transformDataToScarfPlot(currentStimulusId, participantIds, settings)
   })
 
   // Calculate plot dimensions using a more descriptive approach
@@ -75,14 +84,21 @@
   const chartWidth = $derived(plotDimensions.width)
 
   // Use the unified height calculation from the service
-  const heightCalculations = $derived.by(() =>
-    calculateScarfHeights(
-      currentParticipantIds,
+  const heightCalculations = $derived.by(() => {
+    // Force recalculation when participants change or timestamp changes
+    // Get the latest participant IDs for accurate height calculation
+    const participantIds = getParticipants(
+      currentGroupId,
+      currentStimulusId
+    ).map(participant => participant.id)
+
+    return calculateScarfHeights(
+      participantIds,
       scarfData.stylingAndLegend.aoi.length - 1, // Subtract 1 for "No AOI hit" which is added in styling
       scarfData.stylingAndLegend.visibility.length > 0,
       chartWidth
     )
-  )
+  })
 
   // Calculate, based on current stimulus, the min value for the timeline
   const timelineMinValue = $derived.by(() => {

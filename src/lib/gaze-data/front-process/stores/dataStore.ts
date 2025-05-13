@@ -506,7 +506,6 @@ export const getParticipants = (
     return getAllParticipants()
   }
   if (groupId === -2) {
-    console.log('non empty')
     return getNonEmptyParticipants(stimulusId)
   }
   const group = getParticipantsGroup(groupId)
@@ -570,7 +569,8 @@ export const getParticipantsGroup = (groupId: number): ParticipantsGroup => {
 
 export const updateParticipantsGroups = (groups: ParticipantsGroup[]) => {
   data.update(data => {
-    data.participantsGroups = groups
+    // Create a deep copy of the groups to avoid reference sharing
+    data.participantsGroups = structuredClone(groups)
     return data
   })
 }

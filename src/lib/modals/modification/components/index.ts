@@ -9,4 +9,3 @@ export { default as ModalContentAoiModification } from './ModalContentAoiModific
 export { default as ModalContentParticipantModification } from './ModalContentParticipantModification.svelte'
 export { default as ModalContentStimulusModification } from './ModalContentStimulusModification.svelte'
 export { default as ModalContentParticipantsGroups } from './ModalContentParticipantsGroups.svelte'
-export { default as ModalContentParticipantsGroupsChecklist } from './ModalContentParticipantsGroupsChecklist.svelte'
