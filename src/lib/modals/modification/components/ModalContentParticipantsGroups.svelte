@@ -27,8 +27,10 @@
   let { forceRedraw }: Props = $props()
 
   // State management
-  const initialGroups = structuredClone(getParticipantsGroups())
-  let participantsGroups = $state(structuredClone(initialGroups))
+  let initialGroups = $state(
+    JSON.parse(JSON.stringify(getParticipantsGroups()))
+  )
+  let participantsGroups = $state(JSON.parse(JSON.stringify(initialGroups)))
   let hasChanged = $state(false)
 
   // Helper to check if current state differs from initial
@@ -105,7 +107,7 @@
 
   // Reset to initial state
   const resetToInitial = () => {
-    participantsGroups = structuredClone(initialGroups)
+    participantsGroups = JSON.parse(JSON.stringify(initialGroups))
     hasChanged = false
   }
 
@@ -145,10 +147,10 @@
     }
   }
 
-  const resetGroups = () => {
+  const discardChanges = () => {
     resetToInitial()
     expandedGroupIds = []
-    addSuccessToast(`Changes reverted to initial state.`)
+    addSuccessToast(`Unsaved changes discarded.`)
   }
 
   const handleSubmit = () => {
@@ -161,6 +163,10 @@
 
     // Update the main data store with the deep copy
     updateParticipantsGroups(groupsDeepCopy)
+
+    // Create a new snapshot after saving
+    initialGroups = JSON.parse(JSON.stringify(groupsDeepCopy))
+    hasChanged = false
 
     forceRedraw()
     addSuccessToast(`Set ${participantsGroups.length} groups.`)
@@ -261,7 +267,7 @@
               isIcon={false}
             >
               <span class="participant-count">
-                {group.participantsIds.length} participants
+                {group.participantsIds.length}/{allParticipants.length} participants
               </span>
               {#if expandedGroupIds.includes(group.id)}
                 <ChevronUp size={'1em'} />
@@ -325,8 +331,8 @@
 
 <div class="footer">
   <GeneralButtonMajor onclick={() => addGroup()}>Add group</GeneralButtonMajor>
-  <GeneralButtonMajor onclick={resetGroups} isDisabled={!hasChanged}
-    >Revert Changes</GeneralButtonMajor
+  <GeneralButtonMajor onclick={discardChanges} isDisabled={!hasChanged}
+    >Discard Changes</GeneralButtonMajor
   >
   <GeneralButtonMajor isDisabled={!hasChanged} onclick={handleSubmit}>
     Save
