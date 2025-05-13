@@ -255,17 +255,12 @@
     const aoiLen = aoi.length
     const catLen = category.length
 
-    // Pre-compute all rectangle styles (AOI and category) with highlight states
+    // Pre-compute all rectangle styles (AOI and category) with dimmed state
     for (let i = 0; i < aoiLen; i++) {
       const style = aoi[i]
       const baseStyle = { fill: style.color }
       map.set(style.identifier, {
         normal: baseStyle,
-        highlighted: {
-          ...baseStyle,
-          stroke: '#333333',
-          strokeWidth: 0.5,
-        },
         dimmed: {
           ...baseStyle,
           opacity: 0.15,
@@ -278,11 +273,6 @@
       const baseStyle = { fill: style.color }
       map.set(style.identifier, {
         normal: baseStyle,
-        highlighted: {
-          ...baseStyle,
-          stroke: '#333333',
-          strokeWidth: 0.5,
-        },
         dimmed: {
           ...baseStyle,
           opacity: 0.15,
@@ -300,7 +290,7 @@
     const visibility = data.stylingAndLegend.visibility
     const len = visibility.length
 
-    // Pre-compute all line styles (visibility) with highlight states
+    // Pre-compute all line styles (visibility) with dimmed state
     for (let i = 0; i < len; i++) {
       const style = visibility[i]
       const baseStyle = {
@@ -310,12 +300,6 @@
       }
       map.set(style.identifier, {
         normal: baseStyle,
-        highlighted: {
-          stroke: style.color,
-          strokeWidth: 3,
-          strokeLinecap: 'butt',
-          strokeDasharray: 'none',
-        },
         dimmed: {
           ...baseStyle,
           opacity: 0.15,
@@ -369,16 +353,13 @@
       buffer[idx + 7] = rect.orderId // orderId
 
       // Style flags - compute only once
-      const isHighlighted = isUsedHighlight && identifier === usedHighlight
       const isDimmed = isUsedHighlight && identifier !== usedHighlight
 
-      // 8: highlighted (0/1)
-      buffer[idx + 8] = isHighlighted ? 1 : 0
+      // 8: dimmed (0/1)
+      buffer[idx + 8] = isDimmed ? 1 : 0
 
-      // 9: dimmed (0/1)
-      buffer[idx + 9] = isDimmed ? 1 : 0
-
-      // 10-11: reserved for future use
+      // 9-11: reserved for future use
+      buffer[idx + 9] = 0
       buffer[idx + 10] = 0
       buffer[idx + 11] = 0
     }
@@ -426,16 +407,13 @@
       buffer[idx + 5] = line.participantId // participantId
 
       // Style flags - compute only once
-      const isHighlighted = isUsedHighlight && identifier === usedHighlight
       const isDimmed = isUsedHighlight && identifier !== usedHighlight
 
-      // 6: highlighted (0/1)
-      buffer[idx + 6] = isHighlighted ? 1 : 0
+      // 6: dimmed (0/1)
+      buffer[idx + 6] = isDimmed ? 1 : 0
 
-      // 7: dimmed (0/1)
-      buffer[idx + 7] = isDimmed ? 1 : 0
-
-      // 8-9: reserved for future use
+      // 7-9: reserved for future use
+      buffer[idx + 7] = 0
       buffer[idx + 8] = 0
       buffer[idx + 9] = 0
     }
@@ -610,30 +588,22 @@
     // Use the pre-computed style buckets
     const styleBuckets = rectangleStyleBuckets
 
-    // Separate alpha states for maximum rendering efficiency
-    ctx.globalAlpha = 1.0 // Normal/highlighted elements
-
-    // First draw normal and highlighted elements
-    // Iterate through unique styles - typically 10-20 styles instead of 100k segments
+    // Draw normal elements
+    ctx.globalAlpha = 1.0
     styleBuckets.forEach((segmentIndices, styleIdx) => {
       const identifier = indexToId.get(styleIdx) ?? ''
       const styleSet = rectStyles.get(identifier) ?? {
         normal: { fill: '#ccc' },
-        highlighted: { fill: '#ccc', stroke: '#333333', strokeWidth: 0.5 },
         dimmed: { fill: '#ccc', opacity: 0.15 },
       }
 
-      // Process normal segments for this style - minimal state changes
-      let normalCount = 0
       ctx.fillStyle = styleSet.normal.fill
 
       for (const i of segmentIndices) {
         const idx = i * RECT_STRIDE
-        const isHighlighted = segments[idx + 8] === 1
-        const isDimmed = segments[idx + 9] === 1
+        const isDimmed = segments[idx + 8] === 1
 
-        if (!isHighlighted && !isDimmed) {
-          normalCount++
+        if (!isDimmed) {
           ctx.fillRect(
             segments[idx],
             segments[idx + 1],
@@ -642,35 +612,10 @@
           )
         }
       }
-
-      // Process highlighted segments for this style - stroke requires separate pass
-      let highlightCount = 0
-      if (styleSet.highlighted.stroke) {
-        ctx.fillStyle = styleSet.highlighted.fill || styleSet.normal.fill
-        ctx.strokeStyle = styleSet.highlighted.stroke
-        ctx.lineWidth = styleSet.highlighted.strokeWidth ?? 0.5
-
-        for (const i of segmentIndices) {
-          const idx = i * RECT_STRIDE
-          const isHighlighted = segments[idx + 8] === 1
-
-          if (isHighlighted) {
-            highlightCount++
-            const x = segments[idx]
-            const y = segments[idx + 1]
-            const width = segments[idx + 2]
-            const height = segments[idx + 3]
-
-            ctx.fillRect(x, y, width, height)
-            ctx.strokeRect(x, y, width, height)
-          }
-        }
-      }
     })
 
-    // Draw dimmed elements with single alpha change
+    // Draw dimmed elements
     ctx.globalAlpha = 0.15
-
     styleBuckets.forEach((segmentIndices, styleIdx) => {
       const identifier = indexToId.get(styleIdx) ?? ''
       const styleSet = rectStyles.get(identifier) ?? {
@@ -679,10 +624,9 @@
 
       ctx.fillStyle = styleSet.normal.fill
 
-      // Single pass for dimmed elements of this style
       for (const i of segmentIndices) {
         const idx = i * RECT_STRIDE
-        const isDimmed = segments[idx + 9] === 1
+        const isDimmed = segments[idx + 8] === 1
 
         if (isDimmed) {
           ctx.fillRect(
@@ -712,7 +656,7 @@
     // Use the pre-computed style buckets
     const styleBuckets = lineStyleBuckets
 
-    // Draw normal lines first with dashed style
+    // Draw normal lines
     ctx.globalAlpha = 1.0
     ctx.setLineDash([2, 2])
 
@@ -722,16 +666,14 @@
         normal: { stroke: '#ccc', strokeWidth: 1 },
       }
 
-      // Configure line style once per style
       ctx.strokeStyle = styleSet.normal.stroke
       ctx.lineWidth = styleSet.normal.strokeWidth ?? 1
 
       for (const i of segmentIndices) {
         const idx = i * LINE_STRIDE
-        const isHighlighted = segments[idx + 6] === 1
-        const isDimmed = segments[idx + 7] === 1
+        const isDimmed = segments[idx + 6] === 1
 
-        if (!isHighlighted && !isDimmed) {
+        if (!isDimmed) {
           ctx.beginPath()
           ctx.moveTo(segments[idx], segments[idx + 1])
           ctx.lineTo(segments[idx + 2], segments[idx + 3])
@@ -740,36 +682,9 @@
       }
     })
 
-    // Draw highlighted lines with solid style
-    ctx.setLineDash([]) // Solid line
-    ctx.lineCap = 'butt'
-
-    styleBuckets.forEach((segmentIndices, styleIdx) => {
-      const identifier = indexToId.get(styleIdx) ?? ''
-      const styleSet = lineStyles.get(identifier) ?? {
-        highlighted: { stroke: '#ccc', strokeWidth: 3 },
-      }
-
-      const highlightedStyle = styleSet.highlighted
-      ctx.strokeStyle = highlightedStyle.stroke
-      ctx.lineWidth = highlightedStyle.strokeWidth ?? 3
-
-      for (const i of segmentIndices) {
-        const idx = i * LINE_STRIDE
-        const isHighlighted = segments[idx + 6] === 1
-
-        if (isHighlighted) {
-          ctx.beginPath()
-          ctx.moveTo(segments[idx], segments[idx + 1])
-          ctx.lineTo(segments[idx + 2], segments[idx + 3])
-          ctx.stroke()
-        }
-      }
-    })
-
-    // Draw dimmed lines with transparency
+    // Draw dimmed lines
     ctx.globalAlpha = 0.15
-    ctx.setLineDash([2, 2]) // Dashed line
+    ctx.setLineDash([2, 2])
 
     styleBuckets.forEach((segmentIndices, styleIdx) => {
       const identifier = indexToId.get(styleIdx) ?? ''
@@ -782,7 +697,7 @@
 
       for (const i of segmentIndices) {
         const idx = i * LINE_STRIDE
-        const isDimmed = segments[idx + 7] === 1
+        const isDimmed = segments[idx + 6] === 1
 
         if (isDimmed) {
           ctx.beginPath()
@@ -1026,17 +941,6 @@
           ctx.globalAlpha = 1.0
         }
 
-        // Draw item background (highlight or hover effect)
-        if (isHighlighted) {
-          ctx.fillStyle = LEGEND.BG_HOVER_COLOR
-          ctx.fillRect(
-            item.x - 5,
-            item.y - 5,
-            item.width + 5,
-            LEGEND.ITEM_HEIGHT + 10
-          )
-        }
-
         // Draw the appropriate icon type (rect or line)
         if (item.type === 'rect') {
           ctx.fillStyle = item.color
@@ -1046,31 +950,11 @@
             LEGEND.ICON_WIDTH,
             item.height
           )
-
-          // Add stroke if highlighted
-          if (isHighlighted) {
-            ctx.strokeStyle = LEGEND.RECT_HIGHLIGHT_STROKE
-            ctx.lineWidth = LEGEND.RECT_HIGHLIGHT_STROKE_WIDTH
-            ctx.strokeRect(
-              item.x,
-              item.y + ((LEGEND.ITEM_HEIGHT - item.height) >> 1),
-              LEGEND.ICON_WIDTH,
-              item.height
-            )
-          }
         } else {
           // Draw line for visibility items
           ctx.strokeStyle = item.color
-          ctx.lineWidth = isHighlighted
-            ? LEGEND.LINE_HIGHLIGHT_STROKE_WIDTH
-            : item.height
-
-          if (!isHighlighted) {
-            ctx.setLineDash([2, 2])
-          } else {
-            ctx.setLineDash([])
-            ctx.lineCap = 'butt'
-          }
+          ctx.lineWidth = item.height
+          ctx.setLineDash([2, 2])
 
           ctx.beginPath()
           ctx.moveTo(item.x, item.y + (LEGEND.ITEM_HEIGHT >> 1))
@@ -1086,9 +970,7 @@
 
         // Draw item text
         ctx.fillStyle = '#000'
-        ctx.font = isHighlighted
-          ? `bold ${LEGEND.FONT_SIZE}px sans-serif`
-          : `${LEGEND.FONT_SIZE}px sans-serif`
+        ctx.font = `${LEGEND.FONT_SIZE}px sans-serif`
         ctx.textAlign = 'start'
         ctx.textBaseline = 'alphabetic'
 
