@@ -5,7 +5,7 @@
     getParticipantsGroups,
   } from '$lib/gaze-data/front-process/stores/dataStore'
   import { addSuccessToast } from '$lib/toaster'
-  import type { ParticipantsGroup } from '$lib/gaze-data/shared/types'
+  import type { ParticipantsGroup } from '$lib/gaze-data/shared/types/index'
   import {
     GeneralButtonMajor,
     GeneralButtonMinor,
@@ -71,16 +71,22 @@
 
   // Add a new group
   const addGroup = () => {
-    // Generate a unique ID using timestamp
-    const id = Date.now()
+    // Generate the lowest available ID that's not currently in use
+    const usedIds = new Set(
+      participantsGroups.map((group: ParticipantsGroup) => group.id)
+    )
+    let id = 1
+    while (usedIds.has(id)) {
+      id++
+    }
 
     // Find the next available group number
     const existingNumbers = participantsGroups
-      .map(group => {
+      .map((group: ParticipantsGroup) => {
         const match = group.name.match(/Group (\d+)/)
         return match ? parseInt(match[1], 10) : 0
       })
-      .sort((a, b) => a - b)
+      .sort((a: number, b: number) => a - b)
 
     let nextNumber = 1
     for (const num of existingNumbers) {
@@ -101,7 +107,9 @@
 
   // Remove a group
   const removeGroup = (id: number) => {
-    participantsGroups = participantsGroups.filter(group => group.id !== id)
+    participantsGroups = participantsGroups.filter(
+      (group: ParticipantsGroup) => group.id !== id
+    )
     hasChanged = checkIfChanged(participantsGroups, initialGroups)
   }
 
@@ -113,7 +121,7 @@
 
   // Update a group's properties
   const updateGroup = (id: number, updates: Partial<ParticipantsGroup>) => {
-    participantsGroups = participantsGroups.map(group => {
+    participantsGroups = participantsGroups.map((group: ParticipantsGroup) => {
       if (group.id === id) {
         return { ...group, ...updates }
       }
@@ -155,11 +163,13 @@
 
   const handleSubmit = () => {
     // Create a safe deep copy of the current participantsGroups
-    const groupsDeepCopy = participantsGroups.map(group => ({
-      id: group.id,
-      name: group.name,
-      participantsIds: [...group.participantsIds],
-    }))
+    const groupsDeepCopy = participantsGroups.map(
+      (group: ParticipantsGroup) => ({
+        id: group.id,
+        name: group.name,
+        participantsIds: [...group.participantsIds],
+      })
+    )
 
     // Update the main data store with the deep copy
     updateParticipantsGroups(groupsDeepCopy)
@@ -196,7 +206,7 @@
     const updatedGroup = {
       ...group,
       participantsIds: isIncluded
-        ? group.participantsIds.filter(id => id !== participantId)
+        ? group.participantsIds.filter((id: number) => id !== participantId)
         : [...group.participantsIds, participantId],
     }
     updateGroup(group.id, updatedGroup)

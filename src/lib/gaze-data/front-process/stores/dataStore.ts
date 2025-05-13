@@ -506,7 +506,6 @@ export const getParticipants = (
     return getAllParticipants()
   }
   if (groupId === -2) {
-    console.log('non empty')
     return getNonEmptyParticipants(stimulusId)
   }
   const group = getParticipantsGroup(groupId)
