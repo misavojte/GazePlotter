@@ -3,12 +3,16 @@
   import { demoData } from '$lib/gaze-data/front-process/const/demoDataTwo'
   import { data } from '$lib/gaze-data/front-process/stores/dataStore'
   import { addSuccessToast } from '$lib/toaster'
-  import { processingFileStateStore } from '$lib/workspace'
+  import {
+    processingFileStateStore,
+    initializeGridStateStore,
+  } from '$lib/workspace'
 
   let isDisabled = $derived($processingFileStateStore === 'processing')
 
   const handleClick = async () => {
     data.set(demoData)
+    initializeGridStateStore()
     processingFileStateStore.set('done')
     addSuccessToast('Demo data loaded')
   }

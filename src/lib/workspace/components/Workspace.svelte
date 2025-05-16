@@ -5,37 +5,36 @@
     WorkspaceIndicatorLoading,
     WorkspaceToolbar,
     processingFileStateStore,
-    createGridStore,
-    type GridConfig,
     visualizationRegistry, // Constant
     getVisualizationConfig, // Constant
-    initializeGridState, // Add this import
+    gridStore,
+    initializeGridStateStore,
   } from '$lib/workspace'
   import { fade } from 'svelte/transition'
-  import { setContext } from 'svelte'
   import { writable, get, derived } from 'svelte/store'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
-  import { onDestroy } from 'svelte'
+  import { onDestroy, onMount, tick } from 'svelte'
   import {
-    DEFAULT_GRID_CONFIG,
     calculateGridHeight,
     calculateRequiredWorkspaceHeight,
     calculateBottomEdgePosition,
     calculateGridWidth,
     WORKSPACE_BOTTOM_PADDING,
-    WORKSPACE_RIGHT_PADDING,
     MIN_WORKSPACE_HEIGHT,
-    DEFAULT_WORKSPACE_WIDTH,
+    DEFAULT_GRID_CONFIG,
   } from '$lib/shared/utils/gridSizingUtils'
   import { throttleByRaf } from '$lib/shared/utils/throttle'
+
+  const gridConfig = DEFAULT_GRID_CONFIG
 
   // ---------------------------------------------------
   // State tracking
   // ---------------------------------------------------
 
-  // Create a store to track if we're in loading state
-  const isLoading = writable(false)
-
+  const isLoading = derived(
+    processingFileStateStore,
+    $processingFileStateStore => $processingFileStateStore === 'processing'
+  )
   // Create a store to track if an item is being dragged
   const isDragging = writable(false)
   const draggedItemId = writable<number | null>(null)
@@ -186,22 +185,6 @@
   // Configuration and state
   // ---------------------------------------------------
 
-  // Configuration for grid cells - use the default config
-  const gridConfig: GridConfig = { ...DEFAULT_GRID_CONFIG }
-
-  // Create our simplified grid store
-  const gridStore = createGridStore(gridConfig, [])
-
-  // Initialize with default state
-  initializeGridState(gridStore)
-
-  // Monitor auto-scrolling state changes
-  $effect(() => {
-    if ($isAutoScrolling) {
-      console.log('Auto-scrolling active, direction:', $autoScrollDirection)
-    }
-  })
-
   // Clean up auto-scrolling on component destroy
   onDestroy(() => {
     endItemEdgeScroll()
@@ -220,24 +203,6 @@
 
   // Reactive derivation of whether the grid is empty
   const isEmpty = derived(gridStore, $gridStore => $gridStore.length === 0)
-
-  // Calculate the required workspace width based on grid items
-  const requiredWorkspaceWidth = derived(positions, $positions => {
-    if ($positions.length === 0) return DEFAULT_WORKSPACE_WIDTH // Use constant
-
-    // Find the rightmost edge of all items
-    const maxRightEdge = Math.max(
-      ...$positions.map(
-        item => (item.x + item.w) * (gridConfig.cellSize.width + gridConfig.gap)
-      )
-    )
-
-    // Add padding and ensure minimum width
-    return Math.max(
-      DEFAULT_WORKSPACE_WIDTH,
-      maxRightEdge + WORKSPACE_RIGHT_PADDING
-    )
-  })
 
   // Create store to track minimum workspace height required by all items
   const requiredWorkspaceHeight = derived(positions, $positions => {
@@ -790,26 +755,15 @@
     }
   }
 
-  // on change of processingFileStateStore, set isInitialLoad to false
-  // dont use $effect, use a subscribe
-  // only trigger if DIFFERS from previous state
-  processingFileStateStore.subscribe(newState => {
-    if (newState === 'done') {
-      isLoading.set(false)
-      initializeGridState(gridStore)
-      processingFileStateStore.set('idle')
-    } else if (newState === 'processing') {
-      isLoading.set(true)
-      gridStore.reset([]) // Reset to empty state
-    } else if (newState === 'fail') {
-      isLoading.set(false)
-      gridStore.reset([]) // Reset to empty state
-    }
-  })
-
   const getNewTimestamp = () => {
     return Date.now()
   }
+
+  onMount(async () => {
+    initializeGridStateStore() // HERE, THERE WILL BE AN ASYNC CALL TO INITIALIZE THE GRID STATE AND DATA
+    await tick()
+    processingFileStateStore.set('done')
+  })
 
   // Note: Previously, we would add grid items for both empty and loading states.
   // Now we maintain a truly empty grid and display dedicated indicator components
@@ -843,55 +797,59 @@
   >
     <!-- Scrollable content layer with background pattern -->
     <div class="grid-container" style="width: {$gridWidth}px;">
-      {#each $gridStore as item (item.id)}
-        {@const visConfig = getVisualizationConfig(item.type)}
-        <div transition:fade={{ duration: 300 }}>
-          <WorkspaceItem
-            id={item.id}
-            x={item.x}
-            y={item.y}
-            w={item.w}
-            h={item.h}
-            minW={item.min?.w || gridConfig.minWidth}
-            minH={item.min?.h || gridConfig.minHeight}
-            cellSize={gridConfig.cellSize}
-            gap={gridConfig.gap}
-            resizable={true}
-            draggable={true}
-            title={visConfig.name}
-            class={item.id === $resizedItemId ? 'is-being-resized' : ''}
-            onpreviewmove={handleItemPreviewMove}
-            onmove={handleItemMove}
-            onpreviewresize={handleItemPreviewResize}
-            onresize={handleItemResize}
-            onresizeend={handleResizeEnd}
-            ondragstart={handleDragStart}
-            ondragend={handleDragEnd}
-            ondrag_height_update={handleDragHeightUpdate}
-            onremove={handleItemRemove}
-            onduplicate={handleItemDuplicate}
-            onedgedetection={handleItemEdgeDetection}
-          >
-            {#snippet body()}
-              <div class="grid-item-content">
-                <visConfig.component
-                  settings={item}
-                  forceRedraw={() => {
-                    gridStore.triggerRedraw()
-                  }}
-                  settingsChange={(newSettings: Partial<AllGridTypes>) => {
+      {#if $processingFileStateStore === 'done'}
+        {#if $gridStore.length > 0}
+          {#each $gridStore as item (item.id)}
+            {@const visConfig = getVisualizationConfig(item.type)}
+            <div transition:fade={{ duration: 300 }}>
+              <WorkspaceItem
+                id={item.id}
+                x={item.x}
+                y={item.y}
+                w={item.w}
+                h={item.h}
+                minW={item.min?.w || gridConfig.minWidth}
+                minH={item.min?.h || gridConfig.minHeight}
+                cellSize={gridConfig.cellSize}
+                gap={gridConfig.gap}
+                resizable={true}
+                draggable={true}
+                title={visConfig.name}
+                class={item.id === $resizedItemId ? 'is-being-resized' : ''}
+                onpreviewmove={handleItemPreviewMove}
+                onmove={handleItemMove}
+                onpreviewresize={handleItemPreviewResize}
+                onresize={handleItemResize}
+                onresizeend={handleResizeEnd}
+                ondragstart={handleDragStart}
+                ondragend={handleDragEnd}
+                ondrag_height_update={handleDragHeightUpdate}
+                onremove={handleItemRemove}
+                onduplicate={handleItemDuplicate}
+                onedgedetection={handleItemEdgeDetection}
+              >
+                {#snippet body()}
+                  <div class="grid-item-content">
+                    <visConfig.component
+                      settings={item}
+                      forceRedraw={() => {
+                        gridStore.triggerRedraw()
+                      }}
+                      settingsChange={(newSettings: Partial<AllGridTypes>) => {
                     gridStore.updateSettings({
                       ...item,
                       ...newSettings,
                       redrawTimestamp: getNewTimestamp(),
                     } as AllGridTypes)
                   }}
-                />
-              </div>
-            {/snippet}
-          </WorkspaceItem>
-        </div>
-      {/each}
+                    />
+                  </div>
+                {/snippet}
+              </WorkspaceItem>
+            </div>
+          {/each}
+        {/if}
+      {/if}
     </div>
 
     {#if $isDragging || $isPanning}

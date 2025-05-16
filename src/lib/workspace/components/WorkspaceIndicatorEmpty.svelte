@@ -2,10 +2,14 @@
   import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
   import PanelButtonUpload from '$lib/workspace/panel/components/PanelButtonUpload.svelte'
   import PanelButtonDemo from '$lib/workspace/panel/components/PanelButtonDemo.svelte'
-  import { processingFileStateStore } from '$lib/workspace'
+  import {
+    processingFileStateStore,
+    initializeGridStateStore,
+  } from '$lib/workspace'
   import { fade } from 'svelte/transition'
 
   const reloadViews = () => {
+    initializeGridStateStore()
     processingFileStateStore.set('done')
   }
 </script>

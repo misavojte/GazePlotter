@@ -2,6 +2,9 @@ import { writable, get, derived } from 'svelte/store'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 // Import necessary dependencies moved from Workspace.svelte
 import { getVisualizationConfig } from '$lib/workspace/const'
+import { DEFAULT_GRID_CONFIG } from '$lib/shared/utils/gridSizingUtils'
+
+export const gridStore = createGridStore(DEFAULT_GRID_CONFIG)
 
 /**
  * Default grid state data that defines the initial layout of visualizations.
@@ -51,6 +54,12 @@ export function initializeGridState(
   itemsToAdd.forEach(item => {
     store.addItem(item.type, item)
   })
+}
+
+export function initializeGridStateStore(
+  gridItems: Array<Partial<AllGridTypes> & { type: string }> | null = null
+): void {
+  initializeGridState(gridStore, gridItems)
 }
 
 export interface GridItemPosition {
