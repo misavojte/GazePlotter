@@ -8,7 +8,7 @@
   } from '$lib/workspace'
   import { setData } from '$lib/gaze-data/front-process/stores/dataStore'
   import { addErrorToast, addSuccessToast } from '$lib/toaster'
-
+  import type { AllGridTypes } from '$lib/workspace/type/gridType'
   let isDisabled = $derived($processingFileStateStore === 'processing')
 
   let input: HTMLInputElement | undefined = $state()
@@ -36,10 +36,14 @@
     }
   }
 
-  const handleEyeData = (data: DataType) => {
-    setData(data)
+  const handleEyeData = (data: {
+    data: DataType
+    gridItems?: AllGridTypes[]
+  }) => {
+    setData(data.data)
     addSuccessToast('Data loaded')
-    initializeGridStateStore()
+    console.log('gridItems', data.gridItems)
+    initializeGridStateStore(data.gridItems)
     processingFileStateStore.set('done')
   }
 

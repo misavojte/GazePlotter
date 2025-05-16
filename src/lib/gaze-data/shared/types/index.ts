@@ -1,3 +1,5 @@
+import type { AllGridTypes } from '$lib/workspace/type/gridType'
+
 /**
  * Used for stimuli and participants basic information.
  */
@@ -77,4 +79,12 @@ export interface DataType {
   participantsGroups: ParticipantsGroup[]
   stimuli: AttributeDataType
   segments: number[][][][]
+}
+
+export type JsonImportOldFormat = DataType
+
+export type JsonImportNewFormat = {
+  version: 2
+  data: DataType
+  gridItems: AllGridTypes[]
 }

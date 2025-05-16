@@ -49,11 +49,15 @@ export function initializeGridState(
   // Clear current store state
   store.reset([])
 
+  console.log('gridItems', gridItems)
+
   // Add items one by one
   const itemsToAdd = gridItems ?? DEFAULT_GRID_STATE_DATA
+  console.log('itemsToAdd', itemsToAdd)
   itemsToAdd.forEach(item => {
     store.addItem(item.type, item)
   })
+  console.log('store', get(store))
 }
 
 export function initializeGridStateStore(
@@ -634,15 +638,21 @@ export function createGridStore(
     // 1. Create the full item object using the internal helper
     const newItemData = createGridItemFromData(type, options)
 
-    // 2. Find an optimal position for the new item
-    const newPosition = findOptimalPosition(newItemData.w, newItemData.h, {
-      strategy: 'new',
-    })
+    // 2. Find an optimal position for the new item, but respect provided y if it exists
+    const newPosition =
+      options.y !== undefined
+        ? {
+            x: findOptimalPosition(newItemData.w, newItemData.h, {
+              strategy: 'new',
+            }).x,
+            y: options.y,
+          }
+        : findOptimalPosition(newItemData.w, newItemData.h, { strategy: 'new' })
 
     // 3. Create the final item with the calculated position
     const newItem = {
       ...newItemData,
-      id: newItemData.id, // Ensure ID is consistent
+      id: newItemData.id,
       x: newPosition.x,
       y: newPosition.y,
     }
