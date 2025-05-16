@@ -178,7 +178,7 @@ export function processJsonFile(fileContent: string): DataType {
  */
 export type JsonProcessingResult = {
   data: DataType
-  gridItems?: AllGridTypes[]
+  gridItems?: Array<Partial<AllGridTypes> & { type: string }>
 }
 
 /**

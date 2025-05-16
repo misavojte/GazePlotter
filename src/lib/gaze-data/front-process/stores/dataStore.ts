@@ -1,5 +1,5 @@
 import { writable, get, derived } from 'svelte/store'
-import type { Writable, Readable } from 'svelte/store'
+import type { Readable } from 'svelte/store'
 import type {
   DataType,
   BaseInterpretedDataType,
@@ -7,17 +7,12 @@ import type {
   SegmentInterpretedDataType,
   ParticipantsGroup,
 } from '$lib/gaze-data/shared/types'
-import { demoData } from '$lib/gaze-data/front-process/const/demoDataTwo'
 
 // Constants for fast AOI mapping store
 const MAX_STIMULUS = 256 // Maximum number of stimuli we can handle
 const MAX_AOI_PER_STIMULUS = 256 // Maximum number of AOIs per stimulus
 
-// Initialize the main data store
-export const getDemoDataWritable = (): Writable<DataType> => {
-  return writable<DataType>(demoData)
-}
-export const data = getDemoDataWritable()
+export const data = writable<DataType>()
 
 // Basic data access functions
 export const getData = (): DataType => {

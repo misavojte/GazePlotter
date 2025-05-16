@@ -38,7 +38,7 @@
 
   const handleEyeData = (data: {
     data: DataType
-    gridItems?: AllGridTypes[]
+    gridItems?: Array<Partial<AllGridTypes> & { type: string }>
   }) => {
     setData(data.data)
     addSuccessToast('Data loaded')

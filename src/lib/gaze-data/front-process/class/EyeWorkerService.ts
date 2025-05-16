@@ -13,10 +13,16 @@ import type { AllGridTypes } from '$lib/workspace/type/gridType'
  */
 export class EyeWorkerService {
   worker: Worker
-  onData: (data: { data: DataType; gridItems?: AllGridTypes[] }) => void
+  onData: (data: {
+    data: DataType
+    gridItems?: Array<Partial<AllGridTypes> & { type: string }>
+  }) => void
   onFail: () => void
   constructor(
-    onData: (data: { data: DataType; gridItems?: AllGridTypes[] }) => void,
+    onData: (data: {
+      data: DataType
+      gridItems?: Array<Partial<AllGridTypes> & { type: string }>
+    }) => void,
     onFail: () => void
   ) {
     this.worker = new Worker(

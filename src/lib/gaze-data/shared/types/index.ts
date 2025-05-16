@@ -86,5 +86,5 @@ export type JsonImportOldFormat = DataType
 export type JsonImportNewFormat = {
   version: 2
   data: DataType
-  gridItems: AllGridTypes[]
+  gridItems: Array<Partial<AllGridTypes> & { type: string }>
 }

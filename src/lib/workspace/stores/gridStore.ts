@@ -11,12 +11,13 @@ export const gridStore = createGridStore(DEFAULT_GRID_CONFIG)
  * This is used when no custom grid items are provided.
  * Only partial grid items are provided, as the store will apply the defaults for the rest.
  */
-const DEFAULT_GRID_STATE_DATA: Array<Partial<AllGridTypes> & { type: string }> =
-  [
-    { type: 'scarf', x: 0, y: 0 },
-    { type: 'TransitionMatrix', x: 20, y: 0, w: 11, h: 12 },
-    { type: 'barPlot', x: 0, y: 12, w: 11, h: 12 },
-  ]
+export const DEFAULT_GRID_STATE_DATA: Array<
+  Partial<AllGridTypes> & { type: string }
+> = [
+  { type: 'scarf', x: 0, y: 0 },
+  { type: 'TransitionMatrix', x: 20, y: 0, w: 11, h: 12 },
+  { type: 'barPlot', x: 0, y: 12, w: 11, h: 12 },
+]
 
 /**
  * Initializes the grid state by directly adding items to the store.

@@ -8,12 +8,11 @@
     visualizationRegistry, // Constant
     getVisualizationConfig, // Constant
     gridStore,
-    initializeGridStateStore,
   } from '$lib/workspace'
   import { fade } from 'svelte/transition'
   import { writable, get, derived } from 'svelte/store'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
-  import { onDestroy, onMount, tick } from 'svelte'
+  import { onDestroy } from 'svelte'
   import {
     calculateGridHeight,
     calculateRequiredWorkspaceHeight,
@@ -24,6 +23,13 @@
     DEFAULT_GRID_CONFIG,
   } from '$lib/shared/utils/gridSizingUtils'
   import { throttleByRaf } from '$lib/shared/utils/throttle'
+
+  interface Props {
+    onReinitialize: () => void
+    onResetLayout: () => void
+  }
+
+  const { onReinitialize, onResetLayout }: Props = $props()
 
   const gridConfig = DEFAULT_GRID_CONFIG
 
@@ -430,7 +436,7 @@
       // The toolbar component will handle fullscreen functionality itself
     } else if (id === 'reset-layout') {
       // Reset the workspace to the default grid state
-      processingFileStateStore.set('done')
+      onResetLayout()
     }
   }
 
@@ -759,12 +765,6 @@
     return Date.now()
   }
 
-  onMount(async () => {
-    initializeGridStateStore() // HERE, THERE WILL BE AN ASYNC CALL TO INITIALIZE THE GRID STATE AND DATA
-    await tick()
-    processingFileStateStore.set('done')
-  })
-
   // Note: Previously, we would add grid items for both empty and loading states.
   // Now we maintain a truly empty grid and display dedicated indicator components
   // when appropriate. This provides a more integrated and visually appealing user
@@ -860,7 +860,7 @@
     {/if}
 
     {#if $isEmpty && !$isLoading}
-      <WorkspaceIndicatorEmpty />
+      <WorkspaceIndicatorEmpty {onReinitialize} {onResetLayout} />
     {/if}
 
     {#if $isLoading}

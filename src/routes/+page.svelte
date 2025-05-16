@@ -9,7 +9,7 @@
 
 <script>
   import { GazePlotter } from '$lib'
-
+  import { demoCompletedData } from '$lib/gaze-data/front-process/const/demoDataTwo'
   // Format the build date
   const buildDate = new Date(__BUILD_DATE__)
   const formattedDate = new Intl.DateTimeFormat('en-US', {
@@ -20,6 +20,8 @@
 
   // Use the version from vite.config.ts
   const version = __APP_VERSION__
+
+  const initialData = demoCompletedData
 </script>
 
 <svelte:head>
@@ -97,7 +99,7 @@
     </p>
   </section>
   <section>
-    <GazePlotter />
+    <GazePlotter {initialData} />
   </section>
   <section class="main-section" id="about">
     <div class="about-grid">

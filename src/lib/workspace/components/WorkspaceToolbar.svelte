@@ -1,8 +1,5 @@
 <script lang="ts">
-  import {
-    processingFileStateStore,
-    WorkspaceToolbarItem,
-  } from '$lib/workspace'
+  import { WorkspaceToolbarItem } from '$lib/workspace'
   import { fade } from 'svelte/transition'
   import { writable } from 'svelte/store'
   import { onMount } from 'svelte'
@@ -11,7 +8,7 @@
   interface Props {
     actionItems?: any
     accentColor?: string
-    onaction?: (event: { id: string; vizType?: string; event?: any }) => void
+    onaction: (event: { id: string; vizType?: string; event?: any }) => void
     visualizations?: Array<{ id: string; label: string }>
   }
 
@@ -77,7 +74,9 @@
             <path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"></path>
           </svg>`,
         action: () => {
-          processingFileStateStore.set('done')
+          onaction({
+            id: 'reset-layout',
+          })
         },
       },
       {
