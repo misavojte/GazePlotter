@@ -626,8 +626,17 @@ export function createGridStore(
     return newIds
   }
 
+  // helper
+  const mergeRequestedPosition = (
+    auto: { x: number; y: number },
+    opts: Partial<AllGridTypes>
+  ) => ({
+    x: opts.x ?? auto.x,
+    y: opts.y ?? auto.y,
+  })
+
   /**
-   * Adds a new item of the specified type to the grid.
+   * Adds a new item by type and options.
    * Creates the item, finds an optimal position, adds it to the store, and resolves conflicts.
    *
    * @param type The type identifier of the visualization to add.
@@ -635,34 +644,29 @@ export function createGridStore(
    * @returns {number} The ID of the newly added item.
    */
   // Add a new item - now accepts type and options, handles creation internally
-  function addItem(type: string, options: Partial<AllGridTypes> = {}) {
-    // 1. Create the full item object using the internal helper
+  function addItem(
+    type: string,
+    options: Partial<AllGridTypes> & { skipCollisionResolution?: boolean } = {}
+  ) {
     const newItemData = createGridItemFromData(type, options)
 
-    // 2. Find an optimal position for the new item, but respect provided y if it exists
-    const newPosition =
-      options.y !== undefined
-        ? {
-            x: findOptimalPosition(newItemData.w, newItemData.h, {
-              strategy: 'new',
-            }).x,
-            y: options.y,
-          }
-        : findOptimalPosition(newItemData.w, newItemData.h, { strategy: 'new' })
+    // 1. compute automatic suggestion *once*
+    const suggested = findOptimalPosition(newItemData.w, newItemData.h, {
+      strategy: 'new',
+    })
 
-    // 3. Create the final item with the calculated position
-    const newItem = {
-      ...newItemData,
-      id: newItemData.id,
-      x: newPosition.x,
-      y: newPosition.y,
+    // 2. honour caller-supplied axes
+    const { x, y } = mergeRequestedPosition(suggested, options)
+
+    const newItem = { ...newItemData, x, y }
+
+    items.update($ => [...$, newItem])
+
+    // 3. allow the caller to decide whether to trigger resolution
+    if (options.skipCollisionResolution !== true) {
+      resolveGridConflicts({ ...newItem, operation: 'add' })
     }
 
-    // 4. Add to store and resolve conflicts
-    items.update($items => [...$items, newItem])
-    resolveGridConflicts({ ...newItem, operation: 'add' })
-
-    // Return the ID of the newly added item
     return newItem.id
   }
 
