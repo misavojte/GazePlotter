@@ -3,6 +3,56 @@ import type { AllGridTypes } from '$lib/workspace/type/gridType'
 // Import necessary dependencies moved from Workspace.svelte
 import { getVisualizationConfig } from '$lib/workspace/const'
 
+/**
+ * Default grid state data that defines the initial layout of visualizations.
+ * This is used when no custom grid items are provided.
+ * Only partial grid items are provided, as the store will apply the defaults for the rest.
+ */
+const DEFAULT_GRID_STATE_DATA: Array<Partial<AllGridTypes> & { type: string }> =
+  [
+    { type: 'scarf', x: 0, y: 0 },
+    { type: 'TransitionMatrix', x: 20, y: 0, w: 11, h: 12 },
+    { type: 'barPlot', x: 0, y: 12, w: 11, h: 12 },
+  ]
+
+/**
+ * Initializes the grid state by directly adding items to the store.
+ * This function will clear the current store state and add either the provided items
+ * or the default grid state items one by one.
+ *
+ * Items are added sequentially rather than in bulk to ensure proper collision resolution.
+ * Each item's position is validated and adjusted if necessary through the store's
+ * addItem method, which handles collision detection and resolution. This ensures
+ * that items are placed optimally even if their initial positions would cause overlaps.
+ *
+ * @param store - The grid store instance to initialize
+ * @param gridItems - Optional array of custom grid items to initialize with.
+ *                    If null or undefined, uses the default grid state.
+ *
+ * @example
+ * // Use default layout
+ * initializeGridState(gridStore)
+ *
+ * // Use custom layout
+ * initializeGridState(gridStore, [
+ *   { type: 'scarf', x: 0, y: 0 },
+ *   { type: 'barPlot', x: 5, y: 0, w: 8, h: 8 }
+ * ])
+ */
+export function initializeGridState(
+  store: ReturnType<typeof createGridStore>,
+  gridItems: Array<Partial<AllGridTypes> & { type: string }> | null = null
+): void {
+  // Clear current store state
+  store.reset([])
+
+  // Add items one by one
+  const itemsToAdd = gridItems ?? DEFAULT_GRID_STATE_DATA
+  itemsToAdd.forEach(item => {
+    store.addItem(item.type, item)
+  })
+}
+
 export interface GridItemPosition {
   id: number
   x: number

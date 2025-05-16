@@ -9,6 +9,7 @@
     type GridConfig,
     visualizationRegistry, // Constant
     getVisualizationConfig, // Constant
+    initializeGridState, // Add this import
   } from '$lib/workspace'
   import { fade } from 'svelte/transition'
   import { setContext } from 'svelte'
@@ -181,18 +182,6 @@
     )
   }
 
-  // Generate the default grid state with a centered scarf plot
-  const createDefaultGridStateData = (): Array<
-    Partial<AllGridTypes> & { type: string }
-  > => {
-    // Return data needed to create items, not the items themselves
-    return [
-      { type: 'scarf', x: 0, y: 0 },
-      { type: 'TransitionMatrix', x: 20, y: 0, w: 11, h: 12 },
-      { type: 'barPlot', x: 0, y: 12, w: 11, h: 12 },
-    ]
-  }
-
   // ---------------------------------------------------
   // Configuration and state
   // ---------------------------------------------------
@@ -200,13 +189,11 @@
   // Configuration for grid cells - use the default config
   const gridConfig: GridConfig = { ...DEFAULT_GRID_CONFIG }
 
-  const initialItemData = createDefaultGridStateData()
-
   // Create our simplified grid store
-  const gridStore = createGridStore(gridConfig, initialItemData)
+  const gridStore = createGridStore(gridConfig, [])
 
-  // set gridStore to context (old ScarfPlot dependency)
-  setContext('gridStore', gridStore)
+  // Initialize with default state
+  initializeGridState(gridStore)
 
   // Monitor auto-scrolling state changes
   $effect(() => {
@@ -809,22 +796,7 @@
   processingFileStateStore.subscribe(newState => {
     if (newState === 'done') {
       isLoading.set(false)
-      // Reset by providing initial data to the store's set method
-      // Note: The store doesn't have a reset method that accepts initial data directly.
-      // We might need to adjust the store or handle reset differently.
-      // For now, let's recreate the store or set the parsed initial items.
-      // const defaultItems = createDefaultGridStateData().map(data =>
-      //   gridStore.addItem(data.type, data) // This adds items one by one, might not be ideal reset
-      // );
-      // A better approach might be needed for a clean reset that uses the initial data pattern.
-      // Option 1: Enhance gridStore.set to accept initial data.
-      // Option 2: Re-initialize the gridStore (might be complex with reactivity).
-      // Let's stick to clearing and adding for now, but note this could be improved.
-      //gridStore.reset(createDefaultGridStateData())
-      gridStore.reset([])
-      createDefaultGridStateData().forEach(item => {
-        gridStore.addItem(item.type, item)
-      })
+      initializeGridState(gridStore)
       processingFileStateStore.set('idle')
     } else if (newState === 'processing') {
       isLoading.set(true)
