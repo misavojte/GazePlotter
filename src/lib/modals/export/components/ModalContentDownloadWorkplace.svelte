@@ -9,6 +9,8 @@
   let type = $state('inner-json')
   let fileName = $state('GazePlotter-Export')
 
+  const tip =
+    'TIP: You can export individual visualisations using their options menu.'
   const options = [
     {
       value: 'inner-json',
@@ -16,8 +18,9 @@
       calloutHint: {
         title: 'GazePlotter Format',
         paragraphs: [
-          'Use this format if you want to import the data back into GazePlotter later.',
-          'This keeps the layout and the settings of each visualisation.',
+          'Use this format if you want to import the data back into GazePlotter.',
+          'This keeps the layout and the settings of each visualisation, allowing simple dashboard sharing using relatively small JSON.',
+          tip,
         ],
       },
     },
@@ -29,6 +32,7 @@
         paragraphs: [
           'Exports all data into a single CSV file.',
           'This format is compatible with most spreadsheet applications and data analysis tools.',
+          tip,
         ],
       },
     },
@@ -40,6 +44,7 @@
         paragraphs: [
           'Creates separate CSV files for each recording.',
           'Useful when you need to analyze recordings separately or share individual files.',
+          tip,
         ],
       },
     },
