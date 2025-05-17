@@ -2,6 +2,70 @@ import { writable, get, derived } from 'svelte/store'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 // Import necessary dependencies moved from Workspace.svelte
 import { getVisualizationConfig } from '$lib/workspace/const'
+import { DEFAULT_GRID_CONFIG } from '$lib/shared/utils/gridSizingUtils'
+
+export const gridStore = createGridStore(DEFAULT_GRID_CONFIG)
+
+/**
+ * Default grid state data that defines the initial layout of visualizations.
+ * This is used when no custom grid items are provided.
+ * Only partial grid items are provided, as the store will apply the defaults for the rest.
+ */
+export const DEFAULT_GRID_STATE_DATA: Array<
+  Partial<AllGridTypes> & { type: string }
+> = [
+  { type: 'scarf', x: 0, y: 0 },
+  { type: 'TransitionMatrix', x: 20, y: 0, w: 11, h: 12 },
+  { type: 'barPlot', x: 0, y: 12, w: 11, h: 12 },
+]
+
+/**
+ * Initializes the grid state by directly adding items to the store.
+ * This function will clear the current store state and add either the provided items
+ * or the default grid state items one by one.
+ *
+ * Items are added sequentially rather than in bulk to ensure proper collision resolution.
+ * Each item's position is validated and adjusted if necessary through the store's
+ * addItem method, which handles collision detection and resolution. This ensures
+ * that items are placed optimally even if their initial positions would cause overlaps.
+ *
+ * @param store - The grid store instance to initialize
+ * @param gridItems - Optional array of custom grid items to initialize with.
+ *                    If null or undefined, uses the default grid state.
+ *
+ * @example
+ * // Use default layout
+ * initializeGridState(gridStore)
+ *
+ * // Use custom layout
+ * initializeGridState(gridStore, [
+ *   { type: 'scarf', x: 0, y: 0 },
+ *   { type: 'barPlot', x: 5, y: 0, w: 8, h: 8 }
+ * ])
+ */
+export function initializeGridState(
+  store: ReturnType<typeof createGridStore>,
+  gridItems: Array<Partial<AllGridTypes> & { type: string }> | null = null
+): void {
+  // Clear current store state
+  store.reset([])
+
+  console.log('gridItems', gridItems)
+
+  // Add items one by one
+  const itemsToAdd = gridItems ?? DEFAULT_GRID_STATE_DATA
+  console.log('itemsToAdd', itemsToAdd)
+  itemsToAdd.forEach(item => {
+    store.addItem(item.type, item)
+  })
+  console.log('store', get(store))
+}
+
+export function initializeGridStateStore(
+  gridItems: Array<Partial<AllGridTypes> & { type: string }> | null = null
+): void {
+  initializeGridState(gridStore, gridItems)
+}
 
 export interface GridItemPosition {
   id: number
@@ -562,8 +626,43 @@ export function createGridStore(
     return newIds
   }
 
+  // helper
+  function resolveRequestedPosition(
+    opts: Partial<AllGridTypes>,
+    suggested: { x: number; y: number },
+    dims: { w: number; h: number },
+    maxGridWidth = 30
+  ): { x: number; y: number } {
+    const { x: sx, y: sy } = suggested
+    const { w, h } = dims
+
+    // Both axes specified → honour them if free, else fall back
+    if (opts.x !== undefined && opts.y !== undefined) {
+      return isAreaAvailable(opts.x, opts.y, w, h)
+        ? { x: opts.x, y: opts.y }
+        : suggested
+    }
+
+    // Only X fixed → scan downward in that column
+    if (opts.x !== undefined) {
+      const y =
+        findLowestAvailableY(opts.x, 0, w, h, get(positions), new Set()) ?? 0
+      return { x: opts.x, y }
+    }
+
+    // Only Y fixed → scan horizontally in that row
+    if (opts.y !== undefined) {
+      for (let x = 0; x < maxGridWidth; x++) {
+        if (isAreaAvailable(x, opts.y, w, h)) return { x, y: opts.y }
+      }
+    }
+
+    // No hints → use the engine's suggestion
+    return suggested
+  }
+
   /**
-   * Adds a new item of the specified type to the grid.
+   * Adds a new item by type and options.
    * Creates the item, finds an optimal position, adds it to the store, and resolves conflicts.
    *
    * @param type The type identifier of the visualization to add.
@@ -571,28 +670,29 @@ export function createGridStore(
    * @returns {number} The ID of the newly added item.
    */
   // Add a new item - now accepts type and options, handles creation internally
-  function addItem(type: string, options: Partial<AllGridTypes> = {}) {
-    // 1. Create the full item object using the internal helper
+  function addItem(
+    type: string,
+    options: Partial<AllGridTypes> & { skipCollisionResolution?: boolean } = {}
+  ) {
     const newItemData = createGridItemFromData(type, options)
 
-    // 2. Find an optimal position for the new item
-    const newPosition = findOptimalPosition(newItemData.w, newItemData.h, {
+    // 1. compute automatic suggestion *once*
+    const suggested = findOptimalPosition(newItemData.w, newItemData.h, {
       strategy: 'new',
     })
 
-    // 3. Create the final item with the calculated position
-    const newItem = {
-      ...newItemData,
-      id: newItemData.id, // Ensure ID is consistent
-      x: newPosition.x,
-      y: newPosition.y,
+    // 2. resolve position based on constraints
+    const { x, y } = resolveRequestedPosition(options, suggested, newItemData)
+
+    const newItem = { ...newItemData, x, y }
+
+    items.update($ => [...$, newItem])
+
+    // 3. allow the caller to decide whether to trigger resolution
+    if (options.skipCollisionResolution !== true) {
+      resolveGridConflicts({ ...newItem, operation: 'add' })
     }
 
-    // 4. Add to store and resolve conflicts
-    items.update($items => [...$items, newItem])
-    resolveGridConflicts({ ...newItem, operation: 'add' })
-
-    // Return the ID of the newly added item
     return newItem.id
   }
 

@@ -1,13 +1,14 @@
 <script lang="ts">
-  import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
   import PanelButtonUpload from '$lib/workspace/panel/components/PanelButtonUpload.svelte'
   import PanelButtonDemo from '$lib/workspace/panel/components/PanelButtonDemo.svelte'
-  import { processingFileStateStore } from '$lib/workspace'
   import { fade } from 'svelte/transition'
-
-  const reloadViews = () => {
-    processingFileStateStore.set('done')
+  import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
+  interface Props {
+    onReinitialize: () => void
+    onResetLayout: () => void
   }
+
+  const { onReinitialize, onResetLayout }: Props = $props()
 </script>
 
 <div class="empty-workspace-indicator" transition:fade={{ duration: 400 }}>
@@ -49,10 +50,11 @@
       reload the views, upload new data, or explore our sample data.
     </p>
     <div class="actions">
-      <GeneralButtonMajor onclick={reloadViews}>Reload Views</GeneralButtonMajor
+      <GeneralButtonMajor onclick={onResetLayout}
+        >Reset Layout</GeneralButtonMajor
       >
       <PanelButtonUpload />
-      <PanelButtonDemo />
+      <PanelButtonDemo {onReinitialize} />
     </div>
   </div>
 </div>

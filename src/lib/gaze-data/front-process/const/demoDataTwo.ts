@@ -1,4 +1,5 @@
-import type { DataType } from '$lib/gaze-data/shared/types'
+import type { DataType, JsonImportNewFormat } from '$lib/gaze-data/shared/types'
+import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace/stores/gridStore'
 
 /**
  * A variable that stores demo data for testing and showcasing.
@@ -912,3 +913,9 @@ export const demoData: DataType = {
 demoData.segments[1] = demoData.segments[0]
 demoData.aois.data[1] = demoData.aois.data[0]
 demoData.aois.orderVector[1] = demoData.aois.orderVector[0]
+
+export const demoCompletedData: JsonImportNewFormat = {
+  version: 2,
+  data: demoData,
+  gridItems: DEFAULT_GRID_STATE_DATA,
+}

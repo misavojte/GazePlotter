@@ -16,7 +16,6 @@
   } from '$lib/plots/scarf/utils'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils'
   import { DEFAULT_GRID_CONFIG } from '$lib/shared/utils/gridSizingUtils'
-  import { untrack } from 'svelte'
   import { PlotPlaceholder } from '$lib/plots/shared/components'
   import { fade } from 'svelte/transition'
   // Component Props using Svelte 5 $props() rune

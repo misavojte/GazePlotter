@@ -3,10 +3,16 @@
   interface Props {
     value?: string
     label: string
+    placeholder?: string
     oninput?: (event: CustomEvent) => void
   }
 
-  let { value = $bindable(''), label, oninput = () => {} }: Props = $props()
+  let {
+    value = $bindable(''),
+    label,
+    placeholder,
+    oninput = () => {},
+  }: Props = $props()
 
   function handleInput(event: Event) {
     const target = event.target as HTMLInputElement
@@ -18,7 +24,7 @@
 </script>
 
 <GeneralInputScaffold {label} {id}>
-  <input {id} type="text" bind:value oninput={handleInput} />
+  <input {id} type="text" bind:value oninput={handleInput} {placeholder} />
 </GeneralInputScaffold>
 
 <style>

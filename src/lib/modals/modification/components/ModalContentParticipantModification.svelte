@@ -15,6 +15,7 @@
   import { fade } from 'svelte/transition'
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
+  import PatternRenamingTool from './PatternRenamingTool.svelte'
 
   interface Props {
     forceRedraw: () => void
@@ -22,20 +23,9 @@
 
   let { forceRedraw }: Props = $props()
 
-  // Pattern renaming state
-  let findText = $state('')
-  let replaceText = $state('')
-
   // Sorting state
   let sortColumn = $state<'originalName' | 'displayedName' | null>(null)
   let sortDirection = $state<'asc' | 'desc' | null>(null)
-
-  const WILDCARD_PATTERNS = [
-    { label: 'Any number (e.g., 123)', value: '\\d+' },
-    { label: 'Any space', value: '\\s' },
-    { label: 'Any letter', value: '[A-Za-z]' },
-    { label: 'Any character', value: '.' },
-  ]
 
   const moveItem = (
     participants: BaseInterpretedDataType[],
@@ -91,9 +81,7 @@
     sortDirection = null
   }
 
-  const handlePatternRename = () => {
-    if (!findText) return
-
+  const handlePatternRename = (findText: string, replaceText: string) => {
     participantObjects = participantObjects.map(participant => ({
       ...participant,
       displayedName: participant.displayedName.replace(
@@ -116,18 +104,6 @@
         'Error while updating participants. See console for more details.'
       )
     }
-  }
-
-  const handleFindTextInput = (event: CustomEvent) => {
-    findText = event.detail
-  }
-
-  const handleReplaceTextInput = (event: CustomEvent) => {
-    replaceText = event.detail
-  }
-
-  const handlePatternButtonClick = (pattern: string) => {
-    findText += pattern
   }
 
   // Natural sort function for alphanumeric strings
@@ -169,47 +145,9 @@
 </script>
 
 <div class="content">
-  <div class="pattern-tool">
-    <SectionHeader text="Pattern Renaming" />
-    <div class="pattern-inputs">
-      <div class="input-row">
-        <div class="input-group">
-          <GeneralInputText
-            label="Find text"
-            value={findText}
-            oninput={handleFindTextInput}
-          />
-        </div>
-        <div class="input-group">
-          <GeneralInputText
-            label="Replace with"
-            value={replaceText}
-            oninput={handleReplaceTextInput}
-          />
-        </div>
-      </div>
-      <div class="pattern-section">
-        <div class="pattern-title">
-          Wildcard Patterns (e.g., "\d+" to remove numbers", and "\s" to remove
-          spaces)
-        </div>
-        <div class="pattern-buttons">
-          {#each WILDCARD_PATTERNS as pattern}
-            <GeneralButtonPreset
-              label={pattern.label}
-              onclick={() => handlePatternButtonClick(pattern.value)}
-            />
-          {/each}
-        </div>
-      </div>
-      <div class="apply-button">
-        <GeneralButtonPreset
-          label="Apply to All Names"
-          onclick={handlePatternRename}
-        />
-      </div>
-    </div>
-  </div>
+  <PatternRenamingTool
+    onRenameCommand={(findText: string, replaceText: string) => handlePatternRename(findText, replaceText)}
+  />
 </div>
 
 <SectionHeader text="Participants" />
@@ -307,40 +245,5 @@
   .original-name {
     line-height: 1;
     white-space: nowrap;
-  }
-
-  /* Pattern tool styles */
-  .pattern-tool {
-    margin: 20px 0;
-    margin-bottom: 30px;
-  }
-
-  .input-row {
-    display: flex;
-    gap: 15px;
-  }
-
-  .input-group {
-    flex: 1;
-  }
-
-  .pattern-section {
-    margin-top: 2px;
-  }
-
-  .pattern-title {
-    font-size: 12px;
-    color: var(--c-midgrey);
-    margin-bottom: 3px;
-  }
-
-  .pattern-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-
-  .apply-button {
-    margin-top: 10px;
   }
 </style>

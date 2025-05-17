@@ -2,10 +2,13 @@
   import { GeneralButtonMajor } from '$lib/shared/components'
   import { EyeWorkerService } from '$lib/gaze-data/front-process/class/EyeWorkerService'
   import type { DataType } from '$lib/gaze-data/shared/types'
-  import { processingFileStateStore } from '$lib/workspace'
+  import {
+    processingFileStateStore,
+    initializeGridStateStore,
+  } from '$lib/workspace'
   import { setData } from '$lib/gaze-data/front-process/stores/dataStore'
   import { addErrorToast, addSuccessToast } from '$lib/toaster'
-
+  import type { AllGridTypes } from '$lib/workspace/type/gridType'
   let isDisabled = $derived($processingFileStateStore === 'processing')
 
   let input: HTMLInputElement | undefined = $state()
@@ -33,9 +36,14 @@
     }
   }
 
-  const handleEyeData = (data: DataType) => {
-    setData(data)
+  const handleEyeData = (data: {
+    data: DataType
+    gridItems?: Array<Partial<AllGridTypes> & { type: string }>
+  }) => {
+    setData(data.data)
     addSuccessToast('Data loaded')
+    console.log('gridItems', data.gridItems)
+    initializeGridStateStore(data.gridItems)
     processingFileStateStore.set('done')
   }
 
@@ -47,7 +55,7 @@
 
 <GeneralButtonMajor {isDisabled} onclick={triggerFileUpload}>
   <label for="GP-file-upload">
-    Upload file
+    Import workspace or data
     <input
       type="file"
       name="GP-file-upload"

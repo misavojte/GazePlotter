@@ -129,7 +129,9 @@
   >
     {#each $tooltipStore.content as item}
       <div class="tooltip-item">
-        <div class="tooltip-item-title">{item.key}</div>
+        {#if item.key !== ''}
+          <div class="tooltip-item-title">{item.key}</div>
+        {/if}
         <div class="tooltip-item-value">{item.value}</div>
       </div>
     {/each}
