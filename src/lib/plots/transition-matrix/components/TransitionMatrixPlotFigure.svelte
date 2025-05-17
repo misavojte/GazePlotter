@@ -791,14 +791,14 @@
           canvasState,
           minValueZone.x,
           minValueZone.y + minValueZone.radius,
-          { x: 0, y: 10 }
+          { x: 0, y: 5 }
         )
         updateTooltip({
           x: tooltipPos.x,
           y: tooltipPos.y,
-          content: [{ key: 'Click to', value: 'Modify min value' }],
+          content: [{ key: '', value: 'Modify min value' }],
           visible: true,
-          width: 125,
+          width: 110,
         })
       }
       // Check max value circle
@@ -812,14 +812,14 @@
           canvasState,
           maxValueZone.x,
           maxValueZone.y + maxValueZone.radius,
-          { x: 0, y: 10 }
+          { x: 0, y: 5 }
         )
         updateTooltip({
           x: tooltipPos.x,
           y: tooltipPos.y,
-          content: [{ key: 'Click to', value: 'Modify max value' }],
+          content: [{ key: '', value: 'Modify max value' }],
           visible: true,
-          width: 125,
+          width: 110,
         })
       }
       // Check gradient area
@@ -835,14 +835,14 @@
           canvasState,
           gradientZone.x + (gradientZone.width >> 1),
           gradientZone.y + gradientZone.height,
-          { x: 0, y: 10 }
+          { x: 115 / -2, y: 5 } // Half of the tooltip width (110/2) to center it
         )
         updateTooltip({
           x: tooltipPos.x,
           y: tooltipPos.y,
-          content: [{ key: 'Click to', value: 'Change color scale' }],
+          content: [{ key: '', value: 'Change color scale' }],
           visible: true,
-          width: 125,
+          width: 115,
         })
       }
     }
