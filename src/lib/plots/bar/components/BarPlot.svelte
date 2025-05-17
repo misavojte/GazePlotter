@@ -88,6 +88,16 @@
   let stimulusOptions =
     $state<{ label: string; value: string }[]>(getStimuliOptions())
 
+  const getGroupOptions = () => {
+    return getParticipantsGroups(true).map(group => ({
+      value: group.id.toString(),
+      label: group.name,
+    }))
+  }
+
+  let groupOptions =
+    $state<{ label: string; value: string }[]>(getGroupOptions())
+
   /**
    * This is to prevent unnecessary recalculations when settings change in other components in the workspace
    */
@@ -98,6 +108,7 @@
     untrack(() => {
       barPlotResult = getBarPlotData(settings)
       stimulusOptions = getStimuliOptions()
+      groupOptions = getGroupOptions()
     })
   })
 
@@ -119,10 +130,7 @@
       />
       <GeneralSelect
         label="Group"
-        options={getParticipantsGroups(true).map(group => ({
-          value: group.id.toString(),
-          label: group.name,
-        }))}
+        options={groupOptions}
         compact
         value={settings.groupId.toString()}
         onchange={handleGroupChange}
