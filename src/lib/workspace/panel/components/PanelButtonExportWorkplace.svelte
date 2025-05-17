@@ -12,5 +12,5 @@
 </script>
 
 <MajorControlButton {isDisabled} onclick={handleClick}>
-  Download workspace
+  Export workspace or data
 </MajorControlButton>

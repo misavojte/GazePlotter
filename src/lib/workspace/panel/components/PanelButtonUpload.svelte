@@ -55,7 +55,7 @@
 
 <GeneralButtonMajor {isDisabled} onclick={triggerFileUpload}>
   <label for="GP-file-upload">
-    Upload file
+    Import workspace or data
     <input
       type="file"
       name="GP-file-upload"

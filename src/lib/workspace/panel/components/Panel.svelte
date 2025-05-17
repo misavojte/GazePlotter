@@ -1,6 +1,5 @@
 <script lang="ts">
   import PanelButtonUpload from '$lib/workspace/panel/components/PanelButtonUpload.svelte'
-  import PanelButtonScanGraph from '$lib/workspace/panel/components/PanelButtonScanGraph.svelte'
   import PanelButtonDemo from '$lib/workspace/panel/components/PanelButtonDemo.svelte'
   import PanelButtonExportWorkplace from '$lib/workspace/panel/components/PanelButtonExportWorkplace.svelte'
 
@@ -15,7 +14,6 @@
   <PanelButtonUpload />
   <PanelButtonDemo {onReinitialize} />
   <PanelButtonExportWorkplace />
-  <PanelButtonScanGraph />
 </div>
 
 <style>

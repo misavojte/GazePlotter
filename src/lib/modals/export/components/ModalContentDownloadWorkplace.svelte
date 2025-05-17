@@ -4,10 +4,13 @@
   import GeneralInfoCallout from '$lib/shared/components/GeneralInfoCallout.svelte'
   import SectionHeader from '$lib/modals/shared/components/SectionHeader.svelte'
   import { WorkplaceDownloader } from '$lib/modals/export/class/WorkplaceDownloader.js'
+  import { ScanGraphDownloader } from '$lib/modals/export/class/ScanGraphDownloader'
   import { getData } from '$lib/gaze-data/front-process/stores/dataStore.js'
+  import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
 
   let type = $state('inner-json')
   let fileName = $state('GazePlotter-Export')
+  let stimulusId = $state('0')
 
   const tip =
     'TIP: You can export individual visualisations using their options menu.'
@@ -42,22 +45,41 @@
       calloutHint: {
         title: 'Individual CSV Format',
         paragraphs: [
-          'Creates separate CSV files for each recording.',
+          'Creates separate CSV files for each recording and zip them.',
           'Useful when you need to analyze recordings separately or share individual files.',
+          tip,
+        ],
+      },
+    },
+    {
+      value: 'scangraph',
+      label: 'ScanGraph',
+      calloutHint: {
+        title: 'ScanGraph Format',
+        paragraphs: [
+          'Exports data in a format compatible with the ScanGraph tool for scanpath similarity analysis.',
+          'The file can be directly uploaded to eyetracking.upol.cz/scangraph.',
           tip,
         ],
       },
     },
   ]
 
+  const stimulusOptions = getStimuliOptions()
+
   const handleSubmit = () => {
-    const downloader = new WorkplaceDownloader()
-    if (type === 'inner-json') {
-      downloader.download(getData(), fileName)
-    } else if (type === 'csv') {
-      downloader.downloadCSV(getData(), fileName)
+    if (type === 'scangraph') {
+      const downloader = new ScanGraphDownloader()
+      downloader.download(parseInt(stimulusId), fileName)
     } else {
-      downloader.downloadIndividualCSV(getData(), fileName, true)
+      const downloader = new WorkplaceDownloader()
+      if (type === 'inner-json') {
+        downloader.download(getData(), fileName)
+      } else if (type === 'csv') {
+        downloader.downloadCSV(getData(), fileName)
+      } else {
+        downloader.downloadIndividualCSV(getData(), fileName, true)
+      }
     }
   }
 
@@ -81,7 +103,16 @@
   <section class="section">
     <SectionHeader text="Export Options" />
     <div class="content">
-      <GeneralInputText label="File name" bind:value={fileName} />
+      <div class="options-row">
+        <GeneralInputText label="File name" bind:value={fileName} />
+        {#if type === 'scangraph'}
+          <GeneralSelect
+            label="Stimulus"
+            options={stimulusOptions}
+            bind:value={stimulusId}
+          />
+        {/if}
+      </div>
       <div class="button-container">
         <GeneralButtonMajor onclick={handleSubmit}>Download</GeneralButtonMajor>
       </div>
@@ -100,14 +131,21 @@
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
-    max-width: 500px;
-    width: 100%;
   }
 
   .content {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    max-width: 500px;
+    width: 100%;
+  }
+
+  .options-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 1rem;
   }
 
   .button-container {
