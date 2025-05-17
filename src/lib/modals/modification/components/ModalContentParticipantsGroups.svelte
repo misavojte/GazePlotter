@@ -12,6 +12,7 @@
     GeneralButtonPreset,
   } from '$lib/shared/components'
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
+  import GeneralInputText from '$lib/shared/components/GeneralInputText.svelte'
   import Bin from 'lucide-svelte/icons/trash'
   import ChevronDown from 'lucide-svelte/icons/chevron-down'
   import ChevronUp from 'lucide-svelte/icons/chevron-up'
@@ -32,6 +33,19 @@
   )
   let participantsGroups = $state(JSON.parse(JSON.stringify(initialGroups)))
   let hasChanged = $state(false)
+
+  // Add search filter state
+  let searchFilters = $state<Record<number, string>>({})
+
+  // Filter participants based on search for a specific group
+  const getFilteredParticipants = (groupId: number) => {
+    const searchFilter = searchFilters[groupId] || ''
+    return getParticipants().filter(participant =>
+      participant.displayedName
+        .toLowerCase()
+        .includes(searchFilter.toLowerCase())
+    )
+  }
 
   // Helper to check if current state differs from initial
   const checkIfChanged = (
@@ -212,20 +226,31 @@
     updateGroup(group.id, updatedGroup)
   }
 
-  // Select all participants for a group
+  // Select all visible participants for a group
   const selectAllParticipants = (group: ParticipantsGroup) => {
+    const visibleParticipants = getFilteredParticipants(group.id)
     const updatedGroup = {
       ...group,
-      participantsIds: allParticipants.map(p => p.id),
+      participantsIds: [
+        ...new Set([
+          ...group.participantsIds,
+          ...visibleParticipants.map(p => p.id),
+        ]),
+      ],
     }
     updateGroup(group.id, updatedGroup)
   }
 
-  // Remove all participants from a group
+  // Remove all visible participants from a group
   const removeAllParticipants = (group: ParticipantsGroup) => {
+    const visibleParticipantIds = getFilteredParticipants(group.id).map(
+      p => p.id
+    )
     const updatedGroup = {
       ...group,
-      participantsIds: [],
+      participantsIds: group.participantsIds.filter(
+        id => !visibleParticipantIds.includes(id)
+      ),
     }
     updateGroup(group.id, updatedGroup)
   }
@@ -304,17 +329,26 @@
             in:slide|local={{ duration: 200, delay: 50 }}
             out:slide|local={{ duration: 200 }}
           >
+            <div class="search-filter">
+              <GeneralInputText
+                label="Search participants"
+                value={searchFilters[group.id] || ''}
+                oninput={e => (searchFilters[group.id] = e.detail)}
+                placeholder="All participants are shown when search is empty"
+              />
+            </div>
+
             <div
               class="participant-actions"
               in:fade|local={{ duration: 150, delay: 100 }}
               out:fade|local={{ duration: 150 }}
             >
               <GeneralButtonPreset
-                label="Select all"
+                label="Select visible"
                 onclick={() => selectAllParticipants(group)}
               />
               <GeneralButtonPreset
-                label="Remove all"
+                label="Deselect visible"
                 onclick={() => removeAllParticipants(group)}
               />
             </div>
@@ -324,13 +358,21 @@
               in:fade|local={{ duration: 150, delay: 150 }}
               out:fade|local={{ duration: 150 }}
             >
-              {#each allParticipants as participant (participant.id)}
+              {#each getFilteredParticipants(group.id) as participant (participant.id)}
                 <GeneralInputCheck
                   label={participant.displayedName}
                   checked={group.participantsIds.includes(participant.id)}
                   onchange={() => toggleParticipant(group, participant.id)}
                 />
               {/each}
+
+              {#if getFilteredParticipants(group.id).length !== allParticipants.length}
+                <div class="filter-summary">
+                  {allParticipants.length -
+                    getFilteredParticipants(group.id).length} participants hidden.
+                  Selections persist when search is cleared.
+                </div>
+              {/if}
             </div>
           </div>
         {/if}
@@ -447,5 +489,23 @@
     margin-top: 2rem;
     display: flex;
     gap: 0.5rem;
+  }
+
+  .search-filter {
+    margin-bottom: 16px;
+  }
+
+  .search-filter :global(input) {
+    width: 100% !important;
+  }
+
+  .filter-summary {
+    padding: 8px 14px;
+    border-radius: var(--rounded);
+    background-color: var(--c-lightgrey);
+    color: var(--c-darkgrey);
+    font-size: 12px;
+    text-align: left;
+    margin-top: 8px;
   }
 </style>
