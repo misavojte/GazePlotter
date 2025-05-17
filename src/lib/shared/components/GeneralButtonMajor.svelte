@@ -3,12 +3,13 @@
     isDisabled?: boolean
     children?: import('svelte').Snippet
     onclick: (event: MouseEvent) => void
+    size?: 'sm' | 'md'
   }
 
-  let { isDisabled = false, children, onclick }: Props = $props()
+  let { isDisabled = false, children, onclick, size = 'md' }: Props = $props()
 </script>
 
-<button disabled={isDisabled} {onclick}>
+<button class={size} disabled={isDisabled} {onclick}>
   {@render children?.()}
 </button>
 
@@ -33,5 +34,9 @@
     color: var(--c-midgrey);
     background-color: var(--c-lightgrey);
     cursor: not-allowed;
+  }
+  .sm {
+    padding: 0.5em 1em;
+    font-size: 12px;
   }
 </style>
