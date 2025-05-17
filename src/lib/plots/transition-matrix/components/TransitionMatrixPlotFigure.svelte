@@ -787,6 +787,19 @@
           minValueZone.radius
       ) {
         hoverState = 'minValue'
+        const tooltipPos = getTooltipPosition(
+          canvasState,
+          minValueZone.x,
+          minValueZone.y + minValueZone.radius,
+          { x: 0, y: 10 }
+        )
+        updateTooltip({
+          x: tooltipPos.x,
+          y: tooltipPos.y,
+          content: [{ key: 'Click to', value: 'Modify min value' }],
+          visible: true,
+          width: 125,
+        })
       }
       // Check max value circle
       else if (
@@ -795,6 +808,19 @@
           maxValueZone.radius
       ) {
         hoverState = 'maxValue'
+        const tooltipPos = getTooltipPosition(
+          canvasState,
+          maxValueZone.x,
+          maxValueZone.y + maxValueZone.radius,
+          { x: 0, y: 10 }
+        )
+        updateTooltip({
+          x: tooltipPos.x,
+          y: tooltipPos.y,
+          content: [{ key: 'Click to', value: 'Modify max value' }],
+          visible: true,
+          width: 125,
+        })
       }
       // Check gradient area
       else if (
@@ -805,6 +831,19 @@
         mouseY <= gradientZone.y + gradientZone.height
       ) {
         hoverState = 'gradient'
+        const tooltipPos = getTooltipPosition(
+          canvasState,
+          gradientZone.x + (gradientZone.width >> 1),
+          gradientZone.y + gradientZone.height,
+          { x: 0, y: 10 }
+        )
+        updateTooltip({
+          x: tooltipPos.x,
+          y: tooltipPos.y,
+          content: [{ key: 'Click to', value: 'Change color scale' }],
+          visible: true,
+          width: 125,
+        })
       }
     }
 
