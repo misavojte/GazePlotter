@@ -627,13 +627,39 @@ export function createGridStore(
   }
 
   // helper
-  const mergeRequestedPosition = (
-    auto: { x: number; y: number },
-    opts: Partial<AllGridTypes>
-  ) => ({
-    x: opts.x ?? auto.x,
-    y: opts.y ?? auto.y,
-  })
+  function resolveRequestedPosition(
+    opts: Partial<AllGridTypes>,
+    suggested: { x: number; y: number },
+    dims: { w: number; h: number },
+    maxGridWidth = 30
+  ): { x: number; y: number } {
+    const { x: sx, y: sy } = suggested
+    const { w, h } = dims
+
+    // Both axes specified → honour them if free, else fall back
+    if (opts.x !== undefined && opts.y !== undefined) {
+      return isAreaAvailable(opts.x, opts.y, w, h)
+        ? { x: opts.x, y: opts.y }
+        : suggested
+    }
+
+    // Only X fixed → scan downward in that column
+    if (opts.x !== undefined) {
+      const y =
+        findLowestAvailableY(opts.x, 0, w, h, get(positions), new Set()) ?? 0
+      return { x: opts.x, y }
+    }
+
+    // Only Y fixed → scan horizontally in that row
+    if (opts.y !== undefined) {
+      for (let x = 0; x < maxGridWidth; x++) {
+        if (isAreaAvailable(x, opts.y, w, h)) return { x, y: opts.y }
+      }
+    }
+
+    // No hints → use the engine's suggestion
+    return suggested
+  }
 
   /**
    * Adds a new item by type and options.
@@ -655,8 +681,8 @@ export function createGridStore(
       strategy: 'new',
     })
 
-    // 2. honour caller-supplied axes
-    const { x, y } = mergeRequestedPosition(suggested, options)
+    // 2. resolve position based on constraints
+    const { x, y } = resolveRequestedPosition(options, suggested, newItemData)
 
     const newItem = { ...newItemData, x, y }
 

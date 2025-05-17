@@ -836,12 +836,23 @@
                         gridStore.triggerRedraw()
                       }}
                       settingsChange={(newSettings: Partial<AllGridTypes>) => {
-                    gridStore.updateSettings({
-                      ...item,
-                      ...newSettings,
-                      redrawTimestamp: getNewTimestamp(),
-                    } as AllGridTypes)
-                  }}
+                        // Check if height has changed
+                        const heightChanged = newSettings.h !== undefined && newSettings.h !== item.h;
+                        
+                        // Update settings
+                        gridStore.updateSettings({
+                          ...item,
+                          ...newSettings,
+                          redrawTimestamp: getNewTimestamp(),
+                        } as AllGridTypes);
+
+                        // If height changed, trigger collision resolution
+                        if (heightChanged) {
+                          setTimeout(() => {
+                            gridStore.resolveItemPositionCollisions(item.id);
+                          }, 50);
+                        }
+                      }}
                     />
                   </div>
                 {/snippet}
