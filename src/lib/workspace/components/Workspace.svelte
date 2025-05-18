@@ -23,6 +23,7 @@
     DEFAULT_GRID_CONFIG,
   } from '$lib/shared/utils/gridSizingUtils'
   import { throttleByRaf } from '$lib/shared/utils/throttle'
+  import { addSuccessToast } from '$lib/toaster'
 
   interface Props {
     onReinitialize: () => void
@@ -419,6 +420,11 @@
       const itemToDuplicate = get(gridStore).find(item => item.id === event.id)
       if (itemToDuplicate) {
         gridStore.duplicateItem(itemToDuplicate)
+        // Show success toast with visualization name
+        const visConfig = getVisualizationConfig(itemToDuplicate.type)
+        addSuccessToast(
+          `${visConfig.name} duplicated and placed to the nearest empty space.`
+        )
       }
     },
   })
@@ -431,6 +437,9 @@
       // Add the new visualization at the first available position
       // instead of automatically placing it below all existing items
       gridStore.addItem(vizType)
+      // Show success toast with visualization name
+      const visConfig = getVisualizationConfig(vizType)
+      addSuccessToast(`${visConfig.name} added to the nearest empty space.`)
     } else if (id === 'toggle-fullscreen') {
       // Delegate fullscreen toggle to the toolbar
       // The toolbar component will handle fullscreen functionality itself

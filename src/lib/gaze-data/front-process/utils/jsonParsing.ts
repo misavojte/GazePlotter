@@ -3,6 +3,7 @@ import type {
   JsonImportOldFormat,
   JsonImportNewFormat,
 } from '$lib/gaze-data/shared/types'
+import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
 /**
@@ -190,7 +191,7 @@ export type JsonProcessingResult = {
  */
 export function processJsonFileWithGrid(
   fileContent: string
-): JsonProcessingResult {
+): JsonImportNewFormat {
   // Parse the JSON file content
   const parsed = JSON.parse(fileContent)
 
@@ -198,12 +199,15 @@ export function processJsonFileWithGrid(
   if (isNewFormat(parsed)) {
     const data = processJsonFile(JSON.stringify(parsed.data))
     return {
+      version: 2,
       data,
       gridItems: parsed.gridItems,
     }
   } else if (isOldFormat(parsed)) {
     return {
+      version: 2,
       data: processJsonFile(fileContent),
+      gridItems: DEFAULT_GRID_STATE_DATA,
     }
   } else {
     throw new Error(

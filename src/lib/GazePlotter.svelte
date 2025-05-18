@@ -12,34 +12,50 @@
   } from './workspace'
   import { data } from './gaze-data/front-process/stores/dataStore'
   import { setContext } from 'svelte'
+  import { addSuccessToast } from '$lib/toaster'
 
   interface Props {
-    initialData: JsonImportNewFormat
+    loadInitialData: () => Promise<JsonImportNewFormat>
     reinitializeLabel?: string
   }
 
-  const { initialData, reinitializeLabel = 'Reload Demo' }: Props = $props()
+  const { loadInitialData, reinitializeLabel = 'Reload Demo' }: Props = $props()
 
   setContext('reinitializeLabel', reinitializeLabel)
 
-  const loadData = async () => {
+  async function loadData() {
     processingFileStateStore.set('processing')
-    data.set(initialData.data)
-    initializeGridStateStore(initialData.gridItems) // HERE, THERE WILL BE AN ASYNC CALL TO INITIALIZE THE GRID STATE AND DATA
-    await tick()
-    processingFileStateStore.set('done')
+    try {
+      const initialData = await loadInitialData()
+      console.log('initialData', initialData)
+      data.set(initialData.data)
+      initializeGridStateStore(initialData.gridItems)
+      await tick()
+      processingFileStateStore.set('done')
+    } catch (error) {
+      console.error('Error loading data:', error)
+      processingFileStateStore.set('fail')
+    }
   }
 
   const onReinitialize = () => {
+    loadData().then(() => {
+      addSuccessToast('Workspace and data returned to the initial state.')
+    })
+  }
+
+  const onResetLayout = async () => {
+    try {
+      const initialData = await loadInitialData()
+      initializeGridStateStore(initialData.gridItems)
+      addSuccessToast('Workspace layout returned to the initial state.')
+    } catch (error) {
+      console.error('Error resetting layout:', error)
+    }
+  }
+
+  onMount(() => {
     loadData()
-  }
-
-  const onResetLayout = () => {
-    initializeGridStateStore(initialData.gridItems)
-  }
-
-  onMount(async () => {
-    await loadData()
   })
 </script>
 

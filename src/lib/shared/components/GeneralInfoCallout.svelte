@@ -1,17 +1,27 @@
 <script lang="ts">
+  import GeneralButtonMajor from './GeneralButtonMajor.svelte'
+
   /**
    * A simple informational callout component to provide helpful tips and explanations
    */
+  interface ButtonProps {
+    label: string
+    url: string
+    noopener?: boolean
+  }
+
   interface Props {
     maxWidth?: string
     title?: string
     paragraphs?: string[]
+    button?: ButtonProps | null
   }
 
   let {
     maxWidth = 'auto',
     title = 'Information',
     paragraphs = [],
+    button = null,
   }: Props = $props()
 </script>
 
@@ -55,6 +65,19 @@
       <p>{paragraph}</p>
     {/each}
   </div>
+  {#if button}
+    <div class="button-container">
+      <GeneralButtonMajor
+        type="link"
+        href={button.url}
+        noopener={button.noopener}
+        variant="info"
+        size="sm"
+      >
+        {button.label}
+      </GeneralButtonMajor>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -95,5 +118,11 @@
     margin: 0;
     margin-bottom: 0.25rem;
     font-size: 0.9rem;
+    text-align: left;
+  }
+
+  .button-container {
+    margin-top: 0.5rem;
+    text-align: left;
   }
 </style>

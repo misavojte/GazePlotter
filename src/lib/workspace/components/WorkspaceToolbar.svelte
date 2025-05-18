@@ -73,11 +73,6 @@
             <path d="M21 22v-6h-6"></path>
             <path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"></path>
           </svg>`,
-        action: () => {
-          onaction({
-            id: 'reset-layout',
-          })
-        },
       },
       {
         id: 'add-visualization',
@@ -97,9 +92,6 @@
             <line x1="21" y1="3" x2="14" y2="10"></line>
             <line x1="3" y1="21" x2="10" y2="14"></line>
           </svg>`,
-        action: () => {
-          toggleFullscreen()
-        },
       },
     ],
     accentColor = 'var(--c-primary)',
@@ -146,6 +138,10 @@
       return
     }
 
+    if (event.id === 'toggle-fullscreen') {
+      toggleFullscreen()
+    }
+
     onaction({
       id: event.id,
       event: event.event,
@@ -176,7 +172,6 @@
         id="reset-layout"
         label={actionItems[0].label}
         icon={actionItems[0].icon}
-        action={actionItems[0].action}
         onclick={handleItemClick}
       />
 
@@ -195,7 +190,6 @@
         id="toggle-fullscreen"
         label={actionItems[2].label}
         icon={actionItems[2].icon}
-        action={actionItems[2].action}
         onclick={handleItemClick}
       />
     {/if}

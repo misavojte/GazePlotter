@@ -1,5 +1,6 @@
 <script lang="ts">
   import { GazePlotter } from '$lib'
+  import GeneralInfoCallout from '$lib/shared/components/GeneralInfoCallout.svelte'
   import { base } from '$app/paths'
   import { processJsonFileWithGrid } from '$lib/gaze-data/front-process/utils/jsonParsing'
   import type { JsonImportNewFormat } from '$lib/gaze-data/shared/types'
@@ -12,7 +13,7 @@
     year: 'numeric',
   }).format(buildDate)
 
-  const pathToData = `${base}/data/demo.json`
+  const pathToData = `${base}/data/etvis.json`
 
   async function loadInitialData(): Promise<JsonImportNewFormat> {
     if (!pathToData || !browser)
@@ -99,9 +100,26 @@
       No&nbsp;registration, no ads and no data stored on&nbsp;a&nbsp;server. We
       love open science.
     </p>
+    <div style="max-width: 520px; margin: 0 auto;">
+      <GeneralInfoCallout
+        title="Instructions for the ETRA participants (UX evaluation)"
+        paragraphs={[
+          'On your computer, before starting the form:',
+          '1. Switch the stimulus in the Scarf Plot.',
+          '2. Duplicate the scarf plot, move it in the dashboard, and assign different participant subgroups to each.',
+          '3. Change the Aggregation method of the Bar Plot and duplicate it.',
+          '4. Customise the current Areas of Interests (AOIs) in the data. Assign two AOIs into one group, change its displayed color and see the effects in the dashboard.',
+        ]}
+        button={{
+          label: 'Fill out questionnaire',
+          url: 'https://forms.gle/7gQVbEfXrNZYLoQ2A',
+          noopener: true,
+        }}
+      />
+    </div>
   </section>
   <section>
-    <GazePlotter {loadInitialData} />
+    <GazePlotter {loadInitialData} reinitializeLabel="Reload ETVIS data" />
   </section>
   <section class="main-section" id="about">
     <div class="about-grid">
