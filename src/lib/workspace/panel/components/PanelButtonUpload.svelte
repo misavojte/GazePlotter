@@ -5,10 +5,13 @@
   import {
     processingFileStateStore,
     initializeGridStateStore,
+    fileMetadataStore,
   } from '$lib/workspace'
   import { setData } from '$lib/gaze-data/front-process/stores/dataStore'
   import { addErrorToast, addSuccessToast } from '$lib/toaster'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
+  import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSettingsType'
+  import type { FileMetadataType } from '$lib/workspace/type/fileMetadataType'
   let isDisabled = $derived($processingFileStateStore === 'processing')
 
   let input: HTMLInputElement | undefined = $state()
@@ -39,10 +42,15 @@
   const handleEyeData = (data: {
     data: DataType
     gridItems?: Array<Partial<AllGridTypes> & { type: string }>
+    fileMetadata?: FileMetadataType
   }) => {
+    if (data.fileMetadata) {
+      fileMetadataStore.set(data.fileMetadata)
+    } else {
+      fileMetadataStore.set(null)
+    }
     setData(data.data)
     addSuccessToast('Data loaded')
-    console.log('gridItems', data.gridItems)
     initializeGridStateStore(data.gridItems)
     processingFileStateStore.set('done')
   }

@@ -5,6 +5,7 @@ import type { DataType } from '$lib/gaze-data/shared/types'
 import { processJsonFileWithGrid } from '$lib/gaze-data/front-process/utils/jsonParsing'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSettingsType'
+import type { FileMetadataType } from '$lib/workspace/type/fileMetadataType'
 /**
  * Creates a worker to handle whole eyefiles processing.
  * It is a separate file to avoid blocking the main thread.
@@ -14,19 +15,20 @@ import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSetti
  */
 export class EyeWorkerService {
   worker: Worker
+  fileNames: string[] = []
+  sumFileSize: number = 0 // in bytes
   onData: (data: {
     data: DataType
     gridItems?: Array<Partial<AllGridTypes> & { type: string }>
+    fileMetadata?: FileMetadataType
   }) => void
   onFail: () => void
-  onClassified: (settings: EyeSettingsType) => void
   constructor(
     onData: (data: {
       data: DataType
       gridItems?: Array<Partial<AllGridTypes> & { type: string }>
     }) => void,
-    onFail: () => void,
-    onClassified?: (settings: EyeSettingsType) => void
+    onFail: () => void
   ) {
     this.worker = new Worker(
       new URL(
@@ -41,11 +43,6 @@ export class EyeWorkerService {
     this.worker.onerror = (event: ErrorEvent) => this.handleError(event.error)
     this.onData = onData
     this.onFail = onFail
-    this.onClassified =
-      onClassified ||
-      ((settings: EyeSettingsType) => {
-        console.log('File classified:', settings)
-      })
   }
 
   /**
@@ -53,14 +50,17 @@ export class EyeWorkerService {
    * @param files - The files to send.
    */
   sendFiles(files: FileList): void {
-    const fileNames = []
+    // reset file names and sum file size
+    this.fileNames = []
+    this.sumFileSize = 0
     // check extension of first file
     const extension = files[0].name.split('.').pop()
     if (extension === 'json') return this.processJsonWorkspace(files[0])
     for (let index = 0; index < files.length; index++) {
-      fileNames.push(files[index].name)
+      this.fileNames.push(files[index].name)
+      this.sumFileSize += files[index].size
     }
-    this.worker.postMessage({ type: 'file-names', data: fileNames })
+    this.worker.postMessage({ type: 'file-names', data: this.fileNames })
     if (this.isStreamTransferable()) {
       this.processDataAsStream(files)
     } else {
@@ -130,19 +130,35 @@ export class EyeWorkerService {
     reader.readAsText(file)
   }
 
+  protected handleData({
+    data,
+    classified,
+  }: {
+    data: DataType
+    classified: EyeSettingsType
+  }): void {
+    const fileMetadata: FileMetadataType = {
+      fileNames: this.fileNames,
+      settings: classified,
+      parseDate: new Date().toISOString(),
+      parseDuration: this.sumFileSize,
+    }
+    this.onData({ data: data, fileMetadata: fileMetadata })
+  }
+
   protected handleMessage(event: MessageEvent): void {
     switch (event.data.type) {
       case 'done':
-        this.onData({ data: event.data.data }) // no grid items in this case! :)
+        this.handleData({
+          data: event.data.data,
+          classified: event.data.classified,
+        }) // no grid items in this case! :)
         break
       case 'fail':
         this.handleError(event.data.data)
         break
       case 'request-user-input':
         this.handleUserInputProcess()
-        break
-      case 'classified':
-        this.onClassified(event.data.data)
         break
       default:
         console.error('EyeWorkerService.handleMessage() - event:', event)

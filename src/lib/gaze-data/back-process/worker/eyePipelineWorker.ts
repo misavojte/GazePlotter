@@ -29,11 +29,6 @@ const requestUserInput = (): Promise<string> => {
     userInputResolver = resolve
   })
 }
-
-const sendClassificationResult = (settings: EyeSettingsType): void => {
-  self.postMessage({ type: 'classified', data: settings })
-}
-
 self.onmessage = async e => await processEvent(e)
 
 async function processEvent(e: MessageEvent): Promise<void> {
@@ -43,11 +38,7 @@ async function processEvent(e: MessageEvent): Promise<void> {
       case 'file-names':
         if (!isStringArray(data)) throw new Error('File names are not string[]')
         fileNames = data
-        pipeline = new EyePipeline(
-          fileNames,
-          requestUserInput,
-          sendClassificationResult
-        )
+        pipeline = new EyePipeline(fileNames, requestUserInput)
         return
       case 'test-stream':
         if (!isReadableStream(data))
@@ -99,10 +90,9 @@ const evalStream = async (rs: ReadableStream): Promise<void> => {
   // if have everything, process
   if (streams.length === fileNames.length) {
     for (const stream of streams) {
-      const data = await pipeline.addNewStream(stream)
-      if (data !== null) {
-        console.log('Done', data)
-        self.postMessage({ type: 'done', data })
+      const dataWithSettings = await pipeline.addNewStream(stream)
+      if (dataWithSettings !== null) {
+        self.postMessage({ type: 'done', dataWithSettings })
         streams = []
         fileNames = []
       }

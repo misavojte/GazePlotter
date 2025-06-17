@@ -21,7 +21,7 @@ export class EyePipeline {
   classifier: EyeClassifier = new EyeClassifier()
   writer: EyeWriter = new EyeWriter()
   deserializer: AbstractEyeDeserializer | null = null
-  sendClassificationResult: (settings: EyeSettingsType) => void
+  completeSettings: EyeSettingsType | null = null
 
   requestUserInputCallback: () => Promise<string>
   rowIndex = 0
@@ -38,33 +38,39 @@ export class EyePipeline {
 
   constructor(
     fileNames: string[],
-    requestUserInputCallback: () => Promise<string>,
-    sendClassificationResult: (settings: EyeSettingsType) => void
+    requestUserInputCallback: () => Promise<string>
   ) {
     this.fileNames = fileNames
     this.requestUserInputCallback = requestUserInputCallback
-    this.sendClassificationResult = sendClassificationResult
   }
 
-  async addNewStream(stream: ReadableStream): Promise<DataType | null> {
+  async addNewStream(
+    stream: ReadableStream
+  ): Promise<{ data: DataType; settings: EyeSettingsType } | null> {
+    // reset complete settings
+    this.completeSettings = null
+    // parse first chunk and classify it
     const parser = new EyeParser(stream)
     const firstTextChunk = await parser.getTextChunk()
     const settings = await this.classify(firstTextChunk)
     const splitter = new EyeSplitter(settings)
+
+    // request user input (if needed) and wait for it
     const userStringInput: string =
       settings.type === 'tobii-with-event'
         ? await this.requestUserInputCallback()
         : ''
 
-    const completeSettings: EyeSettingsType = {
+    // update complete settings with user input
+    this.completeSettings = {
       ...settings,
       userInputSetting: userStringInput,
     }
 
-    this.sendClassificationResult(completeSettings)
-
+    // process first chunk
     this.processChunk(firstTextChunk, settings, splitter, userStringInput)
 
+    // process remaining chunks
     while (!parser.isDone) {
       const chunk = await parser.getTextChunk()
       this.processChunk(chunk, settings, splitter, userStringInput)
@@ -74,7 +80,10 @@ export class EyePipeline {
 
     if (this.isAllProcessed) {
       const refiner = new EyeRefiner()
-      return refiner.process(this.writer.data)
+      return {
+        data: refiner.process(this.writer.data),
+        settings: this.completeSettings,
+      }
     }
     return null
   }

@@ -1,2 +1,2 @@
-export * from './processingFileStateStore'
+export * from './fileStore'
 export * from './gridStore'

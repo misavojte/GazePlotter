@@ -1,3 +1,4 @@
+import type { FileMetadataType } from '$lib/workspace/type/fileMetadataType'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
 /**
@@ -83,8 +84,15 @@ export interface DataType {
 
 export type JsonImportOldFormat = DataType
 
-export type JsonImportNewFormat = {
-  version: 2
-  data: DataType
-  gridItems: Array<Partial<AllGridTypes> & { type: string }>
-}
+export type JsonImportNewFormat =
+  | {
+      version: 2
+      data: DataType
+      gridItems: Array<Partial<AllGridTypes> & { type: string }>
+    }
+  | {
+      version: 3
+      fileMetadata: FileMetadataType
+      data: DataType
+      gridItems: Array<Partial<AllGridTypes> & { type: string }>
+    }
