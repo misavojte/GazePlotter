@@ -1,4 +1,5 @@
 import { EyePipeline } from '$lib/gaze-data/back-process'
+import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSettingsType'
 
 /**
  * A worker file handling whole eyefiles processing.
@@ -29,6 +30,10 @@ const requestUserInput = (): Promise<string> => {
   })
 }
 
+const sendClassificationResult = (settings: EyeSettingsType): void => {
+  self.postMessage({ type: 'classified', data: settings })
+}
+
 self.onmessage = async e => await processEvent(e)
 
 async function processEvent(e: MessageEvent): Promise<void> {
@@ -38,7 +43,11 @@ async function processEvent(e: MessageEvent): Promise<void> {
       case 'file-names':
         if (!isStringArray(data)) throw new Error('File names are not string[]')
         fileNames = data
-        pipeline = new EyePipeline(fileNames, requestUserInput)
+        pipeline = new EyePipeline(
+          fileNames,
+          requestUserInput,
+          sendClassificationResult
+        )
         return
       case 'test-stream':
         if (!isReadableStream(data))

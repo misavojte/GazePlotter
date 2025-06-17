@@ -4,6 +4,7 @@ import { addErrorToast, addInfoToast } from '$lib/toaster'
 import type { DataType } from '$lib/gaze-data/shared/types'
 import { processJsonFileWithGrid } from '$lib/gaze-data/front-process/utils/jsonParsing'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
+import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSettingsType'
 /**
  * Creates a worker to handle whole eyefiles processing.
  * It is a separate file to avoid blocking the main thread.
@@ -18,12 +19,14 @@ export class EyeWorkerService {
     gridItems?: Array<Partial<AllGridTypes> & { type: string }>
   }) => void
   onFail: () => void
+  onClassified: (settings: EyeSettingsType) => void
   constructor(
     onData: (data: {
       data: DataType
       gridItems?: Array<Partial<AllGridTypes> & { type: string }>
     }) => void,
-    onFail: () => void
+    onFail: () => void,
+    onClassified?: (settings: EyeSettingsType) => void
   ) {
     this.worker = new Worker(
       new URL(
@@ -38,6 +41,11 @@ export class EyeWorkerService {
     this.worker.onerror = (event: ErrorEvent) => this.handleError(event.error)
     this.onData = onData
     this.onFail = onFail
+    this.onClassified =
+      onClassified ||
+      ((settings: EyeSettingsType) => {
+        console.log('File classified:', settings)
+      })
   }
 
   /**
@@ -132,6 +140,9 @@ export class EyeWorkerService {
         break
       case 'request-user-input':
         this.handleUserInputProcess()
+        break
+      case 'classified':
+        this.onClassified(event.data.data)
         break
       default:
         console.error('EyeWorkerService.handleMessage() - event:', event)

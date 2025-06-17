@@ -21,6 +21,7 @@ export class EyePipeline {
   classifier: EyeClassifier = new EyeClassifier()
   writer: EyeWriter = new EyeWriter()
   deserializer: AbstractEyeDeserializer | null = null
+  sendClassificationResult: (settings: EyeSettingsType) => void
 
   requestUserInputCallback: () => Promise<string>
   rowIndex = 0
@@ -37,10 +38,12 @@ export class EyePipeline {
 
   constructor(
     fileNames: string[],
-    requestUserInputCallback: () => Promise<string>
+    requestUserInputCallback: () => Promise<string>,
+    sendClassificationResult: (settings: EyeSettingsType) => void
   ) {
     this.fileNames = fileNames
     this.requestUserInputCallback = requestUserInputCallback
+    this.sendClassificationResult = sendClassificationResult
   }
 
   async addNewStream(stream: ReadableStream): Promise<DataType | null> {
@@ -52,6 +55,14 @@ export class EyePipeline {
       settings.type === 'tobii-with-event'
         ? await this.requestUserInputCallback()
         : ''
+
+    const completeSettings: EyeSettingsType = {
+      ...settings,
+      userInputSetting: userStringInput,
+    }
+
+    this.sendClassificationResult(completeSettings)
+
     this.processChunk(firstTextChunk, settings, splitter, userStringInput)
 
     while (!parser.isDone) {
