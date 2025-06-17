@@ -4,7 +4,7 @@
   import Panel from '$lib/workspace/panel/components/Panel.svelte'
   import Workspace from '$lib/workspace/components/Workspace.svelte'
   import Tooltip from '$lib/tooltip/components/Tooltip.svelte'
-  import type { JsonImportNewFormat } from '$lib/gaze-data/shared/types'
+  import type { ParsedData } from '$lib/gaze-data/shared/types'
   import { onMount, tick } from 'svelte'
   import {
     initializeGridStateStore,
@@ -13,9 +13,13 @@
   import { data } from './gaze-data/front-process/stores/dataStore'
   import { setContext } from 'svelte'
   import { addSuccessToast } from '$lib/toaster'
+  import {
+    fileMetadataStore,
+    currentFileInputStore,
+  } from './workspace/stores/fileStore'
 
   interface Props {
-    loadInitialData: () => Promise<JsonImportNewFormat>
+    loadInitialData: () => Promise<ParsedData>
     reinitializeLabel?: string
   }
 
@@ -27,8 +31,13 @@
     processingFileStateStore.set('processing')
     try {
       const initialData = await loadInitialData()
-      console.log('initialData', initialData)
       data.set(initialData.data)
+      if (initialData.version === 3) {
+        fileMetadataStore.set(initialData.fileMetadata)
+      } else {
+        fileMetadataStore.set(null)
+      }
+      currentFileInputStore.set(initialData.current)
       initializeGridStateStore(initialData.gridItems)
       await tick()
       processingFileStateStore.set('done')

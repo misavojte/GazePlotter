@@ -1,11 +1,11 @@
 import { ModalContentTobiiParsingInput } from '$lib/modals'
 import { modalStore } from '$lib/modals/shared/stores/modalStore'
 import { addErrorToast, addInfoToast } from '$lib/toaster'
-import type { DataType } from '$lib/gaze-data/shared/types'
+import type { DataType, ParsedData } from '$lib/gaze-data/shared/types'
 import { processJsonFileWithGrid } from '$lib/gaze-data/front-process/utils/jsonParsing'
-import type { AllGridTypes } from '$lib/workspace/type/gridType'
 import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSettingsType'
 import type { FileMetadataType } from '$lib/workspace/type/fileMetadataType'
+import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace'
 /**
  * Creates a worker to handle whole eyefiles processing.
  * It is a separate file to avoid blocking the main thread.
@@ -19,19 +19,9 @@ export class EyeWorkerService {
   parsingAnchorTime: number = 0 // in UNIX timestamp
   fileNames: string[] = []
   fileSizes: number[] = [] // in bytes
-  onData: (data: {
-    data: DataType
-    gridItems?: Array<Partial<AllGridTypes> & { type: string }>
-    fileMetadata?: FileMetadataType
-  }) => void
+  onData: (data: ParsedData) => void
   onFail: () => void
-  constructor(
-    onData: (data: {
-      data: DataType
-      gridItems?: Array<Partial<AllGridTypes> & { type: string }>
-    }) => void,
-    onFail: () => void
-  ) {
+  constructor(onData: (data: ParsedData) => void, onFail: () => void) {
     this.worker = new Worker(
       new URL(
         '$lib/gaze-data/back-process/worker/eyePipelineWorker.ts', // Must be a full path, not via index.ts
@@ -117,7 +107,14 @@ export class EyeWorkerService {
     reader.onload = () => {
       try {
         const result = processJsonFileWithGrid(reader.result as string)
-        this.onData(result)
+        this.onData({
+          ...result,
+          current: {
+            fileNames: [file.name],
+            fileSizes: [file.size],
+            parseDate: new Date().toISOString(),
+          },
+        })
       } catch (error) {
         // Handle any errors during parsing or processing
         this.handleError(
@@ -154,7 +151,17 @@ export class EyeWorkerService {
       gazePlotterVersion: gazePlotterVersion,
       clientUserAgent: userAgent,
     }
-    this.onData({ data: data, fileMetadata: fileMetadata })
+    this.onData({
+      data: data,
+      fileMetadata: fileMetadata,
+      version: 3,
+      gridItems: DEFAULT_GRID_STATE_DATA,
+      current: {
+        fileNames: this.fileNames,
+        fileSizes: this.fileSizes,
+        parseDate: new Date().toISOString(),
+      },
+    } as ParsedData)
   }
 
   protected handleMessage(event: MessageEvent): void {

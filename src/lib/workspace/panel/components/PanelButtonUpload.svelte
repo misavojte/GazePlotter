@@ -6,12 +6,15 @@
     processingFileStateStore,
     initializeGridStateStore,
     fileMetadataStore,
+    currentFileInputStore,
   } from '$lib/workspace'
   import { setData } from '$lib/gaze-data/front-process/stores/dataStore'
   import { addErrorToast, addSuccessToast } from '$lib/toaster'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
-  import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSettingsType'
-  import type { FileMetadataType } from '$lib/workspace/type/fileMetadataType'
+  import type {
+    FileInputType,
+    FileMetadataType,
+  } from '$lib/workspace/type/fileMetadataType'
   let isDisabled = $derived($processingFileStateStore === 'processing')
 
   let input: HTMLInputElement | undefined = $state()
@@ -43,18 +46,18 @@
     data: DataType
     gridItems?: Array<Partial<AllGridTypes> & { type: string }>
     fileMetadata?: FileMetadataType
+    current: FileInputType
   }) => {
     if (data.fileMetadata) {
       fileMetadataStore.set(data.fileMetadata)
     } else {
       fileMetadataStore.set(null)
     }
-    console.log('data.fileMetadata', data.fileMetadata)
-    console.log('data.data', data.data)
     setData(data.data)
     addSuccessToast('Data loaded')
     initializeGridStateStore(data.gridItems)
     processingFileStateStore.set('done')
+    currentFileInputStore.set(data.current)
   }
 
   const handleFail = () => {

@@ -1,4 +1,7 @@
-import type { FileMetadataType } from '$lib/workspace/type/fileMetadataType'
+import type {
+  FileInputType,
+  FileMetadataType,
+} from '$lib/workspace/type/fileMetadataType'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
 /**
@@ -96,3 +99,5 @@ export type JsonImportNewFormat =
       data: DataType
       gridItems: Array<Partial<AllGridTypes> & { type: string }>
     }
+
+export type ParsedData = JsonImportNewFormat & { current: FileInputType }

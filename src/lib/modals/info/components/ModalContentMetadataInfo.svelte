@@ -1,8 +1,12 @@
 <script lang="ts">
   import SectionHeader from '$lib/modals/shared/components/SectionHeader.svelte'
-  import { fileMetadataStore } from '$lib/workspace/stores/fileStore'
+  import {
+    fileMetadataStore,
+    currentFileInputStore,
+  } from '$lib/workspace/stores/fileStore'
 
   const fileMetadata = $derived($fileMetadataStore)
+  const currentFileInput = $derived($currentFileInputStore)
 
   /**
    * Formats file size in bytes to human-readable format
@@ -35,17 +39,83 @@
   }
 
   const totalFileSize = $derived(
-    fileMetadata?.fileSizes.reduce((sum, size) => sum + size, 0) ?? 0
+    fileMetadata?.fileSizes.reduce(
+      (sum: number, size: number) => sum + size,
+      0
+    ) ?? 0
+  )
+
+  // Check if current parsing is the same as source file parsing
+  const isSameAsSource = $derived(
+    currentFileInput !== null &&
+      fileMetadata !== null &&
+      JSON.stringify(currentFileInput.fileNames) ===
+        JSON.stringify(fileMetadata.fileNames) &&
+      JSON.stringify(currentFileInput.fileSizes) ===
+        JSON.stringify(fileMetadata.fileSizes) &&
+      currentFileInput.parseDate === fileMetadata.parseDate
   )
 </script>
 
 <div class="container">
+  <!-- Current parsing section -->
+  {#if currentFileInput !== null}
+    <section class="section">
+      <SectionHeader text="Current parsing" />
+      <div class="content">
+        {#if isSameAsSource}
+          <div class="info-group">
+            Same as Source parsing (this is an original eye tracking data
+            import)
+          </div>
+        {:else}
+          <div class="info-group">
+            <div class="info-item">
+              <span class="label">Files being processed:</span>
+              <span class="value">{currentFileInput.fileNames.length}</span>
+            </div>
+            <div class="file-list">
+              {#each currentFileInput.fileNames as fileName, index}
+                <div class="file-item">
+                  <span class="file-name">{fileName}</span>
+                  <span class="file-size"
+                    >({formatFileSize(currentFileInput.fileSizes[index])})</span
+                  >
+                </div>
+              {/each}
+            </div>
+          </div>
+
+          <div class="info-group">
+            <div class="info-item">
+              <span class="label">Total file size:</span>
+              <span class="value"
+                >{formatFileSize(
+                  currentFileInput.fileSizes.reduce(
+                    (sum: number, size: number) => sum + size,
+                    0
+                  )
+                )}</span
+              >
+            </div>
+            <div class="info-item">
+              <span class="label">Parse date:</span>
+              <span class="value">{formatDate(currentFileInput.parseDate)}</span
+              >
+            </div>
+          </div>
+        {/if}
+      </div>
+    </section>
+  {/if}
+
+  <!-- Source file parsing section -->
   <section class="section">
-    <SectionHeader text="Source file parsing" />
+    <SectionHeader text="Source parsing (original eye tracking export)" />
     <div class="content">
       {#if fileMetadata === null}
         <div class="info-group">
-          Data in the .json file were parsed before GazePlotter version 1.9 and
+          This data was parsed before GazePlotter version 1.9.0 and original
           parsing metadata is thus not available.
         </div>
       {:else}
