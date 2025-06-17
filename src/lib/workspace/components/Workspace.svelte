@@ -24,6 +24,8 @@
   } from '$lib/shared/utils/gridSizingUtils'
   import { throttleByRaf } from '$lib/shared/utils/throttle'
   import { addSuccessToast } from '$lib/toaster'
+  import { ModalContentMetadataInfo } from '$lib/modals'
+  import { modalStore } from '$lib/modals/shared/stores/modalStore'
 
   interface Props {
     onReinitialize: () => void
@@ -446,6 +448,13 @@
     } else if (id === 'reset-layout') {
       // Reset the workspace to the default grid state
       onResetLayout()
+    } else if (id === 'metadata') {
+      // Open the metadata info modal
+      modalStore.open(
+        ModalContentMetadataInfo as any,
+        'Metadata Information',
+        {}
+      )
     }
   }
 

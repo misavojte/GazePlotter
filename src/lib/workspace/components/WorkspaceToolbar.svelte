@@ -93,6 +93,16 @@
             <line x1="3" y1="21" x2="10" y2="14"></line>
           </svg>`,
       },
+      {
+        id: 'metadata',
+        label: 'Metadata',
+        icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="m9 9 1.5-1.5"></path>
+            <path d="M12 12v6"></path>
+            <path d="M9 12h3"></path>
+          </svg>`,
+      },
     ],
     accentColor = 'var(--c-primary)',
     onaction = () => {},
@@ -190,6 +200,14 @@
         id="toggle-fullscreen"
         label={actionItems[2].label}
         icon={actionItems[2].icon}
+        onclick={handleItemClick}
+      />
+
+      <!-- Metadata button -->
+      <WorkspaceToolbarItem
+        id="metadata"
+        label={actionItems[3].label}
+        icon={actionItems[3].icon}
         onclick={handleItemClick}
       />
     {/if}
