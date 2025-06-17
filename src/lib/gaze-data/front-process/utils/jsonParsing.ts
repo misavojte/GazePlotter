@@ -14,7 +14,7 @@ function isNewFormat(data: unknown): data is JsonImportNewFormat {
     typeof data === 'object' &&
     data !== null &&
     'version' in data &&
-    data.version === 2 &&
+    (data.version === 2 || data.version === 3) &&
     'data' in data &&
     'gridItems' in data
   )
@@ -158,7 +158,7 @@ export function processJsonFile(fileContent: string): DataType {
     data = parsed
   } else {
     throw new Error(
-      'Invalid JSON format: file must be either old or new format'
+      'Invalid JSON format: file must be GazePlotter JSON format (legacy or version 2 or 3)'
     )
   }
 
@@ -197,12 +197,7 @@ export function processJsonFileWithGrid(
 
   // Determine the format and extract the data
   if (isNewFormat(parsed)) {
-    const data = processJsonFile(JSON.stringify(parsed.data))
-    return {
-      version: 2,
-      data,
-      gridItems: parsed.gridItems,
-    }
+    return parsed
   } else if (isOldFormat(parsed)) {
     return {
       version: 2,
@@ -211,7 +206,7 @@ export function processJsonFileWithGrid(
     }
   } else {
     throw new Error(
-      'Invalid JSON format: file must be either old or new format'
+      'Invalid JSON format: file must be GazePlotter JSON format (legacy or version 2 or 3)'
     )
   }
 }
