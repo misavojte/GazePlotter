@@ -2,7 +2,10 @@ import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSetti
 
 export interface FileMetadataType {
   fileNames: string[]
-  settings: EyeSettingsType
-  parseDate: string // YYYY-MM-DD HH:MM:SS
+  fileSizes: number[] // bytes
+  parseSettings: EyeSettingsType
+  parseDate: string // YYYY-MM-DD HH:MM:SS in UTC
   parseDuration: number // seconds
+  gazePlotterVersion: string
+  clientUserAgent: string // e.g. "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 }

@@ -92,7 +92,11 @@ const evalStream = async (rs: ReadableStream): Promise<void> => {
     for (const stream of streams) {
       const dataWithSettings = await pipeline.addNewStream(stream)
       if (dataWithSettings !== null) {
-        self.postMessage({ type: 'done', dataWithSettings })
+        self.postMessage({
+          type: 'done',
+          data: dataWithSettings.data,
+          classified: dataWithSettings.settings,
+        })
         streams = []
         fileNames = []
       }

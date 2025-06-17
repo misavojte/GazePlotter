@@ -15,8 +15,10 @@ import type { FileMetadataType } from '$lib/workspace/type/fileMetadataType'
  */
 export class EyeWorkerService {
   worker: Worker
+  parsingSumTime: number = 0 // in seconds
+  parsingAnchorTime: number = 0 // in UNIX timestamp
   fileNames: string[] = []
-  sumFileSize: number = 0 // in bytes
+  fileSizes: number[] = [] // in bytes
   onData: (data: {
     data: DataType
     gridItems?: Array<Partial<AllGridTypes> & { type: string }>
@@ -52,13 +54,15 @@ export class EyeWorkerService {
   sendFiles(files: FileList): void {
     // reset file names and sum file size
     this.fileNames = []
-    this.sumFileSize = 0
+    this.fileSizes = []
+    this.parsingSumTime = 0
+    this.parsingAnchorTime = Date.now()
     // check extension of first file
     const extension = files[0].name.split('.').pop()
     if (extension === 'json') return this.processJsonWorkspace(files[0])
     for (let index = 0; index < files.length; index++) {
       this.fileNames.push(files[index].name)
-      this.sumFileSize += files[index].size
+      this.fileSizes.push(files[index].size)
     }
     this.worker.postMessage({ type: 'file-names', data: this.fileNames })
     if (this.isStreamTransferable()) {
@@ -137,11 +141,18 @@ export class EyeWorkerService {
     data: DataType
     classified: EyeSettingsType
   }): void {
+    const parseDuration =
+      Date.now() - this.parsingAnchorTime + this.parsingSumTime
+    const userAgent = navigator.userAgent
+    const gazePlotterVersion = '0.0.0'
     const fileMetadata: FileMetadataType = {
       fileNames: this.fileNames,
-      settings: classified,
+      fileSizes: this.fileSizes,
+      parseSettings: classified,
       parseDate: new Date().toISOString(),
-      parseDuration: this.sumFileSize,
+      parseDuration: parseDuration,
+      gazePlotterVersion: gazePlotterVersion,
+      clientUserAgent: userAgent,
     }
     this.onData({ data: data, fileMetadata: fileMetadata })
   }
@@ -172,9 +183,26 @@ export class EyeWorkerService {
     this.onFail()
   }
 
+  /**
+   * Handles the user input process when the worker requests additional information.
+   *
+   * This method pauses the duration calculation while waiting for user input to ensure
+   * accurate parsing time measurement. The time spent waiting for user interaction
+   * is not included in the final parsing duration.
+   *
+   * Process flow:
+   * 1. Pauses duration tracking by accumulating elapsed time in parsingSumTime
+   * 2. Requests user input via modal (typically for Tobii parsing configuration)
+   * 3. On success: resumes duration tracking and sends input to worker
+   * 4. On failure: provides default behavior and continues processing
+   *
+   * @returns {void}
+   */
   handleUserInputProcess(): void {
+    this.parsingSumTime += Date.now() - this.parsingAnchorTime
     this.requestUserInput()
       .then(userInput => {
+        this.parsingAnchorTime = Date.now()
         this.worker.postMessage({ type: 'user-input', data: userInput })
         modalStore.close()
       })

@@ -49,6 +49,8 @@
     } else {
       fileMetadataStore.set(null)
     }
+    console.log('data.fileMetadata', data.fileMetadata)
+    console.log('data.data', data.data)
     setData(data.data)
     addSuccessToast('Data loaded')
     initializeGridStateStore(data.gridItems)
