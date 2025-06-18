@@ -59,7 +59,7 @@
 
 <div class="container">
   <!-- Current parsing section -->
-  {#if currentFileInput !== null}
+  {#if currentFileInput !== null && !isSameAsSource}
     <section class="section">
       <SectionHeader text="Current parsing" />
       <div class="content">
@@ -115,7 +115,7 @@
     <div class="content">
       {#if fileMetadata === null}
         <div class="info-group">
-          This data was parsed before GazePlotter version 1.9.0 and original
+          This data was parsed before GazePlotter version 1.7.0 and original
           parsing metadata is thus not available.
         </div>
       {:else}

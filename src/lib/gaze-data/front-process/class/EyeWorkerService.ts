@@ -141,7 +141,7 @@ export class EyeWorkerService {
     const parseDuration =
       Date.now() - this.parsingAnchorTime + this.parsingSumTime
     const userAgent = navigator.userAgent
-    const gazePlotterVersion = '0.0.0'
+    const gazePlotterVersion = __APP_VERSION__
     const fileMetadata: FileMetadataType = {
       fileNames: this.fileNames,
       fileSizes: this.fileSizes,

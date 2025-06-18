@@ -1,19 +1,17 @@
 <script lang="ts">
   import { WorkspaceToolbarItem } from '$lib/workspace'
-  import { fade } from 'svelte/transition'
-  import { writable } from 'svelte/store'
+  import { processingFileStateStore } from '$lib/workspace/stores/fileStore'
   import { onMount } from 'svelte'
 
   // Configuration for toolbar items
   interface Props {
-    actionItems?: any
     accentColor?: string
-    onaction: (event: { id: string; vizType?: string; event?: any }) => void
+    onaction: (event: { id: string; event?: any }) => void
     visualizations?: Array<{ id: string; label: string }>
   }
 
   // Track fullscreen state
-  let isFullscreen = false
+  let isFullscreen = $state(false)
 
   // Function to toggle fullscreen mode
   function toggleFullscreen() {
@@ -43,110 +41,21 @@
   // Listen for fullscreen change events
   function handleFullscreenChange() {
     isFullscreen = !!document.fullscreenElement
-
-    // Update the icon based on fullscreen state
-    if (actionItems[2] && actionItems[2].id === 'toggle-fullscreen') {
-      actionItems[2].icon = isFullscreen
-        ? `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="4 14 10 14 10 20"></polyline>
-            <polyline points="20 10 14 10 14 4"></polyline>
-            <line x1="14" y1="10" x2="21" y2="3"></line>
-            <line x1="3" y1="21" x2="10" y2="14"></line>
-          </svg>`
-        : `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="15 3 21 3 21 9"></polyline>
-            <polyline points="9 21 3 21 3 15"></polyline>
-            <line x1="21" y1="3" x2="14" y2="10"></line>
-            <line x1="3" y1="21" x2="10" y2="14"></line>
-          </svg>`
-    }
   }
 
   let {
-    actionItems = [
-      {
-        id: 'reset-layout',
-        label: 'Reset Layout',
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 2v6h6"></path>
-            <path d="M21 12A9 9 0 0 0 6 5.3L3 8"></path>
-            <path d="M21 22v-6h-6"></path>
-            <path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"></path>
-          </svg>`,
-      },
-      {
-        id: 'add-visualization',
-        label: 'Add Visualization',
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 5v14"></path>
-            <path d="M5 12h14"></path>
-          </svg>`,
-        action: null, // Will be handled by context menu
-      },
-      {
-        id: 'toggle-fullscreen',
-        label: 'Toggle Fullscreen',
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="15 3 21 3 21 9"></polyline>
-            <polyline points="9 21 3 21 3 15"></polyline>
-            <line x1="21" y1="3" x2="14" y2="10"></line>
-            <line x1="3" y1="21" x2="10" y2="14"></line>
-          </svg>`,
-      },
-      {
-        id: 'metadata',
-        label: 'Metadata',
-        icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <path d="m9 9 1.5-1.5"></path>
-            <path d="M12 12v6"></path>
-            <path d="M9 12h3"></path>
-          </svg>`,
-      },
-    ],
     accentColor = 'var(--c-primary)',
     onaction = () => {},
     visualizations = [], // Default empty array for visualizations
   }: Props = $props()
 
-  // Create a store for context menu
-  const contextMenuState = writable({
-    visible: false,
-    x: 0,
-    y: 0,
-  })
-
-  let addVisualizationButton: HTMLElement | null = $state(null)
-
-  function handleVisualizationSelect(vizType: string) {
-    onaction({
-      id: 'add-visualization',
-      vizType,
-    })
-    contextMenuState.set({ visible: false, x: 0, y: 0 })
-  }
-
-  // Function to toggle context menu
-  function toggleContextMenu(event: MouseEvent) {
-    event.preventDefault()
-    event.stopPropagation()
-
-    if (addVisualizationButton) {
-      const rect = addVisualizationButton.getBoundingClientRect()
-      contextMenuState.update(state => ({
-        visible: !state.visible,
-        x: rect.right + 5,
-        y: rect.top,
-      }))
-    }
-  }
+  // Reactive variable to check if items should be disabled
+  const isProcessing = $derived($processingFileStateStore === 'processing')
 
   // Handle toolbar item click
   function handleItemClick(event: { id: string; event?: any }) {
-    if (event.id === 'add-visualization') {
-      toggleContextMenu(event.event as MouseEvent)
-      return
-    }
+    // Don't handle clicks if processing
+    if (isProcessing) return
 
     if (event.id === 'toggle-fullscreen') {
       toggleFullscreen()
@@ -158,11 +67,6 @@
     })
   }
 
-  // Close menu when clicking outside
-  function handleClickOutside(event: MouseEvent) {
-    contextMenuState.set({ visible: false, x: 0, y: 0 })
-  }
-
   // Set up event listener when component mounts
   onMount(() => {
     document.addEventListener('fullscreenchange', handleFullscreenChange)
@@ -170,66 +74,70 @@
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
     }
   })
-</script>
 
-<svelte:window onclick={handleClickOutside} />
+  // Define toolbar items with their actions
+  const toolbarItems = $derived([
+    {
+      id: 'reset-layout',
+      label: 'Reset Layout',
+      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 2v6h6"></path>
+          <path d="M21 12A9 9 0 0 0 6 5.3L3 8"></path>
+          <path d="M21 22v-6h-6"></path>
+          <path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"></path>
+        </svg>`,
+      actions: [{ id: 'reset-layout', label: 'Reset Layout' }],
+    },
+    {
+      id: 'add-visualization',
+      label: 'Add Visualization',
+      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 5v14"></path>
+          <path d="M5 12h14"></path>
+        </svg>`,
+      actions: visualizations.map(viz => ({ id: viz.id, label: viz.label })),
+    },
+    {
+      id: 'toggle-fullscreen',
+      label: 'Toggle Fullscreen',
+      icon: isFullscreen
+        ? `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 14 10 14 10 20"></polyline>
+            <polyline points="20 10 14 10 14 4"></polyline>
+            <line x1="14" y1="10" x2="21" y2="3"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+          </svg>`
+        : `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <polyline points="9 21 3 21 3 15"></polyline>
+            <line x1="21" y1="3" x2="14" y2="10"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+          </svg>`,
+      actions: [{ id: 'toggle-fullscreen', label: 'Toggle Fullscreen' }],
+    },
+    {
+      id: 'metadata',
+      label: 'Source Metadata',
+      icon: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10,9 9,9 8,9"/></svg>`,
+      actions: [{ id: 'metadata', label: 'Source Metadata' }],
+    },
+  ])
+</script>
 
 <div class="workspace-toolbar" style="--accent-color: {accentColor};">
   <div class="toolbar-content">
-    {#if actionItems.length > 0}
-      <!-- Reset Layout button -->
+    {#each toolbarItems as item}
       <WorkspaceToolbarItem
-        id="reset-layout"
-        label={actionItems[0].label}
-        icon={actionItems[0].icon}
+        id={item.id}
+        label={item.label}
+        icon={item.icon}
+        actions={item.actions}
+        disabled={isProcessing}
         onclick={handleItemClick}
       />
-
-      <!-- Add Visualization button with dropdown -->
-      <div bind:this={addVisualizationButton}>
-        <WorkspaceToolbarItem
-          id="add-visualization"
-          label={actionItems[1].label}
-          icon={actionItems[1].icon}
-          onclick={handleItemClick}
-        />
-      </div>
-
-      <!-- Fullscreen toggle button -->
-      <WorkspaceToolbarItem
-        id="toggle-fullscreen"
-        label={actionItems[2].label}
-        icon={actionItems[2].icon}
-        onclick={handleItemClick}
-      />
-
-      <!-- Metadata button -->
-      <WorkspaceToolbarItem
-        id="metadata"
-        label={actionItems[3].label}
-        icon={actionItems[3].icon}
-        onclick={handleItemClick}
-      />
-    {/if}
-  </div>
-</div>
-
-{#if $contextMenuState.visible}
-  <div
-    class="context-menu"
-    style="left: {$contextMenuState.x}px; top: {$contextMenuState.y}px;"
-    transition:fade={{ duration: 100 }}
-  >
-    {#each visualizations as viz}
-      <button
-        class="context-menu-item"
-        onclick={() => handleVisualizationSelect(viz.id)}
-      >
-        {viz.label}
-      </button>
     {/each}
   </div>
-{/if}
+</div>
 
 <style>
   .workspace-toolbar {
@@ -253,43 +161,5 @@
     align-items: center;
     padding: 17px 0;
     gap: 4px;
-  }
-
-  .context-menu {
-    position: fixed;
-    background: white;
-    border-radius: 6px;
-    padding: 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    z-index: 2100;
-    min-width: 160px;
-    max-height: calc(100vh - 100px);
-    overflow-y: auto;
-    pointer-events: auto;
-    isolation: isolate; /* Create a new stacking context */
-    contain: layout; /* Optimize rendering */
-  }
-
-  .context-menu-item {
-    width: 100%;
-    padding: 8px 12px;
-    border: none;
-    background: none;
-    text-align: left;
-    cursor: pointer;
-    border-radius: 4px;
-    color: var(--c-text-dark);
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .context-menu-item:hover {
-    background-color: var(--c-lightgrey);
-  }
-
-  .context-menu-item:active {
-    background-color: var(--c-grey);
   }
 </style>

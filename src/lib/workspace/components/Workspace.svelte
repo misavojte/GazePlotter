@@ -77,6 +77,14 @@
   const temporaryDragHeight = writable<number | null>(null)
   const temporaryDragWidth = writable<number | null>(null)
 
+  // Array of visualization types
+  const visualizations = Object.entries(visualizationRegistry).map(
+    ([id, config]) => ({
+      id,
+      label: config.name,
+    })
+  )
+
   const getWorkspaceScrollX = () => {
     if (workspaceContainer) {
       return workspaceContainer.scrollLeft
@@ -432,10 +440,11 @@
   })
 
   // Handle toolbar actions
-  const handleToolbarAction = (event: { id: string; vizType?: string }) => {
-    const { id, vizType } = event
+  const handleToolbarAction = (event: { id: string }) => {
+    const { id } = event
 
-    if (id === 'add-visualization' && vizType) {
+    if (visualizations.map(viz => viz.id).includes(id)) {
+      const vizType = id
       // Add the new visualization at the first available position
       // instead of automatically placing it below all existing items
       gridStore.addItem(vizType)
@@ -794,15 +803,7 @@
 
 <div class="workspace-wrapper" style={styleProps}>
   <!-- Update toolbar, removing drag-related props -->
-  <WorkspaceToolbar
-    onaction={handleToolbarAction}
-    visualizations={Object.entries(visualizationRegistry).map(
-      ([id, config]) => ({
-        id,
-        label: config.name,
-      })
-    )}
-  />
+  <WorkspaceToolbar onaction={handleToolbarAction} {visualizations} />
 
   <!-- Bind the workspace container and add mouse/touch events for panning -->
   <div
