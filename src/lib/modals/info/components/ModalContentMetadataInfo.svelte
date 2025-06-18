@@ -4,6 +4,7 @@
     fileMetadataStore,
     currentFileInputStore,
   } from '$lib/workspace/stores/fileStore'
+  import { formatDuration } from '$lib/shared/utils/timeUtils'
 
   const fileMetadata = $derived($fileMetadataStore)
   const currentFileInput = $derived($currentFileInputStore)
@@ -17,18 +18,6 @@
     const sizes = ['Bytes', 'KB', 'MB', 'GB']
     const i = Math.floor(Math.log(bytes) / Math.log(k))
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
-
-  /**
-   * Formats duration in milliseconds to human-readable format
-   */
-  function formatDuration(ms: number): string {
-    if (ms < 1000) return `${ms} ms`
-    const seconds = ms / 1000
-    if (seconds < 60) return `${seconds.toFixed(2)} seconds`
-    const minutes = Math.floor(seconds / 60)
-    const remainingSeconds = (seconds % 60).toFixed(0)
-    return `${minutes}m ${remainingSeconds}s`
   }
 
   /**

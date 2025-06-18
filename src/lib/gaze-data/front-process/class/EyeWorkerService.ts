@@ -1,11 +1,12 @@
 import { ModalContentTobiiParsingInput } from '$lib/modals'
 import { modalStore } from '$lib/modals/shared/stores/modalStore'
-import { addErrorToast, addInfoToast } from '$lib/toaster'
+import { addErrorToast, addInfoToast, addSuccessToast } from '$lib/toaster'
 import type { DataType, ParsedData } from '$lib/gaze-data/shared/types'
 import { processJsonFileWithGrid } from '$lib/gaze-data/front-process/utils/jsonParsing'
 import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSettingsType'
 import type { FileMetadataType } from '$lib/workspace/type/fileMetadataType'
 import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace'
+import { formatDuration } from '$lib/shared/utils/timeUtils'
 /**
  * Creates a worker to handle whole eyefiles processing.
  * It is a separate file to avoid blocking the main thread.
@@ -99,14 +100,15 @@ export class EyeWorkerService {
   }
 
   processJsonWorkspace(file: File): void {
-    addInfoToast(
-      'Loading workspace from JSON file. GazePlotter accepts only JSON files exported from its environment'
-    )
-    addInfoToast('Only the first file will be loaded')
     const reader = new FileReader()
     reader.onload = () => {
       try {
         const result = processJsonFileWithGrid(reader.result as string)
+        addSuccessToast(
+          `Workspace loaded successfully in ${formatDuration(
+            Date.now() - this.parsingAnchorTime + this.parsingSumTime
+          )}`
+        )
         this.onData({
           ...result,
           current: {
@@ -151,6 +153,9 @@ export class EyeWorkerService {
       gazePlotterVersion: gazePlotterVersion,
       clientUserAgent: userAgent,
     }
+    const fileOrFilesLabel = this.fileNames.length > 1 ? 'Files' : 'File'
+    const timeString = formatDuration(parseDuration)
+    addSuccessToast(`${fileOrFilesLabel} parsed successfully in ${timeString}`)
     this.onData({
       data: data,
       fileMetadata: fileMetadata,

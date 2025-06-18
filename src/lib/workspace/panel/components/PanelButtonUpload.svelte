@@ -54,7 +54,6 @@
       fileMetadataStore.set(null)
     }
     setData(data.data)
-    addSuccessToast('Data loaded')
     initializeGridStateStore(data.gridItems)
     processingFileStateStore.set('done')
     currentFileInputStore.set(data.current)
