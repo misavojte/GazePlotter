@@ -1,10 +1,16 @@
 <script lang="ts">
   import SectionHeader from '$lib/modals/shared/components/SectionHeader.svelte'
+  import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
   import {
     fileMetadataStore,
     currentFileInputStore,
   } from '$lib/workspace/stores/fileStore'
   import { formatDuration } from '$lib/shared/utils/timeUtils'
+  import {
+    getData,
+    getNumberOfStimuli,
+    getNumberOfParticipants,
+  } from '$lib/gaze-data/front-process/stores/dataStore'
 
   const fileMetadata = $derived($fileMetadataStore)
   const currentFileInput = $derived($currentFileInputStore)
@@ -27,6 +33,123 @@
     return new Date(isoString).toLocaleString()
   }
 
+  /**
+   * Gets the number of AOIs per stimulus and total
+   */
+  function getAoiCounts(): {
+    perStimulus: { stimulusName: string; count: number }[]
+    total: number
+  } {
+    try {
+      const data = getData()
+      const perStimulus: { stimulusName: string; count: number }[] = []
+      let total = 0
+
+      for (let i = 0; i < data.stimuli.data.length; i++) {
+        const stimulusName = data.stimuli.data[i][0]
+        const aoiCount = data.aois.data[i]?.length || 0
+        perStimulus.push({ stimulusName, count: aoiCount })
+        total += aoiCount
+      }
+
+      return { perStimulus, total }
+    } catch (error) {
+      return { perStimulus: [], total: 0 }
+    }
+  }
+
+  /**
+   * Exports metadata as CSV file
+   */
+  function exportMetadata(): void {
+    try {
+      const overview = dataOverview
+      const timestamp = new Date().toISOString()
+
+      // Build CSV content
+      let csvContent = `GazePlotter Metadata Export\nGenerated,${timestamp}\n\n`
+
+      // Data Overview Section
+      csvContent += `Section,Data Overview\n`
+      csvContent += `Metric,Value\n`
+      csvContent += `Number of Stimuli,${overview.numberOfStimuli}\n`
+      csvContent += `Number of Participants,${overview.numberOfParticipants}\n`
+      csvContent += `Total Number of AOIs,${overview.aoiCounts.total}\n\n`
+
+      // AOIs per Stimulus
+      if (overview.aoiCounts.perStimulus.length > 0) {
+        csvContent += `Section,AOIs per Stimulus\n`
+        csvContent += `Stimulus Name,AOI Count\n`
+        for (const stimulus of overview.aoiCounts.perStimulus) {
+          csvContent += `${stimulus.stimulusName},${stimulus.count}\n`
+        }
+        csvContent += `\n`
+      }
+
+      // Current Parsing Info (if different from source)
+      if (currentFileInput !== null && !isSameAsSource) {
+        csvContent += `Section,Current Parsing\n`
+        csvContent += `Metric,Value\n`
+        csvContent += `Files Being Processed,${currentFileInput.fileNames.length}\n`
+        csvContent += `Total File Size,${formatFileSize(currentFileInput.fileSizes.reduce((sum: number, size: number) => sum + size, 0))}\n`
+        csvContent += `Parse Date,${formatDate(currentFileInput.parseDate)}\n\n`
+
+        csvContent += `Section,Current Parsing Files\n`
+        csvContent += `File Name,File Size (bytes)\n`
+        for (let i = 0; i < currentFileInput.fileNames.length; i++) {
+          csvContent += `${currentFileInput.fileNames[i]},${currentFileInput.fileSizes[i]}\n`
+        }
+        csvContent += `\n`
+      }
+
+      // Source Parsing Info
+      if (fileMetadata !== null) {
+        csvContent += `Section,Source Parsing\n`
+        csvContent += `Metric,Value\n`
+        csvContent += `Files Processed,${fileMetadata.fileNames.length}\n`
+        csvContent += `Total File Size,${formatFileSize(totalFileSize)}\n`
+        csvContent += `Parse Duration,${formatDuration(fileMetadata.parseDuration)}\n`
+        csvContent += `Parse Date,${formatDate(fileMetadata.parseDate)}\n`
+        csvContent += `GazePlotter Version,${fileMetadata.gazePlotterVersion}\n`
+        csvContent += `Client,"${fileMetadata.clientUserAgent}"\n\n`
+
+        csvContent += `Section,Source Parsing Files\n`
+        csvContent += `File Name,File Size (bytes)\n`
+        for (let i = 0; i < fileMetadata.fileNames.length; i++) {
+          csvContent += `${fileMetadata.fileNames[i]},${fileMetadata.fileSizes[i]}\n`
+        }
+        csvContent += `\n`
+
+        // Parse Settings
+        csvContent += `Section,Parse Settings\n`
+        csvContent += `Setting,Value\n`
+        csvContent += `Type,${fileMetadata.parseSettings.type}\n`
+        csvContent += `Row Delimiter,"${JSON.stringify(fileMetadata.parseSettings.rowDelimiter)}"\n`
+        csvContent += `Column Delimiter,"${JSON.stringify(fileMetadata.parseSettings.columnDelimiter)}"\n`
+        if ('userInputSetting' in fileMetadata.parseSettings) {
+          csvContent += `User Input Setting,${fileMetadata.parseSettings.userInputSetting || '(empty)'}\n`
+        }
+      } else {
+        csvContent += `Section,Source Parsing\n`
+        csvContent += `Note,This data was parsed before GazePlotter version 1.7.0 and original parsing metadata is not available.\n\n`
+      }
+
+      // Create and trigger download
+      const blob = new Blob([csvContent], { type: 'text/csv' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `GazePlotter_Metadata_${new Date().toISOString().split('T')[0]}.csv`
+      link.style.opacity = '0'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error exporting metadata:', error)
+    }
+  }
+
   const totalFileSize = $derived(
     fileMetadata?.fileSizes.reduce(
       (sum: number, size: number) => sum + size,
@@ -44,9 +167,69 @@
         JSON.stringify(fileMetadata.fileSizes) &&
       currentFileInput.parseDate === fileMetadata.parseDate
   )
+
+  // Data overview calculations
+  const dataOverview = $derived.by(() => {
+    try {
+      const numberOfStimuli = getNumberOfStimuli()
+      const numberOfParticipants = getNumberOfParticipants()
+      const aoiCounts = getAoiCounts()
+
+      return {
+        numberOfStimuli,
+        numberOfParticipants,
+        aoiCounts,
+      }
+    } catch (error) {
+      return {
+        numberOfStimuli: 0,
+        numberOfParticipants: 0,
+        aoiCounts: { perStimulus: [], total: 0 },
+      }
+    }
+  })
 </script>
 
 <div class="container">
+  <!-- Data overview section -->
+  <section class="section">
+    <SectionHeader text="Data overview" />
+    <div class="content">
+      <div class="info-group">
+        <div class="info-item">
+          <span class="label">Number of stimuli:</span>
+          <span class="value">{dataOverview.numberOfStimuli}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Number of participants:</span>
+          <span class="value">{dataOverview.numberOfParticipants}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Total number of AOIs:</span>
+          <span class="value">{dataOverview.aoiCounts.total}</span>
+        </div>
+      </div>
+
+      {#if dataOverview.aoiCounts.perStimulus.length > 0}
+        <div class="info-group">
+          <div class="info-item">
+            <span class="label">AOIs per stimulus:</span>
+          </div>
+          <div class="aoi-list">
+            {#each dataOverview.aoiCounts.perStimulus as stimulus}
+              <div class="aoi-item">
+                <span class="stimulus-name">{stimulus.stimulusName}</span>
+                <span class="aoi-count"
+                  >{stimulus.count} AOI{stimulus.count !== 1 ? 's' : ''}</span
+                >
+              </div>
+            {/each}
+          </div>
+        </div>
+      {/if}
+    </div>
+  </section>
+
   <!-- Current parsing section -->
   {#if currentFileInput !== null && !isSameAsSource}
     <section class="section">
@@ -199,6 +382,15 @@
       {/if}
     </div>
   </section>
+
+  <!-- Export button section -->
+  <section class="section">
+    <div class="export-button-container">
+      <GeneralButtonMajor onclick={exportMetadata}>
+        Export Metadata
+      </GeneralButtonMajor>
+    </div>
+  </section>
 </div>
 
 <style>
@@ -322,5 +514,36 @@
   .delimiter-value {
     font-family: 'Courier New', monospace;
     font-size: 0.85rem;
+  }
+
+  .aoi-list {
+    margin-left: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .aoi-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .stimulus-name {
+    color: #374151;
+    font-weight: 500;
+  }
+
+  .aoi-count {
+    color: #6b7280;
+    font-size: 0.85rem;
+  }
+
+  .export-button-container {
+    display: flex;
+    justify-content: flex-start;
+    padding: 0.5rem 0;
   }
 </style>
