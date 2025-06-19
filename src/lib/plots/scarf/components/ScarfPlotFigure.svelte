@@ -6,14 +6,12 @@
     calculateLabelOffset,
     truncateTextToPixelWidth,
   } from '$lib/shared/utils/textUtils'
-  import { draggable } from '$lib/shared/actions/draggable'
   import { onMount, onDestroy, untrack } from 'svelte'
   import { browser } from '$app/environment'
   import {
     SCARF_LAYOUT,
     getItemsPerRow,
     getXAxisLabel,
-    getTimelineUnit,
   } from '$lib/plots/scarf/utils/scarfServices'
   import {
     createCanvasState,

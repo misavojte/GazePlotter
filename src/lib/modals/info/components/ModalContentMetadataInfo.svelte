@@ -1,6 +1,6 @@
 <script lang="ts">
   import SectionHeader from '$lib/modals/shared/components/SectionHeader.svelte'
-  import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
+  import ModalButtons from '$lib/modals/shared/components/ModalButtons.svelte'
   import {
     fileMetadataStore,
     currentFileInputStore,
@@ -384,13 +384,14 @@
   </section>
 
   <!-- Export button section -->
-  <section class="section">
-    <div class="export-button-container">
-      <GeneralButtonMajor onclick={exportMetadata}>
-        Export Metadata
-      </GeneralButtonMajor>
-    </div>
-  </section>
+  <ModalButtons
+    buttons={[
+      {
+        label: 'Export Metadata',
+        onclick: exportMetadata,
+      },
+    ]}
+  />
 </div>
 
 <style>
@@ -539,11 +540,5 @@
   .aoi-count {
     color: #6b7280;
     font-size: 0.85rem;
-  }
-
-  .export-button-container {
-    display: flex;
-    justify-content: flex-start;
-    padding: 0.5rem 0;
   }
 </style>

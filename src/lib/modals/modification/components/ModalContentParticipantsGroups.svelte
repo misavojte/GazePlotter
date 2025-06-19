@@ -7,10 +7,10 @@
   import { addSuccessToast } from '$lib/toaster'
   import type { ParticipantsGroup } from '$lib/gaze-data/shared/types/index'
   import {
-    GeneralButtonMajor,
     GeneralButtonMinor,
     GeneralButtonPreset,
   } from '$lib/shared/components'
+  import { ModalButtons } from '$lib/modals'
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
   import GeneralInputText from '$lib/shared/components/GeneralInputText.svelte'
   import Bin from 'lucide-svelte/icons/trash'
@@ -381,15 +381,24 @@
   </div>
 {/if}
 
-<div class="footer">
-  <GeneralButtonMajor onclick={() => addGroup()}>Add group</GeneralButtonMajor>
-  <GeneralButtonMajor onclick={discardChanges} isDisabled={!hasChanged}
-    >Discard Changes</GeneralButtonMajor
-  >
-  <GeneralButtonMajor isDisabled={!hasChanged} onclick={handleSubmit}>
-    Save
-  </GeneralButtonMajor>
-</div>
+<ModalButtons
+  buttons={[
+    {
+      label: 'Add group',
+      onclick: addGroup,
+    },
+    {
+      label: 'Discard Changes',
+      onclick: discardChanges,
+      isDisabled: !hasChanged,
+    },
+    {
+      label: 'Save',
+      onclick: handleSubmit,
+      isDisabled: !hasChanged,
+    },
+  ]}
+/>
 
 <style>
   .select-wrapper {
@@ -483,12 +492,6 @@
     margin: 0;
     padding: 0.5rem;
     width: 100%;
-  }
-
-  .footer {
-    margin-top: 2rem;
-    display: flex;
-    gap: 0.5rem;
   }
 
   .search-filter {

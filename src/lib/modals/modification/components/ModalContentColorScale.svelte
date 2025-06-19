@@ -1,9 +1,8 @@
 <script lang="ts">
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
-  import { GeneralButtonMajor, GeneralInputColor } from '$lib/shared/components'
+  import { GeneralInputColor } from '$lib/shared/components'
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
-  import { SectionHeader } from '$lib/modals'
+  import { SectionHeader, ModalButtons, modalStore } from '$lib/modals'
 
   interface Props {
     settings: TransitionMatrixGridType
@@ -188,10 +187,18 @@
     </div>
   </div>
 
-  <div class="button-container">
-    <GeneralButtonMajor onclick={handleCancel}>Cancel</GeneralButtonMajor>
-    <GeneralButtonMajor onclick={handleConfirm}>Apply</GeneralButtonMajor>
-  </div>
+  <ModalButtons
+    buttons={[
+      {
+        label: 'Apply',
+        onclick: handleConfirm,
+      },
+      {
+        label: 'Cancel',
+        onclick: handleCancel,
+      },
+    ]}
+  />
 </div>
 
 <style>
@@ -273,10 +280,5 @@
   .preset-description {
     font-size: 0.8rem;
     color: #666;
-  }
-
-  .button-container {
-    display: flex;
-    gap: 0.5rem;
   }
 </style>

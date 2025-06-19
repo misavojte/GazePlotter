@@ -1,8 +1,5 @@
 <script lang="ts">
-  import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
-  import GeneralButtonPreset from '$lib/shared/components/GeneralButtonPreset.svelte'
-  import GeneralInputText from '$lib/shared/components/GeneralInputText.svelte'
-  import { SortableTableHeader, SectionHeader } from '$lib/modals'
+  import { SortableTableHeader, SectionHeader, ModalButtons } from '$lib/modals'
   import {
     getStimuli,
     updateMultipleStimuli,
@@ -210,7 +207,14 @@
       {/each}
     </tbody>
   </table>
-  <GeneralButtonMajor onclick={handleSubmit}>Apply</GeneralButtonMajor>
+  <ModalButtons
+    buttons={[
+      {
+        label: 'Apply',
+        onclick: handleSubmit,
+      },
+    ]}
+  />
 {/if}
 
 <style>

@@ -1,10 +1,5 @@
 <script lang="ts">
-  import {
-    GeneralButtonMajor,
-    GeneralButtonPreset,
-    GeneralInputText,
-  } from '$lib/shared/components'
-  import { SortableTableHeader, SectionHeader } from '$lib/modals'
+  import { SortableTableHeader, SectionHeader, ModalButtons } from '$lib/modals'
   import {
     getAllParticipants,
     updateMultipleParticipants,
@@ -209,7 +204,14 @@
       {/each}
     </tbody>
   </table>
-  <GeneralButtonMajor onclick={handleSubmit}>Apply</GeneralButtonMajor>
+  <ModalButtons
+    buttons={[
+      {
+        label: 'Apply',
+        onclick: handleSubmit,
+      },
+    ]}
+  />
 {/if}
 
 <style>

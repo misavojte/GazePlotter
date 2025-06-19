@@ -155,7 +155,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 0.5rem;
+    margin-top: 1.5rem;
     margin-bottom: 1.5rem;
   }
 </style>

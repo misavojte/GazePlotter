@@ -2,8 +2,8 @@
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import GeneralSelectBase from '$lib/shared/components/GeneralSelect.svelte'
   import GeneralInfoCallout from '$lib/shared/components/GeneralInfoCallout.svelte'
-  import { GeneralInputColor, GeneralButtonMajor } from '$lib/shared/components'
-  import { SortableTableHeader, SectionHeader } from '$lib/modals'
+  import { GeneralInputColor } from '$lib/shared/components'
+  import { SortableTableHeader, SectionHeader, ModalButtons } from '$lib/modals'
   import {
     getAllAois,
     updateMultipleAoi,
@@ -342,7 +342,14 @@
       bind:userSelected
     />
   </div>
-  <GeneralButtonMajor onclick={handleSubmit}>Apply</GeneralButtonMajor>
+  <ModalButtons
+    buttons={[
+      {
+        label: 'Apply',
+        onclick: handleSubmit,
+      },
+    ]}
+  />
 {/if}
 
 <style>

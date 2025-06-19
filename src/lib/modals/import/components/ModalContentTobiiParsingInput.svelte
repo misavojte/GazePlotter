@@ -1,6 +1,6 @@
 <script lang="ts">
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
-  import { GeneralButtonMajor } from '$lib/shared/components'
+  import { ModalButtons } from '$lib/modals'
   import { onDestroy } from 'svelte'
   interface Props {
     valuePromiseResolve: (value: string) => void
@@ -36,14 +36,17 @@
     bind:userSelected={value}
   />
 </div>
-<GeneralButtonMajor
-  onclick={() => {
-    console.log('value', value)
-    valuePromiseResolve(value)
-  }}
->
-  Apply
-</GeneralButtonMajor>
+<ModalButtons
+  buttons={[
+    {
+      label: 'Apply',
+      onclick: () => {
+        console.log('value', value)
+        valuePromiseResolve(value)
+      },
+    },
+  ]}
+/>
 
 <style>
   .content {

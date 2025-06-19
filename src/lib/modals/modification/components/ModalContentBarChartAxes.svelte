@@ -1,9 +1,7 @@
 <script lang="ts">
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
-  import {
-    GeneralButtonMajor,
-    GeneralInputNumber,
-  } from '$lib/shared/components'
+  import { GeneralInputNumber } from '$lib/shared/components'
+  import { ModalButtons } from '$lib/modals'
   import type { BarPlotGridType } from '$lib/workspace/type/gridType'
   import GeneralFieldset from '$lib/shared/components/GeneralFieldset.svelte'
 
@@ -90,9 +88,14 @@
     >
   </div>
 
-  <div class="buttons-container">
-    <GeneralButtonMajor onclick={handleSubmit}>Apply</GeneralButtonMajor>
-  </div>
+  <ModalButtons
+    buttons={[
+      {
+        label: 'Apply',
+        onclick: handleSubmit,
+      },
+    ]}
+  />
 </div>
 
 <style>
@@ -127,11 +130,5 @@
     font-size: 12px;
     color: #666;
     margin-top: 4px;
-  }
-
-  .buttons-container {
-    margin-top: 16px;
-    display: flex;
-    justify-content: flex-end;
   }
 </style>

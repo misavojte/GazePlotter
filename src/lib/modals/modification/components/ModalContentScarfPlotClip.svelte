@@ -1,9 +1,9 @@
 <script lang="ts">
   import { getStimuliOrderVector } from '$lib/gaze-data/front-process/stores/dataStore'
-  import MajorButton from '$lib/shared/components/GeneralButtonMajor.svelte'
   import GeneralFieldset from '$lib/shared/components/GeneralFieldset.svelte'
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import GeneralInputNumber from '$lib/shared/components/GeneralInputNumber.svelte'
+  import { ModalButtons } from '$lib/modals'
   import { addSuccessToast } from '$lib/toaster'
   import { modalStore } from '$lib/modals/shared/stores/modalStore.js'
 
@@ -168,4 +168,11 @@
     onchange={handleOrdinalTimelineApplyChange}
   />
 </GeneralFieldset>
-<MajorButton onclick={handleSubmit}>Apply</MajorButton>
+<ModalButtons
+  buttons={[
+    {
+      label: 'Apply',
+      onclick: handleSubmit,
+    },
+  ]}
+/>

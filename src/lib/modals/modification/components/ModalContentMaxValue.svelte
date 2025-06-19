@@ -1,15 +1,11 @@
 <script lang="ts">
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
-  import {
-    GeneralInputNumber,
-    GeneralInputColor,
-    GeneralButtonMajor,
-  } from '$lib/shared/components'
+  import { GeneralInputNumber, GeneralInputColor } from '$lib/shared/components'
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import { getStimuliOrderVector } from '$lib/gaze-data/front-process/stores/dataStore'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
   import GeneralInfoCallout from '$lib/shared/components/GeneralInfoCallout.svelte'
-  import { SectionHeader } from '$lib/modals'
+  import { SectionHeader, ModalButtons } from '$lib/modals'
   interface Props {
     settings: TransitionMatrixGridType
     settingsChange: (newSettings: Partial<TransitionMatrixGridType>) => void
@@ -248,10 +244,18 @@
     </div>
   </div>
 
-  <div class="button-container">
-    <GeneralButtonMajor onclick={handleCancel}>Cancel</GeneralButtonMajor>
-    <GeneralButtonMajor onclick={handleConfirm}>Apply</GeneralButtonMajor>
-  </div>
+  <ModalButtons
+    buttons={[
+      {
+        label: 'Cancel',
+        onclick: handleCancel,
+      },
+      {
+        label: 'Apply',
+        onclick: handleConfirm,
+      },
+    ]}
+  />
 </div>
 
 <style>
@@ -345,12 +349,6 @@
 
   .radio-container {
     margin-top: 0.5rem;
-  }
-
-  .button-container {
-    display: flex;
-    margin-top: 1rem;
-    gap: 0.5rem;
   }
 
   /* Media query for smaller screens */

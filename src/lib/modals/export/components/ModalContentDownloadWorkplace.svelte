@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { GeneralButtonMajor, GeneralInputText } from '$lib/shared/components'
+  import { GeneralInputText } from '$lib/shared/components'
   import GeneralSelect from '$lib/shared/components/GeneralSelect.svelte'
   import GeneralInfoCallout from '$lib/shared/components/GeneralInfoCallout.svelte'
-  import SectionHeader from '$lib/modals/shared/components/SectionHeader.svelte'
+  import { SectionHeader, ModalButtons } from '$lib/modals'
   import { WorkplaceDownloader } from '$lib/modals/export/class/WorkplaceDownloader.js'
   import { ScanGraphDownloader } from '$lib/modals/export/class/ScanGraphDownloader'
   import { getData } from '$lib/gaze-data/front-process/stores/dataStore.js'
@@ -113,9 +113,14 @@
           />
         {/if}
       </div>
-      <div class="button-container">
-        <GeneralButtonMajor onclick={handleSubmit}>Download</GeneralButtonMajor>
-      </div>
+      <ModalButtons
+        buttons={[
+          {
+            label: 'Download',
+            onclick: handleSubmit,
+          },
+        ]}
+      />
     </div>
   </section>
 </div>
@@ -146,9 +151,5 @@
     flex-direction: row;
     flex-wrap: wrap;
     gap: 1rem;
-  }
-
-  .button-container {
-    margin-top: 0.5rem;
   }
 </style>
