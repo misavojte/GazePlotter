@@ -2,7 +2,7 @@
   import ChevronDown from 'lucide-svelte/icons/chevron-down'
 
   interface Props {
-    options: Array<{ value: string; label: string }>
+    options: readonly { value: string; label: string }[]
     disabled?: boolean
     label: string
     value?: string

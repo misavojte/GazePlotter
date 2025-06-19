@@ -24,6 +24,8 @@
   } from '$lib/shared/utils/gridSizingUtils'
   import { throttleByRaf } from '$lib/shared/utils/throttle'
   import { addSuccessToast } from '$lib/toaster'
+  import { ModalContentMetadataInfo } from '$lib/modals'
+  import { modalStore } from '$lib/modals/shared/stores/modalStore'
 
   interface Props {
     onReinitialize: () => void
@@ -74,6 +76,14 @@
   // Store to track temporary height adjustment during drag operations
   const temporaryDragHeight = writable<number | null>(null)
   const temporaryDragWidth = writable<number | null>(null)
+
+  // Array of visualization types
+  const visualizations = Object.entries(visualizationRegistry).map(
+    ([id, config]) => ({
+      id,
+      label: config.name,
+    })
+  )
 
   const getWorkspaceScrollX = () => {
     if (workspaceContainer) {
@@ -430,10 +440,11 @@
   })
 
   // Handle toolbar actions
-  const handleToolbarAction = (event: { id: string; vizType?: string }) => {
-    const { id, vizType } = event
+  const handleToolbarAction = (event: { id: string }) => {
+    const { id } = event
 
-    if (id === 'add-visualization' && vizType) {
+    if (visualizations.map(viz => viz.id).includes(id)) {
+      const vizType = id
       // Add the new visualization at the first available position
       // instead of automatically placing it below all existing items
       gridStore.addItem(vizType)
@@ -446,6 +457,13 @@
     } else if (id === 'reset-layout') {
       // Reset the workspace to the default grid state
       onResetLayout()
+    } else if (id === 'metadata') {
+      // Open the metadata info modal
+      modalStore.open(
+        ModalContentMetadataInfo as any,
+        'Metadata Information',
+        {}
+      )
     }
   }
 
@@ -785,15 +803,7 @@
 
 <div class="workspace-wrapper" style={styleProps}>
   <!-- Update toolbar, removing drag-related props -->
-  <WorkspaceToolbar
-    onaction={handleToolbarAction}
-    visualizations={Object.entries(visualizationRegistry).map(
-      ([id, config]) => ({
-        id,
-        label: config.name,
-      })
-    )}
-  />
+  <WorkspaceToolbar onaction={handleToolbarAction} {visualizations} />
 
   <!-- Bind the workspace container and add mouse/touch events for panning -->
   <div

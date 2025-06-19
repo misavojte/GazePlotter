@@ -7,3 +7,6 @@ export * from './export'
 
 // Modification Modals
 export * from './modification'
+
+// Info Modals
+export * from './info'

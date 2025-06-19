@@ -60,17 +60,23 @@
     transition: all 0.2s ease;
   }
 
+  /* Disabled state - applies to all variants */
+  button:disabled,
+  a:disabled {
+    background-color: #f5f5f5 !important;
+    color: #a0a0a0 !important;
+    border: 1px solid #e0e0e0 !important;
+    opacity: 0.6 !important;
+    cursor: not-allowed;
+  }
+
   /* Primary variant */
   .primary {
     background-color: var(--c-brand);
     color: white;
   }
-  .primary:hover {
+  .primary:hover:not(:disabled) {
     background-color: var(--c-brand-dark);
-  }
-  .primary:disabled {
-    background-color: var(--c-midgrey);
-    cursor: not-allowed;
   }
 
   /* Secondary variant */
@@ -78,13 +84,8 @@
     background-color: var(--c-lightgrey);
     color: var(--c-black);
   }
-  .secondary:hover {
+  .secondary:hover:not(:disabled) {
     background-color: var(--c-grey);
-  }
-  .secondary:disabled {
-    color: var(--c-midgrey);
-    background-color: var(--c-lightgrey);
-    cursor: not-allowed;
   }
 
   /* Info variant */
@@ -93,13 +94,9 @@
     color: rgba(0, 127, 255, 0.9);
     border: 1px solid rgba(0, 127, 255, 0.3);
   }
-  .info:hover {
+  .info:hover:not(:disabled) {
     background-color: rgba(0, 127, 255, 0.15);
     border-color: rgba(0, 127, 255, 0.4);
-  }
-  .info:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
   }
 
   /* Sizes */

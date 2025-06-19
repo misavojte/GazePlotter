@@ -1,10 +1,11 @@
 <script lang="ts">
   import {
-    GeneralButtonMajor,
-    GeneralButtonPreset,
-    GeneralInputText,
-  } from '$lib/shared/components'
-  import { SortableTableHeader, SectionHeader } from '$lib/modals'
+    SortableTableHeader,
+    SectionHeader,
+    ModalButtons,
+    IntroductoryParagraph,
+  } from '$lib/modals'
+  import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import {
     getAllParticipants,
     updateMultipleParticipants,
@@ -106,6 +107,10 @@
     }
   }
 
+  const handleCancel = () => {
+    modalStore.close()
+  }
+
   // Natural sort function for alphanumeric strings
   const naturalSort = (a: string, b: string): number => {
     const aParts = a.match(/(\d+|\D+)/g) || []
@@ -143,6 +148,13 @@
     })
   }
 </script>
+
+<IntroductoryParagraph
+  maxWidth="400px"
+  paragraphs={[
+    'Modify participant display names and order. Use pattern renaming to efficiently update multiple participants at once.',
+  ]}
+/>
 
 <div class="content">
   <PatternRenamingTool
@@ -209,7 +221,19 @@
       {/each}
     </tbody>
   </table>
-  <GeneralButtonMajor onclick={handleSubmit}>Apply</GeneralButtonMajor>
+  <ModalButtons
+    buttons={[
+      {
+        label: 'Apply',
+        onclick: handleSubmit,
+        variant: 'primary',
+      },
+      {
+        label: 'Cancel',
+        onclick: handleCancel,
+      },
+    ]}
+  />
 {/if}
 
 <style>

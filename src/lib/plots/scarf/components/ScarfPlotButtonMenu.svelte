@@ -17,6 +17,7 @@
     ModalContentAoiVisibility,
     ModalContentDownloadScarfPlot,
     ModalContentParticipantsGroups,
+    ModalContentExportSegmentedData,
   } from '$lib/modals'
 
   interface Props {
@@ -100,6 +101,16 @@
     )
   }
 
+  const openExportSegmentedDataModal = () => {
+    modalStore.open(
+      ModalContentExportSegmentedData as unknown as typeof SvelteComponent,
+      'Export segmented data',
+      {
+        settings,
+      }
+    )
+  }
+
   let items = $derived([
     {
       label: 'AOI customization',
@@ -130,6 +141,11 @@
       label: 'Clip timeline',
       action: openClipModal,
       icon: Scissors,
+    },
+    {
+      label: 'Export segmented data',
+      action: openExportSegmentedDataModal,
+      icon: Download,
     },
     {
       label: 'Download plot',

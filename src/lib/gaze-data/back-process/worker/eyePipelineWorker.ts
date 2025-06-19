@@ -1,4 +1,5 @@
 import { EyePipeline } from '$lib/gaze-data/back-process'
+import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSettingsType'
 
 /**
  * A worker file handling whole eyefiles processing.
@@ -28,7 +29,6 @@ const requestUserInput = (): Promise<string> => {
     userInputResolver = resolve
   })
 }
-
 self.onmessage = async e => await processEvent(e)
 
 async function processEvent(e: MessageEvent): Promise<void> {
@@ -90,10 +90,13 @@ const evalStream = async (rs: ReadableStream): Promise<void> => {
   // if have everything, process
   if (streams.length === fileNames.length) {
     for (const stream of streams) {
-      const data = await pipeline.addNewStream(stream)
-      if (data !== null) {
-        console.log('Done', data)
-        self.postMessage({ type: 'done', data })
+      const dataWithSettings = await pipeline.addNewStream(stream)
+      if (dataWithSettings !== null) {
+        self.postMessage({
+          type: 'done',
+          data: dataWithSettings.data,
+          classified: dataWithSettings.settings,
+        })
         streams = []
         fileNames = []
       }

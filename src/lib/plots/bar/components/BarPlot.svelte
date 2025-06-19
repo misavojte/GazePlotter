@@ -15,8 +15,10 @@
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
   import { getParticipantsGroups } from '$lib/gaze-data/front-process/stores/dataStore'
 
-  // Types
+  // Types and constants
   import type { BarPlotGridType } from '$lib/workspace/type/gridType'
+  import type { BarPlotAggregationMethodId } from '$lib/plots/bar/const'
+  import { BAR_PLOT_AGGREGATION_METHODS } from '$lib/plots/bar/const'
 
   // CONSTANTS - centralized for easier maintenance
   const LAYOUT = {
@@ -66,13 +68,7 @@
   }
 
   function handleAggregationMethodChange(event: CustomEvent) {
-    const newAggregationMethod = event.detail as
-      | 'absoluteTime'
-      | 'relativeTime'
-      | 'timeToFirstFixation'
-      | 'avgFixationDuration'
-      | 'avgFirstFixationDuration'
-      | 'averageFixationCount'
+    const newAggregationMethod = event.detail as BarPlotAggregationMethodId
     settingsChange({
       aggregationMethod: newAggregationMethod,
     })
@@ -137,20 +133,7 @@
       />
       <GeneralSelect
         label="Aggregation"
-        options={[
-          { value: 'absoluteTime', label: 'Absolute Time' },
-          { value: 'relativeTime', label: 'Relative Time' },
-          { value: 'timeToFirstFixation', label: 'Time to First Fixation' },
-          { value: 'avgFixationDuration', label: 'Avg Fixation Duration' },
-          {
-            value: 'avgFirstFixationDuration',
-            label: 'Avg First Fixation Duration',
-          },
-          {
-            value: 'averageFixationCount',
-            label: 'Avg Fixation Count',
-          },
-        ]}
+        options={BAR_PLOT_AGGREGATION_METHODS}
         compact
         value={settings.aggregationMethod}
         onchange={handleAggregationMethodChange}

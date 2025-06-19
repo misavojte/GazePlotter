@@ -1,15 +1,15 @@
 <script lang="ts">
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
-  import {
-    GeneralInputNumber,
-    GeneralInputColor,
-    GeneralButtonMajor,
-  } from '$lib/shared/components'
+  import { GeneralInputNumber, GeneralInputColor } from '$lib/shared/components'
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import { getStimuliOrderVector } from '$lib/gaze-data/front-process/stores/dataStore'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
-  import GeneralInfoCallout from '$lib/shared/components/GeneralInfoCallout.svelte'
-  import { SectionHeader } from '$lib/modals'
+  import {
+    SectionHeader,
+    ModalButtons,
+    IntroductoryParagraph,
+  } from '$lib/modals'
+
   interface Props {
     settings: TransitionMatrixGridType
     settingsChange: (newSettings: Partial<TransitionMatrixGridType>) => void
@@ -136,15 +136,12 @@
 </script>
 
 <div class="value-range-modal">
-  <div class="description">
-    <GeneralInfoCallout
-      title="Color Scale Cropping"
-      paragraphs={[
-        'Set the minimum and maximum values for the color scale.',
-        'Setting consistent values across multiple matrices makes them directly comparable.',
-      ]}
-    />
-  </div>
+  <IntroductoryParagraph
+    maxWidth="550px"
+    paragraphs={[
+      'Set the minimum and maximum values for the color scale. Setting consistent values across multiple matrices makes them directly comparable.',
+    ]}
+  />
 
   <div class="input-container">
     <SectionHeader text="Range Values" />
@@ -248,20 +245,25 @@
     </div>
   </div>
 
-  <div class="button-container">
-    <GeneralButtonMajor onclick={handleCancel}>Cancel</GeneralButtonMajor>
-    <GeneralButtonMajor onclick={handleConfirm}>Apply</GeneralButtonMajor>
-  </div>
+  <ModalButtons
+    buttons={[
+      {
+        label: 'Apply',
+        onclick: handleConfirm,
+        variant: 'primary',
+      },
+      {
+        label: 'Cancel',
+        onclick: handleCancel,
+      },
+    ]}
+  />
 </div>
 
 <style>
   .value-range-modal {
     padding: 1rem;
     max-width: 520px;
-  }
-
-  .description {
-    margin-bottom: 1.5rem;
   }
 
   .input-container {
@@ -345,12 +347,6 @@
 
   .radio-container {
     margin-top: 0.5rem;
-  }
-
-  .button-container {
-    display: flex;
-    margin-top: 1rem;
-    gap: 0.5rem;
   }
 
   /* Media query for smaller screens */

@@ -513,6 +513,18 @@ export const getParticipants = (
   )
 }
 
+export const getParticipantsIds = (groupId = -1, stimulusId = 0): number[] => {
+  if (groupId === -1) {
+    return getParticipantOrderVector()
+  }
+  if (groupId === -2) {
+    return getNonEmptyParticipants(stimulusId).map(
+      participant => participant.id
+    )
+  }
+  return getParticipantsGroup(groupId).participantsIds
+}
+
 export const getAllParticipants = (): BaseInterpretedDataType[] => {
   const participantsIds = getParticipantOrderVector()
   return participantsIds.map((participantId: number) =>

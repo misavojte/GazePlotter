@@ -1,9 +1,9 @@
 <script lang="ts">
   import { getStimuliOrderVector } from '$lib/gaze-data/front-process/stores/dataStore'
-  import MajorButton from '$lib/shared/components/GeneralButtonMajor.svelte'
   import GeneralFieldset from '$lib/shared/components/GeneralFieldset.svelte'
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import GeneralInputNumber from '$lib/shared/components/GeneralInputNumber.svelte'
+  import { ModalButtons, IntroductoryParagraph } from '$lib/modals'
   import { addSuccessToast } from '$lib/toaster'
   import { modalStore } from '$lib/modals/shared/stores/modalStore.js'
 
@@ -124,7 +124,18 @@
     // Close the modal after applying changes
     modalStore.close()
   }
+
+  const handleCancel = () => {
+    modalStore.close()
+  }
 </script>
+
+<IntroductoryParagraph
+  maxWidth="400px"
+  paragraphs={[
+    'Set custom time ranges for scarf plot visualization. Clip the timeline to focus on specific intervals for better analysis.',
+  ]}
+/>
 
 <GeneralFieldset legend="Absolute timeline [ms]">
   <GeneralInputNumber
@@ -168,4 +179,16 @@
     onchange={handleOrdinalTimelineApplyChange}
   />
 </GeneralFieldset>
-<MajorButton onclick={handleSubmit}>Apply</MajorButton>
+<ModalButtons
+  buttons={[
+    {
+      label: 'Apply',
+      onclick: handleSubmit,
+      variant: 'primary',
+    },
+    {
+      label: 'Cancel',
+      onclick: handleCancel,
+    },
+  ]}
+/>

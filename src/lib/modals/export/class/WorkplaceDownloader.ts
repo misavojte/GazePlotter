@@ -1,18 +1,27 @@
 import { AbstractDownloader } from './AbstractDownloader'
-import type { DataType } from '$lib/gaze-data/shared/types'
+import type { DataType, JsonImportNewFormat } from '$lib/gaze-data/shared/types'
 import { convertDataStructure } from '$lib/shared/utils/convertDataStructure'
 import { gridStore } from '$lib/workspace/stores/gridStore'
 import { get } from 'svelte/store'
 import JSZip from 'jszip'
+import { fileMetadataStore } from '$lib/workspace/stores/fileStore'
 
 export class WorkplaceDownloader extends AbstractDownloader {
   download(data: DataType, fileName: string): void {
     // add to the data the grid items
-    const dataWithGridItems = {
-      version: 2,
-      data,
-      gridItems: get(gridStore),
-    }
+    const fileMetadata = get(fileMetadataStore)
+    const dataWithGridItems: JsonImportNewFormat = fileMetadata
+      ? {
+          version: 3,
+          data,
+          gridItems: get(gridStore),
+          fileMetadata,
+        }
+      : {
+          version: 2,
+          data,
+          gridItems: get(gridStore),
+        }
     const json = JSON.stringify(dataWithGridItems)
     const content = URL.createObjectURL(
       new Blob([json], { type: 'application/json' })

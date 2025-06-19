@@ -1,9 +1,13 @@
 <script lang="ts">
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
-  import { GeneralButtonMajor, GeneralInputColor } from '$lib/shared/components'
+  import { GeneralInputColor } from '$lib/shared/components'
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
-  import { SectionHeader } from '$lib/modals'
+  import {
+    SectionHeader,
+    ModalButtons,
+    modalStore,
+    IntroductoryParagraph,
+  } from '$lib/modals'
 
   interface Props {
     settings: TransitionMatrixGridType
@@ -111,14 +115,14 @@
 </script>
 
 <div class="color-scale-modal">
-  <div class="description">
-    <p>
-      Customize the color scale for visualization. The colors define how
-      different transition values are displayed in the matrix.
-    </p>
-  </div>
+  <IntroductoryParagraph
+    maxWidth="400px"
+    paragraphs={[
+      'Customize the color scale for visualization. The colors define how different transition values are displayed in the matrix.',
+    ]}
+  />
 
-  <div class="input-container">
+  <section class="section">
     <SectionHeader text="Gradient Type" />
     <GeneralRadio
       options={colorPointOptions}
@@ -126,7 +130,9 @@
       onchange={handleGradientTypeChange}
       legend="Color Points"
     />
+  </section>
 
+  <section class="section">
     <SectionHeader text="Color Selection" />
     <div class="color-inputs">
       <div class="color-input">
@@ -165,7 +171,9 @@
       <div class="preview-label">Preview:</div>
       <div class="gradient-preview" style:background={gradientStyle}></div>
     </div>
+  </section>
 
+  <section class="section">
     <SectionHeader text="Presets" />
     <div class="presets-container">
       {#each presets as preset}
@@ -186,12 +194,21 @@
         </button>
       {/each}
     </div>
-  </div>
+  </section>
 
-  <div class="button-container">
-    <GeneralButtonMajor onclick={handleCancel}>Cancel</GeneralButtonMajor>
-    <GeneralButtonMajor onclick={handleConfirm}>Apply</GeneralButtonMajor>
-  </div>
+  <ModalButtons
+    buttons={[
+      {
+        label: 'Apply',
+        onclick: handleConfirm,
+        variant: 'primary',
+      },
+      {
+        label: 'Cancel',
+        onclick: handleCancel,
+      },
+    ]}
+  />
 </div>
 
 <style>
@@ -200,11 +217,7 @@
     max-width: 450px;
   }
 
-  .description {
-    margin-bottom: 1.5rem;
-  }
-
-  .input-container {
+  .section {
     margin-bottom: 1.5rem;
   }
 
@@ -273,10 +286,5 @@
   .preset-description {
     font-size: 0.8rem;
     color: #666;
-  }
-
-  .button-container {
-    display: flex;
-    gap: 0.5rem;
   }
 </style>

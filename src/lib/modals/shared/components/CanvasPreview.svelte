@@ -107,7 +107,11 @@
     <!-- Download button -->
     {#if showDownloadButton}
       <div class="preview-actions">
-        <MajorButton onclick={handleDownload} isDisabled={isGeneratingDownload}>
+        <MajorButton
+          onclick={handleDownload}
+          isDisabled={isGeneratingDownload}
+          variant="primary"
+        >
           {isGeneratingDownload
             ? `Generating ${fileType.substring(1).toUpperCase()}...`
             : `Download ${fileName}${fileType}`}
@@ -155,7 +159,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 0.5rem;
+    margin-top: 1.5rem;
     margin-bottom: 1.5rem;
   }
 </style>

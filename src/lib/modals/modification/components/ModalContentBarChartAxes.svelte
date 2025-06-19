@@ -1,9 +1,8 @@
 <script lang="ts">
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
-  import {
-    GeneralButtonMajor,
-    GeneralInputNumber,
-  } from '$lib/shared/components'
+  import { GeneralInputNumber } from '$lib/shared/components'
+  import { ModalButtons, IntroductoryParagraph } from '$lib/modals'
+  import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import type { BarPlotGridType } from '$lib/workspace/type/gridType'
   import GeneralFieldset from '$lib/shared/components/GeneralFieldset.svelte'
 
@@ -25,10 +24,6 @@
   let maxValue = $state(
     settings.scaleRange ? parseFloat(settings.scaleRange[1].toString()) : 0
   )
-  let useCustomScale = $state(
-    settings.scaleRange &&
-      !(settings.scaleRange[0] === 0 && settings.scaleRange[1] === 0)
-  )
 
   const handleSubmit = () => {
     // Create a new scaleRange based on the inputs
@@ -43,9 +38,20 @@
       scaleRange: newScaleRange,
     })
   }
+
+  const handleCancel = () => {
+    modalStore.close()
+  }
 </script>
 
-<div class="bar-chart-axes-container">
+<div>
+  <IntroductoryParagraph
+    maxWidth="400px"
+    paragraphs={[
+      'Configure bar chart orientation, sorting options, and scale range to customize how your data is displayed and compared.',
+    ]}
+  />
+
   <div class="axes-section">
     <GeneralRadio
       legend="Bar Orientation"
@@ -90,26 +96,29 @@
     >
   </div>
 
-  <div class="buttons-container">
-    <GeneralButtonMajor onclick={handleSubmit}>Apply</GeneralButtonMajor>
-  </div>
+  <ModalButtons
+    buttons={[
+      {
+        label: 'Apply',
+        onclick: handleSubmit,
+        variant: 'primary',
+      },
+      {
+        label: 'Cancel',
+        onclick: handleCancel,
+      },
+    ]}
+  />
 </div>
 
 <style>
-  .bar-chart-axes-container {
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-  }
-
   .axes-section {
-    margin-bottom: 8px;
+    margin-bottom: 1.5rem;
   }
 
   .scale-range-section {
     display: flex;
     flex-direction: column;
-    gap: 12px;
   }
 
   .scale-inputs {
@@ -127,11 +136,5 @@
     font-size: 12px;
     color: #666;
     margin-top: 4px;
-  }
-
-  .buttons-container {
-    margin-top: 16px;
-    display: flex;
-    justify-content: flex-end;
   }
 </style>

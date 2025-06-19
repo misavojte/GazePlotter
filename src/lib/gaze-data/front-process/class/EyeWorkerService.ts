@@ -1,9 +1,43 @@
 import { ModalContentTobiiParsingInput } from '$lib/modals'
 import { modalStore } from '$lib/modals/shared/stores/modalStore'
-import { addErrorToast, addInfoToast } from '$lib/toaster'
-import type { DataType } from '$lib/gaze-data/shared/types'
+import { addErrorToast, addInfoToast, addSuccessToast } from '$lib/toaster'
+import type { DataType, ParsedData } from '$lib/gaze-data/shared/types'
 import { processJsonFileWithGrid } from '$lib/gaze-data/front-process/utils/jsonParsing'
-import type { AllGridTypes } from '$lib/workspace/type/gridType'
+import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSettingsType'
+import type { FileMetadataType } from '$lib/workspace/type/fileMetadataType'
+import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace'
+import { formatDuration } from '$lib/shared/utils/timeUtils'
+import { formatFileSize } from '$lib/shared/utils/fileUtils'
+
+/**
+ * Formats file information for display in success messages
+ */
+function formatFileInfo(fileNames: string[], fileSizes: number[]): string {
+  if (fileNames.length === 0) return ''
+
+  if (fileNames.length === 1) {
+    return `${fileNames[0]} (${formatFileSize(fileSizes[0])})`
+  }
+
+  const totalSize = fileSizes.reduce((sum, size) => sum + size, 0)
+  const fileCount = fileNames.length
+
+  // For multiple files, show count and total size, plus first few file names
+  let fileInfo = `${fileCount} files (${formatFileSize(totalSize)})`
+
+  // Add file names, but limit to avoid overly long messages
+  const maxNamesToShow = 3
+  if (fileNames.length <= maxNamesToShow) {
+    fileInfo += `: ${fileNames.join(', ')}`
+  } else {
+    const shownNames = fileNames.slice(0, maxNamesToShow).join(', ')
+    const remainingCount = fileNames.length - maxNamesToShow
+    fileInfo += `: ${shownNames} and ${remainingCount} more`
+  }
+
+  return fileInfo
+}
+
 /**
  * Creates a worker to handle whole eyefiles processing.
  * It is a separate file to avoid blocking the main thread.
@@ -13,18 +47,13 @@ import type { AllGridTypes } from '$lib/workspace/type/gridType'
  */
 export class EyeWorkerService {
   worker: Worker
-  onData: (data: {
-    data: DataType
-    gridItems?: Array<Partial<AllGridTypes> & { type: string }>
-  }) => void
+  parsingSumTime: number = 0 // in seconds
+  parsingAnchorTime: number = 0 // in UNIX timestamp
+  fileNames: string[] = []
+  fileSizes: number[] = [] // in bytes
+  onData: (data: ParsedData) => void
   onFail: () => void
-  constructor(
-    onData: (data: {
-      data: DataType
-      gridItems?: Array<Partial<AllGridTypes> & { type: string }>
-    }) => void,
-    onFail: () => void
-  ) {
+  constructor(onData: (data: ParsedData) => void, onFail: () => void) {
     this.worker = new Worker(
       new URL(
         '$lib/gaze-data/back-process/worker/eyePipelineWorker.ts', // Must be a full path, not via index.ts
@@ -45,14 +74,19 @@ export class EyeWorkerService {
    * @param files - The files to send.
    */
   sendFiles(files: FileList): void {
-    const fileNames = []
+    // reset file names and sum file size
+    this.fileNames = []
+    this.fileSizes = []
+    this.parsingSumTime = 0
+    this.parsingAnchorTime = Date.now()
     // check extension of first file
     const extension = files[0].name.split('.').pop()
     if (extension === 'json') return this.processJsonWorkspace(files[0])
     for (let index = 0; index < files.length; index++) {
-      fileNames.push(files[index].name)
+      this.fileNames.push(files[index].name)
+      this.fileSizes.push(files[index].size)
     }
-    this.worker.postMessage({ type: 'file-names', data: fileNames })
+    this.worker.postMessage({ type: 'file-names', data: this.fileNames })
     if (this.isStreamTransferable()) {
       this.processDataAsStream(files)
     } else {
@@ -97,15 +131,25 @@ export class EyeWorkerService {
   }
 
   processJsonWorkspace(file: File): void {
-    addInfoToast(
-      'Loading workspace from JSON file. GazePlotter accepts only JSON files exported from its environment'
-    )
-    addInfoToast('Only the first file will be loaded')
     const reader = new FileReader()
     reader.onload = () => {
       try {
         const result = processJsonFileWithGrid(reader.result as string)
-        this.onData(result)
+        const timeString = formatDuration(
+          Date.now() - this.parsingAnchorTime + this.parsingSumTime
+        )
+        const formattedFileInfo = formatFileInfo([file.name], [file.size])
+        addSuccessToast(
+          `${formattedFileInfo} workspace loaded successfully in ${timeString}`
+        )
+        this.onData({
+          ...result,
+          current: {
+            fileNames: [file.name],
+            fileSizes: [file.size],
+            parseDate: new Date().toISOString(),
+          },
+        })
       } catch (error) {
         // Handle any errors during parsing or processing
         this.handleError(
@@ -122,10 +166,49 @@ export class EyeWorkerService {
     reader.readAsText(file)
   }
 
+  protected handleData({
+    data,
+    classified,
+  }: {
+    data: DataType
+    classified: EyeSettingsType
+  }): void {
+    const parseDuration =
+      Date.now() - this.parsingAnchorTime + this.parsingSumTime
+    const userAgent = navigator.userAgent
+    const gazePlotterVersion = __APP_VERSION__
+    const fileMetadata: FileMetadataType = {
+      fileNames: this.fileNames,
+      fileSizes: this.fileSizes,
+      parseSettings: classified,
+      parseDate: new Date().toISOString(),
+      parseDuration: parseDuration,
+      gazePlotterVersion: gazePlotterVersion,
+      clientUserAgent: userAgent,
+    }
+    const timeString = formatDuration(parseDuration)
+    const formattedFileInfo = formatFileInfo(this.fileNames, this.fileSizes)
+    addSuccessToast(`${formattedFileInfo} parsed successfully in ${timeString}`)
+    this.onData({
+      data: data,
+      fileMetadata: fileMetadata,
+      version: 3,
+      gridItems: DEFAULT_GRID_STATE_DATA,
+      current: {
+        fileNames: this.fileNames,
+        fileSizes: this.fileSizes,
+        parseDate: new Date().toISOString(),
+      },
+    } as ParsedData)
+  }
+
   protected handleMessage(event: MessageEvent): void {
     switch (event.data.type) {
       case 'done':
-        this.onData({ data: event.data.data }) // no grid items in this case! :)
+        this.handleData({
+          data: event.data.data,
+          classified: event.data.classified,
+        }) // no grid items in this case! :)
         break
       case 'fail':
         this.handleError(event.data.data)
@@ -145,9 +228,26 @@ export class EyeWorkerService {
     this.onFail()
   }
 
+  /**
+   * Handles the user input process when the worker requests additional information.
+   *
+   * This method pauses the duration calculation while waiting for user input to ensure
+   * accurate parsing time measurement. The time spent waiting for user interaction
+   * is not included in the final parsing duration.
+   *
+   * Process flow:
+   * 1. Pauses duration tracking by accumulating elapsed time in parsingSumTime
+   * 2. Requests user input via modal (typically for Tobii parsing configuration)
+   * 3. On success: resumes duration tracking and sends input to worker
+   * 4. On failure: provides default behavior and continues processing
+   *
+   * @returns {void}
+   */
   handleUserInputProcess(): void {
+    this.parsingSumTime += Date.now() - this.parsingAnchorTime
     this.requestUserInput()
       .then(userInput => {
+        this.parsingAnchorTime = Date.now()
         this.worker.postMessage({ type: 'user-input', data: userInput })
         modalStore.close()
       })

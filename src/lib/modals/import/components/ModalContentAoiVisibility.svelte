@@ -1,7 +1,9 @@
 <script lang="ts">
   import GeneralSelectBase from '$lib/shared/components/GeneralSelect.svelte'
   import { getParticipants } from '$lib/gaze-data/front-process/stores/dataStore.js'
-  import { GeneralInputFile, GeneralButtonMajor } from '$lib/shared/components'
+  import { GeneralInputFile } from '$lib/shared/components'
+  import { ModalButtons } from '$lib/modals'
+  import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { addErrorToast, addSuccessToast } from '$lib/toaster'
   import { processAoiVisibility } from '$lib/modals/import/utility/aoiVisibilityServices'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
@@ -43,6 +45,10 @@
       addErrorToast('Could not read file. ' + message)
     }
   }
+
+  const handleCancel = () => {
+    modalStore.close()
+  }
 </script>
 
 <div class="content">
@@ -58,7 +64,19 @@
   />
   <GeneralInputFile label="AOI visibility file" bind:files />
 </div>
-<GeneralButtonMajor onclick={handleSubmit}>Apply</GeneralButtonMajor>
+<ModalButtons
+  buttons={[
+    {
+      label: 'Apply',
+      onclick: handleSubmit,
+      variant: 'primary',
+    },
+    {
+      label: 'Cancel',
+      onclick: handleCancel,
+    },
+  ]}
+/>
 
 <style>
   .content {

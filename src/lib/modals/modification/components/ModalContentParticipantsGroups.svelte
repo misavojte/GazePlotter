@@ -7,10 +7,10 @@
   import { addSuccessToast } from '$lib/toaster'
   import type { ParticipantsGroup } from '$lib/gaze-data/shared/types/index'
   import {
-    GeneralButtonMajor,
     GeneralButtonMinor,
     GeneralButtonPreset,
   } from '$lib/shared/components'
+  import { ModalButtons, IntroductoryParagraph } from '$lib/modals'
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
   import GeneralInputText from '$lib/shared/components/GeneralInputText.svelte'
   import Bin from 'lucide-svelte/icons/trash'
@@ -277,6 +277,13 @@
   }
 </script>
 
+<IntroductoryParagraph
+  maxWidth="500px"
+  paragraphs={[
+    'Create and manage custom participant groups for analysis. Groups help organize participants by conditions, demographics, or other criteria.',
+  ]}
+/>
+
 {#if participantsGroups.length === 0}
   <div class="select-wrapper">
     <GeneralEmpty message="No custom groups yet." />
@@ -381,15 +388,25 @@
   </div>
 {/if}
 
-<div class="footer">
-  <GeneralButtonMajor onclick={() => addGroup()}>Add group</GeneralButtonMajor>
-  <GeneralButtonMajor onclick={discardChanges} isDisabled={!hasChanged}
-    >Discard Changes</GeneralButtonMajor
-  >
-  <GeneralButtonMajor isDisabled={!hasChanged} onclick={handleSubmit}>
-    Save
-  </GeneralButtonMajor>
-</div>
+<ModalButtons
+  buttons={[
+    {
+      label: 'Save',
+      onclick: handleSubmit,
+      isDisabled: !hasChanged,
+      variant: 'primary',
+    },
+    {
+      label: 'Discard Changes',
+      onclick: discardChanges,
+      isDisabled: !hasChanged,
+    },
+    {
+      label: 'Add group',
+      onclick: addGroup,
+    },
+  ]}
+/>
 
 <style>
   .select-wrapper {
@@ -483,12 +500,6 @@
     margin: 0;
     padding: 0.5rem;
     width: 100%;
-  }
-
-  .footer {
-    margin-top: 2rem;
-    display: flex;
-    gap: 0.5rem;
   }
 
   .search-filter {
