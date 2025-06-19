@@ -309,7 +309,6 @@
           title="Stimuli"
           items={stimuliItems}
           onItemChange={handleStimulusChange}
-          maxHeight={200}
         />
         {#if selectedStimuliIds.size === 0}
           <p class="validation-message">
@@ -323,7 +322,6 @@
           title="Metrics"
           items={metricsItems}
           onItemChange={handleMetricChange}
-          maxHeight={200}
         />
         {#if selectedMetrics.size === 0}
           <p class="validation-message">Select at least one metric to export</p>
