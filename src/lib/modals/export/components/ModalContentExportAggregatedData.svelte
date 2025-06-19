@@ -1,0 +1,371 @@
+<script lang="ts">
+  import type { BarPlotGridType } from '$lib/workspace/type/gridType'
+  import {
+    GeneralSelect,
+    GeneralInputText,
+    GeneralInputGroup,
+  } from '$lib/shared/components'
+  import { SectionHeader, ModalButtons } from '$lib/modals'
+  import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
+  import {
+    getParticipantsGroups,
+    getParticipantsIds,
+    getAllAois,
+    getParticipant,
+    getStimulus,
+    getStimuli,
+  } from '$lib/gaze-data/front-process/stores/dataStore'
+  import {
+    collectParticipantsDwellTimeData,
+    collectParticipantsTimeToFirstFixationData,
+    collectParticipantsAvgFixationDurationData,
+    collectParticipantsFirstFixationDurationData,
+    collectParticipantsFixationCountData,
+  } from '$lib/plots/bar/utils/collectParticipantMetricsUtils'
+  import { addSuccessToast } from '$lib/toaster/stores'
+
+  interface Props {
+    settings: BarPlotGridType
+  }
+
+  let { settings }: Props = $props()
+
+  // Export settings state
+  let fileName = $state('GazePlotter-AggregatedData')
+  let selectedGroupId = $state(settings.groupId.toString())
+  let selectedStimuliIds = $state(new Set([settings.stimulusId.toString()]))
+  let isExporting = $state(false)
+
+  // Metrics configuration and state
+  const metricsConfig = [
+    {
+      key: 'dwellTime' as const,
+      label: 'Dwell Time',
+      sublabel: 'Total time spent fixating on each AOI',
+      csvName: 'Dwell_Time',
+      collector: collectParticipantsDwellTimeData,
+    },
+    {
+      key: 'timeToFirstFixation' as const,
+      label: 'Time to First Fixation',
+      sublabel: 'Time until first fixation on each AOI (-1 if never fixated)',
+      csvName: 'Time_To_First_Fixation',
+      collector: collectParticipantsTimeToFirstFixationData,
+    },
+    {
+      key: 'avgFixationDuration' as const,
+      label: 'Average Fixation Duration',
+      sublabel: 'Mean duration of fixations on each AOI',
+      csvName: 'Avg_Fixation_Duration',
+      collector: collectParticipantsAvgFixationDurationData,
+      processFunction: (values: number[]) =>
+        values.length === 0
+          ? -1
+          : values.reduce((sum, val) => sum + val, 0) / values.length,
+    },
+    {
+      key: 'firstFixationDuration' as const,
+      label: 'First Fixation Duration',
+      sublabel:
+        'Duration of the first fixation on each AOI (-1 if never fixated)',
+      csvName: 'First_Fixation_Duration',
+      collector: collectParticipantsFirstFixationDurationData,
+    },
+    {
+      key: 'fixationCount' as const,
+      label: 'Fixation Count',
+      sublabel: 'Number of fixations on each AOI',
+      csvName: 'Fixation_Count',
+      collector: collectParticipantsFixationCountData,
+    },
+  ] as const
+
+  type MetricKey = (typeof metricsConfig)[number]['key']
+
+  // Metrics selection state
+  let selectedMetrics = $state(
+    new Set<MetricKey>(metricsConfig.map(m => m.key))
+  )
+
+  // Create metrics items for the group component
+  const metricsItems = $derived(
+    metricsConfig.map(config => ({
+      key: config.key,
+      label: config.label,
+      sublabel: config.sublabel,
+      checked: selectedMetrics.has(config.key),
+    }))
+  )
+
+  // Handle metric selection changes
+  function handleMetricChange(key: string, checked: boolean) {
+    if (checked) {
+      selectedMetrics.add(key as MetricKey)
+    } else {
+      selectedMetrics.delete(key as MetricKey)
+    }
+    selectedMetrics = new Set(selectedMetrics) // Trigger reactivity
+  }
+
+  // Get options for dropdowns and checkboxes
+  const stimuliItems = $derived(
+    getStimuliOptions().map(option => ({
+      key: option.value,
+      label: option.label,
+      checked: selectedStimuliIds.has(option.value),
+    }))
+  )
+  const groupOptions = $derived(
+    getParticipantsGroups(true).map(group => ({
+      label: group.name,
+      value: group.id.toString(),
+    }))
+  )
+
+  // Handle stimulus selection changes
+  function handleStimulusChange(key: string, checked: boolean) {
+    if (checked) {
+      selectedStimuliIds.add(key)
+    } else {
+      selectedStimuliIds.delete(key)
+    }
+    selectedStimuliIds = new Set(selectedStimuliIds) // Trigger reactivity
+  }
+
+  // Validation
+  const canExport = $derived(
+    selectedMetrics.size > 0 &&
+      fileName.trim().length > 0 &&
+      selectedStimuliIds.size > 0
+  )
+
+  // Function to get AOI name for CSV
+  function getAoiName(aoiIndex: number, aois: any[]): string {
+    if (aoiIndex < aois.length) return aois[aoiIndex].displayedName
+    if (aoiIndex === aois.length) return 'No_AOI'
+    return 'Any_Fixation'
+  }
+
+  // Function to generate and download CSV
+  const handleExport = async () => {
+    if (!canExport) return
+
+    isExporting = true
+
+    try {
+      // Small delay to show the loading state
+      await new Promise(resolve => setTimeout(resolve, 100))
+      const groupId = parseInt(selectedGroupId)
+      const stimuliToProcess = Array.from(selectedStimuliIds).map(id =>
+        getStimulus(parseInt(id))
+      )
+
+      const csvRows = [
+        'Participant_ID,Participant_Name,Stimulus,AOI_Group,Metric,Value',
+      ]
+
+      // Get selected metric configs
+      const activeMetrics = metricsConfig.filter(config =>
+        selectedMetrics.has(config.key)
+      )
+
+      for (const stimulus of stimuliToProcess) {
+        const participantIds = getParticipantsIds(groupId, stimulus.id)
+        const aois = getAllAois(stimulus.id)
+
+        // Collect all metric data for this stimulus
+        const metricsData = activeMetrics.map(config => ({
+          name: config.csvName,
+          data: config.collector(stimulus.id, participantIds, aois),
+          processFunction:
+            'processFunction' in config ? config.processFunction : undefined,
+        }))
+
+        // Generate CSV rows for each metric
+        for (const metric of metricsData) {
+          for (let pIndex = 0; pIndex < participantIds.length; pIndex++) {
+            const participantId = participantIds[pIndex]
+            const participant = getParticipant(participantId)
+            const participantData = metric.data[pIndex]
+
+            for (
+              let aoiIndex = 0;
+              aoiIndex < participantData.length;
+              aoiIndex++
+            ) {
+              const aoiGroup = getAoiName(aoiIndex, aois)
+              let value: number
+
+              if (
+                metric.processFunction &&
+                Array.isArray(participantData[aoiIndex])
+              ) {
+                value = metric.processFunction(
+                  participantData[aoiIndex] as number[]
+                )
+              } else {
+                value = participantData[aoiIndex] as number
+              }
+
+              csvRows.push(
+                `${participantId},"${participant.displayedName}","${stimulus.displayedName}","${aoiGroup}","${metric.name}",${value}`
+              )
+            }
+          }
+        }
+      }
+
+      // Download CSV
+      const csvContent = csvRows.join('\n')
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+
+      link.href = url
+      link.download = `${fileName.trim()}.csv`
+      link.style.display = 'none'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      // Show success message
+      const totalRows = csvRows.length - 1 // Subtract header row
+      const metricsCount = activeMetrics.length
+      const stimuliCount = stimuliToProcess.length
+      addSuccessToast(
+        `Exported ${totalRows.toLocaleString()} data points (${metricsCount} metrics across ${stimuliCount} ${stimuliCount === 1 ? 'stimulus' : 'stimuli'})`
+      )
+    } finally {
+      isExporting = false
+    }
+  }
+
+  // Button configuration (after handleExport declaration)
+  const exportButtons = $derived([
+    {
+      label: isExporting ? 'Exporting...' : 'Export CSV',
+      onclick: handleExport,
+      isDisabled: !canExport || isExporting,
+    },
+  ])
+</script>
+
+<div class="container">
+  <section class="section">
+    <SectionHeader text="Export Settings" />
+    <div class="content-two-column">
+      <GeneralInputText
+        label="File name"
+        bind:value={fileName}
+        placeholder="Enter filename without extension"
+      />
+      <GeneralSelect
+        label="Participant Group"
+        options={groupOptions}
+        bind:value={selectedGroupId}
+      />
+    </div>
+  </section>
+
+  <section class="section">
+    <GeneralInputGroup
+      title="Stimuli to Export"
+      items={stimuliItems}
+      onItemChange={handleStimulusChange}
+      maxHeight={200}
+    />
+    {#if selectedStimuliIds.size === 0}
+      <p class="validation-message">Select at least one stimulus to export</p>
+    {/if}
+  </section>
+
+  <section class="section">
+    <GeneralInputGroup
+      title="Metrics to Export"
+      items={metricsItems}
+      onItemChange={handleMetricChange}
+      maxHeight={300}
+    />
+    {#if selectedMetrics.size === 0}
+      <p class="validation-message">Select at least one metric to export</p>
+    {/if}
+  </section>
+
+  <section class="section">
+    <SectionHeader text="Export Format" />
+    <div class="content">
+      <p class="format-description">
+        Data will be exported in <strong>long format</strong> with columns:
+        <strong>Participant_ID</strong>, <strong>Participant_Name</strong>,
+        <strong>Stimulus</strong>, <strong>AOI_Group</strong>,
+        <strong>Metric</strong>, <strong>Value</strong>
+      </p>
+      <p class="format-description">
+        <strong>AOI_Group</strong> includes regular AOI names plus special
+        cases:
+        <strong>No_AOI</strong> (fixations outside any AOI) and
+        <strong>Any_Fixation</strong> (aggregated across all fixations).
+      </p>
+      <p class="format-description">
+        This format is optimized for statistical analysis and can be directly
+        imported into R, Python, or SPSS.
+      </p>
+    </div>
+  </section>
+
+  <section class="section">
+    <ModalButtons buttons={exportButtons} />
+  </section>
+</div>
+
+<style>
+  .container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    max-width: 600px;
+  }
+
+  .section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .content-two-column {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  @media (max-width: 500px) {
+    .content-two-column {
+      grid-template-columns: 1fr;
+      gap: 0.5rem;
+    }
+  }
+
+  .validation-message {
+    margin: 0;
+    padding: 0.5rem;
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+    color: #856404;
+    font-size: 0.85rem;
+  }
+
+  .format-description {
+    margin: 0 0 0.5rem 0;
+    color: #666;
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+</style>

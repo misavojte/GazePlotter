@@ -45,7 +45,7 @@ export function getBarPlotData(
         settings.stimulusId,
         participantIds,
         aois
-      )
+      ).slice(0, -1)
       break
 
     case 'relativeTime':
@@ -53,7 +53,7 @@ export function getBarPlotData(
         settings.stimulusId,
         participantIds,
         aois
-      )
+      ).slice(0, -1)
       processedData = normalizeToPercentages(absoluteTimes)
       break
 
@@ -62,7 +62,7 @@ export function getBarPlotData(
         settings.stimulusId,
         participantIds,
         aois
-      )
+      ).slice(0, -1)
       break
 
     case 'avgFixationDuration':
@@ -70,7 +70,7 @@ export function getBarPlotData(
         settings.stimulusId,
         participantIds,
         aois
-      )
+      ).slice(0, -1)
       break
 
     case 'avgFirstFixationDuration':
@@ -78,7 +78,7 @@ export function getBarPlotData(
         settings.stimulusId,
         participantIds,
         aois
-      )
+      ).slice(0, -1)
       break
 
     case 'averageFixationCount':
@@ -86,7 +86,7 @@ export function getBarPlotData(
         settings.stimulusId,
         participantIds,
         aois
-      )
+      ).slice(0, -1)
       break
   }
 

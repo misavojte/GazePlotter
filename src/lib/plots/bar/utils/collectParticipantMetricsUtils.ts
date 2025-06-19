@@ -1,13 +1,10 @@
-import {
-  getParticipants,
-  getSegments,
-} from '$lib/gaze-data/front-process/stores/dataStore'
+import { getSegments } from '$lib/gaze-data/front-process/stores/dataStore'
 import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
 import { createArray } from '$lib/shared/utils/mathUtils'
 
 /**
  * Collects dwell time data for each participant separately
- * @returns Array of arrays - each inner array contains dwell times for AOIs + no-AOI for one participant
+ * @returns Array of arrays - each inner array contains dwell times for AOIs + any fixation + no-AOI for one participant
  */
 export function collectParticipantsDwellTimeData(
   stimulusId: number,
@@ -19,6 +16,7 @@ export function collectParticipantsDwellTimeData(
   // Process each participant
   for (const participantId of participantIds) {
     let noAoiTotalTime = 0
+    let anyFixationTotalTime = 0
     const aoisSumTimes = createArray(aois.length, 0)
 
     // Get all fixation segments (category 0) for this participant
@@ -27,6 +25,9 @@ export function collectParticipantsDwellTimeData(
     // Process each segment
     for (const segment of fixationSegments) {
       const duration = segment.end - segment.start
+
+      // Add to any fixation total
+      anyFixationTotalTime += duration
 
       // If segment has no AOIs, add to no-AOI time
       if (segment.aoi.length === 0) {
@@ -43,8 +44,12 @@ export function collectParticipantsDwellTimeData(
       }
     }
 
-    // Add this participant's data
-    participantData.push([...aoisSumTimes, noAoiTotalTime])
+    // Add this participant's data: [...aois, noAoi, anyFixation]
+    participantData.push([
+      ...aoisSumTimes,
+      noAoiTotalTime,
+      anyFixationTotalTime,
+    ])
   }
 
   return participantData
@@ -52,7 +57,7 @@ export function collectParticipantsDwellTimeData(
 
 /**
  * Collects time to first fixation data for each participant separately
- * @returns Array of arrays - each inner array contains time to first fixation for AOIs + no-AOI for one participant (-1 if never fixated)
+ * @returns Array of arrays - each inner array contains time to first fixation for AOIs + any fixation + no-AOI for one participant (-1 if never fixated)
  */
 export function collectParticipantsTimeToFirstFixationData(
   stimulusId: number,
@@ -65,6 +70,7 @@ export function collectParticipantsTimeToFirstFixationData(
   for (const participantId of participantIds) {
     // Track first fixation for this participant
     const participantFirstFixationTimes = createArray(aois.length, -1)
+    let participantFirstFixatedAny = -1
     let participantFirstFixatedNoAoi = -1
 
     // Get fixation segments in chronological order
@@ -72,6 +78,11 @@ export function collectParticipantsTimeToFirstFixationData(
 
     // Process segments to find first fixations
     for (const segment of fixationSegments) {
+      // Check for any fixation (first time we see any fixation)
+      if (participantFirstFixatedAny === -1) {
+        participantFirstFixatedAny = segment.start
+      }
+
       // Check for no-AOI fixation
       if (segment.aoi.length === 0) {
         if (participantFirstFixatedNoAoi === -1) {
@@ -89,10 +100,11 @@ export function collectParticipantsTimeToFirstFixationData(
       }
     }
 
-    // Add this participant's data
+    // Add this participant's data: [...aois, noAoi, anyFixation]
     participantData.push([
       ...participantFirstFixationTimes,
       participantFirstFixatedNoAoi,
+      participantFirstFixatedAny,
     ])
   }
 
@@ -101,7 +113,7 @@ export function collectParticipantsTimeToFirstFixationData(
 
 /**
  * Collects all fixation durations for each participant separately
- * @returns Array of arrays - each inner array contains arrays of fixation durations for AOIs + no-AOI for one participant
+ * @returns Array of arrays - each inner array contains arrays of fixation durations for AOIs + any fixation + no-AOI for one participant
  */
 export function collectParticipantsAvgFixationDurationData(
   stimulusId: number,
@@ -116,6 +128,7 @@ export function collectParticipantsAvgFixationDurationData(
     const aoiFixationDurations: number[][] = Array(aois.length)
       .fill(null)
       .map(() => [])
+    let anyFixationDurations: number[] = []
     let noAoiFixationDurations: number[] = []
 
     // Get all fixation segments
@@ -124,6 +137,9 @@ export function collectParticipantsAvgFixationDurationData(
     // Process each segment
     for (const segment of fixationSegments) {
       const duration = segment.end - segment.start
+
+      // Add to any fixation durations
+      anyFixationDurations.push(duration)
 
       // Check for no-AOI fixation
       if (segment.aoi.length === 0) {
@@ -140,8 +156,12 @@ export function collectParticipantsAvgFixationDurationData(
       }
     }
 
-    // Add this participant's data
-    participantData.push([...aoiFixationDurations, noAoiFixationDurations])
+    // Add this participant's data: [...aois, noAoi, anyFixation]
+    participantData.push([
+      ...aoiFixationDurations,
+      noAoiFixationDurations,
+      anyFixationDurations,
+    ])
   }
 
   return participantData
@@ -149,7 +169,7 @@ export function collectParticipantsAvgFixationDurationData(
 
 /**
  * Collects first fixation duration data for each participant separately
- * @returns Array of arrays - each inner array contains first fixation durations for AOIs + no-AOI for one participant (-1 if never fixated)
+ * @returns Array of arrays - each inner array contains first fixation durations for AOIs + any fixation + no-AOI for one participant (-1 if never fixated)
  */
 export function collectParticipantsFirstFixationDurationData(
   stimulusId: number,
@@ -163,6 +183,8 @@ export function collectParticipantsFirstFixationDurationData(
     // Tracking for first fixation per participant
     const participantFirstFixated = createArray(aois.length, false)
     const participantFirstFixationDurations = createArray(aois.length, -1)
+    let participantFirstFixatedAny = false
+    let participantFirstFixationAnyDuration = -1
     let participantFirstFixatedNoAoi = false
     let participantFirstFixationNoAoiDuration = -1
 
@@ -172,6 +194,12 @@ export function collectParticipantsFirstFixationDurationData(
     // Process segments to find first fixations
     for (const segment of fixationSegments) {
       const duration = segment.end - segment.start
+
+      // Check for any fixation (first time we see any fixation)
+      if (!participantFirstFixatedAny) {
+        participantFirstFixationAnyDuration = duration
+        participantFirstFixatedAny = true
+      }
 
       // Check for no-AOI fixation
       if (segment.aoi.length === 0) {
@@ -192,10 +220,11 @@ export function collectParticipantsFirstFixationDurationData(
       }
     }
 
-    // Add this participant's data
+    // Add this participant's data: [...aois, noAoi, anyFixation]
     participantData.push([
       ...participantFirstFixationDurations,
       participantFirstFixationNoAoiDuration,
+      participantFirstFixationAnyDuration,
     ])
   }
 
@@ -204,7 +233,7 @@ export function collectParticipantsFirstFixationDurationData(
 
 /**
  * Collects fixation count data for each participant separately
- * @returns Array of arrays - each inner array contains fixation counts for AOIs + no-AOI for one participant
+ * @returns Array of arrays - each inner array contains fixation counts for AOIs + any fixation + no-AOI for one participant
  */
 export function collectParticipantsFixationCountData(
   stimulusId: number,
@@ -217,6 +246,7 @@ export function collectParticipantsFixationCountData(
   for (const participantId of participantIds) {
     // Initialize counters for this participant
     const participantAoiCounts = createArray(aois.length, 0)
+    let participantAnyFixationCount = 0
     let participantNoAoiCount = 0
 
     // Get all fixation segments
@@ -224,6 +254,9 @@ export function collectParticipantsFixationCountData(
 
     // Count fixations for each AOI
     for (const segment of fixationSegments) {
+      // Count any fixation
+      participantAnyFixationCount++
+
       // Check for no-AOI fixation
       if (segment.aoi.length === 0) {
         participantNoAoiCount++
@@ -239,8 +272,12 @@ export function collectParticipantsFixationCountData(
       }
     }
 
-    // Add this participant's data
-    participantData.push([...participantAoiCounts, participantNoAoiCount])
+    // Add this participant's data: [...aois, noAoi, anyFixation]
+    participantData.push([
+      ...participantAoiCounts,
+      participantNoAoiCount,
+      participantAnyFixationCount,
+    ])
   }
 
   return participantData
