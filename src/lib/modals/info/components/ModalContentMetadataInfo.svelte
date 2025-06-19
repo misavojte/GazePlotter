@@ -6,6 +6,7 @@
     currentFileInputStore,
   } from '$lib/workspace/stores/fileStore'
   import { formatDuration } from '$lib/shared/utils/timeUtils'
+  import { formatFileSize } from '$lib/shared/utils/fileUtils'
   import {
     getData,
     getNumberOfStimuli,
@@ -67,17 +68,6 @@
       memoryUpdateInterval = null
     }
   })
-
-  /**
-   * Formats file size in bytes to human-readable format
-   */
-  function formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
 
   /**
    * Formats ISO date string to readable format

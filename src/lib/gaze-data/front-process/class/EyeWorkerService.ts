@@ -7,6 +7,37 @@ import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSetti
 import type { FileMetadataType } from '$lib/workspace/type/fileMetadataType'
 import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace'
 import { formatDuration } from '$lib/shared/utils/timeUtils'
+import { formatFileSize } from '$lib/shared/utils/fileUtils'
+
+/**
+ * Formats file information for display in success messages
+ */
+function formatFileInfo(fileNames: string[], fileSizes: number[]): string {
+  if (fileNames.length === 0) return ''
+
+  if (fileNames.length === 1) {
+    return `${fileNames[0]} (${formatFileSize(fileSizes[0])})`
+  }
+
+  const totalSize = fileSizes.reduce((sum, size) => sum + size, 0)
+  const fileCount = fileNames.length
+
+  // For multiple files, show count and total size, plus first few file names
+  let fileInfo = `${fileCount} files (${formatFileSize(totalSize)})`
+
+  // Add file names, but limit to avoid overly long messages
+  const maxNamesToShow = 3
+  if (fileNames.length <= maxNamesToShow) {
+    fileInfo += `: ${fileNames.join(', ')}`
+  } else {
+    const shownNames = fileNames.slice(0, maxNamesToShow).join(', ')
+    const remainingCount = fileNames.length - maxNamesToShow
+    fileInfo += `: ${shownNames} and ${remainingCount} more`
+  }
+
+  return fileInfo
+}
+
 /**
  * Creates a worker to handle whole eyefiles processing.
  * It is a separate file to avoid blocking the main thread.
@@ -104,10 +135,12 @@ export class EyeWorkerService {
     reader.onload = () => {
       try {
         const result = processJsonFileWithGrid(reader.result as string)
+        const timeString = formatDuration(
+          Date.now() - this.parsingAnchorTime + this.parsingSumTime
+        )
+        const formattedFileInfo = formatFileInfo([file.name], [file.size])
         addSuccessToast(
-          `Workspace loaded successfully in ${formatDuration(
-            Date.now() - this.parsingAnchorTime + this.parsingSumTime
-          )}`
+          `${formattedFileInfo} workspace loaded successfully in ${timeString}`
         )
         this.onData({
           ...result,
@@ -153,9 +186,9 @@ export class EyeWorkerService {
       gazePlotterVersion: gazePlotterVersion,
       clientUserAgent: userAgent,
     }
-    const fileOrFilesLabel = this.fileNames.length > 1 ? 'Files' : 'File'
     const timeString = formatDuration(parseDuration)
-    addSuccessToast(`${fileOrFilesLabel} parsed successfully in ${timeString}`)
+    const formattedFileInfo = formatFileInfo(this.fileNames, this.fileSizes)
+    addSuccessToast(`${formattedFileInfo} parsed successfully in ${timeString}`)
     this.onData({
       data: data,
       fileMetadata: fileMetadata,

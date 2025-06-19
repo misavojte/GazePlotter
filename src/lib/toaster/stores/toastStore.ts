@@ -23,7 +23,7 @@ export const addSuccessToast = (message: string): void => {
     title: 'Success',
     message,
     type: 'success',
-    duration: 3000,
+    duration: 4000,
   })
 }
 
