@@ -261,7 +261,7 @@
   <IntroductoryParagraph
     maxWidth="440px"
     paragraphs={[
-      'Modify AOI names, colors, and grouping. AOIs with identical displayed names will be treated as a single group in visualizations.',
+      'Modify AOI names, colors, and grouping. Each stimulus has its own AOI list.',
       '**To create groups**, give multiple AOIs the same displayed name. The color of the first AOI with each name will be used for the entire group.',
     ]}
   />
