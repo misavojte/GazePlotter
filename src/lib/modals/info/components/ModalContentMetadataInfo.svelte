@@ -13,7 +13,7 @@
     getNumberOfParticipants,
   } from '$lib/gaze-data/front-process/stores/dataStore'
   import { onMount, onDestroy } from 'svelte'
-
+  import { modalStore } from '$lib/modals/shared/stores/modalStore'
   const fileMetadata = $derived($fileMetadataStore)
   const currentFileInput = $derived($currentFileInputStore)
 
@@ -471,6 +471,14 @@
       {
         label: 'Export Metadata',
         onclick: exportMetadata,
+        variant: 'primary' as const,
+      },
+      {
+        label: 'Cancel',
+        onclick: () => {
+          modalStore.close()
+        },
+        isDisabled: false,
       },
     ]}
   />

@@ -2,9 +2,10 @@
   import { GazePlotter } from '$lib'
   import GeneralInfoCallout from '$lib/shared/components/GeneralInfoCallout.svelte'
   import { base } from '$app/paths'
-  import { processJsonFileWithGrid } from '$lib/gaze-data/front-process/utils/jsonParsing'
-  import type { JsonImportNewFormat } from '$lib/gaze-data/shared/types'
   import { browser } from '$app/environment'
+  import type { ParsedData } from '$lib/gaze-data/shared/types'
+  import { EyeWorkerService } from '$lib/gaze-data/front-process/class/EyeWorkerService'
+
   // Format the build date
   const buildDate = new Date(__BUILD_DATE__)
   const formattedDate = new Intl.DateTimeFormat('en-US', {
@@ -15,12 +16,35 @@
 
   const pathToData = `${base}/data/etvis.json`
 
-  async function loadInitialData(): Promise<JsonImportNewFormat> {
+  async function loadInitialData(): Promise<ParsedData> {
     if (!pathToData || !browser)
-      Promise.reject('No path to data or not in browser')
-    const response = await fetch(pathToData)
-    const jsonContent = await response.text()
-    return processJsonFileWithGrid(jsonContent)
+      return Promise.reject('No path to data or not in browser')
+
+    return new Promise((resolve, reject) => {
+      const workerService = new EyeWorkerService(
+        data => resolve(data),
+        () => reject(new Error('Failed to load initial data'))
+      )
+
+      // Fetch the data and create a File object
+      fetch(pathToData)
+        .then(response => response.blob())
+        .then(blob => {
+          const file = new File([blob], 'demo.json', {
+            type: 'application/json',
+          })
+          const fileList = Object.assign([file], {
+            item: (index: number) => file,
+            length: 1,
+            [Symbol.iterator]: function* () {
+              yield file
+            },
+          }) as FileList
+
+          workerService.sendFiles(fileList)
+        })
+        .catch(reject)
+    })
   }
 
   // Use the version from vite.config.ts

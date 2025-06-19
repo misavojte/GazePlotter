@@ -4,8 +4,12 @@
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import { getStimuliOrderVector } from '$lib/gaze-data/front-process/stores/dataStore'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
-  import GeneralInfoCallout from '$lib/shared/components/GeneralInfoCallout.svelte'
-  import { SectionHeader, ModalButtons } from '$lib/modals'
+  import {
+    SectionHeader,
+    ModalButtons,
+    IntroductoryParagraph,
+  } from '$lib/modals'
+
   interface Props {
     settings: TransitionMatrixGridType
     settingsChange: (newSettings: Partial<TransitionMatrixGridType>) => void
@@ -132,15 +136,12 @@
 </script>
 
 <div class="value-range-modal">
-  <div class="description">
-    <GeneralInfoCallout
-      title="Color Scale Cropping"
-      paragraphs={[
-        'Set the minimum and maximum values for the color scale.',
-        'Setting consistent values across multiple matrices makes them directly comparable.',
-      ]}
-    />
-  </div>
+  <IntroductoryParagraph
+    maxWidth="550px"
+    paragraphs={[
+      'Set the minimum and maximum values for the color scale. Setting consistent values across multiple matrices makes them directly comparable.',
+    ]}
+  />
 
   <div class="input-container">
     <SectionHeader text="Range Values" />
@@ -247,12 +248,13 @@
   <ModalButtons
     buttons={[
       {
-        label: 'Cancel',
-        onclick: handleCancel,
-      },
-      {
         label: 'Apply',
         onclick: handleConfirm,
+        variant: 'primary',
+      },
+      {
+        label: 'Cancel',
+        onclick: handleCancel,
       },
     ]}
   />
@@ -262,10 +264,6 @@
   .value-range-modal {
     padding: 1rem;
     max-width: 520px;
-  }
-
-  .description {
-    margin-bottom: 1.5rem;
   }
 
   .input-container {

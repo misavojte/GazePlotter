@@ -23,17 +23,21 @@
     collectParticipantsFixationCountData,
   } from '$lib/plots/bar/utils/collectParticipantMetricsUtils'
   import { addSuccessToast } from '$lib/toaster/stores'
+  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'
 
   interface Props {
-    settings: BarPlotGridType
+    settings?: BarPlotGridType
   }
 
   let { settings }: Props = $props()
 
   // Export settings state
   let fileName = $state('GazePlotter-AggregatedData')
-  let selectedGroupId = $state(settings.groupId.toString())
-  let selectedStimuliIds = $state(new Set([settings.stimulusId.toString()]))
+  let selectedGroupId = $state(settings?.groupId.toString() ?? '0')
+  let selectedStimuliIds = $state(
+    new Set([settings?.stimulusId.toString() ?? '0'])
+  )
   let isExporting = $state(false)
 
   // Metrics configuration and state
@@ -241,17 +245,47 @@
     }
   }
 
+  // Function to open main export options
+  const handleOpenMainExport = () => {
+    modalStore.open(ModalContentDownloadWorkplace as any, 'Export Options')
+  }
+
+  // Function to close modal
+  const handleCancel = () => {
+    modalStore.close()
+  }
+
   // Button configuration (after handleExport declaration)
   const exportButtons = $derived([
     {
       label: isExporting ? 'Exporting...' : 'Export CSV',
       onclick: handleExport,
       isDisabled: !canExport || isExporting,
+      variant: 'primary' as const,
+    },
+    {
+      label: 'More Export Options',
+      onclick: handleOpenMainExport,
+      isDisabled: false,
+    },
+    {
+      label: 'Cancel',
+      onclick: handleCancel,
+      isDisabled: false,
     },
   ])
 </script>
 
 <div class="container">
+  <section class="section">
+    <div class="content">
+      <p class="purpose-description">
+        Export statistical metrics (dwell time, fixation counts, durations) in
+        long format for analysis in R, Python, or SPSS.
+      </p>
+    </div>
+  </section>
+
   <section class="section">
     <SectionHeader text="Export Settings" />
     <div class="content-two-column">
@@ -269,47 +303,43 @@
   </section>
 
   <section class="section">
-    <GeneralInputGroup
-      title="Stimuli to Export"
-      items={stimuliItems}
-      onItemChange={handleStimulusChange}
-      maxHeight={200}
-    />
-    {#if selectedStimuliIds.size === 0}
-      <p class="validation-message">Select at least one stimulus to export</p>
-    {/if}
+    <div class="settings-grid">
+      <div class="settings-column">
+        <GeneralInputGroup
+          title="Stimuli"
+          items={stimuliItems}
+          onItemChange={handleStimulusChange}
+          maxHeight={200}
+        />
+        {#if selectedStimuliIds.size === 0}
+          <p class="validation-message">
+            Select at least one stimulus to export
+          </p>
+        {/if}
+      </div>
+
+      <div class="settings-column">
+        <GeneralInputGroup
+          title="Metrics"
+          items={metricsItems}
+          onItemChange={handleMetricChange}
+          maxHeight={200}
+        />
+        {#if selectedMetrics.size === 0}
+          <p class="validation-message">Select at least one metric to export</p>
+        {/if}
+      </div>
+    </div>
   </section>
 
   <section class="section">
-    <GeneralInputGroup
-      title="Metrics to Export"
-      items={metricsItems}
-      onItemChange={handleMetricChange}
-      maxHeight={300}
-    />
-    {#if selectedMetrics.size === 0}
-      <p class="validation-message">Select at least one metric to export</p>
-    {/if}
-  </section>
-
-  <section class="section">
-    <SectionHeader text="Export Format" />
+    <SectionHeader text="Format Details" />
     <div class="content">
       <p class="format-description">
-        Data will be exported in <strong>long format</strong> with columns:
-        <strong>Participant_ID</strong>, <strong>Participant_Name</strong>,
-        <strong>Stimulus</strong>, <strong>AOI_Group</strong>,
-        <strong>Metric</strong>, <strong>Value</strong>
-      </p>
-      <p class="format-description">
-        <strong>AOI_Group</strong> includes regular AOI names plus special
-        cases:
-        <strong>No_AOI</strong> (fixations outside any AOI) and
+        <strong>Long format CSV</strong> with columns: Participant_ID,
+        Participant_Name, Stimulus, AOI_Group, Metric, Value. Includes special
+        AOI groups: <strong>No_AOI</strong> (fixations outside any AOI) and
         <strong>Any_Fixation</strong> (aggregated across all fixations).
-      </p>
-      <p class="format-description">
-        This format is optimized for statistical analysis and can be directly
-        imported into R, Python, or SPSS.
       </p>
     </div>
   </section>
@@ -339,6 +369,13 @@
     gap: 0.5rem;
   }
 
+  .purpose-description {
+    margin: 0;
+    color: #666;
+    font-size: 0.95rem;
+    line-height: 1.4;
+  }
+
   .content-two-column {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -352,6 +389,25 @@
     }
   }
 
+  .settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+
+  @media (max-width: 700px) {
+    .settings-grid {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+  }
+
+  .settings-column {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
   .validation-message {
     margin: 0;
     padding: 0.5rem;
@@ -363,7 +419,7 @@
   }
 
   .format-description {
-    margin: 0 0 0.5rem 0;
+    margin: 0;
     color: #666;
     font-size: 0.9rem;
     line-height: 1.4;

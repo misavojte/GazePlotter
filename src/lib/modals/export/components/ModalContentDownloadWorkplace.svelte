@@ -1,126 +1,103 @@
 <script lang="ts">
-  import { GeneralInputText } from '$lib/shared/components'
-  import GeneralSelect from '$lib/shared/components/GeneralSelect.svelte'
-  import GeneralInfoCallout from '$lib/shared/components/GeneralInfoCallout.svelte'
-  import { SectionHeader, ModalButtons } from '$lib/modals'
+  import { SectionHeader } from '$lib/modals'
   import { WorkplaceDownloader } from '$lib/modals/export/class/WorkplaceDownloader.js'
-  import { ScanGraphDownloader } from '$lib/modals/export/class/ScanGraphDownloader'
   import { getData } from '$lib/gaze-data/front-process/stores/dataStore.js'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
+  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import {
+    ModalContentExportSegmentedData,
+    ModalContentExportScangraph,
+    ModalContentExportAggregatedData,
+  } from '$lib/modals/export/components'
 
-  let type = $state('inner-json')
+  const type = 'inner-json'
   let fileName = $state('GazePlotter-Export')
-  let stimulusId = $state('0')
-
-  const tip =
-    'TIP: You can export individual visualisations using their options menu.'
-  const options = [
-    {
-      value: 'inner-json',
-      label: 'GazePlotter',
-      calloutHint: {
-        title: 'GazePlotter Format',
-        paragraphs: [
-          'Use this format if you want to import the data back into GazePlotter.',
-          'This keeps the layout and the settings of each visualisation, allowing simple dashboard sharing using relatively small JSON.',
-          tip,
-        ],
-      },
-    },
-    {
-      value: 'csv',
-      label: 'CSV',
-      calloutHint: {
-        title: 'CSV Format',
-        paragraphs: [
-          'Exports all data into a single CSV file.',
-          'This format is compatible with most spreadsheet applications and data analysis tools.',
-          tip,
-        ],
-      },
-    },
-    {
-      value: 'individual-csv',
-      label: 'Individual CSV',
-      calloutHint: {
-        title: 'Individual CSV Format',
-        paragraphs: [
-          'Creates separate CSV files for each recording and zip them.',
-          'Useful when you need to analyze recordings separately or share individual files.',
-          tip,
-        ],
-      },
-    },
-    {
-      value: 'scangraph',
-      label: 'ScanGraph',
-      calloutHint: {
-        title: 'ScanGraph Format',
-        paragraphs: [
-          'Exports data in a format compatible with the ScanGraph tool for scanpath similarity analysis.',
-          'The file can be directly uploaded to eyetracking.upol.cz/scangraph.',
-          tip,
-        ],
-      },
-    },
-  ]
-
-  const stimulusOptions = getStimuliOptions()
 
   const handleSubmit = () => {
-    if (type === 'scangraph') {
-      const downloader = new ScanGraphDownloader()
-      downloader.download(parseInt(stimulusId), fileName)
-    } else {
+    if (type === 'inner-json') {
       const downloader = new WorkplaceDownloader()
-      if (type === 'inner-json') {
-        downloader.download(getData(), fileName)
-      } else if (type === 'csv') {
-        downloader.downloadCSV(getData(), fileName)
-      } else {
-        downloader.downloadIndividualCSV(getData(), fileName, true)
-      }
+      downloader.download(getData(), fileName)
     }
   }
 
-  const selectedOption = $derived(options.find(opt => opt.value === type))
+  const handleOpenSegmentedExport = () => {
+    modalStore.open(
+      ModalContentExportSegmentedData as any,
+      'Export Segmented Data'
+    )
+  }
+
+  const handleOpenScangraphExport = () => {
+    modalStore.open(ModalContentExportScangraph as any, 'Export ScanGraph')
+  }
+
+  const handleOpenAggregatedExport = () => {
+    modalStore.open(
+      ModalContentExportAggregatedData as any,
+      'Export Aggregated Data'
+    )
+  }
 </script>
 
 <div class="container">
   <section class="section">
-    <SectionHeader text="Export Format" />
+    <SectionHeader text="Export Workspace" />
     <div class="content">
-      <GeneralSelect label="Type" {options} bind:value={type} />
-      {#if selectedOption?.calloutHint}
-        <GeneralInfoCallout
-          title={selectedOption.calloutHint.title}
-          paragraphs={selectedOption.calloutHint.paragraphs}
-        />
-      {/if}
+      <p class="workspace-description">
+        Preserves all data, layout, and settings in a compact JSON file. Perfect
+        for sharing dashboards.
+      </p>
+      <div class="workspace-export">
+        <div class="export-inline">
+          <input
+            type="text"
+            bind:value={fileName}
+            placeholder="File name"
+            class="export-input"
+          />
+          <button onclick={handleSubmit} class="export-button">
+            Export Workspace
+          </button>
+        </div>
+      </div>
     </div>
   </section>
 
   <section class="section">
-    <SectionHeader text="Export Options" />
+    <SectionHeader text="Other Export Options" />
     <div class="content">
-      <div class="options-row">
-        <GeneralInputText label="File name" bind:value={fileName} />
-        {#if type === 'scangraph'}
-          <GeneralSelect
-            label="Stimulus"
-            options={stimulusOptions}
-            bind:value={stimulusId}
-          />
-        {/if}
+      <p class="info-text">
+        Choose from specialized export formats for different analysis needs:
+      </p>
+      <div class="export-options">
+        <button class="export-option-card" onclick={handleOpenSegmentedExport}>
+          <div class="export-option-content">
+            <h4 class="export-option-title">Segmented Data (CSV)</h4>
+            <p class="export-option-subtitle">
+              Raw eye-tracking segments with timing and AOI information
+            </p>
+          </div>
+        </button>
+
+        <button class="export-option-card" onclick={handleOpenAggregatedExport}>
+          <div class="export-option-content">
+            <h4 class="export-option-title">Aggregated Data (CSV)</h4>
+            <p class="export-option-subtitle">
+              Statistical metrics like dwell time, fixation counts, and
+              durations
+            </p>
+          </div>
+        </button>
+
+        <button class="export-option-card" onclick={handleOpenScangraphExport}>
+          <div class="export-option-content">
+            <h4 class="export-option-title">ScanGraph Format</h4>
+            <p class="export-option-subtitle">
+              Scanpath data for similarity analysis and visualization
+            </p>
+          </div>
+        </button>
       </div>
-      <ModalButtons
-        buttons={[
-          {
-            label: 'Download',
-            onclick: handleSubmit,
-          },
-        ]}
-      />
     </div>
   </section>
 </div>
@@ -146,10 +123,127 @@
     width: 100%;
   }
 
-  .options-row {
+  .workspace-export {
     display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 1rem;
+    flex-direction: column;
+  }
+
+  .export-inline {
+    display: flex;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #fff;
+    transition: border-color 0.15s ease;
+  }
+
+  .export-inline:focus-within {
+    border-color: #cd1404;
+    box-shadow: 0 0 0 1px rgba(205, 20, 4, 0.3);
+  }
+
+  .export-input {
+    flex: 1;
+    border: none;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.9rem;
+    background: transparent;
+    outline: none;
+    color: #333;
+  }
+
+  .export-input::placeholder {
+    color: #999;
+  }
+
+  .export-button {
+    border: none;
+    background: #cd1404;
+    color: white;
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .export-button:hover {
+    background: #a20d03;
+  }
+
+  .export-button:focus {
+    outline: none;
+    background: #a20d03;
+  }
+
+  .workspace-description {
+    margin: 0 0 1rem 0;
+    color: #666;
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  .info-text {
+    margin: 0 0 1rem 0;
+    color: #666;
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  .export-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .export-option-card {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: #fafafa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: left;
+    width: 100%;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+
+  .export-option-card:hover {
+    border-color: #cd1404;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+  }
+
+  .export-option-card:focus {
+    outline: none;
+    border-color: #cd1404;
+    box-shadow: 0 0 0 2px rgba(205, 20, 4, 0.2);
+  }
+
+  .export-option-card:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  .export-option-content {
+    flex: 1;
+  }
+
+  .export-option-title {
+    margin: 0 0 0.25rem 0;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #333;
+    line-height: 1.3;
+  }
+
+  .export-option-subtitle {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #666;
+    line-height: 1.4;
   }
 </style>

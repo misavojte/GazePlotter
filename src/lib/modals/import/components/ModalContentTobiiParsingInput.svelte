@@ -1,6 +1,7 @@
 <script lang="ts">
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import { ModalButtons } from '$lib/modals'
+  import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { onDestroy } from 'svelte'
   interface Props {
     valuePromiseResolve: (value: string) => void
@@ -13,6 +14,16 @@
   onDestroy(() => {
     valuePromiseReject(new Error('Modal closed without value'))
   })
+
+  const handleSubmit = () => {
+    console.log('value', value)
+    valuePromiseResolve(value)
+  }
+
+  const handleCancel = () => {
+    valuePromiseReject(new Error('User cancelled'))
+    modalStore.close()
+  }
 </script>
 
 <div class="content">
@@ -40,10 +51,12 @@
   buttons={[
     {
       label: 'Apply',
-      onclick: () => {
-        console.log('value', value)
-        valuePromiseResolve(value)
-      },
+      onclick: handleSubmit,
+      variant: 'primary',
+    },
+    {
+      label: 'Cancel',
+      onclick: handleCancel,
     },
   ]}
 />

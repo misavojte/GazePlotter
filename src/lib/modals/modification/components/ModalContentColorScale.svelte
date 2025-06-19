@@ -2,7 +2,12 @@
   import { GeneralInputColor } from '$lib/shared/components'
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
-  import { SectionHeader, ModalButtons, modalStore } from '$lib/modals'
+  import {
+    SectionHeader,
+    ModalButtons,
+    modalStore,
+    IntroductoryParagraph,
+  } from '$lib/modals'
 
   interface Props {
     settings: TransitionMatrixGridType
@@ -110,14 +115,14 @@
 </script>
 
 <div class="color-scale-modal">
-  <div class="description">
-    <p>
-      Customize the color scale for visualization. The colors define how
-      different transition values are displayed in the matrix.
-    </p>
-  </div>
+  <IntroductoryParagraph
+    maxWidth="400px"
+    paragraphs={[
+      'Customize the color scale for visualization. The colors define how different transition values are displayed in the matrix.',
+    ]}
+  />
 
-  <div class="input-container">
+  <section class="section">
     <SectionHeader text="Gradient Type" />
     <GeneralRadio
       options={colorPointOptions}
@@ -125,7 +130,9 @@
       onchange={handleGradientTypeChange}
       legend="Color Points"
     />
+  </section>
 
+  <section class="section">
     <SectionHeader text="Color Selection" />
     <div class="color-inputs">
       <div class="color-input">
@@ -164,7 +171,9 @@
       <div class="preview-label">Preview:</div>
       <div class="gradient-preview" style:background={gradientStyle}></div>
     </div>
+  </section>
 
+  <section class="section">
     <SectionHeader text="Presets" />
     <div class="presets-container">
       {#each presets as preset}
@@ -185,13 +194,14 @@
         </button>
       {/each}
     </div>
-  </div>
+  </section>
 
   <ModalButtons
     buttons={[
       {
         label: 'Apply',
         onclick: handleConfirm,
+        variant: 'primary',
       },
       {
         label: 'Cancel',
@@ -207,11 +217,7 @@
     max-width: 450px;
   }
 
-  .description {
-    margin-bottom: 1.5rem;
-  }
-
-  .input-container {
+  .section {
     margin-bottom: 1.5rem;
   }
 

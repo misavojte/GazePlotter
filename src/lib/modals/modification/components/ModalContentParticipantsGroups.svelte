@@ -10,7 +10,7 @@
     GeneralButtonMinor,
     GeneralButtonPreset,
   } from '$lib/shared/components'
-  import { ModalButtons } from '$lib/modals'
+  import { ModalButtons, IntroductoryParagraph } from '$lib/modals'
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
   import GeneralInputText from '$lib/shared/components/GeneralInputText.svelte'
   import Bin from 'lucide-svelte/icons/trash'
@@ -277,6 +277,13 @@
   }
 </script>
 
+<IntroductoryParagraph
+  maxWidth="500px"
+  paragraphs={[
+    'Create and manage custom participant groups for analysis. Groups help organize participants by conditions, demographics, or other criteria.',
+  ]}
+/>
+
 {#if participantsGroups.length === 0}
   <div class="select-wrapper">
     <GeneralEmpty message="No custom groups yet." />
@@ -384,8 +391,10 @@
 <ModalButtons
   buttons={[
     {
-      label: 'Add group',
-      onclick: addGroup,
+      label: 'Save',
+      onclick: handleSubmit,
+      isDisabled: !hasChanged,
+      variant: 'primary',
     },
     {
       label: 'Discard Changes',
@@ -393,9 +402,8 @@
       isDisabled: !hasChanged,
     },
     {
-      label: 'Save',
-      onclick: handleSubmit,
-      isDisabled: !hasChanged,
+      label: 'Add group',
+      onclick: addGroup,
     },
   ]}
 />

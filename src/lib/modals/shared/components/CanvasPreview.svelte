@@ -107,7 +107,11 @@
     <!-- Download button -->
     {#if showDownloadButton}
       <div class="preview-actions">
-        <MajorButton onclick={handleDownload} isDisabled={isGeneratingDownload}>
+        <MajorButton
+          onclick={handleDownload}
+          isDisabled={isGeneratingDownload}
+          variant="primary"
+        >
           {isGeneratingDownload
             ? `Generating ${fileType.substring(1).toUpperCase()}...`
             : `Download ${fileName}${fileType}`}

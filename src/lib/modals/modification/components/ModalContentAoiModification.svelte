@@ -1,9 +1,14 @@
 <script lang="ts">
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import GeneralSelectBase from '$lib/shared/components/GeneralSelect.svelte'
-  import GeneralInfoCallout from '$lib/shared/components/GeneralInfoCallout.svelte'
   import { GeneralInputColor } from '$lib/shared/components'
-  import { SortableTableHeader, SectionHeader, ModalButtons } from '$lib/modals'
+  import {
+    SortableTableHeader,
+    SectionHeader,
+    ModalButtons,
+    IntroductoryParagraph,
+  } from '$lib/modals'
+  import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import {
     getAllAois,
     updateMultipleAoi,
@@ -245,17 +250,21 @@
     }
   }
 
+  const handleCancel = () => {
+    modalStore.close()
+  }
+
   const stimuliOption = getStimuliOptions()
 </script>
 
 <div class="content">
-  <GeneralInfoCallout
-    title="AOI Grouping Tip"
-    maxWidth="400px"
+  <IntroductoryParagraph
+    maxWidth="440px"
     paragraphs={[
-      'AOIs with identical displayed names will be treated as a single group in visualizations. To create groups, give multiple AOIs the same displayed name. The color of the first AOI with each name will be used for the entire group.',
+      'Modify AOI names, colors, and grouping. AOIs with identical displayed names will be treated as a single group in visualizations.',
+      '**To create groups**, give multiple AOIs the same displayed name. The color of the first AOI with each name will be used for the entire group.',
     ]}
-  ></GeneralInfoCallout>
+  />
   <GeneralSelectBase
     label="For stimulus"
     options={stimuliOption}
@@ -347,6 +356,11 @@
       {
         label: 'Apply',
         onclick: handleSubmit,
+        variant: 'primary',
+      },
+      {
+        label: 'Cancel',
+        onclick: handleCancel,
       },
     ]}
   />

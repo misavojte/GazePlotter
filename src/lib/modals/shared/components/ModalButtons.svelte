@@ -20,6 +20,7 @@
     <GeneralButtonMajor
       onclick={button.onclick}
       isDisabled={button.isDisabled ?? false}
+      variant={button.variant ?? 'secondary'}
     >
       {button.label}
     </GeneralButtonMajor>
