@@ -11,9 +11,62 @@
     getNumberOfStimuli,
     getNumberOfParticipants,
   } from '$lib/gaze-data/front-process/stores/dataStore'
+  import { onMount, onDestroy } from 'svelte'
 
   const fileMetadata = $derived($fileMetadataStore)
   const currentFileInput = $derived($currentFileInputStore)
+
+  // Memory monitoring state
+  let memoryInfo = $state<{
+    used: number
+    total: number
+    limit: number
+    available: boolean
+  }>({
+    used: 0,
+    total: 0,
+    limit: 0,
+    available: false,
+  })
+
+  let memoryUpdateInterval: ReturnType<typeof setInterval> | null = null
+
+  /**
+   * Updates memory information if available
+   */
+  function updateMemoryInfo(): void {
+    if ('memory' in performance && (performance as any).memory) {
+      const memory = (performance as any).memory
+      memoryInfo = {
+        used: memory.usedJSHeapSize,
+        total: memory.totalJSHeapSize,
+        limit: memory.jsHeapSizeLimit,
+        available: true,
+      }
+    } else {
+      memoryInfo = {
+        used: 0,
+        total: 0,
+        limit: 0,
+        available: false,
+      }
+    }
+  }
+
+  // Start memory monitoring when component mounts
+  onMount(() => {
+    updateMemoryInfo()
+    // Update memory info every 2 seconds
+    memoryUpdateInterval = setInterval(updateMemoryInfo, 2000)
+  })
+
+  // Clean up interval when component unmounts
+  onDestroy(() => {
+    if (memoryUpdateInterval !== null) {
+      clearInterval(memoryUpdateInterval)
+      memoryUpdateInterval = null
+    }
+  })
 
   /**
    * Formats file size in bytes to human-readable format
@@ -75,6 +128,16 @@
       csvContent += `Number of Stimuli,${overview.numberOfStimuli}\n`
       csvContent += `Number of Participants,${overview.numberOfParticipants}\n`
       csvContent += `Total Number of AOIs,${overview.aoiCounts.total}\n\n`
+
+      // RAM Usage Section
+      if (memoryInfo.available) {
+        csvContent += `Section,RAM Usage\n`
+        csvContent += `Metric,Value\n`
+        csvContent += `Current JS Heap Size (used),${formatFileSize(memoryInfo.used)}\n`
+        csvContent += `Total JS Heap Size (allocated),${formatFileSize(memoryInfo.total)}\n`
+        csvContent += `JS Heap Size Limit (max available),${formatFileSize(memoryInfo.limit)}\n`
+        csvContent += `Memory utilization,${((memoryInfo.used / memoryInfo.limit) * 100).toFixed(1)}% of limit\n\n`
+      }
 
       // AOIs per Stimulus
       if (overview.aoiCounts.perStimulus.length > 0) {
@@ -382,6 +445,35 @@
       {/if}
     </div>
   </section>
+  <!-- RAM Usage section -->
+  {#if memoryInfo.available}
+    <section class="section">
+      <SectionHeader text="RAM Usage" />
+      <div class="content">
+        <div class="info-group">
+          <div class="info-item">
+            <span class="label">Current JS Heap Size (used):</span>
+            <span class="value">{formatFileSize(memoryInfo.used)}</span>
+          </div>
+          <div class="info-item">
+            <span class="label">Total JS Heap Size (allocated):</span>
+            <span class="value">{formatFileSize(memoryInfo.total)}</span>
+          </div>
+          <div class="info-item">
+            <span class="label">JS Heap Size Limit (max available):</span>
+            <span class="value">{formatFileSize(memoryInfo.limit)}</span>
+          </div>
+          <div class="info-item">
+            <span class="label">Memory utilization:</span>
+            <span class="value"
+              >{((memoryInfo.used / memoryInfo.limit) * 100).toFixed(1)}% of
+              limit</span
+            >
+          </div>
+        </div>
+      </div>
+    </section>
+  {/if}
 
   <!-- Export button section -->
   <ModalButtons
