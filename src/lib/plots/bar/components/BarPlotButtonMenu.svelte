@@ -13,6 +13,7 @@
     ModalContentDownloadBarPlot,
     ModalContentBarChartAxes,
     ModalContentStimulusModification,
+    ModalContentExportAggregatedData,
   } from '$lib/modals'
   import type { ComponentProps } from 'svelte'
 
@@ -76,6 +77,16 @@
     )
   }
 
+  const exportAggregatedData = () => {
+    modalStore.open(
+      ModalContentExportAggregatedData as unknown as typeof SvelteComponent,
+      'Export aggregated data',
+      {
+        settings,
+      }
+    )
+  }
+
   let items = $derived([
     {
       label: 'Bar Chart Axes',
@@ -96,6 +107,11 @@
       label: 'Setup participants groups',
       action: openUserGroupsModal,
       icon: Users,
+    },
+    {
+      label: 'Export aggregated data',
+      action: exportAggregatedData,
+      icon: Download,
     },
     {
       label: 'Download plot',
