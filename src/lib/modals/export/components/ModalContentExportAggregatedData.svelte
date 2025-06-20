@@ -34,7 +34,7 @@
 
   // Export settings state
   let fileName = $state('GazePlotter-AggregatedData')
-  let selectedGroupId = $state(settings?.groupId.toString() ?? '0')
+  let selectedGroupId = $state(settings?.groupId.toString() ?? '-1')
   let selectedStimuliIds = $state(
     new Set([settings?.stimulusId.toString() ?? '0'])
   )
