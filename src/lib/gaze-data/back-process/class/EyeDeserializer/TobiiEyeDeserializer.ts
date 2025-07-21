@@ -64,11 +64,26 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   private readonly cEvent: number
   private readonly cEyeMovementTypeIndex: number
   private readonly cSensor: number // -1 if not present
-  private readonly cAoiInfo: Array<{
-    columnPosition: number
-    aoiName: string
-    stimulusName: string
-  }>
+
+  /**
+   * @private
+   * Performance optimization: Stores pre-computed column ranges for each stimulus's AOIs.
+   *
+   * Instead of a flat list of all AOIs, this maps a stimulus name to an object
+   * containing the start and end column indices of its contiguous AOI block,
+   * plus an array of the AOI names in that exact order.
+   *
+   * This allows `trackAoiHitsFromRow` to use a fast, cache-friendly numeric `for`
+   * loop over a small, relevant slice of the data row, avoiding a slow iteration
+   * over every AOI defined in the file.
+   *
+   * This relies on the assumption that for any given stimulus, Tobii exports all
+   * of its "AOI hit" columns in a contiguous block, which is standard behavior.
+   */
+  private readonly _mAoiColumnRanges: Map<
+    string,
+    { start: number; end: number; names: string[] }
+  >
 
   /* ── Mutable segment state ──────────────────────────────────────── */
   private mStimulus = EMPTY_STRING
@@ -107,7 +122,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     this.cSensor = header.indexOf('Sensor')
 
     const stimuliDict = this.constructStimuliDictionary(header)
-    this.cAoiInfo = this.constructAoiMapping(header, stimuliDict)
+    this._mAoiColumnRanges = this.constructAoiMapping(header, stimuliDict)
 
     this.stimulusGetter =
       userInput === EMPTY_STRING
@@ -297,9 +312,20 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
   /* ── AOI aggregation & helpers (unchanged logic) ────────────────── */
   private trackAoiHitsFromRow(row: string[]): void {
-    for (const info of this.cAoiInfo)
-      if (row[info.columnPosition] === '1')
-        this.mAoiHitTracker.add(info.aoiName)
+    const aoiRange = this._mAoiColumnRanges.get(this.mStimulus)
+    if (!aoiRange) {
+      return
+    }
+
+    const { start, end, names } = aoiRange
+    for (let i = start; i <= end; i++) {
+      if (row[i] === '1') {
+        // The index into the names array is the current column index
+        // offset by the start of the AOI block for this stimulus.
+        const aoiName = names[i - start]
+        this.mAoiHitTracker.add(aoiName)
+      }
+    }
   }
 
   private isEmptyRow(row: string[]): boolean {
@@ -363,24 +389,39 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     ].sort()
   }
 
-  private constructAoiMapping(header: string[], dict: string[]) {
-    const arr: Array<{
-      columnPosition: number
-      aoiName: string
-      stimulusName: string
-    }> = []
+  private constructAoiMapping(
+    header: string[],
+    dict: string[]
+  ): Map<string, { start: number; end: number; names: string[] }> {
+    const aoiMap = new Map<
+      string,
+      { start: number; end: number; names: string[] }
+    >()
+
     for (const stim of dict) {
-      const prefix = `${AOI_HIT_PREFIX}${stim}`
-      header.forEach((h, i) => {
-        if (h.startsWith(prefix))
-          arr.push({
-            columnPosition: i,
-            aoiName: h.replace(/A.*?- |]/g, ''),
-            stimulusName: stim,
-          })
-      })
+      const prefix = `${AOI_HIT_PREFIX}${stim} - `
+      let startIndex = -1
+      let endIndex = -1
+      const aoiNames: string[] = []
+
+      // Find all columns for the current stimulus and get their indices and names.
+      for (let i = 0; i < header.length; i++) {
+        const h = header[i]
+        if (h.startsWith(prefix)) {
+          if (startIndex === -1) {
+            startIndex = i
+          }
+          endIndex = i
+          // Extract name (e.g., from "AOI hit [Stim - Name]" to "Name").
+          aoiNames.push(h.substring(prefix.length, h.length - 1))
+        }
+      }
+
+      if (startIndex !== -1) {
+        aoiMap.set(stim, { start: startIndex, end: endIndex, names: aoiNames })
+      }
     }
-    return arr
+    return aoiMap
   }
 
   private constructBaseStimulusGetter() {
