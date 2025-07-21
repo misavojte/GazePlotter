@@ -139,8 +139,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
     // --- Guard Clause for the Hot Path ---
     // We only proceed to the expensive segment-processing logic if the row
-    // contains actual eye tracking data. For other rows (e.g., gyroscope,
-    // or events), we've already updated the stimulus state, so we can exit early.
+    // contains actual eye tracking data.
     if (
       row[this.cCategory] === EMPTY_STRING ||
       (this.cSensor !== -1 && row[this.cSensor] !== EYE_TRACKER_SENSOR)
@@ -150,11 +149,14 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
     // --- Hot Path: We know this is a valid Eye Tracker row. ---
 
+    // Optimization: Look up timestamp once, as it's used in multiple places.
+    const currentTimestamp = row[this.cRecordingTimestamp]
+
     // learn sample interval for this participant+recording
     this.updateSampleInterval(row)
 
     // --- Inlined isSameSegment() for Maximum Performance ---
-    // This is the absolute hottest path in the parser. The logic from the
+    // The logic from the
     // isSameSegment method has been manually inlined here to eliminate all
     // function call overhead for the most common case: processing rows that
     // are part of the same, continuous eye-movement segment.
@@ -176,14 +178,18 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
         stimulusResult.length === this.intervalStack.length
       ) {
         // The segment continues. Update the end time and track AOIs.
-        this.mRecordingLast = row[this.cRecordingTimestamp]
+        this.mRecordingLast = currentTimestamp
         this.trackAoiHitsFromRow(row)
         this.mPrevEyeTrackerRow = row
         return null
       }
     }
 
-    const out = this.deserializeNewSegment(row, stimulusResult)
+    const out = this.deserializeNewSegment(
+      row,
+      stimulusResult,
+      currentTimestamp
+    )
     this.mPrevEyeTrackerRow = row
     return out
   }
@@ -224,9 +230,9 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   /* ── Segment boundaries ─────────────────────────────────────────── */
   private deserializeNewSegment(
     row: string[],
-    stimulusResult: string[]
+    stimulusResult: string[],
+    currentTs: string
   ): DeserializerOutputType {
-    const currentTs = row[this.cRecordingTimestamp]
     const currTsNum = Number(currentTs)
 
     const participant = `${row[this.cRecording]} ${row[this.cParticipant]}`
