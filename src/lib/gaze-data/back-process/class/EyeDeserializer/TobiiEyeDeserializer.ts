@@ -198,12 +198,6 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     return result
   }
 
-  /* ── Sensor filtering ───────────────────────────────────────────── */
-  private isEyeTrackerRow(row: string[]): boolean {
-    if (this.cSensor === -1) return true // No sensor column, use all rows
-    return row[this.cSensor] === EYE_TRACKER_SENSOR
-  }
-
   /* ── Segment boundaries ─────────────────────────────────────────── */
   private deserializeNewSegment(
     row: string[],
