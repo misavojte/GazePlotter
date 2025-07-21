@@ -132,30 +132,40 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
   /* ── Public API ─────────────────────────────────────────────────── */
   deserialize = (row: string[]): DeserializerOutputType => {
-    // Inlined for performance: this.isEmptyRow(row)
-    if (row[this.cCategory] === EMPTY_STRING) {
-      return null
-    }
-
-    // Always let the stimulusGetter update the interval stack from the Event column
+    // The stimulusGetter must always run first, as non-eye-tracker rows can
+    // contain critical IntervalStart/IntervalEnd events that update the stack.
     const stimulusResult = this.stimulusGetter(row)
 
-    // Inlined for performance: this.isEyeTrackerRow(row)
-    // Only process Eye Tracker rows for timing and AOI data
-    if (this.cSensor !== -1 && row[this.cSensor] !== EYE_TRACKER_SENSOR) {
+    // --- Guard Clause for the Hot Path ---
+    // We only proceed to the expensive segment-processing logic if the row
+    // contains actual eye tracking data. For other rows (e.g., gyroscope,
+    // or events), we've already updated the stimulus state, so we can exit early.
+    if (
+      row[this.cCategory] === EMPTY_STRING ||
+      (this.cSensor !== -1 && row[this.cSensor] !== EYE_TRACKER_SENSOR)
+    ) {
       return null
     }
+
+    // --- Hot Path: We know this is a valid Eye Tracker row. ---
 
     // learn sample interval for this participant+recording
     this.updateSampleInterval(row)
 
-    // Inlined for performance: The most common check from this.isSameSegment()
+    // --- Inlined isSameSegment() for Maximum Performance ---
+    // This is the absolute hottest path in the parser. The logic from the
+    // isSameSegment method has been manually inlined here to eliminate all
+    // function call overhead for the most common case: processing rows that
+    // are part of the same, continuous eye-movement segment.
+
+    // First, a fast check on the movement type index.
     if (row[this.cEyeMovementTypeIndex] === this.mEyeMovementTypeIndex) {
-      // The segment type is the same, now do the full check which is less common.
-      // The active stimulus is always the last one on the stack. The most reliable
-      // and fastest way to check for segment continuity is to see if the stimulus
-      // at the top of the stack is the same as it was on the previous row.
-      // We also check length to quickly detect when an interval has started or ended.
+      // The segment type is the same. Now, we perform the full check for
+      // stimulus continuity. The active stimulus is always the last one on
+      // the stack. The fastest way to check for continuity is to see if the
+      // stimulus at the top of the stack is the same as it was on the
+      // previous row, and to check if the stack length has changed (which
+      // indicates a new interval started or a previous one ended).
       const lastStimulus =
         stimulusResult.length > 0
           ? stimulusResult[stimulusResult.length - 1]
@@ -164,6 +174,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
         lastStimulus === this.mStimulus &&
         stimulusResult.length === this.intervalStack.length
       ) {
+        // The segment continues. Update the end time and track AOIs.
         this.mRecordingLast = row[this.cRecordingTimestamp]
         this.trackAoiHitsFromRow(row)
         this.mPrevEyeTrackerRow = row
@@ -428,24 +439,31 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
   private constructIntervalStimulusGetter(userInput: string) {
     const [startMarker, endMarker] = userInput.split(';')
-    const startSuffix = ` ${startMarker}`
-    const endSuffix = ` ${endMarker}`
+
     return (row: string[]): string[] => {
       const evt = row[this.cEvent]
       if (!evt) return this.intervalStack
 
-      if (evt.endsWith(startSuffix)) {
-        // Fast path: extract stimulus name by removing the suffix
-        const s = evt.substring(0, evt.length - startSuffix.length)
-        if (!this.intervalStack.includes(s)) this.intervalStack.push(s)
+      // This logic is optimized for performance. The user is expected to provide
+      // the full suffix, including any delimiter (e.g., " IntervalStart" or "_start").
+      // The parser then uses a fast .endsWith() check and slices the exact
+      // length of the marker, avoiding slower, generic .replace() calls.
+
+      if (evt.endsWith(startMarker)) {
+        const stimulusName = evt.substring(0, evt.length - startMarker.length)
+        if (!this.intervalStack.includes(stimulusName)) {
+          this.intervalStack.push(stimulusName)
+        }
         return this.intervalStack
       }
-      if (evt.endsWith(endSuffix)) {
-        const s = evt.substring(0, evt.length - endSuffix.length)
-        const i = this.intervalStack.indexOf(s)
+
+      if (evt.endsWith(endMarker)) {
+        const stimulusName = evt.substring(0, evt.length - endMarker.length)
+        const i = this.intervalStack.indexOf(stimulusName)
         if (i !== -1) this.intervalStack.splice(i, 1)
         return this.intervalStack
       }
+
       return this.intervalStack
     }
   }

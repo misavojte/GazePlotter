@@ -40,7 +40,7 @@ describe('TobiiEyeDeserializer', () => {
     const rows = lines.slice(1).map(line => line.split('\t'))
     const deserializer = new TobiiEyeDeserializer(
       header,
-      'IntervalStart;IntervalEnd'
+      ' IntervalStart; IntervalEnd'
     )
     const outputs = []
     for (const row of rows) {
