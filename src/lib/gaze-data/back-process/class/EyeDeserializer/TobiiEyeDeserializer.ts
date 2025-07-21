@@ -389,17 +389,20 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
   private constructIntervalStimulusGetter(userInput: string) {
     const [startMarker, endMarker] = userInput.split(';')
+    const startSuffix = ` ${startMarker}`
+    const endSuffix = ` ${endMarker}`
     return (row: string[]): string | string[] => {
       const evt = row[this.cEvent]
       if (!evt)
         return this.intervalStack.length ? this.intervalStack : EMPTY_STRING
-      if (evt.includes(startMarker)) {
-        const s = evt.replace(startMarker, '').trim()
+      if (evt.endsWith(startSuffix)) {
+        // Fast path: extract stimulus name by removing the suffix
+        const s = evt.substring(0, evt.length - startSuffix.length)
         if (!this.intervalStack.includes(s)) this.intervalStack.push(s)
         return this.intervalStack
       }
-      if (evt.includes(endMarker)) {
-        const s = evt.replace(endMarker, '').trim()
+      if (evt.endsWith(endSuffix)) {
+        const s = evt.substring(0, evt.length - endSuffix.length)
         const i = this.intervalStack.indexOf(s)
         if (i !== -1) this.intervalStack.splice(i, 1)
         return this.intervalStack.length ? this.intervalStack : EMPTY_STRING
