@@ -12,6 +12,25 @@ const AOI_HIT_PREFIX = 'AOI hit ['
 const EYE_TRACKER_SENSOR = 'Eye Tracker'
 
 /**
+ * Minimum plausible sample interval in microseconds (e.g., 900µs for a ~1111Hz tracker).
+ * Used for learning the sample rate from the data.
+ */
+const MIN_SAMPLE_INTERVAL_US = 900
+
+/**
+ * Maximum plausible sample interval in microseconds (e.g., 50ms for a 20Hz tracker).
+ * Used for learning the sample rate from the data.
+ */
+const MAX_SAMPLE_INTERVAL_US = 50000
+
+/**
+ * A tolerance factor to account for jitter in sample timestamps. A segment start
+ * is corrected if the gap to the previous sample is no more than the nominal
+ * sample interval multiplied by this factor.
+ */
+const SAMPLE_INTERVAL_TOLERANCE_FACTOR = 1.5
+
+/**
  * Deserializer for Tobii Pro Lab TSV exports.
  *
  * ### Tobii quirks handled
@@ -104,8 +123,8 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
       return null
     }
 
-    // Handle IntervalStart/IntervalEnd events even if not from Eye Tracker sensor
-    this.handleIntervalEvents(row)
+    // Always let the stimulusGetter update the interval stack from the Event column
+    this.stimulusGetter(row)
 
     // Only process Eye Tracker rows for timing and AOI data
     if (!this.isEyeTrackerRow(row)) {
@@ -130,73 +149,43 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     return out
   }
 
+  finalize(): DeserializerOutputType {
+    if (
+      !this.mParticipant ||
+      !this.mStimulus ||
+      !this.mRecordingStart ||
+      !this.mPrevEyeTrackerRow
+    ) {
+      return null
+    }
+
+    const lastTimestamp = Number(
+      this.mPrevEyeTrackerRow[this.cRecordingTimestamp]
+    )
+    const sampleKey = `${this.mPrevEyeTrackerRow[this.cRecording]}|${
+      this.mPrevEyeTrackerRow[this.cParticipant]
+    }`
+    const sampInt = this.sampleIntervals.get(sampleKey)
+
+    let correctedEnd = String(lastTimestamp)
+    if (sampInt) {
+      correctedEnd = String(lastTimestamp + sampInt / 2)
+    }
+
+    this.mRecordingLast = correctedEnd
+    this.mAoi = Array.from(this.mAoiHitTracker)
+
+    const result = this.intervalStack.length
+      ? this.createSegmentsForIntervals()
+      : this.createSegmentForSingleStimulus()
+
+    return result
+  }
+
   /* ── Sensor filtering ───────────────────────────────────────────── */
   private isEyeTrackerRow(row: string[]): boolean {
     if (this.cSensor === -1) return true // No sensor column, use all rows
     return row[this.cSensor] === EYE_TRACKER_SENSOR
-  }
-
-  private handleIntervalEvents(row: string[]): void {
-    const evt = row[this.cEvent]
-    if (!evt) return
-
-    // Handle IntervalStart/IntervalEnd events regardless of sensor value
-    if (this.stimulusGetter.toString().includes('startMarker')) {
-      // This is an interval-based stimulus getter, process events
-      const result = this.stimulusGetter(row)
-      if (Array.isArray(result)) {
-        // IntervalStart/IntervalEnd was processed, update stimulus base times
-        const participant = `${row[this.cRecording]} ${row[this.cParticipant]}`
-        this.updateStimuliBaseTimesForEvents(row, participant)
-      }
-    }
-  }
-
-  private updateStimuliBaseTimesForEvents(
-    row: string[],
-    participant: string
-  ): void {
-    const evt = row[this.cEvent]
-    if (!evt) return
-
-    // Find the timing for this event using edging principle
-    const eventTimestamp = this.getEventTimestampViaEdging(row)
-
-    // Extract stimulus name from event
-    const startMarkerMatch = evt.match(/(.+) IntervalStart/)
-    const endMarkerMatch = evt.match(/(.+) IntervalEnd/)
-
-    if (startMarkerMatch) {
-      const stimulusName = startMarkerMatch[1].trim()
-      const key = stimulusName + participant
-      if (!this.stimuliBaseTimes.has(key)) {
-        this.stimuliBaseTimes.set(key, eventTimestamp)
-      }
-    }
-  }
-
-  private getEventTimestampViaEdging(eventRow: string[]): string {
-    const eventTs = eventRow[this.cRecordingTimestamp]
-
-    // If we have a previous Eye Tracker row, use edging principle
-    if (this.mPrevEyeTrackerRow) {
-      const prevTs = Number(this.mPrevEyeTrackerRow[this.cRecordingTimestamp])
-      const eventTsNum = Number(eventTs)
-      const participant = `${eventRow[this.cRecording]} ${eventRow[this.cParticipant]}`
-      const sampleKey = `${eventRow[this.cRecording]}|${eventRow[this.cParticipant]}`
-      const sampInt = this.sampleIntervals.get(sampleKey)
-
-      if (sampInt) {
-        const delta = eventTsNum - prevTs
-        if (delta <= sampInt * 1.5) {
-          // Use edging principle: halfway between previous Eye Tracker row and event
-          return String(prevTs + delta / 2)
-        }
-      }
-    }
-
-    // Fallback: use the event timestamp directly
-    return eventTs
   }
 
   /* ── Segment boundaries ─────────────────────────────────────────── */
@@ -217,7 +206,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
         this.mPrevEyeTrackerRow[this.cRecordingTimestamp]
       )
       const delta = currTsNum - prevEyeTrackerTs
-      if (delta <= sampInt * 1.5) {
+      if (delta <= sampInt * SAMPLE_INTERVAL_TOLERANCE_FACTOR) {
         // Calculate midpoint between previous Eye Tracker sample and current Eye Tracker sample
         midpoint = String(prevEyeTrackerTs + delta / 2)
         correctedStart = midpoint
@@ -236,15 +225,20 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     }
 
     // handle stimulus base‑time bookkeeping
-    if (Array.isArray(stimulusResult)) {
-      this.updateStimuliBaseTimes(stimulusResult, participant, currentTs)
-      this.mStimulus = stimulusResult[stimulusResult.length - 1]
-    } else {
-      const stim = stimulusResult as string
-      const key = stim + participant
-      if (!this.stimuliBaseTimes.has(key))
-        this.stimuliBaseTimes.set(key, currentTs)
-      this.mStimulus = stim
+    const activeStimuli = Array.isArray(stimulusResult)
+      ? stimulusResult
+      : [stimulusResult]
+
+    if (activeStimuli.length > 0) {
+      this.mStimulus = activeStimuli[activeStimuli.length - 1]
+      for (const stim of activeStimuli) {
+        const key = stim + participant
+        if (!this.stimuliBaseTimes.has(key)) {
+          // This is the first segment for this stimulus.
+          // Its base time is the start time of this segment.
+          this.stimuliBaseTimes.set(key, correctedStart)
+        }
+      }
     }
 
     /* mutate state for new segment */
@@ -290,37 +284,6 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     return result
   }
 
-  finalize(): DeserializerOutputType {
-    if (
-      !this.mParticipant ||
-      !this.mStimulus ||
-      !this.mRecordingStart ||
-      !this.mPrevEyeTrackerRow
-    ) {
-      return null
-    }
-
-    const lastTimestamp = Number(
-      this.mPrevEyeTrackerRow[this.cRecordingTimestamp]
-    )
-    const sampleKey = `${this.mPrevEyeTrackerRow[this.cRecording]}|${this.mPrevEyeTrackerRow[this.cParticipant]}`
-    const sampInt = this.sampleIntervals.get(sampleKey)
-
-    let correctedEnd = String(lastTimestamp)
-    if (sampInt) {
-      correctedEnd = String(lastTimestamp + sampInt / 2)
-    }
-
-    this.mRecordingLast = correctedEnd
-    this.mAoi = Array.from(this.mAoiHitTracker)
-
-    const result = this.intervalStack.length
-      ? this.createSegmentsForIntervals()
-      : this.createSegmentForSingleStimulus()
-
-    return result
-  }
-
   /* ── Sample interval learning ───────────────────────────────────── */
   private updateSampleInterval(row: string[]): void {
     if (!this.mPrevEyeTrackerRow) return
@@ -329,8 +292,8 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     const prevTs = Number(this.mPrevEyeTrackerRow[this.cRecordingTimestamp])
     const currTs = Number(row[this.cRecordingTimestamp])
     const delta = currTs - prevTs
-    if (delta >= 3000 && delta <= 50000) {
-      // accept 3–50 ms as plausible raw frame interval (mobile eye trackers can be slower)
+    if (delta >= MIN_SAMPLE_INTERVAL_US && delta <= MAX_SAMPLE_INTERVAL_US) {
+      // accept ~20-1111 Hz as plausible raw frame interval (mobile eye trackers can be slower)
       this.sampleIntervals.set(key, delta)
     }
   }
@@ -446,17 +409,6 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
         return this.intervalStack.length ? this.intervalStack : EMPTY_STRING
       }
       return this.intervalStack.length ? this.intervalStack : EMPTY_STRING
-    }
-  }
-
-  private updateStimuliBaseTimes(
-    stimuli: string[],
-    participant: string,
-    ts: string
-  ) {
-    for (const s of stimuli) {
-      const key = s + participant
-      if (!this.stimuliBaseTimes.has(key)) this.stimuliBaseTimes.set(key, ts)
     }
   }
 }
