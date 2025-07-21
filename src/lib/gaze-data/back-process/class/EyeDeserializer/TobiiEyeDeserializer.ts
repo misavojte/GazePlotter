@@ -49,6 +49,9 @@ const SAMPLE_INTERVAL_TOLERANCE_FACTOR = 1.5
  *    empty sensor values but timing is handled via edging principle.
  * 5. **Segment end correction** – Similar to start correction, segment ends are adjusted to
  *    eliminate gaps between consecutive segments.
+ * 6. **Robust AOI Aggregation** - All `AOI hit [...]` columns are scanned on every eye-tracker
+ *    row, regardless of the active stimulus. This is more robust than stimulus-specific
+ *    AOI parsing, which can fail if stimulus and AOI names don't align perfectly.
  *
  * @extends AbstractEyeDeserializer
  * @category Eye
@@ -67,23 +70,22 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
   /**
    * @private
-   * Performance optimization: Stores pre-computed column ranges for each stimulus's AOIs.
+   * Stores pre-computed column information for all AOIs.
    *
-   * Instead of a flat list of all AOIs, this maps a stimulus name to an object
-   * containing the start and end column indices of its contiguous AOI block,
-   * plus an array of the AOI names in that exact order.
+   * This optimization assumes that all "AOI hit" columns in the Tobii export
+   * are contiguous. We find the start and end column index of this block once.
+   * This allows `trackAoiHitsFromRow` to use a fast numeric `for` loop over a
+   * relevant slice of the data row.
    *
-   * This allows `trackAoiHitsFromRow` to use a fast, cache-friendly numeric `for`
-   * loop over a small, relevant slice of the data row, avoiding a slow iteration
-   * over every AOI defined in the file.
-   *
-   * This relies on the assumption that for any given stimulus, Tobii exports all
-   * of its "AOI hit" columns in a contiguous block, which is standard behavior.
+   * Previously, this was a Map keyed by stimulus name. This was removed because
+   * the active stimulus might not always correctly correspond to the AOI columns,
+   * leading to missed hits. This simpler approach is more robust.
    */
-  private readonly _mAoiColumnRanges: Map<
-    string,
-    { start: number; end: number; names: string[] }
-  >
+  private readonly _mAoiColumnInfo: {
+    start: number
+    end: number
+    names: string[]
+  } | null
 
   /* ── Mutable segment state ──────────────────────────────────────── */
   private mStimulus = EMPTY_STRING
@@ -121,8 +123,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     this.cEyeMovementTypeIndex = header.indexOf('Eye movement type index')
     this.cSensor = header.indexOf('Sensor')
 
-    const stimuliDict = this.constructStimuliDictionary(header)
-    this._mAoiColumnRanges = this.constructAoiMapping(header, stimuliDict)
+    this._mAoiColumnInfo = this.constructAoiInfo(header)
 
     this.stimulusGetter =
       userInput === EMPTY_STRING
@@ -329,18 +330,19 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
   /* ── AOI aggregation & helpers (unchanged logic) ────────────────── */
   private trackAoiHitsFromRow(row: string[]): void {
-    const aoiRange = this._mAoiColumnRanges.get(this.mStimulus)
-    if (!aoiRange) {
+    if (!this._mAoiColumnInfo) {
       return
     }
 
-    const { start, end, names } = aoiRange
+    const { start, end, names } = this._mAoiColumnInfo
     for (let i = start; i <= end; i++) {
       if (row[i] === '1') {
         // The index into the names array is the current column index
         // offset by the start of the AOI block for this stimulus.
         const aoiName = names[i - start]
-        this.mAoiHitTracker.add(aoiName)
+        if (aoiName) {
+          this.mAoiHitTracker.add(aoiName)
+        }
       }
     }
   }
@@ -385,49 +387,44 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   }
 
   /* ── Utility: stimuli & AOI mapping (unchanged) ─────────────────── */
-  private constructStimuliDictionary(header: string[]): string[] {
-    return [
-      ...new Set(
-        header
-          .filter(c => c.startsWith(AOI_HIT_PREFIX))
-          .map(c => c.replace(/AOI hit \[|\s-.*?]/g, ''))
-      ),
-    ].sort()
-  }
+  private constructAoiInfo(
+    header: string[]
+  ): { start: number; end: number; names: string[] } | null {
+    let startIndex = -1
+    let endIndex = -1
 
-  private constructAoiMapping(
-    header: string[],
-    dict: string[]
-  ): Map<string, { start: number; end: number; names: string[] }> {
-    const aoiMap = new Map<
-      string,
-      { start: number; end: number; names: string[] }
-    >()
-
-    for (const stim of dict) {
-      const prefix = `${AOI_HIT_PREFIX}${stim} - `
-      let startIndex = -1
-      let endIndex = -1
-      const aoiNames: string[] = []
-
-      // Find all columns for the current stimulus and get their indices and names.
-      for (let i = 0; i < header.length; i++) {
-        const h = header[i]
-        if (h.startsWith(prefix)) {
-          if (startIndex === -1) {
-            startIndex = i
-          }
-          endIndex = i
-          // Extract name (e.g., from "AOI hit [Stim - Name]" to "Name").
-          aoiNames.push(h.substring(prefix.length, h.length - 1))
+    // First, find the global start and end index of all AOI columns.
+    for (let i = 0; i < header.length; i++) {
+      if (header[i].startsWith(AOI_HIT_PREFIX)) {
+        if (startIndex === -1) {
+          startIndex = i
         }
-      }
-
-      if (startIndex !== -1) {
-        aoiMap.set(stim, { start: startIndex, end: endIndex, names: aoiNames })
+        endIndex = i
       }
     }
-    return aoiMap
+
+    // If no AOI columns were found, return null.
+    if (startIndex === -1) {
+      return null
+    }
+
+    // Now, create the names array for the entire contiguous block.
+    // This assumes all columns between startIndex and endIndex are AOI hits.
+    // If there is a non-AOI column in the mix (unexpected), its name will be
+    // an empty string, and it will be ignored during hit tracking.
+    const aoiNames: string[] = []
+    for (let i = startIndex; i <= endIndex; i++) {
+      const h = header[i]
+      if (h.startsWith(AOI_HIT_PREFIX)) {
+        // From "AOI hit [Stim - Name]" to "Name" by splitting at the last " - "
+        const fullName = h.substring(AOI_HIT_PREFIX.length, h.length - 1)
+        aoiNames.push(fullName.substring(fullName.lastIndexOf(' - ') + 3))
+      } else {
+        aoiNames.push(EMPTY_STRING) // Placeholder for non-AOI columns
+      }
+    }
+
+    return { start: startIndex, end: endIndex, names: aoiNames }
   }
 
   private constructBaseStimulusGetter() {
