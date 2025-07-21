@@ -101,7 +101,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   private readonly sampleIntervals: Map<string, number> = new Map()
 
   /* ── Stimulus helpers ───────────────────────────────────────────── */
-  private readonly stimulusGetter: (row: string[]) => string | string[]
+  private readonly stimulusGetter: (row: string[]) => string[]
   private readonly stimuliBaseTimes: Map<string, string> = new Map()
   private readonly intervalStack: string[] = []
 
@@ -152,7 +152,18 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     // Inlined for performance: The most common check from this.isSameSegment()
     if (row[this.cEyeMovementTypeIndex] === this.mEyeMovementTypeIndex) {
       // The segment type is the same, now do the full check which is less common.
-      if (this.isSameSegment(row, stimulusResult)) {
+      // The active stimulus is always the last one on the stack. The most reliable
+      // and fastest way to check for segment continuity is to see if the stimulus
+      // at the top of the stack is the same as it was on the previous row.
+      // We also check length to quickly detect when an interval has started or ended.
+      const lastStimulus =
+        stimulusResult.length > 0
+          ? stimulusResult[stimulusResult.length - 1]
+          : undefined
+      if (
+        lastStimulus === this.mStimulus &&
+        stimulusResult.length === this.intervalStack.length
+      ) {
         this.mRecordingLast = row[this.cRecordingTimestamp]
         this.trackAoiHitsFromRow(row)
         this.mPrevEyeTrackerRow = row
@@ -201,7 +212,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   /* ── Segment boundaries ─────────────────────────────────────────── */
   private deserializeNewSegment(
     row: string[],
-    stimulusResult: string | string[]
+    stimulusResult: string[]
   ): DeserializerOutputType {
     const currentTs = row[this.cRecordingTimestamp]
     const currTsNum = Number(currentTs)
@@ -228,18 +239,13 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
     const previousSegment = this.getPreviousSegmentWithCorrectedEnd(midpoint)
 
-    if (
-      stimulusResult === EMPTY_STRING ||
-      (Array.isArray(stimulusResult) && stimulusResult.length === 0)
-    ) {
+    if (stimulusResult.length === 0) {
       this.mStimulus = EMPTY_STRING
       return previousSegment
     }
 
     // handle stimulus base‑time bookkeeping
-    const activeStimuli = Array.isArray(stimulusResult)
-      ? stimulusResult
-      : [stimulusResult]
+    const activeStimuli = stimulusResult
 
     if (activeStimuli.length > 0) {
       this.mStimulus = activeStimuli[activeStimuli.length - 1]
@@ -328,33 +334,26 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     }
   }
 
-  private isSameSegment(row: string[], stim: string | string[]): boolean {
-    if (row[this.cEyeMovementTypeIndex] !== this.mEyeMovementTypeIndex)
-      return false
-    return Array.isArray(stim)
-      ? stim.includes(this.mStimulus) &&
-          stim[stim.length - 1] === this.mStimulus
-      : stim === this.mStimulus
-  }
-
-  /* ── Segment creation helpers (unchanged) ───────────────────────── */
+  /* ── Segment creation helpers ───────────────────────── */
   private createSegmentsForIntervals(): DeserializerOutputType {
-    return this.intervalStack.map(stimulus => {
+    const segments: DeserializerOutputType = []
+    for (const stimulus of this.intervalStack) {
       const key = stimulus + this.mParticipant
       const baseTime = this.stimuliBaseTimes.get(key) || this.mRecordingStart
       const start =
         (Number(this.mRecordingStart) - Number(baseTime)) * TIME_MODIFIER
       const end =
         (Number(this.mRecordingLast) - Number(baseTime)) * TIME_MODIFIER
-      return {
+      segments.push({
         stimulus,
         participant: this.mParticipant,
         start: String(start),
         end: String(end),
         category: this.mCategory,
         aoi: this.mAoi,
-      }
-    })
+      })
+    }
+    return segments
   }
 
   private createSegmentForSingleStimulus(): DeserializerOutputType {
@@ -421,17 +420,20 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   }
 
   private constructBaseStimulusGetter() {
-    return (row: string[]) => row[this.cStimulus]
+    return (row: string[]): string[] => {
+      const stim = row[this.cStimulus]
+      return stim ? [stim] : []
+    }
   }
 
   private constructIntervalStimulusGetter(userInput: string) {
     const [startMarker, endMarker] = userInput.split(';')
     const startSuffix = ` ${startMarker}`
     const endSuffix = ` ${endMarker}`
-    return (row: string[]): string | string[] => {
+    return (row: string[]): string[] => {
       const evt = row[this.cEvent]
-      if (!evt)
-        return this.intervalStack.length ? this.intervalStack : EMPTY_STRING
+      if (!evt) return this.intervalStack
+
       if (evt.endsWith(startSuffix)) {
         // Fast path: extract stimulus name by removing the suffix
         const s = evt.substring(0, evt.length - startSuffix.length)
@@ -442,9 +444,9 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
         const s = evt.substring(0, evt.length - endSuffix.length)
         const i = this.intervalStack.indexOf(s)
         if (i !== -1) this.intervalStack.splice(i, 1)
-        return this.intervalStack.length ? this.intervalStack : EMPTY_STRING
+        return this.intervalStack
       }
-      return this.intervalStack.length ? this.intervalStack : EMPTY_STRING
+      return this.intervalStack
     }
   }
 }
