@@ -124,7 +124,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     }
 
     // Always let the stimulusGetter update the interval stack from the Event column
-    this.stimulusGetter(row)
+    const stimulusResult = this.stimulusGetter(row)
 
     // Only process Eye Tracker rows for timing and AOI data
     if (!this.isEyeTrackerRow(row)) {
@@ -135,7 +135,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     // learn sample interval for this participant+recording
     this.updateSampleInterval(row)
 
-    if (this.isSameSegment(row)) {
+    if (this.isSameSegment(row, stimulusResult)) {
       this.mRecordingLast = row[this.cRecordingTimestamp]
       this.trackAoiHitsFromRow(row)
       this.mPrevRow = row
@@ -143,7 +143,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
       return null
     }
 
-    const out = this.deserializeNewSegment(row)
+    const out = this.deserializeNewSegment(row, stimulusResult)
     this.mPrevRow = row
     this.mPrevEyeTrackerRow = row
     return out
@@ -189,7 +189,10 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   }
 
   /* ── Segment boundaries ─────────────────────────────────────────── */
-  private deserializeNewSegment(row: string[]): DeserializerOutputType {
+  private deserializeNewSegment(
+    row: string[],
+    stimulusResult: string | string[]
+  ): DeserializerOutputType {
     const currentTs = row[this.cRecordingTimestamp]
     const currTsNum = Number(currentTs)
 
@@ -215,7 +218,6 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
     const previousSegment = this.getPreviousSegmentWithCorrectedEnd(midpoint)
 
-    const stimulusResult = this.stimulusGetter(row)
     if (
       stimulusResult === EMPTY_STRING ||
       (Array.isArray(stimulusResult) && stimulusResult.length === 0)
@@ -309,10 +311,9 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     return row[this.cCategory] === EMPTY_STRING
   }
 
-  private isSameSegment(row: string[]): boolean {
+  private isSameSegment(row: string[], stim: string | string[]): boolean {
     if (row[this.cEyeMovementTypeIndex] !== this.mEyeMovementTypeIndex)
       return false
-    const stim = this.stimulusGetter(row)
     return Array.isArray(stim)
       ? stim.includes(this.mStimulus) &&
           stim[stim.length - 1] === this.mStimulus
