@@ -79,7 +79,6 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   private mCategory = EMPTY_STRING
   private mAoi: string[] | null = null
   private mAoiHitTracker: Set<string> = new Set()
-  private mPrevRow: string[] | null = null
   private mPrevEyeTrackerRow: string[] | null = null
 
   /* ── Sampling interval learning ─────────────────────────────────── */
@@ -119,7 +118,6 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   /* ── Public API ─────────────────────────────────────────────────── */
   deserialize = (row: string[]): DeserializerOutputType => {
     if (this.isEmptyRow(row)) {
-      this.mPrevRow = row
       return null
     }
 
@@ -128,7 +126,6 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
     // Only process Eye Tracker rows for timing and AOI data
     if (!this.isEyeTrackerRow(row)) {
-      this.mPrevRow = row
       return null
     }
 
@@ -138,13 +135,11 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     if (this.isSameSegment(row, stimulusResult)) {
       this.mRecordingLast = row[this.cRecordingTimestamp]
       this.trackAoiHitsFromRow(row)
-      this.mPrevRow = row
       this.mPrevEyeTrackerRow = row
       return null
     }
 
     const out = this.deserializeNewSegment(row, stimulusResult)
-    this.mPrevRow = row
     this.mPrevEyeTrackerRow = row
     return out
   }
