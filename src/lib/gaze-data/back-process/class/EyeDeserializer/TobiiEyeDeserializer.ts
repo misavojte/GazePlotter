@@ -132,26 +132,32 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
   /* ── Public API ─────────────────────────────────────────────────── */
   deserialize = (row: string[]): DeserializerOutputType => {
-    if (this.isEmptyRow(row)) {
+    // Inlined for performance: this.isEmptyRow(row)
+    if (row[this.cCategory] === EMPTY_STRING) {
       return null
     }
 
     // Always let the stimulusGetter update the interval stack from the Event column
     const stimulusResult = this.stimulusGetter(row)
 
+    // Inlined for performance: this.isEyeTrackerRow(row)
     // Only process Eye Tracker rows for timing and AOI data
-    if (!this.isEyeTrackerRow(row)) {
+    if (this.cSensor !== -1 && row[this.cSensor] !== EYE_TRACKER_SENSOR) {
       return null
     }
 
     // learn sample interval for this participant+recording
     this.updateSampleInterval(row)
 
-    if (this.isSameSegment(row, stimulusResult)) {
-      this.mRecordingLast = row[this.cRecordingTimestamp]
-      this.trackAoiHitsFromRow(row)
-      this.mPrevEyeTrackerRow = row
-      return null
+    // Inlined for performance: The most common check from this.isSameSegment()
+    if (row[this.cEyeMovementTypeIndex] === this.mEyeMovementTypeIndex) {
+      // The segment type is the same, now do the full check which is less common.
+      if (this.isSameSegment(row, stimulusResult)) {
+        this.mRecordingLast = row[this.cRecordingTimestamp]
+        this.trackAoiHitsFromRow(row)
+        this.mPrevEyeTrackerRow = row
+        return null
+      }
     }
 
     const out = this.deserializeNewSegment(row, stimulusResult)
@@ -326,10 +332,6 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
         this.mAoiHitTracker.add(aoiName)
       }
     }
-  }
-
-  private isEmptyRow(row: string[]): boolean {
-    return row[this.cCategory] === EMPTY_STRING
   }
 
   private isSameSegment(row: string[], stim: string | string[]): boolean {
