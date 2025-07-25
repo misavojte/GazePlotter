@@ -118,9 +118,19 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
     this.cParticipant = header.indexOf('Participant name')
     this.cRecording = header.indexOf('Recording name')
-    this.cCategory = header.indexOf('Eye movement type')
+
+    // Prioritize "Mapped eye movement type" columns over regular ones
+    this.cCategory =
+      this.findColumnByPrefix(header, 'Mapped eye movement type') ??
+      header.indexOf('Eye movement type')
+
     this.cEvent = header.indexOf('Event')
-    this.cEyeMovementTypeIndex = header.indexOf('Eye movement type index')
+
+    // Prioritize "Mapped eye movement type index" columns over regular ones
+    this.cEyeMovementTypeIndex =
+      this.findColumnByPrefix(header, 'Mapped eye movement type index') ??
+      header.indexOf('Eye movement type index')
+
     this.cSensor = header.indexOf('Sensor')
 
     this._mAoiColumnInfo = this.constructAoiInfo(header)
@@ -161,8 +171,11 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     // function call overhead for the most common case: processing rows that
     // are part of the same, continuous eye-movement segment.
 
-    // First, a fast check on the movement type index.
-    if (row[this.cEyeMovementTypeIndex] === this.mEyeMovementTypeIndex) {
+    // First, a fast check on both the movement type index and type.
+    if (
+      row[this.cEyeMovementTypeIndex] === this.mEyeMovementTypeIndex &&
+      row[this.cCategory] === this.mCategory
+    ) {
       // The segment type is the same. Now, we perform the full check for
       // stimulus continuity. The active stimulus is always the last one on
       // the stack. The fastest way to check for continuity is to see if the
@@ -469,5 +482,24 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
       return this.intervalStack
     }
+  }
+
+  /* ── Private helper methods ─────────────────────────────────────── */
+
+  /**
+   * Finds a column index by matching the beginning of the column name.
+   * This handles dynamic column names like "Mapped eye movement type [geostul]".
+   *
+   * @param header - Array of column header names
+   * @param prefix - The prefix to search for (e.g., "Mapped eye movement type")
+   * @returns The index of the first matching column, or null if not found
+   */
+  private findColumnByPrefix(header: string[], prefix: string): number | null {
+    for (let i = 0; i < header.length; i++) {
+      if (header[i].startsWith(prefix)) {
+        return i
+      }
+    }
+    return null
   }
 }
