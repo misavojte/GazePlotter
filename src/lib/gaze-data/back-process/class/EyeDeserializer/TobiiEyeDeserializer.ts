@@ -486,7 +486,17 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   }
 
   private constructIntervalStimulusGetter(userInput: string) {
-    const [startMarker, endMarker] = userInput.split(';')
+    const parts = userInput.split(';')
+
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+      // This is a developer-facing error for a misconfiguration.
+      // Throwing an error is appropriate to prevent silent failure and
+      // difficult-to-debug behavior downstream.
+      throw new Error(
+        `Invalid Tobii interval marker format. Expected "start;end", but received "${userInput}". Both markers must be non-empty.`
+      )
+    }
+    const [startMarker, endMarker] = parts
 
     return (row: string[]): string[] => {
       const evt = row[this.cEvent]
