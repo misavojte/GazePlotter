@@ -47,8 +47,7 @@
 
 <div class="content">
   <p class="description">
-    GazePlotter detected Tobii Pro Lab data with an Event column. Choose how the
-    stimulus should be determined:
+    Choose how to determine stimuli from your Tobii Pro Lab data:
   </p>
 
   <div class="options">
@@ -62,14 +61,11 @@
     >
       <label class="option-header">
         <input type="radio" bind:group={selectedOption} value="" />
-        <div class="option-title">Media Record Column for stimuli</div>
+        <div class="option-content">
+          <h4 class="option-title">Media Column</h4>
+          <p class="option-subtitle">Screen-based experiments</p>
+        </div>
       </label>
-      <div class="option-description">
-        Uses the standard media/stimulus column. Best for <strong
-          >screen-based eye tracker experiments</strong
-        >
-        where stimuli are pre-defined in the recording setup.
-      </div>
     </div>
 
     <div
@@ -86,14 +82,11 @@
           bind:group={selectedOption}
           value=" IntervalStart; IntervalEnd"
         />
-        <div class="option-title">Interval Events Markers for stimuli</div>
+        <div class="option-content">
+          <h4 class="option-title">Interval Events</h4>
+          <p class="option-subtitle">Glasses experiments</p>
+        </div>
       </label>
-      <div class="option-description">
-        Uses '<em>%STIMULUS% IntervalStart</em>' and '<em
-          >%STIMULUS% IntervalEnd</em
-        >' events for stimuli detection. Ideal for
-        <strong>mobile eye tracker experiments</strong> where stimuli timing is event-driven.
-      </div>
     </div>
 
     <div
@@ -106,27 +99,20 @@
     >
       <label class="option-header">
         <input type="radio" bind:group={selectedOption} value="custom" />
-        <div class="option-title">Custom Event Markers for stimuli</div>
+        <div class="option-content">
+          <h4 class="option-title">Custom Markers</h4>
+          <p class="option-subtitle">Define your own start/end events</p>
+        </div>
       </label>
-      <div class="option-description">
-        <p>Define your own start and end markers using the format below:</p>
-        <div
-          class="custom-input-inline"
-          onclick={handleInputClick}
-          role="presentation"
-        >
+      {#if selectedOption === 'custom'}
+        <div class="custom-input" onclick={handleInputClick}>
           <GeneralInputText
             bind:value={customMarkers}
-            label="Custom markers (start;end)"
+            label="Markers (start;end)"
             placeholder="_start;_end"
           />
         </div>
-        <p class="example-text">
-          For example: <code>_start;_end</code> will match '<em
-            >stimulus_start</em
-          >' and '<em>stimulus_end</em>' events.
-        </p>
-      </div>
+      {/if}
     </div>
   </div>
 </div>
@@ -151,100 +137,83 @@
   }
 
   .description {
-    margin-bottom: 1.5rem;
-    color: var(--c-darkgrey);
-    line-height: 1.5;
+    margin-bottom: 1rem;
+    color: #666;
+    font-size: 0.9rem;
+    line-height: 1.4;
   }
 
   .options {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.5rem;
   }
 
   .option-card {
-    padding: 1.25rem;
-    border: 1px solid var(--c-lightgrey);
-    border-radius: var(--rounded-md);
-    background: var(--c-white);
-    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    padding: 0.75rem 1rem;
+    background: #fafafa;
+    border: 1px solid #ddd;
+    border-radius: 4px;
     cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   }
 
   .option-card:hover {
-    background: var(--c-darkwhite);
+    border-color: var(--c-brand, #cd1404);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
   }
 
   .option-card.selected {
-    border-color: var(--c-brand);
-    box-shadow: 0 0 0 1px var(--c-brand);
-    background: var(--c-darkwhite);
+    border-color: var(--c-brand, #cd1404);
+    box-shadow: 0 0 0 2px rgba(205, 20, 4, 0.2);
+    background: #fff;
+  }
+
+  .option-card:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   }
 
   .option-header {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    margin-bottom: 0.75rem;
     pointer-events: none;
+    width: 100%;
   }
 
   .option-header input[type='radio'] {
     margin: 0;
     flex-shrink: 0;
     pointer-events: auto;
-    accent-color: var(--c-brand);
+    accent-color: var(--c-brand, #cd1404);
+  }
+
+  .option-content {
+    flex: 1;
   }
 
   .option-title {
-    font-weight: 600;
-    color: var(--c-black);
-    font-size: 1rem;
-  }
-
-  .option-description {
-    color: var(--c-darkgrey);
+    margin: 0 0 0.25rem 0;
     font-size: 0.9rem;
-    line-height: 1.5;
-    margin-left: 2rem;
+    font-weight: 500;
+    color: #333;
+    line-height: 1.3;
   }
 
-  .option-description p {
-    margin: 0 0 0.75rem 0;
-  }
-
-  .option-description p:last-child {
-    margin-bottom: 0;
-  }
-
-  .option-description strong {
-    color: var(--c-black);
-  }
-
-  .option-description em {
-    background: var(--c-lightgrey);
-    padding: 0.125rem 0.25rem;
-    border-radius: var(--rounded);
-    font-style: normal;
-    font-family: monospace;
-    font-size: 0.85em;
-  }
-
-  .option-description code {
-    background: var(--c-lightgrey);
-    padding: 0.125rem 0.25rem;
-    border-radius: var(--rounded);
-    font-family: monospace;
-    font-size: 0.85em;
-  }
-
-  .custom-input-inline {
-    margin: 0.75rem 0;
-    cursor: auto;
-  }
-
-  .example-text {
+  .option-subtitle {
+    margin: 0;
     font-size: 0.85rem;
-    color: var(--c-darkgrey);
+    color: #666;
+    line-height: 1.4;
+  }
+
+  .custom-input {
+    margin-top: 0.75rem;
+    cursor: auto;
   }
 </style>

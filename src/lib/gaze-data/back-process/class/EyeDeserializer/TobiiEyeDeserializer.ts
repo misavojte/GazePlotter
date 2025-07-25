@@ -52,6 +52,14 @@ const SAMPLE_INTERVAL_TOLERANCE_FACTOR = 1.5
  * 6. **Robust AOI Aggregation** - All `AOI hit [...]` columns are scanned on every eye-tracker
  *    row, regardless of the active stimulus. This is more robust than stimulus-specific
  *    AOI parsing, which can fail if stimulus and AOI names don't align perfectly.
+ * 7. **Mapped Column Priority** – The deserializer prioritizes "Mapped eye movement type" and
+ *    "Mapped eye movement type index" columns over their regular counterparts when available.
+ *    These mapped columns may have dynamic suffixes (e.g., "[participant_id]"). Segment
+ *    boundaries are determined by the combination of BOTH eye movement type AND type index.
+ * 8. **IntervalStart Timestamp Priority** – When available, IntervalStart event timestamps are
+ *    used as segment start times instead of the first Eye Tracker row timestamp. This addresses
+ *    Tobii's quirk where the true event start (IntervalStart) occurs before the first eye
+ *    tracking data, providing more accurate timing alignment with Tobii Pro Lab's expectations.
  *
  * @extends AbstractEyeDeserializer
  * @category Eye
@@ -106,6 +114,13 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   private readonly stimulusGetter: (row: string[]) => string[]
   private readonly stimuliBaseTimes: Map<string, string> = new Map()
   private readonly intervalStack: string[] = []
+
+  /**
+   * Tracks IntervalStart timestamps for each stimulus+participant combination.
+   * Key format: `stimulusName|recording|participant`
+   * Value: timestamp from the IntervalStart event
+   */
+  private readonly intervalStartTimes: Map<string, string> = new Map()
 
   static readonly TYPE = 'tobii'
 
@@ -176,20 +191,14 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
       row[this.cEyeMovementTypeIndex] === this.mEyeMovementTypeIndex &&
       row[this.cCategory] === this.mCategory
     ) {
-      // The segment type is the same. Now, we perform the full check for
-      // stimulus continuity. The active stimulus is always the last one on
-      // the stack. The fastest way to check for continuity is to see if the
-      // stimulus at the top of the stack is the same as it was on the
-      // previous row, and to check if the stack length has changed (which
-      // indicates a new interval started or a previous one ended).
+      // The segment type is the same. Now, we perform the full check for stimulus
+      // continuity. For both base and interval-based parsing, continuity is
+      // determined by checking if the active stimulus has changed from the previous row.
       const lastStimulus =
         stimulusResult.length > 0
           ? stimulusResult[stimulusResult.length - 1]
           : undefined
-      if (
-        lastStimulus === this.mStimulus &&
-        stimulusResult.length === this.intervalStack.length
-      ) {
+      if (lastStimulus === this.mStimulus) {
         // The segment continues. Update the end time and track AOIs.
         this.mRecordingLast = currentTimestamp
         this.trackAoiHitsFromRow(row)
@@ -265,6 +274,29 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
         // Calculate midpoint between previous Eye Tracker sample and current Eye Tracker sample
         midpoint = String(prevEyeTrackerTs + delta / 2)
         correctedStart = midpoint
+      }
+    }
+
+    /* Check for IntervalStart timestamp - prioritize it for true event start timing */
+    if (stimulusResult.length > 0) {
+      const activeStimulus = stimulusResult[stimulusResult.length - 1]
+      const intervalStartKey = `${activeStimulus}|${row[this.cRecording]}|${row[this.cParticipant]}`
+      const intervalStartTs = this.intervalStartTimes.get(intervalStartKey)
+
+      if (intervalStartTs) {
+        const intervalStartNum = Number(intervalStartTs)
+        const timeDelta = currTsNum - intervalStartNum
+
+        // If IntervalStart is reasonably close and earlier than current timestamp, use it
+        // Allow up to 50ms gap (typical for Tobii data structure quirks)
+        if (timeDelta > 0 && timeDelta <= 50000) {
+          // 50ms in microseconds
+          correctedStart = intervalStartTs
+          midpoint = null // Clear midpoint since we're using IntervalStart
+
+          // Clean up: remove the IntervalStart timestamp since it's only needed once
+          this.intervalStartTimes.delete(intervalStartKey)
+        }
       }
     }
 
@@ -469,6 +501,10 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
         const stimulusName = evt.substring(0, evt.length - startMarker.length)
         if (!this.intervalStack.includes(stimulusName)) {
           this.intervalStack.push(stimulusName)
+
+          // Capture IntervalStart timestamp for this stimulus+participant combination
+          const key = `${stimulusName}|${row[this.cRecording]}|${row[this.cParticipant]}`
+          this.intervalStartTimes.set(key, row[this.cRecordingTimestamp])
         }
         return this.intervalStack
       }

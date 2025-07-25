@@ -2,7 +2,6 @@
   import { SectionHeader } from '$lib/modals'
   import { WorkplaceDownloader } from '$lib/modals/export/class/WorkplaceDownloader.js'
   import { getData } from '$lib/gaze-data/front-process/stores/dataStore.js'
-  import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import {
     ModalContentExportSegmentedData,
