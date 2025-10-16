@@ -34,3 +34,6 @@ export { BeGazeEyeDeserializer } from './EyeDeserializer/BeGazeEyeDeserializer'
 
 // EyeClassifier
 export { EyeClassifier } from './EyeClassifier/EyeClassifier'
+
+// PupilCloud
+export { PupilCloudPipeline } from './PupilCloud/pupilCloudPipeline'

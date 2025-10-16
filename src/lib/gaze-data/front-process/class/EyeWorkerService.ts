@@ -82,6 +82,18 @@ export class EyeWorkerService {
     // check extension of first file
     const extension = files[0].name.split('.').pop()
     if (extension === 'json') return this.processJsonWorkspace(files[0])
+    if (extension === 'zip') {
+      // Collect all ZIP file names and sizes
+      for (let index = 0; index < files.length; index++) {
+        this.fileNames.push(files[index].name)
+        this.fileSizes.push(files[index].size)
+      }
+      // Initialize pipeline with file names first
+      this.worker.postMessage({ type: 'file-names', data: this.fileNames })
+      // Then process all ZIP files
+      void this.processZipFiles(files)
+      return
+    }
     for (let index = 0; index < files.length; index++) {
       this.fileNames.push(files[index].name)
       this.fileSizes.push(files[index].size)
@@ -128,6 +140,30 @@ export class EyeWorkerService {
       const buffer = await files[index].arrayBuffer()
       this.worker.postMessage({ type: 'buffer', data: buffer }, [buffer])
     }
+  }
+
+  async processZipFiles(files: FileList): Promise<void> {
+    // Convert FileList to array immediately to avoid issues with FileList becoming invalid
+    const fileArray = Array.from(files)
+    const totalFiles = fileArray.length
+    console.log(`[Service] Processing ${totalFiles} ZIP files`)
+    
+    for (let index = 0; index < totalFiles; index++) {
+      const file = fileArray[index]
+      if (!file) {
+        throw new Error(`File at index ${index} is undefined`)
+      }
+      console.log(`[Service] Reading buffer for file ${index + 1}/${totalFiles}: ${this.fileNames[index]}`)
+      const buffer = await file.arrayBuffer()
+      const zipName = this.fileNames[index] // Use the stored file name
+      console.log(`[Service] Sending ZIP buffer ${index + 1}/${totalFiles}, size: ${buffer.byteLength} bytes`)
+      this.worker.postMessage(
+        { type: 'zip-buffer', data: { buffer, zipName } },
+        [buffer as ArrayBuffer]
+      )
+      console.log(`[Service] Sent ZIP buffer ${index + 1}/${totalFiles}`)
+    }
+    console.log(`[Service] All ${totalFiles} ZIP files sent to worker`)
   }
 
   processJsonWorkspace(file: File): void {
