@@ -137,18 +137,54 @@ export function buildFixationToAoiMap(csv: string): ReadonlyMap<string, Readonly
  * Expected columns:
  * [0] section id, [1] recording id, [2] recording name, ...
  *
+ * Recording names often have timestamp suffixes (e.g., "T4a_AZ_ZP_2025-04-17_11:16:45").
+ * This function intelligently strips the timestamp pattern if doing so maintains uniqueness.
+ *
  * @param csv - The CSV content as UTF-8 string
  * @returns Immutable Map keyed by recordingId with recordingName value
  */
 export function buildRecordingToParticipantMap(csv: string): ReadonlyMap<string, string> {
-  const map = new Map<string, string>()
+  const rawMap = new Map<string, string>()
+  
+  // First pass: collect all raw recording names
   forEachCsvRow(csv, (cols, isHeader) => {
     if (isHeader) return
     const recordingId = cols[1]
     const recordingName = cols[2]
-    if (recordingId && recordingName) map.set(recordingId, recordingName)
+    if (recordingId && recordingName) rawMap.set(recordingId, recordingName)
   })
-  return map
+  
+  // Try to strip timestamp pattern and check if names remain unique
+  const strippedNames = new Map<string, string>()
+  for (const [recordingId, recordingName] of rawMap.entries()) {
+    const stripped = stripTimestampFromRecordingName(recordingName)
+    strippedNames.set(recordingId, stripped)
+  }
+  
+  // Check uniqueness of stripped names
+  const uniqueStripped = new Set(strippedNames.values())
+  const useStripped = uniqueStripped.size === strippedNames.size
+  
+  console.log(`[PupilCloud] Recording names: ${rawMap.size} total, stripped to ${uniqueStripped.size} unique names, using ${useStripped ? 'stripped' : 'original'} names`)
+  
+  return useStripped ? strippedNames : rawMap
+}
+
+/**
+ * Strips timestamp pattern from Pupil Cloud recording names.
+ * Pattern: _YYYY-MM-DD_HH:MM:SS at the end of the name
+ * 
+ * Examples:
+ * - "T4a_AZ_ZP_2025-04-17_11:16:45" → "T4a_AZ_ZP"
+ * - "V4e_AS_ZP_2025-03-21_09:53:38" → "V4e_AS_ZP"
+ *
+ * @param recordingName - Original recording name with timestamp
+ * @returns Recording name with timestamp stripped if pattern matches, otherwise original
+ */
+export function stripTimestampFromRecordingName(recordingName: string): string {
+  // Pattern: _YYYY-MM-DD_HH:MM:SS at the end
+  const timestampPattern = /_\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2}$/
+  return recordingName.replace(timestampPattern, '')
 }
 
 /**
