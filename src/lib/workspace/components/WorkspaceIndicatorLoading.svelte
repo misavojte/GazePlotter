@@ -1,23 +1,25 @@
 <script lang="ts">
   import { fade } from 'svelte/transition'
+  import WorkspaceItemContainer from './WorkspaceItemContainer.svelte'
 </script>
 
 <div class="loading-workspace-indicator" transition:fade={{ duration: 400 }}>
-  <div class="content">
-    <div class="spinner-container">
-      <div class="spinner"></div>
-    </div>
-    <h2>Processing data</h2>
-    <p>
-      Please wait while we prepare your visualizations. This may take a moment
-      depending on the size of your dataset.
-    </p>
-    <div class="progress-indicators">
-      <div class="progress-dot"></div>
-      <div class="progress-dot"></div>
-      <div class="progress-dot"></div>
-    </div>
-  </div>
+  <WorkspaceItemContainer class="indicator-content">
+    {#snippet header()}
+      <h3>Processing data</h3>
+    {/snippet}
+    {#snippet body()}
+      <div class="content-inner">
+        <div class="spinner"></div>
+        <div class="text-content">
+          <p>
+            Please wait while we prepare your visualisations. This may take a moment
+            depending on the size of your dataset.
+          </p>
+        </div>
+      </div>
+    {/snippet}
+  </WorkspaceItemContainer>
 </div>
 
 <style>
@@ -33,28 +35,27 @@
     z-index: 10;
   }
 
-  .content {
+  :global(.indicator-content) {
     max-width: 500px;
-    text-align: center;
-    background-color: white;
-    border-radius: 12px;
-    padding: 2.5rem;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    width: 100%;
   }
 
-  .spinner-container {
+  .content-inner {
     display: flex;
-    justify-content: center;
-    margin-bottom: 1.5rem;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
   }
 
   .spinner {
-    width: 60px;
-    height: 60px;
-    border: 5px solid var(--c-lightgrey);
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--c-lightgrey);
     border-top-color: var(--c-primary);
     border-radius: 50%;
     animation: spin 1.2s linear infinite;
+    flex-shrink: 0;
   }
 
   @keyframes spin {
@@ -63,58 +64,20 @@
     }
   }
 
-  h2 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin: 0 0 1rem 0;
-    color: var(--c-text-dark);
+  .text-content {
+    flex: 1;
   }
 
   p {
-    margin: 0 0 1.5rem 0;
+    margin: 0;
     color: var(--c-text);
     line-height: 1.5;
-  }
-
-  .progress-indicators {
-    display: flex;
-    justify-content: center;
-    gap: 0.5rem;
-  }
-
-  .progress-dot {
-    width: 10px;
-    height: 10px;
-    background-color: var(--c-primary);
-    border-radius: 50%;
-    opacity: 0.3;
-    animation: pulse 1.5s ease-in-out infinite;
-  }
-
-  .progress-dot:nth-child(2) {
-    animation-delay: 0.5s;
-  }
-
-  .progress-dot:nth-child(3) {
-    animation-delay: 1s;
-  }
-
-  @keyframes pulse {
-    0%,
-    100% {
-      opacity: 0.3;
-      transform: scale(1);
-    }
-    50% {
-      opacity: 1;
-      transform: scale(1.2);
-    }
+    font-size: 14px;
   }
 
   @media (max-width: 600px) {
-    .content {
+    :global(.indicator-content) {
       margin: 0 1rem;
-      padding: 1.5rem;
     }
   }
 </style>
