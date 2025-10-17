@@ -112,21 +112,27 @@ export async function readZipText(zip: JSZip, namePart: string): Promise<string>
 }
 
 /**
- * Builds Map<fixationId, Set<AOI name>> from `aoi_fixations.csv`.
+ * Builds Map<compositeKey, Set<AOI name>> from `aoi_fixations.csv`.
  * Expected columns:
  * [0] aoi id, [1] aoi name, [2] section id, [3] recording id, [4] fixation id, [5] fixation duration [ms]
  *
+ * The key is a composite of recordingId and fixationId (format: "recordingId:fixationId")
+ * because fixation IDs are only unique within a recording, not globally.
+ *
  * @param csv - The CSV content as UTF-8 string
- * @returns Immutable Map keyed by fixationId with a Set of AOI names
+ * @returns Immutable Map keyed by composite "recordingId:fixationId" with a Set of AOI names
  */
 export function buildFixationToAoiMap(csv: string): ReadonlyMap<string, ReadonlySet<string>> {
   const map = new Map<string, Set<string>>()
   forEachCsvRow(csv, (cols, isHeader) => {
     if (isHeader) return
     const aoiName = cols[1]
+    const recordingId = cols[3]
     const fixationId = cols[4]
-    if (!fixationId) return
-    const set = map.get(fixationId) ?? (map.set(fixationId, new Set<string>()).get(fixationId)!)
+    if (!recordingId || !fixationId) return
+    // Create composite key: recordingId:fixationId
+    const compositeKey = `${recordingId}:${fixationId}`
+    const set = map.get(compositeKey) ?? (map.set(compositeKey, new Set<string>()).get(compositeKey)!)
     if (aoiName) set.add(aoiName)
   })
   return map
@@ -238,7 +244,9 @@ export function addFixationsToWriter(params: {
     const startMs = (startNs - baseNs) / 1e6
     const endMs = (endNs - baseNs) / 1e6
 
-    const aoiSet = fixationToAoi.get(fixationId) ?? null
+    // Create composite key to match the buildFixationToAoiMap format
+    const compositeKey = `${recordingId}:${fixationId}`
+    const aoiSet = fixationToAoi.get(compositeKey) ?? null
     const aoiArray = aoiSet ? Array.from(aoiSet) : null
 
     writer.add({
