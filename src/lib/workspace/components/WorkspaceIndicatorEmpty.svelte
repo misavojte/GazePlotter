@@ -4,6 +4,8 @@
   import { fade } from 'svelte/transition'
   import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
   import { hasValidData } from '$lib/gaze-data/front-process/stores/dataStore'
+  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { ModalContentMetadataInfo } from '$lib/modals/info/components'
   
   interface Props {
     onReinitialize: () => void
@@ -12,9 +14,19 @@
 
   const { onReinitialize, onResetLayout }: Props = $props()
   
-  // Disable the reset layout button when there's no valid underlying data
-  // Valid data means we have loaded actual stimuli and participants
+  /**
+   * Determines if the reset layout button should be shown.
+   * Valid data means we have loaded actual stimuli and participants.
+   */
   const canResetLayout = $derived($hasValidData)
+
+  /**
+   * Opens the metadata modal to show the error report.
+   * This is useful when file upload fails and users want to see details.
+   */
+  const openErrorReport = () => {
+    modalStore.open(ModalContentMetadataInfo as any, 'Metadata Report')
+  }
 </script>
 
 <div class="empty-workspace-indicator" transition:fade={{ duration: 400 }}>
@@ -60,9 +72,11 @@
       {/if}
     </p>
     <div class="actions">
-      <GeneralButtonMajor onclick={onResetLayout} isDisabled={!canResetLayout}
-        >Reset Layout</GeneralButtonMajor
-      >
+      {#if canResetLayout}
+        <GeneralButtonMajor onclick={onResetLayout}>Reset Layout</GeneralButtonMajor>
+      {:else}
+        <GeneralButtonMajor onclick={openErrorReport}>Open Report</GeneralButtonMajor>
+      {/if}
       <PanelButtonUpload />
       <PanelButtonDemo {onReinitialize} />
     </div>

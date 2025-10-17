@@ -461,7 +461,7 @@
       // Open the metadata info modal
       modalStore.open(
         ModalContentMetadataInfo as any,
-        'Metadata Information',
+        'Metadata Report',
         {}
       )
     }
