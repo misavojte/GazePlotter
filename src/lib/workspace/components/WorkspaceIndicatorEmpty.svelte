@@ -3,12 +3,18 @@
   import PanelButtonDemo from '$lib/workspace/panel/components/PanelButtonDemo.svelte'
   import { fade } from 'svelte/transition'
   import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
+  import { hasValidData } from '$lib/gaze-data/front-process/stores/dataStore'
+  
   interface Props {
     onReinitialize: () => void
     onResetLayout: () => void
   }
 
   const { onReinitialize, onResetLayout }: Props = $props()
+  
+  // Disable the reset layout button when there's no valid underlying data
+  // Valid data means we have loaded actual stimuli and participants
+  const canResetLayout = $derived($hasValidData)
 </script>
 
 <div class="empty-workspace-indicator" transition:fade={{ duration: 400 }}>
@@ -46,11 +52,15 @@
     </div>
     <h2>Your workspace is empty</h2>
     <p>
-      Data is available in memory, but no visualizations are displayed. You can
-      reload the views, upload new data, or explore our sample data.
+      {#if canResetLayout}
+        Data is available in memory, but no visualizations are displayed. You can
+        reload the views, upload new data, or explore our sample data.
+      {:else}
+        No data is currently loaded. Please upload your data or load the demo to get started.
+      {/if}
     </p>
     <div class="actions">
-      <GeneralButtonMajor onclick={onResetLayout}
+      <GeneralButtonMajor onclick={onResetLayout} isDisabled={!canResetLayout}
         >Reset Layout</GeneralButtonMajor
       >
       <PanelButtonUpload />

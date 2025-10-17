@@ -61,6 +61,21 @@
 
   const handleFail = () => {
     addErrorToast('Data processing failed')
+    // Reset workspace state to empty so the empty indicator (with reload button) is shown
+    initializeGridStateStore([])
+    fileMetadataStore.set(null)
+    currentFileInputStore.set(null)
+    // Set data store to an empty structure so hasValidData returns false
+    // This ensures the "Reset Layout" button is disabled when there's no valid data
+    setData({
+      isOrdinalOnly: false,
+      stimuli: { data: [], orderVector: [] },
+      participants: { data: [], orderVector: [] },
+      participantsGroups: [],
+      categories: { data: [], orderVector: [] },
+      aois: { data: [], orderVector: [], dynamicVisibility: {} },
+      segments: [],
+    })
     processingFileStateStore.set('fail')
   }
 </script>

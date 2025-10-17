@@ -14,6 +14,27 @@ const MAX_AOI_PER_STIMULUS = 256 // Maximum number of AOIs per stimulus
 
 export const data = writable<DataType>()
 
+/**
+ * A derived store that checks if the data store contains valid, non-empty data.
+ * 
+ * This store is useful for determining whether certain operations (like resetting layout)
+ * should be enabled. It checks if the data has actual stimuli and participants, indicating
+ * that real data has been loaded.
+ * 
+ * @returns true if data contains valid content (has stimuli and participants), false otherwise
+ */
+export const hasValidData = derived(data, $data => {
+  // If data is undefined or null, it's not valid
+  if (!$data) return false
+  
+  // Check if data has at least one stimulus and one participant
+  // This indicates real data has been loaded, not just an empty structure
+  const hasStimuli = $data.stimuli?.data?.length > 0
+  const hasParticipants = $data.participants?.data?.length > 0
+  
+  return hasStimuli && hasParticipants
+})
+
 // Basic data access functions
 export const getData = (): DataType => {
   return get(data)
