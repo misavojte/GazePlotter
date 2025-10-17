@@ -17,6 +17,7 @@
     fileMetadataStore,
     currentFileInputStore,
   } from './workspace/stores/fileStore'
+  import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
   interface Props {
     loadInitialData: () => Promise<ParsedData>
@@ -27,11 +28,16 @@
 
   setContext('reinitializeLabel', reinitializeLabel)
 
+  // Cache the initial grid layout to avoid reloading data when only resetting layout
+  let initialGridItemsSnapshot: Array<Partial<AllGridTypes> & { type: string }> | null = null
+
   async function loadData() {
     processingFileStateStore.set('processing')
     try {
       const initialData = await loadInitialData()
       data.set(initialData.data)
+      // Capture the initial grid items so Reset layout can restore without reloading data
+      initialGridItemsSnapshot = initialData.gridItems
       if (initialData.version === 3) {
         fileMetadataStore.set(initialData.fileMetadata)
       } else {
@@ -55,8 +61,8 @@
 
   const onResetLayout = async () => {
     try {
-      const initialData = await loadInitialData()
-      initializeGridStateStore(initialData.gridItems)
+      // Restore the grid layout from the cached snapshot without reloading data
+      initializeGridStateStore(initialGridItemsSnapshot)
       addSuccessToast('Workspace layout returned to the initial state.')
     } catch (error) {
       console.error('Error resetting layout:', error)
