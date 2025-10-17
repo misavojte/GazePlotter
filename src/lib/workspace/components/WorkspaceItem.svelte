@@ -3,6 +3,7 @@
   import { fade } from 'svelte/transition'
   import { writable } from 'svelte/store'
   import WorkspaceItemButton from './WorkspaceItemButton.svelte'
+  import WorkspaceItemContainer from './WorkspaceItemContainer.svelte'
 
   // GridItem properties
   interface Props {
@@ -900,60 +901,14 @@
   bind:this={itemNode}
   role="figure"
 >
-  <!-- PlotWrap header -->
-  <div class="header">
-    {#if draggable}
-      <WorkspaceItemButton
-        tooltip="Drag to move"
-        useAction={true}
-        actionFn={draggable_action}
-        actionParams={{ enabled: draggable }}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <circle cx="8" cy="8" r="1.5" />
-          <circle cx="8" cy="16" r="1.5" />
-          <circle cx="16" cy="8" r="1.5" />
-          <circle cx="16" cy="16" r="1.5" />
-        </svg>
-      </WorkspaceItemButton>
-      <WorkspaceItemButton
-        action="duplicate"
-        tooltip="Duplicate item"
-        onclick={() => onduplicate({ id })}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <rect x="8" y="8" width="12" height="12" rx="2" ry="2" />
-          <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
-        </svg>
-      </WorkspaceItemButton>
-    {/if}
-    <h3>{title}</h3>
-    <div class="header-content">
-      {#if removable}
+  <WorkspaceItemContainer showResizeHandle={resizable} class="item-container">
+    {#snippet header()}
+      {#if draggable}
         <WorkspaceItemButton
-          action="remove"
-          tooltip="Remove item"
-          onclick={() => onremove({ id })}
+          tooltip="Drag to move"
+          useAction={true}
+          actionFn={draggable_action}
+          actionParams={{ enabled: draggable }}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -966,24 +921,71 @@
             stroke-linecap="round"
             stroke-linejoin="round"
           >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
+            <circle cx="8" cy="8" r="1.5" />
+            <circle cx="8" cy="16" r="1.5" />
+            <circle cx="16" cy="8" r="1.5" />
+            <circle cx="16" cy="16" r="1.5" />
+          </svg>
+        </WorkspaceItemButton>
+        <WorkspaceItemButton
+          action="duplicate"
+          tooltip="Duplicate item"
+          onclick={() => onduplicate({ id })}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect x="8" y="8" width="12" height="12" rx="2" ry="2" />
+            <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
           </svg>
         </WorkspaceItemButton>
       {/if}
-    </div>
-  </div>
-
-  <!-- PlotWrap body -->
-  <div class="body" bind:this={bodyNode}>
-    {#if body}{@render body()}{:else}
-      {@render children?.()}
-    {/if}
-  </div>
+      <h3>{title}</h3>
+      <div class="header-content">
+        {#if removable}
+          <WorkspaceItemButton
+            action="remove"
+            tooltip="Remove item"
+            onclick={() => onremove({ id })}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </WorkspaceItemButton>
+        {/if}
+      </div>
+    {/snippet}
+    {#snippet body()}
+      <div bind:this={bodyNode}>
+        {#if body}{@render body()}{:else}
+          {@render children?.()}
+        {/if}
+      </div>
+    {/snippet}
+  </WorkspaceItemContainer>
 
   {#if resizable}
     <div
-      class="resize-handle"
+      class="resize-handle-interactive"
       use:resizable_action={{ enabled: resizable }}
       aria-hidden="true"
     ></div>
@@ -999,45 +1001,54 @@
     style={placeholderStyle}
     data-id={`placeholder-${id}`}
     transition:fade={{ duration: 100 }}
-  ></div>
+  >
+    <WorkspaceItemContainer showResizeHandle={resizable} class="item-container">
+      {#snippet body()}
+        <!-- Empty placeholder body -->
+      {/snippet}
+    </WorkspaceItemContainer>
+  </div>
 {/if}
 
 <style>
   .grid-item {
     position: absolute;
-    box-sizing: border-box;
-    background-color: var(--c-lightgrey);
-    border-radius: var(--rounded-lg, 8px) var(--rounded-lg, 8px) 0 0;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
-    border: 1px solid #88888863;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
     z-index: 1;
     /* Add GPU acceleration but in a way that doesn't interfere with events */
     will-change: transform;
     transition: all 0.15s ease-out;
     /* Prevent text selection during drag */
     user-select: none;
+    /* Ensure rounded corners are preserved */
+    border-radius: var(--rounded-lg, 8px) var(--rounded-lg, 8px) 0 0;
+    overflow: hidden;
+  }
+
+  /* Make the container fill the grid item */
+  .grid-item :global(.item-container) {
+    width: 100%;
+    height: 100%;
   }
 
   /* Styles for the actual item that's being dragged or resized */
   .grid-item.is-being-dragged,
   .grid-item.is-being-resized {
     z-index: 5;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
     opacity: 0.3;
     pointer-events: none;
-    border: 1px solid rgba(200, 180, 180, 0.3);
     transform-origin: center center;
+  }
+
+  /* Apply border to the inner container during drag to preserve rounded corners */
+  .grid-item.is-being-dragged :global(.item-container),
+  .grid-item.is-being-resized :global(.item-container) {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(200, 180, 180, 0.3);
   }
 
   /* Styles for the lightweight placeholder */
   .grid-item.placeholder {
     z-index: 1000;
-    background-color: rgba(255, 235, 235, 0.85);
-    border: 2px dashed rgba(200, 120, 120, 0.5);
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
     opacity: 0.9;
     /* Allow the placeholder to receive pointer events during drag */
     pointer-events: none;
@@ -1046,11 +1057,20 @@
       transform 0.15s ease-out,
       width 0.15s ease-out,
       height 0.15s ease-out;
+    /* Ensure rounded corners for placeholder */
+    border-radius: var(--rounded-lg, 8px) var(--rounded-lg, 8px) 0 0;
+    overflow: hidden;
+  }
+
+  .grid-item.placeholder :global(.item-container) {
+    background-color: rgba(255, 235, 235, 0.85);
+    border: 2px dashed rgba(200, 120, 120, 0.5);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
   }
 
   /* Enhance the placeholder during active dragging or resizing */
-  .grid-item.placeholder.dragging,
-  .grid-item.placeholder.resizing {
+  .grid-item.placeholder.dragging :global(.item-container),
+  .grid-item.placeholder.resizing :global(.item-container) {
     animation: pulse 2s infinite ease-in-out;
   }
 
@@ -1071,11 +1091,15 @@
 
   .grid-item.resizing {
     z-index: 10;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     transition: none;
   }
 
-  .resize-handle {
+  .grid-item.resizing :global(.item-container) {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Interactive resize handle - positioned over the visual handle */
+  .resize-handle-interactive {
     position: absolute;
     right: 0;
     bottom: 0;
@@ -1085,59 +1109,24 @@
     background: transparent;
     /* Increase touch target for mobile */
     touch-action: none;
+    z-index: 10;
   }
 
-  .resize-handle::after {
-    content: '';
-    position: absolute;
-    right: 4px;
-    bottom: 4px;
-    width: 8px;
-    height: 8px;
-    border-right: 2px solid rgba(0, 0, 0, 0.2);
-    border-bottom: 2px solid rgba(0, 0, 0, 0.2);
-  }
-
-  /* PlotWrap styles */
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 20px;
-    background: var(--c-lightgrey);
-    flex-wrap: wrap;
-    gap: 2px 5px;
-  }
-
-  .header-content {
+  /* Header content wrapper for remove button */
+  :global(.item-container .header) .header-content {
     display: flex;
     flex-wrap: wrap;
     gap: 5px;
   }
 
   /* Apply drag-handle styles to the WorkspaceItemButton used for dragging */
-  :global(.header > .tooltip-wrapper:first-child .workspace-item-button) {
+  :global(.item-container .header > .tooltip-wrapper:first-child .workspace-item-button) {
     cursor: grab;
   }
 
-  :global(.header > .tooltip-wrapper:first-child .workspace-item-button:hover) {
+  :global(.item-container .header > .tooltip-wrapper:first-child .workspace-item-button:hover) {
     transform: scale(1.1);
     background: var(--c-darkgrey);
     color: var(--c-white);
-  }
-
-  .body {
-    padding: 20px;
-    flex-grow: 1;
-    overflow: auto;
-    border-radius: 10px 10px 0 0;
-    background-color: var(--c-white);
-  }
-
-  .header h3 {
-    margin: 0;
-    flex-grow: 1;
-    font-size: 14px;
-    font-weight: 500;
   }
 </style>

@@ -3,5 +3,6 @@ export { default as WorkspaceIndicatorEmpty } from './WorkspaceIndicatorEmpty.sv
 export { default as WorkspaceIndicatorLoading } from './WorkspaceIndicatorLoading.svelte'
 export { default as WorkspaceItem } from './WorkspaceItem.svelte'
 export { default as WorkspaceItemButton } from './WorkspaceItemButton.svelte'
+export { default as WorkspaceItemContainer } from './WorkspaceItemContainer.svelte'
 export { default as WorkspaceToolbar } from './WorkspaceToolbar.svelte'
 export { default as WorkspaceToolbarItem } from './WorkspaceToolbarItem.svelte'

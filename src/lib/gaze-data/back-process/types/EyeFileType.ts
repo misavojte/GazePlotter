@@ -13,4 +13,5 @@ export type EyeFileType = 'tobii' |
 'ogama' |
 'varjo' |
 'csv' |
-'csv-segmented'
+'csv-segmented' |
+'pupil-cloud-zip'

@@ -4,7 +4,10 @@ import { addErrorToast, addInfoToast, addSuccessToast } from '$lib/toaster'
 import type { DataType, ParsedData } from '$lib/gaze-data/shared/types'
 import { processJsonFileWithGrid } from '$lib/gaze-data/front-process/utils/jsonParsing'
 import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSettingsType'
-import type { FileMetadataType } from '$lib/workspace/type/fileMetadataType'
+import type {
+  FileMetadataSuccessType,
+  FileMetadataFailureType,
+} from '$lib/workspace/type/fileMetadataType'
 import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace'
 import { formatDuration } from '$lib/shared/utils/timeUtils'
 import { formatFileSize } from '$lib/shared/utils/fileUtils'
@@ -52,8 +55,11 @@ export class EyeWorkerService {
   fileNames: string[] = []
   fileSizes: number[] = [] // in bytes
   onData: (data: ParsedData) => void
-  onFail: () => void
-  constructor(onData: (data: ParsedData) => void, onFail: () => void) {
+  onFail: (failureMetadata: FileMetadataFailureType) => void
+  constructor(
+    onData: (data: ParsedData) => void,
+    onFail: (failureMetadata: FileMetadataFailureType) => void
+  ) {
     this.worker = new Worker(
       new URL(
         '$lib/gaze-data/back-process/worker/eyePipelineWorker.ts', // Must be a full path, not via index.ts
@@ -82,6 +88,18 @@ export class EyeWorkerService {
     // check extension of first file
     const extension = files[0].name.split('.').pop()
     if (extension === 'json') return this.processJsonWorkspace(files[0])
+    if (extension === 'zip') {
+      // Collect all ZIP file names and sizes
+      for (let index = 0; index < files.length; index++) {
+        this.fileNames.push(files[index].name)
+        this.fileSizes.push(files[index].size)
+      }
+      // Initialize pipeline with file names first
+      this.worker.postMessage({ type: 'file-names', data: this.fileNames })
+      // Then process all ZIP files
+      void this.processZipFiles(files)
+      return
+    }
     for (let index = 0; index < files.length; index++) {
       this.fileNames.push(files[index].name)
       this.fileSizes.push(files[index].size)
@@ -128,6 +146,30 @@ export class EyeWorkerService {
       const buffer = await files[index].arrayBuffer()
       this.worker.postMessage({ type: 'buffer', data: buffer }, [buffer])
     }
+  }
+
+  async processZipFiles(files: FileList): Promise<void> {
+    // Convert FileList to array immediately to avoid issues with FileList becoming invalid
+    const fileArray = Array.from(files)
+    const totalFiles = fileArray.length
+    console.log(`[Service] Processing ${totalFiles} ZIP files`)
+    
+    for (let index = 0; index < totalFiles; index++) {
+      const file = fileArray[index]
+      if (!file) {
+        throw new Error(`File at index ${index} is undefined`)
+      }
+      console.log(`[Service] Reading buffer for file ${index + 1}/${totalFiles}: ${this.fileNames[index]}`)
+      const buffer = await file.arrayBuffer()
+      const zipName = this.fileNames[index] // Use the stored file name
+      console.log(`[Service] Sending ZIP buffer ${index + 1}/${totalFiles}, size: ${buffer.byteLength} bytes`)
+      this.worker.postMessage(
+        { type: 'zip-buffer', data: { buffer, zipName } },
+        [buffer as ArrayBuffer]
+      )
+      console.log(`[Service] Sent ZIP buffer ${index + 1}/${totalFiles}`)
+    }
+    console.log(`[Service] All ${totalFiles} ZIP files sent to worker`)
   }
 
   processJsonWorkspace(file: File): void {
@@ -177,7 +219,8 @@ export class EyeWorkerService {
       Date.now() - this.parsingAnchorTime + this.parsingSumTime
     const userAgent = navigator.userAgent
     const gazePlotterVersion = __APP_VERSION__
-    const fileMetadata: FileMetadataType = {
+    const fileMetadata: FileMetadataSuccessType = {
+      status: 'success',
       fileNames: this.fileNames,
       fileSizes: this.fileSizes,
       parseSettings: classified,
@@ -221,11 +264,37 @@ export class EyeWorkerService {
     }
   }
 
+  /**
+   * Handles errors during file processing and creates failure metadata.
+   * Captures error details, file information, and partial timing if available.
+   *
+   * @param error - The error that occurred during processing
+   */
   protected handleError(error: Error): void {
     const message = error?.message ?? 'Unknown error'
     addErrorToast('Could not process the file: ' + message)
     console.error('EyeWorkerService.handleError() - error:', error)
-    this.onFail()
+
+    // Calculate partial parsing duration if we have timing information
+    const attemptedParseDuration =
+      this.parsingAnchorTime > 0
+        ? Date.now() - this.parsingAnchorTime + this.parsingSumTime
+        : undefined
+
+    // Create failure metadata with all available information
+    const failureMetadata: FileMetadataFailureType = {
+      status: 'failure',
+      fileNames: this.fileNames.length > 0 ? this.fileNames : ['Unknown file'],
+      fileSizes: this.fileSizes,
+      parseDate: new Date().toISOString(),
+      errorMessage: message,
+      errorStack: error?.stack,
+      attemptedParseDuration,
+      gazePlotterVersion: __APP_VERSION__,
+      clientUserAgent: navigator.userAgent,
+    }
+
+    this.onFail(failureMetadata)
   }
 
   /**

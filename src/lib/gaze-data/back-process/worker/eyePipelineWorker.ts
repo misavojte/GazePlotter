@@ -1,5 +1,5 @@
 import { EyePipeline } from '$lib/gaze-data/back-process'
-import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSettingsType'
+import { PupilCloudPipeline } from '$lib/gaze-data/back-process/class/PupilCloud/pupilCloudPipeline'
 
 /**
  * A worker file handling whole eyefiles processing.
@@ -8,7 +8,9 @@ import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSetti
 
 let fileNames: string[] = []
 let pipeline: EyePipeline | null = null
+let pupilCloudPipeline: PupilCloudPipeline | null = null
 let streams: ReadableStream[] = []
+let zipBuffers: ArrayBuffer[] = []
 let userInputResolver: (value: string) => void
 
 const isStringArray = (data: unknown): data is string[] => {
@@ -38,7 +40,13 @@ async function processEvent(e: MessageEvent): Promise<void> {
       case 'file-names':
         if (!isStringArray(data)) throw new Error('File names are not string[]')
         fileNames = data
-        pipeline = new EyePipeline(fileNames, requestUserInput)
+        // Check if files are ZIP files (Pupil Cloud) or regular eye-tracking files
+        const isZipFiles = fileNames.some(name => name.toLowerCase().endsWith('.zip'))
+        if (isZipFiles) {
+          pupilCloudPipeline = new PupilCloudPipeline(fileNames)
+        } else {
+          pipeline = new EyePipeline(fileNames, requestUserInput)
+        }
         return
       case 'test-stream':
         if (!isReadableStream(data))
@@ -48,6 +56,8 @@ async function processEvent(e: MessageEvent): Promise<void> {
         return await evalStream(data)
       case 'buffer':
         return await evalBuffer(data)
+      case 'zip-buffer':
+        return await evalZipBuffer(data)
       case 'user-input':
         return userInputResolver(data)
       default:
@@ -101,5 +111,51 @@ const evalStream = async (rs: ReadableStream): Promise<void> => {
         fileNames = []
       }
     }
+  }
+}
+
+/**
+ * Handles ZIP buffer processing for Pupil Cloud files.
+ * Accumulates buffers and processes them sequentially when all are received.
+ * @param data - Object containing buffer and zipName
+ */
+const evalZipBuffer = async (data: unknown): Promise<void> => {
+  const { buffer, zipName } = data as { buffer: ArrayBuffer; zipName: string }
+  
+  if (pupilCloudPipeline === null) throw new Error('Pupil Cloud pipeline is not initialized')
+  if (fileNames.length === 0) throw new Error('No files to process')
+  
+  zipBuffers.push(buffer)
+  console.log(`[Worker] Received ZIP buffer ${zipBuffers.length}/${fileNames.length}: ${zipName}`)
+  
+  // Process all ZIPs when we have received them all
+  if (zipBuffers.length === fileNames.length) {
+    console.log(`[Worker] All ${fileNames.length} ZIP buffers received, starting processing`)
+    // Process each ZIP sequentially
+    for (let i = 0; i < zipBuffers.length; i++) {
+      console.log(`[Worker] Processing ZIP ${i + 1}/${zipBuffers.length}: ${fileNames[i]}`)
+      const dataWithSettings = await pupilCloudPipeline.addNewZip(
+        new Uint8Array(zipBuffers[i]),
+        fileNames[i]
+      )
+      // Only the last ZIP returns non-null data (with all accumulated results)
+      if (dataWithSettings !== null) {
+        console.log('[Worker] Received final data, sending to main thread')
+        self.postMessage({
+          type: 'done',
+          data: dataWithSettings.data,
+          classified: dataWithSettings.settings,
+        })
+        // Clean up after successful processing
+        zipBuffers = []
+        fileNames = []
+        pupilCloudPipeline = null
+        console.log('[Worker] Cleanup complete')
+        return // Exit after sending the final result
+      }
+    }
+    console.log('[Worker] WARNING: Processed all ZIPs but got no final data!')
+  } else {
+    console.log(`[Worker] Waiting for more ZIPs: ${zipBuffers.length}/${fileNames.length}`)
   }
 }

@@ -9,11 +9,12 @@
     currentFileInputStore,
   } from '$lib/workspace'
   import { setData } from '$lib/gaze-data/front-process/stores/dataStore'
-  import { addErrorToast, addSuccessToast } from '$lib/toaster'
+  import { addErrorToast } from '$lib/toaster'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
   import type {
     FileInputType,
     FileMetadataType,
+    FileMetadataFailureType,
   } from '$lib/workspace/type/fileMetadataType'
   let isDisabled = $derived($processingFileStateStore === 'processing')
 
@@ -59,8 +60,37 @@
     currentFileInputStore.set(data.current)
   }
 
-  const handleFail = () => {
+  /**
+   * Handles file processing failures by storing failure metadata.
+   * This preserves information about what files were attempted and why they failed,
+   * which can be useful for debugging and user support.
+   *
+   * @param failureMetadata - Complete failure information including error details
+   */
+  const handleFail = (failureMetadata: FileMetadataFailureType) => {
     addErrorToast('Data processing failed')
+    // Reset workspace state to empty so the empty indicator (with reload button) is shown
+    initializeGridStateStore([])
+    // Store the failure metadata instead of setting to null
+    // This preserves information about what was attempted and the error details
+    fileMetadataStore.set(failureMetadata)
+    // Also store basic file input info separately
+    currentFileInputStore.set({
+      fileNames: failureMetadata.fileNames,
+      fileSizes: failureMetadata.fileSizes,
+      parseDate: failureMetadata.parseDate,
+    })
+    // Set data store to an empty structure so hasValidData returns false
+    // This ensures the "Reset Layout" button is disabled when there's no valid data
+    setData({
+      isOrdinalOnly: false,
+      stimuli: { data: [], orderVector: [] },
+      participants: { data: [], orderVector: [] },
+      participantsGroups: [],
+      categories: { data: [], orderVector: [] },
+      aois: { data: [], orderVector: [], dynamicVisibility: {} },
+      segments: [],
+    })
     processingFileStateStore.set('fail')
   }
 </script>
@@ -72,7 +102,7 @@
       type="file"
       name="GP-file-upload"
       multiple
-      accept=".csv, .txt, .tsv, .json"
+      accept=".csv, .txt, .tsv, .json, .zip"
       onchange={handleFileUpload}
       bind:this={input}
     />

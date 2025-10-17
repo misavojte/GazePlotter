@@ -48,7 +48,7 @@
 <style>
   button,
   a {
-    border: none;
+    border: 1px solid transparent;
     padding: 0.75em 1.5em;
     border-radius: var(--rounded-lg);
     text-align: center;

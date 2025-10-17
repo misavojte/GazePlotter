@@ -3,60 +3,60 @@
   import PanelButtonDemo from '$lib/workspace/panel/components/PanelButtonDemo.svelte'
   import { fade } from 'svelte/transition'
   import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
+  import { hasValidData } from '$lib/gaze-data/front-process/stores/dataStore'
+  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { ModalContentMetadataInfo } from '$lib/modals/info/components'
+  import WorkspaceItemContainer from './WorkspaceItemContainer.svelte'
+  
   interface Props {
     onReinitialize: () => void
     onResetLayout: () => void
   }
 
   const { onReinitialize, onResetLayout }: Props = $props()
+  
+  /**
+   * Determines if the reset layout button should be shown.
+   * Valid data means we have loaded actual stimuli and participants.
+   */
+  const canResetLayout = $derived($hasValidData)
+
+  /**
+   * Opens the metadata modal to show the error report.
+   * This is useful when file upload fails and users want to see details.
+   */
+  const openErrorReport = () => {
+    modalStore.open(ModalContentMetadataInfo as any, 'Metadata Report')
+  }
 </script>
 
 <div class="empty-workspace-indicator" transition:fade={{ duration: 400 }}>
-  <div class="content">
-    <div class="icon">
-      <svg
-        width="80"
-        height="80"
-        viewBox="0 0 24 24"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M14 3v4a1 1 0 0 0 1 1h4"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-        <path
-          d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-        <path
-          d="M9 9h1M9 13h6M9 17h6"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-    </div>
-    <h2>Your workspace is empty</h2>
-    <p>
-      Data is available in memory, but no visualizations are displayed. You can
-      reload the views, upload new data, or explore our sample data.
-    </p>
-    <div class="actions">
-      <GeneralButtonMajor onclick={onResetLayout}
-        >Reset Layout</GeneralButtonMajor
-      >
-      <PanelButtonUpload />
-      <PanelButtonDemo {onReinitialize} />
-    </div>
-  </div>
+  <WorkspaceItemContainer class="indicator-content">
+    {#snippet header()}
+      <h3>{#if canResetLayout}Workspace Empty{:else}Invalid Data{/if}</h3>
+    {/snippet}
+    {#snippet body()}
+      <div class="content-inner">
+        <p>
+          {#if canResetLayout}
+            Data is available in memory, but no visualisations are displayed. You can
+            reload the views, upload new data, or explore our sample data.
+          {:else}
+            Data could not be loaded correctly. Please, open the metadata report to see the details, upload different data or reload the initial data.
+          {/if}
+        </p>
+        <div class="actions">
+          {#if canResetLayout}
+            <GeneralButtonMajor onclick={onResetLayout}>Reset Layout</GeneralButtonMajor>
+          {:else}
+            <GeneralButtonMajor onclick={openErrorReport}>Open Report</GeneralButtonMajor>
+          {/if}
+          <PanelButtonUpload />
+          <PanelButtonDemo {onReinitialize} />
+        </div>
+      </div>
+    {/snippet}
+  </WorkspaceItemContainer>
 </div>
 
 <style>
@@ -72,46 +72,32 @@
     z-index: 10;
   }
 
-  .content {
+  :global(.indicator-content) {
     max-width: 500px;
-    text-align: center;
-    background-color: white;
-    border-radius: 12px;
-    padding: 2.5rem;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+    width: 100%;
   }
 
-  .icon {
-    display: flex;
-    justify-content: center;
-    color: var(--c-primary);
-    margin-bottom: 1rem;
-  }
-
-  h2 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin: 0 0 1rem 0;
-    color: var(--c-text-dark);
+  .content-inner {
+    text-align: left;
   }
 
   p {
     margin: 0 0 1.5rem 0;
     color: var(--c-text);
     line-height: 1.5;
+    font-size: 14px;
   }
 
   .actions {
     display: flex;
-    gap: 0.75rem;
-    justify-content: center;
-    flex-wrap: wrap;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
   }
 
   @media (max-width: 600px) {
-    .content {
+    :global(.indicator-content) {
       margin: 0 1rem;
-      padding: 1.5rem;
     }
   }
 </style>

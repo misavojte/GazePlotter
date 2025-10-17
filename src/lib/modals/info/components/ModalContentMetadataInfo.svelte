@@ -157,30 +157,60 @@
 
       // Source Parsing Info
       if (fileMetadata !== null) {
-        csvContent += `Section,Source Parsing\n`
-        csvContent += `Metric,Value\n`
-        csvContent += `Files Processed,${fileMetadata.fileNames.length}\n`
-        csvContent += `Total File Size,${formatFileSize(totalFileSize)}\n`
-        csvContent += `Parse Duration,${formatDuration(fileMetadata.parseDuration)}\n`
-        csvContent += `Parse Date,${formatDate(fileMetadata.parseDate)}\n`
-        csvContent += `GazePlotter Version,${fileMetadata.gazePlotterVersion}\n`
-        csvContent += `Client,"${fileMetadata.clientUserAgent}"\n\n`
+        if (fileMetadata.status === 'failure') {
+          // Export failure information
+          csvContent += `Section,Source Parsing - FAILED\n`
+          csvContent += `Metric,Value\n`
+          csvContent += `Status,FAILURE\n`
+          csvContent += `Error Message,"${fileMetadata.errorMessage}"\n`
+          csvContent += `Files Attempted,${fileMetadata.fileNames.length}\n`
+          csvContent += `Total File Size,${formatFileSize(totalFileSize)}\n`
+          if (fileMetadata.attemptedParseDuration !== undefined) {
+            csvContent += `Attempted Parse Duration,${formatDuration(fileMetadata.attemptedParseDuration)}\n`
+          }
+          csvContent += `Failure Date,${formatDate(fileMetadata.parseDate)}\n`
+          csvContent += `GazePlotter Version,${fileMetadata.gazePlotterVersion}\n`
+          csvContent += `Client,"${fileMetadata.clientUserAgent}"\n\n`
 
-        csvContent += `Section,Source Parsing Files\n`
-        csvContent += `File Name,File Size (bytes)\n`
-        for (let i = 0; i < fileMetadata.fileNames.length; i++) {
-          csvContent += `${fileMetadata.fileNames[i]},${fileMetadata.fileSizes[i]}\n`
-        }
-        csvContent += `\n`
+          csvContent += `Section,Attempted Files\n`
+          csvContent += `File Name,File Size (bytes)\n`
+          for (let i = 0; i < fileMetadata.fileNames.length; i++) {
+            csvContent += `${fileMetadata.fileNames[i]},${fileMetadata.fileSizes[i]}\n`
+          }
+          csvContent += `\n`
 
-        // Parse Settings
-        csvContent += `Section,Parse Settings\n`
-        csvContent += `Setting,Value\n`
-        csvContent += `Type,${fileMetadata.parseSettings.type}\n`
-        csvContent += `Row Delimiter,"${JSON.stringify(fileMetadata.parseSettings.rowDelimiter)}"\n`
-        csvContent += `Column Delimiter,"${JSON.stringify(fileMetadata.parseSettings.columnDelimiter)}"\n`
-        if ('userInputSetting' in fileMetadata.parseSettings) {
-          csvContent += `User Input Setting,${fileMetadata.parseSettings.userInputSetting || '(empty)'}\n`
+          if (fileMetadata.errorStack) {
+            csvContent += `Section,Error Stack Trace\n`
+            csvContent += `"${fileMetadata.errorStack}"\n\n`
+          }
+        } else {
+          // Export success information
+          csvContent += `Section,Source Parsing\n`
+          csvContent += `Metric,Value\n`
+          csvContent += `Status,SUCCESS\n`
+          csvContent += `Files Processed,${fileMetadata.fileNames.length}\n`
+          csvContent += `Total File Size,${formatFileSize(totalFileSize)}\n`
+          csvContent += `Parse Duration,${formatDuration(fileMetadata.parseDuration)}\n`
+          csvContent += `Parse Date,${formatDate(fileMetadata.parseDate)}\n`
+          csvContent += `GazePlotter Version,${fileMetadata.gazePlotterVersion}\n`
+          csvContent += `Client,"${fileMetadata.clientUserAgent}"\n\n`
+
+          csvContent += `Section,Source Parsing Files\n`
+          csvContent += `File Name,File Size (bytes)\n`
+          for (let i = 0; i < fileMetadata.fileNames.length; i++) {
+            csvContent += `${fileMetadata.fileNames[i]},${fileMetadata.fileSizes[i]}\n`
+          }
+          csvContent += `\n`
+
+          // Parse Settings
+          csvContent += `Section,Parse Settings\n`
+          csvContent += `Setting,Value\n`
+          csvContent += `Type,${fileMetadata.parseSettings.type}\n`
+          csvContent += `Row Delimiter,"${JSON.stringify(fileMetadata.parseSettings.rowDelimiter)}"\n`
+          csvContent += `Column Delimiter,"${JSON.stringify(fileMetadata.parseSettings.columnDelimiter)}"\n`
+          if ('userInputSetting' in fileMetadata.parseSettings) {
+            csvContent += `User Input Setting,${fileMetadata.parseSettings.userInputSetting || '(empty)'}\n`
+          }
         }
       } else {
         csvContent += `Section,Source Parsing\n`
@@ -203,6 +233,9 @@
     }
   }
 
+  /**
+   * Calculates the total file size from the metadata
+   */
   const totalFileSize = $derived(
     fileMetadata?.fileSizes.reduce(
       (sum: number, size: number) => sum + size,
@@ -210,7 +243,10 @@
     ) ?? 0
   )
 
-  // Check if current parsing is the same as source file parsing
+  /**
+   * Checks if current parsing is the same as source file parsing
+   * by comparing file names, sizes, and parse dates
+   */
   const isSameAsSource = $derived(
     currentFileInput !== null &&
       fileMetadata !== null &&
@@ -343,7 +379,72 @@
           This data was parsed before GazePlotter version 1.7.0 and original
           parsing metadata is thus not available.
         </div>
+      {:else if fileMetadata.status === 'failure'}
+
+        <div class="info-group failure-details">
+          <div class="info-item">
+            <span class="label">Error message:</span>
+            <span class="value error-message">{fileMetadata.errorMessage}</span>
+          </div>
+          {#if fileMetadata.errorStack}
+            <div class="info-item stack-trace">
+              <span class="label">Error details:</span>
+              <pre class="value error-stack">{fileMetadata.errorStack}</pre>
+            </div>
+          {/if}
+        </div>
+
+        <div class="info-group">
+          <div class="info-item">
+            <span class="label">Files attempted:</span>
+            <span class="value">{fileMetadata.fileNames.length}</span>
+          </div>
+          <div class="file-list">
+            {#each fileMetadata.fileNames as fileName, index}
+              <div class="file-item">
+                <span class="file-name">{fileName}</span>
+                {#if fileMetadata.fileSizes[index] !== undefined}
+                  <span class="file-size"
+                    >({formatFileSize(fileMetadata.fileSizes[index])})</span
+                  >
+                {/if}
+              </div>
+            {/each}
+          </div>
+        </div>
+
+        <div class="info-group">
+          <div class="info-item">
+            <span class="label">Total file size:</span>
+            <span class="value">{formatFileSize(totalFileSize)}</span>
+          </div>
+          {#if fileMetadata.attemptedParseDuration !== undefined}
+            <div class="info-item">
+              <span class="label">Attempted parse duration:</span>
+              <span class="value"
+                >{formatDuration(fileMetadata.attemptedParseDuration)}</span
+              >
+            </div>
+          {/if}
+          <div class="info-item">
+            <span class="label">Failure date:</span>
+            <span class="value">{formatDate(fileMetadata.parseDate)}</span>
+          </div>
+        </div>
+
+        <div class="info-group">
+          <div class="info-item">
+            <span class="label">GazePlotter version:</span>
+            <span class="value">{fileMetadata.gazePlotterVersion}</span>
+          </div>
+          <div class="info-item">
+            <span class="label">Client:</span>
+            <span class="value client-info">{fileMetadata.clientUserAgent}</span
+            >
+          </div>
+        </div>
       {:else}
+        <!-- Display success information -->
         <div class="info-group">
           <div class="info-item">
             <span class="label">Files processed:</span>
@@ -630,5 +731,37 @@
   .aoi-count {
     color: #6b7280;
     font-size: 0.85rem;
+  }
+
+  .failure-details {
+    background: #fff5f5;
+    border: 1px solid #fca5a5;
+  }
+
+  .error-message {
+    color: #991b1b;
+    font-weight: 500;
+    text-align: right;
+  }
+
+  .stack-trace {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .error-stack {
+    margin-top: 0.5rem;
+    padding: 0.75rem;
+    background: #fafafa;
+    border: 1px solid #e5e5e5;
+    border-radius: 0.25rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.75rem;
+    color: #4b5563;
+    overflow-x: auto;
+    max-width: 100%;
+    white-space: pre-wrap;
+    word-break: break-all;
+    text-align: left;
   }
 </style>
