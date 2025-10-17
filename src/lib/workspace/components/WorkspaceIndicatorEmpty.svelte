@@ -62,13 +62,13 @@
         />
       </svg>
     </div>
-    <h2>Your workspace is empty</h2>
+    <h2>{#if canResetLayout}Workspace Empty{:else}Invalid Data{/if}</h2>
     <p>
       {#if canResetLayout}
         Data is available in memory, but no visualizations are displayed. You can
         reload the views, upload new data, or explore our sample data.
       {:else}
-        No data is currently loaded. Please upload your data or load the demo to get started.
+        Data could not be loaded correctly. Please, open the metadata report to see the details, upload different data or reload the initial data.
       {/if}
     </p>
     <div class="actions">
