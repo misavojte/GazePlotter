@@ -12,7 +12,7 @@ import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSetti
 import { EyeSplitter } from '../EyeSplitter/EyeSplitter'
 import type { DataType } from '$lib/gaze-data/shared/types'
 import { EyeRefiner } from '../EyeRefiner/EyeRefiner'
-import { CsvSegmentedEyeDeserializer } from '../EyeDeserializer/CsvSegmentedEyeDeserializer'
+import { CsvSegmentedFromToEyeDeserializer } from '../EyeDeserializer/CsvSegmentedFromToEyeDeserializer'
 import { CsvSegmentedDurationEyeDeserializer } from '../EyeDeserializer/CsvSegmentedDurationEyeDeserializer'
 
 export class EyePipeline {
@@ -182,7 +182,7 @@ export class EyePipeline {
       case 'csv':
         return new CsvEyeDeserializer(row)
       case 'csv-segmented':
-        return new CsvSegmentedEyeDeserializer(row)
+        return new CsvSegmentedFromToEyeDeserializer(row)
       case 'csv-segmented-duration':
         return new CsvSegmentedDurationEyeDeserializer(row)
       default:
