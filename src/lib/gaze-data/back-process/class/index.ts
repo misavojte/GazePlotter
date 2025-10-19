@@ -29,6 +29,7 @@ export { GazePointEyeDeserializer } from './EyeDeserializer/GazePointEyeDeserial
 export { VarjoEyeDeserializer } from './EyeDeserializer/VarjoEyeDeserializer'
 export { OgamaEyeDeserializer } from './EyeDeserializer/OgamaEyeDeserializer'
 export { CsvSegmentedEyeDeserializer } from './EyeDeserializer/CsvSegmentedEyeDeserializer'
+export { CsvSegmentedDurationEyeDeserializer } from './EyeDeserializer/CsvSegmentedDurationEyeDeserializer'
 export { CsvEyeDeserializer } from './EyeDeserializer/CsvEyeDeserializer'
 export { BeGazeEyeDeserializer } from './EyeDeserializer/BeGazeEyeDeserializer'
 

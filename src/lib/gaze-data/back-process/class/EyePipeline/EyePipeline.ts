@@ -13,6 +13,7 @@ import { EyeSplitter } from '../EyeSplitter/EyeSplitter'
 import type { DataType } from '$lib/gaze-data/shared/types'
 import { EyeRefiner } from '../EyeRefiner/EyeRefiner'
 import { CsvSegmentedEyeDeserializer } from '../EyeDeserializer/CsvSegmentedEyeDeserializer'
+import { CsvSegmentedDurationEyeDeserializer } from '../EyeDeserializer/CsvSegmentedDurationEyeDeserializer'
 
 export class EyePipeline {
   fileNames: string[]
@@ -182,6 +183,8 @@ export class EyePipeline {
         return new CsvEyeDeserializer(row)
       case 'csv-segmented':
         return new CsvSegmentedEyeDeserializer(row)
+      case 'csv-segmented-duration':
+        return new CsvSegmentedDurationEyeDeserializer(row)
       default:
         throw new Error('File type row reducer not implemented')
     }
