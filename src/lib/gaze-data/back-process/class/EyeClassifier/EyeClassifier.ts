@@ -8,6 +8,22 @@ import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSetti
  */
 export class EyeClassifier {
   /**
+   * Detects the row delimiter used in the file content.
+   * @param slice - A portion of the file content to analyze
+   * @returns The detected row delimiter ('\r\n', '\n', or '\r')
+   */
+  private detectRowDelimiter(slice: string): string {
+    // Check for Windows line endings first (most common)
+    if (slice.includes('\r\n')) return '\r\n'
+    // Check for Unix line endings
+    if (slice.includes('\n')) return '\n'
+    // Check for Mac line endings (older Mac systems)
+    if (slice.includes('\r')) return '\r'
+    // Default to Unix line endings
+    return '\n'
+  }
+
+  /**
    * Analyzes a slice of file content to determine the appropriate parsing settings.
    * @param slice - A portion of the file content to analyze
    * @returns EyeSettingsType object containing the determined parsing settings
@@ -16,7 +32,7 @@ export class EyeClassifier {
   classify(slice: string): EyeSettingsType {
     const type = this.getTypeFromSlice(slice)
     if (type === 'unknown') throw new Error('Unknown file type')
-    const rowDelimiter = '\r\n'
+    const rowDelimiter = this.detectRowDelimiter(slice)
     const columnDelimiter = this.getColumnDelimiter(type, slice)
     const headerRowId = type === 'ogama' ? 8 : 0
     return {
@@ -30,6 +46,11 @@ export class EyeClassifier {
 
   /**
    * Determines the eye-tracking data file type from a content slice.
+   * 
+   * The order of checks matters: more specific formats are checked before more general ones
+   * to avoid misclassification. For example, csv-segmented-duration must be checked before
+   * csv-segmented, which must be checked before csv.
+   * 
    * @param slice - A portion of the file content to analyze
    * @returns The identified EyeFileType or 'unknown' if type cannot be determined
    */
@@ -42,8 +63,11 @@ export class EyeClassifier {
     if (this.isBeGaze(slice)) return 'begaze'
     if (this.isOgama(slice)) return 'ogama'
     if (this.isVarjo(slice)) return 'varjo'
-    if (this.isCsv(slice)) return 'csv'
+    // Check duration-based segmented CSV before regular segmented CSV
+    // because it's more specific (has additional required fields)
+    if (this.isCsvSegmentedDuration(slice)) return 'csv-segmented-duration'
     if (this.isCsvSegmented(slice)) return 'csv-segmented'
+    if (this.isCsv(slice)) return 'csv'
     return 'unknown'
   }
 
@@ -65,6 +89,7 @@ export class EyeClassifier {
         return ','
       case 'csv':
       case 'csv-segmented':
+      case 'csv-segmented-duration':
         return this.determineCsvDelimiter(slice)
       case 'varjo':
         return ';'
@@ -148,6 +173,31 @@ export class EyeClassifier {
       slice.includes('To') &&
       slice.includes('Participant') &&
       slice.includes('Stimulus') &&
+      slice.includes('AOI')
+    )
+  }
+
+  /**
+   * Checks if the content matches duration-based segmented CSV file format.
+   * 
+   * This format contains eye movement segments with duration-based timing:
+   * - timestamp: Start time of the segment
+   * - duration: Duration of the segment (end = timestamp + duration)
+   * - eyemovementtype: Type of eye movement (0 = Fixation, 1 = Saccade)
+   * - AOI: Area of Interest
+   * - participant: Participant identifier
+   * - stimulus: Stimulus identifier
+   * 
+   * @param slice - A portion of the file content to analyze
+   * @returns true if the content matches duration-based segmented CSV format
+   */
+  isCsvSegmentedDuration(slice: string): boolean {
+    return (
+      slice.includes('timestamp') &&
+      slice.includes('duration') &&
+      slice.includes('eyemovementtype') &&
+      slice.includes('participant') &&
+      slice.includes('stimulus') &&
       slice.includes('AOI')
     )
   }
