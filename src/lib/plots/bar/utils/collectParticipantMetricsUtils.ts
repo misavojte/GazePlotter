@@ -367,30 +367,24 @@ export function collectParticipantsEntryCountData(
   for (const participantId of participantIds) {
     // Track entry counts for this participant
     const participantEntryCounts = createArray(aois.length, 0)
-    let participantAnyFixationEntries = 0
     let participantNoAoiEntries = 0
+    let participantAnyFixationEntries = 0
 
     // Track which AOIs were present in the previous segment to detect transitions
     const previousAoiIds = new Set<number>()
     let wasInNoAoi = false
-    let wasInAnyFixation = false
 
     // Get all fixation segments in chronological order
     const fixationSegments = getSegments(stimulusId, participantId, [0])
 
     // Iterate through segments to count entries (visits)
     for (const segment of fixationSegments) {
-      // Check for new "any fixation" entry (transition from no fixations to fixations)
-      if (!wasInAnyFixation) {
-        participantAnyFixationEntries++
-        wasInAnyFixation = true
-      }
-
       // Handle no-AOI case (segment with no AOIs)
       if (segment.aoi.length === 0) {
         // Check for new no-AOI entry (transition into no-AOI area)
         if (!wasInNoAoi) {
           participantNoAoiEntries++
+          participantAnyFixationEntries++ // Count as a new "any fixation" entry
           wasInNoAoi = true
         }
 
@@ -406,6 +400,19 @@ export function collectParticipantsEntryCountData(
       const currentAoiIds = new Set<number>()
       for (const aoi of segment.aoi) {
         currentAoiIds.add(aoi.id)
+      }
+
+      // Detect if this is a transition to a different set of AOIs (defines a new "any fixation" entry)
+      const setsAreEqual =
+        currentAoiIds.size === previousAoiIds.size &&
+        Array.from(currentAoiIds).every(id => previousAoiIds.has(id))
+
+      if (previousAoiIds.size > 0 && !setsAreEqual) {
+        // Transition detected - count as a new "any fixation" entry
+        participantAnyFixationEntries++
+      } else if (previousAoiIds.size === 0) {
+        // Starting first AOI entry
+        participantAnyFixationEntries++
       }
 
       // Check each AOI in the current segment
@@ -466,16 +473,15 @@ export function collectParticipantsDwellDurationData(
     const participantDwellDurations: number[][] = Array(aois.length)
       .fill(null)
       .map(() => [])
-    let participantAnyFixationDwells: number[] = []
     let participantNoAoiDwells: number[] = []
+    let participantAnyFixationDwells: number[] = []
 
     // Track which AOIs were present in the previous segment and accumulate durations
     const previousAoiIds = new Set<number>()
     const currentDwellDurations = new Map<number, number>() // aoiId -> accumulated duration
     let wasInNoAoi = false
     let currentNoAoiDwellDuration = 0
-    let wasInAnyFixation = false
-    let currentAnyFixationDwellDuration = 0
+    let currentAnyFixationDwellDuration = 0 // Track actual time-based dwells for Any_Fixation
 
     // Get all fixation segments in chronological order
     const fixationSegments = getSegments(stimulusId, participantId, [0])
@@ -484,26 +490,18 @@ export function collectParticipantsDwellDurationData(
     for (const segment of fixationSegments) {
       const duration = segment.end - segment.start
 
-      // Handle "any fixation" dwells
-      if (!wasInAnyFixation) {
-        // Starting a new "any fixation" dwell
-        currentAnyFixationDwellDuration = duration
-        wasInAnyFixation = true
-      } else {
-        // Continuing the "any fixation" dwell (this is always consecutive)
-        currentAnyFixationDwellDuration += duration
-      }
-
       // Handle no-AOI case (segment with no AOIs)
       if (segment.aoi.length === 0) {
         // Check if we're starting a new no-AOI dwell or continuing one
         if (!wasInNoAoi) {
           // Starting a new no-AOI dwell
           currentNoAoiDwellDuration = duration
+          currentAnyFixationDwellDuration = duration
           wasInNoAoi = true
         } else {
           // Continuing the no-AOI dwell
           currentNoAoiDwellDuration += duration
+          currentAnyFixationDwellDuration += duration
         }
 
         // We left all AOIs - save any accumulated AOI dwells
@@ -524,7 +522,10 @@ export function collectParticipantsDwellDurationData(
       if (wasInNoAoi) {
         // We left no-AOI, save the dwell duration
         participantNoAoiDwells.push(currentNoAoiDwellDuration)
+        // Save the Any_Fixation dwell that just ended
+        participantAnyFixationDwells.push(currentAnyFixationDwellDuration)
         currentNoAoiDwellDuration = 0
+        currentAnyFixationDwellDuration = 0
         wasInNoAoi = false
       }
 
@@ -532,6 +533,22 @@ export function collectParticipantsDwellDurationData(
       const currentAoiIds = new Set<number>()
       for (const aoi of segment.aoi) {
         currentAoiIds.add(aoi.id)
+      }
+
+      // Detect if this is a transition to a different set of AOIs (defines a new "any fixation" dwell)
+      const setsAreEqual =
+        currentAoiIds.size === previousAoiIds.size &&
+        Array.from(currentAoiIds).every(id => previousAoiIds.has(id))
+
+      if (previousAoiIds.size > 0 && !setsAreEqual) {
+        // Transition detected - save the current Any_Fixation dwell
+        if (currentAnyFixationDwellDuration > 0) {
+          participantAnyFixationDwells.push(currentAnyFixationDwellDuration)
+        }
+        currentAnyFixationDwellDuration = duration
+      } else {
+        // Continuing or starting - accumulate duration
+        currentAnyFixationDwellDuration += duration
       }
 
       // Process each AOI in the current segment
@@ -581,8 +598,8 @@ export function collectParticipantsDwellDurationData(
       participantNoAoiDwells.push(currentNoAoiDwellDuration)
     }
 
-    // Save the final "any fixation" dwell
-    if (wasInAnyFixation) {
+    // Save remaining Any_Fixation dwell
+    if (currentAnyFixationDwellDuration > 0) {
       participantAnyFixationDwells.push(currentAnyFixationDwellDuration)
     }
 

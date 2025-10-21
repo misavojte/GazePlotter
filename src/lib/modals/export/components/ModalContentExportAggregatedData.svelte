@@ -12,8 +12,7 @@
     getParticipantsIds,
     getAllAois,
     getParticipant,
-    getStimulus,
-    getStimuli,
+    getStimulus
   } from '$lib/gaze-data/front-process/stores/dataStore'
   import {
     collectParticipantsDwellTimeData,
@@ -21,6 +20,8 @@
     collectParticipantsAvgFixationDurationData,
     collectParticipantsFirstFixationDurationData,
     collectParticipantsFixationCountData,
+    collectParticipantsEntryCountData,
+    collectParticipantsDwellDurationData,
   } from '$lib/plots/bar/utils/collectParticipantMetricsUtils'
   import { addSuccessToast } from '$lib/toaster/stores'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
@@ -41,14 +42,32 @@
   let isExporting = $state(false)
 
   // Metrics configuration and state
+  // Grouped logically: Time metrics → First fixation → Fixations → Visits
   const metricsConfig = [
+    // === Time Metrics ===
     {
-      key: 'dwellTime' as const,
-      label: 'Dwell Time',
-      sublabel: 'Total time spent fixating on each AOI',
-      csvName: 'Dwell_Time',
+      key: 'absoluteDwellTime' as const,
+      label: 'Absolute Dwell Time',
+      sublabel: 'Total time spent in each AOI (ms)',
+      csvName: 'Absolute_Dwell_Time',
       collector: collectParticipantsDwellTimeData,
     },
+    {
+      key: 'relativeDwellTime' as const,
+      label: 'Relative Dwell Time (%)',
+      sublabel: 'Dwell time as percentage of total viewing time',
+      csvName: 'Relative_Dwell_Time',
+      collector: collectParticipantsDwellTimeData,
+      processFunction: (values: number[], participantData?: any[], aoiIndex?: number) => {
+        // Calculate as percentage of total viewing time
+        // Total time is stored in the last index (Any_Fixation)
+        if (!participantData || aoiIndex === undefined) return 0
+        const dwellTime = participantData[aoiIndex] as number
+        const totalTime = participantData[participantData.length - 1] as number
+        return totalTime > 0 ? (dwellTime / totalTime) * 100 : 0
+      },
+    },
+    // === First Fixation Metrics ===
     {
       key: 'timeToFirstFixation' as const,
       label: 'Time to First Fixation',
@@ -57,30 +76,49 @@
       collector: collectParticipantsTimeToFirstFixationData,
     },
     {
-      key: 'avgFixationDuration' as const,
-      label: 'Average Fixation Duration',
-      sublabel: 'Mean duration of fixations on each AOI',
-      csvName: 'Avg_Fixation_Duration',
-      collector: collectParticipantsAvgFixationDurationData,
-      processFunction: (values: number[]) =>
-        values.length === 0
-          ? -1
-          : values.reduce((sum, val) => sum + val, 0) / values.length,
-    },
-    {
       key: 'firstFixationDuration' as const,
       label: 'First Fixation Duration',
-      sublabel:
-        'Duration of the first fixation on each AOI (-1 if never fixated)',
+      sublabel: 'Duration of the first fixation on each AOI (-1 if never fixated)',
       csvName: 'First_Fixation_Duration',
       collector: collectParticipantsFirstFixationDurationData,
     },
+    // === Fixation Metrics ===
     {
       key: 'fixationCount' as const,
       label: 'Fixation Count',
       sublabel: 'Number of fixations on each AOI',
       csvName: 'Fixation_Count',
       collector: collectParticipantsFixationCountData,
+    },
+    {
+      key: 'meanFixationDuration' as const,
+      label: 'Mean Fixation Duration',
+      sublabel: 'Average duration of fixations on each AOI',
+      csvName: 'Mean_Fixation_Duration',
+      collector: collectParticipantsAvgFixationDurationData,
+      processFunction: (values: number[], _participantData?: any[], _aoiIndex?: number) =>
+        values.length === 0
+          ? -1
+          : values.reduce((sum, val) => sum + val, 0) / values.length,
+    },
+    // === Visit Metrics ===
+    {
+      key: 'visitCount' as const,
+      label: 'Visit Count',
+      sublabel: 'Number of distinct visits to each AOI',
+      csvName: 'Visit_Count',
+      collector: collectParticipantsEntryCountData,
+    },
+    {
+      key: 'meanVisitDuration' as const,
+      label: 'Mean Visit Duration',
+      sublabel: 'Average duration of visits to each AOI',
+      csvName: 'Mean_Visit_Duration',
+      collector: collectParticipantsDwellDurationData,
+      processFunction: (values: number[], _participantData?: any[], _aoiIndex?: number) =>
+        values.length === 0
+          ? -1
+          : values.reduce((sum, val) => sum + val, 0) / values.length,
     },
   ] as const
 
@@ -200,14 +238,25 @@
               const aoiGroup = getAoiName(aoiIndex, aois)
               let value: number
 
-              if (
-                metric.processFunction &&
-                Array.isArray(participantData[aoiIndex])
-              ) {
-                value = metric.processFunction(
-                  participantData[aoiIndex] as number[]
-                )
+              // Apply processFunction if defined (handles arrays or special calculations)
+              if (metric.processFunction) {
+                if (Array.isArray(participantData[aoiIndex])) {
+                  // Array data (e.g., fixation durations, dwell durations)
+                  value = metric.processFunction(
+                    participantData[aoiIndex] as number[],
+                    participantData,
+                    aoiIndex
+                  )
+                } else {
+                  // Scalar data but needs processing (e.g., relative time percentage)
+                  value = metric.processFunction(
+                    participantData[aoiIndex] as any,
+                    participantData,
+                    aoiIndex
+                  )
+                }
               } else {
+                // No processing needed - use raw value
                 value = participantData[aoiIndex] as number
               }
 
