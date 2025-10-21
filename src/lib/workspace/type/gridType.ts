@@ -98,6 +98,7 @@ export interface BarPlotGridType extends GridType {
     | 'avgFixationDuration'
     | 'avgFirstFixationDuration'
     | 'averageFixationCount'
+    | 'hitRatio'
   /**
    * Scale range in [start, end] format.
    * For start (index 0): The minimum value for the scale.

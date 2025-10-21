@@ -282,3 +282,68 @@ export function collectParticipantsFixationCountData(
 
   return participantData
 }
+
+/**
+ * Collects hit ratio (seen %) data for each participant separately.
+ * Hit ratio indicates whether a participant looked at an AOI at least once.
+ * 
+ * @param {number} stimulusId - The ID of the stimulus to analyze
+ * @param {number[]} participantIds - Array of participant IDs to include in analysis
+ * @param {ExtendedInterpretedDataType[]} aois - Array of AOI definitions
+ * @returns {number[][]} Array of arrays - each inner array contains binary indicators (1 = seen, 0 = not seen) 
+ *                       for AOIs + any fixation + no-AOI for one participant
+ * 
+ * @example
+ * // Returns [[1, 0, 1, 1, 1], [1, 1, 0, 1, 1]] for 2 participants with 3 AOIs
+ * // First participant saw AOI 0 and 2, but not AOI 1
+ * // Second participant saw AOI 0 and 1, but not AOI 2
+ */
+export function collectParticipantsHitRatioData(
+  stimulusId: number,
+  participantIds: number[],
+  aois: ExtendedInterpretedDataType[]
+): number[][] {
+  const participantData: number[][] = []
+
+  // Process each participant to determine which AOIs they fixated on
+  for (const participantId of participantIds) {
+    // Track whether this participant has seen each AOI (binary indicator: 0 or 1)
+    const participantSeenAois = createArray(aois.length, 0)
+    let participantSeenAnyFixation = 0
+    let participantSeenNoAoi = 0
+
+    // Get all fixation segments for this participant
+    const fixationSegments = getSegments(stimulusId, participantId, [0])
+
+    // Check if participant has any fixations at all
+    if (fixationSegments.length > 0) {
+      participantSeenAnyFixation = 1
+    }
+
+    // Iterate through segments to mark which AOIs were seen
+    for (const segment of fixationSegments) {
+      // Check if this is a no-AOI fixation
+      if (segment.aoi.length === 0) {
+        participantSeenNoAoi = 1
+        continue
+      }
+
+      // Mark each AOI in this segment as seen (set to 1 if not already)
+      for (const aoi of segment.aoi) {
+        const aoiIndex = aois.findIndex(a => a.id === aoi.id)
+        if (aoiIndex !== -1) {
+          participantSeenAois[aoiIndex] = 1
+        }
+      }
+    }
+
+    // Add this participant's binary indicators: [...aois, noAoi, anyFixation]
+    participantData.push([
+      ...participantSeenAois,
+      participantSeenNoAoi,
+      participantSeenAnyFixation,
+    ])
+  }
+
+  return participantData
+}

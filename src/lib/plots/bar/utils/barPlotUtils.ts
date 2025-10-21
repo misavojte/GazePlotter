@@ -18,6 +18,7 @@ import {
   collectParticipantsAvgFixationDurationData,
   collectParticipantsFirstFixationDurationData,
   collectParticipantsFixationCountData,
+  collectParticipantsHitRatioData,
 } from './collectParticipantMetricsUtils'
 
 /**
@@ -83,6 +84,14 @@ export function getBarPlotData(
 
     case 'averageFixationCount':
       processedData = collectAverageFixationCountData(
+        settings.stimulusId,
+        participantIds,
+        aois
+      ).slice(0, -1)
+      break
+
+    case 'hitRatio':
+      processedData = collectHitRatioData(
         settings.stimulusId,
         participantIds,
         aois
@@ -270,6 +279,61 @@ export function collectAverageFixationCountData(
   for (let aoiIndex = 0; aoiIndex < numAois; aoiIndex++) {
     const counts = participantData.map(row => row[aoiIndex])
     results.push(calculateAverage(counts))
+  }
+
+  return results
+}
+
+/**
+ * Collects hit ratio (seen %) data for each AOI and no-AOI.
+ * Hit ratio is the percentage of participants who looked at an AOI at least once.
+ * 
+ * This is the "reach" metric that answers: "What share of participants noticed this AOI?"
+ * Before comparing speed (TTFF) or depth (dwell time), hit ratio tells you whether 
+ * the AOI was noticed at all.
+ * 
+ * @param {number} stimulusId - The ID of the stimulus to analyze
+ * @param {number[]} participantIds - Array of participant IDs to include in analysis
+ * @param {ExtendedInterpretedDataType[]} aois - Array of AOI definitions
+ * @returns {number[]} Array of hit ratios as percentages (0-100), with the last element being no-AOI
+ * 
+ * @example
+ * // For 10 participants where 7 looked at AOI 0, 3 at AOI 1:
+ * // Returns [70.0, 30.0, ...]
+ */
+export function collectHitRatioData(
+  stimulusId: number,
+  participantIds: number[],
+  aois: ExtendedInterpretedDataType[]
+): number[] {
+  const participantData = collectParticipantsHitRatioData(
+    stimulusId,
+    participantIds,
+    aois
+  )
+
+  // Handle edge case: no participants
+  if (participantData.length === 0) {
+    return createArray(aois.length + 1, 0)
+  }
+
+  const totalParticipants = participantData.length
+  const results: number[] = []
+  const numAois = aois.length + 1 // +1 for no-AOI
+
+  // Calculate hit ratio for each AOI (including no-AOI)
+  // Hit ratio = (sum of participants who saw AOI) / (total participants) * 100
+  for (let aoiIndex = 0; aoiIndex < numAois; aoiIndex++) {
+    // Sum the binary indicators (1 = seen, 0 = not seen) across all participants
+    const participantsWhoSaw = participantData.reduce(
+      (sum, participantRow) => sum + participantRow[aoiIndex],
+      0
+    )
+    
+    // Convert to percentage (0-100)
+    const hitRatioPercentage = (participantsWhoSaw / totalParticipants) * 100
+    
+    results.push(hitRatioPercentage)
   }
 
   return results
