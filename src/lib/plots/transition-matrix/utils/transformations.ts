@@ -185,6 +185,12 @@ export function calculateTransitionMatrix(
   let resultMatrix: number[][]
 
   switch (aggregationMethod) {
+    case AggregationMethod.FREQUENCY_RELATIVE:
+      // Calculate relative frequency: percentage of all transitions
+      resultMatrix = calculateRelativeFrequencyMatrix(
+        calculateSumMatrix(participantMatrices)
+      )
+      break
     case AggregationMethod.PROBABILITY:
       // First calculate the sum matrix, then normalize by row
       resultMatrix = calculateTransitionProbabilityMatrix(
@@ -427,6 +433,37 @@ function calculateSumMatrix(matrices: number[][][]): number[][] {
       for (let j = 0; j < cols; j++) {
         result[i][j] += matrix[i][j]
       }
+    }
+  }
+
+  return result
+}
+
+/**
+ * Calculates relative frequency across the entire matrix
+ * 
+ * Normalizes all transitions by the total count across the entire matrix,
+ * showing what percentage of all transitions each cell represents.
+ * Unlike probability (row-normalized), this shows the global distribution.
+ *
+ * @param matrix The transition count matrix
+ * @returns A new matrix with relative frequency percentages (0-100)
+ */
+function calculateRelativeFrequencyMatrix(matrix: number[][]): number[][] {
+  // Create a new matrix of the same size
+  const result = createMatrix(matrix.length, matrix[0].length, 0)
+
+  // Calculate the total number of transitions across entire matrix
+  const totalTransitions = getTotalTransitions(matrix)
+
+  // If no transitions at all, return empty matrix
+  if (totalTransitions === 0) return result
+
+  // Calculate relative frequency for each cell as percentage of total
+  for (let i = 0; i < matrix.length; i++) {
+    for (let j = 0; j < matrix[i].length; j++) {
+      // Convert to percentage of total transitions
+      result[i][j] = formatDecimal((matrix[i][j] / totalTransitions) * 100)
     }
   }
 

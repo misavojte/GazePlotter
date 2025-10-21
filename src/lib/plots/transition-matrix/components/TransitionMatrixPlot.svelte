@@ -69,10 +69,11 @@
 
   // Simplified aggregation method options
   const aggregationOptions = [
-    { value: AggregationMethod.SUM, label: 'Transition Count' },
-    { value: AggregationMethod.PROBABILITY, label: 'Transition Probability (1-step)' },
-    { value: AggregationMethod.PROBABILITY_2, label: 'Transition Probability (2-step)' },
-    { value: AggregationMethod.PROBABILITY_3, label: 'Transition Probability (3-step)' },
+    { value: AggregationMethod.SUM, label: 'Absolute frequency' },
+    { value: AggregationMethod.FREQUENCY_RELATIVE, label: 'Relative frequency' },
+    { value: AggregationMethod.PROBABILITY, label: '1-step probability' },
+    { value: AggregationMethod.PROBABILITY_2, label: '2-step probability' },
+    { value: AggregationMethod.PROBABILITY_3, label: '3-step probability' },
     { value: AggregationMethod.DWELL_TIME, label: 'Avg Dwell Time' },
     {
       value: AggregationMethod.SEGMENT_DWELL_TIME,
@@ -115,13 +116,15 @@
   function getLegendTitle(method: string): string {
     switch (method) {
       case AggregationMethod.SUM:
-        return 'Transition Count'
+        return 'Absolute frequency'
+      case AggregationMethod.FREQUENCY_RELATIVE:
+        return 'Relative frequency %'
       case AggregationMethod.PROBABILITY:
-        return '1-Step Probability (%)'
+        return '1-step probability (%)'
       case AggregationMethod.PROBABILITY_2:
-        return '2-Step Probability (%)'
+        return '2-step probability (%)'
       case AggregationMethod.PROBABILITY_3:
-        return '3-Step Probability (%)'
+        return '3-step probability (%)'
       case AggregationMethod.DWELL_TIME:
         return 'Dwell Time (ms)'
       case AggregationMethod.SEGMENT_DWELL_TIME:
