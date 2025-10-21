@@ -14,4 +14,5 @@ export type EyeFileType = 'tobii' |
 'varjo' |
 'csv' |
 'csv-segmented' |
+'csv-segmented-duration' |
 'pupil-cloud-zip'

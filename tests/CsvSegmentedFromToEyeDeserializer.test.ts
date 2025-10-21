@@ -1,11 +1,11 @@
 /**
- * Vitest tests for CsvSegmentedEyeDeserializer
+ * Vitest tests for CsvSegmentedFromToEyeDeserializer
  *
- * @module CsvSegmentedEyeDeserializer
- * @see src/lib/class/Eye/EyeDeserializer/CsvSegmentedEyeDeserializer.ts
+ * @module CsvSegmentedFromToEyeDeserializer
+ * @see src/lib/class/Eye/EyeDeserializer/CsvSegmentedFromToEyeDeserializer.ts
  */
 
-import { CsvSegmentedEyeDeserializer } from '$lib/class/Eye/EyeDeserializer/CsvSegmentedEyeDeserializer'
+import { CsvSegmentedFromToEyeDeserializer } from '$lib/gaze-data/back-process/class/EyeDeserializer/CsvSegmentedFromToEyeDeserializer'
 import type { SingleDeserializerOutput } from '$lib/gaze-data/back-process/types/SingleDeserializerOutput'
 import { test, expect, describe } from 'vitest'
 
@@ -15,11 +15,11 @@ const csvMockDataOne = `From,To,Participant,Stimulus,AOI
 0,5,Participant_2,Map_B,Region_1
 5,6,Participant_2,Map_A,Region_1`
 
-describe('CSV Segmented Deserializer - Single data', () => {
+describe('CSV Segmented FromTo Deserializer - Single data', () => {
   const csvRows = csvMockDataOne.split('\n')
   const header = csvRows[0].split(',')
   test('Constructor', () => {
-    const sut = new CsvSegmentedEyeDeserializer(header)
+    const sut = new CsvSegmentedFromToEyeDeserializer(header)
     expect(sut).toBeDefined()
     expect(sut.cAoi).toBe(4)
     expect(sut.cParticipant).toBe(2)
@@ -29,7 +29,7 @@ describe('CSV Segmented Deserializer - Single data', () => {
   })
 
   test('Process first row', () => {
-    const sut = new CsvSegmentedEyeDeserializer(header)
+    const sut = new CsvSegmentedFromToEyeDeserializer(header)
     const row = csvRows[1].split(',')
     const result = sut.deserialize(row) as SingleDeserializerOutput
     expect(result).toBeDefined()
@@ -42,7 +42,7 @@ describe('CSV Segmented Deserializer - Single data', () => {
   })
 
   test('Process second row', () => {
-    const sut = new CsvSegmentedEyeDeserializer(header)
+    const sut = new CsvSegmentedFromToEyeDeserializer(header)
     const row = csvRows[2].split(',')
     const result = sut.deserialize(row) as SingleDeserializerOutput
     expect(result).toBeDefined()
@@ -55,7 +55,7 @@ describe('CSV Segmented Deserializer - Single data', () => {
   })
 
   test('Process third row', () => {
-    const sut = new CsvSegmentedEyeDeserializer(header)
+    const sut = new CsvSegmentedFromToEyeDeserializer(header)
     const row = csvRows[3].split(',')
     const result = sut.deserialize(row) as SingleDeserializerOutput
     expect(result).toBeDefined()
@@ -68,7 +68,7 @@ describe('CSV Segmented Deserializer - Single data', () => {
   })
 
   test('Process fourth row', () => {
-    const sut = new CsvSegmentedEyeDeserializer(header)
+    const sut = new CsvSegmentedFromToEyeDeserializer(header)
     const row = csvRows[4].split(',')
     const result = sut.deserialize(row) as SingleDeserializerOutput
     expect(result).toBeDefined()
@@ -81,7 +81,7 @@ describe('CSV Segmented Deserializer - Single data', () => {
   })
 
   test('Finalize', () => {
-    const sut = new CsvSegmentedEyeDeserializer(header)
+    const sut = new CsvSegmentedFromToEyeDeserializer(header)
     const row = csvRows[4].split(',')
     void sut.deserialize(row)
     const result = sut.finalize()
