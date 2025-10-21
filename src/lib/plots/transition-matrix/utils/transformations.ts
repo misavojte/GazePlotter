@@ -185,11 +185,25 @@ export function calculateTransitionMatrix(
   let resultMatrix: number[][]
 
   switch (aggregationMethod) {
+    case AggregationMethod.FREQUENCY_RELATIVE:
+      // Calculate relative frequency: percentage of all transitions
+      resultMatrix = calculateRelativeFrequencyMatrix(
+        calculateSumMatrix(participantMatrices)
+      )
+      break
     case AggregationMethod.PROBABILITY:
       // First calculate the sum matrix, then normalize by row
       resultMatrix = calculateTransitionProbabilityMatrix(
         calculateSumMatrix(participantMatrices)
       )
+      break
+    case AggregationMethod.PROBABILITY_2:
+      // 2-step transition probability: P^2
+      resultMatrix = calculateKStepProbabilityMatrix(participantMatrices, 2)
+      break
+    case AggregationMethod.PROBABILITY_3:
+      // 3-step transition probability: P^3
+      resultMatrix = calculateKStepProbabilityMatrix(participantMatrices, 3)
       break
     case AggregationMethod.DWELL_TIME:
       // For dwell time, we need to calculate additional data during processing
@@ -205,6 +219,197 @@ export function calculateTransitionMatrix(
   }
 
   return { matrix: resultMatrix, aoiLabels, aoiList }
+}
+
+/**
+ * Multiplies two square matrices A and B
+ *
+ * Performs standard matrix multiplication: C[i,j] = Σ(A[i,k] × B[k,j])
+ * Used as building block for matrix exponentiation.
+ *
+ * @param matrixA First matrix (n×n)
+ * @param matrixB Second matrix (n×n)
+ * @returns Product matrix A × B (n×n)
+ */
+function multiplyMatrices(matrixA: number[][], matrixB: number[][]): number[][] {
+  const n = matrixA.length
+  const result = createMatrix(n, n, 0)
+
+  // Standard matrix multiplication: C[i,j] = sum over k of A[i,k] * B[k,j]
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      let sum = 0
+      for (let k = 0; k < n; k++) {
+        sum += matrixA[i][k] * matrixB[k][j]
+      }
+      result[i][j] = sum
+    }
+  }
+
+  return result
+}
+
+/**
+ * Raises a matrix to a positive integer power using fast exponentiation
+ *
+ * Uses the square-and-multiply algorithm for efficient computation:
+ * - P^8 = ((P^2)^2)^2 requires only 3 multiplications instead of 7
+ * - Time complexity: O(n³ log k) where n is matrix dimension and k is the power
+ *
+ * @param matrix Square matrix to raise to power (n×n)
+ * @param power Positive integer exponent (k ≥ 1)
+ * @returns Matrix raised to the k-th power (n×n)
+ */
+function matrixPower(matrix: number[][], power: number): number[][] {
+  if (power < 1) {
+    throw new Error('Power must be a positive integer')
+  }
+
+  const n = matrix.length
+
+  // Base case: P^1 = P
+  if (power === 1) {
+    return matrix.map(row => [...row])
+  }
+
+  // For P^2, just multiply once
+  if (power === 2) {
+    return multiplyMatrices(matrix, matrix)
+  }
+
+  // Fast exponentiation using square-and-multiply algorithm
+  // Example: P^5 = P^4 × P^1 = (P^2)^2 × P
+  let result = createMatrix(n, n, 0)
+  // Initialize result as identity matrix
+  for (let i = 0; i < n; i++) {
+    result[i][i] = 1
+  }
+
+  let base = matrix.map(row => [...row]) // Copy the matrix
+  let exp = power
+
+  // Binary exponentiation loop
+  while (exp > 0) {
+    // If current bit is 1, multiply result by current base
+    if (exp % 2 === 1) {
+      result = multiplyMatrices(result, base)
+    }
+    // Square the base for next bit
+    base = multiplyMatrices(base, base)
+    // Move to next bit
+    exp = Math.floor(exp / 2)
+  }
+
+  return result
+}
+
+/**
+ * Normalizes each row of a matrix to sum to 1.0 (or 0 if row was empty)
+ *
+ * Converts a count matrix to a row-stochastic probability matrix where
+ * each row represents a probability distribution over destination AOIs.
+ * Handles floating-point drift by ensuring each non-zero row sums exactly to 1.
+ *
+ * @param matrix Matrix to normalize (n×n)
+ * @returns Row-normalized matrix where each row sums to 1.0 (n×n)
+ */
+function rowNormalizeMatrix(matrix: number[][]): number[][] {
+  const n = matrix.length
+  const result = createMatrix(n, n, 0)
+
+  // Normalize each row independently
+  for (let i = 0; i < n; i++) {
+    const rowSum = sumArray(matrix[i])
+
+    // If row sum is 0, keep row as zeros (no transitions from this AOI)
+    if (rowSum === 0) continue
+
+    // Normalize: divide each element by row sum to get probabilities
+    for (let j = 0; j < n; j++) {
+      result[i][j] = matrix[i][j] / rowSum
+    }
+  }
+
+  return result
+}
+
+/**
+ * Renormalizes each row to counter floating-point drift after matrix operations
+ *
+ * After repeated matrix multiplications, rows may not sum exactly to 1.0
+ * due to accumulated floating-point errors. This function redistributes
+ * any error proportionally across non-zero elements.
+ *
+ * @param matrix Probability matrix to renormalize (n×n)
+ * @returns Renormalized matrix with rows summing to exactly 1.0 (n×n)
+ */
+function renormalizeRows(matrix: number[][]): number[][] {
+  const n = matrix.length
+  const result = createMatrix(n, n, 0)
+
+  for (let i = 0; i < n; i++) {
+    const rowSum = sumArray(matrix[i])
+
+    // If row is all zeros, keep it that way
+    if (rowSum === 0) continue
+
+    // Renormalize to ensure sum equals 1.0
+    for (let j = 0; j < n; j++) {
+      result[i][j] = matrix[i][j] / rowSum
+    }
+  }
+
+  return result
+}
+
+/**
+ * Calculates k-step transition probabilities using matrix exponentiation
+ *
+ * Given a count matrix N, computes P^k where P is the row-normalized
+ * probability matrix. The result shows the probability of reaching each
+ * destination AOI after exactly k transitions from each source AOI.
+ *
+ * Example interpretations:
+ * - k=1: Direct transitions (current behavior)
+ * - k=2: Probability via one intermediate AOI (i→x→j patterns)
+ * - k=3: Probability via two intermediate AOIs (i→x→y→j patterns)
+ *
+ * @param participantMatrices Array of per-participant count matrices
+ * @param k Number of transition steps (positive integer)
+ * @param asPercent If true, return values as percentages (0-100); else probabilities (0-1)
+ * @returns k-step probability matrix
+ */
+function calculateKStepProbabilityMatrix(
+  participantMatrices: number[][][],
+  k: number,
+  asPercent: boolean = true
+): number[][] {
+  // Step 1: Sum all participant matrices to get aggregate count matrix N
+  const countMatrix = calculateSumMatrix(participantMatrices)
+
+  // Step 2: Row-normalize to get 1-step probability matrix P
+  const probabilityMatrix = rowNormalizeMatrix(countMatrix)
+
+  // Step 3: Compute P^k using fast exponentiation
+  const kStepMatrix = matrixPower(probabilityMatrix, k)
+
+  // Step 4: Renormalize to counter floating-point drift
+  const renormalized = renormalizeRows(kStepMatrix)
+
+  // Step 5: Convert to percentage if requested
+  if (asPercent) {
+    const n = renormalized.length
+    const result = createMatrix(n, n, 0)
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        // Convert to percentage and format to avoid excessive decimal places
+        result[i][j] = formatDecimal(renormalized[i][j] * 100)
+      }
+    }
+    return result
+  }
+
+  return renormalized
 }
 
 /**
@@ -228,6 +433,37 @@ function calculateSumMatrix(matrices: number[][][]): number[][] {
       for (let j = 0; j < cols; j++) {
         result[i][j] += matrix[i][j]
       }
+    }
+  }
+
+  return result
+}
+
+/**
+ * Calculates relative frequency across the entire matrix
+ * 
+ * Normalizes all transitions by the total count across the entire matrix,
+ * showing what percentage of all transitions each cell represents.
+ * Unlike probability (row-normalized), this shows the global distribution.
+ *
+ * @param matrix The transition count matrix
+ * @returns A new matrix with relative frequency percentages (0-100)
+ */
+function calculateRelativeFrequencyMatrix(matrix: number[][]): number[][] {
+  // Create a new matrix of the same size
+  const result = createMatrix(matrix.length, matrix[0].length, 0)
+
+  // Calculate the total number of transitions across entire matrix
+  const totalTransitions = getTotalTransitions(matrix)
+
+  // If no transitions at all, return empty matrix
+  if (totalTransitions === 0) return result
+
+  // Calculate relative frequency for each cell as percentage of total
+  for (let i = 0; i < matrix.length; i++) {
+    for (let j = 0; j < matrix[i].length; j++) {
+      // Convert to percentage of total transitions
+      result[i][j] = formatDecimal((matrix[i][j] / totalTransitions) * 100)
     }
   }
 
@@ -481,3 +717,45 @@ export function calculateSegmentDwellTimeMatrix(
 
   return { matrix: resultMatrix, aoiLabels, aoiList }
 }
+
+/**
+ * ============================================================================
+ * K-STEP TRANSITION PROBABILITY - MATHEMATICAL VERIFICATION EXAMPLE
+ * ============================================================================
+ *
+ * To verify the implementation is correct, consider a simple 3-AOI example:
+ *
+ * Count Matrix N:
+ * From\To   A    B    C
+ * A        [2,   3,   1]   (row sum = 6)
+ * B        [1,   0,   2]   (row sum = 3)
+ * C        [2,   1,   0]   (row sum = 3)
+ *
+ * 1-Step Probability Matrix P (each row normalized):
+ * From\To      A        B        C
+ * A        [0.333,  0.500,  0.167]   (2/6, 3/6, 1/6)
+ * B        [0.333,  0.000,  0.667]   (1/3, 0/3, 2/3)
+ * C        [0.667,  0.333,  0.000]   (2/3, 1/3, 0/3)
+ *
+ * Interpretation: If starting at A, there's 50% chance next transition goes to B
+ *
+ * 2-Step Probability Matrix P² = P × P:
+ * Calculation example for P²[A,B] (starting at A, ending at B after 2 steps):
+ *   = P[A,A]×P[A,B] + P[A,B]×P[B,B] + P[A,C]×P[C,B]
+ *   = 0.333×0.500 + 0.500×0.000 + 0.167×0.333
+ *   = 0.167 + 0.000 + 0.056
+ *   = 0.223 (22.3%)
+ *
+ * This means: Starting at A, there's 22.3% probability to be at B after 2 transitions
+ * (considering all possible intermediate paths: A→A→B, A→B→B, A→C→B)
+ *
+ * 3-Step Probability Matrix P³ = P² × P:
+ * Calculated similarly by multiplying P² by P
+ *
+ * Key Properties:
+ * - Each row of P^k sums to ~1.0 (row-stochastic)
+ * - Diagonal values decrease as k increases (less likely to return)
+ * - Off-diagonal values converge to steady state as k → ∞
+ * - Fast exponentiation makes P^k efficient even for large k
+ * ============================================================================
+ */

@@ -3,53 +3,43 @@ import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
 import { createArray } from '$lib/shared/utils/mathUtils'
 
 /**
- * Collects dwell time data for each participant separately
- * @returns Array of arrays - each inner array contains dwell times for AOIs + any fixation + no-AOI for one participant
+ * Collects dwell time data for each participant separately.
+ * Dwell time is the total time spent in an AOI (sum of all dwell durations).
+ * 
+ * This function reuses the dwell duration data collection for consistency and DRY principles.
+ * Absolute time = sum of all dwell durations.
+ * 
+ * @param {number} stimulusId - The ID of the stimulus to analyze
+ * @param {number[]} participantIds - Array of participant IDs to include in analysis
+ * @param {ExtendedInterpretedDataType[]} aois - Array of AOI definitions
+ * @returns {number[][]} Array of arrays - each inner array contains total dwell times 
+ *                       for AOIs + any fixation + no-AOI for one participant
  */
 export function collectParticipantsDwellTimeData(
   stimulusId: number,
   participantIds: number[],
   aois: ExtendedInterpretedDataType[]
 ): number[][] {
+  // Get dwell durations for all participants
+  const dwellDurationData = collectParticipantsDwellDurationData(
+    stimulusId,
+    participantIds,
+    aois
+  )
+
   const participantData: number[][] = []
 
-  // Process each participant
-  for (const participantId of participantIds) {
-    let noAoiTotalTime = 0
-    let anyFixationTotalTime = 0
-    const aoisSumTimes = createArray(aois.length, 0)
+  // For each participant, sum all dwell durations to get total time
+  for (const participantDwellDurations of dwellDurationData) {
+    const participantTotalTimes: number[] = []
 
-    // Get all fixation segments (category 0) for this participant
-    const fixationSegments = getSegments(stimulusId, participantId, [0])
-
-    // Process each segment
-    for (const segment of fixationSegments) {
-      const duration = segment.end - segment.start
-
-      // Add to any fixation total
-      anyFixationTotalTime += duration
-
-      // If segment has no AOIs, add to no-AOI time
-      if (segment.aoi.length === 0) {
-        noAoiTotalTime += duration
-        continue
-      }
-
-      // Add segment duration to each AOI it belongs to
-      for (const aoi of segment.aoi) {
-        const aoiIndex = aois.findIndex(a => a.id === aoi.id)
-        if (aoiIndex !== -1) {
-          aoisSumTimes[aoiIndex] += duration
-        }
-      }
+    // Sum all dwell durations for each AOI (including no-AOI and any fixation)
+    for (const dwellDurations of participantDwellDurations) {
+      const totalTime = dwellDurations.reduce((sum, duration) => sum + duration, 0)
+      participantTotalTimes.push(totalTime)
     }
 
-    // Add this participant's data: [...aois, noAoi, anyFixation]
-    participantData.push([
-      ...aoisSumTimes,
-      noAoiTotalTime,
-      anyFixationTotalTime,
-    ])
+    participantData.push(participantTotalTimes)
   }
 
   return participantData
@@ -277,6 +267,347 @@ export function collectParticipantsFixationCountData(
       ...participantAoiCounts,
       participantNoAoiCount,
       participantAnyFixationCount,
+    ])
+  }
+
+  return participantData
+}
+
+/**
+ * Collects hit ratio (seen %) data for each participant separately.
+ * Hit ratio indicates whether a participant looked at an AOI at least once.
+ * 
+ * @param {number} stimulusId - The ID of the stimulus to analyze
+ * @param {number[]} participantIds - Array of participant IDs to include in analysis
+ * @param {ExtendedInterpretedDataType[]} aois - Array of AOI definitions
+ * @returns {number[][]} Array of arrays - each inner array contains binary indicators (1 = seen, 0 = not seen) 
+ *                       for AOIs + any fixation + no-AOI for one participant
+ * 
+ * @example
+ * // Returns [[1, 0, 1, 1, 1], [1, 1, 0, 1, 1]] for 2 participants with 3 AOIs
+ * // First participant saw AOI 0 and 2, but not AOI 1
+ * // Second participant saw AOI 0 and 1, but not AOI 2
+ */
+export function collectParticipantsHitRatioData(
+  stimulusId: number,
+  participantIds: number[],
+  aois: ExtendedInterpretedDataType[]
+): number[][] {
+  const participantData: number[][] = []
+
+  // Process each participant to determine which AOIs they fixated on
+  for (const participantId of participantIds) {
+    // Track whether this participant has seen each AOI (binary indicator: 0 or 1)
+    const participantSeenAois = createArray(aois.length, 0)
+    let participantSeenAnyFixation = 0
+    let participantSeenNoAoi = 0
+
+    // Get all fixation segments for this participant
+    const fixationSegments = getSegments(stimulusId, participantId, [0])
+
+    // Check if participant has any fixations at all
+    if (fixationSegments.length > 0) {
+      participantSeenAnyFixation = 1
+    }
+
+    // Iterate through segments to mark which AOIs were seen
+    for (const segment of fixationSegments) {
+      // Check if this is a no-AOI fixation
+      if (segment.aoi.length === 0) {
+        participantSeenNoAoi = 1
+        continue
+      }
+
+      // Mark each AOI in this segment as seen (set to 1 if not already)
+      for (const aoi of segment.aoi) {
+        const aoiIndex = aois.findIndex(a => a.id === aoi.id)
+        if (aoiIndex !== -1) {
+          participantSeenAois[aoiIndex] = 1
+        }
+      }
+    }
+
+    // Add this participant's binary indicators: [...aois, noAoi, anyFixation]
+    participantData.push([
+      ...participantSeenAois,
+      participantSeenNoAoi,
+      participantSeenAnyFixation,
+    ])
+  }
+
+  return participantData
+}
+
+/**
+ * Collects entry count (visit count) data for each participant separately.
+ * An "entry" or "visit" is defined as one or more consecutive fixations within an AOI.
+ * 
+ * This metric answers: "How many distinct encounters did a participant have with this AOI?"
+ * For example, looking at AOI A, then B, then A again = 2 entries to AOI A.
+ * 
+ * @param {number} stimulusId - The ID of the stimulus to analyze
+ * @param {number[]} participantIds - Array of participant IDs to include in analysis
+ * @param {ExtendedInterpretedDataType[]} aois - Array of AOI definitions
+ * @returns {number[][]} Array of arrays - each inner array contains entry counts 
+ *                       for AOIs + any fixation + no-AOI for one participant
+ * 
+ * @example
+ * // Participant looks at: AOI 0 -> AOI 1 -> AOI 0 -> AOI 0 -> AOI 1
+ * // This results in: AOI 0 = 2 entries, AOI 1 = 2 entries
+ * // (consecutive fixations in the same AOI count as 1 entry)
+ */
+export function collectParticipantsEntryCountData(
+  stimulusId: number,
+  participantIds: number[],
+  aois: ExtendedInterpretedDataType[]
+): number[][] {
+  const participantData: number[][] = []
+
+  // Process each participant to count distinct visits to each AOI
+  for (const participantId of participantIds) {
+    // Track entry counts for this participant
+    const participantEntryCounts = createArray(aois.length, 0)
+    let participantNoAoiEntries = 0
+    let participantAnyFixationEntries = 0
+
+    // Track which AOIs were present in the previous segment to detect transitions
+    const previousAoiIds = new Set<number>()
+    let wasInNoAoi = false
+
+    // Get all fixation segments in chronological order
+    const fixationSegments = getSegments(stimulusId, participantId, [0])
+
+    // Iterate through segments to count entries (visits)
+    for (const segment of fixationSegments) {
+      // Handle no-AOI case (segment with no AOIs)
+      if (segment.aoi.length === 0) {
+        // Check for new no-AOI entry (transition into no-AOI area)
+        if (!wasInNoAoi) {
+          participantNoAoiEntries++
+          participantAnyFixationEntries++ // Count as a new "any fixation" entry
+          wasInNoAoi = true
+        }
+
+        // Clear previous AOI tracking since we left all AOIs
+        previousAoiIds.clear()
+        continue
+      }
+
+      // We're now in AOI(s), so we're not in no-AOI anymore
+      wasInNoAoi = false
+
+      // Collect current AOI IDs from this segment
+      const currentAoiIds = new Set<number>()
+      for (const aoi of segment.aoi) {
+        currentAoiIds.add(aoi.id)
+      }
+
+      // Detect if this is a transition to a different set of AOIs (defines a new "any fixation" entry)
+      const setsAreEqual =
+        currentAoiIds.size === previousAoiIds.size &&
+        Array.from(currentAoiIds).every(id => previousAoiIds.has(id))
+
+      if (previousAoiIds.size > 0 && !setsAreEqual) {
+        // Transition detected - count as a new "any fixation" entry
+        participantAnyFixationEntries++
+      } else if (previousAoiIds.size === 0) {
+        // Starting first AOI entry
+        participantAnyFixationEntries++
+      }
+
+      // Check each AOI in the current segment
+      for (const aoi of segment.aoi) {
+        const aoiIndex = aois.findIndex(a => a.id === aoi.id)
+        if (aoiIndex === -1) continue
+
+        // If this AOI wasn't in the previous segment, it's a new entry
+        if (!previousAoiIds.has(aoi.id)) {
+          participantEntryCounts[aoiIndex]++
+        }
+      }
+
+      // Update previous AOIs for next iteration
+      previousAoiIds.clear()
+      currentAoiIds.forEach(id => previousAoiIds.add(id))
+    }
+
+    // Add this participant's entry counts: [...aois, noAoi, anyFixation]
+    participantData.push([
+      ...participantEntryCounts,
+      participantNoAoiEntries,
+      participantAnyFixationEntries,
+    ])
+  }
+
+  return participantData
+}
+
+/**
+ * Collects dwell durations for each participant separately.
+ * A "dwell" is one or more consecutive fixations within the same AOI.
+ * 
+ * This metric answers: "How long did each visit to an AOI last?"
+ * For example: AOI A (200ms + 150ms) → AOI B (300ms) → AOI A (180ms)
+ * Results in AOI A dwell durations: [350ms, 180ms]
+ * 
+ * @param {number} stimulusId - The ID of the stimulus to analyze
+ * @param {number[]} participantIds - Array of participant IDs to include in analysis
+ * @param {ExtendedInterpretedDataType[]} aois - Array of AOI definitions
+ * @returns {number[][][]} Array of arrays of arrays - each inner array contains arrays of dwell durations
+ *                         for AOIs + any fixation + no-AOI for one participant
+ * 
+ * @example
+ * // Participant fixates: AOI 0 (200ms, 150ms) -> AOI 1 (300ms) -> AOI 0 (180ms)
+ * // Returns for AOI 0: [350, 180] (sum of consecutive fixations per visit)
+ */
+export function collectParticipantsDwellDurationData(
+  stimulusId: number,
+  participantIds: number[],
+  aois: ExtendedInterpretedDataType[]
+): number[][][] {
+  const participantData: number[][][] = []
+
+  // Process each participant to collect dwell durations for each AOI
+  for (const participantId of participantIds) {
+    // Track dwell durations for this participant - array of arrays of durations
+    const participantDwellDurations: number[][] = Array(aois.length)
+      .fill(null)
+      .map(() => [])
+    let participantNoAoiDwells: number[] = []
+    let participantAnyFixationDwells: number[] = []
+
+    // Track which AOIs were present in the previous segment and accumulate durations
+    const previousAoiIds = new Set<number>()
+    const currentDwellDurations = new Map<number, number>() // aoiId -> accumulated duration
+    let wasInNoAoi = false
+    let currentNoAoiDwellDuration = 0
+    let currentAnyFixationDwellDuration = 0 // Track actual time-based dwells for Any_Fixation
+
+    // Get all fixation segments in chronological order
+    const fixationSegments = getSegments(stimulusId, participantId, [0])
+
+    // Iterate through segments to accumulate dwell durations
+    for (const segment of fixationSegments) {
+      const duration = segment.end - segment.start
+
+      // Handle no-AOI case (segment with no AOIs)
+      if (segment.aoi.length === 0) {
+        // Check if we're starting a new no-AOI dwell or continuing one
+        if (!wasInNoAoi) {
+          // Starting a new no-AOI dwell
+          currentNoAoiDwellDuration = duration
+          currentAnyFixationDwellDuration = duration
+          wasInNoAoi = true
+        } else {
+          // Continuing the no-AOI dwell
+          currentNoAoiDwellDuration += duration
+          currentAnyFixationDwellDuration += duration
+        }
+
+        // We left all AOIs - save any accumulated AOI dwells
+        for (const [aoiId, dwellDuration] of currentDwellDurations.entries()) {
+          const aoiIndex = aois.findIndex(a => a.id === aoiId)
+          if (aoiIndex !== -1) {
+            participantDwellDurations[aoiIndex].push(dwellDuration)
+          }
+        }
+
+        // Clear previous AOI tracking
+        currentDwellDurations.clear()
+        previousAoiIds.clear()
+        continue
+      }
+
+      // We're now in AOI(s), so we're not in no-AOI anymore
+      if (wasInNoAoi) {
+        // We left no-AOI, save the dwell duration
+        participantNoAoiDwells.push(currentNoAoiDwellDuration)
+        // Save the Any_Fixation dwell that just ended
+        participantAnyFixationDwells.push(currentAnyFixationDwellDuration)
+        currentNoAoiDwellDuration = 0
+        currentAnyFixationDwellDuration = 0
+        wasInNoAoi = false
+      }
+
+      // Collect current AOI IDs from this segment
+      const currentAoiIds = new Set<number>()
+      for (const aoi of segment.aoi) {
+        currentAoiIds.add(aoi.id)
+      }
+
+      // Detect if this is a transition to a different set of AOIs (defines a new "any fixation" dwell)
+      const setsAreEqual =
+        currentAoiIds.size === previousAoiIds.size &&
+        Array.from(currentAoiIds).every(id => previousAoiIds.has(id))
+
+      if (previousAoiIds.size > 0 && !setsAreEqual) {
+        // Transition detected - save the current Any_Fixation dwell
+        if (currentAnyFixationDwellDuration > 0) {
+          participantAnyFixationDwells.push(currentAnyFixationDwellDuration)
+        }
+        currentAnyFixationDwellDuration = duration
+      } else {
+        // Continuing or starting - accumulate duration
+        currentAnyFixationDwellDuration += duration
+      }
+
+      // Process each AOI in the current segment
+      for (const aoi of segment.aoi) {
+        if (previousAoiIds.has(aoi.id)) {
+          // Continuing a dwell in this AOI - add to accumulated duration
+          currentDwellDurations.set(
+            aoi.id,
+            (currentDwellDurations.get(aoi.id) || 0) + duration
+          )
+        } else {
+          // Starting a new dwell in this AOI
+          currentDwellDurations.set(aoi.id, duration)
+        }
+      }
+
+      // Check which AOIs we left (were in previous but not in current)
+      for (const prevAoiId of previousAoiIds) {
+        if (!currentAoiIds.has(prevAoiId)) {
+          // We left this AOI - save the dwell duration
+          const dwellDuration = currentDwellDurations.get(prevAoiId)
+          if (dwellDuration !== undefined) {
+            const aoiIndex = aois.findIndex(a => a.id === prevAoiId)
+            if (aoiIndex !== -1) {
+              participantDwellDurations[aoiIndex].push(dwellDuration)
+            }
+          }
+          currentDwellDurations.delete(prevAoiId)
+        }
+      }
+
+      // Update previous AOIs for next iteration
+      previousAoiIds.clear()
+      currentAoiIds.forEach(id => previousAoiIds.add(id))
+    }
+
+    // Save any remaining accumulated dwells at the end
+    for (const [aoiId, dwellDuration] of currentDwellDurations.entries()) {
+      const aoiIndex = aois.findIndex(a => a.id === aoiId)
+      if (aoiIndex !== -1) {
+        participantDwellDurations[aoiIndex].push(dwellDuration)
+      }
+    }
+
+    // Save remaining no-AOI dwell if we ended in no-AOI
+    if (wasInNoAoi) {
+      participantNoAoiDwells.push(currentNoAoiDwellDuration)
+    }
+
+    // Save remaining Any_Fixation dwell
+    if (currentAnyFixationDwellDuration > 0) {
+      participantAnyFixationDwells.push(currentAnyFixationDwellDuration)
+    }
+
+    // Add this participant's dwell durations: [...aois, noAoi, anyFixation]
+    participantData.push([
+      ...participantDwellDurations,
+      participantNoAoiDwells,
+      participantAnyFixationDwells,
     ])
   }
 
