@@ -17,31 +17,26 @@ export const BAR_PLOT_AGGREGATION_METHODS = [
     value: 'relativeTime',
     label: 'Relative time',
   },
-  
+  {
+    value: 'averageEntries',
+    label: 'Mean entries',
+  },
+  {
+    value: 'averageFixationCount',
+    label: 'Mean fixation count',
+  },
   // Speed metrics
   {
     value: 'timeToFirstFixation',
     label: 'Mean time to first fixation',
   },
-  
-  // Duration metrics
-  {
-    value: 'avgFixationDuration',
-    label: 'Mean fixation duration',
-  },
   {
     value: 'avgFirstFixationDuration',
     label: 'Mean first fixation duration',
   },
-  
-  // Frequency metrics
   {
-    value: 'averageFixationCount',
-    label: 'Mean fixation count',
-  },
-  {
-    value: 'averageEntries',
-    label: 'Mean entries',
+    value: 'avgFixationDuration',
+    label: 'Mean fixation duration',
   },
   {
     value: 'hitRatio',
