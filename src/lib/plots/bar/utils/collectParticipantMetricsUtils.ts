@@ -347,3 +347,100 @@ export function collectParticipantsHitRatioData(
 
   return participantData
 }
+
+/**
+ * Collects entry count (visit count) data for each participant separately.
+ * An "entry" or "visit" is defined as one or more consecutive fixations within an AOI.
+ * 
+ * This metric answers: "How many distinct encounters did a participant have with this AOI?"
+ * For example, looking at AOI A, then B, then A again = 2 entries to AOI A.
+ * 
+ * @param {number} stimulusId - The ID of the stimulus to analyze
+ * @param {number[]} participantIds - Array of participant IDs to include in analysis
+ * @param {ExtendedInterpretedDataType[]} aois - Array of AOI definitions
+ * @returns {number[][]} Array of arrays - each inner array contains entry counts 
+ *                       for AOIs + any fixation + no-AOI for one participant
+ * 
+ * @example
+ * // Participant looks at: AOI 0 -> AOI 1 -> AOI 0 -> AOI 0 -> AOI 1
+ * // This results in: AOI 0 = 2 entries, AOI 1 = 2 entries
+ * // (consecutive fixations in the same AOI count as 1 entry)
+ */
+export function collectParticipantsEntryCountData(
+  stimulusId: number,
+  participantIds: number[],
+  aois: ExtendedInterpretedDataType[]
+): number[][] {
+  const participantData: number[][] = []
+
+  // Process each participant to count distinct visits to each AOI
+  for (const participantId of participantIds) {
+    // Track entry counts for this participant
+    const participantEntryCounts = createArray(aois.length, 0)
+    let participantAnyFixationEntries = 0
+    let participantNoAoiEntries = 0
+
+    // Track which AOIs were present in the previous segment to detect transitions
+    const previousAoiIds = new Set<number>()
+    let wasInNoAoi = false
+    let wasInAnyFixation = false
+
+    // Get all fixation segments in chronological order
+    const fixationSegments = getSegments(stimulusId, participantId, [0])
+
+    // Iterate through segments to count entries (visits)
+    for (const segment of fixationSegments) {
+      // Check for new "any fixation" entry (transition from no fixations to fixations)
+      if (!wasInAnyFixation) {
+        participantAnyFixationEntries++
+        wasInAnyFixation = true
+      }
+
+      // Handle no-AOI case (segment with no AOIs)
+      if (segment.aoi.length === 0) {
+        // Check for new no-AOI entry (transition into no-AOI area)
+        if (!wasInNoAoi) {
+          participantNoAoiEntries++
+          wasInNoAoi = true
+        }
+
+        // Clear previous AOI tracking since we left all AOIs
+        previousAoiIds.clear()
+        continue
+      }
+
+      // We're now in AOI(s), so we're not in no-AOI anymore
+      wasInNoAoi = false
+
+      // Collect current AOI IDs from this segment
+      const currentAoiIds = new Set<number>()
+      for (const aoi of segment.aoi) {
+        currentAoiIds.add(aoi.id)
+      }
+
+      // Check each AOI in the current segment
+      for (const aoi of segment.aoi) {
+        const aoiIndex = aois.findIndex(a => a.id === aoi.id)
+        if (aoiIndex === -1) continue
+
+        // If this AOI wasn't in the previous segment, it's a new entry
+        if (!previousAoiIds.has(aoi.id)) {
+          participantEntryCounts[aoiIndex]++
+        }
+      }
+
+      // Update previous AOIs for next iteration
+      previousAoiIds.clear()
+      currentAoiIds.forEach(id => previousAoiIds.add(id))
+    }
+
+    // Add this participant's entry counts: [...aois, noAoi, anyFixation]
+    participantData.push([
+      ...participantEntryCounts,
+      participantNoAoiEntries,
+      participantAnyFixationEntries,
+    ])
+  }
+
+  return participantData
+}

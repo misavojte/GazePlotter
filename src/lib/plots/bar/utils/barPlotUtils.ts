@@ -19,6 +19,7 @@ import {
   collectParticipantsFirstFixationDurationData,
   collectParticipantsFixationCountData,
   collectParticipantsHitRatioData,
+  collectParticipantsEntryCountData,
 } from './collectParticipantMetricsUtils'
 
 /**
@@ -92,6 +93,14 @@ export function getBarPlotData(
 
     case 'hitRatio':
       processedData = collectHitRatioData(
+        settings.stimulusId,
+        participantIds,
+        aois
+      ).slice(0, -1)
+      break
+
+    case 'averageEntries':
+      processedData = collectAverageEntriesData(
         settings.stimulusId,
         participantIds,
         aois
@@ -334,6 +343,54 @@ export function collectHitRatioData(
     const hitRatioPercentage = (participantsWhoSaw / totalParticipants) * 100
     
     results.push(hitRatioPercentage)
+  }
+
+  return results
+}
+
+/**
+ * Collects average entry count (visit count) data for each AOI and no-AOI.
+ * 
+ * This metric answers: "How many distinct encounters did participants have with this AOI?"
+ * An "entry" or "visit" is one or more consecutive fixations within an AOI.
+ * For example: AOI A → AOI B → AOI A = 2 entries to AOI A.
+ * 
+ * @param {number} stimulusId - The ID of the stimulus to analyze
+ * @param {number[]} participantIds - Array of participant IDs to include in analysis
+ * @param {ExtendedInterpretedDataType[]} aois - Array of AOI definitions
+ * @returns {number[]} Array of average entry counts, with the last element being no-AOI
+ * 
+ * @example
+ * // For 3 participants with entry counts of [2, 1, 3] for AOI 0:
+ * // Returns [2.0, ...] (average of 2+1+3 / 3 = 2.0)
+ */
+export function collectAverageEntriesData(
+  stimulusId: number,
+  participantIds: number[],
+  aois: ExtendedInterpretedDataType[]
+): number[] {
+  const participantData = collectParticipantsEntryCountData(
+    stimulusId,
+    participantIds,
+    aois
+  )
+
+  // Handle edge case: no participants
+  if (participantData.length === 0) {
+    return createArray(aois.length + 1, 0)
+  }
+
+  const results: number[] = []
+  const numAois = aois.length + 1 // +1 for no-AOI
+
+  // Calculate average entry count for each AOI (including no-AOI)
+  // Average entries = sum of all participants' entry counts / number of participants
+  for (let aoiIndex = 0; aoiIndex < numAois; aoiIndex++) {
+    // Collect all participants' entry counts for this AOI
+    const entryCounts = participantData.map(row => row[aoiIndex])
+    
+    // Calculate average
+    results.push(calculateAverage(entryCounts))
   }
 
   return results

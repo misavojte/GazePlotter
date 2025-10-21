@@ -36,6 +36,10 @@ export const BAR_PLOT_AGGREGATION_METHODS = [
     value: 'hitRatio',
     label: 'Hit ratio (seen %)',
   },
+  {
+    value: 'averageEntries',
+    label: 'Avg entries',
+  },
 ] as const
 
 /**
