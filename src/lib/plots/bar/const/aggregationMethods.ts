@@ -11,40 +11,39 @@ export const BAR_PLOT_AGGREGATION_METHODS = [
   // Time-based metrics (duration/accumulation)
   {
     value: 'absoluteTime',
-    label: 'Absolute time',
+    label: 'Absolute times',
   },
   {
     value: 'relativeTime',
-    label: 'Relative time',
+    label: 'Relative times',
   },
   {
     value: 'averageEntries',
-    label: 'Mean entries',
-  },
-  {
-    value: 'averageFixationCount',
-    label: 'Mean fixation count',
-  },
-  // Speed metrics
-  {
-    value: 'timeToFirstFixation',
-    label: 'Mean time to first fixation',
-  },
-  {
-    value: 'avgFirstFixationDuration',
-    label: 'Mean first fixation duration',
-  },
-  {
-    value: 'avgFixationDuration',
-    label: 'Mean fixation duration',
+    label: 'Mean visits',
   },
   {
     value: 'avgDwellDuration',
-    label: 'Mean dwell duration',
+    label: 'Mean visit durations',
+  },
+  {
+    value: 'averageFixationCount',
+    label: 'Mean fixation couns',
+  },
+  {
+    value: 'avgFixationDuration',
+    label: 'Mean fixation durations',
+  },
+  {
+    value: 'timeToFirstFixation',
+    label: 'Mean times to first fixation',
+  },
+  {
+    value: 'avgFirstFixationDuration',
+    label: 'Mean first fixation durations',
   },
   {
     value: 'hitRatio',
-    label: 'Hit ratio (seen %)',
+    label: 'Hit ratios (seen %)',
   },
 ] as const
 
