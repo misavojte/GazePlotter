@@ -301,7 +301,12 @@
           class:active={expandedGroupIds.includes(group.id)}
         >
           <div class="group-name">
-            <input type="text" id={group.id + 'name'} bind:value={group.name} />
+            <input
+              type="text"
+              id={group.id + 'name'}
+              value={group.name}
+              oninput={e => updateGroup(group.id, { name: e.currentTarget.value })}
+            />
           </div>
           <div class="button-group">
             <GeneralButtonMinor
