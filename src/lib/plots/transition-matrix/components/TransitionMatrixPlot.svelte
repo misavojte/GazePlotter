@@ -74,10 +74,10 @@
     { value: AggregationMethod.PROBABILITY, label: '1-step probability' },
     { value: AggregationMethod.PROBABILITY_2, label: '2-step probability' },
     { value: AggregationMethod.PROBABILITY_3, label: '3-step probability' },
-    { value: AggregationMethod.DWELL_TIME, label: 'Avg Dwell Time' },
+    { value: AggregationMethod.DWELL_TIME, label: 'Fixation duration' },
     {
       value: AggregationMethod.SEGMENT_DWELL_TIME,
-      label: 'Segment Dwell Time',
+      label: 'Dwell duration',
     },
   ]
 
@@ -126,9 +126,9 @@
       case AggregationMethod.PROBABILITY_3:
         return '3-step probability (%)'
       case AggregationMethod.DWELL_TIME:
-        return 'Dwell Time (ms)'
+        return 'Fixation duration (ms)'
       case AggregationMethod.SEGMENT_DWELL_TIME:
-        return 'Segment Dwell Time (ms)'
+        return 'Dwell duration (ms)'
       default:
         return 'Transition Value'
     }
