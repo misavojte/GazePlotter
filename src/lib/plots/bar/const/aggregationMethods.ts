@@ -39,6 +39,10 @@ export const BAR_PLOT_AGGREGATION_METHODS = [
     label: 'Mean fixation duration',
   },
   {
+    value: 'avgDwellDuration',
+    label: 'Mean dwell duration',
+  },
+  {
     value: 'hitRatio',
     label: 'Hit ratio (seen %)',
   },

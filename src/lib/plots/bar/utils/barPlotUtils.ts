@@ -20,6 +20,7 @@ import {
   collectParticipantsFixationCountData,
   collectParticipantsHitRatioData,
   collectParticipantsEntryCountData,
+  collectParticipantsDwellDurationData,
 } from './collectParticipantMetricsUtils'
 
 /**
@@ -101,6 +102,14 @@ export function getBarPlotData(
 
     case 'averageEntries':
       processedData = collectAverageEntriesData(
+        settings.stimulusId,
+        participantIds,
+        aois
+      ).slice(0, -1)
+      break
+
+    case 'avgDwellDuration':
+      processedData = collectAvgDwellDurationData(
         settings.stimulusId,
         participantIds,
         aois
@@ -391,6 +400,63 @@ export function collectAverageEntriesData(
     
     // Calculate average
     results.push(calculateAverage(entryCounts))
+  }
+
+  return results
+}
+
+/**
+ * Collects average dwell duration data for each AOI and no-AOI.
+ * A "dwell" is one or more consecutive fixations within the same AOI.
+ * 
+ * This metric answers: "How long do visits to this AOI typically last?"
+ * For example: AOI A visited twice with durations [350ms, 180ms] = average 265ms per visit.
+ * 
+ * @param {number} stimulusId - The ID of the stimulus to analyze
+ * @param {number[]} participantIds - Array of participant IDs to include in analysis
+ * @param {ExtendedInterpretedDataType[]} aois - Array of AOI definitions
+ * @returns {number[]} Array of average dwell durations, with the last element being no-AOI
+ * 
+ * @example
+ * // Participant 1: AOI 0 dwells = [350ms, 180ms]
+ * // Participant 2: AOI 0 dwells = [220ms]
+ * // Returns average of all dwells: (350 + 180 + 220) / 3 = 250ms
+ */
+export function collectAvgDwellDurationData(
+  stimulusId: number,
+  participantIds: number[],
+  aois: ExtendedInterpretedDataType[]
+): number[] {
+  const participantData = collectParticipantsDwellDurationData(
+    stimulusId,
+    participantIds,
+    aois
+  )
+
+  // Handle edge case: no participants
+  if (participantData.length === 0) {
+    return createArray(aois.length + 1, 0)
+  }
+
+  const results: number[] = []
+  const numAois = aois.length + 1 // +1 for no-AOI
+
+  // Calculate average dwell duration for each AOI (including no-AOI)
+  // Combine all participants' dwells and calculate average
+  for (let aoiIndex = 0; aoiIndex < numAois; aoiIndex++) {
+    const allDwellDurations: number[] = []
+
+    // Collect all dwell durations for this AOI across all participants
+    for (const participantRow of participantData) {
+      allDwellDurations.push(...participantRow[aoiIndex])
+    }
+
+    // Calculate average of all dwell durations, or 0 if no dwells
+    if (allDwellDurations.length === 0) {
+      results.push(0)
+    } else {
+      results.push(calculateAverage(allDwellDurations))
+    }
   }
 
   return results
