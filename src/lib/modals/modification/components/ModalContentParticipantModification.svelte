@@ -8,21 +8,21 @@
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import {
     getAllParticipants,
-    updateMultipleParticipants,
   } from '$lib/gaze-data/front-process/stores/dataStore'
-  import { addErrorToast, addSuccessToast } from '$lib/toaster'
+  import { addErrorToast } from '$lib/toaster'
   import type { BaseInterpretedDataType } from '$lib/gaze-data/shared/types'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
   import PatternRenamingTool from './PatternRenamingTool.svelte'
+  import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
-    forceRedraw: () => void
+    onInstruction: (instruction: WorkspaceInstruction) => void
   }
 
-  let { forceRedraw }: Props = $props()
+  let { onInstruction }: Props = $props()
 
   // Sorting state
   let sortColumn = $state<'originalName' | 'displayedName' | null>(null)
@@ -95,10 +95,15 @@
   const handleSubmit = () => {
     try {
       const participantObjectsCopy = deepCopyParticipants(participantObjects)
-      updateMultipleParticipants(participantObjectsCopy)
-      addSuccessToast('Participants updated successfully')
-      // Refresh the participants list after the store update
-      forceRedraw()
+      
+      onInstruction({
+        type: 'updateParticipants',
+        payload: {
+          participants: participantObjectsCopy
+        }
+      })
+
+      modalStore.close()
     } catch (e) {
       console.error(e)
       addErrorToast(

@@ -16,14 +16,15 @@
     ModalContentExportAggregatedData,
   } from '$lib/modals'
   import type { ComponentProps } from 'svelte'
+  import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
     settings: BarPlotGridType
     settingsChange: (newSettings: Partial<BarPlotGridType>) => void
-    forceRedraw: () => void
+    onInstruction: (instruction: WorkspaceInstruction) => void
   }
 
-  let { settings, settingsChange, forceRedraw }: Props = $props()
+  let { settings, settingsChange, onInstruction }: Props = $props()
 
   const openAoiModificationModal = () => {
     modalStore.open(
@@ -31,7 +32,7 @@
       'AOI customization',
       {
         selectedStimulus: settings.stimulusId.toString(),
-        forceRedraw,
+        onInstruction,
       }
     )
   }
@@ -41,7 +42,7 @@
       ModalContentStimulusModification as unknown as typeof SvelteComponent,
       'Stimulus customization',
       {
-        forceRedraw,
+        onInstruction,
       }
     )
   }
@@ -51,7 +52,7 @@
       ModalContentParticipantsGroups as unknown as typeof SvelteComponent,
       'Participants groups',
       {
-        forceRedraw,
+        onInstruction,
       }
     )
   }

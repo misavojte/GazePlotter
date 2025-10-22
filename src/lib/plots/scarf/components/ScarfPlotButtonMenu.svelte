@@ -19,15 +19,16 @@
     ModalContentParticipantsGroups,
     ModalContentExportSegmentedData,
   } from '$lib/modals'
+  import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
     settings: ScarfGridType
     multipleSettings?: ScarfGridType[]
     settingsChange: (newSettings: Partial<ScarfGridType>) => void
-    forceRedraw: () => void
+    onInstruction: (instruction: WorkspaceInstruction) => void
   }
 
-  let { settings, settingsChange, forceRedraw }: Props = $props()
+  let { settings, settingsChange, onInstruction }: Props = $props()
 
   const openClipModal = () => {
     modalStore.open(
@@ -46,7 +47,7 @@
       'AOI customization',
       {
         selectedStimulus: settings.stimulusId.toString(),
-        forceRedraw,
+        onInstruction,
       }
     )
   }
@@ -56,7 +57,7 @@
       ModalContentStimulusModification as unknown as typeof SvelteComponent,
       'Stimulus customization',
       {
-        forceRedraw,
+        onInstruction,
       }
     )
   }
@@ -66,7 +67,7 @@
       ModalContentAoiVisibility as unknown as typeof SvelteComponent,
       'AOI visibility',
       {
-        forceRedraw,
+        onInstruction,
       }
     )
   }
@@ -76,7 +77,7 @@
       ModalContentParticipantsGroups as unknown as typeof SvelteComponent,
       'Participants groups',
       {
-        forceRedraw,
+        onInstruction,
       }
     )
   }
@@ -86,7 +87,7 @@
       ModalContentParticipantModification as unknown as typeof SvelteComponent,
       'Participant customization',
       {
-        forceRedraw,
+        onInstruction,
       }
     )
   }

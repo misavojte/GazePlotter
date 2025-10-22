@@ -18,14 +18,16 @@
   import { DEFAULT_GRID_CONFIG } from '$lib/shared/utils/gridSizingUtils'
   import { PlotPlaceholder } from '$lib/plots/shared/components'
   import { fade } from 'svelte/transition'
+  import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
+  
   // Component Props using Svelte 5 $props() rune
   interface Props {
     settings: ScarfGridType
     settingsChange: (settings: Partial<ScarfGridType>) => void
-    forceRedraw: () => void
+    onInstruction: (instruction: WorkspaceInstruction) => void
   }
 
-  let { settings, settingsChange, forceRedraw }: Props = $props()
+  let { settings, settingsChange, onInstruction }: Props = $props()
 
   // State management with Svelte 5 runes
   let tooltipArea = $state<HTMLElement | SVGElement | null>(null)
@@ -265,7 +267,7 @@
   <div class="header">
     <ScarfPlotHeader
       {settings}
-      {forceRedraw}
+      {onInstruction}
       settingsChange={handleSettingsChange}
     />
   </div>

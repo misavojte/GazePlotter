@@ -9,13 +9,15 @@
     ScarfPlotButtonResetView,
   } from '$lib/plots/scarf/components'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
+  import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
+  
   interface Props {
     settings: ScarfGridType
     settingsChange: (settings: Partial<ScarfGridType>) => void
-    forceRedraw: () => void
+    onInstruction: (instruction: WorkspaceInstruction) => void
   }
 
-  let { settings, settingsChange, forceRedraw }: Props = $props()
+  let { settings, settingsChange, onInstruction }: Props = $props()
 
   function handleSettingsChange(newSettings: Partial<ScarfGridType>) {
     if (settingsChange) {
@@ -38,7 +40,7 @@
   <ScarfPlotButtonResetView {settings} settingsChange={handleSettingsChange} />
   <ScarfPlotButtonMenu
     {settings}
-    {forceRedraw}
+    {onInstruction}
     settingsChange={handleSettingsChange}
   />
 </div>

@@ -23,14 +23,15 @@
 
   // Types
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
+  import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
     settings: TransitionMatrixGridType
     settingsChange: (settings: Partial<TransitionMatrixGridType>) => void
-    forceRedraw: () => void
+    onInstruction: (instruction: WorkspaceInstruction) => void
   }
 
-  let { settings, settingsChange, forceRedraw }: Props = $props()
+  let { settings, settingsChange, onInstruction }: Props = $props()
 
   // Constants for space taken by headers, controls, and padding
   const HEADER_HEIGHT = 150 // Estimated space for header and controls
@@ -183,7 +184,7 @@
         <TransitionMatrixButtonMenu
           {settings}
           settingsChange={handleSettingsChange}
-          {forceRedraw}
+          {onInstruction}
         />
       </div>
     </div>

@@ -19,6 +19,7 @@
   import type { BarPlotGridType } from '$lib/workspace/type/gridType'
   import type { BarPlotAggregationMethodId } from '$lib/plots/bar/const'
   import { BAR_PLOT_AGGREGATION_METHODS } from '$lib/plots/bar/const'
+  import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
 
   // CONSTANTS - centralized for easier maintenance
   const LAYOUT = {
@@ -31,10 +32,10 @@
   interface Props {
     settings: BarPlotGridType
     settingsChange: (settings: Partial<BarPlotGridType>) => void
-    forceRedraw: () => void
+    onInstruction: (instruction: WorkspaceInstruction) => void
   }
 
-  let { settings, settingsChange, forceRedraw }: Props = $props()
+  let { settings, settingsChange, onInstruction }: Props = $props()
 
   // Calculate plot dimensions using a more descriptive approach
   const plotDimensions = $derived.by(() =>
@@ -142,7 +143,7 @@
         <BarPlotButtonMenu
           {settings}
           settingsChange={handleSettingsChange}
-          {forceRedraw}
+          {onInstruction}
         />
       </div>
     </div>

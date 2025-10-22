@@ -23,9 +23,11 @@
     DEFAULT_GRID_CONFIG,
   } from '$lib/shared/utils/gridSizingUtils'
   import { throttleByRaf } from '$lib/shared/utils/throttle'
-  import { addSuccessToast } from '$lib/toaster'
+  import { addSuccessToast, addErrorToast } from '$lib/toaster'
   import { ModalContentMetadataInfo } from '$lib/modals'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { createInstructionHandler } from '$lib/workspace/services/instructionHandler'
+  import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
     onReinitialize: () => void
@@ -788,14 +790,20 @@
     }
   }
 
-  const getNewTimestamp = () => {
-    return Date.now()
-  }
-
   // Note: Previously, we would add grid items for both empty and loading states.
   // Now we maintain a truly empty grid and display dedicated indicator components
   // when appropriate. This provides a more integrated and visually appealing user
   // experience without artificially creating grid items.
+
+  // Initialize instruction handler
+  const handleInstruction = createInstructionHandler(
+    gridStore,
+    (message) => addSuccessToast(message),
+    (error) => {
+      console.error('Instruction error:', error)
+      addErrorToast('Error applying changes. See console for details.')
+    }
+  )
 
   // Make constants available as CSS variables
   const styleProps = `--min-workspace-height: ${MIN_WORKSPACE_HEIGHT}px; --grid-container-min-height: ${MIN_WORKSPACE_HEIGHT - 100}px;`
@@ -851,27 +859,16 @@
                   <div class="grid-item-content">
                     <visConfig.component
                       settings={item}
-                      forceRedraw={() => {
-                        gridStore.triggerRedraw()
-                      }}
                       settingsChange={(newSettings: Partial<AllGridTypes>) => {
-                        // Check if height has changed
-                        const heightChanged = newSettings.h !== undefined && newSettings.h !== item.h;
-                        
-                        // Update settings
-                        gridStore.updateSettings({
-                          ...item,
-                          ...newSettings,
-                          redrawTimestamp: getNewTimestamp(),
-                        } as AllGridTypes);
-
-                        // If height changed, trigger collision resolution
-                        if (heightChanged) {
-                          setTimeout(() => {
-                            gridStore.resolveItemPositionCollisions(item.id);
-                          }, 50);
-                        }
+                        handleInstruction({
+                          type: 'updateSettings',
+                          payload: {
+                            itemId: item.id,
+                            settings: newSettings
+                          }
+                        })
                       }}
+                      onInstruction={handleInstruction}
                     />
                   </div>
                 {/snippet}

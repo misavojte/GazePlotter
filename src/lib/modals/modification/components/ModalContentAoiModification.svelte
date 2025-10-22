@@ -11,25 +11,26 @@
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import {
     getAllAois,
-    updateMultipleAoi,
   } from '$lib/gaze-data/front-process/stores/dataStore'
-  import { addErrorToast, addInfoToast, addSuccessToast } from '$lib/toaster'
+  import { addErrorToast, addInfoToast } from '$lib/toaster'
   import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
+  import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
+  
   interface Props {
     selectedStimulus?: string
     userSelected?: string
-    forceRedraw: () => void
+    onInstruction: (instruction: WorkspaceInstruction) => void
   }
 
   let {
     selectedStimulus = $bindable('0'),
     userSelected = $bindable('this'),
-    forceRedraw,
+    onInstruction,
   }: Props = $props()
 
   const isValidMatch = (displayedName: string): boolean =>
@@ -236,14 +237,21 @@
 
     try {
       const aoiObjectsCopy = deepCopyAois(aoiObjects)
-      updateMultipleAoi(aoiObjectsCopy, parseInt(selectedStimulus), handlerType)
-      addSuccessToast('AOIs updated successfully')
+      
+      onInstruction({
+        type: 'updateAois',
+        payload: {
+          aois: aoiObjectsCopy,
+          stimulusId: parseInt(selectedStimulus),
+          applyTo: handlerType
+        }
+      })
 
       if (handlerType !== 'this_stimulus') {
         addInfoToast('Ordering of AOIs is not updated for other stimuli')
       }
 
-      forceRedraw()
+      modalStore.close()
     } catch (e) {
       console.error(e)
       addErrorToast('Error while updating AOIs. See console for more details.')
