@@ -37,18 +37,21 @@ export function createCommandHandler(
         case 'updateAois': {
           const { aois, stimulusId, applyTo } = command
           updateMultipleAoi(aois, stimulusId, applyTo)
+          gridStore.triggerRedraw()
           onSuccess('AOIs updated successfully')
           break
         }
 
         case 'updateParticipants': {
           updateMultipleParticipants(command.participants)
+          gridStore.triggerRedraw()
           onSuccess('Participants updated successfully')
           break
         }
 
         case 'updateStimuli': {
           updateMultipleStimuli(command.stimuli)
+          gridStore.triggerRedraw()
           onSuccess('Stimuli updated successfully')
           break
         }
@@ -61,12 +64,14 @@ export function createCommandHandler(
             visibilityArr,
             participantId
           )
+          gridStore.triggerRedraw()
           onSuccess('AOI visibility updated')
           break
         }
 
         case 'updateParticipantsGroups': {
           updateParticipantsGroups(command.groups)
+          gridStore.triggerRedraw()
           onSuccess('Participant groups updated')
           break
         }
@@ -150,9 +155,6 @@ export function createCommandHandler(
       }
 
       onWorkspaceCommandChain(command)
-
-      // Trigger redraw for all grid items after data changes
-      //gridStore.triggerRedraw()
     } catch (error) {
       onError(error as Error)
       throw error
