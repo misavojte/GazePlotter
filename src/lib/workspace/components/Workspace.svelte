@@ -879,7 +879,9 @@
                     <visConfig.component
                       settings={item}
                       onSettingsChange={(newSettings: Partial<AllGridTypes>) => {
-                        // this significantly reduces the boilerplate code
+                        // settingsChange carries changes specific to the given visualization type
+                        // (e.g., for bar plots - aggregation method, stimulusId, groupId, etc.)
+                        // creating instructions here significantly reduces the boilerplate code
                         // for potentially triggering settings changes from multiple places
                         handleInstruction({
                           type: 'updateSettings',
