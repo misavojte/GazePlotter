@@ -459,7 +459,6 @@ export function createGridStore(
     y: number
     w: number
     h: number
-    operation: 'move' | 'resize' | 'add' | 'duplicate'
   }): boolean {
     const primaryCollisions = findCollisions(
       priorityItem.x,
@@ -573,7 +572,7 @@ export function createGridStore(
     }
 
     items.update($items => [...$items, newItem])
-    resolveGridConflicts({ ...newItem, operation: 'duplicate' })
+    resolveGridConflicts({ ...newItem})
     return newId
   }
 
@@ -613,7 +612,7 @@ export function createGridStore(
     // Resolve conflicts for each new item (consider doing this within the loop?)
     // Process in reverse order might be better, but let's stick to forward for now.
     newItems.forEach(newItem => {
-      resolveGridConflicts({ ...newItem, operation: 'duplicate' })
+      resolveGridConflicts({ ...newItem})
     })
 
     return newIds
@@ -683,7 +682,7 @@ export function createGridStore(
 
     // 3. allow the caller to decide whether to trigger resolution
     if (options.skipCollisionResolution !== true) {
-      resolveGridConflicts({ ...newItem, operation: 'add' })
+      resolveGridConflicts({ ...newItem})
     }
 
     return newItem.id
@@ -764,81 +763,6 @@ export function createGridStore(
     addItem: addItem,
 
     /**
-     * Updates the position (x, y) of a specific item.
-     * Optionally resolves collisions caused by the move.
-     */
-    // Update item position
-    updateItemPosition: (
-      id: number,
-      x: number,
-      y: number,
-      shouldResolveCollisions: boolean = true
-    ) => {
-      const currentItems = get(items)
-      const item = currentItems.find(item => item.id === id)
-      if (!item) return
-
-      const newX = Math.max(0, Math.floor(x))
-      const newY = Math.max(0, Math.floor(y))
-
-      if (newX === item.x && newY === item.y) return
-
-      items.update($items =>
-        $items.map(i => (i.id === id ? { ...i, x: newX, y: newY } : i))
-      )
-
-      if (shouldResolveCollisions) {
-        resolveGridConflicts({ ...item, x: newX, y: newY, operation: 'move' })
-      }
-    },
-
-    /**
-     * Updates the size (w, h) of a specific item.
-     * Enforces minimum dimensions based on config and item spec.
-     * Optionally resolves collisions caused by the resize (if expanding).
-     * @returns {boolean} True if the size update was successful (even if no change was needed), false if item not found.
-     */
-    // Update item size
-    updateItemSize: (
-      id: number,
-      w: number,
-      h: number,
-      shouldResolveCollisions: boolean = true
-    ) => {
-      const currentItems = get(items)
-      const item = currentItems.find(item => item.id === id)
-      if (!item) return false // Return boolean to indicate success/failure
-
-      const minWidth = Math.max(config.minWidth, item.min?.w || config.minWidth)
-      const minHeight = Math.max(
-        config.minHeight,
-        item.min?.h || config.minHeight
-      )
-      const newW = Math.max(minWidth, Math.floor(w))
-      const newH = Math.max(minHeight, Math.floor(h))
-
-      if (newW === item.w && newH === item.h) return true // No change needed
-
-      const isResizingInward = newW <= item.w && newH <= item.h
-
-      items.update($items =>
-        $items.map(i => (i.id === id ? { ...i, w: newW, h: newH } : i))
-      )
-
-      let conflictsResolved = true
-      if (shouldResolveCollisions && !isResizingInward) {
-        conflictsResolved = resolveGridConflicts({
-          ...item,
-          w: newW,
-          h: newH,
-          operation: 'resize',
-        })
-      }
-
-      return conflictsResolved // Indicate if operation completed cleanly
-    },
-
-    /**
      * Explicitly triggers collision resolution for a specific item.
      * Useful after operations like drag-and-drop end.
      * @returns {boolean} True if conflicts were found and resolved, false otherwise.
@@ -847,7 +771,7 @@ export function createGridStore(
     resolveItemPositionCollisions: (id: number) => {
       const item = get(items).find(item => item.id === id)
       if (!item) return false
-      return resolveGridConflicts({ ...item, operation: 'move' })
+      return resolveGridConflicts({ ...item})
     },
   }
 }
