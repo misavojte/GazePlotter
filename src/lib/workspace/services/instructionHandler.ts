@@ -84,8 +84,7 @@ export function createCommandHandler(
 
           // Only trigger collision resolution for root commands (original user actions)
           // This prevents infinite loops when collision resolution commands trigger more collision resolution
-          const isRootCommand = 'isRootCommand' in command ? command.isRootCommand : true
-          if (isRootCommand) {
+          if (command.isRootCommand) {
             setTimeout(() => {
               const collisionCommands = gridStore.resolveItemPositionCollisions(itemId)
               // Emit each collision resolution command as child commands
@@ -94,7 +93,7 @@ export function createCommandHandler(
                   type: 'updateSettings',
                   itemId: collisionCommand.itemId,
                   settings: collisionCommand.settings
-                }, 'chainId' in command ? command.chainId : 0)
+                }, command.chainId)
                 handleCommand(childCommand)
               })
             }, 50)
@@ -107,8 +106,7 @@ export function createCommandHandler(
           const newItemId = gridStore.addItem(vizType, options)
           
           // Only trigger collision resolution for root commands (original user actions)
-          const isRootCommand = 'isRootCommand' in command ? command.isRootCommand : true
-          if (isRootCommand) {
+          if (command.isRootCommand) {
             setTimeout(() => {
               const collisionCommands = gridStore.resolveItemPositionCollisions(newItemId)
               // Emit each collision resolution command as child commands
@@ -117,7 +115,7 @@ export function createCommandHandler(
                   type: 'updateSettings',
                   itemId: collisionCommand.itemId,
                   settings: collisionCommand.settings
-                }, 'chainId' in command ? command.chainId : 0)
+                }, command.chainId)
                 handleCommand(childCommand)
               })
             }, 50)
@@ -138,8 +136,7 @@ export function createCommandHandler(
           const newItemId = gridStore.duplicateItem(currentItem)
           
           // Only trigger collision resolution for root commands (original user actions)
-          const isRootCommand = 'isRootCommand' in command ? command.isRootCommand : true
-          if (isRootCommand) {
+          if (command.isRootCommand) {
             setTimeout(() => {
               const collisionCommands = gridStore.resolveItemPositionCollisions(newItemId)
               // Emit each collision resolution command as child commands
@@ -148,7 +145,7 @@ export function createCommandHandler(
                   type: 'updateSettings',
                   itemId: collisionCommand.itemId,
                   settings: collisionCommand.settings
-                }, 'chainId' in command ? command.chainId : 0)
+                }, command.chainId)
                 handleCommand(childCommand)
               })
             }, 50)
