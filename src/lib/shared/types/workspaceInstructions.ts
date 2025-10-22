@@ -100,3 +100,17 @@ export type WorkspaceCommand =
   | UpdateGridItemSizeCommand
   | DuplicateGridItemCommand
 
+/**
+ * WorkspaceCommandChain
+ * 
+ * A workspace command with an associated chain identifier.
+ * When a command triggers additional commands (e.g., collision resolution),
+ * those generated commands share the same chainId to track the operation chain.
+ * 
+ * This enables tracking causality: "which commands were triggered by which original action?"
+ * Essential for logging, debugging, and future undo/redo functionality.
+ */
+export type WorkspaceCommandChain = WorkspaceCommand & {
+  /** Unique identifier for the command chain. All related commands share the same chainId. */
+  chainId: string
+}
