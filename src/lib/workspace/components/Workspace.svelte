@@ -32,9 +32,10 @@
   interface Props {
     onReinitialize: () => void
     onResetLayout: () => void
+    onInstruction: (instruction: WorkspaceInstruction) => void
   }
 
-  const { onReinitialize, onResetLayout }: Props = $props()
+  const { onReinitialize, onResetLayout, onInstruction = () => {} }: Props = $props()
 
   const gridConfig = DEFAULT_GRID_CONFIG
 
@@ -807,7 +808,7 @@
   // experience without artificially creating grid items.
 
   // Initialize instruction handler
-  const handleInstruction = createInstructionHandler(
+  const instructionHandler = createInstructionHandler(
     gridStore,
     (message) => addSuccessToast(message),
     (error) => {
@@ -815,6 +816,13 @@
       addErrorToast('Error applying changes. See console for details.')
     }
   )
+
+  const handleInstruction =
+  (instruction: WorkspaceInstruction) => { 
+    instructionHandler(instruction)
+    console.log('handledInstruction', instruction)
+    onInstruction(instruction) // allow external components to listen to instructions (e.g., logging)
+  }
 
   // Make constants available as CSS variables
   const styleProps = `--min-workspace-height: ${MIN_WORKSPACE_HEIGHT}px; --grid-container-min-height: ${MIN_WORKSPACE_HEIGHT - 100}px;`

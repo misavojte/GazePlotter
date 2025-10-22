@@ -30,7 +30,6 @@ export function createInstructionHandler(
   onError: (error: Error) => void
 ) {
   return function handleInstruction(instruction: WorkspaceInstruction): void {
-    console.log('handleInstruction', instruction)
     try {
       switch (instruction.type) {
         case 'updateAois': {
