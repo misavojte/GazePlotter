@@ -2,6 +2,7 @@
   import { GeneralInputColor } from '$lib/shared/components'
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
   import {
     SectionHeader,
     ModalButtons,
@@ -11,10 +12,10 @@
 
   interface Props {
     settings: TransitionMatrixGridType
-    onSettingsChange: (newSettings: Partial<TransitionMatrixGridType>) => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { settings, onSettingsChange }: Props = $props()
+  let { settings, onWorkspaceCommand }: Props = $props()
 
   // Initialize with current color scale or default
   let colorPoints = $state<'two' | 'three'>(
@@ -102,8 +103,12 @@
 
   // Apply changes and close modal
   function handleConfirm(): void {
-    onSettingsChange({
-      colorScale: getCurrentColorScale(),
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      settings: {
+        colorScale: getCurrentColorScale(),
+      },
     })
     modalStore.close()
   }

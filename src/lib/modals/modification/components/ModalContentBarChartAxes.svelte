@@ -4,14 +4,15 @@
   import { ModalButtons, IntroductoryParagraph } from '$lib/modals'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import type { BarPlotGridType } from '$lib/workspace/type/gridType'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
   import GeneralFieldset from '$lib/shared/components/GeneralFieldset.svelte'
 
   interface Props {
     settings: BarPlotGridType
-    onSettingsChange: (settings: Partial<BarPlotGridType>) => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { settings, onSettingsChange }: Props = $props()
+  let { settings, onWorkspaceCommand }: Props = $props()
 
   // Local state to track changes before applying
   let barPlottingType = $state(settings.barPlottingType)
@@ -32,10 +33,14 @@
     // Use the numeric values directly
     newScaleRange = [minValue || 0, maxValue || 0]
 
-    onSettingsChange({
-      barPlottingType,
-      sortBars,
-      scaleRange: newScaleRange,
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      settings: {
+        barPlottingType,
+        sortBars,
+        scaleRange: newScaleRange,
+      },
     })
   }
 
