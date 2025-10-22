@@ -89,6 +89,36 @@ export function createInstructionHandler(
           }
           return // Settings changes don't need global redraw
         }
+
+        case 'addGridItem': {
+          const { vizType, options } = instruction.payload
+          gridStore.addItem(vizType, options)
+          return // No success message needed for adding items
+        }
+
+        case 'removeGridItem': {
+          gridStore.removeItem(instruction.payload.itemId)
+          return // No success message needed for removing items
+        }
+
+        case 'updateGridItemPosition': {
+          const { itemId, x, y, shouldResolveCollisions = false } = instruction.payload
+          gridStore.updateItemPosition(itemId, x, y, shouldResolveCollisions)
+          return // No success message needed for position updates
+        }
+
+        case 'updateGridItemSize': {
+          const { itemId, w, h, shouldResolveCollisions = false } = instruction.payload
+          gridStore.updateItemSize(itemId, w, h, shouldResolveCollisions)
+          return // No success message needed for size updates
+        }
+
+        case 'duplicateGridItem': {
+          const currentItem = get(gridStore).find(item => item.id === instruction.payload.itemId)
+          if (!currentItem) throw new Error(`Grid item ${instruction.payload.itemId} not found`)
+          gridStore.duplicateItem(currentItem)
+          return // No success message needed for duplication
+        }
       }
 
       // Trigger redraw for all grid items after data changes

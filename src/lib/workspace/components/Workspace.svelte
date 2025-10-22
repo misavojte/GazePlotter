@@ -331,7 +331,14 @@
   const handleItemMove = createOperationHandler({
     operationType: 'move',
     gridAction: (event: { id: number; x: number; y: number }) => {
-      gridStore.updateItemPosition(event.id, event.x, event.y, false)
+      handleInstruction({
+        type: 'updateGridItemPosition',
+        payload: {
+          itemId: event.id,
+          x: event.x,
+          y: event.y
+        }
+      })
     },
   })
 
@@ -358,7 +365,15 @@
       const constrainedH = Math.max(minHeight, event.h)
 
       // Update without collision resolution
-      gridStore.updateItemSize(event.id, constrainedW, constrainedH, false)
+      handleInstruction({
+        type: 'updateGridItemSize',
+        payload: {
+          itemId: event.id,
+          w: constrainedW,
+          h: constrainedH,
+          shouldResolveCollisions: false
+        }
+      })
     },
   })
 
@@ -373,11 +388,10 @@
       y: number
       dragComplete: boolean
     }) => {
-      if (event.dragComplete) {
-        gridStore.updateItemPosition(event.id, event.x, event.y, false)
-      }
       // Stop any active auto-scrolling
       endItemEdgeScroll()
+      // Note: Position is already updated by handleItemMove during drag
+      // createOperationHandler will trigger collision resolution via shouldResolveCollisions
     },
     shouldResolveCollisions: true,
   })
@@ -391,28 +405,10 @@
       h: number
       resizeComplete: boolean
     }) => {
-      if (event.resizeComplete) {
-        const currentItem = get(gridStore).find(item => item.id === event.id)
-        if (currentItem) {
-          // Enforce minimum dimensions
-          const minWidth = Math.max(
-            gridConfig.minWidth,
-            currentItem.min?.w || gridConfig.minWidth
-          )
-          const minHeight = Math.max(
-            gridConfig.minHeight,
-            currentItem.min?.h || gridConfig.minHeight
-          )
-
-          // Apply constraints
-          const constrainedW = Math.max(minWidth, event.w)
-          const constrainedH = Math.max(minHeight, event.h)
-
-          gridStore.updateItemSize(event.id, constrainedW, constrainedH, false)
-        }
-      }
       // Stop any active auto-scrolling
       endItemEdgeScroll()
+      // Note: Size is already updated by handleItemResize during resize
+      // createOperationHandler will trigger collision resolution via shouldResolveCollisions
     },
     shouldResolveCollisions: true,
   })
@@ -422,7 +418,12 @@
   // Handle item removal
   const handleItemRemove = createOperationHandler({
     gridAction: (event: { id: number }) => {
-      gridStore.removeItem(event.id)
+      handleInstruction({
+        type: 'removeGridItem',
+        payload: {
+          itemId: event.id
+        }
+      })
     },
   })
 
@@ -431,7 +432,12 @@
     gridAction: (event: { id: number }) => {
       const itemToDuplicate = get(gridStore).find(item => item.id === event.id)
       if (itemToDuplicate) {
-        gridStore.duplicateItem(itemToDuplicate)
+        handleInstruction({
+          type: 'duplicateGridItem',
+          payload: {
+            itemId: event.id
+          }
+        })
         // Show success toast with visualization name
         const visConfig = getVisualizationConfig(itemToDuplicate.type)
         addSuccessToast(
@@ -449,7 +455,12 @@
       const vizType = id
       // Add the new visualization at the first available position
       // instead of automatically placing it below all existing items
-      gridStore.addItem(vizType)
+      handleInstruction({
+        type: 'addGridItem',
+        payload: {
+          vizType
+        }
+      })
       // Show success toast with visualization name
       const visConfig = getVisualizationConfig(vizType)
       addSuccessToast(`${visConfig.name} added to the nearest empty space.`)

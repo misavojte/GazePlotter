@@ -48,12 +48,55 @@ export interface UpdateParticipantsGroupsInstruction {
   payload: { groups: ParticipantsGroup[] }
 }
 
-// Settings change instruction (already works well)
+// Settings change instruction
 export interface UpdateSettingsInstruction {
   type: 'updateSettings'
   payload: {
     itemId: number
     settings: Partial<AllGridTypes>
+  }
+}
+
+// Grid item management instructions
+export interface AddGridItemInstruction {
+  type: 'addGridItem'
+  payload: {
+    vizType: string
+    options?: Partial<AllGridTypes> & { skipCollisionResolution?: boolean }
+  }
+}
+
+export interface RemoveGridItemInstruction {
+  type: 'removeGridItem'
+  payload: {
+    itemId: number
+  }
+}
+
+export interface UpdateGridItemPositionInstruction {
+  type: 'updateGridItemPosition'
+  payload: {
+    itemId: number
+    x: number
+    y: number
+    shouldResolveCollisions?: boolean
+  }
+}
+
+export interface UpdateGridItemSizeInstruction {
+  type: 'updateGridItemSize'
+  payload: {
+    itemId: number
+    w: number
+    h: number
+    shouldResolveCollisions?: boolean
+  }
+}
+
+export interface DuplicateGridItemInstruction {
+  type: 'duplicateGridItem'
+  payload: {
+    itemId: number
   }
 }
 
@@ -64,4 +107,9 @@ export type WorkspaceInstruction =
   | UpdateAoiVisibilityInstruction
   | UpdateParticipantsGroupsInstruction
   | UpdateSettingsInstruction
+  | AddGridItemInstruction
+  | RemoveGridItemInstruction
+  | UpdateGridItemPositionInstruction
+  | UpdateGridItemSizeInstruction
+  | DuplicateGridItemInstruction
 
