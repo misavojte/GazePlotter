@@ -85,18 +85,16 @@ export function createCommandHandler(
           // Only trigger collision resolution for root commands (original user actions)
           // This prevents infinite loops when collision resolution commands trigger more collision resolution
           if (command.isRootCommand) {
-            setTimeout(() => {
-              const collisionCommands = gridStore.resolveItemPositionCollisions(itemId)
-              // Emit each collision resolution command as child commands
-              collisionCommands.forEach(collisionCommand => {
-                const childCommand = createChildCommand({
-                  type: 'updateSettings',
-                  itemId: collisionCommand.itemId,
-                  settings: collisionCommand.settings
-                }, command.chainId)
-                handleCommand(childCommand)
-              })
-            }, 50)
+            const collisionCommands = gridStore.resolveItemPositionCollisions(itemId)
+            // Emit each collision resolution command as child commands
+            collisionCommands.forEach(collisionCommand => {
+              const childCommand = createChildCommand({
+                type: 'updateSettings',
+                itemId: collisionCommand.itemId,
+                settings: collisionCommand.settings
+              }, command.chainId)
+              handleCommand(childCommand)
+            })
           }
           break // Settings changes don't need global redraw
         }
@@ -104,23 +102,21 @@ export function createCommandHandler(
         case 'addGridItem': {
           const { vizType, options } = command
           const newItemId = gridStore.addItem(vizType, options)
-          
+
           // Only trigger collision resolution for root commands (original user actions)
           if (command.isRootCommand) {
-            setTimeout(() => {
-              const collisionCommands = gridStore.resolveItemPositionCollisions(newItemId)
-              // Emit each collision resolution command as child commands
-              collisionCommands.forEach(collisionCommand => {
-                const childCommand = createChildCommand({
-                  type: 'updateSettings',
-                  itemId: collisionCommand.itemId,
-                  settings: collisionCommand.settings
-                }, command.chainId)
-                handleCommand(childCommand)
-              })
-            }, 50)
+            const collisionCommands = gridStore.resolveItemPositionCollisions(newItemId)
+            // Emit each collision resolution command as child commands
+            collisionCommands.forEach(collisionCommand => {
+              const childCommand = createChildCommand({
+                type: 'updateSettings',
+                itemId: collisionCommand.itemId,
+                settings: collisionCommand.settings
+              }, command.chainId)
+              handleCommand(childCommand)
+            })
           }
-          
+
           break // No success message needed for adding items
         }
 
@@ -134,23 +130,21 @@ export function createCommandHandler(
           const currentItem = get(gridStore).find(item => item.id === command.itemId)
           if (!currentItem) throw new Error(`Grid item ${command.itemId} not found`)
           const newItemId = gridStore.duplicateItem(currentItem)
-          
+
           // Only trigger collision resolution for root commands (original user actions)
           if (command.isRootCommand) {
-            setTimeout(() => {
-              const collisionCommands = gridStore.resolveItemPositionCollisions(newItemId)
-              // Emit each collision resolution command as child commands
-              collisionCommands.forEach(collisionCommand => {
-                const childCommand = createChildCommand({
-                  type: 'updateSettings',
-                  itemId: collisionCommand.itemId,
-                  settings: collisionCommand.settings
-                }, command.chainId)
-                handleCommand(childCommand)
-              })
-            }, 50)
+            const collisionCommands = gridStore.resolveItemPositionCollisions(newItemId)
+            // Emit each collision resolution command as child commands
+            collisionCommands.forEach(collisionCommand => {
+              const childCommand = createChildCommand({
+                type: 'updateSettings',
+                itemId: collisionCommand.itemId,
+                settings: collisionCommand.settings
+              }, command.chainId)
+              handleCommand(childCommand)
+            })
           }
-          
+
           break // No success message needed for duplication
         }
       }
