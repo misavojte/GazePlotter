@@ -50,12 +50,10 @@ export const processAoiVisibility = async (
   // Emit instruction instead of directly calling store
   onInstruction({
     type: 'updateAoiVisibility',
-    payload: {
-      stimulusId: data.stimulusId,
-      aoiNames: data.multipleAoiNames,
-      visibilityArr: data.multipleAoiVisibilityArrays,
-      participantId: data.participantId
-    }
+    stimulusId: data.stimulusId,
+    aoiNames: data.multipleAoiNames,
+    visibilityArr: data.multipleAoiVisibilityArrays,
+    participantId: data.participantId
   })
 }
 

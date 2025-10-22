@@ -33,27 +33,26 @@ export function createInstructionHandler(
     try {
       switch (instruction.type) {
         case 'updateAois': {
-          const { aois, stimulusId, applyTo } = instruction.payload
+          const { aois, stimulusId, applyTo } = instruction
           updateMultipleAoi(aois, stimulusId, applyTo)
           onSuccess('AOIs updated successfully')
           break
         }
 
         case 'updateParticipants': {
-          updateMultipleParticipants(instruction.payload.participants)
+          updateMultipleParticipants(instruction.participants)
           onSuccess('Participants updated successfully')
           break
         }
 
         case 'updateStimuli': {
-          updateMultipleStimuli(instruction.payload.stimuli)
+          updateMultipleStimuli(instruction.stimuli)
           onSuccess('Stimuli updated successfully')
           break
         }
 
         case 'updateAoiVisibility': {
-          const { stimulusId, aoiNames, visibilityArr, participantId } =
-            instruction.payload
+          const { stimulusId, aoiNames, visibilityArr, participantId } = instruction
           updateMultipleAoiVisibility(
             stimulusId,
             aoiNames,
@@ -65,13 +64,13 @@ export function createInstructionHandler(
         }
 
         case 'updateParticipantsGroups': {
-          updateParticipantsGroups(instruction.payload.groups)
+          updateParticipantsGroups(instruction.groups)
           onSuccess('Participant groups updated')
           break
         }
 
         case 'updateSettings': {
-          const { itemId, settings } = instruction.payload
+          const { itemId, settings } = instruction
           const currentItem = get(gridStore).find(item => item.id === itemId)
           if (!currentItem) throw new Error(`Grid item ${itemId} not found`)
 
@@ -90,31 +89,31 @@ export function createInstructionHandler(
         }
 
         case 'addGridItem': {
-          const { vizType, options } = instruction.payload
+          const { vizType, options } = instruction
           gridStore.addItem(vizType, options)
           return // No success message needed for adding items
         }
 
         case 'removeGridItem': {
-          gridStore.removeItem(instruction.payload.itemId)
+          gridStore.removeItem(instruction.itemId)
           return // No success message needed for removing items
         }
 
         case 'updateGridItemPosition': {
-          const { itemId, x, y, shouldResolveCollisions = false } = instruction.payload
+          const { itemId, x, y, shouldResolveCollisions = false } = instruction
           gridStore.updateItemPosition(itemId, x, y, shouldResolveCollisions)
           return // No success message needed for position updates
         }
 
         case 'updateGridItemSize': {
-          const { itemId, w, h, shouldResolveCollisions = false } = instruction.payload
+          const { itemId, w, h, shouldResolveCollisions = false } = instruction
           gridStore.updateItemSize(itemId, w, h, shouldResolveCollisions)
           return // No success message needed for size updates
         }
 
         case 'duplicateGridItem': {
-          const currentItem = get(gridStore).find(item => item.id === instruction.payload.itemId)
-          if (!currentItem) throw new Error(`Grid item ${instruction.payload.itemId} not found`)
+          const currentItem = get(gridStore).find(item => item.id === instruction.itemId)
+          if (!currentItem) throw new Error(`Grid item ${instruction.itemId} not found`)
           gridStore.duplicateItem(currentItem)
           return // No success message needed for duplication
         }

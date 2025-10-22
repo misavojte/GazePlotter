@@ -11,93 +11,80 @@ import type { AllGridTypes } from '$lib/workspace/type/gridType'
  * Centralized instruction types for all workspace changes.
  * All data and settings modifications go through these instructions
  * to ensure proper tracking and automatic redraw propagation.
+ * 
+ * Simplified structure without nested payload - TypeScript ensures type safety
+ * through discriminated unions based on the 'type' field.
  */
 
 // Data change instructions
 export interface UpdateAoisInstruction {
   type: 'updateAois'
-  payload: {
-    aois: ExtendedInterpretedDataType[]
-    stimulusId: number
-    applyTo: 'this_stimulus' | 'all_by_original_name' | 'all_by_displayed_name'
-  }
+  aois: ExtendedInterpretedDataType[]
+  stimulusId: number
+  applyTo: 'this_stimulus' | 'all_by_original_name' | 'all_by_displayed_name'
 }
 
 export interface UpdateParticipantsInstruction {
   type: 'updateParticipants'
-  payload: { participants: BaseInterpretedDataType[] }
+  participants: BaseInterpretedDataType[]
 }
 
 export interface UpdateStimuliInstruction {
   type: 'updateStimuli'
-  payload: { stimuli: BaseInterpretedDataType[] }
+  stimuli: BaseInterpretedDataType[]
 }
 
 export interface UpdateAoiVisibilityInstruction {
   type: 'updateAoiVisibility'
-  payload: {
-    stimulusId: number
-    aoiNames: string[]
-    visibilityArr: number[][]
-    participantId?: number | null
-  }
+  stimulusId: number
+  aoiNames: string[]
+  visibilityArr: number[][]
+  participantId?: number | null
 }
 
 export interface UpdateParticipantsGroupsInstruction {
   type: 'updateParticipantsGroups'
-  payload: { groups: ParticipantsGroup[] }
+  groups: ParticipantsGroup[]
 }
 
 // Settings change instruction
 export interface UpdateSettingsInstruction {
   type: 'updateSettings'
-  payload: {
-    itemId: number
-    settings: Partial<AllGridTypes>
-  }
+  itemId: number
+  settings: Partial<AllGridTypes>
 }
 
 // Grid item management instructions
 export interface AddGridItemInstruction {
   type: 'addGridItem'
-  payload: {
-    vizType: string
-    options?: Partial<AllGridTypes> & { skipCollisionResolution?: boolean }
-  }
+  vizType: string
+  options?: Partial<AllGridTypes> & { skipCollisionResolution?: boolean }
 }
 
 export interface RemoveGridItemInstruction {
   type: 'removeGridItem'
-  payload: {
-    itemId: number
-  }
+  itemId: number
 }
 
 export interface UpdateGridItemPositionInstruction {
   type: 'updateGridItemPosition'
-  payload: {
-    itemId: number
-    x: number
-    y: number
-    shouldResolveCollisions?: boolean
-  }
+  itemId: number
+  x: number
+  y: number
+  shouldResolveCollisions?: boolean
 }
 
 export interface UpdateGridItemSizeInstruction {
   type: 'updateGridItemSize'
-  payload: {
-    itemId: number
-    w: number
-    h: number
-    shouldResolveCollisions?: boolean
-  }
+  itemId: number
+  w: number
+  h: number
+  shouldResolveCollisions?: boolean
 }
 
 export interface DuplicateGridItemInstruction {
   type: 'duplicateGridItem'
-  payload: {
-    itemId: number
-  }
+  itemId: number
 }
 
 export type WorkspaceInstruction =

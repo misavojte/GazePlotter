@@ -188,9 +188,7 @@
 
     onInstruction({
       type: 'updateParticipantsGroups',
-      payload: {
-        groups: groupsDeepCopy
-      }
+      groups: groupsDeepCopy
     })
 
     modalStore.close()

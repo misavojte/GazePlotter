@@ -334,11 +334,9 @@
     gridAction: (event: { id: number; x: number; y: number }) => {
       handleInstruction({
         type: 'updateGridItemPosition',
-        payload: {
-          itemId: event.id,
-          x: event.x,
-          y: event.y
-        }
+        itemId: event.id,
+        x: event.x,
+        y: event.y
       })
     },
   })
@@ -368,12 +366,10 @@
       // Update without collision resolution
       handleInstruction({
         type: 'updateGridItemSize',
-        payload: {
-          itemId: event.id,
-          w: constrainedW,
-          h: constrainedH,
-          shouldResolveCollisions: false
-        }
+        itemId: event.id,
+        w: constrainedW,
+        h: constrainedH,
+        shouldResolveCollisions: false
       })
     },
   })
@@ -421,9 +417,7 @@
     gridAction: (event: { id: number }) => {
       handleInstruction({
         type: 'removeGridItem',
-        payload: {
-          itemId: event.id
-        }
+        itemId: event.id
       })
     },
   })
@@ -435,9 +429,7 @@
       if (itemToDuplicate) {
         handleInstruction({
           type: 'duplicateGridItem',
-          payload: {
-            itemId: event.id
-          }
+          itemId: event.id
         })
         // Show success toast with visualization name
         const visConfig = getVisualizationConfig(itemToDuplicate.type)
@@ -458,9 +450,7 @@
       // instead of automatically placing it below all existing items
       handleInstruction({
         type: 'addGridItem',
-        payload: {
-          vizType
-        }
+        vizType
       })
       // Show success toast with visualization name
       const visConfig = getVisualizationConfig(vizType)
@@ -885,10 +875,8 @@
                         // for potentially triggering settings changes from multiple places
                         handleInstruction({
                           type: 'updateSettings',
-                          payload: {
-                            itemId: item.id,
-                            settings: newSettings
-                          }
+                          itemId: item.id,
+                          settings: newSettings
                         })
                       }}
                       onInstruction={handleInstruction}

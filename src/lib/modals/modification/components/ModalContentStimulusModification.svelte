@@ -98,9 +98,7 @@
       
       onInstruction({
         type: 'updateStimuli',
-        payload: {
-          stimuli: stimulusObjectsCopy
-        }
+        stimuli: stimulusObjectsCopy
       })
 
       modalStore.close()

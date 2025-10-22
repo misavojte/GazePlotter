@@ -98,9 +98,7 @@
       
       onInstruction({
         type: 'updateParticipants',
-        payload: {
-          participants: participantObjectsCopy
-        }
+        participants: participantObjectsCopy
       })
 
       modalStore.close()

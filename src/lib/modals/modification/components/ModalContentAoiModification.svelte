@@ -240,11 +240,9 @@
       
       onInstruction({
         type: 'updateAois',
-        payload: {
-          aois: aoiObjectsCopy,
-          stimulusId: parseInt(selectedStimulus),
-          applyTo: handlerType
-        }
+        aois: aoiObjectsCopy,
+        stimulusId: parseInt(selectedStimulus),
+        applyTo: handlerType
       })
 
       if (handlerType !== 'this_stimulus') {
