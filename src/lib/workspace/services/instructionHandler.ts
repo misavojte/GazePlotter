@@ -99,17 +99,6 @@ export function createCommandHandler(
           return // No success message needed for removing items
         }
 
-        case 'updateGridItemPosition': {
-          const { itemId, x, y, shouldResolveCollisions = false } = command
-          gridStore.updateItemPosition(itemId, x, y, shouldResolveCollisions)
-          return // No success message needed for position updates
-        }
-
-        case 'updateGridItemSize': {
-          const { itemId, w, h, shouldResolveCollisions = false } = command
-          gridStore.updateItemSize(itemId, w, h, shouldResolveCollisions)
-          return // No success message needed for size updates
-        }
 
         case 'duplicateGridItem': {
           const currentItem = get(gridStore).find(item => item.id === command.itemId)

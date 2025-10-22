@@ -66,21 +66,6 @@ export interface RemoveGridItemCommand {
   itemId: number
 }
 
-export interface UpdateGridItemPositionCommand {
-  type: 'updateGridItemPosition'
-  itemId: number
-  x: number
-  y: number
-  shouldResolveCollisions?: boolean
-}
-
-export interface UpdateGridItemSizeCommand {
-  type: 'updateGridItemSize'
-  itemId: number
-  w: number
-  h: number
-  shouldResolveCollisions?: boolean
-}
 
 export interface DuplicateGridItemCommand {
   type: 'duplicateGridItem'
@@ -93,11 +78,9 @@ export type WorkspaceCommand =
   | UpdateStimuliCommand
   | UpdateAoiVisibilityCommand
   | UpdateParticipantsGroupsCommand
-  | UpdateSettingsCommand
+  | UpdateSettingsCommand // includes position and size updates
   | AddGridItemCommand
   | RemoveGridItemCommand
-  | UpdateGridItemPositionCommand
-  | UpdateGridItemSizeCommand
   | DuplicateGridItemCommand
 
 /**

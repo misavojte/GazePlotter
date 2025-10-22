@@ -11,7 +11,6 @@
   } from '$lib/workspace'
   import { fade } from 'svelte/transition'
   import { writable, get, derived } from 'svelte/store'
-  import type { AllGridTypes } from '$lib/workspace/type/gridType'
   import { onDestroy } from 'svelte'
   import {
     calculateGridHeight,
@@ -333,10 +332,12 @@
     operationType: 'move',
     gridAction: (event: { id: number; x: number; y: number }) => {
       handleWorkspaceCommand({
-        type: 'updateGridItemPosition',
+        type: 'updateSettings',
         itemId: event.id,
-        x: event.x,
-        y: event.y
+        settings: {
+          x: event.x,
+          y: event.y
+        }
       })
     },
   })
@@ -363,13 +364,14 @@
       const constrainedW = Math.max(minWidth, event.w)
       const constrainedH = Math.max(minHeight, event.h)
 
-      // Update without collision resolution
+      // Update using updateSettings
       handleWorkspaceCommand({
-        type: 'updateGridItemSize',
+        type: 'updateSettings',
         itemId: event.id,
-        w: constrainedW,
-        h: constrainedH,
-        shouldResolveCollisions: false
+        settings: {
+          w: constrainedW,
+          h: constrainedH
+        }
       })
     },
   })
