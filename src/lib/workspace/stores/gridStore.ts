@@ -3,6 +3,7 @@ import type { AllGridTypes } from '$lib/workspace/type/gridType'
 // Import necessary dependencies moved from Workspace.svelte
 import { getVisualizationConfig } from '$lib/workspace/const'
 import { DEFAULT_GRID_CONFIG } from '$lib/shared/utils/gridSizingUtils'
+import { generateUniqueId } from '$lib/shared/utils/idUtils'
 
 export const gridStore = createGridStore(DEFAULT_GRID_CONFIG)
 
@@ -119,14 +120,6 @@ export function createGridStore(
   config: GridConfig,
   initialItemsData: Array<Partial<AllGridTypes> & { type: string }> = [] // Accept initial data instead of full items
 ) {
-  // --- Private Helper Functions ---
-
-  /** Generates a new unique ID based on timestamp and random number. */
-  // Generate a new unique ID (kept internal)
-  function getNewId() {
-    return Date.now() + Math.floor(Math.random() * 1000)
-  }
-
   /**
    * Creates a grid item with appropriate defaults for the given visualization type
    */
@@ -138,7 +131,7 @@ export function createGridStore(
     const vizConfig = getVisualizationConfig(type)
 
     // Generate a new ID if not provided
-    const newId = options.id ?? getNewId()
+    const newId = options.id ?? generateUniqueId()
 
     // Set initial timestamp for redrawing
     const initialTimestamp = Date.now()
@@ -566,7 +559,7 @@ export function createGridStore(
   /** Duplicates an existing grid item, finding an optimal position for the clone. */
   // Duplicate an item
   function duplicateItem(item: AllGridTypes) {
-    const newId = getNewId()
+    const newId = generateUniqueId()
     const newPosition = findOptimalPosition(item.w, item.h, {
       referenceItem: item,
       strategy: 'duplicate',
@@ -594,7 +587,7 @@ export function createGridStore(
     let workingSet = [...get(items)] // Start with current items
 
     for (const item of itemsToClone) {
-      const newId = getNewId()
+      const newId = generateUniqueId()
       newIds.push(newId)
 
       // Find position considering items already processed in this batch
