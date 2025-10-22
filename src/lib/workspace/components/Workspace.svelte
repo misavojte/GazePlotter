@@ -878,7 +878,9 @@
                   <div class="grid-item-content">
                     <visConfig.component
                       settings={item}
-                      settingsChange={(newSettings: Partial<AllGridTypes>) => {
+                      onSettingsChange={(newSettings: Partial<AllGridTypes>) => {
+                        // this significantly reduces the boilerplate code
+                        // for potentially triggering settings changes from multiple places
                         handleInstruction({
                           type: 'updateSettings',
                           payload: {

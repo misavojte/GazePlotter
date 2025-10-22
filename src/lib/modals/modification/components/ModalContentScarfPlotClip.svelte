@@ -11,10 +11,10 @@
 
   interface Props {
     settings: ScarfGridType
-    settingsChange: (newSettings: Partial<ScarfGridType>) => void
+    onSettingsChange: (newSettings: Partial<ScarfGridType>) => void
   }
 
-  let { settings, settingsChange }: Props = $props()
+  let { settings, onSettingsChange }: Props = $props()
 
   const allStimuliId = getStimuliOrderVector()
 
@@ -114,9 +114,9 @@
       })
     }
 
-    // Update through the settingsChange function for component updates
-    if (settingsChange) {
-      settingsChange(newSettings)
+    // Update through the onSettingsChange function for component updates
+    if (onSettingsChange) {
+      onSettingsChange(newSettings)
     }
 
     addSuccessToast('Timeline range updated')

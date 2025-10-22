@@ -13,35 +13,25 @@
   
   interface Props {
     settings: ScarfGridType
-    settingsChange: (settings: Partial<ScarfGridType>) => void
+    onSettingsChange: (settings: Partial<ScarfGridType>) => void
     onInstruction: (instruction: WorkspaceInstruction) => void
   }
 
-  let { settings, settingsChange, onInstruction }: Props = $props()
+  let { settings, onSettingsChange, onInstruction }: Props = $props()
 
-  function handleSettingsChange(newSettings: Partial<ScarfGridType>) {
-    if (settingsChange) {
-      const updatedSettings = {
-        ...settings,
-        ...newSettings,
-      }
-
-      settingsChange(updatedSettings)
-    }
-  }
 </script>
 
 <div class="nav">
-  <ScarfPlotSelectStimulus {settings} settingsChange={handleSettingsChange} />
-  <ScarfPlotSelectTimeline {settings} settingsChange={handleSettingsChange} />
-  <ScarfPlotSelectGroup {settings} settingsChange={handleSettingsChange} />
-  <ScarfPlotButtonZoomIn {settings} settingsChange={handleSettingsChange} />
-  <ScarfPlotButtonZoomOut {settings} settingsChange={handleSettingsChange} />
-  <ScarfPlotButtonResetView {settings} settingsChange={handleSettingsChange} />
+  <ScarfPlotSelectStimulus {settings} {onSettingsChange} />
+  <ScarfPlotSelectTimeline {settings} {onSettingsChange} />
+  <ScarfPlotSelectGroup {settings} {onSettingsChange} />
+  <ScarfPlotButtonZoomIn {settings} {onSettingsChange} />
+  <ScarfPlotButtonZoomOut {settings} {onSettingsChange} />
+  <ScarfPlotButtonResetView {settings} {onSettingsChange} />
   <ScarfPlotButtonMenu
     {settings}
     {onInstruction}
-    settingsChange={handleSettingsChange}
+    {onSettingsChange}
   />
 </div>
 

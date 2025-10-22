@@ -10,11 +10,11 @@
 
   interface Props {
     settings: ScarfGridType
-    settingsChange?: (settings: Partial<ScarfGridType>) => void
+    onSettingsChange?: (settings: Partial<ScarfGridType>) => void
   }
 
   // Use callback props instead of event dispatching
-  let { settings, settingsChange = () => {} }: Props = $props()
+  let { settings, onSettingsChange = () => {} }: Props = $props()
 
   // Zoom percentage (how much to zoom in by)
   const ZOOM_PERCENTAGE = 15
@@ -108,7 +108,7 @@
     // For relative timeline, we can't zoom as it's always 0-100%
 
     // Call the settings change handler with the updated settings
-    settingsChange(updatedSettings)
+    onSettingsChange(updatedSettings)
   }
 </script>
 

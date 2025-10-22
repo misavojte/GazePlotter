@@ -20,11 +20,11 @@
 
   interface Props {
     settings: BarPlotGridType
-    settingsChange: (newSettings: Partial<BarPlotGridType>) => void
+    onSettingsChange: (newSettings: Partial<BarPlotGridType>) => void
     onInstruction: (instruction: WorkspaceInstruction) => void
   }
 
-  let { settings, settingsChange, onInstruction }: Props = $props()
+  let { settings, onSettingsChange, onInstruction }: Props = $props()
 
   const openAoiModificationModal = () => {
     modalStore.open(
@@ -63,7 +63,7 @@
       'Bar Chart Axes',
       {
         settings,
-        settingsChange,
+        onSettingsChange,
       }
     )
   }

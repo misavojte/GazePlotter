@@ -23,11 +23,11 @@
   // Component Props using Svelte 5 $props() rune
   interface Props {
     settings: ScarfGridType
-    settingsChange: (settings: Partial<ScarfGridType>) => void
+    onSettingsChange: (settings: Partial<ScarfGridType>) => void
     onInstruction: (instruction: WorkspaceInstruction) => void
   }
 
-  let { settings, settingsChange, onInstruction }: Props = $props()
+  let { settings, onSettingsChange, onInstruction }: Props = $props()
 
   // State management with Svelte 5 runes
   let tooltipArea = $state<HTMLElement | SVGElement | null>(null)
@@ -145,10 +145,6 @@
     }
   })
 
-  // Tooltip and interaction handlers
-  function handleSettingsChange(newSettings: Partial<ScarfGridType>) {
-    settingsChange?.(newSettings)
-  }
 
   function scheduleTooltipHide() {
     clearTimeout(timeout)
@@ -211,14 +207,14 @@
       const updatedLimits = { ...settings.absoluteStimuliLimits }
       updatedLimits[currentStimulusId] = [newMin, newMax]
 
-      handleSettingsChange({
+      onSettingsChange({
         absoluteStimuliLimits: updatedLimits,
       })
     } else if (settings.timeline === 'ordinal') {
       const updatedLimits = { ...settings.ordinalStimuliLimits }
       updatedLimits[currentStimulusId] = [newMin, newMax]
 
-      handleSettingsChange({
+      onSettingsChange({
         ordinalStimuliLimits: updatedLimits,
       })
     }
@@ -268,7 +264,7 @@
     <ScarfPlotHeader
       {settings}
       {onInstruction}
-      settingsChange={handleSettingsChange}
+      {onSettingsChange}
     />
   </div>
 

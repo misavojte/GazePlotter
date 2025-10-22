@@ -5,11 +5,11 @@
 
   interface Props {
     settings: ScarfGridType
-    settingsChange?: (settings: Partial<ScarfGridType>) => void
+    onSettingsChange?: (settings: Partial<ScarfGridType>) => void
   }
 
   // Use callback props instead of event dispatching
-  let { settings, settingsChange = () => {} }: Props = $props()
+  let { settings, onSettingsChange = () => {} }: Props = $props()
 
   // Check if view is already at default (empty limits or [0, 0])
   let isDisabled = $derived(
@@ -45,7 +45,7 @@
     // For relative timeline, we can't reset as it's always 0-100%
 
     // Call the settings change handler with the updated settings
-    settingsChange(updatedSettings)
+    onSettingsChange(updatedSettings)
   }
 </script>
 

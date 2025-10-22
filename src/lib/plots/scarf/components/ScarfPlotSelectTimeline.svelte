@@ -5,11 +5,11 @@
 
   interface Props {
     settings: ScarfGridType
-    settingsChange?: (settings: Partial<ScarfGridType>) => void
+    onSettingsChange?: (settings: Partial<ScarfGridType>) => void
   }
 
   // Use callback props instead of event dispatching
-  let { settings, settingsChange = () => {} }: Props = $props()
+  let { settings, onSettingsChange = () => {} }: Props = $props()
 
   // Track selected timeline
   let selectedTimeline = $state(settings.timeline)
@@ -31,7 +31,7 @@
     selectedTimeline = timeline
 
     // Use the shared service to handle the change
-    handleScarfSelectionChange(settings, { timeline }, settingsChange)
+    handleScarfSelectionChange(settings, { timeline }, onSettingsChange)
   }
 </script>
 

@@ -9,11 +9,11 @@
 
   interface Props {
     settings: TransitionMatrixGridType
-    settingsChange?: (settings: Partial<TransitionMatrixGridType>) => void
+    onSettingsChange?: (settings: Partial<TransitionMatrixGridType>) => void
   }
 
   // Use callback props instead of event dispatching
-  let { settings, settingsChange = () => {} }: Props = $props()
+  let { settings, onSettingsChange = () => {} }: Props = $props()
 
   // Track selected group
   let selectedGroupId = $state(settings.groupId.toString())
@@ -39,7 +39,7 @@
     selectedGroupId = groupId.toString()
 
     // Just update the group ID without height calculations
-    settingsChange({
+    onSettingsChange({
       groupId,
     })
   }

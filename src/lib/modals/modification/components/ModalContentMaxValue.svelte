@@ -12,10 +12,10 @@
 
   interface Props {
     settings: TransitionMatrixGridType
-    settingsChange: (newSettings: Partial<TransitionMatrixGridType>) => void
+    onSettingsChange: (newSettings: Partial<TransitionMatrixGridType>) => void
   }
 
-  let { settings, settingsChange }: Props = $props()
+  let { settings, onSettingsChange }: Props = $props()
 
   const allStimuliId = getStimuliOrderVector()
   const currentStimulusId = settings.stimulusId
@@ -82,7 +82,7 @@
       })
     }
 
-    settingsChange({
+    onSettingsChange({
       stimuliColorValueRanges,
       belowMinColor,
       aboveMaxColor,

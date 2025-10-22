@@ -6,11 +6,11 @@
 
   interface Props {
     settings: ScarfGridType
-    settingsChange?: (settings: Partial<ScarfGridType>) => void
+    onSettingsChange?: (settings: Partial<ScarfGridType>) => void
   }
 
   // Use callback props instead of event dispatching
-  let { settings, settingsChange = () => {} }: Props = $props()
+  let { settings, onSettingsChange = () => {} }: Props = $props()
 
   let selectedStimulusId = $state(settings.stimulusId.toString())
   let stimuliOptions =
@@ -27,7 +27,7 @@
     selectedStimulusId = stimulusId.toString()
 
     // Use the shared service to handle the change
-    handleScarfSelectionChange(settings, { stimulusId }, settingsChange)
+    handleScarfSelectionChange(settings, { stimulusId }, onSettingsChange)
   }
 </script>
 

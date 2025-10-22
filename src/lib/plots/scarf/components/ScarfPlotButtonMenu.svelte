@@ -24,11 +24,11 @@
   interface Props {
     settings: ScarfGridType
     multipleSettings?: ScarfGridType[]
-    settingsChange: (newSettings: Partial<ScarfGridType>) => void
+    onSettingsChange: (newSettings: Partial<ScarfGridType>) => void
     onInstruction: (instruction: WorkspaceInstruction) => void
   }
 
-  let { settings, settingsChange, onInstruction }: Props = $props()
+  let { settings, onSettingsChange, onInstruction }: Props = $props()
 
   const openClipModal = () => {
     modalStore.open(
@@ -36,7 +36,7 @@
       'Clip scarf timeline',
       {
         settings,
-        settingsChange,
+        onSettingsChange,
       }
     )
   }

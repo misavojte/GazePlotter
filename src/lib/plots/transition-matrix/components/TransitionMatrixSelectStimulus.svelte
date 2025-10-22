@@ -5,11 +5,11 @@
 
   interface Props {
     settings: TransitionMatrixGridType
-    settingsChange?: (settings: Partial<TransitionMatrixGridType>) => void
+    onSettingsChange?: (settings: Partial<TransitionMatrixGridType>) => void
   }
 
   // Use callback props instead of event dispatching
-  let { settings, settingsChange = () => {} }: Props = $props()
+  let { settings, onSettingsChange = () => {} }: Props = $props()
 
   let selectedStimulusId = $state(settings.stimulusId.toString())
   let stimuliOptions =
@@ -26,7 +26,7 @@
     selectedStimulusId = stimulusId.toString()
 
     // Just update the stimulus ID without height calculations
-    settingsChange({
+    onSettingsChange({
       stimulusId,
     })
   }

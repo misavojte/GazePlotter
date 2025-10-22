@@ -8,10 +8,10 @@
 
   interface Props {
     settings: BarPlotGridType
-    settingsChange: (settings: Partial<BarPlotGridType>) => void
+    onSettingsChange: (settings: Partial<BarPlotGridType>) => void
   }
 
-  let { settings, settingsChange }: Props = $props()
+  let { settings, onSettingsChange }: Props = $props()
 
   // Local state to track changes before applying
   let barPlottingType = $state(settings.barPlottingType)
@@ -32,7 +32,7 @@
     // Use the numeric values directly
     newScaleRange = [minValue || 0, maxValue || 0]
 
-    settingsChange({
+    onSettingsChange({
       barPlottingType,
       sortBars,
       scaleRange: newScaleRange,

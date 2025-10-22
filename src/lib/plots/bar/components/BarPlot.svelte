@@ -31,11 +31,11 @@
   // Component Props using Svelte 5 $props() rune
   interface Props {
     settings: BarPlotGridType
-    settingsChange: (settings: Partial<BarPlotGridType>) => void
+    onSettingsChange: (settings: Partial<BarPlotGridType>) => void
     onInstruction: (instruction: WorkspaceInstruction) => void
   }
 
-  let { settings, settingsChange, onInstruction }: Props = $props()
+  let { settings, onSettingsChange, onInstruction }: Props = $props()
 
   // Calculate plot dimensions using a more descriptive approach
   const plotDimensions = $derived.by(() =>
@@ -56,31 +56,25 @@
 
   function handleStimulusChange(event: CustomEvent) {
     const newStimulusId = event.detail as string
-    settingsChange({
+    onSettingsChange({
       stimulusId: parseInt(newStimulusId),
     })
   }
 
   function handleGroupChange(event: CustomEvent) {
     const newGroupId = event.detail as string
-    settingsChange({
+    onSettingsChange({
       groupId: parseInt(newGroupId),
     })
   }
 
   function handleAggregationMethodChange(event: CustomEvent) {
     const newAggregationMethod = event.detail as BarPlotAggregationMethodId
-    settingsChange({
+    onSettingsChange({
       aggregationMethod: newAggregationMethod,
     })
   }
 
-  // Handle all settings changes via this function to ensure consistent handling
-  function handleSettingsChange(newSettings: Partial<BarPlotGridType>) {
-    if (settingsChange) {
-      settingsChange(newSettings)
-    }
-  }
 
   let stimulusOptions =
     $state<{ label: string; value: string }[]>(getStimuliOptions())
@@ -142,7 +136,7 @@
       <div class="menu-button">
         <BarPlotButtonMenu
           {settings}
-          settingsChange={handleSettingsChange}
+          {onSettingsChange}
           {onInstruction}
         />
       </div>

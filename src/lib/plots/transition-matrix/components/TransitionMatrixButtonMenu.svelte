@@ -16,16 +16,16 @@
 
   interface Props {
     settings: TransitionMatrixGridType
-    settingsChange: (newSettings: Partial<TransitionMatrixGridType>) => void
+    onSettingsChange: (newSettings: Partial<TransitionMatrixGridType>) => void
     onInstruction: (instruction: WorkspaceInstruction) => void
   }
 
-  let { settings, settingsChange, onInstruction }: Props = $props()
+  let { settings, onSettingsChange, onInstruction }: Props = $props()
 
   const openMaxValueModal = () => {
     modalStore.open(ModalContentMaxValue as any, 'Set color range values', {
       settings,
-      settingsChange,
+      onSettingsChange,
     })
   }
 
@@ -42,7 +42,7 @@
   const openColorScaleModal = () => {
     modalStore.open(ModalContentColorScale as any, 'Customize color scale', {
       settings,
-      settingsChange,
+      onSettingsChange,
     })
   }
 

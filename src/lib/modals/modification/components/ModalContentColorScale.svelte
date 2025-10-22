@@ -11,10 +11,10 @@
 
   interface Props {
     settings: TransitionMatrixGridType
-    settingsChange: (newSettings: Partial<TransitionMatrixGridType>) => void
+    onSettingsChange: (newSettings: Partial<TransitionMatrixGridType>) => void
   }
 
-  let { settings, settingsChange }: Props = $props()
+  let { settings, onSettingsChange }: Props = $props()
 
   // Initialize with current color scale or default
   let colorPoints = $state<'two' | 'three'>(
@@ -102,7 +102,7 @@
 
   // Apply changes and close modal
   function handleConfirm(): void {
-    settingsChange({
+    onSettingsChange({
       colorScale: getCurrentColorScale(),
     })
     modalStore.close()

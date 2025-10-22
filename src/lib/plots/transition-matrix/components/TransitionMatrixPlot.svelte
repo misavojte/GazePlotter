@@ -27,11 +27,11 @@
 
   interface Props {
     settings: TransitionMatrixGridType
-    settingsChange: (settings: Partial<TransitionMatrixGridType>) => void
+    onSettingsChange: (settings: Partial<TransitionMatrixGridType>) => void
     onInstruction: (instruction: WorkspaceInstruction) => void
   }
 
-  let { settings, settingsChange, onInstruction }: Props = $props()
+  let { settings, onSettingsChange, onInstruction }: Props = $props()
 
   // Constants for space taken by headers, controls, and padding
   const HEADER_HEIGHT = 150 // Estimated space for header and controls
@@ -82,15 +82,10 @@
     },
   ]
 
-  function handleSettingsChange(
-    newSettings: Partial<TransitionMatrixGridType>
-  ) {
-    settingsChange(newSettings)
-  }
 
   function handleAggregationChange(event: CustomEvent) {
     // Update the aggregation method in grid settings
-    settingsChange({ aggregationMethod: event.detail as AggregationMethod })
+    onSettingsChange({ aggregationMethod: event.detail as AggregationMethod })
   }
 
   const redrawTimestamp = $derived.by(() => settings.redrawTimestamp)
@@ -139,7 +134,7 @@
     try {
       modalStore.open(ModalContentColorScale as any, 'Customize color scale', {
         settings,
-        settingsChange,
+        onSettingsChange,
       })
     } catch (error) {
       console.error('Error opening color scale modal:', error)
@@ -153,7 +148,7 @@
         'Set maximum color scale value',
         {
           settings,
-          settingsChange,
+          onSettingsChange,
         }
       )
     } catch (error) {
@@ -167,11 +162,11 @@
     <div class="controls">
       <TransitionMatrixSelectStimulus
         {settings}
-        settingsChange={handleSettingsChange}
+        {onSettingsChange}
       />
       <TransitionMatrixSelectGroup
         {settings}
-        settingsChange={handleSettingsChange}
+        {onSettingsChange}
       />
       <Select
         label="Aggregation"
@@ -183,7 +178,7 @@
       <div class="menu-button">
         <TransitionMatrixButtonMenu
           {settings}
-          settingsChange={handleSettingsChange}
+          {onSettingsChange}
           {onInstruction}
         />
       </div>
