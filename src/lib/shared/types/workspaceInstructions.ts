@@ -6,35 +6,35 @@ import type {
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
 /**
- * Workspace Instruction System
+ * Workspace Command System
  * 
- * Centralized instruction types for all workspace changes.
- * All data and settings modifications go through these instructions
+ * Centralized command types for all workspace changes.
+ * All data and settings modifications go through these commands
  * to ensure proper tracking and automatic redraw propagation.
  * 
  * Simplified structure without nested payload - TypeScript ensures type safety
  * through discriminated unions based on the 'type' field.
  */
 
-// Data change instructions
-export interface UpdateAoisInstruction {
+// Data change commands
+export interface UpdateAoisCommand {
   type: 'updateAois'
   aois: ExtendedInterpretedDataType[]
   stimulusId: number
   applyTo: 'this_stimulus' | 'all_by_original_name' | 'all_by_displayed_name'
 }
 
-export interface UpdateParticipantsInstruction {
+export interface UpdateParticipantsCommand {
   type: 'updateParticipants'
   participants: BaseInterpretedDataType[]
 }
 
-export interface UpdateStimuliInstruction {
+export interface UpdateStimuliCommand {
   type: 'updateStimuli'
   stimuli: BaseInterpretedDataType[]
 }
 
-export interface UpdateAoiVisibilityInstruction {
+export interface UpdateAoiVisibilityCommand {
   type: 'updateAoiVisibility'
   stimulusId: number
   aoiNames: string[]
@@ -42,31 +42,31 @@ export interface UpdateAoiVisibilityInstruction {
   participantId?: number | null
 }
 
-export interface UpdateParticipantsGroupsInstruction {
+export interface UpdateParticipantsGroupsCommand {
   type: 'updateParticipantsGroups'
   groups: ParticipantsGroup[]
 }
 
-// Settings change instruction
-export interface UpdateSettingsInstruction {
+// Settings change command
+export interface UpdateSettingsCommand {
   type: 'updateSettings'
   itemId: number
   settings: Partial<AllGridTypes>
 }
 
-// Grid item management instructions
-export interface AddGridItemInstruction {
+// Grid item management commands
+export interface AddGridItemCommand {
   type: 'addGridItem'
   vizType: string
   options?: Partial<AllGridTypes> & { skipCollisionResolution?: boolean }
 }
 
-export interface RemoveGridItemInstruction {
+export interface RemoveGridItemCommand {
   type: 'removeGridItem'
   itemId: number
 }
 
-export interface UpdateGridItemPositionInstruction {
+export interface UpdateGridItemPositionCommand {
   type: 'updateGridItemPosition'
   itemId: number
   x: number
@@ -74,7 +74,7 @@ export interface UpdateGridItemPositionInstruction {
   shouldResolveCollisions?: boolean
 }
 
-export interface UpdateGridItemSizeInstruction {
+export interface UpdateGridItemSizeCommand {
   type: 'updateGridItemSize'
   itemId: number
   w: number
@@ -82,21 +82,21 @@ export interface UpdateGridItemSizeInstruction {
   shouldResolveCollisions?: boolean
 }
 
-export interface DuplicateGridItemInstruction {
+export interface DuplicateGridItemCommand {
   type: 'duplicateGridItem'
   itemId: number
 }
 
-export type WorkspaceInstruction =
-  | UpdateAoisInstruction
-  | UpdateParticipantsInstruction
-  | UpdateStimuliInstruction
-  | UpdateAoiVisibilityInstruction
-  | UpdateParticipantsGroupsInstruction
-  | UpdateSettingsInstruction
-  | AddGridItemInstruction
-  | RemoveGridItemInstruction
-  | UpdateGridItemPositionInstruction
-  | UpdateGridItemSizeInstruction
-  | DuplicateGridItemInstruction
+export type WorkspaceCommand =
+  | UpdateAoisCommand
+  | UpdateParticipantsCommand
+  | UpdateStimuliCommand
+  | UpdateAoiVisibilityCommand
+  | UpdateParticipantsGroupsCommand
+  | UpdateSettingsCommand
+  | AddGridItemCommand
+  | RemoveGridItemCommand
+  | UpdateGridItemPositionCommand
+  | UpdateGridItemSizeCommand
+  | DuplicateGridItemCommand
 

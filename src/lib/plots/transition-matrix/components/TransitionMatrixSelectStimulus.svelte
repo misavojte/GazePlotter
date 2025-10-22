@@ -2,14 +2,15 @@
   import Select from '$lib/shared/components/GeneralSelect.svelte'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
     settings: TransitionMatrixGridType
-    onSettingsChange?: (settings: Partial<TransitionMatrixGridType>) => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
   // Use callback props instead of event dispatching
-  let { settings, onSettingsChange = () => {} }: Props = $props()
+  let { settings, onWorkspaceCommand }: Props = $props()
 
   let selectedStimulusId = $state(settings.stimulusId.toString())
   let stimuliOptions =
@@ -25,9 +26,11 @@
     const stimulusId = parseInt(event.detail)
     selectedStimulusId = stimulusId.toString()
 
-    // Just update the stimulus ID without height calculations
-    onSettingsChange({
-      stimulusId,
+    // Create workspace command for settings change
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      settings: { stimulusId }
     })
   }
 </script>

@@ -19,16 +19,15 @@
     ModalContentParticipantsGroups,
     ModalContentExportSegmentedData,
   } from '$lib/modals'
-  import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
     settings: ScarfGridType
     multipleSettings?: ScarfGridType[]
-    onSettingsChange: (newSettings: Partial<ScarfGridType>) => void
-    onInstruction: (instruction: WorkspaceInstruction) => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { settings, onSettingsChange, onInstruction }: Props = $props()
+  let { settings, onWorkspaceCommand }: Props = $props()
 
   const openClipModal = () => {
     modalStore.open(
@@ -36,7 +35,7 @@
       'Clip scarf timeline',
       {
         settings,
-        onSettingsChange,
+        onWorkspaceCommand,
       }
     )
   }
@@ -47,7 +46,7 @@
       'AOI customization',
       {
         selectedStimulus: settings.stimulusId.toString(),
-        onInstruction,
+        onWorkspaceCommand,
       }
     )
   }
@@ -57,7 +56,7 @@
       ModalContentStimulusModification as unknown as typeof SvelteComponent,
       'Stimulus customization',
       {
-        onInstruction,
+        onWorkspaceCommand,
       }
     )
   }
@@ -67,7 +66,7 @@
       ModalContentAoiVisibility as unknown as typeof SvelteComponent,
       'AOI visibility',
       {
-        onInstruction,
+        onWorkspaceCommand,
       }
     )
   }
@@ -77,7 +76,7 @@
       ModalContentParticipantsGroups as unknown as typeof SvelteComponent,
       'Participants groups',
       {
-        onInstruction,
+        onWorkspaceCommand,
       }
     )
   }
@@ -87,7 +86,7 @@
       ModalContentParticipantModification as unknown as typeof SvelteComponent,
       'Participant customization',
       {
-        onInstruction,
+        onWorkspaceCommand,
       }
     )
   }

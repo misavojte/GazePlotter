@@ -7,13 +7,13 @@
   import { addErrorToast } from '$lib/toaster'
   import { processAoiVisibility } from '$lib/modals/import/utility/aoiVisibilityServices'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
-  import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
   
   interface Props {
-    onInstruction: (instruction: WorkspaceInstruction) => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { onInstruction }: Props = $props()
+  let { onWorkspaceCommand }: Props = $props()
 
   let files: FileList | null = $state(null)
   let selectedStimulusId = $state('0')
@@ -37,7 +37,7 @@
       const stimulusId = parseInt(selectedStimulusId)
       const participantId =
         selectedParticipantId === 'all' ? null : parseInt(selectedParticipantId)
-      processAoiVisibility(stimulusId, participantId, files, onInstruction).then(() => {
+      processAoiVisibility(stimulusId, participantId, files, onWorkspaceCommand).then(() => {
         modalStore.close()
       })
     } catch (e) {

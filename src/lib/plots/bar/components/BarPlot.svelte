@@ -19,7 +19,7 @@
   import type { BarPlotGridType } from '$lib/workspace/type/gridType'
   import type { BarPlotAggregationMethodId } from '$lib/plots/bar/const'
   import { BAR_PLOT_AGGREGATION_METHODS } from '$lib/plots/bar/const'
-  import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
 
   // CONSTANTS - centralized for easier maintenance
   const LAYOUT = {
@@ -31,11 +31,10 @@
   // Component Props using Svelte 5 $props() rune
   interface Props {
     settings: BarPlotGridType
-    onSettingsChange: (settings: Partial<BarPlotGridType>) => void
-    onInstruction: (instruction: WorkspaceInstruction) => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { settings, onSettingsChange, onInstruction }: Props = $props()
+  let { settings, onWorkspaceCommand }: Props = $props()
 
   // Calculate plot dimensions using a more descriptive approach
   const plotDimensions = $derived.by(() =>
@@ -56,22 +55,34 @@
 
   function handleStimulusChange(event: CustomEvent) {
     const newStimulusId = event.detail as string
-    onSettingsChange({
-      stimulusId: parseInt(newStimulusId),
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      settings: {
+        stimulusId: parseInt(newStimulusId),
+      }
     })
   }
 
   function handleGroupChange(event: CustomEvent) {
     const newGroupId = event.detail as string
-    onSettingsChange({
-      groupId: parseInt(newGroupId),
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      settings: {
+        groupId: parseInt(newGroupId),
+      }
     })
   }
 
   function handleAggregationMethodChange(event: CustomEvent) {
     const newAggregationMethod = event.detail as BarPlotAggregationMethodId
-    onSettingsChange({
-      aggregationMethod: newAggregationMethod,
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      settings: {
+        aggregationMethod: newAggregationMethod,
+      }
     })
   }
 
@@ -136,8 +147,7 @@
       <div class="menu-button">
         <BarPlotButtonMenu
           {settings}
-          {onSettingsChange}
-          {onInstruction}
+          {onWorkspaceCommand}
         />
       </div>
     </div>

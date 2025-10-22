@@ -19,14 +19,14 @@
   import { fade, slide } from 'svelte/transition'
   import { flip } from 'svelte/animate'
   import GeneralInputCheck from '$lib/shared/components/GeneralInputCheck.svelte'
-  import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
 
   interface Props {
-    onInstruction: (instruction: WorkspaceInstruction) => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { onInstruction }: Props = $props()
+  let { onWorkspaceCommand }: Props = $props()
 
   // State management
   let initialGroups = $state(
@@ -186,7 +186,7 @@
       })
     )
 
-    onInstruction({
+    onWorkspaceCommand({
       type: 'updateParticipantsGroups',
       groups: groupsDeepCopy
     })

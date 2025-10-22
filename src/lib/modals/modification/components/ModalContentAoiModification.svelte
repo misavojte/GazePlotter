@@ -19,18 +19,18 @@
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
-  import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
   
   interface Props {
     selectedStimulus?: string
     userSelected?: string
-    onInstruction: (instruction: WorkspaceInstruction) => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
   let {
     selectedStimulus = $bindable('0'),
     userSelected = $bindable('this'),
-    onInstruction,
+    onWorkspaceCommand,
   }: Props = $props()
 
   const isValidMatch = (displayedName: string): boolean =>
@@ -238,7 +238,7 @@
     try {
       const aoiObjectsCopy = deepCopyAois(aoiObjects)
       
-      onInstruction({
+      onWorkspaceCommand({
         type: 'updateAois',
         aois: aoiObjectsCopy,
         stimulusId: parseInt(selectedStimulus),

@@ -1,15 +1,16 @@
 <script lang="ts">
   import Select from '$lib/shared/components/GeneralSelect.svelte'
-  import { handleScarfSelectionChange } from '$lib/plots/scarf/utils/scarfSelectService'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  import { handleScarfSelectionChange } from '../utils/scarfSelectService'
 
   interface Props {
     settings: ScarfGridType
-    onSettingsChange?: (settings: Partial<ScarfGridType>) => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
   // Use callback props instead of event dispatching
-  let { settings, onSettingsChange = () => {} }: Props = $props()
+  let { settings, onWorkspaceCommand }: Props = $props()
 
   // Track selected timeline
   let selectedTimeline = $state(settings.timeline)
@@ -30,8 +31,8 @@
     const timeline = event.detail as 'absolute' | 'relative' | 'ordinal'
     selectedTimeline = timeline
 
-    // Use the shared service to handle the change
-    handleScarfSelectionChange(settings, { timeline }, onSettingsChange)
+    // Use the service to handle selection change with height calculation
+    handleScarfSelectionChange(settings, { timeline }, onWorkspaceCommand)
   }
 </script>
 

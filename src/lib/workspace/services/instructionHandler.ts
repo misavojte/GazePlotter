@@ -1,4 +1,4 @@
-import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
+import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
 import type { GridStoreType } from '$lib/workspace/stores/gridStore'
 import { get } from 'svelte/store'
 import {
@@ -11,7 +11,7 @@ import {
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
 /**
- * Creates an instruction handler for workspace changes.
+ * Creates a command handler for workspace changes.
  * 
  * This handler centralizes all data and settings mutations, ensuring:
  * - All changes go through a single point
@@ -22,37 +22,37 @@ import type { AllGridTypes } from '$lib/workspace/type/gridType'
  * @param gridStore - The grid store instance
  * @param onSuccess - Callback for successful operations
  * @param onError - Callback for error handling
- * @returns Handler function for processing instructions
+ * @returns Handler function for processing commands
  */
-export function createInstructionHandler(
+export function createCommandHandler(
   gridStore: GridStoreType,
   onSuccess: (message: string) => void,
   onError: (error: Error) => void
 ) {
-  return function handleInstruction(instruction: WorkspaceInstruction): void {
+  return function handleCommand(command: WorkspaceCommand): void {
     try {
-      switch (instruction.type) {
+      switch (command.type) {
         case 'updateAois': {
-          const { aois, stimulusId, applyTo } = instruction
+          const { aois, stimulusId, applyTo } = command
           updateMultipleAoi(aois, stimulusId, applyTo)
           onSuccess('AOIs updated successfully')
           break
         }
 
         case 'updateParticipants': {
-          updateMultipleParticipants(instruction.participants)
+          updateMultipleParticipants(command.participants)
           onSuccess('Participants updated successfully')
           break
         }
 
         case 'updateStimuli': {
-          updateMultipleStimuli(instruction.stimuli)
+          updateMultipleStimuli(command.stimuli)
           onSuccess('Stimuli updated successfully')
           break
         }
 
         case 'updateAoiVisibility': {
-          const { stimulusId, aoiNames, visibilityArr, participantId } = instruction
+          const { stimulusId, aoiNames, visibilityArr, participantId } = command
           updateMultipleAoiVisibility(
             stimulusId,
             aoiNames,
@@ -64,13 +64,13 @@ export function createInstructionHandler(
         }
 
         case 'updateParticipantsGroups': {
-          updateParticipantsGroups(instruction.groups)
+          updateParticipantsGroups(command.groups)
           onSuccess('Participant groups updated')
           break
         }
 
         case 'updateSettings': {
-          const { itemId, settings } = instruction
+          const { itemId, settings } = command
           const currentItem = get(gridStore).find(item => item.id === itemId)
           if (!currentItem) throw new Error(`Grid item ${itemId} not found`)
 
@@ -89,31 +89,31 @@ export function createInstructionHandler(
         }
 
         case 'addGridItem': {
-          const { vizType, options } = instruction
+          const { vizType, options } = command
           gridStore.addItem(vizType, options)
           return // No success message needed for adding items
         }
 
         case 'removeGridItem': {
-          gridStore.removeItem(instruction.itemId)
+          gridStore.removeItem(command.itemId)
           return // No success message needed for removing items
         }
 
         case 'updateGridItemPosition': {
-          const { itemId, x, y, shouldResolveCollisions = false } = instruction
+          const { itemId, x, y, shouldResolveCollisions = false } = command
           gridStore.updateItemPosition(itemId, x, y, shouldResolveCollisions)
           return // No success message needed for position updates
         }
 
         case 'updateGridItemSize': {
-          const { itemId, w, h, shouldResolveCollisions = false } = instruction
+          const { itemId, w, h, shouldResolveCollisions = false } = command
           gridStore.updateItemSize(itemId, w, h, shouldResolveCollisions)
           return // No success message needed for size updates
         }
 
         case 'duplicateGridItem': {
-          const currentItem = get(gridStore).find(item => item.id === instruction.itemId)
-          if (!currentItem) throw new Error(`Grid item ${instruction.itemId} not found`)
+          const currentItem = get(gridStore).find(item => item.id === command.itemId)
+          if (!currentItem) throw new Error(`Grid item ${command.itemId} not found`)
           gridStore.duplicateItem(currentItem)
           return // No success message needed for duplication
         }

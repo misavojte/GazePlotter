@@ -16,13 +16,13 @@
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
   import PatternRenamingTool from './PatternRenamingTool.svelte'
-  import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
-    onInstruction: (instruction: WorkspaceInstruction) => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { onInstruction }: Props = $props()
+  let { onWorkspaceCommand }: Props = $props()
 
   // Sorting state
   let sortColumn = $state<'originalName' | 'displayedName' | null>(null)
@@ -96,7 +96,7 @@
     try {
       const stimulusObjectsCopy = deepCopyStimuli(stimulusObjects)
       
-      onInstruction({
+      onWorkspaceCommand({
         type: 'updateStimuli',
         stimuli: stimulusObjectsCopy
       })

@@ -6,20 +6,20 @@
 import {
   getStimulusHighestEndTime,
 } from '$lib/gaze-data/front-process/stores/dataStore'
-import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
+import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
 
 /**
  * Main function to process the AOI visibility data
  * @param stimulusId id of the stimulus to which the AOIs belong
  * @param participantId id of the participant to which the AOIs belong (null if not participant-specific and should be applied to all participants)
  * @param files list of files to process
- * @param onInstruction callback function to emit instruction for AOI visibility update
+ * @param onWorkspaceCommand callback function to emit command for AOI visibility update
  */
 export const processAoiVisibility = async (
   stimulusId: number,
   participantId: number | null,
   files: FileList,
-  onInstruction: (instruction: WorkspaceInstruction) => void
+  onWorkspaceCommand: (command: WorkspaceCommand) => void
 ): Promise<void> => {
   const text = await files[0].text()
   const parser = new DOMParser()
@@ -47,8 +47,8 @@ export const processAoiVisibility = async (
     data = processSmi(stimulusId, participantId, xml)
   }
   
-  // Emit instruction instead of directly calling store
-  onInstruction({
+  // Emit command instead of directly calling store
+  onWorkspaceCommand({
     type: 'updateAoiVisibility',
     stimulusId: data.stimulusId,
     aoiNames: data.multipleAoiNames,

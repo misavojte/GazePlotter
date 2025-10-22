@@ -12,20 +12,19 @@
     ModalContentDownloadTransitionMatrix,
     ModalContentStimulusModification,
   } from '$lib/modals'
-  import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
     settings: TransitionMatrixGridType
-    onSettingsChange: (newSettings: Partial<TransitionMatrixGridType>) => void
-    onInstruction: (instruction: WorkspaceInstruction) => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { settings, onSettingsChange, onInstruction }: Props = $props()
+  let { settings, onWorkspaceCommand }: Props = $props()
 
   const openMaxValueModal = () => {
     modalStore.open(ModalContentMaxValue as any, 'Set color range values', {
       settings,
-      onSettingsChange,
+      onWorkspaceCommand,
     })
   }
 
@@ -34,7 +33,7 @@
       ModalContentStimulusModification as any,
       'Stimulus customization',
       {
-        onInstruction,
+        onWorkspaceCommand,
       }
     )
   }
@@ -42,7 +41,7 @@
   const openColorScaleModal = () => {
     modalStore.open(ModalContentColorScale as any, 'Customize color scale', {
       settings,
-      onSettingsChange,
+      onWorkspaceCommand,
     })
   }
 

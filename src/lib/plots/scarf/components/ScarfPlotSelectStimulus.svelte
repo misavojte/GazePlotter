@@ -1,16 +1,17 @@
 <script lang="ts">
   import Select from '$lib/shared/components/GeneralSelect.svelte'
-  import { handleScarfSelectionChange } from '$lib/plots/scarf/utils/scarfSelectService'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  import { handleScarfSelectionChange } from '../utils/scarfSelectService'
 
   interface Props {
     settings: ScarfGridType
-    onSettingsChange?: (settings: Partial<ScarfGridType>) => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
   // Use callback props instead of event dispatching
-  let { settings, onSettingsChange = () => {} }: Props = $props()
+  let { settings, onWorkspaceCommand }: Props = $props()
 
   let selectedStimulusId = $state(settings.stimulusId.toString())
   let stimuliOptions =
@@ -26,8 +27,8 @@
     const stimulusId = parseInt(event.detail)
     selectedStimulusId = stimulusId.toString()
 
-    // Use the shared service to handle the change
-    handleScarfSelectionChange(settings, { stimulusId }, onSettingsChange)
+    // Use the service to handle selection change with height calculation
+    handleScarfSelectionChange(settings, { stimulusId }, onWorkspaceCommand)
   }
 </script>
 

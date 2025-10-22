@@ -18,16 +18,15 @@
   import { DEFAULT_GRID_CONFIG } from '$lib/shared/utils/gridSizingUtils'
   import { PlotPlaceholder } from '$lib/plots/shared/components'
   import { fade } from 'svelte/transition'
-  import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
   
   // Component Props using Svelte 5 $props() rune
   interface Props {
     settings: ScarfGridType
-    onSettingsChange: (settings: Partial<ScarfGridType>) => void
-    onInstruction: (instruction: WorkspaceInstruction) => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { settings, onSettingsChange, onInstruction }: Props = $props()
+  let { settings, onWorkspaceCommand }: Props = $props()
 
   // State management with Svelte 5 runes
   let tooltipArea = $state<HTMLElement | SVGElement | null>(null)
@@ -207,15 +206,23 @@
       const updatedLimits = { ...settings.absoluteStimuliLimits }
       updatedLimits[currentStimulusId] = [newMin, newMax]
 
-      onSettingsChange({
-        absoluteStimuliLimits: updatedLimits,
+      onWorkspaceCommand({
+        type: 'updateSettings',
+        itemId: settings.id,
+        settings: {
+          absoluteStimuliLimits: updatedLimits,
+        }
       })
     } else if (settings.timeline === 'ordinal') {
       const updatedLimits = { ...settings.ordinalStimuliLimits }
       updatedLimits[currentStimulusId] = [newMin, newMax]
 
-      onSettingsChange({
-        ordinalStimuliLimits: updatedLimits,
+      onWorkspaceCommand({
+        type: 'updateSettings',
+        itemId: settings.id,
+        settings: {
+          ordinalStimuliLimits: updatedLimits,
+        }
       })
     }
     // For relative timeline, there's typically nothing to update as it's fixed at 0-100%
@@ -263,8 +270,7 @@
   <div class="header">
     <ScarfPlotHeader
       {settings}
-      {onInstruction}
-      {onSettingsChange}
+      {onWorkspaceCommand}
     />
   </div>
 

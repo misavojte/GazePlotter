@@ -9,29 +9,27 @@
     ScarfPlotButtonResetView,
   } from '$lib/plots/scarf/components'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
-  import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
   
   interface Props {
     settings: ScarfGridType
-    onSettingsChange: (settings: Partial<ScarfGridType>) => void
-    onInstruction: (instruction: WorkspaceInstruction) => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { settings, onSettingsChange, onInstruction }: Props = $props()
+  let { settings, onWorkspaceCommand }: Props = $props()
 
 </script>
 
 <div class="nav">
-  <ScarfPlotSelectStimulus {settings} {onSettingsChange} />
-  <ScarfPlotSelectTimeline {settings} {onSettingsChange} />
-  <ScarfPlotSelectGroup {settings} {onSettingsChange} />
-  <ScarfPlotButtonZoomIn {settings} {onSettingsChange} />
-  <ScarfPlotButtonZoomOut {settings} {onSettingsChange} />
-  <ScarfPlotButtonResetView {settings} {onSettingsChange} />
+  <ScarfPlotSelectStimulus {settings} {onWorkspaceCommand} />
+  <ScarfPlotSelectTimeline {settings} {onWorkspaceCommand} />
+  <ScarfPlotSelectGroup {settings} {onWorkspaceCommand} />
+  <ScarfPlotButtonZoomIn {settings} {onWorkspaceCommand} />
+  <ScarfPlotButtonZoomOut {settings} {onWorkspaceCommand} />
+  <ScarfPlotButtonResetView {settings} {onWorkspaceCommand} />
   <ScarfPlotButtonMenu
     {settings}
-    {onInstruction}
-    {onSettingsChange}
+    {onWorkspaceCommand}
   />
 </div>
 

@@ -2,14 +2,15 @@
   import { GeneralButtonMinor } from '$lib/shared/components'
   import RefreshCcw from 'lucide-svelte/icons/refresh-ccw'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
     settings: ScarfGridType
-    onSettingsChange?: (settings: Partial<ScarfGridType>) => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
   // Use callback props instead of event dispatching
-  let { settings, onSettingsChange = () => {} }: Props = $props()
+  let { settings, onWorkspaceCommand }: Props = $props()
 
   // Check if view is already at default (empty limits or [0, 0])
   let isDisabled = $derived(
@@ -44,8 +45,12 @@
     }
     // For relative timeline, we can't reset as it's always 0-100%
 
-    // Call the settings change handler with the updated settings
-    onSettingsChange(updatedSettings)
+    // Create workspace command for settings change
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      settings: updatedSettings
+    })
   }
 </script>
 

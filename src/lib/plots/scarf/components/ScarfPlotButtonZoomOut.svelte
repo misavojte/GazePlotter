@@ -7,14 +7,15 @@
     getParticipantEndTime,
     getParticipants,
   } from '$lib/gaze-data/front-process/stores/dataStore'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
     settings: ScarfGridType
-    onSettingsChange?: (settings: Partial<ScarfGridType>) => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
   // Use callback props instead of event dispatching
-  let { settings, onSettingsChange = () => {} }: Props = $props()
+  let { settings, onWorkspaceCommand }: Props = $props()
 
   // Zoom percentage (how much to zoom out by)
   const ZOOM_PERCENTAGE = 15
@@ -103,8 +104,12 @@
     }
     // For relative timeline, we can't zoom as it's always 0-100%
 
-    // Call the settings change handler with the updated settings
-    onSettingsChange(updatedSettings)
+    // Create workspace command for settings change
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      settings: updatedSettings
+    })
   }
 </script>
 

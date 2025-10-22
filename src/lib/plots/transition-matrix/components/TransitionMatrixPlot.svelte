@@ -23,15 +23,14 @@
 
   // Types
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
-  import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
     settings: TransitionMatrixGridType
-    onSettingsChange: (settings: Partial<TransitionMatrixGridType>) => void
-    onInstruction: (instruction: WorkspaceInstruction) => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { settings, onSettingsChange, onInstruction }: Props = $props()
+  let { settings, onWorkspaceCommand }: Props = $props()
 
   // Constants for space taken by headers, controls, and padding
   const HEADER_HEIGHT = 150 // Estimated space for header and controls
@@ -84,8 +83,12 @@
 
 
   function handleAggregationChange(event: CustomEvent) {
-    // Update the aggregation method in grid settings
-    onSettingsChange({ aggregationMethod: event.detail as AggregationMethod })
+    // Create workspace command for settings change
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      settings: { aggregationMethod: event.detail as AggregationMethod }
+    })
   }
 
   const redrawTimestamp = $derived.by(() => settings.redrawTimestamp)
@@ -134,7 +137,7 @@
     try {
       modalStore.open(ModalContentColorScale as any, 'Customize color scale', {
         settings,
-        onSettingsChange,
+        onWorkspaceCommand,
       })
     } catch (error) {
       console.error('Error opening color scale modal:', error)
@@ -148,7 +151,7 @@
         'Set maximum color scale value',
         {
           settings,
-          onSettingsChange,
+          onWorkspaceCommand,
         }
       )
     } catch (error) {
@@ -162,11 +165,11 @@
     <div class="controls">
       <TransitionMatrixSelectStimulus
         {settings}
-        {onSettingsChange}
+        {onWorkspaceCommand}
       />
       <TransitionMatrixSelectGroup
         {settings}
-        {onSettingsChange}
+        {onWorkspaceCommand}
       />
       <Select
         label="Aggregation"
@@ -178,8 +181,7 @@
       <div class="menu-button">
         <TransitionMatrixButtonMenu
           {settings}
-          {onSettingsChange}
-          {onInstruction}
+          {onWorkspaceCommand}
         />
       </div>
     </div>

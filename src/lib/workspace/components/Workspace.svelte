@@ -26,16 +26,16 @@
   import { addSuccessToast, addErrorToast } from '$lib/toaster'
   import { ModalContentMetadataInfo } from '$lib/modals'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
-  import { createInstructionHandler } from '$lib/workspace/services/instructionHandler'
-  import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
+  import { createCommandHandler } from '$lib/workspace/services/instructionHandler'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
     onReinitialize: () => void
     onResetLayout: () => void
-    onInstruction: (instruction: WorkspaceInstruction) => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  const { onReinitialize, onResetLayout, onInstruction = () => {} }: Props = $props()
+  const { onReinitialize, onResetLayout, onWorkspaceCommand = () => {} }: Props = $props()
 
   const gridConfig = DEFAULT_GRID_CONFIG
 
@@ -332,7 +332,7 @@
   const handleItemMove = createOperationHandler({
     operationType: 'move',
     gridAction: (event: { id: number; x: number; y: number }) => {
-      handleInstruction({
+      handleWorkspaceCommand({
         type: 'updateGridItemPosition',
         itemId: event.id,
         x: event.x,
@@ -364,7 +364,7 @@
       const constrainedH = Math.max(minHeight, event.h)
 
       // Update without collision resolution
-      handleInstruction({
+      handleWorkspaceCommand({
         type: 'updateGridItemSize',
         itemId: event.id,
         w: constrainedW,
@@ -415,7 +415,7 @@
   // Handle item removal
   const handleItemRemove = createOperationHandler({
     gridAction: (event: { id: number }) => {
-      handleInstruction({
+      handleWorkspaceCommand({
         type: 'removeGridItem',
         itemId: event.id
       })
@@ -427,7 +427,7 @@
     gridAction: (event: { id: number }) => {
       const itemToDuplicate = get(gridStore).find(item => item.id === event.id)
       if (itemToDuplicate) {
-        handleInstruction({
+        handleWorkspaceCommand({
           type: 'duplicateGridItem',
           itemId: event.id
         })
@@ -448,7 +448,7 @@
       const vizType = id
       // Add the new visualization at the first available position
       // instead of automatically placing it below all existing items
-      handleInstruction({
+      handleWorkspaceCommand({
         type: 'addGridItem',
         vizType
       })
@@ -797,21 +797,21 @@
   // when appropriate. This provides a more integrated and visually appealing user
   // experience without artificially creating grid items.
 
-  // Initialize instruction handler
-  const instructionHandler = createInstructionHandler(
+  // Initialize command handler
+  const commandHandler = createCommandHandler(
     gridStore,
     (message) => addSuccessToast(message),
     (error) => {
-      console.error('Instruction error:', error)
+      console.error('Command error:', error)
       addErrorToast('Error applying changes. See console for details.')
     }
   )
 
-  const handleInstruction =
-  (instruction: WorkspaceInstruction) => { 
-    instructionHandler(instruction)
-    console.log('handledInstruction', instruction)
-    onInstruction(instruction) // allow external components to listen to instructions (e.g., logging)
+  const handleWorkspaceCommand =
+  (command: WorkspaceCommand) => { 
+    commandHandler(command)
+    console.log('handledCommand', command)
+    onWorkspaceCommand(command) // allow external components to listen to commands (e.g., logging)
   }
 
   // Make constants available as CSS variables
@@ -868,18 +868,7 @@
                   <div class="grid-item-content">
                     <visConfig.component
                       settings={item}
-                      onSettingsChange={(newSettings: Partial<AllGridTypes>) => {
-                        // settingsChange carries changes specific to the given visualization type
-                        // (e.g., for bar plots - aggregation method, stimulusId, groupId, etc.)
-                        // creating instructions here significantly reduces the boilerplate code
-                        // for potentially triggering settings changes from multiple places
-                        handleInstruction({
-                          type: 'updateSettings',
-                          itemId: item.id,
-                          settings: newSettings
-                        })
-                      }}
-                      onInstruction={handleInstruction}
+                      onWorkspaceCommand={handleWorkspaceCommand}
                     />
                   </div>
                 {/snippet}

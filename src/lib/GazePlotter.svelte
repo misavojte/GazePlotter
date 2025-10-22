@@ -18,15 +18,15 @@
     currentFileInputStore,
   } from './workspace/stores/fileStore'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
-  import type { WorkspaceInstruction } from '$lib/shared/types/workspaceInstructions'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
     loadInitialData: () => Promise<ParsedData>
     reinitializeLabel?: string
-    onInstruction: (instruction: WorkspaceInstruction) => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  const { loadInitialData, reinitializeLabel = 'Reload Demo', onInstruction = () => {} }: Props = $props()
+  const { loadInitialData, reinitializeLabel = 'Reload Demo', onWorkspaceCommand = () => {} }: Props = $props()
 
   setContext('reinitializeLabel', reinitializeLabel)
 
@@ -80,7 +80,7 @@
   <div class="panel-container">
     <Panel {onReinitialize} />
   </div>
-  <Workspace {onReinitialize} {onResetLayout} {onInstruction} />
+  <Workspace {onReinitialize} {onResetLayout} {onWorkspaceCommand} />
   <Modal />
   <Toaster />
   <Tooltip />
