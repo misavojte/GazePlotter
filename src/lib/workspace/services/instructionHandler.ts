@@ -1,4 +1,5 @@
-import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
+import { createChildCommand } from '$lib/shared/types/workspaceInstructions'
 import type { GridStoreType } from '$lib/workspace/stores/gridStore'
 import { get } from 'svelte/store'
 import {
@@ -27,9 +28,10 @@ import type { AllGridTypes } from '$lib/workspace/type/gridType'
 export function createCommandHandler(
   gridStore: GridStoreType,
   onSuccess: (message: string) => void,
-  onError: (error: Error) => void
+  onError: (error: Error) => void,
+  onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void
 ) {
-  return function handleCommand(command: WorkspaceCommand): void {
+  return function handleCommand(command: WorkspaceCommandChain): void {
     try {
       switch (command.type) {
         case 'updateAois': {
@@ -74,42 +76,92 @@ export function createCommandHandler(
           const currentItem = get(gridStore).find(item => item.id === itemId)
           if (!currentItem) throw new Error(`Grid item ${itemId} not found`)
 
-          const heightChanged = 'h' in settings && settings.h !== currentItem.h
-
           gridStore.updateSettings({
             ...currentItem,
             ...settings,
             redrawTimestamp: Date.now(),
           } as AllGridTypes)
 
-          if (heightChanged) {
-            setTimeout(() => gridStore.resolveItemPositionCollisions(itemId), 50)
+          // Only trigger collision resolution for root commands (original user actions)
+          // This prevents infinite loops when collision resolution commands trigger more collision resolution
+          const isRootCommand = 'isRootCommand' in command ? command.isRootCommand : true
+          if (isRootCommand) {
+            setTimeout(() => {
+              const collisionCommands = gridStore.resolveItemPositionCollisions(itemId)
+              // Emit each collision resolution command as child commands
+              collisionCommands.forEach(collisionCommand => {
+                const childCommand = createChildCommand({
+                  type: 'updateSettings',
+                  itemId: collisionCommand.itemId,
+                  settings: collisionCommand.settings
+                }, 'chainId' in command ? command.chainId : 0)
+                handleCommand(childCommand)
+              })
+            }, 50)
           }
-          return // Settings changes don't need global redraw
+          break // Settings changes don't need global redraw
         }
 
         case 'addGridItem': {
           const { vizType, options } = command
-          gridStore.addItem(vizType, options)
-          return // No success message needed for adding items
+          const newItemId = gridStore.addItem(vizType, options)
+          
+          // Only trigger collision resolution for root commands (original user actions)
+          const isRootCommand = 'isRootCommand' in command ? command.isRootCommand : true
+          if (isRootCommand) {
+            setTimeout(() => {
+              const collisionCommands = gridStore.resolveItemPositionCollisions(newItemId)
+              // Emit each collision resolution command as child commands
+              collisionCommands.forEach(collisionCommand => {
+                const childCommand = createChildCommand({
+                  type: 'updateSettings',
+                  itemId: collisionCommand.itemId,
+                  settings: collisionCommand.settings
+                }, 'chainId' in command ? command.chainId : 0)
+                handleCommand(childCommand)
+              })
+            }, 50)
+          }
+          
+          break // No success message needed for adding items
         }
 
         case 'removeGridItem': {
           gridStore.removeItem(command.itemId)
-          return // No success message needed for removing items
+          break // No success message needed for removing items
         }
 
 
         case 'duplicateGridItem': {
           const currentItem = get(gridStore).find(item => item.id === command.itemId)
           if (!currentItem) throw new Error(`Grid item ${command.itemId} not found`)
-          gridStore.duplicateItem(currentItem)
-          return // No success message needed for duplication
+          const newItemId = gridStore.duplicateItem(currentItem)
+          
+          // Only trigger collision resolution for root commands (original user actions)
+          const isRootCommand = 'isRootCommand' in command ? command.isRootCommand : true
+          if (isRootCommand) {
+            setTimeout(() => {
+              const collisionCommands = gridStore.resolveItemPositionCollisions(newItemId)
+              // Emit each collision resolution command as child commands
+              collisionCommands.forEach(collisionCommand => {
+                const childCommand = createChildCommand({
+                  type: 'updateSettings',
+                  itemId: collisionCommand.itemId,
+                  settings: collisionCommand.settings
+                }, 'chainId' in command ? command.chainId : 0)
+                handleCommand(childCommand)
+              })
+            }, 50)
+          }
+          
+          break // No success message needed for duplication
         }
       }
 
+      onWorkspaceCommandChain(command)
+
       // Trigger redraw for all grid items after data changes
-      gridStore.triggerRedraw()
+      //gridStore.triggerRedraw()
     } catch (error) {
       onError(error as Error)
       throw error

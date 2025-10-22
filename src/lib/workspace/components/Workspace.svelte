@@ -26,15 +26,16 @@
   import { ModalContentMetadataInfo } from '$lib/modals'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { createCommandHandler } from '$lib/workspace/services/instructionHandler'
-  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
+  import { createRootCommand } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
     onReinitialize: () => void
     onResetLayout: () => void
-    onWorkspaceCommand: (command: WorkspaceCommand) => void
+    onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void
   }
 
-  const { onReinitialize, onResetLayout, onWorkspaceCommand = () => {} }: Props = $props()
+  const { onReinitialize, onResetLayout, onWorkspaceCommandChain }: Props = $props()
 
   const gridConfig = DEFAULT_GRID_CONFIG
 
@@ -124,14 +125,12 @@
     stateUpdater?: (id: number, isActive: boolean) => void
     heightUpdater?: (event: T) => void
     gridAction?: (event: T) => void
-    shouldResolveCollisions?: boolean
   }) => {
     const {
       operationType,
       stateUpdater,
       heightUpdater,
       gridAction,
-      shouldResolveCollisions = false,
     } = options
 
     return (event: T) => {
@@ -168,13 +167,6 @@
 
         // End auto-scrolling if active
         endItemEdgeScroll()
-
-        // Resolve collisions if needed after a slight delay
-        if (shouldResolveCollisions && id) {
-          setTimeout(() => {
-            gridStore.resolveItemPositionCollisions(id)
-          }, 50)
-        }
       }
     }
   }
@@ -392,7 +384,6 @@
       // Note: Position is already updated by handleItemMove during drag
       // createOperationHandler will trigger collision resolution via shouldResolveCollisions
     },
-    shouldResolveCollisions: true,
   })
 
   // Handle resize end
@@ -409,7 +400,6 @@
       // Note: Size is already updated by handleItemResize during resize
       // createOperationHandler will trigger collision resolution via shouldResolveCollisions
     },
-    shouldResolveCollisions: true,
   })
 
   // --- Simple action handlers ---
@@ -806,14 +796,15 @@
     (error) => {
       console.error('Command error:', error)
       addErrorToast('Error applying changes. See console for details.')
-    }
+    },
+    onWorkspaceCommandChain
   )
 
   const handleWorkspaceCommand =
   (command: WorkspaceCommand) => { 
-    commandHandler(command)
-    console.log('handledCommand', command)
-    onWorkspaceCommand(command) // allow external components to listen to commands (e.g., logging)
+    // Wrap the command as a root command (original user action)
+    const rootCommand = createRootCommand(command)
+    commandHandler(rootCommand)
   }
 
   // Make constants available as CSS variables

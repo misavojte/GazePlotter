@@ -451,7 +451,7 @@ export function createGridStore(
    *
    * @param priorityItem The item causing potential conflicts (e.g., just added or moved/resized).
    *                     Includes its current position, dimensions, ID, and the operation type.
-   * @returns {boolean} True if any conflicts were resolved (items were moved), false otherwise.
+   * @returns {Array<{itemId: number, settings: Partial<AllGridTypes>}>} Array of commands to resolve conflicts, or empty array if no conflicts.
    */
   function resolveGridConflicts(priorityItem: {
     id: number
@@ -459,7 +459,7 @@ export function createGridStore(
     y: number
     w: number
     h: number
-  }): boolean {
+  }): Array<{itemId: number, settings: Partial<AllGridTypes>}> {
     const primaryCollisions = findCollisions(
       priorityItem.x,
       priorityItem.y,
@@ -468,13 +468,13 @@ export function createGridStore(
       priorityItem.id
     )
 
-    if (primaryCollisions.size === 0) return false // No conflicts
+    if (primaryCollisions.size === 0) return [] // No conflicts
 
     let workingItems = [...get(items)] // Use full items for updates
     const currentPriorityItem = workingItems.find(
       item => item.id === priorityItem.id
     )
-    if (!currentPriorityItem) return false
+    if (!currentPriorityItem) return []
 
     const itemsToReposition = workingItems
       .filter(item => primaryCollisions.has(item.id))
@@ -486,7 +486,8 @@ export function createGridStore(
         return a.y - b.y // Higher items first
       })
 
-    let changesMade = false
+    const commands: Array<{itemId: number, settings: Partial<AllGridTypes>}> = []
+    
     for (const itemToMove of itemsToReposition) {
       const currentItemToMove = workingItems.find(i => i.id === itemToMove.id)!
       let bestPosition: { x: number; y: number } | null = null
@@ -530,27 +531,30 @@ export function createGridStore(
         )
       }
 
-      // Update workingItems if a new position was found and it's different
+      // Create command if a new position was found and it's different
       if (
         bestPosition &&
         (bestPosition.x !== currentItemToMove.x ||
           bestPosition.y !== currentItemToMove.y)
       ) {
+        commands.push({
+          itemId: itemToMove.id,
+          settings: {
+            x: bestPosition.x,
+            y: bestPosition.y
+          }
+        })
+        
+        // Update workingItems for subsequent collision checks in this resolution
         workingItems = workingItems.map(item =>
           item.id === itemToMove.id
             ? { ...item, x: bestPosition!.x, y: bestPosition!.y }
             : item
         )
-        changesMade = true
       }
     }
 
-    // Apply all changes at once if any were made
-    if (changesMade) {
-      items.set(workingItems)
-    }
-
-    return changesMade
+    return commands
   }
 
   // --- Public Store Methods ---
@@ -572,7 +576,6 @@ export function createGridStore(
     }
 
     items.update($items => [...$items, newItem])
-    resolveGridConflicts({ ...newItem})
     return newId
   }
 
@@ -608,12 +611,6 @@ export function createGridStore(
 
     // Add all new items to the real store
     items.update($items => [...$items, ...newItems])
-
-    // Resolve conflicts for each new item (consider doing this within the loop?)
-    // Process in reverse order might be better, but let's stick to forward for now.
-    newItems.forEach(newItem => {
-      resolveGridConflicts({ ...newItem})
-    })
 
     return newIds
   }
@@ -655,7 +652,7 @@ export function createGridStore(
 
   /**
    * Adds a new item by type and options.
-   * Creates the item, finds an optimal position, adds it to the store, and resolves conflicts.
+   * Creates the item, finds an optimal position, adds it to the store, and returns collision resolution commands.
    *
    * @param type The type identifier of the visualization to add.
    * @param options Optional partial configuration/settings for the new item.
@@ -679,11 +676,6 @@ export function createGridStore(
     const newItem = { ...newItemData, x, y }
 
     items.update($ => [...$, newItem])
-
-    // 3. allow the caller to decide whether to trigger resolution
-    if (options.skipCollisionResolution !== true) {
-      resolveGridConflicts({ ...newItem})
-    }
 
     return newItem.id
   }
@@ -765,13 +757,14 @@ export function createGridStore(
     /**
      * Explicitly triggers collision resolution for a specific item.
      * Useful after operations like drag-and-drop end.
-     * @returns {boolean} True if conflicts were found and resolved, false otherwise.
+     * @returns {Array<{itemId: number, settings: Partial<AllGridTypes>}>} Array of commands to resolve conflicts, or empty array if no conflicts.
      */
     // Explicitly resolve position collisions (e.g., after drag end)
     resolveItemPositionCollisions: (id: number) => {
       const item = get(items).find(item => item.id === id)
-      if (!item) return false
+      if (!item) return []
       return resolveGridConflicts({ ...item})
     },
   }
 }
+
