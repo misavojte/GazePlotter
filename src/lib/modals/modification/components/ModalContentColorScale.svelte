@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { GeneralInputColor } from '$lib/shared/components'
-  import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
+  import { GeneralInputColor, GeneralButtonMinor } from '$lib/shared/components'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
   import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  import { interpolateColor } from '$lib/shared/utils/colorUtils'
   import {
     SectionHeader,
     ModalButtons,
@@ -17,15 +17,29 @@
 
   let { settings, onWorkspaceCommand }: Props = $props()
 
-  // Initialize with current color scale or default
-  let colorPoints = $state<'two' | 'three'>(
-    settings.colorScale?.length === 3 ? 'three' : 'two'
-  )
-
   // Initialize colors with current values or defaults
-  let colorOne = $state(settings.colorScale?.[0] || '#f7fbff')
-  let colorTwo = $state(settings.colorScale?.[1] || '#08306b')
-  let colorThree = $state(settings.colorScale?.[2] || '#08306b')
+  let colorMin = $state(settings.colorScale?.[0] || '#f7fbff')
+  
+  // Initialize max color - handle both 2-color and 3-color scales correctly
+  let colorMax = $state(
+    settings.colorScale?.length === 3 
+      ? settings.colorScale[2]  // For 3-color: [min, middle, max]
+      : settings.colorScale?.[1] || '#08306b'  // For 2-color: [min, max]
+  )
+  
+  // Initialize middle color - use existing value if available, otherwise auto-calculate
+  let colorMiddle = $state(
+    settings.colorScale?.length === 3 
+      ? settings.colorScale[1] 
+      : interpolateColor(
+          settings.colorScale?.[0] || '#f7fbff',
+          settings.colorScale?.length === 3 ? settings.colorScale[2] : settings.colorScale?.[1] || '#08306b',
+          0.5
+        )
+  )
+  
+  // Track if middle color was manually modified
+  let middleColorManuallySet = $state(settings.colorScale?.length === 3)
 
   // Color scale presets
   const presets = [
@@ -46,59 +60,72 @@
     },
   ]
 
-  // Radio options for number of color points
-  const colorPointOptions = [
-    { value: 'two', label: '2 Colors (Min to Max)' },
-    { value: 'three', label: '3 Colors (Min to Middle to Max)' },
-  ]
-
-  // Get current color scale based on settings
-  const getCurrentColorScale = (): string[] => {
-    return colorPoints === 'three'
-      ? [colorOne, colorTwo, colorThree]
-      : [colorOne, colorTwo]
+  /**
+   * Auto-calculates the middle color as an interpolation between min and max colors
+   * This function uses the colorUtils interpolateColor function to blend the colors
+   */
+  function autoCalculateMiddleColor(): void {
+    colorMiddle = interpolateColor(colorMin, colorMax, 0.5)
+    middleColorManuallySet = false
   }
 
-  // Preview gradient style
-  const gradientStyle = $derived.by(() => {
-    const colors = getCurrentColorScale()
-    if (colors.length === 2) {
-      return `linear-gradient(to right, ${colors[0]}, ${colors[1]})`
-    } else {
-      return `linear-gradient(to right, ${colors[0]}, ${colors[1]}, ${colors[2]})`
+  /**
+   * Determines the final color scale based on whether middle color was manually set
+   * If middle color is auto-calculated and equals the interpolated value, uses 2-color scale
+   * Otherwise, uses 3-color scale
+   */
+  const getCurrentColorScale = (): string[] => {
+    const autoCalculatedMiddle = interpolateColor(colorMin, colorMax, 0.5)
+    
+    // If middle color wasn't manually set or equals auto-calculated value, use 2-color scale
+    if (!middleColorManuallySet || colorMiddle === autoCalculatedMiddle) {
+      return [colorMin, colorMax]
     }
+    
+    // Otherwise use 3-color scale
+    return [colorMin, colorMiddle, colorMax]
+  }
+
+  // Preview gradient style - always shows 3 colors for better preview
+  const gradientStyle = $derived.by(() => {
+    const autoCalculatedMiddle = interpolateColor(colorMin, colorMax, 0.5)
+    const middleColor = middleColorManuallySet ? colorMiddle : autoCalculatedMiddle
+    return `linear-gradient(to right, ${colorMin}, ${middleColor}, ${colorMax})`
   })
 
   // Handle preset selection
   function handlePresetSelect(preset: (typeof presets)[0]): void {
-    if (preset.colors.length === 2) {
-      colorPoints = 'two'
-      colorOne = preset.colors[0]
-      colorTwo = preset.colors[1]
+    colorMin = preset.colors[0]
+    colorMax = preset.colors[preset.colors.length - 1]
+    
+    if (preset.colors.length === 3) {
+      colorMiddle = preset.colors[1]
+      middleColorManuallySet = true
     } else {
-      colorPoints = 'three'
-      colorOne = preset.colors[0]
-      colorTwo = preset.colors[1]
-      colorThree = preset.colors[2]
+      autoCalculateMiddleColor()
     }
   }
 
-  // Handle gradient type change
-  function handleGradientTypeChange(value: string): void {
-    colorPoints = value as 'two' | 'three'
-  }
-
   // Handle color changes
-  function handleStartColorChange(event: CustomEvent<string>): void {
-    colorOne = event.detail
+  function handleMinColorChange(event: CustomEvent<string>): void {
+    colorMin = event.detail
+    // Auto-update middle color if it wasn't manually set
+    if (!middleColorManuallySet) {
+      autoCalculateMiddleColor()
+    }
   }
 
   function handleMiddleColorChange(event: CustomEvent<string>): void {
-    colorTwo = event.detail
+    colorMiddle = event.detail
+    middleColorManuallySet = true
   }
 
-  function handleEndColorChange(event: CustomEvent<string>): void {
-    colorThree = event.detail
+  function handleMaxColorChange(event: CustomEvent<string>): void {
+    colorMax = event.detail
+    // Auto-update middle color if it wasn't manually set
+    if (!middleColorManuallySet) {
+      autoCalculateMiddleColor()
+    }
   }
 
   // Apply changes and close modal
@@ -123,58 +150,54 @@
   <IntroductoryParagraph
     maxWidth="400px"
     paragraphs={[
-      'Customize the color scale for visualization. The colors define how different transition values are displayed in the matrix.',
+      'Customize the color scale for visualization. The middle color is automatically calculated from the min and max colors, but you can override it manually.',
     ]}
   />
 
   <section class="section">
-    <SectionHeader text="Gradient Type" />
-    <GeneralRadio
-      options={colorPointOptions}
-      userSelected={colorPoints}
-      onchange={handleGradientTypeChange}
-      legend="Color Points"
-    />
-  </section>
-
-  <section class="section">
     <SectionHeader text="Color Selection" />
+    
+    <div class="preview-section">
+      <div class="gradient-preview" style:background={gradientStyle}></div>
+    </div>
+
     <div class="color-inputs">
       <div class="color-input">
         <GeneralInputColor
           label="Min Value Color"
-          value={colorOne}
+          value={colorMin}
           width={120}
-          oninput={handleStartColorChange}
+          oninput={handleMinColorChange}
         />
       </div>
 
       <div class="color-input">
         <GeneralInputColor
-          label={colorPoints === 'three'
-            ? 'Middle Value Color'
-            : 'Max Value Color'}
-          value={colorTwo}
+          label="Mid Value Color"
+          value={colorMiddle}
           width={120}
           oninput={handleMiddleColorChange}
         />
+        {#if middleColorManuallySet}
+          <div class="autocalculate-wrapper">
+            <GeneralButtonMinor
+              isIcon={false}
+              onclick={() => middleColorManuallySet && autoCalculateMiddleColor()}
+            >
+              Auto-calculate
+            </GeneralButtonMinor>
+          </div>
+        {/if}
       </div>
 
-      {#if colorPoints === 'three'}
-        <div class="color-input">
-          <GeneralInputColor
-            label="Max Value Color"
-            value={colorThree}
-            width={120}
-            oninput={handleEndColorChange}
-          />
-        </div>
-      {/if}
-    </div>
-
-    <div class="preview-section">
-      <div class="preview-label">Preview:</div>
-      <div class="gradient-preview" style:background={gradientStyle}></div>
+      <div class="color-input">
+        <GeneralInputColor
+          label="Max Value Color"
+          value={colorMax}
+          width={120}
+          oninput={handleMaxColorChange}
+        />
+      </div>
     </div>
   </section>
 
@@ -233,14 +256,39 @@
     margin: 1rem 0;
   }
 
+  /* Single column layout for smaller screens */
+  @media (max-width: 500px) {
+    .color-inputs {
+      grid-template-columns: 1fr;
+      max-width: 120px;
+      margin: 1rem auto;
+    }
+  }
+
   .color-input {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
   }
 
+  /* Remove bottom margin from color input */
+  .color-input :global(.input-container) {
+    margin-bottom: 0;
+  }
+
+  .autocalculate-wrapper {
+    width: 120px;
+    margin-top: -12px;
+  }
+
+  .autocalculate-wrapper :global(button) {
+    width: 100%;
+    height: 28px;
+    font-size: 0.8rem;
+  }
+
   .preview-section {
-    margin: 1rem 0;
+    margin: 1.5rem 0 1rem 0;
   }
 
   .gradient-preview {
