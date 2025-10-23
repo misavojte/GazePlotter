@@ -36,10 +36,21 @@
   })
 
   let buttonElement: HTMLButtonElement | null = $state(null)
+  let iconElement: HTMLDivElement | null = $state(null)
 
-  // Handle item click
+  // Handle item click with animation
   function handleClick(event: MouseEvent) {
     if (disabled) return
+
+    // Add click animation to icon only
+    if (iconElement) {
+      iconElement.style.transform = 'scale(0.85)'
+      setTimeout(() => {
+        if (iconElement) {
+          iconElement.style.transform = 'scale(1)'
+        }
+      }, 100)
+    }
 
     // If only one action, fire it immediately
     if (actions.length === 1) {
@@ -105,7 +116,7 @@
       width: 100,
     }}
   >
-    <div class="toolbar-item-icon">
+    <div class="toolbar-item-icon" bind:this={iconElement}>
       {@html icon}
     </div>
   </button>
@@ -148,7 +159,7 @@
     border: none;
     color: var(--c-darkgrey, #666);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s ease, transform 0.1s ease;
     padding: 0;
   }
 
@@ -168,6 +179,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: transform 0.1s ease;
   }
 
   .context-menu {
