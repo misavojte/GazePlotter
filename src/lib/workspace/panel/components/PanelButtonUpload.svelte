@@ -7,6 +7,7 @@
     initializeGridStateStore,
     fileMetadataStore,
     currentFileInputStore,
+    clear,
   } from '$lib/workspace'
   import { setData } from '$lib/gaze-data/front-process/stores/dataStore'
   import { addErrorToast } from '$lib/toaster'
@@ -56,6 +57,7 @@
     }
     setData(data.data)
     initializeGridStateStore(data.gridItems)
+    clear()
     processingFileStateStore.set('done')
     currentFileInputStore.set(data.current)
   }

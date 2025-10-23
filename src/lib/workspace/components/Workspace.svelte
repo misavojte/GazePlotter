@@ -29,22 +29,14 @@
   import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
   import { createRootCommand } from '$lib/shared/types/workspaceInstructions'
   import { generateUniqueId } from '$lib/shared/utils/idUtils'
-  import type { Readable } from 'svelte/store'
   
   interface Props {
     onReinitialize: () => void
     onResetLayout: () => void
     onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void
-    onUndoRedoReady?: (handlers: {
-      undo: () => boolean
-      redo: () => boolean
-      canUndo: Readable<boolean>
-      canRedo: Readable<boolean>
-      clearHistory: () => void
-    }) => void
   }
 
-  const { onReinitialize, onResetLayout, onWorkspaceCommandChain, onUndoRedoReady }: Props = $props()
+  const { onReinitialize, onResetLayout, onWorkspaceCommandChain }: Props = $props()
 
   const gridConfig = DEFAULT_GRID_CONFIG
 
@@ -800,7 +792,7 @@
   // experience without artificially creating grid items.
 
   // Initialize command handler with undo/redo support
-  const { handleCommand: commandHandler, undo, redo, canUndo, canRedo, clearHistory } = createCommandHandler(
+  const handleCommand = createCommandHandler(
     gridStore,
     (message) => addSuccessToast(message),
     (error) => {
@@ -810,16 +802,16 @@
     onWorkspaceCommandChain
   )
 
-  // Expose undo/redo handlers to parent component
-  if (onUndoRedoReady) {
-    onUndoRedoReady({ undo, redo, canUndo, canRedo, clearHistory })
-  }
 
   const handleWorkspaceCommand =
-  (command: WorkspaceCommand) => { 
-    // Wrap the command as a root command (original user action)
-    const rootCommand = createRootCommand(command)
-    commandHandler(rootCommand)
+  (command: WorkspaceCommand | WorkspaceCommandChain) => { 
+    // check if the command is a WorkspaceCommandChain
+    if ('chainId' in command) {
+      handleCommand(command)
+      return
+    }
+    // otherwise wrap the command as a root command (original user action)
+    handleCommand(createRootCommand(command))
   }
 
   // Make constants available as CSS variables
@@ -830,11 +822,8 @@
   <!-- Update toolbar with undo/redo functionality -->
   <WorkspaceToolbar 
     onaction={handleToolbarAction} 
+    onWorkspaceCommand={handleWorkspaceCommand}
     {visualizations}
-    {canUndo}
-    {canRedo}
-    onUndo={undo}
-    onRedo={redo}
   />
 
   <!-- Bind the workspace container and add mouse/touch events for panning -->

@@ -98,6 +98,7 @@ export type WorkspaceCommandChain = WorkspaceCommand & {
   /** Unique identifier for the command chain. All related commands share the same chainId. */
   chainId: number
   isRootCommand: boolean
+  history?: 'undo' | 'redo'
 }
 
 /**

@@ -1,20 +1,16 @@
 <script lang="ts">
-  import { WorkspaceToolbarItem } from '$lib/workspace'
+  import { canRedo, canUndo, endUndoRedo, redo, undo, WorkspaceToolbarItem } from '$lib/workspace'
   import { processingFileStateStore } from '$lib/workspace/stores/fileStore'
   import { hasValidData } from '$lib/gaze-data/front-process/stores/dataStore'
   import { onMount } from 'svelte'
-  import { readable } from 'svelte/store'
-  import type { Readable } from 'svelte/store'
+  import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
 
   // Configuration for toolbar items
   interface Props {
     accentColor?: string
     onaction: (event: { id: string; event?: any }) => void
     visualizations?: Array<{ id: string; label: string }>
-    canUndo?: Readable<boolean>
-    canRedo?: Readable<boolean>
-    onUndo?: () => boolean
-    onRedo?: () => boolean
+    onWorkspaceCommand: (command: WorkspaceCommand | WorkspaceCommandChain) => void
   }
 
   // Track fullscreen state
@@ -54,10 +50,7 @@
     accentColor = 'var(--c-primary)',
     onaction = () => {},
     visualizations = [], // Default empty array for visualizations
-    canUndo = readable(false),
-    canRedo = readable(false),
-    onUndo = () => false,
-    onRedo = () => false,
+    onWorkspaceCommand,
   }: Props = $props()
 
   // Reactive variables to determine item states
@@ -151,9 +144,9 @@
     if (event.id === 'toggle-fullscreen') {
       toggleFullscreen()
     } else if (event.id === 'undo') {
-      onUndo()
+      handleUndo()
     } else if (event.id === 'redo') {
-      onRedo()
+      handleRedo()
     }
 
     onaction({
@@ -164,10 +157,28 @@
 
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'z' && event.ctrlKey) {
-      onUndo()
+      handleUndo()
     } else if (event.key === 'y' && event.ctrlKey) {
-      onRedo()
+      handleRedo()
     }
+  }
+
+  const handleUndo = () => {
+    const arrayOfCommands = undo()
+    if (!arrayOfCommands) return
+    arrayOfCommands.forEach(command => {
+      onWorkspaceCommand(command)
+    })
+    endUndoRedo()
+  }
+
+  const handleRedo = () => {
+    const arrayOfCommands = redo()
+    if (!arrayOfCommands) return
+    arrayOfCommands.forEach(command => {
+      onWorkspaceCommand(command)
+    })
+    endUndoRedo()
   }
 
   // Listen for fullscreen state changes from browser events

@@ -59,7 +59,7 @@ export function createCommandReverser(gridStore: GridStoreType) {
             itemId: removedItem.id,
             options,
             chainId: command.chainId,
-            isRootCommand: command.isRootCommand
+            isRootCommand: command.isRootCommand,
           }
         }
 
@@ -88,7 +88,7 @@ export function createCommandReverser(gridStore: GridStoreType) {
             type: 'removeGridItem',
             itemId: duplicates[0].id,
             chainId: command.chainId,
-            isRootCommand: command.isRootCommand
+            isRootCommand: command.isRootCommand,
           }
         }
 
@@ -118,7 +118,7 @@ export function createCommandReverser(gridStore: GridStoreType) {
             itemId: command.itemId,
             settings: reverseSettings,
             chainId: command.chainId,
-            isRootCommand: command.isRootCommand
+            isRootCommand: command.isRootCommand,
           }
         }
 
@@ -160,7 +160,8 @@ export function createCommandReverser(gridStore: GridStoreType) {
             stimulusId: command.stimulusId,
             applyTo: command.applyTo,
             chainId: command.chainId,
-            isRootCommand: command.isRootCommand
+            isRootCommand: command.isRootCommand,
+            history: 'undo'
           }
         }
 
@@ -185,7 +186,8 @@ export function createCommandReverser(gridStore: GridStoreType) {
             type: 'updateParticipants',
             participants,
             chainId: command.chainId,
-            isRootCommand: command.isRootCommand
+            isRootCommand: command.isRootCommand,
+            history: 'undo'
           }
         }
 
@@ -210,7 +212,8 @@ export function createCommandReverser(gridStore: GridStoreType) {
             type: 'updateStimuli',
             stimuli,
             chainId: command.chainId,
-            isRootCommand: command.isRootCommand
+            isRootCommand: command.isRootCommand,
+            history: 'undo'
           }
         }
 
@@ -258,7 +261,8 @@ export function createCommandReverser(gridStore: GridStoreType) {
             visibilityArr,
             participantId: command.participantId,
             chainId: command.chainId,
-            isRootCommand: command.isRootCommand
+            isRootCommand: command.isRootCommand,
+            history: 'undo'
           }
         }
 
@@ -276,7 +280,8 @@ export function createCommandReverser(gridStore: GridStoreType) {
             type: 'updateParticipantsGroups',
             groups: currentGroups,
             chainId: command.chainId,
-            isRootCommand: command.isRootCommand
+            isRootCommand: command.isRootCommand,
+            history: 'undo'
           }
         }
 

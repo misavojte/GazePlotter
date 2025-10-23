@@ -7,6 +7,7 @@
   import type { ParsedData } from '$lib/gaze-data/shared/types'
   import { onMount, tick } from 'svelte'
   import {
+    clear,
     initializeGridStateStore,
     processingFileStateStore,
   } from './workspace'
@@ -61,6 +62,7 @@
     loadData().then(() => {
       addSuccessToast('Workspace and data returned to the initial state.')
     })
+    clear()
   }
 
   const onResetLayout = async () => {
