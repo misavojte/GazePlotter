@@ -127,8 +127,10 @@ export function createCommandHandler(
         }
 
         case 'addGridItem': {
-          const { vizType, options } = command
-          const newItemId = gridStore.addItem(vizType, options)
+          const { vizType, options, itemId } = command
+          // Use the pre-assigned itemId if provided, otherwise let addItem generate one
+          const optionsWithId = itemId ? { ...options, id: itemId } : options
+          const newItemId = gridStore.addItem(vizType, optionsWithId)
 
           // Store the itemId in the command for potential reversal
           command.itemId = newItemId

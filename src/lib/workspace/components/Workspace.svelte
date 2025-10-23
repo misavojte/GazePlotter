@@ -23,8 +23,6 @@
   } from '$lib/shared/utils/gridSizingUtils'
   import { throttleByRaf } from '$lib/shared/utils/throttle'
   import { addSuccessToast, addErrorToast } from '$lib/toaster'
-  import { ModalContentMetadataInfo } from '$lib/modals'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { createCommandHandler } from '$lib/workspace/services/workspaceCommandHandler'
   import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
   import { createRootCommand } from '$lib/shared/types/workspaceInstructions'
@@ -433,37 +431,6 @@
     },
   })
 
-  // Handle toolbar actions
-  const handleToolbarAction = (event: { id: string }) => {
-    const { id } = event
-
-    if (visualizations.map(viz => viz.id).includes(id)) {
-      const vizType = id
-      // Add the new visualization at the first available position
-      // instead of automatically placing it below all existing items
-      handleWorkspaceCommand({
-        type: 'addGridItem',
-        vizType,
-        itemId: generateUniqueId()
-      })
-      // Show success toast with visualization name
-      const visConfig = getVisualizationConfig(vizType)
-      addSuccessToast(`${visConfig.name} added to the nearest empty space.`)
-    } else if (id === 'toggle-fullscreen') {
-      // Delegate fullscreen toggle to the toolbar
-      // The toolbar component will handle fullscreen functionality itself
-    } else if (id === 'reset-layout') {
-      // Reset the workspace to the default grid state
-      onResetLayout()
-    } else if (id === 'metadata') {
-      // Open the metadata info modal
-      modalStore.open(
-        ModalContentMetadataInfo as any,
-        'Metadata Report',
-        {}
-      )
-    }
-  }
 
   // --- Workspace panning handlers ---
 
@@ -821,8 +788,8 @@
 <div class="workspace-wrapper" style={styleProps}>
   <!-- Update toolbar with undo/redo functionality -->
   <WorkspaceToolbar 
-    onaction={handleToolbarAction} 
     onWorkspaceCommand={handleWorkspaceCommand}
+    onResetLayout={onResetLayout}
     {visualizations}
   />
 
