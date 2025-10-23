@@ -125,7 +125,9 @@ describe('createCommandReverser', () => {
 
       expect(result).toEqual({
         type: 'removeGridItem',
-        itemId: 123
+        itemId: 123,
+        chainId: 1,
+        isRootCommand: true
       })
     })
   })
@@ -153,7 +155,9 @@ describe('createCommandReverser', () => {
           min: { w: 4, h: 4 },
           stimulusId: 1,
           redrawTimestamp: expect.any(Number)
-        }
+        },
+        chainId: 1,
+        isRootCommand: true
       })
     })
 
@@ -215,7 +219,9 @@ describe('createCommandReverser', () => {
 
       expect(result).toEqual({
         type: 'removeGridItem',
-        itemId: 2 // The duplicate (scarf item)
+        itemId: 2, // The duplicate (scarf item)
+        chainId: 1,
+        isRootCommand: true
       })
     })
 
@@ -285,7 +291,9 @@ describe('createCommandReverser', () => {
           x: 0,
           y: 0,
           w: 6
-        }
+        },
+        chainId: 1,
+        isRootCommand: true
       })
     })
 
@@ -334,7 +342,9 @@ describe('createCommandReverser', () => {
           }
         ],
         stimulusId: 1,
-        applyTo: 'this_stimulus'
+        applyTo: 'this_stimulus',
+        chainId: 1,
+        isRootCommand: true
       })
     })
 
@@ -370,7 +380,9 @@ describe('createCommandReverser', () => {
         participants: [
           { id: 0, originalName: 'Participant1', displayedName: 'Participant 1' },
           { id: 1, originalName: 'Participant2', displayedName: 'Participant 2' }
-        ]
+        ],
+        chainId: 1,
+        isRootCommand: true
       })
     })
 
@@ -414,7 +426,9 @@ describe('createCommandReverser', () => {
         stimuli: [
           { id: 0, originalName: 'Stimulus1', displayedName: 'Stimulus 1' },
           { id: 1, originalName: 'Stimulus2', displayedName: 'Stimulus 2' }
-        ]
+        ],
+        chainId: 1,
+        isRootCommand: true
       })
     })
 
@@ -461,7 +475,9 @@ describe('createCommandReverser', () => {
         stimulusId: 1,
         aoiNames: ['AOI 1', 'AOI 2'],
         visibilityArr: [[0, 100, 104, 120], [10, 20, 30, 40]],
-        participantId: 1
+        participantId: 1,
+        chainId: 1,
+        isRootCommand: true
       })
     })
 
@@ -501,7 +517,9 @@ describe('createCommandReverser', () => {
             name: 'Group 1',
             participantIds: [1, 2]
           }
-        ]
+        ],
+        chainId: 1,
+        isRootCommand: true
       })
     })
 

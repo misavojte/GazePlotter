@@ -26,14 +26,16 @@ import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
  * @returns A function that reverses workspace commands
  */
 export function createCommandReverser(gridStore: GridStoreType) {
-  return function reverseCommand(command: WorkspaceCommandChain): WorkspaceCommand | null {
+  return function reverseCommand(command: WorkspaceCommandChain): WorkspaceCommandChain | null {
     try {
       switch (command.type) {
         case 'addGridItem': {
           // Reverse addGridItem to removeGridItem
           return {
             type: 'removeGridItem',
-            itemId: command.itemId
+            itemId: command.itemId,
+            chainId: command.chainId,
+            isRootCommand: command.isRootCommand
           }
         }
 
@@ -55,7 +57,9 @@ export function createCommandReverser(gridStore: GridStoreType) {
             type: 'addGridItem',
             vizType: removedItem.type,
             itemId: removedItem.id,
-            options
+            options,
+            chainId: command.chainId,
+            isRootCommand: command.isRootCommand
           }
         }
 
@@ -82,7 +86,9 @@ export function createCommandReverser(gridStore: GridStoreType) {
 
           return {
             type: 'removeGridItem',
-            itemId: duplicates[0].id
+            itemId: duplicates[0].id,
+            chainId: command.chainId,
+            isRootCommand: command.isRootCommand
           }
         }
 
@@ -110,7 +116,9 @@ export function createCommandReverser(gridStore: GridStoreType) {
           return {
             type: 'updateSettings',
             itemId: command.itemId,
-            settings: reverseSettings
+            settings: reverseSettings,
+            chainId: command.chainId,
+            isRootCommand: command.isRootCommand
           }
         }
 
@@ -150,7 +158,9 @@ export function createCommandReverser(gridStore: GridStoreType) {
             type: 'updateAois',
             aois: affectedAois,
             stimulusId: command.stimulusId,
-            applyTo: command.applyTo
+            applyTo: command.applyTo,
+            chainId: command.chainId,
+            isRootCommand: command.isRootCommand
           }
         }
 
@@ -173,7 +183,9 @@ export function createCommandReverser(gridStore: GridStoreType) {
 
           return {
             type: 'updateParticipants',
-            participants
+            participants,
+            chainId: command.chainId,
+            isRootCommand: command.isRootCommand
           }
         }
 
@@ -196,7 +208,9 @@ export function createCommandReverser(gridStore: GridStoreType) {
 
           return {
             type: 'updateStimuli',
-            stimuli
+            stimuli,
+            chainId: command.chainId,
+            isRootCommand: command.isRootCommand
           }
         }
 
@@ -242,7 +256,9 @@ export function createCommandReverser(gridStore: GridStoreType) {
             stimulusId: command.stimulusId,
             aoiNames,
             visibilityArr,
-            participantId: command.participantId
+            participantId: command.participantId,
+            chainId: command.chainId,
+            isRootCommand: command.isRootCommand
           }
         }
 
@@ -258,7 +274,9 @@ export function createCommandReverser(gridStore: GridStoreType) {
 
           return {
             type: 'updateParticipantsGroups',
-            groups: currentGroups
+            groups: currentGroups,
+            chainId: command.chainId,
+            isRootCommand: command.isRootCommand
           }
         }
 
