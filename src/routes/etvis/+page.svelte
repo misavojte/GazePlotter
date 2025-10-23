@@ -5,8 +5,10 @@
   import { browser } from '$app/environment'
   import type { ParsedData } from '$lib/gaze-data/shared/types'
   import { EyeWorkerService } from '$lib/gaze-data/front-process/class/EyeWorkerService'
-  import { Survey, surveyStore } from '$lib/survey'
+  import { Survey, surveyStore, createCondition, ConsentModal } from '$lib/survey'
   import type { SurveyTask } from '$lib/survey/types'
+  import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
+  import { modalStore } from '$lib/modals/shared/stores/modalStore'
   // Format the build date
   const buildDate = new Date(__BUILD_DATE__)
   const formattedDate = new Intl.DateTimeFormat('en-US', {
@@ -51,21 +53,78 @@
   // Use the version from vite.config.ts
   const version = __APP_VERSION__
 
-  // Example tasks with alert buttons for first and third questions
+  // Create condition stores for automatic task completion
+  const consentCondition = createCondition(); // Monitor for consent confirmation
+  const cornerCondition = createCondition();
+  const stimulusCondition = createCondition(); // Monitor for "Task 2" stimulus
+  const timelineCondition = createCondition(); // Monitor for "relative" timeline
+  const groupCondition = createCondition(); // Monitor for "Group 1" selection
+  const duplicateCondition = createCondition(); // Monitor for plot duplication
+  const group2Condition = createCondition(); // Monitor for "Group 2" selection
+  const aoiCustomizationCondition = createCondition(); // Monitor for AOI grouping
+  const transitionMatrixCondition = createCondition(); // Monitor for Transition Matrix aggregation
+  const barPlotCondition = createCondition(); // Monitor for Bar Plot aggregation
+  const explorationCondition = createCondition(); // Monitor for UI exploration completion
+
+  // Example tasks with conditions and alert buttons
   const exampleTasks: SurveyTask[] = [
     { 
-      text: "Look at the top-left corner of the screen",
-      buttonText: "I'm looking at the corner",
-      onButtonClick: () => alert("Great! You're looking at the corner.")
+      text: "Read UX evaluation instructions & consent",
+      buttonText: "Open instructions & consent",
+      onButtonClick: () => {
+        modalStore.open(
+          ConsentModal as any,
+          'UX Evaluation Instructions & Consent',
+          {
+            onConsent: () => {
+              consentCondition.set(true); // Manually trigger condition
+            }
+          }
+        )
+      },
+      condition: consentCondition
     },
-    { text: "Focus on the center of the display" },
     { 
-      text: "Move your gaze to the bottom-right area",
-      buttonText: "I've moved my gaze",
-      onButtonClick: () => alert("Excellent! You've moved your gaze to the bottom-right.")
+      text: "On scarf plot, set stimulus to Task 2",
+      condition: stimulusCondition // Auto-completes when stimulus is set to Task 2
     },
-    { text: "Follow the moving object with your eyes" },
-    { text: "Count the number of blue elements on screen" }
+    { 
+      text: "Set timeline to relative",
+      condition: timelineCondition // Auto-completes when timeline is set to relative
+    },
+    { 
+      text: "Set group to 'Analytics'",
+      condition: groupCondition // Auto-completes when group is set to Group 1
+    },
+    { 
+      text: "Duplicate the scarf plot",
+      condition: duplicateCondition // Auto-completes when plot is duplicated
+    },
+    { 
+      text: "On the duplicated plot, set group to 'Holistics'",
+      condition: group2Condition // Auto-completes when group is set to Group 2
+    },
+    { 
+      text: "Find 'AOI Customization' and group XAxis and YAxis by giving them the same name",
+      condition: aoiCustomizationCondition // Auto-completes when AOIs are grouped
+    },
+    { 
+      text: "On Transition Matrix, change aggregation metric to '1-step probability'",
+      condition: transitionMatrixCondition // Auto-completes when aggregation is changed
+    },
+    { 
+      text: "On Bar Plot, set aggregation method to 'Mean visits'",
+      condition: barPlotCondition // Auto-completes when aggregation is changed
+    },
+    { 
+      text: "Feel free to explore the UI as long as you wish",
+      buttonText: "I now want to answer questions and end survey",
+      onButtonClick: () => {
+        alert("Great! You've had time to explore the interface. Now you're ready for the questions.");
+        explorationCondition.set(true); // Manually trigger condition
+      },
+      condition: explorationCondition
+    }
   ]
 
   /**
@@ -73,6 +132,63 @@
    */
   function completeCurrentTask(): void {
     surveyStore.nextTask()
+  }
+
+  const handleWorkspaceCommand = (command: WorkspaceCommandChain) => {
+    // Check for stimulus change to Task 2 (stimulusId === 1)
+    if (command.type === 'updateSettings' && command.settings && 'stimulusId' in command.settings && command.settings.stimulusId === 1) {
+      stimulusCondition.set(true);
+    }
+    
+    // Check for timeline change to relative
+    if (command.type === 'updateSettings' && command.settings && 'timeline' in command.settings && command.settings.timeline === 'relative') {
+      timelineCondition.set(true);
+    }
+    
+    // Check for group change to Analytics (groupId === 1)
+    if (command.type === 'updateSettings' && command.settings && 'groupId' in command.settings && command.settings.groupId === 1) {
+      groupCondition.set(true);
+    }
+    
+    // Check for group change to Holistics (groupId === 2)
+    if (command.type === 'updateSettings' && command.settings && 'groupId' in command.settings && command.settings.groupId === 2) {
+      group2Condition.set(true);
+    }
+    
+    // Check for plot duplication
+    if (command.type === 'duplicateGridItem') {
+      duplicateCondition.set(true);
+    }
+    
+    // Check for AOI customization - detect when at least two AOIs have the same displayed name
+    if (command.type === 'updateAois' && command.aois && command.aois.length > 0) {
+      // Count occurrences of each displayed name
+      const nameCounts = new Map<string, number>();
+      
+      command.aois.forEach(aoi => {
+        const displayedName = aoi.displayedName || aoi.originalName || '';
+        if (displayedName.trim() !== '') {
+          nameCounts.set(displayedName, (nameCounts.get(displayedName) || 0) + 1);
+        }
+      });
+      
+      // Check if any displayed name appears at least twice (indicating grouping)
+      const hasGroupedAois = Array.from(nameCounts.values()).some(count => count >= 2);
+      
+      if (hasGroupedAois) {
+        aoiCustomizationCondition.set(true);
+      }
+    }
+    
+    // Check for Transition Matrix aggregation change to '1-step probability'
+    if (command.type === 'updateSettings' && command.settings && 'aggregationMethod' in command.settings && command.settings.aggregationMethod === 'probability') {
+      transitionMatrixCondition.set(true);
+    }
+    
+    // Check for Bar Plot aggregation change to 'Mean visits'
+    if (command.type === 'updateSettings' && command.settings && 'aggregationMethod' in command.settings && command.settings.aggregationMethod === 'averageEntries') {
+      barPlotCondition.set(true);
+    }
   }
 </script>
 
@@ -150,46 +266,9 @@
       love open science.
     </p>
     <Survey tasks={exampleTasks} />
-    
-    <!-- Debug button for testing task completion -->
-    <div style="margin: 20px auto; text-align: center;">
-      <button 
-        onclick={completeCurrentTask}
-        style="
-          padding: 10px 20px;
-          background-color: var(--c-brand);
-          color: white;
-          border: none;
-          border-radius: var(--rounded);
-          cursor: pointer;
-          font-weight: 600;
-          font-size: 14px;
-        "
-      >
-        Complete Current Task (Debug)
-      </button>
-    </div>
-    
-    <div style="max-width: 520px; margin: 0 auto;">
-      <GeneralInfoCallout
-        title="Instructions for the ETRA participants (UX evaluation)"
-        paragraphs={[
-          'On your computer, before starting the form:',
-          '1. Switch the stimulus in the Scarf Plot.',
-          '2. Duplicate the scarf plot, move it in the dashboard, and assign different participant subgroups to each.',
-          '3. Change the Aggregation method of the Bar Plot and duplicate it.',
-          '4. Customise the current Areas of Interests (AOIs) in the data. Assign two AOIs into one group, change its displayed color and see the effects in the dashboard.',
-        ]}
-        button={{
-          label: 'Fill out questionnaire',
-          url: 'https://forms.gle/7gQVbEfXrNZYLoQ2A',
-          noopener: true,
-        }}
-      />
-    </div>
   </section>
   <section>
-    <GazePlotter {loadInitialData} reinitializeLabel="Reload ETVIS data" />
+    <GazePlotter {loadInitialData} onWorkspaceCommandChain={handleWorkspaceCommand} reinitializeLabel="Reload ETVIS data" />
   </section>
   <section class="main-section" id="about">
     <div class="about-grid">

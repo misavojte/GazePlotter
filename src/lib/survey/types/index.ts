@@ -1,3 +1,5 @@
+import type { Readable } from 'svelte/store';
+
 /**
  * Survey task interface defining the structure of individual survey tasks
  * @interface SurveyTask
@@ -9,6 +11,8 @@ export interface SurveyTask {
   buttonText?: string;
   /** Optional callback function when button is clicked */
   onButtonClick?: () => void;
+  /** Optional condition store that when true, automatically completes the task */
+  condition?: Readable<boolean>;
 }
 
 /**

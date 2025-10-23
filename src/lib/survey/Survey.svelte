@@ -62,10 +62,25 @@
     };
   });
 
-  // Reset sticky when task changes
+  // Simple derived key that changes when task changes while sticky
+  const stickyCloneKey = $derived(
+    isSticky ? surveyState.currentActiveTaskIndex : 0
+  );
+
+  // Monitor conditions for automatic task completion
   $effect(() => {
-    surveyState.currentActiveTaskIndex;
-    isSticky = false;
+    if (!browser || isCompleted) return;
+
+    const currentTask = surveyState.tasks[surveyState.currentActiveTaskIndex];
+    if (!currentTask?.condition) return;
+
+    const unsubscribe = currentTask.condition.subscribe((conditionMet) => {
+      if (conditionMet) {
+        surveyStore.nextTask();
+      }
+    });
+
+    return unsubscribe;
   });
 </script>
 
@@ -76,25 +91,27 @@
 
 <!-- Sticky clone at the top when scrolled -->
 {#if isSticky && currentTask && !isCompleted}
-  <div class="sticky-clone">
-    <div class="sticky-container">
-      <div class="task active">
-        <div class="task-text">{currentTask.text}</div>
-        
-        <!-- Button for sticky clone -->
-        <div class="button-container" class:show={currentTask.buttonText && currentTask.onButtonClick}>
-          {#if currentTask.buttonText && currentTask.onButtonClick}
-            <button 
-              class="task-button"
-              onclick={currentTask.onButtonClick}
-            >
-              {currentTask.buttonText}
-            </button>
-          {/if}
+  {#key stickyCloneKey}
+    <div class="sticky-clone">
+      <div class="sticky-container">
+        <div class="task active">
+          <div class="task-text">{currentTask.text}</div>
+          
+          <!-- Button for sticky clone -->
+          <div class="button-container" class:show={currentTask.buttonText && currentTask.onButtonClick}>
+            {#if currentTask.buttonText && currentTask.onButtonClick}
+              <button 
+                class="task-button"
+                onclick={currentTask.onButtonClick}
+              >
+                {currentTask.buttonText}
+              </button>
+            {/if}
+          </div>
         </div>
       </div>
     </div>
-  </div>
+  {/key}
 {/if}
 
 <div class="survey" class:className>
@@ -117,9 +134,11 @@
     <!-- Tasks list -->
     <div class="tasks">
       {#each tasks as task, index (index)}
+        {@const isTaskCompleted = index < surveyState.currentActiveTaskIndex}
         <div 
           class="task" 
           class:active={index === surveyState.currentActiveTaskIndex && !isCompleted}
+          class:completed={isTaskCompleted}
           class:hidden={index === surveyState.currentActiveTaskIndex && isSticky && !isCompleted}
           bind:this={activeTaskElements[index]}
         >
@@ -194,7 +213,7 @@
   }
 
   .task {
-    padding: 1.25rem;
+    padding: 0.75rem 1rem 0.25rem 1rem;
     border: 2px solid var(--c-lightgrey);
     border-radius: var(--rounded-md);
     background: var(--c-white);
@@ -217,6 +236,19 @@
     visibility: hidden;
   }
 
+  .task.completed {
+    opacity: 0.6;
+    background: var(--c-lightgrey);
+    border-color: var(--c-lightgrey);
+    transform: scale(1.02);
+    box-shadow: none;
+  }
+
+  .task.completed .task-text {
+    text-decoration: line-through;
+    color: var(--c-darkgrey);
+  }
+
   .sticky-clone {
     position: fixed;
     top: 1rem;
@@ -227,7 +259,7 @@
   }
 
   .sticky-container {
-    max-width: 600px;
+    max-width: 500px;
     margin: 0 auto;
     padding: 0 1rem;
     pointer-events: auto;
@@ -239,6 +271,7 @@
     margin: 0 auto;
     padding: 0.75rem 1rem 0.25rem 1rem;
     animation: stickyAppear 0.3s ease-out;
+    box-sizing: border-box;
   }
 
   .sticky-clone .task-button {
@@ -269,13 +302,13 @@
   }
 
   .button-container.show {
-    height: 60px; /* Approximate height of button + margins */
+    height: 50px; /* Approximate height of button + margins */
   }
 
   .task-button {
     display: block;
-    margin: 0.75rem auto 0;
-    padding: 0.75rem 1.5rem;
+    margin: 0.5rem auto 0.25rem;
+    padding: 0.5rem 1rem;
     background: var(--c-brand);
     color: white;
     border: none;
@@ -285,6 +318,7 @@
     transition: all 0.3s ease;
     box-shadow: 0 2px 8px rgba(205, 20, 4, 0.3);
     transform: translateY(0);
+    font-size: 0.9rem;
   }
 
   .task-button:hover {
