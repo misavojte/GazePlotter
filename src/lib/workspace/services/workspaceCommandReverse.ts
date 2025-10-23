@@ -42,6 +42,7 @@ export function createCommandReverser(gridStore: GridStoreType) {
         case 'removeGridItem': {
           // Reverse removeGridItem to addGridItem
           // We need to get the item data before it was removed
+          // Since this is called BEFORE execution, the item should still be in the store
           const currentItems = get(gridStore)
           const removedItem = currentItems.find(item => item.id === command.itemId)
           
@@ -50,14 +51,18 @@ export function createCommandReverser(gridStore: GridStoreType) {
             return null
           }
 
-          // Destructure to exclude only id and type (redrawTimestamp should be preserved)
-          const { id, type, ...options } = removedItem
+          // Create the reverse command with the item's current data
+          // We need to preserve the original ID for proper restoration
+          const { id, type, redrawTimestamp, ...options } = removedItem
           
           return {
             type: 'addGridItem',
             vizType: removedItem.type,
-            itemId: removedItem.id,
-            options,
+            itemId: removedItem.id, // Preserve the original ID
+            options: {
+              ...options,
+              id: removedItem.id, // Ensure ID is included in options for restoration
+            },
             chainId: command.chainId,
             isRootCommand: command.isRootCommand,
           }
