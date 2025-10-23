@@ -25,7 +25,7 @@
   import { addSuccessToast, addErrorToast } from '$lib/toaster'
   import { ModalContentMetadataInfo } from '$lib/modals'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
-  import { createCommandHandler } from '$lib/workspace/services/instructionHandler'
+  import { createCommandHandler } from '$lib/workspace/services/workspaceCommandHandler'
   import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
   import { createRootCommand } from '$lib/shared/types/workspaceInstructions'
 
