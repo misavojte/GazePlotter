@@ -2,6 +2,11 @@ import { writable, derived, get } from 'svelte/store'
 import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
 
 /**
+ * Maximum number of command chains to keep in the undo stack
+ */
+const MAX_UNDO_STACK_SIZE = 50
+
+/**
  * Command chain entry - a group of related commands (root + children) that should be undone/redone together
  */
 interface CommandChainEntry {
@@ -88,10 +93,15 @@ export const recordCommand = (original: WorkspaceCommandChain, reverse: Workspac
         ? [...$state.undoStack, $state.pendingChain]
         : $state.undoStack
 
+      // Trim undo stack if it exceeds the maximum size
+      const trimmedUndoStack = newUndoStack.length >= MAX_UNDO_STACK_SIZE
+        ? newUndoStack.slice(-MAX_UNDO_STACK_SIZE + 1) // Keep space for the new command
+        : newUndoStack
+
       // Start new pending chain with this root command
       return {
         ...$state,
-        undoStack: newUndoStack,
+        undoStack: trimmedUndoStack,
         pendingChain: {
           chainId: original.chainId,
           commands: [{ original: originalCommand, reverse: reverseCommand }]
@@ -268,3 +278,18 @@ export const subscribe = undoRedoState.subscribe
  * @returns Current undo/redo state
  */
 export const getState = (): UndoRedoState => get(undoRedoState)
+
+
+/** 
+ * Readable derived of the type of the last command in the undo stack
+ */
+export const lastUndoCommandType = derived(undoRedoState, $state => {
+  return $state.undoStack.length > 0 ? $state.undoStack[$state.undoStack.length - 1].commands[0].original.type : null
+})
+
+/**
+ * Readable derived of the type of the last command in the redo stack
+ */
+export const lastRedoCommandType = derived(undoRedoState, $state => {
+  return $state.redoStack.length > 0 ? $state.redoStack[$state.redoStack.length - 1].commands[0].original.type : null
+})

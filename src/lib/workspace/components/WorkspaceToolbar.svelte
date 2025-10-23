@@ -9,6 +9,8 @@
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { generateUniqueId } from '$lib/shared/utils/idUtils'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
+  import { lastUndoCommandType, lastRedoCommandType } from '$lib/workspace/stores/undoRedoStore'
+  import { getCommandLabel } from '$lib/workspace/const/workspaceCommandLabels'
 
   // Configuration for toolbar items
   interface Props {
@@ -62,6 +64,8 @@
   const isProcessing = $derived($processingFileStateStore === 'processing')
   const isValidData = $derived($hasValidData)
 
+  const undoLabel: string | null = $derived($lastUndoCommandType ? getCommandLabel($lastUndoCommandType, 'undo') : null)
+  const redoLabel: string | null = $derived($lastRedoCommandType ? getCommandLabel($lastRedoCommandType, 'redo') : null)
 
   /**
    * Handles toolbar item clicks directly.
@@ -154,12 +158,12 @@
     <!-- Undo button -->
     <WorkspaceToolbarItem
       id="undo"
-      label="Undo"
+      label={undoLabel || 'Nothing to undo'}
       icon={`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 7v6h6"></path>
           <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
         </svg>`}
-      actions={[{ id: 'undo', label: 'Undo' }]}
+      actions={[{ id: 'undo', label: undoLabel || 'Nothing to undo' }]}
       disabled={!$canUndo}
       onclick={handleItemClick}
     />
@@ -167,12 +171,12 @@
     <!-- Redo button -->
     <WorkspaceToolbarItem
       id="redo"
-      label="Redo"
+      label={redoLabel || 'Nothing to redo'}
       icon={`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 7v6h-6"></path>
           <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"></path>
         </svg>`}
-      actions={[{ id: 'redo', label: 'Redo' }]}
+      actions={[{ id: 'redo', label: redoLabel || 'Nothing to redo' }]}
       disabled={!$canRedo}
       onclick={handleItemClick}
     />

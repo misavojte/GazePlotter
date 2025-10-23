@@ -198,7 +198,7 @@ export function createCommandHandler(
 
 
       // Show success message for root commands only
-      if (command.isRootCommand) {
+      if (command.isRootCommand && !isUndoRedoOperation) {
         const message = getCommandLabel(command.type, command.history)
         if (message) {
           onSuccess(message)
