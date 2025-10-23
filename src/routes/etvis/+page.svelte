@@ -5,7 +5,8 @@
   import { browser } from '$app/environment'
   import type { ParsedData } from '$lib/gaze-data/shared/types'
   import { EyeWorkerService } from '$lib/gaze-data/front-process/class/EyeWorkerService'
-
+  import { Survey, surveyStore } from '$lib/survey'
+  import type { SurveyTask } from '$lib/survey/types'
   // Format the build date
   const buildDate = new Date(__BUILD_DATE__)
   const formattedDate = new Intl.DateTimeFormat('en-US', {
@@ -49,6 +50,30 @@
 
   // Use the version from vite.config.ts
   const version = __APP_VERSION__
+
+  // Example tasks with alert buttons for first and third questions
+  const exampleTasks: SurveyTask[] = [
+    { 
+      text: "Look at the top-left corner of the screen",
+      buttonText: "I'm looking at the corner",
+      onButtonClick: () => alert("Great! You're looking at the corner.")
+    },
+    { text: "Focus on the center of the display" },
+    { 
+      text: "Move your gaze to the bottom-right area",
+      buttonText: "I've moved my gaze",
+      onButtonClick: () => alert("Excellent! You've moved your gaze to the bottom-right.")
+    },
+    { text: "Follow the moving object with your eyes" },
+    { text: "Count the number of blue elements on screen" }
+  ]
+
+  /**
+   * Debug function to complete current task and move to next one
+   */
+  function completeCurrentTask(): void {
+    surveyStore.nextTask()
+  }
 </script>
 
 <svelte:head>
@@ -124,6 +149,27 @@
       No&nbsp;registration, no ads and no data stored on&nbsp;a&nbsp;server. We
       love open science.
     </p>
+    <Survey tasks={exampleTasks} />
+    
+    <!-- Debug button for testing task completion -->
+    <div style="margin: 20px auto; text-align: center;">
+      <button 
+        onclick={completeCurrentTask}
+        style="
+          padding: 10px 20px;
+          background-color: var(--c-brand);
+          color: white;
+          border: none;
+          border-radius: var(--rounded);
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 14px;
+        "
+      >
+        Complete Current Task (Debug)
+      </button>
+    </div>
+    
     <div style="max-width: 520px; margin: 0 auto;">
       <GeneralInfoCallout
         title="Instructions for the ETRA participants (UX evaluation)"
