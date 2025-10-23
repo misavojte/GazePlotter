@@ -79,6 +79,12 @@ export const WORKSPACE_COMMAND_LABELS: Record<WorkspaceCommand['type'], CommandL
     undone: 'Undo plot duplication',
     redone: 'Redo plot duplication',
     default: 'Duplicated plot to the nearest empty space in the workspace'
+  },
+
+  setLayoutState: {
+    undone: 'Undo layout reset',
+    redone: 'Redo layout reset',
+    default: 'Workspace layout returned to the initial state'
   }
 }
 

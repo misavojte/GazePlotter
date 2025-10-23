@@ -506,6 +506,41 @@ export function createGridStore(
       items.set(newItems)
     },
 
+    /**
+     * Sets the entire layout state to the provided layout items.
+     * This is used for layout reset operations and undo/redo functionality.
+     * 
+     * @param layoutState - Array of layout items to set as the new state
+     */
+    setLayoutState: (layoutState: Array<Partial<AllGridTypes> & { type: string }>) => {
+      const newItems = layoutState.map(itemData => {
+        // If the itemData already has an ID (from undo/redo), preserve it exactly
+        if (!itemData.id) throw new Error('Could not set layout state: Item data must have an ID')
+          // Create item with preserved ID and all properties
+          const vizConfig = getVisualizationConfig(itemData.type)
+          const initialTimestamp = Date.now()
+          
+          const baseProperties = {
+            id: itemData.id,
+            x: itemData.x ?? 0,
+            y: itemData.y ?? 0,
+            w: itemData.w ?? vizConfig.getDefaultWidth(itemData.stimulusId ?? 0),
+            h: itemData.h ?? vizConfig.getDefaultHeight(itemData.stimulusId ?? 0),
+            min: itemData.min ?? vizConfig.getDefaultConfig().min,
+            type: itemData.type,
+            redrawTimestamp: initialTimestamp,
+          }
+
+          return {
+            ...baseProperties,
+            ...vizConfig.getDefaultConfig(itemData),
+            ...itemData,
+          } as AllGridTypes
+        
+      })
+      items.set(newItems)
+    },
+
     updateSettings: (settings: AllGridTypes) => {
       items.update($items =>
         $items.map(item =>

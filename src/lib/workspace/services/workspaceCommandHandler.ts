@@ -181,6 +181,13 @@ export function createCommandHandler(
 
           break // No success message needed for duplication
         }
+
+        case 'setLayoutState': {
+          const { layoutState } = command
+          // Set the entire grid state to the provided layout
+          gridStore.setLayoutState(layoutState)
+          break // Success message will be handled by the command label system
+        }
       }
 
       // Finalize the command chain if this is a root command

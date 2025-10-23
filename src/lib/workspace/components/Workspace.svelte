@@ -26,15 +26,15 @@
   import { createCommandHandler } from '$lib/workspace/services/workspaceCommandHandler'
   import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
   import { createRootCommand } from '$lib/shared/types/workspaceInstructions'
-  import { generateUniqueId } from '$lib/shared/utils/idUtils'
+  import type { AllGridTypes } from '$lib/workspace/type/gridType'
   
   interface Props {
     onReinitialize: () => void
-    onResetLayout: () => void
     onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void
+    initialLayoutState?: Array<Partial<AllGridTypes> & { type: string }> | null
   }
 
-  const { onReinitialize, onResetLayout, onWorkspaceCommandChain }: Props = $props()
+  const { onReinitialize, onWorkspaceCommandChain, initialLayoutState = null }: Props = $props()
 
   const gridConfig = DEFAULT_GRID_CONFIG
 
@@ -789,7 +789,7 @@
   <!-- Update toolbar with undo/redo functionality -->
   <WorkspaceToolbar 
     onWorkspaceCommand={handleWorkspaceCommand}
-    onResetLayout={onResetLayout}
+    {initialLayoutState}
     {visualizations}
   />
 
@@ -858,7 +858,7 @@
     {/if}
 
     {#if $isEmpty && !$isLoading}
-      <WorkspaceIndicatorEmpty {onReinitialize} {onResetLayout} />
+      <WorkspaceIndicatorEmpty {onReinitialize} onWorkspaceCommand={handleWorkspaceCommand} {initialLayoutState} />
     {/if}
 
     {#if $isLoading}

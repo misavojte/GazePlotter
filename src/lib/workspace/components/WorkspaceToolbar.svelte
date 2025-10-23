@@ -4,16 +4,18 @@
   import { hasValidData } from '$lib/gaze-data/front-process/stores/dataStore'
   import { onMount } from 'svelte'
   import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
+  import { createRootCommand } from '$lib/shared/types/workspaceInstructions'
   import { ModalContentMetadataInfo } from '$lib/modals'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { generateUniqueId } from '$lib/shared/utils/idUtils'
+  import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
   // Configuration for toolbar items
   interface Props {
     accentColor?: string
     visualizations?: Array<{ id: string; label: string }>
     onWorkspaceCommand: (command: WorkspaceCommand | WorkspaceCommandChain) => void
-    onResetLayout: () => void
+    initialLayoutState?: Array<Partial<AllGridTypes> & { type: string }> | null
   }
 
   // Track fullscreen state
@@ -53,7 +55,7 @@
     accentColor = 'var(--c-primary)',
     visualizations = [], // Default empty array for visualizations
     onWorkspaceCommand,
-    onResetLayout,
+    initialLayoutState = null,
   }: Props = $props()
 
   // Reactive variables to determine item states
@@ -73,7 +75,7 @@
     } else if (event.id === 'redo') {
       handleRedo()
     } else if (event.id === 'reset-layout') {
-      onResetLayout()
+      handleResetLayout()
     } else if (event.id === 'metadata') {
       // Open the metadata info modal directly
       modalStore.open(
@@ -116,6 +118,25 @@
       onWorkspaceCommand(command)
     })
     endUndoRedo()
+  }
+
+  /**
+   * Handles layout reset by creating a setLayoutState command with the initial layout state.
+   * This replaces the direct callback approach with a proper workspace command.
+   */
+  const handleResetLayout = () => {
+    if (!initialLayoutState) {
+      console.warn('Cannot reset layout: no initial layout state provided')
+      return
+    }
+
+    // Create a setLayoutState command with the initial layout state
+    const resetCommand = createRootCommand({
+      type: 'setLayoutState',
+      layoutState: initialLayoutState
+    })
+
+    onWorkspaceCommand(resetCommand)
   }
 
   // Listen for fullscreen state changes from browser events

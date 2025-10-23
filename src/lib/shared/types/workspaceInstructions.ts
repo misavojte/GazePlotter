@@ -73,6 +73,11 @@ export interface DuplicateGridItemCommand {
   itemId: number
 }
 
+export interface SetLayoutStateCommand {
+  type: 'setLayoutState'
+  layoutState: Array<Partial<AllGridTypes> & { type: string }>
+}
+
 export type WorkspaceCommand =
   | UpdateAoisCommand
   | UpdateParticipantsCommand
@@ -83,6 +88,7 @@ export type WorkspaceCommand =
   | AddGridItemCommand
   | RemoveGridItemCommand
   | DuplicateGridItemCommand
+  | SetLayoutStateCommand
 
 /**
  * WorkspaceCommandChain

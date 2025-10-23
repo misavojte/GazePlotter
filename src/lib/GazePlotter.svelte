@@ -34,7 +34,7 @@
   setContext('reinitializeLabel', reinitializeLabel)
 
   // Cache the initial grid layout to avoid reloading data when only resetting layout
-  let initialGridItemsSnapshot: Array<Partial<AllGridTypes> & { type: string }> | null = null
+  let initialGridItemsSnapshot = $state<Array<Partial<AllGridTypes> & { type: string }> | null>(null)
 
   async function loadData() {
     processingFileStateStore.set('processing')
@@ -65,15 +65,6 @@
     clear()
   }
 
-  const onResetLayout = async () => {
-    try {
-      // Restore the grid layout from the cached snapshot without reloading data
-      initializeGridStateStore(initialGridItemsSnapshot)
-      addSuccessToast('Workspace layout returned to the initial state.')
-    } catch (error) {
-      console.error('Error resetting layout:', error)
-    }
-  }
 
   onMount(() => {
     loadData()
@@ -84,7 +75,7 @@
   <div class="panel-container">
     <Panel {onReinitialize} />
   </div>
-  <Workspace {onReinitialize} {onResetLayout} {onWorkspaceCommandChain} />
+  <Workspace {onReinitialize} {onWorkspaceCommandChain} initialLayoutState={initialGridItemsSnapshot} />
   <Modal />
   <Toaster />
   <Tooltip />

@@ -1,5 +1,5 @@
 
-import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
+import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
 import type { GridStoreType } from '$lib/workspace/stores/gridStore'
 import { get } from 'svelte/store'
 import { getData } from '$lib/gaze-data/front-process/stores/dataStore'
@@ -284,6 +284,26 @@ export function createCommandReverser(gridStore: GridStoreType) {
           return {
             type: 'updateParticipantsGroups',
             groups: currentGroups,
+            chainId: command.chainId,
+            isRootCommand: command.isRootCommand,
+            history: 'undo'
+          }
+        }
+
+        case 'setLayoutState': {
+          // For setLayoutState, we need to restore the exact state that existed BEFORE this command was executed
+          // Since we're called BEFORE execution, the current state IS the state we want to restore
+          const currentItems = get(gridStore)
+          
+          // Take exact snapshot of current items (including IDs, timestamps, everything)
+          const currentLayoutState = currentItems.map(item => {
+            const { redrawTimestamp, ...itemData } = item
+            return itemData as Partial<AllGridTypes> & { type: string }
+          })
+
+          return {
+            type: 'setLayoutState',
+            layoutState: currentLayoutState,
             chainId: command.chainId,
             isRootCommand: command.isRootCommand,
             history: 'undo'
