@@ -10,20 +10,22 @@ import {
   updateParticipantsGroups,
 } from '$lib/gaze-data/front-process/stores/dataStore'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
+import { createUndoRedoService } from './undoRedoService'
+import { createCommandReverser } from './workspaceCommandReverse'
 
 /**
- * Creates a command handler for workspace changes.
+ * Creates a command handler for workspace changes with integrated undo/redo support.
  * 
  * This handler centralizes all data and settings mutations, ensuring:
  * - All changes go through a single point
  * - Automatic redraw propagation after data changes
  * - Consistent error handling
- * - Foundation for future undo/redo functionality
+ * - Full undo/redo functionality through command reversal
  * 
  * @param gridStore - The grid store instance
  * @param onSuccess - Callback for successful operations
  * @param onError - Callback for error handling
- * @returns Handler function for processing commands
+ * @returns Object containing the handler function and undo/redo service
  */
 export function createCommandHandler(
   gridStore: GridStoreType,
@@ -31,8 +33,23 @@ export function createCommandHandler(
   onError: (error: Error) => void,
   onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void
 ) {
-  return function handleCommand(command: WorkspaceCommandChain): void {
+  // Create command reverser for undo/redo functionality
+  const commandReverser = createCommandReverser(gridStore)
+  
+  // Create undo/redo service
+  const undoRedoService = createUndoRedoService()
+
+  function handleCommand(command: WorkspaceCommandChain): void {
     try {
+      // Create reverse command BEFORE executing (to capture current state)
+      // For ALL commands (root and children) unless we're in undo/redo mode
+      const reverseCommand = commandReverser(command)
+
+      // Record the command BEFORE executing so it appears in correct order
+      // (root first, then children)
+      undoRedoService.recordCommand(command, reverseCommand)
+
+      // Now execute the command (this changes the state)
       switch (command.type) {
         case 'updateAois': {
           const { aois, stimulusId, applyTo } = command
@@ -87,9 +104,10 @@ export function createCommandHandler(
             redrawTimestamp: Date.now(),
           } as AllGridTypes)
 
-          // Only trigger collision resolution for root commands (original user actions)
-          // This prevents infinite loops when collision resolution commands trigger more collision resolution
-          if (command.isRootCommand) {
+          // Only trigger collision resolution for root commands during normal operations
+          // Skip during undo/redo because we're already executing the recorded children
+          const isUndoRedoOperation = undoRedoService.isProcessingUndoRedo()
+          if (command.isRootCommand && !isUndoRedoOperation) {
             const collisionCommands = gridStore.resolveItemPositionCollisions(itemId)
             // Emit each collision resolution command as child commands
             collisionCommands.forEach(collisionCommand => {
@@ -111,8 +129,10 @@ export function createCommandHandler(
           // Store the itemId in the command for potential reversal
           command.itemId = newItemId
 
-          // Only trigger collision resolution for root commands (original user actions)
-          if (command.isRootCommand) {
+          // Only trigger collision resolution for root commands during normal operations
+          // Skip during undo/redo because we're already executing the recorded children
+          const isUndoRedoOperation = undoRedoService.isProcessingUndoRedo()
+          if (command.isRootCommand && !isUndoRedoOperation) {
             const collisionCommands = gridStore.resolveItemPositionCollisions(newItemId)
             // Emit each collision resolution command as child commands
             collisionCommands.forEach(collisionCommand => {
@@ -139,8 +159,10 @@ export function createCommandHandler(
           if (!currentItem) throw new Error(`Grid item ${command.itemId} not found`)
           const newItemId = gridStore.duplicateItem(currentItem)
 
-          // Only trigger collision resolution for root commands (original user actions)
-          if (command.isRootCommand) {
+          // Only trigger collision resolution for root commands during normal operations
+          // Skip during undo/redo because we're already executing the recorded children
+          const isUndoRedoOperation = undoRedoService.isProcessingUndoRedo()
+          if (command.isRootCommand && !isUndoRedoOperation) {
             const collisionCommands = gridStore.resolveItemPositionCollisions(newItemId)
             // Emit each collision resolution command as child commands
             collisionCommands.forEach(collisionCommand => {
@@ -157,11 +179,85 @@ export function createCommandHandler(
         }
       }
 
+      // Finalize the command chain if this is a root command
+      // This groups the root + all children together as an atomic operation
+      if (command.isRootCommand) {
+        undoRedoService.finalizeChain()
+        
+        // Only end undo/redo operation after root command completes
+        // (don't call it for each child command, or flag will be reset too early)
+        undoRedoService.endUndoRedo()
+      }
+
+      // Notify listeners about the command
       onWorkspaceCommandChain(command)
     } catch (error) {
+      // Make sure to end undo/redo processing on error
+      undoRedoService.endUndoRedo()
       onError(error as Error)
       throw error
     }
+  }
+
+  /**
+   * Executes an undo operation.
+   * Reverses the most recent command chain and applies all reverse commands.
+   * 
+   * @returns True if undo was successful, false otherwise
+   */
+  function undo(): boolean {
+    const reversedCommands = undoRedoService.undo()
+    if (!reversedCommands || reversedCommands.length === 0) return false
+
+    try {
+      // Execute all reverse commands in the chain
+      reversedCommands.forEach(cmd => handleCommand(cmd))
+      
+      // Ensure undo/redo flag is cleared after all commands execute
+      undoRedoService.endUndoRedo()
+      
+      onSuccess('Undo successful')
+      return true
+    } catch (error) {
+      undoRedoService.endUndoRedo()
+      onError(error as Error)
+      return false
+    }
+  }
+
+  /**
+   * Executes a redo operation.
+   * Re-applies the most recently undone command chain.
+   * 
+   * @returns True if redo was successful, false otherwise
+   */
+  function redo(): boolean {
+    const forwardCommands = undoRedoService.redo()
+    if (!forwardCommands || forwardCommands.length === 0) return false
+
+    try {
+      // Execute all original commands in the chain
+      forwardCommands.forEach(cmd => handleCommand(cmd))
+      
+      // Ensure undo/redo flag is cleared after all commands execute
+      undoRedoService.endUndoRedo()
+      
+      onSuccess('Redo successful')
+      return true
+    } catch (error) {
+      undoRedoService.endUndoRedo()
+      onError(error as Error)
+      return false
+    }
+  }
+
+  return {
+    handleCommand,
+    undo,
+    redo,
+    canUndo: undoRedoService.canUndo, // This is now a store
+    canRedo: undoRedoService.canRedo, // This is now a store
+    clearHistory: undoRedoService.clear,
   }
 }
 

@@ -29,13 +29,22 @@
   import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
   import { createRootCommand } from '$lib/shared/types/workspaceInstructions'
   import { generateUniqueId } from '$lib/shared/utils/idUtils'
+  import type { Readable } from 'svelte/store'
+  
   interface Props {
     onReinitialize: () => void
     onResetLayout: () => void
     onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void
+    onUndoRedoReady?: (handlers: {
+      undo: () => boolean
+      redo: () => boolean
+      canUndo: Readable<boolean>
+      canRedo: Readable<boolean>
+      clearHistory: () => void
+    }) => void
   }
 
-  const { onReinitialize, onResetLayout, onWorkspaceCommandChain }: Props = $props()
+  const { onReinitialize, onResetLayout, onWorkspaceCommandChain, onUndoRedoReady }: Props = $props()
 
   const gridConfig = DEFAULT_GRID_CONFIG
 
@@ -790,8 +799,8 @@
   // when appropriate. This provides a more integrated and visually appealing user
   // experience without artificially creating grid items.
 
-  // Initialize command handler
-  const commandHandler = createCommandHandler(
+  // Initialize command handler with undo/redo support
+  const { handleCommand: commandHandler, undo, redo, canUndo, canRedo, clearHistory } = createCommandHandler(
     gridStore,
     (message) => addSuccessToast(message),
     (error) => {
@@ -800,6 +809,11 @@
     },
     onWorkspaceCommandChain
   )
+
+  // Expose undo/redo handlers to parent component
+  if (onUndoRedoReady) {
+    onUndoRedoReady({ undo, redo, canUndo, canRedo, clearHistory })
+  }
 
   const handleWorkspaceCommand =
   (command: WorkspaceCommand) => { 
@@ -813,8 +827,15 @@
 </script>
 
 <div class="workspace-wrapper" style={styleProps}>
-  <!-- Update toolbar, removing drag-related props -->
-  <WorkspaceToolbar onaction={handleToolbarAction} {visualizations} />
+  <!-- Update toolbar with undo/redo functionality -->
+  <WorkspaceToolbar 
+    onaction={handleToolbarAction} 
+    {visualizations}
+    {canUndo}
+    {canRedo}
+    onUndo={undo}
+    onRedo={redo}
+  />
 
   <!-- Bind the workspace container and add mouse/touch events for panning -->
   <div

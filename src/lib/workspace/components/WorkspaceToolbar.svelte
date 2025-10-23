@@ -3,12 +3,18 @@
   import { processingFileStateStore } from '$lib/workspace/stores/fileStore'
   import { hasValidData } from '$lib/gaze-data/front-process/stores/dataStore'
   import { onMount } from 'svelte'
+  import { readable } from 'svelte/store'
+  import type { Readable } from 'svelte/store'
 
   // Configuration for toolbar items
   interface Props {
     accentColor?: string
     onaction: (event: { id: string; event?: any }) => void
     visualizations?: Array<{ id: string; label: string }>
+    canUndo?: Readable<boolean>
+    canRedo?: Readable<boolean>
+    onUndo?: () => boolean
+    onRedo?: () => boolean
   }
 
   // Track fullscreen state
@@ -48,6 +54,10 @@
     accentColor = 'var(--c-primary)',
     onaction = () => {},
     visualizations = [], // Default empty array for visualizations
+    canUndo = readable(false),
+    canRedo = readable(false),
+    onUndo = () => false,
+    onRedo = () => false,
   }: Props = $props()
 
   // Reactive variables to determine item states
@@ -59,6 +69,26 @@
    * Each item specifies when it should be disabled via a function.
    */
   const toolbarItems = $derived([
+    {
+      id: 'undo',
+      label: 'Undo',
+      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 7v6h6"></path>
+          <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
+        </svg>`,
+      actions: [{ id: 'undo', label: 'Undo' }],
+      disabled: !$canUndo,
+    },
+    {
+      id: 'redo',
+      label: 'Redo',
+      icon: `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 7v6h-6"></path>
+          <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"></path>
+        </svg>`,
+      actions: [{ id: 'redo', label: 'Redo' }],
+      disabled: !$canRedo,
+    },
     {
       id: 'reset-layout',
       label: 'Reset Layout',
@@ -120,12 +150,24 @@
   const handleItemClick = (event: { id: string; event?: any }): void => {
     if (event.id === 'toggle-fullscreen') {
       toggleFullscreen()
+    } else if (event.id === 'undo') {
+      onUndo()
+    } else if (event.id === 'redo') {
+      onRedo()
     }
 
     onaction({
       id: event.id,
       event: event.event,
     })
+  }
+
+  function handleKeydown(event: KeyboardEvent) {
+    if (event.key === 'z' && event.ctrlKey) {
+      onUndo()
+    } else if (event.key === 'y' && event.ctrlKey) {
+      onRedo()
+    }
   }
 
   // Listen for fullscreen state changes from browser events
@@ -137,6 +179,7 @@
   })
 </script>
 
+<svelte:window onkeydown={handleKeydown} />
 <div class="workspace-toolbar" style="--accent-color: {accentColor};">
   <div class="toolbar-content">
     {#each toolbarItems as item}
