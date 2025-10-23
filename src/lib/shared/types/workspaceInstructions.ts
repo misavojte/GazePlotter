@@ -59,6 +59,7 @@ export interface AddGridItemCommand {
   type: 'addGridItem'
   vizType: string
   options?: Partial<AllGridTypes> & { skipCollisionResolution?: boolean }
+  itemId: number // Required itemId for command reversal
 }
 
 export interface RemoveGridItemCommand {

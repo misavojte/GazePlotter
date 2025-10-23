@@ -108,6 +108,9 @@ export function createCommandHandler(
           const { vizType, options } = command
           const newItemId = gridStore.addItem(vizType, options)
 
+          // Store the itemId in the command for potential reversal
+          command.itemId = newItemId
+
           // Only trigger collision resolution for root commands (original user actions)
           if (command.isRootCommand) {
             const collisionCommands = gridStore.resolveItemPositionCollisions(newItemId)

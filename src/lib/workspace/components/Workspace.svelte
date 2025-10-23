@@ -28,7 +28,7 @@
   import { createCommandHandler } from '$lib/workspace/services/workspaceCommandHandler'
   import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
   import { createRootCommand } from '$lib/shared/types/workspaceInstructions'
-
+  import { generateUniqueId } from '$lib/shared/utils/idUtils'
   interface Props {
     onReinitialize: () => void
     onResetLayout: () => void
@@ -442,7 +442,8 @@
       // instead of automatically placing it below all existing items
       handleWorkspaceCommand({
         type: 'addGridItem',
-        vizType
+        vizType,
+        itemId: generateUniqueId()
       })
       // Show success toast with visualization name
       const visConfig = getVisualizationConfig(vizType)
