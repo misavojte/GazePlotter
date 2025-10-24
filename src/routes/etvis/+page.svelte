@@ -145,6 +145,7 @@
   }
 
   const handleWorkspaceCommand = (command: WorkspaceCommandChain) => {
+    console.log('command', command)
     // Check for stimulus change to Task 2 (stimulusId === 1) from scarf plot
     if (command.type === 'updateSettings' && 
         command.settings && 

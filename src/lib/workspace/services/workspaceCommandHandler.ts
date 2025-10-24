@@ -203,13 +203,13 @@ export function createCommandHandler(
       if (command.isRootCommand && !isUndoRedoOperation) {
         // ignore updateSettings commands 
         // THAT ARE NOT FROM A MODAL (source ends with .modal)
-        if (command.type === 'updateSettings' && !command.source.endsWith('.modal')) {
-          return
-        }
-        const message = getCommandLabel(command.type, command.history)
-        if (message) {
-          onSuccess(message)
-        }
+        const isSettingsCommandFromModal = command.type === 'updateSettings' && command.source.endsWith('.modal')
+        if (!isSettingsCommandFromModal) {
+          const message = getCommandLabel(command.type, command.history)
+          if (message) {
+            onSuccess(message)
+          }
+        } 
       }
 
       // Notify listeners about the command
