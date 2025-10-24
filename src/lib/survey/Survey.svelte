@@ -135,10 +135,11 @@
     <div class="tasks">
       {#each tasks as task, index (index)}
         {@const isTaskCompleted = index < surveyState.currentActiveTaskIndex}
+        {@const isLastTask = index === tasks.length - 1}
         <div 
           class="task" 
           class:active={index === surveyState.currentActiveTaskIndex && !isCompleted}
-          class:completed={isTaskCompleted}
+          class:completed={isTaskCompleted || (isLastTask && isCompleted)}
           class:hidden={index === surveyState.currentActiveTaskIndex && isSticky && !isCompleted}
           bind:this={activeTaskElements[index]}
         >
