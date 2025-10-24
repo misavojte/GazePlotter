@@ -1,5 +1,5 @@
 import { writable, type Writable } from 'svelte/store';
-import type { SurveyState, SurveyTask, SurveyActions } from '../types/index.js';
+import type { SurveyState, SurveyTask, SurveyActions } from '$survey/types/index';
 
 /**
  * Initial survey state with empty tasks array and no active task

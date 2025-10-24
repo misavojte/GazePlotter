@@ -5,8 +5,8 @@
   import { browser } from '$app/environment'
   import type { ParsedData } from '$lib/gaze-data/shared/types'
   import { EyeWorkerService } from '$lib/gaze-data/front-process/class/EyeWorkerService'
-  import { Survey, surveyStore, createCondition, ConsentModal } from '$lib/survey'
-  import type { SurveyTask } from '$lib/survey/types'
+  import { Survey, surveyStore, createCondition, ConsentModal } from '$survey'
+  import type { SurveyTask } from '$survey/types'
   import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   // Format the build date

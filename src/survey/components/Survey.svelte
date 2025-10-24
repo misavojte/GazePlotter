@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { surveyStore } from './stores/surveyStore.js';
-  import type { SurveyTask } from './types/index.js';
+  import { surveyStore } from '$survey/stores/surveyStore';
+  import type { SurveyTask } from '$survey/types/index';
   import { browser } from '$app/environment';
 
   /**
