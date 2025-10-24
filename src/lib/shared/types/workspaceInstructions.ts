@@ -149,7 +149,7 @@ export function createChildCommand<T extends WorkspaceCommand>(
 
 export function createCommandSourcePlotPattern(
   settings: Partial<AllGridTypes> & { type: string },
-  placement: 'plot' | 'modal'
+  placement: 'plot' | 'modal' | 'workspace'
 ) {
   return `${settings.type}.${settings.id}.${placement}`
 }

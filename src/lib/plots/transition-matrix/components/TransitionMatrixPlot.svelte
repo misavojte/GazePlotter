@@ -137,10 +137,12 @@
     }
   }
 
+  const sourceForOpenedModals = createCommandSourcePlotPattern(settings, 'modal')
   function handleGradientClick() {
     try {
       modalStore.open(ModalContentColorScale as any, 'Customize color scale', {
         settings,
+        source: sourceForOpenedModals,
         onWorkspaceCommand,
       })
     } catch (error) {
@@ -155,6 +157,7 @@
         'Set maximum color scale value',
         {
           settings,
+          source: sourceForOpenedModals,
           onWorkspaceCommand,
         }
       )

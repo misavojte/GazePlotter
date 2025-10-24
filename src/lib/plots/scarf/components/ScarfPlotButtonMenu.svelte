@@ -20,6 +20,7 @@
     ModalContentExportSegmentedData,
   } from '$lib/modals'
   import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  import { createCommandSourcePlotPattern } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
     settings: ScarfGridType
@@ -29,12 +30,15 @@
 
   let { settings, onWorkspaceCommand }: Props = $props()
 
+  const source = createCommandSourcePlotPattern(settings, 'modal')
+
   const openClipModal = () => {
     modalStore.open(
       ModalContentScarfPlotClip as unknown as typeof SvelteComponent,
       'Clip scarf timeline',
       {
         settings,
+        source,
         onWorkspaceCommand,
       }
     )
@@ -46,6 +50,7 @@
       'AOI customization',
       {
         selectedStimulus: settings.stimulusId.toString(),
+        source,
         onWorkspaceCommand,
       }
     )
@@ -57,6 +62,7 @@
       'Stimulus customization',
       {
         onWorkspaceCommand,
+        source,
       }
     )
   }
@@ -66,6 +72,7 @@
       ModalContentAoiVisibility as unknown as typeof SvelteComponent,
       'AOI visibility',
       {
+        source,
         onWorkspaceCommand,
       }
     )
@@ -76,6 +83,7 @@
       ModalContentParticipantsGroups as unknown as typeof SvelteComponent,
       'Participants groups',
       {
+        source,
         onWorkspaceCommand,
       }
     )
@@ -86,6 +94,7 @@
       ModalContentParticipantModification as unknown as typeof SvelteComponent,
       'Participant customization',
       {
+        source,
         onWorkspaceCommand,
       }
     )

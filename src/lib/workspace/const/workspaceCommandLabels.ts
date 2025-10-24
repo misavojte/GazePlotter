@@ -16,7 +16,7 @@ export interface CommandLabels {
   /** Label for when this command is being redone */
   redone: string
   /** Label for normal command execution (null means no message should be shown) */
-  default: string | null
+  default: string
 }
 
 /**
@@ -59,7 +59,7 @@ export const WORKSPACE_COMMAND_LABELS: Record<WorkspaceCommand['type'], CommandL
   updateSettings: {
     undone: 'Undo plot update',
     redone: 'Redo plot update',
-    default: null // No message for settings updates as they would annoy users with frequent notifications
+    default: 'Plot updated'
   },
   
   // Grid item management commands
@@ -93,7 +93,7 @@ export const WORKSPACE_COMMAND_LABELS: Record<WorkspaceCommand['type'], CommandL
  * 
  * @param commandType - The type of the workspace command
  * @param history - The history state ('undo', 'redo', or undefined)
- * @returns The appropriate human-readable label, or null if no message should be shown
+ * @returns The appropriate human-readable label
  * 
  * @example
  * ```typescript

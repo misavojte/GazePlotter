@@ -4,7 +4,6 @@
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import GeneralInputNumber from '$lib/shared/components/GeneralInputNumber.svelte'
   import { ModalButtons, IntroductoryParagraph } from '$lib/modals'
-  import { addSuccessToast } from '$lib/toaster'
   import { modalStore } from '$lib/modals/shared/stores/modalStore.js'
 
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
@@ -123,8 +122,6 @@
       settings: newSettings,
       source,
     })
-
-    addSuccessToast('Timeline range updated')
 
     // Close the modal after applying changes
     modalStore.close()

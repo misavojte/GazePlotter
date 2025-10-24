@@ -201,6 +201,11 @@ export function createCommandHandler(
 
       // Show success message for root commands only
       if (command.isRootCommand && !isUndoRedoOperation) {
+        // ignore updateSettings commands 
+        // THAT ARE NOT FROM A MODAL (source ends with .modal)
+        if (command.type === 'updateSettings' && !command.source.endsWith('.modal')) {
+          return
+        }
         const message = getCommandLabel(command.type, command.history)
         if (message) {
           onSuccess(message)

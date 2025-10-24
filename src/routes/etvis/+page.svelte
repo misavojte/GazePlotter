@@ -134,33 +134,60 @@
     surveyStore.nextTask()
   }
 
+  /**
+   * Helper function to check if a command source matches a specific plot type
+   * @param source - The command source string (format: "plotType.plotId.placement")
+   * @param plotType - The plot type to match (e.g., "scarfPlot", "transitionMatrix", "barPlot")
+   * @returns true if the source matches the plot type
+   */
+  function isCommandFromPlotType(source: string, plotType: string): boolean {
+    return source.startsWith(`${plotType}.`) || source.startsWith(`undo.${plotType}.`) || source.startsWith(`redo.${plotType}.`);
+  }
+
   const handleWorkspaceCommand = (command: WorkspaceCommandChain) => {
-    // Check for stimulus change to Task 2 (stimulusId === 1)
-    if (command.type === 'updateSettings' && command.settings && 'stimulusId' in command.settings && command.settings.stimulusId === 1) {
+    // Check for stimulus change to Task 2 (stimulusId === 1) from scarf plot
+    if (command.type === 'updateSettings' && 
+        command.settings && 
+        'stimulusId' in command.settings && 
+        command.settings.stimulusId === 1 &&
+        isCommandFromPlotType(command.source, 'scarf')) {
       stimulusCondition.set(true);
     }
     
-    // Check for timeline change to relative
-    if (command.type === 'updateSettings' && command.settings && 'timeline' in command.settings && command.settings.timeline === 'relative') {
+    // Check for timeline change to relative from scarf plot
+    if (command.type === 'updateSettings' && 
+        command.settings && 
+        'timeline' in command.settings && 
+        command.settings.timeline === 'relative' &&
+        isCommandFromPlotType(command.source, 'scarf')) {
       timelineCondition.set(true);
     }
     
-    // Check for group change to Analytics (groupId === 1)
-    if (command.type === 'updateSettings' && command.settings && 'groupId' in command.settings && command.settings.groupId === 1) {
+    // Check for group change to Analytics (groupId === 1) from scarf plot
+    if (command.type === 'updateSettings' && 
+        command.settings && 
+        'groupId' in command.settings && 
+        command.settings.groupId === 1 &&
+        isCommandFromPlotType(command.source, 'scarf')) {
       groupCondition.set(true);
     }
     
-    // Check for group change to Holistics (groupId === 2)
-    if (command.type === 'updateSettings' && command.settings && 'groupId' in command.settings && command.settings.groupId === 2) {
+    // Check for group change to Holistics (groupId === 2) from scarf plot
+    if (command.type === 'updateSettings' && 
+        command.settings && 
+        'groupId' in command.settings && 
+        command.settings.groupId === 2 &&
+        isCommandFromPlotType(command.source, 'scarf')) {
       group2Condition.set(true);
     }
     
-    // Check for plot duplication
+    // Check for plot duplication (works from any plot type)
     if (command.type === 'duplicateGridItem') {
       duplicateCondition.set(true);
     }
     
     // Check for AOI customization - detect when at least two AOIs have the same displayed name
+    // This can come from any plot type that supports AOI customization
     if (command.type === 'updateAois' && command.aois && command.aois.length > 0) {
       // Count occurrences of each displayed name
       const nameCounts = new Map<string, number>();
@@ -181,12 +208,20 @@
     }
     
     // Check for Transition Matrix aggregation change to '1-step probability'
-    if (command.type === 'updateSettings' && command.settings && 'aggregationMethod' in command.settings && command.settings.aggregationMethod === 'probability') {
+    if (command.type === 'updateSettings' && 
+        command.settings && 
+        'aggregationMethod' in command.settings && 
+        command.settings.aggregationMethod === 'probability' &&
+        isCommandFromPlotType(command.source, 'TransitionMatrix')) {
       transitionMatrixCondition.set(true);
     }
     
     // Check for Bar Plot aggregation change to 'Mean visits'
-    if (command.type === 'updateSettings' && command.settings && 'aggregationMethod' in command.settings && command.settings.aggregationMethod === 'averageEntries') {
+    if (command.type === 'updateSettings' && 
+        command.settings && 
+        'aggregationMethod' in command.settings && 
+        command.settings.aggregationMethod === 'averageEntries' &&
+        isCommandFromPlotType(command.source, 'barPlot')) {
       barPlotCondition.set(true);
     }
   }
