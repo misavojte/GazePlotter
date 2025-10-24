@@ -422,11 +422,6 @@
           type: 'duplicateGridItem',
           itemId: event.id
         })
-        // Show success toast with visualization name
-        const visConfig = getVisualizationConfig(itemToDuplicate.type)
-        addSuccessToast(
-          `${visConfig.name} duplicated and placed to the nearest empty space.`
-        )
       }
     },
   })
