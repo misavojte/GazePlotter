@@ -8,14 +8,15 @@
   import { modalStore } from '$lib/modals/shared/stores/modalStore.js'
 
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
-  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  import type { UpdateSettingsCommand } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
     settings: ScarfGridType
-    onWorkspaceCommand: (command: WorkspaceCommand) => void
+    source: string,
+    onWorkspaceCommand: (command: UpdateSettingsCommand) => void
   }
 
-  let { settings, onWorkspaceCommand }: Props = $props()
+  let { settings, source, onWorkspaceCommand }: Props = $props()
 
   const allStimuliId = getStimuliOrderVector()
 
@@ -120,6 +121,7 @@
       type: 'updateSettings',
       itemId: settings.id,
       settings: newSettings,
+      source,
     })
 
     addSuccessToast('Timeline range updated')

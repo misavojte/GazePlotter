@@ -10,12 +10,12 @@
 
   interface Props {
     settings: TransitionMatrixGridType
+    source: string,
     onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
   // Use callback props instead of event dispatching
-  let { settings, onWorkspaceCommand }: Props = $props()
-
+  let { settings, source, onWorkspaceCommand }: Props = $props()
   // Track selected group
   let selectedGroupId = $state(settings.groupId.toString())
 
@@ -43,7 +43,8 @@
     onWorkspaceCommand({
       type: 'updateSettings',
       itemId: settings.id,
-      settings: { groupId }
+      settings: { groupId },
+      source,
     })
   }
 

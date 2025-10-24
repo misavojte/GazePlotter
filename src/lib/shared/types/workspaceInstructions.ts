@@ -16,25 +16,30 @@ import type { AllGridTypes } from '$lib/workspace/type/gridType'
  * through discriminated unions based on the 'type' field.
  */
 
+interface BaseCommandInterface {
+  type: string
+  source: string // this has specific pattern! 'scarfPlot.IDOFPLOT.PLACEOFTRIGGER' and for undo the same 'undo.scarfPlot.IDOFPLOT.PLACEOFTRIGGER'
+}
+
 // Data change commands
-export interface UpdateAoisCommand {
+export interface UpdateAoisCommand extends BaseCommandInterface {
   type: 'updateAois'
   aois: ExtendedInterpretedDataType[]
   stimulusId: number
   applyTo: 'this_stimulus' | 'all_by_original_name' | 'all_by_displayed_name'
 }
 
-export interface UpdateParticipantsCommand {
+export interface UpdateParticipantsCommand extends BaseCommandInterface {
   type: 'updateParticipants'
   participants: BaseInterpretedDataType[]
 }
 
-export interface UpdateStimuliCommand {
+export interface UpdateStimuliCommand extends BaseCommandInterface {
   type: 'updateStimuli'
   stimuli: BaseInterpretedDataType[]
 }
 
-export interface UpdateAoiVisibilityCommand {
+export interface UpdateAoiVisibilityCommand extends BaseCommandInterface {
   type: 'updateAoiVisibility'
   stimulusId: number
   aoiNames: string[]
@@ -42,38 +47,38 @@ export interface UpdateAoiVisibilityCommand {
   participantId?: number | null
 }
 
-export interface UpdateParticipantsGroupsCommand {
+export interface UpdateParticipantsGroupsCommand extends BaseCommandInterface {
   type: 'updateParticipantsGroups'
   groups: ParticipantsGroup[]
 }
 
 // Settings change command
-export interface UpdateSettingsCommand {
+export interface UpdateSettingsCommand extends BaseCommandInterface {
   type: 'updateSettings'
   itemId: number
   settings: Partial<AllGridTypes>
 }
 
 // Grid item management commands
-export interface AddGridItemCommand {
+export interface AddGridItemCommand extends BaseCommandInterface {
   type: 'addGridItem'
   vizType: string
   options?: Partial<AllGridTypes> & { skipCollisionResolution?: boolean }
   itemId: number // Required itemId for command reversal
 }
 
-export interface RemoveGridItemCommand {
+export interface RemoveGridItemCommand extends BaseCommandInterface {
   type: 'removeGridItem'
   itemId: number
 }
 
 
-export interface DuplicateGridItemCommand {
+export interface DuplicateGridItemCommand extends BaseCommandInterface {
   type: 'duplicateGridItem'
   itemId: number
 }
 
-export interface SetLayoutStateCommand {
+export interface SetLayoutStateCommand extends BaseCommandInterface {
   type: 'setLayoutState'
   layoutState: Array<Partial<AllGridTypes> & { type: string }>
 }
@@ -139,4 +144,18 @@ export function createChildCommand<T extends WorkspaceCommand>(
     chainId: parentChainId,
     isRootCommand: false
   }
+}
+
+
+export function createCommandSourcePlotPattern(
+  settings: Partial<AllGridTypes> & { type: string },
+  placement: 'plot' | 'modal'
+) {
+  return `${settings.type}.${settings.id}.${placement}`
+}
+
+// check based on the source pattern if the command is a history command
+// (starts with 'undo.' or 'redo.')
+export function isHistoryCommand(source: string) {
+  return source.startsWith('undo.') || source.startsWith('redo.')
 }

@@ -13,20 +13,21 @@
   
   interface Props {
     settings: ScarfGridType
+    source: string,
     onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { settings, onWorkspaceCommand }: Props = $props()
+  let { settings, source, onWorkspaceCommand }: Props = $props()
 
 </script>
 
 <div class="nav">
-  <ScarfPlotSelectStimulus {settings} {onWorkspaceCommand} />
-  <ScarfPlotSelectTimeline {settings} {onWorkspaceCommand} />
-  <ScarfPlotSelectGroup {settings} {onWorkspaceCommand} />
-  <ScarfPlotButtonZoomIn {settings} {onWorkspaceCommand} />
-  <ScarfPlotButtonZoomOut {settings} {onWorkspaceCommand} />
-  <ScarfPlotButtonResetView {settings} {onWorkspaceCommand} />
+  <ScarfPlotSelectStimulus {settings} {source} {onWorkspaceCommand} />
+  <ScarfPlotSelectTimeline {settings} {source} {onWorkspaceCommand} />
+  <ScarfPlotSelectGroup {settings} {source} {onWorkspaceCommand} />
+  <ScarfPlotButtonZoomIn {settings} {source} {onWorkspaceCommand} />
+  <ScarfPlotButtonZoomOut {settings} {source} {onWorkspaceCommand} />
+  <ScarfPlotButtonResetView {settings} {source} {onWorkspaceCommand} />
   <ScarfPlotButtonMenu
     {settings}
     {onWorkspaceCommand}

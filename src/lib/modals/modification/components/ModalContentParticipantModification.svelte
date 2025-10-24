@@ -16,13 +16,14 @@
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
   import PatternRenamingTool from './PatternRenamingTool.svelte'
-  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  import type { UpdateParticipantsCommand } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
-    onWorkspaceCommand: (command: WorkspaceCommand) => void
+    source: string,
+    onWorkspaceCommand: (command: UpdateParticipantsCommand) => void
   }
 
-  let { onWorkspaceCommand }: Props = $props()
+  let { source, onWorkspaceCommand }: Props = $props()
 
   // Sorting state
   let sortColumn = $state<'originalName' | 'displayedName' | null>(null)
@@ -98,7 +99,8 @@
       
       onWorkspaceCommand({
         type: 'updateParticipants',
-        participants: participantObjectsCopy
+        participants: participantObjectsCopy,
+        source,
       })
 
       modalStore.close()

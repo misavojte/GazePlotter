@@ -46,7 +46,8 @@
     // Create a setLayoutState command with the initial layout state
     const resetCommand = createRootCommand({
       type: 'setLayoutState',
-      layoutState: initialLayoutState
+      layoutState: initialLayoutState,
+      source: 'emptyindicator',
     })
 
     onWorkspaceCommand(resetCommand)

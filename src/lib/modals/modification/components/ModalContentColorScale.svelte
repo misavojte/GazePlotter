@@ -1,7 +1,7 @@
 <script lang="ts">
   import { GeneralInputColor, GeneralButtonMinor } from '$lib/shared/components'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
-  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  import type { UpdateSettingsCommand } from '$lib/shared/types/workspaceInstructions'
   import { interpolateColor } from '$lib/shared/utils/colorUtils'
   import {
     SectionHeader,
@@ -11,11 +11,12 @@
   } from '$lib/modals'
 
   interface Props {
-    settings: TransitionMatrixGridType
-    onWorkspaceCommand: (command: WorkspaceCommand) => void
+    settings: TransitionMatrixGridType,
+    source: string,
+    onWorkspaceCommand: (command: UpdateSettingsCommand) => void
   }
 
-  let { settings, onWorkspaceCommand }: Props = $props()
+  let { settings, source, onWorkspaceCommand }: Props = $props()
 
   // Initialize colors with current values or defaults
   let colorMin = $state(settings.colorScale?.[0] || '#f7fbff')
@@ -133,6 +134,7 @@
     onWorkspaceCommand({
       type: 'updateSettings',
       itemId: settings.id,
+      source,
       settings: {
         colorScale: getCurrentColorScale(),
       },

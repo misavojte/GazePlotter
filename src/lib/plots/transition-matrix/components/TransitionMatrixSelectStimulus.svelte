@@ -6,11 +6,12 @@
 
   interface Props {
     settings: TransitionMatrixGridType
-    onWorkspaceCommand: (command: WorkspaceCommand) => void
+    source: string,
+    onWorkspaceCommand: (command: WorkspaceCommand) => void,
   }
 
   // Use callback props instead of event dispatching
-  let { settings, onWorkspaceCommand }: Props = $props()
+  let { settings, source, onWorkspaceCommand }: Props = $props()
 
   let selectedStimulusId = $state(settings.stimulusId.toString())
   let stimuliOptions =
@@ -30,7 +31,8 @@
     onWorkspaceCommand({
       type: 'updateSettings',
       itemId: settings.id,
-      settings: { stimulusId }
+      settings: { stimulusId },
+      source,
     })
   }
 </script>

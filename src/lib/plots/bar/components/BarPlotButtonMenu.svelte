@@ -17,6 +17,7 @@
   } from '$lib/modals'
   import type { ComponentProps } from 'svelte'
   import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  import { createCommandSourcePlotPattern } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
     settings: BarPlotGridType
@@ -25,12 +26,15 @@
 
   let { settings, onWorkspaceCommand }: Props = $props()
 
+  const source = createCommandSourcePlotPattern(settings, 'modal')
+
   const openAoiModificationModal = () => {
     modalStore.open(
       ModalContentAoiModification as unknown as typeof SvelteComponent,
       'AOI customization',
       {
         selectedStimulus: settings.stimulusId.toString(),
+        source,
         onWorkspaceCommand,
       }
     )
@@ -41,6 +45,7 @@
       ModalContentStimulusModification as unknown as typeof SvelteComponent,
       'Stimulus customization',
       {
+        source,
         onWorkspaceCommand,
       }
     )
@@ -51,6 +56,7 @@
       ModalContentParticipantsGroups as unknown as typeof SvelteComponent,
       'Participants groups',
       {
+        source,
         onWorkspaceCommand,
       }
     )
@@ -63,6 +69,7 @@
       {
         settings,
         onWorkspaceCommand,
+        source,
       }
     )
   }

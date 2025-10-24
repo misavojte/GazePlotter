@@ -79,8 +79,13 @@ export const recordCommand = (original: WorkspaceCommandChain, reverse: Workspac
   // Skip if no valid reverse command
   if (!reverse) return
 
-  const originalCommand: WorkspaceCommandChain = {...original, history: 'redo'}
-  const reverseCommand: WorkspaceCommandChain = {...reverse, history: 'undo'}
+  // add 'redo.' as prefix to the source
+  const changedOriginalSource = 'redo.' + original.source
+  // add 'undo.' as prefix to the reverse source
+  const changedReverseSource = 'undo.' + reverse.source
+
+  const originalCommand: WorkspaceCommandChain = {...original, source: changedOriginalSource}
+  const reverseCommand: WorkspaceCommandChain = {...reverse, source: changedReverseSource}
 
   undoRedoState.update($state => {
     // Skip if we're processing an undo/redo operation
@@ -126,7 +131,7 @@ export const recordCommand = (original: WorkspaceCommandChain, reverse: Workspac
         ...$state,
         pendingChain: {
           ...$state.pendingChain,
-          commands: [...$state.pendingChain.commands, { original, reverse }]
+          commands: [...$state.pendingChain.commands, { original: originalCommand, reverse: reverseCommand }]
         }
       }
     }
@@ -243,17 +248,6 @@ export const endUndoRedo = (): void => {
     ...$state,
     isProcessingUndoRedo: false
   }))
-}
-
-/**
- * Checks if currently processing an undo/redo operation.
- * Used to skip collision resolution during undo/redo.
- * 
- * @returns True if currently processing undo/redo
- */
-export const isProcessingUndoRedo = (): boolean => {
-  const state = get(undoRedoState)
-  return state.isProcessingUndoRedo
 }
 
 /**

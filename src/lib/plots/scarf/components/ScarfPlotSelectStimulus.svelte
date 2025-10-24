@@ -6,12 +6,13 @@
   import { handleScarfSelectionChange } from '../utils/scarfSelectService'
 
   interface Props {
-    settings: ScarfGridType
+    settings: ScarfGridType,
+    source: string,
     onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
   // Use callback props instead of event dispatching
-  let { settings, onWorkspaceCommand }: Props = $props()
+  let { settings, source, onWorkspaceCommand }: Props = $props()
 
   let selectedStimulusId = $state(settings.stimulusId.toString())
   let stimuliOptions =
@@ -28,7 +29,7 @@
     selectedStimulusId = stimulusId.toString()
 
     // Use the service to handle selection change with height calculation
-    handleScarfSelectionChange(settings, { stimulusId }, onWorkspaceCommand)
+    handleScarfSelectionChange(settings, { stimulusId }, source, onWorkspaceCommand)
   }
 </script>
 

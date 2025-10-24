@@ -322,14 +322,20 @@
   const handleItemMove = createOperationHandler({
     operationType: 'move',
     gridAction: (event: { id: number; x: number; y: number }) => {
-      handleWorkspaceCommand({
-        type: 'updateSettings',
-        itemId: event.id,
-        settings: {
-          x: event.x,
-          y: event.y
-        }
-      })
+      const currentItem = get(gridStore).find(item => item.id === event.id)
+      if (currentItem) {
+        const {type, id} = currentItem
+        const source = `${type}.${id}.workspace`
+        handleWorkspaceCommand({
+          type: 'updateSettings',
+          itemId: currentItem.id,
+          settings: {
+            x: event.x,
+            y: event.y
+          },
+          source,
+        })
+      }
     },
   })
 
@@ -340,6 +346,9 @@
       const currentItem = get(gridStore).find(item => item.id === event.id)
 
       if (!currentItem) return
+
+      const {type, id} = currentItem
+      const source = `${type}.${id}.workspace`
 
       // Enforce minimum dimensions
       const minWidth = Math.max(
@@ -358,11 +367,12 @@
       // Update using updateSettings
       handleWorkspaceCommand({
         type: 'updateSettings',
-        itemId: event.id,
+        itemId: id,
         settings: {
           w: constrainedW,
           h: constrainedH
-        }
+        },
+        source
       })
     },
   })
@@ -406,10 +416,16 @@
   // Handle item removal
   const handleItemRemove = createOperationHandler({
     gridAction: (event: { id: number }) => {
-      handleWorkspaceCommand({
-        type: 'removeGridItem',
-        itemId: event.id
-      })
+      const itemToRemove = get(gridStore).find(item => item.id === event.id)
+      if (itemToRemove) {
+        const {type, id} = itemToRemove
+        const source = `${type}.${id}.workspace`
+        handleWorkspaceCommand({
+          type: 'removeGridItem',
+          itemId: id,
+          source
+        })
+      }
     },
   })
 
@@ -418,9 +434,12 @@
     gridAction: (event: { id: number }) => {
       const itemToDuplicate = get(gridStore).find(item => item.id === event.id)
       if (itemToDuplicate) {
+        const {type, id} = itemToDuplicate
+        const source = `${type}.${id}.workspace`
         handleWorkspaceCommand({
           type: 'duplicateGridItem',
-          itemId: event.id
+          itemId: id,
+          source
         })
       }
     },

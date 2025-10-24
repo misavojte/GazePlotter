@@ -6,11 +6,12 @@
 
   interface Props {
     settings: ScarfGridType
+    source: string,
     onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
   // Use callback props instead of event dispatching
-  let { settings, onWorkspaceCommand }: Props = $props()
+  let { settings, source, onWorkspaceCommand }: Props = $props()
 
   // Track selected timeline
   let selectedTimeline = $state(settings.timeline)
@@ -32,7 +33,7 @@
     selectedTimeline = timeline
 
     // Use the service to handle selection change with height calculation
-    handleScarfSelectionChange(settings, { timeline }, onWorkspaceCommand)
+    handleScarfSelectionChange(settings, { timeline }, source, onWorkspaceCommand)
   }
 </script>
 

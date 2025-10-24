@@ -1,5 +1,5 @@
 import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
-import { createChildCommand } from '$lib/shared/types/workspaceInstructions'
+import { createChildCommand, isHistoryCommand } from '$lib/shared/types/workspaceInstructions'
 import type { GridStoreType } from '$lib/workspace/stores/gridStore'
 import { get } from 'svelte/store'
 import {
@@ -16,7 +16,6 @@ import {
   undo as undoCommand, 
   redo as redoCommand, 
   endUndoRedo, 
-  isProcessingUndoRedo,
 } from '$lib/workspace/stores/undoRedoStore'
 import { createCommandReverser } from './workspaceCommandReverse'
 import { getCommandLabel } from '$lib/workspace/const/workspaceCommandLabels'
@@ -47,7 +46,7 @@ export function createCommandHandler(
   function handleCommand(command: WorkspaceCommandChain): void {
     try {
 
-      const isUndoRedoOperation = command.history === 'undo' || command.history === 'redo'
+      const isUndoRedoOperation = isHistoryCommand(command.source)
 
       if (!isUndoRedoOperation) {
         // Create reverse command BEFORE executing (to capture current state)
@@ -118,7 +117,8 @@ export function createCommandHandler(
               const childCommand = createChildCommand({
                 type: 'updateSettings',
                 itemId: collisionCommand.itemId,
-                settings: collisionCommand.settings
+                settings: collisionCommand.settings,
+                source: 'collision'
               }, command.chainId)
               handleCommand(childCommand)
             })
@@ -144,7 +144,8 @@ export function createCommandHandler(
               const childCommand = createChildCommand({
                 type: 'updateSettings',
                 itemId: collisionCommand.itemId,
-                settings: collisionCommand.settings
+                settings: collisionCommand.settings,
+                source: 'collision'
               }, command.chainId)
               handleCommand(childCommand)
             })
@@ -173,7 +174,8 @@ export function createCommandHandler(
               const childCommand = createChildCommand({
                 type: 'updateSettings',
                 itemId: collisionCommand.itemId,
-                settings: collisionCommand.settings
+                settings: collisionCommand.settings,
+                source: 'collision'
               }, command.chainId)
               handleCommand(childCommand)
             })

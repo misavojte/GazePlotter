@@ -34,6 +34,7 @@ export function createCommandReverser(gridStore: GridStoreType) {
           return {
             type: 'removeGridItem',
             itemId: command.itemId,
+            source: command.source,
             chainId: command.chainId,
             isRootCommand: command.isRootCommand
           }
@@ -63,6 +64,7 @@ export function createCommandReverser(gridStore: GridStoreType) {
               ...options,
               id: removedItem.id, // Ensure ID is included in options for restoration
             },
+            source: command.source,
             chainId: command.chainId,
             isRootCommand: command.isRootCommand,
           }
@@ -92,6 +94,7 @@ export function createCommandReverser(gridStore: GridStoreType) {
           return {
             type: 'removeGridItem',
             itemId: duplicates[0].id,
+            source: command.source,
             chainId: command.chainId,
             isRootCommand: command.isRootCommand,
           }
@@ -122,6 +125,7 @@ export function createCommandReverser(gridStore: GridStoreType) {
             type: 'updateSettings',
             itemId: command.itemId,
             settings: reverseSettings,
+            source: command.source,
             chainId: command.chainId,
             isRootCommand: command.isRootCommand,
           }
@@ -164,9 +168,10 @@ export function createCommandReverser(gridStore: GridStoreType) {
             aois: affectedAois,
             stimulusId: command.stimulusId,
             applyTo: command.applyTo,
+            source: command.source,
             chainId: command.chainId,
             isRootCommand: command.isRootCommand,
-            history: 'undo'
+            
           }
         }
 
@@ -190,9 +195,9 @@ export function createCommandReverser(gridStore: GridStoreType) {
           return {
             type: 'updateParticipants',
             participants,
+            source: command.source,
             chainId: command.chainId,
             isRootCommand: command.isRootCommand,
-            history: 'undo'
           }
         }
 
@@ -216,9 +221,10 @@ export function createCommandReverser(gridStore: GridStoreType) {
           return {
             type: 'updateStimuli',
             stimuli,
+            source: command.source,
             chainId: command.chainId,
             isRootCommand: command.isRootCommand,
-            history: 'undo'
+            
           }
         }
 
@@ -265,9 +271,10 @@ export function createCommandReverser(gridStore: GridStoreType) {
             aoiNames,
             visibilityArr,
             participantId: command.participantId,
+            source: command.source,
             chainId: command.chainId,
             isRootCommand: command.isRootCommand,
-            history: 'undo'
+            
           }
         }
 
@@ -284,9 +291,10 @@ export function createCommandReverser(gridStore: GridStoreType) {
           return {
             type: 'updateParticipantsGroups',
             groups: currentGroups,
+            source: command.source,
             chainId: command.chainId,
             isRootCommand: command.isRootCommand,
-            history: 'undo'
+            
           }
         }
 
@@ -304,9 +312,9 @@ export function createCommandReverser(gridStore: GridStoreType) {
           return {
             type: 'setLayoutState',
             layoutState: currentLayoutState,
+            source: command.source,
             chainId: command.chainId,
-            isRootCommand: command.isRootCommand,
-            history: 'undo'
+            isRootCommand: command.isRootCommand
           }
         }
 

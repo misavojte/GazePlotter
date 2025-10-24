@@ -93,6 +93,7 @@
       onWorkspaceCommand({
         type: 'addGridItem',
         vizType,
+        source: 'toolbar',
         itemId: generateUniqueId()
       })
     }
@@ -137,7 +138,8 @@
     // Create a setLayoutState command with the initial layout state
     const resetCommand = createRootCommand({
       type: 'setLayoutState',
-      layoutState: initialLayoutState
+      layoutState: initialLayoutState,
+      source: 'toolbar',
     })
 
     onWorkspaceCommand(resetCommand)

@@ -17,6 +17,7 @@ import { hasStimulusAoiVisibility } from '$lib/gaze-data/front-process/stores/da
 export function handleScarfSelectionChange(
   settings: ScarfGridType,
   changes: Partial<ScarfGridType>,
+  source: string,
   onWorkspaceCommand: (command: WorkspaceCommand) => void
 ): void {
   // Extract settings
@@ -44,5 +45,6 @@ export function handleScarfSelectionChange(
       ...changes,
       h,
     },
+    source,
   })
 }

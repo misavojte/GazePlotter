@@ -19,7 +19,8 @@
   import { PlotPlaceholder } from '$lib/plots/shared/components'
   import { fade } from 'svelte/transition'
   import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
-  
+  import { createCommandSourcePlotPattern } from '$lib/shared/types/workspaceInstructions'
+
   // Component Props using Svelte 5 $props() rune
   interface Props {
     settings: ScarfGridType
@@ -176,6 +177,9 @@
     highlightedType = identifier
   }
 
+  // source for the workspace commands directly from the plot
+  const source = createCommandSourcePlotPattern(settings, 'plot')
+
   // Handle chart dragging
   function handleDragStepX(stepChange: number) {
     // Convert pixels to time/percentage units based on the timeline type
@@ -209,6 +213,7 @@
       onWorkspaceCommand({
         type: 'updateSettings',
         itemId: settings.id,
+        source,
         settings: {
           absoluteStimuliLimits: updatedLimits,
         }
@@ -220,6 +225,7 @@
       onWorkspaceCommand({
         type: 'updateSettings',
         itemId: settings.id,
+        source,
         settings: {
           ordinalStimuliLimits: updatedLimits,
         }
@@ -269,6 +275,7 @@
 <div class="scarf-plot-container">
   <div class="header">
     <ScarfPlotHeader
+      {source}
       {settings}
       {onWorkspaceCommand}
     />

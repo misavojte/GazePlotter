@@ -20,6 +20,7 @@
   import type { BarPlotAggregationMethodId } from '$lib/plots/bar/const'
   import { BAR_PLOT_AGGREGATION_METHODS } from '$lib/plots/bar/const'
   import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  import { createCommandSourcePlotPattern } from '$lib/shared/types/workspaceInstructions'
 
   // CONSTANTS - centralized for easier maintenance
   const LAYOUT = {
@@ -53,11 +54,15 @@
   const labelededBarPlotData = $derived(barPlotResult.data)
   const timeline = $derived(barPlotResult.timeline)
 
+  // source for the workspace commands directly from the plot
+  const source = createCommandSourcePlotPattern(settings, 'plot')
+
   function handleStimulusChange(event: CustomEvent) {
     const newStimulusId = event.detail as string
     onWorkspaceCommand({
       type: 'updateSettings',
       itemId: settings.id,
+      source,
       settings: {
         stimulusId: parseInt(newStimulusId),
       }
@@ -69,6 +74,7 @@
     onWorkspaceCommand({
       type: 'updateSettings',
       itemId: settings.id,
+      source,
       settings: {
         groupId: parseInt(newGroupId),
       }
@@ -80,6 +86,7 @@
     onWorkspaceCommand({
       type: 'updateSettings',
       itemId: settings.id,
+      source,
       settings: {
         aggregationMethod: newAggregationMethod,
       }

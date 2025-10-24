@@ -20,11 +20,12 @@
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { calculateTransitionMatrix } from '$lib/plots/transition-matrix/utils'
   import { AggregationMethod } from '$lib/plots/transition-matrix/const'
-
+  import { createCommandSourcePlotPattern } from '$lib/shared/types/workspaceInstructions'
+  
   // Types
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
   import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
-
+  
   interface Props {
     settings: TransitionMatrixGridType
     onWorkspaceCommand: (command: WorkspaceCommand) => void
@@ -41,6 +42,9 @@
     const stimulusId = settings.stimulusId
     return settings.stimuliColorValueRanges?.[stimulusId] || [0, 0]
   })
+
+  // source for workspace commands
+  const source = createCommandSourcePlotPattern(settings, 'plot')
 
   // Visualization settings (now reactive)
   let plotDimensions = $derived.by(() =>
@@ -81,13 +85,13 @@
     },
   ]
 
-
   function handleAggregationChange(event: CustomEvent) {
     // Create workspace command for settings change
     onWorkspaceCommand({
       type: 'updateSettings',
       itemId: settings.id,
-      settings: { aggregationMethod: event.detail as AggregationMethod }
+      settings: { aggregationMethod: event.detail as AggregationMethod },
+      source,
     })
   }
 
@@ -165,10 +169,12 @@
     <div class="controls">
       <TransitionMatrixSelectStimulus
         {settings}
+        {source}
         {onWorkspaceCommand}
       />
       <TransitionMatrixSelectGroup
         {settings}
+        {source}
         {onWorkspaceCommand}
       />
       <Select

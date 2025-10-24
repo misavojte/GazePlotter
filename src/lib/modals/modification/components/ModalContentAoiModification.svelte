@@ -19,17 +19,19 @@
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
-  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  import type { UpdateAoisCommand } from '$lib/shared/types/workspaceInstructions'
   
   interface Props {
     selectedStimulus?: string
     userSelected?: string
-    onWorkspaceCommand: (command: WorkspaceCommand) => void
+    source: string
+    onWorkspaceCommand: (command: UpdateAoisCommand) => void
   }
 
   let {
     selectedStimulus = $bindable('0'),
     userSelected = $bindable('this'),
+    source,
     onWorkspaceCommand,
   }: Props = $props()
 
@@ -241,6 +243,7 @@
       onWorkspaceCommand({
         type: 'updateAois',
         aois: aoiObjectsCopy,
+        source,
         stimulusId: parseInt(selectedStimulus),
         applyTo: handlerType
       })
