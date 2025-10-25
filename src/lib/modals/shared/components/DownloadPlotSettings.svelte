@@ -161,12 +161,6 @@
     margin-top: 1rem;
   }
 
-  .hint {
-    font-weight: normal;
-    font-size: 0.8rem;
-    opacity: 0.8;
-  }
-
   .margin-explanation {
     font-size: 0.85rem;
     color: var(--c-darkgrey);
