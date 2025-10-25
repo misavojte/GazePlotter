@@ -68,6 +68,17 @@
   const barPlotCondition = createCondition(); // Monitor for Bar Plot aggregation
   const explorationCondition = createCondition(); // Monitor for UI exploration completion
 
+  // State for forcing banner to close on any modal content
+  let forceCloseBanner = $state(false);
+
+  // Monitor modal store to force close banner when any modal is open
+  $effect(() => {
+    const unsubscribe = modalStore.subscribe((modal) => {
+      forceCloseBanner = modal !== null;
+    });
+    return unsubscribe;
+  });
+
   // Example tasks with conditions and alert buttons
   const exampleTasks: SurveyTask[] = [
     { 
@@ -311,7 +322,7 @@
       No&nbsp;registration, no ads and no data stored on&nbsp;a&nbsp;server. We
       love open science.
     </p>
-    <Survey tasks={exampleTasks} />
+    <Survey tasks={exampleTasks} {forceCloseBanner} />
   </section>
   <section>
     <GazePlotter {loadInitialData} onWorkspaceCommandChain={handleWorkspaceCommand} reinitializeLabel="Reload ETVIS data" />

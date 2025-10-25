@@ -22,6 +22,22 @@
 
   // Track fullscreen state
   let isFullscreen = $state(false)
+  let bannerHeight = $state(0)
+
+  function detectOnScrollBannerHeight() {
+    const banner = document.querySelector('.scroll-banner')
+    if (banner) {
+      bannerHeight = (banner as HTMLElement).offsetHeight
+    }
+  }
+
+  onMount(() => {
+    // add passive listener
+    window.addEventListener('scroll', detectOnScrollBannerHeight, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', detectOnScrollBannerHeight)
+    }
+  })
 
   // Function to toggle fullscreen mode
   function toggleFullscreen() {
@@ -156,7 +172,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 <div class="workspace-toolbar" style="--accent-color: {accentColor};">
-  <div class="toolbar-content">
+  <div class="toolbar-content" style="top: {bannerHeight}px;">
     <!-- Undo button -->
     <WorkspaceToolbarItem
       id="undo"

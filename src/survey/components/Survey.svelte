@@ -2,6 +2,8 @@
   import { surveyStore } from '$survey/stores/surveyStore';
   import type { SurveyTask } from '$survey/types/index';
   import { browser } from '$app/environment';
+  import { onMount } from 'svelte';
+  import { fly } from 'svelte/transition';
 
   /**
    * Props for the Survey component
@@ -11,11 +13,12 @@
     tasks: SurveyTask[];
     /** Optional CSS class for custom styling */
     class?: string;
+    forceCloseBanner?: boolean;
   }
 
-  let { tasks, class: className = '' }: Props = $props();
+  let { tasks, class: className = '', forceCloseBanner = false }: Props = $props();
 
-  // Initialize survey tasks - SSR-first approach (built into component)
+  // --- Store Initialization ---
   $effect(() => {
     if (tasks.length > 0) {
       try {
@@ -26,35 +29,66 @@
     }
   });
 
-  // Subscribe to survey state
+  $effect(() => {
+    if (forceCloseBanner && showBanner) {
+      hideBanner();
+    }
+  });
+
+  // --- Store Subscriptions ---
   const surveyState = $derived($surveyStore);
-  const currentTask = $derived(surveyState.tasks[surveyState.currentActiveTaskIndex]);
+  const currentTaskIndex = $derived(surveyState.currentActiveTaskIndex);
+  const currentTask = $derived(surveyState.tasks[currentTaskIndex]);
   const isCompleted = $derived(surveyState.isCompleted);
 
-  // Sticky scroll behavior
-  let isSticky = $state(false);
+  // --- State for Banner Visibility ---
+  let showBanner = $state(false);
+  let bannerHiding = $state(false);
   let activeTaskElements: (HTMLElement | null)[] = $state([]);
-  let originalTop = 0;
+  
+  // --- State for Main List Completion Animation ---
+  let completingTaskIndex = $state(-1);
+  let completionTimeout: number | null = null;
+  let completedTasks = $state<Set<number>>(new Set()); // Track which tasks have shown completion
 
-  $effect(() => {
-    if (!browser || isCompleted) return;
-
-    const handleScroll = () => {
-      const activeTaskElement = activeTaskElements[surveyState.currentActiveTaskIndex];
-      if (activeTaskElement) {
-        const rect = activeTaskElement.getBoundingClientRect();
-        const scrollTop = window.scrollY || document.documentElement.scrollTop;
-        
-        // Check if the active task has scrolled past the top of viewport
-        if (!isSticky && rect.top <= 16) { // 1rem = 16px
-          originalTop = scrollTop + rect.top;
-          isSticky = true;
-        } else if (isSticky && scrollTop < originalTop - 16) {
-          isSticky = false;
-        }
+  // --- Scroll Handler for Banner ---
+  function handleScroll() {
+    if (isCompleted) {
+      if (showBanner && !bannerHiding) {
+        hideBanner();
       }
-    };
+      return;
+    }
 
+    const activeTaskElement = activeTaskElements[currentTaskIndex];
+    if (!activeTaskElement) return;
+
+    const rect = activeTaskElement.getBoundingClientRect();
+    const taskIsAboveViewport = rect.bottom < 100; // this is intentional:)
+    
+    if (taskIsAboveViewport && !showBanner && !bannerHiding) {
+      showBanner = true;
+      bannerHiding = false;
+    } else if (!taskIsAboveViewport && showBanner && !bannerHiding) {
+      hideBanner();
+    }
+  }
+
+  // Hide banner with animation
+  function hideBanner() {
+    if (bannerHiding) return;
+    
+    bannerHiding = true;
+    setTimeout(() => {
+      showBanner = false;
+      bannerHiding = false;
+    }, 300); // Match animation duration
+  }
+
+  // Setup scroll listener
+  onMount(() => {
+    if (!browser) return;
+    
     window.addEventListener('scroll', handleScroll, { passive: true });
     
     return () => {
@@ -62,17 +96,49 @@
     };
   });
 
-  // Simple derived key that changes when task changes while sticky
-  const stickyCloneKey = $derived(
-    isSticky ? surveyState.currentActiveTaskIndex : 0
-  );
-
-  // Monitor conditions for automatic task completion
+  // --- Task Completion Animation (for Main List) ---
+  // This $effect animates the task in the *main list* after it's completed.
   $effect(() => {
-    if (!browser || isCompleted) return;
+    if (!browser) {
+      return;
+    }
 
-    const currentTask = surveyState.tasks[surveyState.currentActiveTaskIndex];
-    if (!currentTask?.condition) return;
+    // Clear any existing completion timeout
+    if (completionTimeout) {
+      clearTimeout(completionTimeout);
+      completionTimeout = null;
+    }
+
+    // Reset completion state when task changes
+    completingTaskIndex = -1;
+
+    // If we have a previous task that just completed, show completion animation ONCE per task
+    if (currentTaskIndex > 0) {
+      const previousTaskIndex = currentTaskIndex - 1;
+      
+      // Only show completion if this task hasn't been completed before
+      if (!completedTasks.has(previousTaskIndex)) {
+        completingTaskIndex = previousTaskIndex;
+        completedTasks.add(previousTaskIndex); // Mark this task as completed
+        
+        // Auto-advance after completion animation
+        completionTimeout = window.setTimeout(() => {
+          completingTaskIndex = -1;
+        }, 1500); // Show completion for 1.5 seconds
+      }
+    }
+
+    return () => {
+      if (completionTimeout) {
+        clearTimeout(completionTimeout);
+        completionTimeout = null;
+      }
+    };
+  });
+
+  // --- Automatic Task Progression ---
+  $effect(() => {
+    if (!browser || isCompleted || !currentTask?.condition) return;
 
     const unsubscribe = currentTask.condition.subscribe((conditionMet) => {
       if (conditionMet) {
@@ -84,82 +150,74 @@
   });
 </script>
 
-<!-- 
-  Simplified survey component with SSR-first approach
-  Displays tasks with active task highlighted by brand color framing
--->
-
-<!-- Sticky clone at the top when scrolled -->
-{#if isSticky && currentTask && !isCompleted}
-  {#key stickyCloneKey}
-    <div class="sticky-clone">
-      <div class="sticky-container">
-        <div class="task active">
-          <div class="task-text">{currentTask.text}</div>
-          
-          <!-- Button for sticky clone -->
-          <div class="button-container" class:show={currentTask.buttonText && currentTask.onButtonClick}>
-            {#if currentTask.buttonText && currentTask.onButtonClick}
-              <button 
-                class="task-button"
-                onclick={currentTask.onButtonClick}
-              >
-                {currentTask.buttonText}
-              </button>
-            {/if}
+{#if showBanner && !isCompleted && currentTask}
+  <!-- class scroll-banner is used to detect the banner height in workspace toolbar-->
+  <div class="banner scroll-banner" class:hiding={bannerHiding}>
+    <div class="banner-content-wrapper">
+      {#key currentTaskIndex}
+        <div 
+          class="banner-content"
+          in:fly={{ y: -20, duration: 300, delay: 50 }}
+          out:fly={{ y: 20, duration: 250, opacity: 0 }}
+        >
+          <div class="banner-text">
+            {currentTask.text}
           </div>
+          
+          {#if currentTask.buttonText && currentTask.onButtonClick}
+            <button 
+              class="banner-button"
+              onclick={currentTask.onButtonClick}
+            >
+              {currentTask.buttonText}
+            </button>
+          {/if}
         </div>
-      </div>
+      {/key}
     </div>
-  {/key}
+  </div>
 {/if}
 
 <div class="survey" class:className>
   {#if tasks.length === 0}
     <div class="empty">No survey tasks available</div>
   {:else}
-    <!-- Progress indicator -->
     <div class="progress">
-      Task {surveyState.currentActiveTaskIndex + 1} of {tasks.length}
+      Task {currentTaskIndex + 1} of {tasks.length}
       {#if isCompleted}
         <span class="completed">(Completed!)</span>
       {/if}
     </div>
     
-    <!-- Info about automatic progression -->
     <div class="info">
       Tasks are evaluated automatically and progressed upon fulfilling the condition
     </div>
 
-    <!-- Tasks list -->
     <div class="tasks">
       {#each tasks as task, index (index)}
-        {@const isTaskCompleted = index < surveyState.currentActiveTaskIndex}
-        {@const isLastTask = index === tasks.length - 1}
+        {@const isTaskCompleted = index < currentTaskIndex}
+        {@const isActive = index === currentTaskIndex && !isCompleted}
+        {@const isCompleting = index === completingTaskIndex}
         <div 
           class="task" 
-          class:active={index === surveyState.currentActiveTaskIndex && !isCompleted}
-          class:completed={isTaskCompleted || (isLastTask && isCompleted)}
-          class:hidden={index === surveyState.currentActiveTaskIndex && isSticky && !isCompleted}
+          class:active={isActive}
+          class:completed={isTaskCompleted && !isCompleting}
+          class:completing={isCompleting}
           bind:this={activeTaskElements[index]}
         >
           <div class="task-text">{task.text}</div>
           
-          <!-- Button shown only for active task with smooth height animation -->
-          <div class="button-container" class:show={index === surveyState.currentActiveTaskIndex && task.buttonText && task.onButtonClick && !isCompleted}>
-            {#if index === surveyState.currentActiveTaskIndex && task.buttonText && task.onButtonClick && !isCompleted}
-              <button 
-                class="task-button"
-                onclick={task.onButtonClick}
-              >
-                {task.buttonText}
-              </button>
-            {/if}
-          </div>
+          {#if isActive && task.buttonText && task.onButtonClick}
+            <button 
+              class="task-button"
+              onclick={task.onButtonClick}
+            >
+              {task.buttonText}
+            </button>
+          {/if}
         </div>
       {/each}
       
-      <!-- Completion message -->
       {#if isCompleted}
         <div class="completion">🎉 All tasks completed!</div>
       {/if}
@@ -168,6 +226,7 @@
 </div>
 
 <style>
+  /* --- Keep all original styles for .survey, .task, .progress, etc. --- */
   .survey {
     max-width: 600px;
     margin: 0 auto;
@@ -218,12 +277,13 @@
     border: 2px solid var(--c-lightgrey);
     border-radius: var(--rounded-md);
     background: var(--c-white);
-    transition: all 0.3s ease;
+    transition: border-color 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
     font-weight: 500;
     font-size: 0.9rem;
     text-align: center;
     position: relative;
     overflow: hidden;
+    will-change: transform, border-color, background-color, box-shadow;
   }
 
   .task.active {
@@ -232,10 +292,6 @@
     box-shadow: 0 0 0 3px rgba(205, 20, 4, 0.1);
     color: var(--c-brand-dark);
     transform: scale(1.02);
-  }
-
-  .task.hidden {
-    visibility: hidden;
   }
 
   .task.completed {
@@ -251,60 +307,38 @@
     color: var(--c-darkgrey);
   }
 
-  .sticky-clone {
-    position: fixed;
-    top: 1rem;
-    left: 0;
-    right: 0;
-    z-index: 1000;
-    pointer-events: none;
+  .task.completing {
+    background: #065f46 !important; /* Deep green */
+    border-color: #065f46 !important;
+    color: white !important;
+    transform: scale(1.05);
+    box-shadow: 0 0 0 4px rgba(6, 95, 70, 0.2);
+    animation: taskCompletionPulse 0.6s ease-out;
   }
 
-  .sticky-container {
-    max-width: 500px;
-    margin: 0 auto;
-    padding: 0 1rem;
-    pointer-events: auto;
+  .task.completing .task-text {
+    color: white !important;
+    text-decoration: none !important;
+    font-weight: 600;
   }
 
-  .sticky-clone .task {
-    width: 100%;
-    max-width: 500px;
-    margin: 0 auto;
-    padding: 0.75rem 1rem 0.25rem 1rem;
-    animation: stickyAppear 0.3s ease-out;
-    box-sizing: border-box;
-  }
-
-  .sticky-clone .task-button {
-    margin: 0.5rem auto 0.25rem;
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
-  }
-
-  @keyframes stickyAppear {
+  @keyframes taskCompletionPulse {
     0% {
-      opacity: 0;
-      transform: translateY(-10px) scale(1.02);
+      transform: scale(1.02);
+      box-shadow: 0 0 0 3px rgba(205, 20, 4, 0.1);
+    }
+    50% {
+      transform: scale(1.08);
+      box-shadow: 0 0 0 6px rgba(6, 95, 70, 0.3);
     }
     100% {
-      opacity: 1;
-      transform: translateY(0) scale(1.02);
+      transform: scale(1.05);
+      box-shadow: 0 0 0 4px rgba(6, 95, 70, 0.2);
     }
   }
 
   .task-text {
     margin-bottom: 0.5rem;
-  }
-
-  .button-container {
-    height: 0;
-    overflow: hidden;
-    transition: height 0.4s ease-out;
-  }
-
-  .button-container.show {
-    height: 50px; /* Approximate height of button + margins */
   }
 
   .task-button {
@@ -344,19 +378,108 @@
     margin-top: 0.75rem;
     font-weight: 500;
     font-size: 0.9rem;
-    animation: completionReveal 0.6s ease-out;
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
-    transform: scale(1.02);
   }
 
-  @keyframes completionReveal {
+
+  .banner-text {
+    font-weight: 500;
+    font-size: 0.9rem;
+    text-align: center;
+    /* Ensure the text doesn't interfere with flex centering */
+    flex-shrink: 0;
+  }
+
+  .banner-button {
+    padding: 0.5rem 1rem;
+    background: white;
+    color: var(--c-brand);
+    border: none;
+    border-radius: var(--rounded);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease, opacity 0.2s ease;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    min-width: 6rem; /* Prevent button width jitter */
+    text-align: center;
+  }
+
+  .banner-button:hover {
+    background: var(--c-darkwhite);
+    transform: translateY(-1px);
+  }
+
+  .banner-button:active {
+    transform: translateY(0);
+  }
+
+  @keyframes bannerSlideDown {
     0% {
       opacity: 0;
-      transform: scale(0.9) translateY(10px);
+      transform: translateY(-100%);
     }
     100% {
       opacity: 1;
-      transform: scale(1.02) translateY(0);
+      transform: translateY(0);
     }
+  }
+
+  @keyframes bannerSlideUp {
+    0% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-100%);
+    }
+  }
+
+  /* --- SIMPLIFIED BANNER STYLES --- */
+  .banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: var(--c-brand);
+    color: white;
+    padding: 0.75rem 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    animation: bannerSlideDown 0.3s ease-out;
+    min-height: 3.5rem; /* Ensure banner doesn't jitter */
+    display: flex;
+    align-items: center;
+    /* This is crucial: clips the in/out fly animations */
+    overflow: hidden; 
+  }
+
+  .banner.hiding {
+    animation: bannerSlideUp 0.3s ease-in forwards;
+  }
+
+  /* Banner content wrapper - relative container for absolute positioning */
+  .banner-content-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    min-height: 1.25rem; /* Prevent banner height jitter */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Banner content - absolute positioned for animation, but centered within wrapper */
+  .banner-content {
+    position: absolute;
+    width: 100%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
   }
 </style>
