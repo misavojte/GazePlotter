@@ -2,6 +2,7 @@
   import MinorButton from './GeneralButtonMinor.svelte'
   import { type ComponentType } from 'svelte'
   import MoreVertical from 'lucide-svelte/icons/more-vertical'
+  import { tooltipAction } from '$lib/tooltip/components/Tooltip.svelte'
 
   interface ActionItem {
     icon: ComponentType
@@ -40,7 +41,7 @@
 
 <svelte:window onclick={handleOutsideClick} onkeydown={handleKeydown} />
 
-<div class="wrap" bind:this={menuElement}>
+<div class="wrap" bind:this={menuElement} use:tooltipAction={{ content: "Plot & data options", position: "top", offset: 35, verticalAlign: "end", hideOnClick: true, clickCooldown: 2000 }}>
   <MinorButton onclick={handleClick}>
     <MoreVertical size={'1em'} />
   </MinorButton>
