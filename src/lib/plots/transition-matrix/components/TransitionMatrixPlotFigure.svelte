@@ -259,9 +259,6 @@
       return
     }
 
-    // Draw axis labels
-    drawAxisLabels(ctx)
-
     // Draw grid and cell labels
     drawGrid(ctx)
 
@@ -271,8 +268,33 @@
     // Draw the legend
     drawLegend(ctx)
 
+    // Set up font
+    // TEXT RENDERING STARTS HERE
+    setUpFont(ctx)
+
+    // Draw axis labels
+    drawAxisLabels(ctx)
+
+    const labelFontSize = setUpLabelFont(ctx)
+
+    // Draw cells text
+    drawCellsText(ctx)
+
+    // Draw row labels
+    drawRowLabels(ctx, labelFontSize)
+
+    // Draw column labels
+    drawColumnLabels(ctx, labelFontSize)
+
+    // ---- STOP OF TEXT DRAWING ---- //
+
     // Finish drawing
     finishCanvasDrawing(canvasState)
+  }
+
+  function setUpFont(ctx: CanvasRenderingContext2D) {
+    ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
+    ctx.fillStyle = '#222'
   }
 
   // Draw the X and Y axis labels
@@ -280,9 +302,7 @@
     // Make sure there's enough space for labels
     if (actualGridWidth < 50 || actualGridHeight < 50) return
 
-    // Setup text styling
-    ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
-    ctx.fillStyle = '#000'
+    // make sure setUpFont function is called before this function is called!
     ctx.textBaseline = 'middle'
 
     // Draw X-axis label (To AOI)
@@ -304,19 +324,38 @@
     ctx.restore()
   }
 
-  // Draw grid and labels
-  function drawGrid(ctx: CanvasRenderingContext2D) {
-    // Setup text styling for AOI labels
-    ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
-    ctx.fillStyle = '#000'
-    ctx.textBaseline = 'middle'
-
-    // Adjust font size based on available space
+  function setUpLabelFont(ctx: CanvasRenderingContext2D): number {
     const labelFontSize = Math.min(12, Math.max(8, optimalCellSize / 3))
     ctx.font = `${labelFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
+    return labelFontSize
+  }
 
-    // Draw column labels (top) - moved 5px higher
+  function drawRowLabels(ctx: CanvasRenderingContext2D, labelFontSize: number) {
+    // make sure setUpFont function is called before this function is called!
+    // Draw row labels (left side)
+    ctx.textAlign = 'end'
+    for (let row = 0; row < aoiLabels.length; row++) {
+      const x = xOffset - INDIVIDUAL_LABEL_MARGIN
+      const y = yOffset + row * optimalCellSize + (optimalCellSize >> 1)
+
+      // Truncate text if needed
+      const labelText = truncateTextToPixelWidth(
+        aoiLabels[row],
+        MAX_LABEL_LENGTH,
+        labelFontSize,
+        SYSTEM_SANS_SERIF_STACK,
+        '...'
+      )
+
+      ctx.fillText(labelText, x, y)
+    }
+  }
+
+  function drawColumnLabels(ctx: CanvasRenderingContext2D, labelFontSize: number) {
+    // make sure setUpFont function is called before this function is called!
     ctx.textAlign = 'left'
+    ctx.textBaseline = 'middle'
+
     for (let col = 0; col < aoiLabels.length; col++) {
       const x = xOffset + col * optimalCellSize + (optimalCellSize >> 1)
       const y = yOffset - INDIVIDUAL_LABEL_MARGIN // Added 5px offset to move higher
@@ -329,7 +368,7 @@
         truncateTextToPixelWidth(
           aoiLabels[col],
           MAX_LABEL_LENGTH * 1.5, // 1.5x the max label length to account for rotation
-          12,
+          labelFontSize,
           SYSTEM_SANS_SERIF_STACK,
           '...'
         ),
@@ -338,25 +377,11 @@
       )
       ctx.restore()
     }
+  }
 
-    // Draw row labels (left side)
-    ctx.textAlign = 'end'
-    for (let row = 0; row < aoiLabels.length; row++) {
-      const x = xOffset - INDIVIDUAL_LABEL_MARGIN
-      const y = yOffset + row * optimalCellSize + (optimalCellSize >> 1)
-
-      // Truncate text if needed
-      const labelText =       truncateTextToPixelWidth(
-        aoiLabels[row],
-        MAX_LABEL_LENGTH,
-        12,
-        SYSTEM_SANS_SERIF_STACK,
-        '...'
-      )
-
-      ctx.fillText(labelText, x, y)
-    }
-
+  // Draw grid and labels
+  function drawGrid(ctx: CanvasRenderingContext2D) {
+    
     // Draw grid lines
     ctx.strokeStyle = '#ddd'
     ctx.lineWidth = 0.5
@@ -382,9 +407,6 @@
 
   // Draw matrix cells
   function drawCells(ctx: CanvasRenderingContext2D) {
-    // Adjust text size based on cell size
-    const valueFontSize = Math.min(12, Math.max(8, optimalCellSize / 3))
-
     // Draw each cell based on its value
     for (let row = 0; row < aoiLabels.length; row++) {
       for (let col = 0; col < aoiLabels.length; col++) {
@@ -396,33 +418,54 @@
 
         // Determine cell color based on value
         let cellColor
-        let textColor
 
         if (isBelowMinimum(value)) {
           cellColor = belowMinColor
-          textColor = getContrastTextColor(belowMinColor)
         } else if (isAboveMaximum(value)) {
           cellColor = aboveMaxColor
-          textColor = getContrastTextColor(aboveMaxColor)
         } else {
           cellColor = getColor(value)
-          textColor = getContrastTextColor(cellColor)
         }
 
         // Draw cell background
         ctx.fillStyle = cellColor
         ctx.fillRect(x, y, optimalCellSize, optimalCellSize)
+      }
+    }
+  }
 
-        // Draw cell value if there's enough space and labels are enabled
+  function drawCellsText(ctx: CanvasRenderingContext2D) {
+    // make sure setUpFont function is called before this function is called!
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+
+    // Adjust text size based on cell size
+    // const valueFontSize = Math.min(12, Math.max(8, optimalCellSize / 3))
+    // ctx.font = `${valueFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
+
+    for (let row = 0; row < aoiLabels.length; row++) {
+      for (let col = 0; col < aoiLabels.length; col++) {
+        const value = TransitionMatrix[row]?.[col] ?? 0
+
         if (optimalCellSize >= 15) {
-          // Check if we should show the value based on settings
           const shouldShowValue =
             (!isBelowMinimum(value) && !isAboveMaximum(value)) || // Always show values within range
             (isBelowMinimum(value) && showBelowMinLabels) || // Show below min if enabled
             (isAboveMaximum(value) && showAboveMaxLabels) // Show above max if enabled
 
           if (shouldShowValue) {
-            ctx.font = `${valueFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
+            const x = xOffset + col * optimalCellSize
+            const y = yOffset + row * optimalCellSize
+            let textColor: string
+
+            if (isBelowMinimum(value)) {
+              textColor = getContrastTextColor(belowMinColor)
+            } else if (isAboveMaximum(value)) {
+              textColor = getContrastTextColor(aboveMaxColor)
+            } else {
+              textColor = getContrastTextColor(getColor(value))
+            }
+
             ctx.fillStyle = textColor
             ctx.textAlign = 'center'
             ctx.textBaseline = 'middle'
