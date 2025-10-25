@@ -35,6 +35,7 @@
   let showScrollIndicator = $state(false)
   let showVersionMessage = $state(false)
   let bodyElement: HTMLElement | null = $state(null)
+  let modalElement: HTMLElement | null = $state(null)
 
   function handleFullscreenChange() {
     isFullscreen = !!document.fullscreenElement
@@ -57,6 +58,60 @@
     }
   }
 
+  // Lock body scroll and preserve scroll position
+  function lockBodyScroll() {
+    // Store current scroll position
+    const scrollY = window.scrollY
+    const scrollX = window.scrollX
+    
+    // Store original styles
+    const originalOverflow = document.body.style.overflow
+    const originalPosition = document.body.style.position
+    const originalTop = document.body.style.top
+    const originalLeft = document.body.style.left
+    const originalWidth = document.body.style.width
+    const originalHeight = document.body.style.height
+    
+    // Lock body scroll at current position
+    document.body.style.overflow = 'hidden'
+    document.body.style.position = 'fixed'
+    document.body.style.top = `-${scrollY}px`
+    document.body.style.left = `-${scrollX}px`
+    document.body.style.width = '100%'
+    document.body.style.height = '100%'
+    
+    return () => {
+      // Restore original styles
+      document.body.style.overflow = originalOverflow
+      document.body.style.position = originalPosition
+      document.body.style.top = originalTop
+      document.body.style.left = originalLeft
+      document.body.style.width = originalWidth
+      document.body.style.height = originalHeight
+      
+      // Restore scroll position
+      window.scrollTo(scrollX, scrollY)
+    }
+  }
+
+  // Redirect window scroll events to modal content
+  function handleWindowScroll(event: Event) {
+    if (bodyElement && modal) {
+      event.preventDefault()
+      event.stopPropagation()
+      
+      // Convert wheel event to scroll the modal content
+      if (event instanceof WheelEvent) {
+        const deltaY = event.deltaY
+        const scrollAmount = deltaY * 0.5 // Adjust sensitivity
+        
+        if (bodyElement.scrollHeight > bodyElement.clientHeight) {
+          bodyElement.scrollTop += scrollAmount
+        }
+      }
+    }
+  }
+
   // Check when bodyElement becomes available
   $effect(() => {
     if (bodyElement) {
@@ -64,15 +119,44 @@
     }
   })
 
+  let unlockBodyScroll: (() => void) | null = null
+
   onMount(() => {
     // Add event listeners
     window.addEventListener('keydown', handleKeydown)
     document.addEventListener('fullscreenchange', handleFullscreenChange)
+    
+    // Lock body scroll when modal opens
+    if (modal) {
+      unlockBodyScroll = lockBodyScroll()
+      // Add wheel event listener to redirect scroll to modal content
+      window.addEventListener('wheel', handleWindowScroll, { passive: false })
+    }
 
     return () => {
       // Remove event listeners on component destruction
       window.removeEventListener('keydown', handleKeydown)
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
+      window.removeEventListener('wheel', handleWindowScroll)
+      
+      // Unlock body scroll
+      if (unlockBodyScroll) {
+        unlockBodyScroll()
+      }
+    }
+  })
+
+  // Handle modal state changes
+  $effect(() => {
+    if (modal && !unlockBodyScroll) {
+      // Modal opened - lock body scroll
+      unlockBodyScroll = lockBodyScroll()
+      window.addEventListener('wheel', handleWindowScroll, { passive: false })
+    } else if (!modal && unlockBodyScroll) {
+      // Modal closed - unlock body scroll
+      unlockBodyScroll()
+      unlockBodyScroll = null
+      window.removeEventListener('wheel', handleWindowScroll)
     }
   })
 </script>
@@ -95,6 +179,7 @@
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
+      bind:this={modalElement}
       in:scale={{ duration: 200, start: 0.8 }}
       out:scale={{ duration: 150, start: 0.8 }}
     >
@@ -151,6 +236,12 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    /* Google-like border */
+    border: 1px solid #dadce0;
+    box-shadow: 
+      0 1px 2px 0 rgba(60, 64, 67, 0.3),
+      0 1px 3px 1px rgba(60, 64, 67, 0.15),
+      0 0 0 1px rgba(60, 64, 67, 0.05);
   }
   
   @media (min-width: 768px) {
