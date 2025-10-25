@@ -1082,8 +1082,6 @@
   }
 
   canvas {
-    display: block;
-    max-width: 100%;
-    max-height: 100%;
+    display: block; /* Do not add 100% width and height here! It might mess up with the export and so on */
   }
 </style>

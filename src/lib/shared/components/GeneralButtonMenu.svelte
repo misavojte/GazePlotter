@@ -50,7 +50,7 @@
     <ul class="menu" transition:fly={{ y: -20, duration: 300 }}>
       {#each items as item}
         <li>
-          <button onclick={item.action}>
+          <button onclick={() => { item.action(); isOpen = false; }}>
             <item.icon size={'1em'} />
             {item.label}
           </button>

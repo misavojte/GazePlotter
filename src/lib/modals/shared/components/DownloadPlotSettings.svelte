@@ -44,8 +44,8 @@
 
   // Available export options
   const options = [
-    { label: 'PNG (Transparent)', value: '.png' },
-    { label: 'JPG (White Background)', value: '.jpg' },
+    { label: 'PNG', value: '.png' },
+    { label: 'JPG', value: '.jpg' },
   ]
 
   // Function to set all margins at once
@@ -109,7 +109,9 @@
   <!-- Margin Settings -->
   <div class="margin-settings">
     <SectionHeader text="Margins" />
-    <span class="hint">(negative values will crop the image)</span>
+    <p class="margin-explanation">
+      Margins control the spacing around your plot. Use positive values to add padding, or negative values to crop the image and focus on specific areas. This is useful for removing unwanted whitespace or highlighting particular regions of your visualization.
+    </p>
     <div class="settings-grid-margins">
       <div class="settings-item">
         <GeneralInputNumber min={-9999} label="Top" bind:value={marginTop} />
@@ -163,6 +165,17 @@
     font-weight: normal;
     font-size: 0.8rem;
     opacity: 0.8;
+  }
+
+  .margin-explanation {
+    font-size: 0.85rem;
+    color: var(--c-darkgrey);
+    line-height: 1.4;
+    margin: 0.5rem 0 1rem 0;
+    padding: 0.75rem;
+    background-color: #e6f3ff;
+    border-radius: 4px;
+    border-left: 3px solid var(--c-primary, #007acc);
   }
 
   .settings-grid-main {
