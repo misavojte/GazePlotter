@@ -3,6 +3,7 @@
   import RefreshCcw from 'lucide-svelte/icons/refresh-ccw'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
   import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  import { tooltipAction } from '$lib/tooltip/components/Tooltip.svelte'
 
   interface Props {
     settings: ScarfGridType,
@@ -56,6 +57,13 @@
   }
 </script>
 
-<GeneralButtonMinor onclick={handleClick} {isDisabled}>
-  <RefreshCcw size={'1em'} strokeWidth={1} />
-</GeneralButtonMinor>
+<div use:tooltipAction={{ 
+  content: "Reset scarf plot view", 
+  position: "top", 
+  offset: 35, 
+  verticalAlign: "end" 
+}}>
+  <GeneralButtonMinor onclick={handleClick} {isDisabled}>
+    <RefreshCcw size={'1em'} strokeWidth={1} />
+  </GeneralButtonMinor>
+</div>

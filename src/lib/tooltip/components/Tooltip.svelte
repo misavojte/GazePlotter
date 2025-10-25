@@ -77,7 +77,7 @@
       vAlign: options.verticalAlign ?? 'start',
       isHovering: false,
       hideOnClick: options.hideOnClick ?? true,
-      clickCooldown: options.clickCooldown ?? 1000, // 2 seconds default
+      clickCooldown: options.clickCooldown ?? 2000, // 2 seconds default
       isInCooldown: false,
     }
 
