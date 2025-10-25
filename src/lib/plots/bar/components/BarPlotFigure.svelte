@@ -256,6 +256,9 @@
     const ctx = canvasState.context
     if (!ctx) return
 
+    // Set up common context properties once
+    setupContextProperties(ctx)
+
     // Draw plot area border
     drawPlotBorder(ctx)
 
@@ -265,20 +268,18 @@
     // Draw bars
     drawBars(ctx)
 
-    // Draw value labels
-    drawValueLabels(ctx)
-
-    // Draw category labels
-    drawCategoryLabels(ctx)
-
-    // Draw axis ticks
-    drawAxisTicks(ctx)
-
-    // Draw tick labels
-    drawTickLabels(ctx)
+    // Draw all text elements (value labels, category labels, tick labels)
+    drawAllTextElements(ctx)
 
     // Finish drawing
     finishCanvasDrawing(canvasState)
+  }
+
+  // Set up common context properties once to avoid repeated assignments
+  function setupContextProperties(ctx: CanvasRenderingContext2D) {
+    // Set up stroke properties for grid lines and axis ticks
+    ctx.strokeStyle = GRID_COLOR
+    ctx.lineWidth = GRID_STROKE_WIDTH
   }
 
   // Draw plot area border
@@ -295,9 +296,7 @@
 
   // Draw grid lines
   function drawGridLines(ctx: CanvasRenderingContext2D) {
-    ctx.strokeStyle = GRID_COLOR
-    ctx.lineWidth = GRID_STROKE_WIDTH
-
+    // Context properties already set in setupContextProperties()
     if (barPlottingType === 'vertical') {
       // Horizontal grid lines for vertical bars
       timeline.ticks
@@ -309,7 +308,7 @@
             plotAreaHeight -
             tick.position * plotAreaHeight
           ctx.beginPath()
-          ctx.moveTo(trueLeftMargin, y)
+          ctx.moveTo(trueLeftMargin - TICK_LENGTH, y)
           ctx.lineTo(trueLeftMargin + plotAreaWidth, y)
           ctx.stroke()
         })
@@ -321,7 +320,7 @@
           const x = trueLeftMargin + tick.position * plotAreaWidth
           ctx.beginPath()
           ctx.moveTo(x, MARGIN.TOP + marginTop)
-          ctx.lineTo(x, MARGIN.TOP + marginTop + plotAreaHeight)
+          ctx.lineTo(x, MARGIN.TOP + marginTop + plotAreaHeight + TICK_LENGTH)
           ctx.stroke()
         })
     }
@@ -337,11 +336,12 @@
     })
   }
 
-  // Draw value labels
-  function drawValueLabels(ctx: CanvasRenderingContext2D) {
+  // Draw all text elements in one optimized function
+  function drawAllTextElements(ctx: CanvasRenderingContext2D) {
     ctx.font = `${LABEL_FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
-    ctx.fillStyle = '#000'
-
+    ctx.fillStyle = '#222'
+    
+    // Draw value labels
     bars.forEach(bar => {
       const text = bar.value.toString()
       let x, y, textAlign, textBaseline
@@ -362,13 +362,8 @@
       ctx.textBaseline = textBaseline as CanvasTextBaseline
       ctx.fillText(text, x, y)
     })
-  }
 
-  // Draw category labels
-  function drawCategoryLabels(ctx: CanvasRenderingContext2D) {
-    ctx.font = `${LABEL_FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
-    ctx.fillStyle = '#000'
-
+    // Draw category labels
     bars.forEach(bar => {
       let text = bar.label
       let x, y, textAlign, textBaseline
@@ -395,46 +390,8 @@
       ctx.textBaseline = textBaseline as CanvasTextBaseline
       ctx.fillText(text, x, y)
     })
-  }
 
-  // Draw axis ticks
-  function drawAxisTicks(ctx: CanvasRenderingContext2D) {
-    ctx.strokeStyle = '#666'
-    ctx.lineWidth = 1
-
-    // Draw ticks
-    if (barPlottingType === 'vertical') {
-      timeline.ticks
-        .filter(tick => tick.isNice)
-        .forEach(tick => {
-          const y =
-            MARGIN.TOP +
-            marginTop +
-            plotAreaHeight -
-            tick.position * plotAreaHeight
-          ctx.beginPath()
-          ctx.moveTo(trueLeftMargin - TICK_LENGTH, y)
-          ctx.lineTo(trueLeftMargin, y)
-          ctx.stroke()
-        })
-    } else {
-      timeline.ticks
-        .filter(tick => tick.isNice)
-        .forEach(tick => {
-          const x = trueLeftMargin + tick.position * plotAreaWidth
-          ctx.beginPath()
-          ctx.moveTo(x, MARGIN.TOP + marginTop + plotAreaHeight)
-          ctx.lineTo(x, MARGIN.TOP + marginTop + plotAreaHeight + TICK_LENGTH)
-          ctx.stroke()
-        })
-    }
-  }
-
-  // Draw tick labels
-  function drawTickLabels(ctx: CanvasRenderingContext2D) {
-    ctx.font = `${LABEL_FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
-    ctx.fillStyle = '#000'
-
+    // Draw tick labels
     timeline.ticks
       .filter(tick => tick.isNice)
       .forEach(tick => {
