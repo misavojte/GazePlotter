@@ -798,8 +798,7 @@
           x: tooltipPos.x,
           y: tooltipPos.y,
           content: [{ key: '', value: 'Modify min value' }],
-          visible: true,
-          width: 110,
+          visible: true
         })
       }
       // Check max value circle
@@ -820,7 +819,6 @@
           y: tooltipPos.y,
           content: [{ key: '', value: 'Modify max value' }],
           visible: true,
-          width: 110,
         })
       }
       // Check gradient area
@@ -843,7 +841,6 @@
           y: tooltipPos.y,
           content: [{ key: '', value: 'Change color scale' }],
           visible: true,
-          width: 115,
         })
       }
     }

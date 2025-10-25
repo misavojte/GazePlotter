@@ -33,7 +33,7 @@ export const updateTooltip = (
   if (value && !value.width) {
     const content = value.content
     const textLineWithMostCharacters = content.map(item => item.value).sort((a, b) => b.length - a.length)[0]
-    value.width = Math.min(175, estimateTextWidth(textLineWithMostCharacters, 12) + 20)
+    value.width = Math.min(175, estimateTextWidth(textLineWithMostCharacters, 12) + 15)
   }
 
   // Set a new timer
