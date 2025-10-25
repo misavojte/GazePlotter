@@ -6,6 +6,7 @@
     calculateLabelOffset,
     truncateTextToPixelWidth,
     SYSTEM_SANS_SERIF_STACK,
+    estimateTextWidth,
   } from '$lib/shared/utils/textUtils'
   import { onMount, onDestroy, untrack } from 'svelte'
   import { browser } from '$app/environment'
@@ -532,15 +533,29 @@
 
     // Position labels just 5px below the participant bars
     const yPos = calculatedHeights.heightOfParticipantBars + 10 + marginTop
+    const rightBoundary = LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft
+    const isSecondToLast = len - 2
 
     for (let i = 0; i < len; i++) {
       const tick = ticks[i]
-      if (tick.isNice) {
-        ctx.fillText(
-          tick.label,
-          LEFT_LABEL_WIDTH + tick.position * plotAreaWidth + marginLeft,
-          yPos
-        )
+      if (!tick.isNice) continue
+
+      const regularXPos = LEFT_LABEL_WIDTH + tick.position * plotAreaWidth + marginLeft
+      
+      // Only check for overflow on the second-to-last tick
+      if (i === isSecondToLast) {
+        const textWidth = ctx.measureText(tick.label).width
+        const rightEdgeOfText = regularXPos + textWidth / 2
+        
+        if (rightEdgeOfText > rightBoundary) {
+          // Move the label left just enough so it fits within the plot area
+          const xPos = regularXPos - (rightEdgeOfText - rightBoundary)
+          ctx.fillText(tick.label, xPos, yPos)
+        } else {
+          ctx.fillText(tick.label, regularXPos, yPos)
+        }
+      } else {
+        ctx.fillText(tick.label, regularXPos, yPos)
       }
     }
   }

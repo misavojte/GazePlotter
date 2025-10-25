@@ -20,7 +20,7 @@ export const SCARF_LAYOUT = {
   AXIS_LABEL_HEIGHT: 40, // Height for the x-axis label
   LABEL_FONT_SIZE: 12, // Font size for labels
   PADDING: 0, // General padding
-  RIGHT_MARGIN: 15, // Right margin to prevent tick label cropping
+  RIGHT_MARGIN: 1, // Right margin to prevent tick cropping
   MIN_CHART_HEIGHT: 50, // Minimum chart height
   TICK_LENGTH: 5, // Length of axis ticks
   AXIS_OFFSET: 150, // Offset for axis labels
