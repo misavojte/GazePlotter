@@ -451,14 +451,28 @@
     const ctx = canvasState.context
     if (!ctx) return
 
+    // Set up font
+    setUpFont(ctx)
+
     // Draw participant labels (Left Side)
     drawParticipantLabels(ctx)
 
-    // Draw horizontal grid lines
-    drawHorizontalGridLines(ctx)
-
     // Draw timeline axis labels and ticks
     drawTimelineLabels(ctx)
+
+    // Draw X-Axis label
+    drawXAxisLabel(ctx)
+
+    // Draw legend item texts
+    drawLegendItemTexts(ctx)
+
+    // Draw legend group titles
+    drawLegendGroupTitles(ctx)
+
+    // ---- STOP OF TEXT DRAWING ---- //
+
+    // Draw horizontal grid lines
+    drawHorizontalGridLines(ctx)
 
     // Draw X-Axis ticks and bottom border
     drawXAxisTicksAndBorder(ctx)
@@ -469,18 +483,22 @@
     // Draw line segments
     drawLines(ctx)
 
-    // Draw X-Axis label
-    drawXAxisLabel(ctx)
-
     // Draw the legend
     drawLegend(ctx)
 
     finishCanvasDrawing(canvasState)
   }
 
-  function drawParticipantLabels(ctx: CanvasRenderingContext2D) {
+  function setUpFont(ctx: CanvasRenderingContext2D) {
     ctx.font = `${LAYOUT.LABEL_FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
-    ctx.fillStyle = '#000'
+    // avoid full black color, use a nearly black color
+    ctx.fillStyle = '#222'
+  }
+
+  function drawParticipantLabels(ctx: CanvasRenderingContext2D) {
+   
+    // watch out that setUpFont function is called before this function is called!
+
     ctx.textAlign = 'start'
     ctx.textBaseline = 'middle'
 
@@ -522,12 +540,12 @@
   }
 
   function drawTimelineLabels(ctx: CanvasRenderingContext2D) {
+    // watch out that setUpFont function is called before this function is called!
+
     const ticks = data.timeline.ticks
     const len = ticks.length
     if (len === 0) return
 
-    ctx.font = `${LAYOUT.LABEL_FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
-    ctx.fillStyle = '#000'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'hanging'
 
@@ -728,8 +746,9 @@
   }
 
   function drawXAxisLabel(ctx: CanvasRenderingContext2D) {
-    ctx.font = `${LAYOUT.LABEL_FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
-    ctx.fillStyle = '#000'
+
+    // watch out that setUpFont function is called before this function is called!
+
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
 
@@ -912,22 +931,16 @@
     }
   }
 
-  // Draw the legend on the canvas
-  function drawLegend(ctx: CanvasRenderingContext2D) {
-    // Skip legend if no content
-    if (
-      !legendGeometry ||
-      !legendGeometry.items ||
-      legendGeometry.items.length === 0
-    )
-      return
+  function drawLegendGroupTitles(ctx: CanvasRenderingContext2D) {
+    // watch out that setUpFont function is called before this function is called!
 
     // Draw group titles
     if (legendGeometry.groupTitles && legendGeometry.groupTitles.length > 0) {
-      ctx.font = `bold ${LEGEND.FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
-      ctx.fillStyle = '#000'
+
       ctx.textAlign = 'left'
       ctx.textBaseline = 'top'
+      // set semi-bold font
+      ctx.font = `600 ${LEGEND.FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
 
       const titles = legendGeometry.groupTitles
       const len = titles.length
@@ -937,6 +950,18 @@
         ctx.fillText(group.title, group.x, group.y)
       }
     }
+    
+  }
+
+  // Draw the legend on the canvas
+  function drawLegend(ctx: CanvasRenderingContext2D) {
+    // Skip legend if no content
+    if (
+      !legendGeometry ||
+      !legendGeometry.items ||
+      legendGeometry.items.length === 0
+    )
+      return
 
     // Draw each legend item
     if (legendGeometry.items && legendGeometry.items.length > 0) {
@@ -981,10 +1006,33 @@
           // Reset dash array
           ctx.setLineDash([])
         }
+      }
+    }
+
+    // Reset opacity
+    ctx.globalAlpha = 1.0
+  }
+
+  function drawLegendItemTexts(ctx: CanvasRenderingContext2D) {
+
+    // Draw each legend item
+    if (legendGeometry.items && legendGeometry.items.length > 0) {
+      const items = legendGeometry.items
+      const len = items.length
+
+      for (let i = 0; i < len; i++) {
+        const item = items[i]
+        const isHighlighted = item.identifier === usedHighlight
+        const anyHighlightActive = usedHighlight !== null
+
+        // Set opacity based on highlight state
+        if (anyHighlightActive) {
+          ctx.globalAlpha = isHighlighted ? 1.0 : 0.15
+        } else {
+          ctx.globalAlpha = 1.0
+        }
 
         // Draw item text
-        ctx.fillStyle = '#000'
-        ctx.font = `${LEGEND.FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
         ctx.textAlign = 'start'
         ctx.textBaseline = 'alphabetic'
 
@@ -1001,9 +1049,6 @@
         )
       }
     }
-
-    // Reset opacity
-    ctx.globalAlpha = 1.0
   }
 
   // Check if a mouse click or hover is on a legend item
