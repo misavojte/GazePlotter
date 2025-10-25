@@ -204,12 +204,12 @@ export function createCommandHandler(
         // ignore updateSettings commands 
         // THAT ARE NOT FROM A MODAL (source ends with .modal)
         const isSettingsCommandFromModal = command.type === 'updateSettings' && command.source.endsWith('.modal')
-        if (isSettingsCommandFromModal) {
+        if (isSettingsCommandFromModal || command.type !== 'updateSettings') {
           const message = getCommandLabel(command.type, command.history)
           if (message) {
             onSuccess(message)
           }
-        } 
+        }
       }
 
       // Notify listeners about the command

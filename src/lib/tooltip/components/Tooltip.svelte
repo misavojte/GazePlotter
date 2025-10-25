@@ -12,8 +12,7 @@
     offset?: number
     horizontalAlign?: Alignment
     verticalAlign?: Alignment
-    hideOnClick?: boolean
-    clickCooldown?: number
+    disabled?: boolean
   }
 
   /**
@@ -76,9 +75,7 @@
       hAlign: options.horizontalAlign ?? 'start',
       vAlign: options.verticalAlign ?? 'start',
       isHovering: false,
-      hideOnClick: options.hideOnClick ?? true,
-      clickCooldown: options.clickCooldown ?? 2000, // 2 seconds default
-      isInCooldown: false,
+      disabled: options.disabled ?? false,
     }
 
     /** Updates internal state from new options */
@@ -93,15 +90,13 @@
         hAlign: opts.horizontalAlign ?? 'start',
         vAlign: opts.verticalAlign ?? 'start',
         isHovering: state.isHovering,
-        hideOnClick: opts.hideOnClick ?? true,
-        clickCooldown: opts.clickCooldown ?? 2000,
-        isInCooldown: state.isInCooldown,
+        disabled: opts.disabled ?? false,
       }
     }
 
     /** Shows and positions the tooltip */
     const show = () => {
-      if (state.isInCooldown) return
+      if (state.disabled) return
       state.isHovering = true
       const rect = node.getBoundingClientRect()
       const [x, y] = calculatePosition(rect, state.position, state.width, state.offset, state.hAlign, state.vAlign)
@@ -114,26 +109,17 @@
       updateTooltip(null)
     }
 
-    /** Handles click events to hide tooltip and start cooldown */
-    const handleClick = () => {
-      if (state.hideOnClick) {
-        // Hide immediately
-        state.isHovering = false
-        updateTooltip(null)
-        // Start cooldown to prevent immediate re-showing
-        state.isInCooldown = true
-        setTimeout(() => {
-          state.isInCooldown = false
-        }, state.clickCooldown)
+    /** Refreshes tooltip if currently visible */
+    const refresh = () => {
+      if (state.disabled && state.isHovering) {
+        hide()
+      } else if (state.isHovering) {
+        show()
       }
     }
 
-    /** Refreshes tooltip if currently visible */
-    const refresh = () => state.isHovering && show()
-
     node.addEventListener('mouseenter', show)
     node.addEventListener('mouseleave', hide)
-    node.addEventListener('click', handleClick)
 
     return {
       /** Updates tooltip when options change, refreshing if currently visible */
@@ -145,7 +131,6 @@
       destroy() {
         node.removeEventListener('mouseenter', show)
         node.removeEventListener('mouseleave', hide)
-        node.removeEventListener('click', handleClick)
         hide()
       },
     }
