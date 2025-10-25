@@ -105,10 +105,6 @@
     marginLeft?: number
   }>()
 
-  // Additional offsets for axis labels to prevent collisions
-  const AXIS_LABEL_MARGIN = 20
-  const INDIVIDUAL_LABEL_MARGIN = 10
-
   // Canvas and rendering state using our utility
   let canvas = $state<HTMLCanvasElement | null>(null)
   let canvasState = $state<CanvasState>(createCanvasState())
@@ -124,49 +120,75 @@
     }
   }
 
-  // Dynamic offsets based on labels using the new utility
+  // ============================================
+  // NEW CALCULATION CHAIN - NO CIRCULAR DEPS
+  // ============================================
+  
+  // STEP 1: Calculate preliminary cell size based on available space
+  // This uses fixed minimal spacing estimates to get an initial cell size
+  const preliminaryCellSize = $derived.by(() => {
+    if (aoiLabels.length === 0) return MIN_CELL_SIZE
+    
+    // Use conservative fixed estimates for spacing
+    const FIXED_LABEL_SPACE = MAX_LABEL_LENGTH + 40 // Label width + some margin
+    const LEGEND_SPACE = 50
+    
+    const availableWidth = width - FIXED_LABEL_SPACE - marginLeft - marginRight
+    const availableHeight = height - FIXED_LABEL_SPACE - marginTop - marginBottom - LEGEND_SPACE
+    
+    const cellSizeByWidth = availableWidth / aoiLabels.length
+    const cellSizeByHeight = availableHeight / aoiLabels.length
+    
+    const cellSize = Math.min(cellSizeByWidth, cellSizeByHeight)
+    return Math.max(MIN_CELL_SIZE, cellSize)
+  })
+
+  // STEP 2: Calculate font size based on preliminary cell size
+  // This is the SAME formula used in setUpLabelFont
+  const calculatedFontSize = $derived.by(() => {
+    return Math.min(12, Math.max(8, preliminaryCellSize / 3))
+  })
+
+  // STEP 3: Calculate all margins and offsets based on font size
+  const AXIS_LABEL_MARGIN = $derived.by(() => {
+    // Scale proportionally: 12px font → 20px, 8px font → 13px
+    return Math.max(10, Math.round(calculatedFontSize * 1.67))
+  })
+
+  const INDIVIDUAL_LABEL_MARGIN = $derived.by(() => {
+    // Scale proportionally: 12px font → 10px, 8px font → 7px
+    return Math.max(5, Math.round(calculatedFontSize * 0.83))
+  })
+
   const labelOffset = $derived.by(() => {
-    // Use a fixed offset based on MAX_LABEL_LENGTH instead of calculating from actual labels
-    // NO, calculate from actual labels using the text utils
     const calculatedOffset = calculateLabelOffset(
       aoiLabels,
-      12,
+      calculatedFontSize,
       BASE_LABEL_OFFSET
     )
     return Math.min(calculatedOffset, MAX_LABEL_LENGTH)
   })
 
-  // Calculate max plotable area first (similar to RecurrencePlot's plotSize)
+  // STEP 4: Calculate final plot area with accurate margins
   const maxPlotArea = $derived.by(() => {
-    // Calculate space needed for labels
-    const yAxisSpace =
-      LEFT_MARGIN + labelOffset + AXIS_LABEL_MARGIN + marginLeft
+    const yAxisSpace = LEFT_MARGIN + labelOffset + AXIS_LABEL_MARGIN + marginLeft
     const xAxisSpace = TOP_MARGIN + labelOffset + AXIS_LABEL_MARGIN + marginTop
-
-    // Space needed for legend (title + gradient + values)
     const legendSpace = 50 + marginBottom
 
-    // Calculate maximum available space respecting the absolute max height
     const availableWidth = width - yAxisSpace - marginRight
     const availableHeight = height - xAxisSpace - legendSpace
 
     return { availableWidth, availableHeight }
   })
 
-  // Calculate optimal cell size based on available space and number of AOIs
+  // STEP 5: Calculate final optimal cell size
   const optimalCellSize = $derived.by(() => {
     if (aoiLabels.length === 0) return MIN_CELL_SIZE
 
-    // Calculate the ideal cell size to fit all cells in the available area
-    // We'll use the maximum possible size that fits within both width and height
     const cellSizeByWidth = maxPlotArea.availableWidth / aoiLabels.length
     const cellSizeByHeight = maxPlotArea.availableHeight / aoiLabels.length
-
-    // Use the smaller of the two to ensure everything fits within bounds
-    // This ensures we respect the maximum width and height
     const idealCellSize = Math.min(cellSizeByWidth, cellSizeByHeight)
 
-    // Clamp to a reasonable minimum size
     return Math.max(MIN_CELL_SIZE, idealCellSize)
   })
 
@@ -325,9 +347,9 @@
   }
 
   function setUpLabelFont(ctx: CanvasRenderingContext2D): number {
-    const labelFontSize = Math.min(12, Math.max(8, optimalCellSize / 3))
-    ctx.font = `${labelFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
-    return labelFontSize
+    // Use the pre-calculated font size for consistency
+    ctx.font = `${calculatedFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
+    return calculatedFontSize
   }
 
   function drawRowLabels(ctx: CanvasRenderingContext2D, labelFontSize: number) {
