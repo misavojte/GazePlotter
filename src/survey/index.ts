@@ -9,7 +9,16 @@ export type { SurveyTask, SurveyState, SurveyActions } from './types/index';
 export { surveyStore } from './stores/index';
 
 // Export components
-export { Survey, ConsentModal } from './components/index';
+export { Survey, ConsentModal, SurveyModal } from './components/index';
 
 // Export utilities
 export { createCondition } from './utils/index';
+
+// Export Firebase service
+export { 
+  FirebaseService, 
+  firebaseService,
+  type FirebaseConfig,
+  type SurveyDataEntry,
+  type FirebaseServiceResponse
+} from './services/index';

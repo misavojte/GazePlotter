@@ -38,3 +38,26 @@ export interface SurveyActions {
   /** Move to the next task (called externally when task is completed) */
   nextTask: () => void;
 }
+
+/**
+ * UEQS (User Experience Questionnaire Short) results interface
+ * @interface UEQSResults
+ */
+export interface UEQSResults {
+  /** Usual vs Leading-edge scale (-3 to +3) */
+  'usual-leading': number;
+  /** Boring vs Exciting scale (-3 to +3) */
+  'boring-exciting': number;
+  /** Complicated vs Easy scale (-3 to +3) */
+  'complicated-easy': number;
+  /** Confusing vs Clear scale (-3 to +3) */
+  'confusing-clear': number;
+  /** Obstructive vs Supportive scale (-3 to +3) */
+  'obstructive-supportive': number;
+  /** Not interesting vs Interesting scale (-3 to +3) */
+  'not-interesting-interesting': number;
+  /** Conventional vs Inventive scale (-3 to +3) */
+  'conventional-inventive': number;
+  /** Inefficient vs Efficient scale (-3 to +3) */
+  'inefficient-efficient': number;
+}

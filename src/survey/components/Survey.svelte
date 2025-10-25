@@ -188,7 +188,7 @@
     margin-bottom: 1.5rem;
     font-weight: 600;
     color: var(--c-black);
-    font-size: 1.1rem;
+    font-size: 1rem;
   }
 
   .completed {
@@ -199,7 +199,7 @@
   .info {
     text-align: center;
     margin-bottom: 2rem;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: var(--c-darkgrey);
     font-style: italic;
     max-width: 500px;
@@ -220,6 +220,7 @@
     background: var(--c-white);
     transition: all 0.3s ease;
     font-weight: 500;
+    font-size: 0.9rem;
     text-align: center;
     position: relative;
     overflow: hidden;
@@ -314,12 +315,12 @@
     color: white;
     border: none;
     border-radius: var(--rounded);
-    font-weight: 600;
+    font-weight: 500;
     cursor: pointer;
     transition: all 0.3s ease;
     box-shadow: 0 2px 8px rgba(205, 20, 4, 0.3);
     transform: translateY(0);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
   }
 
   .task-button:hover {
@@ -341,7 +342,8 @@
     border: 2px solid var(--c-success);
     border-radius: var(--rounded-md);
     margin-top: 0.75rem;
-    font-weight: 600;
+    font-weight: 500;
+    font-size: 0.9rem;
     animation: completionReveal 0.6s ease-out;
     box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
     transform: scale(1.02);

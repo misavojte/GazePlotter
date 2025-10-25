@@ -6,9 +6,11 @@
   import type { ParsedData } from '$lib/gaze-data/shared/types'
   import { EyeWorkerService } from '$lib/gaze-data/front-process/class/EyeWorkerService'
   import { Survey, surveyStore, createCondition, ConsentModal } from '$survey'
+  import { SurveyModal } from '$survey/components'
   import type { SurveyTask } from '$survey/types'
   import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import type { UEQSResults } from '$survey/types'
   // Format the build date
   const buildDate = new Date(__BUILD_DATE__)
   const formattedDate = new Intl.DateTimeFormat('en-US', {
@@ -120,8 +122,16 @@
       text: "Feel free to explore the UI as long as you wish",
       buttonText: "I now want to answer questions and end survey",
       onButtonClick: () => {
-        alert("Great! You've had time to explore the interface. Now you're ready for the questions.");
-        explorationCondition.set(true); // Manually trigger condition
+        modalStore.open(
+          SurveyModal as any,
+          'User Experience Questionnaire',
+          {
+            onComplete: (results: UEQSResults) => {
+              console.log('Survey completed with results:', results);
+              explorationCondition.set(true); // Manually trigger condition
+            }
+          }
+        );
       },
       condition: explorationCondition
     }

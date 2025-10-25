@@ -48,6 +48,7 @@
     "@sveltejs/kit": "^2.5.0",
     "@sveltejs/package": "^2.3.0",
     "@sveltejs/vite-plugin-svelte": "^3.0.0",
+    "firebase": "^12.4.0",
     "jszip": "^3.10.1",
     "prettier": "^3.1.0",
     "prettier-plugin-svelte": "^3.2.0",
