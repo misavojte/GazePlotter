@@ -46,13 +46,12 @@
   let bannerHiding = $state(false);
   let activeTaskElements: (HTMLElement | null)[] = $state([]);
   
-  // --- State for Main List Completion Animation ---
-  let completingTaskIndex = $state(-1);
-  let completionTimeout: number | null = null;
-  let completedTasks = $state<Set<number>>(new Set()); // Track which tasks have shown completion
 
   // --- Scroll Handler for Banner ---
   function handleScroll() {
+    if (forceCloseBanner) {
+      return;
+    }
     if (isCompleted) {
       if (showBanner && !bannerHiding) {
         hideBanner();
@@ -96,45 +95,6 @@
     };
   });
 
-  // --- Task Completion Animation (for Main List) ---
-  // This $effect animates the task in the *main list* after it's completed.
-  $effect(() => {
-    if (!browser) {
-      return;
-    }
-
-    // Clear any existing completion timeout
-    if (completionTimeout) {
-      clearTimeout(completionTimeout);
-      completionTimeout = null;
-    }
-
-    // Reset completion state when task changes
-    completingTaskIndex = -1;
-
-    // If we have a previous task that just completed, show completion animation ONCE per task
-    if (currentTaskIndex > 0) {
-      const previousTaskIndex = currentTaskIndex - 1;
-      
-      // Only show completion if this task hasn't been completed before
-      if (!completedTasks.has(previousTaskIndex)) {
-        completingTaskIndex = previousTaskIndex;
-        completedTasks.add(previousTaskIndex); // Mark this task as completed
-        
-        // Auto-advance after completion animation
-        completionTimeout = window.setTimeout(() => {
-          completingTaskIndex = -1;
-        }, 1500); // Show completion for 1.5 seconds
-      }
-    }
-
-    return () => {
-      if (completionTimeout) {
-        clearTimeout(completionTimeout);
-        completionTimeout = null;
-      }
-    };
-  });
 
   // --- Automatic Task Progression ---
   $effect(() => {
@@ -197,12 +157,10 @@
       {#each tasks as task, index (index)}
         {@const isTaskCompleted = index < currentTaskIndex}
         {@const isActive = index === currentTaskIndex && !isCompleted}
-        {@const isCompleting = index === completingTaskIndex}
         <div 
           class="task" 
           class:active={isActive}
-          class:completed={isTaskCompleted && !isCompleting}
-          class:completing={isCompleting}
+          class:completed={isTaskCompleted}
           bind:this={activeTaskElements[index]}
         >
           <div class="task-text">{task.text}</div>
@@ -307,35 +265,6 @@
     color: var(--c-darkgrey);
   }
 
-  .task.completing {
-    background: #065f46 !important; /* Deep green */
-    border-color: #065f46 !important;
-    color: white !important;
-    transform: scale(1.05);
-    box-shadow: 0 0 0 4px rgba(6, 95, 70, 0.2);
-    animation: taskCompletionPulse 0.6s ease-out;
-  }
-
-  .task.completing .task-text {
-    color: white !important;
-    text-decoration: none !important;
-    font-weight: 600;
-  }
-
-  @keyframes taskCompletionPulse {
-    0% {
-      transform: scale(1.02);
-      box-shadow: 0 0 0 3px rgba(205, 20, 4, 0.1);
-    }
-    50% {
-      transform: scale(1.08);
-      box-shadow: 0 0 0 6px rgba(6, 95, 70, 0.3);
-    }
-    100% {
-      transform: scale(1.05);
-      box-shadow: 0 0 0 4px rgba(6, 95, 70, 0.2);
-    }
-  }
 
   .task-text {
     margin-bottom: 0.5rem;
