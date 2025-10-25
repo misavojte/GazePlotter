@@ -5,65 +5,84 @@ import { sumArray } from '$lib/shared/utils/mathUtils'
  */
 
 /**
- * Estimates the width of a text string in pixels based on its content, font size and font family
- * Note: This is an approximation since actual text rendering can vary
- *
- * @param text The text string to measure
- * @param fontSize Font size in pixels
- * @param fontFamily Font family (defaults to sans-serif)
- * @returns Estimated width in pixels
+ * Defines the shape of our helper function, including its
+ * static 'context' property for caching.
  */
-export function estimateTextWidth(
-  text: string,
-  fontSize: number = 12,
-  fontFamily: string = 'sans-serif'
-): number {
-  // Character width approximations for common font families
-  const charWidthFactors: Record<string, number> = {
-    'sans-serif': 0.6,
-    serif: 0.65,
-    monospace: 0.6,
-    arial: 0.58,
-    helvetica: 0.58,
-    verdana: 0.62,
+type MeasurementContextGetter = {
+  (): CanvasRenderingContext2D | null;
+  context: CanvasRenderingContext2D | null;
+};
+
+/**
+ * A cached, singleton helper function to get a canvas 2D context.
+ * This avoids creating a new canvas on every text measurement.
+ */
+const getMeasurementContext: MeasurementContextGetter = () => {
+  // Check if we are in a browser environment
+  if (typeof document === 'undefined') {
+    return null; // Not in a browser
   }
 
-  // Use the specific font factor or default to sans-serif
-  const fontFactor =
-    charWidthFactors[fontFamily.toLowerCase()] || charWidthFactors['sans-serif']
-
-  // Width factors for different character types
-  const charWidths = {
-    narrow: 0.5, // i, l, t, etc.
-    normal: 1.0, // a, b, c, etc.
-    wide: 1.2, // m, w, etc.
-    extraWide: 1.7, // emojis, CJK characters
+  // Use the static 'context' property (now recognized by TypeScript)
+  if (!getMeasurementContext.context) {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    
+    // Store the context on the function itself
+    getMeasurementContext.context = context;
   }
+  
+  return getMeasurementContext.context;
+};
 
-  // Define character sets
-  const narrowChars = /[ijl!,.:;|'"()]/
-  const wideChars = /[mwABCDEFGHIJKLMNOPQRSTUVWXYZ@#$%&*+-=<>?_~]/
-  const extraWideChars = /[\u3000-\u9FFF\uFF00-\uFFEF\u{1F300}-\u{1F64F}]/u
+// Initialize the static property
+getMeasurementContext.context = null;
 
-  let totalWidth = 0
+/**
+ * The CSS font stack used by browsers to render the default system sans-serif font.
+ * This ensures the canvas measurement uses the *same font* as the DOM
+ * (e.g., San Francisco on Mac, Segoe UI on Windows).
+ */
+export const SYSTEM_SANS_SERIF_STACK = 
+  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 
-  // Calculate total width based on character types
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i]
-    if (narrowChars.test(char)) {
-      totalWidth += charWidths.narrow
-    } else if (wideChars.test(char)) {
-      totalWidth += charWidths.wide
-    } else if (extraWideChars.test(char)) {
-      totalWidth += charWidths.extraWide
-    } else {
-      totalWidth += charWidths.normal
-    }
+// --- Main Function ---
+
+/**
+* Estimates the width of a text string in pixels based on its content and font size,
+* using the system's default sans-serif font.
+* Note: This is a fast and reliable approximation using the Canvas API.
+*
+* @param text The text string to measure
+* @param fontSize Font size in pixels
+* @returns Estimated width in pixels
+*/
+export const estimateTextWidth = (text: string, fontSize: number, fontFamily: string = SYSTEM_SANS_SERIF_STACK): number => {
+  const context = getMeasurementContext();
+
+  if (context) {
+    // Browser environment: Use the cached canvas context
+    
+    // Set the font properties
+    // We hardcode "sans-serif" as requested.
+    context.font = `${fontSize}px ${SYSTEM_SANS_SERIF_STACK}`; 
+    
+    // Measure the text
+    const metrics = context.measureText(text);
+    return metrics.width;
+    
+  } else {
+    // Non-browser (e.g., Node.js/SSR) or context failure fallback.
+    // This provides a *very* rough estimate.
+
+    console.log('estimateTextWidth: Non-browser environment or context failure fallback. Returning rough estimate.')
+    
+    // '0.55' is an arbitrary average width for a sans-serif character
+    // relative to the font size. 'W' is ~1.0, 'i' is ~0.2.
+    const averageCharWidthFactor = 0.55;
+    return text.length * fontSize * averageCharWidthFactor;
   }
-
-  // Apply font size and font family factors
-  return totalWidth * fontSize * fontFactor
-}
+};
 
 /**
  * Calculates text metrics for an array of strings

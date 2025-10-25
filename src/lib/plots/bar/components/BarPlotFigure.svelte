@@ -3,6 +3,7 @@
   import {
     calculateLabelOffset,
     truncateTextToPixelWidth,
+    SYSTEM_SANS_SERIF_STACK,
   } from '$lib/shared/utils/textUtils'
   import { updateTooltip } from '$lib/tooltip'
   import { onMount, untrack } from 'svelte'
@@ -84,11 +85,11 @@
   // Calculate dynamic left margin based on plotting type and label lengths
   const trueLeftMargin = $derived(
     barPlottingType === 'horizontal'
-      ? Math.min(150, calculateLabelOffset(data.map(item => item.label))) +
+      ? Math.min(150, calculateLabelOffset(data.map(item => item.label)) + VALUE_LABEL_OFFSET) +
           marginLeft
       : Math.max(
           35,
-          calculateLabelOffset(timeline.ticks.map(tick => tick.label))
+          calculateLabelOffset(timeline.ticks.map(tick => tick.label)) + VALUE_LABEL_OFFSET
         ) + marginLeft
   )
 
@@ -338,7 +339,7 @@
 
   // Draw value labels
   function drawValueLabels(ctx: CanvasRenderingContext2D) {
-    ctx.font = `${LABEL_FONT_SIZE}px sans-serif`
+    ctx.font = `${LABEL_FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
     ctx.fillStyle = '#000'
 
     bars.forEach(bar => {
@@ -365,7 +366,7 @@
 
   // Draw category labels
   function drawCategoryLabels(ctx: CanvasRenderingContext2D) {
-    ctx.font = `${LABEL_FONT_SIZE}px sans-serif`
+    ctx.font = `${LABEL_FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
     ctx.fillStyle = '#000'
 
     bars.forEach(bar => {
@@ -431,7 +432,7 @@
 
   // Draw tick labels
   function drawTickLabels(ctx: CanvasRenderingContext2D) {
-    ctx.font = `${LABEL_FONT_SIZE}px sans-serif`
+    ctx.font = `${LABEL_FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
     ctx.fillStyle = '#000'
 
     timeline.ticks

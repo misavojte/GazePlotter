@@ -1,3 +1,4 @@
+import { estimateTextWidth } from '$lib/shared/utils/textUtils';
 import { writable } from 'svelte/store'
 
 export interface TooltipStoreType {
@@ -6,7 +7,7 @@ export interface TooltipStoreType {
   content: Array<{ key: string; value: string }>
   x: number
   y: number
-  width: number
+  width?: number
 }
 
 export const tooltipStore = writable<TooltipStoreType | null>(null)
@@ -26,6 +27,13 @@ export const updateTooltip = (
   // Clear any existing timer
   if (debounceTimer !== null) {
     clearTimeout(debounceTimer)
+  }
+
+  // if no width is provided, calculate it based on the content
+  if (value && !value.width) {
+    const content = value.content
+    const textLineWithMostCharacters = content.map(item => item.value).sort((a, b) => b.length - a.length)[0]
+    value.width = Math.min(175, estimateTextWidth(textLineWithMostCharacters, 12) + 20)
   }
 
   // Set a new timer

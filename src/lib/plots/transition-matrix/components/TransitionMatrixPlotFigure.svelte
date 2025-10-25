@@ -7,6 +7,7 @@
   import {
     calculateLabelOffset,
     truncateTextToPixelWidth,
+    SYSTEM_SANS_SERIF_STACK,
   } from '$lib/shared/utils/textUtils'
   import { onMount, untrack } from 'svelte'
   import { browser } from '$app/environment'
@@ -249,7 +250,7 @@
     // Check if there's actually content to draw
     if (aoiLabels.length === 0) {
       // Draw "No data" message
-      ctx.font = '12px sans-serif'
+      ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
       ctx.fillStyle = '#666'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
@@ -280,7 +281,7 @@
     if (actualGridWidth < 50 || actualGridHeight < 50) return
 
     // Setup text styling
-    ctx.font = '12px sans-serif'
+    ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
     ctx.fillStyle = '#000'
     ctx.textBaseline = 'middle'
 
@@ -306,13 +307,13 @@
   // Draw grid and labels
   function drawGrid(ctx: CanvasRenderingContext2D) {
     // Setup text styling for AOI labels
-    ctx.font = '12px sans-serif'
+    ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
     ctx.fillStyle = '#000'
     ctx.textBaseline = 'middle'
 
     // Adjust font size based on available space
     const labelFontSize = Math.min(12, Math.max(8, optimalCellSize / 3))
-    ctx.font = `${labelFontSize}px sans-serif`
+    ctx.font = `${labelFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
 
     // Draw column labels (top) - moved 5px higher
     ctx.textAlign = 'left'
@@ -329,7 +330,7 @@
           aoiLabels[col],
           MAX_LABEL_LENGTH * 1.5, // 1.5x the max label length to account for rotation
           12,
-          'sans-serif',
+          SYSTEM_SANS_SERIF_STACK,
           '...'
         ),
         0,
@@ -345,11 +346,11 @@
       const y = yOffset + row * optimalCellSize + (optimalCellSize >> 1)
 
       // Truncate text if needed
-      const labelText = truncateTextToPixelWidth(
+      const labelText =       truncateTextToPixelWidth(
         aoiLabels[row],
         MAX_LABEL_LENGTH,
         12,
-        'sans-serif',
+        SYSTEM_SANS_SERIF_STACK,
         '...'
       )
 
@@ -421,7 +422,7 @@
             (isAboveMaximum(value) && showAboveMaxLabels) // Show above max if enabled
 
           if (shouldShowValue) {
-            ctx.font = `${valueFontSize}px sans-serif`
+            ctx.font = `${valueFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
             ctx.fillStyle = textColor
             ctx.textAlign = 'center'
             ctx.textBaseline = 'middle'
@@ -631,7 +632,7 @@
 
     // Draw legend title if there's room
     if (availableLegendSpace > 40) {
-      ctx.font = '12px sans-serif'
+      ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
       ctx.fillStyle = '#000'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'top'
@@ -666,7 +667,7 @@
 
     // Draw min and max values if there's room
     if (availableLegendSpace > 35) {
-      ctx.font = '12px sans-serif'
+      ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
       ctx.fillStyle = '#000'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'top'

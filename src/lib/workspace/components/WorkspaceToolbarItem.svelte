@@ -113,7 +113,6 @@
     use:tooltipAction={{
       content: label,
       position: 'right',
-      width: 100,
     }}
   >
     <div class="toolbar-item-icon" bind:this={iconElement}>

@@ -1,4 +1,5 @@
-<script lang="ts" context="module">
+<script lang="ts" module>
+  import { estimateTextWidth } from '$lib/shared/utils/textUtils'
   import { tooltipStore, updateTooltip } from '$lib/tooltip'
 
   type Position = 'top' | 'bottom' | 'left' | 'right'
@@ -63,10 +64,12 @@
    * @returns Action object with update and destroy lifecycle methods
    */
   export const tooltipAction = (node: HTMLElement, options: TooltipOptions) => {
+    const content = normalizeContent(options.content)
+    const textLineWithMostCharacters = content.map(item => item.value).sort((a, b) => b.length - a.length)[0]
     let state = {
-      content: normalizeContent(options.content),
+      content,
       position: options.position ?? 'top',
-      width: options.width ?? Math.max(100, normalizeContent(options.content)[0]?.value.length * 8 || 100),
+      width: options.width ?? Math.min(125, estimateTextWidth(textLineWithMostCharacters, 12)) + 14,
       offset: options.offset ?? 10,
       hAlign: options.horizontalAlign ?? 'start',
       vAlign: options.verticalAlign ?? 'start',
@@ -76,10 +79,11 @@
     /** Updates internal state from new options */
     const updateState = (opts: TooltipOptions) => {
       const content = normalizeContent(opts.content)
+      const textLineWithMostCharacters = content.map(item => item.value).sort((a, b) => b.length - a.length)[0]
       state = {
         content,
         position: opts.position ?? 'top',
-        width: opts.width ?? Math.max(100, content[0]?.value.length * 8 || 100),
+        width: opts.width ?? Math.min(125, estimateTextWidth(textLineWithMostCharacters, 12)) + 14,
         offset: opts.offset ?? 10,
         hAlign: opts.horizontalAlign ?? 'start',
         vAlign: opts.verticalAlign ?? 'start',
@@ -151,13 +155,13 @@
     font-size: 12px;
     background: #6d6d6d;
     color: rgba(255, 255, 255, 0.8);
-    transition: 0.3s ease-in-out;
+    transition: left 0.2s ease-in-out, top 0.2s ease-in-out;
     border-radius: var(--rounded);
     z-index: 993;
     pointer-events: none;
   }
   .tooltip > div {
-    padding: 5px;
+    padding: 5px 7px;
   }
   .tooltip-item-value {
     border-bottom: none;

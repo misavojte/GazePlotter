@@ -34,7 +34,7 @@ export const SCARF_LAYOUT = {
   LEFT_LABEL_WIDTH: 125,
 
   // Tooltip constants
-  TOOLTIP_WIDTH: 155,
+  TOOLTIP_WIDTH: 150,
   TOOLTIP_OFFSET_Y: 8,
   TOOLTIP_HIDE_DELAY: 200,
 

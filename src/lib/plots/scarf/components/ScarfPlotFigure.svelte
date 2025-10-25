@@ -5,6 +5,7 @@
   import {
     calculateLabelOffset,
     truncateTextToPixelWidth,
+    SYSTEM_SANS_SERIF_STACK,
   } from '$lib/shared/utils/textUtils'
   import { onMount, onDestroy, untrack } from 'svelte'
   import { browser } from '$app/environment'
@@ -477,7 +478,7 @@
   }
 
   function drawParticipantLabels(ctx: CanvasRenderingContext2D) {
-    ctx.font = `${LAYOUT.LABEL_FONT_SIZE}px sans-serif`
+    ctx.font = `${LAYOUT.LABEL_FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
     ctx.fillStyle = '#000'
     ctx.textAlign = 'start'
     ctx.textBaseline = 'middle'
@@ -524,7 +525,7 @@
     const len = ticks.length
     if (len === 0) return
 
-    ctx.font = `${LAYOUT.LABEL_FONT_SIZE}px sans-serif`
+    ctx.font = `${LAYOUT.LABEL_FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
     ctx.fillStyle = '#000'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'hanging'
@@ -712,7 +713,7 @@
   }
 
   function drawXAxisLabel(ctx: CanvasRenderingContext2D) {
-    ctx.font = `${LAYOUT.LABEL_FONT_SIZE}px sans-serif`
+    ctx.font = `${LAYOUT.LABEL_FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
     ctx.fillStyle = '#000'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
@@ -908,7 +909,7 @@
 
     // Draw group titles
     if (legendGeometry.groupTitles && legendGeometry.groupTitles.length > 0) {
-      ctx.font = `bold ${LEGEND.FONT_SIZE}px sans-serif`
+      ctx.font = `bold ${LEGEND.FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
       ctx.fillStyle = '#000'
       ctx.textAlign = 'left'
       ctx.textBaseline = 'top'
@@ -968,7 +969,7 @@
 
         // Draw item text
         ctx.fillStyle = '#000'
-        ctx.font = `${LEGEND.FONT_SIZE}px sans-serif`
+        ctx.font = `${LEGEND.FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
         ctx.textAlign = 'start'
         ctx.textBaseline = 'alphabetic'
 
@@ -1039,7 +1040,7 @@
         // Get tooltip position using the same utility as segment tooltips
         const tooltipPos = getTooltipPosition(
           canvasState,
-          legendItem.x + legendItem.width / 2, // Center horizontally
+          legendItem.x + LEGEND.ICON_WIDTH * 1.5,
           legendItem.y + LEGEND.ITEM_HEIGHT, // Position at bottom of legend item
           { x: 0, y: 7 } // 7px below the legend item
         )
@@ -1048,8 +1049,7 @@
           visible: true,
           content: tooltipContent,
           x: tooltipPos.x,
-          y: tooltipPos.y,
-          width: 150,
+          y: tooltipPos.y
         })
       } else if (hoveredLegendItem) {
         // Hide tooltip when mouse leaves legend item
