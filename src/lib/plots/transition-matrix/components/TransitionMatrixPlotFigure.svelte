@@ -299,14 +299,14 @@
 
     const labelFontSize = setUpLabelFont(ctx)
 
-    // Draw cells text
-    drawCellsText(ctx)
-
     // Draw row labels
     drawRowLabels(ctx, labelFontSize)
 
     // Draw column labels
     drawColumnLabels(ctx, labelFontSize)
+
+    // Draw cells text 
+    drawCellsText(ctx)
 
     // ---- STOP OF TEXT DRAWING ---- //
 
