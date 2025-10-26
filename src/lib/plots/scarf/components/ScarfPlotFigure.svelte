@@ -50,6 +50,7 @@
     }) => void
     onTooltipDeactivation: () => void
     onDragStepX?: (stepChange: number) => void
+    onDragEnd?: () => void
     chartWidth: number
     calculatedHeights: {
       participantBarHeight: number
@@ -77,6 +78,7 @@
     onTooltipActivation = () => {},
     onTooltipDeactivation = () => {},
     onDragStepX = () => {},
+    onDragEnd = () => {},
     chartWidth = 0,
     calculatedHeights,
     dpiOverride = null,
@@ -120,6 +122,9 @@
   let canvas = $state<HTMLCanvasElement | null>(null)
   let canvasState = $state<CanvasState>(createCanvasState())
   let dragStartX = $state(0) // Track drag start position
+  let dragStartY = $state(0) // Track drag start position
+  let hasDragStarted = $state(false) // Track if drag threshold has been exceeded
+  let preparedForDragging = $state(false) // Track if prepared for dragging (shows draggable cursor)
   let hoveredLegendItem = $state<any>(null) // Track currently hovered legend item
 
   // Derived values using Svelte 5 $derived rune
@@ -1131,7 +1136,7 @@
       mouseY <= data.participants.length * data.heightOfBarWrap + marginTop
 
     // Update cursor based on dragging state and location
-    if (isDragging) {
+    if (isDragging || preparedForDragging) {
       canvas.style.cursor = 'grabbing'
     } else if (inDraggableArea && !isHoveringSegment) {
       canvas.style.cursor = 'grab'
@@ -1221,6 +1226,11 @@
     if (isDragging) {
       isDragging = false
     }
+    // Reset all drag state
+    hasDragStarted = false
+    preparedForDragging = false
+    dragStartX = 0
+    dragStartY = 0
   }
 
   // Drag handlers
@@ -1238,7 +1248,7 @@
       return
     }
 
-    // Only start drag in the chart area
+    // Only prepare for potential drag in the chart area
     if (
       mouseX >= LEFT_LABEL_WIDTH + marginLeft &&
       mouseX <= LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft &&
@@ -1246,32 +1256,73 @@
       mouseY <= data.participants.length * data.heightOfBarWrap + marginTop &&
       !isHoveringSegment
     ) {
-      isDragging = true
+      // Store initial position and prepare for dragging
       dragStartX = mouseX
-      canvas.style.cursor = 'grabbing'
+      dragStartY = mouseY
+      hasDragStarted = false
+      preparedForDragging = true
+      // Show grabbing cursor immediately
+      if (canvas) {
+        canvas.style.cursor = 'grabbing'
+      }
     }
   }
 
   function handleMouseUp() {
     if (isDragging) {
       isDragging = false
+      onDragEnd()  // Call drag end handler
       if (canvas) {
         canvas.style.cursor = 'grab'
       }
     }
+    // Reset all drag state
+    hasDragStarted = false
+    preparedForDragging = false
+    dragStartX = 0
+    dragStartY = 0
   }
 
   function handleDrag(event: MouseEvent) {
-    if (!isDragging || !canvas) return
+    if (!canvas) return
 
     // Get mouse position with correct scaling
     const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
+
+    // If we haven't started dragging yet, check if we should
+    if (!hasDragStarted && dragStartX !== 0) {
+      const deltaX = Math.abs(mouseX - dragStartX)
+      const deltaY = Math.abs(mouseY - dragStartY)
+      const threshold = 5 // 5px threshold to distinguish click from drag
+      
+      if (deltaX > threshold || deltaY > threshold) {
+        // Start actual dragging
+        hasDragStarted = true
+        isDragging = true
+        preparedForDragging = false // No longer just prepared, now actively dragging
+        if (canvas) {
+          canvas.style.cursor = 'grabbing'
+        }
+      } else {
+        // Still within threshold, don't start dragging yet
+        return
+      }
+    }
+
+    // Only proceed if we're actually dragging
+    if (!isDragging) return
 
     // Check if mouse is over legend - stop dragging if it is
     const hoveredLegendItem = isMouseOverLegendItem(mouseX, mouseY)
     if (hoveredLegendItem) {
       isDragging = false
-      canvas.style.cursor = 'pointer'
+      hasDragStarted = false
+      preparedForDragging = false
+      dragStartX = 0
+      dragStartY = 0
+      if (canvas) {
+        canvas.style.cursor = 'pointer'
+      }
       return
     }
 
@@ -1325,14 +1376,10 @@
         renderCanvas
       )
 
-      // Add global event listeners for drag handling
-      window.addEventListener('mousemove', handleDrag)
-      window.addEventListener('mouseup', handleMouseUp)
+      // Global event listeners are now handled by <svelte:window> in the template
 
       return () => {
         cleanup()
-        window.removeEventListener('mousemove', handleDrag)
-        window.removeEventListener('mouseup', handleMouseUp)
 
         if (hoverTimeout !== null) {
           window.clearTimeout(hoverTimeout)
@@ -1480,6 +1527,11 @@
     }
   })
 </script>
+
+<svelte:window 
+  on:mousemove={handleDrag} 
+  on:mouseup={handleMouseUp} 
+/>
 
 <canvas
   class="scarf-plot-figure"
