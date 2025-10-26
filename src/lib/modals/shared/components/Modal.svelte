@@ -7,7 +7,7 @@
 </script>
 
 <script lang="ts">
-  import { onDestroy, onMount, type SvelteComponent } from 'svelte'
+  import { onMount } from 'svelte'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { fade, scale } from 'svelte/transition'
 
@@ -16,8 +16,6 @@
   const unsubscribe = modalStore.subscribe(value => {
     modal = value as Modal | null
   })
-
-  onDestroy(unsubscribe)
 
   const handleClose = () => {
     modalStore.close()
@@ -123,8 +121,8 @@
 
   onMount(() => {
     // Add event listeners
-    window.addEventListener('keydown', handleKeydown)
-    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    window.addEventListener('keydown', handleKeydown, { passive: true })
+    document.addEventListener('fullscreenchange', handleFullscreenChange, { passive: true })
     
     // Lock body scroll when modal opens
     if (modal) {
@@ -139,6 +137,9 @@
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
       window.removeEventListener('wheel', handleWindowScroll)
       
+      // Unsubscribe from modal store
+      unsubscribe()
+
       // Unlock body scroll
       if (unlockBodyScroll) {
         unlockBodyScroll()

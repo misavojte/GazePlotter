@@ -31,13 +31,6 @@
     }
   }
 
-  onMount(() => {
-    // add passive listener
-    window.addEventListener('scroll', detectOnScrollBannerHeight, { passive: true })
-    return () => {
-      window.removeEventListener('scroll', detectOnScrollBannerHeight)
-    }
-  })
 
   // Function to toggle fullscreen mode
   function toggleFullscreen() {
@@ -161,16 +154,20 @@
     onWorkspaceCommand(resetCommand)
   }
 
-  // Listen for fullscreen state changes from browser events
+  // Listen for scroll and fullscreen changes
   onMount(() => {
-    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    // add passive listener
+    window.addEventListener('scroll', detectOnScrollBannerHeight, { passive: true })  
+    document.addEventListener('fullscreenchange', handleFullscreenChange, { passive: true })
+    document.addEventListener('keydown', handleKeydown, { passive: true })
     return () => {
+      window.removeEventListener('scroll', detectOnScrollBannerHeight)
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
+      document.removeEventListener('keydown', handleKeydown)
     }
   })
 </script>
 
-<svelte:window onkeydown={handleKeydown} />
 <div class="workspace-toolbar" style="--accent-color: {accentColor};">
   <div class="toolbar-content" style="top: {bannerHeight}px;">
     <!-- Undo button -->
