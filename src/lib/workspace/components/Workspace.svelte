@@ -9,6 +9,7 @@
     getVisualizationConfig, // Constant
     gridStore,
   } from '$lib/workspace'
+  import { generateUniqueId } from '$lib/shared/utils/idUtils'
   import { fade } from 'svelte/transition'
   import { writable, get, derived } from 'svelte/store'
   import { onDestroy } from 'svelte'
@@ -436,9 +437,12 @@
       if (itemToDuplicate) {
         const {type, id} = itemToDuplicate
         const source = `${type}.${id}.workspace`
+        // Generate duplicateId at command creation time
+        const duplicateId = generateUniqueId()
         handleWorkspaceCommand({
           type: 'duplicateGridItem',
           itemId: id,
+          duplicateId,
           source
         })
       }

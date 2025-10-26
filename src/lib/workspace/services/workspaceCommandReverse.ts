@@ -72,28 +72,15 @@ export function createCommandReverser(gridStore: GridStoreType) {
 
         case 'duplicateGridItem': {
           // Reverse duplicateGridItem to removeGridItem (remove the duplicated item)
-          // The duplicated item would have been added after the original, so we need to find it
-          const currentItems = get(gridStore)
-          const originalItem = currentItems.find(item => item.id === command.itemId)
-          
-          if (!originalItem) {
-            console.warn(`Cannot reverse duplicateGridItem: original item ${command.itemId} not found`)
-            return null
-          }
-
-          // Find the most recently added item of the same type (the duplicate)
-          const duplicates = currentItems
-            .filter(item => item.type === originalItem.type && item.id !== command.itemId)
-            .sort((a, b) => b.id - a.id) // Sort by ID descending to get the most recent
-
-          if (duplicates.length === 0) {
-            console.warn(`Cannot reverse duplicateGridItem: no duplicate found for item ${command.itemId}`)
+          // The command itself contains the duplicateId that was created
+          if (!command.duplicateId) {
+            console.warn(`Cannot reverse duplicateGridItem: duplicateId not found in command`)
             return null
           }
 
           return {
             type: 'removeGridItem',
-            itemId: duplicates[0].id,
+            itemId: command.duplicateId,
             source: command.source,
             chainId: command.chainId,
             isRootCommand: command.isRootCommand,

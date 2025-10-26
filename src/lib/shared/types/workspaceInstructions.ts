@@ -76,6 +76,7 @@ export interface RemoveGridItemCommand extends BaseCommandInterface {
 export interface DuplicateGridItemCommand extends BaseCommandInterface {
   type: 'duplicateGridItem'
   itemId: number
+  duplicateId: number
 }
 
 export interface SetLayoutStateCommand extends BaseCommandInterface {

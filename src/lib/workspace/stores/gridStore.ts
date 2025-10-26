@@ -388,8 +388,8 @@ export function createGridStore(
   /**
    * Duplicates an existing grid item
    */
-  function duplicateItem(item: AllGridTypes) {
-    const newId = generateUniqueId()
+  function duplicateItem(item: AllGridTypes, duplicateId?: number) {
+    const newId = duplicateId ?? generateUniqueId()
     const newPosition = findOptimalPosition(item.w, item.h, item)
 
     const newItem = {

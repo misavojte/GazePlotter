@@ -163,7 +163,7 @@ export function createCommandHandler(
         case 'duplicateGridItem': {
           const currentItem = get(gridStore).find(item => item.id === command.itemId)
           if (!currentItem) throw new Error(`Grid item ${command.itemId} not found`)
-          const newItemId = gridStore.duplicateItem(currentItem)
+          const newItemId = gridStore.duplicateItem(currentItem, command.duplicateId)
 
           // Only trigger collision resolution for root commands during normal operations
           // Skip during undo/redo because we're already executing the recorded children
