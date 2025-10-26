@@ -558,6 +558,7 @@
     const yPos = calculatedHeights.heightOfParticipantBars + 10 + marginTop
     const rightBoundary = LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft
     const isSecondToLast = len - 2
+    const isLast = len - 1
 
     for (let i = 0; i < len; i++) {
       const tick = ticks[i]
@@ -566,7 +567,8 @@
       const regularXPos = LEFT_LABEL_WIDTH + tick.position * plotAreaWidth + marginLeft
       
       // Only check for overflow on the second-to-last tick
-      if (i === isSecondToLast) {
+      // and the last tick if with a label (for relative timeline mode)
+      if ((i === isSecondToLast || i === isLast) && tick.label) {
         const textWidth = ctx.measureText(tick.label).width
         const rightEdgeOfText = regularXPos + textWidth / 2
         
