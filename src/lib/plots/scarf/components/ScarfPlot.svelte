@@ -185,7 +185,7 @@
   }
 
   function clearAllInteractions() {
-    clearHighlight()
+    // clearHighlight()
     scheduleTooltipHide()
   }
 
