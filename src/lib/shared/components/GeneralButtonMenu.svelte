@@ -2,6 +2,8 @@
   import MinorButton from './GeneralButtonMinor.svelte'
   import { type ComponentType } from 'svelte'
   import MoreVertical from 'lucide-svelte/icons/more-vertical'
+  import { tooltipAction } from '$lib/tooltip/components/Tooltip.svelte'
+  import { fade, fly } from 'svelte/transition'
 
   interface ActionItem {
     icon: ComponentType
@@ -40,15 +42,15 @@
 
 <svelte:window onclick={handleOutsideClick} onkeydown={handleKeydown} />
 
-<div class="wrap" bind:this={menuElement}>
+<div class="wrap" bind:this={menuElement} use:tooltipAction={{ content: "Plot & data options", position: "top", offset: 35, verticalAlign: "end", disabled: isOpen}}>
   <MinorButton onclick={handleClick}>
     <MoreVertical size={'1em'} />
   </MinorButton>
   {#if isOpen}
-    <ul class="menu">
+    <ul class="menu" transition:fly={{ y: -20, duration: 300 }}>
       {#each items as item}
         <li>
-          <button onclick={item.action}>
+          <button onclick={() => { item.action(); isOpen = false; }}>
             <item.icon size={'1em'} />
             {item.label}
           </button>
@@ -63,37 +65,52 @@
     position: relative;
     display: flex;
   }
+  
   .menu {
     position: absolute;
     right: 0;
+    top: calc(100% + 8px);
     background: var(--c-white);
-    border: 1px solid #ccc;
+    border: 1px solid var(--c-grey);
     border-radius: var(--rounded);
-    box-shadow: 0 0 10px var(--c-grey);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     overflow: hidden;
     z-index: 1000;
-  }
-  .menu,
-  li {
-    list-style: none;
     min-width: 220px;
+    list-style: none;
     margin: 0;
     padding: 0;
   }
+  
+  .menu li {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  
   .menu button {
     background: none;
     border: none;
-    padding: 7px 14px;
+    padding: 10px 14px;
     font-size: 14px;
-    color: #333;
+    color: var(--c-black);
     cursor: pointer;
     width: 100%;
     text-align: left;
     display: flex;
     align-items: center;
     gap: 0.5em;
+    transition: all 0.2s ease;
+    position: relative;
   }
+  
   .menu button:hover {
-    background: #f5f5f5;
+    background: var(--c-lightgrey);
+    color: var(--c-brand);
+    padding-left: 16px;
+  }
+  
+  .menu button :global(svg) {
+    transition: transform 0.2s ease;
   }
 </style>

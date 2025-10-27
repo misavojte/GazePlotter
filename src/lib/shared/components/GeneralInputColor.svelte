@@ -47,6 +47,11 @@
   let saturationHsv = $state(100)
   let valueHsv = $state(100)
 
+  // State for tracking drag operations
+  let isDragging = $state(false)
+  let dragStartPosition = $state({ x: 0, y: 0 })
+  let satLightPickerElement: HTMLDivElement | null = $state(null)
+
   // Create a portal for the color popup with click-outside behavior
   const portal = (node: HTMLElement) => {
     // Move the node to the body
@@ -65,15 +70,23 @@
       }
     }
 
-    // Add listener with a small delay to prevent immediate closing
+    // Add listeners with a small delay to prevent immediate closing
     setTimeout(() => {
       document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('mousemove', handleGlobalMouseMove)
+      document.addEventListener('mouseup', handleGlobalMouseUp)
     }, 100)
 
     // Return destroy function for cleanup
     return {
       destroy() {
         document.removeEventListener('mousedown', handleClickOutside)
+        document.removeEventListener('mousemove', handleGlobalMouseMove)
+        document.removeEventListener('mouseup', handleGlobalMouseUp)
+        
+        // Ensure text selection is re-enabled
+        document.body.style.userSelect = ''
+        
         if (node.parentNode) {
           node.parentNode.removeChild(node)
         }
@@ -416,8 +429,9 @@
 
   // Handle saturation/value (brightness) change in HSV model
   const handleSatValueChange = (e: MouseEvent) => {
-    const target = e.currentTarget as HTMLDivElement
-    const rect = target.getBoundingClientRect()
+    if (!satLightPickerElement) return
+    
+    const rect = satLightPickerElement.getBoundingClientRect()
 
     // X maps directly to saturation (0-100%)
     saturationHsv = Math.max(
@@ -437,6 +451,37 @@
     updateColorFromHsv()
   }
 
+  // Handle mouse down on saturation/value picker
+  const handleSatValueMouseDown = (e: MouseEvent) => {
+    e.preventDefault()
+    isDragging = true
+    dragStartPosition = { x: e.clientX, y: e.clientY }
+    
+    // Prevent text selection during drag
+    document.body.style.userSelect = 'none'
+    
+    handleSatValueChange(e)
+  }
+
+  // Handle global mouse move for dragging outside the picker
+  const handleGlobalMouseMove = (e: MouseEvent) => {
+    if (isDragging) {
+      e.preventDefault()
+      handleSatValueChange(e)
+    }
+  }
+
+  // Handle global mouse up to end dragging
+  const handleGlobalMouseUp = (e: MouseEvent) => {
+    if (isDragging) {
+      e.preventDefault()
+      isDragging = false
+      
+      // Re-enable text selection
+      document.body.style.userSelect = ''
+    }
+  }
+
   // Toggle color picker
   const toggleColorPicker = async () => {
     isOpen = !isOpen
@@ -446,6 +491,10 @@
 
       // Calculate position once when opening
       await calculatePopupPosition()
+    } else {
+      // Reset dragging state when closing
+      isDragging = false
+      document.body.style.userSelect = ''
     }
   }
 
@@ -501,20 +550,21 @@
   // Calculate selector border color based on background
   const selectorBorderColor = $derived(isColorDark ? 'white' : 'black')
 
-  // Scientific color pallete (12 colors, more pastel like)
+  // Scientific color palette optimized for data visualization and accessibility
+  // Based on colorblind-friendly palettes with good contrast and distinctiveness
   const scientificColorPalette = [
-    '#FFB6C1', // Light pink
-    '#87CEEB', // Light blue
-    '#98FB98', // Pale green
-    '#DDA0DD', // Light purple
-    '#F0E68C', // Pale yellow
-    '#E6E6FA', // Light lavender
-    '#F0FFF0', // Honeydew
-    '#F0FFFF', // Azure
-    '#F5F5DC', // Beige
-    '#F5F5F5', // Light gray
-    '#D8BFD8', // Thistle
-    '#E0FFFF', // Light cyan
+    '#1f77b4', // Blue - primary data color
+    '#ff7f0e', // Orange - secondary data color  
+    '#2ca02c', // Green - tertiary data color
+    '#d62728', // Red - attention/error color
+    '#9467bd', // Purple - categorical data
+    '#8c564b', // Brown - categorical data
+    '#e377c2', // Pink - categorical data
+    '#7f7f7f', // Gray - neutral data
+    '#bcbd22', // Olive - categorical data
+    '#17becf', // Cyan - categorical data
+    '#aec7e8', // Light blue - background/light data
+    '#ffbb78', // Light orange - background/light data
   ]
 
   const id = `color-${label.toLowerCase().replace(/\s+/g, '-')}`
@@ -553,8 +603,8 @@
           <div
             class="sat-light-picker"
             style:background-color={hueColor}
-            onmousedown={handleSatValueChange}
-            onmousemove={e => e.buttons && handleSatValueChange(e)}
+            onmousedown={handleSatValueMouseDown}
+            bind:this={satLightPickerElement}
             role="none"
           >
             <div
@@ -663,6 +713,10 @@
     background-image: linear-gradient(to top, #000, transparent),
       linear-gradient(to right, #fff, transparent);
     margin-bottom: 10px;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
   }
 
   .sat-light-selector {

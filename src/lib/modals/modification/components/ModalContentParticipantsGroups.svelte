@@ -1,6 +1,5 @@
 <script lang="ts">
   import {
-    updateParticipantsGroups,
     getParticipants,
     getParticipantsGroups,
   } from '$lib/gaze-data/front-process/stores/dataStore'
@@ -20,12 +19,15 @@
   import { fade, slide } from 'svelte/transition'
   import { flip } from 'svelte/animate'
   import GeneralInputCheck from '$lib/shared/components/GeneralInputCheck.svelte'
+  import type { UpdateParticipantsGroupsCommand } from '$lib/shared/types/workspaceInstructions'
+  import { modalStore } from '$lib/modals/shared/stores/modalStore'
 
   interface Props {
-    forceRedraw: () => void
+    source: string,
+    onWorkspaceCommand: (command: UpdateParticipantsGroupsCommand) => void
   }
 
-  let { forceRedraw }: Props = $props()
+  let { source, onWorkspaceCommand }: Props = $props()
 
   // State management
   let initialGroups = $state(
@@ -185,15 +187,13 @@
       })
     )
 
-    // Update the main data store with the deep copy
-    updateParticipantsGroups(groupsDeepCopy)
+    onWorkspaceCommand({
+      type: 'updateParticipantsGroups',
+      groups: groupsDeepCopy,
+      source,
+    })
 
-    // Create a new snapshot after saving
-    initialGroups = JSON.parse(JSON.stringify(groupsDeepCopy))
-    hasChanged = false
-
-    forceRedraw()
-    addSuccessToast(`Set ${participantsGroups.length} groups.`)
+    modalStore.close()
   }
 
   // Track expanded accordion items

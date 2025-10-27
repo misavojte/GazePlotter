@@ -5,6 +5,8 @@
   import {
     calculateLabelOffset,
     truncateTextToPixelWidth,
+    SYSTEM_SANS_SERIF_STACK,
+    estimateTextWidth,
   } from '$lib/shared/utils/textUtils'
   import { onMount, onDestroy, untrack } from 'svelte'
   import { browser } from '$app/environment'
@@ -33,7 +35,7 @@
     tooltipAreaElement: HTMLElement | SVGElement | null
     data: ScarfFillingType
     settings: ScarfGridType
-    highlightedIdentifier: string | null
+    highlights: string[]
     onLegendClick: (identifier: string) => void
     onTooltipActivation: ({
       segmentOrderId,
@@ -48,6 +50,7 @@
     }) => void
     onTooltipDeactivation: () => void
     onDragStepX?: (stepChange: number) => void
+    onDragEnd?: () => void
     chartWidth: number
     calculatedHeights: {
       participantBarHeight: number
@@ -70,11 +73,12 @@
     tooltipAreaElement,
     data,
     settings,
-    highlightedIdentifier = null,
+    highlights = [],
     onLegendClick = () => {},
     onTooltipActivation = () => {},
     onTooltipDeactivation = () => {},
     onDragStepX = () => {},
+    onDragEnd = () => {},
     chartWidth = 0,
     calculatedHeights,
     dpiOverride = null,
@@ -111,17 +115,19 @@
   )
 
   // State management with Svelte 5 runes
-  let fixedHighlight = $state<string | null>(null)
   let isDragging = $state(false) // New state to track if actively dragging
   let isHoveringSegment = $state(false) // Track if hovering or recently hovering a segment
   let hoverTimeout: number | null = $state(null) // Timeout ID
   let canvas = $state<HTMLCanvasElement | null>(null)
   let canvasState = $state<CanvasState>(createCanvasState())
   let dragStartX = $state(0) // Track drag start position
+  let dragStartY = $state(0) // Track drag start position
+  let hasDragStarted = $state(false) // Track if drag threshold has been exceeded
+  let preparedForDragging = $state(false) // Track if prepared for dragging (shows draggable cursor)
   let hoveredLegendItem = $state<any>(null) // Track currently hovered legend item
 
-  // Derived values using Svelte 5 $derived rune
-  const usedHighlight = $derived(fixedHighlight ?? highlightedIdentifier)
+  // Use highlights directly from props - workspace is the single source of truth
+  const usedHighlights = $derived(highlights)
   const xAxisLabel = $derived(getXAxisLabel(settings.timeline))
 
   // Memoize legend geometry to avoid recalculating on every mouse move
@@ -322,7 +328,7 @@
     const RECT_STRIDE = 12
     const buffer = new Float32Array(len * RECT_STRIDE)
 
-    const isUsedHighlight = usedHighlight !== null
+    const isUsedHighlight = usedHighlights.length > 0
     // Get fast lookup maps
     const { idToIndex } = identifierSystem
 
@@ -350,8 +356,8 @@
       buffer[idx + 6] = rect.segmentId // segmentId
       buffer[idx + 7] = rect.orderId // orderId
 
-      // Style flags - compute only once
-      const isDimmed = isUsedHighlight && identifier !== usedHighlight
+      // Style flags - compute only once: dim if highlighting is active and this identifier is not highlighted
+      const isDimmed = isUsedHighlight && !usedHighlights.includes(identifier)
 
       // 8: dimmed (0/1)
       buffer[idx + 8] = isDimmed ? 1 : 0
@@ -378,7 +384,7 @@
     const LINE_STRIDE = 10
     const buffer = new Float32Array(len * LINE_STRIDE)
 
-    const isUsedHighlight = usedHighlight !== null
+    const isUsedHighlight = usedHighlights.length > 0
     // Get fast lookup maps
     const { idToIndex } = identifierSystem
 
@@ -404,8 +410,8 @@
       buffer[idx + 4] = identifierIdx // identifier index
       buffer[idx + 5] = line.participantId // participantId
 
-      // Style flags - compute only once
-      const isDimmed = isUsedHighlight && identifier !== usedHighlight
+      // Style flags - compute only once: dim if highlighting is active and this identifier is not highlighted
+      const isDimmed = isUsedHighlight && !usedHighlights.includes(identifier)
 
       // 6: dimmed (0/1)
       buffer[idx + 6] = isDimmed ? 1 : 0
@@ -420,24 +426,8 @@
   })
 
   // Interaction handlers
-  function handleFixedHighlight(identifier: string) {
-    if (fixedHighlight === identifier) {
-      // If already highlighted, clear it
-      fixedHighlight = null
-      highlightedIdentifier = null
-      //renderCanvas() // Redraw canvas
-      return
-    }
-
-    // Otherwise, set the fixed highlight
-    fixedHighlight = identifier
-    addInfoToast(`Highlight fixed. Click the same item in the legend to remove`)
-    //renderCanvas() // Redraw canvas
-  }
-
   function handleLegendIdentifier(identifier: string) {
-    // Handle both local fixed highlight and external app state
-    handleFixedHighlight(identifier)
+    // Propagate to parent component - workspace is single source of truth
     onLegendClick(identifier)
   }
 
@@ -449,14 +439,28 @@
     const ctx = canvasState.context
     if (!ctx) return
 
+    // Set up font
+    setUpFont(ctx)
+
     // Draw participant labels (Left Side)
     drawParticipantLabels(ctx)
 
-    // Draw horizontal grid lines
-    drawHorizontalGridLines(ctx)
-
     // Draw timeline axis labels and ticks
     drawTimelineLabels(ctx)
+
+    // Draw X-Axis label
+    drawXAxisLabel(ctx)
+
+    // Draw legend item texts
+    drawLegendItemTexts(ctx)
+
+    // Draw legend group titles
+    drawLegendGroupTitles(ctx)
+
+    // ---- STOP OF TEXT DRAWING ---- //
+
+    // Draw horizontal grid lines
+    drawHorizontalGridLines(ctx)
 
     // Draw X-Axis ticks and bottom border
     drawXAxisTicksAndBorder(ctx)
@@ -467,18 +471,22 @@
     // Draw line segments
     drawLines(ctx)
 
-    // Draw X-Axis label
-    drawXAxisLabel(ctx)
-
     // Draw the legend
     drawLegend(ctx)
 
     finishCanvasDrawing(canvasState)
   }
 
+  function setUpFont(ctx: CanvasRenderingContext2D) {
+    ctx.font = `${LAYOUT.LABEL_FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
+    // avoid full black color, use a nearly black color
+    ctx.fillStyle = '#222'
+  }
+
   function drawParticipantLabels(ctx: CanvasRenderingContext2D) {
-    ctx.font = `${LAYOUT.LABEL_FONT_SIZE}px sans-serif`
-    ctx.fillStyle = '#000'
+   
+    // watch out that setUpFont function is called before this function is called!
+
     ctx.textAlign = 'start'
     ctx.textBaseline = 'middle'
 
@@ -520,26 +528,42 @@
   }
 
   function drawTimelineLabels(ctx: CanvasRenderingContext2D) {
+    // watch out that setUpFont function is called before this function is called!
+
     const ticks = data.timeline.ticks
     const len = ticks.length
     if (len === 0) return
 
-    ctx.font = `${LAYOUT.LABEL_FONT_SIZE}px sans-serif`
-    ctx.fillStyle = '#000'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'hanging'
 
     // Position labels just 5px below the participant bars
     const yPos = calculatedHeights.heightOfParticipantBars + 10 + marginTop
+    const rightBoundary = LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft
+    const isSecondToLast = len - 2
+    const isLast = len - 1
 
     for (let i = 0; i < len; i++) {
       const tick = ticks[i]
-      if (tick.isNice) {
-        ctx.fillText(
-          tick.label,
-          LEFT_LABEL_WIDTH + tick.position * plotAreaWidth + marginLeft,
-          yPos
-        )
+      if (!tick.isNice) continue
+
+      const regularXPos = LEFT_LABEL_WIDTH + tick.position * plotAreaWidth + marginLeft
+      
+      // Only check for overflow on the second-to-last tick
+      // and the last tick if with a label (for relative timeline mode)
+      if ((i === isSecondToLast || i === isLast) && tick.label) {
+        const textWidth = ctx.measureText(tick.label).width
+        const rightEdgeOfText = regularXPos + textWidth / 2
+        
+        if (rightEdgeOfText > rightBoundary) {
+          // Move the label left just enough so it fits within the plot area
+          const xPos = regularXPos - (rightEdgeOfText - rightBoundary)
+          ctx.fillText(tick.label, xPos, yPos)
+        } else {
+          ctx.fillText(tick.label, regularXPos, yPos)
+        }
+      } else {
+        ctx.fillText(tick.label, regularXPos, yPos)
       }
     }
   }
@@ -712,8 +736,9 @@
   }
 
   function drawXAxisLabel(ctx: CanvasRenderingContext2D) {
-    ctx.font = `${LAYOUT.LABEL_FONT_SIZE}px sans-serif`
-    ctx.fillStyle = '#000'
+
+    // watch out that setUpFont function is called before this function is called!
+
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
 
@@ -896,6 +921,28 @@
     }
   }
 
+  function drawLegendGroupTitles(ctx: CanvasRenderingContext2D) {
+    // watch out that setUpFont function is called before this function is called!
+
+    // Draw group titles
+    if (legendGeometry.groupTitles && legendGeometry.groupTitles.length > 0) {
+
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'top'
+      // set semi-bold font
+      ctx.font = `600 ${LEGEND.FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
+
+      const titles = legendGeometry.groupTitles
+      const len = titles.length
+
+      for (let i = 0; i < len; i++) {
+        const group = titles[i]
+        ctx.fillText(group.title, group.x, group.y)
+      }
+    }
+    
+  }
+
   // Draw the legend on the canvas
   function drawLegend(ctx: CanvasRenderingContext2D) {
     // Skip legend if no content
@@ -906,22 +953,6 @@
     )
       return
 
-    // Draw group titles
-    if (legendGeometry.groupTitles && legendGeometry.groupTitles.length > 0) {
-      ctx.font = `bold ${LEGEND.FONT_SIZE}px sans-serif`
-      ctx.fillStyle = '#000'
-      ctx.textAlign = 'left'
-      ctx.textBaseline = 'top'
-
-      const titles = legendGeometry.groupTitles
-      const len = titles.length
-
-      for (let i = 0; i < len; i++) {
-        const group = titles[i]
-        ctx.fillText(group.title, group.x, group.y)
-      }
-    }
-
     // Draw each legend item
     if (legendGeometry.items && legendGeometry.items.length > 0) {
       const items = legendGeometry.items
@@ -929,8 +960,8 @@
 
       for (let i = 0; i < len; i++) {
         const item = items[i]
-        const isHighlighted = item.identifier === usedHighlight
-        const anyHighlightActive = usedHighlight !== null
+        const isHighlighted = usedHighlights.includes(item.identifier)
+        const anyHighlightActive = usedHighlights.length > 0
 
         // Set opacity based on highlight state
         if (anyHighlightActive) {
@@ -965,10 +996,33 @@
           // Reset dash array
           ctx.setLineDash([])
         }
+      }
+    }
+
+    // Reset opacity
+    ctx.globalAlpha = 1.0
+  }
+
+  function drawLegendItemTexts(ctx: CanvasRenderingContext2D) {
+
+    // Draw each legend item
+    if (legendGeometry.items && legendGeometry.items.length > 0) {
+      const items = legendGeometry.items
+      const len = items.length
+
+      for (let i = 0; i < len; i++) {
+        const item = items[i]
+        const isHighlighted = usedHighlights.includes(item.identifier)
+        const anyHighlightActive = usedHighlights.length > 0
+
+        // Set opacity based on highlight state
+        if (anyHighlightActive) {
+          ctx.globalAlpha = isHighlighted ? 1.0 : 0.15
+        } else {
+          ctx.globalAlpha = 1.0
+        }
 
         // Draw item text
-        ctx.fillStyle = '#000'
-        ctx.font = `${LEGEND.FONT_SIZE}px sans-serif`
         ctx.textAlign = 'start'
         ctx.textBaseline = 'alphabetic'
 
@@ -985,9 +1039,6 @@
         )
       }
     }
-
-    // Reset opacity
-    ctx.globalAlpha = 1.0
   }
 
   // Check if a mouse click or hover is on a legend item
@@ -1028,7 +1079,7 @@
       if (legendItem) {
         // Show tooltip with "Highlight [FULLNAMEOFAOI]" or "Dehighlight [FULLNAMEOFAOI]" text
         hoveredLegendItem = legendItem
-        const isHighlighted = legendItem.identifier === usedHighlight
+        const isHighlighted = usedHighlights.includes(legendItem.identifier)
         const tooltipContent = [
           {
             key: '',
@@ -1039,7 +1090,7 @@
         // Get tooltip position using the same utility as segment tooltips
         const tooltipPos = getTooltipPosition(
           canvasState,
-          legendItem.x + legendItem.width / 2, // Center horizontally
+          legendItem.x + LEGEND.ICON_WIDTH * 1.5,
           legendItem.y + LEGEND.ITEM_HEIGHT, // Position at bottom of legend item
           { x: 0, y: 7 } // 7px below the legend item
         )
@@ -1048,8 +1099,7 @@
           visible: true,
           content: tooltipContent,
           x: tooltipPos.x,
-          y: tooltipPos.y,
-          width: 150,
+          y: tooltipPos.y
         })
       } else if (hoveredLegendItem) {
         // Hide tooltip when mouse leaves legend item
@@ -1071,7 +1121,7 @@
       mouseY <= data.participants.length * data.heightOfBarWrap + marginTop
 
     // Update cursor based on dragging state and location
-    if (isDragging) {
+    if (isDragging || preparedForDragging) {
       canvas.style.cursor = 'grabbing'
     } else if (inDraggableArea && !isHoveringSegment) {
       canvas.style.cursor = 'grab'
@@ -1161,6 +1211,11 @@
     if (isDragging) {
       isDragging = false
     }
+    // Reset all drag state
+    hasDragStarted = false
+    preparedForDragging = false
+    dragStartX = 0
+    dragStartY = 0
   }
 
   // Drag handlers
@@ -1178,7 +1233,7 @@
       return
     }
 
-    // Only start drag in the chart area
+    // Only prepare for potential drag in the chart area
     if (
       mouseX >= LEFT_LABEL_WIDTH + marginLeft &&
       mouseX <= LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft &&
@@ -1186,32 +1241,73 @@
       mouseY <= data.participants.length * data.heightOfBarWrap + marginTop &&
       !isHoveringSegment
     ) {
-      isDragging = true
+      // Store initial position and prepare for dragging
       dragStartX = mouseX
-      canvas.style.cursor = 'grabbing'
+      dragStartY = mouseY
+      hasDragStarted = false
+      preparedForDragging = true
+      // Show grabbing cursor immediately
+      if (canvas) {
+        canvas.style.cursor = 'grabbing'
+      }
     }
   }
 
   function handleMouseUp() {
     if (isDragging) {
       isDragging = false
+      onDragEnd()  // Call drag end handler
       if (canvas) {
         canvas.style.cursor = 'grab'
       }
     }
+    // Reset all drag state
+    hasDragStarted = false
+    preparedForDragging = false
+    dragStartX = 0
+    dragStartY = 0
   }
 
   function handleDrag(event: MouseEvent) {
-    if (!isDragging || !canvas) return
+    if (!canvas) return
 
     // Get mouse position with correct scaling
     const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
+
+    // If we haven't started dragging yet, check if we should
+    if (!hasDragStarted && dragStartX !== 0) {
+      const deltaX = Math.abs(mouseX - dragStartX)
+      const deltaY = Math.abs(mouseY - dragStartY)
+      const threshold = 5 // 5px threshold to distinguish click from drag
+      
+      if (deltaX > threshold || deltaY > threshold) {
+        // Start actual dragging
+        hasDragStarted = true
+        isDragging = true
+        preparedForDragging = false // No longer just prepared, now actively dragging
+        if (canvas) {
+          canvas.style.cursor = 'grabbing'
+        }
+      } else {
+        // Still within threshold, don't start dragging yet
+        return
+      }
+    }
+
+    // Only proceed if we're actually dragging
+    if (!isDragging) return
 
     // Check if mouse is over legend - stop dragging if it is
     const hoveredLegendItem = isMouseOverLegendItem(mouseX, mouseY)
     if (hoveredLegendItem) {
       isDragging = false
-      canvas.style.cursor = 'pointer'
+      hasDragStarted = false
+      preparedForDragging = false
+      dragStartX = 0
+      dragStartY = 0
+      if (canvas) {
+        canvas.style.cursor = 'pointer'
+      }
       return
     }
 
@@ -1265,14 +1361,10 @@
         renderCanvas
       )
 
-      // Add global event listeners for drag handling
-      window.addEventListener('mousemove', handleDrag)
-      window.addEventListener('mouseup', handleMouseUp)
+      // Global event listeners are now handled by <svelte:window> in the template
 
       return () => {
         cleanup()
-        window.removeEventListener('mousemove', handleDrag)
-        window.removeEventListener('mouseup', handleMouseUp)
 
         if (hoverTimeout !== null) {
           window.clearTimeout(hoverTimeout)
@@ -1295,9 +1387,9 @@
       data,
       settings,
       totalWidth,
-      // Reference timeline data to update when it changes
-      highlightedIdentifier,
-      usedHighlight,
+      // Reference highlights data to update when it changes
+      highlights,
+      usedHighlights,
       chartWidth,
       dpiOverride, // Add dpiOverride to the dependency list
       marginLeft,
@@ -1420,6 +1512,11 @@
     }
   })
 </script>
+
+<svelte:window 
+  on:mousemove={handleDrag} 
+  on:mouseup={handleMouseUp} 
+/>
 
 <canvas
   class="scarf-plot-figure"

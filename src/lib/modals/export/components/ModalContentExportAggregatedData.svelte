@@ -44,7 +44,6 @@
   // Metrics configuration and state
   // Grouped logically: Time metrics → First fixation → Fixations → Visits
   const metricsConfig = [
-    // === Time Metrics ===
     {
       key: 'absoluteDwellTime' as const,
       label: 'Absolute Dwell Time',
@@ -67,7 +66,6 @@
         return totalTime > 0 ? (dwellTime / totalTime) * 100 : 0
       },
     },
-    // === First Fixation Metrics ===
     {
       key: 'timeToFirstFixation' as const,
       label: 'Time to First Fixation',
@@ -82,7 +80,6 @@
       csvName: 'First_Fixation_Duration',
       collector: collectParticipantsFirstFixationDurationData,
     },
-    // === Fixation Metrics ===
     {
       key: 'fixationCount' as const,
       label: 'Fixation Count',
@@ -101,7 +98,6 @@
           ? -1
           : values.reduce((sum, val) => sum + val, 0) / values.length,
     },
-    // === Visit Metrics ===
     {
       key: 'visitCount' as const,
       label: 'Visit Count',

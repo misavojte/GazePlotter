@@ -48,6 +48,8 @@ export interface ScarfGridType extends GridType {
   ordinalStimuliLimits: [number, number][]
   /** Whether to use dynamic AOI (Area of Interest) calculations */
   dynamicAOI: boolean
+  /** Array of segment type identifiers that are currently highlighted */
+  highlights?: string[]
 }
 
 /**

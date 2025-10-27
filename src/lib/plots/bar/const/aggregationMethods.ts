@@ -8,7 +8,6 @@
  * Add new methods here to automatically make them available throughout the application
  */
 export const BAR_PLOT_AGGREGATION_METHODS = [
-  // Time-based metrics (duration/accumulation)
   {
     value: 'absoluteTime',
     label: 'Absolute times',

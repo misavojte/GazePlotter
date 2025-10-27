@@ -18,26 +18,36 @@
   import { DEFAULT_GRID_CONFIG } from '$lib/shared/utils/gridSizingUtils'
   import { PlotPlaceholder } from '$lib/plots/shared/components'
   import { fade } from 'svelte/transition'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  import { createCommandSourcePlotPattern } from '$lib/shared/types/workspaceInstructions'
+
   // Component Props using Svelte 5 $props() rune
   interface Props {
     settings: ScarfGridType
-    settingsChange: (settings: Partial<ScarfGridType>) => void
-    forceRedraw: () => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { settings, settingsChange, forceRedraw }: Props = $props()
+  // Rename incoming settings prop to realSettings for clarity
+  let { settings: realSettings, onWorkspaceCommand }: Props = $props()
+
+  // Local settings that drive all rendering
+  let localSettings = $state<ScarfGridType>(realSettings)
+
+  // Sync localSettings when realSettings changes (workspace authority)
+  $effect(() => {
+    localSettings = realSettings
+  })
 
   // State management with Svelte 5 runes
   let tooltipArea = $state<HTMLElement | SVGElement | null>(null)
   let windowObj = $state<Window | null>(null)
   let timeout = $state(0)
-  let highlightedType = $state<string | null>(null)
   let removeHighlight = $state<null | (() => void)>(null)
 
   // Derived values using Svelte 5 $derived and $derived.by runes
-  const currentGroupId = $derived(settings.groupId)
-  const currentStimulusId = $derived(settings.stimulusId)
-  const redrawTimestamp = $derived(settings.redrawTimestamp)
+  const currentGroupId = $derived(localSettings.groupId)
+  const currentStimulusId = $derived(localSettings.stimulusId)
+  const redrawTimestamp = $derived(localSettings.redrawTimestamp)
 
   const currentParticipantIds = $derived(
     getParticipants(currentGroupId, currentStimulusId).map(
@@ -53,6 +63,9 @@
     )
   })
 
+  // Derived highlights array - convert undefined to empty array
+  const highlights = $derived(realSettings.highlights ?? [])
+
   const scarfData = $derived.by(() => {
     // Force recalculation when redrawTimestamp changes
     // Also use localTimestamp to force recalculation when participants change
@@ -64,14 +77,14 @@
       currentStimulusId
     ).map(participant => participant.id)
 
-    return transformDataToScarfPlot(currentStimulusId, participantIds, settings)
+    return transformDataToScarfPlot(currentStimulusId, participantIds, localSettings)
   })
 
   // Calculate plot dimensions using a more descriptive approach
   const plotDimensions = $derived.by(() =>
     calculatePlotDimensionsWithHeader(
-      settings.w,
-      settings.h,
+      localSettings.w,
+      localSettings.h,
       DEFAULT_GRID_CONFIG,
       SCARF_LAYOUT.HEADER_HEIGHT,
       SCARF_LAYOUT.HORIZONTAL_PADDING,
@@ -101,10 +114,10 @@
 
   // Calculate, based on current stimulus, the min value for the timeline
   const timelineMinValue = $derived.by(() => {
-    if (settings.timeline === 'absolute') {
-      return settings.absoluteStimuliLimits[currentStimulusId]?.[0] ?? 0
-    } else if (settings.timeline === 'ordinal') {
-      return settings.ordinalStimuliLimits[currentStimulusId]?.[0] ?? 0
+    if (localSettings.timeline === 'absolute') {
+      return localSettings.absoluteStimuliLimits[currentStimulusId]?.[0] ?? 0
+    } else if (localSettings.timeline === 'ordinal') {
+      return localSettings.ordinalStimuliLimits[currentStimulusId]?.[0] ?? 0
     } else {
       return 0 // relative timeline has always a min value of 0
     }
@@ -112,9 +125,9 @@
 
   // Same for max value, however, if the max value is 0, then use the max value of the data
   const timelineMaxValue = $derived.by(() => {
-    if (settings.timeline === 'absolute') {
+    if (localSettings.timeline === 'absolute') {
       const maxValue =
-        settings.absoluteStimuliLimits[currentStimulusId]?.[1] ?? 0
+        localSettings.absoluteStimuliLimits[currentStimulusId]?.[1] ?? 0
       return maxValue === 0
         ? currentParticipantIds.reduce(
             (max, participantId) =>
@@ -125,9 +138,9 @@
             0
           )
         : maxValue
-    } else if (settings.timeline === 'ordinal') {
+    } else if (localSettings.timeline === 'ordinal') {
       const maxValue =
-        settings.ordinalStimuliLimits[currentStimulusId]?.[1] ?? 0
+        localSettings.ordinalStimuliLimits[currentStimulusId]?.[1] ?? 0
       return maxValue === 0
         ? currentParticipantIds.reduce(
             (max, participantId) =>
@@ -143,10 +156,6 @@
     }
   })
 
-  // Tooltip and interaction handlers
-  function handleSettingsChange(newSettings: Partial<ScarfGridType>) {
-    settingsChange?.(newSettings)
-  }
 
   function scheduleTooltipHide() {
     clearTimeout(timeout)
@@ -164,20 +173,44 @@
   }
 
   function clearHighlight() {
-    highlightedType = null
+    // Clear all highlights via workspace command
+    if (highlights.length > 0) {
+      onWorkspaceCommand({
+        type: 'updateSettings',
+        itemId: realSettings.id,
+        source,
+        settings: { highlights: [] }
+      })
+    }
   }
 
   function clearAllInteractions() {
-    clearHighlight()
+    // clearHighlight()
     scheduleTooltipHide()
   }
 
-  // Handle legend item clicks
+  // Handle legend item clicks - toggle highlight in the array
   function handleLegendClick(identifier: string) {
-    if (highlightedType === identifier) return
     hideTooltipAndHighlight()
-    highlightedType = identifier
+    
+    // Toggle the identifier in the highlights array
+    const currentHighlights = highlights
+    const isCurrentlyHighlighted = currentHighlights.includes(identifier)
+    const newHighlights = isCurrentlyHighlighted
+      ? currentHighlights.filter(id => id !== identifier)
+      : [...currentHighlights, identifier]
+    
+    // Update via workspace command
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: realSettings.id,
+      source,
+      settings: { highlights: newHighlights }
+    })
   }
+
+  // source for the workspace commands directly from the plot
+  const source = createCommandSourcePlotPattern(realSettings, 'plot')
 
   // Handle chart dragging
   function handleDragStepX(stepChange: number) {
@@ -204,23 +237,44 @@
     let newMin = Math.max(0, currentMin + moveAmount) // Ensure left edge doesn't go below zero
     let newMax = currentMax + moveAmount + (newMin - (currentMin + moveAmount)) // Adjust right edge if left was constrained
 
-    // Update the settings based on the timeline type
-    if (settings.timeline === 'absolute') {
-      const updatedLimits = { ...settings.absoluteStimuliLimits }
-      updatedLimits[currentStimulusId] = [newMin, newMax]
-
-      handleSettingsChange({
-        absoluteStimuliLimits: updatedLimits,
-      })
-    } else if (settings.timeline === 'ordinal') {
-      const updatedLimits = { ...settings.ordinalStimuliLimits }
-      updatedLimits[currentStimulusId] = [newMin, newMax]
-
-      handleSettingsChange({
-        ordinalStimuliLimits: updatedLimits,
-      })
+    // Update ONLY localSettings - no workspace command
+    if (localSettings.timeline === 'absolute') {
+      localSettings = {
+        ...localSettings,
+        absoluteStimuliLimits: {
+          ...localSettings.absoluteStimuliLimits,
+          [currentStimulusId]: [newMin, newMax]
+        }
+      }
+    } else if (localSettings.timeline === 'ordinal') {
+      localSettings = {
+        ...localSettings,
+        ordinalStimuliLimits: {
+          ...localSettings.ordinalStimuliLimits,
+          [currentStimulusId]: [newMin, newMax]
+        }
+      }
     }
     // For relative timeline, there's typically nothing to update as it's fixed at 0-100%
+  }
+
+  // Handle drag end - sync localSettings to workspace
+  function handleDragEnd() {
+    // Send single workspace command with final localSettings values
+    const limitsKey = localSettings.timeline === 'absolute' 
+      ? 'absoluteStimuliLimits' 
+      : 'ordinalStimuliLimits'
+    
+    if (localSettings.timeline !== 'relative') {
+      onWorkspaceCommand({
+        type: 'updateSettings',
+        itemId: realSettings.id,
+        source,
+        settings: {
+          [limitsKey]: localSettings[limitsKey]
+        }
+      })
+    }
   }
 
   let mounted = $state(false)
@@ -264,9 +318,9 @@
 <div class="scarf-plot-container">
   <div class="header">
     <ScarfPlotHeader
-      {settings}
-      {forceRedraw}
-      settingsChange={handleSettingsChange}
+      {source}
+      settings={localSettings}
+      {onWorkspaceCommand}
     />
   </div>
 
@@ -278,10 +332,11 @@
           onTooltipDeactivation={handleTooltipDeactivation}
           tooltipAreaElement={tooltipArea}
           data={scarfData}
-          {settings}
-          highlightedIdentifier={highlightedType}
+          settings={localSettings}
+          highlights={highlights}
           onLegendClick={handleLegendClick}
           onDragStepX={handleDragStepX}
+          onDragEnd={handleDragEnd}
           {chartWidth}
           calculatedHeights={heightCalculations}
         />

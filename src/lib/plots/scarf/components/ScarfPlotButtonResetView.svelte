@@ -2,14 +2,17 @@
   import { GeneralButtonMinor } from '$lib/shared/components'
   import RefreshCcw from 'lucide-svelte/icons/refresh-ccw'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  import { tooltipAction } from '$lib/tooltip/components/Tooltip.svelte'
 
   interface Props {
-    settings: ScarfGridType
-    settingsChange?: (settings: Partial<ScarfGridType>) => void
+    settings: ScarfGridType,
+    source: string,
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
   // Use callback props instead of event dispatching
-  let { settings, settingsChange = () => {} }: Props = $props()
+  let { settings, source, onWorkspaceCommand }: Props = $props()
 
   // Check if view is already at default (empty limits or [0, 0])
   let isDisabled = $derived(
@@ -44,11 +47,23 @@
     }
     // For relative timeline, we can't reset as it's always 0-100%
 
-    // Call the settings change handler with the updated settings
-    settingsChange(updatedSettings)
+    // Create workspace command for settings change
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      settings: updatedSettings,
+      source,
+    })
   }
 </script>
 
-<GeneralButtonMinor onclick={handleClick} {isDisabled}>
-  <RefreshCcw size={'1em'} strokeWidth={1} />
-</GeneralButtonMinor>
+<div use:tooltipAction={{ 
+  content: "Reset scarf plot view", 
+  position: "top", 
+  offset: 35, 
+  verticalAlign: "end" 
+}}>
+  <GeneralButtonMinor onclick={handleClick} {isDisabled}>
+    <RefreshCcw size={'1em'} strokeWidth={1} />
+  </GeneralButtonMinor>
+</div>

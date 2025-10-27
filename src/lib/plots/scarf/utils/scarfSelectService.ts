@@ -1,4 +1,5 @@
 import type { ScarfGridType } from '$lib/workspace/type/gridType'
+import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
 import {
   getDynamicAoiBoolean,
   getScarfGridHeightFromCurrentData,
@@ -7,17 +8,17 @@ import { hasStimulusAoiVisibility } from '$lib/gaze-data/front-process/stores/da
 
 /**
  * Handles the selection changes for Scarf Plot select components
- * Calculates new grid height based on selection and updates settings
+ * Calculates new grid height based on selection and dispatches workspace command
  *
  * @param settings Current scarf grid settings
  * @param changes Partial settings to update
- * @param callback Callback function to apply changes
- * @returns Updated settings
+ * @param onWorkspaceCommand Callback function to dispatch workspace commands
  */
 export function handleScarfSelectionChange(
   settings: ScarfGridType,
   changes: Partial<ScarfGridType>,
-  callback: (settings: Partial<ScarfGridType>) => void
+  source: string,
+  onWorkspaceCommand: (command: WorkspaceCommand) => void
 ): void {
   // Extract settings
   const {
@@ -36,9 +37,14 @@ export function handleScarfSelectionChange(
   // Calculate grid height based on updated settings
   const h = getScarfGridHeightFromCurrentData(stimulusId, isDynamicAoi, groupId)
 
-  // Call the callback with updated settings including height
-  callback({
-    ...changes,
-    h,
+  // Dispatch workspace command with updated settings including height
+  onWorkspaceCommand({
+    type: 'updateSettings',
+    itemId: settings.id,
+    settings: {
+      ...changes,
+      h,
+    },
+    source,
   })
 }

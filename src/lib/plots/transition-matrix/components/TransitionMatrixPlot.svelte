@@ -20,17 +20,18 @@
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { calculateTransitionMatrix } from '$lib/plots/transition-matrix/utils'
   import { AggregationMethod } from '$lib/plots/transition-matrix/const'
-
+  import { createCommandSourcePlotPattern } from '$lib/shared/types/workspaceInstructions'
+  
   // Types
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
-
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  
   interface Props {
     settings: TransitionMatrixGridType
-    settingsChange: (settings: Partial<TransitionMatrixGridType>) => void
-    forceRedraw: () => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { settings, settingsChange, forceRedraw }: Props = $props()
+  let { settings, onWorkspaceCommand }: Props = $props()
 
   // Constants for space taken by headers, controls, and padding
   const HEADER_HEIGHT = 150 // Estimated space for header and controls
@@ -41,6 +42,9 @@
     const stimulusId = settings.stimulusId
     return settings.stimuliColorValueRanges?.[stimulusId] || [0, 0]
   })
+
+  // source for workspace commands
+  const source = createCommandSourcePlotPattern(settings, 'plot')
 
   // Visualization settings (now reactive)
   let plotDimensions = $derived.by(() =>
@@ -81,15 +85,14 @@
     },
   ]
 
-  function handleSettingsChange(
-    newSettings: Partial<TransitionMatrixGridType>
-  ) {
-    settingsChange(newSettings)
-  }
-
   function handleAggregationChange(event: CustomEvent) {
-    // Update the aggregation method in grid settings
-    settingsChange({ aggregationMethod: event.detail as AggregationMethod })
+    // Create workspace command for settings change
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      settings: { aggregationMethod: event.detail as AggregationMethod },
+      source,
+    })
   }
 
   const redrawTimestamp = $derived.by(() => settings.redrawTimestamp)
@@ -134,11 +137,13 @@
     }
   }
 
+  const sourceForOpenedModals = createCommandSourcePlotPattern(settings, 'modal')
   function handleGradientClick() {
     try {
       modalStore.open(ModalContentColorScale as any, 'Customize color scale', {
         settings,
-        settingsChange,
+        source: sourceForOpenedModals,
+        onWorkspaceCommand,
       })
     } catch (error) {
       console.error('Error opening color scale modal:', error)
@@ -152,7 +157,8 @@
         'Set maximum color scale value',
         {
           settings,
-          settingsChange,
+          source: sourceForOpenedModals,
+          onWorkspaceCommand,
         }
       )
     } catch (error) {
@@ -166,11 +172,13 @@
     <div class="controls">
       <TransitionMatrixSelectStimulus
         {settings}
-        settingsChange={handleSettingsChange}
+        {source}
+        {onWorkspaceCommand}
       />
       <TransitionMatrixSelectGroup
         {settings}
-        settingsChange={handleSettingsChange}
+        {source}
+        {onWorkspaceCommand}
       />
       <Select
         label="Aggregation"
@@ -182,8 +190,7 @@
       <div class="menu-button">
         <TransitionMatrixButtonMenu
           {settings}
-          settingsChange={handleSettingsChange}
-          {forceRedraw}
+          {onWorkspaceCommand}
         />
       </div>
     </div>

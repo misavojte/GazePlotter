@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store'
 import type { ToastFillingType } from '$lib/toaster/types/ToastFillingType'
+import { generateUniqueId } from '$lib/shared/utils/idUtils'
 
 export const toastStore = writable<ToastFillingType[]>([])
 
@@ -9,7 +10,7 @@ export const addToast = (toast: ToastFillingType): void => {
 
 export const addErrorToast = (message: string): void => {
   addToast({
-    id: getUniqueToastId(),
+    id: generateUniqueId(),
     title: 'Error',
     message,
     type: 'error',
@@ -19,7 +20,7 @@ export const addErrorToast = (message: string): void => {
 
 export const addSuccessToast = (message: string): void => {
   addToast({
-    id: getUniqueToastId(),
+    id: generateUniqueId(),
     title: 'Success',
     message,
     type: 'success',
@@ -29,15 +30,10 @@ export const addSuccessToast = (message: string): void => {
 
 export const addInfoToast = (message: string): void => {
   addToast({
-    id: getUniqueToastId(),
+    id: generateUniqueId(),
     title: 'Info',
     message,
     type: 'info',
     duration: 8000,
   })
-}
-
-const getUniqueToastId = (): number => {
-  /* Not date dependent, because it is possible to add multiple toasts in one millisecond */
-  return Math.floor(Math.random() * 1000000000)
 }

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { generateUniqueId } from '$lib/shared/utils/idUtils'
+
   interface Props {
     options: { value: string; label: string }[]
     legend: string
@@ -22,7 +24,7 @@
     }
   }
 
-  const uniqueID: number = Math.floor(Math.random() * 100)
+  const uniqueID: number = generateUniqueId()
 
   const slugify = (str = ''): string =>
     str.toLowerCase().replace(/ /g, '-').replace(/\./g, '')

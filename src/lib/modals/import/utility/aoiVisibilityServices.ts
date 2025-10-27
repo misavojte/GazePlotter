@@ -5,42 +5,34 @@
  */
 import {
   getStimulusHighestEndTime,
-  updateMultipleAoiVisibility,
 } from '$lib/gaze-data/front-process/stores/dataStore'
+import type { UpdateAoiVisibilityCommand } from '$lib/shared/types/workspaceInstructions'
 
 /**
  * Main function to process the AOI visibility data
  * @param stimulusId id of the stimulus to which the AOIs belong
  * @param participantId id of the participant to which the AOIs belong (null if not participant-specific and should be applied to all participants)
  * @param files list of files to process
- * @param callback callback function to update the AOI visibility in the store (is parameterized for testing purposes)
+ * @param onWorkspaceCommand callback function to emit command for AOI visibility update
  */
 export const processAoiVisibility = async (
   stimulusId: number,
   participantId: number | null,
   files: FileList,
-  callback: (
-    stimulusId: number,
-    multipleAoiNames: string[],
-    multipleAoiVisibilityArrays: number[][],
-    participantId: number | null
-  ) => void = updateMultipleAoiVisibility
+  source: string,
+  onWorkspaceCommand: (command: UpdateAoiVisibilityCommand) => void
 ): Promise<void> => {
-  // Read the file (only one file is expected)
-  files[0].text().then(text => {
-    const parser = new DOMParser()
-    const xml = parser.parseFromString(text, 'application/xml')
-    const data = processSmi(stimulusId, participantId, xml)
-    callback(
-      data.stimulusId,
-      data.multipleAoiNames,
-      data.multipleAoiVisibilityArrays,
-      data.participantId
-    )
-  })
   const text = await files[0].text()
   const parser = new DOMParser()
   const xml = parser.parseFromString(text, 'application/xml')
+  
+  let data: {
+    stimulusId: number
+    multipleAoiNames: string[]
+    multipleAoiVisibilityArrays: number[][]
+    participantId: number | null
+  }
+  
   if (xml.getElementsByTagName('DynamicAOI').length === 0) {
     // Tobii AOI visibility file
     // Parse as JSON instead of XML
@@ -51,22 +43,20 @@ export const processAoiVisibility = async (
       throw new Error('Assumed Tobii JSON format, but it is not valid')
     }
 
-    const data = processTobii(stimulusId, participantId, tobiiJson)
-    callback(
-      data.stimulusId,
-      data.multipleAoiNames,
-      data.multipleAoiVisibilityArrays,
-      data.participantId
-    )
+    data = processTobii(stimulusId, participantId, tobiiJson)
   } else {
-    const data = processSmi(stimulusId, participantId, xml)
-    callback(
-      data.stimulusId,
-      data.multipleAoiNames,
-      data.multipleAoiVisibilityArrays,
-      data.participantId
-    )
+    data = processSmi(stimulusId, participantId, xml)
   }
+  
+  // Emit command instead of directly calling store
+  onWorkspaceCommand({
+    type: 'updateAoiVisibility',
+    stimulusId: data.stimulusId,
+    aoiNames: data.multipleAoiNames,
+    visibilityArr: data.multipleAoiVisibilityArrays,
+    participantId: data.participantId,
+    source,
+  })  
 }
 
 /**

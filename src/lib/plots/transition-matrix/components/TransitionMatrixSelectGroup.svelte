@@ -6,15 +6,16 @@
   } from '$lib/gaze-data/front-process/stores/dataStore'
   import { onDestroy } from 'svelte'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
     settings: TransitionMatrixGridType
-    settingsChange?: (settings: Partial<TransitionMatrixGridType>) => void
+    source: string,
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
   // Use callback props instead of event dispatching
-  let { settings, settingsChange = () => {} }: Props = $props()
-
+  let { settings, source, onWorkspaceCommand }: Props = $props()
   // Track selected group
   let selectedGroupId = $state(settings.groupId.toString())
 
@@ -38,9 +39,12 @@
     const groupId = parseInt(event.detail)
     selectedGroupId = groupId.toString()
 
-    // Just update the group ID without height calculations
-    settingsChange({
-      groupId,
+    // Create workspace command for settings change
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      settings: { groupId },
+      source,
     })
   }
 

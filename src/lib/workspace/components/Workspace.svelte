@@ -9,9 +9,9 @@
     getVisualizationConfig, // Constant
     gridStore,
   } from '$lib/workspace'
+  import { generateUniqueId } from '$lib/shared/utils/idUtils'
   import { fade } from 'svelte/transition'
   import { writable, get, derived } from 'svelte/store'
-  import type { AllGridTypes } from '$lib/workspace/type/gridType'
   import { onDestroy } from 'svelte'
   import {
     calculateGridHeight,
@@ -23,16 +23,19 @@
     DEFAULT_GRID_CONFIG,
   } from '$lib/shared/utils/gridSizingUtils'
   import { throttleByRaf } from '$lib/shared/utils/throttle'
-  import { addSuccessToast } from '$lib/toaster'
-  import { ModalContentMetadataInfo } from '$lib/modals'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
-
+  import { addSuccessToast, addErrorToast } from '$lib/toaster'
+  import { createCommandHandler } from '$lib/workspace/services/workspaceCommandHandler'
+  import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
+  import { createRootCommand } from '$lib/shared/types/workspaceInstructions'
+  import type { AllGridTypes } from '$lib/workspace/type/gridType'
+  
   interface Props {
     onReinitialize: () => void
-    onResetLayout: () => void
+    onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void
+    initialLayoutState?: Array<Partial<AllGridTypes> & { type: string }> | null
   }
 
-  const { onReinitialize, onResetLayout }: Props = $props()
+  const { onReinitialize, onWorkspaceCommandChain, initialLayoutState = null }: Props = $props()
 
   const gridConfig = DEFAULT_GRID_CONFIG
 
@@ -122,14 +125,12 @@
     stateUpdater?: (id: number, isActive: boolean) => void
     heightUpdater?: (event: T) => void
     gridAction?: (event: T) => void
-    shouldResolveCollisions?: boolean
   }) => {
     const {
       operationType,
       stateUpdater,
       heightUpdater,
       gridAction,
-      shouldResolveCollisions = false,
     } = options
 
     return (event: T) => {
@@ -166,13 +167,6 @@
 
         // End auto-scrolling if active
         endItemEdgeScroll()
-
-        // Resolve collisions if needed after a slight delay
-        if (shouldResolveCollisions && id) {
-          setTimeout(() => {
-            gridStore.resolveItemPositionCollisions(id)
-          }, 50)
-        }
       }
     }
   }
@@ -329,7 +323,20 @@
   const handleItemMove = createOperationHandler({
     operationType: 'move',
     gridAction: (event: { id: number; x: number; y: number }) => {
-      gridStore.updateItemPosition(event.id, event.x, event.y, false)
+      const currentItem = get(gridStore).find(item => item.id === event.id)
+      if (currentItem) {
+        const {type, id} = currentItem
+        const source = `${type}.${id}.workspace`
+        handleWorkspaceCommand({
+          type: 'updateSettings',
+          itemId: currentItem.id,
+          settings: {
+            x: event.x,
+            y: event.y
+          },
+          source,
+        })
+      }
     },
   })
 
@@ -340,6 +347,9 @@
       const currentItem = get(gridStore).find(item => item.id === event.id)
 
       if (!currentItem) return
+
+      const {type, id} = currentItem
+      const source = `${type}.${id}.workspace`
 
       // Enforce minimum dimensions
       const minWidth = Math.max(
@@ -355,8 +365,16 @@
       const constrainedW = Math.max(minWidth, event.w)
       const constrainedH = Math.max(minHeight, event.h)
 
-      // Update without collision resolution
-      gridStore.updateItemSize(event.id, constrainedW, constrainedH, false)
+      // Update using updateSettings
+      handleWorkspaceCommand({
+        type: 'updateSettings',
+        itemId: id,
+        settings: {
+          w: constrainedW,
+          h: constrainedH
+        },
+        source
+      })
     },
   })
 
@@ -371,13 +389,11 @@
       y: number
       dragComplete: boolean
     }) => {
-      if (event.dragComplete) {
-        gridStore.updateItemPosition(event.id, event.x, event.y, false)
-      }
       // Stop any active auto-scrolling
       endItemEdgeScroll()
+      // Note: Position is already updated by handleItemMove during drag
+      // createOperationHandler will trigger collision resolution via shouldResolveCollisions
     },
-    shouldResolveCollisions: true,
   })
 
   // Handle resize end
@@ -389,30 +405,11 @@
       h: number
       resizeComplete: boolean
     }) => {
-      if (event.resizeComplete) {
-        const currentItem = get(gridStore).find(item => item.id === event.id)
-        if (currentItem) {
-          // Enforce minimum dimensions
-          const minWidth = Math.max(
-            gridConfig.minWidth,
-            currentItem.min?.w || gridConfig.minWidth
-          )
-          const minHeight = Math.max(
-            gridConfig.minHeight,
-            currentItem.min?.h || gridConfig.minHeight
-          )
-
-          // Apply constraints
-          const constrainedW = Math.max(minWidth, event.w)
-          const constrainedH = Math.max(minHeight, event.h)
-
-          gridStore.updateItemSize(event.id, constrainedW, constrainedH, false)
-        }
-      }
       // Stop any active auto-scrolling
       endItemEdgeScroll()
+      // Note: Size is already updated by handleItemResize during resize
+      // createOperationHandler will trigger collision resolution via shouldResolveCollisions
     },
-    shouldResolveCollisions: true,
   })
 
   // --- Simple action handlers ---
@@ -420,7 +417,16 @@
   // Handle item removal
   const handleItemRemove = createOperationHandler({
     gridAction: (event: { id: number }) => {
-      gridStore.removeItem(event.id)
+      const itemToRemove = get(gridStore).find(item => item.id === event.id)
+      if (itemToRemove) {
+        const {type, id} = itemToRemove
+        const source = `${type}.${id}.workspace`
+        handleWorkspaceCommand({
+          type: 'removeGridItem',
+          itemId: id,
+          source
+        })
+      }
     },
   })
 
@@ -429,43 +435,20 @@
     gridAction: (event: { id: number }) => {
       const itemToDuplicate = get(gridStore).find(item => item.id === event.id)
       if (itemToDuplicate) {
-        gridStore.duplicateItem(itemToDuplicate)
-        // Show success toast with visualization name
-        const visConfig = getVisualizationConfig(itemToDuplicate.type)
-        addSuccessToast(
-          `${visConfig.name} duplicated and placed to the nearest empty space.`
-        )
+        const {type, id} = itemToDuplicate
+        const source = `${type}.${id}.workspace`
+        // Generate duplicateId at command creation time
+        const duplicateId = generateUniqueId()
+        handleWorkspaceCommand({
+          type: 'duplicateGridItem',
+          itemId: id,
+          duplicateId,
+          source
+        })
       }
     },
   })
 
-  // Handle toolbar actions
-  const handleToolbarAction = (event: { id: string }) => {
-    const { id } = event
-
-    if (visualizations.map(viz => viz.id).includes(id)) {
-      const vizType = id
-      // Add the new visualization at the first available position
-      // instead of automatically placing it below all existing items
-      gridStore.addItem(vizType)
-      // Show success toast with visualization name
-      const visConfig = getVisualizationConfig(vizType)
-      addSuccessToast(`${visConfig.name} added to the nearest empty space.`)
-    } else if (id === 'toggle-fullscreen') {
-      // Delegate fullscreen toggle to the toolbar
-      // The toolbar component will handle fullscreen functionality itself
-    } else if (id === 'reset-layout') {
-      // Reset the workspace to the default grid state
-      onResetLayout()
-    } else if (id === 'metadata') {
-      // Open the metadata info modal
-      modalStore.open(
-        ModalContentMetadataInfo as any,
-        'Metadata Report',
-        {}
-      )
-    }
-  }
 
   // --- Workspace panning handlers ---
 
@@ -788,22 +771,45 @@
     }
   }
 
-  const getNewTimestamp = () => {
-    return Date.now()
-  }
-
   // Note: Previously, we would add grid items for both empty and loading states.
   // Now we maintain a truly empty grid and display dedicated indicator components
   // when appropriate. This provides a more integrated and visually appealing user
   // experience without artificially creating grid items.
+
+  // Initialize command handler with undo/redo support
+  const handleCommand = createCommandHandler(
+    gridStore,
+    (message) => addSuccessToast(message),
+    (error) => {
+      console.error('Command error:', error)
+      addErrorToast('Error applying changes. See console for details.')
+    },
+    onWorkspaceCommandChain
+  )
+
+
+  const handleWorkspaceCommand =
+  (command: WorkspaceCommand | WorkspaceCommandChain) => { 
+    // check if the command is a WorkspaceCommandChain
+    if ('chainId' in command) {
+      handleCommand(command)
+      return
+    }
+    // otherwise wrap the command as a root command (original user action)
+    handleCommand(createRootCommand(command))
+  }
 
   // Make constants available as CSS variables
   const styleProps = `--min-workspace-height: ${MIN_WORKSPACE_HEIGHT}px; --grid-container-min-height: ${MIN_WORKSPACE_HEIGHT - 100}px;`
 </script>
 
 <div class="workspace-wrapper" style={styleProps}>
-  <!-- Update toolbar, removing drag-related props -->
-  <WorkspaceToolbar onaction={handleToolbarAction} {visualizations} />
+  <!-- Update toolbar with undo/redo functionality -->
+  <WorkspaceToolbar 
+    onWorkspaceCommand={handleWorkspaceCommand}
+    {initialLayoutState}
+    {visualizations}
+  />
 
   <!-- Bind the workspace container and add mouse/touch events for panning -->
   <div
@@ -851,27 +857,7 @@
                   <div class="grid-item-content">
                     <visConfig.component
                       settings={item}
-                      forceRedraw={() => {
-                        gridStore.triggerRedraw()
-                      }}
-                      settingsChange={(newSettings: Partial<AllGridTypes>) => {
-                        // Check if height has changed
-                        const heightChanged = newSettings.h !== undefined && newSettings.h !== item.h;
-                        
-                        // Update settings
-                        gridStore.updateSettings({
-                          ...item,
-                          ...newSettings,
-                          redrawTimestamp: getNewTimestamp(),
-                        } as AllGridTypes);
-
-                        // If height changed, trigger collision resolution
-                        if (heightChanged) {
-                          setTimeout(() => {
-                            gridStore.resolveItemPositionCollisions(item.id);
-                          }, 50);
-                        }
-                      }}
+                      onWorkspaceCommand={handleWorkspaceCommand}
                     />
                   </div>
                 {/snippet}
@@ -890,7 +876,7 @@
     {/if}
 
     {#if $isEmpty && !$isLoading}
-      <WorkspaceIndicatorEmpty {onReinitialize} {onResetLayout} />
+      <WorkspaceIndicatorEmpty {onReinitialize} onWorkspaceCommand={handleWorkspaceCommand} {initialLayoutState} />
     {/if}
 
     {#if $isLoading}

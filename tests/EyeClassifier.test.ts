@@ -41,7 +41,7 @@ describe('EyeClassifier', () => {
     const result = sut.classify(mockBeGazeData)
     expect(result).toEqual({
       type: 'begaze',
-      rowDelimiter: '\r\n',
+      rowDelimiter: '\n',
       columnDelimiter: '\t',
       userInputSetting: '',
       headerRowId: 0,
@@ -53,7 +53,7 @@ describe('EyeClassifier', () => {
     const result = sut.classify(mockGazePointData)
     expect(result).toEqual({
       type: 'gazepoint',
-      rowDelimiter: '\r\n',
+      rowDelimiter: '\n',
       columnDelimiter: ',',
       userInputSetting: '',
       headerRowId: 0,
@@ -65,7 +65,7 @@ describe('EyeClassifier', () => {
     const result = sut.classify(mockOgamaData)
     expect(result).toEqual({
       type: 'ogama',
-      rowDelimiter: '\r\n',
+      rowDelimiter: '\n',
       columnDelimiter: '\t',
       userInputSetting: '',
       headerRowId: 8,

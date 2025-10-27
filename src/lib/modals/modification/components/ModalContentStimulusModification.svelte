@@ -8,21 +8,22 @@
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import {
     getStimuli,
-    updateMultipleStimuli,
   } from '$lib/gaze-data/front-process/stores/dataStore'
-  import { addErrorToast, addSuccessToast } from '$lib/toaster'
+  import { addErrorToast } from '$lib/toaster'
   import type { BaseInterpretedDataType } from '$lib/gaze-data/shared/types'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
   import PatternRenamingTool from './PatternRenamingTool.svelte'
+  import type { UpdateStimuliCommand } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
-    forceRedraw: () => void
+    source: string,
+    onWorkspaceCommand: (command: UpdateStimuliCommand) => void
   }
 
-  let { forceRedraw }: Props = $props()
+  let { source, onWorkspaceCommand }: Props = $props()
 
   // Sorting state
   let sortColumn = $state<'originalName' | 'displayedName' | null>(null)
@@ -95,15 +96,14 @@
   const handleSubmit = () => {
     try {
       const stimulusObjectsCopy = deepCopyStimuli(stimulusObjects)
-      updateMultipleStimuli(stimulusObjectsCopy)
-      addSuccessToast('Stimuli updated successfully')
-      // Refresh the stimuli list after the store update
-      requestAnimationFrame(() => {
-        const refreshedStimuli = getStimuli()
-        stimulusObjects = deepCopyStimuli(refreshedStimuli)
-        // Trigger a redraw of all visualizations
-        forceRedraw()
+      
+      onWorkspaceCommand({
+        type: 'updateStimuli',
+        stimuli: stimulusObjectsCopy,
+        source,
       })
+
+      modalStore.close()
     } catch (e) {
       console.error(e)
       addErrorToast(

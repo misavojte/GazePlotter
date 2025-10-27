@@ -1,116 +1,137 @@
-<script lang="ts" context="module">
+<script lang="ts" module>
+  import { estimateTextWidth } from '$lib/shared/utils/textUtils'
   import { tooltipStore, updateTooltip } from '$lib/tooltip'
 
+  type Position = 'top' | 'bottom' | 'left' | 'right'
+  type Alignment = 'start' | 'center' | 'end'
+
+  interface TooltipOptions {
+    content: string | { key: string; value: string }[]
+    position?: Position
+    width?: number
+    offset?: number
+    horizontalAlign?: Alignment
+    verticalAlign?: Alignment
+    disabled?: boolean
+  }
+
   /**
-   * @description This is a tooltip action that is used to create a tooltip.
-   * @param node - The node to attach the tooltip to.
-   * @param options - The options for the tooltip.
+   * Normalizes content to the expected array format.
+   * Converts string content into a single-item array with empty key.
    */
-  export const tooltipAction = (
-    node: HTMLElement,
-    options: {
-      content: string | { key: string; value: string }[]
-      position?: 'top' | 'bottom' | 'left' | 'right'
-      width?: number
-      offset?: number
-      horizontalAlign?: 'start' | 'center' | 'end'
-      verticalAlign?: 'start' | 'center' | 'end'
+  const normalizeContent = (content: TooltipOptions['content']) =>
+    typeof content === 'string' ? [{ key: '', value: content }] : content
+
+  /**
+   * Calculates aligned position along an axis.
+   * Used for both horizontal and vertical alignment calculations.
+   */
+  const calculateAlignedPosition = (
+    base: number,
+    size: number,
+    targetSize: number,
+    align: Alignment
+  ): number => {
+    const alignments = { start: base, center: base + size / 2 - targetSize / 2, end: base + size - targetSize }
+    return alignments[align]
+  }
+
+  /**
+   * Calculates tooltip position based on position type and alignment preferences.
+   * Returns [x, y] coordinates for the tooltip.
+   */
+  const calculatePosition = (
+    rect: DOMRect,
+    position: Position,
+    width: number,
+    offset: number,
+    hAlign: Alignment,
+    vAlign: Alignment
+  ): [number, number] => {
+    const scrollY = window.scrollY
+    const positions: Record<Position, [number, number]> = {
+      top: [calculateAlignedPosition(rect.left, rect.width, width, hAlign), rect.top - offset + scrollY],
+      bottom: [calculateAlignedPosition(rect.left, rect.width, width, hAlign), rect.bottom + offset + scrollY],
+      left: [rect.left - width - offset, calculateAlignedPosition(rect.top, rect.height, 0, vAlign) + scrollY],
+      right: [rect.right + offset, calculateAlignedPosition(rect.top, rect.height, 0, vAlign) + scrollY],
     }
-  ) => {
-    let content: { key: string; value: string }[] = []
+    return positions[position]
+  }
 
-    // Convert string content to the expected format
-    if (typeof options.content === 'string') {
-      content = [{ key: '', value: options.content }]
-    } else {
-      content = options.content
+  /**
+   * Tooltip action for displaying contextual information on hover.
+   * @param node - The HTML element to attach the tooltip to
+   * @param options - Configuration for tooltip appearance and behavior
+   * @returns Action object with update and destroy lifecycle methods
+   */
+  export const tooltipAction = (node: HTMLElement, options: TooltipOptions) => {
+    const content = normalizeContent(options.content)
+    const textLineWithMostCharacters = content.map(item => item.value).sort((a, b) => b.length - a.length)[0]
+    let state = {
+      content,
+      position: options.position ?? 'top',
+      width: options.width ?? Math.min(125, estimateTextWidth(textLineWithMostCharacters, 12)) + 14,
+      offset: options.offset ?? 10,
+      hAlign: options.horizontalAlign ?? 'start',
+      vAlign: options.verticalAlign ?? 'start',
+      isHovering: false,
+      disabled: options.disabled ?? false,
     }
 
-    const position = options.position || 'top'
-    const width =
-      options.width || Math.max(100, content[0]?.value.length * 8 || 100)
-    const offset = options.offset || 10
-    const horizontalAlign = options.horizontalAlign || 'start'
-    const verticalAlign = options.verticalAlign || 'start'
-
-    function showTooltip(event: MouseEvent) {
-      const rect = node.getBoundingClientRect()
-      let x: number, y: number
-
-      // Calculate horizontal position based on alignment
-      const calculateHorizontalPosition = (baseX: number): number => {
-        switch (horizontalAlign) {
-          case 'start':
-            return baseX
-          case 'center':
-            return baseX + rect.width / 2 - width / 2
-          case 'end':
-            return baseX + rect.width - width
-          default:
-            return baseX
-        }
-      }
-
-      // Calculate vertical position based on alignment
-      const calculateVerticalPosition = (baseY: number): number => {
-        switch (verticalAlign) {
-          case 'start':
-            return baseY
-          case 'center':
-            return baseY + rect.height / 2
-          case 'end':
-            return baseY + rect.height
-          default:
-            return baseY
-        }
-      }
-
-      // Position tooltip based on specified position
-      switch (position) {
-        case 'top':
-          x = calculateHorizontalPosition(rect.left)
-          y = rect.top - offset + window.scrollY
-          break
-        case 'bottom':
-          x = calculateHorizontalPosition(rect.left)
-          y = rect.bottom + offset + window.scrollY
-          break
-        case 'left':
-          x = rect.left - width - offset
-          y = calculateVerticalPosition(rect.top) + window.scrollY
-          break
-        case 'right':
-          x = rect.right + offset
-          y = calculateVerticalPosition(rect.top) + window.scrollY
-          break
-        default:
-          x = calculateHorizontalPosition(rect.left)
-          y = rect.top - offset + window.scrollY
-      }
-
-      updateTooltip({
-        visible: true,
+    /** Updates internal state from new options */
+    const updateState = (opts: TooltipOptions) => {
+      const content = normalizeContent(opts.content)
+      const textLineWithMostCharacters = content.map(item => item.value).sort((a, b) => b.length - a.length)[0]
+      state = {
         content,
-        x,
-        y,
-        width,
-      })
+        position: opts.position ?? 'top',
+        width: opts.width ?? Math.min(125, estimateTextWidth(textLineWithMostCharacters, 12)) + 14,
+        offset: opts.offset ?? 10,
+        hAlign: opts.horizontalAlign ?? 'start',
+        vAlign: opts.verticalAlign ?? 'start',
+        isHovering: state.isHovering,
+        disabled: opts.disabled ?? false,
+      }
     }
 
-    function hideTooltip() {
+    /** Shows and positions the tooltip */
+    const show = () => {
+      if (state.disabled) return
+      state.isHovering = true
+      const rect = node.getBoundingClientRect()
+      const [x, y] = calculatePosition(rect, state.position, state.width, state.offset, state.hAlign, state.vAlign)
+      updateTooltip({ visible: true, content: state.content, x, y, width: state.width })
+    }
+
+    /** Hides the tooltip */
+    const hide = () => {
+      state.isHovering = false
       updateTooltip(null)
     }
 
-    // Add event listeners
-    node.addEventListener('mouseenter', showTooltip)
-    node.addEventListener('mouseleave', hideTooltip)
+    /** Refreshes tooltip if currently visible */
+    const refresh = () => {
+      if (state.disabled && state.isHovering) {
+        hide()
+      } else if (state.isHovering) {
+        show()
+      }
+    }
 
-    // Clean up on unmount
+    node.addEventListener('mouseenter', show)
+    node.addEventListener('mouseleave', hide)
+
     return {
+      /** Updates tooltip when options change, refreshing if currently visible */
+      update(newOptions: TooltipOptions) {
+        updateState(newOptions)
+        refresh()
+      },
+      /** Cleans up event listeners and hides tooltip on destroy */
       destroy() {
-        node.removeEventListener('mouseenter', showTooltip)
-        node.removeEventListener('mouseleave', hideTooltip)
-        hideTooltip()
+        node.removeEventListener('mouseenter', show)
+        node.removeEventListener('mouseleave', hide)
+        hide()
       },
     }
   }
@@ -144,13 +165,13 @@
     font-size: 12px;
     background: #6d6d6d;
     color: rgba(255, 255, 255, 0.8);
-    transition: 0.3s ease-in-out;
+    transition: left 0.2s ease-in-out, top 0.2s ease-in-out;
     border-radius: var(--rounded);
     z-index: 993;
     pointer-events: none;
   }
   .tooltip > div {
-    padding: 5px;
+    padding: 5px 7px;
   }
   .tooltip-item-value {
     border-bottom: none;

@@ -36,25 +36,23 @@
 
       let exportCanvas = childCanvas
 
-      // Only add white background for JPG
-      if (fileType === '.jpg') {
-        // Create a temporary canvas with white background
-        const tempCanvas = document.createElement('canvas')
-        const ctx = tempCanvas.getContext('2d')
-        if (!ctx) throw new Error('Failed to get canvas context')
+      // Add white background for both PNG and JPG
+      // Create a temporary canvas with white background
+      const tempCanvas = document.createElement('canvas')
+      const ctx = tempCanvas.getContext('2d')
+      if (!ctx) throw new Error('Failed to get canvas context')
 
-        // Set the same dimensions as the original canvas
-        tempCanvas.width = childCanvas.width
-        tempCanvas.height = childCanvas.height
+      // Set the same dimensions as the original canvas
+      tempCanvas.width = childCanvas.width
+      tempCanvas.height = childCanvas.height
 
-        // Fill with white background
-        ctx.fillStyle = 'white'
-        ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height)
+      // Fill with white background
+      ctx.fillStyle = 'white'
+      ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height)
 
-        // Draw the original canvas content on top
-        ctx.drawImage(childCanvas, 0, 0)
-        exportCanvas = tempCanvas
-      }
+      // Draw the original canvas content on top
+      ctx.drawImage(childCanvas, 0, 0)
+      exportCanvas = tempCanvas
 
       const blob = await new Promise<Blob | null>(resolve => {
         exportCanvas.toBlob(resolve, mimeType, quality)
@@ -96,9 +94,7 @@
     <div class="preview-wrapper">
       <div
         class="child-wrapper"
-        style="background-color: {fileType === '.jpg'
-          ? 'white'
-          : 'transparent'};"
+        style="background-color: white;"
       >
         {@render children()}
       </div>

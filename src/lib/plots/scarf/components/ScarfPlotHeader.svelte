@@ -9,37 +9,28 @@
     ScarfPlotButtonResetView,
   } from '$lib/plots/scarf/components'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  
   interface Props {
     settings: ScarfGridType
-    settingsChange: (settings: Partial<ScarfGridType>) => void
-    forceRedraw: () => void
+    source: string,
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { settings, settingsChange, forceRedraw }: Props = $props()
+  let { settings, source, onWorkspaceCommand }: Props = $props()
 
-  function handleSettingsChange(newSettings: Partial<ScarfGridType>) {
-    if (settingsChange) {
-      const updatedSettings = {
-        ...settings,
-        ...newSettings,
-      }
-
-      settingsChange(updatedSettings)
-    }
-  }
 </script>
 
 <div class="nav">
-  <ScarfPlotSelectStimulus {settings} settingsChange={handleSettingsChange} />
-  <ScarfPlotSelectTimeline {settings} settingsChange={handleSettingsChange} />
-  <ScarfPlotSelectGroup {settings} settingsChange={handleSettingsChange} />
-  <ScarfPlotButtonZoomIn {settings} settingsChange={handleSettingsChange} />
-  <ScarfPlotButtonZoomOut {settings} settingsChange={handleSettingsChange} />
-  <ScarfPlotButtonResetView {settings} settingsChange={handleSettingsChange} />
+  <ScarfPlotSelectStimulus {settings} {source} {onWorkspaceCommand} />
+  <ScarfPlotSelectTimeline {settings} {source} {onWorkspaceCommand} />
+  <ScarfPlotSelectGroup {settings} {source} {onWorkspaceCommand} />
+  <ScarfPlotButtonZoomIn {settings} {source} {onWorkspaceCommand} />
+  <ScarfPlotButtonZoomOut {settings} {source} {onWorkspaceCommand} />
+  <ScarfPlotButtonResetView {settings} {source} {onWorkspaceCommand} />
   <ScarfPlotButtonMenu
     {settings}
-    {forceRedraw}
-    settingsChange={handleSettingsChange}
+    {onWorkspaceCommand}
   />
 </div>
 

@@ -19,6 +19,8 @@
   import type { BarPlotGridType } from '$lib/workspace/type/gridType'
   import type { BarPlotAggregationMethodId } from '$lib/plots/bar/const'
   import { BAR_PLOT_AGGREGATION_METHODS } from '$lib/plots/bar/const'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  import { createCommandSourcePlotPattern } from '$lib/shared/types/workspaceInstructions'
 
   // CONSTANTS - centralized for easier maintenance
   const LAYOUT = {
@@ -30,11 +32,10 @@
   // Component Props using Svelte 5 $props() rune
   interface Props {
     settings: BarPlotGridType
-    settingsChange: (settings: Partial<BarPlotGridType>) => void
-    forceRedraw: () => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { settings, settingsChange, forceRedraw }: Props = $props()
+  let { settings, onWorkspaceCommand }: Props = $props()
 
   // Calculate plot dimensions using a more descriptive approach
   const plotDimensions = $derived.by(() =>
@@ -53,33 +54,45 @@
   const labelededBarPlotData = $derived(barPlotResult.data)
   const timeline = $derived(barPlotResult.timeline)
 
+  // source for the workspace commands directly from the plot
+  const source = createCommandSourcePlotPattern(settings, 'plot')
+
   function handleStimulusChange(event: CustomEvent) {
     const newStimulusId = event.detail as string
-    settingsChange({
-      stimulusId: parseInt(newStimulusId),
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      source,
+      settings: {
+        stimulusId: parseInt(newStimulusId),
+      }
     })
   }
 
   function handleGroupChange(event: CustomEvent) {
     const newGroupId = event.detail as string
-    settingsChange({
-      groupId: parseInt(newGroupId),
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      source,
+      settings: {
+        groupId: parseInt(newGroupId),
+      }
     })
   }
 
   function handleAggregationMethodChange(event: CustomEvent) {
     const newAggregationMethod = event.detail as BarPlotAggregationMethodId
-    settingsChange({
-      aggregationMethod: newAggregationMethod,
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      source,
+      settings: {
+        aggregationMethod: newAggregationMethod,
+      }
     })
   }
 
-  // Handle all settings changes via this function to ensure consistent handling
-  function handleSettingsChange(newSettings: Partial<BarPlotGridType>) {
-    if (settingsChange) {
-      settingsChange(newSettings)
-    }
-  }
 
   let stimulusOptions =
     $state<{ label: string; value: string }[]>(getStimuliOptions())
@@ -141,8 +154,7 @@
       <div class="menu-button">
         <BarPlotButtonMenu
           {settings}
-          settingsChange={handleSettingsChange}
-          {forceRedraw}
+          {onWorkspaceCommand}
         />
       </div>
     </div>

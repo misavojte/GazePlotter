@@ -4,17 +4,18 @@
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import GeneralInputNumber from '$lib/shared/components/GeneralInputNumber.svelte'
   import { ModalButtons, IntroductoryParagraph } from '$lib/modals'
-  import { addSuccessToast } from '$lib/toaster'
   import { modalStore } from '$lib/modals/shared/stores/modalStore.js'
 
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
+  import type { UpdateSettingsCommand } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
     settings: ScarfGridType
-    settingsChange: (newSettings: Partial<ScarfGridType>) => void
+    source: string,
+    onWorkspaceCommand: (command: UpdateSettingsCommand) => void
   }
 
-  let { settings, settingsChange }: Props = $props()
+  let { settings, source, onWorkspaceCommand }: Props = $props()
 
   const allStimuliId = getStimuliOrderVector()
 
@@ -114,12 +115,13 @@
       })
     }
 
-    // Update through the settingsChange function for component updates
-    if (settingsChange) {
-      settingsChange(newSettings)
-    }
-
-    addSuccessToast('Timeline range updated')
+    // Update through the workspace command system
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      settings: newSettings,
+      source,
+    })
 
     // Close the modal after applying changes
     modalStore.close()

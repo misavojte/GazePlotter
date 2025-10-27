@@ -36,10 +36,21 @@
   })
 
   let buttonElement: HTMLButtonElement | null = $state(null)
+  let iconElement: HTMLDivElement | null = $state(null)
 
-  // Handle item click
+  // Handle item click with animation
   function handleClick(event: MouseEvent) {
     if (disabled) return
+
+    // Add click animation to icon only
+    if (iconElement) {
+      iconElement.style.transform = 'scale(0.85)'
+      setTimeout(() => {
+        if (iconElement) {
+          iconElement.style.transform = 'scale(1)'
+        }
+      }, 100)
+    }
 
     // If only one action, fire it immediately
     if (actions.length === 1) {
@@ -102,10 +113,10 @@
     use:tooltipAction={{
       content: label,
       position: 'right',
-      width: 100,
+      disabled: $contextMenuState.visible,
     }}
   >
-    <div class="toolbar-item-icon">
+    <div class="toolbar-item-icon" bind:this={iconElement}>
       {@html icon}
     </div>
   </button>
@@ -148,7 +159,7 @@
     border: none;
     color: var(--c-darkgrey, #666);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.2s ease, transform 0.1s ease;
     padding: 0;
   }
 
@@ -168,14 +179,15 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: transform 0.1s ease;
   }
 
   .context-menu {
     position: fixed;
-    background: white;
-    border-radius: 6px;
-    padding: 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    background: var(--c-white);
+    border: 1px solid var(--c-grey);
+    border-radius: var(--rounded);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     z-index: 2100;
     min-width: 160px;
     max-height: calc(100vh - 100px);
@@ -187,24 +199,22 @@
 
   .context-menu-item {
     width: 100%;
-    padding: 8px 12px;
+    padding: 10px 14px;
     border: none;
     background: none;
     text-align: left;
     cursor: pointer;
-    border-radius: 4px;
-    color: var(--c-text-dark);
+    color: var(--c-black);
     font-size: 14px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    transition: all 0.2s ease;
+    position: relative;
   }
 
   .context-menu-item:hover {
-    background-color: var(--c-lightgrey);
-  }
-
-  .context-menu-item:active {
-    background-color: var(--c-grey);
+    background: var(--c-lightgrey);
+    color: var(--c-brand);
+    padding-left: 18px;
   }
 </style>

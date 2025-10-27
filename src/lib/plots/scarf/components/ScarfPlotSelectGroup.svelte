@@ -5,16 +5,18 @@
     data,
   } from '$lib/gaze-data/front-process/stores/dataStore'
   import { onDestroy } from 'svelte'
-  import { handleScarfSelectionChange } from '$lib/plots/scarf/utils/scarfSelectService'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  import { handleScarfSelectionChange } from '../utils/scarfSelectService'
 
   interface Props {
     settings: ScarfGridType
-    settingsChange?: (settings: Partial<ScarfGridType>) => void
+    source: string,
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
   // Use callback props instead of event dispatching
-  let { settings, settingsChange = () => {} }: Props = $props()
+  let { settings, source, onWorkspaceCommand }: Props = $props()
 
   // Track selected group
   let selectedGroupId = $state(settings.groupId.toString())
@@ -39,8 +41,8 @@
     const groupId = parseInt(event.detail)
     selectedGroupId = groupId.toString()
 
-    // Use the shared service to handle the change
-    handleScarfSelectionChange(settings, { groupId }, settingsChange)
+    // Use the service to handle selection change with height calculation
+    handleScarfSelectionChange(settings, { groupId }, source, onWorkspaceCommand)
   }
 
   onDestroy(() => {

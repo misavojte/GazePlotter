@@ -4,14 +4,17 @@
   import { GeneralInputFile } from '$lib/shared/components'
   import { ModalButtons } from '$lib/modals'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
-  import { addErrorToast, addSuccessToast } from '$lib/toaster'
+  import { addErrorToast } from '$lib/toaster'
   import { processAoiVisibility } from '$lib/modals/import/utility/aoiVisibilityServices'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
+  import type { UpdateAoiVisibilityCommand } from '$lib/shared/types/workspaceInstructions'
+  
   interface Props {
-    forceRedraw: () => void
+    source: string,
+    onWorkspaceCommand: (command: UpdateAoiVisibilityCommand) => void
   }
 
-  let { forceRedraw }: Props = $props()
+  let { source, onWorkspaceCommand }: Props = $props()
 
   let files: FileList | null = $state(null)
   let selectedStimulusId = $state('0')
@@ -35,9 +38,8 @@
       const stimulusId = parseInt(selectedStimulusId)
       const participantId =
         selectedParticipantId === 'all' ? null : parseInt(selectedParticipantId)
-      processAoiVisibility(stimulusId, participantId, files).then(() => {
-        addSuccessToast('AOI visibility updated')
-        forceRedraw()
+      processAoiVisibility(stimulusId, participantId, files, source, onWorkspaceCommand).then(() => {
+        modalStore.close()
       })
     } catch (e) {
       console.error(e)

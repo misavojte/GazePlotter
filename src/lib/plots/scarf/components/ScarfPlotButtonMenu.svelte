@@ -19,15 +19,18 @@
     ModalContentParticipantsGroups,
     ModalContentExportSegmentedData,
   } from '$lib/modals'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  import { createCommandSourcePlotPattern } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
     settings: ScarfGridType
     multipleSettings?: ScarfGridType[]
-    settingsChange: (newSettings: Partial<ScarfGridType>) => void
-    forceRedraw: () => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { settings, settingsChange, forceRedraw }: Props = $props()
+  let { settings, onWorkspaceCommand }: Props = $props()
+
+  const source = createCommandSourcePlotPattern(settings, 'modal')
 
   const openClipModal = () => {
     modalStore.open(
@@ -35,7 +38,8 @@
       'Clip scarf timeline',
       {
         settings,
-        settingsChange,
+        source,
+        onWorkspaceCommand,
       }
     )
   }
@@ -46,7 +50,8 @@
       'AOI customization',
       {
         selectedStimulus: settings.stimulusId.toString(),
-        forceRedraw,
+        source,
+        onWorkspaceCommand,
       }
     )
   }
@@ -56,7 +61,8 @@
       ModalContentStimulusModification as unknown as typeof SvelteComponent,
       'Stimulus customization',
       {
-        forceRedraw,
+        onWorkspaceCommand,
+        source,
       }
     )
   }
@@ -66,7 +72,8 @@
       ModalContentAoiVisibility as unknown as typeof SvelteComponent,
       'AOI visibility',
       {
-        forceRedraw,
+        source,
+        onWorkspaceCommand,
       }
     )
   }
@@ -76,7 +83,8 @@
       ModalContentParticipantsGroups as unknown as typeof SvelteComponent,
       'Participants groups',
       {
-        forceRedraw,
+        source,
+        onWorkspaceCommand,
       }
     )
   }
@@ -86,7 +94,8 @@
       ModalContentParticipantModification as unknown as typeof SvelteComponent,
       'Participant customization',
       {
-        forceRedraw,
+        source,
+        onWorkspaceCommand,
       }
     )
   }

@@ -7,6 +7,7 @@
   import type { ParsedData } from '$lib/gaze-data/shared/types'
   import { onMount, tick } from 'svelte'
   import {
+    clear,
     initializeGridStateStore,
     processingFileStateStore,
   } from './workspace'
@@ -18,18 +19,22 @@
     currentFileInputStore,
   } from './workspace/stores/fileStore'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
+  import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
     loadInitialData: () => Promise<ParsedData>
     reinitializeLabel?: string
+    onWorkspaceCommandChain?: (command: WorkspaceCommandChain) => void
   }
 
-  const { loadInitialData, reinitializeLabel = 'Reload Demo' }: Props = $props()
+  const { loadInitialData, reinitializeLabel = 'Reload Demo', onWorkspaceCommandChain = (command: WorkspaceCommandChain) => {
+    console.log('onWorkspaceCommandChain', command)
+  } }: Props = $props()
 
   setContext('reinitializeLabel', reinitializeLabel)
 
   // Cache the initial grid layout to avoid reloading data when only resetting layout
-  let initialGridItemsSnapshot: Array<Partial<AllGridTypes> & { type: string }> | null = null
+  let initialGridItemsSnapshot = $state<Array<Partial<AllGridTypes> & { type: string }> | null>(null)
 
   async function loadData() {
     processingFileStateStore.set('processing')
@@ -57,16 +62,16 @@
     loadData().then(() => {
       addSuccessToast('Workspace and data returned to the initial state.')
     })
+    clear()
   }
 
-  const onResetLayout = async () => {
-    try {
-      // Restore the grid layout from the cached snapshot without reloading data
-      initializeGridStateStore(initialGridItemsSnapshot)
-      addSuccessToast('Workspace layout returned to the initial state.')
-    } catch (error) {
-      console.error('Error resetting layout:', error)
-    }
+  /**
+   * Exported function to reset the layout from parent components
+   * Resets the workspace to its initial state without showing a toast notification
+   */
+  export function resetLayout() {
+    loadData()
+    clear()
   }
 
   onMount(() => {
@@ -78,7 +83,7 @@
   <div class="panel-container">
     <Panel {onReinitialize} />
   </div>
-  <Workspace {onReinitialize} {onResetLayout} />
+  <Workspace {onReinitialize} {onWorkspaceCommandChain} initialLayoutState={initialGridItemsSnapshot} />
   <Modal />
   <Toaster />
   <Tooltip />

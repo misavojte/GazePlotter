@@ -20,7 +20,7 @@ export const SCARF_LAYOUT = {
   AXIS_LABEL_HEIGHT: 40, // Height for the x-axis label
   LABEL_FONT_SIZE: 12, // Font size for labels
   PADDING: 0, // General padding
-  RIGHT_MARGIN: 15, // Right margin to prevent tick label cropping
+  RIGHT_MARGIN: 1, // Right margin to prevent tick cropping
   MIN_CHART_HEIGHT: 50, // Minimum chart height
   TICK_LENGTH: 5, // Length of axis ticks
   AXIS_OFFSET: 150, // Offset for axis labels
@@ -29,12 +29,12 @@ export const SCARF_LAYOUT = {
 
   // Plot component dimensions
   HEADER_HEIGHT: 150,
-  HORIZONTAL_PADDING: 50,
-  CONTENT_PADDING: 20,
+  HORIZONTAL_PADDING: 40,
+  CONTENT_PADDING: 5, // THIS IS FOR A VISUAL BALANCING OF THE PLOT
   LEFT_LABEL_WIDTH: 125,
 
   // Tooltip constants
-  TOOLTIP_WIDTH: 155,
+  TOOLTIP_WIDTH: 150,
   TOOLTIP_OFFSET_Y: 8,
   TOOLTIP_HIDE_DELAY: 200,
 

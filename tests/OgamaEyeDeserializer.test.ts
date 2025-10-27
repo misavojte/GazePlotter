@@ -5,10 +5,10 @@
  * are just the index of the letter in the string.
  *
  * @module OgamaEyeDeserializer
- * @see src/lib/class/Eye/EyeDeserializer/OgamaEyeDeserializer.ts
+ * @see $lib/gaze-data/back-process/class/EyeDeserializer/OgamaEyeDeserializer.ts
  */
 
-import { OgamaEyeDeserializer } from '$lib/class/Eye/EyeDeserializer/OgamaEyeDeserializer'
+import { OgamaEyeDeserializer } from '$lib/gaze-data/back-process/class/EyeDeserializer/OgamaEyeDeserializer'
 import type { SingleDeserializerOutput } from '$lib/gaze-data/back-process/types/SingleDeserializerOutput.js'
 import { test, expect, describe } from 'vitest'
 

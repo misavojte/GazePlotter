@@ -3,6 +3,7 @@
   import { modalStore } from '$lib/modals/shared/stores/modalStore.js'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
   import BarChart from 'lucide-svelte/icons/bar-chart'
+  import Users from 'lucide-svelte/icons/users'
   import Download from 'lucide-svelte/icons/download'
   import Palette from 'lucide-svelte/icons/palette'
   import Settings from 'lucide-svelte/icons/settings-2'
@@ -11,20 +12,26 @@
     ModalContentColorScale,
     ModalContentDownloadTransitionMatrix,
     ModalContentStimulusModification,
+    ModalContentAoiModification,
+    ModalContentParticipantsGroups,
   } from '$lib/modals'
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  import { createCommandSourcePlotPattern } from '$lib/shared/types/workspaceInstructions'
 
   interface Props {
     settings: TransitionMatrixGridType
-    settingsChange: (newSettings: Partial<TransitionMatrixGridType>) => void
-    forceRedraw: () => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { settings, settingsChange, forceRedraw }: Props = $props()
+  let { settings, onWorkspaceCommand }: Props = $props()
+
+  const source = createCommandSourcePlotPattern(settings, 'modal')
 
   const openMaxValueModal = () => {
     modalStore.open(ModalContentMaxValue as any, 'Set color range values', {
       settings,
-      settingsChange,
+      source,
+      onWorkspaceCommand,
     })
   }
 
@@ -33,15 +40,33 @@
       ModalContentStimulusModification as any,
       'Stimulus customization',
       {
-        forceRedraw,
+        source,
+        onWorkspaceCommand,
       }
     )
+  }
+
+  const openAoiModificationModal = () => {
+    modalStore.open(ModalContentAoiModification as any, 'AOI customization', {
+      settings,
+      source,
+      onWorkspaceCommand,
+    })
+  }
+
+  const openUserGroupsModal = () => {
+    modalStore.open(ModalContentParticipantsGroups as any, 'Participants groups', {
+      settings,
+      source,
+      onWorkspaceCommand,
+    })
   }
 
   const openColorScaleModal = () => {
     modalStore.open(ModalContentColorScale as any, 'Customize color scale', {
       settings,
-      settingsChange,
+      source,
+      onWorkspaceCommand,
     })
   }
 
@@ -60,6 +85,16 @@
   }
 
   let items = $derived([
+    {
+      label: 'AOI customization',
+      action: openAoiModificationModal,
+      icon: Settings,
+    },
+    {
+      label: 'Participants groups',
+      action: openUserGroupsModal,
+      icon: Users,
+    },
     {
       label: 'Set color range values',
       action: openMaxValueModal,

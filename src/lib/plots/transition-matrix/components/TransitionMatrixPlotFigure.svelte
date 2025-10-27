@@ -7,6 +7,7 @@
   import {
     calculateLabelOffset,
     truncateTextToPixelWidth,
+    SYSTEM_SANS_SERIF_STACK,
   } from '$lib/shared/utils/textUtils'
   import { onMount, untrack } from 'svelte'
   import { browser } from '$app/environment'
@@ -104,10 +105,6 @@
     marginLeft?: number
   }>()
 
-  // Additional offsets for axis labels to prevent collisions
-  const AXIS_LABEL_MARGIN = 20
-  const INDIVIDUAL_LABEL_MARGIN = 10
-
   // Canvas and rendering state using our utility
   let canvas = $state<HTMLCanvasElement | null>(null)
   let canvasState = $state<CanvasState>(createCanvasState())
@@ -123,49 +120,75 @@
     }
   }
 
-  // Dynamic offsets based on labels using the new utility
+  // ============================================
+  // NEW CALCULATION CHAIN - NO CIRCULAR DEPS
+  // ============================================
+  
+  // STEP 1: Calculate preliminary cell size based on available space
+  // This uses fixed minimal spacing estimates to get an initial cell size
+  const preliminaryCellSize = $derived.by(() => {
+    if (aoiLabels.length === 0) return MIN_CELL_SIZE
+    
+    // Use conservative fixed estimates for spacing
+    const FIXED_LABEL_SPACE = MAX_LABEL_LENGTH + 40 // Label width + some margin
+    const LEGEND_SPACE = 50
+    
+    const availableWidth = width - FIXED_LABEL_SPACE - marginLeft - marginRight
+    const availableHeight = height - FIXED_LABEL_SPACE - marginTop - marginBottom - LEGEND_SPACE
+    
+    const cellSizeByWidth = availableWidth / aoiLabels.length
+    const cellSizeByHeight = availableHeight / aoiLabels.length
+    
+    const cellSize = Math.min(cellSizeByWidth, cellSizeByHeight)
+    return Math.max(MIN_CELL_SIZE, cellSize)
+  })
+
+  // STEP 2: Calculate font size based on preliminary cell size
+  // This is the SAME formula used in setUpLabelFont
+  const calculatedFontSize = $derived.by(() => {
+    return Math.min(12, Math.max(8, preliminaryCellSize / 3))
+  })
+
+  // STEP 3: Calculate all margins and offsets based on font size
+  const AXIS_LABEL_MARGIN = $derived.by(() => {
+    // Scale proportionally: 12px font → 20px, 8px font → 13px
+    return Math.max(10, Math.round(calculatedFontSize * 1.67))
+  })
+
+  const INDIVIDUAL_LABEL_MARGIN = $derived.by(() => {
+    // Scale proportionally: 12px font → 10px, 8px font → 7px
+    return Math.max(5, Math.round(calculatedFontSize * 0.83))
+  })
+
   const labelOffset = $derived.by(() => {
-    // Use a fixed offset based on MAX_LABEL_LENGTH instead of calculating from actual labels
-    // NO, calculate from actual labels using the text utils
     const calculatedOffset = calculateLabelOffset(
       aoiLabels,
-      12,
+      calculatedFontSize,
       BASE_LABEL_OFFSET
     )
     return Math.min(calculatedOffset, MAX_LABEL_LENGTH)
   })
 
-  // Calculate max plotable area first (similar to RecurrencePlot's plotSize)
+  // STEP 4: Calculate final plot area with accurate margins
   const maxPlotArea = $derived.by(() => {
-    // Calculate space needed for labels
-    const yAxisSpace =
-      LEFT_MARGIN + labelOffset + AXIS_LABEL_MARGIN + marginLeft
+    const yAxisSpace = LEFT_MARGIN + labelOffset + AXIS_LABEL_MARGIN + marginLeft
     const xAxisSpace = TOP_MARGIN + labelOffset + AXIS_LABEL_MARGIN + marginTop
-
-    // Space needed for legend (title + gradient + values)
     const legendSpace = 50 + marginBottom
 
-    // Calculate maximum available space respecting the absolute max height
     const availableWidth = width - yAxisSpace - marginRight
     const availableHeight = height - xAxisSpace - legendSpace
 
     return { availableWidth, availableHeight }
   })
 
-  // Calculate optimal cell size based on available space and number of AOIs
+  // STEP 5: Calculate final optimal cell size
   const optimalCellSize = $derived.by(() => {
     if (aoiLabels.length === 0) return MIN_CELL_SIZE
 
-    // Calculate the ideal cell size to fit all cells in the available area
-    // We'll use the maximum possible size that fits within both width and height
     const cellSizeByWidth = maxPlotArea.availableWidth / aoiLabels.length
     const cellSizeByHeight = maxPlotArea.availableHeight / aoiLabels.length
-
-    // Use the smaller of the two to ensure everything fits within bounds
-    // This ensures we respect the maximum width and height
     const idealCellSize = Math.min(cellSizeByWidth, cellSizeByHeight)
 
-    // Clamp to a reasonable minimum size
     return Math.max(MIN_CELL_SIZE, idealCellSize)
   })
 
@@ -249,7 +272,7 @@
     // Check if there's actually content to draw
     if (aoiLabels.length === 0) {
       // Draw "No data" message
-      ctx.font = '12px sans-serif'
+      ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
       ctx.fillStyle = '#666'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
@@ -257,9 +280,6 @@
       finishCanvasDrawing(canvasState)
       return
     }
-
-    // Draw axis labels
-    drawAxisLabels(ctx)
 
     // Draw grid and cell labels
     drawGrid(ctx)
@@ -270,8 +290,33 @@
     // Draw the legend
     drawLegend(ctx)
 
+    // Set up font
+    // TEXT RENDERING STARTS HERE
+    setUpFont(ctx)
+
+    // Draw axis labels
+    drawAxisLabels(ctx)
+
+    const labelFontSize = setUpLabelFont(ctx)
+
+    // Draw row labels
+    drawRowLabels(ctx, labelFontSize)
+
+    // Draw column labels
+    drawColumnLabels(ctx, labelFontSize)
+
+    // Draw cells text 
+    drawCellsText(ctx)
+
+    // ---- STOP OF TEXT DRAWING ---- //
+
     // Finish drawing
     finishCanvasDrawing(canvasState)
+  }
+
+  function setUpFont(ctx: CanvasRenderingContext2D) {
+    ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
+    ctx.fillStyle = '#222'
   }
 
   // Draw the X and Y axis labels
@@ -279,9 +324,7 @@
     // Make sure there's enough space for labels
     if (actualGridWidth < 50 || actualGridHeight < 50) return
 
-    // Setup text styling
-    ctx.font = '12px sans-serif'
-    ctx.fillStyle = '#000'
+    // make sure setUpFont function is called before this function is called!
     ctx.textBaseline = 'middle'
 
     // Draw X-axis label (To AOI)
@@ -303,19 +346,38 @@
     ctx.restore()
   }
 
-  // Draw grid and labels
-  function drawGrid(ctx: CanvasRenderingContext2D) {
-    // Setup text styling for AOI labels
-    ctx.font = '12px sans-serif'
-    ctx.fillStyle = '#000'
+  function setUpLabelFont(ctx: CanvasRenderingContext2D): number {
+    // Use the pre-calculated font size for consistency
+    ctx.font = `${calculatedFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
+    return calculatedFontSize
+  }
+
+  function drawRowLabels(ctx: CanvasRenderingContext2D, labelFontSize: number) {
+    // make sure setUpFont function is called before this function is called!
+    // Draw row labels (left side)
+    ctx.textAlign = 'end'
+    for (let row = 0; row < aoiLabels.length; row++) {
+      const x = xOffset - INDIVIDUAL_LABEL_MARGIN
+      const y = yOffset + row * optimalCellSize + (optimalCellSize >> 1)
+
+      // Truncate text if needed
+      const labelText = truncateTextToPixelWidth(
+        aoiLabels[row],
+        MAX_LABEL_LENGTH,
+        labelFontSize,
+        SYSTEM_SANS_SERIF_STACK,
+        '...'
+      )
+
+      ctx.fillText(labelText, x, y)
+    }
+  }
+
+  function drawColumnLabels(ctx: CanvasRenderingContext2D, labelFontSize: number) {
+    // make sure setUpFont function is called before this function is called!
+    ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
 
-    // Adjust font size based on available space
-    const labelFontSize = Math.min(12, Math.max(8, optimalCellSize / 3))
-    ctx.font = `${labelFontSize}px sans-serif`
-
-    // Draw column labels (top) - moved 5px higher
-    ctx.textAlign = 'left'
     for (let col = 0; col < aoiLabels.length; col++) {
       const x = xOffset + col * optimalCellSize + (optimalCellSize >> 1)
       const y = yOffset - INDIVIDUAL_LABEL_MARGIN // Added 5px offset to move higher
@@ -328,8 +390,8 @@
         truncateTextToPixelWidth(
           aoiLabels[col],
           MAX_LABEL_LENGTH * 1.5, // 1.5x the max label length to account for rotation
-          12,
-          'sans-serif',
+          labelFontSize,
+          SYSTEM_SANS_SERIF_STACK,
           '...'
         ),
         0,
@@ -337,25 +399,11 @@
       )
       ctx.restore()
     }
+  }
 
-    // Draw row labels (left side)
-    ctx.textAlign = 'end'
-    for (let row = 0; row < aoiLabels.length; row++) {
-      const x = xOffset - INDIVIDUAL_LABEL_MARGIN
-      const y = yOffset + row * optimalCellSize + (optimalCellSize >> 1)
-
-      // Truncate text if needed
-      const labelText = truncateTextToPixelWidth(
-        aoiLabels[row],
-        MAX_LABEL_LENGTH,
-        12,
-        'sans-serif',
-        '...'
-      )
-
-      ctx.fillText(labelText, x, y)
-    }
-
+  // Draw grid and labels
+  function drawGrid(ctx: CanvasRenderingContext2D) {
+    
     // Draw grid lines
     ctx.strokeStyle = '#ddd'
     ctx.lineWidth = 0.5
@@ -381,9 +429,6 @@
 
   // Draw matrix cells
   function drawCells(ctx: CanvasRenderingContext2D) {
-    // Adjust text size based on cell size
-    const valueFontSize = Math.min(12, Math.max(8, optimalCellSize / 3))
-
     // Draw each cell based on its value
     for (let row = 0; row < aoiLabels.length; row++) {
       for (let col = 0; col < aoiLabels.length; col++) {
@@ -395,33 +440,54 @@
 
         // Determine cell color based on value
         let cellColor
-        let textColor
 
         if (isBelowMinimum(value)) {
           cellColor = belowMinColor
-          textColor = getContrastTextColor(belowMinColor)
         } else if (isAboveMaximum(value)) {
           cellColor = aboveMaxColor
-          textColor = getContrastTextColor(aboveMaxColor)
         } else {
           cellColor = getColor(value)
-          textColor = getContrastTextColor(cellColor)
         }
 
         // Draw cell background
         ctx.fillStyle = cellColor
         ctx.fillRect(x, y, optimalCellSize, optimalCellSize)
+      }
+    }
+  }
 
-        // Draw cell value if there's enough space and labels are enabled
+  function drawCellsText(ctx: CanvasRenderingContext2D) {
+    // make sure setUpFont function is called before this function is called!
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+
+    // Adjust text size based on cell size
+    // const valueFontSize = Math.min(12, Math.max(8, optimalCellSize / 3))
+    // ctx.font = `${valueFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
+
+    for (let row = 0; row < aoiLabels.length; row++) {
+      for (let col = 0; col < aoiLabels.length; col++) {
+        const value = TransitionMatrix[row]?.[col] ?? 0
+
         if (optimalCellSize >= 15) {
-          // Check if we should show the value based on settings
           const shouldShowValue =
             (!isBelowMinimum(value) && !isAboveMaximum(value)) || // Always show values within range
             (isBelowMinimum(value) && showBelowMinLabels) || // Show below min if enabled
             (isAboveMaximum(value) && showAboveMaxLabels) // Show above max if enabled
 
           if (shouldShowValue) {
-            ctx.font = `${valueFontSize}px sans-serif`
+            const x = xOffset + col * optimalCellSize
+            const y = yOffset + row * optimalCellSize
+            let textColor: string
+
+            if (isBelowMinimum(value)) {
+              textColor = getContrastTextColor(belowMinColor)
+            } else if (isAboveMaximum(value)) {
+              textColor = getContrastTextColor(aboveMaxColor)
+            } else {
+              textColor = getContrastTextColor(getColor(value))
+            }
+
             ctx.fillStyle = textColor
             ctx.textAlign = 'center'
             ctx.textBaseline = 'middle'
@@ -631,7 +697,7 @@
 
     // Draw legend title if there's room
     if (availableLegendSpace > 40) {
-      ctx.font = '12px sans-serif'
+      ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
       ctx.fillStyle = '#000'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'top'
@@ -666,7 +732,7 @@
 
     // Draw min and max values if there's room
     if (availableLegendSpace > 35) {
-      ctx.font = '12px sans-serif'
+      ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
       ctx.fillStyle = '#000'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'top'
@@ -797,8 +863,7 @@
           x: tooltipPos.x,
           y: tooltipPos.y,
           content: [{ key: '', value: 'Modify min value' }],
-          visible: true,
-          width: 110,
+          visible: true
         })
       }
       // Check max value circle
@@ -819,7 +884,6 @@
           y: tooltipPos.y,
           content: [{ key: '', value: 'Modify max value' }],
           visible: true,
-          width: 110,
         })
       }
       // Check gradient area
@@ -842,7 +906,6 @@
           y: tooltipPos.y,
           content: [{ key: '', value: 'Change color scale' }],
           visible: true,
-          width: 115,
         })
       }
     }
@@ -1019,8 +1082,6 @@
   }
 
   canvas {
-    display: block;
-    max-width: 100%;
-    max-height: 100%;
+    display: block; /* Do not add 100% width and height here! It might mess up with the export and so on */
   }
 </style>

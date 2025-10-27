@@ -15,6 +15,8 @@ const config = {
     alias: {
       $lib: './src/lib',
       '$lib/*': './src/lib/*',
+      $survey: './src/survey',
+      '$survey/*': './src/survey/*',
     },
   },
 }

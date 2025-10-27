@@ -4,18 +4,20 @@
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import { getStimuliOrderVector } from '$lib/gaze-data/front-process/stores/dataStore'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
+  import type { UpdateSettingsCommand } from '$lib/shared/types/workspaceInstructions'
   import {
     SectionHeader,
     ModalButtons,
     IntroductoryParagraph,
   } from '$lib/modals'
-
+  
   interface Props {
     settings: TransitionMatrixGridType
-    settingsChange: (newSettings: Partial<TransitionMatrixGridType>) => void
+    source: string,
+    onWorkspaceCommand: (command: UpdateSettingsCommand) => void
   }
 
-  let { settings, settingsChange }: Props = $props()
+  let { settings, source, onWorkspaceCommand }: Props = $props()
 
   const allStimuliId = getStimuliOrderVector()
   const currentStimulusId = settings.stimulusId
@@ -82,12 +84,17 @@
       })
     }
 
-    settingsChange({
-      stimuliColorValueRanges,
-      belowMinColor,
-      aboveMaxColor,
-      showBelowMinLabels: showBelowMinLabels === 'show',
-      showAboveMaxLabels: showAboveMaxLabels === 'show',
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      source,
+      settings: {
+        stimuliColorValueRanges,
+        belowMinColor,
+        aboveMaxColor,
+        showBelowMinLabels: showBelowMinLabels === 'show',
+        showAboveMaxLabels: showAboveMaxLabels === 'show',
+      },
     })
     modalStore.close()
   }

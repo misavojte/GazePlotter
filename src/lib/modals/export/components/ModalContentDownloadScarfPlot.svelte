@@ -97,7 +97,7 @@
           {settings}
           chartWidth={effectiveWidth}
           {calculatedHeights}
-          highlightedIdentifier={null}
+          highlights={settings.highlights ?? []}
           tooltipAreaElement={null}
           onLegendClick={() => {}}
           onTooltipActivation={() => {}}
