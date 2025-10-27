@@ -38,16 +38,45 @@
   <ul>
     <li>Is completely voluntary</li>
     <li>Can be withdrawn at any time without penalty</li>
-    <li>Will not collect any personal data beyond your responses</li>
+    <li>You will not be asked to provide identifying information (name, email, etc.)</li>
     <li>Will help improve the tool for the research community</li>
   </ul>
 
-  <h4>Data handling:</h4>
+  <h4>Data we collect:</h4>
+  <p>
+    To ensure the scientific validity and quality of this research, we collect the 
+    following data:
+  </p>
   <ul>
-    <li>No personal information will be collected</li>
-    <li>Your responses will be anonymized</li>
-    <li>Data will be used solely for research purposes</li>
-    <li>Results may be published in academic papers</li>
+    <li><strong>Survey responses</strong>: your experience ratings and feedback</li>
+    <li><strong>Interaction data</strong>: task completion times and behaviors</li>
+    <li><strong>Technical identifiers</strong>: IP address and browser information</li>
+  </ul>
+
+  <h4>Why we collect IP addresses:</h4>
+  <p>
+    Your IP address is collected for essential scientific research purposes:
+  </p>
+  <ul>
+    <li>To prevent duplicate submissions and ensure data integrity</li>
+    <li>To detect and prevent fraudulent responses (bots, automated submissions)</li>
+    <li>To maintain scientific validity of the research dataset</li>
+    <li>For technical troubleshooting and system security</li>
+  </ul>
+  <p>
+    <strong>Your IP address will not be used to identify you personally and will be 
+    kept confidential and secure.</strong>
+  </p>
+
+  <h4>Data privacy and handling:</h4>
+  <ul>
+    <li>You will be assigned an anonymous identifier (not linked to your identity)</li>
+    <li>All data is stored securely using Firebase with anonymous authentication</li>
+    <li>IP addresses are collected for research integrity, not individual identification</li>
+    <li>Your responses will be anonymized in any publications or presentations</li>
+    <li>Data will be used solely for scientific research purposes</li>
+    <li>Results may be published in academic papers and conference presentations</li>
+    <li>Data will be retained only for the duration necessary to complete the research</li>
   </ul>
 
   <p>
