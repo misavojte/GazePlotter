@@ -106,7 +106,8 @@
           }
         )
       },
-      condition: consentCondition
+      condition: consentCondition,
+      skippable: false
     },
     { 
       text: "On scarf plot, set stimulus to Task 2",
@@ -156,7 +157,8 @@
           }
         );
       },
-      condition: explorationCondition
+      condition: explorationCondition,
+      skippable: false
     }
   ]
 
@@ -165,12 +167,6 @@
    */
   function completeCurrentTask(): void {
     surveyStore.nextTask()
-  }
-
-  function openDebugSurvey() {
-    modalStore.open(SurveyModal as any, 'Debug Survey', {
-      surveyState
-    });
   }
 
   /**
@@ -286,7 +282,6 @@
       <span id="sitetitle">GazePlotter</span>
     </a>
     <nav>
-      <button onclick={openDebugSurvey}>DEBUG SURVEY</button>
       <a
         class="external-link"
         target="_blank"
