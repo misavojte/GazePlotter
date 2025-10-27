@@ -2,10 +2,10 @@
  * Vitest tests for VarjoEyeDeserializer
  *
  * @module VarjoEyeDeserializer
- * @see src/lib/class/Eye/EyeDeserializer/VarjoEyeDeserializer.ts
+ * @see $lib/gaze-data/back-process/class/EyeDeserializer/VarjoEyeDeserializer.ts
  */
 
-import { VarjoEyeDeserializer } from '$lib/class/Eye/EyeDeserializer/VarjoEyeDeserializer'
+import { VarjoEyeDeserializer } from '$lib/gaze-data/back-process/class/EyeDeserializer/VarjoEyeDeserializer'
 import { test, expect, describe } from 'vitest'
 import type { SingleDeserializerOutput } from '$lib/gaze-data/back-process/types/SingleDeserializerOutput'
 
