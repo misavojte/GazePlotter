@@ -51,29 +51,12 @@
     <li><strong>Survey responses</strong>: your experience ratings and feedback</li>
     <li><strong>Interaction data</strong>: task completion times and behaviors</li>
     <li><strong>Geographic cohort</strong>: your recruitment location (e.g., "Lithuania", "Czech Republic")</li>
-    <li><strong>Technical identifiers</strong>: IP address and browser information</li>
   </ul>
-
-  <h4>Why we collect IP addresses:</h4>
-  <p>
-    Your IP address is collected for essential scientific research purposes:
-  </p>
-  <ul>
-    <li>To prevent duplicate submissions and ensure data integrity</li>
-    <li>To detect and prevent fraudulent responses (bots, automated submissions)</li>
-    <li>To maintain scientific validity of the research dataset</li>
-    <li>For technical troubleshooting and system security</li>
-  </ul>
-  <p>
-    <strong>Your IP address will not be used to identify you personally and will be 
-    kept confidential and secure.</strong>
-  </p>
 
   <h4>Data privacy and handling:</h4>
   <ul>
     <li>You will be assigned an anonymous identifier (not linked to your identity)</li>
-    <li>All data is stored securely using Firebase with anonymous authentication</li>
-    <li>IP addresses are collected for research integrity, not individual identification</li>
+    <li>All data is stored securely and anonymously at the server of the Department of Geoinformatics, Palacký University Olomouc</li>
     <li>Your responses will be anonymized in any publications or presentations</li>
     <li>Data will be used solely for scientific research purposes</li>
     <li>Results may be published in academic papers and conference presentations</li>

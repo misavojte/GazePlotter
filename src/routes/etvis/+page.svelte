@@ -1,11 +1,11 @@
 <script lang="ts">
   import { GazePlotter } from '$lib'
-  import GeneralInfoCallout from '$lib/shared/components/GeneralInfoCallout.svelte'
   import { base } from '$app/paths'
   import { browser } from '$app/environment'
+  import { page } from '$app/stores'
   import type { ParsedData } from '$lib/gaze-data/shared/types'
   import { EyeWorkerService } from '$lib/gaze-data/front-process/class/EyeWorkerService'
-  import { Survey, surveyStore, createCondition, ConsentModal, type EndpointConfig } from '$survey'
+  import { Survey, surveyStore, createCondition, ConsentModal, endpointService, type EndpointConfig } from '$survey'
   import { SurveyModal } from '$survey/components'
   import type { SurveyTask, SurveyModalState } from '$survey/types'
   import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
@@ -74,11 +74,48 @@
   // State for forcing banner to close on any modal content
   let forceCloseBanner = $state(false);
 
+  // Track previous task index for logging task progression
+  let previousTaskIndex = $state(-1);
+  let wasLastActionSkip = $state(false);
+
   // Monitor modal store to force close banner when any modal is open
   $effect(() => {
     const unsubscribe = modalStore.subscribe((modal) => {
       forceCloseBanner = modal !== null;
     });
+    return unsubscribe;
+  });
+
+  // Monitor survey store to log task fulfillment
+  $effect(() => {
+    if (!browser) return;
+    
+    const unsubscribe = surveyStore.subscribe((state) => {
+      const currentTaskIndex = state.currentActiveTaskIndex;
+      
+      // Log task fulfillment when index changes and it wasn't a skip
+      if (currentTaskIndex !== previousTaskIndex && previousTaskIndex >= 0 && !wasLastActionSkip) {
+        const completedTask = state.tasks[previousTaskIndex];
+        
+        if (completedTask && endpointService.isServiceInitialized()) {
+          endpointService.storeSurveyData({
+            type: 'task_fulfilled',
+            timestamp: Date.now(),
+            data: {
+              taskIndex: previousTaskIndex,
+              taskText: completedTask.text,
+            }
+          }).catch((error) => {
+            console.error('Failed to log task fulfillment:', error);
+          });
+        }
+      }
+      
+      // Reset skip flag after handling the transition
+      wasLastActionSkip = false;
+      previousTaskIndex = currentTaskIndex;
+    });
+    
     return unsubscribe;
   });
 
@@ -94,6 +131,40 @@
     feedbackValue: ''
   });
 
+  // Initialize endpoint service for logging (only in browser)
+  if (browser) {
+    endpointService.initialize(endpointConfig).catch((error) => {
+      console.error('Failed to initialize endpoint service:', error);
+    });
+  }
+
+  /**
+   * Helper function to create onSkip callback for logging task skips
+   * @param taskIndex - The index of the task being skipped
+   * @param taskText - The text of the task being skipped
+   * @returns Callback function that logs the skip and sets the skip flag
+   */
+  function createSkipHandler(taskIndex: number, taskText: string): (taskIndex: number, reason: string) => void {
+    return (_, reason: string) => {
+      wasLastActionSkip = true;
+      
+      // Log task skip event (fire-and-forget, non-blocking)
+      if (browser && endpointService.isServiceInitialized()) {
+        endpointService.storeSurveyData({
+          type: 'task_skipped',
+          timestamp: Date.now(),
+          data: {
+            taskIndex,
+            taskText,
+            skipReason: reason
+          }
+        }).catch((error) => {
+          console.error('Failed to log task skip:', error);
+        });
+      }
+    };
+  }
+
   // Example tasks with conditions and alert buttons
   const exampleTasks: SurveyTask[] = [
     { 
@@ -105,6 +176,21 @@
           'UX Evaluation Instructions & Consent',
           {
             onConsent: () => {
+              // Log informed consent event with URL data (fire-and-forget, non-blocking)
+              if (browser && endpointService.isServiceInitialized()) {
+                endpointService.storeSurveyData({
+                  type: 'informedConsentCollected',
+                  timestamp: Date.now(),
+                  data: {
+                    pageUrl: window.location.href,
+                    clientInfo: navigator.userAgent,
+                    windowDimensions: window.innerWidth + 'x' + window.innerHeight,
+                  }
+                }).catch((error) => {
+                  console.error('Failed to log informed consent:', error);
+                });
+              }
+              
               consentCondition.set(true); // Manually trigger condition
             }
           }
@@ -115,35 +201,43 @@
     },
     { 
       text: "On scarf plot, set stimulus to Task 2",
-      condition: stimulusCondition // Auto-completes when stimulus is set to Task 2
+      condition: stimulusCondition, // Auto-completes when stimulus is set to Task 2
+      onSkip: createSkipHandler(1, "On scarf plot, set stimulus to Task 2")
     },
     { 
       text: "Set timeline to relative",
-      condition: timelineCondition // Auto-completes when timeline is set to relative
+      condition: timelineCondition, // Auto-completes when timeline is set to relative
+      onSkip: createSkipHandler(2, "Set timeline to relative")
     },
     { 
       text: "Set group to 'Analytics'",
-      condition: groupCondition // Auto-completes when group is set to Group 1
+      condition: groupCondition, // Auto-completes when group is set to Group 1
+      onSkip: createSkipHandler(3, "Set group to 'Analytics'")
     },
     { 
       text: "Duplicate the scarf plot",
-      condition: duplicateCondition // Auto-completes when plot is duplicated
+      condition: duplicateCondition, // Auto-completes when plot is duplicated
+      onSkip: createSkipHandler(4, "Duplicate the scarf plot")
     },
     { 
       text: "On the duplicated plot, set group to 'Holistics'",
-      condition: group2Condition // Auto-completes when group is set to Group 2
+      condition: group2Condition, // Auto-completes when group is set to Group 2
+      onSkip: createSkipHandler(5, "On the duplicated plot, set group to 'Holistics'")
     },
     { 
       text: "Find 'AOI Customization' and group XAxis and YAxis by giving them the same name",
-      condition: aoiCustomizationCondition // Auto-completes when AOIs are grouped
+      condition: aoiCustomizationCondition, // Auto-completes when AOIs are grouped
+      onSkip: createSkipHandler(6, "Find 'AOI Customization' and group XAxis and YAxis by giving them the same name")
     },
     { 
       text: "On Transition Matrix, change aggregation metric to '1-step probability'",
-      condition: transitionMatrixCondition // Auto-completes when aggregation is changed
+      condition: transitionMatrixCondition, // Auto-completes when aggregation is changed
+      onSkip: createSkipHandler(7, "On Transition Matrix, change aggregation metric to '1-step probability'")
     },
     { 
       text: "On Bar Plot, set aggregation method to 'Mean visits'",
-      condition: barPlotCondition // Auto-completes when aggregation is changed
+      condition: barPlotCondition, // Auto-completes when aggregation is changed
+      onSkip: createSkipHandler(8, "On Bar Plot, set aggregation method to 'Mean visits'")
     },
     { 
       text: "Feel free to explore the UI as long as you wish",
@@ -156,6 +250,22 @@
             surveyState,
             onComplete: (results: { ueqs: UEQSResults; eyeTracking: EyeTrackingExperienceResult; feedback: string }) => {
               console.log('Survey completed with results:', results);
+              
+              // Log survey completion to the endpoint service (fire-and-forget, non-blocking)
+              if (browser && endpointService.isServiceInitialized()) {
+                endpointService.storeSurveyData({
+                  type: 'survey_completion',
+                  timestamp: Date.now(),
+                  data: {
+                    ueqsResults: results.ueqs,
+                    eyeTrackingResults: results.eyeTracking,
+                    feedback: results.feedback,
+                  }
+                }).catch((error) => {
+                  console.error('Failed to log survey completion:', error);
+                });
+              }
+              
               explorationCondition.set(true); // Manually trigger condition
             }
           }
@@ -185,6 +295,18 @@
 
   const handleWorkspaceCommand = (command: WorkspaceCommandChain) => {
     console.log('command', command)
+    
+    // Log the workspace command to the endpoint service (fire-and-forget, non-blocking)
+    if (endpointService.isServiceInitialized()) {
+      endpointService.storeSurveyData({
+          type: 'workspace_command',
+          timestamp: Date.now(),
+          data: { command }
+        }).catch((error) => {
+          console.error('Failed to log workspace command:', error);
+        });
+      }
+    
     // Check for stimulus change to Task 2 (stimulusId === 1) from scarf plot
     if (command.type === 'updateSettings' && 
         command.settings && 

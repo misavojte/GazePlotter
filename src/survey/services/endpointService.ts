@@ -162,6 +162,7 @@ export class EndpointService {
         ...this.flattenObject(entry.data)
       };
 
+      console.info("Sending payload to endpoint:", payload);
       // Send HTTPS POST request
       const response = await fetch(this.endpoint, {
         method: 'POST',
