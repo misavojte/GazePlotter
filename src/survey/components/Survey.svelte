@@ -4,6 +4,7 @@
   import { browser } from '$app/environment';
   import { onMount } from 'svelte';
   import { fly } from 'svelte/transition';
+  import { endpointService } from '$survey/services/endpointService';
 
   /**
    * Props for the Survey component
@@ -17,6 +18,10 @@
   }
 
   let { tasks, class: className = '', forceCloseBanner = false }: Props = $props();
+  
+  // Get session ID and withdrawal email
+  const sessionId = endpointService.getSessionId();
+  const consentWithdrawEmail = 'mail@vojtechovska.com';
 
   // --- Store Initialization ---
   $effect(() => {
@@ -220,7 +225,7 @@
         </h3>
         <p class="skip-instructions" class:unskippable={!isCurrentTaskSkippable && !isCompleted}>
           {#if isCompleted}
-            Thank you for completing all tasks. We appreciate your participation and feedback.
+            Thank you for completing all tasks. Please save your session information below.
           {:else if isCurrentTaskSkippable}
             If you're unable to complete this task, you may skip it as a last resort. Please provide a reason below.
           {:else}
@@ -228,6 +233,17 @@
           {/if}
         </p>
       </div>
+
+      {#if isCompleted}
+        <div class="completion-info">
+          <div class="session-details">
+            <p class="session-label">Session ID:</p>
+            <code class="session-code">{sessionId}</code>
+            <p class="session-label">Contact for withdrawal:</p>
+            <a href="mailto:{consentWithdrawEmail}" class="session-email">{consentWithdrawEmail}</a>
+          </div>
+        </div>
+      {/if}
 
       {#if !isCompleted}
         <div class="skip-input-container">
@@ -496,6 +512,52 @@
     cursor: not-allowed;
   }
 
+  /* Completion info styles */
+  .completion-info {
+    padding: 1rem;
+    background: #f0f9ff;
+    border: 2px solid #0ea5e9;
+    border-radius: var(--rounded-md);
+    margin-top: 1rem;
+  }
+
+  .session-details {
+    text-align: center;
+  }
+
+  .session-label {
+    font-size: 0.85rem;
+    color: var(--c-darkgrey);
+    margin: 0.5rem 0 0.25rem 0;
+    font-weight: 500;
+  }
+
+  .session-code {
+    display: block;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    background: white;
+    padding: 0.5rem 1rem;
+    border-radius: var(--rounded-sm);
+    color: #0ea5e9;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    margin: 0.25rem auto 0.5rem;
+    border: 1px solid #bae6fd;
+    word-break: break-all;
+  }
+
+  .session-email {
+    display: inline-block;
+    color: var(--c-brand);
+    font-weight: 500;
+    text-decoration: underline;
+    margin: 0.25rem 0 0.5rem 0;
+  }
+
+  .session-email:hover {
+    color: var(--c-brand-dark);
+  }
 
   .banner-text {
     font-weight: 500;

@@ -4,18 +4,28 @@
   
   interface Props {
     onConsent: () => void
+    sessionId: string
   }
 
-  let { onConsent }: Props = $props()
+  let { onConsent, sessionId }: Props = $props()
 
+  // Configuration constants
+  const CONSENT_WITHDRAW_EMAIL = 'mail@vojtechovska.com'
+  const DECLINE_REDIRECT_URL = 'https://www.eyetracking.upol.cz'
+  
+  /**
+   * Handles user consent - executes callback and closes modal
+   */
   const handleConsent = () => {
     onConsent()
     modalStore.close()
   }
 
+  /**
+   * Handles user decline - redirects away from the evaluation
+   */
   const handleDecline = () => {
-    // If user doesn't consent, redirect them away from the page
-    window.location.href = 'https://www.eyetracking.upol.cz' // or any other appropriate URL
+    window.location.href = DECLINE_REDIRECT_URL
   }
 </script>
 
@@ -56,13 +66,22 @@
 
   <h4>Data privacy and handling:</h4>
   <ul>
-    <li>You will be assigned an anonymous identifier (not linked to your identity)</li>
+    <li>You will be assigned an anonymous identifier (your session ID) that is not linked to your identity</li>
     <li>All data is stored securely and anonymously at the server of the Department of Geoinformatics, Palacký University Olomouc</li>
-    <li>Your responses will be anonymized in any publications or presentations</li>
     <li>Data will be used solely for scientific research purposes</li>
     <li>Results may be published in academic papers and conference presentations</li>
-    <li>Data will be retained only for the duration necessary to complete the research</li>
+    <li>You can revoke your consent and request data removal at any time by providing your session ID to the research team</li>
   </ul>
+
+  <h4>Your session identifier:</h4>
+  <p class="session-info">
+    <strong>Session ID: <code class="session-id">{sessionId}</code></strong>
+  </p>
+  <p>
+    Please save this identifier in a safe place. If you wish to withdraw your consent at any time, 
+    you can contact us at <a href="mailto:{CONSENT_WITHDRAW_EMAIL}">{CONSENT_WITHDRAW_EMAIL}</a> and provide your session ID. 
+    Your data will then be removed from our records.
+  </p>
 
   <p>
     By clicking "I consent to participate", you confirm that you have read and 
@@ -84,6 +103,27 @@
 </div>
 
 <style>
+  .session-info {
+    background: #e8f4f8;
+    border: 1px solid #b3d9e6;
+    border-radius: var(--rounded-sm);
+    padding: 0.75rem;
+    margin-top: 1rem;
+    text-align: center;
+  }
+
+  .session-id {
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    background: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    display: inline-block;
+    color: #0277bd;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+
   .decline-notice {
     background: #fff3cd;
     border: 1px solid #ffeaa7;

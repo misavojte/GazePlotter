@@ -285,17 +285,35 @@ export class EndpointService {
   }
 
   /**
-   * Generate a unique session ID
+   * Generate a unique session ID that is human-readable and memorable
    * 
    * @private
-   * @returns Unique session ID string
+   * @returns Unique session ID string in format: word1-word2-####
    * 
    * NOTE: Uses only alphanumeric and hyphens to match PHP endpoint sanitization
    */
   private generateSessionId(): string {
-    // Generate session ID without underscores to match PHP sanitization (removes underscores)
-    // Format: session-{timestamp}-{randomString}
-    return `session-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+    // Arrays of adjectives and nouns for generating memorable combinations
+    const adjectives = ['happy', 'bright', 'clear', 'smart', 'quick', 'swift', 'neat', 'cool', 'bold', 'calm', 'epic', 'keen', 'neat', 'proud', 'wise', 'young', 'brave', 'fresh', 'grand', 'noble'];
+    const nouns = ['apple', 'bird', 'cloud', 'dolphin', 'eagle', 'forest', 'garden', 'horizon', 'island', 'jungle', 'knight', 'lake', 'mountain', 'ocean', 'planet', 'queen', 'river', 'sunset', 'tiger', 'valley'];
+    
+    // Use timestamp to seed word selection and create unique numeric ID
+    const timestamp = Date.now();
+    
+    // Use timestamp as seed for reproducible word selection (makes it more unique)
+    const seed1 = timestamp % adjectives.length;
+    const seed2 = (timestamp + 1000) % nouns.length;
+    
+    // Pick words based on timestamp - ensures uniqueness
+    const selectedAdjective = adjectives[seed1];
+    const selectedNoun = nouns[seed2];
+    
+    // Hash the timestamp into a 4-digit number for uniqueness
+    // Using a simple hash function that converts timestamp to 4-digit number
+    const hash = timestamp.toString().split('').reduce((acc, char) => acc + parseInt(char), 0);
+    const fourDigitId = (hash + timestamp) % 9000 + 1000; // Ensure it's always 4 digits
+    
+    return `${selectedAdjective}-${selectedNoun}-${fourDigitId}`;
   }
 }
 

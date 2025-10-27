@@ -167,7 +167,7 @@
 
   // Example tasks with conditions and alert buttons
   const exampleTasks: SurveyTask[] = [
-    { 
+      { 
       text: "Read UX evaluation instructions & consent",
       buttonText: "Open instructions & consent",
       onButtonClick: () => {
@@ -175,6 +175,7 @@
           ConsentModal as any,
           'UX Evaluation Instructions & Consent',
           {
+            sessionId: endpointService.getSessionId(),
             onConsent: () => {
               // Log informed consent event with URL data (fire-and-forget, non-blocking)
               if (browser && endpointService.isServiceInitialized()) {
