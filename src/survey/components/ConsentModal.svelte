@@ -50,6 +50,7 @@
   <ul>
     <li><strong>Survey responses</strong>: your experience ratings and feedback</li>
     <li><strong>Interaction data</strong>: task completion times and behaviors</li>
+    <li><strong>Geographic cohort</strong>: your recruitment location (e.g., "Lithuania", "Czech Republic")</li>
     <li><strong>Technical identifiers</strong>: IP address and browser information</li>
   </ul>
 
