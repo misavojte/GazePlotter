@@ -65,6 +65,14 @@
     clear()
   }
 
+  /**
+   * Exported function to reset the layout from parent components
+   * Resets the workspace to its initial state without showing a toast notification
+   */
+  export function resetLayout() {
+    loadData()
+    clear()
+  }
 
   onMount(() => {
     loadData()

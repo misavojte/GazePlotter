@@ -78,9 +78,8 @@
     <strong>Session ID: <code class="session-id">{sessionId}</code></strong>
   </p>
   <p>
-    Please save this identifier in a safe place. If you wish to withdraw your consent at any time, 
-    you can contact us at <a href="mailto:{CONSENT_WITHDRAW_EMAIL}">{CONSENT_WITHDRAW_EMAIL}</a> and provide your session ID. 
-    Your data will then be removed from our records.
+    Please save this identifier. If you wish to request information or withdraw your consent at any time, 
+    you can contact us at <strong><a href="mailto:{CONSENT_WITHDRAW_EMAIL}">{CONSENT_WITHDRAW_EMAIL}</a></strong> (Michaela Vojtechovska; contact person for this evaluation) and provide your session ID. 
   </p>
 
   <p>
@@ -144,5 +143,19 @@
     .button-container {
       flex-direction: column;
     }
+  }
+
+  a {
+    color: var(--c-brand);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+
+  a:hover {
+    color: var(--c-brand-dark);
+  }
+
+  strong {
+    font-weight: 600;
   }
 </style>

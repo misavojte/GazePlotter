@@ -78,6 +78,12 @@
   let previousTaskIndex = $state(-1);
   let wasLastActionSkip = $state(false);
 
+  // Track if informed consent has been given
+  let hasInformedConsent = $state(false);
+
+  // Reference to GazePlotter component for resetting layout
+  let gazePlotterRef = $state<any>(null);
+
   // Monitor modal store to force close banner when any modal is open
   $effect(() => {
     const unsubscribe = modalStore.subscribe((modal) => {
@@ -97,7 +103,7 @@
       if (currentTaskIndex !== previousTaskIndex && previousTaskIndex >= 0 && !wasLastActionSkip) {
         const completedTask = state.tasks[previousTaskIndex];
         
-        if (completedTask && endpointService.isServiceInitialized()) {
+        if (completedTask && hasInformedConsent && endpointService.isServiceInitialized()) {
           endpointService.storeSurveyData({
             type: 'task_fulfilled',
             timestamp: Date.now(),
@@ -149,7 +155,7 @@
       wasLastActionSkip = true;
       
       // Log task skip event (fire-and-forget, non-blocking)
-      if (browser && endpointService.isServiceInitialized()) {
+      if (browser && hasInformedConsent && endpointService.isServiceInitialized()) {
         endpointService.storeSurveyData({
           type: 'task_skipped',
           timestamp: Date.now(),
@@ -192,6 +198,14 @@
                 });
               }
               
+              // Set consent flag to enable data collection
+              hasInformedConsent = true;
+              
+              // Reset the GazePlotter layout to initial state
+              if (gazePlotterRef) {
+                gazePlotterRef.resetLayout();
+              }
+              
               consentCondition.set(true); // Manually trigger condition
             }
           }
@@ -226,9 +240,9 @@
       onSkip: createSkipHandler(5, "On the duplicated plot, set group to 'Holistics'")
     },
     { 
-      text: "Find 'AOI Customization' and group XAxis and YAxis by giving them the same name",
+      text: "Find 'AOI Customization' and group XAxis and YAxis (in stimulus Task 2) by giving them the same name",
       condition: aoiCustomizationCondition, // Auto-completes when AOIs are grouped
-      onSkip: createSkipHandler(6, "Find 'AOI Customization' and group XAxis and YAxis by giving them the same name")
+      onSkip: createSkipHandler(6, "Find 'AOI Customization' and group XAxis and YAxis (in stimulus Task 2) by giving them the same name")
     },
     { 
       text: "On Transition Matrix, change aggregation metric to '1-step probability'",
@@ -253,7 +267,7 @@
               console.log('Survey completed with results:', results);
               
               // Log survey completion to the endpoint service (fire-and-forget, non-blocking)
-              if (browser && endpointService.isServiceInitialized()) {
+              if (browser && hasInformedConsent && endpointService.isServiceInitialized()) {
                 endpointService.storeSurveyData({
                   type: 'survey_completion',
                   timestamp: Date.now(),
@@ -296,9 +310,10 @@
 
   const handleWorkspaceCommand = (command: WorkspaceCommandChain) => {
     console.log('command', command)
+    console.log('hasInformedConsent', hasInformedConsent)
     
     // Log the workspace command to the endpoint service (fire-and-forget, non-blocking)
-    if (endpointService.isServiceInitialized()) {
+    if (hasInformedConsent && endpointService.isServiceInitialized()) {
       endpointService.storeSurveyData({
           type: 'workspace_command',
           timestamp: Date.now(),
@@ -362,10 +377,16 @@
         }
       });
       
-      // Check if any displayed name appears at least twice (indicating grouping)
-      const hasGroupedAois = Array.from(nameCounts.values()).some(count => count >= 2);
+      // Check whether the aois with original names "T2-DataPAQ-OsayY" and "T2-DataPAQ-OsaX" are grouped
+      // i.e. having the same displayed name
+      const aoi1 = command.aois.find(aoi => aoi.originalName === 'T2-DataPAQ-OsayY');
+      const aoi2 = command.aois.find(aoi => aoi.originalName === 'T2-DataPAQ-OsaX');
+      if (aoi1 && aoi2 && aoi1.displayedName === aoi2.displayedName) {
+        aoiCustomizationCondition.set(true);
+      }
+      const areAoisGrouped = aoi1 && aoi2 && aoi1.displayedName === aoi2.displayedName;
       
-      if (hasGroupedAois) {
+      if (areAoisGrouped) {
         aoiCustomizationCondition.set(true);
       }
     }
@@ -466,7 +487,7 @@
     <Survey tasks={exampleTasks} {forceCloseBanner} />
   </section>
   <section>
-    <GazePlotter {loadInitialData} onWorkspaceCommandChain={handleWorkspaceCommand} reinitializeLabel="Reload ETVIS data" />
+    <GazePlotter bind:this={gazePlotterRef} {loadInitialData} onWorkspaceCommandChain={handleWorkspaceCommand} reinitializeLabel="Reload ETVIS data" />
   </section>
   <section class="main-section" id="about">
     <div class="about-grid">

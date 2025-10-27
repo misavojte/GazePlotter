@@ -239,7 +239,7 @@
           <div class="session-details">
             <p class="session-label">Session ID:</p>
             <code class="session-code">{sessionId}</code>
-            <p class="session-label">Contact for withdrawal:</p>
+            <p class="session-label">Contact for information and data withdrawal:</p>
             <a href="mailto:{consentWithdrawEmail}" class="session-email">{consentWithdrawEmail}</a>
           </div>
         </div>
