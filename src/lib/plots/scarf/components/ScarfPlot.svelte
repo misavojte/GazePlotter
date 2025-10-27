@@ -42,7 +42,6 @@
   let tooltipArea = $state<HTMLElement | SVGElement | null>(null)
   let windowObj = $state<Window | null>(null)
   let timeout = $state(0)
-  let highlightedType = $state<string | null>(null)
   let removeHighlight = $state<null | (() => void)>(null)
 
   // Derived values using Svelte 5 $derived and $derived.by runes
@@ -63,6 +62,9 @@
       Date.now() + '-' + currentParticipantIds.length + '-' + redrawTimestamp
     )
   })
+
+  // Derived highlights array - convert undefined to empty array
+  const highlights = $derived(realSettings.highlights ?? [])
 
   const scarfData = $derived.by(() => {
     // Force recalculation when redrawTimestamp changes
@@ -171,7 +173,15 @@
   }
 
   function clearHighlight() {
-    highlightedType = null
+    // Clear all highlights via workspace command
+    if (highlights.length > 0) {
+      onWorkspaceCommand({
+        type: 'updateSettings',
+        itemId: realSettings.id,
+        source,
+        settings: { highlights: [] }
+      })
+    }
   }
 
   function clearAllInteractions() {
@@ -179,11 +189,24 @@
     scheduleTooltipHide()
   }
 
-  // Handle legend item clicks
+  // Handle legend item clicks - toggle highlight in the array
   function handleLegendClick(identifier: string) {
-    if (highlightedType === identifier) return
     hideTooltipAndHighlight()
-    highlightedType = identifier
+    
+    // Toggle the identifier in the highlights array
+    const currentHighlights = highlights
+    const isCurrentlyHighlighted = currentHighlights.includes(identifier)
+    const newHighlights = isCurrentlyHighlighted
+      ? currentHighlights.filter(id => id !== identifier)
+      : [...currentHighlights, identifier]
+    
+    // Update via workspace command
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: realSettings.id,
+      source,
+      settings: { highlights: newHighlights }
+    })
   }
 
   // source for the workspace commands directly from the plot
@@ -310,7 +333,7 @@
           tooltipAreaElement={tooltipArea}
           data={scarfData}
           settings={localSettings}
-          highlightedIdentifier={highlightedType}
+          highlights={highlights}
           onLegendClick={handleLegendClick}
           onDragStepX={handleDragStepX}
           onDragEnd={handleDragEnd}

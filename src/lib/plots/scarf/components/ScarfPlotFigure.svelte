@@ -35,7 +35,7 @@
     tooltipAreaElement: HTMLElement | SVGElement | null
     data: ScarfFillingType
     settings: ScarfGridType
-    highlightedIdentifier: string | null
+    highlights: string[]
     onLegendClick: (identifier: string) => void
     onTooltipActivation: ({
       segmentOrderId,
@@ -73,7 +73,7 @@
     tooltipAreaElement,
     data,
     settings,
-    highlightedIdentifier = null,
+    highlights = [],
     onLegendClick = () => {},
     onTooltipActivation = () => {},
     onTooltipDeactivation = () => {},
@@ -115,7 +115,6 @@
   )
 
   // State management with Svelte 5 runes
-  let fixedHighlight = $state<string | null>(null)
   let isDragging = $state(false) // New state to track if actively dragging
   let isHoveringSegment = $state(false) // Track if hovering or recently hovering a segment
   let hoverTimeout: number | null = $state(null) // Timeout ID
@@ -127,8 +126,8 @@
   let preparedForDragging = $state(false) // Track if prepared for dragging (shows draggable cursor)
   let hoveredLegendItem = $state<any>(null) // Track currently hovered legend item
 
-  // Derived values using Svelte 5 $derived rune
-  const usedHighlight = $derived(fixedHighlight ?? highlightedIdentifier)
+  // Use highlights directly from props - workspace is the single source of truth
+  const usedHighlights = $derived(highlights)
   const xAxisLabel = $derived(getXAxisLabel(settings.timeline))
 
   // Memoize legend geometry to avoid recalculating on every mouse move
@@ -329,7 +328,7 @@
     const RECT_STRIDE = 12
     const buffer = new Float32Array(len * RECT_STRIDE)
 
-    const isUsedHighlight = usedHighlight !== null
+    const isUsedHighlight = usedHighlights.length > 0
     // Get fast lookup maps
     const { idToIndex } = identifierSystem
 
@@ -357,8 +356,8 @@
       buffer[idx + 6] = rect.segmentId // segmentId
       buffer[idx + 7] = rect.orderId // orderId
 
-      // Style flags - compute only once
-      const isDimmed = isUsedHighlight && identifier !== usedHighlight
+      // Style flags - compute only once: dim if highlighting is active and this identifier is not highlighted
+      const isDimmed = isUsedHighlight && !usedHighlights.includes(identifier)
 
       // 8: dimmed (0/1)
       buffer[idx + 8] = isDimmed ? 1 : 0
@@ -385,7 +384,7 @@
     const LINE_STRIDE = 10
     const buffer = new Float32Array(len * LINE_STRIDE)
 
-    const isUsedHighlight = usedHighlight !== null
+    const isUsedHighlight = usedHighlights.length > 0
     // Get fast lookup maps
     const { idToIndex } = identifierSystem
 
@@ -411,8 +410,8 @@
       buffer[idx + 4] = identifierIdx // identifier index
       buffer[idx + 5] = line.participantId // participantId
 
-      // Style flags - compute only once
-      const isDimmed = isUsedHighlight && identifier !== usedHighlight
+      // Style flags - compute only once: dim if highlighting is active and this identifier is not highlighted
+      const isDimmed = isUsedHighlight && !usedHighlights.includes(identifier)
 
       // 6: dimmed (0/1)
       buffer[idx + 6] = isDimmed ? 1 : 0
@@ -427,24 +426,8 @@
   })
 
   // Interaction handlers
-  function handleFixedHighlight(identifier: string) {
-    if (fixedHighlight === identifier) {
-      // If already highlighted, clear it
-      fixedHighlight = null
-      highlightedIdentifier = null
-      //renderCanvas() // Redraw canvas
-      return
-    }
-
-    // Otherwise, set the fixed highlight
-    fixedHighlight = identifier
-    addInfoToast(`Highlight fixed. Click the same item in the legend to remove`)
-    //renderCanvas() // Redraw canvas
-  }
-
   function handleLegendIdentifier(identifier: string) {
-    // Handle both local fixed highlight and external app state
-    handleFixedHighlight(identifier)
+    // Propagate to parent component - workspace is single source of truth
     onLegendClick(identifier)
   }
 
@@ -977,8 +960,8 @@
 
       for (let i = 0; i < len; i++) {
         const item = items[i]
-        const isHighlighted = item.identifier === usedHighlight
-        const anyHighlightActive = usedHighlight !== null
+        const isHighlighted = usedHighlights.includes(item.identifier)
+        const anyHighlightActive = usedHighlights.length > 0
 
         // Set opacity based on highlight state
         if (anyHighlightActive) {
@@ -1029,8 +1012,8 @@
 
       for (let i = 0; i < len; i++) {
         const item = items[i]
-        const isHighlighted = item.identifier === usedHighlight
-        const anyHighlightActive = usedHighlight !== null
+        const isHighlighted = usedHighlights.includes(item.identifier)
+        const anyHighlightActive = usedHighlights.length > 0
 
         // Set opacity based on highlight state
         if (anyHighlightActive) {
@@ -1096,7 +1079,7 @@
       if (legendItem) {
         // Show tooltip with "Highlight [FULLNAMEOFAOI]" or "Dehighlight [FULLNAMEOFAOI]" text
         hoveredLegendItem = legendItem
-        const isHighlighted = legendItem.identifier === usedHighlight
+        const isHighlighted = usedHighlights.includes(legendItem.identifier)
         const tooltipContent = [
           {
             key: '',
@@ -1404,9 +1387,9 @@
       data,
       settings,
       totalWidth,
-      // Reference timeline data to update when it changes
-      highlightedIdentifier,
-      usedHighlight,
+      // Reference highlights data to update when it changes
+      highlights,
+      usedHighlights,
       chartWidth,
       dpiOverride, // Add dpiOverride to the dependency list
       marginLeft,

@@ -105,6 +105,11 @@ export function createCommandReverser(gridStore: GridStoreType) {
           Object.keys(command.settings).forEach(key => {
             if (key in currentItem) {
               (reverseSettings as any)[key] = (currentItem as any)[key]
+            } else if (key === 'highlights') {
+              // Special case: if highlights field didn't exist before (was undefined),
+              // explicitly set it to empty array to trigger reactivity
+              // @backcompat 1.7.5
+              (reverseSettings as any)[key] = []
             }
           })
 
