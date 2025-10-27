@@ -289,9 +289,13 @@ export class EndpointService {
    * 
    * @private
    * @returns Unique session ID string
+   * 
+   * NOTE: Uses only alphanumeric and hyphens to match PHP endpoint sanitization
    */
   private generateSessionId(): string {
-    return `session_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+    // Generate session ID without underscores to match PHP sanitization (removes underscores)
+    // Format: session-{timestamp}-{randomString}
+    return `session-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
   }
 }
 

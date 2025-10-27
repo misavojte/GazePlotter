@@ -20,7 +20,7 @@
   }).format(buildDate)
 
   const endpointConfig: EndpointConfig = {
-    endpoint: "https://your-server.com/api/survey"
+    endpoint: "https://eyetracking.upol.cz/GPsurvey/GazePlotterSurveyEndpoint.php"
   };
 
   const pathToData = `${base}/data/etvis.json`

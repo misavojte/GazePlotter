@@ -29,6 +29,7 @@ $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
 // Define allowed origins (exact matches only for security)
 $allowedOrigins = [
     'https://gazeplotter.com',
+    'https://eyetracking.upol.cz',
     'http://localhost',
     'http://localhost:3000',
     'http://localhost:5173',
@@ -84,13 +85,24 @@ $data = json_decode($jsonInput, true);
 
 // Validate that JSON was parsed correctly considering depth and size limits
 if (json_last_error() !== JSON_ERROR_NONE || $data === null) {
+    error_log("JSON decode failed. Error: " . json_last_error_msg() . ", Input length: " . strlen($jsonInput));
+    error_log("JSON input: " . $jsonInput);
     http_response_code(400);
     echo json_encode([
         'success' => false,
-        'error' => 'Invalid request data'
+        'error' => 'Invalid JSON request data',
+        'debug' => [
+            'json_error' => json_last_error(),
+            'json_error_msg' => json_last_error_msg(),
+            'input_length' => strlen($jsonInput),
+            'json_input' => $jsonInput
+        ]
     ]);
     exit;
 }
+
+// Debug logging for troubleshooting
+error_log("Request data received: " . json_encode($data));
 
 // Validate required fields
 if (!isset($data['sessionId'])) {
@@ -103,6 +115,7 @@ if (!isset($data['sessionId'])) {
 }
 
 // Get sessionId from the data
+$originalSessionId = $data['sessionId'];
 $sessionId = $data['sessionId'];
 
 // Security: Additional sanitization - remove potentially dangerous characters including underscores
@@ -111,13 +124,22 @@ $sessionId = preg_replace('/[^a-zA-Z0-9-]/', '', substr($sessionId, 0, 50));
 
 // Security: Ensure sessionId is not empty after sanitization
 if (empty($sessionId)) {
+    error_log("SessionId became empty after sanitization. Original: '$originalSessionId'");
     http_response_code(400);
     echo json_encode([
         'success' => false,
-        'error' => 'Invalid sessionId'
+        'error' => 'Invalid sessionId after sanitization',
+        'debug' => [
+            'originalSessionId' => $originalSessionId,
+            'sanitizedSessionId' => $sessionId,
+            'preg_replace_result' => preg_replace('/[^a-zA-Z0-9-]/', '', substr($originalSessionId, 0, 50))
+        ]
     ]);
     exit;
 }
+
+// Debug logging for troubleshooting
+error_log("Request received - Original SessionId: '$originalSessionId', Sanitized SessionId: '$sessionId'");
 
 // Base directory where we'll store the data
 $baseDir = __DIR__ . '/data/' . $sessionId;
@@ -125,21 +147,35 @@ $baseDir = __DIR__ . '/data/' . $sessionId;
 // Security: Prevent path traversal attempts (even though we sanitize, double-check)
 $realBaseDir = realpath(__DIR__ . '/data');
 if ($realBaseDir === false || !is_dir($realBaseDir)) {
+    error_log("Data directory does not exist or is not accessible: " . __DIR__ . '/data');
+    error_log("realBaseDir result: " . ($realBaseDir === false ? 'false' : $realBaseDir));
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'error' => 'Server configuration error'
+        'error' => 'Server configuration error - data directory not found',
+        'debug' => [
+            'baseDir' => __DIR__ . '/data',
+            'realBaseDir' => $realBaseDir,
+            'isDir' => is_dir(__DIR__ . '/data'),
+            'sessionId' => $sessionId
+        ]
     ]);
     exit;
 }
 
 $realCurrentDir = realpath(dirname($baseDir));
 if ($realCurrentDir !== $realBaseDir) {
-    error_log("Potential path traversal attempt: $sessionId");
+    error_log("Path traversal check failed. SessionId: $sessionId, realCurrentDir: $realCurrentDir, realBaseDir: $realBaseDir");
     http_response_code(400);
     echo json_encode([
         'success' => false,
-        'error' => 'Invalid session ID'
+        'error' => 'Invalid session ID - path traversal detected',
+        'debug' => [
+            'sessionId' => $sessionId,
+            'baseDir' => $baseDir,
+            'realCurrentDir' => $realCurrentDir,
+            'realBaseDir' => $realBaseDir
+        ]
     ]);
     exit;
 }
@@ -147,19 +183,32 @@ if ($realCurrentDir !== $realBaseDir) {
 // Create the session directory if it doesn't exist
 if (!file_exists($baseDir)) {
     // Security: Use more restrictive permissions (0700 = owner only)
-    if (!mkdir($baseDir, 0700, true)) {
+    // Suppress warnings for race condition where multiple requests try to create the same directory
+    if (!@mkdir($baseDir, 0700, true) && !is_dir($baseDir)) {
         error_log("Failed to create directory: $baseDir");
+        error_log("mkdir result: " . (!@mkdir($baseDir, 0700, true) ? 'failed' : 'success'));
+        error_log("is_dir check: " . (is_dir($baseDir) ? 'true' : 'false'));
+        error_log("file_exists check: " . (file_exists($baseDir) ? 'true' : 'false'));
         http_response_code(500);
         echo json_encode([
             'success' => false,
-            'error' => 'Server error'
+            'error' => 'Failed to create session directory',
+            'debug' => [
+                'sessionId' => $sessionId,
+                'baseDir' => $baseDir,
+                'mkdir_result' => !@mkdir($baseDir, 0700, true),
+                'is_dir_after' => is_dir($baseDir),
+                'file_exists_after' => file_exists($baseDir)
+            ]
         ]);
         exit;
     }
 }
 
 // Security: Ensure directory has correct permissions
-@chmod($baseDir, 0700);
+if (!@chmod($baseDir, 0700)) {
+    error_log("Warning: Failed to set directory permissions on: $baseDir");
+}
 
 // Generate a unique filename based on timestamp
 $timestamp = isset($data['timestamp']) ? $data['timestamp'] : time();
@@ -201,16 +250,29 @@ if ($jsonOutput === false) {
 // Write the JSON to file
 if (file_put_contents($filepath, $jsonOutput, LOCK_EX) === false) {
     error_log("Failed to write file: $filepath");
+    error_log("file_put_contents result: " . (file_put_contents($filepath, $jsonOutput, LOCK_EX) === false ? 'failed' : 'success'));
+    error_log("File path: $filepath");
+    error_log("File exists before write: " . (file_exists($filepath) ? 'true' : 'false'));
+    error_log("Is writable: " . (is_writable(dirname($filepath)) ? 'true' : 'false'));
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'error' => 'Server error'
+        'error' => 'Failed to write data file',
+        'debug' => [
+            'sessionId' => $sessionId,
+            'filepath' => $filepath,
+            'file_exists_before' => file_exists($filepath),
+            'dirname_writable' => is_writable(dirname($filepath)),
+            'file_put_contents_result' => file_put_contents($filepath, $jsonOutput, LOCK_EX)
+        ]
     ]);
     exit;
 }
 
 // Security: Set restrictive file permissions (owner read/write only)
-@chmod($filepath, 0600);
+if (!@chmod($filepath, 0600)) {
+    error_log("Warning: Failed to set file permissions on: $filepath");
+}
 
 // Return success response (SECURITY: do not expose filepath)
 http_response_code(200);

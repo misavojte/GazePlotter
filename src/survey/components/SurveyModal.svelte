@@ -21,11 +21,6 @@
   let nextButtonEnabled = $state(false);
   let selectionTimer: ReturnType<typeof setTimeout> | null = null;
   
-  // Derived state for button enabled status with 400ms delay after completion
-  let canProceed = $derived.by(() => {
-    if (!isCurrentStepComplete) return false;
-    return nextButtonEnabled;
-  });
 
   /**
    * Check if current step is completed

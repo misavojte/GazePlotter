@@ -49,8 +49,9 @@
   </p>
   <ul>
     <li><strong>Survey responses</strong>: your experience ratings and feedback</li>
-    <li><strong>Interaction data</strong>: task completion times and behaviors</li>
-    <li><strong>Geographic cohort</strong>: your recruitment location (e.g., "Lithuania", "Czech Republic")</li>
+    <li><strong>Interaction data</strong>: detailed workspace interactions, task completion times and triggered commands</li>
+    <li><strong>Session metadata</strong>: anonymous session ID, timestamps, browser information (user agent, screen dimensions, page URL)</li>
+    <li><strong>Geographic cohort</strong>: your recruitment location saved via page URL (e.g., "?cohort=Lithuania")</li>
   </ul>
 
   <h4>Data privacy and handling:</h4>
