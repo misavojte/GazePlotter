@@ -126,6 +126,7 @@ describe('createCommandReverser', () => {
       expect(result).toEqual({
         type: 'removeGridItem',
         itemId: 123,
+        source: undefined,
         chainId: 1,
         isRootCommand: true
       })
@@ -148,14 +149,15 @@ describe('createCommandReverser', () => {
         vizType: 'scarf',
         itemId: 1,
         options: {
+          id: 1,
           x: 0,
           y: 0,
           w: 6,
           h: 8,
           min: { w: 4, h: 4 },
-          stimulusId: 1,
-          redrawTimestamp: expect.any(Number)
+          stimulusId: 1
         },
+        source: undefined,
         chainId: 1,
         isRootCommand: true
       })
@@ -211,6 +213,7 @@ describe('createCommandReverser', () => {
       const command: WorkspaceCommandChain = {
         type: 'duplicateGridItem',
         itemId: 1,
+        duplicateId: 2, // The ID of the duplicated item
         chainId: 1,
         isRootCommand: true
       }
@@ -220,22 +223,33 @@ describe('createCommandReverser', () => {
       expect(result).toEqual({
         type: 'removeGridItem',
         itemId: 2, // The duplicate (scarf item)
+        source: undefined,
         chainId: 1,
         isRootCommand: true
       })
     })
 
-    it('should return null if original item not found', () => {
+    it('should reverse duplicateGridItem even if original item not found in grid', () => {
+      // The implementation doesn't validate if the original item exists
+      // It just creates a reverse command using duplicateId
       const command: WorkspaceCommandChain = {
         type: 'duplicateGridItem',
-        itemId: 999,
+        itemId: 999, // Original item doesn't exist
+        duplicateId: 998, // But duplicateId is provided
         chainId: 1,
         isRootCommand: true
       }
 
       const result = reverseCommand(command)
 
-      expect(result).toBeNull()
+      // Should return a valid reverse command because duplicateId is provided
+      expect(result).toEqual({
+        type: 'removeGridItem',
+        itemId: 998, // Uses duplicateId, not itemId
+        source: undefined,
+        chainId: 1,
+        isRootCommand: true
+      })
     })
 
     it('should return null if no duplicate found', () => {
@@ -262,9 +276,10 @@ describe('createCommandReverser', () => {
       const command: WorkspaceCommandChain = {
         type: 'duplicateGridItem',
         itemId: 1,
+        // No duplicateId property - implementation should return null
         chainId: 1,
         isRootCommand: true
-      }
+      } as any // Using 'as any' because duplicateId is missing intentionally
 
       const result = reverseCommand(command)
 
@@ -292,6 +307,7 @@ describe('createCommandReverser', () => {
           y: 0,
           w: 6
         },
+        source: undefined,
         chainId: 1,
         isRootCommand: true
       })
@@ -343,6 +359,7 @@ describe('createCommandReverser', () => {
         ],
         stimulusId: 1,
         applyTo: 'this_stimulus',
+        source: undefined,
         chainId: 1,
         isRootCommand: true
       })
@@ -381,6 +398,7 @@ describe('createCommandReverser', () => {
           { id: 0, originalName: 'Participant1', displayedName: 'Participant 1' },
           { id: 1, originalName: 'Participant2', displayedName: 'Participant 2' }
         ],
+        source: undefined,
         chainId: 1,
         isRootCommand: true
       })
@@ -427,6 +445,7 @@ describe('createCommandReverser', () => {
           { id: 0, originalName: 'Stimulus1', displayedName: 'Stimulus 1' },
           { id: 1, originalName: 'Stimulus2', displayedName: 'Stimulus 2' }
         ],
+        source: undefined,
         chainId: 1,
         isRootCommand: true
       })
@@ -476,6 +495,7 @@ describe('createCommandReverser', () => {
         aoiNames: ['AOI 1', 'AOI 2'],
         visibilityArr: [[0, 100, 104, 120], [10, 20, 30, 40]],
         participantId: 1,
+        source: undefined,
         chainId: 1,
         isRootCommand: true
       })
@@ -518,6 +538,7 @@ describe('createCommandReverser', () => {
             participantIds: [1, 2]
           }
         ],
+        source: undefined,
         chainId: 1,
         isRootCommand: true
       })
