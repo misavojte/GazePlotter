@@ -15,11 +15,11 @@ export { Survey, ConsentModal, SurveyModal } from './components/index';
 // Export utilities
 export { createCondition } from './utils/index';
 
-// Export Firebase service
+// Export endpoint service
 export { 
-  FirebaseService, 
-  firebaseService,
-  type FirebaseConfig,
+  EndpointService, 
+  endpointService,
+  type EndpointConfig,
   type SurveyDataEntry,
-  type FirebaseServiceResponse
+  type ServiceResponse
 } from './services/index';

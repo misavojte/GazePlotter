@@ -5,7 +5,7 @@
   import { browser } from '$app/environment'
   import type { ParsedData } from '$lib/gaze-data/shared/types'
   import { EyeWorkerService } from '$lib/gaze-data/front-process/class/EyeWorkerService'
-  import { Survey, surveyStore, createCondition, ConsentModal } from '$survey'
+  import { Survey, surveyStore, createCondition, ConsentModal, type EndpointConfig } from '$survey'
   import { SurveyModal } from '$survey/components'
   import type { SurveyTask, SurveyModalState } from '$survey/types'
   import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
@@ -18,6 +18,10 @@
     day: 'numeric',
     year: 'numeric',
   }).format(buildDate)
+
+  const endpointConfig: EndpointConfig = {
+    endpoint: "https://your-server.com/api/survey"
+  };
 
   const pathToData = `${base}/data/etvis.json`
 

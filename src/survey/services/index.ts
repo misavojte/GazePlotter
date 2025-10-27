@@ -1,13 +1,13 @@
 /**
- * Firebase service exports for survey data storage
+ * Endpoint service exports for survey data storage
  */
 
 // Export the main service class and instance
-export { FirebaseService, firebaseService } from './firebaseService';
+export { EndpointService, endpointService } from './endpointService';
 
 // Export types
 export type { 
-  FirebaseConfig, 
+  EndpointConfig, 
   SurveyDataEntry, 
-  FirebaseServiceResponse 
-} from './firebaseService';
+  ServiceResponse 
+} from './endpointService';
