@@ -7,10 +7,10 @@
   import { EyeWorkerService } from '$lib/gaze-data/front-process/class/EyeWorkerService'
   import { Survey, surveyStore, createCondition, ConsentModal } from '$survey'
   import { SurveyModal } from '$survey/components'
-  import type { SurveyTask } from '$survey/types'
+  import type { SurveyTask, SurveyModalState } from '$survey/types'
   import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
-  import type { UEQSResults } from '$survey/types'
+  import type { UEQSResults, EyeTrackingExperienceResult } from '$survey/types'
   // Format the build date
   const buildDate = new Date(__BUILD_DATE__)
   const formattedDate = new Intl.DateTimeFormat('en-US', {
@@ -57,7 +57,6 @@
 
   // Create condition stores for automatic task completion
   const consentCondition = createCondition(); // Monitor for consent confirmation
-  const cornerCondition = createCondition();
   const stimulusCondition = createCondition(); // Monitor for "Task 2" stimulus
   const timelineCondition = createCondition(); // Monitor for "relative" timeline
   const groupCondition = createCondition(); // Monitor for "Group 1" selection
@@ -77,6 +76,18 @@
       forceCloseBanner = modal !== null;
     });
     return unsubscribe;
+  });
+
+  // Survey state - persists when modal is closed and reopened
+  let surveyState = $state<SurveyModalState>({
+    isCompleted: false,
+    ueqsResults: null,
+    eyeTrackingResults: null,
+    feedbackText: '',
+    currentStepIndex: 0,
+    ueqsComplete: false,
+    eyeTrackingValue: null,
+    feedbackValue: ''
   });
 
   // Example tasks with conditions and alert buttons
@@ -137,7 +148,8 @@
           SurveyModal as any,
           'User Experience Questionnaire',
           {
-            onComplete: (results: UEQSResults) => {
+            surveyState,
+            onComplete: (results: { ueqs: UEQSResults; eyeTracking: EyeTrackingExperienceResult; feedback: string }) => {
               console.log('Survey completed with results:', results);
               explorationCondition.set(true); // Manually trigger condition
             }
@@ -153,6 +165,12 @@
    */
   function completeCurrentTask(): void {
     surveyStore.nextTask()
+  }
+
+  function openDebugSurvey() {
+    modalStore.open(SurveyModal as any, 'Debug Survey', {
+      surveyState
+    });
   }
 
   /**
@@ -268,6 +286,7 @@
       <span id="sitetitle">GazePlotter</span>
     </a>
     <nav>
+      <button onclick={openDebugSurvey}>DEBUG SURVEY</button>
       <a
         class="external-link"
         target="_blank"

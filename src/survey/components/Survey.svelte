@@ -40,11 +40,22 @@
   const currentTaskIndex = $derived(surveyState.currentActiveTaskIndex);
   const currentTask = $derived(surveyState.tasks[currentTaskIndex]);
   const isCompleted = $derived(surveyState.isCompleted);
+  
+  // Determine if current task is skippable (default to true if not specified)
+  const isCurrentTaskSkippable = $derived(
+    currentTask ? (currentTask.skippable !== false) : false
+  );
 
   // --- State for Banner Visibility ---
   let showBanner = $state(false);
   let bannerHiding = $state(false);
   let activeTaskElements: (HTMLElement | null)[] = $state([]);
+  
+  // --- State for Task Skipping ---
+  let skipReason = $state('');
+  const SKIP_REASON_LIMIT = 500;
+  const remainingChars = $derived(SKIP_REASON_LIMIT - skipReason.length);
+  const canSkip = $derived(skipReason.trim().length > 0);
   
 
   // --- Scroll Handler for Banner ---
@@ -108,6 +119,26 @@
 
     return unsubscribe;
   });
+
+  /**
+   * Handles the skip task button click
+   * Attempts to skip the current task if it is marked as skippable
+   * Calls the onSkip callback with the task index and reason if provided
+   */
+  function handleSkipTask(): void {
+    if (!canSkip || !currentTask) return;
+    
+    // Call the task's onSkip callback if provided
+    if (currentTask.onSkip) {
+      currentTask.onSkip(currentTaskIndex, skipReason.trim());
+    }
+    
+    // Clear the skip reason for the next task
+    skipReason = '';
+    
+    // Skip the task in the store
+    surveyStore.skipTask();
+  }
 </script>
 
 {#if showBanner && !isCompleted && currentTask}
@@ -155,7 +186,7 @@
 
     <div class="tasks">
       {#each tasks as task, index (index)}
-        {@const isTaskCompleted = index < currentTaskIndex}
+        {@const isTaskCompleted = index < currentTaskIndex || (isCompleted && index === currentTaskIndex)}
         {@const isActive = index === currentTaskIndex && !isCompleted}
         <div 
           class="task" 
@@ -176,8 +207,52 @@
         </div>
       {/each}
       
-      {#if isCompleted}
-        <div class="completion">🎉 All tasks completed!</div>
+    </div>
+
+    <div class="skip-section">
+      <div class="skip-header">
+        <h3 class="skip-heading">
+          {#if isCompleted}
+            All tasks completed
+          {:else}
+            Skip current task
+          {/if}
+        </h3>
+        <p class="skip-instructions" class:unskippable={!isCurrentTaskSkippable && !isCompleted}>
+          {#if isCompleted}
+            Thank you for completing all tasks. We appreciate your participation and feedback.
+          {:else if isCurrentTaskSkippable}
+            If you're unable to complete this task, you may skip it as a last resort. Please provide a reason below.
+          {:else}
+            This task is crucial and cannot be skipped. Please complete it to continue.
+          {/if}
+        </p>
+      </div>
+
+      {#if !isCompleted}
+        <div class="skip-input-container">
+          <textarea
+            bind:value={skipReason}
+            class="skip-textarea"
+            placeholder={isCurrentTaskSkippable ? "Why are you unable to complete this task?" : "This task cannot be skipped"}
+            maxlength={SKIP_REASON_LIMIT}
+            rows="3"
+            disabled={!isCurrentTaskSkippable}
+          ></textarea>
+          
+          <div class="skip-footer">
+            <span class="char-count" class:at-limit={remainingChars <= 50}>
+              {remainingChars} characters remaining
+            </span>
+            <button 
+              class="skip-button"
+              onclick={handleSkipTask}
+              disabled={!canSkip || !isCurrentTaskSkippable}
+            >
+              Skip Task
+            </button>
+          </div>
+        </div>
       {/if}
     </div>
   {/if}
@@ -202,10 +277,10 @@
 
   .progress {
     text-align: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.75rem;
     font-weight: 600;
     color: var(--c-black);
-    font-size: 1rem;
+    font-size: 1.15rem;
   }
 
   .completed {
@@ -297,16 +372,128 @@
     box-shadow: 0 2px 6px rgba(205, 20, 4, 0.3);
   }
 
-  .completion {
+
+  /* --- Skip Section Styles --- */
+  .skip-section {
+    margin-top: 2.5rem;
+    padding: 1.5rem 0;
+    border-top: 2px solid var(--c-lightgrey);
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 500px;
+    /* Fixed height to prevent layout shifts */
+    height: 16rem;
+    box-sizing: border-box;
+  }
+
+  .skip-header {
     text-align: center;
-    padding: 1.25rem;
-    background: var(--c-success);
-    color: white;
-    border: 2px solid var(--c-success);
-    border-radius: var(--rounded-md);
-    margin-top: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .skip-heading {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--c-black);
+    margin: 0 0 0.5rem 0;
+  }
+
+  .skip-instructions {
+    font-size: 0.85rem;
+    color: var(--c-darkgrey);
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .skip-instructions.unskippable {
+    color: var(--c-brand-dark);
     font-weight: 500;
-    font-size: 0.9rem;
+  }
+
+  .skip-input-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+  }
+
+  .skip-textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid var(--c-lightgrey);
+    border-radius: var(--rounded-md);
+    font-family: inherit;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    resize: vertical;
+    transition: border-color 0.3s ease, opacity 0.3s ease, background-color 0.3s ease;
+    box-sizing: border-box;
+    min-height: 4rem;
+  }
+
+  .skip-textarea:focus:not(:disabled) {
+    outline: none;
+    border-color: var(--c-darkgrey);
+  }
+
+  .skip-textarea::placeholder {
+    color: var(--c-darkgrey);
+    opacity: 0.6;
+  }
+
+  .skip-textarea:disabled {
+    opacity: 0.5;
+    background-color: var(--c-lightgrey);
+    cursor: not-allowed;
+  }
+
+  .skip-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .char-count {
+    color: var(--c-darkgrey);
+    font-size: 0.75rem;
+    flex-shrink: 0;
+  }
+
+  .char-count.at-limit {
+    color: var(--c-error);
+    font-weight: 500;
+  }
+
+  .skip-button {
+    padding: 0.6rem 1.25rem;
+    background: var(--c-lightgrey);
+    color: var(--c-darkgrey);
+    border: 1px solid var(--c-darkgrey);
+    border-radius: var(--rounded);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+
+  .skip-button:hover:not(:disabled) {
+    background: var(--c-darkgrey);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  }
+
+  .skip-button:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  }
+
+  .skip-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
 

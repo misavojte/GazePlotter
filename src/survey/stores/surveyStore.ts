@@ -64,11 +64,41 @@ function createSurveyStore() {
   };
 
   /**
+   * Skip the current task if it is skippable
+   * Tasks are skippable by default unless explicitly marked as unskippable
+   */
+  const skipTask = (): void => {
+    update(state => {
+      if (state.tasks.length === 0 || state.isCompleted) {
+        return state;
+      }
+      
+      const currentTask = state.tasks[state.currentActiveTaskIndex];
+      // Tasks are skippable by default (when skippable is undefined or true)
+      const isSkippable = currentTask?.skippable !== false;
+      
+      if (!isSkippable) {
+        return state;
+      }
+      
+      const nextIndex = state.currentActiveTaskIndex + 1;
+      const isLastTask = nextIndex >= state.tasks.length;
+      
+      return {
+        ...state,
+        currentActiveTaskIndex: isLastTask ? state.currentActiveTaskIndex : nextIndex,
+        isCompleted: isLastTask
+      };
+    });
+  };
+
+  /**
    * Survey actions object containing all available operations
    */
   const actions: SurveyActions = {
     setTasks,
-    nextTask
+    nextTask,
+    skipTask
   };
 
   return {

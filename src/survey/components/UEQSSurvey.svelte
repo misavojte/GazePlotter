@@ -3,9 +3,6 @@
 
   /**
    * UEQS (User Experience Questionnaire Short) Survey Component
-   * 
-   * A beautiful, animated Likert scale component for user experience evaluation.
-   * Uses Svelte 5 principles with reactive state management and smooth animations.
    */
 
   interface Props {
@@ -13,9 +10,15 @@
     onComplete?: (results: UEQSResults) => void;
     /** Optional CSS class for custom styling */
     class?: string;
+    /** Optional initial values to pre-populate the survey */
+    initialValues?: UEQSResults | null;
+    /** Callback when completion status changes */
+    onCompletionChange?: (isComplete: boolean, results: UEQSResults | null) => void;
+    /** Callback when survey value changes (for parent state management) */
+    onValueChange?: (results: UEQSResults | null, isComplete: boolean) => void;
   }
 
-  let { onComplete, class: className = '' }: Props = $props();
+  let { onComplete, class: className = '', initialValues = null, onCompletionChange, onValueChange }: Props = $props();
 
   // UEQS scale items with their bipolar adjectives
   const scaleItems = [
@@ -33,11 +36,46 @@
   const scaleValues = [-3, -2, -1, 0, 1, 2, 3] as const;
   type ScaleValue = typeof scaleValues[number];
 
-  // Results state
-  let results = $state<Record<string, ScaleValue | null>>({});
+  // Results state - initialize with provided values
+  // Ensure all scale items have entries (null if not in initialValues)
+  let results = $state<Record<string, ScaleValue | null>>(
+    initialValues 
+      ? Object.fromEntries(scaleItems.map(item => [
+          item.id, 
+          (initialValues[item.id as keyof typeof initialValues] as ScaleValue | undefined) ?? null
+        ]))
+      : {}
+  );
 
   // Animation state
   let animatingItem = $state<string | null>(null);
+
+  // Expose value and isComplete for parent component - update via effect
+  let value = $state<UEQSResults | null>(null);
+  let isComplete = $state(false);
+
+  // Update exposed values when results change
+  $effect(() => {
+    const allCompleted = scaleItems.every(item => results[item.id] !== null && results[item.id] !== undefined);
+    const resultsData = results as unknown as UEQSResults;
+
+    isComplete = allCompleted;
+    // Always expose the current results, even when incomplete, to preserve partial progress
+    value = resultsData;
+
+    if (onCompletionChange) {
+      onCompletionChange(allCompleted, resultsData);
+    }
+
+    if (onValueChange) {
+      // Always pass current results, even when incomplete, so parent can save partial progress
+      onValueChange(resultsData, allCompleted);
+    }
+
+    if (onComplete && allCompleted) {
+      onComplete(resultsData);
+    }
+  });
 
   /**
    * Handle scale selection with smooth animation
@@ -53,14 +91,6 @@
     setTimeout(() => {
       animatingItem = null;
     }, 300);
-
-    // Check if survey is completed after state update
-    setTimeout(() => {
-      const allCompleted = scaleItems.every(item => results[item.id] !== null && results[item.id] !== undefined);
-      if (allCompleted && onComplete) {
-        onComplete(results as unknown as UEQSResults);
-      }
-    }, 50);
   };
 
   /**
@@ -167,12 +197,13 @@
 
 <style>
   .ueqs-survey {
-    max-width: 600px;
+    width: 100%;
     margin: 0 auto;
-    padding: 1rem;
+    padding: 0;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    box-sizing: border-box;
   }
 
   .survey-header {
