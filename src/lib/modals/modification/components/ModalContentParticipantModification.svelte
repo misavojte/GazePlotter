@@ -208,7 +208,20 @@
             <input
               type="text"
               id={participant.id + 'displayedName'}
-              bind:value={participant.displayedName}
+              value={participant.displayedName}
+              oninput={(e) => {
+                const target = e.currentTarget
+                const participantId = participant.id
+                // Find and update the participant by ID in the current array
+                // This ensures we update the correct object even after sorting
+                const index = participantObjects.findIndex(p => p.id === participantId)
+                if (index !== -1) {
+                  // Create a new array with the updated object to ensure reactivity
+                  participantObjects = participantObjects.map((p, i) => 
+                    i === index ? { ...p, displayedName: target.value } : p
+                  )
+                }
+              }}
             />
           </td>
           <td>

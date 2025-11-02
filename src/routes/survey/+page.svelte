@@ -313,11 +313,16 @@
     console.log('hasInformedConsent', hasInformedConsent)
     
     // Log the workspace command to the endpoint service (fire-and-forget, non-blocking)
+    // Deep clone the command to prevent race conditions where the command data might be
+    // mutated before async logging completes (especially on Windows Chrome where timing can differ)
     if (hasInformedConsent && endpointService.isServiceInitialized()) {
+      // Create a deep clone to ensure we capture the command state at this exact moment
+      const commandSnapshot = structuredClone(command)
+      
       endpointService.storeSurveyData({
           type: 'workspace_command',
           timestamp: Date.now(),
-          data: { command }
+          data: { command: commandSnapshot }
         }).catch((error) => {
           console.error('Failed to log workspace command:', error);
         });
@@ -371,22 +376,23 @@
       const nameCounts = new Map<string, number>();
       
       command.aois.forEach(aoi => {
-        const displayedName = aoi.displayedName || aoi.originalName || '';
-        if (displayedName.trim() !== '') {
+        const displayedName = (aoi.displayedName || '').trim();
+        if (displayedName !== '') {
           nameCounts.set(displayedName, (nameCounts.get(displayedName) || 0) + 1);
         }
       });
       
       // Check whether the aois with original names "T2-DataPAQ-OsayY" and "T2-DataPAQ-OsaX" are grouped
-      // i.e. having the same displayed name
+      // i.e. having the same displayed name (trimmed and normalized)
       const aoi1 = command.aois.find(aoi => aoi.originalName === 'T2-DataPAQ-OsayY');
       const aoi2 = command.aois.find(aoi => aoi.originalName === 'T2-DataPAQ-OsaX');
-      if (aoi1 && aoi2 && aoi1.displayedName === aoi2.displayedName) {
-        aoiCustomizationCondition.set(true);
-      }
-      const areAoisGrouped = aoi1 && aoi2 && aoi1.displayedName === aoi2.displayedName;
       
-      if (areAoisGrouped) {
+      // Normalize names by trimming and handling empty strings
+      const name1 = (aoi1?.displayedName || '').trim();
+      const name2 = (aoi2?.displayedName || '').trim();
+      
+      // Both names must be non-empty and equal for grouping
+      if (aoi1 && aoi2 && name1 !== '' && name2 !== '' && name1 === name2) {
         aoiCustomizationCondition.set(true);
       }
     }

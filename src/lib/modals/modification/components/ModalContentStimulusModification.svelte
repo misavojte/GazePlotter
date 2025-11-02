@@ -206,7 +206,20 @@
             <input
               type="text"
               id={stimulus.id + 'displayedName'}
-              bind:value={stimulus.displayedName}
+              value={stimulus.displayedName}
+              oninput={(e) => {
+                const target = e.currentTarget
+                const stimulusId = stimulus.id
+                // Find and update the stimulus by ID in the current array
+                // This ensures we update the correct object even after sorting
+                const index = stimulusObjects.findIndex(s => s.id === stimulusId)
+                if (index !== -1) {
+                  // Create a new array with the updated object to ensure reactivity
+                  stimulusObjects = stimulusObjects.map((s, i) => 
+                    i === index ? { ...s, displayedName: target.value } : s
+                  )
+                }
+              }}
             />
           </td>
           <td>
