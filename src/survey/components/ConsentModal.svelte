@@ -14,13 +14,14 @@
 
   let over18 = $state(false)
   let readInfo = $state(false)
+  let agreeToParticipate = $state(false)
 
   /**
    * Handles user consent - executes callback and closes modal
-   * Only proceeds if both checkboxes are checked
+   * Only proceeds if all three checkboxes are checked
    */
   const handleConsent = () => {
-    if (!over18 || !readInfo) return
+    if (!over18 || !readInfo || !agreeToParticipate) return
     onConsent()
     modalStore.close()
   }
@@ -38,7 +39,7 @@
   <p>
     GazePlotter is an eye-tracking data visualisation tool that works with data from various eye
     trackers (Tobii, SMI, GazePoint, PupilLabs, etc.) and creates visualisations such as scarf
-    plots (sequences of fixations in time coloured by Area of Interests for each participant). You will work with pre-loaded eye-tracking data from one of our studies
+    plots (sequences of fixations in time coloured by <em>Areas of Interest (AOIs)</em> for each participant). You will work with pre-loaded eye-tracking data from one of our studies
     and complete several small tasks in the GazePlotter interface, followed by a short questionnaire on user experience.
   </p>
 
@@ -64,7 +65,9 @@
     Participation is voluntary. The survey is approved by the Ethics Committee of the Faculty of Science, Palacký University Olomouc
     (Ref. No.: 22-01).
   </p>
-  <p>Data are processed under GDPR Art. 6(1)(e) with Art. 89(1) safeguards.</p>
+  <p> Data are processed under GDPR Art. 6(1)(e) as a task carried out in the public interest
+  under applicable Czech higher-education and research law, with Art. 89(1) safeguards
+  (pseudonymisation, access controls, EU hosting).</p>
 
   <h4>What we collect</h4>
   <ul>
@@ -90,7 +93,7 @@
   <ul>
     <li>
       <strong>Raw/pseudonymised logs (incl. technical metadata):</strong> stored on Palacký University Olomouc servers
-      (access-controlled) for the necessary duration of the research purposes (up to 10 years after the dataset freeze); <u>never shared publicly</u>
+      (access-controlled) for the necessary duration of the research purposes (≥10 years after end of research or publication/deposition, per university policy R-B-24/08); <u>never shared publicly</u>
     </li>
     <li>
       <strong>Dataset freeze:</strong> on <strong>December 1, 2025</strong>, the dataset will be frozen. After this date,
@@ -107,12 +110,10 @@
 
   <h4>Recipients & processors</h4>
   <p>
-    Raw/pseudonymised logs are accessible only to authorised members of the research team at the
-    Department of Geoinformatics, Palacký University Olomouc. Server operations are handled by
-    Palacký University Olomouc IT as data processor. No other recipients receive raw logs.
-  </p>
-  <p>
-    <strong>Independent verification:</strong> For editors or qualified researchers we can share a verification package containing pseudonymised logs after a simple email confirmation of use terms (no onward sharing, no re-identification, delete after use). The package uses relative timestamps and strips technical fingerprints.
+    Raw/pseudonymised logs are accessible only to authorised members of the research team at Palacký University Olomouc.
+  UP IT acts as data processor for server operations. <strong>Upon justified request for scientific verification</strong>
+  (e.g., journal editors or qualified researchers), we may provide a <strong>controlled-access verification package</strong>
+  under strict terms (no onward sharing, no re-identification, deletion after use). No other recipients receive raw logs.
   </p>
 
   <h4>Your rights</h4>
@@ -125,7 +126,7 @@
   </p>
   <p>
     After the freeze date, deleting individual records would <em>seriously impair</em> the research
-    dataset's integrity; therefore, under <strong>GDPR Art. 17(3)(d)</strong> (with Art. 89(1)
+    purpose; under <strong>GDPR Art. 17(3)(d)</strong> (with Art. 89(1)
     safeguards) the right to erasure no longer applies to the frozen dataset. Anonymous OSF summaries
     cannot be linked back to you and are not subject to erasure.
   </p>
@@ -150,9 +151,13 @@
     <input type="checkbox" bind:checked={readInfo} />
     <span>I have read and understood this information.</span>
   </label>
+  <label class="mt-1 block">
+    <input type="checkbox" bind:checked={agreeToParticipate} />
+    <span>I agree to participate in the study.</span>
+  </label>
 
   <div class="button-container">
-    <GeneralButtonMajor variant="primary" onclick={handleConsent} isDisabled={!over18 || !readInfo}>
+    <GeneralButtonMajor variant="primary" onclick={handleConsent} isDisabled={!over18 || !readInfo || !agreeToParticipate}>
       Start the study
     </GeneralButtonMajor>
     <GeneralButtonMajor onclick={handleDecline}>I do not want to participate</GeneralButtonMajor>
