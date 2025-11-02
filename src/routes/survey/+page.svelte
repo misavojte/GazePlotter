@@ -70,6 +70,8 @@
   const transitionMatrixCondition = createCondition(); // Monitor for Transition Matrix aggregation
   const barPlotCondition = createCondition(); // Monitor for Bar Plot aggregation
   const explorationCondition = createCondition(); // Monitor for UI exploration completion
+  const transitionMatrixStimulusCondition = createCondition(); // Monitor for Transition Matrix stimulus
+  const barPlotStimulusCondition = createCondition(); // Monitor for Bar Plot stimulus
 
   // State for forcing banner to close on any modal content
   let forceCloseBanner = $state(false);
@@ -215,29 +217,29 @@
       skippable: false
     },
     { 
-      text: "On scarf plot, set stimulus to Task 2",
+      text: "Scroll to workspace below. On Scarf Plot, set stimulus to Task 2",
       condition: stimulusCondition, // Auto-completes when stimulus is set to Task 2
       onSkip: createSkipHandler(1, "On scarf plot, set stimulus to Task 2")
     },
     { 
-      text: "Set timeline to relative",
+      text: "On Scarf Plot, set timeline to relative",
       condition: timelineCondition, // Auto-completes when timeline is set to relative
       onSkip: createSkipHandler(2, "Set timeline to relative")
     },
     { 
-      text: "Set group to 'Analytics'",
+      text: "On Scarf Plot, set group to 'Analytics'",
       condition: groupCondition, // Auto-completes when group is set to Group 1
       onSkip: createSkipHandler(3, "Set group to 'Analytics'")
     },
     { 
-      text: "Duplicate the scarf plot",
+      text: "Duplicate Scarf Plot",
       condition: duplicateCondition, // Auto-completes when plot is duplicated
-      onSkip: createSkipHandler(4, "Duplicate the scarf plot")
+      onSkip: createSkipHandler(4, "Duplicate Scarf Plot")
     },
     { 
-      text: "On the duplicated plot, set group to 'Holistics'",
+      text: "On the duplicated Scarf Plot, set group to 'Holistics'",
       condition: group2Condition, // Auto-completes when group is set to Group 2
-      onSkip: createSkipHandler(5, "On the duplicated plot, set group to 'Holistics'")
+      onSkip: createSkipHandler(5, "On the duplicated Scarf Plot, set group to 'Holistics'")
     },
     { 
       text: "Find 'AOI Customization' and group XAxis and YAxis (in stimulus Task 2) by giving them the same name",
@@ -245,14 +247,24 @@
       onSkip: createSkipHandler(6, "Find 'AOI Customization' and group XAxis and YAxis (in stimulus Task 2) by giving them the same name")
     },
     { 
+      text: "On Transition Matrix, set stimulus to Task 2",
+      condition: transitionMatrixStimulusCondition, // Auto-completes when stimulus is set to Task 2
+      onSkip: createSkipHandler(7, "On Transition Matrix, set stimulus to Task 2")
+    },
+    { 
       text: "On Transition Matrix, change aggregation metric to '1-step probability'",
       condition: transitionMatrixCondition, // Auto-completes when aggregation is changed
-      onSkip: createSkipHandler(7, "On Transition Matrix, change aggregation metric to '1-step probability'")
+      onSkip: createSkipHandler(8, "On Transition Matrix, change aggregation metric to '1-step probability'")
+    },
+    { 
+      text: "On Bar Plot, set stimulus to Task 2",
+      condition: barPlotStimulusCondition, // Auto-completes when stimulus is set to Task 2
+      onSkip: createSkipHandler(9, "On Bar Plot, set stimulus to Task 2")
     },
     { 
       text: "On Bar Plot, set aggregation method to 'Mean visits'",
       condition: barPlotCondition, // Auto-completes when aggregation is changed
-      onSkip: createSkipHandler(8, "On Bar Plot, set aggregation method to 'Mean visits'")
+      onSkip: createSkipHandler(10, "On Bar Plot, set aggregation method to 'Mean visits'")
     },
     { 
       text: "Feel free to explore the UI as long as you wish",
@@ -413,6 +425,24 @@
         command.settings.aggregationMethod === 'averageEntries' &&
         isCommandFromPlotType(command.source, 'barPlot')) {
       barPlotCondition.set(true);
+    }
+
+    // Check for Transition Matrix stimulus change to Task 2
+    if (command.type === 'updateSettings' && 
+        command.settings && 
+        'stimulusId' in command.settings && 
+        command.settings.stimulusId === 1 &&
+        isCommandFromPlotType(command.source, 'TransitionMatrix')) {
+      transitionMatrixStimulusCondition.set(true);
+    }
+    
+    // Check for Bar Plot stimulus change to Task 2
+    if (command.type === 'updateSettings' && 
+        command.settings && 
+        'stimulusId' in command.settings && 
+        command.settings.stimulusId === 1 &&
+        isCommandFromPlotType(command.source, 'barPlot')) {
+      barPlotStimulusCondition.set(true);
     }
   }
 </script>

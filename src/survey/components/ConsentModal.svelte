@@ -32,14 +32,18 @@
 <div class="consent-content">
   <p>
     You are about to participate in a user experience evaluation of GazePlotter, 
-    an eye-tracking data visualization tool. This evaluation will help us improve 
+    an eye-tracking data visualization tool. It accepts your own data from Tobii, SMI, GazePoint, PupilLabs, and other eye trackers, automatically converting them to scarf plots (showing the order of fixations in various Areas of Interest—AOIs—over time) and other visualizations.
+    The tool is and will remain free for anyone to use.
+  </p>
+  <p>
+    This evaluation will help us improve 
     the software for researchers and practitioners in the field of eye-tracking.
   </p>
   
   <h4>What you will be asked to do:</h4>
   <ul>
     <li>Complete a series of guided basic tasks using the GazePlotter interface</li>
-    <li>Explore different features and visualizations</li>
+    <li>Explore different visualizations and some of its features</li>
     <li>Answer questions about your experience</li>
     <li>The entire session should take approximately 15 minutes</li>
   </ul>
@@ -65,6 +69,9 @@
   </ul>
 
   <h4>Data privacy and handling:</h4>
+  <p>
+    All data is collected in accordance with the ethics approval obtained from the Ethics Committee of Faculty of Science, Palacký University Olomouc (Ref. No.: 22-01):
+  </p>
   <ul>
     <li>You will be assigned an anonymous identifier (your session ID) that is not linked to your identity</li>
     <li>All data is stored securely and anonymously at the server of the Department of Geoinformatics, Palacký University Olomouc</li>
