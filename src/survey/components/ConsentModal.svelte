@@ -1,7 +1,7 @@
 <script lang="ts">
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
-  
+
   interface Props {
     onConsent: () => void
     sessionId: string
@@ -9,14 +9,18 @@
 
   let { onConsent, sessionId }: Props = $props()
 
-  // Configuration constants
   const CONSENT_WITHDRAW_EMAIL = 'mail@vojtechovska.com'
   const DECLINE_REDIRECT_URL = 'https://www.eyetracking.upol.cz'
-  
+
+  let over18 = $state(false)
+  let readInfo = $state(false)
+
   /**
    * Handles user consent - executes callback and closes modal
+   * Only proceeds if both checkboxes are checked
    */
   const handleConsent = () => {
+    if (!over18 || !readInfo) return
     onConsent()
     modalStore.close()
   }
@@ -30,81 +34,128 @@
 </script>
 
 <div class="consent-content">
+
   <p>
-    You are about to participate in a user experience evaluation of GazePlotter, 
-    an eye-tracking data visualization tool. It accepts your own data from Tobii, SMI, GazePoint, PupilLabs, and other eye trackers, automatically converting them to scarf plots (showing the order of fixations in various Areas of Interest—AOIs—over time) and other visualizations.
-    The tool is and will remain free for anyone to use.
+    GazePlotter is an eye-tracking data visualisation tool that works with data from various eye
+    trackers (Tobii, SMI, GazePoint, PupilLabs, etc.) and creates visualisations such as scarf
+    plots (sequences of fixations in time coloured by Area of Interests for each participant). You will work with pre-loaded eye-tracking data from one of our studies
+    and complete several small tasks in the GazePlotter interface, followed by a short questionnaire on user experience.
   </p>
-  <p>
-    This evaluation will help us improve 
-    the software for researchers and practitioners in the field of eye-tracking.
-  </p>
-  
-  <h4>What you will be asked to do:</h4>
+
+  <h4>Controller & contacts</h4>
   <ul>
-    <li>Complete a series of guided basic tasks using the GazePlotter interface</li>
-    <li>Explore different visualizations and some of its features</li>
-    <li>Answer questions about your experience</li>
-    <li>The entire session should take approximately 15 minutes</li>
+    <li>
+      <strong>Controller:</strong> Dept. of Geoinformatics, Palacký University Olomouc, 17.
+      listopadu 50, 779 00 Olomouc, CZ
+    </li>
+    <li>
+      <strong>Study contact:</strong> Mgr. Michaela Vojtěchovská —
+      <a href="mailto:{CONSENT_WITHDRAW_EMAIL}">{CONSENT_WITHDRAW_EMAIL}</a>
+    </li>
+    <li>
+      <strong>Palacký University Olomouc Data Protection Officer:</strong> Mgr. Dott. Františka Sandroni —
+      <a href="mailto:dpo@upol.cz">dpo@upol.cz</a>
+    </li>
   </ul>
 
-  <h4>Your participation:</h4>
-  <ul>
-    <li>Is completely voluntary</li>
-    <li>Can be withdrawn at any time without penalty</li>
-    <li>You will not be asked to provide identifying information (name, email, etc.)</li>
-    <li>Will help improve the tool for the research community</li>
-  </ul>
-
-  <h4>Data we collect:</h4>
+  <h4>Purpose & legal basis</h4>
   <p>
-    To ensure the scientific validity and quality of this research, we collect the 
-    following data:
+    Scientific research to evaluate and improve GazePlotter and report results.
+    Participation is voluntary. The survey is approved by the Ethics Committee of the Faculty of Science, Palacký University Olomouc
+    (Ref. No.: 22-01).
   </p>
-  <ul>
-    <li><strong>Survey responses</strong>: your experience ratings and feedback</li>
-    <li><strong>Interaction data</strong>: detailed workspace interactions, task completion times and triggered commands</li>
-    <li><strong>Session metadata</strong>: anonymous session ID, timestamps, browser information (user agent, screen dimensions, page URL)</li>
-    <li><strong>Geographic cohort</strong>: your recruitment location saved via page URL (e.g., "?cohort=Lithuania")</li>
-  </ul>
+  <p>Data are processed under GDPR Art. 6(1)(e) with Art. 89(1) safeguards.</p>
 
-  <h4>Data privacy and handling:</h4>
+  <h4>What we collect</h4>
+  <ul>
+    <li><strong>Task data:</strong> relative task timings, success, counts of the commands issued to the GazePlotter workspace</li>
+    <li>
+      <strong>Questionnaire:</strong> UEQ responses; your eye-tracking experience; brief open-ended feedback
+      (<em>please avoid personal/sensitive details</em>)
+    </li>
+    <li><strong>Cohort:</strong> "Lithuania" or "Czechia" (from the study link)</li>
+    <li>
+      <strong>Technical metadata (raw only):</strong> browser user-agent, screen dimensions, page
+      URL, and detailed interaction logs.
+    </li>
+    <li><strong>Session ID:</strong> a pseudonymous identifier (shown below) used to handle your rights requests (e.g., erasure before the freeze)</li>
+  </ul>
   <p>
-    All data is collected in accordance with the ethics approval obtained from the Ethics Committee of Faculty of Science, Palacký University Olomouc (Ref. No.: 22-01):
+    <strong>We do not request any Special-category data</strong> (e.g., health, religion, political
+    opinions). Please avoid including such details in free text. If provided, we will
+    redact them.
   </p>
+
+  <h4>Storage, sharing & retention</h4>
   <ul>
-    <li>You will be assigned an anonymous identifier (your session ID) that is not linked to your identity</li>
-    <li>All data is stored securely and anonymously at the server of the Department of Geoinformatics, Palacký University Olomouc</li>
-    <li>Data will be used solely for scientific research purposes</li>
-    <li>Results may be published in academic papers and conference presentations</li>
-    <li>You can revoke your consent and request data removal at any time by providing your session ID to the research team</li>
+    <li>
+      <strong>Raw/pseudonymised logs (incl. technical metadata):</strong> stored on Palacký University Olomouc servers
+      (access-controlled) for the necessary duration of the research purposes (up to 10 years after the dataset freeze); <u>never shared publicly</u>
+    </li>
+    <li>
+      <strong>Dataset freeze:</strong> on <strong>December 1, 2025</strong>, the dataset will be frozen. After this date,
+      anonymised aggregations will be calculated (see below) and raw logs will be retained securely for verification and
+      scientific integrity purposes.
+    </li>
+    <li>
+      <strong>Public OSF (EU/Frankfurt):</strong> we share only an <strong>anonymous summary
+        dataset</strong> (e.g., aggregate task timings, UEQ scores, and redacted open-ended feedback; see 'What we collect'). No
+      IDs, no absolute timestamps, no technical metadata. Hosted in the EU (Frankfurt); <strong>no transfers outside the EEA are intended</strong>.
+    </li>
+    <li><strong>Public retention:</strong> anonymous summaries kept <strong>indefinitely</strong></li>
   </ul>
 
-  <h4>Your session identifier:</h4>
+  <h4>Recipients & processors</h4>
+  <p>
+    Raw/pseudonymised logs are accessible only to authorised members of the research team at the
+    Department of Geoinformatics, Palacký University Olomouc. Server operations are handled by
+    Palacký University Olomouc IT as data processor. No other recipients receive raw logs.
+  </p>
+  <p>
+    <strong>Independent verification:</strong> For editors or qualified researchers we can share a verification package containing pseudonymised logs after a simple email confirmation of use terms (no onward sharing, no re-identification, delete after use). The package uses relative timestamps and strips technical fingerprints.
+  </p>
+
+  <h4>Your rights</h4>
+  <p>
+    You may request <strong>access, rectification, restriction, or erasure</strong> of your
+    raw/pseudonymised records <strong>until December 1, 2025</strong> (the dataset freeze date) by
+    emailing <a href="mailto:{CONSENT_WITHDRAW_EMAIL}">{CONSENT_WITHDRAW_EMAIL}</a> with your
+    <strong>Session ID</strong>. You also have the <strong>right to object</strong> to processing based
+    on Art. 6(1)(e).
+  </p>
+  <p>
+    After the freeze date, deleting individual records would <em>seriously impair</em> the research
+    dataset's integrity; therefore, under <strong>GDPR Art. 17(3)(d)</strong> (with Art. 89(1)
+    safeguards) the right to erasure no longer applies to the frozen dataset. Anonymous OSF summaries
+    cannot be linked back to you and are not subject to erasure.
+  </p>
+  <p>
+    You can complain to the Czech DPA (ÚOOÚ) or your local EEA authority. Participation is voluntary;
+    you may stop at any time. No automated decision-making with legal or similarly significant effects
+    is performed. <strong>Eligibility: 18+.</strong> Risks are minimal; no compensation.
+  </p>
+
+  <h4>Your session identifier</h4>
   <p class="session-info">
     <strong>Session ID: <code class="session-id">{sessionId}</code></strong>
-  </p>
-  <p>
-    Please save this identifier. If you wish to request information or withdraw your consent at any time, 
-    you can contact us at <strong><a href="mailto:{CONSENT_WITHDRAW_EMAIL}">{CONSENT_WITHDRAW_EMAIL}</a></strong> (Michaela Vojtechovska; contact person for this evaluation) and provide your session ID. 
+    <br />
+    <span class="session-instruction">Quote this ID in any rights request.</span>
   </p>
 
-  <p>
-    By clicking "I consent to participate", you confirm that you have read and 
-    understood the above information and agree to participate in this evaluation.
-  </p>
-  
-  <p class="decline-notice">
-    <strong>If you do not wish to participate, please close this page or click "I do not consent".</strong>
-  </p>
+  <label class="mt-2 block">
+    <input type="checkbox" bind:checked={over18} />
+    <span>I confirm I am 18 years or older.</span>
+  </label>
+  <label class="mt-1 block">
+    <input type="checkbox" bind:checked={readInfo} />
+    <span>I have read and understood this information.</span>
+  </label>
 
   <div class="button-container">
-    <GeneralButtonMajor variant="primary" onclick={handleConsent}>
-      I consent to participate
+    <GeneralButtonMajor variant="primary" onclick={handleConsent} isDisabled={!over18 || !readInfo}>
+      Start the study
     </GeneralButtonMajor>
-    <GeneralButtonMajor onclick={handleDecline}>
-      I do not consent
-    </GeneralButtonMajor>
+    <GeneralButtonMajor onclick={handleDecline}>I do not want to participate</GeneralButtonMajor>
   </div>
 </div>
 
@@ -121,7 +172,7 @@
   .session-id {
     font-family: 'Courier New', monospace;
     font-size: 0.9rem;
-    background: white;
+    background: #fff;
     padding: 0.25rem 0.5rem;
     border-radius: 4px;
     display: inline-block;
@@ -130,18 +181,16 @@
     letter-spacing: 0.05em;
   }
 
-  .decline-notice {
-    background: #fff3cd;
-    border: 1px solid #ffeaa7;
-    border-radius: var(--rounded-sm);
-    padding: 0.75rem;
-    margin-top: 1rem;
-    color: #856404;
+  .session-instruction {
+    font-size: 0.75rem;
+    color: #666;
+    display: block;
+    margin-top: 0.5rem;
   }
 
   .button-container {
     display: flex;
-    gap: 1rem;
+    gap: 0.5rem;
     justify-content: flex-start;
     margin-top: 1.5rem;
   }
@@ -164,5 +213,28 @@
 
   strong {
     font-weight: 600;
+  }
+
+  .mt-2 {
+    margin-top: 0.5rem;
+  }
+
+  .mt-1 {
+    margin-top: 0.25rem;
+  }
+
+  .block {
+    display: block;
+  }
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+  }
+
+  label input[type='checkbox'] {
+    cursor: pointer;
   }
 </style>

@@ -61,10 +61,10 @@ export class EndpointService {
   private endpoint: string | null = null;
   private isInitialized = false;
   private sessionId: string;
-  private lastSubmissionTimestamp: number = 0;
-  
-  // localStorage key for storing last submission timestamp
-  private readonly LAST_SUBMISSION_KEY = 'endpointService_lastSubmission';
+  private lastConsentSessionId: string | null = null;
+
+  // localStorage key for storing last informed consent session identifier
+  private readonly LAST_CONSENT_SESSION_ID_KEY = 'endpointService_lastConsentSessionId';
 
   /**
    * Constructor - generates unique session ID
@@ -102,10 +102,12 @@ export class EndpointService {
 
       this.endpoint = config.endpoint;
 
-        // try to get last submission timestamp from localStorage
-        // if localStorage item is not found, set lastSubmissionTimestamp to 0
-        const lastSubmissionTimestamp = localStorage?.getItem(this.LAST_SUBMISSION_KEY) || '0';
-        this.lastSubmissionTimestamp = parseInt(lastSubmissionTimestamp) || 0;
+        // Attempt to recover the most recent consent session identifier from localStorage.
+        if (typeof localStorage !== 'undefined') {
+          this.lastConsentSessionId = localStorage.getItem(this.LAST_CONSENT_SESSION_ID_KEY);
+        } else {
+          this.lastConsentSessionId = null;
+        }
 
       this.isInitialized = true;
     } catch (error) {
@@ -157,7 +159,7 @@ export class EndpointService {
         sessionId: entry.sessionId || this.sessionId,
         type: entry.type,
         timestamp: entry.timestamp,
-        lastSubmissionTimestamp: this.lastSubmissionTimestamp,
+        lastConsentSessionId: this.lastConsentSessionId,
         // Flatten nested data into the root level
         ...this.flattenObject(entry.data)
       };
@@ -187,8 +189,6 @@ export class EndpointService {
         responseData = null;
       }
 
-      // store last submission timestamp in localStorage
-      localStorage?.setItem(this.LAST_SUBMISSION_KEY, Date.now().toString());
 
       return {
         success: true,
@@ -238,6 +238,33 @@ export class EndpointService {
    */
   getSessionId(): string {
     return this.sessionId;
+  }
+
+  /**
+   * Retrieve the most recently persisted consent session identifier.
+   *
+   * @returns Last consent session identifier or null when none has been stored yet.
+   */
+  getLastConsentSessionId(): string | null {
+    return this.lastConsentSessionId;
+  }
+
+  /**
+   * Persist the provided consent session identifier to localStorage for future visits.
+   *
+   * @param sessionId - The consent session identifier obtained after the participant confirms informed consent.
+   */
+  persistLastConsentSessionId(sessionId: string): void {
+
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+
+    try {
+      localStorage.setItem(this.LAST_CONSENT_SESSION_ID_KEY, sessionId);
+    } catch (error) {
+      console.error('Failed to persist consent session identifier:', error);
+    }
   }
 
   /**

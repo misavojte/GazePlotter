@@ -2,7 +2,6 @@
   import { GazePlotter } from '$lib'
   import { base } from '$app/paths'
   import { browser } from '$app/environment'
-  import { page } from '$app/stores'
   import type { ParsedData } from '$lib/gaze-data/shared/types'
   import { EyeWorkerService } from '$lib/gaze-data/front-process/class/EyeWorkerService'
   import { Survey, surveyStore, createCondition, ConsentModal, endpointService, type EndpointConfig } from '$survey'
@@ -11,6 +10,7 @@
   import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import type { UEQSResults, EyeTrackingExperienceResult } from '$survey/types'
+  import { onMount } from 'svelte'
   // Format the build date
   const buildDate = new Date(__BUILD_DATE__)
   const formattedDate = new Intl.DateTimeFormat('en-US', {
@@ -83,6 +83,10 @@
   // Track if informed consent has been given
   let hasInformedConsent = $state(false);
 
+  // Track previous consent session information to surface a warning banner when necessary
+  let previousConsentSessionId = $state<string | null>(null);
+  let showPreviousConsentBanner = $state(false);
+
   // Reference to GazePlotter component for resetting layout
   let gazePlotterRef = $state<any>(null);
 
@@ -146,6 +150,18 @@
     });
   }
 
+  onMount(() => {
+    if (!browser) {
+      return;
+    }
+
+    const storedSessionId = endpointService.getLastConsentSessionId();
+    if (storedSessionId) {
+      previousConsentSessionId = storedSessionId;
+      showPreviousConsentBanner = true;
+    }
+  });
+
   /**
    * Helper function to create onSkip callback for logging task skips
    * @param taskIndex - The index of the task being skipped
@@ -172,6 +188,10 @@
       }
     };
   }
+
+  const dismissPreviousConsentBanner = (): void => {
+    showPreviousConsentBanner = false;
+  };
 
   // Example tasks with conditions and alert buttons
   const exampleTasks: SurveyTask[] = [
@@ -202,6 +222,11 @@
               
               // Set consent flag to enable data collection
               hasInformedConsent = true;
+
+              // Persist the consent session identifier for future visits and hide the banner for this session
+              endpointService.persistLastConsentSessionId(endpointService.getSessionId());
+              previousConsentSessionId = null;
+              showPreviousConsentBanner = false;
               
               // Reset the GazePlotter layout to initial state
               if (gazePlotterRef) {
@@ -520,6 +545,25 @@
       No&nbsp;registration, no ads and no data stored on&nbsp;a&nbsp;server. We
       love open science.
     </p>
+    {#if showPreviousConsentBanner && previousConsentSessionId}
+      <div class="previous-consent-banner" role="alert">
+        <p class="previous-consent-banner__message">
+          <strong>Warning!</strong>
+          There has already been a survey started from this computer with the session named
+          <span class="previous-consent-banner__session-id">{previousConsentSessionId}</span>.
+        </p>
+        <p class="previous-consent-banner__contact">
+          Do you wish to contact admin at <a href="mailto:mail@vojtechovska.com" class="previous-consent-banner__link">mail@vojtechovska.com</a>?
+        </p>
+        <button
+          type="button"
+          class="previous-consent-banner__dismiss"
+          onclick={dismissPreviousConsentBanner}
+        >
+          Dismiss. I either restarted / am a different participant
+        </button>
+      </div>
+    {/if}
     <Survey tasks={exampleTasks} {forceCloseBanner} />
   </section>
   <section>
@@ -638,6 +682,66 @@
     font-size: 1.5rem;
     max-width: 850px;
     margin-inline: auto;
+  }
+
+  .previous-consent-banner {
+    position: relative;
+    margin: 24px auto 0;
+    padding: 14px 16px 16px;
+    max-width: 500px;
+    background: #e8f2ff;
+    border: 1px solid #7cb0ff;
+    border-radius: 10px;
+    color: #0b3d91;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .previous-consent-banner__message {
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  .previous-consent-banner__session-id {
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-weight: 600;
+  }
+
+  .previous-consent-banner__contact {
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: rgba(11, 61, 145, 0.8);
+  }
+
+  .previous-consent-banner__link {
+    color: #0d63e0;
+    text-decoration: underline;
+    transition: color 0.2s ease-in-out;
+  }
+
+  .previous-consent-banner__link:hover,
+  .previous-consent-banner__link:focus {
+    color: #0a4fae;
+  }
+
+  .previous-consent-banner__dismiss {
+    align-self: center;
+    padding: 6px 14px;
+    background: #0d63e0;
+    color: white;
+    border: none;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.2s ease-in-out;
+  }
+
+  .previous-consent-banner__dismiss:hover,
+  .previous-consent-banner__dismiss:focus {
+    background: #0a4fae;
   }
 
   header > div {
