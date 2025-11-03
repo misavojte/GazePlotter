@@ -12,31 +12,80 @@
   let { valuePromiseResolve, valuePromiseReject }: Props = $props()
   let selectedOption: string = $state('')
   let customMarkers: string = $state('_start;_end')
+  
+  /**
+   * Track whether the promise has been settled (resolved or rejected).
+   * This prevents attempting to reject an already-resolved promise during cleanup.
+   */
+  let isPromiseSettled = false
+
+  /**
+   * Capture the promise handlers immediately in local scope to prevent
+   * accessing props during component destruction when modal state may be null.
+   * This is critical because onDestroy runs after animations complete.
+   */
+  const capturedResolve = valuePromiseResolve
+  const capturedReject = valuePromiseReject
 
   onDestroy(() => {
-    valuePromiseReject(new Error('Modal closed without value'))
+    // Only reject if the promise hasn't been resolved or rejected yet
+    // Use captured handlers to avoid accessing props during destruction
+    if (!isPromiseSettled) {
+      isPromiseSettled = true
+      capturedReject(new Error('Modal closed without value'))
+    }
   })
 
+  /**
+   * Handles form submission by resolving the promise with the selected value.
+   * Marks the promise as settled to prevent double-handling during cleanup.
+   * Uses captured resolve handler to ensure stability during lifecycle.
+   */
   const handleSubmit = () => {
+    if (isPromiseSettled) return
+    
     const finalValue =
       selectedOption === 'custom' ? customMarkers : selectedOption
     console.log('value', finalValue)
-    valuePromiseResolve(finalValue)
+    isPromiseSettled = true
+    capturedResolve(finalValue)
   }
 
+  /**
+   * Handles cancellation by rejecting the promise and closing the modal.
+   * Marks the promise as settled to prevent double-handling during cleanup.
+   * Uses captured reject handler to ensure stability during lifecycle.
+   */
   const handleCancel = () => {
-    valuePromiseReject(new Error('User cancelled'))
+    if (isPromiseSettled) return
+    
+    isPromiseSettled = true
+    capturedReject(new Error('User cancelled'))
     modalStore.close()
   }
 
+  /**
+   * Selects a radio option for stimulus parsing method.
+   * @param option - The parsing option identifier
+   */
   const selectOption = (option: string) => {
     selectedOption = option
   }
 
-  const handleInputClick = (event: MouseEvent) => {
+  /**
+   * Prevents pointer/click events from bubbling to the parent card.
+   * Ensures interactions inside the input do not change selected option.
+   */
+  const handleInputClick = (event: Event) => {
     event.stopPropagation()
   }
 
+  /**
+   * Handles keyboard navigation for option selection.
+   * Allows Enter or Space to select an option.
+   * @param event - The keyboard event
+   * @param option - The option to select
+   */
   const handleKeydown = (event: KeyboardEvent, option: string) => {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
@@ -105,7 +154,12 @@
         </div>
       </label>
       {#if selectedOption === 'custom'}
-        <div class="custom-input" onclick={handleInputClick}>
+        <div 
+          class="custom-input" 
+          onclick={handleInputClick}
+          onpointerdown={handleInputClick}
+          role="none"
+        >
           <GeneralInputText
             bind:value={customMarkers}
             label="Markers (start;end)"

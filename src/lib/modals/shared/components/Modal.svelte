@@ -165,7 +165,6 @@
 {#if modal}
   <div
     class="modal-overlay"
-    aria-hidden="true"
     in:fade={{ duration: 200 }}
     out:fade={{ duration: 150 }}
     onpointerdown={e => {
