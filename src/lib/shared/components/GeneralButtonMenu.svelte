@@ -1,7 +1,6 @@
 <script lang="ts">
   import MinorButton from './GeneralButtonMinor.svelte'
   import { type ComponentType } from 'svelte'
-  import MoreVertical from 'lucide-svelte/icons/more-vertical'
   import { tooltipAction } from '$lib/tooltip/components/Tooltip.svelte'
   import { fade, fly } from 'svelte/transition'
 
@@ -43,8 +42,15 @@
 <svelte:window onclick={handleOutsideClick} onkeydown={handleKeydown} />
 
 <div class="wrap" bind:this={menuElement} use:tooltipAction={{ content: "Plot & data options", position: "top", offset: 35, verticalAlign: "end", disabled: isOpen}}>
-  <MinorButton onclick={handleClick}>
-    <MoreVertical size={'1em'} />
+  <MinorButton isIcon={false} onclick={handleClick}>
+    <span class="triggerContent">
+      <svg class="dots" width="8" height="14" viewBox="0 0 4 12" fill="currentColor" aria-hidden="true">
+        <circle cx="2" cy="2" r="0.8" />
+        <circle cx="2" cy="6" r="0.8" />
+        <circle cx="2" cy="10" r="0.8" />
+      </svg>
+      <span class="triggerLabel">More</span>
+    </span>
   </MinorButton>
   {#if isOpen}
     <ul class="menu" transition:fly={{ y: -20, duration: 300 }}>
@@ -64,6 +70,19 @@
   .wrap {
     position: relative;
     display: flex;
+  }
+  
+  .triggerContent {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+  }
+  
+  .triggerLabel {
+    color: currentColor;
+    font-size: 13px;
+    line-height: 1;
+    margin-top: 1px;
   }
   
   .menu {
