@@ -2,7 +2,6 @@
   import { GazePlotter } from '$lib'
   import { base } from '$app/paths'
   import { browser } from '$app/environment'
-  import { page } from '$app/stores'
   import type { ParsedData } from '$lib/gaze-data/shared/types'
   import { EyeWorkerService } from '$lib/gaze-data/front-process/class/EyeWorkerService'
   import { Survey, surveyStore, createCondition, ConsentModal, endpointService, type EndpointConfig } from '$survey'
@@ -11,6 +10,7 @@
   import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import type { UEQSResults, EyeTrackingExperienceResult } from '$survey/types'
+  import { onMount } from 'svelte'
   // Format the build date
   const buildDate = new Date(__BUILD_DATE__)
   const formattedDate = new Intl.DateTimeFormat('en-US', {
@@ -70,6 +70,8 @@
   const transitionMatrixCondition = createCondition(); // Monitor for Transition Matrix aggregation
   const barPlotCondition = createCondition(); // Monitor for Bar Plot aggregation
   const explorationCondition = createCondition(); // Monitor for UI exploration completion
+  const transitionMatrixStimulusCondition = createCondition(); // Monitor for Transition Matrix stimulus
+  const barPlotStimulusCondition = createCondition(); // Monitor for Bar Plot stimulus
 
   // State for forcing banner to close on any modal content
   let forceCloseBanner = $state(false);
@@ -80,6 +82,10 @@
 
   // Track if informed consent has been given
   let hasInformedConsent = $state(false);
+
+  // Track previous consent session information to surface a warning banner when necessary
+  let previousConsentSessionId = $state<string | null>(null);
+  let showPreviousConsentBanner = $state(false);
 
   // Reference to GazePlotter component for resetting layout
   let gazePlotterRef = $state<any>(null);
@@ -144,6 +150,18 @@
     });
   }
 
+  onMount(() => {
+    if (!browser) {
+      return;
+    }
+
+    const storedSessionId = endpointService.getLastConsentSessionId();
+    if (storedSessionId) {
+      previousConsentSessionId = storedSessionId;
+      showPreviousConsentBanner = true;
+    }
+  });
+
   /**
    * Helper function to create onSkip callback for logging task skips
    * @param taskIndex - The index of the task being skipped
@@ -170,6 +188,10 @@
       }
     };
   }
+
+  const dismissPreviousConsentBanner = (): void => {
+    showPreviousConsentBanner = false;
+  };
 
   // Example tasks with conditions and alert buttons
   const exampleTasks: SurveyTask[] = [
@@ -200,6 +222,11 @@
               
               // Set consent flag to enable data collection
               hasInformedConsent = true;
+
+              // Persist the consent session identifier for future visits and hide the banner for this session
+              endpointService.persistLastConsentSessionId(endpointService.getSessionId());
+              previousConsentSessionId = null;
+              showPreviousConsentBanner = false;
               
               // Reset the GazePlotter layout to initial state
               if (gazePlotterRef) {
@@ -215,29 +242,29 @@
       skippable: false
     },
     { 
-      text: "On scarf plot, set stimulus to Task 2",
+      text: "Scroll to workspace below. On Scarf Plot, set stimulus to Task 2",
       condition: stimulusCondition, // Auto-completes when stimulus is set to Task 2
       onSkip: createSkipHandler(1, "On scarf plot, set stimulus to Task 2")
     },
     { 
-      text: "Set timeline to relative",
+      text: "On Scarf Plot, set timeline to relative",
       condition: timelineCondition, // Auto-completes when timeline is set to relative
       onSkip: createSkipHandler(2, "Set timeline to relative")
     },
     { 
-      text: "Set group to 'Analytics'",
+      text: "On Scarf Plot, set group to 'Analytics'",
       condition: groupCondition, // Auto-completes when group is set to Group 1
       onSkip: createSkipHandler(3, "Set group to 'Analytics'")
     },
     { 
-      text: "Duplicate the scarf plot",
+      text: "Duplicate Scarf Plot",
       condition: duplicateCondition, // Auto-completes when plot is duplicated
-      onSkip: createSkipHandler(4, "Duplicate the scarf plot")
+      onSkip: createSkipHandler(4, "Duplicate Scarf Plot")
     },
     { 
-      text: "On the duplicated plot, set group to 'Holistics'",
+      text: "On the duplicated Scarf Plot, set group to 'Holistics'",
       condition: group2Condition, // Auto-completes when group is set to Group 2
-      onSkip: createSkipHandler(5, "On the duplicated plot, set group to 'Holistics'")
+      onSkip: createSkipHandler(5, "On the duplicated Scarf Plot, set group to 'Holistics'")
     },
     { 
       text: "Find 'AOI Customization' and group XAxis and YAxis (in stimulus Task 2) by giving them the same name",
@@ -245,14 +272,24 @@
       onSkip: createSkipHandler(6, "Find 'AOI Customization' and group XAxis and YAxis (in stimulus Task 2) by giving them the same name")
     },
     { 
+      text: "On Transition Matrix, set stimulus to Task 2",
+      condition: transitionMatrixStimulusCondition, // Auto-completes when stimulus is set to Task 2
+      onSkip: createSkipHandler(7, "On Transition Matrix, set stimulus to Task 2")
+    },
+    { 
       text: "On Transition Matrix, change aggregation metric to '1-step probability'",
       condition: transitionMatrixCondition, // Auto-completes when aggregation is changed
-      onSkip: createSkipHandler(7, "On Transition Matrix, change aggregation metric to '1-step probability'")
+      onSkip: createSkipHandler(8, "On Transition Matrix, change aggregation metric to '1-step probability'")
+    },
+    { 
+      text: "On Bar Plot, set stimulus to Task 2",
+      condition: barPlotStimulusCondition, // Auto-completes when stimulus is set to Task 2
+      onSkip: createSkipHandler(9, "On Bar Plot, set stimulus to Task 2")
     },
     { 
       text: "On Bar Plot, set aggregation method to 'Mean visits'",
       condition: barPlotCondition, // Auto-completes when aggregation is changed
-      onSkip: createSkipHandler(8, "On Bar Plot, set aggregation method to 'Mean visits'")
+      onSkip: createSkipHandler(10, "On Bar Plot, set aggregation method to 'Mean visits'")
     },
     { 
       text: "Feel free to explore the UI as long as you wish",
@@ -313,11 +350,16 @@
     console.log('hasInformedConsent', hasInformedConsent)
     
     // Log the workspace command to the endpoint service (fire-and-forget, non-blocking)
+    // Deep clone the command to prevent race conditions where the command data might be
+    // mutated before async logging completes (especially on Windows Chrome where timing can differ)
     if (hasInformedConsent && endpointService.isServiceInitialized()) {
+      // Create a deep clone to ensure we capture the command state at this exact moment
+      const commandSnapshot = structuredClone(command)
+      
       endpointService.storeSurveyData({
           type: 'workspace_command',
           timestamp: Date.now(),
-          data: { command }
+          data: { command: commandSnapshot }
         }).catch((error) => {
           console.error('Failed to log workspace command:', error);
         });
@@ -371,22 +413,23 @@
       const nameCounts = new Map<string, number>();
       
       command.aois.forEach(aoi => {
-        const displayedName = aoi.displayedName || aoi.originalName || '';
-        if (displayedName.trim() !== '') {
+        const displayedName = (aoi.displayedName || '').trim();
+        if (displayedName !== '') {
           nameCounts.set(displayedName, (nameCounts.get(displayedName) || 0) + 1);
         }
       });
       
       // Check whether the aois with original names "T2-DataPAQ-OsayY" and "T2-DataPAQ-OsaX" are grouped
-      // i.e. having the same displayed name
+      // i.e. having the same displayed name (trimmed and normalized)
       const aoi1 = command.aois.find(aoi => aoi.originalName === 'T2-DataPAQ-OsayY');
       const aoi2 = command.aois.find(aoi => aoi.originalName === 'T2-DataPAQ-OsaX');
-      if (aoi1 && aoi2 && aoi1.displayedName === aoi2.displayedName) {
-        aoiCustomizationCondition.set(true);
-      }
-      const areAoisGrouped = aoi1 && aoi2 && aoi1.displayedName === aoi2.displayedName;
       
-      if (areAoisGrouped) {
+      // Normalize names by trimming and handling empty strings
+      const name1 = (aoi1?.displayedName || '').trim();
+      const name2 = (aoi2?.displayedName || '').trim();
+      
+      // Both names must be non-empty and equal for grouping
+      if (aoi1 && aoi2 && name1 !== '' && name2 !== '' && name1 === name2) {
         aoiCustomizationCondition.set(true);
       }
     }
@@ -407,6 +450,24 @@
         command.settings.aggregationMethod === 'averageEntries' &&
         isCommandFromPlotType(command.source, 'barPlot')) {
       barPlotCondition.set(true);
+    }
+
+    // Check for Transition Matrix stimulus change to Task 2
+    if (command.type === 'updateSettings' && 
+        command.settings && 
+        'stimulusId' in command.settings && 
+        command.settings.stimulusId === 1 &&
+        isCommandFromPlotType(command.source, 'TransitionMatrix')) {
+      transitionMatrixStimulusCondition.set(true);
+    }
+    
+    // Check for Bar Plot stimulus change to Task 2
+    if (command.type === 'updateSettings' && 
+        command.settings && 
+        'stimulusId' in command.settings && 
+        command.settings.stimulusId === 1 &&
+        isCommandFromPlotType(command.source, 'barPlot')) {
+      barPlotStimulusCondition.set(true);
     }
   }
 </script>
@@ -484,6 +545,25 @@
       No&nbsp;registration, no ads and no data stored on&nbsp;a&nbsp;server. We
       love open science.
     </p>
+    {#if showPreviousConsentBanner && previousConsentSessionId}
+      <div class="previous-consent-banner" role="alert">
+        <p class="previous-consent-banner__message">
+          <strong>Warning!</strong>
+          There has already been a survey started from this computer with the session named
+          <span class="previous-consent-banner__session-id">{previousConsentSessionId}</span>.
+        </p>
+        <p class="previous-consent-banner__contact">
+          Do you wish to contact admin at <a href="mailto:mail@vojtechovska.com" class="previous-consent-banner__link">mail@vojtechovska.com</a>?
+        </p>
+        <button
+          type="button"
+          class="previous-consent-banner__dismiss"
+          onclick={dismissPreviousConsentBanner}
+        >
+          Dismiss. I either restarted / am a different participant
+        </button>
+      </div>
+    {/if}
     <Survey tasks={exampleTasks} {forceCloseBanner} />
   </section>
   <section>
@@ -602,6 +682,66 @@
     font-size: 1.5rem;
     max-width: 850px;
     margin-inline: auto;
+  }
+
+  .previous-consent-banner {
+    position: relative;
+    margin: 24px auto 0;
+    padding: 14px 16px 16px;
+    max-width: 500px;
+    background: #e8f2ff;
+    border: 1px solid #7cb0ff;
+    border-radius: 10px;
+    color: #0b3d91;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .previous-consent-banner__message {
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  .previous-consent-banner__session-id {
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-weight: 600;
+  }
+
+  .previous-consent-banner__contact {
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: rgba(11, 61, 145, 0.8);
+  }
+
+  .previous-consent-banner__link {
+    color: #0d63e0;
+    text-decoration: underline;
+    transition: color 0.2s ease-in-out;
+  }
+
+  .previous-consent-banner__link:hover,
+  .previous-consent-banner__link:focus {
+    color: #0a4fae;
+  }
+
+  .previous-consent-banner__dismiss {
+    align-self: center;
+    padding: 6px 14px;
+    background: #0d63e0;
+    color: white;
+    border: none;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.2s ease-in-out;
+  }
+
+  .previous-consent-banner__dismiss:hover,
+  .previous-consent-banner__dismiss:focus {
+    background: #0a4fae;
   }
 
   header > div {

@@ -43,35 +43,39 @@
   const reorderAois = (
     aois: ExtendedInterpretedDataType[]
   ): ExtendedInterpretedDataType[] => {
-    const nameGroups = new Map()
-
-    aois.forEach((aoi, index) => {
-      if (
-        isValidMatch(aoi.displayedName) &&
-        !nameGroups.has(aoi.displayedName)
-      ) {
-        nameGroups.set(aoi.displayedName, {
-          firstIndex: index,
-          color: aoi.color,
-        })
+    const processed = new Set<number>()
+    const result: ExtendedInterpretedDataType[] = []
+    
+    // Go through AOIs in order, grouping only valid names
+    for (let i = 0; i < aois.length; i++) {
+      if (processed.has(i)) continue
+      
+      const aoi = aois[i]
+      const trimmedName = (aoi.displayedName || '').trim()
+      
+      // If empty or invalid name, keep in place
+      if (!isValidMatch(trimmedName)) {
+        result.push(aoi)
+        processed.add(i)
+        continue
       }
-    })
-
-    const ungroupedAois = aois.filter(
-      aoi =>
-        !isValidMatch(aoi.displayedName) || !nameGroups.has(aoi.displayedName)
-    )
-
-    const groupedAois = Array.from(nameGroups.entries()).flatMap(
-      ([name, group]) => {
-        const matchingAois = aois.filter(
-          aoi => isValidMatch(aoi.displayedName) && aoi.displayedName === name
-        )
-        return matchingAois.map(aoi => ({ ...aoi, color: group.color }))
+      
+      // Find all AOIs with the same trimmed name
+      const group: ExtendedInterpretedDataType[] = []
+      for (let j = i; j < aois.length; j++) {
+        if (processed.has(j)) continue
+        const otherTrimmed = (aois[j].displayedName || '').trim()
+        if (otherTrimmed === trimmedName) {
+          group.push(aois[j])
+          processed.add(j)
+        }
       }
-    )
-
-    return [...ungroupedAois, ...groupedAois]
+      
+      // Do not hard-set color, plots will correctly use the color of the first AOI in the group
+      group.forEach(g => result.push(g))
+    }
+    
+    return result
   }
 
   const moveItem = (
@@ -79,8 +83,9 @@
     aoi: ExtendedInterpretedDataType,
     direction: 'up' | 'down'
   ): ExtendedInterpretedDataType[] => {
-    const groupedAois = isValidMatch(aoi.displayedName)
-      ? aois.filter(a => a.displayedName === aoi.displayedName)
+    const trimmedName = (aoi.displayedName || '').trim()
+    const groupedAois = isValidMatch(trimmedName)
+      ? aois.filter(a => (a.displayedName || '').trim() === trimmedName)
       : [aoi]
 
     const firstGroupIndex = aois.indexOf(groupedAois[0])
@@ -89,12 +94,12 @@
     if (direction === 'up' && currentIndex > 0) {
       if (groupedAois.length === 1) {
         const prevItemIndex = currentIndex - 1
-        const prevItemDisplayedName = aois[prevItemIndex].displayedName
+        const prevItemDisplayedName = (aois[prevItemIndex].displayedName || '').trim()
 
         if (isValidMatch(prevItemDisplayedName)) {
           const prevGroup = aois.filter(
             (a, i) =>
-              i < currentIndex && a.displayedName === prevItemDisplayedName
+              i < currentIndex && (a.displayedName || '').trim() === prevItemDisplayedName
           )
           const prevGroupStart = aois.indexOf(prevGroup[0])
 
@@ -114,8 +119,9 @@
         ]
       } else if (firstGroupIndex > 0) {
         const prevItem = aois[firstGroupIndex - 1]
-        const prevGroup = isValidMatch(prevItem.displayedName)
-          ? aois.filter(a => a.displayedName === prevItem.displayedName)
+        const prevItemTrimmed = (prevItem.displayedName || '').trim()
+        const prevGroup = isValidMatch(prevItemTrimmed)
+          ? aois.filter(a => (a.displayedName || '').trim() === prevItemTrimmed)
           : [prevItem]
         const prevGroupStart = aois.indexOf(prevGroup[0])
 
@@ -169,12 +175,9 @@
     }
   })
 
-  $effect(() => {
-    const reorderedResult = reorderAois([...aoiObjects])
-    if (JSON.stringify(reorderedResult) !== JSON.stringify(aoiObjects)) {
-      aoiObjects = reorderedResult
-    }
-  })
+  // Use $derived to compute reordered AOIs reactively without mutation
+  // This prevents race conditions during rapid input changes
+  const reorderedAoiObjects = $derived(reorderAois([...aoiObjects]))
 
   // Sorting state
   let sortColumn = $state<'originalName' | 'displayedName' | null>(null)
@@ -216,13 +219,33 @@
   }
 
   const handleObjectPositionUp = (aoi: ExtendedInterpretedDataType) => {
-    aoiObjects = moveItem(aoiObjects, aoi, 'up')
+    // Work on the already-reordered array where groups are contiguous
+    const reordered = reorderAois([...aoiObjects])
+    const movedAoi = reordered.find(a => a.id === aoi.id)
+    if (movedAoi) {
+      const result = moveItem(reordered, movedAoi, 'up')
+      // Map back to original aoiObjects by ID, preserving the untrimmed displayedName
+      aoiObjects = result.map(r => {
+        const original = aoiObjects.find(o => o.id === r.id)!
+        return { ...original, color: r.color }
+      })
+    }
     sortColumn = null
     sortDirection = null
   }
 
   const handleObjectPositionDown = (aoi: ExtendedInterpretedDataType) => {
-    aoiObjects = moveItem(aoiObjects, aoi, 'down')
+    // Work on the already-reordered array where groups are contiguous
+    const reordered = reorderAois([...aoiObjects])
+    const movedAoi = reordered.find(a => a.id === aoi.id)
+    if (movedAoi) {
+      const result = moveItem(reordered, movedAoi, 'down')
+      // Map back to original aoiObjects by ID, preserving the untrimmed displayedName
+      aoiObjects = result.map(r => {
+        const original = aoiObjects.find(o => o.id === r.id)!
+        return { ...original, color: r.color }
+      })
+    }
     sortColumn = null
     sortDirection = null
   }
@@ -238,11 +261,17 @@
       handlerTypeMap[userSelected as keyof typeof handlerTypeMap]
 
     try {
-      const aoiObjectsCopy = deepCopyAois(aoiObjects)
+      // Trim all displayedName values before submitting to prevent empty strings
+      const cleanedAois = aoiObjects.map(aoi => ({
+        id: aoi.id,
+        originalName: aoi.originalName,
+        displayedName: (aoi.displayedName || '').trim(),
+        color: aoi.color,
+      }))
       
       onWorkspaceCommand({
         type: 'updateAois',
-        aois: aoiObjectsCopy,
+        aois: cleanedAois,
         source,
         stimulusId: parseInt(selectedStimulus),
         applyTo: handlerType
@@ -282,10 +311,10 @@
 </div>
 
 <SectionHeader text="AOIs" />
-{#if aoiObjects.length === 0}
+{#if reorderedAoiObjects.length === 0}
   <GeneralEmpty message="No AOIs found in stimulus" />
 {/if}
-{#if aoiObjects.length > 0}
+{#if reorderedAoiObjects.length > 0}
   <table class="grid content">
     <thead>
       <tr class="gr-line header">
@@ -312,7 +341,7 @@
       </tr>
     </thead>
     <tbody>
-      {#each aoiObjects as aoi (aoi.id + selectedStimulus)}
+      {#each reorderedAoiObjects as aoi (aoi.id + selectedStimulus)}
         <tr
           class="gr-line"
           animate:flip={{ duration: 250 }}
@@ -323,18 +352,73 @@
             <input
               type="text"
               id={aoi.id + 'displayedName'}
-              bind:value={aoi.displayedName}
+              value={aoi.displayedName}
+              oninput={(e) => {
+                const target = e.currentTarget
+                // Find and update the original AOI in aoiObjects
+                const originalAoi = aoiObjects.find(a => a.id === aoi.id)
+                if (originalAoi) {
+                  originalAoi.displayedName = target.value
+                }
+              }}
             />
           </td>
-          {#if !isValidMatch(aoi.displayedName) || aoiObjects.findIndex(a => isValidMatch(a.displayedName) && a.displayedName === aoi.displayedName) === aoiObjects.indexOf(aoi)}
+          {#if !isValidMatch((aoi.displayedName || '').trim()) || reorderedAoiObjects.findIndex(a => isValidMatch((a.displayedName || '').trim()) && (a.displayedName || '').trim() === (aoi.displayedName || '').trim()) === reorderedAoiObjects.indexOf(aoi)}
             <td class="color-cell">
-              <GeneralInputColor label="" bind:value={aoi.color} />
+              <GeneralInputColor 
+                label="" 
+                value={aoi.color}
+                oninput={(event) => {
+                  const aoiId = aoi.id
+                  // Find and update the AOI by ID in the current array
+                  // This ensures we update the correct object even after sorting
+                  const index = aoiObjects.findIndex(a => a.id === aoiId)
+                  if (index !== -1) {
+                    // Create a new array with the updated object to ensure reactivity
+                    aoiObjects = aoiObjects.map((a, i) => 
+                      i === index ? { ...a, color: event.detail } : a
+                    )
+                  }
+                }}
+              />
             </td>
             <td>
               <div class="button-group">
                 <GeneralPositionControl
-                  isFirst={aoiObjects.indexOf(aoi) === 0}
-                  isLast={aoiObjects.indexOf(aoi) === aoiObjects.length - 1}
+                  isFirst={(() => {
+                    // If this AOI is part of a group, check if the first AOI in the group is at the top
+                    const trimmedName = (aoi.displayedName || '').trim()
+                    if (isValidMatch(trimmedName)) {
+                      // Find the first AOI with the same trimmed name
+                      let firstGroupIndex = reorderedAoiObjects.length
+                      reorderedAoiObjects.forEach((a, idx) => {
+                        const otherTrimmed = (a.displayedName || '').trim()
+                        if (otherTrimmed === trimmedName) {
+                          firstGroupIndex = Math.min(firstGroupIndex, idx)
+                        }
+                      })
+                      return firstGroupIndex === 0
+                    }
+                    // Not grouped, check if this AOI is first
+                    return reorderedAoiObjects.indexOf(aoi) === 0
+                  })()}
+                  isLast={(() => {
+                    // If this AOI is part of a group, check if the last AOI in the group is at the bottom
+                    const trimmedName = (aoi.displayedName || '').trim()
+                    if (isValidMatch(trimmedName)) {
+                      // Find the last AOI with the same trimmed name
+                      let lastGroupIndex = -1
+                      reorderedAoiObjects.forEach((a, idx) => {
+                        const otherTrimmed = (a.displayedName || '').trim()
+                        if (otherTrimmed === trimmedName) {
+                          lastGroupIndex = Math.max(lastGroupIndex, idx)
+                        }
+                      })
+                      return lastGroupIndex === reorderedAoiObjects.length - 1
+                    }
+                    // Not grouped, check if this AOI is last
+                    return reorderedAoiObjects.indexOf(aoi) === reorderedAoiObjects.length - 1
+                  })()}
                   onMoveDown={() => handleObjectPositionDown(aoi)}
                   onMoveUp={() => handleObjectPositionUp(aoi)}
                 />
