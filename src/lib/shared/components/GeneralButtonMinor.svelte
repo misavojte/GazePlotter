@@ -47,6 +47,32 @@
 
   const itemsSafe = $derived((items ?? []) as MinorGroupItem[])
   const isGroup = $derived(itemsSafe.length > 0)
+
+  /**
+   * Triggers a brief scale animation on the immediate content of a button
+   * to provide tactile feedback on clicks.
+   */
+  function animateClickFeedback(event: MouseEvent) {
+    const button = event.currentTarget as HTMLElement | null
+    if (!button) return
+    const content = button.querySelector('.btnContent') as HTMLElement | null
+    if (!content) return
+    // Scale down then restore
+    content.style.transform = 'scale(0.92)'
+    const restore = () => {
+      content.style.transform = 'scale(1)'
+    }
+    // Restore after short delay; also on mouseup/mouseleave just in case
+    setTimeout(restore, 120)
+  }
+
+  /** Wrap a click handler to include the click feedback animation. */
+  function withFeedback(handler: (event: MouseEvent) => void) {
+    return (event: MouseEvent) => {
+      animateClickFeedback(event)
+      handler?.(event)
+    }
+  }
 </script>
 
 {#if !isGroup}
@@ -55,13 +81,15 @@
     use:tooltipAction={{ content: tooltip ?? '', position: 'top', offset: 35, verticalAlign: 'end', disabled: !tooltip }}
     disabled={isDisabled}
     class:isIcon={isIcon}
-    {onclick}
+    onclick={withFeedback(onclick)}
     aria-label={ariaLabel}
   >
-    {#if icon}
-      <icon size={'1em'} strokeWidth={1}></icon>
-    {/if}
-    {@render children?.()}
+    <span class="btnContent">
+      {#if icon}
+        <icon size={'1em'} strokeWidth={1}></icon>
+      {/if}
+      {@render children?.()}
+    </span>
   </button>
 {:else}
   <!-- Group mode: always icon-only buttons -->
@@ -84,10 +112,12 @@
         <button
           disabled={item.isDisabled}
           class:isIcon={true}
-          onclick={item.onclick}
+          onclick={withFeedback(item.onclick)}
           aria-label={item.ariaLabel}
         >
-          <item.icon size={'1em'} strokeWidth={1} />
+          <span class="btnContent">
+            <item.icon size={'1em'} strokeWidth={1} />
+          </span>
         </button>
       </div>
     {/each}
@@ -165,4 +195,13 @@
     border-bottom-right-radius: var(--rounded);
   }
   .itemWrap.active :global(button) { color: var(--c-brand); background: #e9f2ff; }
+
+  /* Content scaling feedback */
+  .btnContent {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 120ms ease;
+    will-change: transform;
+  }
 </style>
