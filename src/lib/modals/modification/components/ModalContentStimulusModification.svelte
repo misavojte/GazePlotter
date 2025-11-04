@@ -257,7 +257,7 @@
   input {
     height: 34px;
     box-sizing: border-box;
-    border: 1px solid var(--c-darkgrey);
+    border: 1px solid var(--c-border);
     border-radius: var(--rounded);
     margin: 0;
     padding: 0.5rem;

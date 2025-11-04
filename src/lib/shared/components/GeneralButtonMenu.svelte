@@ -55,7 +55,7 @@
 >
   <MinorButton isIcon={false} onclick={handleClick}>
     <span class="triggerContent">
-      <svg class="dots" width="8" height="14" viewBox="0 0 4 12" fill="currentColor" aria-hidden="true">
+      <svg class="dots" width="10" height="16" viewBox="0 0 4 12" fill="currentColor" aria-hidden="true">
         <circle cx="2" cy="2" r="0.8" />
         <circle cx="2" cy="6" r="0.8" />
         <circle cx="2" cy="10" r="0.8" />
@@ -69,18 +69,26 @@
   .wrap {
     position: relative;
     display: flex;
+    align-items: center;
   }
   
   .triggerContent {
     display: inline-flex;
     align-items: center;
-    gap: 2px;
+    gap: 6px;
+    padding-inline: 2px;
   }
   
   .triggerLabel {
     color: currentColor;
     font-size: 13px;
-    line-height: 1;
-    margin-top: 1px;
+    line-height: 1.25;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    margin-top: 0;
+  }
+
+  .dots {
+    display: block;
   }
 </style>

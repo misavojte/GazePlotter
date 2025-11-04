@@ -73,6 +73,26 @@
       handler?.(event)
     }
   }
+
+  /**
+   * Immediate press feedback using Pointer Events so the scale effect is visible
+   * even if the click opens a menu or triggers fast UI changes.
+   */
+  function handlePointerDown(event: PointerEvent) {
+    const button = event.currentTarget as HTMLElement | null
+    if (!button) return
+    const content = button.querySelector('.btnContent') as HTMLElement | null
+    if (!content) return
+    content.style.transform = 'scale(0.92)'
+  }
+
+  function handlePointerEnd(event: PointerEvent) {
+    const button = event.currentTarget as HTMLElement | null
+    if (!button) return
+    const content = button.querySelector('.btnContent') as HTMLElement | null
+    if (!content) return
+    content.style.transform = 'scale(1)'
+  }
 </script>
 
 {#if !isGroup}
@@ -82,6 +102,10 @@
     disabled={isDisabled}
     class:isIcon={isIcon}
     onclick={withFeedback(onclick)}
+    onpointerdown={handlePointerDown}
+    onpointerup={handlePointerEnd}
+    onpointerleave={handlePointerEnd}
+    onpointercancel={handlePointerEnd}
     aria-label={ariaLabel}
   >
     <span class="btnContent">
@@ -113,6 +137,10 @@
           disabled={item.isDisabled}
           class:isIcon={true}
           onclick={withFeedback(item.onclick)}
+          onpointerdown={handlePointerDown}
+          onpointerup={handlePointerEnd}
+          onpointerleave={handlePointerEnd}
+          onpointercancel={handlePointerEnd}
           aria-label={item.ariaLabel}
         >
           <span class="btnContent">
@@ -127,7 +155,7 @@
 <style>
   button {
     background: none;
-    border: 1px solid var(--c-darkgrey);
+    border: 1px solid var(--c-border);
     border-radius: var(--rounded);
     color: var(--c-black);
     padding: 0.25em 0.5em;

@@ -22,6 +22,8 @@ body {
   --c-grey: #e4e4e9;
   --c-midgrey: #d9d9d9;
   --c-darkgrey: #888888;
+  /* Midpoint between --c-darkgrey (#888888) and --c-midgrey (#d9d9d9) */
+  --c-border: #b1b1b1;
   --c-black: #202020;
 
   --c-error: #ff4d4f;

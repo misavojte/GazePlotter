@@ -251,7 +251,7 @@
 
   .trigger {
     background: var(--c-white);
-    border: 1px solid var(--c-darkgrey);
+    border: 1px solid var(--c-border);
     border-radius: var(--rounded);
     height: 34px;
     padding: 0.25em 0.5em;
