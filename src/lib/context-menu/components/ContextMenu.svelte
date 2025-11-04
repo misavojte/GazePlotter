@@ -1,11 +1,13 @@
 <script lang="ts">
   import { fly, fade } from 'svelte/transition'
   import { contextMenuStore, updateContextMenu } from '$lib/context-menu/stores'
+  import { MENU_MAX_HEIGHT } from '$lib/context-menu/components/contextMenuAction'
 
   /** Close the context menu by clearing the global store. */
   const onClose = () => updateContextMenu(null)
   let width = 220
   let container: HTMLUListElement | null = $state(null)
+  let menuElement: HTMLDivElement | null = $state(null)
 
   /**
    * Handle keyboard controls for the menu so it remains accessible.
@@ -57,6 +59,7 @@
 
 {#if $contextMenuStore}
   <div
+    bind:this={menuElement}
     class="menu"
     role="menu"
     in:fly={{
@@ -65,14 +68,18 @@
       x: $contextMenuStore.slideFrom === 'left' ? -8 : 0
     }}
     out:fade={{ duration: 140 }}
-    style={`left:${$contextMenuStore.x}px; top:${$contextMenuStore.y}px; width:${width}px; z-index:${$contextMenuStore.zIndex};`}
+    style={`left:${$contextMenuStore.x}px; top:${$contextMenuStore.y}px; width:${width}px; z-index:${$contextMenuStore.zIndex}; max-height:${MENU_MAX_HEIGHT}px;`}
+    onscroll={(e) => {
+      // Stop scroll events from bubbling up to prevent parent scroll handlers from closing the menu.
+      e.stopPropagation()
+    }}
   >
     {#if $contextMenuStore.items && $contextMenuStore.items.length}
       <ul bind:this={container}>
         <!-- Render each menu item as an accessible button so keyboard users can activate entries. -->
         {#each $contextMenuStore.items as it}
           <li>
-            <button role="menuitem" onclick={() => handleItemClick(it.action)}>
+            <button role="menuitem" class:highlighted={it.isHighlighted} onclick={() => handleItemClick(it.action)}>
               {#if it.icon}
                 {@const Icon = it.icon}
                 <Icon size={'1em'} strokeWidth={1} />
@@ -97,6 +104,9 @@
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
     /* z-index is set dynamically via inline style based on modal detection */
     /* Using fixed positioning so viewport coordinates from getBoundingClientRect() align correctly */
+    /* max-height is set dynamically via inline style to enable scrolling when content exceeds limit */
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   ul {
@@ -130,6 +140,10 @@
     padding-left: 16px;
   }
   button[role='menuitem'] :global(svg) { transition: transform 0.2s ease; }
+
+  button[role='menuitem'].highlighted {
+    color: var(--c-brand);
+  }
 
   .custom { padding: 10px 14px; }
 </style>

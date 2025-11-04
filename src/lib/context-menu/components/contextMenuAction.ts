@@ -8,6 +8,7 @@ export interface MenuItem {
   label: string
   action: () => void
   icon?: Component<any, any, any>
+  isHighlighted?: boolean
 }
 
 type Position = 'top' | 'bottom' | 'left' | 'right'
@@ -42,6 +43,9 @@ const MENU_HEIGHT_FALLBACK = 0
 const DEFAULT_OFFSET = 8
 const DEFAULT_Z_INDEX = 1000
 const MODAL_Z_INDEX = 1010 // Higher than modal's z-index of 1001
+
+/** Maximum height in pixels before the context menu becomes scrollable. */
+export const MENU_MAX_HEIGHT = 400
 
 /**
  * Compute aligned coordinate along an axis.
@@ -102,6 +106,51 @@ const computePlacement = (
 }
 
 /**
+ * Adjust placement to avoid viewport collisions by modifying coordinates to keep the menu within bounds.
+ * Automatically adjusts alignment behavior when collisions are detected with left, right, or bottom edges.
+ *
+ * @param placement - Initial computed placement coordinates.
+ * @param menuSize - Dimensions of the menu to position.
+ * @param viewportWidth - Width of the viewport.
+ * @param viewportHeight - Height of the viewport.
+ * @returns Adjusted placement coordinates that avoid viewport collisions.
+ */
+const adjustPlacementForViewport = (
+  placement: { left: number; top: number },
+  menuSize: { width: number; height: number },
+  viewportWidth: number,
+  viewportHeight: number
+): { left: number; top: number } => {
+  const adjusted = { ...placement }
+  const viewportPadding = 8 // Minimum padding from viewport edges
+
+  // Check and adjust for left edge collision.
+  // If the menu would extend beyond the left edge, clamp it to the left edge with padding.
+  if (adjusted.left < viewportPadding) {
+    adjusted.left = viewportPadding
+  }
+
+  // Check and adjust for right edge collision.
+  // If the menu would extend beyond the right edge, clamp it to the right edge with padding.
+  if (adjusted.left + menuSize.width > viewportWidth - viewportPadding) {
+    adjusted.left = viewportWidth - menuSize.width - viewportPadding
+  }
+
+  // Check and adjust for bottom edge collision.
+  // If the menu would extend beyond the bottom edge, clamp it above the bottom edge with padding.
+  if (adjusted.top + menuSize.height > viewportHeight - viewportPadding) {
+    adjusted.top = viewportHeight - menuSize.height - viewportPadding
+  }
+
+  // Ensure top edge doesn't go negative (though this is less common).
+  if (adjusted.top < viewportPadding) {
+    adjusted.top = viewportPadding
+  }
+
+  return adjusted
+}
+
+/**
  * Merge user provided options onto the existing set while ignoring undefined values.
  */
 const mergeContextMenuOptions = (
@@ -138,9 +187,43 @@ const resolveInternalState = (
 })
 
 /**
- * Fallback dimensions used during placement calculations before the menu is measured.
+ * Estimate menu height based on the number of items or content.
+ * Each menu item has approximately 40px height (padding + font size), with a minimum height for custom content.
+ *
+ * @param items - Array of menu items to estimate height from.
+ * @param hasContent - Whether the menu has custom content instead of items.
+ * @returns Estimated height in pixels.
  */
-const getMenuSize = () => ({ width: MENU_WIDTH, height: MENU_HEIGHT_FALLBACK })
+const estimateMenuHeight = (items: MenuItem[] | undefined, hasContent: boolean): number => {
+  if (hasContent) {
+    // Custom content typically has minimal padding, estimate around 40-60px.
+    return 50
+  }
+  if (items && items.length > 0) {
+    // Each menu item button has padding: 10px 14px, roughly 40px per item.
+    const itemHeight = 40
+    return items.length * itemHeight
+  }
+  // Fallback if no items or content.
+  return MENU_HEIGHT_FALLBACK
+}
+
+/**
+ * Get menu size with estimated height based on items or content.
+ * Caps the height at MENU_MAX_HEIGHT to match the actual rendered scrollable menu height.
+ *
+ * @param items - Array of menu items to estimate height from.
+ * @param hasContent - Whether the menu has custom content instead of items.
+ * @returns Menu dimensions with estimated height, capped at MENU_MAX_HEIGHT.
+ */
+const getMenuSize = (items: MenuItem[] | undefined, hasContent: boolean) => {
+  const estimatedHeight = estimateMenuHeight(items, hasContent)
+  // Cap height at MENU_MAX_HEIGHT to match the actual scrollable menu height.
+  return {
+    width: MENU_WIDTH,
+    height: Math.min(estimatedHeight, MENU_MAX_HEIGHT),
+  }
+}
 
 /**
  * Detect if an element is contained within a modal by traversing up the DOM tree.
@@ -232,15 +315,26 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (node,
   let ownsMenu = false
   let hasGlobalListeners = false
   let scrollableParents: (Window | HTMLElement)[] = []
-  let scrollListeners: Array<{ target: Window | HTMLElement; handler: () => void }> = []
+  let scrollListeners: Array<{ target: Window | HTMLElement; handler: (e: Event) => void }> = []
 
   const isOwnedState = (value: ContextMenuState | null): value is ContextMenuState =>
     Boolean(value && value.ownerId === ownerId)
 
   /**
    * Handler for scroll events that closes the menu when any scroll occurs.
+   * Ignores scroll events that originate from within the menu element itself
+   * to allow scrolling within the menu without closing it.
+   *
+   * @param e - Scroll event from a scrollable parent.
    */
-  const onScroll = () => {
+  const onScroll = (e: Event) => {
+    // Find the menu element to check if the scroll event originated from it.
+    const menuElement = document.querySelector('div.menu[role="menu"]')
+    // If the scroll event target is the menu element or its children, ignore it.
+    // This allows scrolling within the menu without closing it.
+    if (menuElement && (e.target === menuElement || menuElement.contains(e.target as Node))) {
+      return
+    }
     close()
   }
 
@@ -330,6 +424,7 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (node,
    * Open the menu positioned relative to the anchor element.
    * Position is calculated once on creation based on the position and alignment options,
    * and the menu will be closed on any scroll event.
+   * Automatically adjusts placement to avoid viewport collisions.
    */
   const openAt = () => {
     if (state.disabled) return
@@ -337,15 +432,32 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (node,
     ownsMenu = true
 
     // Calculate position based on anchor element's bounding rect and positioning options.
-          const rect = state.anchor.getBoundingClientRect()
-    const placement = computePlacement(rect, getMenuSize(), state.position, state.offset, state.hAlign, state.vAlign)
+    const rect = state.anchor.getBoundingClientRect()
+    const hasContent = Boolean(options.content)
+    const menuSize = getMenuSize(options.items, hasContent)
+    const initialPlacement = computePlacement(
+      rect,
+      menuSize,
+      state.position,
+      state.offset,
+      state.hAlign,
+      state.vAlign
+    )
+
+    // Adjust placement to avoid viewport collisions (left, right, bottom edges).
+    const adjustedPlacement = adjustPlacementForViewport(
+      initialPlacement,
+      menuSize,
+      window.innerWidth,
+      window.innerHeight
+    )
 
     updateContextMenu({
       visible: true,
       items: options.items,
       content: options.content,
-      x: placement.left,
-      y: placement.top,
+      x: adjustedPlacement.left,
+      y: adjustedPlacement.top,
       slideFrom: state.slideFrom,
       ownerId,
       zIndex: computedZIndex,
