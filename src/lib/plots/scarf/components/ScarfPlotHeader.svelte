@@ -1,10 +1,10 @@
 <script lang="ts">
-  import {
-    ScarfPlotSelectStimulus,
-    ScarfPlotSelectTimeline,
-    ScarfPlotSelectGroup,
-    ScarfPlotButtonMenu,
-  } from '$lib/plots/scarf/components'
+  import { ScarfPlotButtonMenu } from '$lib/plots/scarf/components'
+  import Select, { type GroupSelectItem } from '$lib/shared/components/GeneralSelect.svelte'
+  import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
+  import { handleScarfSelectionChange } from '../utils/scarfSelectService'
+  import { onDestroy } from 'svelte'
+  import { data, getParticipantsGroups } from '$lib/gaze-data/front-process/stores/dataStore'
   import Minor, { type MinorGroupItem } from '$lib/shared/components/GeneralButtonMinor.svelte'
   import ZoomIn from 'lucide-svelte/icons/zoom-in'
   import ZoomOut from 'lucide-svelte/icons/zoom-out'
@@ -145,12 +145,68 @@
     { icon: RefreshCcw, onclick: handleReset, isDisabled: isResetDisabled, ariaLabel: 'Reset view', tooltip: 'Reset scarf plot view' },
   ])
 
+  // ---------------------------
+  // Grouped selects (Stimulus, Timeline, Group)
+  // ---------------------------
+  let selectedStimulusId = $state(settings.stimulusId.toString())
+  let stimuliOptions = $state<{ label: string; value: string }[]>(getStimuliOptions())
+
+  let selectedTimeline = $state(settings.timeline)
+  const timelineOptions = [
+    { value: 'absolute', label: 'Absolute' },
+    { value: 'relative', label: 'Relative' },
+    { value: 'ordinal', label: 'Ordinal' },
+  ]
+
+  let selectedGroupId = $state(settings.groupId.toString())
+  let groupOptions: { value: string; label: string }[] = $state([])
+
+  // Sync from settings
+  $effect(() => {
+    selectedStimulusId = settings.stimulusId.toString()
+    stimuliOptions = getStimuliOptions()
+    selectedTimeline = settings.timeline
+    selectedGroupId = settings.groupId.toString()
+  })
+
+  // Keep group options in sync with data store
+  const unsubscribe = data.subscribe(() => {
+    groupOptions = getParticipantsGroups(true).map(group => ({
+      value: group.id.toString(),
+      label: group.name,
+    }))
+  })
+  onDestroy(() => unsubscribe())
+
+  function onStimulusChange(event: CustomEvent) {
+    const stimulusId = parseInt(event.detail)
+    selectedStimulusId = stimulusId.toString()
+    handleScarfSelectionChange(settings, { stimulusId }, source, onWorkspaceCommand)
+  }
+
+  function onTimelineChange(event: CustomEvent) {
+    const timeline = event.detail as 'absolute' | 'relative' | 'ordinal'
+    selectedTimeline = timeline
+    handleScarfSelectionChange(settings, { timeline }, source, onWorkspaceCommand)
+  }
+
+  function onGroupChange(event: CustomEvent) {
+    const groupId = parseInt(event.detail)
+    selectedGroupId = groupId.toString()
+    handleScarfSelectionChange(settings, { groupId }, source, onWorkspaceCommand)
+  }
+
+  // Single grouped selects in order: Stimulus, Group, Timeline
+  const selectItems = $derived<GroupSelectItem[]>([
+    { label: 'Stimulus', options: stimuliOptions, value: selectedStimulusId, onchange: onStimulusChange },
+    { label: 'Group', options: groupOptions, value: selectedGroupId, onchange: onGroupChange },
+    { label: 'Timeline', options: timelineOptions, value: selectedTimeline, onchange: onTimelineChange },
+  ])
+
 </script>
 
 <div class="nav">
-  <ScarfPlotSelectStimulus {settings} {source} {onWorkspaceCommand} />
-  <ScarfPlotSelectTimeline {settings} {source} {onWorkspaceCommand} />
-  <ScarfPlotSelectGroup {settings} {source} {onWorkspaceCommand} />
+  <Select ariaLabel="Scarf filters" items={selectItems} label="Scarf" options={[]} />
   <Minor items={groupItems} ariaLabel="Zoom controls" />
   <ScarfPlotButtonMenu
     {settings}
@@ -161,7 +217,7 @@
 <style>
   .nav {
     display: flex;
-    gap: 5px;
+    gap: 6px;
     flex-wrap: wrap;
     background: inherit;
   }
