@@ -43,6 +43,10 @@
     and complete several small tasks in the GazePlotter interface, followed by a short questionnaire on user experience.
   </p>
 
+  <p>
+    Please complete this study on a <strong>laptop or desktop computer</strong> (not on mobile devices).
+  </p>
+
   <h4>Controller & contacts</h4>
   <ul>
     <li>
