@@ -365,6 +365,11 @@
         });
       }
     
+    // Prevent any conditions from being set until informed consent is given
+    if (!hasInformedConsent) {
+      return;
+    }
+    
     // Check for stimulus change to Task 2 (stimulusId === 1) from scarf plot
     if (command.type === 'updateSettings' && 
         command.settings && 
