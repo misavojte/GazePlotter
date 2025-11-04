@@ -21,7 +21,7 @@
   }
 
   // Track fullscreen state
-  let isFullscreen = $state(false)
+  // let isFullscreen = $state(false)
   let bannerHeight = $state(0)
 
   function detectOnScrollBannerHeight() {
@@ -32,35 +32,35 @@
   }
 
 
-  // Function to toggle fullscreen mode
-  function toggleFullscreen() {
-    if (!document.fullscreenElement) {
-      document.documentElement
-        .requestFullscreen()
-        .then(() => {
-          isFullscreen = true
-        })
-        .catch(err => {
-          console.error('Error attempting to enable fullscreen:', err)
-        })
-    } else {
-      if (document.exitFullscreen) {
-        document
-          .exitFullscreen()
-          .then(() => {
-            isFullscreen = false
-          })
-          .catch(err => {
-            console.error('Error attempting to exit fullscreen:', err)
-          })
-      }
-    }
-  }
+  // // Function to toggle fullscreen mode (temporarily disabled)
+  // function toggleFullscreen() {
+  //   if (!document.fullscreenElement) {
+  //     document.documentElement
+  //       .requestFullscreen()
+  //       .then(() => {
+  //         isFullscreen = true
+  //       })
+  //       .catch(err => {
+  //         console.error('Error attempting to enable fullscreen:', err)
+  //       })
+  //   } else {
+  //     if (document.exitFullscreen) {
+  //       document
+  //         .exitFullscreen()
+  //         .then(() => {
+  //           isFullscreen = false
+  //         })
+  //         .catch(err => {
+  //           console.error('Error attempting to exit fullscreen:', err)
+  //         })
+  //     }
+  //   }
+  // }
 
-  // Listen for fullscreen change events
-  function handleFullscreenChange() {
-    isFullscreen = !!document.fullscreenElement
-  }
+  // // Listen for fullscreen change events (temporarily disabled)
+  // function handleFullscreenChange() {
+  //   isFullscreen = !!document.fullscreenElement
+  // }
 
   let {
     accentColor = 'var(--c-primary)',
@@ -81,9 +81,10 @@
    * Each action is handled internally without delegation.
    */
   const handleItemClick = (event: { id: string; event?: any }): void => {
-    if (event.id === 'toggle-fullscreen') {
-      toggleFullscreen()
-    } else if (event.id === 'undo') {
+    // if (event.id === 'toggle-fullscreen') {
+    //   toggleFullscreen()
+    // } else 
+    if (event.id === 'undo') {
       handleUndo()
     } else if (event.id === 'redo') {
       handleRedo()
@@ -158,11 +159,11 @@
   onMount(() => {
     // add passive listener
     window.addEventListener('scroll', detectOnScrollBannerHeight, { passive: true })  
-    document.addEventListener('fullscreenchange', handleFullscreenChange, { passive: true })
+    // document.addEventListener('fullscreenchange', handleFullscreenChange, { passive: true })
     document.addEventListener('keydown', handleKeydown, { passive: true })
     return () => {
       window.removeEventListener('scroll', detectOnScrollBannerHeight)
-      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+      // document.removeEventListener('fullscreenchange', handleFullscreenChange)
       document.removeEventListener('keydown', handleKeydown)
     }
   })
@@ -225,7 +226,7 @@
     />
 
     <!-- Toggle Fullscreen button -->
-    <WorkspaceToolbarItem
+    <!-- <WorkspaceToolbarItem
       id="toggle-fullscreen"
       label="Toggle Fullscreen"
       icon={isFullscreen
@@ -244,7 +245,7 @@
       actions={[{ id: 'toggle-fullscreen', label: 'Toggle Fullscreen' }]}
       disabled={false}
       onclick={handleItemClick}
-    />
+    /> -->
 
     <!-- Metadata button -->
     <WorkspaceToolbarItem

@@ -1,9 +1,8 @@
 <script lang="ts">
   import MinorButton from './GeneralButtonMinor.svelte'
   import { type ComponentType } from 'svelte'
-  import MoreVertical from 'lucide-svelte/icons/more-vertical'
   import { tooltipAction } from '$lib/tooltip/components/Tooltip.svelte'
-  import { fade, fly } from 'svelte/transition'
+  import { contextMenuAction } from '$lib/context-menu/components/contextMenuAction'
 
   interface ActionItem {
     icon: ComponentType
@@ -17,100 +16,79 @@
 
   let { items }: Props = $props()
 
-  // Use state instead of bindable
+  // Track open state only to disable tooltip while menu is open
   let isOpen = $state(false)
-
-  const handleClick = () => {
-    isOpen = !isOpen
-  }
-
   let menuElement: HTMLDivElement | null = $state(null)
 
-  const handleOutsideClick = (event: MouseEvent) => {
-    const target = event.target as HTMLElement
-    if (menuElement && !menuElement.contains(target)) {
-      isOpen = false
-    }
-  }
-
-  const handleKeydown = (event: KeyboardEvent) => {
-    if (event.key === 'Escape') {
-      isOpen = false
-    }
+  const handleClick = () => {
+    if (!menuElement) return
+    const rect = menuElement.getBoundingClientRect()
+    const clientX = rect.right
+    const clientY = rect.bottom
+    // Dispatch synthetic contextmenu to trigger the shared context menu action
+    const ev = new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      button: 2,
+      clientX,
+      clientY,
+    })
+    menuElement.dispatchEvent(ev)
   }
 </script>
 
-<svelte:window onclick={handleOutsideClick} onkeydown={handleKeydown} />
-
-<div class="wrap" bind:this={menuElement} use:tooltipAction={{ content: "Plot & data options", position: "top", offset: 35, verticalAlign: "end", disabled: isOpen}}>
-  <MinorButton onclick={handleClick}>
-    <MoreVertical size={'1em'} />
+<div
+  class="wrap"
+  bind:this={menuElement}
+  use:tooltipAction={{ content: "Plot & data options", position: "top", offset: 35, verticalAlign: "end", disabled: isOpen}}
+  use:contextMenuAction={{
+    items: items.map((it) => ({ label: it.label, action: it.action, icon: it.icon as any })),
+    position: 'bottom',
+    verticalAlign: 'end',
+    horizontalAlign: 'start',
+    offset: 8,
+    slideFrom: 'top',
+    anchor: menuElement as HTMLElement,
+    onOpen: () => { isOpen = true },
+    onClose: () => { isOpen = false },
+  }}
+>
+  <MinorButton isIcon={false} onclick={handleClick}>
+    <span class="triggerContent">
+      <svg class="dots" width="10" height="16" viewBox="0 0 4 12" fill="currentColor" aria-hidden="true">
+        <circle cx="2" cy="2" r="0.8" />
+        <circle cx="2" cy="6" r="0.8" />
+        <circle cx="2" cy="10" r="0.8" />
+      </svg>
+      <span class="triggerLabel">More</span>
+    </span>
   </MinorButton>
-  {#if isOpen}
-    <ul class="menu" transition:fly={{ y: -20, duration: 300 }}>
-      {#each items as item}
-        <li>
-          <button onclick={() => { item.action(); isOpen = false; }}>
-            <item.icon size={'1em'} />
-            {item.label}
-          </button>
-        </li>
-      {/each}
-    </ul>
-  {/if}
 </div>
 
 <style>
   .wrap {
     position: relative;
     display: flex;
-  }
-  
-  .menu {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 8px);
-    background: var(--c-white);
-    border: 1px solid var(--c-grey);
-    border-radius: var(--rounded);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    overflow: hidden;
-    z-index: 1000;
-    min-width: 220px;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-  
-  .menu li {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-  
-  .menu button {
-    background: none;
-    border: none;
-    padding: 10px 14px;
-    font-size: 14px;
-    color: var(--c-black);
-    cursor: pointer;
-    width: 100%;
-    text-align: left;
-    display: flex;
     align-items: center;
-    gap: 0.5em;
-    transition: all 0.2s ease;
-    position: relative;
   }
   
-  .menu button:hover {
-    background: var(--c-lightgrey);
-    color: var(--c-brand);
-    padding-left: 16px;
+  .triggerContent {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding-inline: 2px;
   }
   
-  .menu button :global(svg) {
-    transition: transform 0.2s ease;
+  .triggerLabel {
+    color: currentColor;
+    font-size: 13px;
+    line-height: 1.25;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    margin-top: 0;
+  }
+
+  .dots {
+    display: block;
   }
 </style>

@@ -247,14 +247,14 @@
       onSkip: createSkipHandler(1, "On scarf plot, set stimulus to Task 2")
     },
     { 
-      text: "On Scarf Plot, set timeline to relative",
-      condition: timelineCondition, // Auto-completes when timeline is set to relative
-      onSkip: createSkipHandler(2, "Set timeline to relative")
-    },
-    { 
       text: "On Scarf Plot, set group to 'Analytics'",
       condition: groupCondition, // Auto-completes when group is set to Group 1
-      onSkip: createSkipHandler(3, "Set group to 'Analytics'")
+      onSkip: createSkipHandler(2, "Set group to 'Analytics'")
+    },
+    { 
+      text: "On Scarf Plot, set timeline to relative",
+      condition: timelineCondition, // Auto-completes when timeline is set to relative
+      onSkip: createSkipHandler(3, "Set timeline to relative")
     },
     { 
       text: "Duplicate Scarf Plot",
@@ -272,9 +272,9 @@
       onSkip: createSkipHandler(6, "Find 'AOI Customization' and group XAxis and YAxis (in stimulus Task 2) by giving them the same name")
     },
     { 
-      text: "On Transition Matrix, set stimulus to Task 2",
+      text: "Pan to Transition Matrix and set its stimulus to Task 2",
       condition: transitionMatrixStimulusCondition, // Auto-completes when stimulus is set to Task 2
-      onSkip: createSkipHandler(7, "On Transition Matrix, set stimulus to Task 2")
+      onSkip: createSkipHandler(7, "Pan to Transition Matrix and set its stimulus to Task 2")
     },
     { 
       text: "On Transition Matrix, change aggregation metric to '1-step probability'",
@@ -282,9 +282,9 @@
       onSkip: createSkipHandler(8, "On Transition Matrix, change aggregation metric to '1-step probability'")
     },
     { 
-      text: "On Bar Plot, set stimulus to Task 2",
+      text: "Pan to Bar Plot and set its stimulus to Task 2",
       condition: barPlotStimulusCondition, // Auto-completes when stimulus is set to Task 2
-      onSkip: createSkipHandler(9, "On Bar Plot, set stimulus to Task 2")
+      onSkip: createSkipHandler(9, "Pan to Bar Plot and set its stimulus to Task 2")
     },
     { 
       text: "On Bar Plot, set aggregation method to 'Mean visits'",

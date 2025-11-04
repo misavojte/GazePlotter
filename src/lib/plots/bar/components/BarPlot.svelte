@@ -6,7 +6,7 @@
   // Local components
   import { BarPlotFigure, BarPlotButtonMenu } from '$lib/plots/bar/components'
   import { PlotPlaceholder } from '$lib/plots/shared/components'
-  import GeneralSelect from '$lib/shared/components/GeneralSelect.svelte'
+  import Select, { type GroupSelectItem } from '$lib/shared/components/GeneralSelect.svelte'
 
   // Utilities and stores
   import { DEFAULT_GRID_CONFIG } from '$lib/shared/utils/gridSizingUtils'
@@ -107,6 +107,28 @@
   let groupOptions =
     $state<{ label: string; value: string }[]>(getGroupOptions())
 
+  // Grouped selects like Scarf header: Stimulus, Group, Aggregation
+  const selectItems = $derived<GroupSelectItem[]>([
+    {
+      label: 'Stimulus',
+      options: stimulusOptions,
+      value: settings.stimulusId.toString(),
+      onchange: handleStimulusChange,
+    },
+    {
+      label: 'Group',
+      options: groupOptions,
+      value: settings.groupId.toString(),
+      onchange: handleGroupChange,
+    },
+    {
+      label: 'Aggregation',
+      options: BAR_PLOT_AGGREGATION_METHODS,
+      value: settings.aggregationMethod,
+      onchange: handleAggregationMethodChange,
+    },
+  ])
+
   /**
    * This is to prevent unnecessary recalculations when settings change in other components in the workspace
    */
@@ -130,27 +152,7 @@
 <div class="bar-plot-container">
   <div class="header">
     <div class="controls">
-      <GeneralSelect
-        label="Stimulus"
-        options={stimulusOptions}
-        compact
-        value={settings.stimulusId.toString()}
-        onchange={handleStimulusChange}
-      />
-      <GeneralSelect
-        label="Group"
-        options={groupOptions}
-        compact
-        value={settings.groupId.toString()}
-        onchange={handleGroupChange}
-      />
-      <GeneralSelect
-        label="Aggregation"
-        options={BAR_PLOT_AGGREGATION_METHODS}
-        compact
-        value={settings.aggregationMethod}
-        onchange={handleAggregationMethodChange}
-      />
+      <Select ariaLabel="Bar filters" items={selectItems} label="Bar" options={[]} />
       <div class="menu-button">
         <BarPlotButtonMenu
           {settings}

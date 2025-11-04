@@ -96,11 +96,6 @@
 
   let items = $derived([
     {
-      label: 'Bar Chart Axes',
-      action: openBarChartAxesModal,
-      icon: BarChartIcon,
-    },
-    {
       label: 'AOI customization',
       action: openAoiModificationModal,
       icon: Settings,
@@ -114,6 +109,11 @@
       label: 'Setup participants groups',
       action: openUserGroupsModal,
       icon: Users,
+    },
+    {
+      label: 'Bar Chart Axes',
+      action: openBarChartAxesModal,
+      icon: BarChartIcon,
     },
     {
       label: 'Export aggregated data',

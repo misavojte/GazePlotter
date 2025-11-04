@@ -1,15 +1,19 @@
 <script lang="ts">
   import { tooltipAction } from '$lib/tooltip/components/Tooltip.svelte'
-  import { writable } from 'svelte/store'
-  import { fade } from 'svelte/transition'
+  import { contextMenuAction, type MenuItem } from '$lib/context-menu/components/contextMenuAction'
+  import { contextMenuStore } from '$lib/context-menu/stores'
 
-  // Action item interface
+  /**
+   * Action item interface for toolbar actions.
+   */
   interface ActionItem {
     id: string
     label: string
   }
 
-  // Props for the toolbar item
+  /**
+   * Props for the toolbar item component.
+   */
   interface Props {
     id: string
     label: string
@@ -28,21 +32,37 @@
     disabled = false,
   }: Props = $props()
 
-  // Context menu state
-  const contextMenuState = writable({
-    visible: false,
-    x: 0,
-    y: 0,
-  })
-
   let buttonElement: HTMLButtonElement | null = $state(null)
   let iconElement: HTMLDivElement | null = $state(null)
 
-  // Handle item click with animation
+  /**
+   * Convert action items to menu items format required by contextMenuAction.
+   * Each menu item's action will fire the onclick callback with the action's id.
+   *
+   * @returns Array of MenuItem objects for the context menu.
+   */
+  const menuItems = $derived.by((): MenuItem[] => {
+    return actions.map((action) => ({
+      label: action.label,
+      action: () => {
+        onclick({
+          id: action.id,
+          event: new MouseEvent('click'),
+        })
+      },
+    }))
+  })
+
+  /**
+   * Handle item click with animation.
+   * For single actions, fires immediately. For multiple actions, the contextMenuAction handles showing the menu.
+   *
+   * @param event - Mouse click event from the button.
+   */
   function handleClick(event: MouseEvent) {
     if (disabled) return
 
-    // Add click animation to icon only
+    // Add click animation to icon only.
     if (iconElement) {
       iconElement.style.transform = 'scale(0.85)'
       setTimeout(() => {
@@ -52,7 +72,7 @@
       }, 100)
     }
 
-    // If only one action, fire it immediately
+    // If only one action, fire it immediately (contextMenuAction is disabled for single actions).
     if (actions.length === 1) {
       onclick({
         id: actions[0].id,
@@ -61,47 +81,16 @@
       return
     }
 
-    // If multiple actions, show context menu
-    if (actions.length > 1) {
-      showContextMenu(event)
-      return
-    }
-
-    // Fallback: fire the main action
-    onclick({ id, event })
+    // If multiple actions, let the contextMenuAction handle showing the menu.
+    // The action will prevent default and show the menu automatically.
   }
 
-  // Show context menu
-  function showContextMenu(event: MouseEvent) {
-    event.preventDefault()
-    event.stopPropagation()
-
-    if (buttonElement) {
-      const rect = buttonElement.getBoundingClientRect()
-      contextMenuState.set({
-        visible: true,
-        x: rect.right + 5,
-        y: rect.top,
-      })
-    }
-  }
-
-  // Handle action selection from context menu
-  function handleActionSelect(action: ActionItem) {
-    onclick({
-      id: action.id,
-      event: new MouseEvent('click'),
-    })
-    contextMenuState.set({ visible: false, x: 0, y: 0 })
-  }
-
-  // Close context menu
-  function closeContextMenu() {
-    contextMenuState.set({ visible: false, x: 0, y: 0 })
-  }
+  /**
+   * Check if context menu is currently visible for this component.
+   * Used to disable tooltip when menu is open.
+   */
+  const isMenuVisible = $derived($contextMenuStore !== null)
 </script>
-
-<svelte:window onclick={closeContextMenu} />
 
 <div class="tooltip-wrapper">
   <button
@@ -113,7 +102,15 @@
     use:tooltipAction={{
       content: label,
       position: 'right',
-      disabled: $contextMenuState.visible,
+      disabled: isMenuVisible,
+    }}
+    use:contextMenuAction={{
+      items: actions.length > 1 ? menuItems : undefined,
+      position: 'right',
+      horizontalAlign: 'start',
+      offset: 8,
+      slideFrom: 'left',
+      disabled: disabled || actions.length <= 1,
     }}
   >
     <div class="toolbar-item-icon" bind:this={iconElement}>
@@ -121,23 +118,6 @@
     </div>
   </button>
 </div>
-
-{#if $contextMenuState.visible && !disabled && actions.length > 1}
-  <div
-    class="context-menu"
-    style="left: {$contextMenuState.x}px; top: {$contextMenuState.y}px;"
-    transition:fade={{ duration: 100 }}
-  >
-    {#each actions as action}
-      <button
-        class="context-menu-item"
-        onclick={() => handleActionSelect(action)}
-      >
-        {action.label}
-      </button>
-    {/each}
-  </div>
-{/if}
 
 <style>
   .tooltip-wrapper {
@@ -180,41 +160,5 @@
     align-items: center;
     justify-content: center;
     transition: transform 0.1s ease;
-  }
-
-  .context-menu {
-    position: fixed;
-    background: var(--c-white);
-    border: 1px solid var(--c-grey);
-    border-radius: var(--rounded);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    z-index: 2100;
-    min-width: 160px;
-    max-height: calc(100vh - 100px);
-    overflow-y: auto;
-    pointer-events: auto;
-    isolation: isolate;
-    contain: layout;
-  }
-
-  .context-menu-item {
-    width: 100%;
-    padding: 10px 14px;
-    border: none;
-    background: none;
-    text-align: left;
-    cursor: pointer;
-    color: var(--c-black);
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    transition: all 0.2s ease;
-    position: relative;
-  }
-
-  .context-menu-item:hover {
-    background: var(--c-lightgrey);
-    color: var(--c-brand);
-    padding-left: 18px;
   }
 </style>

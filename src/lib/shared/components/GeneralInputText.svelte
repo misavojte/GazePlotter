@@ -30,7 +30,7 @@
 <style>
   input {
     padding: 0.5rem;
-    border: 1px solid var(--c-darkgrey);
+    border: 1px solid var(--c-border);
     border-radius: var(--rounded);
     font-size: 14px;
     width: 170px;

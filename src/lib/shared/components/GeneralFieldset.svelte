@@ -14,7 +14,7 @@
 
 <style>
   fieldset {
-    border: 1px solid var(--c-darkgrey);
+    border: 1px solid var(--c-border);
     border-radius: var(--rounded);
     padding: 10px;
     margin-bottom: 20px;

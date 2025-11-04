@@ -156,18 +156,23 @@
           in:fly={{ y: -20, duration: 300, delay: 50 }}
           out:fly={{ y: 20, duration: 250, opacity: 0 }}
         >
-          <div class="banner-text">
-            {currentTask.text}
+          <div class="banner-task-label">
+            TASK {currentTaskIndex + 1} OF {tasks.length}
           </div>
-          
-          {#if currentTask.buttonText && currentTask.onButtonClick}
-            <button 
-              class="banner-button"
-              onclick={currentTask.onButtonClick}
-            >
-              {currentTask.buttonText}
-            </button>
-          {/if}
+          <div class="banner-text-row">
+            <div class="banner-text">
+              {currentTask.text}
+            </div>
+            
+            {#if currentTask.buttonText && currentTask.onButtonClick}
+              <button 
+                class="banner-button"
+                onclick={currentTask.onButtonClick}
+              >
+                {currentTask.buttonText}
+              </button>
+            {/if}
+          </div>
         </div>
       {/key}
     </div>
@@ -559,6 +564,26 @@
     color: var(--c-brand-dark);
   }
 
+  .banner-task-label {
+    font-weight: 700;
+    font-size: 0.7rem;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+    margin-bottom: 0.25rem;
+    color: var(--c-brand);
+    width: 100%;
+  }
+
+  .banner-text-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+  }
+
   .banner-text {
     font-weight: 500;
     font-size: 0.9rem;
@@ -569,8 +594,8 @@
 
   .banner-button {
     padding: 0.5rem 1rem;
-    background: white;
-    color: var(--c-brand);
+    background: var(--c-brand);
+    color: white;
     border: none;
     border-radius: var(--rounded);
     font-weight: 500;
@@ -583,7 +608,7 @@
   }
 
   .banner-button:hover {
-    background: var(--c-darkwhite);
+    background: var(--c-brand-dark);
     transform: translateY(-1px);
   }
 
@@ -620,14 +645,15 @@
     left: 0;
     right: 0;
     z-index: 1000;
-    background: var(--c-brand);
-    color: white;
+    background-color: var(--c-lightgrey, #eaeaea);
+    color: var(--c-black);
     padding: 0.75rem 1rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     animation: bannerSlideDown 0.3s ease-out;
     min-height: 3.5rem; /* Ensure banner doesn't jitter */
     display: flex;
     align-items: center;
+    border-bottom: 1px solid #88888862;
     /* This is crucial: clips the in/out fly animations */
     overflow: hidden; 
   }
@@ -656,8 +682,33 @@
     left: 50%;
     transform: translate(-50%, -50%);
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 0.75rem;
+    gap: 0.25rem;
+  }
+
+  /* Mobile adjustments to prevent overflow and allow wrapping */
+  @media only screen and (max-width: 540px) {
+    .banner {
+      padding: 0.9rem 0.85rem;
+      min-height: 4.75rem;
+    }
+    .banner-content-wrapper {
+      min-height: 2rem;
+      padding-inline: 0.25rem;
+    }
+    .banner-text-row {
+      flex-wrap: wrap;
+      row-gap: 0.4rem;
+    }
+    .banner-text {
+      /* Allow the textual instructions to wrap on small screens */
+      flex: 1 1 100%;
+      max-width: 100%;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
   }
 </style>

@@ -672,7 +672,7 @@
     justify-content: center;
     gap: 8px;
     padding: 0.5rem;
-    border: 1px solid var(--c-darkgrey);
+    border: 1px solid var(--c-border);
     border-radius: var(--rounded);
     font-size: 14px;
     height: 34px;
@@ -811,7 +811,7 @@
     width: 28px;
     height: 28px;
     border-radius: 4px;
-    border: 1px solid var(--c-darkgrey);
+    border: 1px solid var(--c-border);
     cursor: pointer;
     padding: 0;
     transition: transform 0.1s ease-in-out;
