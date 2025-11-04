@@ -132,11 +132,6 @@
       icon: Settings,
     },
     {
-      label: 'AOI visibility',
-      action: openAoiVisibilityModal,
-      icon: View,
-    },
-    {
       label: 'Participant customization',
       action: openParticipantModificationModal,
       icon: Users,
@@ -145,6 +140,11 @@
       label: 'Setup participants groups',
       action: openUserGroupsModal,
       icon: Users,
+    },
+    {
+      label: 'AOI visibility',
+      action: openAoiVisibilityModal,
+      icon: View,
     },
     {
       label: 'Clip timeline',

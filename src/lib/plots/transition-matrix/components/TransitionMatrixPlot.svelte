@@ -6,11 +6,9 @@
   // Local components
   import {
     TransitionMatrixPlotFigure,
-    TransitionMatrixSelectStimulus,
-    TransitionMatrixSelectGroup,
     TransitionMatrixButtonMenu,
   } from '$lib/plots/transition-matrix/components'
-  import Select from '$lib/shared/components/GeneralSelect.svelte'
+  import Select, { type GroupSelectItem } from '$lib/shared/components/GeneralSelect.svelte'
   import { PlotPlaceholder } from '$lib/plots/shared/components'
   import { ModalContentMaxValue, ModalContentColorScale } from '$lib/modals'
 
@@ -21,6 +19,9 @@
   import { calculateTransitionMatrix } from '$lib/plots/transition-matrix/utils'
   import { AggregationMethod } from '$lib/plots/transition-matrix/const'
   import { createCommandSourcePlotPattern } from '$lib/shared/types/workspaceInstructions'
+  import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
+  import { data, getParticipantsGroups } from '$lib/gaze-data/front-process/stores/dataStore'
+  import { onDestroy } from 'svelte'
   
   // Types
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
@@ -94,6 +95,57 @@
       source,
     })
   }
+
+  // Grouped selects like Scarf header: Stimulus, Group, Aggregation
+  let selectedStimulusId = $state(settings.stimulusId.toString())
+  let stimuliOptions = $state<{ label: string; value: string }[]>(getStimuliOptions())
+
+  let selectedGroupId = $state(settings.groupId.toString())
+  let groupOptions: { value: string; label: string }[] = $state([])
+
+  // Sync from settings
+  $effect(() => {
+    selectedStimulusId = settings.stimulusId.toString()
+    selectedGroupId = settings.groupId.toString()
+    stimuliOptions = getStimuliOptions()
+  })
+
+  // Keep group options in sync with data store
+  const unsubscribe = data.subscribe(() => {
+    groupOptions = getParticipantsGroups(true).map(group => ({
+      value: group.id.toString(),
+      label: group.name,
+    }))
+  })
+  onDestroy(() => unsubscribe())
+
+  function onStimulusChange(event: CustomEvent) {
+    const stimulusId = parseInt(event.detail)
+    selectedStimulusId = stimulusId.toString()
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      settings: { stimulusId },
+      source,
+    })
+  }
+
+  function onGroupChange(event: CustomEvent) {
+    const groupId = parseInt(event.detail)
+    selectedGroupId = groupId.toString()
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      settings: { groupId },
+      source,
+    })
+  }
+
+  const selectItems = $derived<GroupSelectItem[]>([
+    { label: 'Stimulus', options: stimuliOptions, value: selectedStimulusId, onchange: onStimulusChange },
+    { label: 'Group', options: groupOptions, value: selectedGroupId, onchange: onGroupChange },
+    { label: 'Aggregation', options: aggregationOptions, value: settings.aggregationMethod, onchange: handleAggregationChange },
+  ])
 
   const redrawTimestamp = $derived.by(() => settings.redrawTimestamp)
   // Update AOI labels when data changes
@@ -170,23 +222,7 @@
 <div class="aoi-matrix-container">
   <div class="header">
     <div class="controls">
-      <TransitionMatrixSelectStimulus
-        {settings}
-        {source}
-        {onWorkspaceCommand}
-      />
-      <TransitionMatrixSelectGroup
-        {settings}
-        {source}
-        {onWorkspaceCommand}
-      />
-      <Select
-        label="Aggregation"
-        options={aggregationOptions}
-        value={settings.aggregationMethod}
-        onchange={handleAggregationChange}
-        compact={true}
-      />
+      <Select ariaLabel="Transition Matrix filters" items={selectItems} label="Transition Matrix" options={[]} />
       <div class="menu-button">
         <TransitionMatrixButtonMenu
           {settings}

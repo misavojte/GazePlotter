@@ -91,6 +91,11 @@
       icon: Settings,
     },
     {
+      label: 'Stimulus customization',
+      action: openStimulusModificationModal,
+      icon: Settings,
+    },
+    {
       label: 'Participants groups',
       action: openUserGroupsModal,
       icon: Users,
@@ -99,11 +104,6 @@
       label: 'Set color range values',
       action: openMaxValueModal,
       icon: BarChart,
-    },
-    {
-      label: 'Stimulus customization',
-      action: openStimulusModificationModal,
-      icon: Settings,
     },
     {
       label: 'Customize color scale',
