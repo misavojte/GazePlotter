@@ -63,10 +63,10 @@
   </section>
 
   <section class="section">
-    <SectionHeader text="Other Export Options" />
+    <SectionHeader text="Research Data Formats" />
     <div class="content">
       <p class="info-text">
-        Choose from specialized export formats for different analysis needs:
+        Choose from specialized data structures for detailed analysis:
       </p>
       <div class="export-options">
         <button class="export-option-card" onclick={handleOpenSegmentedExport}>

@@ -6,10 +6,13 @@
   import { addSuccessToast } from '$lib/toaster/stores'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'
+  import type { DecimalSeparator } from '$lib/shared/utils/csvFormatUtils'
 
   // Export settings state
   let fileName = $state('GazePlotter-SegmentedData')
   let exportType = $state('csv')
+  let delimiter = $state(',')
+  let decimalSeparator = $state<DecimalSeparator>('.')
   let isExporting = $state(false)
 
   // Export type options
@@ -27,6 +30,16 @@
   // Validation
   const canExport = $derived(fileName.trim().length > 0)
 
+  const delimiterOptions = [
+    { value: ',', label: 'Comma (,)' },
+    { value: ';', label: 'Semicolon (;)' },
+  ]
+
+  const decimalSeparatorOptions = [
+    { value: '.', label: 'Dot (.)' },
+    { value: ',', label: 'Comma (,)' },
+  ]
+
   // Function to handle export
   const handleExport = async () => {
     if (!canExport) return
@@ -39,12 +52,21 @@
 
       const downloader = new WorkplaceDownloader()
       const data = getData()
+      const csvOptions = {
+        delimiter,
+        decimalSeparator,
+      }
 
       if (exportType === 'csv') {
-        downloader.downloadCSV(data, fileName.trim())
+        downloader.downloadCSV(data, fileName.trim(), csvOptions)
         addSuccessToast('Single CSV file exported successfully')
       } else if (exportType === 'individual-csv') {
-        downloader.downloadIndividualCSV(data, fileName.trim(), true)
+        downloader.downloadIndividualCSV(
+          data,
+          fileName.trim(),
+          true,
+          csvOptions
+        )
         addSuccessToast('Individual CSV files exported and zipped successfully')
       }
     } catch (error) {
@@ -74,7 +96,7 @@
       variant: 'primary' as const,
     },
     {
-      label: 'More Export Options',
+      label: 'All Data Formats',
       onclick: handleOpenWorkplaceExport,
       isDisabled: false,
     },
@@ -108,6 +130,16 @@
         label="File name"
         bind:value={fileName}
         placeholder="Enter filename without extension"
+      />
+      <GeneralSelect
+        label="Delimiter"
+        options={delimiterOptions}
+        bind:value={delimiter}
+      />
+      <GeneralSelect
+        label="Decimal Separator"
+        options={decimalSeparatorOptions}
+        bind:value={decimalSeparator}
       />
     </div>
   </section>

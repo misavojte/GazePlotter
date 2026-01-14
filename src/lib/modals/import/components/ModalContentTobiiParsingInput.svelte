@@ -4,6 +4,11 @@
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { onDestroy } from 'svelte'
 
+  /**
+   * Trigger string to activate Web Stimulus parsing mode.
+   */
+  const WEB_STIMULUS_TRIGGER = 'WebStimulus'
+
   interface Props {
     valuePromiseResolve: (value: string) => void
     valuePromiseReject: (reason?: any) => void
@@ -12,7 +17,7 @@
   let { valuePromiseResolve, valuePromiseReject }: Props = $props()
   let selectedOption: string = $state('')
   let customMarkers: string = $state('_start;_end')
-  
+
   /**
    * Track whether the promise has been settled (resolved or rejected).
    * This prevents attempting to reject an already-resolved promise during cleanup.
@@ -43,7 +48,7 @@
    */
   const handleSubmit = () => {
     if (isPromiseSettled) return
-    
+
     const finalValue =
       selectedOption === 'custom' ? customMarkers : selectedOption
     console.log('value', finalValue)
@@ -58,7 +63,7 @@
    */
   const handleCancel = () => {
     if (isPromiseSettled) return
-    
+
     isPromiseSettled = true
     capturedReject(new Error('User cancelled'))
     modalStore.close()
@@ -140,6 +145,27 @@
 
     <div
       class="option-card"
+      class:selected={selectedOption === WEB_STIMULUS_TRIGGER}
+      onclick={() => selectOption(WEB_STIMULUS_TRIGGER)}
+      onkeydown={event => handleKeydown(event, WEB_STIMULUS_TRIGGER)}
+      tabindex="0"
+      role="button"
+    >
+      <label class="option-header">
+        <input
+          type="radio"
+          bind:group={selectedOption}
+          value={WEB_STIMULUS_TRIGGER}
+        />
+        <div class="option-content">
+          <h4 class="option-title">Web Stimulus Events</h4>
+          <p class="option-subtitle">Individual URLs as stimuli</p>
+        </div>
+      </label>
+    </div>
+
+    <div
+      class="option-card"
       class:selected={selectedOption === 'custom'}
       onclick={() => selectOption('custom')}
       onkeydown={event => handleKeydown(event, 'custom')}
@@ -154,8 +180,8 @@
         </div>
       </label>
       {#if selectedOption === 'custom'}
-        <div 
-          class="custom-input" 
+        <div
+          class="custom-input"
           onclick={handleInputClick}
           onpointerdown={handleInputClick}
           role="none"

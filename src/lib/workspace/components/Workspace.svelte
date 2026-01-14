@@ -25,17 +25,24 @@
   import { throttleByRaf } from '$lib/shared/utils/throttle'
   import { addSuccessToast, addErrorToast } from '$lib/toaster'
   import { createCommandHandler } from '$lib/workspace/services/workspaceCommandHandler'
-  import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
+  import type {
+    WorkspaceCommand,
+    WorkspaceCommandChain,
+  } from '$lib/shared/types/workspaceInstructions'
   import { createRootCommand } from '$lib/shared/types/workspaceInstructions'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
-  
+
   interface Props {
     onReinitialize: () => void
     onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void
     initialLayoutState?: Array<Partial<AllGridTypes> & { type: string }> | null
   }
 
-  const { onReinitialize, onWorkspaceCommandChain, initialLayoutState = null }: Props = $props()
+  const {
+    onReinitialize,
+    onWorkspaceCommandChain,
+    initialLayoutState = null,
+  }: Props = $props()
 
   const gridConfig = DEFAULT_GRID_CONFIG
 
@@ -126,12 +133,7 @@
     heightUpdater?: (event: T) => void
     gridAction?: (event: T) => void
   }) => {
-    const {
-      operationType,
-      stateUpdater,
-      heightUpdater,
-      gridAction,
-    } = options
+    const { operationType, stateUpdater, heightUpdater, gridAction } = options
 
     return (event: T) => {
       const { id } = event
@@ -325,14 +327,14 @@
     gridAction: (event: { id: number; x: number; y: number }) => {
       const currentItem = get(gridStore).find(item => item.id === event.id)
       if (currentItem) {
-        const {type, id} = currentItem
+        const { type, id } = currentItem
         const source = `${type}.${id}.workspace`
         handleWorkspaceCommand({
           type: 'updateSettings',
           itemId: currentItem.id,
           settings: {
             x: event.x,
-            y: event.y
+            y: event.y,
           },
           source,
         })
@@ -348,7 +350,7 @@
 
       if (!currentItem) return
 
-      const {type, id} = currentItem
+      const { type, id } = currentItem
       const source = `${type}.${id}.workspace`
 
       // Enforce minimum dimensions
@@ -371,9 +373,9 @@
         itemId: id,
         settings: {
           w: constrainedW,
-          h: constrainedH
+          h: constrainedH,
         },
-        source
+        source,
       })
     },
   })
@@ -419,12 +421,12 @@
     gridAction: (event: { id: number }) => {
       const itemToRemove = get(gridStore).find(item => item.id === event.id)
       if (itemToRemove) {
-        const {type, id} = itemToRemove
+        const { type, id } = itemToRemove
         const source = `${type}.${id}.workspace`
         handleWorkspaceCommand({
           type: 'removeGridItem',
           itemId: id,
-          source
+          source,
         })
       }
     },
@@ -435,7 +437,7 @@
     gridAction: (event: { id: number }) => {
       const itemToDuplicate = get(gridStore).find(item => item.id === event.id)
       if (itemToDuplicate) {
-        const {type, id} = itemToDuplicate
+        const { type, id } = itemToDuplicate
         const source = `${type}.${id}.workspace`
         // Generate duplicateId at command creation time
         const duplicateId = generateUniqueId()
@@ -443,12 +445,11 @@
           type: 'duplicateGridItem',
           itemId: id,
           duplicateId,
-          source
+          source,
         })
       }
     },
   })
-
 
   // --- Workspace panning handlers ---
 
@@ -779,17 +780,17 @@
   // Initialize command handler with undo/redo support
   const handleCommand = createCommandHandler(
     gridStore,
-    (message) => addSuccessToast(message),
-    (error) => {
+    message => addSuccessToast(message),
+    error => {
       console.error('Command error:', error)
       addErrorToast('Error applying changes. See console for details.')
     },
     onWorkspaceCommandChain
   )
 
-
-  const handleWorkspaceCommand =
-  (command: WorkspaceCommand | WorkspaceCommandChain) => { 
+  const handleWorkspaceCommand = (
+    command: WorkspaceCommand | WorkspaceCommandChain
+  ) => {
     // check if the command is a WorkspaceCommandChain
     if ('chainId' in command) {
       handleCommand(command)
@@ -805,7 +806,7 @@
 
 <div class="workspace-wrapper" style={styleProps}>
   <!-- Update toolbar with undo/redo functionality -->
-  <WorkspaceToolbar 
+  <WorkspaceToolbar
     onWorkspaceCommand={handleWorkspaceCommand}
     {initialLayoutState}
     {visualizations}
@@ -876,7 +877,11 @@
     {/if}
 
     {#if $isEmpty && !$isLoading}
-      <WorkspaceIndicatorEmpty {onReinitialize} onWorkspaceCommand={handleWorkspaceCommand} {initialLayoutState} />
+      <WorkspaceIndicatorEmpty
+        {onReinitialize}
+        onWorkspaceCommand={handleWorkspaceCommand}
+        {initialLayoutState}
+      />
     {/if}
 
     {#if $isLoading}
@@ -896,14 +901,15 @@
   .workspace-container {
     box-sizing: border-box;
     position: relative;
-    width: 100%;
+    /* Allow the workspace to fill remaining horizontal space next to the toolbar */
+    flex: 1 1 auto;
+    min-width: 0; /* allow flex child to shrink and show scrollbar correctly */
     z-index: 1;
     transition: height 0.3s ease-out;
     overflow-x: auto; /* Allow horizontal scrolling */
     overflow-y: hidden; /* Prevent vertical scrolling */
     min-height: var(--min-workspace-height); /* Ensure minimum height */
     padding: 35px; /* Consistent padding throughout */
-    padding-left: 85px;
     /* Performance optimizations */
     will-change: height;
     /* Base cursor for empty areas */
@@ -956,8 +962,8 @@
 
   /* Show grabbing cursor when actively dragging */
   :global(
-      .header > .tooltip-wrapper:first-child .workspace-item-button:active
-    ) {
+    .header > .tooltip-wrapper:first-child .workspace-item-button:active
+  ) {
     cursor: grabbing !important;
   }
 
