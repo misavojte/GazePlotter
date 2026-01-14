@@ -59,7 +59,7 @@
       variant: 'primary' as const,
     },
     {
-      label: 'More Export Options',
+      label: 'All Data Formats',
       onclick: handleOpenWorkplaceExport,
       isDisabled: false,
     },

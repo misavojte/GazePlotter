@@ -12,7 +12,7 @@
     getParticipantsIds,
     getAllAois,
     getParticipant,
-    getStimulus
+    getStimulus,
   } from '$lib/gaze-data/front-process/stores/dataStore'
   import {
     collectParticipantsDwellTimeData,
@@ -57,7 +57,11 @@
       sublabel: 'Dwell time as percentage of total viewing time',
       csvName: 'Relative_Dwell_Time',
       collector: collectParticipantsDwellTimeData,
-      processFunction: (values: number[], participantData?: any[], aoiIndex?: number) => {
+      processFunction: (
+        values: number[],
+        participantData?: any[],
+        aoiIndex?: number
+      ) => {
         // Calculate as percentage of total viewing time
         // Total time is stored in the last index (Any_Fixation)
         if (!participantData || aoiIndex === undefined) return 0
@@ -76,7 +80,8 @@
     {
       key: 'firstFixationDuration' as const,
       label: 'First Fixation Duration',
-      sublabel: 'Duration of the first fixation on each AOI (-1 if never fixated)',
+      sublabel:
+        'Duration of the first fixation on each AOI (-1 if never fixated)',
       csvName: 'First_Fixation_Duration',
       collector: collectParticipantsFirstFixationDurationData,
     },
@@ -93,7 +98,11 @@
       sublabel: 'Average duration of fixations on each AOI',
       csvName: 'Mean_Fixation_Duration',
       collector: collectParticipantsAvgFixationDurationData,
-      processFunction: (values: number[], _participantData?: any[], _aoiIndex?: number) =>
+      processFunction: (
+        values: number[],
+        _participantData?: any[],
+        _aoiIndex?: number
+      ) =>
         values.length === 0
           ? -1
           : values.reduce((sum, val) => sum + val, 0) / values.length,
@@ -111,7 +120,11 @@
       sublabel: 'Average duration of visits to each AOI',
       csvName: 'Mean_Visit_Duration',
       collector: collectParticipantsDwellDurationData,
-      processFunction: (values: number[], _participantData?: any[], _aoiIndex?: number) =>
+      processFunction: (
+        values: number[],
+        _participantData?: any[],
+        _aoiIndex?: number
+      ) =>
         values.length === 0
           ? -1
           : values.reduce((sum, val) => sum + val, 0) / values.length,
@@ -309,7 +322,7 @@
       variant: 'primary' as const,
     },
     {
-      label: 'More Export Options',
+      label: 'All Data Formats',
       onclick: handleOpenMainExport,
       isDisabled: false,
     },
