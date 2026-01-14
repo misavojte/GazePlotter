@@ -1,5 +1,8 @@
 import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
-import { createChildCommand, isHistoryCommand } from '$lib/shared/types/workspaceInstructions'
+import {
+  createChildCommand,
+  isHistoryCommand,
+} from '$lib/shared/types/workspaceInstructions'
 import { IDENTIFIER_IS_AOI } from '$lib/plots/scarf/const/identifiers'
 import type { GridStoreType } from '$lib/workspace/stores/gridStore'
 import { get } from 'svelte/store'
@@ -11,25 +14,25 @@ import {
   updateParticipantsGroups,
 } from '$lib/gaze-data/front-process/stores/dataStore'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
-import { 
-  recordCommand, 
-  finalizeChain, 
-  undo as undoCommand, 
-  redo as redoCommand, 
-  endUndoRedo, 
+import {
+  recordCommand,
+  finalizeChain,
+  undo as undoCommand,
+  redo as redoCommand,
+  endUndoRedo,
 } from '$lib/workspace/stores/undoRedoStore'
 import { createCommandReverser } from './workspaceCommandReverse'
 import { getCommandLabel } from '$lib/workspace/const/workspaceCommandLabels'
 
 /**
  * Creates a command handler for workspace changes with integrated undo/redo support.
- * 
+ *
  * This handler centralizes all data and settings mutations, ensuring:
  * - All changes go through a single point
  * - Automatic redraw propagation after data changes
  * - Consistent error handling
  * - Full undo/redo functionality through command reversal
- * 
+ *
  * @param gridStore - The grid store instance
  * @param onSuccess - Callback for successful operations
  * @param onError - Callback for error handling
@@ -46,7 +49,6 @@ export function createCommandHandler(
 
   function handleCommand(command: WorkspaceCommandChain): void {
     try {
-
       const isUndoRedoOperation = isHistoryCommand(command.source)
 
       if (!isUndoRedoOperation) {
@@ -83,16 +85,21 @@ export function createCommandHandler(
               const hasMatch = highlights.some(h => affectedIdentifiers.has(h))
               if (!hasMatch) return
 
-              const newHighlights = highlights.filter(h => !affectedIdentifiers.has(h))
+              const newHighlights = highlights.filter(
+                h => !affectedIdentifiers.has(h)
+              )
               // Only create a child command if highlights actually change
               if (newHighlights.length === highlights.length) return
 
-              const childCommand = createChildCommand({
-                type: 'updateSettings',
-                itemId: item.id,
-                settings: { highlights: newHighlights },
-                source: 'aoi.rename'
-              }, command.chainId)
+              const childCommand = createChildCommand(
+                {
+                  type: 'updateSettings',
+                  itemId: item.id,
+                  settings: { highlights: newHighlights },
+                  source: 'aoi.rename',
+                },
+                command.chainId
+              )
 
               handleCommand(childCommand)
             })
@@ -144,15 +151,19 @@ export function createCommandHandler(
           // Only trigger collision resolution for root commands during normal operations
           // Skip during undo/redo because we're already executing the recorded children
           if (command.isRootCommand && !isUndoRedoOperation) {
-            const collisionCommands = gridStore.resolveItemPositionCollisions(itemId)
+            const collisionCommands =
+              gridStore.resolveItemPositionCollisions(itemId)
             // Emit each collision resolution command as child commands
             collisionCommands.forEach(collisionCommand => {
-              const childCommand = createChildCommand({
-                type: 'updateSettings',
-                itemId: collisionCommand.itemId,
-                settings: collisionCommand.settings,
-                source: 'collision'
-              }, command.chainId)
+              const childCommand = createChildCommand(
+                {
+                  type: 'updateSettings',
+                  itemId: collisionCommand.itemId,
+                  settings: collisionCommand.settings,
+                  source: 'collision',
+                },
+                command.chainId
+              )
               handleCommand(childCommand)
             })
           }
@@ -171,15 +182,19 @@ export function createCommandHandler(
           // Only trigger collision resolution for root commands during normal operations
           // Skip during undo/redo because we're already executing the recorded children
           if (command.isRootCommand && !isUndoRedoOperation) {
-            const collisionCommands = gridStore.resolveItemPositionCollisions(newItemId)
+            const collisionCommands =
+              gridStore.resolveItemPositionCollisions(newItemId)
             // Emit each collision resolution command as child commands
             collisionCommands.forEach(collisionCommand => {
-              const childCommand = createChildCommand({
-                type: 'updateSettings',
-                itemId: collisionCommand.itemId,
-                settings: collisionCommand.settings,
-                source: 'collision'
-              }, command.chainId)
+              const childCommand = createChildCommand(
+                {
+                  type: 'updateSettings',
+                  itemId: collisionCommand.itemId,
+                  settings: collisionCommand.settings,
+                  source: 'collision',
+                },
+                command.chainId
+              )
               handleCommand(childCommand)
             })
           }
@@ -192,24 +207,33 @@ export function createCommandHandler(
           break // No success message needed for removing items
         }
 
-
         case 'duplicateGridItem': {
-          const currentItem = get(gridStore).find(item => item.id === command.itemId)
-          if (!currentItem) throw new Error(`Grid item ${command.itemId} not found`)
-          const newItemId = gridStore.duplicateItem(currentItem, command.duplicateId)
+          const currentItem = get(gridStore).find(
+            item => item.id === command.itemId
+          )
+          if (!currentItem)
+            throw new Error(`Grid item ${command.itemId} not found`)
+          const newItemId = gridStore.duplicateItem(
+            currentItem,
+            command.duplicateId
+          )
 
           // Only trigger collision resolution for root commands during normal operations
           // Skip during undo/redo because we're already executing the recorded children
           if (command.isRootCommand && !isUndoRedoOperation) {
-            const collisionCommands = gridStore.resolveItemPositionCollisions(newItemId)
+            const collisionCommands =
+              gridStore.resolveItemPositionCollisions(newItemId)
             // Emit each collision resolution command as child commands
             collisionCommands.forEach(collisionCommand => {
-              const childCommand = createChildCommand({
-                type: 'updateSettings',
-                itemId: collisionCommand.itemId,
-                settings: collisionCommand.settings,
-                source: 'collision'
-              }, command.chainId)
+              const childCommand = createChildCommand(
+                {
+                  type: 'updateSettings',
+                  itemId: collisionCommand.itemId,
+                  settings: collisionCommand.settings,
+                  source: 'collision',
+                },
+                command.chainId
+              )
               handleCommand(childCommand)
             })
           }
@@ -231,12 +255,12 @@ export function createCommandHandler(
         finalizeChain()
       }
 
-
       // Show success message for root commands only
       if (command.isRootCommand && !isUndoRedoOperation) {
-        // ignore updateSettings commands 
+        // ignore updateSettings commands
         // THAT ARE NOT FROM A MODAL (source ends with .modal)
-        const isSettingsCommandFromModal = command.type === 'updateSettings' && command.source.endsWith('.modal')
+        const isSettingsCommandFromModal =
+          command.type === 'updateSettings' && command.source.endsWith('.modal')
         if (isSettingsCommandFromModal || command.type !== 'updateSettings') {
           const message = getCommandLabel(command.type, command.history)
           if (message) {
@@ -256,4 +280,3 @@ export function createCommandHandler(
   }
   return handleCommand
 }
-
