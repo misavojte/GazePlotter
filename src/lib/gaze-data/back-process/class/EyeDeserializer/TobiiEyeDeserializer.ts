@@ -1,4 +1,4 @@
-import type { DeserializerOutputType } from '$lib/gaze-data/back-process/types/DeserializerOutputType.js'
+import type { DeserializerOutputType } from '$lib/gaze-data/back-process/types/DeserializerOutputType'
 import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
 
 const TIME_MODIFIER = 0.001 // µs → ms
@@ -31,35 +31,42 @@ const MAX_SAMPLE_INTERVAL_US = 50000
 const SAMPLE_INTERVAL_TOLERANCE_FACTOR = 1.5
 
 /**
+ * Trigger string to activate Web Stimulus parsing mode.
+ */
+const WEB_STIMULUS_TRIGGER = 'WebStimulus'
+
+/**
  * Deserializer for Tobii Pro Lab TSV exports.
  *
  * ### Tobii quirks handled
  * 1. **Interval‑based stimuli** – `%STIMULUS% IntervalStart` / `IntervalEnd` rows may appear in the
- *    middle of an eye‑movement segment; we maintain a stack so multiple stimuli can overlap.
+ * middle of an eye‑movement segment; we maintain a stack so multiple stimuli can overlap.
  * 2. **AOI‑hit variability inside one segment** – Tobii may flag `AOI hit` columns inconsistently
- *    across rows that share the same `Eye movement type index`.  We aggregate all hits across the
- *    segment via a `Set`.
+ * across rows that share the same `Eye movement type index`.  We aggregate all hits across the
+ * segment via a `Set`.
  * 3. **Fixation‑onset timestamp (half‑sample correction)** – Pro Lab defines the start of a fixation
- *    half a frame before the first fixation‑labelled row.  We learn the nominal sample interval per
- *    *participant + recording* and, provided the gap is ≤ 1.5 × that interval, back‑shift the
- *    segment start by exactly half an interval.  When a larger gap is detected (data drop‑out) we
- *    fall back to using the raw timestamp to avoid absurd durations.
+ * half a frame before the first fixation‑labelled row.  We learn the nominal sample interval per
+ * *participant + recording* and, provided the gap is ≤ 1.5 × that interval, back‑shift the
+ * segment start by exactly half an interval.  When a larger gap is detected (data drop‑out) we
+ * fall back to using the raw timestamp to avoid absurd durations.
  * 4. **Sensor column filtering** – If a Sensor column is present, only rows with "Eye Tracker"
- *    sensor value are used for timing and AOI data. IntervalStart/IntervalEnd events may have
- *    empty sensor values but timing is handled via edging principle.
+ * sensor value are used for timing and AOI data. IntervalStart/IntervalEnd events may have
+ * empty sensor values but timing is handled via edging principle.
  * 5. **Segment end correction** – Similar to start correction, segment ends are adjusted to
- *    eliminate gaps between consecutive segments.
+ * eliminate gaps between consecutive segments.
  * 6. **Robust AOI Aggregation** - All `AOI hit [...]` columns are scanned on every eye-tracker
- *    row, regardless of the active stimulus. This is more robust than stimulus-specific
- *    AOI parsing, which can fail if stimulus and AOI names don't align perfectly.
+ * row, regardless of the active stimulus. This is more robust than stimulus-specific
+ * AOI parsing, which can fail if stimulus and AOI names don't align perfectly.
  * 7. **Mapped Column Priority** – The deserializer prioritizes "Mapped eye movement type" and
- *    "Mapped eye movement type index" columns over their regular counterparts when available.
- *    These mapped columns may have dynamic suffixes (e.g., "[participant_id]"). Segment
- *    boundaries are determined by the combination of BOTH eye movement type AND type index.
+ * "Mapped eye movement type index" columns over their regular counterparts when available.
+ * These mapped columns may have dynamic suffixes (e.g., "[participant_id]"). Segment
+ * boundaries are determined by the combination of BOTH eye movement type AND type index.
  * 8. **IntervalStart Timestamp Priority** – When available, IntervalStart event timestamps are
- *    used as segment start times instead of the first Eye Tracker row timestamp. This addresses
- *    Tobii's quirk where the true event start (IntervalStart) occurs before the first eye
- *    tracking data, providing more accurate timing alignment with Tobii Pro Lab's expectations.
+ * used as segment start times instead of the first Eye Tracker row timestamp. This addresses
+ * Tobii's quirk where the true event start (IntervalStart) occurs before the first eye
+ * tracking data, providing more accurate timing alignment with Tobii Pro Lab's expectations.
+ * 9. **Web Stimulus Parsing** - If activated via settings, parses `URLStart` and `URLEnd` events
+ * from the `Event` and `Event value` columns to create interval-based stimuli for web pages.
  *
  * @extends AbstractEyeDeserializer
  * @category Eye
@@ -73,6 +80,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   private readonly cRecording: number
   private readonly cCategory: number
   private readonly cEvent: number
+  private readonly cEventValue: number
   private readonly cEyeMovementTypeIndex: number
   private readonly cSensor: number // -1 if not present
 
@@ -140,6 +148,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
       header.indexOf('Eye movement type')
 
     this.cEvent = header.indexOf('Event')
+    this.cEventValue = header.indexOf('Event value')
 
     // Prioritize "Mapped eye movement type index" columns over regular ones
     this.cEyeMovementTypeIndex =
@@ -150,10 +159,15 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
     this._mAoiColumnInfo = this.constructAoiInfo(header)
 
-    this.stimulusGetter =
-      userInput === EMPTY_STRING
-        ? this.constructBaseStimulusGetter()
-        : this.constructIntervalStimulusGetter(userInput)
+    // Select the appropriate stimulus getter based on user input
+    if (userInput === WEB_STIMULUS_TRIGGER) {
+      this.stimulusGetter = this.constructWebStimulusGetter()
+    } else {
+      this.stimulusGetter =
+        userInput === EMPTY_STRING
+          ? this.constructBaseStimulusGetter()
+          : this.constructIntervalStimulusGetter(userInput)
+    }
   }
 
   /* ── Public API ─────────────────────────────────────────────────── */
@@ -523,6 +537,43 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
         const stimulusName = evt.substring(0, evt.length - endMarker.length)
         const i = this.intervalStack.indexOf(stimulusName)
         if (i !== -1) this.intervalStack.splice(i, 1)
+        return this.intervalStack
+      }
+
+      return this.intervalStack
+    }
+  }
+
+  private constructWebStimulusGetter() {
+    return (row: string[]): string[] => {
+      // If we don't have an Event Value column, we can't track URLs
+      if (this.cEventValue === -1) return this.intervalStack
+
+      const evt = row[this.cEvent]
+      // Optimistic check: if no event, nothing changes
+      if (!evt) return this.intervalStack
+
+      const evtValue = row[this.cEventValue]
+
+      // We expect 'URLStart' and 'URLEnd' from standard Tobii Web exports
+      if (evt === 'URLStart') {
+        const url = evtValue
+        if (url && !this.intervalStack.includes(url)) {
+          this.intervalStack.push(url)
+
+          // Capture start time for true event timing
+          const key = `${url}|${row[this.cRecording]}|${row[this.cParticipant]}`
+          this.intervalStartTimes.set(key, row[this.cRecordingTimestamp])
+        }
+        return this.intervalStack
+      }
+
+      if (evt === 'URLEnd') {
+        const url = evtValue
+        if (url) {
+          const i = this.intervalStack.indexOf(url)
+          if (i !== -1) this.intervalStack.splice(i, 1)
+        }
         return this.intervalStack
       }
 
