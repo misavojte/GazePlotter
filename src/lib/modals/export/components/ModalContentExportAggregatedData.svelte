@@ -26,6 +26,11 @@
   import { addSuccessToast } from '$lib/toaster/stores'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'
+  import {
+    type DecimalSeparator,
+    escapeCsvField,
+    formatNumberForCsv,
+  } from '$lib/shared/utils/csvFormatUtils'
 
   interface Props {
     settings?: BarPlotGridType
@@ -39,7 +44,19 @@
   let selectedStimuliIds = $state(
     new Set([settings?.stimulusId.toString() ?? '0'])
   )
+  let delimiter = $state(',')
+  let decimalSeparator = $state<DecimalSeparator>('.')
   let isExporting = $state(false)
+
+  const delimiterOptions = [
+    { value: ',', label: 'Comma (,)' },
+    { value: ';', label: 'Semicolon (;)' },
+  ]
+
+  const decimalSeparatorOptions = [
+    { value: '.', label: 'Dot (.)' },
+    { value: ',', label: 'Comma (,)' },
+  ]
 
   // Metrics configuration and state
   // Grouped logically: Time metrics → First fixation → Fixations → Visits
@@ -212,7 +229,16 @@
       )
 
       const csvRows = [
-        'Participant_ID,Participant_Name,Stimulus,AOI_Group,Metric,Value',
+        [
+          'Participant_ID',
+          'Participant_Name',
+          'Stimulus',
+          'AOI_Group',
+          'Metric',
+          'Value',
+        ]
+          .map(value => escapeCsvField(value, delimiter))
+          .join(delimiter),
       ]
 
       // Get selected metric configs
@@ -269,8 +295,17 @@
                 value = participantData[aoiIndex] as number
               }
 
+              const formattedValue = formatNumberForCsv(value, decimalSeparator)
+
               csvRows.push(
-                `${participantId},"${participant.displayedName}","${stimulus.displayedName}","${aoiGroup}","${metric.name}",${value}`
+                [
+                  escapeCsvField(participantId.toString(), delimiter),
+                  escapeCsvField(participant.displayedName, delimiter),
+                  escapeCsvField(stimulus.displayedName, delimiter),
+                  escapeCsvField(aoiGroup, delimiter),
+                  escapeCsvField(metric.name, delimiter),
+                  escapeCsvField(formattedValue, delimiter),
+                ].join(delimiter)
               )
             }
           }
@@ -356,6 +391,16 @@
         label="Participant Group"
         options={groupOptions}
         bind:value={selectedGroupId}
+      />
+      <GeneralSelect
+        label="Delimiter"
+        options={delimiterOptions}
+        bind:value={delimiter}
+      />
+      <GeneralSelect
+        label="Decimal Separator"
+        options={decimalSeparatorOptions}
+        bind:value={decimalSeparator}
       />
     </div>
   </section>
