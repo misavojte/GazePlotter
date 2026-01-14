@@ -1,22 +1,37 @@
 <script lang="ts">
-  import { canRedo, canUndo, endUndoRedo, redo, undo, WorkspaceToolbarItem } from '$lib/workspace'
+  import {
+    canRedo,
+    canUndo,
+    endUndoRedo,
+    redo,
+    undo,
+    WorkspaceToolbarItem,
+  } from '$lib/workspace'
   import { processingFileStateStore } from '$lib/workspace/stores/fileStore'
   import { hasValidData } from '$lib/gaze-data/front-process/stores/dataStore'
   import { onMount } from 'svelte'
-  import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
+  import type {
+    WorkspaceCommand,
+    WorkspaceCommandChain,
+  } from '$lib/shared/types/workspaceInstructions'
   import { createRootCommand } from '$lib/shared/types/workspaceInstructions'
   import { ModalContentMetadataInfo } from '$lib/modals'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { generateUniqueId } from '$lib/shared/utils/idUtils'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
-  import { lastUndoCommandType, lastRedoCommandType } from '$lib/workspace/stores/undoRedoStore'
+  import {
+    lastUndoCommandType,
+    lastRedoCommandType,
+  } from '$lib/workspace/stores/undoRedoStore'
   import { getCommandLabel } from '$lib/workspace/const/workspaceCommandLabels'
 
   // Configuration for toolbar items
   interface Props {
     accentColor?: string
     visualizations?: Array<{ id: string; label: string }>
-    onWorkspaceCommand: (command: WorkspaceCommand | WorkspaceCommandChain) => void
+    onWorkspaceCommand: (
+      command: WorkspaceCommand | WorkspaceCommandChain
+    ) => void
     initialLayoutState?: Array<Partial<AllGridTypes> & { type: string }> | null
   }
 
@@ -30,7 +45,6 @@
       bannerHeight = (banner as HTMLElement).offsetHeight
     }
   }
-
 
   // // Function to toggle fullscreen mode (temporarily disabled)
   // function toggleFullscreen() {
@@ -73,8 +87,12 @@
   const isProcessing = $derived($processingFileStateStore === 'processing')
   const isValidData = $derived($hasValidData)
 
-  const undoLabel: string | null = $derived($lastUndoCommandType ? getCommandLabel($lastUndoCommandType, 'undo') : null)
-  const redoLabel: string | null = $derived($lastRedoCommandType ? getCommandLabel($lastRedoCommandType, 'redo') : null)
+  const undoLabel: string | null = $derived(
+    $lastUndoCommandType ? getCommandLabel($lastUndoCommandType, 'undo') : null
+  )
+  const redoLabel: string | null = $derived(
+    $lastRedoCommandType ? getCommandLabel($lastRedoCommandType, 'redo') : null
+  )
 
   /**
    * Handles toolbar item clicks directly.
@@ -83,7 +101,7 @@
   const handleItemClick = (event: { id: string; event?: any }): void => {
     // if (event.id === 'toggle-fullscreen') {
     //   toggleFullscreen()
-    // } else 
+    // } else
     if (event.id === 'undo') {
       handleUndo()
     } else if (event.id === 'redo') {
@@ -92,11 +110,7 @@
       handleResetLayout()
     } else if (event.id === 'metadata') {
       // Open the metadata info modal directly
-      modalStore.open(
-        ModalContentMetadataInfo as any,
-        'Metadata Report',
-        {}
-      )
+      modalStore.open(ModalContentMetadataInfo as any, 'Metadata Report', {})
     } else if (visualizations.map(viz => viz.id).includes(event.id)) {
       // Handle visualization addition
       const vizType = event.id
@@ -104,7 +118,7 @@
         type: 'addGridItem',
         vizType,
         source: 'toolbar',
-        itemId: generateUniqueId()
+        itemId: generateUniqueId(),
       })
     }
   }
@@ -158,7 +172,9 @@
   // Listen for scroll and fullscreen changes
   onMount(() => {
     // add passive listener
-    window.addEventListener('scroll', detectOnScrollBannerHeight, { passive: true })  
+    window.addEventListener('scroll', detectOnScrollBannerHeight, {
+      passive: true,
+    })
     // document.addEventListener('fullscreenchange', handleFullscreenChange, { passive: true })
     document.addEventListener('keydown', handleKeydown, { passive: true })
     return () => {
@@ -261,11 +277,10 @@
 
 <style>
   .workspace-toolbar {
-    position: absolute;
-    top: 0;
-    left: 0;
+    /* Participate in the wrapper flex layout so it doesn't overlay the workspace */
+    flex: 0 0 46px;
     width: 46px;
-    height: 100%;
+    align-self: stretch;
     background-color: var(--c-lightgrey, #eaeaea);
     z-index: 2;
     transition: background-color 0.3s ease;
