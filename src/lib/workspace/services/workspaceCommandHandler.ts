@@ -1,5 +1,6 @@
 import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
 import { createChildCommand, isHistoryCommand } from '$lib/shared/types/workspaceInstructions'
+import { IDENTIFIER_IS_AOI } from '$lib/plots/scarf/const/identifiers'
 import type { GridStoreType } from '$lib/workspace/stores/gridStore'
 import { get } from 'svelte/store'
 import {
@@ -64,6 +65,38 @@ export function createCommandHandler(
           const { aois, stimulusId, applyTo } = command
           updateMultipleAoi(aois, stimulusId, applyTo)
           gridStore.triggerRedraw()
+
+          // If this is a root command (normal operation), sanitize scarf highlights
+          // by removing only the identifiers that correspond to renamed AOIs.
+          // Do not run during undo/redo processing.
+          if (command.isRootCommand && !isUndoRedoOperation) {
+            const renamedAois = aois || []
+            const affectedIdentifiers = new Set<string>(
+              renamedAois.map((a: any) => `${IDENTIFIER_IS_AOI}${a.id}`)
+            )
+
+            // Iterate current grid items and emit child updateSettings commands
+            // for scarf items that have any of the affected identifiers highlighted.
+            get(gridStore).forEach(item => {
+              if (item.type !== 'scarf') return
+              const highlights: string[] = (item as any).highlights || []
+              const hasMatch = highlights.some(h => affectedIdentifiers.has(h))
+              if (!hasMatch) return
+
+              const newHighlights = highlights.filter(h => !affectedIdentifiers.has(h))
+              // Only create a child command if highlights actually change
+              if (newHighlights.length === highlights.length) return
+
+              const childCommand = createChildCommand({
+                type: 'updateSettings',
+                itemId: item.id,
+                settings: { highlights: newHighlights },
+                source: 'aoi.rename'
+              }, command.chainId)
+
+              handleCommand(childCommand)
+            })
+          }
           break
         }
 
