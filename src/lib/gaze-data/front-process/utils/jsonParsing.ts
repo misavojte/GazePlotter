@@ -3,6 +3,7 @@ import type {
   JsonImportOldFormat,
   JsonImportNewFormat,
 } from '$lib/gaze-data/shared/types'
+import { jsonSegmentsToBinary } from '$lib/gaze-data/shared/types'
 import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
@@ -89,11 +90,14 @@ export function normalizeDataStructure(data: DataType): DataType {
 /**
  * Validates segment data to ensure consistency and prevent errors during rendering.
  * This addresses issues where segment IDs don't exist or segments are accessed incorrectly.
+ * After validation, converts segments to binary format for efficient processing.
  *
- * @param data - The normalized DataType object
- * @returns The validated DataType with consistent segments
+ * @param data - The normalized DataType object with nested array segments from JSON
+ * @returns The validated DataType with segments in binary format
  */
-export function validateSegments(data: DataType): DataType {
+export function validateSegments(
+  data: DataType & { segments: number[][][][] }
+): DataType {
   // Process all stimuli
   for (
     let stimulusIndex = 0;
@@ -135,7 +139,15 @@ export function validateSegments(data: DataType): DataType {
     }
   }
 
-  return data
+  // Convert to binary format for efficient processing
+  // Note: groupMap is extracted from data.aois.fastIdMappings if available
+  const groupMap = data.aois?.fastIdMappings?.array
+  const binarySegments = jsonSegmentsToBinary(data.segments, groupMap)
+
+  return {
+    ...data,
+    segments: binarySegments,
+  }
 }
 
 /**
@@ -197,7 +209,19 @@ export function processJsonFileWithGrid(
 
   // Determine the format and extract the data
   if (isNewFormat(parsed)) {
-    return parsed
+    // Validate basic structure
+    validateBasicStructure(parsed.data)
+
+    // Normalize the data structure
+    const normalizedData = normalizeDataStructure(parsed.data)
+
+    // Validate and convert segments to binary
+    const processedData = validateSegments(normalizedData)
+
+    return {
+      ...parsed,
+      data: processedData,
+    }
   } else if (isOldFormat(parsed)) {
     return {
       version: 2,

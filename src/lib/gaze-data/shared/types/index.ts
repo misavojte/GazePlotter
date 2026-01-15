@@ -3,6 +3,7 @@ import type {
   FileMetadataType,
 } from '$lib/workspace/type/fileMetadataType'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
+import type { BinarySegmentBuffers } from './binaryDataTypes'
 
 /**
  * Used for stimuli and participants basic information.
@@ -82,10 +83,16 @@ export interface DataType {
   participants: AttributeDataType
   participantsGroups: ParticipantsGroup[]
   stimuli: AttributeDataType
-  segments: number[][][][]
+  segments: BinarySegmentBuffers
 }
 
-export type JsonImportOldFormat = DataType
+/**
+ * Type for legacy JSON import/export format with nested array segments.
+ * Used only at the boundaries (import/export), never for internal processing.
+ */
+export type JsonImportOldFormat = Omit<DataType, 'segments'> & {
+  segments: number[][][][]
+}
 
 export type JsonImportNewFormat =
   | {
@@ -101,3 +108,7 @@ export type JsonImportNewFormat =
     }
 
 export type ParsedData = JsonImportNewFormat & { current: FileInputType }
+
+// Binary relational memory model
+export * from './binaryDataTypes'
+export * from './binaryConverters'

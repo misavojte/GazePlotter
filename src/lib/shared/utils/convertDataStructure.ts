@@ -1,4 +1,5 @@
 import type { DataType } from '$lib/gaze-data/shared/types'
+import { BinaryBufferReader } from '$lib/gaze-data/shared/types'
 import { getAoi } from '$lib/gaze-data/front-process/stores/dataStore'
 
 /**
@@ -41,9 +42,11 @@ export const convertDataStructure = (
     AOI: string[] | null
   }> = []
 
+  const reader = new BinaryBufferReader(data.segments)
+
   for (
     let stimulusIndex = 0;
-    stimulusIndex < data.segments.length;
+    stimulusIndex < data.segments.stimuliCount;
     stimulusIndex++
   ) {
     for (
@@ -51,24 +54,26 @@ export const convertDataStructure = (
       participantIndex < data.participants.data.length;
       participantIndex++
     ) {
-      const segments = data.segments[stimulusIndex][participantIndex]
-      if (segments) {
-        for (const segment of segments) {
-          const [start, end, category, ...aoiIds] = segment
-          const aoiNames =
-            aoiIds.length > 0
-              ? aoiIds.map(id => getAoi(stimulusIndex, id).displayedName)
-              : null
-          result.push({
-            stimulus: data.stimuli.data[stimulusIndex][0],
-            participant: data.participants.data[participantIndex][0],
-            timestamp: String(start),
-            duration: String(Number(end) - Number(start)), // Calculate duration
-            eyemovementtype: String(category),
-            AOI: aoiNames,
-          })
-        }
-      }
+      reader.forEachSegment(stimulusIndex, participantIndex, segmentIndex => {
+        const start = reader.getSegmentStart(segmentIndex)
+        const end = reader.getSegmentEnd(segmentIndex)
+        const category = reader.getSegmentCategory(segmentIndex)
+        const aoiIds = reader.getSegmentAois(segmentIndex, stimulusIndex, true) // Get grouped AOI IDs
+
+        const aoiNames =
+          aoiIds.length > 0
+            ? aoiIds.map(id => getAoi(stimulusIndex, id).displayedName)
+            : null
+
+        result.push({
+          stimulus: data.stimuli.data[stimulusIndex][0],
+          participant: data.participants.data[participantIndex][0],
+          timestamp: String(start),
+          duration: String(end - start),
+          eyemovementtype: String(category),
+          AOI: aoiNames,
+        })
+      })
     }
   }
 

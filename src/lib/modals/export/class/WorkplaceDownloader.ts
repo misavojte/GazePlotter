@@ -1,5 +1,6 @@
 import { AbstractDownloader } from './AbstractDownloader'
 import type { DataType, JsonImportNewFormat } from '$lib/gaze-data/shared/types'
+import { binarySegmentsToJson } from '$lib/gaze-data/shared/types'
 import { convertDataStructure } from '$lib/shared/utils/convertDataStructure'
 import {
   type CsvFormatOptions,
@@ -14,18 +15,24 @@ import { fileMetadataStore } from '$lib/workspace/stores/fileStore'
 
 export class WorkplaceDownloader extends AbstractDownloader {
   download(data: DataType, fileName: string): void {
+    // Convert binary segments to JSON format for export
+    const exportData = {
+      ...data,
+      segments: binarySegmentsToJson(data.segments),
+    }
+
     // add to the data the grid items
     const fileMetadata = get(fileMetadataStore)
     const dataWithGridItems: JsonImportNewFormat = fileMetadata
       ? {
           version: 3,
-          data,
+          data: exportData,
           gridItems: get(gridStore),
           fileMetadata,
         }
       : {
           version: 2,
-          data,
+          data: exportData,
           gridItems: get(gridStore),
         }
     const json = JSON.stringify(dataWithGridItems)

@@ -1,5 +1,5 @@
 import { EyeClassifier } from '../EyeClassifier/EyeClassifier'
-import { EyeWriter } from '../EyeWriter/EyeWriter'
+import { BinaryEyeWriter } from '../EyeWriter/BinaryEyeWriter'
 import { EyeParser } from '../EyeParser/EyeParser'
 import { AbstractEyeDeserializer } from '../EyeDeserializer/AbstractEyeDeserializer'
 import { BeGazeEyeDeserializer } from '../EyeDeserializer/BeGazeEyeDeserializer'
@@ -11,7 +11,6 @@ import { TobiiEyeDeserializer } from '../EyeDeserializer/TobiiEyeDeserializer'
 import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSettingsType.js'
 import { EyeSplitter } from '../EyeSplitter/EyeSplitter'
 import type { DataType } from '$lib/gaze-data/shared/types'
-import { EyeRefiner } from '../EyeRefiner/EyeRefiner'
 import { CsvSegmentedFromToEyeDeserializer } from '../EyeDeserializer/CsvSegmentedFromToEyeDeserializer'
 import { CsvSegmentedDurationEyeDeserializer } from '../EyeDeserializer/CsvSegmentedDurationEyeDeserializer'
 
@@ -20,7 +19,7 @@ export class EyePipeline {
   fileCount = -1
 
   classifier: EyeClassifier = new EyeClassifier()
-  writer: EyeWriter = new EyeWriter()
+  writer: BinaryEyeWriter = new BinaryEyeWriter()
   deserializer: AbstractEyeDeserializer | null = null
   completeSettings: EyeSettingsType | null = null
 
@@ -80,9 +79,8 @@ export class EyePipeline {
     this.releaseAfterFile(splitter, settings, userStringInput)
 
     if (this.isAllProcessed) {
-      const refiner = new EyeRefiner()
       return {
-        data: refiner.process(this.writer.data),
+        data: this.writer.buildFinalData(),
         settings: this.completeSettings,
       }
     }

@@ -9,6 +9,7 @@
 
 // EyeWriter
 export { EyeWriter } from './EyeWriter/EyeWriter'
+export { BinaryEyeWriter } from './EyeWriter/BinaryEyeWriter'
 
 // EyeSplitter
 export { EyeSplitter } from './EyeSplitter/EyeSplitter'
