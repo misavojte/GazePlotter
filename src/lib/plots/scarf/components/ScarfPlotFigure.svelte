@@ -3,7 +3,6 @@
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
   import { addInfoToast } from '$lib/toaster'
   import {
-    calculateLabelOffset,
     truncateTextToPixelWidth,
     SYSTEM_SANS_SERIF_STACK,
     estimateTextWidth,
@@ -106,13 +105,7 @@
     ITEMS_PER_ROW: LAYOUT.LEGEND_ITEMS_PER_ROW,
   }
 
-  const LEFT_LABEL_WIDTH = $derived(
-    // use calculateLabelOffset to calculate the width of the participant labels
-    calculateLabelOffset(
-      data.participants.map(p => p.label),
-      LAYOUT.LABEL_FONT_SIZE
-    ) + 10
-  )
+  const LEFT_LABEL_WIDTH = $derived(data.leftLabelWidth)
 
   // State management with Svelte 5 runes
   let isDragging = $state(false) // New state to track if actively dragging
@@ -145,16 +138,23 @@
     orderId: number
   } | null>(null)
 
-  // Calculate actual plot area width (without label area and with right margin)
-  const plotAreaWidth = $derived(
-    Math.max(
-      0,
-      chartWidth -
-        LEFT_LABEL_WIDTH -
-        (LAYOUT.PADDING << 1) -
-        LAYOUT.RIGHT_MARGIN
-    )
-  )
+  // Plot area width is computed in the transform alongside visual buffers
+  const plotAreaWidth = $derived(data.plotAreaWidth)
+
+  // Highlight mask by style index (computed once per highlight change)
+  const highlightMaskByIndex = $derived.by(() => {
+    if (!usedHighlights || usedHighlights.length === 0) return null
+    const total = identifierSystem.totalIdentifiers
+    if (!total) return null
+
+    const mask = new Uint8Array(total)
+    const { idToIndex } = identifierSystem
+    for (let i = 0; i < usedHighlights.length; i++) {
+      const idx = idToIndex.get(usedHighlights[i])
+      if (idx != null) mask[idx] = 1
+    }
+    return mask
+  })
 
   const totalHeight = $derived(
     calculatedHeights.totalHeight + marginTop + marginBottom
@@ -314,116 +314,8 @@
     return map
   })
 
-  // Separate derived stores for rectangle and line segments
-  const rectangleSegments = $derived.by(() => {
-    // Guard against plotAreaWidth not being initialized
-    if (!plotAreaWidth) return new Float32Array(0)
-
-    // Use the pre-flattened rectangles for performance
-    const segments = data.flattenedRectangles
-    const len = segments.length
-
-    // Each rect needs: x, y, width, height, identifierIndex, participantId, segmentId, orderId, styleData
-    // 12 values per rectangle
-    const RECT_STRIDE = 12
-    const buffer = new Float32Array(len * RECT_STRIDE)
-
-    const isUsedHighlight = usedHighlights.length > 0
-    // Get fast lookup maps
-    const { idToIndex } = identifierSystem
-
-    // Process all rectangles in a single loop for best performance
-    for (let i = 0; i < len; i++) {
-      const rect = segments[i]
-      const idx = i * RECT_STRIDE
-      const identifier = rect.identifier
-
-      // Get style index - must exist in the map
-      const identifierIdx = idToIndex.get(identifier) ?? 0
-
-      // Calculate x and width based on the plot area - done once per rect
-      const x = LEFT_LABEL_WIDTH + rect.rawX * plotAreaWidth + marginLeft
-      const width = rect.rawWidth * plotAreaWidth
-      const y = rect.y + marginTop
-
-      // Store basic geometry
-      buffer[idx] = x // x
-      buffer[idx + 1] = y // y
-      buffer[idx + 2] = width // width
-      buffer[idx + 3] = rect.height // height
-      buffer[idx + 4] = identifierIdx // identifier index
-      buffer[idx + 5] = rect.participantId // participantId
-      buffer[idx + 6] = rect.segmentId // segmentId
-      buffer[idx + 7] = rect.orderId // orderId
-
-      // Style flags - compute only once: dim if highlighting is active and this identifier is not highlighted
-      const isDimmed = isUsedHighlight && !usedHighlights.includes(identifier)
-
-      // 8: dimmed (0/1)
-      buffer[idx + 8] = isDimmed ? 1 : 0
-
-      // 9-11: reserved for future use
-      buffer[idx + 9] = 0
-      buffer[idx + 10] = 0
-      buffer[idx + 11] = 0
-    }
-
-    return buffer
-  })
-
-  const lineSegments = $derived.by(() => {
-    // Guard against plotAreaWidth not being initialized
-    if (!plotAreaWidth) return new Float32Array(0)
-
-    // Use the pre-flattened lines for performance
-    const segments = data.flattenedLines
-    const len = segments.length
-
-    // Each line needs: x1, y1, x2, y2, identifierIndex, participantId, styleData
-    // 10 values per line
-    const LINE_STRIDE = 10
-    const buffer = new Float32Array(len * LINE_STRIDE)
-
-    const isUsedHighlight = usedHighlights.length > 0
-    // Get fast lookup maps
-    const { idToIndex } = identifierSystem
-
-    // Process all lines in a single loop for best performance
-    for (let i = 0; i < len; i++) {
-      const line = segments[i]
-      const idx = i * LINE_STRIDE
-      const identifier = line.identifier
-
-      // Get style index - must exist in the map
-      const identifierIdx = idToIndex.get(identifier) ?? 0
-
-      // Calculate coordinates based on the plot area - done once per line
-      const x1 = LEFT_LABEL_WIDTH + line.rawX1 * plotAreaWidth + marginLeft
-      const x2 = LEFT_LABEL_WIDTH + line.rawX2 * plotAreaWidth + marginLeft
-      const y = line.y + marginTop
-
-      // Store basic geometry
-      buffer[idx] = x1 // x1
-      buffer[idx + 1] = y // y1
-      buffer[idx + 2] = x2 // x2
-      buffer[idx + 3] = y // y2
-      buffer[idx + 4] = identifierIdx // identifier index
-      buffer[idx + 5] = line.participantId // participantId
-
-      // Style flags - compute only once: dim if highlighting is active and this identifier is not highlighted
-      const isDimmed = isUsedHighlight && !usedHighlights.includes(identifier)
-
-      // 6: dimmed (0/1)
-      buffer[idx + 6] = isDimmed ? 1 : 0
-
-      // 7-9: reserved for future use
-      buffer[idx + 7] = 0
-      buffer[idx + 8] = 0
-      buffer[idx + 9] = 0
-    }
-
-    return buffer
-  })
+  const visualRectBuffer = $derived(data.visualRectBuffer)
+  const visualLineBuffer = $derived(data.visualLineBuffer)
 
   // Interaction handlers
   function handleLegendIdentifier(identifier: string) {
@@ -484,7 +376,6 @@
   }
 
   function drawParticipantLabels(ctx: CanvasRenderingContext2D) {
-   
     // watch out that setUpFont function is called before this function is called!
 
     ctx.textAlign = 'start'
@@ -547,14 +438,15 @@
       const tick = ticks[i]
       if (!tick.isNice) continue
 
-      const regularXPos = LEFT_LABEL_WIDTH + tick.position * plotAreaWidth + marginLeft
-      
+      const regularXPos =
+        LEFT_LABEL_WIDTH + tick.position * plotAreaWidth + marginLeft
+
       // Only check for overflow on the second-to-last tick
       // and the last tick if with a label (for relative timeline mode)
       if ((i === isSecondToLast || i === isLast) && tick.label) {
         const textWidth = ctx.measureText(tick.label).width
         const rightEdgeOfText = regularXPos + textWidth / 2
-        
+
         if (rightEdgeOfText > rightBoundary) {
           // Move the label left just enough so it fits within the plot area
           const xPos = regularXPos - (rightEdgeOfText - rightBoundary)
@@ -598,10 +490,13 @@
   }
 
   function drawRectangles(ctx: CanvasRenderingContext2D) {
-    const segments = rectangleSegments
+    const segments = visualRectBuffer
     if (segments.length === 0) return
 
     const RECT_STRIDE = 12
+
+    const isHighlightActive = usedHighlights.length > 0
+    const highlightMask = highlightMaskByIndex
 
     // Local references for faster access
     const rectStyles = rectStyleMap
@@ -623,7 +518,10 @@
 
       for (const i of segmentIndices) {
         const idx = i * RECT_STRIDE
-        const isDimmed = segments[idx + 8] === 1
+        const isDimmed =
+          isHighlightActive && highlightMask
+            ? highlightMask[styleIdx] !== 1
+            : false
 
         if (!isDimmed) {
           ctx.fillRect(
@@ -648,7 +546,10 @@
 
       for (const i of segmentIndices) {
         const idx = i * RECT_STRIDE
-        const isDimmed = segments[idx + 8] === 1
+        const isDimmed =
+          isHighlightActive && highlightMask
+            ? highlightMask[styleIdx] !== 1
+            : false
 
         if (isDimmed) {
           ctx.fillRect(
@@ -666,10 +567,13 @@
   }
 
   function drawLines(ctx: CanvasRenderingContext2D) {
-    const segments = lineSegments
+    const segments = visualLineBuffer
     if (segments.length === 0) return
 
     const LINE_STRIDE = 10
+
+    const isHighlightActive = usedHighlights.length > 0
+    const highlightMask = highlightMaskByIndex
 
     // Local references for fast access
     const lineStyles = lineStyleMap
@@ -693,7 +597,10 @@
 
       for (const i of segmentIndices) {
         const idx = i * LINE_STRIDE
-        const isDimmed = segments[idx + 6] === 1
+        const isDimmed =
+          isHighlightActive && highlightMask
+            ? highlightMask[styleIdx] !== 1
+            : false
 
         if (!isDimmed) {
           ctx.beginPath()
@@ -719,7 +626,10 @@
 
       for (const i of segmentIndices) {
         const idx = i * LINE_STRIDE
-        const isDimmed = segments[idx + 6] === 1
+        const isDimmed =
+          isHighlightActive && highlightMask
+            ? highlightMask[styleIdx] !== 1
+            : false
 
         if (isDimmed) {
           ctx.beginPath()
@@ -736,7 +646,6 @@
   }
 
   function drawXAxisLabel(ctx: CanvasRenderingContext2D) {
-
     // watch out that setUpFont function is called before this function is called!
 
     ctx.textAlign = 'center'
@@ -926,7 +835,6 @@
 
     // Draw group titles
     if (legendGeometry.groupTitles && legendGeometry.groupTitles.length > 0) {
-
       ctx.textAlign = 'left'
       ctx.textBaseline = 'top'
       // set semi-bold font
@@ -940,7 +848,6 @@
         ctx.fillText(group.title, group.x, group.y)
       }
     }
-    
   }
 
   // Draw the legend on the canvas
@@ -1004,7 +911,6 @@
   }
 
   function drawLegendItemTexts(ctx: CanvasRenderingContext2D) {
-
     // Draw each legend item
     if (legendGeometry.items && legendGeometry.items.length > 0) {
       const items = legendGeometry.items
@@ -1099,7 +1005,7 @@
           visible: true,
           content: tooltipContent,
           x: tooltipPos.x,
-          y: tooltipPos.y
+          y: tooltipPos.y,
         })
       } else if (hoveredLegendItem) {
         // Hide tooltip when mouse leaves legend item
@@ -1256,7 +1162,7 @@
   function handleMouseUp() {
     if (isDragging) {
       isDragging = false
-      onDragEnd()  // Call drag end handler
+      onDragEnd() // Call drag end handler
       if (canvas) {
         canvas.style.cursor = 'grab'
       }
@@ -1279,7 +1185,7 @@
       const deltaX = Math.abs(mouseX - dragStartX)
       const deltaY = Math.abs(mouseY - dragStartY)
       const threshold = 5 // 5px threshold to distinguish click from drag
-      
+
       if (deltaX > threshold || deltaY > threshold) {
         // Start actual dragging
         hasDragStarted = true
@@ -1410,7 +1316,7 @@
   })
 
   function findHoveredRectSegment(mouseX: number, mouseY: number) {
-    const segments = rectangleSegments
+    const segments = visualRectBuffer
     if (segments.length === 0) return null
 
     const RECT_STRIDE = 12
@@ -1427,7 +1333,7 @@
       const y = segments[idx + 1]
       const width = segments[idx + 2]
       const height = segments[idx + 3]
-      const identifierIdx = segments[idx + 4]
+      const identifierIdx = segments[idx + 4] | 0
       const participantId = segments[idx + 5]
       const segmentId = segments[idx + 6]
       const orderId = segments[idx + 7]
@@ -1456,7 +1362,7 @@
 
   // Create derived stores for style buckets that update only when segment data changes
   const rectangleStyleBuckets = $derived.by(() => {
-    const segments = rectangleSegments
+    const segments = visualRectBuffer
     if (segments.length === 0) return new Map<number, number[]>()
 
     const RECT_STRIDE = 12
@@ -1466,7 +1372,7 @@
     // Single pass to populate buckets by style index - O(n)
     for (let i = 0; i < len; i++) {
       const idx = i * RECT_STRIDE
-      const identifierIdx = segments[idx + 4]
+      const identifierIdx = segments[idx + 4] | 0
 
       // Get or create bucket for this style
       let bucket = styleBuckets.get(identifierIdx)
@@ -1481,7 +1387,7 @@
   })
 
   const lineStyleBuckets = $derived.by(() => {
-    const segments = lineSegments
+    const segments = visualLineBuffer
     if (segments.length === 0) return new Map<number, number[]>()
 
     const LINE_STRIDE = 10
@@ -1491,7 +1397,7 @@
     // Single pass to populate buckets by style index - O(n)
     for (let i = 0; i < len; i++) {
       const idx = i * LINE_STRIDE
-      const identifierIdx = segments[idx + 4]
+      const identifierIdx = segments[idx + 4] | 0
 
       // Get or create bucket for this style
       let bucket = styleBuckets.get(identifierIdx)
@@ -1513,10 +1419,7 @@
   })
 </script>
 
-<svelte:window 
-  on:mousemove={handleDrag} 
-  on:mouseup={handleMouseUp} 
-/>
+<svelte:window on:mousemove={handleDrag} on:mouseup={handleMouseUp} />
 
 <canvas
   class="scarf-plot-figure"

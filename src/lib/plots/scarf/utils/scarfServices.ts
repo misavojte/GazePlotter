@@ -4,7 +4,7 @@ import {
 } from '$lib/gaze-data/front-process/stores/dataStore'
 import { getScarfParticipantBarHeight as getBarHeight } from '$lib/plots/scarf/utils/transformations'
 
-// Constants duplicated from scarfPlotTransformations.ts for better independence
+// Constants duplicated from the canonical scarf transformations module for better independence
 const HEIGHT_OF_X_AXIS = 20
 const DEFAULT_BAR_HEIGHT = 15 // SHOULD BE 20 BUT THIS FIXES THE BUG OF MISALIGNMENT OF BAR HEIGHTS
 const DEFAULT_NON_FIXATION_HEIGHT = 4
@@ -38,7 +38,7 @@ export const SCARF_LAYOUT = {
   TOOLTIP_OFFSET_Y: 8,
   TOOLTIP_HIDE_DELAY: 200,
 
-  // Bar and height constants - MUST match scarfPlotTransformations.ts
+  // Bar and height constants - MUST match the canonical scarf transformations
   HEIGHT_OF_BAR: DEFAULT_BAR_HEIGHT,
   HEIGHT_OF_LEGEND_BAR: 32,
   SPACE_ABOVE_RECT: DEFAULT_SPACE_ABOVE_RECT,
@@ -65,7 +65,7 @@ export const SCARF_LAYOUT = {
 }
 
 /**
- * Re-exports getScarfParticipantBarHeight from scarfPlotTransformations
+ * Re-exports getScarfParticipantBarHeight from the canonical scarf transformations
  */
 export const getScarfParticipantBarHeight = getBarHeight
 

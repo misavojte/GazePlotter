@@ -27,10 +27,10 @@ import type {
 import {
   getAois,
   getAoiVisibility,
+  getData,
   getNumberOfSegments,
   getParticipant,
   getParticipantEndTime,
-  getSegments,
   getStimuli,
   hasStimulusAoiVisibility,
 } from '$lib/gaze-data/front-process/stores/dataStore'
@@ -40,11 +40,17 @@ import {
   IDENTIFIER_IS_OTHER_CATEGORY,
   IDENTIFIER_NOT_DEFINED,
 } from '$lib/plots/scarf/const/identifiers'
+import {
+  MAX_AOI_PER_STIMULUS,
+  SEGMENT_STRIDE,
+  SegmentField,
+} from '$lib/gaze-data/shared/types'
 import type {
   BaseInterpretedDataType,
   ExtendedInterpretedDataType,
   SegmentInterpretedDataType,
 } from '$lib/gaze-data/shared/types'
+import { calculateLabelOffset } from '$lib/shared/utils/textUtils'
 
 // Constants
 const HEIGHT_OF_X_AXIS = 20
@@ -53,6 +59,108 @@ const DEFAULT_BAR_HEIGHT = 20
 const DEFAULT_NON_FIXATION_HEIGHT = 4
 const DEFAULT_SPACE_ABOVE_RECT = 5
 const DEFAULT_SPACE_ABOVE_LINE = 2
+
+const RECT_STRIDE = 12
+const LINE_STRIDE = 10
+
+type ScarfVisualConfig = {
+  chartWidth: number
+  marginLeft?: number
+  marginTop?: number
+  padding?: number
+  rightMargin?: number
+  labelFontSize?: number
+}
+
+class Float32GrowBuffer {
+  private buffer: Float32Array
+  private writeIndex: number
+
+  constructor(initialCapacityFloats: number) {
+    this.buffer = new Float32Array(initialCapacityFloats)
+    this.writeIndex = 0
+  }
+
+  private ensureCapacity(additionalFloats: number) {
+    const required = this.writeIndex + additionalFloats
+    if (required <= this.buffer.length) return
+
+    let newLength = this.buffer.length
+    while (newLength < required) {
+      newLength = Math.max(1024, newLength * 2)
+    }
+
+    const next = new Float32Array(newLength)
+    next.set(this.buffer)
+    this.buffer = next
+  }
+
+  pushRect(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    identifierIdx: number,
+    participantId: number,
+    segmentId: number,
+    orderId: number
+  ) {
+    this.ensureCapacity(RECT_STRIDE)
+
+    const idx = this.writeIndex
+    const b = this.buffer
+
+    b[idx] = x
+    b[idx + 1] = y
+    b[idx + 2] = width
+    b[idx + 3] = height
+    b[idx + 4] = identifierIdx
+    b[idx + 5] = participantId
+    b[idx + 6] = segmentId
+    b[idx + 7] = orderId
+
+    // 8-11 reserved
+    b[idx + 8] = 0
+    b[idx + 9] = 0
+    b[idx + 10] = 0
+    b[idx + 11] = 0
+
+    this.writeIndex += RECT_STRIDE
+  }
+
+  pushLine(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    identifierIdx: number,
+    participantId: number
+  ) {
+    this.ensureCapacity(LINE_STRIDE)
+
+    const idx = this.writeIndex
+    const b = this.buffer
+
+    b[idx] = x1
+    b[idx + 1] = y1
+    b[idx + 2] = x2
+    b[idx + 3] = y2
+    b[idx + 4] = identifierIdx
+    b[idx + 5] = participantId
+
+    // 6-9 reserved
+    b[idx + 6] = 0
+    b[idx + 7] = 0
+    b[idx + 8] = 0
+    b[idx + 9] = 0
+
+    this.writeIndex += LINE_STRIDE
+  }
+
+  finalize(): Float32Array {
+    return this.buffer.slice(0, this.writeIndex)
+  }
+}
 
 /**
  * Calculates the participant bar height based on configuration parameters
@@ -495,8 +603,19 @@ export function transformDataToScarfPlot(
   barHeight = DEFAULT_BAR_HEIGHT,
   nonFixationHeight = DEFAULT_NON_FIXATION_HEIGHT,
   spaceAboveRect = DEFAULT_SPACE_ABOVE_RECT / 2,
-  spaceAboveLine = DEFAULT_SPACE_ABOVE_LINE
+  spaceAboveLine = DEFAULT_SPACE_ABOVE_LINE,
+  visual: ScarfVisualConfig
 ): ScarfFillingType {
+  if (!visual || !Number.isFinite(visual.chartWidth)) {
+    throw new Error('transformDataToScarfPlot: visual.chartWidth is required')
+  }
+
+  const marginLeft = visual.marginLeft ?? 0
+  const marginTop = visual.marginTop ?? 0
+  const padding = visual.padding ?? 0
+  const rightMargin = visual.rightMargin ?? 0
+  const labelFontSize = visual.labelFontSize ?? 12
+
   // Get basic data
   const aoiData = getAois(stimulusId)
   const stimuliData = getStimuli()
@@ -518,38 +637,84 @@ export function transformDataToScarfPlot(
     lineWrappedHeight
   )
 
+  // Create styling and stimulus list
+  const stylingAndLegend = createStylingAndLegend(
+    aoiData,
+    barHeight,
+    nonFixationHeight,
+    showAoiVisibility
+  )
+  const stimuli = createStimuliList(stimuliData)
+
+  // Build style index mapping to avoid per-segment identifier string work.
+  // IMPORTANT: This must match the identifier order used by ScarfPlotFigure's identifierSystem.
+  const aoiStyleCount = stylingAndLegend.aoi.length
+  const categoryStyleCount = stylingAndLegend.category.length
+  const visibilityStyleCount = stylingAndLegend.visibility.length
+
+  // AOI styles are created from aoiData (same order) plus one trailing "No AOI hit".
+  const aoiOrderIndex = new Int16Array(MAX_AOI_PER_STIMULUS)
+  aoiOrderIndex.fill(-1)
+  for (let i = 0; i < aoiData.length; i++) {
+    const id = aoiData[i].id
+    if (id >= 0 && id < MAX_AOI_PER_STIMULUS) {
+      aoiOrderIndex[id] = i
+    }
+  }
+
+  const noAoiStyleIdx = aoiData.length
+  const saccadeStyleIdx = aoiStyleCount // first category index
+  const otherCategoryStyleIdx = aoiStyleCount + 1
+  const visibilityBaseStyleIdx = aoiStyleCount + categoryStyleCount
+
+  // Precompute LEFT_LABEL_WIDTH in the same way the figure used to.
+  // This must happen before building the visual buffers.
+  const participantLabels: string[] = []
+  for (let i = 0; i < participantIds.length; i++) {
+    participantLabels.push(getParticipant(participantIds[i]).displayedName)
+  }
+
+  const leftLabelWidth =
+    calculateLabelOffset(participantLabels, labelFontSize) + 10
+
+  const plotAreaWidth = Math.max(
+    0,
+    visual.chartWidth - leftLabelWidth - (padding << 1) - rightMargin
+  )
+
   // Create participants data
   const participants: ParticipantScarfFillingType[] = []
 
-  // Pre-flattened segments array for performance optimization
-  const flattenedRectangles: Array<{
-    identifier: string
-    height: number
-    rawX: number
-    rawWidth: number
-    y: number
-    participantId: number
-    segmentId: number
-    orderId: number
-  }> = []
-
-  // Pre-flattened visibility lines array
-  const flattenedLines: Array<{
-    identifier: string
-    rawX1: number
-    rawX2: number
-    y: number
-    participantId: number
-  }> = []
+  // Precomputed visual buffers
+  const rectBufferBuilder = new Float32GrowBuffer(
+    Math.max(RECT_STRIDE * 1024, participantIds.length * RECT_STRIDE * 32)
+  )
+  const lineBufferBuilder = new Float32GrowBuffer(
+    Math.max(LINE_STRIDE * 256, participantIds.length * LINE_STRIDE * 16)
+  )
 
   // Cache this calculation that's repeated in multiple places
   const isOrdinal = settings.timeline === 'ordinal'
   const isRelative = settings.timeline === 'relative'
 
+  const currentData = getData()
+  const buffers = currentData.segments
+  const segmentBuffer = buffers.segmentBuffer
+  const indexTable = buffers.indexTable
+  const aoiPool = buffers.aoiPool
+  const groupMap = buffers.groupMap
+  const maxParticipants = buffers.maxParticipants
+
+  const groupMapOffsetBase = stimulusId * MAX_AOI_PER_STIMULUS
+
+  // Reusable per-participant/per-segment scratch to avoid allocations
+  const present = new Uint8Array(MAX_AOI_PER_STIMULUS)
+  const presentList: number[] = []
+
   const numberOfParticipants = participantIds.length
   for (let pIndex = 0; pIndex < numberOfParticipants; pIndex++) {
     const participantId = participantIds[pIndex]
-    const { displayedName } = getParticipant(participantId)
+    const displayedName = participantLabels[pIndex]
     const sessionDuration = getParticipantEndTime(stimulusId, participantId)
 
     const rectWrappedHeight = barHeight + (spaceAboveRect << 1) // just a bit faster instead of * 2
@@ -557,17 +722,28 @@ export function transformDataToScarfPlot(
     // Calculate the visible timeline range
     const visibleRange = maxValue - minValue
     const yOffset = pIndex * barWrapHeight
-    const segments = getSegments(stimulusId, participantId, null, null, null, 0)
-    const segmentCount = segments.length
 
-    // Only process segments if there are any
+    // Segment range in master buffers
+    const rangeIdx = (stimulusId * maxParticipants + participantId) * 2
+    const startIndex = indexTable[rangeIdx]
+    const endIndex = indexTable[rangeIdx + 1]
+    const segmentCount = endIndex - startIndex
+
     if (segmentCount > 0) {
-      // Process all segments directly into flattened array
-      for (let segmentId = 0; segmentId < segmentCount; segmentId++) {
-        const segment = segments[segmentId]
+      for (
+        let localSegmentId = 0;
+        localSegmentId < segmentCount;
+        localSegmentId++
+      ) {
+        const segmentIndex = startIndex + localSegmentId
+        const base = segmentIndex * SEGMENT_STRIDE
 
-        let start = isOrdinal ? segmentId : segment.start
-        let end = isOrdinal ? segmentId + 1 : segment.end
+        const categoryId = segmentBuffer[base + SegmentField.CATEGORY_ID] | 0
+        const startTime = segmentBuffer[base + SegmentField.START_TIME]
+        const endTime = segmentBuffer[base + SegmentField.END_TIME]
+
+        let start = isOrdinal ? localSegmentId : startTime
+        let end = isOrdinal ? localSegmentId + 1 : endTime
 
         // Skip segments entirely outside the timeline range
         // For relative timeline, we don't apply cropping
@@ -600,30 +776,126 @@ export function transformDataToScarfPlot(
           width = segmentWidth / visibleRange
         }
 
-        // Create segment content directly into flattened array
-        const contents = createSegmentContents(
-          segment,
-          x,
-          width,
-          barHeight,
-          nonFixationHeight,
-          spaceAboveRect,
-          undefined,
-          segmentId
-        )
+        // Convert to pixel coords once (visual buffers are pixel-based)
+        const pxX = leftLabelWidth + x * plotAreaWidth + marginLeft
+        const pxW = width * plotAreaWidth
 
-        // Add to the flattened rectangles array with pre-calculated y offset
-        for (const rectangle of contents) {
-          flattenedRectangles.push({
-            identifier: rectangle.identifier,
-            height: rectangle.height,
-            rawX: rectangle.x,
-            rawWidth: rectangle.width,
-            y: yOffset + rectangle.y,
+        // Build rectangles directly from binary buffers
+        if (categoryId !== 0) {
+          const pxY =
+            yOffset +
+            (spaceAboveRect + (barHeight >> 1) - (nonFixationHeight >> 1)) +
+            marginTop
+          const styleIdx =
+            categoryId === 1 ? saccadeStyleIdx : otherCategoryStyleIdx
+          rectBufferBuilder.pushRect(
+            pxX,
+            pxY,
+            pxW,
+            nonFixationHeight,
+            styleIdx,
             participantId,
-            segmentId,
-            orderId: rectangle.orderId,
-          })
+            localSegmentId,
+            localSegmentId
+          )
+          continue
+        }
+
+        const aoiCount = segmentBuffer[base + SegmentField.AOI_COUNT] | 0
+        const aoiPtr = segmentBuffer[base + SegmentField.AOI_POINTER] | 0
+
+        if (aoiCount <= 0) {
+          const pxY = yOffset + spaceAboveRect + marginTop
+          rectBufferBuilder.pushRect(
+            pxX,
+            pxY,
+            pxW,
+            barHeight,
+            noAoiStyleIdx,
+            participantId,
+            localSegmentId,
+            localSegmentId
+          )
+          continue
+        }
+
+        // Build set of present grouped AOIs (deduped) without allocations
+        presentList.length = 0
+        for (let i = 0; i < aoiCount; i++) {
+          const rawId = aoiPool[aoiPtr + i]
+          const mapped = groupMap[groupMapOffsetBase + rawId]
+          const groupId = mapped === 0xffff ? rawId : mapped
+          if (groupId < 0 || groupId >= MAX_AOI_PER_STIMULUS) continue
+          if (present[groupId] === 0) {
+            present[groupId] = 1
+            presentList.push(groupId)
+          }
+        }
+
+        const uniqueAoiCount = presentList.length
+        if (uniqueAoiCount === 0) {
+          const pxY = yOffset + spaceAboveRect + marginTop
+          rectBufferBuilder.pushRect(
+            pxX,
+            pxY,
+            pxW,
+            barHeight,
+            noAoiStyleIdx,
+            participantId,
+            localSegmentId,
+            localSegmentId
+          )
+          continue
+        }
+
+        const aoiRectHeight = barHeight / uniqueAoiCount
+        let yLocal = spaceAboveRect
+        let emitted = 0
+
+        // Emit AOIs in stimulus order
+        for (let aoiIdx = 0; aoiIdx < aoiData.length; aoiIdx++) {
+          const orderedId = aoiData[aoiIdx].id
+          if (orderedId < 0 || orderedId >= MAX_AOI_PER_STIMULUS) continue
+          if (present[orderedId] === 1) {
+            const pxY = yOffset + yLocal + marginTop
+            rectBufferBuilder.pushRect(
+              pxX,
+              pxY,
+              pxW,
+              aoiRectHeight,
+              aoiIdx,
+              participantId,
+              localSegmentId,
+              localSegmentId
+            )
+            yLocal += aoiRectHeight
+            emitted++
+            present[orderedId] = 0
+          }
+        }
+
+        // Emit any remaining (unexpected) AOIs at the end to preserve visibility
+        if (emitted < uniqueAoiCount) {
+          for (let i = 0; i < presentList.length; i++) {
+            const remainingId = presentList[i]
+            if (present[remainingId] === 1) {
+              const orderIdx = aoiOrderIndex[remainingId]
+              const styleIdx = orderIdx >= 0 ? orderIdx : noAoiStyleIdx
+              const pxY = yOffset + yLocal + marginTop
+              rectBufferBuilder.pushRect(
+                pxX,
+                pxY,
+                pxW,
+                aoiRectHeight,
+                styleIdx,
+                participantId,
+                localSegmentId,
+                localSegmentId
+              )
+              yLocal += aoiRectHeight
+              present[remainingId] = 0
+            }
+          }
         }
       }
     }
@@ -643,35 +915,64 @@ export function transformDataToScarfPlot(
           : 0
     }
 
-    // Process AOI visibility lines
-    const dynamicAoiVisibility = createAoiVisibility(
-      stimulusId,
-      participantId,
-      aoiData,
-      sessionDuration,
-      rectWrappedHeight,
-      lineWrappedHeight,
-      showAoiVisibility,
-      maxValue,
-      settings.timeline,
-      minValue
-    )
+    // Process AOI visibility lines directly into the line buffer
+    if (showAoiVisibility && visibilityStyleCount > 0) {
+      const isRel = settings.timeline === 'relative'
+      const shouldApplyLimits = !isRel // ordinal already excluded by showAoiVisibility
 
-    // Pre-flatten visibility lines
-    if (showAoiVisibility) {
-      const dvLen = dynamicAoiVisibility.length
-      for (let v = 0; v < dvLen; v++) {
-        const content = dynamicAoiVisibility[v].content
-        const cLen = content.length
-        for (let c = 0; c < cLen; c++) {
-          const line = content[c]
-          flattenedLines.push({
-            identifier: line.identifier,
-            rawX1: line.x1,
-            rawX2: line.x2,
-            y: yOffset + line.y,
-            participantId,
-          })
+      // Calculate the visible timeline range
+      const visible = maxValue - minValue
+
+      // Crop visibility to participant's data range
+      const participantStart = 0
+      const participantEnd = sessionDuration
+
+      for (let aoiIdx = 0; aoiIdx < aoiData.length; aoiIdx++) {
+        const aoiId = aoiData[aoiIdx].id
+        const visibility = getAoiVisibility(stimulusId, aoiId, participantId)
+        if (visibility == null) continue
+
+        const styleIdx = visibilityBaseStyleIdx + aoiIdx
+        const y =
+          yOffset + rectWrappedHeight + aoiIdx * lineWrappedHeight + marginTop
+
+        for (let i = 0; i < visibility.length; i += 2) {
+          let start = visibility[i]
+          let end = visibility[i + 1]
+
+          // Crop to participant bounds
+          if (end <= participantStart || start >= participantEnd) {
+            continue
+          }
+          if (start < participantStart) start = participantStart
+          if (end > participantEnd) end = participantEnd
+
+          // Crop to timeline window (absolute only)
+          if (shouldApplyLimits) {
+            if (end <= minValue || start >= maxValue) {
+              continue
+            }
+            if (start < minValue) start = minValue
+            if (end > maxValue) end = maxValue
+          }
+
+          let x1: number
+          let x2: number
+
+          if (isRel) {
+            const safeDuration = sessionDuration > 0 ? sessionDuration : 1
+            x1 = start / safeDuration
+            x2 = end / safeDuration
+          } else {
+            const adjustedStart = start - minValue
+            const adjustedEnd = end - minValue
+            x1 = adjustedStart / visible
+            x2 = adjustedEnd / visible
+          }
+
+          const pxX1 = leftLabelWidth + x1 * plotAreaWidth + marginLeft
+          const pxX2 = leftLabelWidth + x2 * plotAreaWidth + marginLeft
+          lineBufferBuilder.pushLine(pxX1, y, pxX2, y, styleIdx, participantId)
         }
       }
     }
@@ -683,15 +984,6 @@ export function transformDataToScarfPlot(
       width,
     })
   }
-
-  // Create styling and stimulus list
-  const stylingAndLegend = createStylingAndLegend(
-    aoiData,
-    barHeight,
-    nonFixationHeight,
-    showAoiVisibility
-  )
-  const stimuli = createStimuliList(stimuliData)
 
   // Calculate chart height
   const chartHeight = numberOfParticipants * barWrapHeight + HEIGHT_OF_X_AXIS
@@ -707,7 +999,9 @@ export function transformDataToScarfPlot(
     participants,
     timeline,
     stylingAndLegend,
-    flattenedRectangles,
-    flattenedLines,
+    leftLabelWidth,
+    plotAreaWidth,
+    visualRectBuffer: rectBufferBuilder.finalize(),
+    visualLineBuffer: lineBufferBuilder.finalize(),
   }
 }

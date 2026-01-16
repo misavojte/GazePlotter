@@ -66,20 +66,6 @@
   // Derived highlights array - convert undefined to empty array
   const highlights = $derived(realSettings.highlights ?? [])
 
-  const scarfData = $derived.by(() => {
-    // Force recalculation when redrawTimestamp changes
-    // Also use localTimestamp to force recalculation when participants change
-    const _ = localTimestamp
-
-    // Get the latest participant IDs directly instead of using untrack
-    const participantIds = getParticipants(
-      currentGroupId,
-      currentStimulusId
-    ).map(participant => participant.id)
-
-    return transformDataToScarfPlot(currentStimulusId, participantIds, localSettings)
-  })
-
   // Calculate plot dimensions using a more descriptive approach
   const plotDimensions = $derived.by(() =>
     calculatePlotDimensionsWithHeader(
@@ -94,6 +80,37 @@
 
   // Available width for chart content
   const chartWidth = $derived(plotDimensions.width)
+
+  const scarfData = $derived.by(() => {
+    // Force recalculation when redrawTimestamp changes
+    // Also use localTimestamp to force recalculation when participants change
+    const _ = localTimestamp
+    const __ = chartWidth
+
+    // Get the latest participant IDs directly instead of using untrack
+    const participantIds = getParticipants(
+      currentGroupId,
+      currentStimulusId
+    ).map(participant => participant.id)
+
+    return transformDataToScarfPlot(
+      currentStimulusId,
+      participantIds,
+      localSettings,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        chartWidth,
+        marginLeft: 0,
+        marginTop: 0,
+        padding: SCARF_LAYOUT.PADDING,
+        rightMargin: SCARF_LAYOUT.RIGHT_MARGIN,
+        labelFontSize: SCARF_LAYOUT.LABEL_FONT_SIZE,
+      }
+    )
+  })
 
   // Use the unified height calculation from the service
   const heightCalculations = $derived.by(() => {
@@ -156,7 +173,6 @@
     }
   })
 
-
   function scheduleTooltipHide() {
     clearTimeout(timeout)
     if (!windowObj) return
@@ -179,7 +195,7 @@
         type: 'updateSettings',
         itemId: realSettings.id,
         source,
-        settings: { highlights: [] }
+        settings: { highlights: [] },
       })
     }
   }
@@ -192,20 +208,20 @@
   // Handle legend item clicks - toggle highlight in the array
   function handleLegendClick(identifier: string) {
     hideTooltipAndHighlight()
-    
+
     // Toggle the identifier in the highlights array
     const currentHighlights = highlights
     const isCurrentlyHighlighted = currentHighlights.includes(identifier)
     const newHighlights = isCurrentlyHighlighted
       ? currentHighlights.filter(id => id !== identifier)
       : [...currentHighlights, identifier]
-    
+
     // Update via workspace command
     onWorkspaceCommand({
       type: 'updateSettings',
       itemId: realSettings.id,
       source,
-      settings: { highlights: newHighlights }
+      settings: { highlights: newHighlights },
     })
   }
 
@@ -243,16 +259,16 @@
         ...localSettings,
         absoluteStimuliLimits: {
           ...localSettings.absoluteStimuliLimits,
-          [currentStimulusId]: [newMin, newMax]
-        }
+          [currentStimulusId]: [newMin, newMax],
+        },
       }
     } else if (localSettings.timeline === 'ordinal') {
       localSettings = {
         ...localSettings,
         ordinalStimuliLimits: {
           ...localSettings.ordinalStimuliLimits,
-          [currentStimulusId]: [newMin, newMax]
-        }
+          [currentStimulusId]: [newMin, newMax],
+        },
       }
     }
     // For relative timeline, there's typically nothing to update as it's fixed at 0-100%
@@ -261,18 +277,19 @@
   // Handle drag end - sync localSettings to workspace
   function handleDragEnd() {
     // Send single workspace command with final localSettings values
-    const limitsKey = localSettings.timeline === 'absolute' 
-      ? 'absoluteStimuliLimits' 
-      : 'ordinalStimuliLimits'
-    
+    const limitsKey =
+      localSettings.timeline === 'absolute'
+        ? 'absoluteStimuliLimits'
+        : 'ordinalStimuliLimits'
+
     if (localSettings.timeline !== 'relative') {
       onWorkspaceCommand({
         type: 'updateSettings',
         itemId: realSettings.id,
         source,
         settings: {
-          [limitsKey]: localSettings[limitsKey]
-        }
+          [limitsKey]: localSettings[limitsKey],
+        },
       })
     }
   }
@@ -317,11 +334,7 @@
 
 <div class="scarf-plot-container">
   <div class="header">
-    <ScarfPlotHeader
-      {source}
-      settings={localSettings}
-      {onWorkspaceCommand}
-    />
+    <ScarfPlotHeader {source} settings={localSettings} {onWorkspaceCommand} />
   </div>
 
   <div class="figure" style="height: {heightCalculations.totalHeight}px">
@@ -333,7 +346,7 @@
           tooltipAreaElement={tooltipArea}
           data={scarfData}
           settings={localSettings}
-          highlights={highlights}
+          {highlights}
           onLegendClick={handleLegendClick}
           onDragStepX={handleDragStepX}
           onDragEnd={handleDragEnd}

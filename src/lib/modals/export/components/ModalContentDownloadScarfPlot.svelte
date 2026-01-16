@@ -1,7 +1,11 @@
 <script lang="ts">
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
   import type { ScarfFillingType } from '$lib/plots/scarf/types'
-  import { transformDataToScarfPlot, ScarfPlotFigure } from '$lib/plots'
+  import {
+    transformDataToScarfPlot,
+    ScarfPlotFigure,
+    SCARF_LAYOUT,
+  } from '$lib/plots'
   import GeneralCanvasPreview from '$lib/modals/shared/components/CanvasPreview.svelte'
   import { getParticipants } from '$lib/gaze-data/front-process/stores/dataStore'
   import { untrack } from 'svelte'
@@ -13,16 +17,6 @@
   }
 
   let { settings }: Props = $props()
-
-  const obtainedData = transformDataToScarfPlot(
-    untrack(() => settings.stimulusId),
-    untrack(() =>
-      getParticipants(settings.groupId, settings.stimulusId).map(
-        participant => participant.id
-      )
-    ),
-    untrack(() => settings)
-  )
 
   // Export settings state
   let typeOfExport = $state<'.png' | '.jpg'>('.png')
@@ -37,11 +31,35 @@
   // Calculate the effective width (what will be available for the chart after margins)
   const effectiveWidth = $derived(width - (marginLeft + marginRight))
 
+  const obtainedData = $derived.by(() =>
+    transformDataToScarfPlot(
+      untrack(() => settings.stimulusId),
+      untrack(() =>
+        getParticipants(settings.groupId, settings.stimulusId).map(
+          participant => participant.id
+        )
+      ),
+      untrack(() => settings),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        chartWidth: effectiveWidth,
+        marginLeft,
+        marginTop,
+        padding: SCARF_LAYOUT.PADDING,
+        rightMargin: SCARF_LAYOUT.RIGHT_MARGIN,
+        labelFontSize: SCARF_LAYOUT.LABEL_FONT_SIZE,
+      }
+    )
+  )
+
   // Calculate the total height
-  const totalHeight = obtainedData.chartHeight + 130
+  const totalHeight = $derived(obtainedData.chartHeight + 130)
 
   // Calculate heights for ScarfPlotFigure
-  const calculatedHeights = $derived({
+  const calculatedHeights = $derived.by(() => ({
     participantBarHeight: obtainedData.heightOfBarWrap,
     heightOfParticipantBars:
       obtainedData.participants.length * obtainedData.heightOfBarWrap,
@@ -62,7 +80,7 @@
       obtainedData.participants.length * obtainedData.heightOfBarWrap + 40,
     legendY:
       obtainedData.participants.length * obtainedData.heightOfBarWrap + 80,
-  })
+  }))
 </script>
 
 <div class="single-view-container">

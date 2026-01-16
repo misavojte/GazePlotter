@@ -28,22 +28,22 @@ export type ScarfFillingType = {
   participants: ParticipantScarfFillingType[]
   timeline: AdaptiveTimeline
   stylingAndLegend: StylingScarfFillingType
-  // Pre-flattened data for performance optimization
-  flattenedRectangles: Array<{
-    identifier: string
-    height: number
-    rawX: number
-    rawWidth: number
-    y: number
-    participantId: number
-    segmentId: number
-    orderId: number
-  }>
-  flattenedLines: Array<{
-    identifier: string
-    rawX1: number
-    rawX2: number
-    y: number
-    participantId: number
-  }>
+  /**
+   * Precomputed layout widths used by the renderer.
+   * These must match the values used when constructing the visual buffers.
+   */
+  leftLabelWidth: number
+  plotAreaWidth: number
+
+  /**
+   * Precomputed visual buffers (pixel coordinates) for canvas rendering.
+   *
+   * Rectangle buffer layout (RECT_STRIDE = 12):
+   * [x, y, width, height, identifierIndex, participantId, segmentId, orderId, reserved0, reserved1, reserved2, reserved3]
+   *
+   * Line buffer layout (LINE_STRIDE = 10):
+   * [x1, y1, x2, y2, identifierIndex, participantId, reserved0, reserved1, reserved2, reserved3]
+   */
+  visualRectBuffer: Float32Array
+  visualLineBuffer: Float32Array
 }
