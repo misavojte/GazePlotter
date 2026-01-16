@@ -8,14 +8,10 @@
  */
 
 // EyeWriter
-export { EyeWriter } from './EyeWriter/EyeWriter'
 export { BinaryEyeWriter } from './EyeWriter/BinaryEyeWriter'
 
 // EyeSplitter
 export { EyeSplitter } from './EyeSplitter/EyeSplitter'
-
-// EyeRefiner
-export { EyeRefiner } from './EyeRefiner/EyeRefiner'
 
 // EyePipeline
 export { EyePipeline } from './EyePipeline/EyePipeline'

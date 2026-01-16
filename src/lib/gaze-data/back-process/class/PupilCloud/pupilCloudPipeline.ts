@@ -1,8 +1,7 @@
 import JSZip from 'jszip'
 import type { DataType } from '$lib/gaze-data/shared/types'
 import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSettingsType'
-import { EyeWriter } from '$lib/gaze-data/back-process/class/EyeWriter/EyeWriter'
-import { EyeRefiner } from '$lib/gaze-data/back-process/class/EyeRefiner/EyeRefiner'
+import { BinaryEyeWriter as EyeWriter } from '$lib/gaze-data/back-process/class/EyeWriter/BinaryEyeWriter'
 
 /**
  * Stateful pipeline for processing multiple Pupil Cloud ZIP files.
@@ -43,8 +42,10 @@ export class PupilCloudPipeline {
     zipBytes: Uint8Array,
     zipName: string
   ): Promise<{ data: DataType; settings: EyeSettingsType } | null> {
-    console.log(`[PupilCloudPipeline] Processing ZIP ${this.zipCount + 1}/${this.zipNames.length}: ${zipName}`)
-    
+    console.log(
+      `[PupilCloudPipeline] Processing ZIP ${this.zipCount + 1}/${this.zipNames.length}: ${zipName}`
+    )
+
     const zip = await JSZip.loadAsync(zipBytes)
     const [sectionsCsv, aoiFixationsCsv, fixationsCsv] = await Promise.all([
       readZipText(zip, 'sections.csv'),
@@ -79,14 +80,17 @@ export class PupilCloudPipeline {
       }
     }
 
-    console.log(`[PupilCloudPipeline] Completed ZIP ${this.zipCount}/${this.zipNames.length}, isAllProcessed: ${this.isAllProcessed}`)
+    console.log(
+      `[PupilCloudPipeline] Completed ZIP ${this.zipCount}/${this.zipNames.length}, isAllProcessed: ${this.isAllProcessed}`
+    )
 
     // Only return data when all ZIPs are processed
     if (this.isAllProcessed) {
-      console.log('[PupilCloudPipeline] All ZIPs processed, applying refiner and returning data')
-      const refiner = new EyeRefiner()
+      console.log(
+        '[PupilCloudPipeline] All ZIPs processed, applying refiner and returning data'
+      )
       return {
-        data: refiner.process(this.writer.data),
+        data: this.writer.buildFinalData(),
         settings: this.completeSettings,
       }
     }
@@ -103,8 +107,13 @@ export class PupilCloudPipeline {
  * @param namePart - Substring to identify the entry (e.g., 'sections.csv')
  * @throws If no matching file is found or the entry is a directory
  */
-export async function readZipText(zip: JSZip, namePart: string): Promise<string> {
-  const key = Object.keys(zip.files).find(k => k.toLowerCase().includes(namePart.toLowerCase()))
+export async function readZipText(
+  zip: JSZip,
+  namePart: string
+): Promise<string> {
+  const key = Object.keys(zip.files).find(k =>
+    k.toLowerCase().includes(namePart.toLowerCase())
+  )
   if (!key) throw new Error(`Missing ${namePart} in ZIP`)
   const file = zip.files[key]
   if (file.dir) throw new Error(`${namePart} is a directory, expected a file`)
@@ -122,7 +131,9 @@ export async function readZipText(zip: JSZip, namePart: string): Promise<string>
  * @param csv - The CSV content as UTF-8 string
  * @returns Immutable Map keyed by composite "recordingId:fixationId" with a Set of AOI names
  */
-export function buildFixationToAoiMap(csv: string): ReadonlyMap<string, ReadonlySet<string>> {
+export function buildFixationToAoiMap(
+  csv: string
+): ReadonlyMap<string, ReadonlySet<string>> {
   const map = new Map<string, Set<string>>()
   forEachCsvRow(csv, (cols, isHeader) => {
     if (isHeader) return
@@ -132,7 +143,9 @@ export function buildFixationToAoiMap(csv: string): ReadonlyMap<string, Readonly
     if (!recordingId || !fixationId) return
     // Create composite key: recordingId:fixationId
     const compositeKey = `${recordingId}:${fixationId}`
-    const set = map.get(compositeKey) ?? (map.set(compositeKey, new Set<string>()).get(compositeKey)!)
+    const set =
+      map.get(compositeKey) ??
+      map.set(compositeKey, new Set<string>()).get(compositeKey)!
     if (aoiName) set.add(aoiName)
   })
   return map
@@ -149,9 +162,11 @@ export function buildFixationToAoiMap(csv: string): ReadonlyMap<string, Readonly
  * @param csv - The CSV content as UTF-8 string
  * @returns Immutable Map keyed by recordingId with recordingName value
  */
-export function buildRecordingToParticipantMap(csv: string): ReadonlyMap<string, string> {
+export function buildRecordingToParticipantMap(
+  csv: string
+): ReadonlyMap<string, string> {
   const rawMap = new Map<string, string>()
-  
+
   // First pass: collect all raw recording names
   forEachCsvRow(csv, (cols, isHeader) => {
     if (isHeader) return
@@ -159,27 +174,29 @@ export function buildRecordingToParticipantMap(csv: string): ReadonlyMap<string,
     const recordingName = cols[2]
     if (recordingId && recordingName) rawMap.set(recordingId, recordingName)
   })
-  
+
   // Try to strip timestamp pattern and check if names remain unique
   const strippedNames = new Map<string, string>()
   for (const [recordingId, recordingName] of rawMap.entries()) {
     const stripped = stripTimestampFromRecordingName(recordingName)
     strippedNames.set(recordingId, stripped)
   }
-  
+
   // Check uniqueness of stripped names
   const uniqueStripped = new Set(strippedNames.values())
   const useStripped = uniqueStripped.size === strippedNames.size
-  
-  console.log(`[PupilCloud] Recording names: ${rawMap.size} total, stripped to ${uniqueStripped.size} unique names, using ${useStripped ? 'stripped' : 'original'} names`)
-  
+
+  console.log(
+    `[PupilCloud] Recording names: ${rawMap.size} total, stripped to ${uniqueStripped.size} unique names, using ${useStripped ? 'stripped' : 'original'} names`
+  )
+
   return useStripped ? strippedNames : rawMap
 }
 
 /**
  * Strips timestamp pattern from Pupil Cloud recording names.
  * Pattern: _YYYY-MM-DD_HH:MM:SS at the end of the name
- * 
+ *
  * Examples:
  * - "T4a_AZ_ZP_2025-04-17_11:16:45" → "T4a_AZ_ZP"
  * - "V4e_AS_ZP_2025-03-21_09:53:38" → "V4e_AS_ZP"
@@ -222,8 +239,14 @@ export function addFixationsToWriter(params: {
   fixationToAoi: ReadonlyMap<string, ReadonlySet<string>>
   recordingToParticipant: ReadonlyMap<string, string>
 }): void {
-  const { writer, fixationsCsv, stimulus, fixationToAoi, recordingToParticipant } = params
-  
+  const {
+    writer,
+    fixationsCsv,
+    stimulus,
+    fixationToAoi,
+    recordingToParticipant,
+  } = params
+
   // Time base is per-participant AND per-stimulus to ensure each stimulus starts at 0
   const baseByParticipant = new Map<string, number>()
 
@@ -234,12 +257,19 @@ export function addFixationsToWriter(params: {
     const startNs = Number(cols[3])
     const endNs = Number(cols[4])
 
-    if (!recordingId || !fixationId || !Number.isFinite(startNs) || !Number.isFinite(endNs)) return
+    if (
+      !recordingId ||
+      !fixationId ||
+      !Number.isFinite(startNs) ||
+      !Number.isFinite(endNs)
+    )
+      return
 
     const participant = recordingToParticipant.get(recordingId) ?? recordingId
-    
+
     // Each stimulus has its own time base per participant
-    if (!baseByParticipant.has(participant)) baseByParticipant.set(participant, startNs)
+    if (!baseByParticipant.has(participant))
+      baseByParticipant.set(participant, startNs)
     const baseNs = baseByParticipant.get(participant)!
     const startMs = (startNs - baseNs) / 1e6
     const endMs = (endNs - baseNs) / 1e6

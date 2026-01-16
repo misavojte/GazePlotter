@@ -41,7 +41,9 @@ async function processEvent(e: MessageEvent): Promise<void> {
         if (!isStringArray(data)) throw new Error('File names are not string[]')
         fileNames = data
         // Check if files are ZIP files (Pupil Cloud) or regular eye-tracking files
-        const isZipFiles = fileNames.some(name => name.toLowerCase().endsWith('.zip'))
+        const isZipFiles = fileNames.some(name =>
+          name.toLowerCase().endsWith('.zip')
+        )
         if (isZipFiles) {
           pupilCloudPipeline = new PupilCloudPipeline(fileNames)
         } else {
@@ -121,19 +123,26 @@ const evalStream = async (rs: ReadableStream): Promise<void> => {
  */
 const evalZipBuffer = async (data: unknown): Promise<void> => {
   const { buffer, zipName } = data as { buffer: ArrayBuffer; zipName: string }
-  
-  if (pupilCloudPipeline === null) throw new Error('Pupil Cloud pipeline is not initialized')
+
+  if (pupilCloudPipeline === null)
+    throw new Error('Pupil Cloud pipeline is not initialized')
   if (fileNames.length === 0) throw new Error('No files to process')
-  
+
   zipBuffers.push(buffer)
-  console.log(`[Worker] Received ZIP buffer ${zipBuffers.length}/${fileNames.length}: ${zipName}`)
-  
+  console.log(
+    `[Worker] Received ZIP buffer ${zipBuffers.length}/${fileNames.length}: ${zipName}`
+  )
+
   // Process all ZIPs when we have received them all
   if (zipBuffers.length === fileNames.length) {
-    console.log(`[Worker] All ${fileNames.length} ZIP buffers received, starting processing`)
+    console.log(
+      `[Worker] All ${fileNames.length} ZIP buffers received, starting processing`
+    )
     // Process each ZIP sequentially
     for (let i = 0; i < zipBuffers.length; i++) {
-      console.log(`[Worker] Processing ZIP ${i + 1}/${zipBuffers.length}: ${fileNames[i]}`)
+      console.log(
+        `[Worker] Processing ZIP ${i + 1}/${zipBuffers.length}: ${fileNames[i]}`
+      )
       const dataWithSettings = await pupilCloudPipeline.addNewZip(
         new Uint8Array(zipBuffers[i]),
         fileNames[i]
@@ -156,6 +165,8 @@ const evalZipBuffer = async (data: unknown): Promise<void> => {
     }
     console.log('[Worker] WARNING: Processed all ZIPs but got no final data!')
   } else {
-    console.log(`[Worker] Waiting for more ZIPs: ${zipBuffers.length}/${fileNames.length}`)
+    console.log(
+      `[Worker] Waiting for more ZIPs: ${zipBuffers.length}/${fileNames.length}`
+    )
   }
 }

@@ -1,271 +1,216 @@
-import type { SingleDeserializerOutput } from '$lib/gaze-data/back-process/types/SingleDeserializerOutput.js'
-import type {
-  DataType,
-  BinarySegmentBuffers,
-} from '$lib/gaze-data/shared/types'
 import {
   SEGMENT_STRIDE,
   SegmentField,
   MAX_AOI_PER_STIMULUS,
 } from '$lib/gaze-data/shared/types/binaryDataTypes'
-import { jsonSegmentsToBinary } from '$lib/gaze-data/shared/types/binaryConverters'
+import type {
+  DataType,
+  BinarySegmentBuffers,
+} from '$lib/gaze-data/shared/types'
+import type { SingleDeserializerOutput } from '$lib/gaze-data/back-process/types/SingleDeserializerOutput'
 
-/**
- * Binary-based EyeWriter that constructs segment data in typed arrays.
- * Uses temporary nested structure during construction, then builds binary buffers at the end.
- */
 export class BinaryEyeWriter {
-  // Base data without segments (will be combined with binary buffers later)
-  private baseData: Omit<DataType, 'segments'> = {
-    isOrdinalOnly: false,
-    stimuli: { data: [], orderVector: [] },
-    participants: { data: [], orderVector: [] },
-    participantsGroups: [],
-    categories: { data: [['Fixation'], ['Saccade']], orderVector: [] },
-    aois: { data: [], orderVector: [], dynamicVisibility: {} },
-  }
+  // Metadata Maps (O(1) Lookups)
+  private stimuli = new Map<string, number>()
+  private participants = new Map<string, number>()
+  private aoiMaps: Map<string, number>[] = []
 
-  lastData: SingleDeserializerOutput | null = null
+  // Data for final DataType structure
+  private stimuliNames: string[] = []
+  private participantNames: string[] = []
+  private aoisPerStimulus: string[][] = []
 
-  // Temporary nested structure during construction (will be converted to binary)
-  private tempSegments: number[][][][] = []
-
-  /**
-   * Getter for accessing data (for compatibility with EyePipeline).
-   * Note: segments will be empty array until buildFinalData() is called.
-   */
-  get data(): DataType {
-    return {
-      ...this.baseData,
-      segments: this.tempSegments,
-    }
-  }
+  // Intermediate Raw Storage (Typed Arrays)
+  // Pre-allocate large chunks to avoid frequent re-allocation
+  private rawSegments = new Float64Array(100000 * 5) // [stimIdx, partIdx, start, end, category]
+  private rawAois: (number[] | null)[] = []
+  private count = 0
 
   add(row: SingleDeserializerOutput): void {
-    this.lastData = row
-
-    const stimulusIndex = this.processStimulus(row.stimulus)
-    const participantIndex = this.processParticipant(
-      row.participant,
-      stimulusIndex
+    const sIdx = this.getOrAdd(
+      this.stimuli,
+      row.stimulus,
+      this.stimuliNames,
+      true
     )
-    const aoiIDs = this.processAOIs(row.aoi, stimulusIndex)
-    const categoryID = this.processCategory(row.category)
+    const pIdx = this.getOrAdd(
+      this.participants,
+      row.participant,
+      this.participantNames
+    )
 
-    // Build segment array: [start, end, category, ...aoiIds]
-    let segment = [Number(row.start), Number(row.end), categoryID]
-    if (aoiIDs !== null) {
-      segment = segment.concat(aoiIDs)
+    // Ensure capacity
+    if ((this.count + 1) * 5 > this.rawSegments.length) {
+      const newBuf = new Float64Array(this.rawSegments.length * 2)
+      newBuf.set(this.rawSegments)
+      this.rawSegments = newBuf
     }
 
-    // Store in temporary nested structure
-    this.tempSegments[stimulusIndex][participantIndex] ??= []
-    this.tempSegments[stimulusIndex][participantIndex].push(segment)
-  }
+    const base = this.count * 5
+    this.rawSegments[base + 0] = sIdx
+    this.rawSegments[base + 1] = pIdx
+    this.rawSegments[base + 2] = Number(row.start)
+    this.rawSegments[base + 3] = Number(row.end)
+    this.rawSegments[base + 4] =
+      row.category.toLowerCase() === 'fixation' ? 0 : 1
 
-  processStimulus(sName: string): number {
-    const sData = this.baseData.stimuli.data
-    let sIndex = sData.findIndex(el => el[0] === sName)
-
-    if (sIndex === -1) {
-      sIndex = sData.length
-      sData.push([sName])
-      this.baseData.aois.data.push([])
-      this.tempSegments.push([])
+    // Direct AOI ID mapping
+    if (row.aoi && row.aoi.length > 0) {
+      this.rawAois[this.count] = row.aoi.map(name =>
+        this.getOrAddAoi(name, sIdx)
+      )
+    } else {
+      this.rawAois[this.count] = null
     }
 
-    return sIndex
+    this.count++
   }
 
-  processParticipant(pName: string, sIndex: number): number {
-    const pData = this.baseData.participants.data
-    let pIndex = pData.findIndex(el => el[0] === pName)
-
-    if (pIndex === -1) {
-      pIndex = pData.length
-      pData.push([pName])
-      this.tempSegments[sIndex].push([])
-    }
-
-    return pIndex
-  }
-
-  processCategory(cName: string): number {
-    const cData = this.baseData.categories.data
-    let cIndex = cData.findIndex(el => el[0] === cName)
-    if (cIndex === -1) {
-      cIndex = cData.length
-      cData.push([cName])
-    }
-    return cIndex
-  }
-
-  processAOIs(aNames: string[] | null, sIndex: number): null | number[] {
-    if (aNames === null) return null
-    const aois: number[] = []
-    for (let i = 0; i < aNames.length; i++) {
-      const aoi = this.processAOI(aNames[i], sIndex)
-      if (aoi !== null) aois.push(aoi)
-    }
-    if (aois.length === 0) return null
-    return aois
-  }
-
-  processAOI(aName: string | null, sIndex: number): null | number {
-    if (aName === null) return null
-
-    const aData = this.baseData.aois.data[sIndex]
-    let aIndex = aData.findIndex(el => el[0] === aName)
-
-    if (aIndex === -1) {
-      aIndex = aData.length
-      aData.push([aName + ''])
-    }
-
-    return aIndex
-  }
-
-  /**
-   * Refine and build the final binary buffers from accumulated segment data.
-   * This should be called after all segments have been added.
-   *
-   * Performs the following refinements:
-   * - Orders segments by start time
-   * - Merges duplicated fixation segments
-   * - Orders AOIs alphabetically
-   * - Orders participants alphabetically
-   *
-   * @param groupMap - Optional grouping map for AOI name-based grouping
-   * @returns Complete DataType with binary segment buffers
-   */
-  buildFinalData(groupMap?: Uint16Array): DataType {
-    const binaryBuffers = this.buildBinaryBuffers(groupMap)
-    return {
-      ...this.baseData,
-      segments: binaryBuffers,
-    }
-  }
-
-  /**
-   * Internal method to build binary buffers after refinement.
-   * Use buildFinalData() instead for getting the complete DataType.
-   *
-   * @param groupMap - Optional grouping map for AOI name-based grouping
-   * @returns Binary segment buffers ready for use
-   */
-  private buildBinaryBuffers(groupMap?: Uint16Array): BinarySegmentBuffers {
-    // Refine the data before converting to binary
-    this.sortSegments()
-    this.mergeDuplicatedSegments()
-    this.orderAoisAlphabetically()
-    this.orderParticipantsAlphabetically()
-
-    // Convert temp nested structure to binary
-    return jsonSegmentsToBinary(this.tempSegments, groupMap)
-  }
-
-  /**
-   * Sort segments by start time for each participant.
-   */
-  private sortSegments(): void {
-    const noOfStimuli = this.tempSegments.length
-    const noOfParticipants = this.baseData.participants.data.length
-
-    for (let stimulusId = 0; stimulusId < noOfStimuli; stimulusId++) {
-      for (
-        let participantId = 0;
-        participantId < noOfParticipants;
-        participantId++
-      ) {
-        const segmentPart = this.tempSegments[stimulusId]?.[participantId]
-        if (segmentPart === undefined) continue
-        // Sort by start time (index 0)
-        segmentPart.sort((a, b) => a[0] - b[0])
+  private getOrAdd(
+    map: Map<string, number>,
+    name: string,
+    list: string[],
+    isStim = false
+  ): number {
+    let idx = map.get(name)
+    if (idx === undefined) {
+      idx = list.length
+      map.set(name, idx)
+      list.push(name)
+      if (isStim) {
+        this.aoisPerStimulus.push([])
+        this.aoiMaps.push(new Map())
       }
     }
+    return idx
   }
 
-  /**
-   * Merge duplicated fixation segments with identical start/end times.
-   * Combines AOI IDs into a single segment.
-   */
-  private mergeDuplicatedSegments(): void {
-    const noOfStimuli = this.tempSegments.length
-    const noOfParticipants = this.baseData.participants.data.length
-    const fixationCategoryId = 0 // 0 = Fixation
+  private getOrAddAoi(name: string, sIdx: number): number {
+    const map = this.aoiMaps[sIdx]
+    let idx = map.get(name)
+    if (idx === undefined) {
+      idx = this.aoisPerStimulus[sIdx].length
+      map.set(name, idx)
+      this.aoisPerStimulus[sIdx].push(name)
+    }
+    return idx
+  }
 
-    for (let stimulusId = 0; stimulusId < noOfStimuli; stimulusId++) {
-      for (
-        let participantId = 0;
-        participantId < noOfParticipants;
-        participantId++
-      ) {
-        const segmentPart = this.tempSegments[stimulusId]?.[participantId]
-        if (segmentPart === undefined) continue
+  buildFinalData(): DataType {
+    const n = this.count
+    const indices = new Uint32Array(n)
+    for (let i = 0; i < n; i++) indices[i] = i
 
-        let prevStart: number | null = null
-        let prevEnd: number | null = null
-        let segIdToJoin: number | null = null
+    // 1. Sort Proxy Indices: O(N log N)
+    // Sort by Stimulus -> Participant -> StartTime
+    indices.sort((a, b) => {
+      const baseA = a * 5
+      const baseB = b * 5
+      return (
+        this.rawSegments[baseA + 0] - this.rawSegments[baseB + 0] || // Stim
+        this.rawSegments[baseA + 1] - this.rawSegments[baseB + 1] || // Part
+        this.rawSegments[baseA + 2] - this.rawSegments[baseB + 2]
+      ) // Start
+    })
 
-        for (let segmentId = 0; segmentId < segmentPart.length; segmentId++) {
-          const currSegment = segmentPart[segmentId]
+    // 2. Linear Pass: Merge & Build Buffers (O(N))
+    const finalSegBuffer = new Float32Array(n * SEGMENT_STRIDE)
+    const aoiPool = new Uint16Array(n * 5) // Estimated pool size
+    const maxParticipants = this.participantNames.length
+    const indexTable = new Uint32Array(
+      this.stimuliNames.length * maxParticipants * 2
+    )
 
-          // Check if this is a duplicate fixation segment
-          if (
-            currSegment[0] === prevStart &&
-            currSegment[1] === prevEnd &&
-            currSegment[2] === fixationCategoryId &&
-            segIdToJoin !== null
-          ) {
-            // Add AOI ID to the previous segment if not already present
-            const currentAoi = currSegment[3]
-            const segmentToJoin = segmentPart[segIdToJoin]
-            const aoiAlreadyIn = segmentToJoin.slice(3).includes(currentAoi)
+    let segPtr = 0
+    let poolPtr = 0
+    let lastS = -1,
+      lastP = -1
 
-            if (!aoiAlreadyIn && currentAoi !== undefined) {
-              segmentToJoin.push(currentAoi)
-            }
+    for (let i = 0; i < n; i++) {
+      const idx = indices[i]
+      const base = idx * 5
+      const s = this.rawSegments[base + 0]
+      const p = this.rawSegments[base + 1]
+      const start = this.rawSegments[base + 2]
+      const end = this.rawSegments[base + 3]
+      const cat = this.rawSegments[base + 4]
 
-            // Remove duplicate segment
-            segmentPart.splice(segmentId, 1)
-            segmentId--
-          } else {
-            segIdToJoin = segmentId
-          }
-
-          prevStart = currSegment[0]
-          prevEnd = currSegment[1]
+      // Update Index Table for new Participant/Stimulus ranges
+      if (s !== lastS || p !== lastP) {
+        const tableIdx = (s * maxParticipants + p) * 2
+        indexTable[tableIdx] = segPtr
+        // Close previous range
+        if (lastS !== -1) {
+          const prevTableIdx = (lastS * maxParticipants + lastP) * 2
+          indexTable[prevTableIdx + 1] = segPtr
         }
       }
-    }
-  }
 
-  /**
-   * Order AOIs alphabetically and create order vectors.
-   */
-  private orderAoisAlphabetically(): void {
-    const aois = this.baseData.aois
-    for (let i = 0; i < aois.data.length; i++) {
-      const currentAoiArray = aois.data[i]
-      const indexedArr = currentAoiArray.map((value, index) => ({
-        index,
-        name: value[0],
-      }))
-      indexedArr.sort((a, b) => a.name.localeCompare(b.name))
-      aois.orderVector[i] = indexedArr.map(value => value.index)
-    }
-  }
+      // Merge Logic (Check if current matches previous in final buffer)
+      const prevBase = (segPtr - 1) * SEGMENT_STRIDE
+      if (
+        segPtr > 0 &&
+        s === lastS &&
+        p === lastP &&
+        finalSegBuffer[prevBase + SegmentField.START_TIME] === start &&
+        finalSegBuffer[prevBase + SegmentField.END_TIME] === end &&
+        finalSegBuffer[prevBase + SegmentField.CATEGORY_ID] === cat
+      ) {
+        // It's a duplicate: just append new AOIs to the previous segment's pool
+        const aois = this.rawAois[idx]
+        if (aois) {
+          for (const aoiId of aois) aoiPool[poolPtr++] = aoiId
+          finalSegBuffer[prevBase + SegmentField.AOI_COUNT] += aois.length
+        }
+      } else {
+        // New unique segment
+        const outBase = segPtr * SEGMENT_STRIDE
+        finalSegBuffer[outBase + SegmentField.START_TIME] = start
+        finalSegBuffer[outBase + SegmentField.END_TIME] = end
+        finalSegBuffer[outBase + SegmentField.CATEGORY_ID] = cat
+        finalSegBuffer[outBase + SegmentField.AOI_POINTER] = poolPtr
 
-  /**
-   * Order participants alphabetically and create order vector.
-   */
-  private orderParticipantsAlphabetically(): void {
-    const participants = this.baseData.participants
-    const indexedArr = participants.data.map((value, index) => ({
-      index,
-      name: value[0],
-    }))
-    indexedArr.sort((a, b) => a.name.localeCompare(b.name))
-    participants.orderVector = indexedArr.map(value => value.index)
+        const aois = this.rawAois[idx]
+        if (aois) {
+          for (const aoiId of aois) aoiPool[poolPtr++] = aoiId
+          finalSegBuffer[outBase + SegmentField.AOI_COUNT] = aois.length
+        }
+        segPtr++
+      }
+      lastS = s
+      lastP = p
+    }
+
+    // Finalize last index table entry
+    if (lastS !== -1) {
+      indexTable[(lastS * maxParticipants + lastP) * 2 + 1] = segPtr
+    }
+
+    return {
+      isOrdinalOnly: false,
+      stimuli: { data: this.stimuliNames.map(v => [v]), orderVector: [] },
+      participants: {
+        data: this.participantNames.map(v => [v]),
+        orderVector: [],
+      },
+      participantsGroups: [],
+      categories: { data: [['Fixation'], ['Saccade']], orderVector: [] },
+      aois: {
+        data: this.aoisPerStimulus.map(v => v.map(a => [a])),
+        orderVector: [],
+        dynamicVisibility: {},
+        hiddenAois: [],
+      },
+      segments: {
+        segmentBuffer: finalSegBuffer.subarray(0, segPtr * SEGMENT_STRIDE),
+        indexTable,
+        aoiPool: aoiPool.subarray(0, poolPtr),
+        groupMap: new Uint16Array(
+          this.stimuliNames.length * MAX_AOI_PER_STIMULUS
+        ).fill(0xffff),
+        maxParticipants,
+        stimuliCount: this.stimuliNames.length,
+      },
+    }
   }
 }
