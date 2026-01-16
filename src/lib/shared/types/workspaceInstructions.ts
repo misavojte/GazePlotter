@@ -54,6 +54,11 @@ export interface UpdateParticipantsGroupsCommand extends BaseCommandInterface {
   groups: ParticipantsGroup[]
 }
 
+export interface UpdateNoAoiTreatmentCommand extends BaseCommandInterface {
+  type: 'updateNoAoiTreatment'
+  noAoiTreatment: { displayedName: string; color: string }
+}
+
 // Settings change command
 export interface UpdateSettingsCommand extends BaseCommandInterface {
   type: 'updateSettings'
@@ -91,6 +96,7 @@ export type WorkspaceCommand =
   | UpdateStimuliCommand
   | UpdateAoiVisibilityCommand
   | UpdateParticipantsGroupsCommand
+  | UpdateNoAoiTreatmentCommand
   | UpdateSettingsCommand // includes position and size updates
   | AddGridItemCommand
   | RemoveGridItemCommand

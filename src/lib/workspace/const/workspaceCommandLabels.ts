@@ -58,6 +58,12 @@ export const WORKSPACE_COMMAND_LABELS: Record<
     default: 'Participant groups updated',
   },
 
+  updateNoAoiTreatment: {
+    undone: 'Undo No AOI treatment update',
+    redone: 'Redo No AOI treatment update',
+    default: 'No AOI treatment updated',
+  },
+
   // Settings change command
   updateSettings: {
     undone: 'Undo plot update',

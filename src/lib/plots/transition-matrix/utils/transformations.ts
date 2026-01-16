@@ -15,6 +15,7 @@ import {
   getAois,
   getSegments,
   getNumberOfSegments,
+  getData,
 } from '$lib/gaze-data/front-process/stores/dataStore'
 import type { SegmentInterpretedDataType } from '$lib/gaze-data/shared/types'
 import {
@@ -60,8 +61,14 @@ export function calculateTransitionMatrix(
   //   aoiList.map(aoi => aoi.displayedName)
   // )
 
+  // Get No AOI treatment configuration
+  const data = getData()
+
   // Add "NO AOI" as the last item
-  const aoiLabels = [...aoiList.map(aoi => aoi.displayedName), 'NO AOI']
+  const aoiLabels = [
+    ...aoiList.map(aoi => aoi.displayedName),
+    data.noAoiTreatment.displayedName,
+  ]
 
   // Matrix size including the "NO AOI" category
   const matrixSize = aoiList.length + 1
@@ -231,7 +238,10 @@ export function calculateTransitionMatrix(
  * @param matrixB Second matrix (n×n)
  * @returns Product matrix A × B (n×n)
  */
-function multiplyMatrices(matrixA: number[][], matrixB: number[][]): number[][] {
+function multiplyMatrices(
+  matrixA: number[][],
+  matrixB: number[][]
+): number[][] {
   const n = matrixA.length
   const result = createMatrix(n, n, 0)
 
@@ -441,7 +451,7 @@ function calculateSumMatrix(matrices: number[][][]): number[][] {
 
 /**
  * Calculates relative frequency across the entire matrix
- * 
+ *
  * Normalizes all transitions by the total count across the entire matrix,
  * showing what percentage of all transitions each cell represents.
  * Unlike probability (row-normalized), this shows the global distribution.
@@ -610,8 +620,14 @@ export function calculateSegmentDwellTimeMatrix(
   // Get AOIs for the current stimulus
   const aoiList = getAois(stimulusId)
 
+  // Get No AOI treatment configuration
+  const data = getData()
+
   // Add "NO AOI" as the last item
-  const aoiLabels = [...aoiList.map(aoi => aoi.displayedName), 'NO AOI']
+  const aoiLabels = [
+    ...aoiList.map(aoi => aoi.displayedName),
+    data.noAoiTreatment.displayedName,
+  ]
 
   // Matrix size including the "NO AOI" category
   const matrixSize = aoiList.length + 1

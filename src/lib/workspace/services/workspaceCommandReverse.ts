@@ -268,6 +268,24 @@ export function createCommandReverser(gridStore: GridStoreType) {
           }
         }
 
+        case 'updateNoAoiTreatment': {
+          const currentData = getData()
+          const currentNoAoiTreatment = currentData?.noAoiTreatment
+          if (!currentNoAoiTreatment) {
+            console.warn(
+              'Cannot reverse updateNoAoiTreatment: no treatment found in current data'
+            )
+            return null
+          }
+          return {
+            type: 'updateNoAoiTreatment',
+            noAoiTreatment: currentNoAoiTreatment,
+            source: command.source,
+            chainId: command.chainId,
+            isRootCommand: command.isRootCommand,
+          }
+        }
+
         case 'setLayoutState': {
           const currentItems = get(gridStore)
           const currentLayoutState = currentItems.map(item => {

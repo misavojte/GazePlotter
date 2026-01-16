@@ -324,6 +324,7 @@ export function createStimuliList(
  * Creates styling information for scarf plot segments
  *
  * @param aoiData AOI data for the current stimulus
+ * @param noAoiTreatment Configuration for No AOI hit styling
  * @param barHeight Height of the main bar
  * @param nonFixationHeight Height of non-fixation elements
  * @param showAoiVisibility Whether to show AOI visibility
@@ -331,6 +332,7 @@ export function createStimuliList(
  */
 export function createStylingAndLegend(
   aoiData: ExtendedInterpretedDataType[],
+  noAoiTreatment: { displayedName: string; color: string },
   barHeight = DEFAULT_BAR_HEIGHT,
   nonFixationHeight = DEFAULT_NON_FIXATION_HEIGHT,
   showAoiVisibility = false
@@ -347,8 +349,8 @@ export function createStylingAndLegend(
   // Add styling for fixations without AOI
   aoiStyling.push({
     identifier: `${IDENTIFIER_IS_AOI}${IDENTIFIER_NOT_DEFINED}`,
-    name: 'No AOI hit',
-    color: '#a6a6a6',
+    name: noAoiTreatment.displayedName,
+    color: noAoiTreatment.color,
     height: barHeight,
     heighOfLegendItem: barHeight,
   })
@@ -592,16 +594,19 @@ export function createAoiVisibility(
  * @param stimulusId ID of the stimulus to display
  * @param participantIds Array of participant IDs to include
  * @param settings Configuration settings for the grid
+ * @param noAoiTreatment Configuration for No AOI hit styling
  * @param barHeight Height of the main bar
  * @param nonFixationHeight Height of non-fixation elements
  * @param spaceAboveRect Space above the rectangle
  * @param spaceAboveLine Space above the line
+ * @param visual Visual configuration
  * @returns Complete data object for ScarfPlot visualization
  */
 export function transformDataToScarfPlot(
   stimulusId: number,
   participantIds: number[],
   settings: ScarfGridType,
+  noAoiTreatment: { displayedName: string; color: string },
   barHeight = DEFAULT_BAR_HEIGHT,
   nonFixationHeight = DEFAULT_NON_FIXATION_HEIGHT,
   spaceAboveRect = DEFAULT_SPACE_ABOVE_RECT / 2,
@@ -642,6 +647,7 @@ export function transformDataToScarfPlot(
   // Create styling and stimulus list
   const stylingAndLegend = createStylingAndLegend(
     aoiData,
+    noAoiTreatment,
     barHeight,
     nonFixationHeight,
     showAoiVisibility

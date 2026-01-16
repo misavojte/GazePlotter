@@ -1275,3 +1275,13 @@ export const updateMultipleStimuli = (
   // Set the entire state at once
   data.set(newState)
 }
+
+export const updateNoAoiTreatment = (noAoiTreatment: {
+  displayedName: string
+  color: string
+}): void => {
+  const currentState = get(data)
+  const newState = structuredClone(currentState)
+  newState.noAoiTreatment = { ...noAoiTreatment }
+  data.set(newState)
+}

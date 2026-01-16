@@ -3,7 +3,10 @@ import type {
   JsonImportOldFormat,
   JsonImportNewFormat,
 } from '$lib/gaze-data/shared/types'
-import { jsonSegmentsToBinary } from '$lib/gaze-data/shared/types'
+import {
+  jsonSegmentsToBinary,
+  DEFAULT_NO_AOI_TREATMENT,
+} from '$lib/gaze-data/shared/types'
 import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
@@ -62,6 +65,11 @@ export function normalizeDataStructure(data: DataType): DataType {
   // Create segments array if it doesn't exist
   if (!data.segments) {
     data.segments = []
+  }
+
+  // Initialize noAoiTreatment with defaults if missing
+  if (!data.noAoiTreatment) {
+    data.noAoiTreatment = { ...DEFAULT_NO_AOI_TREATMENT }
   }
 
   // Get counts of stimuli and participants

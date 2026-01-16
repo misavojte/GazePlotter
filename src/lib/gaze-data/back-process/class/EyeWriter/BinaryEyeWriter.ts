@@ -7,6 +7,7 @@ import type {
   DataType,
   BinarySegmentBuffers,
 } from '$lib/gaze-data/shared/types'
+import { DEFAULT_NO_AOI_TREATMENT } from '$lib/gaze-data/shared/types'
 import type { SingleDeserializerOutput } from '$lib/gaze-data/back-process/types/SingleDeserializerOutput'
 
 export class BinaryEyeWriter {
@@ -211,6 +212,7 @@ export class BinaryEyeWriter {
         maxParticipants,
         stimuliCount: this.stimuliNames.length,
       },
+      noAoiTreatment: { ...DEFAULT_NO_AOI_TREATMENT },
     }
   }
 }

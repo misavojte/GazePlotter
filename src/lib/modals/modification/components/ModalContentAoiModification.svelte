@@ -12,6 +12,7 @@
   import {
     getAllAois,
     getHiddenAois,
+    getData,
   } from '$lib/gaze-data/front-process/stores/dataStore'
   import { addErrorToast, addInfoToast } from '$lib/toaster'
   import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
@@ -192,6 +193,17 @@
   // This prevents race conditions during rapid input changes
   const reorderedAoiObjects = $derived(reorderAois([...aoiObjects]))
 
+  // Get initial No AOI treatment and track changes
+  const data = getData()
+  let noAoiTreatment = $state({
+    displayedName: data.noAoiTreatment.displayedName,
+    color: data.noAoiTreatment.color,
+  })
+  let lastNoAoiTreatmentSnapshot = $state({
+    displayedName: data.noAoiTreatment.displayedName,
+    color: data.noAoiTreatment.color,
+  })
+
   // Sorting state
   let sortColumn = $state<'originalName' | 'displayedName' | null>(null)
   let sortDirection = $state<'asc' | 'desc' | null>(null)
@@ -296,6 +308,27 @@
         applyTo: handlerType,
         hiddenAois: hiddenUniqueSorted,
       })
+
+      // Update No AOI treatment if it changed
+      if (
+        noAoiTreatment.displayedName !==
+          lastNoAoiTreatmentSnapshot.displayedName ||
+        noAoiTreatment.color !== lastNoAoiTreatmentSnapshot.color
+      ) {
+        onWorkspaceCommand({
+          type: 'updateNoAoiTreatment',
+          noAoiTreatment: {
+            displayedName: (noAoiTreatment.displayedName || 'No AOI').trim(),
+            color: noAoiTreatment.color,
+          },
+          source,
+        })
+
+        lastNoAoiTreatmentSnapshot = {
+          displayedName: noAoiTreatment.displayedName,
+          color: noAoiTreatment.color,
+        }
+      }
 
       // snapshot for undo baseline
       lastHiddenSnapshot = [...hiddenUniqueSorted]
@@ -504,6 +537,24 @@
       bind:userSelected
     />
   </div>
+  <div class="content">
+    <SectionHeader text="No AOI Hit Treatment" />
+    <div class="noaoi-treatment-container">
+      <div class="noaoi-color-wrapper">
+        <GeneralInputColor label="Color" bind:value={noAoiTreatment.color} />
+      </div>
+      <div class="noaoi-name-wrapper">
+        <label for="noaoi-display-name">Display name</label>
+        <input
+          id="noaoi-display-name"
+          type="text"
+          placeholder="No AOI"
+          bind:value={noAoiTreatment.displayedName}
+          class="noaoi-name-input"
+        />
+      </div>
+    </div>
+  </div>
   <ModalButtons
     buttons={[
       {
@@ -590,5 +641,50 @@
     border: 1px solid var(--c-midgrey);
     border-radius: 5px;
     padding: 3px 7px;
+  }
+
+  .noaoi-name-input {
+    width: 100%;
+    padding: 0.5rem;
+  }
+
+  .noaoi-treatment-container {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+  }
+
+  .noaoi-color-wrapper {
+    flex: 0 0 auto;
+    min-width: 120px;
+  }
+
+  .noaoi-name-wrapper {
+    flex: 1;
+    max-width: 250px;
+  }
+
+  .noaoi-name-wrapper label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--c-text);
+    margin-bottom: 6px;
+  }
+
+  .noaoi-name-wrapper input {
+    width: 100%;
+    height: 34px;
+    box-sizing: border-box;
+    border: 1px solid var(--c-border);
+    border-radius: var(--rounded);
+    padding: 0.5rem;
+    font-size: 14px;
+  }
+
+  .noaoi-name-wrapper input:focus {
+    outline: none;
+    border-color: var(--c-primary);
+    box-shadow: 0 0 0 2px rgba(var(--rgb-primary), 0.1);
   }
 </style>

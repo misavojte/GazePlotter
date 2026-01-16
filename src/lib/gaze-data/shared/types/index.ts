@@ -21,6 +21,22 @@ export interface ExtendedInterpretedDataType extends BaseInterpretedDataType {
   color: string
 }
 
+/**
+ * Used for No AOI hit treatment configuration.
+ */
+export interface NoAoiTreatmentType {
+  displayedName: string
+  color: string
+}
+
+/**
+ * Default values for No AOI treatment.
+ */
+export const DEFAULT_NO_AOI_TREATMENT: NoAoiTreatmentType = {
+  displayedName: 'No AOI',
+  color: '#c0c0c0',
+}
+
 export interface SegmentInterpretedDataType {
   id: number
   start: number
@@ -86,6 +102,7 @@ export interface DataType {
   participantsGroups: ParticipantsGroup[]
   stimuli: AttributeDataType
   segments: BinarySegmentBuffers
+  noAoiTreatment: NoAoiTreatmentType
 }
 
 /**

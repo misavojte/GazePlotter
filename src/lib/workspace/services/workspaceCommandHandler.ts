@@ -13,6 +13,7 @@ import {
   updateMultipleAoiVisibility,
   updateParticipantsGroups,
   updateHiddenAois,
+  updateNoAoiTreatment,
 } from '$lib/gaze-data/front-process/stores/dataStore'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 import {
@@ -140,6 +141,12 @@ export function createCommandHandler(
 
         case 'updateParticipantsGroups': {
           updateParticipantsGroups(command.groups)
+          gridStore.triggerRedraw()
+          break
+        }
+
+        case 'updateNoAoiTreatment': {
+          updateNoAoiTreatment(command.noAoiTreatment)
           gridStore.triggerRedraw()
           break
         }

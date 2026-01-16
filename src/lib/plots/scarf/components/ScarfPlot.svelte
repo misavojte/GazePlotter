@@ -3,6 +3,7 @@
     getNumberOfSegments,
     getParticipantEndTime,
     getParticipants,
+    getData,
   } from '$lib/gaze-data/front-process/stores/dataStore'
   import type { ScarfTooltipFillingType } from '$lib/plots/scarf/types/ScarfTooltipFillingType'
   import { onDestroy, onMount } from 'svelte'
@@ -93,10 +94,13 @@
       currentStimulusId
     ).map(participant => participant.id)
 
+    const currentData = getData()
+
     return transformDataToScarfPlot(
       currentStimulusId,
       participantIds,
       localSettings,
+      currentData.noAoiTreatment,
       undefined,
       undefined,
       undefined,
