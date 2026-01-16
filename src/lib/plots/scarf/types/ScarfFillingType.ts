@@ -37,13 +37,15 @@ export type ScarfFillingType = {
 
   /**
    * Precomputed visual buffers (pixel coordinates) for canvas rendering.
+   * Each array corresponds to one style index (bucketed by style during transformation).
+   * This eliminates the need for runtime bucketing in Svelte.
    *
-   * Rectangle buffer layout (RECT_STRIDE = 12):
-   * [x, y, width, height, identifierIndex, participantId, segmentId, orderId, reserved0, reserved1, reserved2, reserved3]
+   * Rectangle buffer layout per style (RECT_STRIDE = 8):
+   * [x, y, width, height, participantId, segmentId, orderId, reserved0]
    *
-   * Line buffer layout (LINE_STRIDE = 10):
-   * [x1, y1, x2, y2, identifierIndex, participantId, reserved0, reserved1, reserved2, reserved3]
+   * Line buffer layout per style (LINE_STRIDE = 6):
+   * [x1, y1, x2, y2, participantId, reserved0]
    */
-  visualRectBuffer: Float32Array
-  visualLineBuffer: Float32Array
+  visualRectBuckets: Float32Array[]
+  visualLineBuckets: Float32Array[]
 }

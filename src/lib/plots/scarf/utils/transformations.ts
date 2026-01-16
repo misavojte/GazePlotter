@@ -62,8 +62,8 @@ const DEFAULT_NON_FIXATION_HEIGHT = 4
 const DEFAULT_SPACE_ABOVE_RECT = 5
 const DEFAULT_SPACE_ABOVE_LINE = 2
 
-const RECT_STRIDE = 12
-const LINE_STRIDE = 10
+const RECT_STRIDE = 8
+const LINE_STRIDE = 6
 
 type ScarfVisualConfig = {
   chartWidth: number
@@ -102,7 +102,6 @@ class Float32GrowBuffer {
     y: number,
     width: number,
     height: number,
-    identifierIdx: number,
     participantId: number,
     segmentId: number,
     orderId: number
@@ -116,16 +115,10 @@ class Float32GrowBuffer {
     b[idx + 1] = y
     b[idx + 2] = width
     b[idx + 3] = height
-    b[idx + 4] = identifierIdx
-    b[idx + 5] = participantId
-    b[idx + 6] = segmentId
-    b[idx + 7] = orderId
-
-    // 8-11 reserved
-    b[idx + 8] = 0
-    b[idx + 9] = 0
-    b[idx + 10] = 0
-    b[idx + 11] = 0
+    b[idx + 4] = participantId
+    b[idx + 5] = segmentId
+    b[idx + 6] = orderId
+    b[idx + 7] = 0 // reserved
 
     this.writeIndex += RECT_STRIDE
   }
@@ -135,7 +128,6 @@ class Float32GrowBuffer {
     y1: number,
     x2: number,
     y2: number,
-    identifierIdx: number,
     participantId: number
   ) {
     this.ensureCapacity(LINE_STRIDE)
@@ -147,14 +139,8 @@ class Float32GrowBuffer {
     b[idx + 1] = y1
     b[idx + 2] = x2
     b[idx + 3] = y2
-    b[idx + 4] = identifierIdx
-    b[idx + 5] = participantId
-
-    // 6-9 reserved
-    b[idx + 6] = 0
-    b[idx + 7] = 0
-    b[idx + 8] = 0
-    b[idx + 9] = 0
+    b[idx + 4] = participantId
+    b[idx + 5] = 0 // reserved
 
     this.writeIndex += LINE_STRIDE
   }
@@ -693,13 +679,16 @@ export function transformDataToScarfPlot(
   // Create participants data
   const participants: ParticipantScarfFillingType[] = []
 
-  // Precomputed visual buffers
-  const rectBufferBuilder = new Float32GrowBuffer(
-    Math.max(RECT_STRIDE * 1024, participantIds.length * RECT_STRIDE * 32)
-  )
-  const lineBufferBuilder = new Float32GrowBuffer(
-    Math.max(LINE_STRIDE * 256, participantIds.length * LINE_STRIDE * 16)
-  )
+  // Create bucketed visual buffers - one buffer per style
+  const totalStyleCount =
+    aoiStyleCount + categoryStyleCount + visibilityStyleCount
+  const rectBucketBuilders: Float32GrowBuffer[] = []
+  const lineBucketBuilders: Float32GrowBuffer[] = []
+
+  for (let i = 0; i < totalStyleCount; i++) {
+    rectBucketBuilders.push(new Float32GrowBuffer(RECT_STRIDE * 128))
+    lineBucketBuilders.push(new Float32GrowBuffer(LINE_STRIDE * 64))
+  }
 
   // Cache this calculation that's repeated in multiple places
   const isOrdinal = settings.timeline === 'ordinal'
@@ -800,12 +789,11 @@ export function transformDataToScarfPlot(
             marginTop
           const styleIdx =
             categoryId === 1 ? saccadeStyleIdx : otherCategoryStyleIdx
-          rectBufferBuilder.pushRect(
+          rectBucketBuilders[styleIdx].pushRect(
             pxX,
             pxY,
             pxW,
             nonFixationHeight,
-            styleIdx,
             participantId,
             localSegmentId,
             localSegmentId
@@ -818,12 +806,11 @@ export function transformDataToScarfPlot(
 
         if (aoiCount <= 0) {
           const pxY = yOffset + spaceAboveRect + marginTop
-          rectBufferBuilder.pushRect(
+          rectBucketBuilders[noAoiStyleIdx].pushRect(
             pxX,
             pxY,
             pxW,
             barHeight,
-            noAoiStyleIdx,
             participantId,
             localSegmentId,
             localSegmentId
@@ -848,12 +835,11 @@ export function transformDataToScarfPlot(
         const uniqueAoiCount = presentList.length
         if (uniqueAoiCount === 0) {
           const pxY = yOffset + spaceAboveRect + marginTop
-          rectBufferBuilder.pushRect(
+          rectBucketBuilders[noAoiStyleIdx].pushRect(
             pxX,
             pxY,
             pxW,
             barHeight,
-            noAoiStyleIdx,
             participantId,
             localSegmentId,
             localSegmentId
@@ -871,12 +857,11 @@ export function transformDataToScarfPlot(
           if (orderedId < 0 || orderedId >= MAX_AOI_PER_STIMULUS) continue
           if (present[orderedId] === 1) {
             const pxY = yOffset + yLocal + marginTop
-            rectBufferBuilder.pushRect(
+            rectBucketBuilders[aoiIdx].pushRect(
               pxX,
               pxY,
               pxW,
               aoiRectHeight,
-              aoiIdx,
               participantId,
               localSegmentId,
               localSegmentId
@@ -895,12 +880,11 @@ export function transformDataToScarfPlot(
               const orderIdx = aoiOrderIndex[remainingId]
               const styleIdx = orderIdx >= 0 ? orderIdx : noAoiStyleIdx
               const pxY = yOffset + yLocal + marginTop
-              rectBufferBuilder.pushRect(
+              rectBucketBuilders[styleIdx].pushRect(
                 pxX,
                 pxY,
                 pxW,
                 aoiRectHeight,
-                styleIdx,
                 participantId,
                 localSegmentId,
                 localSegmentId
@@ -985,7 +969,7 @@ export function transformDataToScarfPlot(
 
           const pxX1 = leftLabelWidth + x1 * plotAreaWidth + marginLeft
           const pxX2 = leftLabelWidth + x2 * plotAreaWidth + marginLeft
-          lineBufferBuilder.pushLine(pxX1, y, pxX2, y, styleIdx, participantId)
+          lineBucketBuilders[styleIdx].pushLine(pxX1, y, pxX2, y, participantId)
         }
       }
     }
@@ -1001,6 +985,15 @@ export function transformDataToScarfPlot(
   // Calculate chart height
   const chartHeight = numberOfParticipants * barWrapHeight + HEIGHT_OF_X_AXIS
 
+  // Finalize all buckets
+  const visualRectBuckets: Float32Array[] = []
+  const visualLineBuckets: Float32Array[] = []
+
+  for (let i = 0; i < totalStyleCount; i++) {
+    visualRectBuckets.push(rectBucketBuilders[i].finalize())
+    visualLineBuckets.push(lineBucketBuilders[i].finalize())
+  }
+
   return {
     id: stimulusId,
     timelineType: settings.timeline,
@@ -1014,7 +1007,7 @@ export function transformDataToScarfPlot(
     stylingAndLegend,
     leftLabelWidth,
     plotAreaWidth,
-    visualRectBuffer: rectBufferBuilder.finalize(),
-    visualLineBuffer: lineBufferBuilder.finalize(),
+    visualRectBuckets,
+    visualLineBuckets,
   }
 }

@@ -314,8 +314,8 @@
     return map
   })
 
-  const visualRectBuffer = $derived(data.visualRectBuffer)
-  const visualLineBuffer = $derived(data.visualLineBuffer)
+  const visualRectBuckets = $derived(data.visualRectBuckets)
+  const visualLineBuckets = $derived(data.visualLineBuckets)
 
   // Interaction handlers
   function handleLegendIdentifier(identifier: string) {
@@ -490,10 +490,10 @@
   }
 
   function drawRectangles(ctx: CanvasRenderingContext2D) {
-    const segments = visualRectBuffer
-    if (segments.length === 0) return
+    const buckets = visualRectBuckets
+    if (buckets.length === 0) return
 
-    const RECT_STRIDE = 12
+    const RECT_STRIDE = 8
 
     const isHighlightActive = usedHighlights.length > 0
     const highlightMask = highlightMaskByIndex
@@ -502,75 +502,87 @@
     const rectStyles = rectStyleMap
     const { indexToId } = identifierSystem
 
-    // Use the pre-computed style buckets
-    const styleBuckets = rectangleStyleBuckets
-
-    // Draw normal elements
+    // Draw normal (non-dimmed) elements using path batching
     ctx.globalAlpha = 1.0
-    styleBuckets.forEach((segmentIndices, styleIdx) => {
+
+    for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
+      const buffer = buckets[styleIdx]
+      if (buffer.length === 0) continue
+
+      const isDimmed =
+        isHighlightActive && highlightMask
+          ? highlightMask[styleIdx] !== 1
+          : false
+
+      if (isDimmed) continue // Skip dimmed in this pass
+
       const identifier = indexToId.get(styleIdx) ?? ''
       const styleSet = rectStyles.get(identifier) ?? {
         normal: { fill: '#ccc' },
-        dimmed: { fill: '#ccc', opacity: 0.15 },
       }
 
       ctx.fillStyle = styleSet.normal.fill
+      ctx.beginPath() // Start a massive path
 
-      for (const i of segmentIndices) {
+      const segmentCount = buffer.length / RECT_STRIDE
+      for (let i = 0; i < segmentCount; i++) {
         const idx = i * RECT_STRIDE
-        const isDimmed =
-          isHighlightActive && highlightMask
-            ? highlightMask[styleIdx] !== 1
-            : false
-
-        if (!isDimmed) {
-          ctx.fillRect(
-            segments[idx],
-            segments[idx + 1],
-            segments[idx + 2],
-            segments[idx + 3]
-          )
-        }
+        ctx.rect(
+          buffer[idx], // x
+          buffer[idx + 1], // y
+          buffer[idx + 2], // width
+          buffer[idx + 3] // height
+        )
       }
-    })
 
-    // Draw dimmed elements
+      ctx.fill() // Send everything to GPU in ONE go
+    }
+
+    // Draw dimmed elements using path batching
     ctx.globalAlpha = 0.15
-    styleBuckets.forEach((segmentIndices, styleIdx) => {
+
+    for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
+      const buffer = buckets[styleIdx]
+      if (buffer.length === 0) continue
+
+      const isDimmed =
+        isHighlightActive && highlightMask
+          ? highlightMask[styleIdx] !== 1
+          : false
+
+      if (!isDimmed) continue // Skip normal in this pass
+
       const identifier = indexToId.get(styleIdx) ?? ''
       const styleSet = rectStyles.get(identifier) ?? {
         normal: { fill: '#ccc' },
       }
 
       ctx.fillStyle = styleSet.normal.fill
+      ctx.beginPath() // Start a massive path
 
-      for (const i of segmentIndices) {
+      const segmentCount = buffer.length / RECT_STRIDE
+      for (let i = 0; i < segmentCount; i++) {
         const idx = i * RECT_STRIDE
-        const isDimmed =
-          isHighlightActive && highlightMask
-            ? highlightMask[styleIdx] !== 1
-            : false
-
-        if (isDimmed) {
-          ctx.fillRect(
-            segments[idx],
-            segments[idx + 1],
-            segments[idx + 2],
-            segments[idx + 3]
-          )
-        }
+        ctx.rect(
+          buffer[idx], // x
+          buffer[idx + 1], // y
+          buffer[idx + 2], // width
+          buffer[idx + 3] // height
+        )
       }
-    })
+
+      ctx.fill() // Send everything to GPU in ONE go
+    }
 
     // Reset alpha
     ctx.globalAlpha = 1
   }
 
   function drawLines(ctx: CanvasRenderingContext2D) {
-    const segments = visualLineBuffer
-    if (segments.length === 0) return
+    const buckets = visualLineBuckets
+    if (buckets.length === 0) return
 
-    const LINE_STRIDE = 10
+    const LINE_STRIDE = 6
 
     const isHighlightActive = usedHighlights.length > 0
     const highlightMask = highlightMaskByIndex
@@ -579,14 +591,21 @@
     const lineStyles = lineStyleMap
     const { indexToId } = identifierSystem
 
-    // Use the pre-computed style buckets
-    const styleBuckets = lineStyleBuckets
-
-    // Draw normal lines
+    // Draw normal lines using path batching
     ctx.globalAlpha = 1.0
     ctx.setLineDash([2, 2])
 
-    styleBuckets.forEach((segmentIndices, styleIdx) => {
+    for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
+      const buffer = buckets[styleIdx]
+      if (buffer.length === 0) continue
+
+      const isDimmed =
+        isHighlightActive && highlightMask
+          ? highlightMask[styleIdx] !== 1
+          : false
+
+      if (isDimmed) continue // Skip dimmed in this pass
+
       const identifier = indexToId.get(styleIdx) ?? ''
       const styleSet = lineStyles.get(identifier) ?? {
         normal: { stroke: '#ccc', strokeWidth: 1 },
@@ -594,28 +613,33 @@
 
       ctx.strokeStyle = styleSet.normal.stroke
       ctx.lineWidth = styleSet.normal.strokeWidth ?? 1
+      ctx.beginPath() // Start a massive path
 
-      for (const i of segmentIndices) {
+      const segmentCount = buffer.length / LINE_STRIDE
+      for (let i = 0; i < segmentCount; i++) {
         const idx = i * LINE_STRIDE
-        const isDimmed =
-          isHighlightActive && highlightMask
-            ? highlightMask[styleIdx] !== 1
-            : false
-
-        if (!isDimmed) {
-          ctx.beginPath()
-          ctx.moveTo(segments[idx], segments[idx + 1])
-          ctx.lineTo(segments[idx + 2], segments[idx + 3])
-          ctx.stroke()
-        }
+        ctx.moveTo(buffer[idx], buffer[idx + 1]) // x1, y1
+        ctx.lineTo(buffer[idx + 2], buffer[idx + 3]) // x2, y2
       }
-    })
 
-    // Draw dimmed lines
+      ctx.stroke() // Send everything to GPU in ONE go
+    }
+
+    // Draw dimmed lines using path batching
     ctx.globalAlpha = 0.15
     ctx.setLineDash([2, 2])
 
-    styleBuckets.forEach((segmentIndices, styleIdx) => {
+    for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
+      const buffer = buckets[styleIdx]
+      if (buffer.length === 0) continue
+
+      const isDimmed =
+        isHighlightActive && highlightMask
+          ? highlightMask[styleIdx] !== 1
+          : false
+
+      if (!isDimmed) continue // Skip normal in this pass
+
       const identifier = indexToId.get(styleIdx) ?? ''
       const styleSet = lineStyles.get(identifier) ?? {
         normal: { stroke: '#ccc', strokeWidth: 1 },
@@ -623,22 +647,17 @@
 
       ctx.strokeStyle = styleSet.normal.stroke
       ctx.lineWidth = styleSet.normal.strokeWidth ?? 1
+      ctx.beginPath() // Start a massive path
 
-      for (const i of segmentIndices) {
+      const segmentCount = buffer.length / LINE_STRIDE
+      for (let i = 0; i < segmentCount; i++) {
         const idx = i * LINE_STRIDE
-        const isDimmed =
-          isHighlightActive && highlightMask
-            ? highlightMask[styleIdx] !== 1
-            : false
-
-        if (isDimmed) {
-          ctx.beginPath()
-          ctx.moveTo(segments[idx], segments[idx + 1])
-          ctx.lineTo(segments[idx + 2], segments[idx + 3])
-          ctx.stroke()
-        }
+        ctx.moveTo(buffer[idx], buffer[idx + 1]) // x1, y1
+        ctx.lineTo(buffer[idx + 2], buffer[idx + 3]) // x2, y2
       }
-    })
+
+      ctx.stroke() // Send everything to GPU in ONE go
+    }
 
     // Reset rendering state
     ctx.globalAlpha = 1
@@ -1316,100 +1335,55 @@
   })
 
   function findHoveredRectSegment(mouseX: number, mouseY: number) {
-    const segments = visualRectBuffer
-    if (segments.length === 0) return null
+    const buckets = visualRectBuckets
+    if (buckets.length === 0) return null
 
-    const RECT_STRIDE = 12
-    const len = segments.length / RECT_STRIDE
+    const RECT_STRIDE = 8
 
     // Fast identifier lookup
     const { indexToId } = identifierSystem
 
     // Check in reverse order (top to bottom visually) to match z-index behavior
-    for (let i = len - 1; i >= 0; i--) {
-      const idx = i * RECT_STRIDE
+    // Iterate through buckets in reverse
+    for (let styleIdx = buckets.length - 1; styleIdx >= 0; styleIdx--) {
+      const buffer = buckets[styleIdx]
+      if (buffer.length === 0) continue
 
-      const x = segments[idx]
-      const y = segments[idx + 1]
-      const width = segments[idx + 2]
-      const height = segments[idx + 3]
-      const identifierIdx = segments[idx + 4] | 0
-      const participantId = segments[idx + 5]
-      const segmentId = segments[idx + 6]
-      const orderId = segments[idx + 7]
+      const len = buffer.length / RECT_STRIDE
 
-      if (
-        mouseX >= x &&
-        mouseX <= x + width &&
-        mouseY >= y &&
-        mouseY <= y + height
-      ) {
-        return {
-          x,
-          y,
-          width,
-          height,
-          identifier: indexToId.get(identifierIdx) ?? '',
-          participantId,
-          segmentId,
-          orderId,
+      for (let i = len - 1; i >= 0; i--) {
+        const idx = i * RECT_STRIDE
+
+        const x = buffer[idx]
+        const y = buffer[idx + 1]
+        const width = buffer[idx + 2]
+        const height = buffer[idx + 3]
+        const participantId = buffer[idx + 4]
+        const segmentId = buffer[idx + 5]
+        const orderId = buffer[idx + 6]
+
+        if (
+          mouseX >= x &&
+          mouseX <= x + width &&
+          mouseY >= y &&
+          mouseY <= y + height
+        ) {
+          return {
+            x,
+            y,
+            width,
+            height,
+            identifier: indexToId.get(styleIdx) ?? '',
+            participantId,
+            segmentId,
+            orderId,
+          }
         }
       }
     }
 
     return null
   }
-
-  // Create derived stores for style buckets that update only when segment data changes
-  const rectangleStyleBuckets = $derived.by(() => {
-    const segments = visualRectBuffer
-    if (segments.length === 0) return new Map<number, number[]>()
-
-    const RECT_STRIDE = 12
-    const len = segments.length / RECT_STRIDE
-    const styleBuckets = new Map<number, number[]>()
-
-    // Single pass to populate buckets by style index - O(n)
-    for (let i = 0; i < len; i++) {
-      const idx = i * RECT_STRIDE
-      const identifierIdx = segments[idx + 4] | 0
-
-      // Get or create bucket for this style
-      let bucket = styleBuckets.get(identifierIdx)
-      if (!bucket) {
-        bucket = []
-        styleBuckets.set(identifierIdx, bucket)
-      }
-      bucket.push(i)
-    }
-
-    return styleBuckets
-  })
-
-  const lineStyleBuckets = $derived.by(() => {
-    const segments = visualLineBuffer
-    if (segments.length === 0) return new Map<number, number[]>()
-
-    const LINE_STRIDE = 10
-    const len = segments.length / LINE_STRIDE
-    const styleBuckets = new Map<number, number[]>()
-
-    // Single pass to populate buckets by style index - O(n)
-    for (let i = 0; i < len; i++) {
-      const idx = i * LINE_STRIDE
-      const identifierIdx = segments[idx + 4] | 0
-
-      // Get or create bucket for this style
-      let bucket = styleBuckets.get(identifierIdx)
-      if (!bucket) {
-        bucket = []
-        styleBuckets.set(identifierIdx, bucket)
-      }
-      bucket.push(i)
-    }
-
-    return styleBuckets
-  })
 
   // Clean up tooltip when unmounting
   onDestroy(() => {
