@@ -560,7 +560,7 @@
 
   .button-group {
     display: flex;
-    gap: 5px;
+    gap: 3px;
     flex-direction: row;
   }
 

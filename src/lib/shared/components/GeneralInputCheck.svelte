@@ -91,6 +91,7 @@
     background: var(--c-white);
     border: 1px solid var(--c-border);
     border-radius: 4px;
+    margin: 0;
     transition:
       background-color 120ms ease,
       border-color 120ms ease,

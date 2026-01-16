@@ -23,7 +23,7 @@
   let {
     value = $bindable('#000000'),
     label,
-    width = $bindable(140),
+    width = $bindable(125),
     oninput = () => {},
   }: Props = $props()
 
@@ -83,10 +83,10 @@
         document.removeEventListener('mousedown', handleClickOutside)
         document.removeEventListener('mousemove', handleGlobalMouseMove)
         document.removeEventListener('mouseup', handleGlobalMouseUp)
-        
+
         // Ensure text selection is re-enabled
         document.body.style.userSelect = ''
-        
+
         if (node.parentNode) {
           node.parentNode.removeChild(node)
         }
@@ -430,7 +430,7 @@
   // Handle saturation/value (brightness) change in HSV model
   const handleSatValueChange = (e: MouseEvent) => {
     if (!satLightPickerElement) return
-    
+
     const rect = satLightPickerElement.getBoundingClientRect()
 
     // X maps directly to saturation (0-100%)
@@ -456,10 +456,10 @@
     e.preventDefault()
     isDragging = true
     dragStartPosition = { x: e.clientX, y: e.clientY }
-    
+
     // Prevent text selection during drag
     document.body.style.userSelect = 'none'
-    
+
     handleSatValueChange(e)
   }
 
@@ -476,7 +476,7 @@
     if (isDragging) {
       e.preventDefault()
       isDragging = false
-      
+
       // Re-enable text selection
       document.body.style.userSelect = ''
     }
@@ -554,7 +554,7 @@
   // Based on colorblind-friendly palettes with good contrast and distinctiveness
   const scientificColorPalette = [
     '#1f77b4', // Blue - primary data color
-    '#ff7f0e', // Orange - secondary data color  
+    '#ff7f0e', // Orange - secondary data color
     '#2ca02c', // Green - tertiary data color
     '#d62728', // Red - attention/error color
     '#9467bd', // Purple - categorical data
@@ -710,7 +710,8 @@
     height: 150px;
     border-radius: 4px;
     cursor: crosshair;
-    background-image: linear-gradient(to top, #000, transparent),
+    background-image:
+      linear-gradient(to top, #000, transparent),
       linear-gradient(to right, #fff, transparent);
     margin-bottom: 10px;
     user-select: none;
