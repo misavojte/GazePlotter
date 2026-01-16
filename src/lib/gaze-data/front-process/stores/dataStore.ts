@@ -867,6 +867,110 @@ export const updateHiddenAois = (
 }
 
 /**
+ * Updates hidden AOIs for a stimulus and optionally propagates the hidden/visible status
+ * across all stimuli using the same strategy as AOI updates.
+ *
+ * - 'this_stimulus': only updates the provided stimulus
+ * - 'all_by_original_name': updates all AOIs with matching original names
+ * - 'all_by_displayed_name': updates all AOIs with matching displayed names (fallback to original)
+ */
+export const updateHiddenAoisWithPropagation = (
+  stimulusId: number,
+  hiddenAois: number[],
+  applyTo: 'this_stimulus' | 'all_by_original_name' | 'all_by_displayed_name'
+): void => {
+  const currentState = get(data)
+
+  if (!currentState) {
+    throw new Error('Cannot update hidden AOIs: data store is empty')
+  }
+
+  if (!currentState.aois.data[stimulusId]) {
+    throw new Error(
+      `Cannot update hidden AOIs: stimulus ${stimulusId} does not exist`
+    )
+  }
+
+  const newState = structuredClone(currentState)
+  const unique = Array.from(
+    new Set(
+      (hiddenAois ?? []).filter(
+        v => Number.isInteger(v) && v >= 0 && v < MAX_AOI_PER_STIMULUS
+      )
+    )
+  ).sort((a, b) => a - b)
+
+  const hiddenByStimulus = [...(newState.aois.hiddenAois ?? [])]
+  while (hiddenByStimulus.length < newState.stimuli.data.length) {
+    hiddenByStimulus.push([])
+  }
+
+  // Always update the target stimulus
+  hiddenByStimulus[stimulusId] = unique
+
+  if (applyTo === 'this_stimulus') {
+    data.set({
+      ...newState,
+      aois: {
+        ...newState.aois,
+        hiddenAois: hiddenByStimulus,
+      },
+    })
+    return
+  }
+
+  const sourceAois = newState.aois.data[stimulusId]
+  const keysToHide = new Set<string>()
+
+  unique.forEach(id => {
+    const row = sourceAois?.[id]
+    if (!row) return
+    const originalName = row[0] ?? ''
+    const displayedName = (row[1] ?? originalName) as string
+    const key =
+      applyTo === 'all_by_original_name'
+        ? originalName
+        : (displayedName || originalName).trim()
+    if (key) keysToHide.add(key)
+  })
+
+  for (
+    let stimIndex = 0;
+    stimIndex < newState.stimuli.data.length;
+    stimIndex++
+  ) {
+    if (stimIndex === stimulusId) continue
+    const stimAois = newState.aois.data[stimIndex]
+    if (!stimAois) continue
+
+    const nextHidden: number[] = []
+    for (let aoiId = 0; aoiId < stimAois.length; aoiId++) {
+      const row = stimAois[aoiId]
+      if (!row) continue
+      const originalName = row[0] ?? ''
+      const displayedName = (row[1] ?? originalName) as string
+      const key =
+        applyTo === 'all_by_original_name'
+          ? originalName
+          : (displayedName || originalName).trim()
+      if (key && keysToHide.has(key)) {
+        nextHidden.push(aoiId)
+      }
+    }
+
+    hiddenByStimulus[stimIndex] = nextHidden
+  }
+
+  data.set({
+    ...newState,
+    aois: {
+      ...newState.aois,
+      hiddenAois: hiddenByStimulus,
+    },
+  })
+}
+
+/**
  * Updates multiple AOIs for a stimulus with optional propagation to other stimuli.
  *
  * @param aois - Array of AOIs with updated properties

@@ -12,7 +12,7 @@ import {
   updateMultipleStimuli,
   updateMultipleAoiVisibility,
   updateParticipantsGroups,
-  updateHiddenAois,
+  updateHiddenAoisWithPropagation,
   updateNoAoiTreatment,
 } from '$lib/gaze-data/front-process/stores/dataStore'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
@@ -68,9 +68,9 @@ export function createCommandHandler(
         case 'updateAois': {
           const { aois, stimulusId, applyTo, hiddenAois } = command
           updateMultipleAoi(aois, stimulusId, applyTo)
-          if (hiddenAois) {
+          if (hiddenAois !== undefined) {
             // Apply hidden AOIs in the same operation to avoid extra commands
-            updateHiddenAois(stimulusId, hiddenAois)
+            updateHiddenAoisWithPropagation(stimulusId, hiddenAois, applyTo)
           }
           gridStore.triggerRedraw()
 
