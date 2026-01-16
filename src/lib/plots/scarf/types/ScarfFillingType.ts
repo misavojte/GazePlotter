@@ -26,6 +26,8 @@ export type ScarfFillingType = {
   chartHeight: number
   stimuli: StimulusScarfFillingType[]
   participants: ParticipantScarfFillingType[]
+  /** End time per participant (ms), aligned with participants array. */
+  participantEndTimes: Float32Array
   timeline: AdaptiveTimeline
   stylingAndLegend: StylingScarfFillingType
   /**
@@ -36,14 +38,25 @@ export type ScarfFillingType = {
   plotAreaWidth: number
 
   /**
-   * Precomputed visual buffers (pixel coordinates) for canvas rendering.
-   *
-   * Rectangle buffer layout (RECT_STRIDE = 12):
-   * [x, y, width, height, identifierIndex, participantId, segmentId, orderId, reserved0, reserved1, reserved2, reserved3]
-   *
-   * Line buffer layout (LINE_STRIDE = 10):
-   * [x1, y1, x2, y2, identifierIndex, participantId, reserved0, reserved1, reserved2, reserved3]
+   * Rendering parameters needed for layout and interaction.
    */
-  visualRectBuffer: Float32Array
-  visualLineBuffer: Float32Array
+  nonFixationHeight: number
+  spaceAboveRect: number
+  spaceAboveLine: number
+
+  /**
+   * Direct access to the binary segment buffers for zero-allocation rendering.
+   */
+  segmentBuffer: Float32Array
+  indexTable: Uint32Array
+  aoiPool: Uint16Array
+  groupMap: Uint16Array
+  maxParticipants: number
+
+  /**
+   * AOI ordering and visibility flags for the current stimulus.
+   */
+  aoiIds: Uint16Array
+  aoiOrderIndex: Int16Array
+  hiddenAoiFlags: Uint8Array
 }

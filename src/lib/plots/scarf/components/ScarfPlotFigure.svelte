@@ -1,11 +1,9 @@
 <script lang="ts">
   import type { ScarfFillingType } from '$lib/plots/scarf/types'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
-  import { addInfoToast } from '$lib/toaster'
   import {
     truncateTextToPixelWidth,
     SYSTEM_SANS_SERIF_STACK,
-    estimateTextWidth,
   } from '$lib/shared/utils/textUtils'
   import { onMount, onDestroy, untrack } from 'svelte'
   import { browser } from '$app/environment'
@@ -26,6 +24,12 @@
     type CanvasState,
   } from '$lib/shared/utils/canvasUtils'
   import { updateTooltip } from '$lib/tooltip'
+  import { getAoiVisibility } from '$lib/gaze-data/front-process/stores/dataStore'
+  import {
+    MAX_AOI_PER_STIMULUS,
+    SEGMENT_STRIDE,
+    SegmentField,
+  } from '$lib/gaze-data/shared/types'
 
   // CONSTANTS - layout dimensions and styling
   const LAYOUT = SCARF_LAYOUT
@@ -118,6 +122,12 @@
   let hasDragStarted = $state(false) // Track if drag threshold has been exceeded
   let preparedForDragging = $state(false) // Track if prepared for dragging (shows draggable cursor)
   let hoveredLegendItem = $state<any>(null) // Track currently hovered legend item
+
+  // Reusable scratch space to avoid per-frame allocations
+  const drawPresent = new Uint8Array(MAX_AOI_PER_STIMULUS)
+  const drawPresentList: number[] = []
+  const hoverPresent = new Uint8Array(MAX_AOI_PER_STIMULUS)
+  const hoverPresentList: number[] = []
 
   // Use highlights directly from props - workspace is the single source of truth
   const usedHighlights = $derived(highlights)
@@ -249,73 +259,73 @@
     }
   })
 
-  // Style lookup maps for efficient style access - O(1) instead of O(n)
-  const rectStyleMap = $derived.by(() => {
-    if (!data.stylingAndLegend) return new Map()
+  // Style lookup arrays for fast indexed access
 
-    const map = new Map()
-    const aoi = data.stylingAndLegend.aoi
-    const category = data.stylingAndLegend.category
-    const aoiLen = aoi.length
-    const catLen = category.length
+  const rectFillByIndex = $derived.by(() => {
+    const total = identifierSystem.totalIdentifiers
+    const fills = new Array<string>(total)
 
-    // Pre-compute all rectangle styles (AOI and category) with dimmed state
-    for (let i = 0; i < aoiLen; i++) {
-      const style = aoi[i]
-      const baseStyle = { fill: style.color }
-      map.set(style.identifier, {
-        normal: baseStyle,
-        dimmed: {
-          ...baseStyle,
-          opacity: 0.15,
-        },
-      })
-    }
+    if (data.stylingAndLegend) {
+      let idx = 0
+      const aoi = data.stylingAndLegend.aoi
+      const category = data.stylingAndLegend.category
+      const visibility = data.stylingAndLegend.visibility
 
-    for (let i = 0; i < catLen; i++) {
-      const style = category[i]
-      const baseStyle = { fill: style.color }
-      map.set(style.identifier, {
-        normal: baseStyle,
-        dimmed: {
-          ...baseStyle,
-          opacity: 0.15,
-        },
-      })
-    }
-
-    return map
-  })
-
-  const lineStyleMap = $derived.by(() => {
-    if (!data.stylingAndLegend) return new Map()
-
-    const map = new Map()
-    const visibility = data.stylingAndLegend.visibility
-    const len = visibility.length
-
-    // Pre-compute all line styles (visibility) with dimmed state
-    for (let i = 0; i < len; i++) {
-      const style = visibility[i]
-      const baseStyle = {
-        stroke: style.color,
-        strokeWidth: style.height,
-        strokeDasharray: '1',
+      for (let i = 0; i < aoi.length; i++) {
+        fills[idx++] = aoi[i].color
       }
-      map.set(style.identifier, {
-        normal: baseStyle,
-        dimmed: {
-          ...baseStyle,
-          opacity: 0.15,
-        },
-      })
+      for (let i = 0; i < category.length; i++) {
+        fills[idx++] = category[i].color
+      }
+      for (let i = 0; i < visibility.length; i++) {
+        fills[idx++] = visibility[i].color
+      }
     }
 
-    return map
+    return fills
   })
 
-  const visualRectBuffer = $derived(data.visualRectBuffer)
-  const visualLineBuffer = $derived(data.visualLineBuffer)
+  const lineStrokeByIndex = $derived.by(() => {
+    const total = identifierSystem.totalIdentifiers
+    const strokes = new Array<string>(total)
+    if (!data.stylingAndLegend) return strokes
+
+    const base =
+      data.stylingAndLegend.aoi.length + data.stylingAndLegend.category.length
+    const visibility = data.stylingAndLegend.visibility
+
+    for (let i = 0; i < visibility.length; i++) {
+      strokes[base + i] = visibility[i].color
+    }
+
+    return strokes
+  })
+
+  const lineWidthByIndex = $derived.by(() => {
+    const total = identifierSystem.totalIdentifiers
+    const widths = new Float32Array(total)
+    if (!data.stylingAndLegend) return widths
+
+    const base =
+      data.stylingAndLegend.aoi.length + data.stylingAndLegend.category.length
+    const visibility = data.stylingAndLegend.visibility
+
+    for (let i = 0; i < visibility.length; i++) {
+      widths[base + i] = visibility[i].height
+    }
+
+    return widths
+  })
+
+  const segmentBuffer = $derived(data.segmentBuffer)
+  const indexTable = $derived(data.indexTable)
+  const aoiPool = $derived(data.aoiPool)
+  const groupMap = $derived(data.groupMap)
+  const maxParticipants = $derived(data.maxParticipants)
+  const aoiIds = $derived(data.aoiIds)
+  const aoiOrderIndex = $derived(data.aoiOrderIndex)
+  const hiddenAoiFlags = $derived(data.hiddenAoiFlags)
+  const participantEndTimes = $derived(data.participantEndTimes)
 
   // Interaction handlers
   function handleLegendIdentifier(identifier: string) {
@@ -445,7 +455,7 @@
       // and the last tick if with a label (for relative timeline mode)
       if ((i === isSecondToLast || i === isLast) && tick.label) {
         const textWidth = ctx.measureText(tick.label).width
-        const rightEdgeOfText = regularXPos + textWidth / 2
+        const rightEdgeOfText = regularXPos + (textWidth >> 1)
 
         if (rightEdgeOfText > rightBoundary) {
           // Move the label left just enough so it fits within the plot area
@@ -489,158 +499,369 @@
     ctx.stroke()
   }
 
-  function drawRectangles(ctx: CanvasRenderingContext2D) {
-    const segments = visualRectBuffer
-    if (segments.length === 0) return
+  function getParticipantRange(participantId: number) {
+    const rangeIdx = (data.stimulusId * maxParticipants + participantId) * 2
+    const startIndex = indexTable[rangeIdx]
+    const endIndex = indexTable[rangeIdx + 1]
+    return { startIndex, endIndex }
+  }
 
-    const RECT_STRIDE = 12
+  function lowerBoundByEndTime(
+    startIndex: number,
+    endIndex: number,
+    minValue: number
+  ) {
+    let lo = startIndex
+    let hi = endIndex
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      const endTime =
+        segmentBuffer[mid * SEGMENT_STRIDE + SegmentField.END_TIME]
+      if (endTime <= minValue) {
+        lo = mid + 1
+      } else {
+        hi = mid
+      }
+    }
+    return lo
+  }
+
+  function lowerBoundByStartTime(
+    startIndex: number,
+    endIndex: number,
+    maxValue: number
+  ) {
+    let lo = startIndex
+    let hi = endIndex
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      const startTime =
+        segmentBuffer[mid * SEGMENT_STRIDE + SegmentField.START_TIME]
+      if (startTime < maxValue) {
+        lo = mid + 1
+      } else {
+        hi = mid
+      }
+    }
+    return lo
+  }
+
+  function drawRectangles(ctx: CanvasRenderingContext2D) {
+    if (segmentBuffer.length === 0) return
 
     const isHighlightActive = usedHighlights.length > 0
     const highlightMask = highlightMaskByIndex
+    const hasHighlight = isHighlightActive && highlightMask
 
-    // Local references for faster access
-    const rectStyles = rectStyleMap
-    const { indexToId } = identifierSystem
+    const barHeight = data.barHeight
+    const nonFixationHeight = data.nonFixationHeight
+    const spaceAboveRect = data.spaceAboveRect
 
-    // Use the pre-computed style buckets
-    const styleBuckets = rectangleStyleBuckets
+    const minValue = data.timeline.minValue
+    const maxValue = data.timeline.maxValue
+    const visibleRange = maxValue - minValue || 1
 
-    // Draw normal elements
-    ctx.globalAlpha = 1.0
-    styleBuckets.forEach((segmentIndices, styleIdx) => {
-      const identifier = indexToId.get(styleIdx) ?? ''
-      const styleSet = rectStyles.get(identifier) ?? {
-        normal: { fill: '#ccc' },
-        dimmed: { fill: '#ccc', opacity: 0.15 },
-      }
+    const isRelative = settings.timeline === 'relative'
+    const isOrdinal = settings.timeline === 'ordinal'
 
-      ctx.fillStyle = styleSet.normal.fill
+    const aoiStyleCount = data.stylingAndLegend.aoi.length
+    const categoryStyleCount = data.stylingAndLegend.category.length
+    const noAoiStyleIdx = aoiStyleCount - 1
+    const saccadeStyleIdx = aoiStyleCount
+    const otherCategoryStyleIdx = aoiStyleCount + 1
 
-      for (const i of segmentIndices) {
-        const idx = i * RECT_STRIDE
-        const isDimmed =
-          isHighlightActive && highlightMask
-            ? highlightMask[styleIdx] !== 1
-            : false
+    const groupMapOffset = data.stimulusId * MAX_AOI_PER_STIMULUS
 
-        if (!isDimmed) {
-          ctx.fillRect(
-            segments[idx],
-            segments[idx + 1],
-            segments[idx + 2],
-            segments[idx + 3]
-          )
+    const drawPass = (dimmed: boolean) => {
+      ctx.globalAlpha = dimmed ? 0.15 : 1.0
+
+      const participantCount = data.participants.length
+      for (let pIndex = 0; pIndex < participantCount; pIndex++) {
+        const participant = data.participants[pIndex]
+        const participantId = participant.id
+        const sessionDuration = participantEndTimes[pIndex]
+
+        const { startIndex, endIndex } = getParticipantRange(participantId)
+        const segmentCount = endIndex - startIndex
+        if (segmentCount <= 0) continue
+
+        let drawStart = startIndex
+        let drawEnd = endIndex
+
+        if (!isRelative) {
+          if (isOrdinal) {
+            const localStart = Math.max(0, Math.floor(minValue))
+            const localEnd = Math.min(segmentCount, Math.ceil(maxValue))
+            drawStart = startIndex + localStart
+            drawEnd = startIndex + localEnd
+          } else {
+            drawStart = lowerBoundByEndTime(startIndex, endIndex, minValue)
+            drawEnd = lowerBoundByStartTime(startIndex, endIndex, maxValue)
+          }
+        }
+
+        const yOffset = pIndex * data.heightOfBarWrap + marginTop
+        const baseYRect = yOffset + spaceAboveRect
+        const yNonFixation =
+          yOffset +
+          (spaceAboveRect + (barHeight >> 1) - (nonFixationHeight >> 1))
+
+        for (
+          let segmentIndex = drawStart;
+          segmentIndex < drawEnd;
+          segmentIndex++
+        ) {
+          const localSegmentId = segmentIndex - startIndex
+          const base = segmentIndex * SEGMENT_STRIDE
+          const categoryId = segmentBuffer[base + SegmentField.CATEGORY_ID] | 0
+          const startTime = segmentBuffer[base + SegmentField.START_TIME]
+          const endTime = segmentBuffer[base + SegmentField.END_TIME]
+
+          let segStart = isOrdinal ? localSegmentId : startTime
+          let segEnd = isOrdinal ? localSegmentId + 1 : endTime
+
+          let x: number
+          let width: number
+
+          if (isRelative) {
+            if (segEnd <= 0 || segStart >= sessionDuration) continue
+            if (segStart < 0) segStart = 0
+            if (segEnd > sessionDuration) segEnd = sessionDuration
+            const safeDuration = sessionDuration > 0 ? sessionDuration : 1
+            x = segStart / safeDuration
+            width = (segEnd - segStart) / safeDuration
+          } else {
+            if (segEnd <= minValue || segStart >= maxValue) continue
+            if (segStart < minValue) segStart = minValue
+            if (segEnd > maxValue) segEnd = maxValue
+            x = (segStart - minValue) / visibleRange
+            width = (segEnd - segStart) / visibleRange
+          }
+
+          const pxX = LEFT_LABEL_WIDTH + x * plotAreaWidth + marginLeft
+          const pxW = width * plotAreaWidth
+
+          if (categoryId !== 0) {
+            const styleIdx =
+              categoryId === 1 ? saccadeStyleIdx : otherCategoryStyleIdx
+            if (hasHighlight) {
+              const isHighlighted = highlightMask![styleIdx]
+              if (dimmed ? isHighlighted : !isHighlighted) continue
+            }
+
+            const fill = rectFillByIndex[styleIdx] ?? '#ccc'
+            ctx.fillStyle = fill
+            ctx.fillRect(pxX, yNonFixation, pxW, nonFixationHeight)
+            continue
+          }
+
+          const aoiCount = segmentBuffer[base + SegmentField.AOI_COUNT] | 0
+          const aoiPtr = segmentBuffer[base + SegmentField.AOI_POINTER] | 0
+
+          if (aoiCount <= 0) {
+            if (hasHighlight) {
+              const isHighlighted = highlightMask![noAoiStyleIdx]
+              if (dimmed ? isHighlighted : !isHighlighted) continue
+            }
+            const fill = rectFillByIndex[noAoiStyleIdx] ?? '#ccc'
+            ctx.fillStyle = fill
+            ctx.fillRect(pxX, baseYRect, pxW, barHeight)
+            continue
+          }
+
+          drawPresentList.length = 0
+          for (let i = 0; i < aoiCount; i++) {
+            const rawId = aoiPool[aoiPtr + i]
+            if (rawId < 0 || rawId >= MAX_AOI_PER_STIMULUS) continue
+            if (hiddenAoiFlags[rawId]) continue
+
+            const mapped = groupMap[groupMapOffset + rawId]
+            const groupId = mapped === 0xffff ? rawId : mapped
+            if (groupId < 0 || groupId >= MAX_AOI_PER_STIMULUS) continue
+
+            if (!drawPresent[groupId]) {
+              drawPresent[groupId] = 1
+              drawPresentList.push(groupId)
+            }
+          }
+
+          const uniqueAoiCount = drawPresentList.length
+          if (uniqueAoiCount === 0) {
+            if (hasHighlight) {
+              const isHighlighted = highlightMask![noAoiStyleIdx]
+              if (dimmed ? isHighlighted : !isHighlighted) continue
+            }
+            const fill = rectFillByIndex[noAoiStyleIdx] ?? '#ccc'
+            ctx.fillStyle = fill
+            ctx.fillRect(pxX, baseYRect, pxW, barHeight)
+            continue
+          }
+
+          const aoiRectHeight = barHeight / uniqueAoiCount
+          let yLocal = baseYRect
+          let emitted = 0
+
+          for (let aoiIdx = 0; aoiIdx < aoiIds.length; aoiIdx++) {
+            const orderedId = aoiIds[aoiIdx]
+            if (orderedId < 0 || orderedId >= MAX_AOI_PER_STIMULUS) continue
+            if (drawPresent[orderedId]) {
+              const styleIdx = aoiIdx
+              if (hasHighlight) {
+                const isHighlighted = highlightMask![styleIdx] === 1
+                if (dimmed ? isHighlighted : !isHighlighted) {
+                  yLocal += aoiRectHeight
+                  drawPresent[orderedId] = 0
+                  emitted++
+                  continue
+                }
+              }
+              const fill = rectFillByIndex[styleIdx] ?? '#ccc'
+              ctx.fillStyle = fill
+              ctx.fillRect(pxX, yLocal, pxW, aoiRectHeight)
+              yLocal += aoiRectHeight
+              emitted++
+              drawPresent[orderedId] = 0
+            }
+          }
+
+          if (emitted < uniqueAoiCount) {
+            for (let i = 0; i < drawPresentList.length; i++) {
+              const remainingId = drawPresentList[i]
+              if (drawPresent[remainingId]) {
+                const orderIdx = aoiOrderIndex[remainingId]
+                const styleIdx = orderIdx >= 0 ? orderIdx : noAoiStyleIdx
+                if (hasHighlight) {
+                  const isHighlighted = highlightMask![styleIdx] === 1
+                  if (dimmed ? isHighlighted : !isHighlighted) {
+                    yLocal += aoiRectHeight
+                    drawPresent[remainingId] = 0
+                    continue
+                  }
+                }
+                const fill = rectFillByIndex[styleIdx] ?? '#ccc'
+                ctx.fillStyle = fill
+                ctx.fillRect(pxX, yLocal, pxW, aoiRectHeight)
+                yLocal += aoiRectHeight
+                drawPresent[remainingId] = 0
+              }
+            }
+          }
         }
       }
-    })
+    }
 
-    // Draw dimmed elements
-    ctx.globalAlpha = 0.15
-    styleBuckets.forEach((segmentIndices, styleIdx) => {
-      const identifier = indexToId.get(styleIdx) ?? ''
-      const styleSet = rectStyles.get(identifier) ?? {
-        normal: { fill: '#ccc' },
-      }
+    if (hasHighlight) {
+      drawPass(false)
+      drawPass(true)
+    } else {
+      drawPass(false)
+    }
 
-      ctx.fillStyle = styleSet.normal.fill
-
-      for (const i of segmentIndices) {
-        const idx = i * RECT_STRIDE
-        const isDimmed =
-          isHighlightActive && highlightMask
-            ? highlightMask[styleIdx] !== 1
-            : false
-
-        if (isDimmed) {
-          ctx.fillRect(
-            segments[idx],
-            segments[idx + 1],
-            segments[idx + 2],
-            segments[idx + 3]
-          )
-        }
-      }
-    })
-
-    // Reset alpha
     ctx.globalAlpha = 1
   }
 
   function drawLines(ctx: CanvasRenderingContext2D) {
-    const segments = visualLineBuffer
-    if (segments.length === 0) return
-
-    const LINE_STRIDE = 10
+    if (!data.stylingAndLegend) return
+    if (data.stylingAndLegend.visibility.length === 0) return
 
     const isHighlightActive = usedHighlights.length > 0
     const highlightMask = highlightMaskByIndex
+    const hasHighlight = isHighlightActive && highlightMask
 
-    // Local references for fast access
-    const lineStyles = lineStyleMap
-    const { indexToId } = identifierSystem
+    const minValue = data.timeline.minValue
+    const maxValue = data.timeline.maxValue
+    const visibleRange = maxValue - minValue || 1
+    const isRelative = settings.timeline === 'relative'
 
-    // Use the pre-computed style buckets
-    const styleBuckets = lineStyleBuckets
+    const barHeight = data.barHeight
+    const spaceAboveRect = data.spaceAboveRect
+    const lineWrappedHeight = data.nonFixationHeight + data.spaceAboveLine
+    const rectWrappedHeight = barHeight + (spaceAboveRect << 1)
 
-    // Draw normal lines
-    ctx.globalAlpha = 1.0
-    ctx.setLineDash([2, 2])
+    const aoiStyleCount = data.stylingAndLegend.aoi.length
+    const categoryStyleCount = data.stylingAndLegend.category.length
+    const visibilityBase = aoiStyleCount + categoryStyleCount
 
-    styleBuckets.forEach((segmentIndices, styleIdx) => {
-      const identifier = indexToId.get(styleIdx) ?? ''
-      const styleSet = lineStyles.get(identifier) ?? {
-        normal: { stroke: '#ccc', strokeWidth: 1 },
-      }
+    const drawPass = (dimmed: boolean) => {
+      ctx.globalAlpha = dimmed ? 0.15 : 1.0
+      ctx.setLineDash([2, 2])
 
-      ctx.strokeStyle = styleSet.normal.stroke
-      ctx.lineWidth = styleSet.normal.strokeWidth ?? 1
-
-      for (const i of segmentIndices) {
-        const idx = i * LINE_STRIDE
-        const isDimmed =
-          isHighlightActive && highlightMask
-            ? highlightMask[styleIdx] !== 1
-            : false
-
-        if (!isDimmed) {
-          ctx.beginPath()
-          ctx.moveTo(segments[idx], segments[idx + 1])
-          ctx.lineTo(segments[idx + 2], segments[idx + 3])
-          ctx.stroke()
+      for (let aoiIdx = 0; aoiIdx < aoiIds.length; aoiIdx++) {
+        const styleIdx = visibilityBase + aoiIdx
+        if (hasHighlight) {
+          const isHighlighted = highlightMask![styleIdx]
+          if (dimmed ? isHighlighted : !isHighlighted) continue
         }
-      }
-    })
 
-    // Draw dimmed lines
-    ctx.globalAlpha = 0.15
-    ctx.setLineDash([2, 2])
+        const stroke = lineStrokeByIndex[styleIdx] ?? '#ccc'
+        const width = lineWidthByIndex[styleIdx] || 1
+        ctx.strokeStyle = stroke
+        ctx.lineWidth = width
 
-    styleBuckets.forEach((segmentIndices, styleIdx) => {
-      const identifier = indexToId.get(styleIdx) ?? ''
-      const styleSet = lineStyles.get(identifier) ?? {
-        normal: { stroke: '#ccc', strokeWidth: 1 },
-      }
+        ctx.beginPath()
 
-      ctx.strokeStyle = styleSet.normal.stroke
-      ctx.lineWidth = styleSet.normal.strokeWidth ?? 1
+        const aoiId = aoiIds[aoiIdx]
+        for (let pIndex = 0; pIndex < data.participants.length; pIndex++) {
+          const participantId = data.participants[pIndex].id
+          const sessionDuration = participantEndTimes[pIndex]
 
-      for (const i of segmentIndices) {
-        const idx = i * LINE_STRIDE
-        const isDimmed =
-          isHighlightActive && highlightMask
-            ? highlightMask[styleIdx] !== 1
-            : false
+          const visibility = getAoiVisibility(
+            data.stimulusId,
+            aoiId,
+            participantId
+          )
+          if (visibility == null) continue
 
-        if (isDimmed) {
-          ctx.beginPath()
-          ctx.moveTo(segments[idx], segments[idx + 1])
-          ctx.lineTo(segments[idx + 2], segments[idx + 3])
-          ctx.stroke()
+          const y =
+            pIndex * data.heightOfBarWrap +
+            rectWrappedHeight +
+            aoiIdx * lineWrappedHeight +
+            marginTop
+
+          for (let i = 0; i < visibility.length; i += 2) {
+            let start = visibility[i]
+            let end = visibility[i + 1]
+
+            if (end <= 0 || start >= sessionDuration) continue
+            if (start < 0) start = 0
+            if (end > sessionDuration) end = sessionDuration
+
+            if (!isRelative) {
+              if (end <= minValue || start >= maxValue) continue
+              if (start < minValue) start = minValue
+              if (end > maxValue) end = maxValue
+            }
+
+            let x1: number
+            let x2: number
+
+            if (isRelative) {
+              const safeDuration = sessionDuration > 0 ? sessionDuration : 1
+              x1 = start / safeDuration
+              x2 = end / safeDuration
+            } else {
+              x1 = (start - minValue) / visibleRange
+              x2 = (end - minValue) / visibleRange
+            }
+
+            const pxX1 = LEFT_LABEL_WIDTH + x1 * plotAreaWidth + marginLeft
+            const pxX2 = LEFT_LABEL_WIDTH + x2 * plotAreaWidth + marginLeft
+            ctx.moveTo(pxX1, y)
+            ctx.lineTo(pxX2, y)
+          }
         }
-      }
-    })
 
-    // Reset rendering state
+        ctx.stroke()
+      }
+    }
+
+    if (hasHighlight) {
+      drawPass(false)
+      drawPass(true)
+    } else {
+      drawPass(false)
+    }
+
     ctx.globalAlpha = 1
     ctx.setLineDash([])
   }
@@ -1063,7 +1284,7 @@
       const tooltipPos = getTooltipPosition(
         canvasState,
         hoveredSegment.x + hoveredSegment.width,
-        hoveredSegment.y + hoveredSegment.height / 2,
+        hoveredSegment.y + (hoveredSegment.height >> 1),
         { x: 5, y: 0 }
       )
 
@@ -1316,100 +1537,225 @@
   })
 
   function findHoveredRectSegment(mouseX: number, mouseY: number) {
-    const segments = visualRectBuffer
-    if (segments.length === 0) return null
+    if (segmentBuffer.length === 0) return null
 
-    const RECT_STRIDE = 12
-    const len = segments.length / RECT_STRIDE
+    const localY = mouseY - marginTop
+    if (localY < 0) return null
 
-    // Fast identifier lookup
-    const { indexToId } = identifierSystem
+    const participantIndex = Math.floor(localY / data.heightOfBarWrap)
+    if (participantIndex < 0 || participantIndex >= data.participants.length) {
+      return null
+    }
 
-    // Check in reverse order (top to bottom visually) to match z-index behavior
-    for (let i = len - 1; i >= 0; i--) {
-      const idx = i * RECT_STRIDE
+    const participant = data.participants[participantIndex]
+    const participantId = participant.id
+    const sessionDuration = participantEndTimes[participantIndex]
 
-      const x = segments[idx]
-      const y = segments[idx + 1]
-      const width = segments[idx + 2]
-      const height = segments[idx + 3]
-      const identifierIdx = segments[idx + 4] | 0
-      const participantId = segments[idx + 5]
-      const segmentId = segments[idx + 6]
-      const orderId = segments[idx + 7]
+    const plotLeft = LEFT_LABEL_WIDTH + marginLeft
+    const plotRight = plotLeft + plotAreaWidth
+    if (mouseX < plotLeft || mouseX > plotRight) return null
 
+    const minValue = data.timeline.minValue
+    const maxValue = data.timeline.maxValue
+    const visibleRange = maxValue - minValue || 1
+
+    const isRelative = settings.timeline === 'relative'
+    const isOrdinal = settings.timeline === 'ordinal'
+
+    const xNorm = (mouseX - plotLeft) / plotAreaWidth
+    const t = isRelative
+      ? xNorm * sessionDuration
+      : minValue + xNorm * visibleRange
+
+    const { startIndex, endIndex } = getParticipantRange(participantId)
+    const segmentCount = endIndex - startIndex
+    if (segmentCount <= 0) return null
+
+    let segmentIndex = -1
+    let localSegmentId = -1
+
+    if (isOrdinal) {
+      localSegmentId = Math.floor(t)
+      if (localSegmentId < 0 || localSegmentId >= segmentCount) return null
+      segmentIndex = startIndex + localSegmentId
+    } else {
+      let lo = startIndex
+      let hi = endIndex
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1
+        const startTime =
+          segmentBuffer[mid * SEGMENT_STRIDE + SegmentField.START_TIME]
+        if (startTime <= t) {
+          lo = mid + 1
+        } else {
+          hi = mid
+        }
+      }
+      const idx = lo - 1
+      if (idx < startIndex) return null
+      const endTime =
+        segmentBuffer[idx * SEGMENT_STRIDE + SegmentField.END_TIME]
+      if (t >= endTime) return null
+      segmentIndex = idx
+      localSegmentId = idx - startIndex
+    }
+
+    const base = segmentIndex * SEGMENT_STRIDE
+    const categoryId = segmentBuffer[base + SegmentField.CATEGORY_ID] | 0
+    const startTime = segmentBuffer[base + SegmentField.START_TIME]
+    const endTime = segmentBuffer[base + SegmentField.END_TIME]
+    const segmentId = segmentBuffer[base + SegmentField.SEGMENT_ID] | 0
+
+    let segStart = isOrdinal ? localSegmentId : startTime
+    let segEnd = isOrdinal ? localSegmentId + 1 : endTime
+
+    let x: number
+    let width: number
+
+    if (isRelative) {
+      const safeDuration = sessionDuration > 0 ? sessionDuration : 1
+      if (segEnd <= 0 || segStart >= sessionDuration) return null
+      if (segStart < 0) segStart = 0
+      if (segEnd > sessionDuration) segEnd = sessionDuration
+      x = segStart / safeDuration
+      width = (segEnd - segStart) / safeDuration
+    } else {
+      if (segEnd <= minValue || segStart >= maxValue) return null
+      if (segStart < minValue) segStart = minValue
+      if (segEnd > maxValue) segEnd = maxValue
+      x = (segStart - minValue) / visibleRange
+      width = (segEnd - segStart) / visibleRange
+    }
+
+    const pxX = plotLeft + x * plotAreaWidth
+    const pxW = width * plotAreaWidth
+
+    const barHeight = data.barHeight
+    const nonFixationHeight = data.nonFixationHeight
+    const spaceAboveRect = data.spaceAboveRect
+    const yOffset = participantIndex * data.heightOfBarWrap + marginTop
+    const baseYRect = yOffset + spaceAboveRect
+    const yNonFixation =
+      yOffset + (spaceAboveRect + (barHeight >> 1) - (nonFixationHeight >> 1))
+
+    if (categoryId !== 0) {
       if (
-        mouseX >= x &&
-        mouseX <= x + width &&
-        mouseY >= y &&
-        mouseY <= y + height
+        mouseY >= yNonFixation &&
+        mouseY <= yNonFixation + nonFixationHeight
       ) {
         return {
-          x,
-          y,
-          width,
-          height,
-          identifier: indexToId.get(identifierIdx) ?? '',
+          x: pxX,
+          y: yNonFixation,
+          width: pxW,
+          height: nonFixationHeight,
+          identifier: '',
           participantId,
           segmentId,
-          orderId,
+          orderId: localSegmentId,
         }
+      }
+      return null
+    }
+
+    const aoiCount = segmentBuffer[base + SegmentField.AOI_COUNT] | 0
+    const aoiPtr = segmentBuffer[base + SegmentField.AOI_POINTER] | 0
+
+    if (aoiCount <= 0) {
+      if (mouseY >= baseYRect && mouseY <= baseYRect + barHeight) {
+        return {
+          x: pxX,
+          y: baseYRect,
+          width: pxW,
+          height: barHeight,
+          identifier: '',
+          participantId,
+          segmentId,
+          orderId: localSegmentId,
+        }
+      }
+      return null
+    }
+
+    hoverPresentList.length = 0
+    const groupMapOffset = data.stimulusId * MAX_AOI_PER_STIMULUS
+    for (let i = 0; i < aoiCount; i++) {
+      const rawId = aoiPool[aoiPtr + i]
+      if (rawId < 0 || rawId >= MAX_AOI_PER_STIMULUS) continue
+      if (hiddenAoiFlags[rawId]) continue
+      const mapped = groupMap[groupMapOffset + rawId]
+      const groupId = mapped === 0xffff ? rawId : mapped
+      if (groupId < 0 || groupId >= MAX_AOI_PER_STIMULUS) continue
+      if (!hoverPresent[groupId]) {
+        hoverPresent[groupId] = 1
+        hoverPresentList.push(groupId)
+      }
+    }
+
+    const uniqueAoiCount = hoverPresentList.length
+    if (uniqueAoiCount === 0) {
+      if (mouseY >= baseYRect && mouseY <= baseYRect + barHeight) {
+        return {
+          x: pxX,
+          y: baseYRect,
+          width: pxW,
+          height: barHeight,
+          identifier: '',
+          participantId,
+          segmentId,
+          orderId: localSegmentId,
+        }
+      }
+      return null
+    }
+
+    const aoiRectHeight = barHeight / uniqueAoiCount
+    let yLocal = baseYRect
+
+    for (let aoiIdx = 0; aoiIdx < aoiIds.length; aoiIdx++) {
+      const orderedId = aoiIds[aoiIdx]
+      if (orderedId < 0 || orderedId >= MAX_AOI_PER_STIMULUS) continue
+      if (hoverPresent[orderedId]) {
+        if (mouseY >= yLocal && mouseY <= yLocal + aoiRectHeight) {
+          hoverPresent[orderedId] = 0
+          return {
+            x: pxX,
+            y: yLocal,
+            width: pxW,
+            height: aoiRectHeight,
+            identifier: '',
+            participantId,
+            segmentId,
+            orderId: localSegmentId,
+          }
+        }
+        yLocal += aoiRectHeight
+        hoverPresent[orderedId] = 0
+      }
+    }
+
+    for (let i = 0; i < hoverPresentList.length; i++) {
+      const remainingId = hoverPresentList[i]
+      if (hoverPresent[remainingId]) {
+        if (mouseY >= yLocal && mouseY <= yLocal + aoiRectHeight) {
+          hoverPresent[remainingId] = 0
+          return {
+            x: pxX,
+            y: yLocal,
+            width: pxW,
+            height: aoiRectHeight,
+            identifier: '',
+            participantId,
+            segmentId,
+            orderId: localSegmentId,
+          }
+        }
+        yLocal += aoiRectHeight
+        hoverPresent[remainingId] = 0
       }
     }
 
     return null
   }
-
-  // Create derived stores for style buckets that update only when segment data changes
-  const rectangleStyleBuckets = $derived.by(() => {
-    const segments = visualRectBuffer
-    if (segments.length === 0) return new Map<number, number[]>()
-
-    const RECT_STRIDE = 12
-    const len = segments.length / RECT_STRIDE
-    const styleBuckets = new Map<number, number[]>()
-
-    // Single pass to populate buckets by style index - O(n)
-    for (let i = 0; i < len; i++) {
-      const idx = i * RECT_STRIDE
-      const identifierIdx = segments[idx + 4] | 0
-
-      // Get or create bucket for this style
-      let bucket = styleBuckets.get(identifierIdx)
-      if (!bucket) {
-        bucket = []
-        styleBuckets.set(identifierIdx, bucket)
-      }
-      bucket.push(i)
-    }
-
-    return styleBuckets
-  })
-
-  const lineStyleBuckets = $derived.by(() => {
-    const segments = visualLineBuffer
-    if (segments.length === 0) return new Map<number, number[]>()
-
-    const LINE_STRIDE = 10
-    const len = segments.length / LINE_STRIDE
-    const styleBuckets = new Map<number, number[]>()
-
-    // Single pass to populate buckets by style index - O(n)
-    for (let i = 0; i < len; i++) {
-      const idx = i * LINE_STRIDE
-      const identifierIdx = segments[idx + 4] | 0
-
-      // Get or create bucket for this style
-      let bucket = styleBuckets.get(identifierIdx)
-      if (!bucket) {
-        bucket = []
-        styleBuckets.set(identifierIdx, bucket)
-      }
-      bucket.push(i)
-    }
-
-    return styleBuckets
-  })
 
   // Clean up tooltip when unmounting
   onDestroy(() => {
