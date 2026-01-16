@@ -15,6 +15,104 @@ const MAX_AOI_PER_STIMULUS = 256 // Maximum number of AOIs per stimulus
 
 export const data = writable<DataType>()
 
+// ============================================================================
+// PRIVATE MODULE-LEVEL STATE: The High-Performance Engine
+// ============================================================================
+// These caches are never exposed directly; they're only accessed by the exported
+// functions below. They are updated exactly once per data change via a single
+// subscription, eliminating the "Reactivity Trap" of derived stores.
+
+let _reader: BinaryBufferReader | null = null
+let _mappingArray: Uint16Array = new Uint16Array(0)
+let _aoiCounts: Uint16Array = new Uint16Array(0)
+let _stimuliCount: number = 0
+
+/**
+ * Single manual subscription to update the high-performance cache.
+ * This runs exactly once when new data is loaded into the store.
+ *
+ * This replaces the previous derived stores (fastAoiIdMappings, aoiIdMappings)
+ * with a direct, non-reactive update mechanism that eliminates unnecessary re-calculations.
+ */
+data.subscribe($data => {
+  if (!$data) return
+
+  const stimuliCount = Math.min($data.stimuli.data.length, MAX_STIMULUS)
+  _stimuliCount = stimuliCount
+
+  // Initialize reader for segment data
+  _reader = new BinaryBufferReader($data.segments)
+
+  // Create a single TypedArray for all mappings
+  // Size: stimuliCount * MAX_AOI_PER_STIMULUS entries
+  const array = new Uint16Array(stimuliCount * MAX_AOI_PER_STIMULUS)
+
+  // Track AOI counts per stimulus for bounds checking
+  const counts = new Uint16Array(stimuliCount)
+
+  // Initialize with identity mapping (each AOI maps to itself)
+  array.fill(0xffff) // Use 0xFFFF (65535) as sentinel for "no mapping"
+
+  // Process each stimulus
+  for (let stimulusId = 0; stimulusId < stimuliCount; stimulusId++) {
+    try {
+      // Get all AOIs for this stimulus
+      const aois = getAoisRawFromData(stimulusId, $data)
+      const hidden = getHiddenAoisFromData(stimulusId, $data)
+      const hiddenSet = hidden.length ? new Set<number>(hidden) : null
+      counts[stimulusId] = aois.length
+
+      // Skip if no AOIs for this stimulus
+      if (!aois.length) continue
+
+      // First pass: find first occurrence of each displayed name
+      const nameToFirstId = new Map<string, number>()
+
+      for (const aoi of aois) {
+        if (hiddenSet && hiddenSet.has(aoi.id)) continue
+        if (
+          !nameToFirstId.has(aoi.displayedName) &&
+          aoi.displayedName.trim() !== ''
+        ) {
+          nameToFirstId.set(aoi.displayedName, aoi.id)
+        }
+      }
+
+      // Calculate offset for this stimulus in the flat array
+      const offset = stimulusId * MAX_AOI_PER_STIMULUS
+
+      // Second pass: populate the mapping array
+      for (const aoi of aois) {
+        if (hiddenSet && hiddenSet.has(aoi.id)) {
+          array[offset + aoi.id] = aoi.id
+          continue
+        }
+        if (
+          aoi.displayedName.trim() !== '' &&
+          nameToFirstId.has(aoi.displayedName)
+        ) {
+          array[offset + aoi.id] = nameToFirstId.get(aoi.displayedName)!
+        } else {
+          array[offset + aoi.id] = aoi.id // Self-map for AOIs without grouping
+        }
+      }
+    } catch (e) {
+      // On error, use identity mapping (each AOI maps to itself)
+      const noOfAois = $data.aois.data[stimulusId]?.length || 0
+      counts[stimulusId] = noOfAois
+
+      const offset = stimulusId * MAX_AOI_PER_STIMULUS
+      for (let i = 0; i < noOfAois; i++) {
+        array[offset + i] = i
+      }
+    }
+  }
+
+  // "Commit" the new caches as a single atomic update
+  _mappingArray = array
+  _aoiCounts = counts
+})
+
 /**
  * A derived store that checks if the data store contains valid, non-empty data.
  *
@@ -24,7 +122,7 @@ export const data = writable<DataType>()
  *
  * @returns true if data contains valid content (has stimuli and participants), false otherwise
  */
-export const hasValidData = derived(data, $data => {
+export const hasValidData: Readable<boolean> = derived(data, $data => {
   // If data is undefined or null, it's not valid
   if (!$data) return false
 
@@ -120,186 +218,22 @@ const getAoisRawFromData = (
 }
 
 /**
- * A derived Svelte store that maintains mappings from original AOI IDs to their representative IDs.
+ * BACKWARD COMPATIBLE AOI ID MAPPING (No Derived Store)
  *
- * This store automatically updates whenever the underlying data changes. It maps each AOI ID
- * to the ID of the first AOI that shares the same displayed name. This allows AOIs with the
- * same displayed name to be treated as a single group in visualizations.
- *
- * The mapping follows these rules:
- * - AOIs with the same displayed name map to the ID of the first AOI with that name
- * - AOIs with unique displayed names or empty names map to their own ID (self-mapping)
- * - The mapping is maintained per stimulus
- *
- * Format: { [stimulusId]: { [aoiId]: mappedAoiId } }
- */
-const aoiIdMappings: Readable<{
-  [stimulusId: number]: { [aoiId: number]: number }
-}> = derived(data, $data => {
-  const mappings: { [stimulusId: number]: { [aoiId: number]: number } } = {}
-  const stimuliCount = $data.stimuli.data.length
-
-  // Process each stimulus
-  for (let stimulusId = 0; stimulusId < stimuliCount; stimulusId++) {
-    try {
-      const aois = getAoisRawFromData(stimulusId, $data)
-      const hidden = getHiddenAoisFromData(stimulusId, $data)
-      const hiddenSet = hidden.length ? new Set<number>(hidden) : null
-      const nameToFirstId = new Map<string, number>()
-      const mapping: { [aoiId: number]: number } = {}
-
-      // First pass: find first occurrence of each displayed name
-      aois.forEach(aoi => {
-        if (hiddenSet && hiddenSet.has(aoi.id)) return
-        if (
-          !nameToFirstId.has(aoi.displayedName) &&
-          aoi.displayedName.trim() !== ''
-        ) {
-          nameToFirstId.set(aoi.displayedName, aoi.id)
-        }
-      })
-
-      // Second pass: create mapping
-      aois.forEach(aoi => {
-        if (hiddenSet && hiddenSet.has(aoi.id)) {
-          mapping[aoi.id] = aoi.id
-          return
-        }
-        if (
-          aoi.displayedName.trim() !== '' &&
-          nameToFirstId.has(aoi.displayedName)
-        ) {
-          mapping[aoi.id] = nameToFirstId.get(aoi.displayedName)!
-        } else {
-          mapping[aoi.id] = aoi.id // Self-map for AOIs without grouping
-        }
-      })
-
-      mappings[stimulusId] = mapping
-    } catch (e) {
-      // In case of any error, use identity mapping
-      const noOfAois = $data.aois.data[stimulusId]?.length || 0
-      const identityMapping: { [aoiId: number]: number } = {}
-      for (let i = 0; i < noOfAois; i++) {
-        identityMapping[i] = i
-      }
-      mappings[stimulusId] = identityMapping
-    }
-  }
-
-  return mappings
-})
-
-/**
- * High-performance AOI ID mapping store using TypedArrays
- *
- * This store uses a flat Uint16Array to store all AOI mappings for ultra-fast lookups:
- * - Each stimulus has a fixed-size block of MAX_AOI_PER_STIMULUS entries
- * - Access pattern: mappingArray[stimulusId * MAX_AOI_PER_STIMULUS + aoiId]
- * - Value of 65535 (0xFFFF) indicates no mapping exists (fallback to identity)
- *
- * This structure eliminates object creation and property access during lookups
- * for maximum performance in hot paths like segment rendering.
- */
-const fastAoiIdMappings: Readable<{
-  array: Uint16Array // The actual mapping data
-  stimuliCount: number // Number of stimuli with mappings
-  aoiCounts: Uint16Array // Number of AOIs per stimulus (for bound checking)
-}> = derived(data, $data => {
-  const stimuliCount = Math.min($data.stimuli.data.length, MAX_STIMULUS)
-
-  // Create a single TypedArray for all mappings
-  // Size: stimuliCount * MAX_AOI_PER_STIMULUS entries
-  const array = new Uint16Array(stimuliCount * MAX_AOI_PER_STIMULUS)
-
-  // Track AOI counts per stimulus for bounds checking
-  const aoiCounts = new Uint16Array(stimuliCount)
-
-  // Initialize with identity mapping (each AOI maps to itself)
-  array.fill(0xffff) // Use 0xFFFF (65535) as sentinel for "no mapping"
-
-  // Process each stimulus
-  for (let stimulusId = 0; stimulusId < stimuliCount; stimulusId++) {
-    try {
-      // Get all AOIs for this stimulus
-      const aois = getAoisRawFromData(stimulusId, $data)
-      const hidden = getHiddenAoisFromData(stimulusId, $data)
-      const hiddenSet = hidden.length ? new Set<number>(hidden) : null
-      aoiCounts[stimulusId] = aois.length
-
-      // Skip if no AOIs for this stimulus
-      if (!aois.length) continue
-
-      // First pass: find first occurrence of each displayed name
-      const nameToFirstId = new Map<string, number>()
-
-      for (const aoi of aois) {
-        if (hiddenSet && hiddenSet.has(aoi.id)) continue
-        if (
-          !nameToFirstId.has(aoi.displayedName) &&
-          aoi.displayedName.trim() !== ''
-        ) {
-          nameToFirstId.set(aoi.displayedName, aoi.id)
-        }
-      }
-
-      // Calculate offset for this stimulus in the flat array
-      const offset = stimulusId * MAX_AOI_PER_STIMULUS
-
-      // Second pass: populate the mapping array
-      for (const aoi of aois) {
-        if (hiddenSet && hiddenSet.has(aoi.id)) {
-          array[offset + aoi.id] = aoi.id
-          continue
-        }
-        if (
-          aoi.displayedName.trim() !== '' &&
-          nameToFirstId.has(aoi.displayedName)
-        ) {
-          array[offset + aoi.id] = nameToFirstId.get(aoi.displayedName)!
-        } else {
-          array[offset + aoi.id] = aoi.id // Self-map for AOIs without grouping
-        }
-      }
-    } catch (e) {
-      // On error, use identity mapping (each AOI maps to itself)
-      const noOfAois = $data.aois.data[stimulusId]?.length || 0
-      aoiCounts[stimulusId] = noOfAois
-
-      const offset = stimulusId * MAX_AOI_PER_STIMULUS
-      for (let i = 0; i < noOfAois; i++) {
-        array[offset + i] = i
-      }
-    }
-  }
-
-  return {
-    array,
-    stimuliCount,
-    aoiCounts,
-  }
-})
-
-/**
- * Fast AOI ID mapping lookup using TypedArrays.
- *
- * This function provides the same functionality as getAoiIdMapping but with
- * significantly higher performance for hot code paths. It uses a flat TypedArray
- * with direct indexing to eliminate object property lookups and reduce GC pressure.
+ * This function now performs a direct, non-reactive memory read from the private
+ * _mappingArray cache. Zero overhead, zero derived store overhead.
  *
  * @param stimulusId - The numeric ID of the stimulus
  * @param aoiId - The original AOI ID
  * @returns The mapped (representative) AOI ID, or the original ID if no mapping exists
  */
 export const getAoiIdMapping = (stimulusId: number, aoiId: number): number => {
-  const { array, stimuliCount, aoiCounts } = get(fastAoiIdMappings)
-
   // Bounds checking for maximum performance
   if (
     stimulusId < 0 ||
-    stimulusId >= stimuliCount ||
+    stimulusId >= _stimuliCount ||
     aoiId < 0 ||
-    aoiId >= aoiCounts[stimulusId] ||
+    aoiId >= _aoiCounts[stimulusId] ||
     aoiId >= MAX_AOI_PER_STIMULUS
   ) {
     return aoiId // Return identity mapping for out-of-bounds indices
@@ -307,7 +241,7 @@ export const getAoiIdMapping = (stimulusId: number, aoiId: number): number => {
 
   // Direct index calculation for O(1) access
   const index = stimulusId * MAX_AOI_PER_STIMULUS + aoiId
-  const mappedId = array[index]
+  const mappedId = _mappingArray[index]
 
   // Check for sentinel value (no mapping)
   return mappedId === 0xffff ? aoiId : mappedId
@@ -672,13 +606,18 @@ export const getAoiVisibility = (
   // we need to merge visibility from all AOIs in the group
   if (mappedAoiId === aoiId) {
     // This is the representative AOI for a group
-    // Get all AOI IDs that map to this representative ID
-    const mappings = get(aoiIdMappings)
-    const mappedAoiIds = Object.entries(mappings[stimulusId] || {})
-      .filter(
-        ([_id, mappedId]) => mappedId === mappedAoiId && Number(_id) !== aoiId
-      )
-      .map(([id]) => Number(id))
+    // Get all AOI IDs that map to this representative ID by scanning the cache
+    const mappedAoiIds: number[] = []
+    const offset = stimulusId * MAX_AOI_PER_STIMULUS
+
+    for (let id = 0; id < _aoiCounts[stimulusId]; id++) {
+      if (id === aoiId) continue // Skip the representative itself
+      const mappedValue = _mappingArray[offset + id]
+      const mappedId = mappedValue === 0xffff ? id : mappedValue
+      if (mappedId === mappedAoiId) {
+        mappedAoiIds.push(id)
+      }
+    }
 
     // If there are other AOIs mapped to this one, merge their visibility data
     if (mappedAoiIds.length > 0) {
@@ -1199,12 +1138,8 @@ export const getSegments = (
   const categoryFilter = whereCategories ? new Set(whereCategories) : null
   const aoiFilter = whereAois ? new Set(whereAois) : null
 
-  // Cache frequently-used objects
-  const {
-    array: mappingArray,
-    stimuliCount,
-    aoiCounts,
-  } = get(fastAoiIdMappings)
+  // Use the private module-level cache for ultra-fast access
+  // No derived store subscriptions or get() calls - direct TypedArray access
   const mappingOffset = stimulusId * MAX_AOI_PER_STIMULUS
   const orderVector = getAoiOrderVector(stimulusId)
   const uniqueAoiIds = new Set<number>()
@@ -1235,14 +1170,14 @@ export const getSegments = (
       let hasMatchingAoi = false
       for (const aoiId of rawAoiIds) {
         if (hiddenSet && hiddenSet.has(aoiId)) continue
-        // Fast mapping via TypedArray
+        // Fast mapping via private TypedArray (O(1) direct access)
         let mappedId = aoiId
         if (
-          stimulusId < stimuliCount &&
-          aoiId < aoiCounts[stimulusId] &&
+          stimulusId < _stimuliCount &&
+          aoiId < _aoiCounts[stimulusId] &&
           aoiId < MAX_AOI_PER_STIMULUS
         ) {
-          const mappedValue = mappingArray[mappingOffset + aoiId]
+          const mappedValue = _mappingArray[mappingOffset + aoiId]
           mappedId = mappedValue === 0xffff ? aoiId : mappedValue
         }
 
@@ -1278,11 +1213,11 @@ export const getSegments = (
       if (hiddenSet && hiddenSet.has(aoiId)) continue
       let mappedId = aoiId
       if (
-        stimulusId < stimuliCount &&
-        aoiId < aoiCounts[stimulusId] &&
+        stimulusId < _stimuliCount &&
+        aoiId < _aoiCounts[stimulusId] &&
         aoiId < MAX_AOI_PER_STIMULUS
       ) {
-        const mappedValue = mappingArray[mappingOffset + aoiId]
+        const mappedValue = _mappingArray[mappingOffset + aoiId]
         mappedId = mappedValue === 0xffff ? aoiId : mappedValue
       }
       uniqueAoiIds.add(mappedId)
