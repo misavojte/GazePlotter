@@ -19,17 +19,17 @@ Participant_2,DBCA`
 describe('OGAMA Deserializer - Single data', () => {
   const ogamaRows = ogamaMockDataOne.split('\n')
   const header = ogamaRows[0].split(',')
+  const delim = ','
   test('Constructor', () => {
-    const sut = new OgamaEyeDeserializer(header, 'SimilarityXXX.txt')
+    const sut = new OgamaEyeDeserializer(header, 'SimilarityXXX.txt', delim)
     expect(sut).toBeDefined()
     expect(sut.cParticipant).toBe(0)
     expect(sut.cSegments).toBe(1)
   })
 
   test('Process first row - Segment 1', () => {
-    const sut = new OgamaEyeDeserializer(header, 'SimilarityXXX.txt')
-    const row = ogamaRows[1].split(',')
-    const result = sut.deserialize(row) as SingleDeserializerOutput[]
+    const sut = new OgamaEyeDeserializer(header, 'SimilarityXXX.txt', delim)
+    const result = sut.processRow(ogamaRows[1]) as SingleDeserializerOutput[]
     expect(result).toBeDefined()
     expect(result.length).toBe(4)
     expect(result[0].aoi).toEqual(['A'])
@@ -41,9 +41,8 @@ describe('OGAMA Deserializer - Single data', () => {
   })
 
   test('Process first row - Segment 2', () => {
-    const sut = new OgamaEyeDeserializer(header, 'SimilarityXXX.txt')
-    const row = ogamaRows[1].split(',')
-    const result = sut.deserialize(row) as SingleDeserializerOutput[]
+    const sut = new OgamaEyeDeserializer(header, 'SimilarityXXX.txt', delim)
+    const result = sut.processRow(ogamaRows[1]) as SingleDeserializerOutput[]
     expect(result).toBeDefined()
     expect(result.length).toBe(4)
     expect(result[1].aoi).toEqual(['B'])
@@ -55,9 +54,8 @@ describe('OGAMA Deserializer - Single data', () => {
   })
 
   test('Process second row - Segment 1', () => {
-    const sut = new OgamaEyeDeserializer(header, 'SimilarityXXX.txt')
-    const row = ogamaRows[2].split(',')
-    const result = sut.deserialize(row) as SingleDeserializerOutput[]
+    const sut = new OgamaEyeDeserializer(header, 'SimilarityXXX.txt', delim)
+    const result = sut.processRow(ogamaRows[2]) as SingleDeserializerOutput[]
     expect(result).toBeDefined()
     expect(result.length).toBe(4)
     expect(result[0].aoi).toEqual(['D'])
@@ -69,9 +67,8 @@ describe('OGAMA Deserializer - Single data', () => {
   })
 
   test('Process second row - Segment 2', () => {
-    const sut = new OgamaEyeDeserializer(header, 'SimilarityXXX.txt')
-    const row = ogamaRows[2].split(',')
-    const result = sut.deserialize(row) as SingleDeserializerOutput[]
+    const sut = new OgamaEyeDeserializer(header, 'SimilarityXXX.txt', delim)
+    const result = sut.processRow(ogamaRows[2]) as SingleDeserializerOutput[]
     expect(result).toBeDefined()
     expect(result.length).toBe(4)
     expect(result[1].aoi).toEqual(['B'])

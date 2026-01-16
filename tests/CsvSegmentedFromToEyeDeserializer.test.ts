@@ -18,8 +18,9 @@ const csvMockDataOne = `From,To,Participant,Stimulus,AOI
 describe('CSV Segmented FromTo Deserializer - Single data', () => {
   const csvRows = csvMockDataOne.split('\n')
   const header = csvRows[0].split(',')
+  const delim = ','
   test('Constructor', () => {
-    const sut = new CsvSegmentedFromToEyeDeserializer(header)
+    const sut = new CsvSegmentedFromToEyeDeserializer(header, delim)
     expect(sut).toBeDefined()
     expect(sut.cAoi).toBe(4)
     expect(sut.cParticipant).toBe(2)
@@ -29,9 +30,8 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
   })
 
   test('Process first row', () => {
-    const sut = new CsvSegmentedFromToEyeDeserializer(header)
-    const row = csvRows[1].split(',')
-    const result = sut.deserialize(row) as SingleDeserializerOutput
+    const sut = new CsvSegmentedFromToEyeDeserializer(header, delim)
+    const result = sut.processRow(csvRows[1]) as SingleDeserializerOutput
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_1'])
     expect(result.category).toEqual('Fixation')
@@ -42,9 +42,8 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
   })
 
   test('Process second row', () => {
-    const sut = new CsvSegmentedFromToEyeDeserializer(header)
-    const row = csvRows[2].split(',')
-    const result = sut.deserialize(row) as SingleDeserializerOutput
+    const sut = new CsvSegmentedFromToEyeDeserializer(header, delim)
+    const result = sut.processRow(csvRows[2]) as SingleDeserializerOutput
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_1'])
     expect(result.category).toEqual('Fixation')
@@ -55,9 +54,8 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
   })
 
   test('Process third row', () => {
-    const sut = new CsvSegmentedFromToEyeDeserializer(header)
-    const row = csvRows[3].split(',')
-    const result = sut.deserialize(row) as SingleDeserializerOutput
+    const sut = new CsvSegmentedFromToEyeDeserializer(header, delim)
+    const result = sut.processRow(csvRows[3]) as SingleDeserializerOutput
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_1'])
     expect(result.category).toEqual('Fixation')
@@ -68,9 +66,8 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
   })
 
   test('Process fourth row', () => {
-    const sut = new CsvSegmentedFromToEyeDeserializer(header)
-    const row = csvRows[4].split(',')
-    const result = sut.deserialize(row) as SingleDeserializerOutput
+    const sut = new CsvSegmentedFromToEyeDeserializer(header, delim)
+    const result = sut.processRow(csvRows[4]) as SingleDeserializerOutput
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_1'])
     expect(result.category).toEqual('Fixation')
@@ -81,9 +78,8 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
   })
 
   test('Finalize', () => {
-    const sut = new CsvSegmentedFromToEyeDeserializer(header)
-    const row = csvRows[4].split(',')
-    void sut.deserialize(row)
+    const sut = new CsvSegmentedFromToEyeDeserializer(header, delim)
+    void sut.processRow(csvRows[4])
     const result = sut.finalize()
     expect(result).toBeNull()
   })

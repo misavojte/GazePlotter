@@ -56,8 +56,18 @@ export class GazePointEyeDeserializer extends AbstractEyeDeserializer {
   private prevFixDur: number = 0
   private participant: string
 
-  constructor(header: string[], fileName: string) {
-    super()
+  // Packed columns (strings)
+  private readonly pTime = 0
+  private readonly pStart = 1
+  private readonly pFixDur = 2
+  private readonly pBlinkId = 3
+  private readonly pBlinkDur = 4
+  private readonly pAoi = 5
+  private readonly pStim = 6
+  private readonly pId = 7
+
+  constructor(header: string[], fileName: string, columnDelimiter: string) {
+    super(columnDelimiter)
     const find = (pat: RegExp) => header.findIndex(h => pat.test(h))
     this.idx.time = find(/^TIME/) >= 0 ? find(/^TIME/) : header.indexOf('TIME')
     this.idx.start = header.indexOf('FPOGS')
@@ -68,17 +78,31 @@ export class GazePointEyeDeserializer extends AbstractEyeDeserializer {
     this.idx.stim = header.indexOf('MEDIA_NAME')
     this.idx.id = header.indexOf('FPOGID')
     this.participant = fileName.split('_')[0]
+
+    this.setupColumns([
+      this.idx.time,
+      this.idx.start,
+      this.idx.fixDur,
+      this.idx.blinkId,
+      this.idx.blinkDur,
+      this.idx.aoi,
+      this.idx.stim,
+      this.idx.id,
+    ])
   }
 
-  deserialize(row: string[]): SingleDeserializerOutput | null {
-    const time = parseFloat(row[this.idx.time])
-    const startRaw = parseFloat(row[this.idx.start])
-    const durFix = parseFloat(row[this.idx.fixDur]) || 0
-    const blinkId = parseInt(row[this.idx.blinkId], 10) || 0
-    const blinkDur = parseFloat(row[this.idx.blinkDur]) || 0
-    const aoi = row[this.idx.aoi] || null
-    const fixID = row[this.idx.id]
-    const stim = row[this.idx.stim]
+  deserialize(_rawRowRef: string): SingleDeserializerOutput | null {
+    const time = parseFloat(this.getCurr(this.pTime))
+    const startRaw = parseFloat(this.getCurr(this.pStart))
+    const durFix = parseFloat(this.getCurr(this.pFixDur)) || 0
+    const blinkId = parseInt(this.getCurr(this.pBlinkId), 10) || 0
+    const blinkDur = parseFloat(this.getCurr(this.pBlinkDur)) || 0
+
+    if (!Number.isFinite(time) || !Number.isFinite(startRaw)) return null
+
+    const aoi = this.getCurr(this.pAoi) || null
+    const fixID = this.getCurr(this.pId)
+    const stim = this.getCurr(this.pStim)
 
     // 1) Blink detection
     if (blinkId > 0) {
@@ -168,7 +192,7 @@ export class GazePointEyeDeserializer extends AbstractEyeDeserializer {
       const buf = this.blinkBuffer
       this.blinkBuffer = null
       this.blinkTerminated = false
-      return {
+      const out: SingleDeserializerOutput = {
         participant: this.participant,
         stimulus: this.currentFix.stimulus,
         category: 'Blink',
@@ -176,6 +200,7 @@ export class GazePointEyeDeserializer extends AbstractEyeDeserializer {
         end: String(buf.end),
         aoi: null,
       }
+      return out
     }
     if (this.state === 'Fixation') {
       const out = this.emitFixation()

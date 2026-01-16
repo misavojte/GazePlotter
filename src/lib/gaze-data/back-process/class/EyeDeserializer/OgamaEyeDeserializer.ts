@@ -5,23 +5,29 @@ export class OgamaEyeDeserializer extends AbstractEyeDeserializer {
   stimulusName: string
   cParticipant: number
   cSegments: number
-  constructor(header: string[], fileName: string) {
-    super()
+
+  private readonly pParticipant = 0
+  private readonly pSegments = 1
+
+  constructor(header: string[], fileName: string, columnDelimiter: string) {
+    super(columnDelimiter)
     // extract name from file name (SimilarityXXX.txt) where XXX is the stimulus name
     // this.stimulusName = fileName.split('.')[0].split('Similarity')[1]
     this.stimulusName = fileName.split('.')[0]
     this.cParticipant = this.getIndex(header, 'Sequence Similarity')
     this.cSegments = this.getIndex(header, 'Scanpath string')
+
+    this.setupColumns([this.cParticipant, this.cSegments])
   }
 
   finalize(): null {
     return null
   }
 
-  deserialize(row: string[]): SingleDeserializerOutput[] {
-    const segments = row[this.cSegments] // just letters - each one fixation
+  deserialize(_rawRowRef: string): SingleDeserializerOutput[] {
+    const segments = this.getCurr(this.pSegments) // just letters - each one fixation
+    const participant = this.getCurr(this.pParticipant)
     if (segments === undefined) return []
-    const participant = row[this.cParticipant]
     const result: SingleDeserializerOutput[] = []
     for (let i = 0; i < segments.length; i++) {
       const aoi = segments[i] === '#' ? null : [segments[i]]

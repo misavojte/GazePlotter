@@ -94,12 +94,10 @@ export class EyePipeline {
   ): void {
     const dataFromSplitter = splitter.release()
     for (let i = 0; i < dataFromSplitter.length; i++) {
-      this.processRow(
-        dataFromSplitter[i].split(settings.columnDelimiter),
-        settings,
-        userStringInput
-      )
+      this.processRow(dataFromSplitter[i], settings, userStringInput)
     }
+
+    this.finalizeFile()
     this.fileCount++
     this.rowIndex = 0
     this.deserializer = null
@@ -118,16 +116,12 @@ export class EyePipeline {
   ): void {
     const rows = splitter.splitChunk(chunk)
     for (let i = 0; i < rows.length; i++) {
-      this.processRow(
-        rows[i].split(settings.columnDelimiter),
-        settings,
-        userStringInput
-      )
+      this.processRow(rows[i], settings, userStringInput)
     }
   }
 
   private processRow(
-    row: string[],
+    rawRow: string,
     settings: EyeSettingsType,
     userStringInput: string
   ): void {
@@ -139,8 +133,9 @@ export class EyePipeline {
     }
 
     if (this.rowIndex === headerRowId) {
+      const header = rawRow.split(settings.columnDelimiter)
       this.deserializer = this.getDeserializer(
-        row,
+        header,
         this.currentFileName,
         settings,
         userStringInput
@@ -151,7 +146,7 @@ export class EyePipeline {
 
     if (this.deserializer == null) throw new Error('Deserializer is undefined')
     this.rowIndex++
-    const parsedRow = this.deserializer.deserialize(row)
+    const parsedRow = this.deserializer.processRow(rawRow)
     if (parsedRow === null) return
     if (Array.isArray(parsedRow))
       return parsedRow.forEach(row => this.writer.add(row))
@@ -159,39 +154,74 @@ export class EyePipeline {
   }
 
   private getDeserializer(
-    row: string[],
+    header: string[],
     fileName: string,
     settings: EyeSettingsType,
     userStringInput: string
   ): AbstractEyeDeserializer {
     switch (settings.type) {
       case 'begaze':
-        return new BeGazeEyeDeserializer(row)
+        return new BeGazeEyeDeserializer(header, settings.columnDelimiter)
       case 'tobii':
-        return this.getTobiiReducer(row, userStringInput)
+        return this.getTobiiReducer(
+          header,
+          userStringInput,
+          settings.columnDelimiter
+        )
       case 'tobii-with-event':
-        return this.getTobiiReducer(row, userStringInput)
+        return this.getTobiiReducer(
+          header,
+          userStringInput,
+          settings.columnDelimiter
+        )
       case 'gazepoint':
-        return new GazePointEyeDeserializer(row, fileName)
+        return new GazePointEyeDeserializer(
+          header,
+          fileName,
+          settings.columnDelimiter
+        )
       case 'ogama':
-        return new OgamaEyeDeserializer(row, fileName)
+        return new OgamaEyeDeserializer(
+          header,
+          fileName,
+          settings.columnDelimiter
+        )
       case 'varjo':
-        return new VarjoEyeDeserializer(row, fileName)
+        return new VarjoEyeDeserializer(
+          header,
+          fileName,
+          settings.columnDelimiter
+        )
       case 'csv':
-        return new CsvEyeDeserializer(row)
+        return new CsvEyeDeserializer(header, settings.columnDelimiter)
       case 'csv-segmented':
-        return new CsvSegmentedFromToEyeDeserializer(row)
+        return new CsvSegmentedFromToEyeDeserializer(
+          header,
+          settings.columnDelimiter
+        )
       case 'csv-segmented-duration':
-        return new CsvSegmentedDurationEyeDeserializer(row)
+        return new CsvSegmentedDurationEyeDeserializer(
+          header,
+          settings.columnDelimiter
+        )
       default:
         throw new Error('File type row reducer not implemented')
     }
   }
 
   private getTobiiReducer(
-    row: string[],
-    userInput: string
+    header: string[],
+    userInput: string,
+    columnDelimiter: string
   ): TobiiEyeDeserializer {
-    return new TobiiEyeDeserializer(row, userInput)
+    return new TobiiEyeDeserializer(header, userInput, columnDelimiter)
+  }
+
+  private finalizeFile(): void {
+    if (!this.deserializer) return
+    const tail = this.deserializer.finalize()
+    if (tail === null) return
+    if (Array.isArray(tail)) tail.forEach(row => this.writer.add(row))
+    else this.writer.add(tail)
   }
 }

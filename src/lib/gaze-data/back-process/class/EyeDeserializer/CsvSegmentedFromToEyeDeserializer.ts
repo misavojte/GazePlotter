@@ -12,13 +12,27 @@ export class CsvSegmentedFromToEyeDeserializer extends AbstractEyeDeserializer {
   cStimulus: number
   cAoi: number
 
-  constructor(header: string[]) {
-    super()
+  private readonly pFrom = 0
+  private readonly pTo = 1
+  private readonly pAoi = 2
+  private readonly pParticipant = 3
+  private readonly pStimulus = 4
+
+  constructor(header: string[], columnDelimiter: string) {
+    super(columnDelimiter)
     this.cFrom = this.getIndex(header, 'From')
     this.cTo = this.getIndex(header, 'To')
     this.cAoi = this.getIndex(header, 'AOI')
     this.cParticipant = this.getIndex(header, 'Participant')
     this.cStimulus = this.getIndex(header, 'Stimulus')
+
+    this.setupColumns([
+      this.cFrom,
+      this.cTo,
+      this.cAoi,
+      this.cParticipant,
+      this.cStimulus,
+    ])
   }
 
   /**
@@ -34,12 +48,12 @@ export class CsvSegmentedFromToEyeDeserializer extends AbstractEyeDeserializer {
    *                                            if the row is valid. If any required field ('from', 'to',
    *                                            'participant', 'stimulus') is empty, returns null.
    */
-  deserialize(row: string[]): DeserializerOutputType {
-    const from = row[this.cFrom]
-    const to = row[this.cTo]
-    const aoi = row[this.cAoi]
-    const participant = row[this.cParticipant]
-    const stimulus = row[this.cStimulus]
+  deserialize(_rawRowRef: string): DeserializerOutputType {
+    const from = this.getCurr(this.pFrom)
+    const to = this.getCurr(this.pTo)
+    const aoi = this.getCurr(this.pAoi)
+    const participant = this.getCurr(this.pParticipant)
+    const stimulus = this.getCurr(this.pStimulus)
 
     if (from === '' || to === '' || participant === '' || stimulus === '') {
       return null

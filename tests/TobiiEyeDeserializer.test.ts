@@ -18,14 +18,15 @@ describe('TobiiEyeDeserializer', () => {
   test('parses testMobileTsvData with IntervalStart;IntervalEnd without errors', () => {
     const lines = testMobileTsvData.split('\n')
     const header = lines[0].split('\t')
-    const rows = lines.slice(1).map(line => line.split('\t'))
+    const rows = lines.slice(1)
     const deserializer = new TobiiEyeDeserializer(
       header,
-      'IntervalStart;IntervalEnd'
+      'IntervalStart;IntervalEnd',
+      '\t'
     )
     const outputs = []
     for (const row of rows) {
-      const result = deserializer.deserialize(row)
+      const result = deserializer.processRow(row)
       if (result) outputs.push(result)
     }
     const final = deserializer.finalize()
@@ -37,14 +38,15 @@ describe('TobiiEyeDeserializer', () => {
   test('first output has correct category, duration, and stimulus', () => {
     const lines = testMobileTsvData.split('\n')
     const header = lines[0].split('\t')
-    const rows = lines.slice(1).map(line => line.split('\t'))
+    const rows = lines.slice(1)
     const deserializer = new TobiiEyeDeserializer(
       header,
-      ' IntervalStart; IntervalEnd'
+      ' IntervalStart; IntervalEnd',
+      '\t'
     )
     const outputs = []
     for (const row of rows) {
-      const result = deserializer.deserialize(row)
+      const result = deserializer.processRow(row)
       if (result) outputs.push(result)
     }
     const final = deserializer.finalize()

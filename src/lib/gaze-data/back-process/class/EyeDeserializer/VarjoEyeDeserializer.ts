@@ -4,21 +4,27 @@ import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
 export class VarjoEyeDeserializer extends AbstractEyeDeserializer {
   cTime: number
   cActorLabel: number // ActorLabel stands for AOI
+
+  private readonly pTime = 0
+  private readonly pActorLabel = 1
+
   mTimeStart = ''
   mTimeLast = ''
   mTimeBase: number | null = null
   mActorLabel: string | null = null
   mParticipant: string
-  constructor(header: string[], fileName: string) {
-    super()
+  constructor(header: string[], fileName: string, columnDelimiter: string) {
+    super(columnDelimiter)
     this.cTime = this.getIndex(header, 'Time')
     this.cActorLabel = this.getIndex(header, 'Actor Label')
     this.mParticipant = fileName.split('.')[0]
+
+    this.setupColumns([this.cTime, this.cActorLabel])
   }
 
-  deserialize(row: string[]): SingleDeserializerOutput | null {
-    const time = row[this.cTime]
-    const actorLabel = row[this.cActorLabel]
+  deserialize(_rawRowRef: string): SingleDeserializerOutput | null {
+    const time = this.getCurr(this.pTime)
+    const actorLabel = this.getCurr(this.pActorLabel)
     const isNewSegment = actorLabel !== this.mActorLabel
 
     let output: SingleDeserializerOutput | null = null

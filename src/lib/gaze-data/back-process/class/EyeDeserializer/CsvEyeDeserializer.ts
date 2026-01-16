@@ -7,25 +7,38 @@ export class CsvEyeDeserializer extends AbstractEyeDeserializer {
   cParticipant: number
   cStimulus: number
   cAoi: number
+
+  private readonly pTime = 0
+  private readonly pAoi = 1
+  private readonly pParticipant = 2
+  private readonly pStimulus = 3
+
   mTimeStart = ''
   mTimeLast = ''
   mTimeBase: number | null = null
   mAoi: string | null = null
   mParticipant = 'CsvParticipant'
   mStimulus = 'CsvFile'
-  constructor(header: string[]) {
-    super()
+  constructor(header: string[], columnDelimiter: string) {
+    super(columnDelimiter)
     this.cTime = this.getIndex(header, 'Time')
     this.cAoi = this.getIndex(header, 'AOI')
     this.cParticipant = this.getIndex(header, 'Participant')
     this.cStimulus = this.getIndex(header, 'Stimulus')
+
+    this.setupColumns([
+      this.cTime,
+      this.cAoi,
+      this.cParticipant,
+      this.cStimulus,
+    ])
   }
 
-  deserialize(row: string[]): SingleDeserializerOutput | null {
-    const time = row[this.cTime]
-    const aoi = row[this.cAoi]
-    const participant = row[this.cParticipant]
-    const stimulus = row[this.cStimulus]
+  deserialize(_rawRowRef: string): SingleDeserializerOutput | null {
+    const time = this.getCurr(this.pTime)
+    const aoi = this.getCurr(this.pAoi)
+    const participant = this.getCurr(this.pParticipant)
+    const stimulus = this.getCurr(this.pStimulus)
 
     const isNewSegment =
       aoi !== this.mAoi ||

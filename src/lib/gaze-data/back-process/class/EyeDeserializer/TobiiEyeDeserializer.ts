@@ -4,74 +4,12 @@ import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
 const TIME_MODIFIER = 0.001 // µs → ms
 const EMPTY_STRING = ''
 const AOI_HIT_PREFIX = 'AOI hit ['
-
-/**
- * The expected value in the Sensor column for eye tracking data rows.
- * Only rows with this sensor value will be used for timing and AOI calculations.
- */
 const EYE_TRACKER_SENSOR = 'Eye Tracker'
-
-/**
- * Minimum plausible sample interval in microseconds (e.g., 900µs for a ~1111Hz tracker).
- * Used for learning the sample rate from the data.
- */
 const MIN_SAMPLE_INTERVAL_US = 900
-
-/**
- * Maximum plausible sample interval in microseconds (e.g., 50ms for a 20Hz tracker).
- * Used for learning the sample rate from the data.
- */
 const MAX_SAMPLE_INTERVAL_US = 50000
-
-/**
- * A tolerance factor to account for jitter in sample timestamps. A segment start
- * is corrected if the gap to the previous sample is no more than the nominal
- * sample interval multiplied by this factor.
- */
 const SAMPLE_INTERVAL_TOLERANCE_FACTOR = 1.5
-
-/**
- * Trigger string to activate Web Stimulus parsing mode.
- */
 const WEB_STIMULUS_TRIGGER = 'WebStimulus'
 
-/**
- * Deserializer for Tobii Pro Lab TSV exports.
- *
- * ### Tobii quirks handled
- * 1. **Interval‑based stimuli** – `%STIMULUS% IntervalStart` / `IntervalEnd` rows may appear in the
- * middle of an eye‑movement segment; we maintain a stack so multiple stimuli can overlap.
- * 2. **AOI‑hit variability inside one segment** – Tobii may flag `AOI hit` columns inconsistently
- * across rows that share the same `Eye movement type index`.  We aggregate all hits across the
- * segment via a `Set`.
- * 3. **Fixation‑onset timestamp (half‑sample correction)** – Pro Lab defines the start of a fixation
- * half a frame before the first fixation‑labelled row.  We learn the nominal sample interval per
- * *participant + recording* and, provided the gap is ≤ 1.5 × that interval, back‑shift the
- * segment start by exactly half an interval.  When a larger gap is detected (data drop‑out) we
- * fall back to using the raw timestamp to avoid absurd durations.
- * 4. **Sensor column filtering** – If a Sensor column is present, only rows with "Eye Tracker"
- * sensor value are used for timing and AOI data. IntervalStart/IntervalEnd events may have
- * empty sensor values but timing is handled via edging principle.
- * 5. **Segment end correction** – Similar to start correction, segment ends are adjusted to
- * eliminate gaps between consecutive segments.
- * 6. **Robust AOI Aggregation** - All `AOI hit [...]` columns are scanned on every eye-tracker
- * row, regardless of the active stimulus. This is more robust than stimulus-specific
- * AOI parsing, which can fail if stimulus and AOI names don't align perfectly.
- * 7. **Mapped Column Priority** – The deserializer prioritizes "Mapped eye movement type" and
- * "Mapped eye movement type index" columns over their regular counterparts when available.
- * These mapped columns may have dynamic suffixes (e.g., "[participant_id]"). Segment
- * boundaries are determined by the combination of BOTH eye movement type AND type index.
- * 8. **IntervalStart Timestamp Priority** – When available, IntervalStart event timestamps are
- * used as segment start times instead of the first Eye Tracker row timestamp. This addresses
- * Tobii's quirk where the true event start (IntervalStart) occurs before the first eye
- * tracking data, providing more accurate timing alignment with Tobii Pro Lab's expectations.
- * 9. **Web Stimulus Parsing** - If activated via settings, parses `URLStart` and `URLEnd` events
- * from the `Event` and `Event value` columns to create interval-based stimuli for web pages.
- *
- * @extends AbstractEyeDeserializer
- * @category Eye
- * @subcategory Deserializer
- */
 export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   /* ── Column indices ─────────────────────────────────────────────── */
   private readonly cRecordingTimestamp: number
@@ -82,151 +20,175 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   private readonly cEvent: number
   private readonly cEventValue: number
   private readonly cEyeMovementTypeIndex: number
-  private readonly cSensor: number // -1 if not present
+  private readonly cSensor: number
 
-  /**
-   * @private
-   * Stores pre-computed column information for all AOIs.
-   *
-   * This optimization assumes that all "AOI hit" columns in the Tobii export
-   * are contiguous. We find the start and end column index of this block once.
-   * This allows `trackAoiHitsFromRow` to use a fast numeric `for` loop over a
-   * relevant slice of the data row.
-   *
-   * Previously, this was a Map keyed by stimulus name. This was removed because
-   * the active stimulus might not always correctly correspond to the AOI columns,
-   * leading to missed hits. This simpler approach is more robust.
-   */
-  private readonly _mAoiColumnInfo: {
-    start: number
-    end: number
-    names: string[]
-  } | null
+  private readonly pRecordingTimestamp = 0
+  private readonly pStimulus = 1
+  private readonly pParticipant = 2
+  private readonly pRecording = 3
+  private readonly pCategory = 4
+  private readonly pEvent = 5
+  private readonly pEventValue = 6
+  private readonly pEyeMovementTypeIndex = 7
+  private readonly pSensor = 8
+
+  /* ── Optimized AOI Info ─────────────────────────────────────────── */
+  private readonly aoiNames: string[] = []
+  private readonly hasSensorColumn: boolean
 
   /* ── Mutable segment state ──────────────────────────────────────── */
   private mStimulus = EMPTY_STRING
   private mParticipant = EMPTY_STRING
-  private mRecordingStart = EMPTY_STRING
+  private mRecordingStart: number | null = null
   private mEyeMovementTypeIndex = EMPTY_STRING
-  private mRecordingLast = EMPTY_STRING
+  private mRecordingLast: number | null = null
   private mCategory = EMPTY_STRING
   private mAoi: string[] | null = null
   private mAoiHitTracker: Set<string> = new Set()
-  private mPrevEyeTrackerRow: string[] | null = null
+
+  // Last processed Eye Tracker row (not necessarily the previous input row).
+  // Tobii exports can interleave IntervalStart/IntervalEnd events between samples.
+  private lastEyeTrackerTimestamp: number | null = null
+  private lastEyeTrackerSampleKey: string | null = null
 
   /* ── Sampling interval learning ─────────────────────────────────── */
-  /** Sample interval cache (micro‑seconds) keyed by `recording|participant`. */
   private readonly sampleIntervals: Map<string, number> = new Map()
 
   /* ── Stimulus helpers ───────────────────────────────────────────── */
-  private readonly stimulusGetter: (row: string[]) => string[]
-  private readonly stimuliBaseTimes: Map<string, string> = new Map()
-  private readonly intervalStack: string[] = []
+  private readonly stimulusUpdater: () => void
+  private cachedStimulusStack: string[] = []
 
-  /**
-   * Tracks IntervalStart timestamps for each stimulus+participant combination.
-   * Key format: `stimulusName|recording|participant`
-   * Value: timestamp from the IntervalStart event
-   */
-  private readonly intervalStartTimes: Map<string, string> = new Map()
+  private readonly stimuliBaseTimes: Map<string, number> = new Map()
+  private readonly intervalStack: Set<string> = new Set()
+  private readonly intervalStartTimes: Map<string, number> = new Map()
+
+  /* ── Optimization Caches ────────────────────────────────────────── */
+  private cachedParticipantKey: string = ''
+  private lastParticipantRaw: string = ''
+  private lastRecordingRaw: string = ''
 
   static readonly TYPE = 'tobii'
 
-  constructor(header: string[], userInput: string) {
-    super()
+  constructor(header: string[], userInput: string, columnDelimiter: string) {
+    super(columnDelimiter)
     this.cRecordingTimestamp = header.indexOf('Recording timestamp')
     const altStim = header.indexOf('Presented Stimulus name')
     this.cStimulus =
       altStim === -1 ? header.indexOf('Recording media name') : altStim
-
     this.cParticipant = header.indexOf('Participant name')
     this.cRecording = header.indexOf('Recording name')
-
-    // Prioritize "Mapped eye movement type" columns over regular ones
     this.cCategory =
       this.findColumnByPrefix(header, 'Mapped eye movement type') ??
       header.indexOf('Eye movement type')
-
     this.cEvent = header.indexOf('Event')
     this.cEventValue = header.indexOf('Event value')
-
-    // Prioritize "Mapped eye movement type index" columns over regular ones
     this.cEyeMovementTypeIndex =
       this.findColumnByPrefix(header, 'Mapped eye movement type index') ??
       header.indexOf('Eye movement type index')
-
     this.cSensor = header.indexOf('Sensor')
 
-    this._mAoiColumnInfo = this.constructAoiInfo(header)
+    this.hasSensorColumn = this.cSensor !== -1
 
-    // Select the appropriate stimulus getter based on user input
+    this.setupColumns([
+      this.cRecordingTimestamp,
+      this.cStimulus,
+      this.cParticipant,
+      this.cRecording,
+      this.cCategory,
+      this.cEvent,
+      this.cEventValue,
+      this.cEyeMovementTypeIndex,
+      this.cSensor,
+    ])
+
+    const aoiInfo = this.constructAoiInfo(header)
+    if (aoiInfo) {
+      this.aoiNames.push(...aoiInfo.names)
+      this.setupAoiColumns(aoiInfo.start, aoiInfo.names.length)
+    }
+
     if (userInput === WEB_STIMULUS_TRIGGER) {
-      this.stimulusGetter = this.constructWebStimulusGetter()
+      this.stimulusUpdater = this.constructWebStimulusUpdater()
     } else {
-      this.stimulusGetter =
+      this.stimulusUpdater =
         userInput === EMPTY_STRING
-          ? this.constructBaseStimulusGetter()
-          : this.constructIntervalStimulusGetter(userInput)
+          ? this.constructBaseStimulusUpdater()
+          : this.constructIntervalStimulusUpdater(userInput)
     }
   }
 
-  /* ── Public API ─────────────────────────────────────────────────── */
-  deserialize = (row: string[]): DeserializerOutputType => {
-    // The stimulusGetter must always run first, as non-eye-tracker rows can
-    // contain critical IntervalStart/IntervalEnd events that update the stack.
-    const stimulusResult = this.stimulusGetter(row)
+  /* ── Helpers ────────────────────────────────────────────────────── */
 
-    // --- Guard Clause for the Hot Path ---
-    // We only proceed to the expensive segment-processing logic if the row
-    // contains actual eye tracking data.
-    if (
-      row[this.cCategory] === EMPTY_STRING ||
-      (this.cSensor !== -1 && row[this.cSensor] !== EYE_TRACKER_SENSOR)
-    ) {
-      return null
+  private updateCachedStimulusStack(): void {
+    this.cachedStimulusStack = this.intervalStack.size
+      ? Array.from(this.intervalStack)
+      : []
+  }
+
+  /* ── Public API ─────────────────────────────────────────────────── */
+  deserialize(_rawRowRef: string): DeserializerOutputType {
+    // 1) Update Stimulus State (based on current packed row)
+    this.stimulusUpdater()
+
+    const category = this.getCurr(this.pCategory) || EMPTY_STRING
+
+    if (this.hasSensorColumn) {
+      if (this.getCurr(this.pSensor) !== EYE_TRACKER_SENSOR) return null
     }
 
-    // --- Hot Path: We know this is a valid Eye Tracker row. ---
+    if (category === EMPTY_STRING) return null
 
-    // Optimization: Look up timestamp once, as it's used in multiple places.
-    const currentTimestamp = row[this.cRecordingTimestamp]
+    const currentTimestampStr = this.getCurr(this.pRecordingTimestamp)
+    if (currentTimestampStr === EMPTY_STRING) return null
+    const currentTimestampNum = Number(currentTimestampStr)
+    if (!Number.isFinite(currentTimestampNum)) return null
 
-    // learn sample interval for this participant+recording
-    this.updateSampleInterval(row)
+    const recording = this.getCurr(this.pRecording) || EMPTY_STRING
+    const participant = this.getCurr(this.pParticipant) || EMPTY_STRING
+    const eyeMovementTypeIndex =
+      this.getCurr(this.pEyeMovementTypeIndex) || EMPTY_STRING
 
-    // --- Inlined isSameSegment() for Maximum Performance ---
-    // The logic from the
-    // isSameSegment method has been manually inlined here to eliminate all
-    // function call overhead for the most common case: processing rows that
-    // are part of the same, continuous eye-movement segment.
+    const sampleKey = `${recording}|${participant}`
 
-    // First, a fast check on both the movement type index and type.
+    // Cache participant key
     if (
-      row[this.cEyeMovementTypeIndex] === this.mEyeMovementTypeIndex &&
-      row[this.cCategory] === this.mCategory
+      participant !== this.lastParticipantRaw ||
+      recording !== this.lastRecordingRaw
     ) {
-      // The segment type is the same. Now, we perform the full check for stimulus
-      // continuity. For both base and interval-based parsing, continuity is
-      // determined by checking if the active stimulus has changed from the previous row.
+      this.lastParticipantRaw = participant
+      this.lastRecordingRaw = recording
+      this.cachedParticipantKey = `${recording} ${participant}`
+    }
+
+    this.updateSampleInterval(currentTimestampNum, sampleKey)
+
+    if (
+      eyeMovementTypeIndex === this.mEyeMovementTypeIndex &&
+      category === this.mCategory
+    ) {
+      const stimLen = this.cachedStimulusStack.length
       const lastStimulus =
-        stimulusResult.length > 0
-          ? stimulusResult[stimulusResult.length - 1]
-          : undefined
+        stimLen > 0 ? this.cachedStimulusStack[stimLen - 1] : EMPTY_STRING
+
       if (lastStimulus === this.mStimulus) {
-        // The segment continues. Update the end time and track AOIs.
-        this.mRecordingLast = currentTimestamp
-        this.trackAoiHitsFromRow(row)
-        this.mPrevEyeTrackerRow = row
+        this.mRecordingLast = currentTimestampNum
+        this.trackAoiHitsInline()
+        this.lastEyeTrackerTimestamp = currentTimestampNum
+        this.lastEyeTrackerSampleKey = sampleKey
         return null
       }
     }
 
     const out = this.deserializeNewSegment(
-      row,
-      stimulusResult,
-      currentTimestamp
+      currentTimestampNum,
+      recording,
+      participant,
+      eyeMovementTypeIndex,
+      category
     )
-    this.mPrevEyeTrackerRow = row
+
+    this.lastEyeTrackerTimestamp = currentTimestampNum
+    this.lastEyeTrackerSampleKey = sampleKey
     return out
   }
 
@@ -234,29 +196,25 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     if (
       !this.mParticipant ||
       !this.mStimulus ||
-      !this.mRecordingStart ||
-      !this.mPrevEyeTrackerRow
+      this.mRecordingStart === null ||
+      this.lastEyeTrackerTimestamp === null ||
+      this.lastEyeTrackerSampleKey === null
     ) {
       return null
     }
 
-    const lastTimestamp = Number(
-      this.mPrevEyeTrackerRow[this.cRecordingTimestamp]
-    )
-    const sampleKey = `${this.mPrevEyeTrackerRow[this.cRecording]}|${
-      this.mPrevEyeTrackerRow[this.cParticipant]
-    }`
-    const sampInt = this.sampleIntervals.get(sampleKey)
+    const lastTimestamp = this.lastEyeTrackerTimestamp
+    const sampInt = this.sampleIntervals.get(this.lastEyeTrackerSampleKey)
 
-    let correctedEnd = String(lastTimestamp)
+    let correctedEnd = lastTimestamp
     if (sampInt) {
-      correctedEnd = String(lastTimestamp + sampInt / 2)
+      correctedEnd = lastTimestamp + sampInt / 2
     }
 
     this.mRecordingLast = correctedEnd
-    this.mAoi = Array.from(this.mAoiHitTracker)
+    this.mAoi = this.mAoiHitTracker.size ? [...this.mAoiHitTracker] : null
 
-    const result = this.intervalStack.length
+    const result = this.intervalStack.size
       ? this.createSegmentsForIntervals()
       : this.createSegmentForSingleStimulus()
 
@@ -265,50 +223,41 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
   /* ── Segment boundaries ─────────────────────────────────────────── */
   private deserializeNewSegment(
-    row: string[],
-    stimulusResult: string[],
-    currentTs: string
+    currentTsNum: number,
+    recording: string,
+    participantName: string,
+    eyeMovementTypeIndex: string,
+    category: string
   ): DeserializerOutputType {
-    const currTsNum = Number(currentTs)
-
-    const participant = `${row[this.cRecording]} ${row[this.cParticipant]}`
-    const sampleKey = `${row[this.cRecording]}|${row[this.cParticipant]}`
+    const participantFull = this.cachedParticipantKey
+    const sampleKey = `${recording}|${participantName}`
     const sampInt = this.sampleIntervals.get(sampleKey) ?? null
 
-    /* Double edge approach: calculate midpoint to eliminate gaps */
-    let correctedStart = currentTs
-    let midpoint: string | null = null
+    let correctedStart = currentTsNum
+    let midpoint: number | null = null
 
-    if (sampInt && this.mPrevEyeTrackerRow) {
-      const prevEyeTrackerTs = Number(
-        this.mPrevEyeTrackerRow[this.cRecordingTimestamp]
-      )
-      const delta = currTsNum - prevEyeTrackerTs
+    if (sampInt && this.lastEyeTrackerTimestamp !== null) {
+      const prevTs = this.lastEyeTrackerTimestamp
+      const delta = currentTsNum - prevTs
       if (delta <= sampInt * SAMPLE_INTERVAL_TOLERANCE_FACTOR) {
-        // Calculate midpoint between previous Eye Tracker sample and current Eye Tracker sample
-        midpoint = String(prevEyeTrackerTs + delta / 2)
+        midpoint = prevTs + delta / 2
         correctedStart = midpoint
       }
     }
 
-    /* Check for IntervalStart timestamp - prioritize it for true event start timing */
-    if (stimulusResult.length > 0) {
-      const activeStimulus = stimulusResult[stimulusResult.length - 1]
-      const intervalStartKey = `${activeStimulus}|${row[this.cRecording]}|${row[this.cParticipant]}`
+    const activeStimuli = this.cachedStimulusStack
+
+    if (activeStimuli.length > 0) {
+      const activeStimulus = activeStimuli[activeStimuli.length - 1]
+      const intervalStartKey = `${activeStimulus}|${recording}|${participantName}`
       const intervalStartTs = this.intervalStartTimes.get(intervalStartKey)
 
-      if (intervalStartTs) {
-        const intervalStartNum = Number(intervalStartTs)
-        const timeDelta = currTsNum - intervalStartNum
-
-        // If IntervalStart is reasonably close and earlier than current timestamp, use it
-        // Allow up to 50ms gap (typical for Tobii data structure quirks)
+      if (intervalStartTs !== undefined) {
+        const intervalStartNum = intervalStartTs
+        const timeDelta = currentTsNum - intervalStartNum
         if (timeDelta > 0 && timeDelta <= 50000) {
-          // 50ms in microseconds
-          correctedStart = intervalStartTs
-          midpoint = null // Clear midpoint since we're using IntervalStart
-
-          // Clean up: remove the IntervalStart timestamp since it's only needed once
+          correctedStart = intervalStartNum
+          midpoint = null
           this.intervalStartTimes.delete(intervalStartKey)
         }
       }
@@ -316,112 +265,99 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
     const previousSegment = this.getPreviousSegmentWithCorrectedEnd(midpoint)
 
-    if (stimulusResult.length === 0) {
+    if (activeStimuli.length === 0) {
       this.mStimulus = EMPTY_STRING
       return previousSegment
     }
 
-    // handle stimulus base‑time bookkeeping
-    const activeStimuli = stimulusResult
+    const newStimulus = activeStimuli[activeStimuli.length - 1]
 
-    if (activeStimuli.length > 0) {
-      this.mStimulus = activeStimuli[activeStimuli.length - 1]
-      for (const stim of activeStimuli) {
-        const key = stim + participant
-        if (!this.stimuliBaseTimes.has(key)) {
-          // This is the first segment for this stimulus.
-          // Its base time is the start time of this segment.
-          this.stimuliBaseTimes.set(key, correctedStart)
-        }
+    // OPTIMIZATION: Only update base times if stimulus actually changed or we have new ones.
+    // However, since we are in "New Segment", we must check.
+    // Use standard for loop for speed.
+    for (let i = 0; i < activeStimuli.length; i++) {
+      const stim = activeStimuli[i]
+      const key = stim + participantFull
+      if (!this.stimuliBaseTimes.has(key)) {
+        this.stimuliBaseTimes.set(key, correctedStart)
       }
     }
 
     /* mutate state for new segment */
-    this.mParticipant = participant
+    this.mStimulus = newStimulus
+    this.mParticipant = participantFull
     this.mRecordingStart = correctedStart
-    this.mCategory = row[this.cCategory]
+    this.mCategory = category
     this.mAoiHitTracker.clear()
-    this.trackAoiHitsFromRow(row)
+    this.trackAoiHitsInline()
 
-    this.mEyeMovementTypeIndex = row[this.cEyeMovementTypeIndex]
-    this.mRecordingLast = currentTs
+    this.mEyeMovementTypeIndex = eyeMovementTypeIndex
+    this.mRecordingLast = currentTsNum
 
     return previousSegment
   }
 
   private getPreviousSegmentWithCorrectedEnd(
-    midpoint: string | null
+    midpoint: number | null
   ): DeserializerOutputType {
     if (
       !this.mParticipant ||
       !this.mStimulus ||
-      !this.mRecordingStart ||
+      this.mRecordingStart === null ||
+      this.mRecordingLast === null ||
       this.mRecordingLast === this.mRecordingStart
     )
       return null
 
-    this.mAoi = Array.from(this.mAoiHitTracker)
+    this.mAoi = this.mAoiHitTracker.size ? [...this.mAoiHitTracker] : null
 
-    // Use the calculated midpoint as the corrected end if available
     const correctedEnd = midpoint || this.mRecordingLast
-
-    // Temporarily store the corrected end
     const originalEnd = this.mRecordingLast
     this.mRecordingLast = correctedEnd
 
-    const result = this.intervalStack.length
+    const result = this.intervalStack.size
       ? this.createSegmentsForIntervals()
       : this.createSegmentForSingleStimulus()
 
-    // Restore original end for state consistency
     this.mRecordingLast = originalEnd
-
     return result
   }
 
   /* ── Sample interval learning ───────────────────────────────────── */
-  private updateSampleInterval(row: string[]): void {
-    if (!this.mPrevEyeTrackerRow) return
-    const key = `${row[this.cRecording]}|${row[this.cParticipant]}`
-    if (this.sampleIntervals.has(key)) return
-    const prevTs = Number(this.mPrevEyeTrackerRow[this.cRecordingTimestamp])
-    const currTs = Number(row[this.cRecordingTimestamp])
-    const delta = currTs - prevTs
+  private updateSampleInterval(currentTs: number, sampleKey: string): void {
+    if (this.sampleIntervals.has(sampleKey)) return
+    if (this.lastEyeTrackerTimestamp === null) return
+    if (this.lastEyeTrackerSampleKey !== sampleKey) return
+
+    const delta = currentTs - this.lastEyeTrackerTimestamp
     if (delta >= MIN_SAMPLE_INTERVAL_US && delta <= MAX_SAMPLE_INTERVAL_US) {
-      // accept ~20-1111 Hz as plausible raw frame interval (mobile eye trackers can be slower)
-      this.sampleIntervals.set(key, delta)
+      this.sampleIntervals.set(sampleKey, delta)
     }
   }
 
-  /* ── AOI aggregation & helpers (unchanged logic) ────────────────── */
-  private trackAoiHitsFromRow(row: string[]): void {
-    if (!this._mAoiColumnInfo) {
-      return
-    }
-
-    const { start, end, names } = this._mAoiColumnInfo
-    for (let i = start; i <= end; i++) {
-      if (row[i] === '1') {
-        // The index into the names array is the current column index
-        // offset by the start of the AOI block for this stimulus.
-        const aoiName = names[i - start]
-        if (aoiName) {
-          this.mAoiHitTracker.add(aoiName)
-        }
-      }
+  /* ── AOI aggregation (INLINED OPTIMIZATION) ────────────────── */
+  private trackAoiHitsInline(): void {
+    if (this.aoiCount === 0) return
+    const names = this.aoiNames
+    for (let j = 0; j < this.aoiCount; j++) {
+      if (this.currAoi[j] === 1) this.mAoiHitTracker.add(names[j])
     }
   }
 
   /* ── Segment creation helpers ───────────────────────── */
   private createSegmentsForIntervals(): DeserializerOutputType {
     const segments: DeserializerOutputType = []
-    for (const stimulus of this.intervalStack) {
+    if (this.mRecordingStart === null || this.mRecordingLast === null)
+      return null
+    const startNum = this.mRecordingStart
+    const endNum = this.mRecordingLast
+
+    for (let i = 0; i < this.cachedStimulusStack.length; i++) {
+      const stimulus = this.cachedStimulusStack[i]
       const key = stimulus + this.mParticipant
-      const baseTime = this.stimuliBaseTimes.get(key) || this.mRecordingStart
-      const start =
-        (Number(this.mRecordingStart) - Number(baseTime)) * TIME_MODIFIER
-      const end =
-        (Number(this.mRecordingLast) - Number(baseTime)) * TIME_MODIFIER
+      const baseTime = this.stimuliBaseTimes.get(key) ?? startNum
+      const start = (startNum - baseTime) * TIME_MODIFIER
+      const end = (endNum - baseTime) * TIME_MODIFIER
       segments.push({
         stimulus,
         participant: this.mParticipant,
@@ -435,11 +371,12 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   }
 
   private createSegmentForSingleStimulus(): DeserializerOutputType {
+    if (this.mRecordingStart === null || this.mRecordingLast === null)
+      return null
     const key = this.mStimulus + this.mParticipant
-    const baseTime = this.stimuliBaseTimes.get(key) || this.mRecordingStart
-    const start =
-      (Number(this.mRecordingStart) - Number(baseTime)) * TIME_MODIFIER
-    const end = (Number(this.mRecordingLast) - Number(baseTime)) * TIME_MODIFIER
+    const baseTime = this.stimuliBaseTimes.get(key) ?? this.mRecordingStart
+    const start = (this.mRecordingStart - baseTime) * TIME_MODIFIER
+    const end = (this.mRecordingLast - baseTime) * TIME_MODIFIER
 
     return {
       stimulus: this.mStimulus,
@@ -451,151 +388,125 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     }
   }
 
-  /* ── Utility: stimuli & AOI mapping (unchanged) ─────────────────── */
+  /* ── Utility: stimuli & AOI mapping ─────────────────── */
   private constructAoiInfo(
     header: string[]
   ): { start: number; end: number; names: string[] } | null {
     let startIndex = -1
     let endIndex = -1
 
-    // First, find the global start and end index of all AOI columns.
     for (let i = 0; i < header.length; i++) {
       if (header[i].startsWith(AOI_HIT_PREFIX)) {
-        if (startIndex === -1) {
-          startIndex = i
-        }
+        if (startIndex === -1) startIndex = i
         endIndex = i
       }
     }
 
-    // If no AOI columns were found, return null.
-    if (startIndex === -1) {
-      return null
-    }
+    if (startIndex === -1) return null
 
-    // Now, create the names array for the entire contiguous block.
-    // This assumes all columns between startIndex and endIndex are AOI hits.
-    // If there is a non-AOI column in the mix (unexpected), its name will be
-    // an empty string, and it will be ignored during hit tracking.
     const aoiNames: string[] = []
     for (let i = startIndex; i <= endIndex; i++) {
       const h = header[i]
       if (h.startsWith(AOI_HIT_PREFIX)) {
-        // From "AOI hit [Stim - Name]" to "Name" by splitting at the last " - "
         const fullName = h.substring(AOI_HIT_PREFIX.length, h.length - 1)
         aoiNames.push(fullName.substring(fullName.lastIndexOf(' - ') + 3))
       } else {
-        aoiNames.push(EMPTY_STRING) // Placeholder for non-AOI columns
+        aoiNames.push(EMPTY_STRING)
       }
     }
 
     return { start: startIndex, end: endIndex, names: aoiNames }
   }
 
-  private constructBaseStimulusGetter() {
-    return (row: string[]): string[] => {
-      const stim = row[this.cStimulus]
-      return stim ? [stim] : []
+  /* ── Stimulus Updaters ──────────────────────────────────────────── */
+  private constructBaseStimulusUpdater() {
+    return (): void => {
+      const stim = this.getCurr(this.pStimulus)
+      if (
+        stim &&
+        (this.cachedStimulusStack.length !== 1 ||
+          this.cachedStimulusStack[0] !== stim)
+      ) {
+        this.cachedStimulusStack = [stim]
+      } else if (!stim && this.cachedStimulusStack.length > 0) {
+        this.cachedStimulusStack = []
+      }
     }
   }
 
-  private constructIntervalStimulusGetter(userInput: string) {
+  private constructIntervalStimulusUpdater(userInput: string) {
     const parts = userInput.split(';')
-
-    if (parts.length !== 2 || !parts[0] || !parts[1]) {
-      // This is a developer-facing error for a misconfiguration.
-      // Throwing an error is appropriate to prevent silent failure and
-      // difficult-to-debug behavior downstream.
-      throw new Error(
-        `Invalid Tobii interval marker format. Expected "start;end", but received "${userInput}". Both markers must be non-empty.`
-      )
+    const trimmedParts = parts.map(p => p.trim())
+    if (trimmedParts.length !== 2 || !trimmedParts[0] || !trimmedParts[1]) {
+      throw new Error(`Invalid Tobii interval marker format.`)
     }
-    const [startMarker, endMarker] = parts
+    const [startMarker, endMarker] = trimmedParts
 
-    return (row: string[]): string[] => {
-      const evt = row[this.cEvent]
-      if (!evt) return this.intervalStack
-
-      // This logic is optimized for performance. The user is expected to provide
-      // the full suffix, including any delimiter (e.g., " IntervalStart" or "_start").
-      // The parser then uses a fast .endsWith() check and slices the exact
-      // length of the marker, avoiding slower, generic .replace() calls.
+    return (): void => {
+      const evt = this.getCurr(this.pEvent)
+      if (!evt) return
 
       if (evt.endsWith(startMarker)) {
-        const stimulusName = evt.substring(0, evt.length - startMarker.length)
-        if (!this.intervalStack.includes(stimulusName)) {
-          this.intervalStack.push(stimulusName)
-
-          // Capture IntervalStart timestamp for this stimulus+participant combination
-          const key = `${stimulusName}|${row[this.cRecording]}|${row[this.cParticipant]}`
-          this.intervalStartTimes.set(key, row[this.cRecordingTimestamp])
+        const stimulusName = evt
+          .substring(0, evt.length - startMarker.length)
+          .trimEnd()
+        if (!this.intervalStack.has(stimulusName)) {
+          this.intervalStack.add(stimulusName)
+          const recording = this.getCurr(this.pRecording)
+          const participant = this.getCurr(this.pParticipant)
+          const key = `${stimulusName}|${recording}|${participant}`
+          const tsStr = this.getCurr(this.pRecordingTimestamp)
+          if (tsStr !== EMPTY_STRING) {
+            const ts = Number(tsStr)
+            if (Number.isFinite(ts)) this.intervalStartTimes.set(key, ts)
+          }
+          this.updateCachedStimulusStack()
         }
-        return this.intervalStack
+      } else if (evt.endsWith(endMarker)) {
+        const stimulusName = evt
+          .substring(0, evt.length - endMarker.length)
+          .trimEnd()
+        if (this.intervalStack.delete(stimulusName)) {
+          this.updateCachedStimulusStack()
+        }
       }
-
-      if (evt.endsWith(endMarker)) {
-        const stimulusName = evt.substring(0, evt.length - endMarker.length)
-        const i = this.intervalStack.indexOf(stimulusName)
-        if (i !== -1) this.intervalStack.splice(i, 1)
-        return this.intervalStack
-      }
-
-      return this.intervalStack
     }
   }
 
-  private constructWebStimulusGetter() {
-    return (row: string[]): string[] => {
-      // If we don't have an Event Value column, we can't track URLs
-      if (this.cEventValue === -1) return this.intervalStack
+  private constructWebStimulusUpdater() {
+    return (): void => {
+      if (this.cEventValue === -1) return
+      const evt = this.getCurr(this.pEvent)
+      if (!evt) return
 
-      const evt = row[this.cEvent]
-      // Optimistic check: if no event, nothing changes
-      if (!evt) return this.intervalStack
+      const evtValue = this.getCurr(this.pEventValue)
 
-      const evtValue = row[this.cEventValue]
-
-      // We expect 'URLStart' and 'URLEnd' from standard Tobii Web exports
       if (evt === 'URLStart') {
         const url = evtValue
-        if (url && !this.intervalStack.includes(url)) {
-          this.intervalStack.push(url)
-
-          // Capture start time for true event timing
-          const key = `${url}|${row[this.cRecording]}|${row[this.cParticipant]}`
-          this.intervalStartTimes.set(key, row[this.cRecordingTimestamp])
+        if (url && !this.intervalStack.has(url)) {
+          this.intervalStack.add(url)
+          const recording = this.getCurr(this.pRecording)
+          const participant = this.getCurr(this.pParticipant)
+          const key = `${url}|${recording}|${participant}`
+          const tsStr = this.getCurr(this.pRecordingTimestamp)
+          if (tsStr !== EMPTY_STRING) {
+            const ts = Number(tsStr)
+            if (Number.isFinite(ts)) this.intervalStartTimes.set(key, ts)
+          }
+          this.updateCachedStimulusStack()
         }
-        return this.intervalStack
-      }
-
-      if (evt === 'URLEnd') {
+      } else if (evt === 'URLEnd') {
         const url = evtValue
-        if (url) {
-          const i = this.intervalStack.indexOf(url)
-          if (i !== -1) this.intervalStack.splice(i, 1)
+        if (url && this.intervalStack.delete(url)) {
+          this.updateCachedStimulusStack()
         }
-        return this.intervalStack
       }
-
-      return this.intervalStack
     }
   }
 
-  /* ── Private helper methods ─────────────────────────────────────── */
-
-  /**
-   * Finds a column index by matching the beginning of the column name.
-   * This handles dynamic column names like "Mapped eye movement type [geostul]".
-   *
-   * @param header - Array of column header names
-   * @param prefix - The prefix to search for (e.g., "Mapped eye movement type")
-   * @returns The index of the first matching column, or null if not found
-   */
   private findColumnByPrefix(header: string[], prefix: string): number | null {
     for (let i = 0; i < header.length; i++) {
-      if (header[i].startsWith(prefix)) {
-        return i
-      }
+      if (header[i].startsWith(prefix)) return i
     }
     return null
   }

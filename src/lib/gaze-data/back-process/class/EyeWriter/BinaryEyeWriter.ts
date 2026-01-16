@@ -3,31 +3,115 @@ import {
   SegmentField,
   MAX_AOI_PER_STIMULUS,
 } from '$lib/gaze-data/shared/types/binaryDataTypes'
-import type {
-  DataType,
-  BinarySegmentBuffers,
-} from '$lib/gaze-data/shared/types'
+import type { DataType } from '$lib/gaze-data/shared/types'
 import { DEFAULT_NO_AOI_TREATMENT } from '$lib/gaze-data/shared/types'
 import type { SingleDeserializerOutput } from '$lib/gaze-data/back-process/types/SingleDeserializerOutput'
 
+/**
+ * OPTIMIZED BUCKET
+ * Uses Flat Buffers for EVERYTHING. Zero object allocation per row.
+ */
+class SegmentBucket {
+  // [start, end, category] -> Stride of 3
+  data: Float64Array
+
+  // Flattened AOI Data
+  // aoiCounts[i] = number of AOIs in row i
+  // aoiBuffer = contiguous list of AOI IDs
+  // aoiOffsets[i] = start index in aoiBuffer for row i
+  aoiCounts: Uint8Array
+  aoiOffsets: Uint32Array
+  aoiBuffer: Uint16Array
+
+  count = 0
+  aoiTotalCount = 0 // Pointer for aoiBuffer
+
+  constructor(initialCapacity = 2000) {
+    this.data = new Float64Array(initialCapacity * 3)
+    this.aoiCounts = new Uint8Array(initialCapacity)
+    this.aoiOffsets = new Uint32Array(initialCapacity)
+    // Assume average of 1 AOI per row for initial sizing
+    this.aoiBuffer = new Uint16Array(initialCapacity)
+  }
+
+  add(start: number, end: number, cat: number, aois: number[] | null) {
+    // 1. Resize Row Buffers if full
+    if (this.count >= this.data.length / 3) {
+      const oldLen = this.data.length
+      const newLen = oldLen * 2
+
+      const newData = new Float64Array(newLen)
+      newData.set(this.data)
+      this.data = newData
+
+      // Resize counts/offsets (length matches row count)
+      const newCounts = new Uint8Array(newLen / 3)
+      newCounts.set(this.aoiCounts)
+      this.aoiCounts = newCounts
+
+      const newOffsets = new Uint32Array(newLen / 3)
+      newOffsets.set(this.aoiOffsets)
+      this.aoiOffsets = newOffsets
+    }
+
+    // 2. Resize AOI Content Buffer if needed
+    const aoiLen = aois ? aois.length : 0
+    if (this.aoiTotalCount + aoiLen >= this.aoiBuffer.length) {
+      const newAoiBuf = new Uint16Array(this.aoiBuffer.length * 2 + aoiLen)
+      newAoiBuf.set(this.aoiBuffer)
+      this.aoiBuffer = newAoiBuf
+    }
+
+    // 3. Write Data
+    const ptr = this.count * 3
+    this.data[ptr + 0] = start
+    this.data[ptr + 1] = end
+    this.data[ptr + 2] = cat
+
+    // 4. Write AOIs
+    this.aoiCounts[this.count] = aoiLen
+    this.aoiOffsets[this.count] = this.aoiTotalCount
+
+    if (aois && aoiLen > 0) {
+      for (let i = 0; i < aoiLen; i++) {
+        this.aoiBuffer[this.aoiTotalCount++] = aois[i]
+      }
+    }
+
+    this.count++
+  }
+
+  /**
+   * Returns indices sorted by Start Time (O(N log N) but on integers)
+   */
+  getSortedIndices(): Uint32Array {
+    const indices = new Uint32Array(this.count)
+    for (let i = 0; i < this.count; i++) indices[i] = i
+    const d = this.data
+    // Sort based on Start Time (offset 0)
+    indices.sort((a, b) => d[a * 3] - d[b * 3])
+    return indices
+  }
+}
+
 export class BinaryEyeWriter {
-  // Metadata Maps (O(1) Lookups)
+  // Metadata
   private stimuli = new Map<string, number>()
   private participants = new Map<string, number>()
-  private aoiMaps: Map<string, number>[] = []
-
-  // Data for final DataType structure
   private stimuliNames: string[] = []
   private participantNames: string[] = []
+
+  // AOI Mapping
+  private aoiMaps: Map<string, number>[] = []
   private aoisPerStimulus: string[][] = []
 
-  // Intermediate Raw Storage (Typed Arrays)
-  // Pre-allocate large chunks to avoid frequent re-allocation
-  private rawSegments = new Float64Array(100000 * 5) // [stimIdx, partIdx, start, end, category]
-  private rawAois: (number[] | null)[] = []
-  private count = 0
+  // Data Storage
+  private buckets: SegmentBucket[][] = []
+  private totalSegments = 0
+  private totalAoiHits = 0
 
   add(row: SingleDeserializerOutput): void {
+    // 1. Resolve Indices (Cached Lookups)
     const sIdx = this.getOrAdd(
       this.stimuli,
       row.stimulus,
@@ -40,151 +124,140 @@ export class BinaryEyeWriter {
       this.participantNames
     )
 
-    // Ensure capacity
-    if ((this.count + 1) * 5 > this.rawSegments.length) {
-      const newBuf = new Float64Array(this.rawSegments.length * 2)
-      newBuf.set(this.rawSegments)
-      this.rawSegments = newBuf
-    }
+    // 2. Resolve AOI IDs
+    let aoiIds: number[] | null = null
+    const rawAois = row.aoi
 
-    const base = this.count * 5
-    this.rawSegments[base + 0] = sIdx
-    this.rawSegments[base + 1] = pIdx
-    this.rawSegments[base + 2] = Number(row.start)
-    this.rawSegments[base + 3] = Number(row.end)
-    this.rawSegments[base + 4] =
-      row.category.toLowerCase() === 'fixation' ? 0 : 1
+    if (rawAois && rawAois.length > 0) {
+      // Optimization: allocating this small array is unavoidable to pass to bucket
+      // unless we refactor bucket to accept iterator/raw strings.
+      // But keeping it numeric here is cleaner.
+      aoiIds = []
+      const map = this.aoiMaps[sIdx]
+      const list = this.aoisPerStimulus[sIdx]
 
-    // Direct AOI ID mapping
-    if (row.aoi && row.aoi.length > 0) {
-      this.rawAois[this.count] = row.aoi.map(name =>
-        this.getOrAddAoi(name, sIdx)
-      )
-    } else {
-      this.rawAois[this.count] = null
-    }
-
-    this.count++
-  }
-
-  private getOrAdd(
-    map: Map<string, number>,
-    name: string,
-    list: string[],
-    isStim = false
-  ): number {
-    let idx = map.get(name)
-    if (idx === undefined) {
-      idx = list.length
-      map.set(name, idx)
-      list.push(name)
-      if (isStim) {
-        this.aoisPerStimulus.push([])
-        this.aoiMaps.push(new Map())
+      for (let i = 0; i < rawAois.length; i++) {
+        const name = rawAois[i]
+        let id = map.get(name)
+        if (id === undefined) {
+          id = list.length
+          map.set(name, id)
+          list.push(name)
+        }
+        aoiIds.push(id)
       }
+      this.totalAoiHits += aoiIds.length
     }
-    return idx
-  }
 
-  private getOrAddAoi(name: string, sIdx: number): number {
-    const map = this.aoiMaps[sIdx]
-    let idx = map.get(name)
-    if (idx === undefined) {
-      idx = this.aoisPerStimulus[sIdx].length
-      map.set(name, idx)
-      this.aoisPerStimulus[sIdx].push(name)
+    // 3. Bucket Insertion
+    const start = Number(row.start)
+    const end = Number(row.end)
+    const cat = row.category.charCodeAt(0) === 70 ? 0 : 1 // 'F'ixation check is fast
+
+    if (!this.buckets[sIdx]) this.buckets[sIdx] = []
+    if (!this.buckets[sIdx][pIdx]) {
+      this.buckets[sIdx][pIdx] = new SegmentBucket()
     }
-    return idx
+
+    this.buckets[sIdx][pIdx].add(start, end, cat, aoiIds)
+    this.totalSegments++
   }
 
   buildFinalData(): DataType {
-    const n = this.count
-    const indices = new Uint32Array(n)
-    for (let i = 0; i < n; i++) indices[i] = i
-
-    // 1. Sort Proxy Indices: O(N log N)
-    // Sort by Stimulus -> Participant -> StartTime
-    indices.sort((a, b) => {
-      const baseA = a * 5
-      const baseB = b * 5
-      return (
-        this.rawSegments[baseA + 0] - this.rawSegments[baseB + 0] || // Stim
-        this.rawSegments[baseA + 1] - this.rawSegments[baseB + 1] || // Part
-        this.rawSegments[baseA + 2] - this.rawSegments[baseB + 2]
-      ) // Start
-    })
-
-    // 2. Linear Pass: Merge & Build Buffers (O(N))
-    const finalSegBuffer = new Float32Array(n * SEGMENT_STRIDE)
-    const aoiPool = new Uint16Array(n * 5) // Estimated pool size
     const maxParticipants = this.participantNames.length
-    const indexTable = new Uint32Array(
-      this.stimuliNames.length * maxParticipants * 2
-    )
+    const maxStimuli = this.stimuliNames.length
+
+    // Allocate final contiguous buffers
+    const finalSegBuffer = new Float32Array(this.totalSegments * SEGMENT_STRIDE)
+    const aoiPool = new Uint16Array(this.totalAoiHits)
+    const indexTable = new Uint32Array(maxStimuli * maxParticipants * 2)
 
     let segPtr = 0
     let poolPtr = 0
-    let lastS = -1,
-      lastP = -1
 
-    for (let i = 0; i < n; i++) {
-      const idx = indices[i]
-      const base = idx * 5
-      const s = this.rawSegments[base + 0]
-      const p = this.rawSegments[base + 1]
-      const start = this.rawSegments[base + 2]
-      const end = this.rawSegments[base + 3]
-      const cat = this.rawSegments[base + 4]
+    // Iterate Stimuli -> Participants
+    for (let s = 0; s < maxStimuli; s++) {
+      const pBuckets = this.buckets[s]
+      if (!pBuckets) continue
 
-      // Update Index Table for new Participant/Stimulus ranges
-      if (s !== lastS || p !== lastP) {
+      for (let p = 0; p < maxParticipants; p++) {
+        const bucket = pBuckets[p]
+        if (!bucket || bucket.count === 0) continue
+
         const tableIdx = (s * maxParticipants + p) * 2
         indexTable[tableIdx] = segPtr
-        // Close previous range
-        if (lastS !== -1) {
-          const prevTableIdx = (lastS * maxParticipants + lastP) * 2
-          indexTable[prevTableIdx + 1] = segPtr
+
+        // A. Sort Indices locally
+        const indices = bucket.getSortedIndices()
+
+        // B. Flatten & Deduplicate
+        // Local variables for fast access in loop
+        let lastStart = -1,
+          lastEnd = -1,
+          lastCat = -1
+        let isFirst = true
+
+        const bData = bucket.data
+        const bAoiCounts = bucket.aoiCounts
+        const bAoiOffsets = bucket.aoiOffsets
+        const bAoiBuf = bucket.aoiBuffer
+
+        for (let i = 0; i < indices.length; i++) {
+          const idx = indices[i]
+          const ptr = idx * 3
+
+          const start = bData[ptr]
+          const end = bData[ptr + 1]
+          const cat = bData[ptr + 2]
+          const aoiCount = bAoiCounts[idx]
+
+          // Deduplication Check
+          if (
+            !isFirst &&
+            start === lastStart &&
+            end === lastEnd &&
+            cat === lastCat
+          ) {
+            // MERGE: Add AOIs to previous segment
+            if (aoiCount > 0) {
+              const prevSegIndex = (segPtr - 1) * SEGMENT_STRIDE
+
+              // Copy AOIs to pool
+              const offset = bAoiOffsets[idx]
+              for (let k = 0; k < aoiCount; k++) {
+                aoiPool[poolPtr++] = bAoiBuf[offset + k]
+              }
+              // Increment count in previous segment
+              finalSegBuffer[prevSegIndex + SegmentField.AOI_COUNT] += aoiCount
+            }
+          } else {
+            // NEW SEGMENT
+            const outBase = segPtr * SEGMENT_STRIDE
+            finalSegBuffer[outBase + SegmentField.START_TIME] = start
+            finalSegBuffer[outBase + SegmentField.END_TIME] = end
+            finalSegBuffer[outBase + SegmentField.CATEGORY_ID] = cat
+            finalSegBuffer[outBase + SegmentField.AOI_POINTER] = poolPtr
+            finalSegBuffer[outBase + SegmentField.AOI_COUNT] = aoiCount // Initial count
+
+            // Copy AOIs
+            if (aoiCount > 0) {
+              const offset = bAoiOffsets[idx]
+              for (let k = 0; k < aoiCount; k++) {
+                aoiPool[poolPtr++] = bAoiBuf[offset + k]
+              }
+            }
+
+            // Update State
+            lastStart = start
+            lastEnd = end
+            lastCat = cat
+            isFirst = false
+            segPtr++
+          }
         }
+
+        indexTable[tableIdx + 1] = segPtr
       }
-
-      // Merge Logic (Check if current matches previous in final buffer)
-      const prevBase = (segPtr - 1) * SEGMENT_STRIDE
-      if (
-        segPtr > 0 &&
-        s === lastS &&
-        p === lastP &&
-        finalSegBuffer[prevBase + SegmentField.START_TIME] === start &&
-        finalSegBuffer[prevBase + SegmentField.END_TIME] === end &&
-        finalSegBuffer[prevBase + SegmentField.CATEGORY_ID] === cat
-      ) {
-        // It's a duplicate: just append new AOIs to the previous segment's pool
-        const aois = this.rawAois[idx]
-        if (aois) {
-          for (const aoiId of aois) aoiPool[poolPtr++] = aoiId
-          finalSegBuffer[prevBase + SegmentField.AOI_COUNT] += aois.length
-        }
-      } else {
-        // New unique segment
-        const outBase = segPtr * SEGMENT_STRIDE
-        finalSegBuffer[outBase + SegmentField.START_TIME] = start
-        finalSegBuffer[outBase + SegmentField.END_TIME] = end
-        finalSegBuffer[outBase + SegmentField.CATEGORY_ID] = cat
-        finalSegBuffer[outBase + SegmentField.AOI_POINTER] = poolPtr
-
-        const aois = this.rawAois[idx]
-        if (aois) {
-          for (const aoiId of aois) aoiPool[poolPtr++] = aoiId
-          finalSegBuffer[outBase + SegmentField.AOI_COUNT] = aois.length
-        }
-        segPtr++
-      }
-      lastS = s
-      lastP = p
-    }
-
-    // Finalize last index table entry
-    if (lastS !== -1) {
-      indexTable[(lastS * maxParticipants + lastP) * 2 + 1] = segPtr
     }
 
     return {
@@ -206,13 +279,32 @@ export class BinaryEyeWriter {
         segmentBuffer: finalSegBuffer.subarray(0, segPtr * SEGMENT_STRIDE),
         indexTable,
         aoiPool: aoiPool.subarray(0, poolPtr),
-        groupMap: new Uint16Array(
-          this.stimuliNames.length * MAX_AOI_PER_STIMULUS
-        ).fill(0xffff),
+        groupMap: new Uint16Array(maxStimuli * MAX_AOI_PER_STIMULUS).fill(
+          0xffff
+        ),
         maxParticipants,
-        stimuliCount: this.stimuliNames.length,
+        stimuliCount: maxStimuli,
       },
       noAoiTreatment: { ...DEFAULT_NO_AOI_TREATMENT },
     }
+  }
+
+  private getOrAdd(
+    map: Map<string, number>,
+    name: string,
+    list: string[],
+    isStim = false
+  ): number {
+    let idx = map.get(name)
+    if (idx === undefined) {
+      idx = list.length
+      map.set(name, idx)
+      list.push(name)
+      if (isStim) {
+        this.aoisPerStimulus.push([])
+        this.aoiMaps.push(new Map())
+      }
+    }
+    return idx
   }
 }

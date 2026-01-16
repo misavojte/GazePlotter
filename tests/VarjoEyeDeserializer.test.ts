@@ -28,37 +28,34 @@ const varjoMockData = `Time,Actor Label
 describe('VarjoEyeDeserializer', () => {
   const varjoRows = varjoMockData.split('\n')
   const header = varjoRows[0].split(',')
+  const delim = ','
   test('Constructor', () => {
-    const sut = new VarjoEyeDeserializer(header, 'VarjoXXX.csv')
+    const sut = new VarjoEyeDeserializer(header, 'VarjoXXX.csv', delim)
     expect(sut).toBeDefined()
     expect(sut.cTime).toBe(0)
     expect(sut.cActorLabel).toBe(1)
     expect(sut.mParticipant).toBe('VarjoXXX')
   })
 
-  const sut = new VarjoEyeDeserializer(header, 'VarjoXXX.csv')
+  const sut = new VarjoEyeDeserializer(header, 'VarjoXXX.csv', delim)
 
   test('Process first row', () => {
-    const row = varjoRows[1].split(',')
-    const result = sut.deserialize(row) as SingleDeserializerOutput
+    const result = sut.processRow(varjoRows[1]) as SingleDeserializerOutput
     expect(result).toBeNull()
   })
 
   test('Process second row', () => {
-    const row = varjoRows[2].split(',')
-    const result = sut.deserialize(row) as SingleDeserializerOutput
+    const result = sut.processRow(varjoRows[2]) as SingleDeserializerOutput
     expect(result).toBeNull()
   })
 
   test('Process third row', () => {
-    const row = varjoRows[3].split(',')
-    const result = sut.deserialize(row) as SingleDeserializerOutput
+    const result = sut.processRow(varjoRows[3]) as SingleDeserializerOutput
     expect(result).toBeNull()
   })
 
   test('Process fourth row', () => {
-    const row = varjoRows[4].split(',')
-    const result = sut.deserialize(row) as SingleDeserializerOutput
+    const result = sut.processRow(varjoRows[4]) as SingleDeserializerOutput
     console.log(result)
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_1'])
@@ -70,8 +67,7 @@ describe('VarjoEyeDeserializer', () => {
   })
 
   test('Process fifth row', () => {
-    const row = varjoRows[5].split(',')
-    const result = sut.deserialize(row) as SingleDeserializerOutput
+    const result = sut.processRow(varjoRows[5]) as SingleDeserializerOutput
     console.log(result)
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_2'])
@@ -83,8 +79,7 @@ describe('VarjoEyeDeserializer', () => {
   })
 
   test('Process sixth row', () => {
-    const row = varjoRows[6].split(',')
-    const result = sut.deserialize(row) as SingleDeserializerOutput
+    const result = sut.processRow(varjoRows[6]) as SingleDeserializerOutput
     console.log(result)
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_3'])
