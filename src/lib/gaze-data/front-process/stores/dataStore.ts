@@ -394,17 +394,23 @@ export const getStimulusHighestEndTime = (stimulusIndex: number): number => {
   return max
 }
 
+/**
+ * Get the end time of the last segment for a participant on a stimulus.
+ * Uses the global cached _reader for optimal performance.
+ * No object allocations, no new readers created.
+ *
+ * @param stimulusIndex ID of the stimulus
+ * @param particIndex ID of the participant
+ * @returns End time of the last segment for this participant on this stimulus, or 0 if no segments
+ */
 export const getParticipantEndTime = (
   stimulusIndex: number,
   particIndex: number
 ): number => {
-  const reader = new BinaryBufferReader(getData().segments)
-  const range = reader.getSegmentRange(stimulusIndex, particIndex)
-  if (range.startIndex === range.endIndex) return 0 // No segments
+  // Use the global cached reader to avoid creating a new BinaryBufferReader
+  if (!_reader) return 0
 
-  // Get the end time of the last segment
-  const lastSegmentIndex = range.endIndex - 1
-  return reader.getSegmentEnd(lastSegmentIndex)
+  return _reader.getParticipantEndTime(stimulusIndex, particIndex)
 }
 
 export const getParticipant = (id: number): BaseInterpretedDataType => {

@@ -237,7 +237,7 @@ export function calculateTimelineRange(
           maxValue = numberOfSegments
         }
       } else {
-        // 'absolute' timeline
+        // 'absolute' timeline - getParticipantEndTime now uses cached _reader for efficiency
         const endTime = getParticipantEndTime(stimulusId, participantId)
         if (endTime > maxValue) {
           maxValue = endTime

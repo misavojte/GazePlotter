@@ -151,6 +151,26 @@ export class BinaryBufferReader {
   }
 
   /**
+   * Get the end time of the last segment for a participant on a stimulus.
+   * Optimized for single direct access - no intermediate object allocations.
+   *
+   * @returns End time of the last segment, or 0 if no segments
+   */
+  getParticipantEndTime(stimulusId: number, participantId: number): number {
+    const idx = (stimulusId * this.maxParticipants + participantId) * 2
+    const startIndex = this.indexTable[idx]
+    const endIndex = this.indexTable[idx + 1]
+
+    if (startIndex === endIndex) return 0 // No segments
+
+    // Get the end time of the last segment
+    const lastSegmentIndex = endIndex - 1
+    return this.segmentBuffer[
+      lastSegmentIndex * SEGMENT_STRIDE + SegmentField.END_TIME
+    ]
+  }
+
+  /**
    * Read a segment's start time by its global index in the master buffer.
    */
   getSegmentStart(segmentIndex: number): number {
