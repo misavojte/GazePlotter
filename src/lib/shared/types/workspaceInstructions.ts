@@ -7,11 +7,11 @@ import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
 /**
  * Workspace Command System
- * 
+ *
  * Centralized command types for all workspace changes.
  * All data and settings modifications go through these commands
  * to ensure proper tracking and automatic redraw propagation.
- * 
+ *
  * Simplified structure without nested payload - TypeScript ensures type safety
  * through discriminated unions based on the 'type' field.
  */
@@ -27,6 +27,8 @@ export interface UpdateAoisCommand extends BaseCommandInterface {
   aois: ExtendedInterpretedDataType[]
   stimulusId: number
   applyTo: 'this_stimulus' | 'all_by_original_name' | 'all_by_displayed_name'
+  /** Optional raw AOI ids to hide for this stimulus (treated as inactive). */
+  hiddenAois?: number[]
 }
 
 export interface UpdateParticipantsCommand extends BaseCommandInterface {
@@ -72,7 +74,6 @@ export interface RemoveGridItemCommand extends BaseCommandInterface {
   itemId: number
 }
 
-
 export interface DuplicateGridItemCommand extends BaseCommandInterface {
   type: 'duplicateGridItem'
   itemId: number
@@ -98,11 +99,11 @@ export type WorkspaceCommand =
 
 /**
  * WorkspaceCommandChain
- * 
+ *
  * A workspace command with an associated chain identifier.
  * When a command triggers additional commands (e.g., collision resolution),
  * those generated commands share the same chainId to track the operation chain.
- * 
+ *
  * This enables tracking causality: "which commands were triggered by which original action?"
  * Essential for logging, debugging, and future undo/redo functionality.
  */
@@ -125,11 +126,13 @@ export function generateChainId(): number {
 /**
  * Creates a root command (original user action) with a new chain ID.
  */
-export function createRootCommand<T extends WorkspaceCommand>(command: T): WorkspaceCommandChain {
+export function createRootCommand<T extends WorkspaceCommand>(
+  command: T
+): WorkspaceCommandChain {
   return {
     ...command,
     chainId: generateChainId(),
-    isRootCommand: true
+    isRootCommand: true,
   }
 }
 
@@ -137,16 +140,15 @@ export function createRootCommand<T extends WorkspaceCommand>(command: T): Works
  * Creates a child command (e.g., collision resolution) that inherits the chain ID from its parent.
  */
 export function createChildCommand<T extends WorkspaceCommand>(
-  command: T, 
+  command: T,
   parentChainId: number
 ): WorkspaceCommandChain {
   return {
     ...command,
     chainId: parentChainId,
-    isRootCommand: false
+    isRootCommand: false,
   }
 }
-
 
 export function createCommandSourcePlotPattern(
   settings: Partial<AllGridTypes> & { type: string },

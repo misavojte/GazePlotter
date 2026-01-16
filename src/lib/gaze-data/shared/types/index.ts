@@ -64,6 +64,8 @@ export interface AoiDataType {
   data: string[][][]
   orderVector: number[][] | []
   dynamicVisibility: VisibilityAoiDataType
+  /** Per-stimulus list of raw AOI ids that should be treated as nonexistent in visualizations. */
+  hiddenAois: number[][]
 }
 
 /**

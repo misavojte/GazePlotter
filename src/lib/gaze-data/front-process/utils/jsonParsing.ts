@@ -68,6 +68,20 @@ export function normalizeDataStructure(data: DataType): DataType {
   const stimuliCount = data.stimuli.data.length
   const participantsCount = data.participants.data.length
 
+  // Ensure AOI hidden flags exist and are aligned per stimulus
+  if (!data.aois.hiddenAois || !Array.isArray(data.aois.hiddenAois)) {
+    data.aois.hiddenAois = []
+  }
+  while (data.aois.hiddenAois.length < stimuliCount) {
+    data.aois.hiddenAois.push([])
+  }
+  // Ensure each entry is an array
+  for (let stimulusIndex = 0; stimulusIndex < stimuliCount; stimulusIndex++) {
+    if (!Array.isArray(data.aois.hiddenAois[stimulusIndex])) {
+      data.aois.hiddenAois[stimulusIndex] = []
+    }
+  }
+
   // Ensure segments array has an entry for each stimulus
   while (data.segments.length < stimuliCount) {
     data.segments.push([])

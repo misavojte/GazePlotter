@@ -60,6 +60,14 @@ const getDefaultColor = (index: number): string => {
   return COLORS[index % COLORS.length]
 }
 
+// Helper to get hidden AOI ids for a stimulus directly from a data snapshot
+const getHiddenAoisFromData = (
+  stimulusId: number,
+  dataSnapshot: DataType
+): number[] => {
+  return dataSnapshot.aois.hiddenAois?.[stimulusId] ?? []
+}
+
 // Helper to get the order vector for a stimulus directly from data
 const getAoiOrderVectorFromData = (
   stimulusId: number,
@@ -135,11 +143,14 @@ const aoiIdMappings: Readable<{
   for (let stimulusId = 0; stimulusId < stimuliCount; stimulusId++) {
     try {
       const aois = getAoisRawFromData(stimulusId, $data)
+      const hidden = getHiddenAoisFromData(stimulusId, $data)
+      const hiddenSet = hidden.length ? new Set<number>(hidden) : null
       const nameToFirstId = new Map<string, number>()
       const mapping: { [aoiId: number]: number } = {}
 
       // First pass: find first occurrence of each displayed name
       aois.forEach(aoi => {
+        if (hiddenSet && hiddenSet.has(aoi.id)) return
         if (
           !nameToFirstId.has(aoi.displayedName) &&
           aoi.displayedName.trim() !== ''
@@ -150,6 +161,10 @@ const aoiIdMappings: Readable<{
 
       // Second pass: create mapping
       aois.forEach(aoi => {
+        if (hiddenSet && hiddenSet.has(aoi.id)) {
+          mapping[aoi.id] = aoi.id
+          return
+        }
         if (
           aoi.displayedName.trim() !== '' &&
           nameToFirstId.has(aoi.displayedName)
@@ -208,6 +223,8 @@ const fastAoiIdMappings: Readable<{
     try {
       // Get all AOIs for this stimulus
       const aois = getAoisRawFromData(stimulusId, $data)
+      const hidden = getHiddenAoisFromData(stimulusId, $data)
+      const hiddenSet = hidden.length ? new Set<number>(hidden) : null
       aoiCounts[stimulusId] = aois.length
 
       // Skip if no AOIs for this stimulus
@@ -217,6 +234,7 @@ const fastAoiIdMappings: Readable<{
       const nameToFirstId = new Map<string, number>()
 
       for (const aoi of aois) {
+        if (hiddenSet && hiddenSet.has(aoi.id)) continue
         if (
           !nameToFirstId.has(aoi.displayedName) &&
           aoi.displayedName.trim() !== ''
@@ -230,6 +248,10 @@ const fastAoiIdMappings: Readable<{
 
       // Second pass: populate the mapping array
       for (const aoi of aois) {
+        if (hiddenSet && hiddenSet.has(aoi.id)) {
+          array[offset + aoi.id] = aoi.id
+          continue
+        }
         if (
           aoi.displayedName.trim() !== '' &&
           nameToFirstId.has(aoi.displayedName)
@@ -301,6 +323,10 @@ export const getAoiOrderVector = (stimulusId: number): number[] => {
     return [...Array(noOfAois).keys()]
   }
   return order
+}
+
+export const getHiddenAois = (stimulusId: number): number[] => {
+  return getData().aois.hiddenAois?.[stimulusId] ?? []
 }
 
 export const getStimuliOrderVector = (): number[] => {
@@ -378,9 +404,15 @@ export const getAllAois = (
 export const getAois = (stimulusId: number): ExtendedInterpretedDataType[] => {
   const aoiIds = getAoiOrderVector(stimulusId)
 
+  const hidden = getHiddenAois(stimulusId)
+  const hiddenSet = hidden.length ? new Set<number>(hidden) : null
+  const visibleAoiIds = hiddenSet
+    ? aoiIds.filter(aoiId => !hiddenSet.has(aoiId))
+    : aoiIds
+
   // Apply mapping and ensure uniqueness
   const mappedAoiIds = [
-    ...new Set(aoiIds.map(aoiId => getAoiIdMapping(stimulusId, aoiId))),
+    ...new Set(visibleAoiIds.map(aoiId => getAoiIdMapping(stimulusId, aoiId))),
   ]
 
   return mappedAoiIds.map((aoiId: number) =>
@@ -794,6 +826,46 @@ export const updateMultipleAoiVisibility = (
   })
 }
 
+export const updateHiddenAois = (
+  stimulusId: number,
+  hiddenAois: number[]
+): void => {
+  const currentState = get(data)
+
+  if (!currentState) {
+    throw new Error('Cannot update hidden AOIs: data store is empty')
+  }
+
+  if (!currentState.aois.data[stimulusId]) {
+    throw new Error(
+      `Cannot update hidden AOIs: stimulus ${stimulusId} does not exist`
+    )
+  }
+
+  const newState = structuredClone(currentState)
+  const unique = Array.from(
+    new Set(
+      (hiddenAois ?? []).filter(
+        v => Number.isInteger(v) && v >= 0 && v < MAX_AOI_PER_STIMULUS
+      )
+    )
+  ).sort((a, b) => a - b)
+
+  const hiddenByStimulus = [...(newState.aois.hiddenAois ?? [])]
+  while (hiddenByStimulus.length < newState.stimuli.data.length) {
+    hiddenByStimulus.push([])
+  }
+  hiddenByStimulus[stimulusId] = unique
+
+  data.set({
+    ...newState,
+    aois: {
+      ...newState.aois,
+      hiddenAois: hiddenByStimulus,
+    },
+  })
+}
+
 /**
  * Updates multiple AOIs for a stimulus with optional propagation to other stimuli.
  *
@@ -1004,6 +1076,9 @@ export const getSegments = (
   const range = reader.getSegmentRange(stimulusId, participantId)
   const segmentCount = range.endIndex - range.startIndex
 
+  const hidden = currentData.aois.hiddenAois?.[stimulusId] ?? []
+  const hiddenSet = hidden.length ? new Set<number>(hidden) : null
+
   // Early returns for empty data
   if (segmentCount === 0) return []
   if (limit === 0) return []
@@ -1055,6 +1130,7 @@ export const getSegments = (
     if (aoiFilter) {
       let hasMatchingAoi = false
       for (const aoiId of rawAoiIds) {
+        if (hiddenSet && hiddenSet.has(aoiId)) continue
         // Fast mapping via TypedArray
         let mappedId = aoiId
         if (
@@ -1087,6 +1163,7 @@ export const getSegments = (
 
     // Apply order vector sorting
     for (const orderedId of orderVector) {
+      if (hiddenSet && hiddenSet.has(orderedId)) continue
       if (rawAoiIds.includes(orderedId)) {
         sortedIds.push(orderedId)
       }
@@ -1094,6 +1171,7 @@ export const getSegments = (
 
     // Map and deduplicate
     for (const aoiId of sortedIds) {
+      if (hiddenSet && hiddenSet.has(aoiId)) continue
       let mappedId = aoiId
       if (
         stimulusId < stimuliCount &&

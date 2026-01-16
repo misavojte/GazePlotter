@@ -26,8 +26,10 @@ import type {
 } from '$lib/plots/scarf/types'
 import {
   getAois,
+  getAoiIdMapping,
   getAoiVisibility,
   getData,
+  getHiddenAois,
   getNumberOfSegments,
   getParticipant,
   getParticipantEndTime,
@@ -702,10 +704,14 @@ export function transformDataToScarfPlot(
   const segmentBuffer = buffers.segmentBuffer
   const indexTable = buffers.indexTable
   const aoiPool = buffers.aoiPool
-  const groupMap = buffers.groupMap
   const maxParticipants = buffers.maxParticipants
 
-  const groupMapOffsetBase = stimulusId * MAX_AOI_PER_STIMULUS
+  const hiddenRaw = getHiddenAois(stimulusId)
+  const hiddenFlag = new Uint8Array(MAX_AOI_PER_STIMULUS)
+  for (let i = 0; i < hiddenRaw.length; i++) {
+    const id = hiddenRaw[i]
+    if (id >= 0 && id < MAX_AOI_PER_STIMULUS) hiddenFlag[id] = 1
+  }
 
   // Reusable per-participant/per-segment scratch to avoid allocations
   const present = new Uint8Array(MAX_AOI_PER_STIMULUS)
@@ -823,8 +829,9 @@ export function transformDataToScarfPlot(
         presentList.length = 0
         for (let i = 0; i < aoiCount; i++) {
           const rawId = aoiPool[aoiPtr + i]
-          const mapped = groupMap[groupMapOffsetBase + rawId]
-          const groupId = mapped === 0xffff ? rawId : mapped
+          if (rawId < 0 || rawId >= MAX_AOI_PER_STIMULUS) continue
+          if (hiddenFlag[rawId] === 1) continue
+          const groupId = getAoiIdMapping(stimulusId, rawId)
           if (groupId < 0 || groupId >= MAX_AOI_PER_STIMULUS) continue
           if (present[groupId] === 0) {
             present[groupId] = 1

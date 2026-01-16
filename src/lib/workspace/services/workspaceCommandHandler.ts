@@ -12,6 +12,7 @@ import {
   updateMultipleStimuli,
   updateMultipleAoiVisibility,
   updateParticipantsGroups,
+  updateHiddenAois,
 } from '$lib/gaze-data/front-process/stores/dataStore'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 import {
@@ -64,8 +65,12 @@ export function createCommandHandler(
       // Now execute the command (this changes the state)
       switch (command.type) {
         case 'updateAois': {
-          const { aois, stimulusId, applyTo } = command
+          const { aois, stimulusId, applyTo, hiddenAois } = command
           updateMultipleAoi(aois, stimulusId, applyTo)
+          if (hiddenAois) {
+            // Apply hidden AOIs in the same operation to avoid extra commands
+            updateHiddenAois(stimulusId, hiddenAois)
+          }
           gridStore.triggerRedraw()
 
           // If this is a root command (normal operation), sanitize scarf highlights
@@ -130,6 +135,8 @@ export function createCommandHandler(
           gridStore.triggerRedraw()
           break
         }
+
+        // removed: updateHiddenAois (folded into updateAois)
 
         case 'updateParticipantsGroups': {
           updateParticipantsGroups(command.groups)

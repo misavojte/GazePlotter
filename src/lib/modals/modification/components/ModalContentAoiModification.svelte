@@ -1,7 +1,7 @@
 <script lang="ts">
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import GeneralSelectBase from '$lib/shared/components/GeneralSelect.svelte'
-  import { GeneralInputColor } from '$lib/shared/components'
+  import { GeneralInputCheck, GeneralInputColor } from '$lib/shared/components'
   import {
     SortableTableHeader,
     SectionHeader,
@@ -11,6 +11,7 @@
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import {
     getAllAois,
+    getHiddenAois,
   } from '$lib/gaze-data/front-process/stores/dataStore'
   import { addErrorToast, addInfoToast } from '$lib/toaster'
   import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
@@ -19,13 +20,13 @@
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
-  import type { UpdateAoisCommand } from '$lib/shared/types/workspaceInstructions'
-  
+  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+
   interface Props {
     selectedStimulus?: string
     userSelected?: string
     source: string
-    onWorkspaceCommand: (command: UpdateAoisCommand) => void
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
   let {
@@ -45,21 +46,21 @@
   ): ExtendedInterpretedDataType[] => {
     const processed = new Set<number>()
     const result: ExtendedInterpretedDataType[] = []
-    
+
     // Go through AOIs in order, grouping only valid names
     for (let i = 0; i < aois.length; i++) {
       if (processed.has(i)) continue
-      
+
       const aoi = aois[i]
       const trimmedName = (aoi.displayedName || '').trim()
-      
+
       // If empty or invalid name, keep in place
       if (!isValidMatch(trimmedName)) {
         result.push(aoi)
         processed.add(i)
         continue
       }
-      
+
       // Find all AOIs with the same trimmed name
       const group: ExtendedInterpretedDataType[] = []
       for (let j = i; j < aois.length; j++) {
@@ -70,11 +71,11 @@
           processed.add(j)
         }
       }
-      
+
       // Do not hard-set color, plots will correctly use the color of the first AOI in the group
       group.forEach(g => result.push(g))
     }
-    
+
     return result
   }
 
@@ -94,12 +95,15 @@
     if (direction === 'up' && currentIndex > 0) {
       if (groupedAois.length === 1) {
         const prevItemIndex = currentIndex - 1
-        const prevItemDisplayedName = (aois[prevItemIndex].displayedName || '').trim()
+        const prevItemDisplayedName = (
+          aois[prevItemIndex].displayedName || ''
+        ).trim()
 
         if (isValidMatch(prevItemDisplayedName)) {
           const prevGroup = aois.filter(
             (a, i) =>
-              i < currentIndex && (a.displayedName || '').trim() === prevItemDisplayedName
+              i < currentIndex &&
+              (a.displayedName || '').trim() === prevItemDisplayedName
           )
           const prevGroupStart = aois.indexOf(prevGroup[0])
 
@@ -167,11 +171,20 @@
   let aoiObjects: ExtendedInterpretedDataType[] = $state(deepCopyAois(rawAois))
   let lastSelectedStimulus = $state(selectedStimulus)
 
+  const initialHidden = getHiddenAois(parseInt(selectedStimulus))
+  let hiddenAoiIds: number[] = $state([...initialHidden])
+  let lastHiddenSnapshot = $state([...initialHidden])
+  const hiddenSet = $derived(new Set(hiddenAoiIds))
+
   $effect(() => {
     if (selectedStimulus !== lastSelectedStimulus) {
       const rawAois = getAllAois(parseInt(selectedStimulus))
       aoiObjects = deepCopyAois(rawAois)
       lastSelectedStimulus = selectedStimulus
+
+      const nextHidden = getHiddenAois(parseInt(selectedStimulus))
+      hiddenAoiIds = [...nextHidden]
+      lastHiddenSnapshot = [...nextHidden]
     }
   })
 
@@ -268,14 +281,24 @@
         displayedName: (aoi.displayedName || '').trim(),
         color: aoi.color,
       }))
-      
+
+      const stimulusId = parseInt(selectedStimulus)
+
+      const hiddenUniqueSorted = Array.from(
+        new Set(hiddenAoiIds.filter(v => Number.isInteger(v) && v >= 0))
+      ).sort((a, b) => a - b)
+
       onWorkspaceCommand({
         type: 'updateAois',
         aois: cleanedAois,
         source,
-        stimulusId: parseInt(selectedStimulus),
-        applyTo: handlerType
+        stimulusId,
+        applyTo: handlerType,
+        hiddenAois: hiddenUniqueSorted,
       })
+
+      // snapshot for undo baseline
+      lastHiddenSnapshot = [...hiddenUniqueSorted]
 
       if (handlerType !== 'this_stimulus') {
         addInfoToast('Ordering of AOIs is not updated for other stimuli')
@@ -338,10 +361,20 @@
         </th>
         <th>Color</th>
         <th>Order</th>
+        <th>Is active</th>
       </tr>
     </thead>
     <tbody>
       {#each reorderedAoiObjects as aoi (aoi.id + selectedStimulus)}
+        {@const showGroupControls =
+          !isValidMatch((aoi.displayedName || '').trim()) ||
+          reorderedAoiObjects.findIndex(
+            a =>
+              isValidMatch((a.displayedName || '').trim()) &&
+              (a.displayedName || '').trim() ===
+                (aoi.displayedName || '').trim()
+          ) === reorderedAoiObjects.indexOf(aoi)}
+        {@const isActive = !hiddenSet.has(aoi.id)}
         <tr
           class="gr-line"
           animate:flip={{ duration: 250 }}
@@ -353,7 +386,8 @@
               type="text"
               id={aoi.id + 'displayedName'}
               value={aoi.displayedName}
-              oninput={(e) => {
+              disabled={!isActive}
+              oninput={e => {
                 const target = e.currentTarget
                 // Find and update the original AOI in aoiObjects
                 const originalAoi = aoiObjects.find(a => a.id === aoi.id)
@@ -363,33 +397,36 @@
               }}
             />
           </td>
-          {#if !isValidMatch((aoi.displayedName || '').trim()) || reorderedAoiObjects.findIndex(a => isValidMatch((a.displayedName || '').trim()) && (a.displayedName || '').trim() === (aoi.displayedName || '').trim()) === reorderedAoiObjects.indexOf(aoi)}
+          {#if showGroupControls}
             <td class="color-cell">
-              <GeneralInputColor 
-                label="" 
-                value={aoi.color}
-                oninput={(event) => {
-                  const aoiId = aoi.id
-                  // Find and update the AOI by ID in the current array
-                  // This ensures we update the correct object even after sorting
-                  const index = aoiObjects.findIndex(a => a.id === aoiId)
-                  if (index !== -1) {
-                    // Create a new array with the updated object to ensure reactivity
-                    aoiObjects = aoiObjects.map((a, i) => 
-                      i === index ? { ...a, color: event.detail } : a
-                    )
-                  }
-                }}
-              />
+              <div class:disabled-control={!isActive} aria-disabled={!isActive}>
+                <GeneralInputColor
+                  label=""
+                  value={aoi.color}
+                  oninput={event => {
+                    if (!isActive) return
+                    const aoiId = aoi.id
+                    const index = aoiObjects.findIndex(a => a.id === aoiId)
+                    if (index !== -1) {
+                      aoiObjects = aoiObjects.map((a, i) =>
+                        i === index ? { ...a, color: event.detail } : a
+                      )
+                    }
+                  }}
+                />
+              </div>
             </td>
             <td>
-              <div class="button-group">
+              <div
+                class="button-group"
+                class:disabled-control={!isActive}
+                aria-disabled={!isActive}
+              >
                 <GeneralPositionControl
                   isFirst={(() => {
-                    // If this AOI is part of a group, check if the first AOI in the group is at the top
+                    if (!isActive) return true
                     const trimmedName = (aoi.displayedName || '').trim()
                     if (isValidMatch(trimmedName)) {
-                      // Find the first AOI with the same trimmed name
                       let firstGroupIndex = reorderedAoiObjects.length
                       reorderedAoiObjects.forEach((a, idx) => {
                         const otherTrimmed = (a.displayedName || '').trim()
@@ -399,14 +436,12 @@
                       })
                       return firstGroupIndex === 0
                     }
-                    // Not grouped, check if this AOI is first
                     return reorderedAoiObjects.indexOf(aoi) === 0
                   })()}
                   isLast={(() => {
-                    // If this AOI is part of a group, check if the last AOI in the group is at the bottom
+                    if (!isActive) return true
                     const trimmedName = (aoi.displayedName || '').trim()
                     if (isValidMatch(trimmedName)) {
-                      // Find the last AOI with the same trimmed name
                       let lastGroupIndex = -1
                       reorderedAoiObjects.forEach((a, idx) => {
                         const otherTrimmed = (a.displayedName || '').trim()
@@ -416,11 +451,19 @@
                       })
                       return lastGroupIndex === reorderedAoiObjects.length - 1
                     }
-                    // Not grouped, check if this AOI is last
-                    return reorderedAoiObjects.indexOf(aoi) === reorderedAoiObjects.length - 1
+                    return (
+                      reorderedAoiObjects.indexOf(aoi) ===
+                      reorderedAoiObjects.length - 1
+                    )
                   })()}
-                  onMoveDown={() => handleObjectPositionDown(aoi)}
-                  onMoveUp={() => handleObjectPositionUp(aoi)}
+                  onMoveDown={() => {
+                    if (!isActive) return
+                    handleObjectPositionDown(aoi)
+                  }}
+                  onMoveUp={() => {
+                    if (!isActive) return
+                    handleObjectPositionUp(aoi)
+                  }}
                 />
               </div>
             </td>
@@ -429,6 +472,23 @@
               >change name to detach from group</td
             >
           {/if}
+
+          <td class="active-col">
+            <GeneralInputCheck
+              label=""
+              ariaLabel="Is active"
+              size="lg"
+              checked={isActive}
+              onchange={e => {
+                const active = e.detail
+                if (active) {
+                  hiddenAoiIds = hiddenAoiIds.filter(id => id !== aoi.id)
+                } else {
+                  hiddenAoiIds = Array.from(new Set([...hiddenAoiIds, aoi.id]))
+                }
+              }}
+            />
+          </td>
         </tr>
       {/each}
     </tbody>
@@ -468,6 +528,22 @@
     border-radius: var(--rounded);
     margin: 0;
     padding: 0.5rem;
+  }
+
+  .active-col {
+    text-align: center;
+    vertical-align: middle;
+    width: 80px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  .disabled-control {
+    opacity: 0.45;
+    pointer-events: none;
+    filter: grayscale(0.2);
   }
 
   .color-cell {

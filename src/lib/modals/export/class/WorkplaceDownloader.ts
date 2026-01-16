@@ -19,11 +19,11 @@ export class WorkplaceDownloader extends AbstractDownloader {
     const exportData = {
       ...data,
       segments: binarySegmentsToJson(data.segments),
-    }
+    } as unknown as DataType
 
     // add to the data the grid items
     const fileMetadata = get(fileMetadataStore)
-    const dataWithGridItems: JsonImportNewFormat = fileMetadata
+    const dataWithGridItems = (fileMetadata
       ? {
           version: 3,
           data: exportData,
@@ -34,7 +34,7 @@ export class WorkplaceDownloader extends AbstractDownloader {
           version: 2,
           data: exportData,
           gridItems: get(gridStore),
-        }
+        }) as unknown as JsonImportNewFormat
     const json = JSON.stringify(dataWithGridItems)
     const content = URL.createObjectURL(
       new Blob([json], { type: 'application/json' })
