@@ -1,5 +1,7 @@
 import { EyePipeline } from '$lib/gaze-data/back-process'
 import { PupilCloudPipeline } from '$lib/gaze-data/back-process/class/PupilCloud/pupilCloudPipeline'
+import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSettingsType'
+import type { DataType } from '$lib/gaze-data/shared/types'
 
 /**
  * A worker file handling whole eyefiles processing.
@@ -30,6 +32,28 @@ const requestUserInput = (): Promise<string> => {
   return new Promise(resolve => {
     userInputResolver = resolve
   })
+}
+
+type PipelineResult = { data: DataType; settings: EyeSettingsType }
+
+const postDoneMessage = (dataWithSettings: PipelineResult): void => {
+  const { data } = dataWithSettings
+  // Transfer large binary buffers to avoid costly copies
+  const transferBuffers = [
+    data.segments.segmentBuffer.buffer,
+    data.segments.indexTable.buffer,
+    data.segments.aoiPool.buffer,
+    data.segments.groupMap.buffer,
+  ]
+
+  self.postMessage(
+    {
+      type: 'done',
+      data,
+      classified: dataWithSettings.settings,
+    },
+    { transfer: transferBuffers }
+  )
 }
 self.onmessage = async e => await processEvent(e)
 
@@ -104,11 +128,7 @@ const evalStream = async (rs: ReadableStream): Promise<void> => {
     for (const stream of streams) {
       const dataWithSettings = await pipeline.addNewStream(stream)
       if (dataWithSettings !== null) {
-        self.postMessage({
-          type: 'done',
-          data: dataWithSettings.data,
-          classified: dataWithSettings.settings,
-        })
+        postDoneMessage(dataWithSettings)
         streams = []
         fileNames = []
       }
@@ -150,11 +170,7 @@ const evalZipBuffer = async (data: unknown): Promise<void> => {
       // Only the last ZIP returns non-null data (with all accumulated results)
       if (dataWithSettings !== null) {
         console.log('[Worker] Received final data, sending to main thread')
-        self.postMessage({
-          type: 'done',
-          data: dataWithSettings.data,
-          classified: dataWithSettings.settings,
-        })
+        postDoneMessage(dataWithSettings)
         // Clean up after successful processing
         zipBuffers = []
         fileNames = []
