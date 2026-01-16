@@ -53,6 +53,7 @@
 
 <style>
   .group-container {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -71,10 +72,6 @@
     height: 1px;
     width: 1px;
     overflow: hidden;
-  }
-
-  input[type='radio'] {
-    position: absolute;
   }
 
   input[type='radio'] + label {
