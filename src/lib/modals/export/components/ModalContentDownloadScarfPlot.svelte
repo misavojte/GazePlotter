@@ -7,7 +7,10 @@
     SCARF_LAYOUT,
   } from '$lib/plots'
   import GeneralCanvasPreview from '$lib/modals/shared/components/CanvasPreview.svelte'
-  import { getParticipants } from '$lib/gaze-data/front-process/stores/dataStore'
+  import {
+    getParticipants,
+    getData,
+  } from '$lib/gaze-data/front-process/stores/dataStore'
   import { untrack } from 'svelte'
   import { SectionHeader, DownloadPlotSettings } from '$lib/modals'
 
@@ -40,6 +43,7 @@
         )
       ),
       untrack(() => settings),
+      untrack(() => getData().noAoiTreatment),
       undefined,
       undefined,
       undefined,
