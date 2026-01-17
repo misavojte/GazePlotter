@@ -313,15 +313,46 @@ export class BinaryEyeWriter {
       }
     }
 
+    // Create alphabetically sorted order vectors
+    const stimuliOrderVector: number[] = Array.from(
+      { length: this.stimuliBytes.length },
+      (_, i) => i
+    )
+    stimuliOrderVector.sort((a, b) =>
+      decodeBytes(this.stimuliBytes[a], this.decoder).localeCompare(
+        decodeBytes(this.stimuliBytes[b], this.decoder)
+      )
+    )
+
+    const participantsOrderVector: number[] = Array.from(
+      { length: this.participantBytes.length },
+      (_, i) => i
+    )
+    participantsOrderVector.sort((a, b) =>
+      decodeBytes(this.participantBytes[a], this.decoder).localeCompare(
+        decodeBytes(this.participantBytes[b], this.decoder)
+      )
+    )
+
+    const aoisOrderVectors = this.aoisPerStimulus.map(list => {
+      const indices: number[] = Array.from({ length: list.length }, (_, i) => i)
+      indices.sort((a, b) =>
+        decodeBytes(list[a], this.decoder).localeCompare(
+          decodeBytes(list[b], this.decoder)
+        )
+      )
+      return indices
+    })
+
     return {
       isOrdinalOnly: false,
       stimuli: {
         data: this.stimuliBytes.map(v => [decodeBytes(v, this.decoder)]),
-        orderVector: [],
+        orderVector: stimuliOrderVector,
       },
       participants: {
         data: this.participantBytes.map(v => [decodeBytes(v, this.decoder)]),
-        orderVector: [],
+        orderVector: participantsOrderVector,
       },
       participantsGroups: [],
       categories: { data: [['Fixation'], ['Saccade']], orderVector: [] },
@@ -329,7 +360,7 @@ export class BinaryEyeWriter {
         data: this.aoisPerStimulus.map(list =>
           list.map(a => [decodeBytes(a, this.decoder)])
         ),
-        orderVector: [],
+        orderVector: aoisOrderVectors,
         dynamicVisibility: {},
         hiddenAois: [],
       },
