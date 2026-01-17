@@ -46,6 +46,11 @@
   const Y_AXIS = {
     LABEL_OFFSET: 36,
     TICK_LABEL_OFFSET: 10,
+    // The centered streamgraph uses a symmetric domain (e.g. [-50, +50] for 100%).
+    // This factor adds headroom so the plot doesn't touch the top/bottom.
+    // Example: 100% total -> half-range=50, with factor 1.5 => axis half-range=75.
+    HEADROOM_FACTOR: 1.5,
+    TARGET_POSITIVE_TICKS: 3,
   }
 
   const LEGEND = {
@@ -131,6 +136,43 @@
 
   const safeNumber = (value: number, fallback: number) =>
     Number.isFinite(value) ? value : fallback
+
+  const formatAxisTick = (value: number) => {
+    if (!Number.isFinite(value)) return '0'
+    const rounded = Math.round(value)
+    if (Math.abs(value - rounded) < 1e-6) return rounded.toString()
+    return value.toFixed(1).replace(/\.0$/, '')
+  }
+
+  const niceStep = (rawStep: number) => {
+    const safeRaw = Math.max(1e-9, Math.abs(rawStep))
+    const exponent = Math.floor(Math.log10(safeRaw))
+    const pow10 = Math.pow(10, exponent)
+    const fraction = safeRaw / pow10
+    const niceFractions = [1, 2, 2.5, 5, 10]
+    let niceFraction = niceFractions[niceFractions.length - 1]
+    for (let i = 0; i < niceFractions.length; i++) {
+      if (fraction <= niceFractions[i]) {
+        niceFraction = niceFractions[i]
+        break
+      }
+    }
+    return niceFraction * pow10
+  }
+
+  const computeNiceYAxis = (dataHalfRange: number) => {
+    const padded = Math.max(1, dataHalfRange * Y_AXIS.HEADROOM_FACTOR)
+    const rawStep = padded / Math.max(1, Y_AXIS.TARGET_POSITIVE_TICKS)
+    const step = niceStep(rawStep)
+    const axisHalfRange = Math.max(1, Math.ceil(padded / step) * step)
+
+    const ticks: number[] = [0]
+    for (let v = step; v <= axisHalfRange + step * 0.001; v += step) {
+      ticks.push(v)
+    }
+
+    return { axisHalfRange, ticks }
+  }
 
   // Memoized safe values (compute once per change)
   const safeWidth = $derived(Math.max(1, safeNumber(width, 1)))
@@ -251,7 +293,12 @@
     const series = data.series
     const binCount = data.binCount
 
-    const maxTotal = Math.max(1, data.maxTotal) / 2 // for centered layout this is correct
+    // Work in percent of participants so axes/labels match the plot title.
+    // Values in `data.series[].values[]` are participant-weighted contributions per bin.
+    const percentFactor = data.participants > 0 ? 100 / data.participants : 0
+    const dataHalfRange = (Math.max(1, data.maxTotal) * percentFactor) / 2
+    const { axisHalfRange: yAxisHalfRange, ticks: yAxisTicks } =
+      computeNiceYAxis(dataHalfRange)
 
     if (
       !Number.isFinite(plotAreaWidth) ||
@@ -270,7 +317,7 @@
 
     const centerY = plotTop + plotAreaHeight / 2
     const halfHeight = plotAreaHeight / 2
-    const scaleY = halfHeight / maxTotal
+    const scaleY = halfHeight / yAxisHalfRange
 
     // Zero-allocation pipeline: ensure buckets are ready
     const buckets = ensureRenderBuckets(binCount, series.length)
@@ -323,7 +370,7 @@
     for (let s = 0; s < series.length; s++) {
       const values = series[s].values
       for (let i = 0; i < binCount; i++) {
-        totals[i] += values[i]
+        totals[i] += values[i] * percentFactor
       }
     }
 
@@ -345,11 +392,18 @@
       // Compute Y positions into buckets (centered layout)
       for (let i = 0; i < binCount; i++) {
         const startValue = cumulative[i] - invTotals[i]
-        const nextValue = startValue + values[i]
-        cumulative[i] += values[i]
+        const scaledValue = values[i] * percentFactor
+        const nextValue = startValue + scaledValue
+        cumulative[i] += scaledValue
 
-        const clampedStart = Math.max(-maxTotal, Math.min(startValue, maxTotal))
-        const clampedEnd = Math.max(-maxTotal, Math.min(nextValue, maxTotal))
+        const clampedStart = Math.max(
+          -yAxisHalfRange,
+          Math.min(startValue, yAxisHalfRange)
+        )
+        const clampedEnd = Math.max(
+          -yAxisHalfRange,
+          Math.min(nextValue, yAxisHalfRange)
+        )
         bucket.topY[i] = centerY - clampedEnd * scaleY
         bucket.bottomY[i] = centerY - clampedStart * scaleY
       }
@@ -405,7 +459,7 @@
     setUpFont(ctx)
 
     // Draw axes and labels
-    drawYAxis(ctx, centerY, halfHeight, maxTotal)
+    drawYAxis(ctx, centerY, halfHeight, yAxisHalfRange, yAxisTicks)
     drawTimelineLabels(ctx)
     drawXAxisLabel(ctx)
     drawXAxisTicksAndBorder(ctx)
@@ -571,9 +625,9 @@
     ctx: CanvasRenderingContext2D,
     centerY: number,
     halfHeight: number,
-    maxValue: number
+    axisHalfRange: number,
+    ticks: number[]
   ) {
-    const tickPercents = [0, 25, 50]
     const xLabel = plotLeft - Y_AXIS.TICK_LABEL_OFFSET
     const xTick = plotLeft - 5
 
@@ -582,9 +636,14 @@
     ctx.textAlign = 'right'
     ctx.textBaseline = 'middle'
 
-    for (let i = 0; i < tickPercents.length; i++) {
-      const percent = tickPercents[i]
-      if (percent === 0) {
+    for (let i = 0; i < ticks.length; i++) {
+      const value = ticks[i]
+      const offset = (value / axisHalfRange) * halfHeight
+      const yUpper = centerY - offset
+      const yLower = centerY + offset
+
+      // 0 is drawn once at the center
+      if (value === 0) {
         ctx.beginPath()
         ctx.moveTo(xTick, centerY)
         ctx.lineTo(plotLeft, centerY)
@@ -593,22 +652,17 @@
         continue
       }
 
-      const value = (percent / 100) * (maxValue * 2) // centered layout
-      const offset = (value / maxValue) * halfHeight
-      const yUpper = centerY - offset
-      const yLower = centerY + offset
-
       ctx.beginPath()
       ctx.moveTo(xTick, yUpper)
       ctx.lineTo(plotLeft, yUpper)
       ctx.stroke()
-      ctx.fillText(percent.toString(), xLabel, yUpper)
+      ctx.fillText(formatAxisTick(value), xLabel, yUpper)
 
       ctx.beginPath()
       ctx.moveTo(xTick, yLower)
       ctx.lineTo(plotLeft, yLower)
       ctx.stroke()
-      ctx.fillText(`-${percent}`, xLabel, yLower)
+      ctx.fillText(`-${formatAxisTick(value)}`, xLabel, yLower)
     }
 
     // Axis label
