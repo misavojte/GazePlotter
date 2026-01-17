@@ -29,7 +29,6 @@ export function getAoiStreamPlotData(
   const data = getData()
   const stimulusId = settings.stimulusId
   const groupIdUpper = settings.groupIdUpper
-  const groupIdLower = settings.groupIdLower
 
   const aois = getAois(stimulusId)
   const orderVector = getAoiOrderVector(stimulusId)
@@ -39,20 +38,14 @@ export function getAoiStreamPlotData(
     .filter((aoi): aoi is (typeof aois)[number] => Boolean(aoi))
 
   const upperParticipantIds = getParticipantsIds(groupIdUpper, stimulusId)
-  const lowerParticipantIds = getParticipantsIds(groupIdLower, stimulusId)
 
   const maxTimeUpper = upperParticipantIds.reduce(
     (max, participantId) =>
       Math.max(max, getParticipantEndTime(stimulusId, participantId)),
     0
   )
-  const maxTimeLower = lowerParticipantIds.reduce(
-    (max, participantId) =>
-      Math.max(max, getParticipantEndTime(stimulusId, participantId)),
-    0
-  )
 
-  const safeMaxTime = Math.max(1, maxTimeUpper, maxTimeLower)
+  const safeMaxTime = Math.max(1, maxTimeUpper)
   const binCount = Math.max(1, settings.binCount ?? DEFAULT_BIN_COUNT)
   const binSize = safeMaxTime / binCount
 
@@ -227,18 +220,17 @@ export function getAoiStreamPlotData(
   }
 
   const upperResult = computeSeriesForParticipants(upperParticipantIds)
-  const lowerResult = computeSeriesForParticipants(lowerParticipantIds)
 
   return {
     upperSeries: upperResult.series,
-    lowerSeries: lowerResult.series,
+    lowerSeries: [],
     timeline: new AdaptiveTimeline(0, safeMaxTime, 6),
     binCount,
     binSize,
     maxTime: safeMaxTime,
     upperParticipants: upperParticipantIds.length,
-    lowerParticipants: lowerParticipantIds.length,
+    lowerParticipants: 0,
     upperMaxTotal: upperResult.maxTotal,
-    lowerMaxTotal: lowerResult.maxTotal,
+    lowerMaxTotal: 0,
   }
 }

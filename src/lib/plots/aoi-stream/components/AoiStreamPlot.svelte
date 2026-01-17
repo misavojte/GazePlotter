@@ -77,18 +77,6 @@
     })
   }
 
-  function handleLowerGroupChange(event: CustomEvent) {
-    const newGroupId = event.detail as string
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      source,
-      settings: {
-        groupIdLower: parseInt(newGroupId),
-      },
-    })
-  }
-
   let stimulusOptions =
     $state<{ label: string; value: string }[]>(getStimuliOptions())
 
@@ -109,16 +97,10 @@
       onchange: handleStimulusChange,
     },
     {
-      label: 'Upper',
+      label: 'Group',
       options: groupOptions,
       value: settings.groupIdUpper.toString(),
       onchange: handleUpperGroupChange,
-    },
-    {
-      label: 'Lower',
-      options: groupOptions,
-      value: settings.groupIdLower.toString(),
-      onchange: handleLowerGroupChange,
     },
   ])
 

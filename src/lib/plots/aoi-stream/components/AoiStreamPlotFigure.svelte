@@ -53,6 +53,10 @@
   const FLOW_CURVE_TENSION = 0.12
   const X_AXIS_LABEL = getXAxisLabel('absolute')
   const X_AXIS_LABEL_OFFSET = 24
+  const AREA_DIVIDER = {
+    COLOR: 'rgba(255, 255, 255, 0.6)',
+    WIDTH: 0.75,
+  }
 
   type AoiStreamPlotFigureProps = {
     width: number
@@ -154,11 +158,9 @@
     if (!ctx) return
 
     const upperSeries = data.upperSeries
-    const lowerSeries = data.lowerSeries
     const binCount = data.binCount
 
     const upperParticipants = Math.max(1, data.upperParticipants)
-    const lowerParticipants = Math.max(1, data.lowerParticipants)
 
     if (plotAreaWidth <= 0 || plotAreaHeight <= 0 || binCount <= 0) {
       finishCanvasDrawing(canvasState)
@@ -169,17 +171,11 @@
 
     const centerY = plotTop + plotAreaHeight / 2
     const halfHeight = plotAreaHeight / 2
-    const scaleYUpper = halfHeight / upperParticipants
-    const scaleYLower = halfHeight / lowerParticipants
+    const scaleY = halfHeight / upperParticipants
 
     const upperValues: Float32Array[] = new Array(upperSeries.length)
-    const lowerValues: Float32Array[] = new Array(lowerSeries.length)
-
     for (let s = 0; s < upperSeries.length; s++) {
       upperValues[s] = new Float32Array(upperSeries[s].values)
-    }
-    for (let s = 0; s < lowerSeries.length; s++) {
-      lowerValues[s] = new Float32Array(lowerSeries[s].values)
     }
 
     const y0 = new Float32Array(binCount)
@@ -222,35 +218,37 @@
     const topYs = new Float32Array(binCount)
     const bottomYs = new Float32Array(binCount)
 
-    const drawStack = (
+    const drawCenteredStack = (
       seriesValues: Float32Array[],
       seriesMeta: typeof upperSeries,
-      direction: 'up' | 'down',
-      scaleY: number,
       clampMax: number
     ) => {
       const cumulative = new Float32Array(binCount)
+      const totals = new Float32Array(binCount)
 
       for (let s = 0; s < seriesValues.length; s++) {
         const values = seriesValues[s]
         for (let i = 0; i < binCount; i++) {
-          const startValue = cumulative[i]
+          totals[i] += values[i]
+        }
+      }
+
+      for (let s = 0; s < seriesValues.length; s++) {
+        const values = seriesValues[s]
+        for (let i = 0; i < binCount; i++) {
+          const offset = totals[i] / 2
+          const startValue = cumulative[i] - offset
           const nextValue = startValue + values[i]
           y0[i] = startValue
           y1[i] = nextValue
-          cumulative[i] = nextValue
+          cumulative[i] += values[i]
 
           const x = plotLeft + ((i + 0.5) / binCount) * plotAreaWidth
           xs[i] = x
-          const clampedStart = Math.min(y0[i], clampMax)
-          const clampedEnd = Math.min(y1[i], clampMax)
-          if (direction === 'up') {
-            topYs[i] = centerY - clampedEnd * scaleY
-            bottomYs[i] = centerY - clampedStart * scaleY
-          } else {
-            topYs[i] = centerY + clampedEnd * scaleY
-            bottomYs[i] = centerY + clampedStart * scaleY
-          }
+          const clampedStart = Math.max(-clampMax, Math.min(y0[i], clampMax))
+          const clampedEnd = Math.max(-clampMax, Math.min(y1[i], clampMax))
+          topYs[i] = centerY - clampedEnd * scaleY
+          bottomYs[i] = centerY - clampedStart * scaleY
         }
 
         ctx.beginPath()
@@ -262,19 +260,16 @@
         ctx.fillStyle = seriesMeta[s]?.color ?? '#000'
         ctx.globalAlpha = 1
         ctx.fill()
+
+        ctx.strokeStyle = AREA_DIVIDER.COLOR
+        ctx.lineWidth = AREA_DIVIDER.WIDTH
+        ctx.lineJoin = 'round'
+        ctx.lineCap = 'round'
+        ctx.stroke()
       }
     }
 
-    drawStack(upperValues, upperSeries, 'up', scaleYUpper, upperParticipants)
-    drawStack(lowerValues, lowerSeries, 'down', scaleYLower, lowerParticipants)
-
-    // Center baseline
-    ctx.strokeStyle = AXIS.BASELINE_COLOR
-    ctx.lineWidth = 1
-    ctx.beginPath()
-    ctx.moveTo(plotLeft, centerY)
-    ctx.lineTo(plotLeft + plotAreaWidth, centerY)
-    ctx.stroke()
+    drawCenteredStack(upperValues, upperSeries, upperParticipants)
 
     setUpFont(ctx)
 
@@ -451,7 +446,7 @@
       ctx.moveTo(xTick, yLower)
       ctx.lineTo(plotLeft, yLower)
       ctx.stroke()
-      ctx.fillText(percent.toString(), xLabel, yLower)
+      ctx.fillText(`-${percent}`, xLabel, yLower)
     }
 
     // Axis label
