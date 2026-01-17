@@ -110,15 +110,9 @@ export class EyePipeline {
     userStringInput: string,
     decoder: TextDecoder
   ): void {
-    const dataFromSplitter = splitter.release()
-    for (let i = 0; i < dataFromSplitter.length; i++) {
-      this.processRowBytes(
-        dataFromSplitter[i],
-        settings,
-        userStringInput,
-        decoder
-      )
-    }
+    splitter.releaseTo(row => {
+      this.processRowBytes(row, settings, userStringInput, decoder)
+    })
 
     this.finalizeFile()
     this.fileCount++
@@ -131,44 +125,6 @@ export class EyePipeline {
     return classifier.classify(chunk)
   }
 
-  private createStreamWithFirstChunk(
-    reader: ReadableStreamDefaultReader<Uint8Array>,
-    firstChunk: Uint8Array,
-    firstDone: boolean
-  ): ReadableStream<Uint8Array> {
-    if (firstDone && firstChunk.length === 0) {
-      return new ReadableStream({
-        start(controller) {
-          controller.close()
-        },
-      })
-    }
-
-    return new ReadableStream({
-      start(controller) {
-        if (firstChunk.length > 0) controller.enqueue(firstChunk)
-        if (firstDone) {
-          controller.close()
-          return
-        }
-        const pump = (): void => {
-          reader
-            .read()
-            .then(({ value, done }) => {
-              if (done) {
-                controller.close()
-                return
-              }
-              if (value) controller.enqueue(value)
-              pump()
-            })
-            .catch(error => controller.error(error))
-        }
-        pump()
-      },
-    })
-  }
-
   processChunkBytes(
     chunk: Uint8Array,
     settings: EyeSettingsType,
@@ -176,10 +132,9 @@ export class EyePipeline {
     userStringInput: string,
     decoder: TextDecoder
   ): void {
-    const rows = splitter.splitChunk(chunk)
-    for (let i = 0; i < rows.length; i++) {
-      this.processRowBytes(rows[i], settings, userStringInput, decoder)
-    }
+    splitter.processChunk(chunk, row => {
+      this.processRowBytes(row, settings, userStringInput, decoder)
+    })
   }
 
   private processRowBytes(

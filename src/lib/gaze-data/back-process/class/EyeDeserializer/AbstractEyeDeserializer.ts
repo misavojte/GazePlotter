@@ -191,32 +191,16 @@ export abstract class AbstractEyeDeserializer {
       return
     }
 
-    const mapping = new Map<
-      number,
-      { packed: number[]; aoiIndex: number | null }
-    >()
+    const mapping = new Map<number, { packed: number[] }>()
     for (let packed = 0; packed < this.columnMap.length; packed++) {
       const raw = this.columnMap[packed]
       if (raw < 0) continue
       let entry = mapping.get(raw)
       if (!entry) {
-        entry = { packed: [], aoiIndex: null }
+        entry = { packed: [] }
         mapping.set(raw, entry)
       }
       entry.packed.push(packed)
-    }
-
-    if (this.aoiCount > 0) {
-      for (let i = 0; i < this.aoiCount; i++) {
-        const raw = this.aoiStart + i
-        let entry = mapping.get(raw)
-        if (!entry) {
-          entry = { packed: [], aoiIndex: i }
-          mapping.set(raw, entry)
-        } else {
-          entry.aoiIndex = i
-        }
-      }
     }
 
     const cases: string[] = []
@@ -230,22 +214,6 @@ export abstract class AbstractEyeDeserializer {
           `currRangeStart[${packed}] = start; currRangeEnd[${packed}] = end; currRangeStamp[${packed}] = rowId;`
         )
       }
-      if (entry.aoiIndex !== null) {
-        const idx = entry.aoiIndex
-        if (encodingKind === 1) {
-          body.push(
-            `currAoi[${idx}] = end === start + 2 && bytes[start] === 49 && bytes[start + 1] === 0 ? 1 : 0;`
-          )
-        } else if (encodingKind === 2) {
-          body.push(
-            `currAoi[${idx}] = end === start + 2 && bytes[start] === 0 && bytes[start + 1] === 49 ? 1 : 0;`
-          )
-        } else {
-          body.push(
-            `currAoi[${idx}] = end === start + 1 && bytes[start] === 49 ? 1 : 0;`
-          )
-        }
-      }
       cases.push(`case ${raw}: { ${body.join(' ')} break; }`)
     }
 
@@ -256,6 +224,15 @@ export abstract class AbstractEyeDeserializer {
     const delimBytes = Array.from(this.delimBytes)
     const delimLen = this.delimBytesLen
     const delimByte = delimLen === 1 ? delimBytes[0] : 0
+
+    const aoiSetter =
+      this.aoiCount > 0
+        ? encodingKind === 1
+          ? `if (col >= aoiStart && col < aoiStart + aoiCount) { const idx = col - aoiStart; currAoi[idx] = end === start + 2 && bytes[start] === 49 && bytes[start + 1] === 0 ? 1 : 0; }`
+          : encodingKind === 2
+            ? `if (col >= aoiStart && col < aoiStart + aoiCount) { const idx = col - aoiStart; currAoi[idx] = end === start + 2 && bytes[start] === 0 && bytes[start + 1] === 49 ? 1 : 0; }`
+            : `if (col >= aoiStart && col < aoiStart + aoiCount) { const idx = col - aoiStart; currAoi[idx] = end === start + 1 && bytes[start] === 49 ? 1 : 0; }`
+        : ''
 
     const parserSource = `
       return function(rawRow) {
@@ -282,6 +259,7 @@ export abstract class AbstractEyeDeserializer {
           for (let i = 0; i < n; i++) {
             if (bytes[i] !== d) continue;
             const end = i;
+            ${aoiSetter}
             ${switchBlock}
             if (col >= maxNeededCol) {
               if (aoiCount > 0) {
@@ -308,6 +286,7 @@ export abstract class AbstractEyeDeserializer {
             if (match && ${delimLen} > 3 && bytes[i + 3] !== d3) match = false;
             if (!match) continue;
             const end = i;
+            ${aoiSetter}
             ${switchBlock}
             if (col >= maxNeededCol) {
               if (aoiCount > 0) {
@@ -325,6 +304,7 @@ export abstract class AbstractEyeDeserializer {
         }
 
         const end = n;
+        ${aoiSetter}
         ${switchBlock}
         if (aoiCount > 0) {
           const lastSeenAoi = col >= aoiStart ? col - aoiStart : -1;
