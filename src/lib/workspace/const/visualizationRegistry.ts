@@ -57,7 +57,7 @@ export const visualizationRegistry: Record<string, VisualizationConfig> = {
       showBelowMinLabels: false, // Don't show labels for values below minimum by default
       showAboveMaxLabels: false, // Don't show labels for values above maximum by default
       colorScale: ['#f7fbff', '#08306b'], // Default blue gradient
-      min: { w: 11, h: 12 },
+      min: { w: 12, h: 12 },
     }),
     getDefaultHeight: () => 12, // Default square size
     getDefaultWidth: () => 12,
@@ -88,7 +88,7 @@ export const visualizationRegistry: Record<string, VisualizationConfig> = {
       groupId: params.groupId ?? -1,
       binCount: 200,
       absoluteStimuliLimits: [],
-      min: { w: 12, h: 12 },
+      min: { w: 12, h: 10 },
     }),
     getDefaultHeight: () => 12,
     getDefaultWidth: () => 12,
