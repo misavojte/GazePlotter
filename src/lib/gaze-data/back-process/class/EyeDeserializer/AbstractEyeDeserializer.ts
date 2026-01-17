@@ -78,7 +78,8 @@ export abstract class AbstractEyeDeserializer {
     this.delimLen = 1
     this.delimCh = columnDelimiter.charCodeAt(0)
     this.encoding = encoding
-    this.encodingKind = encoding === 'utf-16le' ? 1 : encoding === 'utf-16be' ? 2 : 0
+    this.encodingKind =
+      encoding === 'utf-16le' ? 1 : encoding === 'utf-16be' ? 2 : 0
     this.delimBytes = this.encodeDelimiter(columnDelimiter, encoding)
     this.delimBytesLen = this.delimBytes.length
   }
@@ -450,52 +451,52 @@ export abstract class AbstractEyeDeserializer {
 
         const end = i
 
-      if (col >= this.minNeededCol && col <= this.maxNeededCol) {
-        if (hasPacked) {
-          let node = packedHead[col]
-          if (node !== -1) {
-            do {
-              const packed = packedIndex[node]
-              this.currRangeStart[packed] = start
-              this.currRangeEnd[packed] = end
-              this.currRangeStamp[packed] = this.rowId
-              node = packedNext[node]
-            } while (node !== -1)
+        if (col >= this.minNeededCol && col <= this.maxNeededCol) {
+          if (hasPacked) {
+            let node = packedHead[col]
+            if (node !== -1) {
+              do {
+                const packed = packedIndex[node]
+                this.currRangeStart[packed] = start
+                this.currRangeEnd[packed] = end
+                this.currRangeStamp[packed] = this.rowId
+                node = packedNext[node]
+              } while (node !== -1)
+            }
+          }
+
+          if (col >= aoiStart && col < aoiEnd) {
+            const idx = col - aoiStart
+            if (encodingKind === 1) {
+              this.currAoi[idx] =
+                end === start + 2 &&
+                bytes[start] === 49 &&
+                bytes[start + 1] === 0
+                  ? 1
+                  : 0
+            } else if (encodingKind === 2) {
+              this.currAoi[idx] =
+                end === start + 2 &&
+                bytes[start] === 0 &&
+                bytes[start + 1] === 49
+                  ? 1
+                  : 0
+            } else {
+              this.currAoi[idx] =
+                end === start + 1 && bytes[start] === 49 ? 1 : 0
+            }
           }
         }
 
-        if (col >= aoiStart && col < aoiEnd) {
-          const idx = col - aoiStart
-          if (encodingKind === 1) {
-            this.currAoi[idx] =
-              end === start + 2 &&
-              bytes[start] === 49 &&
-              bytes[start + 1] === 0
-                ? 1
-                : 0
-          } else if (encodingKind === 2) {
-            this.currAoi[idx] =
-              end === start + 2 &&
-              bytes[start] === 0 &&
-              bytes[start + 1] === 49
-                ? 1
-                : 0
-          } else {
-            this.currAoi[idx] =
-              end === start + 1 && bytes[start] === 49 ? 1 : 0
+        if (col >= this.maxNeededCol) {
+          if (this.aoiCount > 0) {
+            const lastSeenAoi = col >= aoiStart ? col - aoiStart : -1
+            const firstMissing = Math.max(0, lastSeenAoi + 1)
+            if (firstMissing < this.aoiCount) this.currAoi.fill(0, firstMissing)
           }
+          this.deserializeFromBytes(rawRow)
+          return
         }
-      }
-
-      if (col >= this.maxNeededCol) {
-        if (this.aoiCount > 0) {
-          const lastSeenAoi = col >= aoiStart ? col - aoiStart : -1
-          const firstMissing = Math.max(0, lastSeenAoi + 1)
-          if (firstMissing < this.aoiCount) this.currAoi.fill(0, firstMissing)
-        }
-        this.deserializeFromBytes(rawRow)
-        return
-      }
 
         i += delimBytesLen - 1
         start = i + 1
@@ -522,21 +523,16 @@ export abstract class AbstractEyeDeserializer {
         const idx = col - aoiStart
         if (encodingKind === 1) {
           this.currAoi[idx] =
-            end === start + 2 &&
-            bytes[start] === 49 &&
-            bytes[start + 1] === 0
+            end === start + 2 && bytes[start] === 49 && bytes[start + 1] === 0
               ? 1
               : 0
         } else if (encodingKind === 2) {
           this.currAoi[idx] =
-            end === start + 2 &&
-            bytes[start] === 0 &&
-            bytes[start + 1] === 49
+            end === start + 2 && bytes[start] === 0 && bytes[start + 1] === 49
               ? 1
               : 0
         } else {
-          this.currAoi[idx] =
-            end === start + 1 && bytes[start] === 49 ? 1 : 0
+          this.currAoi[idx] = end === start + 1 && bytes[start] === 49 ? 1 : 0
         }
       }
     }

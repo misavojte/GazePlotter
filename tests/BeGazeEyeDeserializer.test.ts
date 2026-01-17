@@ -6,7 +6,10 @@
  */
 
 import { BeGazeEyeDeserializer } from '$lib/gaze-data/back-process/class/EyeDeserializer/BeGazeEyeDeserializer'
-import { decodeBytes, encodeString } from '$lib/gaze-data/back-process/utils/byteUtils'
+import {
+  decodeBytes,
+  encodeString,
+} from '$lib/gaze-data/back-process/utils/byteUtils'
 import { test, expect, describe } from 'vitest'
 
 const begazeMockData = `Event Start Trial Time [ms],Event End Trial Time [ms],Stimulus,Participant,Category,AOI Name

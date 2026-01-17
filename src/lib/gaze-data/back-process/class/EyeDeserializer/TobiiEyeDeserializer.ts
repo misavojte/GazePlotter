@@ -194,9 +194,14 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     const participantBytes = this.getBytes(this.pParticipant)
     const eyeMovementTypeIndexBytes = this.getBytes(this.pEyeMovementTypeIndex)
 
-    const recordingChanged = !bytesEqual(recordingBytes, this.lastRecordingBytes)
-    const participantChanged =
-      !bytesEqual(participantBytes, this.lastParticipantBytes)
+    const recordingChanged = !bytesEqual(
+      recordingBytes,
+      this.lastRecordingBytes
+    )
+    const participantChanged = !bytesEqual(
+      participantBytes,
+      this.lastParticipantBytes
+    )
 
     if (recordingChanged) {
       this.lastRecordingBytes = recordingBytes.length ? recordingBytes : null

@@ -6,7 +6,10 @@
  */
 
 import { CsvEyeDeserializer } from '$lib/gaze-data/back-process/class/EyeDeserializer/CsvEyeDeserializer'
-import { decodeBytes, encodeString } from '$lib/gaze-data/back-process/utils/byteUtils'
+import {
+  decodeBytes,
+  encodeString,
+} from '$lib/gaze-data/back-process/utils/byteUtils'
 import { test, expect, describe } from 'vitest'
 
 const csvMockDataOne = `Time,Participant,Stimulus,AOI

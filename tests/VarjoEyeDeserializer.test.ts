@@ -7,7 +7,10 @@
 
 import { VarjoEyeDeserializer } from '$lib/gaze-data/back-process/class/EyeDeserializer/VarjoEyeDeserializer'
 import { test, expect, describe } from 'vitest'
-import { decodeBytes, encodeString } from '$lib/gaze-data/back-process/utils/byteUtils'
+import {
+  decodeBytes,
+  encodeString,
+} from '$lib/gaze-data/back-process/utils/byteUtils'
 
 /*
   constructor (header: string[], fileName: string) {

@@ -24,11 +24,14 @@ Sequence Similarity,Scanpath string
 Participant_1,ABCD`
 
 // Mock CSV data with proper line endings (\r\n)
-const mockCsvData = 'Time,Participant,Stimulus,AOI\r\n0,Participant_1,Map_A,Region_1\r\n1,Participant_1,Map_A,Region_1'
+const mockCsvData =
+  'Time,Participant,Stimulus,AOI\r\n0,Participant_1,Map_A,Region_1\r\n1,Participant_1,Map_A,Region_1'
 
-const mockCsvSegmentedData = 'From,To,Participant,Stimulus,AOI\r\n0,1,Participant_1,Map_A,Region_1\r\n1,2,Participant_1,Map_A,Region_1'
+const mockCsvSegmentedData =
+  'From,To,Participant,Stimulus,AOI\r\n0,1,Participant_1,Map_A,Region_1\r\n1,2,Participant_1,Map_A,Region_1'
 
-const mockCsvSegmentedDurationData = 'stimulus,participant,timestamp,duration,eyemovementtype,AOI\r\nSMI Base,Anna,226.2,72,1,\r\nSMI Base,Anna,298.2,120,0,Map'
+const mockCsvSegmentedDurationData =
+  'stimulus,participant,timestamp,duration,eyemovementtype,AOI\r\nSMI Base,Anna,226.2,72,1,\r\nSMI Base,Anna,298.2,120,0,Map'
 
 describe('EyeClassifier', () => {
   test('Constructor', () => {
@@ -149,7 +152,9 @@ describe('EyeClassifier - Type detection methods', () => {
   test('getTypeFromSlice prioritizes more specific formats', () => {
     const sut = new EyeClassifier()
     // Duration-based should be detected before regular segmented
-    expect(sut.getTypeFromSlice(mockCsvSegmentedDurationData)).toBe('csv-segmented-duration')
+    expect(sut.getTypeFromSlice(mockCsvSegmentedDurationData)).toBe(
+      'csv-segmented-duration'
+    )
     // Segmented should be detected before regular CSV
     expect(sut.getTypeFromSlice(mockCsvSegmentedData)).toBe('csv-segmented')
     // Regular CSV is detected last

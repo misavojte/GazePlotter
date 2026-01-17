@@ -7,7 +7,10 @@
 
 import { test, expect, describe } from 'vitest'
 import { GazePointEyeDeserializer } from '$lib/gaze-data/back-process/class/EyeDeserializer/GazePointEyeDeserializer'
-import { decodeBytes, encodeString } from '$lib/gaze-data/back-process/utils/byteUtils'
+import {
+  decodeBytes,
+  encodeString,
+} from '$lib/gaze-data/back-process/utils/byteUtils'
 
 const separator = ','
 const header =

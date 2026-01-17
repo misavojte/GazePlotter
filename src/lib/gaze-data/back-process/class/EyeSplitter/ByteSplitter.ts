@@ -66,7 +66,8 @@ export class ByteSplitter {
       return []
     }
 
-    this.lastRow = lastEnd < buffer.length ? buffer.subarray(lastEnd) : new Uint8Array(0)
+    this.lastRow =
+      lastEnd < buffer.length ? buffer.subarray(lastEnd) : new Uint8Array(0)
     return rows
   }
 
