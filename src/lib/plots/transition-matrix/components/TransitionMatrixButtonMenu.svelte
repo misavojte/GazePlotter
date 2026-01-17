@@ -48,18 +48,22 @@
 
   const openAoiModificationModal = () => {
     modalStore.open(ModalContentAoiModification as any, 'AOI customization', {
-      settings,
+      selectedStimulus: settings.stimulusId.toString(),
       source,
       onWorkspaceCommand,
     })
   }
 
   const openUserGroupsModal = () => {
-    modalStore.open(ModalContentParticipantsGroups as any, 'Participants groups', {
-      settings,
-      source,
-      onWorkspaceCommand,
-    })
+    modalStore.open(
+      ModalContentParticipantsGroups as any,
+      'Participants groups',
+      {
+        settings,
+        source,
+        onWorkspaceCommand,
+      }
+    )
   }
 
   const openColorScaleModal = () => {
