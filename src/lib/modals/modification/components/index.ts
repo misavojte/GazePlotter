@@ -3,6 +3,7 @@ export { default as ModalContentMaxValue } from './ModalContentMaxValue.svelte'
 export { default as ModalContentColorScale } from './ModalContentColorScale.svelte'
 export { default as ModalContentBarChartAxes } from './ModalContentBarChartAxes.svelte'
 export { default as ModalContentScarfPlotClip } from './ModalContentScarfPlotClip.svelte'
+export { default as ModalContentAoiStreamPlotClip } from './ModalContentAoiStreamPlotClip.svelte'
 
 // Data Management Modals
 export { default as ModalContentAoiModification } from './ModalContentAoiModification.svelte'

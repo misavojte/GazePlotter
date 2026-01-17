@@ -12,6 +12,8 @@
     setupDpiChangeListeners,
     beginCanvasDrawing,
     finishCanvasDrawing,
+    getScaledMousePosition,
+    getTooltipPosition,
     type CanvasState,
   } from '$lib/shared/utils/canvasUtils'
   import {
@@ -23,6 +25,7 @@
     getXAxisLabel,
     getItemsPerRow,
   } from '$lib/plots/scarf/utils'
+  import { updateTooltip } from '$lib/tooltip'
   import type { AoiStreamPlotResult } from '$lib/plots/aoi-stream/types'
 
   const MARGIN = {
@@ -59,13 +62,15 @@
   const X_AXIS_LABEL_OFFSET = 24
   const AREA_DIVIDER = {
     COLOR: 'rgba(255, 255, 255, 0.6)',
-    WIDTH: 0.75,
+    WIDTH: 1,
   }
 
   type AoiStreamPlotFigureProps = {
     width: number
     height: number
     data: AoiStreamPlotResult
+    highlights?: string[]
+    onLegendClick?: (aoiId: number) => void
     dpiOverride?: number | null
     marginTop?: number
     marginRight?: number
@@ -77,6 +82,8 @@
     width,
     height,
     data,
+    highlights = [],
+    onLegendClick = () => {},
     dpiOverride = null,
     marginTop = 0,
     marginRight = 0,
@@ -87,17 +94,51 @@
   let canvas = $state<HTMLCanvasElement | null>(null)
   let canvasState = $state<CanvasState>(createCanvasState())
 
+  // Zero-allocation rendering pipeline: pre-allocated buckets
+  let renderBuckets = $state<{
+    xPositions: Float32Array
+    seriesBuckets: Array<{
+      topY: Float32Array
+      bottomY: Float32Array
+    }>
+    binCount: number
+  } | null>(null)
+
+  // Hover state for legend tooltips
+  let hoveredLegendItem = $state<{
+    id: number
+    label: string
+    x: number
+    y: number
+  } | null>(null)
+
+  // Hover state for plot area bins
+  let hoveredBinIndex = $state<number | null>(null)
+
+  // Use highlights directly from props
+  const usedHighlights = $derived(highlights)
+
+  // Highlight mask by AOI ID (computed once per highlight change)
+  const highlightMaskById = $derived.by(() => {
+    if (!usedHighlights || usedHighlights.length === 0) return null
+    const mask = new Map<number, boolean>()
+    for (let i = 0; i < usedHighlights.length; i++) {
+      const id = parseInt(usedHighlights[i])
+      if (!isNaN(id)) mask.set(id, true)
+    }
+    return mask
+  })
+
   const safeNumber = (value: number, fallback: number) =>
     Number.isFinite(value) ? value : fallback
 
-  const safeWidth = $derived.by(() => Math.max(1, safeNumber(width, 1)))
-  const safeHeight = $derived.by(() => Math.max(1, safeNumber(height, 1)))
-
-  // Export margins can be edited via inputs; treat temporary invalid states as 0
-  const safeMarginTop = $derived.by(() => safeNumber(marginTop, 0))
-  const safeMarginRight = $derived.by(() => safeNumber(marginRight, 0))
-  const safeMarginBottom = $derived.by(() => safeNumber(marginBottom, 0))
-  const safeMarginLeft = $derived.by(() => safeNumber(marginLeft, 0))
+  // Memoized safe values (compute once per change)
+  const safeWidth = $derived(Math.max(1, safeNumber(width, 1)))
+  const safeHeight = $derived(Math.max(1, safeNumber(height, 1)))
+  const safeMarginTop = $derived(safeNumber(marginTop, 0))
+  const safeMarginRight = $derived(safeNumber(marginRight, 0))
+  const safeMarginBottom = $derived(safeNumber(marginBottom, 0))
+  const safeMarginLeft = $derived(safeNumber(marginLeft, 0))
 
   const exportRegistrar = getContext<ExportSourceRegistrar | undefined>(
     EXPORT_SOURCE_CONTEXT
@@ -114,7 +155,7 @@
     }
   })
 
-  const legendItemsPerRow = $derived.by(() =>
+  const legendItemsPerRow = $derived(
     Math.max(
       1,
       getItemsPerRow({
@@ -129,17 +170,15 @@
     )
   )
 
-  const legendRows = $derived.by(() =>
-    data.upperSeries.length
-      ? Math.ceil(data.upperSeries.length / legendItemsPerRow)
-      : 0
+  const legendRows = $derived(
+    data.series.length ? Math.ceil(data.series.length / legendItemsPerRow) : 0
   )
 
-  const legendHeight = $derived.by(() =>
+  const legendHeight = $derived(
     legendRows === 0
       ? 0
       : legendRows * (LEGEND.ITEM_HEIGHT + LEGEND.ROW_PADDING) +
-        LEGEND.TOP_PADDING
+          LEGEND.TOP_PADDING
   )
 
   // `width`/`height` already represent the drawable area excluding export margins.
@@ -165,6 +204,28 @@
     }
   }
 
+  // Initialize or reallocate render buckets when binCount changes
+  function ensureRenderBuckets(binCount: number, seriesCount: number) {
+    if (
+      !renderBuckets ||
+      renderBuckets.binCount !== binCount ||
+      renderBuckets.seriesBuckets.length !== seriesCount
+    ) {
+      const xPositions = new Float32Array(binCount)
+      const seriesBuckets = new Array(seriesCount)
+
+      for (let i = 0; i < seriesCount; i++) {
+        seriesBuckets[i] = {
+          topY: new Float32Array(binCount),
+          bottomY: new Float32Array(binCount),
+        }
+      }
+
+      renderBuckets = { xPositions, seriesBuckets, binCount }
+    }
+    return renderBuckets
+  }
+
   function initCanvas() {
     if (!canvas) return
     canvasState = setupCanvas(canvasState, canvas, dpiOverride)
@@ -187,10 +248,10 @@
     const ctx = canvasState.context
     if (!ctx) return
 
-    const upperSeries = data.upperSeries
+    const series = data.series
     const binCount = data.binCount
 
-    const upperParticipants = Math.max(1, data.upperParticipants)
+    const maxTotal = Math.max(1, data.maxTotal) / 2 // for centered layout this is correct
 
     if (
       !Number.isFinite(plotAreaWidth) ||
@@ -209,15 +270,17 @@
 
     const centerY = plotTop + plotAreaHeight / 2
     const halfHeight = plotAreaHeight / 2
-    const scaleY = halfHeight / upperParticipants
+    const scaleY = halfHeight / maxTotal
 
-    const upperValues: Float32Array[] = new Array(upperSeries.length)
-    for (let s = 0; s < upperSeries.length; s++) {
-      upperValues[s] = new Float32Array(upperSeries[s].values)
+    // Zero-allocation pipeline: ensure buckets are ready
+    const buckets = ensureRenderBuckets(binCount, series.length)
+    const { xPositions, seriesBuckets } = buckets
+
+    // Pre-compute X positions once (reused across all series)
+    const invBinCount = 1 / binCount
+    for (let i = 0; i < binCount; i++) {
+      xPositions[i] = plotLeft + (i + 0.5) * invBinCount * plotAreaWidth
     }
-
-    const y0 = new Float32Array(binCount)
-    const y1 = new Float32Array(binCount)
 
     const drawCatmullRom = (
       xs: Float32Array,
@@ -252,75 +315,103 @@
       }
     }
 
-    const xs = new Float32Array(binCount)
-    const topYs = new Float32Array(binCount)
-    const bottomYs = new Float32Array(binCount)
+    // Draw centered streamgraph with white borders
+    const cumulative = new Float32Array(binCount)
+    const totals = new Float32Array(binCount)
 
-    const drawCenteredStack = (
-      seriesValues: Float32Array[],
-      seriesMeta: typeof upperSeries,
-      clampMax: number
-    ) => {
-      const cumulative = new Float32Array(binCount)
-      const totals = new Float32Array(binCount)
-
-      for (let s = 0; s < seriesValues.length; s++) {
-        const values = seriesValues[s]
-        for (let i = 0; i < binCount; i++) {
-          totals[i] += values[i]
-        }
-      }
-
-      for (let s = 0; s < seriesValues.length; s++) {
-        const values = seriesValues[s]
-        for (let i = 0; i < binCount; i++) {
-          const offset = totals[i] / 2
-          const startValue = cumulative[i] - offset
-          const nextValue = startValue + values[i]
-          y0[i] = startValue
-          y1[i] = nextValue
-          cumulative[i] += values[i]
-
-          const x = plotLeft + ((i + 0.5) / binCount) * plotAreaWidth
-          xs[i] = x
-          const clampedStart = Math.max(-clampMax, Math.min(y0[i], clampMax))
-          const clampedEnd = Math.max(-clampMax, Math.min(y1[i], clampMax))
-          topYs[i] = centerY - clampedEnd * scaleY
-          bottomYs[i] = centerY - clampedStart * scaleY
-        }
-
-        ctx.beginPath()
-        ctx.moveTo(xs[0], topYs[0])
-        drawCatmullRom(xs, topYs, true)
-        drawCatmullRom(xs, bottomYs, false)
-
-        ctx.closePath()
-        ctx.fillStyle = seriesMeta[s]?.color ?? '#000'
-        ctx.globalAlpha = 1
-        ctx.fill()
-
-        ctx.strokeStyle = AREA_DIVIDER.COLOR
-        ctx.lineWidth = AREA_DIVIDER.WIDTH
-        ctx.lineJoin = 'round'
-        ctx.lineCap = 'round'
-        ctx.stroke()
+    // Calculate totals for centering
+    for (let s = 0; s < series.length; s++) {
+      const values = series[s].values
+      for (let i = 0; i < binCount; i++) {
+        totals[i] += values[i]
       }
     }
 
-    drawCenteredStack(upperValues, upperSeries, upperParticipants)
+    const invTotals = new Float32Array(binCount)
+    for (let i = 0; i < binCount; i++) {
+      invTotals[i] = totals[i] * 0.5
+    }
+
+    // Draw each series using pre-allocated buckets
+    for (let s = 0; s < series.length; s++) {
+      const values = series[s].values
+      const bucket = seriesBuckets[s]
+      const aoiId = series[s].id
+
+      // Apply highlight dimming
+      const isHighlighted = highlightMaskById?.get(aoiId) ?? false
+      const opacity = highlightMaskById && !isHighlighted ? 0.2 : 1.0
+
+      // Compute Y positions into buckets (centered layout)
+      for (let i = 0; i < binCount; i++) {
+        const startValue = cumulative[i] - invTotals[i]
+        const nextValue = startValue + values[i]
+        cumulative[i] += values[i]
+
+        const clampedStart = Math.max(-maxTotal, Math.min(startValue, maxTotal))
+        const clampedEnd = Math.max(-maxTotal, Math.min(nextValue, maxTotal))
+        bucket.topY[i] = centerY - clampedEnd * scaleY
+        bucket.bottomY[i] = centerY - clampedStart * scaleY
+      }
+
+      // Draw filled area
+      ctx.globalAlpha = opacity
+      ctx.beginPath()
+      ctx.moveTo(xPositions[0], bucket.topY[0])
+      drawCatmullRom(xPositions, bucket.topY, true)
+      drawCatmullRom(xPositions, bucket.bottomY, false)
+      ctx.closePath()
+
+      ctx.fillStyle = series[s].color
+      ctx.fill()
+
+      // Draw thin white border between areas
+      ctx.globalAlpha = 1.0
+      ctx.strokeStyle = AREA_DIVIDER.COLOR
+      ctx.lineWidth = AREA_DIVIDER.WIDTH
+      ctx.lineJoin = 'round'
+      ctx.lineCap = 'round'
+      ctx.stroke()
+    }
+
+    // Reset opacity
+    ctx.globalAlpha = 1.0
+
+    // Draw hovered bin highlight
+    if (hoveredBinIndex !== null) {
+      const binWidth = plotAreaWidth / binCount
+      const binX = plotLeft + hoveredBinIndex * binWidth
+
+      ctx.save()
+      ctx.globalAlpha = 0.2
+      ctx.fillStyle = '#007acc' // Blue highlight color
+      ctx.fillRect(binX, plotTop, binWidth, plotAreaHeight)
+      ctx.restore()
+
+      // Draw vertical line at bin boundary
+      ctx.save()
+      ctx.strokeStyle = '#007acc'
+      ctx.lineWidth = 1
+      ctx.setLineDash([2, 2])
+      ctx.beginPath()
+      ctx.moveTo(binX, plotTop)
+      ctx.lineTo(binX, plotBottom)
+      ctx.moveTo(binX + binWidth, plotTop)
+      ctx.lineTo(binX + binWidth, plotBottom)
+      ctx.stroke()
+      ctx.restore()
+    }
 
     setUpFont(ctx)
 
-    // Y axis labels and ticks
-    drawYAxis(ctx, centerY, halfHeight)
-
-    // Timeline axis labels and ticks (match ScarfPlot styling)
+    // Draw axes and labels
+    drawYAxis(ctx, centerY, halfHeight, maxTotal)
     drawTimelineLabels(ctx)
     drawXAxisLabel(ctx)
     drawXAxisTicksAndBorder(ctx)
 
-    // Legend (below plot, scarf-style)
-    const legendItems = upperSeries
+    // Legend (batched rendering with highlight dimming)
+    const legendItems = series
     if (legendItems.length && legendHeight > 0) {
       const legendX = safeMarginLeft
       const legendY = plotBottom + MARGIN.BOTTOM + LEGEND.TOP_PADDING
@@ -332,9 +423,17 @@
             itemsPerRow
           : legendWidth
 
+      const maxLabelWidth = Math.max(
+        0,
+        itemWidth - LEGEND.ICON_SIZE - LEGEND.TEXT_PADDING
+      )
+
       ctx.textAlign = 'left'
       ctx.textBaseline = 'middle'
 
+      const isHighlightActive = usedHighlights.length > 0
+
+      // Batch 1: Draw all color icons with dimming
       for (let i = 0; i < legendItems.length; i++) {
         const item = legendItems[i]
         const row = Math.floor(i / itemsPerRow)
@@ -345,6 +444,10 @@
           row * (LEGEND.ITEM_HEIGHT + LEGEND.ROW_PADDING) +
           LEGEND.ITEM_HEIGHT / 2
 
+        // Apply highlight dimming
+        const isHighlighted = highlightMaskById?.get(item.id) ?? false
+        ctx.globalAlpha = isHighlightActive && !isHighlighted ? 0.15 : 1.0
+
         ctx.fillStyle = item.color
         ctx.fillRect(
           x,
@@ -352,16 +455,35 @@
           LEGEND.ICON_SIZE,
           LEGEND.ICON_SIZE
         )
+      }
 
-        ctx.fillStyle = AXIS.COLOR
+      // Batch 2: Draw all text labels with dimming
+      ctx.fillStyle = AXIS.COLOR
+      for (let i = 0; i < legendItems.length; i++) {
+        const item = legendItems[i]
+        const row = Math.floor(i / itemsPerRow)
+        const col = i % itemsPerRow
+        const x = legendX + col * (itemWidth + LEGEND.ITEM_SPACING)
+        const y =
+          legendY +
+          row * (LEGEND.ITEM_HEIGHT + LEGEND.ROW_PADDING) +
+          LEGEND.ITEM_HEIGHT / 2
+
+        // Apply highlight dimming
+        const isHighlighted = highlightMaskById?.get(item.id) ?? false
+        ctx.globalAlpha = isHighlightActive && !isHighlighted ? 0.15 : 1.0
+
         const label = truncateTextToPixelWidth(
           item.label,
-          Math.max(0, itemWidth - LEGEND.ICON_SIZE - LEGEND.TEXT_PADDING),
+          maxLabelWidth,
           AXIS.FONT_SIZE,
           SYSTEM_SANS_SERIF_STACK
         )
         ctx.fillText(label, x + LEGEND.ICON_SIZE + LEGEND.TEXT_PADDING, y)
       }
+
+      // Reset opacity
+      ctx.globalAlpha = 1.0
     }
 
     ctx.restore()
@@ -448,9 +570,10 @@
   function drawYAxis(
     ctx: CanvasRenderingContext2D,
     centerY: number,
-    halfHeight: number
+    halfHeight: number,
+    maxValue: number
   ) {
-    const tickPercents = [0, 25, 50, 75, 100]
+    const tickPercents = [0, 25, 50]
     const xLabel = plotLeft - Y_AXIS.TICK_LABEL_OFFSET
     const xTick = plotLeft - 5
 
@@ -470,7 +593,8 @@
         continue
       }
 
-      const offset = (percent / 100) * halfHeight
+      const value = (percent / 100) * (maxValue * 2) // centered layout
+      const offset = (value / maxValue) * halfHeight
       const yUpper = centerY - offset
       const yLower = centerY + offset
 
@@ -499,45 +623,257 @@
     ctx.restore()
   }
 
-  $effect(() => {
-    const _ = [
-      data,
-      safeWidth,
-      safeHeight,
-      dpiOverride,
-      safeMarginTop,
-      safeMarginRight,
-      safeMarginBottom,
-      safeMarginLeft,
-    ]
+  // Check if mouse is over a legend item
+  function isMouseOverLegendItem(mouseX: number, mouseY: number) {
+    const legendItems = data.series
+    if (!legendItems || legendItems.length === 0 || legendHeight === 0)
+      return null
 
-    untrack(() => {
-      if (canvasState.canvas && canvasState.context) {
-        if (canvasState.dpiOverride !== dpiOverride) {
-          canvasState = setupCanvas(
-            canvasState,
-            canvasState.canvas,
-            dpiOverride
-          )
+    const legendX = safeMarginLeft
+    const legendY = plotBottom + MARGIN.BOTTOM + LEGEND.TOP_PADDING
+    const itemsPerRow = legendItemsPerRow
+    const legendWidth = Math.max(0, safeWidth)
+    const itemWidth =
+      itemsPerRow > 0
+        ? (legendWidth - (itemsPerRow - 1) * LEGEND.ITEM_SPACING) / itemsPerRow
+        : legendWidth
+
+    for (let i = 0; i < legendItems.length; i++) {
+      const item = legendItems[i]
+      const row = Math.floor(i / itemsPerRow)
+      const col = i % itemsPerRow
+      const x = legendX + col * (itemWidth + LEGEND.ITEM_SPACING)
+      const y = legendY + row * (LEGEND.ITEM_HEIGHT + LEGEND.ROW_PADDING)
+
+      // Add padding for easier clicking
+      if (
+        mouseX >= x - 5 &&
+        mouseX <= x + itemWidth + 5 &&
+        mouseY >= y - 5 &&
+        mouseY <= y + LEGEND.ITEM_HEIGHT + 5
+      ) {
+        return { id: item.id, label: item.label, x, y }
+      }
+    }
+
+    return null
+  }
+
+  // Check if mouse is over the plot area and return bin index
+  function getHoveredBinIndex(mouseX: number, mouseY: number): number | null {
+    // Check if mouse is within plot area bounds
+    if (
+      mouseX < plotLeft ||
+      mouseX > plotLeft + plotAreaWidth ||
+      mouseY < plotTop ||
+      mouseY > plotBottom
+    ) {
+      return null
+    }
+
+    // Calculate which bin the mouse is over
+    const relativeX = mouseX - plotLeft
+    const binWidth = plotAreaWidth / data.binCount
+    const binIndex = Math.floor(relativeX / binWidth)
+
+    // Ensure bin index is within bounds
+    return Math.max(0, Math.min(data.binCount - 1, binIndex))
+  }
+
+  // Mouse event handlers
+  function handleMouseMove(event: MouseEvent) {
+    if (!canvas) return
+
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
+    const legendItem = isMouseOverLegendItem(mouseX, mouseY)
+    const binIndex = getHoveredBinIndex(mouseX, mouseY)
+
+    // Handle legend hover
+    if (legendItem !== hoveredLegendItem) {
+      if (legendItem) {
+        hoveredLegendItem = legendItem
+        const isHighlighted = usedHighlights.includes(legendItem.id.toString())
+        const tooltipContent = [
+          {
+            key: '',
+            value: `${isHighlighted ? 'Dehighlight' : 'Highlight'} ${legendItem.label}`,
+          },
+        ]
+
+        // Position tooltip at bottom of legend item (same as scarf plot)
+        const tooltipPos = getTooltipPosition(
+          canvasState,
+          legendItem.x + LEGEND.ICON_SIZE * 1.5,
+          legendItem.y + LEGEND.ITEM_HEIGHT,
+          { x: 0, y: 7 } // 7px below the legend item
+        )
+
+        updateTooltip({
+          visible: true,
+          content: tooltipContent,
+          x: tooltipPos.x,
+          y: tooltipPos.y,
+        })
+
+        if (canvas) canvas.style.cursor = 'pointer'
+      } else if (hoveredLegendItem) {
+        // Hide tooltip when mouse leaves legend item (use null like scarf plot)
+        hoveredLegendItem = null
+        updateTooltip(null)
+        if (canvas) canvas.style.cursor = 'default'
+      }
+    }
+
+    // Handle plot area hover
+    if (binIndex !== hoveredBinIndex) {
+      hoveredBinIndex = binIndex
+      if (binIndex !== null) {
+        // Show tooltip for bin information
+        const binStartTime = binIndex * data.binSize
+        const binEndTime = (binIndex + 1) * data.binSize
+        const tooltipContent = [
+          {
+            key: 'Time Range',
+            value: `${Math.round(binStartTime)}ms - ${Math.round(binEndTime)}ms`,
+          },
+          {
+            key: 'Bin',
+            value: `${binIndex + 1} of ${data.binCount}`,
+          },
+        ]
+
+        // Add AOI shares for this bin
+        const plotSeries = data.series
+        const aoiShares = []
+        for (let i = 0; i < plotSeries.length; i++) {
+          const seriesItem = plotSeries[i]
+          const value = seriesItem.values[binIndex]
+          if (value > 0.001) {
+            // Only include AOIs with meaningful shares
+            const percentage = (value / data.participants) * 100
+            aoiShares.push({
+              label: seriesItem.label,
+              percentage,
+            })
+          }
         }
 
-        const targetWidth = Math.max(
-          1,
-          safeWidth + safeMarginLeft + safeMarginRight
+        // Sort by percentage descending
+        aoiShares.sort((a, b) => b.percentage - a.percentage)
+
+        // Show top 4 AOIs
+        const topAois = aoiShares.slice(0, 4)
+        for (const aoi of topAois) {
+          tooltipContent.push({
+            key: aoi.label,
+            value: `${aoi.percentage.toFixed(1)}%`,
+          })
+        }
+
+        // If there are more AOIs, show "other N areas" with sum
+        if (aoiShares.length > 4) {
+          const remainingAois = aoiShares.slice(4)
+          const otherSum = remainingAois.reduce(
+            (sum, aoi) => sum + aoi.percentage,
+            0
+          )
+          const otherCount = remainingAois.length
+          tooltipContent.push({
+            key: `other ${otherCount} areas`,
+            value: `${otherSum.toFixed(1)}%`,
+          })
+        }
+
+        // Position tooltip near mouse cursor
+        const tooltipPos = getTooltipPosition(
+          canvasState,
+          mouseX,
+          mouseY,
+          { x: 15, y: 15 } // Offset from cursor
         )
-        const targetHeight = Math.max(
-          1,
-          safeHeight + safeMarginTop + safeMarginBottom
-        )
-        canvasState = resizeCanvas(canvasState, targetWidth, targetHeight)
-        scheduleRender()
+
+        updateTooltip({
+          visible: true,
+          content: tooltipContent,
+          x: tooltipPos.x,
+          y: tooltipPos.y,
+        })
+
+        if (canvas) canvas.style.cursor = 'crosshair'
+      } else if (!legendItem) {
+        // Hide tooltip when not over bin or legend
+        updateTooltip(null)
+        if (canvas) canvas.style.cursor = 'default'
       }
+
+      // Re-render to show/hide bin highlight
+      scheduleRender()
+    }
+  }
+
+  function handleMouseLeave() {
+    if (hoveredLegendItem) {
+      hoveredLegendItem = null
+      updateTooltip(null)
+      if (canvas) canvas.style.cursor = 'default'
+    }
+
+    if (hoveredBinIndex !== null) {
+      hoveredBinIndex = null
+      updateTooltip(null)
+      if (canvas) canvas.style.cursor = 'default'
+      scheduleRender()
+    }
+  }
+
+  function handleClick(event: MouseEvent) {
+    if (!canvas) return
+
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
+    const legendItem = isMouseOverLegendItem(mouseX, mouseY)
+
+    if (legendItem) {
+      onLegendClick(legendItem.id)
+    }
+  }
+
+  // Optimized effect: Consolidate all reactive updates
+  $effect(() => {
+    // Track all dependencies explicitly
+    const deps = {
+      data,
+      w: safeWidth,
+      h: safeHeight,
+      dpi: dpiOverride,
+      mt: safeMarginTop,
+      mr: safeMarginRight,
+      mb: safeMarginBottom,
+      ml: safeMarginLeft,
+    }
+
+    untrack(() => {
+      if (!canvasState.canvas || !canvasState.context) return
+
+      if (canvasState.dpiOverride !== deps.dpi) {
+        canvasState = setupCanvas(canvasState, canvasState.canvas, deps.dpi)
+      }
+
+      const targetWidth = Math.max(1, deps.w + deps.ml + deps.mr)
+      const targetHeight = Math.max(1, deps.h + deps.mt + deps.mb)
+
+      canvasState = resizeCanvas(canvasState, targetWidth, targetHeight)
+      scheduleRender()
     })
   })
 
   onMount(() => {
     if (!canvas) return
     initCanvas()
+
+    // Add mouse event listeners for legend interaction
+    canvas.addEventListener('mousemove', handleMouseMove)
+    canvas.addEventListener('mouseleave', handleMouseLeave)
+    canvas.addEventListener('click', handleClick)
 
     const cleanup = setupDpiChangeListeners(
       () => canvasState,
@@ -562,6 +898,11 @@
 
     return () => {
       cleanup()
+      if (canvas) {
+        canvas.removeEventListener('mousemove', handleMouseMove)
+        canvas.removeEventListener('mouseleave', handleMouseLeave)
+        canvas.removeEventListener('click', handleClick)
+      }
     }
   })
 </script>

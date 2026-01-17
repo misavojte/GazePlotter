@@ -18,6 +18,8 @@ export const DEFAULT_GRID_STATE_DATA: Array<
   { type: 'scarf', x: 0, y: 0 },
   { type: 'TransitionMatrix', x: 20, y: 0, w: 11, h: 12 },
   { type: 'barPlot', x: 0, y: 12, w: 11, h: 12 },
+  // Place AOI Stream Plot directly to the right of the Bar Plot
+  { type: 'aoiStreamPlot', x: 11, y: 12, w: 11, h: 12 },
 ]
 
 /**
@@ -94,8 +96,14 @@ export type GridStoreType = ReturnType<typeof createGridStore>
  * Checks if two rectangles overlap
  */
 function rectanglesOverlap(
-  x1: number, y1: number, w1: number, h1: number,
-  x2: number, y2: number, w2: number, h2: number
+  x1: number,
+  y1: number,
+  w1: number,
+  h1: number,
+  x2: number,
+  y2: number,
+  w2: number,
+  h2: number
 ): boolean {
   return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2
 }
@@ -179,7 +187,7 @@ export function createGridStore(
     excludeId: number = -1
   ): boolean {
     if (x < 0 || y < 0) return false
-    
+
     const itemsToCheck = get(positions)
     for (const item of itemsToCheck) {
       if (item.id === excludeId) continue
@@ -202,7 +210,7 @@ export function createGridStore(
   ): Set<number> {
     const collisions = new Set<number>()
     const itemsToCheck = get(positions)
-    
+
     for (const item of itemsToCheck) {
       if (item.id === excludeId) continue
       if (rectanglesOverlap(x, y, w, h, item.x, item.y, item.w, item.h)) {
@@ -226,19 +234,21 @@ export function createGridStore(
   ): number {
     const itemsToCheck = get(positions)
     let y = startY
-    
+
     // Try positions starting from startY, moving down
-    while (y < 100) { // Reasonable limit
+    while (y < 100) {
+      // Reasonable limit
       if (isAreaAvailable(x, y, w, h, excludeId)) {
         return y
       }
       y++
     }
-    
+
     // Fallback: find the bottom of all items and place below
-    const maxY = itemsToCheck.length > 0 
-      ? Math.max(...itemsToCheck.map(item => item.y + item.h))
-      : 0
+    const maxY =
+      itemsToCheck.length > 0
+        ? Math.max(...itemsToCheck.map(item => item.y + item.h))
+        : 0
     return maxY
   }
 
@@ -261,12 +271,12 @@ export function createGridStore(
     // Try relative positioning for duplicates
     if (referenceItem) {
       const { x: origX, y: origY, w: origW, h: origH } = referenceItem
-      
+
       // Try right of original
       if (isAreaAvailable(origX + origW, origY, width, height)) {
         return { x: origX + origW, y: origY }
       }
-      
+
       // Try below original
       if (isAreaAvailable(origX, origY + origH, width, height)) {
         return { x: origX, y: origY + origH }
@@ -277,11 +287,14 @@ export function createGridStore(
     // Use window width as the base and convert to grid cells
     const cellWidth = config.cellSize.width + config.gap
     const availableWorkspaceWidth = Math.floor(window.innerWidth / cellWidth)
-    const maxX = Math.max(availableWorkspaceWidth, ...currentItems.map(item => item.x + item.w))
-    
+    const maxX = Math.max(
+      availableWorkspaceWidth,
+      ...currentItems.map(item => item.x + item.w)
+    )
+
     // Find first available spot by scanning within available workspace
     const maxY = Math.max(0, ...currentItems.map(item => item.y + item.h))
-    
+
     // Scan existing area first, constrained to available workspace width
     for (let y = 0; y <= maxY; y++) {
       for (let x = 0; x <= maxX - width; x++) {
@@ -290,7 +303,7 @@ export function createGridStore(
         }
       }
     }
-    
+
     // If no space found, place below existing items
     return { x: 0, y: maxY }
   }
@@ -306,7 +319,7 @@ export function createGridStore(
     y: number
     w: number
     h: number
-  }): Array<{itemId: number, settings: Partial<AllGridTypes>}> {
+  }): Array<{ itemId: number; settings: Partial<AllGridTypes> }> {
     const collisions = findCollisions(
       priorityItem.x,
       priorityItem.y,
@@ -317,24 +330,32 @@ export function createGridStore(
 
     if (collisions.size === 0) return []
 
-    const commands: Array<{itemId: number, settings: Partial<AllGridTypes>}> = []
+    const commands: Array<{ itemId: number; settings: Partial<AllGridTypes> }> =
+      []
     const currentItems = get(items)
-    
+
     for (const itemId of collisions) {
       const item = currentItems.find(i => i.id === itemId)
       if (!item) continue
-      
+
       // Find the best position with minimal movement
-      const bestPosition = findBestConflictResolutionPosition(item, priorityItem, itemId)
-      
-      if (bestPosition && (bestPosition.x !== item.x || bestPosition.y !== item.y)) {
+      const bestPosition = findBestConflictResolutionPosition(
+        item,
+        priorityItem,
+        itemId
+      )
+
+      if (
+        bestPosition &&
+        (bestPosition.x !== item.x || bestPosition.y !== item.y)
+      ) {
         commands.push({
           itemId,
-          settings: { x: bestPosition.x, y: bestPosition.y }
+          settings: { x: bestPosition.x, y: bestPosition.y },
         })
       }
     }
-    
+
     return commands
   }
 
@@ -347,38 +368,71 @@ export function createGridStore(
     excludeId: number
   ): { x: number; y: number } | null {
     const { x: itemX, y: itemY, w: itemW, h: itemH } = item
-    const { x: priorityX, y: priorityY, w: priorityW, h: priorityH } = priorityItem
-    
+    const {
+      x: priorityX,
+      y: priorityY,
+      w: priorityW,
+      h: priorityH,
+    } = priorityItem
+
     // Calculate movement distances for each direction
     const positions = [
       // Move right of priority item
-      { x: priorityX + priorityW, y: itemY, distance: Math.abs(priorityX + priorityW - itemX) },
+      {
+        x: priorityX + priorityW,
+        y: itemY,
+        distance: Math.abs(priorityX + priorityW - itemX),
+      },
       // Move left of priority item
-      { x: priorityX - itemW, y: itemY, distance: Math.abs(priorityX - itemW - itemX) },
+      {
+        x: priorityX - itemW,
+        y: itemY,
+        distance: Math.abs(priorityX - itemW - itemX),
+      },
       // Move below priority item
-      { x: itemX, y: priorityY + priorityH, distance: Math.abs(priorityY + priorityH - itemY) },
+      {
+        x: itemX,
+        y: priorityY + priorityH,
+        distance: Math.abs(priorityY + priorityH - itemY),
+      },
       // Move above priority item
-      { x: itemX, y: priorityY - itemH, distance: Math.abs(priorityY - itemH - itemY) },
+      {
+        x: itemX,
+        y: priorityY - itemH,
+        distance: Math.abs(priorityY - itemH - itemY),
+      },
       // Move to the right edge of priority item
-      { x: priorityX + priorityW, y: priorityY, distance: Math.abs(priorityX + priorityW - itemX) + Math.abs(priorityY - itemY) },
+      {
+        x: priorityX + priorityW,
+        y: priorityY,
+        distance:
+          Math.abs(priorityX + priorityW - itemX) + Math.abs(priorityY - itemY),
+      },
       // Move to the left edge of priority item
-      { x: priorityX - itemW, y: priorityY, distance: Math.abs(priorityX - itemW - itemX) + Math.abs(priorityY - itemY) }
+      {
+        x: priorityX - itemW,
+        y: priorityY,
+        distance:
+          Math.abs(priorityX - itemW - itemX) + Math.abs(priorityY - itemY),
+      },
     ]
-    
+
     // Filter out invalid positions (negative coordinates or outside workspace)
-    const validPositions = positions.filter(pos => 
-      pos.x >= 0 && pos.y >= 0 && 
-      isAreaAvailable(pos.x, pos.y, itemW, itemH, excludeId)
+    const validPositions = positions.filter(
+      pos =>
+        pos.x >= 0 &&
+        pos.y >= 0 &&
+        isAreaAvailable(pos.x, pos.y, itemW, itemH, excludeId)
     )
-    
+
     if (validPositions.length === 0) {
       // Fallback: find any available position
       const fallbackPos = findOptimalPosition(itemW, itemH)
       return fallbackPos
     }
-    
+
     // Return the position with the smallest movement distance
-    return validPositions.reduce((best, current) => 
+    return validPositions.reduce((best, current) =>
       current.distance < best.distance ? current : best
     )
   }
@@ -469,10 +523,7 @@ export function createGridStore(
   /**
    * Adds a new item by type and options
    */
-  function addItem(
-    type: string,
-    options: Partial<AllGridTypes> = {}
-  ) {
+  function addItem(type: string, options: Partial<AllGridTypes> = {}) {
     const newItemData = createGridItemFromData(type, options)
     const suggested = findOptimalPosition(newItemData.w, newItemData.h)
     const { x, y } = resolveRequestedPosition(options, suggested, newItemData)
@@ -486,7 +537,8 @@ export function createGridStore(
   return {
     subscribe: items.subscribe,
     set: (newItems: AllGridTypes[]) => items.set(newItems),
-    update: (updater: (items: AllGridTypes[]) => AllGridTypes[]) => items.update(updater),
+    update: (updater: (items: AllGridTypes[]) => AllGridTypes[]) =>
+      items.update(updater),
 
     triggerRedraw: (id?: number) => {
       const timestamp = Date.now()
@@ -499,7 +551,9 @@ export function createGridStore(
       )
     },
 
-    reset: (newInitialItemsData: Array<Partial<AllGridTypes> & { type: string }>) => {
+    reset: (
+      newInitialItemsData: Array<Partial<AllGridTypes> & { type: string }>
+    ) => {
       const newItems = newInitialItemsData.map(itemData =>
         createGridItemFromData(itemData.type, itemData)
       )
@@ -510,10 +564,12 @@ export function createGridStore(
      * Sets the entire layout state to the provided layout items.
      * This is used for layout reset operations and undo/redo functionality.
      * However, it checks for collisions and resolves them before setting the new state.
-     * 
+     *
      * @param layoutState - Array of layout items to set as the new state
      */
-    setLayoutState: (layoutState: Array<Partial<AllGridTypes> & { type: string }>) => {
+    setLayoutState: (
+      layoutState: Array<Partial<AllGridTypes> & { type: string }>
+    ) => {
       items.set([])
       layoutState.forEach(itemData => {
         addItem(itemData.type, itemData) // This will check for collisions and resolve them
@@ -544,4 +600,3 @@ export function createGridStore(
     },
   }
 }
-

@@ -119,12 +119,18 @@ export interface AoiStreamPlotGridType extends GridType {
   type: 'aoiStreamPlot'
   /** ID of the stimulus being visualized */
   stimulusId: number
-  /** ID of the group rendered in the upper stream */
-  groupIdUpper: number
-  /** ID of the group rendered in the lower stream */
-  groupIdLower: number
+  /** ID of the group rendered in the stream */
+  groupId: number
   /** Number of time bins for the stream */
   binCount: number
+  /** Array of AOI IDs to highlight (string format for consistency) */
+  highlights?: string[]
+  /**
+   * Stimulus-specific ranges for absolute timeline in [start, end] format.
+   * For start (index 0): 0 means start at the beginning of the timeline.
+   * For end (index 1): 0 means automatically use the full data range.
+   */
+  absoluteStimuliLimits: [number, number][]
 }
 
 /**

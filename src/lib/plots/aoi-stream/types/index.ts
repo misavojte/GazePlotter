@@ -8,14 +8,11 @@ export interface AoiStreamPlotSeries {
 }
 
 export interface AoiStreamPlotResult {
-  upperSeries: AoiStreamPlotSeries[]
-  lowerSeries: AoiStreamPlotSeries[]
+  series: AoiStreamPlotSeries[]
   timeline: AdaptiveTimeline
   binCount: number
   binSize: number
   maxTime: number
-  upperParticipants: number
-  lowerParticipants: number
-  upperMaxTotal: number
-  lowerMaxTotal: number
+  participants: number
+  maxTotal: number
 }

@@ -27,8 +27,7 @@
   const streamData = $derived.by(() =>
     getAoiStreamPlotData({
       stimulusId: settings.stimulusId,
-      groupIdUpper: settings.groupIdUpper,
-      groupIdLower: settings.groupIdLower,
+      groupId: settings.groupId,
       binCount: settings.binCount,
     })
   )

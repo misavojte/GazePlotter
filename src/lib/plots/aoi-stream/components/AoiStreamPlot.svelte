@@ -15,7 +15,11 @@
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils/plotSizeUtility'
   import { getAoiStreamPlotData } from '$lib/plots/aoi-stream/utils'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
-  import { getParticipantsGroups } from '$lib/gaze-data/front-process/stores/dataStore'
+  import {
+    getParticipants,
+    getParticipantEndTime,
+    getParticipantsGroups,
+  } from '$lib/gaze-data/front-process/stores/dataStore'
 
   import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
   import type { AoiStreamPlotResult } from '$lib/plots/aoi-stream/types'
@@ -56,41 +60,54 @@
     createCommandSourcePlotPattern(settings, 'plot')
   )
 
-  function handleStimulusChange(event: CustomEvent) {
-    const newStimulusId = event.detail as string
+  // Highlights support (same as scarf plot)
+  const highlights = $derived(settings.highlights ?? [])
+
+  // Handle legend click for highlighting
+  const handleLegendClick = (aoiId: number) => {
+    const aoiIdStr = aoiId.toString()
+    const currentHighlights = settings.highlights ?? []
+    const isCurrentlyHighlighted = currentHighlights.includes(aoiIdStr)
+
+    const newHighlights = isCurrentlyHighlighted
+      ? currentHighlights.filter((id: string) => id !== aoiIdStr)
+      : [...currentHighlights, aoiIdStr]
+
     onWorkspaceCommand({
       type: 'updateSettings',
       itemId: settings.id,
       source,
-      settings: {
-        stimulusId: parseInt(newStimulusId),
-      },
+      settings: { highlights: newHighlights },
     })
   }
 
-  function handleUpperGroupChange(event: CustomEvent) {
-    const newGroupId = event.detail as string
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      source,
-      settings: {
-        groupIdUpper: parseInt(newGroupId),
-      },
-    })
-  }
-
-  let stimulusOptions =
-    $state<{ label: string; value: string }[]>(getStimuliOptions())
-
-  const getGroupOptions = () =>
+  // Memoized options generators (prevent unnecessary recalculations)
+  const stimulusOptions = $derived(getStimuliOptions())
+  const groupOptions = $derived(
     getParticipantsGroups(true).map(group => ({
       value: group.id.toString(),
       label: group.name,
     }))
+  )
 
-  let groupOptions =
-    $state<{ label: string; value: string }[]>(getGroupOptions())
+  // Consolidated event handlers
+  const handleStimulusChange = (event: CustomEvent) => {
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      source,
+      settings: { stimulusId: parseInt(event.detail as string) },
+    })
+  }
+
+  const handleUpperGroupChange = (event: CustomEvent) => {
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      source,
+      settings: { groupId: parseInt(event.detail as string) },
+    })
+  }
 
   const selectItems = $derived<GroupSelectItem[]>([
     {
@@ -102,26 +119,52 @@
     {
       label: 'Group',
       options: groupOptions,
-      value: settings.groupIdUpper.toString(),
+      value: settings.groupId.toString(),
       onchange: handleUpperGroupChange,
     },
   ])
 
-  const redrawTimestamp = $derived.by(() => settings.redrawTimestamp)
-  $effect(() => {
-    console.log('redrawTimestampAoiStream', redrawTimestamp)
+  // Calculate timeline min value based on absoluteStimuliLimits
+  const timelineMinValue = $derived.by(() => {
+    return settings.absoluteStimuliLimits[settings.stimulusId]?.[0] ?? 0
+  })
 
+  // Calculate timeline max value - if 0, use the max from data
+  const timelineMaxValue = $derived.by(() => {
+    const maxValue =
+      settings.absoluteStimuliLimits[settings.stimulusId]?.[1] ?? 0
+    if (maxValue === 0) {
+      const participants = getParticipants(
+        settings.groupId,
+        settings.stimulusId
+      )
+      return participants.reduce(
+        (max, participant) =>
+          Math.max(
+            max,
+            getParticipantEndTime(settings.stimulusId, participant.id)
+          ),
+        0
+      )
+    }
+    return maxValue
+  })
+
+  const redrawTimestamp = $derived(settings.redrawTimestamp)
+  $effect(() => {
+    redrawTimestamp
     untrack(() => {
       streamResult = getAoiStreamPlotData({
         ...settings,
         binCount: autoBinCount,
+        timelineMin: timelineMinValue,
+        timelineMax: timelineMaxValue,
       })
-      stimulusOptions = getStimuliOptions()
-      groupOptions = getGroupOptions()
     })
   })
 
   let mounted = $state(false)
+
   onMount(() => {
     mounted = true
   })
@@ -154,6 +197,8 @@
             width={plotDimensions.width}
             height={plotDimensions.height}
             data={streamResult}
+            {highlights}
+            onLegendClick={handleLegendClick}
           />
         {:else}
           <PlotPlaceholder

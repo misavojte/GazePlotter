@@ -85,9 +85,9 @@ export const visualizationRegistry: Record<string, VisualizationConfig> = {
       params: { stimulusId?: number; groupId?: number } = {}
     ) => ({
       stimulusId: params.stimulusId ?? 0,
-      groupIdUpper: params.groupId ?? -1,
-      groupIdLower: params.groupId ?? -1,
+      groupId: params.groupId ?? -1,
       binCount: 200,
+      absoluteStimuliLimits: [],
       min: { w: 12, h: 12 },
     }),
     getDefaultHeight: () => 12,
