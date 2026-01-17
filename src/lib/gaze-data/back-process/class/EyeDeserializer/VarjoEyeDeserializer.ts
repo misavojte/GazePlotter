@@ -26,7 +26,6 @@ export class VarjoEyeDeserializer extends AbstractEyeDeserializer {
     encoding: 'utf-8' | 'utf-16le' | 'utf-16be' = 'utf-8'
   ) {
     super(columnDelimiter, encoding)
-    this.useBinary = true
     this.textDecoder = new TextDecoder(this.encoding)
     this.cTime = this.getIndex(header, 'Time')
     this.cActorLabel = this.getIndex(header, 'Actor Label')
@@ -35,10 +34,6 @@ export class VarjoEyeDeserializer extends AbstractEyeDeserializer {
     this.stimulusBytes = encodeString('VarjoScene', this.encoding)
 
     this.setupColumns([this.cTime, this.cActorLabel])
-  }
-
-  deserialize(_rawRowRef: string): void {
-    return
   }
 
   protected deserializeFromBytes(_rawRowRef: Uint8Array): void {

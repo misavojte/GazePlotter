@@ -1,4 +1,3 @@
-import type { DeserializerOutputType } from '$lib/gaze-data/back-process/types/DeserializerOutputType'
 import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
 import {
   bytesEqual,
@@ -13,12 +12,127 @@ import {
 
 const TIME_MODIFIER = 0.001 // µs → ms
 const EMPTY_STRING = ''
+const EMPTY_KEY = -1
+const MASK_64 = (1n << 64n) - 1n
 const AOI_HIT_PREFIX = 'AOI hit ['
 const EYE_TRACKER_SENSOR = 'Eye Tracker'
 const MIN_SAMPLE_INTERVAL_US = 900
 const MAX_SAMPLE_INTERVAL_US = 50000
 const SAMPLE_INTERVAL_TOLERANCE_FACTOR = 1.5
 const WEB_STIMULUS_TRIGGER = 'WebStimulus'
+
+class BigIntNumberMap {
+  private keys: bigint[]
+  private values: Float64Array
+  private states: Uint8Array
+  private mask: number
+  private _size = 0
+
+  constructor(initialCapacity = 64) {
+    const cap = this.nextPow2(initialCapacity)
+    this.keys = new Array(cap)
+    this.values = new Float64Array(cap)
+    this.states = new Uint8Array(cap)
+    this.mask = cap - 1
+  }
+
+  get size(): number {
+    return this._size
+  }
+
+  has(key: bigint): boolean {
+    return this.findExisting(key) !== -1
+  }
+
+  get(key: bigint): number | undefined {
+    const idx = this.findExisting(key)
+    if (idx === -1) return undefined
+    return this.values[idx]
+  }
+
+  set(key: bigint, value: number): void {
+    if ((this._size + 1) * 10 >= this.keys.length * 7) {
+      this.rehash(this.keys.length * 2)
+    }
+    const slot = this.findSlotForInsert(key)
+    if (slot.found) {
+      this.values[slot.index] = value
+      return
+    }
+    this.keys[slot.index] = key
+    this.values[slot.index] = value
+    this.states[slot.index] = 1
+    this._size++
+  }
+
+  delete(key: bigint): boolean {
+    const idx = this.findExisting(key)
+    if (idx === -1) return false
+    this.states[idx] = 2
+    this._size--
+    return true
+  }
+
+  clear(): void {
+    this.states.fill(0)
+    this._size = 0
+  }
+
+  private nextPow2(n: number): number {
+    let p = 1
+    while (p < n) p <<= 1
+    return p
+  }
+
+  private hash(key: bigint): number {
+    let h = Number(key & 0xffffffffn)
+    h = Math.imul(h ^ (h >>> 16), 0x7feb352d)
+    h ^= Number((key >> 32n) & 0xffffffffn)
+    h = Math.imul(h ^ (h >>> 16), 0x846ca68b)
+    h ^= Number((key >> 64n) & 0xffffffffn)
+    return h >>> 0
+  }
+
+  private findExisting(key: bigint): number {
+    let idx = this.hash(key) & this.mask
+    while (this.states[idx] !== 0) {
+      if (this.states[idx] === 1 && this.keys[idx] === key) return idx
+      idx = (idx + 1) & this.mask
+    }
+    return -1
+  }
+
+  private findSlotForInsert(key: bigint): { index: number; found: boolean } {
+    let idx = this.hash(key) & this.mask
+    let firstDeleted = -1
+    while (this.states[idx] !== 0) {
+      if (this.states[idx] === 1 && this.keys[idx] === key) {
+        return { index: idx, found: true }
+      }
+      if (firstDeleted === -1 && this.states[idx] === 2) firstDeleted = idx
+      idx = (idx + 1) & this.mask
+    }
+    return { index: firstDeleted !== -1 ? firstDeleted : idx, found: false }
+  }
+
+  private rehash(newCapacity: number): void {
+    const oldKeys = this.keys
+    const oldValues = this.values
+    const oldStates = this.states
+
+    const cap = this.nextPow2(newCapacity)
+    this.keys = new Array(cap)
+    this.values = new Float64Array(cap)
+    this.states = new Uint8Array(cap)
+    this.mask = cap - 1
+    this._size = 0
+
+    for (let i = 0; i < oldKeys.length; i++) {
+      if (oldStates[i] !== 1) continue
+      this.set(oldKeys[i], oldValues[i])
+    }
+  }
+}
 
 export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   /* ── Column indices ─────────────────────────────────────────────── */
@@ -49,8 +163,8 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   /* ── Mutable segment state ──────────────────────────────────────── */
   private mStimulusBytes: Uint8Array | null = null
   private mParticipantBytes: Uint8Array | null = null
-  private mStimulusKey = EMPTY_STRING
-  private mParticipantKey = EMPTY_STRING
+  private mStimulusKey = EMPTY_KEY
+  private mParticipantKey: bigint | null = null
   private mRecordingStart: number | null = null
   private mEyeMovementTypeIndexBytes: Uint8Array | null = null
   private mRecordingLast: number | null = null
@@ -63,24 +177,24 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   // Last processed Eye Tracker row (not necessarily the previous input row).
   // Tobii exports can interleave IntervalStart/IntervalEnd events between samples.
   private lastEyeTrackerTimestamp: number | null = null
-  private lastEyeTrackerSampleKey: string | null = null
+  private lastEyeTrackerSampleKey: bigint | null = null
 
   /* ── Sampling interval learning ─────────────────────────────────── */
-  private readonly sampleIntervals: Map<string, number> = new Map()
+  private readonly sampleIntervals = new BigIntNumberMap(256)
 
   /* ── Stimulus helpers ───────────────────────────────────────────── */
   private readonly stimulusUpdater: () => void
   private cachedStimulusStackBytes: Uint8Array[] = []
-  private cachedStimulusStackKeys: string[] = []
+  private cachedStimulusStackKeys: number[] = []
 
-  private readonly stimuliBaseTimes: Map<string, number> = new Map()
-  private readonly intervalStack: Map<string, Uint8Array> = new Map()
-  private readonly intervalStartTimes: Map<string, number> = new Map()
+  private readonly stimuliBaseTimes = new BigIntNumberMap(512)
+  private readonly intervalStack: Map<number, Uint8Array> = new Map()
+  private readonly intervalStartTimes = new BigIntNumberMap(256)
 
   /* ── Optimization Caches ────────────────────────────────────────── */
-  private cachedParticipantKey: string = ''
-  private lastParticipantKey: string = ''
-  private lastRecordingKey: string = ''
+  private cachedParticipantKey: bigint | null = null
+  private lastParticipantKey = 0
+  private lastRecordingKey = 0
   private lastParticipantBytes: Uint8Array | null = null
   private lastRecordingBytes: Uint8Array | null = null
 
@@ -102,7 +216,6 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     headerBytes?: Uint8Array
   ) {
     super(columnDelimiter, encoding)
-    this.useBinary = true
     this.eyeTrackerSensorBytes = encodeString(EYE_TRACKER_SENSOR, this.encoding)
     this.urlStartBytes = encodeString('URLStart', this.encoding)
     this.urlEndBytes = encodeString('URLEnd', this.encoding)
@@ -172,10 +285,6 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   }
 
   /* ── Public API ─────────────────────────────────────────────────── */
-  deserialize(_rawRowRef: string): void {
-    return
-  }
-
   protected deserializeFromBytes(_rawRowRef: Uint8Array): void {
     this.stimulusUpdater()
 
@@ -215,8 +324,12 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
       this.lastParticipantKey = this.makeKey(participantBytes)
     }
 
-    if (recordingChanged || participantChanged || !this.cachedParticipantKey) {
-      this.cachedParticipantKey = this.makeCompositeKey(
+    if (
+      recordingChanged ||
+      participantChanged ||
+      this.cachedParticipantKey === null
+    ) {
+      this.cachedParticipantKey = this.makeCompositeKey64(
         this.lastRecordingKey,
         this.lastParticipantKey
       )
@@ -224,7 +337,9 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
     const recordingKey = this.lastRecordingKey
     const participantKey = this.lastParticipantKey
-    const sampleKey = this.cachedParticipantKey
+    const sampleKey =
+      this.cachedParticipantKey ??
+      this.makeCompositeKey64(recordingKey, participantKey)
 
     this.updateSampleInterval(currentTimestampNum, sampleKey)
 
@@ -236,7 +351,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     ) {
       const stimLen = this.cachedStimulusStackKeys.length
       const lastStimulusKey =
-        stimLen > 0 ? this.cachedStimulusStackKeys[stimLen - 1] : EMPTY_STRING
+        stimLen > 0 ? this.cachedStimulusStackKeys[stimLen - 1] : EMPTY_KEY
 
       if (lastStimulusKey === this.mStimulusKey) {
         this.mRecordingLast = currentTimestampNum
@@ -293,14 +408,16 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   private deserializeNewSegment(
     currentTsNum: number,
     recordingBytes: Uint8Array,
-    recordingKey: string,
+    recordingKey: number,
     participantBytes: Uint8Array,
-    participantKey: string,
+    participantKey: number,
     eyeMovementTypeIndexBytes: Uint8Array,
     categoryBytes: Uint8Array
   ): void {
-    const participantFull = this.cachedParticipantKey
-    const sampleKey = this.makeCompositeKey(recordingKey, participantKey)
+    const participantFull =
+      this.cachedParticipantKey ??
+      this.makeCompositeKey64(recordingKey, participantKey)
+    const sampleKey = this.makeCompositeKey64(recordingKey, participantKey)
     const sampInt = this.sampleIntervals.get(sampleKey) ?? null
 
     let correctedStart = currentTsNum
@@ -320,7 +437,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
     if (activeStimuliBytes.length > 0) {
       const activeStimulusKey = activeStimuliKeys[activeStimuliKeys.length - 1]
-      const intervalStartKey = this.makeCompositeKey(
+      const intervalStartKey = this.makeCompositeKey96(
         activeStimulusKey,
         recordingKey,
         participantKey
@@ -341,7 +458,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     this.getPreviousSegmentWithCorrectedEnd(midpoint)
 
     if (activeStimuliBytes.length === 0) {
-      this.mStimulusKey = EMPTY_STRING
+      this.mStimulusKey = EMPTY_KEY
       this.mStimulusBytes = null
       return
     }
@@ -354,7 +471,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     // Use standard for loop for speed.
     for (let i = 0; i < activeStimuliKeys.length; i++) {
       const stimKey = activeStimuliKeys[i]
-      const key = this.makeCompositeKey(stimKey, participantFull)
+      const key = this.makeCompositeKey32x64(stimKey, participantFull)
       if (!this.stimuliBaseTimes.has(key)) {
         this.stimuliBaseTimes.set(key, correctedStart)
       }
@@ -364,7 +481,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     this.mStimulusBytes = newStimulusBytes
     this.mStimulusKey = newStimulusKey
     this.mParticipantBytes = participantBytes
-    this.mParticipantKey = this.cachedParticipantKey
+    this.mParticipantKey = participantFull
     this.mRecordingStart = correctedStart
     this.mCategoryBytes = categoryBytes
     this.mCategoryId = this.getCategoryId(categoryBytes)
@@ -400,7 +517,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   }
 
   /* ── Sample interval learning ───────────────────────────────────── */
-  private updateSampleInterval(currentTs: number, sampleKey: string): void {
+  private updateSampleInterval(currentTs: number, sampleKey: bigint): void {
     if (this.sampleIntervals.has(sampleKey)) return
     if (this.lastEyeTrackerTimestamp === null) return
     if (this.lastEyeTrackerSampleKey !== sampleKey) return
@@ -445,7 +562,8 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     for (let i = 0; i < this.cachedStimulusStackBytes.length; i++) {
       const stimulusBytes = this.cachedStimulusStackBytes[i]
       const stimulusKey = this.cachedStimulusStackKeys[i]
-      const key = this.makeCompositeKey(stimulusKey, this.mParticipantKey)
+      if (this.mParticipantKey === null) continue
+      const key = this.makeCompositeKey32x64(stimulusKey, this.mParticipantKey)
       const baseTime = this.stimuliBaseTimes.get(key) ?? startNum
       const start = (startNum - baseTime) * TIME_MODIFIER
       const end = (endNum - baseTime) * TIME_MODIFIER
@@ -465,7 +583,11 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   private createSegmentForSingleStimulus(): void {
     if (this.mRecordingStart === null || this.mRecordingLast === null) return
     if (!this.mStimulusBytes || !this.mParticipantBytes) return
-    const key = this.makeCompositeKey(this.mStimulusKey, this.mParticipantKey)
+    if (this.mParticipantKey === null) return
+    const key = this.makeCompositeKey32x64(
+      this.mStimulusKey,
+      this.mParticipantKey
+    )
     const baseTime = this.stimuliBaseTimes.get(key) ?? this.mRecordingStart
     const start = (this.mRecordingStart - baseTime) * TIME_MODIFIER
     const end = (this.mRecordingLast - baseTime) * TIME_MODIFIER
@@ -594,7 +716,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
           this.intervalStack.set(stimKey, rawStimBytes)
           const recordingKey = this.makeKey(this.getBytes(this.pRecording))
           const participantKey = this.makeKey(this.getBytes(this.pParticipant))
-          const key = this.makeCompositeKey(
+          const key = this.makeCompositeKey96(
             stimKey,
             recordingKey,
             participantKey
@@ -630,7 +752,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
           this.intervalStack.set(urlKey, evtValueBytes)
           const recordingKey = this.makeKey(this.getBytes(this.pRecording))
           const participantKey = this.makeKey(this.getBytes(this.pParticipant))
-          const key = this.makeCompositeKey(
+          const key = this.makeCompositeKey96(
             urlKey,
             recordingKey,
             participantKey
@@ -648,35 +770,27 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     }
   }
 
-  private constructBaseStimulusUpdater() {
-    return (): void => {
-      return
-    }
-  }
-
-  private constructIntervalStimulusUpdater(userInput: string) {
-    return (): void => {
-      return
-    }
-  }
-
-  private constructWebStimulusUpdater() {
-    return (): void => {
-      return
-    }
-  }
-
-  private makeKey(bytes: Uint8Array): string {
+  private makeKey(bytes: Uint8Array): number {
     let hash = 2166136261
     for (let i = 0; i < bytes.length; i++) {
       hash ^= bytes[i]
       hash = Math.imul(hash, 16777619)
     }
-    return `${hash >>> 0}:${bytes.length}`
+    hash ^= bytes.length
+    hash = Math.imul(hash, 16777619)
+    return hash >>> 0
   }
 
-  private makeCompositeKey(...keys: string[]): string {
-    return keys.join('|')
+  private makeCompositeKey64(a: number, b: number): bigint {
+    return (BigInt(a >>> 0) << 32n) | BigInt(b >>> 0)
+  }
+
+  private makeCompositeKey96(a: number, b: number, c: number): bigint {
+    return (BigInt(a >>> 0) << 64n) | (BigInt(b >>> 0) << 32n) | BigInt(c >>> 0)
+  }
+
+  private makeCompositeKey32x64(a: number, b: bigint): bigint {
+    return (BigInt(a >>> 0) << 64n) | (b & MASK_64)
   }
 
   private getCategoryId(categoryBytes: Uint8Array): number {

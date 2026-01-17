@@ -30,7 +30,6 @@ export class BeGazeEyeDeserializer extends AbstractEyeDeserializer {
     encoding: 'utf-8' | 'utf-16le' | 'utf-16be' = 'utf-8'
   ) {
     super(columnDelimiter, encoding)
-    this.useBinary = true
     this.separatorBytes = encodeString('Separator', this.encoding)
     this.dashBytes = encodeString('-', this.encoding)
     this.whiteSpaceBytes = encodeString('White Space', this.encoding)
@@ -50,10 +49,6 @@ export class BeGazeEyeDeserializer extends AbstractEyeDeserializer {
       this.cCategory,
       this.cAoi,
     ])
-  }
-
-  deserialize(_rawRowRef: string): void {
-    return
   }
 
   protected deserializeFromBytes(_rawRowRef: Uint8Array): void {

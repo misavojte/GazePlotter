@@ -23,7 +23,6 @@ export class CsvSegmentedFromToEyeDeserializer extends AbstractEyeDeserializer {
     encoding: 'utf-8' | 'utf-16le' | 'utf-16be' = 'utf-8'
   ) {
     super(columnDelimiter, encoding)
-    this.useBinary = true
     this.cFrom = this.getIndex(header, 'From')
     this.cTo = this.getIndex(header, 'To')
     this.cAoi = this.getIndex(header, 'AOI')
@@ -52,10 +51,6 @@ export class CsvSegmentedFromToEyeDeserializer extends AbstractEyeDeserializer {
    *                                            if the row is valid. If any required field ('from', 'to',
    *                                            'participant', 'stimulus') is empty, returns null.
    */
-  deserialize(_rawRowRef: string): void {
-    return
-  }
-
   protected deserializeFromBytes(_rawRowRef: Uint8Array): void {
     const from = this.getNumber(this.pFrom)
     const to = this.getNumber(this.pTo)

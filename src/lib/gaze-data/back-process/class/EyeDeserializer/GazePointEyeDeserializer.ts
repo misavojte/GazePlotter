@@ -76,7 +76,6 @@ export class GazePointEyeDeserializer extends AbstractEyeDeserializer {
     encoding: 'utf-8' | 'utf-16le' | 'utf-16be' = 'utf-8'
   ) {
     super(columnDelimiter, encoding)
-    this.useBinary = true
     const find = (pat: RegExp) => header.findIndex(h => pat.test(h))
     this.idx.time = find(/^TIME/) >= 0 ? find(/^TIME/) : header.indexOf('TIME')
     this.idx.start = header.indexOf('FPOGS')
@@ -98,10 +97,6 @@ export class GazePointEyeDeserializer extends AbstractEyeDeserializer {
       this.idx.stim,
       this.idx.id,
     ])
-  }
-
-  deserialize(_rawRowRef: string): void {
-    return
   }
 
   protected deserializeFromBytes(_rawRowRef: Uint8Array): void {

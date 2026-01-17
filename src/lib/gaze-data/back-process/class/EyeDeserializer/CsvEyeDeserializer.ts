@@ -17,19 +17,15 @@ export class CsvEyeDeserializer extends AbstractEyeDeserializer {
   mTimeStart = 0
   mTimeLast = 0
   mTimeBase: number | null = null
-  mAoi: string | null = null
   mAoiBytes: Uint8Array | null = null
   mParticipantBytes: Uint8Array | null = null
   mStimulusBytes: Uint8Array | null = null
-  mParticipant = 'CsvParticipant'
-  mStimulus = 'CsvFile'
   constructor(
     header: string[],
     columnDelimiter: string,
     encoding: 'utf-8' | 'utf-16le' | 'utf-16be' = 'utf-8'
   ) {
     super(columnDelimiter, encoding)
-    this.useBinary = true
     this.cTime = this.getIndex(header, 'Time')
     this.cAoi = this.getIndex(header, 'AOI')
     this.cParticipant = this.getIndex(header, 'Participant')
@@ -71,34 +67,6 @@ export class CsvEyeDeserializer extends AbstractEyeDeserializer {
     }
     if (isNewTimebase) this.mTimeBase = time
     this.mTimeLast = time
-  }
-
-  deserialize(_rawRowRef: string): void {
-    const time = this.getCurr(this.pTime)
-    const aoi = this.getCurr(this.pAoi)
-    const participant = this.getCurr(this.pParticipant)
-    const stimulus = this.getCurr(this.pStimulus)
-
-    const isNewSegment =
-      aoi !== this.mAoi ||
-      participant !== this.mParticipant ||
-      stimulus !== this.mStimulus
-    const isNewTimebase =
-      this.mTimeBase === null ||
-      participant !== this.mParticipant ||
-      stimulus !== this.mStimulus
-
-    const timeNumber = Number(time)
-    if (this.mTimeBase === null) this.mTimeBase = timeNumber
-    if (isNewSegment) {
-      this.finalize()
-      this.mTimeStart = timeNumber // if a new segment starts, set the start time
-      this.mAoi = aoi
-      this.mParticipant = participant
-      this.mStimulus = stimulus
-    }
-    if (isNewTimebase) this.mTimeBase = timeNumber
-    this.mTimeLast = timeNumber
   }
 
   finalize(): void {

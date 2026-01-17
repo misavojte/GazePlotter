@@ -1,11 +1,8 @@
-import type { DeserializerOutputType } from '$lib/gaze-data/back-process/types/DeserializerOutputType.js'
-
-type PackedTarget = { raw: number; packed: number }
 type TextEncoding = 'utf-8' | 'utf-16le' | 'utf-16be'
 
 /**
  * Single-character delimiter only.
- * Fast, single-pass scan of the row string.
+ * Fast, single-pass scan of row bytes.
  *
  * Notes:
  * - No split().
@@ -26,26 +23,15 @@ export abstract class AbstractEyeDeserializer {
       ) => void)
     | null = null
   protected readonly delim: string
-  protected readonly delimLen: number
-  private readonly delimCh: number
   protected readonly encoding: TextEncoding
   private readonly encodingKind: 0 | 1 | 2
   private readonly delimBytes: Uint8Array
   private readonly delimBytesLen: number
 
-  protected useBinary = false
   private currRowBytes: Uint8Array = new Uint8Array(0)
   private currRangeStart: Uint32Array = new Uint32Array(0)
   private currRangeEnd: Uint32Array = new Uint32Array(0)
   private currRangeStamp: Uint32Array = new Uint32Array(0)
-
-  // String Double Buffer: Main metadata columns (packed)
-  protected curr: string[] = []
-  protected prev: string[] = []
-  private temp: string[] = []
-
-  // Row stamp for efficient clearing
-  private currStamp: Uint32Array = new Uint32Array(0)
   private rowId = 0
 
   // Binary Double Buffer: AOI data (0 or 1)
@@ -58,12 +44,7 @@ export abstract class AbstractEyeDeserializer {
   protected aoiStart = 0
   protected aoiCount = 0
 
-  // Precomputed packed targets (rigid lookup tables)
-  // For each raw column, packedHead[raw] points to the first node index in
-  // packedIndex/packedNext, or -1 if no packed field maps to that raw column.
-  private packedHead: Int32Array = new Int32Array(0)
-  private packedIndex: Int32Array = new Int32Array(0)
-  private packedNext: Int32Array = new Int32Array(0)
+  private binaryRowParser: ((rawRow: Uint8Array) => void) | null = null
 
   private minNeededCol = 0
   private maxNeededCol = -1
@@ -75,8 +56,6 @@ export abstract class AbstractEyeDeserializer {
       )
     }
     this.delim = columnDelimiter
-    this.delimLen = 1
-    this.delimCh = columnDelimiter.charCodeAt(0)
     this.encoding = encoding
     this.encodingKind =
       encoding === 'utf-16le' ? 1 : encoding === 'utf-16be' ? 2 : 0
@@ -84,12 +63,7 @@ export abstract class AbstractEyeDeserializer {
     this.delimBytesLen = this.delimBytes.length
   }
 
-  abstract deserialize(rawRowRef: string): void
   abstract finalize(): void
-
-  protected getCurr(index: number): string {
-    return this.currStamp[index] === this.rowId ? this.curr[index] : ''
-  }
 
   protected getBytes(index: number): Uint8Array {
     if (this.currRangeStamp[index] !== this.rowId) return new Uint8Array(0)
@@ -122,10 +96,6 @@ export abstract class AbstractEyeDeserializer {
   protected setupColumns(indices: number[]): void {
     const count = indices.length
     this.columnMap = indices
-    this.curr = new Array(count).fill('')
-    this.prev = new Array(count).fill('')
-    this.temp = new Array(count)
-    this.currStamp = new Uint32Array(count)
     this.currRangeStart = new Uint32Array(count)
     this.currRangeEnd = new Uint32Array(count)
     this.currRangeStamp = new Uint32Array(count)
@@ -142,19 +112,14 @@ export abstract class AbstractEyeDeserializer {
   }
 
   private rebuildTargets(): void {
-    const targetsStr: PackedTarget[] = []
-    for (let packed = 0; packed < this.columnMap.length; packed++) {
-      const raw = this.columnMap[packed]
-      if (raw >= 0) targetsStr.push({ raw, packed })
-    }
-    targetsStr.sort((a, b) => a.raw - b.raw)
-
     let min = Number.POSITIVE_INFINITY
     let max = -1
 
-    if (targetsStr.length) {
-      min = Math.min(min, targetsStr[0].raw)
-      max = Math.max(max, targetsStr[targetsStr.length - 1].raw)
+    for (let i = 0; i < this.columnMap.length; i++) {
+      const raw = this.columnMap[i]
+      if (raw < 0) continue
+      if (raw < min) min = raw
+      if (raw > max) max = raw
     }
 
     if (this.aoiCount > 0) {
@@ -170,154 +135,10 @@ export abstract class AbstractEyeDeserializer {
     this.minNeededCol = min
     this.maxNeededCol = max
 
-    // Build fast lookup tables for packed string columns.
-    // Note: allocate head up to maxNeededCol so we can index directly by raw col.
-    const len = targetsStr.length
-    this.packedIndex = new Int32Array(len)
-    this.packedNext = new Int32Array(len)
-    this.packedNext.fill(-1)
-
-    if (this.maxNeededCol >= 0) {
-      this.packedHead = new Int32Array(this.maxNeededCol + 1)
-      this.packedHead.fill(-1)
-    } else {
-      this.packedHead = new Int32Array(0)
-    }
-
-    // targetsStr is sorted by raw; link nodes per raw column.
-    for (let i = len - 1; i >= 0; i--) {
-      const raw = targetsStr[i].raw
-      this.packedIndex[i] = targetsStr[i].packed
-      this.packedNext[i] = this.packedHead[raw]
-      this.packedHead[raw] = i
-    }
-  }
-
-  processRow(rawRow: string): void {
-    // Buffer swap (strings)
-    {
-      const prevTemp = this.prev
-      this.prev = this.curr
-      this.curr = this.temp
-      this.temp = prevTemp
-    }
-
-    // Buffer swap (AOI)
-    {
-      const prevAoiTemp = this.prevAoi
-      this.prevAoi = this.currAoi
-      this.currAoi = this.tempAoi
-      this.tempAoi = prevAoiTemp
-    }
-
-    // Increment row ID for stamping
-    this.rowId++
-
-    if (this.maxNeededCol < this.minNeededCol) {
-      this.deserialize(rawRow)
-      return
-    }
-
-    const s = rawRow
-    const n = s.length
-    const delimCh = this.delimCh
-
-    const packedHead = this.packedHead
-    const packedIndex = this.packedIndex
-    const packedNext = this.packedNext
-    const hasPacked = packedIndex.length !== 0
-
-    const aoiStart = this.aoiStart
-    const aoiEnd = aoiStart + this.aoiCount
-
-    let col = 0
-    let start = 0
-
-    // Process delimited fields (scan only for delimiters)
-    for (let i = 0; i < n; i++) {
-      if (s.charCodeAt(i) !== delimCh) continue
-
-      const end = i
-
-      if (col >= this.minNeededCol && col <= this.maxNeededCol) {
-        // Packed string targets for this col
-        if (hasPacked) {
-          let node = packedHead[col]
-          if (node !== -1) {
-            const value = start < end ? s.slice(start, end) : ''
-            do {
-              this.curr[packedIndex[node]] = value
-              this.currStamp[packedIndex[node]] = this.rowId
-              node = packedNext[node]
-            } while (node !== -1)
-          }
-        }
-
-        // AOI parsing for this col
-        if (col >= aoiStart && col < aoiEnd) {
-          const idx = col - aoiStart
-          this.currAoi[idx] =
-            end === start + 1 && s.charCodeAt(start) === 49 ? 1 : 0
-        }
-      }
-
-      // Early exit after we closed the last needed col
-      if (col >= this.maxNeededCol) {
-        // Zero-fill missing AOIs after the last seen AOI column
-        if (this.aoiCount > 0) {
-          const lastSeenAoi = col >= aoiStart ? col - aoiStart : -1
-          const firstMissing = Math.max(0, lastSeenAoi + 1)
-          if (firstMissing < this.aoiCount) this.currAoi.fill(0, firstMissing)
-        }
-
-        this.deserialize(rawRow)
-        return
-      }
-
-      start = i + 1
-      col++
-    }
-
-    // Handle final field (from start to end-of-line)
-    const end = n
-    if (col >= this.minNeededCol && col <= this.maxNeededCol) {
-      // Packed string targets for this col
-      if (hasPacked) {
-        let node = packedHead[col]
-        if (node !== -1) {
-          const value = start < end ? s.slice(start, end) : ''
-          do {
-            this.curr[packedIndex[node]] = value
-            this.currStamp[packedIndex[node]] = this.rowId
-            node = packedNext[node]
-          } while (node !== -1)
-        }
-      }
-
-      // AOI parsing for this col
-      if (col >= aoiStart && col < aoiEnd) {
-        const idx = col - aoiStart
-        this.currAoi[idx] =
-          end === start + 1 && s.charCodeAt(start) === 49 ? 1 : 0
-      }
-    }
-
-    // Zero-fill missing AOIs (row truncated or final field)
-    if (this.aoiCount > 0) {
-      const lastSeenAoi = col >= aoiStart ? col - aoiStart : -1
-      const firstMissing = Math.max(0, lastSeenAoi + 1)
-      if (firstMissing < this.aoiCount) this.currAoi.fill(0, firstMissing)
-    }
-
-    this.deserialize(rawRow)
+    this.compileBinaryRowParser()
   }
 
   processRowBytes(rawRow: Uint8Array, decoder: TextDecoder): void {
-    if (!this.useBinary) {
-      const rowText = decoder.decode(rawRow)
-      this.processRow(rowText)
-      return
-    }
     this.processRowBinary(rawRow)
   }
 
@@ -338,14 +159,10 @@ export abstract class AbstractEyeDeserializer {
   }
 
   private processRowBinary(rawRow: Uint8Array): void {
-    // Buffer swap (strings)
-    {
-      const prevTemp = this.prev
-      this.prev = this.curr
-      this.curr = this.temp
-      this.temp = prevTemp
+    if (this.binaryRowParser) {
+      this.binaryRowParser(rawRow)
+      return
     }
-
     // Buffer swap (AOI)
     {
       const prevAoiTemp = this.prevAoi
@@ -354,196 +171,172 @@ export abstract class AbstractEyeDeserializer {
       this.tempAoi = prevAoiTemp
     }
 
-    // Increment row ID for stamping
     this.rowId++
     this.currRowBytes = rawRow
+    this.deserializeFromBytes(rawRow)
+  }
 
+  private compileBinaryRowParser(): void {
     if (this.maxNeededCol < this.minNeededCol) {
-      this.deserializeFromBytes(rawRow)
+      const parserSource = `
+        return function(rawRow) {
+          { const prevAoiTemp = this.prevAoi; this.prevAoi = this.currAoi; this.currAoi = this.tempAoi; this.tempAoi = prevAoiTemp; }
+          this.rowId++;
+          this.currRowBytes = rawRow;
+          this.deserializeFromBytes(rawRow);
+        };
+      `
+      // eslint-disable-next-line no-new-func
+      this.binaryRowParser = new Function(parserSource)().bind(this)
       return
     }
 
-    const bytes = rawRow
-    const n = bytes.length
-    const delimBytes = this.delimBytes
-    const delimBytesLen = this.delimBytesLen
-    const isSingleByteDelim = delimBytesLen === 1
-    const delimByte = isSingleByteDelim ? delimBytes[0] : 0
-    const encodingKind = this.encodingKind
-
-    const packedHead = this.packedHead
-    const packedIndex = this.packedIndex
-    const packedNext = this.packedNext
-    const hasPacked = packedIndex.length !== 0
-
-    const aoiStart = this.aoiStart
-    const aoiEnd = aoiStart + this.aoiCount
-
-    let col = 0
-    let start = 0
-
-    if (isSingleByteDelim) {
-      for (let i = 0; i < n; i++) {
-        if (bytes[i] !== delimByte) continue
-
-        const end = i
-
-        if (col >= this.minNeededCol && col <= this.maxNeededCol) {
-          if (hasPacked) {
-            let node = packedHead[col]
-            if (node !== -1) {
-              do {
-                const packed = packedIndex[node]
-                this.currRangeStart[packed] = start
-                this.currRangeEnd[packed] = end
-                this.currRangeStamp[packed] = this.rowId
-                node = packedNext[node]
-              } while (node !== -1)
-            }
-          }
-
-          if (col >= aoiStart && col < aoiEnd) {
-            const idx = col - aoiStart
-            if (encodingKind === 1) {
-              this.currAoi[idx] =
-                end === start + 2 &&
-                bytes[start] === 49 &&
-                bytes[start + 1] === 0
-                  ? 1
-                  : 0
-            } else if (encodingKind === 2) {
-              this.currAoi[idx] =
-                end === start + 2 &&
-                bytes[start] === 0 &&
-                bytes[start + 1] === 49
-                  ? 1
-                  : 0
-            } else {
-              this.currAoi[idx] =
-                end === start + 1 && bytes[start] === 49 ? 1 : 0
-            }
-          }
-        }
-
-        if (col >= this.maxNeededCol) {
-          if (this.aoiCount > 0) {
-            const lastSeenAoi = col >= aoiStart ? col - aoiStart : -1
-            const firstMissing = Math.max(0, lastSeenAoi + 1)
-            if (firstMissing < this.aoiCount) this.currAoi.fill(0, firstMissing)
-          }
-          this.deserializeFromBytes(rawRow)
-          return
-        }
-
-        start = i + 1
-        col++
+    const mapping = new Map<
+      number,
+      { packed: number[]; aoiIndex: number | null }
+    >()
+    for (let packed = 0; packed < this.columnMap.length; packed++) {
+      const raw = this.columnMap[packed]
+      if (raw < 0) continue
+      let entry = mapping.get(raw)
+      if (!entry) {
+        entry = { packed: [], aoiIndex: null }
+        mapping.set(raw, entry)
       }
-    } else {
-      for (let i = 0; i <= n - delimBytesLen; i++) {
-        let match = true
-        for (let j = 0; j < delimBytesLen; j++) {
-          if (bytes[i + j] !== delimBytes[j]) {
-            match = false
-            break
-          }
-        }
-        if (!match) continue
-
-        const end = i
-
-        if (col >= this.minNeededCol && col <= this.maxNeededCol) {
-          if (hasPacked) {
-            let node = packedHead[col]
-            if (node !== -1) {
-              do {
-                const packed = packedIndex[node]
-                this.currRangeStart[packed] = start
-                this.currRangeEnd[packed] = end
-                this.currRangeStamp[packed] = this.rowId
-                node = packedNext[node]
-              } while (node !== -1)
-            }
-          }
-
-          if (col >= aoiStart && col < aoiEnd) {
-            const idx = col - aoiStart
-            if (encodingKind === 1) {
-              this.currAoi[idx] =
-                end === start + 2 &&
-                bytes[start] === 49 &&
-                bytes[start + 1] === 0
-                  ? 1
-                  : 0
-            } else if (encodingKind === 2) {
-              this.currAoi[idx] =
-                end === start + 2 &&
-                bytes[start] === 0 &&
-                bytes[start + 1] === 49
-                  ? 1
-                  : 0
-            } else {
-              this.currAoi[idx] =
-                end === start + 1 && bytes[start] === 49 ? 1 : 0
-            }
-          }
-        }
-
-        if (col >= this.maxNeededCol) {
-          if (this.aoiCount > 0) {
-            const lastSeenAoi = col >= aoiStart ? col - aoiStart : -1
-            const firstMissing = Math.max(0, lastSeenAoi + 1)
-            if (firstMissing < this.aoiCount) this.currAoi.fill(0, firstMissing)
-          }
-          this.deserializeFromBytes(rawRow)
-          return
-        }
-
-        i += delimBytesLen - 1
-        start = i + 1
-        col++
-      }
-    }
-
-    const end = n
-    if (col >= this.minNeededCol && col <= this.maxNeededCol) {
-      if (hasPacked) {
-        let node = packedHead[col]
-        if (node !== -1) {
-          do {
-            const packed = packedIndex[node]
-            this.currRangeStart[packed] = start
-            this.currRangeEnd[packed] = end
-            this.currRangeStamp[packed] = this.rowId
-            node = packedNext[node]
-          } while (node !== -1)
-        }
-      }
-
-      if (col >= aoiStart && col < aoiEnd) {
-        const idx = col - aoiStart
-        if (encodingKind === 1) {
-          this.currAoi[idx] =
-            end === start + 2 && bytes[start] === 49 && bytes[start + 1] === 0
-              ? 1
-              : 0
-        } else if (encodingKind === 2) {
-          this.currAoi[idx] =
-            end === start + 2 && bytes[start] === 0 && bytes[start + 1] === 49
-              ? 1
-              : 0
-        } else {
-          this.currAoi[idx] = end === start + 1 && bytes[start] === 49 ? 1 : 0
-        }
-      }
+      entry.packed.push(packed)
     }
 
     if (this.aoiCount > 0) {
-      const lastSeenAoi = col >= aoiStart ? col - aoiStart : -1
-      const firstMissing = Math.max(0, lastSeenAoi + 1)
-      if (firstMissing < this.aoiCount) this.currAoi.fill(0, firstMissing)
+      for (let i = 0; i < this.aoiCount; i++) {
+        const raw = this.aoiStart + i
+        let entry = mapping.get(raw)
+        if (!entry) {
+          entry = { packed: [], aoiIndex: i }
+          mapping.set(raw, entry)
+        } else {
+          entry.aoiIndex = i
+        }
+      }
     }
 
-    this.deserializeFromBytes(rawRow)
+    const cases: string[] = []
+    const encodingKind = this.encodingKind
+    const entries = Array.from(mapping.entries()).sort((a, b) => a[0] - b[0])
+    for (const [raw, entry] of entries) {
+      const body: string[] = []
+      for (let i = 0; i < entry.packed.length; i++) {
+        const packed = entry.packed[i]
+        body.push(
+          `currRangeStart[${packed}] = start; currRangeEnd[${packed}] = end; currRangeStamp[${packed}] = rowId;`
+        )
+      }
+      if (entry.aoiIndex !== null) {
+        const idx = entry.aoiIndex
+        if (encodingKind === 1) {
+          body.push(
+            `currAoi[${idx}] = end === start + 2 && bytes[start] === 49 && bytes[start + 1] === 0 ? 1 : 0;`
+          )
+        } else if (encodingKind === 2) {
+          body.push(
+            `currAoi[${idx}] = end === start + 2 && bytes[start] === 0 && bytes[start + 1] === 49 ? 1 : 0;`
+          )
+        } else {
+          body.push(
+            `currAoi[${idx}] = end === start + 1 && bytes[start] === 49 ? 1 : 0;`
+          )
+        }
+      }
+      cases.push(`case ${raw}: { ${body.join(' ')} break; }`)
+    }
+
+    const switchBlock = cases.length
+      ? `switch (col) { ${cases.join(' ')} }`
+      : ''
+
+    const delimBytes = Array.from(this.delimBytes)
+    const delimLen = this.delimBytesLen
+    const delimByte = delimLen === 1 ? delimBytes[0] : 0
+
+    const parserSource = `
+      return function(rawRow) {
+        { const prevAoiTemp = this.prevAoi; this.prevAoi = this.currAoi; this.currAoi = this.tempAoi; this.tempAoi = prevAoiTemp; }
+        this.rowId++;
+        const rowId = this.rowId;
+        this.currRowBytes = rawRow;
+
+        const bytes = rawRow;
+        const n = bytes.length;
+        const currRangeStart = this.currRangeStart;
+        const currRangeEnd = this.currRangeEnd;
+        const currRangeStamp = this.currRangeStamp;
+        const currAoi = this.currAoi;
+        const aoiStart = ${this.aoiStart};
+        const aoiCount = ${this.aoiCount};
+        const maxNeededCol = ${this.maxNeededCol};
+
+        let col = 0;
+        let start = 0;
+
+        if (${delimLen} === 1) {
+          const d = ${delimByte};
+          for (let i = 0; i < n; i++) {
+            if (bytes[i] !== d) continue;
+            const end = i;
+            ${switchBlock}
+            if (col >= maxNeededCol) {
+              if (aoiCount > 0) {
+                const lastSeenAoi = col >= aoiStart ? col - aoiStart : -1;
+                const firstMissing = Math.max(0, lastSeenAoi + 1);
+                if (firstMissing < aoiCount) currAoi.fill(0, firstMissing);
+              }
+              this.deserializeFromBytes(rawRow);
+              return;
+            }
+            start = i + 1;
+            col++;
+          }
+        } else {
+          const d0 = ${delimBytes[0] ?? 0};
+          const d1 = ${delimBytes[1] ?? 0};
+          const d2 = ${delimBytes[2] ?? 0};
+          const d3 = ${delimBytes[3] ?? 0};
+          for (let i = 0; i <= n - ${delimLen}; i++) {
+            let match = true;
+            if (${delimLen} > 0 && bytes[i] !== d0) match = false;
+            if (match && ${delimLen} > 1 && bytes[i + 1] !== d1) match = false;
+            if (match && ${delimLen} > 2 && bytes[i + 2] !== d2) match = false;
+            if (match && ${delimLen} > 3 && bytes[i + 3] !== d3) match = false;
+            if (!match) continue;
+            const end = i;
+            ${switchBlock}
+            if (col >= maxNeededCol) {
+              if (aoiCount > 0) {
+                const lastSeenAoi = col >= aoiStart ? col - aoiStart : -1;
+                const firstMissing = Math.max(0, lastSeenAoi + 1);
+                if (firstMissing < aoiCount) currAoi.fill(0, firstMissing);
+              }
+              this.deserializeFromBytes(rawRow);
+              return;
+            }
+            i += ${delimLen} - 1;
+            start = i + 1;
+            col++;
+          }
+        }
+
+        const end = n;
+        ${switchBlock}
+        if (aoiCount > 0) {
+          const lastSeenAoi = col >= aoiStart ? col - aoiStart : -1;
+          const firstMissing = Math.max(0, lastSeenAoi + 1);
+          if (firstMissing < aoiCount) currAoi.fill(0, firstMissing);
+        }
+        this.deserializeFromBytes(rawRow);
+      };
+    `
+
+    // eslint-disable-next-line no-new-func
+    this.binaryRowParser = new Function(parserSource)().bind(this)
   }
 
   private encodeDelimiter(
@@ -570,16 +363,6 @@ export abstract class AbstractEyeDeserializer {
       out[i] = delimiter.charCodeAt(i) & 0xff
     }
     return out
-  }
-
-  private isAsciiOne(bytes: Uint8Array, start: number, end: number): boolean {
-    if (this.encodingKind === 1) {
-      return end === start + 2 && bytes[start] === 49 && bytes[start + 1] === 0
-    }
-    if (this.encodingKind === 2) {
-      return end === start + 2 && bytes[start] === 0 && bytes[start + 1] === 49
-    }
-    return end === start + 1 && bytes[start] === 49
   }
 
   private parseNumberFromBytes(

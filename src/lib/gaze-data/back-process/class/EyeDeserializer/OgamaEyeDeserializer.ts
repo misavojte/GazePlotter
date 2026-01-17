@@ -19,7 +19,6 @@ export class OgamaEyeDeserializer extends AbstractEyeDeserializer {
     encoding: 'utf-8' | 'utf-16le' | 'utf-16be' = 'utf-8'
   ) {
     super(columnDelimiter, encoding)
-    this.useBinary = true
     // extract name from file name (SimilarityXXX.txt) where XXX is the stimulus name
     // this.stimulusName = fileName.split('.')[0].split('Similarity')[1]
     this.stimulusName = fileName.split('.')[0]
@@ -32,10 +31,6 @@ export class OgamaEyeDeserializer extends AbstractEyeDeserializer {
   }
 
   finalize(): void {
-    return
-  }
-
-  deserialize(_rawRowRef: string): void {
     return
   }
 

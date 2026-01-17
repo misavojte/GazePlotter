@@ -59,11 +59,9 @@ export class CsvSegmentedDurationEyeDeserializer extends AbstractEyeDeserializer
   mTimeBase: number | null = null
 
   /** Current participant being processed (used to detect when to reset base time) */
-  mParticipant = ''
   mParticipantBytes: Uint8Array | null = null
 
   /** Current stimulus being processed (used to detect when to reset base time) */
-  mStimulus = ''
   mStimulusBytes: Uint8Array | null = null
 
   /**
@@ -81,7 +79,6 @@ export class CsvSegmentedDurationEyeDeserializer extends AbstractEyeDeserializer
     encoding: 'utf-8' | 'utf-16le' | 'utf-16be' = 'utf-8'
   ) {
     super(columnDelimiter, encoding)
-    this.useBinary = true
     // Trim whitespace from header values to handle potential BOM or whitespace issues
     const trimmedHeader = header.map(h => h.trim())
 
@@ -127,67 +124,6 @@ export class CsvSegmentedDurationEyeDeserializer extends AbstractEyeDeserializer
    * @param {string[]} row - An array representing a single row from the CSV file
    * @returns {DeserializerOutputType | null} Deserialized segment data, or null if validation fails
    */
-  deserialize(_rawRowRef: string): void {
-    const timestamp = this.getCurr(this.pTimestamp)
-    const duration = this.getCurr(this.pDuration)
-    const aoi = this.getCurr(this.pAoi)
-    const participant = this.getCurr(this.pParticipant)
-    const stimulus = this.getCurr(this.pStimulus)
-    const eyeMovementType = this.getCurr(this.pEyeMovementType)
-
-    if (
-      timestamp === '' ||
-      duration === '' ||
-      participant === '' ||
-      stimulus === ''
-    )
-      return
-
-    const timestampNum = Number(timestamp)
-    const durationNum = Number(duration)
-    if (!Number.isFinite(timestampNum) || !Number.isFinite(durationNum)) return
-
-    // Check if this is a new participant/stimulus combination
-    // If so, reset the base time to the current timestamp
-    const isNewTimebase =
-      this.mTimeBase === null ||
-      participant !== this.mParticipant ||
-      stimulus !== this.mStimulus
-
-    if (isNewTimebase) {
-      // Set base time to the first timestamp of this participant/stimulus combination
-      this.mTimeBase = timestampNum
-      // Update the tracked participant and stimulus
-      this.mParticipant = participant
-      this.mStimulus = stimulus
-    }
-
-    // Get the base time for normalization (should never be null at this point)
-    const baseTime = this.mTimeBase
-    if (baseTime === null) {
-      throw new Error('Base time is null after initialization')
-    }
-
-    // Normalize timestamps relative to the base time
-    // This ensures all segments start from 0 for each participant/stimulus combination
-    const normalizedStartTime = timestampNum - baseTime
-    const normalizedEndTime = normalizedStartTime + durationNum
-
-    // Map eye movement type to category
-    // Convention: 0 = Fixation, all other values (typically 1) = Saccade
-    const category = eyeMovementType === '0' ? 'Fixation' : 'Saccade'
-
-    // Return the deserialized segment following the SingleDeserializerOutput interface
-    this.emitSegment(
-      normalizedStartTime,
-      normalizedEndTime,
-      category === 'Fixation' ? 0 : 1,
-      new Uint8Array(0),
-      new Uint8Array(0),
-      null
-    )
-  }
-
   protected deserializeFromBytes(_rawRowRef: Uint8Array): void {
     const timestampNum = this.getNumber(this.pTimestamp)
     const durationNum = this.getNumber(this.pDuration)
