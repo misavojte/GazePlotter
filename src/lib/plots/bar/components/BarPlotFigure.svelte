@@ -6,8 +6,12 @@
     SYSTEM_SANS_SERIF_STACK,
   } from '$lib/shared/utils/textUtils'
   import { updateTooltip } from '$lib/tooltip'
-  import { onMount, untrack } from 'svelte'
+  import { getContext, onMount, untrack } from 'svelte'
   import { browser } from '$app/environment'
+  import {
+    EXPORT_SOURCE_CONTEXT,
+    type ExportSourceRegistrar,
+  } from '$lib/shared/utils/exportUtils'
   import {
     createCanvasState,
     setupCanvas,
@@ -82,14 +86,28 @@
   let canvas = $state<HTMLCanvasElement | null>(null)
   let canvasState = $state<CanvasState>(createCanvasState())
 
+  const exportRegistrar = getContext<ExportSourceRegistrar | undefined>(
+    EXPORT_SOURCE_CONTEXT
+  )
+
+  $effect(() => {
+    if (!exportRegistrar) return
+    if (!canvas) return
+    exportRegistrar.register({ kind: 'canvas', getCanvas: () => canvas })
+  })
+
   // Calculate dynamic left margin based on plotting type and label lengths
   const trueLeftMargin = $derived(
     barPlottingType === 'horizontal'
-      ? Math.min(150, calculateLabelOffset(data.map(item => item.label)) + VALUE_LABEL_OFFSET) +
-          marginLeft
+      ? Math.min(
+          150,
+          calculateLabelOffset(data.map(item => item.label)) +
+            VALUE_LABEL_OFFSET
+        ) + marginLeft
       : Math.max(
           35,
-          calculateLabelOffset(timeline.ticks.map(tick => tick.label)) + VALUE_LABEL_OFFSET
+          calculateLabelOffset(timeline.ticks.map(tick => tick.label)) +
+            VALUE_LABEL_OFFSET
         ) + marginLeft
   )
 
@@ -340,7 +358,7 @@
   function drawAllTextElements(ctx: CanvasRenderingContext2D) {
     ctx.font = `${LABEL_FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
     ctx.fillStyle = '#222'
-    
+
     // Draw value labels
     bars.forEach(bar => {
       const text = bar.value.toString()

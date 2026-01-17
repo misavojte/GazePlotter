@@ -2,7 +2,10 @@
   import { fade } from 'svelte/transition'
   import { onMount, untrack } from 'svelte'
 
-  import { AoiStreamPlotFigure } from '$lib/plots/aoi-stream/components'
+  import {
+    AoiStreamPlotFigure,
+    AoiStreamPlotButtonMenu,
+  } from '$lib/plots/aoi-stream/components'
   import { PlotPlaceholder } from '$lib/plots/shared/components'
   import Select, {
     type GroupSelectItem,
@@ -133,6 +136,9 @@
         label="AOI Stream"
         options={[]}
       />
+      <div class="menu-button">
+        <AoiStreamPlotButtonMenu {settings} {onWorkspaceCommand} />
+      </div>
     </div>
   </div>
 
@@ -197,5 +203,10 @@
     gap: 5px;
     flex-wrap: wrap;
     background: inherit;
+  }
+
+  .menu-button {
+    display: flex;
+    align-items: center;
   }
 </style>

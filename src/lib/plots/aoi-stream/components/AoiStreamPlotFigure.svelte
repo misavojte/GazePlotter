@@ -1,6 +1,10 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte'
+  import { getContext, onMount, untrack } from 'svelte'
   import { browser } from '$app/environment'
+  import {
+    EXPORT_SOURCE_CONTEXT,
+    type ExportSourceRegistrar,
+  } from '$lib/shared/utils/exportUtils'
   import {
     createCanvasState,
     setupCanvas,
@@ -83,11 +87,38 @@
   let canvas = $state<HTMLCanvasElement | null>(null)
   let canvasState = $state<CanvasState>(createCanvasState())
 
+  const safeNumber = (value: number, fallback: number) =>
+    Number.isFinite(value) ? value : fallback
+
+  const safeWidth = $derived.by(() => Math.max(1, safeNumber(width, 1)))
+  const safeHeight = $derived.by(() => Math.max(1, safeNumber(height, 1)))
+
+  // Export margins can be edited via inputs; treat temporary invalid states as 0
+  const safeMarginTop = $derived.by(() => safeNumber(marginTop, 0))
+  const safeMarginRight = $derived.by(() => safeNumber(marginRight, 0))
+  const safeMarginBottom = $derived.by(() => safeNumber(marginBottom, 0))
+  const safeMarginLeft = $derived.by(() => safeNumber(marginLeft, 0))
+
+  const exportRegistrar = getContext<ExportSourceRegistrar | undefined>(
+    EXPORT_SOURCE_CONTEXT
+  )
+
+  $effect(() => {
+    if (!exportRegistrar) return
+    if (!canvas) return
+
+    exportRegistrar.register({ kind: 'canvas', getCanvas: () => canvas })
+
+    return () => {
+      exportRegistrar.register(null)
+    }
+  })
+
   const legendItemsPerRow = $derived.by(() =>
     Math.max(
       1,
       getItemsPerRow({
-        chartWidth: Math.max(0, width - marginLeft - marginRight),
+        chartWidth: Math.max(0, safeWidth - MARGIN.LEFT - MARGIN.RIGHT),
         leftLabelWidth: 0,
         padding: 0,
         iconWidth: LEGEND.ICON_SIZE,
@@ -111,23 +142,17 @@
         LEGEND.TOP_PADDING
   )
 
+  // `width`/`height` already represent the drawable area excluding export margins.
+  // Export margins are applied as offsets and by growing the canvas size.
   const plotAreaWidth = $derived(
-    Math.max(0, width - marginLeft - marginRight - MARGIN.LEFT - MARGIN.RIGHT)
+    Math.max(0, safeWidth - MARGIN.LEFT - MARGIN.RIGHT)
   )
   const plotAreaHeight = $derived(
-    Math.max(
-      0,
-      height -
-        marginTop -
-        marginBottom -
-        MARGIN.TOP -
-        MARGIN.BOTTOM -
-        legendHeight
-    )
+    Math.max(0, safeHeight - MARGIN.TOP - MARGIN.BOTTOM - legendHeight)
   )
 
-  const plotLeft = $derived(marginLeft + MARGIN.LEFT)
-  const plotTop = $derived(marginTop + MARGIN.TOP)
+  const plotLeft = $derived(safeMarginLeft + MARGIN.LEFT)
+  const plotTop = $derived(safeMarginTop + MARGIN.TOP)
   const plotBottom = $derived(plotTop + plotAreaHeight)
 
   function scheduleRender() {
@@ -143,11 +168,16 @@
   function initCanvas() {
     if (!canvas) return
     canvasState = setupCanvas(canvasState, canvas, dpiOverride)
-    canvasState = resizeCanvas(
-      canvasState,
-      width + marginLeft + marginRight,
-      height + marginTop + marginBottom
+
+    const targetWidth = Math.max(
+      1,
+      safeWidth + safeMarginLeft + safeMarginRight
     )
+    const targetHeight = Math.max(
+      1,
+      safeHeight + safeMarginTop + safeMarginBottom
+    )
+    canvasState = resizeCanvas(canvasState, targetWidth, targetHeight)
     renderCanvas()
   }
 
@@ -162,7 +192,15 @@
 
     const upperParticipants = Math.max(1, data.upperParticipants)
 
-    if (plotAreaWidth <= 0 || plotAreaHeight <= 0 || binCount <= 0) {
+    if (
+      !Number.isFinite(plotAreaWidth) ||
+      !Number.isFinite(plotAreaHeight) ||
+      !Number.isFinite(plotLeft) ||
+      !Number.isFinite(plotTop) ||
+      plotAreaWidth <= 0 ||
+      plotAreaHeight <= 0 ||
+      binCount <= 0
+    ) {
       finishCanvasDrawing(canvasState)
       return
     }
@@ -284,10 +322,10 @@
     // Legend (below plot, scarf-style)
     const legendItems = upperSeries
     if (legendItems.length && legendHeight > 0) {
-      const legendX = marginLeft
+      const legendX = safeMarginLeft
       const legendY = plotBottom + MARGIN.BOTTOM + LEGEND.TOP_PADDING
       const itemsPerRow = legendItemsPerRow
-      const legendWidth = Math.max(0, width - marginLeft - marginRight)
+      const legendWidth = Math.max(0, safeWidth)
       const itemWidth =
         itemsPerRow > 0
           ? (legendWidth - (itemsPerRow - 1) * LEGEND.ITEM_SPACING) /
@@ -457,20 +495,20 @@
     ctx.rotate(-Math.PI / 2)
     ctx.textAlign = 'center'
     ctx.textBaseline = 'bottom'
-    ctx.fillText('Share of participants [%]', 0, 0)
+    ctx.fillText('Share of participants fixating [%]', 0, 0)
     ctx.restore()
   }
 
   $effect(() => {
     const _ = [
       data,
-      width,
-      height,
+      safeWidth,
+      safeHeight,
       dpiOverride,
-      marginTop,
-      marginRight,
-      marginBottom,
-      marginLeft,
+      safeMarginTop,
+      safeMarginRight,
+      safeMarginBottom,
+      safeMarginLeft,
     ]
 
     untrack(() => {
@@ -482,11 +520,16 @@
             dpiOverride
           )
         }
-        canvasState = resizeCanvas(
-          canvasState,
-          width + marginLeft + marginRight,
-          height + marginTop + marginBottom
+
+        const targetWidth = Math.max(
+          1,
+          safeWidth + safeMarginLeft + safeMarginRight
         )
+        const targetHeight = Math.max(
+          1,
+          safeHeight + safeMarginTop + safeMarginBottom
+        )
+        canvasState = resizeCanvas(canvasState, targetWidth, targetHeight)
         scheduleRender()
       }
     })
@@ -501,11 +544,15 @@
       newState => {
         canvasState = newState
         if (canvasState.canvas) {
-          canvasState = resizeCanvas(
-            canvasState,
-            width + marginLeft + marginRight,
-            height + marginTop + marginBottom
+          const targetWidth = Math.max(
+            1,
+            safeWidth + safeMarginLeft + safeMarginRight
           )
+          const targetHeight = Math.max(
+            1,
+            safeHeight + safeMarginTop + safeMarginBottom
+          )
+          canvasState = resizeCanvas(canvasState, targetWidth, targetHeight)
           renderCanvas()
         }
       },

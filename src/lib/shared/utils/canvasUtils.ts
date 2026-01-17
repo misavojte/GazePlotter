@@ -80,13 +80,18 @@ export function resizeCanvas(
   const { canvas, pixelRatio } = state
   if (!canvas || !browser) return state
 
+  const safePixelRatio =
+    Number.isFinite(pixelRatio) && pixelRatio > 0 ? pixelRatio : 1
+  const safeWidth = Number.isFinite(width) ? Math.max(1, width) : 1
+  const safeHeight = Number.isFinite(height) ? Math.max(1, height) : 1
+
   // Set actual canvas dimensions (scaled for high DPI)
-  canvas.width = Math.round(width * pixelRatio)
-  canvas.height = Math.round(height * pixelRatio)
+  canvas.width = Math.round(safeWidth * safePixelRatio)
+  canvas.height = Math.round(safeHeight * safePixelRatio)
 
   // Set display size (css pixels)
-  canvas.style.width = `${width}px`
-  canvas.style.height = `${height}px`
+  canvas.style.width = `${safeWidth}px`
+  canvas.style.height = `${safeHeight}px`
 
   // Update canvas rect
   const canvasRect = canvas.getBoundingClientRect()
@@ -276,9 +281,11 @@ export function setupDpiChangeListeners(
   const handleWindowMove = () => {
     const state = getState()
     if (state.canvas) {
-      // Get current canvas size
-      const width = parseFloat(state.canvas.style.width)
-      const height = parseFloat(state.canvas.style.height)
+      // Get current canvas size. Prefer layout-measured size to avoid NaN when
+      // style width/height are temporarily empty.
+      const rect = state.canvas.getBoundingClientRect()
+      const width = rect.width
+      const height = rect.height
 
       // Force a complete redraw with current dimensions
       const newState = forceCanvasRedraw(state, width, height, renderCallback)
@@ -313,8 +320,9 @@ export function setupDpiChangeListeners(
       }
     })
 
-    // Watch for style/class changes on the canvas and parent elements
-    observer.observe(state.canvas, { attributes: true })
+    // Watch for style/class changes on the parent element.
+    // Observing the canvas itself can create a feedback loop because resizing
+    // updates `canvas.style.*`, which would trigger another redraw.
     observer.observe(state.canvas.parentElement, { attributes: true })
   }
 

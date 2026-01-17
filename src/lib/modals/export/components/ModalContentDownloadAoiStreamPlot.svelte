@@ -1,12 +1,12 @@
 <script lang="ts">
-  import type { BarPlotGridType } from '$lib/workspace/type/gridType'
-  import BarPlotFigure from '$lib/plots/bar/components/BarPlotFigure.svelte'
-  import { getBarPlotData } from '$lib/plots/bar/utils/barPlotUtils'
+  import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
+  import AoiStreamPlotFigure from '$lib/plots/aoi-stream/components/AoiStreamPlotFigure.svelte'
+  import { getAoiStreamPlotData } from '$lib/plots/aoi-stream/utils'
   import GeneralCanvasPreview from '$lib/modals/shared/components/CanvasPreview.svelte'
   import { SectionHeader, DownloadPlotSettings } from '$lib/modals'
 
   interface Props {
-    settings: BarPlotGridType
+    settings: AoiStreamPlotGridType
   }
 
   let { settings }: Props = $props()
@@ -14,7 +14,7 @@
   // Export settings state
   let typeOfExport = $state<'.png' | '.jpg'>('.png')
   let width = $state(800) /* in px */
-  let fileName = $state('GazePlotter-BarPlot')
+  let fileName = $state('GazePlotter-AoiStreamPlot')
   let dpi = $state(96) /* standard web DPI */
   let marginTop = $state(20) /* in px */
   let marginRight = $state(20) /* in px */
@@ -24,13 +24,14 @@
   const effectiveWidth = $derived(width - (marginLeft + marginRight))
   const effectiveHeight = $derived(width * 0.6 - (marginTop + marginBottom))
 
-  let { data, timeline } = getBarPlotData({
-    stimulusId: settings.stimulusId,
-    groupId: settings.groupId,
-    aggregationMethod: settings.aggregationMethod,
-    sortBars: settings.sortBars,
-    scaleRange: settings.scaleRange,
-  })
+  const streamData = $derived.by(() =>
+    getAoiStreamPlotData({
+      stimulusId: settings.stimulusId,
+      groupIdUpper: settings.groupIdUpper,
+      groupIdLower: settings.groupIdLower,
+      binCount: settings.binCount,
+    })
+  )
 </script>
 
 <div class="single-view-container">
@@ -55,15 +56,10 @@
         fileType={typeOfExport}
         showDownloadButton={true}
       >
-        <BarPlotFigure
+        <AoiStreamPlotFigure
           width={effectiveWidth}
           height={effectiveHeight}
-          {data}
-          {timeline}
-          barPlottingType={settings.barPlottingType}
-          barWidth={200}
-          barSpacing={20}
-          onDataHover={() => {}}
+          data={streamData}
           dpiOverride={dpi}
           {marginTop}
           {marginRight}

@@ -1,6 +1,16 @@
 <script lang="ts">
+  import { setContext, tick } from 'svelte'
   import MajorButton from '$lib/shared/components/GeneralButtonMajor.svelte'
   import { addErrorToast } from '$lib/toaster'
+  import {
+    EXPORT_SOURCE_CONTEXT,
+    type ExportSource,
+    type ExportSourceRegistrar,
+    canvasToBlobWithWhiteBackground,
+    downloadBlob,
+    getMimeType,
+    getQuality,
+  } from '$lib/shared/utils/exportUtils'
 
   // Component props
   interface Props {
@@ -20,57 +30,43 @@
   // States
   let componentContainer = $state<HTMLElement | null>(null) // Container for the child component
   let isGeneratingDownload = $state(false)
+  let exportSource = $state<ExportSource | null>(null)
+
+  const registrar: ExportSourceRegistrar = {
+    register: source => {
+      exportSource = source
+    },
+  }
+
+  setContext(EXPORT_SOURCE_CONTEXT, registrar)
 
   // Function to generate high-resolution download
   async function generateDownload() {
-    // Obtain through DOM - first canvas element inside the child wrapper
-    const childCanvas = componentContainer?.querySelector('canvas')
-    if (!childCanvas) return
+    await tick()
+
+    const resolvedCanvas =
+      exportSource?.kind === 'canvas' ? exportSource.getCanvas() : null
+
+    if (!resolvedCanvas) {
+      addErrorToast(
+        'Nothing to export: plot did not register an export source.'
+      )
+      return
+    }
 
     isGeneratingDownload = true
 
     try {
-      // Convert to blob and download
-      const mimeType = fileType === '.png' ? 'image/png' : 'image/jpeg'
-      const quality = fileType === '.jpg' ? 0.95 : undefined
+      const mimeType = getMimeType(fileType)
+      const quality = getQuality(fileType)
 
-      let exportCanvas = childCanvas
+      const blob = await canvasToBlobWithWhiteBackground(
+        resolvedCanvas,
+        mimeType,
+        quality
+      )
 
-      // Add white background for both PNG and JPG
-      // Create a temporary canvas with white background
-      const tempCanvas = document.createElement('canvas')
-      const ctx = tempCanvas.getContext('2d')
-      if (!ctx) throw new Error('Failed to get canvas context')
-
-      // Set the same dimensions as the original canvas
-      tempCanvas.width = childCanvas.width
-      tempCanvas.height = childCanvas.height
-
-      // Fill with white background
-      ctx.fillStyle = 'white'
-      ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height)
-
-      // Draw the original canvas content on top
-      ctx.drawImage(childCanvas, 0, 0)
-      exportCanvas = tempCanvas
-
-      const blob = await new Promise<Blob | null>(resolve => {
-        exportCanvas.toBlob(resolve, mimeType, quality)
-      })
-
-      if (!blob) throw new Error('Failed to create image blob')
-
-      // Create download link
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${fileName}${fileType}`
-      document.body.appendChild(a)
-      a.click()
-
-      // Clean up
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      downloadBlob(blob, `${fileName}${fileType}`)
     } catch (error: any) {
       console.error('Error generating download:', error)
       addErrorToast(
@@ -92,10 +88,7 @@
   <div class="component-container" bind:this={componentContainer}>
     <!-- Preview area -->
     <div class="preview-wrapper">
-      <div
-        class="child-wrapper"
-        style="background-color: white;"
-      >
+      <div class="child-wrapper" style="background-color: white;">
         {@render children()}
       </div>
     </div>
@@ -139,7 +132,8 @@
     background-color: #f9f9f9;
     min-height: 200px;
     padding: 2rem;
-    background-image: linear-gradient(45deg, #f0f0f0 25%, transparent 25%),
+    background-image:
+      linear-gradient(45deg, #f0f0f0 25%, transparent 25%),
       linear-gradient(-45deg, #f0f0f0 25%, transparent 25%),
       linear-gradient(45deg, transparent 75%, #f0f0f0 75%),
       linear-gradient(-45deg, transparent 75%, #f0f0f0 75%);

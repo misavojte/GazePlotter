@@ -9,7 +9,7 @@
     truncateTextToPixelWidth,
     SYSTEM_SANS_SERIF_STACK,
   } from '$lib/shared/utils/textUtils'
-  import { onMount, untrack } from 'svelte'
+  import { getContext, onDestroy, onMount, untrack } from 'svelte'
   import { browser } from '$app/environment'
   import {
     createCanvasState,
@@ -20,8 +20,12 @@
     setupDpiChangeListeners,
     beginCanvasDrawing,
     finishCanvasDrawing,
-    type CanvasState,
   } from '$lib/shared/utils/canvasUtils'
+  import type { CanvasState } from '$lib/shared/utils/canvasUtils'
+  import {
+    EXPORT_SOURCE_CONTEXT,
+    type ExportSourceRegistrar,
+  } from '$lib/shared/utils/exportUtils'
 
   // SVG layout constants - minimal but not zero to ensure spacing
   const BASE_LABEL_OFFSET = 5
@@ -32,7 +36,6 @@
 
   // Default color for inactive/filtered cells
   const DEFAULT_INACTIVE_COLOR = '#e0e0e0' // Light gray
-
   /**
    * Props for the Transition Matrix Plot
    * @param TransitionMatrix - 2D array where:
@@ -109,6 +112,21 @@
   let canvas = $state<HTMLCanvasElement | null>(null)
   let canvasState = $state<CanvasState>(createCanvasState())
 
+  const exportRegistrar = getContext<ExportSourceRegistrar | undefined>(
+    EXPORT_SOURCE_CONTEXT
+  )
+
+  $effect(() => {
+    if (!exportRegistrar) return
+    if (!canvas) return
+
+    exportRegistrar.register({ kind: 'canvas', getCanvas: () => canvas })
+
+    return () => {
+      exportRegistrar.register(null)
+    }
+  })
+
   // Create a render scheduler function
   function scheduleRender() {
     if (!canvasState.renderScheduled && browser) {
@@ -123,22 +141,23 @@
   // ============================================
   // NEW CALCULATION CHAIN - NO CIRCULAR DEPS
   // ============================================
-  
+
   // STEP 1: Calculate preliminary cell size based on available space
   // This uses fixed minimal spacing estimates to get an initial cell size
   const preliminaryCellSize = $derived.by(() => {
     if (aoiLabels.length === 0) return MIN_CELL_SIZE
-    
+
     // Use conservative fixed estimates for spacing
     const FIXED_LABEL_SPACE = MAX_LABEL_LENGTH + 40 // Label width + some margin
     const LEGEND_SPACE = 50
-    
+
     const availableWidth = width - FIXED_LABEL_SPACE - marginLeft - marginRight
-    const availableHeight = height - FIXED_LABEL_SPACE - marginTop - marginBottom - LEGEND_SPACE
-    
+    const availableHeight =
+      height - FIXED_LABEL_SPACE - marginTop - marginBottom - LEGEND_SPACE
+
     const cellSizeByWidth = availableWidth / aoiLabels.length
     const cellSizeByHeight = availableHeight / aoiLabels.length
-    
+
     const cellSize = Math.min(cellSizeByWidth, cellSizeByHeight)
     return Math.max(MIN_CELL_SIZE, cellSize)
   })
@@ -171,7 +190,8 @@
 
   // STEP 4: Calculate final plot area with accurate margins
   const maxPlotArea = $derived.by(() => {
-    const yAxisSpace = LEFT_MARGIN + labelOffset + AXIS_LABEL_MARGIN + marginLeft
+    const yAxisSpace =
+      LEFT_MARGIN + labelOffset + AXIS_LABEL_MARGIN + marginLeft
     const xAxisSpace = TOP_MARGIN + labelOffset + AXIS_LABEL_MARGIN + marginTop
     const legendSpace = 50 + marginBottom
 
@@ -305,7 +325,7 @@
     // Draw column labels
     drawColumnLabels(ctx, labelFontSize)
 
-    // Draw cells text 
+    // Draw cells text
     drawCellsText(ctx)
 
     // ---- STOP OF TEXT DRAWING ---- //
@@ -373,7 +393,10 @@
     }
   }
 
-  function drawColumnLabels(ctx: CanvasRenderingContext2D, labelFontSize: number) {
+  function drawColumnLabels(
+    ctx: CanvasRenderingContext2D,
+    labelFontSize: number
+  ) {
     // make sure setUpFont function is called before this function is called!
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
@@ -403,7 +426,6 @@
 
   // Draw grid and labels
   function drawGrid(ctx: CanvasRenderingContext2D) {
-    
     // Draw grid lines
     ctx.strokeStyle = '#ddd'
     ctx.lineWidth = 0.5
@@ -863,7 +885,7 @@
           x: tooltipPos.x,
           y: tooltipPos.y,
           content: [{ key: '', value: 'Modify min value' }],
-          visible: true
+          visible: true,
         })
       }
       // Check max value circle

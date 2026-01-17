@@ -7,8 +7,12 @@
     SYSTEM_SANS_SERIF_STACK,
     estimateTextWidth,
   } from '$lib/shared/utils/textUtils'
-  import { onMount, onDestroy, untrack } from 'svelte'
+  import { getContext, onDestroy, onMount, untrack } from 'svelte'
   import { browser } from '$app/environment'
+  import {
+    EXPORT_SOURCE_CONTEXT,
+    type ExportSourceRegistrar,
+  } from '$lib/shared/utils/exportUtils'
   import {
     SCARF_LAYOUT,
     getItemsPerRow,
@@ -113,6 +117,21 @@
   let hoverTimeout: number | null = $state(null) // Timeout ID
   let canvas = $state<HTMLCanvasElement | null>(null)
   let canvasState = $state<CanvasState>(createCanvasState())
+
+  const exportRegistrar = getContext<ExportSourceRegistrar | undefined>(
+    EXPORT_SOURCE_CONTEXT
+  )
+
+  $effect(() => {
+    if (!exportRegistrar) return
+    if (!canvas) return
+
+    exportRegistrar.register({ kind: 'canvas', getCanvas: () => canvas })
+
+    return () => {
+      exportRegistrar.register(null)
+    }
+  })
   let dragStartX = $state(0) // Track drag start position
   let dragStartY = $state(0) // Track drag start position
   let hasDragStarted = $state(false) // Track if drag threshold has been exceeded
