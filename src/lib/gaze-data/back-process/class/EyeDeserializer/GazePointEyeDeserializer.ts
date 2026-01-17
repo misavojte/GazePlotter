@@ -1,5 +1,8 @@
-import type { SingleDeserializerOutput } from '$lib/gaze-data/back-process/types/SingleDeserializerOutput.js'
 import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
+import {
+  bytesEqual,
+  encodeString,
+} from '$lib/gaze-data/back-process/utils/byteUtils'
 
 /**
  * GazePointEyeDeserializer streams raw GazePoint CSV rows into
@@ -43,18 +46,18 @@ export class GazePointEyeDeserializer extends AbstractEyeDeserializer {
   }
   private state: 'Idle' | 'Fixation' = 'Idle'
   private currentFix = {
-    fixID: '',
-    stimulus: '',
-    aoi: null as string | null,
+    fixIDBytes: null as Uint8Array | null,
+    stimulusBytes: null as Uint8Array | null,
+    aoiBytes: null as Uint8Array | null,
     start: 0,
     end: 0,
     lastDur: 0,
   }
   private blinkBuffer: { start: number; end: number } | null = null
   private blinkTerminated = false
-  private prevFixID: string | null = null
+  private prevFixIDBytes: Uint8Array | null = null
   private prevFixDur: number = 0
-  private participant: string
+  private participantBytes: Uint8Array
 
   // Packed columns (strings)
   private readonly pTime = 0
@@ -66,8 +69,14 @@ export class GazePointEyeDeserializer extends AbstractEyeDeserializer {
   private readonly pStim = 6
   private readonly pId = 7
 
-  constructor(header: string[], fileName: string, columnDelimiter: string) {
-    super(columnDelimiter)
+  constructor(
+    header: string[],
+    fileName: string,
+    columnDelimiter: string,
+    encoding: 'utf-8' | 'utf-16le' | 'utf-16be' = 'utf-8'
+  ) {
+    super(columnDelimiter, encoding)
+    this.useBinary = true
     const find = (pat: RegExp) => header.findIndex(h => pat.test(h))
     this.idx.time = find(/^TIME/) >= 0 ? find(/^TIME/) : header.indexOf('TIME')
     this.idx.start = header.indexOf('FPOGS')
@@ -77,7 +86,7 @@ export class GazePointEyeDeserializer extends AbstractEyeDeserializer {
     this.idx.aoi = header.indexOf('AOI')
     this.idx.stim = header.indexOf('MEDIA_NAME')
     this.idx.id = header.indexOf('FPOGID')
-    this.participant = fileName.split('_')[0]
+    this.participantBytes = encodeString(fileName.split('_')[0], this.encoding)
 
     this.setupColumns([
       this.idx.time,
@@ -91,133 +100,150 @@ export class GazePointEyeDeserializer extends AbstractEyeDeserializer {
     ])
   }
 
-  deserialize(_rawRowRef: string): SingleDeserializerOutput | null {
-    const time = parseFloat(this.getCurr(this.pTime))
-    const startRaw = parseFloat(this.getCurr(this.pStart))
-    const durFix = parseFloat(this.getCurr(this.pFixDur)) || 0
-    const blinkId = parseInt(this.getCurr(this.pBlinkId), 10) || 0
-    const blinkDur = parseFloat(this.getCurr(this.pBlinkDur)) || 0
+  deserialize(_rawRowRef: string): void {
+    return
+  }
 
-    if (!Number.isFinite(time) || !Number.isFinite(startRaw)) return null
+  protected deserializeFromBytes(_rawRowRef: Uint8Array): void {
+    const time = this.getNumber(this.pTime)
+    const startRaw = this.getNumber(this.pStart)
+    const durFix = this.getNumber(this.pFixDur)
+    const blinkIdNum = this.getNumber(this.pBlinkId)
+    const blinkDur = this.getNumber(this.pBlinkDur)
 
-    const aoi = this.getCurr(this.pAoi) || null
-    const fixID = this.getCurr(this.pId)
-    const stim = this.getCurr(this.pStim)
+    const blinkId = Number.isFinite(blinkIdNum) ? Math.trunc(blinkIdNum) : 0
+    const fixDur = Number.isFinite(durFix) ? durFix : 0
+    const blinkDuration = Number.isFinite(blinkDur) ? blinkDur : 0
+
+    if (!Number.isFinite(time) || !Number.isFinite(startRaw)) return
+
+    const aoiBytes = this.getBytes(this.pAoi)
+    const fixIDBytes = this.getBytes(this.pId)
+    const stimBytes = this.getBytes(this.pStim)
 
     // 1) Blink detection
     if (blinkId > 0) {
-      this.blinkBuffer = { start: time - blinkDur, end: time }
+      this.blinkBuffer = { start: time - blinkDuration, end: time }
       this.blinkTerminated = false
       if (this.state === 'Fixation') {
-        const f = this.emitFixation()
+        this.emitFixation()
         this.state = 'Idle'
-        return f
       }
-      return null
+      return
     }
     if (this.blinkBuffer) {
       if (!this.blinkTerminated) {
         this.blinkBuffer.end = time
         this.blinkTerminated = true
-        return null
+        return
       }
-      const blinkEvent: SingleDeserializerOutput = {
-        participant: this.participant,
-        stimulus: this.currentFix.stimulus,
-        category: 'Blink',
-        start: String(this.blinkBuffer.start),
-        end: String(this.blinkBuffer.end),
-        aoi: null,
+      const stimBytes = this.currentFix.stimulusBytes
+      if (stimBytes) {
+        this.emitSegment(
+          this.blinkBuffer.start,
+          this.blinkBuffer.end,
+          1,
+          stimBytes,
+          this.participantBytes,
+          null
+        )
       }
       this.blinkBuffer = null
       this.blinkTerminated = false
-      return blinkEvent
+      return
     }
 
     // 2) Fixation handling
-    const isFix = durFix > 0
+    const isFix = fixDur > 0
 
     if (this.state === 'Idle') {
-      // Prevent restarting identical segment
-      if (isFix && (fixID !== this.prevFixID || durFix > this.prevFixDur)) {
+      if (
+        isFix &&
+        (!bytesEqual(fixIDBytes, this.prevFixIDBytes) ||
+          fixDur > this.prevFixDur)
+      ) {
         this.currentFix = {
-          fixID,
-          stimulus: stim,
-          aoi,
+          fixIDBytes: fixIDBytes.length ? fixIDBytes : null,
+          stimulusBytes: stimBytes.length ? stimBytes : null,
+          aoiBytes: aoiBytes.length ? aoiBytes : null,
           start: startRaw,
           end: time,
-          lastDur: durFix,
+          lastDur: fixDur,
         }
         this.state = 'Fixation'
       }
-      return null
+      return
     }
 
-    // state: Fixation
     {
-      const idChanged = fixID !== this.currentFix.fixID
-      const stimChanged = stim !== this.currentFix.stimulus
-      const durFallen = durFix <= this.currentFix.lastDur
+      const idChanged = !bytesEqual(fixIDBytes, this.currentFix.fixIDBytes)
+      const stimChanged = !bytesEqual(stimBytes, this.currentFix.stimulusBytes)
+      const durFallen = fixDur <= this.currentFix.lastDur
       const needFlush = !isFix || idChanged || stimChanged || durFallen
       if (needFlush) {
-        const out = this.emitFixation()
+        this.emitFixation()
         this.state = 'Idle'
-        // store previous
-        this.prevFixID = out.participant ? this.currentFix.fixID : null
+        this.prevFixIDBytes = this.currentFix.fixIDBytes
         this.prevFixDur = this.currentFix.lastDur
-        // possibly start next fixation
-        if (isFix && (fixID !== this.prevFixID || durFix > this.prevFixDur)) {
+        if (
+          isFix &&
+          (!bytesEqual(fixIDBytes, this.prevFixIDBytes) ||
+            fixDur > this.prevFixDur)
+        ) {
           this.currentFix = {
-            fixID,
-            stimulus: stim,
-            aoi,
+            fixIDBytes: fixIDBytes.length ? fixIDBytes : null,
+            stimulusBytes: stimBytes.length ? stimBytes : null,
+            aoiBytes: aoiBytes.length ? aoiBytes : null,
             start: startRaw,
             end: time,
-            lastDur: durFix,
+            lastDur: fixDur,
           }
           this.state = 'Fixation'
         }
-        return out
+        return
       }
-      // continue
       this.currentFix.end = time
-      this.currentFix.lastDur = durFix
-      if (aoi) this.currentFix.aoi = aoi
-      return null
+      this.currentFix.lastDur = fixDur
+      if (aoiBytes.length) this.currentFix.aoiBytes = aoiBytes
+      return
     }
   }
 
-  finalize(): SingleDeserializerOutput | null {
+  finalize(): void {
     if (this.blinkBuffer && this.blinkTerminated) {
       const buf = this.blinkBuffer
       this.blinkBuffer = null
       this.blinkTerminated = false
-      const out: SingleDeserializerOutput = {
-        participant: this.participant,
-        stimulus: this.currentFix.stimulus,
-        category: 'Blink',
-        start: String(buf.start),
-        end: String(buf.end),
-        aoi: null,
+      const stimBytes = this.currentFix.stimulusBytes
+      if (stimBytes) {
+        this.emitSegment(
+          buf.start,
+          buf.end,
+          1,
+          stimBytes,
+          this.participantBytes,
+          null
+        )
       }
-      return out
+      return
     }
     if (this.state === 'Fixation') {
-      const out = this.emitFixation()
-      return out
+      this.emitFixation()
     }
-    return null
+    return
   }
 
-  private emitFixation(): SingleDeserializerOutput {
-    const out: SingleDeserializerOutput = {
-      participant: this.participant,
-      stimulus: this.currentFix.stimulus,
-      category: 'Fixation',
-      start: String(this.currentFix.start),
-      end: String(this.currentFix.end),
-      aoi: this.currentFix.aoi ? [this.currentFix.aoi] : null,
-    }
-    return out
+  private emitFixation(): void {
+    const stimBytes = this.currentFix.stimulusBytes
+    if (!stimBytes) return
+    const aoi = this.currentFix.aoiBytes ? [this.currentFix.aoiBytes] : null
+    this.emitSegment(
+      this.currentFix.start,
+      this.currentFix.end,
+      0,
+      stimBytes,
+      this.participantBytes,
+      aoi
+    )
   }
 }

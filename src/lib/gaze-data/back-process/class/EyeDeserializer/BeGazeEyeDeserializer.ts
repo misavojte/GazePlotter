@@ -1,5 +1,8 @@
-import type { SingleDeserializerOutput } from '$lib/gaze-data/back-process/types/SingleDeserializerOutput'
 import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
+import {
+  bytesEqual,
+  encodeString,
+} from '$lib/gaze-data/back-process/utils/byteUtils'
 
 export class BeGazeEyeDeserializer extends AbstractEyeDeserializer {
   cStart: number
@@ -16,8 +19,22 @@ export class BeGazeEyeDeserializer extends AbstractEyeDeserializer {
   private readonly pCategory = 4
   private readonly pAoi = 5
 
-  constructor(header: string[], columnDelimiter: string) {
-    super(columnDelimiter)
+  private readonly separatorBytes: Uint8Array
+  private readonly dashBytes: Uint8Array
+  private readonly whiteSpaceBytes: Uint8Array
+  private readonly fixationBytes: Uint8Array
+
+  constructor(
+    header: string[],
+    columnDelimiter: string,
+    encoding: 'utf-8' | 'utf-16le' | 'utf-16be' = 'utf-8'
+  ) {
+    super(columnDelimiter, encoding)
+    this.useBinary = true
+    this.separatorBytes = encodeString('Separator', this.encoding)
+    this.dashBytes = encodeString('-', this.encoding)
+    this.whiteSpaceBytes = encodeString('White Space', this.encoding)
+    this.fixationBytes = encodeString('Fixation', this.encoding)
     this.cStart = this.getIndex(header, 'Event Start Trial Time [ms]')
     this.cEnd = this.getIndex(header, 'Event End Trial Time [ms]')
     this.cStimulus = this.getIndex(header, 'Stimulus')
@@ -35,44 +52,43 @@ export class BeGazeEyeDeserializer extends AbstractEyeDeserializer {
     ])
   }
 
-  deserialize(_rawRowRef: string): SingleDeserializerOutput | null {
-    const start = this.getCurr(this.pStart)
-    const end = this.getCurr(this.pEnd)
-    const stimulus = this.getCurr(this.pStimulus)
-    const participant = this.getCurr(this.pParticipant)
-    const category = this.getCurr(this.pCategory)
-    const aoi = this.getCurr(this.pAoi)
+  deserialize(_rawRowRef: string): void {
+    return
+  }
 
-    if (this.isNan(start) || this.isNan(end)) return null
-    if (this.isInvalidCategory(category)) return null
+  protected deserializeFromBytes(_rawRowRef: Uint8Array): void {
+    const startNum = this.getNumber(this.pStart)
+    const endNum = this.getNumber(this.pEnd)
+    if (!Number.isFinite(startNum) || !Number.isFinite(endNum)) return
 
-    const transformedAoi = this.transformAoi(aoi)
+    const stimulusBytes = this.getBytes(this.pStimulus)
+    const participantBytes = this.getBytes(this.pParticipant)
+    const categoryBytes = this.getBytes(this.pCategory)
+    const aoiBytes = this.getBytes(this.pAoi)
 
-    const out = {
-      aoi: transformedAoi,
-      category,
-      end,
-      participant,
-      start,
-      stimulus,
+    if (bytesEqual(categoryBytes, this.separatorBytes)) return
+
+    let aoi: Uint8Array[] | null = null
+    if (
+      aoiBytes.length &&
+      !bytesEqual(aoiBytes, this.dashBytes) &&
+      !bytesEqual(aoiBytes, this.whiteSpaceBytes)
+    ) {
+      aoi = [aoiBytes]
     }
-    return out
+
+    const categoryId = bytesEqual(categoryBytes, this.fixationBytes) ? 0 : 1
+    this.emitSegment(
+      startNum,
+      endNum,
+      categoryId,
+      stimulusBytes,
+      participantBytes,
+      aoi
+    )
   }
 
-  finalize(): null {
-    return null
-  }
-
-  isNan(value: string): boolean {
-    return isNaN(Number(value))
-  }
-
-  isInvalidCategory(category: string): boolean {
-    return category === 'Separator'
-  }
-
-  transformAoi(aoi: string | null): string[] | null {
-    if (aoi === '-' || aoi === 'White Space' || aoi === null) return null
-    return [aoi]
+  finalize(): void {
+    return
   }
 }

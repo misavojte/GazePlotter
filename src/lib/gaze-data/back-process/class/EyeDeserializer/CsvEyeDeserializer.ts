@@ -1,5 +1,6 @@
 import type { SingleDeserializerOutput } from '$lib/gaze-data/back-process/types/SingleDeserializerOutput.js'
 import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
+import { bytesEqual } from '$lib/gaze-data/back-process/utils/byteUtils'
 
 // BEWARE! If only one timestamp for whole segment, start and end are the same!
 export class CsvEyeDeserializer extends AbstractEyeDeserializer {
@@ -13,14 +14,22 @@ export class CsvEyeDeserializer extends AbstractEyeDeserializer {
   private readonly pParticipant = 2
   private readonly pStimulus = 3
 
-  mTimeStart = ''
-  mTimeLast = ''
+  mTimeStart = 0
+  mTimeLast = 0
   mTimeBase: number | null = null
   mAoi: string | null = null
+  mAoiBytes: Uint8Array | null = null
+  mParticipantBytes: Uint8Array | null = null
+  mStimulusBytes: Uint8Array | null = null
   mParticipant = 'CsvParticipant'
   mStimulus = 'CsvFile'
-  constructor(header: string[], columnDelimiter: string) {
-    super(columnDelimiter)
+  constructor(
+    header: string[],
+    columnDelimiter: string,
+    encoding: 'utf-8' | 'utf-16le' | 'utf-16be' = 'utf-8'
+  ) {
+    super(columnDelimiter, encoding)
+    this.useBinary = true
     this.cTime = this.getIndex(header, 'Time')
     this.cAoi = this.getIndex(header, 'AOI')
     this.cParticipant = this.getIndex(header, 'Participant')
@@ -34,7 +43,37 @@ export class CsvEyeDeserializer extends AbstractEyeDeserializer {
     ])
   }
 
-  deserialize(_rawRowRef: string): SingleDeserializerOutput | null {
+  protected deserializeFromBytes(_rawRowRef: Uint8Array): void {
+    const time = this.getNumber(this.pTime)
+    if (!Number.isFinite(time)) return
+
+    const aoiBytes = this.getBytes(this.pAoi)
+    const participantBytes = this.getBytes(this.pParticipant)
+    const stimulusBytes = this.getBytes(this.pStimulus)
+
+    const isNewSegment =
+      !bytesEqual(aoiBytes, this.mAoiBytes) ||
+      !bytesEqual(participantBytes, this.mParticipantBytes) ||
+      !bytesEqual(stimulusBytes, this.mStimulusBytes)
+
+    const isNewTimebase =
+      this.mTimeBase === null ||
+      !bytesEqual(participantBytes, this.mParticipantBytes) ||
+      !bytesEqual(stimulusBytes, this.mStimulusBytes)
+
+    if (this.mTimeBase === null) this.mTimeBase = time
+    if (isNewSegment) {
+      this.finalize()
+      this.mTimeStart = time
+      this.mAoiBytes = aoiBytes.length ? aoiBytes : null
+      this.mParticipantBytes = participantBytes.length ? participantBytes : null
+      this.mStimulusBytes = stimulusBytes.length ? stimulusBytes : null
+    }
+    if (isNewTimebase) this.mTimeBase = time
+    this.mTimeLast = time
+  }
+
+  deserialize(_rawRowRef: string): void {
     const time = this.getCurr(this.pTime)
     const aoi = this.getCurr(this.pAoi)
     const participant = this.getCurr(this.pParticipant)
@@ -49,33 +88,36 @@ export class CsvEyeDeserializer extends AbstractEyeDeserializer {
       participant !== this.mParticipant ||
       stimulus !== this.mStimulus
 
-    let output: SingleDeserializerOutput | null = null
-
-    if (this.mTimeBase === null) this.mTimeBase = Number(time)
+    const timeNumber = Number(time)
+    if (this.mTimeBase === null) this.mTimeBase = timeNumber
     if (isNewSegment) {
-      output = this.finalize()
-      this.mTimeStart = time // if a new segment starts, set the start time
+      this.finalize()
+      this.mTimeStart = timeNumber // if a new segment starts, set the start time
       this.mAoi = aoi
       this.mParticipant = participant
       this.mStimulus = stimulus
     }
-    if (isNewTimebase) this.mTimeBase = Number(time)
-    this.mTimeLast = time
-    return output
+    if (isNewTimebase) this.mTimeBase = timeNumber
+    this.mTimeLast = timeNumber
   }
 
-  finalize(): SingleDeserializerOutput | null {
+  finalize(): void {
     const baseTime = this.mTimeBase
-    if (baseTime === null) throw new Error('Base time is null')
-    const aoi = this.mAoi
-    if (aoi === null) return null
-    return {
-      aoi: aoi === '' ? null : [aoi],
-      category: 'Fixation', // Not really, but for now let's assume that all the const is fixations
-      start: String(Number(this.mTimeStart) - baseTime),
-      end: String(Number(this.mTimeLast) - baseTime),
-      participant: this.mParticipant,
-      stimulus: this.mStimulus,
-    }
+    if (baseTime === null) return
+    if (!this.mParticipantBytes || !this.mStimulusBytes) return
+
+    const start = this.mTimeStart - baseTime
+    const end = this.mTimeLast - baseTime
+    const aoi =
+      this.mAoiBytes && this.mAoiBytes.length ? [this.mAoiBytes] : null
+
+    this.emitSegment(
+      start,
+      end,
+      0,
+      this.mStimulusBytes,
+      this.mParticipantBytes,
+      aoi
+    )
   }
 }

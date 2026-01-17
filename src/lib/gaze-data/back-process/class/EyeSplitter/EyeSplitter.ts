@@ -2,7 +2,7 @@ import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSetti
 
 export class EyeSplitter {
   readonly rowDelimiter: string
-  readonly delimiterLength: number
+  readonly rowDelimiterLength: number
 
   lastRow = ''
 

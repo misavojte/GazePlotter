@@ -7,7 +7,7 @@
 
 import { VarjoEyeDeserializer } from '$lib/gaze-data/back-process/class/EyeDeserializer/VarjoEyeDeserializer'
 import { test, expect, describe } from 'vitest'
-import type { SingleDeserializerOutput } from '$lib/gaze-data/back-process/types/SingleDeserializerOutput'
+import { decodeBytes, encodeString } from '$lib/gaze-data/back-process/utils/byteUtils'
 
 /*
   constructor (header: string[], fileName: string) {
@@ -25,6 +25,37 @@ const varjoMockData = `Time,Actor Label
 2022:11:11:15:50:18:34,Region_3
 2022:11:11:15:50:18:35,Region_4`
 
+type EmittedSegment = {
+  start: number
+  end: number
+  categoryId: number
+  stimulus: string
+  participant: string
+  aoi: string[] | null
+}
+
+const decoder = new TextDecoder('utf-8')
+const encodeRow = (row: string) => encodeString(row, 'utf-8')
+
+const collectOutputs = (sut: VarjoEyeDeserializer) => {
+  const outputs: EmittedSegment[] = []
+  sut.onSegment = (start, end, categoryId, stimulus, participant, aoi) => {
+    outputs.push({
+      start,
+      end,
+      categoryId,
+      stimulus: decodeBytes(stimulus, decoder),
+      participant: decodeBytes(participant, decoder),
+      aoi: aoi ? aoi.map(a => decodeBytes(a, decoder)) : null,
+    })
+  }
+  return outputs
+}
+
+const processRow = (sut: VarjoEyeDeserializer, row: string) => {
+  sut.processRowBytes(encodeRow(row), decoder)
+}
+
 describe('VarjoEyeDeserializer', () => {
   const varjoRows = varjoMockData.split('\n')
   const header = varjoRows[0].split(',')
@@ -37,67 +68,101 @@ describe('VarjoEyeDeserializer', () => {
     expect(sut.mParticipant).toBe('VarjoXXX')
   })
 
-  const sut = new VarjoEyeDeserializer(header, 'VarjoXXX.csv', delim)
-
   test('Process first row', () => {
-    const result = sut.processRow(varjoRows[1]) as SingleDeserializerOutput
-    expect(result).toBeNull()
+    const sut = new VarjoEyeDeserializer(header, 'VarjoXXX.csv', delim)
+    const outputs = collectOutputs(sut)
+    processRow(sut, varjoRows[1])
+    expect(outputs).toHaveLength(0)
   })
 
   test('Process second row', () => {
-    const result = sut.processRow(varjoRows[2]) as SingleDeserializerOutput
-    expect(result).toBeNull()
+    const sut = new VarjoEyeDeserializer(header, 'VarjoXXX.csv', delim)
+    const outputs = collectOutputs(sut)
+    processRow(sut, varjoRows[1])
+    processRow(sut, varjoRows[2])
+    expect(outputs).toHaveLength(0)
   })
 
   test('Process third row', () => {
-    const result = sut.processRow(varjoRows[3]) as SingleDeserializerOutput
-    expect(result).toBeNull()
+    const sut = new VarjoEyeDeserializer(header, 'VarjoXXX.csv', delim)
+    const outputs = collectOutputs(sut)
+    processRow(sut, varjoRows[1])
+    processRow(sut, varjoRows[2])
+    processRow(sut, varjoRows[3])
+    expect(outputs).toHaveLength(0)
   })
 
   test('Process fourth row', () => {
-    const result = sut.processRow(varjoRows[4]) as SingleDeserializerOutput
-    console.log(result)
+    const sut = new VarjoEyeDeserializer(header, 'VarjoXXX.csv', delim)
+    const outputs = collectOutputs(sut)
+    processRow(sut, varjoRows[1])
+    processRow(sut, varjoRows[2])
+    processRow(sut, varjoRows[3])
+    processRow(sut, varjoRows[4])
+    const result = outputs[0]
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_1'])
-    expect(result.category).toEqual('Fixation')
-    expect(result.end).toEqual('2')
+    expect(result.categoryId).toEqual(0)
+    expect(result.end).toEqual(2)
     expect(result.participant).toEqual('VarjoXXX')
     expect(result.stimulus).toEqual('VarjoScene')
-    expect(result.start).toEqual('0')
+    expect(result.start).toEqual(0)
   })
 
   test('Process fifth row', () => {
-    const result = sut.processRow(varjoRows[5]) as SingleDeserializerOutput
-    console.log(result)
+    const sut = new VarjoEyeDeserializer(header, 'VarjoXXX.csv', delim)
+    const outputs = collectOutputs(sut)
+    processRow(sut, varjoRows[1])
+    processRow(sut, varjoRows[2])
+    processRow(sut, varjoRows[3])
+    processRow(sut, varjoRows[4])
+    processRow(sut, varjoRows[5])
+    const result = outputs[1]
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_2'])
-    expect(result.category).toEqual('Fixation')
-    expect(result.end).toEqual('3')
+    expect(result.categoryId).toEqual(0)
+    expect(result.end).toEqual(3)
     expect(result.participant).toEqual('VarjoXXX')
     expect(result.stimulus).toEqual('VarjoScene')
-    expect(result.start).toEqual('3')
+    expect(result.start).toEqual(3)
   })
 
   test('Process sixth row', () => {
-    const result = sut.processRow(varjoRows[6]) as SingleDeserializerOutput
-    console.log(result)
+    const sut = new VarjoEyeDeserializer(header, 'VarjoXXX.csv', delim)
+    const outputs = collectOutputs(sut)
+    processRow(sut, varjoRows[1])
+    processRow(sut, varjoRows[2])
+    processRow(sut, varjoRows[3])
+    processRow(sut, varjoRows[4])
+    processRow(sut, varjoRows[5])
+    processRow(sut, varjoRows[6])
+    const result = outputs[2]
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_3'])
-    expect(result.category).toEqual('Fixation')
-    expect(result.end).toEqual('4')
+    expect(result.categoryId).toEqual(0)
+    expect(result.end).toEqual(4)
     expect(result.participant).toEqual('VarjoXXX')
     expect(result.stimulus).toEqual('VarjoScene')
-    expect(result.start).toEqual('4')
+    expect(result.start).toEqual(4)
   })
 
   test('Finalize', () => {
-    const result = sut.finalize() as SingleDeserializerOutput
+    const sut = new VarjoEyeDeserializer(header, 'VarjoXXX.csv', delim)
+    const outputs = collectOutputs(sut)
+    processRow(sut, varjoRows[1])
+    processRow(sut, varjoRows[2])
+    processRow(sut, varjoRows[3])
+    processRow(sut, varjoRows[4])
+    processRow(sut, varjoRows[5])
+    processRow(sut, varjoRows[6])
+    sut.finalize()
+    const result = outputs[3]
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_4'])
-    expect(result.category).toEqual('Fixation')
-    expect(result.end).toEqual('5')
+    expect(result.categoryId).toEqual(0)
+    expect(result.end).toEqual(5)
     expect(result.participant).toEqual('VarjoXXX')
     expect(result.stimulus).toEqual('VarjoScene')
-    expect(result.start).toEqual('5')
+    expect(result.start).toEqual(5)
   })
 })

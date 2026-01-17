@@ -1,5 +1,8 @@
-import type { SingleDeserializerOutput } from '$lib/gaze-data/back-process/types/SingleDeserializerOutput.js'
 import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
+import {
+  bytesEqual,
+  encodeString,
+} from '$lib/gaze-data/back-process/utils/byteUtils'
 
 export class VarjoEyeDeserializer extends AbstractEyeDeserializer {
   cTime: number
@@ -8,50 +11,71 @@ export class VarjoEyeDeserializer extends AbstractEyeDeserializer {
   private readonly pTime = 0
   private readonly pActorLabel = 1
 
-  mTimeStart = ''
-  mTimeLast = ''
+  mTimeStart = 0
+  mTimeLast = 0
   mTimeBase: number | null = null
-  mActorLabel: string | null = null
+  mActorLabelBytes: Uint8Array | null = null
   mParticipant: string
-  constructor(header: string[], fileName: string, columnDelimiter: string) {
-    super(columnDelimiter)
+  private readonly textDecoder: TextDecoder
+  private readonly participantBytes: Uint8Array
+  private readonly stimulusBytes: Uint8Array
+  constructor(
+    header: string[],
+    fileName: string,
+    columnDelimiter: string,
+    encoding: 'utf-8' | 'utf-16le' | 'utf-16be' = 'utf-8'
+  ) {
+    super(columnDelimiter, encoding)
+    this.useBinary = true
+    this.textDecoder = new TextDecoder(this.encoding)
     this.cTime = this.getIndex(header, 'Time')
     this.cActorLabel = this.getIndex(header, 'Actor Label')
     this.mParticipant = fileName.split('.')[0]
+    this.participantBytes = encodeString(this.mParticipant, this.encoding)
+    this.stimulusBytes = encodeString('VarjoScene', this.encoding)
 
     this.setupColumns([this.cTime, this.cActorLabel])
   }
 
-  deserialize(_rawRowRef: string): SingleDeserializerOutput | null {
-    const time = this.getCurr(this.pTime)
-    const actorLabel = this.getCurr(this.pActorLabel)
-    const isNewSegment = actorLabel !== this.mActorLabel
-
-    let output: SingleDeserializerOutput | null = null
-
-    if (this.mTimeBase === null) this.mTimeBase = this.convertStringTime(time) // at the beginning of the file, set the base time
-    if (isNewSegment) {
-      output = this.finalize()
-      this.mTimeStart = time // if a new segment starts, set the start time
-      this.mActorLabel = actorLabel
-    }
-    this.mTimeLast = time
-    return output
+  deserialize(_rawRowRef: string): void {
+    return
   }
 
-  finalize(): SingleDeserializerOutput | null {
-    const baseTime = this.mTimeBase
-    if (baseTime === null) throw new Error('Base time is null')
-    const actorLabel = this.mActorLabel
-    if (actorLabel === null) return null
-    return {
-      aoi: actorLabel === '' ? null : [actorLabel],
-      category: 'Fixation', // Not really, but for now let's assume that all the const is fixations
-      start: String(this.convertStringTime(this.mTimeStart) - baseTime),
-      end: String(this.convertStringTime(this.mTimeLast) - baseTime),
-      participant: this.mParticipant,
-      stimulus: 'VarjoScene',
+  protected deserializeFromBytes(_rawRowRef: Uint8Array): void {
+    const timeBytes = this.getBytes(this.pTime)
+    const actorLabelBytes = this.getBytes(this.pActorLabel)
+    if (!timeBytes.length) return
+
+    const timeText = this.textDecoder.decode(timeBytes)
+    const timeNumber = this.convertStringTime(timeText)
+    const isNewSegment = !bytesEqual(actorLabelBytes, this.mActorLabelBytes)
+
+    if (this.mTimeBase === null) this.mTimeBase = timeNumber
+    if (isNewSegment) {
+      this.finalize()
+      this.mTimeStart = timeNumber
+      this.mActorLabelBytes = actorLabelBytes.length ? actorLabelBytes : null
     }
+    this.mTimeLast = timeNumber
+  }
+
+  finalize(): void {
+    const baseTime = this.mTimeBase
+    if (baseTime === null) return
+    if (!this.mActorLabelBytes || !this.mActorLabelBytes.length) return
+
+    const start = this.mTimeStart - baseTime
+    const end = this.mTimeLast - baseTime
+    const aoi = [this.mActorLabelBytes]
+
+    this.emitSegment(
+      start,
+      end,
+      0,
+      this.stimulusBytes,
+      this.participantBytes,
+      aoi
+    )
   }
 
   convertStringTime(time: string): number {

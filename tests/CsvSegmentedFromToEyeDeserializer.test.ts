@@ -6,7 +6,7 @@
  */
 
 import { CsvSegmentedFromToEyeDeserializer } from '$lib/gaze-data/back-process/class/EyeDeserializer/CsvSegmentedFromToEyeDeserializer'
-import type { SingleDeserializerOutput } from '$lib/gaze-data/back-process/types/SingleDeserializerOutput'
+import { decodeBytes, encodeString } from '$lib/gaze-data/back-process/utils/byteUtils'
 import { test, expect, describe } from 'vitest'
 
 const csvMockDataOne = `From,To,Participant,Stimulus,AOI
@@ -14,6 +14,37 @@ const csvMockDataOne = `From,To,Participant,Stimulus,AOI
 1,2,Participant_1,Map_A,Region_1
 0,5,Participant_2,Map_B,Region_1
 5,6,Participant_2,Map_A,Region_1`
+
+type EmittedSegment = {
+  start: number
+  end: number
+  categoryId: number
+  stimulus: string
+  participant: string
+  aoi: string[] | null
+}
+
+const decoder = new TextDecoder('utf-8')
+const encodeRow = (row: string) => encodeString(row, 'utf-8')
+
+const collectOutputs = (sut: CsvSegmentedFromToEyeDeserializer) => {
+  const outputs: EmittedSegment[] = []
+  sut.onSegment = (start, end, categoryId, stimulus, participant, aoi) => {
+    outputs.push({
+      start,
+      end,
+      categoryId,
+      stimulus: decodeBytes(stimulus, decoder),
+      participant: decodeBytes(participant, decoder),
+      aoi: aoi ? aoi.map(a => decodeBytes(a, decoder)) : null,
+    })
+  }
+  return outputs
+}
+
+const processRow = (sut: CsvSegmentedFromToEyeDeserializer, row: string) => {
+  sut.processRowBytes(encodeRow(row), decoder)
+}
 
 describe('CSV Segmented FromTo Deserializer - Single data', () => {
   const csvRows = csvMockDataOne.split('\n')
@@ -31,56 +62,65 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
 
   test('Process first row', () => {
     const sut = new CsvSegmentedFromToEyeDeserializer(header, delim)
-    const result = sut.processRow(csvRows[1]) as SingleDeserializerOutput
+    const outputs = collectOutputs(sut)
+    processRow(sut, csvRows[1])
+    const result = outputs[0]
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_1'])
-    expect(result.category).toEqual('Fixation')
-    expect(result.end).toEqual('1')
+    expect(result.categoryId).toEqual(0)
+    expect(result.end).toEqual(1)
     expect(result.participant).toEqual('Participant_1')
     expect(result.stimulus).toEqual('Map_A')
-    expect(result.start).toEqual('0')
+    expect(result.start).toEqual(0)
   })
 
   test('Process second row', () => {
     const sut = new CsvSegmentedFromToEyeDeserializer(header, delim)
-    const result = sut.processRow(csvRows[2]) as SingleDeserializerOutput
+    const outputs = collectOutputs(sut)
+    processRow(sut, csvRows[2])
+    const result = outputs[0]
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_1'])
-    expect(result.category).toEqual('Fixation')
-    expect(result.end).toEqual('2')
+    expect(result.categoryId).toEqual(0)
+    expect(result.end).toEqual(2)
     expect(result.participant).toEqual('Participant_1')
     expect(result.stimulus).toEqual('Map_A')
-    expect(result.start).toEqual('1')
+    expect(result.start).toEqual(1)
   })
 
   test('Process third row', () => {
     const sut = new CsvSegmentedFromToEyeDeserializer(header, delim)
-    const result = sut.processRow(csvRows[3]) as SingleDeserializerOutput
+    const outputs = collectOutputs(sut)
+    processRow(sut, csvRows[3])
+    const result = outputs[0]
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_1'])
-    expect(result.category).toEqual('Fixation')
-    expect(result.end).toEqual('5')
+    expect(result.categoryId).toEqual(0)
+    expect(result.end).toEqual(5)
     expect(result.participant).toEqual('Participant_2')
     expect(result.stimulus).toEqual('Map_B')
-    expect(result.start).toEqual('0')
+    expect(result.start).toEqual(0)
   })
 
   test('Process fourth row', () => {
     const sut = new CsvSegmentedFromToEyeDeserializer(header, delim)
-    const result = sut.processRow(csvRows[4]) as SingleDeserializerOutput
+    const outputs = collectOutputs(sut)
+    processRow(sut, csvRows[4])
+    const result = outputs[0]
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_1'])
-    expect(result.category).toEqual('Fixation')
-    expect(result.end).toEqual('6')
+    expect(result.categoryId).toEqual(0)
+    expect(result.end).toEqual(6)
     expect(result.participant).toEqual('Participant_2')
     expect(result.stimulus).toEqual('Map_A')
-    expect(result.start).toEqual('5')
+    expect(result.start).toEqual(5)
   })
 
   test('Finalize', () => {
     const sut = new CsvSegmentedFromToEyeDeserializer(header, delim)
-    void sut.processRow(csvRows[4])
+    collectOutputs(sut)
+    processRow(sut, csvRows[4])
     const result = sut.finalize()
-    expect(result).toBeNull()
+    expect(result).toBeUndefined()
   })
 })

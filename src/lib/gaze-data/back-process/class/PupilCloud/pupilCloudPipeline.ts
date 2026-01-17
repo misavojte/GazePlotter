@@ -75,6 +75,7 @@ export class PupilCloudPipeline {
         type: 'pupil-cloud-zip',
         rowDelimiter: '\n',
         columnDelimiter: ',',
+        encoding: 'utf-8',
         userInputSetting: '',
         headerRowId: 0,
       }

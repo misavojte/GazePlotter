@@ -1,5 +1,15 @@
 import type { DeserializerOutputType } from '$lib/gaze-data/back-process/types/DeserializerOutputType'
 import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
+import {
+  bytesEqual,
+  encodeString,
+  endsWithBytes,
+  lastIndexOfSubarray,
+  splitByDelimiterBytes,
+  startsWithBytes,
+  stripBom,
+  trimEndSpaces,
+} from '$lib/gaze-data/back-process/utils/byteUtils'
 
 const TIME_MODIFIER = 0.001 // µs → ms
 const EMPTY_STRING = ''
@@ -33,18 +43,22 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   private readonly pSensor = 8
 
   /* ── Optimized AOI Info ─────────────────────────────────────────── */
-  private readonly aoiNames: string[] = []
+  private readonly aoiNames: Uint8Array[] = []
   private readonly hasSensorColumn: boolean
 
   /* ── Mutable segment state ──────────────────────────────────────── */
-  private mStimulus = EMPTY_STRING
-  private mParticipant = EMPTY_STRING
+  private mStimulusBytes: Uint8Array | null = null
+  private mParticipantBytes: Uint8Array | null = null
+  private mStimulusKey = EMPTY_STRING
+  private mParticipantKey = EMPTY_STRING
   private mRecordingStart: number | null = null
-  private mEyeMovementTypeIndex = EMPTY_STRING
+  private mEyeMovementTypeIndexBytes: Uint8Array | null = null
   private mRecordingLast: number | null = null
-  private mCategory = EMPTY_STRING
-  private mAoi: string[] | null = null
-  private mAoiHitTracker: Set<string> = new Set()
+  private mCategoryBytes: Uint8Array | null = null
+  private mCategoryId = 0
+  private mAoi: Uint8Array[] | null = null
+  private aoiHitFlags: Uint8Array = new Uint8Array(0)
+  private aoiHitCount = 0
 
   // Last processed Eye Tracker row (not necessarily the previous input row).
   // Tobii exports can interleave IntervalStart/IntervalEnd events between samples.
@@ -56,21 +70,46 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
   /* ── Stimulus helpers ───────────────────────────────────────────── */
   private readonly stimulusUpdater: () => void
-  private cachedStimulusStack: string[] = []
+  private cachedStimulusStackBytes: Uint8Array[] = []
+  private cachedStimulusStackKeys: string[] = []
 
   private readonly stimuliBaseTimes: Map<string, number> = new Map()
-  private readonly intervalStack: Set<string> = new Set()
+  private readonly intervalStack: Map<string, Uint8Array> = new Map()
   private readonly intervalStartTimes: Map<string, number> = new Map()
 
   /* ── Optimization Caches ────────────────────────────────────────── */
   private cachedParticipantKey: string = ''
-  private lastParticipantRaw: string = ''
-  private lastRecordingRaw: string = ''
+  private lastParticipantKey: string = ''
+  private lastRecordingKey: string = ''
+  private lastParticipantBytes: Uint8Array | null = null
+  private lastRecordingBytes: Uint8Array | null = null
+
+  private readonly eyeTrackerSensorBytes: Uint8Array
+  private readonly urlStartBytes: Uint8Array
+  private readonly urlEndBytes: Uint8Array
+  private readonly aoiHitPrefixBytes: Uint8Array
+  private readonly aoiHitSuffixBytes: Uint8Array
+  private readonly aoiDashBytes: Uint8Array
+  private readonly fixationBytes: Uint8Array
 
   static readonly TYPE = 'tobii'
 
-  constructor(header: string[], userInput: string, columnDelimiter: string) {
-    super(columnDelimiter)
+  constructor(
+    header: string[],
+    userInput: string,
+    columnDelimiter: string,
+    encoding: 'utf-8' | 'utf-16le' | 'utf-16be' = 'utf-8',
+    headerBytes?: Uint8Array
+  ) {
+    super(columnDelimiter, encoding)
+    this.useBinary = true
+    this.eyeTrackerSensorBytes = encodeString(EYE_TRACKER_SENSOR, this.encoding)
+    this.urlStartBytes = encodeString('URLStart', this.encoding)
+    this.urlEndBytes = encodeString('URLEnd', this.encoding)
+    this.aoiHitPrefixBytes = encodeString(AOI_HIT_PREFIX, this.encoding)
+    this.aoiHitSuffixBytes = encodeString(']', this.encoding)
+    this.aoiDashBytes = encodeString(' - ', this.encoding)
+    this.fixationBytes = encodeString('Fixation', this.encoding)
     this.cRecordingTimestamp = header.indexOf('Recording timestamp')
     const altStim = header.indexOf('Presented Stimulus name')
     this.cStimulus =
@@ -101,106 +140,132 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
       this.cSensor,
     ])
 
-    const aoiInfo = this.constructAoiInfo(header)
+    const aoiInfo = headerBytes
+      ? this.constructAoiInfoFromBytes(headerBytes)
+      : this.constructAoiInfo(header)
     if (aoiInfo) {
       this.aoiNames.push(...aoiInfo.names)
       this.setupAoiColumns(aoiInfo.start, aoiInfo.names.length)
+      this.aoiHitFlags = new Uint8Array(aoiInfo.names.length)
     }
 
     if (userInput === WEB_STIMULUS_TRIGGER) {
-      this.stimulusUpdater = this.constructWebStimulusUpdater()
+      this.stimulusUpdater = this.constructWebStimulusUpdaterBinary()
     } else {
       this.stimulusUpdater =
         userInput === EMPTY_STRING
-          ? this.constructBaseStimulusUpdater()
-          : this.constructIntervalStimulusUpdater(userInput)
+          ? this.constructBaseStimulusUpdaterBinary()
+          : this.constructIntervalStimulusUpdaterBinary(userInput)
     }
   }
 
   /* ── Helpers ────────────────────────────────────────────────────── */
 
-  private updateCachedStimulusStack(): void {
-    this.cachedStimulusStack = this.intervalStack.size
-      ? Array.from(this.intervalStack)
-      : []
+  private updateCachedStimulusStackBinary(): void {
+    if (!this.intervalStack.size) {
+      this.cachedStimulusStackBytes = []
+      this.cachedStimulusStackKeys = []
+      return
+    }
+    this.cachedStimulusStackBytes = Array.from(this.intervalStack.values())
+    this.cachedStimulusStackKeys = Array.from(this.intervalStack.keys())
   }
 
   /* ── Public API ─────────────────────────────────────────────────── */
-  deserialize(_rawRowRef: string): DeserializerOutputType {
-    // 1) Update Stimulus State (based on current packed row)
+  deserialize(_rawRowRef: string): void {
+    return
+  }
+
+  protected deserializeFromBytes(_rawRowRef: Uint8Array): void {
     this.stimulusUpdater()
 
-    const category = this.getCurr(this.pCategory) || EMPTY_STRING
+    const categoryBytes = this.getBytes(this.pCategory)
+    if (!categoryBytes.length) return
 
     if (this.hasSensorColumn) {
-      if (this.getCurr(this.pSensor) !== EYE_TRACKER_SENSOR) return null
+      const sensorBytes = this.getBytes(this.pSensor)
+      if (!bytesEqual(sensorBytes, this.eyeTrackerSensorBytes)) return
     }
 
-    if (category === EMPTY_STRING) return null
+    const currentTimestampNum = this.getNumber(this.pRecordingTimestamp)
+    if (!Number.isFinite(currentTimestampNum)) return
 
-    const currentTimestampStr = this.getCurr(this.pRecordingTimestamp)
-    if (currentTimestampStr === EMPTY_STRING) return null
-    const currentTimestampNum = Number(currentTimestampStr)
-    if (!Number.isFinite(currentTimestampNum)) return null
+    const recordingBytes = this.getBytes(this.pRecording)
+    const participantBytes = this.getBytes(this.pParticipant)
+    const eyeMovementTypeIndexBytes = this.getBytes(this.pEyeMovementTypeIndex)
 
-    const recording = this.getCurr(this.pRecording) || EMPTY_STRING
-    const participant = this.getCurr(this.pParticipant) || EMPTY_STRING
-    const eyeMovementTypeIndex =
-      this.getCurr(this.pEyeMovementTypeIndex) || EMPTY_STRING
+    const recordingChanged = !bytesEqual(recordingBytes, this.lastRecordingBytes)
+    const participantChanged =
+      !bytesEqual(participantBytes, this.lastParticipantBytes)
 
-    const sampleKey = `${recording}|${participant}`
-
-    // Cache participant key
-    if (
-      participant !== this.lastParticipantRaw ||
-      recording !== this.lastRecordingRaw
-    ) {
-      this.lastParticipantRaw = participant
-      this.lastRecordingRaw = recording
-      this.cachedParticipantKey = `${recording} ${participant}`
+    if (recordingChanged) {
+      this.lastRecordingBytes = recordingBytes.length ? recordingBytes : null
+      this.lastRecordingKey = this.makeKey(recordingBytes)
     }
+
+    if (participantChanged) {
+      this.lastParticipantBytes = participantBytes.length
+        ? participantBytes
+        : null
+      this.lastParticipantKey = this.makeKey(participantBytes)
+    }
+
+    if (recordingChanged || participantChanged || !this.cachedParticipantKey) {
+      this.cachedParticipantKey = this.makeCompositeKey(
+        this.lastRecordingKey,
+        this.lastParticipantKey
+      )
+    }
+
+    const recordingKey = this.lastRecordingKey
+    const participantKey = this.lastParticipantKey
+    const sampleKey = this.cachedParticipantKey
 
     this.updateSampleInterval(currentTimestampNum, sampleKey)
 
     if (
-      eyeMovementTypeIndex === this.mEyeMovementTypeIndex &&
-      category === this.mCategory
+      this.mEyeMovementTypeIndexBytes &&
+      this.mCategoryBytes &&
+      bytesEqual(eyeMovementTypeIndexBytes, this.mEyeMovementTypeIndexBytes) &&
+      bytesEqual(categoryBytes, this.mCategoryBytes)
     ) {
-      const stimLen = this.cachedStimulusStack.length
-      const lastStimulus =
-        stimLen > 0 ? this.cachedStimulusStack[stimLen - 1] : EMPTY_STRING
+      const stimLen = this.cachedStimulusStackKeys.length
+      const lastStimulusKey =
+        stimLen > 0 ? this.cachedStimulusStackKeys[stimLen - 1] : EMPTY_STRING
 
-      if (lastStimulus === this.mStimulus) {
+      if (lastStimulusKey === this.mStimulusKey) {
         this.mRecordingLast = currentTimestampNum
         this.trackAoiHitsInline()
         this.lastEyeTrackerTimestamp = currentTimestampNum
         this.lastEyeTrackerSampleKey = sampleKey
-        return null
+        return
       }
     }
 
-    const out = this.deserializeNewSegment(
+    this.deserializeNewSegment(
       currentTimestampNum,
-      recording,
-      participant,
-      eyeMovementTypeIndex,
-      category
+      recordingBytes,
+      recordingKey,
+      participantBytes,
+      participantKey,
+      eyeMovementTypeIndexBytes,
+      categoryBytes
     )
 
     this.lastEyeTrackerTimestamp = currentTimestampNum
     this.lastEyeTrackerSampleKey = sampleKey
-    return out
+    return
   }
 
-  finalize(): DeserializerOutputType {
+  finalize(): void {
     if (
-      !this.mParticipant ||
-      !this.mStimulus ||
+      !this.mParticipantBytes ||
+      !this.mStimulusBytes ||
       this.mRecordingStart === null ||
       this.lastEyeTrackerTimestamp === null ||
       this.lastEyeTrackerSampleKey === null
     ) {
-      return null
+      return
     }
 
     const lastTimestamp = this.lastEyeTrackerTimestamp
@@ -212,25 +277,25 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     }
 
     this.mRecordingLast = correctedEnd
-    this.mAoi = this.mAoiHitTracker.size ? [...this.mAoiHitTracker] : null
+    this.mAoi = this.buildAoiListFromFlags()
 
-    const result = this.intervalStack.size
-      ? this.createSegmentsForIntervals()
-      : this.createSegmentForSingleStimulus()
-
-    return result
+    if (this.intervalStack.size) this.createSegmentsForIntervals()
+    else this.createSegmentForSingleStimulus()
+    return
   }
 
   /* ── Segment boundaries ─────────────────────────────────────────── */
   private deserializeNewSegment(
     currentTsNum: number,
-    recording: string,
-    participantName: string,
-    eyeMovementTypeIndex: string,
-    category: string
-  ): DeserializerOutputType {
+    recordingBytes: Uint8Array,
+    recordingKey: string,
+    participantBytes: Uint8Array,
+    participantKey: string,
+    eyeMovementTypeIndexBytes: Uint8Array,
+    categoryBytes: Uint8Array
+  ): void {
     const participantFull = this.cachedParticipantKey
-    const sampleKey = `${recording}|${participantName}`
+    const sampleKey = this.makeCompositeKey(recordingKey, participantKey)
     const sampInt = this.sampleIntervals.get(sampleKey) ?? null
 
     let correctedStart = currentTsNum
@@ -245,11 +310,16 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
       }
     }
 
-    const activeStimuli = this.cachedStimulusStack
+    const activeStimuliBytes = this.cachedStimulusStackBytes
+    const activeStimuliKeys = this.cachedStimulusStackKeys
 
-    if (activeStimuli.length > 0) {
-      const activeStimulus = activeStimuli[activeStimuli.length - 1]
-      const intervalStartKey = `${activeStimulus}|${recording}|${participantName}`
+    if (activeStimuliBytes.length > 0) {
+      const activeStimulusKey = activeStimuliKeys[activeStimuliKeys.length - 1]
+      const intervalStartKey = this.makeCompositeKey(
+        activeStimulusKey,
+        recordingKey,
+        participantKey
+      )
       const intervalStartTs = this.intervalStartTimes.get(intervalStartKey)
 
       if (intervalStartTs !== undefined) {
@@ -263,64 +333,65 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
       }
     }
 
-    const previousSegment = this.getPreviousSegmentWithCorrectedEnd(midpoint)
+    this.getPreviousSegmentWithCorrectedEnd(midpoint)
 
-    if (activeStimuli.length === 0) {
-      this.mStimulus = EMPTY_STRING
-      return previousSegment
+    if (activeStimuliBytes.length === 0) {
+      this.mStimulusKey = EMPTY_STRING
+      this.mStimulusBytes = null
+      return
     }
 
-    const newStimulus = activeStimuli[activeStimuli.length - 1]
+    const newStimulusBytes = activeStimuliBytes[activeStimuliBytes.length - 1]
+    const newStimulusKey = activeStimuliKeys[activeStimuliKeys.length - 1]
 
     // OPTIMIZATION: Only update base times if stimulus actually changed or we have new ones.
     // However, since we are in "New Segment", we must check.
     // Use standard for loop for speed.
-    for (let i = 0; i < activeStimuli.length; i++) {
-      const stim = activeStimuli[i]
-      const key = stim + participantFull
+    for (let i = 0; i < activeStimuliKeys.length; i++) {
+      const stimKey = activeStimuliKeys[i]
+      const key = this.makeCompositeKey(stimKey, participantFull)
       if (!this.stimuliBaseTimes.has(key)) {
         this.stimuliBaseTimes.set(key, correctedStart)
       }
     }
 
     /* mutate state for new segment */
-    this.mStimulus = newStimulus
-    this.mParticipant = participantFull
+    this.mStimulusBytes = newStimulusBytes
+    this.mStimulusKey = newStimulusKey
+    this.mParticipantBytes = participantBytes
+    this.mParticipantKey = this.cachedParticipantKey
     this.mRecordingStart = correctedStart
-    this.mCategory = category
-    this.mAoiHitTracker.clear()
+    this.mCategoryBytes = categoryBytes
+    this.mCategoryId = this.getCategoryId(categoryBytes)
+    if (this.aoiHitFlags.length) this.aoiHitFlags.fill(0)
+    this.aoiHitCount = 0
     this.trackAoiHitsInline()
 
-    this.mEyeMovementTypeIndex = eyeMovementTypeIndex
+    this.mEyeMovementTypeIndexBytes = eyeMovementTypeIndexBytes
     this.mRecordingLast = currentTsNum
-
-    return previousSegment
   }
 
-  private getPreviousSegmentWithCorrectedEnd(
-    midpoint: number | null
-  ): DeserializerOutputType {
+  private getPreviousSegmentWithCorrectedEnd(midpoint: number | null): void {
     if (
-      !this.mParticipant ||
-      !this.mStimulus ||
+      !this.mParticipantBytes ||
+      !this.mStimulusBytes ||
       this.mRecordingStart === null ||
       this.mRecordingLast === null ||
       this.mRecordingLast === this.mRecordingStart
     )
-      return null
+      return
 
-    this.mAoi = this.mAoiHitTracker.size ? [...this.mAoiHitTracker] : null
+    this.mAoi = this.buildAoiListFromFlags()
 
     const correctedEnd = midpoint || this.mRecordingLast
     const originalEnd = this.mRecordingLast
     this.mRecordingLast = correctedEnd
 
-    const result = this.intervalStack.size
-      ? this.createSegmentsForIntervals()
-      : this.createSegmentForSingleStimulus()
+    if (this.intervalStack.size) this.createSegmentsForIntervals()
+    else this.createSegmentForSingleStimulus()
 
     this.mRecordingLast = originalEnd
-    return result
+    return
   }
 
   /* ── Sample interval learning ───────────────────────────────────── */
@@ -340,58 +411,74 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     if (this.aoiCount === 0) return
     const names = this.aoiNames
     for (let j = 0; j < this.aoiCount; j++) {
-      if (this.currAoi[j] === 1) this.mAoiHitTracker.add(names[j])
+      if (this.currAoi[j] === 1) {
+        const nameBytes = names[j]
+        if (!nameBytes || !nameBytes.length) continue
+        if (this.aoiHitFlags[j] === 0) {
+          this.aoiHitFlags[j] = 1
+          this.aoiHitCount++
+        }
+      }
     }
+  }
+
+  private buildAoiListFromFlags(): Uint8Array[] | null {
+    if (this.aoiHitCount === 0) return null
+    const out: Uint8Array[] = []
+    for (let i = 0; i < this.aoiHitFlags.length; i++) {
+      if (this.aoiHitFlags[i] === 1) out.push(this.aoiNames[i])
+    }
+    return out.length ? out : null
   }
 
   /* ── Segment creation helpers ───────────────────────── */
-  private createSegmentsForIntervals(): DeserializerOutputType {
-    const segments: DeserializerOutputType = []
-    if (this.mRecordingStart === null || this.mRecordingLast === null)
-      return null
+  private createSegmentsForIntervals(): void {
+    if (this.mRecordingStart === null || this.mRecordingLast === null) return
     const startNum = this.mRecordingStart
     const endNum = this.mRecordingLast
 
-    for (let i = 0; i < this.cachedStimulusStack.length; i++) {
-      const stimulus = this.cachedStimulusStack[i]
-      const key = stimulus + this.mParticipant
+    for (let i = 0; i < this.cachedStimulusStackBytes.length; i++) {
+      const stimulusBytes = this.cachedStimulusStackBytes[i]
+      const stimulusKey = this.cachedStimulusStackKeys[i]
+      const key = this.makeCompositeKey(stimulusKey, this.mParticipantKey)
       const baseTime = this.stimuliBaseTimes.get(key) ?? startNum
       const start = (startNum - baseTime) * TIME_MODIFIER
       const end = (endNum - baseTime) * TIME_MODIFIER
-      segments.push({
-        stimulus,
-        participant: this.mParticipant,
-        start: String(start),
-        end: String(end),
-        category: this.mCategory,
-        aoi: this.mAoi,
-      })
+      if (!this.mParticipantBytes) continue
+      this.emitSegment(
+        start,
+        end,
+        this.mCategoryId,
+        stimulusBytes,
+        this.mParticipantBytes,
+        this.mAoi
+      )
     }
-    return segments
+    return
   }
 
-  private createSegmentForSingleStimulus(): DeserializerOutputType {
-    if (this.mRecordingStart === null || this.mRecordingLast === null)
-      return null
-    const key = this.mStimulus + this.mParticipant
+  private createSegmentForSingleStimulus(): void {
+    if (this.mRecordingStart === null || this.mRecordingLast === null) return
+    if (!this.mStimulusBytes || !this.mParticipantBytes) return
+    const key = this.makeCompositeKey(this.mStimulusKey, this.mParticipantKey)
     const baseTime = this.stimuliBaseTimes.get(key) ?? this.mRecordingStart
     const start = (this.mRecordingStart - baseTime) * TIME_MODIFIER
     const end = (this.mRecordingLast - baseTime) * TIME_MODIFIER
-
-    return {
-      stimulus: this.mStimulus,
-      participant: this.mParticipant,
-      start: String(start),
-      end: String(end),
-      category: this.mCategory,
-      aoi: this.mAoi,
-    }
+    this.emitSegment(
+      start,
+      end,
+      this.mCategoryId,
+      this.mStimulusBytes,
+      this.mParticipantBytes,
+      this.mAoi
+    )
+    return
   }
 
   /* ── Utility: stimuli & AOI mapping ─────────────────── */
   private constructAoiInfo(
     header: string[]
-  ): { start: number; end: number; names: string[] } | null {
+  ): { start: number; end: number; names: Uint8Array[] } | null {
     let startIndex = -1
     let endIndex = -1
 
@@ -404,104 +491,191 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
 
     if (startIndex === -1) return null
 
-    const aoiNames: string[] = []
+    const aoiNames: Uint8Array[] = []
     for (let i = startIndex; i <= endIndex; i++) {
       const h = header[i]
       if (h.startsWith(AOI_HIT_PREFIX)) {
         const fullName = h.substring(AOI_HIT_PREFIX.length, h.length - 1)
-        aoiNames.push(fullName.substring(fullName.lastIndexOf(' - ') + 3))
+        const name = fullName.substring(fullName.lastIndexOf(' - ') + 3)
+        aoiNames.push(encodeString(name, this.encoding))
       } else {
-        aoiNames.push(EMPTY_STRING)
+        aoiNames.push(new Uint8Array(0))
       }
     }
 
     return { start: startIndex, end: endIndex, names: aoiNames }
   }
 
+  private constructAoiInfoFromBytes(
+    headerBytes: Uint8Array
+  ): { start: number; end: number; names: Uint8Array[] } | null {
+    const normalized = stripBom(headerBytes, this.encoding)
+    const delimiterBytes = encodeString(this.delim, this.encoding)
+    const columns = splitByDelimiterBytes(normalized, delimiterBytes)
+
+    let startIndex = -1
+    let endIndex = -1
+    const namesByIndex = new Map<number, Uint8Array>()
+
+    for (let i = 0; i < columns.length; i++) {
+      const column = columns[i]
+      if (!startsWithBytes(column, this.aoiHitPrefixBytes)) continue
+      if (startIndex === -1) startIndex = i
+      endIndex = i
+
+      let inner = column.subarray(this.aoiHitPrefixBytes.length)
+      if (endsWithBytes(inner, this.aoiHitSuffixBytes)) {
+        inner = inner.subarray(0, inner.length - this.aoiHitSuffixBytes.length)
+      }
+      const dashIndex = lastIndexOfSubarray(inner, this.aoiDashBytes)
+      if (dashIndex !== -1) {
+        inner = inner.subarray(dashIndex + this.aoiDashBytes.length)
+      }
+      const nameBytes = inner
+      namesByIndex.set(i, nameBytes)
+    }
+
+    if (startIndex === -1) return null
+
+    const aoiNames: Uint8Array[] = []
+    for (let i = startIndex; i <= endIndex; i++) {
+      aoiNames.push(namesByIndex.get(i) ?? new Uint8Array(0))
+    }
+
+    return { start: startIndex, end: endIndex, names: aoiNames }
+  }
+
   /* ── Stimulus Updaters ──────────────────────────────────────────── */
-  private constructBaseStimulusUpdater() {
+  private constructBaseStimulusUpdaterBinary() {
     return (): void => {
-      const stim = this.getCurr(this.pStimulus)
-      if (
-        stim &&
-        (this.cachedStimulusStack.length !== 1 ||
-          this.cachedStimulusStack[0] !== stim)
-      ) {
-        this.cachedStimulusStack = [stim]
-      } else if (!stim && this.cachedStimulusStack.length > 0) {
-        this.cachedStimulusStack = []
+      const stimBytes = this.getBytes(this.pStimulus)
+      if (stimBytes.length) {
+        const key = this.makeKey(stimBytes)
+        if (
+          this.cachedStimulusStackBytes.length !== 1 ||
+          this.cachedStimulusStackKeys[0] !== key
+        ) {
+          this.cachedStimulusStackBytes = [stimBytes]
+          this.cachedStimulusStackKeys = [key]
+        }
+      } else if (this.cachedStimulusStackBytes.length > 0) {
+        this.cachedStimulusStackBytes = []
+        this.cachedStimulusStackKeys = []
       }
     }
   }
 
-  private constructIntervalStimulusUpdater(userInput: string) {
+  private constructIntervalStimulusUpdaterBinary(userInput: string) {
     const parts = userInput.split(';')
     const trimmedParts = parts.map(p => p.trim())
     if (trimmedParts.length !== 2 || !trimmedParts[0] || !trimmedParts[1]) {
       throw new Error(`Invalid Tobii interval marker format.`)
     }
     const [startMarker, endMarker] = trimmedParts
+    const startMarkerBytes = encodeString(startMarker, this.encoding)
+    const endMarkerBytes = encodeString(endMarker, this.encoding)
 
     return (): void => {
-      const evt = this.getCurr(this.pEvent)
-      if (!evt) return
+      const evtBytes = this.getBytes(this.pEvent)
+      if (!evtBytes.length) return
 
-      if (evt.endsWith(startMarker)) {
-        const stimulusName = evt
-          .substring(0, evt.length - startMarker.length)
-          .trimEnd()
-        if (!this.intervalStack.has(stimulusName)) {
-          this.intervalStack.add(stimulusName)
-          const recording = this.getCurr(this.pRecording)
-          const participant = this.getCurr(this.pParticipant)
-          const key = `${stimulusName}|${recording}|${participant}`
-          const tsStr = this.getCurr(this.pRecordingTimestamp)
-          if (tsStr !== EMPTY_STRING) {
-            const ts = Number(tsStr)
-            if (Number.isFinite(ts)) this.intervalStartTimes.set(key, ts)
-          }
-          this.updateCachedStimulusStack()
+      if (endsWithBytes(evtBytes, startMarkerBytes)) {
+        const rawStimBytes = trimEndSpaces(
+          evtBytes.subarray(0, evtBytes.length - startMarkerBytes.length),
+          this.encoding
+        )
+        const stimKey = this.makeKey(rawStimBytes)
+        if (!this.intervalStack.has(stimKey)) {
+          this.intervalStack.set(stimKey, rawStimBytes)
+          const recordingKey = this.makeKey(this.getBytes(this.pRecording))
+          const participantKey = this.makeKey(this.getBytes(this.pParticipant))
+          const key = this.makeCompositeKey(
+            stimKey,
+            recordingKey,
+            participantKey
+          )
+          const tsNum = this.getNumber(this.pRecordingTimestamp)
+          if (Number.isFinite(tsNum)) this.intervalStartTimes.set(key, tsNum)
+          this.updateCachedStimulusStackBinary()
         }
-      } else if (evt.endsWith(endMarker)) {
-        const stimulusName = evt
-          .substring(0, evt.length - endMarker.length)
-          .trimEnd()
-        if (this.intervalStack.delete(stimulusName)) {
-          this.updateCachedStimulusStack()
+      } else if (endsWithBytes(evtBytes, endMarkerBytes)) {
+        const rawStimBytes = trimEndSpaces(
+          evtBytes.subarray(0, evtBytes.length - endMarkerBytes.length),
+          this.encoding
+        )
+        const stimKey = this.makeKey(rawStimBytes)
+        if (this.intervalStack.delete(stimKey)) {
+          this.updateCachedStimulusStackBinary()
         }
       }
     }
   }
 
-  private constructWebStimulusUpdater() {
+  private constructWebStimulusUpdaterBinary() {
     return (): void => {
       if (this.cEventValue === -1) return
-      const evt = this.getCurr(this.pEvent)
-      if (!evt) return
+      const evtBytes = this.getBytes(this.pEvent)
+      if (!evtBytes.length) return
 
-      const evtValue = this.getCurr(this.pEventValue)
+      const evtValueBytes = this.getBytes(this.pEventValue)
 
-      if (evt === 'URLStart') {
-        const url = evtValue
-        if (url && !this.intervalStack.has(url)) {
-          this.intervalStack.add(url)
-          const recording = this.getCurr(this.pRecording)
-          const participant = this.getCurr(this.pParticipant)
-          const key = `${url}|${recording}|${participant}`
-          const tsStr = this.getCurr(this.pRecordingTimestamp)
-          if (tsStr !== EMPTY_STRING) {
-            const ts = Number(tsStr)
-            if (Number.isFinite(ts)) this.intervalStartTimes.set(key, ts)
-          }
-          this.updateCachedStimulusStack()
+      if (bytesEqual(evtBytes, this.urlStartBytes)) {
+        const urlKey = this.makeKey(evtValueBytes)
+        if (!this.intervalStack.has(urlKey)) {
+          this.intervalStack.set(urlKey, evtValueBytes)
+          const recordingKey = this.makeKey(this.getBytes(this.pRecording))
+          const participantKey = this.makeKey(this.getBytes(this.pParticipant))
+          const key = this.makeCompositeKey(
+            urlKey,
+            recordingKey,
+            participantKey
+          )
+          const tsNum = this.getNumber(this.pRecordingTimestamp)
+          if (Number.isFinite(tsNum)) this.intervalStartTimes.set(key, tsNum)
+          this.updateCachedStimulusStackBinary()
         }
-      } else if (evt === 'URLEnd') {
-        const url = evtValue
-        if (url && this.intervalStack.delete(url)) {
-          this.updateCachedStimulusStack()
+      } else if (bytesEqual(evtBytes, this.urlEndBytes)) {
+        const urlKey = this.makeKey(evtValueBytes)
+        if (this.intervalStack.delete(urlKey)) {
+          this.updateCachedStimulusStackBinary()
         }
       }
     }
+  }
+
+  private constructBaseStimulusUpdater() {
+    return (): void => {
+      return
+    }
+  }
+
+  private constructIntervalStimulusUpdater(userInput: string) {
+    return (): void => {
+      return
+    }
+  }
+
+  private constructWebStimulusUpdater() {
+    return (): void => {
+      return
+    }
+  }
+
+  private makeKey(bytes: Uint8Array): string {
+    let hash = 2166136261
+    for (let i = 0; i < bytes.length; i++) {
+      hash ^= bytes[i]
+      hash = Math.imul(hash, 16777619)
+    }
+    return `${hash >>> 0}:${bytes.length}`
+  }
+
+  private makeCompositeKey(...keys: string[]): string {
+    return keys.join('|')
+  }
+
+  private getCategoryId(categoryBytes: Uint8Array): number {
+    return bytesEqual(categoryBytes, this.fixationBytes) ? 0 : 1
   }
 
   private findColumnByPrefix(header: string[], prefix: string): number | null {

@@ -6,6 +6,7 @@
  */
 
 import { BeGazeEyeDeserializer } from '$lib/gaze-data/back-process/class/EyeDeserializer/BeGazeEyeDeserializer'
+import { decodeBytes, encodeString } from '$lib/gaze-data/back-process/utils/byteUtils'
 import { test, expect, describe } from 'vitest'
 
 const begazeMockData = `Event Start Trial Time [ms],Event End Trial Time [ms],Stimulus,Participant,Category,AOI Name
@@ -14,6 +15,37 @@ const begazeMockData = `Event Start Trial Time [ms],Event End Trial Time [ms],St
 200,300,Map_A,Participant_1,Fixation,Region_1
 300,400,Map_A,Participant_1,Fixation,Region_2
 400,500,Map_A,Participant_1,Fixation,Region_3`
+
+type EmittedSegment = {
+  start: number
+  end: number
+  categoryId: number
+  stimulus: string
+  participant: string
+  aoi: string[] | null
+}
+
+const decoder = new TextDecoder('utf-8')
+const encodeRow = (row: string) => encodeString(row, 'utf-8')
+
+const collectOutputs = (sut: BeGazeEyeDeserializer) => {
+  const outputs: EmittedSegment[] = []
+  sut.onSegment = (start, end, categoryId, stimulus, participant, aoi) => {
+    outputs.push({
+      start,
+      end,
+      categoryId,
+      stimulus: decodeBytes(stimulus, decoder),
+      participant: decodeBytes(participant, decoder),
+      aoi: aoi ? aoi.map(a => decodeBytes(a, decoder)) : null,
+    })
+  }
+  return outputs
+}
+
+const processRow = (sut: BeGazeEyeDeserializer, row: string) => {
+  sut.processRowBytes(encodeRow(row), decoder)
+}
 
 describe('BeGaze Deserializer - Single data', () => {
   const begazeRows = begazeMockData.split('\n')
@@ -32,41 +64,45 @@ describe('BeGaze Deserializer - Single data', () => {
 
   test('Process first row', () => {
     const sut = new BeGazeEyeDeserializer(header, delim)
-    const result = sut.processRow(begazeRows[1])
+    const outputs = collectOutputs(sut)
+    processRow(sut, begazeRows[1])
+    const result = outputs[0]
     expect(result).toEqual({
       aoi: ['Region_1'],
-      category: 'Fixation',
-      end: '100',
+      categoryId: 0,
+      end: 100,
       participant: 'Participant_1',
-      start: '0',
+      start: 0,
       stimulus: 'Map_A',
     })
   })
 
   test('Process last row', () => {
     const sut = new BeGazeEyeDeserializer(header, delim)
-    const result = sut.processRow(begazeRows[5])
+    const outputs = collectOutputs(sut)
+    processRow(sut, begazeRows[5])
+    const result = outputs[0]
     expect(result).toEqual({
       aoi: ['Region_3'],
-      category: 'Fixation',
-      end: '500',
+      categoryId: 0,
+      end: 500,
       participant: 'Participant_1',
-      start: '400',
+      start: 400,
       stimulus: 'Map_A',
     })
   })
 
   test('Process row with invalid category', () => {
     const sut = new BeGazeEyeDeserializer(header, delim)
-    const result = sut.processRow(
-      '0,100,Map_A,Participant_1,Separator,Region_1'
-    )
-    expect(result).toBeNull()
+    const outputs = collectOutputs(sut)
+    processRow(sut, '0,100,Map_A,Participant_1,Separator,Region_1')
+    expect(outputs).toHaveLength(0)
   })
 
   test('Process row with invalid start or end', () => {
     const sut = new BeGazeEyeDeserializer(header, delim)
-    const result = sut.processRow('a,100,Map_A,Participant_1,Fixation,Region_1')
-    expect(result).toBeNull()
+    const outputs = collectOutputs(sut)
+    processRow(sut, 'a,100,Map_A,Participant_1,Fixation,Region_1')
+    expect(outputs).toHaveLength(0)
   })
 })

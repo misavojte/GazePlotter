@@ -8,6 +8,44 @@
 import { describe, test, expect } from 'vitest'
 import { TobiiEyeDeserializer } from '$lib/gaze-data/back-process/class/EyeDeserializer/TobiiEyeDeserializer'
 import { testMobileTsvData } from './TobiiEyeDeserializer.test.data'
+import {
+  decodeBytes,
+  encodeString,
+} from '$lib/gaze-data/back-process/utils/byteUtils'
+
+type EmittedSegment = {
+  start: number
+  end: number
+  categoryId: number
+  stimulus: string
+  participant: string
+  aoi: string[] | null
+}
+
+const decoder = new TextDecoder('utf-8')
+const encodeRow = (row: string) => encodeString(row, 'utf-8')
+
+const collectOutputs = (deserializer: TobiiEyeDeserializer) => {
+  const outputs: EmittedSegment[] = []
+  deserializer.onSegment = (
+    start,
+    end,
+    categoryId,
+    stimulus,
+    participant,
+    aoi
+  ) => {
+    outputs.push({
+      start,
+      end,
+      categoryId,
+      stimulus: decodeBytes(stimulus, decoder),
+      participant: decodeBytes(participant, decoder),
+      aoi: aoi ? aoi.map(a => decodeBytes(a, decoder)) : null,
+    })
+  }
+  return outputs
+}
 
 describe('TobiiEyeDeserializer', () => {
   test('should construct', () => {
@@ -24,15 +62,14 @@ describe('TobiiEyeDeserializer', () => {
       'IntervalStart;IntervalEnd',
       '\t'
     )
-    const outputs = []
+    const outputs = collectOutputs(deserializer)
     for (const row of rows) {
-      const result = deserializer.processRow(row)
-      if (result) outputs.push(result)
+      deserializer.processRowBytes(encodeRow(row), decoder)
     }
-    const final = deserializer.finalize()
-    if (final) outputs.push(final)
+    deserializer.finalize()
     // outputs now contains all parsed segments, ready for future assertions
     // console.log(outputs) // Uncomment for debugging
+    expect(outputs.length).toBeGreaterThan(0)
   })
 
   test('first output has correct category, duration, and stimulus', () => {
@@ -44,27 +81,21 @@ describe('TobiiEyeDeserializer', () => {
       ' IntervalStart; IntervalEnd',
       '\t'
     )
-    const outputs = []
+    const outputs = collectOutputs(deserializer)
     for (const row of rows) {
-      const result = deserializer.processRow(row)
-      if (result) outputs.push(result)
+      deserializer.processRowBytes(encodeRow(row), decoder)
     }
-    const final = deserializer.finalize()
-    if (final) outputs.push(final)
-    const firstRaw = outputs[0]
-    const first = Array.isArray(firstRaw) ? firstRaw[0] : firstRaw
-
-    console.log('FINAL FIRST OUTPUT:', JSON.stringify(first, null, 2))
+    deserializer.finalize()
+    const first = outputs[0]
 
     expect(first).toBeDefined()
-    expect(first.category).toBe('Fixation')
+    expect(first.categoryId).toBe(0)
     // First and only AOI should be Kameny
     expect(first.aoi).toBeDefined()
     expect(first.aoi).not.toBeNull()
-    // @ts-ignore
-    expect(first.aoi[0]).toBe('Kameny')
+    expect(first.aoi?.[0]).toBe('Kameny')
     expect(first.stimulus).toBe('geostul_snap')
-    expect(first.start).toBe('0')
-    expect(Number(first.end) - Number(first.start)).toBeCloseTo(460.8345, 1)
+    expect(first.start).toBe(0)
+    expect(first.end - first.start).toBeCloseTo(460.8345, 1)
   })
 })

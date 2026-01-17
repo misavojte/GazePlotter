@@ -8,6 +8,8 @@ export interface EyeSettingsType {
   rowDelimiter: string
   /** The character or string used to separate columns in the data file */
   columnDelimiter: string
+  /** The detected text encoding for the header (used only for header decoding) */
+  encoding: 'utf-8' | 'utf-16le' | 'utf-16be'
   /** The type of eye-tracking data file (e.g., 'tobii', 'gazepoint', 'begaze', etc.) */
   type: string
   /** User-defined settings that can be applied to the data parsing */

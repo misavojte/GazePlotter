@@ -6,6 +6,12 @@ import {
 import type { DataType } from '$lib/gaze-data/shared/types'
 import { DEFAULT_NO_AOI_TREATMENT } from '$lib/gaze-data/shared/types'
 import type { SingleDeserializerOutput } from '$lib/gaze-data/back-process/types/SingleDeserializerOutput'
+import type { TextEncoding } from '$lib/gaze-data/back-process/utils/byteUtils'
+import {
+  bytesEqual,
+  decodeBytes,
+  encodeString,
+} from '$lib/gaze-data/back-process/utils/byteUtils'
 
 /**
  * OPTIMIZED BUCKET
@@ -94,78 +100,125 @@ class SegmentBucket {
   }
 }
 
+class ByteDictionary {
+  private items: Uint8Array[] = []
+  private hashMap = new Map<number, number[]>()
+
+  getId(value: Uint8Array): number {
+    const hash = this.hashBytes(value)
+    const existing = this.hashMap.get(hash)
+    if (existing) {
+      for (let i = 0; i < existing.length; i++) {
+        const id = existing[i]
+        if (bytesEqual(value, this.items[id])) return id
+      }
+    }
+    const id = this.items.length
+    this.items.push(value)
+    if (existing) existing.push(id)
+    else this.hashMap.set(hash, [id])
+    return id
+  }
+
+  getValues(): Uint8Array[] {
+    return this.items
+  }
+
+  private hashBytes(bytes: Uint8Array): number {
+    let hash = 2166136261
+    for (let i = 0; i < bytes.length; i++) {
+      hash ^= bytes[i]
+      hash = Math.imul(hash, 16777619)
+    }
+    return hash >>> 0
+  }
+}
+
 export class BinaryEyeWriter {
   // Metadata
-  private stimuli = new Map<string, number>()
-  private participants = new Map<string, number>()
-  private stimuliNames: string[] = []
-  private participantNames: string[] = []
+  private stimuli = new ByteDictionary()
+  private participants = new ByteDictionary()
+  private stimuliBytes: Uint8Array[] = []
+  private participantBytes: Uint8Array[] = []
 
   // AOI Mapping
-  private aoiMaps: Map<string, number>[] = []
-  private aoisPerStimulus: string[][] = []
+  private aoiMaps: ByteDictionary[] = []
+  private aoisPerStimulus: Uint8Array[][] = []
 
   // Data Storage
   private buckets: SegmentBucket[][] = []
   private totalSegments = 0
   private totalAoiHits = 0
 
-  add(row: SingleDeserializerOutput): void {
-    // 1. Resolve Indices (Cached Lookups)
-    const sIdx = this.getOrAdd(
+  private encoding: TextEncoding = 'utf-8'
+  private decoder: TextDecoder = new TextDecoder('utf-8')
+
+  setEncoding(encoding: TextEncoding): void {
+    this.encoding = encoding
+    this.decoder = new TextDecoder(encoding)
+  }
+
+  addSegmentBytes(
+    start: number,
+    end: number,
+    categoryId: number,
+    stimulus: Uint8Array,
+    participant: Uint8Array,
+    aoi: Uint8Array[] | null
+  ): void {
+    const sIdx = this.getOrAddBytes(
       this.stimuli,
-      row.stimulus,
-      this.stimuliNames,
+      stimulus,
+      this.stimuliBytes,
       true
     )
-    const pIdx = this.getOrAdd(
+    const pIdx = this.getOrAddBytes(
       this.participants,
-      row.participant,
-      this.participantNames
+      participant,
+      this.participantBytes
     )
 
-    // 2. Resolve AOI IDs
     let aoiIds: number[] | null = null
-    const rawAois = row.aoi
-
-    if (rawAois && rawAois.length > 0) {
-      // Optimization: allocating this small array is unavoidable to pass to bucket
-      // unless we refactor bucket to accept iterator/raw strings.
-      // But keeping it numeric here is cleaner.
+    if (aoi && aoi.length > 0) {
       aoiIds = []
       const map = this.aoiMaps[sIdx]
       const list = this.aoisPerStimulus[sIdx]
 
-      for (let i = 0; i < rawAois.length; i++) {
-        const name = rawAois[i]
-        let id = map.get(name)
-        if (id === undefined) {
-          id = list.length
-          map.set(name, id)
-          list.push(name)
-        }
+      for (let i = 0; i < aoi.length; i++) {
+        const nameBytes = aoi[i]
+        const id = this.getOrAddBytes(map, nameBytes, list)
         aoiIds.push(id)
       }
       this.totalAoiHits += aoiIds.length
     }
-
-    // 3. Bucket Insertion
-    const start = Number(row.start)
-    const end = Number(row.end)
-    const cat = row.category.charCodeAt(0) === 70 ? 0 : 1 // 'F'ixation check is fast
 
     if (!this.buckets[sIdx]) this.buckets[sIdx] = []
     if (!this.buckets[sIdx][pIdx]) {
       this.buckets[sIdx][pIdx] = new SegmentBucket()
     }
 
-    this.buckets[sIdx][pIdx].add(start, end, cat, aoiIds)
+    this.buckets[sIdx][pIdx].add(start, end, categoryId, aoiIds)
     this.totalSegments++
   }
 
+  add(row: SingleDeserializerOutput): void {
+    const stimBytes = encodeString(row.stimulus, this.encoding)
+    const participantBytes = encodeString(row.participant, this.encoding)
+    const aoiBytes = row.aoi
+      ? row.aoi.map(a => encodeString(a, this.encoding))
+      : null
+    const cat = row.category.charCodeAt(0) === 70 ? 0 : 1
+    const start = Number(row.start)
+    const end = Number(row.end)
+    this.addSegmentBytes(start, end, cat, stimBytes, participantBytes, aoiBytes)
+  }
+
   buildFinalData(): DataType {
-    const maxParticipants = this.participantNames.length
-    const maxStimuli = this.stimuliNames.length
+    this.stimuliBytes = this.stimuli.getValues()
+    this.participantBytes = this.participants.getValues()
+
+    const maxParticipants = this.participantBytes.length
+    const maxStimuli = this.stimuliBytes.length
 
     // Allocate final contiguous buffers
     const finalSegBuffer = new Float32Array(this.totalSegments * SEGMENT_STRIDE)
@@ -262,15 +315,20 @@ export class BinaryEyeWriter {
 
     return {
       isOrdinalOnly: false,
-      stimuli: { data: this.stimuliNames.map(v => [v]), orderVector: [] },
+      stimuli: {
+        data: this.stimuliBytes.map(v => [decodeBytes(v, this.decoder)]),
+        orderVector: [],
+      },
       participants: {
-        data: this.participantNames.map(v => [v]),
+        data: this.participantBytes.map(v => [decodeBytes(v, this.decoder)]),
         orderVector: [],
       },
       participantsGroups: [],
       categories: { data: [['Fixation'], ['Saccade']], orderVector: [] },
       aois: {
-        data: this.aoisPerStimulus.map(v => v.map(a => [a])),
+        data: this.aoisPerStimulus.map(list =>
+          list.map(a => [decodeBytes(a, this.decoder)])
+        ),
         orderVector: [],
         dynamicVisibility: {},
         hiddenAois: [],
@@ -289,20 +347,18 @@ export class BinaryEyeWriter {
     }
   }
 
-  private getOrAdd(
-    map: Map<string, number>,
-    name: string,
-    list: string[],
+  private getOrAddBytes(
+    map: ByteDictionary,
+    name: Uint8Array,
+    list: Uint8Array[],
     isStim = false
   ): number {
-    let idx = map.get(name)
-    if (idx === undefined) {
-      idx = list.length
-      map.set(name, idx)
+    const idx = map.getId(name)
+    if (idx === list.length) {
       list.push(name)
       if (isStim) {
         this.aoisPerStimulus.push([])
-        this.aoiMaps.push(new Map())
+        this.aoiMaps.push(new ByteDictionary())
       }
     }
     return idx

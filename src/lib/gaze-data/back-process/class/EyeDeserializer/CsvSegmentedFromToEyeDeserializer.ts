@@ -1,4 +1,3 @@
-import type { DeserializerOutputType } from '$lib/gaze-data/back-process/types/DeserializerOutputType'
 import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
 
 /**
@@ -18,8 +17,13 @@ export class CsvSegmentedFromToEyeDeserializer extends AbstractEyeDeserializer {
   private readonly pParticipant = 3
   private readonly pStimulus = 4
 
-  constructor(header: string[], columnDelimiter: string) {
-    super(columnDelimiter)
+  constructor(
+    header: string[],
+    columnDelimiter: string,
+    encoding: 'utf-8' | 'utf-16le' | 'utf-16be' = 'utf-8'
+  ) {
+    super(columnDelimiter, encoding)
+    this.useBinary = true
     this.cFrom = this.getIndex(header, 'From')
     this.cTo = this.getIndex(header, 'To')
     this.cAoi = this.getIndex(header, 'AOI')
@@ -48,31 +52,33 @@ export class CsvSegmentedFromToEyeDeserializer extends AbstractEyeDeserializer {
    *                                            if the row is valid. If any required field ('from', 'to',
    *                                            'participant', 'stimulus') is empty, returns null.
    */
-  deserialize(_rawRowRef: string): DeserializerOutputType {
-    const from = this.getCurr(this.pFrom)
-    const to = this.getCurr(this.pTo)
-    const aoi = this.getCurr(this.pAoi)
-    const participant = this.getCurr(this.pParticipant)
-    const stimulus = this.getCurr(this.pStimulus)
+  deserialize(_rawRowRef: string): void {
+    return
+  }
 
-    if (from === '' || to === '' || participant === '' || stimulus === '') {
-      return null
-    }
+  protected deserializeFromBytes(_rawRowRef: Uint8Array): void {
+    const from = this.getNumber(this.pFrom)
+    const to = this.getNumber(this.pTo)
+    const aoiBytes = this.getBytes(this.pAoi)
+    const participantBytes = this.getBytes(this.pParticipant)
+    const stimulusBytes = this.getBytes(this.pStimulus)
 
-    return {
-      aoi: aoi === '' ? null : [aoi],
-      category: 'Fixation', // Not really, but for now let's assume that all the const is fixations
-      start: from,
-      end: to,
-      participant: participant,
-      stimulus: stimulus,
-    }
+    if (
+      !Number.isFinite(from) ||
+      !Number.isFinite(to) ||
+      participantBytes.length === 0 ||
+      stimulusBytes.length === 0
+    )
+      return
+
+    const aoi = aoiBytes.length ? [aoiBytes] : null
+    this.emitSegment(from, to, 0, stimulusBytes, participantBytes, aoi)
   }
 
   /**
    * @returns null because this deserializer does not need to finalize anything
    */
-  finalize(): DeserializerOutputType {
-    return null
+  finalize(): void {
+    return
   }
 }

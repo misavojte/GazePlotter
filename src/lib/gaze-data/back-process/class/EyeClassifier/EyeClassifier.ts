@@ -7,6 +7,53 @@ import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSetti
  * for different eye-tracking data formats (Tobii, GazePoint, BeGaze, etc.).
  */
 export class EyeClassifier {
+  private readonly maxHeaderBytes = 256 * 1024
+
+  private detectEncoding(bytes: Uint8Array): {
+    encoding: 'utf-8' | 'utf-16le' | 'utf-16be'
+    bomLength: number
+  } {
+    if (bytes.length >= 3) {
+      if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) {
+        return { encoding: 'utf-8', bomLength: 3 }
+      }
+    }
+    if (bytes.length >= 2) {
+      if (bytes[0] === 0xff && bytes[1] === 0xfe) {
+        return { encoding: 'utf-16le', bomLength: 2 }
+      }
+      if (bytes[0] === 0xfe && bytes[1] === 0xff) {
+        return { encoding: 'utf-16be', bomLength: 2 }
+      }
+    }
+
+    // Heuristic: detect UTF-16 by null bytes at even/odd positions
+    const sampleLen = Math.min(bytes.length, 512)
+    let zeroEven = 0
+    let zeroOdd = 0
+    for (let i = 0; i < sampleLen; i++) {
+      if (bytes[i] !== 0) continue
+      if (i % 2 === 0) zeroEven++
+      else zeroOdd++
+    }
+
+    if (zeroOdd > zeroEven * 2) return { encoding: 'utf-16le', bomLength: 0 }
+    if (zeroEven > zeroOdd * 2) return { encoding: 'utf-16be', bomLength: 0 }
+
+    return { encoding: 'utf-8', bomLength: 0 }
+  }
+
+  private decodeHeaderFromBytes(bytes: Uint8Array): {
+    text: string
+    encoding: 'utf-8' | 'utf-16le' | 'utf-16be'
+  } {
+    const limited = bytes.subarray(0, this.maxHeaderBytes)
+    const { encoding, bomLength } = this.detectEncoding(limited)
+    const decoder = new TextDecoder(encoding)
+    const text = decoder.decode(limited.subarray(bomLength))
+    return { text, encoding }
+  }
+
   /**
    * Detects the row delimiter used in the file content.
    * @param slice - A portion of the file content to analyze
@@ -23,13 +70,25 @@ export class EyeClassifier {
     return '\n'
   }
 
+  private getHeaderRow(slice: string): {
+    header: string
+    rowDelimiter: string
+  } {
+    const rowDelimiter = this.detectRowDelimiter(slice)
+    const header = slice.split(rowDelimiter)[0] ?? ''
+    return { header, rowDelimiter }
+  }
+
   /**
    * Analyzes a slice of file content to determine the appropriate parsing settings.
    * @param slice - A portion of the file content to analyze
    * @returns EyeSettingsType object containing the determined parsing settings
    * @throws Error if the file type cannot be determined
    */
-  classify(slice: string): EyeSettingsType {
+  classify(
+    slice: string,
+    encoding: 'utf-8' | 'utf-16le' | 'utf-16be' = 'utf-8'
+  ): EyeSettingsType {
     const type = this.getTypeFromSlice(slice)
     if (type === 'unknown') throw new Error('Unknown file type')
     const rowDelimiter = this.detectRowDelimiter(slice)
@@ -39,18 +98,24 @@ export class EyeClassifier {
       type,
       rowDelimiter,
       columnDelimiter,
+      encoding,
       userInputSetting: '',
       headerRowId,
     }
   }
 
+  classifyFromBytes(bytes: Uint8Array): EyeSettingsType {
+    const { text, encoding } = this.decodeHeaderFromBytes(bytes)
+    return this.classify(text, encoding)
+  }
+
   /**
    * Determines the eye-tracking data file type from a content slice.
-   * 
+   *
    * The order of checks matters: more specific formats are checked before more general ones
    * to avoid misclassification. For example, csv-segmented-duration must be checked before
    * csv-segmented, which must be checked before csv.
-   * 
+   *
    * @param slice - A portion of the file content to analyze
    * @returns The identified EyeFileType or 'unknown' if type cannot be determined
    */
@@ -152,7 +217,7 @@ export class EyeClassifier {
    * @returns true if the content matches standard CSV format
    */
   isCsv(slice: string): boolean {
-    const header = slice.split('\r\n')[0]
+    const { header } = this.getHeaderRow(slice)
     const headerColumns = header.split(',')
     return (
       headerColumns.includes('Time') &&
@@ -179,7 +244,7 @@ export class EyeClassifier {
 
   /**
    * Checks if the content matches duration-based segmented CSV file format.
-   * 
+   *
    * This format contains eye movement segments with duration-based timing:
    * - timestamp: Start time of the segment
    * - duration: Duration of the segment (end = timestamp + duration)
@@ -187,7 +252,7 @@ export class EyeClassifier {
    * - AOI: Area of Interest
    * - participant: Participant identifier
    * - stimulus: Stimulus identifier
-   * 
+   *
    * @param slice - A portion of the file content to analyze
    * @returns true if the content matches duration-based segmented CSV format
    */
@@ -212,11 +277,11 @@ export class EyeClassifier {
   determineCsvDelimiter(slice: string): string {
     const internationalDelimiter = ','
     const germanDelimiter = ';'
-    const headerOnly = slice.split('\r\n')[0]
-    const internationalDelimiterCount = headerOnly.split(
+    const { header } = this.getHeaderRow(slice)
+    const internationalDelimiterCount = header.split(
       internationalDelimiter
     ).length
-    const germanDelimiterCount = headerOnly.split(germanDelimiter).length
+    const germanDelimiterCount = header.split(germanDelimiter).length
     return internationalDelimiterCount > germanDelimiterCount
       ? internationalDelimiter
       : germanDelimiter

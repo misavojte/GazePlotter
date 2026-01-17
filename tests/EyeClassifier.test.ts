@@ -43,6 +43,7 @@ describe('EyeClassifier', () => {
       type: 'begaze',
       rowDelimiter: '\n',
       columnDelimiter: '\t',
+      encoding: 'utf-8',
       userInputSetting: '',
       headerRowId: 0,
     })
@@ -55,6 +56,7 @@ describe('EyeClassifier', () => {
       type: 'gazepoint',
       rowDelimiter: '\n',
       columnDelimiter: ',',
+      encoding: 'utf-8',
       userInputSetting: '',
       headerRowId: 0,
     })
@@ -67,6 +69,7 @@ describe('EyeClassifier', () => {
       type: 'ogama',
       rowDelimiter: '\n',
       columnDelimiter: '\t',
+      encoding: 'utf-8',
       userInputSetting: '',
       headerRowId: 8,
     })
@@ -79,6 +82,7 @@ describe('EyeClassifier', () => {
       type: 'csv',
       rowDelimiter: '\r\n',
       columnDelimiter: ',',
+      encoding: 'utf-8',
       userInputSetting: '',
       headerRowId: 0,
     })
@@ -91,6 +95,7 @@ describe('EyeClassifier', () => {
       type: 'csv-segmented',
       rowDelimiter: '\r\n',
       columnDelimiter: ',',
+      encoding: 'utf-8',
       userInputSetting: '',
       headerRowId: 0,
     })
@@ -103,6 +108,7 @@ describe('EyeClassifier', () => {
       type: 'csv-segmented-duration',
       rowDelimiter: '\r\n',
       columnDelimiter: ',',
+      encoding: 'utf-8',
       userInputSetting: '',
       headerRowId: 0,
     })

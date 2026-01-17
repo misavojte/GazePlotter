@@ -5,8 +5,8 @@
  * @see $lib/gaze-data/back-process/class/EyeDeserializer/CsvEyeDeserializer.ts
  */
 
-import type { SingleDeserializerOutput } from '$lib/gaze-data/back-process/types/SingleDeserializerOutput'
 import { CsvEyeDeserializer } from '$lib/gaze-data/back-process/class/EyeDeserializer/CsvEyeDeserializer'
+import { decodeBytes, encodeString } from '$lib/gaze-data/back-process/utils/byteUtils'
 import { test, expect, describe } from 'vitest'
 
 const csvMockDataOne = `Time,Participant,Stimulus,AOI
@@ -42,6 +42,37 @@ const csvMockDataTwo = `Time,Participant,Stimulus,AOI
 12,Participant_2,Map_B,Region_1
 13,Participant_2,Map_B,Region_1`
 
+type EmittedSegment = {
+  start: number
+  end: number
+  categoryId: number
+  stimulus: string
+  participant: string
+  aoi: string[] | null
+}
+
+const decoder = new TextDecoder('utf-8')
+const encodeRow = (row: string) => encodeString(row, 'utf-8')
+
+const collectOutputs = (sut: CsvEyeDeserializer) => {
+  const outputs: EmittedSegment[] = []
+  sut.onSegment = (start, end, categoryId, stimulus, participant, aoi) => {
+    outputs.push({
+      start,
+      end,
+      categoryId,
+      stimulus: decodeBytes(stimulus, decoder),
+      participant: decodeBytes(participant, decoder),
+      aoi: aoi ? aoi.map(a => decodeBytes(a, decoder)) : null,
+    })
+  }
+  return outputs
+}
+
+const processRow = (sut: CsvEyeDeserializer, row: string) => {
+  sut.processRowBytes(encodeRow(row), decoder)
+}
+
 describe('CSV Deserializer - Single data', () => {
   const csvRows = csvMockDataOne.split('\n')
   const header = csvRows[0].split(',')
@@ -57,33 +88,33 @@ describe('CSV Deserializer - Single data', () => {
 
   test('Process first row', () => {
     const sut = new CsvEyeDeserializer(header, delim)
-    const result = sut.processRow(csvRows[1])
-    expect(result).toBeNull()
-    expect(sut.mAoi).toEqual('Region_1')
-    expect(sut.mParticipant).toEqual('Participant_1')
-    expect(sut.mStimulus).toEqual('Map_A')
+    const outputs = collectOutputs(sut)
+    processRow(sut, csvRows[1])
+    expect(outputs).toHaveLength(0)
     expect(sut.mTimeBase).toEqual(0)
-    expect(sut.mTimeStart).toEqual('0')
-    expect(sut.mTimeLast).toEqual('0')
+    expect(sut.mTimeStart).toEqual(0)
+    expect(sut.mTimeLast).toEqual(0)
   })
 
   test('Process first segment', () => {
     const sut = new CsvEyeDeserializer(header, delim)
+    const outputs = collectOutputs(sut)
     const row1 = csvRows[1]
     const row2 = csvRows[2]
     const row3 = csvRows[3]
     const row4 = csvRows[4]
 
-    void sut.processRow(row1)
-    void sut.processRow(row2)
-    void sut.processRow(row3)
-    const result = sut.processRow(row4)
+    processRow(sut, row1)
+    processRow(sut, row2)
+    processRow(sut, row3)
+    processRow(sut, row4)
 
+    const result = outputs[0]
     expect(result).toEqual({
       aoi: ['Region_1'],
-      category: 'Fixation',
-      start: '0',
-      end: '2',
+      categoryId: 0,
+      start: 0,
+      end: 2,
       participant: 'Participant_1',
       stimulus: 'Map_A',
     })
@@ -91,6 +122,7 @@ describe('CSV Deserializer - Single data', () => {
 
   test('Process second segment', () => {
     const sut = new CsvEyeDeserializer(header, delim)
+    const outputs = collectOutputs(sut)
 
     const row1 = csvRows[1]
     const row2 = csvRows[2]
@@ -98,17 +130,18 @@ describe('CSV Deserializer - Single data', () => {
     const row4 = csvRows[4]
     const row5 = csvRows[5]
 
-    void sut.processRow(row1)
-    void sut.processRow(row2)
-    void sut.processRow(row3)
-    void sut.processRow(row4)
-    const result = sut.processRow(row5)
+    processRow(sut, row1)
+    processRow(sut, row2)
+    processRow(sut, row3)
+    processRow(sut, row4)
+    processRow(sut, row5)
 
+    const result = outputs[1]
     expect(result).toEqual({
       aoi: ['Region_2'],
-      category: 'Fixation',
-      start: '3',
-      end: '3',
+      categoryId: 0,
+      start: 3,
+      end: 3,
       participant: 'Participant_1',
       stimulus: 'Map_A',
     })
@@ -118,20 +151,22 @@ describe('CSV Deserializer - Single data', () => {
 
   test('Sample 2 - baseTime between segments', () => {
     const sut = new CsvEyeDeserializer(header, delim)
+    const outputs = collectOutputs(sut)
     const csvRows2 = csvMockDataTwo.split('\n')
     const row1 = csvRows2[1]
     const row2 = csvRows2[2]
     const row3 = csvRows2[3]
     const row4 = csvRows2[4]
-    void sut.processRow(row1)
-    void sut.processRow(row2)
-    void sut.processRow(row3)
-    const result = sut.processRow(row4)
+    processRow(sut, row1)
+    processRow(sut, row2)
+    processRow(sut, row3)
+    processRow(sut, row4)
+    const result = outputs[1]
     expect(result).toEqual({
       aoi: ['Region_4'],
-      category: 'Fixation',
-      start: '1',
-      end: '2',
+      categoryId: 0,
+      start: 1,
+      end: 2,
       participant: 'Participant_1',
       stimulus: 'Map_A',
     })
@@ -139,18 +174,19 @@ describe('CSV Deserializer - Single data', () => {
 
   test('Sample 2 - no duplicity segments with 0,0', () => {
     const sut = new CsvEyeDeserializer(header, delim)
+    const outputs = collectOutputs(sut)
     const csvRows2 = csvMockDataTwo.split('\n')
     const row1 = csvRows2[1]
     const row2 = csvRows2[2]
     const row3 = csvRows2[3]
     const row4 = csvRows2[4]
     const row5 = csvRows2[5]
-    void sut.processRow(row1)
-    void sut.processRow(row2)
-    void sut.processRow(row3)
-    void sut.processRow(row4)
-    const result = sut.processRow(row5)
-    expect(result).toBeNull()
+    processRow(sut, row1)
+    processRow(sut, row2)
+    processRow(sut, row3)
+    processRow(sut, row4)
+    processRow(sut, row5)
+    expect(outputs).toHaveLength(2)
   })
 })
 
@@ -159,20 +195,20 @@ describe('CSV Deserializer - Multiple data', async () => {
     const rows = csvMockDataOne.split('\n')
     const header = rows[0].split(',')
     const sut = new CsvEyeDeserializer(header, ',')
-    const result: SingleDeserializerOutput[] = []
+    const outputs = collectOutputs(sut)
 
     for (let i = 1; i < rows.length; i++) {
       const row = rows[i]
-      const a = sut.processRow(row)
-      if (a) result.push(a)
+      processRow(sut, row)
     }
+    sut.finalize()
 
-    console.log(result)
+    console.log(outputs)
 
-    expect(result.length).toBe(15) // 15 segments while only 4 with different start and end
+    expect(outputs.length).toBe(16) // 16 segments while only 4 with different start and end
 
     // filter out segments with same start and end
-    const filtered = result.filter(a => a.start !== a.end)
+    const filtered = outputs.filter(a => a.start !== a.end)
     expect(filtered.length).toBe(4)
 
     console.log(filtered)

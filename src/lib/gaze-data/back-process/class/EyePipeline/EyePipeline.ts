@@ -1,6 +1,6 @@
 import { EyeClassifier } from '../EyeClassifier/EyeClassifier'
 import { BinaryEyeWriter } from '../EyeWriter/BinaryEyeWriter'
-import { EyeParser } from '../EyeParser/EyeParser'
+import { ByteSplitter } from '../EyeSplitter/ByteSplitter'
 import { AbstractEyeDeserializer } from '../EyeDeserializer/AbstractEyeDeserializer'
 import { BeGazeEyeDeserializer } from '../EyeDeserializer/BeGazeEyeDeserializer'
 import { GazePointEyeDeserializer } from '../EyeDeserializer/GazePointEyeDeserializer'
@@ -9,7 +9,6 @@ import { VarjoEyeDeserializer } from '../EyeDeserializer/VarjoEyeDeserializer'
 import { CsvEyeDeserializer } from '../EyeDeserializer/CsvEyeDeserializer'
 import { TobiiEyeDeserializer } from '../EyeDeserializer/TobiiEyeDeserializer'
 import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSettingsType.js'
-import { EyeSplitter } from '../EyeSplitter/EyeSplitter'
 import type { DataType } from '$lib/gaze-data/shared/types'
 import { CsvSegmentedFromToEyeDeserializer } from '../EyeDeserializer/CsvSegmentedFromToEyeDeserializer'
 import { CsvSegmentedDurationEyeDeserializer } from '../EyeDeserializer/CsvSegmentedDurationEyeDeserializer'
@@ -49,11 +48,14 @@ export class EyePipeline {
   ): Promise<{ data: DataType; settings: EyeSettingsType } | null> {
     // reset complete settings
     this.completeSettings = null
-    // parse first chunk and classify it
-    const parser = new EyeParser(stream)
-    const firstTextChunk = await parser.getTextChunk()
-    const settings = await this.classify(firstTextChunk)
-    const splitter = new EyeSplitter(settings)
+    // read first binary chunk and classify header
+    const reader = stream.getReader()
+    const firstRead = await reader.read()
+    const firstChunk = firstRead.value ?? new Uint8Array()
+    const settings = this.classifier.classifyFromBytes(firstChunk)
+    this.writer.setEncoding(settings.encoding)
+    const splitter = new ByteSplitter(settings)
+    const decoder = new TextDecoder(settings.encoding)
 
     // request user input (if needed) and wait for it
     const userStringInput: string =
@@ -68,15 +70,30 @@ export class EyePipeline {
     }
 
     // process first chunk
-    this.processChunk(firstTextChunk, settings, splitter, userStringInput)
+    this.processChunkBytes(
+      firstChunk,
+      settings,
+      splitter,
+      userStringInput,
+      decoder
+    )
 
     // process remaining chunks
-    while (!parser.isDone) {
-      const chunk = await parser.getTextChunk()
-      this.processChunk(chunk, settings, splitter, userStringInput)
+    if (!firstRead.done) {
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        this.processChunkBytes(
+          value ?? new Uint8Array(),
+          settings,
+          splitter,
+          userStringInput,
+          decoder
+        )
+      }
     }
 
-    this.releaseAfterFile(splitter, settings, userStringInput)
+    this.releaseAfterFile(splitter, settings, userStringInput, decoder)
 
     if (this.isAllProcessed) {
       return {
@@ -88,13 +105,19 @@ export class EyePipeline {
   }
 
   releaseAfterFile(
-    splitter: EyeSplitter,
+    splitter: ByteSplitter,
     settings: EyeSettingsType,
-    userStringInput: string
+    userStringInput: string,
+    decoder: TextDecoder
   ): void {
     const dataFromSplitter = splitter.release()
     for (let i = 0; i < dataFromSplitter.length; i++) {
-      this.processRow(dataFromSplitter[i], settings, userStringInput)
+      this.processRowBytes(
+        dataFromSplitter[i],
+        settings,
+        userStringInput,
+        decoder
+      )
     }
 
     this.finalizeFile()
@@ -108,22 +131,62 @@ export class EyePipeline {
     return classifier.classify(chunk)
   }
 
-  processChunk(
-    chunk: string,
+  private createStreamWithFirstChunk(
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    firstChunk: Uint8Array,
+    firstDone: boolean
+  ): ReadableStream<Uint8Array> {
+    if (firstDone && firstChunk.length === 0) {
+      return new ReadableStream({
+        start(controller) {
+          controller.close()
+        },
+      })
+    }
+
+    return new ReadableStream({
+      start(controller) {
+        if (firstChunk.length > 0) controller.enqueue(firstChunk)
+        if (firstDone) {
+          controller.close()
+          return
+        }
+        const pump = (): void => {
+          reader
+            .read()
+            .then(({ value, done }) => {
+              if (done) {
+                controller.close()
+                return
+              }
+              if (value) controller.enqueue(value)
+              pump()
+            })
+            .catch(error => controller.error(error))
+        }
+        pump()
+      },
+    })
+  }
+
+  processChunkBytes(
+    chunk: Uint8Array,
     settings: EyeSettingsType,
-    splitter: EyeSplitter,
-    userStringInput: string
+    splitter: ByteSplitter,
+    userStringInput: string,
+    decoder: TextDecoder
   ): void {
     const rows = splitter.splitChunk(chunk)
     for (let i = 0; i < rows.length; i++) {
-      this.processRow(rows[i], settings, userStringInput)
+      this.processRowBytes(rows[i], settings, userStringInput, decoder)
     }
   }
 
-  private processRow(
-    rawRow: string,
+  private processRowBytes(
+    rawRow: Uint8Array,
     settings: EyeSettingsType,
-    userStringInput: string
+    userStringInput: string,
+    decoder: TextDecoder
   ): void {
     const headerRowId = settings.headerRowId
 
@@ -133,76 +196,95 @@ export class EyePipeline {
     }
 
     if (this.rowIndex === headerRowId) {
-      const header = rawRow.split(settings.columnDelimiter)
+      const headerText = decoder.decode(rawRow).replace(/^\uFEFF/, '')
+      const header = headerText.split(settings.columnDelimiter)
       this.deserializer = this.getDeserializer(
         header,
         this.currentFileName,
         settings,
-        userStringInput
+        userStringInput,
+        rawRow
       )
       this.rowIndex++
+      this.deserializer.onSegment = this.writer.addSegmentBytes.bind(
+        this.writer
+      )
       return
     }
 
     if (this.deserializer == null) throw new Error('Deserializer is undefined')
     this.rowIndex++
-    const parsedRow = this.deserializer.processRow(rawRow)
-    if (parsedRow === null) return
-    if (Array.isArray(parsedRow))
-      return parsedRow.forEach(row => this.writer.add(row))
-    this.writer.add(parsedRow)
+    this.deserializer.processRowBytes(rawRow, decoder)
   }
 
   private getDeserializer(
     header: string[],
     fileName: string,
     settings: EyeSettingsType,
-    userStringInput: string
+    userStringInput: string,
+    headerBytes?: Uint8Array
   ): AbstractEyeDeserializer {
     switch (settings.type) {
       case 'begaze':
-        return new BeGazeEyeDeserializer(header, settings.columnDelimiter)
+        return new BeGazeEyeDeserializer(
+          header,
+          settings.columnDelimiter,
+          settings.encoding
+        )
       case 'tobii':
         return this.getTobiiReducer(
           header,
           userStringInput,
-          settings.columnDelimiter
+          settings.columnDelimiter,
+          settings.encoding,
+          headerBytes
         )
       case 'tobii-with-event':
         return this.getTobiiReducer(
           header,
           userStringInput,
-          settings.columnDelimiter
+          settings.columnDelimiter,
+          settings.encoding,
+          headerBytes
         )
       case 'gazepoint':
         return new GazePointEyeDeserializer(
           header,
           fileName,
-          settings.columnDelimiter
+          settings.columnDelimiter,
+          settings.encoding
         )
       case 'ogama':
         return new OgamaEyeDeserializer(
           header,
           fileName,
-          settings.columnDelimiter
+          settings.columnDelimiter,
+          settings.encoding
         )
       case 'varjo':
         return new VarjoEyeDeserializer(
           header,
           fileName,
-          settings.columnDelimiter
+          settings.columnDelimiter,
+          settings.encoding
         )
       case 'csv':
-        return new CsvEyeDeserializer(header, settings.columnDelimiter)
+        return new CsvEyeDeserializer(
+          header,
+          settings.columnDelimiter,
+          settings.encoding
+        )
       case 'csv-segmented':
         return new CsvSegmentedFromToEyeDeserializer(
           header,
-          settings.columnDelimiter
+          settings.columnDelimiter,
+          settings.encoding
         )
       case 'csv-segmented-duration':
         return new CsvSegmentedDurationEyeDeserializer(
           header,
-          settings.columnDelimiter
+          settings.columnDelimiter,
+          settings.encoding
         )
       default:
         throw new Error('File type row reducer not implemented')
@@ -212,16 +294,21 @@ export class EyePipeline {
   private getTobiiReducer(
     header: string[],
     userInput: string,
-    columnDelimiter: string
+    columnDelimiter: string,
+    encoding: EyeSettingsType['encoding'],
+    headerBytes?: Uint8Array
   ): TobiiEyeDeserializer {
-    return new TobiiEyeDeserializer(header, userInput, columnDelimiter)
+    return new TobiiEyeDeserializer(
+      header,
+      userInput,
+      columnDelimiter,
+      encoding,
+      headerBytes
+    )
   }
 
   private finalizeFile(): void {
     if (!this.deserializer) return
-    const tail = this.deserializer.finalize()
-    if (tail === null) return
-    if (Array.isArray(tail)) tail.forEach(row => this.writer.add(row))
-    else this.writer.add(tail)
+    this.deserializer.finalize()
   }
 }

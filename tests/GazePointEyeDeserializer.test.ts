@@ -7,6 +7,7 @@
 
 import { test, expect, describe } from 'vitest'
 import { GazePointEyeDeserializer } from '$lib/gaze-data/back-process/class/EyeDeserializer/GazePointEyeDeserializer'
+import { decodeBytes, encodeString } from '$lib/gaze-data/back-process/utils/byteUtils'
 
 const separator = ','
 const header =
@@ -27,6 +28,37 @@ const rawRow7 = '2,Slide01,1.92200,1.72827,0.18701,7,0,0.00000,,'
 const rawRow8 = '2,Slide01,1.93200,1.72827,0.18701,7,0,0.00000,,'
 const rawRow9 = '2,Slide01,1.94200,1.93200,0.10000,8,0,0.00000,,'
 
+type EmittedSegment = {
+  start: number
+  end: number
+  categoryId: number
+  stimulus: string
+  participant: string
+  aoi: string[] | null
+}
+
+const decoder = new TextDecoder('utf-8')
+const encodeRow = (row: string) => encodeString(row, 'utf-8')
+
+const collectOutputs = (sut: GazePointEyeDeserializer) => {
+  const outputs: EmittedSegment[] = []
+  sut.onSegment = (start, end, categoryId, stimulus, participant, aoi) => {
+    outputs.push({
+      start,
+      end,
+      categoryId,
+      stimulus: decodeBytes(stimulus, decoder),
+      participant: decodeBytes(participant, decoder),
+      aoi: aoi ? aoi.map(a => decodeBytes(a, decoder)) : null,
+    })
+  }
+  return outputs
+}
+
+const processRow = (sut: GazePointEyeDeserializer, row: string) => {
+  sut.processRowBytes(encodeRow(row), decoder)
+}
+
 describe('GazePoint Reducer', () => {
   test('Construct Reducer', () => {
     const reducer = new GazePointEyeDeserializer(header, 'P1', separator)
@@ -34,45 +66,52 @@ describe('GazePoint Reducer', () => {
   })
   test('Reduce Fixation', () => {
     const reducer = new GazePointEyeDeserializer(header, 'P1', separator)
-    const result = reducer.processRow(fixRow1)
-    expect(result).toBe(null)
-    const result2 = reducer.processRow(fixRow2)
-    expect(result2?.aoi).toBe(null)
-    expect(result2?.category).toBe('Fixation')
-    expect(result2?.end).toBe('0.06689')
-    expect(result2?.participant).toBe('P1')
-    expect(result2?.start).toBe('0')
-    expect(result2?.stimulus).toBe('Slide0')
-    const result3 = reducer.finalize()
-    expect(result3?.aoi).toBe(null)
-    expect(result3?.category).toBe('Fixation')
-    expect(result3?.end).toBe('0.13378')
-    expect(result3?.participant).toBe('P1')
-    expect(result3?.start).toBe('0.06689')
-    expect(result3?.stimulus).toBe('Slide0')
+    const outputs = collectOutputs(reducer)
+    processRow(reducer, fixRow1)
+    expect(outputs).toHaveLength(0)
+    processRow(reducer, fixRow2)
+    const result2 = outputs[0]
+    expect(result2.aoi).toBeNull()
+    expect(result2.categoryId).toBe(0)
+    expect(result2.end).toBeCloseTo(0.06689, 5)
+    expect(result2.participant).toBe('P1')
+    expect(result2.start).toBeCloseTo(0, 5)
+    expect(result2.stimulus).toBe('Slide0')
+    reducer.finalize()
+    const result3 = outputs[1]
+    expect(result3.aoi).toBeNull()
+    expect(result3.categoryId).toBe(0)
+    expect(result3.end).toBeCloseTo(0.13378, 5)
+    expect(result3.participant).toBe('P1')
+    expect(result3.start).toBeCloseTo(0.06689, 5)
+    expect(result3.stimulus).toBe('Slide0')
   })
   test('Reduce Raw', () => {
     const reducer = new GazePointEyeDeserializer(header, 'P1', separator)
-    expect(reducer.processRow(rawRow1)).toBe(null)
-    expect(reducer.processRow(rawRow2)).toBe(null)
-    const result1 = reducer.processRow(rawRow3)
-    expect(result1?.aoi?.[0]).toBe('Right-AOI 4')
-    expect(result1?.category).toBe('Fixation')
-    expect(result1?.end).toBe('1.54968')
-    expect(result1?.participant).toBe('P1')
-    expect(result1?.start).toBe('1.38635')
-    expect(reducer.processRow(rawRow4)).toBe(null)
-    const blinkResult = reducer.processRow(rawRow5)
-    expect(blinkResult?.aoi).toBe(null)
-    expect(blinkResult?.start).toBe('1.5741')
-    expect(blinkResult?.category).toBe('Blink')
-    expect(blinkResult?.end).toBe('1.71008')
-    expect(reducer.processRow(rawRow6)).toBe(null)
-    const result2 = reducer.processRow(rawRow7)
-    expect(result2?.aoi?.[0]).toBe('Right-AOI 4')
-    expect(result2?.category).toBe('Fixation')
-    expect(result2?.end).toBe('1.91528')
-    expect(reducer.processRow(rawRow8)).toBe(null)
-    expect(reducer.processRow(rawRow9)).toBe(null)
+    const outputs = collectOutputs(reducer)
+    processRow(reducer, rawRow1)
+    processRow(reducer, rawRow2)
+    processRow(reducer, rawRow3)
+    const result1 = outputs[0]
+    expect(result1.aoi?.[0]).toBe('Right-AOI 4')
+    expect(result1.categoryId).toBe(0)
+    expect(result1.end).toBeCloseTo(1.54968, 5)
+    expect(result1.participant).toBe('P1')
+    expect(result1.start).toBeCloseTo(1.38635, 5)
+    processRow(reducer, rawRow4)
+    processRow(reducer, rawRow5)
+    const blinkResult = outputs[1]
+    expect(blinkResult.aoi).toBeNull()
+    expect(blinkResult.start).toBeCloseTo(1.5741, 5)
+    expect(blinkResult.categoryId).toBe(1)
+    expect(blinkResult.end).toBeCloseTo(1.71008, 5)
+    processRow(reducer, rawRow6)
+    processRow(reducer, rawRow7)
+    const result2 = outputs[2]
+    expect(result2.aoi?.[0]).toBe('Right-AOI 4')
+    expect(result2.categoryId).toBe(0)
+    expect(result2.end).toBeCloseTo(1.91528, 5)
+    processRow(reducer, rawRow8)
+    processRow(reducer, rawRow9)
   })
 })

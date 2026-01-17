@@ -1,5 +1,5 @@
-import type { DeserializerOutputType } from '$lib/gaze-data/back-process/types/DeserializerOutputType'
 import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
+import { bytesEqual } from '$lib/gaze-data/back-process/utils/byteUtils'
 
 /**
  * Deserializer for CSV files containing segmented eye-tracking data with duration-based timing.
@@ -60,9 +60,11 @@ export class CsvSegmentedDurationEyeDeserializer extends AbstractEyeDeserializer
 
   /** Current participant being processed (used to detect when to reset base time) */
   mParticipant = ''
+  mParticipantBytes: Uint8Array | null = null
 
   /** Current stimulus being processed (used to detect when to reset base time) */
   mStimulus = ''
+  mStimulusBytes: Uint8Array | null = null
 
   /**
    * Constructs a new CsvSegmentedDurationEyeDeserializer.
@@ -73,8 +75,13 @@ export class CsvSegmentedDurationEyeDeserializer extends AbstractEyeDeserializer
    * @param {string[]} header - Array of column names from the CSV header row
    * @throws {Error} If any required column is not found in the header
    */
-  constructor(header: string[], columnDelimiter: string) {
-    super(columnDelimiter)
+  constructor(
+    header: string[],
+    columnDelimiter: string,
+    encoding: 'utf-8' | 'utf-16le' | 'utf-16be' = 'utf-8'
+  ) {
+    super(columnDelimiter, encoding)
+    this.useBinary = true
     // Trim whitespace from header values to handle potential BOM or whitespace issues
     const trimmedHeader = header.map(h => h.trim())
 
@@ -120,7 +127,7 @@ export class CsvSegmentedDurationEyeDeserializer extends AbstractEyeDeserializer
    * @param {string[]} row - An array representing a single row from the CSV file
    * @returns {DeserializerOutputType | null} Deserialized segment data, or null if validation fails
    */
-  deserialize(_rawRowRef: string): DeserializerOutputType {
+  deserialize(_rawRowRef: string): void {
     const timestamp = this.getCurr(this.pTimestamp)
     const duration = this.getCurr(this.pDuration)
     const aoi = this.getCurr(this.pAoi)
@@ -134,12 +141,11 @@ export class CsvSegmentedDurationEyeDeserializer extends AbstractEyeDeserializer
       participant === '' ||
       stimulus === ''
     )
-      return null
+      return
 
     const timestampNum = Number(timestamp)
     const durationNum = Number(duration)
-    if (!Number.isFinite(timestampNum) || !Number.isFinite(durationNum))
-      return null
+    if (!Number.isFinite(timestampNum) || !Number.isFinite(durationNum)) return
 
     // Check if this is a new participant/stimulus combination
     // If so, reset the base time to the current timestamp
@@ -172,16 +178,60 @@ export class CsvSegmentedDurationEyeDeserializer extends AbstractEyeDeserializer
     const category = eyeMovementType === '0' ? 'Fixation' : 'Saccade'
 
     // Return the deserialized segment following the SingleDeserializerOutput interface
-    return {
-      // Convert AOI: empty string becomes null, otherwise wrap in array for consistency
-      aoi: aoi === '' ? null : [aoi],
-      category: category,
-      // Convert normalized numeric times back to strings for consistency with other deserializers
-      start: String(normalizedStartTime),
-      end: String(normalizedEndTime),
-      participant: participant,
-      stimulus: stimulus,
+    this.emitSegment(
+      normalizedStartTime,
+      normalizedEndTime,
+      category === 'Fixation' ? 0 : 1,
+      new Uint8Array(0),
+      new Uint8Array(0),
+      null
+    )
+  }
+
+  protected deserializeFromBytes(_rawRowRef: Uint8Array): void {
+    const timestampNum = this.getNumber(this.pTimestamp)
+    const durationNum = this.getNumber(this.pDuration)
+    const aoiBytes = this.getBytes(this.pAoi)
+    const participantBytes = this.getBytes(this.pParticipant)
+    const stimulusBytes = this.getBytes(this.pStimulus)
+    const eyeMovementTypeBytes = this.getBytes(this.pEyeMovementType)
+
+    if (
+      !Number.isFinite(timestampNum) ||
+      !Number.isFinite(durationNum) ||
+      participantBytes.length === 0 ||
+      stimulusBytes.length === 0
+    )
+      return
+
+    const isNewTimebase =
+      this.mTimeBase === null ||
+      !bytesEqual(participantBytes, this.mParticipantBytes) ||
+      !bytesEqual(stimulusBytes, this.mStimulusBytes)
+
+    if (isNewTimebase) {
+      this.mTimeBase = timestampNum
+      this.mParticipantBytes = participantBytes
+      this.mStimulusBytes = stimulusBytes
     }
+
+    const baseTime = this.mTimeBase
+    if (baseTime === null) return
+
+    const normalizedStartTime = timestampNum - baseTime
+    const normalizedEndTime = normalizedStartTime + durationNum
+
+    const categoryId = this.isZero(eyeMovementTypeBytes) ? 0 : 1
+    const aoi = aoiBytes.length ? [aoiBytes] : null
+
+    this.emitSegment(
+      normalizedStartTime,
+      normalizedEndTime,
+      categoryId,
+      stimulusBytes,
+      participantBytes,
+      aoi
+    )
   }
 
   /**
@@ -193,7 +243,17 @@ export class CsvSegmentedDurationEyeDeserializer extends AbstractEyeDeserializer
    *
    * @returns {null} Always returns null as no finalization is needed
    */
-  finalize(): DeserializerOutputType {
-    return null
+  finalize(): void {
+    return
+  }
+
+  private isZero(bytes: Uint8Array): boolean {
+    if (this.encoding === 'utf-16le') {
+      return bytes.length === 2 && bytes[0] === 48 && bytes[1] === 0
+    }
+    if (this.encoding === 'utf-16be') {
+      return bytes.length === 2 && bytes[0] === 0 && bytes[1] === 48
+    }
+    return bytes.length === 1 && bytes[0] === 48
   }
 }
