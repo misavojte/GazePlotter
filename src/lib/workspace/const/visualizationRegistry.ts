@@ -2,6 +2,7 @@ import ScarfPlot from '$lib/plots/scarf/components/ScarfPlot.svelte'
 // Revert casing to lowercase 'a' based on linter "already included" message
 import TransitionMatrixPlot from '$lib/plots/transition-matrix/components/TransitionMatrixPlot.svelte' // Use lowercase 'a'
 import BarPlot from '$lib/plots/bar/components/BarPlot.svelte'
+import AoiStreamPlot from '$lib/plots/aoi-stream/components/AoiStreamPlot.svelte'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 import { getScarfGridHeightFromCurrentData } from '$lib/plots/scarf/utils/scarfServices'
 
@@ -72,6 +73,21 @@ export const visualizationRegistry: Record<string, VisualizationConfig> = {
       barPlottingType: 'horizontal',
       sortBars: 'none',
       aggregationMethod: 'absoluteTime',
+      min: { w: 12, h: 12 },
+    }),
+    getDefaultHeight: () => 12,
+    getDefaultWidth: () => 12,
+  },
+  aoiStreamPlot: {
+    name: 'AOI Stream Plot',
+    component: AoiStreamPlot,
+    getDefaultConfig: (
+      params: { stimulusId?: number; groupId?: number } = {}
+    ) => ({
+      stimulusId: params.stimulusId ?? 0,
+      groupIdUpper: params.groupId ?? -1,
+      groupIdLower: params.groupId ?? -1,
+      binCount: 200,
       min: { w: 12, h: 12 },
     }),
     getDefaultHeight: () => 12,

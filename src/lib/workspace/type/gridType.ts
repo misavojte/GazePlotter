@@ -17,7 +17,7 @@ export interface GridType {
   /** Minimum dimensions that the grid item can be resized to */
   min: { w: number; h: number }
   /** Type of visualization represented by this grid item */
-  type: 'scarf' | 'TransitionMatrix' | 'barPlot'
+  type: 'scarf' | 'TransitionMatrix' | 'barPlot' | 'aoiStreamPlot'
   /** Timestamp used to trigger redraws of the grid item */
   redrawTimestamp: number
 }
@@ -112,9 +112,26 @@ export interface BarPlotGridType extends GridType {
 }
 
 /**
+ * Interface representing an AOI Stream Plot grid item.
+ * Extends the base GridType with AOI Stream Plot-specific properties.
+ */
+export interface AoiStreamPlotGridType extends GridType {
+  type: 'aoiStreamPlot'
+  /** ID of the stimulus being visualized */
+  stimulusId: number
+  /** ID of the group rendered in the upper stream */
+  groupIdUpper: number
+  /** ID of the group rendered in the lower stream */
+  groupIdLower: number
+  /** Number of time bins for the stream */
+  binCount: number
+}
+
+/**
  * Union type representing all possible grid item types in the workspace.
  */
 export type AllGridTypes =
   | ScarfGridType
   | TransitionMatrixGridType
   | BarPlotGridType
+  | AoiStreamPlotGridType
