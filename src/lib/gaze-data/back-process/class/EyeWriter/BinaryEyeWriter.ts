@@ -313,13 +313,38 @@ export class BinaryEyeWriter {
       }
     }
 
-    // Create alphabetically sorted order vectors
+    // Natural sort comparator that handles numeric sequences correctly (2, 3, ..., 10 instead of 10, 2, 3, ...)
+    const naturalSort = (aStr: string, bStr: string): number => {
+      const aChunks = aStr.split(/(\d+)/g)
+      const bChunks = bStr.split(/(\d+)/g)
+
+      for (let i = 0; i < Math.max(aChunks.length, bChunks.length); i++) {
+        const aChunk = aChunks[i] ?? ''
+        const bChunk = bChunks[i] ?? ''
+
+        if (aChunk === bChunk) continue
+
+        const aNum = Number(aChunk)
+        const bNum = Number(bChunk)
+
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+          return aNum - bNum
+        }
+
+        return aChunk.localeCompare(bChunk)
+      }
+
+      return 0
+    }
+
+    // Create naturally sorted order vectors
     const stimuliOrderVector: number[] = Array.from(
       { length: this.stimuliBytes.length },
       (_, i) => i
     )
     stimuliOrderVector.sort((a, b) =>
-      decodeBytes(this.stimuliBytes[a], this.decoder).localeCompare(
+      naturalSort(
+        decodeBytes(this.stimuliBytes[a], this.decoder),
         decodeBytes(this.stimuliBytes[b], this.decoder)
       )
     )
@@ -329,7 +354,8 @@ export class BinaryEyeWriter {
       (_, i) => i
     )
     participantsOrderVector.sort((a, b) =>
-      decodeBytes(this.participantBytes[a], this.decoder).localeCompare(
+      naturalSort(
+        decodeBytes(this.participantBytes[a], this.decoder),
         decodeBytes(this.participantBytes[b], this.decoder)
       )
     )
@@ -337,7 +363,8 @@ export class BinaryEyeWriter {
     const aoisOrderVectors = this.aoisPerStimulus.map(list => {
       const indices: number[] = Array.from({ length: list.length }, (_, i) => i)
       indices.sort((a, b) =>
-        decodeBytes(list[a], this.decoder).localeCompare(
+        naturalSort(
+          decodeBytes(list[a], this.decoder),
           decodeBytes(list[b], this.decoder)
         )
       )
