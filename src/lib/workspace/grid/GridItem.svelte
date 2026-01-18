@@ -9,35 +9,15 @@
   // Reusable types for props (concise)
   type GridRect = { id: number; x: number; y: number; w: number; h: number }
   type Bounds = { left: number; right: number; top: number; bottom: number }
-  type DragHeightUpdate = {
-    id: number
-    y: number
-    h: number
-    bottomEdge: number
-  }
-  type PreviewMove = {
-    id: number
-    previewX: number
-    previewY: number
-    currentX: number
-    currentY: number
-    w: number
-    h: number
-  }
-  type PreviewResize = {
+
+  type PreviewUpdate = {
     id: number
     x: number
     y: number
-    currentW: number
-    currentH: number
     w: number
     h: number
   }
-  type EdgeDetection = {
-    id: number
-    itemBounds: Bounds
-    viewportBounds: Bounds
-  }
+
   type IdOnly = { id: number }
   type GridEvent<T> = (payload: T) => void
 
@@ -61,8 +41,7 @@
     children?: Snippet
 
     onmove?: GridEvent<GridRect>
-    onpreviewmove?: GridEvent<PreviewMove>
-    onpreviewresize?: GridEvent<PreviewResize>
+    onpreviewupdate?: GridEvent<PreviewUpdate>
     onresize?: GridEvent<GridRect>
     ondragstart?: GridEvent<GridRect>
     ondragend?: GridEvent<GridRect & { dragComplete: boolean }>
@@ -70,7 +49,6 @@
     onresizeend?: GridEvent<GridRect & { resizeComplete: boolean }>
     onremove?: GridEvent<IdOnly>
     onduplicate?: GridEvent<IdOnly>
-    ondrag_height_update?: GridEvent<DragHeightUpdate>
   }
 
   let {
@@ -91,8 +69,7 @@
     body,
     children,
     onmove = () => {},
-    onpreviewmove = () => {},
-    onpreviewresize = () => {},
+    onpreviewupdate = () => {},
     onresize = () => {},
     ondragstart = () => {},
     ondragend = () => {},
@@ -100,7 +77,6 @@
     onresizeend = () => {},
     onremove = () => {},
     onduplicate = () => {},
-    ondrag_height_update = () => {},
   }: Props = $props()
 
   // Track state for visual feedback
@@ -130,17 +106,10 @@
     workspaceElement = null
   })
 
-  // Throttled emitter to coalesce high-frequency preview events (move/resize/height)
+  // Throttled emitter to coalesce high-frequency preview events (move/resize/height) into a single unified previewUpdate
   const emitThrottledPreview = throttleByRaf(
-    (payload: {
-      previewMove?: PreviewMove
-      previewResize?: PreviewResize
-      dragHeightUpdate?: DragHeightUpdate
-    }) => {
-      if (payload.previewMove) onpreviewmove(payload.previewMove)
-      if (payload.previewResize) onpreviewresize(payload.previewResize)
-      if (payload.dragHeightUpdate)
-        ondrag_height_update(payload.dragHeightUpdate)
+    (payload: { previewUpdate?: PreviewUpdate }) => {
+      if (payload.previewUpdate) onpreviewupdate(payload.previewUpdate)
     }
   )
 
@@ -343,22 +312,14 @@
       // Only update the drag placeholder position, not the actual item
       dragPosition = { x: newX, y: newY }
 
-      // Coalesce preview move, height update, and edge-detection into a single RAF-throttled emission
+      // Emit unified preview update (x,y,w,h) via RAF-throttled emitter
       emitThrottledPreview({
-        previewMove: {
+        previewUpdate: {
           id,
-          previewX: newX,
-          previewY: newY,
-          currentX: x,
-          currentY: y,
+          x: newX,
+          y: newY,
           w,
           h,
-        },
-        dragHeightUpdate: {
-          id,
-          y: newY,
-          h,
-          bottomEdge: newY + h,
         },
       })
 
@@ -608,22 +569,14 @@
         // Update placeholder dimensions
         resizePosition = { w: newW, h: newH }
 
-        // Coalesce preview resize and height update into a single RAF-throttled emission
+        // Emit unified preview update (x,y,w,h) via RAF-throttled emitter
         emitThrottledPreview({
-          previewResize: {
+          previewUpdate: {
             id,
             x,
             y,
             w: newW,
             h: newH,
-            currentW: w,
-            currentH: h,
-          },
-          dragHeightUpdate: {
-            id,
-            y,
-            h: newH,
-            bottomEdge: y + newH,
           },
         })
 

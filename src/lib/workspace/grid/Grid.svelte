@@ -117,21 +117,6 @@
   // Item event handlers
   // ---------------------------------------------------
 
-  const handleItemPreviewMove = (event: {
-    id: number
-    previewY: number
-    h: number
-  }) => {
-    // Calculate workspace height for preview position
-    const requiredHeight = calculateWorkspaceHeight(
-      event.id,
-      event.previewY,
-      event.h
-    )
-    // Update temporary drag height in the grid store
-    grid.temporaryDragHeight = requiredHeight
-  }
-
   const handleItemMove = (event: { id: number; x: number; y: number }) => {
     const currentItem = gridItems.find(
       (item: AllGridTypes) => item.id === event.id
@@ -148,14 +133,15 @@
     }
   }
 
-  const handleItemPreviewResize = (event: {
+  // Unified preview update handler: handles previewed x,y,w,h from move/resize/height updates
+  const handlePreviewUpdate = (event: {
     id: number
+    x: number
     y: number
+    w: number
     h: number
   }) => {
-    // Calculate workspace height for resize preview
     const requiredHeight = calculateWorkspaceHeight(event.id, event.y, event.h)
-    // Update temporary drag height in the grid store
     grid.temporaryDragHeight = requiredHeight
   }
 
@@ -294,17 +280,6 @@
     grid.temporaryDragHeight = null
     grid.temporaryDragWidth = null
     stopPointerTracking()
-  }
-
-  const handleDragHeightUpdate = (event: {
-    id: number
-    y: number
-    h: number
-  }) => {
-    // Calculate workspace height for drag position
-    const requiredHeight = calculateWorkspaceHeight(event.id, event.y, event.h)
-    // Update temporary drag height in the grid store
-    grid.temporaryDragHeight = requiredHeight
   }
 
   const handleItemRemove = (event: { id: number }) => {
@@ -571,15 +546,13 @@
             resizable={true}
             draggable={true}
             title={visConfig.name}
-            onpreviewmove={handleItemPreviewMove}
+            onpreviewupdate={handlePreviewUpdate}
             onmove={handleItemMove}
-            onpreviewresize={handleItemPreviewResize}
             onresize={handleItemResize}
             onresizestart={handleResizeStart}
             onresizeend={handleResizeEnd}
             ondragstart={handleDragStart}
             ondragend={handleDragEnd}
-            ondrag_height_update={handleDragHeightUpdate}
             onremove={handleItemRemove}
             onduplicate={handleItemDuplicate}
           >
