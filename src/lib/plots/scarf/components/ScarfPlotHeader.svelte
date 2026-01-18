@@ -1,11 +1,18 @@
 <script lang="ts">
   import { ScarfPlotButtonMenu } from '$lib/plots/scarf/components'
-  import Select, { type GroupSelectItem } from '$lib/shared/components/GeneralSelect.svelte'
+  import Select, {
+    type GroupSelectItem,
+  } from '$lib/shared/components/GeneralSelect.svelte'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
   import { handleScarfSelectionChange } from '../utils/scarfSelectService'
   import { onDestroy } from 'svelte'
-  import { data, getParticipantsGroups } from '$lib/gaze-data/front-process/stores/dataStore'
-  import Minor, { type MinorGroupItem } from '$lib/shared/components/GeneralButtonMinor.svelte'
+  import {
+    data,
+    getParticipantsGroups,
+  } from '$lib/gaze-data/front-process/stores/dataStore'
+  import Minor, {
+    type MinorGroupItem,
+  } from '$lib/shared/components/GeneralButtonMinor.svelte'
   import ZoomIn from 'lucide-svelte/icons/zoom-in'
   import ZoomOut from 'lucide-svelte/icons/zoom-out'
   import RefreshCcw from 'lucide-svelte/icons/refresh-ccw'
@@ -16,10 +23,10 @@
     getParticipantEndTime,
     getParticipants,
   } from '$lib/gaze-data/front-process/stores/dataStore'
-  
+
   interface Props {
     settings: ScarfGridType
-    source: string,
+    source: string
     onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
@@ -30,12 +37,14 @@
     const participantIds = participants.map(p => p.id)
     if (settings.timeline === 'absolute') {
       return participantIds.reduce(
-        (max, participantId) => Math.max(max, getParticipantEndTime(stimulusId, participantId)),
+        (max, participantId) =>
+          Math.max(max, getParticipantEndTime(stimulusId, participantId)),
         0
       )
     } else if (settings.timeline === 'ordinal') {
       return participantIds.reduce(
-        (max, participantId) => Math.max(max, getNumberOfSegments(stimulusId, participantId)),
+        (max, participantId) =>
+          Math.max(max, getNumberOfSegments(stimulusId, participantId)),
         0
       )
     }
@@ -74,7 +83,12 @@
     } else {
       return
     }
-    onWorkspaceCommand({ type: 'updateSettings', itemId: settings.id, settings: updated, source })
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      settings: updated,
+      source,
+    })
   }
 
   function handleZoomOut() {
@@ -105,7 +119,12 @@
     } else {
       return
     }
-    onWorkspaceCommand({ type: 'updateSettings', itemId: settings.id, settings: updated, source })
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      settings: updated,
+      source,
+    })
   }
 
   function handleReset() {
@@ -122,34 +141,60 @@
     } else {
       return
     }
-    onWorkspaceCommand({ type: 'updateSettings', itemId: settings.id, settings: updated, source })
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      settings: updated,
+      source,
+    })
   }
 
   const isRelativeTimeline = $derived(settings.timeline === 'relative')
-  const isResetDisabled = $derived((() => {
-    const stimulusId = settings.stimulusId
-    if (settings.timeline === 'absolute') {
-      const limits = settings.absoluteStimuliLimits[stimulusId]
-      return !limits || (limits[0] === 0 && limits[1] === 0)
-    }
-    if (settings.timeline === 'ordinal') {
-      const limits = settings.ordinalStimuliLimits[stimulusId]
-      return !limits || (limits[0] === 0 && limits[1] === 0)
-    }
-    return true
-  })())
+  const isResetDisabled = $derived(
+    (() => {
+      const stimulusId = settings.stimulusId
+      if (settings.timeline === 'absolute') {
+        const limits = settings.absoluteStimuliLimits[stimulusId]
+        return !limits || (limits[0] === 0 && limits[1] === 0)
+      }
+      if (settings.timeline === 'ordinal') {
+        const limits = settings.ordinalStimuliLimits[stimulusId]
+        return !limits || (limits[0] === 0 && limits[1] === 0)
+      }
+      return true
+    })()
+  )
 
   let groupItems = $derived<MinorGroupItem[]>([
-    { icon: ZoomIn, onclick: handleZoomIn, isDisabled: isRelativeTimeline, ariaLabel: 'Zoom in', tooltip: 'Zoom in' },
-    { icon: ZoomOut, onclick: handleZoomOut, isDisabled: isRelativeTimeline, ariaLabel: 'Zoom out', tooltip: 'Zoom out' },
-    { icon: RefreshCcw, onclick: handleReset, isDisabled: isResetDisabled, ariaLabel: 'Reset view', tooltip: 'Reset scarf plot view' },
+    {
+      icon: ZoomIn,
+      onclick: handleZoomIn,
+      isDisabled: isRelativeTimeline,
+      ariaLabel: 'Zoom in',
+      tooltip: 'Zoom in',
+    },
+    {
+      icon: ZoomOut,
+      onclick: handleZoomOut,
+      isDisabled: isRelativeTimeline,
+      ariaLabel: 'Zoom out',
+      tooltip: 'Zoom out',
+    },
+    {
+      icon: RefreshCcw,
+      onclick: handleReset,
+      isDisabled: isResetDisabled,
+      ariaLabel: 'Reset view',
+      tooltip: 'Reset scarf plot view',
+    },
   ])
 
   // ---------------------------
   // Grouped selects (Stimulus, Timeline, Group)
   // ---------------------------
   let selectedStimulusId = $state(settings.stimulusId.toString())
-  let stimuliOptions = $state<{ label: string; value: string }[]>(getStimuliOptions())
+  let stimuliOptions =
+    $state<{ label: string; value: string }[]>(getStimuliOptions())
 
   let selectedTimeline = $state(settings.timeline)
   const timelineOptions = [
@@ -181,37 +226,68 @@
   function onStimulusChange(event: CustomEvent) {
     const stimulusId = parseInt(event.detail)
     selectedStimulusId = stimulusId.toString()
-    handleScarfSelectionChange(settings, { stimulusId }, source, onWorkspaceCommand)
+    handleScarfSelectionChange(
+      settings,
+      { stimulusId },
+      source,
+      onWorkspaceCommand
+    )
   }
 
   function onTimelineChange(event: CustomEvent) {
     const timeline = event.detail as 'absolute' | 'relative' | 'ordinal'
     selectedTimeline = timeline
-    handleScarfSelectionChange(settings, { timeline }, source, onWorkspaceCommand)
+    handleScarfSelectionChange(
+      settings,
+      { timeline },
+      source,
+      onWorkspaceCommand
+    )
   }
 
   function onGroupChange(event: CustomEvent) {
     const groupId = parseInt(event.detail)
     selectedGroupId = groupId.toString()
-    handleScarfSelectionChange(settings, { groupId }, source, onWorkspaceCommand)
+    handleScarfSelectionChange(
+      settings,
+      { groupId },
+      source,
+      onWorkspaceCommand
+    )
   }
 
   // Single grouped selects in order: Stimulus, Group, Timeline
   const selectItems = $derived<GroupSelectItem[]>([
-    { label: 'Stimulus', options: stimuliOptions, value: selectedStimulusId, onchange: onStimulusChange },
-    { label: 'Group', options: groupOptions, value: selectedGroupId, onchange: onGroupChange },
-    { label: 'Timeline', options: timelineOptions, value: selectedTimeline, onchange: onTimelineChange },
+    {
+      label: 'Stimulus',
+      options: stimuliOptions,
+      value: selectedStimulusId,
+      onchange: onStimulusChange,
+    },
+    {
+      label: 'Group',
+      options: groupOptions,
+      value: selectedGroupId,
+      onchange: onGroupChange,
+    },
+    {
+      label: 'Timeline',
+      options: timelineOptions,
+      value: selectedTimeline,
+      onchange: onTimelineChange,
+    },
   ])
-
 </script>
 
 <div class="nav">
-  <Select ariaLabel="Scarf filters" items={selectItems} label="Scarf" options={[]} />
-  <Minor items={groupItems} ariaLabel="Zoom controls" />
-  <ScarfPlotButtonMenu
-    {settings}
-    {onWorkspaceCommand}
+  <Select
+    ariaLabel="Scarf filters"
+    items={selectItems}
+    label="Scarf"
+    options={[]}
   />
+  <Minor items={groupItems} ariaLabel="Zoom controls" />
+  <ScarfPlotButtonMenu {settings} {onWorkspaceCommand} />
 </div>
 
 <style>

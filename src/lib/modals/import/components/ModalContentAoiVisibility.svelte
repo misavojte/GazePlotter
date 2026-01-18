@@ -8,9 +8,9 @@
   import { processAoiVisibility } from '$lib/modals/import/utility/aoiVisibilityServices'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
   import type { UpdateAoiVisibilityCommand } from '$lib/workspace/commands'
-  
+
   interface Props {
-    source: string,
+    source: string
     onWorkspaceCommand: (command: UpdateAoiVisibilityCommand) => void
   }
 
@@ -38,7 +38,13 @@
       const stimulusId = parseInt(selectedStimulusId)
       const participantId =
         selectedParticipantId === 'all' ? null : parseInt(selectedParticipantId)
-      processAoiVisibility(stimulusId, participantId, files, source, onWorkspaceCommand).then(() => {
+      processAoiVisibility(
+        stimulusId,
+        participantId,
+        files,
+        source,
+        onWorkspaceCommand
+      ).then(() => {
         modalStore.close()
       })
     } catch (e) {

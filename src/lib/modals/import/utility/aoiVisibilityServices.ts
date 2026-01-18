@@ -3,9 +3,7 @@
  * @category Services
  * @module services/aoiVisibilityServices
  */
-import {
-  getStimulusHighestEndTime,
-} from '$lib/gaze-data/front-process/stores/dataStore'
+import { getStimulusHighestEndTime } from '$lib/gaze-data/front-process/stores/dataStore'
 import type { UpdateAoiVisibilityCommand } from '$lib/workspace/commands'
 
 /**
@@ -25,14 +23,14 @@ export const processAoiVisibility = async (
   const text = await files[0].text()
   const parser = new DOMParser()
   const xml = parser.parseFromString(text, 'application/xml')
-  
+
   let data: {
     stimulusId: number
     multipleAoiNames: string[]
     multipleAoiVisibilityArrays: number[][]
     participantId: number | null
   }
-  
+
   if (xml.getElementsByTagName('DynamicAOI').length === 0) {
     // Tobii AOI visibility file
     // Parse as JSON instead of XML
@@ -47,7 +45,7 @@ export const processAoiVisibility = async (
   } else {
     data = processSmi(stimulusId, participantId, xml)
   }
-  
+
   // Emit command instead of directly calling store
   onWorkspaceCommand({
     type: 'updateAoiVisibility',
@@ -56,7 +54,7 @@ export const processAoiVisibility = async (
     visibilityArr: data.multipleAoiVisibilityArrays,
     participantId: data.participantId,
     source,
-  })  
+  })
 }
 
 /**
