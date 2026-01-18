@@ -1,12 +1,5 @@
 <script lang="ts">
-  import {
-    canRedo,
-    canUndo,
-    endUndoRedo,
-    redo,
-    undo,
-    WorkspaceToolbarItem,
-  } from '$lib/workspace'
+  import { WorkspaceToolbarItem } from '$lib/workspace'
   import { processingFileStateStore } from '$lib/workspace/stores/fileStore'
   import { hasValidData } from '$lib/gaze-data/front-process/stores/dataStore'
   import { onMount } from 'svelte'
@@ -19,10 +12,7 @@
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { generateUniqueId } from '$lib/shared/utils/idUtils'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
-  import {
-    lastUndoCommandType,
-    lastRedoCommandType,
-  } from '$lib/workspace/stores/undoRedoStore'
+  import { undoRedo } from '$lib/workspace/commands'
   import { getCommandLabel } from '$lib/workspace/const/workspaceCommandLabels'
 
   // Configuration for toolbar items
@@ -88,10 +78,10 @@
   const isValidData = $derived($hasValidData)
 
   const undoLabel: string | null = $derived(
-    $lastUndoCommandType ? getCommandLabel($lastUndoCommandType, 'undo') : null
+    undoRedo.lastUndoCommandType ? getCommandLabel(undoRedo.lastUndoCommandType, 'undo') : null
   )
   const redoLabel: string | null = $derived(
-    $lastRedoCommandType ? getCommandLabel($lastRedoCommandType, 'redo') : null
+    undoRedo.lastRedoCommandType ? getCommandLabel(undoRedo.lastRedoCommandType, 'redo') : null
   )
 
   /**
@@ -132,21 +122,21 @@
   }
 
   const handleUndo = () => {
-    const arrayOfCommands = undo()
+    const arrayOfCommands = undoRedo.undo()
     if (!arrayOfCommands) return
-    arrayOfCommands.forEach(command => {
+    arrayOfCommands.forEach((command: WorkspaceCommandChain) => {
       onWorkspaceCommand(command)
     })
-    endUndoRedo()
+    undoRedo.endUndoRedo()
   }
 
   const handleRedo = () => {
-    const arrayOfCommands = redo()
+    const arrayOfCommands = undoRedo.redo()
     if (!arrayOfCommands) return
-    arrayOfCommands.forEach(command => {
+    arrayOfCommands.forEach((command: WorkspaceCommandChain) => {
       onWorkspaceCommand(command)
     })
-    endUndoRedo()
+    undoRedo.endUndoRedo()
   }
 
   /**
@@ -196,7 +186,7 @@
           <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
         </svg>`}
       actions={[{ id: 'undo', label: undoLabel || 'Nothing to undo' }]}
-      disabled={!$canUndo}
+      disabled={!undoRedo.canUndo}
       onclick={handleItemClick}
     />
 
@@ -209,7 +199,7 @@
           <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"></path>
         </svg>`}
       actions={[{ id: 'redo', label: redoLabel || 'Nothing to redo' }]}
-      disabled={!$canRedo}
+      disabled={!undoRedo.canRedo}
       onclick={handleItemClick}
     />
 

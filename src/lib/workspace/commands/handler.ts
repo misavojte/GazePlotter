@@ -1,11 +1,6 @@
 import type { WorkspaceCommandChain } from '$lib/workspace/commands'
-import { isHistoryCommand } from '$lib/workspace/commands'
+import { isHistoryCommand, undoRedo } from '$lib/workspace/commands'
 import { GridState } from '$lib/workspace/grid'
-import {
-  recordCommand,
-  finalizeChain,
-  endUndoRedo,
-} from '$lib/workspace/stores'
 import { createWorkspaceCommandRegistry } from '$lib/workspace/commands'
 import { getCommandLabel } from '$lib/workspace/const'
 
@@ -61,7 +56,7 @@ export function createCommandHandler(
 
         // Record the command BEFORE executing so it appears in correct order
         // (root first, then children)
-        recordCommand(command, reverseCommand)
+        undoRedo.recordCommand(command, reverseCommand)
       }
 
       commandRegistry.execute(command, {
@@ -72,7 +67,7 @@ export function createCommandHandler(
       // Finalize the command chain if this is a root command
       // This groups the root + all children together as an atomic operation
       if (isNormalRootCommand(command, isUndoRedoOperation)) {
-        finalizeChain()
+        undoRedo.finalizeChain()
       }
 
       if (shouldShowSuccessToast(command, isUndoRedoOperation)) {
@@ -84,7 +79,7 @@ export function createCommandHandler(
       onWorkspaceCommandChain(command)
     } catch (error) {
       // Make sure to end undo/redo processing on error
-      endUndoRedo()
+      undoRedo.endUndoRedo()
       onError(error as Error)
       throw error
     }
