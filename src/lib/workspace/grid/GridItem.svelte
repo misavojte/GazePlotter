@@ -1,9 +1,45 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte'
   import { fade } from 'svelte/transition'
-  import { writable } from 'svelte/store'
-  import WorkspaceItemButton from './WorkspaceItemButton.svelte'
-  import WorkspaceItemContainer from './WorkspaceItemContainer.svelte'
+  import GridItemButton from './GridItemButton.svelte'
+  import GridItemContainer from './GridItemContainer.svelte'
+  import { type Snippet } from 'svelte'
+  import { throttleByRaf } from '$lib/shared/utils/throttle'
+
+  // Reusable types for props (concise)
+  type GridRect = { id: number; x: number; y: number; w: number; h: number }
+  type Bounds = { left: number; right: number; top: number; bottom: number }
+  type DragHeightUpdate = {
+    id: number
+    y: number
+    h: number
+    bottomEdge: number
+  }
+  type PreviewMove = {
+    id: number
+    previewX: number
+    previewY: number
+    currentX: number
+    currentY: number
+    w: number
+    h: number
+  }
+  type PreviewResize = {
+    id: number
+    x: number
+    y: number
+    currentW: number
+    currentH: number
+    w: number
+    h: number
+  }
+  type EdgeDetection = {
+    id: number
+    itemBounds: Bounds
+    viewportBounds: Bounds
+  }
+  type IdOnly = { id: number }
+  type GridEvent<T> = (payload: T) => void
 
   // GridItem properties
   interface Props {
@@ -14,163 +50,28 @@
     h: number
     minW?: number
     minH?: number
-    cellSize?: any
+    cellSize?: { width: number; height: number }
     gap?: number
     resizable?: boolean
     draggable?: boolean
     title?: string
     removable?: boolean
     class?: string
-    body?: import('svelte').Snippet
-    children?: import('svelte').Snippet
-    onmove?: ({
-      id,
-      x,
-      y,
-      w,
-      h,
-    }: {
-      id: number
-      x: number
-      y: number
-      w: number
-      h: number
-    }) => void
-    onpreviewmove?: ({
-      id,
-      previewX,
-      previewY,
-      currentX,
-      currentY,
-      w,
-      h,
-    }: {
-      id: number
-      previewX: number
-      previewY: number
-      currentX: number
-      currentY: number
-      w: number
-      h: number
-    }) => void
-    onpreviewresize?: ({
-      id,
-      x,
-      y,
-      currentW,
-      currentH,
-      w,
-      h,
-    }: {
-      id: number
-      x: number
-      y: number
-      currentW: number
-      currentH: number
-      w: number
-      h: number
-    }) => void
-    onresize?: ({
-      id,
-      x,
-      y,
-      w,
-      h,
-    }: {
-      id: number
-      x: number
-      y: number
-      w: number
-      h: number
-    }) => void
-    ondragstart?: ({
-      id,
-      x,
-      y,
-      w,
-      h,
-    }: {
-      id: number
-      x: number
-      y: number
-      w: number
-      h: number
-    }) => void
-    ondragend?: ({
-      id,
-      x,
-      y,
-      w,
-      h,
-      dragComplete,
-    }: {
-      id: number
-      x: number
-      y: number
-      w: number
-      h: number
-      dragComplete: boolean
-    }) => void
-    onresizestart?: ({
-      id,
-      x,
-      y,
-      w,
-      h,
-    }: {
-      id: number
-      x: number
-      y: number
-      w: number
-      h: number
-    }) => void
-    onresizeend?: ({
-      id,
-      x,
-      y,
-      w,
-      h,
-      resizeComplete,
-    }: {
-      id: number
-      x: number
-      y: number
-      w: number
-      h: number
-      resizeComplete: boolean
-    }) => void
-    onremove?: ({ id }: { id: number }) => void
-    onduplicate?: ({ id }: { id: number }) => void
-    ondrag_height_update?: ({
-      id,
-      y,
-      h,
-      bottomEdge,
-    }: {
-      id: number
-      y: number
-      h: number
-      bottomEdge: number
-    }) => void
-    onedgedetection?: ({
-      id,
-      itemBounds,
-      viewportBounds,
-    }: {
-      id: number
-      itemBounds: {
-        left: number
-        right: number
-        top: number
-        bottom: number
-      }
-      viewportBounds: {
-        left: number
-        right: number
-        top: number
-        bottom: number
-      }
-    }) => void
+    body?: Snippet
+    children?: Snippet
+
+    onmove?: GridEvent<GridRect>
+    onpreviewmove?: GridEvent<PreviewMove>
+    onpreviewresize?: GridEvent<PreviewResize>
+    onresize?: GridEvent<GridRect>
+    ondragstart?: GridEvent<GridRect>
+    ondragend?: GridEvent<GridRect & { dragComplete: boolean }>
+    onresizestart?: GridEvent<GridRect>
+    onresizeend?: GridEvent<GridRect & { resizeComplete: boolean }>
+    onremove?: GridEvent<IdOnly>
+    onduplicate?: GridEvent<IdOnly>
+    ondrag_height_update?: GridEvent<DragHeightUpdate>
+    onedgedetection?: GridEvent<EdgeDetection>
   }
 
   let {
@@ -213,15 +114,10 @@
   let showResizePlaceholder = $state(false)
 
   let bodyNode: HTMLElement | null = $state(null)
-  let placeholderNode: HTMLElement | null = $state(null)
   let itemNode: HTMLElement | null = $state(null)
   let workspaceElement: HTMLElement | null = null
 
-  // Create a store to track scroll position (both window and workspace)
-  const scrollPosition = writable({
-    workspace: { x: 0, y: 0 },
-    window: { x: 0, y: 0 },
-  })
+  // Per-item scroll tracking removed — rely on centralized workspace scroll state to avoid per-item listeners.
 
   // Helper to find the workspace container
   const findWorkspaceContainer = () => {
@@ -231,58 +127,26 @@
     return workspaceElement
   }
 
-  // Update scroll position store
-  const updateScrollPosition = () => {
-    const workspace = findWorkspaceContainer()
-
-    scrollPosition.update(state => ({
-      workspace: {
-        x: workspace ? workspace.scrollLeft : 0,
-        y: workspace ? workspace.scrollTop : 0,
-      },
-      window: {
-        x:
-          window.scrollX ||
-          window.pageXOffset ||
-          document.documentElement.scrollLeft,
-        y:
-          window.scrollY ||
-          window.pageYOffset ||
-          document.documentElement.scrollTop,
-      },
-    }))
-  }
-
-  // Set up scroll watchers once the component is mounted
-  onMount(() => {
-    const workspace = findWorkspaceContainer()
-
-    // Initial scroll position
-    updateScrollPosition()
-
-    // Add scroll listener to the workspace if it exists
-    if (workspace) {
-      workspace.addEventListener('scroll', updateScrollPosition, {
-        passive: true,
-      })
-    }
-
-    // Add window scroll listener
-    window.addEventListener('scroll', updateScrollPosition, { passive: true })
-
-    // Return cleanup function
-    return () => {
-      if (workspace) {
-        workspace.removeEventListener('scroll', updateScrollPosition)
-      }
-      window.removeEventListener('scroll', updateScrollPosition)
-    }
-  })
-
   // Cleanup on destroy
   onDestroy(() => {
     workspaceElement = null
   })
+
+  // Throttled emitter to coalesce high-frequency preview and edge events
+  const emitThrottledPreview = throttleByRaf(
+    (payload: {
+      previewMove?: PreviewMove
+      previewResize?: PreviewResize
+      dragHeightUpdate?: DragHeightUpdate
+      edgeDetection?: EdgeDetection
+    }) => {
+      if (payload.previewMove) onpreviewmove(payload.previewMove)
+      if (payload.previewResize) onpreviewresize(payload.previewResize)
+      if (payload.dragHeightUpdate)
+        ondrag_height_update(payload.dragHeightUpdate)
+      if (payload.edgeDetection) onedgedetection(payload.edgeDetection)
+    }
+  )
 
   // Calculate actual pixel dimensions and position
   let itemWidth = $derived(w * cellSize.width + (w - 1) * gap)
@@ -435,7 +299,6 @@
 
       // Always get the workspace element to ensure we're detecting edges correctly
       const workspace = findWorkspaceContainer()
-      const workspaceRect = workspace ? workspace.getBoundingClientRect() : null
 
       // Calculate item bounds for edge detection
       // Important: check the mouse cursor position against viewport edges
@@ -446,18 +309,6 @@
         top: clientY,
         bottom: clientY,
       }
-
-      // Call the edge detection handler with cursor position and viewport bounds
-      onedgedetection({
-        id,
-        itemBounds: cursorPos,
-        viewportBounds: {
-          left: 0,
-          right: viewportWidth,
-          top: 0,
-          bottom: viewportHeight,
-        },
-      })
 
       // Get current scroll positions - both workspace and window
       const currentScrollX = workspaceElement ? workspaceElement.scrollLeft : 0
@@ -496,24 +347,33 @@
       // Only update the drag placeholder position, not the actual item
       dragPosition = { x: newX, y: newY }
 
-      // Dispatch preview event instead of regular move - this should be handled differently by parent
-      onpreviewmove({
-        id,
-        previewX: newX,
-        previewY: newY,
-        currentX: x,
-        currentY: y,
-        w,
-        h,
-      })
-
-      // Also dispatch a workspace resize event to ensure workspace expands as needed
-      // This will inform the parent Workspace component that it might need to adjust its height
-      ondrag_height_update({
-        id,
-        y: newY,
-        h,
-        bottomEdge: newY + h,
+      // Coalesce preview move, height update, and edge-detection into a single RAF-throttled emission
+      emitThrottledPreview({
+        previewMove: {
+          id,
+          previewX: newX,
+          previewY: newY,
+          currentX: x,
+          currentY: y,
+          w,
+          h,
+        },
+        dragHeightUpdate: {
+          id,
+          y: newY,
+          h,
+          bottomEdge: newY + h,
+        },
+        edgeDetection: {
+          id,
+          itemBounds: cursorPos,
+          viewportBounds: {
+            left: 0,
+            right: viewportWidth,
+            top: 0,
+            bottom: viewportHeight,
+          },
+        },
       })
 
       // Don't call onmove during drag - only on drag end
@@ -777,23 +637,23 @@
         // Update placeholder dimensions
         resizePosition = { w: newW, h: newH }
 
-        // Dispatch preview resize event instead of actual resize
-        onpreviewresize({
-          id,
-          x,
-          y,
-          w: newW,
-          h: newH,
-          currentW: w,
-          currentH: h,
-        })
-
-        // Also dispatch height update event to ensure workspace extends during resize
-        ondrag_height_update({
-          id,
-          y,
-          h: newH,
-          bottomEdge: y + newH,
+        // Coalesce preview resize and height update into a single RAF-throttled emission
+        emitThrottledPreview({
+          previewResize: {
+            id,
+            x,
+            y,
+            w: newW,
+            h: newH,
+            currentW: w,
+            currentH: h,
+          },
+          dragHeightUpdate: {
+            id,
+            y,
+            h: newH,
+            bottomEdge: y + newH,
+          },
         })
 
         // Don't call onmove during resize - only on resize end
@@ -901,10 +761,10 @@
   bind:this={itemNode}
   role="figure"
 >
-  <WorkspaceItemContainer showResizeHandle={resizable} class="item-container">
+  <GridItemContainer showResizeHandle={resizable} class="item-container">
     {#snippet header()}
       {#if draggable}
-        <WorkspaceItemButton
+        <GridItemButton
           tooltip="Drag to move"
           useAction={true}
           actionFn={draggable_action}
@@ -926,8 +786,8 @@
             <circle cx="16" cy="8" r="1.5" />
             <circle cx="16" cy="16" r="1.5" />
           </svg>
-        </WorkspaceItemButton>
-        <WorkspaceItemButton
+        </GridItemButton>
+        <GridItemButton
           action="duplicate"
           tooltip="Duplicate item"
           onclick={() => onduplicate({ id })}
@@ -946,12 +806,12 @@
             <rect x="8" y="8" width="12" height="12" rx="2" ry="2" />
             <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
           </svg>
-        </WorkspaceItemButton>
+        </GridItemButton>
       {/if}
       <h3>{title}</h3>
       <div class="header-content">
         {#if removable}
-          <WorkspaceItemButton
+          <GridItemButton
             action="remove"
             tooltip="Remove item"
             onclick={() => onremove({ id })}
@@ -970,7 +830,7 @@
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
-          </WorkspaceItemButton>
+          </GridItemButton>
         {/if}
       </div>
     {/snippet}
@@ -981,7 +841,7 @@
         {/if}
       </div>
     {/snippet}
-  </WorkspaceItemContainer>
+  </GridItemContainer>
 
   {#if resizable}
     <div
@@ -1002,11 +862,11 @@
     data-id={`placeholder-${id}`}
     transition:fade={{ duration: 100 }}
   >
-    <WorkspaceItemContainer showResizeHandle={resizable} class="item-container">
+    <GridItemContainer showResizeHandle={resizable} class="item-container">
       {#snippet body()}
         <!-- Empty placeholder body -->
       {/snippet}
-    </WorkspaceItemContainer>
+    </GridItemContainer>
   </div>
 {/if}
 
@@ -1119,7 +979,7 @@
     gap: 5px;
   }
 
-  /* Apply drag-handle styles to the WorkspaceItemButton used for dragging */
+  /* Apply drag-handle styles to the GridItemButton used for dragging */
   :global(
     .item-container
       .header

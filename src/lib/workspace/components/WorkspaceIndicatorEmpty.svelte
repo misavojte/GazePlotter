@@ -6,13 +6,14 @@
   import { hasValidData } from '$lib/gaze-data/front-process/stores/dataStore'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { ModalContentMetadataInfo } from '$lib/modals/info/components'
-  import WorkspaceItemContainer from './WorkspaceItemContainer.svelte'
+  import GridItemContainer from '$lib/workspace/grid/GridItemContainer.svelte'
   import type {
     WorkspaceCommand,
     WorkspaceCommandChain,
   } from '$lib/workspace/commands'
   import { createRootCommand } from '$lib/workspace/commands'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
+  import Grid from '../grid/Grid.svelte'
 
   interface Props {
     onReinitialize: () => void
@@ -64,7 +65,7 @@
 </script>
 
 <div class="empty-workspace-indicator" transition:fade={{ duration: 400 }}>
-  <WorkspaceItemContainer class="indicator-content">
+  <GridItemContainer class="indicator-content">
     {#snippet header()}
       <h3>
         {#if canResetLayout}Workspace Empty{:else}Invalid Data{/if}
@@ -98,7 +99,7 @@
         </div>
       </div>
     {/snippet}
-  </WorkspaceItemContainer>
+  </GridItemContainer>
 </div>
 
 <style>

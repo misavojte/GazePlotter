@@ -1,22 +1,22 @@
 <script lang="ts">
   /**
-   * Reusable container component that provides consistent styling for workspace items.
-   * This component encapsulates the header and body styling used across different workspace components.
+   * Reusable container component that provides consistent styling for grid items.
+   * This component encapsulates the header and body styling used across different grid components.
    * 
    * It can be used for:
-   * - Interactive workspace items (with drag/resize functionality)
+   * - Interactive grid items (with drag/resize functionality)
    * - Static indicator components (empty state, loading state)
    * 
    * @example
    * ```svelte
-   * <WorkspaceItemContainer showResizeHandle={true}>
+   * <GridItemContainer showResizeHandle={true}>
    *   {#snippet header()}
    *     <h3>My Title</h3>
    *   {/snippet}
    *   {#snippet body()}
    *     <p>My content</p>
    *   {/snippet}
-   * </WorkspaceItemContainer>
+   * </GridItemContainer>
    * ```
    */
 
@@ -47,7 +47,7 @@
   const borderRadiusClass = $derived(showResizeHandle ? '' : 'rounded-bottom')
 </script>
 
-<div class="workspace-item-container {customClass} {borderRadiusClass}" {style}>
+<div class="grid-item-container {customClass} {borderRadiusClass}" {style}>
   <!-- Header section (optional) -->
   {#if header}
     <div class="header">
@@ -67,7 +67,7 @@
 </div>
 
 <style>
-  .workspace-item-container {
+  .grid-item-container {
     box-sizing: border-box;
     background-color: var(--c-lightgrey);
     border-radius: var(--rounded-lg, 8px) var(--rounded-lg, 8px) 0 0;
@@ -108,11 +108,11 @@
   }
 
   /* Round all corners when there's no resize handle */
-  .workspace-item-container.rounded-bottom {
+  .grid-item-container.rounded-bottom {
     border-radius: var(--rounded-lg, 8px);
   }
 
-  .workspace-item-container.rounded-bottom .body {
+  .grid-item-container.rounded-bottom .body {
     border-radius: 10px;
   }
 
@@ -137,4 +137,3 @@
     border-bottom: 2px solid rgba(0, 0, 0, 0.2);
   }
 </style>
-

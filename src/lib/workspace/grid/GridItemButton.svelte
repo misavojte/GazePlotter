@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tooltipAction } from '../../tooltip/components/Tooltip.svelte'
+  import { tooltipAction } from '$lib/tooltip/components/Tooltip.svelte'
 
   interface Props {
     label?: string
@@ -37,7 +37,7 @@
 <div class="tooltip-wrapper">
   {#if useAction && actionFn}
     <button
-      class="workspace-item-button"
+      class="grid-item-button"
       class:disabled
       onclick={handleClick}
       aria-label={label || tooltip}
@@ -61,7 +61,7 @@
     </button>
   {:else}
     <button
-      class="workspace-item-button"
+      class="grid-item-button"
       class:disabled
       onclick={handleClick}
       aria-label={label || tooltip}
@@ -94,7 +94,7 @@
     overflow: visible;
   }
 
-  .workspace-item-button {
+  .grid-item-button {
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -112,18 +112,18 @@
     border: none;
   }
 
-  .workspace-item-button:hover {
+  .grid-item-button:hover {
     transform: scale(1.1);
     background: var(--c-darkgrey);
     color: var(--c-white);
   }
 
-  .workspace-item-button.disabled {
+  .grid-item-button.disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
 
-  .workspace-item-button.disabled:hover {
+  .grid-item-button.disabled:hover {
     transform: none;
     background: var(--c-grey);
     color: var(--c-darkgrey);

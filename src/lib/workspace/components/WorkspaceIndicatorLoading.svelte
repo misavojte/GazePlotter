@@ -1,10 +1,10 @@
 <script lang="ts">
   import { fade } from 'svelte/transition'
-  import WorkspaceItemContainer from './WorkspaceItemContainer.svelte'
+  import GridItemContainer from '$lib/workspace/grid/GridItemContainer.svelte'
 </script>
 
 <div class="loading-workspace-indicator" transition:fade={{ duration: 400 }}>
-  <WorkspaceItemContainer class="indicator-content">
+  <GridItemContainer class="indicator-content">
     {#snippet header()}
       <h3>Processing data</h3>
     {/snippet}
@@ -19,7 +19,7 @@
         </div>
       </div>
     {/snippet}
-  </WorkspaceItemContainer>
+  </GridItemContainer>
 </div>
 
 <style>
