@@ -1,5 +1,6 @@
 export * from './components'
 export * from './commands'
 export * from './stores'
+export * from './grid'
 export * from './const'
 export * from './type'

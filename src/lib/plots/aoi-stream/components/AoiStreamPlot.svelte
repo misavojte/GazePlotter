@@ -11,7 +11,7 @@
     type GroupSelectItem,
   } from '$lib/shared/components/GeneralSelect.svelte'
 
-  import { DEFAULT_GRID_CONFIG } from '$lib/shared/utils/gridSizingUtils'
+  import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils/plotSizeUtility'
   import { getAoiStreamPlotData } from '$lib/plots/aoi-stream/utils'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'

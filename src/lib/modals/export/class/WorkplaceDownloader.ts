@@ -8,7 +8,7 @@ import {
   formatNumberForCsv,
   resolveCsvFormatOptions,
 } from '$lib/shared/utils/csvFormatUtils'
-import { gridStore } from '$lib/workspace/stores/gridStore'
+import { grid } from '$lib/workspace/grid'
 import { get } from 'svelte/store'
 import JSZip from 'jszip'
 import { fileMetadataStore } from '$lib/workspace/stores/fileStore'
@@ -27,13 +27,13 @@ export class WorkplaceDownloader extends AbstractDownloader {
       ? {
           version: 3,
           data: exportData,
-          gridItems: get(gridStore),
+          gridItems: grid.items,
           fileMetadata,
         }
       : {
           version: 2,
           data: exportData,
-          gridItems: get(gridStore),
+          gridItems: grid.items,
         }) as unknown as JsonImportNewFormat
     const json = JSON.stringify(dataWithGridItems)
     const content = URL.createObjectURL(

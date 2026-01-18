@@ -15,7 +15,7 @@
   import { ModalContentMaxValue, ModalContentColorScale } from '$lib/modals'
 
   // Utilities and stores
-  import { DEFAULT_GRID_CONFIG } from '$lib/shared/utils/gridSizingUtils'
+  import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { calculateTransitionMatrix } from '$lib/plots/transition-matrix/utils'

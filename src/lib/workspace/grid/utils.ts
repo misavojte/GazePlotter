@@ -1,4 +1,5 @@
-import type { GridConfig } from '$lib/workspace/stores/gridStore'
+import type { GridConfig } from './types'
+import { DEFAULT_WORKSPACE_WIDTH, WORKSPACE_RIGHT_PADDING } from './const'
 
 /**
  * Grid sizing and positioning utilities
@@ -6,20 +7,6 @@ import type { GridConfig } from '$lib/workspace/stores/gridStore'
  * This module contains utilities for converting between grid coordinates
  * and pixel measurements, as well as calculating various grid dimensions.
  */
-
-// Default grid configuration
-export const DEFAULT_GRID_CONFIG: GridConfig = {
-  cellSize: { width: 40, height: 40 },
-  gap: 10,
-  minWidth: 3,
-  minHeight: 3,
-}
-
-// --- Constants ---
-export const WORKSPACE_BOTTOM_PADDING = 90
-export const WORKSPACE_RIGHT_PADDING = 0
-export const MIN_WORKSPACE_HEIGHT = 300 // Also used as fallback in height calculation
-export const DEFAULT_WORKSPACE_WIDTH = 1000
 
 /**
  * Calculates the bottom edge position in pixels for a grid item

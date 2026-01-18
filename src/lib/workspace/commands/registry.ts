@@ -1,8 +1,7 @@
 import type { WorkspaceCommandChain } from '$lib/workspace/commands'
 import { createChildCommand } from '$lib/workspace/commands'
 import { IDENTIFIER_IS_AOI } from '$lib/plots/scarf/const/identifiers'
-import type { GridStoreType } from '$lib/workspace/stores/gridStore'
-import { get } from 'svelte/store'
+import { GridState } from '$lib/workspace/grid'
 import {
   getData,
   updateHiddenAoisWithPropagation,
@@ -52,7 +51,7 @@ export type WorkspaceCommandRegistry = {
 }
 
 export function createWorkspaceCommandRegistry(
-  gridStore: GridStoreType
+  gridStore: GridState
 ): WorkspaceCommandRegistry {
   const withMeta = (base: object, meta: CommandMeta): WorkspaceCommandChain => {
     return { ...base, ...meta } as unknown as WorkspaceCommandChain
@@ -93,7 +92,7 @@ export function createWorkspaceCommandRegistry(
       renamedAois.map(a => `${IDENTIFIER_IS_AOI}${a.id}`)
     )
 
-    get(gridStore).forEach(item => {
+    gridStore.items.forEach(item => {
       if (item.type !== 'scarf') return
       const highlights: string[] = (item as any).highlights || []
       const hasMatch = highlights.some(h => affectedIdentifiers.has(h))
@@ -349,7 +348,7 @@ export function createWorkspaceCommandRegistry(
         context
       ) => {
         const { itemId, settings } = command
-        const currentItem = get(gridStore).find(item => item.id === itemId)
+        const currentItem = gridStore.items.find(item => item.id === itemId)
         if (!currentItem) throw new Error(`Grid item ${itemId} not found`)
 
         gridStore.updateItem(itemId, {
@@ -365,7 +364,7 @@ export function createWorkspaceCommandRegistry(
         cmd: Extract<WorkspaceCommandChain, { type: 'updateSettings' }>,
         meta
       ) => {
-        const currentItems = get(gridStore)
+        const currentItems = gridStore.items
         const currentItem = currentItems.find(item => item.id === cmd.itemId)
         if (!currentItem) {
           console.warn(
@@ -408,7 +407,10 @@ export function createWorkspaceCommandRegistry(
         context
       ) => {
         const { vizType, options, itemId } = command
-        const createdId = gridStore.addItem(vizType, { ...options, id: itemId })
+        const createdId = gridStore.addItem(vizType as AllGridTypes['type'], {
+          ...options,
+          id: itemId,
+        })
         if (command.isRootCommand && !context.isUndoRedoOperation) {
           emitCollisionResolutionChildren(createdId, command.chainId, context)
         }
@@ -429,7 +431,7 @@ export function createWorkspaceCommandRegistry(
         cmd: Extract<WorkspaceCommandChain, { type: 'removeGridItem' }>,
         meta
       ) => {
-        const currentItems = get(gridStore)
+        const currentItems = gridStore.items
         const removedItem = currentItems.find(item => item.id === cmd.itemId)
         if (!removedItem) {
           console.warn(
@@ -455,7 +457,7 @@ export function createWorkspaceCommandRegistry(
         command: Extract<WorkspaceCommandChain, { type: 'duplicateGridItem' }>,
         context
       ) => {
-        const currentItem = get(gridStore).find(
+        const currentItem = gridStore.items.find(
           item => item.id === command.itemId
         )
         if (!currentItem)
@@ -493,7 +495,7 @@ export function createWorkspaceCommandRegistry(
         gridStore.setLayoutState(command.layoutState)
       },
       reverse: (_cmd, meta) => {
-        const currentItems = get(gridStore)
+        const currentItems = gridStore.items
         const currentLayoutState = currentItems.map(item => {
           const { redrawTimestamp, ...itemData } = item
           return itemData as Partial<AllGridTypes> & { type: string }

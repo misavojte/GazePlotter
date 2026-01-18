@@ -17,6 +17,7 @@
     FileMetadataType,
     FileMetadataFailureType,
   } from '$lib/workspace/type/fileMetadataType'
+  import { grid } from '$lib/workspace/grid'
   let isDisabled = $derived($processingFileStateStore === 'processing')
 
   let input: HTMLInputElement | undefined = $state()
@@ -71,28 +72,44 @@
    */
   const handleFail = (failureMetadata: FileMetadataFailureType) => {
     addErrorToast('Data processing failed')
-    // Reset workspace state to empty so the empty indicator (with reload button) is shown
-    initializeGridStateStore([])
-    // Store the failure metadata instead of setting to null
-    // This preserves information about what was attempted and the error details
+
+    // Reset workspace to empty layout
+    grid.reset([])
+
     fileMetadataStore.set(failureMetadata)
-    // Also store basic file input info separately
     currentFileInputStore.set({
       fileNames: failureMetadata.fileNames,
       fileSizes: failureMetadata.fileSizes,
       parseDate: failureMetadata.parseDate,
     })
-    // Set data store to an empty structure so hasValidData returns false
-    // This ensures the "Reset Layout" button is disabled when there's no valid data
+
     setData({
       isOrdinalOnly: false,
       stimuli: { data: [], orderVector: [] },
       participants: { data: [], orderVector: [] },
       participantsGroups: [],
       categories: { data: [], orderVector: [] },
-      aois: { data: [], orderVector: [], dynamicVisibility: {} },
-      segments: [],
+      noAoiTreatment: {
+        color: '#CCCCCC',
+        displayedName: 'No AOI',
+      },
+      aois: {
+        data: [],
+        orderVector: [],
+        dynamicVisibility: {},
+        hiddenAois: [],
+      },
+      segments: {
+        segmentBuffer: new Float32Array(0),
+        indexTable: new Uint32Array(0),
+        aoiPool: new Uint16Array(0),
+        groupMap: new Uint16Array(0),
+        // FIX: Add missing metadata properties required by the interface
+        maxParticipants: 0,
+        stimuliCount: 0,
+      },
     })
+
     processingFileStateStore.set('fail')
   }
 </script>

@@ -16,7 +16,7 @@
     calculateScarfHeights,
   } from '$lib/plots/scarf/utils'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils'
-  import { DEFAULT_GRID_CONFIG } from '$lib/shared/utils/gridSizingUtils'
+  import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
   import { PlotPlaceholder } from '$lib/plots/shared/components'
   import { fade } from 'svelte/transition'
   import type { WorkspaceCommand } from '$lib/workspace/commands'

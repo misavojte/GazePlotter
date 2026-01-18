@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { createWorkspaceCommandRegistry } from '$lib/workspace/commands/registry'
 import type { WorkspaceCommandChain } from '$lib/workspace/commands'
-import type { GridStoreType } from '$lib/workspace/stores/gridStore'
+import type { GridState } from '$lib/workspace/grid'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
 // Mock the data store
@@ -9,16 +9,10 @@ vi.mock('$lib/gaze-data/front-process/stores/dataStore', () => ({
   getData: vi.fn(),
 }))
 
-// Mock svelte store
-vi.mock('svelte/store', () => ({
-  get: vi.fn(),
-}))
-
 import { getData } from '$lib/gaze-data/front-process/stores/dataStore'
-import { get } from 'svelte/store'
 
 describe('workspaceCommandReverse', () => {
-  let mockGridStore: GridStoreType
+  let mockGridStore: GridState
   let mockData: any
   let reverseCommand: (command: WorkspaceCommandChain) => any
 
@@ -26,11 +20,9 @@ describe('workspaceCommandReverse', () => {
     // Reset all mocks
     vi.clearAllMocks()
 
-    // Mock grid store
+    // Mock grid store as a GridState-like object
     mockGridStore = {
-      subscribe: vi.fn(),
-      set: vi.fn(),
-      update: vi.fn(),
+      items: [],
       triggerRedraw: vi.fn(),
       reset: vi.fn(),
       updateSettings: vi.fn(),
@@ -39,6 +31,8 @@ describe('workspaceCommandReverse', () => {
       batchDuplicateItems: vi.fn(),
       addItem: vi.fn(),
       resolveItemPositionCollisions: vi.fn(),
+      setLayoutState: vi.fn(),
+      updateItem: vi.fn(),
     } as any
 
     // Mock data store
@@ -79,37 +73,36 @@ describe('workspaceCommandReverse', () => {
     }
 
     vi.mocked(getData).mockReturnValue(mockData)
-    vi.mocked(get).mockImplementation(store => {
-      if (store === mockGridStore) {
-        return [
-          {
-            id: 1,
-            type: 'scarf',
-            x: 0,
-            y: 0,
-            w: 6,
-            h: 8,
-            min: { w: 4, h: 4 },
-            stimulusId: 1,
-            redrawTimestamp: Date.now(),
-          },
-          {
-            id: 2,
-            type: 'barPlot',
-            x: 6,
-            y: 0,
-            w: 6,
-            h: 8,
-            min: { w: 4, h: 4 },
-            stimulusId: 1,
-            redrawTimestamp: Date.now(),
-          },
-        ] as AllGridTypes[]
-      }
-      return []
-    })
 
-    reverseCommand = createWorkspaceCommandRegistry(mockGridStore).reverse
+    // Provide current items directly on the mock grid store
+    mockGridStore.items = [
+      {
+        id: 1,
+        type: 'scarf',
+        x: 0,
+        y: 0,
+        w: 6,
+        h: 8,
+        min: { w: 4, h: 4 },
+        stimulusId: 1,
+        redrawTimestamp: Date.now(),
+      },
+      {
+        id: 2,
+        type: 'barPlot',
+        x: 6,
+        y: 0,
+        w: 6,
+        h: 8,
+        min: { w: 4, h: 4 },
+        stimulusId: 1,
+        redrawTimestamp: Date.now(),
+      },
+    ] as AllGridTypes[]
+
+    reverseCommand = createWorkspaceCommandRegistry(
+      mockGridStore as any
+    ).reverse
   })
 
   describe('addGridItem command reversal', () => {
@@ -118,6 +111,7 @@ describe('workspaceCommandReverse', () => {
         type: 'addGridItem',
         vizType: 'scarf',
         itemId: 123,
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -127,7 +121,7 @@ describe('workspaceCommandReverse', () => {
       expect(result).toEqual({
         type: 'removeGridItem',
         itemId: 123,
-        source: undefined,
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       })
@@ -139,6 +133,7 @@ describe('workspaceCommandReverse', () => {
       const command: WorkspaceCommandChain = {
         type: 'removeGridItem',
         itemId: 1,
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -158,7 +153,7 @@ describe('workspaceCommandReverse', () => {
           min: { w: 4, h: 4 },
           stimulusId: 1,
         },
-        source: undefined,
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       })
@@ -168,6 +163,7 @@ describe('workspaceCommandReverse', () => {
       const command: WorkspaceCommandChain = {
         type: 'removeGridItem',
         itemId: 999,
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -181,40 +177,36 @@ describe('workspaceCommandReverse', () => {
   describe('duplicateGridItem command reversal', () => {
     it('should reverse duplicateGridItem to removeGridItem for the duplicate', () => {
       // Mock grid store with two items of the same type
-      vi.mocked(get).mockImplementation(store => {
-        if (store === mockGridStore) {
-          return [
-            {
-              id: 1,
-              type: 'scarf',
-              x: 0,
-              y: 0,
-              w: 6,
-              h: 8,
-              min: { w: 4, h: 4 },
-              stimulusId: 1,
-              redrawTimestamp: Date.now(),
-            },
-            {
-              id: 2,
-              type: 'scarf', // Same type as original
-              x: 6,
-              y: 0,
-              w: 6,
-              h: 8,
-              min: { w: 4, h: 4 },
-              stimulusId: 1,
-              redrawTimestamp: Date.now(),
-            },
-          ] as AllGridTypes[]
-        }
-        return []
-      })
+      mockGridStore.items = [
+        {
+          id: 1,
+          type: 'scarf',
+          x: 0,
+          y: 0,
+          w: 6,
+          h: 8,
+          min: { w: 4, h: 4 },
+          stimulusId: 1,
+          redrawTimestamp: Date.now(),
+        },
+        {
+          id: 2,
+          type: 'scarf', // Same type as original
+          x: 6,
+          y: 0,
+          w: 6,
+          h: 8,
+          min: { w: 4, h: 4 },
+          stimulusId: 1,
+          redrawTimestamp: Date.now(),
+        },
+      ] as AllGridTypes[]
 
       const command: WorkspaceCommandChain = {
         type: 'duplicateGridItem',
         itemId: 1,
         duplicateId: 2, // The ID of the duplicated item
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -224,7 +216,7 @@ describe('workspaceCommandReverse', () => {
       expect(result).toEqual({
         type: 'removeGridItem',
         itemId: 2, // The duplicate (scarf item)
-        source: undefined,
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       })
@@ -237,6 +229,7 @@ describe('workspaceCommandReverse', () => {
         type: 'duplicateGridItem',
         itemId: 999, // Original item doesn't exist
         duplicateId: 998, // But duplicateId is provided
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -247,7 +240,7 @@ describe('workspaceCommandReverse', () => {
       expect(result).toEqual({
         type: 'removeGridItem',
         itemId: 998, // Uses duplicateId, not itemId
-        source: undefined,
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       })
@@ -255,29 +248,25 @@ describe('workspaceCommandReverse', () => {
 
     it('should return null if no duplicate found', () => {
       // Mock grid store with only one item
-      vi.mocked(get).mockImplementation(store => {
-        if (store === mockGridStore) {
-          return [
-            {
-              id: 1,
-              type: 'scarf',
-              x: 0,
-              y: 0,
-              w: 6,
-              h: 8,
-              min: { w: 4, h: 4 },
-              stimulusId: 1,
-              redrawTimestamp: Date.now(),
-            },
-          ] as AllGridTypes[]
-        }
-        return []
-      })
+      mockGridStore.items = [
+        {
+          id: 1,
+          type: 'scarf',
+          x: 0,
+          y: 0,
+          w: 6,
+          h: 8,
+          min: { w: 4, h: 4 },
+          stimulusId: 1,
+          redrawTimestamp: Date.now(),
+        },
+      ] as AllGridTypes[]
 
       const command: WorkspaceCommandChain = {
         type: 'duplicateGridItem',
         itemId: 1,
         // No duplicateId property - implementation should return null
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       } as any // Using 'as any' because duplicateId is missing intentionally
@@ -294,6 +283,7 @@ describe('workspaceCommandReverse', () => {
         type: 'updateSettings',
         itemId: 1,
         settings: { x: 10, y: 20, w: 8 },
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -308,7 +298,7 @@ describe('workspaceCommandReverse', () => {
           y: 0,
           w: 6,
         },
-        source: undefined,
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       })
@@ -319,6 +309,7 @@ describe('workspaceCommandReverse', () => {
         type: 'updateSettings',
         itemId: 999,
         settings: { x: 10, y: 20 },
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -336,6 +327,7 @@ describe('workspaceCommandReverse', () => {
         aois: [],
         stimulusId: 1,
         applyTo: 'this_stimulus',
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -360,7 +352,7 @@ describe('workspaceCommandReverse', () => {
         ],
         stimulusId: 1,
         applyTo: 'this_stimulus',
-        source: undefined,
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       })
@@ -372,6 +364,7 @@ describe('workspaceCommandReverse', () => {
         aois: [],
         stimulusId: 999,
         applyTo: 'this_stimulus',
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -387,6 +380,7 @@ describe('workspaceCommandReverse', () => {
       const command: WorkspaceCommandChain = {
         type: 'updateParticipants',
         participants: [],
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -407,7 +401,7 @@ describe('workspaceCommandReverse', () => {
             displayedName: 'Participant 2',
           },
         ],
-        source: undefined,
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       })
@@ -417,16 +411,29 @@ describe('workspaceCommandReverse', () => {
       vi.mocked(getData).mockReturnValue({
         participants: { data: [], orderVector: [] },
         isOrdinalOnly: false,
-        aois: { data: [], orderVector: [], dynamicVisibility: {} },
+        aois: {
+          data: [],
+          orderVector: [],
+          dynamicVisibility: {},
+          hiddenAois: [],
+        },
         categories: { data: [], orderVector: [] },
         participantsGroups: [],
         stimuli: { data: [], orderVector: [] },
-        segments: [],
+        segments: {
+          segmentBuffer: new Float32Array(0),
+          indexTable: new Uint32Array(0),
+          aoiPool: new Uint16Array(0),
+          groupMap: new Uint16Array(0),
+          maxParticipants: 0,
+          stimuliCount: 0,
+        },
       })
 
       const command: WorkspaceCommandChain = {
         type: 'updateParticipants',
         participants: [],
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -442,6 +449,7 @@ describe('workspaceCommandReverse', () => {
       const command: WorkspaceCommandChain = {
         type: 'updateStimuli',
         stimuli: [],
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -454,7 +462,7 @@ describe('workspaceCommandReverse', () => {
           { id: 0, originalName: 'Stimulus1', displayedName: 'Stimulus 1' },
           { id: 1, originalName: 'Stimulus2', displayedName: 'Stimulus 2' },
         ],
-        source: undefined,
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       })
@@ -464,16 +472,29 @@ describe('workspaceCommandReverse', () => {
       vi.mocked(getData).mockReturnValue({
         stimuli: { data: [], orderVector: [] },
         isOrdinalOnly: false,
-        aois: { data: [], orderVector: [], dynamicVisibility: {} },
+        aois: {
+          data: [],
+          orderVector: [],
+          dynamicVisibility: {},
+          hiddenAois: [],
+        },
         categories: { data: [], orderVector: [] },
         participants: { data: [], orderVector: [] },
         participantsGroups: [],
-        segments: [],
+        segments: {
+          segmentBuffer: new Float32Array(0),
+          indexTable: new Uint32Array(0),
+          aoiPool: new Uint16Array(0),
+          groupMap: new Uint16Array(0),
+          maxParticipants: 0,
+          stimuliCount: 0,
+        },
       })
 
       const command: WorkspaceCommandChain = {
         type: 'updateStimuli',
         stimuli: [],
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -492,6 +513,7 @@ describe('workspaceCommandReverse', () => {
         aoiNames: ['AOI1'],
         visibilityArr: [[1, 0, 1]],
         participantId: 1,
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -507,7 +529,7 @@ describe('workspaceCommandReverse', () => {
           [10, 20, 30, 40],
         ],
         participantId: 1,
-        source: undefined,
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       })
@@ -520,6 +542,7 @@ describe('workspaceCommandReverse', () => {
         aoiNames: ['AOI1'],
         visibilityArr: [[1, 0, 1]],
         participantId: 1,
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -535,6 +558,7 @@ describe('workspaceCommandReverse', () => {
       const command: WorkspaceCommandChain = {
         type: 'updateParticipantsGroups',
         groups: [],
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -550,7 +574,7 @@ describe('workspaceCommandReverse', () => {
             participantIds: [1, 2],
           },
         ],
-        source: undefined,
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       })
@@ -570,6 +594,7 @@ describe('workspaceCommandReverse', () => {
       const command: WorkspaceCommandChain = {
         type: 'updateParticipantsGroups',
         groups: [],
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -602,6 +627,7 @@ describe('workspaceCommandReverse', () => {
       const command: WorkspaceCommandChain = {
         type: 'updateParticipants',
         participants: [],
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -616,17 +642,30 @@ describe('workspaceCommandReverse', () => {
     it('should handle empty data store gracefully', () => {
       vi.mocked(getData).mockReturnValue({
         isOrdinalOnly: false,
-        aois: { data: [], orderVector: [], dynamicVisibility: {} },
+        aois: {
+          data: [],
+          orderVector: [],
+          dynamicVisibility: {},
+          hiddenAois: [],
+        },
         categories: { data: [], orderVector: [] },
         participants: { data: [], orderVector: [] },
         participantsGroups: [],
         stimuli: { data: [], orderVector: [] },
-        segments: [],
+        segments: {
+          segmentBuffer: new Float32Array(0),
+          indexTable: new Uint32Array(0),
+          aoiPool: new Uint16Array(0),
+          groupMap: new Uint16Array(0),
+          maxParticipants: 0,
+          stimuliCount: 0,
+        },
       })
 
       const command: WorkspaceCommandChain = {
         type: 'updateParticipants',
         participants: [],
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -642,6 +681,7 @@ describe('workspaceCommandReverse', () => {
       const command: WorkspaceCommandChain = {
         type: 'updateParticipants',
         participants: [],
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -657,6 +697,7 @@ describe('workspaceCommandReverse', () => {
       const command: WorkspaceCommandChain = {
         type: 'updateParticipants',
         participants: [],
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -673,6 +714,7 @@ describe('workspaceCommandReverse', () => {
         type: 'updateSettings',
         itemId: 1,
         settings: { x: 10, y: 20 },
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }
@@ -688,6 +730,7 @@ describe('workspaceCommandReverse', () => {
       const command: WorkspaceCommandChain = {
         type: 'removeGridItem',
         itemId: 1,
+        source: 'source',
         chainId: 1,
         isRootCommand: true,
       }

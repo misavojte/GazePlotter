@@ -1,6 +1,6 @@
 import type { WorkspaceCommandChain } from '$lib/workspace/commands'
 import { isHistoryCommand } from '$lib/workspace/commands'
-import type { GridStoreType } from '$lib/workspace/stores'
+import { GridState } from '$lib/workspace/grid'
 import {
   recordCommand,
   finalizeChain,
@@ -24,7 +24,7 @@ import { getCommandLabel } from '$lib/workspace/const'
  * @returns Object containing the handler function and undo/redo service
  */
 export function createCommandHandler(
-  gridStore: GridStoreType,
+  gridStore: GridState,
   onSuccess: (message: string) => void,
   onError: (error: Error) => void,
   onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void

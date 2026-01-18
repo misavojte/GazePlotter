@@ -6,14 +6,13 @@
   import { Tooltip } from '$lib/tooltip'
   import { ContextMenu } from '$lib/context-menu'
   import type { ParsedData } from '$lib/gaze-data/shared/types'
-  import { onMount, tick } from 'svelte'
-  import {
-    clear,
-    initializeGridStateStore,
-    processingFileStateStore,
-  } from './workspace'
+  import { onMount, tick, setContext } from 'svelte'
+
+  // NEW: Import the unified grid instance
+  import { grid } from '$lib/workspace/grid'
+
+  import { clear, processingFileStateStore } from './workspace'
   import { data } from './gaze-data/front-process/stores/dataStore'
-  import { setContext } from 'svelte'
   import { addSuccessToast } from '$lib/toaster'
   import {
     fileMetadataStore,
@@ -38,25 +37,40 @@
 
   setContext('reinitializeLabel', reinitializeLabel)
 
-  // Cache the initial grid layout to avoid reloading data when only resetting layout
+  // Snapshot remains a $state rune
   let initialGridItemsSnapshot = $state<Array<
     Partial<AllGridTypes> & { type: string }
   > | null>(null)
 
   async function loadData() {
+    // Svelte 5 logic: Use class properties for loading states where possible
+    // but keep legacy stores if they haven't been migrated to .svelte.ts yet
     processingFileStateStore.set('processing')
+
     try {
       const initialData = await loadInitialData()
+
+      // Update global data stores
       data.set(initialData.data)
-      // Capture the initial grid items so Reset layout can restore without reloading data
-      initialGridItemsSnapshot = initialData.gridItems
+
+      // Capture the initial grid items for Reset layout
+      initialGridItemsSnapshot = initialData.gridItems as Array<
+        Partial<AllGridTypes> & { type: string }
+      >
+
+      // Metadata handling
       if (initialData.version === 3) {
         fileMetadataStore.set(initialData.fileMetadata)
       } else {
         fileMetadataStore.set(null)
       }
+
       currentFileInputStore.set(initialData.current)
-      initializeGridStateStore(initialData.gridItems)
+
+      // CRITICAL CHANGE: Instead of initializeGridStateStore(initialData.gridItems),
+      // we use the class's reset method directly.
+      grid.reset(initialData.gridItems as any)
+
       await tick()
       processingFileStateStore.set('done')
     } catch (error) {
@@ -69,12 +83,12 @@
     loadData().then(() => {
       addSuccessToast('Workspace and data returned to the initial state.')
     })
+    // clear() should now handle resetting history/undo-redo
     clear()
   }
 
   /**
    * Exported function to reset the layout from parent components
-   * Resets the workspace to its initial state without showing a toast notification
    */
   export function resetLayout() {
     loadData()
@@ -90,11 +104,13 @@
   <div class="panel-container">
     <Panel {onReinitialize} />
   </div>
+
   <Workspace
     {onReinitialize}
     {onWorkspaceCommandChain}
     initialLayoutState={initialGridItemsSnapshot}
   />
+
   <Modal />
   <Toaster />
   <Tooltip />

@@ -11,7 +11,7 @@
   } from '$lib/shared/components/GeneralSelect.svelte'
 
   // Utilities and stores
-  import { DEFAULT_GRID_CONFIG } from '$lib/shared/utils/gridSizingUtils'
+  import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils/plotSizeUtility'
   import { getBarPlotData } from '$lib/plots/bar/utils/barPlotUtils'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
