@@ -148,8 +148,12 @@ export function getAoiStreamPlotData(
             hasAnyAoi = true
 
             // Inlined addContribution for this seriesIndex
+            // Cap adjusted times to the cropped timeline range
             const adjustedStart = Math.max(0, start - timelineMin)
-            const adjustedEnd = Math.max(0, end - timelineMin)
+            const adjustedEnd = Math.min(safeMaxTime, Math.max(0, end - timelineMin))
+            // Skip if segment is completely outside the cropped range
+            if (adjustedEnd <= adjustedStart) continue
+            
             const startBin = Math.max(
               0,
               Math.min(binCount - 1, Math.floor(adjustedStart * invBinSize))
@@ -161,15 +165,15 @@ export function getAoiStreamPlotData(
             if (endBin < startBin) endBin = startBin
 
             if (startBin === endBin) {
-              const overlap = end - start
+              const overlap = adjustedEnd - adjustedStart
               if (overlap > 0) {
                 partials[seriesIndex][startBin] += overlap * invBinSize
               }
             } else {
               const startBinStart = startBin * binSize
               const endBinStart = endBin * binSize
-              const startOverlap = startBinStart + binSize - start
-              const endOverlap = end - endBinStart
+              const startOverlap = startBinStart + binSize - adjustedStart
+              const endOverlap = adjustedEnd - endBinStart
 
               if (startOverlap > 0) {
                 partials[seriesIndex][startBin] += startOverlap * invBinSize
@@ -190,8 +194,12 @@ export function getAoiStreamPlotData(
 
         if (!hasAnyAoi) {
           // Inlined addContribution for noAoiIndex
+          // Cap adjusted times to the cropped timeline range
           const adjustedStart = Math.max(0, start - timelineMin)
-          const adjustedEnd = Math.max(0, end - timelineMin)
+          const adjustedEnd = Math.min(safeMaxTime, Math.max(0, end - timelineMin))
+          // Skip if segment is completely outside the cropped range
+          if (adjustedEnd <= adjustedStart) continue
+          
           const startBin = Math.max(
             0,
             Math.min(binCount - 1, Math.floor(adjustedStart * invBinSize))
@@ -203,15 +211,15 @@ export function getAoiStreamPlotData(
           if (endBin < startBin) endBin = startBin
 
           if (startBin === endBin) {
-            const overlap = end - start
+            const overlap = adjustedEnd - adjustedStart
             if (overlap > 0) {
               partials[noAoiIndex][startBin] += overlap * invBinSize
             }
           } else {
             const startBinStart = startBin * binSize
             const endBinStart = endBin * binSize
-            const startOverlap = startBinStart + binSize - start
-            const endOverlap = end - endBinStart
+            const startOverlap = startBinStart + binSize - adjustedStart
+            const endOverlap = adjustedEnd - endBinStart
 
             if (startOverlap > 0) {
               partials[noAoiIndex][startBin] += startOverlap * invBinSize
