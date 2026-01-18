@@ -4,21 +4,15 @@
     WorkspaceIndicatorLoading,
     WorkspaceToolbar,
     visualizationRegistry, // Constant
-    getVisualizationConfig, // Constant
   } from '$lib/workspace'
   import { processingFileStateStore } from '$lib/workspace/stores'
   import { grid } from '$lib/workspace/grid'
   import Grid from '$lib/workspace/grid/Grid.svelte'
-  import { generateUniqueId } from '$lib/shared/utils/idUtils'
-  import { onDestroy } from 'svelte'
-  import { fade } from 'svelte/transition'
+
   import {
-    calculateBottomEdgePosition,
-    WORKSPACE_BOTTOM_PADDING,
     MIN_WORKSPACE_HEIGHT,
     DEFAULT_GRID_CONFIG,
   } from '$lib/workspace/grid'
-  import { throttleByRaf } from '$lib/shared/utils/throttle'
   import { addSuccessToast, addErrorToast } from '$lib/toaster'
   import { createCommandHandler } from '$lib/workspace/commands'
   import type {
