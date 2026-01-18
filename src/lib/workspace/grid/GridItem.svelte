@@ -71,7 +71,6 @@
     onremove?: GridEvent<IdOnly>
     onduplicate?: GridEvent<IdOnly>
     ondrag_height_update?: GridEvent<DragHeightUpdate>
-    onedgedetection?: GridEvent<EdgeDetection>
   }
 
   let {
@@ -102,7 +101,6 @@
     onremove = () => {},
     onduplicate = () => {},
     ondrag_height_update = () => {},
-    onedgedetection = () => {},
   }: Props = $props()
 
   // Track state for visual feedback
@@ -132,19 +130,17 @@
     workspaceElement = null
   })
 
-  // Throttled emitter to coalesce high-frequency preview and edge events
+  // Throttled emitter to coalesce high-frequency preview events (move/resize/height)
   const emitThrottledPreview = throttleByRaf(
     (payload: {
       previewMove?: PreviewMove
       previewResize?: PreviewResize
       dragHeightUpdate?: DragHeightUpdate
-      edgeDetection?: EdgeDetection
     }) => {
       if (payload.previewMove) onpreviewmove(payload.previewMove)
       if (payload.previewResize) onpreviewresize(payload.previewResize)
       if (payload.dragHeightUpdate)
         ondrag_height_update(payload.dragHeightUpdate)
-      if (payload.edgeDetection) onedgedetection(payload.edgeDetection)
     }
   )
 
@@ -364,16 +360,6 @@
           h,
           bottomEdge: newY + h,
         },
-        edgeDetection: {
-          id,
-          itemBounds: cursorPos,
-          viewportBounds: {
-            left: 0,
-            right: viewportWidth,
-            top: 0,
-            bottom: viewportHeight,
-          },
-        },
       })
 
       // Don't call onmove during drag - only on drag end
@@ -392,22 +378,7 @@
         itemNode.classList.remove('is-being-dragged')
       }
 
-      // Send a special event to stop any auto-scrolling
-      onedgedetection({
-        id,
-        itemBounds: {
-          left: 1000000,
-          right: -1000000,
-          top: 1000000,
-          bottom: -1000000,
-        },
-        viewportBounds: {
-          left: 0,
-          right: 0,
-          top: 0,
-          bottom: 0,
-        },
-      })
+      // Auto-scroll sentinel removed — parent `Grid` centrally tracks pointer movement and will stop auto-scroll on drag end.
 
       // Only now, at the end of drag, dispatch the actual move event with final position
       // This prevents the parent from updating the store during the drag
