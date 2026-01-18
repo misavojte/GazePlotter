@@ -1,7 +1,10 @@
 <script lang="ts">
   import { tooltipAction } from '$lib/tooltip/components/Tooltip.svelte'
-  import { contextMenuAction, type MenuItem } from '$lib/context-menu/components/contextMenuAction'
-  import { contextMenuStore } from '$lib/context-menu/stores'
+  import {
+    contextMenuAction,
+    type MenuItem,
+    contextMenuStore,
+  } from '$lib/context-menu'
 
   /**
    * Action item interface for toolbar actions.
@@ -42,7 +45,7 @@
    * @returns Array of MenuItem objects for the context menu.
    */
   const menuItems = $derived.by((): MenuItem[] => {
-    return actions.map((action) => ({
+    return actions.map(action => ({
       label: action.label,
       action: () => {
         onclick({
@@ -139,7 +142,9 @@
     border: none;
     color: var(--c-darkgrey, #666);
     cursor: pointer;
-    transition: all 0.2s ease, transform 0.1s ease;
+    transition:
+      all 0.2s ease,
+      transform 0.1s ease;
     padding: 0;
   }
 

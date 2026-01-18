@@ -2,7 +2,7 @@ import {
   getParticipant,
   getSegment,
 } from '$lib/gaze-data/front-process/stores/dataStore'
-import { updateTooltip } from '$lib/tooltip/stores/tooltipStore'
+import { updateTooltip } from '$lib/tooltip'
 import type { ScarfTooltipFillingType } from '$lib/plots/scarf/types/ScarfTooltipFillingType'
 
 /**

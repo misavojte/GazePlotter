@@ -2,7 +2,7 @@
   import MinorButton from './GeneralButtonMinor.svelte'
   import { type ComponentType } from 'svelte'
   import { tooltipAction } from '$lib/tooltip/components/Tooltip.svelte'
-  import { contextMenuAction } from '$lib/context-menu/components/contextMenuAction'
+  import { contextMenuAction } from '$lib/context-menu'
 
   interface ActionItem {
     icon: ComponentType
@@ -40,22 +40,43 @@
 <div
   class="wrap"
   bind:this={menuElement}
-  use:tooltipAction={{ content: "Plot & data options", position: "top", offset: 35, verticalAlign: "end", disabled: isOpen}}
+  use:tooltipAction={{
+    content: 'Plot & data options',
+    position: 'top',
+    offset: 35,
+    verticalAlign: 'end',
+    disabled: isOpen,
+  }}
   use:contextMenuAction={{
-    items: items.map((it) => ({ label: it.label, action: it.action, icon: it.icon as any })),
+    items: items.map(it => ({
+      label: it.label,
+      action: it.action,
+      icon: it.icon as any,
+    })),
     position: 'bottom',
     verticalAlign: 'end',
     horizontalAlign: 'start',
     offset: 8,
     slideFrom: 'top',
     anchor: menuElement as HTMLElement,
-    onOpen: () => { isOpen = true },
-    onClose: () => { isOpen = false },
+    onOpen: () => {
+      isOpen = true
+    },
+    onClose: () => {
+      isOpen = false
+    },
   }}
 >
   <MinorButton isIcon={false} onclick={handleClick}>
     <span class="triggerContent">
-      <svg class="dots" width="10" height="16" viewBox="0 0 4 12" fill="currentColor" aria-hidden="true">
+      <svg
+        class="dots"
+        width="10"
+        height="16"
+        viewBox="0 0 4 12"
+        fill="currentColor"
+        aria-hidden="true"
+      >
         <circle cx="2" cy="2" r="0.8" />
         <circle cx="2" cy="6" r="0.8" />
         <circle cx="2" cy="10" r="0.8" />
@@ -71,14 +92,14 @@
     display: flex;
     align-items: center;
   }
-  
+
   .triggerContent {
     display: inline-flex;
     align-items: center;
     gap: 6px;
     padding-inline: 2px;
   }
-  
+
   .triggerLabel {
     color: currentColor;
     font-size: 13px;

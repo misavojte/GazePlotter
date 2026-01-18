@@ -1,10 +1,10 @@
 <script lang="ts">
-  import Toaster from '$lib/toaster/components/Toaster.svelte'
+  import { Toaster } from '$lib/toaster'
   import { Modal } from '$lib/modals'
   import Panel from '$lib/workspace/panel/components/Panel.svelte'
   import Workspace from '$lib/workspace/components/Workspace.svelte'
-  import Tooltip from '$lib/tooltip/components/Tooltip.svelte'
-  import ContextMenu from '$lib/context-menu/components/ContextMenu.svelte'
+  import { Tooltip } from '$lib/tooltip'
+  import { ContextMenu } from '$lib/context-menu'
   import type { ParsedData } from '$lib/gaze-data/shared/types'
   import { onMount, tick } from 'svelte'
   import {
