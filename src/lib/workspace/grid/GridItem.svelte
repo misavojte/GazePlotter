@@ -5,6 +5,7 @@
   import GridItemContainer from './GridItemContainer.svelte'
   import { type Snippet } from 'svelte'
   import { throttleByRaf } from '$lib/shared/utils/throttle'
+  import { draggable, resizable as resizableAction } from './actions.svelte'
 
   // Reusable types for props (concise)
   type GridRect = { id: number; x: number; y: number; w: number; h: number }
@@ -61,7 +62,7 @@
     cellSize = { width: 40, height: 40 },
     gap = 10,
     resizable = true,
-    draggable = true,
+    draggable: isDraggableEnabled = true,
     title = '',
     removable = true,
     class: customClass = '',
@@ -88,29 +89,6 @@
 
   let bodyNode: HTMLElement | null = $state(null)
   let itemNode: HTMLElement | null = $state(null)
-  let workspaceElement: HTMLElement | null = null
-
-  // Per-item scroll tracking removed — rely on centralized workspace scroll state to avoid per-item listeners.
-
-  // Helper to find the workspace container
-  const findWorkspaceContainer = () => {
-    if (!workspaceElement && itemNode) {
-      workspaceElement = itemNode.closest('.workspace-container')
-    }
-    return workspaceElement
-  }
-
-  // Cleanup on destroy
-  onDestroy(() => {
-    workspaceElement = null
-  })
-
-  // Throttled emitter to coalesce high-frequency preview events (move/resize/height) into a single unified previewUpdate
-  const emitThrottledPreview = throttleByRaf(
-    (payload: { previewUpdate?: PreviewUpdate }) => {
-      if (payload.previewUpdate) onpreviewupdate(payload.previewUpdate)
-    }
-  )
 
   // Calculate actual pixel dimensions and position
   let itemWidth = $derived(w * cellSize.width + (w - 1) * gap)
@@ -142,531 +120,80 @@
         : ''
   )
 
-  // Svelte action for handling drag functionality
-  function draggable_action(node: HTMLElement, options: { enabled: boolean }) {
-    if (!options.enabled) return {}
-
-    let startX: number
-    let startY: number
-    let startPosX: number
-    let startPosY: number
-    let startScrollX: number
-    let startScrollY: number
-    let startWindowScrollX: number
-    let startWindowScrollY: number
-    let workspaceElement: HTMLElement | null
-    let touchId: number | null = null // For tracking the specific touch
-
-    // Helper function to handle the start of dragging
-    function handleStart(event: MouseEvent | TouchEvent) {
-      // Handle both touch and mouse events
-      const isTouchEvent = 'touches' in event
-
-      // For mouse, only handle left-button clicks
-      if (!isTouchEvent && (event as MouseEvent).button !== 0) return
-
-      // For touch, store the touch identifier for tracking
-      if (isTouchEvent) {
-        const touch = (event as TouchEvent).touches[0]
-        touchId = touch.identifier
-        startX = touch.clientX
-        startY = touch.clientY
-      } else {
-        startX = (event as MouseEvent).clientX
-        startY = (event as MouseEvent).clientY
-      }
-
-      // Find the workspace container for scroll position tracking
-      workspaceElement = node.closest('.workspace-container')
-
-      // Start dragging
-      isDragging = true
-      startPosX = x
-      startPosY = y
-
-      // Store initial scroll positions - both workspace and window
-      startScrollX = workspaceElement ? workspaceElement.scrollLeft : 0
-      startScrollY = workspaceElement ? workspaceElement.scrollTop : 0
-      startWindowScrollX =
-        window.scrollX ||
-        window.pageXOffset ||
-        document.documentElement.scrollLeft
-      startWindowScrollY =
-        window.scrollY ||
-        window.pageYOffset ||
-        document.documentElement.scrollTop
-
-      // Initialize the drag position to the current position
-      dragPosition = { x, y }
-      showDragPlaceholder = true
-
-      // Add semi-transparent highlight to the stationary item
-      if (itemNode) {
-        itemNode.classList.add('is-being-dragged')
-      }
-
-      // Dispatch drag start event
-      ondragstart({ id, x, y, w, h })
-
-      // Add appropriate event listeners based on event type
-      if (isTouchEvent) {
-        document.addEventListener('touchmove', handleMove, {
-          passive: false,
-          capture: true,
-        })
-        document.addEventListener('touchend', handleEnd, { capture: true })
-        document.addEventListener('touchcancel', handleEnd, { capture: true })
-      } else {
-        document.addEventListener('mousemove', handleMove, { capture: true })
-        document.addEventListener('mouseup', handleEnd, { capture: true })
-      }
-
-      event.preventDefault()
+  // define draggable params
+  let draggableParams = $derived({
+    enabled: isDraggableEnabled,
+    id,
+    x,
+    y,
+    w,
+    h,
+    cellSize,
+    gap,
+    onDragStart: (rect: GridRect) => {
+        isDragging = true
+        showDragPlaceholder = true
+        ondragstart(rect)
+    },
+    onDragEnd: (rect: GridRect & { dragComplete: boolean }) => {
+        ondragend(rect)
+        // Cleanup happens in onWrapEnd but we can ensure state consistency here
+    },
+    onMove: (rect: GridRect) => onmove(rect),
+    onPreviewUpdate: (update: PreviewUpdate) => onpreviewupdate(update),
+    onWrapStart: () => {
+       isDragging = true
+       showDragPlaceholder = true
+       if(itemNode) itemNode.classList.add('is-being-dragged')
+    },
+    onWrapEnd: (finalX: number, finalY: number) => {
+       isDragging = false
+       showDragPlaceholder = false
+       if(itemNode) itemNode.classList.remove('is-being-dragged')
+       // We can ensure the final position is set if needed, but the move event should handle it
+    },
+    updateDragPosition: (newX: number, newY: number) => {
+        dragPosition = { x: newX, y: newY }
     }
+  })
 
-    function handleMove(event: MouseEvent | TouchEvent) {
-      if (!isDragging) return
-
-      // Handle both touch and mouse events
-      const isTouchEvent = 'touches' in event
-      let clientX: number, clientY: number
-
-      // For touch events, find the touch that matches our stored ID
-      if (isTouchEvent) {
-        // Prevent default for touch events to stop scrolling
-        event.preventDefault()
-
-        // Find the touch that matches our starting touch
-        const touchList = (event as TouchEvent).touches
-        let activeTouch: Touch | undefined
-
-        for (let i = 0; i < touchList.length; i++) {
-          if (touchList[i].identifier === touchId) {
-            activeTouch = touchList[i]
-            break
-          }
-        }
-
-        // If we couldn't find the touch, abort
-        if (!activeTouch) return
-
-        clientX = activeTouch.clientX
-        clientY = activeTouch.clientY
-      } else {
-        clientX = (event as MouseEvent).clientX
-        clientY = (event as MouseEvent).clientY
-      }
-
-      // Get viewport dimensions - always get these fresh on each move
-      const viewportWidth = window.innerWidth
-      const viewportHeight = window.innerHeight
-
-      // Always get the workspace element to ensure we're detecting edges correctly
-      const workspace = findWorkspaceContainer()
-
-      // Calculate item bounds for edge detection
-      // Important: check the mouse cursor position against viewport edges
-      // This makes auto-scrolling trigger when the cursor is near an edge
-      const cursorPos = {
-        left: clientX,
-        right: clientX,
-        top: clientY,
-        bottom: clientY,
-      }
-
-      // Get current scroll positions - both workspace and window
-      const currentScrollX = workspaceElement ? workspaceElement.scrollLeft : 0
-      const currentScrollY = workspaceElement ? workspaceElement.scrollTop : 0
-      const currentWindowScrollX =
-        window.scrollX ||
-        window.pageXOffset ||
-        document.documentElement.scrollLeft
-      const currentWindowScrollY =
-        window.scrollY ||
-        window.pageYOffset ||
-        document.documentElement.scrollTop
-
-      // Calculate total scroll deltas (both workspace and window)
-      const scrollDeltaX =
-        currentScrollX -
-        startScrollX +
-        (currentWindowScrollX - startWindowScrollX)
-      const scrollDeltaY =
-        currentScrollY -
-        startScrollY +
-        (currentWindowScrollY - startWindowScrollY)
-
-      // Calculate delta movement in pixels, accounting for all scroll changes
-      const deltaX = clientX - startX + scrollDeltaX
-      const deltaY = clientY - startY + scrollDeltaY
-
-      // Convert to grid units
-      const gridDeltaX = Math.round(deltaX / (cellSize.width + gap))
-      const gridDeltaY = Math.round(deltaY / (cellSize.height + gap))
-
-      // Calculate new position for the placeholder
-      const newX = Math.max(0, startPosX + gridDeltaX)
-      const newY = Math.max(0, startPosY + gridDeltaY)
-
-      // Only update the drag placeholder position, not the actual item
-      dragPosition = { x: newX, y: newY }
-
-      // Emit unified preview update (x,y,w,h) via RAF-throttled emitter
-      emitThrottledPreview({
-        previewUpdate: {
-          id,
-          x: newX,
-          y: newY,
-          w,
-          h,
-        },
-      })
-
-      // Don't call onmove during drag - only on drag end
-    }
-
-    function handleEnd(event?: MouseEvent | TouchEvent) {
-      if (!isDragging) return
-
-      // Clear the touch ID
-      touchId = null
-
-      // Clean up visual effects
-      showDragPlaceholder = false
-
-      if (itemNode) {
-        itemNode.classList.remove('is-being-dragged')
-      }
-
-      // Auto-scroll sentinel removed — parent `Grid` centrally tracks pointer movement and will stop auto-scroll on drag end.
-
-      // Only now, at the end of drag, dispatch the actual move event with final position
-      // This prevents the parent from updating the store during the drag
-      onmove({ id, x: dragPosition.x, y: dragPosition.y, w, h })
-
-      // Dispatch drag end event
-      ondragend({
-        id,
-        x: dragPosition.x,
-        y: dragPosition.y,
-        w,
-        h,
-        dragComplete: true,
-      })
-
-      // Reset state
-      isDragging = false
-      workspaceElement = null
-
-      // Clean up all event listeners
-      document.removeEventListener('mousemove', handleMove, { capture: true })
-      document.removeEventListener('mouseup', handleEnd, { capture: true })
-      document.removeEventListener('touchmove', handleMove, { capture: true })
-      document.removeEventListener('touchend', handleEnd, { capture: true })
-      document.removeEventListener('touchcancel', handleEnd, { capture: true })
-    }
-
-    // Add initial event listeners for both mouse and touch
-    node.addEventListener('mousedown', handleStart)
-    node.addEventListener('touchstart', handleStart, { passive: false })
-
-    // Return destroy method to clean up
-    return {
-      destroy() {
-        // Remove all event listeners
-        node.removeEventListener('mousedown', handleStart)
-        node.removeEventListener('touchstart', handleStart)
-        document.removeEventListener('mousemove', handleMove, { capture: true })
-        document.removeEventListener('mouseup', handleEnd, { capture: true })
-        document.removeEventListener('touchmove', handleMove, { capture: true })
-        document.removeEventListener('touchend', handleEnd, { capture: true })
-        document.removeEventListener('touchcancel', handleEnd, {
-          capture: true,
-        })
-      },
-      update(newOptions: { enabled: boolean }) {
-        if (!newOptions.enabled) {
-          node.removeEventListener('mousedown', handleStart)
-          node.removeEventListener('touchstart', handleStart)
-        } else if (!options.enabled) {
-          node.addEventListener('mousedown', handleStart)
-          node.addEventListener('touchstart', handleStart, { passive: false })
-        }
-        options = newOptions
-      },
-    }
-  }
-
-  // Svelte action for handling resize functionality
-  function resizable_action(node: HTMLElement, options: { enabled: boolean }) {
-    if (!options.enabled) return {}
-
-    let startX: number
-    let startY: number
-    let startW: number
-    let startH: number
-    let startScrollX: number
-    let startScrollY: number
-    let startWindowScrollX: number
-    let startWindowScrollY: number
-    let workspaceElement: HTMLElement | null
-    let lastW: number = w
-    let lastH: number = h
-    let touchId: number | null = null // For tracking the specific touch
-
-    function handleStart(event: MouseEvent | TouchEvent) {
-      // Handle both touch and mouse events
-      const isTouchEvent = 'touches' in event
-
-      // For mouse, only handle left-button clicks
-      if (!isTouchEvent && (event as MouseEvent).button !== 0) return
-
-      // For touch, store the touch identifier for tracking
-      if (isTouchEvent) {
-        const touch = (event as TouchEvent).touches[0]
-        touchId = touch.identifier
-        startX = touch.clientX
-        startY = touch.clientY
-      } else {
-        startX = (event as MouseEvent).clientX
-        startY = (event as MouseEvent).clientY
-      }
-
-      // Find the workspace container for scroll position tracking
-      workspaceElement = node.closest('.workspace-container')
-
-      // Start resizing
-      isResizing = true
-      startW = w
-      startH = h
-      lastW = w
-      lastH = h
-
-      // Initialize resize placeholder with current dimensions
-      resizePosition = { w, h }
-      showResizePlaceholder = true
-
-      // Add semi-transparent highlight to the stationary item
-      if (itemNode) {
-        itemNode.classList.add('is-being-resized')
-      }
-
-      // Apply resize cursor globally immediately for better UX
-      document.body.style.setProperty('cursor', 'se-resize', 'important')
-
-      // Create a style element to override all other cursors
-      const styleEl = document.createElement('style')
-      styleEl.id = 'resize-cursor-override'
-      styleEl.textContent = '* { cursor: se-resize !important; }'
-      document.head.appendChild(styleEl)
-
-      // Store initial scroll positions - both workspace and window
-      startScrollX = workspaceElement ? workspaceElement.scrollLeft : 0
-      startScrollY = workspaceElement ? workspaceElement.scrollTop : 0
-      startWindowScrollX =
-        window.scrollX ||
-        window.pageXOffset ||
-        document.documentElement.scrollLeft
-      startWindowScrollY =
-        window.scrollY ||
-        window.pageYOffset ||
-        document.documentElement.scrollTop
-
-      // Dispatch resize start event
-      onresizestart({ id, x, y, w, h })
-
-      // Add appropriate event listeners based on event type
-      if (isTouchEvent) {
-        document.addEventListener('touchmove', handleMove, {
-          passive: false,
-          capture: true,
-        })
-        document.addEventListener('touchend', handleEnd, { capture: true })
-        document.addEventListener('touchcancel', handleEnd, { capture: true })
-      } else {
-        document.addEventListener('mousemove', handleMove, { capture: true })
-        document.addEventListener('mouseup', handleEnd, { capture: true })
-      }
-
-      event.preventDefault()
-      event.stopPropagation()
-    }
-
-    function handleMove(event: MouseEvent | TouchEvent) {
-      if (!isResizing) return
-
-      // Handle both touch and mouse events
-      const isTouchEvent = 'touches' in event
-      let clientX: number, clientY: number
-
-      // For touch events, find the touch that matches our stored ID
-      if (isTouchEvent) {
-        // Prevent default for touch events to stop scrolling
-        event.preventDefault()
-
-        // Find the touch that matches our starting touch
-        const touchList = (event as TouchEvent).touches
-        let activeTouch: Touch | undefined
-
-        for (let i = 0; i < touchList.length; i++) {
-          if (touchList[i].identifier === touchId) {
-            activeTouch = touchList[i]
-            break
-          }
-        }
-
-        // If we couldn't find the touch, abort
-        if (!activeTouch) return
-
-        clientX = activeTouch.clientX
-        clientY = activeTouch.clientY
-      } else {
-        clientX = (event as MouseEvent).clientX
-        clientY = (event as MouseEvent).clientY
-      }
-
-      // Get current scroll positions - both workspace and window
-      const currentScrollX = workspaceElement ? workspaceElement.scrollLeft : 0
-      const currentScrollY = workspaceElement ? workspaceElement.scrollTop : 0
-      const currentWindowScrollX =
-        window.scrollX ||
-        window.pageXOffset ||
-        document.documentElement.scrollLeft
-      const currentWindowScrollY =
-        window.scrollY ||
-        window.pageYOffset ||
-        document.documentElement.scrollTop
-
-      // Calculate total scroll deltas (both workspace and window)
-      const scrollDeltaX =
-        currentScrollX -
-        startScrollX +
-        (currentWindowScrollX - startWindowScrollX)
-      const scrollDeltaY =
-        currentScrollY -
-        startScrollY +
-        (currentWindowScrollY - startWindowScrollY)
-
-      // Calculate delta in pixels, accounting for all scroll changes
-      const deltaX = clientX - startX + scrollDeltaX
-      const deltaY = clientY - startY + scrollDeltaY
-
-      // Convert to grid units with smarter rounding
-      const gridDeltaW = Math.round(deltaX / (cellSize.width + gap))
-      const gridDeltaH = Math.round(deltaY / (cellSize.height + gap))
-
-      // Calculate new size with strict constraints
-      const newW = Math.max(minW, startW + gridDeltaW)
-      const newH = Math.max(minH, startH + gridDeltaH)
-
-      // Only update if size changed AND exceeds minimum dimensions
-      if ((newW !== lastW || newH !== lastH) && newW >= minW && newH >= minH) {
-        // Update local variables for tracking
-        lastW = newW
-        lastH = newH
-
-        // Update placeholder dimensions
+  // define resizable params
+  let resizableParams = $derived({
+    enabled: resizable,
+    id,
+    x,
+    y,
+    w,
+    h,
+    minW,
+    minH,
+    cellSize,
+    gap,
+    onResizeStart: (rect: GridRect) => {
+        isResizing = true
+        showResizePlaceholder = true
+        onresizestart(rect)
+    },
+    onResizeEnd: (rect: GridRect & { resizeComplete: boolean }) => {
+        onresizeend(rect)
+    },
+    onResize: (rect: GridRect) => onresize(rect),
+    onPreviewUpdate: (update: PreviewUpdate) => onpreviewupdate(update),
+    onWrapStart: () => {
+        isResizing = true
+        showResizePlaceholder = true
+        if(itemNode) itemNode.classList.add('is-being-resized')
+    },
+    onWrapEnd: (finalW: number, finalH: number) => {
+       isResizing = false
+       showResizePlaceholder = false
+       if(itemNode) itemNode.classList.remove('is-being-resized')
+    },
+    updateResizePosition: (newW: number, newH: number) => {
         resizePosition = { w: newW, h: newH }
-
-        // Emit unified preview update (x,y,w,h) via RAF-throttled emitter
-        emitThrottledPreview({
-          previewUpdate: {
-            id,
-            x,
-            y,
-            w: newW,
-            h: newH,
-          },
-        })
-
-        // Don't call onmove during resize - only on resize end
-      }
     }
+  })
 
-    function handleEnd(event?: MouseEvent | TouchEvent) {
-      if (!isResizing) return
-
-      // Clear the touch ID
-      touchId = null
-
-      // Clean up visual effects
-      showResizePlaceholder = false
-
-      if (itemNode) {
-        itemNode.classList.remove('is-being-resized')
-      }
-
-      // Remove resize cursor override
-      document.body.style.cursor = ''
-      const styleEl = document.getElementById('resize-cursor-override')
-      if (styleEl) {
-        styleEl.remove()
-      }
-
-      // Only update the actual size at the end of resize
-      onresize({ id, x, y, w: resizePosition.w, h: resizePosition.h })
-
-      // Dispatch resize end event
-      onresizeend({
-        id,
-        x,
-        y,
-        w: resizePosition.w,
-        h: resizePosition.h,
-        resizeComplete: true,
-      })
-
-      // Reset state
-      isResizing = false
-      workspaceElement = null
-
-      // Clean up all event listeners
-      document.removeEventListener('mousemove', handleMove, { capture: true })
-      document.removeEventListener('mouseup', handleEnd, { capture: true })
-      document.removeEventListener('touchmove', handleMove, { capture: true })
-      document.removeEventListener('touchend', handleEnd, { capture: true })
-      document.removeEventListener('touchcancel', handleEnd, { capture: true })
-    }
-
-    // Add initial event listeners for both mouse and touch
-    node.addEventListener('mousedown', handleStart)
-    node.addEventListener('touchstart', handleStart, { passive: false })
-
-    // Return destroy method to clean up
-    return {
-      destroy() {
-        // Make sure to remove cursor override if component is destroyed during resize
-        if (isResizing) {
-          document.body.style.cursor = ''
-          const styleEl = document.getElementById('resize-cursor-override')
-          if (styleEl) {
-            styleEl.remove()
-          }
-        }
-
-        // Remove all event listeners
-        node.removeEventListener('mousedown', handleStart)
-        node.removeEventListener('touchstart', handleStart)
-        document.removeEventListener('mousemove', handleMove, { capture: true })
-        document.removeEventListener('mouseup', handleEnd, { capture: true })
-        document.removeEventListener('touchmove', handleMove, { capture: true })
-        document.removeEventListener('touchend', handleEnd, { capture: true })
-        document.removeEventListener('touchcancel', handleEnd, {
-          capture: true,
-        })
-      },
-      update(newOptions: { enabled: boolean }) {
-        if (!newOptions.enabled) {
-          node.removeEventListener('mousedown', handleStart)
-          node.removeEventListener('touchstart', handleStart)
-        } else if (!options.enabled) {
-          node.addEventListener('mousedown', handleStart)
-          node.addEventListener('touchstart', handleStart, { passive: false })
-        }
-        options = newOptions
-      },
-    }
-  }
 </script>
 
 <!-- Actual grid item (stays in place until drag is complete) -->
@@ -686,12 +213,12 @@
 >
   <GridItemContainer showResizeHandle={resizable} class="item-container">
     {#snippet header()}
-      {#if draggable}
+      {#if isDraggableEnabled}
         <GridItemButton
           tooltip="Drag to move"
           useAction={true}
-          actionFn={draggable_action}
-          actionParams={{ enabled: draggable }}
+          actionFn={draggable}
+          actionParams={draggableParams}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -769,7 +296,7 @@
   {#if resizable}
     <div
       class="resize-handle-interactive"
-      use:resizable_action={{ enabled: resizable }}
+      use:resizableAction={resizableParams}
       aria-hidden="true"
     ></div>
   {/if}
@@ -785,7 +312,7 @@
     data-id={`placeholder-${id}`}
     transition:fade={{ duration: 100 }}
   >
-    <GridItemContainer showResizeHandle={resizable} class="item-container">
+    <GridItemContainer showResizeHandle={false} class="item-container">
       {#snippet body()}
         <!-- Empty placeholder body -->
       {/snippet}
@@ -797,129 +324,79 @@
   .grid-item {
     position: absolute;
     z-index: 1;
+    box-sizing: border-box;
     /* Add GPU acceleration but in a way that doesn't interfere with events */
-    will-change: transform;
-    transition: all 0.15s ease-out;
-    /* Prevent text selection during drag */
-    user-select: none;
-    /* Ensure rounded corners are preserved */
-    border-radius: var(--rounded-lg, 8px) var(--rounded-lg, 8px) 0 0;
-    overflow: hidden;
+    will-change: transform, width, height;
+    /* transition: transform 0.1s ease-out; Removed for snapping feel */
   }
 
-  /* Make the container fill the grid item */
-  .grid-item :global(.item-container) {
+  .grid-item.is-being-dragged {
+    z-index: 100;
+    opacity: 0.4;
+  }
+
+  .grid-item.resizing {
+    z-index: 100;
+    opacity: 0.4;
+  }
+  
+  /* Ensure the inner container fills the grid item */
+  :global(.item-container) {
     width: 100%;
     height: 100%;
   }
 
-  /* Styles for the actual item that's being dragged or resized */
-  .grid-item.is-being-dragged,
-  .grid-item.is-being-resized {
-    z-index: 5;
-    opacity: 0.3;
-    pointer-events: none;
-    transform-origin: center center;
-  }
-
-  /* Apply border to the inner container during drag to preserve rounded corners */
-  .grid-item.is-being-dragged :global(.item-container),
-  .grid-item.is-being-resized :global(.item-container) {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-    border: 1px solid rgba(200, 180, 180, 0.3);
-  }
-
-  /* Styles for the lightweight placeholder */
+  /* Placeholder styling */
   .grid-item.placeholder {
-    z-index: 1000;
-    opacity: 0.9;
-    /* Allow the placeholder to receive pointer events during drag */
+    z-index: 50;
     pointer-events: none;
-    transform-origin: center center;
-    transition:
-      transform 0.15s ease-out,
-      width 0.15s ease-out,
-      height 0.15s ease-out;
-    /* Ensure rounded corners for placeholder */
+    opacity: 0.6;
+    border: 2px dashed var(--c-darkgrey);
     border-radius: var(--rounded-lg, 8px) var(--rounded-lg, 8px) 0 0;
-    overflow: hidden;
+    background: rgba(0, 0, 0, 0.02);
+    box-sizing: border-box; /* Ensure border doesn't add to width */
   }
 
-  .grid-item.placeholder :global(.item-container) {
-    background-color: rgba(255, 235, 235, 0.85);
-    border: 2px dashed rgba(200, 120, 120, 0.5);
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+  /* When dragging, the placeholder shows where it will land */
+  .grid-item.placeholder.dragging {
+    opacity: 0.5;
+    background: rgba(var(--c-main-rgb, 0, 0, 0), 0.05);
+    border-color: var(--c-main);
   }
 
-  /* Enhance the placeholder during active dragging or resizing */
-  .grid-item.placeholder.dragging :global(.item-container),
-  .grid-item.placeholder.resizing :global(.item-container) {
-    animation: pulse 2s infinite ease-in-out;
+  /* When resizing, the placeholder shows the new size */
+  .grid-item.placeholder.resizing {
+    opacity: 0.5;
+    background: rgba(var(--c-main-rgb, 0, 0, 0), 0.05);
+    border-color: var(--c-main);
+  }
+  
+  /* Hide the actual inner container styles when in placeholder mode */
+  .grid-item.placeholder :global(.grid-item-container) {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  
+  .grid-item.placeholder :global(.grid-item-container .header),
+  .grid-item.placeholder :global(.grid-item-container .body) {
+    background: transparent !important;
+    opacity: 0; /* Hide content in placeholder */
   }
 
-  @keyframes pulse {
-    0% {
-      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
-      border-color: rgba(200, 120, 120, 0.5);
-    }
-    50% {
-      box-shadow: 0 8px 28px rgba(200, 100, 100, 0.25);
-      border-color: rgba(200, 120, 120, 0.8);
-    }
-    100% {
-      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
-      border-color: rgba(200, 120, 120, 0.5);
-    }
-  }
-
-  .grid-item.resizing {
-    z-index: 10;
-    transition: none;
-  }
-
-  .grid-item.resizing :global(.item-container) {
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  }
-
-  /* Interactive resize handle - positioned over the visual handle */
+  /* Resize handle interactive area (invisible but clickable) */
   .resize-handle-interactive {
     position: absolute;
     right: 0;
     bottom: 0;
-    width: 16px;
-    height: 16px;
+    width: 20px;
+    height: 20px;
     cursor: se-resize;
-    background: transparent;
-    /* Increase touch target for mobile */
-    touch-action: none;
     z-index: 10;
   }
 
-  /* Header content wrapper for remove button */
-  :global(.item-container .header) .header-content {
+  .header-content {
     display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-  }
-
-  /* Apply drag-handle styles to the GridItemButton used for dragging */
-  :global(
-    .item-container
-      .header
-      > .tooltip-wrapper:first-child
-      .workspace-item-button
-  ) {
-    cursor: grab;
-  }
-
-  :global(
-    .item-container
-      .header
-      > .tooltip-wrapper:first-child
-      .workspace-item-button:hover
-  ) {
-    transform: scale(1.1);
-    background: var(--c-darkgrey);
-    color: var(--c-white);
+    gap: 4px;
   }
 </style>

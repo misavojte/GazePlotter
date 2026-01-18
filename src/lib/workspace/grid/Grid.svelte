@@ -526,7 +526,8 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
   class="grid-container"
-  style="width: {gridWidth}px;"
+  class:pointer-events-none={isDragging || isResizing || isPanning}
+  style="width: {gridWidth}px; height: {gridHeight}px;"
   onmousedown={handleWorkspacePanStart}
   role="application"
 >
@@ -569,3 +570,10 @@
     {/if}
   {/if}
 </div>
+
+<style>
+  /* Utility to block interactions during drag/resize */
+  .pointer-events-none {
+    pointer-events: none !important;
+  }
+</style>
