@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { tooltipAction } from '$lib/tooltip/components/Tooltip.svelte'
+  import { tooltipAction } from '$lib/tooltip'
 
   interface Props {
     label?: string

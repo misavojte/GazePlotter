@@ -3,7 +3,7 @@
   import RefreshCcw from 'lucide-svelte/icons/refresh-ccw'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
   import type { WorkspaceCommand } from '$lib/workspace/commands'
-  import { tooltipAction } from '$lib/tooltip/components/Tooltip.svelte'
+  import { tooltipAction } from '$lib/tooltip'
 
   interface Props {
     settings: ScarfGridType

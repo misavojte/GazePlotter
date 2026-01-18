@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ComponentType } from 'svelte'
-  import { tooltipAction } from '$lib/tooltip/components/Tooltip.svelte'
+  import { tooltipAction } from '$lib/tooltip'
 
   // Single button props (backwards compatible with slot content)
   interface SingleProps {

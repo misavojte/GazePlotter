@@ -1,6 +1,6 @@
 <script lang="ts" module>
   import { estimateTextWidth } from '$lib/shared/utils/textUtils'
-  import { tooltipStore, updateTooltip } from '$lib/tooltip'
+  import { tooltipState, updateTooltip } from './tooltipState.svelte'
 
   type Position = 'top' | 'bottom' | 'left' | 'right'
   type Alignment = 'start' | 'center' | 'end'
@@ -139,16 +139,15 @@
 
 <script lang="ts">
   import { fade } from 'svelte/transition'
-  // No need to import tooltipStore again as it's already imported in the module context
 </script>
 
-{#if $tooltipStore}
+{#if tooltipState.current}
   <aside
     class="tooltip"
     transition:fade={{ duration: 200 }}
-    style="left: {$tooltipStore.x}px; top: {$tooltipStore.y}px; width: {$tooltipStore.width}px;"
+    style="left: {tooltipState.current.x}px; top: {tooltipState.current.y}px; width: {tooltipState.current.width}px;"
   >
-    {#each $tooltipStore.content as item}
+    {#each tooltipState.current.content as item}
       <div class="tooltip-item">
         {#if item.key !== ''}
           <div class="tooltip-item-title">{item.key}</div>

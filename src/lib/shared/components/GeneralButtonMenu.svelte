@@ -1,7 +1,7 @@
 <script lang="ts">
   import MinorButton from './GeneralButtonMinor.svelte'
   import { type ComponentType } from 'svelte'
-  import { tooltipAction } from '$lib/tooltip/components/Tooltip.svelte'
+  import { tooltipAction } from '$lib/tooltip'
   import { contextMenuAction } from '$lib/context-menu'
 
   interface ActionItem {

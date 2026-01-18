@@ -1,16 +1,22 @@
 import { estimateTextWidth } from '$lib/shared/utils/textUtils';
-import { writable } from 'svelte/store'
 
-export interface TooltipStoreType {
+export interface TooltipStateType {
   visible: boolean
-  // object with string keys and string values
   content: Array<{ key: string; value: string }>
   x: number
   y: number
   width?: number
 }
 
-export const tooltipStore = writable<TooltipStoreType | null>(null)
+let _state = $state<TooltipStateType | null>(null);
+
+/**
+ * Global accessor for the tooltip state.
+ */
+export const tooltipState = {
+  get current() { return _state },
+  set current(value: TooltipStateType | null) { _state = value }
+}
 
 // Debounce timer reference
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -21,7 +27,7 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null
  * @param delay Debounce delay in ms (default: 150ms)
  */
 export const updateTooltip = (
-  value: TooltipStoreType | null,
+  value: TooltipStateType | null,
   delay: number = 150
 ) => {
   // Clear any existing timer
@@ -38,7 +44,7 @@ export const updateTooltip = (
 
   // Set a new timer
   debounceTimer = setTimeout(() => {
-    tooltipStore.set(value)
+    _state = value
     debounceTimer = null
   }, delay)
 }
