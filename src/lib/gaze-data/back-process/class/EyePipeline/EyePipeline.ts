@@ -62,6 +62,7 @@ export class EyePipeline {
       settings.type === 'tobii-with-event'
         ? await this.requestUserInputCallback()
         : ''
+    this.writer.setSourceInfo(settings.type, userStringInput)
 
     // update complete settings with user input
     this.completeSettings = {

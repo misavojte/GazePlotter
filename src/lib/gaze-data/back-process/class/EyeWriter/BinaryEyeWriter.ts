@@ -153,9 +153,18 @@ export class BinaryEyeWriter {
   private encoding: TextEncoding = 'utf-8'
   private decoder: TextDecoder = new TextDecoder('utf-8')
 
+  // Source information for error messages
+  private sourceType: string = ''
+  private userInput: string = ''
+
   setEncoding(encoding: TextEncoding): void {
     this.encoding = encoding
     this.decoder = new TextDecoder(encoding)
+  }
+
+  setSourceInfo(type: string, userInput: string): void {
+    this.sourceType = type
+    this.userInput = userInput
   }
 
   addSegmentBytes(
@@ -219,6 +228,25 @@ export class BinaryEyeWriter {
 
     const maxParticipants = this.participantBytes.length
     const maxStimuli = this.stimuliBytes.length
+
+    // Data integrity check: ensure we have at least one stimulus and one participant
+    if (maxStimuli === 0 || maxParticipants === 0) {
+      // Special case: Tobii with non-default media parsing but no stimuli found
+      if (
+        maxStimuli === 0 &&
+        (this.sourceType === 'tobii' || this.sourceType === 'tobii-with-event') &&
+        this.userInput !== ''
+      ) {
+        throw new Error(
+          'No intervals to form stimuli were found. Try default media parsing.'
+        )
+      }
+      throw new Error(
+        `Parsing unsuccessful: ${
+          maxStimuli === 0 ? 'No stimuli found' : 'No participants found'
+        }. Please check your data file.`
+      )
+    }
 
     // Allocate final contiguous buffers
     const finalSegBuffer = new Float32Array(this.totalSegments * SEGMENT_STRIDE)
