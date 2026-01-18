@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte'
+  import { onDestroy } from 'svelte'
   import { fade } from 'svelte/transition'
   import GridItemButton from './GridItemButton.svelte'
   import GridItemContainer from './GridItemContainer.svelte'

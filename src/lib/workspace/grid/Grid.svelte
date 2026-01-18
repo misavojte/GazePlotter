@@ -523,10 +523,12 @@
   }
 </script>
 
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div
   class="grid-container"
   style="width: {gridWidth}px;"
   onmousedown={handleWorkspacePanStart}
+  role="application"
 >
   {#if processingFileStateStore === 'done'}
     {#if !gridIsEmpty}
@@ -567,5 +569,3 @@
     {/if}
   {/if}
 </div>
-
-<!-- Note: No styles included as per requirement to extract purely grid functionality without styling -->
