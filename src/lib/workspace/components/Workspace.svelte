@@ -24,7 +24,7 @@
   } from '$lib/shared/utils/gridSizingUtils'
   import { throttleByRaf } from '$lib/shared/utils/throttle'
   import { addSuccessToast, addErrorToast } from '$lib/toaster'
-  import { createCommandHandler } from '$lib/workspace/services/workspaceCommandHandler'
+  import { createCommandHandler } from '$lib/workspace/commands/handler'
   import type {
     WorkspaceCommand,
     WorkspaceCommandChain,
@@ -785,7 +785,7 @@
       console.error('Command error:', error)
       addErrorToast('Error applying changes. See console for details.')
     },
-    onWorkspaceCommandChain
+    command => onWorkspaceCommandChain(command)
   )
 
   const handleWorkspaceCommand = (

@@ -6,7 +6,7 @@ import {
   finalizeChain,
   endUndoRedo,
 } from '$lib/workspace/stores/undoRedoStore'
-import { createWorkspaceCommandRegistry } from '$lib/workspace/commands/registry'
+import { createWorkspaceCommandRegistry } from './registry'
 import { getCommandLabel } from '$lib/workspace/const/workspaceCommandLabels'
 
 /**

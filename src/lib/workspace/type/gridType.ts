@@ -93,16 +93,7 @@ export interface BarPlotGridType extends GridType {
   /** Method for sorting the bars */
   sortBars: 'none' | 'ascending' | 'descending'
   /** Method used for aggregating the data */
-  aggregationMethod:
-    | 'absoluteTime'
-    | 'relativeTime'
-    | 'timeToFirstFixation'
-    | 'avgFixationDuration'
-    | 'avgFirstFixationDuration'
-    | 'averageFixationCount'
-    | 'hitRatio'
-    | 'averageEntries'
-    | 'avgDwellDuration'
+  aggregationMethod: string
   /**
    * Scale range in [start, end] format.
    * For start (index 0): The minimum value for the scale.

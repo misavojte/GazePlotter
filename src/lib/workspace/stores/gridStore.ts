@@ -533,6 +533,16 @@ export function createGridStore(
     return newItem.id
   }
 
+  /**
+   * Partially updates an existing item by id.
+   */
+  const updateItem = (id: number, updates: Partial<AllGridTypes>) => {
+    const { type: _ignoredType, ...safeUpdates } = updates
+    items.update($items =>
+      $items.map(item => (item.id === id ? { ...item, ...safeUpdates } : item))
+    )
+  }
+
   // Store API
   return {
     subscribe: items.subscribe,
@@ -540,14 +550,18 @@ export function createGridStore(
     update: (updater: (items: AllGridTypes[]) => AllGridTypes[]) =>
       items.update(updater),
 
+    updateItem,
+
     triggerRedraw: (id?: number) => {
       const timestamp = Date.now()
+
+      if (id !== undefined) {
+        updateItem(id, { redrawTimestamp: timestamp })
+        return
+      }
+
       items.update($items =>
-        id !== undefined
-          ? $items.map(item =>
-              item.id === id ? { ...item, redrawTimestamp: timestamp } : item
-            )
-          : $items.map(item => ({ ...item, redrawTimestamp: timestamp }))
+        $items.map(item => ({ ...item, redrawTimestamp: timestamp }))
       )
     },
 
@@ -576,13 +590,6 @@ export function createGridStore(
       })
     },
 
-    updateSettings: (settings: AllGridTypes) => {
-      items.update($items =>
-        $items.map(item =>
-          item.id === settings.id ? { ...item, ...settings } : item
-        )
-      )
-    },
     removeItem: (id: number) => {
       items.update($items => $items.filter(item => item.id !== id))
     },
