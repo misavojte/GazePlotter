@@ -1,11 +1,22 @@
-import { writable } from 'svelte/store'
-import type { ToastFillingType } from '$lib/toaster/types/ToastFillingType'
+import type { ToastFillingType } from './types'
 import { generateUniqueId } from '$lib/shared/utils/idUtils'
 
-export const toastStore = writable<ToastFillingType[]>([])
+let _toasts = $state<ToastFillingType[]>([])
+
+/**
+ * Global accessor for the toast state.
+ */
+export const toastState = {
+  get current() { return _toasts },
+  set current(value: ToastFillingType[]) { _toasts = value }
+}
 
 export const addToast = (toast: ToastFillingType): void => {
-  toastStore.update(toasts => [...toasts, toast])
+  _toasts.push(toast)
+}
+
+export const removeToast = (id: number): void => {
+  _toasts = _toasts.filter(t => t.id !== id)
 }
 
 export const addErrorToast = (message: string): void => {

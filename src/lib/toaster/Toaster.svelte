@@ -1,42 +1,46 @@
 <script lang="ts">
   import { flip } from 'svelte/animate'
   import { fly } from 'svelte/transition'
-  import type { ToastFillingType } from '$lib/toaster/types/ToastFillingType'
-  import { toastStore } from '$lib/toaster/stores/toastStore'
+  import type { ToastFillingType } from './types'
+  import { toastState, removeToast } from './toastState.svelte'
 
   const timers = new Map<number, ReturnType<typeof setTimeout>>()
+
   const clearTimer = (id: number) => {
     if (timers.has(id)) {
       clearTimeout(timers.get(id))
       timers.delete(id)
     }
   }
+
   const setRemovalTimer = (toast: ToastFillingType) => {
-    if (!toast.duration) return
+    if (!toast.duration || timers.has(toast.id)) return
     const timer = setTimeout(() => {
       removeToast(toast.id)
     }, toast.duration)
     timers.set(toast.id, timer)
   }
-  const removeToast = (id: number) => {
-    toastStore.update(n => n.filter(t => t.id !== id))
-    clearTimer(id)
-  }
 
-  let toasts: ToastFillingType[] = $state([])
-  toastStore.subscribe(value => {
-    toasts = value
-    toasts.forEach(setRemovalTimer)
+  $effect(() => {
+    toastState.current.forEach(setRemovalTimer)
+  })
+
+  $effect(() => {
+    // Cleanup timers when component is destroyed
+    return () => {
+      timers.forEach((timer) => clearTimeout(timer))
+      timers.clear()
+    }
   })
 </script>
 
 <div class="toaster">
-  {#each toasts as { id, type, title, message } (id)}
+  {#each toastState.current as { id, type, title, message } (id)}
     <div
       class="toast"
       animate:flip={{ duration: 500 }}
-      in:fly={{ duration: 300 }}
-      out:fly={{ duration: 300 }}
+      in:fly={{ duration: 300, x: 20 }}
+      out:fly={{ duration: 300, x: 20 }}
     >
       <div class="toast-header">
         <div class="title">
@@ -74,16 +78,19 @@
     right: 20px;
     z-index: 9999;
     width: 250px;
+    pointer-events: none;
   }
   .toast {
+    pointer-events: auto;
     border-radius: var(--rounded-md);
     background: var(--c-white);
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     color: var(--c-black);
     margin-bottom: 10px;
     width: 220px;
     font-size: 14px;
     padding: 10px 15px;
+    border: 1px solid #88888820;
   }
 
   .circle {
@@ -120,19 +127,20 @@
   button.close {
     border: none;
     background-color: transparent;
-    font-size: 1rem;
+    font-size: 1.2rem;
     cursor: pointer;
-    padding: 0.25rem;
-    margin-right: -0.5rem;
-    border-radius: 50%;
-    width: 1.5rem;
-    height: 1.5rem;
+    padding: 0;
+    margin-right: -5px;
+    width: 20px;
+    height: 20px;
     display: flex;
     justify-content: center;
     align-items: center;
+    color: #999;
+    transition: color 0.2s;
   }
-  button:hover {
-    background-color: #eee;
+  button.close:hover {
+    color: var(--c-black);
   }
 
   .title {

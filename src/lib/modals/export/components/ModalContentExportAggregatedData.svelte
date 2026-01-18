@@ -23,7 +23,7 @@
     collectParticipantsEntryCountData,
     collectParticipantsDwellDurationData,
   } from '$lib/plots/bar/utils/collectParticipantMetricsUtils'
-  import { addSuccessToast } from '$lib/toaster/stores'
+  import { addSuccessToast } from '$lib/toaster'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'
   import {
