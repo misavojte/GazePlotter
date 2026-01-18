@@ -8,12 +8,20 @@ import type {
   ParticipantsGroup,
 } from '$lib/gaze-data/shared/types'
 import { BinaryBufferReader } from '$lib/gaze-data/shared/types'
+import { engine } from './dataStore.svelte'
 
 // Constants for fast AOI mapping store
 const MAX_STIMULUS = 256 // Maximum number of stimuli we can handle
 const MAX_AOI_PER_STIMULUS = 256 // Maximum number of AOIs per stimulus
 
 export const data = writable<DataType>()
+
+// Initialize the engine when data is loaded
+data.subscribe($data => {
+  if ($data) {
+    engine.loadDataset($data);
+  }
+});
 
 // ============================================================================
 // PRIVATE MODULE-LEVEL STATE: The High-Performance Engine
@@ -1083,25 +1091,7 @@ export const updateMultipleAoi = (
 
 /**
  * Returns segments for a given stimulus and participant, optionally filtered by categories and/or AOIs.
- * This function is optimized for performance using direct array access and minimal object creation.
- * It applies AOI ID mapping to remove duplicates and ensure grouped AOIs are treated as a single entity.
- *
- * Works with both legacy nested array format and new binary buffer format.
- *
- * We avoid using .splice() and similar more readable methods to avoid unnecessary allocations as
- * this is frequently called function with a lot of querying.
- *
- * @param stimulusId - The numeric ID of the stimulus
- * @param participantId - The numeric ID of the participant
- * @param whereCategories - Optional array of category IDs to filter by. If null, all categories are included.
- * @param whereAois - Optional array of AOI IDs to filter by. If null, all AOIs are included.
- * @param limit - Optional maximum number of segments to return. If null, all matching segments are returned.
- * @param offset - Optional starting index for the segments
- * @returns Array of SegmentInterpretedDataType matching the criteria, limited by the limit parameter if provided
- */
-/**
- * Returns segments for a given stimulus and participant, optionally filtered by categories and/or AOIs.
- * This function is optimized for performance using BinaryBufferReader for zero-allocation segment iteration.
+ * This function is optimized for performance using the DataEngine for zero-allocation segment iteration.
  * It applies AOI ID mapping to remove duplicates and ensure grouped AOIs are treated as a single entity.
  *
  * @param stimulusId - The numeric ID of the stimulus
@@ -1120,121 +1110,95 @@ export const getSegments = (
   limit: number | null = null,
   offset: number = 0
 ): SegmentInterpretedDataType[] => {
-  const currentData = getData()
-  const reader = new BinaryBufferReader(currentData.segments)
-  const range = reader.getSegmentRange(stimulusId, participantId)
-  const segmentCount = range.endIndex - range.startIndex
+  const reader = engine.getReader();
+  if (!reader) return [];
 
-  const hidden = currentData.aois.hiddenAois?.[stimulusId] ?? []
-  const hiddenSet = hidden.length ? new Set<number>(hidden) : null
+  const range = reader.getSegmentRange(stimulusId, participantId);
+  const segmentCount = range.endIndex - range.startIndex;
 
   // Early returns for empty data
-  if (segmentCount === 0) return []
-  if (limit === 0) return []
-  if (offset >= segmentCount) return []
+  if (segmentCount === 0) return [];
+  if (limit === 0) return [];
+  if (offset >= segmentCount) return [];
+
+  const hidden = getHiddenAois(stimulusId);
+  const hiddenSet = hidden.length ? new Set<number>(hidden) : null;
 
   // Pre-allocate result array
   const estimatedResultSize =
     limit !== null
       ? Math.min(segmentCount - offset, limit)
-      : segmentCount - offset
-  const result: SegmentInterpretedDataType[] = []
+      : segmentCount - offset;
+  const result: SegmentInterpretedDataType[] = [];
 
   // Pre-compute filter lookups
-  const categoryFilter = whereCategories ? new Set(whereCategories) : null
-  const aoiFilter = whereAois ? new Set(whereAois) : null
+  const categoryFilter = whereCategories ? new Set(whereCategories) : null;
+  const aoiFilter = whereAois ? new Set(whereAois) : null;
 
-  // Use the private module-level cache for ultra-fast access
-  // No derived store subscriptions or get() calls - direct TypedArray access
-  const mappingOffset = stimulusId * MAX_AOI_PER_STIMULUS
-  const orderVector = getAoiOrderVector(stimulusId)
-  const uniqueAoiIds = new Set<number>()
+  // SHARED BUFFER optimization: Use one Set for the whole loop 
+  // instead of creating thousands of Sets.
+  const uniqueAois = new Set<number>();
 
-  let resultCount = 0
+  let resultCount = 0;
   const processTo = Math.min(
     range.endIndex,
     range.startIndex + offset + (limit ?? segmentCount)
-  )
+  );
 
   for (
     let i = range.startIndex + offset;
     i < processTo && (limit === null || resultCount < limit);
     i++
   ) {
-    const categoryId = reader.getSegmentCategory(i)
+    const categoryId = reader.getSegmentCategory(i);
 
     // Fast category filter check
     if (categoryFilter && !categoryFilter.has(categoryId)) {
-      continue
+      continue;
     }
 
-    // Get raw AOI IDs from binary buffer
-    const rawAoiIds = reader.getSegmentAois(i, stimulusId, false) // Get raw IDs without grouping
+    // Get raw AOI IDs as subarray view (zero allocation)
+    const rawIds = reader.getRawAois(i);
 
     // Process AOI filter if needed
     if (aoiFilter) {
-      let hasMatchingAoi = false
-      for (const aoiId of rawAoiIds) {
-        if (hiddenSet && hiddenSet.has(aoiId)) continue
-        // Fast mapping via private TypedArray (O(1) direct access)
-        let mappedId = aoiId
-        if (
-          stimulusId < _stimuliCount &&
-          aoiId < _aoiCounts[stimulusId] &&
-          aoiId < MAX_AOI_PER_STIMULUS
-        ) {
-          const mappedValue = _mappingArray[mappingOffset + aoiId]
-          mappedId = mappedValue === 0xffff ? aoiId : mappedValue
-        }
-
+      let hasMatchingAoi = false;
+      for (let j = 0; j < rawIds.length; j++) {
+        const rawId = rawIds[j];
+        if (hiddenSet && hiddenSet.has(rawId)) continue;
+        const mappedId = engine.getAoiMapping(stimulusId, rawId);
         if (aoiFilter.has(mappedId)) {
-          hasMatchingAoi = true
-          break
+          hasMatchingAoi = true;
+          break;
         }
       }
 
       if (!hasMatchingAoi) {
-        continue
+        continue;
       }
     }
 
     // At this point, segment passed all filters
-    const start = reader.getSegmentStart(i)
-    const end = reader.getSegmentEnd(i)
+    const start = reader.getSegmentStart(i);
+    const end = reader.getSegmentEnd(i);
 
-    // Sort and map AOI IDs
-    uniqueAoiIds.clear()
-    const sortedIds: number[] = []
+    // Clear and reuse the shared Set
+    uniqueAois.clear();
 
-    // Apply order vector sorting
-    for (const orderedId of orderVector) {
-      if (hiddenSet && hiddenSet.has(orderedId)) continue
-      if (rawAoiIds.includes(orderedId)) {
-        sortedIds.push(orderedId)
-      }
-    }
-
-    // Map and deduplicate
-    for (const aoiId of sortedIds) {
-      if (hiddenSet && hiddenSet.has(aoiId)) continue
-      let mappedId = aoiId
-      if (
-        stimulusId < _stimuliCount &&
-        aoiId < _aoiCounts[stimulusId] &&
-        aoiId < MAX_AOI_PER_STIMULUS
-      ) {
-        const mappedValue = _mappingArray[mappingOffset + aoiId]
-        mappedId = mappedValue === 0xffff ? aoiId : mappedValue
-      }
-      uniqueAoiIds.add(mappedId)
+    // Map and deduplicate AOI IDs
+    for (let j = 0; j < rawIds.length; j++) {
+      const rawId = rawIds[j];
+      if (hiddenSet && hiddenSet.has(rawId)) continue;
+      const mappedId = engine.getAoiMapping(stimulusId, rawId);
+      uniqueAois.add(mappedId);
     }
 
     // Convert to AOI objects
-    const aoi = Array.from(uniqueAoiIds).map(aoiId =>
-      getAoiRaw(stimulusId, aoiId, currentData)
-    )
+    const aoi = Array.from(uniqueAois).map(aoiId =>
+      getAoiRaw(stimulusId, aoiId, getData())
+    );
 
-    const category = getCategory(categoryId)
+    const category = getCategory(categoryId);
 
     result.push({
       id: i - range.startIndex, // Relative segment ID
@@ -1242,12 +1206,12 @@ export const getSegments = (
       end,
       aoi,
       category,
-    })
+    });
 
-    resultCount++
+    resultCount++;
   }
 
-  return result
+  return result;
 }
 
 export const updateMultipleParticipants = (

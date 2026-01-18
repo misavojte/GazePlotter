@@ -43,7 +43,6 @@ const postDoneMessage = (dataWithSettings: PipelineResult): void => {
     data.segments.segmentBuffer.buffer,
     data.segments.indexTable.buffer,
     data.segments.aoiPool.buffer,
-    data.segments.groupMap.buffer,
   ]
 
   self.postMessage(

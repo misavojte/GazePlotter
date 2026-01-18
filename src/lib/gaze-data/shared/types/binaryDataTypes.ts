@@ -38,8 +38,7 @@ export const enum SegmentField {
  * - AOI Overflow Pool: Uint16Array storing all AOI IDs for all segments
  *   Segments reference their AOIs via pointer + count into this pool
  *
- * - Grouping Map: Uint16Array mapping raw AOI IDs to representative group IDs
- *   Enables O(1) resolution of AOI name-based grouping
+ * - groupMap REMOVED: Interpretation belongs to the metadata layer
  */
 export interface BinarySegmentBuffers {
   /**
@@ -60,13 +59,6 @@ export interface BinarySegmentBuffers {
    * Each segment's AOIs occupy a contiguous slice referenced by aoiPointer.
    */
   aoiPool: Uint16Array
-
-  /**
-   * Grouping map: translates raw AOI IDs to group representative IDs.
-   * For stimulus s, rawAoiId: groupMap[s * MAX_AOI_PER_STIMULUS + rawAoiId] = repId
-   * Value 0xFFFF indicates identity mapping (no grouping).
-   */
-  groupMap: Uint16Array
 
   /**
    * Maximum participants per stimulus (for index table calculations)
@@ -114,7 +106,6 @@ export class BinaryBufferReader {
   private segmentBuffer: Float32Array
   private indexTable: Uint32Array
   private aoiPool: Uint16Array
-  private groupMap: Uint16Array
   private maxParticipants: number
   private stimuliCount: number
 
@@ -122,7 +113,6 @@ export class BinaryBufferReader {
     this.segmentBuffer = buffers.segmentBuffer
     this.indexTable = buffers.indexTable
     this.aoiPool = buffers.aoiPool
-    this.groupMap = buffers.groupMap
     this.maxParticipants = buffers.maxParticipants
     this.stimuliCount = buffers.stimuliCount
   }
@@ -222,6 +212,18 @@ export class BinaryBufferReader {
   }
 
   /**
+   * Returns a direct subarray view of the AOIs for a segment.
+   * PERFORMANCE: Zero allocations. This is a pointer to existing memory.
+   */
+  getRawAois(segmentIndex: number): Uint16Array {
+    const base = segmentIndex * SEGMENT_STRIDE
+    const count = this.segmentBuffer[base + SegmentField.AOI_COUNT] | 0
+    const ptr = this.segmentBuffer[base + SegmentField.AOI_POINTER] | 0
+    
+    return this.aoiPool.subarray(ptr, ptr + count);
+  }
+
+  /**
    * Retrieve the list of AOI IDs for a segment.
    *
    * @param segmentIndex - Global index in master buffer
@@ -243,7 +245,6 @@ export class BinaryBufferReader {
     }
 
     const result: number[] = []
-    const groupMapOffset = stimulusId * MAX_AOI_PER_STIMULUS
 
     if (!useGrouping) {
       // Return raw AOI IDs without grouping
@@ -251,15 +252,17 @@ export class BinaryBufferReader {
         result.push(this.aoiPool[ptr + i])
       }
     } else {
-      // Apply grouping and deduplicate
+      // Apply grouping and deduplicate - NOTE: This requires external mapping
+      // This method is kept for backward compatibility but should be avoided
+      // in favor of using getRawAois() with external mapping
       const seen = new Set<number>()
       for (let i = 0; i < count; i++) {
         const rawId = this.aoiPool[ptr + i]
-        const mapped = this.groupMap[groupMapOffset + rawId]
-        const groupId = mapped === 0xffff ? rawId : mapped
-        if (!seen.has(groupId)) {
-          seen.add(groupId)
-          result.push(groupId)
+        // Without groupMap, we can't apply grouping here
+        // This will be handled by the DataEngine's mapping
+        if (!seen.has(rawId)) {
+          seen.add(rawId)
+          result.push(rawId)
         }
       }
     }
@@ -295,7 +298,6 @@ export class BinaryBufferReader {
       segmentBuffer: this.segmentBuffer,
       indexTable: this.indexTable,
       aoiPool: this.aoiPool,
-      groupMap: this.groupMap,
       maxParticipants: this.maxParticipants,
       stimuliCount: this.stimuliCount,
     }

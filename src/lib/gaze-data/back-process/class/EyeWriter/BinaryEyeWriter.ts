@@ -395,9 +395,6 @@ export class BinaryEyeWriter {
         segmentBuffer: finalSegBuffer.subarray(0, segPtr * SEGMENT_STRIDE),
         indexTable,
         aoiPool: aoiPool.subarray(0, poolPtr),
-        groupMap: new Uint16Array(maxStimuli * MAX_AOI_PER_STIMULUS).fill(
-          0xffff
-        ),
         maxParticipants,
         stimuliCount: maxStimuli,
       },

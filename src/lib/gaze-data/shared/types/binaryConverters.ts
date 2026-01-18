@@ -31,7 +31,6 @@ export function jsonSegmentsToBinary(
       segmentBuffer: new Float32Array(0),
       indexTable: new Uint32Array(0),
       aoiPool: new Uint16Array(0),
-      groupMap: groupMap ?? new Uint16Array(0),
       maxParticipants: 0,
       stimuliCount: 0,
     }
@@ -65,11 +64,6 @@ export function jsonSegmentsToBinary(
   const segmentBuffer = new Float32Array(totalSegments * SEGMENT_STRIDE)
   const indexTable = new Uint32Array(stimuliCount * maxParticipants * 2)
   const aoiPool = new Uint16Array(totalAois)
-
-  // Initialize groupMap if not provided (identity mapping)
-  const finalGroupMap =
-    groupMap ??
-    new Uint16Array(stimuliCount * MAX_AOI_PER_STIMULUS).fill(0xffff)
 
   // Second pass: populate buffers
   let segmentIndex = 0
@@ -117,7 +111,6 @@ export function jsonSegmentsToBinary(
     segmentBuffer,
     indexTable,
     aoiPool,
-    groupMap: finalGroupMap,
     maxParticipants,
     stimuliCount,
   }
@@ -186,10 +179,9 @@ export function binarySegmentsToJson(
  * Convenience method that combines conversion and reader creation.
  */
 export function createReaderFromJson(
-  segments: number[][][][],
-  groupMap?: Uint16Array
+  segments: number[][][][]
 ): BinaryBufferReader {
-  const buffers = jsonSegmentsToBinary(segments, groupMap)
+  const buffers = jsonSegmentsToBinary(segments)
   return new BinaryBufferReader(buffers)
 }
 

@@ -62,11 +62,6 @@ function validateBasicStructure(data: DataType): void {
  * @returns The normalized DataType with complete structure
  */
 export function normalizeDataStructure(data: DataType): DataType {
-  // Create segments array if it doesn't exist
-  if (!data.segments) {
-    data.segments = []
-  }
-
   // Initialize noAoiTreatment with defaults if missing
   if (!data.noAoiTreatment) {
     data.noAoiTreatment = { ...DEFAULT_NO_AOI_TREATMENT }
@@ -87,22 +82,6 @@ export function normalizeDataStructure(data: DataType): DataType {
   for (let stimulusIndex = 0; stimulusIndex < stimuliCount; stimulusIndex++) {
     if (!Array.isArray(data.aois.hiddenAois[stimulusIndex])) {
       data.aois.hiddenAois[stimulusIndex] = []
-    }
-  }
-
-  // Ensure segments array has an entry for each stimulus
-  while (data.segments.length < stimuliCount) {
-    data.segments.push([])
-  }
-
-  // For each stimulus, ensure we have initialized participant arrays
-  for (let stimulusIndex = 0; stimulusIndex < stimuliCount; stimulusIndex++) {
-    const stimulusSegments = data.segments[stimulusIndex] || []
-    data.segments[stimulusIndex] = stimulusSegments
-
-    // Ensure each stimulus has entries for all participants (even if empty)
-    while (stimulusSegments.length < participantsCount) {
-      stimulusSegments.push([])
     }
   }
 
@@ -162,9 +141,7 @@ export function validateSegments(
   }
 
   // Convert to binary format for efficient processing
-  // Note: groupMap is extracted from data.aois.fastIdMappings if available
-  const groupMap = data.aois?.fastIdMappings?.array
-  const binarySegments = jsonSegmentsToBinary(data.segments, groupMap)
+  const binarySegments = jsonSegmentsToBinary(data.segments)
 
   return {
     ...data,
@@ -185,27 +162,32 @@ export function processJsonFile(fileContent: string): DataType {
   const parsed = JSON.parse(fileContent)
 
   // Determine the format and extract the data
-  let data: DataType
   if (isNewFormat(parsed)) {
-    data = parsed.data
+    // For new format, data is already in DataType format
+    const data = parsed.data
+    // Validate basic structure
+    validateBasicStructure(data)
+    // Normalize the data structure to handle missing participants in stimuli
+    const normalizedData = normalizeDataStructure(data)
+    // Convert segments to binary format if needed
+    if (Array.isArray(normalizedData.segments)) {
+      return validateSegments(normalizedData as DataType & { segments: number[][][][] })
+    }
+    return normalizedData
   } else if (isOldFormat(parsed)) {
-    data = parsed
+    // For old format, we need to convert segments to binary
+    const data = parsed as unknown as DataType & { segments: number[][][][] }
+    // Validate basic structure
+    validateBasicStructure(data)
+    // Normalize the data structure
+    const normalizedData = normalizeDataStructure(data)
+    // Convert segments to binary format
+    return validateSegments(normalizedData as DataType & { segments: number[][][][] })
   } else {
     throw new Error(
       'Invalid JSON format: file must be GazePlotter JSON format (legacy or version 2 or 3)'
     )
   }
-
-  // Validate basic structure
-  validateBasicStructure(data)
-
-  // Normalize the data structure to handle missing participants in stimuli
-  data = normalizeDataStructure(data)
-
-  // Validate segments and ensure consistency
-  data = validateSegments(data)
-
-  return data
 }
 
 /**
@@ -237,8 +219,11 @@ export function processJsonFileWithGrid(
     // Normalize the data structure
     const normalizedData = normalizeDataStructure(parsed.data)
 
-    // Validate and convert segments to binary
-    const processedData = validateSegments(normalizedData)
+    // Validate and convert segments to binary if needed
+    let processedData = normalizedData
+    if (Array.isArray(normalizedData.segments)) {
+      processedData = validateSegments(normalizedData as DataType & { segments: number[][][][] })
+    }
 
     return {
       ...parsed,

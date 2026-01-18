@@ -8,7 +8,6 @@
 
   // Reusable types for props (concise)
   type GridRect = { id: number; x: number; y: number; w: number; h: number }
-  type Bounds = { left: number; right: number; top: number; bottom: number }
 
   type PreviewUpdate = {
     id: number

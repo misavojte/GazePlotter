@@ -15,6 +15,7 @@ import {
 import { AdaptiveTimeline } from '$lib/plots/shared/class/AdaptiveTimeline'
 import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
 import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
+import { engine } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
 
 const DEFAULT_BIN_COUNT = 200
 const END_BIN_EPSILON = 1e-6
@@ -73,7 +74,6 @@ export function getAoiStreamPlotData(
   const buffers = reader.getBuffers()
   const segmentBuffer = buffers.segmentBuffer
   const aoiPool = buffers.aoiPool
-  const groupMap = buffers.groupMap
 
   const hidden = getHiddenAois(stimulusId)
   const hiddenSet = hidden.length ? new Set<number>(hidden) : null
@@ -136,13 +136,11 @@ export function getAoiStreamPlotData(
         let hasAnyAoi = false
 
         if (aoiCount > 0) {
-          const mapOffset = stimulusId * MAX_AOI_PER_STIMULUS
           for (let i = 0; i < aoiCount; i++) {
             const rawId = aoiPool[ptr + i]
             if (hiddenSet && hiddenSet.has(rawId)) continue
 
-            const mapped = groupMap[mapOffset + rawId]
-            const groupId = mapped === 0xffff ? rawId : mapped
+            const groupId = engine.getAoiMapping(stimulusId, rawId)
             const seriesIndex = aoiIndexById.get(groupId)
             if (seriesIndex == null) continue
             if (seenStamp[seriesIndex] === stamp) continue

@@ -50,18 +50,26 @@ describe('workspaceCommandReverse', () => {
           '1_0_1': [0, 100, 104, 120], // stimulusId_aoiId_participantId: visibility blocks
           '1_1_1': [10, 20, 30, 40],
         },
+        hiddenAois: [],
+        orderVector: [],
       },
       participants: {
         data: [
           ['Participant1', 'Participant 1'],
           ['Participant2', 'Participant 2'],
         ],
+        orderVector: [],
       },
       stimuli: {
         data: [
           ['Stimulus1', 'Stimulus 1'],
           ['Stimulus2', 'Stimulus 2'],
         ],
+        orderVector: [],
+      },
+      categories: {
+        data: [],
+        orderVector: [],
       },
       participantsGroups: [
         {
@@ -70,6 +78,11 @@ describe('workspaceCommandReverse', () => {
           participantIds: [1, 2],
         },
       ],
+      noAoiTreatment: {
+        displayedName: 'No AOI',
+        color: '#CCCCCC',
+      },
+      isOrdinalOnly: false,
     }
 
     vi.mocked(getData).mockReturnValue(mockData)
@@ -420,11 +433,14 @@ describe('workspaceCommandReverse', () => {
         categories: { data: [], orderVector: [] },
         participantsGroups: [],
         stimuli: { data: [], orderVector: [] },
+        noAoiTreatment: {
+          displayedName: 'No AOI',
+          color: '#CCCCCC',
+        },
         segments: {
           segmentBuffer: new Float32Array(0),
           indexTable: new Uint32Array(0),
           aoiPool: new Uint16Array(0),
-          groupMap: new Uint16Array(0),
           maxParticipants: 0,
           stimuliCount: 0,
         },
@@ -481,11 +497,14 @@ describe('workspaceCommandReverse', () => {
         categories: { data: [], orderVector: [] },
         participants: { data: [], orderVector: [] },
         participantsGroups: [],
+        noAoiTreatment: {
+          displayedName: 'No AOI',
+          color: '#CCCCCC',
+        },
         segments: {
           segmentBuffer: new Float32Array(0),
           indexTable: new Uint32Array(0),
           aoiPool: new Uint16Array(0),
-          groupMap: new Uint16Array(0),
           maxParticipants: 0,
           stimuliCount: 0,
         },
@@ -584,11 +603,21 @@ describe('workspaceCommandReverse', () => {
       vi.mocked(getData).mockReturnValue({
         participantsGroups: [],
         isOrdinalOnly: false,
-        aois: { data: [], orderVector: [], dynamicVisibility: {} },
+        aois: { data: [], orderVector: [], dynamicVisibility: {}, hiddenAois: [] },
         categories: { data: [], orderVector: [] },
         participants: { data: [], orderVector: [] },
         stimuli: { data: [], orderVector: [] },
-        segments: [],
+        noAoiTreatment: {
+          displayedName: 'No AOI',
+          color: '#CCCCCC',
+        },
+        segments: {
+          segmentBuffer: new Float32Array(0),
+          indexTable: new Uint32Array(0),
+          aoiPool: new Uint16Array(0),
+          maxParticipants: 0,
+          stimuliCount: 0,
+        },
       })
 
       const command: WorkspaceCommandChain = {
@@ -652,11 +681,14 @@ describe('workspaceCommandReverse', () => {
         participants: { data: [], orderVector: [] },
         participantsGroups: [],
         stimuli: { data: [], orderVector: [] },
+        noAoiTreatment: {
+          displayedName: 'No AOI',
+          color: '#CCCCCC',
+        },
         segments: {
           segmentBuffer: new Float32Array(0),
           indexTable: new Uint32Array(0),
           aoiPool: new Uint16Array(0),
-          groupMap: new Uint16Array(0),
           maxParticipants: 0,
           stimuliCount: 0,
         },
