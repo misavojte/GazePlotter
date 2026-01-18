@@ -13,8 +13,8 @@
   import type {
     WorkspaceCommand,
     WorkspaceCommandChain,
-  } from '$lib/shared/types/workspaceInstructions'
-  import { createRootCommand } from '$lib/shared/types/workspaceInstructions'
+  } from '$lib/workspace/commands'
+  import { createRootCommand } from '$lib/workspace/commands'
   import { ModalContentMetadataInfo } from '$lib/modals'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { generateUniqueId } from '$lib/shared/utils/idUtils'

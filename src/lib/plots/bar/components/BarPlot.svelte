@@ -6,7 +6,9 @@
   // Local components
   import { BarPlotFigure, BarPlotButtonMenu } from '$lib/plots/bar/components'
   import { PlotPlaceholder } from '$lib/plots/shared/components'
-  import Select, { type GroupSelectItem } from '$lib/shared/components/GeneralSelect.svelte'
+  import Select, {
+    type GroupSelectItem,
+  } from '$lib/shared/components/GeneralSelect.svelte'
 
   // Utilities and stores
   import { DEFAULT_GRID_CONFIG } from '$lib/shared/utils/gridSizingUtils'
@@ -19,8 +21,8 @@
   import type { BarPlotGridType } from '$lib/workspace/type/gridType'
   import type { BarPlotAggregationMethodId } from '$lib/plots/bar/const'
   import { BAR_PLOT_AGGREGATION_METHODS } from '$lib/plots/bar/const'
-  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
-  import { createCommandSourcePlotPattern } from '$lib/shared/types/workspaceInstructions'
+  import type { WorkspaceCommand } from '$lib/workspace/commands'
+  import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
   // CONSTANTS - centralized for easier maintenance
   const LAYOUT = {
@@ -65,7 +67,7 @@
       source,
       settings: {
         stimulusId: parseInt(newStimulusId),
-      }
+      },
     })
   }
 
@@ -77,7 +79,7 @@
       source,
       settings: {
         groupId: parseInt(newGroupId),
-      }
+      },
     })
   }
 
@@ -89,10 +91,9 @@
       source,
       settings: {
         aggregationMethod: newAggregationMethod,
-      }
+      },
     })
   }
-
 
   let stimulusOptions =
     $state<{ label: string; value: string }[]>(getStimuliOptions())
@@ -152,12 +153,14 @@
 <div class="bar-plot-container">
   <div class="header">
     <div class="controls">
-      <Select ariaLabel="Bar filters" items={selectItems} label="Bar" options={[]} />
+      <Select
+        ariaLabel="Bar filters"
+        items={selectItems}
+        label="Bar"
+        options={[]}
+      />
       <div class="menu-button">
-        <BarPlotButtonMenu
-          {settings}
-          {onWorkspaceCommand}
-        />
+        <BarPlotButtonMenu {settings} {onWorkspaceCommand} />
       </div>
     </div>
   </div>

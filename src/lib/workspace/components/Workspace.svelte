@@ -28,8 +28,8 @@
   import type {
     WorkspaceCommand,
     WorkspaceCommandChain,
-  } from '$lib/shared/types/workspaceInstructions'
-  import { createRootCommand } from '$lib/shared/types/workspaceInstructions'
+  } from '$lib/workspace/commands'
+  import { createRootCommand } from '$lib/workspace/commands'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
   interface Props {

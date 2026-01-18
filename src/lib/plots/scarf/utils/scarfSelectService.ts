@@ -1,5 +1,5 @@
 import type { ScarfGridType } from '$lib/workspace/type/gridType'
-import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+import type { WorkspaceCommand } from '$lib/workspace/commands'
 import {
   getDynamicAoiBoolean,
   getScarfGridHeightFromCurrentData,

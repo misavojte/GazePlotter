@@ -1,7 +1,7 @@
 import { writable, get, derived } from 'svelte/store'
-import type { AllGridTypes } from '$lib/workspace/type/gridType'
+import type { AllGridTypes } from '$lib/workspace'
 // Import necessary dependencies moved from Workspace.svelte
-import { getVisualizationConfig } from '$lib/workspace/const'
+import { getVisualizationConfig } from '$lib/workspace'
 import { DEFAULT_GRID_CONFIG } from '$lib/shared/utils/gridSizingUtils'
 import { generateUniqueId } from '$lib/shared/utils/idUtils'
 

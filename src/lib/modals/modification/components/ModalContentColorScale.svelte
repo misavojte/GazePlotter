@@ -1,7 +1,7 @@
 <script lang="ts">
   import { GeneralInputColor, GeneralButtonMinor } from '$lib/shared/components'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
-  import type { UpdateSettingsCommand } from '$lib/shared/types/workspaceInstructions'
+  import type { UpdateSettingsCommand } from '$lib/workspace/commands'
   import { interpolateColor } from '$lib/shared/utils/colorUtils'
   import {
     SectionHeader,
@@ -11,8 +11,8 @@
   } from '$lib/modals'
 
   interface Props {
-    settings: TransitionMatrixGridType,
-    source: string,
+    settings: TransitionMatrixGridType
+    source: string
     onWorkspaceCommand: (command: UpdateSettingsCommand) => void
   }
 
@@ -20,25 +20,27 @@
 
   // Initialize colors with current values or defaults
   let colorMin = $state(settings.colorScale?.[0] || '#f7fbff')
-  
+
   // Initialize max color - handle both 2-color and 3-color scales correctly
   let colorMax = $state(
-    settings.colorScale?.length === 3 
-      ? settings.colorScale[2]  // For 3-color: [min, middle, max]
-      : settings.colorScale?.[1] || '#08306b'  // For 2-color: [min, max]
+    settings.colorScale?.length === 3
+      ? settings.colorScale[2] // For 3-color: [min, middle, max]
+      : settings.colorScale?.[1] || '#08306b' // For 2-color: [min, max]
   )
-  
+
   // Initialize middle color - use existing value if available, otherwise auto-calculate
   let colorMiddle = $state(
-    settings.colorScale?.length === 3 
-      ? settings.colorScale[1] 
+    settings.colorScale?.length === 3
+      ? settings.colorScale[1]
       : interpolateColor(
           settings.colorScale?.[0] || '#f7fbff',
-          settings.colorScale?.length === 3 ? settings.colorScale[2] : settings.colorScale?.[1] || '#08306b',
+          settings.colorScale?.length === 3
+            ? settings.colorScale[2]
+            : settings.colorScale?.[1] || '#08306b',
           0.5
         )
   )
-  
+
   // Track if middle color was manually modified
   let middleColorManuallySet = $state(settings.colorScale?.length === 3)
 
@@ -77,12 +79,12 @@
    */
   const getCurrentColorScale = (): string[] => {
     const autoCalculatedMiddle = interpolateColor(colorMin, colorMax, 0.5)
-    
+
     // If middle color wasn't manually set or equals auto-calculated value, use 2-color scale
     if (!middleColorManuallySet || colorMiddle === autoCalculatedMiddle) {
       return [colorMin, colorMax]
     }
-    
+
     // Otherwise use 3-color scale
     return [colorMin, colorMiddle, colorMax]
   }
@@ -90,7 +92,9 @@
   // Preview gradient style - always shows 3 colors for better preview
   const gradientStyle = $derived.by(() => {
     const autoCalculatedMiddle = interpolateColor(colorMin, colorMax, 0.5)
-    const middleColor = middleColorManuallySet ? colorMiddle : autoCalculatedMiddle
+    const middleColor = middleColorManuallySet
+      ? colorMiddle
+      : autoCalculatedMiddle
     return `linear-gradient(to right, ${colorMin}, ${middleColor}, ${colorMax})`
   })
 
@@ -98,7 +102,7 @@
   function handlePresetSelect(preset: (typeof presets)[0]): void {
     colorMin = preset.colors[0]
     colorMax = preset.colors[preset.colors.length - 1]
-    
+
     if (preset.colors.length === 3) {
       colorMiddle = preset.colors[1]
       middleColorManuallySet = true
@@ -158,7 +162,7 @@
 
   <section class="section">
     <SectionHeader text="Color Selection" />
-    
+
     <div class="preview-section">
       <div class="gradient-preview" style:background={gradientStyle}></div>
     </div>
@@ -184,7 +188,8 @@
           <div class="autocalculate-wrapper">
             <GeneralButtonMinor
               isIcon={false}
-              onclick={() => middleColorManuallySet && autoCalculateMiddleColor()}
+              onclick={() =>
+                middleColorManuallySet && autoCalculateMiddleColor()}
             >
               Auto-calculate
             </GeneralButtonMinor>

@@ -6,9 +6,7 @@
     IntroductoryParagraph,
   } from '$lib/modals'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
-  import {
-    getStimuli,
-  } from '$lib/gaze-data/front-process/stores/dataStore'
+  import { getStimuli } from '$lib/gaze-data/front-process/stores/dataStore'
   import { addErrorToast } from '$lib/toaster'
   import type { BaseInterpretedDataType } from '$lib/gaze-data/shared/types'
   import { flip } from 'svelte/animate'
@@ -16,10 +14,10 @@
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
   import PatternRenamingTool from './PatternRenamingTool.svelte'
-  import type { UpdateStimuliCommand } from '$lib/shared/types/workspaceInstructions'
+  import type { UpdateStimuliCommand } from '$lib/workspace/commands'
 
   interface Props {
-    source: string,
+    source: string
     onWorkspaceCommand: (command: UpdateStimuliCommand) => void
   }
 
@@ -96,7 +94,7 @@
   const handleSubmit = () => {
     try {
       const stimulusObjectsCopy = deepCopyStimuli(stimulusObjects)
-      
+
       onWorkspaceCommand({
         type: 'updateStimuli',
         stimuli: stimulusObjectsCopy,
@@ -207,15 +205,17 @@
               type="text"
               id={stimulus.id + 'displayedName'}
               value={stimulus.displayedName}
-              oninput={(e) => {
+              oninput={e => {
                 const target = e.currentTarget
                 const stimulusId = stimulus.id
                 // Find and update the stimulus by ID in the current array
                 // This ensures we update the correct object even after sorting
-                const index = stimulusObjects.findIndex(s => s.id === stimulusId)
+                const index = stimulusObjects.findIndex(
+                  s => s.id === stimulusId
+                )
                 if (index !== -1) {
                   // Create a new array with the updated object to ensure reactivity
-                  stimulusObjects = stimulusObjects.map((s, i) => 
+                  stimulusObjects = stimulusObjects.map((s, i) =>
                     i === index ? { ...s, displayedName: target.value } : s
                   )
                 }

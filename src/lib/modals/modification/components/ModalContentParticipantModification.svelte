@@ -6,9 +6,7 @@
     IntroductoryParagraph,
   } from '$lib/modals'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
-  import {
-    getAllParticipants,
-  } from '$lib/gaze-data/front-process/stores/dataStore'
+  import { getAllParticipants } from '$lib/gaze-data/front-process/stores/dataStore'
   import { addErrorToast } from '$lib/toaster'
   import type { BaseInterpretedDataType } from '$lib/gaze-data/shared/types'
   import { flip } from 'svelte/animate'
@@ -16,10 +14,10 @@
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
   import PatternRenamingTool from './PatternRenamingTool.svelte'
-  import type { UpdateParticipantsCommand } from '$lib/shared/types/workspaceInstructions'
+  import type { UpdateParticipantsCommand } from '$lib/workspace/commands'
 
   interface Props {
-    source: string,
+    source: string
     onWorkspaceCommand: (command: UpdateParticipantsCommand) => void
   }
 
@@ -96,7 +94,7 @@
   const handleSubmit = () => {
     try {
       const participantObjectsCopy = deepCopyParticipants(participantObjects)
-      
+
       onWorkspaceCommand({
         type: 'updateParticipants',
         participants: participantObjectsCopy,
@@ -163,7 +161,8 @@
 
 <div class="content">
   <PatternRenamingTool
-    onRenameCommand={(findText: string, replaceText: string) => handlePatternRename(findText, replaceText)}
+    onRenameCommand={(findText: string, replaceText: string) =>
+      handlePatternRename(findText, replaceText)}
   />
 </div>
 
@@ -209,15 +208,17 @@
               type="text"
               id={participant.id + 'displayedName'}
               value={participant.displayedName}
-              oninput={(e) => {
+              oninput={e => {
                 const target = e.currentTarget
                 const participantId = participant.id
                 // Find and update the participant by ID in the current array
                 // This ensures we update the correct object even after sorting
-                const index = participantObjects.findIndex(p => p.id === participantId)
+                const index = participantObjects.findIndex(
+                  p => p.id === participantId
+                )
                 if (index !== -1) {
                   // Create a new array with the updated object to ensure reactivity
-                  participantObjects = participantObjects.map((p, i) => 
+                  participantObjects = participantObjects.map((p, i) =>
                     i === index ? { ...p, displayedName: target.value } : p
                   )
                 }

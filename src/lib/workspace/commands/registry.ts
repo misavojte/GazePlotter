@@ -1,5 +1,5 @@
-import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
-import { createChildCommand } from '$lib/shared/types/workspaceInstructions'
+import type { WorkspaceCommandChain } from '$lib/workspace/commands'
+import { createChildCommand } from '$lib/workspace/commands'
 import { IDENTIFIER_IS_AOI } from '$lib/plots/scarf/const/identifiers'
 import type { GridStoreType } from '$lib/workspace/stores/gridStore'
 import { get } from 'svelte/store'

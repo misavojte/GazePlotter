@@ -1,13 +1,13 @@
-import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
-import { isHistoryCommand } from '$lib/shared/types/workspaceInstructions'
-import type { GridStoreType } from '$lib/workspace/stores/gridStore'
+import type { WorkspaceCommandChain } from '$lib/workspace/commands'
+import { isHistoryCommand } from '$lib/workspace/commands'
+import type { GridStoreType } from '$lib/workspace/stores'
 import {
   recordCommand,
   finalizeChain,
   endUndoRedo,
-} from '$lib/workspace/stores/undoRedoStore'
-import { createWorkspaceCommandRegistry } from './registry'
-import { getCommandLabel } from '$lib/workspace/const/workspaceCommandLabels'
+} from '$lib/workspace/stores'
+import { createWorkspaceCommandRegistry } from '$lib/workspace/commands'
+import { getCommandLabel } from '$lib/workspace/const'
 
 /**
  * Creates a command handler for workspace changes with integrated undo/redo support.

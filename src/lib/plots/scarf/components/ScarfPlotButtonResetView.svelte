@@ -2,12 +2,12 @@
   import { GeneralButtonMinor } from '$lib/shared/components'
   import RefreshCcw from 'lucide-svelte/icons/refresh-ccw'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
-  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { tooltipAction } from '$lib/tooltip/components/Tooltip.svelte'
 
   interface Props {
-    settings: ScarfGridType,
-    source: string,
+    settings: ScarfGridType
+    source: string
     onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
@@ -57,12 +57,14 @@
   }
 </script>
 
-<div use:tooltipAction={{ 
-  content: "Reset scarf plot view", 
-  position: "top", 
-  offset: 35, 
-  verticalAlign: "end" 
-}}>
+<div
+  use:tooltipAction={{
+    content: 'Reset scarf plot view',
+    position: 'top',
+    offset: 35,
+    verticalAlign: 'end',
+  }}
+>
   <GeneralButtonMinor onclick={handleClick} {isDisabled}>
     <RefreshCcw size={'1em'} strokeWidth={1} />
   </GeneralButtonMinor>

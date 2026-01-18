@@ -19,8 +19,8 @@
     ModalContentParticipantsGroups,
     ModalContentExportSegmentedData,
   } from '$lib/modals'
-  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
-  import { createCommandSourcePlotPattern } from '$lib/shared/types/workspaceInstructions'
+  import type { WorkspaceCommand } from '$lib/workspace/commands'
+  import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
   interface Props {
     settings: ScarfGridType

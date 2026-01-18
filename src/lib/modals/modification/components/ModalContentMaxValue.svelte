@@ -4,16 +4,16 @@
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import { getStimuliOrderVector } from '$lib/gaze-data/front-process/stores/dataStore'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
-  import type { UpdateSettingsCommand } from '$lib/shared/types/workspaceInstructions'
+  import type { UpdateSettingsCommand } from '$lib/workspace/commands'
   import {
     SectionHeader,
     ModalButtons,
     IntroductoryParagraph,
   } from '$lib/modals'
-  
+
   interface Props {
     settings: TransitionMatrixGridType
-    source: string,
+    source: string
     onWorkspaceCommand: (command: UpdateSettingsCommand) => void
   }
 

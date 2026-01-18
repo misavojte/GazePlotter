@@ -1,4 +1,4 @@
-import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+import type { WorkspaceCommand } from '$lib/workspace/commands'
 
 /**
  * Command Label Registry

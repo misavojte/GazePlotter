@@ -7,11 +7,11 @@
     getParticipantEndTime,
     getParticipants,
   } from '$lib/gaze-data/front-process/stores/dataStore'
-  import type { UpdateSettingsCommand } from '$lib/shared/types/workspaceInstructions'
+  import type { UpdateSettingsCommand } from '$lib/workspace/commands'
 
   interface Props {
-    settings: ScarfGridType,
-    source: string,
+    settings: ScarfGridType
+    source: string
     onWorkspaceCommand: (command: UpdateSettingsCommand) => void
   }
 

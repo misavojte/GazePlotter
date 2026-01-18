@@ -20,7 +20,7 @@
     currentFileInputStore,
   } from './workspace/stores/fileStore'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
-  import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
+  import type { WorkspaceCommandChain } from '$lib/workspace/commands'
 
   interface Props {
     loadInitialData: () => Promise<ParsedData>
@@ -28,14 +28,20 @@
     onWorkspaceCommandChain?: (command: WorkspaceCommandChain) => void
   }
 
-  const { loadInitialData, reinitializeLabel = 'Reload Demo', onWorkspaceCommandChain = (command: WorkspaceCommandChain) => {
-    console.log('onWorkspaceCommandChain', command)
-  } }: Props = $props()
+  const {
+    loadInitialData,
+    reinitializeLabel = 'Reload Demo',
+    onWorkspaceCommandChain = (command: WorkspaceCommandChain) => {
+      console.log('onWorkspaceCommandChain', command)
+    },
+  }: Props = $props()
 
   setContext('reinitializeLabel', reinitializeLabel)
 
   // Cache the initial grid layout to avoid reloading data when only resetting layout
-  let initialGridItemsSnapshot = $state<Array<Partial<AllGridTypes> & { type: string }> | null>(null)
+  let initialGridItemsSnapshot = $state<Array<
+    Partial<AllGridTypes> & { type: string }
+  > | null>(null)
 
   async function loadData() {
     processingFileStateStore.set('processing')
@@ -84,7 +90,11 @@
   <div class="panel-container">
     <Panel {onReinitialize} />
   </div>
-  <Workspace {onReinitialize} {onWorkspaceCommandChain} initialLayoutState={initialGridItemsSnapshot} />
+  <Workspace
+    {onReinitialize}
+    {onWorkspaceCommandChain}
+    initialLayoutState={initialGridItemsSnapshot}
+  />
   <Modal />
   <Toaster />
   <Tooltip />

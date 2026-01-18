@@ -23,8 +23,8 @@
 
   import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
   import type { AoiStreamPlotResult } from '$lib/plots/aoi-stream/types'
-  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
-  import { createCommandSourcePlotPattern } from '$lib/shared/types/workspaceInstructions'
+  import type { WorkspaceCommand } from '$lib/workspace/commands'
+  import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
   const LAYOUT = {
     HEADER_HEIGHT: 150,

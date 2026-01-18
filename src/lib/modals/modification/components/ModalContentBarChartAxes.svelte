@@ -4,12 +4,12 @@
   import { ModalButtons, IntroductoryParagraph } from '$lib/modals'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import type { BarPlotGridType } from '$lib/workspace/type/gridType'
-  import type { UpdateSettingsCommand } from '$lib/shared/types/workspaceInstructions'
+  import type { UpdateSettingsCommand } from '$lib/workspace/commands'
   import GeneralFieldset from '$lib/shared/components/GeneralFieldset.svelte'
 
   interface Props {
-    settings: BarPlotGridType,
-    source: string,
+    settings: BarPlotGridType
+    source: string
     onWorkspaceCommand: (command: UpdateSettingsCommand) => void
   }
 
@@ -67,7 +67,9 @@
         { value: 'horizontal', label: 'Horizontal' },
       ]}
       userSelected={barPlottingType}
-      onchange={(value) => { barPlottingType = value as 'vertical' | 'horizontal' }}
+      onchange={value => {
+        barPlottingType = value as 'vertical' | 'horizontal'
+      }}
     />
   </div>
 
@@ -80,7 +82,9 @@
         { value: 'descending', label: 'Descending (By Value)' },
       ]}
       userSelected={sortBars}
-      onchange={(value) => { sortBars = value as 'none' | 'ascending' | 'descending' }}
+      onchange={value => {
+        sortBars = value as 'none' | 'ascending' | 'descending'
+      }}
     />
   </div>
 

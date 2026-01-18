@@ -19,11 +19,11 @@
   import { fade, slide } from 'svelte/transition'
   import { flip } from 'svelte/animate'
   import GeneralInputCheck from '$lib/shared/components/GeneralInputCheck.svelte'
-  import type { UpdateParticipantsGroupsCommand } from '$lib/shared/types/workspaceInstructions'
+  import type { UpdateParticipantsGroupsCommand } from '$lib/workspace/commands'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
 
   interface Props {
-    source: string,
+    source: string
     onWorkspaceCommand: (command: UpdateParticipantsGroupsCommand) => void
   }
 
@@ -305,7 +305,8 @@
               type="text"
               id={group.id + 'name'}
               value={group.name}
-              oninput={e => updateGroup(group.id, { name: e.currentTarget.value })}
+              oninput={e =>
+                updateGroup(group.id, { name: e.currentTarget.value })}
             />
           </div>
           <div class="button-group">

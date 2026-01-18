@@ -4,10 +4,17 @@
   import { browser } from '$app/environment'
   import type { ParsedData } from '$lib/gaze-data/shared/types'
   import { EyeWorkerService } from '$lib/gaze-data/front-process/class/EyeWorkerService'
-  import { Survey, surveyStore, createCondition, ConsentModal, endpointService, type EndpointConfig } from '$survey'
+  import {
+    Survey,
+    surveyStore,
+    createCondition,
+    ConsentModal,
+    endpointService,
+    type EndpointConfig,
+  } from '$survey'
   import { SurveyModal } from '$survey/components'
   import type { SurveyTask, SurveyModalState } from '$survey/types'
-  import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
+  import type { WorkspaceCommandChain } from '$lib/workspace/commands'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import type { UEQSResults, EyeTrackingExperienceResult } from '$survey/types'
   import { onMount } from 'svelte'
@@ -20,8 +27,9 @@
   }).format(buildDate)
 
   const endpointConfig: EndpointConfig = {
-    endpoint: "https://eyetracking.upol.cz/GPsurvey/GazePlotterSurveyEndpoint.php"
-  };
+    endpoint:
+      'https://eyetracking.upol.cz/GPsurvey/GazePlotterSurveyEndpoint.php',
+  }
 
   const pathToData = `${base}/data/etvis.json`
 
@@ -60,76 +68,86 @@
   const version = __APP_VERSION__
 
   // Create condition stores for automatic task completion
-  const consentCondition = createCondition(); // Monitor for consent confirmation
-  const stimulusCondition = createCondition(); // Monitor for "Task 2" stimulus
-  const timelineCondition = createCondition(); // Monitor for "relative" timeline
-  const groupCondition = createCondition(); // Monitor for "Group 1" selection
-  const duplicateCondition = createCondition(); // Monitor for plot duplication
-  const group2Condition = createCondition(); // Monitor for "Group 2" selection
-  const aoiCustomizationCondition = createCondition(); // Monitor for AOI grouping
-  const transitionMatrixCondition = createCondition(); // Monitor for Transition Matrix aggregation
-  const barPlotCondition = createCondition(); // Monitor for Bar Plot aggregation
-  const explorationCondition = createCondition(); // Monitor for UI exploration completion
-  const transitionMatrixStimulusCondition = createCondition(); // Monitor for Transition Matrix stimulus
-  const barPlotStimulusCondition = createCondition(); // Monitor for Bar Plot stimulus
+  const consentCondition = createCondition() // Monitor for consent confirmation
+  const stimulusCondition = createCondition() // Monitor for "Task 2" stimulus
+  const timelineCondition = createCondition() // Monitor for "relative" timeline
+  const groupCondition = createCondition() // Monitor for "Group 1" selection
+  const duplicateCondition = createCondition() // Monitor for plot duplication
+  const group2Condition = createCondition() // Monitor for "Group 2" selection
+  const aoiCustomizationCondition = createCondition() // Monitor for AOI grouping
+  const transitionMatrixCondition = createCondition() // Monitor for Transition Matrix aggregation
+  const barPlotCondition = createCondition() // Monitor for Bar Plot aggregation
+  const explorationCondition = createCondition() // Monitor for UI exploration completion
+  const transitionMatrixStimulusCondition = createCondition() // Monitor for Transition Matrix stimulus
+  const barPlotStimulusCondition = createCondition() // Monitor for Bar Plot stimulus
 
   // State for forcing banner to close on any modal content
-  let forceCloseBanner = $state(false);
+  let forceCloseBanner = $state(false)
 
   // Track previous task index for logging task progression
-  let previousTaskIndex = $state(-1);
-  let wasLastActionSkip = $state(false);
+  let previousTaskIndex = $state(-1)
+  let wasLastActionSkip = $state(false)
 
   // Track if informed consent has been given
-  let hasInformedConsent = $state(false);
+  let hasInformedConsent = $state(false)
 
   // Track previous consent session information to surface a warning banner when necessary
-  let previousConsentSessionId = $state<string | null>(null);
-  let showPreviousConsentBanner = $state(false);
+  let previousConsentSessionId = $state<string | null>(null)
+  let showPreviousConsentBanner = $state(false)
 
   // Reference to GazePlotter component for resetting layout
-  let gazePlotterRef = $state<any>(null);
+  let gazePlotterRef = $state<any>(null)
 
   // Monitor modal store to force close banner when any modal is open
   $effect(() => {
-    const unsubscribe = modalStore.subscribe((modal) => {
-      forceCloseBanner = modal !== null;
-    });
-    return unsubscribe;
-  });
+    const unsubscribe = modalStore.subscribe(modal => {
+      forceCloseBanner = modal !== null
+    })
+    return unsubscribe
+  })
 
   // Monitor survey store to log task fulfillment
   $effect(() => {
-    if (!browser) return;
-    
-    const unsubscribe = surveyStore.subscribe((state) => {
-      const currentTaskIndex = state.currentActiveTaskIndex;
-      
+    if (!browser) return
+
+    const unsubscribe = surveyStore.subscribe(state => {
+      const currentTaskIndex = state.currentActiveTaskIndex
+
       // Log task fulfillment when index changes and it wasn't a skip
-      if (currentTaskIndex !== previousTaskIndex && previousTaskIndex >= 0 && !wasLastActionSkip) {
-        const completedTask = state.tasks[previousTaskIndex];
-        
-        if (completedTask && hasInformedConsent && endpointService.isServiceInitialized()) {
-          endpointService.storeSurveyData({
-            type: 'task_fulfilled',
-            timestamp: Date.now(),
-            data: {
-              taskIndex: previousTaskIndex,
-              taskText: completedTask.text,
-            }
-          }).catch((error) => {
-            console.error('Failed to log task fulfillment:', error);
-          });
+      if (
+        currentTaskIndex !== previousTaskIndex &&
+        previousTaskIndex >= 0 &&
+        !wasLastActionSkip
+      ) {
+        const completedTask = state.tasks[previousTaskIndex]
+
+        if (
+          completedTask &&
+          hasInformedConsent &&
+          endpointService.isServiceInitialized()
+        ) {
+          endpointService
+            .storeSurveyData({
+              type: 'task_fulfilled',
+              timestamp: Date.now(),
+              data: {
+                taskIndex: previousTaskIndex,
+                taskText: completedTask.text,
+              },
+            })
+            .catch(error => {
+              console.error('Failed to log task fulfillment:', error)
+            })
         }
       }
-      
+
       // Reset skip flag after handling the transition
-      wasLastActionSkip = false;
-      previousTaskIndex = currentTaskIndex;
-    });
-    
-    return unsubscribe;
-  });
+      wasLastActionSkip = false
+      previousTaskIndex = currentTaskIndex
+    })
+
+    return unsubscribe
+  })
 
   // Survey state - persists when modal is closed and reopened
   let surveyState = $state<SurveyModalState>({
@@ -140,27 +158,27 @@
     currentStepIndex: 0,
     ueqsComplete: false,
     eyeTrackingValue: null,
-    feedbackValue: ''
-  });
+    feedbackValue: '',
+  })
 
   // Initialize endpoint service for logging (only in browser)
   if (browser) {
-    endpointService.initialize(endpointConfig).catch((error) => {
-      console.error('Failed to initialize endpoint service:', error);
-    });
+    endpointService.initialize(endpointConfig).catch(error => {
+      console.error('Failed to initialize endpoint service:', error)
+    })
   }
 
   onMount(() => {
     if (!browser) {
-      return;
+      return
     }
 
-    const storedSessionId = endpointService.getLastConsentSessionId();
+    const storedSessionId = endpointService.getLastConsentSessionId()
     if (storedSessionId) {
-      previousConsentSessionId = storedSessionId;
-      showPreviousConsentBanner = true;
+      previousConsentSessionId = storedSessionId
+      showPreviousConsentBanner = true
     }
-  });
+  })
 
   /**
    * Helper function to create onSkip callback for logging task skips
@@ -168,36 +186,45 @@
    * @param taskText - The text of the task being skipped
    * @returns Callback function that logs the skip and sets the skip flag
    */
-  function createSkipHandler(taskIndex: number, taskText: string): (taskIndex: number, reason: string) => void {
+  function createSkipHandler(
+    taskIndex: number,
+    taskText: string
+  ): (taskIndex: number, reason: string) => void {
     return (_, reason: string) => {
-      wasLastActionSkip = true;
-      
+      wasLastActionSkip = true
+
       // Log task skip event (fire-and-forget, non-blocking)
-      if (browser && hasInformedConsent && endpointService.isServiceInitialized()) {
-        endpointService.storeSurveyData({
-          type: 'task_skipped',
-          timestamp: Date.now(),
-          data: {
-            taskIndex,
-            taskText,
-            skipReason: reason
-          }
-        }).catch((error) => {
-          console.error('Failed to log task skip:', error);
-        });
+      if (
+        browser &&
+        hasInformedConsent &&
+        endpointService.isServiceInitialized()
+      ) {
+        endpointService
+          .storeSurveyData({
+            type: 'task_skipped',
+            timestamp: Date.now(),
+            data: {
+              taskIndex,
+              taskText,
+              skipReason: reason,
+            },
+          })
+          .catch(error => {
+            console.error('Failed to log task skip:', error)
+          })
       }
-    };
+    }
   }
 
   const dismissPreviousConsentBanner = (): void => {
-    showPreviousConsentBanner = false;
-  };
+    showPreviousConsentBanner = false
+  }
 
   // Example tasks with conditions and alert buttons
   const exampleTasks: SurveyTask[] = [
-      { 
-      text: "Read UX evaluation instructions & consent",
-      buttonText: "Open instructions & consent",
+    {
+      text: 'Read UX evaluation instructions & consent',
+      buttonText: 'Open instructions & consent',
       onButtonClick: () => {
         modalStore.open(
           ConsentModal as any,
@@ -207,125 +234,154 @@
             onConsent: () => {
               // Log informed consent event with URL data (fire-and-forget, non-blocking)
               if (browser && endpointService.isServiceInitialized()) {
-                endpointService.storeSurveyData({
-                  type: 'informedConsentCollected',
-                  timestamp: Date.now(),
-                  data: {
-                    pageUrl: window.location.href,
-                    clientInfo: navigator.userAgent,
-                    windowDimensions: window.innerWidth + 'x' + window.innerHeight,
-                  }
-                }).catch((error) => {
-                  console.error('Failed to log informed consent:', error);
-                });
+                endpointService
+                  .storeSurveyData({
+                    type: 'informedConsentCollected',
+                    timestamp: Date.now(),
+                    data: {
+                      pageUrl: window.location.href,
+                      clientInfo: navigator.userAgent,
+                      windowDimensions:
+                        window.innerWidth + 'x' + window.innerHeight,
+                    },
+                  })
+                  .catch(error => {
+                    console.error('Failed to log informed consent:', error)
+                  })
               }
-              
+
               // Set consent flag to enable data collection
-              hasInformedConsent = true;
+              hasInformedConsent = true
 
               // Persist the consent session identifier for future visits and hide the banner for this session
-              endpointService.persistLastConsentSessionId(endpointService.getSessionId());
-              previousConsentSessionId = null;
-              showPreviousConsentBanner = false;
-              
+              endpointService.persistLastConsentSessionId(
+                endpointService.getSessionId()
+              )
+              previousConsentSessionId = null
+              showPreviousConsentBanner = false
+
               // Reset the GazePlotter layout to initial state
               if (gazePlotterRef) {
-                gazePlotterRef.resetLayout();
+                gazePlotterRef.resetLayout()
               }
-              
-              consentCondition.set(true); // Manually trigger condition
-            }
+
+              consentCondition.set(true) // Manually trigger condition
+            },
           }
         )
       },
       condition: consentCondition,
-      skippable: false
+      skippable: false,
     },
-    { 
-      text: "Scroll to workspace below. On Scarf Plot, set stimulus to Task 2",
+    {
+      text: 'Scroll to workspace below. On Scarf Plot, set stimulus to Task 2',
       condition: stimulusCondition, // Auto-completes when stimulus is set to Task 2
-      onSkip: createSkipHandler(1, "On scarf plot, set stimulus to Task 2")
+      onSkip: createSkipHandler(1, 'On scarf plot, set stimulus to Task 2'),
     },
-    { 
+    {
       text: "On Scarf Plot, set group to 'Analytics'",
       condition: groupCondition, // Auto-completes when group is set to Group 1
-      onSkip: createSkipHandler(2, "Set group to 'Analytics'")
+      onSkip: createSkipHandler(2, "Set group to 'Analytics'"),
     },
-    { 
-      text: "On Scarf Plot, set timeline to relative",
+    {
+      text: 'On Scarf Plot, set timeline to relative',
       condition: timelineCondition, // Auto-completes when timeline is set to relative
-      onSkip: createSkipHandler(3, "Set timeline to relative")
+      onSkip: createSkipHandler(3, 'Set timeline to relative'),
     },
-    { 
-      text: "Duplicate Scarf Plot",
+    {
+      text: 'Duplicate Scarf Plot',
       condition: duplicateCondition, // Auto-completes when plot is duplicated
-      onSkip: createSkipHandler(4, "Duplicate Scarf Plot")
+      onSkip: createSkipHandler(4, 'Duplicate Scarf Plot'),
     },
-    { 
+    {
       text: "On the duplicated Scarf Plot, set group to 'Holistics'",
       condition: group2Condition, // Auto-completes when group is set to Group 2
-      onSkip: createSkipHandler(5, "On the duplicated Scarf Plot, set group to 'Holistics'")
+      onSkip: createSkipHandler(
+        5,
+        "On the duplicated Scarf Plot, set group to 'Holistics'"
+      ),
     },
-    { 
+    {
       text: "Find 'AOI Customization' and group XAxis and YAxis (in stimulus Task 2) by giving them the same name",
       condition: aoiCustomizationCondition, // Auto-completes when AOIs are grouped
-      onSkip: createSkipHandler(6, "Find 'AOI Customization' and group XAxis and YAxis (in stimulus Task 2) by giving them the same name")
+      onSkip: createSkipHandler(
+        6,
+        "Find 'AOI Customization' and group XAxis and YAxis (in stimulus Task 2) by giving them the same name"
+      ),
     },
-    { 
-      text: "Pan to Transition Matrix and set its stimulus to Task 2",
+    {
+      text: 'Pan to Transition Matrix and set its stimulus to Task 2',
       condition: transitionMatrixStimulusCondition, // Auto-completes when stimulus is set to Task 2
-      onSkip: createSkipHandler(7, "Pan to Transition Matrix and set its stimulus to Task 2")
+      onSkip: createSkipHandler(
+        7,
+        'Pan to Transition Matrix and set its stimulus to Task 2'
+      ),
     },
-    { 
+    {
       text: "On Transition Matrix, change aggregation metric to '1-step probability'",
       condition: transitionMatrixCondition, // Auto-completes when aggregation is changed
-      onSkip: createSkipHandler(8, "On Transition Matrix, change aggregation metric to '1-step probability'")
+      onSkip: createSkipHandler(
+        8,
+        "On Transition Matrix, change aggregation metric to '1-step probability'"
+      ),
     },
-    { 
-      text: "Pan to Bar Plot and set its stimulus to Task 2",
+    {
+      text: 'Pan to Bar Plot and set its stimulus to Task 2',
       condition: barPlotStimulusCondition, // Auto-completes when stimulus is set to Task 2
-      onSkip: createSkipHandler(9, "Pan to Bar Plot and set its stimulus to Task 2")
+      onSkip: createSkipHandler(
+        9,
+        'Pan to Bar Plot and set its stimulus to Task 2'
+      ),
     },
-    { 
+    {
       text: "On Bar Plot, set aggregation method to 'Mean visits'",
       condition: barPlotCondition, // Auto-completes when aggregation is changed
-      onSkip: createSkipHandler(10, "On Bar Plot, set aggregation method to 'Mean visits'")
+      onSkip: createSkipHandler(
+        10,
+        "On Bar Plot, set aggregation method to 'Mean visits'"
+      ),
     },
-    { 
-      text: "Feel free to explore the UI as long as you wish",
-      buttonText: "I now want to answer questions and end survey",
+    {
+      text: 'Feel free to explore the UI as long as you wish',
+      buttonText: 'I now want to answer questions and end survey',
       onButtonClick: () => {
-        modalStore.open(
-          SurveyModal as any,
-          'User Experience Questionnaire',
-          {
-            surveyState,
-            onComplete: (results: { ueqs: UEQSResults; eyeTracking: EyeTrackingExperienceResult; feedback: string }) => {
-              console.log('Survey completed with results:', results);
-              
-              // Log survey completion to the endpoint service (fire-and-forget, non-blocking)
-              if (browser && hasInformedConsent && endpointService.isServiceInitialized()) {
-                endpointService.storeSurveyData({
+        modalStore.open(SurveyModal as any, 'User Experience Questionnaire', {
+          surveyState,
+          onComplete: (results: {
+            ueqs: UEQSResults
+            eyeTracking: EyeTrackingExperienceResult
+            feedback: string
+          }) => {
+            console.log('Survey completed with results:', results)
+
+            // Log survey completion to the endpoint service (fire-and-forget, non-blocking)
+            if (
+              browser &&
+              hasInformedConsent &&
+              endpointService.isServiceInitialized()
+            ) {
+              endpointService
+                .storeSurveyData({
                   type: 'survey_completion',
                   timestamp: Date.now(),
                   data: {
                     ueqsResults: results.ueqs,
                     eyeTrackingResults: results.eyeTracking,
                     feedback: results.feedback,
-                  }
-                }).catch((error) => {
-                  console.error('Failed to log survey completion:', error);
-                });
-              }
-              
-              explorationCondition.set(true); // Manually trigger condition
+                  },
+                })
+                .catch(error => {
+                  console.error('Failed to log survey completion:', error)
+                })
             }
-          }
-        );
+
+            explorationCondition.set(true) // Manually trigger condition
+          },
+        })
       },
       condition: explorationCondition,
-      skippable: false
-    }
+      skippable: false,
+    },
   ]
 
   /**
@@ -342,137 +398,170 @@
    * @returns true if the source matches the plot type
    */
   function isCommandFromPlotType(source: string, plotType: string): boolean {
-    return source.startsWith(`${plotType}.`) || source.startsWith(`undo.${plotType}.`) || source.startsWith(`redo.${plotType}.`);
+    return (
+      source.startsWith(`${plotType}.`) ||
+      source.startsWith(`undo.${plotType}.`) ||
+      source.startsWith(`redo.${plotType}.`)
+    )
   }
 
   const handleWorkspaceCommand = (command: WorkspaceCommandChain) => {
     console.log('command', command)
     console.log('hasInformedConsent', hasInformedConsent)
-    
+
     // Log the workspace command to the endpoint service (fire-and-forget, non-blocking)
     // Deep clone the command to prevent race conditions where the command data might be
     // mutated before async logging completes (especially on Windows Chrome where timing can differ)
     if (hasInformedConsent && endpointService.isServiceInitialized()) {
       // Create a deep clone to ensure we capture the command state at this exact moment
       const commandSnapshot = structuredClone(command)
-      
-      endpointService.storeSurveyData({
+
+      endpointService
+        .storeSurveyData({
           type: 'workspace_command',
           timestamp: Date.now(),
-          data: { command: commandSnapshot }
-        }).catch((error) => {
-          console.error('Failed to log workspace command:', error);
-        });
-      }
-    
+          data: { command: commandSnapshot },
+        })
+        .catch(error => {
+          console.error('Failed to log workspace command:', error)
+        })
+    }
+
     // Prevent any conditions from being set until informed consent is given
     if (!hasInformedConsent) {
-      return;
+      return
     }
-    
+
     // Check for stimulus change to Task 2 (stimulusId === 1) from scarf plot
-    if (command.type === 'updateSettings' && 
-        command.settings && 
-        'stimulusId' in command.settings && 
-        command.settings.stimulusId === 1 &&
-        isCommandFromPlotType(command.source, 'scarf')) {
-      stimulusCondition.set(true);
+    if (
+      command.type === 'updateSettings' &&
+      command.settings &&
+      'stimulusId' in command.settings &&
+      command.settings.stimulusId === 1 &&
+      isCommandFromPlotType(command.source, 'scarf')
+    ) {
+      stimulusCondition.set(true)
     }
-    
+
     // Check for timeline change to relative from scarf plot
-    if (command.type === 'updateSettings' && 
-        command.settings && 
-        'timeline' in command.settings && 
-        command.settings.timeline === 'relative' &&
-        isCommandFromPlotType(command.source, 'scarf')) {
-      timelineCondition.set(true);
+    if (
+      command.type === 'updateSettings' &&
+      command.settings &&
+      'timeline' in command.settings &&
+      command.settings.timeline === 'relative' &&
+      isCommandFromPlotType(command.source, 'scarf')
+    ) {
+      timelineCondition.set(true)
     }
-    
+
     // Check for group change to Analytics (groupId === 1) from scarf plot
-    if (command.type === 'updateSettings' && 
-        command.settings && 
-        'groupId' in command.settings && 
-        command.settings.groupId === 1 &&
-        isCommandFromPlotType(command.source, 'scarf')) {
-      groupCondition.set(true);
+    if (
+      command.type === 'updateSettings' &&
+      command.settings &&
+      'groupId' in command.settings &&
+      command.settings.groupId === 1 &&
+      isCommandFromPlotType(command.source, 'scarf')
+    ) {
+      groupCondition.set(true)
     }
-    
+
     // Check for group change to Holistics (groupId === 2) from scarf plot
-    if (command.type === 'updateSettings' && 
-        command.settings && 
-        'groupId' in command.settings && 
-        command.settings.groupId === 2 &&
-        isCommandFromPlotType(command.source, 'scarf')) {
-      group2Condition.set(true);
+    if (
+      command.type === 'updateSettings' &&
+      command.settings &&
+      'groupId' in command.settings &&
+      command.settings.groupId === 2 &&
+      isCommandFromPlotType(command.source, 'scarf')
+    ) {
+      group2Condition.set(true)
     }
-    
+
     // Check for plot duplication (works from any plot type)
     if (command.type === 'duplicateGridItem') {
-      duplicateCondition.set(true);
+      duplicateCondition.set(true)
     }
-    
+
     // Check for AOI customization - detect when at least two AOIs have the same displayed name
     // This can come from any plot type that supports AOI customization
-    if (command.type === 'updateAois' && command.aois && command.aois.length > 0) {
+    if (
+      command.type === 'updateAois' &&
+      command.aois &&
+      command.aois.length > 0
+    ) {
       // Count occurrences of each displayed name
-      const nameCounts = new Map<string, number>();
-      
+      const nameCounts = new Map<string, number>()
+
       command.aois.forEach(aoi => {
-        const displayedName = (aoi.displayedName || '').trim();
+        const displayedName = (aoi.displayedName || '').trim()
         if (displayedName !== '') {
-          nameCounts.set(displayedName, (nameCounts.get(displayedName) || 0) + 1);
+          nameCounts.set(
+            displayedName,
+            (nameCounts.get(displayedName) || 0) + 1
+          )
         }
-      });
-      
+      })
+
       // Check whether the aois with original names "T2-DataPAQ-OsayY" and "T2-DataPAQ-OsaX" are grouped
       // i.e. having the same displayed name (trimmed and normalized)
-      const aoi1 = command.aois.find(aoi => aoi.originalName === 'T2-DataPAQ-OsayY');
-      const aoi2 = command.aois.find(aoi => aoi.originalName === 'T2-DataPAQ-OsaX');
-      
+      const aoi1 = command.aois.find(
+        aoi => aoi.originalName === 'T2-DataPAQ-OsayY'
+      )
+      const aoi2 = command.aois.find(
+        aoi => aoi.originalName === 'T2-DataPAQ-OsaX'
+      )
+
       // Normalize names by trimming and handling empty strings
-      const name1 = (aoi1?.displayedName || '').trim();
-      const name2 = (aoi2?.displayedName || '').trim();
-      
+      const name1 = (aoi1?.displayedName || '').trim()
+      const name2 = (aoi2?.displayedName || '').trim()
+
       // Both names must be non-empty and equal for grouping
       if (aoi1 && aoi2 && name1 !== '' && name2 !== '' && name1 === name2) {
-        aoiCustomizationCondition.set(true);
+        aoiCustomizationCondition.set(true)
       }
     }
-    
+
     // Check for Transition Matrix aggregation change to '1-step probability'
-    if (command.type === 'updateSettings' && 
-        command.settings && 
-        'aggregationMethod' in command.settings && 
-        command.settings.aggregationMethod === 'probability' &&
-        isCommandFromPlotType(command.source, 'TransitionMatrix')) {
-      transitionMatrixCondition.set(true);
+    if (
+      command.type === 'updateSettings' &&
+      command.settings &&
+      'aggregationMethod' in command.settings &&
+      command.settings.aggregationMethod === 'probability' &&
+      isCommandFromPlotType(command.source, 'TransitionMatrix')
+    ) {
+      transitionMatrixCondition.set(true)
     }
-    
+
     // Check for Bar Plot aggregation change to 'Mean visits'
-    if (command.type === 'updateSettings' && 
-        command.settings && 
-        'aggregationMethod' in command.settings && 
-        command.settings.aggregationMethod === 'averageEntries' &&
-        isCommandFromPlotType(command.source, 'barPlot')) {
-      barPlotCondition.set(true);
+    if (
+      command.type === 'updateSettings' &&
+      command.settings &&
+      'aggregationMethod' in command.settings &&
+      command.settings.aggregationMethod === 'averageEntries' &&
+      isCommandFromPlotType(command.source, 'barPlot')
+    ) {
+      barPlotCondition.set(true)
     }
 
     // Check for Transition Matrix stimulus change to Task 2
-    if (command.type === 'updateSettings' && 
-        command.settings && 
-        'stimulusId' in command.settings && 
-        command.settings.stimulusId === 1 &&
-        isCommandFromPlotType(command.source, 'TransitionMatrix')) {
-      transitionMatrixStimulusCondition.set(true);
+    if (
+      command.type === 'updateSettings' &&
+      command.settings &&
+      'stimulusId' in command.settings &&
+      command.settings.stimulusId === 1 &&
+      isCommandFromPlotType(command.source, 'TransitionMatrix')
+    ) {
+      transitionMatrixStimulusCondition.set(true)
     }
-    
+
     // Check for Bar Plot stimulus change to Task 2
-    if (command.type === 'updateSettings' && 
-        command.settings && 
-        'stimulusId' in command.settings && 
-        command.settings.stimulusId === 1 &&
-        isCommandFromPlotType(command.source, 'barPlot')) {
-      barPlotStimulusCondition.set(true);
+    if (
+      command.type === 'updateSettings' &&
+      command.settings &&
+      'stimulusId' in command.settings &&
+      command.settings.stimulusId === 1 &&
+      isCommandFromPlotType(command.source, 'barPlot')
+    ) {
+      barPlotStimulusCondition.set(true)
     }
   }
 </script>
@@ -554,11 +643,17 @@
       <div class="previous-consent-banner" role="alert">
         <p class="previous-consent-banner__message">
           <strong>Warning!</strong>
-          There has already been a survey started from this computer with the session named
-          <span class="previous-consent-banner__session-id">{previousConsentSessionId}</span>.
+          There has already been a survey started from this computer with the session
+          named
+          <span class="previous-consent-banner__session-id"
+            >{previousConsentSessionId}</span
+          >.
         </p>
         <p class="previous-consent-banner__contact">
-          Do you wish to contact admin at <a href="mailto:mail@vojtechovska.com" class="previous-consent-banner__link">mail@vojtechovska.com</a>?
+          Do you wish to contact admin at <a
+            href="mailto:mail@vojtechovska.com"
+            class="previous-consent-banner__link">mail@vojtechovska.com</a
+          >?
         </p>
         <button
           type="button"
@@ -572,7 +667,12 @@
     <Survey tasks={exampleTasks} {forceCloseBanner} />
   </section>
   <section>
-    <GazePlotter bind:this={gazePlotterRef} {loadInitialData} onWorkspaceCommandChain={handleWorkspaceCommand} reinitializeLabel="Reload ETVIS data" />
+    <GazePlotter
+      bind:this={gazePlotterRef}
+      {loadInitialData}
+      onWorkspaceCommandChain={handleWorkspaceCommand}
+      reinitializeLabel="Reload ETVIS data"
+    />
   </section>
   <section class="main-section" id="about">
     <div class="about-grid">
@@ -710,7 +810,8 @@
   }
 
   .previous-consent-banner__session-id {
-    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-family:
+      'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
     font-weight: 600;
   }
 

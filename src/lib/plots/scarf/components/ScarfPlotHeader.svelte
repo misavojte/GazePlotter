@@ -10,7 +10,7 @@
   import ZoomOut from 'lucide-svelte/icons/zoom-out'
   import RefreshCcw from 'lucide-svelte/icons/refresh-ccw'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
-  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
+  import type { WorkspaceCommand } from '$lib/workspace/commands'
   import {
     getNumberOfSegments,
     getParticipantEndTime,

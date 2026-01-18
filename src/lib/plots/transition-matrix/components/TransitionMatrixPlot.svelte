@@ -8,7 +8,9 @@
     TransitionMatrixPlotFigure,
     TransitionMatrixButtonMenu,
   } from '$lib/plots/transition-matrix/components'
-  import Select, { type GroupSelectItem } from '$lib/shared/components/GeneralSelect.svelte'
+  import Select, {
+    type GroupSelectItem,
+  } from '$lib/shared/components/GeneralSelect.svelte'
   import { PlotPlaceholder } from '$lib/plots/shared/components'
   import { ModalContentMaxValue, ModalContentColorScale } from '$lib/modals'
 
@@ -18,15 +20,18 @@
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { calculateTransitionMatrix } from '$lib/plots/transition-matrix/utils'
   import { AggregationMethod } from '$lib/plots/transition-matrix/const'
-  import { createCommandSourcePlotPattern } from '$lib/shared/types/workspaceInstructions'
+  import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
-  import { data, getParticipantsGroups } from '$lib/gaze-data/front-process/stores/dataStore'
+  import {
+    data,
+    getParticipantsGroups,
+  } from '$lib/gaze-data/front-process/stores/dataStore'
   import { onDestroy } from 'svelte'
-  
+
   // Types
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
-  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
-  
+  import type { WorkspaceCommand } from '$lib/workspace/commands'
+
   interface Props {
     settings: TransitionMatrixGridType
     onWorkspaceCommand: (command: WorkspaceCommand) => void
@@ -75,7 +80,10 @@
   // Simplified aggregation method options
   const aggregationOptions = [
     { value: AggregationMethod.SUM, label: 'Absolute frequency' },
-    { value: AggregationMethod.FREQUENCY_RELATIVE, label: 'Relative frequency' },
+    {
+      value: AggregationMethod.FREQUENCY_RELATIVE,
+      label: 'Relative frequency',
+    },
     { value: AggregationMethod.PROBABILITY, label: '1-step probability' },
     { value: AggregationMethod.PROBABILITY_2, label: '2-step probability' },
     { value: AggregationMethod.PROBABILITY_3, label: '3-step probability' },
@@ -98,7 +106,8 @@
 
   // Grouped selects like Scarf header: Stimulus, Group, Aggregation
   let selectedStimulusId = $state(settings.stimulusId.toString())
-  let stimuliOptions = $state<{ label: string; value: string }[]>(getStimuliOptions())
+  let stimuliOptions =
+    $state<{ label: string; value: string }[]>(getStimuliOptions())
 
   let selectedGroupId = $state(settings.groupId.toString())
   let groupOptions: { value: string; label: string }[] = $state([])
@@ -142,9 +151,24 @@
   }
 
   const selectItems = $derived<GroupSelectItem[]>([
-    { label: 'Stimulus', options: stimuliOptions, value: selectedStimulusId, onchange: onStimulusChange },
-    { label: 'Group', options: groupOptions, value: selectedGroupId, onchange: onGroupChange },
-    { label: 'Aggregation', options: aggregationOptions, value: settings.aggregationMethod, onchange: handleAggregationChange },
+    {
+      label: 'Stimulus',
+      options: stimuliOptions,
+      value: selectedStimulusId,
+      onchange: onStimulusChange,
+    },
+    {
+      label: 'Group',
+      options: groupOptions,
+      value: selectedGroupId,
+      onchange: onGroupChange,
+    },
+    {
+      label: 'Aggregation',
+      options: aggregationOptions,
+      value: settings.aggregationMethod,
+      onchange: handleAggregationChange,
+    },
   ])
 
   const redrawTimestamp = $derived.by(() => settings.redrawTimestamp)
@@ -189,7 +213,10 @@
     }
   }
 
-  const sourceForOpenedModals = createCommandSourcePlotPattern(settings, 'modal')
+  const sourceForOpenedModals = createCommandSourcePlotPattern(
+    settings,
+    'modal'
+  )
   function handleGradientClick() {
     try {
       modalStore.open(ModalContentColorScale as any, 'Customize color scale', {
@@ -222,12 +249,14 @@
 <div class="aoi-matrix-container">
   <div class="header">
     <div class="controls">
-      <Select ariaLabel="Transition Matrix filters" items={selectItems} label="Transition Matrix" options={[]} />
+      <Select
+        ariaLabel="Transition Matrix filters"
+        items={selectItems}
+        label="Transition Matrix"
+        options={[]}
+      />
       <div class="menu-button">
-        <TransitionMatrixButtonMenu
-          {settings}
-          {onWorkspaceCommand}
-        />
+        <TransitionMatrixButtonMenu {settings} {onWorkspaceCommand} />
       </div>
     </div>
   </div>

@@ -7,18 +7,27 @@
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { ModalContentMetadataInfo } from '$lib/modals/info/components'
   import WorkspaceItemContainer from './WorkspaceItemContainer.svelte'
-  import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
-  import { createRootCommand } from '$lib/shared/types/workspaceInstructions'
+  import type {
+    WorkspaceCommand,
+    WorkspaceCommandChain,
+  } from '$lib/workspace/commands'
+  import { createRootCommand } from '$lib/workspace/commands'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
-  
+
   interface Props {
     onReinitialize: () => void
-    onWorkspaceCommand: (command: WorkspaceCommand | WorkspaceCommandChain) => void
+    onWorkspaceCommand: (
+      command: WorkspaceCommand | WorkspaceCommandChain
+    ) => void
     initialLayoutState?: Array<Partial<AllGridTypes> & { type: string }> | null
   }
 
-  const { onReinitialize, onWorkspaceCommand, initialLayoutState = null }: Props = $props()
-  
+  const {
+    onReinitialize,
+    onWorkspaceCommand,
+    initialLayoutState = null,
+  }: Props = $props()
+
   /**
    * Determines if the reset layout button should be shown.
    * Valid data means we have loaded actual stimuli and participants.
@@ -57,23 +66,32 @@
 <div class="empty-workspace-indicator" transition:fade={{ duration: 400 }}>
   <WorkspaceItemContainer class="indicator-content">
     {#snippet header()}
-      <h3>{#if canResetLayout}Workspace Empty{:else}Invalid Data{/if}</h3>
+      <h3>
+        {#if canResetLayout}Workspace Empty{:else}Invalid Data{/if}
+      </h3>
     {/snippet}
     {#snippet body()}
       <div class="content-inner">
         <p>
           {#if canResetLayout}
-            Data is available in memory, but no visualisations are displayed. You can
-            reload the views, upload new data, or explore our sample data.
+            Data is available in memory, but no visualisations are displayed.
+            You can reload the views, upload new data, or explore our sample
+            data.
           {:else}
-            Data could not be loaded correctly. Please, open the metadata report to see the details, upload different data or reload the initial data.
+            Data could not be loaded correctly. Please, open the metadata report
+            to see the details, upload different data or reload the initial
+            data.
           {/if}
         </p>
         <div class="actions">
           {#if canResetLayout}
-            <GeneralButtonMajor onclick={handleResetLayout}>Reset Layout</GeneralButtonMajor>
+            <GeneralButtonMajor onclick={handleResetLayout}
+              >Reset Layout</GeneralButtonMajor
+            >
           {:else}
-            <GeneralButtonMajor onclick={openErrorReport}>Open Report</GeneralButtonMajor>
+            <GeneralButtonMajor onclick={openErrorReport}
+              >Open Report</GeneralButtonMajor
+            >
           {/if}
           <PanelButtonUpload />
           <PanelButtonDemo {onReinitialize} />

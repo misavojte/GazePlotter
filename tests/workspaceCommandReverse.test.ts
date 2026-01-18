@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { createWorkspaceCommandRegistry } from '$lib/workspace/commands/registry'
-import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
+import type { WorkspaceCommandChain } from '$lib/workspace/commands'
 import type { GridStoreType } from '$lib/workspace/stores/gridStore'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 

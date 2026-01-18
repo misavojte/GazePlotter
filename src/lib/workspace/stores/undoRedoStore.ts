@@ -1,5 +1,5 @@
 import { writable, derived, get } from 'svelte/store'
-import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
+import type { WorkspaceCommandChain } from '$lib/workspace/commands'
 
 /**
  * Maximum number of command chains to keep in the undo stack

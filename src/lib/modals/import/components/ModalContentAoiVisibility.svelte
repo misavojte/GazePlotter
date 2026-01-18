@@ -7,7 +7,7 @@
   import { addErrorToast } from '$lib/toaster'
   import { processAoiVisibility } from '$lib/modals/import/utility/aoiVisibilityServices'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
-  import type { UpdateAoiVisibilityCommand } from '$lib/shared/types/workspaceInstructions'
+  import type { UpdateAoiVisibilityCommand } from '$lib/workspace/commands'
   
   interface Props {
     source: string,

@@ -6,7 +6,7 @@
 import {
   getStimulusHighestEndTime,
 } from '$lib/gaze-data/front-process/stores/dataStore'
-import type { UpdateAoiVisibilityCommand } from '$lib/shared/types/workspaceInstructions'
+import type { UpdateAoiVisibilityCommand } from '$lib/workspace/commands'
 
 /**
  * Main function to process the AOI visibility data

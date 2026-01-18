@@ -19,8 +19,8 @@
   import { DEFAULT_GRID_CONFIG } from '$lib/shared/utils/gridSizingUtils'
   import { PlotPlaceholder } from '$lib/plots/shared/components'
   import { fade } from 'svelte/transition'
-  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
-  import { createCommandSourcePlotPattern } from '$lib/shared/types/workspaceInstructions'
+  import type { WorkspaceCommand } from '$lib/workspace/commands'
+  import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
   // Component Props using Svelte 5 $props() rune
   interface Props {

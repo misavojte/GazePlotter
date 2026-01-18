@@ -7,7 +7,7 @@
   import { modalStore } from '$lib/modals/shared/stores/modalStore.js'
 
   import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
-  import type { UpdateSettingsCommand } from '$lib/shared/types/workspaceInstructions'
+  import type { UpdateSettingsCommand } from '$lib/workspace/commands'
 
   interface Props {
     settings: AoiStreamPlotGridType
