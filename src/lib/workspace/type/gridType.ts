@@ -125,10 +125,18 @@ export interface AoiStreamPlotGridType extends GridType {
 }
 
 /**
- * Union type representing all possible grid item types in the workspace.
+ * Core Identity Map - ties string literal types to their corresponding interfaces.
+ * This is the "Golden Thread" that allows TypeScript to automate everything else.
  */
-export type AllGridTypes =
-  | ScarfGridType
-  | TransitionMatrixGridType
-  | BarPlotGridType
-  | AoiStreamPlotGridType
+export type GridItemMap = {
+  scarf: ScarfGridType;
+  TransitionMatrix: TransitionMatrixGridType;
+  barPlot: BarPlotGridType;
+  aoiStreamPlot: AoiStreamPlotGridType;
+};
+
+/**
+ * Union type representing all possible grid item types in the workspace.
+ * Now derived from GridItemMap for automatic type safety.
+ */
+export type AllGridTypes = GridItemMap[keyof GridItemMap];

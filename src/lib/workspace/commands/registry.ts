@@ -1,4 +1,4 @@
-import type { WorkspaceCommandChain } from '$lib/workspace/commands'
+import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/workspace/commands'
 import { createChildCommand } from '$lib/workspace/commands'
 import { IDENTIFIER_IS_AOI } from '$lib/plots/scarf/const/identifiers'
 import { GridState } from '$lib/workspace/grid'
@@ -12,7 +12,7 @@ import {
   updateNoAoiTreatment,
   updateParticipantsGroups,
 } from '$lib/gaze-data/front-process/stores/dataStore'
-import type { AllGridTypes } from '$lib/workspace/type/gridType'
+import type { GridItemMap, AllGridTypes } from '$lib/workspace/type/gridType'
 import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
 
 const DEFAULT_AOI_COLORS = [
@@ -37,10 +37,20 @@ type CommandMeta = Pick<
   'source' | 'chainId' | 'isRootCommand'
 >
 
-type CommandSpec = {
-  execute?: (command: any, context: WorkspaceCommandExecutionContext) => void
-  reverse?: (command: any, meta: CommandMeta) => WorkspaceCommandChain | null
-}
+// Define a type for handlers that maps the command 'type' to its specific interface
+type CommandHandlers = {
+  [T in WorkspaceCommand['type']]: (
+    command: Extract<WorkspaceCommandChain, { type: T }>,
+    context: WorkspaceCommandExecutionContext
+  ) => void;
+};
+
+type ReverseHandlers = {
+  [T in WorkspaceCommand['type']]: (
+    command: Extract<WorkspaceCommandChain, { type: T }>,
+    meta: CommandMeta
+  ) => WorkspaceCommandChain | null;
+};
 
 export type WorkspaceCommandRegistry = {
   execute: (
@@ -115,396 +125,338 @@ export function createWorkspaceCommandRegistry(
     })
   }
 
-  const specs: Partial<Record<WorkspaceCommandChain['type'], CommandSpec>> = {
-    updateAois: {
-      execute: (
-        command: Extract<WorkspaceCommandChain, { type: 'updateAois' }>,
-        context
-      ) => {
-        const { aois, stimulusId, applyTo, hiddenAois } = command
-        updateMultipleAoi(aois, stimulusId, applyTo)
-        if (hiddenAois !== undefined) {
-          updateHiddenAoisWithPropagation(stimulusId, hiddenAois, applyTo)
-        }
-        gridStore.triggerRedraw()
-        sanitizeScarfHighlightsAfterAoiRename(command, context)
-      },
-      reverse: (
-        cmd: Extract<WorkspaceCommandChain, { type: 'updateAois' }>,
-        meta
-      ) => {
-        const currentData = getData()
-        const stimulusId = cmd.stimulusId
-        const currentAois = currentData?.aois?.data?.[stimulusId] || []
-        if (currentAois.length === 0) {
-          console.warn(
-            `Cannot reverse updateAois: no AOIs found for stimulus ${stimulusId}`
-          )
-          return null
-        }
-        const affectedAois: ExtendedInterpretedDataType[] = []
-        for (let aoiIndex = 0; aoiIndex < currentAois.length; aoiIndex++) {
-          const aoiRow = currentAois[aoiIndex]
-          const originalName = aoiRow?.[0] ?? ''
-          const displayedName = aoiRow?.[1] ?? originalName
-          const color =
-            aoiRow?.[2] ??
-            DEFAULT_AOI_COLORS[aoiIndex % DEFAULT_AOI_COLORS.length]
-          affectedAois.push({
-            id: aoiIndex,
-            originalName,
-            displayedName,
-            color,
-          })
-        }
-        const shouldIncludeHiddenAois = cmd.hiddenAois !== undefined
-        const hiddenAois = currentData?.aois?.hiddenAois?.[stimulusId] ?? []
-        return withMeta(
-          {
-            type: 'updateAois',
-            aois: affectedAois,
-            stimulusId,
-            applyTo: cmd.applyTo,
-            ...(shouldIncludeHiddenAois ? { hiddenAois: [...hiddenAois] } : {}),
-          },
-          meta
-        )
-      },
+  const handlers: CommandHandlers = {
+    updateAois: (command, context) => {
+      const { aois, stimulusId, applyTo, hiddenAois } = command
+      updateMultipleAoi(aois, stimulusId, applyTo)
+      if (hiddenAois !== undefined) {
+        updateHiddenAoisWithPropagation(stimulusId, hiddenAois, applyTo)
+      }
+      gridStore.triggerRedraw()
+      sanitizeScarfHighlightsAfterAoiRename(command, context)
     },
 
-    updateParticipants: {
-      execute: (
-        command: Extract<WorkspaceCommandChain, { type: 'updateParticipants' }>
-      ) => {
-        updateMultipleParticipants(command.participants)
-        gridStore.triggerRedraw()
-      },
-      reverse: (_cmd, meta) => {
-        const currentData = getData()
-        const currentParticipants = currentData?.participants?.data || []
-        if (currentParticipants.length === 0) {
-          console.warn(
-            'Cannot reverse updateParticipants: no participants found in current data'
-          )
-          return null
-        }
-        const participants = currentParticipants.map(
-          ([originalName, displayedName], index) => ({
-            id: index,
-            originalName,
-            displayedName,
-          })
-        )
-        return withMeta({ type: 'updateParticipants', participants }, meta)
-      },
+    updateParticipants: (command) => {
+      updateMultipleParticipants(command.participants)
+      gridStore.triggerRedraw()
     },
 
-    updateStimuli: {
-      execute: (
-        command: Extract<WorkspaceCommandChain, { type: 'updateStimuli' }>
-      ) => {
-        updateMultipleStimuli(command.stimuli)
-        gridStore.triggerRedraw()
-      },
-      reverse: (_cmd, meta) => {
-        const currentData = getData()
-        const currentStimuli = currentData?.stimuli?.data || []
-        if (currentStimuli.length === 0) {
-          console.warn(
-            'Cannot reverse updateStimuli: no stimuli found in current data'
-          )
-          return null
-        }
-        const stimuli = currentStimuli.map(
-          ([originalName, displayedName], index) => ({
-            id: index,
-            originalName,
-            displayedName,
-          })
-        )
-        return withMeta({ type: 'updateStimuli', stimuli }, meta)
-      },
+    updateStimuli: (command) => {
+      updateMultipleStimuli(command.stimuli)
+      gridStore.triggerRedraw()
     },
 
-    updateAoiVisibility: {
-      execute: (
-        command: Extract<WorkspaceCommandChain, { type: 'updateAoiVisibility' }>
-      ) => {
-        const { stimulusId, aoiNames, visibilityArr, participantId } = command
-        updateMultipleAoiVisibility(
+    updateAoiVisibility: (command) => {
+      const { stimulusId, aoiNames, visibilityArr, participantId } = command
+      updateMultipleAoiVisibility(
+        stimulusId,
+        aoiNames,
+        visibilityArr,
+        participantId
+      )
+      gridStore.triggerRedraw()
+    },
+
+    updateParticipantsGroups: (command) => {
+      updateParticipantsGroups(command.groups)
+      gridStore.triggerRedraw()
+    },
+
+    updateNoAoiTreatment: (command) => {
+      updateNoAoiTreatment(command.noAoiTreatment)
+      gridStore.triggerRedraw()
+    },
+
+    updateSettings: (command, context) => {
+      const { itemId, settings } = command
+      const currentItem = gridStore.items.find(item => item.id === itemId)
+      if (!currentItem) throw new Error(`Grid item ${itemId} not found`)
+
+      gridStore.updateItem(itemId, {
+        ...settings,
+        redrawTimestamp: Date.now(),
+      })
+
+      if (command.isRootCommand && !context.isUndoRedoOperation) {
+        emitCollisionResolutionChildren(itemId, command.chainId, context)
+      }
+    },
+
+    addGridItem: (command, context) => {
+      const { vizType, options, itemId } = command
+      // cmd.vizType is now type-checked against GridItemMap keys
+      const createdId = gridStore.addItem(vizType as keyof GridItemMap, {
+        ...options,
+        id: itemId,
+      })
+      if (command.isRootCommand && !context.isUndoRedoOperation) {
+        emitCollisionResolutionChildren(createdId, command.chainId, context)
+      }
+    },
+
+    removeGridItem: (command) => {
+      gridStore.removeItem(command.itemId)
+    },
+
+    duplicateGridItem: (command, context) => {
+      const currentItem = gridStore.items.find(
+        item => item.id === command.itemId
+      )
+      if (!currentItem)
+        throw new Error(`Grid item ${command.itemId} not found`)
+
+      const createdId = gridStore.duplicateItem(
+        currentItem,
+        command.duplicateId
+      )
+      if (command.isRootCommand && !context.isUndoRedoOperation) {
+        emitCollisionResolutionChildren(createdId, command.chainId, context)
+      }
+    },
+
+    setLayoutState: (command) => {
+      gridStore.setLayoutState(command.layoutState)
+    },
+  }
+
+  const reverseHandlers: ReverseHandlers = {
+    updateAois: (cmd, meta) => {
+      const currentData = getData()
+      const stimulusId = cmd.stimulusId
+      const currentAois = currentData?.aois?.data?.[stimulusId] || []
+      if (currentAois.length === 0) {
+        console.warn(
+          `Cannot reverse updateAois: no AOIs found for stimulus ${stimulusId}`
+        )
+        return null
+      }
+      const affectedAois: ExtendedInterpretedDataType[] = []
+      for (let aoiIndex = 0; aoiIndex < currentAois.length; aoiIndex++) {
+        const aoiRow = currentAois[aoiIndex]
+        const originalName = aoiRow?.[0] ?? ''
+        const displayedName = aoiRow?.[1] ?? originalName
+        const color =
+          aoiRow?.[2] ??
+          DEFAULT_AOI_COLORS[aoiIndex % DEFAULT_AOI_COLORS.length]
+        affectedAois.push({
+          id: aoiIndex,
+          originalName,
+          displayedName,
+          color,
+        })
+      }
+      const shouldIncludeHiddenAois = cmd.hiddenAois !== undefined
+      const hiddenAois = currentData?.aois?.hiddenAois?.[stimulusId] ?? []
+      return withMeta(
+        {
+          type: 'updateAois',
+          aois: affectedAois,
           stimulusId,
+          applyTo: cmd.applyTo,
+          ...(shouldIncludeHiddenAois ? { hiddenAois: [...hiddenAois] } : {}),
+        },
+        meta
+      )
+    },
+
+    updateParticipants: (_cmd, meta) => {
+      const currentData = getData()
+      const currentParticipants = currentData?.participants?.data || []
+      if (currentParticipants.length === 0) {
+        console.warn(
+          'Cannot reverse updateParticipants: no participants found in current data'
+        )
+        return null
+      }
+      const participants = currentParticipants.map(
+        ([originalName, displayedName], index) => ({
+          id: index,
+          originalName,
+          displayedName,
+        })
+      )
+      return withMeta({ type: 'updateParticipants', participants }, meta)
+    },
+
+    updateStimuli: (_cmd, meta) => {
+      const currentData = getData()
+      const currentStimuli = currentData?.stimuli?.data || []
+      if (currentStimuli.length === 0) {
+        console.warn(
+          'Cannot reverse updateStimuli: no stimuli found in current data'
+        )
+        return null
+      }
+      const stimuli = currentStimuli.map(
+        ([originalName, displayedName], index) => ({
+          id: index,
+          originalName,
+          displayedName,
+        })
+      )
+      return withMeta({ type: 'updateStimuli', stimuli }, meta)
+    },
+
+    updateAoiVisibility: (cmd, meta) => {
+      const currentData = getData()
+      const currentAoiVisibility = currentData?.aois?.dynamicVisibility || {}
+      const affectedVisibility: {
+        aoiName: string
+        visibilityArr: number[]
+      }[] = []
+
+      Object.entries(currentAoiVisibility).forEach(([key, visibilityArr]) => {
+        const [stimulusIdStr, aoiIdStr, participantIdStr] = key.split('_')
+        const stimulusId = parseInt(stimulusIdStr, 10)
+        const participantId = parseInt(participantIdStr, 10)
+        if (
+          stimulusId === cmd.stimulusId &&
+          (!cmd.participantId || participantId === cmd.participantId)
+        ) {
+          const aoiData =
+            currentData?.aois?.data?.[stimulusId]?.[parseInt(aoiIdStr, 10)]
+          const aoiName = aoiData?.[1] || `AOI_${aoiIdStr}`
+          affectedVisibility.push({ aoiName, visibilityArr: visibilityArr as number[] })
+        }
+      })
+
+      if (affectedVisibility.length === 0) {
+        console.warn(
+          `Cannot reverse updateAoiVisibility: no visibility data found for stimulus ${cmd.stimulusId}`
+        )
+        return null
+      }
+
+      const visibilityArr = affectedVisibility.map(v => v.visibilityArr)
+      const aoiNames = affectedVisibility.map(v => v.aoiName)
+      return withMeta(
+        {
+          type: 'updateAoiVisibility',
+          stimulusId: cmd.stimulusId,
           aoiNames,
           visibilityArr,
-          participantId
-        )
-        gridStore.triggerRedraw()
-      },
-      reverse: (
-        cmd: Extract<WorkspaceCommandChain, { type: 'updateAoiVisibility' }>,
+          participantId: cmd.participantId,
+        },
         meta
-      ) => {
-        const currentData = getData()
-        const currentAoiVisibility = currentData?.aois?.dynamicVisibility || {}
-        const affectedVisibility: {
-          aoiName: string
-          visibilityArr: number[]
-        }[] = []
-
-        Object.entries(currentAoiVisibility).forEach(([key, visibilityArr]) => {
-          const [stimulusIdStr, aoiIdStr, participantIdStr] = key.split('_')
-          const stimulusId = parseInt(stimulusIdStr, 10)
-          const participantId = parseInt(participantIdStr, 10)
-          if (
-            stimulusId === cmd.stimulusId &&
-            (!cmd.participantId || participantId === cmd.participantId)
-          ) {
-            const aoiData =
-              currentData?.aois?.data?.[stimulusId]?.[parseInt(aoiIdStr, 10)]
-            const aoiName = aoiData?.[1] || `AOI_${aoiIdStr}`
-            affectedVisibility.push({ aoiName, visibilityArr })
-          }
-        })
-
-        if (affectedVisibility.length === 0) {
-          console.warn(
-            `Cannot reverse updateAoiVisibility: no visibility data found for stimulus ${cmd.stimulusId}`
-          )
-          return null
-        }
-
-        const visibilityArr = affectedVisibility.map(v => v.visibilityArr)
-        const aoiNames = affectedVisibility.map(v => v.aoiName)
-        return withMeta(
-          {
-            type: 'updateAoiVisibility',
-            stimulusId: cmd.stimulusId,
-            aoiNames,
-            visibilityArr,
-            participantId: cmd.participantId,
-          },
-          meta
-        )
-      },
+      )
     },
 
-    updateParticipantsGroups: {
-      execute: (
-        command: Extract<
-          WorkspaceCommandChain,
-          { type: 'updateParticipantsGroups' }
-        >
-      ) => {
-        updateParticipantsGroups(command.groups)
-        gridStore.triggerRedraw()
-      },
-      reverse: (_cmd, meta) => {
-        const currentData = getData()
-        const currentGroups = currentData?.participantsGroups || []
-        if (currentGroups.length === 0) {
-          console.warn(
-            'Cannot reverse updateParticipantsGroups: no groups found in current data'
-          )
-          return null
-        }
-        return withMeta(
-          { type: 'updateParticipantsGroups', groups: currentGroups },
-          meta
+    updateParticipantsGroups: (_cmd, meta) => {
+      const currentData = getData()
+      const currentGroups = currentData?.participantsGroups || []
+      if (currentGroups.length === 0) {
+        console.warn(
+          'Cannot reverse updateParticipantsGroups: no groups found in current data'
         )
-      },
-    },
-
-    updateNoAoiTreatment: {
-      execute: (
-        command: Extract<
-          WorkspaceCommandChain,
-          { type: 'updateNoAoiTreatment' }
-        >
-      ) => {
-        updateNoAoiTreatment(command.noAoiTreatment)
-        gridStore.triggerRedraw()
-      },
-      reverse: (_cmd, meta) => {
-        const currentData = getData()
-        const currentNoAoiTreatment = currentData?.noAoiTreatment
-        if (!currentNoAoiTreatment) {
-          console.warn(
-            'Cannot reverse updateNoAoiTreatment: no treatment found in current data'
-          )
-          return null
-        }
-        return withMeta(
-          {
-            type: 'updateNoAoiTreatment',
-            noAoiTreatment: currentNoAoiTreatment,
-          },
-          meta
-        )
-      },
-    },
-
-    updateSettings: {
-      execute: (
-        command: Extract<WorkspaceCommandChain, { type: 'updateSettings' }>,
-        context
-      ) => {
-        const { itemId, settings } = command
-        const currentItem = gridStore.items.find(item => item.id === itemId)
-        if (!currentItem) throw new Error(`Grid item ${itemId} not found`)
-
-        gridStore.updateItem(itemId, {
-          ...settings,
-          redrawTimestamp: Date.now(),
-        })
-
-        if (command.isRootCommand && !context.isUndoRedoOperation) {
-          emitCollisionResolutionChildren(itemId, command.chainId, context)
-        }
-      },
-      reverse: (
-        cmd: Extract<WorkspaceCommandChain, { type: 'updateSettings' }>,
+        return null
+      }
+      return withMeta(
+        { type: 'updateParticipantsGroups', groups: currentGroups },
         meta
-      ) => {
-        const currentItems = gridStore.items
-        const currentItem = currentItems.find(item => item.id === cmd.itemId)
-        if (!currentItem) {
-          console.warn(
-            `Cannot reverse updateSettings: item ${cmd.itemId} not found`
-          )
-          return null
-        }
-        const reverseSettings: Partial<AllGridTypes> = {}
-        Object.keys(cmd.settings).forEach(key => {
-          if (key === 'highlights') {
-            // Special-case: resetting highlights to an empty array
-            ;(
-              reverseSettings as Partial<AllGridTypes> & {
-                highlights?: unknown[]
-              }
-            ).highlights = []
-          } else if (key === 'type') {
-            return
-          } else if (key in currentItem) {
-            const typedKey = key as keyof AllGridTypes
-            Object.assign(reverseSettings, {
-              [typedKey]: currentItem[typedKey],
-            })
-          }
-        })
-        return withMeta(
-          {
-            type: 'updateSettings',
-            itemId: cmd.itemId,
-            settings: reverseSettings,
-          },
-          meta
-        )
-      },
+      )
     },
 
-    addGridItem: {
-      execute: (
-        command: Extract<WorkspaceCommandChain, { type: 'addGridItem' }>,
-        context
-      ) => {
-        const { vizType, options, itemId } = command
-        const createdId = gridStore.addItem(vizType as AllGridTypes['type'], {
-          ...options,
-          id: itemId,
-        })
-        if (command.isRootCommand && !context.isUndoRedoOperation) {
-          emitCollisionResolutionChildren(createdId, command.chainId, context)
-        }
-      },
-      reverse: (
-        cmd: Extract<WorkspaceCommandChain, { type: 'addGridItem' }>,
+    updateNoAoiTreatment: (_cmd, meta) => {
+      const currentData = getData()
+      const currentNoAoiTreatment = currentData?.noAoiTreatment
+      if (!currentNoAoiTreatment) {
+        console.warn(
+          'Cannot reverse updateNoAoiTreatment: no treatment found in current data'
+        )
+        return null
+      }
+      return withMeta(
+        {
+          type: 'updateNoAoiTreatment',
+          noAoiTreatment: currentNoAoiTreatment,
+        },
         meta
-      ) => withMeta({ type: 'removeGridItem', itemId: cmd.itemId }, meta),
+      )
     },
 
-    removeGridItem: {
-      execute: (
-        command: Extract<WorkspaceCommandChain, { type: 'removeGridItem' }>
-      ) => {
-        gridStore.removeItem(command.itemId)
-      },
-      reverse: (
-        cmd: Extract<WorkspaceCommandChain, { type: 'removeGridItem' }>,
+    updateSettings: (cmd, meta) => {
+      const currentItems = gridStore.items
+      const currentItem = currentItems.find(item => item.id === cmd.itemId)
+      if (!currentItem) {
+        console.warn(
+          `Cannot reverse updateSettings: item ${cmd.itemId} not found`
+        )
+        return null
+      }
+      const reverseSettings: Partial<AllGridTypes> = {}
+      Object.keys(cmd.settings).forEach(key => {
+        if (key === 'highlights') {
+          // Special-case: resetting highlights to an empty array
+          ;(
+            reverseSettings as Partial<AllGridTypes> & {
+              highlights?: unknown[]
+            }
+          ).highlights = []
+        } else if (key === 'type') {
+          return
+        } else if (key in currentItem) {
+          const typedKey = key as keyof AllGridTypes
+          Object.assign(reverseSettings, {
+            [typedKey]: currentItem[typedKey],
+          })
+        }
+      })
+      return withMeta(
+        {
+          type: 'updateSettings',
+          itemId: cmd.itemId,
+          settings: reverseSettings,
+        },
         meta
-      ) => {
-        const currentItems = gridStore.items
-        const removedItem = currentItems.find(item => item.id === cmd.itemId)
-        if (!removedItem) {
-          console.warn(
-            `Cannot reverse removeGridItem: item ${cmd.itemId} not found in current state`
-          )
-          return null
-        }
-        const { id, type, redrawTimestamp, ...options } = removedItem
-        return withMeta(
-          {
-            type: 'addGridItem',
-            vizType: removedItem.type,
-            itemId: removedItem.id,
-            options: { ...options, id: removedItem.id },
-          },
-          meta
-        )
-      },
+      )
     },
 
-    duplicateGridItem: {
-      execute: (
-        command: Extract<WorkspaceCommandChain, { type: 'duplicateGridItem' }>,
-        context
-      ) => {
-        const currentItem = gridStore.items.find(
-          item => item.id === command.itemId
-        )
-        if (!currentItem)
-          throw new Error(`Grid item ${command.itemId} not found`)
+    addGridItem: (cmd, meta) => withMeta({ type: 'removeGridItem', itemId: cmd.itemId }, meta),
 
-        const createdId = gridStore.duplicateItem(
-          currentItem,
-          command.duplicateId
+    removeGridItem: (cmd, meta) => {
+      const currentItems = gridStore.items
+      const removedItem = currentItems.find(item => item.id === cmd.itemId)
+      if (!removedItem) {
+        console.warn(
+          `Cannot reverse removeGridItem: item ${cmd.itemId} not found in current state`
         )
-        if (command.isRootCommand && !context.isUndoRedoOperation) {
-          emitCollisionResolutionChildren(createdId, command.chainId, context)
-        }
-      },
-      reverse: (
-        cmd: Extract<WorkspaceCommandChain, { type: 'duplicateGridItem' }>,
+        return null
+      }
+      const { id, type, redrawTimestamp, ...options } = removedItem
+      return withMeta(
+        {
+          type: 'addGridItem',
+          vizType: removedItem.type,
+          itemId: removedItem.id,
+          options: { ...options, id: removedItem.id },
+        },
         meta
-      ) => {
-        if (!cmd.duplicateId) {
-          console.warn(
-            `Cannot reverse duplicateGridItem: duplicateId not found in command`
-          )
-          return null
-        }
-        return withMeta(
-          { type: 'removeGridItem', itemId: cmd.duplicateId },
-          meta
-        )
-      },
+      )
     },
 
-    setLayoutState: {
-      execute: (
-        command: Extract<WorkspaceCommandChain, { type: 'setLayoutState' }>
-      ) => {
-        gridStore.setLayoutState(command.layoutState)
-      },
-      reverse: (_cmd, meta) => {
-        const currentItems = gridStore.items
-        const currentLayoutState = currentItems.map(item => {
-          const { redrawTimestamp, ...itemData } = item
-          return itemData as Partial<AllGridTypes> & { type: string }
-        })
-        return withMeta(
-          { type: 'setLayoutState', layoutState: currentLayoutState },
-          meta
+    duplicateGridItem: (cmd, meta) => {
+      if (!cmd.duplicateId) {
+        console.warn(
+          `Cannot reverse duplicateGridItem: duplicateId not found in command`
         )
-      },
+        return null
+      }
+      return withMeta(
+        { type: 'removeGridItem', itemId: cmd.duplicateId },
+        meta
+      )
+    },
+
+    setLayoutState: (_cmd, meta) => {
+      const currentItems = gridStore.items
+      const currentLayoutState = currentItems.map(item => {
+        const { redrawTimestamp, ...itemData } = item
+        return itemData as Partial<AllGridTypes> & { type: string }
+      })
+      return withMeta(
+        { type: 'setLayoutState', layoutState: currentLayoutState },
+        meta
+      )
     },
   }
 
@@ -512,16 +464,17 @@ export function createWorkspaceCommandRegistry(
     command: WorkspaceCommandChain,
     context: WorkspaceCommandExecutionContext
   ) {
-    const spec = specs[command.type]
-    spec?.execute?.(command as any, context)
+    // No 'any' needed. The key lookup automatically invokes the correctly narrowed function.
+    const handler = handlers[command.type] as any;
+    handler(command, context);
   }
 
   function reverse(
     command: WorkspaceCommandChain
   ): WorkspaceCommandChain | null {
     try {
-      const spec = specs[command.type]
-      if (!spec?.reverse) {
+      const handler = reverseHandlers[command.type];
+      if (!handler) {
         console.warn(`Cannot reverse command of type: ${(command as any).type}`)
         return null
       }
@@ -532,7 +485,7 @@ export function createWorkspaceCommandRegistry(
         isRootCommand: command.isRootCommand,
       }
 
-      return spec.reverse(command as any, meta)
+      return handler(command as any, meta)
     } catch (error) {
       console.error('Error reversing command:', error)
       return null

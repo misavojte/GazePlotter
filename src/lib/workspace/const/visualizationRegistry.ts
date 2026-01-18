@@ -3,35 +3,34 @@ import ScarfPlot from '$lib/plots/scarf/components/ScarfPlot.svelte'
 import TransitionMatrixPlot from '$lib/plots/transition-matrix/components/TransitionMatrixPlot.svelte' // Use lowercase 'a'
 import BarPlot from '$lib/plots/bar/components/BarPlot.svelte'
 import AoiStreamPlot from '$lib/plots/aoi-stream/components/AoiStreamPlot.svelte'
-import type { AllGridTypes } from '$lib/workspace/type/gridType'
+import type { GridItemMap, AllGridTypes } from '$lib/workspace/type/gridType'
 import { getScarfGridHeightFromCurrentData } from '$lib/plots/scarf/utils/scarfServices'
 
 /**
  * Configuration type for visualization registry entries
  * Defines the structure for each visualization type in the registry
  */
-export type VisualizationConfig = {
+export type VisualizationConfig<K extends keyof GridItemMap> = {
   name: string
-  component: any // Using 'any' here for simplicity, could be refined
-  getDefaultConfig: (params?: any) => Partial<AllGridTypes>
-  getDefaultHeight: (params?: any) => number
-  getDefaultWidth: (params?: any) => number
+  component: any // Ideally refine this to Component<GridItemMap[K]>
+  getDefaultConfig: (params?: { stimulusId?: number; groupId?: number }) => Partial<GridItemMap[K]>
+  getDefaultHeight: (stimulusId?: number) => number
+  getDefaultWidth: (stimulusId?: number) => number
 }
 
 /**
  * Visualization registry - a map of all available visualization types
  * Contains configuration for each supported visualization component
+ * Use a mapped type so every visualization is forced to comply with its specific interface
  */
-export const visualizationRegistry: Record<string, VisualizationConfig> = {
+export const visualizationRegistry: { [K in keyof GridItemMap]: VisualizationConfig<K> } = {
   scarf: {
     name: 'Scarf Plot',
     component: ScarfPlot,
-    getDefaultConfig: (
-      params: { stimulusId?: number; groupId?: number } = {}
-    ) => ({
+    getDefaultConfig: (params = {}) => ({
       stimulusId: params.stimulusId ?? 0,
       groupId: params.groupId ?? -1,
-      zoomLevel: 0,
+      // TypeScript now enforces these are valid ScarfGridType properties!
       timeline: 'absolute',
       absoluteStimuliLimits: [],
       ordinalStimuliLimits: [],
@@ -40,14 +39,12 @@ export const visualizationRegistry: Record<string, VisualizationConfig> = {
     }),
     getDefaultHeight: (stimulusId = 0) =>
       getScarfGridHeightFromCurrentData(stimulusId, false, -1),
-    getDefaultWidth: (_stimulusId = 0) => 20, // Renamed unused parameter
+    getDefaultWidth: () => 20,
   },
   TransitionMatrix: {
     name: 'Transition Matrix',
     component: TransitionMatrixPlot,
-    getDefaultConfig: (
-      params: { stimulusId?: number; groupId?: number } = {}
-    ) => ({
+    getDefaultConfig: (params = {}) => ({
       stimulusId: params.stimulusId ?? 0,
       groupId: params.groupId ?? -1,
       stimuliColorValueRanges: [],
@@ -65,9 +62,7 @@ export const visualizationRegistry: Record<string, VisualizationConfig> = {
   barPlot: {
     name: 'Bar Plot',
     component: BarPlot,
-    getDefaultConfig: (
-      params: { stimulusId?: number; groupId?: number } = {}
-    ) => ({
+    getDefaultConfig: (params = {}) => ({
       stimulusId: params.stimulusId ?? 0,
       groupId: params.groupId ?? -1,
       barPlottingType: 'horizontal',
@@ -81,9 +76,7 @@ export const visualizationRegistry: Record<string, VisualizationConfig> = {
   aoiStreamPlot: {
     name: 'AOI Stream Plot',
     component: AoiStreamPlot,
-    getDefaultConfig: (
-      params: { stimulusId?: number; groupId?: number } = {}
-    ) => ({
+    getDefaultConfig: (params = {}) => ({
       stimulusId: params.stimulusId ?? 0,
       groupId: params.groupId ?? -1,
       binCount: 200,
@@ -102,11 +95,9 @@ export const visualizationRegistry: Record<string, VisualizationConfig> = {
  * @returns The visualization configuration
  * @throws Error if the visualization type is not found
  */
-export const getVisualizationConfig = (type: string): VisualizationConfig => {
-  const config = visualizationRegistry[type]
-  if (!config) {
-    // Consider more robust error handling or a default fallback
-    throw new Error(`Visualization config not found for type: ${type}`)
-  }
-  return config
+export function getVizConfig<K extends keyof GridItemMap>(type: K): VisualizationConfig<K> {
+  return visualizationRegistry[type];
 }
+
+// Backwards compatibility alias
+export const getVisualizationConfig = getVizConfig;

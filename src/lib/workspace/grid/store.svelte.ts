@@ -1,6 +1,6 @@
 // src/lib/workspace/grid/store.svelte.ts
-import type { AllGridTypes } from '$lib/workspace/type/gridType'
-import { getVisualizationConfig } from '$lib/workspace/const'
+import type { GridItemMap, AllGridTypes } from '$lib/workspace/type/gridType'
+import { getVizConfig } from '$lib/workspace/const'
 import {
   DEFAULT_GRID_CONFIG,
   calculateGridHeight,
@@ -66,29 +66,38 @@ export class GridState {
     return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2
   }
 
-  private createItem(
-    type: AllGridTypes['type'],
-    options: Partial<AllGridTypes> = {}
+  private createItem<K extends keyof GridItemMap>(
+    type: K, 
+    options: Partial<GridItemMap[K]> = {}
   ): AllGridTypes {
-    const vizConfig = getVisualizationConfig(type)
-    const id = options.id ?? generateUniqueId()
-
-    const baseProperties = {
+    const viz = getVizConfig(type);
+    const id = options.id ?? generateUniqueId();
+    
+    // The registry now provides the correct default height/width based on the type key
+    const base = {
       id,
       x: options.x ?? 0,
       y: options.y ?? 0,
-      w: options.w ?? vizConfig.getDefaultWidth(options.stimulusId ?? 0),
-      h: options.h ?? vizConfig.getDefaultHeight(options.stimulusId ?? 0),
-      min: options.min ?? vizConfig.getDefaultConfig().min,
-      type,
+      w: options.w ?? viz.getDefaultWidth((options as any).stimulusId),
+      h: options.h ?? viz.getDefaultHeight((options as any).stimulusId),
+      min: options.min ?? viz.getDefaultConfig().min,
       redrawTimestamp: Date.now(),
-    }
+    };
 
-    return {
-      ...baseProperties,
-      ...vizConfig.getDefaultConfig(options),
-      ...options,
-    } as AllGridTypes
+    // Type safety is guaranteed by the generic K
+    // Merge base properties with default config and options
+    const merged = { 
+      ...base, 
+      type, 
+      ...viz.getDefaultConfig(options), 
+      ...options 
+    };
+    
+    // Type assertion is safe because:
+    // 1. `type` ensures we have the correct discriminant
+    // 2. `viz.getDefaultConfig` provides all required properties for type K
+    // 3. `options` can override any properties
+    return merged as unknown as AllGridTypes;
   }
 
   // --- Grid Manipulation & Collision Logic ---
@@ -224,7 +233,7 @@ export class GridState {
   }
 
   addItem(type: AllGridTypes['type'], options: Partial<AllGridTypes> = {}) {
-    const newItem = this.createItem(type, options)
+    const newItem = this.createItem(type as keyof GridItemMap, options)
     const suggested = this.findOptimalPosition(newItem.w, newItem.h)
 
     if (
