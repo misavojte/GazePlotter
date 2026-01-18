@@ -1120,11 +1120,21 @@
   }
 
   /* Apply drag-handle styles to the WorkspaceItemButton used for dragging */
-  :global(.item-container .header > .tooltip-wrapper:first-child .workspace-item-button) {
+  :global(
+    .item-container
+      .header
+      > .tooltip-wrapper:first-child
+      .workspace-item-button
+  ) {
     cursor: grab;
   }
 
-  :global(.item-container .header > .tooltip-wrapper:first-child .workspace-item-button:hover) {
+  :global(
+    .item-container
+      .header
+      > .tooltip-wrapper:first-child
+      .workspace-item-button:hover
+  ) {
     transform: scale(1.1);
     background: var(--c-darkgrey);
     color: var(--c-white);

@@ -13,8 +13,8 @@
         <div class="spinner"></div>
         <div class="text-content">
           <p>
-            Please wait while we prepare your visualisations. This may take a moment
-            depending on the size of your dataset.
+            Please wait while we prepare your visualisations. This may take a
+            moment depending on the size of your dataset.
           </p>
         </div>
       </div>

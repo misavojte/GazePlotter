@@ -156,8 +156,8 @@
     const otherItemsMaxBottom = Math.max(
       MIN_WORKSPACE_HEIGHT,
       ...currentItems
-        .filter(item => item.id !== id)
-        .map(item => calculateBottomEdgePosition(item.y, item.h, gridConfig))
+        .filter((item: AllGridTypes) => item.id !== id)
+        .map((item: AllGridTypes) => calculateBottomEdgePosition(item.y, item.h, gridConfig))
     )
 
     return (
@@ -227,7 +227,7 @@
   const handleItemMove = createOperationHandler({
     operationType: 'move',
     gridAction: (event: { id: number; x: number; y: number }) => {
-      const currentItem = grid.items.find(item => item.id === event.id)
+      const currentItem = grid.items.find((item: AllGridTypes) => item.id === event.id)
       if (currentItem) {
         const { type, id } = currentItem
         const source = `${type}.${id}.workspace`
@@ -244,7 +244,7 @@
   const handleItemResize = createOperationHandler({
     operationType: 'resize',
     gridAction: (event: { id: number; w: number; h: number }) => {
-      const currentItem = grid.items.find(item => item.id === event.id)
+      const currentItem = grid.items.find((item: AllGridTypes) => item.id === event.id)
       if (!currentItem) return
 
       const { type, id } = currentItem
@@ -283,7 +283,7 @@
 
   const handleItemRemove = createOperationHandler({
     gridAction: (event: { id: number }) => {
-      const itemToRemove = grid.items.find(item => item.id === event.id)
+      const itemToRemove = grid.items.find((item: AllGridTypes) => item.id === event.id)
       if (itemToRemove) {
         handleWorkspaceCommand({
           type: 'removeGridItem',
@@ -296,7 +296,7 @@
 
   const handleItemDuplicate = createOperationHandler({
     gridAction: (event: { id: number }) => {
-      const itemToDuplicate = grid.items.find(item => item.id === event.id)
+      const itemToDuplicate = grid.items.find((item: AllGridTypes) => item.id === event.id)
       if (itemToDuplicate) {
         handleWorkspaceCommand({
           type: 'duplicateGridItem',
