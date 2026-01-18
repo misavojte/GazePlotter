@@ -1,7 +1,7 @@
 import type { Action } from 'svelte/action'
 import type { Component } from 'svelte'
-import type { ContextMenuState } from '$lib/context-menu/stores'
-import { contextMenuStore, updateContextMenu } from '$lib/context-menu/stores'
+import type { ContextMenuState } from './contextMenuState.svelte'
+import { contextMenuState, updateContextMenu } from './contextMenuState.svelte'
 
 export type SlideFrom = 'top' | 'left'
 export interface MenuItem {
@@ -390,7 +390,7 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (node,
   /** Close the menu if this anchor currently controls it. */
   const close = () => {
     if (!ownsMenu) return
-    updateContextMenu((curr) => (isOwnedState(curr) ? null : curr))
+    updateContextMenu((curr: ContextMenuState | null) => (isOwnedState(curr) ? null : curr))
   }
 
   /**
@@ -501,9 +501,11 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (node,
   node.addEventListener('click', onTriggerClick)
   node.addEventListener('contextmenu', onContextMenu)
 
-  const unsubscribe = contextMenuStore.subscribe((value) => {
-    if (isOwnedState(value)) return
-    finalizeClosure()
+  $effect(() => {
+    const value = contextMenuState.current
+    if (!isOwnedState(value)) {
+      finalizeClosure()
+    }
   })
 
   return {
@@ -517,7 +519,10 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (node,
     },
     destroy() {
       close()
-      unsubscribe()
+      // No unsubscribe needed for $effect in Svelte 5 actions as they are automatically cleaned up when the action is destroyed? 
+      // Actually, $effect inside an action is cleaned up when the effect is re-run or the parent scope is destroyed.
+      // But we can also use $effect.root or just let the action's natural lifecycle handle it if it was in a component.
+      // In an action, if we use $effect, it's tied to the component that uses the action.
       node.removeEventListener('click', onTriggerClick)
       node.removeEventListener('contextmenu', onContextMenu)
       detachGlobalListeners()

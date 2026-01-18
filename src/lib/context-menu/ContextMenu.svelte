@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fly, fade } from 'svelte/transition'
-  import { contextMenuStore, updateContextMenu } from '$lib/context-menu/stores'
-  import { MENU_MAX_HEIGHT } from '$lib/context-menu/components/contextMenuAction'
+  import { contextMenuState, updateContextMenu } from './contextMenuState.svelte'
+  import { MENU_MAX_HEIGHT } from './contextMenuAction.svelte'
 
   /** Close the context menu by clearing the global store. */
   const onClose = () => updateContextMenu(null)
@@ -57,27 +57,27 @@
   })
 </script>
 
-{#if $contextMenuStore}
+{#if contextMenuState.current}
   <div
     bind:this={menuElement}
     class="menu"
     role="menu"
     in:fly={{
       duration: 140,
-      y: $contextMenuStore.slideFrom === 'top' ? -8 : 0,
-      x: $contextMenuStore.slideFrom === 'left' ? -8 : 0
+      y: contextMenuState.current.slideFrom === 'top' ? -8 : 0,
+      x: contextMenuState.current.slideFrom === 'left' ? -8 : 0
     }}
     out:fade={{ duration: 140 }}
-    style={`left:${$contextMenuStore.x}px; top:${$contextMenuStore.y}px; width:${width}px; z-index:${$contextMenuStore.zIndex}; max-height:${MENU_MAX_HEIGHT}px;`}
+    style={`left:${contextMenuState.current.x}px; top:${contextMenuState.current.y}px; width:${width}px; z-index:${contextMenuState.current.zIndex}; max-height:${MENU_MAX_HEIGHT}px;`}
     onscroll={(e) => {
       // Stop scroll events from bubbling up to prevent parent scroll handlers from closing the menu.
       e.stopPropagation()
     }}
   >
-    {#if $contextMenuStore.items && $contextMenuStore.items.length}
+    {#if contextMenuState.current.items && contextMenuState.current.items.length}
       <ul bind:this={container}>
         <!-- Render each menu item as an accessible button so keyboard users can activate entries. -->
-        {#each $contextMenuStore.items as it}
+        {#each contextMenuState.current.items as it}
           <li>
             <button role="menuitem" class:highlighted={it.isHighlighted} onclick={() => handleItemClick(it.action)}>
               {#if it.icon}
@@ -89,8 +89,8 @@
           </li>
         {/each}
       </ul>
-    {:else if $contextMenuStore.content}
-      <div class="custom">{$contextMenuStore.content}</div>
+    {:else if contextMenuState.current.content}
+      <div class="custom">{contextMenuState.current.content}</div>
     {/if}
   </div>
 {/if}

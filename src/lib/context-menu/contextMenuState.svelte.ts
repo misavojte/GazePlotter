@@ -1,8 +1,7 @@
-import { writable } from 'svelte/store'
-import type { MenuItem, SlideFrom } from '$lib/context-menu/components/contextMenuAction'
+import type { MenuItem, SlideFrom } from './contextMenuAction.svelte'
 
 /**
- * Shape of the global context menu descriptor stored in Svelte.
+ * Shape of the global context menu descriptor stored in Svelte state.
  *
  * @remarks
  * The `ownerId` allows multiple context menu anchors to coordinate access to
@@ -28,11 +27,20 @@ export interface ContextMenuState {
   zIndex: number
 }
 
-/** Writable backing store for the active context menu. */
-export const contextMenuStore = writable<ContextMenuState | null>(null)
+/** Reactive state for the active context menu. */
+let _state = $state<ContextMenuState | null>(null);
 
 /**
- * Update the context menu store with either a new value or a mutator.
+ * Global accessor for the context menu state.
+ * Using a getter allows the state to remain reactive across module boundaries.
+ */
+export const contextMenuState = {
+  get current() { return _state },
+  set current(value: ContextMenuState | null) { _state = value }
+}
+
+/**
+ * Update the context menu state with either a new value or a mutator.
  *
  * @param next - The next state or a function that maps the current state to the next state.
  */
@@ -40,10 +48,8 @@ export function updateContextMenu(
   next: ContextMenuState | null | ((curr: ContextMenuState | null) => ContextMenuState | null)
 ): void {
   if (typeof next === 'function') {
-    contextMenuStore.update(next)
+    _state = next(_state)
   } else {
-    contextMenuStore.set(next)
+    _state = next
   }
 }
-
-

@@ -3,7 +3,7 @@
   import {
     contextMenuAction,
     type MenuItem,
-    contextMenuStore,
+    contextMenuState,
   } from '$lib/context-menu'
 
   /**
@@ -92,7 +92,7 @@
    * Check if context menu is currently visible for this component.
    * Used to disable tooltip when menu is open.
    */
-  const isMenuVisible = $derived($contextMenuStore !== null)
+  const isMenuVisible = $derived(contextMenuState.current !== null)
 </script>
 
 <div class="tooltip-wrapper">
