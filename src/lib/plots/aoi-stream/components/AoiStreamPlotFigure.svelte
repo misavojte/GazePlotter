@@ -84,6 +84,7 @@
     marginRight?: number
     marginBottom?: number
     marginLeft?: number
+    stripHeightOverride?: number | null
   }
 
   let {
@@ -98,6 +99,7 @@
     marginRight = 0,
     marginBottom = 0,
     marginLeft = 0,
+    stripHeightOverride = null,
   }: AoiStreamPlotFigureProps = $props()
 
   let canvas = $state<HTMLCanvasElement | null>(null)
@@ -424,51 +426,41 @@
       const standardDenom = n - (n - 1) * RIDGELINE_OVERLAP
       const standardHeight = plotAreaHeight / standardDenom
 
-      let minAllowableS = Infinity
-
-      for (let s = 0; s < series.length; s++) {
+      if (
+        stripHeightOverride !== null &&
+        Number.isFinite(stripHeightOverride) &&
+        stripHeightOverride > 0
+      ) {
+        stripHeight = stripHeightOverride
+      } else {
+        // Calculate using only the first series peak (for efficiency and consistency with sync)
         let maxVal = 0
-        const values = series[s].values
-        for (let i = 0; i < binCount; i++) {
-          const v = values[i] * percentFactor
-          if (v > maxVal) maxVal = v
+        if (series.length > 0) {
+          const values = series[0].values
+          for (let i = 0; i < binCount; i++) {
+            const v = values[i] * percentFactor
+            if (v > maxVal) maxVal = v
+          }
         }
 
-        // Relative position of this series baseline from the bottom
-        // Bottom series (s=N-1) is at relative position 0
-        const relativePosition = (n - 1 - s) * (1 - RIDGELINE_OVERLAP)
-
-        // Height needed for data: maxVal% of ScaleHeight(S*0.9)
-        // MaxPeakPosition = Baseline - S * 0.9 * (maxVal/100)
-        // We need: MaxPeakPosition >= 0 (relative to PlotTop)
-        // Baseline = PlotHeight - relativePosition * S
-        // PlotHeight - S*relativePosition - S * 0.009 * maxVal >= 0
-        // PlotHeight >= S * (relativePosition + 0.009 * maxVal)
-
+        // First series (s=0) has relativePosition = (n - 1 - 0) * (1 - OVERLAP) = (n-1) * (1 - OVERLAP)
+        const relativePosition = (n - 1) * (1 - RIDGELINE_OVERLAP)
         const dataFactor = (maxVal * 0.9) / 100
         const totalFactor = relativePosition + dataFactor
 
-        // If totalFactor is very small (series at bottom with 0 data), it doesn't constrain
+        let minAllowableS = Infinity
+
         if (totalFactor > 1e-4) {
-          const sHeight = plotAreaHeight / totalFactor
-          if (sHeight < minAllowableS) minAllowableS = sHeight
+          minAllowableS = plotAreaHeight / totalFactor
         }
-      }
 
-      // If all unconstrained, or optimized height is effectively same/smaller than standard
-      // (e.g. data > 100%), we fall back to standard logic as a safe minimum.
-      // But usually this calculation allows S to be LARGER than standardHeight.
-      // If data is 0 everywhere, minAllowableS might be huge. Cap it.
-      // Cap at, say, 10x standard height to avoid glitches with near-zero noise scaling.
-
-      if (minAllowableS === Infinity) {
-        stripHeight = standardHeight
-      } else {
-        stripHeight = Math.min(minAllowableS, standardHeight * 10)
-        // Ensure we never shrinking below what's needed for 100% if real data exceeds it,
-        // (though current logic handles that naturally via minAllowableS).
-        // But for "zoom in" behavior, we typically want S >= standardHeight.
-        stripHeight = Math.max(stripHeight, standardHeight)
+        // Apply clamping
+        if (minAllowableS === Infinity) {
+          stripHeight = standardHeight
+        } else {
+          stripHeight = Math.min(minAllowableS, standardHeight * 10)
+          stripHeight = Math.max(stripHeight, standardHeight)
+        }
       }
     }
 
@@ -1222,6 +1214,7 @@
       mr: safeMarginRight,
       mb: safeMarginBottom,
       ml: safeMarginLeft,
+      stripHeight: stripHeightOverride,
     }
 
     untrack(() => {

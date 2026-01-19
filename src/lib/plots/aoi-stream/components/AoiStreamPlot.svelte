@@ -25,6 +25,9 @@
   import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
+  import { scanForDynamicStripHeight } from '$lib/plots/aoi-stream/utils/ridgelineUtils'
+  import { grid } from '$lib/workspace/grid/store.svelte'
+
   const LAYOUT = {
     headerHeight: 150,
     horizontalPadding: 40,
@@ -179,6 +182,17 @@
       })
     })
   })
+
+  const stripHeightOverride = $derived.by(() => {
+    // Only active for ridgeline
+    if (settings.alignment !== 'ridgeline') return null
+    // Reactive to redrawTimestamp implicitly via grid store if we needed,
+    // but here scanForDynamicStripHeight uses grid.items which is fine.
+    // However, we might want to trigger it when redrawTimestamp changes?
+    // scanForDynamicStripHeight reads grid.items which is a rune $state, so it should be tracked.
+    // Also track settings.h
+    return scanForDynamicStripHeight(grid.items, settings.h)
+  })
 </script>
 
 <BasePlot
@@ -210,6 +224,7 @@
         {highlights}
         alignment={settings.alignment ?? 'center'}
         onLegendClick={handleLegendClick}
+        {stripHeightOverride}
       />
     {/if}
   {/snippet}
