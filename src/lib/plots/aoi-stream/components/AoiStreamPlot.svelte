@@ -166,7 +166,6 @@
 
 <BasePlot
   {settings}
-  {onWorkspaceCommand}
   layoutConfig={LAYOUT}
   hasData={!!streamResult}
   dimensions={plotDimensions}

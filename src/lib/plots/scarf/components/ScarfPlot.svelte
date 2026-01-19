@@ -342,11 +342,9 @@
 
 <BasePlot
   settings={localSettings}
-  {onWorkspaceCommand}
   layoutConfig={LAYOUT}
   dimensions={plotDimensions}
   contentHeight={heightCalculations.totalHeight}
-  overflow="auto"
 >
   {#snippet header()}
     <ScarfPlotHeader {source} settings={localSettings} {onWorkspaceCommand} />

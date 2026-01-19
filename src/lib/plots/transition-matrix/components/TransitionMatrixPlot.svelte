@@ -246,7 +246,6 @@
 
 <BasePlot
   {settings}
-  {onWorkspaceCommand}
   layoutConfig={LAYOUT}
   hasData={settings?.stimulusId !== undefined && aoiLabels.length > 0}
   dimensions={plotDimensions}

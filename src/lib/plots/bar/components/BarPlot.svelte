@@ -128,7 +128,7 @@
   })
 </script>
 
-<BasePlot {settings} {onWorkspaceCommand} layoutConfig={LAYOUT}>
+<BasePlot {settings} layoutConfig={LAYOUT}>
   {#snippet header()}
     <div class="controls">
       <Select

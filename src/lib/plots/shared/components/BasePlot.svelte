@@ -17,35 +17,30 @@
 
   interface Props {
     settings: GridType
-    onWorkspaceCommand?: (command: WorkspaceCommand) => void
     layoutConfig?: LayoutConfig
     // If provided, controls the fade in. If not provided, it assumes data is always ready or handled by parent.
     // If false is passed, it shows placeholder.
     hasData?: boolean
-    
+
     // Optional dimensions override if parent already calculated them
     dimensions?: { width: number; height: number }
 
     // Optional height override for the inner content (e.g. for scrolling plots)
     contentHeight?: number
-    // Optional overflow setting for the figure container
-    overflow?: string
 
     // Snippets
     header?: Snippet
     figure?: Snippet<[{ width: number; height: number }]>
   }
 
-  let { 
-    settings, 
-    onWorkspaceCommand, 
-    layoutConfig = {}, 
+  let {
+    settings,
+    layoutConfig = {},
     hasData = true,
     dimensions: parentDimensions,
     contentHeight,
-    overflow = 'hidden',
     header,
-    figure
+    figure,
   }: Props = $props()
 
   // Default layout constants
@@ -75,14 +70,19 @@
   })
 </script>
 
-<div class="base-plot-container" style="overflow: {overflow}">
+<div class="base-plot-container">
   <div class="header">
     {#if header}
       {@render header()}
     {/if}
   </div>
 
-  <div class="figure" style="height: {contentHeight ? `${contentHeight}px` : `${dimensions.height}px`}">
+  <div
+    class="figure"
+    style="height: {contentHeight
+      ? `${contentHeight}px`
+      : `${dimensions.height}px`}"
+  >
     {#if mounted && hasData}
       <div
         class="figure-content"
@@ -90,21 +90,21 @@
         style="height: {contentHeight ?? dimensions.height}px"
       >
         {#if figure}
-            {@render figure({ width: dimensions.width, height: dimensions.height })}
+          {@render figure({
+            width: dimensions.width,
+            height: dimensions.height,
+          })}
         {:else}
-            <!-- If no figure snippet provided, we could fallback to placeholder or nothing -->
-            <PlotPlaceholder
-                width={dimensions.width}
-                height={dimensions.height}
-            />
+          <!-- If no figure snippet provided, we could fallback to placeholder or nothing -->
+          <PlotPlaceholder
+            width={dimensions.width}
+            height={dimensions.height}
+          />
         {/if}
       </div>
     {:else}
       <div class="figure-content" style="height: {dimensions.height}px">
-        <PlotPlaceholder
-          width={dimensions.width}
-          height={dimensions.height}
-        />
+        <PlotPlaceholder width={dimensions.width} height={dimensions.height} />
       </div>
     {/if}
   </div>
