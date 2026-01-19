@@ -205,6 +205,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
   private readonly aoiHitSuffixBytes: Uint8Array
   private readonly aoiDashBytes: Uint8Array
   private readonly fixationBytes: Uint8Array
+  private readonly spaceBytes: Uint8Array
 
   static readonly TYPE = 'tobii'
 
@@ -223,6 +224,7 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     this.aoiHitSuffixBytes = encodeString(']', this.encoding)
     this.aoiDashBytes = encodeString(' - ', this.encoding)
     this.fixationBytes = encodeString('Fixation', this.encoding)
+    this.spaceBytes = encodeString(' ', this.encoding)
     this.cRecordingTimestamp = header.indexOf('Recording timestamp')
     const altStim = header.indexOf('Presented Stimulus name')
     this.cStimulus =
@@ -480,7 +482,18 @@ export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
     /* mutate state for new segment */
     this.mStimulusBytes = newStimulusBytes
     this.mStimulusKey = newStimulusKey
-    this.mParticipantBytes = participantBytes
+
+    const fullParticipantBytes = new Uint8Array(
+      recordingBytes.length + this.spaceBytes.length + participantBytes.length
+    )
+    fullParticipantBytes.set(recordingBytes, 0)
+    fullParticipantBytes.set(this.spaceBytes, recordingBytes.length)
+    fullParticipantBytes.set(
+      participantBytes,
+      recordingBytes.length + this.spaceBytes.length
+    )
+    this.mParticipantBytes = fullParticipantBytes
+
     this.mParticipantKey = participantFull
     this.mRecordingStart = correctedStart
     this.mCategoryBytes = categoryBytes
