@@ -6,8 +6,9 @@
     getData,
   } from '$lib/gaze-data/front-process/stores/dataStore'
   import type { ScarfTooltipFillingType } from '$lib/plots/scarf/types/ScarfTooltipFillingType'
-  import { onDestroy, onMount } from 'svelte'
+  import { onDestroy, onMount, untrack } from 'svelte'
   import { ScarfPlotFigure, ScarfPlotHeader } from '$lib/plots/scarf/components'
+  import { BasePlot } from '$lib/plots/shared/components'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
   import {
     tooltipScarfService,
@@ -17,8 +18,6 @@
   } from '$lib/plots/scarf/utils'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils'
   import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
-  import { PlotPlaceholder } from '$lib/plots/shared/components'
-  import { fade } from 'svelte/transition'
   import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
@@ -78,6 +77,13 @@
       SCARF_LAYOUT.CONTENT_PADDING
     )
   )
+
+  // Map SCARF_LAYOUT to BasePlot expectation
+  const LAYOUT = {
+    headerHeight: SCARF_LAYOUT.HEADER_HEIGHT,
+    horizontalPadding: SCARF_LAYOUT.HORIZONTAL_PADDING,
+    contentPadding: SCARF_LAYOUT.CONTENT_PADDING,
+  }
 
   // Available width for chart content
   const chartWidth = $derived(plotDimensions.width)
@@ -298,11 +304,9 @@
     }
   }
 
-  let mounted = $state(false)
   // Lifecycle hooks
   onMount(() => {
     windowObj = window
-    mounted = true
   })
 
   onDestroy(() => {
@@ -336,64 +340,31 @@
   }
 </script>
 
-<div class="scarf-plot-container">
-  <div class="header">
+<BasePlot
+  settings={localSettings}
+  {onWorkspaceCommand}
+  layoutConfig={LAYOUT}
+  dimensions={plotDimensions}
+  contentHeight={heightCalculations.totalHeight}
+  overflow="auto"
+>
+  {#snippet header()}
     <ScarfPlotHeader {source} settings={localSettings} {onWorkspaceCommand} />
-  </div>
+  {/snippet}
 
-  <div class="figure" style="height: {heightCalculations.totalHeight}px">
-    {#if mounted}
-      <div class="figure-content" in:fade={{ duration: 300 }}>
-        <ScarfPlotFigure
-          onTooltipActivation={handleTooltipActivation}
-          onTooltipDeactivation={handleTooltipDeactivation}
-          tooltipAreaElement={tooltipArea}
-          data={scarfData}
-          settings={localSettings}
-          {highlights}
-          onLegendClick={handleLegendClick}
-          onDragStepX={handleDragStepX}
-          onDragEnd={handleDragEnd}
-          {chartWidth}
-          calculatedHeights={heightCalculations}
-        />
-      </div>
-    {:else}
-      <div
-        class="figure-content"
-        style="height: {heightCalculations.totalHeight}px"
-      >
-        <PlotPlaceholder
-          width={chartWidth}
-          height={heightCalculations.totalHeight}
-        />
-      </div>
-    {/if}
-  </div>
-</div>
-
-<style>
-  .scarf-plot-container {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    width: 100%;
-  }
-
-  .header {
-    padding: 0 0 10px 0;
-    margin-bottom: 10px;
-    background-color: var(--c-white);
-  }
-
-  .figure {
-    position: relative;
-    overflow: auto;
-  }
-
-  .figure-content {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-  }
-</style>
+  {#snippet figure({ width, height })}
+    <ScarfPlotFigure
+      onTooltipActivation={handleTooltipActivation}
+      onTooltipDeactivation={handleTooltipDeactivation}
+      tooltipAreaElement={tooltipArea}
+      data={scarfData}
+      settings={localSettings}
+      {highlights}
+      onLegendClick={handleLegendClick}
+      onDragStepX={handleDragStepX}
+      onDragEnd={handleDragEnd}
+      {chartWidth}
+      calculatedHeights={heightCalculations}
+    />
+  {/snippet}
+</BasePlot>

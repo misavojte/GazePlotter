@@ -1,18 +1,14 @@
 <script lang="ts">
-  // Svelte core imports
-  import { fade } from 'svelte/transition'
-  import { untrack, onMount } from 'svelte'
+  import { untrack } from 'svelte'
 
   // Local components
   import { BarPlotFigure, BarPlotButtonMenu } from '$lib/plots/bar/components'
-  import { PlotPlaceholder } from '$lib/plots/shared/components'
+  import { BasePlot } from '$lib/plots/shared/components'
   import Select, {
     type GroupSelectItem,
   } from '$lib/shared/components/GeneralSelect.svelte'
 
   // Utilities and stores
-  import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
-  import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils/plotSizeUtility'
   import { getBarPlotData } from '$lib/plots/bar/utils/barPlotUtils'
   import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
   import { getParticipantsGroups } from '$lib/gaze-data/front-process/stores/dataStore'
@@ -26,9 +22,9 @@
 
   // CONSTANTS - centralized for easier maintenance
   const LAYOUT = {
-    HEADER_HEIGHT: 150,
-    HORIZONTAL_PADDING: 50,
-    CONTENT_PADDING: 0,
+    headerHeight: 150,
+    horizontalPadding: 50,
+    contentPadding: 0,
   }
 
   // Component Props using Svelte 5 $props() rune
@@ -38,18 +34,6 @@
   }
 
   let { settings, onWorkspaceCommand }: Props = $props()
-
-  // Calculate plot dimensions using a more descriptive approach
-  const plotDimensions = $derived.by(() =>
-    calculatePlotDimensionsWithHeader(
-      settings.w,
-      settings.h,
-      DEFAULT_GRID_CONFIG,
-      LAYOUT.HEADER_HEIGHT,
-      LAYOUT.HORIZONTAL_PADDING,
-      LAYOUT.CONTENT_PADDING
-    )
-  )
 
   // Get bar plot data and timeline from utility function
   let barPlotResult = $state(getBarPlotData(settings))
@@ -135,23 +119,17 @@
    */
   const redrawTimestamp = $derived.by(() => settings.redrawTimestamp)
   $effect(() => {
-    console.log('redrawTimestampBarPlot', redrawTimestamp)
-
+    redrawTimestamp // reactive dependency
     untrack(() => {
       barPlotResult = getBarPlotData(settings)
       stimulusOptions = getStimuliOptions()
       groupOptions = getGroupOptions()
     })
   })
-
-  let mounted = $state(false)
-  onMount(() => {
-    mounted = true
-  })
 </script>
 
-<div class="bar-plot-container">
-  <div class="header">
+<BasePlot {settings} {onWorkspaceCommand} layoutConfig={LAYOUT}>
+  {#snippet header()}
     <div class="controls">
       <Select
         ariaLabel="Bar filters"
@@ -163,56 +141,23 @@
         <BarPlotButtonMenu {settings} {onWorkspaceCommand} />
       </div>
     </div>
-  </div>
+  {/snippet}
 
-  <div class="figure" style="height: {plotDimensions.height}px">
-    {#if mounted}
-      <div
-        class="figure-content"
-        in:fade={{ duration: 300 }}
-        style="height: {plotDimensions.height}px"
-      >
-        <BarPlotFigure
-          width={plotDimensions.width}
-          height={plotDimensions.height}
-          data={labelededBarPlotData}
-          {timeline}
-          barPlottingType={settings.barPlottingType}
-          barWidth={200}
-          barSpacing={20}
-          onDataHover={() => {}}
-        />
-      </div>
-    {:else}
-      <div class="figure-content" style="height: {plotDimensions.height}px">
-        <PlotPlaceholder
-          width={plotDimensions.width}
-          height={plotDimensions.height}
-        />
-      </div>
-    {/if}
-  </div>
-</div>
+  {#snippet figure({ width, height })}
+    <BarPlotFigure
+      {width}
+      {height}
+      data={labelededBarPlotData}
+      {timeline}
+      barPlottingType={settings.barPlottingType}
+      barWidth={200}
+      barSpacing={20}
+      onDataHover={() => {}}
+    />
+  {/snippet}
+</BasePlot>
 
 <style>
-  .figure {
-    position: relative;
-    overflow: hidden;
-  }
-
-  .bar-plot-container {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    width: 100%;
-  }
-
-  .header {
-    padding: 0 0 10px 0;
-    margin-bottom: 10px;
-    background-color: var(--c-white);
-  }
-
   .controls {
     display: flex;
     gap: 5px;

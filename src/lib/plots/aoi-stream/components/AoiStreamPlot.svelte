@@ -1,12 +1,11 @@
 <script lang="ts">
-  import { fade } from 'svelte/transition'
-  import { onMount, untrack } from 'svelte'
+  import { untrack } from 'svelte'
 
   import {
     AoiStreamPlotFigure,
     AoiStreamPlotButtonMenu,
   } from '$lib/plots/aoi-stream/components'
-  import { PlotPlaceholder } from '$lib/plots/shared/components'
+  import { BasePlot } from '$lib/plots/shared/components'
   import Select, {
     type GroupSelectItem,
   } from '$lib/shared/components/GeneralSelect.svelte'
@@ -27,9 +26,9 @@
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
   const LAYOUT = {
-    HEADER_HEIGHT: 150,
-    HORIZONTAL_PADDING: 40,
-    CONTENT_PADDING: 5,
+    headerHeight: 150,
+    horizontalPadding: 40,
+    contentPadding: 5,
   }
 
   interface Props {
@@ -39,14 +38,15 @@
 
   let { settings, onWorkspaceCommand }: Props = $props()
 
+  // Calculate dimensions locally because they are needed for autoBinCount
   const plotDimensions = $derived.by(() =>
     calculatePlotDimensionsWithHeader(
       settings.w,
       settings.h,
       DEFAULT_GRID_CONFIG,
-      LAYOUT.HEADER_HEIGHT,
-      LAYOUT.HORIZONTAL_PADDING,
-      LAYOUT.CONTENT_PADDING
+      LAYOUT.headerHeight,
+      LAYOUT.horizontalPadding,
+      LAYOUT.contentPadding
     )
   )
 
@@ -152,7 +152,7 @@
 
   const redrawTimestamp = $derived(settings.redrawTimestamp)
   $effect(() => {
-    redrawTimestamp
+    redrawTimestamp // reactive dependency
     untrack(() => {
       streamResult = getAoiStreamPlotData({
         ...settings,
@@ -162,16 +162,16 @@
       })
     })
   })
-
-  let mounted = $state(false)
-
-  onMount(() => {
-    mounted = true
-  })
 </script>
 
-<div class="aoi-stream-container">
-  <div class="header">
+<BasePlot
+  {settings}
+  {onWorkspaceCommand}
+  layoutConfig={LAYOUT}
+  hasData={!!streamResult}
+  dimensions={plotDimensions}
+>
+  {#snippet header()}
     <div class="controls">
       <Select
         ariaLabel="AOI stream filters"
@@ -183,66 +183,22 @@
         <AoiStreamPlotButtonMenu {settings} {onWorkspaceCommand} />
       </div>
     </div>
-  </div>
+  {/snippet}
 
-  <div class="figure" style="height: {plotDimensions.height}px">
-    {#if mounted}
-      <div
-        class="figure-content"
-        in:fade={{ duration: 300 }}
-        style="height: {plotDimensions.height}px"
-      >
-        {#if streamResult}
-          <AoiStreamPlotFigure
-            width={plotDimensions.width}
-            height={plotDimensions.height}
-            data={streamResult}
-            {highlights}
-            onLegendClick={handleLegendClick}
-          />
-        {:else}
-          <PlotPlaceholder
-            width={plotDimensions.width}
-            height={plotDimensions.height}
-          />
-        {/if}
-      </div>
-    {:else}
-      <div class="figure-content" style="height: {plotDimensions.height}px">
-        <PlotPlaceholder
-          width={plotDimensions.width}
-          height={plotDimensions.height}
-        />
-      </div>
+  {#snippet figure({ width, height })}
+    {#if streamResult}
+      <AoiStreamPlotFigure
+        {width}
+        {height}
+        data={streamResult}
+        {highlights}
+        onLegendClick={handleLegendClick}
+      />
     {/if}
-  </div>
-</div>
+  {/snippet}
+</BasePlot>
 
 <style>
-  .figure {
-    position: relative;
-    overflow: hidden;
-  }
-
-  .figure-content {
-    position: relative;
-    width: 100%;
-    height: 100%;
-  }
-
-  .aoi-stream-container {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    width: 100%;
-  }
-
-  .header {
-    padding: 0 0 10px 0;
-    margin-bottom: 10px;
-    background-color: var(--c-white);
-  }
-
   .controls {
     display: flex;
     gap: 5px;

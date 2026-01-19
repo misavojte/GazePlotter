@@ -1,17 +1,16 @@
 <script lang="ts">
   // Svelte core imports
-  import { fade } from 'svelte/transition'
-  import { untrack } from 'svelte'
+  import { untrack, onDestroy } from 'svelte'
 
   // Local components
   import {
     TransitionMatrixPlotFigure,
     TransitionMatrixButtonMenu,
   } from '$lib/plots/transition-matrix/components'
+  import { BasePlot } from '$lib/plots/shared/components'
   import Select, {
     type GroupSelectItem,
   } from '$lib/shared/components/GeneralSelect.svelte'
-  import { PlotPlaceholder } from '$lib/plots/shared/components'
   import { ModalContentMaxValue, ModalContentColorScale } from '$lib/modals'
 
   // Utilities and stores
@@ -26,11 +25,15 @@
     data,
     getParticipantsGroups,
   } from '$lib/gaze-data/front-process/stores/dataStore'
-  import { onDestroy } from 'svelte'
 
   // Types
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
   import type { WorkspaceCommand } from '$lib/workspace/commands'
+
+  const LAYOUT = {
+    headerHeight: 150,
+    horizontalPadding: 50,
+  }
 
   interface Props {
     settings: TransitionMatrixGridType
@@ -38,10 +41,6 @@
   }
 
   let { settings, onWorkspaceCommand }: Props = $props()
-
-  // Constants for space taken by headers, controls, and padding
-  const HEADER_HEIGHT = 150 // Estimated space for header and controls
-  const HORIZONTAL_PADDING = 50 // Horizontal padding inside the container
 
   // Get current stimulus-specific color range or use default values
   const currentStimulusColorRange = $derived.by(() => {
@@ -52,14 +51,14 @@
   // source for workspace commands
   const source = createCommandSourcePlotPattern(settings, 'plot')
 
-  // Visualization settings (now reactive)
-  let plotDimensions = $derived.by(() =>
+  // Visualization settings
+  const plotDimensions = $derived.by(() =>
     calculatePlotDimensionsWithHeader(
       settings.w,
       settings.h,
       DEFAULT_GRID_CONFIG,
-      HEADER_HEIGHT,
-      HORIZONTAL_PADDING
+      LAYOUT.headerHeight,
+      LAYOUT.horizontalPadding
     )
   )
 
@@ -174,8 +173,7 @@
   const redrawTimestamp = $derived.by(() => settings.redrawTimestamp)
   // Update AOI labels when data changes
   $effect(() => {
-    console.log('redrawTimestampTransitionMatrix', redrawTimestamp)
-
+    redrawTimestamp // reactive dependency
     untrack(() => {
       // Logic that should run only when redrawTimestamp changes
       // This is to prevent unnecessary recalculations when settings change in other components in the workspace
@@ -246,8 +244,14 @@
   }
 </script>
 
-<div class="aoi-matrix-container">
-  <div class="header">
+<BasePlot
+  {settings}
+  {onWorkspaceCommand}
+  layoutConfig={LAYOUT}
+  hasData={settings?.stimulusId !== undefined && aoiLabels.length > 0}
+  dimensions={plotDimensions}
+>
+  {#snippet header()}
     <div class="controls">
       <Select
         ariaLabel="Transition Matrix filters"
@@ -259,62 +263,33 @@
         <TransitionMatrixButtonMenu {settings} {onWorkspaceCommand} />
       </div>
     </div>
-  </div>
+  {/snippet}
 
-  {#if settings?.stimulusId !== undefined}
-    {#if aoiLabels.length > 0}
-      <div class="figure-container" in:fade={{ duration: 300 }}>
-        <TransitionMatrixPlotFigure
-          TransitionMatrix={matrix}
-          {aoiLabels}
-          width={plotDimensions.width}
-          height={plotDimensions.height}
-          {cellSize}
-          colorScale={settings.colorScale}
-          xLabel="To AOI"
-          yLabel="From AOI"
-          legendTitle={getLegendTitle(settings.aggregationMethod)}
-          colorValueRange={currentStimulusColorRange}
-          belowMinColor={settings.belowMinColor}
-          aboveMaxColor={settings.aboveMaxColor}
-          showBelowMinLabels={settings.showBelowMinLabels}
-          showAboveMaxLabels={settings.showAboveMaxLabels}
-          onGradientClick={handleGradientClick}
-          onValueClick={handleValueClick}
-        />
-      </div>
-    {:else}
-      <div class="figure-container" style="height: {plotDimensions.height}px">
-        <PlotPlaceholder
-          width={plotDimensions.width}
-          height={plotDimensions.height}
-        />
-      </div>
-    {/if}
-  {:else}
-    <div class="figure-container" style="height: {plotDimensions.height}px">
-      <PlotPlaceholder
-        width={plotDimensions.width}
-        height={plotDimensions.height}
+  {#snippet figure({ width, height })}
+    <div class="figure-container">
+      <TransitionMatrixPlotFigure
+        TransitionMatrix={matrix}
+        {aoiLabels}
+        {width}
+        {height}
+        {cellSize}
+        colorScale={settings.colorScale}
+        xLabel="To AOI"
+        yLabel="From AOI"
+        legendTitle={getLegendTitle(settings.aggregationMethod)}
+        colorValueRange={currentStimulusColorRange}
+        belowMinColor={settings.belowMinColor}
+        aboveMaxColor={settings.aboveMaxColor}
+        showBelowMinLabels={settings.showBelowMinLabels}
+        showAboveMaxLabels={settings.showAboveMaxLabels}
+        onGradientClick={handleGradientClick}
+        onValueClick={handleValueClick}
       />
     </div>
-  {/if}
-</div>
+  {/snippet}
+</BasePlot>
 
 <style>
-  .aoi-matrix-container {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    width: 100%;
-  }
-
-  .header {
-    padding: 0 0 10px 0;
-    margin-bottom: 10px;
-    background-color: var(--c-white);
-  }
-
   .controls {
     display: flex;
     gap: 5px;
@@ -325,6 +300,7 @@
   .figure-container {
     flex: 1;
     position: relative;
-    height: calc(100% - 60px);
+    height: 100%;
+    /* Previous CSS had height: calc(100% - 60px) or similar, but with BasePlot handling layout, 100% should be correct relative to figure area */
   }
 </style>
