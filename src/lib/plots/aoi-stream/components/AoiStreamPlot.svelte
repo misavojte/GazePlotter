@@ -186,12 +186,8 @@
   const stripHeightOverride = $derived.by(() => {
     // Only active for ridgeline
     if (settings.alignment !== 'ridgeline') return null
-    // Reactive to redrawTimestamp implicitly via grid store if we needed,
-    // but here scanForDynamicStripHeight uses grid.items which is fine.
-    // However, we might want to trigger it when redrawTimestamp changes?
-    // scanForDynamicStripHeight reads grid.items which is a rune $state, so it should be tracked.
-    // Also track settings.h
-    return scanForDynamicStripHeight(grid.items, settings.h)
+    // Reactive dependency on grid.items ensures updates when any plot changes
+    return scanForDynamicStripHeight(grid.items, settings.h, settings.id)
   })
 </script>
 

@@ -97,17 +97,24 @@ function calculateIdealStripHeight(
  * Uses the ACTUAL stream data computation (via getAoiStreamPlotData) to ensure
  * perfect consistency with the rendered visualization.
  *
+ * Synchronization is only applied between plots that have:
+ * - Same grid height (h)
+ * - Same alignment ('ridgeline')
+ * - Same number of active AOIs (series count, accounting for grouping/visibility)
+ *
  * Only considers the first AOI's peak for computational efficiency.
  *
  * @param items - Current grid items from the workspace
  * @param targetHeight - The grid height (h) to filter by
+ * @param currentPlotId - The ID of the plot requesting the synchronized height
  * @returns The synchronized strip height, or null if no synchronization needed
  */
 export function scanForDynamicStripHeight(
   items: import('$lib/workspace/type/gridType').AllGridTypes[],
-  targetHeight: number
+  targetHeight: number,
+  currentPlotId: number
 ): number | null {
-  // Filter relevant plots
+  // Filter relevant plots by height and alignment
   const candidates = items.filter(
     item =>
       item.type === 'aoiStreamPlot' &&
@@ -117,14 +124,20 @@ export function scanForDynamicStripHeight(
 
   if (candidates.length < 2) return null // No need to sync if only one or zero
 
-  let globalMinHeight = Infinity
+  // Compute stream data for all candidates
+  const candidateData: Array<{
+    id: number
+    streamData: AoiStreamPlotResult
+    plotAreaHeight: number
+    seriesCount: number
+  }> = []
 
   for (const item of candidates) {
     const settings = item as any
     const stimulusId = settings.stimulusId
     const groupId = settings.groupId
 
-    // Get the actual rendered dimensions (same as component)
+    // Get the actual rendered dimensions
     const dims = calculatePlotDimensionsWithHeader(
       settings.w,
       settings.h,
@@ -137,10 +150,10 @@ export function scanForDynamicStripHeight(
     const safeWidth = Math.max(1, dims.width)
     const safeHeight = Math.max(1, dims.height)
 
-    // Calculate bin count (same as component)
+    // Calculate bin count
     const autoBinCount = Math.max(1, Math.floor(safeWidth / 5))
 
-    // Calculate timeline limits (same as component)
+    // Calculate timeline limits
     let tMin = settings.absoluteStimuliLimits?.[stimulusId]?.[0] ?? 0
     let tMax = settings.absoluteStimuliLimits?.[stimulusId]?.[1] ?? 0
 
@@ -152,7 +165,7 @@ export function scanForDynamicStripHeight(
       )
     }
 
-    // Get the ACTUAL stream data (same computation as the component uses)
+    // Get the ACTUAL stream data
     const streamData = getAoiStreamPlotData({
       stimulusId,
       groupId,
@@ -161,7 +174,7 @@ export function scanForDynamicStripHeight(
       timelineMax: tMax,
     })
 
-    // Calculate plot area height (same as component figure)
+    // Calculate plot area height
     const seriesCount = streamData.series.length
     const plotAreaWidthBeforeLegend = Math.max(
       0,
@@ -194,8 +207,35 @@ export function scanForDynamicStripHeight(
       safeHeight - MARGIN.TOP - MARGIN.BOTTOM - legendHeight
     )
 
-    // Calculate the ideal strip height for this plot
-    const idealHeight = calculateIdealStripHeight(streamData, plotAreaHeight)
+    candidateData.push({
+      id: item.id,
+      streamData,
+      plotAreaHeight,
+      seriesCount,
+    })
+  }
+
+  // Find the current plot's series count
+  const currentPlotData = candidateData.find(c => c.id === currentPlotId)
+  if (!currentPlotData) return null
+
+  const targetSeriesCount = currentPlotData.seriesCount
+
+  // Filter to only candidates with same series count
+  const matchingCandidates = candidateData.filter(
+    c => c.seriesCount === targetSeriesCount
+  )
+
+  if (matchingCandidates.length < 2) return null // No need to sync if only one with this series count
+
+  // Calculate synchronized height across matching candidates
+  let globalMinHeight = Infinity
+
+  for (const candidate of matchingCandidates) {
+    const idealHeight = calculateIdealStripHeight(
+      candidate.streamData,
+      candidate.plotAreaHeight
+    )
 
     if (idealHeight < globalMinHeight) {
       globalMinHeight = idealHeight
