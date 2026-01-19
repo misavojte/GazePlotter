@@ -89,9 +89,9 @@
   const chartWidth = $derived(plotDimensions.width)
 
   const PLOT_MARGIN = {
-    TOP: 20,
+    TOP: 10,
     RIGHT: 0,
-    BOTTOM: 20,
+    BOTTOM: 0,
     LEFT: 0,
   }
 
