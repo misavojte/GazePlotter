@@ -2,11 +2,11 @@
   /**
    * Reusable container component that provides consistent styling for grid items.
    * This component encapsulates the header and body styling used across different grid components.
-   * 
+   *
    * It can be used for:
    * - Interactive grid items (with drag/resize functionality)
    * - Static indicator components (empty state, loading state)
-   * 
+   *
    * @example
    * ```svelte
    * <GridItemContainer showResizeHandle={true}>
@@ -71,7 +71,7 @@
     box-sizing: border-box;
     background-color: var(--c-lightgrey);
     border-radius: var(--rounded-lg, 8px) var(--rounded-lg, 8px) 0 0;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+
     border: 1px solid #88888863;
     overflow: hidden;
     display: flex;
