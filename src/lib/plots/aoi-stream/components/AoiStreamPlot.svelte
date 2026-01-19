@@ -141,7 +141,7 @@
           type: 'updateSettings',
           itemId: settings.id,
           source,
-          settings: { alignment: e.detail as string },
+          settings: { alignment: e.detail },
         })
       },
     },
