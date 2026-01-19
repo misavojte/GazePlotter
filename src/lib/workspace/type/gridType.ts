@@ -122,6 +122,8 @@ export interface AoiStreamPlotGridType extends GridType {
    * For end (index 1): 0 means automatically use the full data range.
    */
   absoluteStimuliLimits: [number, number][]
+  /** Stream graph alignment mode */
+  alignment?: 'center' | 'bottom' | 'ridgeline'
 }
 
 /**
@@ -129,14 +131,14 @@ export interface AoiStreamPlotGridType extends GridType {
  * This is the "Golden Thread" that allows TypeScript to automate everything else.
  */
 export type GridItemMap = {
-  scarf: ScarfGridType;
-  TransitionMatrix: TransitionMatrixGridType;
-  barPlot: BarPlotGridType;
-  aoiStreamPlot: AoiStreamPlotGridType;
-};
+  scarf: ScarfGridType
+  TransitionMatrix: TransitionMatrixGridType
+  barPlot: BarPlotGridType
+  aoiStreamPlot: AoiStreamPlotGridType
+}
 
 /**
  * Union type representing all possible grid item types in the workspace.
  * Now derived from GridItemMap for automatic type safety.
  */
-export type AllGridTypes = GridItemMap[keyof GridItemMap];
+export type AllGridTypes = GridItemMap[keyof GridItemMap]

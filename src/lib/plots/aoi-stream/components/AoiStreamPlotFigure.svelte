@@ -53,6 +53,8 @@
     TARGET_POSITIVE_TICKS: 3,
   }
 
+  const RIDGELINE_OVERLAP = 0.6
+
   const LEGEND = {
     ITEM_HEIGHT: SCARF_LAYOUT.LEGEND_ITEM_HEIGHT,
     ICON_SIZE: SCARF_LAYOUT.LEGEND_ICON_WIDTH,
@@ -62,7 +64,7 @@
     TOP_PADDING: SCARF_LAYOUT.LEGEND_GROUP_TITLE_SPACING,
   }
 
-  const FLOW_CURVE_TENSION = 0.12
+  const FLOW_CURVE_TENSION = 0
   const X_AXIS_LABEL = getXAxisLabel('absolute')
   const X_AXIS_LABEL_OFFSET = 24
   const AREA_DIVIDER = {
@@ -75,6 +77,7 @@
     height: number
     data: AoiStreamPlotResult
     highlights?: string[]
+    alignment?: 'center' | 'bottom' | 'ridgeline'
     onLegendClick?: (aoiId: number) => void
     dpiOverride?: number | null
     marginTop?: number
@@ -88,6 +91,7 @@
     height,
     data,
     highlights = [],
+    alignment = 'center',
     onLegendClick = () => {},
     dpiOverride = null,
     marginTop = 0,
@@ -296,9 +300,40 @@
     // Work in percent of participants so axes/labels match the plot title.
     // Values in `data.series[].values[]` are participant-weighted contributions per bin.
     const percentFactor = data.participants > 0 ? 100 / data.participants : 0
-    const dataHalfRange = (Math.max(1, data.maxTotal) * percentFactor) / 2
-    const { axisHalfRange: yAxisHalfRange, ticks: yAxisTicks } =
-      computeNiceYAxis(dataHalfRange)
+    const maxTotalPercent = Math.max(1, data.maxTotal) * percentFactor
+
+    let axisHalfRange = 50 // Default fallback
+    let axisTicks = [0]
+    let yAxisMin = 0
+    let yAxisMax = 100
+
+    if (alignment === 'center') {
+      const dataHalfRange = maxTotalPercent / 2
+      const computed = computeNiceYAxis(dataHalfRange)
+      axisHalfRange = computed.axisHalfRange
+      axisTicks = computed.ticks
+      yAxisMin = -axisHalfRange
+      yAxisMax = axisHalfRange
+    } else if (alignment === 'bottom') {
+      // Bottom alignment: Use nice steps based on actual max, similar to center but starting at 0
+      const padded = Math.max(1, maxTotalPercent)
+      // Use logic similar to niceStep but for positive range
+      const rawStep = padded / Math.max(1, Y_AXIS.TARGET_POSITIVE_TICKS)
+      const step = niceStep(rawStep)
+      const axisMax = Math.max(1, Math.ceil(padded / step) * step)
+
+      axisTicks = [0]
+      for (let v = step; v <= axisMax + step * 0.001; v += step) {
+        axisTicks.push(v)
+      }
+      yAxisMin = 0
+      yAxisMax = axisMax
+    } else if (alignment === 'ridgeline') {
+      // For ridgeline, we use a shared scale but draw it differently
+      axisTicks = [0, 100]
+      yAxisMin = 0
+      yAxisMax = 100
+    }
 
     if (
       !Number.isFinite(plotAreaWidth) ||
@@ -314,10 +349,6 @@
     }
 
     ctx.save()
-
-    const centerY = plotTop + plotAreaHeight / 2
-    const halfHeight = plotAreaHeight / 2
-    const scaleY = halfHeight / yAxisHalfRange
 
     // Zero-allocation pipeline: ensure buckets are ready
     const buckets = ensureRenderBuckets(binCount, series.length)
@@ -343,6 +374,14 @@
       const getY = (i: number) => (forward ? ys[i] : ys[binCount - 1 - i])
 
       ctx.lineTo(getX(0), getY(0))
+
+      if (FLOW_CURVE_TENSION === 0) {
+        for (let i = 1; i < binCount; i++) {
+          ctx.lineTo(getX(i), getY(i))
+        }
+        return
+      }
+
       for (let i = 0; i < binCount - 1; i++) {
         const p0x = getX(Math.max(0, i - 1))
         const p0y = getY(Math.max(0, i - 1))
@@ -362,21 +401,97 @@
       }
     }
 
-    // Draw centered streamgraph with white borders
+    // Common setup
     const cumulative = new Float32Array(binCount)
     const totals = new Float32Array(binCount)
+    let stripHeight = 0
+    let stripGap = 0
 
-    // Calculate totals for centering
-    for (let s = 0; s < series.length; s++) {
-      const values = series[s].values
-      for (let i = 0; i < binCount; i++) {
-        totals[i] += values[i] * percentFactor
+    if (alignment === 'center' || alignment === 'bottom') {
+      // Calculate totals
+      for (let s = 0; s < series.length; s++) {
+        const values = series[s].values
+        for (let i = 0; i < binCount; i++) {
+          totals[i] += values[i] * percentFactor
+        }
+      }
+    } else if (alignment === 'ridgeline') {
+      // Calculate strip layout with overlap
+      const n = Math.max(1, series.length)
+
+      // Calculate optimized strip height based on actual data peaks
+      // Default standard layout (assumes 100% max value in all series)
+      const standardDenom = n - (n - 1) * RIDGELINE_OVERLAP
+      const standardHeight = plotAreaHeight / standardDenom
+
+      let minAllowableS = Infinity
+
+      for (let s = 0; s < series.length; s++) {
+        let maxVal = 0
+        const values = series[s].values
+        for (let i = 0; i < binCount; i++) {
+          const v = values[i] * percentFactor
+          if (v > maxVal) maxVal = v
+        }
+
+        // Relative position of this series baseline from the bottom
+        // Bottom series (s=N-1) is at relative position 0
+        const relativePosition = (n - 1 - s) * (1 - RIDGELINE_OVERLAP)
+
+        // Height needed for data: maxVal% of ScaleHeight(S*0.9)
+        // MaxPeakPosition = Baseline - S * 0.9 * (maxVal/100)
+        // We need: MaxPeakPosition >= 0 (relative to PlotTop)
+        // Baseline = PlotHeight - relativePosition * S
+        // PlotHeight - S*relativePosition - S * 0.009 * maxVal >= 0
+        // PlotHeight >= S * (relativePosition + 0.009 * maxVal)
+
+        const dataFactor = (maxVal * 0.9) / 100
+        const totalFactor = relativePosition + dataFactor
+
+        // If totalFactor is very small (series at bottom with 0 data), it doesn't constrain
+        if (totalFactor > 1e-4) {
+          const sHeight = plotAreaHeight / totalFactor
+          if (sHeight < minAllowableS) minAllowableS = sHeight
+        }
+      }
+
+      // If all unconstrained, or optimized height is effectively same/smaller than standard
+      // (e.g. data > 100%), we fall back to standard logic as a safe minimum.
+      // But usually this calculation allows S to be LARGER than standardHeight.
+      // If data is 0 everywhere, minAllowableS might be huge. Cap it.
+      // Cap at, say, 10x standard height to avoid glitches with near-zero noise scaling.
+
+      if (minAllowableS === Infinity) {
+        stripHeight = standardHeight
+      } else {
+        stripHeight = Math.min(minAllowableS, standardHeight * 10)
+        // Ensure we never shrinking below what's needed for 100% if real data exceeds it,
+        // (though current logic handles that naturally via minAllowableS).
+        // But for "zoom in" behavior, we typically want S >= standardHeight.
+        stripHeight = Math.max(stripHeight, standardHeight)
       }
     }
 
-    const invTotals = new Float32Array(binCount)
-    for (let i = 0; i < binCount; i++) {
-      invTotals[i] = totals[i] * 0.5
+    // Center alignment specifics: offset based on half total
+    if (alignment === 'center') {
+      for (let i = 0; i < binCount; i++) {
+        cumulative[i] = -totals[i] * 0.5
+      }
+    }
+
+    // Y-scale calculation
+    let scaleY = 1
+    let yBase = 0
+
+    if (alignment === 'center') {
+      const centerY = plotTop + plotAreaHeight / 2
+      // axisHalfRange maps to halfHeight
+      scaleY = plotAreaHeight / 2 / axisHalfRange
+      yBase = centerY
+    } else if (alignment === 'bottom') {
+      // yAxisMax maps to full height
+      scaleY = plotAreaHeight / yAxisMax
+      yBase = plotBottom
     }
 
     // Draw each series using pre-allocated buckets
@@ -389,23 +504,55 @@
       const isHighlighted = highlightMaskById?.get(aoiId) ?? false
       const opacity = highlightMaskById && !isHighlighted ? 0.2 : 1.0
 
-      // Compute Y positions into buckets (centered layout)
-      for (let i = 0; i < binCount; i++) {
-        const startValue = cumulative[i] - invTotals[i]
-        const scaledValue = values[i] * percentFactor
-        const nextValue = startValue + scaledValue
-        cumulative[i] += scaledValue
+      if (alignment === 'ridgeline') {
+        const overlapOffset = stripHeight * (1 - RIDGELINE_OVERLAP)
 
-        const clampedStart = Math.max(
-          -yAxisHalfRange,
-          Math.min(startValue, yAxisHalfRange)
-        )
-        const clampedEnd = Math.max(
-          -yAxisHalfRange,
-          Math.min(nextValue, yAxisHalfRange)
-        )
-        bucket.topY[i] = centerY - clampedEnd * scaleY
-        bucket.bottomY[i] = centerY - clampedStart * scaleY
+        // Calculate the total height of all strips
+        // Total Height = (N-1) * overlapOffset + stripHeight
+        // The first strip (s=0) starts at 0 relative to the group
+        // The last strip (s=N-1) starts at (N-1) * overlapOffset
+        // And extends by stripHeight.
+
+        const totalGroupHeight =
+          (series.length - 1) * overlapOffset + stripHeight
+
+        // Anchor the group to the bottom of the plot area
+        // groupTop + totalGroupHeight = plotBottom
+        const groupTop = plotBottom - totalGroupHeight
+
+        const stripTop = groupTop + s * overlapOffset
+        const stripBottom = stripTop + stripHeight // Bottom of this strip
+        // User requested: "for each line, separate y axis, so no continuous line there... also do not center it in separate, have it from the bottom"
+        // So for "separate", we align to the bottom of the strip.
+
+        // Scale: 100% = stripHeight * 0.9 (keep some padding at top)
+        const localScaleY = (stripHeight * 0.9) / 100
+
+        for (let i = 0; i < binCount; i++) {
+          const val = values[i] * percentFactor
+          // Align from bottom
+          bucket.bottomY[i] = stripBottom
+          bucket.topY[i] = stripBottom - val * localScaleY
+        }
+      } else {
+        // Stacked (center or bottom)
+        for (let i = 0; i < binCount; i++) {
+          const startVal = cumulative[i]
+          const val = values[i] * percentFactor
+          const endVal = startVal + val
+          cumulative[i] = endVal
+
+          // Project to Y pixels
+          // Note: Y increases downwards in Canvas
+          if (alignment === 'center') {
+            bucket.topY[i] = yBase - endVal * scaleY
+            bucket.bottomY[i] = yBase - startVal * scaleY
+          } else {
+            // Bottom alignment: 0 is at plotBottom, positive goes up
+            bucket.topY[i] = yBase - endVal * scaleY
+            bucket.bottomY[i] = yBase - startVal * scaleY
+          }
+        }
       }
 
       // Draw filled area
@@ -426,9 +573,103 @@
       ctx.lineJoin = 'round'
       ctx.lineCap = 'round'
       ctx.stroke()
+
+      // Draw minimal axis for ridgeline view
+      if (alignment === 'ridgeline') {
+        const overlapOffset = stripHeight * (1 - RIDGELINE_OVERLAP)
+        const totalGroupHeight =
+          (series.length - 1) * overlapOffset + stripHeight
+        const groupTop = plotBottom - totalGroupHeight
+        const stripTop = groupTop + s * overlapOffset
+        const stripBottom = stripTop + stripHeight
+        // Draw simplified axis line (divider)
+        // With overlap, maybe we only draw the baseline for each?
+        // Let's draw the baseline for each strip.
+        ctx.beginPath()
+        ctx.moveTo(plotLeft, stripBottom)
+        ctx.lineTo(plotLeft + plotAreaWidth, stripBottom)
+        ctx.strokeStyle = '#eee'
+        ctx.stroke()
+      }
     }
 
-    // Reset opacity
+    // For Ridgeline: If a series is overlapped by the NEXT series, draw the overlapped part as a white line on top.
+    // We iterate backwards or check overlaps.
+    // Actually, because we draw from top to bottom (index 0 to N), the later series (s+1) is drawn ON TOP of s.
+    // So if series s+1 overlaps series s, we need to see series s's curve ON TOP of series s+1?
+    // "when the Layers covers up Icon AOI, plot white line of Icon AOI value on top of the Layers one"
+    // "Layers" is presumably s+1, "Icon AOI" is s.
+    // So if s is covered by s+1, draw s's outline again on top of everything?
+    // Yes, that makes sense. We want to see the "phantom" of the covered series.
+    // This effectively means redrawing the top curve of *all* series after the main fill loop, in the same order (or simplified).
+    // Or we only redraw the *obscured* parts? Redrawing the whole line is easiest and usually looks clearer (like a "Behind" style).
+
+    if (alignment === 'ridgeline') {
+      // We only want to draw the white "ghost" where it is overlapped by *subsequent* series (which are drawn "in front").
+      // To do this, we can mask the drawing area to only include the *union* of all subsequent series.
+      // It's easier to iterate backwards? No, we need to draw on top.
+
+      // Algorithm:
+      // For each series s (from 0 to N-2):
+      //   We want to draw a white overlay on series s, BUT ONLY where series (s+1)...(N-1) exist.
+      //   This is equivalent to: clip to the shape of "union of s+1...N-1", then draw s in white.
+
+      // Since canvas doesn't support complex union paths easily without winding rules, let's try a simpler per-pair or accumulated clip approach.
+      // Or simpler: Draw all series normally (done).
+      // Now, for each series s, draw its shape again in white, but set `globalCompositeOperation = 'source-atop'`? No.
+
+      // What if we draw the white overlay ONLY where the *next* series (s+1) overlaps?
+      // The user said "when the Layers covers up Icon AOI". Layers is presumably on top (drawn later).
+
+      ctx.save()
+      // Iterate through series that might be covered (all except the last one)
+      for (let s = 0; s < series.length - 1; s++) {
+        const currentBucket = seriesBuckets[s]
+
+        // Create a clipping region from all SUBSEQUENT series (the ones covering this one)
+        // To avoid complex path unions, we can just iterate through subsequent series and clip?
+        // No, standard clip() intersects. We need a union of subsequent series to clip TO.
+        // That's hard.
+
+        // Alternative:
+        // For each subsequent series 'cover':
+        //   Clip to 'cover'.
+        //   Draw 'current' in white (0.25 opacity).
+        //   Restore clip.
+        // This might result in double-drawing if multiple subsequent series cover the same spot, increasing opacity.
+        // But given 0.5 overlap, usually only the immediate next series covers significantly?
+        // Let's try iterating through all subsequent series.
+
+        for (let cover = s + 1; cover < series.length; cover++) {
+          const coverBucket = seriesBuckets[cover]
+
+          ctx.save()
+
+          // Define clipping path for the covering series
+          ctx.beginPath()
+          ctx.moveTo(xPositions[0], coverBucket.topY[0])
+          drawCatmullRom(xPositions, coverBucket.topY, true)
+          drawCatmullRom(xPositions, coverBucket.bottomY, false)
+          ctx.closePath()
+          ctx.clip()
+
+          // Now draw the current (underlying) series in white
+          ctx.globalAlpha = 0.25
+          ctx.fillStyle = '#fff'
+          ctx.beginPath()
+          ctx.moveTo(xPositions[0], currentBucket.topY[0])
+          drawCatmullRom(xPositions, currentBucket.topY, true)
+          drawCatmullRom(xPositions, currentBucket.bottomY, false)
+          ctx.closePath()
+          ctx.fill()
+
+          ctx.restore()
+        }
+      }
+      ctx.restore()
+    }
+
+    // Reset opacity (safety)
     ctx.globalAlpha = 1.0
 
     // Draw hovered bin highlight
@@ -458,8 +699,62 @@
 
     setUpFont(ctx)
 
-    // Draw axes and labels
-    drawYAxis(ctx, centerY, halfHeight, yAxisHalfRange, yAxisTicks)
+    if (alignment === 'ridgeline') {
+      // Draw a single scale indicator for the ridgeline height centered vertically
+      // Use the stripHeight calculated in the main render loop
+      // Center the scale vertically in the plot area (user preferred this)
+      const centerY = plotTop + plotAreaHeight / 2
+
+      // Scale: 100% = stripHeight * 0.9
+      const scaleHeight = stripHeight * 0.9
+      const scaleTop = centerY - scaleHeight / 2
+      const scaleBottom = centerY + scaleHeight / 2
+
+      // Position at the standard axis line (plotLeft)
+      const scaleX = plotLeft - 10
+      const tickLength = 5
+      const tickXStart = scaleX - tickLength
+
+      ctx.save()
+      ctx.textAlign = 'right'
+      ctx.textBaseline = 'middle'
+      ctx.font = `${AXIS.FONT_SIZE - 2}px ${SYSTEM_SANS_SERIF_STACK}`
+      ctx.fillStyle = AXIS.COLOR
+
+      // Labels
+      const tickLabelX = tickXStart - 3
+      ctx.fillText('0', tickLabelX, scaleBottom)
+      ctx.fillText('100', tickLabelX, scaleTop)
+
+      // Scale bar
+      ctx.beginPath()
+      ctx.strokeStyle = AXIS.COLOR
+      ctx.lineWidth = 0.5
+      ctx.moveTo(scaleX, scaleBottom)
+      ctx.lineTo(scaleX, scaleTop)
+
+      // Ticks
+      ctx.moveTo(scaleX, scaleBottom)
+      ctx.lineTo(tickXStart, scaleBottom)
+      ctx.moveTo(scaleX, scaleTop)
+      ctx.lineTo(tickXStart, scaleTop)
+
+      ctx.stroke()
+      ctx.restore()
+    } else if (alignment === 'center') {
+      drawCenteredYAxis(
+        ctx,
+        plotTop + plotAreaHeight / 2,
+        plotAreaHeight / 2,
+        axisHalfRange,
+        axisTicks
+      )
+    } else {
+      drawBottomYAxis(ctx, plotBottom, plotAreaHeight, yAxisMax, axisTicks)
+    }
+
+    // Shared Y-axis main label and X-axis components
+    drawYAxisMainLabel(ctx)
     drawTimelineLabels(ctx)
     drawXAxisLabel(ctx)
     drawXAxisTicksAndBorder(ctx)
@@ -467,6 +762,7 @@
     // Legend (batched rendering with highlight dimming)
     const legendItems = series
     if (legendItems.length && legendHeight > 0) {
+      setUpFont(ctx)
       const legendX = safeMarginLeft
       const legendY = plotBottom + MARGIN.BOTTOM + LEGEND.TOP_PADDING
       const itemsPerRow = legendItemsPerRow
@@ -621,7 +917,7 @@
     ctx.stroke()
   }
 
-  function drawYAxis(
+  function drawCenteredYAxis(
     ctx: CanvasRenderingContext2D,
     centerY: number,
     halfHeight: number,
@@ -642,30 +938,53 @@
       const yUpper = centerY - offset
       const yLower = centerY + offset
 
-      // 0 is drawn once at the center
-      if (value === 0) {
-        ctx.beginPath()
-        ctx.moveTo(xTick, centerY)
-        ctx.lineTo(plotLeft, centerY)
-        ctx.stroke()
-        ctx.fillText('0', xLabel, centerY)
-        continue
-      }
-
+      // Tick and label (common for all ticks)
       ctx.beginPath()
       ctx.moveTo(xTick, yUpper)
       ctx.lineTo(plotLeft, yUpper)
       ctx.stroke()
       ctx.fillText(formatAxisTick(value), xLabel, yUpper)
 
-      ctx.beginPath()
-      ctx.moveTo(xTick, yLower)
-      ctx.lineTo(plotLeft, yLower)
-      ctx.stroke()
-      ctx.fillText(`-${formatAxisTick(value)}`, xLabel, yLower)
+      // Parallel mirrored tick/label for positive values
+      if (value > 0) {
+        ctx.beginPath()
+        ctx.moveTo(xTick, yLower)
+        ctx.lineTo(plotLeft, yLower)
+        ctx.stroke()
+        ctx.fillText(`-${formatAxisTick(value)}`, xLabel, yLower)
+      }
     }
+  }
 
-    // Axis label
+  function drawBottomYAxis(
+    ctx: CanvasRenderingContext2D,
+    baselineY: number,
+    fullHeight: number,
+    axisMax: number,
+    ticks: number[]
+  ) {
+    const xLabel = plotLeft - Y_AXIS.TICK_LABEL_OFFSET
+    const xTick = plotLeft - 5
+
+    ctx.strokeStyle = AXIS.GRID_COLOR
+    ctx.lineWidth = 1
+    ctx.textAlign = 'right'
+    ctx.textBaseline = 'middle'
+
+    for (let i = 0; i < ticks.length; i++) {
+      const value = ticks[i]
+      const offset = (value / axisMax) * fullHeight
+      const y = baselineY - offset
+
+      ctx.beginPath()
+      ctx.moveTo(xTick, y)
+      ctx.lineTo(plotLeft, y)
+      ctx.stroke()
+      ctx.fillText(formatAxisTick(value), xLabel, y)
+    }
+  }
+
+  function drawYAxisMainLabel(ctx: CanvasRenderingContext2D) {
     const labelX = plotLeft - Y_AXIS.LABEL_OFFSET
     const labelY = plotTop + plotAreaHeight / 2
     ctx.save()

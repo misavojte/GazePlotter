@@ -122,6 +122,23 @@
       value: settings.groupId.toString(),
       onchange: handleUpperGroupChange,
     },
+    {
+      label: 'Alignment',
+      options: [
+        { value: 'center', label: 'Center' },
+        { value: 'bottom', label: 'Bottom' },
+        { value: 'ridgeline', label: 'Ridgeline' },
+      ],
+      value: settings.alignment ?? 'center',
+      onchange: (e: CustomEvent) => {
+        onWorkspaceCommand({
+          type: 'updateSettings',
+          itemId: settings.id,
+          source,
+          settings: { alignment: e.detail as string },
+        })
+      },
+    },
   ])
 
   // Calculate timeline min value based on absoluteStimuliLimits
@@ -191,6 +208,7 @@
         {height}
         data={streamResult}
         {highlights}
+        alignment={settings.alignment ?? 'center'}
         onLegendClick={handleLegendClick}
       />
     {/if}
