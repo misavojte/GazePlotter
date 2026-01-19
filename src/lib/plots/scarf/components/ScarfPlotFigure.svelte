@@ -370,11 +370,14 @@
 
     // ---- STOP OF TEXT DRAWING ---- //
 
-    // Draw horizontal grid lines
-    drawHorizontalGridLines(ctx)
+    // Draw participant ticks
+    drawParticipantTicks(ctx)
 
     // Draw X-Axis ticks and bottom border
     drawXAxisTicksAndBorder(ctx)
+
+    // Draw top border and ticks
+    drawTopBorderAndTicks(ctx)
 
     // Draw rectangle segments
     drawRectangles(ctx)
@@ -413,28 +416,70 @@
     }
   }
 
-  function drawHorizontalGridLines(ctx: CanvasRenderingContext2D) {
+  function drawParticipantTicks(ctx: CanvasRenderingContext2D) {
     ctx.strokeStyle = LAYOUT.GRID_COLOR
     ctx.lineWidth = LAYOUT.GRID_STROKE_WIDTH
 
     const participants = data.participants
     const len = participants.length
 
-    for (let i = 0; i < len; i++) {
-      // Draw grid lines exactly at bar boundaries
+    const leftX = LEFT_LABEL_WIDTH + marginLeft
+    const rightX = leftX + plotAreaWidth
+    const tickLength = 5
+
+    // Draw the vertical Y-axis lines connecting the ticks
+    const yTop = marginTop
+    const yBottom = calculatedHeights.heightOfParticipantBars + marginTop
+    ctx.beginPath()
+    ctx.moveTo(leftX, yTop)
+    ctx.lineTo(leftX, yBottom)
+    ctx.moveTo(rightX, yTop)
+    ctx.lineTo(rightX, yBottom)
+    ctx.stroke()
+
+    for (let i = 0; i <= len; i++) {
+      // Draw ticks exactly at bar boundaries
       const y = i * calculatedHeights.participantBarHeight + marginTop
+
+      // Left side ticks (facing out)
       ctx.beginPath()
-      ctx.moveTo(LEFT_LABEL_WIDTH + marginLeft, y)
-      ctx.lineTo(LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft, y)
+      ctx.moveTo(leftX - tickLength, y)
+      ctx.lineTo(leftX, y)
+      ctx.stroke()
+
+      // Right side ticks (facing in)
+      ctx.beginPath()
+      ctx.moveTo(rightX, y)
+      ctx.lineTo(rightX - tickLength, y)
       ctx.stroke()
     }
+  }
 
-    // Draw final grid line at the bottom
-    const y = calculatedHeights.heightOfParticipantBars + marginTop
+  function drawTopBorderAndTicks(ctx: CanvasRenderingContext2D) {
+    ctx.strokeStyle = LAYOUT.GRID_COLOR
+    ctx.lineWidth = 1.5
+
+    const yTop = marginTop
+    const leftX = LEFT_LABEL_WIDTH + marginLeft
+    const rightX = leftX + plotAreaWidth
+    const ticks = data.timeline.ticks
+    const len = ticks.length
+
+    // Draw top border line
     ctx.beginPath()
-    ctx.moveTo(LEFT_LABEL_WIDTH + marginLeft, y)
-    ctx.lineTo(LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft, y)
+    ctx.moveTo(leftX, yTop)
+    ctx.lineTo(rightX, yTop)
     ctx.stroke()
+
+    // Draw outward ticks (facing up)
+    for (let i = 0; i < len; i++) {
+      const tick = ticks[i]
+      const x = LEFT_LABEL_WIDTH + tick.position * plotAreaWidth + marginLeft
+      ctx.beginPath()
+      ctx.moveTo(x, yTop)
+      ctx.lineTo(x, yTop - 5)
+      ctx.stroke()
+    }
   }
 
   function drawTimelineLabels(ctx: CanvasRenderingContext2D) {

@@ -88,6 +88,13 @@
   // Available width for chart content
   const chartWidth = $derived(plotDimensions.width)
 
+  const PLOT_MARGIN = {
+    TOP: 20,
+    RIGHT: 0,
+    BOTTOM: 20,
+    LEFT: 0,
+  }
+
   const scarfData = $derived.by(() => {
     // Force recalculation when redrawTimestamp changes
     // Also use localTimestamp to force recalculation when participants change
@@ -113,10 +120,10 @@
       undefined,
       {
         chartWidth,
-        marginLeft: 0,
-        marginTop: 0,
+        marginLeft: PLOT_MARGIN.LEFT,
+        marginTop: PLOT_MARGIN.TOP,
         padding: SCARF_LAYOUT.PADDING,
-        rightMargin: SCARF_LAYOUT.RIGHT_MARGIN,
+        rightMargin: SCARF_LAYOUT.RIGHT_MARGIN + PLOT_MARGIN.RIGHT,
         labelFontSize: SCARF_LAYOUT.LABEL_FONT_SIZE,
       }
     )
@@ -363,6 +370,10 @@
       onDragEnd={handleDragEnd}
       {chartWidth}
       calculatedHeights={heightCalculations}
+      marginTop={PLOT_MARGIN.TOP}
+      marginRight={PLOT_MARGIN.RIGHT}
+      marginBottom={PLOT_MARGIN.BOTTOM}
+      marginLeft={PLOT_MARGIN.LEFT}
     />
   {/snippet}
 </BasePlot>
