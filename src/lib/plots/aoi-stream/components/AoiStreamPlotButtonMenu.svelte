@@ -76,7 +76,7 @@
   const openDownloadModal = () => {
     modalStore.open(
       ModalContentDownloadAoiStreamPlot as unknown as typeof SvelteComponent,
-      'Download AOI stream plot',
+      'Download Time-binned AOI Occupancy',
       {
         settings,
       }

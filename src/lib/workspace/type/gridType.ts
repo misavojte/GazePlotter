@@ -103,8 +103,8 @@ export interface BarPlotGridType extends GridType {
 }
 
 /**
- * Interface representing an AOI Stream Plot grid item.
- * Extends the base GridType with AOI Stream Plot-specific properties.
+ * Interface representing an Time-binned AOI Occupancy grid item.
+ * Extends the base GridType with Time-binned AOI Occupancy-specific properties.
  */
 export interface AoiStreamPlotGridType extends GridType {
   type: 'aoiStreamPlot'

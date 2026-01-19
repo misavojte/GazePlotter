@@ -13,7 +13,10 @@ import { getScarfGridHeightFromCurrentData } from '$lib/plots/scarf/utils/scarfS
 export type VisualizationConfig<K extends keyof GridItemMap> = {
   name: string
   component: any // Ideally refine this to Component<GridItemMap[K]>
-  getDefaultConfig: (params?: { stimulusId?: number; groupId?: number }) => Partial<GridItemMap[K]>
+  getDefaultConfig: (params?: {
+    stimulusId?: number
+    groupId?: number
+  }) => Partial<GridItemMap[K]>
   getDefaultHeight: (stimulusId?: number) => number
   getDefaultWidth: (stimulusId?: number) => number
 }
@@ -23,7 +26,9 @@ export type VisualizationConfig<K extends keyof GridItemMap> = {
  * Contains configuration for each supported visualization component
  * Use a mapped type so every visualization is forced to comply with its specific interface
  */
-export const visualizationRegistry: { [K in keyof GridItemMap]: VisualizationConfig<K> } = {
+export const visualizationRegistry: {
+  [K in keyof GridItemMap]: VisualizationConfig<K>
+} = {
   scarf: {
     name: 'Scarf Plot',
     component: ScarfPlot,
@@ -74,7 +79,7 @@ export const visualizationRegistry: { [K in keyof GridItemMap]: VisualizationCon
     getDefaultWidth: () => 12,
   },
   aoiStreamPlot: {
-    name: 'AOI Stream Plot',
+    name: 'Time-binned AOI Occupancy',
     component: AoiStreamPlot,
     getDefaultConfig: (params = {}) => ({
       stimulusId: params.stimulusId ?? 0,
@@ -95,9 +100,11 @@ export const visualizationRegistry: { [K in keyof GridItemMap]: VisualizationCon
  * @returns The visualization configuration
  * @throws Error if the visualization type is not found
  */
-export function getVizConfig<K extends keyof GridItemMap>(type: K): VisualizationConfig<K> {
-  return visualizationRegistry[type];
+export function getVizConfig<K extends keyof GridItemMap>(
+  type: K
+): VisualizationConfig<K> {
+  return visualizationRegistry[type]
 }
 
 // Backwards compatibility alias
-export const getVisualizationConfig = getVizConfig;
+export const getVisualizationConfig = getVizConfig

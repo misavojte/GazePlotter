@@ -86,7 +86,7 @@
 <IntroductoryParagraph
   maxWidth="400px"
   paragraphs={[
-    'Set custom time ranges for AOI stream plot visualization. Clip the timeline to focus on specific intervals for better analysis.',
+    'Set custom time ranges for Time-binned AOI Occupancy visualization. Clip the timeline to focus on specific intervals for better analysis.',
   ]}
 />
 

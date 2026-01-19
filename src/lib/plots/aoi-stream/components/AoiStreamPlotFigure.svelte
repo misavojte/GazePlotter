@@ -1274,7 +1274,9 @@
 </script>
 
 <div class="plot-container">
-  <canvas bind:this={canvas} aria-label="AOI stream plot visualization"
+  <canvas
+    bind:this={canvas}
+    aria-label="Time-binned AOI Occupancy visualization"
   ></canvas>
 </div>
 

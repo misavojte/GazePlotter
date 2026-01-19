@@ -25,7 +25,10 @@
   import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
-  import { scanForDynamicStripHeight } from '$lib/plots/aoi-stream/utils/ridgelineUtils'
+  import {
+    scanForDynamicStripHeight,
+    scanForSynchronizedTimelineMax,
+  } from '$lib/plots/aoi-stream/utils/ridgelineUtils'
   import { grid } from '$lib/workspace/grid/store.svelte'
 
   const LAYOUT = {
@@ -149,30 +152,40 @@
     return settings.absoluteStimuliLimits[settings.stimulusId]?.[0] ?? 0
   })
 
-  // Calculate timeline max value - if 0, use the max from data
+  // Calculate timeline max value - if 0, check for synchronized max across plots with same width
   const timelineMaxValue = $derived.by(() => {
     const maxValue =
       settings.absoluteStimuliLimits[settings.stimulusId]?.[1] ?? 0
-    if (maxValue === 0) {
-      const participants = getParticipants(
-        settings.groupId,
-        settings.stimulusId
-      )
-      return participants.reduce(
-        (max, participant) =>
-          Math.max(
-            max,
-            getParticipantEndTime(settings.stimulusId, participant.id)
-          ),
-        0
-      )
-    }
-    return maxValue
+
+    // If explicitly set, use it
+    if (maxValue !== 0) return maxValue
+
+    // Check for synchronized timeline across plots with same width and no clipping
+    const syncedMax = scanForSynchronizedTimelineMax(
+      grid.items,
+      settings.w,
+      settings.stimulusId,
+      settings.absoluteStimuliLimits
+    )
+
+    if (syncedMax !== null) return syncedMax
+
+    // Fallback to local max
+    const participants = getParticipants(settings.groupId, settings.stimulusId)
+    return participants.reduce(
+      (max, participant) =>
+        Math.max(
+          max,
+          getParticipantEndTime(settings.stimulusId, participant.id)
+        ),
+      0
+    )
   })
 
   const redrawTimestamp = $derived(settings.redrawTimestamp)
   $effect(() => {
     redrawTimestamp // reactive dependency
+    timelineMaxValue // reactive dependency for synchronized timeline
     untrack(() => {
       streamResult = getAoiStreamPlotData({
         ...settings,
