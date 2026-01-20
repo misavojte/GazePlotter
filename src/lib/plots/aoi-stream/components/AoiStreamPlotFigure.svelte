@@ -744,6 +744,7 @@
     drawYAxisMainLabel(ctx)
     drawTimelineLabels(ctx)
     drawXAxisLabel(ctx)
+    drawPlotOutline(ctx)
     drawXAxisTicksAndBorder(ctx)
 
 
@@ -808,6 +809,20 @@
     ctx.fillText(X_AXIS_LABEL, labelX, labelY)
   }
 
+  function drawPlotOutline(ctx: CanvasRenderingContext2D) {
+    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
+    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
+
+    // Draw full rectangle outline around the plot area
+    ctx.beginPath()
+    ctx.strokeRect(
+      Math.floor(plotLeft) + 0.5,
+      Math.floor(plotTop) + 0.5,
+      plotAreaWidth,
+      plotAreaHeight
+    )
+  }
+
   function drawXAxisTicksAndBorder(ctx: CanvasRenderingContext2D) {
     ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
     ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
@@ -828,10 +843,7 @@
       ctx.stroke()
     }
 
-    ctx.beginPath()
-    ctx.moveTo(plotLeft, yLine)
-    ctx.lineTo(plotLeft + plotAreaWidth, yLine)
-    ctx.stroke()
+    // Bottom line is now handled by drawPlotOutline
   }
 
   function drawCenteredYAxis(
