@@ -7,7 +7,7 @@ import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils/plotS
 import { calculateFlatLegendHeight, STREAM_LEGEND_CONFIG } from '$lib/plots/shared'
 import { estimateTextWidth } from '$lib/shared/utils/textUtils'
 import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
-import { getAoiStreamPlotData } from '$lib/plots/aoi-stream/utils'
+import { getAoiStreamPlotData, scanForSynchronizedTimelineMax } from '$lib/plots/aoi-stream/utils'
 import type { AoiStreamPlotResult } from '$lib/plots/aoi-stream/types'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
@@ -24,36 +24,19 @@ const CONTENT_PADDING = 5
 const RIDGELINE_OVERLAP = 0.6
 
 /**
- * Calculate the ideal strip height for a single ridgeline plot configuration.
- * Optimizes for "zero redundancy space" by finding the maximum possible strip height
- * that fits ALL series within the plot area without clipping.
- * 
- * Considers the specific geometry of each series based on its stack order and overlap.
+ * Calculate the max constraint factor for a ridgeline plot.
+ * This factor represents the total vertical space (in units of stripHeight) 
+ * required to fit all series without clipping.
  */
-export function calculateIdealStripHeight(
-  data: AoiStreamPlotResult,
-  plotAreaHeight: number
-): number {
-  if (!data.series || data.series.length === 0) return plotAreaHeight
+function calculateMaxConstraintFactor(data: AoiStreamPlotResult): number {
+  if (!data.series || data.series.length === 0) return 0
 
   const n = data.series.length
   const percentFactor = data.participants > 0 ? 100 / data.participants : 0
-  
-  // Calculate the "Standard" height (if all series were maxed out at 100%)
-  // This serves as a baseline minimum usually, but we prioritize fitting the data.
-  const standardDenom = n - (n - 1) * RIDGELINE_OVERLAP
-  const standardHeight = plotAreaHeight / standardDenom
-
   let maxConstraintFactor = 0
 
   // Iterate over ALL series to find the binding constraint
-  // We want to find s that maximizes: (VerticalOffset_s + PeakHeight_s) normalized by stripHeight
-  // Constraint: stripHeight * factor <= plotAreaHeight
-  // Therefore: stripHeight <= plotAreaHeight / max(factor)
-  
-  // Optimization: For small overlap (large k), limit to first few AOIs as they are geometrically higher
-  // But calculating for all is cheap (N is small), so we just scan all for correctness.
-  for (let s = 0; s < Math.min(data.series.length, 5); s++) { // Check first 5 is sufficiently safe optimization
+  for (let s = 0; s < data.series.length; s++) {
     const series = data.series[s]
     const values = series.values
     const binCount = data.binCount
@@ -76,15 +59,43 @@ export function calculateIdealStripHeight(
     if (totalFactor > maxConstraintFactor) {
       maxConstraintFactor = totalFactor
     }
+    
+    // console.log(`[RidgelineSync] Series ${s} (${series.label}): maxVal=${maxVal.toFixed(1)}%, geometricOffset=${geometricOffset.toFixed(2)}, dataHeight=${dataHeight.toFixed(2)}, totalFactor=${totalFactor.toFixed(2)}`)
   }
 
-  if (maxConstraintFactor <= 1e-4) return standardHeight * 10 // Fallback if empty
+  return maxConstraintFactor
+}
 
-  const idealHeight = plotAreaHeight / maxConstraintFactor
+/**
+ * Calculate the ideal strip height for a single ridgeline plot configuration.
+ * Optimizes for "zero redundancy space" by finding the maximum possible strip height
+ * that fits ALL series within the plot area without clipping.
+ * 
+ * Considers the specific geometry of each series based on its stack order and overlap.
+ */
+export function calculateIdealStripHeight(
+  data: AoiStreamPlotResult,
+  plotAreaHeight: number
+): number {
+  if (!data.series || data.series.length === 0) return plotAreaHeight
+
+  const n = data.series.length
+  const maxFactor = calculateMaxConstraintFactor(data)
+  
+  // Standard minimum density (if all series were maxed out at 100%)
+  const standardDenom = n - (n - 1) * RIDGELINE_OVERLAP
+  const standardHeight = plotAreaHeight / standardDenom
+
+  if (maxFactor <= 1e-4) return standardHeight * 10
+
+  const idealHeight = plotAreaHeight / maxFactor
+  const finalHeight = Math.min(idealHeight, standardHeight * 10)
+
+  // console.log(`[RidgelineSync] Ideal Plot Calc: plotAreaHeight=${plotAreaHeight.toFixed(0)}, maxFactor=${maxFactor.toFixed(2)}, idealHeight=${idealHeight.toFixed(1)}, finalHeight=${finalHeight.toFixed(1)}`)
 
   // Cap at a reasonable max multiplier to prevent explosions on flat lines,
   // but allow it to be smaller than standardHeight if needed to prevent clipping.
-  return Math.min(idealHeight, standardHeight * 10)
+  return finalHeight
 }
 
 /**
@@ -155,11 +166,23 @@ export function scanForDynamicStripHeight(
     let tMax = settings.absoluteStimuliLimits?.[stimulusId]?.[1] ?? 0
 
     if (tMax === 0) {
-      const participants = getParticipants(groupId, stimulusId)
-      tMax = participants.reduce(
-        (max, p) => Math.max(max, getParticipantEndTime(stimulusId, p.id)),
-        0
+      // Check for synchronized timeline max first
+      const syncedMax = scanForSynchronizedTimelineMax(
+        items,
+        settings.w,
+        stimulusId,
+        settings.absoluteStimuliLimits
       )
+
+      if (syncedMax !== null) {
+        tMax = syncedMax
+      } else {
+        const participants = getParticipants(groupId, stimulusId)
+        tMax = participants.reduce(
+          (max, p) => Math.max(max, getParticipantEndTime(stimulusId, p.id)),
+          0
+        )
+      }
     }
 
     // Get the ACTUAL stream data
@@ -224,22 +247,19 @@ export function scanForDynamicStripHeight(
 
   if (matchingCandidates.length < 2) return null // No need to sync if only one with this series count
 
-  // Calculate synchronized height across matching candidates
-  let globalMinHeight = Infinity
+  // Calculate ideal strip height for each plot separately
+  const idealHeights = matchingCandidates.map(c => {
+    const h = calculateIdealStripHeight(c.streamData, c.plotAreaHeight)
+    // console.log(`[RidgelineSync] Candidate ${c.id}: localIdealHeight=${h.toFixed(1)}`)
+    return h
+  })
 
-  for (const candidate of matchingCandidates) {
-    const idealHeight = calculateIdealStripHeight(
-      candidate.streamData,
-      candidate.plotAreaHeight
-    )
+  // Reduce to find the most restrictive value (the minimum height)
+  // This ensures that ALL plots can fit their data without clipping.
+  const synchronizedHeight = Math.min(...idealHeights)
 
-    if (idealHeight < globalMinHeight) {
-      globalMinHeight = idealHeight
-    }
-  }
+  // console.log(`[RidgelineSync] FINAL SYNC: matchingCount=${matchingCandidates.length}, resultHeight=${synchronizedHeight.toFixed(1)}`)
 
-  if (globalMinHeight === Infinity) return null
-
-  return globalMinHeight
+  return synchronizedHeight
 }
 

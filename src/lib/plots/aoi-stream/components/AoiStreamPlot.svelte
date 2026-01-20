@@ -15,7 +15,6 @@
   import { getAoiStreamPlotData } from '$lib/plots/aoi-stream/utils'
   import {
     getStimuliOptions,
-    scanForSynchronizedTimelineMax,
   } from '$lib/plots/shared/utils'
   import {
     getParticipants,
@@ -30,7 +29,8 @@
 
   import {
     scanForDynamicStripHeight,
-  } from '$lib/plots/aoi-stream/utils/ridgelineUtils'
+    scanForSynchronizedTimelineMax
+  } from '$lib/plots/aoi-stream/utils'
   import { grid } from '$lib/workspace/grid/store.svelte'
 
   const LAYOUT = {

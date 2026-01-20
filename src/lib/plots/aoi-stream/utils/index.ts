@@ -286,3 +286,6 @@ export function getAoiStreamPlotData(
     maxTotal: result.maxTotal,
   }
 }
+
+export * from './ridgelineUtils'
+export * from './timelineUtils'

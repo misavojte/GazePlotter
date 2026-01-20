@@ -7,7 +7,6 @@
   import { PlotPlaceholder } from '$lib/plots/shared/components'
 
   import type { GridType } from '$lib/workspace/type/gridType'
-  import type { WorkspaceCommand } from '$lib/workspace/commands'
 
   interface LayoutConfig {
     headerHeight?: number
