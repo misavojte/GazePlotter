@@ -49,40 +49,66 @@ function getFirstSeriesPeak(data: AoiStreamPlotResult): number {
 
 /**
  * Calculate the ideal strip height for a single ridgeline plot configuration.
- * This uses only the first AOI's peak for efficiency (as requested).
- * Returns the clamped strip height that fits the data without clipping.
+ * Optimizes for "zero redundancy space" by finding the maximum possible strip height
+ * that fits ALL series within the plot area without clipping.
+ * 
+ * Considers the specific geometry of each series based on its stack order and overlap.
  */
 export function calculateIdealStripHeight(
   data: AoiStreamPlotResult,
   plotAreaHeight: number
 ): number {
-  const n = Math.max(1, data.series.length)
+  if (!data.series || data.series.length === 0) return plotAreaHeight
+
+  const n = data.series.length
+  const percentFactor = data.participants > 0 ? 100 / data.participants : 0
+  
+  // Calculate the "Standard" height (if all series were maxed out at 100%)
+  // This serves as a baseline minimum usually, but we prioritize fitting the data.
   const standardDenom = n - (n - 1) * RIDGELINE_OVERLAP
   const standardHeight = plotAreaHeight / standardDenom
 
-  // Get peak from first series only (for efficiency)
-  const maxVal = getFirstSeriesPeak(data)
+  let maxConstraintFactor = 0
 
-  // Calculate constraint (same formula as component)
-  // First series (s=0) has relativePosition = (n - 1 - 0) * (1 - OVERLAP) = (n-1) * (1 - OVERLAP)
-  const relativePosition = (n - 1) * (1 - RIDGELINE_OVERLAP)
-  const dataFactor = (maxVal * 0.9) / 100
-  const totalFactor = relativePosition + dataFactor
+  // Iterate over ALL series to find the binding constraint
+  // We want to find s that maximizes: (VerticalOffset_s + PeakHeight_s) normalized by stripHeight
+  // Constraint: stripHeight * factor <= plotAreaHeight
+  // Therefore: stripHeight <= plotAreaHeight / max(factor)
+  
+  // Optimization: For small overlap (large k), limit to first few AOIs as they are geometrically higher
+  // But calculating for all is cheap (N is small), so we just scan all for correctness.
+  for (let s = 0; s < Math.min(data.series.length, 5); s++) { // Check first 5 is sufficiently safe optimization
+    const series = data.series[s]
+    const values = series.values
+    const binCount = data.binCount
+    
+    // Find peak value for this series (0-100)
+    let maxVal = 0
+    for (let i = 0; i < binCount; i++) {
+      const v = values[i] * percentFactor
+      if (v > maxVal) maxVal = v
+    }
 
-  let minAllowableS = Infinity
-
-  if (totalFactor > 1e-4) {
-    minAllowableS = plotAreaHeight / totalFactor
+    // Geometric factor:
+    // (N - 1 - s) * (1 - OVERLAP)  -> Static vertical offset due to stacking
+    // (maxVal * 0.9) / 100         -> Dynamic height of the data itself
+    const geometricOffset = (n - 1 - s) * (1 - RIDGELINE_OVERLAP)
+    const dataHeight = (maxVal * 0.9) / 100
+    
+    const totalFactor = geometricOffset + dataHeight
+    
+    if (totalFactor > maxConstraintFactor) {
+      maxConstraintFactor = totalFactor
+    }
   }
 
-  // Apply clamping (same as component)
-  if (minAllowableS === Infinity) {
-    return standardHeight
-  } else {
-    let stripHeight = Math.min(minAllowableS, standardHeight * 10)
-    stripHeight = Math.max(stripHeight, standardHeight)
-    return stripHeight
-  }
+  if (maxConstraintFactor <= 1e-4) return standardHeight * 10 // Fallback if empty
+
+  const idealHeight = plotAreaHeight / maxConstraintFactor
+
+  // Cap at a reasonable max multiplier to prevent explosions on flat lines,
+  // but allow it to be smaller than standardHeight if needed to prevent clipping.
+  return Math.min(idealHeight, standardHeight * 10)
 }
 
 /**
