@@ -2,6 +2,10 @@ import {
   getAois,
   getParticipants,
 } from '$lib/gaze-data/front-process/stores/dataStore'
+import {
+  calculateGroupedLegendHeight,
+  SCARF_LEGEND_CONFIG,
+} from '$lib/plots/shared'
 import { getScarfParticipantBarHeight as getBarHeight } from '$lib/plots/scarf/utils/transformations'
 
 // Constants duplicated from the canonical scarf transformations module for better independence
@@ -123,22 +127,18 @@ export const calculateScarfHeights = (
   const fixedLegendOffset = 40 // Space between chart and legend
 
   // Calculate legend heights using our comprehensive function
-  const legendHeight = calculateLegendHeight({
-    aoiItemsLength: aoiDataLength + 1, // +1 for the no AOI category fixation
-    categoryItemsLength: 3, // For movement type legends (fixation, saccade, other)
-    visibilityItemsLength: isAoiVisible ? aoiDataLength : 0,
-    chartWidth,
-    leftLabelWidth: LEFT_LABEL_WIDTH,
-    titleHeight: LEGEND_TITLE_HEIGHT,
-    itemHeight: LEGEND_ITEM_HEIGHT,
-    itemPadding: LEGEND_ITEM_PADDING,
-    groupSpacing: LEGEND_GROUP_SPACING,
-    groupTitleSpacing: LEGEND_GROUP_TITLE_SPACING,
-    padding: PADDING,
-    iconWidth: LEGEND_ICON_WIDTH,
-    textPadding: LEGEND_TEXT_PADDING,
-    itemSpacing: LEGEND_ITEM_SPACING,
-  })
+  // Construct groups for the utility function
+  const groups = [
+    { itemCount: aoiDataLength + 1 }, // AOIs + "No AOI"
+    { itemCount: 3 }, // Categories
+    { itemCount: isAoiVisible ? aoiDataLength : 0 } // Visibility
+  ]
+
+  const legendHeight = calculateGroupedLegendHeight(
+    groups,
+    chartWidth + PADDING * 2, // Use full available width including padding
+    SCARF_LEGEND_CONFIG
+  )
 
   // Total height - EXACT sum of components
   const totalHeight = chartHeight + fixedLegendOffset + legendHeight
@@ -223,118 +223,7 @@ export const getDynamicAoiBoolean = (
   return dynamicAOIInData
 }
 
-/**
- * Calculate legend items per row based on available width
- * @param options Configuration options
- * @returns Number of items that can fit per row
- */
-export const getItemsPerRow = ({
-  chartWidth,
-  leftLabelWidth,
-  padding,
-  iconWidth,
-  textPadding,
-  itemSpacing,
-  avgTextWidth = 90, // Default value for average text width
-}: {
-  chartWidth: number
-  leftLabelWidth: number
-  padding: number
-  iconWidth: number
-  textPadding: number
-  itemSpacing: number
-  avgTextWidth?: number
-}): number => {
-  if (!chartWidth || chartWidth <= 0) {
-    return 3 // Default if no width provided
-  }
 
-  // Calculate how many items can fit in the available width with spacing
-  const availableWidth = chartWidth - leftLabelWidth - padding * 2
-
-  // Account for item width (icon + text + padding)
-  const itemFullWidth = iconWidth + textPadding + avgTextWidth + itemSpacing
-
-  const maxItems = Math.floor(availableWidth / itemFullWidth)
-
-  // Return at least 1 item per row, or as many as will fit
-  return Math.max(1, maxItems)
-}
-
-/**
- * Calculate legend height based on content
- * @param options Configuration options
- * @returns Total height of the legend
- */
-export const calculateLegendHeight = ({
-  aoiItemsLength,
-  categoryItemsLength,
-  visibilityItemsLength,
-  chartWidth,
-  leftLabelWidth,
-  titleHeight,
-  itemHeight,
-  itemPadding,
-  groupSpacing,
-  groupTitleSpacing,
-  padding,
-  iconWidth,
-  textPadding,
-  itemSpacing,
-}: {
-  aoiItemsLength: number
-  categoryItemsLength: number
-  visibilityItemsLength: number
-  chartWidth: number
-  leftLabelWidth: number
-  titleHeight: number
-  itemHeight: number
-  itemPadding: number
-  groupSpacing: number
-  groupTitleSpacing: number
-  padding: number
-  iconWidth: number
-  textPadding: number
-  itemSpacing: number
-}): number => {
-  const itemsPerRow = getItemsPerRow({
-    chartWidth,
-    leftLabelWidth,
-    padding,
-    iconWidth,
-    textPadding,
-    itemSpacing,
-  })
-
-  // Calculate row counts for each section
-  const aoiRows = Math.ceil(aoiItemsLength / itemsPerRow)
-  const categoryRows = Math.ceil(categoryItemsLength / itemsPerRow)
-  const visibilityRows =
-    visibilityItemsLength > 0
-      ? Math.ceil(visibilityItemsLength / itemsPerRow)
-      : 0
-
-  // Calculate section heights
-  const aoiSectionHeight =
-    titleHeight + groupTitleSpacing + aoiRows * (itemHeight + itemPadding)
-  const categorySectionHeight =
-    titleHeight + groupTitleSpacing + categoryRows * (itemHeight + itemPadding)
-  const visibilitySectionHeight =
-    visibilityItemsLength > 0
-      ? titleHeight +
-        groupTitleSpacing +
-        visibilityRows * (itemHeight + itemPadding)
-      : 0
-
-  return (
-    padding + // Top padding
-    aoiSectionHeight + // AOI section
-    groupSpacing + // Spacing between AOI and Category
-    categorySectionHeight + // Category section
-    (visibilityItemsLength > 0 ? groupSpacing + visibilitySectionHeight : 0) + // Visibility section if exists
-    padding // Bottom padding
-  )
-}
 
 /**
  * Returns the timeline unit based on settings

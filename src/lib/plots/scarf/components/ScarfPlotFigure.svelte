@@ -1,10 +1,22 @@
 <script lang="ts">
   import type { ScarfFillingType } from '$lib/plots/scarf/types'
-  import type { ScarfGridType } from '$lib/workspace/type/gridType'
-  import { addInfoToast } from '$lib/toaster'
   import {
-    truncateTextToPixelWidth,
-    SYSTEM_SANS_SERIF_STACK,
+    GRIDLINE_SECONDARY,
+    GRIDLINE_PRIMARY,
+    FONT_PRIMARY,
+    computeGroupedLegendGeometry,
+    drawLegend,
+    drawLegendGroupTitles,
+    hitTestLegend,
+    getLegendTooltipPosition,
+    getLegendTooltipContent,
+    SCARF_LEGEND_CONFIG,
+    type LegendGroup,
+    type LegendGeometry,
+    type LegendItemGeometry,
+  } from '$lib/plots/shared'
+  import type { ScarfGridType } from '$lib/workspace/type/gridType'
+  import {
     estimateTextWidth,
   } from '$lib/shared/utils/textUtils'
   import { getContext, onDestroy, onMount, untrack } from 'svelte'
@@ -15,7 +27,6 @@
   } from '$lib/shared/utils/exportUtils'
   import {
     SCARF_LAYOUT,
-    getItemsPerRow,
     getXAxisLabel,
   } from '$lib/plots/scarf/utils/scarfServices'
   import {
@@ -91,23 +102,6 @@
     marginLeft = 0,
   }: Props = $props()
 
-  // Legend constants
-  const LEGEND = {
-    TITLE_HEIGHT: LAYOUT.LEGEND_TITLE_HEIGHT,
-    ITEM_HEIGHT: LAYOUT.LEGEND_ITEM_HEIGHT,
-    ITEM_PADDING: LAYOUT.LEGEND_ITEM_PADDING,
-    GROUP_SPACING: LAYOUT.LEGEND_GROUP_SPACING,
-    GROUP_TITLE_SPACING: LAYOUT.LEGEND_GROUP_TITLE_SPACING,
-    ICON_WIDTH: LAYOUT.LEGEND_ICON_WIDTH,
-    TEXT_PADDING: LAYOUT.LEGEND_TEXT_PADDING,
-    ITEM_SPACING: LAYOUT.LEGEND_ITEM_SPACING,
-    FONT_SIZE: LAYOUT.LEGEND_FONT_SIZE,
-    BG_HOVER_COLOR: LAYOUT.LEGEND_BG_HOVER_COLOR,
-    RECT_HIGHLIGHT_STROKE: LAYOUT.LEGEND_RECT_HIGHLIGHT_STROKE,
-    RECT_HIGHLIGHT_STROKE_WIDTH: LAYOUT.LEGEND_RECT_HIGHLIGHT_STROKE_WIDTH,
-    LINE_HIGHLIGHT_STROKE_WIDTH: LAYOUT.LEGEND_LINE_HIGHLIGHT_STROKE_WIDTH,
-    ITEMS_PER_ROW: LAYOUT.LEGEND_ITEMS_PER_ROW,
-  }
 
   const LEFT_LABEL_WIDTH = $derived(data.leftLabelWidth)
 
@@ -136,16 +130,79 @@
   let dragStartY = $state(0) // Track drag start position
   let hasDragStarted = $state(false) // Track if drag threshold has been exceeded
   let preparedForDragging = $state(false) // Track if prepared for dragging (shows draggable cursor)
-  let hoveredLegendItem = $state<any>(null) // Track currently hovered legend item
+  let hoveredLegendItem = $state<LegendItemGeometry | null>(null) // Track currently hovered legend item
 
   // Use highlights directly from props - workspace is the single source of truth
   const usedHighlights = $derived(highlights)
   const xAxisLabel = $derived(getXAxisLabel(settings.timeline))
 
-  // Memoize legend geometry to avoid recalculating on every mouse move
-  const legendGeometry = $derived.by(() => {
-    if (!data.stylingAndLegend) return { items: [], height: 0, groupTitles: [] }
-    return calculateLegendGeometry()
+  // Convert styling data to grouped legend format
+  const legendGroups: LegendGroup[] = $derived.by(() => {
+    if (!data.stylingAndLegend) return []
+    
+    const groups: LegendGroup[] = []
+    
+    // AOI group (Fixations)
+    if (data.stylingAndLegend.aoi.length > 0) {
+      groups.push({
+        title: 'Fixations',
+        items: data.stylingAndLegend.aoi.map(item => ({
+          identifier: item.identifier,
+          name: item.name,
+          color: item.color,
+          height: item.height,
+          type: 'rect' as const,
+        })),
+      })
+    }
+    
+    // Category group (Non-fixations)
+    if (data.stylingAndLegend.category.length > 0) {
+      groups.push({
+        title: 'Non-fixations',
+        items: data.stylingAndLegend.category.map(item => ({
+          identifier: item.identifier,
+          name: item.name,
+          color: item.color,
+          height: item.height,
+          type: 'rect' as const,
+        })),
+      })
+    }
+    
+    // Visibility group (AOI Visibility)
+    if (data.stylingAndLegend.visibility.length > 0) {
+      groups.push({
+        title: 'AOI Visibility',
+        items: data.stylingAndLegend.visibility.map(item => ({
+          identifier: item.identifier,
+          name: item.name,
+          color: item.color,
+          height: item.height,
+          type: 'line' as const,
+        })),
+      })
+    }
+    
+    return groups
+  })
+
+  // Compute legend geometry using the utility (memoized by $derived)
+  const legendGeometry: LegendGeometry = $derived.by(() => {
+    if (!data.stylingAndLegend || legendGroups.length === 0) {
+      return { items: [], height: 0, groupTitles: [], totalHeight: 0, itemsPerRow: 3 }
+    }
+    
+    const legendX = marginLeft + LAYOUT.PADDING
+    const legendY = calculatedHeights.legendY + marginTop
+    
+    return computeGroupedLegendGeometry(
+      legendGroups,
+      SCARF_LEGEND_CONFIG,
+      legendX,
+      legendY,
+      chartWidth
+    )
   })
 
   // SVG size calculations - MOVE THESE BEFORE RECTANGLE/LINE CALCULATIONS
@@ -362,12 +419,6 @@
     // Draw X-Axis label
     drawXAxisLabel(ctx)
 
-    // Draw legend item texts
-    drawLegendItemTexts(ctx)
-
-    // Draw legend group titles
-    drawLegendGroupTitles(ctx)
-
     // ---- STOP OF TEXT DRAWING ---- //
 
     // Draw participant ticks
@@ -385,51 +436,53 @@
     // Draw line segments
     drawLines(ctx)
 
-    // Draw the legend
-    drawLegend(ctx)
+    // Draw legend using shared utility
+    drawLegendGroupTitles(ctx, legendGeometry, SCARF_LEGEND_CONFIG)
+    drawLegend(ctx, legendGeometry, SCARF_LEGEND_CONFIG, usedHighlights)
 
     finishCanvasDrawing(canvasState)
   }
 
   function setUpFont(ctx: CanvasRenderingContext2D) {
-    ctx.font = `${LAYOUT.LABEL_FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
-    // avoid full black color, use a nearly black color
-    ctx.fillStyle = '#222'
+    ctx.font = `${FONT_PRIMARY.SIZE}px ${FONT_PRIMARY.FAMILY}`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = FONT_PRIMARY.COLOR
   }
 
   function drawParticipantLabels(ctx: CanvasRenderingContext2D) {
     // watch out that setUpFont function is called before this function is called!
 
-    ctx.textAlign = 'start'
+    ctx.textAlign = 'end'
     ctx.textBaseline = 'middle'
 
     const participants = data.participants
     const len = participants.length
+    const xPos = LEFT_LABEL_WIDTH + marginLeft - 10
 
     for (let i = 0; i < len; i++) {
       const participant = participants[i]
       ctx.fillText(
         participant.label,
-        LAYOUT.PADDING + marginLeft,
+        xPos,
         i * data.heightOfBarWrap + (data.heightOfBarWrap >> 1) + marginTop
       )
     }
   }
 
   function drawParticipantTicks(ctx: CanvasRenderingContext2D) {
-    ctx.strokeStyle = LAYOUT.GRID_COLOR
-    ctx.lineWidth = LAYOUT.GRID_STROKE_WIDTH
-
-    const participants = data.participants
-    const len = participants.length
-
-    const leftX = LEFT_LABEL_WIDTH + marginLeft
-    const rightX = leftX + plotAreaWidth
-    const tickLength = 5
-
-    // Draw the vertical Y-axis lines connecting the ticks
-    const yTop = marginTop
-    const yBottom = calculatedHeights.heightOfParticipantBars + marginTop
+    // Pixel-align coordinates for sharp rendering
+    const leftX = Math.floor(LEFT_LABEL_WIDTH + marginLeft) + 0.5
+    const rightX = Math.floor(LEFT_LABEL_WIDTH + marginLeft + plotAreaWidth) + 0.5
+    
+    // Draw the vertical Y-axis lines connecting the ticks using standard grid color
+    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
+    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
+    
+    const yTop = Math.floor(marginTop)
+    const yBottom = Math.floor(
+      calculatedHeights.heightOfParticipantBars + marginTop
+    )
     ctx.beginPath()
     ctx.moveTo(leftX, yTop)
     ctx.lineTo(leftX, yBottom)
@@ -437,31 +490,34 @@
     ctx.lineTo(rightX, yBottom)
     ctx.stroke()
 
+    // Draw horizontal lines between participants using subtle ridgeline style
+    ctx.strokeStyle = GRIDLINE_SECONDARY.COLOR
+    ctx.lineWidth = GRIDLINE_SECONDARY.WIDTH
+
+    const participants = data.participants
+    const len = participants.length
+
     for (let i = 0; i <= len; i++) {
       // Draw ticks exactly at bar boundaries
-      const y = i * calculatedHeights.participantBarHeight + marginTop
+      const y =
+        Math.floor(i * calculatedHeights.participantBarHeight + marginTop) + 0.5
 
-      // Left side ticks (facing out)
+      // Draw full line across between participants
       ctx.beginPath()
-      ctx.moveTo(leftX - tickLength, y)
-      ctx.lineTo(leftX, y)
-      ctx.stroke()
-
-      // Right side ticks (facing in)
-      ctx.beginPath()
-      ctx.moveTo(rightX, y)
-      ctx.lineTo(rightX - tickLength, y)
+      ctx.moveTo(leftX, y)
+      ctx.lineTo(rightX, y)
       ctx.stroke()
     }
   }
 
   function drawTopBorderAndTicks(ctx: CanvasRenderingContext2D) {
-    ctx.strokeStyle = LAYOUT.GRID_COLOR
-    ctx.lineWidth = 1.5
+    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
+    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
 
-    const yTop = marginTop
-    const leftX = LEFT_LABEL_WIDTH + marginLeft
-    const rightX = leftX + plotAreaWidth
+    // Pixel-align coordinates
+    const yTop = Math.floor(marginTop) + 0.5
+    const leftX = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
+    const rightX = Math.floor(LEFT_LABEL_WIDTH + marginLeft + plotAreaWidth)
     const ticks = data.timeline.ticks
     const len = ticks.length
 
@@ -474,7 +530,10 @@
     // Draw outward ticks (facing up)
     for (let i = 0; i < len; i++) {
       const tick = ticks[i]
-      const x = LEFT_LABEL_WIDTH + tick.position * plotAreaWidth + marginLeft
+      const x =
+        Math.floor(
+          LEFT_LABEL_WIDTH + tick.position * plotAreaWidth + marginLeft
+        ) + 0.5
       ctx.beginPath()
       ctx.moveTo(x, yTop)
       ctx.lineTo(x, yTop - 5)
@@ -525,18 +584,22 @@
   }
 
   function drawXAxisTicksAndBorder(ctx: CanvasRenderingContext2D) {
-    ctx.strokeStyle = LAYOUT.GRID_COLOR
-    ctx.lineWidth = 1.5
+    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
+    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
 
-    // Use the exact height from calculatedHeights
-    const yLine = calculatedHeights.heightOfParticipantBars + marginTop
+    // Use the exact height from calculatedHeights and pixel align
+    const yLine =
+      Math.floor(calculatedHeights.heightOfParticipantBars + marginTop) + 0.5
     const ticks = data.timeline.ticks
     const len = ticks.length
 
     // Draw ticks - make them shorter (3px instead of LAYOUT.TICK_LENGTH)
     for (let i = 0; i < len; i++) {
       const tick = ticks[i]
-      const x = LEFT_LABEL_WIDTH + tick.position * plotAreaWidth + marginLeft
+      const x =
+        Math.floor(
+          LEFT_LABEL_WIDTH + tick.position * plotAreaWidth + marginLeft
+        ) + 0.5
       const y1 = yLine
       const y2 = y1 + 5
 
@@ -547,9 +610,11 @@
     }
 
     // Draw bottom border line
+    const leftX = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
+    const rightX = Math.floor(LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft)
     ctx.beginPath()
-    ctx.moveTo(LEFT_LABEL_WIDTH + marginLeft, yLine)
-    ctx.lineTo(LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft, yLine)
+    ctx.moveTo(leftX, yLine)
+    ctx.lineTo(rightX, yLine)
     ctx.stroke()
   }
 
@@ -744,313 +809,16 @@
     )
   }
 
-  // Calculate legend geometry - for rendering and hit detection
-  function calculateLegendGeometry() {
-    if (!data.stylingAndLegend) return { items: [], height: 0, groupTitles: [] }
 
-    const itemsPerRow = getItemsPerRow({
-      chartWidth,
-      leftLabelWidth: LEFT_LABEL_WIDTH,
-      padding: LAYOUT.PADDING,
-      iconWidth: LEGEND.ICON_WIDTH,
-      textPadding: LEGEND.TEXT_PADDING,
-      itemSpacing: LEGEND.ITEM_SPACING,
-    })
 
-    // Use exact coordinates from calculatedHeights
-    const legendX = LEFT_LABEL_WIDTH + LAYOUT.PADDING + marginLeft
-    const legendY = calculatedHeights.legendY + marginTop
 
-    // Calculate rows for each section
-    const aoiItemCount = data.stylingAndLegend.aoi.length
-    const categoryItemCount = data.stylingAndLegend.category.length
-    const visibilityItemCount = data.stylingAndLegend.visibility.length
 
-    const aoiRows = Math.ceil(aoiItemCount / itemsPerRow)
-    const categoryRows = Math.ceil(categoryItemCount / itemsPerRow)
-    const visibilityRows =
-      visibilityItemCount > 0 ? Math.ceil(visibilityItemCount / itemsPerRow) : 0
 
-    // Group title positions - with proper spacing between title and items
-
-    // Calculate heights with adequate spacing
-    const aoiTitleY = legendY
-    const aoiItemsStartY =
-      aoiTitleY + LEGEND.TITLE_HEIGHT + LEGEND.GROUP_TITLE_SPACING
-    const aoiSectionHeight =
-      LEGEND.TITLE_HEIGHT +
-      LEGEND.GROUP_TITLE_SPACING +
-      aoiRows * (LEGEND.ITEM_HEIGHT + LEGEND.ITEM_PADDING)
-
-    const categoryTitleY = aoiTitleY + aoiSectionHeight + LEGEND.GROUP_SPACING
-    const categoryItemsStartY =
-      categoryTitleY + LEGEND.TITLE_HEIGHT + LEGEND.GROUP_TITLE_SPACING
-    const categorySectionHeight =
-      LEGEND.TITLE_HEIGHT +
-      LEGEND.GROUP_TITLE_SPACING +
-      categoryRows * (LEGEND.ITEM_HEIGHT + LEGEND.ITEM_PADDING)
-
-    const visibilityTitleY =
-      visibilityItemCount > 0
-        ? categoryTitleY + categorySectionHeight + LEGEND.GROUP_SPACING
-        : 0
-    const visibilityItemsStartY =
-      visibilityItemCount > 0
-        ? visibilityTitleY + LEGEND.TITLE_HEIGHT + LEGEND.GROUP_TITLE_SPACING
-        : 0
-
-    const visibilitySectionHeight =
-      visibilityItemCount > 0
-        ? LEGEND.TITLE_HEIGHT +
-          LEGEND.GROUP_TITLE_SPACING +
-          visibilityRows * (LEGEND.ITEM_HEIGHT + LEGEND.ITEM_PADDING)
-        : 0
-
-    // Store group titles for rendering
-    const groupTitles: Array<{ title: string; x: number; y: number }> = [
-      { title: 'Fixations', x: legendX, y: aoiTitleY },
-      { title: 'Non-fixations', x: legendX, y: categoryTitleY },
-    ]
-
-    if (visibilityItemCount > 0) {
-      groupTitles.push({
-        title: 'AOI Visibility',
-        x: legendX,
-        y: visibilityTitleY,
-      })
-    }
-
-    // Calculate total legend height
-    const totalHeight =
-      aoiSectionHeight +
-      categorySectionHeight +
-      visibilitySectionHeight +
-      (visibilityItemCount > 0
-        ? LEGEND.GROUP_SPACING << 1
-        : LEGEND.GROUP_SPACING)
-
-    // Generate geometry data for all legend items
-    const items: Array<{
-      identifier: string
-      name: string
-      color: string
-      height: number
-      x: number
-      y: number
-      width: number
-      type: 'rect' | 'line'
-      groupTitle: string
-    }> = []
-
-    // Calculate item width based on available space and items per row
-    const availableWidth = chartWidth - legendX - LAYOUT.PADDING
-    const itemWidth = Math.max(
-      availableWidth / itemsPerRow - LEGEND.ITEM_SPACING,
-      LEGEND.ICON_WIDTH + LEGEND.TEXT_PADDING + 60 // Minimum width for readability
-    )
-
-    // Add AOI items
-    data.stylingAndLegend.aoi.forEach((item, i) => {
-      const row = Math.floor(i / itemsPerRow)
-      const col = i % itemsPerRow
-      items.push({
-        identifier: item.identifier,
-        name: item.name,
-        color: item.color,
-        height: item.height,
-        x: legendX + col * (itemWidth + LEGEND.ITEM_SPACING),
-        y: aoiItemsStartY + row * (LEGEND.ITEM_HEIGHT + LEGEND.ITEM_PADDING),
-        width: itemWidth,
-        type: 'rect',
-        groupTitle: 'Fixations',
-      })
-    })
-
-    // Add Category items
-    data.stylingAndLegend.category.forEach((item, i) => {
-      const row = Math.floor(i / itemsPerRow)
-      const col = i % itemsPerRow
-      items.push({
-        identifier: item.identifier,
-        name: item.name,
-        color: item.color,
-        height: item.height,
-        x: legendX + col * (itemWidth + LEGEND.ITEM_SPACING),
-        y:
-          categoryItemsStartY +
-          row * (LEGEND.ITEM_HEIGHT + LEGEND.ITEM_PADDING),
-        width: itemWidth,
-        type: 'rect',
-        groupTitle: 'Non-fixations',
-      })
-    })
-
-    // Add Visibility items
-    if (visibilityItemCount > 0) {
-      data.stylingAndLegend.visibility.forEach((item, i) => {
-        const row = Math.floor(i / itemsPerRow)
-        const col = i % itemsPerRow
-        items.push({
-          identifier: item.identifier,
-          name: item.name,
-          color: item.color,
-          height: item.height,
-          x: legendX + col * (itemWidth + LEGEND.ITEM_SPACING),
-          y:
-            visibilityItemsStartY +
-            row * (LEGEND.ITEM_HEIGHT + LEGEND.ITEM_PADDING),
-          width: itemWidth,
-          type: 'line',
-          groupTitle: 'AOI Visibility',
-        })
-      })
-    }
-
-    return {
-      items,
-      groupTitles,
-      height: totalHeight,
-    }
-  }
-
-  function drawLegendGroupTitles(ctx: CanvasRenderingContext2D) {
-    // watch out that setUpFont function is called before this function is called!
-
-    // Draw group titles
-    if (legendGeometry.groupTitles && legendGeometry.groupTitles.length > 0) {
-      ctx.textAlign = 'left'
-      ctx.textBaseline = 'top'
-      // set semi-bold font
-      ctx.font = `600 ${LEGEND.FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
-
-      const titles = legendGeometry.groupTitles
-      const len = titles.length
-
-      for (let i = 0; i < len; i++) {
-        const group = titles[i]
-        ctx.fillText(group.title, group.x, group.y)
-      }
-    }
-  }
-
-  // Draw the legend on the canvas
-  function drawLegend(ctx: CanvasRenderingContext2D) {
-    // Skip legend if no content
-    if (
-      !legendGeometry ||
-      !legendGeometry.items ||
-      legendGeometry.items.length === 0
-    )
-      return
-
-    // Draw each legend item
-    if (legendGeometry.items && legendGeometry.items.length > 0) {
-      const items = legendGeometry.items
-      const len = items.length
-
-      for (let i = 0; i < len; i++) {
-        const item = items[i]
-        const isHighlighted = usedHighlights.includes(item.identifier)
-        const anyHighlightActive = usedHighlights.length > 0
-
-        // Set opacity based on highlight state
-        if (anyHighlightActive) {
-          ctx.globalAlpha = isHighlighted ? 1.0 : 0.15
-        } else {
-          ctx.globalAlpha = 1.0
-        }
-
-        // Draw the appropriate icon type (rect or line)
-        if (item.type === 'rect') {
-          ctx.fillStyle = item.color
-          ctx.fillRect(
-            item.x,
-            item.y + ((LEGEND.ITEM_HEIGHT - item.height) >> 1),
-            LEGEND.ICON_WIDTH,
-            item.height
-          )
-        } else {
-          // Draw line for visibility items
-          ctx.strokeStyle = item.color
-          ctx.lineWidth = item.height
-          ctx.setLineDash([2, 2])
-
-          ctx.beginPath()
-          ctx.moveTo(item.x, item.y + (LEGEND.ITEM_HEIGHT >> 1))
-          ctx.lineTo(
-            item.x + LEGEND.ICON_WIDTH,
-            item.y + (LEGEND.ITEM_HEIGHT >> 1)
-          )
-          ctx.stroke()
-
-          // Reset dash array
-          ctx.setLineDash([])
-        }
-      }
-    }
-
-    // Reset opacity
-    ctx.globalAlpha = 1.0
-  }
-
-  function drawLegendItemTexts(ctx: CanvasRenderingContext2D) {
-    // Draw each legend item
-    if (legendGeometry.items && legendGeometry.items.length > 0) {
-      const items = legendGeometry.items
-      const len = items.length
-
-      for (let i = 0; i < len; i++) {
-        const item = items[i]
-        const isHighlighted = usedHighlights.includes(item.identifier)
-        const anyHighlightActive = usedHighlights.length > 0
-
-        // Set opacity based on highlight state
-        if (anyHighlightActive) {
-          ctx.globalAlpha = isHighlighted ? 1.0 : 0.15
-        } else {
-          ctx.globalAlpha = 1.0
-        }
-
-        // Draw item text
-        ctx.textAlign = 'start'
-        ctx.textBaseline = 'alphabetic'
-
-        // Truncate text if too long using pixel width
-        const truncatedName = truncateTextToPixelWidth(
-          item.name,
-          item.width - LEGEND.ICON_WIDTH - LEGEND.TEXT_PADDING,
-          LEGEND.FONT_SIZE
-        )
-        ctx.fillText(
-          truncatedName,
-          item.x + LEGEND.ICON_WIDTH + LEGEND.TEXT_PADDING,
-          item.y + LEGEND.ITEM_HEIGHT - 4
-        )
-      }
-    }
-  }
 
   // Check if a mouse click or hover is on a legend item
-  function isMouseOverLegendItem(mouseX: number, mouseY: number) {
-    if (!data.stylingAndLegend) return null
-
-    // Use the memoized legend geometry
-    const items = legendGeometry.items
-
-    // Check each legend item
-    for (const item of items) {
-      // Add some padding for easier clicking
-      if (
-        mouseX >= item.x - 5 &&
-        mouseX <= item.x + item.width + 5 &&
-        mouseY >= item.y - 5 &&
-        mouseY <= item.y + LEGEND.ITEM_HEIGHT + 5
-      ) {
-        return item
-      }
-    }
-
-    return null
+  function isMouseOverLegendItem(mouseX: number, mouseY: number): LegendItemGeometry | null {
+    if (!data.stylingAndLegend || !legendGeometry.items.length) return null
+    return hitTestLegend(legendGeometry, SCARF_LEGEND_CONFIG, mouseX, mouseY)
   }
 
   // Mouse event handling for canvas
@@ -1069,19 +837,15 @@
         // Show tooltip with "Highlight [FULLNAMEOFAOI]" or "Dehighlight [FULLNAMEOFAOI]" text
         hoveredLegendItem = legendItem
         const isHighlighted = usedHighlights.includes(legendItem.identifier)
-        const tooltipContent = [
-          {
-            key: '',
-            value: `${isHighlighted ? 'Dehighlight' : 'Highlight'} ${legendItem.name}`,
-          },
-        ]
-
-        // Get tooltip position using the same utility as segment tooltips
+        
+        // Use utility functions for tooltip
+        const tooltipContent = getLegendTooltipContent(legendItem, isHighlighted)
+        const tooltipItemPos = getLegendTooltipPosition(legendItem, SCARF_LEGEND_CONFIG)
         const tooltipPos = getTooltipPosition(
           canvasState,
-          legendItem.x + LEGEND.ICON_WIDTH * 1.5,
-          legendItem.y + LEGEND.ITEM_HEIGHT, // Position at bottom of legend item
-          { x: 0, y: 7 } // 7px below the legend item
+          tooltipItemPos.x,
+          tooltipItemPos.y,
+          { x: 0, y: 7 }
         )
 
         updateTooltip({

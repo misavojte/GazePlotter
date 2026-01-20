@@ -9,3 +9,6 @@ export * from './sharedPlotUtils'
 
 // Layout and sizing utilities
 export * from './plotSizeUtility'
+
+// Legend rendering utilities
+export * from './LegendRenderer'

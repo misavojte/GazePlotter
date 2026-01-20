@@ -4,8 +4,10 @@ import {
   getParticipants,
   getParticipantEndTime,
 } from '$lib/gaze-data/front-process/stores/dataStore'
-import { SCARF_LAYOUT, getItemsPerRow } from '$lib/plots/scarf/utils'
+import { SCARF_LAYOUT } from '$lib/plots/scarf/utils'
 import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils/plotSizeUtility'
+import { calculateFlatLegendHeight, STREAM_LEGEND_CONFIG } from '$lib/plots/shared'
+import { estimateTextWidth } from '$lib/shared/utils/textUtils'
 import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
 import { getAoiStreamPlotData } from '$lib/plots/aoi-stream/utils'
 import type { AoiStreamPlotResult } from '$lib/plots/aoi-stream/types'
@@ -17,14 +19,7 @@ const MARGIN = {
   LEFT: 50,
 }
 
-const LEGEND = {
-  ITEM_HEIGHT: SCARF_LAYOUT.LEGEND_ITEM_HEIGHT,
-  ICON_SIZE: SCARF_LAYOUT.LEGEND_ICON_WIDTH,
-  TEXT_PADDING: SCARF_LAYOUT.LEGEND_TEXT_PADDING,
-  ITEM_SPACING: SCARF_LAYOUT.LEGEND_ITEM_SPACING,
-  ROW_PADDING: SCARF_LAYOUT.LEGEND_ITEM_PADDING,
-  TOP_PADDING: SCARF_LAYOUT.LEGEND_GROUP_TITLE_SPACING,
-}
+
 
 const HEADER_HEIGHT = 150
 const HORIZONTAL_PADDING = 40
@@ -57,7 +52,7 @@ function getFirstSeriesPeak(data: AoiStreamPlotResult): number {
  * This uses only the first AOI's peak for efficiency (as requested).
  * Returns the clamped strip height that fits the data without clipping.
  */
-function calculateIdealStripHeight(
+export function calculateIdealStripHeight(
   data: AoiStreamPlotResult,
   plotAreaHeight: number
 ): number {
@@ -181,26 +176,25 @@ export function scanForDynamicStripHeight(
       safeWidth - MARGIN.LEFT - MARGIN.RIGHT
     )
 
-    const legendItemsPerRow = Math.max(
-      1,
-      getItemsPerRow({
-        chartWidth: plotAreaWidthBeforeLegend,
-        leftLabelWidth: 0,
-        padding: 0,
-        iconWidth: LEGEND.ICON_SIZE,
-        textPadding: LEGEND.TEXT_PADDING,
-        itemSpacing: LEGEND.ITEM_SPACING,
-        avgTextWidth: 90,
-      })
-    )
+    // Calculate max text width to match component logic exactly
+    let maxTextWidth = 0
+    const { fontSize, fontFamily } = STREAM_LEGEND_CONFIG
+    
+    if (streamData.series.length > 0) {
+      for (const series of streamData.series) {
+        // Use the label from data
+        const label = series.label || ''
+        const w = estimateTextWidth(label, fontSize, fontFamily)
+        if (w > maxTextWidth) maxTextWidth = w
+      }
+    }
 
-    const legendRows =
-      seriesCount > 0 ? Math.ceil(seriesCount / legendItemsPerRow) : 0
-    const legendHeight =
-      legendRows === 0
-        ? 0
-        : legendRows * (LEGEND.ITEM_HEIGHT + LEGEND.ROW_PADDING) +
-          LEGEND.TOP_PADDING
+    const legendHeight = calculateFlatLegendHeight(
+      seriesCount,
+      plotAreaWidthBeforeLegend,
+      STREAM_LEGEND_CONFIG,
+      maxTextWidth
+    )
 
     const plotAreaHeight = Math.max(
       0,

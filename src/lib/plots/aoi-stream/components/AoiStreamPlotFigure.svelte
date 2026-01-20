@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getContext, onMount, untrack } from 'svelte'
   import { browser } from '$app/environment'
+  import { calculateIdealStripHeight } from '../utils/ridgelineUtils'
   import {
     EXPORT_SOURCE_CONTEXT,
     type ExportSourceRegistrar,
@@ -17,16 +18,29 @@
     type CanvasState,
   } from '$lib/shared/utils/canvasUtils'
   import {
-    SYSTEM_SANS_SERIF_STACK,
-    truncateTextToPixelWidth,
-  } from '$lib/shared/utils/textUtils'
-  import {
     SCARF_LAYOUT,
     getXAxisLabel,
-    getItemsPerRow,
   } from '$lib/plots/scarf/utils'
+  import {
+    estimateTextWidth,
+  } from '$lib/shared/utils/textUtils'
   import { updateTooltip } from '$lib/tooltip'
   import type { AoiStreamPlotResult } from '$lib/plots/aoi-stream/types'
+  import {
+    GRIDLINE_SECONDARY,
+    GRIDLINE_PRIMARY,
+    FONT_PRIMARY,
+    computeFlatLegendGeometry,
+    calculateFlatLegendHeight, // Added import
+    drawLegend,
+    hitTestLegend,
+    getLegendTooltipPosition,
+    getLegendTooltipContent,
+    STREAM_LEGEND_CONFIG,
+    type LegendItem,
+    type LegendGeometry,
+    type LegendItemGeometry,
+  } from '$lib/plots/shared'
 
   const MARGIN = {
     TOP: 20,
@@ -37,8 +51,8 @@
 
   const AXIS = {
     TICK_LENGTH: SCARF_LAYOUT.TICK_LENGTH,
-    FONT_SIZE: SCARF_LAYOUT.LABEL_FONT_SIZE,
-    COLOR: '#222',
+    FONT_SIZE: FONT_PRIMARY.SIZE,
+    COLOR: FONT_PRIMARY.COLOR,
     GRID_COLOR: SCARF_LAYOUT.GRID_COLOR,
     BASELINE_COLOR: '#c9c9c9',
   }
@@ -55,14 +69,6 @@
 
   const RIDGELINE_OVERLAP = 0.6
 
-  const LEGEND = {
-    ITEM_HEIGHT: SCARF_LAYOUT.LEGEND_ITEM_HEIGHT,
-    ICON_SIZE: SCARF_LAYOUT.LEGEND_ICON_WIDTH,
-    TEXT_PADDING: SCARF_LAYOUT.LEGEND_TEXT_PADDING,
-    ITEM_SPACING: SCARF_LAYOUT.LEGEND_ITEM_SPACING,
-    ROW_PADDING: SCARF_LAYOUT.LEGEND_ITEM_PADDING,
-    TOP_PADDING: SCARF_LAYOUT.LEGEND_GROUP_TITLE_SPACING,
-  }
 
   const FLOW_CURVE_TENSION = 0
   const X_AXIS_LABEL = getXAxisLabel('absolute')
@@ -116,12 +122,7 @@
   } | null>(null)
 
   // Hover state for legend tooltips
-  let hoveredLegendItem = $state<{
-    id: number
-    label: string
-    x: number
-    y: number
-  } | null>(null)
+  let hoveredLegendItem = $state<LegendItemGeometry | null>(null)
 
   // Hover state for plot area bins
   let hoveredBinIndex = $state<number | null>(null)
@@ -203,31 +204,37 @@
     }
   })
 
-  const legendItemsPerRow = $derived(
-    Math.max(
-      1,
-      getItemsPerRow({
-        chartWidth: Math.max(0, safeWidth - MARGIN.LEFT - MARGIN.RIGHT),
-        leftLabelWidth: 0,
-        padding: 0,
-        iconWidth: LEGEND.ICON_SIZE,
-        textPadding: LEGEND.TEXT_PADDING,
-        itemSpacing: LEGEND.ITEM_SPACING,
-        avgTextWidth: 90,
-      })
+  // Convert series data to legend items format
+  const legendItems: LegendItem[] = $derived(
+    data.series.map(s => ({
+      identifier: s.id.toString(),
+      name: s.label,
+      color: s.color,
+      height: STREAM_LEGEND_CONFIG.iconWidth, // Square icons like in ScarfPlot
+      type: 'rect' as const,
+    }))
+  )
+
+  // Calculate legend height for layout using the shared utility for consistency
+  const legendHeight: number = $derived.by(() => {
+    if (legendItems.length === 0) return 0
+    
+    // Calculate max text width to ensure height calculation matches geometry calculation
+    let maxTextWidth = 0
+    const { fontSize, fontFamily } = STREAM_LEGEND_CONFIG
+    
+    for (const item of legendItems) {
+      const w = estimateTextWidth(item.name, fontSize, fontFamily)
+      if (w > maxTextWidth) maxTextWidth = w
+    }
+    
+    return calculateFlatLegendHeight(
+      legendItems.length,
+      Math.max(0, safeWidth),
+      STREAM_LEGEND_CONFIG,
+      maxTextWidth
     )
-  )
-
-  const legendRows = $derived(
-    data.series.length ? Math.ceil(data.series.length / legendItemsPerRow) : 0
-  )
-
-  const legendHeight = $derived(
-    legendRows === 0
-      ? 0
-      : legendRows * (LEGEND.ITEM_HEIGHT + LEGEND.ROW_PADDING) +
-          LEGEND.TOP_PADDING
-  )
+  })
 
   // `width`/`height` already represent the drawable area excluding export margins.
   // Export margins are applied as offsets and by growing the canvas size.
@@ -241,6 +248,21 @@
   const plotLeft = $derived(safeMarginLeft + MARGIN.LEFT)
   const plotTop = $derived(safeMarginTop + MARGIN.TOP)
   const plotBottom = $derived(plotTop + plotAreaHeight)
+
+  // Compute full legend geometry for rendering (after we know plotBottom)
+  const legendGeometry: LegendGeometry = $derived.by(() => {
+    const legendX = safeMarginLeft
+    const legendY = plotBottom + MARGIN.BOTTOM + STREAM_LEGEND_CONFIG.topPadding
+    const legendWidth = Math.max(0, safeWidth)
+    
+    return computeFlatLegendGeometry(
+      legendItems,
+      STREAM_LEGEND_CONFIG,
+      legendX,
+      legendY,
+      legendWidth
+    )
+  })
 
   function scheduleRender() {
     if (!canvasState.renderScheduled && browser) {
@@ -433,34 +455,7 @@
       ) {
         stripHeight = stripHeightOverride
       } else {
-        // Calculate using only the first series peak (for efficiency and consistency with sync)
-        let maxVal = 0
-        if (series.length > 0) {
-          const values = series[0].values
-          for (let i = 0; i < binCount; i++) {
-            const v = values[i] * percentFactor
-            if (v > maxVal) maxVal = v
-          }
-        }
-
-        // First series (s=0) has relativePosition = (n - 1 - 0) * (1 - OVERLAP) = (n-1) * (1 - OVERLAP)
-        const relativePosition = (n - 1) * (1 - RIDGELINE_OVERLAP)
-        const dataFactor = (maxVal * 0.9) / 100
-        const totalFactor = relativePosition + dataFactor
-
-        let minAllowableS = Infinity
-
-        if (totalFactor > 1e-4) {
-          minAllowableS = plotAreaHeight / totalFactor
-        }
-
-        // Apply clamping
-        if (minAllowableS === Infinity) {
-          stripHeight = standardHeight
-        } else {
-          stripHeight = Math.min(minAllowableS, standardHeight * 10)
-          stripHeight = Math.max(stripHeight, standardHeight)
-        }
+        stripHeight = calculateIdealStripHeight(data, plotAreaHeight)
       }
     }
 
@@ -574,13 +569,13 @@
         const groupTop = plotBottom - totalGroupHeight
         const stripTop = groupTop + s * overlapOffset
         const stripBottom = stripTop + stripHeight
-        // Draw simplified axis line (divider)
-        // With overlap, maybe we only draw the baseline for each?
+        
         // Let's draw the baseline for each strip.
         ctx.beginPath()
         ctx.moveTo(plotLeft, stripBottom)
         ctx.lineTo(plotLeft + plotAreaWidth, stripBottom)
-        ctx.strokeStyle = '#eee'
+        ctx.strokeStyle = GRIDLINE_SECONDARY.COLOR
+        ctx.lineWidth = GRIDLINE_SECONDARY.WIDTH
         ctx.stroke()
       }
     }
@@ -710,7 +705,7 @@
       ctx.save()
       ctx.textAlign = 'right'
       ctx.textBaseline = 'middle'
-      ctx.font = `${AXIS.FONT_SIZE - 2}px ${SYSTEM_SANS_SERIF_STACK}`
+      ctx.font = `${AXIS.FONT_SIZE - 2}px ${FONT_PRIMARY.FAMILY}`
       ctx.fillStyle = AXIS.COLOR
 
       // Labels
@@ -751,81 +746,11 @@
     drawXAxisLabel(ctx)
     drawXAxisTicksAndBorder(ctx)
 
-    // Legend (batched rendering with highlight dimming)
-    const legendItems = series
-    if (legendItems.length && legendHeight > 0) {
+
+    // Legend - use shared utility for consistent rendering
+    if (legendGeometry.items.length > 0 && legendHeight > 0) {
       setUpFont(ctx)
-      const legendX = safeMarginLeft
-      const legendY = plotBottom + MARGIN.BOTTOM + LEGEND.TOP_PADDING
-      const itemsPerRow = legendItemsPerRow
-      const legendWidth = Math.max(0, safeWidth)
-      const itemWidth =
-        itemsPerRow > 0
-          ? (legendWidth - (itemsPerRow - 1) * LEGEND.ITEM_SPACING) /
-            itemsPerRow
-          : legendWidth
-
-      const maxLabelWidth = Math.max(
-        0,
-        itemWidth - LEGEND.ICON_SIZE - LEGEND.TEXT_PADDING
-      )
-
-      ctx.textAlign = 'left'
-      ctx.textBaseline = 'middle'
-
-      const isHighlightActive = usedHighlights.length > 0
-
-      // Batch 1: Draw all color icons with dimming
-      for (let i = 0; i < legendItems.length; i++) {
-        const item = legendItems[i]
-        const row = Math.floor(i / itemsPerRow)
-        const col = i % itemsPerRow
-        const x = legendX + col * (itemWidth + LEGEND.ITEM_SPACING)
-        const y =
-          legendY +
-          row * (LEGEND.ITEM_HEIGHT + LEGEND.ROW_PADDING) +
-          LEGEND.ITEM_HEIGHT / 2
-
-        // Apply highlight dimming
-        const isHighlighted = highlightMaskById?.get(item.id) ?? false
-        ctx.globalAlpha = isHighlightActive && !isHighlighted ? 0.15 : 1.0
-
-        ctx.fillStyle = item.color
-        ctx.fillRect(
-          x,
-          y - LEGEND.ICON_SIZE / 2,
-          LEGEND.ICON_SIZE,
-          LEGEND.ICON_SIZE
-        )
-      }
-
-      // Batch 2: Draw all text labels with dimming
-      ctx.fillStyle = AXIS.COLOR
-      for (let i = 0; i < legendItems.length; i++) {
-        const item = legendItems[i]
-        const row = Math.floor(i / itemsPerRow)
-        const col = i % itemsPerRow
-        const x = legendX + col * (itemWidth + LEGEND.ITEM_SPACING)
-        const y =
-          legendY +
-          row * (LEGEND.ITEM_HEIGHT + LEGEND.ROW_PADDING) +
-          LEGEND.ITEM_HEIGHT / 2
-
-        // Apply highlight dimming
-        const isHighlighted = highlightMaskById?.get(item.id) ?? false
-        ctx.globalAlpha = isHighlightActive && !isHighlighted ? 0.15 : 1.0
-
-        const label = truncateTextToPixelWidth(
-          item.label,
-          maxLabelWidth,
-          AXIS.FONT_SIZE,
-          SYSTEM_SANS_SERIF_STACK
-        )
-        ctx.fillText(label, x + LEGEND.ICON_SIZE + LEGEND.TEXT_PADDING, y)
-      }
-
-      // Reset opacity
-      ctx.globalAlpha = 1.0
+      drawLegend(ctx, legendGeometry, STREAM_LEGEND_CONFIG, usedHighlights)
     }
 
     ctx.restore()
@@ -833,7 +758,7 @@
   }
 
   function setUpFont(ctx: CanvasRenderingContext2D) {
-    ctx.font = `${AXIS.FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
+    ctx.font = `${AXIS.FONT_SIZE}px ${FONT_PRIMARY.FAMILY}`
     ctx.fillStyle = AXIS.COLOR
   }
 
@@ -884,8 +809,8 @@
   }
 
   function drawXAxisTicksAndBorder(ctx: CanvasRenderingContext2D) {
-    ctx.strokeStyle = AXIS.GRID_COLOR
-    ctx.lineWidth = 1.5
+    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
+    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
 
     const yLine = plotBottom
     const ticks = data.timeline.ticks
@@ -919,8 +844,8 @@
     const xLabel = plotLeft - Y_AXIS.TICK_LABEL_OFFSET
     const xTick = plotLeft - 5
 
-    ctx.strokeStyle = AXIS.GRID_COLOR
-    ctx.lineWidth = 1
+    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
+    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
     ctx.textAlign = 'right'
     ctx.textBaseline = 'middle'
 
@@ -958,8 +883,8 @@
     const xLabel = plotLeft - Y_AXIS.TICK_LABEL_OFFSET
     const xTick = plotLeft - 5
 
-    ctx.strokeStyle = AXIS.GRID_COLOR
-    ctx.lineWidth = 1
+    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
+    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
     ctx.textAlign = 'right'
     ctx.textBaseline = 'middle'
 
@@ -988,40 +913,12 @@
     ctx.restore()
   }
 
-  // Check if mouse is over a legend item
-  function isMouseOverLegendItem(mouseX: number, mouseY: number) {
-    const legendItems = data.series
-    if (!legendItems || legendItems.length === 0 || legendHeight === 0)
+  // Check if mouse is over a legend item (now uses shared utility)
+  function isMouseOverLegendItem(mouseX: number, mouseY: number): LegendItemGeometry | null {
+    if (!legendGeometry || legendGeometry.items.length === 0 || legendHeight === 0)
       return null
 
-    const legendX = safeMarginLeft
-    const legendY = plotBottom + MARGIN.BOTTOM + LEGEND.TOP_PADDING
-    const itemsPerRow = legendItemsPerRow
-    const legendWidth = Math.max(0, safeWidth)
-    const itemWidth =
-      itemsPerRow > 0
-        ? (legendWidth - (itemsPerRow - 1) * LEGEND.ITEM_SPACING) / itemsPerRow
-        : legendWidth
-
-    for (let i = 0; i < legendItems.length; i++) {
-      const item = legendItems[i]
-      const row = Math.floor(i / itemsPerRow)
-      const col = i % itemsPerRow
-      const x = legendX + col * (itemWidth + LEGEND.ITEM_SPACING)
-      const y = legendY + row * (LEGEND.ITEM_HEIGHT + LEGEND.ROW_PADDING)
-
-      // Add padding for easier clicking
-      if (
-        mouseX >= x - 5 &&
-        mouseX <= x + itemWidth + 5 &&
-        mouseY >= y - 5 &&
-        mouseY <= y + LEGEND.ITEM_HEIGHT + 5
-      ) {
-        return { id: item.id, label: item.label, x, y }
-      }
-    }
-
-    return null
+    return hitTestLegend(legendGeometry, STREAM_LEGEND_CONFIG, mouseX, mouseY)
   }
 
   // Check if mouse is over the plot area and return bin index
@@ -1057,20 +954,16 @@
     if (legendItem !== hoveredLegendItem) {
       if (legendItem) {
         hoveredLegendItem = legendItem
-        const isHighlighted = usedHighlights.includes(legendItem.id.toString())
-        const tooltipContent = [
-          {
-            key: '',
-            value: `${isHighlighted ? 'Dehighlight' : 'Highlight'} ${legendItem.label}`,
-          },
-        ]
-
-        // Position tooltip at bottom of legend item (same as scarf plot)
+        const isHighlighted = usedHighlights.includes(legendItem.identifier)
+        
+        // Use utility functions for tooltip
+        const tooltipContent = getLegendTooltipContent(legendItem, isHighlighted)
+        const tooltipItemPos = getLegendTooltipPosition(legendItem, STREAM_LEGEND_CONFIG)
         const tooltipPos = getTooltipPosition(
           canvasState,
-          legendItem.x + LEGEND.ICON_SIZE * 1.5,
-          legendItem.y + LEGEND.ITEM_HEIGHT,
-          { x: 0, y: 7 } // 7px below the legend item
+          tooltipItemPos.x,
+          tooltipItemPos.y,
+          { x: 0, y: 7 }
         )
 
         updateTooltip({
@@ -1082,7 +975,7 @@
 
         if (canvas) canvas.style.cursor = 'pointer'
       } else if (hoveredLegendItem) {
-        // Hide tooltip when mouse leaves legend item (use null like scarf plot)
+        // Hide tooltip when mouse leaves legend item
         hoveredLegendItem = null
         updateTooltip(null)
         if (canvas) canvas.style.cursor = 'default'
@@ -1195,10 +1088,13 @@
     if (!canvas) return
 
     const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
-    const legendItem = isMouseOverLegendItem(mouseX, mouseY)
+    const legendItem =isMouseOverLegendItem(mouseX, mouseY)
 
     if (legendItem) {
-      onLegendClick(legendItem.id)
+      const aoiId = parseInt(legendItem.identifier)
+      if (!isNaN(aoiId)) {
+        onLegendClick(aoiId)
+      }
     }
   }
 

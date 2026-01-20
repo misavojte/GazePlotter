@@ -1,9 +1,14 @@
+
 <script lang="ts">
   import type { AdaptiveTimeline } from '$lib/plots/shared/class/AdaptiveTimeline'
   import {
+    GRIDLINE_SECONDARY,
+    GRIDLINE_PRIMARY,
+    FONT_PRIMARY,
+  } from '$lib/plots/shared'
+  import {
     calculateLabelOffset,
     truncateTextToPixelWidth,
-    SYSTEM_SANS_SERIF_STACK,
   } from '$lib/shared/utils/textUtils'
   import { updateTooltip } from '$lib/tooltip'
   import { getContext, onMount, untrack } from 'svelte'
@@ -30,10 +35,9 @@
     RIGHT: 20,
     BOTTOM: 30,
   }
-  const LABEL_FONT_SIZE = 12
+  const LABEL_FONT_SIZE = FONT_PRIMARY.SIZE
   const TICK_LENGTH = 5
-  const GRID_COLOR = '#e0e0e0'
-  const GRID_STROKE_WIDTH = 1
+  // GRID_COLOR and GRID_STROKE_WIDTH removed in favor of shared constants
   const BAR_SPACING_TOLERANCE = 20 // Additional spacing on both sides
   const VALUE_LABEL_OFFSET = 5 // Space between bar and value label
   const CATEGORY_LABEL_OFFSET = 15 // Space between plot area and category labels
@@ -296,14 +300,15 @@
   // Set up common context properties once to avoid repeated assignments
   function setupContextProperties(ctx: CanvasRenderingContext2D) {
     // Set up stroke properties for grid lines and axis ticks
-    ctx.strokeStyle = GRID_COLOR
-    ctx.lineWidth = GRID_STROKE_WIDTH
+    // Set up stroke properties for grid lines and axis ticks
+    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
+    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
   }
 
   // Draw plot area border
   function drawPlotBorder(ctx: CanvasRenderingContext2D) {
-    ctx.strokeStyle = '#ccc'
-    ctx.lineWidth = 1
+    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
+    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
     ctx.strokeRect(
       trueLeftMargin,
       MARGIN.TOP + marginTop,
@@ -316,10 +321,12 @@
   function drawGridLines(ctx: CanvasRenderingContext2D) {
     // Context properties already set in setupContextProperties()
     if (barPlottingType === 'vertical') {
-      // Horizontal grid lines for vertical bars
-      timeline.ticks
-        .filter(tick => tick.isNice)
-        .forEach(tick => {
+      const ticks = timeline.ticks.filter(tick => tick.isNice)
+      
+      // Draw ticks (primary)
+      ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
+      ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
+      ticks.forEach(tick => {
           const y =
             MARGIN.TOP +
             marginTop +
@@ -327,20 +334,54 @@
             tick.position * plotAreaHeight
           ctx.beginPath()
           ctx.moveTo(trueLeftMargin - TICK_LENGTH, y)
+          ctx.lineTo(trueLeftMargin, y)
+          ctx.stroke()
+      })
+
+      // Draw grid lines (subtle)
+      ctx.strokeStyle = GRIDLINE_SECONDARY.COLOR
+      ctx.lineWidth = GRIDLINE_SECONDARY.WIDTH
+      ticks.forEach(tick => {
+          // Skip drawing subtle line at position 0 (start of plot) because border covers it with PRIMARY style
+          if (tick.position <= 1e-6) return
+
+          const y =
+            MARGIN.TOP +
+            marginTop +
+            plotAreaHeight -
+            tick.position * plotAreaHeight
+          ctx.beginPath()
+          ctx.moveTo(trueLeftMargin, y)
           ctx.lineTo(trueLeftMargin + plotAreaWidth, y)
           ctx.stroke()
-        })
+      })
     } else {
-      // Vertical grid lines for horizontal bars
-      timeline.ticks
-        .filter(tick => tick.isNice)
-        .forEach(tick => {
+      const ticks = timeline.ticks.filter(tick => tick.isNice)
+
+      // Draw ticks (primary)
+      ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
+      ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
+      ticks.forEach(tick => {
+          const x = trueLeftMargin + tick.position * plotAreaWidth
+          ctx.beginPath()
+          ctx.moveTo(x, MARGIN.TOP + marginTop + plotAreaHeight)
+          ctx.lineTo(x, MARGIN.TOP + marginTop + plotAreaHeight + TICK_LENGTH)
+          ctx.stroke()
+      })
+
+      // Draw grid lines (subtle)
+      ctx.strokeStyle = GRIDLINE_SECONDARY.COLOR
+      ctx.lineWidth = GRIDLINE_SECONDARY.WIDTH
+      ticks.forEach(tick => {
+          // Skip drawing subtle line at position 0 (start of plot) because border covers it with PRIMARY style
+          if (tick.position <= 1e-6) return
+
           const x = trueLeftMargin + tick.position * plotAreaWidth
           ctx.beginPath()
           ctx.moveTo(x, MARGIN.TOP + marginTop)
-          ctx.lineTo(x, MARGIN.TOP + marginTop + plotAreaHeight + TICK_LENGTH)
+          ctx.lineTo(x, MARGIN.TOP + marginTop + plotAreaHeight)
           ctx.stroke()
-        })
+      })
     }
   }
 
@@ -356,8 +397,8 @@
 
   // Draw all text elements in one optimized function
   function drawAllTextElements(ctx: CanvasRenderingContext2D) {
-    ctx.font = `${LABEL_FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
-    ctx.fillStyle = '#222'
+    ctx.font = `${LABEL_FONT_SIZE}px ${FONT_PRIMARY.FAMILY}`
+    ctx.fillStyle = FONT_PRIMARY.COLOR
 
     // Draw value labels
     bars.forEach(bar => {
