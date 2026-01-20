@@ -12,3 +12,6 @@ export * from './plotSizeUtility'
 
 // Legend rendering utilities
 export * from './LegendRenderer'
+
+// Timeline utilities
+export * from './timelineUtils'

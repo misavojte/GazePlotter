@@ -13,7 +13,10 @@
   import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils/plotSizeUtility'
   import { getAoiStreamPlotData } from '$lib/plots/aoi-stream/utils'
-  import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
+  import {
+    getStimuliOptions,
+    scanForSynchronizedTimelineMax,
+  } from '$lib/plots/shared/utils'
   import {
     getParticipants,
     getParticipantEndTime,
@@ -27,7 +30,6 @@
 
   import {
     scanForDynamicStripHeight,
-    scanForSynchronizedTimelineMax,
   } from '$lib/plots/aoi-stream/utils/ridgelineUtils'
   import { grid } from '$lib/workspace/grid/store.svelte'
 
