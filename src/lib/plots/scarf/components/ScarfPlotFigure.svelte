@@ -16,9 +16,7 @@
     type LegendItemGeometry,
   } from '$lib/plots/shared'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
-  import {
-    estimateTextWidth,
-  } from '$lib/shared/utils/textUtils'
+  import { estimateTextWidth } from '$lib/shared/utils/textUtils'
   import { getContext, onDestroy, onMount, untrack } from 'svelte'
   import { browser } from '$app/environment'
   import {
@@ -66,15 +64,7 @@
     onDragStepX?: (stepChange: number) => void
     onDragEnd?: () => void
     chartWidth: number
-    calculatedHeights: {
-      participantBarHeight: number
-      heightOfParticipantBars: number
-      chartHeight: number
-      legendHeight: number
-      totalHeight: number
-      axisLabelY: number
-      legendY: number
-    }
+    availableHeight: number // The actual pixel height from the Grid
     dpiOverride?: number | null // Override for DPI settings when exporting
     marginTop?: number
     marginRight?: number
@@ -94,7 +84,7 @@
     onDragStepX = () => {},
     onDragEnd = () => {},
     chartWidth = 0,
-    calculatedHeights,
+    availableHeight,
     dpiOverride = null,
     marginTop = 0,
     marginRight = 0,
@@ -102,6 +92,12 @@
     marginLeft = 0,
   }: Props = $props()
 
+  // Simplified height derivations based on participant data
+  const participantBarsHeight = $derived(
+    data.participants.length * data.heightOfBarWrap
+  )
+  const axisLabelY = $derived(participantBarsHeight + 25) // Fixed offset for axis labels
+  const legendY = $derived(participantBarsHeight + 60) // Fixed offset for legend
 
   const LEFT_LABEL_WIDTH = $derived(data.leftLabelWidth)
 
@@ -139,9 +135,9 @@
   // Convert styling data to grouped legend format
   const legendGroups: LegendGroup[] = $derived.by(() => {
     if (!data.stylingAndLegend) return []
-    
+
     const groups: LegendGroup[] = []
-    
+
     // AOI group (Fixations)
     if (data.stylingAndLegend.aoi.length > 0) {
       groups.push({
@@ -155,7 +151,7 @@
         })),
       })
     }
-    
+
     // Category group (Non-fixations)
     if (data.stylingAndLegend.category.length > 0) {
       groups.push({
@@ -169,7 +165,7 @@
         })),
       })
     }
-    
+
     // Visibility group (AOI Visibility)
     if (data.stylingAndLegend.visibility.length > 0) {
       groups.push({
@@ -183,24 +179,30 @@
         })),
       })
     }
-    
+
     return groups
   })
 
   // Compute legend geometry using the utility (memoized by $derived)
   const legendGeometry: LegendGeometry = $derived.by(() => {
     if (!data.stylingAndLegend || legendGroups.length === 0) {
-      return { items: [], height: 0, groupTitles: [], totalHeight: 0, itemsPerRow: 3 }
+      return {
+        items: [],
+        height: 0,
+        groupTitles: [],
+        totalHeight: 0,
+        itemsPerRow: 3,
+      }
     }
-    
+
     const legendX = marginLeft + LAYOUT.PADDING
-    const legendY = calculatedHeights.legendY + marginTop
-    
+    const lY = legendY + marginTop
+
     return computeGroupedLegendGeometry(
       legendGroups,
       SCARF_LEGEND_CONFIG,
       legendX,
-      legendY,
+      lY,
       chartWidth
     )
   })
@@ -232,9 +234,13 @@
     return mask
   })
 
-  const totalHeight = $derived(
-    calculatedHeights.totalHeight + marginTop + marginBottom
+  // Required height for all content
+  const totalContentHeight = $derived(
+    legendY + legendGeometry.totalHeight + marginBottom + 40
   )
+
+  // Canvas height adapts to content, minimum being available area
+  const totalHeight = $derived(Math.max(availableHeight, totalContentHeight))
 
   // Create a unified identifier mapping system for all style types
   // Using a single integer id space for maximum performance
@@ -473,16 +479,15 @@
   function drawParticipantTicks(ctx: CanvasRenderingContext2D) {
     // Pixel-align coordinates for sharp rendering
     const leftX = Math.floor(LEFT_LABEL_WIDTH + marginLeft) + 0.5
-    const rightX = Math.floor(LEFT_LABEL_WIDTH + marginLeft + plotAreaWidth) + 0.5
-    
+    const rightX =
+      Math.floor(LEFT_LABEL_WIDTH + marginLeft + plotAreaWidth) + 0.5
+
     // Draw the vertical Y-axis lines connecting the ticks using standard grid color
     ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
     ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
-    
+
     const yTop = Math.floor(marginTop)
-    const yBottom = Math.floor(
-      calculatedHeights.heightOfParticipantBars + marginTop
-    )
+    const yBottom = Math.floor(participantBarsHeight + marginTop)
     ctx.beginPath()
     ctx.moveTo(leftX, yTop)
     ctx.lineTo(leftX, yBottom)
@@ -499,8 +504,7 @@
 
     for (let i = 0; i <= len; i++) {
       // Draw ticks exactly at bar boundaries
-      const y =
-        Math.floor(i * calculatedHeights.participantBarHeight + marginTop) + 0.5
+      const y = Math.floor(i * data.heightOfBarWrap + marginTop) + 0.5
 
       // Draw full line across between participants
       ctx.beginPath()
@@ -551,8 +555,8 @@
     ctx.textAlign = 'center'
     ctx.textBaseline = 'hanging'
 
-    // Position labels just 5px below the participant bars
-    const yPos = calculatedHeights.heightOfParticipantBars + 10 + marginTop
+    // Position labels just 10px below the participant bars
+    const yPos = participantBarsHeight + 10 + marginTop
     const rightBoundary = LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft
     const isSecondToLast = len - 2
     const isLast = len - 1
@@ -588,8 +592,7 @@
     ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
 
     // Use the exact height from calculatedHeights and pixel align
-    const yLine =
-      Math.floor(calculatedHeights.heightOfParticipantBars + marginTop) + 0.5
+    const yLine = Math.floor(participantBarsHeight + marginTop) + 0.5
     const ticks = data.timeline.ticks
     const len = ticks.length
 
@@ -799,8 +802,8 @@
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
 
-    // Position the label using exact coordinates from calculatedHeights
-    const labelY = calculatedHeights.axisLabelY + marginTop
+    // Position the label using exact coordinates from our local derivations
+    const labelY = axisLabelY + marginTop
 
     ctx.fillText(
       xAxisLabel,
@@ -809,14 +812,11 @@
     )
   }
 
-
-
-
-
-
-
   // Check if a mouse click or hover is on a legend item
-  function isMouseOverLegendItem(mouseX: number, mouseY: number): LegendItemGeometry | null {
+  function isMouseOverLegendItem(
+    mouseX: number,
+    mouseY: number
+  ): LegendItemGeometry | null {
     if (!data.stylingAndLegend || !legendGeometry.items.length) return null
     return hitTestLegend(legendGeometry, SCARF_LEGEND_CONFIG, mouseX, mouseY)
   }
@@ -837,10 +837,16 @@
         // Show tooltip with "Highlight [FULLNAMEOFAOI]" or "Dehighlight [FULLNAMEOFAOI]" text
         hoveredLegendItem = legendItem
         const isHighlighted = usedHighlights.includes(legendItem.identifier)
-        
+
         // Use utility functions for tooltip
-        const tooltipContent = getLegendTooltipContent(legendItem, isHighlighted)
-        const tooltipItemPos = getLegendTooltipPosition(legendItem, SCARF_LEGEND_CONFIG)
+        const tooltipContent = getLegendTooltipContent(
+          legendItem,
+          isHighlighted
+        )
+        const tooltipItemPos = getLegendTooltipPosition(
+          legendItem,
+          SCARF_LEGEND_CONFIG
+        )
         const tooltipPos = getTooltipPosition(
           canvasState,
           tooltipItemPos.x,
@@ -1144,6 +1150,7 @@
       highlights,
       usedHighlights,
       chartWidth,
+      availableHeight,
       dpiOverride, // Add dpiOverride to the dependency list
       marginLeft,
       marginRight,

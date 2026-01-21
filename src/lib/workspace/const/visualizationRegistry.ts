@@ -42,8 +42,7 @@ export const visualizationRegistry: {
       dynamicAOI: true,
       min: { w: 14, h: 3 },
     }),
-    getDefaultHeight: (stimulusId = 0) =>
-      getScarfGridHeightFromCurrentData(stimulusId, false, -1),
+    getDefaultHeight: () => getScarfGridHeightFromCurrentData(),
     getDefaultWidth: () => 20,
   },
   TransitionMatrix: {

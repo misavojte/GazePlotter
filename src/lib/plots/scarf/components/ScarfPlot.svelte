@@ -14,7 +14,6 @@
     tooltipScarfService,
     transformDataToScarfPlot,
     SCARF_LAYOUT,
-    calculateScarfHeights,
   } from '$lib/plots/scarf/utils'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared'
   import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
@@ -126,23 +125,6 @@
         rightMargin: SCARF_LAYOUT.RIGHT_MARGIN + PLOT_MARGIN.RIGHT,
         labelFontSize: SCARF_LAYOUT.LABEL_FONT_SIZE,
       }
-    )
-  })
-
-  // Use the unified height calculation from the service
-  const heightCalculations = $derived.by(() => {
-    // Force recalculation when participants change or timestamp changes
-    // Get the latest participant IDs for accurate height calculation
-    const participantIds = getParticipants(
-      currentGroupId,
-      currentStimulusId
-    ).map(participant => participant.id)
-
-    return calculateScarfHeights(
-      participantIds,
-      scarfData.stylingAndLegend.aoi.length - 1, // Subtract 1 for "No AOI hit" which is added in styling
-      scarfData.stylingAndLegend.visibility.length > 0,
-      chartWidth
     )
   })
 
@@ -351,29 +333,37 @@
   settings={localSettings}
   layoutConfig={LAYOUT}
   dimensions={plotDimensions}
-  contentHeight={heightCalculations.totalHeight}
 >
   {#snippet header()}
     <ScarfPlotHeader {source} settings={localSettings} {onWorkspaceCommand} />
   {/snippet}
 
   {#snippet figure({ width, height })}
-    <ScarfPlotFigure
-      onTooltipActivation={handleTooltipActivation}
-      onTooltipDeactivation={handleTooltipDeactivation}
-      tooltipAreaElement={tooltipArea}
-      data={scarfData}
-      settings={localSettings}
-      {highlights}
-      onLegendClick={handleLegendClick}
-      onDragStepX={handleDragStepX}
-      onDragEnd={handleDragEnd}
-      {chartWidth}
-      calculatedHeights={heightCalculations}
-      marginTop={PLOT_MARGIN.TOP}
-      marginRight={PLOT_MARGIN.RIGHT}
-      marginBottom={PLOT_MARGIN.BOTTOM}
-      marginLeft={PLOT_MARGIN.LEFT}
-    />
+    <div class="scarf-viewport" style:height="{height}px">
+      <ScarfPlotFigure
+        onTooltipActivation={handleTooltipActivation}
+        onTooltipDeactivation={handleTooltipDeactivation}
+        tooltipAreaElement={tooltipArea}
+        data={scarfData}
+        settings={localSettings}
+        {highlights}
+        onLegendClick={handleLegendClick}
+        onDragStepX={handleDragStepX}
+        onDragEnd={handleDragEnd}
+        chartWidth={width}
+        availableHeight={height}
+        marginTop={PLOT_MARGIN.TOP}
+        marginRight={PLOT_MARGIN.RIGHT}
+        marginBottom={PLOT_MARGIN.BOTTOM}
+        marginLeft={PLOT_MARGIN.LEFT}
+      />
+    </div>
   {/snippet}
 </BasePlot>
+
+<style>
+  .scarf-viewport {
+    overflow-y: auto;
+    position: relative;
+  }
+</style>

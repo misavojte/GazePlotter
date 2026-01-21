@@ -1,11 +1,3 @@
-import {
-  getAois,
-  getParticipants,
-} from '$lib/gaze-data/front-process/stores/dataStore'
-import {
-  calculateGroupedLegendHeight,
-  SCARF_LEGEND_CONFIG,
-} from '$lib/plots/shared'
 import { getScarfParticipantBarHeight as getBarHeight } from '$lib/plots/scarf/utils/transformations'
 
 // Constants duplicated from the canonical scarf transformations module for better independence
@@ -74,136 +66,13 @@ export const SCARF_LAYOUT = {
 export const getScarfParticipantBarHeight = getBarHeight
 
 /**
- * Unified approach to calculating all height-related values for a Scarf Plot
- * This centralizes all height calculations in one place with explicit components
- *
- * @param participantIds Array of participant IDs to display
- * @param aoiDataLength Number of AOIs in the data
- * @param isAoiVisible Whether AOI visibility is shown
- * @param chartWidth The available chart width (for legend calculations)
- * @returns An object with all height-related values
- */
-export const calculateScarfHeights = (
-  participantIds: number[],
-  aoiDataLength: number,
-  isAoiVisible: boolean,
-  chartWidth: number = 800 // Default width if not provided
-) => {
-  // Get constants from layout
-  const {
-    HEIGHT_OF_BAR,
-    SPACE_ABOVE_RECT,
-    LINE_WRAPPED_HEIGHT,
-    LEFT_LABEL_WIDTH,
-    LEGEND_TITLE_HEIGHT,
-    LEGEND_ITEM_HEIGHT,
-    LEGEND_ITEM_PADDING,
-    LEGEND_GROUP_SPACING,
-    LEGEND_GROUP_TITLE_SPACING,
-    PADDING,
-    LEGEND_ICON_WIDTH,
-    LEGEND_TEXT_PADDING,
-    LEGEND_ITEM_SPACING,
-    MIN_CHART_HEIGHT,
-  } = SCARF_LAYOUT
-
-  // Calculate the height needed for a single participant bar using the exact same function
-  const participantBarHeight = getScarfParticipantBarHeight(
-    HEIGHT_OF_BAR,
-    SPACE_ABOVE_RECT,
-    aoiDataLength,
-    isAoiVisible,
-    LINE_WRAPPED_HEIGHT
-  )
-
-  // Calculate height for participant bars only - no additional space
-  const heightOfParticipantBars = participantBarHeight * participantIds.length
-
-  // Chart height is exactly the participant bars height (or minimum)
-  const chartHeight = Math.max(heightOfParticipantBars, MIN_CHART_HEIGHT)
-
-  // Fixed spacing - these do NOT vary with participant count
-  const fixedAxisOffset = 25 // Space between chart and axis labels
-  const fixedLegendOffset = 40 // Space between chart and legend
-
-  // Calculate legend heights using our comprehensive function
-  // Construct groups for the utility function
-  const groups = [
-    { itemCount: aoiDataLength + 1 }, // AOIs + "No AOI"
-    { itemCount: 3 }, // Categories
-    { itemCount: isAoiVisible ? aoiDataLength : 0 } // Visibility
-  ]
-
-  const legendHeight = calculateGroupedLegendHeight(
-    groups,
-    chartWidth + PADDING * 2, // Use full available width including padding
-    SCARF_LEGEND_CONFIG
-  )
-
-  // Total height - EXACT sum of components
-  const totalHeight = chartHeight + fixedLegendOffset + legendHeight
-
-  return {
-    participantBarHeight,
-    heightOfParticipantBars,
-    chartHeight,
-    legendHeight,
-    totalHeight,
-    // Return exact pixel positions for axis elements
-    axisLabelY: chartHeight + fixedAxisOffset,
-    legendY: chartHeight + fixedLegendOffset,
-  }
-}
-
-/**
- * Helper function to calculate the height of the scarf grid based on the current data in pixels.
- * @param participantIds array of participant IDs
- * @param isAoiVisible boolean indicating whether AOI is visible in the current context
- * @param aoiDataLength number of AOIs in the current data
- * @returns the height of the scarf based on the current data in pixels
- */
-export const getScarfHeight = (
-  participantIds: number[],
-  isAoiVisible: boolean,
-  aoiDataLength: number
-) => {
-  // Use our unified height calculation
-  const heights = calculateScarfHeights(
-    participantIds,
-    aoiDataLength,
-    isAoiVisible,
-    800 // Default chart width estimate
-  )
-
-  // Add a safety buffer for the grid view only
-  return heights.totalHeight + 180
-}
-
-/**
  * Helper function to calculate the height of the scarf grid based on the current data.
- * For the workspace component (grid view). Returns the height of the scarf grid in grid units.
- * It uses constant UNIT_OF_GRID_HEIGHT to convert the height in pixels to grid units.
- * @param stimulusId selected stimulus ID
- * @param dynamicAOI is dynamic AOI shown in the current data view?
- * @param groupId selected group ID
- * @returns the height of the scarf grid based on the current data in grid units
+ * For the workspace component (grid view). Returns a fixed default height for Scarf Plots.
+ * In the Viewport-Driven Architecture, the plot adapts to the provided grid height.
+ * @returns the default height of the scarf grid in grid units
  */
-export const getScarfGridHeightFromCurrentData = (
-  stimulusId: number,
-  dynamicAOI: boolean,
-  groupId: number
-): number => {
-  const participants = getParticipants(groupId, stimulusId)
-  const aois = getAois(stimulusId)
-  const UNIT_OF_GRID_HEIGHT = 50
-
-  return Math.ceil(
-    getScarfHeight(
-      participants.map(participant => participant.id),
-      dynamicAOI,
-      aois.length
-    ) / UNIT_OF_GRID_HEIGHT
-  )
+export const getScarfGridHeightFromCurrentData = (): number => {
+  return 12 // Default grid height units
 }
 
 /**
@@ -222,8 +91,6 @@ export const getDynamicAoiBoolean = (
   if (!dynamicAOIAllowed) return false
   return dynamicAOIInData
 }
-
-
 
 /**
  * Returns the timeline unit based on settings

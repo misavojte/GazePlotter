@@ -34,16 +34,12 @@ export function handleScarfSelectionChange(
     hasStimulusAoiVisibility(stimulusId)
   )
 
-  // Calculate grid height based on updated settings
-  const h = getScarfGridHeightFromCurrentData(stimulusId, isDynamicAoi, groupId)
-
-  // Dispatch workspace command with updated settings including height
+  // Dispatch workspace command with updated settings (height is now independent)
   onWorkspaceCommand({
     type: 'updateSettings',
     itemId: settings.id,
     settings: {
       ...changes,
-      h,
     },
     source,
   })
