@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
-  import type { ScarfFillingType } from '$lib/plots/scarf/types'
+  import type { ScarfData } from '$lib/plots/scarf/types'
   import {
     transformDataToScarfPlot,
     ScarfPlotFigure,
@@ -16,7 +16,7 @@
 
   interface Props {
     settings: ScarfGridType
-    data: ScarfFillingType
+    data: ScarfData
   }
 
   let { settings }: Props = $props()
@@ -43,48 +43,12 @@
         )
       ),
       untrack(() => settings),
-      untrack(() => getData().noAoiTreatment),
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      {
-        chartWidth: effectiveWidth,
-        marginLeft,
-        marginTop,
-        padding: SCARF_LAYOUT.PADDING,
-        rightMargin: SCARF_LAYOUT.RIGHT_MARGIN,
-        labelFontSize: SCARF_LAYOUT.LABEL_FONT_SIZE,
-      }
+      untrack(() => getData().noAoiTreatment)
     )
   )
 
   // Calculate the total height
   const totalHeight = $derived(obtainedData.chartHeight + 130)
-
-  // Calculate heights for ScarfPlotFigure
-  const calculatedHeights = $derived.by(() => ({
-    participantBarHeight: obtainedData.heightOfBarWrap,
-    heightOfParticipantBars:
-      obtainedData.participants.length * obtainedData.heightOfBarWrap,
-    chartHeight: obtainedData.chartHeight,
-    // Calculate a reasonable legend height
-    legendHeight: obtainedData.stylingAndLegend
-      ? Math.max(
-          50,
-          ((obtainedData.stylingAndLegend.aoi.length +
-            obtainedData.stylingAndLegend.category.length +
-            obtainedData.stylingAndLegend.visibility.length) *
-            30) /
-            3
-        )
-      : 50,
-    totalHeight: totalHeight,
-    axisLabelY:
-      obtainedData.participants.length * obtainedData.heightOfBarWrap + 40,
-    legendY:
-      obtainedData.participants.length * obtainedData.heightOfBarWrap + 80,
-  }))
 </script>
 
 <div class="single-view-container">
@@ -118,7 +82,7 @@
           data={obtainedData}
           {settings}
           chartWidth={effectiveWidth}
-          {calculatedHeights}
+          availableHeight={totalHeight}
           highlights={settings.highlights ?? []}
           tooltipAreaElement={null}
           onLegendClick={() => {}}

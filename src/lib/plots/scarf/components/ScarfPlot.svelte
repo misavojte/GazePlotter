@@ -5,7 +5,7 @@
     getParticipants,
     getData,
   } from '$lib/gaze-data/front-process/stores/dataStore'
-  import type { ScarfTooltipFillingType } from '$lib/plots/scarf/types/ScarfTooltipFillingType'
+  import type { ScarfTooltipFillingType } from '$lib/plots/scarf/types'
   import { onDestroy, onMount, untrack } from 'svelte'
   import { ScarfPlotFigure, ScarfPlotHeader } from '$lib/plots/scarf/components'
   import { BasePlot } from '$lib/plots/shared/components'
@@ -110,21 +110,9 @@
 
     return transformDataToScarfPlot(
       currentStimulusId,
-      participantIds,
+      currentParticipantIds,
       localSettings,
-      currentData.noAoiTreatment,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      {
-        chartWidth,
-        marginLeft: PLOT_MARGIN.LEFT,
-        marginTop: PLOT_MARGIN.TOP,
-        padding: SCARF_LAYOUT.PADDING,
-        rightMargin: SCARF_LAYOUT.RIGHT_MARGIN + PLOT_MARGIN.RIGHT,
-        labelFontSize: SCARF_LAYOUT.LABEL_FONT_SIZE,
-      }
+      currentData.noAoiTreatment
     )
   })
 

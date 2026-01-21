@@ -3,7 +3,7 @@ import {
   getSegment,
 } from '$lib/gaze-data/front-process/stores/dataStore'
 import { updateTooltip } from '$lib/tooltip'
-import type { ScarfTooltipFillingType } from '$lib/plots/scarf/types/ScarfTooltipFillingType'
+import type { ScarfTooltipFillingType } from '$lib/plots/scarf/types'
 
 /**
  * Service function to fill the tooltip with data.

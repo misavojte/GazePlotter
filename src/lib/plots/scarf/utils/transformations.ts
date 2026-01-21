@@ -4,14 +4,10 @@
 
 import type { ScarfGridType } from '$lib/workspace/type/gridType'
 import type {
-  AoiVisibilityScarfFillingType,
-  ParticipantScarfFillingType,
-  ScarfFillingType,
-  SingleAoiVisibilityScarfFillingType,
-  SingleSegmentScarfFillingType,
-  SingleStylingScarfFillingType,
-  StimulusScarfFillingType,
-  StylingScarfFillingType,
+  ScarfData,
+  ScarfParticipant,
+  ScarfStyleItem,
+  ScarfStyling,
 } from '$lib/plots/scarf/types'
 import {
   getAois,
@@ -233,10 +229,10 @@ export function createStylingAndLegend(
   aoiData: ExtendedInterpretedDataType[],
   noAoiTreatment: { displayedName: string; color: string },
   showAoiVisibility = false
-): StylingScarfFillingType {
+): ScarfStyling {
   const { HEIGHT_OF_BAR, NON_FIXATION_HEIGHT } = SCARF_LAYOUT
 
-  const aoiStyling: SingleStylingScarfFillingType[] = aoiData.map(aoi => ({
+  const aoiStyling: ScarfStyleItem[] = aoiData.map(aoi => ({
     identifier: `${IDENTIFIER_IS_AOI}${aoi.id}`,
     name: aoi.displayedName,
     color: aoi.color,
@@ -252,7 +248,7 @@ export function createStylingAndLegend(
     heighOfLegendItem: HEIGHT_OF_BAR,
   })
 
-  const categoryStyling: SingleStylingScarfFillingType[] = [
+  const categoryStyling: ScarfStyleItem[] = [
     {
       identifier: `${IDENTIFIER_IS_OTHER_CATEGORY}${1}`,
       name: 'Saccade',
@@ -269,7 +265,7 @@ export function createStylingAndLegend(
     },
   ]
 
-  const visibilityStyling: SingleStylingScarfFillingType[] = !showAoiVisibility
+  const visibilityStyling: ScarfStyleItem[] = !showAoiVisibility
     ? []
     : aoiData.map(aoi => ({
         identifier: `${IDENTIFIER_IS_AOI}${aoi.id}`,
@@ -294,7 +290,7 @@ export function transformDataToScarfPlot(
   participantIds: number[],
   settings: ScarfGridType,
   noAoiTreatment: { displayedName: string; color: string }
-): ScarfFillingType {
+): ScarfData {
   const {
     HEIGHT_OF_BAR,
     NON_FIXATION_HEIGHT,
@@ -367,7 +363,7 @@ export function transformDataToScarfPlot(
   }
 
   const presentList: number[] = []
-  const participants: ParticipantScarfFillingType[] = []
+  const participants: ScarfParticipant[] = []
 
   for (let pIndex = 0; pIndex < participantIds.length; pIndex++) {
     const participantId = participantIds[pIndex]

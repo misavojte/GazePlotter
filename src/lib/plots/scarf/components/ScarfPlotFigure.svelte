@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ScarfFillingType } from '$lib/plots/scarf/types'
+  import type { ScarfData } from '$lib/plots/scarf/types'
   import {
     GRIDLINE_SECONDARY,
     GRIDLINE_PRIMARY,
@@ -41,12 +41,9 @@
   } from '$lib/shared/utils/canvasUtils'
   import { updateTooltip } from '$lib/tooltip'
 
-  // CONSTANTS - layout dimensions and styling
-  const LAYOUT = SCARF_LAYOUT
-
   interface Props {
     tooltipAreaElement: HTMLElement | SVGElement | null
-    data: ScarfFillingType
+    data: ScarfData
     settings: ScarfGridType
     highlights: string[]
     onLegendClick: (identifier: string) => void
