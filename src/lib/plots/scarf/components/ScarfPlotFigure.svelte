@@ -153,60 +153,51 @@
   const usedHighlights = $derived(highlights)
   const xAxisLabel = $derived(getXAxisLabel(settings.timeline))
 
-  // Convert styling data to grouped legend format
+  // Convert ScarfLegendItem (data-only) to LegendItem (with presentation details)
+  // Heights are determined here in the presentation layer using layout constants
   const legendGroups: LegendGroup[] = $derived.by(() => {
-    if (!data.stylingAndLegend) return []
+    const groups = data.legendData?.groups ?? []
+    if (groups.length === 0) return []
 
-    const groups: LegendGroup[] = []
+    // Map styleType to type and height using layout constants
+    const getItemPresentation = (styleType: string) => {
+      switch (styleType) {
+        case 'fixation':
+          return { type: 'rect' as const, height: SCARF_LAYOUT.HEIGHT_OF_BAR }
+        case 'nonFixation':
+          return {
+            type: 'rect' as const,
+            height: SCARF_LAYOUT.NON_FIXATION_HEIGHT,
+          }
+        case 'visibility':
+          return {
+            type: 'line' as const,
+            height: SCARF_LAYOUT.NON_FIXATION_HEIGHT,
+          }
+        default:
+          return { type: 'rect' as const, height: SCARF_LAYOUT.HEIGHT_OF_BAR }
+      }
+    }
 
-    // AOI group (Fixations)
-    if (data.stylingAndLegend.aoi.length > 0) {
-      groups.push({
-        title: 'Fixations',
-        items: data.stylingAndLegend.aoi.map(item => ({
+    return groups.map(group => ({
+      title: group.title,
+      items: group.items.map(item => {
+        const presentation = getItemPresentation(item.styleType)
+        return {
           identifier: item.identifier,
           name: item.name,
           color: item.color,
-          height: item.height,
-          type: 'rect' as const,
-        })),
-      })
-    }
-
-    // Category group (Non-fixations)
-    if (data.stylingAndLegend.category.length > 0) {
-      groups.push({
-        title: 'Non-fixations',
-        items: data.stylingAndLegend.category.map(item => ({
-          identifier: item.identifier,
-          name: item.name,
-          color: item.color,
-          height: item.height,
-          type: 'rect' as const,
-        })),
-      })
-    }
-
-    // Visibility group (AOI Visibility)
-    if (data.stylingAndLegend.visibility.length > 0) {
-      groups.push({
-        title: 'AOI Visibility',
-        items: data.stylingAndLegend.visibility.map(item => ({
-          identifier: item.identifier,
-          name: item.name,
-          color: item.color,
-          height: item.height,
-          type: 'line' as const,
-        })),
-      })
-    }
-
-    return groups
+          type: presentation.type,
+          height: presentation.height,
+        }
+      }),
+    }))
   })
 
-  // Compute legend geometry using the utility (memoized by $derived)
+  // Compute legend geometry using the shared utility (memoized by $derived)
+  // This is viewport-driven: when chartWidth changes, geometry automatically reflows
   const legendGeometry: LegendGeometry = $derived.by(() => {
-    if (!data.stylingAndLegend || legendGroups.length === 0) {
+    if (legendGroups.length === 0) {
       return {
         items: [],
         height: 0,
@@ -322,12 +313,16 @@
     const visibility = data.stylingAndLegend.visibility
     const len = visibility.length
 
+    // Visibility lines use NON_FIXATION_HEIGHT for strokeWidth
+    // This is computed here in the presentation layer, not stored in data
+    const strokeWidth = SCARF_LAYOUT.NON_FIXATION_HEIGHT
+
     // Pre-compute all line styles (visibility) with dimmed state
     for (let i = 0; i < len; i++) {
       const style = visibility[i]
       const baseStyle = {
         stroke: style.color,
-        strokeWidth: style.height,
+        strokeWidth,
         strokeDasharray: '1',
       }
       map.set(style.identifier, {

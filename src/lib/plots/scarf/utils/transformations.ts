@@ -8,6 +8,9 @@ import type {
   ScarfParticipant,
   ScarfStyleItem,
   ScarfStyling,
+  ScarfLegendData,
+  ScarfLegendGroup,
+  ScarfLegendItem,
 } from '$lib/plots/scarf/types'
 import {
   getAois,
@@ -34,11 +37,7 @@ import {
   SEGMENT_STRIDE,
   SegmentField,
 } from '$lib/gaze-data/shared/types'
-import type {
-  BaseInterpretedDataType,
-  ExtendedInterpretedDataType,
-  SegmentInterpretedDataType,
-} from '$lib/gaze-data/shared/types'
+import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
 import { SCARF_LAYOUT } from '$lib/plots/scarf/utils/scarfServices'
 
 const RECT_STRIDE = 8
@@ -223,29 +222,24 @@ export function createScarfPlotAxis(
 }
 
 /**
- * Creates styling information for scarf plot segments
+ * Creates styling information for scarf plot segments.
+ * Data-only: no sizing properties (heights computed in presentation layer).
  */
 export function createStylingAndLegend(
   aoiData: ExtendedInterpretedDataType[],
   noAoiTreatment: { displayedName: string; color: string },
   showAoiVisibility = false
 ): ScarfStyling {
-  const { HEIGHT_OF_BAR, NON_FIXATION_HEIGHT } = SCARF_LAYOUT
-
   const aoiStyling: ScarfStyleItem[] = aoiData.map(aoi => ({
     identifier: `${IDENTIFIER_IS_AOI}${aoi.id}`,
     name: aoi.displayedName,
     color: aoi.color,
-    height: HEIGHT_OF_BAR,
-    heighOfLegendItem: HEIGHT_OF_BAR,
   }))
 
   aoiStyling.push({
     identifier: `${IDENTIFIER_IS_AOI}${IDENTIFIER_NOT_DEFINED}`,
     name: noAoiTreatment.displayedName,
     color: noAoiTreatment.color,
-    height: HEIGHT_OF_BAR,
-    heighOfLegendItem: HEIGHT_OF_BAR,
   })
 
   const categoryStyling: ScarfStyleItem[] = [
@@ -253,15 +247,11 @@ export function createStylingAndLegend(
       identifier: `${IDENTIFIER_IS_OTHER_CATEGORY}${1}`,
       name: 'Saccade',
       color: '#555555',
-      height: NON_FIXATION_HEIGHT,
-      heighOfLegendItem: HEIGHT_OF_BAR,
     },
     {
       identifier: `${IDENTIFIER_IS_OTHER_CATEGORY}${IDENTIFIER_NOT_DEFINED}`,
       name: 'Other',
       color: '#a6a6a6',
-      height: NON_FIXATION_HEIGHT,
-      heighOfLegendItem: HEIGHT_OF_BAR,
     },
   ]
 
@@ -271,8 +261,6 @@ export function createStylingAndLegend(
         identifier: `${IDENTIFIER_IS_AOI}${aoi.id}`,
         name: aoi.displayedName,
         color: aoi.color,
-        height: NON_FIXATION_HEIGHT,
-        heighOfLegendItem: HEIGHT_OF_BAR,
       }))
 
   return {
@@ -280,6 +268,66 @@ export function createStylingAndLegend(
     aoi: aoiStyling,
     category: categoryStyling,
   }
+}
+
+/**
+ * Creates group-aware legend data from styling information.
+ * This is a data-only transformation - no layout geometry is computed here.
+ * Layout geometry (including icon heights) is computed in the Svelte component
+ * based on viewport width and layout constants.
+ *
+ * @param styling - The styling information from createStylingAndLegend
+ * @returns A ScarfLegendData object with categorized groups
+ */
+export function createScarfLegendData(styling: ScarfStyling): ScarfLegendData {
+  const groups: ScarfLegendGroup[] = []
+
+  // AOI group (Fixations) - Full-height rectangles
+  if (styling.aoi.length > 0) {
+    groups.push({
+      title: 'Fixations',
+      items: styling.aoi.map(
+        (item): ScarfLegendItem => ({
+          identifier: item.identifier,
+          name: item.name,
+          color: item.color,
+          styleType: 'fixation',
+        })
+      ),
+    })
+  }
+
+  // Category group (Non-fixations) - Thin rectangles
+  if (styling.category.length > 0) {
+    groups.push({
+      title: 'Non-fixations',
+      items: styling.category.map(
+        (item): ScarfLegendItem => ({
+          identifier: item.identifier,
+          name: item.name,
+          color: item.color,
+          styleType: 'nonFixation',
+        })
+      ),
+    })
+  }
+
+  // Visibility group (AOI Visibility) - Dashed lines
+  if (styling.visibility.length > 0) {
+    groups.push({
+      title: 'AOI Visibility',
+      items: styling.visibility.map(
+        (item): ScarfLegendItem => ({
+          identifier: item.identifier,
+          name: item.name,
+          color: item.color,
+          styleType: 'visibility',
+        })
+      ),
+    })
+  }
+
+  return { groups }
 }
 
 /**
@@ -524,6 +572,7 @@ export function transformDataToScarfPlot(
     participants,
     timeline,
     stylingAndLegend,
+    legendData: createScarfLegendData(stylingAndLegend),
     leftLabelWidth: 0,
     plotAreaWidth: 0,
     visualRectBuckets: rectBucketBuilders.map(b => b.finalize()),

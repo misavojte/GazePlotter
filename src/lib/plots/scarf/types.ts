@@ -13,20 +13,16 @@ import type { AdaptiveTimeline } from '$lib/plots/shared'
 
 /**
  * Styling information for a single scarf plot segment type.
- * Used for AOIs, categories, and visibility items in the legend.
+ * Data-only: no layout or sizing information (heights are computed in presentation layer).
  *
- * @property name - Name of the segment type shown in the legend.
- * @property identifier - Identifier of the segment type (used for connecting with the data).
- * @property color - Color of the segment type.
- * @property height - Height of the segment type.
- * @property heighOfLegendItem - Height of the legend item.
+ * @property name - Display name shown in the legend.
+ * @property identifier - Unique identifier for this style (used for data binding and highlighting).
+ * @property color - Fill/stroke color for the segment.
  */
 export interface ScarfStyleItem {
   name: string
   identifier: string
   color: string
-  height: number
-  heighOfLegendItem: number
 }
 
 /**
@@ -37,6 +33,52 @@ export interface ScarfStyling {
   aoi: ScarfStyleItem[]
   category: ScarfStyleItem[]
   visibility: ScarfStyleItem[]
+}
+
+// ============================================================================
+// Legend Types (Data-Only, No Layout)
+// ============================================================================
+
+/**
+ * Style type for legend items, determining how the icon is rendered.
+ * - 'fixation': Full-height rectangle (AOI fixations)
+ * - 'nonFixation': Thin rectangle (saccades, other events)
+ * - 'visibility': Dashed line (AOI visibility intervals)
+ */
+export type ScarfLegendStyleType = 'fixation' | 'nonFixation' | 'visibility'
+
+/**
+ * A single legend item with its display properties.
+ * This is data-only; layout geometry (including heights) is computed in the Svelte component.
+ */
+export interface ScarfLegendItem {
+  /** Unique identifier for click handling and highlighting */
+  identifier: string
+  /** Display name shown next to the icon */
+  name: string
+  /** Color for the icon */
+  color: string
+  /** Semantic style type - the renderer uses this to determine appropriate heights */
+  styleType: ScarfLegendStyleType
+}
+
+/**
+ * A group of legend items with a descriptive title.
+ * Groups provide semantic categorization (e.g., "Fixations", "Non-fixations", "AOI Visibility").
+ */
+export interface ScarfLegendGroup {
+  /** Group title displayed above items */
+  title: string
+  /** Items belonging to this group */
+  items: ScarfLegendItem[]
+}
+
+/**
+ * Complete legend data structure for the scarf plot.
+ * This is a data-only representation; geometry is computed at render time.
+ */
+export interface ScarfLegendData {
+  groups: ScarfLegendGroup[]
 }
 
 // ============================================================================
@@ -112,7 +154,8 @@ export interface ScarfStimulus {
  * @property timelineType - Type of timeline ('absolute', 'relative', 'ordinal')
  * @property stimulusId - ID of the stimulus to be plotted
  * @property timeline - AdaptiveTimeline object containing information about the timeline ticks and bounds
- * @property stylingAndLegend - ScarfStyling object containing information about the styling of the scarf plot
+ * @property stylingAndLegend - ScarfStyling object containing styling info for rendering segments
+ * @property legendData - Group-aware legend data for viewport-driven legend rendering
  * @property barHeight - height of the bar representing a single participant
  * @property heightOfBarWrap - height of the bar with all the elements (participant bar, aoi bars, non-fixation bars)
  * @property chartHeight - height of the whole chart
@@ -133,7 +176,10 @@ export type ScarfData = {
   stimuli: ScarfStimulus[]
   participants: ScarfParticipant[]
   timeline: AdaptiveTimeline
+  /** Styling data for rendering segments */
   stylingAndLegend: ScarfStyling
+  /** Group-aware legend data - geometry is computed at render time based on viewport */
+  legendData: ScarfLegendData
   /**
    * Precomputed layout widths used by the renderer.
    * These must match the values used when constructing the visual buffers.
