@@ -1,9 +1,6 @@
 import type { ScarfGridType } from '$lib/workspace/type/gridType'
 import type { WorkspaceCommand } from '$lib/workspace/commands'
-import {
-  getDynamicAoiBoolean,
-  getScarfGridHeightFromCurrentData,
-} from './scarfServices'
+import { getDynamicAoiBoolean } from './scarfServices'
 import { hasStimulusAoiVisibility } from '$lib/gaze-data/front-process/stores/dataStore'
 
 /**

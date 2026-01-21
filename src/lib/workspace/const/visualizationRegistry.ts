@@ -4,7 +4,6 @@ import TransitionMatrixPlot from '$lib/plots/transition-matrix/components/Transi
 import BarPlot from '$lib/plots/bar/components/BarPlot.svelte'
 import AoiStreamPlot from '$lib/plots/aoi-stream/components/AoiStreamPlot.svelte'
 import type { GridItemMap, AllGridTypes } from '$lib/workspace/type/gridType'
-import { getScarfGridHeightFromCurrentData } from '$lib/plots/scarf/utils/scarfServices'
 
 /**
  * Configuration type for visualization registry entries

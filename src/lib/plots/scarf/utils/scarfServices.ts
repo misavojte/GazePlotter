@@ -81,16 +81,6 @@ export const getScarfParticipantBarHeight = (
 }
 
 /**
- * Helper function to calculate the height of the scarf grid based on the current data.
- * For the workspace component (grid view). Returns a fixed default height for Scarf Plots.
- * In the Viewport-Driven Architecture, the plot adapts to the provided grid height.
- * @returns the default height of the scarf grid in grid units
- */
-export const getScarfGridHeightFromCurrentData = (): number => {
-  return 12 // Default grid height units
-}
-
-/**
  * Helper function determining whether dynamic AOI is displayed in the current context.
  * @param timeline the timeline type
  * @param dynamicAOIAllowed is dynamic AOI allowed by the settings?
