@@ -121,6 +121,7 @@
     border: 1px dashed #ddd;
     width: fit-content;
     height: fit-content;
+    pointer-events: none; /* Disable hover effects in download preview */
   }
 
   .preview-wrapper {

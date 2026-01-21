@@ -59,6 +59,8 @@
           width={effectiveWidth}
           height={effectiveHeight}
           data={streamData}
+          alignment={settings.alignment ?? 'center'}
+          highlights={settings.highlights ?? []}
           dpiOverride={dpi}
           {marginTop}
           {marginRight}
