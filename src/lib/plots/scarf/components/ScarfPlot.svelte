@@ -6,7 +6,7 @@
     getData,
   } from '$lib/gaze-data/front-process/stores/dataStore'
   import type { ScarfTooltipFillingType } from '$lib/plots/scarf/types'
-  import { onDestroy, onMount, untrack } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
   import { ScarfPlotFigure, ScarfPlotHeader } from '$lib/plots/scarf/components'
   import { BasePlot } from '$lib/plots/shared/components'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
@@ -88,7 +88,7 @@
   const chartWidth = $derived(plotDimensions.width)
 
   const PLOT_MARGIN = {
-    TOP: 10,
+    TOP: 0,
     RIGHT: 0,
     BOTTOM: 0,
     LEFT: 0,

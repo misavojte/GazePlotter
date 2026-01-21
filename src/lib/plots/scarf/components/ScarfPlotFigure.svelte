@@ -104,11 +104,14 @@
     )
   })
 
-  // Plot area width is derived from chartWidth and label width
+  // Plot area width - uses full available width minus label area and padding
+  // When no margins are set (default 0), content renders flush to canvas edges
   const plotAreaWidth = $derived(
     Math.max(
       0,
       chartWidth -
+        marginLeft -
+        marginRight -
         LEFT_LABEL_WIDTH -
         (SCARF_LAYOUT.PADDING << 1) -
         SCARF_LAYOUT.RIGHT_MARGIN
@@ -194,8 +197,24 @@
     }))
   })
 
-  // Compute legend geometry using the shared utility (memoized by $derived)
-  // This is viewport-driven: when chartWidth changes, geometry automatically reflows
+  // Compute legend header/layout once at y=0 to determine its height
+  // This avoids circular dependencies with the vertical centering logic
+  const legendHeight = $derived.by(() => {
+    if (legendGroups.length === 0) return 0
+
+    // We only care about totalHeight here, so x=0, y=0 is fine
+    const tempLayout = computeGroupedLegendGeometry(
+      legendGroups,
+      SCARF_LEGEND_CONFIG,
+      0,
+      0,
+      chartWidth
+    )
+    return tempLayout.totalHeight
+  })
+
+  // Compute final legend geometry using the actual effectiveMarginTop
+  // This depends on effectiveMarginTop, but nothing depends back on this geometry's totalHeight
   const legendGeometry: LegendGeometry = $derived.by(() => {
     if (legendGroups.length === 0) {
       return {
@@ -208,7 +227,7 @@
     }
 
     const legendX = marginLeft + SCARF_LAYOUT.PADDING
-    const lY = legendY + marginTop
+    const lY = legendY + effectiveMarginTop
 
     return computeGroupedLegendGeometry(
       legendGroups,
@@ -219,8 +238,8 @@
     )
   })
 
-  // SVG size calculations
-  const totalWidth = $derived(chartWidth + marginLeft + marginRight)
+  // Canvas size exactly matches available chartWidth
+  const totalWidth = $derived(chartWidth)
 
   // Track the currently hovered segment
   let currentHoveredSegment = $state<{
@@ -243,9 +262,33 @@
     return mask
   })
 
-  // Required height for all content
+  // Required height for all content (excluding explicit margins)
+  // This is the intrinsic height of the visualization content
+  // USES legendHeight (static) instead of legendGeometry.totalHeight (which depends on margins)
+  const intrinsicContentHeight = $derived(
+    legendY + legendHeight + 40 // 40px bottom padding for content
+  )
+
+  // Vertical centering offset: if available space exceeds content, center vertically
+  const centeringOffsetY = $derived(
+    availableHeight > intrinsicContentHeight + marginTop + marginBottom
+      ? Math.floor(
+          (availableHeight -
+            intrinsicContentHeight -
+            marginTop -
+            marginBottom) /
+            2
+        )
+      : 0
+  )
+
+  // Effective margins include centering offsets
+  // When no margins are set (default 0) and content is small, this centers the content
+  const effectiveMarginTop = $derived(marginTop + centeringOffsetY)
+
+  // Total content height with effective margins
   const totalContentHeight = $derived(
-    legendY + legendGeometry.totalHeight + marginBottom + 40
+    intrinsicContentHeight + effectiveMarginTop + marginBottom
   )
 
   // Canvas height adapts to content, minimum being available area
@@ -412,7 +455,9 @@
       ctx.fillText(
         participant.label,
         xPos,
-        i * data.heightOfBarWrap + (data.heightOfBarWrap >> 1) + marginTop
+        i * data.heightOfBarWrap +
+          (data.heightOfBarWrap >> 1) +
+          effectiveMarginTop
       )
     }
   }
@@ -427,8 +472,8 @@
     ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
     ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
 
-    const yTop = Math.floor(marginTop)
-    const yBottom = Math.floor(participantBarsHeight + marginTop)
+    const yTop = Math.floor(effectiveMarginTop)
+    const yBottom = Math.floor(participantBarsHeight + effectiveMarginTop)
     ctx.beginPath()
     ctx.moveTo(leftX, yTop)
     ctx.lineTo(leftX, yBottom)
@@ -445,7 +490,7 @@
 
     for (let i = 0; i <= len; i++) {
       // Draw ticks exactly at bar boundaries
-      const y = Math.floor(i * data.heightOfBarWrap + marginTop) + 0.5
+      const y = Math.floor(i * data.heightOfBarWrap + effectiveMarginTop) + 0.5
 
       // Draw full line across between participants
       ctx.beginPath()
@@ -460,7 +505,7 @@
     ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
 
     // Pixel-align coordinates
-    const yTop = Math.floor(marginTop) + 0.5
+    const yTop = Math.floor(effectiveMarginTop) + 0.5
     const leftX = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
     const rightX = Math.floor(LEFT_LABEL_WIDTH + marginLeft + plotAreaWidth)
     const ticks = data.timeline.ticks
@@ -497,7 +542,7 @@
     ctx.textBaseline = 'hanging'
 
     // Position labels just 10px below the participant bars
-    const yPos = participantBarsHeight + 10 + marginTop
+    const yPos = participantBarsHeight + 10 + effectiveMarginTop
     const rightBoundary = LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft
     const isSecondToLast = len - 2
     const isLast = len - 1
@@ -533,7 +578,7 @@
     ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
 
     // Use the exact height from calculatedHeights and pixel align
-    const yLine = Math.floor(participantBarsHeight + marginTop) + 0.5
+    const yLine = Math.floor(participantBarsHeight + effectiveMarginTop) + 0.5
     const ticks = data.timeline.ticks
     const len = ticks.length
 
@@ -608,7 +653,8 @@
 
         const pxX = LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
         const pxW = widthNormalized * plotAreaWidth
-        const pxY = pIndex * data.heightOfBarWrap + internalY + marginTop
+        const pxY =
+          pIndex * data.heightOfBarWrap + internalY + effectiveMarginTop
 
         ctx.rect(pxX, pxY, pxW, rectH)
       }
@@ -649,7 +695,8 @@
 
         const pxX = LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
         const pxW = widthNormalized * plotAreaWidth
-        const pxY = pIndex * data.heightOfBarWrap + internalY + marginTop
+        const pxY =
+          pIndex * data.heightOfBarWrap + internalY + effectiveMarginTop
 
         ctx.rect(pxX, pxY, pxW, rectH)
       }
@@ -711,7 +758,8 @@
             LEFT_LABEL_WIDTH + x1Normalized * plotAreaWidth + marginLeft
           const pxX2 =
             LEFT_LABEL_WIDTH + x2Normalized * plotAreaWidth + marginLeft
-          const pxY = pIndex * data.heightOfBarWrap + internalY + marginTop
+          const pxY =
+            pIndex * data.heightOfBarWrap + internalY + effectiveMarginTop
 
           ctx.moveTo(pxX1, pxY)
           ctx.lineTo(pxX2, pxY)
@@ -733,7 +781,7 @@
     ctx.textBaseline = 'top'
 
     // Position the label using exact coordinates from our local derivations
-    const labelY = axisLabelY + marginTop
+    const labelY = axisLabelY + effectiveMarginTop
 
     ctx.fillText(
       xAxisLabel,
@@ -806,8 +854,9 @@
     const inDraggableArea =
       mouseX >= LEFT_LABEL_WIDTH + marginLeft &&
       mouseX <= LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft &&
-      mouseY >= marginTop &&
-      mouseY <= data.participants.length * data.heightOfBarWrap + marginTop
+      mouseY >= effectiveMarginTop &&
+      mouseY <=
+        data.participants.length * data.heightOfBarWrap + effectiveMarginTop
 
     // Update cursor based on dragging state and location
     if (isDragging || preparedForDragging) {
@@ -936,8 +985,9 @@
     if (
       mouseX >= LEFT_LABEL_WIDTH + marginLeft &&
       mouseX <= LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft &&
-      mouseY >= marginTop &&
-      mouseY <= data.participants.length * data.heightOfBarWrap + marginTop &&
+      mouseY >= effectiveMarginTop &&
+      mouseY <=
+        data.participants.length * data.heightOfBarWrap + effectiveMarginTop &&
       !isHoveringSegment
     ) {
       // Store initial position and prepare for dragging
@@ -1135,7 +1185,8 @@
 
         const pxX = LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
         const pxW = widthNormalized * plotAreaWidth
-        const pxY = pIndex * data.heightOfBarWrap + internalY + marginTop
+        const pxY =
+          pIndex * data.heightOfBarWrap + internalY + effectiveMarginTop
 
         if (
           mouseX >= pxX &&
