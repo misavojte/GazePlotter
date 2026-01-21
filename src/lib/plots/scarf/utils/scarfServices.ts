@@ -1,11 +1,11 @@
-import { getScarfParticipantBarHeight as getBarHeight } from '$lib/plots/scarf/utils/transformations'
-
-// Constants duplicated from the canonical scarf transformations module for better independence
-const HEIGHT_OF_X_AXIS = 20
-const DEFAULT_BAR_HEIGHT = 15 // SHOULD BE 20 BUT THIS FIXES THE BUG OF MISALIGNMENT OF BAR HEIGHTS
-const DEFAULT_NON_FIXATION_HEIGHT = 4
-const DEFAULT_SPACE_ABOVE_RECT = 5
-const DEFAULT_SPACE_ABOVE_LINE = 2
+// Core layout constants used for both transformation and rendering
+export const SCARF_CONSTANTS = {
+  HEIGHT_OF_X_AXIS: 20,
+  DEFAULT_BAR_HEIGHT: 15,
+  DEFAULT_NON_FIXATION_HEIGHT: 4,
+  DEFAULT_SPACE_ABOVE_RECT: 5,
+  DEFAULT_SPACE_ABOVE_LINE: 2,
+}
 
 /**
  * Constants for ScarfPlot layout and rendering
@@ -34,13 +34,16 @@ export const SCARF_LAYOUT = {
   TOOLTIP_OFFSET_Y: 8,
   TOOLTIP_HIDE_DELAY: 200,
 
-  // Bar and height constants - MUST match the canonical scarf transformations
-  HEIGHT_OF_BAR: DEFAULT_BAR_HEIGHT,
+  // Bar and height constants
+  HEIGHT_OF_BAR: SCARF_CONSTANTS.DEFAULT_BAR_HEIGHT,
   HEIGHT_OF_LEGEND_BAR: 32,
-  SPACE_ABOVE_RECT: DEFAULT_SPACE_ABOVE_RECT,
-  LINE_WRAPPED_HEIGHT: DEFAULT_SPACE_ABOVE_LINE + DEFAULT_NON_FIXATION_HEIGHT,
-  NON_FIXATION_HEIGHT: DEFAULT_NON_FIXATION_HEIGHT,
-  HEIGHT_OF_X_AXIS: HEIGHT_OF_X_AXIS,
+  SPACE_ABOVE_RECT: SCARF_CONSTANTS.DEFAULT_SPACE_ABOVE_RECT,
+  SPACE_ABOVE_LINE: SCARF_CONSTANTS.DEFAULT_SPACE_ABOVE_LINE,
+  LINE_WRAPPED_HEIGHT:
+    SCARF_CONSTANTS.DEFAULT_SPACE_ABOVE_LINE +
+    SCARF_CONSTANTS.DEFAULT_NON_FIXATION_HEIGHT,
+  NON_FIXATION_HEIGHT: SCARF_CONSTANTS.DEFAULT_NON_FIXATION_HEIGHT,
+  HEIGHT_OF_X_AXIS: SCARF_CONSTANTS.HEIGHT_OF_X_AXIS,
 
   // Legend constants
   LEGEND_ITEM_WIDTH: 100,
@@ -61,9 +64,21 @@ export const SCARF_LAYOUT = {
 }
 
 /**
- * Re-exports getScarfParticipantBarHeight from the canonical scarf transformations
+ * Re-exports getScarfParticipantBarHeight
  */
-export const getScarfParticipantBarHeight = getBarHeight
+export const getScarfParticipantBarHeight = (
+  aoiCount: number,
+  showAoiVisibility: boolean
+): number => {
+  const { HEIGHT_OF_BAR, SPACE_ABOVE_RECT, LINE_WRAPPED_HEIGHT } = SCARF_LAYOUT
+  const rectWrappedHeight = HEIGHT_OF_BAR + SPACE_ABOVE_RECT * 2
+
+  if (!showAoiVisibility) {
+    return rectWrappedHeight
+  }
+
+  return rectWrappedHeight + aoiCount * LINE_WRAPPED_HEIGHT
+}
 
 /**
  * Helper function to calculate the height of the scarf grid based on the current data.
@@ -114,4 +129,56 @@ export const getXAxisLabel = (
   return timeline === 'ordinal'
     ? 'Order index'
     : `Elapsed time [${getTimelineUnit(timeline)}]`
+}
+
+/**
+ * Creates a unified identifier mapping system for Scarf Plots.
+ * This is used to map between identifier strings and their stable integer indices (style buckets).
+ *
+ * @param aoiCount Number of AOIs
+ * @param categoryCount Number of categories (usually 2: Saccade and Other)
+ * @param visibilityCount Number of visibility items (usually same as aoiCount or 0)
+ * @param getIdentifier Callback to get the identifier string for a given type and index
+ */
+export function getScarfIdentifierSystem(
+  aoiIdentifiers: string[],
+  categoryIdentifiers: string[],
+  visibilityIdentifiers: string[]
+) {
+  const idToIndex = new Map<string, number>()
+  const indexToId = new Map<number, string>()
+  const idToType = new Map<string, 'aoi' | 'category' | 'visibility'>()
+
+  let idx = 0
+
+  // Order: AOIs -> Categories -> Visibility
+  for (const id of aoiIdentifiers) {
+    indexToId.set(idx, id)
+    idToIndex.set(id, idx++)
+    idToType.set(id, 'aoi')
+  }
+
+  for (const id of categoryIdentifiers) {
+    indexToId.set(idx, id)
+    idToIndex.set(id, idx++)
+    idToType.set(id, 'category')
+  }
+
+  for (const id of visibilityIdentifiers) {
+    indexToId.set(idx, id)
+    idToIndex.set(id, idx++)
+    idToType.set(id, 'visibility')
+  }
+
+  return {
+    idToIndex,
+    indexToId,
+    idToType,
+    totalIdentifiers: idx,
+    counts: {
+      aoi: aoiIdentifiers.length,
+      category: categoryIdentifiers.length,
+      visibility: visibilityIdentifiers.length,
+    },
+  }
 }

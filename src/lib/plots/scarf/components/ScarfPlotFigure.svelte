@@ -16,7 +16,7 @@
     type LegendItemGeometry,
   } from '$lib/plots/shared'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
-  import { estimateTextWidth } from '$lib/shared/utils/textUtils'
+  import { calculateTextMetrics } from '$lib/shared/utils/textUtils'
   import { getContext, onDestroy, onMount, untrack } from 'svelte'
   import { browser } from '$app/environment'
   import {
@@ -26,6 +26,7 @@
   import {
     SCARF_LAYOUT,
     getXAxisLabel,
+    getScarfIdentifierSystem,
   } from '$lib/plots/scarf/utils/scarfServices'
   import {
     createCanvasState,
@@ -92,14 +93,37 @@
     marginLeft = 0,
   }: Props = $props()
 
+  // Calculate left label width based on participant names and font size
+  const LEFT_LABEL_WIDTH = $derived.by(() => {
+    const labels = data.participants.map(p => p.label)
+    if (labels.length === 0) return 0
+
+    const metrics = calculateTextMetrics(labels, SCARF_LAYOUT.LABEL_FONT_SIZE)
+    // Use the max width found, but cap it to avoid breaking the layout with very long names
+    // Also ensure a minimum width for visual consistency
+    return Math.min(
+      SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH,
+      Math.max(40, metrics.maxWidth + 15)
+    )
+  })
+
+  // Plot area width is derived from chartWidth and label width
+  const plotAreaWidth = $derived(
+    Math.max(
+      0,
+      chartWidth -
+        LEFT_LABEL_WIDTH -
+        (SCARF_LAYOUT.PADDING << 1) -
+        SCARF_LAYOUT.RIGHT_MARGIN
+    )
+  )
+
   // Simplified height derivations based on participant data
   const participantBarsHeight = $derived(
     data.participants.length * data.heightOfBarWrap
   )
   const axisLabelY = $derived(participantBarsHeight + 25) // Fixed offset for axis labels
   const legendY = $derived(participantBarsHeight + 60) // Fixed offset for legend
-
-  const LEFT_LABEL_WIDTH = $derived(data.leftLabelWidth)
 
   // State management with Svelte 5 runes
   let isDragging = $state(false) // New state to track if actively dragging
@@ -195,7 +219,7 @@
       }
     }
 
-    const legendX = marginLeft + LAYOUT.PADDING
+    const legendX = marginLeft + SCARF_LAYOUT.PADDING
     const lY = legendY + marginTop
 
     return computeGroupedLegendGeometry(
@@ -207,7 +231,7 @@
     )
   })
 
-  // SVG size calculations - MOVE THESE BEFORE RECTANGLE/LINE CALCULATIONS
+  // SVG size calculations
   const totalWidth = $derived(chartWidth + marginLeft + marginRight)
 
   // Track the currently hovered segment
@@ -215,9 +239,6 @@
     participantId: string | number
     orderId: number
   } | null>(null)
-
-  // Plot area width is computed in the transform alongside visual buffers
-  const plotAreaWidth = $derived(data.plotAreaWidth)
 
   // Highlight mask by style index (computed once per highlight change)
   const highlightMaskByIndex = $derived.by(() => {
@@ -243,92 +264,20 @@
   const totalHeight = $derived(Math.max(availableHeight, totalContentHeight))
 
   // Create a unified identifier mapping system for all style types
-  // Using a single integer id space for maximum performance
   const identifierSystem = $derived.by(() => {
-    // Create fast lookup maps
-    const idToIndex = new Map<string, number>()
-    const indexToId = new Map<number, string>()
-    const idToType = new Map<string, 'aoi' | 'category' | 'visibility'>()
-
-    // Track if we need to check for overlap (same identifier in multiple types)
-    let hasOverlap = false
-    const allIdentifiers = new Set<string>()
-
-    // Count total identifiers to pre-allocate arrays
-    let totalIdentifiers = 0
-    let aoiCount = 0
-    let categoryCount = 0
-    let visibilityCount = 0
-
-    if (data.stylingAndLegend) {
-      totalIdentifiers =
-        data.stylingAndLegend.aoi.length +
-        data.stylingAndLegend.category.length +
-        data.stylingAndLegend.visibility.length
-
-      aoiCount = data.stylingAndLegend.aoi.length
-      categoryCount = data.stylingAndLegend.category.length
-      visibilityCount = data.stylingAndLegend.visibility.length
-
-      // Populate maps with sequential indices
-      let idx = 0
-
-      // First handle AOI styles (typically most numerous)
-      for (const style of data.stylingAndLegend.aoi) {
-        indexToId.set(idx, style.identifier)
-        idToIndex.set(style.identifier, idx++)
-        idToType.set(style.identifier, 'aoi')
-
-        // Check for potential overlap
-        if (allIdentifiers.has(style.identifier)) {
-          hasOverlap = true
-        } else {
-          allIdentifiers.add(style.identifier)
-        }
+    if (!data.stylingAndLegend)
+      return {
+        idToIndex: new Map(),
+        indexToId: new Map(),
+        idToType: new Map(),
+        totalIdentifiers: 0,
       }
 
-      // Then category styles
-      for (const style of data.stylingAndLegend.category) {
-        indexToId.set(idx, style.identifier)
-        idToIndex.set(style.identifier, idx++)
-        idToType.set(style.identifier, 'category')
-
-        // Check for potential overlap
-        if (allIdentifiers.has(style.identifier)) {
-          hasOverlap = true
-        } else {
-          allIdentifiers.add(style.identifier)
-        }
-      }
-
-      // Finally visibility styles
-      for (const style of data.stylingAndLegend.visibility) {
-        indexToId.set(idx, style.identifier)
-        idToIndex.set(style.identifier, idx++)
-        idToType.set(style.identifier, 'visibility')
-
-        // Check for potential overlap
-        if (allIdentifiers.has(style.identifier)) {
-          hasOverlap = true
-        } else {
-          allIdentifiers.add(style.identifier)
-        }
-      }
-    }
-
-    // Return complete identifier system for fast lookups
-    return {
-      idToIndex,
-      indexToId,
-      idToType,
-      hasOverlap,
-      totalIdentifiers,
-      counts: {
-        aoi: aoiCount,
-        category: categoryCount,
-        visibility: visibilityCount,
-      },
-    }
+    return getScarfIdentifierSystem(
+      data.stylingAndLegend.aoi.map(i => i.identifier),
+      data.stylingAndLegend.category.map(i => i.identifier),
+      data.stylingAndLegend.visibility.map(i => i.identifier)
+    )
   })
 
   // Style lookup maps for efficient style access - O(1) instead of O(n)
@@ -630,11 +579,11 @@
     const isHighlightActive = usedHighlights.length > 0
     const highlightMask = highlightMaskByIndex
 
-    // Local references for faster access
+    // Local references for fast access
     const rectStyles = rectStyleMap
     const { indexToId } = identifierSystem
 
-    // Draw normal (non-dimmed) elements using path batching
+    // Draw normal elements using path batching
     ctx.globalAlpha = 1.0
 
     for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
@@ -659,12 +608,17 @@
       const segmentCount = buffer.length / RECT_STRIDE
       for (let i = 0; i < segmentCount; i++) {
         const idx = i * RECT_STRIDE
-        ctx.rect(
-          buffer[idx], // x
-          buffer[idx + 1], // y
-          buffer[idx + 2], // width
-          buffer[idx + 3] // height
-        )
+        const xNormalized = buffer[idx]
+        const pIndex = buffer[idx + 1]
+        const widthNormalized = buffer[idx + 2]
+        const rectH = buffer[idx + 3]
+        const internalY = buffer[idx + 7]
+
+        const pxX = LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
+        const pxW = widthNormalized * plotAreaWidth
+        const pxY = pIndex * data.heightOfBarWrap + internalY + marginTop
+
+        ctx.rect(pxX, pxY, pxW, rectH)
       }
 
       ctx.fill() // Send everything to GPU in ONE go
@@ -695,12 +649,17 @@
       const segmentCount = buffer.length / RECT_STRIDE
       for (let i = 0; i < segmentCount; i++) {
         const idx = i * RECT_STRIDE
-        ctx.rect(
-          buffer[idx], // x
-          buffer[idx + 1], // y
-          buffer[idx + 2], // width
-          buffer[idx + 3] // height
-        )
+        const xNormalized = buffer[idx]
+        const pIndex = buffer[idx + 1]
+        const widthNormalized = buffer[idx + 2]
+        const rectH = buffer[idx + 3]
+        const internalY = buffer[idx + 7]
+
+        const pxX = LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
+        const pxW = widthNormalized * plotAreaWidth
+        const pxY = pIndex * data.heightOfBarWrap + internalY + marginTop
+
+        ctx.rect(pxX, pxY, pxW, rectH)
       }
 
       ctx.fill() // Send everything to GPU in ONE go
@@ -723,72 +682,51 @@
     const lineStyles = lineStyleMap
     const { indexToId } = identifierSystem
 
-    // Draw normal lines using path batching
-    ctx.globalAlpha = 1.0
-    ctx.setLineDash([2, 2])
+    // Draw elements in two passes: first normal, then dimmed
+    for (const isDimmedPass of [false, true]) {
+      ctx.globalAlpha = isDimmedPass ? 0.15 : 1.0
+      ctx.setLineDash([2, 2]) // Apply dashed line style for all lines
 
-    for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
-      const buffer = buckets[styleIdx]
-      if (buffer.length === 0) continue
+      for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
+        const buffer = buckets[styleIdx]
+        if (buffer.length === 0) continue
 
-      const isDimmed =
-        isHighlightActive && highlightMask
-          ? highlightMask[styleIdx] !== 1
-          : false
+        const isDimmed =
+          isHighlightActive && highlightMask
+            ? highlightMask[styleIdx] !== 1
+            : false
 
-      if (isDimmed) continue // Skip dimmed in this pass
+        if (isDimmedPass !== isDimmed) continue // Skip if not in current pass
 
-      const identifier = indexToId.get(styleIdx) ?? ''
-      const styleSet = lineStyles.get(identifier) ?? {
-        normal: { stroke: '#ccc', strokeWidth: 1 },
+        const identifier = indexToId.get(styleIdx) ?? ''
+        const styleSet = lineStyles.get(identifier) ?? {
+          normal: { stroke: '#ccc', strokeWidth: 1 },
+        }
+
+        ctx.strokeStyle = styleSet.normal.stroke
+        ctx.lineWidth = styleSet.normal.strokeWidth ?? 1
+        ctx.beginPath() // Start a massive path
+
+        const segmentCount = buffer.length / LINE_STRIDE
+        for (let i = 0; i < segmentCount; i++) {
+          const idx = i * LINE_STRIDE
+          const x1Normalized = buffer[idx]
+          const pIndex = buffer[idx + 1]
+          const x2Normalized = buffer[idx + 2]
+          const internalY = buffer[idx + 5]
+
+          const pxX1 =
+            LEFT_LABEL_WIDTH + x1Normalized * plotAreaWidth + marginLeft
+          const pxX2 =
+            LEFT_LABEL_WIDTH + x2Normalized * plotAreaWidth + marginLeft
+          const pxY = pIndex * data.heightOfBarWrap + internalY + marginTop
+
+          ctx.moveTo(pxX1, pxY)
+          ctx.lineTo(pxX2, pxY)
+        }
+
+        ctx.stroke() // Send everything to GPU in ONE go
       }
-
-      ctx.strokeStyle = styleSet.normal.stroke
-      ctx.lineWidth = styleSet.normal.strokeWidth ?? 1
-      ctx.beginPath() // Start a massive path
-
-      const segmentCount = buffer.length / LINE_STRIDE
-      for (let i = 0; i < segmentCount; i++) {
-        const idx = i * LINE_STRIDE
-        ctx.moveTo(buffer[idx], buffer[idx + 1]) // x1, y1
-        ctx.lineTo(buffer[idx + 2], buffer[idx + 3]) // x2, y2
-      }
-
-      ctx.stroke() // Send everything to GPU in ONE go
-    }
-
-    // Draw dimmed lines using path batching
-    ctx.globalAlpha = 0.15
-    ctx.setLineDash([2, 2])
-
-    for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
-      const buffer = buckets[styleIdx]
-      if (buffer.length === 0) continue
-
-      const isDimmed =
-        isHighlightActive && highlightMask
-          ? highlightMask[styleIdx] !== 1
-          : false
-
-      if (!isDimmed) continue // Skip normal in this pass
-
-      const identifier = indexToId.get(styleIdx) ?? ''
-      const styleSet = lineStyles.get(identifier) ?? {
-        normal: { stroke: '#ccc', strokeWidth: 1 },
-      }
-
-      ctx.strokeStyle = styleSet.normal.stroke
-      ctx.lineWidth = styleSet.normal.strokeWidth ?? 1
-      ctx.beginPath() // Start a massive path
-
-      const segmentCount = buffer.length / LINE_STRIDE
-      for (let i = 0; i < segmentCount; i++) {
-        const idx = i * LINE_STRIDE
-        ctx.moveTo(buffer[idx], buffer[idx + 1]) // x1, y1
-        ctx.lineTo(buffer[idx + 2], buffer[idx + 3]) // x2, y2
-      }
-
-      ctx.stroke() // Send everything to GPU in ONE go
     }
 
     // Reset rendering state
@@ -913,10 +851,20 @@
       }
 
       // Get consistent tooltip position
+      const xNormalized = hoveredSegment.x
+      const widthNormalized = hoveredSegment.width
+      const pIndex = hoveredSegment.y
+      const rectH = hoveredSegment.height
+      const internalY = hoveredSegment.internalY
+
+      const pxX1 = LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
+      const pxW = widthNormalized * plotAreaWidth
+      const pxY = pIndex * data.heightOfBarWrap + internalY + marginTop
+
       const tooltipPos = getTooltipPosition(
         canvasState,
-        hoveredSegment.x + hoveredSegment.width,
-        hoveredSegment.y + hoveredSegment.height / 2,
+        pxX1 + pxW,
+        pxY + rectH / 2,
         { x: 5, y: 0 }
       )
 
@@ -1137,21 +1085,16 @@
     }
   })
 
-  // Create direct dependencies on key data properties to ensure canvas updates
-  // when any of these values change
   $effect(() => {
-    // These derived values will only trigger the effect when they actually change
-    // These direct references create dependencies on data changes
-    const _ = [
+    const deps = [
       data,
       settings,
       totalWidth,
-      // Reference highlights data to update when it changes
       highlights,
       usedHighlights,
       chartWidth,
       availableHeight,
-      dpiOverride, // Add dpiOverride to the dependency list
+      dpiOverride,
       marginLeft,
       marginRight,
       marginTop,
@@ -1189,25 +1132,31 @@
       for (let i = len - 1; i >= 0; i--) {
         const idx = i * RECT_STRIDE
 
-        const x = buffer[idx]
-        const y = buffer[idx + 1]
-        const width = buffer[idx + 2]
-        const height = buffer[idx + 3]
+        const xNormalized = buffer[idx]
+        const pIndex = buffer[idx + 1]
+        const widthNormalized = buffer[idx + 2]
+        const rectH = buffer[idx + 3]
         const participantId = buffer[idx + 4]
         const segmentId = buffer[idx + 5]
         const orderId = buffer[idx + 6]
+        const internalY = buffer[idx + 7]
+
+        const pxX = LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
+        const pxW = widthNormalized * plotAreaWidth
+        const pxY = pIndex * data.heightOfBarWrap + internalY + marginTop
 
         if (
-          mouseX >= x &&
-          mouseX <= x + width &&
-          mouseY >= y &&
-          mouseY <= y + height
+          mouseX >= pxX &&
+          mouseX <= pxX + pxW &&
+          mouseY >= pxY &&
+          mouseY <= pxY + rectH
         ) {
           return {
-            x,
-            y,
-            width,
-            height,
+            x: xNormalized,
+            y: pIndex,
+            width: widthNormalized,
+            height: rectH,
+            internalY,
             identifier: indexToId.get(styleIdx) ?? '',
             participantId,
             segmentId,
