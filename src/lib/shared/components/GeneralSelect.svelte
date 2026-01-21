@@ -49,8 +49,10 @@
    * @param optionList - Array of option objects with value and label.
    * @returns Array of MenuItem objects suitable for context menu action.
    */
-  const optionsToMenuItems = (optionList: readonly { value: string; label: string }[]): MenuItem[] => {
-    return optionList.map((option) => ({
+  const optionsToMenuItems = (
+    optionList: readonly { value: string; label: string }[]
+  ): MenuItem[] => {
+    return optionList.map(option => ({
       label: option.label,
       action: () => {
         value = option.value
@@ -91,7 +93,7 @@
    */
   const groupItemToMenuItems = (idx: number): MenuItem[] => {
     const item = itemsSafe[idx]
-    return item.options.map((option) => ({
+    return item.options.map(option => ({
       label: option.label,
       action: () => {
         item.onchange?.(new CustomEvent('change', { detail: option.value }))
@@ -122,8 +124,15 @@
   })
 
   // Helper functions
-  const getCurrentLabel = (currentValue: string, optionList: readonly { value: string; label: string }[]) => {
-    return optionList.find(opt => opt.value === currentValue)?.label || optionList[0]?.label || ''
+  const getCurrentLabel = (
+    currentValue: string,
+    optionList: readonly { value: string; label: string }[]
+  ) => {
+    return (
+      optionList.find(opt => opt.value === currentValue)?.label ||
+      optionList[0]?.label ||
+      ''
+    )
   }
 
   let componentElement: HTMLDivElement | null = $state(null)
@@ -132,7 +141,11 @@
 <div class="general-select-container" bind:this={componentElement}>
   {#if !isGroup}
     <!-- Single select mode -->
-    <div class="select-wrapper" class:compact>
+    <div
+      class="select-wrapper"
+      class:compact
+      use:contextMenuAction={singleMenuConfig}
+    >
       <label for="single-select-trigger">{label}</label>
       <button
         id="single-select-trigger"
@@ -140,7 +153,6 @@
         class:disabled
         class:open={singleIsOpen}
         bind:this={singleTriggerEl}
-        use:contextMenuAction={singleMenuConfig}
         aria-expanded={singleIsOpen}
         aria-haspopup="listbox"
       >
@@ -156,20 +168,28 @@
     <!-- Group mode: always compact -->
     <div class="selectGroup" role="group" aria-label={ariaLabel}>
       {#each itemsSafe as item, idx}
-        <div class="itemWrap" class:first={idx === 0} class:last={idx === itemsSafe.length - 1}>
-          <div class="select-wrapper compact">
+        <div
+          class="itemWrap"
+          class:first={idx === 0}
+          class:last={idx === itemsSafe.length - 1}
+        >
+          <div
+            class="select-wrapper compact"
+            use:contextMenuAction={getGroupMenuConfig(idx)}
+          >
             <label for="group-select-trigger-{idx}">{item.label}</label>
             <button
               id="group-select-trigger-{idx}"
               class="trigger"
               class:disabled={item.disabled}
               class:open={groupIsOpen[idx]}
-              use:contextMenuAction={getGroupMenuConfig(idx)}
               aria-expanded={groupIsOpen[idx]}
               aria-haspopup="listbox"
             >
               <span class="trigger-content">
-                <span class="label">{getCurrentLabel(item.value, item.options)}</span>
+                <span class="label"
+                  >{getCurrentLabel(item.value, item.options)}</span
+                >
                 <div class="svg-wrap" class:open={groupIsOpen[idx]}>
                   <ChevronDown strokeWidth={1} />
                 </div>
@@ -181,6 +201,20 @@
     </div>
   {/if}
 </div>
+
+<!--
+Usage examples:
+
+<GeneralSelect label="Mode" options={[{ value: 'a', label: 'A' }]} />
+
+<GeneralSelect
+  ariaLabel="Filters"
+  items=[
+    { label: 'A', options: aOpts, value: aVal, onchange: e => aVal = e.detail },
+    { label: 'B', options: bOpts, value: bVal, onchange: e => bVal = e.detail }
+  ]
+/>
+-->
 
 <style>
   .select-wrapper {
@@ -201,6 +235,7 @@
     --gp-field-bg: var(--c-white);
     /* Fixed menu width to prevent item reflow/jump on hover */
     --gp-menu-width: 18rem;
+    user-select: none;
   }
 
   .select-wrapper.compact {
@@ -211,6 +246,11 @@
   label {
     font-size: 14px;
     color: var(--c-black);
+    cursor: pointer;
+  }
+
+  .select-wrapper:has(.trigger:disabled) label {
+    cursor: not-allowed;
   }
 
   .compact label {
@@ -227,7 +267,9 @@
     left: 10px;
     top: -0.9em;
     z-index: 2;
-    transition: background-color 0.2s ease, color 0.2s ease;
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
   }
 
   /* In open state, compact label text should be red (brand) */
@@ -236,12 +278,12 @@
   }
 
   /* In hover state, compact label text should also be red, with same transition */
-  .select-wrapper.compact:has(.trigger:not(.disabled):hover) label {
+  .select-wrapper:not(:has(.trigger.disabled)):hover label {
     color: var(--c-brand);
   }
 
   /* Sync wrapper bg var with hover/open/disabled states */
-  .select-wrapper:has(.trigger:not(.disabled):hover),
+  .select-wrapper:not(:has(.trigger.disabled)):hover,
   .select-wrapper:has(.trigger.open) {
     --gp-field-bg: #f6f7f9;
   }
@@ -278,7 +320,7 @@
     cursor: not-allowed;
   }
 
-  .trigger:not(.disabled):hover {
+  .select-wrapper:not(:has(.trigger.disabled)):hover .trigger {
     background: #f6f7f9;
     color: var(--c-brand);
   }
@@ -324,10 +366,12 @@
     align-items: center;
     justify-content: center;
     color: var(--c-darkgrey);
-    transition: transform 0.2s ease, color 0.2s ease;
+    transition:
+      transform 0.2s ease,
+      color 0.2s ease;
   }
 
-  .trigger:not(.disabled):hover .svg-wrap,
+  .select-wrapper:not(:has(.trigger.disabled)):hover .svg-wrap,
   .trigger:not(.disabled):focus-visible .svg-wrap {
     color: var(--c-brand);
   }
@@ -399,17 +443,3 @@
     outline: none;
   }
 </style>
-
-<!--
-Usage examples:
-
-<GeneralSelect label="Mode" options={[{ value: 'a', label: 'A' }]} />
-
-<GeneralSelect
-  ariaLabel="Filters"
-  items=[
-    { label: 'A', options: aOpts, value: aVal, onchange: e => aVal = e.detail },
-    { label: 'B', options: bOpts, value: bVal, onchange: e => bVal = e.detail }
-  ]
-/>
--->

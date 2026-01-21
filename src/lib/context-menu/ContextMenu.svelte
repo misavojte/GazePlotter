@@ -1,6 +1,9 @@
 <script lang="ts">
   import { fly, fade } from 'svelte/transition'
-  import { contextMenuState, updateContextMenu } from './contextMenuState.svelte'
+  import {
+    contextMenuState,
+    updateContextMenu,
+  } from './contextMenuState.svelte'
   import { MENU_MAX_HEIGHT } from './contextMenuAction.svelte'
 
   /** Close the context menu by clearing the global store. */
@@ -34,10 +37,15 @@
   const focusNext = (delta: number) => {
     if (!container) return
     // Gather buttons once so we can iterate in order without repeated DOM queries.
-    const buttons = Array.from(container.querySelectorAll('button[role="menuitem"]')) as HTMLButtonElement[]
+    const buttons = Array.from(
+      container.querySelectorAll('button[role="menuitem"]')
+    ) as HTMLButtonElement[]
     if (buttons.length === 0) return
-    const idx = buttons.findIndex(b => b === (document.activeElement as HTMLButtonElement))
-    const next = ((idx >= 0 ? idx : -1) + delta + buttons.length) % buttons.length
+    const idx = buttons.findIndex(
+      b => b === (document.activeElement as HTMLButtonElement)
+    )
+    const next =
+      ((idx >= 0 ? idx : -1) + delta + buttons.length) % buttons.length
     buttons[next].focus()
   }
 
@@ -65,11 +73,11 @@
     in:fly={{
       duration: 140,
       y: contextMenuState.current.slideFrom === 'top' ? -8 : 0,
-      x: contextMenuState.current.slideFrom === 'left' ? -8 : 0
+      x: contextMenuState.current.slideFrom === 'left' ? -8 : 0,
     }}
     out:fade={{ duration: 140 }}
     style={`left:${contextMenuState.current.x}px; top:${contextMenuState.current.y}px; width:${width}px; z-index:${contextMenuState.current.zIndex}; max-height:${MENU_MAX_HEIGHT}px;`}
-    onscroll={(e) => {
+    onscroll={e => {
       // Stop scroll events from bubbling up to prevent parent scroll handlers from closing the menu.
       e.stopPropagation()
     }}
@@ -79,7 +87,11 @@
         <!-- Render each menu item as an accessible button so keyboard users can activate entries. -->
         {#each contextMenuState.current.items as it}
           <li>
-            <button role="menuitem" class:highlighted={it.isHighlighted} onclick={() => handleItemClick(it.action)}>
+            <button
+              role="menuitem"
+              class:highlighted={it.isHighlighted}
+              onclick={() => handleItemClick(it.action)}
+            >
               {#if it.icon}
                 {@const Icon = it.icon}
                 <Icon size={'1em'} strokeWidth={1} />
@@ -107,6 +119,7 @@
     /* max-height is set dynamically via inline style to enable scrolling when content exceeds limit */
     overflow-y: auto;
     overflow-x: hidden;
+    user-select: none;
   }
 
   ul {
@@ -116,7 +129,9 @@
     min-width: 220px;
   }
 
-  li { list-style: none; }
+  li {
+    list-style: none;
+  }
 
   button[role='menuitem'] {
     background: none;
@@ -139,13 +154,15 @@
     color: var(--c-brand);
     padding-left: 16px;
   }
-  button[role='menuitem'] :global(svg) { transition: transform 0.2s ease; }
+  button[role='menuitem'] :global(svg) {
+    transition: transform 0.2s ease;
+  }
 
   button[role='menuitem'].highlighted {
     color: var(--c-brand);
   }
 
-  .custom { padding: 10px 14px; }
+  .custom {
+    padding: 10px 14px;
+  }
 </style>
-
-
