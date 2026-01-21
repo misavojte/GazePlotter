@@ -1,4 +1,4 @@
-import { AdaptiveTimeline } from '../../shared/class/AdaptiveTimeline'
+import type { AdaptiveTimeline } from '$lib/plots/shared'
 import type { StimulusScarfFillingType } from './StimulusScarfFilling/StimulusScarfFillingType'
 import type { StylingScarfFillingType } from './StylingScarfFilling/StylingScarfFillingType'
 import type { ParticipantScarfFillingType } from './ParticipantScarfFilling/ParticipantScarfFillingType'

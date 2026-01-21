@@ -1,10 +1,10 @@
-
 <script lang="ts">
-  import type { AdaptiveTimeline } from '$lib/plots/shared/class/AdaptiveTimeline'
   import {
     GRIDLINE_SECONDARY,
     GRIDLINE_PRIMARY,
     FONT_PRIMARY,
+    type AdaptiveTimeline,
+    getTimelinePositionRatio,
   } from '$lib/plots/shared'
   import {
     calculateLabelOffset,
@@ -146,7 +146,7 @@
 
   // Scale values to plot area using AdaptiveTimeline
   function scaleValue(value: number): number {
-    const position = timeline.getPositionRatio(value)
+    const position = getTimelinePositionRatio(timeline, value)
     return barPlottingType === 'vertical'
       ? position * plotAreaHeight
       : position * plotAreaWidth
@@ -322,38 +322,38 @@
     // Context properties already set in setupContextProperties()
     if (barPlottingType === 'vertical') {
       const ticks = timeline.ticks.filter(tick => tick.isNice)
-      
+
       // Draw ticks (primary)
       ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
       ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
       ticks.forEach(tick => {
-          const y =
-            MARGIN.TOP +
-            marginTop +
-            plotAreaHeight -
-            tick.position * plotAreaHeight
-          ctx.beginPath()
-          ctx.moveTo(trueLeftMargin - TICK_LENGTH, y)
-          ctx.lineTo(trueLeftMargin, y)
-          ctx.stroke()
+        const y =
+          MARGIN.TOP +
+          marginTop +
+          plotAreaHeight -
+          tick.position * plotAreaHeight
+        ctx.beginPath()
+        ctx.moveTo(trueLeftMargin - TICK_LENGTH, y)
+        ctx.lineTo(trueLeftMargin, y)
+        ctx.stroke()
       })
 
       // Draw grid lines (subtle)
       ctx.strokeStyle = GRIDLINE_SECONDARY.COLOR
       ctx.lineWidth = GRIDLINE_SECONDARY.WIDTH
       ticks.forEach(tick => {
-          // Skip drawing subtle line at position 0 (start of plot) because border covers it with PRIMARY style
-          if (tick.position <= 1e-6) return
+        // Skip drawing subtle line at position 0 (start of plot) because border covers it with PRIMARY style
+        if (tick.position <= 1e-6) return
 
-          const y =
-            MARGIN.TOP +
-            marginTop +
-            plotAreaHeight -
-            tick.position * plotAreaHeight
-          ctx.beginPath()
-          ctx.moveTo(trueLeftMargin, y)
-          ctx.lineTo(trueLeftMargin + plotAreaWidth, y)
-          ctx.stroke()
+        const y =
+          MARGIN.TOP +
+          marginTop +
+          plotAreaHeight -
+          tick.position * plotAreaHeight
+        ctx.beginPath()
+        ctx.moveTo(trueLeftMargin, y)
+        ctx.lineTo(trueLeftMargin + plotAreaWidth, y)
+        ctx.stroke()
       })
     } else {
       const ticks = timeline.ticks.filter(tick => tick.isNice)
@@ -362,25 +362,25 @@
       ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
       ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
       ticks.forEach(tick => {
-          const x = trueLeftMargin + tick.position * plotAreaWidth
-          ctx.beginPath()
-          ctx.moveTo(x, MARGIN.TOP + marginTop + plotAreaHeight)
-          ctx.lineTo(x, MARGIN.TOP + marginTop + plotAreaHeight + TICK_LENGTH)
-          ctx.stroke()
+        const x = trueLeftMargin + tick.position * plotAreaWidth
+        ctx.beginPath()
+        ctx.moveTo(x, MARGIN.TOP + marginTop + plotAreaHeight)
+        ctx.lineTo(x, MARGIN.TOP + marginTop + plotAreaHeight + TICK_LENGTH)
+        ctx.stroke()
       })
 
       // Draw grid lines (subtle)
       ctx.strokeStyle = GRIDLINE_SECONDARY.COLOR
       ctx.lineWidth = GRIDLINE_SECONDARY.WIDTH
       ticks.forEach(tick => {
-          // Skip drawing subtle line at position 0 (start of plot) because border covers it with PRIMARY style
-          if (tick.position <= 1e-6) return
+        // Skip drawing subtle line at position 0 (start of plot) because border covers it with PRIMARY style
+        if (tick.position <= 1e-6) return
 
-          const x = trueLeftMargin + tick.position * plotAreaWidth
-          ctx.beginPath()
-          ctx.moveTo(x, MARGIN.TOP + marginTop)
-          ctx.lineTo(x, MARGIN.TOP + marginTop + plotAreaHeight)
-          ctx.stroke()
+        const x = trueLeftMargin + tick.position * plotAreaWidth
+        ctx.beginPath()
+        ctx.moveTo(x, MARGIN.TOP + marginTop)
+        ctx.lineTo(x, MARGIN.TOP + marginTop + plotAreaHeight)
+        ctx.stroke()
       })
     }
   }

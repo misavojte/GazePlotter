@@ -36,7 +36,10 @@ import {
   getStimuli,
   hasStimulusAoiVisibility,
 } from '$lib/gaze-data/front-process/stores/dataStore'
-import { AdaptiveTimeline } from '$lib/plots/shared/class'
+import {
+  createAdaptiveTimeline,
+  type AdaptiveTimeline,
+} from '$lib/plots/shared'
 import {
   IDENTIFIER_IS_AOI,
   IDENTIFIER_IS_OTHER_CATEGORY,
@@ -277,17 +280,17 @@ export function createScarfPlotAxis(
   // Create timeline with the appropriate range based on mode
   if (settings.timeline === 'relative') {
     // For relative mode, always use 0-100 range
-    return new AdaptiveTimeline(0, 100)
+    return createAdaptiveTimeline(0, 100)
   } else if (settings.timeline === 'ordinal') {
     // For ordinal mode, use minValue to maxValue (integer values)
-    return new AdaptiveTimeline(
+    return createAdaptiveTimeline(
       minValue,
       maxValue,
       Math.min(10, maxValue - minValue)
     )
   } else {
     // For absolute mode, use minValue to maxValue in ms
-    return new AdaptiveTimeline(minValue, maxValue)
+    return createAdaptiveTimeline(minValue, maxValue)
   }
 }
 

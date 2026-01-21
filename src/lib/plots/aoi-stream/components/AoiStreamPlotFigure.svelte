@@ -17,13 +17,8 @@
     getTooltipPosition,
     type CanvasState,
   } from '$lib/shared/utils/canvasUtils'
-  import {
-    SCARF_LAYOUT,
-    getXAxisLabel,
-  } from '$lib/plots/scarf/utils'
-  import {
-    estimateTextWidth,
-  } from '$lib/shared/utils/textUtils'
+  import { SCARF_LAYOUT, getXAxisLabel } from '$lib/plots/scarf/utils'
+  import { estimateTextWidth } from '$lib/shared/utils/textUtils'
   import { updateTooltip } from '$lib/tooltip'
   import type { AoiStreamPlotResult } from '$lib/plots/aoi-stream/types'
   import {
@@ -40,6 +35,8 @@
     type LegendItem,
     type LegendGeometry,
     type LegendItemGeometry,
+    type AdaptiveTimeline,
+    getTimelinePositionRatio,
   } from '$lib/plots/shared'
 
   const MARGIN = {
@@ -68,7 +65,6 @@
   }
 
   const RIDGELINE_OVERLAP = 0.6
-
 
   const FLOW_CURVE_TENSION = 0
   const X_AXIS_LABEL = getXAxisLabel('absolute')
@@ -218,16 +214,16 @@
   // Calculate legend height for layout using the shared utility for consistency
   const legendHeight: number = $derived.by(() => {
     if (legendItems.length === 0) return 0
-    
+
     // Calculate max text width to ensure height calculation matches geometry calculation
     let maxTextWidth = 0
     const { fontSize, fontFamily } = STREAM_LEGEND_CONFIG
-    
+
     for (const item of legendItems) {
       const w = estimateTextWidth(item.name, fontSize, fontFamily)
       if (w > maxTextWidth) maxTextWidth = w
     }
-    
+
     return calculateFlatLegendHeight(
       legendItems.length,
       Math.max(0, safeWidth),
@@ -254,7 +250,7 @@
     const legendX = safeMarginLeft
     const legendY = plotBottom + MARGIN.BOTTOM + STREAM_LEGEND_CONFIG.topPadding
     const legendWidth = Math.max(0, safeWidth)
-    
+
     return computeFlatLegendGeometry(
       legendItems,
       STREAM_LEGEND_CONFIG,
@@ -569,7 +565,7 @@
         const groupTop = plotBottom - totalGroupHeight
         const stripTop = groupTop + s * overlapOffset
         const stripBottom = stripTop + stripHeight
-        
+
         // Let's draw the baseline for each strip.
         ctx.beginPath()
         ctx.moveTo(plotLeft, stripBottom)
@@ -746,7 +742,6 @@
     drawXAxisLabel(ctx)
     drawPlotOutline(ctx)
     drawXAxisTicksAndBorder(ctx)
-
 
     // Legend - use shared utility for consistent rendering
     if (legendGeometry.items.length > 0 && legendHeight > 0) {
@@ -926,8 +921,15 @@
   }
 
   // Check if mouse is over a legend item (now uses shared utility)
-  function isMouseOverLegendItem(mouseX: number, mouseY: number): LegendItemGeometry | null {
-    if (!legendGeometry || legendGeometry.items.length === 0 || legendHeight === 0)
+  function isMouseOverLegendItem(
+    mouseX: number,
+    mouseY: number
+  ): LegendItemGeometry | null {
+    if (
+      !legendGeometry ||
+      legendGeometry.items.length === 0 ||
+      legendHeight === 0
+    )
       return null
 
     return hitTestLegend(legendGeometry, STREAM_LEGEND_CONFIG, mouseX, mouseY)
@@ -967,10 +969,16 @@
       if (legendItem) {
         hoveredLegendItem = legendItem
         const isHighlighted = usedHighlights.includes(legendItem.identifier)
-        
+
         // Use utility functions for tooltip
-        const tooltipContent = getLegendTooltipContent(legendItem, isHighlighted)
-        const tooltipItemPos = getLegendTooltipPosition(legendItem, STREAM_LEGEND_CONFIG)
+        const tooltipContent = getLegendTooltipContent(
+          legendItem,
+          isHighlighted
+        )
+        const tooltipItemPos = getLegendTooltipPosition(
+          legendItem,
+          STREAM_LEGEND_CONFIG
+        )
         const tooltipPos = getTooltipPosition(
           canvasState,
           tooltipItemPos.x,
@@ -1100,7 +1108,7 @@
     if (!canvas) return
 
     const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
-    const legendItem =isMouseOverLegendItem(mouseX, mouseY)
+    const legendItem = isMouseOverLegendItem(mouseX, mouseY)
 
     if (legendItem) {
       const aoiId = parseInt(legendItem.identifier)

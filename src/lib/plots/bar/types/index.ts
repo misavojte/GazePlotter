@@ -1,4 +1,4 @@
-import type { AdaptiveTimeline } from '$lib/plots/shared/class'
+import type { AdaptiveTimeline } from '$lib/plots/shared'
 import type {
   BaseInterpretedDataType,
   SegmentInterpretedDataType,

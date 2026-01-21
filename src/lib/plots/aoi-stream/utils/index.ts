@@ -12,7 +12,10 @@ import {
   SegmentField,
   MAX_AOI_PER_STIMULUS,
 } from '$lib/gaze-data/shared/types'
-import { AdaptiveTimeline } from '$lib/plots/shared/class/AdaptiveTimeline'
+import {
+  createAdaptiveTimeline,
+  type AdaptiveTimeline,
+} from '$lib/plots/shared'
 import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
 import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
 import { engine } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
@@ -150,10 +153,13 @@ export function getAoiStreamPlotData(
             // Inlined addContribution for this seriesIndex
             // Cap adjusted times to the cropped timeline range
             const adjustedStart = Math.max(0, start - timelineMin)
-            const adjustedEnd = Math.min(safeMaxTime, Math.max(0, end - timelineMin))
+            const adjustedEnd = Math.min(
+              safeMaxTime,
+              Math.max(0, end - timelineMin)
+            )
             // Skip if segment is completely outside the cropped range
             if (adjustedEnd <= adjustedStart) continue
-            
+
             const startBin = Math.max(
               0,
               Math.min(binCount - 1, Math.floor(adjustedStart * invBinSize))
@@ -196,10 +202,13 @@ export function getAoiStreamPlotData(
           // Inlined addContribution for noAoiIndex
           // Cap adjusted times to the cropped timeline range
           const adjustedStart = Math.max(0, start - timelineMin)
-          const adjustedEnd = Math.min(safeMaxTime, Math.max(0, end - timelineMin))
+          const adjustedEnd = Math.min(
+            safeMaxTime,
+            Math.max(0, end - timelineMin)
+          )
           // Skip if segment is completely outside the cropped range
           if (adjustedEnd <= adjustedStart) continue
-          
+
           const startBin = Math.max(
             0,
             Math.min(binCount - 1, Math.floor(adjustedStart * invBinSize))
@@ -278,7 +287,7 @@ export function getAoiStreamPlotData(
 
   return {
     series: result.series,
-    timeline: new AdaptiveTimeline(timelineMin, timelineMin + safeMaxTime, 6),
+    timeline: createAdaptiveTimeline(timelineMin, timelineMin + safeMaxTime, 6),
     binCount,
     binSize,
     maxTime: timelineMin + safeMaxTime,

@@ -1,4 +1,4 @@
-import type { AdaptiveTimeline } from '$lib/plots/shared/class/AdaptiveTimeline'
+import type { AdaptiveTimeline } from '$lib/plots/shared'
 
 export interface AoiStreamPlotSeries {
   id: number

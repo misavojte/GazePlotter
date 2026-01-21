@@ -3,7 +3,10 @@ import {
   getParticipantsIds,
   getData,
 } from '$lib/gaze-data/front-process/stores/dataStore'
-import { AdaptiveTimeline } from '$lib/plots/shared/class/AdaptiveTimeline'
+import {
+  createAdaptiveTimeline,
+  type AdaptiveTimeline,
+} from '$lib/plots/shared'
 import type { BarPlotGridType } from '$lib/workspace/type/gridType'
 import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
 import {
@@ -573,5 +576,5 @@ export function createTimeline(
     }
   }
 
-  return new AdaptiveTimeline(timelineMin, timelineMax, 6)
+  return createAdaptiveTimeline(timelineMin, timelineMax, 6)
 }
