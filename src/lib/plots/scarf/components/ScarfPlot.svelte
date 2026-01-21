@@ -327,7 +327,7 @@
   {/snippet}
 
   {#snippet figure({ width, height })}
-    <div class="scarf-viewport" style:height="{height}px">
+    <div class="scarf-viewport" style:height="{Math.floor(height)}px">
       <ScarfPlotFigure
         onTooltipActivation={handleTooltipActivation}
         onTooltipDeactivation={handleTooltipDeactivation}
@@ -339,7 +339,7 @@
         onDragStepX={handleDragStepX}
         onDragEnd={handleDragEnd}
         chartWidth={width}
-        availableHeight={height}
+        availableHeight={Math.floor(height)}
         marginTop={PLOT_MARGIN.TOP}
         marginRight={PLOT_MARGIN.RIGHT}
         marginBottom={PLOT_MARGIN.BOTTOM}
@@ -351,7 +351,9 @@
 
 <style>
   .scarf-viewport {
-    overflow-y: auto;
-    position: relative;
+    height: 100%;
+    width: 100%;
+    display: block;
+    overflow: hidden; /* No scrolling allowed */
   }
 </style>

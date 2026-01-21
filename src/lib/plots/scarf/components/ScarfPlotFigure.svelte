@@ -118,12 +118,16 @@
     )
   )
 
+  // Internal layout constants for compact rendering
+  const INTERNAL_PADDING_TOP = 10 // Space for top ticks
+  const INTERNAL_PADDING_BOTTOM = 0 // Zero padding at bottom as it serves no purpose (only top needs space for ticks)
+
   // Simplified height derivations based on participant data
   const participantBarsHeight = $derived(
     data.participants.length * data.heightOfBarWrap
   )
-  const axisLabelY = $derived(participantBarsHeight + 25) // Fixed offset for axis labels
-  const legendY = $derived(participantBarsHeight + 60) // Fixed offset for legend
+  const axisLabelY = $derived(participantBarsHeight + 30) // Moved down to avoid overlap with tick labels
+  const legendY = $derived(participantBarsHeight + 45) // Keep legend at same position
 
   // State management with Svelte 5 runes
   let isDragging = $state(false) // New state to track if actively dragging
@@ -265,34 +269,47 @@
   // Required height for all content (excluding explicit margins)
   // This is the intrinsic height of the visualization content
   // USES legendHeight (static) instead of legendGeometry.totalHeight (which depends on margins)
-  const intrinsicContentHeight = $derived(
-    legendY + legendHeight + 40 // 40px bottom padding for content
-  )
+  const intrinsicContentHeight = $derived.by(() => {
+    if (legendHeight > 0) {
+      return legendY + legendHeight + INTERNAL_PADDING_BOTTOM
+    }
+    // If no legend, height is determined by the x-axis label
+    // axisLabelY + approximate label height (20px) + padding
+    return axisLabelY + 20 + INTERNAL_PADDING_BOTTOM
+  })
 
   // Vertical centering offset: if available space exceeds content, center vertically
+  // Subtracting INTERNAL_PADDING_TOP ensures the centering feels balanced with the top safe area
   const centeringOffsetY = $derived(
-    availableHeight > intrinsicContentHeight + marginTop + marginBottom
+    availableHeight >
+      intrinsicContentHeight + marginTop + marginBottom + INTERNAL_PADDING_TOP
       ? Math.floor(
           (availableHeight -
             intrinsicContentHeight -
             marginTop -
-            marginBottom) /
+            marginBottom -
+            INTERNAL_PADDING_TOP) /
             2
         )
       : 0
   )
 
-  // Effective margins include centering offsets
-  // When no margins are set (default 0) and content is small, this centers the content
-  const effectiveMarginTop = $derived(marginTop + centeringOffsetY)
+  // Effective margins include centering offsets and the internal top safety padding
+  // When no margins are set (default 0), this ensures content is centered but safe from cropping
+  const effectiveMarginTop = $derived(
+    marginTop + centeringOffsetY + INTERNAL_PADDING_TOP
+  )
 
   // Total content height with effective margins
   const totalContentHeight = $derived(
     intrinsicContentHeight + effectiveMarginTop + marginBottom
   )
 
-  // Canvas height adapts to content, minimum being available area
-  const totalHeight = $derived(Math.max(availableHeight, totalContentHeight))
+  // Canvas height is strictly the available height (no scrolling)
+  const totalHeight = $derived(availableHeight)
+
+  // Check if we have enough space to render
+  const canRender = $derived(availableHeight >= totalContentHeight)
 
   // Create a unified identifier mapping system for all style types
   const identifierSystem = $derived.by(() => {
@@ -396,6 +413,21 @@
     // Get context from state
     const ctx = canvasState.context
     if (!ctx) return
+
+    // Check if we can render with current dimensions
+    if (!canRender) {
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillStyle = '#666666'
+      ctx.font = '14px sans-serif'
+      ctx.fillText(
+        'Increase height to view plot',
+        totalWidth / 2,
+        totalHeight / 2
+      )
+      finishCanvasDrawing(canvasState)
+      return
+    }
 
     // Set up font
     setUpFont(ctx)
@@ -1132,6 +1164,7 @@
       data,
       settings,
       totalWidth,
+      totalHeight,
       highlights,
       usedHighlights,
       chartWidth,
@@ -1139,7 +1172,7 @@
       dpiOverride,
       marginLeft,
       marginRight,
-      marginTop,
+      effectiveMarginTop,
       marginBottom,
     ]
 
@@ -1224,6 +1257,7 @@
 
 <canvas
   class="scarf-plot-figure"
+  style:pointer-events={canRender ? 'auto' : 'none'}
   width={totalWidth}
   height={totalHeight}
   onmousemove={handleMouseMove}
@@ -1238,5 +1272,6 @@
   .scarf-plot-figure {
     font-family: sans-serif;
     display: block;
+    vertical-align: top;
   }
 </style>
