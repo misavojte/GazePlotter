@@ -122,12 +122,111 @@
   const INTERNAL_PADDING_TOP = 10 // Space for top ticks
   const INTERNAL_PADDING_BOTTOM = 0 // Zero padding at bottom as it serves no purpose (only top needs space for ticks)
 
-  // Simplified height derivations based on participant data
+  // 1. Calculate Legend structural metrics (data-only, no layout dependency)
+  // This breaks the circular dependency: legend structural height depends only on data.
+  const legendHeight = $derived.by(() => {
+    const groups = data.legendData?.groups ?? []
+    if (groups.length === 0) return 0
+
+    const dummyGroups = groups.map(g => ({
+      title: g.title,
+      items: g.items.map(i => ({
+        identifier: i.identifier,
+        name: i.name,
+        color: i.color,
+        type: 'rect' as const, // Structural type doesn't matter for height
+      })),
+    }))
+
+    const tempLayout = computeGroupedLegendGeometry(
+      dummyGroups,
+      SCARF_LEGEND_CONFIG,
+      0,
+      0,
+      chartWidth
+    )
+    return tempLayout.totalHeight
+  })
+
+  // 2. Dynamic Layout Logic
+  // Now layout can safely depend on legendHeight
+  const layout = $derived.by(() => {
+    const participantCount = data.participants.length
+    const defaultBH = SCARF_LAYOUT.HEIGHT_OF_BAR // 15
+    const defaultSAR = SCARF_LAYOUT.SPACE_ABOVE_RECT // 5
+    const defaultNFH = SCARF_LAYOUT.NON_FIXATION_HEIGHT // 4
+    const defaultLWH = SCARF_LAYOUT.LINE_WRAPPED_HEIGHT // 6
+    const defaultWrap = data.heightOfBarWrap
+
+    if (participantCount === 0) {
+      return {
+        heightOfBar: defaultBH,
+        spaceAboveRect: defaultSAR,
+        nonFixationHeight: defaultNFH,
+        heightOfBarWrap: defaultWrap,
+        lineWrappedHeight: defaultLWH,
+        isShrunk: false,
+      }
+    }
+
+    const fixedOverheadAbove = marginTop + INTERNAL_PADDING_TOP
+    const fixedOverheadBelow =
+      45 + legendHeight + marginBottom + INTERNAL_PADDING_BOTTOM
+    const totalFixedOverhead = fixedOverheadAbove + fixedOverheadBelow
+
+    const remainingHeight = availableHeight - totalFixedOverhead
+    const targetHeightOfBarWrap = Math.floor(remainingHeight / participantCount)
+
+    if (targetHeightOfBarWrap >= defaultWrap) {
+      return {
+        heightOfBar: defaultBH,
+        spaceAboveRect: defaultSAR,
+        nonFixationHeight: defaultNFH,
+        heightOfBarWrap: defaultWrap,
+        lineWrappedHeight: defaultLWH,
+        isShrunk: false,
+      }
+    }
+
+    const visibilityOverhead = defaultWrap - (defaultBH + defaultSAR * 2)
+    const availableForMainBarWrap = Math.max(
+      0,
+      targetHeightOfBarWrap - visibilityOverhead
+    )
+
+    const minBH = 2 * defaultNFH
+    let currentBH = defaultBH
+    let currentSAR = defaultSAR
+
+    if (availableForMainBarWrap < defaultBH + defaultSAR * 2) {
+      if (availableForMainBarWrap < minBH) {
+        currentBH = Math.max(1, availableForMainBarWrap)
+        currentSAR = 0
+      } else if (availableForMainBarWrap < minBH + 2) {
+        currentBH = minBH
+        currentSAR = (availableForMainBarWrap - minBH) / 2
+      } else {
+        currentBH = Math.max(minBH, availableForMainBarWrap - 2)
+        currentSAR = (availableForMainBarWrap - currentBH) / 2
+      }
+    }
+
+    return {
+      heightOfBar: currentBH,
+      spaceAboveRect: currentSAR,
+      nonFixationHeight: defaultNFH,
+      heightOfBarWrap: targetHeightOfBarWrap,
+      lineWrappedHeight: defaultLWH,
+      isShrunk: true,
+    }
+  })
+
+  // 3. Derived dimensions using dynamic layout
   const participantBarsHeight = $derived(
-    data.participants.length * data.heightOfBarWrap
+    data.participants.length * layout.heightOfBarWrap
   )
-  const axisLabelY = $derived(participantBarsHeight + 30) // Moved down to avoid overlap with tick labels
-  const legendY = $derived(participantBarsHeight + 45) // Keep legend at same position
+  const axisLabelY = $derived(participantBarsHeight + 30)
+  const legendY = $derived(participantBarsHeight + 45)
 
   // State management with Svelte 5 runes
   let isDragging = $state(false) // New state to track if actively dragging
@@ -170,19 +269,19 @@
     const getItemPresentation = (styleType: string) => {
       switch (styleType) {
         case 'fixation':
-          return { type: 'rect' as const, height: SCARF_LAYOUT.HEIGHT_OF_BAR }
+          return { type: 'rect' as const, height: layout.heightOfBar }
         case 'nonFixation':
           return {
             type: 'rect' as const,
-            height: SCARF_LAYOUT.NON_FIXATION_HEIGHT,
+            height: layout.nonFixationHeight,
           }
         case 'visibility':
           return {
             type: 'line' as const,
-            height: SCARF_LAYOUT.NON_FIXATION_HEIGHT,
+            height: layout.nonFixationHeight,
           }
         default:
-          return { type: 'rect' as const, height: SCARF_LAYOUT.HEIGHT_OF_BAR }
+          return { type: 'rect' as const, height: layout.heightOfBar }
       }
     }
 
@@ -199,22 +298,6 @@
         }
       }),
     }))
-  })
-
-  // Compute legend header/layout once at y=0 to determine its height
-  // This avoids circular dependencies with the vertical centering logic
-  const legendHeight = $derived.by(() => {
-    if (legendGroups.length === 0) return 0
-
-    // We only care about totalHeight here, so x=0, y=0 is fine
-    const tempLayout = computeGroupedLegendGeometry(
-      legendGroups,
-      SCARF_LEGEND_CONFIG,
-      0,
-      0,
-      chartWidth
-    )
-    return tempLayout.totalHeight
   })
 
   // Compute final legend geometry using the actual effectiveMarginTop
@@ -373,9 +456,8 @@
     const visibility = data.stylingAndLegend.visibility
     const len = visibility.length
 
-    // Visibility lines use NON_FIXATION_HEIGHT for strokeWidth
-    // This is computed here in the presentation layer, not stored in data
-    const strokeWidth = SCARF_LAYOUT.NON_FIXATION_HEIGHT
+    // Visibility lines use nonFixationHeight for strokeWidth
+    const strokeWidth = layout.nonFixationHeight
 
     // Pre-compute all line styles (visibility) with dimmed state
     for (let i = 0; i < len; i++) {
@@ -487,8 +569,8 @@
       ctx.fillText(
         participant.label,
         xPos,
-        i * data.heightOfBarWrap +
-          (data.heightOfBarWrap >> 1) +
+        i * layout.heightOfBarWrap +
+          (layout.heightOfBarWrap >> 1) +
           effectiveMarginTop
       )
     }
@@ -522,7 +604,8 @@
 
     for (let i = 0; i <= len; i++) {
       // Draw ticks exactly at bar boundaries
-      const y = Math.floor(i * data.heightOfBarWrap + effectiveMarginTop) + 0.5
+      const y =
+        Math.floor(i * layout.heightOfBarWrap + effectiveMarginTop) + 0.5
 
       // Draw full line across between participants
       ctx.beginPath()
@@ -680,13 +763,31 @@
         const xNormalized = buffer[idx]
         const pIndex = buffer[idx + 1]
         const widthNormalized = buffer[idx + 2]
-        const rectH = buffer[idx + 3]
-        const internalY = buffer[idx + 7]
+        const origRectH = buffer[idx + 3]
+        const origInternalY = buffer[idx + 7]
+
+        let rectH = origRectH
+        let internalY = origInternalY
+
+        if (layout.isShrunk) {
+          if (origRectH === SCARF_LAYOUT.NON_FIXATION_HEIGHT) {
+            rectH = layout.nonFixationHeight
+            internalY =
+              layout.spaceAboveRect +
+              layout.heightOfBar / 2 -
+              layout.nonFixationHeight / 2
+          } else {
+            const scale = layout.heightOfBar / SCARF_LAYOUT.HEIGHT_OF_BAR
+            rectH = origRectH * scale
+            const paddingOffset = origInternalY - SCARF_LAYOUT.SPACE_ABOVE_RECT
+            internalY = layout.spaceAboveRect + paddingOffset * scale
+          }
+        }
 
         const pxX = LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
         const pxW = widthNormalized * plotAreaWidth
         const pxY =
-          pIndex * data.heightOfBarWrap + internalY + effectiveMarginTop
+          pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
 
         ctx.rect(pxX, pxY, pxW, rectH)
       }
@@ -722,13 +823,31 @@
         const xNormalized = buffer[idx]
         const pIndex = buffer[idx + 1]
         const widthNormalized = buffer[idx + 2]
-        const rectH = buffer[idx + 3]
-        const internalY = buffer[idx + 7]
+        const origRectH = buffer[idx + 3]
+        const origInternalY = buffer[idx + 7]
+
+        let rectH = origRectH
+        let internalY = origInternalY
+
+        if (layout.isShrunk) {
+          if (origRectH === SCARF_LAYOUT.NON_FIXATION_HEIGHT) {
+            rectH = layout.nonFixationHeight
+            internalY =
+              layout.spaceAboveRect +
+              layout.heightOfBar / 2 -
+              layout.nonFixationHeight / 2
+          } else {
+            const scale = layout.heightOfBar / SCARF_LAYOUT.HEIGHT_OF_BAR
+            rectH = origRectH * scale
+            const paddingOffset = origInternalY - SCARF_LAYOUT.SPACE_ABOVE_RECT
+            internalY = layout.spaceAboveRect + paddingOffset * scale
+          }
+        }
 
         const pxX = LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
         const pxW = widthNormalized * plotAreaWidth
         const pxY =
-          pIndex * data.heightOfBarWrap + internalY + effectiveMarginTop
+          pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
 
         ctx.rect(pxX, pxY, pxW, rectH)
       }
@@ -784,14 +903,23 @@
           const x1Normalized = buffer[idx]
           const pIndex = buffer[idx + 1]
           const x2Normalized = buffer[idx + 2]
-          const internalY = buffer[idx + 5]
+          const origInternalY = buffer[idx + 5]
+
+          let internalY = origInternalY
+          if (layout.isShrunk) {
+            const mainBarWrapDefault =
+              SCARF_LAYOUT.HEIGHT_OF_BAR + SCARF_LAYOUT.SPACE_ABOVE_RECT * 2
+            const visibilityOffset = origInternalY - mainBarWrapDefault
+            internalY =
+              layout.heightOfBar + layout.spaceAboveRect * 2 + visibilityOffset
+          }
 
           const pxX1 =
             LEFT_LABEL_WIDTH + x1Normalized * plotAreaWidth + marginLeft
           const pxX2 =
             LEFT_LABEL_WIDTH + x2Normalized * plotAreaWidth + marginLeft
           const pxY =
-            pIndex * data.heightOfBarWrap + internalY + effectiveMarginTop
+            pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
 
           ctx.moveTo(pxX1, pxY)
           ctx.lineTo(pxX2, pxY)
@@ -888,7 +1016,7 @@
       mouseX <= LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft &&
       mouseY >= effectiveMarginTop &&
       mouseY <=
-        data.participants.length * data.heightOfBarWrap + effectiveMarginTop
+        data.participants.length * layout.heightOfBarWrap + effectiveMarginTop
 
     // Update cursor based on dragging state and location
     if (isDragging || preparedForDragging) {
@@ -932,7 +1060,8 @@
 
       const pxX1 = LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
       const pxW = widthNormalized * plotAreaWidth
-      const pxY = pIndex * data.heightOfBarWrap + internalY + marginTop
+      const pxY =
+        pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
 
       const tooltipPos = getTooltipPosition(
         canvasState,
@@ -1019,7 +1148,8 @@
       mouseX <= LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft &&
       mouseY >= effectiveMarginTop &&
       mouseY <=
-        data.participants.length * data.heightOfBarWrap + effectiveMarginTop &&
+        data.participants.length * layout.heightOfBarWrap +
+          effectiveMarginTop &&
       !isHoveringSegment
     ) {
       // Store initial position and prepare for dragging
@@ -1210,16 +1340,34 @@
         const xNormalized = buffer[idx]
         const pIndex = buffer[idx + 1]
         const widthNormalized = buffer[idx + 2]
-        const rectH = buffer[idx + 3]
+        const origRectH = buffer[idx + 3]
         const participantId = buffer[idx + 4]
         const segmentId = buffer[idx + 5]
         const orderId = buffer[idx + 6]
-        const internalY = buffer[idx + 7]
+        const origInternalY = buffer[idx + 7]
+
+        let rectH = origRectH
+        let internalY = origInternalY
+
+        if (layout.isShrunk) {
+          if (origRectH === SCARF_LAYOUT.NON_FIXATION_HEIGHT) {
+            rectH = layout.nonFixationHeight
+            internalY =
+              layout.spaceAboveRect +
+              layout.heightOfBar / 2 -
+              layout.nonFixationHeight / 2
+          } else {
+            const scale = layout.heightOfBar / SCARF_LAYOUT.HEIGHT_OF_BAR
+            rectH = origRectH * scale
+            const paddingOffset = origInternalY - SCARF_LAYOUT.SPACE_ABOVE_RECT
+            internalY = layout.spaceAboveRect + paddingOffset * scale
+          }
+        }
 
         const pxX = LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
         const pxW = widthNormalized * plotAreaWidth
         const pxY =
-          pIndex * data.heightOfBarWrap + internalY + effectiveMarginTop
+          pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
 
         if (
           mouseX >= pxX &&

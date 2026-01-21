@@ -169,39 +169,12 @@ export function getLegendItemsPerRow(
   const itemFullWidth = iconWidth + textPadding + avgTextWidth + itemSpacing
   const maxItemsPerRow = Math.max(1, Math.floor(availableWidth / itemFullWidth))
 
-  // If no item count provided, return max (capped at 5 for readability)
-  if (!itemCount || itemCount <= 0) return Math.min(5, maxItemsPerRow)
+  // If no item count provided, return max possible
+  if (!itemCount || itemCount <= 0) return maxItemsPerRow
 
-  // Smart calculation: find optimal number of columns for balanced layout
-  // Cap at 5 columns max for better readability
-  const cappedMax = Math.min(5, maxItemsPerRow)
-
-  // If items fit in one row with cap, use exact count
-  if (itemCount <= cappedMax) return itemCount
-
-  // Otherwise, find column count that minimizes wasted space
-  // Try different column counts and pick the one with most balanced rows
-  let bestCols = cappedMax
-  let bestScore = Infinity
-
-  for (let cols = cappedMax; cols >= Math.min(3, itemCount); cols--) {
-    const rows = Math.ceil(itemCount / cols)
-    const itemsInLastRow = itemCount % cols || cols
-
-    // Score: prefer layouts where last row is >= 50% full
-    // Prefer fewer columns (more compact, easier to scan)
-    const fillRatio = itemsInLastRow / cols
-    const rowPenalty = rows > 4 ? (rows - 4) * 0.5 : 0
-    const columnPenalty = cols > 4 ? (cols - 4) * 0.2 : 0 // Slightly penalize too many columns
-    const score = 1 - fillRatio + rowPenalty + columnPenalty
-
-    if (score < bestScore) {
-      bestScore = score
-      bestCols = cols
-    }
-  }
-
-  return bestCols
+  // Simply return the maximum number of items that can fit, or the actual item count
+  // whichever is smaller. This removes the preference for fewer columns/balancing.
+  return Math.min(itemCount, maxItemsPerRow)
 }
 
 /**
