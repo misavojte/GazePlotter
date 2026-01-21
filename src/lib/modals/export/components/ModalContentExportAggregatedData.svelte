@@ -6,7 +6,7 @@
     GeneralInputGroup,
   } from '$lib/shared/components'
   import { SectionHeader, ModalButtons } from '$lib/modals'
-  import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
+  import { getStimuliOptions } from '$lib/plots/shared'
   import {
     getParticipantsGroups,
     getParticipantsIds,

@@ -1,12 +1,12 @@
 <script lang="ts">
   import GeneralSelectBase from '$lib/shared/components/GeneralSelect.svelte'
-  import { getParticipants } from '$lib/gaze-data/front-process/stores/dataStore.js'
+  import { getParticipants } from '$lib/gaze-data/front-process/stores/dataStore'
   import { GeneralInputFile } from '$lib/shared/components'
   import { ModalButtons } from '$lib/modals'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { addErrorToast } from '$lib/toaster'
   import { processAoiVisibility } from '$lib/modals/import/utility/aoiVisibilityServices'
-  import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
+  import { getStimuliOptions, getParticipantOptions } from '$lib/plots/shared'
   import type { UpdateAoiVisibilityCommand } from '$lib/workspace/commands'
 
   interface Props {
@@ -22,12 +22,7 @@
 
   const stimuliOptions = getStimuliOptions()
   const participantOptions = [{ label: 'To all', value: 'all' }].concat(
-    getParticipants().map(participant => {
-      return {
-        label: participant.displayedName,
-        value: participant.id.toString(),
-      }
-    })
+    getParticipantOptions()
   )
   const handleSubmit = () => {
     if (files === null) {

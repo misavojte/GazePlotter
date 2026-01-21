@@ -16,8 +16,11 @@
  *   )
  */
 
-import { FONT_PRIMARY } from '../const'
-import { truncateTextToPixelWidth, estimateTextWidth } from '$lib/shared/utils/textUtils'
+import { FONT_PRIMARY } from './const'
+import {
+  truncateTextToPixelWidth,
+  estimateTextWidth,
+} from '$lib/shared/utils/textUtils'
 
 // ============================================================================
 // TYPES
@@ -148,7 +151,7 @@ export const STREAM_LEGEND_CONFIG: LegendConfig = {
 /**
  * Calculate optimal items per row for visually pleasing layout.
  * Uses smart calculation based on item count to avoid awkward layouts.
- * 
+ *
  * @param itemCount - Total number of items to layout
  * @param availableWidth - Available width in pixels
  * @param config - Legend configuration
@@ -165,39 +168,39 @@ export function getLegendItemsPerRow(
   const { iconWidth, textPadding, itemSpacing } = config
   const itemFullWidth = iconWidth + textPadding + avgTextWidth + itemSpacing
   const maxItemsPerRow = Math.max(1, Math.floor(availableWidth / itemFullWidth))
-  
+
   // If no item count provided, return max (capped at 5 for readability)
   if (!itemCount || itemCount <= 0) return Math.min(5, maxItemsPerRow)
-  
+
   // Smart calculation: find optimal number of columns for balanced layout
   // Cap at 5 columns max for better readability
   const cappedMax = Math.min(5, maxItemsPerRow)
-  
+
   // If items fit in one row with cap, use exact count
   if (itemCount <= cappedMax) return itemCount
-  
+
   // Otherwise, find column count that minimizes wasted space
   // Try different column counts and pick the one with most balanced rows
   let bestCols = cappedMax
   let bestScore = Infinity
-  
+
   for (let cols = cappedMax; cols >= Math.min(3, itemCount); cols--) {
     const rows = Math.ceil(itemCount / cols)
     const itemsInLastRow = itemCount % cols || cols
-    
+
     // Score: prefer layouts where last row is >= 50% full
     // Prefer fewer columns (more compact, easier to scan)
     const fillRatio = itemsInLastRow / cols
     const rowPenalty = rows > 4 ? (rows - 4) * 0.5 : 0
     const columnPenalty = cols > 4 ? (cols - 4) * 0.2 : 0 // Slightly penalize too many columns
-    const score = (1 - fillRatio) + rowPenalty + columnPenalty
-    
+    const score = 1 - fillRatio + rowPenalty + columnPenalty
+
     if (score < bestScore) {
       bestScore = score
       bestCols = cols
     }
   }
-  
+
   return bestCols
 }
 
@@ -212,7 +215,12 @@ export function calculateFlatLegendHeight(
   avgTextWidth: number = 90
 ): number {
   const { itemHeight, rowPadding, topPadding } = config
-  const itemsPerRow = getLegendItemsPerRow(availableWidth, config, avgTextWidth, itemCount)
+  const itemsPerRow = getLegendItemsPerRow(
+    availableWidth,
+    config,
+    avgTextWidth,
+    itemCount
+  )
   const rows = Math.ceil(itemCount / itemsPerRow)
   return rows > 0 ? topPadding + rows * (itemHeight + rowPadding) : 0
 }
@@ -234,8 +242,16 @@ export function calculateGroupedLegendHeight(
     groupTitleSpacing,
   } = config
 
-  const maxItemsInGroup = groups.reduce((max, g) => Math.max(max, g.itemCount), 0)
-  const itemsPerRow = getLegendItemsPerRow(availableWidth, config, 90, maxItemsInGroup)
+  const maxItemsInGroup = groups.reduce(
+    (max, g) => Math.max(max, g.itemCount),
+    0
+  )
+  const itemsPerRow = getLegendItemsPerRow(
+    availableWidth,
+    config,
+    90,
+    maxItemsInGroup
+  )
   let totalHeight = 0
 
   for (let g = 0; g < groups.length; g++) {
@@ -273,8 +289,16 @@ export function computeFlatLegendGeometry(
   availableWidth: number,
   itemsPerRowOverride?: number
 ): LegendGeometry {
-  const { itemHeight, iconWidth, textPadding, itemSpacing, rowPadding, topPadding, fontSize, fontFamily } =
-    config
+  const {
+    itemHeight,
+    iconWidth,
+    textPadding,
+    itemSpacing,
+    rowPadding,
+    topPadding,
+    fontSize,
+    fontFamily,
+  } = config
 
   // 1. Calculate max width needed by any item to ensure consistent column widths
   let maxTextWidth = 0
@@ -282,7 +306,7 @@ export function computeFlatLegendGeometry(
     const w = estimateTextWidth(items[i].name, fontSize, fontFamily)
     if (w > maxTextWidth) maxTextWidth = w
   }
-  
+
   const uniformColumnWidth = Math.min(
     iconWidth + textPadding + maxTextWidth,
     250 // Cap width for readability
@@ -291,8 +315,9 @@ export function computeFlatLegendGeometry(
   // 2. Determine items per row using the actual column width
   // We pass maxTextWidth as 'avgTextWidth' to ensure conservative fitting
   const effectiveItemsPerRow =
-    itemsPerRowOverride ?? getLegendItemsPerRow(availableWidth, config, maxTextWidth, items.length)
-  
+    itemsPerRowOverride ??
+    getLegendItemsPerRow(availableWidth, config, maxTextWidth, items.length)
+
   const geometryItems: LegendItemGeometry[] = new Array(items.length)
   const legendY = startY + topPadding
   const totalRows = Math.ceil(items.length / effectiveItemsPerRow)
@@ -300,11 +325,11 @@ export function computeFlatLegendGeometry(
   // 3. Column-first ordering with UNIFORM left-aligned columns
   for (let i = 0; i < items.length; i++) {
     const item = items[i]
-    
+
     // Calculate column and row for column-first ordering
     const col = Math.floor(i / totalRows)
     const row = i % totalRows
-    
+
     // Left-aligned fixed-width columns
     const x = startX + col * (uniformColumnWidth + itemSpacing)
     const y = legendY + row * (itemHeight + rowPadding)
@@ -321,7 +346,8 @@ export function computeFlatLegendGeometry(
     }
   }
 
-  const totalHeight = totalRows > 0 ? topPadding + totalRows * (itemHeight + rowPadding) : 0
+  const totalHeight =
+    totalRows > 0 ? topPadding + totalRows * (itemHeight + rowPadding) : 0
 
   return {
     items: geometryItems,
@@ -376,9 +402,13 @@ export function computeGroupedLegendGeometry(
   )
 
   // 2. Determine items per row based on max items in any group AND actual width
-  const maxItemsInGroup = groups.reduce((max, g) => Math.max(max, g.items.length), 0)
+  const maxItemsInGroup = groups.reduce(
+    (max, g) => Math.max(max, g.items.length),
+    0
+  )
   const effectiveItemsPerRow =
-    itemsPerRowOverride ?? getLegendItemsPerRow(availableWidth, config, maxTextWidth, maxItemsInGroup)
+    itemsPerRowOverride ??
+    getLegendItemsPerRow(availableWidth, config, maxTextWidth, maxItemsInGroup)
 
   const geometryItems: LegendItemGeometry[] = []
   const groupTitles: LegendGroupTitleGeometry[] = []
@@ -410,10 +440,10 @@ export function computeGroupedLegendGeometry(
     // 3. Column-first ordering with UNIFORM left-aligned columns
     for (let i = 0; i < group.items.length; i++) {
       const item = group.items[i]
-      
+
       const col = Math.floor(i / groupRows)
       const row = i % groupRows
-      
+
       const x = startX + col * (uniformColumnWidth + itemSpacing)
       const y = itemsStartY + row * (itemHeight + rowPadding)
 
@@ -462,8 +492,15 @@ export function drawLegend(
   highlightedIds: ReadonlySet<string> | readonly string[] | null = null,
   dimmedOpacity: number = 0.15
 ): void {
-  const { itemHeight, iconWidth, textPadding, fontSize, fontFamily, fontColor, lineDash } =
-    config
+  const {
+    itemHeight,
+    iconWidth,
+    textPadding,
+    fontSize,
+    fontFamily,
+    fontColor,
+    lineDash,
+  } = config
 
   // Convert to Set for O(1) lookup if array provided
   const highlightSet =

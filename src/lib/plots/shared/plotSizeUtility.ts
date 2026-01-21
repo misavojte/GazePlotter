@@ -1,6 +1,6 @@
 import type { GridConfig } from '$lib/workspace/grid'
 import { gridToPixelDimensions } from '$lib/workspace/grid'
-import type { PlotDimensions } from '$lib/plots/shared/types'
+import type { PlotDimensions } from './types'
 
 /**
  * Plot sizing utilities

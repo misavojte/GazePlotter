@@ -2,7 +2,7 @@
   import { GeneralInputText, GeneralSelect } from '$lib/shared/components'
   import { SectionHeader, ModalButtons } from '$lib/modals'
   import { ScanGraphDownloader } from '$lib/modals/export/class/ScanGraphDownloader'
-  import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
+  import { getStimuliOptions } from '$lib/plots/shared'
   import { addSuccessToast } from '$lib/toaster'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'

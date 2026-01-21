@@ -3,13 +3,13 @@
   import Select, {
     type GroupSelectItem,
   } from '$lib/shared/components/GeneralSelect.svelte'
-  import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
+  import {
+    getStimuliOptions,
+    getParticipantsGroupOptions,
+  } from '$lib/plots/shared'
   import { handleScarfSelectionChange } from '../utils/scarfSelectService'
   import { onDestroy } from 'svelte'
-  import {
-    data,
-    getParticipantsGroups,
-  } from '$lib/gaze-data/front-process/stores/dataStore'
+  import { data } from '$lib/gaze-data/front-process/stores/dataStore'
   import Minor, {
     type MinorGroupItem,
   } from '$lib/shared/components/GeneralButtonMinor.svelte'
@@ -216,10 +216,7 @@
 
   // Keep group options in sync with data store
   const unsubscribe = data.subscribe(() => {
-    groupOptions = getParticipantsGroups(true).map(group => ({
-      value: group.id.toString(),
-      label: group.name,
-    }))
+    groupOptions = getParticipantsGroupOptions()
   })
   onDestroy(() => unsubscribe())
 

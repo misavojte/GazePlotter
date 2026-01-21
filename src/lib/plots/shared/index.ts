@@ -16,7 +16,11 @@ export * from './class'
 export type * from './types'
 
 // Export shared utilities
-export * from './utils'
+export * from './selectOptionsGetters'
+export * from './plotSizeUtility'
+
+// Export legend rendering utilities
+export * from './legendRendering'
 
 // Export shared constants
 export * from './const'

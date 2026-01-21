@@ -16,7 +16,7 @@
     SCARF_LAYOUT,
     calculateScarfHeights,
   } from '$lib/plots/scarf/utils'
-  import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils'
+  import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared'
   import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
   import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'

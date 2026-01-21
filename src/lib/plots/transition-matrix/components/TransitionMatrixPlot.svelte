@@ -15,16 +15,16 @@
 
   // Utilities and stores
   import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
-  import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils'
+  import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { calculateTransitionMatrix } from '$lib/plots/transition-matrix/utils'
   import { AggregationMethod } from '$lib/plots/transition-matrix/const'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
-  import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
   import {
-    data,
-    getParticipantsGroups,
-  } from '$lib/gaze-data/front-process/stores/dataStore'
+    getStimuliOptions,
+    getParticipantsGroupOptions,
+  } from '$lib/plots/shared'
+  import { data } from '$lib/gaze-data/front-process/stores/dataStore'
 
   // Types
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
@@ -120,10 +120,7 @@
 
   // Keep group options in sync with data store
   const unsubscribe = data.subscribe(() => {
-    groupOptions = getParticipantsGroups(true).map(group => ({
-      value: group.id.toString(),
-      label: group.name,
-    }))
+    groupOptions = getParticipantsGroupOptions()
   })
   onDestroy(() => unsubscribe())
 

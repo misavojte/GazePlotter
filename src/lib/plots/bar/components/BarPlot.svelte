@@ -10,8 +10,10 @@
 
   // Utilities and stores
   import { getBarPlotData } from '$lib/plots/bar/utils/barPlotUtils'
-  import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
-  import { getParticipantsGroups } from '$lib/gaze-data/front-process/stores/dataStore'
+  import {
+    getStimuliOptions,
+    getParticipantsGroupOptions,
+  } from '$lib/plots/shared'
 
   // Types and constants
   import type { BarPlotGridType } from '$lib/workspace/type/gridType'
@@ -82,12 +84,7 @@
   let stimulusOptions =
     $state<{ label: string; value: string }[]>(getStimuliOptions())
 
-  const getGroupOptions = () => {
-    return getParticipantsGroups(true).map(group => ({
-      value: group.id.toString(),
-      label: group.name,
-    }))
-  }
+  const getGroupOptions = () => getParticipantsGroupOptions()
 
   let groupOptions =
     $state<{ label: string; value: string }[]>(getGroupOptions())

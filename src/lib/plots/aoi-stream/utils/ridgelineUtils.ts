@@ -3,11 +3,17 @@ import {
   getParticipantEndTime,
 } from '$lib/gaze-data/front-process/stores/dataStore'
 import { SCARF_LAYOUT } from '$lib/plots/scarf/utils'
-import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils/plotSizeUtility'
-import { calculateFlatLegendHeight, STREAM_LEGEND_CONFIG } from '$lib/plots/shared'
+import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared'
+import {
+  calculateFlatLegendHeight,
+  STREAM_LEGEND_CONFIG,
+} from '$lib/plots/shared'
 import { estimateTextWidth } from '$lib/shared/utils/textUtils'
 import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
-import { getAoiStreamPlotData, scanForSynchronizedTimelineMax } from '$lib/plots/aoi-stream/utils'
+import {
+  getAoiStreamPlotData,
+  scanForSynchronizedTimelineMax,
+} from '$lib/plots/aoi-stream/utils'
 import type { AoiStreamPlotResult } from '$lib/plots/aoi-stream/types'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
@@ -25,7 +31,7 @@ const RIDGELINE_OVERLAP = 0.6
 
 /**
  * Calculate the max constraint factor for a ridgeline plot.
- * This factor represents the total vertical space (in units of stripHeight) 
+ * This factor represents the total vertical space (in units of stripHeight)
  * required to fit all series without clipping.
  */
 function calculateMaxConstraintFactor(data: AoiStreamPlotResult): number {
@@ -40,7 +46,7 @@ function calculateMaxConstraintFactor(data: AoiStreamPlotResult): number {
     const series = data.series[s]
     const values = series.values
     const binCount = data.binCount
-    
+
     // Find peak value for this series (0-100)
     let maxVal = 0
     for (let i = 0; i < binCount; i++) {
@@ -53,13 +59,13 @@ function calculateMaxConstraintFactor(data: AoiStreamPlotResult): number {
     // (maxVal * 0.9) / 100         -> Dynamic height of the data itself
     const geometricOffset = (n - 1 - s) * (1 - RIDGELINE_OVERLAP)
     const dataHeight = (maxVal * 0.9) / 100
-    
+
     const totalFactor = geometricOffset + dataHeight
-    
+
     if (totalFactor > maxConstraintFactor) {
       maxConstraintFactor = totalFactor
     }
-    
+
     // console.log(`[RidgelineSync] Series ${s} (${series.label}): maxVal=${maxVal.toFixed(1)}%, geometricOffset=${geometricOffset.toFixed(2)}, dataHeight=${dataHeight.toFixed(2)}, totalFactor=${totalFactor.toFixed(2)}`)
   }
 
@@ -70,7 +76,7 @@ function calculateMaxConstraintFactor(data: AoiStreamPlotResult): number {
  * Calculate the ideal strip height for a single ridgeline plot configuration.
  * Optimizes for "zero redundancy space" by finding the maximum possible strip height
  * that fits ALL series within the plot area without clipping.
- * 
+ *
  * Considers the specific geometry of each series based on its stack order and overlap.
  */
 export function calculateIdealStripHeight(
@@ -81,7 +87,7 @@ export function calculateIdealStripHeight(
 
   const n = data.series.length
   const maxFactor = calculateMaxConstraintFactor(data)
-  
+
   // Standard minimum density (if all series were maxed out at 100%)
   const standardDenom = n - (n - 1) * RIDGELINE_OVERLAP
   const standardHeight = plotAreaHeight / standardDenom
@@ -204,7 +210,7 @@ export function scanForDynamicStripHeight(
     // Calculate max text width to match component logic exactly
     let maxTextWidth = 0
     const { fontSize, fontFamily } = STREAM_LEGEND_CONFIG
-    
+
     if (streamData.series.length > 0) {
       for (const series of streamData.series) {
         // Use the label from data
@@ -262,4 +268,3 @@ export function scanForDynamicStripHeight(
 
   return synchronizedHeight
 }
-

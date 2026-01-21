@@ -11,15 +11,15 @@
   } from '$lib/shared/components/GeneralSelect.svelte'
 
   import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
-  import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils/plotSizeUtility'
-  import { getAoiStreamPlotData } from '$lib/plots/aoi-stream/utils'
   import {
+    calculatePlotDimensionsWithHeader,
     getStimuliOptions,
-  } from '$lib/plots/shared/utils'
+    getParticipantsGroupOptions,
+  } from '$lib/plots/shared'
+  import { getAoiStreamPlotData } from '$lib/plots/aoi-stream/utils'
   import {
     getParticipants,
     getParticipantEndTime,
-    getParticipantsGroups,
   } from '$lib/gaze-data/front-process/stores/dataStore'
 
   import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
@@ -29,7 +29,7 @@
 
   import {
     scanForDynamicStripHeight,
-    scanForSynchronizedTimelineMax
+    scanForSynchronizedTimelineMax,
   } from '$lib/plots/aoi-stream/utils'
   import { grid } from '$lib/workspace/grid/store.svelte'
 
@@ -91,12 +91,7 @@
 
   // Memoized options generators (prevent unnecessary recalculations)
   const stimulusOptions = $derived(getStimuliOptions())
-  const groupOptions = $derived(
-    getParticipantsGroups(true).map(group => ({
-      value: group.id.toString(),
-      label: group.name,
-    }))
-  )
+  const groupOptions = $derived(getParticipantsGroupOptions())
 
   // Consolidated event handlers
   const handleStimulusChange = (event: CustomEvent) => {
