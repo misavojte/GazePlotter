@@ -10,9 +10,8 @@
   import { handleScarfSelectionChange } from '../utils/scarfSelectService'
   import { onDestroy } from 'svelte'
   import { data } from '$lib/gaze-data/front-process/stores/dataStore'
-  import Minor, {
-    type MinorGroupItem,
-  } from '$lib/shared/components/GeneralButtonMinor.svelte'
+  import type { MinorGroupItem } from '$lib/shared/components/GeneralButtonMinor.svelte'
+  import Minor from '$lib/shared/components/GeneralButtonMinor.svelte'
   import ZoomIn from 'lucide-svelte/icons/zoom-in'
   import ZoomOut from 'lucide-svelte/icons/zoom-out'
   import RefreshCcw from 'lucide-svelte/icons/refresh-ccw'

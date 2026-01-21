@@ -1,3 +1,14 @@
+<script module lang="ts">
+  export interface GroupSelectItem {
+    options: readonly { value: string; label: string }[]
+    label: string
+    value: string
+    disabled?: boolean
+    ariaLabel?: string
+    onchange?: (event: CustomEvent) => void
+  }
+</script>
+
 <script lang="ts">
   import ChevronDown from 'lucide-svelte/icons/chevron-down'
   import { contextMenuAction, type MenuItem } from '$lib/context-menu'
@@ -12,15 +23,6 @@
     // Group mode props (optional, mirrors GeneralButtonMinor grouping)
     items?: GroupSelectItem[]
     ariaLabel?: string
-  }
-
-  export interface GroupSelectItem {
-    options: readonly { value: string; label: string }[]
-    label: string
-    value: string
-    disabled?: boolean
-    ariaLabel?: string
-    onchange?: (event: CustomEvent) => void
   }
 
   let {

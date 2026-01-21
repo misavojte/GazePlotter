@@ -1,17 +1,5 @@
-<script lang="ts">
+<script module lang="ts">
   import type { ComponentType } from 'svelte'
-  import { tooltipAction } from '$lib/tooltip'
-
-  // Single button props (backwards compatible with slot content)
-  interface SingleProps {
-    icon?: ComponentType
-    onclick?: (event: MouseEvent) => void
-    isDisabled?: boolean
-    isIcon?: boolean
-    ariaLabel?: string
-    tooltip?: string
-    children?: import('svelte').Snippet
-  }
 
   // Group item and props
   export interface MinorGroupItem {
@@ -21,6 +9,21 @@
     ariaLabel?: string
     tooltip?: string
     isActive?: boolean
+  }
+</script>
+
+<script lang="ts">
+  import { tooltipAction } from '$lib/tooltip'
+
+  // Single button props (backwards compatible with slot content)
+  interface SingleProps {
+    icon?: import('svelte').ComponentType
+    onclick?: (event: MouseEvent) => void
+    isDisabled?: boolean
+    isIcon?: boolean
+    ariaLabel?: string
+    tooltip?: string
+    children?: import('svelte').Snippet
   }
 
   interface GroupProps {
@@ -98,9 +101,15 @@
 {#if !isGroup}
   <!-- Single minor button (backwards compatible slot or icon prop) -->
   <button
-    use:tooltipAction={{ content: tooltip ?? '', position: 'top', offset: 35, verticalAlign: 'end', disabled: !tooltip }}
+    use:tooltipAction={{
+      content: tooltip ?? '',
+      position: 'top',
+      offset: 35,
+      verticalAlign: 'end',
+      disabled: !tooltip,
+    }}
     disabled={isDisabled}
-    class:isIcon={isIcon}
+    class:isIcon
     onclick={withFeedback(onclick)}
     onpointerdown={handlePointerDown}
     onpointerup={handlePointerEnd}
@@ -117,7 +126,7 @@
   </button>
 {:else}
   <!-- Group mode: always icon-only buttons -->
-  <div class="btnGroup" class:compact={compact} role="group" aria-label={ariaLabel}>
+  <div class="btnGroup" class:compact role="group" aria-label={ariaLabel}>
     {#each itemsSafe as item, idx}
       <div
         class="itemWrap"
@@ -130,7 +139,7 @@
           position: 'top',
           offset: 35,
           verticalAlign: 'end',
-          disabled: !item.tooltip
+          disabled: !item.tooltip,
         }}
       >
         <button
@@ -170,7 +179,9 @@
     cursor: pointer;
     position: relative;
     overflow: hidden;
-    transition: background-color 120ms ease, color 120ms ease;
+    transition:
+      background-color 120ms ease,
+      color 120ms ease;
   }
   button.isIcon {
     width: 34px;
@@ -197,7 +208,9 @@
     height: 30px;
     min-width: 30px;
   }
-  .itemWrap { position: relative; }
+  .itemWrap {
+    position: relative;
+  }
   .btnGroup .itemWrap:not(.first)::before {
     content: '';
     position: absolute;
@@ -210,10 +223,18 @@
     pointer-events: none;
     z-index: 2;
   }
-  .btnGroup .itemWrap.disabled::before { opacity: 0.3; }
-  .btnGroup .itemWrap:not(.first) :global(button) { border-left: none; }
-  .btnGroup .itemWrap:not(.last) :global(button) { border-right: none; }
-  .btnGroup .itemWrap :global(button) { border-radius: 0; }
+  .btnGroup .itemWrap.disabled::before {
+    opacity: 0.3;
+  }
+  .btnGroup .itemWrap:not(.first) :global(button) {
+    border-left: none;
+  }
+  .btnGroup .itemWrap:not(.last) :global(button) {
+    border-right: none;
+  }
+  .btnGroup .itemWrap :global(button) {
+    border-radius: 0;
+  }
   .btnGroup .itemWrap.first :global(button) {
     border-top-left-radius: var(--rounded);
     border-bottom-left-radius: var(--rounded);
@@ -222,7 +243,10 @@
     border-top-right-radius: var(--rounded);
     border-bottom-right-radius: var(--rounded);
   }
-  .itemWrap.active :global(button) { color: var(--c-brand); background: #e9f2ff; }
+  .itemWrap.active :global(button) {
+    color: var(--c-brand);
+    background: #e9f2ff;
+  }
 
   /* Content scaling feedback */
   .btnContent {
