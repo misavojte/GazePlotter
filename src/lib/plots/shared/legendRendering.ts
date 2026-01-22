@@ -22,6 +22,7 @@ import {
   estimateTextWidth,
 } from '$lib/shared/utils/textUtils'
 import { alignToPixelCenter } from '$lib/shared/utils/canvasUtils'
+import { desaturateToWhite } from '$lib/shared/utils/colorUtils'
 
 // ============================================================================
 // TYPES
@@ -579,6 +580,7 @@ export function drawLegend(
         item.y + (item.rowHeight - item.height) / 2
       )
       ctx.fillRect(item.x, iconY, iconWidth, item.height)
+      ctx.fillRect(item.x, iconY, iconWidth, item.height)
     } else if (item.type === 'eventPair') {
       // Event pair icon (start and end markers side-by-side)
       // Radius ~4px to fit two 8px circles in 20px width
@@ -597,8 +599,21 @@ export function drawLegend(
       const OUTLINE_COLOR = '#333333'
       const OUTLINE_WIDTH = 1
 
+      // Determine colors based on highlighting state
+      // For events, we dehighlight by desaturating color to white (0.75) instead of using alpha
+      // effectively keeping the marker opaque but pale.
+      const isDimmed = isHighlightActive && !isHighlighted
+      const effectiveColor = isDimmed
+        ? desaturateToWhite(item.color, 0.75)
+        : item.color
+      const effectiveOutlineColor = isDimmed
+        ? desaturateToWhite(OUTLINE_COLOR, 0.75)
+        : OUTLINE_COLOR
+      const effectiveAlpha = 1.0 // Always draw opaque
+
       // 1. Start Marker (Left): Colored outer, white inner
-      ctx.fillStyle = item.color
+      ctx.globalAlpha = effectiveAlpha
+      ctx.fillStyle = effectiveColor
       ctx.beginPath()
       ctx.arc(startX, centerY, radius, 0, Math.PI * 2)
       ctx.fill()
@@ -608,13 +623,11 @@ export function drawLegend(
       ctx.arc(startX, centerY, innerRadius, 0, Math.PI * 2)
       ctx.fill()
 
-      ctx.strokeStyle = OUTLINE_COLOR
+      ctx.strokeStyle = effectiveOutlineColor
       ctx.lineWidth = OUTLINE_WIDTH
-      ctx.globalAlpha = 1 // Ensure outline is always visible/sharp
       ctx.beginPath()
       ctx.arc(startX, centerY, radius + 0.2, 0, Math.PI * 2)
       ctx.stroke()
-      ctx.globalAlpha = opacity // Restore opacity
 
       // 2. End Marker (Right): White outer, colored inner
       ctx.fillStyle = '#ffffff'
@@ -622,18 +635,16 @@ export function drawLegend(
       ctx.arc(endX, centerY, radius, 0, Math.PI * 2)
       ctx.fill()
 
-      ctx.fillStyle = item.color
+      ctx.fillStyle = effectiveColor
       ctx.beginPath()
       ctx.arc(endX, centerY, innerRadius, 0, Math.PI * 2)
       ctx.fill()
 
-      ctx.strokeStyle = OUTLINE_COLOR
+      ctx.strokeStyle = effectiveOutlineColor
       ctx.lineWidth = OUTLINE_WIDTH
-      ctx.globalAlpha = 1
       ctx.beginPath()
       ctx.arc(endX, centerY, radius + 0.2, 0, Math.PI * 2)
       ctx.stroke()
-      ctx.globalAlpha = opacity
     }
   }
 

@@ -21,6 +21,7 @@
   } from '$lib/plots/shared'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
   import { calculateTextMetrics } from '$lib/shared/utils/textUtils'
+  import { desaturateToWhite } from '$lib/shared/utils/colorUtils'
   import { getContext, onDestroy, onMount, untrack } from 'svelte'
   import { browser } from '$app/environment'
   import {
@@ -1161,7 +1162,7 @@
     // Loop unrolling: Explicitly handle both passes to avoid allocating [true, false] array
 
     // PASS 1: DIMMED (Background)
-    ctx.globalAlpha = 0.15
+    ctx.globalAlpha = 1.0 // Use full opacity, we desaturate color instead
     // Reverse order for Z-index correct stacking
     for (let styleIdx = buckets.length - 1; styleIdx >= 0; styleIdx--) {
       const buffer = buckets[styleIdx]
@@ -1176,7 +1177,8 @@
       if (!isDimmed) continue
 
       const styleSet = eventStyles[styleIdx]
-      const eventColor = styleSet.normal.stroke
+      // Desaturate the event color towards white by 75%
+      const eventColor = desaturateToWhite(styleSet.normal.stroke, 0.75)
 
       const segmentCount = buffer.length / EVENT_STRIDE
       for (let i = 0; i < segmentCount; i++) {
@@ -1207,7 +1209,7 @@
         const innerRadius = Math.max(2, radius * 0.4) // inner white hole / inner colored dot size
 
         // Outer outline is a very thin dark grey stroke (keeps visibility independent of color)
-        const OUTLINE_COLOR = '#333333'
+        const OUTLINE_COLOR = desaturateToWhite('#333333', 0.75)
         const OUTLINE_WIDTH = 1
 
         // Save previous canvas state that we'll modify
@@ -1403,7 +1405,12 @@
     const legendItem = isMouseOverLegendItem(mouseX, mouseY)
 
     // Handle legend item tooltips
-    if (legendItem !== hoveredLegendItem) {
+    // Use identifier comparison to avoid "state_proxy_equality_mismatch"
+    // Svelte 5 proxies and raw objects are not equal, so we compare unique IDs
+    const currentId = legendItem?.identifier
+    const hoveredId = hoveredLegendItem?.identifier
+
+    if (currentId !== hoveredId) {
       if (legendItem) {
         // Show tooltip with "Highlight [FULLNAMEOFAOI]" or "Dehighlight [FULLNAMEOFAOI]" text
         hoveredLegendItem = legendItem

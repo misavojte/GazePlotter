@@ -19,3 +19,4 @@
 export const IDENTIFIER_IS_AOI = 'a'
 export const IDENTIFIER_IS_OTHER_CATEGORY = 'ac'
 export const IDENTIFIER_NOT_DEFINED = 'N'
+export const IDENTIFIER_IS_EVENT = 'e'

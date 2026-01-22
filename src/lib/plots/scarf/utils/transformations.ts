@@ -31,6 +31,7 @@ import {
   IDENTIFIER_IS_AOI,
   IDENTIFIER_IS_OTHER_CATEGORY,
   IDENTIFIER_NOT_DEFINED,
+  IDENTIFIER_IS_EVENT,
 } from '$lib/plots/scarf/const/identifiers'
 import {
   MAX_AOI_PER_STIMULUS,
@@ -254,7 +255,7 @@ export function createStylingAndLegend(
   const visibilityStyling: ScarfStyleItem[] = !showAoiVisibility
     ? []
     : aoiData.map(aoi => ({
-        identifier: `${IDENTIFIER_IS_AOI}${aoi.id}`,
+        identifier: `${IDENTIFIER_IS_EVENT}${aoi.id}`,
         name: aoi.displayedName,
         color: aoi.color,
       }))
