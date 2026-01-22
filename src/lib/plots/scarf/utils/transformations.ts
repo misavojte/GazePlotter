@@ -28,12 +28,7 @@ import {
   createAdaptiveTimeline,
   type AdaptiveTimeline,
 } from '$lib/plots/shared'
-import {
-  IDENTIFIER_IS_AOI,
-  IDENTIFIER_IS_OTHER_CATEGORY,
-  IDENTIFIER_NOT_DEFINED,
-  IDENTIFIER_IS_EVENT,
-} from '$lib/plots/scarf/const/identifiers'
+import { SCARF_IDENTIFIERS } from '$lib/plots/scarf/const/identifiers'
 import {
   MAX_AOI_PER_STIMULUS,
   SEGMENT_STRIDE,
@@ -219,25 +214,25 @@ export function createStylingAndLegend(
   for (let i = 0; i < aoiData.length; i++) {
     const a = aoiData[i]
     aoi.push({
-      identifier: `${IDENTIFIER_IS_AOI}${a.id}`,
+      identifier: `${SCARF_IDENTIFIERS.AOI}${a.id}`,
       name: a.displayedName,
       color: a.color,
     })
   }
   aoi.push({
-    identifier: `${IDENTIFIER_IS_AOI}${IDENTIFIER_NOT_DEFINED}`,
+    identifier: `${SCARF_IDENTIFIERS.AOI}${SCARF_IDENTIFIERS.NOT_DEFINED}`,
     name: noAoiTreatment.displayedName,
     color: noAoiTreatment.color,
   })
 
   const category: ScarfStyleItem[] = [
     {
-      identifier: `${IDENTIFIER_IS_OTHER_CATEGORY}1`,
+      identifier: `${SCARF_IDENTIFIERS.CATEGORY}1`,
       name: 'Saccade',
       color: '#555555',
     },
     {
-      identifier: `${IDENTIFIER_IS_OTHER_CATEGORY}${IDENTIFIER_NOT_DEFINED}`,
+      identifier: `${SCARF_IDENTIFIERS.CATEGORY}${SCARF_IDENTIFIERS.NOT_DEFINED}`,
       name: 'Other',
       color: '#a6a6a6',
     },
@@ -248,7 +243,7 @@ export function createStylingAndLegend(
     for (let i = 0; i < aoiData.length; i++) {
       const a = aoiData[i]
       visibility.push({
-        identifier: `${IDENTIFIER_IS_EVENT}${a.id}`,
+        identifier: `${SCARF_IDENTIFIERS.EVENT}${a.id}`,
         name: a.displayedName,
         color: a.color,
       })

@@ -3,7 +3,7 @@ import {
   getSegment,
 } from '$lib/gaze-data/front-process/stores/dataStore'
 import { updateTooltip } from '$lib/tooltip'
-import type { ScarfTooltipFillingType } from '$lib/plots/scarf/types'
+import type { ScarfTooltipData } from '$lib/plots/scarf/types'
 
 /**
  * Service function to fill the tooltip with data.
@@ -11,9 +11,7 @@ import type { ScarfTooltipFillingType } from '$lib/plots/scarf/types'
  * @param filling data to fill the tooltip with
  * @returns void
  */
-export const tooltipScarfService = (
-  filling: ScarfTooltipFillingType | null
-) => {
+export const tooltipScarfService = (filling: ScarfTooltipData | null) => {
   if (filling === null) {
     updateTooltip(null)
     return

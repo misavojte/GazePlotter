@@ -1,6 +1,9 @@
-import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/workspace/commands'
+import type {
+  WorkspaceCommand,
+  WorkspaceCommandChain,
+} from '$lib/workspace/commands'
 import { createChildCommand } from '$lib/workspace/commands'
-import { IDENTIFIER_IS_AOI } from '$lib/plots/scarf/const/identifiers'
+import { SCARF_IDENTIFIERS } from '$lib/plots/scarf/const/identifiers'
 import { GridState } from '$lib/workspace/grid'
 import {
   getData,
@@ -42,15 +45,15 @@ type CommandHandlers = {
   [T in WorkspaceCommand['type']]: (
     command: Extract<WorkspaceCommandChain, { type: T }>,
     context: WorkspaceCommandExecutionContext
-  ) => void;
-};
+  ) => void
+}
 
 type ReverseHandlers = {
   [T in WorkspaceCommand['type']]: (
     command: Extract<WorkspaceCommandChain, { type: T }>,
     meta: CommandMeta
-  ) => WorkspaceCommandChain | null;
-};
+  ) => WorkspaceCommandChain | null
+}
 
 export type WorkspaceCommandRegistry = {
   execute: (
@@ -99,7 +102,7 @@ export function createWorkspaceCommandRegistry(
 
     const renamedAois = (command.aois || []) as AoiLike[]
     const affectedIdentifiers = new Set<string>(
-      renamedAois.map(a => `${IDENTIFIER_IS_AOI}${a.id}`)
+      renamedAois.map(a => `${SCARF_IDENTIFIERS.AOI}${a.id}`)
     )
 
     gridStore.items.forEach(item => {
@@ -136,17 +139,17 @@ export function createWorkspaceCommandRegistry(
       sanitizeScarfHighlightsAfterAoiRename(command, context)
     },
 
-    updateParticipants: (command) => {
+    updateParticipants: command => {
       updateMultipleParticipants(command.participants)
       gridStore.triggerRedraw()
     },
 
-    updateStimuli: (command) => {
+    updateStimuli: command => {
       updateMultipleStimuli(command.stimuli)
       gridStore.triggerRedraw()
     },
 
-    updateAoiVisibility: (command) => {
+    updateAoiVisibility: command => {
       const { stimulusId, aoiNames, visibilityArr, participantId } = command
       updateMultipleAoiVisibility(
         stimulusId,
@@ -157,12 +160,12 @@ export function createWorkspaceCommandRegistry(
       gridStore.triggerRedraw()
     },
 
-    updateParticipantsGroups: (command) => {
+    updateParticipantsGroups: command => {
       updateParticipantsGroups(command.groups)
       gridStore.triggerRedraw()
     },
 
-    updateNoAoiTreatment: (command) => {
+    updateNoAoiTreatment: command => {
       updateNoAoiTreatment(command.noAoiTreatment)
       gridStore.triggerRedraw()
     },
@@ -194,7 +197,7 @@ export function createWorkspaceCommandRegistry(
       }
     },
 
-    removeGridItem: (command) => {
+    removeGridItem: command => {
       gridStore.removeItem(command.itemId)
     },
 
@@ -202,8 +205,7 @@ export function createWorkspaceCommandRegistry(
       const currentItem = gridStore.items.find(
         item => item.id === command.itemId
       )
-      if (!currentItem)
-        throw new Error(`Grid item ${command.itemId} not found`)
+      if (!currentItem) throw new Error(`Grid item ${command.itemId} not found`)
 
       const createdId = gridStore.duplicateItem(
         currentItem,
@@ -214,7 +216,7 @@ export function createWorkspaceCommandRegistry(
       }
     },
 
-    setLayoutState: (command) => {
+    setLayoutState: command => {
       gridStore.setLayoutState(command.layoutState)
     },
   }
@@ -316,7 +318,10 @@ export function createWorkspaceCommandRegistry(
           const aoiData =
             currentData?.aois?.data?.[stimulusId]?.[parseInt(aoiIdStr, 10)]
           const aoiName = aoiData?.[1] || `AOI_${aoiIdStr}`
-          affectedVisibility.push({ aoiName, visibilityArr: visibilityArr as number[] })
+          affectedVisibility.push({
+            aoiName,
+            visibilityArr: visibilityArr as number[],
+          })
         }
       })
 
@@ -411,7 +416,8 @@ export function createWorkspaceCommandRegistry(
       )
     },
 
-    addGridItem: (cmd, meta) => withMeta({ type: 'removeGridItem', itemId: cmd.itemId }, meta),
+    addGridItem: (cmd, meta) =>
+      withMeta({ type: 'removeGridItem', itemId: cmd.itemId }, meta),
 
     removeGridItem: (cmd, meta) => {
       const currentItems = gridStore.items
@@ -441,10 +447,7 @@ export function createWorkspaceCommandRegistry(
         )
         return null
       }
-      return withMeta(
-        { type: 'removeGridItem', itemId: cmd.duplicateId },
-        meta
-      )
+      return withMeta({ type: 'removeGridItem', itemId: cmd.duplicateId }, meta)
     },
 
     setLayoutState: (_cmd, meta) => {
@@ -465,15 +468,15 @@ export function createWorkspaceCommandRegistry(
     context: WorkspaceCommandExecutionContext
   ) {
     // No 'any' needed. The key lookup automatically invokes the correctly narrowed function.
-    const handler = handlers[command.type] as any;
-    handler(command, context);
+    const handler = handlers[command.type] as any
+    handler(command, context)
   }
 
   function reverse(
     command: WorkspaceCommandChain
   ): WorkspaceCommandChain | null {
     try {
-      const handler = reverseHandlers[command.type];
+      const handler = reverseHandlers[command.type]
       if (!handler) {
         console.warn(`Cannot reverse command of type: ${(command as any).type}`)
         return null

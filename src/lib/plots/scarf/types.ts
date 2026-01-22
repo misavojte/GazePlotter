@@ -168,7 +168,7 @@ export interface ScarfStimulus {
  */
 export type ScarfData = {
   id: number
-  timelineType: string
+  timelineType: 'absolute' | 'relative' | 'ordinal'
   barHeight: number
   stimulusId: number
   heightOfBarWrap: number
@@ -202,15 +202,10 @@ export type ScarfData = {
   visualEventBuckets: Float32Array[]
 }
 
-// ============================================================================
-// Tooltip Types
-// ============================================================================
-
 /**
- * Data structure for scarf plot tooltips.
- * Contains positioning and identification information for tooltip display.
+ * Tooltip data for a specific point on the scarf plot.
  */
-export interface ScarfTooltipFillingType {
+export interface ScarfTooltipData {
   x: number
   y: number
   width: number

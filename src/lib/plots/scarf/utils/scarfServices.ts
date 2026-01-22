@@ -1,68 +1,42 @@
-// Core layout constants used for both transformation and rendering
-export const SCARF_CONSTANTS = {
-  HEIGHT_OF_X_AXIS: 20,
-  DEFAULT_BAR_HEIGHT: 15,
-  DEFAULT_NON_FIXATION_HEIGHT: 4,
-  DEFAULT_SPACE_ABOVE_RECT: 5,
-  DEFAULT_SPACE_ABOVE_LINE: 2,
-}
-
 /**
- * Constants for ScarfPlot layout and rendering
+ * Unified layout and rendering constants for the Scarf Plot.
  */
 export const SCARF_LAYOUT = {
-  // Core layout dimensions
-  LEFT_LABEL_MAX_WIDTH: 125, // Width for participant labels
-  AXIS_LABEL_HEIGHT: 40, // Height for the x-axis label
-  LABEL_FONT_SIZE: 12, // Font size for labels
-  MIN_CHART_HEIGHT: 50, // Minimum chart height
-  TICK_LENGTH: 5, // Length of axis ticks
-  AXIS_OFFSET: 150, // Offset for axis labels
-  GRID_COLOR: '#cbcbcb', // Color for grid lines
-  GRID_STROKE_WIDTH: 1, // Stroke width for grid lines
-
-  // Plot component dimensions
-  HEADER_HEIGHT: 150,
-  LEFT_LABEL_WIDTH: 125,
-  // Right margin: space for event markers at timeline end (max radius 7px + 1px outline)
-  // Also accounts for gridline stroke alignment (0.5px)
+  // --- Basic Dimensions ---
+  HEIGHT_OF_BAR: 15,
+  NON_FIXATION_HEIGHT: 4,
+  SPACE_ABOVE_RECT: 5,
+  HEIGHT_OF_X_AXIS: 20,
   RIGHT_MARGIN: 8,
+  HEADER_HEIGHT: 150,
 
-  // Tooltip constants
+  // --- Tooltips ---
   TOOLTIP_WIDTH: 150,
-  TOOLTIP_OFFSET_Y: 8,
   TOOLTIP_HIDE_DELAY: 200,
 
-  // Bar and height constants
-  HEIGHT_OF_BAR: SCARF_CONSTANTS.DEFAULT_BAR_HEIGHT,
-  HEIGHT_OF_LEGEND_BAR: 32,
-  SPACE_ABOVE_RECT: SCARF_CONSTANTS.DEFAULT_SPACE_ABOVE_RECT,
-  NON_FIXATION_HEIGHT: SCARF_CONSTANTS.DEFAULT_NON_FIXATION_HEIGHT,
-  HEIGHT_OF_X_AXIS: SCARF_CONSTANTS.HEIGHT_OF_X_AXIS,
+  // --- Labels and Typography ---
+  LEFT_LABEL_MAX_WIDTH: 125,
+  AXIS_LABEL_HEIGHT: 40,
+  LABEL_FONT_SIZE: 12,
+  TICK_LENGTH: 5,
 
-  // Legend constants
-  LEGEND_ITEM_WIDTH: 100,
-  LEGEND_ITEM_HEIGHT: 15,
+  // --- Styling ---
+  GRID_COLOR: '#cbcbcb',
+  GRID_STROKE_WIDTH: 1,
+
+  // --- Legend Configuration ---
   LEGEND_ITEMS_PER_ROW: 3,
   LEGEND_TITLE_HEIGHT: 18,
   LEGEND_ITEM_PADDING: 8,
   LEGEND_GROUP_SPACING: 10,
-  LEGEND_GROUP_TITLE_SPACING: 5,
-  LEGEND_ICON_WIDTH: 20,
-  LEGEND_TEXT_PADDING: 8,
   LEGEND_ITEM_SPACING: 15,
-  LEGEND_FONT_SIZE: 12,
-  LEGEND_BG_HOVER_COLOR: 'rgba(0, 0, 0, 0.05)',
-  LEGEND_RECT_HIGHLIGHT_STROKE: '#333333',
-  LEGEND_RECT_HIGHLIGHT_STROKE_WIDTH: 1,
-  LEGEND_LINE_HIGHLIGHT_STROKE_WIDTH: 3,
 
-  // Scaling constraints for dynamic sizing
-  MAX_BAR_SCALE: 2.0, // Max scale-up factor (200% of default)
-  MIN_BAR_HEIGHT: 1, // Minimum bar height in pixels (compact mode)
-  MIN_PLOT_HEIGHT_COMPACT: 100, // Minimum height for the participant plot area in compact mode
-  COMPACT_MODE_THRESHOLD: 7, // Below this bar height, switch to compact mode
-}
+  // --- Dynamic Scaling & Compact Mode ---
+  MAX_BAR_SCALE: 2.0,
+  MIN_BAR_HEIGHT: 1,
+  MIN_PLOT_HEIGHT_COMPACT: 100,
+  COMPACT_MODE_THRESHOLD: 7, // Switch to compact below this height
+} as const
 
 /**
  * Helper function determining whether dynamic AOI is displayed in the current context.
