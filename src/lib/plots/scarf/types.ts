@@ -195,8 +195,8 @@ export type ScarfData = {
    * Rectangle buffer layout per style (RECT_STRIDE = 8):
    * [x, y, width, height, participantId, segmentId, orderId, reserved0]
    *
-  * Event buffer layout per style (EVENT_STRIDE = 5):
-  * [xNormalized, pIndex, eventType, participantId, reserved0]
+   * Event buffer layout per style (EVENT_STRIDE = 5):
+   * [xNormalized, pIndex, eventType, participantId, reserved0]
    */
   visualRectBuckets: Float32Array[]
   visualEventBuckets: Float32Array[]

@@ -36,13 +36,27 @@ test('Absolute: single interval produces start and end events', () => {
 })
 
 test('Open-ended interval produces start-only event', () => {
-  const events = convertVisibilityIntervalsToEvents([1000], true, 6000, 0, 6000, 6000)
+  const events = convertVisibilityIntervalsToEvents(
+    [1000],
+    true,
+    6000,
+    0,
+    6000,
+    6000
+  )
   expect(events.length).toBe(1)
   expect(events[0].type).toBe(0)
   expect(events[0].x).toBeCloseTo(1000 / 6000)
 })
 
 test('Intervals outside range are ignored (absolute)', () => {
-  const events = convertVisibilityIntervalsToEvents([7000, 8000], false, 0, 0, 6000, 6000)
+  const events = convertVisibilityIntervalsToEvents(
+    [7000, 8000],
+    false,
+    0,
+    0,
+    6000,
+    6000
+  )
   expect(events.length).toBe(0)
 })

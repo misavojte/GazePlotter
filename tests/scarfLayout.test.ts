@@ -8,5 +8,7 @@ test('participant bar height is independent of visibility rows', () => {
   const withVis = getScarfParticipantBarHeight(aoiCount, true)
 
   expect(without).toBe(withVis)
-  expect(without).toBe(SCARF_LAYOUT.HEIGHT_OF_BAR + SCARF_LAYOUT.SPACE_ABOVE_RECT * 2)
+  expect(without).toBe(
+    SCARF_LAYOUT.HEIGHT_OF_BAR + SCARF_LAYOUT.SPACE_ABOVE_RECT * 2
+  )
 })

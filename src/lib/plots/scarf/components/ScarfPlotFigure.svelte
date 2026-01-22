@@ -904,8 +904,10 @@
           // Center marker vertically on participant bar (layout.heightOfBar already accounts for shrink)
           const internalY = layout.spaceAboveRect + layout.heightOfBar / 2
 
-          const pxX = LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
-          const pxY = pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
+          const pxX =
+            LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
+          const pxY =
+            pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
 
           // Size and radii for the circular markers (slightly reduced for a refined look)
           const size = Math.max(7, Math.min(20, layout.heightOfBar * 0.8))
