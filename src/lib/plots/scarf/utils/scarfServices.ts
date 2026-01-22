@@ -38,9 +38,6 @@ export const SCARF_LAYOUT = {
   HEIGHT_OF_BAR: SCARF_CONSTANTS.DEFAULT_BAR_HEIGHT,
   HEIGHT_OF_LEGEND_BAR: 32,
   SPACE_ABOVE_RECT: SCARF_CONSTANTS.DEFAULT_SPACE_ABOVE_RECT,
-  SPACE_ABOVE_LINE: 1, // 1px space between visibility lines
-  VISIBILITY_LINE_WIDTH: 1, // Thin 1px lines
-  LINE_WRAPPED_HEIGHT: 2, // VISIBILITY_LINE_WIDTH (1) + SPACE_ABOVE_LINE (1)
   NON_FIXATION_HEIGHT: SCARF_CONSTANTS.DEFAULT_NON_FIXATION_HEIGHT,
   HEIGHT_OF_X_AXIS: SCARF_CONSTANTS.HEIGHT_OF_X_AXIS,
 
@@ -60,23 +57,6 @@ export const SCARF_LAYOUT = {
   LEGEND_RECT_HIGHLIGHT_STROKE: '#333333',
   LEGEND_RECT_HIGHLIGHT_STROKE_WIDTH: 1,
   LEGEND_LINE_HIGHLIGHT_STROKE_WIDTH: 3,
-}
-
-/**
- * Re-exports getScarfParticipantBarHeight
- */
-export const getScarfParticipantBarHeight = (
-  aoiCount: number,
-  showAoiVisibility: boolean
-): number => {
-  const { HEIGHT_OF_BAR, SPACE_ABOVE_RECT, LINE_WRAPPED_HEIGHT } = SCARF_LAYOUT
-  const rectWrappedHeight = HEIGHT_OF_BAR + SPACE_ABOVE_RECT * 2
-
-  if (!showAoiVisibility) {
-    return rectWrappedHeight
-  }
-
-  return rectWrappedHeight + aoiCount * LINE_WRAPPED_HEIGHT
 }
 
 /**

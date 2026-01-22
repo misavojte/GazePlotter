@@ -43,7 +43,7 @@ import { SCARF_LAYOUT } from '$lib/plots/scarf/utils/scarfServices'
 const RECT_STRIDE = 8
 const EVENT_STRIDE = 5
 
-class Float32GrowBuffer {
+export class Float32GrowBuffer {
   private buffer: Float32Array
   private writeIndex: number
 
@@ -115,7 +115,7 @@ class Float32GrowBuffer {
   }
 
   finalize(): Float32Array {
-    return this.buffer.slice(0, this.writeIndex)
+    return this.buffer.subarray(0, this.writeIndex)
   }
 }
 
@@ -327,21 +327,26 @@ export function createScarfLegendData(styling: ScarfStyling): ScarfLegendData {
 }
 
 /**
- * Convert visibility interval toggle array into normalized start/end events.
- * Returns an array of objects { x: number, type: 0|1 } where type 0 = START, 1 = END.
+ * Directly appends visibility events to the provided buffer builder.
+ * Avoids any intermediate object or array allocation.
  */
-export function convertVisibilityIntervalsToEvents(
+export function appendVisibilityEventsToBuffer(
+  builder: Float32GrowBuffer,
   visibility: number[],
   isRelative: boolean,
   sessionDuration: number,
   minValue: number,
   maxValue: number,
-  visibleRange: number
-): Array<{ x: number; type: 0 | 1 }> {
-  const out: Array<{ x: number; type: 0 | 1 }> = []
-  if (!visibility || visibility.length === 0) return out
+  visibleRange: number,
+  pIndex: number,
+  participantId: number,
+  internalY: number
+): void {
+  if (!visibility || visibility.length === 0) return
 
-  for (let i = 0; i < visibility.length; i += 2) {
+  const len = visibility.length
+  // Process pairs (start, end)
+  for (let i = 0; i < len; i += 2) {
     const s = visibility[i]
     const e = visibility[i + 1]
 
@@ -350,20 +355,20 @@ export function convertVisibilityIntervalsToEvents(
       const x1 = Math.max(0, s / safeDur)
       if (e === undefined || e === null) {
         // Open-ended interval - emit start-only
-        out.push({ x: x1, type: 0 })
+        builder.pushEvent(x1, pIndex, 0, participantId, internalY)
         continue
       }
       const x2 = Math.min(1, e / safeDur)
       if (x2 > x1) {
-        out.push({ x: x1, type: 0 })
-        out.push({ x: x2, type: 1 })
+        builder.pushEvent(x1, pIndex, 0, participantId, internalY)
+        builder.pushEvent(x2, pIndex, 1, participantId, internalY)
       }
     } else {
       if (e === undefined || e === null) {
         // Open-ended interval - emit start-only if in range
         if (s >= minValue && s < maxValue) {
           const x1 = (Math.max(minValue, s) - minValue) / visibleRange
-          out.push({ x: x1, type: 0 })
+          builder.pushEvent(x1, pIndex, 0, participantId, internalY)
         }
         continue
       }
@@ -371,13 +376,11 @@ export function convertVisibilityIntervalsToEvents(
       const x1 = (Math.max(minValue, s) - minValue) / visibleRange
       const x2 = (Math.min(maxValue, e) - minValue) / visibleRange
       if (x2 > x1) {
-        out.push({ x: x1, type: 0 })
-        out.push({ x: x2, type: 1 })
+        builder.pushEvent(x1, pIndex, 0, participantId, internalY)
+        builder.pushEvent(x2, pIndex, 1, participantId, internalY)
       }
     }
   }
-
-  return out
 }
 
 /**
@@ -393,7 +396,6 @@ export function transformDataToScarfPlot(
     HEIGHT_OF_BAR,
     NON_FIXATION_HEIGHT,
     SPACE_ABOVE_RECT,
-    LINE_WRAPPED_HEIGHT,
     HEIGHT_OF_X_AXIS,
   } = SCARF_LAYOUT
 
@@ -570,24 +572,18 @@ export function transformDataToScarfPlot(
         const internalY = SPACE_ABOVE_RECT + (HEIGHT_OF_BAR >> 1)
         const styleIdx = visibilityBaseStyleIdx + aoiIdx
 
-        const events = convertVisibilityIntervalsToEvents(
+        appendVisibilityEventsToBuffer(
+          eventBucketBuilders[styleIdx],
           visibility,
           isRelative,
           sessionDuration,
           minValue,
           maxValue,
-          visibleRange
+          visibleRange,
+          pIndex,
+          participantId,
+          internalY
         )
-
-        for (const ev of events) {
-          eventBucketBuilders[styleIdx].pushEvent(
-            ev.x,
-            pIndex,
-            ev.type,
-            participantId,
-            internalY
-          )
-        }
       }
     }
 

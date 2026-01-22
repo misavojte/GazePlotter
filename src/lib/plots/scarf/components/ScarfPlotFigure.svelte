@@ -90,14 +90,17 @@
     marginLeft = 0,
   }: Props = $props()
 
+  // Extract participant labels first - this isolates the dependency
+  // so LEFT_LABEL_WIDTH doesn't recalculate when other data properties change
+  const participantLabels = $derived(data.participants.map(p => p.label))
+
   // Calculate left label width based on participant names and font size
   const LEFT_LABEL_WIDTH = $derived.by(() => {
-    const labels = data.participants.map(p => p.label)
+    const labels = participantLabels
     if (labels.length === 0) return 0
-
-    const metrics = calculateTextMetrics(labels, SCARF_LAYOUT.LABEL_FONT_SIZE)
     // Use the max width found, but cap it to avoid breaking the layout with very long names
     // Also ensure a minimum width for visual consistency
+    const metrics = calculateTextMetrics(labels, SCARF_LAYOUT.LABEL_FONT_SIZE)
     return Math.min(
       SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH,
       Math.max(40, metrics.maxWidth + 15)
@@ -155,7 +158,6 @@
     const defaultBH = SCARF_LAYOUT.HEIGHT_OF_BAR // 15
     const defaultSAR = SCARF_LAYOUT.SPACE_ABOVE_RECT // 5
     const defaultNFH = SCARF_LAYOUT.NON_FIXATION_HEIGHT // 4
-    const defaultLWH = SCARF_LAYOUT.LINE_WRAPPED_HEIGHT // 6
     const defaultWrap = data.heightOfBarWrap
 
     if (participantCount === 0) {
@@ -164,7 +166,6 @@
         spaceAboveRect: defaultSAR,
         nonFixationHeight: defaultNFH,
         heightOfBarWrap: defaultWrap,
-        lineWrappedHeight: defaultLWH,
         isShrunk: false,
       }
     }
@@ -183,7 +184,6 @@
         spaceAboveRect: defaultSAR,
         nonFixationHeight: defaultNFH,
         heightOfBarWrap: defaultWrap,
-        lineWrappedHeight: defaultLWH,
         isShrunk: false,
       }
     }
@@ -216,7 +216,6 @@
       spaceAboveRect: currentSAR,
       nonFixationHeight: defaultNFH,
       heightOfBarWrap: targetHeightOfBarWrap,
-      lineWrappedHeight: defaultLWH,
       isShrunk: true,
     }
   })
@@ -278,7 +277,7 @@
         case 'visibility':
           return {
             type: 'line' as const,
-            height: SCARF_LAYOUT.VISIBILITY_LINE_WIDTH,
+            height: 2,
           }
         default:
           return { type: 'rect' as const, height: layout.heightOfBar }
@@ -449,6 +448,32 @@
     return map
   })
 
+  // These MUST be declared before any derived values that use them
+  const visualRectBuckets = $derived(data.visualRectBuckets)
+  const visualEventBuckets = $derived(data.visualEventBuckets)
+
+  // Optimize lookups: Convert Map to dense Array for O(1) access during render
+  const rectStyleArray = $derived.by(() => {
+    const buckets = visualRectBuckets
+    const styles = new Array(buckets.length)
+    const { indexToId } = identifierSystem
+    const map = rectStyleMap
+
+    // Default fallback style
+    const fallback = { normal: { fill: '#ccc' } }
+
+    for (let i = 0; i < buckets.length; i++) {
+      const id = indexToId.get(i)
+      // If no ID or style, use fallback
+      if (id !== undefined) {
+        styles[i] = map.get(id) ?? fallback
+      } else {
+        styles[i] = fallback
+      }
+    }
+    return styles
+  })
+
   const eventStyleMap = $derived.by(() => {
     if (!data.stylingAndLegend) return new Map()
 
@@ -456,8 +481,8 @@
     const visibility = data.stylingAndLegend.visibility
     const len = visibility.length
 
-    // Visibility events use VISIBILITY_LINE_WIDTH for strokeWidth (used as size reference)
-    const strokeWidth = SCARF_LAYOUT.VISIBILITY_LINE_WIDTH
+    // Visibility events use fixed stroke width
+    const strokeWidth = 1
 
     // Pre-compute all event styles (visibility) with dimmed state
     for (let i = 0; i < len; i++) {
@@ -478,8 +503,184 @@
     return map
   })
 
-  const visualRectBuckets = $derived(data.visualRectBuckets)
-  const visualEventBuckets = $derived(data.visualEventBuckets)
+  // Optimize lookups: Convert Map to dense Array for O(1) access during render
+  const eventStyleArray = $derived.by(() => {
+    const buckets = visualEventBuckets
+    const styles = new Array(buckets.length)
+    const { indexToId } = identifierSystem
+    const map = eventStyleMap
+
+    // Default fallback style
+    const fallback = { normal: { stroke: '#ccc', strokeWidth: 1 } }
+
+    for (let i = 0; i < buckets.length; i++) {
+      const id = indexToId.get(i)
+      if (id !== undefined) {
+        styles[i] = map.get(id) ?? fallback
+      } else {
+        styles[i] = fallback
+      }
+    }
+    return styles
+  })
+
+  // Calculate layout overrides for overlapping events
+  // IMPORTANT: This computation is expensive. We minimize reactive dependencies
+  // by using source data values directly and computing in normalized space.
+  const eventLayoutOverrides = $derived.by(() => {
+    const buckets = visualEventBuckets
+    if (buckets.length === 0) return new Map<number, number>()
+
+    const EVENT_STRIDE = 5
+    // Use source data dimensions to avoid layout reactivity churn
+    const barHeight = data.barHeight
+    const barWrapHeight = data.heightOfBarWrap
+
+    // Size logic matches drawEvents: smaller of 20px or 80% of bar height, min 7px
+    const size = Math.max(7, Math.min(20, barHeight * 0.8))
+    // Overlap threshold in NORMALIZED space (we'll convert to normalized distance)
+    // Assume typical plot width of ~1000px for threshold calculation
+    const normalizedThreshold = (size * 0.25) / 1000
+
+    // PACKING CONSTANT for Map keys
+    const KEY_MULTIPLIER = 1000000
+
+    // 1. Count total events to allocate TypedArrays
+    let totalEvents = 0
+    for (let i = 0; i < buckets.length; i++) {
+      totalEvents += buckets[i].length / EVENT_STRIDE
+    }
+
+    if (totalEvents === 0) return new Map<number, number>()
+
+    // 2. Allocate data structures
+    const indices = new Int32Array(totalEvents)
+    const xPos = new Float32Array(totalEvents)
+    const pIds = new Int16Array(totalEvents)
+    const styleIds = new Int16Array(totalEvents)
+    const eventIndices = new Int32Array(totalEvents)
+
+    // 3. Fill arrays
+    let ptr = 0
+    for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
+      const buffer = buckets[styleIdx]
+      const count = buffer.length / EVENT_STRIDE
+
+      for (let i = 0; i < count; i++) {
+        const idx = i * EVENT_STRIDE
+        const xNormalized = buffer[idx]
+        const pIndex = buffer[idx + 1]
+
+        indices[ptr] = ptr
+        // Store normalized X position (not pixels) to avoid plotAreaWidth dependency
+        xPos[ptr] = xNormalized
+        pIds[ptr] = pIndex
+        styleIds[ptr] = styleIdx
+        // Using i (index within bucket) directly
+        eventIndices[ptr] = i
+        ptr++
+      }
+    }
+
+    // 4. Sort indices: primarily by Participant (pId), secondarily by X Position
+    // We use the indices array to avoid moving large data around
+    indices.sort((a, b) => {
+      // First sort by participant
+      const pDiff = pIds[a] - pIds[b]
+      if (pDiff !== 0) return pDiff
+
+      // Then by X position
+      return xPos[a] - xPos[b]
+    })
+
+    const overrides = new Map<number, number>()
+
+    // 5. Cluster detection and resolution
+    // Iterate through the sorted indices
+    let clusterStart = 0
+
+    // Limits - use barWrapHeight from source data, not reactive layout
+    const availableH = barWrapHeight
+    const radius = size / 2
+    const margin = radius + 2
+    const minY = margin
+    const maxY = availableH - margin
+    const rangeY = maxY - minY
+
+    // Temp array for sorting cluster items by style (z-index logic)
+    // Reused to avoid allocation
+    const clusterIndices = []
+
+    for (let i = 0; i < totalEvents; i++) {
+      const currIdx = indices[i]
+      const nextIdx = i < totalEvents - 1 ? indices[i + 1] : -1
+
+      // Check if we should break the cluster
+      let breakCluster = false
+
+      if (nextIdx === -1) {
+        breakCluster = true
+      } else {
+        // Break if different participant
+        if (pIds[currIdx] !== pIds[nextIdx]) {
+          breakCluster = true
+        } else {
+          // Break if gap is large enough
+          // xPos is normalized, compare with normalized threshold
+          const gap = xPos[nextIdx] - xPos[currIdx]
+          if (gap >= normalizedThreshold) {
+            breakCluster = true
+          }
+        }
+      }
+
+      if (breakCluster) {
+        const clusterLen = i - clusterStart + 1
+
+        if (clusterLen > 1) {
+          // We have a collision cluster. Resolve it.
+
+          // Collect indices for this cluster
+          clusterIndices.length = 0
+          for (let k = clusterStart; k <= i; k++) {
+            clusterIndices.push(indices[k])
+          }
+
+          // Sort by styleIdx to ensure correct stacking order
+          // "the one which is first in the AOI order index must be on top"
+          // Lower styleIdx = earlier in AOI order
+          clusterIndices.sort((a, b) => styleIds[a] - styleIds[b])
+
+          if (minY < maxY) {
+            const step = rangeY / Math.max(1, clusterLen - 1)
+
+            for (let k = 0; k < clusterLen; k++) {
+              const originalIdx = clusterIndices[k]
+              const key =
+                styleIds[originalIdx] * KEY_MULTIPLIER +
+                eventIndices[originalIdx]
+              const internalY = minY + step * k
+              overrides.set(key, internalY)
+            }
+          } else {
+            // Fallback centering
+            const center = availableH / 2
+            for (let k = 0; k < clusterLen; k++) {
+              const originalIdx = clusterIndices[k]
+              const key =
+                styleIds[originalIdx] * KEY_MULTIPLIER +
+                eventIndices[originalIdx]
+              overrides.set(key, center)
+            }
+          }
+        }
+
+        clusterStart = i + 1
+      }
+    }
+
+    return overrides
+  })
 
   // Interaction handlers
   function handleLegendIdentifier(identifier: string) {
@@ -731,8 +932,7 @@
     const highlightMask = highlightMaskByIndex
 
     // Local references for fast access
-    const rectStyles = rectStyleMap
-    const { indexToId } = identifierSystem
+    const rectStyles = rectStyleArray
 
     // Draw normal elements using path batching
     ctx.globalAlpha = 1.0
@@ -748,10 +948,7 @@
 
       if (isDimmed) continue // Skip dimmed in this pass
 
-      const identifier = indexToId.get(styleIdx) ?? ''
-      const styleSet = rectStyles.get(identifier) ?? {
-        normal: { fill: '#ccc' },
-      }
+      const styleSet = rectStyles[styleIdx]
 
       ctx.fillStyle = styleSet.normal.fill
       ctx.beginPath() // Start a massive path
@@ -808,10 +1005,7 @@
 
       if (!isDimmed) continue // Skip normal in this pass
 
-      const identifier = indexToId.get(styleIdx) ?? ''
-      const styleSet = rectStyles.get(identifier) ?? {
-        normal: { fill: '#ccc' },
-      }
+      const styleSet = rectStyles[styleIdx]
 
       ctx.fillStyle = styleSet.normal.fill
       ctx.beginPath() // Start a massive path
@@ -868,114 +1062,220 @@
     const highlightMask = highlightMaskByIndex
 
     // Local references for fast access
-    const eventStyles = eventStyleMap
-    const { indexToId } = identifierSystem
+    const eventStyles = eventStyleArray
 
-    // Draw elements in two passes: first normal, then dimmed
-    for (const isDimmedPass of [false, true]) {
-      ctx.globalAlpha = isDimmedPass ? 0.15 : 1.0
+    // Loop unrolling: Explicitly handle both passes to avoid allocating [true, false] array
 
-      for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
-        const buffer = buckets[styleIdx]
-        if (buffer.length === 0) continue
+    // PASS 1: DIMMED (Background)
+    ctx.globalAlpha = 0.15
+    // Reverse order for Z-index correct stacking
+    for (let styleIdx = buckets.length - 1; styleIdx >= 0; styleIdx--) {
+      const buffer = buckets[styleIdx]
+      if (buffer.length === 0) continue
 
-        const isDimmed =
-          isHighlightActive && highlightMask
-            ? highlightMask[styleIdx] !== 1
-            : false
+      const isDimmed =
+        isHighlightActive && highlightMask
+          ? highlightMask[styleIdx] !== 1
+          : false
 
-        if (isDimmedPass !== isDimmed) continue // Skip if not in current pass
+      // Only process if this IS a dimmed item
+      if (!isDimmed) continue
 
-        const identifier = indexToId.get(styleIdx) ?? ''
-        const styleSet = eventStyles.get(identifier) ?? {
-          normal: { stroke: '#ccc', strokeWidth: 1 },
+      const styleSet = eventStyles[styleIdx]
+      const eventColor = styleSet.normal.stroke
+
+      const segmentCount = buffer.length / EVENT_STRIDE
+      for (let i = 0; i < segmentCount; i++) {
+        const idx = i * EVENT_STRIDE
+        const xNormalized = buffer[idx]
+        const pIndex = buffer[idx + 1]
+        const eventType = buffer[idx + 2] | 0
+
+        // Determine vertical position: check for override from collision detection, otherwise use default center
+        // Key matches the PACKING CONSTANT in eventLayoutOverrides (styleIdx * 1000000 + i)
+        const overrideKey = styleIdx * 1000000 + i
+        const overrideY = eventLayoutOverrides.get(overrideKey)
+        const internalY =
+          overrideY !== undefined
+            ? overrideY
+            : layout.spaceAboveRect + layout.heightOfBar / 2
+
+        const pxX = LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
+        const pxY =
+          pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
+
+        // Size and radii for the circular markers (slightly reduced for a refined look)
+        const size = Math.max(7, Math.min(20, layout.heightOfBar * 0.8))
+        const radius = size / 2
+        const innerRadius = Math.max(2, radius * 0.4) // inner white hole / inner colored dot size
+
+        // Outer outline is a very thin dark grey stroke (keeps visibility independent of color)
+        const OUTLINE_COLOR = '#333333'
+        const OUTLINE_WIDTH = 1
+
+        // Save previous canvas state that we'll modify
+        const prevAlpha = ctx.globalAlpha
+        const prevFill = ctx.fillStyle
+        const prevStroke = ctx.strokeStyle
+        const prevLineWidth = ctx.lineWidth
+
+        if (eventType === 0) {
+          // START event: colored outer circle with a white inner dot (ring-like appearance)
+          // Outer colored circle
+          ctx.beginPath()
+          ctx.fillStyle = eventColor
+          ctx.arc(pxX, pxY, radius, 0, Math.PI * 2)
+          ctx.fill()
+
+          // Inner white hole/dot
+          ctx.beginPath()
+          ctx.fillStyle = '#ffffff'
+          ctx.arc(pxX, pxY, innerRadius, 0, Math.PI * 2)
+          ctx.fill()
+
+          // Thin dark outline around the outer circle (drawn with full opacity to keep it visible)
+          ctx.beginPath()
+          ctx.lineWidth = OUTLINE_WIDTH
+          ctx.lineJoin = 'miter'
+          ctx.globalAlpha = 1
+          ctx.strokeStyle = OUTLINE_COLOR
+          ctx.arc(pxX, pxY, radius + 0.2, 0, Math.PI * 2)
+          ctx.stroke()
+        } else {
+          // END event: white outer circle with a colored inner dot
+          // Outer white circle
+          ctx.beginPath()
+          ctx.fillStyle = '#ffffff'
+          ctx.arc(pxX, pxY, radius, 0, Math.PI * 2)
+          ctx.fill()
+
+          // Inner colored dot
+          ctx.beginPath()
+          ctx.fillStyle = eventColor
+          ctx.arc(pxX, pxY, innerRadius, 0, Math.PI * 2)
+          ctx.fill()
+
+          // Thin dark outline around the outer circle (drawn with full opacity to keep it visible)
+          ctx.beginPath()
+          ctx.lineWidth = OUTLINE_WIDTH
+          ctx.lineJoin = 'miter'
+          ctx.globalAlpha = 1
+          ctx.strokeStyle = OUTLINE_COLOR
+          ctx.arc(pxX, pxY, radius + 0.2, 0, Math.PI * 2)
+          ctx.stroke()
         }
 
-        // Use the configured style color as the event color
-        const eventColor = styleSet.normal.stroke
+        // Restore previous canvas drawing state
+        ctx.globalAlpha = prevAlpha
+        ctx.fillStyle = prevFill
+        ctx.strokeStyle = prevStroke
+        ctx.lineWidth = prevLineWidth
+      }
+    }
 
-        const segmentCount = buffer.length / EVENT_STRIDE
-        for (let i = 0; i < segmentCount; i++) {
-          const idx = i * EVENT_STRIDE
-          const xNormalized = buffer[idx]
-          const pIndex = buffer[idx + 1]
-          const eventType = buffer[idx + 2] | 0
+    // PASS 2: NORMAL (Foreground)
+    ctx.globalAlpha = 1.0
+    for (let styleIdx = buckets.length - 1; styleIdx >= 0; styleIdx--) {
+      const buffer = buckets[styleIdx]
+      if (buffer.length === 0) continue
 
-          // Center marker vertically on participant bar (layout.heightOfBar already accounts for shrink)
-          const internalY = layout.spaceAboveRect + layout.heightOfBar / 2
+      const isDimmed =
+        isHighlightActive && highlightMask
+          ? highlightMask[styleIdx] !== 1
+          : false
 
-          const pxX =
-            LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
-          const pxY =
-            pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
+      // Only process if this is NOT a dimmed item (i.e. it is Normal)
+      if (isDimmed) continue
 
-          // Size and radii for the circular markers (slightly reduced for a refined look)
-          const size = Math.max(7, Math.min(20, layout.heightOfBar * 0.8))
-          const radius = size / 2
-          const innerRadius = Math.max(2, radius * 0.4) // inner white hole / inner colored dot size
+      const styleSet = eventStyles[styleIdx]
+      const eventColor = styleSet.normal.stroke
 
-          // Outer outline is a very thin dark grey stroke (keeps visibility independent of color)
-          const OUTLINE_COLOR = '#333333'
-          const OUTLINE_WIDTH = 1
+      const segmentCount = buffer.length / EVENT_STRIDE
+      for (let i = 0; i < segmentCount; i++) {
+        const idx = i * EVENT_STRIDE
+        const xNormalized = buffer[idx]
+        const pIndex = buffer[idx + 1]
+        const eventType = buffer[idx + 2] | 0
 
-          // Save previous canvas state that we'll modify
-          const prevAlpha = ctx.globalAlpha
-          const prevFill = ctx.fillStyle
-          const prevStroke = ctx.strokeStyle
-          const prevLineWidth = ctx.lineWidth
+        // Determine vertical position: check for override from collision detection, otherwise use default center
+        // Key matches the PACKING CONSTANT in eventLayoutOverrides (styleIdx * 1000000 + i)
+        const overrideKey = styleIdx * 1000000 + i
+        const overrideY = eventLayoutOverrides.get(overrideKey)
+        const internalY =
+          overrideY !== undefined
+            ? overrideY
+            : layout.spaceAboveRect + layout.heightOfBar / 2
 
-          if (eventType === 0) {
-            // START event: colored outer circle with a white inner dot (ring-like appearance)
-            // Outer colored circle
-            ctx.beginPath()
-            ctx.fillStyle = eventColor
-            ctx.arc(pxX, pxY, radius, 0, Math.PI * 2)
-            ctx.fill()
+        const pxX = LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
+        const pxY =
+          pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
 
-            // Inner white hole/dot
-            ctx.beginPath()
-            ctx.fillStyle = '#ffffff'
-            ctx.arc(pxX, pxY, innerRadius, 0, Math.PI * 2)
-            ctx.fill()
+        // Size and radii for the circular markers (slightly reduced for a refined look)
+        const size = Math.max(7, Math.min(20, layout.heightOfBar * 0.8))
+        const radius = size / 2
+        const innerRadius = Math.max(2, radius * 0.4) // inner white hole / inner colored dot size
 
-            // Thin dark outline around the outer circle (drawn with full opacity to keep it visible)
-            ctx.beginPath()
-            ctx.lineWidth = OUTLINE_WIDTH
-            ctx.lineJoin = 'miter'
-            ctx.globalAlpha = 1
-            ctx.strokeStyle = OUTLINE_COLOR
-            ctx.arc(pxX, pxY, radius + 0.2, 0, Math.PI * 2)
-            ctx.stroke()
-          } else {
-            // END event: white outer circle with a colored inner dot
-            // Outer white circle
-            ctx.beginPath()
-            ctx.fillStyle = '#ffffff'
-            ctx.arc(pxX, pxY, radius, 0, Math.PI * 2)
-            ctx.fill()
+        // Outer outline is a very thin dark grey stroke (keeps visibility independent of color)
+        const OUTLINE_COLOR = '#333333'
+        const OUTLINE_WIDTH = 1
 
-            // Inner colored dot
-            ctx.beginPath()
-            ctx.fillStyle = eventColor
-            ctx.arc(pxX, pxY, innerRadius, 0, Math.PI * 2)
-            ctx.fill()
+        // Save previous canvas state that we'll modify
+        const prevAlpha = ctx.globalAlpha
+        const prevFill = ctx.fillStyle
+        const prevStroke = ctx.strokeStyle
+        const prevLineWidth = ctx.lineWidth
 
-            // Thin dark outline around the outer circle (drawn with full opacity to keep it visible)
-            ctx.beginPath()
-            ctx.lineWidth = OUTLINE_WIDTH
-            ctx.lineJoin = 'miter'
-            ctx.globalAlpha = 1
-            ctx.strokeStyle = OUTLINE_COLOR
-            ctx.arc(pxX, pxY, radius + 0.2, 0, Math.PI * 2)
-            ctx.stroke()
-          }
+        if (eventType === 0) {
+          // START event: colored outer circle with a white inner dot (ring-like appearance)
+          // Outer colored circle
+          ctx.beginPath()
+          ctx.fillStyle = eventColor
+          ctx.arc(pxX, pxY, radius, 0, Math.PI * 2)
+          ctx.fill()
 
-          // Restore previous canvas drawing state
-          ctx.globalAlpha = prevAlpha
-          ctx.fillStyle = prevFill
-          ctx.strokeStyle = prevStroke
-          ctx.lineWidth = prevLineWidth
+          // Inner white hole/dot
+          ctx.beginPath()
+          ctx.fillStyle = '#ffffff'
+          ctx.arc(pxX, pxY, innerRadius, 0, Math.PI * 2)
+          ctx.fill()
+
+          // Thin dark outline around the outer circle (drawn with full opacity to keep it visible)
+          ctx.beginPath()
+          ctx.lineWidth = OUTLINE_WIDTH
+          ctx.lineJoin = 'miter'
+          ctx.globalAlpha = 1
+          ctx.strokeStyle = OUTLINE_COLOR
+          ctx.arc(pxX, pxY, radius + 0.2, 0, Math.PI * 2)
+          ctx.stroke()
+        } else {
+          // END event: white outer circle with a colored inner dot
+          // Outer white circle
+          ctx.beginPath()
+          ctx.fillStyle = '#ffffff'
+          ctx.arc(pxX, pxY, radius, 0, Math.PI * 2)
+          ctx.fill()
+
+          // Inner colored dot
+          ctx.beginPath()
+          ctx.fillStyle = eventColor
+          ctx.arc(pxX, pxY, innerRadius, 0, Math.PI * 2)
+          ctx.fill()
+
+          // Thin dark outline around the outer circle (drawn with full opacity to keep it visible)
+          ctx.beginPath()
+          ctx.lineWidth = OUTLINE_WIDTH
+          ctx.lineJoin = 'miter'
+          ctx.globalAlpha = 1
+          ctx.strokeStyle = OUTLINE_COLOR
+          ctx.arc(pxX, pxY, radius + 0.2, 0, Math.PI * 2)
+          ctx.stroke()
         }
+
+        // Restore previous canvas drawing state
+        ctx.globalAlpha = prevAlpha
+        ctx.fillStyle = prevFill
+        ctx.strokeStyle = prevStroke
+        ctx.lineWidth = prevLineWidth
       }
     }
 
