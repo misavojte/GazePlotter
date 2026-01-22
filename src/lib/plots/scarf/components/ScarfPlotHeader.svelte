@@ -7,9 +7,6 @@
     getStimuliOptions,
     getParticipantsGroupOptions,
   } from '$lib/plots/shared'
-  import { handleScarfSelectionChange } from '../utils/scarfSelectService'
-  import { onDestroy } from 'svelte'
-  import { data } from '$lib/gaze-data/front-process/stores/dataStore'
   import type { MinorGroupItem } from '$lib/shared/components/GeneralButtonMinor.svelte'
   import Minor from '$lib/shared/components/GeneralButtonMinor.svelte'
   import ZoomIn from 'lucide-svelte/icons/zoom-in'
@@ -151,32 +148,32 @@
 
   function onStimulusChange(event: CustomEvent) {
     const stimulusId = parseInt(event.detail)
-    handleScarfSelectionChange(
-      settings,
-      { stimulusId },
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      settings: { stimulusId },
       source,
-      onWorkspaceCommand
-    )
+    })
   }
 
   function onTimelineChange(event: CustomEvent) {
     const timeline = event.detail as 'absolute' | 'relative' | 'ordinal'
-    handleScarfSelectionChange(
-      settings,
-      { timeline },
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      settings: { timeline },
       source,
-      onWorkspaceCommand
-    )
+    })
   }
 
   function onGroupChange(event: CustomEvent) {
     const groupId = parseInt(event.detail)
-    handleScarfSelectionChange(
-      settings,
-      { groupId },
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      settings: { groupId },
       source,
-      onWorkspaceCommand
-    )
+    })
   }
 
   // Single grouped selects in order: Stimulus, Group, Timeline

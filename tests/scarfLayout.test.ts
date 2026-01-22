@@ -1,6 +1,5 @@
 import { expect, test } from 'vitest'
-import { getScarfParticipantBarHeight } from '$lib/plots/scarf/utils/transformations'
-import { SCARF_LAYOUT } from '$lib/plots/scarf/utils/scarfServices'
+import { getScarfParticipantBarHeight, SCARF_LAYOUT } from '$lib/plots/scarf'
 
 test('participant bar height is independent of visibility rows', () => {
   const aoiCount = 5
@@ -9,6 +8,6 @@ test('participant bar height is independent of visibility rows', () => {
 
   expect(without).toBe(withVis)
   expect(without).toBe(
-    SCARF_LAYOUT.HEIGHT_OF_BAR + SCARF_LAYOUT.SPACE_ABOVE_RECT * 2
+    SCARF_LAYOUT.HEIGHT_BAR_DEFAULT + SCARF_LAYOUT.SPACE_ABOVE_RECT_DEFAULT * 2
   )
 })

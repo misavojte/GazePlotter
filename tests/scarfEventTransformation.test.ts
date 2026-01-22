@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { convertVisibilityIntervalsToEvents } from '$lib/plots/scarf/utils/transformations'
+import { convertVisibilityIntervalsToEvents } from '$lib/plots/scarf'
 
 test('Relative: single interval produces start and end events', () => {
   const events = convertVisibilityIntervalsToEvents(

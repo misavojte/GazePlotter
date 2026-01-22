@@ -18,7 +18,7 @@
     alignToPixelCenter,
     type CanvasState,
   } from '$lib/shared/utils/canvasUtils'
-  import { getXAxisLabel } from '$lib/plots/scarf/utils'
+  import { getXAxisLabel } from '$lib/plots/scarf'
   import { estimateTextWidth } from '$lib/shared/utils/textUtils'
   import { desaturateToWhite } from '$lib/shared/utils/colorUtils'
   import { updateTooltip } from '$lib/tooltip'

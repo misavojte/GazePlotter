@@ -11,7 +11,7 @@
     tooltipScarfService,
     transformDataToScarfPlot,
     SCARF_LAYOUT,
-  } from '$lib/plots/scarf/utils'
+  } from '$lib/plots/scarf'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared'
   import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
   import type { WorkspaceCommand } from '$lib/workspace/commands'

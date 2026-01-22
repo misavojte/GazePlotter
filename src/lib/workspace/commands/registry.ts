@@ -3,7 +3,7 @@ import type {
   WorkspaceCommandChain,
 } from '$lib/workspace/commands'
 import { createChildCommand } from '$lib/workspace/commands'
-import { SCARF_IDENTIFIERS } from '$lib/plots/scarf/const/identifiers'
+import { SCARF_IDENTIFIERS } from '$lib/plots/scarf'
 import { GridState } from '$lib/workspace/grid'
 import {
   getData,

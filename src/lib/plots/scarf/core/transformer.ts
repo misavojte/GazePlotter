@@ -28,14 +28,13 @@ import {
   createAdaptiveTimeline,
   type AdaptiveTimeline,
 } from '$lib/plots/shared'
-import { SCARF_IDENTIFIERS } from '$lib/plots/scarf/const/identifiers'
+import { SCARF_LAYOUT, SCARF_IDENTIFIERS } from '../const'
 import {
   MAX_AOI_PER_STIMULUS,
   SEGMENT_STRIDE,
   SegmentField,
 } from '$lib/gaze-data/shared/types'
 import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
-import { SCARF_LAYOUT } from '$lib/plots/scarf/utils/scarfServices'
 
 const RECT_STRIDE = 8
 const EVENT_STRIDE = 5
@@ -123,8 +122,8 @@ export function getScarfParticipantBarHeight(
   aoiCount: number,
   showAoiVisibility: boolean
 ): number {
-  const { HEIGHT_OF_BAR, SPACE_ABOVE_RECT } = SCARF_LAYOUT
-  const rectWrappedHeight = HEIGHT_OF_BAR + SPACE_ABOVE_RECT * 2
+  const { HEIGHT_BAR_DEFAULT, SPACE_ABOVE_RECT_DEFAULT } = SCARF_LAYOUT
+  const rectWrappedHeight = HEIGHT_BAR_DEFAULT + SPACE_ABOVE_RECT_DEFAULT * 2
 
   // Events are drawn centered on the participant bar – do not increase
   // participant bar height for visibility rows (no toggle/backcompat needed).
@@ -356,10 +355,10 @@ export function transformDataToScarfPlot(
   noAoiTreatment: { displayedName: string; color: string }
 ): ScarfData {
   const {
-    HEIGHT_OF_BAR,
-    NON_FIXATION_HEIGHT,
-    SPACE_ABOVE_RECT,
-    HEIGHT_OF_X_AXIS,
+    HEIGHT_BAR_DEFAULT: HEIGHT_OF_BAR,
+    HEIGHT_NON_FIXATION_DEFAULT: NON_FIXATION_HEIGHT,
+    SPACE_ABOVE_RECT_DEFAULT: SPACE_ABOVE_RECT,
+    HEIGHT_X_AXIS: HEIGHT_OF_X_AXIS,
   } = SCARF_LAYOUT
 
   const aoiData = getAois(stimulusId)
@@ -563,4 +562,58 @@ export function transformDataToScarfPlot(
     visualRectBuckets: rectBuckets.map(b => b.finalize()),
     visualEventBuckets: eventBuckets.map(b => b.finalize()),
   }
+}
+
+/**
+ * Testable helper for visibility interval transformation.
+ * Primarily used by unit tests to verify interval logic without Float32Array management.
+ */
+export function convertVisibilityIntervalsToEvents(
+  visibility: number[],
+  isRelative: boolean,
+  sessionDuration: number,
+  minValue: number,
+  maxValue: number,
+  visibleRange: number
+): Array<{ x: number; type: number }> {
+  const events: Array<{ x: number; type: number }> = []
+  if (!visibility || visibility.length === 0) return events
+
+  const len = visibility.length
+  for (let i = 0; i < len; i += 2) {
+    const s = visibility[i]
+    const e = visibility[i + 1]
+
+    if (isRelative) {
+      const safeDur = sessionDuration > 0 ? sessionDuration : 1
+      const x1 = Math.max(0, s / safeDur)
+      if (e === undefined || e === null) {
+        events.push({ x: x1, type: 0 })
+        continue
+      }
+      const x2 = Math.min(1, e / safeDur)
+      if (x2 > x1) {
+        events.push({ x: x1, type: 0 })
+        events.push({ x: x2, type: 1 })
+      }
+    } else {
+      if (e === undefined || e === null) {
+        if (s >= minValue && s < maxValue) {
+          events.push({
+            x: (Math.max(minValue, s) - minValue) / visibleRange,
+            type: 0,
+          })
+        }
+        continue
+      }
+      if (e <= minValue || s >= maxValue) continue
+      const x1 = (Math.max(minValue, s) - minValue) / visibleRange
+      const x2 = (Math.min(maxValue, e) - minValue) / visibleRange
+      if (x2 > x1) {
+        events.push({ x: x1, type: 0 })
+        events.push({ x: x2, type: 1 })
+      }
+    }
+  }
+  return events
 }
