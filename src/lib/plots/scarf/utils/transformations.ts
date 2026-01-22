@@ -11,6 +11,7 @@ import type {
   ScarfLegendData,
   ScarfLegendGroup,
   ScarfLegendItem,
+  ScarfLegendStyleType,
 } from '$lib/plots/scarf/types'
 import {
   getAois,
@@ -154,7 +155,9 @@ export function calculateTimelineRange(
       : settings.ordinalStimuliLimits
   )?.[stimulusId]
 
-  if (Array.isArray(limits) && limits.length === 2) {
+  // Check if limits are defined and maxValue > 0.
+  // If maxValue is 0, we treat it as 'auto' and fallback to data-driven range (e.g. after reset).
+  if (Array.isArray(limits) && limits.length === 2 && limits[1] > 0) {
     return { minValue: Math.max(0, limits[0]), maxValue: limits[1] }
   }
 

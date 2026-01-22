@@ -1106,7 +1106,8 @@
 
     // Single pass drawing for events - reversed order for Z-stacking
     // Dimming replaced by desaturation
-    ctx.globalAlpha = 1.0
+    ctx.lineWidth = 1
+    ctx.lineJoin = 'miter'
 
     for (let styleIdx = buckets.length - 1; styleIdx >= 0; styleIdx--) {
       const buffer = buckets[styleIdx]
@@ -1136,12 +1137,10 @@
         const pIndex = buffer[idx + 1]
         const eventType = buffer[idx + 2] | 0
 
-        // Determine vertical position: check for override from collision detection, otherwise use default center
-        // Key matches the PACKING CONSTANT in eventLayoutOverrides (styleIdx * 1000000 + i)
-        // Determine vertical position: skip expensive lookup in compact mode
+        const key = styleIdx * 1000000 + i
         const overrideY = layout.isCompact
           ? undefined
-          : eventLayoutOverrides.get(styleIdx * 1000000 + i)
+          : eventLayoutOverrides.get(key)
 
         const internalY =
           overrideY !== undefined
@@ -1152,69 +1151,43 @@
         const pxY =
           pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
 
-        // Size and radii for the circular markers (scaled down cap to 14px)
         const size = Math.max(7, Math.min(12, layout.heightOfBar * 0.8))
         const radius = size / 2
-        const innerRadius = Math.max(2, radius * 0.4) // inner white hole / inner colored dot size
-        const OUTLINE_WIDTH = 1
-
-        // Use pre-computed localized colors
-        const currentEventColor = eventColor
-        const currentOutlineColor = outlineColor
-
-        // Save previous canvas state that we'll modify
-        const prevFill = ctx.fillStyle
-        const prevStroke = ctx.strokeStyle
-        const prevLineWidth = ctx.lineWidth
+        const innerRadius = Math.max(2, radius * 0.4)
 
         if (eventType === 0) {
           // START event: colored outer circle with a white inner dot
-          // Outer colored circle
           ctx.beginPath()
-          ctx.fillStyle = currentEventColor
+          ctx.fillStyle = eventColor
           ctx.arc(pxX, pxY, radius, 0, Math.PI * 2)
           ctx.fill()
 
-          // Inner white hole/dot
           ctx.beginPath()
           ctx.fillStyle = '#ffffff'
           ctx.arc(pxX, pxY, innerRadius, 0, Math.PI * 2)
           ctx.fill()
 
-          // Thin dark outline
           ctx.beginPath()
-          ctx.lineWidth = OUTLINE_WIDTH
-          ctx.lineJoin = 'miter'
-          ctx.strokeStyle = currentOutlineColor
+          ctx.strokeStyle = outlineColor
           ctx.arc(pxX, pxY, radius + 0.2, 0, Math.PI * 2)
           ctx.stroke()
         } else {
           // END event: white outer circle with a colored inner dot
-          // Outer white circle
           ctx.beginPath()
           ctx.fillStyle = '#ffffff'
           ctx.arc(pxX, pxY, radius, 0, Math.PI * 2)
           ctx.fill()
 
-          // Inner colored dot
           ctx.beginPath()
-          ctx.fillStyle = currentEventColor
+          ctx.fillStyle = eventColor
           ctx.arc(pxX, pxY, innerRadius, 0, Math.PI * 2)
           ctx.fill()
 
-          // Thin dark outline
           ctx.beginPath()
-          ctx.lineWidth = OUTLINE_WIDTH
-          ctx.lineJoin = 'miter'
-          ctx.strokeStyle = currentOutlineColor
+          ctx.strokeStyle = outlineColor
           ctx.arc(pxX, pxY, radius + 0.2, 0, Math.PI * 2)
           ctx.stroke()
         }
-
-        // Restore previous canvas drawing state
-        ctx.fillStyle = prevFill
-        ctx.strokeStyle = prevStroke
-        ctx.lineWidth = prevLineWidth
       }
     }
 
@@ -1603,57 +1576,44 @@
     if (buckets.length === 0) return null
 
     const RECT_STRIDE = 8
-
-    // Fast identifier lookup
     const { indexToId } = identifierSystem
+    const scale = layout.scaleFactor
+    const barWrapHeight = layout.heightOfBarWrap
+    const floorLeft = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
+    const floorWidth = Math.floor(plotAreaWidth)
 
-    // Check in reverse order (top to bottom visually) to match z-index behavior
-    // Iterate through buckets in reverse
     for (let styleIdx = buckets.length - 1; styleIdx >= 0; styleIdx--) {
       const buffer = buckets[styleIdx]
       if (buffer.length === 0) continue
 
-      const len = buffer.length / RECT_STRIDE
-
-      for (let i = len - 1; i >= 0; i--) {
+      for (let i = buffer.length / RECT_STRIDE - 1; i >= 0; i--) {
         const idx = i * RECT_STRIDE
-
         const xNormalized = buffer[idx]
         const pIndex = buffer[idx + 1]
         const widthNormalized = buffer[idx + 2]
         const origRectH = buffer[idx + 3]
-        const participantId = buffer[idx + 4]
-        const segmentId = buffer[idx + 5]
-        const orderId = buffer[idx + 6]
         const origInternalY = buffer[idx + 7]
 
         let rectH = origRectH
         let internalY = origInternalY
 
-        // Apply scaling when scaleFactor differs from 1 (both shrink and scale-up)
-        const scale = layout.scaleFactor
         if (scale !== 1) {
           if (origRectH === SCARF_LAYOUT.NON_FIXATION_HEIGHT) {
             rectH = layout.nonFixationHeight
             internalY =
               layout.spaceAboveRect +
-              layout.heightOfBar / 2 -
-              layout.nonFixationHeight / 2
+              (layout.heightOfBar - layout.nonFixationHeight) / 2
           } else {
             rectH = origRectH * scale
-            const paddingOffset = origInternalY - SCARF_LAYOUT.SPACE_ABOVE_RECT
-            internalY = layout.spaceAboveRect + paddingOffset * scale
+            internalY =
+              layout.spaceAboveRect +
+              (origInternalY - SCARF_LAYOUT.SPACE_ABOVE_RECT) * scale
           }
         }
 
-        // Floor dimensions for pixel-perfect synchronization (same as renderCanvas)
-        const floorLeft = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
-        const floorWidth = Math.floor(plotAreaWidth)
-
         const pxX = floorLeft + xNormalized * floorWidth
         const pxW = widthNormalized * floorWidth
-        const pxY =
-          pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
+        const pxY = pIndex * barWrapHeight + internalY + effectiveMarginTop
 
         if (
           mouseX >= pxX &&
@@ -1668,14 +1628,13 @@
             height: rectH,
             internalY,
             identifier: indexToId.get(styleIdx) ?? '',
-            participantId,
-            segmentId,
-            orderId,
+            participantId: buffer[idx + 4],
+            segmentId: buffer[idx + 5],
+            orderId: buffer[idx + 6],
           }
         }
       }
     }
-
     return null
   }
 

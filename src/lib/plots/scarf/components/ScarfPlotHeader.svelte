@@ -52,136 +52,83 @@
 
   const ZOOM_PERCENTAGE = 15
 
-  function handleZoomIn() {
+  function updateTimelineRange(action: 'zoomIn' | 'zoomOut' | 'reset') {
     const stimulusId = settings.stimulusId
-    let updated: Partial<ScarfGridType> = {}
-    if (settings.timeline === 'absolute') {
-      const limits = settings.absoluteStimuliLimits[stimulusId] || [0, 0]
-      const min = limits[0]
-      const max = limits[1] === 0 ? calculateActualMax(stimulusId) : limits[1]
-      const range = max - min
-      const delta = (range * ZOOM_PERCENTAGE) / 100
-      if (range - delta * 2 < range * 0.1) return
-      const newMin = Math.max(0, min + delta)
-      const newMax = max - delta
-      const updatedLimits = { ...settings.absoluteStimuliLimits }
-      updatedLimits[stimulusId] = [newMin, newMax]
-      updated = { absoluteStimuliLimits: updatedLimits }
-    } else if (settings.timeline === 'ordinal') {
-      const limits = settings.ordinalStimuliLimits[stimulusId] || [0, 0]
-      const min = limits[0]
-      const max = limits[1] === 0 ? calculateActualMax(stimulusId) : limits[1]
-      const range = max - min
-      const delta = Math.ceil((range * ZOOM_PERCENTAGE) / 100)
-      if (range - delta * 2 < 2) return
-      const newMin = Math.max(0, min + delta)
-      const newMax = max - delta
-      const updatedLimits = { ...settings.ordinalStimuliLimits }
-      updatedLimits[stimulusId] = [newMin, newMax]
-      updated = { ordinalStimuliLimits: updatedLimits }
-    } else {
-      return
-    }
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      settings: updated,
-      source,
-    })
-  }
+    const isOrdinal = settings.timeline === 'ordinal'
+    if (settings.timeline === 'relative') return
 
-  function handleZoomOut() {
-    const stimulusId = settings.stimulusId
-    let updated: Partial<ScarfGridType> = {}
-    if (settings.timeline === 'absolute') {
-      const limits = settings.absoluteStimuliLimits[stimulusId] || [0, 0]
-      const min = limits[0]
-      const max = limits[1] === 0 ? calculateActualMax(stimulusId) : limits[1]
-      const range = max - min
-      const delta = (range * ZOOM_PERCENTAGE) / 100
-      const newMin = Math.max(0, min - delta)
-      const newMax = max + delta
-      const updatedLimits = { ...settings.absoluteStimuliLimits }
-      updatedLimits[stimulusId] = [newMin, newMax]
-      updated = { absoluteStimuliLimits: updatedLimits }
-    } else if (settings.timeline === 'ordinal') {
-      const limits = settings.ordinalStimuliLimits[stimulusId] || [0, 0]
-      const min = limits[0]
-      const max = limits[1] === 0 ? calculateActualMax(stimulusId) : limits[1]
-      const range = max - min
-      const delta = Math.ceil((range * ZOOM_PERCENTAGE) / 100)
-      const newMin = Math.max(0, min - delta)
-      const newMax = max + delta
-      const updatedLimits = { ...settings.ordinalStimuliLimits }
-      updatedLimits[stimulusId] = [newMin, newMax]
-      updated = { ordinalStimuliLimits: updatedLimits }
-    } else {
-      return
-    }
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      settings: updated,
-      source,
-    })
-  }
+    const limits = (isOrdinal
+      ? settings.ordinalStimuliLimits
+      : settings.absoluteStimuliLimits)[stimulusId] || [0, 0]
+    let [min, max] = limits
 
-  function handleReset() {
-    const stimulusId = settings.stimulusId
-    let updated: Partial<ScarfGridType> = {}
-    if (settings.timeline === 'absolute') {
-      const updatedLimits = { ...settings.absoluteStimuliLimits }
-      updatedLimits[stimulusId] = [0, 0]
-      updated = { absoluteStimuliLimits: updatedLimits }
-    } else if (settings.timeline === 'ordinal') {
-      const updatedLimits = { ...settings.ordinalStimuliLimits }
-      updatedLimits[stimulusId] = [0, 0]
-      updated = { ordinalStimuliLimits: updatedLimits }
+    if (action === 'reset') {
+      min = 0
+      max = 0
     } else {
-      return
+      if (max === 0) max = calculateActualMax(stimulusId)
+      const range = max - min
+      const delta = isOrdinal
+        ? Math.ceil((range * ZOOM_PERCENTAGE) / 100)
+        : (range * ZOOM_PERCENTAGE) / 100
+
+      if (action === 'zoomIn') {
+        if (isOrdinal ? range - delta * 2 < 2 : range - delta * 2 < range * 0.1)
+          return
+        min = Math.max(0, min + delta)
+        max -= delta
+      } else {
+        min = Math.max(0, min - delta)
+        max += delta
+      }
     }
+
+    const updatedLimits = {
+      ...(isOrdinal
+        ? settings.ordinalStimuliLimits
+        : settings.absoluteStimuliLimits),
+    }
+    updatedLimits[stimulusId] = [min, max]
+
     onWorkspaceCommand({
       type: 'updateSettings',
       itemId: settings.id,
-      settings: updated,
+      settings: isOrdinal
+        ? { ordinalStimuliLimits: updatedLimits }
+        : { absoluteStimuliLimits: updatedLimits },
       source,
     })
   }
 
   const isRelativeTimeline = $derived(settings.timeline === 'relative')
-  const isResetDisabled = $derived(
-    (() => {
-      const stimulusId = settings.stimulusId
-      if (settings.timeline === 'absolute') {
-        const limits = settings.absoluteStimuliLimits[stimulusId]
-        return !limits || (limits[0] === 0 && limits[1] === 0)
-      }
-      if (settings.timeline === 'ordinal') {
-        const limits = settings.ordinalStimuliLimits[stimulusId]
-        return !limits || (limits[0] === 0 && limits[1] === 0)
-      }
-      return true
-    })()
-  )
+  const isResetDisabled = $derived.by(() => {
+    if (isRelativeTimeline) return true
+    const limits = (
+      settings.timeline === 'ordinal'
+        ? settings.ordinalStimuliLimits
+        : settings.absoluteStimuliLimits
+    )[settings.stimulusId]
+    return !limits || (limits[0] === 0 && limits[1] === 0)
+  })
 
   let groupItems = $derived<MinorGroupItem[]>([
     {
       icon: ZoomIn,
-      onclick: handleZoomIn,
+      onclick: () => updateTimelineRange('zoomIn'),
       isDisabled: isRelativeTimeline,
       ariaLabel: 'Zoom in',
       tooltip: 'Zoom in',
     },
     {
       icon: ZoomOut,
-      onclick: handleZoomOut,
+      onclick: () => updateTimelineRange('zoomOut'),
       isDisabled: isRelativeTimeline,
       ariaLabel: 'Zoom out',
       tooltip: 'Zoom out',
     },
     {
       icon: RefreshCcw,
-      onclick: handleReset,
+      onclick: () => updateTimelineRange('reset'),
       isDisabled: isResetDisabled,
       ariaLabel: 'Reset view',
       tooltip: 'Reset scarf plot view',
@@ -191,37 +138,19 @@
   // ---------------------------
   // Grouped selects (Stimulus, Timeline, Group)
   // ---------------------------
-  let selectedStimulusId = $state(settings.stimulusId.toString())
-  let stimuliOptions =
-    $state<{ label: string; value: string }[]>(getStimuliOptions())
+  let stimuliOptions = $derived(getStimuliOptions())
 
-  let selectedTimeline = $state(settings.timeline)
   const timelineOptions = [
     { value: 'absolute', label: 'Absolute' },
     { value: 'relative', label: 'Relative' },
     { value: 'ordinal', label: 'Ordinal' },
   ]
 
-  let selectedGroupId = $state(settings.groupId.toString())
-  let groupOptions: { value: string; label: string }[] = $state([])
-
-  // Sync from settings
-  $effect(() => {
-    selectedStimulusId = settings.stimulusId.toString()
-    stimuliOptions = getStimuliOptions()
-    selectedTimeline = settings.timeline
-    selectedGroupId = settings.groupId.toString()
-  })
-
   // Keep group options in sync with data store
-  const unsubscribe = data.subscribe(() => {
-    groupOptions = getParticipantsGroupOptions()
-  })
-  onDestroy(() => unsubscribe())
+  let participantsGroupOptions = $derived(getParticipantsGroupOptions())
 
   function onStimulusChange(event: CustomEvent) {
     const stimulusId = parseInt(event.detail)
-    selectedStimulusId = stimulusId.toString()
     handleScarfSelectionChange(
       settings,
       { stimulusId },
@@ -232,7 +161,6 @@
 
   function onTimelineChange(event: CustomEvent) {
     const timeline = event.detail as 'absolute' | 'relative' | 'ordinal'
-    selectedTimeline = timeline
     handleScarfSelectionChange(
       settings,
       { timeline },
@@ -243,7 +171,6 @@
 
   function onGroupChange(event: CustomEvent) {
     const groupId = parseInt(event.detail)
-    selectedGroupId = groupId.toString()
     handleScarfSelectionChange(
       settings,
       { groupId },
@@ -257,19 +184,19 @@
     {
       label: 'Stimulus',
       options: stimuliOptions,
-      value: selectedStimulusId,
+      value: settings.stimulusId.toString(),
       onchange: onStimulusChange,
     },
     {
       label: 'Group',
-      options: groupOptions,
-      value: selectedGroupId,
+      options: participantsGroupOptions,
+      value: settings.groupId.toString(),
       onchange: onGroupChange,
     },
     {
       label: 'Timeline',
       options: timelineOptions,
-      value: selectedTimeline,
+      value: settings.timeline,
       onchange: onTimelineChange,
     },
   ])

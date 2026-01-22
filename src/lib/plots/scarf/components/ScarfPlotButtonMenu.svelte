@@ -32,136 +32,78 @@
 
   const source = createCommandSourcePlotPattern(settings, 'modal')
 
-  const openClipModal = () => {
-    modalStore.open(
-      ModalContentScarfPlotClip as unknown as typeof SvelteComponent,
-      'Clip scarf timeline',
-      {
-        settings,
-        source,
-        onWorkspaceCommand,
-      }
-    )
+  const openModal = (
+    component: any,
+    title: string,
+    extraProps: Record<string, any> = {}
+  ) => {
+    modalStore.open(component as unknown as typeof SvelteComponent, title, {
+      source,
+      onWorkspaceCommand,
+      ...extraProps,
+    })
   }
 
-  const openAoiModificationModal = () => {
-    modalStore.open(
-      ModalContentAoiModification as unknown as typeof SvelteComponent,
-      'AOI customization',
-      {
-        selectedStimulus: settings.stimulusId.toString(),
-        source,
-        onWorkspaceCommand,
-      }
-    )
-  }
-
-  const openStimulusModificationModal = () => {
-    modalStore.open(
-      ModalContentStimulusModification as unknown as typeof SvelteComponent,
-      'Stimulus customization',
-      {
-        onWorkspaceCommand,
-        source,
-      }
-    )
-  }
-
-  const openAoiVisibilityModal = () => {
-    modalStore.open(
-      ModalContentAoiVisibility as unknown as typeof SvelteComponent,
-      'AOI visibility',
-      {
-        source,
-        onWorkspaceCommand,
-      }
-    )
-  }
-
-  const openUserGroupsModal = () => {
-    modalStore.open(
-      ModalContentParticipantsGroups as unknown as typeof SvelteComponent,
-      'Participants groups',
-      {
-        source,
-        onWorkspaceCommand,
-      }
-    )
-  }
-
-  const openParticipantModificationModal = () => {
-    modalStore.open(
-      ModalContentParticipantModification as unknown as typeof SvelteComponent,
-      'Participant customization',
-      {
-        source,
-        onWorkspaceCommand,
-      }
-    )
-  }
-
-  const downloadPlot = () => {
-    modalStore.open(
-      ModalContentDownloadScarfPlot as unknown as typeof SvelteComponent,
-      'Download scarf plot',
-      {
-        settings,
-      }
-    )
-  }
-
-  const openExportSegmentedDataModal = () => {
-    modalStore.open(
-      ModalContentExportSegmentedData as unknown as typeof SvelteComponent,
-      'Export segmented data',
-      {
-        settings,
-      }
-    )
-  }
-
-  let items = $derived([
+  const items: ComponentProps<typeof MenuButton>['items'] = [
     {
       label: 'AOI customization',
-      action: openAoiModificationModal,
+      action: () =>
+        openModal(ModalContentAoiModification, 'AOI customization', {
+          selectedStimulus: settings.stimulusId.toString(),
+        }),
       icon: Settings,
     },
     {
       label: 'Stimulus customization',
-      action: openStimulusModificationModal,
+      action: () =>
+        openModal(ModalContentStimulusModification, 'Stimulus customization'),
       icon: Settings,
     },
     {
       label: 'Participant customization',
-      action: openParticipantModificationModal,
+      action: () =>
+        openModal(
+          ModalContentParticipantModification,
+          'Participant customization'
+        ),
       icon: Users,
     },
     {
       label: 'Setup participants groups',
-      action: openUserGroupsModal,
+      action: () =>
+        openModal(ModalContentParticipantsGroups, 'Participants groups'),
       icon: Users,
     },
     {
       label: 'AOI visibility',
-      action: openAoiVisibilityModal,
+      action: () => openModal(ModalContentAoiVisibility, 'AOI visibility'),
       icon: View,
     },
     {
       label: 'Clip timeline',
-      action: openClipModal,
+      action: () =>
+        openModal(ModalContentScarfPlotClip, 'Clip scarf timeline', {
+          settings,
+        }),
       icon: Scissors,
     },
     {
       label: 'Export segmented data',
-      action: openExportSegmentedDataModal,
+      action: () =>
+        openModal(ModalContentExportSegmentedData, 'Export segmented data', {
+          settings,
+        }),
       icon: Download,
     },
     {
       label: 'Download plot',
-      action: downloadPlot,
+      action: () =>
+        openModal(ModalContentDownloadScarfPlot, 'Download scarf plot', {
+          settings,
+        }),
       icon: Download,
     },
-  ] as ComponentProps<typeof MenuButton>['items'])
+  ]
 </script>
 
 <MenuButton {items} />

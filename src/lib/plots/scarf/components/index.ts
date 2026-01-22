@@ -11,8 +11,3 @@ export { default as ScarfPlotHeader } from './ScarfPlotHeader.svelte'
 
 // Control components
 export { default as ScarfPlotButtonMenu } from './ScarfPlotButtonMenu.svelte'
-
-// Navigation components
-export { default as ScarfPlotButtonZoomIn } from './ScarfPlotButtonZoomIn.svelte'
-export { default as ScarfPlotButtonZoomOut } from './ScarfPlotButtonZoomOut.svelte'
-export { default as ScarfPlotButtonResetView } from './ScarfPlotButtonResetView.svelte'
