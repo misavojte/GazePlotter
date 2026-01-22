@@ -164,7 +164,7 @@ export interface ScarfStimulus {
  * @property leftLabelWidth - Precomputed layout width for left labels
  * @property plotAreaWidth - Precomputed layout width for the plot area
  * @property visualRectBuckets - Precomputed visual buffers for rectangle rendering
- * @property visualLineBuckets - Precomputed visual buffers for line rendering
+ * @property visualEventBuckets - Precomputed visual buffers for visibility event markers
  */
 export type ScarfData = {
   id: number
@@ -195,11 +195,11 @@ export type ScarfData = {
    * Rectangle buffer layout per style (RECT_STRIDE = 8):
    * [x, y, width, height, participantId, segmentId, orderId, reserved0]
    *
-   * Line buffer layout per style (LINE_STRIDE = 6):
-   * [x1, y1, x2, y2, participantId, reserved0]
+  * Event buffer layout per style (EVENT_STRIDE = 5):
+  * [xNormalized, pIndex, eventType, participantId, reserved0]
    */
   visualRectBuckets: Float32Array[]
-  visualLineBuckets: Float32Array[]
+  visualEventBuckets: Float32Array[]
 }
 
 // ============================================================================

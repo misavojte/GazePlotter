@@ -15,7 +15,4 @@ export * from './tooltip'
 export * from './scarfSelectService'
 
 // Direct re-exports of commonly used functions for convenience
-export {
-  transformDataToScarfPlot,
-  getScarfParticipantBarHeight,
-} from './transformations'
+export { transformDataToScarfPlot } from './transformations'

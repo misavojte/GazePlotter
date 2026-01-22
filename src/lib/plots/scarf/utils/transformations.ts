@@ -41,7 +41,7 @@ import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
 import { SCARF_LAYOUT } from '$lib/plots/scarf/utils/scarfServices'
 
 const RECT_STRIDE = 8
-const LINE_STRIDE = 6
+const EVENT_STRIDE = 5
 
 class Float32GrowBuffer {
   private buffer: Float32Array
@@ -93,27 +93,25 @@ class Float32GrowBuffer {
     this.writeIndex += RECT_STRIDE
   }
 
-  pushLine(
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
+  pushEvent(
+    x: number,
+    pIndex: number,
+    eventType: number,
     participantId: number,
     internalY: number
   ) {
-    this.ensureCapacity(LINE_STRIDE)
+    this.ensureCapacity(EVENT_STRIDE)
 
     const idx = this.writeIndex
     const b = this.buffer
 
-    b[idx] = x1
-    b[idx + 1] = y1
-    b[idx + 2] = x2
-    b[idx + 3] = y2
-    b[idx + 4] = participantId
-    b[idx + 5] = internalY
+    b[idx] = x
+    b[idx + 1] = pIndex
+    b[idx + 2] = eventType
+    b[idx + 3] = participantId
+    b[idx + 4] = internalY
 
-    this.writeIndex += LINE_STRIDE
+    this.writeIndex += EVENT_STRIDE
   }
 
   finalize(): Float32Array {
@@ -128,14 +126,12 @@ export function getScarfParticipantBarHeight(
   aoiCount: number,
   showAoiVisibility: boolean
 ): number {
-  const { HEIGHT_OF_BAR, SPACE_ABOVE_RECT, LINE_WRAPPED_HEIGHT } = SCARF_LAYOUT
+  const { HEIGHT_OF_BAR, SPACE_ABOVE_RECT } = SCARF_LAYOUT
   const rectWrappedHeight = HEIGHT_OF_BAR + SPACE_ABOVE_RECT * 2
 
-  if (!showAoiVisibility) {
-    return rectWrappedHeight
-  }
-
-  return rectWrappedHeight + aoiCount * LINE_WRAPPED_HEIGHT
+  // Events are drawn centered on the participant bar – do not increase
+  // participant bar height for visibility rows (no toggle/backcompat needed).
+  return rectWrappedHeight
 }
 
 /**
@@ -331,6 +327,60 @@ export function createScarfLegendData(styling: ScarfStyling): ScarfLegendData {
 }
 
 /**
+ * Convert visibility interval toggle array into normalized start/end events.
+ * Returns an array of objects { x: number, type: 0|1 } where type 0 = START, 1 = END.
+ */
+export function convertVisibilityIntervalsToEvents(
+  visibility: number[],
+  isRelative: boolean,
+  sessionDuration: number,
+  minValue: number,
+  maxValue: number,
+  visibleRange: number
+): Array<{ x: number; type: 0 | 1 }> {
+  const out: Array<{ x: number; type: 0 | 1 }> = []
+  if (!visibility || visibility.length === 0) return out
+
+  for (let i = 0; i < visibility.length; i += 2) {
+    const s = visibility[i]
+    const e = visibility[i + 1]
+
+    if (isRelative) {
+      const safeDur = sessionDuration > 0 ? sessionDuration : 1
+      const x1 = Math.max(0, s / safeDur)
+      if (e === undefined || e === null) {
+        // Open-ended interval - emit start-only
+        out.push({ x: x1, type: 0 })
+        continue
+      }
+      const x2 = Math.min(1, e / safeDur)
+      if (x2 > x1) {
+        out.push({ x: x1, type: 0 })
+        out.push({ x: x2, type: 1 })
+      }
+    } else {
+      if (e === undefined || e === null) {
+        // Open-ended interval - emit start-only if in range
+        if (s >= minValue && s < maxValue) {
+          const x1 = (Math.max(minValue, s) - minValue) / visibleRange
+          out.push({ x: x1, type: 0 })
+        }
+        continue
+      }
+      if (e <= minValue || s >= maxValue) continue
+      const x1 = (Math.max(minValue, s) - minValue) / visibleRange
+      const x2 = (Math.min(maxValue, e) - minValue) / visibleRange
+      if (x2 > x1) {
+        out.push({ x: x1, type: 0 })
+        out.push({ x: x2, type: 1 })
+      }
+    }
+  }
+
+  return out
+}
+
+/**
  * Creates visualizable data for the ScarfPlot
  */
 export function transformDataToScarfPlot(
@@ -392,7 +442,7 @@ export function transformDataToScarfPlot(
     { length: totalStyleCount },
     () => new Float32GrowBuffer(1024)
   )
-  const lineBucketBuilders = Array.from(
+  const eventBucketBuilders = Array.from(
     { length: totalStyleCount },
     () => new Float32GrowBuffer(512)
   )
@@ -516,40 +566,27 @@ export function transformDataToScarfPlot(
           participantId
         )
         if (!visibility) continue
-        const internalY = rectWrappedHeight + aoiIdx * LINE_WRAPPED_HEIGHT
+        // Place events vertically centered on the participant bar
+        const internalY = SPACE_ABOVE_RECT + (HEIGHT_OF_BAR >> 1)
         const styleIdx = visibilityBaseStyleIdx + aoiIdx
 
-        for (let i = 0; i < visibility.length; i += 2) {
-          let s = visibility[i]
-          let e = visibility[i + 1]
+        const events = convertVisibilityIntervalsToEvents(
+          visibility,
+          isRelative,
+          sessionDuration,
+          minValue,
+          maxValue,
+          visibleRange
+        )
 
-          if (isRelative) {
-            const safeDur = sessionDuration > 0 ? sessionDuration : 1
-            const x1 = Math.max(0, s / safeDur)
-            const x2 = Math.min(1, e / safeDur)
-            if (x2 > x1)
-              lineBucketBuilders[styleIdx].pushLine(
-                x1,
-                pIndex,
-                x2,
-                pIndex,
-                participantId,
-                internalY
-              )
-          } else {
-            if (e <= minValue || s >= maxValue) continue
-            const x1 = (Math.max(minValue, s) - minValue) / visibleRange
-            const x2 = (Math.min(maxValue, e) - minValue) / visibleRange
-            if (x2 > x1)
-              lineBucketBuilders[styleIdx].pushLine(
-                x1,
-                pIndex,
-                x2,
-                pIndex,
-                participantId,
-                internalY
-              )
-          }
+        for (const ev of events) {
+          eventBucketBuilders[styleIdx].pushEvent(
+            ev.x,
+            pIndex,
+            ev.type,
+            participantId,
+            internalY
+          )
         }
       }
     }
@@ -576,6 +613,6 @@ export function transformDataToScarfPlot(
     leftLabelWidth: 0,
     plotAreaWidth: 0,
     visualRectBuckets: rectBucketBuilders.map(b => b.finalize()),
-    visualLineBuckets: lineBucketBuilders.map(b => b.finalize()),
+    visualEventBuckets: eventBucketBuilders.map(b => b.finalize()),
   }
 }

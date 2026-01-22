@@ -119,7 +119,7 @@
   )
 
   // Internal layout constants for compact rendering
-  const INTERNAL_PADDING_TOP = 10 // Space for top ticks
+  const INTERNAL_PADDING_TOP = 3 // Space for top ticks
   const INTERNAL_PADDING_BOTTOM = 0 // Zero padding at bottom as it serves no purpose (only top needs space for ticks)
 
   // 1. Calculate Legend structural metrics (data-only, no layout dependency)
@@ -278,7 +278,7 @@
         case 'visibility':
           return {
             type: 'line' as const,
-            height: layout.nonFixationHeight,
+            height: SCARF_LAYOUT.VISIBILITY_LINE_WIDTH,
           }
         default:
           return { type: 'rect' as const, height: layout.heightOfBar }
@@ -449,23 +449,22 @@
     return map
   })
 
-  const lineStyleMap = $derived.by(() => {
+  const eventStyleMap = $derived.by(() => {
     if (!data.stylingAndLegend) return new Map()
 
     const map = new Map()
     const visibility = data.stylingAndLegend.visibility
     const len = visibility.length
 
-    // Visibility lines use nonFixationHeight for strokeWidth
-    const strokeWidth = layout.nonFixationHeight
+    // Visibility events use VISIBILITY_LINE_WIDTH for strokeWidth (used as size reference)
+    const strokeWidth = SCARF_LAYOUT.VISIBILITY_LINE_WIDTH
 
-    // Pre-compute all line styles (visibility) with dimmed state
+    // Pre-compute all event styles (visibility) with dimmed state
     for (let i = 0; i < len; i++) {
       const style = visibility[i]
       const baseStyle = {
         stroke: style.color,
         strokeWidth,
-        strokeDasharray: '1',
       }
       map.set(style.identifier, {
         normal: baseStyle,
@@ -480,7 +479,7 @@
   })
 
   const visualRectBuckets = $derived(data.visualRectBuckets)
-  const visualLineBuckets = $derived(data.visualLineBuckets)
+  const visualEventBuckets = $derived(data.visualEventBuckets)
 
   // Interaction handlers
   function handleLegendIdentifier(identifier: string) {
@@ -537,8 +536,8 @@
     // Draw rectangle segments
     drawRectangles(ctx)
 
-    // Draw line segments
-    drawLines(ctx)
+    // Draw event markers (AOI visibility start/end)
+    drawEvents(ctx)
 
     // Draw legend using shared utility
     drawLegendGroupTitles(ctx, legendGeometry, SCARF_LEGEND_CONFIG)
@@ -859,23 +858,22 @@
     ctx.globalAlpha = 1
   }
 
-  function drawLines(ctx: CanvasRenderingContext2D) {
-    const buckets = visualLineBuckets
+  function drawEvents(ctx: CanvasRenderingContext2D) {
+    const buckets = visualEventBuckets
     if (buckets.length === 0) return
 
-    const LINE_STRIDE = 6
+    const EVENT_STRIDE = 5
 
     const isHighlightActive = usedHighlights.length > 0
     const highlightMask = highlightMaskByIndex
 
     // Local references for fast access
-    const lineStyles = lineStyleMap
+    const eventStyles = eventStyleMap
     const { indexToId } = identifierSystem
 
     // Draw elements in two passes: first normal, then dimmed
     for (const isDimmedPass of [false, true]) {
       ctx.globalAlpha = isDimmedPass ? 0.15 : 1.0
-      ctx.setLineDash([2, 2]) // Apply dashed line style for all lines
 
       for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
         const buffer = buckets[styleIdx]
@@ -889,49 +887,98 @@
         if (isDimmedPass !== isDimmed) continue // Skip if not in current pass
 
         const identifier = indexToId.get(styleIdx) ?? ''
-        const styleSet = lineStyles.get(identifier) ?? {
+        const styleSet = eventStyles.get(identifier) ?? {
           normal: { stroke: '#ccc', strokeWidth: 1 },
         }
 
-        ctx.strokeStyle = styleSet.normal.stroke
-        ctx.lineWidth = styleSet.normal.strokeWidth ?? 1
-        ctx.beginPath() // Start a massive path
+        // Use the configured style color as the event color
+        const eventColor = styleSet.normal.stroke
 
-        const segmentCount = buffer.length / LINE_STRIDE
+        const segmentCount = buffer.length / EVENT_STRIDE
         for (let i = 0; i < segmentCount; i++) {
-          const idx = i * LINE_STRIDE
-          const x1Normalized = buffer[idx]
+          const idx = i * EVENT_STRIDE
+          const xNormalized = buffer[idx]
           const pIndex = buffer[idx + 1]
-          const x2Normalized = buffer[idx + 2]
-          const origInternalY = buffer[idx + 5]
+          const eventType = buffer[idx + 2] | 0
 
-          let internalY = origInternalY
-          if (layout.isShrunk) {
-            const mainBarWrapDefault =
-              SCARF_LAYOUT.HEIGHT_OF_BAR + SCARF_LAYOUT.SPACE_ABOVE_RECT * 2
-            const visibilityOffset = origInternalY - mainBarWrapDefault
-            internalY =
-              layout.heightOfBar + layout.spaceAboveRect * 2 + visibilityOffset
+          // Center marker vertically on participant bar (layout.heightOfBar already accounts for shrink)
+          const internalY = layout.spaceAboveRect + layout.heightOfBar / 2
+
+          const pxX = LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
+          const pxY = pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
+
+          // Size and radii for the circular markers (slightly reduced for a refined look)
+          const size = Math.max(7, Math.min(20, layout.heightOfBar * 0.8))
+          const radius = size / 2
+          const innerRadius = Math.max(2, radius * 0.4) // inner white hole / inner colored dot size
+
+          // Outer outline is a very thin dark grey stroke (keeps visibility independent of color)
+          const OUTLINE_COLOR = '#333333'
+          const OUTLINE_WIDTH = 1
+
+          // Save previous canvas state that we'll modify
+          const prevAlpha = ctx.globalAlpha
+          const prevFill = ctx.fillStyle
+          const prevStroke = ctx.strokeStyle
+          const prevLineWidth = ctx.lineWidth
+
+          if (eventType === 0) {
+            // START event: colored outer circle with a white inner dot (ring-like appearance)
+            // Outer colored circle
+            ctx.beginPath()
+            ctx.fillStyle = eventColor
+            ctx.arc(pxX, pxY, radius, 0, Math.PI * 2)
+            ctx.fill()
+
+            // Inner white hole/dot
+            ctx.beginPath()
+            ctx.fillStyle = '#ffffff'
+            ctx.arc(pxX, pxY, innerRadius, 0, Math.PI * 2)
+            ctx.fill()
+
+            // Thin dark outline around the outer circle (drawn with full opacity to keep it visible)
+            ctx.beginPath()
+            ctx.lineWidth = OUTLINE_WIDTH
+            ctx.lineJoin = 'miter'
+            ctx.globalAlpha = 1
+            ctx.strokeStyle = OUTLINE_COLOR
+            ctx.arc(pxX, pxY, radius + 0.2, 0, Math.PI * 2)
+            ctx.stroke()
+          } else {
+            // END event: white outer circle with a colored inner dot
+            // Outer white circle
+            ctx.beginPath()
+            ctx.fillStyle = '#ffffff'
+            ctx.arc(pxX, pxY, radius, 0, Math.PI * 2)
+            ctx.fill()
+
+            // Inner colored dot
+            ctx.beginPath()
+            ctx.fillStyle = eventColor
+            ctx.arc(pxX, pxY, innerRadius, 0, Math.PI * 2)
+            ctx.fill()
+
+            // Thin dark outline around the outer circle (drawn with full opacity to keep it visible)
+            ctx.beginPath()
+            ctx.lineWidth = OUTLINE_WIDTH
+            ctx.lineJoin = 'miter'
+            ctx.globalAlpha = 1
+            ctx.strokeStyle = OUTLINE_COLOR
+            ctx.arc(pxX, pxY, radius + 0.2, 0, Math.PI * 2)
+            ctx.stroke()
           }
 
-          const pxX1 =
-            LEFT_LABEL_WIDTH + x1Normalized * plotAreaWidth + marginLeft
-          const pxX2 =
-            LEFT_LABEL_WIDTH + x2Normalized * plotAreaWidth + marginLeft
-          const pxY =
-            pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
-
-          ctx.moveTo(pxX1, pxY)
-          ctx.lineTo(pxX2, pxY)
+          // Restore previous canvas drawing state
+          ctx.globalAlpha = prevAlpha
+          ctx.fillStyle = prevFill
+          ctx.strokeStyle = prevStroke
+          ctx.lineWidth = prevLineWidth
         }
-
-        ctx.stroke() // Send everything to GPU in ONE go
       }
     }
 
-    // Reset rendering state
+    // Reset alpha
     ctx.globalAlpha = 1
-    ctx.setLineDash([])
   }
 
   function drawXAxisLabel(ctx: CanvasRenderingContext2D) {
