@@ -147,48 +147,33 @@ export function calculateTimelineRange(
     return { minValue: 0, maxValue: 100 }
   }
 
-  let minValue = 0
+  // 1. Try stimulus-specific overrides from settings
+  const limits = (
+    settings.timeline === 'absolute'
+      ? settings.absoluteStimuliLimits
+      : settings.ordinalStimuliLimits
+  )?.[stimulusId]
+
+  if (Array.isArray(limits) && limits.length === 2) {
+    return { minValue: Math.max(0, limits[0]), maxValue: limits[1] }
+  }
+
+  // 2. Fallback to data-driven range
   let maxValue = 0
+  const isOrdinal = settings.timeline === 'ordinal'
 
-  if (settings.timeline === 'absolute') {
-    const stimulusSpecificLimits = settings.absoluteStimuliLimits?.[stimulusId]
-    if (
-      Array.isArray(stimulusSpecificLimits) &&
-      stimulusSpecificLimits.length === 2
-    ) {
-      ;[minValue, maxValue] = stimulusSpecificLimits
-    }
-  } else {
-    const stimulusSpecificLimits = settings.ordinalStimuliLimits?.[stimulusId]
-    if (
-      Array.isArray(stimulusSpecificLimits) &&
-      stimulusSpecificLimits.length === 2
-    ) {
-      ;[minValue, maxValue] = stimulusSpecificLimits
+  for (const pid of participantIds) {
+    if (isOrdinal) {
+      maxValue = Math.max(maxValue, getNumberOfSegments(stimulusId, pid))
+    } else {
+      maxValue = Math.max(maxValue, getParticipantEndTime(stimulusId, pid))
     }
   }
 
-  minValue = Math.max(0, minValue)
-
-  if (maxValue === 0) {
-    for (const participantId of participantIds) {
-      const numberOfSegments = getNumberOfSegments(stimulusId, participantId)
-      if (numberOfSegments === 0) continue
-
-      if (settings.timeline === 'ordinal') {
-        if (numberOfSegments > maxValue) maxValue = numberOfSegments
-      } else {
-        const endTime = getParticipantEndTime(stimulusId, participantId)
-        if (endTime > maxValue) maxValue = endTime
-      }
-    }
+  return {
+    minValue: 0,
+    maxValue: maxValue > 0 ? maxValue : isOrdinal ? 10 : 1000,
   }
-
-  if (maxValue <= minValue) {
-    maxValue = minValue + (settings.timeline === 'ordinal' ? 10 : 1000)
-  }
-
-  return { minValue, maxValue }
 }
 
 /**
@@ -227,21 +212,24 @@ export function createStylingAndLegend(
   noAoiTreatment: { displayedName: string; color: string },
   showAoiVisibility = false
 ): ScarfStyling {
-  const aoiStyling: ScarfStyleItem[] = aoiData.map(aoi => ({
-    identifier: `${IDENTIFIER_IS_AOI}${aoi.id}`,
-    name: aoi.displayedName,
-    color: aoi.color,
-  }))
-
-  aoiStyling.push({
+  const aoi: ScarfStyleItem[] = []
+  for (let i = 0; i < aoiData.length; i++) {
+    const a = aoiData[i]
+    aoi.push({
+      identifier: `${IDENTIFIER_IS_AOI}${a.id}`,
+      name: a.displayedName,
+      color: a.color,
+    })
+  }
+  aoi.push({
     identifier: `${IDENTIFIER_IS_AOI}${IDENTIFIER_NOT_DEFINED}`,
     name: noAoiTreatment.displayedName,
     color: noAoiTreatment.color,
   })
 
-  const categoryStyling: ScarfStyleItem[] = [
+  const category: ScarfStyleItem[] = [
     {
-      identifier: `${IDENTIFIER_IS_OTHER_CATEGORY}${1}`,
+      identifier: `${IDENTIFIER_IS_OTHER_CATEGORY}1`,
       name: 'Saccade',
       color: '#555555',
     },
@@ -252,19 +240,19 @@ export function createStylingAndLegend(
     },
   ]
 
-  const visibilityStyling: ScarfStyleItem[] = !showAoiVisibility
-    ? []
-    : aoiData.map(aoi => ({
-        identifier: `${IDENTIFIER_IS_EVENT}${aoi.id}`,
-        name: aoi.displayedName,
-        color: aoi.color,
-      }))
-
-  return {
-    visibility: visibilityStyling,
-    aoi: aoiStyling,
-    category: categoryStyling,
+  const visibility: ScarfStyleItem[] = []
+  if (showAoiVisibility) {
+    for (let i = 0; i < aoiData.length; i++) {
+      const a = aoiData[i]
+      visibility.push({
+        identifier: `${IDENTIFIER_IS_EVENT}${a.id}`,
+        name: a.displayedName,
+        color: a.color,
+      })
+    }
   }
+
+  return { aoi, category, visibility }
 }
 
 /**
@@ -276,53 +264,29 @@ export function createStylingAndLegend(
  * @param styling - The styling information from createStylingAndLegend
  * @returns A ScarfLegendData object with categorized groups
  */
+/**
+ * Creates group-aware legend data from styling information.
+ */
 export function createScarfLegendData(styling: ScarfStyling): ScarfLegendData {
   const groups: ScarfLegendGroup[] = []
 
-  // AOI group (Fixations) - Full-height rectangles
-  if (styling.aoi.length > 0) {
-    groups.push({
-      title: 'Fixations',
-      items: styling.aoi.map(
-        (item): ScarfLegendItem => ({
-          identifier: item.identifier,
-          name: item.name,
-          color: item.color,
-          styleType: 'fixation',
-        })
-      ),
-    })
+  const addGroup = (
+    title: string,
+    items: ScarfStyleItem[],
+    styleType: ScarfLegendStyleType
+  ) => {
+    if (items.length === 0) return
+    const legendItems: ScarfLegendItem[] = new Array(items.length)
+    for (let i = 0; i < items.length; i++) {
+      const { identifier, name, color } = items[i]
+      legendItems[i] = { identifier, name, color, styleType }
+    }
+    groups.push({ title, items: legendItems })
   }
 
-  // Category group (Non-fixations) - Thin rectangles
-  if (styling.category.length > 0) {
-    groups.push({
-      title: 'Non-fixations',
-      items: styling.category.map(
-        (item): ScarfLegendItem => ({
-          identifier: item.identifier,
-          name: item.name,
-          color: item.color,
-          styleType: 'nonFixation',
-        })
-      ),
-    })
-  }
-
-  // Visibility group (AOI Visibility) - Dashed lines
-  if (styling.visibility.length > 0) {
-    groups.push({
-      title: 'Events (start/end)',
-      items: styling.visibility.map(
-        (item): ScarfLegendItem => ({
-          identifier: item.identifier,
-          name: item.name,
-          color: item.color,
-          styleType: 'visibility',
-        })
-      ),
-    })
-  }
+  addGroup('Fixations', styling.aoi, 'fixation')
+  addGroup('Non-fixations', styling.category, 'nonFixation')
+  addGroup('Events (start/end)', styling.visibility, 'visibility')
 
   return { groups }
 }
@@ -420,32 +384,35 @@ export function transformDataToScarfPlot(
     showAoiVisibility
   )
 
-  const stimuli = stimuliData.map(s => ({ id: s.id, name: s.displayedName }))
+  const stimuli = getStimuli().map(s => ({ id: s.id, name: s.displayedName }))
 
-  // Style mapping
+  // Style mapping: pre-calculate indices for the hot loop
   const aoiStyleCount = stylingAndLegend.aoi.length
-  const categoryStyleCount = stylingAndLegend.category.length
-  const visibilityStyleCount = stylingAndLegend.visibility.length
-
-  const aoiOrderIndex = new Int16Array(MAX_AOI_PER_STIMULUS)
-  aoiOrderIndex.fill(-1)
-  for (let i = 0; i < aoiData.length; i++) {
-    const id = aoiData[i].id
-    if (id >= 0 && id < MAX_AOI_PER_STIMULUS) aoiOrderIndex[id] = i
-  }
-
-  const noAoiStyleIdx = aoiData.length
   const saccadeStyleIdx = aoiStyleCount
   const otherCategoryStyleIdx = aoiStyleCount + 1
-  const visibilityBaseStyleIdx = aoiStyleCount + categoryStyleCount
+  const visibilityBaseStyleIdx =
+    aoiStyleCount + stylingAndLegend.category.length
+
+  const aoiOrderMap = new Int16Array(MAX_AOI_PER_STIMULUS).fill(-1)
+  for (let i = 0; i < aoiData.length; i++) {
+    const id = aoiData[i].id
+    if (id >= 0 && id < MAX_AOI_PER_STIMULUS) aoiOrderMap[id] = i
+  }
+
+  const hiddenFlag = new Uint8Array(MAX_AOI_PER_STIMULUS)
+  for (const id of getHiddenAois(stimulusId)) {
+    if (id >= 0 && id < MAX_AOI_PER_STIMULUS) hiddenFlag[id] = 1
+  }
 
   const totalStyleCount =
-    aoiStyleCount + categoryStyleCount + visibilityStyleCount
-  const rectBucketBuilders = Array.from(
+    aoiStyleCount +
+    stylingAndLegend.category.length +
+    stylingAndLegend.visibility.length
+  const rectBuckets = Array.from(
     { length: totalStyleCount },
     () => new Float32GrowBuffer(1024)
   )
-  const eventBucketBuilders = Array.from(
+  const eventBuckets = Array.from(
     { length: totalStyleCount },
     () => new Float32GrowBuffer(512)
   )
@@ -453,28 +420,19 @@ export function transformDataToScarfPlot(
   const isOrdinal = settings.timeline === 'ordinal'
   const isRelative = settings.timeline === 'relative'
 
-  const currentData = getData()
-  const { segmentBuffer, indexTable, aoiPool, maxParticipants } =
-    currentData.segments
+  const { segments } = getData()
+  const { segmentBuffer, indexTable, aoiPool, maxParticipants } = segments
 
-  const hiddenRaw = getHiddenAois(stimulusId)
-  const hiddenFlag = new Uint8Array(MAX_AOI_PER_STIMULUS)
-  for (const id of hiddenRaw) {
-    if (id >= 0 && id < MAX_AOI_PER_STIMULUS) hiddenFlag[id] = 1
-  }
-
-  const presentList: number[] = []
-  const participants: ScarfParticipant[] = []
+  const participants: ScarfParticipant[] = new Array(participantIds.length)
+  const overlapAoiBuffer = new Int16Array(MAX_AOI_PER_STIMULUS) // Reuse buffer for overlapping AOIs
 
   for (let pIndex = 0; pIndex < participantIds.length; pIndex++) {
-    const participantId = participantIds[pIndex]
-    const sessionDuration = getParticipantEndTime(stimulusId, participantId)
-    const rectWrappedHeight = HEIGHT_OF_BAR + SPACE_ABOVE_RECT * 2
+    const pid = participantIds[pIndex]
+    const sessionDuration = getParticipantEndTime(stimulusId, pid)
 
-    const rangeIdx = (stimulusId * maxParticipants + participantId) * 2
+    const rangeIdx = (stimulusId * maxParticipants + pid) * 2
     const startIndex = indexTable[rangeIdx]
-    const endIndex = indexTable[rangeIdx + 1]
-    const segmentCount = endIndex - startIndex
+    const segmentCount = indexTable[rangeIdx + 1] - startIndex
 
     for (let localId = 0; localId < segmentCount; localId++) {
       const base = (startIndex + localId) * SEGMENT_STRIDE
@@ -491,36 +449,31 @@ export function transformDataToScarfPlot(
         end = Math.min(maxValue, end)
       }
 
-      let x: number, width: number
-      if (isRelative) {
-        const safeDur = sessionDuration > 0 ? sessionDuration : 1
-        x = start / safeDur
-        width = (end - start) / safeDur
-      } else {
-        x = (start - minValue) / visibleRange
-        width = (end - start) / visibleRange
-      }
+      const x = isRelative
+        ? start / (sessionDuration || 1)
+        : (start - minValue) / visibleRange
+      const width = isRelative
+        ? (end - start) / (sessionDuration || 1)
+        : (end - start) / visibleRange
 
       if (categoryId !== 0) {
-        const internalY =
-          SPACE_ABOVE_RECT + (HEIGHT_OF_BAR >> 1) - (NON_FIXATION_HEIGHT >> 1)
-        const styleIdx =
+        rectBuckets[
           categoryId === 1 ? saccadeStyleIdx : otherCategoryStyleIdx
-        rectBucketBuilders[styleIdx].pushRect(
+        ].pushRect(
           x,
           pIndex,
           width,
           NON_FIXATION_HEIGHT,
-          participantId,
+          pid,
           localId,
           localId,
-          internalY
+          SPACE_ABOVE_RECT + (HEIGHT_OF_BAR >> 1) - (NON_FIXATION_HEIGHT >> 1)
         )
       } else {
         const pStart = segmentBuffer[base + SegmentField.AOI_POINTER] | 0
         const pCount = segmentBuffer[base + SegmentField.AOI_COUNT] | 0
 
-        presentList.length = 0
+        let overlapCount = 0
         for (let i = 0; i < pCount; i++) {
           const aoiId = aoiPool[pStart + i]
           if (
@@ -528,30 +481,30 @@ export function transformDataToScarfPlot(
             aoiId < MAX_AOI_PER_STIMULUS &&
             hiddenFlag[aoiId] === 0
           ) {
-            presentList.push(aoiId)
+            overlapAoiBuffer[overlapCount++] = aoiId
           }
         }
 
-        if (presentList.length === 0) {
-          rectBucketBuilders[noAoiStyleIdx].pushRect(
+        if (overlapCount === 0) {
+          rectBuckets[aoiData.length].pushRect(
             x,
             pIndex,
             width,
             HEIGHT_OF_BAR,
-            participantId,
+            pid,
             localId,
             localId,
             SPACE_ABOVE_RECT
           )
         } else {
-          const h = HEIGHT_OF_BAR / presentList.length
-          for (let i = 0; i < presentList.length; i++) {
-            rectBucketBuilders[aoiOrderIndex[presentList[i]]].pushRect(
+          const h = HEIGHT_OF_BAR / overlapCount
+          for (let i = 0; i < overlapCount; i++) {
+            rectBuckets[aoiOrderMap[overlapAoiBuffer[i]]].pushRect(
               x,
               pIndex,
               width,
               h,
-              participantId,
+              pid,
               localId,
               localId,
               SPACE_ABOVE_RECT + i * h
@@ -562,37 +515,31 @@ export function transformDataToScarfPlot(
     }
 
     if (showAoiVisibility) {
+      const internalY = SPACE_ABOVE_RECT + (HEIGHT_OF_BAR >> 1)
       for (let aoiIdx = 0; aoiIdx < aoiData.length; aoiIdx++) {
-        const visibility = getAoiVisibility(
-          stimulusId,
-          aoiData[aoiIdx].id,
-          participantId
-        )
-        if (!visibility) continue
-        // Place events vertically centered on the participant bar
-        const internalY = SPACE_ABOVE_RECT + (HEIGHT_OF_BAR >> 1)
-        const styleIdx = visibilityBaseStyleIdx + aoiIdx
-
-        appendVisibilityEventsToBuffer(
-          eventBucketBuilders[styleIdx],
-          visibility,
-          isRelative,
-          sessionDuration,
-          minValue,
-          maxValue,
-          visibleRange,
-          pIndex,
-          participantId,
-          internalY
-        )
+        const visibility = getAoiVisibility(stimulusId, aoiData[aoiIdx].id, pid)
+        if (visibility?.length) {
+          appendVisibilityEventsToBuffer(
+            eventBuckets[visibilityBaseStyleIdx + aoiIdx],
+            visibility,
+            isRelative,
+            sessionDuration,
+            minValue,
+            maxValue,
+            visibleRange,
+            pIndex,
+            pid,
+            internalY
+          )
+        }
       }
     }
 
-    participants.push({
-      id: participantId,
-      label: getParticipant(participantId).displayedName,
+    participants[pIndex] = {
+      id: pid,
+      label: getParticipant(pid).displayedName,
       width: 0,
-    })
+    }
   }
 
   return {
@@ -600,8 +547,14 @@ export function transformDataToScarfPlot(
     timelineType: settings.timeline,
     barHeight: HEIGHT_OF_BAR,
     stimulusId,
-    heightOfBarWrap: barWrapHeight,
-    chartHeight: participantIds.length * barWrapHeight + HEIGHT_OF_X_AXIS,
+    heightOfBarWrap: getScarfParticipantBarHeight(
+      aoiData.length,
+      showAoiVisibility
+    ),
+    chartHeight:
+      participantIds.length *
+        getScarfParticipantBarHeight(aoiData.length, showAoiVisibility) +
+      HEIGHT_OF_X_AXIS,
     stimuli,
     participants,
     timeline,
@@ -609,7 +562,7 @@ export function transformDataToScarfPlot(
     legendData: createScarfLegendData(stylingAndLegend),
     leftLabelWidth: 0,
     plotAreaWidth: 0,
-    visualRectBuckets: rectBucketBuilders.map(b => b.finalize()),
-    visualEventBuckets: eventBucketBuilders.map(b => b.finalize()),
+    visualRectBuckets: rectBuckets.map(b => b.finalize()),
+    visualEventBuckets: eventBuckets.map(b => b.finalize()),
   }
 }
