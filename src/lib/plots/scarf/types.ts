@@ -82,38 +82,6 @@ export interface ScarfLegendData {
 }
 
 // ============================================================================
-// Segment Types
-// ============================================================================
-
-/**
- * A single segment in the scarf plot.
- * Represents a fixation or other gaze event with position, size, and metadata.
- */
-export interface ScarfSegment {
-  x: number // decimal 0-1 (instead of percentage string)
-  width: number // decimal 0-1 (instead of percentage string)
-  y: number
-  height: number
-  identifier: string
-  orderId: number // Original segment order ID
-}
-
-// ============================================================================
-// AOI Visibility Types
-// ============================================================================
-
-/**
- * A single AOI visibility entry.
- * Represents a time range when an AOI was visible.
- */
-export interface ScarfAoiVisibility {
-  x1: number // decimal 0-1 (instead of percentage string)
-  x2: number // decimal 0-1 (instead of percentage string)
-  y: number
-  identifier: string
-}
-
-// ============================================================================
 // Participant Types
 // ============================================================================
 

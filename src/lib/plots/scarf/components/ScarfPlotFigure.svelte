@@ -1,56 +1,55 @@
 <script lang="ts">
-  import type { ScarfData } from '../types'
-  import {
-    computeGroupedLegendGeometry,
-    drawLegend,
-    drawLegendGroupTitles,
-    SCARF_LEGEND_CONFIG,
-    FONT_PRIMARY,
-    drawTimelineLabels,
-    drawXAxisTicksAndBorder,
-    drawTopXAxisTicksAndBorder,
-    drawXAxisLabel,
-    hitTestLegend,
-    getLegendTooltipPosition,
-    getLegendTooltipContent,
-    type LegendGroup,
-    type LegendGeometry,
-    type LegendItemGeometry,
-  } from '$lib/plots/shared'
-  import type { ScarfGridType } from '$lib/workspace/type/gridType'
-  import { getContext, onDestroy, onMount, untrack } from 'svelte'
   import { browser } from '$app/environment'
+  import {
+    beginCanvasDrawing,
+    createCanvasState,
+    finishCanvasDrawing,
+    getScaledMousePosition,
+    getTooltipPosition,
+    resizeCanvas,
+    setupCanvas,
+    setupDpiChangeListeners,
+    type CanvasState,
+  } from '$lib/shared/utils/canvasUtils'
   import {
     EXPORT_SOURCE_CONTEXT,
     type ExportSourceRegistrar,
   } from '$lib/shared/utils/exportUtils'
+  import {
+    computeGroupedLegendGeometry,
+    drawLegend,
+    drawLegendGroupTitles,
+    drawTimelineLabels,
+    drawTopXAxisTicksAndBorder,
+    drawXAxisLabel,
+    drawXAxisTicksAndBorder,
+    getLegendTooltipContent,
+    getLegendTooltipPosition,
+    hitTestLegend,
+    SCARF_LEGEND_CONFIG,
+    type LegendGeometry,
+    type LegendGroup,
+    type LegendItemGeometry,
+  } from '$lib/plots/shared'
+  import { updateTooltip } from '$lib/tooltip'
+  import type { ScarfGridType } from '$lib/workspace/type/gridType'
+  import { getContext, onDestroy, onMount, untrack } from 'svelte'
   import { SCARF_LAYOUT } from '../const'
   import {
     calculateIsCompactMode,
-    calculatePlotLayout,
     calculateLeftLabelWidth,
-    getXAxisLabel,
+    calculatePlotLayout,
     getScarfIdentifierSystem,
+    getXAxisLabel,
   } from '../core/layout'
   import {
-    drawScarfLabels,
-    drawScarfGrid,
-    drawScarfRectangles,
     drawScarfEvents,
+    drawScarfGrid,
+    drawScarfLabels,
+    drawScarfRectangles,
     type ScarfLayoutContext,
   } from '../core/renderer'
-  import {
-    createCanvasState,
-    setupCanvas,
-    resizeCanvas,
-    getScaledMousePosition,
-    getTooltipPosition,
-    setupDpiChangeListeners,
-    beginCanvasDrawing,
-    finishCanvasDrawing,
-    type CanvasState,
-  } from '$lib/shared/utils/canvasUtils'
-  import { updateTooltip } from '$lib/tooltip'
+  import type { ScarfData } from '../types'
 
   interface Props {
     tooltipAreaElement: HTMLElement | SVGElement | null
@@ -1055,7 +1054,6 @@
 
   // Create a render scheduler
   function scheduleRender() {
-    //console.log('scheduleRender', new Date().toISOString())
     if (!canvasState.renderScheduled && browser) {
       canvasState.renderScheduled = true
       requestAnimationFrame(() => {

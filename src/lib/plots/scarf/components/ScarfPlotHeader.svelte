@@ -1,24 +1,25 @@
 <script lang="ts">
-  import { ScarfPlotButtonMenu } from '$lib/plots/scarf/components'
-  import Select, {
-    type GroupSelectItem,
-  } from '$lib/shared/components/GeneralSelect.svelte'
-  import {
-    getStimuliOptions,
-    getParticipantsGroupOptions,
-  } from '$lib/plots/shared'
-  import type { MinorGroupItem } from '$lib/shared/components/GeneralButtonMinor.svelte'
-  import Minor from '$lib/shared/components/GeneralButtonMinor.svelte'
-  import ZoomIn from 'lucide-svelte/icons/zoom-in'
-  import ZoomOut from 'lucide-svelte/icons/zoom-out'
-  import RefreshCcw from 'lucide-svelte/icons/refresh-ccw'
-  import type { ScarfGridType } from '$lib/workspace/type/gridType'
-  import type { WorkspaceCommand } from '$lib/workspace/commands'
   import {
     getNumberOfSegments,
     getParticipantEndTime,
     getParticipants,
   } from '$lib/gaze-data/front-process/stores/dataStore'
+  import {
+    getParticipantsGroupOptions,
+    getStimuliOptions,
+  } from '$lib/plots/shared'
+  import Minor, {
+    type MinorGroupItem,
+  } from '$lib/shared/components/GeneralButtonMinor.svelte'
+  import Select, {
+    type GroupSelectItem,
+  } from '$lib/shared/components/GeneralSelect.svelte'
+  import type { WorkspaceCommand } from '$lib/workspace/commands'
+  import type { ScarfGridType } from '$lib/workspace/type/gridType'
+  import RefreshCcw from 'lucide-svelte/icons/refresh-ccw'
+  import ZoomIn from 'lucide-svelte/icons/zoom-in'
+  import ZoomOut from 'lucide-svelte/icons/zoom-out'
+  import { ScarfPlotButtonMenu } from './'
 
   interface Props {
     settings: ScarfGridType

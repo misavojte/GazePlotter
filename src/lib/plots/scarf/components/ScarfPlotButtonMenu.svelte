@@ -24,7 +24,6 @@
 
   interface Props {
     settings: ScarfGridType
-    multipleSettings?: ScarfGridType[]
     onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 

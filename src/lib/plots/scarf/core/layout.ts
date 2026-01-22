@@ -1,7 +1,6 @@
-import { SCARF_LAYOUT } from '../const'
-import type { ScarfData } from '../types'
-import { computeGroupedLegendGeometry, FONT_PRIMARY } from '$lib/plots/shared'
+import { FONT_PRIMARY } from '$lib/plots/shared'
 import { calculateTextMetrics } from '$lib/shared/utils/textUtils'
+import { SCARF_LAYOUT } from '../const'
 
 /**
  * Calculates if compact mode should be active based on available vertical space.
@@ -101,19 +100,6 @@ export function getTimelineUnit(
   if (timelineType === 'relative') return '%'
   if (timelineType === 'absolute') return 'ms'
   return ''
-}
-
-/**
- * Helper function determining whether dynamic AOI is displayed in the current context.
- */
-export function getDynamicAoiBoolean(
-  timeline: 'ordinal' | 'absolute' | 'relative',
-  dynamicAOIAllowed: boolean,
-  dynamicAOIInData: boolean
-): boolean {
-  if (timeline === 'ordinal') return false
-  if (!dynamicAOIAllowed) return false
-  return dynamicAOIInData
 }
 
 /**

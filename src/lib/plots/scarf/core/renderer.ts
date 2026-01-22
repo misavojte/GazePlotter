@@ -1,12 +1,12 @@
-import type { ScarfData } from '../types'
-import { SCARF_LAYOUT } from '../const'
 import {
+  FONT_PRIMARY,
   GRIDLINE_PRIMARY,
   GRIDLINE_SECONDARY,
-  FONT_PRIMARY,
 } from '$lib/plots/shared'
 import { alignToPixelCenter } from '$lib/shared/utils/canvasUtils'
 import { desaturateToWhite } from '$lib/shared/utils/colorUtils'
+import { SCARF_LAYOUT } from '../const'
+import type { ScarfData } from '../types'
 
 export interface ScarfLayoutContext {
   heightOfBar: number
@@ -81,7 +81,7 @@ export function drawScarfLabels(
         participants[i].label,
         xPos,
         i * layout.heightOfBarWrap +
-          (layout.heightOfBarWrap >> 1) +
+          layout.heightOfBarWrap / 2 +
           layout.effectiveMarginTop
       )
     }

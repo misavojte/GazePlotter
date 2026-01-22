@@ -2,17 +2,6 @@
  * ScarfPlot Data Transformation Utilities
  */
 
-import type { ScarfGridType } from '$lib/workspace/type/gridType'
-import type {
-  ScarfData,
-  ScarfParticipant,
-  ScarfStyleItem,
-  ScarfStyling,
-  ScarfLegendData,
-  ScarfLegendGroup,
-  ScarfLegendItem,
-  ScarfLegendStyleType,
-} from '$lib/plots/scarf/types'
 import {
   getAois,
   getAoiVisibility,
@@ -25,16 +14,27 @@ import {
   hasStimulusAoiVisibility,
 } from '$lib/gaze-data/front-process/stores/dataStore'
 import {
+  MAX_AOI_PER_STIMULUS,
+  SegmentField,
+  SEGMENT_STRIDE,
+  type ExtendedInterpretedDataType,
+} from '$lib/gaze-data/shared/types'
+import {
   createAdaptiveTimeline,
   type AdaptiveTimeline,
 } from '$lib/plots/shared'
-import { SCARF_LAYOUT, SCARF_IDENTIFIERS } from '../const'
-import {
-  MAX_AOI_PER_STIMULUS,
-  SEGMENT_STRIDE,
-  SegmentField,
-} from '$lib/gaze-data/shared/types'
-import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
+import type { ScarfGridType } from '$lib/workspace/type/gridType'
+import { SCARF_IDENTIFIERS, SCARF_LAYOUT } from '../const'
+import type {
+  ScarfData,
+  ScarfLegendData,
+  ScarfLegendGroup,
+  ScarfLegendItem,
+  ScarfLegendStyleType,
+  ScarfParticipant,
+  ScarfStyleItem,
+  ScarfStyling,
+} from '../types'
 
 const RECT_STRIDE = 8
 const EVENT_STRIDE = 5
@@ -464,7 +464,7 @@ export function transformDataToScarfPlot(
           pid,
           localId,
           localId,
-          SPACE_ABOVE_RECT + (HEIGHT_OF_BAR >> 1) - (NON_FIXATION_HEIGHT >> 1)
+          SPACE_ABOVE_RECT + (HEIGHT_OF_BAR - NON_FIXATION_HEIGHT) / 2
         )
       } else {
         const pStart = segmentBuffer[base + SegmentField.AOI_POINTER] | 0
@@ -512,7 +512,7 @@ export function transformDataToScarfPlot(
     }
 
     if (showAoiVisibility) {
-      const internalY = SPACE_ABOVE_RECT + (HEIGHT_OF_BAR >> 1)
+      const internalY = SPACE_ABOVE_RECT + HEIGHT_OF_BAR / 2
       for (let aoiIdx = 0; aoiIdx < aoiData.length; aoiIdx++) {
         const visibility = getAoiVisibility(stimulusId, aoiData[aoiIdx].id, pid)
         if (visibility?.length) {
