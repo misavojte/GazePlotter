@@ -2,9 +2,8 @@ import {
   getParticipants,
   getParticipantEndTime,
 } from '$lib/gaze-data/front-process/stores/dataStore'
-import { SCARF_LAYOUT } from '$lib/plots/scarf/utils'
-import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared'
 import {
+  calculatePlotDimensionsWithHeader,
   calculateFlatLegendHeight,
   STREAM_LEGEND_CONFIG,
 } from '$lib/plots/shared'
@@ -19,14 +18,12 @@ import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
 const MARGIN = {
   TOP: 20,
-  RIGHT: SCARF_LAYOUT.RIGHT_MARGIN,
+  RIGHT: 0,
   BOTTOM: 55,
   LEFT: 50,
 }
 
 const HEADER_HEIGHT = 150
-const HORIZONTAL_PADDING = 40
-const CONTENT_PADDING = 5
 const RIDGELINE_OVERLAP = 0.6
 
 /**
@@ -156,9 +153,7 @@ export function scanForDynamicStripHeight(
       settings.w,
       settings.h,
       DEFAULT_GRID_CONFIG,
-      HEADER_HEIGHT,
-      HORIZONTAL_PADDING,
-      CONTENT_PADDING
+      HEADER_HEIGHT
     )
 
     const safeWidth = Math.max(1, dims.width)

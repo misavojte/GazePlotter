@@ -41,36 +41,33 @@ export function calculatePlotDimensions(
 }
 
 /**
+ * Standard horizontal padding for plot containers.
+ * This corresponds to the padding in GridItemContainer.svelte's .body element (20px each side = 40px total).
+ * If you change this value, also update the padding in GridItemContainer.svelte.
+ */
+const PLOT_CONTAINER_HORIZONTAL_PADDING = 40
+
+/**
  * Calculates the available plot area dimensions with header adjustment
  *
  * @param gridWidth Grid width in cells
  * @param gridHeight Grid height in cells
  * @param gridConfig The grid configuration
  * @param headerHeight Height of the header in pixels
- * @param horizontalPadding Total horizontal padding to subtract (left + right)
- * @param contentPadding Additional padding around the content area
  * @returns Available plot dimensions in pixels
  */
 export function calculatePlotDimensionsWithHeader(
   gridWidth: number,
   gridHeight: number,
   gridConfig: GridConfig,
-  headerHeight: number,
-  horizontalPadding: number = 0,
-  contentPadding: number = 0
+  headerHeight: number
 ): PlotDimensions {
-  // Calculate total vertical padding (header + content padding)
-  const totalVerticalPadding = headerHeight + contentPadding
-
-  // Calculate total horizontal padding
-  const totalHorizontalPadding = horizontalPadding + contentPadding
-
-  // Use the base function with the calculated paddings
+  // Use the base function with standard container padding and header height
   return calculatePlotDimensions(
     gridWidth,
     gridHeight,
     gridConfig,
-    totalHorizontalPadding,
-    totalVerticalPadding
+    PLOT_CONTAINER_HORIZONTAL_PADDING,
+    headerHeight
   )
 }

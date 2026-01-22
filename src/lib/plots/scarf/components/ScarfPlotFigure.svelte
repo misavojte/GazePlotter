@@ -7,10 +7,14 @@
     computeGroupedLegendGeometry,
     drawLegend,
     drawLegendGroupTitles,
+    SCARF_LEGEND_CONFIG,
+    drawTimelineLabels,
+    drawXAxisTicksAndBorder,
+    drawTopXAxisTicksAndBorder,
+    drawXAxisLabel,
     hitTestLegend,
     getLegendTooltipPosition,
     getLegendTooltipContent,
-    SCARF_LEGEND_CONFIG,
     type LegendGroup,
     type LegendGeometry,
     type LegendItemGeometry,
@@ -37,6 +41,7 @@
     setupDpiChangeListeners,
     beginCanvasDrawing,
     finishCanvasDrawing,
+    alignToPixelCenter,
     type CanvasState,
   } from '$lib/shared/utils/canvasUtils'
   import { updateTooltip } from '$lib/tooltip'
@@ -90,16 +95,46 @@
     marginLeft = 0,
   }: Props = $props()
 
-  // Extract participant labels first - this isolates the dependency
-  // so LEFT_LABEL_WIDTH doesn't recalculate when other data properties change
-  const participantLabels = $derived(data.participants.map(p => p.label))
+  // Extract participant labels only when needed (normal mode)
+  // Stops mapping thousands of names in compact mode
+  const participantLabels = $derived.by(() => {
+    if (isCompactMode) return []
+    return data.participants.map(p => p.label)
+  })
 
-  // Calculate left label width based on participant names and font size
+  // Preliminary compact mode check to determine label width strategy
+  // This must come before LEFT_LABEL_WIDTH to avoid circular dependency
+  const isCompactMode = $derived.by(() => {
+    const participantCount = data.participants.length
+    if (participantCount === 0) return false
+
+    const defaultBH = SCARF_LAYOUT.HEIGHT_OF_BAR
+    const defaultWrap = data.heightOfBarWrap
+    const fixedOverhead =
+      marginTop +
+      INTERNAL_PADDING_TOP +
+      45 +
+      legendHeight +
+      marginBottom +
+      INTERNAL_PADDING_BOTTOM
+    const remainingHeight = availableHeight - fixedOverhead
+    const targetWrap = Math.floor(remainingHeight / participantCount)
+    const rawScale = targetWrap / defaultWrap
+    const prelimScale = Math.max(
+      SCARF_LAYOUT.MIN_BAR_HEIGHT / defaultBH,
+      Math.min(SCARF_LAYOUT.MAX_BAR_SCALE, rawScale)
+    )
+    return defaultBH * prelimScale < SCARF_LAYOUT.COMPACT_MODE_THRESHOLD
+  })
+
+  // Calculate left label width: fixed in compact mode, dynamic in normal mode
   const LEFT_LABEL_WIDTH = $derived.by(() => {
+    if (isCompactMode) {
+      return 55 // Increased from 50 to prevent rotated label cropping
+    }
+    // Dynamic width based on participant labels (normal mode)
     const labels = participantLabels
     if (labels.length === 0) return 0
-    // Use the max width found, but cap it to avoid breaking the layout with very long names
-    // Also ensure a minimum width for visual consistency
     const metrics = calculateTextMetrics(labels, SCARF_LAYOUT.LABEL_FONT_SIZE)
     return Math.min(
       SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH,
@@ -107,8 +142,8 @@
     )
   })
 
-  // Plot area width - uses full available width minus label area and padding
-  // When no margins are set (default 0), content renders flush to canvas edges
+  // Plot area width - calculated to fill available space with reserved right margin
+  // RIGHT_MARGIN accounts for: event markers at timeline end + gridline stroke alignment
   const plotAreaWidth = $derived(
     Math.max(
       0,
@@ -116,7 +151,6 @@
         marginLeft -
         marginRight -
         LEFT_LABEL_WIDTH -
-        (SCARF_LAYOUT.PADDING << 1) -
         SCARF_LAYOUT.RIGHT_MARGIN
     )
   )
@@ -151,10 +185,14 @@
     return tempLayout.totalHeight
   })
 
-  // 2. Dynamic Layout Logic
-  // Now layout can safely depend on legendHeight
+  // 2. Dynamic Layout Logic - handles both shrinking AND scaling up
+  // Unified scale approach: single scaleFactor applied to bar dimensions
+  // Compact mode: when bars get too small, remove labels/gaps for density
+  // Iterative scaling: recalculate scale in compact mode to fill freed space
   const layout = $derived.by(() => {
     const participantCount = data.participants.length
+
+    // Default dimensions from source data
     const defaultBH = SCARF_LAYOUT.HEIGHT_OF_BAR // 15
     const defaultSAR = SCARF_LAYOUT.SPACE_ABOVE_RECT // 5
     const defaultNFH = SCARF_LAYOUT.NON_FIXATION_HEIGHT // 4
@@ -166,57 +204,58 @@
         spaceAboveRect: defaultSAR,
         nonFixationHeight: defaultNFH,
         heightOfBarWrap: defaultWrap,
-        isShrunk: false,
+        scaleFactor: 1,
+        isCompact: false,
       }
     }
 
+    // Calculate fixed overhead (legend, axis, margins)
     const fixedOverheadAbove = marginTop + INTERNAL_PADDING_TOP
     const fixedOverheadBelow =
       45 + legendHeight + marginBottom + INTERNAL_PADDING_BOTTOM
     const totalFixedOverhead = fixedOverheadAbove + fixedOverheadBelow
 
+    // Available height for all participant rows
     const remainingHeight = availableHeight - totalFixedOverhead
     const targetHeightOfBarWrap = Math.floor(remainingHeight / participantCount)
 
-    if (targetHeightOfBarWrap >= defaultWrap) {
-      return {
-        heightOfBar: defaultBH,
-        spaceAboveRect: defaultSAR,
-        nonFixationHeight: defaultNFH,
-        heightOfBarWrap: defaultWrap,
-        isShrunk: false,
-      }
-    }
-
-    const visibilityOverhead = defaultWrap - (defaultBH + defaultSAR * 2)
-    const availableForMainBarWrap = Math.max(
-      0,
-      targetHeightOfBarWrap - visibilityOverhead
+    // STEP 1: Initial scale assuming normal mode (with vertical gaps)
+    const rawScale = targetHeightOfBarWrap / defaultWrap
+    let scale = Math.max(
+      SCARF_LAYOUT.MIN_BAR_HEIGHT / defaultBH,
+      Math.min(SCARF_LAYOUT.MAX_BAR_SCALE, rawScale)
     )
 
-    const minBH = 2 * defaultNFH
-    let currentBH = defaultBH
-    let currentSAR = defaultSAR
+    let scaledBH = defaultBH * scale
+    let isCompact = scaledBH < SCARF_LAYOUT.COMPACT_MODE_THRESHOLD
 
-    if (availableForMainBarWrap < defaultBH + defaultSAR * 2) {
-      if (availableForMainBarWrap < minBH) {
-        currentBH = Math.max(1, availableForMainBarWrap)
-        currentSAR = 0
-      } else if (availableForMainBarWrap < minBH + 2) {
-        currentBH = minBH
-        currentSAR = (availableForMainBarWrap - minBH) / 2
-      } else {
-        currentBH = Math.max(minBH, availableForMainBarWrap - 2)
-        currentSAR = (availableForMainBarWrap - currentBH) / 2
-      }
+    // STEP 2: If compact, recalculate WITHOUT vertical gaps to utilize freed space
+    if (isCompact) {
+      // In compact mode: wrap = heightOfBar only (no padding)
+      const compactScale = Math.max(
+        SCARF_LAYOUT.MIN_BAR_HEIGHT / defaultBH,
+        Math.min(SCARF_LAYOUT.MAX_BAR_SCALE, targetHeightOfBarWrap / defaultBH)
+      )
+      scale = compactScale
+      scaledBH = defaultBH * scale
+      // DO NOT re-check isCompact here. We stay in compact mode if Step 1 triggered it
+      // to avoid hysteresis/oscillation (scale-up pushing it back above threshold).
     }
 
+    // In compact mode: no vertical gaps, bars touch each other
+    const scaledSAR = isCompact ? 0 : defaultSAR * scale
+    // Cap non-fixation height: max 6px (1.5x default), min 1px
+    const scaledNFH = Math.min(6, Math.max(1, defaultNFH * scale))
+    // In compact mode: wrap = bar height only (no padding)
+    const scaledWrap = isCompact ? scaledBH : defaultWrap * scale
+
     return {
-      heightOfBar: currentBH,
-      spaceAboveRect: currentSAR,
-      nonFixationHeight: defaultNFH,
-      heightOfBarWrap: targetHeightOfBarWrap,
-      isShrunk: true,
+      heightOfBar: scaledBH,
+      spaceAboveRect: scaledSAR,
+      nonFixationHeight: scaledNFH,
+      heightOfBarWrap: scaledWrap,
+      scaleFactor: scale,
+      isCompact,
     }
   })
 
@@ -312,7 +351,7 @@
       }
     }
 
-    const legendX = marginLeft + SCARF_LAYOUT.PADDING
+    const legendX = marginLeft
     const lY = legendY + effectiveMarginTop
 
     return computeGroupedLegendGeometry(
@@ -391,7 +430,28 @@
   const totalHeight = $derived(availableHeight)
 
   // Check if we have enough space to render
-  const canRender = $derived(availableHeight >= totalContentHeight)
+  // In compact mode, we can render with much less space (min 1px per participant)
+  // but we enforce a minimum plot area height to avoid cropping the rotated axis label
+  const canRender = $derived.by(() => {
+    if (isCompactMode) {
+      // Compact mode minimum: MAX(participants * MIN_BAR_HEIGHT, MIN_PLOT_HEIGHT_COMPACT) + fixed overhead
+      const minPlotHeight = Math.max(
+        data.participants.length * SCARF_LAYOUT.MIN_BAR_HEIGHT,
+        SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT
+      )
+      const minCompactHeight =
+        minPlotHeight +
+        marginTop +
+        marginBottom +
+        INTERNAL_PADDING_TOP +
+        INTERNAL_PADDING_BOTTOM +
+        45 +
+        legendHeight
+      return availableHeight >= minCompactHeight
+    }
+    // Normal mode: use full content height
+    return availableHeight >= totalContentHeight
+  })
 
   // Create a unified identifier mapping system for all style types
   const identifierSystem = $derived.by(() => {
@@ -528,6 +588,9 @@
   // IMPORTANT: This computation is expensive. We minimize reactive dependencies
   // by using source data values directly and computing in normalized space.
   const eventLayoutOverrides = $derived.by(() => {
+    // In compact mode, we skip expensive offset calculation as markers stay centered
+    if (isCompactMode) return new Map<number, number>()
+
     const buckets = visualEventBuckets
     if (buckets.length === 0) return new Map<number, number>()
 
@@ -715,30 +778,63 @@
     setUpFont(ctx)
 
     // Draw participant labels (Left Side)
-    drawParticipantLabels(ctx)
+    // Floor dimensions to ensure pixel-perfect synchronization between all drawing layers
+    const scarfPlotLeft = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
+    const scarfPlotWidth = Math.floor(plotAreaWidth)
+    const scarfPlotRight = scarfPlotLeft + scarfPlotWidth
 
-    // Draw timeline axis labels and ticks
-    drawTimelineLabels(ctx)
+    drawParticipantLabels(ctx, scarfPlotLeft)
 
-    // Draw X-Axis label
-    drawXAxisLabel(ctx)
+    // Draw timeline axis labels and ticks (moved below together)
 
     // ---- STOP OF TEXT DRAWING ---- //
 
     // Draw participant ticks
     drawParticipantTicks(ctx)
 
-    // Draw X-Axis ticks and bottom border
-    drawXAxisTicksAndBorder(ctx)
+    // Draw X-Axis ticks and bottom border (moved below together)
 
     // Draw top border and ticks
-    drawTopBorderAndTicks(ctx)
+    drawTopXAxisTicksAndBorder(
+      ctx,
+      data.timeline,
+      scarfPlotLeft,
+      scarfPlotWidth,
+      effectiveMarginTop
+    )
 
     // Draw rectangle segments
-    drawRectangles(ctx)
+    drawRectangles(ctx, scarfPlotLeft, scarfPlotWidth)
 
     // Draw event markers (AOI visibility start/end)
-    drawEvents(ctx)
+    drawEvents(ctx, scarfPlotLeft, scarfPlotWidth)
+
+    // Draw all text elements (axis labels, ticks)
+
+    drawTimelineLabels(
+      ctx,
+      data.timeline,
+      scarfPlotLeft,
+      scarfPlotWidth,
+      participantBarsHeight + effectiveMarginTop
+    )
+
+    drawXAxisLabel(
+      ctx,
+      xAxisLabel,
+      scarfPlotLeft,
+      scarfPlotWidth,
+      participantBarsHeight + effectiveMarginTop,
+      30
+    )
+
+    drawXAxisTicksAndBorder(
+      ctx,
+      data.timeline,
+      scarfPlotLeft,
+      scarfPlotWidth,
+      participantBarsHeight + effectiveMarginTop
+    )
 
     // Draw legend using shared utility
     drawLegendGroupTitles(ctx, legendGeometry, SCARF_LEGEND_CONFIG)
@@ -754,33 +850,84 @@
     ctx.fillStyle = FONT_PRIMARY.COLOR
   }
 
-  function drawParticipantLabels(ctx: CanvasRenderingContext2D) {
+  function drawParticipantLabels(ctx: CanvasRenderingContext2D, leftX: number) {
     // watch out that setUpFont function is called before this function is called!
-
-    ctx.textAlign = 'end'
-    ctx.textBaseline = 'middle'
 
     const participants = data.participants
     const len = participants.length
-    const xPos = LEFT_LABEL_WIDTH + marginLeft - 10
 
-    for (let i = 0; i < len; i++) {
-      const participant = participants[i]
-      ctx.fillText(
-        participant.label,
-        xPos,
-        i * layout.heightOfBarWrap +
-          (layout.heightOfBarWrap >> 1) +
+    if (layout.isCompact) {
+      // COMPACT MODE: rotated two-line axis label + index ticks
+      // Draw rotated "Participants" + "[order indices]" label (two lines, centered)
+      ctx.save()
+      ctx.textAlign = 'right'
+      ctx.textBaseline = 'middle'
+      const labelX = leftX - 40
+      const labelY = effectiveMarginTop + participantBarsHeight / 2
+      ctx.translate(labelX, labelY)
+      ctx.rotate(-Math.PI / 2)
+      const lineHeight = FONT_PRIMARY.SIZE * 1.2
+      ctx.fillText('Participants', 0, -lineHeight / 2)
+      ctx.fillText('[order indices]', 0, lineHeight / 2)
+      ctx.restore()
+
+      // Draw nice index ticks on the left axis (0-indexed, min step 5)
+      ctx.textAlign = 'end'
+      ctx.textBaseline = 'middle'
+      const tickX = LEFT_LABEL_WIDTH + marginLeft - 8
+
+      // Calculate nice tick step (minimum 5, aim for ~5-10 ticks)
+      const niceSteps = [5, 10, 20, 25, 50, 100, 200, 500, 1000]
+      let step = 5
+      for (const s of niceSteps) {
+        if (len / s <= 10) {
+          step = s
+          break
+        }
+      }
+
+      // Draw index ticks at nice intervals (0-indexed)
+      for (let i = 0; i < len; i += step) {
+        const y =
+          i * layout.heightOfBarWrap +
+          layout.heightOfBarWrap / 2 +
           effectiveMarginTop
-      )
+        ctx.fillText(String(i), tickX, y)
+      }
+      // Always draw the last index if not already drawn
+      const lastIdx = len - 1
+      if (lastIdx % step !== 0) {
+        const y =
+          lastIdx * layout.heightOfBarWrap +
+          layout.heightOfBarWrap / 2 +
+          effectiveMarginTop
+        ctx.fillText(String(lastIdx), tickX, y)
+      }
+    } else {
+      // NORMAL MODE: individual participant labels
+      ctx.textAlign = 'end'
+      ctx.textBaseline = 'middle'
+      const xPos = leftX - 10
+
+      for (let i = 0; i < len; i++) {
+        const participant = participants[i]
+        ctx.fillText(
+          participant.label,
+          xPos,
+          i * layout.heightOfBarWrap +
+            (layout.heightOfBarWrap >> 1) +
+            effectiveMarginTop
+        )
+      }
     }
   }
 
   function drawParticipantTicks(ctx: CanvasRenderingContext2D) {
-    // Pixel-align coordinates for sharp rendering
-    const leftX = Math.floor(LEFT_LABEL_WIDTH + marginLeft) + 0.5
-    const rightX =
-      Math.floor(LEFT_LABEL_WIDTH + marginLeft + plotAreaWidth) + 0.5
+    // Pixel-align coordinates for sharp rendering based on floored dimensions
+    const scarfPlotLeft = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
+    const scarfPlotWidth = Math.floor(plotAreaWidth)
+    const leftX = scarfPlotLeft + 0.5
+    const rightX = scarfPlotLeft + scarfPlotWidth + 0.5
 
     // Draw the vertical Y-axis lines connecting the ticks using standard grid color
     ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
@@ -795,6 +942,52 @@
     ctx.lineTo(rightX, yBottom)
     ctx.stroke()
 
+    // In compact mode: skip minor gridlines but draw outward axis ticks
+    if (layout.isCompact) {
+      const participants = data.participants
+      const len = participants.length
+
+      // Nice steps logic (same as in drawParticipantLabels)
+      const niceSteps = [5, 10, 20, 25, 50, 100, 200, 500, 1000]
+      let step = 5
+      for (const s of niceSteps) {
+        if (len / s <= 10) {
+          step = s
+          break
+        }
+      }
+
+      ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
+      ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
+
+      // Draw outward checks at the same intervals as labels
+      for (let i = 0; i < len; i += step) {
+        const y = alignToPixelCenter(
+          i * layout.heightOfBarWrap +
+            layout.heightOfBarWrap / 2 +
+            effectiveMarginTop
+        )
+        ctx.beginPath()
+        ctx.moveTo(leftX, y)
+        ctx.lineTo(leftX - 5, y)
+        ctx.stroke()
+      }
+      // Always draw the last index if not already drawn
+      const lastIdx = len - 1
+      if (lastIdx % step !== 0) {
+        const y = alignToPixelCenter(
+          lastIdx * layout.heightOfBarWrap +
+            layout.heightOfBarWrap / 2 +
+            effectiveMarginTop
+        )
+        ctx.beginPath()
+        ctx.moveTo(leftX, y)
+        ctx.lineTo(leftX - 5, y)
+        ctx.stroke()
+      }
+      return
+    }
+
     // Draw horizontal lines between participants using subtle ridgeline style
     ctx.strokeStyle = GRIDLINE_SECONDARY.COLOR
     ctx.lineWidth = GRIDLINE_SECONDARY.WIDTH
@@ -804,8 +997,9 @@
 
     for (let i = 0; i <= len; i++) {
       // Draw ticks exactly at bar boundaries
-      const y =
-        Math.floor(i * layout.heightOfBarWrap + effectiveMarginTop) + 0.5
+      const y = alignToPixelCenter(
+        i * layout.heightOfBarWrap + effectiveMarginTop
+      )
 
       // Draw full line across between participants
       ctx.beginPath()
@@ -815,114 +1009,11 @@
     }
   }
 
-  function drawTopBorderAndTicks(ctx: CanvasRenderingContext2D) {
-    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
-    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
-
-    // Pixel-align coordinates
-    const yTop = Math.floor(effectiveMarginTop) + 0.5
-    const leftX = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
-    const rightX = Math.floor(LEFT_LABEL_WIDTH + marginLeft + plotAreaWidth)
-    const ticks = data.timeline.ticks
-    const len = ticks.length
-
-    // Draw top border line
-    ctx.beginPath()
-    ctx.moveTo(leftX, yTop)
-    ctx.lineTo(rightX, yTop)
-    ctx.stroke()
-
-    // Draw outward ticks (facing up)
-    for (let i = 0; i < len; i++) {
-      const tick = ticks[i]
-      const x =
-        Math.floor(
-          LEFT_LABEL_WIDTH + tick.position * plotAreaWidth + marginLeft
-        ) + 0.5
-      ctx.beginPath()
-      ctx.moveTo(x, yTop)
-      ctx.lineTo(x, yTop - 5)
-      ctx.stroke()
-    }
-  }
-
-  function drawTimelineLabels(ctx: CanvasRenderingContext2D) {
-    // watch out that setUpFont function is called before this function is called!
-
-    const ticks = data.timeline.ticks
-    const len = ticks.length
-    if (len === 0) return
-
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'hanging'
-
-    // Position labels just 10px below the participant bars
-    const yPos = participantBarsHeight + 10 + effectiveMarginTop
-    const rightBoundary = LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft
-    const isSecondToLast = len - 2
-    const isLast = len - 1
-
-    for (let i = 0; i < len; i++) {
-      const tick = ticks[i]
-      if (!tick.isNice) continue
-
-      const regularXPos =
-        LEFT_LABEL_WIDTH + tick.position * plotAreaWidth + marginLeft
-
-      // Only check for overflow on the second-to-last tick
-      // and the last tick if with a label (for relative timeline mode)
-      if ((i === isSecondToLast || i === isLast) && tick.label) {
-        const textWidth = ctx.measureText(tick.label).width
-        const rightEdgeOfText = regularXPos + textWidth / 2
-
-        if (rightEdgeOfText > rightBoundary) {
-          // Move the label left just enough so it fits within the plot area
-          const xPos = regularXPos - (rightEdgeOfText - rightBoundary)
-          ctx.fillText(tick.label, xPos, yPos)
-        } else {
-          ctx.fillText(tick.label, regularXPos, yPos)
-        }
-      } else {
-        ctx.fillText(tick.label, regularXPos, yPos)
-      }
-    }
-  }
-
-  function drawXAxisTicksAndBorder(ctx: CanvasRenderingContext2D) {
-    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
-    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
-
-    // Use the exact height from calculatedHeights and pixel align
-    const yLine = Math.floor(participantBarsHeight + effectiveMarginTop) + 0.5
-    const ticks = data.timeline.ticks
-    const len = ticks.length
-
-    // Draw ticks - make them shorter (3px instead of LAYOUT.TICK_LENGTH)
-    for (let i = 0; i < len; i++) {
-      const tick = ticks[i]
-      const x =
-        Math.floor(
-          LEFT_LABEL_WIDTH + tick.position * plotAreaWidth + marginLeft
-        ) + 0.5
-      const y1 = yLine
-      const y2 = y1 + 5
-
-      ctx.beginPath()
-      ctx.moveTo(x, y1)
-      ctx.lineTo(x, y2)
-      ctx.stroke()
-    }
-
-    // Draw bottom border line
-    const leftX = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
-    const rightX = Math.floor(LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft)
-    ctx.beginPath()
-    ctx.moveTo(leftX, yLine)
-    ctx.lineTo(rightX, yLine)
-    ctx.stroke()
-  }
-
-  function drawRectangles(ctx: CanvasRenderingContext2D) {
+  function drawRectangles(
+    ctx: CanvasRenderingContext2D,
+    leftX: number,
+    plotWidth: number
+  ) {
     const buckets = visualRectBuckets
     if (buckets.length === 0) return
 
@@ -965,7 +1056,9 @@
         let rectH = origRectH
         let internalY = origInternalY
 
-        if (layout.isShrunk) {
+        // Apply scaling when scaleFactor differs from 1 (both shrink and scale-up)
+        const scale = layout.scaleFactor
+        if (scale !== 1) {
           if (origRectH === SCARF_LAYOUT.NON_FIXATION_HEIGHT) {
             rectH = layout.nonFixationHeight
             internalY =
@@ -973,15 +1066,14 @@
               layout.heightOfBar / 2 -
               layout.nonFixationHeight / 2
           } else {
-            const scale = layout.heightOfBar / SCARF_LAYOUT.HEIGHT_OF_BAR
             rectH = origRectH * scale
             const paddingOffset = origInternalY - SCARF_LAYOUT.SPACE_ABOVE_RECT
             internalY = layout.spaceAboveRect + paddingOffset * scale
           }
         }
 
-        const pxX = LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
-        const pxW = widthNormalized * plotAreaWidth
+        const pxX = leftX + xNormalized * plotWidth
+        const pxW = widthNormalized * plotWidth
         const pxY =
           pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
 
@@ -1022,7 +1114,9 @@
         let rectH = origRectH
         let internalY = origInternalY
 
-        if (layout.isShrunk) {
+        // Apply scaling when scaleFactor differs from 1 (both shrink and scale-up)
+        const scale = layout.scaleFactor
+        if (scale !== 1) {
           if (origRectH === SCARF_LAYOUT.NON_FIXATION_HEIGHT) {
             rectH = layout.nonFixationHeight
             internalY =
@@ -1030,15 +1124,14 @@
               layout.heightOfBar / 2 -
               layout.nonFixationHeight / 2
           } else {
-            const scale = layout.heightOfBar / SCARF_LAYOUT.HEIGHT_OF_BAR
             rectH = origRectH * scale
             const paddingOffset = origInternalY - SCARF_LAYOUT.SPACE_ABOVE_RECT
             internalY = layout.spaceAboveRect + paddingOffset * scale
           }
         }
 
-        const pxX = LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
-        const pxW = widthNormalized * plotAreaWidth
+        const pxX = leftX + xNormalized * plotWidth
+        const pxW = widthNormalized * plotWidth
         const pxY =
           pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
 
@@ -1052,7 +1145,11 @@
     ctx.globalAlpha = 1
   }
 
-  function drawEvents(ctx: CanvasRenderingContext2D) {
+  function drawEvents(
+    ctx: CanvasRenderingContext2D,
+    leftX: number,
+    plotWidth: number
+  ) {
     const buckets = visualEventBuckets
     if (buckets.length === 0) return
 
@@ -1093,19 +1190,22 @@
 
         // Determine vertical position: check for override from collision detection, otherwise use default center
         // Key matches the PACKING CONSTANT in eventLayoutOverrides (styleIdx * 1000000 + i)
-        const overrideKey = styleIdx * 1000000 + i
-        const overrideY = eventLayoutOverrides.get(overrideKey)
+        // Determine vertical position: skip expensive lookup in compact mode
+        const overrideY = layout.isCompact
+          ? undefined
+          : eventLayoutOverrides.get(styleIdx * 1000000 + i)
+
         const internalY =
           overrideY !== undefined
-            ? overrideY
+            ? overrideY * layout.scaleFactor
             : layout.spaceAboveRect + layout.heightOfBar / 2
 
-        const pxX = LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
+        const pxX = leftX + xNormalized * plotWidth
         const pxY =
           pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
 
-        // Size and radii for the circular markers (slightly reduced for a refined look)
-        const size = Math.max(7, Math.min(20, layout.heightOfBar * 0.8))
+        // Size and radii for the circular markers (scaled down cap to 14px)
+        const size = Math.max(7, Math.min(14, layout.heightOfBar * 0.8))
         const radius = size / 2
         const innerRadius = Math.max(2, radius * 0.4) // inner white hole / inner colored dot size
 
@@ -1199,19 +1299,22 @@
 
         // Determine vertical position: check for override from collision detection, otherwise use default center
         // Key matches the PACKING CONSTANT in eventLayoutOverrides (styleIdx * 1000000 + i)
-        const overrideKey = styleIdx * 1000000 + i
-        const overrideY = eventLayoutOverrides.get(overrideKey)
+        // Determine vertical position: skip expensive lookup in compact mode
+        const overrideY = layout.isCompact
+          ? undefined
+          : eventLayoutOverrides.get(styleIdx * 1000000 + i)
+
         const internalY =
           overrideY !== undefined
-            ? overrideY
+            ? overrideY * layout.scaleFactor
             : layout.spaceAboveRect + layout.heightOfBar / 2
 
-        const pxX = LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
+        const pxX = leftX + xNormalized * plotWidth
         const pxY =
           pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
 
-        // Size and radii for the circular markers (slightly reduced for a refined look)
-        const size = Math.max(7, Math.min(20, layout.heightOfBar * 0.8))
+        // Size and radii for the circular markers (scaled down cap to 12px)
+        const size = Math.max(7, Math.min(12, layout.heightOfBar * 0.8))
         const radius = size / 2
         const innerRadius = Math.max(2, radius * 0.4) // inner white hole / inner colored dot size
 
@@ -1281,22 +1384,6 @@
 
     // Reset alpha
     ctx.globalAlpha = 1
-  }
-
-  function drawXAxisLabel(ctx: CanvasRenderingContext2D) {
-    // watch out that setUpFont function is called before this function is called!
-
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'top'
-
-    // Position the label using exact coordinates from our local derivations
-    const labelY = axisLabelY + effectiveMarginTop
-
-    ctx.fillText(
-      xAxisLabel,
-      LEFT_LABEL_WIDTH + (plotAreaWidth >> 1) + marginLeft,
-      labelY
-    )
   }
 
   // Check if a mouse click or hover is on a legend item
@@ -1661,7 +1748,7 @@
       if (canvas && canvasState.dpiOverride !== dpiOverride) {
         canvasState = setupCanvas(canvasState, canvas, dpiOverride)
       }
-      resizeCanvas(canvasState, totalWidth, totalHeight)
+      canvasState = resizeCanvas(canvasState, totalWidth, totalHeight)
       scheduleRender()
     })
   })
@@ -1698,7 +1785,9 @@
         let rectH = origRectH
         let internalY = origInternalY
 
-        if (layout.isShrunk) {
+        // Apply scaling when scaleFactor differs from 1 (both shrink and scale-up)
+        const scale = layout.scaleFactor
+        if (scale !== 1) {
           if (origRectH === SCARF_LAYOUT.NON_FIXATION_HEIGHT) {
             rectH = layout.nonFixationHeight
             internalY =
@@ -1706,15 +1795,14 @@
               layout.heightOfBar / 2 -
               layout.nonFixationHeight / 2
           } else {
-            const scale = layout.heightOfBar / SCARF_LAYOUT.HEIGHT_OF_BAR
             rectH = origRectH * scale
             const paddingOffset = origInternalY - SCARF_LAYOUT.SPACE_ABOVE_RECT
             internalY = layout.spaceAboveRect + paddingOffset * scale
           }
         }
 
-        const pxX = LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
-        const pxW = widthNormalized * plotAreaWidth
+        const pxX = leftX + xNormalized * plotWidth
+        const pxW = widthNormalized * plotWidth
         const pxY =
           pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
 
@@ -1764,11 +1852,3 @@
   data-component="scarfplot"
   aria-label="Scarf plot visualization"
 ></canvas>
-
-<style>
-  .scarf-plot-figure {
-    font-family: sans-serif;
-    display: block;
-    vertical-align: top;
-  }
-</style>

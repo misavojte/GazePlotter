@@ -10,8 +10,6 @@
 
   interface LayoutConfig {
     headerHeight?: number
-    horizontalPadding?: number
-    contentPadding?: number
   }
 
   interface Props {
@@ -45,8 +43,6 @@
   // Default layout constants
   const DEFAULT_LAYOUT = {
     HEADER_HEIGHT: 150,
-    HORIZONTAL_PADDING: 40,
-    CONTENT_PADDING: 5,
   }
 
   const dimensions = $derived.by(() => {
@@ -56,9 +52,7 @@
       settings.w,
       settings.h,
       DEFAULT_GRID_CONFIG,
-      layoutConfig.headerHeight ?? DEFAULT_LAYOUT.HEADER_HEIGHT,
-      layoutConfig.horizontalPadding ?? DEFAULT_LAYOUT.HORIZONTAL_PADDING,
-      layoutConfig.contentPadding ?? DEFAULT_LAYOUT.CONTENT_PADDING
+      layoutConfig.headerHeight ?? DEFAULT_LAYOUT.HEADER_HEIGHT
     )
   })
 

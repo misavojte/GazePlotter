@@ -15,8 +15,6 @@ export const SCARF_LAYOUT = {
   LEFT_LABEL_MAX_WIDTH: 125, // Width for participant labels
   AXIS_LABEL_HEIGHT: 40, // Height for the x-axis label
   LABEL_FONT_SIZE: 12, // Font size for labels
-  PADDING: 0, // General padding
-  RIGHT_MARGIN: 1, // Right margin to prevent tick cropping
   MIN_CHART_HEIGHT: 50, // Minimum chart height
   TICK_LENGTH: 5, // Length of axis ticks
   AXIS_OFFSET: 150, // Offset for axis labels
@@ -25,9 +23,10 @@ export const SCARF_LAYOUT = {
 
   // Plot component dimensions
   HEADER_HEIGHT: 150,
-  HORIZONTAL_PADDING: 40,
-  CONTENT_PADDING: 5, // THIS IS FOR A VISUAL BALANCING OF THE PLOT
   LEFT_LABEL_WIDTH: 125,
+  // Right margin: space for event markers at timeline end (max radius 7px + 1px outline)
+  // Also accounts for gridline stroke alignment (0.5px)
+  RIGHT_MARGIN: 8,
 
   // Tooltip constants
   TOOLTIP_WIDTH: 150,
@@ -57,6 +56,12 @@ export const SCARF_LAYOUT = {
   LEGEND_RECT_HIGHLIGHT_STROKE: '#333333',
   LEGEND_RECT_HIGHLIGHT_STROKE_WIDTH: 1,
   LEGEND_LINE_HIGHLIGHT_STROKE_WIDTH: 3,
+
+  // Scaling constraints for dynamic sizing
+  MAX_BAR_SCALE: 2.0, // Max scale-up factor (200% of default)
+  MIN_BAR_HEIGHT: 1, // Minimum bar height in pixels (compact mode)
+  MIN_PLOT_HEIGHT_COMPACT: 100, // Minimum height for the participant plot area in compact mode
+  COMPACT_MODE_THRESHOLD: 7, // Below this bar height, switch to compact mode
 }
 
 /**

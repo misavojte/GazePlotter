@@ -35,8 +35,6 @@
 
   const LAYOUT = {
     headerHeight: 150,
-    horizontalPadding: 40,
-    contentPadding: 5,
   }
 
   interface Props {
@@ -52,9 +50,7 @@
       settings.w,
       settings.h,
       DEFAULT_GRID_CONFIG,
-      LAYOUT.headerHeight,
-      LAYOUT.horizontalPadding,
-      LAYOUT.contentPadding
+      LAYOUT.headerHeight
     )
   )
 

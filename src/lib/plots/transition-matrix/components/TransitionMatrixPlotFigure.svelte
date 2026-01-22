@@ -20,6 +20,8 @@
     setupDpiChangeListeners,
     beginCanvasDrawing,
     finishCanvasDrawing,
+    alignToPixelCenter,
+    strokeCrispRect,
   } from '$lib/shared/utils/canvasUtils'
   import type { CanvasState } from '$lib/shared/utils/canvasUtils'
   import {
@@ -432,7 +434,7 @@
 
     // Vertical grid lines
     for (let col = 0; col <= aoiLabels.length; col++) {
-      const x = xOffset + col * optimalCellSize
+      const x = alignToPixelCenter(xOffset + col * optimalCellSize)
       ctx.beginPath()
       ctx.moveTo(x, yOffset)
       ctx.lineTo(x, yOffset + actualGridHeight)
@@ -441,7 +443,7 @@
 
     // Horizontal grid lines
     for (let row = 0; row <= aoiLabels.length; row++) {
-      const y = yOffset + row * optimalCellSize
+      const y = alignToPixelCenter(yOffset + row * optimalCellSize)
       ctx.beginPath()
       ctx.moveTo(xOffset, y)
       ctx.lineTo(xOffset + actualGridWidth, y)
@@ -608,9 +610,15 @@
     ctx.fillRect(legendX, yPosition, legendWidth, gradientHeight)
 
     // Draw border around gradient
-    ctx.strokeStyle = '#666'
-    ctx.lineWidth = 0.5
-    ctx.strokeRect(legendX, yPosition, legendWidth, gradientHeight)
+    strokeCrispRect(
+      ctx,
+      legendX,
+      yPosition,
+      legendWidth,
+      gradientHeight,
+      '#666',
+      1
+    )
 
     // Store legend data for interaction
     legendData = {
@@ -748,9 +756,15 @@
     ctx.fillRect(legendX, gradientY, legendWidth, gradientHeight)
 
     // Draw border around gradient
-    ctx.strokeStyle = '#666'
-    ctx.lineWidth = 0.5
-    ctx.strokeRect(legendX, gradientY, legendWidth, gradientHeight)
+    strokeCrispRect(
+      ctx,
+      legendX,
+      gradientY,
+      legendWidth,
+      gradientHeight,
+      '#666',
+      1
+    )
 
     // Draw min and max values if there's room
     if (availableLegendSpace > 35) {

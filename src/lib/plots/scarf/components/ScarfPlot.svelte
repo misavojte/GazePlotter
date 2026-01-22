@@ -71,17 +71,13 @@
       localSettings.w,
       localSettings.h,
       DEFAULT_GRID_CONFIG,
-      SCARF_LAYOUT.HEADER_HEIGHT,
-      SCARF_LAYOUT.HORIZONTAL_PADDING,
-      SCARF_LAYOUT.CONTENT_PADDING
+      SCARF_LAYOUT.HEADER_HEIGHT
     )
   )
 
   // Map SCARF_LAYOUT to BasePlot expectation
   const LAYOUT = {
     headerHeight: SCARF_LAYOUT.HEADER_HEIGHT,
-    horizontalPadding: SCARF_LAYOUT.HORIZONTAL_PADDING,
-    contentPadding: SCARF_LAYOUT.CONTENT_PADDING,
   }
 
   // Available width for chart content

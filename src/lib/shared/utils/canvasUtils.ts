@@ -413,3 +413,36 @@ export function finishCanvasDrawing(state: CanvasState): void {
 
   context.restore()
 }
+
+/**
+ * Aligns a coordinate to the center of a pixel for crisp 1px lines.
+ * For 1px strokes, drawing at integer + 0.5 ensures the stroke perfectly fills
+ * the pixel rather than being blurred across two pixels.
+ * Uses bitwise truncation for maximum performance in hot render loops.
+ */
+export function alignToPixelCenter(val: number): number {
+  return (val | 0) + 0.5
+}
+
+/**
+ * Draws a crisp 1px rectangle border.
+ * Handles the 0.5px offset logic internally to ensure sharp lines.
+ * Optimized with bitwise truncation for hot rendering paths.
+ */
+export function strokeCrispRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  strokeStyle: string = '#cbcbcb',
+  lineWidth: number = 1
+): void {
+  ctx.save()
+  ctx.strokeStyle = strokeStyle
+  ctx.lineWidth = lineWidth
+  ctx.beginPath()
+  // Using bitwise alignment on all edges for a perfectly sharp box
+  ctx.strokeRect((x | 0) + 0.5, (y | 0) + 0.5, width | 0, height | 0)
+  ctx.restore()
+}

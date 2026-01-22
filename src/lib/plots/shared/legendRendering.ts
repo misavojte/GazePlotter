@@ -21,6 +21,7 @@ import {
   truncateTextToPixelWidth,
   estimateTextWidth,
 } from '$lib/shared/utils/textUtils'
+import { alignToPixelCenter } from '$lib/shared/utils/canvasUtils'
 
 // ============================================================================
 // TYPES
@@ -498,7 +499,7 @@ export function drawLegend(
     if (item.type === 'rect') {
       ctx.fillStyle = item.color
       // Center the icon vertically in the item row
-      const iconY = item.y + (itemHeight - item.height) / 2
+      const iconY = alignToPixelCenter(item.y + (itemHeight - item.height) / 2)
       ctx.fillRect(item.x, iconY, iconWidth, item.height)
     } else {
       // Line icon
@@ -506,7 +507,7 @@ export function drawLegend(
       ctx.lineWidth = item.height
       ctx.setLineDash([...lineDash])
 
-      const lineY = item.y + itemHeight / 2
+      const lineY = alignToPixelCenter(item.y + itemHeight / 2)
       ctx.beginPath()
       ctx.moveTo(item.x, lineY)
       ctx.lineTo(item.x + iconWidth, lineY)
@@ -542,7 +543,7 @@ export function drawLegend(
     )
 
     const textX = item.x + iconWidth + textPadding
-    const textY = item.y + itemHeight / 2
+    const textY = alignToPixelCenter(item.y + itemHeight / 2)
 
     ctx.fillText(truncatedName, textX, textY)
   }
@@ -574,7 +575,7 @@ export function drawLegendGroupTitles(
 
   for (let i = 0; i < geometry.groupTitles.length; i++) {
     const group = geometry.groupTitles[i]
-    ctx.fillText(group.title, group.x, group.y)
+    ctx.fillText(group.title, group.x, alignToPixelCenter(group.y))
   }
 }
 

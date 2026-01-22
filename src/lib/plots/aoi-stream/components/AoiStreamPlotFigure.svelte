@@ -15,9 +15,11 @@
     finishCanvasDrawing,
     getScaledMousePosition,
     getTooltipPosition,
+    alignToPixelCenter,
+    strokeCrispRect,
     type CanvasState,
   } from '$lib/shared/utils/canvasUtils'
-  import { SCARF_LAYOUT, getXAxisLabel } from '$lib/plots/scarf/utils'
+  import { getXAxisLabel } from '$lib/plots/scarf/utils'
   import { estimateTextWidth } from '$lib/shared/utils/textUtils'
   import { updateTooltip } from '$lib/tooltip'
   import type { AoiStreamPlotResult } from '$lib/plots/aoi-stream/types'
@@ -32,6 +34,14 @@
     getLegendTooltipPosition,
     getLegendTooltipContent,
     STREAM_LEGEND_CONFIG,
+    drawTimelineLabels,
+    drawXAxisTicksAndBorder,
+    drawXAxisLabel,
+    drawYAxisMainLabel,
+    drawCenteredYAxis,
+    drawBottomYAxis,
+    drawPlotOutline,
+    formatAxisTick,
     type LegendItem,
     type LegendGeometry,
     type LegendItemGeometry,
@@ -41,17 +51,20 @@
 
   const MARGIN = {
     TOP: 20,
-    RIGHT: SCARF_LAYOUT.RIGHT_MARGIN,
+    RIGHT: 1, // Space for gridline stroke at right edge
     BOTTOM: 55,
     LEFT: 50,
   }
 
-  const AXIS = {
-    TICK_LENGTH: SCARF_LAYOUT.TICK_LENGTH,
-    FONT_SIZE: FONT_PRIMARY.SIZE,
-    COLOR: FONT_PRIMARY.COLOR,
-    GRID_COLOR: SCARF_LAYOUT.GRID_COLOR,
-    BASELINE_COLOR: '#c9c9c9',
+  const AXIS_CONFIG = {
+    tickLength: 5,
+    fontSize: FONT_PRIMARY.SIZE,
+    fontFamily: FONT_PRIMARY.FAMILY,
+    color: FONT_PRIMARY.COLOR,
+    gridColor: GRIDLINE_SECONDARY.COLOR,
+    baselineColor: GRIDLINE_PRIMARY.COLOR,
+    tickLabelOffset: 10,
+    labelOffset: 24,
   }
 
   const Y_AXIS = {
@@ -139,13 +152,6 @@
 
   const safeNumber = (value: number, fallback: number) =>
     Number.isFinite(value) ? value : fallback
-
-  const formatAxisTick = (value: number) => {
-    if (!Number.isFinite(value)) return '0'
-    const rounded = Math.round(value)
-    if (Math.abs(value - rounded) < 1e-6) return rounded.toString()
-    return value.toFixed(1).replace(/\.0$/, '')
-  }
 
   const niceStep = (rawStep: number) => {
     const safeRaw = Math.max(1e-9, Math.abs(rawStep))
@@ -355,13 +361,20 @@
       yAxisMax = 100
     }
 
+    // Floor dimensions for pixel-perfect synchronization
+    const floorLeft = Math.floor(plotLeft)
+    const floorTop = Math.floor(plotTop)
+    const floorWidth = Math.floor(plotAreaWidth)
+    const floorHeight = Math.floor(plotAreaHeight)
+    const floorBottom = floorTop + floorHeight
+
     if (
-      !Number.isFinite(plotAreaWidth) ||
-      !Number.isFinite(plotAreaHeight) ||
-      !Number.isFinite(plotLeft) ||
-      !Number.isFinite(plotTop) ||
-      plotAreaWidth <= 0 ||
-      plotAreaHeight <= 0 ||
+      !Number.isFinite(floorWidth) ||
+      !Number.isFinite(floorHeight) ||
+      !Number.isFinite(floorLeft) ||
+      !Number.isFinite(floorTop) ||
+      floorWidth <= 0 ||
+      floorHeight <= 0 ||
       binCount <= 0
     ) {
       finishCanvasDrawing(canvasState)
@@ -377,7 +390,7 @@
     // Pre-compute X positions once (reused across all series)
     const invBinCount = 1 / binCount
     for (let i = 0; i < binCount; i++) {
-      xPositions[i] = plotLeft + (i + 0.5) * invBinCount * plotAreaWidth
+      xPositions[i] = floorLeft + (i + 0.5) * invBinCount * floorWidth
     }
 
     const drawCatmullRom = (
@@ -442,7 +455,7 @@
       // Calculate optimized strip height based on actual data peaks
       // Default standard layout (assumes 100% max value in all series)
       const standardDenom = n - (n - 1) * RIDGELINE_OVERLAP
-      const standardHeight = plotAreaHeight / standardDenom
+      const standardHeight = floorHeight / standardDenom
 
       if (
         stripHeightOverride !== null &&
@@ -451,7 +464,7 @@
       ) {
         stripHeight = stripHeightOverride
       } else {
-        stripHeight = calculateIdealStripHeight(data, plotAreaHeight)
+        stripHeight = calculateIdealStripHeight(data, floorHeight)
       }
     }
 
@@ -467,14 +480,14 @@
     let yBase = 0
 
     if (alignment === 'center') {
-      const centerY = plotTop + plotAreaHeight / 2
+      const centerY = floorTop + floorHeight / 2
       // axisHalfRange maps to halfHeight
-      scaleY = plotAreaHeight / 2 / axisHalfRange
+      scaleY = floorHeight / 2 / axisHalfRange
       yBase = centerY
     } else if (alignment === 'bottom') {
       // yAxisMax maps to full height
-      scaleY = plotAreaHeight / yAxisMax
-      yBase = plotBottom
+      scaleY = floorHeight / yAxisMax
+      yBase = floorBottom
     }
 
     // Draw each series using pre-allocated buckets
@@ -500,8 +513,7 @@
           (series.length - 1) * overlapOffset + stripHeight
 
         // Anchor the group to the bottom of the plot area
-        // groupTop + totalGroupHeight = plotBottom
-        const groupTop = plotBottom - totalGroupHeight
+        const groupTop = floorBottom - totalGroupHeight
 
         const stripTop = groupTop + s * overlapOffset
         const stripBottom = stripTop + stripHeight // Bottom of this strip
@@ -568,8 +580,8 @@
 
         // Let's draw the baseline for each strip.
         ctx.beginPath()
-        ctx.moveTo(plotLeft, stripBottom)
-        ctx.lineTo(plotLeft + plotAreaWidth, stripBottom)
+        ctx.moveTo(alignToPixelCenter(floorLeft), stripBottom)
+        ctx.lineTo(alignToPixelCenter(floorLeft + floorWidth), stripBottom)
         ctx.strokeStyle = GRIDLINE_SECONDARY.COLOR
         ctx.lineWidth = GRIDLINE_SECONDARY.WIDTH
         ctx.stroke()
@@ -657,13 +669,13 @@
 
     // Draw hovered bin highlight
     if (hoveredBinIndex !== null) {
-      const binWidth = plotAreaWidth / binCount
-      const binX = plotLeft + hoveredBinIndex * binWidth
+      const binWidth = floorWidth / binCount
+      const binX = floorLeft + hoveredBinIndex * binWidth
 
       ctx.save()
       ctx.globalAlpha = 0.2
       ctx.fillStyle = '#007acc' // Blue highlight color
-      ctx.fillRect(binX, plotTop, binWidth, plotAreaHeight)
+      ctx.fillRect(binX, floorTop, binWidth, floorHeight)
       ctx.restore()
 
       // Draw vertical line at bin boundary
@@ -672,10 +684,10 @@
       ctx.lineWidth = 1
       ctx.setLineDash([2, 2])
       ctx.beginPath()
-      ctx.moveTo(binX, plotTop)
-      ctx.lineTo(binX, plotBottom)
-      ctx.moveTo(binX + binWidth, plotTop)
-      ctx.lineTo(binX + binWidth, plotBottom)
+      ctx.moveTo(binX, floorTop)
+      ctx.lineTo(binX, floorBottom)
+      ctx.moveTo(binX + binWidth, floorTop)
+      ctx.lineTo(binX + binWidth, floorBottom)
       ctx.stroke()
       ctx.restore()
     }
@@ -686,7 +698,7 @@
       // Draw a single scale indicator for the ridgeline height centered vertically
       // Use the stripHeight calculated in the main render loop
       // Center the scale vertically in the plot area (user preferred this)
-      const centerY = plotTop + plotAreaHeight / 2
+      const centerY = floorTop + floorHeight / 2
 
       // Scale: 100% = stripHeight * 0.9
       const scaleHeight = stripHeight * 0.9
@@ -694,15 +706,15 @@
       const scaleBottom = centerY + scaleHeight / 2
 
       // Position at the standard axis line (plotLeft)
-      const scaleX = plotLeft - 10
+      const scaleX = floorLeft - 10
       const tickLength = 5
       const tickXStart = scaleX - tickLength
 
       ctx.save()
       ctx.textAlign = 'right'
       ctx.textBaseline = 'middle'
-      ctx.font = `${AXIS.FONT_SIZE - 2}px ${FONT_PRIMARY.FAMILY}`
-      ctx.fillStyle = AXIS.COLOR
+      ctx.font = `${AXIS_CONFIG.fontSize - 2}px ${FONT_PRIMARY.FAMILY}`
+      ctx.fillStyle = AXIS_CONFIG.color
 
       // Labels
       const tickLabelX = tickXStart - 3
@@ -711,7 +723,7 @@
 
       // Scale bar
       ctx.beginPath()
-      ctx.strokeStyle = AXIS.COLOR
+      ctx.strokeStyle = AXIS_CONFIG.color
       ctx.lineWidth = 0.5
       ctx.moveTo(scaleX, scaleBottom)
       ctx.lineTo(scaleX, scaleTop)
@@ -730,18 +742,66 @@
         plotTop + plotAreaHeight / 2,
         plotAreaHeight / 2,
         axisHalfRange,
-        axisTicks
+        axisTicks,
+        plotLeft,
+        AXIS_CONFIG
       )
     } else {
-      drawBottomYAxis(ctx, plotBottom, plotAreaHeight, yAxisMax, axisTicks)
+      drawBottomYAxis(
+        ctx,
+        plotBottom,
+        plotAreaHeight,
+        yAxisMax,
+        axisTicks,
+        plotLeft,
+        AXIS_CONFIG
+      )
     }
 
     // Shared Y-axis main label and X-axis components
-    drawYAxisMainLabel(ctx)
-    drawTimelineLabels(ctx)
-    drawXAxisLabel(ctx)
-    drawPlotOutline(ctx)
-    drawXAxisTicksAndBorder(ctx)
+    drawYAxisMainLabel(
+      ctx,
+      'Share of participants fixating [%]',
+      floorLeft,
+      floorTop,
+      floorHeight,
+      Y_AXIS.LABEL_OFFSET,
+      AXIS_CONFIG
+    )
+    drawTimelineLabels(
+      ctx,
+      data.timeline,
+      floorLeft,
+      floorWidth,
+      floorBottom,
+      AXIS_CONFIG
+    )
+    drawXAxisLabel(
+      ctx,
+      X_AXIS_LABEL,
+      floorLeft,
+      floorWidth,
+      floorBottom,
+      X_AXIS_LABEL_OFFSET,
+      AXIS_CONFIG
+    )
+    drawPlotOutline(
+      ctx,
+      floorLeft,
+      floorTop,
+      floorWidth,
+      floorHeight,
+      AXIS_CONFIG.baselineColor
+    )
+    drawXAxisTicksAndBorder(
+      ctx,
+      data.timeline,
+      floorLeft,
+      floorWidth,
+      floorBottom,
+      AXIS_CONFIG,
+      false // Already drawn by drawPlotOutline
+    )
 
     // Legend - use shared utility for consistent rendering
     if (legendGeometry.items.length > 0 && legendHeight > 0) {
@@ -751,173 +811,6 @@
 
     ctx.restore()
     finishCanvasDrawing(canvasState)
-  }
-
-  function setUpFont(ctx: CanvasRenderingContext2D) {
-    ctx.font = `${AXIS.FONT_SIZE}px ${FONT_PRIMARY.FAMILY}`
-    ctx.fillStyle = AXIS.COLOR
-  }
-
-  function drawTimelineLabels(ctx: CanvasRenderingContext2D) {
-    const ticks = data.timeline.ticks
-    const len = ticks.length
-    if (len === 0) return
-
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'hanging'
-    ctx.fillStyle = AXIS.COLOR
-
-    const yPos = plotBottom + 10
-    const rightBoundary = plotLeft + plotAreaWidth
-    const isSecondToLast = len - 2
-    const isLast = len - 1
-
-    for (let i = 0; i < len; i++) {
-      const tick = ticks[i]
-      if (!tick.isNice) continue
-
-      const regularXPos = plotLeft + tick.position * plotAreaWidth
-
-      if ((i === isSecondToLast || i === isLast) && tick.label) {
-        const textWidth = ctx.measureText(tick.label).width
-        const rightEdgeOfText = regularXPos + textWidth / 2
-
-        if (rightEdgeOfText > rightBoundary) {
-          const xPos = regularXPos - (rightEdgeOfText - rightBoundary)
-          ctx.fillText(tick.label, xPos, yPos)
-        } else {
-          ctx.fillText(tick.label, regularXPos, yPos)
-        }
-      } else {
-        ctx.fillText(tick.label, regularXPos, yPos)
-      }
-    }
-  }
-
-  function drawXAxisLabel(ctx: CanvasRenderingContext2D) {
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'top'
-
-    const labelX = plotLeft + plotAreaWidth / 2
-    const labelY = plotBottom + X_AXIS_LABEL_OFFSET
-
-    ctx.fillText(X_AXIS_LABEL, labelX, labelY)
-  }
-
-  function drawPlotOutline(ctx: CanvasRenderingContext2D) {
-    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
-    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
-
-    // Draw full rectangle outline around the plot area
-    ctx.beginPath()
-    ctx.strokeRect(
-      Math.floor(plotLeft) + 0.5,
-      Math.floor(plotTop) + 0.5,
-      plotAreaWidth,
-      plotAreaHeight
-    )
-  }
-
-  function drawXAxisTicksAndBorder(ctx: CanvasRenderingContext2D) {
-    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
-    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
-
-    const yLine = plotBottom
-    const ticks = data.timeline.ticks
-    const len = ticks.length
-
-    for (let i = 0; i < len; i++) {
-      const tick = ticks[i]
-      const x = plotLeft + tick.position * plotAreaWidth
-      const y1 = yLine
-      const y2 = y1 + AXIS.TICK_LENGTH
-
-      ctx.beginPath()
-      ctx.moveTo(x, y1)
-      ctx.lineTo(x, y2)
-      ctx.stroke()
-    }
-
-    // Bottom line is now handled by drawPlotOutline
-  }
-
-  function drawCenteredYAxis(
-    ctx: CanvasRenderingContext2D,
-    centerY: number,
-    halfHeight: number,
-    axisHalfRange: number,
-    ticks: number[]
-  ) {
-    const xLabel = plotLeft - Y_AXIS.TICK_LABEL_OFFSET
-    const xTick = plotLeft - 5
-
-    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
-    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
-    ctx.textAlign = 'right'
-    ctx.textBaseline = 'middle'
-
-    for (let i = 0; i < ticks.length; i++) {
-      const value = ticks[i]
-      const offset = (value / axisHalfRange) * halfHeight
-      const yUpper = centerY - offset
-      const yLower = centerY + offset
-
-      // Tick and label (common for all ticks)
-      ctx.beginPath()
-      ctx.moveTo(xTick, yUpper)
-      ctx.lineTo(plotLeft, yUpper)
-      ctx.stroke()
-      ctx.fillText(formatAxisTick(value), xLabel, yUpper)
-
-      // Parallel mirrored tick/label for positive values
-      if (value > 0) {
-        ctx.beginPath()
-        ctx.moveTo(xTick, yLower)
-        ctx.lineTo(plotLeft, yLower)
-        ctx.stroke()
-        ctx.fillText(`-${formatAxisTick(value)}`, xLabel, yLower)
-      }
-    }
-  }
-
-  function drawBottomYAxis(
-    ctx: CanvasRenderingContext2D,
-    baselineY: number,
-    fullHeight: number,
-    axisMax: number,
-    ticks: number[]
-  ) {
-    const xLabel = plotLeft - Y_AXIS.TICK_LABEL_OFFSET
-    const xTick = plotLeft - 5
-
-    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
-    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
-    ctx.textAlign = 'right'
-    ctx.textBaseline = 'middle'
-
-    for (let i = 0; i < ticks.length; i++) {
-      const value = ticks[i]
-      const offset = (value / axisMax) * fullHeight
-      const y = baselineY - offset
-
-      ctx.beginPath()
-      ctx.moveTo(xTick, y)
-      ctx.lineTo(plotLeft, y)
-      ctx.stroke()
-      ctx.fillText(formatAxisTick(value), xLabel, y)
-    }
-  }
-
-  function drawYAxisMainLabel(ctx: CanvasRenderingContext2D) {
-    const labelX = plotLeft - Y_AXIS.LABEL_OFFSET
-    const labelY = plotTop + plotAreaHeight / 2
-    ctx.save()
-    ctx.translate(labelX, labelY)
-    ctx.rotate(-Math.PI / 2)
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'bottom'
-    ctx.fillText('Share of participants fixating [%]', 0, 0)
-    ctx.restore()
   }
 
   // Check if mouse is over a legend item (now uses shared utility)
@@ -1147,6 +1040,11 @@
       scheduleRender()
     })
   })
+
+  function setUpFont(ctx: CanvasRenderingContext2D) {
+    ctx.font = `${AXIS_CONFIG.fontSize}px ${AXIS_CONFIG.fontFamily}`
+    ctx.fillStyle = AXIS_CONFIG.color
+  }
 
   onMount(() => {
     if (!canvas) return
