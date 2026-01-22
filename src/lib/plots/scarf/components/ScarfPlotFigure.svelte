@@ -171,7 +171,7 @@
         identifier: i.identifier,
         name: i.name,
         color: i.color,
-        type: 'rect' as const, // Structural type doesn't matter for height
+        type: 'fixation' as const, // Structural type doesn't matter for height
       })),
     }))
 
@@ -307,19 +307,17 @@
     const getItemPresentation = (styleType: string) => {
       switch (styleType) {
         case 'fixation':
-          return { type: 'rect' as const, height: layout.heightOfBar }
+          return { type: 'fixation' as const }
         case 'nonFixation':
           return {
-            type: 'rect' as const,
-            height: layout.nonFixationHeight,
+            type: 'nonFixation' as const,
           }
         case 'visibility':
           return {
-            type: 'line' as const,
-            height: 2,
+            type: 'eventPair' as const,
           }
         default:
-          return { type: 'rect' as const, height: layout.heightOfBar }
+          return { type: 'fixation' as const }
       }
     }
 
@@ -332,7 +330,6 @@
           name: item.name,
           color: item.color,
           type: presentation.type,
-          height: presentation.height,
         }
       }),
     }))

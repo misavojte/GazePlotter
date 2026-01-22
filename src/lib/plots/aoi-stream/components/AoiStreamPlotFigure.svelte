@@ -212,8 +212,7 @@
       identifier: s.id.toString(),
       name: s.label,
       color: s.color,
-      height: STREAM_LEGEND_CONFIG.iconWidth, // Square icons like in ScarfPlot
-      type: 'rect' as const,
+      type: 'fixation' as const,
     }))
   )
 

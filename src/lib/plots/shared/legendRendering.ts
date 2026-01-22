@@ -35,10 +35,9 @@ export interface LegendItem {
   name: string
   /** Color for the icon */
   color: string
-  /** Height of the icon (for lines) or the rect */
-  height?: number
-  /** Icon type: 'rect' for filled rectangles, 'line' for dashed lines */
-  type: 'rect' | 'line'
+
+  /** Icon type: 'fixation' for filled rectangles, 'nonFixation' for thin rectangles, 'eventPair' for start/end markers */
+  type: 'fixation' | 'nonFixation' | 'eventPair'
 }
 
 /** A group of legend items with a title (for scarf-style grouped legends) */
@@ -77,6 +76,8 @@ export interface LegendConfig {
   topPadding: number
   /** Line dash pattern for 'line' type icons */
   lineDash: readonly [number, number]
+  /** Height of non-fixation items */
+  nonFixationHeight: number
 }
 
 /** Pre-computed geometry for a single legend item */
@@ -88,7 +89,8 @@ export interface LegendItemGeometry {
   x: number
   y: number
   width: number
-  type: 'rect' | 'line'
+  type: 'fixation' | 'nonFixation' | 'eventPair'
+  rowHeight: number
   groupTitle?: string
 }
 
@@ -120,12 +122,13 @@ export const SCARF_LEGEND_CONFIG: LegendConfig = {
   rowPadding: 8,
   titleHeight: 18,
   groupSpacing: 10,
-  groupTitleSpacing: 5,
+  groupTitleSpacing: 2,
   fontFamily: FONT_PRIMARY.FAMILY,
   fontSize: FONT_PRIMARY.SIZE,
   fontColor: FONT_PRIMARY.COLOR,
   topPadding: 0,
   lineDash: [2, 2] as const,
+  nonFixationHeight: 4,
 }
 
 /** Default configuration matching existing stream plot legend */
@@ -137,12 +140,13 @@ export const STREAM_LEGEND_CONFIG: LegendConfig = {
   rowPadding: 8,
   titleHeight: 18,
   groupSpacing: 10,
-  groupTitleSpacing: 5,
+  groupTitleSpacing: 2,
   fontFamily: FONT_PRIMARY.FAMILY,
   fontSize: FONT_PRIMARY.SIZE,
   fontColor: FONT_PRIMARY.COLOR,
   topPadding: 5,
   lineDash: [2, 2] as const,
+  nonFixationHeight: 4,
 }
 
 // ============================================================================
@@ -296,7 +300,42 @@ export function computeFlatLegendGeometry(
   const legendY = startY + topPadding
   const totalRows = Math.ceil(items.length / effectiveItemsPerRow)
 
-  // 3. Column-first ordering with UNIFORM left-aligned columns
+  // 3. Calculate dynamic row heights (Layout Pass 1)
+  const rowHeights = new Float32Array(totalRows).fill(0)
+  const itemIconHeights = new Float32Array(items.length)
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+    // Determine icon height based on type
+    let iconH = fontSize // Default fallback
+    if (item.type === 'fixation' || item.type === 'eventPair') {
+      iconH = itemHeight
+    } else if (item.type === 'nonFixation') {
+      iconH = config.nonFixationHeight
+    }
+
+    itemIconHeights[i] = iconH
+
+    // Row height is max of icon and text height
+    // Using fontSize as proxy for text height
+    const effectiveH = Math.max(iconH, fontSize)
+
+    // Determine row index (column-first filling)
+    const row = i % totalRows
+    if (effectiveH > rowHeights[row]) {
+      rowHeights[row] = effectiveH
+    }
+  }
+
+  // 4. Calculate Row Y positions (Layout Pass 2)
+  const rowYPositions = new Float32Array(totalRows)
+  let currentY = legendY
+  for (let r = 0; r < totalRows; r++) {
+    rowYPositions[r] = currentY
+    currentY += rowHeights[r] + rowPadding
+  }
+
+  // 5. Place items (Layout Pass 3)
   for (let i = 0; i < items.length; i++) {
     const item = items[i]
 
@@ -306,22 +345,22 @@ export function computeFlatLegendGeometry(
 
     // Left-aligned fixed-width columns
     const x = startX + col * (uniformColumnWidth + itemSpacing)
-    const y = legendY + row * (itemHeight + rowPadding)
+    const y = rowYPositions[row]
 
     geometryItems[i] = {
       identifier: item.identifier,
       name: item.name,
       color: item.color,
-      height: item.height ?? itemHeight,
+      height: itemIconHeights[i],
       x,
       y,
       width: uniformColumnWidth,
       type: item.type,
+      rowHeight: rowHeights[row],
     }
   }
 
-  const totalHeight =
-    totalRows > 0 ? topPadding + totalRows * (itemHeight + rowPadding) : 0
+  const totalHeight = currentY - startY
 
   return {
     items: geometryItems,
@@ -409,9 +448,45 @@ export function computeGroupedLegendGeometry(
 
     // Items start after title
     const itemsStartY = currentY + titleHeight + groupTitleSpacing
+
+    // Calculate Rows
     const groupRows = Math.ceil(group.items.length / effectiveItemsPerRow)
 
-    // 3. Column-first ordering with UNIFORM left-aligned columns
+    // 3. Calculate dynamic row heights (Layout Pass 1)
+    const rowHeights = new Float32Array(groupRows).fill(0)
+    // Store icon heights to avoid re-calculating in placement pass
+    const groupItemIconHeights = new Float32Array(group.items.length)
+
+    for (let i = 0; i < group.items.length; i++) {
+      const item = group.items[i]
+
+      // Determine icon height
+      let iconH = fontSize // Default
+      if (item.type === 'fixation' || item.type === 'eventPair') {
+        iconH = itemHeight
+      } else if (item.type === 'nonFixation') {
+        iconH = config.nonFixationHeight
+      }
+      groupItemIconHeights[i] = iconH
+
+      // Row height = max(icon, text)
+      const effectiveH = Math.max(iconH, fontSize)
+
+      const row = i % groupRows
+      if (effectiveH > rowHeights[row]) {
+        rowHeights[row] = effectiveH
+      }
+    }
+
+    // 4. Calculate Row Y positions (Layout Pass 2)
+    const rowYPositions = new Float32Array(groupRows)
+    let groupY = itemsStartY
+    for (let r = 0; r < groupRows; r++) {
+      rowYPositions[r] = groupY
+      groupY += rowHeights[r] + rowPadding
+    }
+
+    // 5. Place items (Layout Pass 3)
     for (let i = 0; i < group.items.length; i++) {
       const item = group.items[i]
 
@@ -419,23 +494,24 @@ export function computeGroupedLegendGeometry(
       const row = i % groupRows
 
       const x = startX + col * (uniformColumnWidth + itemSpacing)
-      const y = itemsStartY + row * (itemHeight + rowPadding)
+      const y = rowYPositions[row]
 
       geometryItems.push({
         identifier: item.identifier,
         name: item.name,
         color: item.color,
-        height: item.height ?? itemHeight,
+        height: groupItemIconHeights[i],
         x,
         y,
         width: uniformColumnWidth,
         type: item.type,
         groupTitle: group.title,
+        rowHeight: rowHeights[row],
       })
     }
 
     // Update currentY to account for this group
-    currentY = itemsStartY + groupRows * (itemHeight + rowPadding)
+    currentY = groupY
   }
 
   return {
@@ -496,24 +572,68 @@ export function drawLegend(
 
     ctx.globalAlpha = opacity
 
-    if (item.type === 'rect') {
+    if (item.type === 'fixation' || item.type === 'nonFixation') {
       ctx.fillStyle = item.color
       // Center the icon vertically in the item row
-      const iconY = alignToPixelCenter(item.y + (itemHeight - item.height) / 2)
+      const iconY = alignToPixelCenter(
+        item.y + (item.rowHeight - item.height) / 2
+      )
       ctx.fillRect(item.x, iconY, iconWidth, item.height)
-    } else {
-      // Line icon
-      ctx.strokeStyle = item.color
-      ctx.lineWidth = item.height
-      ctx.setLineDash([...lineDash])
+    } else if (item.type === 'eventPair') {
+      // Event pair icon (start and end markers side-by-side)
+      // Radius ~4px to fit two 8px circles in 20px width
+      const size = 9
+      const radius = size / 2
+      const innerRadius = 2
+      const gap = 2
 
-      const lineY = alignToPixelCenter(item.y + itemHeight / 2)
+      const centerY = alignToPixelCenter(item.y + itemHeight / 2)
+      // Center the pair in the iconWidth
+      // Pair width = size * 2 + gap
+      const pairWidth = size * 2 + gap
+      const startX = item.x + (iconWidth - pairWidth) / 2 + radius
+      const endX = startX + size + gap
+
+      const OUTLINE_COLOR = '#333333'
+      const OUTLINE_WIDTH = 1
+
+      // 1. Start Marker (Left): Colored outer, white inner
+      ctx.fillStyle = item.color
       ctx.beginPath()
-      ctx.moveTo(item.x, lineY)
-      ctx.lineTo(item.x + iconWidth, lineY)
-      ctx.stroke()
+      ctx.arc(startX, centerY, radius, 0, Math.PI * 2)
+      ctx.fill()
 
-      ctx.setLineDash([])
+      ctx.fillStyle = '#ffffff'
+      ctx.beginPath()
+      ctx.arc(startX, centerY, innerRadius, 0, Math.PI * 2)
+      ctx.fill()
+
+      ctx.strokeStyle = OUTLINE_COLOR
+      ctx.lineWidth = OUTLINE_WIDTH
+      ctx.globalAlpha = 1 // Ensure outline is always visible/sharp
+      ctx.beginPath()
+      ctx.arc(startX, centerY, radius + 0.2, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.globalAlpha = opacity // Restore opacity
+
+      // 2. End Marker (Right): White outer, colored inner
+      ctx.fillStyle = '#ffffff'
+      ctx.beginPath()
+      ctx.arc(endX, centerY, radius, 0, Math.PI * 2)
+      ctx.fill()
+
+      ctx.fillStyle = item.color
+      ctx.beginPath()
+      ctx.arc(endX, centerY, innerRadius, 0, Math.PI * 2)
+      ctx.fill()
+
+      ctx.strokeStyle = OUTLINE_COLOR
+      ctx.lineWidth = OUTLINE_WIDTH
+      ctx.globalAlpha = 1
+      ctx.beginPath()
+      ctx.arc(endX, centerY, radius + 0.2, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.globalAlpha = opacity
     }
   }
 
@@ -543,7 +663,7 @@ export function drawLegend(
     )
 
     const textX = item.x + iconWidth + textPadding
-    const textY = alignToPixelCenter(item.y + itemHeight / 2)
+    const textY = alignToPixelCenter(item.y + item.rowHeight / 2)
 
     ctx.fillText(truncatedName, textX, textY)
   }

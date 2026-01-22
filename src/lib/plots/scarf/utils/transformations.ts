@@ -311,7 +311,7 @@ export function createScarfLegendData(styling: ScarfStyling): ScarfLegendData {
   // Visibility group (AOI Visibility) - Dashed lines
   if (styling.visibility.length > 0) {
     groups.push({
-      title: 'AOI Visibility',
+      title: 'Events (start/end)',
       items: styling.visibility.map(
         (item): ScarfLegendItem => ({
           identifier: item.identifier,
