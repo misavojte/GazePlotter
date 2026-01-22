@@ -540,8 +540,7 @@ export function drawLegend(
   ctx: CanvasRenderingContext2D,
   geometry: LegendGeometry,
   config: LegendConfig,
-  highlightedIds: ReadonlySet<string> | readonly string[] | null = null,
-  dimmedOpacity: number = 0.15
+  highlightedIds: ReadonlySet<string> | readonly string[] | null = null
 ): void {
   const {
     itemHeight,
@@ -569,17 +568,18 @@ export function drawLegend(
   for (let i = 0; i < geometry.items.length; i++) {
     const item = geometry.items[i]
     const isHighlighted = highlightSet?.has(item.identifier) ?? false
-    const opacity = isHighlightActive && !isHighlighted ? dimmedOpacity : 1.0
-
-    ctx.globalAlpha = opacity
+    // Opacity logic replaced by desaturation - always opaque
+    const isDimmed = isHighlightActive && !isHighlighted
 
     if (item.type === 'fixation' || item.type === 'nonFixation') {
-      ctx.fillStyle = item.color
+      const effectiveColor = isDimmed
+        ? desaturateToWhite(item.color, 0.85)
+        : item.color
+      ctx.fillStyle = effectiveColor
       // Center the icon vertically in the item row
       const iconY = alignToPixelCenter(
         item.y + (item.rowHeight - item.height) / 2
       )
-      ctx.fillRect(item.x, iconY, iconWidth, item.height)
       ctx.fillRect(item.x, iconY, iconWidth, item.height)
     } else if (item.type === 'eventPair') {
       // Event pair icon (start and end markers side-by-side)
@@ -604,15 +604,13 @@ export function drawLegend(
       // effectively keeping the marker opaque but pale.
       const isDimmed = isHighlightActive && !isHighlighted
       const effectiveColor = isDimmed
-        ? desaturateToWhite(item.color, 0.75)
+        ? desaturateToWhite(item.color, 0.85)
         : item.color
       const effectiveOutlineColor = isDimmed
-        ? desaturateToWhite(OUTLINE_COLOR, 0.75)
+        ? desaturateToWhite(OUTLINE_COLOR, 0.85)
         : OUTLINE_COLOR
-      const effectiveAlpha = 1.0 // Always draw opaque
 
       // 1. Start Marker (Left): Colored outer, white inner
-      ctx.globalAlpha = effectiveAlpha
       ctx.fillStyle = effectiveColor
       ctx.beginPath()
       ctx.arc(startX, centerY, radius, 0, Math.PI * 2)
@@ -659,10 +657,15 @@ export function drawLegend(
   for (let i = 0; i < geometry.items.length; i++) {
     const item = geometry.items[i]
     const isHighlighted = highlightSet?.has(item.identifier) ?? false
-    const opacity = isHighlightActive && !isHighlighted ? dimmedOpacity : 1.0
+    // Opacity logic replaced by desaturation
+    const isDimmed = isHighlightActive && !isHighlighted
 
-    ctx.globalAlpha = opacity
-    ctx.fillStyle = fontColor
+    ctx.globalAlpha = 1.0
+
+    const effectiveFontColor = isDimmed
+      ? desaturateToWhite(fontColor, 0.85)
+      : fontColor
+    ctx.fillStyle = effectiveFontColor
 
     // Truncate text if needed
     const maxLabelWidth = item.width - iconWidth - textPadding

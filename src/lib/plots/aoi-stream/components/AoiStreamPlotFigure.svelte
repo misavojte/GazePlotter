@@ -16,11 +16,11 @@
     getScaledMousePosition,
     getTooltipPosition,
     alignToPixelCenter,
-    strokeCrispRect,
     type CanvasState,
   } from '$lib/shared/utils/canvasUtils'
   import { getXAxisLabel } from '$lib/plots/scarf/utils'
   import { estimateTextWidth } from '$lib/shared/utils/textUtils'
+  import { desaturateToWhite } from '$lib/shared/utils/colorUtils'
   import { updateTooltip } from '$lib/tooltip'
   import type { AoiStreamPlotResult } from '$lib/plots/aoi-stream/types'
   import {
@@ -83,7 +83,7 @@
   const X_AXIS_LABEL = getXAxisLabel('absolute')
   const X_AXIS_LABEL_OFFSET = 24
   const AREA_DIVIDER = {
-    COLOR: 'rgba(255, 255, 255, 0.6)',
+    COLOR: '#ffffff',
     WIDTH: 1,
   }
 
@@ -523,9 +523,11 @@
       const bucket = seriesBuckets[s]
       const aoiId = series[s].id
 
-      // Apply highlight dimming
       const isHighlighted = highlightMaskById?.get(aoiId) ?? false
-      const opacity = highlightMaskById && !isHighlighted ? 0.2 : 1.0
+      const isDimmed = !!highlightMaskById && !isHighlighted
+      const effectiveFill = isDimmed
+        ? desaturateToWhite(series[s].color, 0.85)
+        : series[s].color
 
       if (alignment === 'ridgeline') {
         const overlapOffset = stripHeight * (1 - RIDGELINE_OVERLAP)
@@ -584,18 +586,16 @@
       }
 
       // Draw filled area
-      ctx.globalAlpha = opacity
       ctx.beginPath()
       ctx.moveTo(xPositions[0], bucket.topY[0])
       drawCatmullRom(xPositions, bucket.topY, true)
       drawCatmullRom(xPositions, bucket.bottomY, false)
       ctx.closePath()
 
-      ctx.fillStyle = series[s].color
+      ctx.fillStyle = effectiveFill
       ctx.fill()
 
       // Draw thin white border between areas
-      ctx.globalAlpha = 1.0
       ctx.strokeStyle = AREA_DIVIDER.COLOR
       ctx.lineWidth = AREA_DIVIDER.WIDTH
       ctx.lineJoin = 'round'
@@ -681,9 +681,9 @@
           ctx.closePath()
           ctx.clip()
 
-          // Now draw the current (underlying) series in white
-          ctx.globalAlpha = 0.25
-          ctx.fillStyle = '#fff'
+          // Now draw the current (underlying) series in white/pale
+          // We use a high desaturation to make it a "ghost" of the original
+          ctx.fillStyle = '#ffffff'
           ctx.beginPath()
           ctx.moveTo(xPositions[0], currentBucket.topY[0])
           drawCatmullRom(xPositions, currentBucket.topY, true)

@@ -1023,7 +1023,8 @@
     // Local references for fast access
     const rectStyles = rectStyleArray
 
-    // Draw normal elements using path batching
+    // Single pass drawing - strict Z-ordering (0 to N)
+    // Dimming is now handled by color desaturate, not alpha
     ctx.globalAlpha = 1.0
 
     for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
@@ -1035,69 +1036,13 @@
           ? highlightMask[styleIdx] !== 1
           : false
 
-      if (isDimmed) continue // Skip dimmed in this pass
-
       const styleSet = rectStyles[styleIdx]
+      // Compute effective fill color once for the batch
+      const effectiveFill = isDimmed
+        ? desaturateToWhite(styleSet.normal.fill, 0.85)
+        : styleSet.normal.fill
 
-      ctx.fillStyle = styleSet.normal.fill
-      ctx.beginPath() // Start a massive path
-
-      const segmentCount = buffer.length / RECT_STRIDE
-      for (let i = 0; i < segmentCount; i++) {
-        const idx = i * RECT_STRIDE
-        const xNormalized = buffer[idx]
-        const pIndex = buffer[idx + 1]
-        const widthNormalized = buffer[idx + 2]
-        const origRectH = buffer[idx + 3]
-        const origInternalY = buffer[idx + 7]
-
-        let rectH = origRectH
-        let internalY = origInternalY
-
-        // Apply scaling when scaleFactor differs from 1 (both shrink and scale-up)
-        const scale = layout.scaleFactor
-        if (scale !== 1) {
-          if (origRectH === SCARF_LAYOUT.NON_FIXATION_HEIGHT) {
-            rectH = layout.nonFixationHeight
-            internalY =
-              layout.spaceAboveRect +
-              layout.heightOfBar / 2 -
-              layout.nonFixationHeight / 2
-          } else {
-            rectH = origRectH * scale
-            const paddingOffset = origInternalY - SCARF_LAYOUT.SPACE_ABOVE_RECT
-            internalY = layout.spaceAboveRect + paddingOffset * scale
-          }
-        }
-
-        const pxX = pLeft + xNormalized * pWidth
-        const pxW = widthNormalized * pWidth
-        const pxY =
-          pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
-
-        ctx.rect(pxX, pxY, pxW, rectH)
-      }
-
-      ctx.fill() // Send everything to GPU in ONE go
-    }
-
-    // Draw dimmed elements using path batching
-    ctx.globalAlpha = 0.15
-
-    for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
-      const buffer = buckets[styleIdx]
-      if (buffer.length === 0) continue
-
-      const isDimmed =
-        isHighlightActive && highlightMask
-          ? highlightMask[styleIdx] !== 1
-          : false
-
-      if (!isDimmed) continue // Skip normal in this pass
-
-      const styleSet = rectStyles[styleIdx]
-
-      ctx.fillStyle = styleSet.normal.fill
+      ctx.fillStyle = effectiveFill
       ctx.beginPath() // Start a massive path
 
       const segmentCount = buffer.length / RECT_STRIDE
@@ -1159,121 +1104,10 @@
     // Local references for fast access
     const eventStyles = eventStyleArray
 
-    // Loop unrolling: Explicitly handle both passes to avoid allocating [true, false] array
-
-    // PASS 1: DIMMED (Background)
-    ctx.globalAlpha = 1.0 // Use full opacity, we desaturate color instead
-    // Reverse order for Z-index correct stacking
-    for (let styleIdx = buckets.length - 1; styleIdx >= 0; styleIdx--) {
-      const buffer = buckets[styleIdx]
-      if (buffer.length === 0) continue
-
-      const isDimmed =
-        isHighlightActive && highlightMask
-          ? highlightMask[styleIdx] !== 1
-          : false
-
-      // Only process if this IS a dimmed item
-      if (!isDimmed) continue
-
-      const styleSet = eventStyles[styleIdx]
-      // Desaturate the event color towards white by 75%
-      const eventColor = desaturateToWhite(styleSet.normal.stroke, 0.75)
-
-      const segmentCount = buffer.length / EVENT_STRIDE
-      for (let i = 0; i < segmentCount; i++) {
-        const idx = i * EVENT_STRIDE
-        const xNormalized = buffer[idx]
-        const pIndex = buffer[idx + 1]
-        const eventType = buffer[idx + 2] | 0
-
-        // Determine vertical position: check for override from collision detection, otherwise use default center
-        // Key matches the PACKING CONSTANT in eventLayoutOverrides (styleIdx * 1000000 + i)
-        // Determine vertical position: skip expensive lookup in compact mode
-        const overrideY = layout.isCompact
-          ? undefined
-          : eventLayoutOverrides.get(styleIdx * 1000000 + i)
-
-        const internalY =
-          overrideY !== undefined
-            ? overrideY * layout.scaleFactor
-            : layout.spaceAboveRect + layout.heightOfBar / 2
-
-        const pxX = pLeft + xNormalized * pWidth
-        const pxY =
-          pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
-
-        // Size and radii for the circular markers (scaled down cap to 14px)
-        const size = Math.max(7, Math.min(14, layout.heightOfBar * 0.8))
-        const radius = size / 2
-        const innerRadius = Math.max(2, radius * 0.4) // inner white hole / inner colored dot size
-
-        // Outer outline is a very thin dark grey stroke (keeps visibility independent of color)
-        const OUTLINE_COLOR = desaturateToWhite('#333333', 0.75)
-        const OUTLINE_WIDTH = 1
-
-        // Save previous canvas state that we'll modify
-        const prevAlpha = ctx.globalAlpha
-        const prevFill = ctx.fillStyle
-        const prevStroke = ctx.strokeStyle
-        const prevLineWidth = ctx.lineWidth
-
-        if (eventType === 0) {
-          // START event: colored outer circle with a white inner dot (ring-like appearance)
-          // Outer colored circle
-          ctx.beginPath()
-          ctx.fillStyle = eventColor
-          ctx.arc(pxX, pxY, radius, 0, Math.PI * 2)
-          ctx.fill()
-
-          // Inner white hole/dot
-          ctx.beginPath()
-          ctx.fillStyle = '#ffffff'
-          ctx.arc(pxX, pxY, innerRadius, 0, Math.PI * 2)
-          ctx.fill()
-
-          // Thin dark outline around the outer circle (drawn with full opacity to keep it visible)
-          ctx.beginPath()
-          ctx.lineWidth = OUTLINE_WIDTH
-          ctx.lineJoin = 'miter'
-          ctx.globalAlpha = 1
-          ctx.strokeStyle = OUTLINE_COLOR
-          ctx.arc(pxX, pxY, radius + 0.2, 0, Math.PI * 2)
-          ctx.stroke()
-        } else {
-          // END event: white outer circle with a colored inner dot
-          // Outer white circle
-          ctx.beginPath()
-          ctx.fillStyle = '#ffffff'
-          ctx.arc(pxX, pxY, radius, 0, Math.PI * 2)
-          ctx.fill()
-
-          // Inner colored dot
-          ctx.beginPath()
-          ctx.fillStyle = eventColor
-          ctx.arc(pxX, pxY, innerRadius, 0, Math.PI * 2)
-          ctx.fill()
-
-          // Thin dark outline around the outer circle (drawn with full opacity to keep it visible)
-          ctx.beginPath()
-          ctx.lineWidth = OUTLINE_WIDTH
-          ctx.lineJoin = 'miter'
-          ctx.globalAlpha = 1
-          ctx.strokeStyle = OUTLINE_COLOR
-          ctx.arc(pxX, pxY, radius + 0.2, 0, Math.PI * 2)
-          ctx.stroke()
-        }
-
-        // Restore previous canvas drawing state
-        ctx.globalAlpha = prevAlpha
-        ctx.fillStyle = prevFill
-        ctx.strokeStyle = prevStroke
-        ctx.lineWidth = prevLineWidth
-      }
-    }
-
-    // PASS 2: NORMAL (Foreground)
+    // Single pass drawing for events - reversed order for Z-stacking
+    // Dimming replaced by desaturation
     ctx.globalAlpha = 1.0
+
     for (let styleIdx = buckets.length - 1; styleIdx >= 0; styleIdx--) {
       const buffer = buckets[styleIdx]
       if (buffer.length === 0) continue
@@ -1283,11 +1117,17 @@
           ? highlightMask[styleIdx] !== 1
           : false
 
-      // Only process if this is NOT a dimmed item (i.e. it is Normal)
-      if (isDimmed) continue
-
       const styleSet = eventStyles[styleIdx]
-      const eventColor = styleSet.normal.stroke
+      // Determine colors based on dimming
+      // If dimmed, desaturate both fill and outline
+      const eventColor = isDimmed
+        ? desaturateToWhite(styleSet.normal.stroke, 0.85)
+        : styleSet.normal.stroke
+
+      const OUTLINE_COLOR_NORMAL = '#333333'
+      const outlineColor = isDimmed
+        ? desaturateToWhite(OUTLINE_COLOR_NORMAL, 0.85)
+        : OUTLINE_COLOR_NORMAL
 
       const segmentCount = buffer.length / EVENT_STRIDE
       for (let i = 0; i < segmentCount; i++) {
@@ -1316,22 +1156,22 @@
         const size = Math.max(7, Math.min(12, layout.heightOfBar * 0.8))
         const radius = size / 2
         const innerRadius = Math.max(2, radius * 0.4) // inner white hole / inner colored dot size
-
-        // Outer outline is a very thin dark grey stroke (keeps visibility independent of color)
-        const OUTLINE_COLOR = '#333333'
         const OUTLINE_WIDTH = 1
 
+        // Use pre-computed localized colors
+        const currentEventColor = eventColor
+        const currentOutlineColor = outlineColor
+
         // Save previous canvas state that we'll modify
-        const prevAlpha = ctx.globalAlpha
         const prevFill = ctx.fillStyle
         const prevStroke = ctx.strokeStyle
         const prevLineWidth = ctx.lineWidth
 
         if (eventType === 0) {
-          // START event: colored outer circle with a white inner dot (ring-like appearance)
+          // START event: colored outer circle with a white inner dot
           // Outer colored circle
           ctx.beginPath()
-          ctx.fillStyle = eventColor
+          ctx.fillStyle = currentEventColor
           ctx.arc(pxX, pxY, radius, 0, Math.PI * 2)
           ctx.fill()
 
@@ -1341,12 +1181,11 @@
           ctx.arc(pxX, pxY, innerRadius, 0, Math.PI * 2)
           ctx.fill()
 
-          // Thin dark outline around the outer circle (drawn with full opacity to keep it visible)
+          // Thin dark outline
           ctx.beginPath()
           ctx.lineWidth = OUTLINE_WIDTH
           ctx.lineJoin = 'miter'
-          ctx.globalAlpha = 1
-          ctx.strokeStyle = OUTLINE_COLOR
+          ctx.strokeStyle = currentOutlineColor
           ctx.arc(pxX, pxY, radius + 0.2, 0, Math.PI * 2)
           ctx.stroke()
         } else {
@@ -1359,29 +1198,27 @@
 
           // Inner colored dot
           ctx.beginPath()
-          ctx.fillStyle = eventColor
+          ctx.fillStyle = currentEventColor
           ctx.arc(pxX, pxY, innerRadius, 0, Math.PI * 2)
           ctx.fill()
 
-          // Thin dark outline around the outer circle (drawn with full opacity to keep it visible)
+          // Thin dark outline
           ctx.beginPath()
           ctx.lineWidth = OUTLINE_WIDTH
           ctx.lineJoin = 'miter'
-          ctx.globalAlpha = 1
-          ctx.strokeStyle = OUTLINE_COLOR
+          ctx.strokeStyle = currentOutlineColor
           ctx.arc(pxX, pxY, radius + 0.2, 0, Math.PI * 2)
           ctx.stroke()
         }
 
         // Restore previous canvas drawing state
-        ctx.globalAlpha = prevAlpha
         ctx.fillStyle = prevFill
         ctx.strokeStyle = prevStroke
         ctx.lineWidth = prevLineWidth
       }
     }
 
-    // Reset alpha
+    // Reset alpha (should be 1 already)
     ctx.globalAlpha = 1
   }
 
