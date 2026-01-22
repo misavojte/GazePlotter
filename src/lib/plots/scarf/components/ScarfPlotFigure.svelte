@@ -36,12 +36,21 @@
   import { getContext, onDestroy, onMount, untrack } from 'svelte'
   import { SCARF_LAYOUT } from '../const'
   import {
+    calculateEffectiveMarginTop,
+    calculateIntrinsicContentHeight,
     calculateIsCompactMode,
+    calculateLegendStructuralHeight,
     calculateLeftLabelWidth,
     calculatePlotLayout,
     getScarfIdentifierSystem,
     getXAxisLabel,
   } from '../core/layout'
+  import {
+    calculateEventLayoutOverrides,
+    calculateHighlightMask,
+    createStyleArrays,
+    mapDataToLegendGroups,
+  } from '../core/transformer'
   import {
     drawScarfEvents,
     drawScarfGrid,
@@ -106,29 +115,9 @@
 
   // 1. Calculate Legend structural metrics (data-only, no layout dependency)
   // This breaks the circular dependency: legend structural height depends only on data.
-  const legendHeight = $derived.by(() => {
-    const groups = data.legendData?.groups ?? []
-    if (groups.length === 0) return 0
-
-    const dummyGroups = groups.map(g => ({
-      title: g.title,
-      items: g.items.map(i => ({
-        identifier: i.identifier,
-        name: i.name,
-        color: i.color,
-        type: 'fixation' as const, // Structural type doesn't matter for height
-      })),
-    }))
-
-    const tempLayout = computeGroupedLegendGeometry(
-      dummyGroups,
-      SCARF_LEGEND_CONFIG,
-      0,
-      0,
-      chartWidth
-    )
-    return tempLayout.totalHeight
-  })
+  const legendHeight = $derived(
+    calculateLegendStructuralHeight(data.legendData?.groups ?? [], chartWidth)
+  )
 
   // 2. Fixed vertical overhead (margins, padding, legend, axis space)
   const fixedOverheadAbove = $derived(marginTop + INTERNAL_PADDING_TOP)
@@ -219,41 +208,33 @@
 
   // Convert ScarfLegendItem (data-only) to LegendItem (with presentation details)
   // Heights are determined here in the presentation layer using layout constants
-  const legendGroups: LegendGroup[] = $derived.by(() => {
-    const groups = data.legendData?.groups ?? []
-    if (groups.length === 0) return []
+  const legendGroups: LegendGroup[] = $derived(
+    mapDataToLegendGroups(data.legendData?.groups ?? [])
+  )
 
-    // Map styleType to type and height using layout constants
-    const getItemPresentation = (styleType: string) => {
-      switch (styleType) {
-        case 'fixation':
-          return { type: 'fixation' as const }
-        case 'nonFixation':
-          return {
-            type: 'nonFixation' as const,
-          }
-        case 'visibility':
-          return {
-            type: 'eventPair' as const,
-          }
-        default:
-          return { type: 'fixation' as const }
-      }
-    }
+  // Required height for all content (excluding explicit margins)
+  // This is the intrinsic height of the visualization content
+  // USES legendHeight (static) instead of legendGeometry.totalHeight (which depends on margins)
+  const intrinsicContentHeight = $derived(
+    calculateIntrinsicContentHeight(
+      legendHeight,
+      legendY,
+      axisLabelY,
+      INTERNAL_PADDING_BOTTOM
+    )
+  )
 
-    return groups.map(group => ({
-      title: group.title,
-      items: group.items.map(item => {
-        const presentation = getItemPresentation(item.styleType)
-        return {
-          identifier: item.identifier,
-          name: item.name,
-          color: item.color,
-          type: presentation.type,
-        }
-      }),
-    }))
-  })
+  // Vertical centering offset: if available space exceeds content, center vertically
+  // Subtracting INTERNAL_PADDING_TOP ensures the centering feels balanced with the top safe area
+  const effectiveMarginTop = $derived(
+    calculateEffectiveMarginTop(
+      availableHeight,
+      intrinsicContentHeight,
+      marginTop,
+      marginBottom,
+      INTERNAL_PADDING_TOP
+    )
+  )
 
   // Compute final legend geometry using the actual effectiveMarginTop
   // This depends on effectiveMarginTop, but nothing depends back on this geometry's totalHeight
@@ -288,78 +269,6 @@
     participantId: string | number
     orderId: number
   } | null>(null)
-
-  // Highlight mask by style index (computed once per highlight change)
-  const highlightMaskByIndex = $derived.by(() => {
-    if (!usedHighlights || usedHighlights.length === 0) return null
-    const total = identifierSystem.totalIdentifiers
-    if (!total) return null
-
-    const mask = new Uint8Array(total)
-    const { idToIndex } = identifierSystem
-    for (let i = 0; i < usedHighlights.length; i++) {
-      const idx = idToIndex.get(usedHighlights[i])
-      if (idx != null) mask[idx] = 1
-    }
-    return mask
-  })
-
-  // Required height for all content (excluding explicit margins)
-  // This is the intrinsic height of the visualization content
-  // USES legendHeight (static) instead of legendGeometry.totalHeight (which depends on margins)
-  const intrinsicContentHeight = $derived.by(() => {
-    if (legendHeight > 0) {
-      return legendY + legendHeight + INTERNAL_PADDING_BOTTOM
-    }
-    // If no legend, height is determined by the x-axis label
-    // axisLabelY + approximate label height (20px) + padding
-    return axisLabelY + 20 + INTERNAL_PADDING_BOTTOM
-  })
-
-  // Vertical centering offset: if available space exceeds content, center vertically
-  // Subtracting INTERNAL_PADDING_TOP ensures the centering feels balanced with the top safe area
-  const centeringOffsetY = $derived(
-    availableHeight >
-      intrinsicContentHeight + marginTop + marginBottom + INTERNAL_PADDING_TOP
-      ? Math.floor(
-          (availableHeight -
-            intrinsicContentHeight -
-            marginTop -
-            marginBottom -
-            INTERNAL_PADDING_TOP) /
-            2
-        )
-      : 0
-  )
-
-  // Effective margins include centering offsets and the internal top safety padding
-  // When no margins are set (default 0), this ensures content is centered but safe from cropping
-  const effectiveMarginTop = $derived(
-    marginTop + centeringOffsetY + INTERNAL_PADDING_TOP
-  )
-
-  // Total content height with effective margins
-  const totalContentHeight = $derived(
-    intrinsicContentHeight + effectiveMarginTop + marginBottom
-  )
-
-  // Canvas height is strictly the available height (no scrolling)
-  const totalHeight = $derived(availableHeight)
-
-  // Check if we have enough space to render
-  // In compact mode, we can render with much less space (min 1px per participant)
-  // but we enforce a minimum plot area height to avoid cropping the rotated axis label
-  const canRender = $derived.by(() => {
-    // Minimum plot height to avoid complete collapse
-    const minPlotHeight = isCompactMode
-      ? Math.max(
-          data.participants.length * SCARF_LAYOUT.MIN_BAR_HEIGHT,
-          SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT
-        )
-      : SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT // Fallback min height
-
-    return netAvailableHeight >= minPlotHeight
-  })
 
   // Create a unified identifier mapping system for all style types
   const identifierSystem = $derived.by(() => {
@@ -416,32 +325,6 @@
     return map
   })
 
-  // These MUST be declared before any derived values that use them
-  const visualRectBuckets = $derived(data.visualRectBuckets)
-  const visualEventBuckets = $derived(data.visualEventBuckets)
-
-  // Optimize lookups: Convert Map to dense Array for O(1) access during render
-  const rectStyleArray = $derived.by(() => {
-    const buckets = visualRectBuckets
-    const styles = new Array(buckets.length)
-    const { indexToId } = identifierSystem
-    const map = rectStyleMap
-
-    // Default fallback style
-    const fallback = { normal: { fill: '#ccc' } }
-
-    for (let i = 0; i < buckets.length; i++) {
-      const id = indexToId.get(i)
-      // If no ID or style, use fallback
-      if (id !== undefined) {
-        styles[i] = map.get(id) ?? fallback
-      } else {
-        styles[i] = fallback
-      }
-    }
-    return styles
-  })
-
   const eventStyleMap = $derived.by(() => {
     if (!data.stylingAndLegend) return new Map()
 
@@ -471,187 +354,71 @@
     return map
   })
 
-  // Optimize lookups: Convert Map to dense Array for O(1) access during render
-  const eventStyleArray = $derived.by(() => {
-    const buckets = visualEventBuckets
-    const styles = new Array(buckets.length)
-    const { indexToId } = identifierSystem
-    const map = eventStyleMap
+  // Highlight mask by style index (computed once per highlight change)
+  const highlightMaskByIndex = $derived(
+    calculateHighlightMask(usedHighlights, identifierSystem)
+  )
 
-    // Default fallback style
-    const fallback = { normal: { stroke: '#ccc', strokeWidth: 1 } }
+  // Total content height with effective margins
+  const totalContentHeight = $derived(
+    intrinsicContentHeight + effectiveMarginTop + marginBottom
+  )
 
-    for (let i = 0; i < buckets.length; i++) {
-      const id = indexToId.get(i)
-      if (id !== undefined) {
-        styles[i] = map.get(id) ?? fallback
-      } else {
-        styles[i] = fallback
-      }
-    }
-    return styles
+  // Canvas height is strictly the available height (no scrolling)
+  const totalHeight = $derived(availableHeight)
+
+  // Check if we have enough space to render
+  // In compact mode, we can render with much less space (min 1px per participant)
+  // but we enforce a minimum plot area height to avoid cropping the rotated axis label
+  const canRender = $derived.by(() => {
+    // Minimum plot height to avoid complete collapse
+    const minPlotHeight = isCompactMode
+      ? Math.max(
+          data.participants.length * SCARF_LAYOUT.MIN_BAR_HEIGHT,
+          SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT
+        )
+      : SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT // Fallback min height
+
+    return netAvailableHeight >= minPlotHeight
   })
+
+  // These MUST be declared before any derived values that use them
+  const visualRectBuckets = $derived(data.visualRectBuckets)
+  const visualEventBuckets = $derived(data.visualEventBuckets)
+
+  // Optimize lookups: Convert Map to dense Array for O(1) access during render
+  const rectStyleArray = $derived(
+    createStyleArrays(
+      identifierSystem,
+      rectStyleMap,
+      eventStyleMap,
+      visualRectBuckets.length,
+      visualEventBuckets.length
+    ).rectStyles
+  )
+
+  // Optimize lookups: Convert Map to dense Array for O(1) access during render
+  const eventStyleArray = $derived(
+    createStyleArrays(
+      identifierSystem,
+      rectStyleMap,
+      eventStyleMap,
+      visualRectBuckets.length,
+      visualEventBuckets.length
+    ).eventStyles
+  )
 
   // Calculate layout overrides for overlapping events
   // IMPORTANT: This computation is expensive. We minimize reactive dependencies
   // by using source data values directly and computing in normalized space.
-  const eventLayoutOverrides = $derived.by(() => {
-    // In compact mode, we skip expensive offset calculation as markers stay centered
-    if (isCompactMode) return new Map<number, number>()
-
-    const buckets = visualEventBuckets
-    if (buckets.length === 0) return new Map<number, number>()
-
-    const EVENT_STRIDE = 5
-    // Use source data dimensions to avoid layout reactivity churn
-    const barHeight = data.barHeight
-    const barWrapHeight = data.heightOfBarWrap
-
-    // Size logic matches drawEvents: smaller of 20px or 80% of bar height, min 7px
-    const size = Math.max(7, Math.min(20, barHeight * 0.8))
-    // Overlap threshold in NORMALIZED space (we'll convert to normalized distance)
-    // Assume typical plot width of ~1000px for threshold calculation
-    const normalizedThreshold = (size * 0.25) / 1000
-
-    // PACKING CONSTANT for Map keys
-    const KEY_MULTIPLIER = 1000000
-
-    // 1. Count total events to allocate TypedArrays
-    let totalEvents = 0
-    for (let i = 0; i < buckets.length; i++) {
-      totalEvents += buckets[i].length / EVENT_STRIDE
-    }
-
-    if (totalEvents === 0) return new Map<number, number>()
-
-    // 2. Allocate data structures
-    const indices = new Int32Array(totalEvents)
-    const xPos = new Float32Array(totalEvents)
-    const pIds = new Int16Array(totalEvents)
-    const styleIds = new Int16Array(totalEvents)
-    const eventIndices = new Int32Array(totalEvents)
-
-    // 3. Fill arrays
-    let ptr = 0
-    for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
-      const buffer = buckets[styleIdx]
-      const count = buffer.length / EVENT_STRIDE
-
-      for (let i = 0; i < count; i++) {
-        const idx = i * EVENT_STRIDE
-        const xNormalized = buffer[idx]
-        const pIndex = buffer[idx + 1]
-
-        indices[ptr] = ptr
-        // Store normalized X position (not pixels) to avoid plotAreaWidth dependency
-        xPos[ptr] = xNormalized
-        pIds[ptr] = pIndex
-        styleIds[ptr] = styleIdx
-        // Using i (index within bucket) directly
-        eventIndices[ptr] = i
-        ptr++
-      }
-    }
-
-    // 4. Sort indices: primarily by Participant (pId), secondarily by X Position
-    // We use the indices array to avoid moving large data around
-    indices.sort((a, b) => {
-      // First sort by participant
-      const pDiff = pIds[a] - pIds[b]
-      if (pDiff !== 0) return pDiff
-
-      // Then by X position
-      return xPos[a] - xPos[b]
-    })
-
-    const overrides = new Map<number, number>()
-
-    // 5. Cluster detection and resolution
-    // Iterate through the sorted indices
-    let clusterStart = 0
-
-    // Limits - use barWrapHeight from source data, not reactive layout
-    const availableH = barWrapHeight
-    const radius = size / 2
-    const margin = radius + 2
-    const minY = margin
-    const maxY = availableH - margin
-    const rangeY = maxY - minY
-
-    // Temp array for sorting cluster items by style (z-index logic)
-    // Reused to avoid allocation
-    const clusterIndices = []
-
-    for (let i = 0; i < totalEvents; i++) {
-      const currIdx = indices[i]
-      const nextIdx = i < totalEvents - 1 ? indices[i + 1] : -1
-
-      // Check if we should break the cluster
-      let breakCluster = false
-
-      if (nextIdx === -1) {
-        breakCluster = true
-      } else {
-        // Break if different participant
-        if (pIds[currIdx] !== pIds[nextIdx]) {
-          breakCluster = true
-        } else {
-          // Break if gap is large enough
-          // xPos is normalized, compare with normalized threshold
-          const gap = xPos[nextIdx] - xPos[currIdx]
-          if (gap >= normalizedThreshold) {
-            breakCluster = true
-          }
-        }
-      }
-
-      if (breakCluster) {
-        const clusterLen = i - clusterStart + 1
-
-        if (clusterLen > 1) {
-          // We have a collision cluster. Resolve it.
-
-          // Collect indices for this cluster
-          clusterIndices.length = 0
-          for (let k = clusterStart; k <= i; k++) {
-            clusterIndices.push(indices[k])
-          }
-
-          // Sort by styleIdx to ensure correct stacking order
-          // "the one which is first in the AOI order index must be on top"
-          // Lower styleIdx = earlier in AOI order
-          clusterIndices.sort((a, b) => styleIds[a] - styleIds[b])
-
-          if (minY < maxY) {
-            const step = rangeY / Math.max(1, clusterLen - 1)
-
-            for (let k = 0; k < clusterLen; k++) {
-              const originalIdx = clusterIndices[k]
-              const key =
-                styleIds[originalIdx] * KEY_MULTIPLIER +
-                eventIndices[originalIdx]
-              const internalY = minY + step * k
-              overrides.set(key, internalY)
-            }
-          } else {
-            // Fallback centering
-            const center = availableH / 2
-            for (let k = 0; k < clusterLen; k++) {
-              const originalIdx = clusterIndices[k]
-              const key =
-                styleIds[originalIdx] * KEY_MULTIPLIER +
-                eventIndices[originalIdx]
-              overrides.set(key, center)
-            }
-          }
-        }
-
-        clusterStart = i + 1
-      }
-    }
-
-    return overrides
-  })
+  const eventLayoutOverrides = $derived(
+    calculateEventLayoutOverrides(
+      isCompactMode,
+      visualEventBuckets,
+      data.barHeight,
+      data.heightOfBarWrap
+    )
+  )
 
   // Interaction handlers
   function handleLegendIdentifier(identifier: string) {

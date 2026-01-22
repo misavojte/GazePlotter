@@ -1,4 +1,8 @@
-import { FONT_PRIMARY } from '$lib/plots/shared'
+import {
+  FONT_PRIMARY,
+  computeGroupedLegendGeometry,
+  SCARF_LEGEND_CONFIG,
+} from '$lib/plots/shared'
 import { calculateTextMetrics } from '$lib/shared/utils/textUtils'
 import { SCARF_LAYOUT } from '../const'
 
@@ -154,4 +158,76 @@ export function getScarfIdentifierSystem(
       visibility: visibilityIdentifiers.length,
     },
   }
+}
+
+/**
+ * Calculates the static legend height based only on data.
+ */
+export function calculateLegendStructuralHeight(
+  groups: {
+    title: string
+    items: { identifier: string; name: string; color: string }[]
+  }[],
+  chartWidth: number
+): number {
+  if (groups.length === 0) return 0
+
+  const dummyGroups = groups.map(g => ({
+    title: g.title,
+    items: g.items.map(i => ({
+      identifier: i.identifier,
+      name: i.name,
+      color: i.color,
+      type: 'fixation' as const,
+    })),
+  }))
+
+  const tempLayout = computeGroupedLegendGeometry(
+    dummyGroups,
+    SCARF_LEGEND_CONFIG,
+    0,
+    0,
+    chartWidth
+  )
+  return tempLayout.totalHeight
+}
+
+/**
+ * Calculates the intrinsic content height of the visualization.
+ */
+export function calculateIntrinsicContentHeight(
+  legendHeight: number,
+  legendY: number,
+  axisLabelY: number,
+  internalPaddingBottom: number
+): number {
+  if (legendHeight > 0) {
+    return legendY + legendHeight + internalPaddingBottom
+  }
+  return axisLabelY + 20 + internalPaddingBottom
+}
+
+/**
+ * Calculates the effective top margin based on available space and centering.
+ */
+export function calculateEffectiveMarginTop(
+  availableHeight: number,
+  intrinsicHeight: number,
+  marginTop: number,
+  marginBottom: number,
+  internalPaddingTop: number
+): number {
+  const centeringOffset =
+    availableHeight >
+    intrinsicHeight + marginTop + marginBottom + internalPaddingTop
+      ? Math.floor(
+          (availableHeight -
+            intrinsicHeight -
+            marginTop -
+            marginBottom -
+            internalPaddingTop) /
+            2
+        )
+      : 0
+  return marginTop + centeringOffset + internalPaddingTop
 }

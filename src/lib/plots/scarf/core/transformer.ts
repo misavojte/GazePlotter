@@ -35,6 +35,7 @@ import type {
   ScarfStyleItem,
   ScarfStyling,
 } from '../types'
+import type { LegendGroup } from '$lib/plots/shared'
 
 const RECT_STRIDE = 8
 const EVENT_STRIDE = 5
@@ -616,4 +617,191 @@ export function convertVisibilityIntervalsToEvents(
     }
   }
   return events
+}
+
+/**
+ * Maps raw legend data to LegendGroup array.
+ */
+export function mapDataToLegendGroups(
+  groups: ScarfLegendGroup[]
+): LegendGroup[] {
+  const getItemPresentation = (styleType: string) => {
+    switch (styleType) {
+      case 'fixation':
+        return { type: 'fixation' as const }
+      case 'nonFixation':
+        return { type: 'nonFixation' as const }
+      case 'visibility':
+        return { type: 'eventPair' as const }
+      default:
+        return { type: 'fixation' as const }
+    }
+  }
+
+  return groups.map(group => ({
+    title: group.title,
+    items: group.items.map(item => {
+      const presentation = getItemPresentation(item.styleType)
+      return {
+        identifier: item.identifier,
+        name: item.name,
+        color: item.color,
+        type: presentation.type,
+      }
+    }),
+  }))
+}
+
+/**
+ * Computes the highlight mask based on used highlights.
+ */
+export function calculateHighlightMask(
+  usedHighlights: string[],
+  identifierSystem: { idToIndex: Map<string, number>; totalIdentifiers: number }
+): Uint8Array | null {
+  if (!usedHighlights || usedHighlights.length === 0) return null
+  const total = identifierSystem.totalIdentifiers
+  if (!total) return null
+
+  const mask = new Uint8Array(total)
+  const { idToIndex } = identifierSystem
+  for (let i = 0; i < usedHighlights.length; i++) {
+    const idx = idToIndex.get(usedHighlights[i])
+    if (idx != null) mask[idx] = 1
+  }
+  return mask
+}
+
+/**
+ * Creates dense style arrays for rectangles and events for O(1) access during render.
+ */
+export function createStyleArrays(
+  identifierSystem: { indexToId: Map<number, string> },
+  rectStyleMap: Map<string, { normal: any; dimmed: any }>,
+  eventStyleMap: Map<string, { normal: any; dimmed: any }>,
+  rectBucketCount: number,
+  eventBucketCount: number
+) {
+  const { indexToId } = identifierSystem
+  const rectFallback = { normal: { fill: '#ccc' } }
+  const eventFallback = { normal: { stroke: '#ccc', strokeWidth: 1 } }
+
+  const rectStyles = new Array(rectBucketCount)
+  for (let i = 0; i < rectBucketCount; i++) {
+    const id = indexToId.get(i)
+    rectStyles[i] =
+      id !== undefined ? (rectStyleMap.get(id) ?? rectFallback) : rectFallback
+  }
+
+  const eventStyles = new Array(eventBucketCount)
+  for (let i = 0; i < eventBucketCount; i++) {
+    const id = indexToId.get(i)
+    eventStyles[i] =
+      id !== undefined
+        ? (eventStyleMap.get(id) ?? eventFallback)
+        : eventFallback
+  }
+
+  return { rectStyles, eventStyles }
+}
+
+/**
+ * Calculates vertical offsets for overlapping events to avoid visual clutter.
+ */
+export function calculateEventLayoutOverrides(
+  isCompactMode: boolean,
+  visualEventBuckets: Float32Array[],
+  barHeight: number,
+  barWrapHeight: number
+): Map<number, number> {
+  if (isCompactMode) return new Map<number, number>()
+  if (visualEventBuckets.length === 0) return new Map<number, number>()
+
+  const EVENT_STRIDE = 5
+  const size = Math.max(7, Math.min(20, barHeight * 0.8))
+  const normalizedThreshold = (size * 0.25) / 1000
+  const KEY_MULTIPLIER = 1000000
+
+  let totalEvents = 0
+  for (let i = 0; i < visualEventBuckets.length; i++) {
+    totalEvents += visualEventBuckets[i].length / EVENT_STRIDE
+  }
+
+  if (totalEvents === 0) return new Map<number, number>()
+
+  const indices = new Int32Array(totalEvents)
+  const xPos = new Float32Array(totalEvents)
+  const pIds = new Int16Array(totalEvents)
+  const styleIds = new Int16Array(totalEvents)
+  const eventIndices = new Int32Array(totalEvents)
+
+  let ptr = 0
+  for (let styleIdx = 0; styleIdx < visualEventBuckets.length; styleIdx++) {
+    const buffer = visualEventBuckets[styleIdx]
+    const count = buffer.length / EVENT_STRIDE
+
+    for (let i = 0; i < count; i++) {
+      const idx = i * EVENT_STRIDE
+      xPos[ptr] = buffer[idx]
+      pIds[ptr] = buffer[idx + 1]
+      styleIds[ptr] = styleIdx
+      eventIndices[ptr] = i
+      indices[ptr] = ptr
+      ptr++
+    }
+  }
+
+  indices.sort((a, b) => {
+    const pDiff = pIds[a] - pIds[b]
+    if (pDiff !== 0) return pDiff
+    return xPos[a] - xPos[b]
+  })
+
+  const overrides = new Map<number, number>()
+  let clusterStart = 0
+  const radius = size / 2
+  const margin = radius + 2
+  const minY = margin
+  const maxY = barWrapHeight - margin
+  const rangeY = maxY - minY
+  const clusterIndices: number[] = []
+
+  for (let i = 0; i < totalEvents; i++) {
+    const currIdx = indices[i]
+    const nextIdx = i < totalEvents - 1 ? indices[i + 1] : -1
+    let breakCluster =
+      nextIdx === -1 ||
+      pIds[currIdx] !== pIds[nextIdx] ||
+      xPos[nextIdx] - xPos[currIdx] >= normalizedThreshold
+
+    if (breakCluster) {
+      const clusterLen = i - clusterStart + 1
+      if (clusterLen > 1) {
+        clusterIndices.length = 0
+        for (let k = clusterStart; k <= i; k++) clusterIndices.push(indices[k])
+        clusterIndices.sort((a, b) => styleIds[a] - styleIds[b])
+
+        if (minY < maxY) {
+          const step = rangeY / Math.max(1, clusterLen - 1)
+          for (let k = 0; k < clusterLen; k++) {
+            const originalIdx = clusterIndices[k]
+            const key =
+              styleIds[originalIdx] * KEY_MULTIPLIER + eventIndices[originalIdx]
+            overrides.set(key, minY + step * k)
+          }
+        } else {
+          const center = barWrapHeight / 2
+          for (let k = 0; k < clusterLen; k++) {
+            const originalIdx = clusterIndices[k]
+            const key =
+              styleIds[originalIdx] * KEY_MULTIPLIER + eventIndices[originalIdx]
+            overrides.set(key, center)
+          }
+        }
+      }
+      clusterStart = i + 1
+    }
+  }
+
+  return overrides
 }
