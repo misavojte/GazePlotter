@@ -241,14 +241,16 @@
   // `width`/`height` already represent the drawable area excluding export margins.
   // Export margins are applied as offsets and by growing the canvas size.
   const plotAreaWidth = $derived(
-    Math.max(0, safeWidth - MARGIN.LEFT - MARGIN.RIGHT)
+    Math.floor(Math.max(0, safeWidth - MARGIN.LEFT - MARGIN.RIGHT))
   )
   const plotAreaHeight = $derived(
-    Math.max(0, safeHeight - MARGIN.TOP - MARGIN.BOTTOM - legendHeight)
+    Math.floor(
+      Math.max(0, safeHeight - MARGIN.TOP - MARGIN.BOTTOM - legendHeight)
+    )
   )
 
-  const plotLeft = $derived(safeMarginLeft + MARGIN.LEFT)
-  const plotTop = $derived(safeMarginTop + MARGIN.TOP)
+  const plotLeft = $derived(Math.floor(safeMarginLeft + MARGIN.LEFT))
+  const plotTop = $derived(Math.floor(safeMarginTop + MARGIN.TOP))
   const plotBottom = $derived(plotTop + plotAreaHeight)
 
   // Compute full legend geometry for rendering (after we know plotBottom)
@@ -321,7 +323,9 @@
     if (!ctx) return
 
     const series = data.series
-    const binCount = data.binCount
+    const dataBinCount = data.binCount
+    // Add 2 extra points (one before, one after) to ensure the curve enters/exits the plot area smoothly
+    const renderBinCount = dataBinCount + 2
 
     // Work in percent of participants so axes/labels match the plot title.
     // Values in `data.series[].values[]` are participant-weighted contributions per bin.
@@ -375,7 +379,7 @@
       !Number.isFinite(floorTop) ||
       floorWidth <= 0 ||
       floorHeight <= 0 ||
-      binCount <= 0
+      dataBinCount <= 0
     ) {
       finishCanvasDrawing(canvasState)
       return
@@ -383,14 +387,29 @@
 
     ctx.save()
 
+    ctx.save()
+
+    // Clip to plot area to hide the overflowing guard points
+    ctx.beginPath()
+    ctx.rect(floorLeft, floorTop, floorWidth, floorHeight)
+    ctx.clip()
+
     // Zero-allocation pipeline: ensure buckets are ready
-    const buckets = ensureRenderBuckets(binCount, series.length)
+    const buckets = ensureRenderBuckets(renderBinCount, series.length)
     const { xPositions, seriesBuckets } = buckets
 
     // Pre-compute X positions once (reused across all series)
-    const invBinCount = 1 / binCount
-    for (let i = 0; i < binCount; i++) {
-      xPositions[i] = floorLeft + (i + 0.5) * invBinCount * floorWidth
+    // We map indices 1..N to the actual bins, and 0 / N+1 to outside points.
+    const invBinCount = 1 / dataBinCount
+    for (let i = 0; i < renderBinCount; i++) {
+      if (i === 0) {
+        xPositions[i] = floorLeft
+      } else if (i === renderBinCount - 1) {
+        xPositions[i] = floorLeft + floorWidth
+      } else {
+        // Real bin centers are at (i - 1 + 0.5)
+        xPositions[i] = floorLeft + (i - 1 + 0.5) * invBinCount * floorWidth
+      }
     }
 
     const drawCatmullRom = (
@@ -398,32 +417,34 @@
       ys: Float32Array,
       forward: boolean
     ) => {
-      if (binCount === 1) {
+      // Use renderBinCount instead of data.binCount
+      const count = renderBinCount
+      if (count === 1) {
         ctx.lineTo(xs[0], ys[0])
         return
       }
 
-      const getX = (i: number) => (forward ? xs[i] : xs[binCount - 1 - i])
-      const getY = (i: number) => (forward ? ys[i] : ys[binCount - 1 - i])
+      const getX = (i: number) => (forward ? xs[i] : xs[count - 1 - i])
+      const getY = (i: number) => (forward ? ys[i] : ys[count - 1 - i])
 
       ctx.lineTo(getX(0), getY(0))
 
       if (FLOW_CURVE_TENSION === 0) {
-        for (let i = 1; i < binCount; i++) {
+        for (let i = 1; i < count; i++) {
           ctx.lineTo(getX(i), getY(i))
         }
         return
       }
 
-      for (let i = 0; i < binCount - 1; i++) {
+      for (let i = 0; i < count - 1; i++) {
         const p0x = getX(Math.max(0, i - 1))
         const p0y = getY(Math.max(0, i - 1))
         const p1x = getX(i)
         const p1y = getY(i)
         const p2x = getX(i + 1)
         const p2y = getY(i + 1)
-        const p3x = getX(Math.min(binCount - 1, i + 2))
-        const p3y = getY(Math.min(binCount - 1, i + 2))
+        const p3x = getX(Math.min(count - 1, i + 2))
+        const p3y = getY(Math.min(count - 1, i + 2))
 
         const cp1x = p1x + (p2x - p0x) * FLOW_CURVE_TENSION
         const cp1y = p1y + (p2y - p0y) * FLOW_CURVE_TENSION
@@ -434,9 +455,9 @@
       }
     }
 
-    // Common setup
-    const cumulative = new Float32Array(binCount)
-    const totals = new Float32Array(binCount)
+    // Common setup - allocated for renderBinCount
+    const cumulative = new Float32Array(renderBinCount)
+    const totals = new Float32Array(renderBinCount)
     let stripHeight = 0
     let stripGap = 0
 
@@ -444,10 +465,17 @@
       // Calculate totals
       for (let s = 0; s < series.length; s++) {
         const values = series[s].values
-        for (let i = 0; i < binCount; i++) {
-          totals[i] += values[i] * percentFactor
+
+        // Main body
+        for (let i = 0; i < dataBinCount; i++) {
+          totals[i + 1] += values[i] * percentFactor
         }
       }
+
+      // Pad totals
+      // Core concept: initial value of everything is ZERO
+      totals[0] = 0
+      totals[renderBinCount - 1] = 0
     } else if (alignment === 'ridgeline') {
       // Calculate strip layout with overlap
       const n = Math.max(1, series.length)
@@ -470,7 +498,7 @@
 
     // Center alignment specifics: offset based on half total
     if (alignment === 'center') {
-      for (let i = 0; i < binCount; i++) {
+      for (let i = 0; i < renderBinCount; i++) {
         cumulative[i] = -totals[i] * 0.5
       }
     }
@@ -504,11 +532,6 @@
         const overlapOffset = stripHeight * (1 - RIDGELINE_OVERLAP)
 
         // Calculate the total height of all strips
-        // Total Height = (N-1) * overlapOffset + stripHeight
-        // The first strip (s=0) starts at 0 relative to the group
-        // The last strip (s=N-1) starts at (N-1) * overlapOffset
-        // And extends by stripHeight.
-
         const totalGroupHeight =
           (series.length - 1) * overlapOffset + stripHeight
 
@@ -523,17 +546,28 @@
         // Scale: 100% = stripHeight * 0.9 (keep some padding at top)
         const localScaleY = (stripHeight * 0.9) / 100
 
-        for (let i = 0; i < binCount; i++) {
-          const val = values[i] * percentFactor
+        for (let i = 0; i < renderBinCount; i++) {
+          // Map render index `i` to data index
+          // 0 -> 0 (duplicate), 1..N -> 0..N-1, N+1 -> N-1 (duplicate)
+          const dataIndex = Math.max(0, Math.min(dataBinCount - 1, i - 1))
+          let val = values[dataIndex] * percentFactor
+
+          if (i === 0 || i === renderBinCount - 1) val = 0 // Initial/Final value is ZERO
+
           // Align from bottom
           bucket.bottomY[i] = stripBottom
           bucket.topY[i] = stripBottom - val * localScaleY
         }
       } else {
         // Stacked (center or bottom)
-        for (let i = 0; i < binCount; i++) {
+        for (let i = 0; i < renderBinCount; i++) {
           const startVal = cumulative[i]
-          const val = values[i] * percentFactor
+
+          const dataIndex = Math.max(0, Math.min(dataBinCount - 1, i - 1))
+          let val = values[dataIndex] * percentFactor
+
+          if (i === 0 || i === renderBinCount - 1) val = 0 // Initial/Final value is ZERO
+
           const endVal = startVal + val
           cumulative[i] = endVal
 
@@ -669,7 +703,7 @@
 
     // Draw hovered bin highlight
     if (hoveredBinIndex !== null) {
-      const binWidth = floorWidth / binCount
+      const binWidth = floorWidth / dataBinCount
       const binX = floorLeft + hoveredBinIndex * binWidth
 
       ctx.save()
@@ -691,6 +725,9 @@
       ctx.stroke()
       ctx.restore()
     }
+
+    // Restore context to remove the clipping region before drawing axes
+    ctx.restore()
 
     setUpFont(ctx)
 

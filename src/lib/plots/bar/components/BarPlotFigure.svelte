@@ -105,17 +105,19 @@
 
   // Calculate dynamic left margin based on plotting type and label lengths
   const trueLeftMargin = $derived(
-    barPlottingType === 'horizontal'
-      ? Math.min(
-          150,
-          calculateLabelOffset(data.map(item => item.label)) +
-            VALUE_LABEL_OFFSET
-        ) + marginLeft
-      : Math.max(
-          35,
-          calculateLabelOffset(timeline.ticks.map(tick => tick.label)) +
-            VALUE_LABEL_OFFSET
-        ) + marginLeft
+    Math.floor(
+      barPlottingType === 'horizontal'
+        ? Math.min(
+            150,
+            calculateLabelOffset(data.map(item => item.label)) +
+              VALUE_LABEL_OFFSET
+          ) + marginLeft
+        : Math.max(
+            35,
+            calculateLabelOffset(timeline.ticks.map(tick => tick.label)) +
+              VALUE_LABEL_OFFSET
+          ) + marginLeft
+    )
   )
 
   const dynamicRightMargin = $derived.by(() => {
@@ -142,9 +144,11 @@
   })
 
   // Calculate plot area dimensions
-  const plotAreaWidth = $derived(width - trueLeftMargin - dynamicRightMargin)
+  const plotAreaWidth = $derived(
+    Math.floor(width - trueLeftMargin - dynamicRightMargin)
+  )
   const plotAreaHeight = $derived(
-    height - MARGIN.TOP - MARGIN.BOTTOM - marginTop - marginBottom
+    Math.floor(height - MARGIN.TOP - MARGIN.BOTTOM - marginTop - marginBottom)
   )
 
   // Scale values to plot area using AdaptiveTimeline

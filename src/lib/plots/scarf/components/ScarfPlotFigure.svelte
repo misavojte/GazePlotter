@@ -1011,8 +1011,8 @@
 
   function drawRectangles(
     ctx: CanvasRenderingContext2D,
-    leftX: number,
-    plotWidth: number
+    pLeft: number,
+    pWidth: number
   ) {
     const buckets = visualRectBuckets
     if (buckets.length === 0) return
@@ -1072,8 +1072,8 @@
           }
         }
 
-        const pxX = leftX + xNormalized * plotWidth
-        const pxW = widthNormalized * plotWidth
+        const pxX = pLeft + xNormalized * pWidth
+        const pxW = widthNormalized * pWidth
         const pxY =
           pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
 
@@ -1130,8 +1130,8 @@
           }
         }
 
-        const pxX = leftX + xNormalized * plotWidth
-        const pxW = widthNormalized * plotWidth
+        const pxX = pLeft + xNormalized * pWidth
+        const pxW = widthNormalized * pWidth
         const pxY =
           pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
 
@@ -1147,8 +1147,8 @@
 
   function drawEvents(
     ctx: CanvasRenderingContext2D,
-    leftX: number,
-    plotWidth: number
+    pLeft: number,
+    pWidth: number
   ) {
     const buckets = visualEventBuckets
     if (buckets.length === 0) return
@@ -1200,7 +1200,7 @@
             ? overrideY * layout.scaleFactor
             : layout.spaceAboveRect + layout.heightOfBar / 2
 
-        const pxX = leftX + xNormalized * plotWidth
+        const pxX = pLeft + xNormalized * pWidth
         const pxY =
           pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
 
@@ -1309,11 +1309,11 @@
             ? overrideY * layout.scaleFactor
             : layout.spaceAboveRect + layout.heightOfBar / 2
 
-        const pxX = leftX + xNormalized * plotWidth
+        const pxX = pLeft + xNormalized * pWidth
         const pxY =
           pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
 
-        // Size and radii for the circular markers (scaled down cap to 12px)
+        // Size and radii for the circular markers (scaled down cap to 14px)
         const size = Math.max(7, Math.min(12, layout.heightOfBar * 0.8))
         const radius = size / 2
         const innerRadius = Math.max(2, radius * 0.4) // inner white hole / inner colored dot size
@@ -1494,8 +1494,12 @@
       const rectH = hoveredSegment.height
       const internalY = hoveredSegment.internalY
 
-      const pxX1 = LEFT_LABEL_WIDTH + xNormalized * plotAreaWidth + marginLeft
-      const pxW = widthNormalized * plotAreaWidth
+      // Floor dimensions for pixel-perfect synchronization
+      const floorLeft = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
+      const floorWidth = Math.floor(plotAreaWidth)
+
+      const pxX1 = floorLeft + xNormalized * floorWidth
+      const pxW = widthNormalized * floorWidth
       const pxY =
         pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
 
@@ -1801,8 +1805,12 @@
           }
         }
 
-        const pxX = leftX + xNormalized * plotWidth
-        const pxW = widthNormalized * plotWidth
+        // Floor dimensions for pixel-perfect synchronization (same as renderCanvas)
+        const floorLeft = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
+        const floorWidth = Math.floor(plotAreaWidth)
+
+        const pxX = floorLeft + xNormalized * floorWidth
+        const pxW = widthNormalized * floorWidth
         const pxY =
           pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
 
