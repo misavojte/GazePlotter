@@ -170,7 +170,7 @@ export function createLabeledData(
         : aois[index].displayedName
       return {
         value: 0,
-        label: `${label}: Never Fixated`,
+        label: `${label}`,
         color: isNoAoi ? noAoiTreatment.color : aois[index].color,
       }
     }

@@ -14,7 +14,7 @@
   import { contextMenuAction, type MenuItem } from '$lib/context-menu'
 
   interface Props {
-    options: readonly { value: string; label: string }[]
+    options?: readonly { value: string; label: string }[]
     disabled?: boolean
     label: string
     value?: string
@@ -26,7 +26,7 @@
   }
 
   let {
-    options,
+    options = [],
     disabled = false,
     label,
     value = $bindable(options[0]?.value || ''),

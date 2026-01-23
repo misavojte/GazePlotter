@@ -301,7 +301,7 @@
     drawGridLines(ctx, floorLeft, floorWidth, floorTop, floorHeight)
 
     // Draw bars
-    drawBars(ctx, floorLeft, floorWidth, floorTop, floorHeight)
+    drawBars(ctx)
 
     // Draw all text elements (value labels, category labels, tick labels)
     drawAllTextElements(ctx, floorLeft, floorWidth, floorTop, floorHeight)
@@ -312,7 +312,6 @@
 
   // Set up common context properties once to avoid repeated assignments
   function setupContextProperties(ctx: CanvasRenderingContext2D) {
-    // Set up stroke properties for grid lines and axis ticks
     // Set up stroke properties for grid lines and axis ticks
     ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
     ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
@@ -389,63 +388,17 @@
   }
 
   // Draw the bars
-  function drawBars(
-    ctx: CanvasRenderingContext2D,
-    leftX: number,
-    _plotWidth: number,
-    plotTop: number,
-    plotHeight: number
-  ) {
-    // Re-calculate bars with floored properties if they depend on them
-    // Actually our 'bars' derived variable already uses 'trueLeftMargin' and 'plotAreaWidth',
-    // which might differ from our 'leftX' if we don't re-calculate.
-    // For extreme precision, we should use the passed dimensions.
-    const barData = data.map((item, index) => {
-      const scaledValue =
-        (item.value / timeline.ticks[timeline.ticks.length - 1].value) *
-        (barPlottingType === 'vertical' ? plotHeight : _plotWidth)
-      const availableSpace =
-        barPlottingType === 'vertical' ? _plotWidth : plotHeight
-      const totalBarWidth = data.length * optimalBarWidth
-      const totalSpacing = (data.length - 1) * effectiveBarSpacing
-      const startPosition =
-        BAR_SPACING_TOLERANCE +
-        (availableSpace -
-          totalBarWidth -
-          totalSpacing -
-          2 * BAR_SPACING_TOLERANCE) /
-          2
-
-      if (barPlottingType === 'vertical') {
-        return {
-          pxX:
-            leftX +
-            startPosition +
-            index * (optimalBarWidth + effectiveBarSpacing),
-          pxY: plotTop + plotHeight - scaledValue,
-          pxW: optimalBarWidth,
-          pxH: scaledValue,
-          color: item.color,
-        }
-      } else {
-        return {
-          pxX: leftX,
-          pxY:
-            plotTop +
-            startPosition +
-            index * (optimalBarWidth + effectiveBarSpacing),
-          pxW: scaledValue,
-          pxH: optimalBarWidth,
-          color: item.color,
-        }
-      }
-    })
-
-    // Draw each bar
-    barData.forEach(bar => {
+  function drawBars(ctx: CanvasRenderingContext2D) {
+    // bars already contains all calculated positions and dimensions
+    for (const bar of bars) {
       ctx.fillStyle = bar.color
-      ctx.fillRect(bar.pxX, bar.pxY, bar.pxW, bar.pxH)
-    })
+      ctx.fillRect(
+        alignToPixelCenter(bar.x),
+        alignToPixelCenter(bar.y),
+        Math.floor(bar.width),
+        Math.floor(bar.height)
+      )
+    }
   }
 
   // Draw all text elements in one optimized function
@@ -459,82 +412,69 @@
     ctx.font = `${LABEL_FONT_SIZE}px ${FONT_PRIMARY.FAMILY}`
     ctx.fillStyle = FONT_PRIMARY.COLOR
 
+    const isVertical = barPlottingType === 'vertical'
+
     // Draw value labels
-    bars.forEach(bar => {
+    ctx.textAlign = isVertical ? 'center' : 'left'
+    ctx.textBaseline = isVertical ? 'alphabetic' : 'middle'
+
+    for (const bar of bars) {
       const text = bar.value.toString()
-      let x, y, textAlign, textBaseline
+      const x = isVertical
+        ? alignToPixelCenter(bar.x + bar.width / 2)
+        : bar.x + bar.width + VALUE_LABEL_OFFSET
+      const y = isVertical
+        ? bar.y - VALUE_LABEL_OFFSET
+        : alignToPixelCenter(bar.y + bar.height / 2)
 
-      if (barPlottingType === 'vertical') {
-        x = alignToPixelCenter(bar.x + bar.width / 2)
-        y = bar.y - VALUE_LABEL_OFFSET
-        textAlign = 'center'
-        textBaseline = 'alphabetic'
-      } else {
-        x = bar.x + bar.width + VALUE_LABEL_OFFSET
-        y = alignToPixelCenter(bar.y + bar.height / 2)
-        textAlign = 'left'
-        textBaseline = 'middle'
-      }
-
-      ctx.textAlign = textAlign as CanvasTextAlign
-      ctx.textBaseline = textBaseline as CanvasTextBaseline
       ctx.fillText(text, x, y)
-    })
+    }
 
     // Draw category labels
-    bars.forEach(bar => {
+    ctx.textAlign = isVertical ? 'center' : 'right'
+    ctx.textBaseline = 'middle'
+
+    for (const bar of bars) {
       let text = bar.label
-      let x, y, textAlign, textBaseline
+      let x, y
 
-      if (barPlottingType === 'vertical') {
-        // For vertical bars, truncate text based on pixel width
+      if (isVertical) {
         text = truncateTextToPixelWidth(text, bar.width, LABEL_FONT_SIZE)
-
         x = alignToPixelCenter(bar.x + bar.width / 2)
-        y = alignToPixelCenter(
-          MARGIN.TOP + marginTop + plotAreaHeight + CATEGORY_LABEL_OFFSET
-        )
-        textAlign = 'center'
-        textBaseline = 'middle'
+        y = alignToPixelCenter(plotTop + plotHeight + CATEGORY_LABEL_OFFSET)
       } else {
-        // For horizontal bars, truncate text based on pixel width
         text = truncateTextToPixelWidth(text, trueLeftMargin, LABEL_FONT_SIZE)
-
         x = trueLeftMargin - VALUE_LABEL_OFFSET
         y = alignToPixelCenter(bar.y + bar.height / 2)
+      }
+
+      ctx.fillText(text, x, y)
+    }
+
+    // Draw tick labels
+    for (const tick of timeline.ticks) {
+      if (!tick.isNice) continue
+
+      let x, y, textAlign, textBaseline
+
+      if (isVertical) {
+        x = leftX - VALUE_LABEL_OFFSET
+        y = alignToPixelCenter(
+          plotTop + plotHeight - tick.position * plotHeight
+        )
         textAlign = 'right'
         textBaseline = 'middle'
+      } else {
+        x = alignToPixelCenter(leftX + tick.position * plotWidth)
+        y = plotTop + plotHeight + CATEGORY_LABEL_OFFSET
+        textAlign = 'center'
+        textBaseline = 'hanging'
       }
 
       ctx.textAlign = textAlign as CanvasTextAlign
       ctx.textBaseline = textBaseline as CanvasTextBaseline
-      ctx.fillText(text, x, y)
-    })
-
-    // Draw tick labels
-    timeline.ticks
-      .filter(tick => tick.isNice)
-      .forEach(tick => {
-        let x, y, textAlign, textBaseline
-
-        if (barPlottingType === 'vertical') {
-          x = leftX - VALUE_LABEL_OFFSET
-          y = alignToPixelCenter(
-            plotTop + plotHeight - tick.position * plotHeight
-          )
-          textAlign = 'right'
-          textBaseline = 'middle'
-        } else {
-          x = alignToPixelCenter(leftX + tick.position * plotWidth)
-          y = plotTop + plotHeight + CATEGORY_LABEL_OFFSET
-          textAlign = 'center'
-          textBaseline = 'hanging'
-        }
-
-        ctx.textAlign = textAlign as CanvasTextAlign
-        ctx.textBaseline = textBaseline as CanvasTextBaseline
-        ctx.fillText(tick.label, x, y)
-      })
+      ctx.fillText(tick.label, x, y)
+    }
   }
 
   // Event handlers

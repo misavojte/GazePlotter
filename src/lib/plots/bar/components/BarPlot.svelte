@@ -45,49 +45,17 @@
   // source for the workspace commands directly from the plot
   const source = createCommandSourcePlotPattern(settings, 'plot')
 
-  function handleStimulusChange(event: CustomEvent) {
-    const newStimulusId = event.detail as string
+  function updateSetting(newSettings: Partial<BarPlotGridType>) {
     onWorkspaceCommand({
       type: 'updateSettings',
       itemId: settings.id,
       source,
-      settings: {
-        stimulusId: parseInt(newStimulusId),
-      },
+      settings: newSettings,
     })
   }
 
-  function handleGroupChange(event: CustomEvent) {
-    const newGroupId = event.detail as string
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      source,
-      settings: {
-        groupId: parseInt(newGroupId),
-      },
-    })
-  }
-
-  function handleAggregationMethodChange(event: CustomEvent) {
-    const newAggregationMethod = event.detail as BarPlotAggregationMethodId
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      source,
-      settings: {
-        aggregationMethod: newAggregationMethod,
-      },
-    })
-  }
-
-  let stimulusOptions =
-    $state<{ label: string; value: string }[]>(getStimuliOptions())
-
-  const getGroupOptions = () => getParticipantsGroupOptions()
-
-  let groupOptions =
-    $state<{ label: string; value: string }[]>(getGroupOptions())
+  const stimulusOptions = $derived(getStimuliOptions())
+  const groupOptions = $derived(getParticipantsGroupOptions())
 
   // Grouped selects like Scarf header: Stimulus, Group, Aggregation
   const selectItems = $derived<GroupSelectItem[]>([
@@ -95,32 +63,34 @@
       label: 'Stimulus',
       options: stimulusOptions,
       value: settings.stimulusId.toString(),
-      onchange: handleStimulusChange,
+      onchange: (e: CustomEvent) =>
+        updateSetting({ stimulusId: parseInt(e.detail) }),
     },
     {
       label: 'Group',
       options: groupOptions,
       value: settings.groupId.toString(),
-      onchange: handleGroupChange,
+      onchange: (e: CustomEvent) =>
+        updateSetting({ groupId: parseInt(e.detail) }),
     },
     {
       label: 'Aggregation',
       options: BAR_PLOT_AGGREGATION_METHODS,
       value: settings.aggregationMethod,
-      onchange: handleAggregationMethodChange,
+      onchange: (e: CustomEvent) =>
+        updateSetting({
+          aggregationMethod: e.detail as BarPlotAggregationMethodId,
+        }),
     },
   ])
 
   /**
    * This is to prevent unnecessary recalculations when settings change in other components in the workspace
    */
-  const redrawTimestamp = $derived.by(() => settings.redrawTimestamp)
   $effect(() => {
-    redrawTimestamp // reactive dependency
+    settings.redrawTimestamp // reactive dependency
     untrack(() => {
       barPlotResult = getBarPlotData(settings)
-      stimulusOptions = getStimuliOptions()
-      groupOptions = getGroupOptions()
     })
   })
 </script>
@@ -128,12 +98,7 @@
 <BasePlot {settings} layoutConfig={LAYOUT}>
   {#snippet header()}
     <div class="controls">
-      <Select
-        ariaLabel="Bar filters"
-        items={selectItems}
-        label="Bar"
-        options={[]}
-      />
+      <Select ariaLabel="Bar filters" items={selectItems} label="Bar" />
       <div class="menu-button">
         <BarPlotButtonMenu {settings} {onWorkspaceCommand} />
       </div>
