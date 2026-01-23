@@ -153,13 +153,39 @@
     return Math.ceil(maxValue)
   })
 
-  // Consolidated layout object to avoid multiple derived checks and grouping related metrics
+  // 1. IMPROVEMENT: Define a consistent optical gap constant
+  const AXIS_TITLE_GAP = 12 // Pixels between Axis Title and Axis Labels
+
+  // Consolidated layout object
   const layout = $derived.by(() => {
-    // 1. Initial cell size estimate for font scaling
     const aoiCount = aoiLabels.length
-    const estYSpace = TRANSITION_MATRIX_LAYOUT.maxLabelLength + 40
-    const estXSpace = TRANSITION_MATRIX_LAYOUT.maxLabelLength + 40
+    const fontSize = TRANSITION_MATRIX_LAYOUT.LABEL_FONT_SIZE
+
+    // 2. MEASURING TOOL: Calculate precise text geometry
+    // Estimate max text width based on avg char width (approx 0.6em) or use max allowed
+    // Note: In a perfect world, we'd use ctx.measureText, but for layout calculation
+    // before render, this heuristic combined with truncation logic is robust.
+    const approxCharWidth = fontSize * 0.6
+    let maxPixelWidth = 0
+
+    // Find longest label width
+    for (const label of aoiLabels) {
+      const width = label.length * approxCharWidth
+      if (width > maxPixelWidth) maxPixelWidth = width
+    }
+
+    // Cap it at the truncation limit defined in your constants
+    const effectiveMaxLabelWidth = Math.min(
+      maxPixelWidth,
+      TRANSITION_MATRIX_LAYOUT.maxLabelLength
+    )
+
+    // 3. IMPROVEMENT: Calculate layout mode and offsets
+    // Calculate initial sizing
     const estLegSpace = 70
+    // We add buffer to the calculated widths to ensure fit
+    const estYSpace = effectiveMaxLabelWidth + 50
+    const estXSpace = effectiveMaxLabelWidth + 50
 
     const preCellSize = Math.max(
       TRANSITION_MATRIX_LAYOUT.minCellSize,
@@ -177,33 +203,47 @@
 
     const isCompactMode =
       preCellSize < TRANSITION_MATRIX_LAYOUT.COMPACT_THRESHOLD
-    const fontSize = TRANSITION_MATRIX_LAYOUT.LABEL_FONT_SIZE
 
-    const axisLabelMargin = Math.max(10, Math.round(fontSize * 1.67))
-    const individualLabelMargin = Math.max(5, Math.round(fontSize * 0.83))
+    // 4. IMPROVEMENT: Geometric Spacing Calculation
+    // Calculate exact space needed for X and Y axis labels
+    let xAxisLabelHeight: number
+    let yAxisLabelWidth: number
 
-    // Calculate label offset based on actually used labels
-    const offset = isCompactMode
-      ? 25 // Fixed small offset for indices
-      : Math.min(
-          TRANSITION_MATRIX_LAYOUT.maxLabelLength,
-          calculateLabelOffset(
-            aoiLabels,
-            fontSize,
-            TRANSITION_MATRIX_LAYOUT.baseLabelOffset
-          )
-        )
+    if (isCompactMode) {
+      // Compact: Indices are small and essentially square
+      xAxisLabelHeight = 25
+      yAxisLabelWidth = 25
+    } else {
+      // Standard:
+      // Y-axis labels are horizontal. Space = Width.
+      yAxisLabelWidth = effectiveMaxLabelWidth
 
+      // X-axis labels are rotated 45 degrees.
+      // Height = (Width * sin(45)) + (FontHeight * cos(45))
+      const sin45 = 0.7071
+      xAxisLabelHeight = effectiveMaxLabelWidth * sin45 + fontSize * sin45
+    }
+
+    // Apply the constant gap
     const yAxisSpace =
+      marginLeft +
       TRANSITION_MATRIX_LAYOUT.leftMargin +
-      offset +
-      axisLabelMargin +
-      marginLeft
+      fontSize + // Space for Title Text Height
+      AXIS_TITLE_GAP +
+      yAxisLabelWidth +
+      10 // Small padding next to matrix
+
     const xAxisSpace =
-      TRANSITION_MATRIX_LAYOUT.topMargin + offset + axisLabelMargin + marginTop
+      marginTop +
+      TRANSITION_MATRIX_LAYOUT.topMargin +
+      fontSize + // Space for Title Text Height
+      AXIS_TITLE_GAP +
+      xAxisLabelHeight +
+      10 // Small padding next to matrix
+
     const legendSpace = 70 + marginBottom
 
-    // Extra right margin to visually center the plot (left has labels)
+    // Remaining layout logic...
     const availableWidth =
       width - yAxisSpace - marginRight - TRANSITION_MATRIX_LAYOUT.rightMargin
     const availableHeight = height - xAxisSpace - legendSpace
@@ -220,7 +260,6 @@
     const gridHeight = cellSize * aoiCount
 
     const xOffset = yAxisSpace + ((availableWidth - gridWidth) >> 1)
-    // Shifted to top to eliminate whitespace, visually centered by left labels
     const yOffset = xAxisSpace
 
     // Calculate thinning for compact labels
@@ -232,9 +271,10 @@
 
     return {
       fontSize,
-      axisLabelMargin,
-      individualLabelMargin,
-      labelOffset: offset,
+      // We expose these calculated bounds for the drawing function
+      xAxisLabelHeight,
+      yAxisLabelWidth,
+      axisTitleGap: AXIS_TITLE_GAP,
       xOffset,
       yOffset,
       cellSize,
@@ -243,6 +283,7 @@
       matrixBottom: yOffset + gridHeight,
       isCompactMode,
       thinFactor,
+      individualLabelMargin: 10,
     }
   })
 
@@ -320,29 +361,52 @@
     ctx.fillStyle = '#222'
   }
 
-  // Draw the X and Y axis labels
+  // 5. IMPROVEMENT: Updated Draw Function
   function drawAxisLabels(ctx: CanvasRenderingContext2D) {
-    // make sure setUpFont function is called before this function is called!
-    ctx.textBaseline = 'top'
+    setUpFont(ctx) // Ensure font is set (12px sans-serif usually)
+
     const unitText = layout.isCompactMode ? '[order indices]' : '[names]'
+    const {
+      xOffset,
+      yOffset,
+      gridWidth,
+      gridHeight,
+      xAxisLabelHeight,
+      yAxisLabelWidth,
+      axisTitleGap,
+    } = layout
 
-    // Draw X-axis label (To AOI)
+    // --- Draw X-axis label (To AOI) ---
+    // Position: Top of the chart area
     ctx.textAlign = 'center'
-    ctx.fillText(
-      `${xLabel} ${unitText}`,
-      layout.xOffset + layout.gridWidth * 0.5,
-      layout.yOffset - layout.labelOffset - layout.axisLabelMargin
-    )
 
-    // Draw Y-axis label (From AOI)
+    // Key Change: Anchor Bottom.
+    // This allows us to place the text exactly `gap` pixels above the rotated labels.
+    ctx.textBaseline = 'bottom'
+
+    // Y Position = (Start of Matrix) - (Height of Rotated Labels) - (Gap)
+    const xTitleY = yOffset - xAxisLabelHeight - axisTitleGap
+
+    ctx.fillText(`${xLabel} ${unitText}`, xOffset + gridWidth * 0.5, xTitleY)
+
+    // --- Draw Y-axis label (From AOI) ---
+    // Position: Left of the chart area, rotated -90 degrees
     ctx.save()
-    ctx.translate(
-      layout.xOffset - layout.labelOffset - layout.axisLabelMargin,
-      layout.yOffset + layout.gridHeight * 0.5 + 1
-    )
+
+    // 1. Move to vertical center of grid
+    // 2. Move left by (Width of Labels) + (Gap)
+    const yTitleX = xOffset - yAxisLabelWidth - axisTitleGap
+    const yTitleY = yOffset + gridHeight * 0.5
+
+    ctx.translate(yTitleX, yTitleY)
     ctx.rotate(-Math.PI / 2)
+
+    // Key Change: Anchor Bottom.
+    // Because we rotated -90deg, 'bottom' visually faces the chart (the right side of the text).
+    // This creates symmetry: "Bottom of text touches the Gap line" for both axes.
     ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
+    ctx.textBaseline = 'bottom'
+
     ctx.fillText(`${yLabel} ${unitText}`, 0, 0)
     ctx.restore()
   }
