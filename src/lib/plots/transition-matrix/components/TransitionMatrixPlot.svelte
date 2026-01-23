@@ -34,60 +34,18 @@
     horizontalPadding: 50,
   }
 
-  interface Props {
-    settings: TransitionMatrixGridType
-    onWorkspaceCommand: (command: WorkspaceCommand) => void
+  // Constant lookup for legend titles (moved out of component instance)
+  const LEGEND_TITLES: Record<string, string> = {
+    [AggregationMethod.SUM]: 'Absolute frequency',
+    [AggregationMethod.FREQUENCY_RELATIVE]: 'Relative frequency %',
+    [AggregationMethod.PROBABILITY]: '1-step probability (%)',
+    [AggregationMethod.PROBABILITY_2]: '2-step probability (%)',
+    [AggregationMethod.PROBABILITY_3]: '3-step probability (%)',
+    [AggregationMethod.DWELL_TIME]: 'Fixation duration (ms)',
+    [AggregationMethod.SEGMENT_DWELL_TIME]: 'Dwell duration (ms)',
   }
 
-  let { settings, onWorkspaceCommand }: Props = $props()
-
-  // Get current stimulus-specific color range or use default values
-  const currentStimulusColorRange = $derived.by(() => {
-    const stimulusId = settings.stimulusId
-    return settings.stimuliColorValueRanges?.[stimulusId] || [0, 0]
-  })
-
-  // source for workspace commands
-  const source = untrack(() => createCommandSourcePlotPattern(settings, 'plot'))
-
-  // Visualization settings
-  const plotDimensions = $derived.by(() =>
-    calculatePlotDimensionsWithHeader(
-      settings.w,
-      settings.h,
-      DEFAULT_GRID_CONFIG,
-      LAYOUT.headerHeight
-    )
-  )
-
-  // Data processing
-  // Derived from settings and data store
-  const transitionData = $derived.by(() => {
-    // React to data changes
-    $data
-    // Use settings values
-    return getTransitionMatrixData(
-      settings.stimulusId,
-      settings.groupId,
-      settings.aggregationMethod as AggregationMethod
-    )
-  })
-
-  const aoiLabels = $derived(transitionData.aoiLabels)
-  const matrix = $derived(transitionData.matrix as Float64Array)
-
-  let cellSize = $derived.by(() => {
-    if (aoiLabels.length > 0) {
-      return Math.min(
-        Math.floor(plotDimensions.width / aoiLabels.length),
-        Math.floor(plotDimensions.height / aoiLabels.length)
-      )
-    }
-    return 60
-  })
-
-  // Simplified aggregation method options
-  const aggregationOptions = [
+  const AGGREGATION_OPTIONS = [
     { value: AggregationMethod.SUM, label: 'Absolute frequency' },
     {
       value: AggregationMethod.FREQUENCY_RELATIVE,
@@ -97,52 +55,65 @@
     { value: AggregationMethod.PROBABILITY_2, label: '2-step probability' },
     { value: AggregationMethod.PROBABILITY_3, label: '3-step probability' },
     { value: AggregationMethod.DWELL_TIME, label: 'Fixation duration' },
-    {
-      value: AggregationMethod.SEGMENT_DWELL_TIME,
-      label: 'Dwell duration',
-    },
+    { value: AggregationMethod.SEGMENT_DWELL_TIME, label: 'Dwell duration' },
   ]
 
-  function handleAggregationChange(event: CustomEvent) {
-    // Create workspace command for settings change
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      settings: { aggregationMethod: event.detail as AggregationMethod },
-      source,
-    })
+  interface Props {
+    settings: TransitionMatrixGridType
+    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  // Derived options for selects
-  const stimuliOptions = $derived.by(() => {
-    $data // React to data changes
-    return getStimuliOptions()
+  let { settings, onWorkspaceCommand }: Props = $props()
+
+  // Data reactive sources
+  const currentStimulusColorRange = $derived(
+    settings.stimuliColorValueRanges?.[settings.stimulusId] ?? [0, 0]
+  )
+
+  const source = untrack(() => createCommandSourcePlotPattern(settings, 'plot'))
+  const modalSource = untrack(() =>
+    createCommandSourcePlotPattern(settings, 'modal')
+  )
+
+  const plotDimensions = $derived(
+    calculatePlotDimensionsWithHeader(
+      settings.w,
+      settings.h,
+      DEFAULT_GRID_CONFIG,
+      LAYOUT.headerHeight
+    )
+  )
+
+  // Derived from data store (signals dependency on $data)
+  const transitionData = $derived.by(() => {
+    $data // Dependency registration
+    return getTransitionMatrixData(
+      settings.stimulusId,
+      settings.groupId,
+      settings.aggregationMethod as AggregationMethod
+    )
   })
 
-  const groupOptions = $derived.by(() => {
-    $data // React to data changes
-    return getParticipantsGroupOptions()
+  // Destructure for cleaner access in template
+  const { aoiLabels, matrix } = $derived(transitionData)
+
+  const cellSize = $derived.by(() => {
+    const len = aoiLabels.length
+    if (len > 0) {
+      return Math.min(
+        Math.floor(plotDimensions.width / len),
+        Math.floor(plotDimensions.height / len)
+      )
+    }
+    return 60
   })
 
-  const selectedStimulusId = $derived(settings.stimulusId.toString())
-  const selectedGroupId = $derived(settings.groupId.toString())
-
-  function onStimulusChange(event: CustomEvent) {
-    const stimulusId = parseInt(event.detail)
+  // Handlers
+  function updateSettings(updates: Partial<typeof settings>) {
     onWorkspaceCommand({
       type: 'updateSettings',
       itemId: settings.id,
-      settings: { stimulusId },
-      source,
-    })
-  }
-
-  function onGroupChange(event: CustomEvent) {
-    const groupId = parseInt(event.detail)
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      settings: { groupId },
+      settings: updates,
       source,
     })
   }
@@ -150,75 +121,51 @@
   const selectItems = $derived<GroupSelectItem[]>([
     {
       label: 'Stimulus',
-      options: stimuliOptions,
-      value: selectedStimulusId,
-      onchange: onStimulusChange,
+      options: (() => {
+        $data
+        return getStimuliOptions()
+      })(),
+      value: settings.stimulusId.toString(),
+      onchange: (e: CustomEvent) =>
+        updateSettings({ stimulusId: parseInt(e.detail) }),
     },
     {
       label: 'Group',
-      options: groupOptions,
-      value: selectedGroupId,
-      onchange: onGroupChange,
+      options: (() => {
+        $data
+        return getParticipantsGroupOptions()
+      })(),
+      value: settings.groupId.toString(),
+      onchange: (e: CustomEvent) =>
+        updateSettings({ groupId: parseInt(e.detail) }),
     },
     {
       label: 'Aggregation',
-      options: aggregationOptions,
+      options: AGGREGATION_OPTIONS,
       value: settings.aggregationMethod,
-      onchange: handleAggregationChange,
+      onchange: (e: CustomEvent) =>
+        updateSettings({ aggregationMethod: e.detail as AggregationMethod }),
     },
   ])
 
-  // Update the legend title based on the aggregation method
-  function getLegendTitle(method: string): string {
-    switch (method) {
-      case AggregationMethod.SUM:
-        return 'Absolute frequency'
-      case AggregationMethod.FREQUENCY_RELATIVE:
-        return 'Relative frequency %'
-      case AggregationMethod.PROBABILITY:
-        return '1-step probability (%)'
-      case AggregationMethod.PROBABILITY_2:
-        return '2-step probability (%)'
-      case AggregationMethod.PROBABILITY_3:
-        return '3-step probability (%)'
-      case AggregationMethod.DWELL_TIME:
-        return 'Fixation duration (ms)'
-      case AggregationMethod.SEGMENT_DWELL_TIME:
-        return 'Dwell duration (ms)'
-      default:
-        return 'Transition Value'
-    }
-  }
-
-  const sourceForOpenedModals = untrack(() =>
-    createCommandSourcePlotPattern(settings, 'modal')
-  )
   function handleGradientClick() {
-    try {
-      modalStore.open(ModalContentColorScale as any, 'Customize color scale', {
-        settings,
-        source: sourceForOpenedModals,
-        onWorkspaceCommand,
-      })
-    } catch (error) {
-      console.error('Error opening color scale modal:', error)
-    }
+    modalStore.open(ModalContentColorScale as any, 'Customize color scale', {
+      settings,
+      source: modalSource,
+      onWorkspaceCommand,
+    })
   }
 
   function handleValueClick(isMin: boolean) {
-    try {
-      modalStore.open(
-        ModalContentMaxValue as any,
-        'Set maximum color scale value',
-        {
-          settings,
-          source: sourceForOpenedModals,
-          onWorkspaceCommand,
-        }
-      )
-    } catch (error) {
-      console.error('Error opening modal:', error)
-    }
+    modalStore.open(
+      ModalContentMaxValue as any,
+      'Set maximum color scale value',
+      {
+        settings,
+        source: modalSource,
+        onWorkspaceCommand,
+      }
+    )
   }
 </script>
 
@@ -253,7 +200,8 @@
         colorScale={settings.colorScale}
         xLabel="To AOI"
         yLabel="From AOI"
-        legendTitle={getLegendTitle(settings.aggregationMethod)}
+        legendTitle={LEGEND_TITLES[settings.aggregationMethod] ??
+          'Transition Value'}
         colorValueRange={currentStimulusColorRange}
         belowMinColor={settings.belowMinColor}
         aboveMaxColor={settings.aboveMaxColor}

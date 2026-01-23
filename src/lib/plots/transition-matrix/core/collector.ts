@@ -33,38 +33,6 @@ export function collectTransitionMetrics(
   let totalTransitions = 0
 
   for (const participantId of participantIds) {
-    const segments = getSegments(stimulusId, participantId, [0]) // Fixations only
-    if (segments.length <= 1) continue
-
-    if (mode === 'fixation') {
-      let lastAoiIndex = -1
-      let lastDuration = 0
-
-      for (let i = 0; i < segments.length; i++) {
-        const seg = segments[i]
-        // Simplified: take the first AOI if multiple exist (to keep it KISS and predictable for now)
-        // or support multi-AOI by iterating. Based on previous code, it supported multi-AOI.
-        // Let's stick to the multi-AOI support but more efficiently.
-
-        const currentAois = seg.aoi
-        const currentIndices =
-          currentAois.length === 0
-            ? [outsideAoiIndex]
-            : currentAois.map(a => aoiLookup.get(a.id) ?? outsideAoiIndex)
-
-        if (lastAoiIndex !== -1) {
-          // If we had a single last index (simple case)
-          // The previous code supported multi-from to multi-to.
-          // We'll maintain that but use direct indexing.
-        }
-
-        // Let's refactor the last indices tracking
-      }
-    }
-  }
-
-  // RE-WRITE OF THE LOOP FOR PERFORMANCE
-  for (const participantId of participantIds) {
     const segments = getSegments(stimulusId, participantId, [0])
     if (segments.length <= 1) continue
 
@@ -74,27 +42,36 @@ export function collectTransitionMetrics(
     for (let i = 0; i < segments.length; i++) {
       const seg = segments[i]
       const currAois = seg.aoi
-      const currIndices: number[] = []
 
+      // Resolve current indices
+      let currIndices: number[]
       if (currAois.length === 0) {
-        currIndices.push(outsideAoiIndex)
+        currIndices = [outsideAoiIndex]
       } else {
+        currIndices = []
         for (let j = 0; j < currAois.length; j++) {
           const idx = aoiLookup.get(currAois[j].id)
           if (idx !== undefined) currIndices.push(idx)
         }
+        // Fallback if AOIs exist but none match known list (rare edge case)
+        if (currIndices.length === 0) currIndices.push(outsideAoiIndex)
       }
 
       if (i > 0) {
-        if (
+        // Check transition condition
+        const isTransition =
           mode === 'fixation' ||
           !arraysHaveSameElements(prevIndices, currIndices)
-        ) {
-          for (let pIdx = 0; pIdx < prevIndices.length; pIdx++) {
-            const from = prevIndices[pIdx]
+
+        if (isTransition) {
+          // Record transitions from all 'prev' to all 'curr'
+          const pLen = prevIndices.length
+          const cLen = currIndices.length
+          for (let p = 0; p < pLen; p++) {
+            const from = prevIndices[p]
             const rowOffset = from * size
-            for (let cIdx = 0; cIdx < currIndices.length; cIdx++) {
-              const to = currIndices[cIdx]
+            for (let c = 0; c < cLen; c++) {
+              const to = currIndices[c]
               const cellIdx = rowOffset + to
               sumMatrix[cellIdx]++
               dwellTimeMatrix[cellIdx] += prevDuration
