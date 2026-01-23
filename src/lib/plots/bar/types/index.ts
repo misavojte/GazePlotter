@@ -34,3 +34,4 @@ export type AggregationFunction = (
   stimulusId: string,
   participantIds: number[]
 ) => ParticipantAggregationData[]
+export * from './metrics'

@@ -14,15 +14,8 @@
     getParticipant,
     getStimulus,
   } from '$lib/gaze-data/front-process/stores/dataStore'
-  import {
-    collectParticipantsDwellTimeData,
-    collectParticipantsTimeToFirstFixationData,
-    collectParticipantsAvgFixationDurationData,
-    collectParticipantsFirstFixationDurationData,
-    collectParticipantsFixationCountData,
-    collectParticipantsEntryCountData,
-    collectParticipantsDwellDurationData,
-  } from '$lib/plots/bar/utils/collectParticipantMetricsUtils'
+  import { collectParticipantBarMetrics } from '$lib/plots/bar/utils/collectParticipantMetricsUtils'
+  import type { ParticipantBarMetrics } from '$lib/plots/bar/types/metrics'
   import { addSuccessToast } from '$lib/toaster'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'
@@ -66,24 +59,25 @@
       label: 'Absolute Dwell Time',
       sublabel: 'Total time spent in each AOI (ms)',
       csvName: 'Absolute_Dwell_Time',
-      collector: collectParticipantsDwellTimeData,
+      metricKey: 'dwellTime' as const,
     },
     {
       key: 'relativeDwellTime' as const,
       label: 'Relative Dwell Time (%)',
       sublabel: 'Dwell time as percentage of total viewing time',
       csvName: 'Relative_Dwell_Time',
-      collector: collectParticipantsDwellTimeData,
+      metricKey: 'dwellTime' as const,
       processFunction: (
-        values: number[],
-        participantData?: any[],
+        _values: any,
+        participantData?: ParticipantBarMetrics,
         aoiIndex?: number
       ) => {
         // Calculate as percentage of total viewing time
         // Total time is stored in the last index (Any_Fixation)
         if (!participantData || aoiIndex === undefined) return 0
-        const dwellTime = participantData[aoiIndex] as number
-        const totalTime = participantData[participantData.length - 1] as number
+        const dwellTime = participantData.dwellTime[aoiIndex]
+        const totalTime =
+          participantData.dwellTime[participantData.dwellTime.length - 1]
         return totalTime > 0 ? (dwellTime / totalTime) * 100 : 0
       },
     },
@@ -92,7 +86,7 @@
       label: 'Time to First Fixation',
       sublabel: 'Time until first fixation on each AOI (-1 if never fixated)',
       csvName: 'Time_To_First_Fixation',
-      collector: collectParticipantsTimeToFirstFixationData,
+      metricKey: 'ttff' as const,
     },
     {
       key: 'firstFixationDuration' as const,
@@ -100,24 +94,24 @@
       sublabel:
         'Duration of the first fixation on each AOI (-1 if never fixated)',
       csvName: 'First_Fixation_Duration',
-      collector: collectParticipantsFirstFixationDurationData,
+      metricKey: 'firstFixationDuration' as const,
     },
     {
       key: 'fixationCount' as const,
       label: 'Fixation Count',
       sublabel: 'Number of fixations on each AOI',
       csvName: 'Fixation_Count',
-      collector: collectParticipantsFixationCountData,
+      metricKey: 'fixationCount' as const,
     },
     {
       key: 'meanFixationDuration' as const,
       label: 'Mean Fixation Duration',
       sublabel: 'Average duration of fixations on each AOI',
       csvName: 'Mean_Fixation_Duration',
-      collector: collectParticipantsAvgFixationDurationData,
+      metricKey: 'avgFixationDuration' as const,
       processFunction: (
         values: number[],
-        _participantData?: any[],
+        _participantData?: ParticipantBarMetrics,
         _aoiIndex?: number
       ) =>
         values.length === 0
@@ -129,17 +123,17 @@
       label: 'Visit Count',
       sublabel: 'Number of distinct visits to each AOI',
       csvName: 'Visit_Count',
-      collector: collectParticipantsEntryCountData,
+      metricKey: 'entryCount' as const,
     },
     {
       key: 'meanVisitDuration' as const,
       label: 'Mean Visit Duration',
       sublabel: 'Average duration of visits to each AOI',
       csvName: 'Mean_Visit_Duration',
-      collector: collectParticipantsDwellDurationData,
+      metricKey: 'dwellDurations' as const,
       processFunction: (
         values: number[],
-        _participantData?: any[],
+        _participantData?: ParticipantBarMetrics,
         _aoiIndex?: number
       ) =>
         values.length === 0
@@ -250,49 +244,40 @@
         const participantIds = getParticipantsIds(groupId, stimulus.id)
         const aois = getAllAois(stimulus.id)
 
-        // Collect all metric data for this stimulus
-        const metricsData = activeMetrics.map(config => ({
-          name: config.csvName,
-          data: config.collector(stimulus.id, participantIds, aois),
-          processFunction:
-            'processFunction' in config ? config.processFunction : undefined,
-        }))
+        // Collect all metrics for all participants in one pass
+        const participantMetrics = collectParticipantBarMetrics(
+          stimulus.id,
+          participantIds,
+          aois
+        )
 
-        // Generate CSV rows for each metric
-        for (const metric of metricsData) {
-          for (let pIndex = 0; pIndex < participantIds.length; pIndex++) {
-            const participantId = participantIds[pIndex]
-            const participant = getParticipant(participantId)
-            const participantData = metric.data[pIndex]
+        // Generate CSV rows for each participant, then each metric, then each AOI
+        for (let pIndex = 0; pIndex < participantIds.length; pIndex++) {
+          const participantId = participantIds[pIndex]
+          const participant = getParticipant(participantId)
+          const participantFullMetrics = participantMetrics[pIndex]
+
+          for (const config of activeMetrics) {
+            const metricDataArray = participantFullMetrics[config.metricKey]
 
             for (
               let aoiIndex = 0;
-              aoiIndex < participantData.length;
+              aoiIndex < metricDataArray.length;
               aoiIndex++
             ) {
               const aoiGroup = getAoiName(aoiIndex, aois)
               let value: number
 
               // Apply processFunction if defined (handles arrays or special calculations)
-              if (metric.processFunction) {
-                if (Array.isArray(participantData[aoiIndex])) {
-                  // Array data (e.g., fixation durations, dwell durations)
-                  value = metric.processFunction(
-                    participantData[aoiIndex] as number[],
-                    participantData,
-                    aoiIndex
-                  )
-                } else {
-                  // Scalar data but needs processing (e.g., relative time percentage)
-                  value = metric.processFunction(
-                    participantData[aoiIndex] as any,
-                    participantData,
-                    aoiIndex
-                  )
-                }
+              if ('processFunction' in config) {
+                value = (config as any).processFunction(
+                  metricDataArray[aoiIndex],
+                  participantFullMetrics,
+                  aoiIndex
+                )
               } else {
                 // No processing needed - use raw value
-                value = participantData[aoiIndex] as number
+                value = metricDataArray[aoiIndex] as number
               }
 
               const formattedValue = formatNumberForCsv(value, decimalSeparator)
@@ -303,7 +288,7 @@
                   escapeCsvField(participant.displayedName, delimiter),
                   escapeCsvField(stimulus.displayedName, delimiter),
                   escapeCsvField(aoiGroup, delimiter),
-                  escapeCsvField(metric.name, delimiter),
+                  escapeCsvField(config.csvName, delimiter),
                   escapeCsvField(formattedValue, delimiter),
                 ].join(delimiter)
               )
