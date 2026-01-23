@@ -9,7 +9,7 @@ import {
 } from '$lib/plots/shared/legendRendering'
 import { estimateTextWidth } from '$lib/shared/utils/textUtils'
 import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
-import { getAoiStreamPlotData } from '../core/data'
+import { getAoiStreamPlotData } from '../core/transformer'
 import { scanForSynchronizedTimelineMax } from './timeline'
 import { engine } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
 import type { AoiStreamPlotResult } from '../types'

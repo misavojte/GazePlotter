@@ -3,7 +3,8 @@
   import TransitionMatrixPlotFigure from '$lib/plots/transition-matrix/components/TransitionMatrixPlotFigure.svelte'
   import {
     getTransitionMatrixData,
-    AggregationMethod,
+    MatrixAggregationMethod,
+    TRANSITION_MATRIX_LEGEND_TITLES,
   } from '$lib/plots/transition-matrix'
   import { PlotExportWrapper } from '$lib/modals'
 
@@ -18,7 +19,7 @@
     getTransitionMatrixData(
       settings.stimulusId,
       settings.groupId,
-      settings.aggregationMethod as AggregationMethod
+      settings.aggregationMethod as MatrixAggregationMethod
     )
   )
 
@@ -30,18 +31,7 @@
 
   // Update the legend title based on the aggregation method
   function getLegendTitle(method: string): string {
-    switch (method) {
-      case AggregationMethod.SUM:
-        return 'Transition Count'
-      case AggregationMethod.PROBABILITY:
-        return 'Transition Probability (%)'
-      case AggregationMethod.DWELL_TIME:
-        return 'Dwell Time (ms)'
-      case AggregationMethod.SEGMENT_DWELL_TIME:
-        return 'Segment Dwell Time (ms)'
-      default:
-        return 'Transition Value'
-    }
+    return TRANSITION_MATRIX_LEGEND_TITLES[method] ?? 'Transition Value'
   }
 </script>
 
