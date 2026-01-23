@@ -3,7 +3,7 @@
     getParticipants,
     getData,
   } from '$lib/gaze-data/front-process/stores/dataStore'
-  import { onDestroy, onMount } from 'svelte'
+  import { onDestroy, onMount, untrack } from 'svelte'
   import { ScarfPlotFigure, ScarfPlotHeader } from '$lib/plots/scarf/components'
   import { BasePlot } from '$lib/plots/shared/components'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
@@ -27,7 +27,7 @@
   let { settings: realSettings, onWorkspaceCommand }: Props = $props()
 
   // Local settings that drive all rendering
-  let localSettings = $state<ScarfGridType>(realSettings)
+  let localSettings = $state<ScarfGridType>(untrack(() => realSettings))
 
   // Sync localSettings when realSettings changes (workspace authority)
   $effect(() => {

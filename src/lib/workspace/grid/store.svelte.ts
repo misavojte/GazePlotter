@@ -1,6 +1,6 @@
 // src/lib/workspace/grid/store.svelte.ts
 import type { GridItemMap, AllGridTypes } from '$lib/workspace/type/gridType'
-import { getVizConfig } from '$lib/workspace/const'
+import { getVizConfig } from '$lib/plots/registry'
 import {
   DEFAULT_GRID_CONFIG,
   calculateGridHeight,

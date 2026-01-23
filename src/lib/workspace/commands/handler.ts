@@ -2,7 +2,7 @@ import type { WorkspaceCommandChain } from '$lib/workspace/commands'
 import { isHistoryCommand, undoRedo } from '$lib/workspace/commands'
 import { GridState } from '$lib/workspace/grid'
 import { createWorkspaceCommandRegistry } from '$lib/workspace/commands'
-import { getCommandLabel } from '$lib/workspace/const'
+import { getCommandLabel } from '$lib/workspace/commands/labels'
 
 /**
  * Creates a command handler for workspace changes with integrated undo/redo support.

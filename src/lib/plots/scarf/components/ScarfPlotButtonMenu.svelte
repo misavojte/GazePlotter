@@ -21,6 +21,7 @@
   } from '$lib/modals'
   import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
+  import { untrack } from 'svelte'
 
   interface Props {
     settings: ScarfGridType
@@ -29,7 +30,10 @@
 
   let { settings, onWorkspaceCommand }: Props = $props()
 
-  const source = createCommandSourcePlotPattern(settings, 'modal')
+  const source = createCommandSourcePlotPattern(
+    untrack(() => settings),
+    'modal'
+  )
 
   const openModal = (
     component: any,

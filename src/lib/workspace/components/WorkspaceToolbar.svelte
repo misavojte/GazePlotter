@@ -13,7 +13,7 @@
   import { generateUniqueId } from '$lib/shared/utils/idUtils'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
   import { undoRedo } from '$lib/workspace/commands'
-  import { getCommandLabel } from '$lib/workspace/const/workspaceCommandLabels'
+  import { getCommandLabel } from '$lib/workspace/commands/labels'
 
   // Configuration for toolbar items
   interface Props {
@@ -78,10 +78,14 @@
   const isValidData = $derived($hasValidData)
 
   const undoLabel: string | null = $derived(
-    undoRedo.lastUndoCommandType ? getCommandLabel(undoRedo.lastUndoCommandType, 'undo') : null
+    undoRedo.lastUndoCommandType
+      ? getCommandLabel(undoRedo.lastUndoCommandType, 'undo')
+      : null
   )
   const redoLabel: string | null = $derived(
-    undoRedo.lastRedoCommandType ? getCommandLabel(undoRedo.lastRedoCommandType, 'redo') : null
+    undoRedo.lastRedoCommandType
+      ? getCommandLabel(undoRedo.lastRedoCommandType, 'redo')
+      : null
   )
 
   /**

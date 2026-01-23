@@ -4,10 +4,7 @@ import type { WorkspaceCommand } from '$lib/workspace/commands'
  * Command Label Registry
  *
  * Provides human-readable labels for workspace commands based on their type
- * and history state (undo/redo/undefined). Each command type has three label variants:
- * - undone: Past tense for undo operations
- * - redone: Past tense for redo operations
- * - default: Present/past tense for normal operations
+ * and history state (undo/redo/undefined).
  */
 
 export interface CommandLabels {
@@ -15,13 +12,12 @@ export interface CommandLabels {
   undone: string
   /** Label for when this command is being redone */
   redone: string
-  /** Label for normal command execution (null means no message should be shown) */
+  /** Label for normal command execution */
   default: string
 }
 
 /**
  * Registry mapping workspace command types to their human-readable labels.
- * Each command type has three label variants for different history states.
  */
 export const WORKSPACE_COMMAND_LABELS: Record<
   WorkspaceCommand['type'],
@@ -99,17 +95,6 @@ export const WORKSPACE_COMMAND_LABELS: Record<
 
 /**
  * Gets the appropriate label for a workspace command based on its type and history state.
- *
- * @param commandType - The type of the workspace command
- * @param history - The history state ('undo', 'redo', or undefined)
- * @returns The appropriate human-readable label
- *
- * @example
- * ```typescript
- * getCommandLabel('removeGridItem', 'undo') // Returns: 'Undo plot removal'
- * getCommandLabel('addGridItem', 'redo')    // Returns: 'Redo plot addition'
- * getCommandLabel('updateSettings', undefined) // Returns: null (no message)
- * ```
  */
 export function getCommandLabel(
   commandType: WorkspaceCommand['type'],

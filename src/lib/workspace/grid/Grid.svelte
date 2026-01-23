@@ -2,7 +2,7 @@
   import { onDestroy } from 'svelte'
   import { fade } from 'svelte/transition'
   import GridItem from './GridItem.svelte'
-  import { getVisualizationConfig } from '$lib/workspace'
+  import { getVizConfig } from '$lib/plots/registry'
   import { grid } from '$lib/workspace/grid'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
   import type { GridConfig } from './types'
@@ -534,7 +534,7 @@
   {#if processingFileStateStore === 'done'}
     {#if !gridIsEmpty}
       {#each gridItems as item (item.id)}
-        {@const visConfig = getVisualizationConfig(item.type)}
+        {@const visConfig = getVizConfig(item.type)}
         <div transition:fade={{ duration: 300 }}>
           <GridItem
             id={item.id}

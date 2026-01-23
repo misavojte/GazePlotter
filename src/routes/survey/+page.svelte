@@ -526,7 +526,7 @@
       command.settings &&
       'aggregationMethod' in command.settings &&
       command.settings.aggregationMethod === 'probability' &&
-      isCommandFromPlotType(command.source, 'TransitionMatrix')
+      isCommandFromPlotType(command.source, 'transitionMatrix')
     ) {
       transitionMatrixCondition.set(true)
     }
@@ -548,7 +548,7 @@
       command.settings &&
       'stimulusId' in command.settings &&
       command.settings.stimulusId === 1 &&
-      isCommandFromPlotType(command.source, 'TransitionMatrix')
+      isCommandFromPlotType(command.source, 'transitionMatrix')
     ) {
       transitionMatrixStimulusCondition.set(true)
     }

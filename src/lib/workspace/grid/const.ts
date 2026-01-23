@@ -8,8 +8,8 @@ export const DEFAULT_GRID_STATE_DATA: Array<
   Partial<AllGridTypes> & { type: AllGridTypes['type'] }
 > = [
   { type: 'scarf', x: 0, y: 0 },
-  { type: 'TransitionMatrix', x: 20, y: 0, w: 11, h: 12 },
-  { type: 'barPlot', x: 0, y: 12, w: 11, h: 12 },
+  { type: 'transitionMatrix', x: 20, y: 0, w: 12, h: 12 },
+  { type: 'barPlot', x: 0, y: 12, w: 12, h: 12 },
 ]
 
 // Default grid configuration
