@@ -9,7 +9,7 @@
   } from '$lib/shared/components/GeneralSelect.svelte'
 
   // Utilities and stores
-  import { getBarPlotData } from '$lib/plots/bar/utils/barPlotUtils'
+  import { getBarPlotData } from '$lib/plots/bar/core/transformer'
   import {
     getStimuliOptions,
     getParticipantsGroupOptions,

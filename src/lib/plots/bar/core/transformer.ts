@@ -11,12 +11,10 @@ import type { BarPlotGridType } from '$lib/workspace/type/gridType'
 import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
 import {
   formatDecimal,
-  calculateAverage,
   normalizeToPercentages,
-  createArray,
 } from '$lib/shared/utils/mathUtils'
-import type { BarPlotResult, BarPlotDataItem } from '$lib/plots/bar/types'
-import { collectParticipantBarMetrics } from './collectParticipantMetricsUtils'
+import type { BarPlotResult, BarPlotDataItem } from '../types'
+import { collectParticipantBarMetrics } from './collector'
 
 /**
  * Main function to get bar plot data based on selected settings.

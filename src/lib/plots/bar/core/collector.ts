@@ -1,7 +1,7 @@
 import { getSegments } from '$lib/gaze-data/front-process/stores/dataStore'
 import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
 import { createArray } from '$lib/shared/utils/mathUtils'
-import type { ParticipantBarMetrics } from '../types/metrics'
+import type { ParticipantBarMetrics } from '../types'
 
 /**
  * Collects all relevant bar plot metrics for participants in a single pass.

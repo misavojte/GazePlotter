@@ -7,5 +7,6 @@ export type * from './types'
 // Export bar plot constants
 export * from './const'
 
-// Export bar plot utilities
-export * from './utils'
+// Export bar plot core logic
+export * from './core/transformer'
+export * from './core/collector'

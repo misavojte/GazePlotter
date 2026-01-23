@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { collectParticipantBarMetrics } from '../src/lib/plots/bar/utils/collectParticipantMetricsUtils'
+import { collectParticipantBarMetrics } from '../src/lib/plots/bar/core/collector'
 import * as dataStore from '../src/lib/gaze-data/front-process/stores/dataStore'
 
 vi.mock('../src/lib/gaze-data/front-process/stores/dataStore', () => ({

@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { BarPlotGridType } from '$lib/workspace/type/gridType'
   import BarPlotFigure from '$lib/plots/bar/components/BarPlotFigure.svelte'
-  import { getBarPlotData } from '$lib/plots/bar/utils/barPlotUtils'
+  import { getBarPlotData } from '$lib/plots/bar/core/transformer'
   import { PlotExportWrapper } from '$lib/modals'
 
   interface Props {

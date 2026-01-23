@@ -14,8 +14,8 @@
     getParticipant,
     getStimulus,
   } from '$lib/gaze-data/front-process/stores/dataStore'
-  import { collectParticipantBarMetrics } from '$lib/plots/bar/utils/collectParticipantMetricsUtils'
-  import type { ParticipantBarMetrics } from '$lib/plots/bar/types/metrics'
+  import { collectParticipantBarMetrics } from '$lib/plots/bar/core/collector'
+  import type { ParticipantBarMetrics } from '$lib/plots/bar/types'
   import { addSuccessToast } from '$lib/toaster'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'
