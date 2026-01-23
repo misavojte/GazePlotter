@@ -262,11 +262,45 @@
     const xOffset = yAxisSpace + ((availableWidth - gridWidth) >> 1)
     const yOffset = xAxisSpace
 
-    // Calculate thinning for compact labels
+    // 5. IMPROVEMENT: Dynamic thinning for axis labels (indices)
     let thinFactor = 1
+    let showAxisLabels = true
+
     if (isCompactMode) {
-      if (cellSize < 12) thinFactor = 5
-      else if (cellSize < 16) thinFactor = 2
+      const maxIndexStr = aoiCount.toString()
+      const approxIndexWidth = maxIndexStr.length * (fontSize * 0.6)
+      // Factor is: How many cells we need to fit the widest index plus a 4px cushion
+      thinFactor = Math.max(1, Math.ceil((approxIndexWidth + 4) / cellSize))
+
+      // If thinning is so high that we'd only show like 2 labels or cells are tiny,
+      // we might want to hide them, but for now let's just ensure they fit.
+      if (cellSize < 5) showAxisLabels = false
+    }
+
+    // 6. IMPROVEMENT: Two-pass cell label visibility & scaling
+    const formatValue = (v: number) =>
+      Number.isInteger(v) ? v.toString() : v.toFixed(1)
+    const valueStr = formatValue(effectiveMaxValue)
+    const labelLen = Math.max(valueStr.length, effectiveMaxValue < 1 ? 3 : 0)
+
+    const defaultCellFontSize = TRANSITION_MATRIX_LAYOUT.CELL_VALUE_FONT_SIZE
+    const reducedCellFontSize = defaultCellFontSize - 2
+
+    let activeCellValueFontSize: number = defaultCellFontSize
+    let showCellValues = false
+
+    // Pass 1: Try default size with 6px cushion
+    const widthPass1 = labelLen * (defaultCellFontSize * 0.75)
+    if (cellSize >= widthPass1 + 6 && cellSize >= defaultCellFontSize + 4) {
+      showCellValues = true
+      activeCellValueFontSize = defaultCellFontSize
+    } else {
+      // Pass 2: Try reduced size with 4px cushion
+      const widthPass2 = labelLen * (reducedCellFontSize * 0.75)
+      if (cellSize >= widthPass2 + 4 && cellSize >= reducedCellFontSize + 2) {
+        showCellValues = true
+        activeCellValueFontSize = reducedCellFontSize
+      }
     }
 
     return {
@@ -284,6 +318,9 @@
       isCompactMode,
       thinFactor,
       individualLabelMargin: 10,
+      showCellValues,
+      showAxisLabels,
+      cellValueFontSize: activeCellValueFontSize,
     }
   })
 
@@ -418,6 +455,7 @@
   }
 
   function drawRowLabels(ctx: CanvasRenderingContext2D, labelFontSize: number) {
+    if (!layout.showAxisLabels) return
     // Draw row labels (left side)
     ctx.textAlign = 'end'
     ctx.textBaseline = 'middle'
@@ -449,6 +487,7 @@
     ctx: CanvasRenderingContext2D,
     labelFontSize: number
   ) {
+    if (!layout.showAxisLabels) return
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
 
@@ -541,12 +580,13 @@
   }
 
   function drawCellsText(ctx: CanvasRenderingContext2D) {
+    if (!layout.showCellValues) return
+
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
 
-    const { xOffset, yOffset, cellSize } = layout
-    if (cellSize < 18) return
-    ctx.font = `${TRANSITION_MATRIX_LAYOUT.CELL_VALUE_FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
+    const { xOffset, yOffset, cellSize, cellValueFontSize } = layout
+    ctx.font = `${cellValueFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
     const size = aoiLabels.length
 
     for (let row = 0; row < size; row++) {
@@ -569,11 +609,11 @@
               : getColor(value)
 
           ctx.fillStyle = getContrastTextColor(cellColor)
-          ctx.fillText(
-            value.toString(),
-            x + cellSize * 0.5,
-            y + cellSize * 0.5 + 1
-          )
+          const displayValue = Number.isInteger(value)
+            ? value.toString()
+            : value.toFixed(1)
+
+          ctx.fillText(displayValue, x + cellSize * 0.5, y + cellSize * 0.5 + 1)
         }
       }
     }
