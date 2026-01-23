@@ -1,5 +1,6 @@
 <script lang="ts">
   import GeneralInputScaffold from '$lib/shared/components/GeneralInputScaffold.svelte'
+  import { untrack } from 'svelte'
   interface Props {
     value?: string
     label: string
@@ -20,7 +21,7 @@
     oninput(new CustomEvent('input', { detail: value }))
   }
 
-  const id = `text-${label.toLowerCase().replace(/\s+/g, '-')}`
+  const id = `text-${untrack(() => label.toLowerCase().replace(/\s+/g, '-'))}`
 </script>
 
 <GeneralInputScaffold {label} {id}>

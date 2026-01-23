@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import {
-  calculateIdealStripHeight,
-  scanForDynamicStripHeight,
-} from '$lib/plots/aoi-stream/utils/ridgelineUtils'
+import { calculateIdealStripHeight } from '$lib/plots/aoi-stream/core/ridgeline'
+import { scanForDynamicStripHeight } from '$lib/plots/aoi-stream/sync/ridgeline'
 
 // Mock dependencies
 vi.mock('$lib/plots/shared/utils/plotSizeUtility', () => ({

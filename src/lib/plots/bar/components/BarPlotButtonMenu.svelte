@@ -18,6 +18,7 @@
   import type { ComponentProps } from 'svelte'
   import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
+  import { untrack } from 'svelte'
 
   interface Props {
     settings: BarPlotGridType
@@ -26,7 +27,10 @@
 
   let { settings, onWorkspaceCommand }: Props = $props()
 
-  const source = createCommandSourcePlotPattern(settings, 'modal')
+  const source = createCommandSourcePlotPattern(
+    untrack(() => settings),
+    'modal'
+  )
 
   const openAoiModificationModal = () => {
     modalStore.open(

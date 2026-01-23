@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import type { BarPlotGridType } from '$lib/workspace/type/gridType'
   import {
     GeneralSelect,
@@ -33,9 +34,11 @@
 
   // Export settings state
   let fileName = $state('GazePlotter-AggregatedData')
-  let selectedGroupId = $state(settings?.groupId.toString() ?? '-1')
+  let selectedGroupId = $state(
+    untrack(() => settings?.groupId.toString() ?? '-1')
+  )
   let selectedStimuliIds = $state(
-    new Set([settings?.stimulusId.toString() ?? '0'])
+    untrack(() => new Set([settings?.stimulusId.toString() ?? '0']))
   )
   let delimiter = $state(',')
   let decimalSeparator = $state<DecimalSeparator>('.')

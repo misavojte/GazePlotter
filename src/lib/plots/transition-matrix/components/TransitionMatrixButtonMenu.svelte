@@ -1,5 +1,6 @@
 <script lang="ts">
   import { GeneralButtonMenu as MenuButton } from '$lib/shared/components'
+  import { untrack } from 'svelte'
   import { modalStore } from '$lib/modals/shared/stores/modalStore.js'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
   import BarChart from 'lucide-svelte/icons/bar-chart'
@@ -25,7 +26,10 @@
 
   let { settings, onWorkspaceCommand }: Props = $props()
 
-  const source = createCommandSourcePlotPattern(settings, 'modal')
+  const source = createCommandSourcePlotPattern(
+    untrack(() => settings),
+    'modal'
+  )
 
   const openMaxValueModal = () => {
     modalStore.open(ModalContentMaxValue as any, 'Set color range values', {

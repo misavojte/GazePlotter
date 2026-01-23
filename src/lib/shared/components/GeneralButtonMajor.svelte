@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   interface Props {
     isDisabled?: boolean
     children?: import('svelte').Snippet
@@ -21,7 +22,7 @@
     type = 'button',
   }: Props = $props()
 
-  const isLink = type === 'link' || href !== undefined
+  const isLink = untrack(() => type === 'link' || href !== undefined)
 </script>
 
 {#if isLink}
@@ -39,7 +40,7 @@
     class={[size, variant].join(' ')}
     disabled={isDisabled}
     {onclick}
-    {type}
+    type={type === 'link' ? 'button' : type}
   >
     {@render children?.()}
   </button>

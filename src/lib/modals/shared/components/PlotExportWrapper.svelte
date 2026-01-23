@@ -1,9 +1,4 @@
-<script lang="ts">
-  import GeneralCanvasPreview from './CanvasPreview.svelte'
-  import DownloadPlotSettings from './DownloadPlotSettings.svelte'
-  import SectionHeader from './SectionHeader.svelte'
-  import type { Snippet } from 'svelte'
-
+<script module lang="ts">
   /**
    * Standard export props that plot figures accept.
    * All plot figures should handle margins internally by sizing
@@ -25,6 +20,13 @@
     /** Left margin in pixels */
     marginLeft: number
   }
+</script>
+
+<script lang="ts">
+  import GeneralCanvasPreview from './CanvasPreview.svelte'
+  import DownloadPlotSettings from './DownloadPlotSettings.svelte'
+  import SectionHeader from './SectionHeader.svelte'
+  import { untrack, type Snippet } from 'svelte'
 
   /**
    * Configuration for the plot export wrapper.
@@ -56,21 +58,15 @@
     children,
   }: Props = $props()
 
-  // Capture initial values (intentionally not reactive - these are defaults)
-  const initialWidth = defaultWidth
-  const initialFileName = defaultFileName
-  const initialDpi = defaultDpi
-  const initialMargin = defaultMargin
-
   // Export settings state
   let typeOfExport = $state<'.png' | '.jpg'>('.png')
-  let width = $state(initialWidth)
-  let fileName = $state(initialFileName)
-  let dpi = $state(initialDpi)
-  let marginTop = $state(initialMargin)
-  let marginRight = $state(initialMargin)
-  let marginBottom = $state(initialMargin)
-  let marginLeft = $state(initialMargin)
+  let width = $state(untrack(() => defaultWidth))
+  let fileName = $state(untrack(() => defaultFileName))
+  let dpi = $state(untrack(() => defaultDpi))
+  let marginTop = $state(untrack(() => defaultMargin))
+  let marginRight = $state(untrack(() => defaultMargin))
+  let marginBottom = $state(untrack(() => defaultMargin))
+  let marginLeft = $state(untrack(() => defaultMargin))
 
   // Computed content dimensions (what the plot figure receives)
   // Plot figures add margins internally when sizing their canvas

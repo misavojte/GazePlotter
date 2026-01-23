@@ -103,7 +103,6 @@
         segmentBuffer: new Float32Array(0),
         indexTable: new Uint32Array(0),
         aoiPool: new Uint16Array(0),
-        groupMap: new Uint16Array(0),
         // FIX: Add missing metadata properties required by the interface
         maxParticipants: 0,
         stimuliCount: 0,
