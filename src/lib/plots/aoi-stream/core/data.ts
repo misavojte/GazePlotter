@@ -10,12 +10,8 @@ import {
   BinaryBufferReader,
   SEGMENT_STRIDE,
   SegmentField,
-  MAX_AOI_PER_STIMULUS,
 } from '$lib/gaze-data/shared/types'
-import {
-  createAdaptiveTimeline,
-  type AdaptiveTimeline,
-} from '$lib/plots/shared'
+import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
 import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
 import { engine } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
@@ -88,11 +84,9 @@ export function getAoiStreamPlotData(
   const seriesCount = seriesMeta.length
   const noAoiIndex = seriesCount - 1
 
-  // Pre-compute inverse binSize for faster division
   const invBinSize = 1 / binSize
 
   const computeSeriesForParticipants = (participantIds: number[]) => {
-    // Pre-allocate all arrays in one batch for better memory locality
     const diffs = new Array<Float32Array>(seriesCount)
     const partials = new Array<Float32Array>(seriesCount)
     for (let i = 0; i < seriesCount; i++) {
@@ -100,16 +94,9 @@ export function getAoiStreamPlotData(
       partials[i] = new Float32Array(binCount)
     }
 
-    // Inline addContribution function for better performance (avoid function call overhead)
-    // Removed as standalone function since it's only used in one place
-
-    // Inline addContribution function for better performance (avoid function call overhead)
-    // Removed as standalone function since it's only used in one place
-
     const seenStamp = new Int32Array(seriesCount)
     let stamp = 1
 
-    // Main processing loop - optimized for minimal allocations
     for (let p = 0; p < participantIds.length; p++) {
       const participantId = participantIds[p]
       const range = reader.getSegmentRange(stimulusId, participantId)
@@ -150,14 +137,11 @@ export function getAoiStreamPlotData(
             seenStamp[seriesIndex] = stamp
             hasAnyAoi = true
 
-            // Inlined addContribution for this seriesIndex
-            // Cap adjusted times to the cropped timeline range
             const adjustedStart = Math.max(0, start - timelineMin)
             const adjustedEnd = Math.min(
               safeMaxTime,
               Math.max(0, end - timelineMin)
             )
-            // Skip if segment is completely outside the cropped range
             if (adjustedEnd <= adjustedStart) continue
 
             const startBin = Math.max(
@@ -199,14 +183,11 @@ export function getAoiStreamPlotData(
         }
 
         if (!hasAnyAoi) {
-          // Inlined addContribution for noAoiIndex
-          // Cap adjusted times to the cropped timeline range
           const adjustedStart = Math.max(0, start - timelineMin)
           const adjustedEnd = Math.min(
             safeMaxTime,
             Math.max(0, end - timelineMin)
           )
-          // Skip if segment is completely outside the cropped range
           if (adjustedEnd <= adjustedStart) continue
 
           const startBin = Math.max(
@@ -248,7 +229,6 @@ export function getAoiStreamPlotData(
       }
     }
 
-    // Build final series with prefix sum optimization
     const series: AoiStreamPlotSeries[] = new Array(seriesCount)
     let maxTotal = 0
 
@@ -269,7 +249,6 @@ export function getAoiStreamPlotData(
       }
     }
 
-    // Calculate maxTotal in a single pass for better cache locality
     if (seriesCount > 0) {
       for (let i = 0; i < binCount; i++) {
         let total = 0
@@ -295,6 +274,3 @@ export function getAoiStreamPlotData(
     maxTotal: result.maxTotal,
   }
 }
-
-export * from './ridgelineUtils'
-export * from './timelineUtils'

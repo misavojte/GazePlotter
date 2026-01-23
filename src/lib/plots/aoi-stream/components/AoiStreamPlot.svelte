@@ -16,7 +16,11 @@
     getStimuliOptions,
     getParticipantsGroupOptions,
   } from '$lib/plots/shared'
-  import { getAoiStreamPlotData } from '$lib/plots/aoi-stream/utils'
+  import {
+    getAoiStreamPlotData,
+    scanForDynamicStripHeight,
+    scanForSynchronizedTimelineMax,
+  } from '../core'
   import {
     getParticipants,
     getParticipantEndTime,
@@ -24,14 +28,10 @@
   import { engine } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
 
   import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
-  import type { AoiStreamPlotResult } from '$lib/plots/aoi-stream/types'
+  import type { AoiStreamPlotResult } from '../types'
   import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
-  import {
-    scanForDynamicStripHeight,
-    scanForSynchronizedTimelineMax,
-  } from '$lib/plots/aoi-stream/utils'
   import { grid } from '$lib/workspace/grid/store.svelte'
 
   const LAYOUT = {

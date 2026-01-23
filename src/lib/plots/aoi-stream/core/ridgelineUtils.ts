@@ -2,19 +2,17 @@ import {
   getParticipants,
   getParticipantEndTime,
 } from '$lib/gaze-data/front-process/stores/dataStore'
+import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/plotSizeUtility'
 import {
-  calculatePlotDimensionsWithHeader,
   calculateFlatLegendHeight,
   STREAM_LEGEND_CONFIG,
-} from '$lib/plots/shared'
+} from '$lib/plots/shared/legendRendering'
 import { estimateTextWidth } from '$lib/shared/utils/textUtils'
 import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
-import {
-  getAoiStreamPlotData,
-  scanForSynchronizedTimelineMax,
-} from '$lib/plots/aoi-stream/utils'
+import { getAoiStreamPlotData } from './data'
+import { scanForSynchronizedTimelineMax } from './timelineUtils'
 import { engine } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
-import type { AoiStreamPlotResult } from '$lib/plots/aoi-stream/types'
+import type { AoiStreamPlotResult } from '../types'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
 const MARGIN = {
@@ -25,7 +23,7 @@ const MARGIN = {
 }
 
 const HEADER_HEIGHT = 150
-const RIDGELINE_OVERLAP = 0.6
+export const RIDGELINE_OVERLAP = 0.6
 
 /**
  * Calculate the max constraint factor for a ridgeline plot.
