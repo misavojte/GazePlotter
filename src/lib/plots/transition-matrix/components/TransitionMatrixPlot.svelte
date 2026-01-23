@@ -17,7 +17,7 @@
   import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
-  import { calculateTransitionMatrix } from '$lib/plots/transition-matrix/utils'
+  import { getTransitionMatrixData } from '$lib/plots/transition-matrix/core/transformer'
   import { AggregationMethod } from '$lib/plots/transition-matrix/const'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import {
@@ -57,8 +57,7 @@
       settings.w,
       settings.h,
       DEFAULT_GRID_CONFIG,
-      LAYOUT.headerHeight,
-      LAYOUT.horizontalPadding
+      LAYOUT.headerHeight
     )
   )
 
@@ -175,7 +174,7 @@
       // Logic that should run only when redrawTimestamp changes
       // This is to prevent unnecessary recalculations when settings change in other components in the workspace
       const { aoiLabels: labels, matrix: calculatedMatrix } =
-        calculateTransitionMatrix(
+        getTransitionMatrixData(
           settings.stimulusId,
           settings.groupId,
           settings.aggregationMethod as AggregationMethod

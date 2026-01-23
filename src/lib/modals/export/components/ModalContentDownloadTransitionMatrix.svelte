@@ -2,9 +2,9 @@
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
   import TransitionMatrixPlotFigure from '$lib/plots/transition-matrix/components/TransitionMatrixPlotFigure.svelte'
   import {
-    calculateTransitionMatrix,
+    getTransitionMatrixData,
     AggregationMethod,
-  } from '$lib/plots/transition-matrix/'
+  } from '$lib/plots/transition-matrix'
   import { PlotExportWrapper } from '$lib/modals'
 
   interface Props {
@@ -15,7 +15,7 @@
 
   // Calculate matrix data for preview
   const { matrix, aoiLabels } = $derived(
-    calculateTransitionMatrix(
+    getTransitionMatrixData(
       settings.stimulusId,
       settings.groupId,
       settings.aggregationMethod as AggregationMethod
