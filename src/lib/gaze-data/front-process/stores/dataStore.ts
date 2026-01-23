@@ -1013,11 +1013,6 @@ export const getSegments = (
   const hidden = getHiddenAois(stimulusId)
   const hiddenSet = hidden.length ? new Set<number>(hidden) : null
 
-  // Pre-allocate result array
-  const estimatedResultSize =
-    limit !== null
-      ? Math.min(segmentCount - offset, limit)
-      : segmentCount - offset
   const result: SegmentInterpretedDataType[] = []
 
   // Pre-compute filter lookups
