@@ -103,6 +103,11 @@
     exportRegistrar.register({ kind: 'canvas', getCanvas: () => canvas })
   })
 
+  // Calculate dynamic margins
+  const effectiveTopMargin = $derived(
+    barPlottingType === 'horizontal' ? TICK_LENGTH : MARGIN.TOP
+  )
+
   // Calculate dynamic left margin based on plotting type and label lengths
   const trueLeftMargin = $derived(
     Math.floor(
@@ -148,7 +153,9 @@
     Math.floor(width - trueLeftMargin - dynamicRightMargin)
   )
   const plotAreaHeight = $derived(
-    Math.floor(height - MARGIN.TOP - MARGIN.BOTTOM - marginTop - marginBottom)
+    Math.floor(
+      height - effectiveTopMargin - MARGIN.BOTTOM - marginTop - marginBottom
+    )
   )
 
   // Scale values to plot area using AdaptiveTimeline
@@ -225,7 +232,7 @@
             trueLeftMargin +
             startPosition +
             index * (optimalBarWidth + effectiveBarSpacing),
-          y: MARGIN.TOP + marginTop + plotAreaHeight - scaledValue,
+          y: effectiveTopMargin + marginTop + plotAreaHeight - scaledValue,
           width: optimalBarWidth,
           height: scaledValue,
           value: item.value,
@@ -236,7 +243,7 @@
         return {
           x: trueLeftMargin,
           y:
-            MARGIN.TOP +
+            effectiveTopMargin +
             marginTop +
             startPosition +
             index * (optimalBarWidth + effectiveBarSpacing),
@@ -291,7 +298,7 @@
     // Floor dimensions for pixel-perfect synchronization
     const floorLeft = Math.floor(trueLeftMargin)
     const floorWidth = Math.floor(plotAreaWidth)
-    const floorTop = Math.floor(MARGIN.TOP + marginTop)
+    const floorTop = Math.floor(effectiveTopMargin + marginTop)
     const floorHeight = Math.floor(plotAreaHeight)
 
     // Draw plot area border
@@ -341,22 +348,6 @@
         ctx.lineTo(leftX, y)
         ctx.stroke()
       })
-
-      // Draw grid lines (subtle)
-      ctx.strokeStyle = GRIDLINE_SECONDARY.COLOR
-      ctx.lineWidth = GRIDLINE_SECONDARY.WIDTH
-      ticks.forEach(tick => {
-        // Skip drawing subtle line at position 0 (start of plot) because border covers it with PRIMARY style
-        if (tick.position <= 1e-6) return
-
-        const y = alignToPixelCenter(
-          plotTop + plotHeight - tick.position * plotHeight
-        )
-        ctx.beginPath()
-        ctx.moveTo(leftX, y)
-        ctx.lineTo(leftX + plotWidth, y)
-        ctx.stroke()
-      })
     } else {
       const ticks = timeline.ticks.filter(tick => tick.isNice)
 
@@ -365,23 +356,16 @@
       ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
       ticks.forEach(tick => {
         const x = alignToPixelCenter(leftX + tick.position * plotWidth)
+        // Bottom ticks
         ctx.beginPath()
         ctx.moveTo(x, plotTop + plotHeight)
         ctx.lineTo(x, plotTop + plotHeight + TICK_LENGTH)
         ctx.stroke()
-      })
 
-      // Draw grid lines (subtle)
-      ctx.strokeStyle = GRIDLINE_SECONDARY.COLOR
-      ctx.lineWidth = GRIDLINE_SECONDARY.WIDTH
-      ticks.forEach(tick => {
-        // Skip drawing subtle line at position 0 (start of plot) because border covers it with PRIMARY style
-        if (tick.position <= 1e-6) return
-
-        const x = alignToPixelCenter(leftX + tick.position * plotWidth)
+        // Top ticks
         ctx.beginPath()
         ctx.moveTo(x, plotTop)
-        ctx.lineTo(x, plotTop + plotHeight)
+        ctx.lineTo(x, plotTop - TICK_LENGTH)
         ctx.stroke()
       })
     }

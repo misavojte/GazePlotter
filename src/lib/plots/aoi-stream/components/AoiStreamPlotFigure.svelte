@@ -46,14 +46,15 @@
     drawYAxisMainLabel,
     drawCenteredYAxis,
     drawBottomYAxis,
+    drawTopXAxisTicksAndBorder,
+    drawRightYAxisTicks,
+    drawRightCenteredYAxisTicks,
     drawPlotOutline,
-    formatAxisTick,
   } from '$lib/plots/shared/axisUtils'
   import { safeNumber } from '$lib/shared/utils/mathUtils'
   import { Y_AXIS, AXIS_CONFIG } from '../const'
   import {
     drawCatmullRom,
-    ensureRenderBuckets,
     transformStreamDataToCoordinates,
     type RenderBuckets,
   } from '../core'
@@ -123,7 +124,7 @@
   })
 
   const MARGIN = {
-    TOP: 20,
+    TOP: 5,
     RIGHT: 1, // Space for gridline stroke at right edge
     BOTTOM: 55,
     LEFT: 50,
@@ -136,6 +137,10 @@
   const safeMarginRight = $derived(safeNumber(marginRight, 0))
   const safeMarginBottom = $derived(safeNumber(marginBottom, 0))
   const safeMarginLeft = $derived(safeNumber(marginLeft, 0))
+
+  const effectiveRightMargin = $derived(
+    alignment === 'ridgeline' ? MARGIN.RIGHT : MARGIN.RIGHT + 5 // +5 for tick length when not in ridgeline mode
+  )
 
   const exportRegistrar = getContext<ExportSourceRegistrar | undefined>(
     EXPORT_SOURCE_CONTEXT
@@ -186,7 +191,7 @@
   // `width`/`height` already represent the drawable area excluding export margins.
   // Export margins are applied as offsets and by growing the canvas size.
   const plotAreaWidth = $derived(
-    Math.floor(Math.max(0, safeWidth - MARGIN.LEFT - MARGIN.RIGHT))
+    Math.floor(Math.max(0, safeWidth - MARGIN.LEFT - effectiveRightMargin))
   )
   const plotAreaHeight = $derived(
     Math.floor(
@@ -251,6 +256,7 @@
     const floorWidth = Math.floor(plotAreaWidth)
     const floorHeight = Math.floor(plotAreaHeight)
     const floorBottom = floorTop + floorHeight
+    const floorRight = floorLeft + floorWidth
 
     if (floorWidth <= 0 || floorHeight <= 0 || data.binCount <= 0) {
       finishCanvasDrawing(canvasState)
@@ -459,6 +465,15 @@
         plotLeft,
         AXIS_CONFIG
       )
+      drawRightCenteredYAxisTicks(
+        ctx,
+        plotTop + plotAreaHeight / 2,
+        plotAreaHeight / 2,
+        axisHalfRange,
+        axisTicks,
+        floorRight,
+        AXIS_CONFIG
+      )
     } else {
       drawBottomYAxis(
         ctx,
@@ -467,6 +482,15 @@
         yAxisMax,
         axisTicks,
         plotLeft,
+        AXIS_CONFIG
+      )
+      drawRightYAxisTicks(
+        ctx,
+        plotBottom,
+        plotAreaHeight,
+        yAxisMax,
+        axisTicks,
+        floorRight,
         AXIS_CONFIG
       )
     }
@@ -514,6 +538,15 @@
       floorBottom,
       AXIS_CONFIG,
       false // Already drawn by drawPlotOutline
+    )
+    drawTopXAxisTicksAndBorder(
+      ctx,
+      data.timeline,
+      floorLeft,
+      floorWidth,
+      floorTop,
+      AXIS_CONFIG,
+      false // Baseline is already drawn by drawPlotOutline
     )
 
     // Legend - use shared utility for consistent rendering

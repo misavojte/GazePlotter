@@ -104,6 +104,8 @@ export function drawXAxisTicksAndBorder(
 
   for (let i = 0; i < len; i++) {
     const tick = ticks[i]
+    if (!tick.isNice) continue
+
     // Use consistent rounding logic for tick positions
     const x = alignToPixelCenter(
       floorLeft + Math.round(tick.position * floorWidth)
@@ -163,7 +165,8 @@ export function drawTopXAxisTicksAndBorder(
   plotLeft: number,
   plotAreaWidth: number,
   plotTop: number,
-  config: AxisConfig = DEFAULT_AXIS_CONFIG
+  config: AxisConfig = DEFAULT_AXIS_CONFIG,
+  drawBaseline: boolean = true
 ): void {
   ctx.save()
   ctx.strokeStyle = config.baselineColor
@@ -177,6 +180,8 @@ export function drawTopXAxisTicksAndBorder(
 
   for (let i = 0; i < len; i++) {
     const tick = ticks[i]
+    if (!tick.isNice) continue
+
     const x = alignToPixelCenter(
       floorLeft + Math.round(tick.position * floorWidth)
     )
@@ -190,10 +195,12 @@ export function drawTopXAxisTicksAndBorder(
   }
 
   // Draw top border line
-  ctx.beginPath()
-  ctx.moveTo(floorLeft + 0.5, yLine)
-  ctx.lineTo(floorLeft + floorWidth + 0.5, yLine)
-  ctx.stroke()
+  if (drawBaseline) {
+    ctx.beginPath()
+    ctx.moveTo(floorLeft + 0.5, yLine)
+    ctx.lineTo(floorLeft + floorWidth + 0.5, yLine)
+    ctx.stroke()
+  }
   ctx.restore()
 }
 
@@ -260,7 +267,16 @@ export function drawBottomYAxis(
   for (let i = 0; i < ticks.length; i++) {
     const value = ticks[i]
     const offset = (value / axisMax) * fullHeight
-    const y = baselineY - offset
+    const y = alignToPixelCenter(baselineY - offset)
+
+    // optimize label position to stay within bounds
+    if (Math.abs(y - (baselineY - fullHeight)) < 1) {
+      ctx.textBaseline = 'top'
+    } else if (Math.abs(y - baselineY) < 1) {
+      ctx.textBaseline = 'bottom'
+    } else {
+      ctx.textBaseline = 'middle'
+    }
 
     ctx.beginPath()
     ctx.moveTo(xTick, y)
@@ -297,10 +313,19 @@ export function drawCenteredYAxis(
   for (let i = 0; i < ticks.length; i++) {
     const value = ticks[i]
     const offset = (value / axisHalfRange) * halfHeight
-    const yUpper = centerY - offset
-    const yLower = centerY + offset
+    const yUpper = alignToPixelCenter(centerY - offset)
+    const yLower = alignToPixelCenter(centerY + offset)
 
     // Tick and label (common for all ticks)
+    // Dynamic baseline for upper tick
+    if (Math.abs(yUpper - (centerY - halfHeight)) < 1) {
+      ctx.textBaseline = 'top'
+    } else if (Math.abs(yUpper - (centerY + halfHeight)) < 1) {
+      ctx.textBaseline = 'bottom'
+    } else {
+      ctx.textBaseline = 'middle'
+    }
+
     ctx.beginPath()
     ctx.moveTo(xTick, yUpper)
     ctx.lineTo(plotLeft, yUpper)
@@ -309,6 +334,15 @@ export function drawCenteredYAxis(
 
     // Parallel mirrored tick/label for positive values
     if (value > 0) {
+      // Dynamic baseline for lower tick
+      if (Math.abs(yLower - (centerY - halfHeight)) < 1) {
+        ctx.textBaseline = 'top'
+      } else if (Math.abs(yLower - (centerY + halfHeight)) < 1) {
+        ctx.textBaseline = 'bottom'
+      } else {
+        ctx.textBaseline = 'middle'
+      }
+
       ctx.beginPath()
       ctx.moveTo(xTick, yLower)
       ctx.lineTo(plotLeft, yLower)
@@ -332,4 +366,76 @@ export function drawPlotOutline(
   width: number = GRIDLINE_PRIMARY.WIDTH
 ): void {
   strokeCrispRect(ctx, plotLeft, plotTop, plotWidth, plotHeight, color, width)
+}
+
+/**
+ * Draws Y-axis ticks on the right side (typically for stream plots).
+ */
+export function drawRightYAxisTicks(
+  ctx: CanvasRenderingContext2D,
+  baselineY: number,
+  fullHeight: number,
+  axisMax: number,
+  ticks: number[],
+  plotRight: number,
+  config: AxisConfig = DEFAULT_AXIS_CONFIG
+): void {
+  ctx.save()
+  const xTick = plotRight + config.tickLength
+
+  ctx.strokeStyle = config.baselineColor
+  ctx.lineWidth = 1
+
+  for (let i = 0; i < ticks.length; i++) {
+    const value = ticks[i]
+    const offset = (value / axisMax) * fullHeight
+    const y = alignToPixelCenter(baselineY - offset)
+
+    ctx.beginPath()
+    ctx.moveTo(plotRight, y)
+    ctx.lineTo(xTick, y)
+    ctx.stroke()
+  }
+  ctx.restore()
+}
+
+/**
+ * Draws centered Y-axis ticks on the right side.
+ */
+export function drawRightCenteredYAxisTicks(
+  ctx: CanvasRenderingContext2D,
+  centerY: number,
+  halfHeight: number,
+  axisHalfRange: number,
+  ticks: number[],
+  plotRight: number,
+  config: AxisConfig = DEFAULT_AXIS_CONFIG
+): void {
+  ctx.save()
+  const xTick = plotRight + config.tickLength
+
+  ctx.strokeStyle = config.baselineColor
+  ctx.lineWidth = 1
+
+  for (let i = 0; i < ticks.length; i++) {
+    const value = ticks[i]
+    const offset = (value / axisHalfRange) * halfHeight
+    const yUpper = alignToPixelCenter(centerY - offset)
+    const yLower = alignToPixelCenter(centerY + offset)
+
+    // Upper tick
+    ctx.beginPath()
+    ctx.moveTo(plotRight, yUpper)
+    ctx.lineTo(xTick, yUpper)
+    ctx.stroke()
+
+    // Lower tick (if positive)
+    if (value > 0) {
+      ctx.beginPath()
+      ctx.moveTo(plotRight, yLower)
+      ctx.lineTo(xTick, yLower)
+      ctx.stroke()
+    }
+  }
+  ctx.restore()
 }

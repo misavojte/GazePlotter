@@ -143,7 +143,8 @@ export function transformStreamDataToCoordinates(
       }
     } else {
       const padded = Math.max(1, maxTotalPercent)
-      const rawStep = padded / Math.max(1, Y_AXIS.TARGET_POSITIVE_TICKS)
+      // Use double the target ticks for bottom alignment since it is a single-sided axis
+      const rawStep = padded / Math.max(1, Y_AXIS.TARGET_POSITIVE_TICKS * 2)
       const step = niceStep(rawStep)
       const axisMax = Math.max(1, Math.ceil(padded / step) * step)
       axisTicks = [0]
