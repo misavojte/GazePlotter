@@ -63,7 +63,7 @@
 
   // For tracking AOI labels (needed for cell size calculation)
   let aoiLabels = $state<string[]>([])
-  let matrix = $state<number[][]>([])
+  let matrix = $state<Float64Array>(new Float64Array(0))
 
   let cellSize = $derived.by(() => {
     if (aoiLabels.length > 0) {
@@ -181,7 +181,7 @@
         )
 
       aoiLabels = labels
-      matrix = calculatedMatrix
+      matrix = calculatedMatrix as Float64Array
     })
   })
 

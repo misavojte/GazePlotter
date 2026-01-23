@@ -65,7 +65,7 @@
    * @param marginLeft - Additional left margin (default 0)
    */
   let {
-    TransitionMatrix = [],
+    TransitionMatrix = new Float64Array(0),
     aoiLabels = [],
     height = 500,
     width = 500,
@@ -86,7 +86,7 @@
     marginBottom = 0,
     marginLeft = 0,
   } = $props<{
-    TransitionMatrix: number[][]
+    TransitionMatrix: Float64Array | number[]
     aoiLabels: string[]
     height?: number
     width?: number
@@ -147,12 +147,9 @@
     if (colorValueRange[1] !== 0) return colorValueRange[1]
 
     let maxValue = 0
-    for (let r = 0; r < TransitionMatrix.length; r++) {
-      const row = TransitionMatrix[r]
-      for (let c = 0; c < row.length; c++) {
-        const val = row[c]
-        if (val > maxValue) maxValue = val
-      }
+    for (let i = 0; i < TransitionMatrix.length; i++) {
+      const val = TransitionMatrix[i]
+      if (val > maxValue) maxValue = val
     }
     return Math.ceil(maxValue)
   })
@@ -402,11 +399,12 @@
   // Draw matrix cells
   function drawCells(ctx: CanvasRenderingContext2D) {
     const { xOffset, yOffset, cellSize } = layout
+    const size = aoiLabels.length
 
-    for (let row = 0; row < aoiLabels.length; row++) {
-      const matrixRow = TransitionMatrix[row]
-      for (let col = 0; col < aoiLabels.length; col++) {
-        const value = matrixRow ? matrixRow[col] : 0
+    for (let row = 0; row < size; row++) {
+      const rowOffset = row * size
+      for (let col = 0; col < size; col++) {
+        const value = TransitionMatrix[rowOffset + col] ?? 0
         const x = xOffset + col * cellSize
         const y = yOffset + row * cellSize
 
@@ -431,11 +429,12 @@
 
     const { xOffset, yOffset, cellSize } = layout
     if (cellSize < 15) return
+    const size = aoiLabels.length
 
-    for (let row = 0; row < aoiLabels.length; row++) {
-      const matrixRow = TransitionMatrix[row]
-      for (let col = 0; col < aoiLabels.length; col++) {
-        const value = matrixRow ? matrixRow[col] : 0
+    for (let row = 0; row < size; row++) {
+      const rowOffset = row * size
+      for (let col = 0; col < size; col++) {
+        const value = TransitionMatrix[rowOffset + col] ?? 0
 
         const shouldShowValue =
           (!isBelowMinimum(value) && !isAboveMaximum(value)) ||
@@ -770,7 +769,8 @@
 
     // If over a cell, show tooltip and clear hover state
     if (isOverCell) {
-      const value = TransitionMatrix[row]?.[col] ?? 0
+      const size = aoiLabels.length
+      const value = TransitionMatrix[row * size + col] ?? 0
       const x = xOffset + col * cellSize
       const y = yOffset + row * cellSize
 

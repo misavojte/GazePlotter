@@ -27,14 +27,15 @@ describe('collectTransitionMetrics', () => {
     vi.mocked(dataStore.getSegments).mockReturnValue(segments as any)
 
     const result = collectTransitionMetrics(1, [1], mockAois, 'fixation')
+    const size = mockAois.length + 1
 
-    // Transition 1 -> 2
-    expect(result.sumMatrix[0][1]).toBe(1)
-    expect(result.dwellTimeMatrix[0][1]).toBe(100) // from AOI 1 duration
+    // Transition 1 -> 2 (0 -> 1)
+    expect(result.sumMatrix[0 * size + 1]).toBe(1)
+    expect(result.dwellTimeMatrix[0 * size + 1]).toBe(100) // from AOI 1 duration
 
-    // Transition 2 -> Outside
-    expect(result.sumMatrix[1][2]).toBe(1)
-    expect(result.dwellTimeMatrix[1][2]).toBe(150) // from AOI 2 duration
+    // Transition 2 -> Outside (1 -> 2)
+    expect(result.sumMatrix[1 * size + 2]).toBe(1)
+    expect(result.dwellTimeMatrix[1 * size + 2]).toBe(150) // from AOI 2 duration
 
     expect(result.totalTransitions).toBe(2)
   })
@@ -49,11 +50,12 @@ describe('collectTransitionMetrics', () => {
     vi.mocked(dataStore.getSegments).mockReturnValue(segments as any)
 
     const result = collectTransitionMetrics(1, [1], mockAois, 'visit')
+    const size = mockAois.length + 1
 
     // In visit mode, the two AOI 1 segments are merged into one visit of 200ms
     // Then there is a transition to AOI 2
-    expect(result.sumMatrix[0][1]).toBe(1)
-    expect(result.dwellTimeMatrix[0][1]).toBe(200)
+    expect(result.sumMatrix[0 * size + 1]).toBe(1)
+    expect(result.dwellTimeMatrix[0 * size + 1]).toBe(200)
     expect(result.totalTransitions).toBe(1)
   })
 })

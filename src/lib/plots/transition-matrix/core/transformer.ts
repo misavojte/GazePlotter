@@ -26,10 +26,10 @@ export function getTransitionMatrixData(
     data.noAoiTreatment.displayedName,
   ]
 
+  const size = aoiList.length + 1
   if (participantIds.length === 0) {
-    const size = aoiList.length + 1
     return {
-      matrix: Array.from({ length: size }, () => Array(size).fill(0)),
+      matrix: new Float64Array(size * size),
       aoiLabels,
       aoiList,
     }
@@ -47,35 +47,36 @@ export function getTransitionMatrixData(
     collectMode
   )
 
-  let resultMatrix: number[][]
+  let resultMatrix: Float64Array
 
   switch (aggregationMethod) {
     case AggregationMethod.FREQUENCY_RELATIVE:
       resultMatrix = transformToRelativeFrequency(
         metrics.sumMatrix,
-        metrics.totalTransitions
+        metrics.totalTransitions,
+        size
       )
       break
     case AggregationMethod.PROBABILITY:
-      resultMatrix = transformToProbability(metrics.sumMatrix)
+      resultMatrix = transformToProbability(metrics.sumMatrix, size)
       break
     case AggregationMethod.PROBABILITY_2:
-      resultMatrix = transformToKStepProbability(metrics.sumMatrix, 2)
+      resultMatrix = transformToKStepProbability(metrics.sumMatrix, size, 2)
       break
     case AggregationMethod.PROBABILITY_3:
-      resultMatrix = transformToKStepProbability(metrics.sumMatrix, 3)
+      resultMatrix = transformToKStepProbability(metrics.sumMatrix, size, 3)
       break
     case AggregationMethod.DWELL_TIME:
     case AggregationMethod.SEGMENT_DWELL_TIME:
       resultMatrix = transformToAverageDwellTime(
         metrics.dwellTimeMatrix,
-        metrics.dwellCountMatrix
+        metrics.dwellCountMatrix,
+        size
       )
       break
     case AggregationMethod.SUM:
     default:
-      // Convert TypedArrays to regular arrays for the UI if needed
-      resultMatrix = Array.from(metrics.sumMatrix, row => Array.from(row))
+      resultMatrix = metrics.sumMatrix
       break
   }
 
@@ -87,34 +88,36 @@ export function getTransitionMatrixData(
 }
 
 function transformToRelativeFrequency(
-  matrix: Float64Array[],
-  total: number
-): number[][] {
-  const size = matrix.length
-  const result = Array.from({ length: size }, () => new Array(size))
-  if (total === 0) return result.map(row => row.fill(0))
+  matrix: Float64Array,
+  total: number,
+  size: number
+): Float64Array {
+  const totalCells = size * size
+  const result = new Float64Array(totalCells)
+  if (total === 0) return result
 
-  for (let i = 0; i < size; i++) {
-    for (let j = 0; j < size; j++) {
-      result[i][j] = formatDecimal((matrix[i][j] / total) * 100)
-    }
+  for (let i = 0; i < totalCells; i++) {
+    result[i] = formatDecimal((matrix[i] / total) * 100)
   }
   return result
 }
 
-function transformToProbability(matrix: Float64Array[]): number[][] {
-  const size = matrix.length
-  const result = Array.from({ length: size }, () => new Array(size))
+function transformToProbability(
+  matrix: Float64Array,
+  size: number
+): Float64Array {
+  const result = new Float64Array(size * size)
 
   for (let i = 0; i < size; i++) {
+    const rowOffset = i * size
     let rowSum = 0
-    for (let j = 0; j < size; j++) rowSum += matrix[i][j]
+    for (let j = 0; j < size; j++) rowSum += matrix[rowOffset + j]
 
-    if (rowSum === 0) {
-      result[i].fill(0)
-    } else {
+    if (rowSum > 0) {
       for (let j = 0; j < size; j++) {
-        result[i][j] = formatDecimal((matrix[i][j] / rowSum) * 100)
+        result[rowOffset + j] = formatDecimal(
+          (matrix[rowOffset + j] / rowSum) * 100
+        )
       }
     }
   }
@@ -122,80 +125,87 @@ function transformToProbability(matrix: Float64Array[]): number[][] {
 }
 
 function transformToKStepProbability(
-  matrix: Float64Array[],
+  matrix: Float64Array,
+  size: number,
   k: number
-): number[][] {
-  const size = matrix.length
+): Float64Array {
   // 1. Get 1-step probability matrix (0-1)
-  let P = Array.from({ length: size }, () => new Float64Array(size))
+  const P = new Float64Array(size * size)
   for (let i = 0; i < size; i++) {
+    const rowOffset = i * size
     let rowSum = 0
-    for (let j = 0; j < size; j++) rowSum += matrix[i][j]
+    for (let j = 0; j < size; j++) rowSum += matrix[rowOffset + j]
     if (rowSum > 0) {
-      for (let j = 0; j < size; j++) P[i][j] = matrix[i][j] / rowSum
+      for (let j = 0; j < size; j++)
+        P[rowOffset + j] = matrix[rowOffset + j] / rowSum
     }
   }
 
   // 2. Power of matrix
-  let Pk = matrixPower(P, k)
+  const Pk = matrixPower(P, size, k)
 
   // 3. Convert to formatted percentages
-  const result = Array.from({ length: size }, () => new Array(size))
+  const result = new Float64Array(size * size)
   for (let i = 0; i < size; i++) {
+    const rowOffset = i * size
     let rowSum = 0
-    for (let j = 0; j < size; j++) rowSum += Pk[i][j]
+    for (let j = 0; j < size; j++) rowSum += Pk[rowOffset + j]
 
     for (let j = 0; j < size; j++) {
       // Renormalize slightly if needed and convert to %
-      const val = rowSum > 0 ? Pk[i][j] / rowSum : 0
-      result[i][j] = formatDecimal(val * 100)
+      const val = rowSum > 0 ? Pk[rowOffset + j] / rowSum : 0
+      result[rowOffset + j] = formatDecimal(val * 100)
     }
   }
   return result
 }
 
 function transformToAverageDwellTime(
-  dwellTime: Float64Array[],
-  dwellCount: Int32Array[]
-): number[][] {
-  const size = dwellTime.length
-  const result = Array.from({ length: size }, () => new Array(size))
+  dwellTime: Float64Array,
+  dwellCount: Int32Array,
+  size: number
+): Float64Array {
+  const totalCells = size * size
+  const result = new Float64Array(totalCells)
 
-  for (let i = 0; i < size; i++) {
-    for (let j = 0; j < size; j++) {
-      const count = dwellCount[i][j]
-      result[i][j] = count > 0 ? formatDecimal(dwellTime[i][j] / count) : 0
-    }
+  for (let i = 0; i < totalCells; i++) {
+    const count = dwellCount[i]
+    result[i] = count > 0 ? formatDecimal(dwellTime[i] / count) : 0
   }
   return result
 }
 
-function multiply(A: Float64Array[], B: Float64Array[]): Float64Array[] {
-  const size = A.length
-  const C = Array.from({ length: size }, () => new Float64Array(size))
+function multiply(
+  A: Float64Array,
+  B: Float64Array,
+  size: number
+): Float64Array {
+  const C = new Float64Array(size * size)
   for (let i = 0; i < size; i++) {
+    const iOffset = i * size
     for (let k = 0; k < size; k++) {
-      const aik = A[i][k]
+      const aik = A[iOffset + k]
       if (aik === 0) continue
+      const kOffset = k * size
       for (let j = 0; j < size; j++) {
-        C[i][j] += aik * B[k][j]
+        C[iOffset + j] += aik * B[kOffset + j]
       }
     }
   }
   return C
 }
 
-function matrixPower(P: Float64Array[], k: number): Float64Array[] {
+function matrixPower(P: Float64Array, size: number, k: number): Float64Array {
   if (k === 1) return P
 
-  let res: Float64Array[] | null = null
+  let res: Float64Array | null = null
   let base = P
 
   while (k > 0) {
     if (k % 2 === 1) {
-      res = res ? multiply(res, base) : base
+      res = res ? multiply(res, base, size) : base
     }
-    base = multiply(base, base)
+    base = multiply(base, base, size)
     k = Math.floor(k / 2)
   }
 

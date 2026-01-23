@@ -4,20 +4,18 @@ import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
  * Interface representing an Transition Matrix with labels
  */
 export interface TransitionMatrixData {
-  matrix: number[][]
+  /** Flat row-major array: [row * size + col] */
+  matrix: Float64Array | number[]
   aoiLabels: string[]
   aoiList: ExtendedInterpretedDataType[]
 }
 
 export interface TransitionMetrics {
-  sumMatrix: number[][]
+  /** Flat row-major array: [row * size + col] */
+  sumMatrix: Float64Array
+  /** Flat row-major array: [row * size + col] */
+  dwellTimeMatrix: Float64Array
+  /** Flat row-major array: [row * size + col] */
+  dwellCountMatrix: Int32Array
   totalTransitions: number
-  dwellTimeMatrix: number[][] // [fromIdx][toIdx] = total dwell time
-  dwellCountMatrix: number[][] // [fromIdx][toIdx] = count of transitions for averaging
-}
-
-export interface ParticipantTransitionMetrics {
-  matrix: number[][]
-  dwellTimeMatrix: number[][]
-  dwellCountMatrix: number[][]
 }
