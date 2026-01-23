@@ -76,6 +76,7 @@ export function getBarPlotData(
 
 /**
  * Aggregates individual participant metrics into the final bar values.
+ * Optimized for performance: avoids intermediate arrays and closures in hot loops.
  */
 function aggregateMetrics(
   metrics: ReturnType<typeof collectParticipantBarMetrics>,
@@ -83,68 +84,119 @@ function aggregateMetrics(
   aoiCount: number
 ): number[] {
   const totalSlots = aoiCount + 1 // We only show up to No-AOI (exclude AnyFixation for now unless needed)
-  const result = createArray(totalSlots, 0)
+  const result = new Array(totalSlots).fill(0)
+  const participantCount = metrics.length
+
+  if (participantCount === 0) return result
 
   switch (method) {
     case 'absoluteTime':
-      for (const m of metrics) {
-        for (let i = 0; i < totalSlots; i++) result[i] += m.dwellTime[i]
+    case 'relativeTime': {
+      for (let p = 0; p < participantCount; p++) {
+        const dwell = metrics[p].dwellTime
+        for (let i = 0; i < totalSlots; i++) {
+          result[i] += dwell[i]
+        }
       }
-      return result
+      return method === 'relativeTime' ? normalizeToPercentages(result) : result
+    }
 
-    case 'relativeTime':
-      const absTimes = aggregateMetrics(metrics, 'absoluteTime', aoiCount)
-      return normalizeToPercentages(absTimes)
-
-    case 'timeToFirstFixation':
+    case 'timeToFirstFixation': {
       for (let i = 0; i < totalSlots; i++) {
-        const valid = metrics.map(m => m.ttff[i]).filter(t => t !== -1)
-        result[i] = valid.length > 0 ? calculateAverage(valid) : 0
+        let sum = 0
+        let count = 0
+        for (let p = 0; p < participantCount; p++) {
+          const val = metrics[p].ttff[i]
+          if (val !== -1) {
+            sum += val
+            count++
+          }
+        }
+        result[i] = count > 0 ? sum / count : 0
       }
       return result
+    }
 
-    case 'avgFixationDuration':
+    case 'avgFixationDuration': {
       for (let i = 0; i < totalSlots; i++) {
-        const all = metrics.flatMap(m => m.avgFixationDuration[i])
-        result[i] = all.length > 0 ? calculateAverage(all) : 0
+        let sum = 0
+        let count = 0
+        for (let p = 0; p < participantCount; p++) {
+          const durations = metrics[p].avgFixationDuration[i]
+          for (let d = 0; d < durations.length; d++) {
+            sum += durations[d]
+            count++
+          }
+        }
+        result[i] = count > 0 ? sum / count : 0
       }
       return result
+    }
 
-    case 'avgFirstFixationDuration':
+    case 'avgFirstFixationDuration': {
       for (let i = 0; i < totalSlots; i++) {
-        const valid = metrics
-          .map(m => m.firstFixationDuration[i])
-          .filter(d => d !== -1)
-        result[i] = valid.length > 0 ? calculateAverage(valid) : 0
+        let sum = 0
+        let count = 0
+        for (let p = 0; p < participantCount; p++) {
+          const val = metrics[p].firstFixationDuration[i]
+          if (val !== -1) {
+            sum += val
+            count++
+          }
+        }
+        result[i] = count > 0 ? sum / count : 0
       }
       return result
+    }
 
-    case 'averageFixationCount':
+    case 'averageFixationCount': {
       for (let i = 0; i < totalSlots; i++) {
-        result[i] = calculateAverage(metrics.map(m => m.fixationCount[i]))
+        let sum = 0
+        for (let p = 0; p < participantCount; p++) {
+          sum += metrics[p].fixationCount[i]
+        }
+        result[i] = sum / participantCount
       }
       return result
+    }
 
-    case 'hitRatio':
-      const count = metrics.length
+    case 'hitRatio': {
       for (let i = 0; i < totalSlots; i++) {
-        const seen = metrics.reduce((sum, m) => sum + m.hitRatio[i], 0)
-        result[i] = (seen / count) * 100
+        let seenCount = 0
+        for (let p = 0; p < participantCount; p++) {
+          seenCount += metrics[p].hitRatio[i]
+        }
+        result[i] = (seenCount / participantCount) * 100
       }
       return result
+    }
 
-    case 'averageEntries':
+    case 'averageEntries': {
       for (let i = 0; i < totalSlots; i++) {
-        result[i] = calculateAverage(metrics.map(m => m.entryCount[i]))
+        let sum = 0
+        for (let p = 0; p < participantCount; p++) {
+          sum += metrics[p].entryCount[i]
+        }
+        result[i] = sum / participantCount
       }
       return result
+    }
 
-    case 'avgDwellDuration':
+    case 'avgDwellDuration': {
       for (let i = 0; i < totalSlots; i++) {
-        const all = metrics.flatMap(m => m.dwellDurations[i])
-        result[i] = all.length > 0 ? calculateAverage(all) : 0
+        let sum = 0
+        let count = 0
+        for (let p = 0; p < participantCount; p++) {
+          const durations = metrics[p].dwellDurations[i]
+          for (let d = 0; d < durations.length; d++) {
+            sum += durations[d]
+            count++
+          }
+        }
+        result[i] = count > 0 ? sum / count : 0
       }
       return result
+    }
 
     default:
       return result
@@ -160,35 +212,24 @@ export function createLabeledData(
   noAoiTreatment: { displayedName: string; color: string },
   aggregationMethod: string
 ): BarPlotDataItem[] {
-  return rawData.map((value, index) => {
-    const formattedValue = formatDecimal(value)
-    const isNoAoi = index === aois.length
+  const result: BarPlotDataItem[] = new Array(rawData.length)
 
+  for (let i = 0; i < rawData.length; i++) {
+    const value = rawData[i]
+    const isNoAoi = i === aois.length
+    const label = isNoAoi ? noAoiTreatment.displayedName : aois[i].displayedName
+    const color = isNoAoi ? noAoiTreatment.color : aois[i].color
+
+    // Special case for TTFF where 0 might mean "never looked" in some contexts,
+    // though the collector uses -1 for that. Here we stick to clean labels.
     if (aggregationMethod === 'timeToFirstFixation' && value === 0) {
-      const label = isNoAoi
-        ? noAoiTreatment.displayedName
-        : aois[index].displayedName
-      return {
-        value: 0,
-        label: `${label}`,
-        color: isNoAoi ? noAoiTreatment.color : aois[index].color,
-      }
+      result[i] = { value: 0, label, color }
+    } else {
+      result[i] = { value: formatDecimal(value), label, color }
     }
+  }
 
-    if (isNoAoi) {
-      return {
-        value: formattedValue,
-        label: noAoiTreatment.displayedName,
-        color: noAoiTreatment.color,
-      }
-    }
-
-    return {
-      value: formattedValue,
-      label: aois[index].displayedName,
-      color: aois[index].color,
-    }
-  })
+  return result
 }
 
 /**
@@ -211,10 +252,13 @@ export function createTimeline(
   rawData: number[],
   scaleRange?: [number, number]
 ): AdaptiveTimeline {
-  const maxValue = Math.max(
-    ...rawData.filter(val => !isNaN(val) && val !== -1),
-    0
-  )
+  let maxValue = 0
+  for (let i = 0; i < rawData.length; i++) {
+    const val = rawData[i]
+    if (!isNaN(val) && val > maxValue) {
+      maxValue = val
+    }
+  }
 
   let min = 0
   let max = maxValue
