@@ -1,4 +1,7 @@
-import { getParticipants, getParticipantEndTime } from '$lib/gaze-data/front-process/stores/dataStore'
+import {
+  getParticipants,
+  getParticipantEndTime,
+} from '$lib/gaze-data/front-process/stores/dataStore'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
 /**
@@ -30,7 +33,7 @@ export function scanForSynchronizedTimelineMax(
   // If current plot has any clipping, don't sync
   if (currentStart !== 0 || currentEnd !== 0) return null
 
-  // Filter relevant plots by width and type (currently limited to aoiStreamPlot as per original implementation)
+  // Filter relevant plots by width and type
   const candidates = items.filter(item => {
     if (item.type !== 'aoiStreamPlot') return false
     if (item.w !== targetWidth) return false

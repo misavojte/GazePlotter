@@ -1,7 +1,8 @@
-import type { AoiStreamPlotResult } from '../types'
-import { RIDGELINE_OVERLAP, calculateIdealStripHeight } from './ridgelineUtils'
+import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
+import { RIDGELINE_OVERLAP, Y_AXIS } from '../const'
+import { calculateIdealStripHeight } from './ridgeline'
 import { desaturateToWhite } from '$lib/shared/utils/colorUtils'
-import { computeNiceYAxis, niceStep, Y_AXIS } from './axis'
+import { computeNiceYAxis, niceStep } from './axis'
 
 export interface RenderBuckets {
   xPositions: Float32Array
@@ -176,7 +177,7 @@ export function transformStreamDataToCoordinates(
     yBase = floorBottom
   }
 
-  const seriesPaint = series.map((s, idx) => {
+  const seriesPaint = series.map((s: AoiStreamPlotSeries, idx: number) => {
     const isHighlighted = highlightMaskById?.get(s.id) ?? false
     const isDimmed = !!highlightMaskById && !isHighlighted
     const color = isDimmed ? desaturateToWhite(s.color, 0.85) : s.color

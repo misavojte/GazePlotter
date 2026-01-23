@@ -16,9 +16,11 @@ import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
 import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
 import { engine } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
 
-const DEFAULT_BIN_COUNT = 200
-const END_BIN_EPSILON = 1e-6
-const FIXATION_CATEGORY_ID = 0
+import {
+  DEFAULT_BIN_COUNT,
+  END_BIN_EPSILON,
+  FIXATION_CATEGORY_ID,
+} from '../const'
 
 export function getAoiStreamPlotData(
   settings: Pick<

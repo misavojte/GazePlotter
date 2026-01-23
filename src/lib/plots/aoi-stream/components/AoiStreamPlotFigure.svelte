@@ -50,17 +50,14 @@
     formatAxisTick,
   } from '$lib/plots/shared/axisUtils'
   import { safeNumber } from '$lib/shared/utils/mathUtils'
+  import { Y_AXIS, AXIS_CONFIG } from '../const'
   import {
-    Y_AXIS,
-    AXIS_CONFIG,
     drawCatmullRom,
     ensureRenderBuckets,
     transformStreamDataToCoordinates,
     type RenderBuckets,
   } from '../core'
   import type { AoiStreamPlotResult } from '../types'
-
-  const RIDGELINE_OVERLAP = 0.6
 
   const X_AXIS_LABEL = getXAxisLabel('absolute')
   const X_AXIS_LABEL_OFFSET = 24

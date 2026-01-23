@@ -1,4 +1,4 @@
-export const FLOW_CURVE_TENSION = 0
+import { FLOW_CURVE_TENSION } from '../const'
 
 export function drawCatmullRom(
   ctx: CanvasRenderingContext2D,

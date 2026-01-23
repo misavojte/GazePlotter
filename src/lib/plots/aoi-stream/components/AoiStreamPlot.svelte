@@ -16,11 +16,11 @@
     getStimuliOptions,
     getParticipantsGroupOptions,
   } from '$lib/plots/shared'
+  import { getAoiStreamPlotData } from '../core'
   import {
-    getAoiStreamPlotData,
     scanForDynamicStripHeight,
     scanForSynchronizedTimelineMax,
-  } from '../core'
+  } from '../sync'
   import {
     getParticipants,
     getParticipantEndTime,

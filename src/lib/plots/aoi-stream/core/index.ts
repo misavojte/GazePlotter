@@ -1,6 +1,5 @@
 export * from './axis'
 export * from './path'
 export * from './transformer'
-export * from './ridgelineUtils'
-export * from './timelineUtils'
+export * from './ridgeline'
 export * from './data'
