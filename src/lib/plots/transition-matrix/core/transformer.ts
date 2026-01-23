@@ -4,7 +4,7 @@ import {
   getData,
 } from '$lib/gaze-data/front-process/stores/dataStore'
 import { formatDecimal } from '$lib/shared/utils/mathUtils'
-import { AggregationMethod } from '../const'
+import { MatrixAggregationMethod } from '../const'
 import type { TransitionMatrixData } from '../types'
 import { collectTransitionMetrics } from './collector'
 
@@ -14,7 +14,7 @@ import { collectTransitionMetrics } from './collector'
 export function getTransitionMatrixData(
   stimulusId: number,
   groupId: number,
-  aggregationMethod: AggregationMethod
+  aggregationMethod: MatrixAggregationMethod
 ): TransitionMatrixData {
   const participants = getParticipants(groupId, stimulusId)
   const participantIds = participants.map(p => p.id)
@@ -36,7 +36,7 @@ export function getTransitionMatrixData(
   }
 
   const collectMode =
-    aggregationMethod === AggregationMethod.SEGMENT_DWELL_TIME
+    aggregationMethod === MatrixAggregationMethod.SEGMENT_DWELL_TIME
       ? 'visit'
       : 'fixation'
   const metrics = collectTransitionMetrics(
@@ -49,29 +49,29 @@ export function getTransitionMatrixData(
   let matrix: Float64Array
 
   switch (aggregationMethod) {
-    case AggregationMethod.FREQUENCY_RELATIVE:
+    case MatrixAggregationMethod.FREQUENCY_RELATIVE:
       matrix = transformToRelativeFrequency(
         metrics.sumMatrix,
         metrics.totalTransitions
       )
       break
-    case AggregationMethod.PROBABILITY:
+    case MatrixAggregationMethod.PROBABILITY:
       matrix = transformToProbability(metrics.sumMatrix, size)
       break
-    case AggregationMethod.PROBABILITY_2:
+    case MatrixAggregationMethod.PROBABILITY_2:
       matrix = transformToKStepProbability(metrics.sumMatrix, size, 2)
       break
-    case AggregationMethod.PROBABILITY_3:
+    case MatrixAggregationMethod.PROBABILITY_3:
       matrix = transformToKStepProbability(metrics.sumMatrix, size, 3)
       break
-    case AggregationMethod.DWELL_TIME:
-    case AggregationMethod.SEGMENT_DWELL_TIME:
+    case MatrixAggregationMethod.DWELL_TIME:
+    case MatrixAggregationMethod.SEGMENT_DWELL_TIME:
       matrix = transformToAverageDwellTime(
         metrics.dwellTimeMatrix,
         metrics.dwellCountMatrix
       )
       break
-    case AggregationMethod.SUM:
+    case MatrixAggregationMethod.SUM:
     default:
       matrix = metrics.sumMatrix
       break

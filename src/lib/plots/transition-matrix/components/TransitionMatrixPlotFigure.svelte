@@ -28,16 +28,11 @@
     EXPORT_SOURCE_CONTEXT,
     type ExportSourceRegistrar,
   } from '$lib/shared/utils/exportUtils'
+  import {
+    TRANSITION_MATRIX_LAYOUT,
+    TRANSITION_MATRIX_DEFAULTS,
+  } from '../const'
 
-  // SVG layout constants - minimal but not zero to ensure spacing
-  const BASE_LABEL_OFFSET = 5
-  const TOP_MARGIN = 30 // Increased to ensure "To AOI" label is visible
-  const LEFT_MARGIN = 30 // Increased to ensure "From AOI" label is visible
-  const MIN_CELL_SIZE = 20 // Minimum cell size in pixels
-  const MAX_LABEL_LENGTH = 85 // Maximum width of the label in pixels
-
-  // Default color for inactive/filtered cells
-  const DEFAULT_INACTIVE_COLOR = '#e0e0e0' // Light gray
   /**
    * Props for the Transition Matrix Plot
    * @param TransitionMatrix - 2D array where:
@@ -67,15 +62,15 @@
   let {
     TransitionMatrix = new Float64Array(0),
     aoiLabels = [],
-    height = 500,
-    width = 500,
-    colorScale = ['#f7fbff', '#08306b'],
-    xLabel = 'To AOI',
-    yLabel = 'From AOI',
+    height = TRANSITION_MATRIX_DEFAULTS.height,
+    width = TRANSITION_MATRIX_DEFAULTS.width,
+    colorScale = [...TRANSITION_MATRIX_DEFAULTS.colorScale],
+    xLabel = TRANSITION_MATRIX_DEFAULTS.xLabel,
+    yLabel = TRANSITION_MATRIX_DEFAULTS.yLabel,
     legendTitle = 'Transition Count',
     colorValueRange = [0, 0],
-    belowMinColor = DEFAULT_INACTIVE_COLOR,
-    aboveMaxColor = DEFAULT_INACTIVE_COLOR,
+    belowMinColor = TRANSITION_MATRIX_DEFAULTS.inactiveColor,
+    aboveMaxColor = TRANSITION_MATRIX_DEFAULTS.inactiveColor,
     showBelowMinLabels = false,
     showAboveMaxLabels = false,
     onValueClick = () => {},
@@ -158,12 +153,12 @@
   const layout = $derived.by(() => {
     // 1. Initial cell size estimate for font scaling
     const aoiCount = aoiLabels.length
-    const estYSpace = MAX_LABEL_LENGTH + 40
-    const estXSpace = MAX_LABEL_LENGTH + 40
+    const estYSpace = TRANSITION_MATRIX_LAYOUT.maxLabelLength + 40
+    const estXSpace = TRANSITION_MATRIX_LAYOUT.maxLabelLength + 40
     const estLegSpace = 50
 
     const preCellSize = Math.max(
-      MIN_CELL_SIZE,
+      TRANSITION_MATRIX_LAYOUT.minCellSize,
       Math.min(
         (width - estYSpace - marginLeft - marginRight) / Math.max(1, aoiCount),
         (height - estXSpace - marginTop - marginBottom - estLegSpace) /
@@ -177,12 +172,21 @@
 
     // Calculate label offset based on actually used labels
     const offset = Math.min(
-      MAX_LABEL_LENGTH,
-      calculateLabelOffset(aoiLabels, fontSize, BASE_LABEL_OFFSET)
+      TRANSITION_MATRIX_LAYOUT.maxLabelLength,
+      calculateLabelOffset(
+        aoiLabels,
+        fontSize,
+        TRANSITION_MATRIX_LAYOUT.baseLabelOffset
+      )
     )
 
-    const yAxisSpace = LEFT_MARGIN + offset + axisLabelMargin + marginLeft
-    const xAxisSpace = TOP_MARGIN + offset + axisLabelMargin + marginTop
+    const yAxisSpace =
+      TRANSITION_MATRIX_LAYOUT.leftMargin +
+      offset +
+      axisLabelMargin +
+      marginLeft
+    const xAxisSpace =
+      TRANSITION_MATRIX_LAYOUT.topMargin + offset + axisLabelMargin + marginTop
     const legendSpace = 50 + marginBottom
 
     const availableWidth = width - yAxisSpace - marginRight
@@ -190,9 +194,9 @@
 
     const cellSize =
       aoiCount === 0
-        ? MIN_CELL_SIZE
+        ? TRANSITION_MATRIX_LAYOUT.minCellSize
         : Math.max(
-            MIN_CELL_SIZE,
+            TRANSITION_MATRIX_LAYOUT.minCellSize,
             Math.min(availableWidth / aoiCount, availableHeight / aoiCount)
           )
 
@@ -330,7 +334,7 @@
       // Truncate text if needed
       const labelText = truncateTextToPixelWidth(
         aoiLabels[row],
-        MAX_LABEL_LENGTH,
+        TRANSITION_MATRIX_LAYOUT.maxLabelLength,
         labelFontSize,
         SYSTEM_SANS_SERIF_STACK,
         '...'
@@ -358,7 +362,7 @@
       ctx.fillText(
         truncateTextToPixelWidth(
           aoiLabels[col],
-          MAX_LABEL_LENGTH * 1.5,
+          TRANSITION_MATRIX_LAYOUT.maxLabelLength * 1.5,
           labelFontSize,
           SYSTEM_SANS_SERIF_STACK,
           '...'

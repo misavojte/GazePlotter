@@ -17,7 +17,11 @@
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { getTransitionMatrixData } from '$lib/plots/transition-matrix/core/transformer'
-  import { AggregationMethod } from '$lib/plots/transition-matrix/const'
+  import {
+    MatrixAggregationMethod,
+    TRANSITION_MATRIX_LAYOUT,
+    TRANSITION_MATRIX_LEGEND_TITLES,
+  } from '$lib/plots/transition-matrix/const'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import {
     getStimuliOptions,
@@ -29,33 +33,26 @@
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
   import type { WorkspaceCommand } from '$lib/workspace/commands'
 
-  const LAYOUT = {
-    headerHeight: 150,
-    horizontalPadding: 50,
-  }
-
-  // Constant lookup for legend titles (moved out of component instance)
-  const LEGEND_TITLES: Record<string, string> = {
-    [AggregationMethod.SUM]: 'Absolute frequency',
-    [AggregationMethod.FREQUENCY_RELATIVE]: 'Relative frequency %',
-    [AggregationMethod.PROBABILITY]: '1-step probability (%)',
-    [AggregationMethod.PROBABILITY_2]: '2-step probability (%)',
-    [AggregationMethod.PROBABILITY_3]: '3-step probability (%)',
-    [AggregationMethod.DWELL_TIME]: 'Fixation duration (ms)',
-    [AggregationMethod.SEGMENT_DWELL_TIME]: 'Dwell duration (ms)',
-  }
-
   const AGGREGATION_OPTIONS = [
-    { value: AggregationMethod.SUM, label: 'Absolute frequency' },
+    { value: MatrixAggregationMethod.SUM, label: 'Absolute frequency' },
     {
-      value: AggregationMethod.FREQUENCY_RELATIVE,
+      value: MatrixAggregationMethod.FREQUENCY_RELATIVE,
       label: 'Relative frequency',
     },
-    { value: AggregationMethod.PROBABILITY, label: '1-step probability' },
-    { value: AggregationMethod.PROBABILITY_2, label: '2-step probability' },
-    { value: AggregationMethod.PROBABILITY_3, label: '3-step probability' },
-    { value: AggregationMethod.DWELL_TIME, label: 'Fixation duration' },
-    { value: AggregationMethod.SEGMENT_DWELL_TIME, label: 'Dwell duration' },
+    { value: MatrixAggregationMethod.PROBABILITY, label: '1-step probability' },
+    {
+      value: MatrixAggregationMethod.PROBABILITY_2,
+      label: '2-step probability',
+    },
+    {
+      value: MatrixAggregationMethod.PROBABILITY_3,
+      label: '3-step probability',
+    },
+    { value: MatrixAggregationMethod.DWELL_TIME, label: 'Fixation duration' },
+    {
+      value: MatrixAggregationMethod.SEGMENT_DWELL_TIME,
+      label: 'Dwell duration',
+    },
   ]
 
   interface Props {
@@ -80,7 +77,7 @@
       settings.w,
       settings.h,
       DEFAULT_GRID_CONFIG,
-      LAYOUT.headerHeight
+      TRANSITION_MATRIX_LAYOUT.headerHeight
     )
   )
 
@@ -90,7 +87,7 @@
     return getTransitionMatrixData(
       settings.stimulusId,
       settings.groupId,
-      settings.aggregationMethod as AggregationMethod
+      settings.aggregationMethod as MatrixAggregationMethod
     )
   })
 
@@ -144,7 +141,9 @@
       options: AGGREGATION_OPTIONS,
       value: settings.aggregationMethod,
       onchange: (e: CustomEvent) =>
-        updateSettings({ aggregationMethod: e.detail as AggregationMethod }),
+        updateSettings({
+          aggregationMethod: e.detail as MatrixAggregationMethod,
+        }),
     },
   ])
 
@@ -171,7 +170,7 @@
 
 <BasePlot
   {settings}
-  layoutConfig={LAYOUT}
+  layoutConfig={TRANSITION_MATRIX_LAYOUT}
   hasData={settings?.stimulusId !== undefined && aoiLabels.length > 0}
   dimensions={plotDimensions}
 >
@@ -200,8 +199,9 @@
         colorScale={settings.colorScale}
         xLabel="To AOI"
         yLabel="From AOI"
-        legendTitle={LEGEND_TITLES[settings.aggregationMethod] ??
-          'Transition Value'}
+        legendTitle={TRANSITION_MATRIX_LEGEND_TITLES[
+          settings.aggregationMethod
+        ] ?? 'Transition Value'}
         colorValueRange={currentStimulusColorRange}
         belowMinColor={settings.belowMinColor}
         aboveMaxColor={settings.aboveMaxColor}
