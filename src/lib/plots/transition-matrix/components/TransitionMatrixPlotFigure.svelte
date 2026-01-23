@@ -35,6 +35,7 @@
     computeGradientLegendGeometry,
     drawGradientLegend,
     hitTestGradientLegend,
+    drawPlotOutline,
   } from '$lib/plots/shared'
 
   /**
@@ -251,16 +252,18 @@
     const cellSize =
       aoiCount === 0
         ? TRANSITION_MATRIX_LAYOUT.minCellSize
-        : Math.max(
-            TRANSITION_MATRIX_LAYOUT.minCellSize,
-            Math.min(availableWidth / aoiCount, availableHeight / aoiCount)
+        : Math.floor(
+            Math.max(
+              TRANSITION_MATRIX_LAYOUT.minCellSize,
+              Math.min(availableWidth / aoiCount, availableHeight / aoiCount)
+            )
           )
 
     const gridWidth = cellSize * aoiCount
     const gridHeight = cellSize * aoiCount
 
-    const xOffset = yAxisSpace + ((availableWidth - gridWidth) >> 1)
-    const yOffset = xAxisSpace
+    const xOffset = Math.floor(yAxisSpace + ((availableWidth - gridWidth) >> 1))
+    const yOffset = Math.floor(xAxisSpace)
 
     // 5. IMPROVEMENT: Dynamic thinning for axis labels (indices)
     let thinFactor = 1
@@ -365,6 +368,15 @@
 
     // Draw the matrix cells
     drawCells(ctx)
+
+    // Draw the plot area border
+    drawPlotOutline(
+      ctx,
+      layout.xOffset,
+      layout.yOffset,
+      layout.gridWidth,
+      layout.gridHeight
+    )
 
     // Draw the legend
     drawLegend(ctx)
