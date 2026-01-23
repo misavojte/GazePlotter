@@ -1095,29 +1095,9 @@
   })
 </script>
 
-<div class="canvas-container">
-  <canvas
-    bind:this={canvas}
-    onmousemove={handleMouseMove}
-    onmouseleave={handleMouseLeave}
-    onmousedown={handleMouseDown}
-  ></canvas>
-</div>
-
-<style>
-  .canvas-container {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    max-width: 100%;
-    max-height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: visible; /* Important to prevent cropping */
-  }
-
-  canvas {
-    display: block; /* Do not add 100% width and height here! It might mess up with the export and so on */
-  }
-</style>
+<canvas
+  bind:this={canvas}
+  onmousemove={handleMouseMove}
+  onmouseleave={handleMouseLeave}
+  onmousedown={handleMouseDown}
+></canvas>

@@ -21,6 +21,7 @@
     getParticipants,
     getParticipantEndTime,
   } from '$lib/gaze-data/front-process/stores/dataStore'
+  import { engine } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
 
   import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
   import type { AoiStreamPlotResult } from '$lib/plots/aoi-stream/types'
@@ -179,6 +180,7 @@
   $effect(() => {
     redrawTimestamp // reactive dependency
     timelineMaxValue // reactive dependency for synchronized timeline
+    engine.metadata // reactive dependency for AOI visibility/grouping
     untrack(() => {
       streamResult = getAoiStreamPlotData({
         ...settings,

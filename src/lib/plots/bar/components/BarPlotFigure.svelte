@@ -683,23 +683,9 @@
   })
 </script>
 
-<div class="plot-container">
-  <canvas
-    bind:this={canvas}
-    onmousemove={handleMouseMove}
-    onmouseleave={handleMouseLeave}
-    aria-label="Bar plot visualization"
-  ></canvas>
-</div>
-
-<style>
-  .plot-container {
-    position: relative;
-    width: 100%;
-    height: 100%;
-  }
-
-  canvas {
-    display: block;
-  }
-</style>
+<canvas
+  bind:this={canvas}
+  onmousemove={handleMouseMove}
+  onmouseleave={handleMouseLeave}
+  aria-label="Bar plot visualization"
+></canvas>

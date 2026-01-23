@@ -19,9 +19,9 @@ export const data = writable<DataType>()
 // Initialize the engine when data is loaded
 data.subscribe($data => {
   if ($data) {
-    engine.loadDataset($data);
+    engine.loadDataset($data)
   }
-});
+})
 
 // ============================================================================
 // PRIVATE MODULE-LEVEL STATE: The High-Performance Engine
@@ -144,6 +144,9 @@ export const hasValidData: Readable<boolean> = derived(data, $data => {
 
 // Basic data access functions
 export const getData = (): DataType => {
+  // Ensure reactivity in Svelte 5 by accessing the metadata rune
+  // This allows derived values calling getData() to track AOI visibility/group changes
+  const _ = engine.metadata
   return get(data)
 }
 
@@ -1110,95 +1113,95 @@ export const getSegments = (
   limit: number | null = null,
   offset: number = 0
 ): SegmentInterpretedDataType[] => {
-  const reader = engine.getReader();
-  if (!reader) return [];
+  const reader = engine.getReader()
+  if (!reader) return []
 
-  const range = reader.getSegmentRange(stimulusId, participantId);
-  const segmentCount = range.endIndex - range.startIndex;
+  const range = reader.getSegmentRange(stimulusId, participantId)
+  const segmentCount = range.endIndex - range.startIndex
 
   // Early returns for empty data
-  if (segmentCount === 0) return [];
-  if (limit === 0) return [];
-  if (offset >= segmentCount) return [];
+  if (segmentCount === 0) return []
+  if (limit === 0) return []
+  if (offset >= segmentCount) return []
 
-  const hidden = getHiddenAois(stimulusId);
-  const hiddenSet = hidden.length ? new Set<number>(hidden) : null;
+  const hidden = getHiddenAois(stimulusId)
+  const hiddenSet = hidden.length ? new Set<number>(hidden) : null
 
   // Pre-allocate result array
   const estimatedResultSize =
     limit !== null
       ? Math.min(segmentCount - offset, limit)
-      : segmentCount - offset;
-  const result: SegmentInterpretedDataType[] = [];
+      : segmentCount - offset
+  const result: SegmentInterpretedDataType[] = []
 
   // Pre-compute filter lookups
-  const categoryFilter = whereCategories ? new Set(whereCategories) : null;
-  const aoiFilter = whereAois ? new Set(whereAois) : null;
+  const categoryFilter = whereCategories ? new Set(whereCategories) : null
+  const aoiFilter = whereAois ? new Set(whereAois) : null
 
-  // SHARED BUFFER optimization: Use one Set for the whole loop 
+  // SHARED BUFFER optimization: Use one Set for the whole loop
   // instead of creating thousands of Sets.
-  const uniqueAois = new Set<number>();
+  const uniqueAois = new Set<number>()
 
-  let resultCount = 0;
+  let resultCount = 0
   const processTo = Math.min(
     range.endIndex,
     range.startIndex + offset + (limit ?? segmentCount)
-  );
+  )
 
   for (
     let i = range.startIndex + offset;
     i < processTo && (limit === null || resultCount < limit);
     i++
   ) {
-    const categoryId = reader.getSegmentCategory(i);
+    const categoryId = reader.getSegmentCategory(i)
 
     // Fast category filter check
     if (categoryFilter && !categoryFilter.has(categoryId)) {
-      continue;
+      continue
     }
 
     // Get raw AOI IDs as subarray view (zero allocation)
-    const rawIds = reader.getRawAois(i);
+    const rawIds = reader.getRawAois(i)
 
     // Process AOI filter if needed
     if (aoiFilter) {
-      let hasMatchingAoi = false;
+      let hasMatchingAoi = false
       for (let j = 0; j < rawIds.length; j++) {
-        const rawId = rawIds[j];
-        if (hiddenSet && hiddenSet.has(rawId)) continue;
-        const mappedId = engine.getAoiMapping(stimulusId, rawId);
+        const rawId = rawIds[j]
+        if (hiddenSet && hiddenSet.has(rawId)) continue
+        const mappedId = engine.getAoiMapping(stimulusId, rawId)
         if (aoiFilter.has(mappedId)) {
-          hasMatchingAoi = true;
-          break;
+          hasMatchingAoi = true
+          break
         }
       }
 
       if (!hasMatchingAoi) {
-        continue;
+        continue
       }
     }
 
     // At this point, segment passed all filters
-    const start = reader.getSegmentStart(i);
-    const end = reader.getSegmentEnd(i);
+    const start = reader.getSegmentStart(i)
+    const end = reader.getSegmentEnd(i)
 
     // Clear and reuse the shared Set
-    uniqueAois.clear();
+    uniqueAois.clear()
 
     // Map and deduplicate AOI IDs
     for (let j = 0; j < rawIds.length; j++) {
-      const rawId = rawIds[j];
-      if (hiddenSet && hiddenSet.has(rawId)) continue;
-      const mappedId = engine.getAoiMapping(stimulusId, rawId);
-      uniqueAois.add(mappedId);
+      const rawId = rawIds[j]
+      if (hiddenSet && hiddenSet.has(rawId)) continue
+      const mappedId = engine.getAoiMapping(stimulusId, rawId)
+      uniqueAois.add(mappedId)
     }
 
     // Convert to AOI objects
     const aoi = Array.from(uniqueAois).map(aoiId =>
       getAoiRaw(stimulusId, aoiId, getData())
-    );
+    )
 
-    const category = getCategory(categoryId);
+    const category = getCategory(categoryId)
 
     result.push({
       id: i - range.startIndex, // Relative segment ID
@@ -1206,12 +1209,12 @@ export const getSegments = (
       end,
       aoi,
       category,
-    });
+    })
 
-    resultCount++;
+    resultCount++
   }
 
-  return result;
+  return result
 }
 
 export const updateMultipleParticipants = (

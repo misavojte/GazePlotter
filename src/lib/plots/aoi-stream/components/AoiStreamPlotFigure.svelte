@@ -484,14 +484,20 @@
       const standardDenom = n - (n - 1) * RIDGELINE_OVERLAP
       const standardHeight = floorHeight / standardDenom
 
+      // Always calculate local height with minTopHeight constraint
+      const localHeight = calculateIdealStripHeight(data, floorHeight, true)
+
       if (
         stripHeightOverride !== null &&
         Number.isFinite(stripHeightOverride) &&
         stripHeightOverride > 0
       ) {
-        stripHeight = stripHeightOverride
+        // Use the minimum of sync and local to satisfy BOTH constraints:
+        // - Sync ensures visual consistency across plots
+        // - Local ensures minTopHeight buffer is respected
+        stripHeight = Math.min(stripHeightOverride, localHeight)
       } else {
-        stripHeight = calculateIdealStripHeight(data, floorHeight)
+        stripHeight = localHeight
       }
     }
 
@@ -681,9 +687,9 @@
           ctx.closePath()
           ctx.clip()
 
-          // Now draw the current (underlying) series in white/pale
-          // We use a high desaturation to make it a "ghost" of the original
-          ctx.fillStyle = '#ffffff'
+          // Use the covering series' color for the "ghost" of the underlying series
+          // This creates a relief effect using the front ridge's own palette
+          ctx.fillStyle = desaturateToWhite(series[cover].color, 0.3)
           ctx.beginPath()
           ctx.moveTo(xPositions[0], currentBucket.topY[0])
           drawCatmullRom(xPositions, currentBucket.topY, true)
@@ -737,7 +743,15 @@
       const centerY = floorTop + floorHeight / 2
 
       // Scale: 100% = stripHeight * 0.9
-      const scaleHeight = stripHeight * 0.9
+      let scaleHeight = stripHeight * 0.9
+      let scaleMaxValue = 100
+
+      // Adaptive scaling: halve until it fits the plot area
+      while (scaleHeight > floorHeight && scaleMaxValue > 1) {
+        scaleHeight /= 2
+        scaleMaxValue /= 2
+      }
+
       const scaleTop = centerY - scaleHeight / 2
       const scaleBottom = centerY + scaleHeight / 2
 
@@ -755,7 +769,7 @@
       // Labels
       const tickLabelX = tickXStart - 3
       ctx.fillText('0', tickLabelX, scaleBottom)
-      ctx.fillText('100', tickLabelX, scaleTop)
+      ctx.fillText(scaleMaxValue.toString(), tickLabelX, scaleTop)
 
       // Scale bar
       ctx.beginPath()
@@ -1123,21 +1137,5 @@
   })
 </script>
 
-<div class="plot-container">
-  <canvas
-    bind:this={canvas}
-    aria-label="Time-binned AOI Occupancy visualization"
-  ></canvas>
-</div>
-
-<style>
-  .plot-container {
-    position: relative;
-    width: 100%;
-    height: 100%;
-  }
-
-  canvas {
-    display: block;
-  }
-</style>
+<canvas bind:this={canvas} aria-label="Time-binned AOI Occupancy visualization"
+></canvas>
