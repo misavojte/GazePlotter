@@ -752,13 +752,13 @@
         scaleMaxValue /= 2
       }
 
-      const scaleTop = centerY - scaleHeight / 2
-      const scaleBottom = centerY + scaleHeight / 2
+      const scaleTop = alignToPixelCenter(centerY - scaleHeight / 2)
+      const scaleBottom = alignToPixelCenter(centerY + scaleHeight / 2)
 
-      // Position at the standard axis line (plotLeft)
-      const scaleX = floorLeft - 10
+      // Position at the standard axis line (plotLeft), moved 5px right
+      const scaleX = alignToPixelCenter(floorLeft - 5)
       const tickLength = 5
-      const tickXStart = scaleX - tickLength
+      const tickXStart = alignToPixelCenter(scaleX - tickLength)
 
       ctx.save()
       ctx.textAlign = 'right'
@@ -773,8 +773,8 @@
 
       // Scale bar
       ctx.beginPath()
-      ctx.strokeStyle = AXIS_CONFIG.color
-      ctx.lineWidth = 0.5
+      ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
+      ctx.lineWidth = 1
       ctx.moveTo(scaleX, scaleBottom)
       ctx.lineTo(scaleX, scaleTop)
 
