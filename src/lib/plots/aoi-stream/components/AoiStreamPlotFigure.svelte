@@ -52,7 +52,7 @@
     drawPlotOutline,
   } from '$lib/plots/shared/axisUtils'
   import { safeNumber } from '$lib/shared/utils/mathUtils'
-  import { Y_AXIS, AXIS_CONFIG } from '../const'
+  import { Y_AXIS, AXIS_CONFIG, MARGIN as AOI_MARGIN } from '../const'
   import {
     drawCatmullRom,
     transformStreamDataToCoordinates,
@@ -123,12 +123,7 @@
     return mask
   })
 
-  const MARGIN = {
-    TOP: 5,
-    RIGHT: 1, // Space for gridline stroke at right edge
-    BOTTOM: 55,
-    LEFT: 50,
-  }
+  const MARGIN = AOI_MARGIN
 
   // Memoized safe values (compute once per change)
   const safeWidth = $derived(Math.max(1, safeNumber(width, 1)))

@@ -25,6 +25,7 @@
     getParticipants,
     getParticipantEndTime,
   } from '$lib/gaze-data/front-process/stores/dataStore'
+  import { HEADER_HEIGHT } from '../const'
   import { engine } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
 
   import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
@@ -35,7 +36,7 @@
   import { grid } from '$lib/workspace/grid/store.svelte'
 
   const LAYOUT = {
-    headerHeight: 150,
+    headerHeight: HEADER_HEIGHT,
   }
 
   interface Props {

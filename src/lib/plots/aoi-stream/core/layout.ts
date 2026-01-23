@@ -158,13 +158,12 @@ export function transformStreamDataToCoordinates(
     axisTicks = [0, 100]
     yAxisMin = 0
     yAxisMax = 100
-    const localHeight = calculateIdealStripHeight(data, floorHeight, true)
     stripHeight =
       stripHeightOverride !== null &&
       Number.isFinite(stripHeightOverride) &&
       stripHeightOverride > 0
-        ? Math.min(stripHeightOverride, localHeight)
-        : localHeight
+        ? stripHeightOverride
+        : calculateIdealStripHeight(data, floorHeight, true)
   }
 
   let scaleY = 1

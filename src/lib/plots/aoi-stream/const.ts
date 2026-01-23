@@ -7,8 +7,8 @@ import {
 export const RIDGELINE_OVERLAP = 0.6
 
 export const MARGIN = {
-  TOP: 20,
-  RIGHT: 0,
+  TOP: 5,
+  RIGHT: 1,
   BOTTOM: 55,
   LEFT: 50,
 }

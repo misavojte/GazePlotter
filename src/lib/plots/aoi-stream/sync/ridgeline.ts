@@ -123,14 +123,13 @@ export function scanForDynamicStripHeight(
 
     const legendHeight = calculateFlatLegendHeight(
       seriesCount,
-      plotAreaWidthBeforeLegend,
+      safeWidth,
       STREAM_LEGEND_CONFIG,
       maxTextWidth
     )
 
-    const plotAreaHeight = Math.max(
-      0,
-      safeHeight - MARGIN.TOP - MARGIN.BOTTOM - legendHeight
+    const plotAreaHeight = Math.floor(
+      Math.max(0, safeHeight - MARGIN.TOP - MARGIN.BOTTOM - legendHeight)
     )
 
     candidateData.push({
@@ -152,7 +151,7 @@ export function scanForDynamicStripHeight(
   if (matchingCandidates.length < 2) return null
 
   const idealHeights = matchingCandidates.map(c => {
-    return calculateIdealStripHeight(c.streamData, c.plotAreaHeight)
+    return calculateIdealStripHeight(c.streamData, c.plotAreaHeight, true)
   })
 
   return Math.min(...idealHeights)
