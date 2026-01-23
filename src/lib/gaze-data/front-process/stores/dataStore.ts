@@ -24,102 +24,8 @@ data.subscribe($data => {
 })
 
 // ============================================================================
-// PRIVATE MODULE-LEVEL STATE: The High-Performance Engine
+// PRIVATE MODULE-LEVEL STATE: The High-Performance Engine (Delegated to DataEngine)
 // ============================================================================
-// These caches are never exposed directly; they're only accessed by the exported
-// functions below. They are updated exactly once per data change via a single
-// subscription, eliminating the "Reactivity Trap" of derived stores.
-
-let _reader: BinaryBufferReader | null = null
-let _mappingArray: Uint16Array = new Uint16Array(0)
-let _aoiCounts: Uint16Array = new Uint16Array(0)
-let _stimuliCount: number = 0
-
-/**
- * Single manual subscription to update the high-performance cache.
- * This runs exactly once when new data is loaded into the store.
- *
- * This replaces the previous derived stores (fastAoiIdMappings, aoiIdMappings)
- * with a direct, non-reactive update mechanism that eliminates unnecessary re-calculations.
- */
-data.subscribe($data => {
-  if (!$data) return
-
-  const stimuliCount = Math.min($data.stimuli.data.length, MAX_STIMULUS)
-  _stimuliCount = stimuliCount
-
-  // Initialize reader for segment data
-  _reader = new BinaryBufferReader($data.segments)
-
-  // Create a single TypedArray for all mappings
-  // Size: stimuliCount * MAX_AOI_PER_STIMULUS entries
-  const array = new Uint16Array(stimuliCount * MAX_AOI_PER_STIMULUS)
-
-  // Track AOI counts per stimulus for bounds checking
-  const counts = new Uint16Array(stimuliCount)
-
-  // Initialize with identity mapping (each AOI maps to itself)
-  array.fill(0xffff) // Use 0xFFFF (65535) as sentinel for "no mapping"
-
-  // Process each stimulus
-  for (let stimulusId = 0; stimulusId < stimuliCount; stimulusId++) {
-    try {
-      // Get all AOIs for this stimulus
-      const aois = getAoisRawFromData(stimulusId, $data)
-      const hidden = getHiddenAoisFromData(stimulusId, $data)
-      const hiddenSet = hidden.length ? new Set<number>(hidden) : null
-      counts[stimulusId] = aois.length
-
-      // Skip if no AOIs for this stimulus
-      if (!aois.length) continue
-
-      // First pass: find first occurrence of each displayed name
-      const nameToFirstId = new Map<string, number>()
-
-      for (const aoi of aois) {
-        if (hiddenSet && hiddenSet.has(aoi.id)) continue
-        if (
-          !nameToFirstId.has(aoi.displayedName) &&
-          aoi.displayedName.trim() !== ''
-        ) {
-          nameToFirstId.set(aoi.displayedName, aoi.id)
-        }
-      }
-
-      // Calculate offset for this stimulus in the flat array
-      const offset = stimulusId * MAX_AOI_PER_STIMULUS
-
-      // Second pass: populate the mapping array
-      for (const aoi of aois) {
-        if (hiddenSet && hiddenSet.has(aoi.id)) {
-          array[offset + aoi.id] = aoi.id
-          continue
-        }
-        if (
-          aoi.displayedName.trim() !== '' &&
-          nameToFirstId.has(aoi.displayedName)
-        ) {
-          array[offset + aoi.id] = nameToFirstId.get(aoi.displayedName)!
-        } else {
-          array[offset + aoi.id] = aoi.id // Self-map for AOIs without grouping
-        }
-      }
-    } catch (e) {
-      // On error, use identity mapping (each AOI maps to itself)
-      const noOfAois = $data.aois.data[stimulusId]?.length || 0
-      counts[stimulusId] = noOfAois
-
-      const offset = stimulusId * MAX_AOI_PER_STIMULUS
-      for (let i = 0; i < noOfAois; i++) {
-        array[offset + i] = i
-      }
-    }
-  }
-
-  // "Commit" the new caches as a single atomic update
-  _mappingArray = array
-  _aoiCounts = counts
-})
 
 /**
  * A derived store that checks if the data store contains valid, non-empty data.
@@ -229,33 +135,17 @@ const getAoisRawFromData = (
 }
 
 /**
- * BACKWARD COMPATIBLE AOI ID MAPPING (No Derived Store)
+ * BACKWARD COMPATIBLE AOI ID MAPPING (Delegated to DataEngine)
  *
- * This function now performs a direct, non-reactive memory read from the private
- * _mappingArray cache. Zero overhead, zero derived store overhead.
+ * This function now performs a direct, non-reactive memory read from the DataEngine
+ * interpretation cache. Zero overhead.
  *
  * @param stimulusId - The numeric ID of the stimulus
  * @param aoiId - The original AOI ID
  * @returns The mapped (representative) AOI ID, or the original ID if no mapping exists
  */
 export const getAoiIdMapping = (stimulusId: number, aoiId: number): number => {
-  // Bounds checking for maximum performance
-  if (
-    stimulusId < 0 ||
-    stimulusId >= _stimuliCount ||
-    aoiId < 0 ||
-    aoiId >= _aoiCounts[stimulusId] ||
-    aoiId >= MAX_AOI_PER_STIMULUS
-  ) {
-    return aoiId // Return identity mapping for out-of-bounds indices
-  }
-
-  // Direct index calculation for O(1) access
-  const index = stimulusId * MAX_AOI_PER_STIMULUS + aoiId
-  const mappedId = _mappingArray[index]
-
-  // Check for sentinel value (no mapping)
-  return mappedId === 0xffff ? aoiId : mappedId
+  return engine.getAoiMapping(stimulusId, aoiId)
 }
 
 // Public API functions
@@ -407,8 +297,7 @@ export const getStimulusHighestEndTime = (stimulusIndex: number): number => {
 
 /**
  * Get the end time of the last segment for a participant on a stimulus.
- * Uses the global cached _reader for optimal performance.
- * No object allocations, no new readers created.
+ * Uses the DataEngine cached reader for optimal performance.
  *
  * @param stimulusIndex ID of the stimulus
  * @param particIndex ID of the participant
@@ -418,10 +307,10 @@ export const getParticipantEndTime = (
   stimulusIndex: number,
   particIndex: number
 ): number => {
-  // Use the global cached reader to avoid creating a new BinaryBufferReader
-  if (!_reader) return 0
+  const reader = engine.getReader()
+  if (!reader) return 0
 
-  return _reader.getParticipantEndTime(stimulusIndex, particIndex)
+  return reader.getParticipantEndTime(stimulusIndex, particIndex)
 }
 
 export const getParticipant = (id: number): BaseInterpretedDataType => {
@@ -488,7 +377,8 @@ export const getNumberOfSegments = (
   stimulusId: number,
   participantId: number
 ): number => {
-  const reader = new BinaryBufferReader(getData().segments)
+  const reader = engine.getReader()
+  if (!reader) return 0
   return reader.getSegmentCount(stimulusId, participantId)
 }
 
@@ -623,15 +513,13 @@ export const getAoiVisibility = (
   // we need to merge visibility from all AOIs in the group
   if (mappedAoiId === aoiId) {
     // This is the representative AOI for a group
-    // Get all AOI IDs that map to this representative ID by scanning the cache
+    // Get all AOI IDs that map to this representative ID
     const mappedAoiIds: number[] = []
-    const offset = stimulusId * MAX_AOI_PER_STIMULUS
+    const aoiCount = getData().aois.data[stimulusId]?.length ?? 0
 
-    for (let id = 0; id < _aoiCounts[stimulusId]; id++) {
+    for (let id = 0; id < aoiCount; id++) {
       if (id === aoiId) continue // Skip the representative itself
-      const mappedValue = _mappingArray[offset + id]
-      const mappedId = mappedValue === 0xffff ? id : mappedValue
-      if (mappedId === mappedAoiId) {
+      if (getAoiIdMapping(stimulusId, id) === mappedAoiId) {
         mappedAoiIds.push(id)
       }
     }
@@ -659,8 +547,6 @@ export const getAoiVisibility = (
           allVisibilities.push(otherVisibility)
         }
       }
-
-      console.log('allVisibilities', allVisibilities)
 
       // If we have multiple visibility arrays to merge
       if (allVisibilities.length > 0) {

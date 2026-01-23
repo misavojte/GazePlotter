@@ -42,8 +42,10 @@
   function checkScrollable() {
     if (bodyElement) {
       const isScrollable = bodyElement.scrollHeight > bodyElement.clientHeight
-      const isScrolledToBottom = bodyElement.scrollTop + bodyElement.clientHeight >= bodyElement.scrollHeight - 5
-      
+      const isScrolledToBottom =
+        bodyElement.scrollTop + bodyElement.clientHeight >=
+        bodyElement.scrollHeight - 5
+
       if (isScrollable) {
         // If content is scrollable, show scroll indicator unless scrolled to bottom
         showScrollIndicator = !isScrolledToBottom
@@ -61,7 +63,7 @@
     // Store current scroll position
     const scrollY = window.scrollY
     const scrollX = window.scrollX
-    
+
     // Store original styles
     const originalOverflow = document.body.style.overflow
     const originalPosition = document.body.style.position
@@ -69,7 +71,7 @@
     const originalLeft = document.body.style.left
     const originalWidth = document.body.style.width
     const originalHeight = document.body.style.height
-    
+
     // Lock body scroll at current position
     document.body.style.overflow = 'hidden'
     document.body.style.position = 'fixed'
@@ -77,7 +79,7 @@
     document.body.style.left = `-${scrollX}px`
     document.body.style.width = '100%'
     document.body.style.height = '100%'
-    
+
     return () => {
       // Restore original styles
       document.body.style.overflow = originalOverflow
@@ -86,7 +88,7 @@
       document.body.style.left = originalLeft
       document.body.style.width = originalWidth
       document.body.style.height = originalHeight
-      
+
       // Restore scroll position
       window.scrollTo(scrollX, scrollY)
     }
@@ -97,12 +99,12 @@
     if (bodyElement && modal) {
       event.preventDefault()
       event.stopPropagation()
-      
+
       // Convert wheel event to scroll the modal content
       if (event instanceof WheelEvent) {
         const deltaY = event.deltaY
         const scrollAmount = deltaY * 0.5 // Adjust sensitivity
-        
+
         if (bodyElement.scrollHeight > bodyElement.clientHeight) {
           bodyElement.scrollTop += scrollAmount
         }
@@ -122,8 +124,10 @@
   onMount(() => {
     // Add event listeners
     window.addEventListener('keydown', handleKeydown, { passive: true })
-    document.addEventListener('fullscreenchange', handleFullscreenChange, { passive: true })
-    
+    document.addEventListener('fullscreenchange', handleFullscreenChange, {
+      passive: true,
+    })
+
     // Lock body scroll when modal opens
     if (modal) {
       unlockBodyScroll = lockBodyScroll()
@@ -136,7 +140,7 @@
       window.removeEventListener('keydown', handleKeydown)
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
       window.removeEventListener('wheel', handleWindowScroll)
-      
+
       // Unsubscribe from modal store
       unsubscribe()
 
@@ -163,6 +167,7 @@
 </script>
 
 {#if modal}
+  {@const currentModal = modal}
   <div
     class="modal-overlay"
     in:fade={{ duration: 200 }}
@@ -184,23 +189,33 @@
       out:scale={{ duration: 150, start: 0.8 }}
     >
       <div class="modal-header">
-        <h3 id="modal-title">{modal.title}</h3>
+        <h3 id="modal-title">{currentModal.title}</h3>
         <button onclick={handleClose} aria-label="Close modal">
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
       <div class="body" bind:this={bodyElement} onscroll={checkScrollable}>
-        <modal.component {...modal.props} />
+        <currentModal.component {...currentModal.props} />
       </div>
       <div class="modal-footer">
         {#if showScrollIndicator}
-          <div class="footer-content" in:fade={{ duration: 200 }} out:fade={{ duration: 150 }}>
+          <div
+            class="footer-content"
+            in:fade={{ duration: 200 }}
+            out:fade={{ duration: 150 }}
+          >
             <div class="scroll-indicator">↓</div>
             <span>Scroll down for more</span>
           </div>
         {:else if showVersionMessage}
-          <div class="footer-content" in:fade={{ duration: 200 }} out:fade={{ duration: 150 }}>
-            <span>GazePlotter {__APP_VERSION__} by Vojtechovska & Popelka, 2025</span>
+          <div
+            class="footer-content"
+            in:fade={{ duration: 200 }}
+            out:fade={{ duration: 150 }}
+          >
+            <span
+              >GazePlotter {__APP_VERSION__} by Vojtechovska & Popelka, 2025</span
+            >
           </div>
         {/if}
       </div>
@@ -238,19 +253,19 @@
     overflow: hidden;
     /* Google-like border */
     border: 1px solid #dadce0;
-    box-shadow: 
+    box-shadow:
       0 1px 2px 0 rgba(60, 64, 67, 0.3),
       0 1px 3px 1px rgba(60, 64, 67, 0.15),
       0 0 0 1px rgba(60, 64, 67, 0.05);
   }
-  
+
   @media (min-width: 768px) {
     .modal {
       max-width: calc(100vw - 4rem);
       max-height: calc(100vh - 4rem);
     }
   }
-  
+
   @media (min-width: 1024px) {
     .modal {
       max-width: calc(100vw - 6rem);
@@ -295,7 +310,7 @@
     flex: 1;
     min-height: 0;
   }
-  
+
   .modal-footer {
     padding: 0.5rem 1.25rem;
     border-top: 1px solid var(--c-midgrey);
@@ -309,7 +324,7 @@
     display: flex;
     align-items: center;
   }
-  
+
   .footer-content {
     position: absolute;
     left: 1.25rem;
@@ -317,7 +332,7 @@
     align-items: center;
     gap: 0.5rem;
   }
-  
+
   .scroll-indicator {
     display: flex;
     align-items: center;
@@ -326,9 +341,13 @@
     font-size: 0.6rem;
     animation: bounce 2s infinite;
   }
-  
+
   @keyframes bounce {
-    0%, 20%, 50%, 80%, 100% {
+    0%,
+    20%,
+    50%,
+    80%,
+    100% {
       transform: translateY(0);
     }
     40% {

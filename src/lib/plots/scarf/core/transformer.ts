@@ -4,6 +4,7 @@
 
 import {
   getAois,
+  getAoiIdMapping,
   getAoiVisibility,
   getData,
   getHiddenAois,
@@ -479,7 +480,20 @@ export function transformDataToScarfPlot(
             aoiId < MAX_AOI_PER_STIMULUS &&
             hiddenFlag[aoiId] === 0
           ) {
-            overlapAoiBuffer[overlapCount++] = aoiId
+            const mappedId = getAoiIdMapping(stimulusId, aoiId)
+
+            // Deduplicate: only add if this mapped group isn't already in the list
+            let alreadyAdded = false
+            for (let j = 0; j < overlapCount; j++) {
+              if (overlapAoiBuffer[j] === mappedId) {
+                alreadyAdded = true
+                break
+              }
+            }
+
+            if (!alreadyAdded) {
+              overlapAoiBuffer[overlapCount++] = mappedId
+            }
           }
         }
 
