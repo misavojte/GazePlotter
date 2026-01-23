@@ -1,8 +1,7 @@
 <script lang="ts">
-  // Svelte core imports
-  import { untrack, onDestroy } from 'svelte'
+  import { untrack } from 'svelte'
 
-  // Local components
+  // Core imports
   import {
     TransitionMatrixPlotFigure,
     TransitionMatrixButtonMenu,
@@ -49,7 +48,7 @@
   })
 
   // source for workspace commands
-  const source = createCommandSourcePlotPattern(settings, 'plot')
+  const source = untrack(() => createCommandSourcePlotPattern(settings, 'plot'))
 
   // Visualization settings
   const plotDimensions = $derived.by(() =>
@@ -61,9 +60,21 @@
     )
   )
 
-  // For tracking AOI labels (needed for cell size calculation)
-  let aoiLabels = $state<string[]>([])
-  let matrix = $state<Float64Array>(new Float64Array(0))
+  // Data processing
+  // Derived from settings and data store
+  const transitionData = $derived.by(() => {
+    // React to data changes
+    $data
+    // Use settings values
+    return getTransitionMatrixData(
+      settings.stimulusId,
+      settings.groupId,
+      settings.aggregationMethod as AggregationMethod
+    )
+  })
+
+  const aoiLabels = $derived(transitionData.aoiLabels)
+  const matrix = $derived(transitionData.matrix as Float64Array)
 
   let cellSize = $derived.by(() => {
     if (aoiLabels.length > 0) {
@@ -102,30 +113,22 @@
     })
   }
 
-  // Grouped selects like Scarf header: Stimulus, Group, Aggregation
-  let selectedStimulusId = $state(settings.stimulusId.toString())
-  let stimuliOptions =
-    $state<{ label: string; value: string }[]>(getStimuliOptions())
-
-  let selectedGroupId = $state(settings.groupId.toString())
-  let groupOptions: { value: string; label: string }[] = $state([])
-
-  // Sync from settings
-  $effect(() => {
-    selectedStimulusId = settings.stimulusId.toString()
-    selectedGroupId = settings.groupId.toString()
-    stimuliOptions = getStimuliOptions()
+  // Derived options for selects
+  const stimuliOptions = $derived.by(() => {
+    $data // React to data changes
+    return getStimuliOptions()
   })
 
-  // Keep group options in sync with data store
-  const unsubscribe = data.subscribe(() => {
-    groupOptions = getParticipantsGroupOptions()
+  const groupOptions = $derived.by(() => {
+    $data // React to data changes
+    return getParticipantsGroupOptions()
   })
-  onDestroy(() => unsubscribe())
+
+  const selectedStimulusId = $derived(settings.stimulusId.toString())
+  const selectedGroupId = $derived(settings.groupId.toString())
 
   function onStimulusChange(event: CustomEvent) {
     const stimulusId = parseInt(event.detail)
-    selectedStimulusId = stimulusId.toString()
     onWorkspaceCommand({
       type: 'updateSettings',
       itemId: settings.id,
@@ -136,7 +139,6 @@
 
   function onGroupChange(event: CustomEvent) {
     const groupId = parseInt(event.detail)
-    selectedGroupId = groupId.toString()
     onWorkspaceCommand({
       type: 'updateSettings',
       itemId: settings.id,
@@ -166,25 +168,6 @@
     },
   ])
 
-  const redrawTimestamp = $derived.by(() => settings.redrawTimestamp)
-  // Update AOI labels when data changes
-  $effect(() => {
-    redrawTimestamp // reactive dependency
-    untrack(() => {
-      // Logic that should run only when redrawTimestamp changes
-      // This is to prevent unnecessary recalculations when settings change in other components in the workspace
-      const { aoiLabels: labels, matrix: calculatedMatrix } =
-        getTransitionMatrixData(
-          settings.stimulusId,
-          settings.groupId,
-          settings.aggregationMethod as AggregationMethod
-        )
-
-      aoiLabels = labels
-      matrix = calculatedMatrix as Float64Array
-    })
-  })
-
   // Update the legend title based on the aggregation method
   function getLegendTitle(method: string): string {
     switch (method) {
@@ -207,9 +190,8 @@
     }
   }
 
-  const sourceForOpenedModals = createCommandSourcePlotPattern(
-    settings,
-    'modal'
+  const sourceForOpenedModals = untrack(() =>
+    createCommandSourcePlotPattern(settings, 'modal')
   )
   function handleGradientClick() {
     try {
