@@ -43,7 +43,7 @@ export function drawScarfLabels(
   if (layout.isCompact) {
     // Rotated label for "Participants"
     ctx.save()
-    ctx.textAlign = 'right'
+    ctx.textAlign = 'center'
     const labelX = leftX - 40
     const labelY = layout.effectiveMarginTop + layout.participantBarsHeight / 2
     ctx.translate(labelX, labelY)

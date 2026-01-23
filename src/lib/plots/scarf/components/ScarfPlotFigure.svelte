@@ -110,7 +110,7 @@
   }: Props = $props()
 
   // Internal layout constants for compact rendering
-  const INTERNAL_PADDING_TOP = 3 // Space for top ticks
+  const INTERNAL_PADDING_TOP = 6 // Space for top ticks
   const INTERNAL_PADDING_BOTTOM = 0 // Zero padding at bottom as it serves no purpose (only top needs space for ticks)
 
   // 1. Calculate Legend structural metrics (data-only, no layout dependency)

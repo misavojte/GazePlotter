@@ -114,7 +114,7 @@
 
   .header {
     padding: 0 0 10px 0;
-    margin-bottom: 10px;
+    margin-bottom: 0px;
     background-color: var(--c-white);
   }
 
