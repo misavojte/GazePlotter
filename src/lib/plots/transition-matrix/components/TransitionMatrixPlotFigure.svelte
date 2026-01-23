@@ -164,25 +164,35 @@
     const preCellSize = Math.max(
       TRANSITION_MATRIX_LAYOUT.minCellSize,
       Math.min(
-        (width - estYSpace - marginLeft - marginRight) / Math.max(1, aoiCount),
+        (width -
+          estYSpace -
+          marginLeft -
+          marginRight -
+          TRANSITION_MATRIX_LAYOUT.rightMargin) /
+          Math.max(1, aoiCount),
         (height - estXSpace - marginTop - marginBottom - estLegSpace) /
           Math.max(1, aoiCount)
       )
     )
 
-    const fontSize = Math.min(12, Math.max(8, preCellSize / 3))
+    const isCompactMode =
+      preCellSize < TRANSITION_MATRIX_LAYOUT.COMPACT_THRESHOLD
+    const fontSize = TRANSITION_MATRIX_LAYOUT.LABEL_FONT_SIZE
+
     const axisLabelMargin = Math.max(10, Math.round(fontSize * 1.67))
     const individualLabelMargin = Math.max(5, Math.round(fontSize * 0.83))
 
     // Calculate label offset based on actually used labels
-    const offset = Math.min(
-      TRANSITION_MATRIX_LAYOUT.maxLabelLength,
-      calculateLabelOffset(
-        aoiLabels,
-        fontSize,
-        TRANSITION_MATRIX_LAYOUT.baseLabelOffset
-      )
-    )
+    const offset = isCompactMode
+      ? 25 // Fixed small offset for indices
+      : Math.min(
+          TRANSITION_MATRIX_LAYOUT.maxLabelLength,
+          calculateLabelOffset(
+            aoiLabels,
+            fontSize,
+            TRANSITION_MATRIX_LAYOUT.baseLabelOffset
+          )
+        )
 
     const yAxisSpace =
       TRANSITION_MATRIX_LAYOUT.leftMargin +
@@ -193,7 +203,9 @@
       TRANSITION_MATRIX_LAYOUT.topMargin + offset + axisLabelMargin + marginTop
     const legendSpace = 70 + marginBottom
 
-    const availableWidth = width - yAxisSpace - marginRight
+    // Extra right margin to visually center the plot (left has labels)
+    const availableWidth =
+      width - yAxisSpace - marginRight - TRANSITION_MATRIX_LAYOUT.rightMargin
     const availableHeight = height - xAxisSpace - legendSpace
 
     const cellSize =
@@ -208,7 +220,15 @@
     const gridHeight = cellSize * aoiCount
 
     const xOffset = yAxisSpace + ((availableWidth - gridWidth) >> 1)
-    const yOffset = xAxisSpace + ((availableHeight - gridHeight) >> 1)
+    // Shifted to top to eliminate whitespace, visually centered by left labels
+    const yOffset = xAxisSpace
+
+    // Calculate thinning for compact labels
+    let thinFactor = 1
+    if (isCompactMode) {
+      if (cellSize < 12) thinFactor = 5
+      else if (cellSize < 16) thinFactor = 2
+    }
 
     return {
       fontSize,
@@ -221,6 +241,8 @@
       gridWidth,
       gridHeight,
       matrixBottom: yOffset + gridHeight,
+      isCompactMode,
+      thinFactor,
     }
   })
 
@@ -301,13 +323,14 @@
   // Draw the X and Y axis labels
   function drawAxisLabels(ctx: CanvasRenderingContext2D) {
     // make sure setUpFont function is called before this function is called!
-    ctx.textBaseline = 'middle'
+    ctx.textBaseline = 'top'
+    const unitText = layout.isCompactMode ? '[order indices]' : '[names]'
 
     // Draw X-axis label (To AOI)
     ctx.textAlign = 'center'
     ctx.fillText(
-      xLabel,
-      layout.xOffset + (layout.gridWidth >> 1),
+      `${xLabel} ${unitText}`,
+      layout.xOffset + layout.gridWidth * 0.5,
       layout.yOffset - layout.labelOffset - layout.axisLabelMargin
     )
 
@@ -315,10 +338,12 @@
     ctx.save()
     ctx.translate(
       layout.xOffset - layout.labelOffset - layout.axisLabelMargin,
-      layout.yOffset + (layout.gridHeight >> 1)
+      layout.yOffset + layout.gridHeight * 0.5 + 1
     )
     ctx.rotate(-Math.PI / 2)
-    ctx.fillText(yLabel, 0, 0)
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(`${yLabel} ${unitText}`, 0, 0)
     ctx.restore()
   }
 
@@ -331,18 +356,26 @@
   function drawRowLabels(ctx: CanvasRenderingContext2D, labelFontSize: number) {
     // Draw row labels (left side)
     ctx.textAlign = 'end'
+    ctx.textBaseline = 'middle'
     for (let row = 0; row < aoiLabels.length; row++) {
-      const x = layout.xOffset - layout.individualLabelMargin
-      const y = layout.yOffset + row * layout.cellSize + (layout.cellSize >> 1)
+      if (layout.isCompactMode && (row + 1) % layout.thinFactor !== 0) continue
 
-      // Truncate text if needed
-      const labelText = truncateTextToPixelWidth(
-        aoiLabels[row],
-        TRANSITION_MATRIX_LAYOUT.maxLabelLength,
-        labelFontSize,
-        SYSTEM_SANS_SERIF_STACK,
-        '...'
-      )
+      const x = layout.xOffset - layout.individualLabelMargin
+      const y =
+        layout.yOffset + row * layout.cellSize + layout.cellSize * 0.5 + 1
+
+      const isNoAoi = row === aoiLabels.length - 1
+      const labelText = layout.isCompactMode
+        ? isNoAoi
+          ? 'Ø'
+          : (row + 1).toString()
+        : truncateTextToPixelWidth(
+            aoiLabels[row],
+            TRANSITION_MATRIX_LAYOUT.maxLabelLength,
+            labelFontSize,
+            SYSTEM_SANS_SERIF_STACK,
+            '...'
+          )
 
       ctx.fillText(labelText, x, y)
     }
@@ -356,24 +389,36 @@
     ctx.textBaseline = 'middle'
 
     for (let col = 0; col < aoiLabels.length; col++) {
-      const x = layout.xOffset + col * layout.cellSize + (layout.cellSize >> 1)
+      if (layout.isCompactMode && (col + 1) % layout.thinFactor !== 0) continue
+
+      const x = layout.xOffset + col * layout.cellSize + layout.cellSize * 0.5
       const y = layout.yOffset - layout.individualLabelMargin
 
       // Rotate labels if they're too long or there are too many
       ctx.save()
       ctx.translate(x, y)
-      ctx.rotate(-Math.PI / 4)
-      ctx.fillText(
-        truncateTextToPixelWidth(
-          aoiLabels[col],
-          TRANSITION_MATRIX_LAYOUT.maxLabelLength * 1.5,
-          labelFontSize,
-          SYSTEM_SANS_SERIF_STACK,
-          '...'
-        ),
-        0,
-        0
-      )
+      // Rotated for names, vertical/straight for indices
+      if (!layout.isCompactMode) {
+        ctx.rotate(-Math.PI / 4)
+      } else {
+        ctx.textAlign = 'center'
+        // Vertical offset for straight labels
+        ctx.textBaseline = 'bottom'
+      }
+
+      const labelText = layout.isCompactMode
+        ? col === aoiLabels.length - 1
+          ? 'Ø'
+          : (col + 1).toString()
+        : truncateTextToPixelWidth(
+            aoiLabels[col],
+            TRANSITION_MATRIX_LAYOUT.maxLabelLength * 1.5,
+            labelFontSize,
+            SYSTEM_SANS_SERIF_STACK,
+            '...'
+          )
+
+      ctx.fillText(labelText, 0, 0)
       ctx.restore()
     }
   }
@@ -436,7 +481,8 @@
     ctx.textBaseline = 'middle'
 
     const { xOffset, yOffset, cellSize } = layout
-    if (cellSize < 15) return
+    if (cellSize < 18) return
+    ctx.font = `${TRANSITION_MATRIX_LAYOUT.CELL_VALUE_FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
     const size = aoiLabels.length
 
     for (let row = 0; row < size; row++) {
@@ -461,8 +507,8 @@
           ctx.fillStyle = getContrastTextColor(cellColor)
           ctx.fillText(
             value.toString(),
-            x + (cellSize >> 1),
-            y + (cellSize >> 1)
+            x + cellSize * 0.5,
+            y + cellSize * 0.5 + 1
           )
         }
       }
