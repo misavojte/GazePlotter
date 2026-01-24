@@ -5,6 +5,7 @@ import {
   type ParticipantsGroup,
   type BaseInterpretedDataType,
   type SegmentInterpretedDataType,
+  DEFAULT_NO_AOI_TREATMENT,
 } from '$lib/gaze-data/shared/types'
 
 const MAX_AOI = 256
@@ -162,29 +163,35 @@ export class DataEngine {
     this.refreshInterpretationMap()
   }
 
+  /** Generic batch updater for metadata branches */
+  private updateBatch<K extends keyof Omit<DataType, 'segments'>>(
+    key: K,
+    updater: (current: any) => any
+  ) {
+    if (!this.metadata) return
+    this.metadata = {
+      ...this.metadata,
+      [key]: updater(this.metadata[key]),
+    }
+  }
+
   updateAoisBatch(
     updates: { stimulusId: number; aois: ExtendedInterpretedDataType[] }[]
   ) {
-    if (!this.metadata) return
-
-    const nextAoiBranch = { ...this.metadata.aois }
-    const nextData = [...nextAoiBranch.data]
-    const nextOrder = [...(nextAoiBranch.orderVector as number[][])]
-
-    updates.forEach(({ stimulusId, aois }) => {
-      nextData[stimulusId] = aois.map(a => [
-        a.originalName,
-        a.displayedName,
-        a.color,
-      ])
-      nextOrder[stimulusId] = aois.map(a => a.id)
+    this.updateBatch('aois', current => {
+      const next = { ...current }
+      const nextData = [...next.data]
+      const nextOrder = [...(next.orderVector as number[][])]
+      updates.forEach(({ stimulusId, aois }) => {
+        nextData[stimulusId] = aois.map(a => [
+          a.originalName,
+          a.displayedName,
+          a.color,
+        ])
+        nextOrder[stimulusId] = aois.map(a => a.id)
+      })
+      return { ...next, data: nextData, orderVector: nextOrder }
     })
-
-    this.metadata = {
-      ...this.metadata,
-      aois: { ...nextAoiBranch, data: nextData, orderVector: nextOrder },
-    }
-
     this.refreshInterpretationMap()
   }
 
@@ -192,50 +199,26 @@ export class DataEngine {
     updates: { id: number; data: string[] }[],
     newOrder: number[]
   ) {
-    if (!this.metadata) return
-
-    const nextParticipants = { ...this.metadata.participants }
-    const nextData = [...nextParticipants.data]
-
-    updates.forEach(({ id, data }) => {
-      if (id >= 0 && id < nextData.length) {
-        nextData[id] = data
-      }
+    this.updateBatch('participants', current => {
+      const nextData = [...current.data]
+      updates.forEach(({ id, data }) => {
+        if (id >= 0 && id < nextData.length) nextData[id] = data
+      })
+      return { ...current, data: nextData, orderVector: newOrder }
     })
-
-    this.metadata = {
-      ...this.metadata,
-      participants: {
-        ...nextParticipants,
-        data: nextData,
-        orderVector: newOrder,
-      },
-    }
   }
 
   updateStimuliBatch(
     updates: { id: number; data: string[] }[],
     newOrder: number[]
   ) {
-    if (!this.metadata) return
-
-    const nextStimuli = { ...this.metadata.stimuli }
-    const nextData = [...nextStimuli.data]
-
-    updates.forEach(({ id, data }) => {
-      if (id >= 0 && id < nextData.length) {
-        nextData[id] = data
-      }
+    this.updateBatch('stimuli', current => {
+      const nextData = [...current.data]
+      updates.forEach(({ id, data }) => {
+        if (id >= 0 && id < nextData.length) nextData[id] = data
+      })
+      return { ...current, data: nextData, orderVector: newOrder }
     })
-
-    this.metadata = {
-      ...this.metadata,
-      stimuli: {
-        ...nextStimuli,
-        data: nextData,
-        orderVector: newOrder,
-      },
-    }
   }
 
   setNoAoiTreatment(treatment: { displayedName: string; color: string }) {
@@ -304,10 +287,9 @@ export const getHasValidData = (): boolean => {
 }
 
 // Basic data access functions
+// RETURN ENGINE STATE DIRECTLY TO PREVENT UNNECESSARY CLONING
 export const getData = (): DataType => {
   if (!engine.metadata) {
-    // Return empty shell if no data, to avoid crashes in early calls
-    // Or throw if strictly required. Existing code might expect valid object.
     return {
       isOrdinalOnly: false,
       aois: {
@@ -327,10 +309,10 @@ export const getData = (): DataType => {
         maxParticipants: 0,
         stimuliCount: 0,
       },
-      noAoiTreatment: { displayedName: 'No AOI', color: '#c0c0c0' },
+      noAoiTreatment: DEFAULT_NO_AOI_TREATMENT,
     }
   }
-  return { ...engine.metadata, segments: engine.segments! }
+  return { ...engine.metadata, segments: engine.segments! } as DataType
 }
 
 export const setData = (newData: DataType): void => {
@@ -1221,6 +1203,10 @@ export const getSegments = (
 
   const result: SegmentInterpretedDataType[] = []
 
+  // High-performance caches for the duration of this call
+  const aoiCache: Record<number, ExtendedInterpretedDataType> = {}
+  const categoryCache: Record<number, ExtendedInterpretedDataType> = {}
+
   // Pre-compute filter lookups
   const categoryFilter = whereCategories ? new Set(whereCategories) : null
   const aoiFilter = whereAois ? new Set(whereAois) : null
@@ -1283,19 +1269,25 @@ export const getSegments = (
       uniqueAois.add(mappedId)
     }
 
-    // Convert to AOI objects
-    const aoi = Array.from(uniqueAois).map(aoiId =>
-      getAoiRaw(stimulusId, aoiId, getData())
-    )
+    // Convert to AOI objects using local cache to avoid thousands of allocations
+    const aoi: ExtendedInterpretedDataType[] = []
+    const dataSnapshot = getData()
+    for (const aoiId of uniqueAois) {
+      if (!aoiCache[aoiId])
+        aoiCache[aoiId] = getAoiRaw(stimulusId, aoiId, dataSnapshot)
+      aoi.push(aoiCache[aoiId])
+    }
 
-    const category = getCategory(categoryId)
+    if (!categoryCache[categoryId]) {
+      categoryCache[categoryId] = getCategory(categoryId)
+    }
 
     result.push({
-      id: i - range.startIndex, // Relative segment ID
+      id: i - range.startIndex,
       start,
       end,
       aoi,
-      category,
+      category: categoryCache[categoryId],
     })
 
     resultCount++
