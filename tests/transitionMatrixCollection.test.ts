@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { collectTransitionMetrics } from '../src/lib/plots/transition-matrix/core/collector'
-import * as dataStore from '../src/lib/gaze-data/front-process/stores/dataStore'
+import * as dataStore from '../src/lib/gaze-data/front-process/stores/dataStore.svelte'
 
-vi.mock('../src/lib/gaze-data/front-process/stores/dataStore', () => ({
+vi.mock('../src/lib/gaze-data/front-process/stores/dataStore.svelte', () => ({
   getSegments: vi.fn(),
   getData: vi.fn(),
 }))

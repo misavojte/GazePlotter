@@ -2,7 +2,7 @@
   import {
     getParticipants,
     getData,
-  } from '$lib/gaze-data/front-process/stores/dataStore'
+  } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
   import { onDestroy, onMount, untrack } from 'svelte'
   import { ScarfPlotFigure, ScarfPlotHeader } from '$lib/plots/scarf/components'
   import { BasePlot } from '$lib/plots/shared/components'

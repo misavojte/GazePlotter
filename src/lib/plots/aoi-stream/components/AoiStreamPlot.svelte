@@ -24,7 +24,7 @@
   import {
     getParticipants,
     getParticipantEndTime,
-  } from '$lib/gaze-data/front-process/stores/dataStore'
+  } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
   import { HEADER_HEIGHT } from '../const'
   import { engine } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
 

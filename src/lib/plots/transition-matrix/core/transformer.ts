@@ -2,7 +2,7 @@ import {
   getParticipants,
   getAois,
   getData,
-} from '$lib/gaze-data/front-process/stores/dataStore'
+} from '$lib/gaze-data/front-process/stores/dataStore.svelte'
 import { formatDecimal } from '$lib/shared/utils/mathUtils'
 import { MatrixAggregationMethod } from '../const'
 import type { TransitionMatrixData } from '../types'

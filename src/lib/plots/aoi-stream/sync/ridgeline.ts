@@ -1,7 +1,7 @@
 import {
   getParticipants,
   getParticipantEndTime,
-} from '$lib/gaze-data/front-process/stores/dataStore'
+} from '$lib/gaze-data/front-process/stores/dataStore.svelte'
 import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/plotSizeUtility'
 import {
   calculateFlatLegendHeight,

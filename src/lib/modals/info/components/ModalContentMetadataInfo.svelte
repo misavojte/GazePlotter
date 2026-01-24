@@ -11,7 +11,7 @@
     getData,
     getNumberOfStimuli,
     getNumberOfParticipants,
-  } from '$lib/gaze-data/front-process/stores/dataStore'
+  } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
   import { onMount, onDestroy } from 'svelte'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   const fileMetadata = $derived($fileMetadataStore)

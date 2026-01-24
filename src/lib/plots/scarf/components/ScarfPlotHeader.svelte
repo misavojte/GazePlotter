@@ -3,7 +3,7 @@
     getNumberOfSegments,
     getParticipantEndTime,
     getParticipants,
-  } from '$lib/gaze-data/front-process/stores/dataStore'
+  } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
   import {
     getParticipantsGroupOptions,
     getStimuliOptions,

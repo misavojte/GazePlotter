@@ -3,7 +3,7 @@
   import PanelButtonDemo from '$lib/workspace/panel/components/PanelButtonDemo.svelte'
   import { fade } from 'svelte/transition'
   import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
-  import { hasValidData } from '$lib/gaze-data/front-process/stores/dataStore'
+  import { getHasValidData } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { ModalContentMetadataInfo } from '$lib/modals/info/components'
   import GridItemContainer from '$lib/workspace/grid/GridItemContainer.svelte'
@@ -33,7 +33,7 @@
    * Determines if the reset layout button should be shown.
    * Valid data means we have loaded actual stimuli and participants.
    */
-  const canResetLayout = $derived($hasValidData)
+  const canResetLayout = $derived(getHasValidData())
 
   /**
    * Opens the metadata modal to show the error report.

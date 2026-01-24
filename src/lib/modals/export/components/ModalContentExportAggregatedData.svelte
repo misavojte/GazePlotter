@@ -14,7 +14,7 @@
     getAllAois,
     getParticipant,
     getStimulus,
-  } from '$lib/gaze-data/front-process/stores/dataStore'
+  } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
   import { collectParticipantBarMetrics } from '$lib/plots/bar/core/collector'
   import type { ParticipantBarMetrics } from '$lib/plots/bar/types'
   import { addSuccessToast } from '$lib/toaster'

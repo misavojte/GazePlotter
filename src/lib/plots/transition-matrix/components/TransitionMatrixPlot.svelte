@@ -27,7 +27,6 @@
     getStimuliOptions,
     getParticipantsGroupOptions,
   } from '$lib/plots/shared'
-  import { data } from '$lib/gaze-data/front-process/stores/dataStore'
 
   // Types
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
@@ -81,9 +80,7 @@
     )
   )
 
-  // Derived from data store (signals dependency on $data)
   const transitionData = $derived.by(() => {
-    $data // Dependency registration
     return getTransitionMatrixData(
       settings.stimulusId,
       settings.groupId,
@@ -119,7 +116,6 @@
     {
       label: 'Stimulus',
       options: (() => {
-        $data
         return getStimuliOptions()
       })(),
       value: settings.stimulusId.toString(),
@@ -129,7 +125,6 @@
     {
       label: 'Group',
       options: (() => {
-        $data
         return getParticipantsGroupOptions()
       })(),
       value: settings.groupId.toString(),

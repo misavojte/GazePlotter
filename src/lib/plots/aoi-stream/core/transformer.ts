@@ -5,7 +5,7 @@ import {
   getHiddenAois,
   getAoiOrderVector,
   getData,
-} from '$lib/gaze-data/front-process/stores/dataStore'
+} from '$lib/gaze-data/front-process/stores/dataStore.svelte'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
 import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'

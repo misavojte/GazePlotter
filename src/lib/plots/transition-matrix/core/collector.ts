@@ -1,7 +1,7 @@
 import {
   getSegments,
   getData,
-} from '$lib/gaze-data/front-process/stores/dataStore'
+} from '$lib/gaze-data/front-process/stores/dataStore.svelte'
 import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
 import { arraysHaveSameElements } from '$lib/shared/utils/mathUtils'
 

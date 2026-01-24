@@ -2,7 +2,7 @@
  * Optimized single-pass collector for AOI stream data.
  * Extracted from data.ts to separate collection from transformation/view logic.
  */
-import { getData } from '$lib/gaze-data/front-process/stores/dataStore'
+import { getData } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
 import {
   BinaryBufferReader,
   SEGMENT_STRIDE,

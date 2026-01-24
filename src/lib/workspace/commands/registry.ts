@@ -14,7 +14,7 @@ import {
   updateMultipleStimuli,
   updateNoAoiTreatment,
   updateParticipantsGroups,
-} from '$lib/gaze-data/front-process/stores/dataStore'
+} from '$lib/gaze-data/front-process/stores/dataStore.svelte'
 import type { GridItemMap, AllGridTypes } from '$lib/workspace/type/gridType'
 import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
 

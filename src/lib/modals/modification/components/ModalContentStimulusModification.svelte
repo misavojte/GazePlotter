@@ -6,7 +6,7 @@
     IntroductoryParagraph,
   } from '$lib/modals'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
-  import { getStimuli } from '$lib/gaze-data/front-process/stores/dataStore'
+  import { getStimuli } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
   import { addErrorToast } from '$lib/toaster'
   import type { BaseInterpretedDataType } from '$lib/gaze-data/shared/types'
   import { flip } from 'svelte/animate'

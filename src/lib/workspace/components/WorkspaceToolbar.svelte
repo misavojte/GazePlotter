@@ -1,7 +1,7 @@
 <script lang="ts">
   import { WorkspaceToolbarItem } from '$lib/workspace'
   import { processingFileStateStore } from '$lib/workspace/stores/fileStore'
-  import { hasValidData } from '$lib/gaze-data/front-process/stores/dataStore'
+  import { getHasValidData } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
   import { onMount } from 'svelte'
   import type {
     WorkspaceCommand,
@@ -75,7 +75,7 @@
 
   // Reactive variables to determine item states
   const isProcessing = $derived($processingFileStateStore === 'processing')
-  const isValidData = $derived($hasValidData)
+  const isValidData = $derived(getHasValidData())
 
   const undoLabel: string | null = $derived(
     undoRedo.lastUndoCommandType

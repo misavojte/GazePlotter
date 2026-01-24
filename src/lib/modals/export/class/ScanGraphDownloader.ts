@@ -4,7 +4,7 @@ import {
   getNumberOfSegments,
   getParticipant,
   getSegment,
-} from '$lib/gaze-data/front-process/stores/dataStore'
+} from '$lib/gaze-data/front-process/stores/dataStore.svelte'
 import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
 
 export class ScanGraphDownloader extends AbstractDownloader {

@@ -5,11 +5,11 @@ import type { GridState } from '$lib/workspace/grid'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
 // Mock the data store
-vi.mock('$lib/gaze-data/front-process/stores/dataStore', () => ({
+vi.mock('$lib/gaze-data/front-process/stores/dataStore.svelte', () => ({
   getData: vi.fn(),
 }))
 
-import { getData } from '$lib/gaze-data/front-process/stores/dataStore'
+import { getData } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
 
 describe('workspaceCommandReverse', () => {
   let mockGridStore: GridState

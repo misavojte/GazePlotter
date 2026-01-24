@@ -2,7 +2,7 @@ import {
   getAois,
   getParticipantsIds,
   getData,
-} from '$lib/gaze-data/front-process/stores/dataStore'
+} from '$lib/gaze-data/front-process/stores/dataStore.svelte'
 import {
   createAdaptiveTimeline,
   type AdaptiveTimeline,

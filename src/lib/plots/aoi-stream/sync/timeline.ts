@@ -1,7 +1,7 @@
 import {
   getParticipants,
   getParticipantEndTime,
-} from '$lib/gaze-data/front-process/stores/dataStore'
+} from '$lib/gaze-data/front-process/stores/dataStore.svelte'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
 /**
