@@ -15,3 +15,10 @@ export const FONT_PRIMARY = {
   SIZE: 12,
   FAMILY: SYSTEM_SANS_SERIF_STACK,
 }
+
+// Legend specific settings to be used across all charts
+export const LEGEND_FONT = {
+  FAMILY: FONT_PRIMARY.FAMILY,
+  SIZE: FONT_PRIMARY.SIZE,
+  COLOR: FONT_PRIMARY.COLOR,
+}

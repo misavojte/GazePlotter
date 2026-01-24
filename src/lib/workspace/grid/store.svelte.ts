@@ -1,6 +1,6 @@
 // src/lib/workspace/grid/store.svelte.ts
 import type { GridItemMap, AllGridTypes } from '$lib/workspace/type/gridType'
-import { getVizConfig } from '$lib/workspace/const'
+import { getVizConfig } from '$lib/plots/registry'
 import {
   DEFAULT_GRID_CONFIG,
   calculateGridHeight,
@@ -67,12 +67,12 @@ export class GridState {
   }
 
   private createItem<K extends keyof GridItemMap>(
-    type: K, 
+    type: K,
     options: Partial<GridItemMap[K]> = {}
   ): AllGridTypes {
-    const viz = getVizConfig(type);
-    const id = options.id ?? generateUniqueId();
-    
+    const viz = getVizConfig(type)
+    const id = options.id ?? generateUniqueId()
+
     // The registry now provides the correct default height/width based on the type key
     const base = {
       id,
@@ -82,22 +82,22 @@ export class GridState {
       h: options.h ?? viz.getDefaultHeight((options as any).stimulusId),
       min: options.min ?? viz.getDefaultConfig().min,
       redrawTimestamp: Date.now(),
-    };
+    }
 
     // Type safety is guaranteed by the generic K
     // Merge base properties with default config and options
-    const merged = { 
-      ...base, 
-      type, 
-      ...viz.getDefaultConfig(options), 
-      ...options 
-    };
-    
+    const merged = {
+      ...base,
+      type,
+      ...viz.getDefaultConfig(options),
+      ...options,
+    }
+
     // Type assertion is safe because:
     // 1. `type` ensures we have the correct discriminant
     // 2. `viz.getDefaultConfig` provides all required properties for type K
     // 3. `options` can override any properties
-    return merged as unknown as AllGridTypes;
+    return merged as unknown as AllGridTypes
   }
 
   // --- Grid Manipulation & Collision Logic ---

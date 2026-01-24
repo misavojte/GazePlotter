@@ -52,101 +52,63 @@ function validateBasicStructure(data: DataType): void {
 }
 
 /**
- * Normalizes the data structure to ensure all required fields exist
- * and the segments array is properly initialized for all stimuli and participants.
- *
- * This prevents errors when processing data where some participants
- * don't have data for all stimuli.
- *
- * @param data - The DataType object parsed from JSON
- * @returns The normalized DataType with complete structure
+ * Normalizes and validates the data structure.
+ * Ensures required fields exist and segments are properly formatted and sorted.
  */
-export function normalizeDataStructure(data: DataType): DataType {
-  // Initialize noAoiTreatment with defaults if missing
-  if (!data.noAoiTreatment) {
-    data.noAoiTreatment = { ...DEFAULT_NO_AOI_TREATMENT }
-  }
-
-  // Get counts of stimuli and participants
+export function processAndValidateData(
+  data: Omit<DataType, 'segments'> & { segments?: any }
+): DataType {
   const stimuliCount = data.stimuli.data.length
-  const participantsCount = data.participants.data.length
 
-  // Ensure AOI hidden flags exist and are aligned per stimulus
-  if (!data.aois.hiddenAois || !Array.isArray(data.aois.hiddenAois)) {
-    data.aois.hiddenAois = []
-  }
-  while (data.aois.hiddenAois.length < stimuliCount) {
+  // 1. Normalize basic metadata
+  data.noAoiTreatment ??= { ...DEFAULT_NO_AOI_TREATMENT }
+  data.aois.hiddenAois ??= []
+
+  // Fill hiddenAois up to stimuliCount
+  for (let s = data.aois.hiddenAois.length; s < stimuliCount; s++) {
     data.aois.hiddenAois.push([])
   }
-  // Ensure each entry is an array
-  for (let stimulusIndex = 0; stimulusIndex < stimuliCount; stimulusIndex++) {
-    if (!Array.isArray(data.aois.hiddenAois[stimulusIndex])) {
-      data.aois.hiddenAois[stimulusIndex] = []
-    }
-  }
 
-  return data
-}
+  // 2. Validate and sort segments if they are in array format
+  if (Array.isArray(data.segments)) {
+    const rawSegments = data.segments as number[][][][]
 
-/**
- * Validates segment data to ensure consistency and prevent errors during rendering.
- * This addresses issues where segment IDs don't exist or segments are accessed incorrectly.
- * After validation, converts segments to binary format for efficient processing.
- *
- * @param data - The normalized DataType object with nested array segments from JSON
- * @returns The validated DataType with segments in binary format
- */
-export function validateSegments(
-  data: DataType & { segments: number[][][][] }
-): DataType {
-  // Process all stimuli
-  for (
-    let stimulusIndex = 0;
-    stimulusIndex < data.segments.length;
-    stimulusIndex++
-  ) {
-    const stimulusSegments = data.segments[stimulusIndex]
+    for (let s = 0; s < rawSegments.length; s++) {
+      const stimSegments = rawSegments[s] || []
+      rawSegments[s] = stimSegments
 
-    // Process all participants for this stimulus
-    for (
-      let participantIndex = 0;
-      participantIndex < stimulusSegments.length;
-      participantIndex++
-    ) {
-      let segments = stimulusSegments[participantIndex]
+      for (let p = 0; p < stimSegments.length; p++) {
+        const pSegments = stimSegments[p]
+        if (!pSegments) {
+          stimSegments[p] = []
+          continue
+        }
 
-      // If segments is null or undefined, initialize it as an empty array
-      if (!segments) {
-        segments = []
-        stimulusSegments[participantIndex] = segments
-        continue
+        // Inline validation and filtering to avoid extra passes
+        const valid = []
+        for (let i = 0; i < pSegments.length; i++) {
+          const seg = pSegments[i]
+          if (
+            Array.isArray(seg) &&
+            seg.length >= 3 &&
+            typeof seg[0] === 'number' &&
+            typeof seg[1] === 'number' &&
+            typeof seg[2] === 'number'
+          ) {
+            valid.push(seg)
+          }
+        }
+
+        // Sort in-place by start time
+        valid.sort((a, b) => a[0] - b[0])
+        stimSegments[p] = valid
       }
-
-      // Filter out any invalid segments (must have at least 3 elements: start, end, category)
-      segments = segments.filter(
-        segment =>
-          Array.isArray(segment) &&
-          segment.length >= 3 &&
-          typeof segment[0] === 'number' &&
-          typeof segment[1] === 'number' &&
-          typeof segment[2] === 'number'
-      )
-
-      // Sort segments by start time (important for ScarfPlot rendering)
-      segments.sort((a, b) => a[0] - b[0])
-
-      // Update the filtered and sorted segments
-      stimulusSegments[participantIndex] = segments
     }
+
+    data.segments = jsonSegmentsToBinary(rawSegments)
   }
 
-  // Convert to binary format for efficient processing
-  const binarySegments = jsonSegmentsToBinary(data.segments)
-
-  return {
-    ...data,
-    segments: binarySegments,
-  }
+  return data as DataType
 }
 
 /**
@@ -163,26 +125,12 @@ export function processJsonFile(fileContent: string): DataType {
 
   // Determine the format and extract the data
   if (isNewFormat(parsed)) {
-    // For new format, data is already in DataType format
-    const data = parsed.data
-    // Validate basic structure
-    validateBasicStructure(data)
-    // Normalize the data structure to handle missing participants in stimuli
-    const normalizedData = normalizeDataStructure(data)
-    // Convert segments to binary format if needed
-    if (Array.isArray(normalizedData.segments)) {
-      return validateSegments(normalizedData as DataType & { segments: number[][][][] })
-    }
-    return normalizedData
+    validateBasicStructure(parsed.data)
+    return processAndValidateData(parsed.data)
   } else if (isOldFormat(parsed)) {
-    // For old format, we need to convert segments to binary
     const data = parsed as unknown as DataType & { segments: number[][][][] }
-    // Validate basic structure
     validateBasicStructure(data)
-    // Normalize the data structure
-    const normalizedData = normalizeDataStructure(data)
-    // Convert segments to binary format
-    return validateSegments(normalizedData as DataType & { segments: number[][][][] })
+    return processAndValidateData(data)
   } else {
     throw new Error(
       'Invalid JSON format: file must be GazePlotter JSON format (legacy or version 2 or 3)'
@@ -213,21 +161,10 @@ export function processJsonFileWithGrid(
 
   // Determine the format and extract the data
   if (isNewFormat(parsed)) {
-    // Validate basic structure
     validateBasicStructure(parsed.data)
-
-    // Normalize the data structure
-    const normalizedData = normalizeDataStructure(parsed.data)
-
-    // Validate and convert segments to binary if needed
-    let processedData = normalizedData
-    if (Array.isArray(normalizedData.segments)) {
-      processedData = validateSegments(normalizedData as DataType & { segments: number[][][][] })
-    }
-
     return {
       ...parsed,
-      data: processedData,
+      data: processAndValidateData(parsed.data),
     }
   } else if (isOldFormat(parsed)) {
     return {

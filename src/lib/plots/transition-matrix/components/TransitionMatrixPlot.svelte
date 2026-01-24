@@ -1,8 +1,7 @@
 <script lang="ts">
-  // Svelte core imports
-  import { untrack, onDestroy } from 'svelte'
+  import { untrack } from 'svelte'
 
-  // Local components
+  // Core imports
   import {
     TransitionMatrixPlotFigure,
     TransitionMatrixButtonMenu,
@@ -17,23 +16,43 @@
   import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
-  import { calculateTransitionMatrix } from '$lib/plots/transition-matrix/utils'
-  import { AggregationMethod } from '$lib/plots/transition-matrix/const'
+  import { getTransitionMatrixData } from '$lib/plots/transition-matrix/core/transformer'
+  import {
+    MatrixAggregationMethod,
+    TRANSITION_MATRIX_LAYOUT,
+    TRANSITION_MATRIX_LEGEND_TITLES,
+  } from '$lib/plots/transition-matrix/const'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import {
     getStimuliOptions,
     getParticipantsGroupOptions,
   } from '$lib/plots/shared'
-  import { data } from '$lib/gaze-data/front-process/stores/dataStore'
 
   // Types
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
   import type { WorkspaceCommand } from '$lib/workspace/commands'
 
-  const LAYOUT = {
-    headerHeight: 150,
-    horizontalPadding: 50,
-  }
+  const AGGREGATION_OPTIONS = [
+    { value: MatrixAggregationMethod.SUM, label: 'Absolute frequency' },
+    {
+      value: MatrixAggregationMethod.FREQUENCY_RELATIVE,
+      label: 'Relative frequency',
+    },
+    { value: MatrixAggregationMethod.PROBABILITY, label: '1-step probability' },
+    {
+      value: MatrixAggregationMethod.PROBABILITY_2,
+      label: '2-step probability',
+    },
+    {
+      value: MatrixAggregationMethod.PROBABILITY_3,
+      label: '3-step probability',
+    },
+    { value: MatrixAggregationMethod.DWELL_TIME, label: 'Fixation duration' },
+    {
+      value: MatrixAggregationMethod.SEGMENT_DWELL_TIME,
+      label: 'Dwell duration',
+    },
+  ]
 
   interface Props {
     settings: TransitionMatrixGridType
@@ -42,106 +61,53 @@
 
   let { settings, onWorkspaceCommand }: Props = $props()
 
-  // Get current stimulus-specific color range or use default values
-  const currentStimulusColorRange = $derived.by(() => {
-    const stimulusId = settings.stimulusId
-    return settings.stimuliColorValueRanges?.[stimulusId] || [0, 0]
-  })
+  // Data reactive sources
+  const currentStimulusColorRange = $derived(
+    settings.stimuliColorValueRanges?.[settings.stimulusId] ?? [0, 0]
+  )
 
-  // source for workspace commands
-  const source = createCommandSourcePlotPattern(settings, 'plot')
+  const source = untrack(() => createCommandSourcePlotPattern(settings, 'plot'))
+  const modalSource = untrack(() =>
+    createCommandSourcePlotPattern(settings, 'modal')
+  )
 
-  // Visualization settings
-  const plotDimensions = $derived.by(() =>
+  const plotDimensions = $derived(
     calculatePlotDimensionsWithHeader(
       settings.w,
       settings.h,
       DEFAULT_GRID_CONFIG,
-      LAYOUT.headerHeight,
-      LAYOUT.horizontalPadding
+      TRANSITION_MATRIX_LAYOUT.headerHeight
     )
   )
 
-  // For tracking AOI labels (needed for cell size calculation)
-  let aoiLabels = $state<string[]>([])
-  let matrix = $state<number[][]>([])
+  const transitionData = $derived.by(() => {
+    return getTransitionMatrixData(
+      settings.stimulusId,
+      settings.groupId,
+      settings.aggregationMethod as MatrixAggregationMethod
+    )
+  })
 
-  let cellSize = $derived.by(() => {
-    if (aoiLabels.length > 0) {
+  // Destructure for cleaner access in template
+  const { aoiLabels, matrix } = $derived(transitionData)
+
+  const cellSize = $derived.by(() => {
+    const len = aoiLabels.length
+    if (len > 0) {
       return Math.min(
-        Math.floor(plotDimensions.width / aoiLabels.length),
-        Math.floor(plotDimensions.height / aoiLabels.length)
+        Math.floor(plotDimensions.width / len),
+        Math.floor(plotDimensions.height / len)
       )
     }
     return 60
   })
 
-  // Simplified aggregation method options
-  const aggregationOptions = [
-    { value: AggregationMethod.SUM, label: 'Absolute frequency' },
-    {
-      value: AggregationMethod.FREQUENCY_RELATIVE,
-      label: 'Relative frequency',
-    },
-    { value: AggregationMethod.PROBABILITY, label: '1-step probability' },
-    { value: AggregationMethod.PROBABILITY_2, label: '2-step probability' },
-    { value: AggregationMethod.PROBABILITY_3, label: '3-step probability' },
-    { value: AggregationMethod.DWELL_TIME, label: 'Fixation duration' },
-    {
-      value: AggregationMethod.SEGMENT_DWELL_TIME,
-      label: 'Dwell duration',
-    },
-  ]
-
-  function handleAggregationChange(event: CustomEvent) {
-    // Create workspace command for settings change
+  // Handlers
+  function updateSettings(updates: Partial<typeof settings>) {
     onWorkspaceCommand({
       type: 'updateSettings',
       itemId: settings.id,
-      settings: { aggregationMethod: event.detail as AggregationMethod },
-      source,
-    })
-  }
-
-  // Grouped selects like Scarf header: Stimulus, Group, Aggregation
-  let selectedStimulusId = $state(settings.stimulusId.toString())
-  let stimuliOptions =
-    $state<{ label: string; value: string }[]>(getStimuliOptions())
-
-  let selectedGroupId = $state(settings.groupId.toString())
-  let groupOptions: { value: string; label: string }[] = $state([])
-
-  // Sync from settings
-  $effect(() => {
-    selectedStimulusId = settings.stimulusId.toString()
-    selectedGroupId = settings.groupId.toString()
-    stimuliOptions = getStimuliOptions()
-  })
-
-  // Keep group options in sync with data store
-  const unsubscribe = data.subscribe(() => {
-    groupOptions = getParticipantsGroupOptions()
-  })
-  onDestroy(() => unsubscribe())
-
-  function onStimulusChange(event: CustomEvent) {
-    const stimulusId = parseInt(event.detail)
-    selectedStimulusId = stimulusId.toString()
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      settings: { stimulusId },
-      source,
-    })
-  }
-
-  function onGroupChange(event: CustomEvent) {
-    const groupId = parseInt(event.detail)
-    selectedGroupId = groupId.toString()
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      settings: { groupId },
+      settings: updates,
       source,
     })
   }
@@ -149,101 +115,57 @@
   const selectItems = $derived<GroupSelectItem[]>([
     {
       label: 'Stimulus',
-      options: stimuliOptions,
-      value: selectedStimulusId,
-      onchange: onStimulusChange,
+      options: (() => {
+        return getStimuliOptions()
+      })(),
+      value: settings.stimulusId.toString(),
+      onchange: (e: CustomEvent) =>
+        updateSettings({ stimulusId: parseInt(e.detail) }),
     },
     {
       label: 'Group',
-      options: groupOptions,
-      value: selectedGroupId,
-      onchange: onGroupChange,
+      options: (() => {
+        return getParticipantsGroupOptions()
+      })(),
+      value: settings.groupId.toString(),
+      onchange: (e: CustomEvent) =>
+        updateSettings({ groupId: parseInt(e.detail) }),
     },
     {
       label: 'Aggregation',
-      options: aggregationOptions,
+      options: AGGREGATION_OPTIONS,
       value: settings.aggregationMethod,
-      onchange: handleAggregationChange,
+      onchange: (e: CustomEvent) =>
+        updateSettings({
+          aggregationMethod: e.detail as MatrixAggregationMethod,
+        }),
     },
   ])
 
-  const redrawTimestamp = $derived.by(() => settings.redrawTimestamp)
-  // Update AOI labels when data changes
-  $effect(() => {
-    redrawTimestamp // reactive dependency
-    untrack(() => {
-      // Logic that should run only when redrawTimestamp changes
-      // This is to prevent unnecessary recalculations when settings change in other components in the workspace
-      const { aoiLabels: labels, matrix: calculatedMatrix } =
-        calculateTransitionMatrix(
-          settings.stimulusId,
-          settings.groupId,
-          settings.aggregationMethod as AggregationMethod
-        )
-
-      aoiLabels = labels
-      matrix = calculatedMatrix
-    })
-  })
-
-  // Update the legend title based on the aggregation method
-  function getLegendTitle(method: string): string {
-    switch (method) {
-      case AggregationMethod.SUM:
-        return 'Absolute frequency'
-      case AggregationMethod.FREQUENCY_RELATIVE:
-        return 'Relative frequency %'
-      case AggregationMethod.PROBABILITY:
-        return '1-step probability (%)'
-      case AggregationMethod.PROBABILITY_2:
-        return '2-step probability (%)'
-      case AggregationMethod.PROBABILITY_3:
-        return '3-step probability (%)'
-      case AggregationMethod.DWELL_TIME:
-        return 'Fixation duration (ms)'
-      case AggregationMethod.SEGMENT_DWELL_TIME:
-        return 'Dwell duration (ms)'
-      default:
-        return 'Transition Value'
-    }
-  }
-
-  const sourceForOpenedModals = createCommandSourcePlotPattern(
-    settings,
-    'modal'
-  )
   function handleGradientClick() {
-    try {
-      modalStore.open(ModalContentColorScale as any, 'Customize color scale', {
-        settings,
-        source: sourceForOpenedModals,
-        onWorkspaceCommand,
-      })
-    } catch (error) {
-      console.error('Error opening color scale modal:', error)
-    }
+    modalStore.open(ModalContentColorScale as any, 'Customize color scale', {
+      settings,
+      source: modalSource,
+      onWorkspaceCommand,
+    })
   }
 
   function handleValueClick(isMin: boolean) {
-    try {
-      modalStore.open(
-        ModalContentMaxValue as any,
-        'Set maximum color scale value',
-        {
-          settings,
-          source: sourceForOpenedModals,
-          onWorkspaceCommand,
-        }
-      )
-    } catch (error) {
-      console.error('Error opening modal:', error)
-    }
+    modalStore.open(
+      ModalContentMaxValue as any,
+      'Set maximum color scale value',
+      {
+        settings,
+        source: modalSource,
+        onWorkspaceCommand,
+      }
+    )
   }
 </script>
 
 <BasePlot
   {settings}
-  layoutConfig={LAYOUT}
+  layoutConfig={TRANSITION_MATRIX_LAYOUT}
   hasData={settings?.stimulusId !== undefined && aoiLabels.length > 0}
   dimensions={plotDimensions}
 >
@@ -272,7 +194,9 @@
         colorScale={settings.colorScale}
         xLabel="To AOI"
         yLabel="From AOI"
-        legendTitle={getLegendTitle(settings.aggregationMethod)}
+        legendTitle={TRANSITION_MATRIX_LEGEND_TITLES[
+          settings.aggregationMethod
+        ] ?? 'Transition Value'}
         colorValueRange={currentStimulusColorRange}
         belowMinColor={settings.belowMinColor}
         aboveMaxColor={settings.aboveMaxColor}

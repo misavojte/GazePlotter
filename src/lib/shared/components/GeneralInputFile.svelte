@@ -1,6 +1,6 @@
 <script lang="ts">
   import GeneralInputScaffold from '$lib/shared/components/GeneralInputScaffold.svelte'
-
+  import { untrack } from 'svelte'
   interface Props {
     label: string
     files?: FileList | null
@@ -23,7 +23,7 @@
     onchange(new CustomEvent('change', { detail: files }))
   }
 
-  const id = `file-${label.toLowerCase().replace(/\s+/g, '-')}`
+  const id = `file-${untrack(() => label.toLowerCase().replace(/\s+/g, '-'))}`
 </script>
 
 <GeneralInputScaffold {label} {id}>

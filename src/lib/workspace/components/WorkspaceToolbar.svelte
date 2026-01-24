@@ -1,7 +1,7 @@
 <script lang="ts">
   import { WorkspaceToolbarItem } from '$lib/workspace'
   import { processingFileStateStore } from '$lib/workspace/stores/fileStore'
-  import { hasValidData } from '$lib/gaze-data/front-process/stores/dataStore'
+  import { getHasValidData } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
   import { onMount } from 'svelte'
   import type {
     WorkspaceCommand,
@@ -13,7 +13,7 @@
   import { generateUniqueId } from '$lib/shared/utils/idUtils'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
   import { undoRedo } from '$lib/workspace/commands'
-  import { getCommandLabel } from '$lib/workspace/const/workspaceCommandLabels'
+  import { getCommandLabel } from '$lib/workspace/commands/labels'
 
   // Configuration for toolbar items
   interface Props {
@@ -75,13 +75,17 @@
 
   // Reactive variables to determine item states
   const isProcessing = $derived($processingFileStateStore === 'processing')
-  const isValidData = $derived($hasValidData)
+  const isValidData = $derived(getHasValidData())
 
   const undoLabel: string | null = $derived(
-    undoRedo.lastUndoCommandType ? getCommandLabel(undoRedo.lastUndoCommandType, 'undo') : null
+    undoRedo.lastUndoCommandType
+      ? getCommandLabel(undoRedo.lastUndoCommandType, 'undo')
+      : null
   )
   const redoLabel: string | null = $derived(
-    undoRedo.lastRedoCommandType ? getCommandLabel(undoRedo.lastRedoCommandType, 'redo') : null
+    undoRedo.lastRedoCommandType
+      ? getCommandLabel(undoRedo.lastRedoCommandType, 'redo')
+      : null
   )
 
   /**

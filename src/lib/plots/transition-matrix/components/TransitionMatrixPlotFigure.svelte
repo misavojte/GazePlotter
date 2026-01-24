@@ -9,7 +9,7 @@
     truncateTextToPixelWidth,
     SYSTEM_SANS_SERIF_STACK,
   } from '$lib/shared/utils/textUtils'
-  import { getContext, onDestroy, onMount, untrack } from 'svelte'
+  import { getContext, onMount, untrack } from 'svelte'
   import { browser } from '$app/environment'
   import {
     createCanvasState,
@@ -20,22 +20,24 @@
     setupDpiChangeListeners,
     beginCanvasDrawing,
     finishCanvasDrawing,
+    alignToPixelCenter,
   } from '$lib/shared/utils/canvasUtils'
   import type { CanvasState } from '$lib/shared/utils/canvasUtils'
   import {
     EXPORT_SOURCE_CONTEXT,
     type ExportSourceRegistrar,
   } from '$lib/shared/utils/exportUtils'
+  import {
+    TRANSITION_MATRIX_LAYOUT,
+    TRANSITION_MATRIX_DEFAULTS,
+  } from '../const'
+  import {
+    computeGradientLegendGeometry,
+    drawGradientLegend,
+    hitTestGradientLegend,
+    drawPlotOutline,
+  } from '$lib/plots/shared'
 
-  // SVG layout constants - minimal but not zero to ensure spacing
-  const BASE_LABEL_OFFSET = 5
-  const TOP_MARGIN = 30 // Increased to ensure "To AOI" label is visible
-  const LEFT_MARGIN = 30 // Increased to ensure "From AOI" label is visible
-  const MIN_CELL_SIZE = 20 // Minimum cell size in pixels
-  const MAX_LABEL_LENGTH = 85 // Maximum width of the label in pixels
-
-  // Default color for inactive/filtered cells
-  const DEFAULT_INACTIVE_COLOR = '#e0e0e0' // Light gray
   /**
    * Props for the Transition Matrix Plot
    * @param TransitionMatrix - 2D array where:
@@ -63,17 +65,17 @@
    * @param marginLeft - Additional left margin (default 0)
    */
   let {
-    TransitionMatrix = [],
+    TransitionMatrix = new Float64Array(0),
     aoiLabels = [],
-    height = 500,
-    width = 500,
-    colorScale = ['#f7fbff', '#08306b'],
-    xLabel = 'To AOI',
-    yLabel = 'From AOI',
+    height = TRANSITION_MATRIX_DEFAULTS.height,
+    width = TRANSITION_MATRIX_DEFAULTS.width,
+    colorScale = [...TRANSITION_MATRIX_DEFAULTS.colorScale],
+    xLabel = TRANSITION_MATRIX_DEFAULTS.xLabel,
+    yLabel = TRANSITION_MATRIX_DEFAULTS.yLabel,
     legendTitle = 'Transition Count',
     colorValueRange = [0, 0],
-    belowMinColor = DEFAULT_INACTIVE_COLOR,
-    aboveMaxColor = DEFAULT_INACTIVE_COLOR,
+    belowMinColor = TRANSITION_MATRIX_DEFAULTS.inactiveColor,
+    aboveMaxColor = TRANSITION_MATRIX_DEFAULTS.inactiveColor,
     showBelowMinLabels = false,
     showAboveMaxLabels = false,
     onValueClick = () => {},
@@ -84,7 +86,7 @@
     marginBottom = 0,
     marginLeft = 0,
   } = $props<{
-    TransitionMatrix: number[][]
+    TransitionMatrix: Float64Array | number[]
     aoiLabels: string[]
     height?: number
     width?: number
@@ -132,137 +134,197 @@
     if (!canvasState.renderScheduled && browser) {
       canvasState.renderScheduled = true
       requestAnimationFrame(() => {
-        renderCanvas()
+        if (canvasState.canvas && canvasState.context) {
+          renderCanvas()
+        }
         canvasState.renderScheduled = false
       })
     }
   }
 
-  // ============================================
-  // NEW CALCULATION CHAIN - NO CIRCULAR DEPS
-  // ============================================
+  // Calculate the auto max value from the matrix efficiently
+  const effectiveMaxValue = $derived.by(() => {
+    if (colorValueRange[1] !== 0) return colorValueRange[1]
 
-  // STEP 1: Calculate preliminary cell size based on available space
-  // This uses fixed minimal spacing estimates to get an initial cell size
-  const preliminaryCellSize = $derived.by(() => {
-    if (aoiLabels.length === 0) return MIN_CELL_SIZE
-
-    // Use conservative fixed estimates for spacing
-    const FIXED_LABEL_SPACE = MAX_LABEL_LENGTH + 40 // Label width + some margin
-    const LEGEND_SPACE = 50
-
-    const availableWidth = width - FIXED_LABEL_SPACE - marginLeft - marginRight
-    const availableHeight =
-      height - FIXED_LABEL_SPACE - marginTop - marginBottom - LEGEND_SPACE
-
-    const cellSizeByWidth = availableWidth / aoiLabels.length
-    const cellSizeByHeight = availableHeight / aoiLabels.length
-
-    const cellSize = Math.min(cellSizeByWidth, cellSizeByHeight)
-    return Math.max(MIN_CELL_SIZE, cellSize)
+    let maxValue = 0
+    for (let i = 0; i < TransitionMatrix.length; i++) {
+      const val = TransitionMatrix[i]
+      if (val > maxValue) maxValue = val
+    }
+    return Math.ceil(maxValue)
   })
 
-  // STEP 2: Calculate font size based on preliminary cell size
-  // This is the SAME formula used in setUpLabelFont
-  const calculatedFontSize = $derived.by(() => {
-    return Math.min(12, Math.max(8, preliminaryCellSize / 3))
-  })
+  // 1. IMPROVEMENT: Define a consistent optical gap constant
+  const AXIS_TITLE_GAP = 12 // Pixels between Axis Title and Axis Labels
 
-  // STEP 3: Calculate all margins and offsets based on font size
-  const AXIS_LABEL_MARGIN = $derived.by(() => {
-    // Scale proportionally: 12px font → 20px, 8px font → 13px
-    return Math.max(10, Math.round(calculatedFontSize * 1.67))
-  })
+  // Consolidated layout object
+  const layout = $derived.by(() => {
+    const aoiCount = aoiLabels.length
+    const fontSize = TRANSITION_MATRIX_LAYOUT.LABEL_FONT_SIZE
 
-  const INDIVIDUAL_LABEL_MARGIN = $derived.by(() => {
-    // Scale proportionally: 12px font → 10px, 8px font → 7px
-    return Math.max(5, Math.round(calculatedFontSize * 0.83))
-  })
+    // 2. MEASURING TOOL: Calculate precise text geometry
+    // Estimate max text width based on avg char width (approx 0.6em) or use max allowed
+    // Note: In a perfect world, we'd use ctx.measureText, but for layout calculation
+    // before render, this heuristic combined with truncation logic is robust.
+    const approxCharWidth = fontSize * 0.6
+    let maxPixelWidth = 0
 
-  const labelOffset = $derived.by(() => {
-    const calculatedOffset = calculateLabelOffset(
-      aoiLabels,
-      calculatedFontSize,
-      BASE_LABEL_OFFSET
+    // Find longest label width
+    for (const label of aoiLabels) {
+      const width = label.length * approxCharWidth
+      if (width > maxPixelWidth) maxPixelWidth = width
+    }
+
+    // Cap it at the truncation limit defined in your constants
+    const effectiveMaxLabelWidth = Math.min(
+      maxPixelWidth,
+      TRANSITION_MATRIX_LAYOUT.maxLabelLength
     )
-    return Math.min(calculatedOffset, MAX_LABEL_LENGTH)
-  })
 
-  // STEP 4: Calculate final plot area with accurate margins
-  const maxPlotArea = $derived.by(() => {
+    // 3. IMPROVEMENT: Calculate layout mode and offsets
+    // Calculate initial sizing
+    const estLegSpace = 70
+    // We add buffer to the calculated widths to ensure fit
+    const estYSpace = effectiveMaxLabelWidth + 50
+    const estXSpace = effectiveMaxLabelWidth + 50
+
+    const preCellSize = Math.max(
+      TRANSITION_MATRIX_LAYOUT.minCellSize,
+      Math.min(
+        (width -
+          estYSpace -
+          marginLeft -
+          marginRight -
+          TRANSITION_MATRIX_LAYOUT.rightMargin) /
+          Math.max(1, aoiCount),
+        (height - estXSpace - marginTop - marginBottom - estLegSpace) /
+          Math.max(1, aoiCount)
+      )
+    )
+
+    const isCompactMode =
+      preCellSize < TRANSITION_MATRIX_LAYOUT.COMPACT_THRESHOLD
+
+    // 4. IMPROVEMENT: Geometric Spacing Calculation
+    // Calculate exact space needed for X and Y axis labels
+    let xAxisLabelHeight: number
+    let yAxisLabelWidth: number
+
+    if (isCompactMode) {
+      // Compact: Indices are small and essentially square
+      xAxisLabelHeight = 25
+      yAxisLabelWidth = 25
+    } else {
+      // Standard:
+      // Y-axis labels are horizontal. Space = Width.
+      yAxisLabelWidth = effectiveMaxLabelWidth
+
+      // X-axis labels are rotated 45 degrees.
+      // Height = (Width * sin(45)) + (FontHeight * cos(45))
+      const sin45 = 0.7071
+      xAxisLabelHeight = effectiveMaxLabelWidth * sin45 + fontSize * sin45
+    }
+
+    // Apply the constant gap
     const yAxisSpace =
-      LEFT_MARGIN + labelOffset + AXIS_LABEL_MARGIN + marginLeft
-    const xAxisSpace = TOP_MARGIN + labelOffset + AXIS_LABEL_MARGIN + marginTop
-    const legendSpace = 50 + marginBottom
+      marginLeft +
+      TRANSITION_MATRIX_LAYOUT.leftMargin +
+      fontSize + // Space for Title Text Height
+      AXIS_TITLE_GAP +
+      yAxisLabelWidth +
+      10 // Small padding next to matrix
 
-    const availableWidth = width - yAxisSpace - marginRight
+    const xAxisSpace =
+      marginTop +
+      TRANSITION_MATRIX_LAYOUT.topMargin +
+      fontSize + // Space for Title Text Height
+      AXIS_TITLE_GAP +
+      xAxisLabelHeight +
+      10 // Small padding next to matrix
+
+    const legendSpace = 70 + marginBottom
+
+    // Remaining layout logic...
+    const availableWidth =
+      width - yAxisSpace - marginRight - TRANSITION_MATRIX_LAYOUT.rightMargin
     const availableHeight = height - xAxisSpace - legendSpace
 
-    return { availableWidth, availableHeight }
-  })
+    const cellSize =
+      aoiCount === 0
+        ? TRANSITION_MATRIX_LAYOUT.minCellSize
+        : Math.floor(
+            Math.max(
+              TRANSITION_MATRIX_LAYOUT.minCellSize,
+              Math.min(availableWidth / aoiCount, availableHeight / aoiCount)
+            )
+          )
 
-  // STEP 5: Calculate final optimal cell size
-  const optimalCellSize = $derived.by(() => {
-    if (aoiLabels.length === 0) return MIN_CELL_SIZE
+    const gridWidth = cellSize * aoiCount
+    const gridHeight = cellSize * aoiCount
 
-    const cellSizeByWidth = maxPlotArea.availableWidth / aoiLabels.length
-    const cellSizeByHeight = maxPlotArea.availableHeight / aoiLabels.length
-    const idealCellSize = Math.min(cellSizeByWidth, cellSizeByHeight)
+    const xOffset = Math.floor(yAxisSpace + ((availableWidth - gridWidth) >> 1))
+    const yOffset = Math.floor(xAxisSpace)
 
-    return Math.max(MIN_CELL_SIZE, idealCellSize)
-  })
+    // 5. IMPROVEMENT: Dynamic thinning for axis labels (indices)
+    let thinFactor = 1
+    let showAxisLabels = true
 
-  // Calculate actual grid size based on optimal cell size
-  const actualGridWidth = $derived.by(() => optimalCellSize * aoiLabels.length)
-  const actualGridHeight = $derived.by(() => optimalCellSize * aoiLabels.length)
+    if (isCompactMode) {
+      const maxIndexStr = aoiCount.toString()
+      const approxIndexWidth = maxIndexStr.length * (fontSize * 0.6)
+      // Factor is: How many cells we need to fit the widest index plus a 4px cushion
+      thinFactor = Math.max(1, Math.ceil((approxIndexWidth + 4) / cellSize))
 
-  // Center the grid within available space
-  const xOffset = $derived.by(() => {
-    return (
-      LEFT_MARGIN +
-      labelOffset +
-      ((maxPlotArea.availableWidth - actualGridWidth) >> 1) +
-      marginLeft
-    )
-  })
+      // If thinning is so high that we'd only show like 2 labels or cells are tiny,
+      // we might want to hide them, but for now let's just ensure they fit.
+      if (cellSize < 5) showAxisLabels = false
+    }
 
-  const yOffset = $derived.by(() => {
-    return (
-      TOP_MARGIN +
-      labelOffset +
-      ((maxPlotArea.availableHeight - actualGridHeight) >> 1) +
-      marginTop
-    )
-  })
+    // 6. IMPROVEMENT: Two-pass cell label visibility & scaling
+    const formatValue = (v: number) =>
+      Number.isInteger(v) ? v.toString() : v.toFixed(1)
+    const valueStr = formatValue(effectiveMaxValue)
+    const labelLen = Math.max(valueStr.length, effectiveMaxValue < 1 ? 3 : 0)
 
-  // Calculate the auto max value from the matrix
-  const calculatedMaxValue = $derived.by(() => {
-    const flatMatrix = TransitionMatrix.flat()
-    return flatMatrix.length > 0 ? Math.ceil(Math.max(...flatMatrix)) : 0
-  })
+    const defaultCellFontSize = TRANSITION_MATRIX_LAYOUT.CELL_VALUE_FONT_SIZE
+    const reducedCellFontSize = defaultCellFontSize - 2
 
-  // Use either auto or custom max value based on configuration
-  const effectiveMaxValue = $derived(
-    colorValueRange[1] == 0 ? calculatedMaxValue : colorValueRange[1]
-  )
+    let activeCellValueFontSize: number = defaultCellFontSize
+    let showCellValues = false
 
-  // Track cell positions for interaction
-  const cellPositions = $derived.by(() => {
-    const positions = []
-    for (let row = 0; row < aoiLabels.length; row++) {
-      for (let col = 0; col < aoiLabels.length; col++) {
-        positions.push({
-          row,
-          col,
-          x: xOffset + col * optimalCellSize,
-          y: yOffset + row * optimalCellSize,
-          width: optimalCellSize,
-          height: optimalCellSize,
-          value: TransitionMatrix[row]?.[col] ?? 0,
-        })
+    // Pass 1: Try default size with 6px cushion
+    const widthPass1 = labelLen * (defaultCellFontSize * 0.75)
+    if (cellSize >= widthPass1 + 6 && cellSize >= defaultCellFontSize + 4) {
+      showCellValues = true
+      activeCellValueFontSize = defaultCellFontSize
+    } else {
+      // Pass 2: Try reduced size with 4px cushion
+      const widthPass2 = labelLen * (reducedCellFontSize * 0.75)
+      if (cellSize >= widthPass2 + 4 && cellSize >= reducedCellFontSize + 2) {
+        showCellValues = true
+        activeCellValueFontSize = reducedCellFontSize
       }
     }
-    return positions
+
+    return {
+      fontSize,
+      // We expose these calculated bounds for the drawing function
+      xAxisLabelHeight,
+      yAxisLabelWidth,
+      axisTitleGap: AXIS_TITLE_GAP,
+      xOffset,
+      yOffset,
+      cellSize,
+      gridWidth,
+      gridHeight,
+      matrixBottom: yOffset + gridHeight,
+      isCompactMode,
+      thinFactor,
+      individualLabelMargin: 10,
+      showCellValues,
+      showAxisLabels,
+      cellValueFontSize: activeCellValueFontSize,
+    }
   })
 
   // Setup canvas and context using our utilities
@@ -307,6 +369,15 @@
     // Draw the matrix cells
     drawCells(ctx)
 
+    // Draw the plot area border
+    drawPlotOutline(
+      ctx,
+      layout.xOffset,
+      layout.yOffset,
+      layout.gridWidth,
+      layout.gridHeight
+    )
+
     // Draw the legend
     drawLegend(ctx)
 
@@ -339,55 +410,86 @@
     ctx.fillStyle = '#222'
   }
 
-  // Draw the X and Y axis labels
+  // 5. IMPROVEMENT: Updated Draw Function
   function drawAxisLabels(ctx: CanvasRenderingContext2D) {
-    // Make sure there's enough space for labels
-    if (actualGridWidth < 50 || actualGridHeight < 50) return
+    setUpFont(ctx) // Ensure font is set (12px sans-serif usually)
 
-    // make sure setUpFont function is called before this function is called!
-    ctx.textBaseline = 'middle'
+    const unitText = layout.isCompactMode ? '[order indices]' : '[names]'
+    const {
+      xOffset,
+      yOffset,
+      gridWidth,
+      gridHeight,
+      xAxisLabelHeight,
+      yAxisLabelWidth,
+      axisTitleGap,
+    } = layout
 
-    // Draw X-axis label (To AOI)
+    // --- Draw X-axis label (To AOI) ---
+    // Position: Top of the chart area
     ctx.textAlign = 'center'
-    ctx.fillText(
-      xLabel,
-      xOffset + (actualGridWidth >> 1),
-      yOffset - labelOffset - AXIS_LABEL_MARGIN
-    )
 
-    // Draw Y-axis label (From AOI)
+    // Key Change: Anchor Bottom.
+    // This allows us to place the text exactly `gap` pixels above the rotated labels.
+    ctx.textBaseline = 'bottom'
+
+    // Y Position = (Start of Matrix) - (Height of Rotated Labels) - (Gap)
+    const xTitleY = yOffset - xAxisLabelHeight - axisTitleGap
+
+    ctx.fillText(`${xLabel} ${unitText}`, xOffset + gridWidth * 0.5, xTitleY)
+
+    // --- Draw Y-axis label (From AOI) ---
+    // Position: Left of the chart area, rotated -90 degrees
     ctx.save()
-    ctx.translate(
-      xOffset - labelOffset - AXIS_LABEL_MARGIN,
-      yOffset + (actualGridHeight >> 1)
-    )
-    ctx.rotate(-Math.PI / 2) // Rotate 90 degrees counterclockwise. No bitwise operator here.
-    ctx.fillText(yLabel, 0, 0)
+
+    // 1. Move to vertical center of grid
+    // 2. Move left by (Width of Labels) + (Gap)
+    const yTitleX = xOffset - yAxisLabelWidth - axisTitleGap
+    const yTitleY = yOffset + gridHeight * 0.5
+
+    ctx.translate(yTitleX, yTitleY)
+    ctx.rotate(-Math.PI / 2)
+
+    // Key Change: Anchor Bottom.
+    // Because we rotated -90deg, 'bottom' visually faces the chart (the right side of the text).
+    // This creates symmetry: "Bottom of text touches the Gap line" for both axes.
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'bottom'
+
+    ctx.fillText(`${yLabel} ${unitText}`, 0, 0)
     ctx.restore()
   }
 
   function setUpLabelFont(ctx: CanvasRenderingContext2D): number {
     // Use the pre-calculated font size for consistency
-    ctx.font = `${calculatedFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
-    return calculatedFontSize
+    ctx.font = `${layout.fontSize}px ${SYSTEM_SANS_SERIF_STACK}`
+    return layout.fontSize
   }
 
   function drawRowLabels(ctx: CanvasRenderingContext2D, labelFontSize: number) {
-    // make sure setUpFont function is called before this function is called!
+    if (!layout.showAxisLabels) return
     // Draw row labels (left side)
     ctx.textAlign = 'end'
+    ctx.textBaseline = 'middle'
     for (let row = 0; row < aoiLabels.length; row++) {
-      const x = xOffset - INDIVIDUAL_LABEL_MARGIN
-      const y = yOffset + row * optimalCellSize + (optimalCellSize >> 1)
+      if (layout.isCompactMode && (row + 1) % layout.thinFactor !== 0) continue
 
-      // Truncate text if needed
-      const labelText = truncateTextToPixelWidth(
-        aoiLabels[row],
-        MAX_LABEL_LENGTH,
-        labelFontSize,
-        SYSTEM_SANS_SERIF_STACK,
-        '...'
-      )
+      const x = layout.xOffset - layout.individualLabelMargin
+      const y =
+        layout.yOffset + row * layout.cellSize + layout.cellSize * 0.5 + 1
+
+      const isNoAoi = row === aoiLabels.length - 1
+      const labelText = layout.isCompactMode
+        ? isNoAoi
+          ? 'Ø'
+          : (row + 1).toString()
+        : truncateTextToPixelWidth(
+            aoiLabels[row],
+            TRANSITION_MATRIX_LAYOUT.maxLabelLength,
+            labelFontSize,
+            SYSTEM_SANS_SERIF_STACK,
+            '...'
+          )
 
       ctx.fillText(labelText, x, y)
     }
@@ -397,72 +499,84 @@
     ctx: CanvasRenderingContext2D,
     labelFontSize: number
   ) {
-    // make sure setUpFont function is called before this function is called!
+    if (!layout.showAxisLabels) return
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
 
     for (let col = 0; col < aoiLabels.length; col++) {
-      const x = xOffset + col * optimalCellSize + (optimalCellSize >> 1)
-      const y = yOffset - INDIVIDUAL_LABEL_MARGIN // Added 5px offset to move higher
+      if (layout.isCompactMode && (col + 1) % layout.thinFactor !== 0) continue
+
+      const x = layout.xOffset + col * layout.cellSize + layout.cellSize * 0.5
+      const y = layout.yOffset - layout.individualLabelMargin
 
       // Rotate labels if they're too long or there are too many
       ctx.save()
       ctx.translate(x, y)
-      ctx.rotate(-Math.PI / 4)
-      ctx.fillText(
-        truncateTextToPixelWidth(
-          aoiLabels[col],
-          MAX_LABEL_LENGTH * 1.5, // 1.5x the max label length to account for rotation
-          labelFontSize,
-          SYSTEM_SANS_SERIF_STACK,
-          '...'
-        ),
-        0,
-        0
-      )
+      // Rotated for names, vertical/straight for indices
+      if (!layout.isCompactMode) {
+        ctx.rotate(-Math.PI / 4)
+      } else {
+        ctx.textAlign = 'center'
+        // Vertical offset for straight labels
+        ctx.textBaseline = 'bottom'
+      }
+
+      const labelText = layout.isCompactMode
+        ? col === aoiLabels.length - 1
+          ? 'Ø'
+          : (col + 1).toString()
+        : truncateTextToPixelWidth(
+            aoiLabels[col],
+            TRANSITION_MATRIX_LAYOUT.maxLabelLength * 1.5,
+            labelFontSize,
+            SYSTEM_SANS_SERIF_STACK,
+            '...'
+          )
+
+      ctx.fillText(labelText, 0, 0)
       ctx.restore()
     }
   }
 
   // Draw grid and labels
   function drawGrid(ctx: CanvasRenderingContext2D) {
-    // Draw grid lines
     ctx.strokeStyle = '#ddd'
     ctx.lineWidth = 0.5
 
+    const { xOffset, yOffset, cellSize, gridWidth, gridHeight } = layout
+
     // Vertical grid lines
     for (let col = 0; col <= aoiLabels.length; col++) {
-      const x = xOffset + col * optimalCellSize
+      const x = alignToPixelCenter(xOffset + col * cellSize)
       ctx.beginPath()
       ctx.moveTo(x, yOffset)
-      ctx.lineTo(x, yOffset + actualGridHeight)
+      ctx.lineTo(x, yOffset + gridHeight)
       ctx.stroke()
     }
 
     // Horizontal grid lines
     for (let row = 0; row <= aoiLabels.length; row++) {
-      const y = yOffset + row * optimalCellSize
+      const y = alignToPixelCenter(yOffset + row * cellSize)
       ctx.beginPath()
       ctx.moveTo(xOffset, y)
-      ctx.lineTo(xOffset + actualGridWidth, y)
+      ctx.lineTo(xOffset + gridWidth, y)
       ctx.stroke()
     }
   }
 
   // Draw matrix cells
   function drawCells(ctx: CanvasRenderingContext2D) {
-    // Draw each cell based on its value
-    for (let row = 0; row < aoiLabels.length; row++) {
-      for (let col = 0; col < aoiLabels.length; col++) {
-        const value = TransitionMatrix[row]?.[col] ?? 0
+    const { xOffset, yOffset, cellSize } = layout
+    const size = aoiLabels.length
 
-        // Calculate cell position
-        const x = xOffset + col * optimalCellSize
-        const y = yOffset + row * optimalCellSize
+    for (let row = 0; row < size; row++) {
+      const rowOffset = row * size
+      for (let col = 0; col < size; col++) {
+        const value = TransitionMatrix[rowOffset + col] ?? 0
+        const x = xOffset + col * cellSize
+        const y = yOffset + row * cellSize
 
-        // Determine cell color based on value
         let cellColor
-
         if (isBelowMinimum(value)) {
           cellColor = belowMinColor
         } else if (isAboveMaximum(value)) {
@@ -471,86 +585,51 @@
           cellColor = getColor(value)
         }
 
-        // Draw cell background
         ctx.fillStyle = cellColor
-        ctx.fillRect(x, y, optimalCellSize, optimalCellSize)
+        ctx.fillRect(x, y, cellSize, cellSize)
       }
     }
   }
 
   function drawCellsText(ctx: CanvasRenderingContext2D) {
-    // make sure setUpFont function is called before this function is called!
+    if (!layout.showCellValues) return
+
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
 
-    // Adjust text size based on cell size
-    // const valueFontSize = Math.min(12, Math.max(8, optimalCellSize / 3))
-    // ctx.font = `${valueFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
+    const { xOffset, yOffset, cellSize, cellValueFontSize } = layout
+    ctx.font = `${cellValueFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
+    const size = aoiLabels.length
 
-    for (let row = 0; row < aoiLabels.length; row++) {
-      for (let col = 0; col < aoiLabels.length; col++) {
-        const value = TransitionMatrix[row]?.[col] ?? 0
+    for (let row = 0; row < size; row++) {
+      const rowOffset = row * size
+      for (let col = 0; col < size; col++) {
+        const value = TransitionMatrix[rowOffset + col] ?? 0
 
-        if (optimalCellSize >= 15) {
-          const shouldShowValue =
-            (!isBelowMinimum(value) && !isAboveMaximum(value)) || // Always show values within range
-            (isBelowMinimum(value) && showBelowMinLabels) || // Show below min if enabled
-            (isAboveMaximum(value) && showAboveMaxLabels) // Show above max if enabled
+        const shouldShowValue =
+          (!isBelowMinimum(value) && !isAboveMaximum(value)) ||
+          (isBelowMinimum(value) && showBelowMinLabels) ||
+          (isAboveMaximum(value) && showAboveMaxLabels)
 
-          if (shouldShowValue) {
-            const x = xOffset + col * optimalCellSize
-            const y = yOffset + row * optimalCellSize
-            let textColor: string
+        if (shouldShowValue) {
+          const x = xOffset + col * cellSize
+          const y = yOffset + row * cellSize
+          let cellColor = isBelowMinimum(value)
+            ? belowMinColor
+            : isAboveMaximum(value)
+              ? aboveMaxColor
+              : getColor(value)
 
-            if (isBelowMinimum(value)) {
-              textColor = getContrastTextColor(belowMinColor)
-            } else if (isAboveMaximum(value)) {
-              textColor = getContrastTextColor(aboveMaxColor)
-            } else {
-              textColor = getContrastTextColor(getColor(value))
-            }
+          ctx.fillStyle = getContrastTextColor(cellColor)
+          const displayValue = Number.isInteger(value)
+            ? value.toString()
+            : value.toFixed(1)
 
-            ctx.fillStyle = textColor
-            ctx.textAlign = 'center'
-            ctx.textBaseline = 'middle'
-            ctx.fillText(
-              value.toString(),
-              x + (optimalCellSize >> 1),
-              y + (optimalCellSize >> 1)
-            )
-          }
+          ctx.fillText(displayValue, x + cellSize * 0.5, y + cellSize * 0.5 + 1)
         }
       }
     }
   }
-
-  // Tracking for legend hover effect
-  let hoverState = $state<'none' | 'gradient' | 'minValue' | 'maxValue'>('none')
-
-  // Zone definitions for interaction
-  let minValueZone = $state<{ x: number; y: number; radius: number } | null>(
-    null
-  )
-  let maxValueZone = $state<{ x: number; y: number; radius: number } | null>(
-    null
-  )
-  let gradientZone = $state<{
-    x: number
-    y: number
-    width: number
-    height: number
-    radius: number
-  } | null>(null)
-
-  // Legend data for general interaction
-  let legendData = $state<{
-    x: number
-    y: number
-    width: number
-    height: number
-    minValue: number
-    maxValue: number
-  } | null>(null)
 
   // Check if a value is below the minimum threshold
   function isBelowMinimum(value: number): boolean {
@@ -572,276 +651,70 @@
     )
   }
 
-  // Fallback function to draw a minimalist legend when space is tight
-  function drawMinimalistLegend(
-    ctx: CanvasRenderingContext2D,
-    yPosition: number
-  ) {
-    // Use width proportional to the matrix
-    const legendWidth = Math.min(200, actualGridWidth * 0.7)
+  // Legend geometry computed via shared utility
+  const legendGeometry = $derived.by(() => {
+    const { yOffset, gridHeight, gridWidth, xOffset, matrixBottom } = layout
+    const availableLegendSpace = height - matrixBottom - 10
 
-    // Center legend horizontally with the matrix
-    const legendX = xOffset + ((actualGridWidth - legendWidth) >> 1)
-
-    // Minimal gradient height
-    const gradientHeight = 8 // Reduced from 10px to 8px
-
-    // Create gradient
-    const gradient = ctx.createLinearGradient(
-      legendX,
-      0,
-      legendX + legendWidth,
-      0
-    )
-
-    if (colorScale.length === 3) {
-      gradient.addColorStop(0, colorScale[0])
-      gradient.addColorStop(0.5, colorScale[1])
-      gradient.addColorStop(1, colorScale[2])
-    } else {
-      gradient.addColorStop(0, colorScale[0])
-      gradient.addColorStop(1, colorScale[1])
-    }
-
-    // Draw gradient rectangle
-    ctx.fillStyle = gradient
-    ctx.fillRect(legendX, yPosition, legendWidth, gradientHeight)
-
-    // Draw border around gradient
-    ctx.strokeStyle = '#666'
-    ctx.lineWidth = 0.5
-    ctx.strokeRect(legendX, yPosition, legendWidth, gradientHeight)
-
-    // Store legend data for interaction
-    legendData = {
-      x: legendX,
-      y: yPosition,
-      width: legendWidth,
-      height: gradientHeight,
-      minValue: colorValueRange[0],
-      maxValue: effectiveMaxValue,
-    }
-  }
+    return computeGradientLegendGeometry({
+      x: xOffset,
+      y: matrixBottom + 5,
+      availableWidth: gridWidth,
+      availableHeight: availableLegendSpace,
+      colorScale,
+      valueRange: colorValueRange,
+      effectiveMaxValue,
+      title: legendTitle,
+    })
+  })
 
   // Draw the color legend
   function drawLegend(ctx: CanvasRenderingContext2D) {
-    // Calculate available space for legend
-    const matrixBottom = yOffset + actualGridHeight
-    const availableLegendSpace = height - matrixBottom - 10 // Reserve 10px padding at bottom
-
-    // If almost no space is available, draw a minimalist legend
-    if (availableLegendSpace < 30) {
-      // Very compact legend, just the gradient with tiny text
-      drawMinimalistLegend(ctx, matrixBottom + 5)
-      return
-    }
-
-    // Calculate legend position with available space
-    const legendTop = matrixBottom + Math.min(25, availableLegendSpace * 0.25) // Reduced spacing
-
-    // Use width proportional to the matrix
-    const legendWidth = Math.min(300, actualGridWidth * 0.8)
-
-    // Center legend horizontally with the matrix
-    const legendX = xOffset + ((actualGridWidth - legendWidth) >> 1)
-
-    // Legend components vertical positioning
-    const titleY = legendTop
-    const gradientY = titleY + Math.min(20, availableLegendSpace * 0.25) // Reduced spacing
-    const gradientHeight = Math.min(12, availableLegendSpace * 0.2) // Thinner gradient bar
-    const valuesY = gradientY + gradientHeight + 4 // Reduced spacing
-
-    // The circle radius for value zones
-    const valueRadius = Math.max(15, gradientHeight * 1.5)
-
-    // Define interaction zones
-    minValueZone = {
-      x: legendX,
-      y: valuesY + 6, // Center of the text
-      radius: valueRadius,
-    }
-
-    maxValueZone = {
-      x: legendX + legendWidth,
-      y: valuesY + 6, // Center of the text
-      radius: valueRadius,
-    }
-
-    gradientZone = {
-      x: legendX - 10, // Increased buffer from 5 to 15
-      y: gradientY - 10, // Increased buffer from 5 to 15
-      width: legendWidth + 20, // Increased buffer from 10 to 30
-      height: gradientHeight + 20, // Increased buffer from 10 to 30
-      radius: 15, // Border radius for rounded corners
-    }
-
-    // Draw hover effects based on the current hover state
-    if (hoverState !== 'none') {
-      const alpha = 0.2 // Fixed opacity without animation
-
-      if (hoverState === 'minValue' && minValueZone) {
-        // Draw circle highlight for min value
-        ctx.fillStyle = `rgba(200, 200, 200, ${alpha})`
-        ctx.beginPath()
-        ctx.arc(
-          minValueZone.x,
-          minValueZone.y,
-          minValueZone.radius,
-          0,
-          Math.PI << 1
-        )
-        ctx.fill()
-      } else if (hoverState === 'maxValue' && maxValueZone) {
-        // Draw circle highlight for max value
-        ctx.fillStyle = `rgba(200, 200, 200, ${alpha})`
-        ctx.beginPath()
-        ctx.arc(
-          maxValueZone.x,
-          maxValueZone.y,
-          maxValueZone.radius,
-          0,
-          Math.PI << 1
-        )
-        ctx.fill()
-      } else if (hoverState === 'gradient' && gradientZone) {
-        // Draw rounded rectangle highlight for gradient
-        ctx.fillStyle = `rgba(200, 200, 200, ${alpha})`
-        drawRoundedRect(
-          ctx,
-          gradientZone.x,
-          gradientZone.y,
-          gradientZone.width,
-          gradientZone.height,
-          gradientZone.radius
-        )
-      }
-    }
-
-    // Draw legend title if there's room
-    if (availableLegendSpace > 40) {
-      ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
-      ctx.fillStyle = '#000'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'top'
-      ctx.fillText(legendTitle, xOffset + (actualGridWidth >> 1), titleY)
-    }
-
-    // Create gradient
-    const gradient = ctx.createLinearGradient(
-      legendX,
-      0,
-      legendX + legendWidth,
-      0
-    )
-
-    if (colorScale.length === 3) {
-      gradient.addColorStop(0, colorScale[0])
-      gradient.addColorStop(0.5, colorScale[1])
-      gradient.addColorStop(1, colorScale[2])
-    } else {
-      gradient.addColorStop(0, colorScale[0])
-      gradient.addColorStop(1, colorScale[1])
-    }
-
-    // Draw gradient rectangle
-    ctx.fillStyle = gradient
-    ctx.fillRect(legendX, gradientY, legendWidth, gradientHeight)
-
-    // Draw border around gradient
-    ctx.strokeStyle = '#666'
-    ctx.lineWidth = 0.5
-    ctx.strokeRect(legendX, gradientY, legendWidth, gradientHeight)
-
-    // Draw min and max values if there's room
-    if (availableLegendSpace > 35) {
-      ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
-      ctx.fillStyle = '#000'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'top'
-
-      // Min value
-      ctx.fillText(colorValueRange[0].toString(), legendX, valuesY)
-
-      // Max value
-      ctx.fillText(effectiveMaxValue.toString(), legendX + legendWidth, valuesY)
-    }
-
-    // Store legend data for interaction with expanded area
-    legendData = {
-      x: legendX - 10,
-      y: titleY - 5,
-      width: legendWidth + 20,
-      height: valuesY + 15 - (titleY - 5),
-      minValue: colorValueRange[0],
-      maxValue: effectiveMaxValue,
+    if (legendGeometry) {
+      drawGradientLegend(
+        ctx,
+        legendGeometry,
+        {
+          x: 0, // unused by draw
+          y: 0,
+          availableWidth: 0,
+          availableHeight: 0,
+          colorScale,
+          valueRange: colorValueRange,
+          effectiveMaxValue,
+          title: legendTitle,
+        },
+        hoverState
+      )
     }
   }
 
-  // Function to draw rounded rectangle
-  function drawRoundedRect(
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    radius: number
-  ) {
-    ctx.beginPath()
-    ctx.moveTo(x + radius, y)
-    ctx.lineTo(x + width - radius, y)
-    ctx.quadraticCurveTo(x + width, y, x + width, y + radius)
-    ctx.lineTo(x + width, y + height - radius)
-    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height)
-    ctx.lineTo(x + radius, y + height)
-    ctx.quadraticCurveTo(x, y + height, x, y + height - radius)
-    ctx.lineTo(x, y + radius)
-    ctx.quadraticCurveTo(x, y, x + radius, y)
-    ctx.closePath()
-    ctx.fill()
-  }
+  // Tracking for legend hover effect
+  let hoverState = $state<'none' | 'gradient' | 'minValue' | 'maxValue'>('none')
 
-  // Handle mouse movement over the canvas using our scaled position utility
   function handleMouseMove(event: MouseEvent) {
-    // Remove throttling completely - process every event
     if (!canvas) return
-
-    // Get properly scaled mouse position
     const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
-
-    // Store previous state
     const oldHoverState = hoverState
 
-    // Check for hovering over a cell first
-    let isOverCell = false
-    let hoveredCellInfo = null
+    const { xOffset, yOffset, cellSize } = layout
+    const col = Math.floor((mouseX - xOffset) / cellSize)
+    const row = Math.floor((mouseY - yOffset) / cellSize)
 
-    for (const cell of cellPositions) {
-      if (
-        mouseX >= cell.x &&
-        mouseX <= cell.x + cell.width &&
-        mouseY >= cell.y &&
-        mouseY <= cell.y + cell.height
-      ) {
-        isOverCell = true
-        hoveredCellInfo = {
-          row: cell.row,
-          col: cell.col,
-          value: cell.value,
-          x: cell.x,
-          y: cell.y,
-          width: cell.width,
-          height: cell.height,
-        }
-        break
-      }
-    }
+    const isOverCell =
+      row >= 0 && row < aoiLabels.length && col >= 0 && col < aoiLabels.length
 
     // If over a cell, show tooltip and clear hover state
-    if (isOverCell && hoveredCellInfo) {
+    if (isOverCell) {
+      const size = aoiLabels.length
+      const value = TransitionMatrix[row * size + col] ?? 0
+      const x = xOffset + col * cellSize
+      const y = yOffset + row * cellSize
+
       const tooltipPos = getTooltipPosition(
         canvasState,
-        hoveredCellInfo.x + hoveredCellInfo.width,
-        hoveredCellInfo.y + (hoveredCellInfo.height >> 1),
+        x + cellSize,
+        y + (cellSize >> 1),
         { x: 10, y: 0 }
       )
 
@@ -849,157 +722,102 @@
         x: tooltipPos.x,
         y: tooltipPos.y,
         content: [
-          { key: 'From', value: aoiLabels[hoveredCellInfo.row] },
-          { key: 'To', value: aoiLabels[hoveredCellInfo.col] },
-          { key: 'Value', value: hoveredCellInfo.value.toString() },
+          { key: 'From', value: aoiLabels[row] },
+          { key: 'To', value: aoiLabels[col] },
+          { key: 'Value', value: value.toString() },
         ],
         visible: true,
         width: 150,
       })
 
-      // Force hover state to none when over cells
       hoverState = 'none'
-    }
-    // Not over a cell, check legend elements
-    else {
-      // Clear tooltip when not over a cell
-      updateTooltip(null)
+    } else {
+      // Check legend interactions
+      hoverState = hitTestGradientLegend(mouseX, mouseY, legendGeometry.zones)
 
-      // Reset hover state first
-      hoverState = 'none'
+      if (hoverState !== 'none') {
+        let tooltipX = 0
+        let tooltipY = 0
+        let msg = ''
+        let hasZone = false
 
-      // Check min value circle
-      if (
-        minValueZone &&
-        Math.hypot(mouseX - minValueZone.x, mouseY - minValueZone.y) <=
-          minValueZone.radius
-      ) {
-        hoverState = 'minValue'
-        const tooltipPos = getTooltipPosition(
-          canvasState,
-          minValueZone.x,
-          minValueZone.y + minValueZone.radius,
-          { x: 0, y: 5 }
-        )
-        updateTooltip({
-          x: tooltipPos.x,
-          y: tooltipPos.y,
-          content: [{ key: '', value: 'Modify min value' }],
-          visible: true,
-        })
-      }
-      // Check max value circle
-      else if (
-        maxValueZone &&
-        Math.hypot(mouseX - maxValueZone.x, mouseY - maxValueZone.y) <=
-          maxValueZone.radius
-      ) {
-        hoverState = 'maxValue'
-        const tooltipPos = getTooltipPosition(
-          canvasState,
-          maxValueZone.x,
-          maxValueZone.y + maxValueZone.radius,
-          { x: 0, y: 5 }
-        )
-        updateTooltip({
-          x: tooltipPos.x,
-          y: tooltipPos.y,
-          content: [{ key: '', value: 'Modify max value' }],
-          visible: true,
-        })
-      }
-      // Check gradient area
-      else if (
-        gradientZone &&
-        mouseX >= gradientZone.x &&
-        mouseX <= gradientZone.x + gradientZone.width &&
-        mouseY >= gradientZone.y &&
-        mouseY <= gradientZone.y + gradientZone.height
-      ) {
-        hoverState = 'gradient'
-        const tooltipPos = getTooltipPosition(
-          canvasState,
-          gradientZone.x + (gradientZone.width >> 1),
-          gradientZone.y + gradientZone.height,
-          { x: 115 / -2, y: 5 } // Half of the tooltip width (110/2) to center it
-        )
-        updateTooltip({
-          x: tooltipPos.x,
-          y: tooltipPos.y,
-          content: [{ key: '', value: 'Change color scale' }],
-          visible: true,
-        })
+        if (hoverState === 'gradient' && legendGeometry.zones.gradientZone) {
+          const z = legendGeometry.zones.gradientZone
+          tooltipX = z.x + (z.width >> 1)
+          tooltipY = z.y + z.height
+          msg = 'Change color scale'
+          hasZone = true
+        } else if (
+          hoverState === 'minValue' &&
+          legendGeometry.zones.minValueZone
+        ) {
+          const z = legendGeometry.zones.minValueZone
+          tooltipX = z.x
+          tooltipY = z.y + z.radius
+          msg = 'Modify min value'
+          hasZone = true
+        } else if (
+          hoverState === 'maxValue' &&
+          legendGeometry.zones.maxValueZone
+        ) {
+          const z = legendGeometry.zones.maxValueZone
+          tooltipX = z.x
+          tooltipY = z.y + z.radius
+          msg = 'Modify max value'
+          hasZone = true
+        }
+
+        if (hasZone) {
+          const tooltipPos = getTooltipPosition(
+            canvasState,
+            tooltipX,
+            tooltipY,
+            { x: 0, y: 5 }
+          )
+
+          updateTooltip({
+            x: tooltipPos.x,
+            y: tooltipPos.y,
+            content: [{ key: '', value: msg }],
+            visible: true,
+          })
+        }
+      } else {
+        updateTooltip(null)
       }
     }
 
     // Update cursor style
-    canvas.style.cursor = hoverState !== 'none' ? 'pointer' : 'default'
+    if (canvas) {
+      canvas.style.cursor =
+        hoverState !== 'none' || isOverCell ? 'pointer' : 'default'
+    }
 
-    // Always redraw on state change
-    if (oldHoverState !== hoverState) {
-      // Force immediate redraw without scheduling
-      renderCanvas()
+    if (hoverState !== oldHoverState) {
+      scheduleRender() // Force redraw
     }
   }
 
-  // Make mouse leave handler more aggressive
   function handleMouseLeave() {
     updateTooltip(null)
-
-    // Always reset hover state
     const oldHoverState = hoverState
     hoverState = 'none'
-
-    if (canvas) {
-      canvas.style.cursor = 'default'
-    }
-
-    // Force redraw if state changed
-    if (oldHoverState !== 'none') {
-      renderCanvas()
-    }
+    if (canvas) canvas.style.cursor = 'default'
+    if (oldHoverState !== 'none') scheduleRender()
   }
 
-  // Handle mouse clicks - now with different callbacks for different zones
   function handleMouseDown(event: MouseEvent) {
     if (!canvas) return
-
-    // Get properly scaled mouse position
     const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
 
-    // Check which zone was clicked
-    if (
-      minValueZone &&
-      Math.hypot(mouseX - minValueZone.x, mouseY - minValueZone.y) <=
-        minValueZone.radius
-    ) {
-      // Min value clicked
+    const hit = hitTestGradientLegend(mouseX, mouseY, legendGeometry.zones)
+
+    if (hit === 'minValue') {
       onValueClick(true)
-    } else if (
-      maxValueZone &&
-      Math.hypot(mouseX - maxValueZone.x, mouseY - maxValueZone.y) <=
-        maxValueZone.radius
-    ) {
-      // Max value clicked
+    } else if (hit === 'maxValue') {
       onValueClick(false)
-    } else if (
-      gradientZone &&
-      mouseX >= gradientZone.x &&
-      mouseX <= gradientZone.x + gradientZone.width &&
-      mouseY >= gradientZone.y &&
-      mouseY <= gradientZone.y + gradientZone.height
-    ) {
-      // Gradient clicked
+    } else if (hit === 'gradient') {
       onGradientClick()
-    } else if (
-      legendData &&
-      mouseX >= legendData.x &&
-      mouseX <= legendData.x + legendData.width &&
-      mouseY >= legendData.y &&
-      mouseY <= legendData.y + legendData.height
-    ) {
-      // Legend clicked
-      void 0
     }
   }
 
@@ -1081,29 +899,9 @@
   })
 </script>
 
-<div class="canvas-container">
-  <canvas
-    bind:this={canvas}
-    onmousemove={handleMouseMove}
-    onmouseleave={handleMouseLeave}
-    onmousedown={handleMouseDown}
-  ></canvas>
-</div>
-
-<style>
-  .canvas-container {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    max-width: 100%;
-    max-height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: visible; /* Important to prevent cropping */
-  }
-
-  canvas {
-    display: block; /* Do not add 100% width and height here! It might mess up with the export and so on */
-  }
-</style>
+<canvas
+  bind:this={canvas}
+  onmousemove={handleMouseMove}
+  onmouseleave={handleMouseLeave}
+  onmousedown={handleMouseDown}
+></canvas>

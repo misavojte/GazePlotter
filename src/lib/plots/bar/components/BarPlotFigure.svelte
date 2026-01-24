@@ -5,6 +5,7 @@
     FONT_PRIMARY,
     type AdaptiveTimeline,
     getTimelinePositionRatio,
+    drawPlotOutline,
   } from '$lib/plots/shared'
   import {
     calculateLabelOffset,
@@ -26,6 +27,8 @@
     setupDpiChangeListeners,
     beginCanvasDrawing,
     finishCanvasDrawing,
+    alignToPixelCenter,
+    strokeCrispRect,
     type CanvasState,
   } from '$lib/shared/utils/canvasUtils'
 
@@ -100,19 +103,26 @@
     exportRegistrar.register({ kind: 'canvas', getCanvas: () => canvas })
   })
 
+  // Calculate dynamic margins
+  const effectiveTopMargin = $derived(
+    barPlottingType === 'horizontal' ? TICK_LENGTH : MARGIN.TOP
+  )
+
   // Calculate dynamic left margin based on plotting type and label lengths
   const trueLeftMargin = $derived(
-    barPlottingType === 'horizontal'
-      ? Math.min(
-          150,
-          calculateLabelOffset(data.map(item => item.label)) +
-            VALUE_LABEL_OFFSET
-        ) + marginLeft
-      : Math.max(
-          35,
-          calculateLabelOffset(timeline.ticks.map(tick => tick.label)) +
-            VALUE_LABEL_OFFSET
-        ) + marginLeft
+    Math.floor(
+      barPlottingType === 'horizontal'
+        ? Math.min(
+            150,
+            calculateLabelOffset(data.map(item => item.label)) +
+              VALUE_LABEL_OFFSET
+          ) + marginLeft
+        : Math.max(
+            35,
+            calculateLabelOffset(timeline.ticks.map(tick => tick.label)) +
+              VALUE_LABEL_OFFSET
+          ) + marginLeft
+    )
   )
 
   const dynamicRightMargin = $derived.by(() => {
@@ -139,9 +149,13 @@
   })
 
   // Calculate plot area dimensions
-  const plotAreaWidth = $derived(width - trueLeftMargin - dynamicRightMargin)
+  const plotAreaWidth = $derived(
+    Math.floor(width - trueLeftMargin - dynamicRightMargin)
+  )
   const plotAreaHeight = $derived(
-    height - MARGIN.TOP - MARGIN.BOTTOM - marginTop - marginBottom
+    Math.floor(
+      height - effectiveTopMargin - MARGIN.BOTTOM - marginTop - marginBottom
+    )
   )
 
   // Scale values to plot area using AdaptiveTimeline
@@ -218,7 +232,7 @@
             trueLeftMargin +
             startPosition +
             index * (optimalBarWidth + effectiveBarSpacing),
-          y: MARGIN.TOP + marginTop + plotAreaHeight - scaledValue,
+          y: effectiveTopMargin + marginTop + plotAreaHeight - scaledValue,
           width: optimalBarWidth,
           height: scaledValue,
           value: item.value,
@@ -229,7 +243,7 @@
         return {
           x: trueLeftMargin,
           y:
-            MARGIN.TOP +
+            effectiveTopMargin +
             marginTop +
             startPosition +
             index * (optimalBarWidth + effectiveBarSpacing),
@@ -281,17 +295,23 @@
     // Set up common context properties once
     setupContextProperties(ctx)
 
+    // Floor dimensions for pixel-perfect synchronization
+    const floorLeft = Math.floor(trueLeftMargin)
+    const floorWidth = Math.floor(plotAreaWidth)
+    const floorTop = Math.floor(effectiveTopMargin + marginTop)
+    const floorHeight = Math.floor(plotAreaHeight)
+
     // Draw plot area border
-    drawPlotBorder(ctx)
+    drawPlotOutline(ctx, floorLeft, floorTop, floorWidth, floorHeight)
 
     // Draw grid lines
-    drawGridLines(ctx)
+    drawGridLines(ctx, floorLeft, floorWidth, floorTop, floorHeight)
 
     // Draw bars
     drawBars(ctx)
 
     // Draw all text elements (value labels, category labels, tick labels)
-    drawAllTextElements(ctx)
+    drawAllTextElements(ctx, floorLeft, floorWidth, floorTop, floorHeight)
 
     // Finish drawing
     finishCanvasDrawing(canvasState)
@@ -300,25 +320,18 @@
   // Set up common context properties once to avoid repeated assignments
   function setupContextProperties(ctx: CanvasRenderingContext2D) {
     // Set up stroke properties for grid lines and axis ticks
-    // Set up stroke properties for grid lines and axis ticks
     ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
     ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
-  }
-
-  // Draw plot area border
-  function drawPlotBorder(ctx: CanvasRenderingContext2D) {
-    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
-    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
-    ctx.strokeRect(
-      trueLeftMargin,
-      MARGIN.TOP + marginTop,
-      plotAreaWidth,
-      plotAreaHeight
-    )
   }
 
   // Draw grid lines
-  function drawGridLines(ctx: CanvasRenderingContext2D) {
+  function drawGridLines(
+    ctx: CanvasRenderingContext2D,
+    leftX: number,
+    plotWidth: number,
+    plotTop: number,
+    plotHeight: number
+  ) {
     // Context properties already set in setupContextProperties()
     if (barPlottingType === 'vertical') {
       const ticks = timeline.ticks.filter(tick => tick.isNice)
@@ -327,32 +340,12 @@
       ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
       ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
       ticks.forEach(tick => {
-        const y =
-          MARGIN.TOP +
-          marginTop +
-          plotAreaHeight -
-          tick.position * plotAreaHeight
+        const y = alignToPixelCenter(
+          plotTop + plotHeight - tick.position * plotHeight
+        )
         ctx.beginPath()
-        ctx.moveTo(trueLeftMargin - TICK_LENGTH, y)
-        ctx.lineTo(trueLeftMargin, y)
-        ctx.stroke()
-      })
-
-      // Draw grid lines (subtle)
-      ctx.strokeStyle = GRIDLINE_SECONDARY.COLOR
-      ctx.lineWidth = GRIDLINE_SECONDARY.WIDTH
-      ticks.forEach(tick => {
-        // Skip drawing subtle line at position 0 (start of plot) because border covers it with PRIMARY style
-        if (tick.position <= 1e-6) return
-
-        const y =
-          MARGIN.TOP +
-          marginTop +
-          plotAreaHeight -
-          tick.position * plotAreaHeight
-        ctx.beginPath()
-        ctx.moveTo(trueLeftMargin, y)
-        ctx.lineTo(trueLeftMargin + plotAreaWidth, y)
+        ctx.moveTo(leftX - TICK_LENGTH, y)
+        ctx.lineTo(leftX, y)
         ctx.stroke()
       })
     } else {
@@ -362,24 +355,17 @@
       ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
       ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
       ticks.forEach(tick => {
-        const x = trueLeftMargin + tick.position * plotAreaWidth
+        const x = alignToPixelCenter(leftX + tick.position * plotWidth)
+        // Bottom ticks
         ctx.beginPath()
-        ctx.moveTo(x, MARGIN.TOP + marginTop + plotAreaHeight)
-        ctx.lineTo(x, MARGIN.TOP + marginTop + plotAreaHeight + TICK_LENGTH)
+        ctx.moveTo(x, plotTop + plotHeight)
+        ctx.lineTo(x, plotTop + plotHeight + TICK_LENGTH)
         ctx.stroke()
-      })
 
-      // Draw grid lines (subtle)
-      ctx.strokeStyle = GRIDLINE_SECONDARY.COLOR
-      ctx.lineWidth = GRIDLINE_SECONDARY.WIDTH
-      ticks.forEach(tick => {
-        // Skip drawing subtle line at position 0 (start of plot) because border covers it with PRIMARY style
-        if (tick.position <= 1e-6) return
-
-        const x = trueLeftMargin + tick.position * plotAreaWidth
+        // Top ticks
         ctx.beginPath()
-        ctx.moveTo(x, MARGIN.TOP + marginTop)
-        ctx.lineTo(x, MARGIN.TOP + marginTop + plotAreaHeight)
+        ctx.moveTo(x, plotTop)
+        ctx.lineTo(x, plotTop - TICK_LENGTH)
         ctx.stroke()
       })
     }
@@ -387,95 +373,92 @@
 
   // Draw the bars
   function drawBars(ctx: CanvasRenderingContext2D) {
-    // Draw each bar
-    bars.forEach((bar, index) => {
-      const style = getBarStyle(index, bar.color)
-      ctx.fillStyle = style.fill
-      ctx.fillRect(bar.x, bar.y, bar.width, bar.height)
-    })
+    // bars already contains all calculated positions and dimensions
+    for (const bar of bars) {
+      ctx.fillStyle = bar.color
+      ctx.fillRect(
+        alignToPixelCenter(bar.x),
+        alignToPixelCenter(bar.y),
+        Math.floor(bar.width),
+        Math.floor(bar.height)
+      )
+    }
   }
 
   // Draw all text elements in one optimized function
-  function drawAllTextElements(ctx: CanvasRenderingContext2D) {
+  function drawAllTextElements(
+    ctx: CanvasRenderingContext2D,
+    leftX: number,
+    plotWidth: number,
+    plotTop: number,
+    plotHeight: number
+  ) {
     ctx.font = `${LABEL_FONT_SIZE}px ${FONT_PRIMARY.FAMILY}`
     ctx.fillStyle = FONT_PRIMARY.COLOR
 
+    const isVertical = barPlottingType === 'vertical'
+
     // Draw value labels
-    bars.forEach(bar => {
+    ctx.textAlign = isVertical ? 'center' : 'left'
+    ctx.textBaseline = isVertical ? 'alphabetic' : 'middle'
+
+    for (const bar of bars) {
       const text = bar.value.toString()
-      let x, y, textAlign, textBaseline
+      const x = isVertical
+        ? alignToPixelCenter(bar.x + bar.width / 2)
+        : bar.x + bar.width + VALUE_LABEL_OFFSET
+      const y = isVertical
+        ? bar.y - VALUE_LABEL_OFFSET
+        : alignToPixelCenter(bar.y + bar.height / 2)
 
-      if (barPlottingType === 'vertical') {
-        x = bar.x + bar.width / 2
-        y = bar.y - VALUE_LABEL_OFFSET
-        textAlign = 'center'
-        textBaseline = 'alphabetic'
-      } else {
-        x = bar.x + bar.width + VALUE_LABEL_OFFSET
-        y = bar.y + bar.height / 2
-        textAlign = 'left'
-        textBaseline = 'middle'
-      }
-
-      ctx.textAlign = textAlign as CanvasTextAlign
-      ctx.textBaseline = textBaseline as CanvasTextBaseline
       ctx.fillText(text, x, y)
-    })
+    }
 
     // Draw category labels
-    bars.forEach(bar => {
+    ctx.textAlign = isVertical ? 'center' : 'right'
+    ctx.textBaseline = 'middle'
+
+    for (const bar of bars) {
       let text = bar.label
+      let x, y
+
+      if (isVertical) {
+        text = truncateTextToPixelWidth(text, bar.width, LABEL_FONT_SIZE)
+        x = alignToPixelCenter(bar.x + bar.width / 2)
+        y = alignToPixelCenter(plotTop + plotHeight + CATEGORY_LABEL_OFFSET)
+      } else {
+        text = truncateTextToPixelWidth(text, trueLeftMargin, LABEL_FONT_SIZE)
+        x = trueLeftMargin - VALUE_LABEL_OFFSET
+        y = alignToPixelCenter(bar.y + bar.height / 2)
+      }
+
+      ctx.fillText(text, x, y)
+    }
+
+    // Draw tick labels
+    for (const tick of timeline.ticks) {
+      if (!tick.isNice) continue
+
       let x, y, textAlign, textBaseline
 
-      if (barPlottingType === 'vertical') {
-        // For vertical bars, truncate text based on pixel width
-        text = truncateTextToPixelWidth(text, bar.width, LABEL_FONT_SIZE)
-
-        x = bar.x + bar.width / 2
-        y = MARGIN.TOP + marginTop + plotAreaHeight + CATEGORY_LABEL_OFFSET
-        textAlign = 'center'
-        textBaseline = 'middle'
-      } else {
-        // For horizontal bars, truncate text based on pixel width
-        text = truncateTextToPixelWidth(text, trueLeftMargin, LABEL_FONT_SIZE)
-
-        x = trueLeftMargin - VALUE_LABEL_OFFSET
-        y = bar.y + bar.height / 2
+      if (isVertical) {
+        x = leftX - VALUE_LABEL_OFFSET
+        y = alignToPixelCenter(
+          plotTop + plotHeight - tick.position * plotHeight
+        )
         textAlign = 'right'
         textBaseline = 'middle'
+      } else {
+        x = alignToPixelCenter(leftX + tick.position * plotWidth)
+        y = plotTop + plotHeight + CATEGORY_LABEL_OFFSET
+        textAlign = 'center'
+        textBaseline = 'hanging'
       }
 
       ctx.textAlign = textAlign as CanvasTextAlign
       ctx.textBaseline = textBaseline as CanvasTextBaseline
-      ctx.fillText(text, x, y)
-    })
-
-    // Draw tick labels
-    timeline.ticks
-      .filter(tick => tick.isNice)
-      .forEach(tick => {
-        let x, y, textAlign, textBaseline
-
-        if (barPlottingType === 'vertical') {
-          x = trueLeftMargin - VALUE_LABEL_OFFSET
-          y =
-            MARGIN.TOP +
-            marginTop +
-            plotAreaHeight -
-            tick.position * plotAreaHeight
-          textAlign = 'right'
-          textBaseline = 'middle'
-        } else {
-          x = trueLeftMargin + tick.position * plotAreaWidth
-          y = MARGIN.TOP + marginTop + plotAreaHeight + CATEGORY_LABEL_OFFSET
-          textAlign = 'center'
-          textBaseline = 'hanging'
-        }
-
-        ctx.textAlign = textAlign as CanvasTextAlign
-        ctx.textBaseline = textBaseline as CanvasTextBaseline
-        ctx.fillText(tick.label, x, y)
-      })
+      ctx.fillText(tick.label, x, y)
+    }
   }
 
   // Event handlers
@@ -624,23 +607,9 @@
   })
 </script>
 
-<div class="plot-container">
-  <canvas
-    bind:this={canvas}
-    onmousemove={handleMouseMove}
-    onmouseleave={handleMouseLeave}
-    aria-label="Bar plot visualization"
-  ></canvas>
-</div>
-
-<style>
-  .plot-container {
-    position: relative;
-    width: 100%;
-    height: 100%;
-  }
-
-  canvas {
-    display: block;
-  }
-</style>
+<canvas
+  bind:this={canvas}
+  onmousemove={handleMouseMove}
+  onmouseleave={handleMouseLeave}
+  aria-label="Bar plot visualization"
+></canvas>

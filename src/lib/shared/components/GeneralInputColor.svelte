@@ -4,7 +4,7 @@
     getContrastTextColor,
     isDarkColor,
   } from '$lib/shared/utils/colorUtils'
-  import { tick } from 'svelte'
+  import { tick, untrack } from 'svelte'
   import { fade } from 'svelte/transition'
 
   /**
@@ -567,7 +567,7 @@
     '#ffbb78', // Light orange - background/light data
   ]
 
-  const id = `color-${label.toLowerCase().replace(/\s+/g, '-')}`
+  const id = `color-${untrack(() => label.toLowerCase().replace(/\s+/g, '-'))}`
 </script>
 
 <GeneralInputScaffold {label} {id}>

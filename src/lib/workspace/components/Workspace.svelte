@@ -3,7 +3,6 @@
     WorkspaceIndicatorEmpty,
     WorkspaceIndicatorLoading,
     WorkspaceToolbar,
-    visualizationRegistry, // Constant
   } from '$lib/workspace'
   import { processingFileStateStore } from '$lib/workspace/stores'
   import { grid } from '$lib/workspace/grid'
@@ -14,6 +13,7 @@
     DEFAULT_GRID_CONFIG,
   } from '$lib/workspace/grid'
   import { addSuccessToast, addErrorToast } from '$lib/toaster'
+  import { visualizationRegistry } from '$lib/plots/registry'
   import { createCommandHandler } from '$lib/workspace/commands'
   import type {
     WorkspaceCommand,
@@ -110,14 +110,14 @@
   >
     <Grid
       gridItems={grid.items}
-      gridConfig={gridConfig}
+      {gridConfig}
       gridHeight={grid.height}
       gridWidth={grid.width}
       gridIsEmpty={grid.isEmpty}
       gridIsLoading={grid.isLoading}
       temporaryDragHeight={grid.temporaryDragHeight}
       temporaryDragWidth={grid.temporaryDragWidth}
-      workspaceContainer={workspaceContainer}
+      {workspaceContainer}
       onWorkspaceCommand={handleWorkspaceCommand}
       processingFileStateStore={$processingFileStateStore}
     />
@@ -168,22 +168,6 @@
     background-attachment: local;
   }
 
-  .workspace-container.is-panning {
-    cursor: grabbing;
-  }
-
-  .grid-container {
-    position: relative;
-    width: 100%;
-    min-height: var(--grid-container-min-height);
-    background-color: transparent;
-    transition: height 0.3s ease-out;
-    overflow-x: visible;
-    overflow-y: visible;
-    will-change: contents;
-    transform: translateZ(0);
-  }
-
   :global(.grid-item) {
     cursor: default;
   }
@@ -201,17 +185,5 @@
     .header > .tooltip-wrapper:first-child .workspace-item-button:active
   ) {
     cursor: grabbing !important;
-  }
-
-  .pointer-events-blocker {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 5;
-    background-color: transparent;
-    pointer-events: all;
-    cursor: grabbing;
   }
 </style>

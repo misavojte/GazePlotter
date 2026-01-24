@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
   import AoiStreamPlotFigure from '$lib/plots/aoi-stream/components/AoiStreamPlotFigure.svelte'
-  import { getAoiStreamPlotData } from '$lib/plots/aoi-stream/utils'
+  import { getAoiStreamPlotData } from '$lib/plots/aoi-stream/core'
   import { PlotExportWrapper } from '$lib/modals'
 
   interface Props {

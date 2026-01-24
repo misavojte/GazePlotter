@@ -1,4 +1,19 @@
 /**
+ * Configuration type for visualization registry entries.
+ * Defines the structure for each visualization type in the registry.
+ */
+export type VisualizationConfig<K extends keyof GridItemMap> = {
+  name: string
+  component: any // Component<any>
+  getDefaultConfig: (params?: {
+    stimulusId?: number
+    groupId?: number
+  }) => Partial<GridItemMap[K]>
+  getDefaultHeight: (stimulusId?: number) => number
+  getDefaultWidth: (stimulusId?: number) => number
+}
+
+/**
  * Base interface representing a grid item in the workspace.
  * This type defines the common properties shared by all grid items,
  * including their position, dimensions, and type.
@@ -17,7 +32,7 @@ export interface GridType {
   /** Minimum dimensions that the grid item can be resized to */
   min: { w: number; h: number }
   /** Type of visualization represented by this grid item */
-  type: 'scarf' | 'TransitionMatrix' | 'barPlot' | 'aoiStreamPlot'
+  type: 'scarf' | 'transitionMatrix' | 'barPlot' | 'aoiStreamPlot'
   /** Timestamp used to trigger redraws of the grid item */
   redrawTimestamp: number
 }
@@ -57,7 +72,7 @@ export interface ScarfGridType extends GridType {
  * Extends the base GridType with Transition Matrix-specific properties.
  */
 export interface TransitionMatrixGridType extends GridType {
-  type: 'TransitionMatrix'
+  type: 'transitionMatrix'
   /** ID of the stimulus being visualized */
   stimulusId: number
   /** ID of the group being visualized */
@@ -132,7 +147,7 @@ export interface AoiStreamPlotGridType extends GridType {
  */
 export type GridItemMap = {
   scarf: ScarfGridType
-  TransitionMatrix: TransitionMatrixGridType
+  transitionMatrix: TransitionMatrixGridType
   barPlot: BarPlotGridType
   aoiStreamPlot: AoiStreamPlotGridType
 }

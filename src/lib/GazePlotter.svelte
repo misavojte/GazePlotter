@@ -12,7 +12,7 @@
   import { grid } from '$lib/workspace/grid'
 
   import { clear, processingFileStateStore } from './workspace'
-  import { data } from './gaze-data/front-process/stores/dataStore'
+  import { engine } from './gaze-data/front-process/stores/dataStore.svelte'
   import { addSuccessToast } from '$lib/toaster'
   import {
     fileMetadataStore,
@@ -50,8 +50,8 @@
     try {
       const initialData = await loadInitialData()
 
-      // Update global data stores
-      data.set(initialData.data)
+      // Update global data via Engine (Source of Truth)
+      engine.loadDataset(initialData.data)
 
       // Capture the initial grid items for Reset layout
       initialGridItemsSnapshot = initialData.gridItems as Array<

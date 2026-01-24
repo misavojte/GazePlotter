@@ -9,7 +9,7 @@
     currentFileInputStore,
     clear,
   } from '$lib/workspace'
-  import { setData } from '$lib/gaze-data/front-process/stores/dataStore'
+  import { engine } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
   import { addErrorToast } from '$lib/toaster'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
   import type {
@@ -56,7 +56,7 @@
     } else {
       fileMetadataStore.set(null)
     }
-    setData(data.data)
+    engine.loadDataset(data.data)
     initializeGridStateStore(data.gridItems)
     clear()
     processingFileStateStore.set('done')
@@ -83,7 +83,7 @@
       parseDate: failureMetadata.parseDate,
     })
 
-    setData({
+    engine.loadDataset({
       isOrdinalOnly: false,
       stimuli: { data: [], orderVector: [] },
       participants: { data: [], orderVector: [] },
@@ -103,7 +103,6 @@
         segmentBuffer: new Float32Array(0),
         indexTable: new Uint32Array(0),
         aoiPool: new Uint16Array(0),
-        groupMap: new Uint16Array(0),
         // FIX: Add missing metadata properties required by the interface
         maxParticipants: 0,
         stimuliCount: 0,

@@ -100,6 +100,11 @@
   }
 
   .body {
+    /*
+     * IMPORTANT: The horizontal padding (20px * 2 = 40px total) must match
+     * PLOT_CONTAINER_HORIZONTAL_PADDING in src/lib/plots/shared/plotSizeUtility.ts
+     * If you change this padding, update that constant as well.
+     */
     padding: 20px;
     flex-grow: 1;
     overflow: auto;

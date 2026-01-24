@@ -1,53 +1,68 @@
 <script lang="ts">
-  import type { ScarfFillingType } from '$lib/plots/scarf/types'
-  import {
-    GRIDLINE_SECONDARY,
-    GRIDLINE_PRIMARY,
-    FONT_PRIMARY,
-    computeGroupedLegendGeometry,
-    drawLegend,
-    drawLegendGroupTitles,
-    hitTestLegend,
-    getLegendTooltipPosition,
-    getLegendTooltipContent,
-    SCARF_LEGEND_CONFIG,
-    type LegendGroup,
-    type LegendGeometry,
-    type LegendItemGeometry,
-  } from '$lib/plots/shared'
-  import type { ScarfGridType } from '$lib/workspace/type/gridType'
-  import {
-    estimateTextWidth,
-  } from '$lib/shared/utils/textUtils'
-  import { getContext, onDestroy, onMount, untrack } from 'svelte'
   import { browser } from '$app/environment'
+  import {
+    beginCanvasDrawing,
+    createCanvasState,
+    finishCanvasDrawing,
+    getScaledMousePosition,
+    getTooltipPosition,
+    resizeCanvas,
+    setupCanvas,
+    setupDpiChangeListeners,
+    type CanvasState,
+  } from '$lib/shared/utils/canvasUtils'
   import {
     EXPORT_SOURCE_CONTEXT,
     type ExportSourceRegistrar,
   } from '$lib/shared/utils/exportUtils'
   import {
-    SCARF_LAYOUT,
-    getXAxisLabel,
-  } from '$lib/plots/scarf/utils/scarfServices'
-  import {
-    createCanvasState,
-    setupCanvas,
-    resizeCanvas,
-    getScaledMousePosition,
-    getTooltipPosition,
-    setupDpiChangeListeners,
-    beginCanvasDrawing,
-    finishCanvasDrawing,
-    type CanvasState,
-  } from '$lib/shared/utils/canvasUtils'
+    computeGroupedLegendGeometry,
+    drawLegend,
+    drawLegendGroupTitles,
+    drawTimelineLabels,
+    drawTopXAxisTicksAndBorder,
+    drawXAxisLabel,
+    drawXAxisTicksAndBorder,
+    getLegendTooltipContent,
+    getLegendTooltipPosition,
+    hitTestLegend,
+    SCARF_LEGEND_CONFIG,
+    type LegendGeometry,
+    type LegendGroup,
+    type LegendItemGeometry,
+  } from '$lib/plots/shared'
   import { updateTooltip } from '$lib/tooltip'
-
-  // CONSTANTS - layout dimensions and styling
-  const LAYOUT = SCARF_LAYOUT
+  import type { ScarfGridType } from '$lib/workspace/type/gridType'
+  import { getContext, onDestroy, onMount, untrack } from 'svelte'
+  import { SCARF_LAYOUT } from '../const'
+  import {
+    calculateEffectiveMarginTop,
+    calculateIntrinsicContentHeight,
+    calculateIsCompactMode,
+    calculateLegendStructuralHeight,
+    calculateLeftLabelWidth,
+    calculatePlotLayout,
+    getScarfIdentifierSystem,
+    getXAxisLabel,
+  } from '../core/layout'
+  import {
+    calculateEventLayoutOverrides,
+    calculateHighlightMask,
+    createStyleArrays,
+    mapDataToLegendGroups,
+  } from '../core/transformer'
+  import {
+    drawScarfEvents,
+    drawScarfGrid,
+    drawScarfLabels,
+    drawScarfRectangles,
+    type ScarfLayoutContext,
+  } from '../core/renderer'
+  import type { ScarfData } from '../types'
 
   interface Props {
     tooltipAreaElement: HTMLElement | SVGElement | null
-    data: ScarfFillingType
+    data: ScarfData
     settings: ScarfGridType
     highlights: string[]
     onLegendClick: (identifier: string) => void
@@ -66,15 +81,7 @@
     onDragStepX?: (stepChange: number) => void
     onDragEnd?: () => void
     chartWidth: number
-    calculatedHeights: {
-      participantBarHeight: number
-      heightOfParticipantBars: number
-      chartHeight: number
-      legendHeight: number
-      totalHeight: number
-      axisLabelY: number
-      legendY: number
-    }
+    availableHeight: number // The actual pixel height from the Grid
     dpiOverride?: number | null // Override for DPI settings when exporting
     marginTop?: number
     marginRight?: number
@@ -94,7 +101,7 @@
     onDragStepX = () => {},
     onDragEnd = () => {},
     chartWidth = 0,
-    calculatedHeights,
+    availableHeight,
     dpiOverride = null,
     marginTop = 0,
     marginRight = 0,
@@ -102,8 +109,71 @@
     marginLeft = 0,
   }: Props = $props()
 
+  // Internal layout constants for compact rendering
+  const INTERNAL_PADDING_TOP = 6 // Space for top ticks
+  const INTERNAL_PADDING_BOTTOM = 0 // Zero padding at bottom as it serves no purpose (only top needs space for ticks)
 
-  const LEFT_LABEL_WIDTH = $derived(data.leftLabelWidth)
+  // 1. Calculate Legend structural metrics (data-only, no layout dependency)
+  // This breaks the circular dependency: legend structural height depends only on data.
+  const legendHeight = $derived(
+    calculateLegendStructuralHeight(data.legendData?.groups ?? [], chartWidth)
+  )
+
+  // 2. Fixed vertical overhead (margins, padding, legend, axis space)
+  const fixedOverheadAbove = $derived(marginTop + INTERNAL_PADDING_TOP)
+  const fixedOverheadBelow = $derived(
+    45 + legendHeight + marginBottom + INTERNAL_PADDING_BOTTOM
+  )
+  const totalFixedOverhead = $derived(fixedOverheadAbove + fixedOverheadBelow)
+
+  const netAvailableHeight = $derived(
+    Math.max(1, availableHeight - totalFixedOverhead)
+  )
+
+  const isCompactMode = $derived(
+    calculateIsCompactMode(data.participants.length, netAvailableHeight)
+  )
+
+  // Extract participant labels only when needed (normal mode)
+  // Stops mapping thousands of names in compact mode
+  const participantLabels = $derived.by(() => {
+    if (isCompactMode) return []
+    return data.participants.map(p => p.label)
+  })
+
+  const LEFT_LABEL_WIDTH = $derived(
+    calculateLeftLabelWidth(isCompactMode, participantLabels)
+  )
+
+  const plotAreaWidth = $derived(
+    Math.max(
+      0,
+      chartWidth -
+        marginLeft -
+        marginRight -
+        LEFT_LABEL_WIDTH -
+        SCARF_LAYOUT.RIGHT_MARGIN
+    )
+  )
+
+  // 2. Dynamic Layout Logic - handles both shrinking AND scaling up
+  // Unified scale approach: single scaleFactor applied to bar dimensions
+  // Compact mode: when bars get too small, remove labels/gaps for density
+  // Iterative scaling: recalculate scale in compact mode to fill freed space
+  const layout = $derived(
+    calculatePlotLayout(
+      data.participants.length,
+      netAvailableHeight,
+      isCompactMode
+    )
+  )
+
+  // 3. Derived dimensions using dynamic layout
+  const participantBarsHeight = $derived(
+    data.participants.length * layout.heightOfBarWrap
+  )
+  const axisLabelY = $derived(participantBarsHeight + 30)
+  const legendY = $derived(participantBarsHeight + 45)
 
   // State management with Svelte 5 runes
   let isDragging = $state(false) // New state to track if actively dragging
@@ -136,77 +206,63 @@
   const usedHighlights = $derived(highlights)
   const xAxisLabel = $derived(getXAxisLabel(settings.timeline))
 
-  // Convert styling data to grouped legend format
-  const legendGroups: LegendGroup[] = $derived.by(() => {
-    if (!data.stylingAndLegend) return []
-    
-    const groups: LegendGroup[] = []
-    
-    // AOI group (Fixations)
-    if (data.stylingAndLegend.aoi.length > 0) {
-      groups.push({
-        title: 'Fixations',
-        items: data.stylingAndLegend.aoi.map(item => ({
-          identifier: item.identifier,
-          name: item.name,
-          color: item.color,
-          height: item.height,
-          type: 'rect' as const,
-        })),
-      })
-    }
-    
-    // Category group (Non-fixations)
-    if (data.stylingAndLegend.category.length > 0) {
-      groups.push({
-        title: 'Non-fixations',
-        items: data.stylingAndLegend.category.map(item => ({
-          identifier: item.identifier,
-          name: item.name,
-          color: item.color,
-          height: item.height,
-          type: 'rect' as const,
-        })),
-      })
-    }
-    
-    // Visibility group (AOI Visibility)
-    if (data.stylingAndLegend.visibility.length > 0) {
-      groups.push({
-        title: 'AOI Visibility',
-        items: data.stylingAndLegend.visibility.map(item => ({
-          identifier: item.identifier,
-          name: item.name,
-          color: item.color,
-          height: item.height,
-          type: 'line' as const,
-        })),
-      })
-    }
-    
-    return groups
-  })
+  // Convert ScarfLegendItem (data-only) to LegendItem (with presentation details)
+  // Heights are determined here in the presentation layer using layout constants
+  const legendGroups: LegendGroup[] = $derived(
+    mapDataToLegendGroups(data.legendData?.groups ?? [])
+  )
 
-  // Compute legend geometry using the utility (memoized by $derived)
+  // Required height for all content (excluding explicit margins)
+  // This is the intrinsic height of the visualization content
+  // USES legendHeight (static) instead of legendGeometry.totalHeight (which depends on margins)
+  const intrinsicContentHeight = $derived(
+    calculateIntrinsicContentHeight(
+      legendHeight,
+      legendY,
+      axisLabelY,
+      INTERNAL_PADDING_BOTTOM
+    )
+  )
+
+  // Vertical centering offset: if available space exceeds content, center vertically
+  // Subtracting INTERNAL_PADDING_TOP ensures the centering feels balanced with the top safe area
+  const effectiveMarginTop = $derived(
+    calculateEffectiveMarginTop(
+      availableHeight,
+      intrinsicContentHeight,
+      marginTop,
+      marginBottom,
+      INTERNAL_PADDING_TOP
+    )
+  )
+
+  // Compute final legend geometry using the actual effectiveMarginTop
+  // This depends on effectiveMarginTop, but nothing depends back on this geometry's totalHeight
   const legendGeometry: LegendGeometry = $derived.by(() => {
-    if (!data.stylingAndLegend || legendGroups.length === 0) {
-      return { items: [], height: 0, groupTitles: [], totalHeight: 0, itemsPerRow: 3 }
+    if (legendGroups.length === 0) {
+      return {
+        items: [],
+        height: 0,
+        groupTitles: [],
+        totalHeight: 0,
+        itemsPerRow: 3,
+      }
     }
-    
-    const legendX = marginLeft + LAYOUT.PADDING
-    const legendY = calculatedHeights.legendY + marginTop
-    
+
+    const legendX = marginLeft
+    const lY = legendY + effectiveMarginTop
+
     return computeGroupedLegendGeometry(
       legendGroups,
       SCARF_LEGEND_CONFIG,
       legendX,
-      legendY,
+      lY,
       chartWidth
     )
   })
 
-  // SVG size calculations - MOVE THESE BEFORE RECTANGLE/LINE CALCULATIONS
-  const totalWidth = $derived(chartWidth + marginLeft + marginRight)
+  // Canvas size exactly matches available chartWidth
+  const totalWidth = $derived(chartWidth)
 
   // Track the currently hovered segment
   let currentHoveredSegment = $state<{
@@ -214,115 +270,21 @@
     orderId: number
   } | null>(null)
 
-  // Plot area width is computed in the transform alongside visual buffers
-  const plotAreaWidth = $derived(data.plotAreaWidth)
-
-  // Highlight mask by style index (computed once per highlight change)
-  const highlightMaskByIndex = $derived.by(() => {
-    if (!usedHighlights || usedHighlights.length === 0) return null
-    const total = identifierSystem.totalIdentifiers
-    if (!total) return null
-
-    const mask = new Uint8Array(total)
-    const { idToIndex } = identifierSystem
-    for (let i = 0; i < usedHighlights.length; i++) {
-      const idx = idToIndex.get(usedHighlights[i])
-      if (idx != null) mask[idx] = 1
-    }
-    return mask
-  })
-
-  const totalHeight = $derived(
-    calculatedHeights.totalHeight + marginTop + marginBottom
-  )
-
   // Create a unified identifier mapping system for all style types
-  // Using a single integer id space for maximum performance
   const identifierSystem = $derived.by(() => {
-    // Create fast lookup maps
-    const idToIndex = new Map<string, number>()
-    const indexToId = new Map<number, string>()
-    const idToType = new Map<string, 'aoi' | 'category' | 'visibility'>()
-
-    // Track if we need to check for overlap (same identifier in multiple types)
-    let hasOverlap = false
-    const allIdentifiers = new Set<string>()
-
-    // Count total identifiers to pre-allocate arrays
-    let totalIdentifiers = 0
-    let aoiCount = 0
-    let categoryCount = 0
-    let visibilityCount = 0
-
-    if (data.stylingAndLegend) {
-      totalIdentifiers =
-        data.stylingAndLegend.aoi.length +
-        data.stylingAndLegend.category.length +
-        data.stylingAndLegend.visibility.length
-
-      aoiCount = data.stylingAndLegend.aoi.length
-      categoryCount = data.stylingAndLegend.category.length
-      visibilityCount = data.stylingAndLegend.visibility.length
-
-      // Populate maps with sequential indices
-      let idx = 0
-
-      // First handle AOI styles (typically most numerous)
-      for (const style of data.stylingAndLegend.aoi) {
-        indexToId.set(idx, style.identifier)
-        idToIndex.set(style.identifier, idx++)
-        idToType.set(style.identifier, 'aoi')
-
-        // Check for potential overlap
-        if (allIdentifiers.has(style.identifier)) {
-          hasOverlap = true
-        } else {
-          allIdentifiers.add(style.identifier)
-        }
+    if (!data.stylingAndLegend)
+      return {
+        idToIndex: new Map(),
+        indexToId: new Map(),
+        idToType: new Map(),
+        totalIdentifiers: 0,
       }
 
-      // Then category styles
-      for (const style of data.stylingAndLegend.category) {
-        indexToId.set(idx, style.identifier)
-        idToIndex.set(style.identifier, idx++)
-        idToType.set(style.identifier, 'category')
-
-        // Check for potential overlap
-        if (allIdentifiers.has(style.identifier)) {
-          hasOverlap = true
-        } else {
-          allIdentifiers.add(style.identifier)
-        }
-      }
-
-      // Finally visibility styles
-      for (const style of data.stylingAndLegend.visibility) {
-        indexToId.set(idx, style.identifier)
-        idToIndex.set(style.identifier, idx++)
-        idToType.set(style.identifier, 'visibility')
-
-        // Check for potential overlap
-        if (allIdentifiers.has(style.identifier)) {
-          hasOverlap = true
-        } else {
-          allIdentifiers.add(style.identifier)
-        }
-      }
-    }
-
-    // Return complete identifier system for fast lookups
-    return {
-      idToIndex,
-      indexToId,
-      idToType,
-      hasOverlap,
-      totalIdentifiers,
-      counts: {
-        aoi: aoiCount,
-        category: categoryCount,
-        visibility: visibilityCount,
-      },
-    }
+    return getScarfIdentifierSystem(
+      data.stylingAndLegend.aoi.map(i => i.identifier),
+      data.stylingAndLegend.category.map(i => i.identifier),
+      data.stylingAndLegend.visibility.map(i => i.identifier)
+    )
   })
 
   // Style lookup maps for efficient style access - O(1) instead of O(n)
@@ -363,20 +325,22 @@
     return map
   })
 
-  const lineStyleMap = $derived.by(() => {
+  const eventStyleMap = $derived.by(() => {
     if (!data.stylingAndLegend) return new Map()
 
     const map = new Map()
     const visibility = data.stylingAndLegend.visibility
     const len = visibility.length
 
-    // Pre-compute all line styles (visibility) with dimmed state
+    // Visibility events use fixed stroke width
+    const strokeWidth = 1
+
+    // Pre-compute all event styles (visibility) with dimmed state
     for (let i = 0; i < len; i++) {
       const style = visibility[i]
       const baseStyle = {
         stroke: style.color,
-        strokeWidth: style.height,
-        strokeDasharray: '1',
+        strokeWidth,
       }
       map.set(style.identifier, {
         normal: baseStyle,
@@ -390,8 +354,71 @@
     return map
   })
 
+  // Highlight mask by style index (computed once per highlight change)
+  const highlightMaskByIndex = $derived(
+    calculateHighlightMask(usedHighlights, identifierSystem)
+  )
+
+  // Total content height with effective margins
+  const totalContentHeight = $derived(
+    intrinsicContentHeight + effectiveMarginTop + marginBottom
+  )
+
+  // Canvas height is strictly the available height (no scrolling)
+  const totalHeight = $derived(availableHeight)
+
+  // Check if we have enough space to render
+  // In compact mode, we can render with much less space (min 1px per participant)
+  // but we enforce a minimum plot area height to avoid cropping the rotated axis label
+  const canRender = $derived.by(() => {
+    // Minimum plot height to avoid complete collapse
+    const minPlotHeight = isCompactMode
+      ? Math.max(
+          data.participants.length * SCARF_LAYOUT.MIN_BAR_HEIGHT,
+          SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT
+        )
+      : SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT // Fallback min height
+
+    return netAvailableHeight >= minPlotHeight
+  })
+
+  // These MUST be declared before any derived values that use them
   const visualRectBuckets = $derived(data.visualRectBuckets)
-  const visualLineBuckets = $derived(data.visualLineBuckets)
+  const visualEventBuckets = $derived(data.visualEventBuckets)
+
+  // Optimize lookups: Convert Map to dense Array for O(1) access during render
+  const rectStyleArray = $derived(
+    createStyleArrays(
+      identifierSystem,
+      rectStyleMap,
+      eventStyleMap,
+      visualRectBuckets.length,
+      visualEventBuckets.length
+    ).rectStyles
+  )
+
+  // Optimize lookups: Convert Map to dense Array for O(1) access during render
+  const eventStyleArray = $derived(
+    createStyleArrays(
+      identifierSystem,
+      rectStyleMap,
+      eventStyleMap,
+      visualRectBuckets.length,
+      visualEventBuckets.length
+    ).eventStyles
+  )
+
+  // Calculate layout overrides for overlapping events
+  // IMPORTANT: This computation is expensive. We minimize reactive dependencies
+  // by using source data values directly and computing in normalized space.
+  const eventLayoutOverrides = $derived(
+    calculateEventLayoutOverrides(
+      isCompactMode,
+      visualEventBuckets,
+      data.barHeight,
+      data.heightOfBarWrap
+    )
+  )
 
   // Interaction handlers
   function handleLegendIdentifier(identifier: string) {
@@ -403,420 +430,108 @@
   function renderCanvas() {
     beginCanvasDrawing(canvasState, true)
 
-    // Get context from state
     const ctx = canvasState.context
     if (!ctx) return
 
-    // Set up font
-    setUpFont(ctx)
+    if (!canRender) {
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillStyle = '#666666'
+      ctx.font = '14px sans-serif'
+      ctx.fillText(
+        'Increase height to view plot',
+        totalWidth / 2,
+        totalHeight / 2
+      )
+      finishCanvasDrawing(canvasState)
+      return
+    }
 
-    // Draw participant labels (Left Side)
-    drawParticipantLabels(ctx)
+    const scarfPlotLeft = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
+    const scarfPlotWidth = Math.floor(plotAreaWidth)
 
-    // Draw timeline axis labels and ticks
-    drawTimelineLabels(ctx)
+    const renderCtx: ScarfLayoutContext = {
+      heightOfBar: layout.heightOfBar,
+      spaceAboveRect: layout.spaceAboveRect,
+      nonFixationHeight: layout.nonFixationHeight,
+      heightOfBarWrap: layout.heightOfBarWrap,
+      scaleFactor: layout.scaleFactor,
+      isCompact: layout.isCompact,
+      leftLabelWidth: LEFT_LABEL_WIDTH,
+      plotAreaWidth: plotAreaWidth,
+      effectiveMarginTop: effectiveMarginTop,
+      participantBarsHeight: participantBarsHeight,
+      totalWidth: totalWidth,
+      marginLeft: marginLeft,
+    }
 
-    // Draw X-Axis label
-    drawXAxisLabel(ctx)
+    // 1. Draw Axis/Grid structure
+    drawScarfLabels(ctx, data, renderCtx)
+    drawScarfGrid(ctx, data, renderCtx)
 
-    // ---- STOP OF TEXT DRAWING ---- //
+    drawTopXAxisTicksAndBorder(
+      ctx,
+      data.timeline,
+      scarfPlotLeft,
+      scarfPlotWidth,
+      effectiveMarginTop
+    )
 
-    // Draw participant ticks
-    drawParticipantTicks(ctx)
+    // 2. Draw Data segments
+    drawScarfRectangles(
+      ctx,
+      data,
+      renderCtx,
+      rectStyleArray,
+      highlightMaskByIndex
+    )
+    drawScarfEvents(
+      ctx,
+      data,
+      renderCtx,
+      eventStyleArray,
+      highlightMaskByIndex,
+      eventLayoutOverrides
+    )
 
-    // Draw X-Axis ticks and bottom border
-    drawXAxisTicksAndBorder(ctx)
+    // 3. Draw Axis labels and details
+    drawTimelineLabels(
+      ctx,
+      data.timeline,
+      scarfPlotLeft,
+      scarfPlotWidth,
+      participantBarsHeight + effectiveMarginTop
+    )
 
-    // Draw top border and ticks
-    drawTopBorderAndTicks(ctx)
+    drawXAxisLabel(
+      ctx,
+      xAxisLabel,
+      scarfPlotLeft,
+      scarfPlotWidth,
+      participantBarsHeight + effectiveMarginTop,
+      30
+    )
 
-    // Draw rectangle segments
-    drawRectangles(ctx)
+    drawXAxisTicksAndBorder(
+      ctx,
+      data.timeline,
+      scarfPlotLeft,
+      scarfPlotWidth,
+      participantBarsHeight + effectiveMarginTop
+    )
 
-    // Draw line segments
-    drawLines(ctx)
-
-    // Draw legend using shared utility
+    // 4. Draw legend
     drawLegendGroupTitles(ctx, legendGeometry, SCARF_LEGEND_CONFIG)
     drawLegend(ctx, legendGeometry, SCARF_LEGEND_CONFIG, usedHighlights)
 
     finishCanvasDrawing(canvasState)
   }
 
-  function setUpFont(ctx: CanvasRenderingContext2D) {
-    ctx.font = `${FONT_PRIMARY.SIZE}px ${FONT_PRIMARY.FAMILY}`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillStyle = FONT_PRIMARY.COLOR
-  }
-
-  function drawParticipantLabels(ctx: CanvasRenderingContext2D) {
-    // watch out that setUpFont function is called before this function is called!
-
-    ctx.textAlign = 'end'
-    ctx.textBaseline = 'middle'
-
-    const participants = data.participants
-    const len = participants.length
-    const xPos = LEFT_LABEL_WIDTH + marginLeft - 10
-
-    for (let i = 0; i < len; i++) {
-      const participant = participants[i]
-      ctx.fillText(
-        participant.label,
-        xPos,
-        i * data.heightOfBarWrap + (data.heightOfBarWrap >> 1) + marginTop
-      )
-    }
-  }
-
-  function drawParticipantTicks(ctx: CanvasRenderingContext2D) {
-    // Pixel-align coordinates for sharp rendering
-    const leftX = Math.floor(LEFT_LABEL_WIDTH + marginLeft) + 0.5
-    const rightX = Math.floor(LEFT_LABEL_WIDTH + marginLeft + plotAreaWidth) + 0.5
-    
-    // Draw the vertical Y-axis lines connecting the ticks using standard grid color
-    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
-    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
-    
-    const yTop = Math.floor(marginTop)
-    const yBottom = Math.floor(
-      calculatedHeights.heightOfParticipantBars + marginTop
-    )
-    ctx.beginPath()
-    ctx.moveTo(leftX, yTop)
-    ctx.lineTo(leftX, yBottom)
-    ctx.moveTo(rightX, yTop)
-    ctx.lineTo(rightX, yBottom)
-    ctx.stroke()
-
-    // Draw horizontal lines between participants using subtle ridgeline style
-    ctx.strokeStyle = GRIDLINE_SECONDARY.COLOR
-    ctx.lineWidth = GRIDLINE_SECONDARY.WIDTH
-
-    const participants = data.participants
-    const len = participants.length
-
-    for (let i = 0; i <= len; i++) {
-      // Draw ticks exactly at bar boundaries
-      const y =
-        Math.floor(i * calculatedHeights.participantBarHeight + marginTop) + 0.5
-
-      // Draw full line across between participants
-      ctx.beginPath()
-      ctx.moveTo(leftX, y)
-      ctx.lineTo(rightX, y)
-      ctx.stroke()
-    }
-  }
-
-  function drawTopBorderAndTicks(ctx: CanvasRenderingContext2D) {
-    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
-    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
-
-    // Pixel-align coordinates
-    const yTop = Math.floor(marginTop) + 0.5
-    const leftX = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
-    const rightX = Math.floor(LEFT_LABEL_WIDTH + marginLeft + plotAreaWidth)
-    const ticks = data.timeline.ticks
-    const len = ticks.length
-
-    // Draw top border line
-    ctx.beginPath()
-    ctx.moveTo(leftX, yTop)
-    ctx.lineTo(rightX, yTop)
-    ctx.stroke()
-
-    // Draw outward ticks (facing up)
-    for (let i = 0; i < len; i++) {
-      const tick = ticks[i]
-      const x =
-        Math.floor(
-          LEFT_LABEL_WIDTH + tick.position * plotAreaWidth + marginLeft
-        ) + 0.5
-      ctx.beginPath()
-      ctx.moveTo(x, yTop)
-      ctx.lineTo(x, yTop - 5)
-      ctx.stroke()
-    }
-  }
-
-  function drawTimelineLabels(ctx: CanvasRenderingContext2D) {
-    // watch out that setUpFont function is called before this function is called!
-
-    const ticks = data.timeline.ticks
-    const len = ticks.length
-    if (len === 0) return
-
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'hanging'
-
-    // Position labels just 5px below the participant bars
-    const yPos = calculatedHeights.heightOfParticipantBars + 10 + marginTop
-    const rightBoundary = LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft
-    const isSecondToLast = len - 2
-    const isLast = len - 1
-
-    for (let i = 0; i < len; i++) {
-      const tick = ticks[i]
-      if (!tick.isNice) continue
-
-      const regularXPos =
-        LEFT_LABEL_WIDTH + tick.position * plotAreaWidth + marginLeft
-
-      // Only check for overflow on the second-to-last tick
-      // and the last tick if with a label (for relative timeline mode)
-      if ((i === isSecondToLast || i === isLast) && tick.label) {
-        const textWidth = ctx.measureText(tick.label).width
-        const rightEdgeOfText = regularXPos + textWidth / 2
-
-        if (rightEdgeOfText > rightBoundary) {
-          // Move the label left just enough so it fits within the plot area
-          const xPos = regularXPos - (rightEdgeOfText - rightBoundary)
-          ctx.fillText(tick.label, xPos, yPos)
-        } else {
-          ctx.fillText(tick.label, regularXPos, yPos)
-        }
-      } else {
-        ctx.fillText(tick.label, regularXPos, yPos)
-      }
-    }
-  }
-
-  function drawXAxisTicksAndBorder(ctx: CanvasRenderingContext2D) {
-    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
-    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
-
-    // Use the exact height from calculatedHeights and pixel align
-    const yLine =
-      Math.floor(calculatedHeights.heightOfParticipantBars + marginTop) + 0.5
-    const ticks = data.timeline.ticks
-    const len = ticks.length
-
-    // Draw ticks - make them shorter (3px instead of LAYOUT.TICK_LENGTH)
-    for (let i = 0; i < len; i++) {
-      const tick = ticks[i]
-      const x =
-        Math.floor(
-          LEFT_LABEL_WIDTH + tick.position * plotAreaWidth + marginLeft
-        ) + 0.5
-      const y1 = yLine
-      const y2 = y1 + 5
-
-      ctx.beginPath()
-      ctx.moveTo(x, y1)
-      ctx.lineTo(x, y2)
-      ctx.stroke()
-    }
-
-    // Draw bottom border line
-    const leftX = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
-    const rightX = Math.floor(LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft)
-    ctx.beginPath()
-    ctx.moveTo(leftX, yLine)
-    ctx.lineTo(rightX, yLine)
-    ctx.stroke()
-  }
-
-  function drawRectangles(ctx: CanvasRenderingContext2D) {
-    const buckets = visualRectBuckets
-    if (buckets.length === 0) return
-
-    const RECT_STRIDE = 8
-
-    const isHighlightActive = usedHighlights.length > 0
-    const highlightMask = highlightMaskByIndex
-
-    // Local references for faster access
-    const rectStyles = rectStyleMap
-    const { indexToId } = identifierSystem
-
-    // Draw normal (non-dimmed) elements using path batching
-    ctx.globalAlpha = 1.0
-
-    for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
-      const buffer = buckets[styleIdx]
-      if (buffer.length === 0) continue
-
-      const isDimmed =
-        isHighlightActive && highlightMask
-          ? highlightMask[styleIdx] !== 1
-          : false
-
-      if (isDimmed) continue // Skip dimmed in this pass
-
-      const identifier = indexToId.get(styleIdx) ?? ''
-      const styleSet = rectStyles.get(identifier) ?? {
-        normal: { fill: '#ccc' },
-      }
-
-      ctx.fillStyle = styleSet.normal.fill
-      ctx.beginPath() // Start a massive path
-
-      const segmentCount = buffer.length / RECT_STRIDE
-      for (let i = 0; i < segmentCount; i++) {
-        const idx = i * RECT_STRIDE
-        ctx.rect(
-          buffer[idx], // x
-          buffer[idx + 1], // y
-          buffer[idx + 2], // width
-          buffer[idx + 3] // height
-        )
-      }
-
-      ctx.fill() // Send everything to GPU in ONE go
-    }
-
-    // Draw dimmed elements using path batching
-    ctx.globalAlpha = 0.15
-
-    for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
-      const buffer = buckets[styleIdx]
-      if (buffer.length === 0) continue
-
-      const isDimmed =
-        isHighlightActive && highlightMask
-          ? highlightMask[styleIdx] !== 1
-          : false
-
-      if (!isDimmed) continue // Skip normal in this pass
-
-      const identifier = indexToId.get(styleIdx) ?? ''
-      const styleSet = rectStyles.get(identifier) ?? {
-        normal: { fill: '#ccc' },
-      }
-
-      ctx.fillStyle = styleSet.normal.fill
-      ctx.beginPath() // Start a massive path
-
-      const segmentCount = buffer.length / RECT_STRIDE
-      for (let i = 0; i < segmentCount; i++) {
-        const idx = i * RECT_STRIDE
-        ctx.rect(
-          buffer[idx], // x
-          buffer[idx + 1], // y
-          buffer[idx + 2], // width
-          buffer[idx + 3] // height
-        )
-      }
-
-      ctx.fill() // Send everything to GPU in ONE go
-    }
-
-    // Reset alpha
-    ctx.globalAlpha = 1
-  }
-
-  function drawLines(ctx: CanvasRenderingContext2D) {
-    const buckets = visualLineBuckets
-    if (buckets.length === 0) return
-
-    const LINE_STRIDE = 6
-
-    const isHighlightActive = usedHighlights.length > 0
-    const highlightMask = highlightMaskByIndex
-
-    // Local references for fast access
-    const lineStyles = lineStyleMap
-    const { indexToId } = identifierSystem
-
-    // Draw normal lines using path batching
-    ctx.globalAlpha = 1.0
-    ctx.setLineDash([2, 2])
-
-    for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
-      const buffer = buckets[styleIdx]
-      if (buffer.length === 0) continue
-
-      const isDimmed =
-        isHighlightActive && highlightMask
-          ? highlightMask[styleIdx] !== 1
-          : false
-
-      if (isDimmed) continue // Skip dimmed in this pass
-
-      const identifier = indexToId.get(styleIdx) ?? ''
-      const styleSet = lineStyles.get(identifier) ?? {
-        normal: { stroke: '#ccc', strokeWidth: 1 },
-      }
-
-      ctx.strokeStyle = styleSet.normal.stroke
-      ctx.lineWidth = styleSet.normal.strokeWidth ?? 1
-      ctx.beginPath() // Start a massive path
-
-      const segmentCount = buffer.length / LINE_STRIDE
-      for (let i = 0; i < segmentCount; i++) {
-        const idx = i * LINE_STRIDE
-        ctx.moveTo(buffer[idx], buffer[idx + 1]) // x1, y1
-        ctx.lineTo(buffer[idx + 2], buffer[idx + 3]) // x2, y2
-      }
-
-      ctx.stroke() // Send everything to GPU in ONE go
-    }
-
-    // Draw dimmed lines using path batching
-    ctx.globalAlpha = 0.15
-    ctx.setLineDash([2, 2])
-
-    for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
-      const buffer = buckets[styleIdx]
-      if (buffer.length === 0) continue
-
-      const isDimmed =
-        isHighlightActive && highlightMask
-          ? highlightMask[styleIdx] !== 1
-          : false
-
-      if (!isDimmed) continue // Skip normal in this pass
-
-      const identifier = indexToId.get(styleIdx) ?? ''
-      const styleSet = lineStyles.get(identifier) ?? {
-        normal: { stroke: '#ccc', strokeWidth: 1 },
-      }
-
-      ctx.strokeStyle = styleSet.normal.stroke
-      ctx.lineWidth = styleSet.normal.strokeWidth ?? 1
-      ctx.beginPath() // Start a massive path
-
-      const segmentCount = buffer.length / LINE_STRIDE
-      for (let i = 0; i < segmentCount; i++) {
-        const idx = i * LINE_STRIDE
-        ctx.moveTo(buffer[idx], buffer[idx + 1]) // x1, y1
-        ctx.lineTo(buffer[idx + 2], buffer[idx + 3]) // x2, y2
-      }
-
-      ctx.stroke() // Send everything to GPU in ONE go
-    }
-
-    // Reset rendering state
-    ctx.globalAlpha = 1
-    ctx.setLineDash([])
-  }
-
-  function drawXAxisLabel(ctx: CanvasRenderingContext2D) {
-    // watch out that setUpFont function is called before this function is called!
-
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'top'
-
-    // Position the label using exact coordinates from calculatedHeights
-    const labelY = calculatedHeights.axisLabelY + marginTop
-
-    ctx.fillText(
-      xAxisLabel,
-      LEFT_LABEL_WIDTH + (plotAreaWidth >> 1) + marginLeft,
-      labelY
-    )
-  }
-
-
-
-
-
-
-
   // Check if a mouse click or hover is on a legend item
-  function isMouseOverLegendItem(mouseX: number, mouseY: number): LegendItemGeometry | null {
+  function isMouseOverLegendItem(
+    mouseX: number,
+    mouseY: number
+  ): LegendItemGeometry | null {
     if (!data.stylingAndLegend || !legendGeometry.items.length) return null
     return hitTestLegend(legendGeometry, SCARF_LEGEND_CONFIG, mouseX, mouseY)
   }
@@ -832,15 +547,26 @@
     const legendItem = isMouseOverLegendItem(mouseX, mouseY)
 
     // Handle legend item tooltips
-    if (legendItem !== hoveredLegendItem) {
+    // Use identifier comparison to avoid "state_proxy_equality_mismatch"
+    // Svelte 5 proxies and raw objects are not equal, so we compare unique IDs
+    const currentId = legendItem?.identifier
+    const hoveredId = hoveredLegendItem?.identifier
+
+    if (currentId !== hoveredId) {
       if (legendItem) {
         // Show tooltip with "Highlight [FULLNAMEOFAOI]" or "Dehighlight [FULLNAMEOFAOI]" text
         hoveredLegendItem = legendItem
         const isHighlighted = usedHighlights.includes(legendItem.identifier)
-        
+
         // Use utility functions for tooltip
-        const tooltipContent = getLegendTooltipContent(legendItem, isHighlighted)
-        const tooltipItemPos = getLegendTooltipPosition(legendItem, SCARF_LEGEND_CONFIG)
+        const tooltipContent = getLegendTooltipContent(
+          legendItem,
+          isHighlighted
+        )
+        const tooltipItemPos = getLegendTooltipPosition(
+          legendItem,
+          SCARF_LEGEND_CONFIG
+        )
         const tooltipPos = getTooltipPosition(
           canvasState,
           tooltipItemPos.x,
@@ -870,8 +596,9 @@
     const inDraggableArea =
       mouseX >= LEFT_LABEL_WIDTH + marginLeft &&
       mouseX <= LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft &&
-      mouseY >= marginTop &&
-      mouseY <= data.participants.length * data.heightOfBarWrap + marginTop
+      mouseY >= effectiveMarginTop &&
+      mouseY <=
+        data.participants.length * layout.heightOfBarWrap + effectiveMarginTop
 
     // Update cursor based on dragging state and location
     if (isDragging || preparedForDragging) {
@@ -907,10 +634,25 @@
       }
 
       // Get consistent tooltip position
+      const xNormalized = hoveredSegment.x
+      const widthNormalized = hoveredSegment.width
+      const pIndex = hoveredSegment.y
+      const rectH = hoveredSegment.height
+      const internalY = hoveredSegment.internalY
+
+      // Floor dimensions for pixel-perfect synchronization
+      const floorLeft = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
+      const floorWidth = Math.floor(plotAreaWidth)
+
+      const pxX1 = floorLeft + xNormalized * floorWidth
+      const pxW = widthNormalized * floorWidth
+      const pxY =
+        pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
+
       const tooltipPos = getTooltipPosition(
         canvasState,
-        hoveredSegment.x + hoveredSegment.width,
-        hoveredSegment.y + hoveredSegment.height / 2,
+        pxX1 + pxW,
+        pxY + rectH / 2,
         { x: 5, y: 0 }
       )
 
@@ -990,8 +732,10 @@
     if (
       mouseX >= LEFT_LABEL_WIDTH + marginLeft &&
       mouseX <= LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft &&
-      mouseY >= marginTop &&
-      mouseY <= data.participants.length * data.heightOfBarWrap + marginTop &&
+      mouseY >= effectiveMarginTop &&
+      mouseY <=
+        data.participants.length * layout.heightOfBarWrap +
+          effectiveMarginTop &&
       !isHoveringSegment
     ) {
       // Store initial position and prepare for dragging
@@ -1077,7 +821,6 @@
 
   // Create a render scheduler
   function scheduleRender() {
-    //console.log('scheduleRender', new Date().toISOString())
     if (!canvasState.renderScheduled && browser) {
       canvasState.renderScheduled = true
       requestAnimationFrame(() => {
@@ -1131,23 +874,20 @@
     }
   })
 
-  // Create direct dependencies on key data properties to ensure canvas updates
-  // when any of these values change
   $effect(() => {
-    // These derived values will only trigger the effect when they actually change
-    // These direct references create dependencies on data changes
-    const _ = [
+    const deps = [
       data,
       settings,
       totalWidth,
-      // Reference highlights data to update when it changes
+      totalHeight,
       highlights,
       usedHighlights,
       chartWidth,
-      dpiOverride, // Add dpiOverride to the dependency list
+      availableHeight,
+      dpiOverride,
       marginLeft,
       marginRight,
-      marginTop,
+      effectiveMarginTop,
       marginBottom,
     ]
 
@@ -1157,7 +897,7 @@
       if (canvas && canvasState.dpiOverride !== dpiOverride) {
         canvasState = setupCanvas(canvasState, canvas, dpiOverride)
       }
-      resizeCanvas(canvasState, totalWidth, totalHeight)
+      canvasState = resizeCanvas(canvasState, totalWidth, totalHeight)
       scheduleRender()
     })
   })
@@ -1167,49 +907,65 @@
     if (buckets.length === 0) return null
 
     const RECT_STRIDE = 8
-
-    // Fast identifier lookup
     const { indexToId } = identifierSystem
+    const scale = layout.scaleFactor
+    const barWrapHeight = layout.heightOfBarWrap
+    const floorLeft = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
+    const floorWidth = Math.floor(plotAreaWidth)
 
-    // Check in reverse order (top to bottom visually) to match z-index behavior
-    // Iterate through buckets in reverse
     for (let styleIdx = buckets.length - 1; styleIdx >= 0; styleIdx--) {
       const buffer = buckets[styleIdx]
       if (buffer.length === 0) continue
 
-      const len = buffer.length / RECT_STRIDE
-
-      for (let i = len - 1; i >= 0; i--) {
+      for (let i = buffer.length / RECT_STRIDE - 1; i >= 0; i--) {
         const idx = i * RECT_STRIDE
+        const xNormalized = buffer[idx]
+        const pIndex = buffer[idx + 1]
+        const widthNormalized = buffer[idx + 2]
+        const origRectH = buffer[idx + 3]
+        const origInternalY = buffer[idx + 7]
 
-        const x = buffer[idx]
-        const y = buffer[idx + 1]
-        const width = buffer[idx + 2]
-        const height = buffer[idx + 3]
-        const participantId = buffer[idx + 4]
-        const segmentId = buffer[idx + 5]
-        const orderId = buffer[idx + 6]
+        let rectH = origRectH
+        let internalY = origInternalY
+
+        if (scale !== 1) {
+          if (origRectH === SCARF_LAYOUT.HEIGHT_NON_FIXATION_DEFAULT) {
+            rectH = layout.nonFixationHeight
+            internalY =
+              layout.spaceAboveRect +
+              (layout.heightOfBar - layout.nonFixationHeight) / 2
+          } else {
+            rectH = origRectH * scale
+            internalY =
+              layout.spaceAboveRect +
+              (origInternalY - SCARF_LAYOUT.SPACE_ABOVE_RECT_DEFAULT) * scale
+          }
+        }
+
+        const pxX = floorLeft + xNormalized * floorWidth
+        const pxW = widthNormalized * floorWidth
+        const pxY = pIndex * barWrapHeight + internalY + effectiveMarginTop
 
         if (
-          mouseX >= x &&
-          mouseX <= x + width &&
-          mouseY >= y &&
-          mouseY <= y + height
+          mouseX >= pxX &&
+          mouseX <= pxX + pxW &&
+          mouseY >= pxY &&
+          mouseY <= pxY + rectH
         ) {
           return {
-            x,
-            y,
-            width,
-            height,
+            x: xNormalized,
+            y: pIndex,
+            width: widthNormalized,
+            height: rectH,
+            internalY,
             identifier: indexToId.get(styleIdx) ?? '',
-            participantId,
-            segmentId,
-            orderId,
+            participantId: buffer[idx + 4],
+            segmentId: buffer[idx + 5],
+            orderId: buffer[idx + 6],
           }
         }
       }
     }
-
     return null
   }
 
@@ -1225,6 +981,7 @@
 
 <canvas
   class="scarf-plot-figure"
+  style:pointer-events={canRender ? 'auto' : 'none'}
   width={totalWidth}
   height={totalHeight}
   onmousemove={handleMouseMove}
@@ -1234,10 +991,3 @@
   data-component="scarfplot"
   aria-label="Scarf plot visualization"
 ></canvas>
-
-<style>
-  .scarf-plot-figure {
-    font-family: sans-serif;
-    display: block;
-  }
-</style>

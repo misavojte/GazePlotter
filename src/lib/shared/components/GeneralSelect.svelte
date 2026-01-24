@@ -1,9 +1,20 @@
+<script module lang="ts">
+  export interface GroupSelectItem {
+    options: readonly { value: string; label: string }[]
+    label: string
+    value: string
+    disabled?: boolean
+    ariaLabel?: string
+    onchange?: (event: CustomEvent) => void
+  }
+</script>
+
 <script lang="ts">
   import ChevronDown from 'lucide-svelte/icons/chevron-down'
   import { contextMenuAction, type MenuItem } from '$lib/context-menu'
 
   interface Props {
-    options: readonly { value: string; label: string }[]
+    options?: readonly { value: string; label: string }[]
     disabled?: boolean
     label: string
     value?: string
@@ -14,17 +25,8 @@
     ariaLabel?: string
   }
 
-  export interface GroupSelectItem {
-    options: readonly { value: string; label: string }[]
-    label: string
-    value: string
-    disabled?: boolean
-    ariaLabel?: string
-    onchange?: (event: CustomEvent) => void
-  }
-
   let {
-    options,
+    options = [],
     disabled = false,
     label,
     value = $bindable(options[0]?.value || ''),

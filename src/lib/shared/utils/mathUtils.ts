@@ -148,3 +148,14 @@ export function arraysHaveSameElements<T>(arr1: T[], arr2: T[]): boolean {
     return true
   }
 }
+
+/**
+ * Ensures a number is finite, otherwise returns a fallback value.
+ *
+ * @param value The value to check
+ * @param fallback The fallback value (default: 0)
+ * @returns A finite number
+ */
+export function safeNumber(value: number, fallback: number = 0): number {
+  return Number.isFinite(value) ? value : fallback
+}

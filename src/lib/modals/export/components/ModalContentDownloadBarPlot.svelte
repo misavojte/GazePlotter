@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { BarPlotGridType } from '$lib/workspace/type/gridType'
   import BarPlotFigure from '$lib/plots/bar/components/BarPlotFigure.svelte'
-  import { getBarPlotData } from '$lib/plots/bar/utils/barPlotUtils'
+  import { getBarPlotData } from '$lib/plots/bar/core/transformer'
   import { PlotExportWrapper } from '$lib/modals'
 
   interface Props {
@@ -10,13 +10,17 @@
 
   let { settings }: Props = $props()
 
-  const { data, timeline } = getBarPlotData({
-    stimulusId: settings.stimulusId,
-    groupId: settings.groupId,
-    aggregationMethod: settings.aggregationMethod,
-    sortBars: settings.sortBars,
-    scaleRange: settings.scaleRange,
-  })
+  const barPlotData = $derived(
+    getBarPlotData({
+      stimulusId: settings.stimulusId,
+      groupId: settings.groupId,
+      aggregationMethod: settings.aggregationMethod,
+      sortBars: settings.sortBars,
+      scaleRange: settings.scaleRange,
+    })
+  )
+  const data = $derived(barPlotData.data)
+  const timeline = $derived(barPlotData.timeline)
 </script>
 
 <PlotExportWrapper defaultFileName="GazePlotter-BarPlot">

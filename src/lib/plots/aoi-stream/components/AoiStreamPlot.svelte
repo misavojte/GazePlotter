@@ -16,27 +16,27 @@
     getStimuliOptions,
     getParticipantsGroupOptions,
   } from '$lib/plots/shared'
-  import { getAoiStreamPlotData } from '$lib/plots/aoi-stream/utils'
-  import {
-    getParticipants,
-    getParticipantEndTime,
-  } from '$lib/gaze-data/front-process/stores/dataStore'
-
-  import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
-  import type { AoiStreamPlotResult } from '$lib/plots/aoi-stream/types'
-  import type { WorkspaceCommand } from '$lib/workspace/commands'
-  import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
-
+  import { getAoiStreamPlotData } from '../core'
   import {
     scanForDynamicStripHeight,
     scanForSynchronizedTimelineMax,
-  } from '$lib/plots/aoi-stream/utils'
+  } from '../sync'
+  import {
+    getParticipants,
+    getParticipantEndTime,
+  } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
+  import { HEADER_HEIGHT } from '../const'
+  import { engine } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
+
+  import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
+  import type { AoiStreamPlotResult } from '../types'
+  import type { WorkspaceCommand } from '$lib/workspace/commands'
+  import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
+
   import { grid } from '$lib/workspace/grid/store.svelte'
 
   const LAYOUT = {
-    headerHeight: 150,
-    horizontalPadding: 40,
-    contentPadding: 5,
+    headerHeight: HEADER_HEIGHT,
   }
 
   interface Props {
@@ -52,9 +52,7 @@
       settings.w,
       settings.h,
       DEFAULT_GRID_CONFIG,
-      LAYOUT.headerHeight,
-      LAYOUT.horizontalPadding,
-      LAYOUT.contentPadding
+      LAYOUT.headerHeight
     )
   )
 
@@ -183,6 +181,7 @@
   $effect(() => {
     redrawTimestamp // reactive dependency
     timelineMaxValue // reactive dependency for synchronized timeline
+    engine.metadata // reactive dependency for AOI visibility/grouping
     untrack(() => {
       streamResult = getAoiStreamPlotData({
         ...settings,

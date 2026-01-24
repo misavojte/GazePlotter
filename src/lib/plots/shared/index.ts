@@ -16,9 +16,11 @@ export type * from './types'
 export * from './selectOptionsGetters'
 export * from './plotSizeUtility'
 export * from './timelineUtils'
+export * from './axisUtils'
 
 // Export legend rendering utilities
 export * from './legendRendering'
+export * from './legendGradient'
 
 // Export shared constants
 export * from './const'
