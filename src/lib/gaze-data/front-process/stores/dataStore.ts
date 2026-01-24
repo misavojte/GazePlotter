@@ -17,11 +17,9 @@ const MAX_AOI_PER_STIMULUS = 256 // Maximum number of AOIs per stimulus
 export const data = writable<DataType>()
 
 // Initialize the engine when data is loaded
-data.subscribe($data => {
-  if ($data) {
-    engine.loadDataset($data)
-  }
-})
+// Initialize the engine when data is loaded
+// Subscription removed to break re-indexing loop.
+// engine.loadDataset is now called in setData explicitly.
 
 // ============================================================================
 // PRIVATE MODULE-LEVEL STATE: The High-Performance Engine (Delegated to DataEngine)
@@ -57,8 +55,10 @@ export const getData = (): DataType => {
 }
 
 export const setData = (newData: DataType): void => {
+  // Load into engine first (source of truth)
+  engine.loadDataset(newData)
+  // Then update store to trigger subscribers (shallow update)
   data.set(newData)
-  // No need to manually update mappings as the derived store will handle it
 }
 
 export const getNumberOfStimuli = (): number => {
@@ -472,11 +472,10 @@ export const getParticipantsGroup = (groupId: number): ParticipantsGroup => {
 }
 
 export const updateParticipantsGroups = (groups: ParticipantsGroup[]) => {
-  data.update(data => {
-    // Create a deep copy of the groups to avoid reference sharing
-    data.participantsGroups = structuredClone(groups)
-    return data
-  })
+  if (!engine.metadata) return
+  engine.setParticipantsGroups(groups)
+  // Trigger reactivity with shallow clone
+  data.set({ ...engine.metadata, segments: engine.segments! })
 }
 
 /**
@@ -640,32 +639,36 @@ export const updateMultipleAoiVisibility = (
   visibilityArr: number[][],
   participantId: number | null = null
 ): void => {
-  data.update(currentData => {
-    const aoiData = currentData.aois.data[stimulusId]
-    if (aoiData === undefined) {
-      console.error(`No AOI data found for stimulusId: ${stimulusId}`)
-      return currentData // No update if no AOI data found
+  const currentState = get(data)
+  const aoiData = currentState.aois.data[stimulusId]
+  if (aoiData === undefined) {
+    console.error(`No AOI data found for stimulusId: ${stimulusId}`)
+    return
+  }
+
+  const updates: {
+    aoiId: number
+    visibility: number[]
+    participantId?: number | null
+  }[] = []
+
+  aoiNames.forEach((aoiName, index) => {
+    const aoiId = aoiData.findIndex(el => el[0] === aoiName)
+    if (aoiId === -1) {
+      console.warn(
+        `AOI with name ${aoiName} not found for stimulusId: ${stimulusId}`
+      )
+      return
     }
-
-    aoiNames.forEach((aoiName, index) => {
-      const aoiId = aoiData.findIndex(el => el[0] === aoiName)
-      if (aoiId === -1) {
-        console.warn(
-          `AOI with name ${aoiName} not found for stimulusId: ${stimulusId}`
-        )
-        return // Continue to next AOI name if current one not found
-      }
-
-      let key = `${stimulusId}_${aoiId}`
-      if (participantId != null) {
-        key += `_${participantId}`
-      }
-
-      currentData.aois.dynamicVisibility[key] = visibilityArr[index]
-    })
-
-    return currentData
+    updates.push({ aoiId, visibility: visibilityArr[index], participantId })
   })
+
+  if (updates.length > 0) {
+    engine.updateDynamicVisibility(stimulusId, updates)
+    if (engine.metadata) {
+      data.set({ ...engine.metadata, segments: engine.segments! })
+    }
+  }
 }
 
 export const updateHiddenAois = (
@@ -684,28 +687,12 @@ export const updateHiddenAois = (
     )
   }
 
-  const newState = structuredClone(currentState)
-  const unique = Array.from(
-    new Set(
-      (hiddenAois ?? []).filter(
-        v => Number.isInteger(v) && v >= 0 && v < MAX_AOI_PER_STIMULUS
-      )
-    )
-  ).sort((a, b) => a - b)
+  // Use engine for fast update
+  engine.setHiddenAois(stimulusId, hiddenAois)
 
-  const hiddenByStimulus = [...(newState.aois.hiddenAois ?? [])]
-  while (hiddenByStimulus.length < newState.stimuli.data.length) {
-    hiddenByStimulus.push([])
+  if (engine.metadata) {
+    data.set({ ...engine.metadata, segments: engine.segments! })
   }
-  hiddenByStimulus[stimulusId] = unique
-
-  data.set({
-    ...newState,
-    aois: {
-      ...newState.aois,
-      hiddenAois: hiddenByStimulus,
-    },
-  })
 }
 
 /**
@@ -733,7 +720,7 @@ export const updateHiddenAoisWithPropagation = (
     )
   }
 
-  const newState = structuredClone(currentState)
+  // Sanitize input for the target stimulus
   const unique = Array.from(
     new Set(
       (hiddenAois ?? []).filter(
@@ -742,74 +729,59 @@ export const updateHiddenAoisWithPropagation = (
     )
   ).sort((a, b) => a - b)
 
-  const hiddenByStimulus = [...(newState.aois.hiddenAois ?? [])]
-  while (hiddenByStimulus.length < newState.stimuli.data.length) {
-    hiddenByStimulus.push([])
-  }
+  const updates: { stimulusId: number; hiddenAois: number[] }[] = []
 
-  // Always update the target stimulus
-  hiddenByStimulus[stimulusId] = unique
+  // Always update target
+  updates.push({ stimulusId, hiddenAois: unique })
 
-  if (applyTo === 'this_stimulus') {
-    data.set({
-      ...newState,
-      aois: {
-        ...newState.aois,
-        hiddenAois: hiddenByStimulus,
-      },
-    })
-    return
-  }
+  if (applyTo !== 'this_stimulus') {
+    const sourceAois = currentState.aois.data[stimulusId]
+    const keysToHide = new Set<string>()
 
-  const sourceAois = newState.aois.data[stimulusId]
-  const keysToHide = new Set<string>()
-
-  unique.forEach(id => {
-    const row = sourceAois?.[id]
-    if (!row) return
-    const originalName = row[0] ?? ''
-    const displayedName = (row[1] ?? originalName) as string
-    const key =
-      applyTo === 'all_by_original_name'
-        ? originalName
-        : (displayedName || originalName).trim()
-    if (key) keysToHide.add(key)
-  })
-
-  for (
-    let stimIndex = 0;
-    stimIndex < newState.stimuli.data.length;
-    stimIndex++
-  ) {
-    if (stimIndex === stimulusId) continue
-    const stimAois = newState.aois.data[stimIndex]
-    if (!stimAois) continue
-
-    const nextHidden: number[] = []
-    for (let aoiId = 0; aoiId < stimAois.length; aoiId++) {
-      const row = stimAois[aoiId]
-      if (!row) continue
+    unique.forEach(id => {
+      const row = sourceAois?.[id]
+      if (!row) return
       const originalName = row[0] ?? ''
       const displayedName = (row[1] ?? originalName) as string
       const key =
         applyTo === 'all_by_original_name'
           ? originalName
           : (displayedName || originalName).trim()
-      if (key && keysToHide.has(key)) {
-        nextHidden.push(aoiId)
-      }
-    }
+      if (key) keysToHide.add(key)
+    })
 
-    hiddenByStimulus[stimIndex] = nextHidden
+    for (
+      let stimIndex = 0;
+      stimIndex < currentState.stimuli.data.length;
+      stimIndex++
+    ) {
+      if (stimIndex === stimulusId) continue
+      const stimAois = currentState.aois.data[stimIndex]
+      if (!stimAois) continue
+
+      const nextHidden: number[] = []
+      for (let aoiId = 0; aoiId < stimAois.length; aoiId++) {
+        const row = stimAois[aoiId]
+        if (!row) continue
+        const originalName = row[0] ?? ''
+        const displayedName = (row[1] ?? originalName) as string
+        const key =
+          applyTo === 'all_by_original_name'
+            ? originalName
+            : (displayedName || originalName).trim()
+        if (key && keysToHide.has(key)) {
+          nextHidden.push(aoiId)
+        }
+      }
+      updates.push({ stimulusId: stimIndex, hiddenAois: nextHidden })
+    }
   }
 
-  data.set({
-    ...newState,
-    aois: {
-      ...newState.aois,
-      hiddenAois: hiddenByStimulus,
-    },
-  })
+  engine.updateHiddenAoisBatch(updates)
+
+  if (engine.metadata) {
+    data.set({ ...engine.metadata, segments: engine.segments! })
+  }
 }
 
 /**
@@ -827,69 +799,49 @@ export const updateMultipleAoi = (
   stimulusId: number,
   applyTo: 'this_stimulus' | 'all_by_original_name' | 'all_by_displayed_name'
 ): void => {
-  console.log('updateMultipleAoi', { aois, stimulusId, applyTo })
-
-  // Get current data state
   const currentState = get(data)
-
-  // Validate inputs
   if (!currentState.aois.data[stimulusId]) {
     throw new Error(
       `Stimulus with id ${stimulusId} does not exist in AOIs data`
     )
   }
 
-  // Create a brand new deep copy to avoid any reference issues
-  const newState = structuredClone(currentState)
+  const updates: { stimulusId: number; aois: ExtendedInterpretedDataType[] }[] =
+    []
 
-  // EXTREME ISOLATION FOR SINGLE STIMULUS UPDATES
-  if (applyTo === 'this_stimulus') {
-    // Create an entirely new data object for this specific stimulus
-    const newAoiData = [...newState.aois.data]
-
-    // Create a new array for this specific stimulus
-    newAoiData[stimulusId] = [...newAoiData[stimulusId]]
-
-    // Update each AOI in isolation
-    aois.forEach(aoi => {
-      if (aoi.id >= 0 && aoi.id < newAoiData[stimulusId].length) {
-        // Create a brand new array for each AOI to ensure complete isolation
-        newAoiData[stimulusId][aoi.id] = [
-          aoi.originalName,
-          aoi.displayedName,
-          aoi.color,
-        ]
-      }
-    })
-
-    // Update order vector
-    const newOrderVector = { ...newState.aois.orderVector }
-    newOrderVector[stimulusId] = [...aois.map(aoi => aoi.id)]
-
-    // Create a completely new state object
-    const finalState = {
-      ...newState,
-      aois: {
-        ...newState.aois,
-        data: newAoiData,
-        orderVector: newOrderVector,
-      },
-    }
-
-    // Set the entire state at once
-    data.set(finalState)
-    return
+  // Helper to get current AOIs as objects from data source
+  const getCurrentAoisAsObjects = (sId: number) => {
+    return getAoisRawFromData(sId, currentState)
   }
 
-  // Handle 'all_by_original_name' and 'all_by_displayed_name' cases
-  if (applyTo === 'all_by_original_name') {
-    // Create lookup maps for names to values
+  // Helper to apply updates to a list of AOI objects
+  const applyUpdatesToAoiList = (
+    currentList: ExtendedInterpretedDataType[],
+    updateLogic: (aoi: ExtendedInterpretedDataType) => void
+  ) => {
+    // We map to new objects to ensure isolation, then apply updates
+    return currentList.map(existingAoi => {
+      const newAoi = { ...existingAoi }
+      updateLogic(newAoi)
+      return newAoi
+    })
+  }
+
+  if (applyTo === 'this_stimulus') {
+    const currentList = getCurrentAoisAsObjects(stimulusId)
+    // Merge specific updates
+    aois.forEach(update => {
+      if (update.id >= 0 && update.id < currentList.length) {
+        currentList[update.id] = { ...currentList[update.id], ...update }
+      }
+    })
+    updates.push({ stimulusId, aois: currentList })
+  } else if (applyTo === 'all_by_original_name') {
+    // Build lookup from input updates
     const originalNameToValues = new Map<
       string,
       { displayedName: string; color: string }
     >()
-
-    // Populate maps with values from the target stimulus
     aois.forEach(aoi => {
       originalNameToValues.set(aoi.originalName, {
         displayedName: aoi.displayedName,
@@ -897,85 +849,78 @@ export const updateMultipleAoi = (
       })
     })
 
-    // Update the target stimulus first
-    aois.forEach(aoi => {
-      newState.aois.data[stimulusId][aoi.id] = [
-        aoi.originalName,
-        aoi.displayedName,
-        aoi.color,
-      ]
-    })
+    // Update target and others
+    const numStimuli = currentState.stimuli.data.length
+    for (let sId = 0; sId < numStimuli; sId++) {
+      const currentList = getCurrentAoisAsObjects(sId)
+      let modified = false
 
-    // Update order vector
-    newState.aois.orderVector[stimulusId] = [...aois.map(aoi => aoi.id)]
+      if (sId === stimulusId) {
+        // Explicit update for target stimulus
+        aois.forEach(update => {
+          if (update.id >= 0 && update.id < currentList.length) {
+            currentList[update.id] = { ...currentList[update.id], ...update }
+          }
+        })
+        modified = true
+      } else {
+        // Matching update for others
+        currentList.forEach((aoi, index) => {
+          const vals = originalNameToValues.get(aoi.originalName)
+          if (vals) {
+            currentList[index] = { ...aoi, ...vals }
+            modified = true
+          }
+        })
+      }
 
-    // Then update other stimuli based on original name
-    for (let i = 0; i < newState.stimuli.data.length; i++) {
-      if (i === stimulusId) continue // Skip the already updated stimulus
-
-      const stimAois = newState.aois.data[i]
-      if (!stimAois) continue
-
-      for (let j = 0; j < stimAois.length; j++) {
-        const aoiArray = stimAois[j]
-        if (!aoiArray) continue
-
-        const originalName = aoiArray[0]
-        const values = originalNameToValues.get(originalName)
-
-        if (values) {
-          // Create a new array to ensure no reference sharing
-          stimAois[j] = [originalName, values.displayedName, values.color]
-        }
+      if (modified) {
+        updates.push({ stimulusId: sId, aois: currentList })
       }
     }
   } else if (applyTo === 'all_by_displayed_name') {
-    // Create lookup for displayed names to colors
     const displayedNameToColor = new Map<string, string>()
-
-    // Populate lookup
     aois.forEach(aoi => {
       if (aoi.displayedName && aoi.displayedName.trim() !== '') {
         displayedNameToColor.set(aoi.displayedName, aoi.color)
       }
     })
 
-    // Update the target stimulus first
-    aois.forEach(aoi => {
-      newState.aois.data[stimulusId][aoi.id] = [
-        aoi.originalName,
-        aoi.displayedName,
-        aoi.color,
-      ]
-    })
+    const numStimuli = currentState.stimuli.data.length
+    for (let sId = 0; sId < numStimuli; sId++) {
+      const currentList = getCurrentAoisAsObjects(sId)
+      let modified = false
 
-    // Update order vector
-    newState.aois.orderVector[stimulusId] = [...aois.map(aoi => aoi.id)]
+      if (sId === stimulusId) {
+        aois.forEach(update => {
+          if (update.id >= 0 && update.id < currentList.length) {
+            currentList[update.id] = { ...currentList[update.id], ...update }
+          }
+        })
+        modified = true
+      } else {
+        currentList.forEach((aoi, index) => {
+          const dName = aoi.displayedName || aoi.originalName
+          const color = displayedNameToColor.get(dName)
+          if (color) {
+            currentList[index] = { ...aoi, color }
+            modified = true
+          }
+        })
+      }
 
-    // Then update other stimuli based on displayed name
-    for (let i = 0; i < newState.stimuli.data.length; i++) {
-      if (i === stimulusId) continue // Skip the already updated stimulus
-
-      const stimAois = newState.aois.data[i]
-      if (!stimAois) continue
-
-      for (let j = 0; j < stimAois.length; j++) {
-        const aoiArray = stimAois[j]
-        if (!aoiArray) continue
-
-        const displayedName = aoiArray[1] || aoiArray[0] // Fallback to original name
-        const color = displayedNameToColor.get(displayedName)
-
-        if (color) {
-          // Create a new array with the updated color but preserving other fields
-          stimAois[j] = [aoiArray[0], aoiArray[1], color]
-        }
+      if (modified) {
+        updates.push({ stimulusId: sId, aois: currentList })
       }
     }
   }
 
-  // Set the entire state at once
-  data.set(newState)
+  if (updates.length > 0) {
+    engine.updateAoisBatch(updates)
+    if (engine.metadata) {
+      data.set({ ...engine.metadata, segments: engine.segments! })
+    }
+  }
 }
 
 /**
@@ -1101,80 +1046,53 @@ export const getSegments = (
 export const updateMultipleParticipants = (
   participants: BaseInterpretedDataType[]
 ): void => {
-  console.log('updateMultipleParticipants', { participants })
-
-  // Get current data state
   const currentState = get(data)
 
-  // Create a brand new deep copy to avoid any reference issues
-  const newState = structuredClone(currentState)
+  const updates: { id: number; data: string[] }[] = []
+  const newOrder = [...participants.map(p => p.id)]
 
-  // Create a new array for participants data
-  const newParticipantsData = [...newState.participants.data]
-
-  // Update each participant in isolation
-  participants.forEach(participant => {
-    if (participant.id >= 0 && participant.id < newParticipantsData.length) {
-      // Create a brand new array for each participant to ensure complete isolation
-      newParticipantsData[participant.id] = [
-        participant.originalName,
-        participant.displayedName,
-      ]
+  participants.forEach(p => {
+    if (p.id >= 0 && p.id < currentState.participants.data.length) {
+      updates.push({ id: p.id, data: [p.originalName, p.displayedName] })
     }
   })
 
-  // Update order vector
-  const newOrderVector = [...participants.map(participant => participant.id)]
+  // We should also preserve order of others if we were not replacing whole list?
+  // Current logic seems to replace order vector with map of participants.
+  // Assuming participants contains ALL participants in new order.
 
-  // Create a completely new state object
-  const finalState = {
-    ...newState,
-    participants: {
-      ...newState.participants,
-      data: newParticipantsData,
-      orderVector: newOrderVector,
-    },
+  engine.updateParticipantsBatch(updates, newOrder)
+  if (engine.metadata) {
+    data.set({ ...engine.metadata, segments: engine.segments! })
   }
-
-  // Set the entire state at once
-  data.set(finalState)
 }
 
 export const updateMultipleStimuli = (
   stimuli: BaseInterpretedDataType[]
 ): void => {
-  console.log('updateMultipleStimuli', { stimuli })
-
-  // Get current data state
   const currentState = get(data)
 
-  // Create a brand new deep copy to avoid any reference issues
-  const newState = structuredClone(currentState)
+  const updates: { id: number; data: string[] }[] = []
+  const newOrder = [...stimuli.map(p => p.id)]
 
-  // Update each stimulus in isolation
-  stimuli.forEach(stimulus => {
-    if (stimulus.id >= 0 && stimulus.id < newState.stimuli.data.length) {
-      // Create a brand new array for each stimulus to ensure complete isolation
-      newState.stimuli.data[stimulus.id] = [
-        stimulus.originalName,
-        stimulus.displayedName,
-      ]
+  stimuli.forEach(s => {
+    if (s.id >= 0 && s.id < currentState.stimuli.data.length) {
+      updates.push({ id: s.id, data: [s.originalName, s.displayedName] })
     }
   })
 
-  // Update order vector
-  newState.stimuli.orderVector = [...stimuli.map(stimulus => stimulus.id)]
-
-  // Set the entire state at once
-  data.set(newState)
+  engine.updateStimuliBatch(updates, newOrder)
+  if (engine.metadata) {
+    data.set({ ...engine.metadata, segments: engine.segments! })
+  }
 }
 
 export const updateNoAoiTreatment = (noAoiTreatment: {
   displayedName: string
   color: string
 }): void => {
-  const currentState = get(data)
-  const newState = structuredClone(currentState)
-  newState.noAoiTreatment = { ...noAoiTreatment }
-  data.set(newState)
+  engine.setNoAoiTreatment(noAoiTreatment)
+  if (engine.metadata) {
+    data.set({ ...engine.metadata, segments: engine.segments! })
+  }
 }

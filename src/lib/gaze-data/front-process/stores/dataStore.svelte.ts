@@ -2,6 +2,7 @@ import {
   BinaryBufferReader,
   type DataType,
   type ExtendedInterpretedDataType,
+  type ParticipantsGroup,
 } from '$lib/gaze-data/shared/types'
 
 const MAX_AOI = 256
@@ -99,6 +100,171 @@ export class DataEngine {
     this.refreshInterpretationMap() // Sync interpretation cache
   }
 
+  setHiddenAois(stimulusId: number, hiddenAois: number[]) {
+    if (!this.metadata) return
+
+    const unique = Array.from(
+      new Set(
+        (hiddenAois ?? []).filter(
+          v => Number.isInteger(v) && v >= 0 && v < MAX_AOI
+        )
+      )
+    ).sort((a, b) => a - b)
+
+    // Ensure hiddenAois array exists
+    let hiddenByStimulus = this.metadata.aois.hiddenAois
+    if (!hiddenByStimulus) {
+      hiddenByStimulus = []
+      this.metadata.aois.hiddenAois = hiddenByStimulus
+    }
+
+    // Ensure array is large enough
+    while (hiddenByStimulus.length < this.metadata.stimuli.data.length) {
+      hiddenByStimulus.push([])
+    }
+
+    // In-place update thanks to Svelte 5 deep reactivity
+    hiddenByStimulus[stimulusId] = unique
+
+    this.refreshInterpretationMap()
+  }
+
+  updateHiddenAoisBatch(
+    updates: { stimulusId: number; hiddenAois: number[] }[]
+  ) {
+    if (!this.metadata) return
+
+    let hiddenByStimulus = this.metadata.aois.hiddenAois
+    if (!hiddenByStimulus) {
+      hiddenByStimulus = []
+      this.metadata.aois.hiddenAois = hiddenByStimulus
+    }
+
+    // Ensure array is large enough
+    while (hiddenByStimulus.length < this.metadata.stimuli.data.length) {
+      hiddenByStimulus.push([])
+    }
+
+    updates.forEach(({ stimulusId, hiddenAois }) => {
+      const unique = Array.from(
+        new Set(
+          (hiddenAois ?? []).filter(
+            v => Number.isInteger(v) && v >= 0 && v < MAX_AOI
+          )
+        )
+      ).sort((a, b) => a - b)
+
+      hiddenByStimulus[stimulusId] = unique
+    })
+
+    this.refreshInterpretationMap()
+  }
+
+  updateAoisBatch(
+    updates: { stimulusId: number; aois: ExtendedInterpretedDataType[] }[]
+  ) {
+    if (!this.metadata) return
+
+    const nextAoiBranch = { ...this.metadata.aois }
+    const nextData = [...nextAoiBranch.data]
+    const nextOrder = [...(nextAoiBranch.orderVector as number[][])]
+
+    updates.forEach(({ stimulusId, aois }) => {
+      nextData[stimulusId] = aois.map(a => [
+        a.originalName,
+        a.displayedName,
+        a.color,
+      ])
+      nextOrder[stimulusId] = aois.map(a => a.id)
+    })
+
+    this.metadata = {
+      ...this.metadata,
+      aois: { ...nextAoiBranch, data: nextData, orderVector: nextOrder },
+    }
+
+    this.refreshInterpretationMap()
+  }
+
+  updateParticipantsBatch(
+    updates: { id: number; data: string[] }[],
+    newOrder: number[]
+  ) {
+    if (!this.metadata) return
+
+    const nextParticipants = { ...this.metadata.participants }
+    const nextData = [...nextParticipants.data]
+
+    updates.forEach(({ id, data }) => {
+      if (id >= 0 && id < nextData.length) {
+        nextData[id] = data
+      }
+    })
+
+    this.metadata = {
+      ...this.metadata,
+      participants: {
+        ...nextParticipants,
+        data: nextData,
+        orderVector: newOrder,
+      },
+    }
+  }
+
+  updateStimuliBatch(
+    updates: { id: number; data: string[] }[],
+    newOrder: number[]
+  ) {
+    if (!this.metadata) return
+
+    const nextStimuli = { ...this.metadata.stimuli }
+    const nextData = [...nextStimuli.data]
+
+    updates.forEach(({ id, data }) => {
+      if (id >= 0 && id < nextData.length) {
+        nextData[id] = data
+      }
+    })
+
+    this.metadata = {
+      ...this.metadata,
+      stimuli: {
+        ...nextStimuli,
+        data: nextData,
+        orderVector: newOrder,
+      },
+    }
+  }
+
+  setNoAoiTreatment(treatment: { displayedName: string; color: string }) {
+    if (!this.metadata) return
+    this.metadata.noAoiTreatment = treatment
+  }
+
+  setParticipantsGroups(groups: ParticipantsGroup[]) {
+    if (!this.metadata) return
+    this.metadata.participantsGroups = groups
+  }
+
+  updateDynamicVisibility(
+    stimulusId: number,
+    updates: {
+      aoiId: number
+      visibility: number[]
+      participantId?: number | null
+    }[]
+  ) {
+    if (!this.metadata) return
+
+    updates.forEach(({ aoiId, visibility, participantId }) => {
+      let key = `${stimulusId}_${aoiId}`
+      if (participantId != null) {
+        key += `_${participantId}`
+      }
+      this.metadata!.aois.dynamicVisibility[key] = visibility
+    })
+  }
+
   // ==========================================
   // Hot-Path Accessors
   // ==========================================
@@ -110,6 +276,10 @@ export class DataEngine {
 
   getReader() {
     return this._reader
+  }
+
+  get segments() {
+    return this._binary
   }
 }
 
