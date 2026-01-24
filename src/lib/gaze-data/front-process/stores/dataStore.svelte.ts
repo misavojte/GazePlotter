@@ -9,6 +9,7 @@ import {
 } from '$lib/gaze-data/shared/types'
 
 const MAX_AOI = 256
+const MAX_STIMULUS = 256
 
 export class DataEngine {
   // --- Private Memory (Non-Reactive) ---
@@ -46,18 +47,22 @@ export class DataEngine {
       const nameToId = new Map<string, number>()
       const offset = sId * MAX_AOI
 
-      // Rule: First visible AOI with a specific name becomes the Group Representative
-      aois.forEach((row: string[], id: number) => {
-        if (hidden.has(id)) return
+      // Use order vector to find the Group Representative (first visible in user-defined order)
+      const order =
+        this.metadata.aois.orderVector?.[sId] ||
+        Array.from({ length: aois.length }, (_, i) => i)
+
+      order.forEach((id: number) => {
+        const row = aois[id]
+        if (!row || hidden.has(id)) return
         const name = (row[1] ?? row[0]).trim()
         if (name !== '' && !nameToId.has(name)) nameToId.set(name, id)
       })
 
       for (let id = 0; id < aois.length; id++) {
-        const name = (
-          this.metadata.aois.data[sId][id][1] ??
-          this.metadata.aois.data[sId][id][0]
-        ).trim()
+        const row = aois[id]
+        if (!row) continue
+        const name = (row[1] ?? row[0]).trim()
         const mapped = nameToId.get(name)
         this._aoiGroupMap[offset + id] = mapped !== undefined ? mapped : id
       }
@@ -85,11 +90,15 @@ export class DataEngine {
 
     const nextAoiBranch = { ...this.metadata.aois }
     const nextData = [...nextAoiBranch.data]
-    nextData[stimulusId] = updatedAois.map(a => [
-      a.originalName,
-      a.displayedName,
-      a.color,
-    ])
+
+    // Update data at original indices (do NOT reorder nextData)
+    const stimulusData = [...nextData[stimulusId]]
+    updatedAois.forEach(a => {
+      if (a.id >= 0 && a.id < stimulusData.length) {
+        stimulusData[a.id] = [a.originalName, a.displayedName, a.color]
+      }
+    })
+    nextData[stimulusId] = stimulusData
 
     const nextOrder = [...(nextAoiBranch.orderVector as number[][])]
     nextOrder[stimulusId] = updatedAois.map(a => a.id)
@@ -166,7 +175,9 @@ export class DataEngine {
   /** Generic batch updater for metadata branches */
   private updateBatch<K extends keyof Omit<DataType, 'segments'>>(
     key: K,
-    updater: (current: any) => any
+    updater: (
+      current: Omit<DataType, 'segments'>[K]
+    ) => Omit<DataType, 'segments'>[K]
   ) {
     if (!this.metadata) return
     this.metadata = {
@@ -182,13 +193,18 @@ export class DataEngine {
       const next = { ...current }
       const nextData = [...next.data]
       const nextOrder = [...(next.orderVector as number[][])]
+
       updates.forEach(({ stimulusId, aois }) => {
-        nextData[stimulusId] = aois.map(a => [
-          a.originalName,
-          a.displayedName,
-          a.color,
-        ])
-        nextOrder[stimulusId] = aois.map(a => a.id)
+        if (stimulusId >= 0 && stimulusId < nextData.length) {
+          const stimulusData = [...nextData[stimulusId]]
+          aois.forEach(a => {
+            if (a.id >= 0 && a.id < stimulusData.length) {
+              stimulusData[a.id] = [a.originalName, a.displayedName, a.color]
+            }
+          })
+          nextData[stimulusId] = stimulusData
+          nextOrder[stimulusId] = aois.map(a => a.id)
+        }
       })
       return { ...next, data: nextData, orderVector: nextOrder }
     })
@@ -270,9 +286,6 @@ export class DataEngine {
 }
 
 export const engine = new DataEngine()
-// Constants for fast AOI mapping store
-const MAX_STIMULUS = 256 // Maximum number of stimuli we can handle
-const MAX_AOI_PER_STIMULUS = 256 // Maximum number of AOIs per stimulus
 
 // ============================================================================
 // PRIVATE MODULE-LEVEL STATE: The High-Performance Engine (Delegated to DataEngine)
@@ -444,12 +457,6 @@ export const getParticipantOrderVector = (): number[] => {
   }
   return order
 }
-
-/* // Get raw AOIs without applying ID mapping (using current data)
-const getAoisRaw = (stimulusId: number): ExtendedInterpretedDataType[] => {
-  const aoiIds = getAoiOrderVector(stimulusId)
-  return aoiIds.map((aoiId: number) => getAoiRaw(stimulusId, aoiId, getData()))
-} */
 
 /**
  * Returns all AOIs for a stimulus, including duplicates with the same displayed name.
@@ -929,19 +936,7 @@ export const updateHiddenAois = (
   stimulusId: number,
   hiddenAois: number[]
 ): void => {
-  const currentState = getData()
-
-  if (!currentState) {
-    throw new Error('Cannot update hidden AOIs: data store is empty')
-  }
-
-  if (!currentState.aois.data[stimulusId]) {
-    throw new Error(
-      `Cannot update hidden AOIs: stimulus ${stimulusId} does not exist`
-    )
-  }
-
-  // Use engine for fast update
+  // Delegate to engine
   engine.setHiddenAois(stimulusId, hiddenAois)
 }
 
@@ -974,7 +969,7 @@ export const updateHiddenAoisWithPropagation = (
   const unique = Array.from(
     new Set(
       (hiddenAois ?? []).filter(
-        v => Number.isInteger(v) && v >= 0 && v < MAX_AOI_PER_STIMULUS
+        v => Number.isInteger(v) && v >= 0 && v < MAX_AOI
       )
     )
   ).sort((a, b) => a - b)
@@ -1060,27 +1055,20 @@ export const updateMultipleAoi = (
     return getAoisRawFromData(sId, currentState)
   }
 
-  // Helper to apply updates to a list of AOI objects
-  const applyUpdatesToAoiList = (
-    currentList: ExtendedInterpretedDataType[],
-    updateLogic: (aoi: ExtendedInterpretedDataType) => void
-  ) => {
-    // We map to new objects to ensure isolation, then apply updates
-    return currentList.map(existingAoi => {
-      const newAoi = { ...existingAoi }
-      updateLogic(newAoi)
-      return newAoi
-    })
-  }
-
   if (applyTo === 'this_stimulus') {
-    const currentList = getCurrentAoisAsObjects(stimulusId)
-    // Merge specific updates
-    aois.forEach(update => {
-      if (update.id >= 0 && update.id < currentList.length) {
-        currentList[update.id] = { ...currentList[update.id], ...update }
-      }
-    })
+    let currentList = getCurrentAoisAsObjects(stimulusId)
+
+    if (aois.length >= currentList.length) {
+      // Full update from modal: use the provided list's order
+      currentList = aois
+    } else {
+      // Partial update: merge into current list preserving current order
+      const updateMap = new Map(aois.map(a => [a.id, a]))
+      currentList = currentList.map(a => {
+        const update = updateMap.get(a.id)
+        return update ? { ...a, ...update } : a
+      })
+    }
     updates.push({ stimulusId, aois: currentList })
   } else if (applyTo === 'all_by_original_name') {
     // Build lookup from input updates
@@ -1098,25 +1086,30 @@ export const updateMultipleAoi = (
     // Update target and others
     const numStimuli = currentState.stimuli.data.length
     for (let sId = 0; sId < numStimuli; sId++) {
-      const currentList = getCurrentAoisAsObjects(sId)
+      let currentList = getCurrentAoisAsObjects(sId)
       let modified = false
 
       if (sId === stimulusId) {
         // Explicit update for target stimulus
-        aois.forEach(update => {
-          if (update.id >= 0 && update.id < currentList.length) {
-            currentList[update.id] = { ...currentList[update.id], ...update }
-          }
-        })
+        if (aois.length >= currentList.length) {
+          currentList = aois
+        } else {
+          const updateMap = new Map(aois.map(a => [a.id, a]))
+          currentList = currentList.map(a => {
+            const update = updateMap.get(a.id)
+            return update ? { ...a, ...update } : a
+          })
+        }
         modified = true
       } else {
         // Matching update for others
-        currentList.forEach((aoi, index) => {
+        currentList = currentList.map(aoi => {
           const vals = originalNameToValues.get(aoi.originalName)
           if (vals) {
-            currentList[index] = { ...aoi, ...vals }
             modified = true
+            return { ...aoi, ...vals }
           }
+          return aoi
         })
       }
 
@@ -1134,24 +1127,29 @@ export const updateMultipleAoi = (
 
     const numStimuli = currentState.stimuli.data.length
     for (let sId = 0; sId < numStimuli; sId++) {
-      const currentList = getCurrentAoisAsObjects(sId)
+      let currentList = getCurrentAoisAsObjects(sId)
       let modified = false
 
       if (sId === stimulusId) {
-        aois.forEach(update => {
-          if (update.id >= 0 && update.id < currentList.length) {
-            currentList[update.id] = { ...currentList[update.id], ...update }
-          }
-        })
+        if (aois.length >= currentList.length) {
+          currentList = aois
+        } else {
+          const updateMap = new Map(aois.map(a => [a.id, a]))
+          currentList = currentList.map(a => {
+            const update = updateMap.get(a.id)
+            return update ? { ...a, ...update } : a
+          })
+        }
         modified = true
       } else {
-        currentList.forEach((aoi, index) => {
+        currentList = currentList.map(aoi => {
           const dName = aoi.displayedName || aoi.originalName
           const color = displayedNameToColor.get(dName)
           if (color) {
-            currentList[index] = { ...aoi, color }
             modified = true
+            return { ...aoi, color }
           }
+          return aoi
         })
       }
 
