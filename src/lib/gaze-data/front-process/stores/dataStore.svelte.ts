@@ -6,18 +6,6 @@ import {
   type BaseInterpretedDataType,
   type SegmentInterpretedDataType,
 } from '$lib/gaze-data/shared/types'
-import { readable } from 'svelte/store'
-
-export const legacyData = readable<DataType>(undefined, set => {
-  const cleanup = $effect.root(() => {
-    $effect(() => {
-      if (engine.metadata) {
-        set({ ...engine.metadata, segments: engine.segments! })
-      }
-    })
-  })
-  return cleanup
-})
 
 const MAX_AOI = 256
 
