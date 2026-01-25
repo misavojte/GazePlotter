@@ -11,13 +11,10 @@
   // NEW: Import the unified grid instance
   import { grid } from '$lib/workspace/grid'
 
-  import { clear, processingFileStateStore } from './workspace'
+  import { clear } from './workspace'
+  import { fileState } from '$lib/file.state.svelte'
   import { engine } from './gaze-data/front-process/stores/dataStore.svelte'
   import { addSuccessToast } from '$lib/toaster'
-  import {
-    fileMetadataStore,
-    currentFileInputStore,
-  } from './workspace/stores/fileStore'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
   import type { WorkspaceCommandChain } from '$lib/workspace/commands'
 
@@ -45,7 +42,7 @@
   async function loadData() {
     // Svelte 5 logic: Use class properties for loading states where possible
     // but keep legacy stores if they haven't been migrated to .svelte.ts yet
-    processingFileStateStore.set('processing')
+    fileState.processing = 'processing'
 
     try {
       const initialData = await loadInitialData()
@@ -60,22 +57,22 @@
 
       // Metadata handling
       if (initialData.version === 3) {
-        fileMetadataStore.set(initialData.fileMetadata)
+        fileState.metadata = initialData.fileMetadata
       } else {
-        fileMetadataStore.set(null)
+        fileState.metadata = null
       }
 
-      currentFileInputStore.set(initialData.current)
+      fileState.input = initialData.current
 
       // CRITICAL CHANGE: Instead of initializeGridStateStore(initialData.gridItems),
       // we use the class's reset method directly.
       grid.reset(initialData.gridItems as any)
 
       await tick()
-      processingFileStateStore.set('done')
+      fileState.processing = 'done'
     } catch (error) {
       console.error('Error loading data:', error)
-      processingFileStateStore.set('fail')
+      fileState.processing = 'fail'
     }
   }
 

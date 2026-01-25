@@ -1,10 +1,7 @@
 <script lang="ts">
   import SectionHeader from '$lib/modals/shared/components/SectionHeader.svelte'
   import ModalButtons from '$lib/modals/shared/components/ModalButtons.svelte'
-  import {
-    fileMetadataStore,
-    currentFileInputStore,
-  } from '$lib/workspace/stores/fileStore'
+  import { fileState } from '$lib/file.state.svelte'
   import { formatDuration } from '$lib/shared/utils/timeUtils'
   import { formatFileSize } from '$lib/shared/utils/fileUtils'
   import {
@@ -14,8 +11,8 @@
   } from '$lib/gaze-data/front-process'
   import { onMount, onDestroy } from 'svelte'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
-  const fileMetadata = $derived($fileMetadataStore)
-  const currentFileInput = $derived($currentFileInputStore)
+  const fileMetadata = $derived(fileState.metadata)
+  const currentFileInput = $derived(fileState.input)
 
   // Memory monitoring state
   let memoryInfo = $state<{

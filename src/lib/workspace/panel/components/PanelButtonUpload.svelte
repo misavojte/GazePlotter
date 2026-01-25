@@ -2,13 +2,8 @@
   import { GeneralButtonMajor } from '$lib/shared/components'
   import { EyeWorkerService } from '$lib/gaze-data/front-process'
   import type { DataType } from '$lib/gaze-data/shared/types'
-  import {
-    processingFileStateStore,
-    initializeGridStateStore,
-    fileMetadataStore,
-    currentFileInputStore,
-    clear,
-  } from '$lib/workspace'
+  import { initializeGridStateStore, clear } from '$lib/workspace'
+  import { fileState } from '$lib/file.state.svelte'
   import { engine } from '$lib/gaze-data/front-process'
   import { addErrorToast } from '$lib/toaster'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
@@ -18,7 +13,8 @@
     FileMetadataFailureType,
   } from '$lib/workspace/type/fileMetadataType'
   import { grid } from '$lib/workspace/grid'
-  let isDisabled = $derived($processingFileStateStore === 'processing')
+
+  let isDisabled = $derived(fileState.processing === 'processing')
 
   let input: HTMLInputElement | undefined = $state()
   let workerService: EyeWorkerService | null = null
@@ -27,7 +23,7 @@
     const files = (e.target as HTMLInputElement).files
     if (!(files instanceof FileList)) return
     if (files.length === 0) return
-    processingFileStateStore.set('processing')
+    fileState.processing = 'processing'
     try {
       workerService = new EyeWorkerService(handleEyeData, handleFail)
       workerService.sendFiles(files)
@@ -52,15 +48,15 @@
     current: FileInputType
   }) => {
     if (data.fileMetadata) {
-      fileMetadataStore.set(data.fileMetadata)
+      fileState.metadata = data.fileMetadata
     } else {
-      fileMetadataStore.set(null)
+      fileState.metadata = null
     }
     engine.loadDataset(data.data)
     initializeGridStateStore(data.gridItems)
     clear()
-    processingFileStateStore.set('done')
-    currentFileInputStore.set(data.current)
+    fileState.processing = 'done'
+    fileState.input = data.current
   }
 
   /**
@@ -76,12 +72,12 @@
     // Reset workspace to empty layout
     grid.reset([])
 
-    fileMetadataStore.set(failureMetadata)
-    currentFileInputStore.set({
+    fileState.metadata = failureMetadata
+    fileState.input = {
       fileNames: failureMetadata.fileNames,
       fileSizes: failureMetadata.fileSizes,
       parseDate: failureMetadata.parseDate,
-    })
+    }
 
     engine.loadDataset({
       isOrdinalOnly: false,
@@ -109,7 +105,7 @@
       },
     })
 
-    processingFileStateStore.set('fail')
+    fileState.processing = 'fail'
   }
 </script>
 

@@ -45,7 +45,6 @@
       {aoiLabels}
       width={exportProps.width}
       height={exportProps.height}
-      cellSize={30}
       colorScale={settings.colorScale}
       xLabel="To AOI"
       yLabel="From AOI"

@@ -2,9 +2,9 @@
   import MajorControlButton from '$lib/shared/components/GeneralButtonMajor.svelte'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { ModalContentDownloadWorkplace } from '$lib/modals'
-  import { processingFileStateStore } from '$lib/workspace'
+  import { fileState } from '$lib/file.state.svelte'
 
-  let isDisabled = $derived($processingFileStateStore === 'processing')
+  let isDisabled = $derived(fileState.processing === 'processing')
 
   const handleClick = () => {
     modalStore.open(ModalContentDownloadWorkplace as any, 'Download workplace')

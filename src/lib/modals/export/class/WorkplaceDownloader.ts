@@ -9,9 +9,8 @@ import {
   resolveCsvFormatOptions,
 } from '$lib/shared/utils/csvFormatUtils'
 import { grid } from '$lib/workspace/grid'
-import { get } from 'svelte/store'
 import JSZip from 'jszip'
-import { fileMetadataStore } from '$lib/workspace/stores/fileStore'
+import { fileState } from '$lib/file.state.svelte'
 
 export class WorkplaceDownloader extends AbstractDownloader {
   download(data: DataType, fileName: string): void {
@@ -22,7 +21,7 @@ export class WorkplaceDownloader extends AbstractDownloader {
     } as unknown as DataType
 
     // add to the data the grid items
-    const fileMetadata = get(fileMetadataStore)
+    const fileMetadata = fileState.metadata
     const dataWithGridItems = (fileMetadata
       ? {
           version: 3,

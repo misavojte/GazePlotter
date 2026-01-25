@@ -4,7 +4,7 @@
     WorkspaceIndicatorLoading,
     WorkspaceToolbar,
   } from '$lib/workspace'
-  import { processingFileStateStore } from '$lib/workspace/stores'
+  import { fileState } from '$lib/file.state.svelte'
   import { grid } from '$lib/workspace/grid'
   import Grid from '$lib/workspace/grid/Grid.svelte'
 
@@ -42,7 +42,7 @@
 
   // Sync external file processing state with the grid class
   $effect(() => {
-    grid.isLoading = $processingFileStateStore === 'processing'
+    grid.isLoading = fileState.processing === 'processing'
   })
 
   let workspaceContainer: HTMLElement | null = $state(null)
@@ -114,15 +114,11 @@
       gridHeight={grid.height}
       gridWidth={grid.width}
       gridIsEmpty={grid.isEmpty}
-      gridIsLoading={grid.isLoading}
-      temporaryDragHeight={grid.temporaryDragHeight}
-      temporaryDragWidth={grid.temporaryDragWidth}
       {workspaceContainer}
       onWorkspaceCommand={handleWorkspaceCommand}
-      processingFileStateStore={$processingFileStateStore}
     />
 
-    {#if grid.isEmpty && !($processingFileStateStore === 'processing' || grid.isLoading)}
+    {#if grid.isEmpty && !(fileState.processing === 'processing' || grid.isLoading)}
       <WorkspaceIndicatorEmpty
         {onReinitialize}
         onWorkspaceCommand={handleWorkspaceCommand}
@@ -130,7 +126,7 @@
       />
     {/if}
 
-    {#if $processingFileStateStore === 'processing' || grid.isLoading}
+    {#if fileState.processing === 'processing' || grid.isLoading}
       <WorkspaceIndicatorLoading />
     {/if}
   </div>

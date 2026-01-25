@@ -190,7 +190,6 @@
         {aoiLabels}
         {width}
         {height}
-        {cellSize}
         colorScale={settings.colorScale}
         xLabel="To AOI"
         yLabel="From AOI"

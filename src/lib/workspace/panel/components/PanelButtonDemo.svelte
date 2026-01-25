@@ -1,6 +1,6 @@
 <script lang="ts">
   import { GeneralButtonMajor } from '$lib/shared/components'
-  import { processingFileStateStore } from '$lib/workspace'
+  import { fileState } from '$lib/file.state.svelte'
   import { getContext } from 'svelte'
 
   const label = getContext('reinitializeLabel')
@@ -11,7 +11,7 @@
 
   const { onReinitialize }: Props = $props()
 
-  let isDisabled = $derived($processingFileStateStore === 'processing')
+  let isDisabled = $derived(fileState.processing === 'processing')
 </script>
 
 <GeneralButtonMajor {isDisabled} onclick={onReinitialize}>
