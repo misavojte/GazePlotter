@@ -3,7 +3,7 @@
   import PanelButtonDemo from '$lib/workspace/panel/components/PanelButtonDemo.svelte'
   import { fade } from 'svelte/transition'
   import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
-  import { getHasValidData } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
+  import { getHasValidData } from '$lib/gaze-data/front-process'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { ModalContentMetadataInfo } from '$lib/modals/info/components'
   import GridItemContainer from '$lib/workspace/grid/GridItemContainer.svelte'

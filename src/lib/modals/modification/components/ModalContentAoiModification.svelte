@@ -13,7 +13,7 @@
     getAllAois,
     getHiddenAois,
     getData,
-  } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
+  } from '$lib/gaze-data/front-process'
   import { addErrorToast, addInfoToast } from '$lib/toaster'
   import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
   import { flip } from 'svelte/animate'

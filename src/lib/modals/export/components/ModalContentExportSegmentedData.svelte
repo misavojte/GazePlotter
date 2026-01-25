@@ -2,7 +2,7 @@
   import { GeneralInputText, GeneralSelect } from '$lib/shared/components'
   import { SectionHeader, ModalButtons } from '$lib/modals'
   import { WorkplaceDownloader } from '$lib/modals/export/class/WorkplaceDownloader.js'
-  import { getData } from '$lib/gaze-data/front-process/stores/dataStore.svelte.js'
+  import { getData } from '$lib/gaze-data/front-process'
   import { addSuccessToast } from '$lib/toaster'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'

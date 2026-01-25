@@ -1,7 +1,7 @@
 <script lang="ts">
   import { SectionHeader } from '$lib/modals'
   import { WorkplaceDownloader } from '$lib/modals/export/class/WorkplaceDownloader.js'
-  import { getData } from '$lib/gaze-data/front-process/stores/dataStore.svelte.js'
+  import { getData } from '$lib/gaze-data/front-process'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import {
     ModalContentExportSegmentedData,

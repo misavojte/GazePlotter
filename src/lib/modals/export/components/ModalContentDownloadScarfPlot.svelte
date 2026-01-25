@@ -10,7 +10,7 @@
   import {
     getParticipants,
     getData,
-  } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
+  } from '$lib/gaze-data/front-process'
   import { untrack } from 'svelte'
   import { SectionHeader, DownloadPlotSettings } from '$lib/modals'
 

@@ -2,7 +2,7 @@ import {
   getStimuli,
   getParticipantsGroups,
   getParticipants,
-} from '$lib/gaze-data/front-process/stores/dataStore.svelte'
+} from '$lib/gaze-data/front-process'
 
 /**
  * Get the stimuli options for a plot

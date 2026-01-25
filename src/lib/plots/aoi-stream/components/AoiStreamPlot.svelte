@@ -24,9 +24,9 @@
   import {
     getParticipants,
     getParticipantEndTime,
-  } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
+    engine,
+  } from '$lib/gaze-data/front-process'
   import { HEADER_HEIGHT } from '../const'
-  import { engine } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
 
   import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
   import type { AoiStreamPlotResult } from '../types'

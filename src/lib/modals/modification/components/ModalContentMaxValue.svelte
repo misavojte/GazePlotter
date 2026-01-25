@@ -2,7 +2,7 @@
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { GeneralInputNumber, GeneralInputColor } from '$lib/shared/components'
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
-  import { getStimuliOrderVector } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
+  import { getStimuliOrderVector } from '$lib/gaze-data/front-process'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
   import type { UpdateSettingsCommand } from '$lib/workspace/commands'
   import {

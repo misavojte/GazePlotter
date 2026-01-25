@@ -1,6 +1,6 @@
 import type { DataType } from '$lib/gaze-data/shared/types'
 import { BinaryBufferReader } from '$lib/gaze-data/shared/types'
-import { getAoi } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
+import { getAoi } from '$lib/gaze-data/front-process'
 
 /**
  * Converts the complex hierarchical eye-tracking data structure to a flat array format.

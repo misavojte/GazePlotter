@@ -1,6 +1,6 @@
 <script lang="ts">
   import { GeneralButtonMajor } from '$lib/shared/components'
-  import { EyeWorkerService } from '$lib/gaze-data/front-process/class/EyeWorkerService'
+  import { EyeWorkerService } from '$lib/gaze-data/front-process'
   import type { DataType } from '$lib/gaze-data/shared/types'
   import {
     processingFileStateStore,
@@ -9,7 +9,7 @@
     currentFileInputStore,
     clear,
   } from '$lib/workspace'
-  import { engine } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
+  import { engine } from '$lib/gaze-data/front-process'
   import { addErrorToast } from '$lib/toaster'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
   import type {

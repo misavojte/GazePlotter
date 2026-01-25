@@ -2,7 +2,7 @@
   import {
     getParticipants,
     getParticipantsGroups,
-  } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
+  } from '$lib/gaze-data/front-process'
   import { addSuccessToast } from '$lib/toaster'
   import type { ParticipantsGroup } from '$lib/gaze-data/shared/types/index'
   import {

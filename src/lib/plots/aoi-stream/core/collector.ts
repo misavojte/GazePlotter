@@ -2,15 +2,14 @@
  * Optimized single-pass collector for AOI stream data.
  * Extracted from data.ts to separate collection from transformation/view logic.
  */
-import { getData } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
+import { getData, engine } from '$lib/gaze-data/front-process'
 import {
   BinaryBufferReader,
   SEGMENT_STRIDE,
   SegmentField,
+  type ExtendedInterpretedDataType,
 } from '$lib/gaze-data/shared/types'
 import { END_BIN_EPSILON, FIXATION_CATEGORY_ID } from '../const'
-import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
-import { engine } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
 
 export interface AoiStreamMetricSeries {
   id: number

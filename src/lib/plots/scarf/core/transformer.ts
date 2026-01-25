@@ -13,7 +13,7 @@ import {
   getParticipantEndTime,
   getStimuli,
   hasStimulusAoiVisibility,
-} from '$lib/gaze-data/front-process/stores/dataStore.svelte'
+} from '$lib/gaze-data/front-process'
 import {
   MAX_AOI_PER_STIMULUS,
   SegmentField,

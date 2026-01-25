@@ -2,7 +2,7 @@ import { ModalContentTobiiParsingInput } from '$lib/modals'
 import { modalStore } from '$lib/modals/shared/stores/modalStore'
 import { addErrorToast, addInfoToast, addSuccessToast } from '$lib/toaster'
 import type { DataType, ParsedData } from '$lib/gaze-data/shared/types'
-import { processJsonFileWithGrid } from '$lib/gaze-data/front-process/utils/jsonParsing'
+import { processJsonFileWithGrid } from '../utils/jsonParsing'
 import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSettingsType'
 import type {
   FileMetadataSuccessType,
@@ -153,16 +153,20 @@ export class EyeWorkerService {
     const fileArray = Array.from(files)
     const totalFiles = fileArray.length
     console.log(`[Service] Processing ${totalFiles} ZIP files`)
-    
+
     for (let index = 0; index < totalFiles; index++) {
       const file = fileArray[index]
       if (!file) {
         throw new Error(`File at index ${index} is undefined`)
       }
-      console.log(`[Service] Reading buffer for file ${index + 1}/${totalFiles}: ${this.fileNames[index]}`)
+      console.log(
+        `[Service] Reading buffer for file ${index + 1}/${totalFiles}: ${this.fileNames[index]}`
+      )
       const buffer = await file.arrayBuffer()
       const zipName = this.fileNames[index] // Use the stored file name
-      console.log(`[Service] Sending ZIP buffer ${index + 1}/${totalFiles}, size: ${buffer.byteLength} bytes`)
+      console.log(
+        `[Service] Sending ZIP buffer ${index + 1}/${totalFiles}, size: ${buffer.byteLength} bytes`
+      )
       this.worker.postMessage(
         { type: 'zip-buffer', data: { buffer, zipName } },
         [buffer as ArrayBuffer]
