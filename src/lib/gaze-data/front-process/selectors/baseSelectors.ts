@@ -1,7 +1,3 @@
-import {
-  type DataType,
-  DEFAULT_NO_AOI_TREATMENT,
-} from '$lib/gaze-data/shared/types'
 import { engine } from '../stores/dataStore.svelte'
 
 /**
@@ -12,44 +8,16 @@ export const getHasValidData = (): boolean => {
   return engine.hasValidData
 }
 
-/**
- * Basic data access function.
- * Returns the engine state merged with binary segments.
- * @returns The current DataType snapshot
- */
-export const getData = (): DataType => {
-  if (!engine.metadata) {
-    return {
-      isOrdinalOnly: false,
-      aois: {
-        data: [],
-        orderVector: [],
-        dynamicVisibility: {},
-        hiddenAois: [],
-      },
-      categories: { data: [], orderVector: [] },
-      participants: { data: [], orderVector: [] },
-      participantsGroups: [],
-      stimuli: { data: [], orderVector: [] },
-      segments: {
-        segmentBuffer: new Float32Array(0),
-        indexTable: new Uint32Array(0),
-        aoiPool: new Uint16Array(0),
-        maxParticipants: 0,
-        stimuliCount: 0,
-      },
-      noAoiTreatment: DEFAULT_NO_AOI_TREATMENT,
-    }
-  }
-  return { ...engine.metadata, segments: engine.segments! } as DataType
-}
-
 export const getNumberOfStimuli = (): number => {
-  return getData().stimuli.data.length
+  const meta = engine.metadata
+  if (!meta) throw new Error('Data engine metadata not available')
+  return meta.stimuli.data.length
 }
 
 export const getNumberOfParticipants = (): number => {
-  return getData().participants.data.length
+  const meta = engine.metadata
+  if (!meta) throw new Error('Data engine metadata not available')
+  return meta.participants.data.length
 }
 
 /**

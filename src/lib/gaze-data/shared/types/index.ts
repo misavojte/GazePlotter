@@ -47,7 +47,7 @@ export interface SegmentInterpretedDataType {
 
 export interface AttributeDataType {
   data: string[][]
-  orderVector: number[] | []
+  orderVector: number[]
 }
 
 export interface ParticipantsGroup {
@@ -78,7 +78,7 @@ export interface VisibilityAoiDataType {
 
 export interface AoiDataType {
   data: string[][][]
-  orderVector: number[][] | []
+  orderVector: number[][]
   dynamicVisibility: VisibilityAoiDataType
   /** Per-stimulus list of raw AOI ids that should be treated as nonexistent in visualizations. */
   hiddenAois: number[][]

@@ -6,7 +6,7 @@ import {
   getAois,
   getAoiIdMapping,
   getAoiVisibility,
-  getData,
+  engine,
   getHiddenAois,
   getNumberOfSegments,
   getParticipant,
@@ -419,7 +419,11 @@ export function transformDataToScarfPlot(
   const isOrdinal = settings.timeline === 'ordinal'
   const isRelative = settings.timeline === 'relative'
 
-  const { segments } = getData()
+  const segments = engine.segments
+  if (!segments) {
+    throw new Error('Data engine not initialized')
+  }
+
   const { segmentBuffer, indexTable, aoiPool, maxParticipants } = segments
 
   const participants: ScarfParticipant[] = new Array(participantIds.length)

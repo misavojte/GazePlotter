@@ -8,7 +8,7 @@
   import { formatDuration } from '$lib/shared/utils/timeUtils'
   import { formatFileSize } from '$lib/shared/utils/fileUtils'
   import {
-    getData,
+    engine,
     getNumberOfStimuli,
     getNumberOfParticipants,
   } from '$lib/gaze-data/front-process'
@@ -84,13 +84,14 @@
     total: number
   } {
     try {
-      const data = getData()
+      const meta = engine.metadata
+      if (!meta) return { perStimulus: [], total: 0 }
       const perStimulus: { stimulusName: string; count: number }[] = []
       let total = 0
 
-      for (let i = 0; i < data.stimuli.data.length; i++) {
-        const stimulusName = data.stimuli.data[i][0]
-        const aoiCount = data.aois.data[i]?.length || 0
+      for (let i = 0; i < meta.stimuli.data.length; i++) {
+        const stimulusName = meta.stimuli.data[i][0]
+        const aoiCount = meta.aois.data[i]?.length || 0
         perStimulus.push({ stimulusName, count: aoiCount })
         total += aoiCount
       }
@@ -380,7 +381,6 @@
           parsing metadata is thus not available.
         </div>
       {:else if fileMetadata.status === 'failure'}
-
         <div class="info-group failure-details">
           <div class="info-item">
             <span class="label">Error message:</span>

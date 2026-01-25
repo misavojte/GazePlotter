@@ -7,10 +7,7 @@
     SCARF_LAYOUT,
   } from '$lib/plots'
   import GeneralCanvasPreview from '$lib/modals/shared/components/CanvasPreview.svelte'
-  import {
-    getParticipants,
-    getData,
-  } from '$lib/gaze-data/front-process'
+  import { getParticipants, engine } from '$lib/gaze-data/front-process'
   import { untrack } from 'svelte'
   import { SectionHeader, DownloadPlotSettings } from '$lib/modals'
 
@@ -34,8 +31,11 @@
   // Calculate the effective width (what will be available for the chart after margins)
   const effectiveWidth = $derived(width - (marginLeft + marginRight))
 
-  const obtainedData = $derived.by(() =>
-    transformDataToScarfPlot(
+  const obtainedData = $derived.by(() => {
+    const meta = engine.metadata
+    if (!meta) throw new Error('Data engine metadata not available')
+
+    return transformDataToScarfPlot(
       untrack(() => settings.stimulusId),
       untrack(() =>
         getParticipants(settings.groupId, settings.stimulusId).map(
@@ -43,12 +43,12 @@
         )
       ),
       untrack(() => settings),
-      untrack(() => getData().noAoiTreatment)
+      meta.noAoiTreatment
     )
-  )
+  })
 
   // Calculate the total height
-  const totalHeight = $derived(obtainedData.chartHeight + 130)
+  const totalHeight = $derived((obtainedData?.chartHeight ?? 0) + 130)
 </script>
 
 <div class="single-view-container">
@@ -73,22 +73,25 @@
         fileType={typeOfExport}
         showDownloadButton={true}
       >
-        <ScarfPlotFigure
-          dpiOverride={dpi}
-          {marginTop}
-          {marginRight}
-          {marginBottom}
-          {marginLeft}
-          data={obtainedData}
-          {settings}
-          chartWidth={effectiveWidth}
-          availableHeight={totalHeight}
-          highlights={settings.highlights ?? []}
-          tooltipAreaElement={null}
-          onLegendClick={() => {}}
-          onTooltipActivation={() => {}}
-          onTooltipDeactivation={() => {}}
-        />
+        {#if obtainedData}
+          {@const data = obtainedData}
+          <ScarfPlotFigure
+            dpiOverride={dpi}
+            {marginTop}
+            {marginRight}
+            {marginBottom}
+            {marginLeft}
+            {data}
+            {settings}
+            chartWidth={effectiveWidth}
+            availableHeight={totalHeight}
+            highlights={settings.highlights ?? []}
+            tooltipAreaElement={null}
+            onLegendClick={() => {}}
+            onTooltipActivation={() => {}}
+            onTooltipDeactivation={() => {}}
+          />
+        {/if}
       </GeneralCanvasPreview>
     </div>
   </div>

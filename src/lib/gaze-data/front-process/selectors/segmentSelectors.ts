@@ -3,16 +3,16 @@ import {
   type ExtendedInterpretedDataType,
 } from '$lib/gaze-data/shared/types'
 import { engine } from '../stores/dataStore.svelte'
-import { getData, getNumberOfParticipants } from './baseSelectors'
-import { getCategory } from './entitySelectors'
+import { getNumberOfParticipants } from './baseSelectors'
 import { getHiddenAois } from './aoiSelectors'
+import { getAoiRaw, getCategoryRaw } from '../utils/interpreters'
 
 export const getNumberOfSegments = (
   stimulusId: number,
   participantId: number
 ): number => {
   const reader = engine.getReader()
-  if (!reader) return 0
+  if (!reader) throw new Error('Binary reader not available')
   return reader.getSegmentCount(stimulusId, participantId)
 }
 
@@ -21,7 +21,7 @@ export const getParticipantEndTime = (
   particIndex: number
 ): number => {
   const reader = engine.getReader()
-  if (!reader) return 0
+  if (!reader) throw new Error('Binary reader not available')
   return reader.getParticipantEndTime(stimulusId, particIndex)
 }
 
@@ -33,47 +33,10 @@ export const getStimulusHighestEndTime = (stimulusIndex: number): number => {
     participantIndex < numParticipants;
     participantIndex++
   ) {
-    const lastSegmentEndTime = getParticipantEndTime(
-      stimulusIndex,
-      participantIndex
-    )
-    max = lastSegmentEndTime > max ? lastSegmentEndTime : max
+    const end = getParticipantEndTime(stimulusIndex, participantIndex)
+    if (end > max) max = end
   }
   return max
-}
-
-// Re-using the getAoiRaw logic from entitySelectors internally if needed,
-// but better to import it or define it locally if we want segmentSelectors
-// to be independent. However, entitySelectors exports getAoiRaw as a helper?
-// Actually I didn't export it. I'll define it locally in entitySelectors if I need it,
-// but for segments it's safer to use the public getAoiRaw if I had one.
-// Let's re-define the local helper for now to avoid circular dependencies or complex exports.
-
-const getDefaultColor = (index: number): string => {
-  const COLORS = ['#66c5cc', '#f6cf71', '#f89c74', '#dcb0f2', '#87c55f']
-  return COLORS[index % COLORS.length]
-}
-
-const getAoiRaw = (
-  stimulusId: number,
-  aoiId: number,
-  dataSnapshot: any
-): ExtendedInterpretedDataType => {
-  const aoiArray = dataSnapshot.aois.data[stimulusId][aoiId]
-  if (aoiArray === undefined)
-    throw new Error(
-      `AOI with id ${aoiId} does not exist in stimulus with id ${stimulusId}`
-    )
-  const originalName = aoiArray[0]
-  const displayedName = aoiArray[1] ?? originalName
-  const color = aoiArray[2] ?? getDefaultColor(aoiId)
-
-  return {
-    id: aoiId,
-    originalName,
-    displayedName,
-    color,
-  }
 }
 
 export const getSegments = (
@@ -85,7 +48,9 @@ export const getSegments = (
   offset: number = 0
 ): SegmentInterpretedDataType[] => {
   const reader = engine.getReader()
-  if (!reader) return []
+  const metadata = engine.metadata
+  if (!reader || !metadata)
+    throw new Error('Data engine metadata not available')
 
   const range = reader.getSegmentRange(stimulusId, participantId)
   const segmentCount = range.endIndex - range.startIndex
@@ -96,75 +61,68 @@ export const getSegments = (
   const hiddenSet = hidden.length ? new Set<number>(hidden) : null
 
   const result: SegmentInterpretedDataType[] = []
-  const aoiCache: Record<number, ExtendedInterpretedDataType> = {}
-  const categoryCache: Record<number, ExtendedInterpretedDataType> = {}
+  const aoiCache = new Map<number, ExtendedInterpretedDataType>()
+  const categoryCache = new Map<number, ExtendedInterpretedDataType>()
 
   const categoryFilter = whereCategories ? new Set(whereCategories) : null
   const aoiFilter = whereAois ? new Set(whereAois) : null
   const uniqueAois = new Set<number>()
 
-  let resultCount = 0
+  const processFrom = range.startIndex + offset
   const processTo = Math.min(
     range.endIndex,
-    range.startIndex + offset + (limit ?? segmentCount)
+    processFrom + (limit ?? segmentCount)
   )
 
-  for (
-    let i = range.startIndex + offset;
-    i < processTo && (limit === null || resultCount < limit);
-    i++
-  ) {
+  for (let i = processFrom; i < processTo; i++) {
     const categoryId = reader.getSegmentCategory(i)
     if (categoryFilter && !categoryFilter.has(categoryId)) continue
 
     const rawIds = reader.getRawAois(i)
+    uniqueAois.clear()
+
+    for (let j = 0; j < rawIds.length; j++) {
+      const rawId = rawIds[j]
+      if (hiddenSet?.has(rawId)) continue
+      uniqueAois.add(engine.getAoiMapping(stimulusId, rawId))
+    }
 
     if (aoiFilter) {
-      let hasMatchingAoi = false
-      for (let j = 0; j < rawIds.length; j++) {
-        const rawId = rawIds[j]
-        if (hiddenSet && hiddenSet.has(rawId)) continue
-        const mappedId = engine.getAoiMapping(stimulusId, rawId)
-        if (aoiFilter.has(mappedId)) {
-          hasMatchingAoi = true
+      let hasMatch = false
+      for (const id of uniqueAois) {
+        if (aoiFilter.has(id)) {
+          hasMatch = true
           break
         }
       }
-      if (!hasMatchingAoi) continue
-    }
-
-    const start = reader.getSegmentStart(i)
-    const end = reader.getSegmentEnd(i)
-
-    uniqueAois.clear()
-    for (let j = 0; j < rawIds.length; j++) {
-      const rawId = rawIds[j]
-      if (hiddenSet && hiddenSet.has(rawId)) continue
-      const mappedId = engine.getAoiMapping(stimulusId, rawId)
-      uniqueAois.add(mappedId)
+      if (!hasMatch) continue
     }
 
     const aoi: ExtendedInterpretedDataType[] = []
-    const dataSnapshot = getData()
     for (const aoiId of uniqueAois) {
-      if (!aoiCache[aoiId])
-        aoiCache[aoiId] = getAoiRaw(stimulusId, aoiId, dataSnapshot)
-      aoi.push(aoiCache[aoiId])
+      let cached = aoiCache.get(aoiId)
+      if (!cached) {
+        cached = getAoiRaw(stimulusId, aoiId, metadata)
+        aoiCache.set(aoiId, cached)
+      }
+      aoi.push(cached)
     }
 
-    if (!categoryCache[categoryId]) {
-      categoryCache[categoryId] = getCategory(categoryId)
+    let category = categoryCache.get(categoryId)
+    if (!category) {
+      category = getCategoryRaw(categoryId, metadata)
+      categoryCache.set(categoryId, category)
     }
 
     result.push({
       id: i - range.startIndex,
-      start,
-      end,
+      start: reader.getSegmentStart(i),
+      end: reader.getSegmentEnd(i),
       aoi,
-      category: categoryCache[categoryId],
+      category,
     })
 
-    resultCount++
+    if (limit !== null && result.length >= limit) break
   }
 
   return result
@@ -175,18 +133,42 @@ export const getSegment = (
   participantId: number,
   segmentId: number
 ): SegmentInterpretedDataType => {
-  const segments = getSegments(
-    stimulusId,
-    participantId,
-    null,
-    null,
-    1,
-    segmentId
-  )
-  if (segments.length === 0) {
-    throw new Error(
-      `Segment ${segmentId} not found for stimulus ${stimulusId} and participant ${participantId}`
-    )
+  const reader = engine.getReader()
+  const metadata = engine.metadata
+  if (!reader || !metadata) {
+    throw new Error('Data engine not initialized')
   }
-  return segments[0]
+
+  const range = reader.getSegmentRange(stimulusId, participantId)
+  const absoluteIndex = range.startIndex + segmentId
+
+  if (absoluteIndex >= range.endIndex) {
+    throw new Error(`Segment ${segmentId} out of range`)
+  }
+
+  const hidden = getHiddenAois(stimulusId)
+  const hiddenSet = hidden.length ? new Set<number>(hidden) : null
+  const rawIds = reader.getRawAois(absoluteIndex)
+  const aoi: ExtendedInterpretedDataType[] = []
+  const uniqueAois = new Set<number>()
+
+  for (let i = 0; i < rawIds.length; i++) {
+    const rawId = rawIds[i]
+    if (hiddenSet?.has(rawId)) continue
+    uniqueAois.add(engine.getAoiMapping(stimulusId, rawId))
+  }
+
+  for (const aoiId of uniqueAois) {
+    aoi.push(getAoiRaw(stimulusId, aoiId, metadata))
+  }
+
+  const categoryId = reader.getSegmentCategory(absoluteIndex)
+
+  return {
+    id: segmentId,
+    start: reader.getSegmentStart(absoluteIndex),
+    end: reader.getSegmentEnd(absoluteIndex),
+    aoi,
+    category: getCategoryRaw(categoryId, metadata),
+  }
 }

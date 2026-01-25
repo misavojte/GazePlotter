@@ -1,16 +1,9 @@
-import {
-  getParticipants,
-  getAois,
-  getData,
-} from '$lib/gaze-data/front-process'
+import { getParticipants, getAois, engine } from '$lib/gaze-data/front-process'
 import { formatDecimal } from '$lib/shared/utils/mathUtils'
 import { MatrixAggregationMethod } from '../const'
 import type { TransitionMatrixData } from '../types'
 import { collectTransitionMetrics } from './collector'
 
-/**
- * High-level function to get full transition matrix data for the UI.
- */
 export function getTransitionMatrixData(
   stimulusId: number,
   groupId: number,
@@ -19,14 +12,15 @@ export function getTransitionMatrixData(
   const participants = getParticipants(groupId, stimulusId)
   const participantIds = participants.map(p => p.id)
   const aoiList = getAois(stimulusId)
-  const data = getData()
+  const size = aoiList.length + 1
+  const meta = engine.metadata
+  if (!meta) throw new Error('Data engine metadata not available')
 
   const aoiLabels = [
     ...aoiList.map(aoi => aoi.displayedName),
-    data.noAoiTreatment.displayedName,
+    meta.noAoiTreatment.displayedName,
   ]
 
-  const size = aoiList.length + 1
   if (participantIds.length === 0) {
     return {
       matrix: new Float64Array(size * size),

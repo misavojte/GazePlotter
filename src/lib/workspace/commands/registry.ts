@@ -6,7 +6,7 @@ import { createChildCommand } from '$lib/workspace/commands'
 import { SCARF_IDENTIFIERS } from '$lib/plots/scarf'
 import { GridState } from '$lib/workspace/grid'
 import {
-  getData,
+  engine,
   updateHiddenAoisWithPropagation,
   updateMultipleAoi,
   updateMultipleAoiVisibility,
@@ -223,15 +223,13 @@ export function createWorkspaceCommandRegistry(
 
   const reverseHandlers: ReverseHandlers = {
     updateAois: (cmd, meta) => {
-      const currentData = getData()
-      const stimulusId = cmd.stimulusId
-      const currentAois = currentData?.aois?.data?.[stimulusId] || []
-      if (currentAois.length === 0) {
-        console.warn(
-          `Cannot reverse updateAois: no AOIs found for stimulus ${stimulusId}`
+      const dataMeta = engine.metadata
+      if (!dataMeta)
+        throw new Error(
+          'Data engine metadata not available for command reversal'
         )
-        return null
-      }
+      const stimulusId = cmd.stimulusId
+      const currentAois = dataMeta.aois.data[stimulusId] || []
       const affectedAois: ExtendedInterpretedDataType[] = []
       for (let aoiIndex = 0; aoiIndex < currentAois.length; aoiIndex++) {
         const aoiRow = currentAois[aoiIndex]
@@ -248,7 +246,7 @@ export function createWorkspaceCommandRegistry(
         })
       }
       const shouldIncludeHiddenAois = cmd.hiddenAois !== undefined
-      const hiddenAois = currentData?.aois?.hiddenAois?.[stimulusId] ?? []
+      const hiddenAois = dataMeta?.aois?.hiddenAois?.[stimulusId] ?? []
       return withMeta(
         {
           type: 'updateAois',
@@ -262,14 +260,12 @@ export function createWorkspaceCommandRegistry(
     },
 
     updateParticipants: (_cmd, meta) => {
-      const currentData = getData()
-      const currentParticipants = currentData?.participants?.data || []
-      if (currentParticipants.length === 0) {
-        console.warn(
-          'Cannot reverse updateParticipants: no participants found in current data'
+      const dataMeta = engine.metadata
+      if (!dataMeta)
+        throw new Error(
+          'Data engine metadata not available for command reversal'
         )
-        return null
-      }
+      const currentParticipants = dataMeta.participants.data || []
       const participants = currentParticipants.map(
         ([originalName, displayedName], index) => ({
           id: index,
@@ -281,14 +277,12 @@ export function createWorkspaceCommandRegistry(
     },
 
     updateStimuli: (_cmd, meta) => {
-      const currentData = getData()
-      const currentStimuli = currentData?.stimuli?.data || []
-      if (currentStimuli.length === 0) {
-        console.warn(
-          'Cannot reverse updateStimuli: no stimuli found in current data'
+      const dataMeta = engine.metadata
+      if (!dataMeta)
+        throw new Error(
+          'Data engine metadata not available for command reversal'
         )
-        return null
-      }
+      const currentStimuli = dataMeta.stimuli.data || []
       const stimuli = currentStimuli.map(
         ([originalName, displayedName], index) => ({
           id: index,
@@ -300,8 +294,12 @@ export function createWorkspaceCommandRegistry(
     },
 
     updateAoiVisibility: (cmd, meta) => {
-      const currentData = getData()
-      const currentAoiVisibility = currentData?.aois?.dynamicVisibility || {}
+      const dataMeta = engine.metadata
+      if (!dataMeta)
+        throw new Error(
+          'Data engine metadata not available for command reversal'
+        )
+      const currentAoiVisibility = dataMeta.aois.dynamicVisibility || {}
       const affectedVisibility: {
         aoiName: string
         visibilityArr: number[]
@@ -316,7 +314,7 @@ export function createWorkspaceCommandRegistry(
           (!cmd.participantId || participantId === cmd.participantId)
         ) {
           const aoiData =
-            currentData?.aois?.data?.[stimulusId]?.[parseInt(aoiIdStr, 10)]
+            dataMeta?.aois?.data?.[stimulusId]?.[parseInt(aoiIdStr, 10)]
           const aoiName = aoiData?.[1] || `AOI_${aoiIdStr}`
           affectedVisibility.push({
             aoiName,
@@ -347,14 +345,12 @@ export function createWorkspaceCommandRegistry(
     },
 
     updateParticipantsGroups: (_cmd, meta) => {
-      const currentData = getData()
-      const currentGroups = currentData?.participantsGroups || []
-      if (currentGroups.length === 0) {
-        console.warn(
-          'Cannot reverse updateParticipantsGroups: no groups found in current data'
+      const dataMeta = engine.metadata
+      if (!dataMeta)
+        throw new Error(
+          'Data engine metadata not available for command reversal'
         )
-        return null
-      }
+      const currentGroups = dataMeta.participantsGroups || []
       return withMeta(
         { type: 'updateParticipantsGroups', groups: currentGroups },
         meta
@@ -362,14 +358,12 @@ export function createWorkspaceCommandRegistry(
     },
 
     updateNoAoiTreatment: (_cmd, meta) => {
-      const currentData = getData()
-      const currentNoAoiTreatment = currentData?.noAoiTreatment
-      if (!currentNoAoiTreatment) {
-        console.warn(
-          'Cannot reverse updateNoAoiTreatment: no treatment found in current data'
+      const dataMeta = engine.metadata
+      if (!dataMeta)
+        throw new Error(
+          'Data engine metadata not available for command reversal'
         )
-        return null
-      }
+      const currentNoAoiTreatment = dataMeta.noAoiTreatment
       return withMeta(
         {
           type: 'updateNoAoiTreatment',

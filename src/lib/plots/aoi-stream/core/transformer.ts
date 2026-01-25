@@ -4,7 +4,7 @@ import {
   getParticipantEndTime,
   getHiddenAois,
   getAoiOrderVector,
-  getData,
+  engine,
 } from '$lib/gaze-data/front-process'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
@@ -21,9 +21,13 @@ export function getAoiStreamPlotData(
     timelineMax?: number
   }
 ): AoiStreamPlotResult {
-  const data = getData()
   const stimulusId = settings.stimulusId
   const groupId = settings.groupId
+  const meta = engine.metadata
+
+  if (!meta) {
+    throw new Error('Data engine not initialized')
+  }
 
   // Prepare AOI data (ordered and filtered for existence)
   const aois = getAois(stimulusId)
@@ -54,7 +58,7 @@ export function getAoiStreamPlotData(
   const hiddenSet = hidden.length ? new Set<number>(hidden) : null
 
   // No-AOI treatment handling
-  const noAoiTreatment = data.noAoiTreatment
+  const noAoiTreatment = meta.noAoiTreatment
 
   // Execute collection
   const metrics = collectAoiStreamMetrics(

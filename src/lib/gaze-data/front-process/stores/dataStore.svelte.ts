@@ -3,9 +3,6 @@ import {
   type DataType,
   type ExtendedInterpretedDataType,
   type ParticipantsGroup,
-  type BaseInterpretedDataType,
-  type SegmentInterpretedDataType,
-  DEFAULT_NO_AOI_TREATMENT,
 } from '$lib/gaze-data/shared/types'
 
 import { MAX_AOI, MAX_STIMULUS } from '../const'
@@ -32,8 +29,9 @@ export class DataEngine {
   // ==========================================
 
   private refreshInterpretationMap() {
-    if (!this.metadata) return
-    const sCount = this.metadata.stimuli.data.length
+    const meta = this.metadata
+    if (!meta) return
+    const sCount = meta.stimuli.data.length
 
     if (this._aoiGroupMap.length !== sCount * MAX_AOI) {
       this._aoiGroupMap = new Uint16Array(sCount * MAX_AOI)
@@ -41,22 +39,23 @@ export class DataEngine {
     this._aoiGroupMap.fill(0xffff)
 
     for (let sId = 0; sId < sCount; sId++) {
-      const aois = this.metadata.aois.data[sId] || []
-      const hidden = new Set(this.metadata.aois.hiddenAois?.[sId] ?? [])
+      const aois = meta.aois.data[sId] || []
+      const hidden = meta.aois.hiddenAois?.[sId]
+      const hiddenSet = hidden && hidden.length ? new Set(hidden) : null
       const nameToId = new Map<string, number>()
       const offset = sId * MAX_AOI
 
-      // Use order vector to find the Group Representative (first visible in user-defined order)
       const order =
-        this.metadata.aois.orderVector?.[sId] ||
+        meta.aois.orderVector?.[sId] ||
         Array.from({ length: aois.length }, (_, i) => i)
 
-      order.forEach((id: number) => {
+      for (let i = 0; i < order.length; i++) {
+        const id = order[i]
         const row = aois[id]
-        if (!row || hidden.has(id)) return
+        if (!row || hiddenSet?.has(id)) continue
         const name = (row[1] ?? row[0]).trim()
         if (name !== '' && !nameToId.has(name)) nameToId.set(name, id)
-      })
+      }
 
       for (let id = 0; id < aois.length; id++) {
         const row = aois[id]
@@ -80,133 +79,62 @@ export class DataEngine {
     this.refreshInterpretationMap()
   }
 
-  /**
-   * Perfect Update: Shallow copies the metadata shell, deep copies ONLY
-   * the branch being edited. Never touches or clones the binary buffers.
-   */
   updateAois(stimulusId: number, updatedAois: ExtendedInterpretedDataType[]) {
-    if (!this.metadata) return
-
-    const nextAoiBranch = { ...this.metadata.aois }
-    const nextData = [...nextAoiBranch.data]
-
-    // Update data at original indices (do NOT reorder nextData)
-    const stimulusData = [...nextData[stimulusId]]
-    updatedAois.forEach(a => {
-      if (a.id >= 0 && a.id < stimulusData.length) {
-        stimulusData[a.id] = [a.originalName, a.displayedName, a.color]
-      }
-    })
-    nextData[stimulusId] = stimulusData
-
-    const nextOrder = [...(nextAoiBranch.orderVector as number[][])]
-    nextOrder[stimulusId] = updatedAois.map(a => a.id)
-
-    // Atomic update triggers Svelte 5 reactivity
-    this.metadata = {
-      ...this.metadata,
-      aois: { ...nextAoiBranch, data: nextData, orderVector: nextOrder },
-    }
-
-    this.refreshInterpretationMap() // Sync interpretation cache
+    this.updateAoisBatch([{ stimulusId, aois: updatedAois }])
   }
 
   setHiddenAois(stimulusId: number, hiddenAois: number[]) {
-    if (!this.metadata) return
-
-    const unique = Array.from(
-      new Set(
-        (hiddenAois ?? []).filter(
-          v => Number.isInteger(v) && v >= 0 && v < MAX_AOI
-        )
-      )
-    ).sort((a, b) => a - b)
-
-    // Ensure hiddenAois array exists
-    let hiddenByStimulus = this.metadata.aois.hiddenAois
-    if (!hiddenByStimulus) {
-      hiddenByStimulus = []
-      this.metadata.aois.hiddenAois = hiddenByStimulus
-    }
-
-    // Ensure array is large enough
-    while (hiddenByStimulus.length < this.metadata.stimuli.data.length) {
-      hiddenByStimulus.push([])
-    }
-
-    // In-place update thanks to Svelte 5 deep reactivity
-    hiddenByStimulus[stimulusId] = unique
-
-    this.refreshInterpretationMap()
+    this.updateHiddenAoisBatch([{ stimulusId, hiddenAois }])
   }
 
   updateHiddenAoisBatch(
     updates: { stimulusId: number; hiddenAois: number[] }[]
   ) {
-    if (!this.metadata) return
+    const meta = this.metadata
+    if (!meta) return
 
-    let hiddenByStimulus = this.metadata.aois.hiddenAois
-    if (!hiddenByStimulus) {
-      hiddenByStimulus = []
-      this.metadata.aois.hiddenAois = hiddenByStimulus
-    }
+    if (!meta.aois.hiddenAois) meta.aois.hiddenAois = []
+    const hidden = meta.aois.hiddenAois
 
-    // Ensure array is large enough
-    while (hiddenByStimulus.length < this.metadata.stimuli.data.length) {
-      hiddenByStimulus.push([])
-    }
-
-    updates.forEach(({ stimulusId, hiddenAois }) => {
+    for (let i = 0; i < updates.length; i++) {
+      const { stimulusId, hiddenAois } = updates[i]
       const unique = Array.from(
         new Set(
-          (hiddenAois ?? []).filter(
-            v => Number.isInteger(v) && v >= 0 && v < MAX_AOI
-          )
+          hiddenAois.filter(v => Number.isInteger(v) && v >= 0 && v < MAX_AOI)
         )
       ).sort((a, b) => a - b)
 
-      hiddenByStimulus[stimulusId] = unique
-    })
+      while (hidden.length <= stimulusId) hidden.push([])
+      hidden[stimulusId] = unique
+    }
 
     this.refreshInterpretationMap()
-  }
-
-  /** Generic batch updater for metadata branches */
-  private updateBatch<K extends keyof Omit<DataType, 'segments'>>(
-    key: K,
-    updater: (
-      current: Omit<DataType, 'segments'>[K]
-    ) => Omit<DataType, 'segments'>[K]
-  ) {
-    if (!this.metadata) return
-    this.metadata = {
-      ...this.metadata,
-      [key]: updater(this.metadata[key]),
-    }
   }
 
   updateAoisBatch(
     updates: { stimulusId: number; aois: ExtendedInterpretedDataType[] }[]
   ) {
-    this.updateBatch('aois', current => {
-      const next = { ...current }
-      const nextData = [...next.data]
-      const nextOrder = [...(next.orderVector as number[][])]
+    const meta = this.metadata
+    if (!meta) return
 
-      updates.forEach(({ stimulusId, aois }) => {
-        if (stimulusId >= 0 && stimulusId < nextData.length) {
-          const stimulusData = [...nextData[stimulusId]]
-          aois.forEach(a => {
-            if (a.id >= 0 && a.id < stimulusData.length) {
-              stimulusData[a.id] = [a.originalName, a.displayedName, a.color]
-            }
-          })
-          nextData[stimulusId] = stimulusData
-          nextOrder[stimulusId] = aois.map(a => a.id)
+    for (let i = 0; i < updates.length; i++) {
+      const { stimulusId, aois } = updates[i]
+      if (stimulusId < 0 || stimulusId >= meta.aois.data.length) continue
+
+      const stimulusData = meta.aois.data[stimulusId]
+      for (let j = 0; j < aois.length; j++) {
+        const a = aois[j]
+        if (a.id >= 0 && a.id < stimulusData.length) {
+          stimulusData[a.id] = [a.originalName, a.displayedName, a.color]
         }
-      })
-      return { ...next, data: nextData, orderVector: nextOrder }
-    })
+      }
+
+      if (!meta.aois.orderVector) meta.aois.orderVector = []
+      while (meta.aois.orderVector.length <= stimulusId)
+        meta.aois.orderVector.push([])
+      meta.aois.orderVector[stimulusId] = aois.map(a => a.id)
+    }
+
     this.refreshInterpretationMap()
   }
 
@@ -214,36 +142,35 @@ export class DataEngine {
     updates: { id: number; data: string[] }[],
     newOrder: number[]
   ) {
-    this.updateBatch('participants', current => {
-      const nextData = [...current.data]
-      updates.forEach(({ id, data }) => {
-        if (id >= 0 && id < nextData.length) nextData[id] = data
-      })
-      return { ...current, data: nextData, orderVector: newOrder }
-    })
+    const meta = this.metadata
+    if (!meta) return
+    for (let i = 0; i < updates.length; i++) {
+      const { id, data } = updates[i]
+      if (id >= 0 && id < meta.participants.data.length)
+        meta.participants.data[id] = data
+    }
+    meta.participants.orderVector = newOrder
   }
 
   updateStimuliBatch(
     updates: { id: number; data: string[] }[],
     newOrder: number[]
   ) {
-    this.updateBatch('stimuli', current => {
-      const nextData = [...current.data]
-      updates.forEach(({ id, data }) => {
-        if (id >= 0 && id < nextData.length) nextData[id] = data
-      })
-      return { ...current, data: nextData, orderVector: newOrder }
-    })
+    const meta = this.metadata
+    if (!meta) return
+    for (let i = 0; i < updates.length; i++) {
+      const { id, data } = updates[i]
+      if (id >= 0 && id < meta.stimuli.data.length) meta.stimuli.data[id] = data
+    }
+    meta.stimuli.orderVector = newOrder
   }
 
   setNoAoiTreatment(treatment: { displayedName: string; color: string }) {
-    if (!this.metadata) return
-    this.metadata.noAoiTreatment = treatment
+    if (this.metadata) this.metadata.noAoiTreatment = treatment
   }
 
   setParticipantsGroups(groups: ParticipantsGroup[]) {
-    if (!this.metadata) return
-    this.metadata.participantsGroups = groups
+    if (this.metadata) this.metadata.participantsGroups = groups
   }
 
   updateDynamicVisibility(
@@ -254,15 +181,15 @@ export class DataEngine {
       participantId?: number | null
     }[]
   ) {
-    if (!this.metadata) return
+    const meta = this.metadata
+    if (!meta) return
 
-    updates.forEach(({ aoiId, visibility, participantId }) => {
+    for (let i = 0; i < updates.length; i++) {
+      const { aoiId, visibility, participantId } = updates[i]
       let key = `${stimulusId}_${aoiId}`
-      if (participantId != null) {
-        key += `_${participantId}`
-      }
-      this.metadata!.aois.dynamicVisibility[key] = visibility
-    })
+      if (participantId != null) key += `_${participantId}`
+      meta.aois.dynamicVisibility[key] = visibility
+    }
   }
 
   // ==========================================

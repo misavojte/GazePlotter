@@ -2,45 +2,22 @@ import {
   type DataType,
   type ExtendedInterpretedDataType,
 } from '$lib/gaze-data/shared/types'
-import { getData, getAoiIdMapping } from './baseSelectors'
-
-const getDefaultColor = (index: number): string => {
-  const COLORS = ['#66c5cc', '#f6cf71', '#f89c74', '#dcb0f2', '#87c55f']
-  return COLORS[index % COLORS.length]
-}
+import { engine } from '../stores/dataStore.svelte'
+import { getAoiRaw } from '../utils/interpreters'
 
 const getAoiOrderVectorFromData = (
   stimulusId: number,
-  dataSnapshot: DataType
+  metadata: Omit<DataType, 'segments'>
 ): number[] => {
-  const order = dataSnapshot.aois.orderVector?.[stimulusId]
+  const stimulusAois = metadata.aois.data[stimulusId]
+  if (!stimulusAois)
+    throw new Error(`AOI data for stimulus ${stimulusId} not found`)
+
+  const order = metadata.aois.orderVector?.[stimulusId]
   if (order == null) {
-    const noOfAois = dataSnapshot.aois.data[stimulusId]?.length ?? 0
-    return [...Array(noOfAois).keys()]
+    return Array.from({ length: stimulusAois.length }, (_, i) => i)
   }
   return order
-}
-
-const getAoiRaw = (
-  stimulusId: number,
-  aoiId: number,
-  dataSnapshot: DataType
-): ExtendedInterpretedDataType => {
-  const aoiArray = dataSnapshot.aois.data[stimulusId][aoiId]
-  if (aoiArray === undefined)
-    throw new Error(
-      `AOI with id ${aoiId} does not exist in stimulus with id ${stimulusId}`
-    )
-  const originalName = aoiArray[0]
-  const displayedName = aoiArray[1] ?? originalName
-  const color = aoiArray[2] ?? getDefaultColor(aoiId)
-
-  return {
-    id: aoiId,
-    originalName,
-    displayedName,
-    color,
-  }
 }
 
 /**
@@ -50,56 +27,68 @@ export const getAoisRawFromData = (
   stimulusId: number,
   dataSnapshot: DataType
 ): ExtendedInterpretedDataType[] => {
-  const aoiIds = getAoiOrderVectorFromData(stimulusId, dataSnapshot)
-  return aoiIds.map((aoiId: number) =>
-    getAoiRaw(stimulusId, aoiId, dataSnapshot)
-  )
+  const ids = getAoiOrderVectorFromData(stimulusId, dataSnapshot)
+  const result = new Array(ids.length)
+  for (let i = 0; i < ids.length; i++) {
+    result[i] = getAoiRaw(stimulusId, ids[i], dataSnapshot)
+  }
+  return result
 }
 
 export const getAoiOrderVector = (stimulusId: number): number[] => {
-  return getAoiOrderVectorFromData(stimulusId, getData())
+  const meta = engine.metadata
+  if (!meta) throw new Error('Data engine metadata not available')
+  return getAoiOrderVectorFromData(stimulusId, meta)
 }
 
 export const getHiddenAois = (stimulusId: number): number[] => {
-  return getData().aois.hiddenAois?.[stimulusId] ?? []
+  const meta = engine.metadata
+  if (!meta) throw new Error('Data engine metadata not available')
+  return meta.aois.hiddenAois?.[stimulusId] ?? []
 }
 
 export const getAllAois = (
   stimulusId: number
 ): ExtendedInterpretedDataType[] => {
-  const aoiIds = getAoiOrderVector(stimulusId)
-  const data = getData()
-  return aoiIds.map((aoiId: number) => {
-    const aoi = getAoiRaw(stimulusId, aoiId, data)
-    return {
-      id: aoi.id,
-      originalName: aoi.originalName,
-      displayedName: aoi.displayedName,
-      color: aoi.color,
-    }
-  })
+  const ids = getAoiOrderVector(stimulusId)
+  const meta = engine.metadata
+  if (!meta) throw new Error('Data engine metadata not available')
+
+  const result = new Array(ids.length)
+  for (let i = 0; i < ids.length; i++) {
+    result[i] = getAoiRaw(stimulusId, ids[i], meta)
+  }
+  return result
 }
 
 export const getAois = (stimulusId: number): ExtendedInterpretedDataType[] => {
-  const aoiIds = getAoiOrderVector(stimulusId)
-  const hidden = getHiddenAois(stimulusId)
+  const meta = engine.metadata
+  if (!meta) throw new Error('Data engine metadata not available')
+
+  const ids = getAoiOrderVectorFromData(stimulusId, meta)
+  const hidden = meta.aois.hiddenAois?.[stimulusId] ?? []
   const hiddenSet = hidden.length ? new Set<number>(hidden) : null
-  const visibleAoiIds = hiddenSet
-    ? aoiIds.filter(aoiId => !hiddenSet.has(aoiId))
-    : aoiIds
 
-  const mappedAoiIds = [
-    ...new Set(visibleAoiIds.map(aoiId => getAoiIdMapping(stimulusId, aoiId))),
-  ]
+  const uniqueMappedIds = new Set<number>()
+  for (let i = 0; i < ids.length; i++) {
+    const id = ids[i]
+    if (hiddenSet?.has(id)) continue
+    uniqueMappedIds.add(engine.getAoiMapping(stimulusId, id))
+  }
 
-  const data = getData()
-  return mappedAoiIds.map((aoiId: number) => getAoiRaw(stimulusId, aoiId, data))
+  const result: ExtendedInterpretedDataType[] = []
+  for (const id of uniqueMappedIds) {
+    result.push(getAoiRaw(stimulusId, id, meta))
+  }
+  return result
 }
 
 export const getAoi = (
   stimulusId: number,
   aoiId: number
 ): ExtendedInterpretedDataType => {
-  const mappedAoiId = getAoiIdMapping(stimulusId, aoiId)
-  return getAoiRaw(stimulusId, mappedAoiId, getData())
+  const meta = engine.metadata
+  if (!meta) throw new Error('Data engine not initialized')
+  const mappedAoiId = engine.getAoiMapping(stimulusId, aoiId)
+  return getAoiRaw(stimulusId, mappedAoiId, meta)
 }

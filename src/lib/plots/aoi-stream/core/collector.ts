@@ -2,7 +2,7 @@
  * Optimized single-pass collector for AOI stream data.
  * Extracted from data.ts to separate collection from transformation/view logic.
  */
-import { getData, engine } from '$lib/gaze-data/front-process'
+import { engine } from '$lib/gaze-data/front-process'
 import {
   BinaryBufferReader,
   SEGMENT_STRIDE,
@@ -31,8 +31,8 @@ export function collectAoiStreamMetrics(
   timelineMax: number,
   safeMaxTime: number
 ): AoiStreamMetrics {
-  const data = getData()
-  const reader = new BinaryBufferReader(data.segments)
+  const reader = engine.getReader()
+  if (!reader) return { series: [], maxTotal: 0 }
   const buffers = reader.getBuffers()
   const segmentBuffer = buffers.segmentBuffer
   const aoiPool = buffers.aoiPool

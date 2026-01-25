@@ -80,32 +80,24 @@ export class EyeWorkerService {
    * @param files - The files to send.
    */
   sendFiles(files: FileList): void {
-    // reset file names and sum file size
-    this.fileNames = []
-    this.fileSizes = []
+    const fileArray = Array.from(files)
+    this.fileNames = fileArray.map(f => f.name)
+    this.fileSizes = fileArray.map(f => f.size)
     this.parsingSumTime = 0
     this.parsingAnchorTime = Date.now()
-    // check extension of first file
-    const extension = files[0].name.split('.').pop()
-    if (extension === 'json') return this.processJsonWorkspace(files[0])
-    if (extension === 'zip') {
-      // Collect all ZIP file names and sizes
-      for (let index = 0; index < files.length; index++) {
-        this.fileNames.push(files[index].name)
-        this.fileSizes.push(files[index].size)
-      }
-      // Initialize pipeline with file names first
-      this.worker.postMessage({ type: 'file-names', data: this.fileNames })
-      // Then process all ZIP files
-      void this.processZipFiles(files)
-      return
+
+    const firstFile = fileArray[0]
+    const extension = firstFile.name.split('.').pop()?.toLowerCase()
+
+    if (extension === 'json') {
+      return this.processJsonWorkspace(firstFile)
     }
-    for (let index = 0; index < files.length; index++) {
-      this.fileNames.push(files[index].name)
-      this.fileSizes.push(files[index].size)
-    }
+
     this.worker.postMessage({ type: 'file-names', data: this.fileNames })
-    if (this.isStreamTransferable()) {
+
+    if (extension === 'zip') {
+      void this.processZipFiles(files)
+    } else if (this.isStreamTransferable()) {
       this.processDataAsStream(files)
     } else {
       void this.processDataAsArrayBuffer(files)

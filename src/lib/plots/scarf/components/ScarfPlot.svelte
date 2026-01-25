@@ -1,8 +1,5 @@
 <script lang="ts">
-  import {
-    getParticipants,
-    getData,
-  } from '$lib/gaze-data/front-process'
+  import { getParticipants, engine } from '$lib/gaze-data/front-process'
   import { onDestroy, onMount, untrack } from 'svelte'
   import { ScarfPlotFigure, ScarfPlotHeader } from '$lib/plots/scarf/components'
   import { BasePlot } from '$lib/plots/shared/components'
@@ -62,30 +59,22 @@
   const scarfData = $derived.by(() => {
     // Dependencies: localSettings, currentParticipantIds, redrawTimestamp
     redrawTimestamp
-    const currentData = getData()
+    const meta = engine.metadata
+    if (!meta) return null
     return transformDataToScarfPlot(
       currentStimulusId,
       currentParticipantIds,
       localSettings,
-      currentData.noAoiTreatment
+      meta.noAoiTreatment
     )
   })
 
   // Access consistent timeline limits from transformed data
-  const timelineMin = $derived(scarfData.timeline.minValue)
-  const timelineMax = $derived(scarfData.timeline.maxValue)
+  const timelineMin = $derived(scarfData?.timeline.minValue ?? 0)
+  const timelineMax = $derived(scarfData?.timeline.maxValue ?? 100)
 
   const LAYOUT = { headerHeight: SCARF_LAYOUT.HEADER_HEIGHT }
   const PLOT_MARGIN = { TOP: 0, RIGHT: 0, BOTTOM: 0, LEFT: 0 }
-
-  function scheduleTooltipHide() {
-    clearTimeout(timeout)
-    if (!windowObj) return
-    timeout = windowObj.setTimeout(
-      hideTooltipAndHighlight,
-      SCARF_LAYOUT.TOOLTIP_HIDE_DELAY
-    )
-  }
 
   function hideTooltipAndHighlight() {
     clearTimeout(timeout)
@@ -188,24 +177,27 @@
   {/snippet}
 
   {#snippet figure({ width, height })}
+    {@const data = scarfData}
     <div class="scarf-viewport" style:height="{Math.floor(height)}px">
-      <ScarfPlotFigure
-        onTooltipActivation={handleTooltipActivation}
-        onTooltipDeactivation={handleTooltipDeactivation}
-        tooltipAreaElement={tooltipArea}
-        data={scarfData}
-        settings={localSettings}
-        {highlights}
-        onLegendClick={handleLegendClick}
-        onDragStepX={handleDragStepX}
-        onDragEnd={handleDragEnd}
-        chartWidth={width}
-        availableHeight={Math.floor(height)}
-        marginTop={PLOT_MARGIN.TOP}
-        marginRight={PLOT_MARGIN.RIGHT}
-        marginBottom={PLOT_MARGIN.BOTTOM}
-        marginLeft={PLOT_MARGIN.LEFT}
-      />
+      {#if data}
+        <ScarfPlotFigure
+          onTooltipActivation={handleTooltipActivation}
+          onTooltipDeactivation={handleTooltipDeactivation}
+          tooltipAreaElement={tooltipArea}
+          {data}
+          settings={localSettings}
+          {highlights}
+          onLegendClick={handleLegendClick}
+          onDragStepX={handleDragStepX}
+          onDragEnd={handleDragEnd}
+          chartWidth={width}
+          availableHeight={Math.floor(height)}
+          marginTop={PLOT_MARGIN.TOP}
+          marginRight={PLOT_MARGIN.RIGHT}
+          marginBottom={PLOT_MARGIN.BOTTOM}
+          marginLeft={PLOT_MARGIN.LEFT}
+        />
+      {/if}
     </div>
   {/snippet}
 </BasePlot>

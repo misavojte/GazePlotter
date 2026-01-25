@@ -12,7 +12,7 @@
   import {
     getAllAois,
     getHiddenAois,
-    getData,
+    engine,
   } from '$lib/gaze-data/front-process'
   import { addErrorToast, addInfoToast } from '$lib/toaster'
   import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
@@ -194,14 +194,16 @@
   const reorderedAoiObjects = $derived(reorderAois([...aoiObjects]))
 
   // Get initial No AOI treatment and track changes
-  const data = getData()
+  const modificationMeta = engine.metadata
+  if (!modificationMeta) throw new Error('Data engine metadata not available')
+
   let noAoiTreatment = $state({
-    displayedName: data.noAoiTreatment.displayedName,
-    color: data.noAoiTreatment.color,
+    displayedName: modificationMeta.noAoiTreatment.displayedName,
+    color: modificationMeta.noAoiTreatment.color,
   })
   let lastNoAoiTreatmentSnapshot = $state({
-    displayedName: data.noAoiTreatment.displayedName,
-    color: data.noAoiTreatment.color,
+    displayedName: modificationMeta.noAoiTreatment.displayedName,
+    color: modificationMeta.noAoiTreatment.color,
   })
 
   // Sorting state

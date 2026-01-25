@@ -1,7 +1,7 @@
 import {
   getAois,
   getParticipantsIds,
-  getData,
+  engine,
 } from '$lib/gaze-data/front-process'
 import {
   createAdaptiveTimeline,
@@ -26,7 +26,9 @@ export function getBarPlotData(
     'stimulusId' | 'groupId' | 'aggregationMethod' | 'sortBars' | 'scaleRange'
   >
 ): BarPlotResult {
-  const data = getData()
+  const meta = engine.metadata
+  if (!meta) throw new Error('No metadata found')
+
   const aois = getAois(settings.stimulusId)
   const participantIds = getParticipantsIds(
     settings.groupId,
@@ -56,7 +58,7 @@ export function getBarPlotData(
   const labeledData = createLabeledData(
     rawData,
     aois,
-    data.noAoiTreatment,
+    meta.noAoiTreatment,
     aggregationMethod
   )
 

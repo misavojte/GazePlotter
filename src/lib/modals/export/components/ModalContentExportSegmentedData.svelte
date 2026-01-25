@@ -2,8 +2,8 @@
   import { GeneralInputText, GeneralSelect } from '$lib/shared/components'
   import { SectionHeader, ModalButtons } from '$lib/modals'
   import { WorkplaceDownloader } from '$lib/modals/export/class/WorkplaceDownloader.js'
-  import { getData } from '$lib/gaze-data/front-process'
-  import { addSuccessToast } from '$lib/toaster'
+  import { engine } from '$lib/gaze-data/front-process'
+  import { addSuccessToast, addErrorToast } from '$lib/toaster'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'
   import type { DecimalSeparator } from '$lib/shared/utils/csvFormatUtils'
@@ -51,7 +51,11 @@
       await new Promise(resolve => setTimeout(resolve, 100))
 
       const downloader = new WorkplaceDownloader()
-      const data = getData()
+      const meta = engine.metadata
+      const segments = engine.segments
+      if (!meta || !segments)
+        throw new Error('Data engine metadata or segments not available')
+      const data = { ...meta, segments }
       const csvOptions = {
         delimiter,
         decimalSeparator,
