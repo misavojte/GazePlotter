@@ -1,5 +1,5 @@
 import { ModalContentTobiiParsingInput } from '$lib/modals'
-import { modalStore } from '$lib/modals/shared/stores/modalStore'
+import { modalState } from '$lib/modals'
 import { addErrorToast, addInfoToast, addSuccessToast } from '$lib/toaster'
 import type { DataType, ParsedData } from '$lib/gaze-data/shared/types'
 import { processJsonFileWithGrid } from '../utils/jsonParsing'
@@ -314,7 +314,7 @@ export class EyeWorkerService {
       .then(userInput => {
         this.parsingAnchorTime = Date.now()
         this.worker.postMessage({ type: 'user-input', data: userInput })
-        modalStore.close()
+        modalState.close()
       })
       .catch(() => {
         addInfoToast(
@@ -332,7 +332,7 @@ export class EyeWorkerService {
    */
   requestUserInput(): Promise<string> {
     return new Promise((resolve, reject) => {
-      modalStore.open(
+      modalState.open(
         ModalContentTobiiParsingInput as any,
         'Tobii Parsing Input',
         {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { GeneralButtonMenu as MenuButton } from '$lib/shared/components'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { modalState } from '$lib/modals'
   import type { BarPlotGridType } from '$lib/workspace/type/gridType'
   import type { SvelteComponent } from 'svelte'
   import Download from 'lucide-svelte/icons/download'
@@ -33,7 +33,7 @@
   )
 
   const openAoiModificationModal = () => {
-    modalStore.open(
+    modalState.open(
       ModalContentAoiModification as unknown as typeof SvelteComponent,
       'AOI customization',
       {
@@ -45,7 +45,7 @@
   }
 
   const openStimulusModificationModal = () => {
-    modalStore.open(
+    modalState.open(
       ModalContentStimulusModification as unknown as typeof SvelteComponent,
       'Stimulus customization',
       {
@@ -56,7 +56,7 @@
   }
 
   const openUserGroupsModal = () => {
-    modalStore.open(
+    modalState.open(
       ModalContentParticipantsGroups as unknown as typeof SvelteComponent,
       'Participants groups',
       {
@@ -67,7 +67,7 @@
   }
 
   const openBarChartAxesModal = () => {
-    modalStore.open(
+    modalState.open(
       ModalContentBarChartAxes as unknown as typeof SvelteComponent,
       'Bar Chart Axes',
       {
@@ -79,7 +79,7 @@
   }
 
   const downloadPlot = () => {
-    modalStore.open(
+    modalState.open(
       ModalContentDownloadBarPlot as unknown as typeof SvelteComponent,
       'Download bar plot',
       {
@@ -89,7 +89,7 @@
   }
 
   const exportAggregatedData = () => {
-    modalStore.open(
+    modalState.open(
       ModalContentExportAggregatedData as unknown as typeof SvelteComponent,
       'Export aggregated data',
       {

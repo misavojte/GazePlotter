@@ -6,7 +6,7 @@
   import {
     SectionHeader,
     ModalButtons,
-    modalStore,
+    modalState,
     IntroductoryParagraph,
   } from '$lib/modals'
 
@@ -143,12 +143,12 @@
         colorScale: getCurrentColorScale(),
       },
     })
-    modalStore.close()
+    modalState.close()
   }
 
   // Close modal without changes
   function handleCancel(): void {
-    modalStore.close()
+    modalState.close()
   }
 </script>
 

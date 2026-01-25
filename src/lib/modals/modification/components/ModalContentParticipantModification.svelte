@@ -5,7 +5,7 @@
     ModalButtons,
     IntroductoryParagraph,
   } from '$lib/modals'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { modalState } from '$lib/modals'
   import { getAllParticipants } from '$lib/gaze-data/front-process'
   import { addErrorToast } from '$lib/toaster'
   import type { BaseInterpretedDataType } from '$lib/gaze-data/shared/types'
@@ -101,7 +101,7 @@
         source,
       })
 
-      modalStore.close()
+      modalState.close()
     } catch (e) {
       console.error(e)
       addErrorToast(
@@ -111,7 +111,7 @@
   }
 
   const handleCancel = () => {
-    modalStore.close()
+    modalState.close()
   }
 
   // Natural sort function for alphanumeric strings

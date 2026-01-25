@@ -4,7 +4,7 @@
   import { ScanGraphDownloader } from '$lib/modals/export/class/ScanGraphDownloader'
   import { getStimuliOptions } from '$lib/plots/shared'
   import { addSuccessToast } from '$lib/toaster'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { modalState } from '$lib/modals'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'
 
   // Export settings state
@@ -42,12 +42,12 @@
 
   // Function to open workplace download modal
   const handleOpenWorkplaceExport = () => {
-    modalStore.open(ModalContentDownloadWorkplace as any, 'Download Workplace')
+    modalState.open(ModalContentDownloadWorkplace as any, 'Download Workplace')
   }
 
   // Function to close modal
   const handleCancel = () => {
-    modalStore.close()
+    modalState.close()
   }
 
   // Button configuration

@@ -4,7 +4,7 @@
   import { WorkplaceDownloader } from '$lib/modals/export/class/WorkplaceDownloader.js'
   import { engine } from '$lib/gaze-data/front-process'
   import { addSuccessToast } from '$lib/toaster'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { modalState } from '$lib/modals'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'
   import type { DecimalSeparator } from '$lib/shared/utils/csvFormatUtils'
 
@@ -83,12 +83,12 @@
 
   // Function to open workplace download modal
   const handleOpenWorkplaceExport = () => {
-    modalStore.open(ModalContentDownloadWorkplace as any, 'Download Workplace')
+    modalState.open(ModalContentDownloadWorkplace as any, 'Download Workplace')
   }
 
   // Function to close modal
   const handleCancel = () => {
-    modalStore.close()
+    modalState.close()
   }
 
   // Button configuration

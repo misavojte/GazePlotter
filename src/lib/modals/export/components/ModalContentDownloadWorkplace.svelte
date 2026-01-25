@@ -2,7 +2,7 @@
   import { SectionHeader } from '$lib/modals'
   import { WorkplaceDownloader } from '$lib/modals/export/class/WorkplaceDownloader.js'
   import { engine } from '$lib/gaze-data/front-process'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { modalState } from '$lib/modals'
   import {
     ModalContentExportSegmentedData,
     ModalContentExportScangraph,
@@ -24,18 +24,18 @@
   }
 
   const handleOpenSegmentedExport = () => {
-    modalStore.open(
+    modalState.open(
       ModalContentExportSegmentedData as any,
       'Export Segmented Data'
     )
   }
 
   const handleOpenScangraphExport = () => {
-    modalStore.open(ModalContentExportScangraph as any, 'Export ScanGraph')
+    modalState.open(ModalContentExportScangraph as any, 'Export ScanGraph')
   }
 
   const handleOpenAggregatedExport = () => {
-    modalStore.open(
+    modalState.open(
       ModalContentExportAggregatedData as any,
       'Export Aggregated Data'
     )

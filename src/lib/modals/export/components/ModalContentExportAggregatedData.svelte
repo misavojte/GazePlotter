@@ -18,7 +18,7 @@
   import { collectParticipantBarMetrics } from '$lib/plots/bar/core/collector'
   import type { ParticipantBarMetrics } from '$lib/plots/bar/types'
   import { addSuccessToast } from '$lib/toaster'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { modalState } from '$lib/modals'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'
   import {
     type DecimalSeparator,
@@ -328,12 +328,12 @@
 
   // Function to open main export options
   const handleOpenMainExport = () => {
-    modalStore.open(ModalContentDownloadWorkplace as any, 'Export Options')
+    modalState.open(ModalContentDownloadWorkplace as any, 'Export Options')
   }
 
   // Function to close modal
   const handleCancel = () => {
-    modalStore.close()
+    modalState.close()
   }
 
   // Button configuration (after handleExport declaration)

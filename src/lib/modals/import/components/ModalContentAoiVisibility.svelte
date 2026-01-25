@@ -3,7 +3,7 @@
 
   import { GeneralInputFile } from '$lib/shared/components'
   import { ModalButtons } from '$lib/modals'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { modalState } from '$lib/modals'
   import { addErrorToast } from '$lib/toaster'
   import { processAoiVisibility } from '$lib/modals/import/utility/aoiVisibilityServices'
   import { getStimuliOptions, getParticipantOptions } from '$lib/plots/shared'
@@ -40,7 +40,7 @@
         source,
         onWorkspaceCommand
       ).then(() => {
-        modalStore.close()
+        modalState.close()
       })
     } catch (e) {
       console.error(e)
@@ -50,7 +50,7 @@
   }
 
   const handleCancel = () => {
-    modalStore.close()
+    modalState.close()
   }
 </script>
 

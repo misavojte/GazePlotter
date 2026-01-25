@@ -15,7 +15,7 @@
   import { SurveyModal } from '$survey/components'
   import type { SurveyTask, SurveyModalState } from '$survey/types'
   import type { WorkspaceCommandChain } from '$lib/workspace/commands'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { modalState } from '$lib/modals'
   import type { UEQSResults, EyeTrackingExperienceResult } from '$survey/types'
   import { onMount } from 'svelte'
   // Format the build date
@@ -100,10 +100,7 @@
 
   // Monitor modal store to force close banner when any modal is open
   $effect(() => {
-    const unsubscribe = modalStore.subscribe(modal => {
-      forceCloseBanner = modal !== null
-    })
-    return unsubscribe
+    forceCloseBanner = modalState.activeModal !== null
   })
 
   // Monitor survey store to log task fulfillment
@@ -226,7 +223,7 @@
       text: 'Read UX evaluation instructions & consent',
       buttonText: 'Open instructions & consent',
       onButtonClick: () => {
-        modalStore.open(
+        modalState.open(
           ConsentModal as any,
           'UX Evaluation Instructions & Consent',
           {
@@ -345,7 +342,7 @@
       text: 'Feel free to explore the UI as long as you wish',
       buttonText: 'I now want to answer questions and end survey',
       onButtonClick: () => {
-        modalStore.open(SurveyModal as any, 'User Experience Questionnaire', {
+        modalState.open(SurveyModal as any, 'User Experience Questionnaire', {
           surveyState,
           onComplete: (results: {
             ueqs: UEQSResults

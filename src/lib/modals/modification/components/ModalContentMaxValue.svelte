@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { modalState } from '$lib/modals'
   import { GeneralInputNumber, GeneralInputColor } from '$lib/shared/components'
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import { getStimuliOrderVector } from '$lib/gaze-data/front-process'
@@ -96,11 +96,11 @@
         showAboveMaxLabels: showAboveMaxLabels === 'show',
       },
     })
-    modalStore.close()
+    modalState.close()
   }
 
   function handleCancel() {
-    modalStore.close()
+    modalState.close()
   }
 
   function handleMinValueChange(event: Event) {

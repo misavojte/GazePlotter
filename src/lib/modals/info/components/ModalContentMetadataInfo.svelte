@@ -10,7 +10,7 @@
     getNumberOfParticipants,
   } from '$lib/gaze-data/front-process'
   import { onMount, onDestroy } from 'svelte'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { modalState } from '$lib/modals'
   const fileMetadata = $derived(fileState.metadata)
   const currentFileInput = $derived(fileState.input)
 
@@ -574,7 +574,7 @@
       {
         label: 'Cancel',
         onclick: () => {
-          modalStore.close()
+          modalState.close()
         },
         isDisabled: false,
       },

@@ -8,8 +8,7 @@
     WorkspaceCommandChain,
   } from '$lib/workspace/commands'
   import { createRootCommand } from '$lib/workspace/commands'
-  import { ModalContentMetadataInfo } from '$lib/modals'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { ModalContentMetadataInfo, modalState } from '$lib/modals'
   import { generateUniqueId } from '$lib/shared/utils/idUtils'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
   import { undoRedo } from '$lib/workspace/commands'
@@ -104,7 +103,7 @@
       handleResetLayout()
     } else if (event.id === 'metadata') {
       // Open the metadata info modal directly
-      modalStore.open(ModalContentMetadataInfo as any, 'Metadata Report', {})
+      modalState.open(ModalContentMetadataInfo as any, 'Metadata Report', {})
     } else if (visualizations.map(viz => viz.id).includes(event.id)) {
       // Handle visualization addition
       const vizType = event.id

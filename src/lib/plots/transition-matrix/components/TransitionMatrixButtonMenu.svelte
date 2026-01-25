@@ -1,7 +1,7 @@
 <script lang="ts">
   import { GeneralButtonMenu as MenuButton } from '$lib/shared/components'
   import { untrack } from 'svelte'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore.js'
+  import { modalState } from '$lib/modals'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
   import BarChart from 'lucide-svelte/icons/bar-chart'
   import Users from 'lucide-svelte/icons/users'
@@ -32,7 +32,7 @@
   )
 
   const openMaxValueModal = () => {
-    modalStore.open(ModalContentMaxValue as any, 'Set color range values', {
+    modalState.open(ModalContentMaxValue as any, 'Set color range values', {
       settings,
       source,
       onWorkspaceCommand,
@@ -40,7 +40,7 @@
   }
 
   const openStimulusModificationModal = () => {
-    modalStore.open(
+    modalState.open(
       ModalContentStimulusModification as any,
       'Stimulus customization',
       {
@@ -51,7 +51,7 @@
   }
 
   const openAoiModificationModal = () => {
-    modalStore.open(ModalContentAoiModification as any, 'AOI customization', {
+    modalState.open(ModalContentAoiModification as any, 'AOI customization', {
       selectedStimulus: settings.stimulusId.toString(),
       source,
       onWorkspaceCommand,
@@ -59,7 +59,7 @@
   }
 
   const openUserGroupsModal = () => {
-    modalStore.open(
+    modalState.open(
       ModalContentParticipantsGroups as any,
       'Participants groups',
       {
@@ -71,7 +71,7 @@
   }
 
   const openColorScaleModal = () => {
-    modalStore.open(ModalContentColorScale as any, 'Customize color scale', {
+    modalState.open(ModalContentColorScale as any, 'Customize color scale', {
       settings,
       source,
       onWorkspaceCommand,
@@ -80,7 +80,7 @@
 
   const openDownloadModal = () => {
     try {
-      modalStore.open(
+      modalState.open(
         ModalContentDownloadTransitionMatrix as any,
         'Download Transition Matrix',
         {

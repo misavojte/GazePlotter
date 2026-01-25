@@ -15,7 +15,7 @@
   // Utilities and stores
   import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { modalState } from '$lib/modals'
   import { getTransitionMatrixData } from '$lib/plots/transition-matrix/core/transformer'
   import {
     MatrixAggregationMethod,
@@ -143,7 +143,7 @@
   ])
 
   function handleGradientClick() {
-    modalStore.open(ModalContentColorScale as any, 'Customize color scale', {
+    modalState.open(ModalContentColorScale as any, 'Customize color scale', {
       settings,
       source: modalSource,
       onWorkspaceCommand,
@@ -151,7 +151,7 @@
   }
 
   function handleValueClick(isMin: boolean) {
-    modalStore.open(
+    modalState.open(
       ModalContentMaxValue as any,
       'Set maximum color scale value',
       {

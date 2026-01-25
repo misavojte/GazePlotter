@@ -1,6 +1,6 @@
 <script lang="ts">
   import { GeneralButtonMenu as MenuButton } from '$lib/shared/components'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { modalState } from '$lib/modals'
   import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
   import type { SvelteComponent } from 'svelte'
   import Download from 'lucide-svelte/icons/download'
@@ -28,7 +28,7 @@
   const source = createCommandSourcePlotPattern(settings, 'modal')
 
   const openAoiModificationModal = () => {
-    modalStore.open(
+    modalState.open(
       ModalContentAoiModification as unknown as typeof SvelteComponent,
       'AOI customization',
       {
@@ -40,7 +40,7 @@
   }
 
   const openStimulusModificationModal = () => {
-    modalStore.open(
+    modalState.open(
       ModalContentStimulusModification as unknown as typeof SvelteComponent,
       'Stimulus customization',
       {
@@ -51,7 +51,7 @@
   }
 
   const openClipModal = () => {
-    modalStore.open(
+    modalState.open(
       ModalContentAoiStreamPlotClip as unknown as typeof SvelteComponent,
       'Clip AOI stream timeline',
       {
@@ -63,7 +63,7 @@
   }
 
   const openUserGroupsModal = () => {
-    modalStore.open(
+    modalState.open(
       ModalContentParticipantsGroups as unknown as typeof SvelteComponent,
       'Participants groups',
       {
@@ -74,7 +74,7 @@
   }
 
   const openDownloadModal = () => {
-    modalStore.open(
+    modalState.open(
       ModalContentDownloadAoiStreamPlot as unknown as typeof SvelteComponent,
       'Download Time-binned AOI Occupancy',
       {

@@ -1,6 +1,7 @@
 <script module lang="ts">
+  import type { SvelteComponent } from 'svelte'
   export type Modal = {
-    component: typeof import('svelte').SvelteComponent
+    component: typeof SvelteComponent
     title: string
     props?: Record<string, any>
   }
@@ -8,17 +9,14 @@
 
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { modalState } from '$lib/modals'
   import { fade, scale } from 'svelte/transition'
 
-  let modal: Modal | null = $state(null)
-
-  const unsubscribe = modalStore.subscribe(value => {
-    modal = value as Modal | null
-  })
+  // $state derived from the singleton - simple reference
+  const modal = $derived(modalState.activeModal)
 
   const handleClose = () => {
-    modalStore.close()
+    modalState.close()
   }
 
   // Add keyboard event handler for Escape key
@@ -140,9 +138,6 @@
       window.removeEventListener('keydown', handleKeydown)
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
       window.removeEventListener('wheel', handleWindowScroll)
-
-      // Unsubscribe from modal store
-      unsubscribe()
 
       // Unlock body scroll
       if (unlockBodyScroll) {

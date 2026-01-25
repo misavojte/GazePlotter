@@ -20,7 +20,7 @@
   import { flip } from 'svelte/animate'
   import GeneralInputCheck from '$lib/shared/components/GeneralInputCheck.svelte'
   import type { UpdateParticipantsGroupsCommand } from '$lib/workspace/commands'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { modalState } from '$lib/modals'
 
   interface Props {
     source: string
@@ -193,7 +193,7 @@
       source,
     })
 
-    modalStore.close()
+    modalState.close()
   }
 
   // Track expanded accordion items

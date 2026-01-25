@@ -1,6 +1,6 @@
 <script lang="ts">
   import { GeneralButtonMenu as MenuButton } from '$lib/shared/components'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore.js'
+  import { modalState } from '$lib/modals'
   import Download from 'lucide-svelte/icons/download'
   import Scissors from 'lucide-svelte/icons/scissors-line-dashed'
   import Settings from 'lucide-svelte/icons/settings-2'
@@ -40,7 +40,7 @@
     title: string,
     extraProps: Record<string, any> = {}
   ) => {
-    modalStore.open(component as unknown as typeof SvelteComponent, title, {
+    modalState.open(component as unknown as typeof SvelteComponent, title, {
       source,
       onWorkspaceCommand,
       ...extraProps,

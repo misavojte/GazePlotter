@@ -2,7 +2,7 @@
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import { GeneralInputNumber } from '$lib/shared/components'
   import { ModalButtons, IntroductoryParagraph } from '$lib/modals'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { modalState } from '$lib/modals'
   import type { BarPlotGridType } from '$lib/workspace/type/gridType'
   import type { UpdateSettingsCommand } from '$lib/workspace/commands'
   import GeneralFieldset from '$lib/shared/components/GeneralFieldset.svelte'
@@ -47,7 +47,7 @@
   }
 
   const handleCancel = () => {
-    modalStore.close()
+    modalState.close()
   }
 </script>
 

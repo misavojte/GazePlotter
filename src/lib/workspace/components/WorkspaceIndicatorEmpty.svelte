@@ -4,7 +4,7 @@
   import { fade } from 'svelte/transition'
   import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
   import { getHasValidData } from '$lib/gaze-data/front-process'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { modalState } from '$lib/modals'
   import { ModalContentMetadataInfo } from '$lib/modals/info/components'
   import GridItemContainer from '$lib/workspace/grid/GridItemContainer.svelte'
   import type {
@@ -40,7 +40,7 @@
    * This is useful when file upload fails and users want to see details.
    */
   const openErrorReport = () => {
-    modalStore.open(ModalContentMetadataInfo as any, 'Metadata Report')
+    modalState.open(ModalContentMetadataInfo as any, 'Metadata Report')
   }
 
   /**

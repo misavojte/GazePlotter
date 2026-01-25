@@ -1,7 +1,7 @@
 <script lang="ts">
   import GeneralInputText from '$lib/shared/components/GeneralInputText.svelte'
   import { ModalButtons } from '$lib/modals'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { modalState } from '$lib/modals'
   import { onDestroy } from 'svelte'
 
   /**
@@ -66,7 +66,7 @@
 
     isPromiseSettled = true
     capturedReject(new Error('User cancelled'))
-    modalStore.close()
+    modalState.close()
   }
 
   /**

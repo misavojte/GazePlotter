@@ -4,7 +4,7 @@
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import GeneralInputNumber from '$lib/shared/components/GeneralInputNumber.svelte'
   import { ModalButtons, IntroductoryParagraph } from '$lib/modals'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore.js'
+  import { modalState } from '$lib/modals'
 
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
   import type { UpdateSettingsCommand } from '$lib/workspace/commands'
@@ -124,11 +124,11 @@
     })
 
     // Close the modal after applying changes
-    modalStore.close()
+    modalState.close()
   }
 
   const handleCancel = () => {
-    modalStore.close()
+    modalState.close()
   }
 </script>
 

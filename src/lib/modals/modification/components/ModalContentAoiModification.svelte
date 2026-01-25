@@ -8,7 +8,7 @@
     ModalButtons,
     IntroductoryParagraph,
   } from '$lib/modals'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
+  import { modalState } from '$lib/modals'
   import {
     getAllAois,
     getHiddenAois,
@@ -339,7 +339,7 @@
         addInfoToast('Ordering of AOIs is not updated for other stimuli')
       }
 
-      modalStore.close()
+      modalState.close()
     } catch (e) {
       console.error(e)
       addErrorToast('Error while updating AOIs. See console for more details.')
@@ -347,7 +347,7 @@
   }
 
   const handleCancel = () => {
-    modalStore.close()
+    modalState.close()
   }
 
   const stimuliOption = getStimuliOptions()
