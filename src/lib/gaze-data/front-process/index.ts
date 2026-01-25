@@ -1,6 +1,6 @@
-export * from './selectors'
+export * from './updators/index'
+export * from './selectors/index'
 export * from './stores/dataStore.svelte'
-export * from './selectors/entitySelectors'
 export * from './class/EyeWorkerService'
 export * from './utils/jsonParsing'
 export type { JsonProcessingResult } from './utils/jsonParsing'

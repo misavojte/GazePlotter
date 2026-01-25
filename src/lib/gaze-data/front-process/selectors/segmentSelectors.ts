@@ -4,7 +4,8 @@ import {
 } from '$lib/gaze-data/shared/types'
 import { engine } from '../stores/dataStore.svelte'
 import { getData, getNumberOfParticipants } from './baseSelectors'
-import { getHiddenAois, getCategory } from './entitySelectors'
+import { getCategory } from './entitySelectors'
+import { getHiddenAois } from './aoiSelectors'
 
 export const getNumberOfSegments = (
   stimulusId: number,
