@@ -21,7 +21,7 @@
   import { updateTooltip } from '$lib/tooltip'
   import { estimateTextWidth } from '$lib/shared/utils/textUtils'
   import { desaturateToWhite } from '$lib/shared/utils/colorUtils'
-  import { getTimelinePositionRatio } from '$lib/plots/shared/timelineUtils'
+
   import {
     GRIDLINE_SECONDARY,
     GRIDLINE_PRIMARY,

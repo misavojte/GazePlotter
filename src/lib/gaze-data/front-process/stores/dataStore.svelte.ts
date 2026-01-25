@@ -5,7 +5,7 @@ import {
   type ParticipantsGroup,
 } from '$lib/gaze-data/shared/types'
 
-import { MAX_AOI, MAX_STIMULUS } from '../const'
+import { MAX_AOI } from '../const'
 
 export class DataEngine {
   // --- Private Memory (Non-Reactive) ---

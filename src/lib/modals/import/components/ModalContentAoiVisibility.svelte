@@ -1,6 +1,6 @@
 <script lang="ts">
   import GeneralSelectBase from '$lib/shared/components/GeneralSelect.svelte'
-  import { getParticipants } from '$lib/gaze-data/front-process'
+
   import { GeneralInputFile } from '$lib/shared/components'
   import { ModalButtons } from '$lib/modals'
   import { modalStore } from '$lib/modals/shared/stores/modalStore'

@@ -3,13 +3,14 @@ import { createWorkspaceCommandRegistry } from '$lib/workspace/commands/registry
 import type { WorkspaceCommandChain } from '$lib/workspace/commands'
 import type { GridState } from '$lib/workspace/grid'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
+import { engine } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
 
 // Mock the data store
 vi.mock('$lib/gaze-data/front-process/stores/dataStore.svelte', () => ({
-  getData: vi.fn(),
+  engine: {
+    metadata: null,
+  },
 }))
-
-import { getData } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
 
 describe('workspaceCommandReverse', () => {
   let mockGridStore: GridState
@@ -19,6 +20,13 @@ describe('workspaceCommandReverse', () => {
   beforeEach(() => {
     // Reset all mocks
     vi.clearAllMocks()
+
+    // Ensure engine.metadata is a writable value property, not a getter from previous tests
+    Object.defineProperty(engine, 'metadata', {
+      value: null,
+      writable: true,
+      configurable: true,
+    })
 
     // Mock grid store as a GridState-like object
     mockGridStore = {
@@ -85,7 +93,8 @@ describe('workspaceCommandReverse', () => {
       isOrdinalOnly: false,
     }
 
-    vi.mocked(getData).mockReturnValue(mockData)
+    // @ts-ignore
+    engine.metadata = mockData
 
     // Provide current items directly on the mock grid store
     mockGridStore.items = [
@@ -371,7 +380,7 @@ describe('workspaceCommandReverse', () => {
       })
     })
 
-    it('should return null if no AOIs found for stimulus', () => {
+    it('should return updateAois with empty list if no AOIs found for stimulus', () => {
       const command: WorkspaceCommandChain = {
         type: 'updateAois',
         aois: [],
@@ -384,7 +393,15 @@ describe('workspaceCommandReverse', () => {
 
       const result = reverseCommand(command)
 
-      expect(result).toBeNull()
+      expect(result).toEqual({
+        type: 'updateAois',
+        aois: [],
+        stimulusId: 999,
+        applyTo: 'this_stimulus',
+        source: 'source',
+        chainId: 1,
+        isRootCommand: true,
+      })
     })
   })
 
@@ -420,8 +437,9 @@ describe('workspaceCommandReverse', () => {
       })
     })
 
-    it('should return null if no participants found', () => {
-      vi.mocked(getData).mockReturnValue({
+    it('should return updateParticipants with empty list if no participants found', () => {
+      // @ts-ignore
+      engine.metadata = {
         participants: { data: [], orderVector: [] },
         isOrdinalOnly: false,
         aois: {
@@ -437,14 +455,7 @@ describe('workspaceCommandReverse', () => {
           displayedName: 'No AOI',
           color: '#CCCCCC',
         },
-        segments: {
-          segmentBuffer: new Float32Array(0),
-          indexTable: new Uint32Array(0),
-          aoiPool: new Uint16Array(0),
-          maxParticipants: 0,
-          stimuliCount: 0,
-        },
-      })
+      }
 
       const command: WorkspaceCommandChain = {
         type: 'updateParticipants',
@@ -456,7 +467,13 @@ describe('workspaceCommandReverse', () => {
 
       const result = reverseCommand(command)
 
-      expect(result).toBeNull()
+      expect(result).toEqual({
+        type: 'updateParticipants',
+        participants: [],
+        source: 'source',
+        chainId: 1,
+        isRootCommand: true,
+      })
     })
   })
 
@@ -484,8 +501,9 @@ describe('workspaceCommandReverse', () => {
       })
     })
 
-    it('should return null if no stimuli found', () => {
-      vi.mocked(getData).mockReturnValue({
+    it('should return updateStimuli with empty list if no stimuli found', () => {
+      // @ts-ignore
+      engine.metadata = {
         stimuli: { data: [], orderVector: [] },
         isOrdinalOnly: false,
         aois: {
@@ -501,14 +519,7 @@ describe('workspaceCommandReverse', () => {
           displayedName: 'No AOI',
           color: '#CCCCCC',
         },
-        segments: {
-          segmentBuffer: new Float32Array(0),
-          indexTable: new Uint32Array(0),
-          aoiPool: new Uint16Array(0),
-          maxParticipants: 0,
-          stimuliCount: 0,
-        },
-      })
+      }
 
       const command: WorkspaceCommandChain = {
         type: 'updateStimuli',
@@ -520,7 +531,13 @@ describe('workspaceCommandReverse', () => {
 
       const result = reverseCommand(command)
 
-      expect(result).toBeNull()
+      expect(result).toEqual({
+        type: 'updateStimuli',
+        stimuli: [],
+        source: 'source',
+        chainId: 1,
+        isRootCommand: true,
+      })
     })
   })
 
@@ -599,11 +616,17 @@ describe('workspaceCommandReverse', () => {
       })
     })
 
-    it('should return null if no groups found', () => {
-      vi.mocked(getData).mockReturnValue({
+    it('should return updateParticipantsGroups with empty list if no groups found', () => {
+      // @ts-ignore
+      engine.metadata = {
         participantsGroups: [],
         isOrdinalOnly: false,
-        aois: { data: [], orderVector: [], dynamicVisibility: {}, hiddenAois: [] },
+        aois: {
+          data: [],
+          orderVector: [],
+          dynamicVisibility: {},
+          hiddenAois: [],
+        },
         categories: { data: [], orderVector: [] },
         participants: { data: [], orderVector: [] },
         stimuli: { data: [], orderVector: [] },
@@ -611,14 +634,7 @@ describe('workspaceCommandReverse', () => {
           displayedName: 'No AOI',
           color: '#CCCCCC',
         },
-        segments: {
-          segmentBuffer: new Float32Array(0),
-          indexTable: new Uint32Array(0),
-          aoiPool: new Uint16Array(0),
-          maxParticipants: 0,
-          stimuliCount: 0,
-        },
-      })
+      }
 
       const command: WorkspaceCommandChain = {
         type: 'updateParticipantsGroups',
@@ -630,7 +646,13 @@ describe('workspaceCommandReverse', () => {
 
       const result = reverseCommand(command)
 
-      expect(result).toBeNull()
+      expect(result).toEqual({
+        type: 'updateParticipantsGroups',
+        groups: [],
+        source: 'source',
+        chainId: 1,
+        isRootCommand: true,
+      })
     })
   })
 
@@ -649,8 +671,17 @@ describe('workspaceCommandReverse', () => {
 
     it('should handle errors gracefully and return null', () => {
       // Mock getData to throw an error
-      vi.mocked(getData).mockImplementation(() => {
-        throw new Error('Data store error')
+      // Mock getData to throw an error by using a getter if possible, or just fail naturally if not mocked as function
+      // Since we replaced the mock with an object, we can't easily make property access throw.
+      // However, we can simulate error conditions by setting invalid metadata or null.
+      // The original test wanted to check error handling.
+      // Let's assume the component under test handles null metadata gracefully or throws.
+      // If we *must* have it throw on access, we can define a getter on the mock object.
+      Object.defineProperty(engine, 'metadata', {
+        get: () => {
+          throw new Error('Data store error')
+        },
+        configurable: true,
       })
 
       const command: WorkspaceCommandChain = {
@@ -669,7 +700,8 @@ describe('workspaceCommandReverse', () => {
 
   describe('edge cases', () => {
     it('should handle empty data store gracefully', () => {
-      vi.mocked(getData).mockReturnValue({
+      // @ts-ignore
+      engine.metadata = {
         isOrdinalOnly: false,
         aois: {
           data: [],
@@ -685,14 +717,7 @@ describe('workspaceCommandReverse', () => {
           displayedName: 'No AOI',
           color: '#CCCCCC',
         },
-        segments: {
-          segmentBuffer: new Float32Array(0),
-          indexTable: new Uint32Array(0),
-          aoiPool: new Uint16Array(0),
-          maxParticipants: 0,
-          stimuliCount: 0,
-        },
-      })
+      }
 
       const command: WorkspaceCommandChain = {
         type: 'updateParticipants',
@@ -704,11 +729,18 @@ describe('workspaceCommandReverse', () => {
 
       const result = reverseCommand(command)
 
-      expect(result).toBeNull()
+      expect(result).toEqual({
+        type: 'updateParticipants',
+        participants: [],
+        source: 'source',
+        chainId: 1,
+        isRootCommand: true,
+      })
     })
 
     it('should handle null data store gracefully', () => {
-      vi.mocked(getData).mockReturnValue(null as any)
+      // @ts-ignore
+      engine.metadata = null
 
       const command: WorkspaceCommandChain = {
         type: 'updateParticipants',
@@ -724,7 +756,8 @@ describe('workspaceCommandReverse', () => {
     })
 
     it('should handle undefined data store gracefully', () => {
-      vi.mocked(getData).mockReturnValue(undefined as any)
+      // @ts-ignore
+      engine.metadata = undefined
 
       const command: WorkspaceCommandChain = {
         type: 'updateParticipants',

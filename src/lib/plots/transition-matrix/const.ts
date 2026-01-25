@@ -11,40 +11,6 @@ export enum MatrixAggregationMethod {
   SEGMENT_DWELL_TIME = 'segmentDwellTime',
 }
 
-export const TRANSITION_MATRIX_AGGREGATION_METHODS = [
-  { value: MatrixAggregationMethod.SUM, label: 'Transition Counts (Sum)' },
-  {
-    value: MatrixAggregationMethod.FREQUENCY_RELATIVE,
-    label: 'Relative Frequency (%)',
-  },
-  {
-    value: MatrixAggregationMethod.PROBABILITY,
-    label: 'Transition Probability (1-step)',
-  },
-  {
-    value: MatrixAggregationMethod.PROBABILITY_2,
-    label: 'Transition Probability (2-step)',
-  },
-  {
-    value: MatrixAggregationMethod.PROBABILITY_3,
-    label: 'Transition Probability (3-step)',
-  },
-  { value: MatrixAggregationMethod.DWELL_TIME, label: 'Average Dwell Time' },
-  {
-    value: MatrixAggregationMethod.SEGMENT_DWELL_TIME,
-    label: 'Segment Dwell Time',
-  },
-] as const
-
-export type TransitionMatrixAggregationMethodId = MatrixAggregationMethod
-
-export function getMatrixMethodLabel(value: MatrixAggregationMethod): string {
-  const method = TRANSITION_MATRIX_AGGREGATION_METHODS.find(
-    m => m.value === value
-  )
-  return method?.label || value
-}
-
 export const TRANSITION_MATRIX_LAYOUT = {
   headerHeight: 150,
   horizontalPadding: 50,

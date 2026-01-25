@@ -206,7 +206,7 @@ function aggregateMetrics(
 /**
  * Creates labeled data items from raw numeric values
  */
-export function createLabeledData(
+function createLabeledData(
   rawData: number[],
   aois: ExtendedInterpretedDataType[],
   noAoiTreatment: { displayedName: string; color: string },
@@ -235,7 +235,7 @@ export function createLabeledData(
 /**
  * Applies sorting to labeled data based on user selection
  */
-export function applySorting(
+function applySorting(
   data: BarPlotDataItem[],
   sortType: 'none' | 'ascending' | 'descending'
 ): BarPlotDataItem[] {
@@ -248,7 +248,7 @@ export function applySorting(
 /**
  * Creates a timeline with appropriate scale based on data and user settings
  */
-export function createTimeline(
+function createTimeline(
   rawData: number[],
   scaleRange?: [number, number]
 ): AdaptiveTimeline {

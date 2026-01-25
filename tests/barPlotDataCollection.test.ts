@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { collectParticipantBarMetrics } from '../src/lib/plots/bar/core/collector'
-import * as dataStore from '../src/lib/gaze-data/front-process/stores/dataStore.svelte'
+import { getSegments } from '$lib/gaze-data/front-process'
 
-vi.mock('../src/lib/gaze-data/front-process/stores/dataStore.svelte', () => ({
+vi.mock('$lib/gaze-data/front-process', () => ({
   getSegments: vi.fn(),
 }))
 
@@ -30,7 +30,7 @@ describe('Bar Plot Data Collection', () => {
       { start: 300, end: 350, aoi: [] },
       { start: 350, end: 500, aoi: [{ id: 2 }] },
     ]
-    ;(dataStore.getSegments as any).mockReturnValue(mockedSegments)
+    vi.mocked(getSegments).mockReturnValue(mockedSegments as any)
 
     const result = collectParticipantBarMetrics(
       stimulusId,
@@ -92,7 +92,7 @@ describe('Bar Plot Data Collection', () => {
   })
 
   it('should handle participants with no segments', () => {
-    ;(dataStore.getSegments as any).mockReturnValue([])
+    vi.mocked(getSegments).mockReturnValue([])
 
     const result = collectParticipantBarMetrics(
       stimulusId,

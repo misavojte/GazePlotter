@@ -16,7 +16,7 @@ export interface AxisConfig {
   labelOffset: number
 }
 
-export const DEFAULT_AXIS_CONFIG: AxisConfig = {
+const DEFAULT_AXIS_CONFIG: AxisConfig = {
   tickLength: 5,
   fontSize: FONT_PRIMARY.SIZE,
   fontFamily: FONT_PRIMARY.FAMILY,
@@ -234,7 +234,10 @@ export function drawYAxisMainLabel(
 /**
  * Formats a numeric axis tick for display.
  */
-export function formatAxisTick(value: number): string {
+/**
+ * Formats a numeric axis tick for display.
+ */
+function formatAxisTick(value: number): string {
   if (!Number.isFinite(value)) return '0'
   const rounded = Math.round(value)
   if (Math.abs(value - rounded) < 1e-6) return rounded.toString()

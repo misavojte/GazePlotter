@@ -98,7 +98,7 @@ export function calculatePlotLayout(
 /**
  * Computes the timeline unit string.
  */
-export function getTimelineUnit(
+function getTimelineUnit(
   timelineType: 'absolute' | 'relative' | 'ordinal'
 ): string {
   if (timelineType === 'relative') return '%'

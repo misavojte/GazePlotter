@@ -1,10 +1,8 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte'
   import { fade } from 'svelte/transition'
   import GridItemButton from './GridItemButton.svelte'
   import GridItemContainer from './GridItemContainer.svelte'
   import { type Snippet } from 'svelte'
-  import { throttleByRaf } from '$lib/shared/utils/throttle'
   import { draggable, resizable as resizableAction } from './actions.svelte'
 
   // Reusable types for props (concise)
@@ -131,30 +129,30 @@
     cellSize,
     gap,
     onDragStart: (rect: GridRect) => {
-        isDragging = true
-        showDragPlaceholder = true
-        ondragstart(rect)
+      isDragging = true
+      showDragPlaceholder = true
+      ondragstart(rect)
     },
     onDragEnd: (rect: GridRect & { dragComplete: boolean }) => {
-        ondragend(rect)
-        // Cleanup happens in onWrapEnd but we can ensure state consistency here
+      ondragend(rect)
+      // Cleanup happens in onWrapEnd but we can ensure state consistency here
     },
     onMove: (rect: GridRect) => onmove(rect),
     onPreviewUpdate: (update: PreviewUpdate) => onpreviewupdate(update),
     onWrapStart: () => {
-       isDragging = true
-       showDragPlaceholder = true
-       if(itemNode) itemNode.classList.add('is-being-dragged')
+      isDragging = true
+      showDragPlaceholder = true
+      if (itemNode) itemNode.classList.add('is-being-dragged')
     },
     onWrapEnd: (finalX: number, finalY: number) => {
-       isDragging = false
-       showDragPlaceholder = false
-       if(itemNode) itemNode.classList.remove('is-being-dragged')
-       // We can ensure the final position is set if needed, but the move event should handle it
+      isDragging = false
+      showDragPlaceholder = false
+      if (itemNode) itemNode.classList.remove('is-being-dragged')
+      // We can ensure the final position is set if needed, but the move event should handle it
     },
     updateDragPosition: (newX: number, newY: number) => {
-        dragPosition = { x: newX, y: newY }
-    }
+      dragPosition = { x: newX, y: newY }
+    },
   })
 
   // define resizable params
@@ -170,30 +168,29 @@
     cellSize,
     gap,
     onResizeStart: (rect: GridRect) => {
-        isResizing = true
-        showResizePlaceholder = true
-        onresizestart(rect)
+      isResizing = true
+      showResizePlaceholder = true
+      onresizestart(rect)
     },
     onResizeEnd: (rect: GridRect & { resizeComplete: boolean }) => {
-        onresizeend(rect)
+      onresizeend(rect)
     },
     onResize: (rect: GridRect) => onresize(rect),
     onPreviewUpdate: (update: PreviewUpdate) => onpreviewupdate(update),
     onWrapStart: () => {
-        isResizing = true
-        showResizePlaceholder = true
-        if(itemNode) itemNode.classList.add('is-being-resized')
+      isResizing = true
+      showResizePlaceholder = true
+      if (itemNode) itemNode.classList.add('is-being-resized')
     },
     onWrapEnd: (finalW: number, finalH: number) => {
-       isResizing = false
-       showResizePlaceholder = false
-       if(itemNode) itemNode.classList.remove('is-being-resized')
+      isResizing = false
+      showResizePlaceholder = false
+      if (itemNode) itemNode.classList.remove('is-being-resized')
     },
     updateResizePosition: (newW: number, newH: number) => {
-        resizePosition = { w: newW, h: newH }
-    }
+      resizePosition = { w: newW, h: newH }
+    },
   })
-
 </script>
 
 <!-- Actual grid item (stays in place until drag is complete) -->
@@ -339,7 +336,7 @@
     z-index: 100;
     opacity: 0.4;
   }
-  
+
   /* Ensure the inner container fills the grid item */
   :global(.item-container) {
     width: 100%;
@@ -370,14 +367,14 @@
     background: rgba(var(--c-main-rgb, 0, 0, 0), 0.05);
     border-color: var(--c-main);
   }
-  
+
   /* Hide the actual inner container styles when in placeholder mode */
   .grid-item.placeholder :global(.grid-item-container) {
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
   }
-  
+
   .grid-item.placeholder :global(.grid-item-container .header),
   .grid-item.placeholder :global(.grid-item-container .body) {
     background: transparent !important;

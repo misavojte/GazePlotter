@@ -205,53 +205,6 @@ export function calculateFlatLegendHeight(
 }
 
 /**
- * Calculate total height for a grouped legend (without computing full geometry).
- * Use this for layout calculations before actual rendering.
- */
-export function calculateGroupedLegendHeight(
-  groups: ReadonlyArray<{ itemCount: number }>,
-  availableWidth: number,
-  config: LegendConfig
-): number {
-  const {
-    itemHeight,
-    rowPadding,
-    titleHeight,
-    groupSpacing,
-    groupTitleSpacing,
-  } = config
-
-  const maxItemsInGroup = groups.reduce(
-    (max, g) => Math.max(max, g.itemCount),
-    0
-  )
-  const itemsPerRow = getLegendItemsPerRow(
-    availableWidth,
-    config,
-    90,
-    maxItemsInGroup
-  )
-  let totalHeight = 0
-
-  for (let g = 0; g < groups.length; g++) {
-    const group = groups[g]
-    if (group.itemCount === 0) continue
-
-    // Add spacing before group (except first visible)
-    if (totalHeight > 0) {
-      totalHeight += groupSpacing
-    }
-
-    // Title + spacing + items
-    const rows = Math.ceil(group.itemCount / itemsPerRow)
-    totalHeight +=
-      titleHeight + groupTitleSpacing + rows * (itemHeight + rowPadding)
-  }
-
-  return totalHeight
-}
-
-/**
  * Compute geometry for a flat (ungrouped) list of items.
  * This is optimized for AoiStreamPlot which has a simple list.
  *

@@ -1,10 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { collectTransitionMetrics } from '../src/lib/plots/transition-matrix/core/collector'
-import * as dataStore from '../src/lib/gaze-data/front-process/stores/dataStore.svelte'
+import { getSegments } from '$lib/gaze-data/front-process'
 
-vi.mock('../src/lib/gaze-data/front-process/stores/dataStore.svelte', () => ({
+vi.mock('$lib/gaze-data/front-process', () => ({
   getSegments: vi.fn(),
-  getData: vi.fn(),
 }))
 
 describe('collectTransitionMetrics', () => {
@@ -24,7 +23,7 @@ describe('collectTransitionMetrics', () => {
       { aoi: [], start: 250, end: 300 }, // No AOI
     ]
 
-    vi.mocked(dataStore.getSegments).mockReturnValue(segments as any)
+    vi.mocked(getSegments).mockReturnValue(segments as any)
 
     const result = collectTransitionMetrics(1, [1], mockAois, 'fixation')
     const size = mockAois.length + 1
@@ -47,7 +46,7 @@ describe('collectTransitionMetrics', () => {
       { aoi: [{ id: 2 }], start: 200, end: 350 },
     ]
 
-    vi.mocked(dataStore.getSegments).mockReturnValue(segments as any)
+    vi.mocked(getSegments).mockReturnValue(segments as any)
 
     const result = collectTransitionMetrics(1, [1], mockAois, 'visit')
     const size = mockAois.length + 1

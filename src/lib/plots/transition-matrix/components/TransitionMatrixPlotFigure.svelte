@@ -5,7 +5,6 @@
   } from '$lib/shared/utils/colorUtils'
   import { updateTooltip } from '$lib/tooltip'
   import {
-    calculateLabelOffset,
     truncateTextToPixelWidth,
     SYSTEM_SANS_SERIF_STACK,
   } from '$lib/shared/utils/textUtils'
@@ -98,13 +97,11 @@
     aoiLabels: string[]
     height?: number
     width?: number
-    cellSize?: number
     colorScale?: string[]
     xLabel?: string
     yLabel?: string
     legendTitle?: string
     colorValueRange: [number, number]
-    onColorValueRangeChange?: (value: [number, number]) => void
     belowMinColor?: string
     aboveMaxColor?: string
     showBelowMinLabels?: boolean

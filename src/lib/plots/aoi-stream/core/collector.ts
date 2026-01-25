@@ -4,7 +4,6 @@
  */
 import { engine } from '$lib/gaze-data/front-process'
 import {
-  BinaryBufferReader,
   SEGMENT_STRIDE,
   SegmentField,
   type ExtendedInterpretedDataType,

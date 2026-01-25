@@ -1,4 +1,4 @@
-import { AXIS_CONFIG, Y_AXIS } from '../const'
+import { Y_AXIS } from '../const'
 
 export const niceStep = (rawStep: number) => {
   const safeRaw = Math.max(1e-9, Math.abs(rawStep))
