@@ -1,14 +1,14 @@
 /**
- * Vitest tests for OgamaEyeDeserializer
+ * Vitest tests for OgamaAdapter
  *
  * Note that OGAMA data does not have time information, so the start and end of each segment
  * are just the index of the letter in the string.
  *
- * @module OgamaEyeDeserializer
- * @see $lib/data/ingest/stream/adapters/OgamaEyeDeserializer.ts
+ * @module OgamaAdapter
+ * @see $lib/data/ingest/stream/adapters/OgamaAdapter.ts
  */
 
-import { OgamaEyeDeserializer } from '$lib/data/ingest/stream/adapters/OgamaEyeDeserializer'
+import { OgamaAdapter } from '$lib/data/ingest/stream/adapters/OgamaAdapter'
 import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
 import { test, expect, describe } from 'vitest'
 
@@ -28,7 +28,7 @@ type EmittedSegment = {
 const decoder = new TextDecoder('utf-8')
 const encodeRow = (row: string) => encodeString(row, 'utf-8')
 
-const collectOutputs = (sut: OgamaEyeDeserializer) => {
+const collectOutputs = (sut: OgamaAdapter) => {
   const outputs: EmittedSegment[] = []
   sut.onSegment = (start, end, categoryId, stimulus, participant, aoi) => {
     outputs.push({
@@ -43,7 +43,7 @@ const collectOutputs = (sut: OgamaEyeDeserializer) => {
   return outputs
 }
 
-const processRow = (sut: OgamaEyeDeserializer, row: string) => {
+const processRow = (sut: OgamaAdapter, row: string) => {
   sut.processRowBytes(encodeRow(row), decoder)
 }
 
@@ -52,14 +52,14 @@ describe('OGAMA Deserializer - Single data', () => {
   const header = ogamaRows[0].split(',')
   const delim = ','
   test('Constructor', () => {
-    const sut = new OgamaEyeDeserializer(header, 'SimilarityXXX.txt', delim)
+    const sut = new OgamaAdapter(header, 'SimilarityXXX.txt', delim)
     expect(sut).toBeDefined()
     expect(sut.cParticipant).toBe(0)
     expect(sut.cSegments).toBe(1)
   })
 
   test('Process first row - Segment 1', () => {
-    const sut = new OgamaEyeDeserializer(header, 'SimilarityXXX.txt', delim)
+    const sut = new OgamaAdapter(header, 'SimilarityXXX.txt', delim)
     const outputs = collectOutputs(sut)
     processRow(sut, ogamaRows[1])
     expect(outputs).toBeDefined()
@@ -73,7 +73,7 @@ describe('OGAMA Deserializer - Single data', () => {
   })
 
   test('Process first row - Segment 2', () => {
-    const sut = new OgamaEyeDeserializer(header, 'SimilarityXXX.txt', delim)
+    const sut = new OgamaAdapter(header, 'SimilarityXXX.txt', delim)
     const outputs = collectOutputs(sut)
     processRow(sut, ogamaRows[1])
     expect(outputs).toBeDefined()
@@ -87,7 +87,7 @@ describe('OGAMA Deserializer - Single data', () => {
   })
 
   test('Process second row - Segment 1', () => {
-    const sut = new OgamaEyeDeserializer(header, 'SimilarityXXX.txt', delim)
+    const sut = new OgamaAdapter(header, 'SimilarityXXX.txt', delim)
     const outputs = collectOutputs(sut)
     processRow(sut, ogamaRows[2])
     expect(outputs).toBeDefined()
@@ -101,7 +101,7 @@ describe('OGAMA Deserializer - Single data', () => {
   })
 
   test('Process second row - Segment 2', () => {
-    const sut = new OgamaEyeDeserializer(header, 'SimilarityXXX.txt', delim)
+    const sut = new OgamaAdapter(header, 'SimilarityXXX.txt', delim)
     const outputs = collectOutputs(sut)
     processRow(sut, ogamaRows[2])
     expect(outputs).toBeDefined()

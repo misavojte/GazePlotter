@@ -1,7 +1,7 @@
-import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
+import { AbstractAdapter } from './AbstractAdapter'
 import { bytesEqual, encodeString } from '$lib/data/ingest/utils/byteUtils'
 
-export class VarjoEyeDeserializer extends AbstractEyeDeserializer {
+export class VarjoAdapter extends AbstractAdapter {
   cTime: number
   cActorLabel: number // ActorLabel stands for AOI
 

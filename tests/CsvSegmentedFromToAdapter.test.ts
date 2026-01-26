@@ -1,11 +1,11 @@
 /**
- * Vitest tests for CsvSegmentedFromToEyeDeserializer
+ * Vitest tests for CsvSegmentedFromToAdapter
  *
- * @module CsvSegmentedFromToEyeDeserializer
- * @see src/lib/data/ingest/stream/adapters/CsvSegmentedFromToEyeDeserializer.ts
+ * @module CsvSegmentedFromToAdapter
+ * @see src/lib/data/ingest/stream/adapters/CsvSegmentedFromToAdapter.ts
  */
 
-import { CsvSegmentedFromToEyeDeserializer } from '$lib/data/ingest/stream/adapters/CsvSegmentedFromToEyeDeserializer'
+import { CsvSegmentedFromToAdapter } from '$lib/data/ingest/stream/adapters/CsvSegmentedFromToAdapter'
 import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
 import { test, expect, describe } from 'vitest'
 
@@ -27,7 +27,7 @@ type EmittedSegment = {
 const decoder = new TextDecoder('utf-8')
 const encodeRow = (row: string) => encodeString(row, 'utf-8')
 
-const collectOutputs = (sut: CsvSegmentedFromToEyeDeserializer) => {
+const collectOutputs = (sut: CsvSegmentedFromToAdapter) => {
   const outputs: EmittedSegment[] = []
   sut.onSegment = (start, end, categoryId, stimulus, participant, aoi) => {
     outputs.push({
@@ -42,7 +42,7 @@ const collectOutputs = (sut: CsvSegmentedFromToEyeDeserializer) => {
   return outputs
 }
 
-const processRow = (sut: CsvSegmentedFromToEyeDeserializer, row: string) => {
+const processRow = (sut: CsvSegmentedFromToAdapter, row: string) => {
   sut.processRowBytes(encodeRow(row), decoder)
 }
 
@@ -51,7 +51,7 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
   const header = csvRows[0].split(',')
   const delim = ','
   test('Constructor', () => {
-    const sut = new CsvSegmentedFromToEyeDeserializer(header, delim)
+    const sut = new CsvSegmentedFromToAdapter(header, delim)
     expect(sut).toBeDefined()
     expect(sut.cAoi).toBe(4)
     expect(sut.cParticipant).toBe(2)
@@ -61,7 +61,7 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
   })
 
   test('Process first row', () => {
-    const sut = new CsvSegmentedFromToEyeDeserializer(header, delim)
+    const sut = new CsvSegmentedFromToAdapter(header, delim)
     const outputs = collectOutputs(sut)
     processRow(sut, csvRows[1])
     const result = outputs[0]
@@ -75,7 +75,7 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
   })
 
   test('Process second row', () => {
-    const sut = new CsvSegmentedFromToEyeDeserializer(header, delim)
+    const sut = new CsvSegmentedFromToAdapter(header, delim)
     const outputs = collectOutputs(sut)
     processRow(sut, csvRows[2])
     const result = outputs[0]
@@ -89,7 +89,7 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
   })
 
   test('Process third row', () => {
-    const sut = new CsvSegmentedFromToEyeDeserializer(header, delim)
+    const sut = new CsvSegmentedFromToAdapter(header, delim)
     const outputs = collectOutputs(sut)
     processRow(sut, csvRows[3])
     const result = outputs[0]
@@ -103,7 +103,7 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
   })
 
   test('Process fourth row', () => {
-    const sut = new CsvSegmentedFromToEyeDeserializer(header, delim)
+    const sut = new CsvSegmentedFromToAdapter(header, delim)
     const outputs = collectOutputs(sut)
     processRow(sut, csvRows[4])
     const result = outputs[0]
@@ -117,7 +117,7 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
   })
 
   test('Finalize', () => {
-    const sut = new CsvSegmentedFromToEyeDeserializer(header, delim)
+    const sut = new CsvSegmentedFromToAdapter(header, delim)
     collectOutputs(sut)
     processRow(sut, csvRows[4])
     const result = sut.finalize()

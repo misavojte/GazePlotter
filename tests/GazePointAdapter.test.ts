@@ -1,12 +1,12 @@
 /**
- * Vitest tests for GazePointEyeDeserializer
+ * Vitest tests for GazePointAdapter
  *
- * @module GazePointEyeDeserializer
- * @see $lib/data/ingest/stream/adapters/GazePointEyeDeserializer.ts
+ * @module GazePointAdapter
+ * @see $lib/data/ingest/stream/adapters/GazePointAdapter.ts
  */
 
-import { test, expect, describe } from 'vitest'
-import { GazePointEyeDeserializer } from '$lib/data/ingest/stream/adapters/GazePointEyeDeserializer'
+import { describe, it, expect } from 'vitest'
+import { GazePointAdapter } from '../src/lib/data/ingest/stream/adapters/GazePointAdapter'
 import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
 
 const separator = ','
@@ -40,7 +40,7 @@ type EmittedSegment = {
 const decoder = new TextDecoder('utf-8')
 const encodeRow = (row: string) => encodeString(row, 'utf-8')
 
-const collectOutputs = (sut: GazePointEyeDeserializer) => {
+const collectOutputs = (sut: GazePointAdapter) => {
   const outputs: EmittedSegment[] = []
   sut.onSegment = (start, end, categoryId, stimulus, participant, aoi) => {
     outputs.push({
@@ -55,17 +55,17 @@ const collectOutputs = (sut: GazePointEyeDeserializer) => {
   return outputs
 }
 
-const processRow = (sut: GazePointEyeDeserializer, row: string) => {
+const processRow = (sut: GazePointAdapter, row: string) => {
   sut.processRowBytes(encodeRow(row), decoder)
 }
 
 describe('GazePoint Reducer', () => {
-  test('Construct Reducer', () => {
-    const reducer = new GazePointEyeDeserializer(header, 'P1', separator)
-    expect(reducer).toBeInstanceOf(GazePointEyeDeserializer)
+  it('Construct Reducer', () => {
+    const reducer = new GazePointAdapter(header, 'P1', separator)
+    expect(reducer).toBeInstanceOf(GazePointAdapter)
   })
-  test('Reduce Fixation', () => {
-    const reducer = new GazePointEyeDeserializer(header, 'P1', separator)
+  it('Reduce Fixation', () => {
+    const reducer = new GazePointAdapter(header, 'P1', separator)
     const outputs = collectOutputs(reducer)
     processRow(reducer, fixRow1)
     expect(outputs).toHaveLength(0)
@@ -86,8 +86,8 @@ describe('GazePoint Reducer', () => {
     expect(result3.start).toBeCloseTo(0.06689, 5)
     expect(result3.stimulus).toBe('Slide0')
   })
-  test('Reduce Raw', () => {
-    const reducer = new GazePointEyeDeserializer(header, 'P1', separator)
+  it('Reduce Raw', () => {
+    const reducer = new GazePointAdapter(header, 'P1', separator)
     const outputs = collectOutputs(reducer)
     processRow(reducer, rawRow1)
     processRow(reducer, rawRow2)

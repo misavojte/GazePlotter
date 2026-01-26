@@ -1,7 +1,7 @@
-import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
+import { AbstractAdapter } from './AbstractAdapter'
 import { bytesEqual, encodeString } from '$lib/data/ingest/utils/byteUtils'
 
-export class BeGazeEyeDeserializer extends AbstractEyeDeserializer {
+export class BeGazeAdapter extends AbstractAdapter {
   cStart: number
   cEnd: number
   cStimulus: number

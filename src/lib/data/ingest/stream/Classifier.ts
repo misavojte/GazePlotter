@@ -60,13 +60,13 @@ export class EyeClassifier {
    */
   private detectRowDelimiter(slice: string): string {
     // Check for Windows line endings first (most common)
-    if (slice.includes('$libr$libn')) return '$libr$libn'
+    if (slice.includes('\r\n')) return '\r\n'
     // Check for Unix line endings
-    if (slice.includes('$libn')) return '$libn'
+    if (slice.includes('\n')) return '\n'
     // Check for Mac line endings (older Mac systems)
-    if (slice.includes('$libr')) return '$libr'
+    if (slice.includes('\r')) return '\r'
     // Default to Unix line endings
-    return '$libn'
+    return '\n'
   }
 
   private getHeaderRow(slice: string): {
@@ -148,7 +148,7 @@ export class EyeClassifier {
       case 'tobii-with-event':
       case 'begaze':
       case 'ogama':
-        return '$libt'
+        return '\t'
       case 'gazepoint':
         return ','
       case 'csv':

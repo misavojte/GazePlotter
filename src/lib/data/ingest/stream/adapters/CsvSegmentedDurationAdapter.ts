@@ -1,4 +1,4 @@
-import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
+import { AbstractAdapter } from './AbstractAdapter'
 import { bytesEqual } from '$lib/data/ingest/utils/byteUtils'
 
 /**
@@ -20,7 +20,7 @@ import { bytesEqual } from '$lib/data/ingest/utils/byteUtils'
  * - All timestamps are normalized relative to this base time (timestamp - baseTime)
  * - This ensures all segments start from 0 for each stimulus
  *
- * @extends AbstractEyeDeserializer
+ * @extends AbstractAdapter
  *
  * @example
  * // CSV format:
@@ -28,7 +28,7 @@ import { bytesEqual } from '$lib/data/ingest/utils/byteUtils'
  * // SMI Base,Anna,226.2,72,1,
  * // SMI Base,Anna,298.2,120,0,Map
  */
-export class CsvSegmentedDurationEyeDeserializer extends AbstractEyeDeserializer {
+export class CsvSegmentedDurationAdapter extends AbstractAdapter {
   /** Column index for timestamp field */
   cTimestamp: number
 

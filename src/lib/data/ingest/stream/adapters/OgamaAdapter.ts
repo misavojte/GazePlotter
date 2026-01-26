@@ -1,7 +1,7 @@
-import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
+import { AbstractAdapter } from './AbstractAdapter'
 import { encodeString } from '$lib/data/ingest/utils/byteUtils'
 
-export class OgamaEyeDeserializer extends AbstractEyeDeserializer {
+export class OgamaAdapter extends AbstractAdapter {
   stimulusName: string
   cParticipant: number
   cSegments: number

@@ -1,8 +1,8 @@
-import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
+import { AbstractAdapter } from './AbstractAdapter'
 import { bytesEqual } from '$lib/data/ingest/utils/byteUtils'
 
 // BEWARE! If only one timestamp for whole segment, start and end are the same!
-export class CsvEyeDeserializer extends AbstractEyeDeserializer {
+export class CsvAdapter extends AbstractAdapter {
   cTime: number
   cParticipant: number
   cStimulus: number

@@ -1,11 +1,11 @@
 /**
- * Vitest tests for VarjoEyeDeserializer
+ * Vitest tests for VarjoAdapter
  *
- * @module VarjoEyeDeserializer
- * @see $lib/data/ingest/stream/adapters/VarjoEyeDeserializer.ts
+ * @module VarjoAdapter
+ * @see $lib/data/ingest/stream/adapters/VarjoAdapter.ts
  */
 
-import { VarjoEyeDeserializer } from '$lib/data/ingest/stream/adapters/VarjoEyeDeserializer'
+import { VarjoAdapter } from '$lib/data/ingest/stream/adapters/VarjoAdapter'
 import { test, expect, describe } from 'vitest'
 import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
 
@@ -37,7 +37,7 @@ type EmittedSegment = {
 const decoder = new TextDecoder('utf-8')
 const encodeRow = (row: string) => encodeString(row, 'utf-8')
 
-const collectOutputs = (sut: VarjoEyeDeserializer) => {
+const collectOutputs = (sut: VarjoAdapter) => {
   const outputs: EmittedSegment[] = []
   sut.onSegment = (start, end, categoryId, stimulus, participant, aoi) => {
     outputs.push({
@@ -52,16 +52,16 @@ const collectOutputs = (sut: VarjoEyeDeserializer) => {
   return outputs
 }
 
-const processRow = (sut: VarjoEyeDeserializer, row: string) => {
+const processRow = (sut: VarjoAdapter, row: string) => {
   sut.processRowBytes(encodeRow(row), decoder)
 }
 
-describe('VarjoEyeDeserializer', () => {
+describe('VarjoAdapter', () => {
   const varjoRows = varjoMockData.split('\n')
   const header = varjoRows[0].split(',')
   const delim = ','
   test('Constructor', () => {
-    const sut = new VarjoEyeDeserializer(header, 'VarjoXXX.csv', delim)
+    const sut = new VarjoAdapter(header, 'VarjoXXX.csv', delim)
     expect(sut).toBeDefined()
     expect(sut.cTime).toBe(0)
     expect(sut.cActorLabel).toBe(1)
@@ -69,14 +69,14 @@ describe('VarjoEyeDeserializer', () => {
   })
 
   test('Process first row', () => {
-    const sut = new VarjoEyeDeserializer(header, 'VarjoXXX.csv', delim)
+    const sut = new VarjoAdapter(header, 'VarjoXXX.csv', delim)
     const outputs = collectOutputs(sut)
     processRow(sut, varjoRows[1])
     expect(outputs).toHaveLength(0)
   })
 
   test('Process second row', () => {
-    const sut = new VarjoEyeDeserializer(header, 'VarjoXXX.csv', delim)
+    const sut = new VarjoAdapter(header, 'VarjoXXX.csv', delim)
     const outputs = collectOutputs(sut)
     processRow(sut, varjoRows[1])
     processRow(sut, varjoRows[2])
@@ -84,7 +84,7 @@ describe('VarjoEyeDeserializer', () => {
   })
 
   test('Process third row', () => {
-    const sut = new VarjoEyeDeserializer(header, 'VarjoXXX.csv', delim)
+    const sut = new VarjoAdapter(header, 'VarjoXXX.csv', delim)
     const outputs = collectOutputs(sut)
     processRow(sut, varjoRows[1])
     processRow(sut, varjoRows[2])
@@ -93,7 +93,7 @@ describe('VarjoEyeDeserializer', () => {
   })
 
   test('Process fourth row', () => {
-    const sut = new VarjoEyeDeserializer(header, 'VarjoXXX.csv', delim)
+    const sut = new VarjoAdapter(header, 'VarjoXXX.csv', delim)
     const outputs = collectOutputs(sut)
     processRow(sut, varjoRows[1])
     processRow(sut, varjoRows[2])
@@ -110,7 +110,7 @@ describe('VarjoEyeDeserializer', () => {
   })
 
   test('Process fifth row', () => {
-    const sut = new VarjoEyeDeserializer(header, 'VarjoXXX.csv', delim)
+    const sut = new VarjoAdapter(header, 'VarjoXXX.csv', delim)
     const outputs = collectOutputs(sut)
     processRow(sut, varjoRows[1])
     processRow(sut, varjoRows[2])
@@ -128,7 +128,7 @@ describe('VarjoEyeDeserializer', () => {
   })
 
   test('Process sixth row', () => {
-    const sut = new VarjoEyeDeserializer(header, 'VarjoXXX.csv', delim)
+    const sut = new VarjoAdapter(header, 'VarjoXXX.csv', delim)
     const outputs = collectOutputs(sut)
     processRow(sut, varjoRows[1])
     processRow(sut, varjoRows[2])
@@ -147,7 +147,7 @@ describe('VarjoEyeDeserializer', () => {
   })
 
   test('Finalize', () => {
-    const sut = new VarjoEyeDeserializer(header, 'VarjoXXX.csv', delim)
+    const sut = new VarjoAdapter(header, 'VarjoXXX.csv', delim)
     const outputs = collectOutputs(sut)
     processRow(sut, varjoRows[1])
     processRow(sut, varjoRows[2])

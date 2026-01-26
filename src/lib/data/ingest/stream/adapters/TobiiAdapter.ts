@@ -1,4 +1,4 @@
-import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
+import { AbstractAdapter } from './AbstractAdapter'
 import {
   bytesEqual,
   encodeString,
@@ -134,7 +134,7 @@ class BigIntNumberMap {
   }
 }
 
-export class TobiiEyeDeserializer extends AbstractEyeDeserializer {
+export class TobiiAdapter extends AbstractAdapter {
   /* ── Column indices ─────────────────────────────────────────────── */
   private readonly cRecordingTimestamp: number
   private readonly cStimulus: number

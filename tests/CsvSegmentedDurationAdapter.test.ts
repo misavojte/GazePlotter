@@ -1,14 +1,14 @@
 /**
- * Vitest tests for CsvSegmentedDurationEyeDeserializer
+ * Vitest tests for CsvSegmentedDurationAdapter
  *
- * This test suite validates the functionality of the CsvSegmentedDurationEyeDeserializer,
+ * This test suite validates the functionality of the CsvSegmentedDurationAdapter,
  * which processes CSV files containing segmented eye-tracking data with duration-based timing.
  *
- * @module CsvSegmentedDurationEyeDeserializer
- * @see src/lib/data/ingest/stream/adapters/CsvSegmentedDurationEyeDeserializer.ts
+ * @module CsvSegmentedDurationAdapter
+ * @see src/lib/data/ingest/stream/adapters/CsvSegmentedDurationAdapter.ts
  */
 
-import { CsvSegmentedDurationEyeDeserializer } from '$lib/data/ingest/stream/adapters/CsvSegmentedDurationEyeDeserializer'
+import { CsvSegmentedDurationAdapter } from '$lib/data/ingest/stream/adapters/CsvSegmentedDurationAdapter'
 import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
 import { test, expect, describe } from 'vitest'
 
@@ -58,7 +58,7 @@ type EmittedSegment = {
 const decoder = new TextDecoder('utf-8')
 const encodeRow = (row: string) => encodeString(row, 'utf-8')
 
-const collectOutputs = (sut: CsvSegmentedDurationEyeDeserializer) => {
+const collectOutputs = (sut: CsvSegmentedDurationAdapter) => {
   const outputs: EmittedSegment[] = []
   sut.onSegment = (start, end, categoryId, stimulus, participant, aoi) => {
     outputs.push({
@@ -73,18 +73,18 @@ const collectOutputs = (sut: CsvSegmentedDurationEyeDeserializer) => {
   return outputs
 }
 
-const processRow = (sut: CsvSegmentedDurationEyeDeserializer, row: string) => {
+const processRow = (sut: CsvSegmentedDurationAdapter, row: string) => {
   sut.processRowBytes(encodeRow(row), decoder)
 }
 
-describe('CsvSegmentedDurationEyeDeserializer - Constructor', () => {
+describe('CsvSegmentedDurationAdapter - Constructor', () => {
   const csvRows = csvMockDataOne.split('\n')
   const header = csvRows[0].split(',')
   const delim = ','
 
   test('Constructor initializes column indices correctly', () => {
     // Create a new deserializer instance with the header
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, delim)
+    const sut = new CsvSegmentedDurationAdapter(header, delim)
 
     // Verify the deserializer was created
     expect(sut).toBeDefined()
@@ -111,18 +111,18 @@ describe('CsvSegmentedDurationEyeDeserializer - Constructor', () => {
 
     // Expect the constructor to throw an error due to missing required field
     expect(() => {
-      new CsvSegmentedDurationEyeDeserializer(invalidHeader, delim)
+      new CsvSegmentedDurationAdapter(invalidHeader, delim)
     }).toThrow('Column timestamp not found')
   })
 })
 
-describe('CsvSegmentedDurationEyeDeserializer - Single data processing', () => {
+describe('CsvSegmentedDurationAdapter - Single data processing', () => {
   const csvRows = csvMockDataOne.split('\n')
   const header = csvRows[0].split(',')
   const delim = ','
 
   test('Process first row - Saccade with empty AOI (establishes base time)', () => {
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, delim)
+    const sut = new CsvSegmentedDurationAdapter(header, delim)
     const outputs = collectOutputs(sut)
     processRow(sut, csvRows[1])
     const result = outputs[0]
@@ -148,7 +148,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Single data processing', () => {
   })
 
   test('Process second row - Fixation with AOI (uses established base time)', () => {
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, delim)
+    const sut = new CsvSegmentedDurationAdapter(header, delim)
     const outputs = collectOutputs(sut)
     // Process first row to establish base time
     processRow(sut, csvRows[1])
@@ -175,7 +175,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Single data processing', () => {
   })
 
   test('Process third row - Saccade with empty AOI', () => {
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, delim)
+    const sut = new CsvSegmentedDurationAdapter(header, delim)
     const outputs = collectOutputs(sut)
     // Process first two rows to establish base time
     processRow(sut, csvRows[1])
@@ -199,7 +199,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Single data processing', () => {
   })
 
   test('Process fourth row - Fixation with AOI and longer duration', () => {
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, delim)
+    const sut = new CsvSegmentedDurationAdapter(header, delim)
     const outputs = collectOutputs(sut)
     // Process previous rows to establish base time
     processRow(sut, csvRows[1])
@@ -224,7 +224,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Single data processing', () => {
   })
 
   test('Process fifth row - Saccade with empty AOI', () => {
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, delim)
+    const sut = new CsvSegmentedDurationAdapter(header, delim)
     const outputs = collectOutputs(sut)
     // Process previous rows to establish base time
     processRow(sut, csvRows[1])
@@ -251,13 +251,13 @@ describe('CsvSegmentedDurationEyeDeserializer - Single data processing', () => {
   })
 })
 
-describe('CsvSegmentedDurationEyeDeserializer - Multiple participants and stimuli', () => {
+describe('CsvSegmentedDurationAdapter - Multiple participants and stimuli', () => {
   const csvRows = csvMockDataMultiple.split('\n')
   const header = csvRows[0].split(',')
   const delim = ','
 
   test('Process row for Participant_1 with Map_A (establishes base time 100)', () => {
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, delim)
+    const sut = new CsvSegmentedDurationAdapter(header, delim)
     const outputs = collectOutputs(sut)
     processRow(sut, csvRows[1])
     const result = outputs[0]
@@ -277,7 +277,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Multiple participants and stimul
   })
 
   test('Process saccade without AOI for Participant_1 (uses base time 100)', () => {
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, delim)
+    const sut = new CsvSegmentedDurationAdapter(header, delim)
     const outputs = collectOutputs(sut)
     // Process first row to establish base time
     processRow(sut, csvRows[1])
@@ -300,7 +300,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Multiple participants and stimul
   })
 
   test('Process row for Participant_2 with Map_B (resets base time to 200)', () => {
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, delim)
+    const sut = new CsvSegmentedDurationAdapter(header, delim)
     const outputs = collectOutputs(sut)
     // Process some Participant_1 rows first
     processRow(sut, csvRows[1])
@@ -324,7 +324,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Multiple participants and stimul
   })
 
   test('Base time resets when switching participants', () => {
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, delim)
+    const sut = new CsvSegmentedDurationAdapter(header, delim)
     const outputs = collectOutputs(sut)
 
     // Process Participant_1, Map_A row (base time = 100)
@@ -347,13 +347,13 @@ describe('CsvSegmentedDurationEyeDeserializer - Multiple participants and stimul
   })
 })
 
-describe('CsvSegmentedDurationEyeDeserializer - Invalid data handling', () => {
+describe('CsvSegmentedDurationAdapter - Invalid data handling', () => {
   const csvRows = csvMockDataInvalid.split('\n')
   const header = csvRows[0].split(',')
   const delim = ','
 
   test('Valid row returns proper result', () => {
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, delim)
+    const sut = new CsvSegmentedDurationAdapter(header, delim)
     const outputs = collectOutputs(sut)
     processRow(sut, csvRows[1])
     const result = outputs[0]
@@ -364,7 +364,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Invalid data handling', () => {
   })
 
   test('Row with empty participant returns null', () => {
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, delim)
+    const sut = new CsvSegmentedDurationAdapter(header, delim)
     const outputs = collectOutputs(sut)
     processRow(sut, csvRows[2])
 
@@ -373,7 +373,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Invalid data handling', () => {
   })
 
   test('Row with empty timestamp returns null', () => {
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, delim)
+    const sut = new CsvSegmentedDurationAdapter(header, delim)
     const outputs = collectOutputs(sut)
     processRow(sut, csvRows[3])
 
@@ -382,7 +382,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Invalid data handling', () => {
   })
 
   test('Row with empty duration returns null', () => {
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, delim)
+    const sut = new CsvSegmentedDurationAdapter(header, delim)
     const outputs = collectOutputs(sut)
     processRow(sut, csvRows[4])
 
@@ -391,7 +391,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Invalid data handling', () => {
   })
 
   test('Row with empty stimulus returns null', () => {
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, delim)
+    const sut = new CsvSegmentedDurationAdapter(header, delim)
     const outputs = collectOutputs(sut)
     processRow(sut, csvRows[5])
 
@@ -400,7 +400,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Invalid data handling', () => {
   })
 })
 
-describe('CsvSegmentedDurationEyeDeserializer - Time calculation accuracy', () => {
+describe('CsvSegmentedDurationAdapter - Time calculation accuracy', () => {
   test('Integer time values calculate correctly with normalization', () => {
     const header = [
       'stimulus',
@@ -410,7 +410,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Time calculation accuracy', () =
       'eyemovementtype',
       'AOI',
     ]
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, ',')
+    const sut = new CsvSegmentedDurationAdapter(header, ',')
     const row = 'Stimulus,Participant,1000,500,0,Region'
     const outputs = collectOutputs(sut)
     processRow(sut, row)
@@ -432,7 +432,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Time calculation accuracy', () =
       'eyemovementtype',
       'AOI',
     ]
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, ',')
+    const sut = new CsvSegmentedDurationAdapter(header, ',')
     const row = 'Stimulus,Participant,123.456,78.9,0,Region'
     const outputs = collectOutputs(sut)
     processRow(sut, row)
@@ -454,7 +454,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Time calculation accuracy', () =
       'eyemovementtype',
       'AOI',
     ]
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, ',')
+    const sut = new CsvSegmentedDurationAdapter(header, ',')
     const row = 'Stimulus,Participant,100,0,1,'
     const outputs = collectOutputs(sut)
     processRow(sut, row)
@@ -476,7 +476,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Time calculation accuracy', () =
       'eyemovementtype',
       'AOI',
     ]
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, ',')
+    const sut = new CsvSegmentedDurationAdapter(header, ',')
     const outputs = collectOutputs(sut)
 
     // First row establishes base time of 1000
@@ -493,7 +493,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Time calculation accuracy', () =
   })
 })
 
-describe('CsvSegmentedDurationEyeDeserializer - Eye movement type classification', () => {
+describe('CsvSegmentedDurationAdapter - Eye movement type classification', () => {
   test('Eye movement type 0 maps to Fixation', () => {
     const header = [
       'stimulus',
@@ -503,7 +503,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Eye movement type classification
       'eyemovementtype',
       'AOI',
     ]
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, ',')
+    const sut = new CsvSegmentedDurationAdapter(header, ',')
     const outputs = collectOutputs(sut)
     processRow(sut, 'Stimulus,Participant,100,50,0,Region')
 
@@ -519,7 +519,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Eye movement type classification
       'eyemovementtype',
       'AOI',
     ]
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, ',')
+    const sut = new CsvSegmentedDurationAdapter(header, ',')
     const outputs = collectOutputs(sut)
     processRow(sut, 'Stimulus,Participant,100,50,1,Region')
 
@@ -535,7 +535,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Eye movement type classification
       'eyemovementtype',
       'AOI',
     ]
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, ',')
+    const sut = new CsvSegmentedDurationAdapter(header, ',')
     const outputs = collectOutputs(sut)
     processRow(sut, 'Stimulus,Participant,100,50,2,Region')
 
@@ -544,7 +544,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Eye movement type classification
   })
 })
 
-describe('CsvSegmentedDurationEyeDeserializer - Finalize', () => {
+describe('CsvSegmentedDurationAdapter - Finalize', () => {
   test('Finalize returns null (no state to finalize)', () => {
     const header = [
       'stimulus',
@@ -554,7 +554,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Finalize', () => {
       'eyemovementtype',
       'AOI',
     ]
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, ',')
+    const sut = new CsvSegmentedDurationAdapter(header, ',')
     const row = 'Stimulus,Participant,100,50,0,Region'
     const outputs = collectOutputs(sut)
 
@@ -576,7 +576,7 @@ describe('CsvSegmentedDurationEyeDeserializer - Finalize', () => {
       'eyemovementtype',
       'AOI',
     ]
-    const sut = new CsvSegmentedDurationEyeDeserializer(header, ',')
+    const sut = new CsvSegmentedDurationAdapter(header, ',')
 
     // Finalize without processing any rows should not throw
     expect(() => {

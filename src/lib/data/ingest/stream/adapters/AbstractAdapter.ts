@@ -11,7 +11,7 @@ type TextEncoding = 'utf-8' | 'utf-16le' | 'utf-16be'
  * - Early-exits after maxNeededCol is closed.
  * - Zero-fills missing AOI tail to prevent carry-over.
  */
-export abstract class AbstractEyeDeserializer {
+export abstract class AbstractAdapter {
   onSegment:
     | ((
         start: number,
@@ -52,7 +52,7 @@ export abstract class AbstractEyeDeserializer {
   constructor(columnDelimiter: string = ',', encoding: TextEncoding = 'utf-8') {
     if (columnDelimiter.length !== 1) {
       throw new Error(
-        `AbstractEyeDeserializer expects a single-character delimiter, got "${columnDelimiter}".`
+        `AbstractAdapter expects a single-character delimiter, got "${columnDelimiter}".`
       )
     }
     this.delim = columnDelimiter

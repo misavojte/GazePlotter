@@ -5,7 +5,7 @@
  * @see $lib/data/ingest/stream/adapters/TobiiAdapter.ts
  */
 
-import { describe, test, expect } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { TobiiAdapter } from '$lib/data/ingest/stream/adapters/TobiiAdapter'
 import { testMobileTsvData } from './TobiiAdapter.test.data'
 import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
@@ -45,12 +45,12 @@ const collectOutputs = (deserializer: TobiiAdapter) => {
 }
 
 describe('TobiiAdapter', () => {
-  test('should construct', () => {
+  it('should construct', () => {
     // Placeholder test
     expect(TobiiAdapter).toBeDefined()
   })
 
-  test('parses testMobileTsvData with IntervalStart;IntervalEnd without errors', () => {
+  it('parses testMobileTsvData with IntervalStart;IntervalEnd without errors', () => {
     const lines = testMobileTsvData.split('\n')
     const header = lines[0].split('\t')
     const rows = lines.slice(1)
@@ -69,7 +69,7 @@ describe('TobiiAdapter', () => {
     expect(outputs.length).toBeGreaterThan(0)
   })
 
-  test('first output has correct category, duration, and stimulus', () => {
+  it('first output has correct category, duration, and stimulus', () => {
     const lines = testMobileTsvData.split('\n')
     const header = lines[0].split('\t')
     const rows = lines.slice(1)

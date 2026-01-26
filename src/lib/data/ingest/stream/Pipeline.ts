@@ -1,17 +1,17 @@
 import { EyeClassifier } from './Classifier'
 import { BinaryEyeWriter } from '../writer'
 import { ByteSplitter } from './Splitter'
-import { AbstractEyeDeserializer } from './adapters/AbstractEyeDeserializer'
-import { BeGazeEyeDeserializer } from './adapters/BeGazeEyeDeserializer'
-import { GazePointEyeDeserializer } from './adapters/GazePointEyeDeserializer'
-import { OgamaEyeDeserializer } from './adapters/OgamaEyeDeserializer'
-import { VarjoEyeDeserializer } from './adapters/VarjoEyeDeserializer'
-import { CsvEyeDeserializer } from './adapters/CsvEyeDeserializer'
-import { TobiiEyeDeserializer } from './adapters/TobiiEyeDeserializer'
+import { AbstractAdapter } from './adapters/AbstractAdapter'
+import { BeGazeAdapter } from './adapters/BeGazeAdapter'
+import { GazePointAdapter } from './adapters/GazePointAdapter'
+import { OgamaAdapter } from './adapters/OgamaAdapter'
+import { VarjoAdapter } from './adapters/VarjoAdapter'
+import { CsvAdapter } from './adapters/CsvAdapter'
+import { TobiiAdapter } from './adapters/TobiiAdapter'
 import type { EyeSettingsType } from '$lib/data/ingest/types'
 import type { DataType } from '$lib/data/types'
-import { CsvSegmentedFromToEyeDeserializer } from './adapters/CsvSegmentedFromToEyeDeserializer'
-import { CsvSegmentedDurationEyeDeserializer } from './adapters/CsvSegmentedDurationEyeDeserializer'
+import { CsvSegmentedFromToAdapter } from './adapters/CsvSegmentedFromToAdapter'
+import { CsvSegmentedDurationAdapter } from './adapters/CsvSegmentedDurationAdapter'
 
 export class EyePipeline {
   fileNames: string[]
@@ -19,7 +19,7 @@ export class EyePipeline {
 
   classifier: EyeClassifier = new EyeClassifier()
   writer: BinaryEyeWriter = new BinaryEyeWriter()
-  deserializer: AbstractEyeDeserializer | null = null
+  deserializer: AbstractAdapter | null = null
   completeSettings: EyeSettingsType | null = null
 
   requestUserInputCallback: () => Promise<string>
@@ -152,7 +152,7 @@ export class EyePipeline {
     }
 
     if (this.rowIndex === headerRowId) {
-      const headerText = decoder.decode(rawRow).replace(/^$libuFEFF/, '')
+      const headerText = decoder.decode(rawRow).replace(/^\uFEFF/, '')
       const header = headerText.split(settings.columnDelimiter)
       this.deserializer = this.getDeserializer(
         header,
@@ -179,10 +179,10 @@ export class EyePipeline {
     settings: EyeSettingsType,
     userStringInput: string,
     headerBytes?: Uint8Array
-  ): AbstractEyeDeserializer {
+  ): AbstractAdapter {
     switch (settings.type) {
       case 'begaze':
-        return new BeGazeEyeDeserializer(
+        return new BeGazeAdapter(
           header,
           settings.columnDelimiter,
           settings.encoding
@@ -204,40 +204,40 @@ export class EyePipeline {
           headerBytes
         )
       case 'gazepoint':
-        return new GazePointEyeDeserializer(
+        return new GazePointAdapter(
           header,
           fileName,
           settings.columnDelimiter,
           settings.encoding
         )
       case 'ogama':
-        return new OgamaEyeDeserializer(
+        return new OgamaAdapter(
           header,
           fileName,
           settings.columnDelimiter,
           settings.encoding
         )
       case 'varjo':
-        return new VarjoEyeDeserializer(
+        return new VarjoAdapter(
           header,
           fileName,
           settings.columnDelimiter,
           settings.encoding
         )
       case 'csv':
-        return new CsvEyeDeserializer(
+        return new CsvAdapter(
           header,
           settings.columnDelimiter,
           settings.encoding
         )
       case 'csv-segmented':
-        return new CsvSegmentedFromToEyeDeserializer(
+        return new CsvSegmentedFromToAdapter(
           header,
           settings.columnDelimiter,
           settings.encoding
         )
       case 'csv-segmented-duration':
-        return new CsvSegmentedDurationEyeDeserializer(
+        return new CsvSegmentedDurationAdapter(
           header,
           settings.columnDelimiter,
           settings.encoding
@@ -253,8 +253,8 @@ export class EyePipeline {
     columnDelimiter: string,
     encoding: EyeSettingsType['encoding'],
     headerBytes?: Uint8Array
-  ): TobiiEyeDeserializer {
-    return new TobiiEyeDeserializer(
+  ): TobiiAdapter {
+    return new TobiiAdapter(
       header,
       userInput,
       columnDelimiter,

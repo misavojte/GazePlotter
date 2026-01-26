@@ -1,11 +1,11 @@
 /**
- * Vitest tests for CsvEyeDeserializer
+ * Vitest tests for CsvAdapter
  *
- * @module CsvEyeDeserializer
- * @see $lib/data/ingest/stream/adapters/CsvEyeDeserializer.ts
+ * @module CsvAdapter
+ * @see $lib/data/ingest/stream/adapters/CsvAdapter.ts
  */
 
-import { CsvEyeDeserializer } from '$lib/data/ingest/stream/adapters/CsvEyeDeserializer'
+import { CsvAdapter } from '$lib/data/ingest/stream/adapters/CsvAdapter'
 import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
 import { test, expect, describe } from 'vitest'
 
@@ -54,7 +54,7 @@ type EmittedSegment = {
 const decoder = new TextDecoder('utf-8')
 const encodeRow = (row: string) => encodeString(row, 'utf-8')
 
-const collectOutputs = (sut: CsvEyeDeserializer) => {
+const collectOutputs = (sut: CsvAdapter) => {
   const outputs: EmittedSegment[] = []
   sut.onSegment = (start, end, categoryId, stimulus, participant, aoi) => {
     outputs.push({
@@ -69,7 +69,7 @@ const collectOutputs = (sut: CsvEyeDeserializer) => {
   return outputs
 }
 
-const processRow = (sut: CsvEyeDeserializer, row: string) => {
+const processRow = (sut: CsvAdapter, row: string) => {
   sut.processRowBytes(encodeRow(row), decoder)
 }
 
@@ -78,7 +78,7 @@ describe('CSV Deserializer - Single data', () => {
   const header = csvRows[0].split(',')
   const delim = ','
   test('Constructor', () => {
-    const sut = new CsvEyeDeserializer(header, delim)
+    const sut = new CsvAdapter(header, delim)
     expect(sut).toBeDefined()
     expect(sut.cAoi).toBe(3)
     expect(sut.cParticipant).toBe(1)
@@ -87,7 +87,7 @@ describe('CSV Deserializer - Single data', () => {
   })
 
   test('Process first row', () => {
-    const sut = new CsvEyeDeserializer(header, delim)
+    const sut = new CsvAdapter(header, delim)
     const outputs = collectOutputs(sut)
     processRow(sut, csvRows[1])
     expect(outputs).toHaveLength(0)
@@ -97,7 +97,7 @@ describe('CSV Deserializer - Single data', () => {
   })
 
   test('Process first segment', () => {
-    const sut = new CsvEyeDeserializer(header, delim)
+    const sut = new CsvAdapter(header, delim)
     const outputs = collectOutputs(sut)
     const row1 = csvRows[1]
     const row2 = csvRows[2]
@@ -121,7 +121,7 @@ describe('CSV Deserializer - Single data', () => {
   })
 
   test('Process second segment', () => {
-    const sut = new CsvEyeDeserializer(header, delim)
+    const sut = new CsvAdapter(header, delim)
     const outputs = collectOutputs(sut)
 
     const row1 = csvRows[1]
@@ -150,7 +150,7 @@ describe('CSV Deserializer - Single data', () => {
   })
 
   test('Sample 2 - baseTime between segments', () => {
-    const sut = new CsvEyeDeserializer(header, delim)
+    const sut = new CsvAdapter(header, delim)
     const outputs = collectOutputs(sut)
     const csvRows2 = csvMockDataTwo.split('\n')
     const row1 = csvRows2[1]
@@ -173,7 +173,7 @@ describe('CSV Deserializer - Single data', () => {
   })
 
   test('Sample 2 - no duplicity segments with 0,0', () => {
-    const sut = new CsvEyeDeserializer(header, delim)
+    const sut = new CsvAdapter(header, delim)
     const outputs = collectOutputs(sut)
     const csvRows2 = csvMockDataTwo.split('\n')
     const row1 = csvRows2[1]
@@ -194,7 +194,7 @@ describe('CSV Deserializer - Multiple data', async () => {
   test('Mock Data One', async () => {
     const rows = csvMockDataOne.split('\n')
     const header = rows[0].split(',')
-    const sut = new CsvEyeDeserializer(header, ',')
+    const sut = new CsvAdapter(header, ',')
     const outputs = collectOutputs(sut)
 
     for (let i = 1; i < rows.length; i++) {

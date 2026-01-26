@@ -1,10 +1,10 @@
-import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
+import { AbstractAdapter } from './AbstractAdapter'
 
 /**
  * This class is used to deserialize eye data from a CSV file which contains segments.
  * That means it has information about the start and end of each segment.
  */
-export class CsvSegmentedFromToEyeDeserializer extends AbstractEyeDeserializer {
+export class CsvSegmentedFromToAdapter extends AbstractAdapter {
   cFrom: number
   cTo: number
   cParticipant: number

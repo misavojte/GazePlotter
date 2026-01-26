@@ -1,4 +1,4 @@
-import { AbstractEyeDeserializer } from './AbstractEyeDeserializer'
+import { AbstractAdapter } from './AbstractAdapter'
 import { bytesEqual, encodeString } from '$lib/data/ingest/utils/byteUtils'
 
 /**
@@ -23,14 +23,14 @@ import { bytesEqual, encodeString } from '$lib/data/ingest/utils/byteUtils'
  * TODO: Improve tioming with duration info in the future
  *
  * Usage:
- *  const des = new GazePointEyeDeserializer(header, fileName);
+ *  const des = new GazePointAdapter(header, fileName);
  *  for (const row of rows) {
  *    const evt = des.deserialize(row);
  *    if (evt) handle(evt);
  *  }
  *  const last = des.finalize(); if (last) handle(last);
  */
-export class GazePointEyeDeserializer extends AbstractEyeDeserializer {
+export class GazePointAdapter extends AbstractAdapter {
   private idx = {
     time: -1,
     start: -1,
