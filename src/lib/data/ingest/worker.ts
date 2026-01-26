@@ -1,4 +1,4 @@
-import { EyePipeline } from '$lib/data/ingest'
+import { EyePipeline } from './stream/Pipeline'
 import { PupilCloudPipeline } from '$lib/data/ingest/batch/PupilPipeline'
 import type { EyeSettingsType } from '$lib/data/ingest/types'
 import type { DataType } from '$lib/data/types'
