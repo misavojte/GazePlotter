@@ -13,9 +13,9 @@
     getAllAois,
     getHiddenAois,
     engine,
-  } from '$lib/gaze-data/front-process'
+  } from '$lib/data/engine'
   import { addErrorToast, addInfoToast } from '$lib/toaster'
-  import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
+  import type { ExtendedInterpretedDataType } from '$lib/data/types'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'

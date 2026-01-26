@@ -1,0 +1,33 @@
+import { type DataType } from '$lib/data/types'
+import { binarySegmentsToJson } from '$lib/data/binary'
+import type { FileMetadataType } from '$lib/workspace/type'
+import { encodeJson, wrapProjectPayload } from '../encoders/json'
+
+/**
+ * Maps the application state (data + layout) into a Project manifest.
+ * It uses the JSON helper to serialize the final object.
+ */
+export function generateWorkplaceJson(
+  data: DataType,
+  gridItems: any[],
+  fileMetadata: FileMetadataType | null
+): string {
+  // 1. Prepare domain data (convert binary to legacy JSON for compatibility if needed)
+  const exportData = {
+    ...data,
+    segments: binarySegmentsToJson(data.segments),
+  } as unknown as DataType
+
+  // 2. Wrap into project schema
+  const payload = wrapProjectPayload(
+    {
+      data: exportData,
+      gridItems,
+      fileMetadata,
+    },
+    fileMetadata ? 3 : 2
+  )
+
+  // 3. Encode to JSON string
+  return encodeJson(payload)
+}

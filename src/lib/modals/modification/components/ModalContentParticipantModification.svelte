@@ -6,9 +6,9 @@
     IntroductoryParagraph,
   } from '$lib/modals'
   import { modalState } from '$lib/modals'
-  import { getAllParticipants } from '$lib/gaze-data/front-process'
+  import { getAllParticipants } from '$lib/data/engine'
   import { addErrorToast } from '$lib/toaster'
-  import type { BaseInterpretedDataType } from '$lib/gaze-data/shared/types'
+  import type { BaseInterpretedDataType } from '$lib/data/types'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'

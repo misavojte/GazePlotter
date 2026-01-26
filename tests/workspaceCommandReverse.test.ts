@@ -3,10 +3,10 @@ import { createWorkspaceCommandRegistry } from '$lib/workspace/commands/registry
 import type { WorkspaceCommandChain } from '$lib/workspace/commands'
 import type { GridState } from '$lib/workspace/grid'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
-import { engine } from '$lib/gaze-data/front-process/stores/dataStore.svelte'
+import { engine } from '$lib/data/engine'
 
 // Mock the data store
-vi.mock('$lib/gaze-data/front-process/stores/dataStore.svelte', () => ({
+vi.mock('$lib/data/engine', () => ({
   engine: {
     metadata: null,
   },

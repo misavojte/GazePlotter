@@ -1,6 +1,0 @@
-export * from './updators/index'
-export * from './selectors/index'
-export * from './stores/dataStore.svelte'
-export * from './class/EyeWorkerService'
-export * from './utils/jsonParsing'
-export type { JsonProcessingResult } from './utils/jsonParsing'

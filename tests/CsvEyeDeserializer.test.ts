@@ -2,14 +2,11 @@
  * Vitest tests for CsvEyeDeserializer
  *
  * @module CsvEyeDeserializer
- * @see $lib/gaze-data/back-process/class/EyeDeserializer/CsvEyeDeserializer.ts
+ * @see $lib/data/ingest/stream/adapters/CsvEyeDeserializer.ts
  */
 
-import { CsvEyeDeserializer } from '$lib/gaze-data/back-process/class/EyeDeserializer/CsvEyeDeserializer'
-import {
-  decodeBytes,
-  encodeString,
-} from '$lib/gaze-data/back-process/utils/byteUtils'
+import { CsvEyeDeserializer } from '$lib/data/ingest/stream/adapters/CsvEyeDeserializer'
+import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
 import { test, expect, describe } from 'vitest'
 
 const csvMockDataOne = `Time,Participant,Stimulus,AOI

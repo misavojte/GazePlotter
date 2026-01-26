@@ -2,15 +2,12 @@
  * Vitest tests for GazePointEyeDeserializer
  *
  * @module GazePointEyeDeserializer
- * @see $lib/gaze-data/back-process/class/EyeDeserializer/GazePointEyeDeserializer.ts
+ * @see $lib/data/ingest/stream/adapters/GazePointEyeDeserializer.ts
  */
 
 import { test, expect, describe } from 'vitest'
-import { GazePointEyeDeserializer } from '$lib/gaze-data/back-process/class/EyeDeserializer/GazePointEyeDeserializer'
-import {
-  decodeBytes,
-  encodeString,
-} from '$lib/gaze-data/back-process/utils/byteUtils'
+import { GazePointEyeDeserializer } from '$lib/data/ingest/stream/adapters/GazePointEyeDeserializer'
+import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
 
 const separator = ','
 const header =

@@ -2,14 +2,11 @@
  * Vitest tests for BeGazeEyeDeserializer
  *
  * @module BeGazeEyeDeserializer
- * @see $lib/gaze-data/back-process/class/EyeDeserializer/BeGazeEyeDeserializer.ts
+ * @see $lib/data/ingest/stream/adapters/BeGazeEyeDeserializer.ts
  */
 
-import { BeGazeEyeDeserializer } from '$lib/gaze-data/back-process/class/EyeDeserializer/BeGazeEyeDeserializer'
-import {
-  decodeBytes,
-  encodeString,
-} from '$lib/gaze-data/back-process/utils/byteUtils'
+import { BeGazeEyeDeserializer } from '$lib/data/ingest/stream/adapters/BeGazeEyeDeserializer'
+import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
 import { test, expect, describe } from 'vitest'
 
 const begazeMockData = `Event Start Trial Time [ms],Event End Trial Time [ms],Stimulus,Participant,Category,AOI Name

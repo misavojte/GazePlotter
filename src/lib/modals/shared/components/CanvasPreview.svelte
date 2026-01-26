@@ -7,10 +7,10 @@
     type ExportSource,
     type ExportSourceRegistrar,
     canvasToBlobWithWhiteBackground,
-    downloadBlob,
+    triggerDownload,
     getMimeType,
     getQuality,
-  } from '$lib/shared/utils/exportUtils'
+  } from '$lib/data/export'
 
   // Component props
   interface Props {
@@ -66,7 +66,7 @@
         quality
       )
 
-      downloadBlob(blob, `${fileName}${fileType}`)
+      triggerDownload(blob, `${fileName}${fileType}`, '')
     } catch (error: any) {
       console.error('Error generating download:', error)
       addErrorToast(

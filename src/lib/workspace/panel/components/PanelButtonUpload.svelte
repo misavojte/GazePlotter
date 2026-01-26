@@ -1,10 +1,10 @@
 <script lang="ts">
   import { GeneralButtonMajor } from '$lib/shared/components'
-  import { EyeWorkerService } from '$lib/gaze-data/front-process'
-  import type { DataType } from '$lib/gaze-data/shared/types'
+  import { EyeWorkerService } from '$lib/data/ingest'
+  import type { DataType } from '$lib/data/types'
   import { initializeGridStateStore, clear } from '$lib/workspace'
   import { fileState } from '$lib/file.state.svelte'
-  import { engine } from '$lib/gaze-data/front-process'
+  import { engine } from '$lib/data/engine'
   import { addErrorToast } from '$lib/toaster'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
   import type {

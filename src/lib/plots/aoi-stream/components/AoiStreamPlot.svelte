@@ -25,7 +25,7 @@
     getParticipants,
     getParticipantEndTime,
     engine,
-  } from '$lib/gaze-data/front-process'
+  } from '$lib/data/engine'
   import { HEADER_HEIGHT } from '../const'
 
   import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'

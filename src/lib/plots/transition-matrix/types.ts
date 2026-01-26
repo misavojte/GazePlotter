@@ -1,4 +1,4 @@
-import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
+import type { ExtendedInterpretedDataType } from '$lib/data/types'
 
 /**
  * Interface representing an Transition Matrix with labels

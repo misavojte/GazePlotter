@@ -1,7 +1,7 @@
 <script lang="ts">
   import { WorkspaceToolbarItem } from '$lib/workspace'
   import { fileState } from '$lib/file.state.svelte'
-  import { getHasValidData } from '$lib/gaze-data/front-process'
+  import { getHasValidData } from '$lib/data/engine'
   import { onMount } from 'svelte'
   import type {
     WorkspaceCommand,

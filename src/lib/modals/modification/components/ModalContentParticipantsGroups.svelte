@@ -1,10 +1,7 @@
 <script lang="ts">
-  import {
-    getParticipants,
-    getParticipantsGroups,
-  } from '$lib/gaze-data/front-process'
+  import { getParticipants, getParticipantsGroups } from '$lib/data/engine'
   import { addSuccessToast } from '$lib/toaster'
-  import type { ParticipantsGroup } from '$lib/gaze-data/shared/types/index'
+  import type { ParticipantsGroup } from '$lib/data/types'
   import {
     GeneralButtonMinor,
     GeneralButtonPreset,
@@ -249,7 +246,7 @@
     const updatedGroup = {
       ...group,
       participantsIds: group.participantsIds.filter(
-        id => !visibleParticipantIds.includes(id)
+        (id: number) => !visibleParticipantIds.includes(id)
       ),
     }
     updateGroup(group.id, updatedGroup)

@@ -3,7 +3,7 @@
     getNumberOfSegments,
     getParticipantEndTime,
     getParticipants,
-  } from '$lib/gaze-data/front-process'
+  } from '$lib/data/engine'
   import {
     getParticipantsGroupOptions,
     getStimuliOptions,

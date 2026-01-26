@@ -2,10 +2,10 @@
  * Vitest test for EyeClassifier
  *
  * @module EyeClassifier
- * @see $lib/gaze-data/back-process/class/EyeClassifier/EyeClassifier.ts
+ * @see $lib/data/ingest/stream/Classifier.ts
  */
 
-import { EyeClassifier } from '$lib/gaze-data/back-process/class/EyeClassifier/EyeClassifier'
+import { EyeClassifier } from '$lib/data/ingest/stream/Classifier'
 import { test, expect, describe } from 'vitest'
 
 const mockBeGazeData = `Event Start Trial Time [ms],Event End Trial Time [ms],Stimulus,Participant,Category,AOI Name

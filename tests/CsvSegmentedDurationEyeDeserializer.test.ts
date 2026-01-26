@@ -5,14 +5,11 @@
  * which processes CSV files containing segmented eye-tracking data with duration-based timing.
  *
  * @module CsvSegmentedDurationEyeDeserializer
- * @see src/lib/gaze-data/back-process/class/EyeDeserializer/CsvSegmentedDurationEyeDeserializer.ts
+ * @see src/lib/data/ingest/stream/adapters/CsvSegmentedDurationEyeDeserializer.ts
  */
 
-import { CsvSegmentedDurationEyeDeserializer } from '$lib/gaze-data/back-process/class/EyeDeserializer/CsvSegmentedDurationEyeDeserializer'
-import {
-  decodeBytes,
-  encodeString,
-} from '$lib/gaze-data/back-process/utils/byteUtils'
+import { CsvSegmentedDurationEyeDeserializer } from '$lib/data/ingest/stream/adapters/CsvSegmentedDurationEyeDeserializer'
+import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
 import { test, expect, describe } from 'vitest'
 
 /**

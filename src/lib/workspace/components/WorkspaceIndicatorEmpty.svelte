@@ -3,7 +3,7 @@
   import PanelButtonDemo from '$lib/workspace/panel/components/PanelButtonDemo.svelte'
   import { fade } from 'svelte/transition'
   import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
-  import { getHasValidData } from '$lib/gaze-data/front-process'
+  import { getHasValidData } from '$lib/data/engine'
   import { modalState } from '$lib/modals'
   import { ModalContentMetadataInfo } from '$lib/modals/info/components'
   import GridItemContainer from '$lib/workspace/grid/GridItemContainer.svelte'
@@ -13,7 +13,6 @@
   } from '$lib/workspace/commands'
   import { createRootCommand } from '$lib/workspace/commands'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
-  import Grid from '../grid/Grid.svelte'
 
   interface Props {
     onReinitialize: () => void

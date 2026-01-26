@@ -1,4 +1,4 @@
-import { getParticipants, getAois, engine } from '$lib/gaze-data/front-process'
+import { getParticipants, getAois, engine } from '$lib/data/engine'
 import { formatDecimal } from '$lib/shared/utils/mathUtils'
 import { MatrixAggregationMethod } from '../const'
 import type { TransitionMatrixData } from '../types'

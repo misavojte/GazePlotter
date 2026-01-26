@@ -1,7 +1,7 @@
 import {
   getParticipants,
   getParticipantEndTime,
-} from '$lib/gaze-data/front-process'
+} from '$lib/data/engine'
 import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/plotSizeUtility'
 import {
   calculateFlatLegendHeight,
@@ -11,7 +11,7 @@ import { estimateTextWidth } from '$lib/shared/utils/textUtils'
 import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
 import { getAoiStreamPlotData } from '../core/transformer'
 import { scanForSynchronizedTimelineMax } from './timeline'
-import { engine } from '$lib/gaze-data/front-process'
+import { engine } from '$lib/data/engine'
 import type { AoiStreamPlotResult } from '../types'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 import { calculateIdealStripHeight } from '../core/ridgeline'

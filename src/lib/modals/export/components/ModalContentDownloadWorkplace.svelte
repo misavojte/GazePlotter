@@ -1,7 +1,7 @@
 <script lang="ts">
   import { SectionHeader } from '$lib/modals'
-  import { WorkplaceDownloader } from '$lib/modals/export/class/WorkplaceDownloader.js'
-  import { engine } from '$lib/gaze-data/front-process'
+  import { downloadWorkplace } from '$lib/data/export'
+  import { engine } from '$lib/data/engine'
   import { modalState } from '$lib/modals'
   import {
     ModalContentExportSegmentedData,
@@ -14,12 +14,11 @@
 
   const handleSubmit = () => {
     if (type === 'inner-json') {
-      const downloader = new WorkplaceDownloader()
       const meta = engine.metadata
       const segments = engine.segments
       if (!meta || !segments)
         throw new Error('Data engine metadata or segments not available')
-      downloader.download({ ...meta, segments }, fileName)
+      downloadWorkplace({ ...meta, segments }, fileName)
     }
   }
 

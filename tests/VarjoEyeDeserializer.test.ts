@@ -2,15 +2,12 @@
  * Vitest tests for VarjoEyeDeserializer
  *
  * @module VarjoEyeDeserializer
- * @see $lib/gaze-data/back-process/class/EyeDeserializer/VarjoEyeDeserializer.ts
+ * @see $lib/data/ingest/stream/adapters/VarjoEyeDeserializer.ts
  */
 
-import { VarjoEyeDeserializer } from '$lib/gaze-data/back-process/class/EyeDeserializer/VarjoEyeDeserializer'
+import { VarjoEyeDeserializer } from '$lib/data/ingest/stream/adapters/VarjoEyeDeserializer'
 import { test, expect, describe } from 'vitest'
-import {
-  decodeBytes,
-  encodeString,
-} from '$lib/gaze-data/back-process/utils/byteUtils'
+import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
 
 /*
   constructor (header: string[], fileName: string) {

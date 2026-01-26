@@ -2,7 +2,7 @@
   import { modalState } from '$lib/modals'
   import { GeneralInputNumber, GeneralInputColor } from '$lib/shared/components'
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
-  import { getStimuliOrderVector } from '$lib/gaze-data/front-process'
+  import { getStimuliOrderVector } from '$lib/data/engine'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
   import type { UpdateSettingsCommand } from '$lib/workspace/commands'
   import {
@@ -23,18 +23,23 @@
   const currentStimulusId = settings.stimulusId
 
   // Get current stimulus-specific range or use defaults
-  let newMinValue = $state(
-    settings.stimuliColorValueRanges[currentStimulusId]?.[0] ?? 0
-  )
-  let newMaxValue = $state(
-    settings.stimuliColorValueRanges[currentStimulusId]?.[1] ?? 0
-  )
+  let newMinValue = $state(0)
+  let newMaxValue = $state(0)
 
   // Setup state for display options
-  let belowMinColor = $state(settings.belowMinColor || '#e0e0e0')
-  let aboveMaxColor = $state(settings.aboveMaxColor || '#e0e0e0')
-  let showBelowMinLabels = $state(settings.showBelowMinLabels ? 'show' : 'hide')
-  let showAboveMaxLabels = $state(settings.showAboveMaxLabels ? 'show' : 'hide')
+  let belowMinColor = $state('#e0e0e0')
+  let aboveMaxColor = $state('#e0e0e0')
+  let showBelowMinLabels = $state('hide')
+  let showAboveMaxLabels = $state('hide')
+
+  $effect(() => {
+    newMinValue = settings.stimuliColorValueRanges[currentStimulusId]?.[0] ?? 0
+    newMaxValue = settings.stimuliColorValueRanges[currentStimulusId]?.[1] ?? 0
+    belowMinColor = settings.belowMinColor || '#e0e0e0'
+    aboveMaxColor = settings.aboveMaxColor || '#e0e0e0'
+    showBelowMinLabels = settings.showBelowMinLabels ? 'show' : 'hide'
+    showAboveMaxLabels = settings.showAboveMaxLabels ? 'show' : 'hide'
+  })
 
   // Options for show/hide radio buttons
   const visibilityOptions = [

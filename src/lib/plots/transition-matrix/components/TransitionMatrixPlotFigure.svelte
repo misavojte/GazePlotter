@@ -25,7 +25,7 @@
   import {
     EXPORT_SOURCE_CONTEXT,
     type ExportSourceRegistrar,
-  } from '$lib/shared/utils/exportUtils'
+  } from '$lib/data/export'
   import {
     TRANSITION_MATRIX_LAYOUT,
     TRANSITION_MATRIX_DEFAULTS,

@@ -1,8 +1,8 @@
 <script lang="ts">
   import { GazePlotter } from '$lib'
   import { base } from '$app/paths'
-  import { EyeWorkerService } from '$lib/gaze-data/front-process/class/EyeWorkerService'
-  import type { ParsedData } from '$lib/gaze-data/shared/types'
+  import { EyeWorkerService } from '$lib/data/ingest/controller'
+  import type { ParsedData } from '$lib/data/types'
   import { browser } from '$app/environment'
   // Format the build date
   const buildDate = new Date(__BUILD_DATE__)

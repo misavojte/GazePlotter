@@ -1,4 +1,4 @@
-import type { EyeSettingsType } from '$lib/gaze-data/back-process/types/EyeSettingsType'
+import type { EyeSettingsType } from '$lib/data/ingest/types'
 
 /**
  * Basic file input information captured when files are selected.
@@ -39,9 +39,3 @@ export interface FileMetadataFailureType extends FileInputType {
  * Union type for file metadata that can represent either success or failure states.
  */
 export type FileMetadataType = FileMetadataSuccessType | FileMetadataFailureType
-
-/**
- * Legacy type for backward compatibility with older code.
- * @deprecated Use FileMetadataSuccessType instead
- */
-export type FileMetadataLegacyType = Omit<FileMetadataSuccessType, 'status'>

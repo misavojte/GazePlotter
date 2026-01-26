@@ -5,7 +5,7 @@ import {
   getHiddenAois,
   getAoiOrderVector,
   engine,
-} from '$lib/gaze-data/front-process'
+} from '$lib/data/engine'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
 import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'

@@ -5,14 +5,11 @@
  * are just the index of the letter in the string.
  *
  * @module OgamaEyeDeserializer
- * @see $lib/gaze-data/back-process/class/EyeDeserializer/OgamaEyeDeserializer.ts
+ * @see $lib/data/ingest/stream/adapters/OgamaEyeDeserializer.ts
  */
 
-import { OgamaEyeDeserializer } from '$lib/gaze-data/back-process/class/EyeDeserializer/OgamaEyeDeserializer'
-import {
-  decodeBytes,
-  encodeString,
-} from '$lib/gaze-data/back-process/utils/byteUtils'
+import { OgamaEyeDeserializer } from '$lib/data/ingest/stream/adapters/OgamaEyeDeserializer'
+import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
 import { test, expect, describe } from 'vitest'
 
 const ogamaMockDataOne = `Sequence Similarity,Scanpath string

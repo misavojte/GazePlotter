@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getStimuliOrderVector } from '$lib/gaze-data/front-process'
+  import { getStimuliOrderVector } from '$lib/data/engine'
   import GeneralFieldset from '$lib/shared/components/GeneralFieldset.svelte'
   import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
   import GeneralInputNumber from '$lib/shared/components/GeneralInputNumber.svelte'

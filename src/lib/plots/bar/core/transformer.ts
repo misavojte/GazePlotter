@@ -2,13 +2,13 @@ import {
   getAois,
   getParticipantsIds,
   engine,
-} from '$lib/gaze-data/front-process'
+} from '$lib/data/engine'
 import {
   createAdaptiveTimeline,
   type AdaptiveTimeline,
 } from '$lib/plots/shared'
 import type { BarPlotGridType } from '$lib/workspace/type/gridType'
-import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
+import type { ExtendedInterpretedDataType } from '$lib/data/types'
 import {
   formatDecimal,
   normalizeToPercentages,

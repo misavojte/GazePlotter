@@ -3,7 +3,7 @@
  * @category Services
  * @module services/aoiVisibilityServices
  */
-import { getStimulusHighestEndTime } from '$lib/gaze-data/front-process'
+import { getStimulusHighestEndTime } from '$lib/data/engine'
 import type { UpdateAoiVisibilityCommand } from '$lib/workspace/commands'
 
 /**

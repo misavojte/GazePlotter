@@ -2,12 +2,12 @@
  * Optimized single-pass collector for AOI stream data.
  * Extracted from data.ts to separate collection from transformation/view logic.
  */
-import { engine } from '$lib/gaze-data/front-process'
+import { engine } from '$lib/data/engine'
 import {
   SEGMENT_STRIDE,
   SegmentField,
   type ExtendedInterpretedDataType,
-} from '$lib/gaze-data/shared/types'
+} from '$lib/data/types'
 import { END_BIN_EPSILON, FIXATION_CATEGORY_ID } from '../const'
 
 export interface AoiStreamMetricSeries {

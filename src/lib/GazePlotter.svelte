@@ -5,7 +5,7 @@
   import Workspace from '$lib/workspace/components/Workspace.svelte'
   import { Tooltip } from '$lib/tooltip'
   import { ContextMenu } from '$lib/context-menu'
-  import type { ParsedData } from '$lib/gaze-data/shared/types'
+  import type { ParsedData } from '$lib/data/types'
   import { onMount, tick, setContext } from 'svelte'
 
   // NEW: Import the unified grid instance
@@ -13,7 +13,7 @@
 
   import { clear } from './workspace'
   import { fileState } from '$lib/file.state.svelte'
-  import { engine } from './gaze-data/front-process/stores/dataStore.svelte'
+  import { engine } from '$lib/data/engine'
   import { addSuccessToast } from '$lib/toaster'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
   import type { WorkspaceCommandChain } from '$lib/workspace/commands'

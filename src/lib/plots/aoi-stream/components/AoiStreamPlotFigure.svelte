@@ -4,7 +4,7 @@
   import {
     EXPORT_SOURCE_CONTEXT,
     type ExportSourceRegistrar,
-  } from '$lib/shared/utils/exportUtils'
+  } from '$lib/data/export'
   import {
     createCanvasState,
     setupCanvas,

@@ -1,7 +1,7 @@
 import {
   getParticipants,
   getParticipantEndTime,
-} from '$lib/gaze-data/front-process'
+} from '$lib/data/engine'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
 /**

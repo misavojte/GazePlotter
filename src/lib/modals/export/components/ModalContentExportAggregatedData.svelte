@@ -14,7 +14,8 @@
     getAllAois,
     getParticipant,
     getStimulus,
-  } from '$lib/gaze-data/front-process'
+  } from '$lib/data/engine'
+  import type { ParticipantsGroup } from '$lib/data/types'
   import { collectParticipantBarMetrics } from '$lib/plots/bar/core/collector'
   import type { ParticipantBarMetrics } from '$lib/plots/bar/types'
   import { addSuccessToast } from '$lib/toaster'
@@ -23,8 +24,9 @@
   import {
     type DecimalSeparator,
     escapeCsvField,
+    type CsvFormatOptions,
     formatNumberForCsv,
-  } from '$lib/shared/utils/csvFormatUtils'
+  } from '$lib/data/export'
 
   interface Props {
     settings?: BarPlotGridType

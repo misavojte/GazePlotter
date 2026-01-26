@@ -2,16 +2,13 @@
  * Vitest tests for TobiiEyeDeserializer
  *
  * @module TobiiEyeDeserializer
- * @see $lib/gaze-data/back-process/class/EyeDeserializer/TobiiEyeDeserializer.ts
+ * @see $lib/data/ingest/stream/adapters/TobiiEyeDeserializer.ts
  */
 
 import { describe, test, expect } from 'vitest'
-import { TobiiEyeDeserializer } from '$lib/gaze-data/back-process/class/EyeDeserializer/TobiiEyeDeserializer'
+import { TobiiEyeDeserializer } from '$lib/data/ingest/stream/adapters/TobiiEyeDeserializer'
 import { testMobileTsvData } from './TobiiEyeDeserializer.test.data'
-import {
-  decodeBytes,
-  encodeString,
-} from '$lib/gaze-data/back-process/utils/byteUtils'
+import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
 
 type EmittedSegment = {
   start: number

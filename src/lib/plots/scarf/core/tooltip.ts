@@ -1,7 +1,7 @@
 import {
   getParticipant,
   getSegment,
-} from '$lib/gaze-data/front-process'
+} from '$lib/data/engine'
 import { updateTooltip } from '$lib/tooltip'
 import type { ScarfTooltipData } from '$lib/plots/scarf/types'
 

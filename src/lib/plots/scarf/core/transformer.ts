@@ -13,13 +13,13 @@ import {
   getParticipantEndTime,
   getStimuli,
   hasStimulusAoiVisibility,
-} from '$lib/gaze-data/front-process'
+} from '$lib/data/engine'
 import {
   MAX_AOI_PER_STIMULUS,
   SegmentField,
   SEGMENT_STRIDE,
   type ExtendedInterpretedDataType,
-} from '$lib/gaze-data/shared/types'
+} from '$lib/data/types'
 import {
   createAdaptiveTimeline,
   type AdaptiveTimeline,

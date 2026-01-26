@@ -1,5 +1,5 @@
-import { getSegments } from '$lib/gaze-data/front-process'
-import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
+import { getSegments } from '$lib/data/engine'
+import type { ExtendedInterpretedDataType } from '$lib/data/types'
 import { createArray } from '$lib/shared/utils/mathUtils'
 import type { ParticipantBarMetrics } from '../types'
 

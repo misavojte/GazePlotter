@@ -1,7 +1,7 @@
 <script lang="ts">
   import { GeneralInputText, GeneralSelect } from '$lib/shared/components'
   import { SectionHeader, ModalButtons } from '$lib/modals'
-  import { ScanGraphDownloader } from '$lib/modals/export/class/ScanGraphDownloader'
+  import { downloadScanGraph } from '$lib/data/export'
   import { getStimuliOptions } from '$lib/plots/shared'
   import { addSuccessToast } from '$lib/toaster'
   import { modalState } from '$lib/modals'
@@ -28,8 +28,7 @@
       // Small delay to show the loading state
       await new Promise(resolve => setTimeout(resolve, 100))
 
-      const downloader = new ScanGraphDownloader()
-      downloader.download(parseInt(stimulusId), fileName.trim())
+      downloadScanGraph(parseInt(stimulusId), fileName.trim())
 
       addSuccessToast('ScanGraph file exported successfully')
     } catch (error) {

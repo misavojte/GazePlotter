@@ -2,14 +2,11 @@
  * Vitest tests for CsvSegmentedFromToEyeDeserializer
  *
  * @module CsvSegmentedFromToEyeDeserializer
- * @see src/lib/class/Eye/EyeDeserializer/CsvSegmentedFromToEyeDeserializer.ts
+ * @see src/lib/data/ingest/stream/adapters/CsvSegmentedFromToEyeDeserializer.ts
  */
 
-import { CsvSegmentedFromToEyeDeserializer } from '$lib/gaze-data/back-process/class/EyeDeserializer/CsvSegmentedFromToEyeDeserializer'
-import {
-  decodeBytes,
-  encodeString,
-} from '$lib/gaze-data/back-process/utils/byteUtils'
+import { CsvSegmentedFromToEyeDeserializer } from '$lib/data/ingest/stream/adapters/CsvSegmentedFromToEyeDeserializer'
+import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
 import { test, expect, describe } from 'vitest'
 
 const csvMockDataOne = `From,To,Participant,Stimulus,AOI

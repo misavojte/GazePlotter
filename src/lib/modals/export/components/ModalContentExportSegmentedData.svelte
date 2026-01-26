@@ -1,8 +1,8 @@
 <script lang="ts">
   import { GeneralInputText, GeneralSelect } from '$lib/shared/components'
   import { SectionHeader, ModalButtons } from '$lib/modals'
-  import { WorkplaceDownloader } from '$lib/modals/export/class/WorkplaceDownloader.js'
-  import { engine } from '$lib/gaze-data/front-process'
+  import { downloadUnifiedCsv, downloadBatchZip } from '$lib/data/export'
+  import { engine } from '$lib/data/engine'
   import { addSuccessToast } from '$lib/toaster'
   import { modalState } from '$lib/modals'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'
@@ -50,7 +50,6 @@
       // Small delay to show the loading state
       await new Promise(resolve => setTimeout(resolve, 100))
 
-      const downloader = new WorkplaceDownloader()
       const meta = engine.metadata
       const segments = engine.segments
       if (!meta || !segments)
@@ -62,15 +61,10 @@
       }
 
       if (exportType === 'csv') {
-        downloader.downloadCSV(data, fileName.trim(), csvOptions)
+        downloadUnifiedCsv(data, fileName.trim(), csvOptions)
         addSuccessToast('Single CSV file exported successfully')
       } else if (exportType === 'individual-csv') {
-        downloader.downloadIndividualCSV(
-          data,
-          fileName.trim(),
-          true,
-          csvOptions
-        )
+        downloadBatchZip(data, fileName.trim(), true, csvOptions)
         addSuccessToast('Individual CSV files exported and zipped successfully')
       }
     } catch (error) {

@@ -2,8 +2,8 @@
   import { GazePlotter } from '$lib'
   import { base } from '$app/paths'
   import { browser } from '$app/environment'
-  import type { ParsedData } from '$lib/gaze-data/shared/types'
-  import { EyeWorkerService } from '$lib/gaze-data/front-process/class/EyeWorkerService'
+  import type { ParsedData } from '$lib/data/types'
+  import { EyeWorkerService } from '$lib/data/ingest/controller'
   import {
     Survey,
     surveyStore,

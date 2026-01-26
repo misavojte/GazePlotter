@@ -8,7 +8,7 @@
     engine,
     getNumberOfStimuli,
     getNumberOfParticipants,
-  } from '$lib/gaze-data/front-process'
+  } from '$lib/data/engine'
   import { onMount, onDestroy } from 'svelte'
   import { modalState } from '$lib/modals'
   const fileMetadata = $derived(fileState.metadata)

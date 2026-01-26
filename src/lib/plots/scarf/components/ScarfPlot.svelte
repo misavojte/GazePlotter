@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getParticipants, engine } from '$lib/gaze-data/front-process'
+  import { getParticipants, engine } from '$lib/data/engine'
   import { onDestroy, onMount, untrack } from 'svelte'
   import { ScarfPlotFigure, ScarfPlotHeader } from '$lib/plots/scarf/components'
   import { BasePlot } from '$lib/plots/shared/components'

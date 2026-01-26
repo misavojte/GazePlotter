@@ -14,9 +14,9 @@ import {
   updateMultipleStimuli,
   updateNoAoiTreatment,
   updateParticipantsGroups,
-} from '$lib/gaze-data/front-process'
+} from '$lib/data/engine'
 import type { GridItemMap, AllGridTypes } from '$lib/workspace/type/gridType'
-import type { ExtendedInterpretedDataType } from '$lib/gaze-data/shared/types'
+import type { ExtendedInterpretedDataType } from '$lib/data/types'
 
 const DEFAULT_AOI_COLORS = [
   '#66c5cc',

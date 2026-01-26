@@ -1,13 +1,10 @@
 <script lang="ts">
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
   import type { ScarfData } from '$lib/plots/scarf/types'
-  import {
-    transformDataToScarfPlot,
-    ScarfPlotFigure,
-    SCARF_LAYOUT,
-  } from '$lib/plots'
+  import { transformDataToScarfPlot, ScarfPlotFigure } from '$lib/plots'
   import GeneralCanvasPreview from '$lib/modals/shared/components/CanvasPreview.svelte'
-  import { getParticipants, engine } from '$lib/gaze-data/front-process'
+  import { getParticipants, engine } from '$lib/data/engine'
+  import type { BaseInterpretedDataType } from '$lib/data/types'
   import { untrack } from 'svelte'
   import { SectionHeader, DownloadPlotSettings } from '$lib/modals'
 
@@ -39,7 +36,7 @@
       untrack(() => settings.stimulusId),
       untrack(() =>
         getParticipants(settings.groupId, settings.stimulusId).map(
-          participant => participant.id
+          (participant: BaseInterpretedDataType) => participant.id
         )
       ),
       untrack(() => settings),

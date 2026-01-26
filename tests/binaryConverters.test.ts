@@ -9,8 +9,8 @@ import {
   binarySegmentsToJson,
   validateRoundtrip,
   createReaderFromJson,
-} from '../src/lib/gaze-data/shared/types/binaryConverters'
-import type { BinarySegmentBuffers } from '../src/lib/gaze-data/shared/types/binaryDataTypes'
+} from '../src/lib/data/shared/types/binaryConverters'
+import type { BinarySegmentBuffers } from '../src/lib/data/shared/types/binaryDataTypes'
 
 describe('Binary Converters Roundtrip', () => {
   it('should handle empty segments', () => {

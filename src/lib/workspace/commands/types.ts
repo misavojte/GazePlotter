@@ -2,7 +2,7 @@ import type {
   ExtendedInterpretedDataType,
   BaseInterpretedDataType,
   ParticipantsGroup,
-} from '$lib/gaze-data/shared/types'
+} from '$lib/data/types'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
 /**

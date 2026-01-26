@@ -2,7 +2,7 @@ import {
   getStimuli,
   getParticipantsGroups,
   getParticipants,
-} from '$lib/gaze-data/front-process'
+} from '$lib/data/engine'
 
 /**
  * Get the stimuli options for a plot
