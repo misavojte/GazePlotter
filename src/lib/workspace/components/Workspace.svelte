@@ -108,26 +108,24 @@
     bind:this={workspaceContainer}
     role="none"
   >
-    <Grid
-      gridItems={grid.items}
-      {gridConfig}
-      gridHeight={grid.height}
-      gridWidth={grid.width}
-      gridIsEmpty={grid.isEmpty}
-      {workspaceContainer}
-      onWorkspaceCommand={handleWorkspaceCommand}
-    />
-
     {#if grid.isEmpty && !(fileState.processing === 'processing' || grid.isLoading)}
       <WorkspaceIndicatorEmpty
         {onReinitialize}
         onWorkspaceCommand={handleWorkspaceCommand}
         {initialLayoutState}
       />
-    {/if}
-
-    {#if fileState.processing === 'processing' || grid.isLoading}
+    {:else if fileState.processing === 'processing' || grid.isLoading}
       <WorkspaceIndicatorLoading />
+    {:else}
+      <Grid
+        gridItems={grid.items}
+        {gridConfig}
+        gridHeight={grid.height}
+        gridWidth={grid.width}
+        gridIsEmpty={grid.isEmpty}
+        {workspaceContainer}
+        onWorkspaceCommand={handleWorkspaceCommand}
+      />
     {/if}
   </div>
 </div>
