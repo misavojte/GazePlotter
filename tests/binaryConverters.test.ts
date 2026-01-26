@@ -9,8 +9,7 @@ import {
   binarySegmentsToJson,
   validateRoundtrip,
   createReaderFromJson,
-} from '../src/lib/data/shared/types/binaryConverters'
-import type { BinarySegmentBuffers } from '../src/lib/data/shared/types/binaryDataTypes'
+} from '../src/lib/data/binary/converters'
 
 describe('Binary Converters Roundtrip', () => {
   it('should handle empty segments', () => {

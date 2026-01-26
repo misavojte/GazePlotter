@@ -6,7 +6,7 @@
   import { addSuccessToast } from '$lib/toaster'
   import { modalState } from '$lib/modals'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'
-  import type { DecimalSeparator } from '$lib/shared/utils/csvFormatUtils'
+  import type { DecimalSeparator } from '$lib/data/export/encoders/csv'
 
   // Export settings state
   let fileName = $state('GazePlotter-SegmentedData')
