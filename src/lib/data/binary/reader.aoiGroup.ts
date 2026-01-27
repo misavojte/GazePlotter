@@ -121,6 +121,7 @@ export class AoiGroupReader {
   /**
    * Internal zero-allocation utility for iterating unique mapped AOIs in a segment.
    * Consolidates deduplication logic (bitmask for small sets, stamp-table for large).
+   * @returns The number of unique mapped AOIs (without hidden AOIs).
    */
   private _forEachUniqueMappedAoi(
     segmentIndex: number,
