@@ -138,15 +138,23 @@
           value: 'center',
           label: 'Center',
           component: AoiStreamPlotAlignmentSettings,
-          componentHeight: 120,
+          componentHeight: 170,
           componentProps: {
             defaultValue: (settings.binSize ?? 0) > 0 ? settings.binSize! : 500,
+            defaultValueTimelineStart: settings.timelineStart ?? 0,
+            defaultValueTimelineEnd: settings.timelineEnd ?? 0,
           },
           action: (data: any) => {
             const updates: any = { alignment: 'center' }
             if (data?.binSize !== undefined) {
               const binSize = parseInt(data.binSize)
               updates.binSize = isNaN(binSize) || binSize <= 0 ? 500 : binSize
+            }
+            if (data?.timelineStart !== undefined) {
+              updates.timelineStart = parseInt(data.timelineStart)
+            }
+            if (data?.timelineEnd !== undefined) {
+              updates.timelineEnd = parseInt(data.timelineEnd)
             }
             onWorkspaceCommand({
               type: 'updateSettings',
@@ -160,15 +168,23 @@
           value: 'bottom',
           label: 'Bottom',
           component: AoiStreamPlotAlignmentSettings,
-          componentHeight: 120,
+          componentHeight: 170,
           componentProps: {
             defaultValue: (settings.binSize ?? 0) > 0 ? settings.binSize! : 500,
+            defaultValueTimelineStart: settings.timelineStart ?? 0,
+            defaultValueTimelineEnd: settings.timelineEnd ?? 0,
           },
           action: (data: any) => {
             const updates: any = { alignment: 'bottom' }
             if (data?.binSize !== undefined) {
               const binSize = parseInt(data.binSize)
               updates.binSize = isNaN(binSize) || binSize <= 0 ? 500 : binSize
+            }
+            if (data?.timelineStart !== undefined) {
+              updates.timelineStart = parseInt(data.timelineStart)
+            }
+            if (data?.timelineEnd !== undefined) {
+              updates.timelineEnd = parseInt(data.timelineEnd)
             }
             onWorkspaceCommand({
               type: 'updateSettings',
@@ -182,10 +198,12 @@
           value: 'ridgeline',
           label: 'Ridgeline',
           component: AoiStreamPlotAlignmentSettings,
-          componentHeight: 180, // Increased for two inputs
+          componentHeight: 240, // Increased for two inputs
           componentProps: {
             defaultValue: (settings.binSize ?? 0) > 0 ? settings.binSize! : 500,
             defaultValueScale: settings.ridgelineScale ?? RIDGELINE_SCALE,
+            defaultValueTimelineStart: settings.timelineStart ?? 0,
+            defaultValueTimelineEnd: settings.timelineEnd ?? 0,
           },
           action: (data: any) => {
             const updates: any = { alignment: 'ridgeline' }
@@ -195,6 +213,12 @@
             }
             if (data?.ridgelineScale !== undefined) {
               updates.ridgelineScale = parseFloat(data.ridgelineScale)
+            }
+            if (data?.timelineStart !== undefined) {
+              updates.timelineStart = parseInt(data.timelineStart)
+            }
+            if (data?.timelineEnd !== undefined) {
+              updates.timelineEnd = parseInt(data.timelineEnd)
             }
             onWorkspaceCommand({
               type: 'updateSettings',
@@ -210,8 +234,10 @@
 
   // Legacy Alignment helpers removed
 
-  // Calculate timeline min value based on absoluteStimuliLimits
+  // Calculate timeline min value
   const timelineMinValue = $derived.by(() => {
+    // If global timeline start is set (> 0), use it
+    if ((settings.timelineStart ?? 0) > 0) return settings.timelineStart!
     return settings.absoluteStimuliLimits[settings.stimulusId]?.[0] ?? 0
   })
 
@@ -220,7 +246,10 @@
     const maxValue =
       settings.absoluteStimuliLimits[settings.stimulusId]?.[1] ?? 0
 
-    // If explicitly set, use it
+    // If global timeline end is set (> 0), use it
+    if ((settings.timelineEnd ?? 0) > 0) return settings.timelineEnd!
+
+    // If explicitly set via stimulus limits, use it
     if (maxValue !== 0) return maxValue
 
     // Check for synchronized timeline across plots with same width and no clipping

@@ -6,13 +6,12 @@
   import Download from 'lucide-svelte/icons/download'
   import Settings from 'lucide-svelte/icons/settings-2'
   import Users from 'lucide-svelte/icons/users'
-  import Scissors from 'lucide-svelte/icons/scissors-line-dashed'
+
   import {
     ModalContentAoiModification,
     ModalContentDownloadAoiStreamPlot,
     ModalContentParticipantsGroups,
     ModalContentStimulusModification,
-    ModalContentAoiStreamPlotClip,
   } from '$lib/modals'
   import type { ComponentProps } from 'svelte'
   import type { WorkspaceCommand } from '$lib/workspace/commands'
@@ -44,18 +43,6 @@
       ModalContentStimulusModification as unknown as typeof SvelteComponent,
       'Stimulus customization',
       {
-        source,
-        onWorkspaceCommand,
-      }
-    )
-  }
-
-  const openClipModal = () => {
-    modalState.open(
-      ModalContentAoiStreamPlotClip as unknown as typeof SvelteComponent,
-      'Clip AOI stream timeline',
-      {
-        settings,
         source,
         onWorkspaceCommand,
       }
@@ -99,11 +86,7 @@
       action: openUserGroupsModal,
       icon: Users,
     },
-    {
-      label: 'Clip timeline',
-      action: openClipModal,
-      icon: Scissors,
-    },
+
     {
       label: 'Download plot',
       action: openDownloadModal,

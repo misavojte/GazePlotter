@@ -80,7 +80,6 @@
     marginBottom?: number
     marginLeft?: number
     stripHeightOverride?: number | null
-    stripHeightOverride?: number | null
     ridgelineScale?: number
   }
 

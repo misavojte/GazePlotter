@@ -141,6 +141,10 @@ export interface AoiStreamPlotGridType extends GridType {
   alignment?: 'center' | 'bottom' | 'ridgeline'
   /** Vertical scaling factor for ridgeline mode (>= 0.1, default 2.5) */
   ridgelineScale?: number
+  /** Global timeline start (0 = beginning of timeline) */
+  timelineStart?: number
+  /** Global timeline end (0 = automatic) */
+  timelineEnd?: number
 }
 
 /**
