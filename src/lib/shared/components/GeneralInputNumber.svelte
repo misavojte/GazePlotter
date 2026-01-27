@@ -7,6 +7,7 @@
     label: string
     oninput?: (event: Event) => void
     disabled?: boolean
+    step?: number
   }
 
   let {
@@ -15,6 +16,7 @@
     label,
     oninput = () => {},
     disabled = false,
+    step = 1,
   }: Props = $props()
 
   function handleInput(event: Event) {
@@ -31,7 +33,15 @@
 </script>
 
 <GeneralInputScaffold {label} {id}>
-  <input {id} type="number" bind:value {min} {disabled} oninput={handleInput} />
+  <input
+    {id}
+    type="number"
+    bind:value
+    {min}
+    {disabled}
+    {step}
+    oninput={handleInput}
+  />
 </GeneralInputScaffold>
 
 <style>

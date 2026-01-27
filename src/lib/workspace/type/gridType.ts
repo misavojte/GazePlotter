@@ -127,8 +127,8 @@ export interface AoiStreamPlotGridType extends GridType {
   stimulusId: number
   /** ID of the group rendered in the stream */
   groupId: number
-  /** Number of time bins for the stream */
-  binCount: number
+  /** Duration of each time bin in milliseconds */
+  binSize: number
   /** Array of AOI IDs to highlight (string format for consistency) */
   highlights?: string[]
   /**
@@ -139,6 +139,8 @@ export interface AoiStreamPlotGridType extends GridType {
   absoluteStimuliLimits: [number, number][]
   /** Stream graph alignment mode */
   alignment?: 'center' | 'bottom' | 'ridgeline'
+  /** Vertical scaling factor for ridgeline mode (>= 0.1, default 2.5) */
+  ridgelineScale?: number
 }
 
 /**

@@ -1,5 +1,5 @@
 import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
-import { RIDGELINE_OVERLAP, Y_AXIS } from '../const'
+import { RIDGELINE_SCALE, Y_AXIS } from '../const'
 import { calculateIdealStripHeight } from './ridgeline'
 import { desaturateToWhite } from '$lib/shared/utils/colorUtils'
 import { computeNiceYAxis, niceStep } from './axis'
@@ -51,6 +51,7 @@ export interface StreamCoordsParams {
   floorBottom: number
   stripHeightOverride: number | null
   highlightMaskById: Map<number, boolean> | null
+  ridgelineScale?: number
 }
 
 export interface StreamCoordsResult {
@@ -86,7 +87,15 @@ export function transformStreamDataToCoordinates(
     floorBottom,
     stripHeightOverride,
     highlightMaskById,
+    ridgelineScale,
   } = params
+
+  const scale = ridgelineScale ?? RIDGELINE_SCALE
+  // Derive overlap from scale:
+  // scale = h / S  => S = h / scale
+  // overlap = 1 - S/h = 1 - (h/scale)/h = 1 - 1/scale
+  // If scale=1 => overlap=0. If scale=2 => overlap=0.5.
+  const overlap = 1 - 1 / scale
 
   const series = data.series
   const dataBinCount = data.binCount
@@ -163,7 +172,7 @@ export function transformStreamDataToCoordinates(
       Number.isFinite(stripHeightOverride) &&
       stripHeightOverride > 0
         ? stripHeightOverride
-        : calculateIdealStripHeight(data, floorHeight, true)
+        : calculateIdealStripHeight(data, floorHeight, true, scale)
   }
 
   let scaleY = 1
@@ -186,7 +195,7 @@ export function transformStreamDataToCoordinates(
     const values = s.values
 
     if (alignment === 'ridgeline') {
-      const overlapOffset = stripHeight * (1 - RIDGELINE_OVERLAP)
+      const overlapOffset = stripHeight * (1 - overlap)
       const totalGroupHeight = (series.length - 1) * overlapOffset + stripHeight
       const groupTop = floorBottom - totalGroupHeight
       const stripTop = groupTop + idx * overlapOffset

@@ -1,6 +1,6 @@
 <script module lang="ts">
   export interface GroupSelectItem {
-    options: readonly { value: string; label: string }[]
+    options: readonly (MenuItem & { value: string })[]
     label: string
     value: string
     disabled?: boolean
@@ -14,7 +14,7 @@
   import { contextMenuAction, type MenuItem } from '$lib/context-menu'
 
   interface Props {
-    options?: readonly { value: string; label: string }[]
+    options?: readonly (MenuItem & { value: string })[]
     disabled?: boolean
     label: string
     value?: string
@@ -52,16 +52,23 @@
    * @returns Array of MenuItem objects suitable for context menu action.
    */
   const optionsToMenuItems = (
-    optionList: readonly { value: string; label: string }[]
+    optionList: readonly (MenuItem & { value: string })[]
   ): MenuItem[] => {
-    return optionList.map(option => ({
-      label: option.label,
-      action: () => {
-        value = option.value
-        onchange(new CustomEvent('change', { detail: option.value }))
-      },
-      isHighlighted: option.value === value,
-    }))
+    return optionList.map(option => {
+      return {
+        ...option,
+        action: (data?: any) => {
+          // If it's a form submission, we might want both the value change and form action
+          value = option.value
+          onchange(new CustomEvent('change', { detail: option.value }))
+          // If the original option had an action, call it too
+          if (option.action) {
+            option.action(data)
+          }
+        },
+        isHighlighted: option.value === value,
+      }
+    })
   }
 
   const singleMenuItems = $derived(optionsToMenuItems(options))
@@ -95,13 +102,18 @@
    */
   const groupItemToMenuItems = (idx: number): MenuItem[] => {
     const item = itemsSafe[idx]
-    return item.options.map(option => ({
-      label: option.label,
-      action: () => {
-        item.onchange?.(new CustomEvent('change', { detail: option.value }))
-      },
-      isHighlighted: option.value === item.value,
-    }))
+    return item.options.map(option => {
+      return {
+        ...option,
+        action: (data?: any) => {
+          item.onchange?.(new CustomEvent('change', { detail: option.value }))
+          if (option.action) {
+            option.action(data)
+          }
+        },
+        isHighlighted: option.value === item.value,
+      }
+    })
   }
 
   /**

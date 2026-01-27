@@ -26,7 +26,7 @@
     getParticipantEndTime,
     engine,
   } from '$lib/data/engine'
-  import { HEADER_HEIGHT } from '../const'
+  import { HEADER_HEIGHT, RIDGELINE_SCALE } from '../const'
 
   import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
   import type { AoiStreamPlotResult } from '../types'
@@ -34,6 +34,9 @@
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
   import { grid } from '$lib/workspace/grid/store.svelte'
+  import { contextMenuAction } from '$lib/context-menu/contextMenuAction.svelte'
+  import ChevronDown from 'lucide-svelte/icons/chevron-down'
+  import AoiStreamPlotAlignmentSettings from './AoiStreamPlotAlignmentSettings.svelte'
 
   const LAYOUT = {
     headerHeight: HEADER_HEIGHT,
@@ -54,10 +57,6 @@
       DEFAULT_GRID_CONFIG,
       LAYOUT.headerHeight
     )
-  )
-
-  const autoBinCount = $derived.by(() =>
-    Math.max(1, Math.floor(plotDimensions.width / 5))
   )
 
   let streamResult = $state<AoiStreamPlotResult | null>(null)
@@ -125,22 +124,91 @@
     },
     {
       label: 'Alignment',
-      options: [
-        { value: 'center', label: 'Center' },
-        { value: 'bottom', label: 'Bottom' },
-        { value: 'ridgeline', label: 'Ridgeline' },
-      ],
       value: settings.alignment ?? 'center',
       onchange: (e: CustomEvent) => {
         onWorkspaceCommand({
           type: 'updateSettings',
           itemId: settings.id,
           source,
-          settings: { alignment: e.detail },
+          settings: { alignment: e.detail as any },
         })
       },
+      options: [
+        {
+          value: 'center',
+          label: 'Center',
+          component: AoiStreamPlotAlignmentSettings,
+          componentHeight: 120,
+          componentProps: {
+            defaultValue: (settings.binSize ?? 0) > 0 ? settings.binSize! : 500,
+          },
+          action: (data: any) => {
+            const updates: any = { alignment: 'center' }
+            if (data?.binSize !== undefined) {
+              const binSize = parseInt(data.binSize)
+              updates.binSize = isNaN(binSize) || binSize <= 0 ? 500 : binSize
+            }
+            onWorkspaceCommand({
+              type: 'updateSettings',
+              itemId: settings.id,
+              source,
+              settings: updates,
+            })
+          },
+        },
+        {
+          value: 'bottom',
+          label: 'Bottom',
+          component: AoiStreamPlotAlignmentSettings,
+          componentHeight: 120,
+          componentProps: {
+            defaultValue: (settings.binSize ?? 0) > 0 ? settings.binSize! : 500,
+          },
+          action: (data: any) => {
+            const updates: any = { alignment: 'bottom' }
+            if (data?.binSize !== undefined) {
+              const binSize = parseInt(data.binSize)
+              updates.binSize = isNaN(binSize) || binSize <= 0 ? 500 : binSize
+            }
+            onWorkspaceCommand({
+              type: 'updateSettings',
+              itemId: settings.id,
+              source,
+              settings: updates,
+            })
+          },
+        },
+        {
+          value: 'ridgeline',
+          label: 'Ridgeline',
+          component: AoiStreamPlotAlignmentSettings,
+          componentHeight: 180, // Increased for two inputs
+          componentProps: {
+            defaultValue: (settings.binSize ?? 0) > 0 ? settings.binSize! : 500,
+            defaultValueScale: settings.ridgelineScale ?? RIDGELINE_SCALE,
+          },
+          action: (data: any) => {
+            const updates: any = { alignment: 'ridgeline' }
+            if (data?.binSize !== undefined) {
+              const binSize = parseInt(data.binSize)
+              updates.binSize = isNaN(binSize) || binSize <= 0 ? 500 : binSize
+            }
+            if (data?.ridgelineScale !== undefined) {
+              updates.ridgelineScale = parseFloat(data.ridgelineScale)
+            }
+            onWorkspaceCommand({
+              type: 'updateSettings',
+              itemId: settings.id,
+              source,
+              settings: updates,
+            })
+          },
+        },
+      ],
     },
   ])
+
+  // Legacy Alignment helpers removed
 
   // Calculate timeline min value based on absoluteStimuliLimits
   const timelineMinValue = $derived.by(() => {
@@ -185,7 +253,6 @@
     untrack(() => {
       streamResult = getAoiStreamPlotData({
         ...settings,
-        binCount: autoBinCount,
         timelineMin: timelineMinValue,
         timelineMax: timelineMaxValue,
       })
@@ -214,6 +281,7 @@
         label="AOI Stream"
         options={[]}
       />
+
       <div class="menu-button">
         <AoiStreamPlotButtonMenu {settings} {onWorkspaceCommand} />
       </div>
@@ -230,6 +298,7 @@
         alignment={settings.alignment ?? 'center'}
         onLegendClick={handleLegendClick}
         {stripHeightOverride}
+        ridgelineScale={settings.ridgelineScale}
       />
     {/if}
   {/snippet}

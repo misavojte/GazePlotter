@@ -4,7 +4,9 @@
     contextMenuState,
     updateContextMenu,
   } from './contextMenuState.svelte'
-  import { MENU_MAX_HEIGHT } from './contextMenuAction.svelte'
+  import { MENU_MAX_HEIGHT } from './const'
+  import type { MenuItem } from './types'
+  import ContextSubMenu from './ContextSubMenu.svelte'
 
   /** Close the context menu by clearing the global store. */
   const onClose = () => updateContextMenu(null)
@@ -59,6 +61,8 @@
     onClose()
   }
 
+  let activeItemId = $state<MenuItem | null>(null)
+
   $effect(() => {
     window.addEventListener('keydown', onKeydown)
     return () => window.removeEventListener('keydown', onKeydown)
@@ -86,19 +90,29 @@
       <ul bind:this={container}>
         <!-- Render each menu item as an accessible button so keyboard users can activate entries. -->
         {#each contextMenuState.current.items as it}
-          <li>
-            <button
-              role="menuitem"
-              class:highlighted={it.isHighlighted}
-              onclick={() => handleItemClick(it.action)}
-            >
-              {#if it.icon}
-                {@const Icon = it.icon}
-                <Icon size={'1em'} strokeWidth={1} />
-              {/if}
-              {it.label}
-            </button>
-          </li>
+          {#if (it.children && it.children.length) || it.component}
+            <!-- Recursive Submenu Item or Custom Component Flyout -->
+            <ContextSubMenu
+              item={it}
+              parentZIndex={contextMenuState.current.zIndex}
+              isOpen={activeItemId === it}
+              onToggle={() => (activeItemId = activeItemId === it ? null : it)}
+            />
+          {:else}
+            <li>
+              <button
+                role="menuitem"
+                class:selected={it.isHighlighted}
+                onclick={() => handleItemClick(it.action!)}
+              >
+                {#if it.icon}
+                  {@const Icon = it.icon}
+                  <Icon size={'1em'} strokeWidth={1} />
+                {/if}
+                {it.label}
+              </button>
+            </li>
+          {/if}
         {/each}
       </ul>
     {:else if contextMenuState.current.content}
@@ -149,17 +163,19 @@
     position: relative;
   }
 
-  button[role='menuitem']:hover {
+  button.selected {
+    color: var(--c-brand);
+    font-weight: 500;
+  }
+
+  button:hover {
     background: var(--c-lightgrey);
     color: var(--c-brand);
     padding-left: 16px;
+    font-weight: 500;
   }
   button[role='menuitem'] :global(svg) {
     transition: transform 0.2s ease;
-  }
-
-  button[role='menuitem'].highlighted {
-    color: var(--c-brand);
   }
 
   .custom {

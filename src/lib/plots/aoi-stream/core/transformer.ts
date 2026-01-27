@@ -9,13 +9,12 @@ import {
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
 import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
-import { DEFAULT_BIN_COUNT } from '../const'
 import { collectAoiStreamMetrics } from './collector'
 
 export function getAoiStreamPlotData(
   settings: Pick<
     AoiStreamPlotGridType,
-    'stimulusId' | 'groupId' | 'binCount'
+    'stimulusId' | 'groupId' | 'binSize'
   > & {
     timelineMin?: number
     timelineMax?: number
@@ -50,8 +49,10 @@ export function getAoiStreamPlotData(
   const timelineMin = settings.timelineMin ?? 0
   const timelineMax = settings.timelineMax ?? maxTime
   const safeMaxTime = Math.max(1, timelineMax - timelineMin)
-  const binCount = Math.max(1, settings.binCount ?? DEFAULT_BIN_COUNT)
-  const binSize = safeMaxTime / binCount
+
+  // Determine bin configuration
+  const binSize = settings.binSize ?? 500
+  const binCount = Math.max(1, Math.floor(safeMaxTime / binSize))
 
   // Prepare hidden AOIs
   const hidden = getHiddenAois(stimulusId)

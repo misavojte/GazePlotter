@@ -67,7 +67,7 @@ export const registry: {
     getDefaultConfig: (params = {}) => ({
       stimulusId: params.stimulusId ?? 0,
       groupId: params.groupId ?? -1,
-      binCount: 200,
+      binSize: 500,
       absoluteStimuliLimits: [],
       min: { w: 11, h: 10 },
     }),

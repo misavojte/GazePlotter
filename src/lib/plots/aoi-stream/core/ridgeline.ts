@@ -1,62 +1,6 @@
 import type { AoiStreamPlotResult } from '../types'
 
-import { RIDGELINE_OVERLAP } from '../const'
-
-/**
- * Calculate the max constraint factor for a ridgeline plot.
- * This factor represents the total vertical space (in units of stripHeight)
- * required to fit all series without clipping.
- *
- * @param data - The stream plot data
- * @param applyMinTopHeight - If true, enforce a minimum height for the top ridge
- */
-function calculateMaxConstraintFactor(
-  data: AoiStreamPlotResult,
-  applyMinTopHeight = false
-): number {
-  if (!data.series || data.series.length === 0) return 0
-
-  const n = data.series.length
-  const percentFactor = data.participants > 0 ? 100 / data.participants : 0
-  let maxConstraintFactor = 0
-
-  // Iterate over ALL series to find the binding constraint
-  for (let s = 0; s < data.series.length; s++) {
-    const series = data.series[s]
-    const values = series.values
-    const binCount = data.binCount
-
-    // Find peak value for this series (0-100)
-    let maxVal = 0
-    for (let i = 0; i < binCount; i++) {
-      const v = values[i] * percentFactor
-      if (v > maxVal) maxVal = v
-    }
-
-    // Geometric factor:
-    // (N - 1 - s) * (1 - OVERLAP)  -> Static vertical offset due to stacking
-    // (maxVal * 0.9) / 100         -> Dynamic height of the data itself
-    const geometricOffset = (n - 1 - s) * (1 - RIDGELINE_OVERLAP)
-    let dataHeight = (maxVal * 0.9) / 100
-
-    // Enforce minimum height for the top ridge (s=0) to prevent it from being crushed
-    // Only apply when rendering locally, NOT during sync calculations
-    if (applyMinTopHeight && s === 0) {
-      const minTopHeight = (1 - RIDGELINE_OVERLAP) * 0.5
-      if (dataHeight < minTopHeight) {
-        dataHeight = minTopHeight
-      }
-    }
-
-    const totalFactor = geometricOffset + dataHeight
-
-    if (totalFactor > maxConstraintFactor) {
-      maxConstraintFactor = totalFactor
-    }
-  }
-
-  return maxConstraintFactor
-}
+import { RIDGELINE_SCALE } from '../const'
 
 /**
  * Calculate the ideal strip height for a single ridgeline plot configuration.
@@ -68,27 +12,54 @@ function calculateMaxConstraintFactor(
  * @param data - The stream plot data
  * @param plotAreaHeight - Height of the plot area in pixels
  * @param applyMinTopHeight - If true, enforce minimum height for top ridge (for local rendering)
+ * @param overlapOverride - Optional overlap factor override (0-1)
  */
 export function calculateIdealStripHeight(
   data: AoiStreamPlotResult,
   plotAreaHeight: number,
-  applyMinTopHeight = false
+  applyMinTopHeight = false, // Deprecated but kept for signature compatibility
+  scaleOverride?: number
 ): number {
   if (!data.series || data.series.length === 0) return plotAreaHeight
 
+  const scale = scaleOverride ?? RIDGELINE_SCALE
   const n = data.series.length
-  const maxFactor = calculateMaxConstraintFactor(data, applyMinTopHeight)
 
-  // Standard minimum density (if all series were maxed out at 100%)
-  const standardDenom = n - (n - 1) * RIDGELINE_OVERLAP
-  const standardHeight = plotAreaHeight / standardDenom
+  // Calculate the max percentage value of the TOP series (index 0)
+  // to minimalize its dedicated space.
+  // The layout logic scales values by 0.9 within the strip height.
+  // So effective height factor mTop = (maxVal / 100) * 0.9
+  let mTop = 1.0
 
-  if (maxFactor <= 1e-4) return standardHeight * 10
+  if (n > 0) {
+    const topSeries = data.series[0]
+    const percentFactor = data.participants > 0 ? 100 / data.participants : 0
+    let maxVal = 0
+    for (const v of topSeries.values) {
+      const val = v * percentFactor
+      if (val > maxVal) maxVal = val
+    }
+    mTop = (maxVal / 100) * 0.9
 
-  const idealHeight = plotAreaHeight / maxFactor
-  const finalHeight = Math.min(idealHeight, standardHeight * 10)
+    // If applyMinTopHeight is true (local rendering), prevent collapse
+    // sync logic might allow collapse if other plots need space
+    if (applyMinTopHeight) {
+      // Ensure at least 20% of a strip height is visible for labels/visuals
+      // or effectively the scale equivalent
+      mTop = Math.max(mTop, 0.2)
+    }
+  }
 
-  // Cap at a reasonable max multiplier to prevent explosions on flat lines,
-  // but allow it to be smaller than standardHeight if needed to prevent clipping.
-  return finalHeight
+  // Optimized geometric formula:
+  // H = (N-1) * S + h_top
+  // h_top = mTop * h
+  // S = h / scale
+  // H = (N-1)(h/scale) + mTop*h
+  // H = h * [ (N-1)/scale + mTop ]
+  // h = H / [ (N-1)/scale + mTop ]
+  // h = H * scale / [ (N-1) + mTop * scale ]
+
+  const idealHeight = (plotAreaHeight * scale) / (n - 1 + mTop * scale)
+
+  return idealHeight
 }

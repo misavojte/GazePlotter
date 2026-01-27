@@ -80,6 +80,8 @@
     marginBottom?: number
     marginLeft?: number
     stripHeightOverride?: number | null
+    stripHeightOverride?: number | null
+    ridgelineScale?: number
   }
 
   let {
@@ -95,6 +97,7 @@
     marginBottom = 0,
     marginLeft = 0,
     stripHeightOverride = null,
+    ridgelineScale,
   }: AoiStreamPlotFigureProps = $props()
 
   let canvas = $state<HTMLCanvasElement | null>(null)
@@ -271,6 +274,7 @@
           floorBottom,
           stripHeightOverride,
           highlightMaskById,
+          ridgelineScale,
         },
         renderBuckets
       )

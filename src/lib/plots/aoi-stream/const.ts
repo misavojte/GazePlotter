@@ -4,7 +4,8 @@ import {
   GRIDLINE_PRIMARY,
 } from '$lib/plots/shared/const'
 
-export const RIDGELINE_OVERLAP = 0.6
+// Default ridge scale factor (equivalent to overlap ~60%)
+export const RIDGELINE_SCALE = 2.5
 
 export const MARGIN = {
   TOP: 5,
@@ -17,7 +18,6 @@ export const HEADER_HEIGHT = 150
 
 export const FLOW_CURVE_TENSION = 0
 
-export const DEFAULT_BIN_COUNT = 200
 export const END_BIN_EPSILON = 1e-6
 export const FIXATION_CATEGORY_ID = 0
 

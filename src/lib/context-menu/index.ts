@@ -1,4 +1,5 @@
-export { contextMenuAction, MENU_MAX_HEIGHT } from './contextMenuAction.svelte'
-export type { ContextMenuOptions, MenuItem } from './contextMenuAction.svelte'
+export { contextMenuAction } from './contextMenuAction.svelte'
+export { MENU_MAX_HEIGHT } from './const'
+export type { ContextMenuOptions, MenuItem, ContextMenuState } from './types'
 export { contextMenuState, updateContextMenu } from './contextMenuState.svelte'
 export { default as ContextMenu } from './ContextMenu.svelte'

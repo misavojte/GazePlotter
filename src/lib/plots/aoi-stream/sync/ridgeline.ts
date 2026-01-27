@@ -1,7 +1,4 @@
-import {
-  getParticipants,
-  getParticipantEndTime,
-} from '$lib/data/engine'
+import { getParticipants, getParticipantEndTime } from '$lib/data/engine'
 import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/plotSizeUtility'
 import {
   calculateFlatLegendHeight,
@@ -16,7 +13,7 @@ import type { AoiStreamPlotResult } from '../types'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 import { calculateIdealStripHeight } from '../core/ridgeline'
 
-import { MARGIN, HEADER_HEIGHT } from '../const'
+import { MARGIN, HEADER_HEIGHT, RIDGELINE_SCALE } from '../const'
 
 /**
  * Scan all active Time-binned AOI Occupancys with ridgeline alignment and the same height (h)
@@ -25,6 +22,7 @@ import { MARGIN, HEADER_HEIGHT } from '../const'
  * Synchronization is only applied between plots that have:
  * - Same grid height (h)
  * - Same alignment ('ridgeline')
+ * - Same ridgeline scale (scale)
  * - Same number of active AOIs
  *
  * @param items - Current grid items from the workspace
@@ -41,12 +39,19 @@ export function scanForDynamicStripHeight(
   const _ = engine.metadata
 
   // Filter relevant plots by height and alignment
-  const candidates = items.filter(
-    item =>
+  const targetPlot = items.find(i => i.id === currentPlotId) as any
+  const targetScale = targetPlot?.ridgelineScale ?? RIDGELINE_SCALE
+
+  const candidates = items.filter(item => {
+    const settings = item as any
+    const itemScale = settings.ridgelineScale ?? RIDGELINE_SCALE
+    return (
       item.type === 'aoiStreamPlot' &&
       item.h === targetHeight &&
-      (item as any).alignment === 'ridgeline'
-  )
+      settings.alignment === 'ridgeline' &&
+      Math.abs(itemScale - targetScale) < 1e-4
+    )
+  })
 
   if (candidates.length < 2) return null
 
@@ -56,12 +61,14 @@ export function scanForDynamicStripHeight(
     streamData: AoiStreamPlotResult
     plotAreaHeight: number
     seriesCount: number
+    ridgelineScale: number
   }> = []
 
   for (const item of candidates) {
     const settings = item as any
     const stimulusId = settings.stimulusId
     const groupId = settings.groupId
+    const itemScale = settings.ridgelineScale ?? RIDGELINE_SCALE
 
     const dims = calculatePlotDimensionsWithHeader(
       settings.w,
@@ -72,7 +79,6 @@ export function scanForDynamicStripHeight(
 
     const safeWidth = Math.max(1, dims.width)
     const safeHeight = Math.max(1, dims.height)
-    const autoBinCount = Math.max(1, Math.floor(safeWidth / 5))
 
     let tMin = settings.absoluteStimuliLimits?.[stimulusId]?.[0] ?? 0
     let tMax = settings.absoluteStimuliLimits?.[stimulusId]?.[1] ?? 0
@@ -99,7 +105,7 @@ export function scanForDynamicStripHeight(
     const streamData = getAoiStreamPlotData({
       stimulusId,
       groupId,
-      binCount: autoBinCount,
+      binSize: settings.binSize ?? 500,
       timelineMin: tMin,
       timelineMax: tMax,
     })
@@ -137,6 +143,7 @@ export function scanForDynamicStripHeight(
       streamData,
       plotAreaHeight,
       seriesCount,
+      ridgelineScale: itemScale,
     })
   }
 
@@ -151,7 +158,12 @@ export function scanForDynamicStripHeight(
   if (matchingCandidates.length < 2) return null
 
   const idealHeights = matchingCandidates.map(c => {
-    return calculateIdealStripHeight(c.streamData, c.plotAreaHeight, true)
+    return calculateIdealStripHeight(
+      c.streamData,
+      c.plotAreaHeight,
+      true,
+      c.ridgelineScale
+    )
   })
 
   return Math.min(...idealHeights)

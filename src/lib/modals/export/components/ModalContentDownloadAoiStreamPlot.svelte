@@ -14,7 +14,7 @@
     getAoiStreamPlotData({
       stimulusId: settings.stimulusId,
       groupId: settings.groupId,
-      binCount: settings.binCount,
+      binSize: settings.binSize,
     })
   )
 </script>
