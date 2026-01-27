@@ -4,7 +4,6 @@
 
 import {
   getAois,
-  getAoiIdMapping,
   getAoiVisibility,
   engine,
   getNumberOfSegments,
@@ -354,33 +353,33 @@ export function transformDataToScarfPlot(
   settings: ScarfGridType,
   noAoiTreatment: { displayedName: string; color: string }
 ): ScarfData {
+  if (!engine.segments) throw new Error('Data engine not initialized')
+  const aoiGroupReader = engine.getAoiGroupReader()
+  if (!aoiGroupReader) throw new Error('AOI reader not initialized')
+
   const {
-    HEIGHT_BAR_DEFAULT: HEIGHT_OF_BAR,
-    HEIGHT_NON_FIXATION_DEFAULT: NON_FIXATION_HEIGHT,
-    SPACE_ABOVE_RECT_DEFAULT: SPACE_ABOVE_RECT,
-    HEIGHT_X_AXIS: HEIGHT_OF_X_AXIS,
+    HEIGHT_BAR_DEFAULT,
+    HEIGHT_NON_FIXATION_DEFAULT,
+    SPACE_ABOVE_RECT_DEFAULT,
+    HEIGHT_X_AXIS,
   } = SCARF_LAYOUT
 
   const aoiData = getAois(stimulusId)
   const timeline = createScarfPlotAxis(participantIds, stimulusId, settings)
   const { minValue, maxValue } = timeline
-  const visibleRange = maxValue - minValue
+  const invVisibleRange = 1 / (maxValue - minValue || 1)
 
   const showAoiVisibility =
     hasStimulusAoiVisibility(stimulusId) && settings.timeline !== 'ordinal'
-
   const barWrapHeight = getScarfParticipantBarHeight(
     aoiData.length,
     showAoiVisibility
   )
-
   const stylingAndLegend = createStylingAndLegend(
     aoiData,
     noAoiTreatment,
     showAoiVisibility
   )
-
-  const stimuli = getStimuli().map(s => ({ id: s.id, name: s.displayedName }))
 
   // Style mapping: pre-calculate indices for the hot loop
   const aoiStyleCount = stylingAndLegend.aoi.length
@@ -390,17 +389,10 @@ export function transformDataToScarfPlot(
     aoiStyleCount + stylingAndLegend.category.length
 
   const stimulusAoiCount = engine.metadata?.aois.data[stimulusId]?.length ?? 0
-  let maxAoiIdInMeta = 0
-  for (let i = 0; i < aoiData.length; i++) {
-    if (aoiData[i].id > maxAoiIdInMeta) maxAoiIdInMeta = aoiData[i].id
-  }
+  const maxAoiIdInMeta = Math.max(...aoiData.map(a => a.id), 0)
   const aoiBufferSize = Math.max(stimulusAoiCount, maxAoiIdInMeta + 1)
-
   const aoiOrderMap = new Int16Array(aoiBufferSize).fill(-1)
-  for (let i = 0; i < aoiData.length; i++) {
-    const id = aoiData[i].id
-    if (id >= 0 && id < aoiBufferSize) aoiOrderMap[id] = i
-  }
+  for (let i = 0; i < aoiData.length; i++) aoiOrderMap[aoiData[i].id] = i
 
   const totalStyleCount =
     aoiStyleCount +
@@ -417,20 +409,14 @@ export function transformDataToScarfPlot(
 
   const isOrdinal = settings.timeline === 'ordinal'
   const isRelative = settings.timeline === 'relative'
-
-  const segments = engine.segments
-  if (!segments) {
-    throw new Error('Data engine not initialized')
-  }
-
-  const { segmentBuffer, indexTable, aoiPool, maxParticipants } = segments
-
+  const { segmentBuffer, indexTable, maxParticipants } = engine.segments
   const participants: ScarfParticipant[] = new Array(participantIds.length)
-  const overlapAoiBuffer = new Int16Array(aoiBufferSize) // Reuse buffer for overlapping AOIs
+  const overlapAoiBuffer = new Uint16Array(aoiBufferSize)
 
   for (let pIndex = 0; pIndex < participantIds.length; pIndex++) {
     const pid = participantIds[pIndex]
     const sessionDuration = getParticipantEndTime(stimulusId, pid)
+    const invSessionDuration = 1 / (sessionDuration || 1)
 
     const rangeIdx = (stimulusId * maxParticipants + pid) * 2
     const startIndex = indexTable[rangeIdx]
@@ -439,11 +425,12 @@ export function transformDataToScarfPlot(
     for (let localId = 0; localId < segmentCount; localId++) {
       const base = (startIndex + localId) * SEGMENT_STRIDE
       const categoryId = segmentBuffer[base + SegmentField.CATEGORY_ID] | 0
-      const startTime = segmentBuffer[base + SegmentField.START_TIME]
-      const endTime = segmentBuffer[base + SegmentField.END_TIME]
-
-      let start = isOrdinal ? localId : startTime
-      let end = isOrdinal ? localId + 1 : endTime
+      let start = isOrdinal
+        ? localId
+        : segmentBuffer[base + SegmentField.START_TIME]
+      let end = isOrdinal
+        ? localId + 1
+        : segmentBuffer[base + SegmentField.END_TIME]
 
       if (!isRelative) {
         if (end <= minValue || start >= maxValue) continue
@@ -451,12 +438,9 @@ export function transformDataToScarfPlot(
         end = Math.min(maxValue, end)
       }
 
-      const x = isRelative
-        ? start / (sessionDuration || 1)
-        : (start - minValue) / visibleRange
-      const width = isRelative
-        ? (end - start) / (sessionDuration || 1)
-        : (end - start) / visibleRange
+      const scale = isRelative ? invSessionDuration : invVisibleRange
+      const x = isRelative ? start * scale : (start - minValue) * scale
+      const width = (end - start) * scale
 
       if (categoryId !== 0) {
         rectBuckets[
@@ -465,52 +449,33 @@ export function transformDataToScarfPlot(
           x,
           pIndex,
           width,
-          NON_FIXATION_HEIGHT,
+          HEIGHT_NON_FIXATION_DEFAULT,
           pid,
           localId,
           localId,
-          SPACE_ABOVE_RECT + (HEIGHT_OF_BAR - NON_FIXATION_HEIGHT) / 2
+          SPACE_ABOVE_RECT_DEFAULT +
+            (HEIGHT_BAR_DEFAULT - HEIGHT_NON_FIXATION_DEFAULT) * 0.5
         )
       } else {
-        const pStart = segmentBuffer[base + SegmentField.AOI_POINTER] | 0
-        const pCount = segmentBuffer[base + SegmentField.AOI_COUNT] | 0
-
-        let overlapCount = 0
-        for (let i = 0; i < pCount; i++) {
-          const aoiId = aoiPool[pStart + i]
-          // AOI visibility is encoded in the mapping table (0xFFFF = hidden)
-          const mappedId = getAoiIdMapping(stimulusId, aoiId)
-
-          if (mappedId !== 0xffff && aoiId >= 0 && aoiId < aoiBufferSize) {
-            // Deduplicate: only add if this mapped group isn't already in the list
-            let alreadyAdded = false
-            for (let j = 0; j < overlapCount; j++) {
-              if (overlapAoiBuffer[j] === mappedId) {
-                alreadyAdded = true
-                break
-              }
-            }
-
-            if (!alreadyAdded) {
-              overlapAoiBuffer[overlapCount++] = mappedId
-            }
-          }
-        }
-
-        if (overlapCount === 0) {
+        const count = aoiGroupReader.getSegmentAoisIntoUniqueTyped(
+          startIndex + localId,
+          stimulusId,
+          overlapAoiBuffer
+        )
+        if (count === 0) {
           rectBuckets[aoiData.length].pushRect(
             x,
             pIndex,
             width,
-            HEIGHT_OF_BAR,
+            HEIGHT_BAR_DEFAULT,
             pid,
             localId,
             localId,
-            SPACE_ABOVE_RECT
+            SPACE_ABOVE_RECT_DEFAULT
           )
         } else {
-          const h = HEIGHT_OF_BAR / overlapCount
-          for (let i = 0; i < overlapCount; i++) {
+          const h = HEIGHT_BAR_DEFAULT / count
+          for (let i = 0; i < count; i++) {
             rectBuckets[aoiOrderMap[overlapAoiBuffer[i]]].pushRect(
               x,
               pIndex,
@@ -519,7 +484,7 @@ export function transformDataToScarfPlot(
               pid,
               localId,
               localId,
-              SPACE_ABOVE_RECT + i * h
+              SPACE_ABOVE_RECT_DEFAULT + i * h
             )
           }
         }
@@ -527,18 +492,18 @@ export function transformDataToScarfPlot(
     }
 
     if (showAoiVisibility) {
-      const internalY = SPACE_ABOVE_RECT + HEIGHT_OF_BAR / 2
+      const internalY = SPACE_ABOVE_RECT_DEFAULT + HEIGHT_BAR_DEFAULT * 0.5
       for (let aoiIdx = 0; aoiIdx < aoiData.length; aoiIdx++) {
-        const visibility = getAoiVisibility(stimulusId, aoiData[aoiIdx].id, pid)
-        if (visibility?.length) {
+        const vis = getAoiVisibility(stimulusId, aoiData[aoiIdx].id, pid)
+        if (vis?.length) {
           appendVisibilityEventsToBuffer(
             eventBuckets[visibilityBaseStyleIdx + aoiIdx],
-            visibility,
+            vis,
             isRelative,
             sessionDuration,
             minValue,
             maxValue,
-            visibleRange,
+            maxValue - minValue || 1,
             pIndex,
             pid,
             internalY
@@ -557,17 +522,11 @@ export function transformDataToScarfPlot(
   return {
     id: stimulusId,
     timelineType: settings.timeline,
-    barHeight: HEIGHT_OF_BAR,
+    barHeight: HEIGHT_BAR_DEFAULT,
     stimulusId,
-    heightOfBarWrap: getScarfParticipantBarHeight(
-      aoiData.length,
-      showAoiVisibility
-    ),
-    chartHeight:
-      participantIds.length *
-        getScarfParticipantBarHeight(aoiData.length, showAoiVisibility) +
-      HEIGHT_OF_X_AXIS,
-    stimuli,
+    heightOfBarWrap: barWrapHeight,
+    chartHeight: participantIds.length * barWrapHeight + HEIGHT_X_AXIS,
+    stimuli: getStimuli().map(s => ({ id: s.id, name: s.displayedName })),
     participants,
     timeline,
     stylingAndLegend,

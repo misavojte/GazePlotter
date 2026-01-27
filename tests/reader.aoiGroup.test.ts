@@ -32,7 +32,9 @@ describe('AoiGroupReader Optimization Verification', () => {
 
     groupReader.updateMap(meta)
 
-    const result = groupReader.getSegmentAois(0, 0)
+    const buffer = new Uint32Array(10)
+    const len = groupReader.getSegmentAoisIntoUniqueTyped(0, 0, buffer)
+    const result = Array.from(buffer.subarray(0, len))
     expect(result.sort((a, b) => a - b)).toEqual([0, 1])
   })
 
@@ -58,7 +60,7 @@ describe('AoiGroupReader Optimization Verification', () => {
     groupReader.updateMap(meta)
 
     const buffer = new Uint32Array(10)
-    const len = groupReader.getSegmentAoisIntoUnique(0, 0, buffer)
+    const len = groupReader.getSegmentAoisIntoUniqueTyped(0, 0, buffer)
 
     expect(len).toBe(2)
     // Expect first two elements to be 0 and 1 (order non-deterministic in bitmask vs stamp table, but here predictable)
@@ -94,7 +96,7 @@ describe('AoiGroupReader Optimization Verification', () => {
     groupReader.updateMap(meta)
 
     const buffer = new Uint32Array(50)
-    const len = groupReader.getSegmentAoisIntoUnique(0, 0, buffer)
+    const len = groupReader.getSegmentAoisIntoUniqueTyped(0, 0, buffer)
 
     expect(len).toBe(3)
     const result = Array.from(buffer.subarray(0, len)).sort((a, b) => a - b)
@@ -112,7 +114,7 @@ describe('AoiGroupReader Optimization Verification', () => {
     groupReader.updateMap(meta)
 
     const buffer = new Uint32Array(10)
-    const len = groupReader.getSegmentAoisIntoUnique(0, 0, buffer)
+    const len = groupReader.getSegmentAoisIntoUniqueTyped(0, 0, buffer)
     expect(len).toBe(1)
     expect(buffer[0]).toBe(5)
   })
@@ -124,7 +126,7 @@ describe('AoiGroupReader Optimization Verification', () => {
     groupReader.updateMap({ aois: { data: [[]] }, stimuli: { data: [['S1']] } })
 
     const buffer = new Uint32Array(10)
-    const len = groupReader.getSegmentAoisIntoUnique(0, 0, buffer)
+    const len = groupReader.getSegmentAoisIntoUniqueTyped(0, 0, buffer)
     expect(len).toBe(0)
   })
 
@@ -149,7 +151,7 @@ describe('AoiGroupReader Optimization Verification', () => {
     groupReader.updateMap(meta)
 
     const buffer = new Uint32Array(10)
-    const len = groupReader.getSegmentAoisIntoUnique(0, 0, buffer)
+    const len = groupReader.getSegmentAoisIntoUniqueTyped(0, 0, buffer)
 
     expect(len).toBe(1)
     expect(buffer[0]).toBe(0) // Only AOI 0 should remain
@@ -160,5 +162,45 @@ describe('AoiGroupReader Optimization Verification', () => {
 
     expect(mapped0).toBe(0)
     expect(mapped1).toBe(AoiGroupReader.HIDDEN_ID)
+  })
+
+  it('should return correct metrics (order and count) for a segment (Zero-Allocation)', () => {
+    // AOIs: 1, 0, 1 -> Unique: 1, 0 (Count 2)
+    const segments = [[[[0, 100, 0, 1, 0, 1]]]]
+    const reader = createReaderFromJson(segments)
+    const groupReader = new AoiGroupReader(reader)
+    const meta: any = {
+      aois: {
+        data: [
+          [
+            ['0', 'A'],
+            ['1', 'B'],
+          ],
+        ],
+      },
+      stimuli: { data: [['S1']] },
+    }
+    groupReader.updateMap(meta)
+
+    const out = { order: 0, count: 0 }
+
+    groupReader.getAoiMetricsInSegmentInto(0, 0, 1, out)
+    expect(out.order).toBe(0) // order
+    expect(out.count).toBe(2) // count
+
+    groupReader.getAoiMetricsInSegmentInto(0, 0, 0, out)
+    expect(out.order).toBe(1) // order
+    expect(out.count).toBe(2) // count
+
+    groupReader.getAoiMetricsInSegmentInto(0, 0, 5, out)
+    expect(out.order).toBe(-1) // order
+    expect(out.count).toBe(2) // count
+
+    // Hidden test
+    meta.aois.hiddenAois = [[1]]
+    groupReader.updateMap(meta)
+    groupReader.getAoiMetricsInSegmentInto(0, 0, 0, out)
+    expect(out.order).toBe(0) // Now order 0 because 1 is hidden
+    expect(out.count).toBe(1)
   })
 })
