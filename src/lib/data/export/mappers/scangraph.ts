@@ -1,6 +1,7 @@
 import { type DataType } from '$lib/data/types'
 import { type BinaryBufferReader } from '$lib/data/types'
 import { getAoiRaw } from '$lib/data/engine/utils/interpreters'
+import { engine } from '$lib/data/engine'
 
 /**
  * Generates a ScanGraph TXT string based on the Similarity Measurements format.
@@ -16,13 +17,16 @@ export async function generateScanGraph(
   const alreadyUsedAoiIds: number[] = []
 
   const numParticipants = metadata.participants.data.length
+  const aoiGroupReader = engine.getAoiGroupReader()
 
   for (let i = 0; i < numParticipants; i++) {
     const participantName = metadata.participants.data[i][0]
     result += participantName + '\t'
 
     reader.forEachSegment(stimulusId, i, (segmentIndex: number) => {
-      const aoiIds = reader.getSegmentAois(segmentIndex, stimulusId)
+      const aoiIds = aoiGroupReader
+        ? aoiGroupReader.getSegmentAois(segmentIndex, stimulusId)
+        : reader.getRawAois(segmentIndex)
 
       if (aoiIds.length === 0) {
         result += '#'

@@ -15,7 +15,6 @@ import {
   hasStimulusAoiVisibility,
 } from '$lib/data/engine'
 import {
-  MAX_AOI_PER_STIMULUS,
   SegmentField,
   SEGMENT_STRIDE,
   type ExtendedInterpretedDataType,
@@ -392,15 +391,22 @@ export function transformDataToScarfPlot(
   const visibilityBaseStyleIdx =
     aoiStyleCount + stylingAndLegend.category.length
 
-  const aoiOrderMap = new Int16Array(MAX_AOI_PER_STIMULUS).fill(-1)
+  const stimulusAoiCount = engine.metadata?.aois.data[stimulusId]?.length ?? 0
+  let maxAoiIdInMeta = 0
+  for (let i = 0; i < aoiData.length; i++) {
+    if (aoiData[i].id > maxAoiIdInMeta) maxAoiIdInMeta = aoiData[i].id
+  }
+  const aoiBufferSize = Math.max(stimulusAoiCount, maxAoiIdInMeta + 1)
+
+  const aoiOrderMap = new Int16Array(aoiBufferSize).fill(-1)
   for (let i = 0; i < aoiData.length; i++) {
     const id = aoiData[i].id
-    if (id >= 0 && id < MAX_AOI_PER_STIMULUS) aoiOrderMap[id] = i
+    if (id >= 0 && id < aoiBufferSize) aoiOrderMap[id] = i
   }
 
-  const hiddenFlag = new Uint8Array(MAX_AOI_PER_STIMULUS)
+  const hiddenFlag = new Uint8Array(aoiBufferSize)
   for (const id of getHiddenAois(stimulusId)) {
-    if (id >= 0 && id < MAX_AOI_PER_STIMULUS) hiddenFlag[id] = 1
+    if (id >= 0 && id < aoiBufferSize) hiddenFlag[id] = 1
   }
 
   const totalStyleCount =
@@ -427,7 +433,7 @@ export function transformDataToScarfPlot(
   const { segmentBuffer, indexTable, aoiPool, maxParticipants } = segments
 
   const participants: ScarfParticipant[] = new Array(participantIds.length)
-  const overlapAoiBuffer = new Int16Array(MAX_AOI_PER_STIMULUS) // Reuse buffer for overlapping AOIs
+  const overlapAoiBuffer = new Int16Array(aoiBufferSize) // Reuse buffer for overlapping AOIs
 
   for (let pIndex = 0; pIndex < participantIds.length; pIndex++) {
     const pid = participantIds[pIndex]
@@ -479,11 +485,7 @@ export function transformDataToScarfPlot(
         let overlapCount = 0
         for (let i = 0; i < pCount; i++) {
           const aoiId = aoiPool[pStart + i]
-          if (
-            aoiId >= 0 &&
-            aoiId < MAX_AOI_PER_STIMULUS &&
-            hiddenFlag[aoiId] === 0
-          ) {
+          if (aoiId >= 0 && aoiId < aoiBufferSize && hiddenFlag[aoiId] === 0) {
             const mappedId = getAoiIdMapping(stimulusId, aoiId)
 
             // Deduplicate: only add if this mapped group isn't already in the list

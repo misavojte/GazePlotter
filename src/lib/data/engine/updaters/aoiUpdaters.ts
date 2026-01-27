@@ -1,6 +1,5 @@
 import { type ExtendedInterpretedDataType } from '$lib/data/types'
 import { engine } from '../DataEngine.svelte'
-import { MAX_AOI } from '../../constants'
 import { getAoiRaw } from '../utils/interpreters'
 
 /**
@@ -107,9 +106,13 @@ export const updateHiddenAoisWithPropagation = (
   }
 
   const updates: { stimulusId: number; hiddenAois: number[] }[] = []
+
+  const sourceAoisForFiltering = meta.aois.data[stimulusId]
   const unique = Array.from(
     new Set(
-      hiddenAois.filter(v => Number.isInteger(v) && v >= 0 && v < MAX_AOI)
+      hiddenAois.filter(
+        v => Number.isInteger(v) && v >= 0 && v < sourceAoisForFiltering.length
+      )
     )
   ).sort((a, b) => a - b)
   updates.push({ stimulusId, hiddenAois: unique })

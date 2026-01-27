@@ -1,6 +1,6 @@
 import { type DataType } from '$lib/data/types'
 import { BinaryBufferReader } from '$lib/data/types'
-import { getAoi } from '$lib/data/engine'
+import { getAoi, engine } from '$lib/data/engine'
 import {
   type CsvFormatOptions,
   resolveCsvFormatOptions,
@@ -39,6 +39,7 @@ function convertDataStructure(data: DataType): Array<{
   }> = []
 
   const reader = new BinaryBufferReader(data.segments)
+  const aoiGroupReader = engine.getAoiGroupReader()
 
   for (
     let stimulusIndex = 0;
@@ -54,7 +55,9 @@ function convertDataStructure(data: DataType): Array<{
         const start = reader.getSegmentStart(segmentIndex)
         const end = reader.getSegmentEnd(segmentIndex)
         const category = reader.getSegmentCategory(segmentIndex)
-        const aoiIds = reader.getSegmentAois(segmentIndex, stimulusIndex, true) // Get grouped AOI IDs
+        const aoiIds = aoiGroupReader
+          ? aoiGroupReader.getSegmentAois(segmentIndex, stimulusIndex, true)
+          : Array.from(reader.getRawAois(segmentIndex))
 
         const aoiNames =
           aoiIds.length > 0

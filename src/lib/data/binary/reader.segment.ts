@@ -111,42 +111,6 @@ export class BinaryBufferReader {
   }
 
   /**
-   * Retrieve the list of AOI IDs for a segment.
-   */
-  getSegmentAois(
-    segmentIndex: number,
-    stimulusId: number,
-    useGrouping: boolean = true
-  ): number[] {
-    const base = segmentIndex * SEGMENT_STRIDE
-    const count = this.segmentBuffer[base + SegmentField.AOI_COUNT] | 0
-    const ptr = this.segmentBuffer[base + SegmentField.AOI_POINTER] | 0
-
-    if (count === 0) {
-      return []
-    }
-
-    const result: number[] = []
-
-    if (!useGrouping) {
-      for (let i = 0; i < count; i++) {
-        result.push(this.aoiPool[ptr + i])
-      }
-    } else {
-      const seen = new Set<number>()
-      for (let i = 0; i < count; i++) {
-        const rawId = this.aoiPool[ptr + i]
-        if (!seen.has(rawId)) {
-          seen.add(rawId)
-          result.push(rawId)
-        }
-      }
-    }
-
-    return result
-  }
-
-  /**
    * Iterate over all segments for a stimulus and participant.
    */
   forEachSegment(

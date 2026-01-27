@@ -9,7 +9,6 @@
  * Constants for binary buffer layout
  */
 export const SEGMENT_STRIDE = 6 as const // Fields per segment in master buffer
-export const MAX_AOI_PER_STIMULUS = 256 as const // Maximum AOI IDs per stimulus
 
 /**
  * Indices for segment fields in the master buffer (stride = 6)

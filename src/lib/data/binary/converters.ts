@@ -3,7 +3,7 @@ import {
   SEGMENT_STRIDE,
   SegmentField,
 } from './schema'
-import { BinaryBufferReader } from './reader'
+import { BinaryBufferReader } from './reader.segment'
 
 /**
  * Convert legacy JSON segments (number[][][][]) to binary buffers.
