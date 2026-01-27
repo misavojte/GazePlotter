@@ -7,7 +7,6 @@ import {
   getAoiIdMapping,
   getAoiVisibility,
   engine,
-  getHiddenAois,
   getNumberOfSegments,
   getParticipant,
   getParticipantEndTime,
@@ -363,7 +362,6 @@ export function transformDataToScarfPlot(
   } = SCARF_LAYOUT
 
   const aoiData = getAois(stimulusId)
-  const stimuliData = getStimuli()
   const timeline = createScarfPlotAxis(participantIds, stimulusId, settings)
   const { minValue, maxValue } = timeline
   const visibleRange = maxValue - minValue
@@ -402,11 +400,6 @@ export function transformDataToScarfPlot(
   for (let i = 0; i < aoiData.length; i++) {
     const id = aoiData[i].id
     if (id >= 0 && id < aoiBufferSize) aoiOrderMap[id] = i
-  }
-
-  const hiddenFlag = new Uint8Array(aoiBufferSize)
-  for (const id of getHiddenAois(stimulusId)) {
-    if (id >= 0 && id < aoiBufferSize) hiddenFlag[id] = 1
   }
 
   const totalStyleCount =
@@ -485,9 +478,10 @@ export function transformDataToScarfPlot(
         let overlapCount = 0
         for (let i = 0; i < pCount; i++) {
           const aoiId = aoiPool[pStart + i]
-          if (aoiId >= 0 && aoiId < aoiBufferSize && hiddenFlag[aoiId] === 0) {
-            const mappedId = getAoiIdMapping(stimulusId, aoiId)
+          // AOI visibility is encoded in the mapping table (0xFFFF = hidden)
+          const mappedId = getAoiIdMapping(stimulusId, aoiId)
 
+          if (mappedId !== 0xffff && aoiId >= 0 && aoiId < aoiBufferSize) {
             // Deduplicate: only add if this mapped group isn't already in the list
             let alreadyAdded = false
             for (let j = 0; j < overlapCount; j++) {
@@ -799,6 +793,7 @@ export function calculateEventLayoutOverrides(
       if (clusterLen > 1) {
         clusterIndices.length = 0
         for (let k = clusterStart; k <= i; k++) clusterIndices.push(indices[k])
+
         clusterIndices.sort((a, b) => styleIds[a] - styleIds[b])
 
         if (minY < maxY) {
