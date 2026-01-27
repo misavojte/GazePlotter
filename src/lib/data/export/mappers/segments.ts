@@ -56,7 +56,7 @@ function convertDataStructure(data: DataType): Array<{
         const end = reader.getSegmentEnd(segmentIndex)
         const category = reader.getSegmentCategory(segmentIndex)
         const aoiIds = aoiGroupReader
-          ? aoiGroupReader.getSegmentAois(segmentIndex, stimulusIndex, true)
+          ? aoiGroupReader.getSegmentAois(segmentIndex, stimulusIndex)
           : Array.from(reader.getRawAois(segmentIndex))
 
         const aoiNames =
