@@ -315,16 +315,19 @@ export function hsvToHsl(
   s: number,
   v: number
 ): { h: number; s: number; l: number } {
-  s = s / 100
-  v = v / 100
+  const sNormalized = s / 100
+  const vNormalized = v / 100
 
-  const l = v * (1 - s / 2)
-  const newS = l === 0 || l === 1 ? 0 : (v - l) / Math.min(l, 1 - l)
+  const lNormalized = vNormalized * (1 - sNormalized / 2)
+  const newS =
+    lNormalized === 0 || lNormalized === 1
+      ? 0
+      : (vNormalized - lNormalized) / Math.min(lNormalized, 1 - lNormalized)
 
   return {
     h,
     s: Math.round(newS * 100),
-    l: Math.round(l * 100),
+    l: Math.round(lNormalized * 100),
   }
 }
 
@@ -336,71 +339,60 @@ export function hslToHsv(
   s: number,
   l: number
 ): { h: number; s: number; v: number } {
-  s = s / 100
-  l = l / 100
+  const sNormalized = s / 100
+  const lNormalized = l / 100
 
-  const v = l + s * Math.min(l, 1 - l)
-  const newS = v === 0 ? 0 : 2 * (1 - l / v)
+  const vNormalized =
+    lNormalized + sNormalized * Math.min(lNormalized, 1 - lNormalized)
+  const newS = vNormalized === 0 ? 0 : 2 * (1 - lNormalized / vNormalized)
 
   return {
     h,
     s: Math.round(newS * 100),
-    v: Math.round(v * 100),
+    v: Math.round(vNormalized * 100),
   }
 }
 
 /**
  * Converts HSL to RGB
+ * Handles hue wrapping [0, 360] and ensures precision.
  */
 export function hslToRgb(
   h: number,
   s: number,
   l: number
 ): { r: number; g: number; b: number } {
-  // Handle periodic hue values (0-360)
-  h = h % 360
-  if (h < 0) h += 360
+  // Normalize hue to [0, 360) for calculation, but handle 360 specifically
+  const hCalc = h === 360 ? 0 : ((h % 360) + 360) % 360
 
-  s = Math.max(0, Math.min(100, s)) / 100
-  l = Math.max(0, Math.min(100, l)) / 100
+  const sNorm = Math.max(0, Math.min(100, s)) / 100
+  const lNorm = Math.max(0, Math.min(100, l)) / 100
 
-  if (s === 0) {
-    const v = Math.round(l * 255)
+  if (sNorm === 0) {
+    const v = Math.round(lNorm * 255)
     return { r: v, g: v, b: v }
   }
 
-  const c = (1 - Math.abs(2 * l - 1)) * s
-  const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
-  const m = l - c / 2
+  const c = (1 - Math.abs(2 * lNorm - 1)) * sNorm
+  const x = c * (1 - Math.abs(((hCalc / 60) % 2) - 1))
+  const m = lNorm - c / 2
 
   let r = 0,
     g = 0,
     b = 0
 
-  if (0 <= h && h < 60) {
-    r = c
-    g = x
-    b = 0
-  } else if (60 <= h && h < 120) {
-    r = x
-    g = c
-    b = 0
-  } else if (120 <= h && h < 180) {
-    r = 0
-    g = c
-    b = x
-  } else if (180 <= h && h < 240) {
-    r = 0
-    g = x
-    b = c
-  } else if (240 <= h && h < 300) {
-    r = x
-    g = 0
-    b = c
-  } else if (300 <= h && h < 360) {
-    r = c
-    g = 0
-    b = x
+  if (0 <= hCalc && hCalc < 60) {
+    ;[r, g, b] = [c, x, 0]
+  } else if (60 <= hCalc && hCalc < 120) {
+    ;[r, g, b] = [x, c, 0]
+  } else if (120 <= hCalc && hCalc < 180) {
+    ;[r, g, b] = [0, c, x]
+  } else if (180 <= hCalc && hCalc < 240) {
+    ;[r, g, b] = [0, x, c]
+  } else if (240 <= hCalc && hCalc < 300) {
+    ;[r, g, b] = [x, 0, c]
+  } else if (300 <= hCalc && hCalc < 360) {
+    ;[r, g, b] = [c, 0, x]
   }
 
   return {
@@ -418,12 +410,12 @@ export function rgbToHsl(
   g: number,
   b: number
 ): { h: number; s: number; l: number } {
-  r /= 255
-  g /= 255
-  b /= 255
+  const rNorm = r / 255
+  const gNorm = g / 255
+  const bNorm = b / 255
 
-  const max = Math.max(r, g, b)
-  const min = Math.min(r, g, b)
+  const max = Math.max(rNorm, gNorm, bNorm)
+  const min = Math.min(rNorm, gNorm, bNorm)
   const d = max - min
 
   let h = 0
@@ -434,17 +426,16 @@ export function rgbToHsl(
     s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
 
     switch (max) {
-      case r:
-        h = (g - b) / d + (g < b ? 6 : 0)
+      case rNorm:
+        h = (gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0)
         break
-      case g:
-        h = (b - r) / d + 2
+      case gNorm:
+        h = (bNorm - rNorm) / d + 2
         break
-      case b:
-        h = (r - g) / d + 4
+      case bNorm:
+        h = (rNorm - gNorm) / d + 4
         break
     }
-
     h *= 60
   }
 

@@ -196,12 +196,12 @@
   }
 
   .color-popup {
-    padding: 12px;
+    padding: 6px;
     background-color: white;
     border-radius: var(--rounded);
     box-shadow: 0 3px 15px rgba(0, 0, 0, 0.3);
     z-index: 9999;
-    width: 220px;
+    width: 200px;
     overflow-y: auto;
     max-height: 90vh;
   }
