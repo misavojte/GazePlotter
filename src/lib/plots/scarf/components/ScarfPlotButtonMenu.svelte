@@ -77,6 +77,7 @@
         openModal(ModalContentParticipantsGroups, 'Participants groups'),
       icon: Users,
     },
+    { isDivider: true },
     {
       label: 'AOI visibility',
       action: () => openModal(ModalContentAoiVisibility, 'AOI visibility'),

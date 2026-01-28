@@ -141,7 +141,59 @@ export function calculateTimelineRange(
     return { minValue: 0, maxValue: 100 }
   }
 
-  // 1. Try stimulus-specific overrides from settings
+  // Helper to calculate data max for fallback
+  const getDataMax = (isOrdinalMode: boolean) => {
+    let max = 0
+    for (const pid of participantIds) {
+      if (isOrdinalMode) {
+        max = Math.max(max, getNumberOfSegments(stimulusId, pid))
+      } else {
+        max = Math.max(max, getParticipantEndTime(stimulusId, pid))
+      }
+    }
+    return max
+  }
+
+  // 1. Try global settings first (new standard)
+  if (settings.timeline === 'absolute') {
+    const sStart = settings.timelineStart
+    const sEnd = settings.timelineEnd
+    const startVal = typeof sStart === 'number' && !isNaN(sStart) ? sStart : 0
+    const endVal = typeof sEnd === 'number' && !isNaN(sEnd) ? sEnd : 0
+
+    const hasStart = startVal > 0
+    const hasEnd = endVal > 0
+
+    if (hasStart || hasEnd) {
+      const min = startVal
+      const max = hasEnd ? endVal : getDataMax(false)
+
+      console.log('[ScarfPlot] Global Absolute Limits Applied:', { min, max })
+
+      // If user only provided start, ensure max is at least start + margin
+      // If user provided end, we trust it (even if it clips data)
+      return { minValue: min, maxValue: Math.max(min + 1, max) }
+    }
+  } else if (settings.timeline === 'ordinal') {
+    const sStart = settings.ordinalStart
+    const sEnd = settings.ordinalEnd
+    const startVal = typeof sStart === 'number' && !isNaN(sStart) ? sStart : 0
+    const endVal = typeof sEnd === 'number' && !isNaN(sEnd) ? sEnd : 0
+
+    const hasStart = startVal > 0
+    const hasEnd = endVal > 0
+
+    if (hasStart || hasEnd) {
+      const min = startVal
+      const max = hasEnd ? endVal : getDataMax(true)
+
+      console.log('[ScarfPlot] Global Ordinal Limits Applied:', { min, max })
+
+      return { minValue: min, maxValue: Math.max(min + 1, max) }
+    }
+  }
+
+  // 2. Try stimulus-specific overrides from settings (legacy / specific override)
   const limits = (
     settings.timeline === 'absolute'
       ? settings.absoluteStimuliLimits
@@ -151,20 +203,15 @@ export function calculateTimelineRange(
   // Check if limits are defined and maxValue > 0.
   // If maxValue is 0, we treat it as 'auto' and fallback to data-driven range (e.g. after reset).
   if (Array.isArray(limits) && limits.length === 2 && limits[1] > 0) {
+    console.log('[ScarfPlot] Per-Stimulus Limits Applied:', limits)
     return { minValue: Math.max(0, limits[0]), maxValue: limits[1] }
   }
 
-  // 2. Fallback to data-driven range
-  let maxValue = 0
+  // 3. Fallback to data-driven range
   const isOrdinal = settings.timeline === 'ordinal'
+  const maxValue = getDataMax(isOrdinal) // Reuse helper
 
-  for (const pid of participantIds) {
-    if (isOrdinal) {
-      maxValue = Math.max(maxValue, getNumberOfSegments(stimulusId, pid))
-    } else {
-      maxValue = Math.max(maxValue, getParticipantEndTime(stimulusId, pid))
-    }
-  }
+  console.log('[ScarfPlot] Data-based Limits (Auto):', maxValue)
 
   return {
     minValue: 0,

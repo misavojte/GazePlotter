@@ -53,18 +53,28 @@ export interface ScarfGridType extends GridType {
    * Stimulus-specific ranges for absolute timeline in [start, end] format.
    * For start (index 0): 0 means start at the beginning of the timeline.
    * For end (index 1): 0 means automatically use the full data range.
+   * @deprecated Use `timelineStart` and `timelineEnd` instead.
    */
   absoluteStimuliLimits: [number, number][]
   /**
    * Stimulus-specific ranges for ordinal timeline in [start, end] format.
    * For start (index 0): 0 means start at the beginning of the timeline.
    * For end (index 1): 0 means automatically use the full data range.
+   * @deprecated Use `ordinalStart` and `ordinalEnd` instead.
    */
   ordinalStimuliLimits: [number, number][]
   /** Whether to use dynamic AOI (Area of Interest) calculations */
   dynamicAOI: boolean
   /** Array of segment type identifiers that are currently highlighted */
   highlights?: string[]
+  /** Global timeline start (0 = beginning of timeline) */
+  timelineStart?: number
+  /** Global timeline end (0 = automatic) */
+  timelineEnd?: number
+  /** Global ordinal start (0 = beginning) */
+  ordinalStart?: number
+  /** Global ordinal end (0 = automatic) */
+  ordinalEnd?: number
 }
 
 /**

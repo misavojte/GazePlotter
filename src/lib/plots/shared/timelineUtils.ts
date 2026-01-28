@@ -22,6 +22,9 @@ export interface AdaptiveTimeline {
  * @returns A formatted string representation
  */
 export function formatTimelineLabel(value: number): string {
+  // Guard against NaN or Infinity to prevent RangeError in toLocaleString
+  if (typeof value !== 'number' || isNaN(value) || !isFinite(value)) return '0'
+
   // For integers or large numbers, show without decimals
   if (Number.isInteger(value) || Math.abs(value) >= 1000) {
     return value.toLocaleString('en-US', { maximumFractionDigits: 0 })
@@ -32,7 +35,8 @@ export function formatTimelineLabel(value: number): string {
 
   // For smaller numbers with decimals, show with appropriate precision
   const magnitude = Math.floor(Math.log10(Math.abs(value)))
-  const digitsAfterDecimal = Math.max(0, -magnitude + 1)
+  // Clamp to max 20 to avoid RangeError (maximumFractionDigits must be 0-20)
+  const digitsAfterDecimal = Math.min(20, Math.max(0, -magnitude + 1))
   return value.toLocaleString('en-US', {
     maximumFractionDigits: digitsAfterDecimal,
   })
@@ -50,8 +54,12 @@ export function calculateNiceStepSize(
 ): number {
   if (range <= 0) return 1
 
+  // Ensure we request at least 2 ticks to avoid division by zero (Infinity step)
+  // causing infinite loops downstream.
+  const safeTickCount = Math.max(2, minTickCount)
+
   // Initial step size estimation
-  const stepSize = range / (minTickCount - 1)
+  const stepSize = range / (safeTickCount - 1)
 
   // Round to a nice number based on magnitude
   const magnitude = Math.floor(Math.log10(stepSize))
@@ -110,6 +118,24 @@ function generateTimelineTicks(
 ): TimelineTick[] {
   const ticks: TimelineTick[] = []
 
+  // Safety check to prevent infinite loops if step invalid
+  if (step <= 0 || !Number.isFinite(step)) {
+    return [
+      {
+        label: formatTimelineLabel(min),
+        value: min,
+        position: 0,
+        isNice: true,
+      },
+      {
+        label: formatTimelineLabel(max),
+        value: max,
+        position: 1,
+        isNice: true,
+      },
+    ]
+  }
+
   // Find a nice starting point (multiple of step)
   let currentValue = min
   if (min > 0) {
@@ -122,6 +148,9 @@ function generateTimelineTicks(
 
   // Generate all ticks within the range - these are all "nice" ticks
   // Use a small epsilon to handle floating point precision issues
+  let iterations = 0
+  const MAX_ITERATIONS = 1000 // Safety break
+
   while (currentValue <= max + step * 0.0001) {
     ticks.push({
       label: formatTimelineLabel(currentValue),
@@ -131,6 +160,14 @@ function generateTimelineTicks(
     })
 
     currentValue += step
+    iterations++
+
+    if (iterations > MAX_ITERATIONS) {
+      console.warn(
+        'Timeline tick generation exceeded max iterations, breaking.'
+      )
+      break
+    }
   }
 
   // Ensure there's a tick at the max value if not already there

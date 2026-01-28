@@ -20,14 +20,16 @@
   import ZoomIn from 'lucide-svelte/icons/zoom-in'
   import ZoomOut from 'lucide-svelte/icons/zoom-out'
   import { ScarfPlotButtonMenu } from './'
+  import ScarfPlotTimelineSettings from './ScarfPlotTimelineSettings.svelte'
 
   interface Props {
     settings: ScarfGridType
     source: string
     onWorkspaceCommand: (command: WorkspaceCommand) => void
+    onPreview: (data: Partial<ScarfGridType>) => void
   }
 
-  let { settings, source, onWorkspaceCommand }: Props = $props()
+  let { settings, source, onWorkspaceCommand, onPreview }: Props = $props()
 
   function calculateActualMax(stimulusId: number): number {
     const participants = getParticipants(settings.groupId, stimulusId)
@@ -55,10 +57,25 @@
     const isOrdinal = settings.timeline === 'ordinal'
     if (settings.timeline === 'relative') return
 
-    const limits = (isOrdinal
-      ? settings.ordinalStimuliLimits
-      : settings.absoluteStimuliLimits)[stimulusId] || [0, 0]
-    let [min, max] = limits
+    // Fallback to legacy structure if new globals aren't set
+    const currentStart = isOrdinal
+      ? (settings.ordinalStart ??
+        settings.ordinalStimuliLimits?.[stimulusId]?.[0] ??
+        0)
+      : (settings.timelineStart ??
+        settings.absoluteStimuliLimits?.[stimulusId]?.[0] ??
+        0)
+
+    const currentEnd = isOrdinal
+      ? (settings.ordinalEnd ??
+        settings.ordinalStimuliLimits?.[stimulusId]?.[1] ??
+        0)
+      : (settings.timelineEnd ??
+        settings.absoluteStimuliLimits?.[stimulusId]?.[1] ??
+        0)
+
+    let min = currentStart
+    let max = currentEnd
 
     if (action === 'reset') {
       min = 0
@@ -81,19 +98,14 @@
       }
     }
 
-    const updatedLimits = {
-      ...(isOrdinal
-        ? settings.ordinalStimuliLimits
-        : settings.absoluteStimuliLimits),
-    }
-    updatedLimits[stimulusId] = [min, max]
+    const updates: Partial<ScarfGridType> = isOrdinal
+      ? { ordinalStart: min, ordinalEnd: max }
+      : { timelineStart: min, timelineEnd: max }
 
     onWorkspaceCommand({
       type: 'updateSettings',
       itemId: settings.id,
-      settings: isOrdinal
-        ? { ordinalStimuliLimits: updatedLimits }
-        : { absoluteStimuliLimits: updatedLimits },
+      settings: updates,
       source,
     })
   }
@@ -101,12 +113,14 @@
   const isRelativeTimeline = $derived(settings.timeline === 'relative')
   const isResetDisabled = $derived.by(() => {
     if (isRelativeTimeline) return true
-    const limits = (
-      settings.timeline === 'ordinal'
-        ? settings.ordinalStimuliLimits
-        : settings.absoluteStimuliLimits
-    )[settings.stimulusId]
-    return !limits || (limits[0] === 0 && limits[1] === 0)
+    if (settings.timeline === 'ordinal') {
+      return (
+        (settings.ordinalStart ?? 0) === 0 && (settings.ordinalEnd ?? 0) === 0
+      )
+    }
+    return (
+      (settings.timelineStart ?? 0) === 0 && (settings.timelineEnd ?? 0) === 0
+    )
   })
 
   let groupItems = $derived<MinorGroupItem[]>([
@@ -138,12 +152,6 @@
   // ---------------------------
   let stimuliOptions = $derived(getStimuliOptions())
 
-  const timelineOptions = [
-    { value: 'absolute', label: 'Absolute' },
-    { value: 'relative', label: 'Relative' },
-    { value: 'ordinal', label: 'Ordinal' },
-  ]
-
   // Keep group options in sync with data store
   let participantsGroupOptions = $derived(getParticipantsGroupOptions())
 
@@ -153,16 +161,6 @@
       type: 'updateSettings',
       itemId: settings.id,
       settings: { stimulusId },
-      source,
-    })
-  }
-
-  function onTimelineChange(event: CustomEvent) {
-    const timeline = event.detail as 'absolute' | 'relative' | 'ordinal'
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      settings: { timeline },
       source,
     })
   }
@@ -193,9 +191,40 @@
     },
     {
       label: 'Timeline',
-      options: timelineOptions,
       value: settings.timeline,
-      onchange: onTimelineChange,
+      onchange: () => {}, // Driven by sub-components or onSelect
+      options: [
+        {
+          value: 'absolute',
+          label: 'Absolute',
+          onSelect: v => onPreview({ timeline: v }),
+          closeOnAction: false,
+          component: ScarfPlotTimelineSettings,
+          componentHeight: 120, // Adjust as needed
+          componentProps: {
+            currentValues: settings,
+            onPreview,
+          },
+        },
+        {
+          value: 'relative',
+          label: 'Relative',
+          onSelect: v => onPreview({ timeline: v }),
+          closeOnAction: true,
+        },
+        {
+          value: 'ordinal',
+          label: 'Ordinal',
+          onSelect: v => onPreview({ timeline: v }),
+          closeOnAction: false,
+          component: ScarfPlotTimelineSettings,
+          componentHeight: 120,
+          componentProps: {
+            currentValues: settings,
+            onPreview,
+          },
+        },
+      ],
     },
   ])
 </script>

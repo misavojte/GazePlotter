@@ -23,12 +23,14 @@
   // Rename incoming settings prop to realSettings for clarity
   let { settings: realSettings, onWorkspaceCommand }: Props = $props()
 
-  // Local settings that drive all rendering
-  let localSettings = $state<ScarfGridType>(untrack(() => realSettings))
+  // --- NO-EFFECT DRAFT STATE ---
+  // We use a local draft that is NOT synced via $effect.
+  // Instead, the plot RENDER uses an effective state that prefers localDraft values.
+  let localDraft = $state<Partial<ScarfGridType>>({})
 
-  // Sync localSettings when realSettings changes (workspace authority)
-  $effect(() => {
-    localSettings = realSettings
+  const effectiveSettings = $derived({
+    ...realSettings,
+    ...localDraft,
   })
 
   // State management
@@ -38,9 +40,9 @@
   let removeHighlight = $state<null | (() => void)>(null)
 
   // Derived values
-  const currentGroupId = $derived(localSettings.groupId)
-  const currentStimulusId = $derived(localSettings.stimulusId)
-  const redrawTimestamp = $derived(localSettings.redrawTimestamp)
+  const currentGroupId = $derived(effectiveSettings.groupId)
+  const currentStimulusId = $derived(effectiveSettings.stimulusId)
+  const redrawTimestamp = $derived(effectiveSettings.redrawTimestamp)
   const highlights = $derived(realSettings.highlights ?? [])
 
   const currentParticipantIds = $derived.by(() =>
@@ -49,29 +51,49 @@
 
   const plotDimensions = $derived.by(() =>
     calculatePlotDimensionsWithHeader(
-      localSettings.w,
-      localSettings.h,
+      effectiveSettings.w,
+      effectiveSettings.h,
       DEFAULT_GRID_CONFIG,
       SCARF_LAYOUT.HEADER_HEIGHT
     )
   )
 
   const scarfData = $derived.by(() => {
-    // Dependencies: localSettings, currentParticipantIds, redrawTimestamp
+    // Dependencies: effectiveSettings, currentParticipantIds, redrawTimestamp
     redrawTimestamp
     const meta = engine.metadata
     if (!meta) return null
     return transformDataToScarfPlot(
       currentStimulusId,
       currentParticipantIds,
-      localSettings,
+      effectiveSettings,
       meta.noAoiTreatment
     )
   })
 
-  // Access consistent timeline limits from transformed data
-  const timelineMin = $derived(scarfData?.timeline.minValue ?? 0)
-  const timelineMax = $derived(scarfData?.timeline.maxValue ?? 100)
+  // Access consistent timeline limits from transformed data, but override if global settings are present
+  // This logic mimics AoiStreamPlot's preference for explicit settings
+  const timelineMin = $derived.by(() => {
+    if (effectiveSettings.timeline === 'absolute') {
+      if ((effectiveSettings.timelineStart ?? 0) > 0)
+        return effectiveSettings.timelineStart!
+    } else if (effectiveSettings.timeline === 'ordinal') {
+      if ((effectiveSettings.ordinalStart ?? 0) > 0)
+        return effectiveSettings.ordinalStart!
+    }
+    return scarfData?.timeline.minValue ?? 0
+  })
+
+  const timelineMax = $derived.by(() => {
+    if (effectiveSettings.timeline === 'absolute') {
+      if ((effectiveSettings.timelineEnd ?? 0) > 0)
+        return effectiveSettings.timelineEnd!
+    } else if (effectiveSettings.timeline === 'ordinal') {
+      if ((effectiveSettings.ordinalEnd ?? 0) > 0)
+        return effectiveSettings.ordinalEnd!
+    }
+    return scarfData?.timeline.maxValue ?? 100
+  })
 
   const LAYOUT = { headerHeight: SCARF_LAYOUT.HEADER_HEIGHT }
   const PLOT_MARGIN = { TOP: 0, RIGHT: 0, BOTTOM: 0, LEFT: 0 }
@@ -96,6 +118,38 @@
     })
   }
 
+  function handlePreview(data: Partial<ScarfGridType>) {
+    localDraft = { ...localDraft, ...data }
+  }
+
+  function handleMenuClose() {
+    untrack(() => {
+      const draftKeys = Object.keys(localDraft) as (keyof ScarfGridType)[]
+      if (draftKeys.length === 0) return
+
+      const updates: Partial<ScarfGridType> = {}
+      for (const key of draftKeys) {
+        if (localDraft[key] !== realSettings[key]) {
+          ;(updates as any)[key] = localDraft[key]
+        }
+      }
+
+      if (Object.keys(updates).length === 0) {
+        localDraft = {}
+        return
+      }
+
+      onWorkspaceCommand({
+        type: 'updateSettings',
+        itemId: realSettings.id,
+        source: createCommandSourcePlotPattern(effectiveSettings, 'plot'),
+        settings: updates,
+      })
+
+      localDraft = {}
+    })
+  }
+
   function handleDragStepX(stepChange: number) {
     const visibleRange = timelineMax - timelineMin
     const moveAmount = -stepChange * (visibleRange / plotDimensions.width)
@@ -104,35 +158,39 @@
     const newMax =
       timelineMax + moveAmount + (newMin - (timelineMin + moveAmount))
 
-    const isAbsolute = localSettings.timeline === 'absolute'
-    const limitsKey = isAbsolute
-      ? 'absoluteStimuliLimits'
-      : 'ordinalStimuliLimits'
+    if (effectiveSettings.timeline !== 'relative') {
+      const isOrdinal = effectiveSettings.timeline === 'ordinal'
+      const updates = isOrdinal
+        ? { ordinalStart: newMin, ordinalEnd: newMax }
+        : { timelineStart: newMin, timelineEnd: newMax }
 
-    if (localSettings.timeline !== 'relative') {
-      localSettings = {
-        ...localSettings,
-        [limitsKey]: {
-          ...localSettings[limitsKey],
-          [currentStimulusId]: [newMin, newMax],
-        },
-      }
+      // Update local draft directly for smooth dragging
+      localDraft = { ...localDraft, ...updates }
     }
   }
 
   function handleDragEnd() {
-    if (localSettings.timeline === 'relative') return
-    const limitsKey =
-      localSettings.timeline === 'absolute'
-        ? 'absoluteStimuliLimits'
-        : 'ordinalStimuliLimits'
+    if (effectiveSettings.timeline === 'relative') return
+    const isOrdinal = effectiveSettings.timeline === 'ordinal'
+    const updates = isOrdinal
+      ? {
+          ordinalStart: localDraft.ordinalStart ?? timelineMin,
+          ordinalEnd: localDraft.ordinalEnd ?? timelineMax,
+        }
+      : {
+          timelineStart: localDraft.timelineStart ?? timelineMin,
+          timelineEnd: localDraft.timelineEnd ?? timelineMax,
+        }
 
     onWorkspaceCommand({
       type: 'updateSettings',
       itemId: realSettings.id,
       source: createCommandSourcePlotPattern(realSettings, 'plot'),
-      settings: { [limitsKey]: localSettings[limitsKey] },
+      settings: updates,
     })
+
+    // Clear draft after committing
+    localDraft = {}
   }
 
   onMount(() => {
@@ -164,15 +222,16 @@
 </script>
 
 <BasePlot
-  settings={localSettings}
+  settings={effectiveSettings}
   layoutConfig={LAYOUT}
   dimensions={plotDimensions}
 >
   {#snippet header()}
     <ScarfPlotHeader
       source={createCommandSourcePlotPattern(realSettings, 'plot')}
-      settings={localSettings}
+      settings={effectiveSettings}
       {onWorkspaceCommand}
+      onPreview={handlePreview}
     />
   {/snippet}
 
@@ -185,7 +244,7 @@
           onTooltipDeactivation={handleTooltipDeactivation}
           tooltipAreaElement={tooltipArea}
           {data}
-          settings={localSettings}
+          settings={effectiveSettings}
           {highlights}
           onLegendClick={handleLegendClick}
           onDragStepX={handleDragStepX}
