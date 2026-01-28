@@ -264,20 +264,40 @@ function createTimeline(
   scaleRange?: [number, number]
 ): AdaptiveTimeline {
   let maxValue = 0
+  let hasData = false
+
   for (let i = 0; i < rawData.length; i++) {
     const val = rawData[i]
-    if (!isNaN(val) && val > maxValue) {
-      maxValue = val
+    if (!isNaN(val)) {
+      if (val > maxValue) {
+        maxValue = val
+      }
+      hasData = true
     }
+  }
+
+  // Handle empty or invalid data
+  if (!hasData) {
+    return createAdaptiveTimeline(0, 100, 6)
   }
 
   let min = 0
   let max = maxValue
+
+  const hasCustomScale =
+    scaleRange && (scaleRange[0] !== 0 || scaleRange[1] !== 0)
 
   if (scaleRange) {
     if (scaleRange[0] !== 0) min = scaleRange[0]
     if (scaleRange[1] !== 0) max = scaleRange[1]
   }
 
-  return createAdaptiveTimeline(min, max, 6)
+  // Ensure min < max
+  if (max <= min) {
+    max = min + 1
+  }
+
+  // If we are in "Auto" mode (no custom scale range), use nice max rounding
+  // so bars have some breathing room.
+  return createAdaptiveTimeline(min, max, 6, !hasCustomScale)
 }

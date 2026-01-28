@@ -111,59 +111,79 @@
   // Calculate dynamic left margin based on plotting type and label lengths
   const trueLeftMargin = $derived(
     Math.floor(
-      barPlottingType === 'horizontal'
-        ? Math.min(
-            150,
-            calculateLabelOffset(data.map(item => item.label)) +
-              VALUE_LABEL_OFFSET
-          ) + marginLeft
-        : Math.max(
-            35,
-            calculateLabelOffset(timeline.ticks.map(tick => tick.label)) +
-              VALUE_LABEL_OFFSET
-          ) + marginLeft
+      Math.min(
+        width * 0.4, // Safety cap: never take more than 40% of width
+        barPlottingType === 'horizontal'
+          ? Math.min(
+              150,
+              calculateLabelOffset(data.map(item => item.label)) +
+                VALUE_LABEL_OFFSET
+            ) + marginLeft
+          : Math.max(
+              35,
+              calculateLabelOffset(timeline.ticks.map(tick => tick.label)) +
+                VALUE_LABEL_OFFSET
+            ) + marginLeft
+      )
     )
   )
 
   const dynamicRightMargin = $derived.by(() => {
     if (barPlottingType !== 'horizontal') return MARGIN.RIGHT + marginRight
 
-    const maxValue = Math.max(...data.map(d => d.value))
-    const timelineMax = timeline.ticks[timeline.ticks.length - 1].value
+    const values = data.map(d => d.value)
+    if (values.length === 0) return MARGIN.RIGHT + marginRight
 
-    // Approximate initial plot area width (using current fixed right margin)
-    const estimatedPlotAreaWidth =
+    const maxValue = Math.max(0, ...values)
+    const timelineMax = timeline.maxValue || 1
+
+    // 1. Calculate a stable estimate for the plot area width
+    const estimatedPlotAreaWidth = Math.max(
+      100,
       width - trueLeftMargin - MARGIN.RIGHT - marginRight
+    )
 
-    // Simulate where the value label would appear
-    const barEndX =
-      trueLeftMargin + (maxValue / timelineMax) * estimatedPlotAreaWidth
+    // 2. Calculate the bar end X position, CAPPING it at the estimated plot area width.
+    // This is the KEY fix: if maxValue > timelineMax, we assume the bar is clipped
+    // and its label should ideally appear at the edge of the plot area, not miles away.
+    const clippedValueRatio = Math.min(1, maxValue / timelineMax)
+    const barEndX = trueLeftMargin + clippedValueRatio * estimatedPlotAreaWidth
 
+    // 3. Estimate label width
     const labelText = maxValue.toString()
-    const labelWidth = labelText.length * LABEL_FONT_SIZE * 0.6
+    const labelWidth = labelText.length * LABEL_FONT_SIZE * 0.55
     const labelRightEdge = barEndX + VALUE_LABEL_OFFSET + labelWidth
 
+    // 4. Calculate overflow based on the CLIPPED position
     const overflow = Math.max(0, labelRightEdge - width)
 
-    return MARGIN.RIGHT + overflow + marginRight
+    // Cap the maximum possible overflow to prevent the plot area from disappearing
+    // if something goes wrong or labels are extremely long.
+    const cappedOverflow = Math.min(overflow, width * 0.3)
+
+    return Math.floor(MARGIN.RIGHT + cappedOverflow + marginRight)
   })
 
-  // Calculate plot area dimensions
+  // Calculate plot area dimensions - Ensure at least 1px to avoid layout collapse
   const plotAreaWidth = $derived(
-    Math.floor(width - trueLeftMargin - dynamicRightMargin)
+    Math.max(1, Math.floor(width - trueLeftMargin - dynamicRightMargin))
   )
   const plotAreaHeight = $derived(
-    Math.floor(
-      height - effectiveTopMargin - MARGIN.BOTTOM - marginTop - marginBottom
+    Math.max(
+      1,
+      Math.floor(
+        height - effectiveTopMargin - MARGIN.BOTTOM - marginTop - marginBottom
+      )
     )
   )
 
   // Scale values to plot area using AdaptiveTimeline
-  function scaleValue(value: number): number {
-    const position = getTimelinePositionRatio(timeline, value)
-    return barPlottingType === 'vertical'
-      ? position * plotAreaHeight
-      : position * plotAreaWidth
+  function scaleValue(value: number, clamp: boolean = true): number {
+    const position = getTimelinePositionRatio(timeline, value, clamp)
+    return Math.floor(
+      position *
+        (barPlottingType === 'vertical' ? plotAreaHeight : plotAreaWidth)
+    )
   }
 
   // Calculate optimal bar width based on available space
@@ -173,18 +193,21 @@
     const availableSpace =
       barPlottingType === 'vertical' ? plotAreaWidth : plotAreaHeight
 
+    // Calculate maximum space that can be used for spacing
+    // Ensure we don't have negative available space
+    const usableSpace = Math.max(0, availableSpace - BAR_SPACING_TOLERANCE * 2)
+
+    // Calculate how many gaps we have
+    const gaps = Math.max(1, data.length - 1)
+
     // Calculate the actual spacing to use (may be reduced if space is tight)
     const effectiveSpacing = Math.max(
       MIN_BAR_SPACING,
-      Math.min(
-        barSpacing,
-        (availableSpace - BAR_SPACING_TOLERANCE * 2) / (data.length + 1)
-      )
+      Math.min(barSpacing, (usableSpace - data.length * 2) / gaps)
     )
 
     const totalSpacing = (data.length - 1) * effectiveSpacing
-    const maxBarWidth =
-      (availableSpace - totalSpacing - 2 * BAR_SPACING_TOLERANCE) / data.length
+    const maxBarWidth = Math.max(1, (usableSpace - totalSpacing) / data.length)
 
     // Use the smaller of the requested barWidth or the maximum possible width
     return Math.min(barWidth, maxBarWidth)
@@ -199,8 +222,10 @@
 
     // Calculate maximum space that can be used for spacing
     const spaceForBars = data.length * optimalBarWidth
-    const remainingSpace =
+    const remainingSpace = Math.max(
+      0,
       availableSpace - spaceForBars - 2 * BAR_SPACING_TOLERANCE
+    )
 
     // Divide remaining space by number of gaps between bars
     const calculatedSpacing = remainingSpace / (data.length - 1)
@@ -212,7 +237,9 @@
   // Calculate bar positions and dimensions
   const bars = $derived.by(() => {
     return data.map((item, index) => {
-      const scaledValue = scaleValue(item.value)
+      // Use NO CLAMPING for bar length calculation to allow bars to overflow
+      // if the user set a small max. We will clip them in drawBars.
+      const scaledValue = scaleValue(item.value, false)
       const availableSpace =
         barPlottingType === 'vertical' ? plotAreaWidth : plotAreaHeight
       const totalBarWidth = data.length * optimalBarWidth
@@ -220,21 +247,26 @@
 
       const startPosition =
         BAR_SPACING_TOLERANCE +
-        (availableSpace -
-          totalBarWidth -
-          totalSpacing -
-          2 * BAR_SPACING_TOLERANCE) /
+        Math.max(
+          0,
+          availableSpace -
+            totalBarWidth -
+            totalSpacing -
+            2 * BAR_SPACING_TOLERANCE
+        ) /
           2
 
       if (barPlottingType === 'vertical') {
+        const y = effectiveTopMargin + marginTop + plotAreaHeight - scaledValue
+        const h = scaledValue
         return {
           x:
             trueLeftMargin +
             startPosition +
             index * (optimalBarWidth + effectiveBarSpacing),
-          y: effectiveTopMargin + marginTop + plotAreaHeight - scaledValue,
+          y,
           width: optimalBarWidth,
-          height: scaledValue,
+          height: h,
           value: item.value,
           label: item.label,
           color: item.color,
@@ -373,6 +405,17 @@
 
   // Draw the bars
   function drawBars(ctx: CanvasRenderingContext2D) {
+    const floorLeft = Math.floor(trueLeftMargin)
+    const floorWidth = Math.floor(plotAreaWidth)
+    const floorTop = Math.floor(effectiveTopMargin + marginTop)
+    const floorHeight = Math.floor(plotAreaHeight)
+
+    // Clip bars to the plot area to prevent overflow over axes or labels
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(floorLeft, floorTop, floorWidth, floorHeight)
+    ctx.clip()
+
     // bars already contains all calculated positions and dimensions
     for (const bar of bars) {
       ctx.fillStyle = bar.color
@@ -383,6 +426,7 @@
         Math.floor(bar.height)
       )
     }
+    ctx.restore()
   }
 
   // Draw all text elements in one optimized function
@@ -404,14 +448,21 @@
 
     for (const bar of bars) {
       const text = bar.value.toString()
-      const x = isVertical
+
+      // Calculate label position, capping the X to the plot area bounds if needed
+      // so labels don't disappear miles to the right in horizontal mode.
+      const labelX = isVertical
         ? alignToPixelCenter(bar.x + bar.width / 2)
-        : bar.x + bar.width + VALUE_LABEL_OFFSET
+        : Math.min(
+            leftX + plotWidth + VALUE_LABEL_OFFSET,
+            bar.x + bar.width + VALUE_LABEL_OFFSET
+          )
+
       const y = isVertical
         ? bar.y - VALUE_LABEL_OFFSET
         : alignToPixelCenter(bar.y + bar.height / 2)
 
-      ctx.fillText(text, x, y)
+      ctx.fillText(text, labelX, y)
     }
 
     // Draw category labels

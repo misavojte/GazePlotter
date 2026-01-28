@@ -80,20 +80,24 @@ export function calculateNiceStepSize(
  * Gets the position ratio (0-1) for a given value
  * @param timeline The timeline data or just min/max bounds
  * @param value The value to position
+ * @param clamp Whether to clamp the value within the timeline bounds (default: true)
  * @returns A value between 0 and 1 representing the position
  */
 export function getTimelinePositionRatio(
   timeline: { minValue: number; maxValue: number },
-  value: number
+  value: number,
+  clamp: boolean = true
 ): number {
   const { minValue, maxValue } = timeline
   if (maxValue <= minValue) return 0
 
-  // Ensure value is within bounds
-  const clampedValue = Math.max(minValue, Math.min(value, maxValue))
+  // Optional clamp value within bounds
+  const usedValue = clamp
+    ? Math.max(minValue, Math.min(value, maxValue))
+    : value
 
   // Calculate position
-  return (clampedValue - minValue) / (maxValue - minValue)
+  return (usedValue - minValue) / (maxValue - minValue)
 }
 
 /**
@@ -198,15 +202,17 @@ function generateTimelineTicks(
  * @param minValue The start value (typically 0)
  * @param maxValue The end value (the exact maximum data value to display)
  * @param minTickCount Suggested minimum number of ticks (may be adjusted for readability)
+ * @param roundToNiceMax If true, the timeline's maxValue will be rounded up to the next nice tick
  * @returns AdaptiveTimeline data object
  */
 export function createAdaptiveTimeline(
   minValue: number = 0,
   maxValue: number = 0,
-  minTickCount: number = 6
+  minTickCount: number = 6,
+  roundToNiceMax: boolean = false
 ): AdaptiveTimeline {
   const min = Math.max(0, minValue) // Ensure min value is never negative
-  const max = Math.max(min, maxValue) // Ensure max >= min
+  let max = Math.max(min, maxValue) // Ensure max >= min
 
   // Handle empty or invalid range
   if (max <= min) {
@@ -226,7 +232,13 @@ export function createAdaptiveTimeline(
 
   const range = max - min
   const step = calculateNiceStepSize(range, minTickCount)
-  const ticks = generateTimelineTicks(min, max, range, step)
+
+  // Optionally round up to the next nice tick
+  if (roundToNiceMax) {
+    max = Math.ceil(max / step) * step
+  }
+
+  const ticks = generateTimelineTicks(min, max, max - min, step)
 
   return {
     minValue: min,

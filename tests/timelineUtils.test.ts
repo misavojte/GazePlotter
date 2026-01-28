@@ -57,9 +57,14 @@ describe('timelineUtils', () => {
       expect(getTimelinePositionRatio(timeline, 1000)).toBe(1)
     })
 
-    it('should clamp values outside range', () => {
+    it('should clamp values outside range by default', () => {
       expect(getTimelinePositionRatio(timeline, -100)).toBe(0)
       expect(getTimelinePositionRatio(timeline, 1100)).toBe(1)
+    })
+
+    it('should not clamp values when clamp is false', () => {
+      expect(getTimelinePositionRatio(timeline, -100, false)).toBe(-0.1)
+      expect(getTimelinePositionRatio(timeline, 1100, false)).toBe(1.1)
     })
 
     it('should return 0 for invalid range', () => {
@@ -98,6 +103,18 @@ describe('timelineUtils', () => {
     it('should handle negative min value by clamping to zero', () => {
       const timeline = createAdaptiveTimeline(-100, 500, 6)
       expect(timeline.minValue).toBe(0)
+    })
+
+    it('should round up to nice max when roundToNiceMax is true', () => {
+      // range 850, count 6 -> step 200. Nice max should be 1000.
+      const timeline = createAdaptiveTimeline(0, 850, 6, true)
+      expect(timeline.maxValue).toBe(1000)
+      expect(timeline.ticks[timeline.ticks.length - 1].value).toBe(1000)
+    })
+
+    it('should not round up to nice max when roundToNiceMax is false', () => {
+      const timeline = createAdaptiveTimeline(0, 850, 6, false)
+      expect(timeline.maxValue).toBe(850)
     })
   })
 
