@@ -357,7 +357,10 @@ export function hslToRgb(
   s: number,
   l: number
 ): { r: number; g: number; b: number } {
-  h = Math.max(0, Math.min(360, h))
+  // Handle periodic hue values (0-360)
+  h = h % 360
+  if (h < 0) h += 360
+
   s = Math.max(0, Math.min(100, s)) / 100
   l = Math.max(0, Math.min(100, l)) / 100
 
