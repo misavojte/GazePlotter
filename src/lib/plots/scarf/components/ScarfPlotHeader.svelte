@@ -8,6 +8,7 @@
     getParticipantsGroupOptions,
     getStimuliOptions,
   } from '$lib/plots/shared'
+  import { PreviewSync } from '$lib/plots/shared'
   import Minor, {
     type MinorGroupItem,
   } from '$lib/shared/components/GeneralButtonMinor.svelte'
@@ -21,15 +22,25 @@
   import ZoomOut from 'lucide-svelte/icons/zoom-out'
   import { ScarfPlotButtonMenu } from './'
   import ScarfPlotTimelineSettings from './ScarfPlotTimelineSettings.svelte'
+  import { untrack } from 'svelte'
 
   interface Props {
     settings: ScarfGridType
     source: string
     onWorkspaceCommand: (command: WorkspaceCommand) => void
-    onPreview: (data: Partial<ScarfGridType>) => void
+    syncs: {
+      timelineStart: PreviewSync<number>
+      timelineEnd: PreviewSync<number>
+      ordinalStart: PreviewSync<number>
+      ordinalEnd: PreviewSync<number>
+      timeline: PreviewSync<'absolute' | 'relative' | 'ordinal'>
+    }
+    // We still keep a close handler if needed, but managing syncs is cleaner
+    onMenuClose?: () => void
   }
 
-  let { settings, source, onWorkspaceCommand, onPreview }: Props = $props()
+  let { settings, source, onWorkspaceCommand, syncs, onMenuClose }: Props =
+    $props()
 
   function calculateActualMax(stimulusId: number): number {
     const participants = getParticipants(settings.groupId, stimulusId)
@@ -192,36 +203,40 @@
     {
       label: 'Timeline',
       value: settings.timeline,
-      onchange: () => {}, // Driven by sub-components or onSelect
+      onClose: onMenuClose,
       options: [
         {
           value: 'absolute',
           label: 'Absolute',
-          onSelect: v => onPreview({ timeline: v }),
+          onSelect: v => {
+            syncs.timeline.value = v
+          },
           closeOnAction: false,
           component: ScarfPlotTimelineSettings,
           componentHeight: 120, // Adjust as needed
           componentProps: {
-            currentValues: settings,
-            onPreview,
+            syncs,
           },
         },
         {
           value: 'relative',
           label: 'Relative',
-          onSelect: v => onPreview({ timeline: v }),
+          onSelect: v => {
+            syncs.timeline.value = v
+          },
           closeOnAction: true,
         },
         {
           value: 'ordinal',
           label: 'Ordinal',
-          onSelect: v => onPreview({ timeline: v }),
+          onSelect: v => {
+            syncs.timeline.value = v
+          },
           closeOnAction: false,
           component: ScarfPlotTimelineSettings,
           componentHeight: 120,
           componentProps: {
-            currentValues: settings,
-            onPreview,
+            syncs,
           },
         },
       ],

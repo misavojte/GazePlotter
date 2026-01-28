@@ -1,26 +1,19 @@
 <script lang="ts">
   import { type MenuItem } from '$lib/context-menu'
-  import type { ScarfGridType } from '$lib/workspace/type/gridType'
+  import type { PreviewSync } from '$lib/plots/shared'
 
   interface Props {
     item: MenuItem
-    currentValues: ScarfGridType
-    onPreview: (data: Partial<ScarfGridType>) => void
+    syncs: {
+      timelineStart: PreviewSync<number>
+      timelineEnd: PreviewSync<number>
+      ordinalStart: PreviewSync<number>
+      ordinalEnd: PreviewSync<number>
+    }
     close: () => void
   }
 
-  let { item, currentValues, onPreview, close }: Props = $props()
-
-  // --- NO LOCAL STATE, NO EFFECT ---
-  // We drive EVERYTHING from currentValues via callbacks.
-  // This is the most reactive and simple approach (KISS).
-
-  function updateValue(key: keyof ScarfGridType, val: any) {
-    onPreview({
-      [key]: val,
-      timeline: item.value as any,
-    })
-  }
+  let { item, syncs, close }: Props = $props()
 
   function handleSubmit(e: Event) {
     e.preventDefault()
@@ -43,13 +36,13 @@
             id="timeline-start"
             type="number"
             value={isOrdinal
-              ? currentValues.ordinalStart
-              : currentValues.timelineStart}
-            oninput={e =>
-              updateValue(
-                isOrdinal ? 'ordinalStart' : 'timelineStart',
-                parseInt(e.currentTarget.value)
-              )}
+              ? syncs.ordinalStart.value
+              : syncs.timelineStart.value}
+            oninput={e => {
+              const v = parseInt(e.currentTarget.value)
+              if (isOrdinal) syncs.ordinalStart.value = v
+              else syncs.timelineStart.value = v
+            }}
             min="0"
             placeholder="0"
           />
@@ -59,14 +52,12 @@
           <input
             id="timeline-end"
             type="number"
-            value={isOrdinal
-              ? currentValues.ordinalEnd
-              : currentValues.timelineEnd}
-            oninput={e =>
-              updateValue(
-                isOrdinal ? 'ordinalEnd' : 'timelineEnd',
-                parseInt(e.currentTarget.value)
-              )}
+            value={isOrdinal ? syncs.ordinalEnd.value : syncs.timelineEnd.value}
+            oninput={e => {
+              const v = parseInt(e.currentTarget.value)
+              if (isOrdinal) syncs.ordinalEnd.value = v
+              else syncs.timelineEnd.value = v
+            }}
             min="0"
             placeholder="Auto"
           />

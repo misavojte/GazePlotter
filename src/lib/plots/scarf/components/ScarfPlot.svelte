@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getParticipants, engine } from '$lib/data/engine'
-  import { onDestroy, onMount, untrack } from 'svelte'
+  import { onDestroy, untrack } from 'svelte'
   import { ScarfPlotFigure, ScarfPlotHeader } from '$lib/plots/scarf/components'
   import { BasePlot } from '$lib/plots/shared/components'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
@@ -14,6 +14,8 @@
   import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
+  import { PreviewSync } from '$lib/plots/shared'
+
   // Component Props using Svelte 5 $props() rune
   interface Props {
     settings: ScarfGridType
@@ -23,21 +25,42 @@
   // Rename incoming settings prop to realSettings for clarity
   let { settings: realSettings, onWorkspaceCommand }: Props = $props()
 
-  // --- NO-EFFECT DRAFT STATE ---
-  // We use a local draft that is NOT synced via $effect.
-  // Instead, the plot RENDER uses an effective state that prefers localDraft values.
-  let localDraft = $state<Partial<ScarfGridType>>({})
+  // --- PREVIEW SYNC STATE ---
+  const timelineSync = new PreviewSync(realSettings.timeline)
+  const timelineStartSync = new PreviewSync(realSettings.timelineStart)
+  const timelineEndSync = new PreviewSync(realSettings.timelineEnd)
+  const ordinalStartSync = new PreviewSync(realSettings.ordinalStart)
+  const ordinalEndSync = new PreviewSync(realSettings.ordinalEnd)
+
+  $effect(() => {
+    timelineSync.updateCommitted(realSettings.timeline, true)
+    timelineStartSync.updateCommitted(realSettings.timelineStart, true)
+    timelineEndSync.updateCommitted(realSettings.timelineEnd, true)
+    ordinalStartSync.updateCommitted(realSettings.ordinalStart, true)
+    ordinalEndSync.updateCommitted(realSettings.ordinalEnd, true)
+  })
+
+  // Grouping for header
+  const syncs = {
+    timeline: timelineSync,
+    timelineStart: timelineStartSync,
+    timelineEnd: timelineEndSync,
+    ordinalStart: ordinalStartSync,
+    ordinalEnd: ordinalEndSync,
+  }
 
   const effectiveSettings = $derived({
     ...realSettings,
-    ...localDraft,
+    timeline: timelineSync.value,
+    timelineStart: timelineStartSync.value,
+    timelineEnd: timelineEndSync.value,
+    ordinalStart: ordinalStartSync.value,
+    ordinalEnd: ordinalEndSync.value,
   })
 
   // State management
   let tooltipArea = $state<HTMLElement | SVGElement | null>(null)
-  let windowObj = $state<Window | null>(null)
   let timeout = 0
-  let removeHighlight = $state<null | (() => void)>(null)
 
   // Derived values
   const currentGroupId = $derived(effectiveSettings.groupId)
@@ -101,7 +124,6 @@
   function hideTooltipAndHighlight() {
     clearTimeout(timeout)
     tooltipScarfService(null)
-    removeHighlight?.()
   }
 
   function handleLegendClick(identifier: string) {
@@ -118,24 +140,24 @@
     })
   }
 
-  function handlePreview(data: Partial<ScarfGridType>) {
-    localDraft = { ...localDraft, ...data }
-  }
-
   function handleMenuClose() {
     untrack(() => {
-      const draftKeys = Object.keys(localDraft) as (keyof ScarfGridType)[]
-      if (draftKeys.length === 0) return
-
       const updates: Partial<ScarfGridType> = {}
-      for (const key of draftKeys) {
-        if (localDraft[key] !== realSettings[key]) {
-          ;(updates as any)[key] = localDraft[key]
-        }
-      }
+
+      if (timelineSync.isDirty) updates.timeline = timelineSync.value
+      if (timelineStartSync.isDirty)
+        updates.timelineStart = timelineStartSync.value
+      if (timelineEndSync.isDirty) updates.timelineEnd = timelineEndSync.value
+      if (ordinalStartSync.isDirty)
+        updates.ordinalStart = ordinalStartSync.value
+      if (ordinalEndSync.isDirty) updates.ordinalEnd = ordinalEndSync.value
 
       if (Object.keys(updates).length === 0) {
-        localDraft = {}
+        timelineSync.reset()
+        timelineStartSync.reset()
+        timelineEndSync.reset()
+        ordinalStartSync.reset()
+        ordinalEndSync.reset()
         return
       }
 
@@ -146,7 +168,11 @@
         settings: updates,
       })
 
-      localDraft = {}
+      timelineSync.reset()
+      timelineStartSync.reset()
+      timelineEndSync.reset()
+      ordinalStartSync.reset()
+      ordinalEndSync.reset()
     })
   }
 
@@ -160,42 +186,55 @@
 
     if (effectiveSettings.timeline !== 'relative') {
       const isOrdinal = effectiveSettings.timeline === 'ordinal'
-      const updates = isOrdinal
-        ? { ordinalStart: newMin, ordinalEnd: newMax }
-        : { timelineStart: newMin, timelineEnd: newMax }
 
-      // Update local draft directly for smooth dragging
-      localDraft = { ...localDraft, ...updates }
+      if (isOrdinal) {
+        ordinalStartSync.value = newMin
+        ordinalEndSync.value = newMax
+      } else {
+        timelineStartSync.value = newMin
+        timelineEndSync.value = newMax
+      }
     }
   }
 
   function handleDragEnd() {
     if (effectiveSettings.timeline === 'relative') return
     const isOrdinal = effectiveSettings.timeline === 'ordinal'
-    const updates = isOrdinal
-      ? {
-          ordinalStart: localDraft.ordinalStart ?? timelineMin,
-          ordinalEnd: localDraft.ordinalEnd ?? timelineMax,
-        }
-      : {
-          timelineStart: localDraft.timelineStart ?? timelineMin,
-          timelineEnd: localDraft.timelineEnd ?? timelineMax,
-        }
 
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: realSettings.id,
-      source: createCommandSourcePlotPattern(realSettings, 'plot'),
-      settings: updates,
-    })
+    // We can rely on handleMenuClose logic to commit dirty syncs
+    // But drag interaction is usually immediate, implying a commit.
+    // However, PreviewSync is designed for menu logic. For direct drag, we can just commit directly
+    // OR we can set value and then call commit manually.
 
-    // Clear draft after committing
-    localDraft = {}
+    // Let's reuse the commit logic:
+    const updates: Partial<ScarfGridType> = {}
+
+    if (isOrdinal) {
+      if (ordinalStartSync.isDirty)
+        updates.ordinalStart = ordinalStartSync.value
+      if (ordinalEndSync.isDirty) updates.ordinalEnd = ordinalEndSync.value
+    } else {
+      if (timelineStartSync.isDirty)
+        updates.timelineStart = timelineStartSync.value
+      if (timelineEndSync.isDirty) updates.timelineEnd = timelineEndSync.value
+    }
+
+    if (Object.keys(updates).length > 0) {
+      onWorkspaceCommand({
+        type: 'updateSettings',
+        itemId: realSettings.id,
+        source: createCommandSourcePlotPattern(realSettings, 'plot'),
+        settings: updates,
+      })
+    }
+
+    // Reset syncs to clean slate (they will be updated by effect once props come back)
+    timelineStartSync.reset()
+    timelineEndSync.reset()
+    ordinalStartSync.reset()
+    ordinalEndSync.reset()
   }
 
-  onMount(() => {
-    windowObj = window
-  })
   onDestroy(hideTooltipAndHighlight)
 
   function handleTooltipActivation(event: {
@@ -231,7 +270,8 @@
       source={createCommandSourcePlotPattern(realSettings, 'plot')}
       settings={effectiveSettings}
       {onWorkspaceCommand}
-      onPreview={handlePreview}
+      {syncs}
+      onMenuClose={handleMenuClose}
     />
   {/snippet}
 

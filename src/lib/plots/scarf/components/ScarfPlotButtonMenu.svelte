@@ -2,7 +2,6 @@
   import { GeneralButtonMenu as MenuButton } from '$lib/shared/components'
   import { modalState } from '$lib/modals'
   import Download from 'lucide-svelte/icons/download'
-  import Scissors from 'lucide-svelte/icons/scissors-line-dashed'
   import Settings from 'lucide-svelte/icons/settings-2'
   import Users from 'lucide-svelte/icons/users'
   import View from 'lucide-svelte/icons/view'
@@ -12,7 +11,6 @@
   import {
     ModalContentParticipantModification,
     ModalContentStimulusModification,
-    ModalContentScarfPlotClip,
     ModalContentAoiModification,
     ModalContentAoiVisibility,
     ModalContentDownloadScarfPlot,
@@ -82,14 +80,6 @@
       label: 'AOI visibility',
       action: () => openModal(ModalContentAoiVisibility, 'AOI visibility'),
       icon: View,
-    },
-    {
-      label: 'Clip timeline',
-      action: () =>
-        openModal(ModalContentScarfPlotClip, 'Clip scarf timeline', {
-          settings,
-        }),
-      icon: Scissors,
     },
     { isDivider: true },
     {

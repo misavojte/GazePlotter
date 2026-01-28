@@ -32,6 +32,7 @@
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
   import { grid } from '$lib/workspace/grid/store.svelte'
+  import { PreviewSync } from '$lib/plots/shared'
   import AoiStreamPlotAlignmentSettings from './AoiStreamPlotAlignmentSettings.svelte'
 
   const LAYOUT = {
@@ -45,18 +46,41 @@
 
   let { settings, onWorkspaceCommand }: Props = $props()
 
-  // --- NO-EFFECT DRAFT STATE ---
-  // We use a local draft that is NOT synced via $effect.
-  // Instead, the plot RENDER uses an effective state that prefers localDraft values.
-  let localDraft = $state<Partial<AoiStreamPlotGridType>>({})
+  // --- PREVIEW SYNC STATE ---
+  // We use PreviewSync to manage "preview" vs "committed" state for settings.
+  // This allows submenus to share the same preview state (carrying over changes).
 
-  // Reset draft when common identity-changing props change (like stimulus)
-  // This is handled in event handlers, not effects.
+  const binSizeSync = new PreviewSync(settings.binSize)
+  const ridgelineScaleSync = new PreviewSync(settings.ridgelineScale)
+  const timelineStartSync = new PreviewSync(settings.timelineStart)
+  const timelineEndSync = new PreviewSync(settings.timelineEnd)
+  const alignmentSync = new PreviewSync(settings.alignment)
+
+  // Explicitly sync committed values when props change
+  $effect(() => {
+    binSizeSync.updateCommitted(settings.binSize, true)
+    ridgelineScaleSync.updateCommitted(settings.ridgelineScale, true)
+    timelineStartSync.updateCommitted(settings.timelineStart, true)
+    timelineEndSync.updateCommitted(settings.timelineEnd, true)
+    alignmentSync.updateCommitted(settings.alignment, true)
+  })
+
+  // Grouping them for easier passing to components (typed explicitly for AoiStreamPlotAlignmentSettings)
+  const syncs = {
+    binSize: binSizeSync,
+    ridgelineScale: ridgelineScaleSync,
+    timelineStart: timelineStartSync,
+    timelineEnd: timelineEndSync,
+    // alignmentSync is handled separately in the menu structure but contributes to effectiveSettings
+  }
 
   const effectiveSettings = $derived({
-    ridgelineScale: RIDGELINE_SCALE,
     ...settings,
-    ...localDraft,
+    binSize: binSizeSync.value,
+    ridgelineScale: ridgelineScaleSync.value ?? RIDGELINE_SCALE,
+    timelineStart: timelineStartSync.value,
+    timelineEnd: timelineEndSync.value,
+    alignment: alignmentSync.value,
   })
 
   // --- DERIVED PIPELINE ---
@@ -150,40 +174,30 @@
 
   // --- ACTIONS ---
 
-  function handlePreview(data: Partial<AoiStreamPlotGridType>) {
-    // Explicit re-assignment for perfect Svelte 5 proxy tracking
-    localDraft = { ...localDraft, ...data }
-  }
-
   function handleMenuClose() {
     untrack(() => {
-      // If we have no session data, we are done
-      const draftKeys = Object.keys(
-        localDraft
-      ) as (keyof AoiStreamPlotGridType)[]
-      if (draftKeys.length === 0) return
-
-      // Final reconciliation: Capture anything that differs from the authority
       const updates: Partial<AoiStreamPlotGridType> = {}
 
-      for (const key of draftKeys) {
-        const draftVal = localDraft[key]
-        const authorityVal = settings[key]
-
-        // If the draft value differs from the global authority (record transitions from undefined too)
-        if (draftVal !== authorityVal) {
-          ;(updates as any)[key] = draftVal
-        }
-      }
+      if (binSizeSync.isDirty) updates.binSize = binSizeSync.value
+      if (ridgelineScaleSync.isDirty)
+        updates.ridgelineScale = ridgelineScaleSync.value
+      if (timelineStartSync.isDirty)
+        updates.timelineStart = timelineStartSync.value
+      if (timelineEndSync.isDirty) updates.timelineEnd = timelineEndSync.value
+      if (alignmentSync.isDirty) updates.alignment = alignmentSync.value as any
 
       // Only dispatch if there are actual diffs
       if (Object.keys(updates).length === 0) {
-        localDraft = {}
+        // Just reset previews to be safe (cleans up any accidental state)
+        binSizeSync.reset()
+        ridgelineScaleSync.reset()
+        timelineStartSync.reset()
+        timelineEndSync.reset()
+        alignmentSync.reset()
         return
       }
 
       // Snapshot to ensure we send raw values, decoupling from reactive proxies
-      // This ensures the command handler correctly records the PREVIOUS state for Undo.
       const snapshotUpdates = $state.snapshot(updates)
       const snapshotSource = $state.snapshot(source)
 
@@ -194,14 +208,25 @@
         settings: snapshotUpdates,
       })
 
-      // IMPORTANT: Clear draft AFTER dispatching to maintain visual continuity
-      localDraft = {}
+      // IMPORTANT: Reset previews after dispatching.
+      // The command will eventually update props, which will update committed values via $effect.
+      binSizeSync.reset()
+      ridgelineScaleSync.reset()
+      timelineStartSync.reset()
+      timelineEndSync.reset()
+      alignmentSync.reset()
     })
   }
 
   const handleStimulusChange = (event: CustomEvent) => {
     const stimulusId = parseInt(event.detail as string)
-    localDraft = {} // Reset preview on structural change
+    // Reset preview on structural change
+    binSizeSync.reset()
+    ridgelineScaleSync.reset()
+    timelineStartSync.reset()
+    timelineEndSync.reset()
+    alignmentSync.reset()
+
     if (settings.stimulusId === stimulusId) return
     onWorkspaceCommand({
       type: 'updateSettings',
@@ -213,7 +238,13 @@
 
   const handleUpperGroupChange = (event: CustomEvent) => {
     const groupId = parseInt(event.detail as string)
-    localDraft = {} // Reset preview on structural change
+    // Reset preview on structural change
+    binSizeSync.reset()
+    ridgelineScaleSync.reset()
+    timelineStartSync.reset()
+    timelineEndSync.reset()
+    alignmentSync.reset()
+
     if (settings.groupId === groupId) return
     onWorkspaceCommand({
       type: 'updateSettings',
@@ -263,42 +294,45 @@
         {
           value: 'center',
           label: 'Center',
-          onSelect: (v: any) => handlePreview({ alignment: v }),
+          onSelect: (v: any) => {
+            alignmentSync.value = v
+          },
           closeOnAction: false,
           component: AoiStreamPlotAlignmentSettings,
           componentHeight: 170,
           componentProps: {
-            currentValues: effectiveSettings,
-            onPreview: handlePreview,
+            syncs,
           },
         },
         {
           value: 'bottom',
           label: 'Bottom',
-          onSelect: (v: any) => handlePreview({ alignment: v }),
+          onSelect: (v: any) => {
+            alignmentSync.value = v
+          },
           closeOnAction: false,
           component: AoiStreamPlotAlignmentSettings,
           componentHeight: 170,
           componentProps: {
-            currentValues: effectiveSettings,
-            onPreview: handlePreview,
+            syncs,
           },
         },
         {
           value: 'ridgeline',
           label: 'Ridgeline',
-          onSelect: (v: any) =>
-            handlePreview({
-              alignment: v,
-              ridgelineScale:
-                effectiveSettings.ridgelineScale ?? RIDGELINE_SCALE,
-            }),
+          onSelect: (v: any) => {
+            alignmentSync.value = v
+            // Ensure scale has a value for preview if it was undefined
+            if (!ridgelineScaleSync.value) {
+              ridgelineScaleSync.value =
+                settings.ridgelineScale ?? RIDGELINE_SCALE
+            }
+          },
           closeOnAction: false,
           component: AoiStreamPlotAlignmentSettings,
           componentHeight: 240,
           componentProps: {
-            currentValues: effectiveSettings,
-            onPreview: handlePreview,
+            syncs,
           },
         },
       ],

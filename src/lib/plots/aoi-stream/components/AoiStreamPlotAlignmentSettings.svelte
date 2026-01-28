@@ -1,26 +1,20 @@
 <script lang="ts">
   import { type MenuItem } from '$lib/context-menu'
+  import type { PreviewSync } from '$lib/plots/shared'
   import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
 
   interface Props {
     item: MenuItem
-    currentValues: AoiStreamPlotGridType
-    onPreview: (data: Partial<AoiStreamPlotGridType>) => void
+    syncs: {
+      binSize: PreviewSync<number>
+      ridgelineScale: PreviewSync<number>
+      timelineStart: PreviewSync<number>
+      timelineEnd: PreviewSync<number>
+    }
     close: () => void
   }
 
-  let { item, currentValues, onPreview, close }: Props = $props()
-
-  // --- NO LOCAL STATE, NO EFFECT ---
-  // We drive EVERYTHING from currentValues via callbacks.
-  // This is the most reactive and simple approach (KISS).
-
-  function updateValue(key: keyof AoiStreamPlotGridType, val: any) {
-    onPreview({
-      [key]: val,
-      alignment: item.value as any,
-    })
-  }
+  let { item, syncs, close }: Props = $props()
 
   function handleSubmit(e: Event) {
     e.preventDefault()
@@ -35,8 +29,7 @@
       <input
         id="bin-size"
         type="number"
-        value={currentValues.binSize}
-        oninput={e => updateValue('binSize', parseInt(e.currentTarget.value))}
+        bind:value={syncs.binSize.value}
         min="1"
       />
     </div>
@@ -47,9 +40,7 @@
         <input
           id="ridge-scale"
           type="number"
-          value={currentValues.ridgelineScale}
-          oninput={e =>
-            updateValue('ridgelineScale', parseFloat(e.currentTarget.value))}
+          bind:value={syncs.ridgelineScale.value}
           min="1"
           max="10"
           step="0.1"
@@ -67,9 +58,7 @@
           <input
             id="timeline-start"
             type="number"
-            value={currentValues.timelineStart}
-            oninput={e =>
-              updateValue('timelineStart', parseInt(e.currentTarget.value))}
+            bind:value={syncs.timelineStart.value}
             min="0"
             placeholder="0"
           />
@@ -79,9 +68,7 @@
           <input
             id="timeline-end"
             type="number"
-            value={currentValues.timelineEnd}
-            oninput={e =>
-              updateValue('timelineEnd', parseInt(e.currentTarget.value))}
+            bind:value={syncs.timelineEnd.value}
             min="0"
             placeholder="Auto"
           />
