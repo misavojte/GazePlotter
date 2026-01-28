@@ -183,9 +183,9 @@
   .menu {
     pointer-events: auto;
     background: var(--c-white);
-    border: 1px solid var(--menu-border-color);
+    border: var(--menu-border-width) solid var(--menu-border-color);
     border-radius: 8px;
-    min-width: 220px;
+    width: 220px;
     overflow: hidden;
   }
 
@@ -279,10 +279,6 @@
   }
 
   .custom {
-    padding: 10px 14px;
-  }
-
-  :global(.context-menu-anchor-active) {
-    border-color: var(--menu-border-color) !important;
+    padding: 10px 12px;
   }
 </style>

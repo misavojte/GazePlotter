@@ -117,9 +117,9 @@
   .menu {
     pointer-events: auto;
     background: var(--c-white);
-    border: 1px solid var(--menu-border-color);
+    border: var(--menu-border-width) solid var(--menu-border-color);
     border-radius: 8px;
-    min-width: 220px;
+    width: 200px;
     overflow: hidden;
   }
 
@@ -170,6 +170,6 @@
   }
 
   .custom-component-wrap {
-    padding: 10px 14px;
+    padding: 10px 12px;
   }
 </style>

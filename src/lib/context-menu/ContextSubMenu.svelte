@@ -182,7 +182,11 @@
     font-weight: 500;
   }
 
-  button.active,
+  button.active {
+    background: #f3f4f6;
+    color: var(--c-black);
+  }
+
   button:hover {
     background: #f3f4f6;
     color: var(--c-black);

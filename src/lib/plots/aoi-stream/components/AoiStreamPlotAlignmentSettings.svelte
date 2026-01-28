@@ -29,7 +29,7 @@
 </script>
 
 <div class="settings-container">
-  <form onsubmit={handleSubmit} class="flex flex-col gap-3">
+  <form onsubmit={handleSubmit}>
     <div class="input-group">
       <label for="bin-size">Bin Size [ms]</label>
       <input
@@ -92,8 +92,6 @@
 
 <style>
   .settings-container {
-    padding: 12px 14px;
-    width: 220px;
     box-sizing: border-box;
   }
   form {
