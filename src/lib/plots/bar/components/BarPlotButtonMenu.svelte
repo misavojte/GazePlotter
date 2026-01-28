@@ -6,12 +6,10 @@
   import Download from 'lucide-svelte/icons/download'
   import Settings from 'lucide-svelte/icons/settings-2'
   import Users from 'lucide-svelte/icons/users'
-  import BarChartIcon from 'lucide-svelte/icons/bar-chart'
   import {
     ModalContentAoiModification,
     ModalContentParticipantsGroups,
     ModalContentDownloadBarPlot,
-    ModalContentBarChartAxes,
     ModalContentStimulusModification,
     ModalContentExportAggregatedData,
   } from '$lib/modals'
@@ -66,18 +64,6 @@
     )
   }
 
-  const openBarChartAxesModal = () => {
-    modalState.open(
-      ModalContentBarChartAxes as unknown as typeof SvelteComponent,
-      'Bar Chart Axes',
-      {
-        settings,
-        onWorkspaceCommand,
-        source,
-      }
-    )
-  }
-
   const downloadPlot = () => {
     modalState.open(
       ModalContentDownloadBarPlot as unknown as typeof SvelteComponent,
@@ -113,11 +99,6 @@
       label: 'Setup participants groups',
       action: openUserGroupsModal,
       icon: Users,
-    },
-    {
-      label: 'Bar Chart Axes',
-      action: openBarChartAxesModal,
-      icon: BarChartIcon,
     },
     { isDivider: true },
     {

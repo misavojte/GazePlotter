@@ -115,8 +115,10 @@ export interface BarPlotGridType extends GridType {
   groupId: number
   /** Orientation of the bar plot */
   barPlottingType: 'vertical' | 'horizontal'
-  /** Method for sorting the bars */
-  sortBars: 'none' | 'ascending' | 'descending'
+  /** Method for ordering the bars */
+  orderBy: 'value' | 'aoi'
+  /** Direction of the ordering */
+  orderDirection: 'asc' | 'desc'
   /** Method used for aggregating the data */
   aggregationMethod: string
   /**

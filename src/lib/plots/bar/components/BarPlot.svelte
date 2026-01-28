@@ -21,6 +21,8 @@
   import { BAR_PLOT_AGGREGATION_METHODS } from '$lib/plots/bar/const'
   import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
+  import { PreviewSync } from '$lib/plots/shared'
+  import BarPlotOrderingSettings from './BarPlotOrderingSettings.svelte'
 
   // CONSTANTS - centralized for easier maintenance
   const LAYOUT = {
@@ -37,13 +39,77 @@
 
   let { settings, onWorkspaceCommand }: Props = $props()
 
+  // --- PREVIEW SYNC STATE ---
+  const orderBySync = new PreviewSync(settings.orderBy)
+  const orderDirectionSync = new PreviewSync(settings.orderDirection)
+  const minScaleSync = new PreviewSync(settings.scaleRange?.[0] ?? 0)
+  const maxScaleSync = new PreviewSync(settings.scaleRange?.[1] ?? 0)
+
+  $effect(() => {
+    orderBySync.updateCommitted(settings.orderBy, true)
+    orderDirectionSync.updateCommitted(settings.orderDirection, true)
+    minScaleSync.updateCommitted(settings.scaleRange?.[0] ?? 0, true)
+    maxScaleSync.updateCommitted(settings.scaleRange?.[1] ?? 0, true)
+  })
+
+  // Grouping for the component
+  const syncs = {
+    orderBy: orderBySync,
+    orderDirection: orderDirectionSync,
+    minScale: minScaleSync,
+    maxScale: maxScaleSync,
+  }
+
+  const effectiveSettings = $derived({
+    ...settings,
+    orderBy: orderBySync.value,
+    orderDirection: orderDirectionSync.value,
+    scaleRange: [minScaleSync.value, maxScaleSync.value] as [number, number],
+  })
+
   // Get bar plot data and timeline from utility function
-  let barPlotResult = $state(getBarPlotData(settings))
+  const barPlotResult = $derived(getBarPlotData(effectiveSettings))
   const labelededBarPlotData = $derived(barPlotResult.data)
   const timeline = $derived(barPlotResult.timeline)
 
   // source for the workspace commands directly from the plot
-  const source = createCommandSourcePlotPattern(settings, 'plot')
+  const source = $derived.by(() =>
+    createCommandSourcePlotPattern(effectiveSettings, 'plot')
+  )
+
+  function handleMenuClose() {
+    untrack(() => {
+      const updates: Partial<BarPlotGridType> = {}
+
+      if (orderBySync.isDirty) updates.orderBy = orderBySync.value
+      if (orderDirectionSync.isDirty)
+        updates.orderDirection = orderDirectionSync.value
+
+      if (minScaleSync.isDirty || maxScaleSync.isDirty) {
+        updates.scaleRange = [minScaleSync.value, maxScaleSync.value]
+      }
+
+      if (Object.keys(updates).length === 0) {
+        orderBySync.reset()
+        orderDirectionSync.reset()
+        minScaleSync.reset()
+        maxScaleSync.reset()
+        return
+      }
+
+      onWorkspaceCommand({
+        type: 'updateSettings',
+        itemId: settings.id,
+        source: $state.snapshot(source),
+        settings: $state.snapshot(updates),
+      })
+
+      orderBySync.reset()
+      orderDirectionSync.reset()
+      minScaleSync.reset()
+      maxScaleSync.reset()
+    })
+  }
 
   function updateSetting(newSettings: Partial<BarPlotGridType>) {
     onWorkspaceCommand({
@@ -75,24 +141,24 @@
     },
     {
       label: 'Aggregation',
-      options: BAR_PLOT_AGGREGATION_METHODS,
       value: settings.aggregationMethod,
-      onchange: (e: CustomEvent) =>
-        updateSetting({
-          aggregationMethod: e.detail as BarPlotAggregationMethodId,
-        }),
+      onClose: handleMenuClose,
+      options: BAR_PLOT_AGGREGATION_METHODS.map(method => ({
+        ...method,
+        onSelect: (v: any) => {
+          updateSetting({
+            aggregationMethod: v as BarPlotAggregationMethodId,
+          })
+        },
+        closeOnAction: false,
+        component: BarPlotOrderingSettings,
+        componentHeight: 100,
+        componentProps: {
+          syncs,
+        },
+      })),
     },
   ])
-
-  /**
-   * This is to prevent unnecessary recalculations when settings change in other components in the workspace
-   */
-  $effect(() => {
-    settings.redrawTimestamp // reactive dependency
-    untrack(() => {
-      barPlotResult = getBarPlotData(settings)
-    })
-  })
 </script>
 
 <BasePlot {settings} layoutConfig={LAYOUT}>

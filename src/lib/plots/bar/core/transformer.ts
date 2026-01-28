@@ -1,8 +1,4 @@
-import {
-  getAois,
-  getParticipantsIds,
-  engine,
-} from '$lib/data/engine'
+import { getAois, getParticipantsIds, engine } from '$lib/data/engine'
 import {
   createAdaptiveTimeline,
   type AdaptiveTimeline,
@@ -23,7 +19,12 @@ import { collectParticipantBarMetrics } from './collector'
 export function getBarPlotData(
   settings: Pick<
     BarPlotGridType,
-    'stimulusId' | 'groupId' | 'aggregationMethod' | 'sortBars' | 'scaleRange'
+    | 'stimulusId'
+    | 'groupId'
+    | 'aggregationMethod'
+    | 'orderBy'
+    | 'orderDirection'
+    | 'scaleRange'
   >
 ): BarPlotResult {
   const meta = engine.metadata
@@ -63,7 +64,11 @@ export function getBarPlotData(
   )
 
   // Apply sorting if needed
-  const sortedData = applySorting(labeledData, settings.sortBars || 'none')
+  const sortedData = applySorting(
+    labeledData,
+    settings.orderBy || 'aoi',
+    settings.orderDirection || 'asc'
+  )
 
   // Create timeline with appropriate scale
   const timeline = createTimeline(rawData, settings.scaleRange)
@@ -237,11 +242,17 @@ function createLabeledData(
  */
 function applySorting(
   data: BarPlotDataItem[],
-  sortType: 'none' | 'ascending' | 'descending'
+  orderBy: 'value' | 'aoi',
+  orderDirection: 'asc' | 'desc'
 ): BarPlotDataItem[] {
-  if (sortType === 'none') return data
-  return [...data].sort((a, b) =>
-    sortType === 'ascending' ? a.value - b.value : b.value - a.value
+  const sorted = [...data]
+
+  if (orderBy === 'aoi') {
+    return orderDirection === 'asc' ? data : sorted.reverse()
+  }
+
+  return sorted.sort((a, b) =>
+    orderDirection === 'asc' ? a.value - b.value : b.value - a.value
   )
 }
 
