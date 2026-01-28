@@ -10,15 +10,20 @@
     rgbToHex,
     rgbToHsl,
     hexToRgb,
-    SCIENTIFIC_COLOR_PALETTE,
   } from '$lib/color/utility'
+  import { SCIENTIFIC_COLOR_PALETTE } from '$lib/color/palettes'
 
   interface Props {
     value: string
     oninput?: (color: string) => void
+    palette?: string[]
   }
 
-  let { value = $bindable('#000000'), oninput = () => {} }: Props = $props()
+  let {
+    value = $bindable('#000000'),
+    oninput = () => {},
+    palette = SCIENTIFIC_COLOR_PALETTE,
+  }: Props = $props()
 
   // State for HSV model (this better matches the visual color picker)
   let hue = $state(0)
@@ -211,7 +216,7 @@
 
   <!-- Quick color palette for common selections -->
   <div class="color-palette">
-    {#each SCIENTIFIC_COLOR_PALETTE as paletteColor}
+    {#each palette as paletteColor}
       <button
         type="button"
         class="palette-color"
