@@ -20,7 +20,7 @@
   import { getXAxisLabel } from '$lib/plots/scarf'
   import { updateTooltip } from '$lib/tooltip'
   import { estimateTextWidth } from '$lib/shared/utils/textUtils'
-  import { desaturateToWhite } from '$lib/shared/utils/colorUtils'
+  import { desaturateToWhite } from '$lib/color/utility'
 
   import {
     GRIDLINE_SECONDARY,

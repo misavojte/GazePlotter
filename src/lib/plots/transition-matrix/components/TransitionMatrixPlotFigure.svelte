@@ -1,8 +1,5 @@
 <script lang="ts">
-  import {
-    getColorForValue,
-    getContrastTextColor,
-  } from '$lib/shared/utils/colorUtils'
+  import { getColorForValue, getContrastTextColor } from '$lib/color/utility'
   import { updateTooltip } from '$lib/tooltip'
   import {
     truncateTextToPixelWidth,

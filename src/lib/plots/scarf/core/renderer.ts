@@ -4,7 +4,7 @@ import {
   GRIDLINE_SECONDARY,
 } from '$lib/plots/shared'
 import { alignToPixelCenter } from '$lib/shared/utils/canvasUtils'
-import { desaturateToWhite } from '$lib/shared/utils/colorUtils'
+import { desaturateToWhite } from '$lib/color/utility'
 import type { ScarfData } from '../types'
 
 export interface ScarfLayoutContext {

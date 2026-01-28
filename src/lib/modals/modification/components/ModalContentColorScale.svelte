@@ -2,7 +2,7 @@
   import { GeneralInputColor, GeneralButtonMinor } from '$lib/shared/components'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
   import type { UpdateSettingsCommand } from '$lib/workspace/commands'
-  import { interpolateColor } from '$lib/shared/utils/colorUtils'
+  import { interpolateColor } from '$lib/color/utility'
   import {
     SectionHeader,
     ModalButtons,

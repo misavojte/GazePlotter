@@ -1,7 +1,7 @@
 import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
 import { RIDGELINE_SCALE, Y_AXIS } from '../const'
 import { calculateIdealStripHeight } from './ridgeline'
-import { desaturateToWhite } from '$lib/shared/utils/colorUtils'
+import { desaturateToWhite } from '$lib/color/utility'
 import { computeNiceYAxis, niceStep } from './axis'
 
 export interface RenderBuckets {
