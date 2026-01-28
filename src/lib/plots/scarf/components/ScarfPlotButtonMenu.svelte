@@ -90,6 +90,7 @@
         }),
       icon: Scissors,
     },
+    { isDivider: true },
     {
       label: 'Export segmented data',
       action: () =>

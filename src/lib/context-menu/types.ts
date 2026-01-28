@@ -1,20 +1,32 @@
 export type SlideFrom = 'top' | 'left'
+export type Position = 'top' | 'bottom' | 'left' | 'right'
+export type Alignment = 'start' | 'center' | 'end'
+
+export interface Point {
+  x: number
+  y: number
+}
+
+export interface Dimensions {
+  width: number
+  height: number
+}
 
 export interface MenuItem {
-  label: string
+  label?: string
   value?: string
   action?: (data?: Record<string, any>) => void
+  onSelect?: (value: any) => void
+  closeOnAction?: boolean // Default is true, set to false for persistent menus
   icon?: any
   isHighlighted?: boolean
   children?: MenuItem[]
   disabled?: boolean
+  isDivider?: boolean
   component?: any // Custom Svelte component
   componentProps?: Record<string, any>
   componentHeight?: number
 }
-
-export type Position = 'top' | 'bottom' | 'left' | 'right'
-export type Alignment = 'start' | 'center' | 'end'
 
 export interface ContextMenuOptions {
   items?: MenuItem[]

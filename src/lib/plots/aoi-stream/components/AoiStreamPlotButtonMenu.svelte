@@ -17,6 +17,8 @@
   import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
+  import { untrack } from 'svelte'
+
   interface Props {
     settings: AoiStreamPlotGridType
     onWorkspaceCommand: (command: WorkspaceCommand) => void
@@ -24,7 +26,10 @@
 
   let { settings, onWorkspaceCommand }: Props = $props()
 
-  const source = createCommandSourcePlotPattern(settings, 'modal')
+  const source = createCommandSourcePlotPattern(
+    untrack(() => settings),
+    'modal'
+  )
 
   const openAoiModificationModal = () => {
     modalState.open(
@@ -86,7 +91,7 @@
       action: openUserGroupsModal,
       icon: Users,
     },
-
+    { isDivider: true },
     {
       label: 'Download plot',
       action: openDownloadModal,

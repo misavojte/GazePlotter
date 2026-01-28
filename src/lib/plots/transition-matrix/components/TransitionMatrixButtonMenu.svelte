@@ -118,6 +118,7 @@
       action: openColorScaleModal,
       icon: Palette,
     },
+    { isDivider: true },
     {
       label: 'Download plot',
       action: openDownloadModal,

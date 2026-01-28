@@ -119,6 +119,7 @@
       action: openBarChartAxesModal,
       icon: BarChartIcon,
     },
+    { isDivider: true },
     {
       label: 'Export aggregated data',
       action: exportAggregatedData,

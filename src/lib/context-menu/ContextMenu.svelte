@@ -54,14 +54,29 @@
   /**
    * Run the selected item's action before dismissing the menu.
    *
-   * @param fn - Callback associated with the chosen menu entry.
+   * @param it - The menu item clicked.
    */
-  const handleItemClick = (fn: () => void) => {
-    fn()
-    onClose()
+  const handleItemClick = (it: MenuItem) => {
+    if (it.onSelect) it.onSelect(it.value)
+    if (it.action) it.action()
+
+    // Immediate visual feedback: Update highlights on the reactive menu items
+    if (state.items) {
+      state.items.forEach(item => {
+        item.isHighlighted = item.label === it.label
+      })
+    }
+
+    // Close only if there are no children/component AND it's not explicitly persistent
+    const hasFlyout = (it.children && it.children.length) || it.component
+    if (!hasFlyout && it.closeOnAction !== false) {
+      onClose()
+    }
   }
 
-  let activeItemId = $state<MenuItem | null>(null)
+  let activeItemLabel = $state<string | null>(null)
+
+  const state = $derived(contextMenuState.current!)
 
   $effect(() => {
     window.addEventListener('keydown', onKeydown)
@@ -69,57 +84,60 @@
   })
 </script>
 
-{#if contextMenuState.current}
-  <div
-    bind:this={menuElement}
-    class="menu"
-    role="menu"
-    in:fly={{
-      duration: 140,
-      y: contextMenuState.current.slideFrom === 'top' ? -8 : 0,
-      x: contextMenuState.current.slideFrom === 'left' ? -8 : 0,
-    }}
-    out:fade={{ duration: 140 }}
-    style={`left:${contextMenuState.current.x}px; top:${contextMenuState.current.y}px; width:${width}px; z-index:${contextMenuState.current.zIndex}; max-height:${MENU_MAX_HEIGHT}px;`}
-    onscroll={e => {
-      // Stop scroll events from bubbling up to prevent parent scroll handlers from closing the menu.
-      e.stopPropagation()
-    }}
-  >
-    {#if contextMenuState.current.items && contextMenuState.current.items.length}
-      <ul bind:this={container}>
-        <!-- Render each menu item as an accessible button so keyboard users can activate entries. -->
-        {#each contextMenuState.current.items as it}
-          {#if (it.children && it.children.length) || it.component}
-            <!-- Recursive Submenu Item or Custom Component Flyout -->
-            <ContextSubMenu
-              item={it}
-              parentZIndex={contextMenuState.current.zIndex}
-              isOpen={activeItemId === it}
-              onToggle={() => (activeItemId = activeItemId === it ? null : it)}
-            />
-          {:else}
-            <li>
-              <button
-                role="menuitem"
-                class:selected={it.isHighlighted}
-                onclick={() => handleItemClick(it.action!)}
-              >
-                {#if it.icon}
-                  {@const Icon = it.icon}
-                  <Icon size={'1em'} strokeWidth={1} />
-                {/if}
-                {it.label}
-              </button>
-            </li>
-          {/if}
-        {/each}
-      </ul>
-    {:else if contextMenuState.current.content}
-      <div class="custom">{contextMenuState.current.content}</div>
-    {/if}
-  </div>
-{/if}
+<div
+  bind:this={menuElement}
+  class="menu"
+  role="menu"
+  in:fly={{
+    duration: 140,
+    y: state.slideFrom === 'top' ? -8 : 0,
+    x: state.slideFrom === 'left' ? -8 : 0,
+  }}
+  out:fade={{ duration: 140 }}
+  style={`left:${state.x}px; top:${state.y}px; width:${width}px; z-index:${state.zIndex}; max-height:${MENU_MAX_HEIGHT}px;`}
+  onscroll={e => {
+    // Stop scroll events from bubbling up to prevent parent scroll handlers from closing the menu.
+    e.stopPropagation()
+  }}
+>
+  {#if state.items && state.items.length}
+    <ul bind:this={container}>
+      <!-- Render each menu item as an accessible button so keyboard users can activate entries. -->
+      {#each state.items as it}
+        {#if it.isDivider}
+          <li class="divider" role="presentation"></li>
+        {:else if (it.children && it.children.length) || it.component}
+          <!-- Recursive Submenu Item or Custom Component Flyout -->
+          <ContextSubMenu
+            item={it}
+            siblings={state.items}
+            parentZIndex={state.zIndex}
+            isOpen={activeItemLabel === it.label}
+            onToggle={() =>
+              (activeItemLabel =
+                activeItemLabel === it.label ? null : it.label)}
+          />
+        {:else}
+          <li>
+            <button
+              role="menuitem"
+              class:selected={it.isHighlighted}
+              onclick={() => handleItemClick(it)}
+            >
+              {#if it.icon}
+                {@const Icon = it.icon}
+                <Icon size={'1em'} strokeWidth={1} />
+              {/if}
+              {it.label}
+            </button>
+          </li>
+        {/if}
+      {/each}
+    </ul>
+  {:else if state.content}
+    <div class="custom">{state.content}</div>
+  {/if}
+</div>
 
 <style>
   .menu {
@@ -141,6 +159,12 @@
     padding: 0;
     list-style: none;
     min-width: 220px;
+  }
+
+  li.divider {
+    height: 1px;
+    background: #88888844;
+    margin: 0;
   }
 
   li {

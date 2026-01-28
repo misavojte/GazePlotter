@@ -6,9 +6,7 @@
     AoiStreamPlotButtonMenu,
   } from '$lib/plots/aoi-stream/components'
   import { BasePlot } from '$lib/plots/shared/components'
-  import Select, {
-    type GroupSelectItem,
-  } from '$lib/shared/components/GeneralSelect.svelte'
+  import Select from '$lib/shared/components/GeneralSelect.svelte'
 
   import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
   import {
@@ -26,7 +24,7 @@
     getParticipantEndTime,
     engine,
   } from '$lib/data/engine'
-  import { HEADER_HEIGHT, RIDGELINE_SCALE } from '../const'
+  import { HEADER_HEIGHT } from '../const'
 
   import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
   import type { AoiStreamPlotResult } from '../types'
@@ -34,8 +32,6 @@
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
   import { grid } from '$lib/workspace/grid/store.svelte'
-  import { contextMenuAction } from '$lib/context-menu/contextMenuAction.svelte'
-  import ChevronDown from 'lucide-svelte/icons/chevron-down'
   import AoiStreamPlotAlignmentSettings from './AoiStreamPlotAlignmentSettings.svelte'
 
   const LAYOUT = {
@@ -49,33 +45,189 @@
 
   let { settings, onWorkspaceCommand }: Props = $props()
 
-  // Calculate dimensions locally because they are needed for autoBinCount
+  // --- NO-EFFECT DRAFT STATE ---
+  // We use a local draft that is NOT synced via $effect.
+  // Instead, the plot RENDER uses an effective state that prefers localDraft values.
+  let localDraft = $state<Partial<AoiStreamPlotGridType>>({})
+
+  // Reset draft when common identity-changing props change (like stimulus)
+  // This is handled in event handlers, not effects.
+
+  const effectiveSettings = $derived({
+    ...settings,
+    ...localDraft,
+  })
+
+  // --- DERIVED PIPELINE ---
+
+  const source = $derived.by(() =>
+    createCommandSourcePlotPattern(effectiveSettings, 'plot')
+  )
+
+  const stimulusOptions = $derived(getStimuliOptions())
+  const groupOptions = $derived(getParticipantsGroupOptions())
+
+  const timelineMinValue = $derived.by(() => {
+    if ((effectiveSettings.timelineStart ?? 0) > 0)
+      return effectiveSettings.timelineStart!
+    return (
+      effectiveSettings.absoluteStimuliLimits[
+        effectiveSettings.stimulusId
+      ]?.[0] ?? 0
+    )
+  })
+
+  const timelineMaxValue = $derived.by(() => {
+    const maxValue =
+      effectiveSettings.absoluteStimuliLimits[
+        effectiveSettings.stimulusId
+      ]?.[1] ?? 0
+    if ((effectiveSettings.timelineEnd ?? 0) > 0)
+      return effectiveSettings.timelineEnd!
+    if (maxValue !== 0) return maxValue
+
+    const syncedMax = scanForSynchronizedTimelineMax(
+      grid.items,
+      effectiveSettings.w,
+      effectiveSettings.stimulusId,
+      effectiveSettings.absoluteStimuliLimits
+    )
+    if (syncedMax !== null) return syncedMax
+
+    const participants = getParticipants(
+      effectiveSettings.groupId,
+      effectiveSettings.stimulusId
+    )
+    return participants.reduce(
+      (max, participant) =>
+        Math.max(
+          max,
+          getParticipantEndTime(effectiveSettings.stimulusId, participant.id)
+        ),
+      0
+    )
+  })
+
+  // PLOT DATA: Driven by effectiveSettings for live preview
+  const streamResult: AoiStreamPlotResult | null = $derived.by(() => {
+    // Explicit deps for clarity
+    effectiveSettings.binSize
+    effectiveSettings.alignment
+    effectiveSettings.timelineStart
+    effectiveSettings.timelineEnd
+    effectiveSettings.ridgelineScale
+    effectiveSettings.stimulusId
+    effectiveSettings.groupId
+    effectiveSettings.redrawTimestamp
+    engine.metadata
+    timelineMaxValue
+
+    return getAoiStreamPlotData({
+      ...effectiveSettings,
+      timelineMin: timelineMinValue,
+      timelineMax: timelineMaxValue,
+    })
+  })
+
   const plotDimensions = $derived.by(() =>
     calculatePlotDimensionsWithHeader(
-      settings.w,
-      settings.h,
+      effectiveSettings.w,
+      effectiveSettings.h,
       DEFAULT_GRID_CONFIG,
       LAYOUT.headerHeight
     )
   )
 
-  let streamResult = $state<AoiStreamPlotResult | null>(null)
+  const stripHeightOverride = $derived.by(() => {
+    if (effectiveSettings.alignment !== 'ridgeline') return null
+    return scanForDynamicStripHeight(
+      grid.items,
+      effectiveSettings.h,
+      effectiveSettings.id
+    )
+  })
 
-  const source = $derived.by(() =>
-    createCommandSourcePlotPattern(settings, 'plot')
-  )
+  // --- ACTIONS ---
 
-  // Highlights support (same as scarf plot)
-  const highlights = $derived(settings.highlights ?? [])
+  function handlePreview(data: Partial<AoiStreamPlotGridType>) {
+    // Explicit re-assignment for perfect Svelte 5 proxy tracking
+    localDraft = { ...localDraft, ...data }
+  }
 
-  // Handle legend click for highlighting
+  function handleMenuClose() {
+    untrack(() => {
+      // If we have no session data, we are done
+      const draftKeys = Object.keys(
+        localDraft
+      ) as (keyof AoiStreamPlotGridType)[]
+      if (draftKeys.length === 0) return
+
+      // Final reconciliation: Capture anything that differs from the authority
+      const updates: Partial<AoiStreamPlotGridType> = {}
+
+      for (const key of draftKeys) {
+        const draftVal = localDraft[key]
+        const authorityVal = settings[key]
+
+        // If the draft value differs from the global authority (record transitions from undefined too)
+        if (draftVal !== authorityVal) {
+          ;(updates as any)[key] = draftVal
+        }
+      }
+
+      // Only dispatch if there are actual diffs
+      if (Object.keys(updates).length === 0) {
+        localDraft = {}
+        return
+      }
+
+      // Snapshot to ensure we send raw values, decoupling from reactive proxies
+      // This ensures the command handler correctly records the PREVIOUS state for Undo.
+      const snapshotUpdates = $state.snapshot(updates)
+      const snapshotSource = $state.snapshot(source)
+
+      onWorkspaceCommand({
+        type: 'updateSettings',
+        itemId: settings.id,
+        source: snapshotSource,
+        settings: snapshotUpdates,
+      })
+
+      // IMPORTANT: Clear draft AFTER dispatching to maintain visual continuity
+      localDraft = {}
+    })
+  }
+
+  const handleStimulusChange = (event: CustomEvent) => {
+    const stimulusId = parseInt(event.detail as string)
+    localDraft = {} // Reset preview on structural change
+    if (settings.stimulusId === stimulusId) return
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      source,
+      settings: { stimulusId },
+    })
+  }
+
+  const handleUpperGroupChange = (event: CustomEvent) => {
+    const groupId = parseInt(event.detail as string)
+    localDraft = {} // Reset preview on structural change
+    if (settings.groupId === groupId) return
+    onWorkspaceCommand({
+      type: 'updateSettings',
+      itemId: settings.id,
+      source,
+      settings: { groupId },
+    })
+  }
+
   const handleLegendClick = (aoiId: number) => {
     const aoiIdStr = aoiId.toString()
     const currentHighlights = settings.highlights ?? []
     const isCurrentlyHighlighted = currentHighlights.includes(aoiIdStr)
-
     const newHighlights = isCurrentlyHighlighted
-      ? currentHighlights.filter((id: string) => id !== aoiIdStr)
+      ? currentHighlights.filter(id => id !== aoiIdStr)
       : [...currentHighlights, aoiIdStr]
 
     onWorkspaceCommand({
@@ -86,218 +238,70 @@
     })
   }
 
-  // Memoized options generators (prevent unnecessary recalculations)
-  const stimulusOptions = $derived(getStimuliOptions())
-  const groupOptions = $derived(getParticipantsGroupOptions())
-
-  // Consolidated event handlers
-  const handleStimulusChange = (event: CustomEvent) => {
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      source,
-      settings: { stimulusId: parseInt(event.detail as string) },
-    })
-  }
-
-  const handleUpperGroupChange = (event: CustomEvent) => {
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      source,
-      settings: { groupId: parseInt(event.detail as string) },
-    })
-  }
-
-  const selectItems = $derived<GroupSelectItem[]>([
+  const selectItems = $derived([
     {
       label: 'Stimulus',
       options: stimulusOptions,
-      value: settings.stimulusId.toString(),
+      value: effectiveSettings.stimulusId.toString(),
       onchange: handleStimulusChange,
     },
     {
       label: 'Group',
       options: groupOptions,
-      value: settings.groupId.toString(),
+      value: effectiveSettings.groupId.toString(),
       onchange: handleUpperGroupChange,
     },
     {
       label: 'Alignment',
-      value: settings.alignment ?? 'center',
-      onchange: (e: CustomEvent) => {
-        onWorkspaceCommand({
-          type: 'updateSettings',
-          itemId: settings.id,
-          source,
-          settings: { alignment: e.detail as any },
-        })
+      value: effectiveSettings.alignment ?? 'center',
+      onchange: (event: CustomEvent) => {
+        // Alignment changes are mainly driven by onSelect for preview
       },
+      onClose: handleMenuClose,
       options: [
         {
           value: 'center',
           label: 'Center',
+          onSelect: (v: any) => handlePreview({ alignment: v }),
+          closeOnAction: false,
           component: AoiStreamPlotAlignmentSettings,
           componentHeight: 170,
           componentProps: {
-            defaultValue: (settings.binSize ?? 0) > 0 ? settings.binSize! : 500,
-            defaultValueTimelineStart: settings.timelineStart ?? 0,
-            defaultValueTimelineEnd: settings.timelineEnd ?? 0,
-          },
-          action: (data: any) => {
-            const updates: any = { alignment: 'center' }
-            if (data?.binSize !== undefined) {
-              const binSize = parseInt(data.binSize)
-              updates.binSize = isNaN(binSize) || binSize <= 0 ? 500 : binSize
-            }
-            if (data?.timelineStart !== undefined) {
-              updates.timelineStart = parseInt(data.timelineStart)
-            }
-            if (data?.timelineEnd !== undefined) {
-              updates.timelineEnd = parseInt(data.timelineEnd)
-            }
-            onWorkspaceCommand({
-              type: 'updateSettings',
-              itemId: settings.id,
-              source,
-              settings: updates,
-            })
+            currentValues: effectiveSettings,
+            onPreview: handlePreview,
           },
         },
         {
           value: 'bottom',
           label: 'Bottom',
+          onSelect: (v: any) => handlePreview({ alignment: v }),
+          closeOnAction: false,
           component: AoiStreamPlotAlignmentSettings,
           componentHeight: 170,
           componentProps: {
-            defaultValue: (settings.binSize ?? 0) > 0 ? settings.binSize! : 500,
-            defaultValueTimelineStart: settings.timelineStart ?? 0,
-            defaultValueTimelineEnd: settings.timelineEnd ?? 0,
-          },
-          action: (data: any) => {
-            const updates: any = { alignment: 'bottom' }
-            if (data?.binSize !== undefined) {
-              const binSize = parseInt(data.binSize)
-              updates.binSize = isNaN(binSize) || binSize <= 0 ? 500 : binSize
-            }
-            if (data?.timelineStart !== undefined) {
-              updates.timelineStart = parseInt(data.timelineStart)
-            }
-            if (data?.timelineEnd !== undefined) {
-              updates.timelineEnd = parseInt(data.timelineEnd)
-            }
-            onWorkspaceCommand({
-              type: 'updateSettings',
-              itemId: settings.id,
-              source,
-              settings: updates,
-            })
+            currentValues: effectiveSettings,
+            onPreview: handlePreview,
           },
         },
         {
           value: 'ridgeline',
           label: 'Ridgeline',
+          onSelect: (v: any) => handlePreview({ alignment: v }),
+          closeOnAction: false,
           component: AoiStreamPlotAlignmentSettings,
-          componentHeight: 240, // Increased for two inputs
+          componentHeight: 240,
           componentProps: {
-            defaultValue: (settings.binSize ?? 0) > 0 ? settings.binSize! : 500,
-            defaultValueScale: settings.ridgelineScale ?? RIDGELINE_SCALE,
-            defaultValueTimelineStart: settings.timelineStart ?? 0,
-            defaultValueTimelineEnd: settings.timelineEnd ?? 0,
-          },
-          action: (data: any) => {
-            const updates: any = { alignment: 'ridgeline' }
-            if (data?.binSize !== undefined) {
-              const binSize = parseInt(data.binSize)
-              updates.binSize = isNaN(binSize) || binSize <= 0 ? 500 : binSize
-            }
-            if (data?.ridgelineScale !== undefined) {
-              updates.ridgelineScale = parseFloat(data.ridgelineScale)
-            }
-            if (data?.timelineStart !== undefined) {
-              updates.timelineStart = parseInt(data.timelineStart)
-            }
-            if (data?.timelineEnd !== undefined) {
-              updates.timelineEnd = parseInt(data.timelineEnd)
-            }
-            onWorkspaceCommand({
-              type: 'updateSettings',
-              itemId: settings.id,
-              source,
-              settings: updates,
-            })
+            currentValues: effectiveSettings,
+            onPreview: handlePreview,
           },
         },
       ],
     },
   ])
-
-  // Legacy Alignment helpers removed
-
-  // Calculate timeline min value
-  const timelineMinValue = $derived.by(() => {
-    // If global timeline start is set (> 0), use it
-    if ((settings.timelineStart ?? 0) > 0) return settings.timelineStart!
-    return settings.absoluteStimuliLimits[settings.stimulusId]?.[0] ?? 0
-  })
-
-  // Calculate timeline max value - if 0, check for synchronized max across plots with same width
-  const timelineMaxValue = $derived.by(() => {
-    const maxValue =
-      settings.absoluteStimuliLimits[settings.stimulusId]?.[1] ?? 0
-
-    // If global timeline end is set (> 0), use it
-    if ((settings.timelineEnd ?? 0) > 0) return settings.timelineEnd!
-
-    // If explicitly set via stimulus limits, use it
-    if (maxValue !== 0) return maxValue
-
-    // Check for synchronized timeline across plots with same width and no clipping
-    const syncedMax = scanForSynchronizedTimelineMax(
-      grid.items,
-      settings.w,
-      settings.stimulusId,
-      settings.absoluteStimuliLimits
-    )
-
-    if (syncedMax !== null) return syncedMax
-
-    // Fallback to local max
-    const participants = getParticipants(settings.groupId, settings.stimulusId)
-    return participants.reduce(
-      (max, participant) =>
-        Math.max(
-          max,
-          getParticipantEndTime(settings.stimulusId, participant.id)
-        ),
-      0
-    )
-  })
-
-  const redrawTimestamp = $derived(settings.redrawTimestamp)
-  $effect(() => {
-    redrawTimestamp // reactive dependency
-    timelineMaxValue // reactive dependency for synchronized timeline
-    engine.metadata // reactive dependency for AOI visibility/grouping
-    untrack(() => {
-      streamResult = getAoiStreamPlotData({
-        ...settings,
-        timelineMin: timelineMinValue,
-        timelineMax: timelineMaxValue,
-      })
-    })
-  })
-
-  const stripHeightOverride = $derived.by(() => {
-    // Only active for ridgeline
-    if (settings.alignment !== 'ridgeline') return null
-    // Reactive dependency on grid.items ensures updates when any plot changes
-    return scanForDynamicStripHeight(grid.items, settings.h, settings.id)
-  })
 </script>
 
 <BasePlot
-  {settings}
+  settings={effectiveSettings}
   layoutConfig={LAYOUT}
   hasData={!!streamResult}
   dimensions={plotDimensions}
@@ -310,7 +314,6 @@
         label="AOI Stream"
         options={[]}
       />
-
       <div class="menu-button">
         <AoiStreamPlotButtonMenu {settings} {onWorkspaceCommand} />
       </div>
@@ -323,11 +326,11 @@
         {width}
         {height}
         data={streamResult}
-        {highlights}
-        alignment={settings.alignment ?? 'center'}
+        highlights={effectiveSettings.highlights}
+        alignment={effectiveSettings.alignment ?? 'center'}
         onLegendClick={handleLegendClick}
         {stripHeightOverride}
-        ridgelineScale={settings.ridgelineScale}
+        ridgelineScale={effectiveSettings.ridgelineScale}
       />
     {/if}
   {/snippet}
@@ -340,7 +343,6 @@
     flex-wrap: wrap;
     background: inherit;
   }
-
   .menu-button {
     display: flex;
     align-items: center;

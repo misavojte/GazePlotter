@@ -393,10 +393,13 @@ export function createWorkspaceCommandRegistry(
           ).highlights = []
         } else if (key === 'type') {
           return
-        } else if (key in currentItem) {
+        } else {
+          // Always capture the previous value, even if it's undefined
+          // This ensures that undoing a change to a property that was
+          // previously unset (using defaults) correctly reverts it to unset.
           const typedKey = key as keyof AllGridTypes
           Object.assign(reverseSettings, {
-            [typedKey]: currentItem[typedKey],
+            [typedKey]: (currentItem as any)[typedKey],
           })
         }
       })

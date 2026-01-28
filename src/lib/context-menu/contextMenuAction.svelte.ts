@@ -4,6 +4,8 @@ import {
   adjustPlacementForViewport,
   computePlacement,
   getMenuSize,
+  findScrollableParents,
+  computeZIndex,
 } from './utils'
 import type {
   ContextMenuOptions,
@@ -12,7 +14,7 @@ import type {
   Alignment,
   SlideFrom,
 } from './types'
-import { DEFAULT_OFFSET, DEFAULT_Z_INDEX, MODAL_Z_INDEX } from './const'
+import { DEFAULT_OFFSET } from './const'
 
 interface InternalState {
   anchor: HTMLElement
@@ -22,24 +24,6 @@ interface InternalState {
   offset: number
   slideFrom: SlideFrom
   disabled: boolean
-}
-
-const mergeContextMenuOptions = (
-  base: ContextMenuOptions | undefined,
-  incoming: ContextMenuOptions
-): ContextMenuOptions => {
-  const merged: ContextMenuOptions = { ...(base ?? {}) }
-  const target = merged as Record<
-    keyof ContextMenuOptions,
-    ContextMenuOptions[keyof ContextMenuOptions]
-  >
-  for (const key of Object.keys(incoming) as (keyof ContextMenuOptions)[]) {
-    const value = incoming[key]
-    if (value !== undefined) {
-      target[key] = value
-    }
-  }
-  return merged
 }
 
 const resolveInternalState = (
@@ -56,64 +40,11 @@ const resolveInternalState = (
   disabled: options.disabled ?? previous?.disabled ?? false,
 })
 
-const isElementInModal = (element: HTMLElement): boolean => {
-  let current: HTMLElement | null = element
-  while (current && current !== document.body) {
-    const role = current.getAttribute('role')
-    if (role === 'dialog' || role === 'alertdialog') {
-      return true
-    }
-    current = current.parentElement
-  }
-  return false
-}
-
-const computeZIndex = (anchor: HTMLElement): number => {
-  return isElementInModal(anchor) ? MODAL_Z_INDEX : DEFAULT_Z_INDEX
-}
-
-const findScrollableParents = (
-  element: HTMLElement
-): (Window | HTMLElement)[] => {
-  const scrollable: (Window | HTMLElement)[] = [window]
-  let current: HTMLElement | null = element
-
-  while (current && current !== document.body) {
-    const style = window.getComputedStyle(current)
-    const overflow = style.overflow
-    const overflowX = style.overflowX
-    const overflowY = style.overflowY
-
-    const isScrollable =
-      overflow === 'auto' ||
-      overflow === 'scroll' ||
-      overflow === 'overlay' ||
-      overflowX === 'auto' ||
-      overflowX === 'scroll' ||
-      overflowX === 'overlay' ||
-      overflowY === 'auto' ||
-      overflowY === 'scroll' ||
-      overflowY === 'overlay'
-
-    const hasScrollableContent =
-      current.scrollHeight > current.clientHeight ||
-      current.scrollWidth > current.clientWidth
-
-    if (isScrollable && hasScrollableContent) {
-      scrollable.push(current)
-    }
-
-    current = current.parentElement
-  }
-
-  return scrollable
-}
-
 export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
   node,
   opts = {}
 ) => {
-  let options = mergeContextMenuOptions(undefined, opts)
+  let options = { ...opts }
   let state = resolveInternalState(node, null, options)
 
   const ownerId = Symbol('context-menu-owner')
@@ -121,6 +52,7 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
 
   let ownsMenu = false
   let hasGlobalListeners = false
+  let lastMouseDownInside = false
   let scrollableParents: (Window | HTMLElement)[] = []
   let scrollListeners: Array<{
     target: Window | HTMLElement
@@ -132,14 +64,55 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
   ): value is ContextMenuState => Boolean(value && value.ownerId === ownerId)
 
   const onScroll = (e: Event) => {
-    const menuElement = document.querySelector('div.menu[role="menu"]')
+    const target = e.target as HTMLElement | null
+    if (!target) return
+
     // Allow scrolling within the menu itself
+    if (target.closest?.('div.menu[role="menu"]')) {
+      return
+    }
+    close()
+  }
+
+  const onMouseDown = (e: MouseEvent) => {
+    const target = e.target as HTMLElement | null
+    if (!target) {
+      lastMouseDownInside = false
+      return
+    }
+
+    const insideMenu = target.closest?.('div.menu[role="menu"]')
+    const insideAnchor =
+      state.anchor && (state.anchor === target || state.anchor.contains(target))
+
+    lastMouseDownInside = Boolean(insideMenu || insideAnchor)
+  }
+
+  const onDocClick = (e: MouseEvent) => {
+    const target = e.target as HTMLElement | null
+    if (!target) {
+      close()
+      return
+    }
+
+    // If the click started inside the menu or anchor, don't close
+    if (lastMouseDownInside) {
+      return
+    }
+
+    // Double check if the released click target is inside the menu
+    if (target.closest?.('div.menu[role="menu"]')) {
+      return
+    }
+
+    // Check if the released click is inside the anchor
     if (
-      menuElement &&
-      (e.target === menuElement || menuElement.contains(e.target as Node))
+      state.anchor &&
+      (state.anchor === target || state.anchor.contains(target))
     ) {
       return
     }
+
     close()
   }
 
@@ -151,6 +124,7 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
       scrollListeners.push({ target: parent, handler })
       parent.addEventListener('scroll', handler, true)
     }
+    document.addEventListener('mousedown', onMouseDown, true)
     document.addEventListener('click', onDocClick, true)
     hasGlobalListeners = true
   }
@@ -161,6 +135,7 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
       target.removeEventListener('scroll', handler, true)
     }
     scrollListeners = []
+    document.removeEventListener('mousedown', onMouseDown, true)
     document.removeEventListener('click', onDocClick, true)
     hasGlobalListeners = false
   }
@@ -177,31 +152,6 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
     updateContextMenu((curr: ContextMenuState | null) =>
       isOwnedState(curr) ? null : curr
     )
-  }
-
-  const onDocClick = (e: MouseEvent) => {
-    const target = e.target as Node | null
-    if (!target) {
-      close()
-      return
-    }
-
-    if (
-      state.anchor &&
-      (state.anchor === target || state.anchor.contains(target))
-    ) {
-      return
-    }
-
-    const menuElement = document.querySelector('div.menu[role="menu"]')
-    if (
-      menuElement &&
-      (menuElement === target || menuElement.contains(target))
-    ) {
-      return
-    }
-
-    close()
   }
 
   const openAt = () => {
@@ -222,7 +172,7 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
     )
 
     const adjustedPlacement = adjustPlacementForViewport(
-      initialPlacement,
+      { x: initialPlacement.left, y: initialPlacement.top },
       menuSize,
       { width: window.innerWidth, height: window.innerHeight }
     )
@@ -273,7 +223,7 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
 
   return {
     update(next: ContextMenuOptions) {
-      options = mergeContextMenuOptions(options, next)
+      options = { ...options, ...next }
       state = resolveInternalState(node, state, options)
 
       if (state.disabled) {

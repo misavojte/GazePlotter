@@ -4,7 +4,7 @@
   import Panel from '$lib/workspace/panel/components/Panel.svelte'
   import Workspace from '$lib/workspace/components/Workspace.svelte'
   import { Tooltip } from '$lib/tooltip'
-  import { ContextMenu } from '$lib/context-menu'
+  import { ContextMenu, contextMenuState } from '$lib/context-menu'
   import type { ParsedData } from '$lib/data/types'
   import { onMount, tick, setContext } from 'svelte'
 
@@ -111,7 +111,9 @@
   <Modal />
   <Toaster />
   <Tooltip />
-  <ContextMenu />
+  {#if contextMenuState.current}
+    <ContextMenu />
+  {/if}
 </div>
 
 <style>

@@ -5,9 +5,10 @@
   import { contextMenuAction } from '$lib/context-menu'
 
   interface ActionItem {
-    icon: ComponentType
-    label: string
-    action: () => void
+    icon?: ComponentType
+    label?: string
+    action?: () => void
+    isDivider?: boolean
   }
 
   interface Props {
@@ -52,6 +53,7 @@
       label: it.label,
       action: it.action,
       icon: it.icon as any,
+      isDivider: it.isDivider,
     })),
     position: 'bottom',
     verticalAlign: 'end',

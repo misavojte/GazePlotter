@@ -6,6 +6,7 @@
     disabled?: boolean
     ariaLabel?: string
     onchange?: (event: CustomEvent) => void
+    onClose?: () => void
   }
 </script>
 
@@ -20,6 +21,7 @@
     value?: string
     compact?: boolean
     onchange?: (event: CustomEvent) => void
+    onClose?: () => void
     // Group mode props (optional, mirrors GeneralButtonMinor grouping)
     items?: GroupSelectItem[]
     ariaLabel?: string
@@ -32,6 +34,7 @@
     value = $bindable(options[0]?.value || ''),
     compact = false,
     onchange = () => {},
+    onClose = () => {},
     // group
     items,
     ariaLabel,
@@ -55,17 +58,22 @@
     optionList: readonly (MenuItem & { value: string })[]
   ): MenuItem[] => {
     return optionList.map(option => {
+      const onSelect = option.onSelect
+      const closeOnAction = option.closeOnAction
+
       return {
         ...option,
-        action: (data?: any) => {
-          // If it's a form submission, we might want both the value change and form action
+        onSelect: (v: any) => {
           value = option.value
           onchange(new CustomEvent('change', { detail: option.value }))
-          // If the original option had an action, call it too
+          if (onSelect) onSelect(v)
+        },
+        action: (data?: any) => {
           if (option.action) {
             option.action(data)
           }
         },
+        closeOnAction: closeOnAction,
         isHighlighted: option.value === value,
       }
     })
@@ -84,15 +92,12 @@
     },
     onClose: () => {
       singleIsOpen = false
+      onClose()
     },
   })
 
   // Group select state
-  let groupIsOpen = $state<boolean[]>([])
-
-  $effect(() => {
-    groupIsOpen = itemsSafe.map(() => false)
-  })
+  let groupIsOpen = $state<Record<number, boolean>>({})
 
   /**
    * Convert a group item's options to MenuItem format for the context menu.
@@ -103,14 +108,21 @@
   const groupItemToMenuItems = (idx: number): MenuItem[] => {
     const item = itemsSafe[idx]
     return item.options.map(option => {
+      const onSelect = option.onSelect ?? item.onSelect
+      const closeOnAction = option.closeOnAction ?? item.closeOnAction
+
       return {
         ...option,
-        action: (data?: any) => {
+        onSelect: (v: any) => {
           item.onchange?.(new CustomEvent('change', { detail: option.value }))
+          if (onSelect) onSelect(v)
+        },
+        action: (data?: any) => {
           if (option.action) {
             option.action(data)
           }
         },
+        closeOnAction: closeOnAction,
         isHighlighted: option.value === item.value,
       }
     })
@@ -130,10 +142,11 @@
     disabled: itemsSafe[idx]?.disabled ?? false,
     onOpen: () => {
       // Close all other selects in the group before opening this one.
-      groupIsOpen = groupIsOpen.map((isOpen, i) => i === idx)
+      groupIsOpen = { [idx]: true }
     },
     onClose: () => {
       groupIsOpen[idx] = false
+      itemsSafe[idx]?.onClose?.()
     },
   })
 
