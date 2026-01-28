@@ -3,6 +3,7 @@
   import { MENU_MAX_HEIGHT } from './const'
   import type { MenuItem } from './types'
   import { updateContextMenu } from './contextMenuState.svelte'
+  import { portal } from './utils'
   import ContextSubMenu from './ContextSubMenu.svelte'
 
   interface Props {
@@ -16,110 +17,122 @@
   const { item, coords, isFlippedX, parentZIndex, calculatePositionAction } =
     $props()
 
-  // --- LOCAL STATE ---
-  // This state is destroyed when the component unmounts (isOpen = false in parent)
   let activeChildLabel = $state<string | null>(null)
 
   const handleChildAction = (child: MenuItem) => {
     if (child.onSelect) child.onSelect(child.value)
     if (child.action) child.action()
 
-    // Immediate visual feedback: Update highlights for siblings in this submenu
     if (item.children) {
       item.children.forEach(c => {
         c.isHighlighted = c.label === child.label
       })
     }
 
-    // Close only if it's not explicitly persistent
     if (child.closeOnAction !== false) {
-      updateContextMenu(null) // Close entire menu tree
+      updateContextMenu(null)
     }
   }
 </script>
 
 <div
-  class="menu submenu"
-  role="menu"
+  class="menu-wrapper submenu"
+  use:portal
   use:calculatePositionAction
-  style={`left:${coords.x}px; top:${coords.y}px; z-index:${parentZIndex + 1}; max-height:${MENU_MAX_HEIGHT}px;`}
-  in:fly={{ x: isFlippedX ? 8 : -8, duration: 140 }}
-  out:fade={{ duration: 140 }}
+  style={`left:${coords.x}px; top:${coords.y}px; z-index:${parentZIndex + 1};`}
+  in:fly={{ x: isFlippedX ? 4 : -4, duration: 150 }}
+  out:fade={{ duration: 100 }}
 >
-  {#if item.component}
-    {@const CustomComponent = item.component}
+  <div class="menu" role="menu">
     <div
-      class="custom-component-wrap"
-      onclick={e => e.stopPropagation()}
-      onkeydown={e => e.stopPropagation()}
-      role="presentation"
+      class="menu-content"
+      onscroll={e => e.stopPropagation()}
+      style={`max-height:${MENU_MAX_HEIGHT}px;`}
     >
-      <CustomComponent
-        {item}
-        {...item.componentProps}
-        action={(data: any) => {
-          if (item.action) item.action(data)
-          updateContextMenu(null)
-        }}
-        close={() => updateContextMenu(null)}
-      />
-    </div>
-  {:else if item.children}
-    <ul>
-      {#each item.children as child}
-        {#if child.isDivider}
-          <li class="divider" role="presentation"></li>
-        {:else if (child.children && child.children.length) || child.component}
-          <!-- Recursive nesting -->
-          <ContextSubMenu
-            item={child}
-            siblings={item.children}
-            parentZIndex={parentZIndex + 1}
-            isOpen={activeChildLabel === child.label}
-            onToggle={() =>
-              (activeChildLabel =
-                activeChildLabel === child.label ? null : child.label)}
+      {#if item.component}
+        {@const CustomComponent = item.component}
+        <div
+          class="custom-component-wrap"
+          onclick={e => e.stopPropagation()}
+          onkeydown={e => e.stopPropagation()}
+          role="presentation"
+        >
+          <CustomComponent
+            {item}
+            {...item.componentProps}
+            action={(data: any) => {
+              if (item.action) item.action(data)
+              updateContextMenu(null)
+            }}
+            close={() => updateContextMenu(null)}
           />
-        {:else}
-          <li>
-            <button
-              role="menuitem"
-              class:selected={child.isHighlighted}
-              onclick={e => {
-                e.stopPropagation()
-                handleChildAction(child)
-              }}
-            >
-              {#if child.icon}
-                {@const ChildIcon = child.icon}
-                <ChildIcon size={'1em'} strokeWidth={1} />
-              {/if}
-              {child.label}
-            </button>
-          </li>
-        {/if}
-      {/each}
-    </ul>
-  {/if}
+        </div>
+      {:else if item.children}
+        <ul>
+          {#each item.children as child}
+            {#if child.isDivider}
+              <li class="divider" role="presentation"></li>
+            {:else if (child.children && child.children.length) || child.component}
+              <ContextSubMenu
+                item={child}
+                siblings={item.children}
+                parentZIndex={parentZIndex + 1}
+                isOpen={activeChildLabel === child.label}
+                onToggle={() =>
+                  (activeChildLabel =
+                    activeChildLabel === child.label ? null : child.label)}
+              />
+            {:else}
+              <li>
+                <button
+                  role="menuitem"
+                  class:selected={child.isHighlighted}
+                  onclick={e => {
+                    e.stopPropagation()
+                    handleChildAction(child)
+                  }}
+                >
+                  {#if child.icon}
+                    {@const ChildIcon = child.icon}
+                    <ChildIcon size={'1em'} strokeWidth={1} />
+                  {/if}
+                  {child.label}
+                </button>
+              </li>
+            {/if}
+          {/each}
+        </ul>
+      {/if}
+    </div>
+  </div>
 </div>
 
 <style>
-  .menu {
+  .menu-wrapper {
     position: fixed;
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1));
+    pointer-events: none;
+  }
+
+  .menu {
+    pointer-events: auto;
     background: var(--c-white);
-    border: 1px solid #88888863;
-    border-radius: var(--rounded);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--menu-border-color);
+    border-radius: 8px;
+    min-width: 220px;
+    overflow: hidden;
+  }
+
+  .menu-content {
     overflow-y: auto;
     overflow-x: hidden;
-    min-width: 220px;
-    padding: 0;
+    padding: 4px 0;
   }
 
   li.divider {
     height: 1px;
-    background: #88888844;
-    margin: 0;
+    background: #e5e7eb;
+    margin: 4px 0;
   }
 
   ul {
@@ -131,16 +144,19 @@
   button {
     background: none;
     border: none;
-    padding: 10px 14px;
-    font-size: 14px;
-    color: var(--c-black);
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #374151;
     cursor: pointer;
     width: 100%;
     text-align: left;
     display: flex;
     align-items: center;
-    gap: 0.5em;
-    transition: all 0.2s ease;
+    gap: 8px;
+    transition: background 0.1s ease;
+    border-radius: 4px;
+    margin: 0 4px;
+    width: calc(100% - 8px);
   }
 
   button.selected {
@@ -149,9 +165,11 @@
   }
 
   button:hover {
-    background: var(--c-lightgrey);
-    color: var(--c-brand);
-    padding-left: 16px;
-    font-weight: 500;
+    background: #f3f4f6;
+    color: var(--c-black);
+  }
+
+  .custom-component-wrap {
+    padding: 10px 14px;
   }
 </style>

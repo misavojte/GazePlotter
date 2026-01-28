@@ -90,7 +90,23 @@
       <Icon size={'1em'} strokeWidth={1} />
     {/if}
     <span class="label">{item.label}</span>
-    <span class="arrow">›</span>
+    <svg
+      class="arrow"
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path
+        d="M9 6l6 6-6 6"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </svg>
   </button>
 
   {#if isOpen && (item.children || item.component)}
@@ -130,27 +146,35 @@
   button {
     background: none;
     border: none;
-    padding: 10px 14px;
-    font-size: 14px;
-    color: var(--c-black);
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #374151;
     cursor: pointer;
     width: 100%;
     text-align: left;
     display: flex;
     align-items: center;
-    gap: 0.5em;
-    transition: all 0.2s ease;
-    justify-content: space-between; /* Space for arrow */
+    gap: 8px;
+    transition: background 0.1s ease;
+    border-radius: 4px;
+    margin: 0 4px;
+    width: calc(100% - 8px);
+    justify-content: space-between;
   }
 
   .label {
     flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   .arrow {
-    font-size: 16px;
-    line-height: 1;
-    color: #999;
+    width: 12px;
+    height: 12px;
+    color: #9ca3af;
+    opacity: 0.8;
+    flex-shrink: 0;
   }
 
   button.selected {
@@ -160,14 +184,7 @@
 
   button.active,
   button:hover {
-    background: var(--c-lightgrey);
-    color: var(--c-brand);
-    padding-left: 16px;
-    font-weight: 500;
-  }
-
-  button:hover {
-    background: var(--c-lightgrey);
-    color: var(--c-brand);
+    background: #f3f4f6;
+    color: var(--c-black);
   }
 </style>

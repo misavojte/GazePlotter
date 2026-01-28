@@ -143,6 +143,14 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
   const finalizeClosure = () => {
     if (!ownsMenu) return
     ownsMenu = false
+    // Remove the visual active marker from the anchor when menu closes
+    try {
+      if (state.anchor && state.anchor.classList) {
+        state.anchor.classList.remove('context-menu-anchor-active')
+      }
+    } catch (e) {
+      // defensive: ignore if node removed
+    }
     detachGlobalListeners()
     options.onClose?.()
   }
@@ -177,6 +185,26 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
       { width: window.innerWidth, height: window.innerHeight }
     )
 
+    // Determine which side the menu actually landed on relative to the anchor
+    // so the pointer can reflect reality (handles flipping/clamping cases).
+    const actualSide: Position = (() => {
+      const menuLeft = adjustedPlacement.left
+      const menuTop = adjustedPlacement.top
+      const menuRight = menuLeft + menuSize.width
+      const menuBottom = menuTop + menuSize.height
+
+      // If menu sits below the anchor rect, it's a 'bottom' placement
+      if (menuTop >= rect.bottom) return 'bottom'
+      // If menu sits above the anchor rect, it's a 'top' placement
+      if (menuBottom <= rect.top) return 'top'
+      // If menu sits to the right of the anchor rect, it's 'right'
+      if (menuLeft >= rect.right) return 'right'
+      // If menu sits to the left of the anchor rect, it's 'left'
+      if (menuRight <= rect.left) return 'left'
+      // Fallback to requested position
+      return state.position
+    })()
+
     updateContextMenu({
       visible: true,
       items: options.items,
@@ -184,8 +212,13 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
       x: adjustedPlacement.left,
       y: adjustedPlacement.top,
       slideFrom: state.slideFrom,
+      position: actualSide,
+      anchorCenter: {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      },
       ownerId,
-      zIndex: computedZIndex,
+      zIndex: computedZIndex + 1,
     })
 
     options.onOpen?.()

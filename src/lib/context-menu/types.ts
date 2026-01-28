@@ -63,6 +63,10 @@ export interface ContextMenuState {
   y: number
   /** Direction the menu slides in from. */
   slideFrom: SlideFrom
+  /** Placement preference used to compute the arrow direction (top/bottom/left/right). */
+  position?: Position
+  /** Anchor center in viewport coords used to align the pointer. */
+  anchorCenter?: Point
   /** Symbol identifying which anchor currently controls the menu. */
   ownerId: symbol
   /** Z-index for the menu, automatically computed based on whether anchor is in a modal. */

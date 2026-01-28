@@ -213,3 +213,17 @@ export const findScrollableParents = (
 
   return scrollable
 }
+/**
+ * Simple action to portal an element to the document body.
+ * This is useful for avoiding overflow/containment issues.
+ */
+export const portal = (node: HTMLElement) => {
+  document.body.appendChild(node)
+  return {
+    destroy() {
+      if (node.parentNode) {
+        node.parentNode.removeChild(node)
+      }
+    },
+  }
+}
