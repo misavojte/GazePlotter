@@ -10,7 +10,6 @@
   import Select, {
     type GroupSelectItem,
   } from '$lib/shared/components/GeneralSelect.svelte'
-  import { ModalContentMaxValue, ModalContentColorScale } from '$lib/modals'
 
   // Utilities and stores
   import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
@@ -26,7 +25,10 @@
   import {
     getStimuliOptions,
     getParticipantsGroupOptions,
+    PreviewSync,
   } from '$lib/plots/shared'
+  import { interpolateColor } from '$lib/color/utility'
+  import TransitionMatrixColorSettings from './TransitionMatrixColorSettings.svelte'
 
   // Types
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
@@ -65,6 +67,109 @@
   const currentStimulusColorRange = $derived(
     settings.stimuliColorValueRanges?.[settings.stimulusId] ?? [0, 0]
   )
+
+  const colorMinSync = new PreviewSync(settings.colorScale?.[0] || '#f7fbff')
+  const colorMaxSync = new PreviewSync(
+    settings.colorScale?.length === 3
+      ? settings.colorScale[2]
+      : settings.colorScale?.[1] || '#08306b'
+  )
+  const colorMiddleSync = new PreviewSync(
+    settings.colorScale?.length === 3
+      ? settings.colorScale[1]
+      : interpolateColor(
+          settings.colorScale?.[0] || '#f7fbff',
+          settings.colorScale?.[1] || '#08306b',
+          0.5
+        )
+  )
+
+  const minValueSync = new PreviewSync(currentStimulusColorRange[0])
+  const maxValueSync = new PreviewSync(currentStimulusColorRange[1])
+
+  $effect(() => {
+    colorMinSync.updateCommitted(settings.colorScale?.[0] || '#f7fbff', true)
+    colorMaxSync.updateCommitted(
+      settings.colorScale?.length === 3
+        ? settings.colorScale[2]
+        : settings.colorScale?.[1] || '#08306b',
+      true
+    )
+    colorMiddleSync.updateCommitted(
+      settings.colorScale?.length === 3
+        ? settings.colorScale[1]
+        : interpolateColor(
+            settings.colorScale?.[0] || '#f7fbff',
+            settings.colorScale?.[1] || '#08306b',
+            0.5
+          ),
+      true
+    )
+    minValueSync.updateCommitted(currentStimulusColorRange[0], true)
+    maxValueSync.updateCommitted(currentStimulusColorRange[1], true)
+  })
+
+  const syncs = {
+    colorMin: colorMinSync,
+    colorMiddle: colorMiddleSync,
+    colorMax: colorMaxSync,
+    minValue: minValueSync,
+    maxValue: maxValueSync,
+  }
+
+  const effectiveColorScale = $derived.by(() => {
+    const min = colorMinSync.value
+    const middle = colorMiddleSync.value
+    const max = colorMaxSync.value
+
+    const autoMiddle = interpolateColor(min, max, 0.5)
+    if (middle === autoMiddle) {
+      return [min, max]
+    }
+    return [min, middle, max]
+  })
+
+  function handleMenuClose() {
+    untrack(() => {
+      const updates: Partial<TransitionMatrixGridType> = {}
+
+      if (
+        colorMinSync.isDirty ||
+        colorMiddleSync.isDirty ||
+        colorMaxSync.isDirty
+      ) {
+        updates.colorScale = effectiveColorScale
+      }
+
+      if (minValueSync.isDirty || maxValueSync.isDirty) {
+        const ranges = [...(settings.stimuliColorValueRanges || [])]
+        ranges[settings.stimulusId] = [minValueSync.value, maxValueSync.value]
+        updates.stimuliColorValueRanges = ranges
+      }
+
+      if (Object.keys(updates).length === 0) {
+        colorMinSync.reset()
+        colorMiddleSync.reset()
+        colorMaxSync.reset()
+        minValueSync.reset()
+        maxValueSync.reset()
+        return
+      }
+
+      onWorkspaceCommand({
+        type: 'updateSettings',
+        itemId: settings.id,
+        source: $state.snapshot(source),
+        settings: $state.snapshot(updates),
+      })
+
+      colorMinSync.reset()
+      colorMiddleSync.reset()
+      colorMaxSync.reset()
+      minValueSync.reset()
+      maxValueSync.reset()
+    })
+  }
 
   const source = untrack(() => createCommandSourcePlotPattern(settings, 'plot'))
   const modalSource = untrack(() =>
@@ -133,34 +238,22 @@
     },
     {
       label: 'Aggregation',
-      options: AGGREGATION_OPTIONS,
       value: settings.aggregationMethod,
-      onchange: (e: CustomEvent) =>
-        updateSettings({
-          aggregationMethod: e.detail as MatrixAggregationMethod,
-        }),
+      onClose: handleMenuClose,
+      options: AGGREGATION_OPTIONS.map(opt => ({
+        ...opt,
+        onSelect: (v: any) => {
+          updateSettings({ aggregationMethod: v as MatrixAggregationMethod })
+        },
+        closeOnAction: false,
+        component: TransitionMatrixColorSettings,
+        componentHeight: 140,
+        componentProps: {
+          syncs,
+        },
+      })),
     },
   ])
-
-  function handleGradientClick() {
-    modalState.open(ModalContentColorScale as any, 'Customize color scale', {
-      settings,
-      source: modalSource,
-      onWorkspaceCommand,
-    })
-  }
-
-  function handleValueClick(isMin: boolean) {
-    modalState.open(
-      ModalContentMaxValue as any,
-      'Set maximum color scale value',
-      {
-        settings,
-        source: modalSource,
-        onWorkspaceCommand,
-      }
-    )
-  }
 </script>
 
 <BasePlot
@@ -190,19 +283,17 @@
         {aoiLabels}
         {width}
         {height}
-        colorScale={settings.colorScale}
+        colorScale={effectiveColorScale}
         xLabel="To AOI"
         yLabel="From AOI"
         legendTitle={TRANSITION_MATRIX_LEGEND_TITLES[
           settings.aggregationMethod
         ] ?? 'Transition Value'}
-        colorValueRange={currentStimulusColorRange}
+        colorValueRange={[minValueSync.value, maxValueSync.value]}
         belowMinColor={settings.belowMinColor}
         aboveMaxColor={settings.aboveMaxColor}
         showBelowMinLabels={settings.showBelowMinLabels}
         showAboveMaxLabels={settings.showAboveMaxLabels}
-        onGradientClick={handleGradientClick}
-        onValueClick={handleValueClick}
       />
     </div>
   {/snippet}

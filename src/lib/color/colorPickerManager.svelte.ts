@@ -92,6 +92,7 @@ export class ColorPickerManager {
    * Svelte action to portal the popup to the document body and handle click-away/scroll.
    */
   portal = (node: HTMLElement) => {
+    node.setAttribute('data-context-menu-ignore', 'true')
     document.body.appendChild(node)
 
     const handleClickOutside = (event: MouseEvent) => {

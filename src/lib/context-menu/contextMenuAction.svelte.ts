@@ -85,7 +85,9 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
     const insideAnchor =
       state.anchor && (state.anchor === target || state.anchor.contains(target))
 
-    lastMouseDownInside = Boolean(insideMenu || insideAnchor)
+    const shouldIgnore = target.closest?.('[data-context-menu-ignore]')
+
+    lastMouseDownInside = Boolean(insideMenu || insideAnchor || shouldIgnore)
   }
 
   const onDocClick = (e: MouseEvent) => {
@@ -110,6 +112,11 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
       state.anchor &&
       (state.anchor === target || state.anchor.contains(target))
     ) {
+      return
+    }
+
+    // Double check for ignored elements on click release
+    if (target.closest?.('[data-context-menu-ignore]')) {
       return
     }
 

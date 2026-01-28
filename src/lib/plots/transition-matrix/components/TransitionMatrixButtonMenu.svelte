@@ -3,14 +3,10 @@
   import { untrack } from 'svelte'
   import { modalState } from '$lib/modals'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
-  import BarChart from 'lucide-svelte/icons/bar-chart'
   import Users from 'lucide-svelte/icons/users'
   import Download from 'lucide-svelte/icons/download'
-  import Palette from 'lucide-svelte/icons/palette'
   import Settings from 'lucide-svelte/icons/settings-2'
   import {
-    ModalContentMaxValue,
-    ModalContentColorScale,
     ModalContentDownloadTransitionMatrix,
     ModalContentStimulusModification,
     ModalContentAoiModification,
@@ -30,14 +26,6 @@
     untrack(() => settings),
     'modal'
   )
-
-  const openMaxValueModal = () => {
-    modalState.open(ModalContentMaxValue as any, 'Set color range values', {
-      settings,
-      source,
-      onWorkspaceCommand,
-    })
-  }
 
   const openStimulusModificationModal = () => {
     modalState.open(
@@ -70,14 +58,6 @@
     )
   }
 
-  const openColorScaleModal = () => {
-    modalState.open(ModalContentColorScale as any, 'Customize color scale', {
-      settings,
-      source,
-      onWorkspaceCommand,
-    })
-  }
-
   const openDownloadModal = () => {
     try {
       modalState.open(
@@ -107,16 +87,6 @@
       label: 'Participants groups',
       action: openUserGroupsModal,
       icon: Users,
-    },
-    {
-      label: 'Set color range values',
-      action: openMaxValueModal,
-      icon: BarChart,
-    },
-    {
-      label: 'Customize color scale',
-      action: openColorScaleModal,
-      icon: Palette,
     },
     { isDivider: true },
     {

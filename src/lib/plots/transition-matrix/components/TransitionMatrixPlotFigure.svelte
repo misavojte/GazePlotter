@@ -30,7 +30,6 @@
   import {
     computeGradientLegendGeometry,
     drawGradientLegend,
-    hitTestGradientLegend,
     drawPlotOutline,
   } from '$lib/plots/shared'
 
@@ -82,8 +81,6 @@
     aboveMaxColor = TRANSITION_MATRIX_DEFAULTS.inactiveColor,
     showBelowMinLabels = false,
     showAboveMaxLabels = false,
-    onValueClick = () => {},
-    onGradientClick = () => {},
     dpiOverride = null,
     marginTop = 0,
     marginRight = 0,
@@ -103,8 +100,6 @@
     aboveMaxColor?: string
     showBelowMinLabels?: boolean
     showAboveMaxLabels?: boolean
-    onValueClick?: (isMin: boolean) => void
-    onGradientClick?: () => void
     dpiOverride?: number | null
     marginTop?: number
     marginRight?: number
@@ -783,31 +778,22 @@
   // Draw the color legend
   function drawLegend(ctx: CanvasRenderingContext2D) {
     if (legendGeometry) {
-      drawGradientLegend(
-        ctx,
-        legendGeometry,
-        {
-          x: 0, // unused by draw
-          y: 0,
-          availableWidth: 0,
-          availableHeight: 0,
-          colorScale,
-          valueRange: colorValueRange,
-          effectiveMaxValue,
-          title: legendTitle,
-        },
-        hoverState
-      )
+      drawGradientLegend(ctx, legendGeometry, {
+        x: 0, // unused by draw
+        y: 0,
+        availableWidth: 0,
+        availableHeight: 0,
+        colorScale,
+        valueRange: colorValueRange,
+        effectiveMaxValue,
+        title: legendTitle,
+      })
     }
   }
-
-  // Tracking for legend hover effect
-  let hoverState = $state<'none' | 'gradient' | 'minValue' | 'maxValue'>('none')
 
   function handleMouseMove(event: MouseEvent) {
     if (!canvas) return
     const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
-    const oldHoverState = hoverState
 
     const { xOffset, yOffset, cellSize } = layout
     const col = Math.floor((mouseX - xOffset) / cellSize)
@@ -816,7 +802,7 @@
     const isOverCell =
       row >= 0 && row < aoiLabels.length && col >= 0 && col < aoiLabels.length
 
-    // If over a cell, show tooltip and clear hover state
+    // If over a cell, show tooltip
     if (isOverCell) {
       const size = aoiLabels.length
       const value = TransitionMatrix[row * size + col] ?? 0
@@ -841,96 +827,23 @@
         visible: true,
         width: 150,
       })
-
-      hoverState = 'none'
     } else {
-      // Check legend interactions
-      hoverState = hitTestGradientLegend(mouseX, mouseY, legendGeometry.zones)
-
-      if (hoverState !== 'none') {
-        let tooltipX = 0
-        let tooltipY = 0
-        let msg = ''
-        let hasZone = false
-
-        if (hoverState === 'gradient' && legendGeometry.zones.gradientZone) {
-          const z = legendGeometry.zones.gradientZone
-          tooltipX = z.x + (z.width >> 1)
-          tooltipY = z.y + z.height
-          msg = 'Change color scale'
-          hasZone = true
-        } else if (
-          hoverState === 'minValue' &&
-          legendGeometry.zones.minValueZone
-        ) {
-          const z = legendGeometry.zones.minValueZone
-          tooltipX = z.x
-          tooltipY = z.y + z.radius
-          msg = 'Modify min value'
-          hasZone = true
-        } else if (
-          hoverState === 'maxValue' &&
-          legendGeometry.zones.maxValueZone
-        ) {
-          const z = legendGeometry.zones.maxValueZone
-          tooltipX = z.x
-          tooltipY = z.y + z.radius
-          msg = 'Modify max value'
-          hasZone = true
-        }
-
-        if (hasZone) {
-          const tooltipPos = getTooltipPosition(
-            canvasState,
-            tooltipX,
-            tooltipY,
-            { x: 0, y: 5 }
-          )
-
-          updateTooltip({
-            x: tooltipPos.x,
-            y: tooltipPos.y,
-            content: [{ key: '', value: msg }],
-            visible: true,
-          })
-        }
-      } else {
-        updateTooltip(null)
-      }
+      updateTooltip(null)
     }
 
     // Update cursor style
     if (canvas) {
-      canvas.style.cursor =
-        hoverState !== 'none' || isOverCell ? 'pointer' : 'default'
-    }
-
-    if (hoverState !== oldHoverState) {
-      scheduleRender() // Force redraw
+      canvas.style.cursor = isOverCell ? 'pointer' : 'default'
     }
   }
 
   function handleMouseLeave() {
     updateTooltip(null)
-    const oldHoverState = hoverState
-    hoverState = 'none'
     if (canvas) canvas.style.cursor = 'default'
-    if (oldHoverState !== 'none') scheduleRender()
   }
 
   function handleMouseDown(event: MouseEvent) {
-    if (!canvas) return
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
-
-    const hit = hitTestGradientLegend(mouseX, mouseY, legendGeometry.zones)
-
-    if (hit === 'minValue') {
-      onValueClick(true)
-    } else if (hit === 'maxValue') {
-      onValueClick(false)
-    } else if (hit === 'gradient') {
-      onGradientClick()
-    }
+    // Legacy shortcuts removed
   }
 
   // Track data changes and schedule renders
