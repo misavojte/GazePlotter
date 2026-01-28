@@ -31,6 +31,9 @@
   const timelineEndSync = new PreviewSync(realSettings.timelineEnd)
   const ordinalStartSync = new PreviewSync(realSettings.ordinalStart)
   const ordinalEndSync = new PreviewSync(realSettings.ordinalEnd)
+  const hideNonFixationsSync = new PreviewSync(
+    realSettings.hideNonFixations ?? false
+  )
 
   $effect(() => {
     timelineSync.updateCommitted(realSettings.timeline, true)
@@ -38,6 +41,10 @@
     timelineEndSync.updateCommitted(realSettings.timelineEnd, true)
     ordinalStartSync.updateCommitted(realSettings.ordinalStart, true)
     ordinalEndSync.updateCommitted(realSettings.ordinalEnd, true)
+    hideNonFixationsSync.updateCommitted(
+      realSettings.hideNonFixations ?? false,
+      true
+    )
   })
 
   // Grouping for header
@@ -47,6 +54,7 @@
     timelineEnd: timelineEndSync,
     ordinalStart: ordinalStartSync,
     ordinalEnd: ordinalEndSync,
+    hideNonFixations: hideNonFixationsSync,
   }
 
   const effectiveSettings = $derived({
@@ -56,6 +64,7 @@
     timelineEnd: timelineEndSync.value,
     ordinalStart: ordinalStartSync.value,
     ordinalEnd: ordinalEndSync.value,
+    hideNonFixations: hideNonFixationsSync.value,
   })
 
   // State management
@@ -148,9 +157,9 @@
       if (timelineStartSync.isDirty)
         updates.timelineStart = timelineStartSync.value
       if (timelineEndSync.isDirty) updates.timelineEnd = timelineEndSync.value
-      if (ordinalStartSync.isDirty)
-        updates.ordinalStart = ordinalStartSync.value
       if (ordinalEndSync.isDirty) updates.ordinalEnd = ordinalEndSync.value
+      if (hideNonFixationsSync.isDirty)
+        updates.hideNonFixations = hideNonFixationsSync.value
 
       if (Object.keys(updates).length === 0) {
         timelineSync.reset()
@@ -158,6 +167,7 @@
         timelineEndSync.reset()
         ordinalStartSync.reset()
         ordinalEndSync.reset()
+        hideNonFixationsSync.reset()
         return
       }
 
@@ -173,6 +183,7 @@
       timelineEndSync.reset()
       ordinalStartSync.reset()
       ordinalEndSync.reset()
+      hideNonFixationsSync.reset()
     })
   }
 

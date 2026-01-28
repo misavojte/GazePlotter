@@ -310,7 +310,10 @@ export function createStylingAndLegend(
 /**
  * Creates group-aware legend data from styling information.
  */
-export function createScarfLegendData(styling: ScarfStyling): ScarfLegendData {
+export function createScarfLegendData(
+  styling: ScarfStyling,
+  hideNonFixations = false
+): ScarfLegendData {
   const groups: ScarfLegendGroup[] = []
 
   const addGroup = (
@@ -328,7 +331,9 @@ export function createScarfLegendData(styling: ScarfStyling): ScarfLegendData {
   }
 
   addGroup('Fixations', styling.aoi, 'fixation')
-  addGroup('Non-fixations', styling.category, 'nonFixation')
+  if (!hideNonFixations) {
+    addGroup('Non-fixations', styling.category, 'nonFixation')
+  }
   addGroup('Events (start/end)', styling.visibility, 'visibility')
 
   return { groups }
@@ -490,6 +495,8 @@ export function transformDataToScarfPlot(
       const width = (end - start) * scale
 
       if (categoryId !== 0) {
+        if (settings.hideNonFixations) continue
+
         rectBuckets[
           categoryId === 1 ? saccadeStyleIdx : otherCategoryStyleIdx
         ].pushRect(
@@ -577,7 +584,10 @@ export function transformDataToScarfPlot(
     participants,
     timeline,
     stylingAndLegend,
-    legendData: createScarfLegendData(stylingAndLegend),
+    legendData: createScarfLegendData(
+      stylingAndLegend,
+      settings.hideNonFixations
+    ),
     leftLabelWidth: 0,
     plotAreaWidth: 0,
     visualRectBuckets: rectBuckets.map(b => b.finalize()),

@@ -213,7 +213,7 @@
           },
           closeOnAction: false,
           component: ScarfPlotTimelineSettings,
-          componentHeight: 120, // Adjust as needed
+          componentHeight: 145, // Adjust as needed
           componentProps: {
             syncs,
           },
@@ -224,7 +224,12 @@
           onSelect: v => {
             syncs.timeline.value = v
           },
-          closeOnAction: true,
+          closeOnAction: false,
+          component: ScarfPlotTimelineSettings,
+          componentHeight: 80,
+          componentProps: {
+            syncs,
+          },
         },
         {
           value: 'ordinal',

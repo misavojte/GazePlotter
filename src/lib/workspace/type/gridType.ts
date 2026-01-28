@@ -75,6 +75,8 @@ export interface ScarfGridType extends GridType {
   ordinalStart?: number
   /** Global ordinal end (0 = automatic) */
   ordinalEnd?: number
+  /** Whether to hide non-fixation segments (saccades and others) */
+  hideNonFixations?: boolean
 }
 
 /**
