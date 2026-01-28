@@ -139,7 +139,7 @@ export interface AoiStreamPlotGridType extends GridType {
   absoluteStimuliLimits: [number, number][]
   /** Stream graph alignment mode */
   alignment?: 'center' | 'bottom' | 'ridgeline'
-  /** Vertical scaling factor for ridgeline mode (>= 0.1, default 2.5) */
+  /** Vertical scaling factor for ridgeline mode (1.0 to 10.0, default 2.5) */
   ridgelineScale?: number
   /** Global timeline start (0 = beginning of timeline) */
   timelineStart?: number

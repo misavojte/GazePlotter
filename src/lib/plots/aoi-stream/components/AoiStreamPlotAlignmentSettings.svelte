@@ -50,7 +50,8 @@
           value={currentValues.ridgelineScale}
           oninput={e =>
             updateValue('ridgelineScale', parseFloat(e.currentTarget.value))}
-          min="0.1"
+          min="1"
+          max="10"
           step="0.1"
         />
       </div>

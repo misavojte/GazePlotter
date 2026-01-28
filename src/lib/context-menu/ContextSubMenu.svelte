@@ -3,7 +3,10 @@
   import { adjustPlacementForViewport, getMenuSize } from './utils'
   import { MENU_MAX_HEIGHT } from './const'
   import type { MenuItem } from './types'
-  import { updateContextMenu } from './contextMenuState.svelte'
+  import {
+    contextMenuState,
+    updateContextMenu,
+  } from './contextMenuState.svelte'
   import ContextSubMenu from './ContextSubMenu.svelte'
   import ContextSubMenuContent from './ContextSubMenuContent.svelte'
 
@@ -38,16 +41,24 @@
         menuSize = getMenuSize(item.children, false)
       }
 
-      const initialX = rect.right
-      const initialY = rect.top - 4
+      // Initial preferred position: 4px overlap from the right of the anchor
+      const initialX = rect.right - 4
+      const initialY = rect.top - 2 // Slight vertical lift for better alignment
 
       const res = adjustPlacementForViewport(
-        { x: initialX, y: initialY },
+        { x: initialX, y: initialY }, // Use preferred point with overlap
         menuSize,
         { width: window.innerWidth, height: window.innerHeight },
         rect,
         true
       )
+
+      // If flipped, we want the +4 overlap from the left side of anchor.
+      // The adjustPlacementForViewport uses rect.left - menuSize.width for flipped.
+      // We adjust it here to ensure the 4px overlap.
+      if (res.isFlippedX) {
+        res.left = rect.left - menuSize.width + 4
+      }
 
       isFlippedX = res.isFlippedX
       coords = { x: res.left, y: res.top }
@@ -67,7 +78,7 @@
 
     // Immediate visual feedback: Clear siblings and highlight self
     if (siblings) {
-      siblings.forEach(s => {
+      siblings.forEach((s: MenuItem) => {
         s.isHighlighted = s.label === item.label
       })
     }
@@ -123,24 +134,6 @@
 <style>
   .submenu-wrapper {
     position: relative;
-  }
-
-  .menu {
-    position: fixed; /* Fixed to viewport like main menu */
-    background: var(--c-white);
-    border: 1px solid #88888863;
-    border-radius: var(--rounded);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    overflow-y: auto;
-    overflow-x: hidden;
-    min-width: 220px;
-    padding: 0;
-  }
-
-  ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
   }
 
   button {

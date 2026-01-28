@@ -1,5 +1,6 @@
 <script lang="ts">
   import { fly, fade } from 'svelte/transition'
+  import { cubicOut } from 'svelte/easing'
   import {
     contextMenuState,
     updateContextMenu,
@@ -9,7 +10,20 @@
   import { portal } from './utils'
   import ContextSubMenu from './ContextSubMenu.svelte'
 
+  // State for which inner submenu is active.
+  let activeItemLabel = $state<string | null>(null)
+
+  // KISS Reset: When a NEW menu session opens, reset the local state.
+  // This ensures a fresh experience (Fixes regressions) while allowing
+  // the old state to remain stable during the 150ms fade-out transition.
+  $effect(() => {
+    if (contextMenuState.current) {
+      activeItemLabel = null
+    }
+  })
+
   const onClose = () => updateContextMenu(null)
+
   let width = 220
   let container: HTMLUListElement | null = $state(null)
   let menuElement: HTMLDivElement | null = $state(null)
@@ -41,11 +55,14 @@
   }
 
   const handleItemClick = (it: MenuItem) => {
+    const menu = contextMenuState.current
+    if (!menu) return
+
     if (it.onSelect) it.onSelect(it.value)
     if (it.action) it.action()
 
-    if (state.items) {
-      state.items.forEach(item => {
+    if (menu.items) {
+      menu.items.forEach(item => {
         item.isHighlighted = item.label === it.label
       })
     }
@@ -56,28 +73,26 @@
     }
   }
 
-  let activeItemLabel = $state<string | null>(null)
-  const state = $derived(contextMenuState.current!)
-
   const ARROW_WIDTH = 16
   const ARROW_HEIGHT = 8
   const ARROW_GUTTER = 12
 
   const getArrowStyle = (
     position: import('./types').Position | undefined,
-    anchor: { x: number; y: number } | undefined
+    anchor: { x: number; y: number } | undefined,
+    menu: import('./types').ContextMenuState
   ) => {
     if (!position || !anchor) return ''
 
     if (position === 'bottom' || position === 'top') {
-      let left = anchor.x - state.x - ARROW_WIDTH / 2
+      let left = anchor.x - menu.x - ARROW_WIDTH / 2
       const min = ARROW_GUTTER
       const max = width - ARROW_GUTTER - ARROW_WIDTH
       left = Math.max(min, Math.min(left, max))
       const vertical = position === 'bottom' ? 'bottom: 100%' : 'top: 100%'
       return `left:${left}px; ${vertical};`
     } else {
-      let top = anchor.y - state.y - ARROW_HEIGHT / 2
+      let top = anchor.y - menu.y - ARROW_HEIGHT / 2
       const min = ARROW_GUTTER
       const max =
         (menuElement?.clientHeight ?? 200) - ARROW_GUTTER - ARROW_HEIGHT
@@ -93,11 +108,11 @@
   })
 </script>
 
-{#snippet Arrow(position: string, anchor: { x: number; y: number })}
+{#snippet Arrow(position: string, anchor: { x: number; y: number }, menu: any)}
   <div
     class="menu-arrow"
     data-position={position}
-    style={getArrowStyle(position as any, anchor)}
+    style={getArrowStyle(position as any, anchor, menu)}
   >
     <svg viewBox="0 0 16 8" width="16" height="8">
       <!-- A professional triangle with an open base and clean stroke -->
@@ -111,68 +126,99 @@
   </div>
 {/snippet}
 
-<div
-  bind:this={menuElement}
-  class="menu-wrapper"
-  use:portal
-  style={`left:${state.x}px; top:${state.y}px; z-index:${state.zIndex};`}
-  in:fly={{
-    duration: 150,
-    y: state.slideFrom === 'top' ? -4 : state.slideFrom === 'bottom' ? 4 : 0,
-    x: state.slideFrom === 'left' ? -4 : state.slideFrom === 'right' ? 4 : 0,
-  }}
-  out:fade={{ duration: 100 }}
->
-  {#if state.position && state.anchorCenter}
-    {@render Arrow(state.position, state.anchorCenter)}
-  {/if}
-
-  <div class="menu" role="menu">
+<!-- Stable Portal Host: Never unmounts, stays as a child of document.body -->
+<div class="gp-context-menu-portal-root" use:portal>
+  {#if contextMenuState.current}
+    {@const menu = contextMenuState.current}
+    <!-- Transition Unit: Contains main menu AND submenus, fades as one unit -->
     <div
-      class="menu-content"
-      onscroll={e => e.stopPropagation()}
-      style={`max-height:${MENU_MAX_HEIGHT}px;`}
+      class="context-menu-transition-unit"
+      out:fade={{ duration: 200, easing: cubicOut }}
     >
-      {#if state.items && state.items.length}
-        <ul bind:this={container}>
-          {#each state.items as it}
-            {#if it.isDivider}
-              <li class="divider" role="presentation"></li>
-            {:else if (it.children && it.children.length) || it.component}
-              <ContextSubMenu
-                item={it}
-                siblings={state.items}
-                parentZIndex={state.zIndex}
-                isOpen={activeItemLabel === it.label}
-                onToggle={() =>
-                  (activeItemLabel =
-                    activeItemLabel === it.label ? null : it.label)}
-              />
-            {:else}
-              <li>
-                <button
-                  role="menuitem"
-                  class:selected={it.isHighlighted}
-                  onclick={() => handleItemClick(it)}
-                >
-                  {#if it.icon}
-                    {@const Icon = it.icon}
-                    <Icon size={'1em'} strokeWidth={1} />
+      <div
+        bind:this={menuElement}
+        class="menu-wrapper"
+        style={`left:${menu.x}px; top:${menu.y}px; z-index:${menu.zIndex};`}
+        in:fly={{
+          duration: 200,
+          easing: cubicOut,
+          y: menu.slideFrom === 'top' ? -4 : 0,
+          x: menu.slideFrom === 'left' ? -4 : 0,
+        }}
+      >
+        {#if menu.position && menu.anchorCenter}
+          {@render Arrow(menu.position, menu.anchorCenter, menu)}
+        {/if}
+
+        <div class="menu" role="menu">
+          <div
+            class="menu-content"
+            onscroll={e => e.stopPropagation()}
+            style={`max-height:${MENU_MAX_HEIGHT}px;`}
+          >
+            {#if menu.items && menu.items.length}
+              <ul bind:this={container}>
+                {#each menu.items as it}
+                  {#if it.isDivider}
+                    <li class="divider" role="presentation"></li>
+                  {:else if (it.children && it.children.length) || it.component}
+                    <ContextSubMenu
+                      item={it}
+                      siblings={menu.items}
+                      parentZIndex={menu.zIndex}
+                      isOpen={activeItemLabel === it.label}
+                      onToggle={() =>
+                        (activeItemLabel =
+                          activeItemLabel === it.label
+                            ? null
+                            : (it.label ?? null))}
+                    />
+                  {:else}
+                    <li>
+                      <button
+                        role="menuitem"
+                        class:selected={it.isHighlighted}
+                        onclick={() => handleItemClick(it)}
+                      >
+                        {#if it.icon}
+                          {@const Icon = it.icon}
+                          <Icon size={'1em'} strokeWidth={1} />
+                        {/if}
+                        {it.label}
+                      </button>
+                    </li>
                   {/if}
-                  {it.label}
-                </button>
-              </li>
+                {/each}
+              </ul>
+            {:else if menu.content}
+              <div class="custom">{menu.content}</div>
             {/if}
-          {/each}
-        </ul>
-      {:else if state.content}
-        <div class="custom">{state.content}</div>
-      {/if}
+          </div>
+        </div>
+      </div>
+
+      <!-- Submenus portal into this container, sharing the parent's fade -->
+      <div id="gp-context-menu-portal-host"></div>
     </div>
-  </div>
+  {/if}
 </div>
 
 <style>
+  .gp-context-menu-portal-root {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    z-index: 9999;
+    pointer-events: none;
+  }
+
+  /* But the transition unit should allow pointer events for the menu */
+  .context-menu-transition-unit {
+    pointer-events: none;
+  }
+
   .menu-wrapper {
     position: fixed;
     /* Unified shadow that wraps both arrow and menu */

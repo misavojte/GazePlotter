@@ -111,9 +111,7 @@
   <Modal />
   <Toaster />
   <Tooltip />
-  {#if contextMenuState.current}
-    <ContextMenu />
-  {/if}
+  <ContextMenu />
 </div>
 
 <style>

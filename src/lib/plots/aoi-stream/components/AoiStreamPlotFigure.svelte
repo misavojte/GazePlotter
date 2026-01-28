@@ -760,6 +760,8 @@
     // Track all dependencies explicitly
     const deps = {
       data,
+      alignment,
+      ridgelineScale,
       w: safeWidth,
       h: safeHeight,
       dpi: dpiOverride,

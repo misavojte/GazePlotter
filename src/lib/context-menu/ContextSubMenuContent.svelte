@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { fade, fly } from 'svelte/transition'
+  import { fly, fade } from 'svelte/transition'
+  import { cubicOut } from 'svelte/easing'
   import { MENU_MAX_HEIGHT } from './const'
   import type { MenuItem } from './types'
   import { updateContextMenu } from './contextMenuState.svelte'
@@ -24,7 +25,7 @@
     if (child.action) child.action()
 
     if (item.children) {
-      item.children.forEach(c => {
+      item.children.forEach((c: MenuItem) => {
         c.isHighlighted = c.label === child.label
       })
     }
@@ -37,11 +38,10 @@
 
 <div
   class="menu-wrapper submenu"
-  use:portal
+  use:portal={'gp-context-menu-portal-host'}
   use:calculatePositionAction
   style={`left:${coords.x}px; top:${coords.y}px; z-index:${parentZIndex + 1};`}
-  in:fly={{ x: isFlippedX ? 4 : -4, duration: 150 }}
-  out:fade={{ duration: 100 }}
+  in:fade={{ duration: 200 }}
 >
   <div class="menu" role="menu">
     <div

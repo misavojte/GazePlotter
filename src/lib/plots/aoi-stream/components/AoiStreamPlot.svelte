@@ -24,7 +24,7 @@
     getParticipantEndTime,
     engine,
   } from '$lib/data/engine'
-  import { HEADER_HEIGHT } from '../const'
+  import { HEADER_HEIGHT, RIDGELINE_SCALE } from '../const'
 
   import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
   import type { AoiStreamPlotResult } from '../types'
@@ -54,6 +54,7 @@
   // This is handled in event handlers, not effects.
 
   const effectiveSettings = $derived({
+    ridgelineScale: RIDGELINE_SCALE,
     ...settings,
     ...localDraft,
   })
@@ -286,7 +287,12 @@
         {
           value: 'ridgeline',
           label: 'Ridgeline',
-          onSelect: (v: any) => handlePreview({ alignment: v }),
+          onSelect: (v: any) =>
+            handlePreview({
+              alignment: v,
+              ridgelineScale:
+                effectiveSettings.ridgelineScale ?? RIDGELINE_SCALE,
+            }),
           closeOnAction: false,
           component: AoiStreamPlotAlignmentSettings,
           componentHeight: 240,
