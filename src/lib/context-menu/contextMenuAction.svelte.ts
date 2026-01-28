@@ -180,7 +180,7 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
     )
 
     const adjustedPlacement = adjustPlacementForViewport(
-      { x: initialPlacement.left, y: initialPlacement.top },
+      { x: initialPlacement.x, y: initialPlacement.y },
       menuSize,
       { width: window.innerWidth, height: window.innerHeight }
     )
@@ -251,6 +251,12 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
     const value = contextMenuState.current
     if (!isOwnedState(value)) {
       finalizeClosure()
+      return
+    }
+
+    // Guard: If the anchor is removed from the DOM, close the menu
+    if (!node.isConnected) {
+      close()
     }
   })
 

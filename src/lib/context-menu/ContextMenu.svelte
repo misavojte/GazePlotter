@@ -22,7 +22,7 @@
     }
   })
 
-  const onClose = () => updateContextMenu(null)
+  const onClose = () => contextMenuState.reset()
 
   let width = 220
   let container: HTMLUListElement | null = $state(null)
@@ -37,6 +37,13 @@
     if (ev.key === 'ArrowUp' && container) {
       ev.preventDefault()
       focusNext(-1)
+    }
+    if (ev.key === 'Enter' || ev.key === ' ') {
+      const active = document.activeElement as HTMLButtonElement
+      if (active && active.role === 'menuitem' && container?.contains(active)) {
+        ev.preventDefault()
+        active.click()
+      }
     }
   }
 

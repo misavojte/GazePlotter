@@ -14,6 +14,10 @@ export const contextMenuState = {
   set current(value: ContextMenuState | null) {
     _state = value
   },
+  /** Clear the current menu state. */
+  reset() {
+    _state = null
+  },
 }
 
 /**

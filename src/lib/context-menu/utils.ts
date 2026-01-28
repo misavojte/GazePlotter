@@ -40,26 +40,29 @@ export const computePlacement = (
   offset: number,
   hAlign: Alignment,
   vAlign: Alignment
-) => {
-  const coords: Record<Position, { left: number; top: number }> = {
-    top: {
-      left: aligned(rect.left, rect.width, menuSize.width, hAlign),
-      top: rect.top - offset - menuSize.height,
-    },
-    bottom: {
-      left: aligned(rect.left, rect.width, menuSize.width, hAlign),
-      top: rect.bottom + offset,
-    },
-    left: {
-      left: rect.left - offset - menuSize.width,
-      top: aligned(rect.top, rect.height, menuSize.height, vAlign),
-    },
-    right: {
-      left: rect.right + offset,
-      top: aligned(rect.top, rect.height, menuSize.height, vAlign),
-    },
+): Point => {
+  switch (position) {
+    case 'top':
+      return {
+        x: aligned(rect.left, rect.width, menuSize.width, hAlign),
+        y: rect.top - offset - menuSize.height,
+      }
+    case 'bottom':
+      return {
+        x: aligned(rect.left, rect.width, menuSize.width, hAlign),
+        y: rect.bottom + offset,
+      }
+    case 'left':
+      return {
+        x: rect.left - offset - menuSize.width,
+        y: aligned(rect.top, rect.height, menuSize.height, vAlign),
+      }
+    case 'right':
+      return {
+        x: rect.right + offset,
+        y: aligned(rect.top, rect.height, menuSize.height, vAlign),
+      }
   }
-  return coords[position]
 }
 
 /**
@@ -236,4 +239,11 @@ export const portal = (node: HTMLElement, target?: HTMLElement | string) => {
       }
     },
   }
+}
+
+/**
+ * Check if the element is currently connected to the DOM.
+ */
+export const isElementConnected = (node: HTMLElement | null): boolean => {
+  return Boolean(node && node.isConnected)
 }

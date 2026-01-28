@@ -3,7 +3,7 @@
   import { cubicOut } from 'svelte/easing'
   import { MENU_MAX_HEIGHT } from './const'
   import type { MenuItem } from './types'
-  import { updateContextMenu } from './contextMenuState.svelte'
+  import { contextMenuState } from './contextMenuState.svelte'
   import { portal } from './utils'
   import ContextSubMenu from './ContextSubMenu.svelte'
 
@@ -31,7 +31,15 @@
     }
 
     if (child.closeOnAction !== false) {
-      updateContextMenu(null)
+      contextMenuState.reset()
+    }
+  }
+
+  const handleKeydown = (e: KeyboardEvent, child: MenuItem) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      e.stopPropagation()
+      handleChildAction(child)
     }
   }
 </script>
@@ -62,9 +70,9 @@
             {...item.componentProps}
             action={(data: any) => {
               if (item.action) item.action(data)
-              updateContextMenu(null)
+              contextMenuState.reset()
             }}
-            close={() => updateContextMenu(null)}
+            close={() => contextMenuState.reset()}
           />
         </div>
       {:else if item.children}
@@ -91,6 +99,7 @@
                     e.stopPropagation()
                     handleChildAction(child)
                   }}
+                  onkeydown={e => handleKeydown(e, child)}
                 >
                   {#if child.icon}
                     {@const ChildIcon = child.icon}
