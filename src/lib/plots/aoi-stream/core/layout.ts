@@ -1,7 +1,8 @@
 import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
 import { RIDGELINE_SCALE, Y_AXIS } from '../const'
 import { calculateIdealStripHeight } from './ridgeline'
-import { desaturateToWhite } from '$lib/color/utility'
+import { desaturateToWhite, interpolateColor } from '$lib/color/utility'
+import { PRESET_PALETTES, INACTIVE_COLOR } from '$lib/color/palettes'
 import { computeNiceYAxis, niceStep } from './axis'
 
 export interface RenderBuckets {
@@ -43,7 +44,7 @@ export function ensureRenderBuckets(
 
 export interface StreamCoordsParams {
   data: AoiStreamPlotResult
-  alignment: 'center' | 'bottom' | 'ridgeline'
+  alignment: 'center' | 'bottom' | 'ridgeline' | 'heatmap'
   floorLeft: number
   floorTop: number
   floorWidth: number
@@ -52,6 +53,7 @@ export interface StreamCoordsParams {
   stripHeightOverride: number | null
   highlightMaskById: Map<number, boolean> | null
   ridgelineScale?: number
+  colorScale?: string[]
 }
 
 export interface StreamCoordsResult {
@@ -66,6 +68,7 @@ export interface StreamCoordsResult {
     id: number
     stripBottom?: number
     stripHeight?: number
+    heatmapBinColors?: string[]
   }>
 }
 
@@ -88,6 +91,7 @@ export function transformStreamDataToCoordinates(
     stripHeightOverride,
     highlightMaskById,
     ridgelineScale,
+    colorScale,
   } = params
 
   const scale = ridgelineScale ?? RIDGELINE_SCALE
@@ -194,26 +198,94 @@ export function transformStreamDataToCoordinates(
     const bucket = seriesBuckets[idx]
     const values = s.values
 
-    if (alignment === 'ridgeline') {
-      const overlapOffset = stripHeight * (1 - overlap)
-      const totalGroupHeight = (series.length - 1) * overlapOffset + stripHeight
+    if (alignment === 'ridgeline' || alignment === 'heatmap') {
+      const isHeatmap = alignment === 'heatmap'
+
+      let stripHeight: number
+      let overlapOffset: number
+      let totalGroupHeight: number
+
+      if (isHeatmap) {
+        stripHeight = floorHeight / Math.max(1, series.length)
+        overlapOffset = stripHeight
+        totalGroupHeight = floorHeight
+      } else {
+        const baseStripHeight =
+          stripHeightOverride !== null &&
+          Number.isFinite(stripHeightOverride) &&
+          stripHeightOverride > 0
+            ? stripHeightOverride
+            : calculateIdealStripHeight(data, floorHeight, true, scale)
+
+        stripHeight = baseStripHeight
+        overlapOffset = stripHeight * (1 - overlap)
+        totalGroupHeight = (series.length - 1) * overlapOffset + stripHeight
+      }
+
       const groupTop = floorBottom - totalGroupHeight
       const stripTop = groupTop + idx * overlapOffset
       const stripBottom = stripTop + stripHeight
-      const localScaleY = (stripHeight * 0.9) / 100
+      if (isHeatmap) {
+        const heatmapBinColors = new Array(renderBinCount)
+        const scale = colorScale || PRESET_PALETTES.HEAT.colors
 
-      for (let i = 0; i < renderBinCount; i++) {
-        const dataIndex = Math.max(0, Math.min(dataBinCount - 1, i - 1))
-        let val =
-          i === 0 || i === renderBinCount - 1
-            ? 0
-            : values[dataIndex] * percentFactor
-        bucket.bottomY[i] = stripBottom
-        bucket.topY[i] = stripBottom - val * localScaleY
+        for (let i = 0; i < renderBinCount; i++) {
+          if (i === 0 || i === renderBinCount - 1) {
+            heatmapBinColors[i] = 'transparent'
+            bucket.topY[i] = stripBottom
+          } else {
+            const dataIndex = i - 1
+            const val = Math.max(
+              0,
+              Math.min(100, values[dataIndex] * percentFactor)
+            )
+
+            if (val <= 0) {
+              heatmapBinColors[i] = INACTIVE_COLOR
+            } else {
+              // Continuous multi-stop interpolation using provided scale
+              const stopCount = scale.length - 1
+              const scaledVal = (val / 100) * stopCount
+              const baseIndex = Math.floor(scaledVal)
+              const nextIndex = Math.min(scale.length - 1, baseIndex + 1)
+              const factor = scaledVal - baseIndex
+
+              heatmapBinColors[i] = interpolateColor(
+                scale[baseIndex],
+                scale[nextIndex],
+                factor
+              )
+            }
+            bucket.topY[i] = stripTop
+          }
+          bucket.bottomY[i] = stripBottom
+        }
+
+        return {
+          color,
+          isDimmed,
+          id: s.id,
+          stripBottom,
+          stripHeight,
+          heatmapBinColors,
+        }
+      } else {
+        // Ridgeline/Standard strip rendering
+        const localScaleY = (stripHeight * 0.9) / 100
+        for (let i = 0; i < renderBinCount; i++) {
+          const dataIndex = Math.max(0, Math.min(dataBinCount - 1, i - 1))
+          let val =
+            i === 0 || i === renderBinCount - 1
+              ? 0
+              : values[dataIndex] * percentFactor
+          bucket.bottomY[i] = stripBottom
+          bucket.topY[i] = stripBottom - val * localScaleY
+        }
+
+        return { color, isDimmed, id: s.id, stripBottom, stripHeight }
       }
-
-      return { color, isDimmed, id: s.id, stripBottom, stripHeight }
     } else {
+      // Stacked (Center/Bottom) rendering
       for (let i = 0; i < renderBinCount; i++) {
         const startVal = cumulative[i]
         const dataIndex = Math.max(0, Math.min(dataBinCount - 1, i - 1))

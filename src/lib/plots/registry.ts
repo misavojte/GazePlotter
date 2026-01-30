@@ -6,6 +6,7 @@ import type {
   GridItemMap,
   VisualizationConfig,
 } from '$lib/workspace/type/gridType'
+import { PRESET_PALETTES, INACTIVE_COLOR } from '$lib/color/palettes'
 
 /**
  * Visualization registry - a map of all available visualization types.
@@ -37,11 +38,11 @@ export const registry: {
       groupId: params.groupId ?? -1,
       stimuliColorValueRanges: [],
       aggregationMethod: 'sum',
-      belowMinColor: '#e0e0e0',
-      aboveMaxColor: '#e0e0e0',
+      belowMinColor: INACTIVE_COLOR,
+      aboveMaxColor: INACTIVE_COLOR,
       showBelowMinLabels: false,
       showAboveMaxLabels: false,
-      colorScale: ['#f7fbff', '#08306b'],
+      colorScale: [...PRESET_PALETTES.BLUE.colors],
       min: { w: 11, h: 10 },
     }),
     getDefaultHeight: () => 12,

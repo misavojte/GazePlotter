@@ -10,12 +10,14 @@
       colorMin: PreviewSync<string>
       colorMiddle: PreviewSync<string>
       colorMax: PreviewSync<string>
-      minValue: PreviewSync<number>
-      maxValue: PreviewSync<number>
+      binSize: PreviewSync<number>
+      timelineStart: PreviewSync<number>
+      timelineEnd: PreviewSync<number>
     }
+    close: () => void
   }
 
-  let { syncs }: Props = $props()
+  let { syncs, close }: Props = $props()
 
   // Track if middle color was manually modified
   let middleColorManuallySet = $state(false)
@@ -71,78 +73,100 @@
       middleColorManuallySet = false
     }
   }
+
+  function handleSubmit(e: Event) {
+    e.preventDefault()
+    close()
+  }
 </script>
 
 <div class="compact-color-settings">
-  <div class="section">
-    <div class="section-title">Scale Range</div>
-    <div class="range-inputs">
+  <form onsubmit={handleSubmit}>
+    <div class="section">
+      <div class="section-title">Common Settings</div>
       <div class="input-group">
-        <label for="min-val">Min</label>
+        <label for="bin-size">Bin Size [ms]</label>
         <input
-          id="min-val"
+          id="bin-size"
           type="number"
-          bind:value={syncs.minValue.value}
-          min="0"
+          bind:value={syncs.binSize.value}
+          min="1"
         />
       </div>
-      <div class="input-group">
-        <label for="max-val">Max (0=auto)</label>
-        <input
-          id="max-val"
-          type="number"
-          bind:value={syncs.maxValue.value}
-          min="0"
-        />
-      </div>
-    </div>
-  </div>
 
-  <div class="separator"></div>
-
-  <div class="section">
-    <div class="section-title">Colors</div>
-    <div class="preview-container">
-      <div class="gradient-bar" style:background={gradientStyle}>
-        <button
-          type="button"
-          class="color-dot min"
-          style:background-color={syncs.colorMin.value}
-          onclick={() => minPicker.toggle()}
-          bind:this={minPicker.triggerElement}
-          aria-label="Min color"
-        ></button>
-        <button
-          type="button"
-          class="color-dot middle"
-          style:background-color={syncs.colorMiddle.value}
-          onclick={() => middlePicker.toggle()}
-          bind:this={middlePicker.triggerElement}
-          aria-label="Middle color"
-        ></button>
-        <button
-          type="button"
-          class="color-dot max"
-          style:background-color={syncs.colorMax.value}
-          onclick={() => maxPicker.toggle()}
-          bind:this={maxPicker.triggerElement}
-          aria-label="Max color"
-        ></button>
+      <div class="timeline-row">
+        <span class="sub-section-title">Timeline [ms]</span>
+        <div class="timeline-inputs">
+          <div class="input-group">
+            <label for="timeline-start">Start</label>
+            <input
+              id="timeline-start"
+              type="number"
+              bind:value={syncs.timelineStart.value}
+              min="0"
+              placeholder="0"
+            />
+          </div>
+          <div class="input-group">
+            <label for="timeline-end">End (0=Auto)</label>
+            <input
+              id="timeline-end"
+              type="number"
+              bind:value={syncs.timelineEnd.value}
+              min="0"
+              placeholder="Auto"
+            />
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="presets">
-      {#each presets as preset}
-        <button
-          type="button"
-          class="preset-btn"
-          style:background={`linear-gradient(to right, ${preset.colors.join(', ')})`}
-          onclick={() => applyPreset(preset.colors)}
-          title={preset.name}
-        ></button>
-      {/each}
+    <div class="separator"></div>
+
+    <div class="section">
+      <div class="section-title">Color Scale</div>
+      <div class="preview-container">
+        <div class="gradient-bar" style:background={gradientStyle}>
+          <button
+            type="button"
+            class="color-dot min"
+            style:background-color={syncs.colorMin.value}
+            onclick={() => minPicker.toggle()}
+            bind:this={minPicker.triggerElement}
+            aria-label="Min color"
+          ></button>
+          <button
+            type="button"
+            class="color-dot middle"
+            style:background-color={syncs.colorMiddle.value}
+            onclick={() => middlePicker.toggle()}
+            bind:this={middlePicker.triggerElement}
+            aria-label="Middle color"
+          ></button>
+          <button
+            type="button"
+            class="color-dot max"
+            style:background-color={syncs.colorMax.value}
+            onclick={() => maxPicker.toggle()}
+            bind:this={maxPicker.triggerElement}
+            aria-label="Max color"
+          ></button>
+        </div>
+      </div>
+
+      <div class="presets">
+        {#each presets as preset}
+          <button
+            type="button"
+            class="preset-btn"
+            style:background={`linear-gradient(to right, ${preset.colors.join(', ')})`}
+            onclick={() => applyPreset(preset.colors)}
+            title={preset.name}
+          ></button>
+        {/each}
+      </div>
     </div>
-  </div>
+  </form>
 
   {#if minPicker.isOpen}
     <div
@@ -217,16 +241,27 @@
   }
   .section-title {
     font-size: 11px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 2px;
+  }
+  .sub-section-title {
+    font-size: 10px;
     font-weight: 500;
     color: #666;
   }
   .separator {
     height: 1px;
     background: #e5e7eb;
-    margin: 4px 0;
+    margin: 8px 0;
   }
 
-  .range-inputs {
+  .timeline-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .timeline-inputs {
     display: flex;
     gap: 8px;
   }
@@ -250,10 +285,6 @@
     font-size: 11px;
     outline: none;
   }
-  .input-group input:focus {
-    border-color: var(--c-brand);
-  }
-
   .preview-container {
     height: 16px;
     position: relative;

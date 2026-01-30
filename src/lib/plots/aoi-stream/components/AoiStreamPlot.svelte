@@ -33,7 +33,10 @@
 
   import { grid } from '$lib/workspace/grid/store.svelte'
   import { PreviewSync } from '$lib/plots/shared'
+  import { interpolateColor } from '$lib/color/utility'
+  import { PRESET_PALETTES } from '$lib/color/palettes'
   import AoiStreamPlotAlignmentSettings from './AoiStreamPlotAlignmentSettings.svelte'
+  import AoiStreamPlotColorSettings from './AoiStreamPlotColorSettings.svelte'
 
   const LAYOUT = {
     headerHeight: HEADER_HEIGHT,
@@ -56,6 +59,22 @@
   const timelineEndSync = new PreviewSync(settings.timelineEnd)
   const alignmentSync = new PreviewSync(settings.alignment)
 
+  const colorMinSync = new PreviewSync(
+    settings.colorScale?.[0] || PRESET_PALETTES.HEAT.colors[0]
+  )
+  const colorMaxSync = new PreviewSync(
+    settings.colorScale?.length === 3
+      ? settings.colorScale[2]
+      : settings.colorScale?.[1] || PRESET_PALETTES.HEAT.colors[2]
+  )
+  const colorMiddleSync = new PreviewSync(
+    settings.colorScale?.length === 3
+      ? settings.colorScale[1]
+      : settings.colorScale?.length === 2
+        ? interpolateColor(settings.colorScale[0], settings.colorScale[1], 0.5)
+        : PRESET_PALETTES.HEAT.colors[1]
+  )
+
   // Explicitly sync committed values when props change
   $effect(() => {
     binSizeSync.updateCommitted(settings.binSize, true)
@@ -63,6 +82,29 @@
     timelineStartSync.updateCommitted(settings.timelineStart, true)
     timelineEndSync.updateCommitted(settings.timelineEnd, true)
     alignmentSync.updateCommitted(settings.alignment, true)
+
+    colorMinSync.updateCommitted(
+      settings.colorScale?.[0] || PRESET_PALETTES.HEAT.colors[0],
+      true
+    )
+    colorMaxSync.updateCommitted(
+      settings.colorScale?.length === 3
+        ? settings.colorScale[2]
+        : settings.colorScale?.[1] || PRESET_PALETTES.HEAT.colors[2],
+      true
+    )
+    colorMiddleSync.updateCommitted(
+      settings.colorScale?.length === 3
+        ? settings.colorScale[1]
+        : settings.colorScale?.length === 2
+          ? interpolateColor(
+              settings.colorScale[0],
+              settings.colorScale[1],
+              0.5
+            )
+          : PRESET_PALETTES.HEAT.colors[1],
+      true
+    )
   })
 
   // Grouping them for easier passing to components (typed explicitly for AoiStreamPlotAlignmentSettings)
@@ -72,7 +114,19 @@
     timelineStart: timelineStartSync,
     timelineEnd: timelineEndSync,
     // alignmentSync is handled separately in the menu structure but contributes to effectiveSettings
+    colorMin: colorMinSync,
+    colorMiddle: colorMiddleSync,
+    colorMax: colorMaxSync,
   }
+
+  const effectiveColorScale = $derived.by(() => {
+    const min = colorMinSync.value
+    const middle = colorMiddleSync.value
+    const max = colorMaxSync.value
+    const autoMiddle = interpolateColor(min, max, 0.5)
+    if (middle === autoMiddle) return [min, max]
+    return [min, middle, max]
+  })
 
   const effectiveSettings = $derived({
     ...settings,
@@ -81,6 +135,7 @@
     timelineStart: timelineStartSync.value,
     timelineEnd: timelineEndSync.value,
     alignment: alignmentSync.value,
+    colorScale: effectiveColorScale,
   })
 
   // --- DERIVED PIPELINE ---
@@ -164,7 +219,7 @@
   )
 
   const stripHeightOverride = $derived.by(() => {
-    if (effectiveSettings.alignment !== 'ridgeline') return null
+    if (effectiveSettings.alignment !== 'heatmap') return null
     return scanForDynamicStripHeight(
       grid.items,
       effectiveSettings.h,
@@ -186,6 +241,14 @@
       if (timelineEndSync.isDirty) updates.timelineEnd = timelineEndSync.value
       if (alignmentSync.isDirty) updates.alignment = alignmentSync.value as any
 
+      if (
+        colorMinSync.isDirty ||
+        colorMiddleSync.isDirty ||
+        colorMaxSync.isDirty
+      ) {
+        updates.colorScale = effectiveSettings.colorScale
+      }
+
       // Only dispatch if there are actual diffs
       if (Object.keys(updates).length === 0) {
         // Just reset previews to be safe (cleans up any accidental state)
@@ -194,6 +257,9 @@
         timelineStartSync.reset()
         timelineEndSync.reset()
         alignmentSync.reset()
+        colorMinSync.reset()
+        colorMiddleSync.reset()
+        colorMaxSync.reset()
         return
       }
 
@@ -215,6 +281,9 @@
       timelineStartSync.reset()
       timelineEndSync.reset()
       alignmentSync.reset()
+      colorMinSync.reset()
+      colorMiddleSync.reset()
+      colorMaxSync.reset()
     })
   }
 
@@ -335,6 +404,19 @@
             syncs,
           },
         },
+        {
+          value: 'heatmap',
+          label: 'Heatmap',
+          onSelect: (v: any) => {
+            alignmentSync.value = v
+          },
+          closeOnAction: false,
+          component: AoiStreamPlotColorSettings,
+          componentHeight: 140,
+          componentProps: {
+            syncs,
+          },
+        },
       ],
     },
   ])
@@ -371,6 +453,7 @@
         onLegendClick={handleLegendClick}
         {stripHeightOverride}
         ridgelineScale={effectiveSettings.ridgelineScale}
+        colorScale={effectiveSettings.colorScale}
       />
     {/if}
   {/snippet}

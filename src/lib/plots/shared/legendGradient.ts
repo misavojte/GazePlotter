@@ -30,6 +30,8 @@ export interface GradientLegendConfig {
   effectiveMaxValue: number
   /** Legend Title */
   title: string
+  /** Optional color for values below minimum (e.g. for "no data" or "zero") */
+  belowMinColor?: string | null
 }
 
 export interface GradientLegendInteractionZones {
@@ -55,12 +57,16 @@ export interface GradientLegendGeometry {
   title?: { text: string; x: number; y: number }
   gradientRect: { x: number; y: number; width: number; height: number }
   labels?: {
-    min: { text: string; x: number; y: number }
-    max: { text: string; x: number; y: number }
+    min?: { text: string; x: number; y: number }
+    max?: { text: string; x: number; y: number }
+    belowMin?: { text: string; x: number; y: number }
   }
 
   // Interaction zones for click/hover logic
   zones: GradientLegendInteractionZones
+
+  // Optional below-min segment rect
+  belowMinRect?: { x: number; y: number; width: number; height: number }
 }
 
 // ============================================================================
@@ -98,8 +104,22 @@ export function computeGradientLegendGeometry(
   const isMinimalist = availableHeight < MININALIST_THRESHOLD
 
   // Layout Width
-  const legendWidth = Math.min(MAX_WIDTH, availableWidth * 0.8)
-  const legendX = x + ((availableWidth - legendWidth) >> 1)
+  const hasBelowMin = !!config.belowMinColor
+  const belowMinWidth = 15
+  const belowMinGap = 0
+  const totalBarWidth = hasBelowMin
+    ? belowMinWidth + belowMinGap + Math.min(MAX_WIDTH, availableWidth * 0.8)
+    : Math.min(MAX_WIDTH, availableWidth * 0.8)
+
+  const legendWidth = hasBelowMin
+    ? totalBarWidth - belowMinWidth - belowMinGap
+    : totalBarWidth
+
+  const legendX = x + ((availableWidth - totalBarWidth) >> 1)
+  const belowMinX = legendX
+  const gradientX = hasBelowMin
+    ? belowMinX + belowMinWidth + belowMinGap
+    : legendX
 
   if (isMinimalist) {
     // Minimalist: Gradient Bar Only (maybe small title)
@@ -117,7 +137,7 @@ export function computeGradientLegendGeometry(
       gradientZone: {
         x: legendX - 10,
         y: barY - 5,
-        width: legendWidth + 20,
+        width: totalBarWidth + 20,
         height: MINIMALIST_HEIGHT + 10,
         radius: 4,
       },
@@ -136,15 +156,23 @@ export function computeGradientLegendGeometry(
     return {
       isMinimalist: true,
       totalHeight: MINIMALIST_HEIGHT + 10, // approximate
-      width: legendWidth,
+      width: totalBarWidth,
       x: legendX,
       y,
       gradientRect: {
-        x: legendX,
+        x: gradientX,
         y: barY,
         width: legendWidth,
         height: MINIMALIST_HEIGHT,
       },
+      belowMinRect: hasBelowMin
+        ? {
+            x: belowMinX,
+            y: barY,
+            width: belowMinWidth,
+            height: MINIMALIST_HEIGHT,
+          }
+        : undefined,
       title: titleObj,
       zones,
     }
@@ -193,14 +221,15 @@ export function computeGradientLegendGeometry(
       ? {
           min: {
             text: valueRange[0].toString(),
-            x: legendX,
+            x: gradientX,
             y: valuesY,
           },
           max: {
             text: effectiveMaxValue.toString(),
-            x: legendX + legendWidth,
+            x: gradientX + legendWidth,
             y: valuesY,
           },
+          belowMin: undefined,
         }
       : undefined
 
@@ -220,7 +249,7 @@ export function computeGradientLegendGeometry(
     gradientZone: {
       x: legendX - 10,
       y: gradientY - 10,
-      width: legendWidth + 20,
+      width: totalBarWidth + 20,
       height: BAR_HEIGHT + 20,
       radius: 15,
     },
@@ -229,16 +258,24 @@ export function computeGradientLegendGeometry(
   return {
     isMinimalist: false,
     totalHeight: requiredHeight,
-    width: legendWidth,
+    width: totalBarWidth,
     x: legendX,
     y: startY,
     title: titleObj,
     gradientRect: {
-      x: legendX,
+      x: gradientX,
       y: gradientY,
       width: legendWidth,
       height: BAR_HEIGHT,
     },
+    belowMinRect: hasBelowMin
+      ? {
+          x: belowMinX,
+          y: gradientY,
+          width: belowMinWidth,
+          height: BAR_HEIGHT,
+        }
+      : undefined,
     labels: labelsObj,
     zones,
   }
@@ -257,7 +294,7 @@ export function drawGradientLegend(
   config: GradientLegendConfig,
   highlightState?: 'none' | 'gradient' | 'minValue' | 'maxValue'
 ): void {
-  const { title, gradientRect, labels, zones } = geometry
+  const { title, gradientRect, belowMinRect, labels, zones } = geometry
   const { colorScale } = config
   const { FAMILY: fontFamily, SIZE: fontSize, COLOR: fontColor } = LEGEND_FONT
 
@@ -338,15 +375,35 @@ export function drawGradientLegend(
   // strokeCrispRect handles the +0.5 offset internally using (val | 0)
   strokeCrispRect(ctx, gx, gy, gw, gh, GRIDLINE_PRIMARY.COLOR, 1)
 
-  // 4. Draw Layout Labels (Min/Max)
+  // 3b. Draw "Below Min" Segment
+  if (belowMinRect && config.belowMinColor) {
+    const bx = belowMinRect.x | 0
+    const by = belowMinRect.y | 0
+    const bw = belowMinRect.width | 0
+    const bh = belowMinRect.height | 0
+
+    ctx.fillStyle = config.belowMinColor
+    ctx.fillRect(bx, by, bw, bh)
+    strokeCrispRect(ctx, bx, by, bw, bh, GRIDLINE_PRIMARY.COLOR, 1)
+  }
+
+  // 4. Draw Layout Labels (Min/Max/BelowMin)
   if (labels) {
     ctx.font = `12px ${fontFamily}`
     ctx.fillStyle = fontColor
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'
 
-    ctx.fillText(labels.min.text, labels.min.x, labels.min.y)
-    ctx.fillText(labels.max.text, labels.max.x, labels.max.y)
+    if (labels.min) {
+      ctx.fillText(labels.min.text, labels.min.x, labels.min.y)
+    }
+    if (labels.max) {
+      ctx.fillText(labels.max.text, labels.max.x, labels.max.y)
+    }
+
+    if (labels.belowMin) {
+      ctx.fillText(labels.belowMin.text, labels.belowMin.x, labels.belowMin.y)
+    }
   }
 }
 

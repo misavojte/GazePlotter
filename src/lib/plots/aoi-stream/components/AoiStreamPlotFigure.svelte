@@ -21,6 +21,7 @@
   import { updateTooltip } from '$lib/tooltip'
   import { estimateTextWidth } from '$lib/shared/utils/textUtils'
   import { desaturateToWhite } from '$lib/color/utility'
+  import { INACTIVE_COLOR } from '$lib/color'
 
   import {
     GRIDLINE_SECONDARY,
@@ -39,6 +40,10 @@
     type LegendGeometry,
     type LegendItemGeometry,
   } from '$lib/plots/shared/legendRendering'
+  import {
+    computeGradientLegendGeometry,
+    drawGradientLegend,
+  } from '$lib/plots/shared/legendGradient'
   import {
     drawTimelineLabels,
     drawXAxisTicksAndBorder,
@@ -72,7 +77,7 @@
     height: number
     data: AoiStreamPlotResult
     highlights?: string[]
-    alignment?: 'center' | 'bottom' | 'ridgeline'
+    alignment?: 'center' | 'bottom' | 'ridgeline' | 'heatmap'
     onLegendClick?: (aoiId: number) => void
     dpiOverride?: number | null
     marginTop?: number
@@ -81,6 +86,7 @@
     marginLeft?: number
     stripHeightOverride?: number | null
     ridgelineScale?: number
+    colorScale?: string[]
   }
 
   let {
@@ -97,6 +103,7 @@
     marginLeft = 0,
     stripHeightOverride = null,
     ridgelineScale,
+    colorScale,
   }: AoiStreamPlotFigureProps = $props()
 
   let canvas = $state<HTMLCanvasElement | null>(null)
@@ -135,8 +142,30 @@
   const safeMarginBottom = $derived(safeNumber(marginBottom, 0))
   const safeMarginLeft = $derived(safeNumber(marginLeft, 0))
 
+  const maxAoiLabelWidth = $derived.by(() => {
+    if (alignment !== 'heatmap') return 0
+    let max = 0
+    for (const s of data.series) {
+      const w = estimateTextWidth(
+        s.label,
+        AXIS_CONFIG.fontSize,
+        AXIS_CONFIG.fontFamily
+      )
+      if (w > max) max = w
+    }
+    return max
+  })
+
+  const effectiveLeftMargin = $derived(
+    alignment === 'heatmap'
+      ? Math.max(AOI_MARGIN.LEFT, Math.min(200, maxAoiLabelWidth + 20))
+      : AOI_MARGIN.LEFT
+  )
+
   const effectiveRightMargin = $derived(
-    alignment === 'ridgeline' ? MARGIN.RIGHT : MARGIN.RIGHT + 5 // +5 for tick length when not in ridgeline mode
+    alignment === 'ridgeline' || alignment === 'heatmap'
+      ? MARGIN.RIGHT
+      : MARGIN.RIGHT + 5 // +5 for tick length when not in ridgeline mode
   )
 
   const exportRegistrar = getContext<ExportSourceRegistrar | undefined>(
@@ -166,6 +195,7 @@
 
   // Calculate legend height for layout using the shared utility for consistency
   const legendHeight: number = $derived.by(() => {
+    if (alignment === 'heatmap') return 60
     if (legendItems.length === 0) return 0
 
     // Calculate max text width to ensure height calculation matches geometry calculation
@@ -188,7 +218,9 @@
   // `width`/`height` already represent the drawable area excluding export margins.
   // Export margins are applied as offsets and by growing the canvas size.
   const plotAreaWidth = $derived(
-    Math.floor(Math.max(0, safeWidth - MARGIN.LEFT - effectiveRightMargin))
+    Math.floor(
+      Math.max(0, safeWidth - effectiveLeftMargin - effectiveRightMargin)
+    )
   )
   const plotAreaHeight = $derived(
     Math.floor(
@@ -196,7 +228,7 @@
     )
   )
 
-  const plotLeft = $derived(Math.floor(safeMarginLeft + MARGIN.LEFT))
+  const plotLeft = $derived(Math.floor(safeMarginLeft + effectiveLeftMargin))
   const plotTop = $derived(Math.floor(safeMarginTop + MARGIN.TOP))
   const plotBottom = $derived(plotTop + plotAreaHeight)
 
@@ -213,6 +245,23 @@
       legendY,
       legendWidth
     )
+  })
+
+  // Compute gradient legend geometry for heatmap mode
+  const gradientLegendGeometry = $derived.by(() => {
+    if (alignment !== 'heatmap') return null
+
+    return computeGradientLegendGeometry({
+      x: safeMarginLeft,
+      y: plotBottom + MARGIN.BOTTOM,
+      availableWidth: safeWidth,
+      availableHeight: legendHeight,
+      colorScale: colorScale || [],
+      valueRange: [0, 100],
+      effectiveMaxValue: 100,
+      title: 'Share of participants fixating [%]',
+      belowMinColor: INACTIVE_COLOR,
+    })
   })
 
   function scheduleRender() {
@@ -274,6 +323,7 @@
           stripHeightOverride,
           highlightMaskById,
           ridgelineScale,
+          colorScale,
         },
         renderBuckets
       )
@@ -295,20 +345,52 @@
       const bucket = seriesBuckets[s]
       const paint = seriesPaint[s]
 
-      ctx.beginPath()
-      ctx.moveTo(xPositions[0], bucket.topY[0])
-      drawCatmullRom(ctx, xPositions, bucket.topY, true, renderBinCount)
-      drawCatmullRom(ctx, xPositions, bucket.bottomY, false, renderBinCount)
-      ctx.closePath()
+      if (paint.heatmapBinColors) {
+        // Heatmap Plot: Pure intensity-colored heatmap
+        const binWidth = floorWidth / data.binCount
+        for (let i = 1; i <= data.binCount; i++) {
+          const color = paint.heatmapBinColors[i]
+          if (color === 'transparent') continue
 
-      ctx.fillStyle = paint.color
-      ctx.fill()
+          const x = floorLeft + (i - 1) * binWidth
+          const y = bucket.topY[i]
+          const h = bucket.bottomY[i] - y
 
-      ctx.strokeStyle = AREA_DIVIDER.COLOR
-      ctx.lineWidth = AREA_DIVIDER.WIDTH
-      ctx.lineJoin = 'round'
-      ctx.lineCap = 'round'
-      ctx.stroke()
+          ctx.fillStyle = color
+          ctx.fillRect(x, y, binWidth + 0.5, h)
+        }
+      } else if (alignment === 'bottom') {
+        // Bottom alignment: Sliced into sharp columnar "stairs" for distinct value visualization
+        const binWidth = floorWidth / data.binCount
+        ctx.fillStyle = paint.color
+        for (let i = 1; i <= data.binCount; i++) {
+          const x = floorLeft + (i - 1) * binWidth
+          const y = bucket.topY[i]
+          const h = bucket.bottomY[i] - y
+          if (h > 0.1) {
+            ctx.fillRect(x, y, binWidth + 0.5, h)
+          }
+        }
+      } else {
+        // Smoothed path rendering for other modes (center, ridgeline)
+        ctx.beginPath()
+        ctx.moveTo(xPositions[0], bucket.topY[0])
+        drawCatmullRom(ctx, xPositions, bucket.topY, true, renderBinCount)
+        drawCatmullRom(ctx, xPositions, bucket.bottomY, false, renderBinCount)
+        ctx.closePath()
+
+        ctx.fillStyle = paint.color
+        ctx.fill()
+      }
+
+      // Only stroke the area divider for non-heatmap plots to avoid "white borders"
+      if (alignment !== 'heatmap') {
+        ctx.strokeStyle = AREA_DIVIDER.COLOR
+        ctx.lineWidth = AREA_DIVIDER.WIDTH
+        ctx.lineJoin = 'round'
+        ctx.lineCap = 'round'
+        ctx.stroke()
+      }
 
       if (alignment === 'ridgeline' && paint.stripBottom !== undefined) {
         ctx.beginPath()
@@ -320,6 +402,8 @@
         ctx.strokeStyle = GRIDLINE_SECONDARY.COLOR
         ctx.lineWidth = GRIDLINE_SECONDARY.WIDTH
         ctx.stroke()
+
+        // Label drawing moved outside clip
       }
     }
 
@@ -405,6 +489,59 @@
 
     ctx.restore()
 
+    // Draw AOI Labels for Heatmap Plot (outside clip)
+    if (alignment === 'heatmap') {
+      ctx.save()
+      ctx.font = `${AXIS_CONFIG.fontSize}px ${FONT_PRIMARY.FAMILY}`
+      ctx.fillStyle = AXIS_CONFIG.color
+      ctx.textAlign = 'right'
+      ctx.textBaseline = 'middle'
+
+      const maxLabelWidth = effectiveLeftMargin - 15
+
+      for (let s = 0; s < data.series.length; s++) {
+        const paint = seriesPaint[s]
+        if (
+          paint.stripBottom !== undefined &&
+          paint.stripHeight !== undefined
+        ) {
+          const labelX = floorLeft - 10
+          // Draw label in the middle of the strip
+          const labelY = paint.stripBottom - paint.stripHeight / 2
+
+          let labelText = data.series[s].label
+          if (ctx.measureText(labelText).width > maxLabelWidth) {
+            // Simple truncation indicator
+            while (
+              ctx.measureText(labelText + '...').width > maxLabelWidth &&
+              labelText.length > 0
+            ) {
+              labelText = labelText.slice(0, -1)
+            }
+            labelText += '...'
+          }
+
+          ctx.fillText(labelText, labelX, labelY)
+        }
+
+        // Draw divider at the bottom of the heatmap strip for better separation
+        const stripBottom = paint.stripBottom
+        if (
+          alignment === 'heatmap' &&
+          s < data.series.length - 1 &&
+          stripBottom !== undefined
+        ) {
+          ctx.beginPath()
+          ctx.strokeStyle = AREA_DIVIDER.COLOR
+          ctx.lineWidth = AREA_DIVIDER.WIDTH
+          ctx.moveTo(floorLeft, stripBottom)
+          ctx.lineTo(floorRight, stripBottom)
+          ctx.stroke()
+        }
+      }
+      ctx.restore()
+    }
+
     setUpFont(ctx)
 
     if (alignment === 'ridgeline') {
@@ -472,7 +609,7 @@
         floorRight,
         AXIS_CONFIG
       )
-    } else {
+    } else if (alignment === 'bottom') {
       drawBottomYAxis(
         ctx,
         plotBottom,
@@ -494,15 +631,17 @@
     }
 
     // Shared Y-axis main label and X-axis components
-    drawYAxisMainLabel(
-      ctx,
-      'Share of participants fixating [%]',
-      floorLeft,
-      floorTop,
-      floorHeight,
-      Y_AXIS.LABEL_OFFSET,
-      AXIS_CONFIG
-    )
+    if (alignment !== 'heatmap') {
+      drawYAxisMainLabel(
+        ctx,
+        'Share of participants fixating [%]',
+        floorLeft,
+        floorTop,
+        floorHeight,
+        Y_AXIS.LABEL_OFFSET,
+        AXIS_CONFIG
+      )
+    }
     drawTimelineLabels(
       ctx,
       data.timeline,
@@ -548,7 +687,21 @@
     )
 
     // Legend - use shared utility for consistent rendering
-    if (legendGeometry.items.length > 0 && legendHeight > 0) {
+    if (alignment === 'heatmap') {
+      if (gradientLegendGeometry) {
+        drawGradientLegend(ctx, gradientLegendGeometry, {
+          x: safeMarginLeft,
+          y: plotBottom + MARGIN.BOTTOM,
+          availableWidth: safeWidth,
+          availableHeight: legendHeight,
+          colorScale: colorScale || [],
+          valueRange: [0, 100],
+          effectiveMaxValue: 100,
+          title: 'Share of participants fixating [%]',
+          belowMinColor: INACTIVE_COLOR,
+        })
+      }
+    } else if (legendGeometry.items.length > 0 && legendHeight > 0) {
       setUpFont(ctx)
       drawLegend(ctx, legendGeometry, STREAM_LEGEND_CONFIG, usedHighlights)
     }
@@ -563,6 +716,7 @@
     mouseY: number
   ): LegendItemGeometry | null {
     if (
+      alignment === 'heatmap' ||
       !legendGeometry ||
       legendGeometry.items.length === 0 ||
       legendHeight === 0

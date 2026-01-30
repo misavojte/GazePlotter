@@ -11,7 +11,7 @@
     rgbToHsl,
     hexToRgb,
   } from '$lib/color/utility'
-  import { SCIENTIFIC_COLOR_PALETTE } from '$lib/color/palettes'
+  import { CATEGORICAL_PALETTE } from '$lib/color/palettes'
 
   interface Props {
     value: string
@@ -22,7 +22,7 @@
   let {
     value = $bindable('#000000'),
     oninput = () => {},
-    palette = SCIENTIFIC_COLOR_PALETTE,
+    palette = CATEGORICAL_PALETTE,
   }: Props = $props()
 
   // State for HSV model (this better matches the visual color picker)
