@@ -10,22 +10,24 @@ export function interpolateColor(
   color2: string,
   factor: number
 ): string {
-  // Parse hex colors
-  const r1 = parseInt(color1.slice(1, 3), 16)
-  const g1 = parseInt(color1.slice(3, 5), 16)
-  const b1 = parseInt(color1.slice(5, 7), 16)
+  if (factor <= 0) return color1
+  if (factor >= 1) return color2
 
-  const r2 = parseInt(color2.slice(1, 3), 16)
-  const g2 = parseInt(color2.slice(3, 5), 16)
-  const b2 = parseInt(color2.slice(5, 7), 16)
+  // Parse hex colors once and interpolate
+  // Using a slightly more efficient parsing approach if it's always #RRGGBB
+  const r1 = parseInt(color1.substring(1, 3), 16)
+  const g1 = parseInt(color1.substring(3, 5), 16)
+  const b1 = parseInt(color1.substring(5, 7), 16)
 
-  // Interpolate
-  const r = Math.round(r1 + factor * (r2 - r1))
-  const g = Math.round(g1 + factor * (g2 - g1))
-  const b = Math.round(b1 + factor * (b2 - b1))
+  const r2 = parseInt(color2.substring(1, 3), 16)
+  const g2 = parseInt(color2.substring(3, 5), 16)
+  const b2 = parseInt(color2.substring(5, 7), 16)
 
-  // Convert back to hex
-  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+  const r = (r1 + factor * (r2 - r1)) | 0
+  const g = (g1 + factor * (g2 - g1)) | 0
+  const b = (b1 + factor * (b2 - b1)) | 0
+
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`
 }
 
 /**

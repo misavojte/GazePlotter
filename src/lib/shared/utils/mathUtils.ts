@@ -61,7 +61,7 @@ export function formatDecimal(
  * @param values Array of numeric values
  * @returns The average value, or 0 if array is empty
  */
-export function calculateAverage(values: number[]): number {
+export function calculateAverage(values: readonly number[]): number {
   const length = values.length
   if (length === 0) return 0
 
@@ -79,7 +79,7 @@ export function calculateAverage(values: number[]): number {
  * @param values Array of numeric values
  * @returns The sum of all values
  */
-export function sumArray(values: number[]): number {
+export function sumArray(values: readonly number[]): number {
   let sum = 0
   for (let i = 0; i < values.length; i++) {
     sum += values[i]
@@ -93,7 +93,7 @@ export function sumArray(values: number[]): number {
  * @param values Array of numeric values
  * @returns Array of normalized values (percentages)
  */
-export function normalizeToPercentages(values: number[]): number[] {
+export function normalizeToPercentages(values: readonly number[]): number[] {
   const total = sumArray(values)
   if (total === 0) {
     // Avoid unnecessary iterations if total is zero
@@ -115,13 +115,17 @@ export function normalizeToPercentages(values: number[]): number[] {
  * @param arr2 Second array
  * @returns Boolean indicating if arrays have same elements
  */
-export function arraysHaveSameElements<T>(arr1: T[], arr2: T[]): boolean {
+export function arraysHaveSameElements<T>(
+  arr1: readonly T[],
+  arr2: readonly T[]
+): boolean {
   if (arr1.length !== arr2.length) return false
 
   // For small arrays, sorting might be more efficient
   if (arr1.length <= 10) {
-    const sortedArr1 = [...arr1].sort()
-    const sortedArr2 = [...arr2].sort()
+    // IMPORTANT: Use comparison function for numeric types to avoid string-sort bugs
+    const sortedArr1 = [...arr1].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+    const sortedArr2 = [...arr2].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
 
     for (let i = 0; i < sortedArr1.length; i++) {
       if (sortedArr1[i] !== sortedArr2[i]) return false

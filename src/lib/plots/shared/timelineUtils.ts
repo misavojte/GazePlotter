@@ -229,8 +229,8 @@ export function createAdaptiveTimeline(
       maxValue: max,
       ticks: [
         {
-          label: '0',
-          value: 0,
+          label: formatTimelineLabel(min),
+          value: min,
           position: 0,
           isNice: true,
         },

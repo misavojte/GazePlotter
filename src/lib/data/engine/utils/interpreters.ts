@@ -9,11 +9,14 @@ export const getAoiRaw = (
   aoiId: number,
   metadata: Omit<DataType, 'segments'>
 ): ExtendedInterpretedDataType => {
-  const aoiArray = metadata.aois.data[stimulusId]?.[aoiId]
+  const aoiArray = metadata.aois?.data?.[stimulusId]?.[aoiId]
   if (!aoiArray) {
-    throw new Error(
-      `AOI with id ${aoiId} does not exist in stimulus with id ${stimulusId}`
-    )
+    return {
+      id: aoiId,
+      originalName: `AOI ${aoiId}`,
+      displayedName: `AOI ${aoiId}`,
+      color: getDefaultColor(aoiId),
+    }
   }
 
   const originalName = aoiArray[0]
@@ -29,9 +32,14 @@ export const getCategoryRaw = (
   categoryId: number,
   metadata: Omit<DataType, 'segments'>
 ): ExtendedInterpretedDataType => {
-  const categoryArray = metadata.categories.data[categoryId]
+  const categoryArray = metadata.categories?.data?.[categoryId]
   if (!categoryArray) {
-    throw new Error(`Category with id ${categoryId} does not exist`)
+    return {
+      id: categoryId,
+      originalName: `Category ${categoryId}`,
+      displayedName: `Category ${categoryId}`,
+      color: DEFAULT_CATEGORY_COLOR,
+    }
   }
 
   const originalName = categoryArray[0]
