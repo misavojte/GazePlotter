@@ -6,6 +6,7 @@ import {
   getMenuSize,
   findScrollableParents,
   computeZIndex,
+  getActualSide,
 } from './utils'
 import type {
   ContextMenuOptions,
@@ -14,7 +15,7 @@ import type {
   Alignment,
   SlideFrom,
 } from './types'
-import { DEFAULT_OFFSET } from './const'
+import { DEFAULT_OFFSET, MENU_SELECTOR } from './const'
 
 interface InternalState {
   anchor: HTMLElement
@@ -48,7 +49,6 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
   let state = resolveInternalState(node, null, options)
 
   const ownerId = Symbol('context-menu-owner')
-  const computedZIndex = computeZIndex(state.anchor)
 
   let ownsMenu = false
   let hasGlobalListeners = false
@@ -68,7 +68,7 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
     if (!target) return
 
     // Allow scrolling within the menu itself
-    if (target.closest?.('div.menu[role="menu"]')) {
+    if (target.closest?.(MENU_SELECTOR)) {
       return
     }
     close()
@@ -81,7 +81,7 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
       return
     }
 
-    const insideMenu = target.closest?.('div.menu[role="menu"]')
+    const insideMenu = target.closest?.(MENU_SELECTOR)
     const insideAnchor =
       state.anchor && (state.anchor === target || state.anchor.contains(target))
 
@@ -103,7 +103,7 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
     }
 
     // Double check if the released click target is inside the menu
-    if (target.closest?.('div.menu[role="menu"]')) {
+    if (target.closest?.(MENU_SELECTOR)) {
       return
     }
 
@@ -173,6 +173,7 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
     if (state.disabled) return
 
     ownsMenu = true
+    const computedZIndex = computeZIndex(state.anchor)
 
     const rect = state.anchor.getBoundingClientRect()
     const hasContent = Boolean(options.content)
@@ -194,23 +195,16 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
 
     // Determine which side the menu actually landed on relative to the anchor
     // so the pointer can reflect reality (handles flipping/clamping cases).
-    const actualSide: Position = (() => {
-      const menuLeft = adjustedPlacement.left
-      const menuTop = adjustedPlacement.top
-      const menuRight = menuLeft + menuSize.width
-      const menuBottom = menuTop + menuSize.height
-
-      // If menu sits below the anchor rect, it's a 'bottom' placement
-      if (menuTop >= rect.bottom) return 'bottom'
-      // If menu sits above the anchor rect, it's a 'top' placement
-      if (menuBottom <= rect.top) return 'top'
-      // If menu sits to the right of the anchor rect, it's 'right'
-      if (menuLeft >= rect.right) return 'right'
-      // If menu sits to the left of the anchor rect, it's 'left'
-      if (menuRight <= rect.left) return 'left'
-      // Fallback to requested position
-      return state.position
-    })()
+    const actualSide = getActualSide(
+      {
+        left: adjustedPlacement.left,
+        top: adjustedPlacement.top,
+        width: menuSize.width,
+        height: menuSize.height,
+      },
+      rect,
+      state.position
+    )
 
     updateContextMenu({
       visible: true,

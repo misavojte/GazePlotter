@@ -12,18 +12,20 @@ export interface Dimensions {
   height: number
 }
 
+import type { Component } from 'svelte'
+
 export interface MenuItem {
   label?: string
   value?: string
   action?: (data?: Record<string, any>) => void
   onSelect?: (value: any) => void
   closeOnAction?: boolean // Default is true, set to false for persistent menus
-  icon?: any
+  icon?: Component<any>
   isHighlighted?: boolean
   children?: MenuItem[]
   disabled?: boolean
   isDivider?: boolean
-  component?: any // Custom Svelte component
+  component?: Component<any> // Custom Svelte component
   componentProps?: Record<string, any>
   componentHeight?: number
 }

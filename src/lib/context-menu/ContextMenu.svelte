@@ -1,13 +1,10 @@
 <script lang="ts">
   import { fly, fade } from 'svelte/transition'
   import { cubicOut } from 'svelte/easing'
-  import {
-    contextMenuState,
-    updateContextMenu,
-  } from './contextMenuState.svelte'
-  import { MENU_MAX_HEIGHT } from './const'
+  import { contextMenuState } from './contextMenuState.svelte'
+  import { MENU_MAX_HEIGHT, MENU_WIDTH } from './const'
   import type { MenuItem } from './types'
-  import { portal } from './utils'
+  import { portal, getArrowStyle } from './utils'
   import ContextSubMenu from './ContextSubMenu.svelte'
 
   // State for which inner submenu is active.
@@ -24,7 +21,6 @@
 
   const onClose = () => contextMenuState.reset()
 
-  let width = 220
   let container: HTMLUListElement | null = $state(null)
   let menuElement: HTMLDivElement | null = $state(null)
 
@@ -80,35 +76,6 @@
     }
   }
 
-  const ARROW_WIDTH = 16
-  const ARROW_HEIGHT = 8
-  const ARROW_GUTTER = 12
-
-  const getArrowStyle = (
-    position: import('./types').Position | undefined,
-    anchor: { x: number; y: number } | undefined,
-    menu: import('./types').ContextMenuState
-  ) => {
-    if (!position || !anchor) return ''
-
-    if (position === 'bottom' || position === 'top') {
-      let left = anchor.x - menu.x - ARROW_WIDTH / 2
-      const min = ARROW_GUTTER
-      const max = width - ARROW_GUTTER - ARROW_WIDTH
-      left = Math.max(min, Math.min(left, max))
-      const vertical = position === 'bottom' ? 'bottom: 100%' : 'top: 100%'
-      return `left:${left}px; ${vertical};`
-    } else {
-      let top = anchor.y - menu.y - ARROW_HEIGHT / 2
-      const min = ARROW_GUTTER
-      const max =
-        (menuElement?.clientHeight ?? 200) - ARROW_GUTTER - ARROW_HEIGHT
-      top = Math.max(min, Math.min(top, max))
-      const horizontal = position === 'right' ? 'right: 100%' : 'left: 100%'
-      return `${horizontal}; top:${top}px;`
-    }
-  }
-
   $effect(() => {
     window.addEventListener('keydown', onKeydown)
     return () => window.removeEventListener('keydown', onKeydown)
@@ -119,7 +86,10 @@
   <div
     class="menu-arrow"
     data-position={position}
-    style={getArrowStyle(position as any, anchor, menu)}
+    style={getArrowStyle(position as any, anchor, {
+      ...menu,
+      height: menuElement?.clientHeight,
+    })}
   >
     <svg viewBox="0 0 16 8" width="16" height="8">
       <!-- A professional triangle with an open base and clean stroke -->
@@ -145,7 +115,7 @@
       <div
         bind:this={menuElement}
         class="menu-wrapper"
-        style={`left:${menu.x}px; top:${menu.y}px; z-index:${menu.zIndex};`}
+        style={`left:${menu.x}px; top:${menu.y}px; z-index:${menu.zIndex}; --menu-width: ${MENU_WIDTH}px;`}
         in:fly={{
           duration: 200,
           easing: cubicOut,
@@ -238,7 +208,7 @@
     background: var(--c-white);
     border: var(--menu-border-width) solid var(--menu-border-color);
     border-radius: 8px;
-    width: 220px;
+    width: var(--menu-width, 220px);
     overflow: hidden;
   }
 

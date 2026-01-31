@@ -1,13 +1,7 @@
 <script lang="ts">
-  import { fade, fly } from 'svelte/transition'
   import { adjustPlacementForViewport, getMenuSize } from './utils'
-  import { MENU_MAX_HEIGHT } from './const'
+  import { MENU_WIDTH, DEFAULT_COMPONENT_HEIGHT } from './const'
   import type { MenuItem } from './types'
-  import {
-    contextMenuState,
-    updateContextMenu,
-  } from './contextMenuState.svelte'
-  import ContextSubMenu from './ContextSubMenu.svelte'
   import ContextSubMenuContent from './ContextSubMenuContent.svelte'
 
   interface Props {
@@ -22,7 +16,6 @@
 
   let anchorElement: HTMLElement | null = $state(null)
   let coords = $state({ x: 0, y: 0 })
-  let isFlippedX = $state(false)
 
   /**
    * Calculate position for the submenu relative to the anchor item
@@ -33,10 +26,10 @@
       if (!rect) return
 
       // Explicitly estimate size for custom components since getMenuSize won't see them as list items
-      let menuSize = { width: 220, height: 0 }
+      let menuSize = { width: MENU_WIDTH, height: 0 }
       if (item.component) {
-        const h = item.componentHeight ?? 120
-        menuSize = { width: 220, height: h }
+        const h = item.componentHeight ?? DEFAULT_COMPONENT_HEIGHT
+        menuSize = { width: MENU_WIDTH, height: h }
       } else {
         menuSize = getMenuSize(item.children, false)
       }
@@ -60,7 +53,6 @@
         res.left = rect.left - menuSize.width + 4
       }
 
-      isFlippedX = res.isFlippedX
       coords = { x: res.left, y: res.top }
     }
 
@@ -124,7 +116,6 @@
     <ContextSubMenuContent
       {item}
       {coords}
-      {isFlippedX}
       {parentZIndex}
       {calculatePositionAction}
     />

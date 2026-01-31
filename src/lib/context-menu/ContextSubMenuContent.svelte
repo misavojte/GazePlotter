@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { fly, fade } from 'svelte/transition'
-  import { cubicOut } from 'svelte/easing'
-  import { MENU_MAX_HEIGHT } from './const'
+  import { fade } from 'svelte/transition'
+  import { MENU_MAX_HEIGHT, MENU_WIDTH } from './const'
   import type { MenuItem } from './types'
   import { contextMenuState } from './contextMenuState.svelte'
   import { portal } from './utils'
@@ -10,13 +9,11 @@
   interface Props {
     item: MenuItem
     coords: { x: number; y: number }
-    isFlippedX: boolean
     parentZIndex: number
     calculatePositionAction: (node: HTMLElement) => any
   }
 
-  const { item, coords, isFlippedX, parentZIndex, calculatePositionAction } =
-    $props()
+  const { item, coords, parentZIndex, calculatePositionAction } = $props()
 
   let activeChildLabel = $state<string | null>(null)
 
@@ -48,7 +45,7 @@
   class="menu-wrapper submenu"
   use:portal={'gp-context-menu-portal-host'}
   use:calculatePositionAction
-  style={`left:${coords.x}px; top:${coords.y}px; z-index:${parentZIndex + 1};`}
+  style={`left:${coords.x}px; top:${coords.y}px; z-index:${parentZIndex + 1}; --menu-width: ${MENU_WIDTH}px;`}
   in:fade={{ duration: 200 }}
 >
   <div class="menu" role="menu">
@@ -128,7 +125,7 @@
     background: var(--c-white);
     border: var(--menu-border-width) solid var(--menu-border-color);
     border-radius: 8px;
-    width: 200px;
+    width: var(--menu-width, 220px);
     overflow: hidden;
   }
 
