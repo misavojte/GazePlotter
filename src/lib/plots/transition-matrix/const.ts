@@ -32,7 +32,7 @@ export const TRANSITION_MATRIX_DEFAULTS = {
   width: 500,
   height: 500,
   inactiveColor: INACTIVE_COLOR,
-  colorScale: [...PRESET_PALETTES.BLUE.colors].slice(0, 2),
+  colorScale: [...PRESET_PALETTES.BLUE.colors],
   xLabel: 'To AOI',
   yLabel: 'From AOI',
 } as const

@@ -43,13 +43,18 @@ export function calculateRequiredWorkspaceHeight(
 ): number {
   if (positions.length === 0) return minHeight
 
-  // Calculate the bottom edge position of each item
-  const bottomEdges = positions.map(item =>
-    calculateBottomEdgePosition(item.y, item.h, gridConfig)
-  )
+  // Calculate the maximum bottom edge plus padding
+  let maxBottom = 0
+  for (let i = 0; i < positions.length; i++) {
+    const edge = calculateBottomEdgePosition(
+      positions[i].y,
+      positions[i].h,
+      gridConfig
+    )
+    if (edge > maxBottom) maxBottom = edge
+  }
 
-  // Return the maximum bottom edge plus padding
-  return Math.max(minHeight, Math.max(...bottomEdges) + padding)
+  return Math.max(minHeight, maxBottom + padding)
 }
 
 /**
@@ -93,11 +98,12 @@ export function calculateRequiredWorkspaceWidth(
   if (positions.length === 0) return DEFAULT_WORKSPACE_WIDTH // Use constant
 
   // Find the rightmost edge of all items
-  const maxRightEdge = Math.max(
-    ...positions.map(
-      item => (item.x + item.w) * (gridConfig.cellSize.width + gridConfig.gap)
-    )
-  )
+  let maxRightEdge = 0
+  const cellWidth = gridConfig.cellSize.width + gridConfig.gap
+  for (let i = 0; i < positions.length; i++) {
+    const edge = (positions[i].x + positions[i].w) * cellWidth
+    if (edge > maxRightEdge) maxRightEdge = edge
+  }
 
   return Math.max(
     DEFAULT_WORKSPACE_WIDTH,

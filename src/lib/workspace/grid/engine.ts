@@ -69,8 +69,18 @@ export function findOptimalPosition(
   const availableWidth = Math.floor(
     (typeof window !== 'undefined' ? window.innerWidth : 1920) / cellWidth
   )
-  const maxX = Math.max(availableWidth, ...positions.map(i => i.x + i.w))
-  const maxY = Math.max(0, ...positions.map(i => i.y + i.h))
+
+  let maxX = availableWidth
+  for (let i = 0; i < positions.length; i++) {
+    const edge = positions[i].x + positions[i].w
+    if (edge > maxX) maxX = edge
+  }
+
+  let maxY = 0
+  for (let i = 0; i < positions.length; i++) {
+    const edge = positions[i].y + positions[i].h
+    if (edge > maxY) maxY = edge
+  }
 
   for (let y = 0; y <= maxY; y++) {
     for (let x = 0; x <= maxX - w; x++) {

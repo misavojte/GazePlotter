@@ -50,24 +50,21 @@ export function collectTransitionMetrics(
           const idx = aoiLookup.get(currAois[j].id)
           if (idx !== undefined) currIndices.push(idx)
         }
-        // Fallback if AOIs exist but none match known list (rare edge case)
         if (currIndices.length === 0) currIndices.push(outsideAoiIndex)
       }
 
       if (i > 0) {
-        // Check transition condition
         const isTransition =
           mode === 'fixation' ||
           !arraysHaveSameElements(prevIndices, currIndices)
 
         if (isTransition) {
-          // Record transitions from all 'prev' to all 'curr'
-          const pLen = prevIndices.length
-          const cLen = currIndices.length
-          for (let p = 0; p < pLen; p++) {
+          const rowCount = prevIndices.length
+          const colCount = currIndices.length
+          for (let p = 0; p < rowCount; p++) {
             const from = prevIndices[p]
             const rowOffset = from * size
-            for (let c = 0; c < cLen; c++) {
+            for (let c = 0; c < colCount; c++) {
               const to = currIndices[c]
               const cellIdx = rowOffset + to
               sumMatrix[cellIdx]++
@@ -77,7 +74,6 @@ export function collectTransitionMetrics(
             }
           }
         } else if (mode === 'visit') {
-          // Same visit, just accumulate duration
           prevDuration += seg.end - seg.start
           continue
         }

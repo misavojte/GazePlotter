@@ -48,6 +48,7 @@ export interface SegmentInterpretedDataType {
 }
 
 export interface AttributeDataType {
+  /** Nested array mapping: [itemIndex][fieldIndex] where fieldIndex: 0=originalName, 1=displayedName, 2=color (optional) */
   data: string[][]
   orderVector: number[]
 }
@@ -66,6 +67,7 @@ export interface VisibilityAoiDataType {
 }
 
 export interface AoiDataType {
+  /** Nested array mapping: [stimulusIndex][aoiIndex][fieldIndex] where fieldIndex: 0=originalName, 1=displayedName, 2=color (optional) */
   data: string[][][]
   orderVector: number[][]
   dynamicVisibility: VisibilityAoiDataType

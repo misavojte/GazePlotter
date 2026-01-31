@@ -156,10 +156,9 @@ export class GridState {
   }
 
   triggerRedraw(id?: number) {
-    const ts = Date.now()
     this.items.forEach(item => {
       if (id === undefined || item.id === id) {
-        item.redrawTimestamp = ts
+        item.redrawTimestamp++
       }
     })
   }
