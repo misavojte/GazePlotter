@@ -23,9 +23,9 @@ export function interpolateColor(
   const g2 = parseInt(color2.substring(3, 5), 16)
   const b2 = parseInt(color2.substring(5, 7), 16)
 
-  const r = (r1 + factor * (r2 - r1)) | 0
-  const g = (g1 + factor * (g2 - g1)) | 0
-  const b = (b1 + factor * (b2 - b1)) | 0
+  const r = Math.round(r1 + factor * (r2 - r1))
+  const g = Math.round(g1 + factor * (g2 - g1))
+  const b = Math.round(b1 + factor * (b2 - b1))
 
   return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`
 }
