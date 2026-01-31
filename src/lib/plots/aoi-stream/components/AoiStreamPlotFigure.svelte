@@ -21,7 +21,7 @@
   import { updateTooltip } from '$lib/tooltip'
   import { estimateTextWidth } from '$lib/shared/utils/textUtils'
   import { desaturateToWhite } from '$lib/color/utility'
-  import { INACTIVE_COLOR } from '$lib/color'
+  import { INACTIVE_COLOR, COLOR_FALLBACKS } from '$lib/color'
 
   import {
     GRIDLINE_SECONDARY,
@@ -69,7 +69,7 @@
   const X_AXIS_LABEL = getXAxisLabel('absolute')
   const X_AXIS_LABEL_OFFSET = 24
   const AREA_DIVIDER = {
-    COLOR: '#ffffff',
+    COLOR: COLOR_FALLBACKS.WHITE,
     WIDTH: 1,
   }
 

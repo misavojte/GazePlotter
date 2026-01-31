@@ -32,6 +32,7 @@
     drawGradientLegend,
     drawPlotOutline,
   } from '$lib/plots/shared'
+  import { UI_COLORS } from '$lib/color'
 
   function calculateTickStep(len: number): number {
     const niceSteps = [5, 10, 20, 25, 50, 100, 200, 500, 1000]
@@ -427,7 +428,7 @@
     if (aoiLabels.length === 0) {
       // Draw "No data" message
       ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
-      ctx.fillStyle = '#666'
+      ctx.fillStyle = UI_COLORS.TEXT_SECONDARY
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       ctx.fillText('No AOI data available', width >> 1, height >> 1)
@@ -479,7 +480,7 @@
 
   function setUpFont(ctx: CanvasRenderingContext2D) {
     ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
-    ctx.fillStyle = '#222'
+    ctx.fillStyle = UI_COLORS.TEXT_PRIMARY
   }
 
   // 5. IMPROVEMENT: Updated Draw Function
@@ -563,7 +564,7 @@
         ctx.beginPath()
         ctx.moveTo(layout.xOffset, y - 1)
         ctx.lineTo(layout.xOffset - 4, y - 1)
-        ctx.strokeStyle = '#666'
+        ctx.strokeStyle = UI_COLORS.TEXT_SECONDARY
         ctx.stroke()
       }
 
@@ -610,7 +611,7 @@
         ctx.beginPath()
         ctx.moveTo(x, layout.yOffset)
         ctx.lineTo(x, layout.yOffset - 4)
-        ctx.strokeStyle = '#666'
+        ctx.strokeStyle = UI_COLORS.TEXT_SECONDARY
         ctx.stroke()
       }
 
@@ -647,7 +648,7 @@
 
   // Draw grid and labels
   function drawGrid(ctx: CanvasRenderingContext2D) {
-    ctx.strokeStyle = '#ddd'
+    ctx.strokeStyle = UI_COLORS.BORDER_DEFAULT
     ctx.lineWidth = 0.5
 
     const { xOffset, yOffset, cellSize, gridWidth, gridHeight } = layout

@@ -5,6 +5,8 @@ import type {
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 import type { BinarySegmentBuffers } from './binary'
 
+import { DEFAULT_NO_AOI_COLOR } from '../color'
+
 /**
  * Used for stimuli and participants basic information.
  */
@@ -34,7 +36,7 @@ export interface NoAoiTreatmentType {
  */
 export const DEFAULT_NO_AOI_TREATMENT: NoAoiTreatmentType = {
   displayedName: 'No AOI',
-  color: '#c0c0c0',
+  color: DEFAULT_NO_AOI_COLOR,
 }
 
 export interface SegmentInterpretedDataType {

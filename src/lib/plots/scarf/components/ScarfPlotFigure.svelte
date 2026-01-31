@@ -31,6 +31,7 @@
     type LegendGroup,
     type LegendItemGeometry,
   } from '$lib/plots/shared'
+  import { UI_COLORS } from '$lib/color'
   import { updateTooltip } from '$lib/tooltip'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
   import { getContext, onDestroy, onMount, untrack } from 'svelte'
@@ -436,7 +437,7 @@
     if (!canRender) {
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillStyle = '#666666'
+      ctx.fillStyle = UI_COLORS.TEXT_SECONDARY
       ctx.font = '14px sans-serif'
       ctx.fillText(
         'Increase height to view plot',

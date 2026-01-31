@@ -12,6 +12,7 @@ import { strokeCrispRect } from '$lib/shared/utils/canvasUtils'
 // ============================================================================
 
 import { GRIDLINE_PRIMARY, LEGEND_FONT } from './const'
+import { COLOR_FALLBACKS } from '$lib/color'
 
 export interface GradientLegendConfig {
   /** Top X coordinate */
@@ -364,8 +365,8 @@ export function drawGradientLegend(
     gradient.addColorStop(0.5, colorScale[1])
     gradient.addColorStop(1, colorScale[2])
   } else {
-    gradient.addColorStop(0, colorScale[0] || '#fff')
-    gradient.addColorStop(1, colorScale[1] || '#000')
+    gradient.addColorStop(0, colorScale[0] || COLOR_FALLBACKS.WHITE)
+    gradient.addColorStop(1, colorScale[1] || COLOR_FALLBACKS.BLACK)
   }
 
   ctx.fillStyle = gradient

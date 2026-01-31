@@ -23,6 +23,7 @@ import {
 } from '$lib/shared/utils/textUtils'
 import { alignToPixelCenter } from '$lib/shared/utils/canvasUtils'
 import { desaturateToWhite } from '$lib/color/utility'
+import { COLOR_FALLBACKS, UI_COLORS } from '$lib/color'
 
 // ============================================================================
 // TYPES
@@ -549,7 +550,6 @@ export function drawLegend(
       const startX = item.x + (iconWidth - pairWidth) / 2 + radius
       const endX = startX + size + gap
 
-      const OUTLINE_COLOR = '#333333'
       const OUTLINE_WIDTH = 1
 
       // Determine colors based on highlighting state
@@ -560,8 +560,8 @@ export function drawLegend(
         ? desaturateToWhite(item.color, 0.85)
         : item.color
       const effectiveOutlineColor = isDimmed
-        ? desaturateToWhite(OUTLINE_COLOR, 0.85)
-        : OUTLINE_COLOR
+        ? desaturateToWhite(UI_COLORS.MARKER_OUTLINE, 0.85)
+        : UI_COLORS.MARKER_OUTLINE
 
       // 1. Start Marker (Left): Colored outer, white inner
       ctx.fillStyle = effectiveColor
@@ -569,7 +569,7 @@ export function drawLegend(
       ctx.arc(startX, centerY, radius, 0, Math.PI * 2)
       ctx.fill()
 
-      ctx.fillStyle = '#ffffff'
+      ctx.fillStyle = COLOR_FALLBACKS.WHITE
       ctx.beginPath()
       ctx.arc(startX, centerY, innerRadius, 0, Math.PI * 2)
       ctx.fill()
@@ -581,7 +581,7 @@ export function drawLegend(
       ctx.stroke()
 
       // 2. End Marker (Right): White outer, colored inner
-      ctx.fillStyle = '#ffffff'
+      ctx.fillStyle = COLOR_FALLBACKS.WHITE
       ctx.beginPath()
       ctx.arc(endX, centerY, radius, 0, Math.PI * 2)
       ctx.fill()

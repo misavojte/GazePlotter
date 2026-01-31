@@ -4,6 +4,7 @@
  */
 
 import { browser } from '$app/environment'
+import { UI_COLORS } from '$lib/color'
 
 /**
  * Tracks canvas state for DPI-aware rendering
@@ -435,7 +436,7 @@ export function strokeCrispRect(
   y: number,
   width: number,
   height: number,
-  strokeStyle: string = '#cbcbcb',
+  strokeStyle: string = UI_COLORS.GRID_PRIMARY,
   lineWidth: number = 1
 ): void {
   ctx.save()

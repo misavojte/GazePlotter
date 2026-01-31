@@ -10,6 +10,7 @@ import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
 import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
 import { collectAoiStreamMetrics, type CollectorWorkspace } from './collector'
+import { COLOR_FALLBACKS } from '$lib/color'
 
 export function getAoiStreamPlotData(
   settings: Pick<
@@ -93,7 +94,7 @@ export function getAoiStreamPlotData(
       resultSeries[i] = {
         id: m.id,
         label: aoi?.displayedName || aoi?.originalName || 'Unknown',
-        color: aoi?.color || '#000000',
+        color: aoi?.color || COLOR_FALLBACKS.BLACK,
         values: m.values,
       }
     }

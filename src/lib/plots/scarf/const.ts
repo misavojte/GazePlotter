@@ -1,3 +1,5 @@
+import { UI_COLORS } from '$lib/color'
+
 /**
  * Unified constants and identifiers for the Scarf Plot.
  */
@@ -29,7 +31,7 @@ export const SCARF_LAYOUT = {
   TICK_LENGTH: 5,
 
   // --- Styling ---
-  GRID_COLOR: '#cbcbcb',
+  GRID_COLOR: UI_COLORS.GRID_PRIMARY,
   GRID_STROKE_WIDTH: 1,
 
   // --- Legend Configuration ---

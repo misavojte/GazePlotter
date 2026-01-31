@@ -1,3 +1,5 @@
+import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color'
+
 /**
  * Defines available aggregation methods for transition matrices
  */
@@ -29,8 +31,8 @@ export const TRANSITION_MATRIX_LAYOUT = {
 export const TRANSITION_MATRIX_DEFAULTS = {
   width: 500,
   height: 500,
-  inactiveColor: '#e0e0e0',
-  colorScale: ['#f7fbff', '#08306b'],
+  inactiveColor: INACTIVE_COLOR,
+  colorScale: [...PRESET_PALETTES.BLUE.colors].slice(0, 2),
   xLabel: 'To AOI',
   yLabel: 'From AOI',
 } as const

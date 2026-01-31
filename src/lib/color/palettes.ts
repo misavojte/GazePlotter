@@ -17,11 +17,6 @@ export const CATEGORICAL_PALETTE = [
 ]
 
 /**
- * Backward compatibility alias for CATEGORICAL_PALETTE.
- */
-export const SCIENTIFIC_COLOR_PALETTE = CATEGORICAL_PALETTE
-
-/**
  * Professional multi-stop gradient presets for heatmaps and intensity plots.
  */
 export const PRESET_PALETTES = {
@@ -51,3 +46,55 @@ export const PRESET_PALETTES = {
  * Color used for inactive/empty/out-of-bounds cells, matching Transition Matrix.
  */
 export const INACTIVE_COLOR = '#e0e0e0'
+
+/**
+ * Common UI and Plot colors to ensure consistency across the application.
+ */
+export const UI_COLORS = {
+  /** Primary grid line color (slightly darker for contrast) */
+  GRID_PRIMARY: '#cbcbcb',
+  /** Secondary grid line color (light, for subtle subdivisions) */
+  GRID_SECONDARY: '#eee',
+  /** Primary text color for plot labels and axes */
+  TEXT_PRIMARY: '#222',
+  /** Secondary text color for less prominent UI elements */
+  TEXT_SECONDARY: '#666',
+  /** Default background for panels and modals */
+  BG_PRIMARY: '#ffffff',
+  /** Standard border color for UI components */
+  BORDER_DEFAULT: '#ddd',
+  /** Error or alert color */
+  DANGER: '#d62728',
+  /** Dark outline color for event markers and legend icons */
+  MARKER_OUTLINE: '#333333',
+} as const
+
+/**
+ * Semantic fallback colors.
+ */
+export const COLOR_FALLBACKS = {
+  BLACK: '#000000',
+  WHITE: '#ffffff',
+  TRANSPARENT: 'transparent',
+} as const
+
+/**
+ * Default categorical colors for AOIs if none are specified.
+ */
+export const DEFAULT_AOI_COLORS = [
+  '#66c5cc',
+  '#f6cf71',
+  '#f89c74',
+  '#dcb0f2',
+  '#87c55f',
+] as const
+
+/**
+ * Fallback color for categories (e.g. Saccades) if none are specified.
+ */
+export const DEFAULT_CATEGORY_COLOR = '#626262'
+
+/**
+ * Default color for "No AOI" treatment.
+ */
+export const DEFAULT_NO_AOI_COLOR = '#c0c0c0'

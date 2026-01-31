@@ -5,6 +5,7 @@ import {
 } from '$lib/plots/shared'
 import { alignToPixelCenter } from '$lib/shared/utils/canvasUtils'
 import { desaturateToWhite } from '$lib/color/utility'
+import { COLOR_FALLBACKS, UI_COLORS } from '$lib/color'
 import type { ScarfData } from '../types'
 
 export interface ScarfLayoutContext {
@@ -228,7 +229,9 @@ export function drawScarfEvents(
     const color = isDimmed
       ? desaturateToWhite(styleArray[styleIdx].normal.stroke, 0.85)
       : styleArray[styleIdx].normal.stroke
-    const outline = isDimmed ? desaturateToWhite('#333333', 0.85) : '#333333'
+    const outline = isDimmed
+      ? desaturateToWhite(UI_COLORS.MARKER_OUTLINE, 0.85)
+      : UI_COLORS.MARKER_OUTLINE
 
     const segmentCount = buffer.length / EVENT_STRIDE
     for (let i = 0; i < segmentCount; i++) {
@@ -251,12 +254,12 @@ export function drawScarfEvents(
       const innerRadius = Math.max(2, radius * 0.4)
 
       ctx.beginPath()
-      ctx.fillStyle = type === 0 ? color : '#ffffff'
+      ctx.fillStyle = type === 0 ? color : COLOR_FALLBACKS.WHITE
       ctx.arc(pxX, pxY, radius, 0, Math.PI * 2)
       ctx.fill()
 
       ctx.beginPath()
-      ctx.fillStyle = type === 0 ? '#ffffff' : color
+      ctx.fillStyle = type === 0 ? COLOR_FALLBACKS.WHITE : color
       ctx.arc(pxX, pxY, innerRadius, 0, Math.PI * 2)
       ctx.fill()
 
