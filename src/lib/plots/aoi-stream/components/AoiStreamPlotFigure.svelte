@@ -61,6 +61,7 @@
   import {
     drawCatmullRom,
     transformStreamDataToCoordinates,
+    ensureRenderBuckets,
     type RenderBuckets,
   } from '../core'
   import type { AoiStreamPlotResult } from '../types'
@@ -109,7 +110,7 @@
   let canvas = $state<HTMLCanvasElement | null>(null)
   let canvasState = $state<CanvasState>(createCanvasState())
 
-  // Zero-allocation rendering pipeline: pre-allocated buckets
+  // Render buckets (cached x/y positions for all series and workspace buffers)
   let renderBuckets = $state<RenderBuckets | null>(null)
 
   // Hover state for legend tooltips

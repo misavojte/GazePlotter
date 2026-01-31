@@ -1,8 +1,8 @@
 /**
  * Optimized single-pass collector for AOI stream data.
- * Extracted from data.ts to separate collection from transformation/view logic.
+ * Adheres to senior FP principles: Buffer recycling, zero per-frame allocations, and flat control flow.
  */
-import { engine } from '$lib/data/engine'
+import { engine, getAois } from '$lib/data/engine'
 import {
   SEGMENT_STRIDE,
   SegmentField,
@@ -20,6 +20,63 @@ export interface AoiStreamMetrics {
   maxTotal: number
 }
 
+/**
+ * Workspace to persist allocations across calls.
+ */
+export interface CollectorWorkspace {
+  binCount: number
+  seriesCount: number
+  // Flat buffers for diffs and partials (seriesCount * (binCount + 1))
+  diffBuffer: Float32Array
+  partialBuffer: Float32Array
+  // Output values (seriesCount * binCount)
+  valueBuffer: Float32Array
+  // Lookup: rawAoiId -> groupIndex (for stimulusId context)
+  aoiLookup: Int32Array
+  // Stamp buffer for de-duplication
+  seenStamp: Int32Array
+  currentStamp: number
+  // Stored for validation/reuse
+  stimulusId: number
+}
+
+function ensureWorkspace(
+  workspace: CollectorWorkspace | null,
+  binCount: number,
+  seriesCount: number,
+  stimulusId: number,
+  aoiMaxId: number
+): CollectorWorkspace {
+  const needsRealloc =
+    !workspace ||
+    workspace.binCount !== binCount ||
+    workspace.seriesCount !== seriesCount ||
+    workspace.aoiLookup.length <= aoiMaxId
+
+  if (needsRealloc) {
+    return {
+      binCount,
+      seriesCount,
+      diffBuffer: new Float32Array(seriesCount * (binCount + 1)),
+      partialBuffer: new Float32Array(seriesCount * binCount),
+      valueBuffer: new Float32Array(seriesCount * binCount),
+      aoiLookup: new Int32Array(aoiMaxId + 1).fill(-1),
+      seenStamp: new Int32Array(seriesCount),
+      currentStamp: 1,
+      stimulusId,
+    }
+  }
+
+  // Clear transient buffers for fresh pass
+  workspace.diffBuffer.fill(0)
+  workspace.partialBuffer.fill(0)
+  workspace.seenStamp.fill(0)
+  workspace.currentStamp = 1
+  workspace.stimulusId = stimulusId
+
+  return workspace
+}
+
 export function collectAoiStreamMetrics(
   stimulusId: number,
   participantIds: number[],
@@ -27,53 +84,80 @@ export function collectAoiStreamMetrics(
   hiddenAoisSet: Set<number> | null,
   binCount: number,
   timelineMin: number,
-  timelineMax: number,
-  safeMaxTime: number
-): AoiStreamMetrics {
+  safeMaxTime: number,
+  existingWorkspace: CollectorWorkspace | null
+): { metrics: AoiStreamMetrics; workspace: CollectorWorkspace } {
   const reader = engine.getReader()
-  if (!reader) return { series: [], maxTotal: 0 }
-  const buffers = reader.getBuffers()
-  const segmentBuffer = buffers.segmentBuffer
-  const aoiPool = buffers.aoiPool
-
-  // Only mapped AOIs + NoAOI
-  const aoiCount = orderedAois.length
-  // Map AOI ID -> Series Index
-  const aoiIndexById = new Map<number, number>()
-  for (let i = 0; i < aoiCount; i++) {
-    aoiIndexById.set(orderedAois[i].id, i)
+  if (!reader) {
+    const emptyMetrics = { series: [], maxTotal: 0 }
+    // We still return a workspace if possible, or null.
+    // For simplicity here, if no reader, we just return empty.
+    throw new Error('Data reader not available')
   }
 
-  // Last index is No-AOI
+  const buffers = reader.getBuffers()
+  const { segmentBuffer, aoiPool } = buffers
+  const aoiCount = orderedAois.length
   const noAoiIndex = aoiCount
   const totalSeriesCount = aoiCount + 1
+
+  // Find max AOI ID to size the lookup table
+  let aoiMaxId = 0
+  for (let i = 0; i < aoiCount; i++) {
+    if (orderedAois[i].id > aoiMaxId) aoiMaxId = orderedAois[i].id
+  }
+
+  const workspace = ensureWorkspace(
+    existingWorkspace,
+    binCount,
+    totalSeriesCount,
+    stimulusId,
+    aoiMaxId
+  )
+
+  const {
+    aoiLookup,
+    diffBuffer,
+    partialBuffer,
+    seenStamp,
+    binCount: wsBinCount,
+  } = workspace
+  let { currentStamp } = workspace
+
+  // Hot path optimization: Use flat array for AOI mapping instead of Map
+  aoiLookup.fill(-1)
+  const aoiIdsInStimulus = getAois(stimulusId)
+  for (let i = 0; i < aoiIdsInStimulus.length; i++) {
+    const rawId = aoiIdsInStimulus[i].id
+    if (hiddenAoisSet && hiddenAoisSet.has(rawId)) continue
+    const groupId = engine.getAoiMapping(stimulusId, rawId)
+
+    // Find if this groupId is in our ordered selection
+    for (let j = 0; j < aoiCount; j++) {
+      if (orderedAois[j].id === groupId) {
+        if (rawId < aoiLookup.length) aoiLookup[rawId] = j
+        break
+      }
+    }
+  }
 
   const invBinSize = binCount / safeMaxTime
   const binSize = safeMaxTime / binCount
 
-  // Initialize accumulators
-  const diffs = new Array<Float32Array>(totalSeriesCount)
-  const partials = new Array<Float32Array>(totalSeriesCount)
-  for (let i = 0; i < totalSeriesCount; i++) {
-    diffs[i] = new Float32Array(binCount + 1)
-    partials[i] = new Float32Array(binCount)
-  }
-
-  const seenStamp = new Int32Array(totalSeriesCount)
-  let stamp = 1
-
   for (let p = 0; p < participantIds.length; p++) {
     const participantId = participantIds[p]
-    const range = reader.getSegmentRange(stimulusId, participantId)
+    const { startIndex, endIndex } = reader.getSegmentRange(
+      stimulusId,
+      participantId
+    )
 
-    for (
-      let segmentIndex = range.startIndex;
-      segmentIndex < range.endIndex;
-      segmentIndex++
-    ) {
-      const base = segmentIndex * SEGMENT_STRIDE
-      const categoryId = segmentBuffer[base + SegmentField.CATEGORY_ID] | 0
-      if (categoryId !== FIXATION_CATEGORY_ID) continue
+    for (let segIdx = startIndex; segIdx < endIndex; segIdx++) {
+      const base = segIdx * SEGMENT_STRIDE
+      if (
+        (segmentBuffer[base + SegmentField.CATEGORY_ID] | 0) !==
+        FIXATION_CATEGORY_ID
+      )
+        continue
 
       const start = segmentBuffer[base + SegmentField.START_TIME]
       const end = segmentBuffer[base + SegmentField.END_TIME]
@@ -82,143 +166,138 @@ export function collectAoiStreamMetrics(
       const aoiCountInSeg = segmentBuffer[base + SegmentField.AOI_COUNT] | 0
       const ptr = segmentBuffer[base + SegmentField.AOI_POINTER] | 0
 
-      stamp++
-      if (stamp === 0x7fffffff) {
+      currentStamp++
+      if (currentStamp === 0x7fffffff) {
         seenStamp.fill(0)
-        stamp = 1
+        currentStamp = 1
       }
 
       let hasAnyAoi = false
-
       if (aoiCountInSeg > 0) {
         for (let i = 0; i < aoiCountInSeg; i++) {
           const rawId = aoiPool[ptr + i]
-          if (hiddenAoisSet && hiddenAoisSet.has(rawId)) continue
+          const seriesIndex = aoiLookup[rawId]
+          if (seriesIndex === -1 || seenStamp[seriesIndex] === currentStamp)
+            continue
 
-          const groupId = engine.getAoiMapping(stimulusId, rawId)
-          const seriesIndex = aoiIndexById.get(groupId)
-
-          if (seriesIndex == null) continue
-          if (seenStamp[seriesIndex] === stamp) continue
-
-          seenStamp[seriesIndex] = stamp
+          seenStamp[seriesIndex] = currentStamp
           hasAnyAoi = true
 
           addSegmentToAccumulators(
-            partials[seriesIndex],
-            diffs[seriesIndex],
+            partialBuffer,
+            diffBuffer,
+            seriesIndex,
+            binCount,
             start,
             end,
             timelineMin,
             safeMaxTime,
             invBinSize,
-            binSize,
-            binCount
+            binSize
           )
         }
       }
 
       if (!hasAnyAoi) {
-        // Add to No-AOI series
         addSegmentToAccumulators(
-          partials[noAoiIndex],
-          diffs[noAoiIndex],
+          partialBuffer,
+          diffBuffer,
+          noAoiIndex,
+          binCount,
           start,
           end,
           timelineMin,
           safeMaxTime,
           invBinSize,
-          binSize,
-          binCount
+          binSize
         )
       }
     }
   }
 
-  // Integrate results into series
+  // Update workspace stamp
+  workspace.currentStamp = currentStamp
+
+  // Integration pass: seriesCount * binCount
+  const { valueBuffer } = workspace
   const series: AoiStreamMetricSeries[] = new Array(totalSeriesCount)
   let maxTotal = 0
 
   for (let s = 0; s < totalSeriesCount; s++) {
-    const diff = diffs[s]
-    const partial = partials[s]
-    const values = new Float32Array(binCount)
+    const diffOffset = s * (binCount + 1)
+    const partOffset = s * binCount
+    const valOffset = s * binCount
 
     let acc = 0
     for (let i = 0; i < binCount; i++) {
-      acc += diff[i]
-      values[i] = acc + partial[i]
+      acc += diffBuffer[diffOffset + i]
+      valueBuffer[valOffset + i] = acc + partialBuffer[partOffset + i]
     }
 
-    // ID is not fully populated here, just values. Transformer will attach metadata.
-    // However, we return objects to keep it structured.
     series[s] = {
       id: s === noAoiIndex ? -1 : orderedAois[s].id,
-      values,
+      values: valueBuffer.subarray(valOffset, valOffset + binCount),
     }
   }
 
-  if (totalSeriesCount > 0) {
-    for (let i = 0; i < binCount; i++) {
-      let total = 0
-      for (let s = 0; s < totalSeriesCount; s++) {
-        total += series[s].values[i]
-      }
-      if (total > maxTotal) maxTotal = total
+  // Global max pass (could be merged with integration if needed)
+  for (let i = 0; i < binCount; i++) {
+    let total = 0
+    for (let s = 0; s < totalSeriesCount; s++) {
+      total += valueBuffer[s * binCount + i]
     }
+    if (total > maxTotal) maxTotal = total
   }
 
-  return { series, maxTotal }
+  return { metrics: { series, maxTotal }, workspace }
 }
 
 function addSegmentToAccumulators(
-  partial: Float32Array,
-  diff: Float32Array,
+  partialBuf: Float32Array,
+  diffBuf: Float32Array,
+  seriesIndex: number,
+  binCount: number,
   start: number,
   end: number,
   timelineMin: number,
   safeMaxTime: number,
   invBinSize: number,
-  binSize: number,
-  binCount: number
+  binSize: number
 ) {
   const adjustedStart = Math.max(0, start - timelineMin)
   const adjustedEnd = Math.min(safeMaxTime, Math.max(0, end - timelineMin))
   if (adjustedEnd <= adjustedStart) return
 
-  const startBin = Math.max(
-    0,
-    Math.min(binCount - 1, Math.floor(adjustedStart * invBinSize))
-  )
-  let endBin = Math.min(
-    binCount - 1,
-    Math.floor((adjustedEnd - END_BIN_EPSILON) * invBinSize)
-  )
-  if (endBin < startBin) endBin = startBin
+  const startBin = Math.floor(adjustedStart * invBinSize)
+  const endBin = Math.floor((adjustedEnd - END_BIN_EPSILON) * invBinSize)
+
+  const partOffset = seriesIndex * binCount
+  const diffOffset = seriesIndex * (binCount + 1)
 
   if (startBin === endBin) {
-    const overlap = adjustedEnd - adjustedStart
-    if (overlap > 0) {
-      partial[startBin] += overlap * invBinSize
+    if (startBin >= 0 && startBin < binCount) {
+      partialBuf[partOffset + startBin] +=
+        (adjustedEnd - adjustedStart) * invBinSize
     }
   } else {
-    const startBinStart = startBin * binSize
-    const endBinStart = endBin * binSize
-    const startOverlap = startBinStart + binSize - adjustedStart
-    const endOverlap = adjustedEnd - endBinStart
+    // Clamp bins
+    const sBin = Math.max(0, startBin)
+    const eBin = Math.min(binCount - 1, endBin)
 
-    if (startOverlap > 0) {
-      partial[startBin] += startOverlap * invBinSize
+    if (sBin === startBin) {
+      const startOverlap = (startBin + 1) * binSize - adjustedStart
+      partialBuf[partOffset + sBin] += startOverlap * invBinSize
     }
-    if (endOverlap > 0) {
-      partial[endBin] += endOverlap * invBinSize
+    if (eBin === endBin) {
+      const endOverlap = adjustedEnd - endBin * binSize
+      partialBuf[partOffset + eBin] += endOverlap * invBinSize
     }
 
-    const fullStart = startBin + 1
-    const fullEnd = endBin - 1
+    const fullStart = sBin + (sBin === startBin ? 1 : 0)
+    const fullEnd = eBin - (eBin === endBin ? 1 : 0)
     if (fullStart <= fullEnd) {
-      diff[fullStart] += 1
-      diff[fullEnd + 1] -= 1
+      diffBuf[diffOffset + fullStart] += 1
+      diffBuf[diffOffset + fullEnd + 1] -= 1
     }
   }
 }

@@ -14,7 +14,7 @@
     getStimuliOptions,
     getParticipantsGroupOptions,
   } from '$lib/plots/shared'
-  import { getAoiStreamPlotData } from '../core'
+  import { getAoiStreamPlotData, type CollectorWorkspace } from '../core'
   import {
     scanForDynamicStripHeight,
     scanForSynchronizedTimelineMax,
@@ -188,26 +188,43 @@
     )
   })
 
-  // PLOT DATA: Driven by effectiveSettings for live preview
-  const streamResult: AoiStreamPlotResult | null = $derived.by(() => {
-    // Explicit deps for clarity
-    effectiveSettings.binSize
-    effectiveSettings.alignment
-    effectiveSettings.timelineStart
-    effectiveSettings.timelineEnd
-    effectiveSettings.ridgelineScale
-    effectiveSettings.stimulusId
-    effectiveSettings.groupId
-    effectiveSettings.redrawTimestamp
-    engine.metadata
-    timelineMaxValue
+  // --- DATA PIPELINE (Workspace-aware) ---
+  let resultState = $state<{
+    data: AoiStreamPlotResult | null
+    workspace: CollectorWorkspace | null
+  }>({
+    data: null,
+    workspace: null,
+  })
 
-    return getAoiStreamPlotData({
-      ...effectiveSettings,
-      timelineMin: timelineMinValue,
-      timelineMax: timelineMaxValue,
+  $effect(() => {
+    const s = effectiveSettings
+    const tMin = timelineMinValue
+    const tMax = timelineMaxValue
+    const meta = engine.metadata
+
+    if (!meta) return
+
+    untrack(() => {
+      try {
+        const { data, workspace } = getAoiStreamPlotData(
+          {
+            ...s,
+            timelineMin: tMin,
+            timelineMax: tMax,
+          },
+          resultState.workspace
+        )
+        resultState.data = data
+        resultState.workspace = workspace
+      } catch (e) {
+        console.error('Failed to fetch AOI stream data:', e)
+        resultState.data = null
+      }
     })
   })
+
+  const streamResult = $derived(resultState.data)
 
   const plotDimensions = $derived.by(() =>
     calculatePlotDimensionsWithHeader(

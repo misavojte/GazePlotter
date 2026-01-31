@@ -187,7 +187,7 @@ export function computeGradientLegendGeometry(
 
   // Use fixed spacing
   const TITLE_GAP = 3
-  const LABEL_GAP = 4
+  const LABEL_GAP = 10
   const BAR_HEIGHT = 12
 
   // Center the whole block vertically in the available space?
@@ -404,6 +404,27 @@ export function drawGradientLegend(
     if (labels.belowMin) {
       ctx.fillText(labels.belowMin.text, labels.belowMin.x, labels.belowMin.y)
     }
+
+    // 5. Draw down-ticks at interval edges
+    const tickLen = 5
+    const tickY1 = (gradientRect.y + gradientRect.height) | 0
+    const tickY2 = tickY1 + tickLen
+    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
+    ctx.lineWidth = 1
+
+    // Always draw tick at the start of the gradient bar
+    const startX = gradientRect.x | 0
+    ctx.beginPath()
+    ctx.moveTo(startX + 0.5, tickY1)
+    ctx.lineTo(startX + 0.5, tickY2)
+    ctx.stroke()
+
+    // Draw tick at the end of the gradient bar
+    const endX = (gradientRect.x + gradientRect.width) | 0
+    ctx.beginPath()
+    ctx.moveTo(endX + 0.5, tickY1)
+    ctx.lineTo(endX + 0.5, tickY2)
+    ctx.stroke()
   }
 }
 

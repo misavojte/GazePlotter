@@ -9,7 +9,7 @@ import {
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
 import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
-import { collectAoiStreamMetrics } from './collector'
+import { collectAoiStreamMetrics, type CollectorWorkspace } from './collector'
 
 export function getAoiStreamPlotData(
   settings: Pick<
@@ -18,94 +18,96 @@ export function getAoiStreamPlotData(
   > & {
     timelineMin?: number
     timelineMax?: number
-  }
-): AoiStreamPlotResult {
-  const stimulusId = settings.stimulusId
-  const groupId = settings.groupId
+  },
+  existingWorkspace: CollectorWorkspace | null
+): { data: AoiStreamPlotResult; workspace: CollectorWorkspace } {
   const meta = engine.metadata
+  if (!meta) throw new Error('Data engine not initialized')
 
-  if (!meta) {
-    throw new Error('Data engine not initialized')
+  const { stimulusId, groupId, binSize: requestedBinSize } = settings
+
+  // 1. Prepare filtering/ordering data
+  const rawAois = getAois(stimulusId)
+  const orderVector = getAoiOrderVector(stimulusId)
+
+  // Use a simple array for ordered selection to avoid intermediate Map if possible
+  // But we need to look up AOI details later. A local Map is fine if built once.
+  const aoiMap = new Map<number, (typeof rawAois)[number]>()
+  for (let i = 0; i < rawAois.length; i++) {
+    aoiMap.set(rawAois[i].id, rawAois[i])
   }
 
-  // Prepare AOI data (ordered and filtered for existence)
-  const aois = getAois(stimulusId)
-  const orderVector = getAoiOrderVector(stimulusId)
-  const aoiById = new Map(aois.map(aoi => [aoi.id, aoi]))
-  const orderedAois = orderVector
-    .map(id => aoiById.get(id))
-    .filter((aoi): aoi is (typeof aois)[number] => Boolean(aoi))
+  const orderedAois: (typeof rawAois)[number][] = []
+  for (let i = 0; i < orderVector.length; i++) {
+    const aoi = aoiMap.get(orderVector[i])
+    if (aoi) orderedAois.push(aoi)
+  }
 
-  // Prepare participants
+  // 2. Timeline and binning
   const participantIds = getParticipantsIds(groupId, stimulusId)
+  const numParticipants = participantIds.length
 
-  // Calculate timeline boundaries
-  const maxTime = participantIds.reduce(
-    (max, participantId) =>
-      Math.max(max, getParticipantEndTime(stimulusId, participantId)),
-    0
-  )
+  let maxTime = 0
+  for (let i = 0; i < numParticipants; i++) {
+    const time = getParticipantEndTime(stimulusId, participantIds[i])
+    if (time > maxTime) maxTime = time
+  }
 
   const timelineMin = settings.timelineMin ?? 0
   const timelineMax = settings.timelineMax ?? maxTime
   const safeMaxTime = Math.max(1, timelineMax - timelineMin)
 
-  // Determine bin configuration
-  const binSize = settings.binSize ?? 500
+  const binSize = requestedBinSize ?? 500
   const binCount = Math.max(1, Math.floor(safeMaxTime / binSize))
 
-  // Prepare hidden AOIs
+  // 3. Collection
   const hidden = getHiddenAois(stimulusId)
   const hiddenSet = hidden.length ? new Set<number>(hidden) : null
 
-  // No-AOI treatment handling
-  const noAoiTreatment = meta.noAoiTreatment
-
-  // Execute collection
-  const metrics = collectAoiStreamMetrics(
+  const { metrics, workspace } = collectAoiStreamMetrics(
     stimulusId,
     participantIds,
     orderedAois,
     hiddenSet,
     binCount,
     timelineMin,
-    timelineMax,
-    safeMaxTime
+    safeMaxTime,
+    existingWorkspace
   )
 
-  // Transform metrics into plot series with metadata
-  const series: AoiStreamPlotSeries[] = metrics.series.map(metricSeries => {
-    // ID -1 is No-AOI
-    if (metricSeries.id === -1) {
-      return {
+  // 4. Final transformation (Metadata attachment)
+  const { noAoiTreatment } = meta
+  const resultSeries: AoiStreamPlotSeries[] = new Array(metrics.series.length)
+
+  for (let i = 0; i < metrics.series.length; i++) {
+    const m = metrics.series[i]
+    if (m.id === -1) {
+      resultSeries[i] = {
         id: -1,
         label: noAoiTreatment.displayedName,
         color: noAoiTreatment.color,
-        values: metricSeries.values,
+        values: m.values,
+      }
+    } else {
+      const aoi = aoiMap.get(m.id)
+      resultSeries[i] = {
+        id: m.id,
+        label: aoi?.displayedName || aoi?.originalName || 'Unknown',
+        color: aoi?.color || '#000000',
+        values: m.values,
       }
     }
+  }
 
-    // Matched AOI
-    const aoi = aoiById.get(metricSeries.id)
-    // Fallback if AOI missing (shouldn't happen since we used orderedAois)
-    const label = aoi?.displayedName || aoi?.originalName || 'Unknown'
-    const color = aoi?.color || '#000000'
-
-    return {
-      id: metricSeries.id,
-      label,
-      color,
-      values: metricSeries.values,
-    }
-  })
-
-  return {
-    series,
+  const data: AoiStreamPlotResult = {
+    series: resultSeries,
     timeline: createAdaptiveTimeline(timelineMin, timelineMin + safeMaxTime, 6),
     binCount,
     binSize,
     maxTime: timelineMin + safeMaxTime,
-    participants: participantIds.length,
+    participants: numParticipants,
     maxTotal: metrics.maxTotal,
   }
+
+  return { data, workspace }
 }
