@@ -799,8 +799,9 @@
       hoveredBinIndex = binIndex
       if (binIndex !== null) {
         // Show tooltip for bin information
-        const binStartTime = binIndex * data.binSize
-        const binEndTime = (binIndex + 1) * data.binSize
+        const binStartTime = data.timeline.minValue + binIndex * data.binSize
+        const binEndTime =
+          data.timeline.minValue + (binIndex + 1) * data.binSize
         const tooltipContent = [
           {
             key: 'Time Range',

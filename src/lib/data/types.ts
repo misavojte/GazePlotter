@@ -5,7 +5,7 @@ import type {
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 import type { BinarySegmentBuffers } from './binary'
 
-import { DEFAULT_NO_AOI_COLOR } from '../color'
+import { DEFAULT_NO_AOI_COLOR } from '../color/palettes'
 
 /**
  * Used for stimuli and participants basic information.

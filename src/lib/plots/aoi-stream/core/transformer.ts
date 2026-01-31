@@ -59,7 +59,8 @@ export function getAoiStreamPlotData(
   const safeMaxTime = Math.max(1, timelineMax - timelineMin)
 
   const binSize = requestedBinSize ?? 500
-  const binCount = Math.max(1, Math.floor(safeMaxTime / binSize))
+  const binCount = Math.max(1, Math.ceil(safeMaxTime / binSize))
+  const collectionMaxTime = binCount * binSize
 
   // 3. Collection
   const hidden = getHiddenAois(stimulusId)
@@ -72,7 +73,7 @@ export function getAoiStreamPlotData(
     hiddenSet,
     binCount,
     timelineMin,
-    safeMaxTime,
+    collectionMaxTime,
     existingWorkspace
   )
 
@@ -102,10 +103,14 @@ export function getAoiStreamPlotData(
 
   const data: AoiStreamPlotResult = {
     series: resultSeries,
-    timeline: createAdaptiveTimeline(timelineMin, timelineMin + safeMaxTime, 6),
+    timeline: createAdaptiveTimeline(
+      timelineMin,
+      timelineMin + collectionMaxTime,
+      6
+    ),
     binCount,
     binSize,
-    maxTime: timelineMin + safeMaxTime,
+    maxTime: timelineMin + collectionMaxTime,
     participants: numParticipants,
     maxTotal: metrics.maxTotal,
   }
