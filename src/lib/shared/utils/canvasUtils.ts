@@ -127,8 +127,11 @@ export function getScaledMousePosition(
   // 1. Convert CSS pixels to a percentage of the canvas visual size
   // 2. Apply that percentage to the actual canvas dimensions (which include DPI scaling)
   // 3. Divide by pixelRatio to get back to logical coordinates
-  const x = ((cssX / rect.width) * canvas.width) / pixelRatio
-  const y = ((cssY / rect.height) * canvas.height) / pixelRatio
+  const widthRatio = rect.width > 0 ? canvas.width / rect.width : 0
+  const heightRatio = rect.height > 0 ? canvas.height / rect.height : 0
+
+  const x = (cssX * widthRatio) / pixelRatio
+  const y = (cssY * heightRatio) / pixelRatio
 
   return { x, y }
 }
@@ -158,13 +161,12 @@ export function getTooltipPosition(
   // 2. Convert to a percentage of the actual canvas dimensions
   // 3. Apply that percentage to the visual canvas size
   // 4. Add the canvas position and offset
-  const screenX =
-    rect.left + ((canvasX * pixelRatio) / canvas.width) * rect.width + offset.x
-  const screenY =
-    rect.top +
-    ((canvasY * pixelRatio) / canvas.height) * rect.height +
-    offset.y +
-    window.scrollY
+  const xPercent = canvas.width > 0 ? (canvasX * pixelRatio) / canvas.width : 0
+  const yPercent =
+    canvas.height > 0 ? (canvasY * pixelRatio) / canvas.height : 0
+
+  const screenX = rect.left + xPercent * rect.width + offset.x
+  const screenY = rect.top + yPercent * rect.height + offset.y + window.scrollY
 
   return { x: screenX, y: screenY }
 }

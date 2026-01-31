@@ -6,5 +6,7 @@ export function formatFileSize(bytes: number): string {
   const k = 1024
   const sizes = ['Bytes', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  const formatted = (bytes / Math.pow(k, i)).toFixed(2)
+  // parseFloat is used here to trim trailing zeros (e.g., 1.00 -> 1)
+  return parseFloat(formatted) + ' ' + sizes[i]
 }

@@ -34,10 +34,10 @@
   } from '$lib/plots/shared'
   import { UI_COLORS } from '$lib/color'
 
+  const NICE_STEPS = [5, 10, 20, 25, 50, 100, 200, 500, 1000]
   function calculateTickStep(len: number): number {
-    const niceSteps = [5, 10, 20, 25, 50, 100, 200, 500, 1000]
-    for (const s of niceSteps) {
-      if (len / s <= 10) return s
+    for (let i = 0; i < NICE_STEPS.length; i++) {
+      if (len / NICE_STEPS[i] <= 10) return NICE_STEPS[i]
     }
     return 1000
   }
@@ -720,18 +720,23 @@
           (isAboveMaximum(value) && showAboveMaxLabels)
 
         if (shouldShowValue) {
-          const x = xOffset + col * cellSize
-          const y = yOffset + row * cellSize
-          let cellColor = isBelowMinimum(value)
-            ? belowMinColor
-            : isAboveMaximum(value)
-              ? aboveMaxColor
-              : getColor(value)
-
-          ctx.fillStyle = getContrastTextColor(cellColor)
           const displayValue = Number.isInteger(value)
             ? value.toString()
             : value.toFixed(1)
+
+          let cellColor
+          if (isBelowMinimum(value)) {
+            cellColor = belowMinColor
+          } else if (isAboveMaximum(value)) {
+            cellColor = aboveMaxColor
+          } else {
+            cellColor = getColor(value)
+          }
+
+          ctx.fillStyle = getContrastTextColor(cellColor)
+
+          const x = xOffset + col * cellSize
+          const y = yOffset + row * cellSize
 
           ctx.fillText(displayValue, x + cellSize * 0.5, y + cellSize * 0.5 + 1)
         }

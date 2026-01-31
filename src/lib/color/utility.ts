@@ -46,7 +46,9 @@ export function getColorForValue(
   if (value === 0 || maxValue === 0) return colorScale[0]
 
   // Normalize value to get factor between 0 and 1
-  const normalizedValue = (value - minValue) / (maxValue - minValue)
+  // Guard against division by zero if min/max are equal
+  const normalizedValue =
+    maxValue === minValue ? 0 : (value - minValue) / (maxValue - minValue)
 
   // Handle three-color scale (min, middle, max)
   if (colorScale.length === 3) {

@@ -22,23 +22,31 @@ export interface AdaptiveTimeline {
  * @returns A formatted string representation
  */
 export function formatTimelineLabel(value: number): string {
-  // Guard against NaN or Infinity to prevent RangeError in toLocaleString
-  if (typeof value !== 'number' || isNaN(value) || !isFinite(value)) return '0'
-
-  // For integers or large numbers, show without decimals
-  if (Number.isInteger(value) || Math.abs(value) >= 1000) {
-    return value.toLocaleString('en-US', { maximumFractionDigits: 0 })
-  }
+  // Guard against NaN or Infinity
+  if (!Number.isFinite(value)) return '0'
 
   // Handle zero explicitly
   if (value === 0) return '0'
 
-  // For smaller numbers with decimals, show with appropriate precision
+  // For absolute integers >= 1, use simple string conversion or toLocaleString for grouping
+  if (Number.isInteger(value)) {
+    return Math.abs(value) < 1000
+      ? value.toString()
+      : value.toLocaleString('en-US')
+  }
+
+  // Large numbers with decimals
+  if (Math.abs(value) >= 1000) {
+    return value.toLocaleString('en-US', { maximumFractionDigits: 0 })
+  }
+
+  // Small numbers: determine precision based on magnitude
   const magnitude = Math.floor(Math.log10(Math.abs(value)))
-  // Clamp to max 20 to avoid RangeError (maximumFractionDigits must be 0-20)
-  const digitsAfterDecimal = Math.min(20, Math.max(0, -magnitude + 1))
+  const digitsAfterDecimal = Math.min(20, Math.max(1, -magnitude + 1))
+
   return value.toLocaleString('en-US', {
     maximumFractionDigits: digitsAfterDecimal,
+    minimumFractionDigits: 0,
   })
 }
 

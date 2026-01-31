@@ -52,13 +52,15 @@ export class DataEngine {
     for (let i = 0; i < updates.length; i++) {
       const { stimulusId, hiddenAois } = updates[i]
       const stimulusAoiCount = meta.aois.data[stimulusId]?.length ?? 0
-      const unique = Array.from(
-        new Set(
-          hiddenAois.filter(
-            v => Number.isInteger(v) && v >= 0 && v < stimulusAoiCount
-          )
+      const unique = hiddenAois
+        .filter(
+          (v, i, self) =>
+            Number.isInteger(v) &&
+            v >= 0 &&
+            v < stimulusAoiCount &&
+            self.indexOf(v) === i
         )
-      ).sort((a, b) => a - b)
+        .sort((a, b) => a - b)
 
       while (hidden.length <= stimulusId) hidden.push([])
       hidden[stimulusId] = unique

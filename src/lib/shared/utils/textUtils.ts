@@ -1,5 +1,3 @@
-import { sumArray } from '$lib/shared/utils/mathUtils'
-
 /**
  * Utility functions for text measurement and manipulation in SVG elements
  */
@@ -54,9 +52,10 @@ export const estimateTextWidth = (
   const family =
     fontFamily === 'sans-serif' ? SYSTEM_SANS_SERIF_STACK : fontFamily
   const fontKey = `${fontSize}px ${family}`
-  const cacheKey = `${fontKey}|${text}`
-
   // 1. Fast path: Memoization lookup
+  // Construct cache key without template literal to reduce allocation churn in hot loops
+  const cacheKey = fontKey + '|' + text
+
   const cachedWidth = widthCache.get(cacheKey)
   if (cachedWidth !== undefined) return cachedWidth
 
@@ -119,8 +118,16 @@ export function calculateTextMetrics(
   const widths = texts.map(text =>
     estimateTextWidth(text, fontSize, fontFamily)
   )
-  const maxWidth = Math.max(...widths)
-  const totalWidth = sumArray(widths)
+
+  // Use a loop for maxWidth to prevent stack overflow on extremely large sets
+  let maxWidth = 0
+  let totalWidth = 0
+  for (let i = 0; i < widths.length; i++) {
+    const w = widths[i]
+    if (w > maxWidth) maxWidth = w
+    totalWidth += w
+  }
+
   const averageWidth = totalWidth / widths.length
 
   return {

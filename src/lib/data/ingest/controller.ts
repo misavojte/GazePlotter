@@ -87,7 +87,8 @@ export class EyeWorkerService {
     this.parsingAnchorTime = Date.now()
 
     const firstFile = fileArray[0]
-    const extension = firstFile.name.split('.').pop()?.toLowerCase()
+    const parts = firstFile.name.split('.')
+    const extension = parts.length > 1 ? parts.pop()?.toLowerCase() : undefined
 
     if (extension === 'json') {
       return this.processJsonWorkspace(firstFile)
@@ -105,6 +106,11 @@ export class EyeWorkerService {
   }
 
   /**
+   * Cached result of transferable stream support check.
+   */
+  private static _isStreamTransferableCached: boolean | null = null
+
+  /**
    * Makes a test postMessage call to the worker to check if the browser supports transferable streams.
    * If the browser does not support transferable streams, runtimes will throw an error.
    * This method catches the error and returns false.
@@ -112,6 +118,10 @@ export class EyeWorkerService {
    * @returns {boolean} - Whether the browser supports transferable streams.
    */
   isStreamTransferable(): boolean {
+    if (EyeWorkerService._isStreamTransferableCached !== null) {
+      return EyeWorkerService._isStreamTransferableCached
+    }
+
     const stream = new ReadableStream({
       start(controller) {
         controller.enqueue(new Uint8Array([]))
@@ -120,8 +130,10 @@ export class EyeWorkerService {
     })
     try {
       this.worker.postMessage({ type: 'test-stream', data: stream }, [stream])
+      EyeWorkerService._isStreamTransferableCached = true
       return true
     } catch (error) {
+      EyeWorkerService._isStreamTransferableCached = false
       return false
     }
   }
