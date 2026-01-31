@@ -7,12 +7,16 @@ let _toasts = $state<ToastFillingType[]>([])
  * Global accessor for the toast state.
  */
 export const toastState = {
-  get current() { return _toasts },
-  set current(value: ToastFillingType[]) { _toasts = value }
+  get current() {
+    return _toasts
+  },
+  set current(value: ToastFillingType[]) {
+    _toasts = value
+  },
 }
 
 export const addToast = (toast: ToastFillingType): void => {
-  _toasts.push(toast)
+  _toasts = [..._toasts, toast]
 }
 
 export const removeToast = (id: number): void => {
@@ -36,6 +40,16 @@ export const addSuccessToast = (message: string): void => {
     message,
     type: 'success',
     duration: 4000,
+  })
+}
+
+export const addWarningToast = (message: string): void => {
+  addToast({
+    id: generateUniqueId(),
+    title: 'Warning',
+    message,
+    type: 'warning',
+    duration: 6000,
   })
 }
 

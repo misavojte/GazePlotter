@@ -1,6 +1,6 @@
 /**
  * Filling for Toaster messages
- * @id {number} - id of message for deletion from store
+ * @id {number} - id of message for deletion
  * @title {string} - title of message
  * @message {string} - message to show
  * @type {'success' | 'error' | 'warning' | 'info'} - type of message

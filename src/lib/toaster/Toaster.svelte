@@ -7,8 +7,9 @@
   const timers = new Map<number, ReturnType<typeof setTimeout>>()
 
   const clearTimer = (id: number) => {
-    if (timers.has(id)) {
-      clearTimeout(timers.get(id))
+    const timer = timers.get(id)
+    if (timer) {
+      clearTimeout(timer)
       timers.delete(id)
     }
   }
@@ -17,21 +18,37 @@
     if (!toast.duration || timers.has(toast.id)) return
     const timer = setTimeout(() => {
       removeToast(toast.id)
+      timers.delete(toast.id)
     }, toast.duration)
     timers.set(toast.id, timer)
   }
 
+  // Manage timers reactively: add new ones, prune old ones
   $effect(() => {
+    const currentToastIds = new Set(toastState.current.map(t => t.id))
+
+    // Prune timers for toasts that are gone
+    for (const id of timers.keys()) {
+      if (!currentToastIds.has(id)) {
+        clearTimer(id)
+      }
+    }
+
+    // Set timers for new toasts
     toastState.current.forEach(setRemovalTimer)
   })
 
   $effect(() => {
-    // Cleanup timers when component is destroyed
     return () => {
-      timers.forEach((timer) => clearTimeout(timer))
+      timers.forEach(clearTimeout)
       timers.clear()
     }
   })
+
+  const handleManualClose = (id: number) => {
+    clearTimer(id)
+    removeToast(id)
+  }
 </script>
 
 <div class="toaster">
@@ -59,7 +76,7 @@
           type="button"
           class="close"
           aria-label="Close"
-          onclick={() => removeToast(id)}
+          onclick={() => handleManualClose(id)}
         >
           ×
         </button>
