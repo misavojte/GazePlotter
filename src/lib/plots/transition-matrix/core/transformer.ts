@@ -74,7 +74,7 @@ export function getTransitionMatrixData(
   return { matrix, aoiLabels, aoiList }
 }
 
-function transformToRelativeFrequency(
+export function transformToRelativeFrequency(
   matrix: Float64Array,
   total: number
 ): Float64Array {
@@ -86,7 +86,7 @@ function transformToRelativeFrequency(
   return result
 }
 
-function transformToProbability(
+export function transformToProbability(
   matrix: Float64Array,
   size: number
 ): Float64Array {
@@ -106,7 +106,7 @@ function transformToProbability(
   return result
 }
 
-function transformToKStepProbability(
+export function transformToKStepProbability(
   matrix: Float64Array,
   size: number,
   k: number
@@ -135,7 +135,7 @@ function transformToKStepProbability(
   return result
 }
 
-function transformToAverageDwellTime(
+export function transformToAverageDwellTime(
   dwellTime: Float64Array,
   dwellCount: Int32Array
 ): Float64Array {

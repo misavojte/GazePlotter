@@ -83,7 +83,7 @@ export function getBarPlotData(
  * Aggregates individual participant metrics into the final bar values.
  * Optimized for performance: avoids intermediate arrays and closures in hot loops.
  */
-function aggregateMetrics(
+export function aggregateMetrics(
   metrics: ReturnType<typeof collectParticipantBarMetrics>,
   method: string,
   aoiCount: number
