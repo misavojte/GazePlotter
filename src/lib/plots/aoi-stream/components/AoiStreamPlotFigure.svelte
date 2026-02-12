@@ -69,7 +69,7 @@
   const X_AXIS_LABEL = getXAxisLabel('absolute')
   const X_AXIS_LABEL_OFFSET = 24
   const AREA_DIVIDER = {
-    COLOR: COLOR_FALLBACKS.WHITE,
+    COLOR: 'rgba(255, 255, 255, 0.4)',
     WIDTH: 1,
   }
 
@@ -78,7 +78,7 @@
     height: number
     data: AoiStreamPlotResult
     highlights?: string[]
-    alignment?: 'center' | 'bottom' | 'ridgeline' | 'heatmap'
+    alignment?: 'stream' | 'distribution' | 'ridgeline' | 'heatmap'
     onLegendClick?: (aoiId: number) => void
     dpiOverride?: number | null
     marginTop?: number
@@ -95,7 +95,7 @@
     height,
     data,
     highlights = [],
-    alignment = 'center',
+    alignment = 'stream',
     onLegendClick = () => {},
     dpiOverride = null,
     marginTop = 0,
@@ -311,23 +311,29 @@
     }
 
     // Call pure transformation logic from core
-    const { buckets, yAxisMax, axisTicks, seriesPaint, axisHalfRange } =
-      transformStreamDataToCoordinates(
-        {
-          data,
-          alignment,
-          floorLeft,
-          floorTop,
-          floorWidth,
-          floorHeight,
-          floorBottom,
-          stripHeightOverride,
-          highlightMaskById,
-          ridgelineScale,
-          colorScale,
-        },
-        renderBuckets
-      )
+    const {
+      buckets,
+      yAxisMax,
+      axisTicks,
+      seriesPaint,
+      axisHalfRange,
+      seriesRanks,
+    } = transformStreamDataToCoordinates(
+      {
+        data,
+        alignment,
+        floorLeft,
+        floorTop,
+        floorWidth,
+        floorHeight,
+        floorBottom,
+        stripHeightOverride,
+        highlightMaskById,
+        ridgelineScale,
+        colorScale,
+      },
+      renderBuckets
+    )
 
     // Update stateful buckets
     renderBuckets = buckets
@@ -360,20 +366,53 @@
           ctx.fillStyle = color
           ctx.fillRect(x, y, binWidth + 0.5, h)
         }
-      } else if (alignment === 'bottom') {
-        // Bottom alignment: Sliced into sharp columnar "stairs" for distinct value visualization
+      } else if (alignment === 'distribution' && seriesRanks) {
+        // Distribution: Group consecutive bins where rank is stable into contiguous "runs"
+        // Each run is drawn as a single path with exterior stroke only
         const binWidth = floorWidth / data.binCount
+        const renderBinCount = data.binCount + 2
         ctx.fillStyle = paint.color
-        for (let i = 1; i <= data.binCount; i++) {
-          const x = floorLeft + (i - 1) * binWidth
-          const y = bucket.topY[i]
-          const h = bucket.bottomY[i] - y
-          if (h > 0.1) {
-            ctx.fillRect(x, y, binWidth + 0.5, h)
+        ctx.strokeStyle = AREA_DIVIDER.COLOR
+        ctx.lineWidth = AREA_DIVIDER.WIDTH
+
+        let runStart = 1
+        // iterate through valid bins (1 to data.binCount)
+        while (runStart <= data.binCount) {
+          const startRank = seriesRanks[s * renderBinCount + runStart]
+          let runEnd = runStart
+
+          // Find end of current run
+          while (runEnd < data.binCount) {
+            const nextRank = seriesRanks[s * renderBinCount + (runEnd + 1)]
+            if (nextRank !== startRank) break
+            runEnd++
           }
+
+          // Build path for this run [runStart, runEnd]
+          ctx.beginPath()
+
+          // Top edge left to right
+          for (let j = runStart; j <= runEnd; j++) {
+            const x = floorLeft + (j - 1) * binWidth
+            ctx.lineTo(x, bucket.topY[j])
+            ctx.lineTo(x + binWidth, bucket.topY[j])
+          }
+
+          // Bottom edge right to left
+          for (let j = runEnd; j >= runStart; j--) {
+            const x = floorLeft + (j - 1) * binWidth
+            ctx.lineTo(x + binWidth, bucket.bottomY[j])
+            ctx.lineTo(x, bucket.bottomY[j])
+          }
+
+          ctx.closePath()
+          ctx.fill()
+          if (binWidth >= 5) ctx.stroke()
+
+          runStart = runEnd + 1
         }
       } else {
-        // Smoothed path rendering for other modes (center, ridgeline)
+        // Smoothed path rendering for other modes (stream, ridgeline)
         ctx.beginPath()
         ctx.moveTo(xPositions[0], bucket.topY[0])
         drawCatmullRom(ctx, xPositions, bucket.topY, true, renderBinCount)
@@ -382,15 +421,15 @@
 
         ctx.fillStyle = paint.color
         ctx.fill()
-      }
 
-      // Only stroke the area divider for non-heatmap plots to avoid "white borders"
-      if (alignment !== 'heatmap') {
-        ctx.strokeStyle = AREA_DIVIDER.COLOR
-        ctx.lineWidth = AREA_DIVIDER.WIDTH
-        ctx.lineJoin = 'round'
-        ctx.lineCap = 'round'
-        ctx.stroke()
+        // Only stroke the area divider for non-heatmap plots to avoid "white borders"
+        if (alignment !== 'heatmap') {
+          ctx.strokeStyle = AREA_DIVIDER.COLOR
+          ctx.lineWidth = AREA_DIVIDER.WIDTH
+          ctx.lineJoin = 'round'
+          ctx.lineCap = 'round'
+          ctx.stroke()
+        }
       }
 
       if (alignment === 'ridgeline' && paint.stripBottom !== undefined) {
@@ -591,7 +630,7 @@
 
       ctx.stroke()
       ctx.restore()
-    } else if (alignment === 'center') {
+    } else if (alignment === 'stream') {
       drawCenteredYAxis(
         ctx,
         plotTop + plotAreaHeight / 2,
@@ -610,7 +649,7 @@
         floorRight,
         AXIS_CONFIG
       )
-    } else if (alignment === 'bottom') {
+    } else if (alignment === 'distribution') {
       drawBottomYAxis(
         ctx,
         plotBottom,

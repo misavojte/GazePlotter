@@ -371,15 +371,15 @@
     },
     {
       label: 'Alignment',
-      value: effectiveSettings.alignment ?? 'center',
+      value: effectiveSettings.alignment ?? 'stream',
       onchange: (event: CustomEvent) => {
         // Alignment changes are mainly driven by onSelect for preview
       },
       onClose: handleMenuClose,
       options: [
         {
-          value: 'center',
-          label: 'Center',
+          value: 'stream',
+          label: 'Stream',
           onSelect: (v: any) => {
             alignmentSync.value = v
           },
@@ -391,8 +391,8 @@
           },
         },
         {
-          value: 'bottom',
-          label: 'Bottom',
+          value: 'distribution',
+          label: 'Distribution',
           onSelect: (v: any) => {
             alignmentSync.value = v
           },
@@ -466,7 +466,7 @@
         {height}
         data={streamResult}
         highlights={effectiveSettings.highlights}
-        alignment={effectiveSettings.alignment ?? 'center'}
+        alignment={effectiveSettings.alignment ?? 'stream'}
         onLegendClick={handleLegendClick}
         {stripHeightOverride}
         ridgelineScale={effectiveSettings.ridgelineScale}

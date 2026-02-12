@@ -152,7 +152,7 @@ export interface AoiStreamPlotGridType extends GridType {
    */
   absoluteStimuliLimits: [number, number][]
   /** Stream graph alignment mode */
-  alignment?: 'center' | 'bottom' | 'ridgeline' | 'heatmap'
+  alignment?: 'stream' | 'distribution' | 'ridgeline' | 'heatmap'
   /** Custom color scale for heatmap mode (min, [middle], max) */
   colorScale?: string[]
   /** Vertical scaling factor for ridgeline mode (1.0 to 10.0, default 2.5) */

@@ -61,7 +61,7 @@ export function ensureRenderBuckets(
 
 export interface StreamCoordsParams {
   data: AoiStreamPlotResult
-  alignment: 'center' | 'bottom' | 'ridgeline' | 'heatmap'
+  alignment: 'stream' | 'distribution' | 'ridgeline' | 'heatmap'
   floorLeft: number
   floorTop: number
   floorWidth: number
@@ -89,6 +89,7 @@ export interface StreamCoordsResult {
   axisHalfRange: number
   axisTicks: number[]
   seriesPaint: StreamPaintInfo[]
+  seriesRanks: Int32Array | null
 }
 
 /**
@@ -139,7 +140,7 @@ export function transformStreamDataToCoordinates(
   let yAxisMin = 0
   let yAxisMax = 100
 
-  if (alignment === 'center' || alignment === 'bottom') {
+  if (alignment === 'stream' || alignment === 'distribution') {
     // Populate totals for stacking
     for (let s = 0; s < series.length; s++) {
       const vals = series[s].values
@@ -148,7 +149,7 @@ export function transformStreamDataToCoordinates(
       }
     }
 
-    if (alignment === 'center') {
+    if (alignment === 'stream') {
       const computed = computeNiceYAxis(maxTotalPercent / 2)
       axisHalfRange = computed.axisHalfRange
       axisTicks = computed.ticks
@@ -170,10 +171,10 @@ export function transformStreamDataToCoordinates(
 
   let scaleY = 1
   let yBase = 0
-  if (alignment === 'center') {
+  if (alignment === 'stream') {
     scaleY = floorHeight / 2 / axisHalfRange
     yBase = floorTop + floorHeight / 2
-  } else if (alignment === 'bottom') {
+  } else if (alignment === 'distribution') {
     scaleY = floorHeight / yAxisMax
     yBase = floorBottom
   }
@@ -204,82 +205,139 @@ export function transformStreamDataToCoordinates(
   const palette = colorScale || PRESET_PALETTES.HEAT.colors
   const paletteStopCount = palette.length - 1
 
-  for (let s = 0; s < series.length; s++) {
-    const source = series[s]
-    const bucket = seriesBuckets[s]
-    const isHighlighted = highlightMaskById?.get(source.id) ?? false
-    const isDimmed = !!highlightMaskById && !isHighlighted
-    const color = isDimmed
-      ? desaturateToWhite(source.color, 0.85)
-      : source.color
+  let seriesRanks: Int32Array | null = null
 
-    const info = seriesPaint[s]
-    info.color = color
-    info.isDimmed = isDimmed
-    info.id = source.id
-    info.stripBottom = undefined
-    info.stripHeight = undefined
-    info.heatmapBinColors = undefined
+  if (alignment === 'distribution') {
+    // Record the rank (vertical position) of each series at each bin
+    // Layout: seriesRanks[seriesIndex * renderBinCount + binIndex] = rank (0 = bottom, N-1 = top)
+    seriesRanks = new Int32Array(series.length * renderBinCount)
 
-    if (isHeatmap || isRidgeline) {
-      const sTop = groupTop + s * overlapOffset
-      const sBottom = sTop + stripHeight
-      info.stripBottom = sBottom
-      info.stripHeight = stripHeight
+    // Per-bin sorting to ensure biggest share is at the bottom
+    const seriesIndices = new Int32Array(series.length)
 
-      if (isHeatmap) {
-        info.heatmapBinColors = bucket.heatmapColors
-        for (let i = 0; i < renderBinCount; i++) {
-          if (i === 0 || i === renderBinCount - 1) {
-            bucket.heatmapColors[i] = 'transparent'
-            bucket.topY[i] = sBottom
-          } else {
-            const val = Math.max(
-              0,
-              Math.min(100, source.values[i - 1] * percentFactor)
-            )
-            if (val <= 0) {
-              bucket.heatmapColors[i] = INACTIVE_COLOR
+    for (let s = 0; s < series.length; s++) {
+      seriesIndices[s] = s
+      const source = series[s]
+      const isHighlighted = highlightMaskById?.get(source.id) ?? false
+      const isDimmed = !!highlightMaskById && !isHighlighted
+      const info = seriesPaint[s]
+      info.color = isDimmed
+        ? desaturateToWhite(source.color, 0.85)
+        : source.color
+      info.isDimmed = isDimmed
+      info.id = source.id
+      info.stripBottom = undefined
+      info.stripHeight = undefined
+      info.heatmapBinColors = undefined
+    }
+
+    for (let i = 0; i < renderBinCount; i++) {
+      // Sort indices by value descending so biggest value is first (at the bottom of stack)
+      seriesIndices.sort((a, b) => {
+        const valA =
+          i === 0 || i === renderBinCount - 1 ? 0 : series[a].values[i - 1]
+        const valB =
+          i === 0 || i === renderBinCount - 1 ? 0 : series[b].values[i - 1]
+        return valB - valA
+      })
+
+      let currentStartVal = 0
+      for (let sIdx = 0; sIdx < seriesIndices.length; sIdx++) {
+        const s = seriesIndices[sIdx]
+        const val =
+          i === 0 || i === renderBinCount - 1
+            ? 0
+            : series[s].values[i - 1] * percentFactor
+
+        // Store rank: sIdx is the visual stack index (0 is bottom)
+        seriesRanks[s * renderBinCount + i] = sIdx
+
+        const bucket = seriesBuckets[s]
+        const endVal = currentStartVal + val
+        bucket.topY[i] = yBase - endVal * scaleY
+        bucket.bottomY[i] = yBase - currentStartVal * scaleY
+        currentStartVal = endVal
+      }
+    }
+  } else {
+    // Original path for heatmap, ridgeline, and stream (stacked) alignments
+    for (let s = 0; s < series.length; s++) {
+      const source = series[s]
+      const bucket = seriesBuckets[s]
+      const isHighlighted = highlightMaskById?.get(source.id) ?? false
+      const isDimmed = !!highlightMaskById && !isHighlighted
+      const color = isDimmed
+        ? desaturateToWhite(source.color, 0.85)
+        : source.color
+
+      const info = seriesPaint[s]
+      info.color = color
+      info.isDimmed = isDimmed
+      info.id = source.id
+      info.stripBottom = undefined
+      info.stripHeight = undefined
+      info.heatmapBinColors = undefined
+
+      if (isHeatmap || isRidgeline) {
+        const sTop = groupTop + s * overlapOffset
+        const sBottom = sTop + stripHeight
+        info.stripBottom = sBottom
+        info.stripHeight = stripHeight
+
+        if (isHeatmap) {
+          info.heatmapBinColors = bucket.heatmapColors
+          for (let i = 0; i < renderBinCount; i++) {
+            if (i === 0 || i === renderBinCount - 1) {
+              bucket.heatmapColors[i] = 'transparent'
+              bucket.topY[i] = sBottom
             } else {
-              const scaledVal = (val / 100) * paletteStopCount
-              const baseIdx = Math.floor(scaledVal)
-              const nextIdx = Math.min(palette.length - 1, baseIdx + 1)
-              bucket.heatmapColors[i] = interpolateColor(
-                palette[baseIdx],
-                palette[nextIdx],
-                scaledVal - baseIdx
+              const val = Math.max(
+                0,
+                Math.min(100, source.values[i - 1] * percentFactor)
               )
+              if (val <= 0) {
+                bucket.heatmapColors[i] = INACTIVE_COLOR
+              } else {
+                const scaledVal = (val / 100) * paletteStopCount
+                const baseIdx = Math.floor(scaledVal)
+                const nextIdx = Math.min(palette.length - 1, baseIdx + 1)
+                bucket.heatmapColors[i] = interpolateColor(
+                  palette[baseIdx],
+                  palette[nextIdx],
+                  scaledVal - baseIdx
+                )
+              }
+              bucket.topY[i] = sTop
             }
-            bucket.topY[i] = sTop
+            bucket.bottomY[i] = sBottom
           }
-          bucket.bottomY[i] = sBottom
+        } else {
+          const localScaleY = (stripHeight * 0.9) / 100
+          for (let i = 0; i < renderBinCount; i++) {
+            const val =
+              i === 0 || i === renderBinCount - 1
+                ? 0
+                : source.values[i - 1] * percentFactor
+            bucket.bottomY[i] = sBottom
+            bucket.topY[i] = sBottom - val * localScaleY
+          }
         }
       } else {
-        const localScaleY = (stripHeight * 0.9) / 100
+        // Stacked (Stream)
         for (let i = 0; i < renderBinCount; i++) {
+          const startVal = cumulative[i]
           const val =
             i === 0 || i === renderBinCount - 1
               ? 0
               : source.values[i - 1] * percentFactor
-          bucket.bottomY[i] = sBottom
-          bucket.topY[i] = sBottom - val * localScaleY
+          const endVal = startVal + val
+          cumulative[i] = endVal
+          bucket.topY[i] = yBase - endVal * scaleY
+          bucket.bottomY[i] = yBase - startVal * scaleY
         }
       }
-    } else {
-      // Stacked
-      for (let i = 0; i < renderBinCount; i++) {
-        const startVal = cumulative[i]
-        const val =
-          i === 0 || i === renderBinCount - 1
-            ? 0
-            : source.values[i - 1] * percentFactor
-        const endVal = startVal + val
-        cumulative[i] = endVal
-        bucket.topY[i] = yBase - endVal * scaleY
-        bucket.bottomY[i] = yBase - startVal * scaleY
-      }
+      seriesPaint[s] = info
     }
-    seriesPaint[s] = info
   }
 
   return {
@@ -289,5 +347,6 @@ export function transformStreamDataToCoordinates(
     axisHalfRange,
     axisTicks,
     seriesPaint,
+    seriesRanks,
   }
 }
