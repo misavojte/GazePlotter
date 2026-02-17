@@ -62,3 +62,7 @@ export const addInfoToast = (message: string): void => {
     duration: 8000,
   })
 }
+
+export const clear = (): void => {
+  _toasts = []
+}
