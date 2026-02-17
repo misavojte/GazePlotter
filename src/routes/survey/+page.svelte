@@ -623,9 +623,7 @@
           Tobii, SMI, GazePoint and other eye trackers. Just upload your data
           and see the results.
         </p>
-        <a href="https://docs.gazeplotter.com/upload-data">
-          Which files to upload?
-        </a>
+        <a href="/docs/upload-data"> Which files to upload? </a>
       </section>
       <section class="box long">
         <h2 class="box-title">Interactive scarf plots</h2>
@@ -649,7 +647,7 @@
           privacy. All is done in your browser. You can use it on PCs, Macs,
           tablets, even off-line!
         </p>
-        <a href="https://docs.gazeplotter.com/advanced/download-gazeplotter"
+        <a href="/docs/advanced/download-gazeplotter"
           >How to download GazePlotter?</a
         >
       </section>
