@@ -49,7 +49,7 @@ The following timeline representations are available:
 
 ![](/docs/images/timeline-3.png)
 
-::: danger
+::: warning
 Some data, e.g. from [OGAMA software](/docs/upload-data/ogama), support only ordinal time representation.
 :::
 
@@ -152,7 +152,7 @@ Steps and width of the absolute time timeline is by default determined automatic
 
 ![](/docs/images/clip-timeline-1.png)
 
-::: danger
+::: warning
 If you change the width of the absolute time timeline to lower value than the width of the longest scanpath, the scanpath will be cut off.
 :::
 
