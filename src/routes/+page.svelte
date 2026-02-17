@@ -5,7 +5,7 @@
   import type { ParsedData } from '$lib/data/types'
   import { browser } from '$app/environment'
 
-  const pathToData = `${base}/data/demo.json`
+  const pathToData = `${base}/data/demo.json?v=2`
 
   async function loadInitialData(): Promise<ParsedData> {
     if (!pathToData || !browser)
