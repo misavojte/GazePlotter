@@ -4,11 +4,23 @@ order: 4
 outline: deep
 ---
 
-# Segmented Data workflows (export â†' edit â†' reâ€‘upload)
+# Segmented Data workflows (export → edit → re-upload)
 
-Use the Segmented Duration CSV format to roundâ€‘trip your data: export segmented data, edit it in a spreadsheet/text editor, and upload it back in the same format. This enables precise operations like cropping early segments or splitting stimuli while keeping correct baselines.
+Use the Segmented Duration CSV format to round-trip your data: export segmented data, edit it in a spreadsheet/text editor, and upload it back in the same format. This enables precise operations like cropping early segments or splitting stimuli while keeping correct baselines.
 
 This workflow is particularly useful for **mobile eye-tracking data** where you need to split or merge stimuli based on how image mapping went, or when you need to remove calibration periods and initial setup phases from your analysis.
+
+## Use Case 1: Cropping early data
+
+If you need to remove the first few seconds of a recording (e.g., initial instructions):
+
+1. Open the Segmented Data export in your spreadsheet software.
+2. Find the stimuli and participants you want to crop.
+3. Delete the rows for the early fixations/saccades.
+4. Export as CSV.
+5. Re-upload via [Segmented Duration CSV](/docs/upload-data/custom-csv#segmented-duration-csv).
+
+**Result**: The upload will re-normalize timestamps so the first remaining segment of that participant × stimulus starts at 0.
 
 ## Required CSV format
 

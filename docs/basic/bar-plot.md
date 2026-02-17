@@ -105,14 +105,14 @@ The `Aggregation` dropdown determines what metric is calculated and displayed:
 
 ### Interactive Elements
 
-- **Menu button** (â‹®) - provides access to additional customization options
+- **Menu button** (⋮) - provides access to additional customization options
 - **Responsive sizing** - chart automatically adjusts to available space
 
 ## Customization Options
 
 ### Bar Chart Axes
 
-Access advanced customization through the menu button (â‹®) to open the "Bar Chart Axes" dialog:
+Access advanced customization through the menu button (⋮) to open the "Bar Chart Axes" dialog:
 
 #### Bar Orientation
 
@@ -145,7 +145,7 @@ All customization changes require clicking **Apply** to take effect.
 
 ## Download Plot
 
-Export individual bar plots as image files through the menu button (â‹®) â†' **Download plot**:
+Export individual bar plots as image files through the menu button (⋮) → **Download plot**:
 
 ### Export Options
 
@@ -157,7 +157,7 @@ Export individual bar plots as image files through the menu button (â‹®) â�
 
 ### Usage
 
-1. Click the menu button (â‹®) in the bar plot
+1. Click the menu button (⋮) in the bar plot
 2. Select **Download plot**
 3. Adjust export settings as needed
 4. Preview your plot in the dialog
@@ -165,7 +165,7 @@ Export individual bar plots as image files through the menu button (â‹®) â�
 
 ## Export Data
 
-Export the calculated statistical data for external analysis through the menu button (â‹®) â†' **Export aggregated data**.
+Export the calculated statistical data for external analysis through the menu button (⋮) → **Export aggregated data**.
 
 This provides access to all computed eye-tracking metrics (absolute time, relative time, fixation counts, etc.) in CSV format for analysis in R, Python, SPSS, or other statistical software.
 
@@ -173,7 +173,7 @@ For detailed information about data export options and formats, see [Aggregated 
 
 ## Additional Menu Options
 
-The bar plot menu (â‹®) provides quick access to customization features:
+The bar plot menu (⋮) provides quick access to customization features:
 
 - **AOI customization** - Modify colors, names, and order of Areas of Interest. See [AOI Customization](/docs/basic/aoi-customization/) for details.
 - **Stimulus customization** - Manage stimulus properties and settings. See [Stimuli Customization](/docs/basic/stimuli-customization/) for details.

@@ -158,7 +158,7 @@ If you change the width of the absolute time timeline to lower value than the wi
 
 ## Download Plot
 
-Export individual scarf plots as image files through the menu button (â®) â' **Download plot**:
+Export individual scarf plots as image files through the menu button (⋮) → **Download plot**:
 
 ### Export Options
 
@@ -170,7 +170,7 @@ Export individual scarf plots as image files through the menu button (â®) â
 
 ### Usage
 
-1. Click the menu button (â®) in the scarf plot
+1. Click the menu button (⋮) in the scarf plot
 2. Select **Download plot**
 3. Adjust export settings as needed
 4. Preview your plot in the dialog
@@ -178,7 +178,7 @@ Export individual scarf plots as image files through the menu button (â®) â
 
 ## Export Data
 
-Export the processed eye-tracking data for external analysis through the menu button (â®) â' **Export segmented data**.
+Export the processed eye-tracking data for external analysis through the menu button (⋮) → **Export segmented data**.
 
 This provides access to the raw fixation sequences, timing data, and AOI mappings in CSV format for analysis in R, Python, SPSS, or other statistical software.
 

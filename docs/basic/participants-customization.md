@@ -32,10 +32,10 @@ Pattern renaming allows bulk renaming operations using regular expressions for f
 
 Wildcard buttons insert regex patterns into the Find text field:
 
-- **Any number (e.g., 123)** â†' `\d+` - matches one or more digits
-- **Any space** â†' `\s` - matches any whitespace character
-- **Any letter** â†' `[A-Za-z]` - matches any single letter
-- **Any character** â†' `.` - matches any single character
+- **Any number (e.g., 123)** → `\d+` - matches one or more digits
+- **Any space** → `\s` - matches any whitespace character
+- **Any letter** → `[A-Za-z]` - matches any single letter
+- **Any character** → `.` - matches any single character
 
 ### Common Use Cases
 

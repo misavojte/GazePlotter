@@ -69,13 +69,13 @@ The `Aggregation` dropdown determines how transition data is calculated and disp
 
 - **Description**: Probability of reaching each AOI after exactly 2 transitions (via one intermediate AOI)
 - **Values**: Percentages (0-100%) where each row sums to 100%
-- **Use case**: Understanding indirect gaze patterns - what percentage of the time does gaze follow the path Aâ†'Xâ†'B?
+- **Use case**: Understanding indirect gaze patterns - what percentage of the time does gaze follow the path A→X→B?
 
 #### 3-step probability
 
 - **Description**: Probability of reaching each AOI after exactly 3 transitions (via two intermediate AOIs)
 - **Values**: Percentages (0-100%) where each row sums to 100%
-- **Use case**: Understanding longer gaze sequences - what percentage of the time does gaze follow the path Aâ†'Xâ†'Yâ†'B?
+- **Use case**: Understanding longer gaze sequences - what percentage of the time does gaze follow the path A→X→Y→B?
 
 #### Fixation duration
 
@@ -86,7 +86,7 @@ The `Aggregation` dropdown determines how transition data is calculated and disp
 #### Dwell duration
 
 - **Description**: Average total duration of consecutive fixations on the same AOI before transitioning to a different AOI
-- **Values**: Time in milliseconds for entire segments (e.g., if sequence is A,A,A,Aâ†'B, this measures total time of all A fixations)
+- **Values**: Time in milliseconds for entire segments (e.g., if sequence is A,A,A,A→B, this measures total time of all A fixations)
 - **Use case**: Understanding how long participants dwell on an AOI before switching attention, regardless of number of individual fixations
 
 ## Matrix Features
@@ -101,11 +101,11 @@ The `Aggregation` dropdown determines how transition data is calculated and disp
 ### Interactive Elements
 
 - **Hover tooltips** - display exact transition values when hovering over cells
-- **Menu button** (â‹®) - provides access to customization and export options
+- **Menu button** (⋮) - provides access to customization and export options
 
 ## Customization Options
 
-Access advanced customization through the menu button (â‹®):
+Access advanced customization through the menu button (⋮):
 
 ### Color Scale Customization
 
@@ -121,7 +121,7 @@ Access advanced customization through the menu button (â‹®):
 
 ## Download Plot
 
-Export individual transition matrices as image files through the menu button (â‹®) â†' **Download plot**:
+Export individual transition matrices as image files through the menu button (⋮) → **Download plot**:
 
 ### Export Options
 
@@ -133,7 +133,7 @@ Export individual transition matrices as image files through the menu button (â
 
 ### Usage
 
-1. Click the menu button (â‹®) in the transition matrix
+1. Click the menu button (⋮) in the transition matrix
 2. Select **Download plot**
 3. Adjust export settings as needed
 4. Preview your matrix in the dialog
@@ -141,7 +141,7 @@ Export individual transition matrices as image files through the menu button (â
 
 ## Additional Menu Options
 
-The transition matrix menu (â‹®) provides quick access to:
+The transition matrix menu (⋮) provides quick access to:
 
 - **Stimulus customization** - Manage stimulus properties and settings. See [Stimuli Customization](/docs/basic/stimuli-customization/) for details.
 
