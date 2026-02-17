@@ -1,5 +1,9 @@
 export async function getDocs() {
   const modules = import.meta.glob('/docs/**/*.md')
+  const rawModules = import.meta.glob('/docs/**/*.md', {
+    query: '?raw',
+    import: 'default',
+  })
   const docs = []
 
   for (const path in modules) {
@@ -30,6 +34,44 @@ export async function getDocs() {
           ?.replace(/-/g, ' ')
           .replace(/\b\w/g, l => l.toUpperCase())
       }
+    }
+
+    // SEO Title
+    metadata.seoTitle = `${metadata.title} | GazePlotter Docs`
+
+    // Description fallback from the first paragraph
+    if (!metadata.description) {
+      const rawResolver = rawModules[path] as () => Promise<string>
+      const rawContent = (await rawResolver()) || ''
+
+      // Remove frontmatter
+      const contentWithoutFrontmatter = rawContent.replace(
+        /^---[\s\S]*?---\n?/,
+        ''
+      )
+
+      // Find first paragraph (non-empty line that doesn't start with #, !, or :::)
+      const lines = contentWithoutFrontmatter.split('\n')
+      let firstParagraph = ''
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (
+          trimmed &&
+          !trimmed.startsWith('#') &&
+          !trimmed.startsWith('!') &&
+          !trimmed.startsWith(':')
+        ) {
+          firstParagraph = trimmed
+          break
+        }
+      }
+
+      // Clean markdown from description and limit length
+      metadata.description = firstParagraph
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Strip links [text](url) -> text
+        .replace(/[*_`]/g, '') // Strip basic formatting *, _, `
+        .trim()
+        .slice(0, 160)
     }
 
     docs.push({

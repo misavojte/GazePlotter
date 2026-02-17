@@ -21,6 +21,13 @@
 
 <Doc />
 
+<svelte:head>
+  <title>{data.doc.metadata.seoTitle}</title>
+  {#if data.doc.metadata.description}
+    <meta name="description" content={data.doc.metadata.description} />
+  {/if}
+</svelte:head>
+
 {#if prevNext.prev || prevNext.next}
   <nav class="prev-next" aria-label="Page navigation">
     {#if prevNext.prev}
