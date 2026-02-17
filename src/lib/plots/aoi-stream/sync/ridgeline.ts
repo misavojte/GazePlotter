@@ -102,13 +102,16 @@ export function scanForDynamicStripHeight(
       }
     }
 
-    const streamData = getAoiStreamPlotData({
-      stimulusId,
-      groupId,
-      binSize: settings.binSize ?? 500,
-      timelineMin: tMin,
-      timelineMax: tMax,
-    })
+    const { data: streamData } = getAoiStreamPlotData(
+      {
+        stimulusId,
+        groupId,
+        binSize: settings.binSize ?? 500,
+        timelineMin: tMin,
+        timelineMax: tMax,
+      },
+      null
+    )
 
     const seriesCount = streamData.series.length
     const plotAreaWidthBeforeLegend = Math.max(
