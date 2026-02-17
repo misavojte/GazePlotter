@@ -21,7 +21,11 @@ const BATCH_HEADER = ['timestamp', 'duration', 'eyemovementtype', 'AOI']
 /**
  * Converts the complex hierarchical eye-tracking data structure to a flat array format.
  */
-function convertDataStructure(data: DataType): Array<{
+function convertDataStructure(
+  data: DataType,
+  stimulusIds?: Set<string>,
+  filterFixations: boolean = false
+): Array<{
   stimulus: string
   participant: string
   timestamp: string
@@ -46,6 +50,11 @@ function convertDataStructure(data: DataType): Array<{
     stimulusIndex < data.segments.stimuliCount;
     stimulusIndex++
   ) {
+    const stimulusName = data.stimuli.data[stimulusIndex][0]
+    const stimulusId = stimulusIndex.toString() // id is index
+
+    if (stimulusIds && !stimulusIds.has(stimulusId)) continue
+
     for (
       let participantIndex = 0;
       participantIndex < data.participants.data.length;
@@ -55,6 +64,9 @@ function convertDataStructure(data: DataType): Array<{
         const start = reader.getSegmentStart(segmentIndex)
         const end = reader.getSegmentEnd(segmentIndex)
         const category = reader.getSegmentCategory(segmentIndex)
+
+        if (filterFixations && category !== 0) return
+
         const aoiIds = getSegmentAoiIds(
           stimulusIndex,
           participantIndex,
@@ -68,7 +80,7 @@ function convertDataStructure(data: DataType): Array<{
             : null
 
         result.push({
-          stimulus: data.stimuli.data[stimulusIndex][0],
+          stimulus: stimulusName,
           participant: data.participants.data[participantIndex][0],
           timestamp: String(start),
           duration: String(end - start),
@@ -87,10 +99,12 @@ function convertDataStructure(data: DataType): Array<{
  */
 export function generateUnifiedCsv(
   data: DataType,
+  stimulusIds?: Set<string>,
+  filterFixations: boolean = false,
   options?: CsvFormatOptions
 ): string {
   const { decimalSeparator } = resolveCsvFormatOptions(options)
-  const csvPreData = convertDataStructure(data)
+  const csvPreData = convertDataStructure(data, stimulusIds, filterFixations)
 
   const rows = csvPreData.map(item => {
     const aoiNames = item.AOI ? item.AOI.join(';') : ''
@@ -113,11 +127,12 @@ export function generateUnifiedCsv(
  */
 export function generateMetadataForBatchCsv(
   data: DataType,
+  stimulusIds?: Set<string>,
   filterFixations: boolean = false,
   options?: CsvFormatOptions
 ): Array<{ fileName: string; content: string }> {
   const { decimalSeparator } = resolveCsvFormatOptions(options)
-  const csvPreData = convertDataStructure(data)
+  const csvPreData = convertDataStructure(data, stimulusIds, filterFixations)
 
   const results: Array<{ fileName: string; content: string }> = []
 
@@ -134,13 +149,7 @@ export function generateMetadataForBatchCsv(
 
       if (combinedData.length === 0) continue
 
-      const filteredData = filterFixations
-        ? combinedData.filter(item => item.eyemovementtype === '0')
-        : combinedData
-
-      if (filteredData.length === 0) continue
-
-      const rows = filteredData.map(item => {
+      const rows = combinedData.map(item => {
         const aoiNames = item.AOI ? item.AOI.join(';') : ''
         return [
           Number(item.timestamp).toFixed(decimalSeparator === ',' ? 1 : 0),

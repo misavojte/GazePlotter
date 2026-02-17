@@ -1,5 +1,9 @@
 <script lang="ts">
-  import { GeneralInputText, GeneralSelect } from '$lib/shared/components'
+  import {
+    GeneralInputText,
+    GeneralSelect,
+    GeneralInputGroup,
+  } from '$lib/shared/components'
   import { SectionHeader, ModalButtons } from '$lib/modals'
   import { downloadUnifiedCsv, downloadBatchZip } from '$lib/data/export'
   import { engine } from '$lib/data/engine'
@@ -7,12 +11,15 @@
   import { modalState } from '$lib/modals'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'
   import type { DecimalSeparator } from '$lib/data/export/encoders/csv'
+  import { getStimuliOptions } from '$lib/plots/shared/selectOptionsGetters'
 
   // Export settings state
   let fileName = $state('GazePlotter-SegmentedData')
   let exportType = $state('csv')
   let delimiter = $state(',')
   let decimalSeparator = $state<DecimalSeparator>('.')
+  let exportFixationsOnly = $state(false)
+  let selectedStimuliIds = $state(new Set<string>())
   let isExporting = $state(false)
 
   // Export type options
@@ -28,7 +35,9 @@
   ]
 
   // Validation
-  const canExport = $derived(fileName.trim().length > 0)
+  const canExport = $derived(
+    fileName.trim().length > 0 && selectedStimuliIds.size > 0
+  )
 
   const delimiterOptions = [
     { value: ',', label: 'Comma (,)' },
@@ -39,6 +48,31 @@
     { value: '.', label: 'Dot (.)' },
     { value: ',', label: 'Comma (,)' },
   ]
+
+  // Get stimuli options
+  const stimuliItems = $derived(
+    getStimuliOptions().map(option => ({
+      key: option.value,
+      label: option.label,
+      checked: selectedStimuliIds.has(option.value),
+    }))
+  )
+
+  // Handle stimulus selection changes
+  function handleStimulusChange(key: string, checked: boolean) {
+    if (checked) {
+      selectedStimuliIds.add(key)
+    } else {
+      selectedStimuliIds.delete(key)
+    }
+    selectedStimuliIds = new Set(selectedStimuliIds) // Trigger reactivity
+  }
+
+  // Pre-select all stimuli by default
+  $effect(() => {
+    const options = getStimuliOptions()
+    selectedStimuliIds = new Set(options.map(o => o.value))
+  })
 
   // Function to handle export
   const handleExport = async () => {
@@ -61,10 +95,22 @@
       }
 
       if (exportType === 'csv') {
-        downloadUnifiedCsv(data, fileName.trim(), csvOptions)
+        downloadUnifiedCsv(
+          data,
+          fileName.trim(),
+          selectedStimuliIds,
+          exportFixationsOnly,
+          csvOptions
+        )
         addSuccessToast('Single CSV file exported successfully')
       } else if (exportType === 'individual-csv') {
-        downloadBatchZip(data, fileName.trim(), true, csvOptions)
+        downloadBatchZip(
+          data,
+          fileName.trim(),
+          selectedStimuliIds,
+          exportFixationsOnly,
+          csvOptions
+        )
         addSuccessToast('Individual CSV files exported and zipped successfully')
       }
     } catch (error) {
@@ -110,8 +156,8 @@
   <section class="section">
     <div class="content">
       <p class="purpose-description">
-        Export processed eye-tracking segments with timing, movement
-        classifications, and AOI information for detailed analysis.
+        Export eye-tracking segments with timing, movement classifications, and
+        AOI information.
       </p>
     </div>
   </section>
@@ -143,24 +189,48 @@
   </section>
 
   <section class="section">
+    <div class="settings-grid">
+      <div class="settings-column">
+        <GeneralInputGroup
+          title="Stimuli"
+          items={stimuliItems}
+          onItemChange={handleStimulusChange}
+        />
+        {#if selectedStimuliIds.size === 0}
+          <p class="validation-message">
+            Select at least one stimulus to export
+          </p>
+        {/if}
+      </div>
+
+      <div class="settings-column">
+        <GeneralInputGroup
+          title="Filters"
+          showControls={false}
+          items={[
+            {
+              key: 'fixationsOnly',
+              label: 'Export only fixations',
+              checked: exportFixationsOnly,
+            },
+          ]}
+          onItemChange={(_, checked) => (exportFixationsOnly = checked)}
+        />
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
     <SectionHeader text="Format Details" />
     <div class="content">
-      {#if exportType === 'csv'}
-        <p class="format-description">
-          <strong>Single CSV file</strong> with columns: stimulus, participant, timestamp,
-          duration, eyemovementtype, AOI. All participants and stimuli combined in
-          one dataset.
-        </p>
-      {:else}
-        <p class="format-description">
-          <strong>Individual CSV files</strong> for each participant-stimulus combination
-          with columns: timestamp, duration, eyemovementtype, AOI. Files packaged
-          in ZIP archive and filtered to fixations only.
-        </p>
-      {/if}
       <p class="format-description">
-        Eye movement types: "0" = fixation, other values = saccades. AOI column
-        contains semicolon-separated area names.
+        <strong>CSV format</strong> with columns: stimulus, participant, timestamp,
+        duration, eyemovementtype, AOI. Output respects selected stimuli and filter
+        settings.
+      </p>
+      <p class="format-description">
+        Eye movement types: "0" = fixation, other values = saccades etc. AOI
+        column contains semicolon-separated area names.
       </p>
     </div>
   </section>
@@ -219,5 +289,34 @@
 
   .format-description:last-child {
     margin-bottom: 0;
+  }
+
+  .settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+
+  @media (max-width: 700px) {
+    .settings-grid {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+  }
+
+  .settings-column {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .validation-message {
+    margin: 0;
+    padding: 0.5rem;
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+    color: #856404;
+    font-size: 0.85rem;
   }
 </style>

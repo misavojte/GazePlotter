@@ -13,9 +13,17 @@
     title: string
     items: CheckboxItem[]
     onItemChange: (key: string, checked: boolean) => void
+    showControls?: boolean
+    contentHeight?: string
   }
 
-  let { title, items, onItemChange }: Props = $props()
+  let {
+    title,
+    items,
+    onItemChange,
+    showControls = true,
+    contentHeight = '200px',
+  }: Props = $props()
 
   // Computed properties for select all/deselect all states
   const allChecked = $derived(items.every(item => item.checked))
@@ -45,21 +53,23 @@
 <div class="input-group">
   <div class="group-header">
     <div class="group-title">{title}</div>
-    <div class="group-controls">
-      <GeneralButtonPreset
-        label="Select All"
-        isActive={allChecked}
-        onclick={handleSelectAll}
-      />
-      <GeneralButtonPreset
-        label="Deselect All"
-        isActive={noneChecked}
-        onclick={handleDeselectAll}
-      />
-    </div>
+    {#if showControls}
+      <div class="group-controls">
+        <GeneralButtonPreset
+          label="Select All"
+          isActive={allChecked}
+          onclick={handleSelectAll}
+        />
+        <GeneralButtonPreset
+          label="Deselect All"
+          isActive={noneChecked}
+          onclick={handleDeselectAll}
+        />
+      </div>
+    {/if}
   </div>
 
-  <div class="group-content">
+  <div class="group-content" style:height={contentHeight}>
     {#each items as item (item.key)}
       <GeneralInputCheck
         label={item.label}
@@ -87,6 +97,7 @@
     align-items: center;
     gap: 1rem;
     padding: 0.5rem 1rem 0.5rem 1rem;
+    min-height: 2.2rem;
     border-bottom: 1px solid #eaeaea;
     background-color: #fafafa;
     border-radius: 6px 6px 0 0;
@@ -110,7 +121,6 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    height: 200px;
     overflow-y: auto;
     padding: 1rem;
     background-color: #fff;

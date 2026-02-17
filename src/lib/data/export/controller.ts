@@ -18,9 +18,11 @@ import { grid } from '$lib/workspace/grid'
 export function downloadUnifiedCsv(
   data: DataType,
   fileName: string,
+  stimulusIds?: Set<string>,
+  filterFixations: boolean = false,
   options?: CsvFormatOptions
 ): void {
-  const csv = generateUnifiedCsv(data, options)
+  const csv = generateUnifiedCsv(data, stimulusIds, filterFixations, options)
   triggerDownload(csv, fileName, '.csv')
 }
 
@@ -30,10 +32,16 @@ export function downloadUnifiedCsv(
 export async function downloadBatchZip(
   data: DataType,
   fileName: string,
+  stimulusIds?: Set<string>,
   filterFixations: boolean = false,
   options?: CsvFormatOptions
 ): Promise<void> {
-  const batch = generateMetadataForBatchCsv(data, filterFixations, options)
+  const batch = generateMetadataForBatchCsv(
+    data,
+    stimulusIds,
+    filterFixations,
+    options
+  )
   const archiver = new Archiver()
 
   for (const item of batch) {
