@@ -4,6 +4,11 @@ import pkg from './package.json'
 
 export default defineConfig({
   plugins: [sveltekit()],
+  server: {
+    fs: {
+      allow: ['docs'],
+    },
+  },
   test: {
     include: ['tests/**/*.{test,spec}.{js,ts}'],
   },

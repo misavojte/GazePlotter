@@ -4,13 +4,6 @@
   import { EyeWorkerService } from '$lib/data/ingest/controller'
   import type { ParsedData } from '$lib/data/types'
   import { browser } from '$app/environment'
-  // Format the build date
-  const buildDate = new Date(__BUILD_DATE__)
-  const formattedDate = new Intl.DateTimeFormat('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(buildDate)
 
   const pathToData = `${base}/data/demo.json`
 
@@ -44,9 +37,6 @@
         .catch(reject)
     })
   }
-
-  // Use the version from vite.config.ts
-  const version = __APP_VERSION__
 </script>
 
 <svelte:head>
@@ -55,62 +45,6 @@
   >
 </svelte:head>
 
-<header class="border-b">
-  <div>
-    <a id="go-home" href="/">
-      <img
-        id="logo"
-        width="24"
-        height="24"
-        src="/logos/gazeplotter.svg"
-        alt="Logo"
-      />
-      <span id="sitetitle">GazePlotter</span>
-    </a>
-    <nav>
-      <a
-        class="external-link"
-        target="_blank"
-        href="https://docs.gazeplotter.com/"
-      >
-        Guide
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-          focusable="false"
-          height="24px"
-          viewBox="0 0 24 24"
-          width="24px"
-          class="icon"
-          data-v-f3ed0000=""
-          ><path d="M0 0h24v24H0V0z" fill="none"></path><path
-            d="M9 5v2h6.59L4 18.59 5.41 20 17 8.41V15h2V5H9z"
-          ></path></svg
-        >
-      </a>
-      <a
-        href="https://github.com/misavojte/GazePlotter"
-        target="_blank"
-        class="a-icon"
-        rel="nofollow"
-        aria-label="GitHub"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          fill="currentColor"
-          class="icon"
-          viewBox="0 0 16 16"
-        >
-          <path
-            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"
-          />
-        </svg>
-      </a>
-    </nav>
-  </div>
-</header>
 <main>
   <section class="main-section intro">
     <div class="title-container">
@@ -185,32 +119,9 @@
     </div>
   </section>
 </main>
-<footer class="border-t">
-  <div>
-    <p>GazePlotter, version {version} ({formattedDate})</p>
-    <p>
-      Coded & designed by <a href="https://vojtechovska.com" target="_blank"
-        >Michaela Vojtěchovská</a
-      >, idea by Stanislav Popelka
-    </p>
-    <p>
-      <a href="https://geoinformatics.upol.cz" target="_blank" rel="nofollow"
-        >Department of Geoinformatics</a
-      >, Palacký University Olomouc
-    </p>
-    <img
-      class="up-logo"
-      src="/logos/upol.png"
-      alt="Palacký University Olomouc logo"
-      width="300"
-      height="137"
-    />
-  </div>
-</footer>
 
 <style>
-  main,
-  header {
+  main {
     color: var(--c-black);
   }
   .intro {
@@ -241,79 +152,8 @@
     margin-inline: auto;
   }
 
-  header > div {
-    width: 100%;
-    margin: auto;
-    padding: 32px;
-    display: flex;
-    justify-content: space-between;
-    align-items: start;
-    gap: 12px;
-    flex-wrap: wrap;
-    font-size: 14px;
-    box-sizing: border-box;
-  }
-
-  header > div {
-    padding-block: 0 !important;
-    height: 64px;
-    align-items: center;
-  }
-
-  footer {
-    margin-top: 60px;
-  }
-
-  footer > div {
-    text-align: center;
-    padding: 32px;
-    font-size: 14px;
-    box-sizing: border-box;
-  }
-
-  .up-logo {
-    margin-top: 30px;
-    width: 150px;
-    height: auto;
-    user-select: none;
-  }
-
-  header {
-    display: flex;
-    align-items: center;
-  }
-
-  .border-b {
-    border-bottom: #5858583a 1px solid;
-  }
-
-  .border-t {
-    border-top: #5858583a 1px solid;
-  }
-
   main {
     flex-grow: 1;
-  }
-
-  #go-home {
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    color: inherit;
-  }
-
-  #go-home:hover,
-  #go-home:focus {
-    opacity: 0.8;
-  }
-
-  #logo {
-    margin-right: 10px;
-  }
-
-  #sitetitle {
-    font-weight: bold;
-    font-size: 18px;
   }
 
   main > section:first-child {
@@ -328,83 +168,17 @@
     margin-right: auto;
   }
 
-  footer p a {
-    color: inherit;
-    text-decoration: none;
-    border-bottom: 1px dotted;
-    transition: all 0.3s ease-in-out;
-  }
-
-  footer p a:hover,
-  footer p a:focus {
-    color: black;
-  }
-
-  .a-icon {
-    color: var(--c-d3);
-    font-size: 20px;
-    display: contents;
-  }
-
-  .a-icon > svg {
-    margin-block: auto;
-  }
-
   .about-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(310px, auto));
     margin-top: 80px;
+    margin-bottom: 80px;
     gap: 24px;
   }
 
-  footer p {
-    margin: 0;
-  }
-
-  nav {
-    display: flex;
-    gap: 15px;
-  }
-
-  header nav {
-    margin-top: 3px;
-  }
-
-  a.external-link {
-    display: flex;
-    align-items: center;
-    color: var(--c-d3);
-    transition: color 0.25s;
-    text-decoration: none;
-  }
-
-  a.external-link:hover {
-    color: var(--c-brand);
-  }
-
-  p {
+  main p {
     line-height: 1.5;
     color: #3c3c43bf;
-  }
-
-  .external-link > svg {
-    display: inline-block;
-    margin-left: 3px;
-    width: 11px;
-    height: 11px;
-    fill: var(--c-d3);
-    transition: fill 0.25s;
-    flex-shrink: 0;
-  }
-
-  .a-icon::before {
-    margin-right: 8px;
-    margin-left: 8px;
-    width: 1px;
-    height: 24px;
-    background-color: #5858583a;
-    content: '';
-    pointer-events: none;
   }
 
   .box {
@@ -461,8 +235,6 @@
     .intro-text {
       font-size: 1.3rem;
     }
-    header > div,
-    footer > div,
     .main-section {
       padding-inline: 24px;
     }
@@ -493,23 +265,12 @@
     .intro-text {
       font-size: 1.1rem;
     }
-    footer {
-      font-size: 0.9rem;
-      margin-top: 40px;
-    }
-    header > div,
-    footer > div,
     .main-section {
       padding-inline: 22px;
     }
   }
 
   @media only screen and (max-width: 665px) {
-    footer {
-      font-size: 0.8rem;
-    }
-    header > div,
-    footer > div,
     .main-section {
       padding-inline: 20px;
     }
@@ -519,8 +280,6 @@
     .about-grid {
       gap: 18px;
     }
-    header > div,
-    footer > div,
     .main-section {
       padding-inline: 18px;
     }
@@ -536,19 +295,12 @@
     .intro-text {
       font-size: 1rem;
     }
-    header > div,
-    footer > div,
     .main-section {
       padding-inline: 15px;
-    }
-    nav {
-      gap: 8px;
     }
   }
 
   @media only screen and (max-width: 380px) {
-    header > div,
-    footer > div,
     .main-section {
       padding-inline: 12px;
     }

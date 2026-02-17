@@ -5,9 +5,9 @@ GazePlotter is a Svelte application for visualizing eye-tracking data. It automa
 You can use it in your Svelte project as it can be imported as Svelte component via npm package `gazeplotter`.
 
 Go to:
+
 - [Working GazePlotter app](https://gazeplotter.com)
-- [Guide](https://docs.gazeplotter.com)
-- [Guide repo](https://github.com/misavojte/GazePlotterDocs)
+- [Guide](https://gazeplotter.com/docs)
 - [npm package](https://www.npmjs.com/package/gazeplotter)
 
 ## Developing
