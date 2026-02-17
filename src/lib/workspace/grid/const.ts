@@ -10,6 +10,7 @@ export const DEFAULT_GRID_STATE_DATA: Array<
   { type: 'scarf', x: 0, y: 0 },
   { type: 'transitionMatrix', x: 20, y: 0, w: 12, h: 12 },
   { type: 'barPlot', x: 0, y: 12, w: 12, h: 12 },
+  { type: 'aoiStreamPlot', x: 12, y: 12, w: 12, h: 12 },
 ]
 
 // Default grid configuration
