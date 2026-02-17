@@ -44,12 +44,14 @@
   const orderDirectionSync = new PreviewSync(settings.orderDirection)
   const minScaleSync = new PreviewSync(settings.scaleRange?.[0] ?? 0)
   const maxScaleSync = new PreviewSync(settings.scaleRange?.[1] ?? 0)
+  const barPlottingTypeSync = new PreviewSync(settings.barPlottingType)
 
   $effect(() => {
     orderBySync.updateCommitted(settings.orderBy, true)
     orderDirectionSync.updateCommitted(settings.orderDirection, true)
     minScaleSync.updateCommitted(settings.scaleRange?.[0] ?? 0, true)
     maxScaleSync.updateCommitted(settings.scaleRange?.[1] ?? 0, true)
+    barPlottingTypeSync.updateCommitted(settings.barPlottingType, true)
   })
 
   // Grouping for the component
@@ -58,12 +60,14 @@
     orderDirection: orderDirectionSync,
     minScale: minScaleSync,
     maxScale: maxScaleSync,
+    barPlottingType: barPlottingTypeSync,
   }
 
   const effectiveSettings = $derived({
     ...settings,
     orderBy: orderBySync.value,
     orderDirection: orderDirectionSync.value,
+    barPlottingType: barPlottingTypeSync.value,
     scaleRange: [minScaleSync.value, maxScaleSync.value] as [number, number],
   })
 
@@ -89,11 +93,15 @@
         updates.scaleRange = [minScaleSync.value, maxScaleSync.value]
       }
 
+      if (barPlottingTypeSync.isDirty)
+        updates.barPlottingType = barPlottingTypeSync.value
+
       if (Object.keys(updates).length === 0) {
         orderBySync.reset()
         orderDirectionSync.reset()
         minScaleSync.reset()
         maxScaleSync.reset()
+        barPlottingTypeSync.reset()
         return
       }
 
@@ -108,6 +116,7 @@
       orderDirectionSync.reset()
       minScaleSync.reset()
       maxScaleSync.reset()
+      barPlottingTypeSync.reset()
     })
   }
 
@@ -152,7 +161,7 @@
         },
         closeOnAction: false,
         component: BarPlotOrderingSettings,
-        componentHeight: 100,
+        componentHeight: 155,
         componentProps: {
           syncs,
         },
@@ -177,7 +186,7 @@
       {height}
       data={labelededBarPlotData}
       {timeline}
-      barPlottingType={settings.barPlottingType}
+      barPlottingType={effectiveSettings.barPlottingType}
       barWidth={200}
       barSpacing={20}
       onDataHover={() => {}}

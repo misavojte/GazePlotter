@@ -9,6 +9,7 @@
       orderDirection: { value: BarPlotGridType['orderDirection'] }
       minScale: { value: number }
       maxScale: { value: number }
+      barPlottingType: { value: BarPlotGridType['barPlottingType'] }
     }
     close: () => void
   }
@@ -23,6 +24,41 @@
 
 <div class="settings-container">
   <form onsubmit={handleSubmit}>
+    <div class="order-row">
+      <!-- Bar Orientation Section -->
+      <label class="column-label">Bar orientation</label>
+      <div class="order-columns">
+        <div class="column">
+          <div class="radio-group">
+            <label class="radio-label">
+              <input
+                type="radio"
+                name="barPlottingType"
+                value="horizontal"
+                bind:group={syncs.barPlottingType.value}
+              />
+              <span>Horizontal</span>
+            </label>
+          </div>
+        </div>
+        <div class="column">
+          <div class="radio-group">
+            <label class="radio-label">
+              <input
+                type="radio"
+                name="barPlottingType"
+                value="vertical"
+                bind:group={syncs.barPlottingType.value}
+              />
+              <span>Vertical</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="separator"></div>
+
     <div class="order-row">
       <div class="order-columns">
         <div class="column">
