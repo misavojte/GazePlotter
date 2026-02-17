@@ -11,8 +11,8 @@ You can also download GazePlotter as a PWA and run it locally on your computer. 
 
 ## List of advanced features
 
-- [Source Metadata](/docs/advanced/source-metadata) - View detailed information about your data processing and system usage
-- [Download GazePlotter](/docs/advanced/download-gazeplotter)
-- [Build & dev GazePlotter from source code](/docs/advanced/app-dev-build)
-- [Build & dev GazePlotter Docs from source code](/docs/advanced/docs-dev-build)
-- [Segmented Data workflows](/docs/advanced/segmented-data-workflows)
+- [Source Metadata](/docs/advanced/source-metadata/) - View detailed information about your data processing and system usage
+- [Download GazePlotter](/docs/advanced/download-gazeplotter/)
+- [Build & dev GazePlotter from source code](/docs/advanced/app-dev-build/)
+- [Build & dev GazePlotter Docs from source code](/docs/advanced/docs-dev-build/)
+- [Segmented Data workflows](/docs/advanced/segmented-data-workflows/)

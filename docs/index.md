@@ -28,13 +28,13 @@ Whether you're a researcher analyzing attention patterns, a student learning abo
 
 GazePlotter supports data from all major eye-tracking platforms:
 
-- **[Tobii Pro Lab](/docs/upload-data/tobii-pro-lab)** - Full feature support with dynamic AOI visibility
-- **[SMI BeGaze](/docs/upload-data/smi-begaze)** - Complete compatibility including overlapping AOI handling
-- **[OGAMA](/docs/upload-data/ogama)** - Sequence analysis support
-- **[GazePoint](/docs/upload-data/gazepoint)** - Direct data import
-- **[Varjo](/docs/upload-data/varjo)** - VR/AR eye-tracking data
-- **[Pupil Cloud](/docs/upload-data/pupil-cloud)** - Multi-surface support with AOI mapping
-- **[Custom CSV](/docs/upload-data/custom-csv)** - Flexible format for any eye-tracker
+- **[Tobii Pro Lab](/docs/upload-data/tobii-pro-lab/)** - Full feature support with dynamic AOI visibility
+- **[SMI BeGaze](/docs/upload-data/smi-begaze/)** - Complete compatibility including overlapping AOI handling
+- **[OGAMA](/docs/upload-data/ogama/)** - Sequence analysis support
+- **[GazePoint](/docs/upload-data/gazepoint/)** - Direct data import
+- **[Varjo](/docs/upload-data/varjo/)** - VR/AR eye-tracking data
+- **[Pupil Cloud](/docs/upload-data/pupil-cloud/)** - Multi-surface support with AOI mapping
+- **[Custom CSV](/docs/upload-data/custom-csv/)** - Flexible format for any eye-tracker
 
 ### Data Export
 
@@ -44,7 +44,7 @@ GazePlotter supports data from all major eye-tracking platforms:
 
 - **Complete Privacy** - All processing happens locally in your browser; no data ever leaves your device
 - **No Registration** - Start analyzing immediately without accounts or sign-ups
-- **Progressive Web App** - [Install as desktop app](/docs/advanced/download-gazeplotter) or use directly in browser
+- **Progressive Web App** - [Install as desktop app](/docs/advanced/download-gazeplotter/) or use directly in browser
 - **Cross-Platform** - Works on Windows, Mac, Linux, and mobile devices
 - **Offline Capable** - Continue working without internet connection
 
@@ -55,7 +55,7 @@ Ready to visualize your eye-tracking data? Choose your path:
 - **New to GazePlotter?** Start with [uploading your data](/docs/upload-data/#upload-data-button) to see your first visualization
 - **Ready to analyze?** Explore [basic functionality](/docs/basic/) to learn about plots and customization
 - **Need advanced features?** Check out [export options](/docs/export/) and [advanced capabilities](/docs/advanced/)
-- **Want to edit your data?** Use [Segmented Data workflows](/docs/advanced/segmented-data-workflows) to crop segments or split stimuli
+- **Want to edit your data?** Use [Segmented Data workflows](/docs/advanced/segmented-data-workflows/) to crop segments or split stimuli
 
 ## Open Source & Community
 

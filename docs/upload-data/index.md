@@ -9,7 +9,7 @@ GazePlotter is a web application for visualizing gaze data from eye-tracking sof
 
 The workspace is designed to be easy to use and to provide a quick overview of the data and is available at [gazeplotter.com](https://gazeplotter.com).
 
-On loading the workspace, you will see a demo data visualization. The demo data is a sample of the data from the [Tobii Pro Lab](/docs/upload-data/tobii-pro-lab) software. The demo data contains information about _fixations_ (and AOI hits) and _saccades_. Only other eye-movement category is _EyesNotFound_.
+On loading the workspace, you will see a demo data visualization. The demo data is a sample of the data from the [Tobii Pro Lab](/docs/upload-data/tobii-pro-lab/) software. The demo data contains information about _fixations_ (and AOI hits) and _saccades_. Only other eye-movement category is _EyesNotFound_.
 
 ## Upload data button
 
@@ -19,13 +19,13 @@ You can upload your own eye-tracking data files to the GazePlotter workspace. Th
 
 The workspace supports the following file types:
 
-- [Tobii Pro Lab](/docs/upload-data/tobii-pro-lab)
-- [OGAMA](/docs/upload-data/ogama)
-- [GazePoint](/docs/upload-data/gazepoint)
-- [SMI BeGaze](/docs/upload-data/smi-begaze)
-- [Varjo XR](/docs/upload-data/varjo)
-- [Pupil Cloud](/docs/upload-data/pupil-cloud)
-- [Custom CSV](/docs/upload-data/custom-csv)
+- [Tobii Pro Lab](/docs/upload-data/tobii-pro-lab/)
+- [OGAMA](/docs/upload-data/ogama/)
+- [GazePoint](/docs/upload-data/gazepoint/)
+- [SMI BeGaze](/docs/upload-data/smi-begaze/)
+- [Varjo XR](/docs/upload-data/varjo/)
+- [Pupil Cloud](/docs/upload-data/pupil-cloud/)
+- [Custom CSV](/docs/upload-data/custom-csv/)
 
 ### workspace data import
 

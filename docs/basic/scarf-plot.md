@@ -50,7 +50,7 @@ The following timeline representations are available:
 ![](/docs/images/timeline-3.png)
 
 ::: warning
-Some data, e.g. from [OGAMA software](/docs/upload-data/ogama), support only ordinal time representation.
+Some data, e.g. from [OGAMA software](/docs/upload-data/ogama/), support only ordinal time representation.
 :::
 
 ## Interactivity
@@ -102,20 +102,20 @@ GazePlotter supports the upload of AOI visibility data, allowing for the effecti
 ### Getting AOI visibility data
 
 ::: warning
-This feature is available only for [SMI BeGaze](/docs/upload-data/smi-begaze) and [Tobii Pro Lab](/docs/upload-data/tobii-pro-lab) data.
+This feature is available only for [SMI BeGaze](/docs/upload-data/smi-begaze/) and [Tobii Pro Lab](/docs/upload-data/tobii-pro-lab/) data.
 :::
 
 #### From SMI BeGaze
 
 In the SMI BeGaze software, open `AOI Editor`. Export the AOI visibility data as `.xml` file by clicking `Save` button. In this file, you can find the information about the visibility of each AOI in a given stimulus.
 
-The exported file can be then simply added to the workspace to already uploaded [SMI BeGaze](/docs/upload-data/smi-begaze) data, see below.
+The exported file can be then simply added to the workspace to already uploaded [SMI BeGaze](/docs/upload-data/smi-begaze/) data, see below.
 
 #### From Tobii Pro Lab
 
 In the Tobii Pro Lab software, open `AOI` tab. Export the AOI visibility data as `.xml` file by clicking `Export` button. In this file, you can find the information about the visibility of each AOI in a given stimulus.
 
-The exported file can be then simply added to the workspace to already uploaded [Tobii Pro Lab](/docs/upload-data/tobii-pro-lab) data, see below.
+The exported file can be then simply added to the workspace to already uploaded [Tobii Pro Lab](/docs/upload-data/tobii-pro-lab/) data, see below.
 
 ### Adding AOI visibility data to the workspace
 

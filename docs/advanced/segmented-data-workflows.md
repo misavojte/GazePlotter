@@ -18,13 +18,13 @@ If you need to remove the first few seconds of a recording (e.g., initial instru
 2. Find the stimuli and participants you want to crop.
 3. Delete the rows for the early fixations/saccades.
 4. Export as CSV.
-5. Re-upload via [Segmented Duration CSV](/docs/upload-data/custom-csv#segmented-duration-csv).
+5. Re-upload via [Segmented Duration CSV](/docs/upload-data/custom-csv/#segmented-duration-csv).
 
 **Result**: The upload will re-normalize timestamps so the first remaining segment of that participant × stimulus starts at 0.
 
 ## Required CSV format
 
-When editing the exported CSV, retain the column structure required by the [Segmented Duration CSV](/docs/upload-data/custom-csv#segmented-duration-csv) format:
+When editing the exported CSV, retain the column structure required by the [Segmented Duration CSV](/docs/upload-data/custom-csv/#segmented-duration-csv) format:
 
 - `timestamp` - start time of the segment
 - `duration` - duration of the segment
@@ -48,9 +48,9 @@ When editing the exported CSV, retain the column structure required by the [Segm
 3. Filter to the participant and stimulus of interest.
 4. Remove the first N rows (segments) you wish to crop.
 5. Save the CSV.
-6. Reâ€‘upload using [Segmented Duration CSV](/docs/upload-data/custom-csv#segmented-duration-csv).
+6. Re-upload using [Segmented Duration CSV](/docs/upload-data/custom-csv/#segmented-duration-csv).
 
-Result: The upload will reâ€‘normalize timestamps so the first remaining segment of that participant Ã— stimulus starts at 0.
+Result: The upload will re-normalize timestamps so the first remaining segment of that participant Ã— stimulus starts at 0.
 
 ![](/docs/images/segmented-data-workflow_1.jpg)
 
@@ -66,7 +66,7 @@ Result: The upload will reâ€‘normalize timestamps so the first remaining se
 2. Duplicate and assign subsets of rows to new stimulus names (e.g., `Stimulus A`, `Stimulus B`).
 3. Ensure each subset contains only one stimulus label and consistent participant labels.
 4. Save as a single CSV or separate CSV files.
-5. Reâ€‘upload via [Segmented Duration CSV](/docs/upload-data/custom-csv#segmented-duration-csv).
+5. Re-upload via [Segmented Duration CSV](/docs/upload-data/custom-csv/#segmented-duration-csv).
 
 Result: Each participant Ã— stimulus subset gets its own baseline (time 0) on upload.
 
@@ -77,7 +77,7 @@ Result: Each participant Ã— stimulus subset gets its own baseline (time 0) on
 3. Create separate stimulus names for each phase (e.g., `Task_Introduction`, `Task_Main`, `Task_Conclusion`).
 4. Rename values in the `stimulus` column to match the new stimulus names based on their timestamps.
 5. Save the modified CSV.
-6. Reâ€‘upload via [Segmented Duration CSV](/docs/upload-data/custom-csv#segmented-duration-csv).
+6. Re-upload via [Segmented Duration CSV](/docs/upload-data/custom-csv/#segmented-duration-csv).
 
 Result: Each task phase becomes a separate stimulus with its own baseline, enabling analysis of different processing stages.
 
@@ -89,5 +89,5 @@ Result: Each task phase becomes a separate stimulus with its own baseline, enabl
 
 ## Related documentation
 
-- [Custom CSV upload](/docs/upload-data/custom-csv)
+- [Custom CSV upload](/docs/upload-data/custom-csv/)
 - [Segmented Data export](/docs/export/segmented-data/)

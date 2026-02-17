@@ -123,7 +123,7 @@ Eye movement types: `0` = Fixation, `1` = Saccade
 :::
 
 ::: tip Advanced workflows
-The Segmented Duration format enables powerful data editing workflows. Export your data as [Segmented Data CSV](/docs/export/segmented-data/), edit it in Excel or a text editor (crop segments, split stimuli), then re-upload using this format. See [Segmented Data workflows](/docs/advanced/segmented-data-workflows) for detailed examples.
+The Segmented Duration format enables powerful data editing workflows. Export your data as [Segmented Data CSV](/docs/export/segmented-data/), edit it in Excel or a text editor (crop segments, split stimuli), then re-upload using this format. See [Segmented Data workflows](/docs/advanced/segmented-data-workflows/) for detailed examples.
 :::
 
 ### Example

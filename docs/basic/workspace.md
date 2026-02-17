@@ -30,7 +30,7 @@ Vertical control panel on the left side providing quick workspace management:
 - **Reset Layout** - Reorganize plots into clean grid layout
 - **Add Visualization** - Create new [scarf plots](/docs/basic/scarf-plot/), [bar plots](/docs/basic/bar-plot/), or [transition matrices](/docs/basic/transition-matrix/)
 - **Toggle Fullscreen** - Distraction-free analysis mode
-- **Source Metadata** - View detailed information about your data processing and system usage ([details](/docs/advanced/source-metadata))
+- **Source Metadata** - View detailed information about your data processing and system usage ([details](/docs/advanced/source-metadata/))
 
 ## Workspace Export & State Preservation
 

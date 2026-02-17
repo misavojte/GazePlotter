@@ -87,7 +87,12 @@ export async function getDocs() {
 
 export async function getDoc(slug: string) {
   const docs = await getDocs()
-  const doc = docs.find(d => d.slug === slug)
+
+  // Normalize lookup slug to remove trailing slash for consistent matching
+  // (Since getDocs generates slugs without trailing slashes)
+  const normalizedSlug = slug.endsWith('/') ? slug.slice(0, -1) : slug
+
+  const doc = docs.find(d => d.slug === normalizedSlug)
 
   if (!doc) return null
 
