@@ -21,131 +21,100 @@ Interested on how to operate with plots in general within the workspace? See:
 
 ## Overview
 
-The Transition Matrix displays a square matrix where:
+The Transition Matrix displays a square matrix where rows represent the "FROM" AOI (where gaze started), columns represent the "TO" AOI (where gaze moved) and cell values show the strength of transitions using color intensity.
 
-- **Rows** represent the "FROM" AOI (where gaze started)
-- **Columns** represent the "TO" AOI (where gaze moved)
-- **Cell values** show the strength of transitions using color intensity
-- **Colors** range from light (few/no transitions) to dark (many transitions)
+## Basic Controls
 
-Each cell (i,j) represents transitions from AOI i to AOI j, with an additional "NO AOI" category for areas outside defined AOIs.
+In GazePlotter, transition matrices have the following main controls:
 
-## Main Controls
+- **Stimulus** - a drop-down menu for selecting the stimulus to be analyzed.
+- **Group** - a drop-down menu for selecting the participant group (e.g., All participants or custom groups). See [Participant Groups](/docs/basic/groups/).
+- **View** - a drop-down menu for selecting the data representation or aggregation method to be displayed. See [View Options](#view-options) below.
+- **More options** (⋮) - a button for accessing additional customization and export options. See [More Options](#more-options).
 
-### Stimulus Selection
+## View Options
 
-Choose which stimulus to analyze using the `Stimulus` dropdown. Each stimulus contains its own set of AOIs that will be displayed in the matrix.
+The `View` dropdown determines what metric is calculated and displayed. Clicking on a view option opens a settings dialog with customizable parameters for the plot.
 
-### Group Selection
+### Absolute frequency
 
-Select participant groups using the `Group` dropdown:
+Raw number of transitions between AOI pairs summed across all participants.
 
-- **All participants** - includes data from all participants
-- **Custom groups** - analyze specific participant groups created in the grouping interface
+| Parameter   | Description                                                                       |
+| ----------- | --------------------------------------------------------------------------------- |
+| Scale Range | Customize the value axis minimum and maximum for color intensity (0 = Auto)       |
+| Colors      | Select the minimum, middle, and maximum colors for the transition matrix gradient |
 
-### Aggregation Methods
+### Relative frequency
 
-The `Aggregation` dropdown determines how transition data is calculated and displayed:
+Percentage of all transitions that occur between each AOI pair.
 
-#### Absolute frequency
+| Parameter   | Description                                                                       |
+| ----------- | --------------------------------------------------------------------------------- |
+| Scale Range | Customize the value axis minimum and maximum for color intensity (0 = Auto)       |
+| Colors      | Select the minimum, middle, and maximum colors for the transition matrix gradient |
 
-- **Description**: Raw number of transitions between AOI pairs summed across all participants
-- **Values**: Integer counts (e.g., 5, 12, 23)
-- **Use case**: Understanding absolute frequency of gaze movements between AOIs
+### 1-step probability
 
-#### Relative frequency
+Conditional probability of transitioning TO each AOI given you're coming FROM a specific AOI.
 
-- **Description**: Percentage of all transitions that occur between each AOI pair
-- **Values**: Percentages (0-100%) where all cells sum to 100%
-- **Use case**: Understanding the relative importance of each transition path compared to all transitions in the stimulus
+| Parameter   | Description                                                                       |
+| ----------- | --------------------------------------------------------------------------------- |
+| Scale Range | Customize the value axis minimum and maximum for color intensity (0 = Auto)       |
+| Colors      | Select the minimum, middle, and maximum colors for the transition matrix gradient |
 
-#### 1-step probability
+### 2-step probability
 
-- **Description**: Conditional probability of transitioning TO each AOI given you're coming FROM a specific AOI
-- **Values**: Percentages (0-100%) where each row sums to 100%
-- **Use case**: Understanding direct gaze flow patterns - what percentage of the time does gaze move from AOI A to AOI B?
+Probability of reaching each AOI after exactly 2 transitions (via one intermediate AOI).
 
-#### 2-step probability
+| Parameter   | Description                                                                       |
+| ----------- | --------------------------------------------------------------------------------- |
+| Scale Range | Customize the value axis minimum and maximum for color intensity (0 = Auto)       |
+| Colors      | Select the minimum, middle, and maximum colors for the transition matrix gradient |
 
-- **Description**: Probability of reaching each AOI after exactly 2 transitions (via one intermediate AOI)
-- **Values**: Percentages (0-100%) where each row sums to 100%
-- **Use case**: Understanding indirect gaze patterns - what percentage of the time does gaze follow the path A→X→B?
+### 3-step probability
 
-#### 3-step probability
+Probability of reaching each AOI after exactly 3 transitions (via two intermediate AOIs).
 
-- **Description**: Probability of reaching each AOI after exactly 3 transitions (via two intermediate AOIs)
-- **Values**: Percentages (0-100%) where each row sums to 100%
-- **Use case**: Understanding longer gaze sequences - what percentage of the time does gaze follow the path A→X→Y→B?
+| Parameter   | Description                                                                       |
+| ----------- | --------------------------------------------------------------------------------- |
+| Scale Range | Customize the value axis minimum and maximum for color intensity (0 = Auto)       |
+| Colors      | Select the minimum, middle, and maximum colors for the transition matrix gradient |
 
-#### Fixation duration
+### Fixation duration
 
-- **Description**: Average duration of individual fixations in the "FROM" AOI before making a transition
-- **Values**: Time in milliseconds per individual fixation
-- **Use case**: Understanding how long single fixations last before participants move their gaze
+Average duration of individual fixations in the "FROM" AOI before making a transition.
 
-#### Dwell duration
+| Parameter   | Description                                                                       |
+| ----------- | --------------------------------------------------------------------------------- |
+| Scale Range | Customize the value axis minimum and maximum for color intensity (0 = Auto)       |
+| Colors      | Select the minimum, middle, and maximum colors for the transition matrix gradient |
 
-- **Description**: Average total duration of consecutive fixations on the same AOI before transitioning to a different AOI
-- **Values**: Time in milliseconds for entire segments (e.g., if sequence is A,A,A,A→B, this measures total time of all A fixations)
-- **Use case**: Understanding how long participants dwell on an AOI before switching attention, regardless of number of individual fixations
+### Dwell duration
 
-## Matrix Features
+Average total duration of consecutive fixations on the same AOI before transitioning to a different AOI.
 
-### Visual Encoding
+| Parameter   | Description                                                                       |
+| ----------- | --------------------------------------------------------------------------------- |
+| Scale Range | Customize the value axis minimum and maximum for color intensity (0 = Auto)       |
+| Colors      | Select the minimum, middle, and maximum colors for the transition matrix gradient |
 
-- **Color intensity** - darker colors indicate stronger transitions
-- **Cell size** - automatically adjusted based on number of AOIs
-- **Labels** - AOI names displayed on both axes
-- **Legend** - color scale with value range indicators
+## More Options
 
-### Interactive Elements
+The transition matrix menu (⋮) provides quick access to:
 
-- **Hover tooltips** - display exact transition values when hovering over cells
-- **Menu button** (⋮) - provides access to customization and export options
-
-## Customization Options
-
-Access advanced customization through the menu button (⋮):
-
-### Color Scale Customization
-
-- **Color range** - modify the color gradient used for value mapping
-- **Custom colors** - set specific colors for minimum and maximum values
-- **Value thresholds** - define custom minimum and maximum values for color scaling
-
-### Color Range Values
-
-- **Min/Max values** - set specific thresholds for color mapping
-- **Auto-scaling** - automatically adjust to data range when values are set to 0
-- **Out-of-range colors** - customize colors for values below/above thresholds
+- **Stimulus customization** - Manage stimulus properties and settings. See [Stimuli Customization](/docs/basic/stimuli-customization/) for details.
+- **Download plot** - Export the visualization as an image file.
 
 ## Download Plot
 
 Export individual transition matrices as image files through the menu button (⋮) → **Download plot**:
-
-### Export Options
 
 - **File formats**: PNG (recommended, transparent background) or JPG (white background)
 - **Dimensions**: Customizable width (height maintained as square for proper matrix proportions)
 - **Quality**: Adjustable DPI setting for screen (96 DPI) or print (300 DPI) use
 - **Margins**: Configurable top, right, bottom, left margins
 - **Preview**: Live preview of your exported plot before downloading
-
-### Usage
-
-1. Click the menu button (⋮) in the transition matrix
-2. Select **Download plot**
-3. Adjust export settings as needed
-4. Preview your matrix in the dialog
-5. Click **Download** to save the file
-
-## Additional Menu Options
-
-The transition matrix menu (⋮) provides quick access to:
-
-- **Stimulus customization** - Manage stimulus properties and settings. See [Stimuli Customization](/docs/basic/stimuli-customization/) for details.
-
-These options allow you to modify your data presentation without leaving the transition matrix view.
 
 ## Interpretation
 

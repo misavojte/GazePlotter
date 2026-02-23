@@ -18,34 +18,57 @@ Interested on how to operate with plots in general within the workspace? See:
 - [How to remove a plot?](/docs/basic/workspace/#how-to-remove-a-plot)
   :::
 
-## Basic controls
+## Overview
 
-In GazePlotter, scarf plots have following main controls:
+The Scarf plot visualization provides a comprehensive chronological view of individual gaze events across groups. It allows for detailed sequential analysis of how individuals visually process stimuli over time.
 
-1. **Title** - the title of the scarf plot, which can be changed by clicking on it.
-2. **Stimulus selector** - a drop-down menu for selecting the stimulus to be displayed in the scarf plot.
-3. **Timeline selector** - a drop-down menu for selecting the timeline type to be displayed in the scarf plot (absolute, relative, ordinal; see [Timeline representations](#timeline-representations)).
-4. **Group selector** - a drop-down menu for selecting the group of participants to be displayed in the scarf plot (see [Groups](/docs/basic/groups/)).
-5. **Zoom in/out** - buttons for zooming in and out of the scarf plot.
-6. **More options** - a button for accessing additional options for the scarf plot (see [More options](#more-options)).
+## Basic Controls
+
+In GazePlotter, scarf plots have the following main controls:
+
+- **Stimulus** - a drop-down menu for selecting the stimulus to be analyzed.
+- **Group** - a drop-down menu for selecting the participant group (e.g., All participants or custom groups). See [Participant Groups](/docs/basic/groups/).
+- **View** - a drop-down menu for selecting the data representation or aggregation method to be displayed. See [View Options](#view-options) below.
+- **More options** (⋮) - a button for accessing additional customization and export options. See [More Options](#more-options).
+
+> Note: Zooming controls and a reset view button are also available directly on the header to temporally navigate your scarf plot quickly.
 
 ![](/docs/images/1.png)
 
-## Timeline Representations
+## View Options
 
-In GazePlotter's scarf plots, you can switch between different timeline representations just by clicking on the timeline representation button.
+The `View` dropdown determines what timeline representation is calculated and displayed. Clicking on a view option opens a settings dialog with customizable parameters for the plot.
 
-### Available timelines in scarf plots
+### Absolute time
 
-The following timeline representations are available:
+Displays fixations and events plotted in their exact chronological timing (in milliseconds).
 
-1. absolute time (in milliseconds)
-2. relative time (to the duration of the dwell time of the participant with the highest dwell time)
-3. ordinal time (just order indices of the individual fixations, saccades and other events like blinks)
+| Parameter          | Description                                                                                    |
+| ------------------ | ---------------------------------------------------------------------------------------------- |
+| Time Range [ms]    | Limit the temporal bounds displayed in the plot (Start / End, where 0 = Auto)                  |
+| Hide non-fixations | Toggle visibility of saccades, blinks, and other non-fixation events to declutter the sequence |
 
 ![](/docs/images/timeline-1.png)
 
+### Relative time
+
+Displays sequences proportional to the duration of the participant with the longest dwell time for comparability.
+
+| Parameter                       | Description                                                                                    |
+| ------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Calculated from Time Range [ms] | Limit the temporal range based on absolute time from which relative percentages are formed     |
+| Hide non-fixations              | Toggle visibility of saccades, blinks, and other non-fixation events to declutter the sequence |
+
 ![](/docs/images/timeline-2.png)
+
+### Ordinal time
+
+Displays strict sequential order indices of individual fixations, saccades, and other events, discarding exact durations.
+
+| Parameter               | Description                                                                                    |
+| ----------------------- | ---------------------------------------------------------------------------------------------- |
+| Ordinal Range [indices] | Limit the indices sequence displayed in the plot (Start / End, where 0 = Auto)                 |
+| Hide non-fixations      | Toggle visibility of saccades, blinks, and other non-fixation events to declutter the sequence |
 
 ![](/docs/images/timeline-3.png)
 
@@ -72,9 +95,9 @@ In the legend, you can highlight all segments of a specific category (fixations,
 
 ![](/docs/images/3.png)
 
-## More options
+## More Options
 
-After clicking on the `More options` button, a pop-up menu with additional options for the scarf plot will appear. The following options are available:
+The scarf plot menu (⋮) provides quick access to customization and specific features:
 
 ### Customization Options
 
@@ -83,10 +106,9 @@ After clicking on the `More options` button, a pop-up menu with additional optio
 - **Participant customization** - Customize individual participant properties and metadata. See [Participants Customization](/docs/basic/participants-customization/) for details.
 - **Setup participants groups** - Create and modify participant groups for comparative analysis. See [Participant Groups](/docs/basic/groups/) for details.
 
-### Data and Timeline Options
+### Data Options
 
 - **AOI visibility** - Add dynamic AOI visibility data to enhance visualization (see [Adding AOI visibility data](#adding-aoi-visibility-data)).
-- **Clip timeline** - Modify timeline ranges and limits for focused analysis (see [Clipping the timeline](#clipping-the-timeline)).
 
 ### Export Options
 
@@ -135,46 +157,15 @@ Each AOI visibility data is represented by a colored line. This is expanded and 
 
 ![](/docs/images/aoi-visibility-2.png)
 
-## Clipping the timeline
-
-Clip timeline is a feature in GazePlotter that allows you to clip the timeline of the scarf plot to a specific time interval. This can be useful for focusing on a specific part of the data, or unifying the timeline across multiple scarf plots for easier comparison.
-
-### Steps for clipping the timeline
-
-Steps and width of the absolute time timeline is by default determined automatically (value = 0). Steps and the highest value are set to display the whole timeline in a 'nice' way. You can modify the highest value of the absolute timeline and ordinal timeline by:
-
-1. Click on the `More options` button in the top right corner of the scarf plot.
-2. Select `Clip timeline` from the pop-up menu.
-3. In the `Clip timeline` window, you can set the highest value of the absolute timeline in `ms`.
-4. Then, you choose whether to apply the changes only to the current stimulus or to all stimuli in the data.
-5. Similarly, you can set the highest value of the ordinal timeline in `index` values (e.g., if we want to keep only the first 10 eye movement segments, we set the highest value to 10).
-6. After you are done with the changes, click on the `Apply` button. The scarf plot will be updated with the changes. Leaving the `Clip timeline` window without applying the changes will discard the changes.
-
-![](/docs/images/clip-timeline-1.png)
-
-::: warning
-If you change the width of the absolute time timeline to lower value than the width of the longest scanpath, the scanpath will be cut off.
-:::
-
 ## Download Plot
 
 Export individual scarf plots as image files through the menu button (⋮) → **Download plot**:
-
-### Export Options
 
 - **File formats**: PNG (recommended, transparent background) or JPG (white background)
 - **Dimensions**: Customizable width (height calculated automatically based on content)
 - **Quality**: Adjustable DPI setting for screen (96 DPI) or print (300 DPI) use
 - **Margins**: Configurable top, right, bottom, left margins (negative values crop the image)
 - **Preview**: Live preview of your exported plot before downloading
-
-### Usage
-
-1. Click the menu button (⋮) in the scarf plot
-2. Select **Download plot**
-3. Adjust export settings as needed
-4. Preview your plot in the dialog
-5. Click **Download** to save the file
 
 ## Export Data
 
