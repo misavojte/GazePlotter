@@ -1,6 +1,6 @@
 ---
 title: Participants customization
-order: 9
+order: 10
 ---
 
 # Participants customization

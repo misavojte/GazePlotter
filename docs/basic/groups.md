@@ -1,6 +1,6 @@
 ---
 title: Participant grouping
-order: 6
+order: 7
 ---
 
 # Participant grouping

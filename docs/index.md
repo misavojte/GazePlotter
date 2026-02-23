@@ -1,5 +1,4 @@
 ---
-
 title: Introduction
 order: 1
 ---
@@ -17,6 +16,7 @@ Whether you're a researcher analyzing attention patterns, a student learning abo
 - **[Scarf Plots](/docs/basic/scarf-plot/)** - Interactive timeline visualizations showing gaze sequences and patterns over time
 - **[Bar Plots](/docs/basic/bar-plot/)** - Statistical analysis with metrics like dwell time, fixation count, and time to first fixation
 - **[Transition Matrices](/docs/basic/transition-matrix/)** - Heat map visualizations of gaze movement patterns between Areas of Interest
+- **[Time-binned AOI Occupancy](/docs/basic/aoi-occupancy/)** - Flowing visualizations showing the distribution of attention over time
 
 ### Workspace Management
 
@@ -69,8 +69,3 @@ GazePlotter is open-source software licensed under GNU GPL v3, ensuring it remai
 
 **Academic Use:**
 If you use GazePlotter in your research, please consider citing our work to support continued development and help other researchers discover this tool.
-
-
-
-
-
