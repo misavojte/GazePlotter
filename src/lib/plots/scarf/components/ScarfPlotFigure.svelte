@@ -205,7 +205,13 @@
 
   // Use highlights directly from props - workspace is the single source of truth
   const usedHighlights = $derived(highlights)
-  const xAxisLabel = $derived(getXAxisLabel(settings.timeline))
+  const xAxisLabel = $derived(
+    getXAxisLabel(
+      settings.timeline,
+      settings.timelineStart,
+      settings.timelineEnd
+    )
+  )
 
   // Convert ScarfLegendItem (data-only) to LegendItem (with presentation details)
   // Heights are determined here in the presentation layer using layout constants

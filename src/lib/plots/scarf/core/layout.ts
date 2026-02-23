@@ -110,10 +110,24 @@ function getTimelineUnit(
  * Computes the x-axis label.
  */
 export function getXAxisLabel(
-  timelineType: 'absolute' | 'relative' | 'ordinal'
+  timelineType: 'absolute' | 'relative' | 'ordinal',
+  timelineStart = 0,
+  timelineEnd = 0
 ): string {
   if (timelineType === 'ordinal') return 'Order index'
-  return `Elapsed time [${getTimelineUnit(timelineType)}]`
+  if (timelineType === 'absolute') return 'Elapsed time [ms]'
+
+  // Scientific notation for relative view
+  let label = `Elapsed time [%]`
+  if (timelineStart > 0 && timelineEnd > 0) {
+    label += `, t ∈ [${timelineStart}, ${timelineEnd}] ms`
+  } else if (timelineStart > 0) {
+    label += `, t ≥ ${timelineStart} ms`
+  } else if (timelineEnd > 0) {
+    label += `, t ≤ ${timelineEnd} ms`
+  }
+
+  return label
 }
 /**
  * Creates a unified identifier mapping system for Scarf Plots.

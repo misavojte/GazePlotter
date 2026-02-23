@@ -88,7 +88,7 @@ The `Aggregation` dropdown determines what metric is calculated and displayed:
 - **Values**: Time in milliseconds
 - **Use case**: Understanding initial cognitive processing and attention engagement
 
-#### Hit ratios (seen %)
+#### Hit ratios (seen)
 
 - **Description**: Percentage of participants who looked at each AOI at least once
 - **Values**: Percentages (0-100%)

@@ -17,8 +17,11 @@
 
   // Types and constants
   import type { BarPlotGridType } from '$lib/workspace/type/gridType'
-  import type { BarPlotAggregationMethodId } from '$lib/plots/bar/const'
-  import { BAR_PLOT_AGGREGATION_METHODS } from '$lib/plots/bar/const'
+  import {
+    BAR_PLOT_AGGREGATION_METHODS,
+    getBarPlotAxisLabel,
+    type BarPlotAggregationMethodId,
+  } from '$lib/plots/bar/const'
   import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { PreviewSync } from '$lib/plots/shared'
@@ -83,6 +86,14 @@
   const barPlotResult = $derived(getBarPlotData(effectiveSettings))
   const labelededBarPlotData = $derived(barPlotResult.data)
   const timeline = $derived(barPlotResult.timeline)
+
+  const axisLabel = $derived(
+    getBarPlotAxisLabel(
+      effectiveSettings.aggregationMethod as BarPlotAggregationMethodId,
+      effectiveSettings.timelineStart,
+      effectiveSettings.timelineEnd
+    )
+  )
 
   // source for the workspace commands directly from the plot
   const source = $derived.by(() =>
@@ -203,6 +214,7 @@
       {height}
       data={labelededBarPlotData}
       {timeline}
+      {axisLabel}
       barPlottingType={effectiveSettings.barPlottingType}
       barWidth={200}
       barSpacing={20}

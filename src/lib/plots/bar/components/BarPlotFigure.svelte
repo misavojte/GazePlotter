@@ -6,6 +6,8 @@
     type AdaptiveTimeline,
     getTimelinePositionRatio,
     drawPlotOutline,
+    drawYAxisMainLabel,
+    drawXAxisLabel,
   } from '$lib/plots/shared'
   import {
     calculateLabelOffset,
@@ -36,7 +38,7 @@
   const MARGIN = {
     TOP: 30,
     RIGHT: 20,
-    BOTTOM: 30,
+    BOTTOM: 50,
   }
   const LABEL_FONT_SIZE = FONT_PRIMARY.SIZE
   const TICK_LENGTH = 5
@@ -55,6 +57,7 @@
       color: string
     }[]
     timeline: AdaptiveTimeline
+    axisLabel: string
     barPlottingType: 'horizontal' | 'vertical'
     barWidth: number
     barSpacing: number
@@ -73,6 +76,7 @@
     height,
     data,
     timeline,
+    axisLabel,
     barPlottingType,
     barWidth,
     barSpacing,
@@ -120,9 +124,10 @@
                 VALUE_LABEL_OFFSET
             ) + marginLeft
           : Math.max(
-              35,
+              65,
               calculateLabelOffset(timeline.ticks.map(tick => tick.label)) +
-                VALUE_LABEL_OFFSET
+                VALUE_LABEL_OFFSET +
+                30
             ) + marginLeft
       )
     )
@@ -332,6 +337,7 @@
     const floorWidth = Math.floor(plotAreaWidth)
     const floorTop = Math.floor(effectiveTopMargin + marginTop)
     const floorHeight = Math.floor(plotAreaHeight)
+    const floorBottom = floorTop + floorHeight
 
     // Draw plot area border
     drawPlotOutline(ctx, floorLeft, floorTop, floorWidth, floorHeight)
@@ -344,6 +350,20 @@
 
     // Draw all text elements (value labels, category labels, tick labels)
     drawAllTextElements(ctx, floorLeft, floorWidth, floorTop, floorHeight)
+
+    // Draw main axis labels
+    if (barPlottingType === 'vertical') {
+      drawYAxisMainLabel(
+        ctx,
+        axisLabel,
+        floorLeft,
+        floorTop,
+        floorHeight,
+        Math.floor(trueLeftMargin - 15)
+      )
+    } else {
+      drawXAxisLabel(ctx, axisLabel, floorLeft, floorWidth, floorBottom, 35)
+    }
 
     // Finish drawing
     finishCanvasDrawing(canvasState)
