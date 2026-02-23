@@ -27,16 +27,27 @@ The Bar Plot visualization displays quantitative metrics for each AOI in your se
 
 In GazePlotter, bar plots have the following main controls:
 
-- **Stimulus** - a drop-down menu for selecting the stimulus to be analyzed.
-- **Group** - a drop-down menu for selecting the participant group (e.g., All participants or custom groups). See [Participant Groups](/docs/basic/groups/).
-- **View** - a drop-down menu for selecting the data representation or aggregation method to be displayed. See [View Options](#view-options) below.
-- **More options** (⋮) - a button for accessing additional customization and export options. See [More Options](#more-options).
+- **[Stimulus](#stimulus)** - a drop-down menu for selecting the stimulus to be analyzed.
+- **[Group](#group)** - a drop-down menu for selecting the participant group.
+- **[View](#view)** - a drop-down menu for selecting the data representation or aggregation method.
+- **[More options](#more-options)** (⋮) - a button for accessing additional customization and export options.
 
-## View Options
+### Stimulus
+
+Choose which stimulus to analyze. Each stimulus contains its own set of AOIs that will be displayed as bars in the chart.
+
+### Group
+
+Select participant groups:
+
+- **All participants** - includes data from all participants
+- **Custom groups** - analyze specific participant groups created in the grouping interface. See [Participant Groups](/docs/basic/groups/).
+
+### View
 
 The `View` dropdown determines what metric is calculated and displayed. Clicking on a view option opens a settings dialog with customizable parameters for the plot.
 
-### Absolute times
+#### Absolute times
 
 Total time spent in each AOI across all participants, summing all fixation durations.
 
@@ -48,7 +59,7 @@ Total time spent in each AOI across all participants, summing all fixation durat
 | Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
 | Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
 
-### Relative times
+#### Relative times
 
 Proportional time spent in each AOI as percentages of total viewing time.
 
@@ -60,7 +71,7 @@ Proportional time spent in each AOI as percentages of total viewing time.
 | Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
 | Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
 
-### Mean visits
+#### Mean visits
 
 Average number of distinct encounters participants had with each AOI.
 
@@ -72,7 +83,7 @@ Average number of distinct encounters participants had with each AOI.
 | Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
 | Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
 
-### Mean visit durations
+#### Mean visit durations
 
 Average duration of each visit (consecutive fixations) to each AOI.
 
@@ -84,7 +95,7 @@ Average duration of each visit (consecutive fixations) to each AOI.
 | Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
 | Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
 
-### Mean fixation counts
+#### Mean fixation counts
 
 Average number of separate fixations per participant for each AOI.
 
@@ -96,7 +107,7 @@ Average number of separate fixations per participant for each AOI.
 | Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
 | Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
 
-### Mean fixation durations
+#### Mean fixation durations
 
 Average length of all individual fixations within each AOI across participants.
 
@@ -108,7 +119,7 @@ Average length of all individual fixations within each AOI across participants.
 | Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
 | Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
 
-### Mean times to first fixation
+#### Mean times to first fixation
 
 Average time when participants first looked at each AOI (from stimulus start).
 
@@ -120,7 +131,7 @@ Average time when participants first looked at each AOI (from stimulus start).
 | Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
 | Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
 
-### Mean first fixation durations
+#### Mean first fixation durations
 
 Average duration of the very first fixation each participant made on each AOI.
 
@@ -132,7 +143,7 @@ Average duration of the very first fixation each participant made on each AOI.
 | Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
 | Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
 
-### Hit ratios (seen)
+#### Hit ratios (seen)
 
 Percentage of participants who looked at each AOI at least once.
 
@@ -144,19 +155,19 @@ Percentage of participants who looked at each AOI at least once.
 | Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
 | Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
 
-## More Options
+### More options
 
-The bar plot menu (⋮) provides quick access to customization features:
+The bar plot menu (⋮) provides quick access to customization and specific features:
+
+#### Customization Options
 
 - **AOI customization** - Modify colors, names, and order of Areas of Interest. See [AOI Customization](/docs/basic/aoi-customization/) for details.
 - **Stimulus customization** - Manage stimulus properties and settings. See [Stimuli Customization](/docs/basic/stimuli-customization/) for details.
 - **Setup participants groups** - Create and modify participant groups for comparative analysis. See [Participant Groups](/docs/basic/groups/) for details.
-- **Download plot** - Export the visualization as an image file.
-- **Export aggregated data** - Export calculated statistical data for external analysis.
 
-## Download Plot
+#### Download plot
 
-Export individual bar plots as image files through the menu button (⋮) → **Download plot**:
+Export individual bar plots as image files:
 
 - **File formats**: PNG (recommended) or JPG
 - **Dimensions**: Customizable width (height calculated automatically at 5:3 aspect ratio)
@@ -164,13 +175,11 @@ Export individual bar plots as image files through the menu button (⋮) → **D
 - **Margins**: Configurable top, right, bottom, left margins
 - **Preview**: Live preview of your exported plot before downloading
 
-## Export Data
+#### Export Data
 
-Export the calculated statistical data for external analysis through the menu button (⋮) → **Export aggregated data**.
+Export the calculated statistical data for external analysis.
 
-This provides access to all computed eye-tracking metrics (absolute time, relative time, fixation counts, etc.) in CSV format for analysis in R, Python, SPSS, or other statistical software.
-
-For detailed information about data export options and formats, see [Aggregated Data Export](/docs/export/aggregated-data/).
+This provides access to all computed eye-tracking metrics (absolute time, relative time, fixation counts, etc.) in CSV format for analysis in R, Python, SPSS, or other statistical software. For detailed information about data export options and formats, see [Aggregated Data Export](/docs/export/aggregated-data/).
 
 ## Interpretation
 

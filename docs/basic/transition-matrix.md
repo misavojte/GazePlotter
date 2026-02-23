@@ -27,16 +27,27 @@ The Transition Matrix displays a square matrix where rows represent the "FROM" A
 
 In GazePlotter, transition matrices have the following main controls:
 
-- **Stimulus** - a drop-down menu for selecting the stimulus to be analyzed.
-- **Group** - a drop-down menu for selecting the participant group (e.g., All participants or custom groups). See [Participant Groups](/docs/basic/groups/).
-- **View** - a drop-down menu for selecting the data representation or aggregation method to be displayed. See [View Options](#view-options) below.
-- **More options** (⋮) - a button for accessing additional customization and export options. See [More Options](#more-options).
+- **[Stimulus](#stimulus)** - a drop-down menu for selecting the stimulus to be analyzed.
+- **[Group](#group)** - a drop-down menu for selecting the participant group.
+- **[View](#view)** - a drop-down menu for selecting the data representation or aggregation method.
+- **[More options](#more-options)** (⋮) - a button for accessing additional customization and export options.
 
-## View Options
+### Stimulus
+
+Choose which stimulus to analyze. Each stimulus contains its own set of AOIs that will be displayed in the matrix.
+
+### Group
+
+Select participant groups:
+
+- **All participants** - includes data from all participants
+- **Custom groups** - analyze specific participant groups created in the grouping interface. See [Participant Groups](/docs/basic/groups/).
+
+### View
 
 The `View` dropdown determines what metric is calculated and displayed. Clicking on a view option opens a settings dialog with customizable parameters for the plot.
 
-### Absolute frequency
+#### Absolute frequency
 
 Raw number of transitions between AOI pairs summed across all participants.
 
@@ -45,7 +56,7 @@ Raw number of transitions between AOI pairs summed across all participants.
 | Scale Range | Customize the value axis minimum and maximum for color intensity (0 = Auto)       |
 | Colors      | Select the minimum, middle, and maximum colors for the transition matrix gradient |
 
-### Relative frequency
+#### Relative frequency
 
 Percentage of all transitions that occur between each AOI pair.
 
@@ -54,7 +65,7 @@ Percentage of all transitions that occur between each AOI pair.
 | Scale Range | Customize the value axis minimum and maximum for color intensity (0 = Auto)       |
 | Colors      | Select the minimum, middle, and maximum colors for the transition matrix gradient |
 
-### 1-step probability
+#### 1-step probability
 
 Conditional probability of transitioning TO each AOI given you're coming FROM a specific AOI.
 
@@ -63,7 +74,7 @@ Conditional probability of transitioning TO each AOI given you're coming FROM a 
 | Scale Range | Customize the value axis minimum and maximum for color intensity (0 = Auto)       |
 | Colors      | Select the minimum, middle, and maximum colors for the transition matrix gradient |
 
-### 2-step probability
+#### 2-step probability
 
 Probability of reaching each AOI after exactly 2 transitions (via one intermediate AOI).
 
@@ -72,7 +83,7 @@ Probability of reaching each AOI after exactly 2 transitions (via one intermedia
 | Scale Range | Customize the value axis minimum and maximum for color intensity (0 = Auto)       |
 | Colors      | Select the minimum, middle, and maximum colors for the transition matrix gradient |
 
-### 3-step probability
+#### 3-step probability
 
 Probability of reaching each AOI after exactly 3 transitions (via two intermediate AOIs).
 
@@ -81,7 +92,7 @@ Probability of reaching each AOI after exactly 3 transitions (via two intermedia
 | Scale Range | Customize the value axis minimum and maximum for color intensity (0 = Auto)       |
 | Colors      | Select the minimum, middle, and maximum colors for the transition matrix gradient |
 
-### Fixation duration
+#### Fixation duration
 
 Average duration of individual fixations in the "FROM" AOI before making a transition.
 
@@ -90,7 +101,7 @@ Average duration of individual fixations in the "FROM" AOI before making a trans
 | Scale Range | Customize the value axis minimum and maximum for color intensity (0 = Auto)       |
 | Colors      | Select the minimum, middle, and maximum colors for the transition matrix gradient |
 
-### Dwell duration
+#### Dwell duration
 
 Average total duration of consecutive fixations on the same AOI before transitioning to a different AOI.
 
@@ -99,16 +110,17 @@ Average total duration of consecutive fixations on the same AOI before transitio
 | Scale Range | Customize the value axis minimum and maximum for color intensity (0 = Auto)       |
 | Colors      | Select the minimum, middle, and maximum colors for the transition matrix gradient |
 
-## More Options
+### More options
 
 The transition matrix menu (⋮) provides quick access to:
 
+#### Customization Options
+
 - **Stimulus customization** - Manage stimulus properties and settings. See [Stimuli Customization](/docs/basic/stimuli-customization/) for details.
-- **Download plot** - Export the visualization as an image file.
 
-## Download Plot
+#### Download plot
 
-Export individual transition matrices as image files through the menu button (⋮) → **Download plot**:
+Export individual transition matrices as image files:
 
 - **File formats**: PNG (recommended, transparent background) or JPG (white background)
 - **Dimensions**: Customizable width (height maintained as square for proper matrix proportions)

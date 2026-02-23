@@ -26,20 +26,31 @@ The Scarf plot visualization provides a comprehensive chronological view of indi
 
 In GazePlotter, scarf plots have the following main controls:
 
-- **Stimulus** - a drop-down menu for selecting the stimulus to be analyzed.
-- **Group** - a drop-down menu for selecting the participant group (e.g., All participants or custom groups). See [Participant Groups](/docs/basic/groups/).
-- **View** - a drop-down menu for selecting the data representation or aggregation method to be displayed. See [View Options](#view-options) below.
-- **More options** (⋮) - a button for accessing additional customization and export options. See [More Options](#more-options).
+- **[Stimulus](#stimulus)** - a drop-down menu for selecting the stimulus to be analyzed.
+- **[Group](#group)** - a drop-down menu for selecting the participant group.
+- **[View](#view)** - a drop-down menu for selecting the data representation or aggregation method.
+- **[More options](#more-options)** (⋮) - a button for accessing additional customization and export options.
 
 > Note: Zooming controls and a reset view button are also available directly on the header to temporally navigate your scarf plot quickly.
 
 ![](/docs/images/1.png)
 
-## View Options
+### Stimulus
+
+Choose which stimulus to analyze. Each stimulus contains its own set of AOIs that will be displayed in the scarf plot.
+
+### Group
+
+Select participant groups:
+
+- **All participants** - includes data from all participants
+- **Custom groups** - analyze specific participant groups created in the grouping interface. See [Participant Groups](/docs/basic/groups/).
+
+### View
 
 The `View` dropdown determines what timeline representation is calculated and displayed. Clicking on a view option opens a settings dialog with customizable parameters for the plot.
 
-### Absolute time
+#### Absolute time
 
 Displays fixations and events plotted in their exact chronological timing (in milliseconds).
 
@@ -50,7 +61,7 @@ Displays fixations and events plotted in their exact chronological timing (in mi
 
 ![](/docs/images/timeline-1.png)
 
-### Relative time
+#### Relative time
 
 Displays sequences proportional to the duration of the participant with the longest dwell time for comparability.
 
@@ -61,7 +72,7 @@ Displays sequences proportional to the duration of the participant with the long
 
 ![](/docs/images/timeline-2.png)
 
-### Ordinal time
+#### Ordinal time
 
 Displays strict sequential order indices of individual fixations, saccades, and other events, discarding exact durations.
 
@@ -75,6 +86,37 @@ Displays strict sequential order indices of individual fixations, saccades, and 
 ::: warning
 Some data, e.g. from [OGAMA software](/docs/upload-data/ogama/), support only ordinal time representation.
 :::
+
+### More options
+
+The scarf plot menu (⋮) provides quick access to customization and specific features:
+
+#### Customization Options
+
+- **AOI customization** - Modify colors, names, and order of Areas of Interest. See [AOI Customization](/docs/basic/aoi-customization/) for details.
+- **Stimulus customization** - Manage stimulus properties and settings. See [Stimuli Customization](/docs/basic/stimuli-customization/) for details.
+- **Participant customization** - Customize individual participant properties and metadata. See [Participants Customization](/docs/basic/participants-customization/) for details.
+- **Setup participants groups** - Create and modify participant groups for comparative analysis. See [Participant Groups](/docs/basic/groups/) for details.
+
+#### Adding AOI visibility data
+
+Add dynamic AOI visibility data to enhance visualization. See below for details on how to generate and add this data.
+
+#### Download plot
+
+Export the scarf plot as an image file with customizable settings:
+
+- **File formats**: PNG (recommended, transparent background) or JPG (white background)
+- **Dimensions**: Customizable width (height calculated automatically based on content)
+- **Quality**: Adjustable DPI setting for screen (96 DPI) or print (300 DPI) use
+- **Margins**: Configurable top, right, bottom, left margins (negative values crop the image)
+- **Preview**: Live preview of your exported plot before downloading
+
+#### Export Data
+
+Export processed eye-tracking data for external analysis.
+
+This provides access to the raw fixation sequences, timing data, and AOI mappings in CSV format for analysis in R, Python, SPSS, or other statistical software. For detailed information about data export options and formats, see [Segmented Data Export](/docs/export/segmented-data/).
 
 ## Interactivity
 
@@ -94,28 +136,6 @@ In the legend, you can highlight all segments of a specific category (fixations,
 2. Clicking on the category name in the legend to highlight all segments of that category until you click on it again to remove the highlight.
 
 ![](/docs/images/3.png)
-
-## More Options
-
-The scarf plot menu (⋮) provides quick access to customization and specific features:
-
-### Customization Options
-
-- **AOI customization** - Modify colors, names, and order of Areas of Interest. See [AOI Customization](/docs/basic/aoi-customization/) for details.
-- **Stimulus customization** - Manage stimulus properties and settings. See [Stimuli Customization](/docs/basic/stimuli-customization/) for details.
-- **Participant customization** - Customize individual participant properties and metadata. See [Participants Customization](/docs/basic/participants-customization/) for details.
-- **Setup participants groups** - Create and modify participant groups for comparative analysis. See [Participant Groups](/docs/basic/groups/) for details.
-
-### Data Options
-
-- **AOI visibility** - Add dynamic AOI visibility data to enhance visualization (see [Adding AOI visibility data](#adding-aoi-visibility-data)).
-
-### Export Options
-
-- **Download plot** - Export the scarf plot as an image file with customizable settings (see [Download Plot](#download-plot)).
-- **Export segmented data** - Export processed eye-tracking data for external analysis (see [Export Data](#export-data)).
-
-![](/docs/images/2.png)
 
 ## Adding AOI visibility data
 
@@ -156,21 +176,3 @@ As seen on Figure 1, adding AOI visibility data to the workspace have following 
 Each AOI visibility data is represented by a colored line. This is expanded and thus highlighted when the mouse is moved over the corresponding AOI category in the legend.
 
 ![](/docs/images/aoi-visibility-2.png)
-
-## Download Plot
-
-Export individual scarf plots as image files through the menu button (⋮) → **Download plot**:
-
-- **File formats**: PNG (recommended, transparent background) or JPG (white background)
-- **Dimensions**: Customizable width (height calculated automatically based on content)
-- **Quality**: Adjustable DPI setting for screen (96 DPI) or print (300 DPI) use
-- **Margins**: Configurable top, right, bottom, left margins (negative values crop the image)
-- **Preview**: Live preview of your exported plot before downloading
-
-## Export Data
-
-Export the processed eye-tracking data for external analysis through the menu button (⋮) → **Export segmented data**.
-
-This provides access to the raw fixation sequences, timing data, and AOI mappings in CSV format for analysis in R, Python, SPSS, or other statistical software.
-
-For detailed information about data export options and formats, see [Segmented Data Export](/docs/export/segmented-data/).
