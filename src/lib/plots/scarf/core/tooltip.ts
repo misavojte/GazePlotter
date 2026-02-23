@@ -1,7 +1,4 @@
-import {
-  getParticipant,
-  getSegment,
-} from '$lib/data/engine'
+import { getParticipant, getSegment } from '$lib/data/engine'
 import { updateTooltip } from '$lib/tooltip'
 import type { ScarfTooltipData } from '$lib/plots/scarf/types'
 
@@ -46,6 +43,7 @@ export const tooltipScarfService = (filling: ScarfTooltipData | null) => {
   )
 
   updateTooltip({
+    id: 'scarf-segment-tooltip',
     visible: true,
     content,
     x: filling.x,

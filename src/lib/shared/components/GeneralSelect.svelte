@@ -108,8 +108,8 @@
   const groupItemToMenuItems = (idx: number): MenuItem[] => {
     const item = itemsSafe[idx]
     return item.options.map(option => {
-      const onSelect = option.onSelect ?? item.onSelect
-      const closeOnAction = option.closeOnAction ?? item.closeOnAction
+      const onSelect = option.onSelect
+      const closeOnAction = option.closeOnAction
 
       return {
         ...option,
@@ -153,7 +153,7 @@
   // Helper functions
   const getCurrentLabel = (
     currentValue: string,
-    optionList: readonly { value: string; label: string }[]
+    optionList: readonly any[]
   ) => {
     return (
       optionList.find(opt => opt.value === currentValue)?.label ||

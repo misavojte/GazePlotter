@@ -10,12 +10,16 @@
 
   let { settings }: Props = $props()
 
-  const streamData = $derived.by(() =>
-    getAoiStreamPlotData({
-      stimulusId: settings.stimulusId,
-      groupId: settings.groupId,
-      binSize: settings.binSize,
-    })
+  const streamData = $derived.by(
+    () =>
+      getAoiStreamPlotData(
+        {
+          stimulusId: settings.stimulusId,
+          groupId: settings.groupId,
+          binSize: settings.binSize,
+        },
+        null
+      ).data
   )
 </script>
 
@@ -25,7 +29,7 @@
       width={exportProps.width}
       height={exportProps.height}
       data={streamData}
-      alignment={settings.alignment ?? 'center'}
+      alignment={settings.alignment ?? 'stream'}
       highlights={settings.highlights ?? []}
       dpiOverride={exportProps.dpiOverride}
       marginTop={exportProps.marginTop}

@@ -582,6 +582,7 @@
         )
 
         updateTooltip({
+          id: legendItem.identifier,
           visible: true,
           content: tooltipContent,
           x: tooltipPos.x,

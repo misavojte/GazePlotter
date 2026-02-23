@@ -25,7 +25,7 @@
   import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { PreviewSync } from '$lib/plots/shared'
-  import BarPlotOrderingSettings from './BarPlotOrderingSettings.svelte'
+  import BarPlotViewSettings from './BarPlotViewSettings.svelte'
 
   // CONSTANTS - centralized for easier maintenance
   const LAYOUT = {
@@ -177,7 +177,7 @@
         updateSetting({ groupId: parseInt(e.detail) }),
     },
     {
-      label: 'Aggregation',
+      label: 'View',
       value: settings.aggregationMethod,
       onClose: handleMenuClose,
       options: BAR_PLOT_AGGREGATION_METHODS.map(method => ({
@@ -188,7 +188,7 @@
           })
         },
         closeOnAction: false,
-        component: BarPlotOrderingSettings,
+        component: BarPlotViewSettings,
         componentHeight: 225,
         componentProps: {
           syncs,

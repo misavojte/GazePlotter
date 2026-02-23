@@ -35,7 +35,7 @@
   import { PreviewSync } from '$lib/plots/shared'
   import { interpolateColor } from '$lib/color/utility'
   import { PRESET_PALETTES } from '$lib/color/palettes'
-  import AoiStreamPlotAlignmentSettings from './AoiStreamPlotAlignmentSettings.svelte'
+  import AoiStreamPlotViewSettings from './AoiStreamPlotViewSettings.svelte'
   import AoiStreamPlotColorSettings from './AoiStreamPlotColorSettings.svelte'
 
   const LAYOUT = {
@@ -107,7 +107,7 @@
     )
   })
 
-  // Grouping them for easier passing to components (typed explicitly for AoiStreamPlotAlignmentSettings)
+  // Grouping them for easier passing to components (typed explicitly for AoiStreamPlotViewSettings)
   const syncs = {
     binSize: binSizeSync,
     ridgelineScale: ridgelineScaleSync,
@@ -370,7 +370,7 @@
       onchange: handleUpperGroupChange,
     },
     {
-      label: 'Alignment',
+      label: 'View',
       value: effectiveSettings.alignment ?? 'stream',
       onchange: (event: CustomEvent) => {
         // Alignment changes are mainly driven by onSelect for preview
@@ -384,7 +384,7 @@
             alignmentSync.value = v
           },
           closeOnAction: false,
-          component: AoiStreamPlotAlignmentSettings,
+          component: AoiStreamPlotViewSettings,
           componentHeight: 170,
           componentProps: {
             syncs,
@@ -397,7 +397,7 @@
             alignmentSync.value = v
           },
           closeOnAction: false,
-          component: AoiStreamPlotAlignmentSettings,
+          component: AoiStreamPlotViewSettings,
           componentHeight: 170,
           componentProps: {
             syncs,
@@ -415,7 +415,7 @@
             }
           },
           closeOnAction: false,
-          component: AoiStreamPlotAlignmentSettings,
+          component: AoiStreamPlotViewSettings,
           componentHeight: 240,
           componentProps: {
             syncs,

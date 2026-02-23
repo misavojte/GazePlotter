@@ -28,7 +28,7 @@
     PreviewSync,
   } from '$lib/plots/shared'
   import { interpolateColor } from '$lib/color/utility'
-  import TransitionMatrixColorSettings from './TransitionMatrixColorSettings.svelte'
+  import TransitionMatrixViewSettings from './TransitionMatrixViewSettings.svelte'
 
   // Types
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
@@ -237,7 +237,7 @@
         updateSettings({ groupId: parseInt(e.detail) }),
     },
     {
-      label: 'Aggregation',
+      label: 'View',
       value: settings.aggregationMethod,
       onClose: handleMenuClose,
       options: AGGREGATION_OPTIONS.map(opt => ({
@@ -246,7 +246,7 @@
           updateSettings({ aggregationMethod: v as MatrixAggregationMethod })
         },
         closeOnAction: false,
-        component: TransitionMatrixColorSettings,
+        component: TransitionMatrixViewSettings,
         componentHeight: 140,
         componentProps: {
           syncs,

@@ -568,6 +568,7 @@
       )
 
       updateTooltip({
+        id: 'bar-plot-tooltip',
         x: tooltipPos.x,
         y: tooltipPos.y,
         content: [

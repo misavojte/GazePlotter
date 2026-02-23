@@ -15,12 +15,27 @@
       stimulusId: settings.stimulusId,
       groupId: settings.groupId,
       aggregationMethod: settings.aggregationMethod,
-      sortBars: settings.sortBars,
       scaleRange: settings.scaleRange,
+      timelineStart: settings.timelineStart,
+      timelineEnd: settings.timelineEnd,
+      orderBy: settings.orderBy,
+      orderDirection: settings.orderDirection,
     })
   )
   const data = $derived(barPlotData.data)
   const timeline = $derived(barPlotData.timeline)
+
+  import {
+    getBarPlotAxisLabel,
+    type BarPlotAggregationMethodId,
+  } from '$lib/plots/bar/const'
+  const axisLabel = $derived(
+    getBarPlotAxisLabel(
+      settings.aggregationMethod as BarPlotAggregationMethodId,
+      settings.timelineStart,
+      settings.timelineEnd
+    )
+  )
 </script>
 
 <PlotExportWrapper defaultFileName="GazePlotter-BarPlot">
@@ -30,6 +45,7 @@
       height={exportProps.height}
       {data}
       {timeline}
+      {axisLabel}
       barPlottingType={settings.barPlottingType}
       barWidth={200}
       barSpacing={20}

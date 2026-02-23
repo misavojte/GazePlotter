@@ -818,6 +818,7 @@
         )
 
         updateTooltip({
+          id: legendItem.identifier,
           visible: true,
           content: tooltipContent,
           x: tooltipPos.x,
@@ -903,6 +904,7 @@
         )
 
         updateTooltip({
+          id: 'aoi-stream-bin-tooltip',
           visible: true,
           content: tooltipContent,
           x: tooltipPos.x,

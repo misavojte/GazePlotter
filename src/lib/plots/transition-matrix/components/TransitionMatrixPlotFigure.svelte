@@ -823,6 +823,7 @@
       )
 
       updateTooltip({
+        id: 'transition-matrix-tooltip',
         x: tooltipPos.x,
         y: tooltipPos.y,
         content: [

@@ -161,6 +161,7 @@
         state.vAlign
       )
       updateTooltip({
+        id: state.id,
         visible: true,
         content: state.content,
         x,

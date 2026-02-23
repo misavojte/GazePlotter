@@ -21,19 +21,19 @@
   import ZoomIn from 'lucide-svelte/icons/zoom-in'
   import ZoomOut from 'lucide-svelte/icons/zoom-out'
   import { ScarfPlotButtonMenu } from './'
-  import ScarfPlotTimelineSettings from './ScarfPlotTimelineSettings.svelte'
-  import { untrack } from 'svelte'
+  import ScarfPlotViewSettings from './ScarfPlotViewSettings.svelte'
 
   interface Props {
     settings: ScarfGridType
     source: string
     onWorkspaceCommand: (command: WorkspaceCommand) => void
     syncs: {
-      timelineStart: PreviewSync<number>
-      timelineEnd: PreviewSync<number>
-      ordinalStart: PreviewSync<number>
-      ordinalEnd: PreviewSync<number>
+      timelineStart: PreviewSync<number | undefined>
+      timelineEnd: PreviewSync<number | undefined>
+      ordinalStart: PreviewSync<number | undefined>
+      ordinalEnd: PreviewSync<number | undefined>
       timeline: PreviewSync<'absolute' | 'relative' | 'ordinal'>
+      hideNonFixations: PreviewSync<boolean>
     }
     // We still keep a close handler if needed, but managing syncs is cleaner
     onMenuClose?: () => void
@@ -200,7 +200,7 @@
       onchange: onGroupChange,
     },
     {
-      label: 'Timeline',
+      label: 'View',
       value: settings.timeline,
       onClose: onMenuClose,
       options: [
@@ -211,7 +211,7 @@
             syncs.timeline.value = v
           },
           closeOnAction: false,
-          component: ScarfPlotTimelineSettings,
+          component: ScarfPlotViewSettings,
           componentHeight: 145, // Adjust as needed
           componentProps: {
             syncs,
@@ -224,7 +224,7 @@
             syncs.timeline.value = v
           },
           closeOnAction: false,
-          component: ScarfPlotTimelineSettings,
+          component: ScarfPlotViewSettings,
           componentHeight: 145,
           componentProps: {
             syncs,
@@ -237,7 +237,7 @@
             syncs.timeline.value = v
           },
           closeOnAction: false,
-          component: ScarfPlotTimelineSettings,
+          component: ScarfPlotViewSettings,
           componentHeight: 120,
           componentProps: {
             syncs,
