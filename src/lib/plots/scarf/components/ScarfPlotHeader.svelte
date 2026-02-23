@@ -66,7 +66,7 @@
   function updateTimelineRange(action: 'zoomIn' | 'zoomOut' | 'reset') {
     const stimulusId = settings.stimulusId
     const isOrdinal = settings.timeline === 'ordinal'
-    if (settings.timeline === 'relative') return
+    if (settings.timeline === 'relative' && action !== 'reset') return
 
     // Fallback to legacy structure if new globals aren't set
     const currentStart = isOrdinal
@@ -123,7 +123,6 @@
 
   const isRelativeTimeline = $derived(settings.timeline === 'relative')
   const isResetDisabled = $derived.by(() => {
-    if (isRelativeTimeline) return true
     if (settings.timeline === 'ordinal') {
       return (
         (settings.ordinalStart ?? 0) === 0 && (settings.ordinalEnd ?? 0) === 0
@@ -226,7 +225,7 @@
           },
           closeOnAction: false,
           component: ScarfPlotTimelineSettings,
-          componentHeight: 80,
+          componentHeight: 145,
           componentProps: {
             syncs,
           },

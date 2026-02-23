@@ -346,8 +346,6 @@ export function createScarfLegendData(
 export function appendVisibilityEventsToBuffer(
   builder: Float32GrowBuffer,
   visibility: number[],
-  isRelative: boolean,
-  sessionDuration: number,
   minValue: number,
   maxValue: number,
   visibleRange: number,
@@ -363,35 +361,20 @@ export function appendVisibilityEventsToBuffer(
     const s = visibility[i]
     const e = visibility[i + 1]
 
-    if (isRelative) {
-      const safeDur = sessionDuration > 0 ? sessionDuration : 1
-      const x1 = Math.max(0, s / safeDur)
-      if (e === undefined || e === null) {
-        // Open-ended interval - emit start-only
+    if (e === undefined || e === null) {
+      // Open-ended interval - emit start-only if in range
+      if (s >= minValue && s < maxValue) {
+        const x1 = (Math.max(minValue, s) - minValue) / visibleRange
         builder.pushEvent(x1, pIndex, 0, participantId, internalY)
-        continue
       }
-      const x2 = Math.min(1, e / safeDur)
-      if (x2 > x1) {
-        builder.pushEvent(x1, pIndex, 0, participantId, internalY)
-        builder.pushEvent(x2, pIndex, 1, participantId, internalY)
-      }
-    } else {
-      if (e === undefined || e === null) {
-        // Open-ended interval - emit start-only if in range
-        if (s >= minValue && s < maxValue) {
-          const x1 = (Math.max(minValue, s) - minValue) / visibleRange
-          builder.pushEvent(x1, pIndex, 0, participantId, internalY)
-        }
-        continue
-      }
-      if (e <= minValue || s >= maxValue) continue
-      const x1 = (Math.max(minValue, s) - minValue) / visibleRange
-      const x2 = (Math.min(maxValue, e) - minValue) / visibleRange
-      if (x2 > x1) {
-        builder.pushEvent(x1, pIndex, 0, participantId, internalY)
-        builder.pushEvent(x2, pIndex, 1, participantId, internalY)
-      }
+      continue
+    }
+    if (e <= minValue || s >= maxValue) continue
+    const x1 = (Math.max(minValue, s) - minValue) / visibleRange
+    const x2 = (Math.min(maxValue, e) - minValue) / visibleRange
+    if (x2 > x1) {
+      builder.pushEvent(x1, pIndex, 0, participantId, internalY)
+      builder.pushEvent(x2, pIndex, 1, participantId, internalY)
     }
   }
 }
@@ -468,7 +451,25 @@ export function transformDataToScarfPlot(
   for (let pIndex = 0; pIndex < participantIds.length; pIndex++) {
     const pid = participantIds[pIndex]
     const sessionDuration = getParticipantEndTime(stimulusId, pid)
-    const invSessionDuration = 1 / (sessionDuration || 1)
+
+    let clipMin = minValue
+    let clipMax = maxValue
+    let scale = invVisibleRange
+
+    if (isRelative) {
+      const tStart = settings.timelineStart
+      const tEnd = settings.timelineEnd
+      clipMin = typeof tStart === 'number' && !isNaN(tStart) ? tStart : 0
+      clipMax = typeof tEnd === 'number' && !isNaN(tEnd) ? tEnd : 0
+
+      if (clipMin === 0 && clipMax === 0) {
+        clipMax = sessionDuration
+      } else {
+        if (clipMax === 0) clipMax = sessionDuration
+        if (clipMax <= clipMin) clipMax = Math.max(sessionDuration, clipMin + 1)
+      }
+      scale = 1 / (clipMax - clipMin)
+    }
 
     const rangeIdx = (stimulusId * maxParticipants + pid) * 2
     const startIndex = indexTable[rangeIdx]
@@ -484,14 +485,11 @@ export function transformDataToScarfPlot(
         ? localId + 1
         : segmentBuffer[base + SegmentField.END_TIME]
 
-      if (!isRelative) {
-        if (end <= minValue || start >= maxValue) continue
-        start = Math.max(minValue, start)
-        end = Math.min(maxValue, end)
-      }
+      if (end <= clipMin || start >= clipMax) continue
+      start = Math.max(clipMin, start)
+      end = Math.min(clipMax, end)
 
-      const scale = isRelative ? invSessionDuration : invVisibleRange
-      const x = isRelative ? start * scale : (start - minValue) * scale
+      const x = (start - clipMin) * scale
       const width = (end - start) * scale
 
       if (categoryId !== 0) {
@@ -553,11 +551,9 @@ export function transformDataToScarfPlot(
           appendVisibilityEventsToBuffer(
             eventBuckets[visibilityBaseStyleIdx + aoiIdx],
             vis,
-            isRelative,
-            sessionDuration,
-            minValue,
-            maxValue,
-            maxValue - minValue || 1,
+            clipMin,
+            clipMax,
+            clipMax - clipMin || 1,
             pIndex,
             pid,
             internalY
@@ -601,8 +597,6 @@ export function transformDataToScarfPlot(
  */
 export function convertVisibilityIntervalsToEvents(
   visibility: number[],
-  isRelative: boolean,
-  sessionDuration: number,
   minValue: number,
   maxValue: number,
   visibleRange: number
@@ -615,35 +609,21 @@ export function convertVisibilityIntervalsToEvents(
     const s = visibility[i]
     const e = visibility[i + 1]
 
-    if (isRelative) {
-      const safeDur = sessionDuration > 0 ? sessionDuration : 1
-      const x1 = Math.max(0, s / safeDur)
-      if (e === undefined || e === null) {
-        events.push({ x: x1, type: 0 })
-        continue
+    if (e === undefined || e === null) {
+      if (s >= minValue && s < maxValue) {
+        events.push({
+          x: (Math.max(minValue, s) - minValue) / visibleRange,
+          type: 0,
+        })
       }
-      const x2 = Math.min(1, e / safeDur)
-      if (x2 > x1) {
-        events.push({ x: x1, type: 0 })
-        events.push({ x: x2, type: 1 })
-      }
-    } else {
-      if (e === undefined || e === null) {
-        if (s >= minValue && s < maxValue) {
-          events.push({
-            x: (Math.max(minValue, s) - minValue) / visibleRange,
-            type: 0,
-          })
-        }
-        continue
-      }
-      if (e <= minValue || s >= maxValue) continue
-      const x1 = (Math.max(minValue, s) - minValue) / visibleRange
-      const x2 = (Math.min(maxValue, e) - minValue) / visibleRange
-      if (x2 > x1) {
-        events.push({ x: x1, type: 0 })
-        events.push({ x: x2, type: 1 })
-      }
+      continue
+    }
+    if (e <= minValue || s >= maxValue) continue
+    const x1 = (Math.max(minValue, s) - minValue) / visibleRange
+    const x2 = (Math.min(maxValue, e) - minValue) / visibleRange
+    if (x2 > x1) {
+      events.push({ x: x1, type: 0 })
+      events.push({ x: x2, type: 1 })
     }
   }
   return events

@@ -27,55 +27,52 @@
 
 <div class="settings-container">
   <form onsubmit={handleSubmit}>
-    {#if !isRelative}
-      <div class="timeline-row">
-        <span class="section-title"
-          >{isOrdinal ? 'Ordinal Range [indices]' : 'Time Range [ms]'}</span
-        >
-        <div class="timeline-inputs">
-          <div class="input-group">
-            <label for="timeline-start">Start</label>
-            <input
-              id="timeline-start"
-              type="number"
-              value={isOrdinal
-                ? syncs.ordinalStart.value
-                : syncs.timelineStart.value}
-              oninput={e => {
-                const v = parseInt(e.currentTarget.value)
-                if (isOrdinal) syncs.ordinalStart.value = v
-                else syncs.timelineStart.value = v
-              }}
-              min="0"
-              placeholder="0"
-            />
-          </div>
-          <div class="input-group">
-            <label for="timeline-end">End (0 = Auto)</label>
-            <input
-              id="timeline-end"
-              type="number"
-              value={isOrdinal
-                ? syncs.ordinalEnd.value
-                : syncs.timelineEnd.value}
-              oninput={e => {
-                const v = parseInt(e.currentTarget.value)
-                if (isOrdinal) syncs.ordinalEnd.value = v
-                else syncs.timelineEnd.value = v
-              }}
-              min="0"
-              placeholder="Auto"
-            />
-          </div>
+    <div class="timeline-row">
+      <span class="section-title"
+        >{isRelative
+          ? 'Calculated from Time Range [ms]'
+          : isOrdinal
+            ? 'Ordinal Range [indices]'
+            : 'Time Range [ms]'}</span
+      >
+      <div class="timeline-inputs">
+        <div class="input-group">
+          <label for="timeline-start">Start</label>
+          <input
+            id="timeline-start"
+            type="number"
+            value={isOrdinal
+              ? syncs.ordinalStart.value
+              : syncs.timelineStart.value}
+            oninput={e => {
+              const v = parseInt(e.currentTarget.value)
+              if (isOrdinal) syncs.ordinalStart.value = v
+              else syncs.timelineStart.value = v
+            }}
+            min="0"
+            placeholder="0"
+          />
+        </div>
+        <div class="input-group">
+          <label for="timeline-end">End (0 = Auto)</label>
+          <input
+            id="timeline-end"
+            type="number"
+            value={isOrdinal
+              ? syncs.ordinalEnd.value
+              : syncs.timelineEnd.value}
+            oninput={e => {
+              const v = parseInt(e.currentTarget.value)
+              if (isOrdinal) syncs.ordinalEnd.value = v
+              else syncs.timelineEnd.value = v
+            }}
+            min="0"
+            placeholder="Auto"
+          />
         </div>
       </div>
-      <div class="divider"></div>
-    {:else}
-      <div class="info-text">
-        Custom ranges and zooming are not available in Relative mode.
-      </div>
-      <div class="divider"></div>
-    {/if}
+    </div>
+    <div class="divider"></div>
 
     <div class="settings-row">
       <label class="checkbox-label" for="hide-non-fixations">
@@ -137,14 +134,6 @@
   }
   .input-group input:focus {
     border-color: var(--c-brand);
-  }
-  .info-text {
-    font-size: 11px;
-    color: #666;
-    font-style: italic;
-    padding: 4px 0;
-    line-height: 1.3;
-    max-width: 180px;
   }
   .divider {
     height: 1px;
