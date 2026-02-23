@@ -25,6 +25,8 @@ export function getBarPlotData(
     | 'orderBy'
     | 'orderDirection'
     | 'scaleRange'
+    | 'timelineStart'
+    | 'timelineEnd'
   >
 ): BarPlotResult {
   const meta = engine.metadata
@@ -45,7 +47,9 @@ export function getBarPlotData(
   const participantMetrics = collectParticipantBarMetrics(
     settings.stimulusId,
     participantIds,
-    aois
+    aois,
+    settings.timelineStart ?? 0,
+    settings.timelineEnd ?? 0
   )
 
   // Aggregate participant metrics into final bar values

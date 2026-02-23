@@ -26,7 +26,7 @@ export const BAR_PLOT_AGGREGATION_METHODS = [
   },
   {
     value: 'averageFixationCount',
-    label: 'Mean fixation couns',
+    label: 'Mean fixation counts',
   },
   {
     value: 'avgFixationDuration',

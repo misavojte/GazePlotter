@@ -45,6 +45,8 @@
   const minScaleSync = new PreviewSync(settings.scaleRange?.[0] ?? 0)
   const maxScaleSync = new PreviewSync(settings.scaleRange?.[1] ?? 0)
   const barPlottingTypeSync = new PreviewSync(settings.barPlottingType)
+  const timelineStartSync = new PreviewSync(settings.timelineStart ?? 0)
+  const timelineEndSync = new PreviewSync(settings.timelineEnd ?? 0)
 
   $effect(() => {
     orderBySync.updateCommitted(settings.orderBy, true)
@@ -52,6 +54,8 @@
     minScaleSync.updateCommitted(settings.scaleRange?.[0] ?? 0, true)
     maxScaleSync.updateCommitted(settings.scaleRange?.[1] ?? 0, true)
     barPlottingTypeSync.updateCommitted(settings.barPlottingType, true)
+    timelineStartSync.updateCommitted(settings.timelineStart ?? 0, true)
+    timelineEndSync.updateCommitted(settings.timelineEnd ?? 0, true)
   })
 
   // Grouping for the component
@@ -61,6 +65,8 @@
     minScale: minScaleSync,
     maxScale: maxScaleSync,
     barPlottingType: barPlottingTypeSync,
+    timelineStart: timelineStartSync,
+    timelineEnd: timelineEndSync,
   }
 
   const effectiveSettings = $derived({
@@ -69,6 +75,8 @@
     orderDirection: orderDirectionSync.value,
     barPlottingType: barPlottingTypeSync.value,
     scaleRange: [minScaleSync.value, maxScaleSync.value] as [number, number],
+    timelineStart: timelineStartSync.value,
+    timelineEnd: timelineEndSync.value,
   })
 
   // Get bar plot data and timeline from utility function
@@ -96,12 +104,19 @@
       if (barPlottingTypeSync.isDirty)
         updates.barPlottingType = barPlottingTypeSync.value
 
+      if (timelineStartSync.isDirty)
+        updates.timelineStart = timelineStartSync.value
+
+      if (timelineEndSync.isDirty) updates.timelineEnd = timelineEndSync.value
+
       if (Object.keys(updates).length === 0) {
         orderBySync.reset()
         orderDirectionSync.reset()
         minScaleSync.reset()
         maxScaleSync.reset()
         barPlottingTypeSync.reset()
+        timelineStartSync.reset()
+        timelineEndSync.reset()
         return
       }
 
@@ -117,6 +132,8 @@
       minScaleSync.reset()
       maxScaleSync.reset()
       barPlottingTypeSync.reset()
+      timelineStartSync.reset()
+      timelineEndSync.reset()
     })
   }
 
@@ -161,7 +178,7 @@
         },
         closeOnAction: false,
         component: BarPlotOrderingSettings,
-        componentHeight: 155,
+        componentHeight: 225,
         componentProps: {
           syncs,
         },

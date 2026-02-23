@@ -129,6 +129,10 @@ export interface BarPlotGridType extends GridType {
    * For end (index 1): The maximum value for the scale. 0 means automatically use the data range.
    */
   scaleRange: [number, number]
+  /** Global timeline start (0 = beginning of timeline) */
+  timelineStart?: number
+  /** Global timeline end (0 = automatic) */
+  timelineEnd?: number
 }
 
 /**

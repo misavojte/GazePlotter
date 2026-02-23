@@ -10,6 +10,8 @@
       minScale: { value: number }
       maxScale: { value: number }
       barPlottingType: { value: BarPlotGridType['barPlottingType'] }
+      timelineStart: { value: number }
+      timelineEnd: { value: number }
     }
     close: () => void
   }
@@ -131,6 +133,32 @@
             id="max-scale"
             type="number"
             bind:value={syncs.maxScale.value}
+            min="0"
+          />
+        </div>
+      </div>
+    </div>
+
+    <div class="separator"></div>
+
+    <div class="scale-row">
+      <span class="section-title">Calculated from Time Range [ms]</span>
+      <div class="scale-inputs">
+        <div class="input-group">
+          <label for="timeline-start">Start</label>
+          <input
+            id="timeline-start"
+            type="number"
+            bind:value={syncs.timelineStart.value}
+            min="0"
+          />
+        </div>
+        <div class="input-group">
+          <label for="timeline-end">End (0 = Auto)</label>
+          <input
+            id="timeline-end"
+            type="number"
+            bind:value={syncs.timelineEnd.value}
             min="0"
           />
         </div>

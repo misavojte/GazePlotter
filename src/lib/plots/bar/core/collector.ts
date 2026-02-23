@@ -11,7 +11,9 @@ import type { ParticipantBarMetrics } from '../types'
 export function collectParticipantBarMetrics(
   stimulusId: number,
   participantIds: number[],
-  aois: ExtendedInterpretedDataType[]
+  aois: ExtendedInterpretedDataType[],
+  timelineStart = 0,
+  timelineEnd = 0
 ): ParticipantBarMetrics[] {
   const result: ParticipantBarMetrics[] = []
   const aoiCount = aois.length
@@ -53,6 +55,10 @@ export function collectParticipantBarMetrics(
     metrics.hitRatio[anyFixationIndex] = 1
 
     for (const segment of segments) {
+      // Check if segment is fully outside the specified timeline range
+      if (timelineEnd > 0 && segment.start >= timelineEnd) continue
+      if (segment.end <= timelineStart) continue
+
       const duration = segment.end - segment.start
       const startTime = segment.start
 
