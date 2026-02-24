@@ -3,85 +3,63 @@ title: Custom CSV
 order: 8
 ---
 
-# Upload of Custom CSV Files
+# Uploading Custom CSV Architectures
 
-In addition to the supported file types, GazePlotter supports three different CSV formats for uploading custom eye-tracking data. Each format is designed for different data structures and use cases.
+GazePlotter natively supports three highly formalized CSV ingestion formats. These structures allow users to manually import custom eye-tracking vectors directly from non-standard hardware or heavily modified post-processing pipelines.
 
-## Overview of CSV Formats
+## Ingestion Formats
 
-GazePlotter supports three CSV formats:
+Before uploading, data must be strictly formatted into one of these three explicit data schema architectures.
 
-1. **[Continuous Time Series](#continuous-time-series-csv)** - Raw gaze data with timestamps
-2. **[Segmented From/To](#segmented-fromto-csv)** - Pre-segmented data with start/end times
-3. **[Segmented Duration](#segmented-duration-csv)** - Segmented data with timestamp and duration
+### Format 1: Continuous Time Series CSV
 
-## Continuous Time Series CSV
+This schema ingests raw, continuous gaze coordinate arrays where every individual row represents a single sequential microsecond tick.
 
-This format is used for raw gaze data where each row represents a single gaze sample with a timestamp.
+#### Structure Requirements
 
-### Required Columns
+- **Row 1 Headers**: Must contain exactly `Time`, `Participant`, `Stimulus`, and `AOI` (case-sensitive).
+- **Time Value**: Absolute numerical integer. Commas and units (e.g., "ms") are strictly prohibited.
+- **Participant Value**: Semantic display string.
+- **Stimulus Value**: Semantic display string.
+- **AOI Value**: Semantic display string.
 
-The CSV file must contain the following columns on the first line:
+#### Delimitation Constraints
 
-- `Time` - timestamp of the sample, simple number, no units or commas allowed
-- `Participant` - text string of the participant name to be displayed
-- `Stimulus` - text string of the stimulus name to be displayed
-- `AOI` - text string of the AOI name to be displayed
+- **Columns**: Strictly delimited by commas `,`.
+- **Rows**: Standard carriage returns `\n`, `\r\n`, or `\r`.
 
-### Delimiters
+#### Parsing Behavior
 
-- `,` - column delimiter
-- `\n`, `\r\n`, or `\r` - row delimiter (automatically detected)
-
-### Formatting
-
-Each row represents one gaze sample. Segments are automatically determined by the homogeneity of the `AOI`, `Participant`, and `Stimulus` columns.
-
-::: info
-Segments are automatically detected based on changes in `AOI`, `Participant`, or `Stimulus` values.
-:::
-
-### Example
+Segments are detected dynamically. The engine automatically fractures the continuous time series into discrete segments whenever the string values within the `AOI`, `Participant`, or `Stimulus` columns change homogenously.
 
 ```csv
 Time,Participant,Stimulus,AOI
 0,Participant 1,Stimulus 1,AOI 1
 25,Participant 1,Stimulus 1,AOI 1
 50,Participant 1,Stimulus 1,AOI 1
-75,Participant 1,Stimulus 1,AOI 1
-100,Participant 1,Stimulus 1,AOI 1
+75,Participant 1,Stimulus 1,AOI 2
 100,Participant 1,Stimulus 1,AOI 2
-125,Participant 1,Stimulus 1,AOI 2
 ```
 
-## Segmented From/To CSV
+### Format 2: Segmented From/To CSV
 
-This format is used for pre-segmented data where each row represents a complete segment with explicit start and end times.
+This schema ingests pre-processed data algorithms that have already been fractured into discrete segments. Each row defines the exact total duration of a complete segment.
 
-### Required Columns
+#### Structure Requirements
 
-The CSV file must contain the following columns on the first line:
+- **Row 1 Headers**: Must contain exactly `From`, `To`, `Participant`, `Stimulus`, and `AOI`.
+- **From Value**: Explicit integer start timestamp.
+- **To Value**: Explicit integer end timestamp.
+- **Metadata Values**: Standard semantic strings.
 
-- `From` - start time of the segment, simple number
-- `To` - end time of the segment, simple number
-- `Participant` - text string of the participant name
-- `Stimulus` - text string of the stimulus name
-- `AOI` - text string of the AOI name
+#### Delimitation Constraints
 
-### Delimiters
+- **Columns**: Strictly delimited by commas `,`.
+- **Rows**: Standard carriage returns `\n`, `\r\n`, or `\r`.
 
-- `,` - column delimiter
-- `\n`, `\r\n`, or `\r` - row delimiter (automatically detected)
+#### Parsing Behavior
 
-### Formatting
-
-Each row represents one complete segment. The `From` and `To` columns define the segment duration.
-
-::: info
-Each row is treated as a complete segment with the specified start and end times.
-:::
-
-### Example
+The parser treats every absolute row as an entirely complete and discrete temporal segment based exclusively on the bounding `From` and `To` values.
 
 ```csv
 From,To,Participant,Stimulus,AOI
@@ -90,43 +68,32 @@ From,To,Participant,Stimulus,AOI
 200,300,Participant 1,Stimulus 2,AOI 1
 ```
 
-## Segmented Duration CSV
+### Format 3: Segmented Duration CSV
 
-This format is used for segmented data where each row contains a timestamp and duration, with automatic time normalization.
+This specialized schema ingests discrete segments while simultaneously executing algorithmic timestamp normalization protocols on the back-end.
 
-### Required Columns
+#### Structure Requirements
 
-The CSV file must contain the following columns on the first line:
+- **Row 1 Headers**: Must contain exactly `timestamp`, `duration`, `eyemovementtype`, `participant`, `stimulus`, and `AOI`.
+- **Timestamp Value**: Absolute integer start marker.
+- **Duration Value**: Absolute integer length calculation.
+- **EyeMovementType Value**: Deep binary classifier (`0` = Fixation, `1` = Saccade).
+- **Metadata Values**: Standard semantic strings.
 
-- `timestamp` - start time of the segment, simple number
-- `duration` - duration of the segment, simple number
-- `eyemovementtype` - eye movement type (0 = Fixation, 1 = Saccade)
-- `participant` - text string of the participant name
-- `stimulus` - text string of the stimulus name
-- `AOI` - text string of the AOI name
+#### Delimitation Constraints
 
-### Delimiters
+- **Columns**: Strictly delimited by commas `,`.
+- **Rows**: Standard carriage returns `\n`, `\r\n`, or `\r`.
 
-- `,` - column delimiter
-- `\n`, `\r\n`, or `\r` - row delimiter (automatically detected)
+#### Parsing Behavior
 
-### Formatting
+The system imports these rows and rapidly forces a mathematical re-normalization of all absolute timestamps.
 
-Each row represents one segment. The system automatically normalizes timestamps so that each participant/stimulus combination starts from time 0.
+**Baselines**: The very first sequential segment of any unique Participant × Stimulus combination is aggressively rewritten directly to an arbitrary `0` start time baseline.
 
-::: info
-Timestamps are automatically normalized - the first segment for each participant/stimulus combination becomes the baseline (time 0).
+::: tip Advanced Data Pipelines
+Because the Segmented Duration schema inherently normalizes time algorithms on ingestion, it acts as a powerful data cleaning pipeline. You can export data, crop out initialization instructions, and directly re-upload via this format to automatically reset your spatial time constraints. Read the [Segmented Data workflows](/docs/advanced/segmented-data-workflows/) guide for complex manipulations.
 :::
-
-::: info
-Eye movement types: `0` = Fixation, `1` = Saccade
-:::
-
-::: tip Advanced workflows
-The Segmented Duration format enables powerful data editing workflows. Export your data as [Segmented Data CSV](/docs/export/segmented-data/), edit it in Excel or a text editor (crop segments, split stimuli), then re-upload using this format. See [Segmented Data workflows](/docs/advanced/segmented-data-workflows/) for detailed examples.
-:::
-
-### Example
 
 ```csv
 stimulus,participant,timestamp,duration,eyemovementtype,AOI
@@ -134,5 +101,4 @@ SMI Base,Anna,226.2,72,1,
 SMI Base,Anna,298.2,120,0,Map
 SMI Base,Anna,418.2,28,1,
 SMI Base,Anna,446.2,208,0,Map
-SMI Base,Anna,654.2,36,1,
 ```

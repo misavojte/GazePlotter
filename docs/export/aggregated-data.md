@@ -5,112 +5,95 @@ order: 4
 
 # Aggregated Data Export
 
-Export statistical metrics (dwell time, fixation counts, durations) in long format CSV for analysis in R, Python, or SPSS.
+The Aggregated Data Export pipeline condenses raw eye-tracking vectors into a highly structural, mathematically rigorous long-format CSV. This output is explicitly designed for seamless ingestion into advanced statistical processing engines (R, Python, SPSS).
 
-## Purpose
+## Analytical Purpose
 
-Aggregated data export provides:
+Generating aggregated data files provides:
 
-- Statistical metrics for each participant-stimulus-AOI combination
-- Long format CSV structure optimized for statistical analysis
-- Multiple metrics in a single export
-- Compatibility with data analysis software
+- Explicit statistical metrics calculated individually for each unique Participant-Stimulus-AOI interaction.
+- A standardized long-format CSV architecture optimized for programmatic parsing.
+- Highly parallelized metric outputs consolidated into a singular unified export matrix.
 
 ## Export Configuration
 
-### File Settings
+To generate the analytical export, several systemic parameters must be defined.
 
-- **File name** - specify output CSV filename (without extension)
-- **Participant Group** - select which participant group to include in export
+### Global File Settings
 
-### Stimulus Selection
+- **File name**: Specify the root output filename (the `.csv` extension is appended automatically).
+- **Participant Group**: Select which specific logical participant group cohort should be actively iterated during the export generation.
 
-Choose one or multiple stimuli to include:
+### Stimulus Targeting
 
-- Select from available stimuli using checkboxes
-- Multiple stimuli will be combined in single CSV
-- Each stimulus contributes separate rows to the dataset
+Designate exactly which stimuli from the core dataset contribute rows to the CSV output.
 
-### Metrics Selection
+- **Selection**: Check the boxes adjacent to the desired stimuli.
+- **Aggregation Logic**: Selecting multiple stimuli combines all resulting permutation data into the exact same CSV. Each individual stimulus interaction resolves into its own discrete rows.
 
-Choose from following eye-tracking metrics:
+## Metrics Selection
 
-#### Absolute Dwell Time
+You must deliberately select which specific mathematical operations the system executes.
 
-Total time spent in each AOI (ms) across all fixations.
+### Duration Metrics
 
-#### Relative Dwell Time (%)
+- **Absolute Dwell Time**: Total aggregate time logically spent located within the AOI, calculated in milliseconds (ms).
+- **Relative Dwell Time (%)**: Dwell time geometrically expressed as a direct percentage of the total active viewing duration.
+- **Time to First Fixation**: Total temporal delay from the initiation of the stimulus until the first recorded fixation collides with the AOI. _(Outputs `-1` if the AOI is never achieved)._
+- **First Fixation Duration**: Absolute duration of the inaugural fixation impacting the AOI. _(Outputs `-1` if the AOI is never achieved)._
+- **Mean Fixation Duration**: The standard average duration of all independent fixations registered on the AOI. _(Outputs `-1` if the AOI is never achieved)._
+- **Mean Visit Duration**: The standard average duration of all distinct logical visits to the AOI. _(Outputs `-1` if the AOI is never achieved)._
 
-Dwell time as percentage of total viewing time for each AOI.
+### Frequency Metrics
 
-#### Time to First Fixation
+- **Fixation Count**: The absolute integer quantity of discrete fixations registered on the AOI.
+- **Visit Count**: The absolute integer quantity of grouped continuous visits. _(Consecutive, unbroken serial fixations inside the exact same AOI count dynamically as 1 unified visit)._
 
-Time until first fixation on each AOI (from stimulus start). Returns -1 if AOI was never fixated.
+## Data Architecture
 
-#### First Fixation Duration
+Understanding the physical structure of the resulting CSV is crucial for programmatic parsing scripts.
 
-Duration of the first fixation on each AOI. Returns -1 if AOI was never fixated.
+### CSV Structure (Long Format)
 
-#### Fixation Count
+The system automatically outputs a strict long-format structure comprising these specific column headers:
 
-Number of fixations on each AOI.
+- **Participant_ID**: The numeric tracking identifier of the participant.
+- **Participant_Name**: The semantically defined [Participant Display Name](/docs/basic/participants-customization/).
+- **Stimulus**: The semantically defined [Stimulus Display Name](/docs/basic/stimuli-customization/).
+- **AOI_Group**: The assigned [AOI Display Name](/docs/basic/aoi-customization/), or one of the internal system variables.
+- **Metric**: The string literal representing the specific metric type (e.g., `"Dwell_Time"`).
+- **Value**: The final integer or floating-point mathematical calculation.
 
-#### Mean Fixation Duration
+### Internal System Variables
 
-Average duration of fixations on each AOI. Returns -1 if AOI was never fixated.
+Within the `AOI_Group` column, the exporter may utilize reserved variables:
 
-#### Visit Count
+- **`No_AOI`**: Represents the mathematical aggregation of all fixations that occurred completely outside any manually defined AOI polygons.
+- **`Any_Fixation`**: Represents the brute total aggregation calculation across absolutely all recorded fixations for that stimulus iteration.
 
-Number of distinct visits to each AOI (consecutive fixations count as one visit).
+### Structure Example
 
-#### Mean Visit Duration
-
-Average duration of visits to each AOI. Returns -1 if AOI was never visited.
-
-## CSV Format
-
-### Structure
-
-Long format CSV with columns:
-
-- **Participant_ID** - numeric participant identifier
-- **Participant_Name** - displayed participant name
-- **Stimulus** - stimulus name
-- **AOI_Group** - AOI name or special group
-- **Metric** - metric type (e.g., "Dwell_Time")
-- **Value** - calculated metric value
-
-### Special AOI Groups
-
-- **No_AOI** - fixations outside any defined AOI
-- **Any_Fixation** - aggregated values across all fixations
-
-### Example Data
-
-```
+```csv
 Participant_ID,Participant_Name,Stimulus,AOI_Group,Metric,Value
 1,"P01","Image1","Logo","Dwell_Time",1250.5
 1,"P01","Image1","Logo","Fixation_Count",3
 1,"P01","Image1","No_AOI","Dwell_Time",450.2
 ```
 
-## Export Process
+## Execution Workflow
 
-1. Configure export settings (filename, group)
-2. Select stimuli to include
-3. Choose metrics to calculate
-4. Click **Export CSV** to download file
-5. Success message shows exported data points count
+1. Configure the primary export variables (Filename, Target Group).
+2. Manually select the target Stimuli.
+3. Manually select the specific statistical Metrics to be calculated.
+4. Click the **Export CSV** execution button.
+5. The system computes the matrix and serves the CSV. A momentary success banner will display the exact row count of the generated `.csv` matrix.
 
-## Statistical Analysis Usage
+## System Integration Note
 
-This format is optimized for:
+::: tip External Tool Optimization
+The explicit long format utilized by this export routine was designed from the ground up for data frame ingestion.
 
-- **R** - use `read.csv()` and reshape/analyze with tidyverse
-- **Python** - import with pandas for statistical modeling
-- **SPSS** - direct import for ANOVA and regression analysis
-- **Custom scripts** - standard CSV format for any analysis tool
-
-::: tip Analysis Tip
-The long format structure makes it easy to perform grouped analyses, create visualizations, and run mixed-effects models with participant and stimulus as factors.
-:::
+- **R**: Native compatibility via `read.csv()` coupled natively with `tidyverse` restructuring logic.
+- **Python**: 1:1 mapped importation into `pandas` dataframes for immediate statistical modeling.
+- **SPSS**: Immediate direct matrix importation for structural ANOVA processing and regression analysis.
+  :::

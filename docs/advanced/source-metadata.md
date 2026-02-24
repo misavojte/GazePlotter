@@ -3,70 +3,61 @@ title: Source Metadata
 order: 2
 ---
 
-# Eye-tracking Source Metadata
+# Eye-Tracking Source Metadata
 
-The Source Metadata panel in GazePlotter provides comprehensive information about your uploaded eye-tracking data, processing details, and system resource usage.
+The persistent Source Metadata dashboard inside GazePlotter grants analysts complete operational visibility over ingested eye-tracking datasets. It exposes deep technical processing logs, architectural file sizing, and real-time computation memory utilization.
 
-## Accessing Source Metadata
+## Accessing the Dashboard
 
-Click the **Source Metadata** button (document icon) in the [workspace toolbar](/docs/basic/workspace/#workspace-toolbar) to view detailed information about your data and processing.
+To command the Source Metadata system:
 
-## Information Displayed
+1. Locate the persistent left [Workspace Toolbar](/docs/basic/workspace/#workspace-toolbar).
+2. Click the specialized **Source Metadata button** (represented by a document icon).
 
-### Data Overview
+## Exposed Structural Information
 
-- **Number of Stimuli** - Count of stimuli/trials in your dataset
-- **Number of Participants** - Total participant count
-- **Total Number of AOIs** - Sum of all Areas of Interest across all stimuli
-- **AOIs per Stimulus** - Breakdown showing AOI count for each individual stimulus
+The dashboard systematically categorizes telemetry and processing logs.
 
-### Current Parsing (if applicable)
+### Active Data Overview
 
-When processing workspace files that differ from original uploads:
+Core volumetric totals mapping the active workspace session.
 
-- **Files Being Processed** - Count of files currently being processed
-- **File Names and Sizes** - Individual file details with sizes
-- **Total File Size** - Combined size of all files being processed
-- **Parse Date** - When the current processing occurred
+- **Stimuli Count**: Absolute integer total of distinct stimuli sequences.
+- **Participant Total**: Absolute integer total of distinct subject arrays.
+- **Global AOI Footprint**: Total aggregation of all unique Areas of Interest dynamically mapped across all instantiated stimuli.
+- **Stimulus Density Map**: A granular breakdown directly exposing the exact quantity of mapped AOIs logically bound to each specific individual stimulus string.
 
-### Source Parsing (Original Eye Tracking Export)
+### Origin Ingestion Telemetry
 
-Information about the original data files:
+Precise hardware parsing parameters captured mechanically during the initial file upload sequence.
 
-- **Files Processed** - Count of original uploaded files
-- **File Names and Sizes** - Details of each original file
-- **Total File Size** - Combined size of all original files
-- **Parse Duration** - Time taken to process the original files
-- **Parse Date** - When original processing occurred
-- **GazePlotter Version** - Version used for original processing
-- **Client** - Browser/system information from original processing
-- **Parse Settings** - Technical details including:
-  - Type of data format
-  - Row delimiter used
-  - Column delimiter used
-  - User input settings (if applicable)
+_(Note: Data structures processed by GazePlotter firmware prior to version 1.7.0 will logically return NULL for these tracking values)._
 
-### RAM Usage
+- **Ingestion Scale**: Count of original raw files parsed.
+- **File Architecture**: The specific explicit filenames alongside calculated byte footprint sizes.
+- **Processing Payload**: The total mathematical byte weight of the ingested array.
+- **Engine Execution Delay**: Explicit millisecond duration required for the parsing engine to successfully execute.
+- **Timestamp Log**: Server-normalized ingestion timestamp.
+- **Parser Constraints**: Deep technical variables utilized by the conversion engine, including:
+  - Base target formatting protocol.
+  - Hardcoded row serialization delimiters.
+  - Hardcoded column separation matrices.
+  - Defined explicit client manual overrides.
 
-Real-time memory usage information:
+### Real-Time System Resources (RAM)
 
-- **Current JS Heap Size (used)** - Memory currently in use
-- **Total JS Heap Size (allocated)** - Memory allocated to the application
-- **JS Heap Size Limit (max available)** - Maximum memory available
-- **Memory Utilization** - Percentage of available memory being used
+Live memory analytics directly reporting the browser-level JavaScript heap implementation. All computations operate entirely locally within your client architecture.
 
-## Export Functionality
+- **Allocated Memory Surface**: The absolute ceiling limits granted to the environment by the host OS.
+- **Active Heap Footprint**: Live measurement of aggressively active computational memory currently consumed by analytical parsing.
+- **Architectural Limit**: Hard JS structural memory limits.
+- **Execution Utilization**: Live percentage calculation mapping memory consumption against the available memory ceiling.
 
-Use the **Export Metadata** button to download a comprehensive CSV file containing all metadata information. This is useful for:
+## Metadata Serialization
 
-- **Documentation** - Keep records of your data processing
-- **Troubleshooting** - Share technical details when seeking support
-- **Research Records** - Maintain audit trails for your analysis
+Analysts maintaining strict chain-of-custody tracking or laboratory quality control logs can serialize this telemetry data.
 
-## Legacy Data Support
+### Generating Audit Logs
 
-For data processed before GazePlotter version 1.7.0, source parsing metadata may not be available, as this feature was introduced in later versions.
-
-## Privacy & Security
-
-All metadata is processed and stored locally in your browser. Memory usage monitoring and metadata export operate entirely client-side, ensuring complete privacy of your research data.
+- **Action**: Click the active **Export Metadata** command button.
+- **Behavior**: The engine generates a comprehensive, aggregated `.csv` text array encapsulating all currently visible telemetry elements. Use this strictly formatted array for support troubleshooting or rigid protocol documentation logs.

@@ -5,44 +5,47 @@ order: 5
 
 # ScanGraph Export
 
-Export fixation sequences for scanpath analysis in the ScanGraph tool. Converts gaze data to letter-coded sequences for similarity comparison.
+The specialized ScanGraph Export format serializes standard spatial gaze tracking data strictly into letter-coded sequence strings. This structural transformation bridges native GazePlotter analysis directly into the algorithmic sequence-matching software provided by the ScanGraph suite.
 
-## Purpose
+## Analytical Purpose
 
-ScanGraph export enables:
+Abstracting coordinate plots into letter-coded syntax allows automated computational architectures to perform:
 
-- Scanpath similarity analysis
-- Fixation sequence comparison between participants
-- Advanced gaze pattern research
-- Integration with ScanGraph analysis tool
+- Granular scanpath parity algorithms.
+- Massive scale fixation sequence juxtaposition between independent participants.
+- The creation of intricate algorithmic-derived similarity matrices.
 
-## Export Process
+## File Architecture
 
-1. Select **ScanGraph** in Export Format section
-2. Choose desired stimulus to export
-3. Set export file name
-4. Click **Download** to save TXT file
+A generated ScanGraph export strictly utilizes basic `.txt` syntax formatted specifically for external ingestion.
 
-## File Format
+- **Letter Encoding**: Every single independent fixation registered inside a defined AOI is computed and assigned an alphabetical character ID.
+- **Sequence Mapping**: The sequential temporal flow of fixations is explicitly mapped as long literal strings of these alphabetical characters.
+- **Index Header**: The internal matrix key logically linking the specific alphabetical characters back to the semantic human-readable AOI names is definitively printed on lines 4 and 5 of the generated file header.
 
-The exported `.txt` file contains:
+## Execution Workflow
 
-- Fixation sequences as letter strings
-- Each letter represents a fixation on an AOI
-- Letter key provided in lines 4-5 of the file
-- Compatible with ScanGraph software
+To serialize your active data into ScanGraph compliance strings:
 
-## Using Exported Data
+1. Locate the master **Export Format** configuration section.
+2. Select the explicit **ScanGraph** system integration option.
+3. Utilize the dropdown constraints to target a desired active stimulus parameter.
+4. Define your preferred output prefix in the file name input.
+5. Depress **Download** to actively compute the algorithmic `.txt` file and serialize it to your local machine.
 
-1. Upload the `.txt` file to [ScanGraph](http://eyetracking.upol.cz/scangraph)
-2. ScanGraph will process fixation sequences
-3. Compare scanpath similarities between participants
-4. Generate similarity matrices and visualizations
+## Integration Guidelines
+
+GazePlotter is capable of directly feeding the [ScanGraph Cloud Platform](http://eyetracking.upol.cz/scangraph).
+
+1. Retrieve the successfully downloaded `.txt` text file.
+2. Upload the raw text file directly into the ScanGraph web application.
+3. Command ScanGraph to process the serialized logical sequence matrices.
+4. Utilize ScanGraph's external algorithms to generate advanced heatmap parity networks and similarity visualizations.
 
 ![](/docs/images/scangraph-1.png)
 
-## Future Development
+## Development Roadmap
 
-Direct ScanGraph integration is planned for future GazePlotter versions. This will enable seamless scanpath analysis without external file transfers.
+Deep API-based integration between the GazePlotter application and the external ScanGraph engine is currently slated for deployment in future iterations. This technical bridge will eliminate the requirement for manual `.txt` handoff procedures, providing direct pipeline analytics.
 
-Contributors interested in this integration can contact [mail@vojtechovska.com](mailto:mail@vojtechovska.com).
+_Developers or researchers interested in augmenting or utilizing this integration topology should contact the core team via [mail@vojtechovska.com](mailto:mail@vojtechovska.com)._

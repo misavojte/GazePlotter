@@ -4,90 +4,62 @@ order: 4
 outline: deep
 ---
 
-# Segmented Data workflows (export → edit → re-upload)
+# Segmented Data Workflows (Export → Edit → Re-upload)
 
-Use the Segmented Duration CSV format to round-trip your data: export segmented data, edit it in a spreadsheet/text editor, and upload it back in the same format. This enables precise operations like cropping early segments or splitting stimuli while keeping correct baselines.
+The Segmented Duration CSV format natively supports bi-directional round-trip pipelines: you can export raw segmented vectors, mechanically edit them inside a spreadsheet or programmatic text editor, and seamlessly re-ingest them back into GazePlotter.
 
-This workflow is particularly useful for **mobile eye-tracking data** where you need to split or merge stimuli based on how image mapping went, or when you need to remove calibration periods and initial setup phases from your analysis.
+This enables you to perform highly precise data manipulations, such as cropping irrelevant early segments, splitting specific stimuli into discrete subsets, and normalizing time baselines mathematically.
 
-## Use Case 1: Cropping early data
+## Standardized Format Requirements
 
-If you need to remove the first few seconds of a recording (e.g., initial instructions):
+Any CSV file interacting with this system must strictly adhere to the [Segmented Duration CSV structure](/docs/upload-data/custom-csv/#segmented-duration-csv).
 
-1. Open the Segmented Data export in your spreadsheet software.
-2. Find the stimuli and participants you want to crop.
-3. Delete the rows for the early fixations/saccades.
-4. Export as CSV.
-5. Re-upload via [Segmented Duration CSV](/docs/upload-data/custom-csv/#segmented-duration-csv).
+### Required Data Schema
 
-**Result**: The upload will re-normalize timestamps so the first remaining segment of that participant × stimulus starts at 0.
+- **`timestamp`**: Start time vector of the individual segment.
+- **`duration`**: Absolute duration calculation of the individual segment.
+- **`eyemovementtype`**: Binary eye movement classifier (0 = Fixation, 1 = Saccade).
+- **`participant`**: Exact textual participant name assignment.
+- **`stimulus`**: Exact textual stimulus name assignment.
+- **`AOI`**: Exact textual AOI name collision (can securely remain empty).
 
-## Required CSV format
+### Hard Editing Constraints
 
-When editing the exported CSV, retain the column structure required by the [Segmented Duration CSV](/docs/upload-data/custom-csv/#segmented-duration-csv) format:
+- **Preserve Sequential Sorting**: All row data must remain strictly in correct chronological order within every specific Participant × Stimulus combination block.
+- **Prevent Manual Timestamp Adjustment**: Do not attempt to manually recalculate or shift timestamps. The GazePlotter import engine automatically re-normalizes them upon ingestion.
+- **Enforce Required Fields**: The `participant` and `stimulus` cells must always contain string values.
 
-- `timestamp` - start time of the segment
-- `duration` - duration of the segment
-- `eyemovementtype` - eye movement type (0 = Fixation, 1 = Saccade)
-- `participant` - participant name
-- `stimulus` - stimulus name
-- `AOI` - AOI name (can be empty)
+## Workflow 1: Cropping Initialization Sequences
 
-### Important editing guidelines
+Mobile eye-tracking data often contains extensive initial setup phases, calibrations, or operator instructions. This workflow strips out this irrelevant early data while resolving the temporal baselines.
 
-- **Don't edit timestamps manually**: The system will re-normalize them automatically. Each participant Ã— stimulus combination gets its own baseline
-- **Don't leave empty required fields**: Ensure `participant` and `stimulus` are always filled
-- **Maintain sequential order**: Ensure that rows remain in sequential order (time) within each participant Ã— stimulus combination
+### Execution Routine
 
-## Typical workflows
+1. **Extraction**: Command GazePlotter to output the dataset as a [Segmented Data CSV](/docs/export/segmented-data/).
+2. **Editing Environment**: Open the exported `.csv` document inside Excel, Google Sheets, or a dedicated text editor.
+3. **Filtering**: Filter the view strictly to the specific Participant and Stimulus combination requiring truncation.
+4. **Deletion**: Manually highlight and permanently delete the specific rows (segments/fixations) that constitute the initialization period you wish to crop.
+5. **Serialization**: Save the active file cleanly as a standard comma-delimited `.csv`.
+6. **Re-ingestion**: Navigate back to GazePlotter and execute an upload via the [Segmented Duration CSV](/docs/upload-data/custom-csv/#segmented-duration-csv) schema.
 
-### Crop first N segments for a participant in a stimulus
-
-1. Export data as [Segmented Data CSV](/docs/export/segmented-data/).
-2. Open the CSV in Excel or a text editor.
-3. Filter to the participant and stimulus of interest.
-4. Remove the first N rows (segments) you wish to crop.
-5. Save the CSV.
-6. Re-upload using [Segmented Duration CSV](/docs/upload-data/custom-csv/#segmented-duration-csv).
-
-Result: The upload will re-normalize timestamps so the first remaining segment of that participant Ã— stimulus starts at 0.
+**System Behavior Result**: The import engine reads the modified file and mechanically re-normalizes the timestamps. The _first remaining segment_ of that specific Participant × Stimulus block is automatically rewritten as the new absolute `0` start time baseline.
 
 ![](/docs/images/segmented-data-workflow_1.jpg)
-
 ![](/docs/images/segmented-data-workflow_2.jpg)
 
+## Workflow 2: Segmenting Monolithic Stimuli
+
+Lengthy, continuous recordings often encompass multiple independent analytical phases. This workflow explicitly shatters a single long recording into discrete, isolated stimuli strings.
+
+### Execution Routine
+
+1. **Extraction**: Output the root dataset via the standard [Segmented Data CSV algorithm](/docs/export/segmented-data/).
+2. **Identification**: Within the open CSV, locate the precise timestamps where your participants seamlessly transition between distinct task phases or physical environments.
+3. **Semantic Renaming**: Modify the string values in the `stimulus` column from the original monolithic name to new, highly semantic phase names (e.g., change `Shopping_Task` to `Shopping_Selection`, `Shopping_Checkout`, `Shopping_Review`) corresponding to their specific timestamps.
+4. **Serialization**: Save the structurally modified spreadsheet as a standard `.csv`.
+5. **Re-ingestion**: Upload the newly mapped dataset utilizing the [Segmented Duration CSV module](/docs/upload-data/custom-csv/#segmented-duration-csv).
+
+**System Behavior Result**: GazePlotter processes the newly injected stimulus names as totally independent structures. Critically, each newly defined task phase is automatically assigned its own mathematical start baseline (time `0`), effectively isolating them into clean discrete analytical blocks.
+
 ![](/docs/images/segmented-data-workflow_3.jpg)
-
 ![](/docs/images/segmented-data-workflow_4.jpg)
-
-### Split one recording into multiple stimuli with correct baselines
-
-1. Export as [Segmented Data CSV](/docs/export/segmented-data/).
-2. Duplicate and assign subsets of rows to new stimulus names (e.g., `Stimulus A`, `Stimulus B`).
-3. Ensure each subset contains only one stimulus label and consistent participant labels.
-4. Save as a single CSV or separate CSV files.
-5. Re-upload via [Segmented Duration CSV](/docs/upload-data/custom-csv/#segmented-duration-csv).
-
-Result: Each participant Ã— stimulus subset gets its own baseline (time 0) on upload.
-
-### Break one stimulus into multiple parts based on task phases
-
-1. Export as [Segmented Data CSV](/docs/export/segmented-data/).
-2. Identify timestamps where users enter new spaces or process different task parts.
-3. Create separate stimulus names for each phase (e.g., `Task_Introduction`, `Task_Main`, `Task_Conclusion`).
-4. Rename values in the `stimulus` column to match the new stimulus names based on their timestamps.
-5. Save the modified CSV.
-6. Re-upload via [Segmented Duration CSV](/docs/upload-data/custom-csv/#segmented-duration-csv).
-
-Result: Each task phase becomes a separate stimulus with its own baseline, enabling analysis of different processing stages.
-
-**Example scenario:**
-
-- Original: One `Shopping_Task` stimulus
-- Split into: `Shopping_Product_Selection`, `Shopping_Checkout`, `Shopping_Review`
-- Each phase gets its own time baseline for focused analysis
-
-## Related documentation
-
-- [Custom CSV upload](/docs/upload-data/custom-csv/)
-- [Segmented Data export](/docs/export/segmented-data/)
