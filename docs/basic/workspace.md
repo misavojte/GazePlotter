@@ -6,92 +6,96 @@ outline: 'deep'
 
 # Workspace
 
-The workspace is your main analysis area in GazePlotter. Think of it as your dashboard where you can:
+The workspace is your main analysis area in GazePlotter. Think of it as your primary dashboard where you can simultaneously view multiple visualizations, juxtapose different data sets, and create custom layouts that precisely fit your analytical workflow.
 
-- **View multiple visualizations** at the same time
-- **Compare different data views** side by side
-- **Organize your analysis** by moving and resizing plots
-- **Create custom layouts** that suit your workflow
+## Initial Layout
 
-This guide shows you how to work with plots in the workspace - the essential skills every GazePlotter user needs.
+When you first upload your eye-tracking data, GazePlotter jump-starts your analysis by rendering a default set of visualizations.
 
-## Getting Started with Plots
+### Automatically Generated Plots
 
-**Your first plot:** When you upload data, GazePlotter automatically creates a scarf plot, a bar plot and a transition matrix. This is your starting point.
+Four distinct visualizations are created immediately upon data upload.
 
-**Adding more plots:** Use the "Add Visualization" button in the left toolbar to create more plots.
-
-**Basic plot operations:** Every plot can be moved, resized, duplicated, or removed. These are the fundamental skills you'll use most often.
+- **[Scarf Plot](/docs/basic/scarf-plot/)**: Visualizes gaze sequences and temporal behavior.
+- **[Bar Plot](/docs/basic/bar-plot/)**: Provides highly structured statistical analysis metrics.
+- **[Transition Matrix](/docs/basic/transition-matrix/)**: Shows heat map views of gaze movement between Areas of Interest.
+- **[Time-binned AOI Occupancy](/docs/basic/aoi-occupancy/)**: Displays a flowing representation of attention distribution over time.
 
 ## Workspace Toolbar
 
-Vertical control panel on the left side providing quick workspace management:
+Locked to the left side of your screen is the vertical workspace toolbar. This toolbar provides immediate access to global layout commands and metadata.
 
-- **Reset Layout** - Reorganize plots into clean grid layout
-- **Add Visualization** - Create new [scarf plots](/docs/basic/scarf-plot/), [bar plots](/docs/basic/bar-plot/), or [transition matrices](/docs/basic/transition-matrix/)
-- **Toggle Fullscreen** - Distraction-free analysis mode
-- **Source Metadata** - View detailed information about your data processing and system usage ([details](/docs/advanced/source-metadata/))
+### Layout Management
 
-## Workspace Export & State Preservation
+- **Undo / Redo**: Step backward or forward through any changes made to the workspace layout or internal plot configurations.
+- **Reset Layout**: Instantly reorganize all currently visible plots back into a clean, systematic grid layout.
 
-[Workspace export](/docs/export/workspace/) creates comprehensive JSON files, which can be re-uploaded, preserving:
+### Adding Visualizations
 
-- **Complete Layout** - Exact plot positions and sizes
-- **Plot Configurations** - All visualization settings and customizations
-- **Participant Groupings** - Custom groups for comparative analysis
-- **AOI Customizations** - Colors, names, and visual properties
-- **Filter Settings** - Data filtering and selection criteria
-- **Visualization Types** - All plot types with specific settings
+- **Add Visualization**: Opens a menu to instantiate a brand new Scarf Plot, Bar Plot, Transition Matrix, or Time-binned AOI Occupancy plot. New plots are appended to the nearest empty space in the grid layout.
 
-::: tip Workspace Management
-Use workspace export frequently to save your analysis configurations. The JSON files are small and perfect for:
+### General Information
 
-- **Collaboration** - Share complete dashboards with team members
-- **Backup** - Save analysis configurations before making changes
-- **Templates** - Create reusable layouts for similar projects
-- **Transfer** - Move workspaces between devices or systems
-- **Version Control** - Track changes and maintain project history
-  :::
+- **Source Metadata**: View detailed technical information about your processed data, original format, and system usage. See the [Source Metadata documentation](/docs/advanced/source-metadata/) for more details.
 
-## Manipulating Plots in the Workspace
+## Plot Manipulation
 
-Drag-and-drop interface for plot management. More options in individual plots (see [Scarf plot](/docs/basic/scarf-plot/)).
+Every individual visualization plot functions as an independent, interactive card. They can be freely manipulated using the drag-and-drop interface.
 
-### How to move a plot around workspace?
+_(For changing exactly what data is displayed inside the plot itself, consult the documentation for your specific plot type, e.g., [Scarf plot options](/docs/basic/scarf-plot/))._
 
-- Click and drag **drag handle** (4 dots icon) in plot header
-- Plots snap to 50x50 pixel grid
-- Workspace expands automatically at edges
+### Spatial Arrangement
+
+#### Moving a plot
+
+- **Action**: Click and drag the **drag handle** (the 4-dots group icon in the plot's top header).
+- **Behavior**: Plots snap cleanly to an underlying 50x50 pixel grid. The workspace canvas boundary automatically expands if a plot is dragged to the edges.
 
 ![](/docs/images/how-to-move-plot-gazeplotter.jpg)
 
-### How to resize a plot?
+#### Resizing a plot
 
-- Drag bottom-right corner to resize
-- Maintains proportional sizing on 50x50 pixel grid
+- **Action**: Click and drag the **bottom-right corner** of the plot card.
+- **Behavior**: The plot bounding box maintains proportional sizing while snapping to the underlying grid configuration.
 
 ![](/docs/images/how-to-resize-plot-gazeplotter.jpg)
 
-### How to duplicate a plot?
+### Object Management
 
-Duplicating a plot creates an identical copy with all current settings preserved. This includes any applied participant groups, stimulus selections, axis adjustments, custom color palettes, AOI customizations, and all other visualization configurations. The duplicated plot appears in the same workspace and can be moved, resized, or further customized independently.
+#### Duplicating a plot
 
-- Click the **Duplicate button** (copy icon) in the plot header at the top-left corner
-- The duplicated plot will appear in the nearest empty place
+- **Action**: Click the **Duplicate button** (the copy icon in the plot's top-left header).
+- **Behavior**: Creates an identical copy of the plot in the workspace. It faithfully copies _all_ current settings, including applied participant groups, stimulus selections, axis bounds, and custom color palettes.
 
 ![](/docs/images/how-to-duplicate-plot-gazeplotter.jpg)
 
-### How to add a new plot?
+#### Removing a plot
 
-- Click **Add Visualization** in the workspace toolbar (to the left of the workspace)
-- Select one from available plot types
-- The new plot will appear in the nearest empty place
-
-![](/docs/images/how-to-add-plot-gazeplotter.jpg)
-
-### How to remove a plot?
-
-- Click the **Remove button** (X icon) in the plot header at the top-right corner
-- The plot will be permanently removed from the workspace
+- **Action**: Click the **Remove button** (the X icon in the plot's top-right header).
+- **Behavior**: The plot is permanently deleted from the workspace viewport.
 
 ![](/docs/images/how-to-remove-plot-gazeplotter.jpg)
+
+## State Preservation
+
+Rather than saving your visual settings manually, you can reliably capture and restore your entire analysis setup.
+
+### Workspace Export
+
+The [Workspace Export tool](/docs/export/workspace/) serializes your entire workspace layout and state into a standalone JSON file.
+
+Exporting preserves the complete state of your analysis:
+
+- **Spatial Grid Layout**: Exact plot positions and pixel dimensions.
+- **Internal Plot Settings**: Every toggle, bound, and data view setting configured.
+- **Global Customizations**: Modifications like Participant Groupings, named AOIs, and Data Filtering configurations.
+
+### Best Practices
+
+::: tip Workspace Management Use Cases
+Use the workspace export function frequently to save progress checkpoints. These highly compressed JSON files are perfectly suited for:
+
+- **Collaboration**: Email complete, ready-to-view dashboards to your research team.
+- **Templates**: Create standardized bounding layouts for similar analysis projects.
+- **Version Control**: Keep a history log of different iterative visualization approaches.
+  :::

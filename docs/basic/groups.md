@@ -3,82 +3,103 @@ title: Participant grouping
 order: 7
 ---
 
-# Participant grouping
+# Participant Grouping
 
-Participant grouping in GazePlotter allows you to organize participants into custom groups for comparative eye-tracking analysis. The interface provides advanced group management with search filtering, bulk operations, and change tracking for efficient data organization.
+Participant grouping in GazePlotter allows you to logically organize participants into distinct groups for rigorous comparative eye-tracking analysis. The grouping interface offers comprehensive management capabilities, including targeted search filtering, bulk participant assignment, and session change tracking.
 
-## Accessing participant grouping
+## Accessing the Tool
 
-To manage participant groups:
+To create or modify your participant groupings:
 
-1. Click on the `More options` button in the top right corner of any plot.
-2. Select `Setup participant grouping` from the pop-up menu.
+1. Click the **More options** button positioned in the top right corner of any visible plot.
+2. Select **Setup participant grouping** from the contextual pop-up menu.
+
+Executing this action opens the centralized participant grouping modal window.
 
 ## Group Management
 
-### Adding Groups
+### Creating Groups
 
-- Click `Add group` to create a new group
-- Groups are automatically named "Group 1", "Group 2", etc.
-- Each group gets the lowest available ID number
+#### Adding a new group
 
-### Group Properties
+- **Action**: Click the **Add group** button located at the bottom of the modal.
+- **Behavior**: Instantiates a new underlying grouping entity. It is automatically assigned a sequential default name (e.g., "Group 1") and appended to your active list.
 
-For each group you can:
+### Modifying Groups
 
-- **Edit name** - Click in the group name field to rename
-- **View participant count** - Shows "X/Y participants" (selected/total)
-- **Reorder groups** - Use up/down arrows to change group order
-- **Delete groups** - Click the trash icon to remove a group
+Every created group renders as an individual, expandable accordion item in the interface.
 
-### Group Accordion Interface
+#### Renaming
 
-- Click the participant count button to expand/collapse each group
-- Expanded groups show detailed participant management options
-- Multiple groups can be expanded simultaneously
+- **Action**: Click directly on the group name text field.
+- **Behavior**: Allows you to type a new customized, descriptive name for your analysis group.
 
-## Participant Selection
+#### Reordering
 
-### Individual Selection
+- **Action**: Click the up and down arrows on the group header.
+- **Behavior**: Adjusts the index order of the group within the list.
+- **Impact**: This specific ordering directly dictates the sequence in which groups are rendered in final plots.
 
-- Each participant has a checkbox within expanded groups
-- Check/uncheck to add/remove participants from groups
-- Participants can belong to multiple groups simultaneously
+#### Deletion
 
-### Search Filtering
+- **Action**: Click the trash bin icon.
+- **Behavior**: Permanently destroys the group entity and dissociates all assigned participants.
 
-- Use the "Search participants" field to filter the participant list
-- Search is case-insensitive and matches participant names
-- Hidden participants counter shows how many are filtered out
-- **Important**: Selections persist when search is cleared
+## Assigning Participants
+
+Clicking the header layer of any group expands it to reveal direct participant assignment options.
+
+### Individual Assignment
+
+The expanded view populates a comprehensive list of all participants present in your current dataset.
+
+- **Add**: Check the box adjacent to a target participant's name to link them to the group.
+- **Remove**: Uncheck the box to break the link and remove them.
 
 ### Bulk Operations
 
-Within each group:
+You can leverage bulk operations to efficiently assign or unassign entire cohorts of participants simultaneously.
 
-- **Select visible** - Adds all currently visible (filtered) participants to the group
-- **Deselect visible** - Removes all currently visible participants from the group
-- These operations respect the current search filter
+#### Select Visible
 
-## Change Tracking
+- **Action**: Click the **Select visible** button.
+- **Behavior**: Links all participants currently rendered in the list to the selected group.
 
-The interface tracks all modifications:
+#### Deselect Visible
 
-- **Unsaved changes** are highlighted with enabled Save/Discard buttons
-- **Auto-detection** of changes to group names, participants, or order
-- **Change persistence** - Modifications are preserved until saved or discarded
+- **Action**: Click the **Deselect visible** button.
+- **Behavior**: Dissociates all currently rendered participants from the selected group.
 
-### Saving Changes
+### Search Filtering
 
-- **Save** - Applies all changes and updates visualizations
-- **Discard Changes** - Reverts to the last saved state
-- Both buttons are disabled when no changes are pending
+When working with substantial participant counts, utilize the **Search participants** field to narrow down the visible list.
 
-## Tips for Effective Grouping
+- **Filtering**: The search engine filters participants continuously based on their current displayed name.
+- **Visibility**: When a search filter is actively applied, only matching participant names are rendered in the list.
+- **Analytics**: A dynamic summary text below the active list calculates exactly how many participants are currently hidden by your search parameters.
 
-- **Search before bulk operations** - Filter participants before using "Select visible" for targeted group building
-- **Multiple group membership** - Participants can belong to several groups for different analyses
-- **Persistent selections** - Use search to verify group membership without losing selections
-- **Group ordering** - Arrange groups in logical order for easier navigation in visualizations
+::: tip Utilizing Search for Bulk Operations
+The search filter and bulk operations are explicitly designed to be used in tandem.
 
-![](/docs/images/1.png)
+**Workflow Example**:
+If your goal is to group all participants possessing "Control" in their displayed name:
+
+1. Search for the exact string "Control".
+2. Click **Select visible** to bind them all instantly.
+3. If you subsequently clear the search field, those "Control" participants remain firmly assigned to the group while you search for completely different cohorts.
+   :::
+
+## Session State Tracking
+
+As you execute changes within the modal, GazePlotter's engine continuously tracks whether your current state differs from the initial load state.
+
+### Saving Modifications
+
+- **Action**: Click the **Save** button.
+- **Behavior**: Commits and applies all grouping modifications system-wide across your workspace.
+- **Validation**: The Save button is only active when uncommitted changes exist.
+
+### Discarding Modifications
+
+- **Action**: Click the **Discard Changes** button.
+- **Behavior**: Immediately reverts all participant groups back to their exact state prior to opening the modal window. All unsaved interactions are discarded.

@@ -3,83 +3,94 @@ title: Stimuli customization
 order: 9
 ---
 
-# Stimuli customization
+# Stimuli Customization
 
-Stimuli customization in GazePlotter allows you to rename stimuli and change their display order in eye-tracking plots. You can use pattern-based renaming for batch operations or edit individual stimulus names.
+Stimuli Customization in GazePlotter provides a robust mechanism to rename stimuli and reorder their sequence within all eye-tracking plots. The tool supports granular item-by-item editing as well as powerful, regex-driven pattern renaming for massive batch operations.
 
 ![](/docs/images/stimuli-customization_1.jpg)
 
+## Accessing the Tool
+
+To customize your target stimuli:
+
+1. Click the **More options** button positioned in the top right corner of any visible plot.
+2. Select **Stimulus customization** from the contextual pop-up menu.
+
+## Modifying Stimuli
+
+For manual adjustments and specific organizational tasks, use the individual editing table.
+
+### Individual Operations
+
+#### Renaming
+
+- **Action**: Modify the text field in the **Displayed name** column.
+- **Behavior**: Updates the visual label used in all drop-downs and plots, while securely leaving the original source name intact within the raw dataset.
+
+#### Reordering
+
+- **Action**: Click the up and down arrows located in the **Order** column.
+- **Behavior**: Adjusts the index rendering order of the stimulus. This dictates their sequential appearance in global dropdowns and menus.
+
+### Bulk Sorting Actions
+
+To quickly organize the configuration list, utilize the column header controls:
+
+- **Original Name**: Sorts the list alphanumerically based on the raw stimulus names imported from the source data.
+- **Displayed Name**: Sorts the list alphanumerically based on the currently customized displayed names.
+
+_Note: Clicking the same header multiple times toggles between ascending and descending sort directions. The algorithm strictly utilizes natural ordering (e.g., Stimulus_2 correctly precedes Stimulus_10)._
+
+## Pattern Renaming (Batch Processing)
+
+For high-volume datasets containing systemic naming flaws, Pattern Renaming enables global find-and-replace mechanics powered by Regular Expressions (Regex).
+
 ![](/docs/images/stimuli-customization_2.jpg)
 
-## Accessing stimuli customization
+### Execution Workflow
 
-To customize stimuli:
+1. **Targeting**: Input the target text or regex pattern into the **Find text** parameter field.
+2. **Replacement**: Input the desired replacement string into the **Replace with** parameter field.
+3. **Execution**: Click the **Apply renaming to all** button to instantly compute and map the transformations.
 
-1. Click on the `More options` button in the top right corner of any plot.
-2. Select `Stimulus customization` from the pop-up menu.
+### Quick Wildcard Insertions
 
-## Pattern Renaming
+For users unfamiliar with writing regex, pre-configured buttons automatically insert common wildcard patterns directly into the targeting field:
 
-Pattern renaming allows bulk renaming operations using regular expressions for find-and-replace across all stimuli.
+- **Any number**: Inserts `\d+` — Matches any contiguous sequence of digits (e.g., 1, 42, 1024).
+- **Any space**: Inserts `\s` — Matches any single whitespace character.
+- **Any letter**: Inserts `[A-Za-z]` — Matches any single alphabetical character, irrespective of case.
+- **Any character**: Inserts `.` — Matches absolutely any single character (except line breaks).
 
-### Find and Replace
+### Practical Applications
 
-1. Enter text or pattern to find in the `Find text` field
-2. Enter replacement text in the `Replace with` field
-3. Click `Apply renaming to all` to execute the replacement
+#### Basic Cleanup
 
-### Wildcard Patterns
+- **Strip numerical suffixes**: Find `\d+`, Replace with `(empty)`
+- **Condense spacing**: Find `\s`, Replace with `(empty)`
+- **Standardize delimitations**: Find `_`, Replace with `-`
+- **Abbreviate terminology**: Find `Stimulus`, Replace with `S`
 
-Wildcard buttons insert regex patterns into the Find text field:
+#### Advanced Regex Combinations
 
-- **Any number (e.g., 123)** → `\d+` - matches one or more digits
-- **Any space** → `\s` - matches any whitespace character
-- **Any letter** → `[A-Za-z]` - matches any single letter
-- **Any character** → `.` - matches any single character
+A complex transformation example involving multiple regex concepts.
 
-### Common Use Cases
-
-Simple examples:
-
-- Remove numbers: Find `\d+`, Replace with empty
-- Remove spaces: Find `\s`, Replace with empty
-- Replace prefixes: Find `Stimulus`, Replace with `S`
-- Standardize naming: Find `_`, Replace with `-`
-
-### Complex Example
-
-Transform `SMI Base` to `Base`:
+**Objective**: Mutate the string `SMI Base` to output `Base`.
 
 - **Find text**: `SMI\s`
-- **Replace with**: `` (empty)
-- **Result**: `SMI Base` â†' `Base`
+- **Replace with**: `(empty)`
+- **Result**: `SMI Base` → `Base`
 
-This pattern breaks down as:
+**Deconstruction**:
 
-- `SMI` - matches the literal text "SMI"
-- `\s` - matches the space after "SMI"
+- `SMI`: Targets the literal text string "SMI".
+- `\s`: Targets the immediate trailing space character following the string.
 
-### Advanced Regex Usage
+### Regex Assistance
 
-You can input any valid regular expression in the Find text field. For complex patterns, consider using AI tools like ChatGPT to generate regex patterns by describing your transformation needs.
+GazePlotter's engine processes pure regular expressions. Because the regex syntax is completely standard, you can utilize external LLM tools (like ChatGPT or Claude) to reliably generate complex extraction patterns by describing your exact transformation parameters.
 
-## Individual Stimulus Editing
+## Committing Changes
 
-For each stimulus you can:
-
-- Edit the `Displayed name` while keeping the original name unchanged
-- Change stimulus order using the up/down arrows in the `Order` column
-
-### Bulk Stimulus Sorting
-
-Click on column headers to sort stimuli:
-
-- **Original name** - sorts by the original stimulus names
-- **Displayed name** - sorts by the current displayed names
-- Click again to reverse sort direction (ascending/descending)
-
-The sorting uses natural ordering, so `Stimulus10` correctly comes after `Stimulus2` (not alphabetically before it).
-
-## Applying Changes
-
-Click `Apply` to save all modifications. Changes are discarded if you close the window without applying.
+- **Finalize**: Click the **Apply** button located at the bottom of the module to save all semantic modifications globally.
+- **Discard**: Closing the modal window without clicking Apply will safely terminate your session and discard all pending edits.

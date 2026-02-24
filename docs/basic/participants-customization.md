@@ -3,84 +3,95 @@ title: Participants customization
 order: 10
 ---
 
-# Participants customization
+# Participants Customization
 
-Participant customization in GazePlotter allows you to rename participants and change their display order in eye-tracking plots that display participant names (legends, axes, grouping). You can use pattern-based renaming for batch operations or edit individual participant names.
+Participants Customization in GazePlotter offers a comprehensive interface to semantically rename participants and dictate their global rendering order across all relevant eye-tracking plots. The tool provides granular row-level editing combined with a powerful, deterministic regex-based batch processing engine.
 
 ![](/docs/images/participant-customization_1.jpg)
 
+## Accessing the Tool
+
+To customize your analysis participants:
+
+1. Click the **More options** button positioned in the top right corner of any visible plot.
+2. Select **Participant customization** from the contextual pop-up menu.
+
+## Modifying Participants
+
+For specific, targeted adjustments to individual subjects, utilize the primary editing table.
+
+### Individual Operations
+
+#### Renaming
+
+- **Action**: Modify the text field placed in the **Displayed name** column.
+- **Behavior**: Directly overrides the visual label output in all legends, axes, and grouping menus without permanently altering the underlying raw dataset architecture.
+
+#### Reordering
+
+- **Action**: Click the up and down arrows situated in the **Order** column.
+- **Behavior**: Adjusts the global index rendering order of the participant. This order directly dictates their sequential baseline appearance from top-to-bottom or left-to-right in all visualizations.
+
+### Bulk Sorting Actions
+
+To quickly structure large participant pools, click directly on the column header labels:
+
+- **Original Name**: Sorts alphanumerically based on the raw participant strings ingested from the source files.
+- **Displayed Name**: Sorts alphanumerically based on your currently applied semantic labels.
+
+_Note: Clicking a header successively toggles between ascending and descending logic. The sorting engine utilizes natural alphanumeric ordering, ensuring that `Participant_2` correctly precedes `Participant_10`._
+
+## Pattern Renaming (Batch Processing)
+
+For datasets consisting of dozens or hundreds of subjects with systemic naming errors or unwanted metadata, Pattern Renaming provides a global find-and-replace mechanism driven by Regular Expressions (Regex).
+
 ![](/docs/images/participant-customization_2.jpg)
 
-## Accessing participant customization
+### Execution Workflow
 
-To customize participants:
+1. **Targeting**: Input the target text or strict regex pattern into the **Find text** parameter field.
+2. **Replacement**: Input the finalized replacement string into the **Replace with** parameter field.
+3. **Execution**: Click the **Apply renaming to all** button to instantly map the transformations across the entire participant array.
 
-1. Click on the `More options` button in the top right corner of any plot.
-2. Select `Participant customization` from the pop-up menu.
+### Quick Wildcard Insertions
 
-## Pattern Renaming
+Pre-configured macro buttons are available to automatically append standard wildcard patterns into the targeting field:
 
-Pattern renaming allows bulk renaming operations using regular expressions for find-and-replace across all participants.
+- **Any number**: Appends `\d+` — Matches any contiguous sequence of digits (e.g., 1, 42, 1024).
+- **Any space**: Appends `\s` — Matches any isolated whitespace character.
+- **Any letter**: Appends `[A-Za-z]` — Matches any single alphabetical character.
+- **Any character**: Appends `.` — Matches absolutely any generic character entity.
 
-### Find and Replace
+### Practical Applications
 
-1. Enter text or pattern to find in the `Find text` field
-2. Enter replacement text in the `Replace with` field
-3. Click `Apply renaming to all` to execute the replacement
+#### Basic Iterations
 
-### Wildcard Patterns
+- **Strip prefixes**: Find `Participant`, Replace with `P`
+- **Strip auto-generated spacing**: Find `\s`, Replace with `(empty)`
+- **Remove file extensions**: Find `.tsv`, Replace with `(empty)`
+- **Standardize terminology**: Find `_`, Replace with `-`
 
-Wildcard buttons insert regex patterns into the Find text field:
+#### Advanced Regex Combinations
 
-- **Any number (e.g., 123)** → `\d+` - matches one or more digits
-- **Any space** → `\s` - matches any whitespace character
-- **Any letter** → `[A-Za-z]` - matches any single letter
-- **Any character** → `.` - matches any single character
+A complex transformation mapping multiple regex components in sequence.
 
-### Common Use Cases
-
-Simple examples:
-
-- Remove numbers: Find `\d+`, Replace with empty
-- Remove spaces: Find `\s`, Replace with empty
-- Replace prefixes: Find `Participant`, Replace with `P`
-- Standardize naming: Find `_`, Replace with `-`
-
-### Complex Example
-
-Transform `Recording34 P20` to `P20`:
+**Objective**: Mutate the verbose string `Recording34 P20` exclusively down to `P20`.
 
 - **Find text**: `Recording\d+\s`
-- **Replace with**: `` (empty)
-- **Result**: `Recording34 P20` â†' `P20`
+- **Replace with**: `(empty)`
+- **Result**: `Recording34 P20` → `P20`
 
-This pattern breaks down as:
+**Deconstruction**:
 
-- `Recording` - matches the literal text "Recording"
-- `\d+` - matches one or more digits (34)
-- `\s` - matches the space after the number
+- `Recording`: Targets the exact literal string.
+- `\d+`: Captures the dynamic, variable numerical sequence attached to the string (e.g., 34).
+- `\s`: Captures the explicit blank space delimiting the two segments.
 
-### Advanced Regex Usage
+### Regex Assistance
 
-You can input any valid regular expression in the Find text field. For complex patterns, consider using AI tools like ChatGPT to generate regex patterns by describing your transformation needs.
+The processing engine strictly interprets standard regular expressions. For intricate pattern isolation routines, it is highly recommended to offload the pattern generation to external AI models by describing your raw string formats and your ideal output state.
 
-## Individual Participant Editing
+## Committing Changes
 
-For each participant you can:
-
-- Edit the `Displayed name` while keeping the original name unchanged
-- Change participant order using the up/down arrows in the `Order` column
-
-### Bulk Participant Sorting
-
-Click on column headers to sort participants:
-
-- **Original name** - sorts by the original participant names
-- **Displayed name** - sorts by the current displayed names
-- Click again to reverse sort direction (ascending/descending)
-
-The sorting uses natural ordering, so `Participant10` correctly comes after `Participant2` (not alphabetically before it).
-
-## Applying Changes
-
-Click `Apply` to save all modifications. Changes are discarded if you close the window without applying.
+- **Finalize**: Click the **Apply** button to commit all structural modifications to the workspace engine.
+- **Discard**: Exiting the modal component entirely without depressing the Apply button immediately discards all pending session updates.
