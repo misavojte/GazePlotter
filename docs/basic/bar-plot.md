@@ -12,11 +12,11 @@ Bar Plot in GazePlotter provides quantitative analysis of eye-tracking data thro
 ::: tip Bar plot manipulations in Workspace
 Interested on how to operate with plots in general within the workspace? See:
 
-- [How to move a plot around workspace?](/docs/basic/workspace/#how-to-move-a-plot-around-workspace)
-- [How to resize a plot?](/docs/basic/workspace/#how-to-resize-a-plot)
-- [How to duplicate a plot?](/docs/basic/workspace/#how-to-duplicate-a-plot)
-- [How to add a new plot?](/docs/basic/workspace/#how-to-add-a-new-plot)
-- [How to remove a plot?](/docs/basic/workspace/#how-to-remove-a-plot)
+- [How to move a plot around workspace?](/docs/basic/workspace/#moving-a-plot)
+- [How to resize a plot?](/docs/basic/workspace/#resizing-a-plot)
+- [How to duplicate a plot?](/docs/basic/workspace/#duplicating-a-plot)
+- [How to add a new plot?](/docs/basic/workspace/#adding-visualizations)
+- [How to remove a plot?](/docs/basic/workspace/#removing-a-plot)
   :::
 
 ## Overview

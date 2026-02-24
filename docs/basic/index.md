@@ -23,7 +23,7 @@ GazePlotter is a free web application for analyzing eye-tracking data. Simply vi
 **Step 3: Explore Your Data**
 
 - Use the controls in each plot to switch between participants, stimuli, and time views
-- Click and drag plots to [move them around](/docs/basic/workspace/#how-to-move-a-plot-around-workspace)
+- Click and drag plots to [move them around](/docs/basic/workspace/#moving-a-plot)
 - Use the [workspace toolbar](/docs/basic/workspace/#workspace-toolbar) to add more visualizations
 
 **Step 4: Save Your Work**
