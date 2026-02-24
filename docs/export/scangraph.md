@@ -27,11 +27,10 @@ A generated ScanGraph export strictly utilizes basic `.txt` syntax formatted spe
 
 To serialize your active data into ScanGraph compliance strings:
 
-1. Locate the master **Export Format** configuration section.
-2. Select the explicit **ScanGraph** system integration option.
-3. Utilize the dropdown constraints to target a desired active stimulus parameter.
-4. Define your preferred output prefix in the file name input.
-5. Depress **Download** to actively compute the algorithmic `.txt` file and serialize it to your local machine.
+1. **Access Export**: Click the **Export workspace or data** button in the [Workspace Toolbar](/docs/basic/workspace/#workspace-toolbar).
+2. **Select Format**: In the **Research Data Formats** section, click on the **ScanGraph Format** card.
+3. **Configure Settings**: Select the desired **Stimulus** from the dropdown menu and define the **File name**.
+4. **Download**: Click the **Export ScanGraph** button. A success toast will confirm the file generation.
 
 ## Integration Guidelines
 

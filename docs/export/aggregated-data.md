@@ -28,8 +28,10 @@ To generate the analytical export, several systemic parameters must be defined.
 
 Designate exactly which stimuli from the core dataset contribute rows to the CSV output.
 
-- **Selection**: Check the boxes adjacent to the desired stimuli.
-- **Aggregation Logic**: Selecting multiple stimuli combines all resulting permutation data into the exact same CSV. Each individual stimulus interaction resolves into its own discrete rows.
+- **Stimuli Selection**: Check the boxes adjacent to the desired stimuli in the **Stimuli** column. Selecting multiple stimuli combines all resulting permutation data into the same CSV.
+- **Delimiter**: Choose between **Comma (,)** or **Semicolon (;)** to define the column separation character.
+- **Decimal Separator**: Choose between **Dot (.)** or **Comma (,)** for numeric floating-point values.
+- **Aggregation Logic**: Each individual stimulus interaction resolves into its own discrete rows within the unified matrix.
 
 ## Metrics Selection
 
@@ -75,18 +77,18 @@ Within the `AOI_Group` column, the exporter may utilize reserved variables:
 
 ```csv
 Participant_ID,Participant_Name,Stimulus,AOI_Group,Metric,Value
-1,"P01","Image1","Logo","Dwell_Time",1250.5
+1,"P01","Image1","Logo","Absolute_Dwell_Time",1250.5
 1,"P01","Image1","Logo","Fixation_Count",3
-1,"P01","Image1","No_AOI","Dwell_Time",450.2
+1,"P01","Image1","No_AOI","Absolute_Dwell_Time",450.2
 ```
 
 ## Execution Workflow
 
-1. Configure the primary export variables (Filename, Target Group).
-2. Manually select the target Stimuli.
-3. Manually select the specific statistical Metrics to be calculated.
-4. Click the **Export CSV** execution button.
-5. The system computes the matrix and serves the CSV. A momentary success banner will display the exact row count of the generated `.csv` matrix.
+1. **Access Export**: Click the **Export workspace or data** button in the [Workspace Toolbar](/docs/basic/workspace/#workspace-toolbar).
+2. **Select Format**: In the **Research Data Formats** section, click on the **Aggregated Data (CSV)** card.
+3. **Configure Settings**: Define the **File name**, target **Participant Group**, and preferred **Delimiter** and **Decimal Separator**.
+4. **Target Data**: Manually select the target **Stimuli** and target statistical **Metrics** to be calculated.
+5. **Download**: Click the **Export CSV** execution button. The system computes the matrix and serves the CSV. A success toast will display the exact data points and metrics count.
 
 ## System Integration Note
 

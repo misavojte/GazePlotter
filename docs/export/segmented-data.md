@@ -18,38 +18,31 @@ Segmented CSV file outputs contain highly granular, row-level sequential eye-tra
 - Absolute micro-second timestamp delineations.
 - Computed gaze event classifications.
 
-## Export Architectures
+## Export Configuration
 
-To accommodate varied programmatic ingestion requirements, the exporter natively supports two distinct structural outputs.
+To generate segmented CSV files, you can configure several parameters to filter and format the output.
 
-### Architecture 1: Single Unified CSV
+### Global Settings
 
-Exports the entire target dataset into one monolithic `.csv` file. Every single recording from every active participant is sequentially appended inside this singular file structure.
+- **Export Type**: Choose between **Single CSV File** (monolithic) or **Individual CSV Files (Zipped)** (sharded by participant).
+- **File name**: Specify the root output filename.
+- **Delimiter**: Choose between **Comma (,)** or **Semicolon (;)**.
+- **Decimal Separator**: Choose between **Dot (.)** or **Comma (,)**.
 
-**Analytical Use Case:**
+### Data Filtering
 
-- Best suited for programmatic ingestion (R, SPSS, Python `pandas`) where algorithmic filtering of massive monolithic dataframes is trivial.
-- Preferable when running continuous batch scripts or constructing unified deep-learning training sets.
+- **Stimuli**: Select one or more specific stimuli to include in the export.
+- **Fixations Only**: Enable this filter to exclude saccades, blinks, and other non-fixation gaze movements from the output.
 
-#### Execution Workflow
+## Execution Workflow
 
-1. Navigate to the principal **Export Format** parameter group.
-2. Select the base **CSV** toggle option.
-3. Define the root identifier text in the **Export Options** filename field.
-4. Depress the **Download** command button to compute and localize the monolithic CSV.
+1. **Access Export**: Click the **Export workspace or data** button in the [Workspace Toolbar](/docs/basic/workspace/#workspace-toolbar).
+2. **Select Format**: In the **Research Data Formats** section, click on the **Segmented Data (CSV)** card.
+3. **Configure Settings**: Select your preferred **Export Type**, **File name**, **Delimiter**, and **Decimal Separator**.
+4. **Target Data**: Select the target **Stimuli** and apply any **Filters** (e.g., Export only fixations).
+5. **Download**: Click the **Export Data** button. A success toast will confirm the file generation.
 
-### Architecture 2: Individual Sharded CSVs
+## Analytical Use Cases
 
-Automatically shards the export into dozens of individual, isolated `.csv` files dedicated to every single participant. The entire collection is securely archived and delivered as a compressed `.zip` package.
-
-**Analytical Use Case:**
-
-- Optimal for manual spreadsheet analysis or environments requiring isolation of subject data arrays.
-- Ideal when rapidly distributing singular participant datasets to secondary researchers.
-
-#### Execution Workflow
-
-1. Navigate to the principal **Export Format** parameter group.
-2. Select the specialized **Individual CSV** toggle option.
-3. Define the root identifier text for the zip file inside the **Export Options** parameter.
-4. Depress the **Download** command button to authorize the loop. The system will iterate across every participant, create the separated CSVs, package them natively in standard `.zip` architecture, and instantiate the download.
+- **Single CSV**: Best for programmatic ingestion (R, Python `pandas`) where algorithmic filtering of monolithic dataframes is required.
+- **Zipped Individual CSVs**: Optimal for manual spreadsheet analysis or when research protocols require isolation of subject data arrays.

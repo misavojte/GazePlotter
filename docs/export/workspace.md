@@ -36,16 +36,15 @@ A workspace JSON export comprehensively captures:
 
 To serialize and download your current setup:
 
-1. **Locate Tool**: Open the main **Export Format** configuration section.
-2. **Format Selection**: Ensure the active format is explicitly set to **GazePlotter**.
-3. **Naming**: Input a descriptive file identifier into the **Export Options** text field.
-4. **Execution**: Click the primary **Download** button to serialize and save the `.json` file to your local machine.
+1. **Locate Tool**: Click the **Export workspace or data** button in the left [Workspace Toolbar](/docs/basic/workspace/#workspace-toolbar).
+2. **Naming**: Input a descriptive file identifier into the **File name** text field.
+3. **Execution**: Click the primary **Export Workspace** button to serialize and save the `.json` file to your local machine.
 
 ### Importing a Workspace
 
 To restore a previously saved analytical state:
 
-1. **Locate Tool**: Click the **Upload data** action button situated in the persistent left [Workspace Toolbar](/docs/basic/workspace/).
+1. **Locate Tool**: Click the **Import workspace or data** button situated in the persistent left [Workspace Toolbar](/docs/basic/workspace/#workspace-toolbar).
 2. **File Selection**: Navigate your local file system and select the targeted workspace `.json` file.
 3. **Execution**: The system will automatically overwrite the active interface, immediately loading all original plots, configurations, and spatial grid arrangements verbatim.
 
