@@ -148,3 +148,13 @@ export const stripBom = (
   }
   return bytes
 }
+
+export const splitAoiColumn = (
+  aoiBytes: Uint8Array,
+  pipeDelimiter: Uint8Array
+): Uint8Array[] | null => {
+  if (aoiBytes.length === 0) return null
+  const parts = splitByDelimiterBytes(aoiBytes, pipeDelimiter)
+  const aoi = parts.filter(p => p.length > 0)
+  return aoi.length > 0 ? aoi : null
+}

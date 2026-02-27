@@ -1,5 +1,9 @@
 import { AbstractAdapter } from './AbstractAdapter'
-import { bytesEqual } from '$lib/data/ingest/utils/byteUtils'
+import {
+  bytesEqual,
+  splitAoiColumn,
+  encodeString,
+} from '$lib/data/ingest/utils/byteUtils'
 
 /**
  * Deserializer for CSV files containing segmented eye-tracking data with duration-based timing.
@@ -64,6 +68,8 @@ export class CsvSegmentedDurationAdapter extends AbstractAdapter {
   /** Current stimulus being processed (used to detect when to reset base time) */
   mStimulusBytes: Uint8Array | null = null
 
+  protected readonly pipeDelimiterBytes: Uint8Array
+
   /**
    * Constructs a new CsvSegmentedDurationEyeDeserializer.
    *
@@ -90,6 +96,7 @@ export class CsvSegmentedDurationAdapter extends AbstractAdapter {
     this.cParticipant = this.getIndex(trimmedHeader, 'participant')
     this.cStimulus = this.getIndex(trimmedHeader, 'stimulus')
     this.cEyeMovementType = this.getIndex(trimmedHeader, 'eyemovementtype')
+    this.pipeDelimiterBytes = encodeString('|', encoding)
 
     this.setupColumns([
       this.cTimestamp,
@@ -158,7 +165,7 @@ export class CsvSegmentedDurationAdapter extends AbstractAdapter {
     const normalizedEndTime = normalizedStartTime + durationNum
 
     const categoryId = this.isZero(eyeMovementTypeBytes) ? 0 : 1
-    const aoi = aoiBytes.length ? [aoiBytes] : null
+    const aoi = splitAoiColumn(aoiBytes, this.pipeDelimiterBytes)
 
     this.emitSegment(
       normalizedStartTime,

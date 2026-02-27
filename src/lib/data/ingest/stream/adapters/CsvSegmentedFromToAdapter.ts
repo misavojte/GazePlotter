@@ -1,4 +1,5 @@
 import { AbstractAdapter } from './AbstractAdapter'
+import { splitAoiColumn, encodeString } from '$lib/data/ingest/utils/byteUtils'
 
 /**
  * This class is used to deserialize eye data from a CSV file which contains segments.
@@ -17,6 +18,8 @@ export class CsvSegmentedFromToAdapter extends AbstractAdapter {
   private readonly pParticipant = 3
   private readonly pStimulus = 4
 
+  protected readonly pipeDelimiterBytes: Uint8Array
+
   constructor(
     header: string[],
     columnDelimiter: string,
@@ -28,6 +31,7 @@ export class CsvSegmentedFromToAdapter extends AbstractAdapter {
     this.cAoi = this.getIndex(header, 'AOI')
     this.cParticipant = this.getIndex(header, 'Participant')
     this.cStimulus = this.getIndex(header, 'Stimulus')
+    this.pipeDelimiterBytes = encodeString('|', encoding)
 
     this.setupColumns([
       this.cFrom,
@@ -64,7 +68,10 @@ export class CsvSegmentedFromToAdapter extends AbstractAdapter {
     )
       return
 
-    const aoi = aoiBytes.length ? [aoiBytes] : null
+    const aoi =
+      aoiBytes.length > 0
+        ? splitAoiColumn(aoiBytes, this.pipeDelimiterBytes)
+        : null
     this.emitSegment(from, to, 0, stimulusBytes, participantBytes, aoi)
   }
 

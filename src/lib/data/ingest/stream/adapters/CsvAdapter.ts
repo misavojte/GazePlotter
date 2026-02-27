@@ -1,5 +1,9 @@
 import { AbstractAdapter } from './AbstractAdapter'
-import { bytesEqual } from '$lib/data/ingest/utils/byteUtils'
+import {
+  bytesEqual,
+  splitAoiColumn,
+  encodeString,
+} from '$lib/data/ingest/utils/byteUtils'
 
 // BEWARE! If only one timestamp for whole segment, start and end are the same!
 export class CsvAdapter extends AbstractAdapter {
@@ -19,6 +23,7 @@ export class CsvAdapter extends AbstractAdapter {
   mAoiBytes: Uint8Array | null = null
   mParticipantBytes: Uint8Array | null = null
   mStimulusBytes: Uint8Array | null = null
+  protected readonly pipeDelimiterBytes: Uint8Array
   constructor(
     header: string[],
     columnDelimiter: string,
@@ -29,6 +34,7 @@ export class CsvAdapter extends AbstractAdapter {
     this.cAoi = this.getIndex(header, 'AOI')
     this.cParticipant = this.getIndex(header, 'Participant')
     this.cStimulus = this.getIndex(header, 'Stimulus')
+    this.pipeDelimiterBytes = encodeString('|', encoding)
 
     this.setupColumns([
       this.cTime,
@@ -75,8 +81,9 @@ export class CsvAdapter extends AbstractAdapter {
 
     const start = this.mTimeStart - baseTime
     const end = this.mTimeLast - baseTime
-    const aoi =
-      this.mAoiBytes && this.mAoiBytes.length ? [this.mAoiBytes] : null
+    const aoi = this.mAoiBytes
+      ? splitAoiColumn(this.mAoiBytes, this.pipeDelimiterBytes)
+      : null
 
     this.emitSegment(
       start,

@@ -13,7 +13,8 @@ const csvMockDataOne = `From,To,Participant,Stimulus,AOI
 0,1,Participant_1,Map_A,Region_1
 1,2,Participant_1,Map_A,Region_1
 0,5,Participant_2,Map_B,Region_1
-5,6,Participant_2,Map_A,Region_1`
+5,6,Participant_2,Map_A,Region_1
+6,7,Participant_2,Map_A,Region_1|Region_2`
 
 type EmittedSegment = {
   start: number
@@ -114,6 +115,20 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
     expect(result.participant).toEqual('Participant_2')
     expect(result.stimulus).toEqual('Map_A')
     expect(result.start).toEqual(5)
+  })
+
+  test('Process fifth row (multiple AOIs)', () => {
+    const sut = new CsvSegmentedFromToAdapter(header, delim)
+    const outputs = collectOutputs(sut)
+    processRow(sut, csvRows[5])
+    const result = outputs[0]
+    expect(result).toBeDefined()
+    expect(result.aoi).toEqual(['Region_1', 'Region_2'])
+    expect(result.categoryId).toEqual(0)
+    expect(result.end).toEqual(7)
+    expect(result.participant).toEqual('Participant_2')
+    expect(result.stimulus).toEqual('Map_A')
+    expect(result.start).toEqual(6)
   })
 
   test('Finalize', () => {

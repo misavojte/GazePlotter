@@ -23,7 +23,8 @@ SMI Base,Anna,226.2,72,1,
 SMI Base,Anna,298.2,120,0,Map
 SMI Base,Anna,418.2,28,1,
 SMI Base,Anna,446.2,208,0,Map
-SMI Base,Anna,654.2,36,1,`
+SMI Base,Anna,654.2,36,1,
+SMI Base,Anna,690.2,100,0,Map|Button`
 
 /**
  * Mock CSV data with multiple participants and stimuli
@@ -245,6 +246,31 @@ describe('CsvSegmentedDurationAdapter - Single data processing', () => {
     // Note: The fourth row has duration 208.00000000000006 which causes floating point precision issues
     expect(result.start).toBeCloseTo(428, 10)
     expect(result.end).toBeCloseTo(464, 10)
+
+    expect(result.participant).toEqual('Anna')
+    expect(result.stimulus).toEqual('SMI Base')
+  })
+
+  test('Process sixth row - Fixation with multiple AOIs', () => {
+    const sut = new CsvSegmentedDurationAdapter(header, delim)
+    const outputs = collectOutputs(sut)
+    // Process previous rows
+    processRow(sut, csvRows[1])
+    processRow(sut, csvRows[2])
+    processRow(sut, csvRows[3])
+    processRow(sut, csvRows[4])
+    processRow(sut, csvRows[5])
+    // Process new row
+    processRow(sut, csvRows[6])
+    const result = outputs[5]
+
+    expect(result).toBeDefined()
+    expect(result.aoi).toEqual(['Map', 'Button'])
+    expect(result.categoryId).toEqual(0)
+
+    // Normalized start = 690.2 - 226.2 = 464.0
+    expect(result.start).toBeCloseTo(464, 5)
+    expect(result.end).toBeCloseTo(564, 5)
 
     expect(result.participant).toEqual('Anna')
     expect(result.stimulus).toEqual('SMI Base')

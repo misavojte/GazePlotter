@@ -21,7 +21,7 @@ This schema ingests raw, continuous gaze coordinate arrays where every individua
 - **Time Value**: Absolute numerical integer. Commas and units (e.g., "ms") are strictly prohibited.
 - **Participant Value**: Semantic display string.
 - **Stimulus Value**: Semantic display string.
-- **AOI Value**: Semantic display string.
+- **AOI Value**: Semantic display string. Multiple AOIs can be assigned to a single row by separating them with a pipe character (`|`), e.g., `Header|Menu`.
 
 #### Delimitation Constraints
 
@@ -36,7 +36,7 @@ Segments are detected dynamically. The engine automatically fractures the contin
 Time,Participant,Stimulus,AOI
 0,Participant 1,Stimulus 1,AOI 1
 25,Participant 1,Stimulus 1,AOI 1
-50,Participant 1,Stimulus 1,AOI 1
+50,Participant 1,Stimulus 1,AOI 1|AOI 3
 75,Participant 1,Stimulus 1,AOI 2
 100,Participant 1,Stimulus 1,AOI 2
 ```
@@ -50,7 +50,7 @@ This schema ingests pre-processed data algorithms that have already been fractur
 - **Row 1 Headers**: Must contain exactly `From`, `To`, `Participant`, `Stimulus`, and `AOI`.
 - **From Value**: Explicit integer start timestamp.
 - **To Value**: Explicit integer end timestamp.
-- **Metadata Values**: Standard semantic strings.
+- **Metadata Values**: Standard semantic strings. For the `AOI` column, multiple AOIs can be assigned by separating them with a pipe character (`|`), e.g., `Header|Menu`.
 
 #### Delimitation Constraints
 
@@ -64,7 +64,7 @@ The parser treats every absolute row as an entirely complete and discrete tempor
 ```csv
 From,To,Participant,Stimulus,AOI
 0,100,Participant 1,Stimulus 1,AOI 1
-100,125,Participant 1,Stimulus 1,AOI 2
+100,125,Participant 1,Stimulus 1,AOI 2|AOI 3
 200,300,Participant 1,Stimulus 2,AOI 1
 ```
 
@@ -78,7 +78,7 @@ This specialized schema ingests discrete segments while simultaneously executing
 - **Timestamp Value**: Absolute integer start marker.
 - **Duration Value**: Absolute integer length calculation.
 - **EyeMovementType Value**: Deep binary classifier (`0` = Fixation, `1` = Saccade).
-- **Metadata Values**: Standard semantic strings.
+- **Metadata Values**: Standard semantic strings. For the `AOI` column, multiple AOIs can be assigned by separating them with a pipe character (`|`), e.g., `Header|Menu`.
 
 #### Delimitation Constraints
 
@@ -100,5 +100,5 @@ stimulus,participant,timestamp,duration,eyemovementtype,AOI
 SMI Base,Anna,226.2,72,1,
 SMI Base,Anna,298.2,120,0,Map
 SMI Base,Anna,418.2,28,1,
-SMI Base,Anna,446.2,208,0,Map
+SMI Base,Anna,446.2,208,0,Map|Menu
 ```
