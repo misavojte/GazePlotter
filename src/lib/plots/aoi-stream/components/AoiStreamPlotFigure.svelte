@@ -66,12 +66,7 @@
   } from '../core'
   import type { AoiStreamPlotResult } from '../types'
 
-  const X_AXIS_LABEL = getXAxisLabel('absolute')
-  const X_AXIS_LABEL_OFFSET = 24
-  const AREA_DIVIDER = {
-    COLOR: 'rgba(255, 255, 255, 0.4)',
-    WIDTH: 1,
-  }
+  // X-axis label moved after props to access data
 
   type AoiStreamPlotFigureProps = {
     width: number
@@ -106,6 +101,13 @@
     ridgelineScale,
     colorScale,
   }: AoiStreamPlotFigureProps = $props()
+
+  const X_AXIS_LABEL = $derived(`Elapsed time [ms; Δ ${data.binSize} ms]`)
+  const X_AXIS_LABEL_OFFSET = 30
+  const AREA_DIVIDER = {
+    COLOR: 'rgba(255, 255, 255, 0.4)',
+    WIDTH: 1,
+  }
 
   let canvas = $state<HTMLCanvasElement | null>(null)
   let canvasState = $state<CanvasState>(createCanvasState())
