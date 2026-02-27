@@ -63,8 +63,7 @@ GazePlotter is open-source software licensed under GNU GPL v3, ensuring it remai
 
 **Contribute & Support:**
 
-- [Main Application Repository](https://github.com/misavojte/GazePlotter) - Report bugs, request features, or contribute code
-- [Documentation Repository](https://github.com/misavojte/GazePlotterDocs) - Help improve this guide
+- [Code Repository](https://github.com/misavojte/GazePlotter) - Report bugs, request features, or contribute code
 - [npm Package](https://www.npmjs.com/package/gazeplotter) - Integrate GazePlotter into your own Svelte projects
 
 **Academic Use:**
