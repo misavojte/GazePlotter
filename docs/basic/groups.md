@@ -78,16 +78,11 @@ When working with substantial participant counts, utilize the **Search participa
 - **Visibility**: When a search filter is actively applied, only matching participant names are rendered in the list.
 - **Analytics**: A dynamic summary text below the active list calculates exactly how many participants are currently hidden by your search parameters.
 
-::: tip Utilizing Search for Bulk Operations
-The search filter and bulk operations are explicitly designed to be used in tandem.
-
-**Workflow Example**:
-If your goal is to group all participants possessing "Control" in their displayed name:
-
-1. Search for the exact string "Control".
-2. Click **Select visible** to bind them all instantly.
-3. If you subsequently clear the search field, those "Control" participants remain firmly assigned to the group while you search for completely different cohorts.
-   :::
+> **Utilizing Search for Bulk Operations**: The search filter and bulk operations are explicitly designed to be used in tandem. If your goal is to group all participants possessing "Control" in their displayed name:
+>
+> 1. Search for the exact string "Control".
+> 2. Click **Select visible** to bind them all instantly.
+> 3. If you subsequently clear the search field, those "Control" participants remain firmly assigned to the group while you search for completely different cohorts.
 
 ## Session State Tracking
 

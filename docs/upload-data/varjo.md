@@ -19,6 +19,4 @@ Data are then automatically saved in `C: > Users > username > Videos > Varjo` fo
 
 Multiple files are created during the recording. To GazePlotter, only the `gaze.csv` file is important - select it after clicking `Upload data` button (see [GazePlotter GUI overview](/docs/basic/)).
 
-::: tip
-If you want to upload data from multiple participants, you can upload multiple files at once. Just select all the files you want to upload.
-:::
+> **Tip**: If you want to upload data from multiple participants, you can upload multiple files at once. Just select all the files you want to upload.

@@ -9,15 +9,13 @@ Transition Matrix in GazePlotter provides a visual analysis of gaze transition p
 
 ![](/docs/images/aoi-transition-matrix-gazeplotter.jpg)
 
-::: tip Transition matrix manipulations in Workspace
-Interested on how to operate with plots in general within the workspace? See:
-
-- [How to move a plot around workspace?](/docs/basic/workspace/#moving-a-plot)
-- [How to resize a plot?](/docs/basic/workspace/#resizing-a-plot)
-- [How to duplicate a plot?](/docs/basic/workspace/#duplicating-a-plot)
-- [How to add a new plot?](/docs/basic/workspace/#adding-visualizations)
-- [How to remove a plot?](/docs/basic/workspace/#removing-a-plot)
-  :::
+> Interested on how to operate with plots in general within the workspace? See:
+>
+> - [How to move a plot around workspace?](/docs/basic/workspace/#moving-a-plot)
+> - [How to resize a plot?](/docs/basic/workspace/#resizing-a-plot)
+> - [How to duplicate a plot?](/docs/basic/workspace/#duplicating-a-plot)
+> - [How to add a new plot?](/docs/basic/workspace/#adding-visualizations)
+> - [How to remove a plot?](/docs/basic/workspace/#removing-a-plot)
 
 ## Overview
 
@@ -146,10 +144,8 @@ Use Transition Matrix in your eye-tracking analysis to:
 - **Column patterns** - where gaze typically comes TO each AOI
 - **Empty cells** - transitions that rarely or never occur
 
-::: tip Matrix Interpretation
-Dark cells indicate strong transition patterns. Look for:
-
-- **Hot spots** - frequently used gaze paths
-- **Cold spots** - avoided transitions
-- **Row/column dominance** - AOIs that attract or distribute attention
-  :::
+> **Matrix Interpretation**: Dark cells indicate strong transition patterns. Look for:
+>
+> - **Hot spots** - frequently used gaze paths
+> - **Cold spots** - avoided transitions
+> - **Row/column dominance** - AOIs that attract or distribute attention

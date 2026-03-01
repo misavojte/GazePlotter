@@ -8,9 +8,7 @@ outline: deep
 
 To integrate gaze arrays natively exported from Tobii Pro Lab architecture directly into GazePlotter, the raw data structures must be serialized into the `.tsv` file extension protocol.
 
-::: warning Structural Limitations
-Due to the strict proprietary nature of Tobii's export engines, their natively generated `.tsv` files completely fail to export dynamic AOI visibility matrices or moving spatial parameters.
-:::
+> **Structural Limitations**: Due to the strict proprietary nature of Tobii's export engines, their natively generated `.tsv` files completely fail to export dynamic AOI visibility matrices or moving spatial parameters.
 
 ## Pre-Processing Workflow (Tobii Pro Lab)
 

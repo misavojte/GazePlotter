@@ -91,9 +91,7 @@ The system imports these rows and rapidly forces a mathematical re-normalization
 
 **Baselines**: The very first sequential segment of any unique Participant × Stimulus combination is aggressively rewritten directly to an arbitrary `0` start time baseline.
 
-::: tip Advanced Data Pipelines
-Because the Segmented Duration schema inherently normalizes time algorithms on ingestion, it acts as a powerful data cleaning pipeline. You can export data, crop out initialization instructions, and directly re-upload via this format to automatically reset your spatial time constraints. Read the [Segmented Data workflows](/docs/advanced/segmented-data-workflows/) guide for complex manipulations.
-:::
+> **Advanced Data Pipelines**: Because the Segmented Duration schema inherently normalizes time algorithms on ingestion, it acts as a powerful data cleaning pipeline. You can export data, crop out initialization instructions, and directly re-upload via this format to automatically reset your spatial time constraints. Read the [Segmented Data workflows](/docs/advanced/segmented-data-workflows/) guide for complex manipulations.
 
 ```csv
 stimulus,participant,timestamp,duration,eyemovementtype,AOI

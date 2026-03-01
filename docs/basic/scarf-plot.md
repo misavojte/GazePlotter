@@ -8,15 +8,13 @@ outline: 'deep'
 
 Scarf plot (or sequential graph) is a visualization of eye movement data that shows the sequence of fixations and saccades in time. It is a useful tool for analyzing the order of fixations and saccades, and for comparing the scanpaths of different participants or stimuli. Specific areas of interest (AOIs) in the given stimuli are color-coded and displayed in the scarf plot. The scarf plot is the main visualization tool in GazePlotter, and it is used to visualize eye-tracking data from various eye-tracking software.
 
-::: tip Scarf plot manipulations in Workspace
-Interested on how to operate with plots in general within the workspace? See:
-
-- [How to move a plot around workspace?](/docs/basic/workspace/#moving-a-plot)
-- [How to resize a plot?](/docs/basic/workspace/#resizing-a-plot)
-- [How to duplicate a plot?](/docs/basic/workspace/#duplicating-a-plot)
-- [How to add a new plot?](/docs/basic/workspace/#adding-visualizations)
-- [How to remove a plot?](/docs/basic/workspace/#removing-a-plot)
-  :::
+> Interested on how to operate with plots in general within the workspace? See:
+>
+> - [How to move a plot around workspace?](/docs/basic/workspace/#moving-a-plot)
+> - [How to resize a plot?](/docs/basic/workspace/#resizing-a-plot)
+> - [How to duplicate a plot?](/docs/basic/workspace/#duplicating-a-plot)
+> - [How to add a new plot?](/docs/basic/workspace/#adding-visualizations)
+> - [How to remove a plot?](/docs/basic/workspace/#removing-a-plot)
 
 ## Overview
 
@@ -83,9 +81,7 @@ Displays strict sequential order indices of individual fixations, saccades, and 
 
 ![](/docs/images/timeline-3.png)
 
-::: warning
-Some data, e.g. from [OGAMA software](/docs/upload-data/ogama/), support only ordinal time representation.
-:::
+> **Warning**: Some data, e.g. from [OGAMA software](/docs/upload-data/ogama/), support only ordinal time representation.
 
 ### More options
 
@@ -143,9 +139,7 @@ GazePlotter supports the upload of AOI visibility data, allowing for the effecti
 
 ### Getting AOI visibility data
 
-::: warning
-This feature is available only for [SMI BeGaze](/docs/upload-data/smi-begaze/) and [Tobii Pro Lab](/docs/upload-data/tobii-pro-lab/) data.
-:::
+> **Warning**: This feature is available only for [SMI BeGaze](/docs/upload-data/smi-begaze/) and [Tobii Pro Lab](/docs/upload-data/tobii-pro-lab/) data.
 
 #### From SMI BeGaze
 

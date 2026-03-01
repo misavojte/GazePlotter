@@ -72,9 +72,7 @@ Any AOIs that share an identical **Displayed Name** are automatically aggregated
 - **Creating a group**: Give two or more independent AOIs the exact same text string in their **Displayed name** field.
 - **Detaching from a group**: Alter a specific AOI's **Displayed name** to be uniquely distinct from the rest of the group.
 
-::: tip Semantic Grouping Example
-If your study features multiple discrete targets that all represent the same conceptual element (e.g., "Target 1", "Target 2", "Target 3"), simply rename all of their Displayed Names to "Target". They will instantly fuse into a single "Target" group with a unified color in all plots.
-:::
+> **Semantic Grouping Example**: If your study features multiple discrete targets that all represent the same conceptual element (e.g., "Target 1", "Target 2", "Target 3"), simply rename all of their Displayed Names to "Target". They will instantly fuse into a single "Target" group with a unified color in all plots.
 
 ## Committing Changes
 
@@ -88,9 +86,7 @@ Choose how broadly to apply your targeted modifications across the dataset:
 - **All by original name**: Broadcasts the modifications to every stimulus in the dataset that contains AOIs matching the **Original Names** you edited.
 - **All by displayed name**: Broadcasts the modifications to every stimulus in the dataset that contains AOIs matching the **Displayed Names** you edited.
 
-::: info Ordering Constraint
-When applying changes globally to all stimuli, understand that **AOI ordering adjustments** are strictly sandboxed to the currently selected active stimulus. Order does not broadcast.
-:::
+> **Ordering Constraint**: When applying changes globally to all stimuli, understand that **AOI ordering adjustments** are strictly sandboxed to the currently selected active stimulus. Order does not broadcast.
 
 ### Finalizing
 

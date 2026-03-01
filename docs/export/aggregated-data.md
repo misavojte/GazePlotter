@@ -90,12 +90,8 @@ Participant_ID,Participant_Name,Stimulus,AOI_Group,Metric,Value
 4. **Target Data**: Manually select the target **Stimuli** and target statistical **Metrics** to be calculated.
 5. **Download**: Click the **Export CSV** execution button. The system computes the matrix and serves the CSV. A success toast will display the exact data points and metrics count.
 
-## System Integration Note
-
-::: tip External Tool Optimization
-The explicit long format utilized by this export routine was designed from the ground up for data frame ingestion.
-
-- **R**: Native compatibility via `read.csv()` coupled natively with `tidyverse` restructuring logic.
-- **Python**: 1:1 mapped importation into `pandas` dataframes for immediate statistical modeling.
-- **SPSS**: Immediate direct matrix importation for structural ANOVA processing and regression analysis.
-  :::
+> **External Tool Optimization**: The explicit long format utilized by this export routine was designed from the ground up for data frame ingestion.
+>
+> - **R**: Native compatibility via `read.csv()` coupled natively with `tidyverse` restructuring logic.
+> - **Python**: 1:1 mapped importation into `pandas` dataframes for immediate statistical modeling.
+> - **SPSS**: Immediate direct matrix importation for structural ANOVA processing and regression analysis.

@@ -48,6 +48,4 @@ To restore a previously saved analytical state:
 2. **File Selection**: Navigate your local file system and select the targeted workspace `.json` file.
 3. **Execution**: The system will automatically overwrite the active interface, immediately loading all original plots, configurations, and spatial grid arrangements verbatim.
 
-::: tip File Footprint
-Workspace state files contain only logic and parameters, not raw gaze vectors. They result in extraordinarily small JSON files (often mere kilobytes), making them perfect for email distribution or strict version control system tracking.
-:::
+> **File Footprint**: Workspace state files contain only logic and parameters, not raw gaze vectors. They result in extraordinarily small JSON files (often mere kilobytes), making them perfect for email distribution or strict version control system tracking.

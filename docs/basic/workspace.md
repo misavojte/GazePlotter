@@ -90,12 +90,8 @@ Exporting preserves the complete state of your analysis:
 - **Internal Plot Settings**: Every toggle, bound, and data view setting configured.
 - **Global Customizations**: Modifications like Participant Groupings, named AOIs, and Data Filtering configurations.
 
-### Best Practices
-
-::: tip Workspace Management Use Cases
-Use the workspace export function frequently to save progress checkpoints. These highly compressed JSON files are perfectly suited for:
-
-- **Collaboration**: Email complete, ready-to-view dashboards to your research team.
-- **Templates**: Create standardized bounding layouts for similar analysis projects.
-- **Version Control**: Keep a history log of different iterative visualization approaches.
-  :::
+> **Workspace Management Use Cases**: Use the workspace export function frequently to save progress checkpoints. These highly compressed JSON files are perfectly suited for:
+>
+> - **Collaboration**: Email complete, ready-to-view dashboards to your research team.
+> - **Templates**: Create standardized bounding layouts for similar analysis projects.
+> - **Version Control**: Keep a history log of different iterative visualization approaches.
