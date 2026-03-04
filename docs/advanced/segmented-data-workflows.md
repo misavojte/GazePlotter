@@ -12,7 +12,7 @@ This enables you to perform highly precise data manipulations, such as cropping 
 
 ## Standardized Format Requirements
 
-Any CSV file interacting with this system must strictly adhere to the [Segmented Duration CSV structure](/docs/upload-data/custom-csv/#segmented-duration-csv).
+Any CSV file interacting with this system must strictly adhere to the [Segmented Duration CSV structure](/docs/upload-data/custom-csv/#format-3-segmented-duration-csv).
 
 ### Required Data Schema
 
@@ -40,7 +40,7 @@ Mobile eye-tracking data often contains extensive initial setup phases, calibrat
 3. **Filtering**: Filter the view strictly to the specific Participant and Stimulus combination requiring truncation.
 4. **Deletion**: Manually highlight and permanently delete the specific rows (segments/fixations) that constitute the initialization period you wish to crop.
 5. **Serialization**: Save the active file cleanly as a standard comma-delimited `.csv`.
-6. **Re-ingestion**: Navigate back to GazePlotter and execute an upload via the [Segmented Duration CSV](/docs/upload-data/custom-csv/#segmented-duration-csv) schema.
+6. **Re-ingestion**: Navigate back to GazePlotter and execute an upload via the [Segmented Duration CSV](/docs/upload-data/custom-csv/#format-3-segmented-duration-csv) schema.
 
 **System Behavior Result**: The import engine reads the modified file and mechanically re-normalizes the timestamps. The _first remaining segment_ of that specific Participant × Stimulus block is automatically rewritten as the new absolute `0` start time baseline.
 
@@ -57,7 +57,7 @@ Lengthy, continuous recordings often encompass multiple independent analytical p
 2. **Identification**: Within the open CSV, locate the precise timestamps where your participants seamlessly transition between distinct task phases or physical environments.
 3. **Semantic Renaming**: Modify the string values in the `stimulus` column from the original monolithic name to new, highly semantic phase names (e.g., change `Shopping_Task` to `Shopping_Selection`, `Shopping_Checkout`, `Shopping_Review`) corresponding to their specific timestamps.
 4. **Serialization**: Save the structurally modified spreadsheet as a standard `.csv`.
-5. **Re-ingestion**: Upload the newly mapped dataset utilizing the [Segmented Duration CSV module](/docs/upload-data/custom-csv/#segmented-duration-csv).
+5. **Re-ingestion**: Upload the newly mapped dataset utilizing the [Segmented Duration CSV module](/docs/upload-data/custom-csv/#format-3-segmented-duration-csv).
 
 **System Behavior Result**: GazePlotter processes the newly injected stimulus names as totally independent structures. Critically, each newly defined task phase is automatically assigned its own mathematical start baseline (time `0`), effectively isolating them into clean discrete analytical blocks.
 

@@ -7,7 +7,7 @@ order: 5
 
 GazePlotter uses Vite.js to build the app from Svelte components and TypeScript modules. The development set-up requires that you have Node (16 or higher) installed.
 
-The project uses VitePress for documentation, more in the [Docs dev & build](./docs-dev-build) section.
+The project uses VitePress for documentation, more in the [Docs dev & build](/docs/advanced/docs-dev-build) section.
 
 ## Download the source code
 

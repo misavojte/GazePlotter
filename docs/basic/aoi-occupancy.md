@@ -7,7 +7,7 @@ order: 6
 
 Time-binned AOI Occupancy in GazePlotter provides a continuous visualization of how visual attention is distributed across Areas of Interest (AOIs) over time. By segmenting the timeline into discrete bins, this plot reveals the dynamic flow and density of participants' gaze, making it easier to identify peak attention periods and shifts between AOIs.
 
-![](/docs/images/eyetracking-aoi-stream-gazeplotter.jpg)
+<!-- ![](/docs/images/eyetracking-aoi-stream-gazeplotter.jpg) -->
 
 > Interested on how to operate with plots in general within the workspace? See:
 >
