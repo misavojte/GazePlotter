@@ -8,7 +8,7 @@ outline: deep
 
 GazePlotterDocs uses VitePress to build and serve the documentation site from `.md` files. The development set-up requires that you have Node (14 or higher) installed.
 
-More about the dev & build process of the main app can be found [here](./app-dev-build).
+More about the dev & build process of the main app can be found [here](/docs/advanced/app-dev-build).
 
 ## Download the source code
 

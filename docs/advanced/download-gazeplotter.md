@@ -40,4 +40,4 @@ For iOS iPhones and iPads, the download of the PWA is available only in Safari i
 
 ## Source code
 
-You can also build and run the GazePlotter site from the source code. More on how to build the site from it is available in the [Dev environment](./app-dev-build) section.
+You can also build and run the GazePlotter site from the source code. More on how to build the site from it is available in the [Dev environment](/docs/advanced/app-dev-build) section.
