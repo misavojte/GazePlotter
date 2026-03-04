@@ -524,37 +524,39 @@
   {#if !gridIsEmpty}
     {#each gridItems as item (item.id)}
       {@const visConfig = getVizConfig(item.type)}
-      <div transition:fade={{ duration: 300 }}>
-        <GridItem
-          id={item.id}
-          x={item.x}
-          y={item.y}
-          w={item.w}
-          h={item.h}
-          minW={item.min?.w || gridConfig.minWidth}
-          minH={item.min?.h || gridConfig.minHeight}
-          cellSize={gridConfig.cellSize}
-          gap={gridConfig.gap}
-          resizable={true}
-          draggable={true}
-          title={visConfig.name}
-          onpreviewupdate={handlePreviewUpdate}
-          onmove={handleItemMove}
-          onresize={handleItemResize}
-          onresizestart={handleResizeStart}
-          onresizeend={handleResizeEnd}
-          ondragstart={handleDragStart}
-          ondragend={handleDragEnd}
-          onremove={handleItemRemove}
-          onduplicate={handleItemDuplicate}
-        >
-          {#snippet body()}
-            <div class="grid-item-content">
-              <visConfig.component settings={item} {onWorkspaceCommand} />
-            </div>
-          {/snippet}
-        </GridItem>
-      </div>
+      {#if visConfig}
+        <div transition:fade={{ duration: 300 }}>
+          <GridItem
+            id={item.id}
+            x={item.x}
+            y={item.y}
+            w={item.w}
+            h={item.h}
+            minW={item.min?.w || gridConfig.minWidth}
+            minH={item.min?.h || gridConfig.minHeight}
+            cellSize={gridConfig.cellSize}
+            gap={gridConfig.gap}
+            resizable={true}
+            draggable={true}
+            title={visConfig.name}
+            onpreviewupdate={handlePreviewUpdate}
+            onmove={handleItemMove}
+            onresize={handleItemResize}
+            onresizestart={handleResizeStart}
+            onresizeend={handleResizeEnd}
+            ondragstart={handleDragStart}
+            ondragend={handleDragEnd}
+            onremove={handleItemRemove}
+            onduplicate={handleItemDuplicate}
+          >
+            {#snippet body()}
+              <div class="grid-item-content">
+                <visConfig.component settings={item} {onWorkspaceCommand} />
+              </div>
+            {/snippet}
+          </GridItem>
+        </div>
+      {/if}
     {/each}
   {/if}
 </div>

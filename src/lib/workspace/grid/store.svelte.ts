@@ -151,8 +151,51 @@ export class GridState {
       Partial<AllGridTypes> & { type: AllGridTypes['type'] }
     > = DEFAULT_GRID_STATE_DATA
   ) {
-    this.items = []
-    layout.forEach(item => this.addItem(item.type, item))
+    // Build all items locally first to avoid intermediate reactive updates.
+    // Previously, `this.items = []` followed by N `push()` calls caused N+1
+    // reactive updates with partial/empty arrays, crashing downstream components
+    // in production builds where Svelte processes intermediate states eagerly.
+    const newItems: AllGridTypes[] = []
+    for (const itemDef of layout) {
+      const newItem = this.createItem(
+        itemDef.type as keyof GridItemMap,
+        itemDef
+      )
+      // Use provided positions if available and valid
+      const tempPositions = newItems.map(i => ({
+        id: i.id,
+        x: i.x,
+        y: i.y,
+        w: i.w,
+        h: i.h,
+      }))
+      if (
+        itemDef.x !== undefined &&
+        itemDef.y !== undefined &&
+        GridEngine.isAreaAvailable(
+          itemDef.x,
+          itemDef.y,
+          newItem.w,
+          newItem.h,
+          tempPositions
+        )
+      ) {
+        newItem.x = itemDef.x
+        newItem.y = itemDef.y
+      } else {
+        const pos = GridEngine.findOptimalPosition(
+          newItem.w,
+          newItem.h,
+          tempPositions,
+          this.config
+        )
+        newItem.x = pos.x
+        newItem.y = pos.y
+      }
+      newItems.push(newItem)
+    }
+    // Single atomic assignment — one reactive update instead of N+1
+    this.items = newItems
   }
 
   triggerRedraw(id?: number) {
@@ -179,8 +222,8 @@ export class GridState {
   setLayoutState(
     layout: Array<Partial<AllGridTypes> & { type: AllGridTypes['type'] }>
   ) {
-    this.items = []
-    layout.forEach(item => this.addItem(item.type, item))
+    // Delegate to reset() which handles batched item creation
+    this.reset(layout)
   }
 
   /**

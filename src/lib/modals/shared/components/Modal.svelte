@@ -15,6 +15,16 @@
   // $state derived from the singleton - simple reference
   const modal = $derived(modalState.activeModal)
 
+  // Snapshot: retain last non-null modal so the template can safely
+  // reference it during the out:fade/out:scale transitions.
+  let lastModal = $state(modalState.activeModal)
+  $effect(() => {
+    if (modalState.activeModal) {
+      lastModal = modalState.activeModal
+    }
+  })
+  const modalSnapshot = $derived(modal ?? lastModal)
+
   const handleClose = () => {
     modalState.close()
   }
@@ -162,60 +172,62 @@
 </script>
 
 {#if modal}
-  {@const currentModal = modal}
-  <div
-    class="modal-overlay"
-    in:fade={{ duration: 200 }}
-    out:fade={{ duration: 150 }}
-    onpointerdown={e => {
-      // Close only if clicking the overlay, not when in fullscreen
-      if (e.target === e.currentTarget && !isFullscreen) {
-        handleClose()
-      }
-    }}
-  >
+  {@const currentModal = modalSnapshot}
+  {#if currentModal}
     <div
-      class="modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="modal-title"
-      bind:this={modalElement}
-      in:scale={{ duration: 200, start: 0.8 }}
-      out:scale={{ duration: 150, start: 0.8 }}
+      class="modal-overlay"
+      in:fade={{ duration: 200 }}
+      out:fade={{ duration: 150 }}
+      onpointerdown={e => {
+        // Close only if clicking the overlay, not when in fullscreen
+        if (e.target === e.currentTarget && !isFullscreen) {
+          handleClose()
+        }
+      }}
     >
-      <div class="modal-header">
-        <h3 id="modal-title">{currentModal.title}</h3>
-        <button onclick={handleClose} aria-label="Close modal">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <div class="body" bind:this={bodyElement} onscroll={checkScrollable}>
-        <currentModal.component {...currentModal.props} />
-      </div>
-      <div class="modal-footer">
-        {#if showScrollIndicator}
-          <div
-            class="footer-content"
-            in:fade={{ duration: 200 }}
-            out:fade={{ duration: 150 }}
-          >
-            <div class="scroll-indicator">↓</div>
-            <span>Scroll down for more</span>
-          </div>
-        {:else if showVersionMessage}
-          <div
-            class="footer-content"
-            in:fade={{ duration: 200 }}
-            out:fade={{ duration: 150 }}
-          >
-            <span
-              >GazePlotter {__APP_VERSION__} by Vojtechovska & Popelka, 2025</span
+      <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        bind:this={modalElement}
+        in:scale={{ duration: 200, start: 0.8 }}
+        out:scale={{ duration: 150, start: 0.8 }}
+      >
+        <div class="modal-header">
+          <h3 id="modal-title">{currentModal.title}</h3>
+          <button onclick={handleClose} aria-label="Close modal">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="body" bind:this={bodyElement} onscroll={checkScrollable}>
+          <currentModal.component {...currentModal.props} />
+        </div>
+        <div class="modal-footer">
+          {#if showScrollIndicator}
+            <div
+              class="footer-content"
+              in:fade={{ duration: 200 }}
+              out:fade={{ duration: 150 }}
             >
-          </div>
-        {/if}
+              <div class="scroll-indicator">↓</div>
+              <span>Scroll down for more</span>
+            </div>
+          {:else if showVersionMessage}
+            <div
+              class="footer-content"
+              in:fade={{ duration: 200 }}
+              out:fade={{ duration: 150 }}
+            >
+              <span
+                >GazePlotter {__APP_VERSION__} by Vojtechovska & Popelka, 2025</span
+              >
+            </div>
+          {/if}
+        </div>
       </div>
     </div>
-  </div>
+  {/if}
 {/if}
 
 <style>
