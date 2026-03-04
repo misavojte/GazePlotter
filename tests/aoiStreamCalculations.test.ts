@@ -1,4 +1,20 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { engine, getAois, getAllAois } from '$lib/data/engine'
+import { collectAoiStreamMetrics } from '../src/lib/plots/aoi-stream/core/collector'
+import { createReaderFromJson } from '../src/lib/data/binary/converters'
+import { FIXATION_CATEGORY_ID } from '../src/lib/plots/aoi-stream/const'
+
+// Mock the engine and selectors
+vi.mock('$lib/data/engine', () => {
+  return {
+    engine: {
+      getReader: vi.fn(),
+      getAoiMapping: vi.fn(),
+    },
+    getAois: vi.fn(),
+    getAllAois: vi.fn(),
+  }
+})
 
 // Simple unit test for the calculation logic
 describe('Time-binned AOI Occupancy Calculation Logic', () => {
@@ -142,6 +158,63 @@ describe('Time-binned AOI Occupancy Calculation Logic', () => {
         expect(fullEnd).toBe(6)
         expect(fullEnd - fullStart + 1).toBe(4) // 4 full bins
       }
+    })
+  })
+
+  describe('Grouped AOI integration', () => {
+    const stimulusId = 0
+    const participantIds = [0]
+    const binCount = 1
+    const timelineMin = 0
+    const safeMaxTime = 100 // 1 bin of 100ms
+
+    beforeEach(() => {
+      vi.clearAllMocks()
+    })
+
+    it('should count fixations from all AOIs in a group, not just the representative', () => {
+      // AOIs: 0 (A1), 1 (A2). They are grouped as "A", rep is 0.
+      const orderedAois = [{ id: 0, displayedName: 'A', color: 'red' }] as any
+
+      // Mock getAllAois to return all raw AOIs for the stimulus
+      vi.mocked(getAllAois).mockReturnValue([{ id: 0 }, { id: 1 }] as any)
+
+      // Mock mapping: both 0 and 1 map to 0
+      vi.mocked(engine.getAoiMapping).mockImplementation((sId, rawId) => {
+        if (rawId === 0 || rawId === 1) return 0
+        return rawId
+      })
+
+      // Create segments for participant 0
+      // Segment 1: 0-50ms, Category FIXATION, AOI 0
+      // Segment 2: 50-100ms, Category FIXATION, AOI 1
+      const segments = [
+        [
+          [
+            [0, 50, FIXATION_CATEGORY_ID, 0],
+            [50, 100, FIXATION_CATEGORY_ID, 1],
+          ],
+        ],
+      ]
+      const reader = createReaderFromJson(segments)
+      vi.mocked(engine.getReader).mockReturnValue(reader)
+
+      const { metrics } = collectAoiStreamMetrics(
+        stimulusId,
+        participantIds,
+        orderedAois,
+        null,
+        binCount,
+        timelineMin,
+        safeMaxTime,
+        null
+      )
+
+      // Series 0 is AOI "A" (id 0)
+      // It should have total occupancy 1.0 (50ms + 50ms = 100ms / 100ms bin)
+      const aoiSeries = metrics.series.find(s => s.id === 0)
+      expect(aoiSeries).toBeDefined()
+      expect(aoiSeries!.values[0]).toBeCloseTo(1.0)
     })
   })
 })

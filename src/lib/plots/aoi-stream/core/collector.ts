@@ -2,7 +2,7 @@
  * Optimized single-pass collector for AOI stream data.
  * Adheres to senior FP principles: Buffer recycling, zero per-frame allocations, and flat control flow.
  */
-import { engine, getAois } from '$lib/data/engine'
+import { engine, getAllAois } from '$lib/data/engine'
 import {
   SEGMENT_STRIDE,
   SegmentField,
@@ -102,7 +102,11 @@ export function collectAoiStreamMetrics(
   const totalSeriesCount = aoiCount + 1
 
   // Find max AOI ID to size the lookup table
+  const aoiIdsInStimulus = getAllAois(stimulusId)
   let aoiMaxId = 0
+  for (let i = 0; i < aoiIdsInStimulus.length; i++) {
+    if (aoiIdsInStimulus[i].id > aoiMaxId) aoiMaxId = aoiIdsInStimulus[i].id
+  }
   for (let i = 0; i < aoiCount; i++) {
     if (orderedAois[i].id > aoiMaxId) aoiMaxId = orderedAois[i].id
   }
@@ -126,7 +130,6 @@ export function collectAoiStreamMetrics(
 
   // Hot path optimization: Use flat array for AOI mapping instead of Map
   aoiLookup.fill(-1)
-  const aoiIdsInStimulus = getAois(stimulusId)
   for (let i = 0; i < aoiIdsInStimulus.length; i++) {
     const rawId = aoiIdsInStimulus[i].id
     if (hiddenAoisSet && hiddenAoisSet.has(rawId)) continue
