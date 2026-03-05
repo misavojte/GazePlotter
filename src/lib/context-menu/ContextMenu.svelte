@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { fly, fade } from 'svelte/transition'
-  import { cubicOut } from 'svelte/easing'
   import { contextMenuState } from './contextMenuState.svelte'
   import { MENU_MAX_HEIGHT, MENU_WIDTH } from './const'
   import type { MenuItem } from './types'
@@ -9,18 +7,6 @@
 
   // State for which inner submenu is active.
   let activeItemLabel = $state<string | null>(null)
-
-  // Snapshot the menu state: retains the last non-null value so that
-  // the DOM rendered inside {#if} can safely reference it during the
-  // out:fade transition (when contextMenuState.current becomes null
-  // but the block is still alive in the DOM).
-  let lastMenu = $state(contextMenuState.current)
-  $effect(() => {
-    if (contextMenuState.current) {
-      lastMenu = contextMenuState.current
-    }
-  })
-  const menuSnapshot = $derived(contextMenuState.current ?? lastMenu)
 
   // KISS Reset: When a NEW menu session opens, reset the local state.
   // This ensures a fresh experience (Fixes regressions) while allowing
@@ -118,79 +104,68 @@
 <!-- Stable Portal Host: Never unmounts, stays as a child of document.body -->
 <div class="gp-context-menu-portal-root" use:portal>
   {#if contextMenuState.current}
-    {@const menu = menuSnapshot}
-    {#if menu}
-      <!-- Transition Unit: Contains main menu AND submenus, fades as one unit -->
+    {@const menu = contextMenuState.current}
+    <!-- Transition Unit: Contains main menu AND submenus, fades as one unit -->
+    <div class="context-menu-transition-unit">
       <div
-        class="context-menu-transition-unit"
-        out:fade={{ duration: 200, easing: cubicOut }}
+        bind:this={menuElement}
+        class="menu-wrapper"
+        style={`left:${menu.x}px; top:${menu.y}px; z-index:${menu.zIndex}; --menu-width: ${MENU_WIDTH}px;`}
       >
-        <div
-          bind:this={menuElement}
-          class="menu-wrapper"
-          style={`left:${menu.x}px; top:${menu.y}px; z-index:${menu.zIndex}; --menu-width: ${MENU_WIDTH}px;`}
-          in:fly={{
-            duration: 200,
-            easing: cubicOut,
-            y: menu.slideFrom === 'top' ? -4 : 0,
-            x: menu.slideFrom === 'left' ? -4 : 0,
-          }}
-        >
-          {#if menu.position && menu.anchorCenter}
-            {@render Arrow(menu.position, menu.anchorCenter, menu)}
-          {/if}
+        {#if menu.position && menu.anchorCenter}
+          {@render Arrow(menu.position, menu.anchorCenter, menu)}
+        {/if}
 
-          <div class="menu" role="menu">
-            <div
-              class="menu-content"
-              onscroll={e => e.stopPropagation()}
-              style={`max-height:${MENU_MAX_HEIGHT}px;`}
-            >
-              {#if menu.items && menu.items.length}
-                <ul bind:this={container}>
-                  {#each menu.items as it}
-                    {#if it.isDivider}
-                      <li class="divider" role="presentation"></li>
-                    {:else if (it.children && it.children.length) || it.component}
-                      <ContextSubMenu
-                        item={it}
-                        siblings={menu.items}
-                        parentZIndex={menu.zIndex}
-                        isOpen={activeItemLabel === it.label}
-                        onToggle={() =>
-                          (activeItemLabel =
-                            activeItemLabel === it.label
-                              ? null
-                              : (it.label ?? null))}
-                      />
-                    {:else}
-                      <li>
-                        <button
-                          role="menuitem"
-                          class:selected={it.isHighlighted}
-                          onclick={() => handleItemClick(it)}
-                        >
-                          {#if it.icon}
-                            {@const Icon = it.icon}
-                            <Icon size={'1em'} strokeWidth={1} />
-                          {/if}
-                          {it.label}
-                        </button>
-                      </li>
-                    {/if}
-                  {/each}
-                </ul>
-              {:else if menu.content}
-                <div class="custom">{menu.content}</div>
-              {/if}
-            </div>
+        <div class="menu" role="menu">
+          <div
+            class="menu-content"
+            onscroll={e => e.stopPropagation()}
+            style={`max-height:${MENU_MAX_HEIGHT}px;`}
+          >
+            {#if menu.items && menu.items.length}
+              <ul bind:this={container}>
+                {#each menu.items as it}
+                  {#if it.isDivider}
+                    <li class="divider" role="presentation"></li>
+                  {:else if (it.children && it.children.length) || it.component}
+                    <ContextSubMenu
+                      item={it}
+                      siblings={menu.items}
+                      parentZIndex={menu.zIndex}
+                      isOpen={activeItemLabel === it.label}
+                      onToggle={() =>
+                        (activeItemLabel =
+                          activeItemLabel === it.label
+                            ? null
+                            : (it.label ?? null))}
+                    />
+                  {:else}
+                    <li>
+                      <button
+                        role="menuitem"
+                        class:selected={it.isHighlighted}
+                        onclick={() => handleItemClick(it)}
+                      >
+                        {#if it.icon}
+                          {@const Icon = it.icon}
+                          <Icon size={'1em'} strokeWidth={1} />
+                        {/if}
+                        {it.label}
+                      </button>
+                    </li>
+                  {/if}
+                {/each}
+              </ul>
+            {:else if menu.content}
+              <div class="custom">{menu.content}</div>
+            {/if}
           </div>
         </div>
-
-        <!-- Submenus portal into this container, sharing the parent's fade -->
-        <div id="gp-context-menu-portal-host"></div>
       </div>
-    {/if}
+
+      <!-- Submenus portal into this container, sharing the parent's fade -->
+      <div id="gp-context-menu-portal-host"></div>
+    </div>
   {/if}
 </div>
 
