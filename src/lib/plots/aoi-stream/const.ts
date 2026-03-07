@@ -14,7 +14,7 @@ export const MARGIN = {
   LEFT: 50,
 }
 
-export const HEADER_HEIGHT = 150
+export const HEADER_HEIGHT = 145
 
 export const FLOW_CURVE_TENSION = 0
 

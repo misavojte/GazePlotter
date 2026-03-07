@@ -29,7 +29,7 @@
 
   // CONSTANTS - centralized for easier maintenance
   const LAYOUT = {
-    headerHeight: 150,
+    headerHeight: 145,
     horizontalPadding: 50,
     contentPadding: 0,
   }
@@ -226,7 +226,7 @@
 <style>
   .controls {
     display: flex;
-    gap: 5px;
+    gap: 6px;
     flex-wrap: wrap;
     background: inherit;
   }

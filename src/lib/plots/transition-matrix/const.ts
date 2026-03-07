@@ -14,7 +14,7 @@ export enum MatrixAggregationMethod {
 }
 
 export const TRANSITION_MATRIX_LAYOUT = {
-  headerHeight: 150,
+  headerHeight: 145,
   horizontalPadding: 50,
   baseLabelOffset: 5,
   topMargin: 0,

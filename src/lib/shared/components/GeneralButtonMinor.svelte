@@ -164,8 +164,8 @@
 <style>
   button {
     background: none;
-    border: 1px solid var(--c-border);
-    border-radius: var(--rounded);
+    border: 1px solid var(--c-midgrey);
+    border-radius: var(--rounded-md);
     color: var(--c-black);
     padding: 0.25em 0.5em;
     text-align: center;
@@ -175,7 +175,7 @@
     display: inline-flex;
     height: 34px;
     min-width: 34px;
-    font-size: 16px;
+    font-size: 15px;
     cursor: pointer;
     position: relative;
     overflow: hidden;
@@ -202,7 +202,7 @@
     display: inline-flex;
     gap: 0;
     background: inherit;
-    border-radius: var(--rounded);
+    border-radius: var(--rounded-md);
   }
   .btnGroup.compact :global(button) {
     height: 30px;
@@ -236,12 +236,12 @@
     border-radius: 0;
   }
   .btnGroup .itemWrap.first :global(button) {
-    border-top-left-radius: var(--rounded);
-    border-bottom-left-radius: var(--rounded);
+    border-top-left-radius: var(--rounded-md);
+    border-bottom-left-radius: var(--rounded-md);
   }
   .btnGroup .itemWrap.last :global(button) {
-    border-top-right-radius: var(--rounded);
-    border-bottom-right-radius: var(--rounded);
+    border-top-right-radius: var(--rounded-md);
+    border-bottom-right-radius: var(--rounded-md);
   }
   .itemWrap.active :global(button) {
     color: var(--c-brand);

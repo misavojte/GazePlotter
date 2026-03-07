@@ -302,7 +302,7 @@
 <style>
   .controls {
     display: flex;
-    gap: 5px;
+    gap: 6px;
     flex-wrap: wrap;
     background: inherit;
   }

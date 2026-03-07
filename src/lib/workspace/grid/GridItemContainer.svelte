@@ -70,7 +70,8 @@
   .grid-item-container {
     box-sizing: border-box;
     background-color: var(--c-lightgrey);
-    border-radius: var(--rounded-lg, 8px) var(--rounded-lg, 8px) 0 0;
+    border-radius: var(--rounded-lg, 8px) var(--rounded-lg, 8px) 0
+      var(--rounded-lg, 8px);
 
     border: 1px solid #88888863;
     overflow: hidden;
@@ -108,7 +109,7 @@
     padding: 20px;
     flex-grow: 1;
     overflow: auto;
-    border-radius: 10px 10px 0 0;
+    border-radius: 15px 15px 0 15px;
     background-color: var(--c-white);
   }
 

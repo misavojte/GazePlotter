@@ -151,15 +151,7 @@
     padding: 35px;
     will-change: height;
     cursor: grab;
-    background-color: var(--c-darkwhite);
-    background-image: radial-gradient(
-      circle,
-      var(--c-grey) 2px,
-      transparent 2px
-    );
-    background-size: 50px 50px;
-    background-position: 5px 5px;
-    background-attachment: local;
+    background-color: var(--c-lightgrey);
   }
 
   :global(.grid-item) {

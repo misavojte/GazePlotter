@@ -320,12 +320,12 @@ Usage examples:
 
   .trigger {
     background: var(--c-white);
-    border: 1px solid var(--c-border);
-    border-radius: var(--rounded);
+    border: 1px solid var(--c-midgrey);
+    border-radius: var(--rounded-md);
     height: 34px;
     padding: 0.25em 0.5em;
     padding-right: 22px;
-    font-size: 14px;
+    font-size: 13px;
     color: var(--c-black);
     cursor: pointer;
     display: flex;
@@ -418,7 +418,7 @@ Usage examples:
     display: inline-flex;
     gap: 0;
     background: inherit;
-    border-radius: var(--rounded);
+    border-radius: var(--rounded-md);
   }
 
   .itemWrap {
@@ -452,13 +452,13 @@ Usage examples:
   }
 
   .selectGroup .itemWrap.first .trigger {
-    border-top-left-radius: var(--rounded);
-    border-bottom-left-radius: var(--rounded);
+    border-top-left-radius: var(--rounded-md);
+    border-bottom-left-radius: var(--rounded-md);
   }
 
   .selectGroup .itemWrap.last .trigger {
-    border-top-right-radius: var(--rounded);
-    border-bottom-right-radius: var(--rounded);
+    border-top-right-radius: var(--rounded-md);
+    border-bottom-right-radius: var(--rounded-md);
   }
 
   /* Add these consistent styles to all components */

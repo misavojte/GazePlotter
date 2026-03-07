@@ -42,7 +42,7 @@
 
   // Default layout constants
   const DEFAULT_LAYOUT = {
-    HEADER_HEIGHT: 150,
+    HEADER_HEIGHT: 145,
   }
 
   const dimensions = $derived.by(() => {
@@ -113,8 +113,8 @@
   }
 
   .header {
-    padding: 0 0 10px 0;
-    margin-bottom: 15px;
+    padding: 0 0 8px 0;
+    margin-bottom: 12px;
     background-color: var(--c-white);
   }
 
