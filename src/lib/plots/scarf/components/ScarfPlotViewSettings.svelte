@@ -58,9 +58,7 @@
           <input
             id="timeline-end"
             type="number"
-            value={isOrdinal
-              ? syncs.ordinalEnd.value
-              : syncs.timelineEnd.value}
+            value={isOrdinal ? syncs.ordinalEnd.value : syncs.timelineEnd.value}
             oninput={e => {
               const v = parseInt(e.currentTarget.value)
               if (isOrdinal) syncs.ordinalEnd.value = v
@@ -119,14 +117,14 @@
   .input-group label {
     font-size: 11px;
     font-weight: 500;
-    color: #666;
+    color: var(--c-text);
     display: block;
   }
   .input-group input {
     width: 100%;
     box-sizing: border-box;
     padding: 3px 6px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--c-midgrey);
     border-radius: var(--rounded);
     font-size: 11px;
     outline: none;
@@ -137,7 +135,7 @@
   }
   .divider {
     height: 1px;
-    background: #eee;
+    background: var(--c-lightgrey);
     margin: 4px -2px;
   }
   .settings-row {
@@ -150,7 +148,7 @@
     gap: 8px;
     font-size: 11px;
     font-weight: 500;
-    color: #444;
+    color: var(--c-darkgrey);
     cursor: pointer;
     user-select: none;
     padding: 2px 0;

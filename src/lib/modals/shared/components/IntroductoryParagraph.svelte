@@ -40,13 +40,13 @@
 
   .purpose-description {
     margin: 0;
-    color: #666;
+    color: var(--c-darkgrey);
     font-size: 0.95rem;
     line-height: 1.4;
   }
 
   .purpose-description :global(strong) {
-    color: #333;
+    color: var(--c-black);
     font-weight: 600;
   }
 
@@ -55,7 +55,7 @@
   }
 
   .purpose-description :global(code) {
-    background-color: #f5f5f5;
+    background-color: var(--c-lightgrey);
     padding: 0.125rem 0.25rem;
     border-radius: 3px;
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;

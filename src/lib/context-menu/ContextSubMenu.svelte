@@ -132,7 +132,7 @@
     border: none;
     padding: 8px 12px;
     font-size: 13px;
-    color: #374151;
+    color: var(--c-darkgrey);
     cursor: pointer;
     width: 100%;
     text-align: left;
@@ -156,7 +156,7 @@
   .arrow {
     width: 12px;
     height: 12px;
-    color: #9ca3af;
+    color: var(--c-midgrey);
     opacity: 0.8;
     flex-shrink: 0;
   }
@@ -167,12 +167,12 @@
   }
 
   button.active {
-    background: #f3f4f6;
+    background: var(--c-lightgrey);
     color: var(--c-black);
   }
 
   button:hover {
-    background: #f3f4f6;
+    background: var(--c-lightgrey);
     color: var(--c-black);
   }
 </style>

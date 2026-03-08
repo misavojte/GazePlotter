@@ -107,7 +107,7 @@
     width: 220px;
     font-size: 14px;
     padding: 10px 15px;
-    border: 1px solid #88888820;
+    border: 1px solid var(--c-border);
   }
 
   .circle {
@@ -153,7 +153,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    color: #999;
+    color: var(--c-midgrey);
     transition: color 0.2s;
   }
   button.close:hover {

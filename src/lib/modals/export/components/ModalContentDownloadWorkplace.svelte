@@ -151,7 +151,7 @@
     font-size: 0.9rem;
     background: transparent;
     outline: none;
-    color: #333;
+    color: var(--c-text);
   }
 
   .export-input::placeholder {
@@ -181,14 +181,14 @@
 
   .workspace-description {
     margin: 0 0 1rem 0;
-    color: #666;
+    color: var(--c-text);
     font-size: 0.9rem;
     line-height: 1.4;
   }
 
   .info-text {
     margin: 0 0 1rem 0;
-    color: #666;
+    color: var(--c-text);
     font-size: 0.9rem;
     line-height: 1.4;
   }

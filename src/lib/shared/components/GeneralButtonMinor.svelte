@@ -189,12 +189,12 @@
   button:hover {
     /* keep border unchanged to preserve seamless group look */
     color: var(--c-brand);
-    background: #f6f7f9;
+    background: var(--c-darkwhite);
   }
   button:disabled {
     cursor: not-allowed;
     color: var(--c-darkgrey);
-    background: #eeeeee;
+    background: var(--c-lightgrey);
   }
 
   /* Group wrapper and separators */

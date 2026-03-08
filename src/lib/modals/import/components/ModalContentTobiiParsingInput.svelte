@@ -218,7 +218,7 @@
 
   .description {
     margin-bottom: 1rem;
-    color: #666;
+    color: var(--c-text);
     font-size: 0.9rem;
     line-height: 1.4;
   }
@@ -281,7 +281,7 @@
     margin: 0 0 0.25rem 0;
     font-size: 0.9rem;
     font-weight: 500;
-    color: #333;
+    color: var(--c-text);
     line-height: 1.3;
   }
 

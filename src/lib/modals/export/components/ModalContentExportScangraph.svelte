@@ -135,7 +135,7 @@
 
   .purpose-description {
     margin: 0;
-    color: #666;
+    color: var(--c-text);
     font-size: 0.95rem;
     line-height: 1.4;
   }

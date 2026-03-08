@@ -28,7 +28,7 @@
   <form onsubmit={handleSubmit}>
     <div class="order-row">
       <!-- Bar Orientation Section -->
-      <label class="column-label">Bar orientation</label>
+      <span class="column-label">Bar orientation</span>
       <div class="order-columns">
         <div class="column">
           <div class="radio-group">
@@ -64,7 +64,7 @@
     <div class="order-row">
       <div class="order-columns">
         <div class="column">
-          <label class="column-label">Order by</label>
+          <span class="column-label">Order by</span>
           <div class="radio-group">
             <label class="radio-label">
               <input
@@ -88,7 +88,7 @@
         </div>
 
         <div class="column">
-          <label class="column-label">Direction</label>
+          <span class="column-label">Direction</span>
           <div class="radio-group">
             <label class="radio-label">
               <input
@@ -178,7 +178,7 @@
   }
   .separator {
     height: 1px;
-    background: #e5e7eb;
+    background: var(--c-grey);
     margin: 4px 0;
   }
   .order-row,
@@ -190,7 +190,7 @@
   .section-title {
     font-size: 11px;
     font-weight: 500;
-    color: #666;
+    color: var(--c-text);
     display: block;
   }
   .order-columns {
@@ -207,7 +207,7 @@
   .input-group label {
     font-size: 11px;
     font-weight: 500;
-    color: #666;
+    color: var(--c-text);
     display: block;
   }
   .radio-group {
@@ -221,7 +221,7 @@
     gap: 4px;
     font-size: 11px;
     cursor: pointer;
-    color: #333;
+    color: var(--c-black);
     user-select: none;
     white-space: nowrap;
   }
@@ -249,7 +249,7 @@
     width: 100%;
     box-sizing: border-box;
     padding: 3px 6px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--c-midgrey);
     border-radius: var(--rounded, 4px);
     font-size: 11px;
     outline: none;

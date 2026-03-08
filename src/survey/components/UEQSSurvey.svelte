@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { UEQSResults } from '$survey/types/index';
+  import type { UEQSResults } from '$survey/types/index'
 
   /**
    * UEQS (User Experience Questionnaire Short) Survey Component
@@ -7,18 +7,27 @@
 
   interface Props {
     /** Callback when survey is completed */
-    onComplete?: (results: UEQSResults) => void;
+    onComplete?: (results: UEQSResults) => void
     /** Optional CSS class for custom styling */
-    class?: string;
+    class?: string
     /** Optional initial values to pre-populate the survey */
-    initialValues?: UEQSResults | null;
+    initialValues?: UEQSResults | null
     /** Callback when completion status changes */
-    onCompletionChange?: (isComplete: boolean, results: UEQSResults | null) => void;
+    onCompletionChange?: (
+      isComplete: boolean,
+      results: UEQSResults | null
+    ) => void
     /** Callback when survey value changes (for parent state management) */
-    onValueChange?: (results: UEQSResults | null, isComplete: boolean) => void;
+    onValueChange?: (results: UEQSResults | null, isComplete: boolean) => void
   }
 
-  let { onComplete, class: className = '', initialValues = null, onCompletionChange, onValueChange }: Props = $props();
+  let {
+    onComplete,
+    class: className = '',
+    initialValues = null,
+    onCompletionChange,
+    onValueChange,
+  }: Props = $props()
 
   // UEQS scale items with their bipolar adjectives
   const scaleItems = [
@@ -27,96 +36,106 @@
     { id: 'complicated-easy', left: 'complicated', right: 'easy' },
     { id: 'confusing-clear', left: 'confusing', right: 'clear' },
     { id: 'obstructive-supportive', left: 'obstructive', right: 'supportive' },
-    { id: 'not-interesting-interesting', left: 'not interesting', right: 'interesting' },
+    {
+      id: 'not-interesting-interesting',
+      left: 'not interesting',
+      right: 'interesting',
+    },
     { id: 'conventional-inventive', left: 'conventional', right: 'inventive' },
-    { id: 'inefficient-efficient', left: 'inefficient', right: 'efficient' }
-  ] as const;
+    { id: 'inefficient-efficient', left: 'inefficient', right: 'efficient' },
+  ] as const
 
   // Scale values from -3 to +3
-  const scaleValues = [-3, -2, -1, 0, 1, 2, 3] as const;
-  type ScaleValue = typeof scaleValues[number];
+  const scaleValues = [-3, -2, -1, 0, 1, 2, 3] as const
+  type ScaleValue = (typeof scaleValues)[number]
 
   // Results state - initialize with provided values
   // Ensure all scale items have entries (null if not in initialValues)
   let results = $state<Record<string, ScaleValue | null>>(
-    initialValues 
-      ? Object.fromEntries(scaleItems.map(item => [
-          item.id, 
-          (initialValues[item.id as keyof typeof initialValues] as ScaleValue | undefined) ?? null
-        ]))
+    initialValues
+      ? Object.fromEntries(
+          scaleItems.map(item => [
+            item.id,
+            (initialValues[item.id as keyof typeof initialValues] as
+              | ScaleValue
+              | undefined) ?? null,
+          ])
+        )
       : {}
-  );
+  )
 
   // Animation state
-  let animatingItem = $state<string | null>(null);
+  let animatingItem = $state<string | null>(null)
 
   // Expose value and isComplete for parent component - update via effect
-  let value = $state<UEQSResults | null>(null);
-  let isComplete = $state(false);
+  let value = $state<UEQSResults | null>(null)
+  let isComplete = $state(false)
 
   // Update exposed values when results change
   $effect(() => {
-    const allCompleted = scaleItems.every(item => results[item.id] !== null && results[item.id] !== undefined);
-    const resultsData = results as unknown as UEQSResults;
+    const allCompleted = scaleItems.every(
+      item => results[item.id] !== null && results[item.id] !== undefined
+    )
+    const resultsData = results as unknown as UEQSResults
 
-    isComplete = allCompleted;
+    isComplete = allCompleted
     // Always expose the current results, even when incomplete, to preserve partial progress
-    value = resultsData;
+    value = resultsData
 
     if (onCompletionChange) {
-      onCompletionChange(allCompleted, resultsData);
+      onCompletionChange(allCompleted, resultsData)
     }
 
     if (onValueChange) {
       // Always pass current results, even when incomplete, so parent can save partial progress
-      onValueChange(resultsData, allCompleted);
+      onValueChange(resultsData, allCompleted)
     }
 
     if (onComplete && allCompleted) {
-      onComplete(resultsData);
+      onComplete(resultsData)
     }
-  });
+  })
 
   /**
    * Handle scale selection with smooth animation
    */
   const handleScaleSelect = (itemId: string, value: ScaleValue) => {
     // Set animating state for smooth transition
-    animatingItem = itemId;
-    
+    animatingItem = itemId
+
     // Update results
-    results[itemId] = value;
-    
+    results[itemId] = value
+
     // Clear animation state after transition
     setTimeout(() => {
-      animatingItem = null;
-    }, 300);
-  };
+      animatingItem = null
+    }, 300)
+  }
 
   /**
    * Get the visual intensity for a scale value
    */
   const getIntensity = (value: ScaleValue) => {
-    return Math.abs(value) / 3;
-  };
+    return Math.abs(value) / 3
+  }
 
   /**
    * Get the color for a scale value
    */
   const getColor = (value: ScaleValue) => {
-    if (value === 0) return 'var(--c-midgrey)';
-    if (value > 0) return 'var(--c-success)';
-    return 'var(--c-error)';
-  };
+    if (value === 0) return 'var(--c-midgrey)'
+    if (value > 0) return 'var(--c-success)'
+    return 'var(--c-error)'
+  }
 
   /**
    * Get the background color for a scale value
    */
   const getBackgroundColor = (value: ScaleValue) => {
-    if (value === 0) return 'var(--c-lightgrey)';
-    if (value > 0) return 'rgba(34, 197, 94, 0.1)';
-    return 'rgba(255, 77, 79, 0.1)';
-  };
+    if (value === 0) return 'var(--c-lightgrey)'
+    if (value > 0) return 'rgba(34, 197, 94, 0.1)'
+    return 'rgba(255, 77, 79, 0.1)'
+  }
 </script>
 
 <!-- UEQS Survey Component -->
@@ -125,21 +144,23 @@
   <div class="survey-header">
     <h2>How would you rate your experience with GazePlotter?</h2>
     <p class="instructions">
-      Please indicate your impression by selecting the position on each scale that best reflects your experience.
-      <br>
-      <span class="scale-info">−3 = strongly left-hand word, +3 = strongly right-hand word</span>
+      Please indicate your impression by selecting the position on each scale
+      that best reflects your experience.
+      <br />
+      <span class="scale-info"
+        >−3 = strongly left-hand word, +3 = strongly right-hand word</span
+      >
     </p>
   </div>
-
 
   <!-- Scale Items -->
   <div class="scale-items">
     {#each scaleItems as item, index (item.id)}
       {@const currentValue = results[item.id] ?? null}
       {@const isAnimating = animatingItem === item.id}
-      
-      <div 
-        class="scale-item" 
+
+      <div
+        class="scale-item"
         class:completed={currentValue !== null}
         class:animating={isAnimating}
         style="animation-delay: {index * 50}ms"
@@ -157,7 +178,7 @@
             {@const intensity = getIntensity(value)}
             {@const color = getColor(value)}
             {@const backgroundColor = getBackgroundColor(value)}
-            
+
             <button
               class="scale-button"
               class:selected={isSelected}
@@ -170,10 +191,10 @@
                 --background-color: {backgroundColor};
               "
               onclick={() => handleScaleSelect(item.id, value)}
-              onkeydown={(e) => {
+              onkeydown={e => {
                 if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  handleScaleSelect(item.id, value);
+                  e.preventDefault()
+                  handleScaleSelect(item.id, value)
                 }
               }}
               tabindex="0"
@@ -188,11 +209,9 @@
             </button>
           {/each}
         </div>
-
       </div>
     {/each}
   </div>
-
 </div>
 
 <style>
@@ -220,7 +239,7 @@
   }
 
   .instructions {
-    color: var(--c-darkgrey);
+    color: var(--c-text);
     font-size: 0.9rem;
     line-height: 1.5;
     margin: 0;
@@ -230,7 +249,6 @@
     font-weight: 500;
     color: var(--c-black);
   }
-
 
   .scale-items {
     display: flex;
@@ -331,11 +349,19 @@
   }
 
   .scale-button.positive.selected {
-    background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(34, 197, 94, 0.1));
+    background: linear-gradient(
+      135deg,
+      rgba(34, 197, 94, 0.2),
+      rgba(34, 197, 94, 0.1)
+    );
   }
 
   .scale-button.negative.selected {
-    background: linear-gradient(135deg, rgba(255, 77, 79, 0.2), rgba(255, 77, 79, 0.1));
+    background: linear-gradient(
+      135deg,
+      rgba(255, 77, 79, 0.2),
+      rgba(255, 77, 79, 0.1)
+    );
   }
 
   .scale-button.neutral.selected {
@@ -362,12 +388,19 @@
   }
 
   @keyframes pulse {
-    0% { transform: scale(0); opacity: 0; }
-    50% { transform: scale(1.2); opacity: 1; }
-    100% { transform: scale(1); opacity: 1; }
+    0% {
+      transform: scale(0);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.2);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
   }
-
-
 
   /* Responsive design */
   @media (max-width: 640px) {

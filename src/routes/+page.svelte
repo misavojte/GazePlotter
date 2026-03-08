@@ -176,7 +176,7 @@
 
   main p {
     line-height: 1.5;
-    color: #3c3c43bf;
+    color: var(--c-darkgrey);
   }
 
   .box {

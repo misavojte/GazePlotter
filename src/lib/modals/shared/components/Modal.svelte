@@ -297,7 +297,7 @@
     border-top: 1px solid var(--c-midgrey);
     background-color: white;
     font-size: 0.75rem;
-    color: #bbb;
+    color: var(--c-darkgrey);
     text-align: left;
     flex-shrink: 0;
     position: relative;
@@ -318,7 +318,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #bbb;
+    color: var(--c-darkgrey);
     font-size: 0.6rem;
     animation: bounce 2s infinite;
   }

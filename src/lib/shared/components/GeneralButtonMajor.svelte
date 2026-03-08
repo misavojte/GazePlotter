@@ -64,9 +64,9 @@
   /* Disabled state - applies to all variants */
   button:disabled,
   a:disabled {
-    background-color: #f5f5f5 !important;
-    color: #a0a0a0 !important;
-    border: 1px solid #e0e0e0 !important;
+    background-color: var(--c-lightgrey) !important;
+    color: var(--c-midgrey) !important;
+    border: 1px solid var(--c-grey) !important;
     opacity: 0.6 !important;
     cursor: not-allowed;
   }

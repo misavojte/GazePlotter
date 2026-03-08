@@ -13,6 +13,6 @@
     font-weight: 600;
     margin: 0 0 0.5rem;
     padding-bottom: 0.25rem;
-    border-bottom: 1px solid #eaeaea;
+    border-bottom: 1px solid var(--c-border);
   }
 </style>

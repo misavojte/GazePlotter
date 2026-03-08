@@ -108,7 +108,7 @@
     margin: 0;
     flex: 1;
     min-width: 0;
-    color: #333;
+    color: var(--c-text);
   }
 
   .group-controls {

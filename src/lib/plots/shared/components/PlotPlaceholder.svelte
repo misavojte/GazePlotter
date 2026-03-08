@@ -30,14 +30,14 @@
   .spinner {
     width: 24px;
     height: 24px;
-    border: 2px solid rgba(0, 0, 0, 0.1);
+    border: 2px solid var(--c-grey);
     border-radius: 50%;
-    border-top-color: rgba(0, 0, 0, 0.3);
+    border-top-color: var(--c-midgrey);
     animation: spin 1.2s ease-in-out infinite;
   }
 
   .text {
-    color: rgba(0, 0, 0, 0.4);
+    color: var(--c-darkgrey);
     font-size: 14px;
     font-weight: 400;
     letter-spacing: 0.3px;

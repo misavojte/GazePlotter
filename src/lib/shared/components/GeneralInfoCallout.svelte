@@ -91,7 +91,7 @@
     border-radius: 4px;
     margin: 0.75rem 0;
     font-size: 0.9rem;
-    color: #444;
+    color: var(--c-text);
     line-height: 1.4;
   }
 

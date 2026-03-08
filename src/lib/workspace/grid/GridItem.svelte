@@ -348,10 +348,10 @@
     z-index: 50;
     pointer-events: none;
     opacity: 0.6;
-    border: 2px dashed var(--c-darkgrey);
+    border: 2px dashed var(--c-text);
     border-radius: var(--rounded-lg, 8px) var(--rounded-lg, 8px) 0
       var(--rounded-lg, 8px);
-    background: rgba(0, 0, 0, 0.02);
+    background: var(--c-lightgrey);
     box-sizing: border-box; /* Ensure border doesn't add to width */
   }
 

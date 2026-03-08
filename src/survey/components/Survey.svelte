@@ -1,129 +1,131 @@
 <script lang="ts">
-  import { surveyStore } from '$survey/stores/surveyStore';
-  import type { SurveyTask } from '$survey/types/index';
-  import { browser } from '$app/environment';
-  import { onMount } from 'svelte';
-  import { fly } from 'svelte/transition';
-  import { endpointService } from '$survey/services/endpointService';
+  import { surveyStore } from '$survey/stores/surveyStore'
+  import type { SurveyTask } from '$survey/types/index'
+  import { browser } from '$app/environment'
+  import { onMount } from 'svelte'
+  import { fly } from 'svelte/transition'
+  import { endpointService } from '$survey/services/endpointService'
 
   /**
    * Props for the Survey component
    */
   interface Props {
     /** Array of survey tasks (required for SSR) */
-    tasks: SurveyTask[];
+    tasks: SurveyTask[]
     /** Optional CSS class for custom styling */
-    class?: string;
-    forceCloseBanner?: boolean;
+    class?: string
+    forceCloseBanner?: boolean
   }
 
-  let { tasks, class: className = '', forceCloseBanner = false }: Props = $props();
-  
+  let {
+    tasks,
+    class: className = '',
+    forceCloseBanner = false,
+  }: Props = $props()
+
   // Get session ID and withdrawal email
-  const sessionId = endpointService.getSessionId();
-  const consentWithdrawEmail = 'mail@vojtechovska.com';
+  const sessionId = endpointService.getSessionId()
+  const consentWithdrawEmail = 'mail@vojtechovska.com'
 
   // --- Store Initialization ---
   $effect(() => {
     if (tasks.length > 0) {
       try {
-        surveyStore.setTasks(tasks);
+        surveyStore.setTasks(tasks)
       } catch (error) {
         // Tasks already initialized, which is fine for SSR
       }
     }
-  });
+  })
 
   $effect(() => {
     if (forceCloseBanner && showBanner) {
-      hideBanner();
+      hideBanner()
     }
-  });
+  })
 
   // --- Store Subscriptions ---
-  const surveyState = $derived($surveyStore);
-  const currentTaskIndex = $derived(surveyState.currentActiveTaskIndex);
-  const currentTask = $derived(surveyState.tasks[currentTaskIndex]);
-  const isCompleted = $derived(surveyState.isCompleted);
-  
+  const surveyState = $derived($surveyStore)
+  const currentTaskIndex = $derived(surveyState.currentActiveTaskIndex)
+  const currentTask = $derived(surveyState.tasks[currentTaskIndex])
+  const isCompleted = $derived(surveyState.isCompleted)
+
   // Determine if current task is skippable (default to true if not specified)
   const isCurrentTaskSkippable = $derived(
-    currentTask ? (currentTask.skippable !== false) : false
-  );
+    currentTask ? currentTask.skippable !== false : false
+  )
 
   // --- State for Banner Visibility ---
-  let showBanner = $state(false);
-  let bannerHiding = $state(false);
-  let activeTaskElements: (HTMLElement | null)[] = $state([]);
-  
+  let showBanner = $state(false)
+  let bannerHiding = $state(false)
+  let activeTaskElements: (HTMLElement | null)[] = $state([])
+
   // --- State for Task Skipping ---
-  let skipReason = $state('');
-  const SKIP_REASON_LIMIT = 500;
-  const remainingChars = $derived(SKIP_REASON_LIMIT - skipReason.length);
-  const canSkip = $derived(skipReason.trim().length > 0);
-  
+  let skipReason = $state('')
+  const SKIP_REASON_LIMIT = 500
+  const remainingChars = $derived(SKIP_REASON_LIMIT - skipReason.length)
+  const canSkip = $derived(skipReason.trim().length > 0)
 
   // --- Scroll Handler for Banner ---
   function handleScroll() {
     if (forceCloseBanner) {
-      return;
+      return
     }
     if (isCompleted) {
       if (showBanner && !bannerHiding) {
-        hideBanner();
+        hideBanner()
       }
-      return;
+      return
     }
 
-    const activeTaskElement = activeTaskElements[currentTaskIndex];
-    if (!activeTaskElement) return;
+    const activeTaskElement = activeTaskElements[currentTaskIndex]
+    if (!activeTaskElement) return
 
-    const rect = activeTaskElement.getBoundingClientRect();
-    const taskIsAboveViewport = rect.bottom < 100; // this is intentional:)
-    
+    const rect = activeTaskElement.getBoundingClientRect()
+    const taskIsAboveViewport = rect.bottom < 100 // this is intentional:)
+
     if (taskIsAboveViewport && !showBanner && !bannerHiding) {
-      showBanner = true;
-      bannerHiding = false;
+      showBanner = true
+      bannerHiding = false
     } else if (!taskIsAboveViewport && showBanner && !bannerHiding) {
-      hideBanner();
+      hideBanner()
     }
   }
 
   // Hide banner with animation
   function hideBanner() {
-    if (bannerHiding) return;
-    
-    bannerHiding = true;
+    if (bannerHiding) return
+
+    bannerHiding = true
     setTimeout(() => {
-      showBanner = false;
-      bannerHiding = false;
-    }, 300); // Match animation duration
+      showBanner = false
+      bannerHiding = false
+    }, 300) // Match animation duration
   }
 
   // Setup scroll listener
   onMount(() => {
-    if (!browser) return;
-    
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  });
+    if (!browser) return
 
+    window.addEventListener('scroll', handleScroll, { passive: true })
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+    }
+  })
 
   // --- Automatic Task Progression ---
   $effect(() => {
-    if (!browser || isCompleted || !currentTask?.condition) return;
+    if (!browser || isCompleted || !currentTask?.condition) return
 
-    const unsubscribe = currentTask.condition.subscribe((conditionMet) => {
+    const unsubscribe = currentTask.condition.subscribe(conditionMet => {
       if (conditionMet) {
-        surveyStore.nextTask();
+        surveyStore.nextTask()
       }
-    });
+    })
 
-    return unsubscribe;
-  });
+    return unsubscribe
+  })
 
   /**
    * Handles the skip task button click
@@ -131,18 +133,18 @@
    * Calls the onSkip callback with the task index and reason if provided
    */
   function handleSkipTask(): void {
-    if (!canSkip || !currentTask) return;
-    
+    if (!canSkip || !currentTask) return
+
     // Call the task's onSkip callback if provided
     if (currentTask.onSkip) {
-      currentTask.onSkip(currentTaskIndex, skipReason.trim());
+      currentTask.onSkip(currentTaskIndex, skipReason.trim())
     }
-    
+
     // Clear the skip reason for the next task
-    skipReason = '';
-    
+    skipReason = ''
+
     // Skip the task in the store
-    surveyStore.skipTask();
+    surveyStore.skipTask()
   }
 </script>
 
@@ -151,7 +153,7 @@
   <div class="banner scroll-banner" class:hiding={bannerHiding}>
     <div class="banner-content-wrapper">
       {#key currentTaskIndex}
-        <div 
+        <div
           class="banner-content"
           in:fly={{ y: -20, duration: 300, delay: 50 }}
           out:fly={{ y: 20, duration: 250, opacity: 0 }}
@@ -163,12 +165,9 @@
             <div class="banner-text">
               {currentTask.text}
             </div>
-            
+
             {#if currentTask.buttonText && currentTask.onButtonClick}
-              <button 
-                class="banner-button"
-                onclick={currentTask.onButtonClick}
-              >
+              <button class="banner-button" onclick={currentTask.onButtonClick}>
                 {currentTask.buttonText}
               </button>
             {/if}
@@ -189,34 +188,33 @@
         <span class="completed">(Completed!)</span>
       {/if}
     </div>
-    
+
     <div class="info">
-      Tasks are evaluated automatically and progressed upon fulfilling the condition
+      Tasks are evaluated automatically and progressed upon fulfilling the
+      condition
     </div>
 
     <div class="tasks">
       {#each tasks as task, index (index)}
-        {@const isTaskCompleted = index < currentTaskIndex || (isCompleted && index === currentTaskIndex)}
+        {@const isTaskCompleted =
+          index < currentTaskIndex ||
+          (isCompleted && index === currentTaskIndex)}
         {@const isActive = index === currentTaskIndex && !isCompleted}
-        <div 
-          class="task" 
+        <div
+          class="task"
           class:active={isActive}
           class:completed={isTaskCompleted}
           bind:this={activeTaskElements[index]}
         >
           <div class="task-text">{task.text}</div>
-          
+
           {#if isActive && task.buttonText && task.onButtonClick}
-            <button 
-              class="task-button"
-              onclick={task.onButtonClick}
-            >
+            <button class="task-button" onclick={task.onButtonClick}>
               {task.buttonText}
             </button>
           {/if}
         </div>
       {/each}
-      
     </div>
 
     <div class="skip-section">
@@ -228,13 +226,19 @@
             Skip current task
           {/if}
         </h3>
-        <p class="skip-instructions" class:unskippable={!isCurrentTaskSkippable && !isCompleted}>
+        <p
+          class="skip-instructions"
+          class:unskippable={!isCurrentTaskSkippable && !isCompleted}
+        >
           {#if isCompleted}
-            Thank you for completing all tasks. Please save your session information below.
+            Thank you for completing all tasks. Please save your session
+            information below.
           {:else if isCurrentTaskSkippable}
-            If you're unable to complete this task, you may skip it as a last resort. Please provide a reason below.
+            If you're unable to complete this task, you may skip it as a last
+            resort. Please provide a reason below.
           {:else}
-            This task is crucial and cannot be skipped. Please complete it to continue.
+            This task is crucial and cannot be skipped. Please complete it to
+            continue.
           {/if}
         </p>
       </div>
@@ -244,8 +248,12 @@
           <div class="session-details">
             <p class="session-label">Session ID:</p>
             <code class="session-code">{sessionId}</code>
-            <p class="session-label">Contact for information and data withdrawal:</p>
-            <a href="mailto:{consentWithdrawEmail}" class="session-email">{consentWithdrawEmail}</a>
+            <p class="session-label">
+              Contact for information and data withdrawal:
+            </p>
+            <a href="mailto:{consentWithdrawEmail}" class="session-email"
+              >{consentWithdrawEmail}</a
+            >
           </div>
         </div>
       {/if}
@@ -255,17 +263,19 @@
           <textarea
             bind:value={skipReason}
             class="skip-textarea"
-            placeholder={isCurrentTaskSkippable ? "Why are you unable to complete this task?" : "This task cannot be skipped"}
+            placeholder={isCurrentTaskSkippable
+              ? 'Why are you unable to complete this task?'
+              : 'This task cannot be skipped'}
             maxlength={SKIP_REASON_LIMIT}
             rows="3"
             disabled={!isCurrentTaskSkippable}
           ></textarea>
-          
+
           <div class="skip-footer">
             <span class="char-count" class:at-limit={remainingChars <= 50}>
               {remainingChars} characters remaining
             </span>
-            <button 
+            <button
               class="skip-button"
               onclick={handleSkipTask}
               disabled={!canSkip || !isCurrentTaskSkippable}
@@ -292,7 +302,7 @@
 
   .empty {
     text-align: center;
-    color: var(--c-darkgrey);
+    color: var(--c-text);
     padding: 2rem;
   }
 
@@ -313,7 +323,7 @@
     text-align: center;
     margin-bottom: 2rem;
     font-size: 0.85rem;
-    color: var(--c-darkgrey);
+    color: var(--c-text);
     font-style: italic;
     max-width: 500px;
   }
@@ -331,7 +341,11 @@
     border: 2px solid var(--c-lightgrey);
     border-radius: var(--rounded-md);
     background: var(--c-white);
-    transition: border-color 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+    transition:
+      border-color 0.3s ease,
+      background-color 0.3s ease,
+      box-shadow 0.3s ease,
+      transform 0.3s ease;
     font-weight: 500;
     font-size: 0.9rem;
     text-align: center;
@@ -358,9 +372,8 @@
 
   .task.completed .task-text {
     text-decoration: line-through;
-    color: var(--c-darkgrey);
+    color: var(--c-text);
   }
-
 
   .task-text {
     margin-bottom: 0.5rem;
@@ -392,7 +405,6 @@
     transform: translateY(0);
     box-shadow: 0 2px 6px rgba(205, 20, 4, 0.3);
   }
-
 
   /* --- Skip Section Styles --- */
   .skip-section {
@@ -448,7 +460,10 @@
     font-size: 0.85rem;
     line-height: 1.5;
     resize: vertical;
-    transition: border-color 0.3s ease, opacity 0.3s ease, background-color 0.3s ease;
+    transition:
+      border-color 0.3s ease,
+      opacity 0.3s ease,
+      background-color 0.3s ease;
     box-sizing: border-box;
     min-height: 4rem;
   }
@@ -477,7 +492,7 @@
   }
 
   .char-count {
-    color: var(--c-darkgrey);
+    color: var(--c-text);
     font-size: 0.75rem;
     flex-shrink: 0;
   }
@@ -490,7 +505,7 @@
   .skip-button {
     padding: 0.6rem 1.25rem;
     background: var(--c-lightgrey);
-    color: var(--c-darkgrey);
+    color: var(--c-text);
     border: 1px solid var(--c-darkgrey);
     border-radius: var(--rounded);
     font-weight: 500;
@@ -600,7 +615,9 @@
     border-radius: var(--rounded);
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.3s ease, opacity 0.2s ease;
+    transition:
+      all 0.3s ease,
+      opacity 0.2s ease;
     font-size: 0.85rem;
     white-space: nowrap;
     min-width: 6rem; /* Prevent button width jitter */
@@ -645,7 +662,7 @@
     left: 0;
     right: 0;
     z-index: 1000;
-    background-color: var(--c-lightgrey, #eaeaea);
+    background-color: var(--c-lightgrey);
     color: var(--c-black);
     padding: 0.75rem 1rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
@@ -653,9 +670,9 @@
     min-height: 3.5rem; /* Ensure banner doesn't jitter */
     display: flex;
     align-items: center;
-    border-bottom: 1px solid #88888862;
+    border-bottom: 1px solid var(--c-border);
     /* This is crucial: clips the in/out fly animations */
-    overflow: hidden; 
+    overflow: hidden;
   }
 
   .banner.hiding {

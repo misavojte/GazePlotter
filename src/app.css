@@ -23,10 +23,11 @@ body {
   --c-lightgrey: #f1f5f9;
   --c-grey: #e2e8f0;
   --c-midgrey: #cbd5e1;
-  --c-darkgrey: #64748b;
+  --c-darkgrey: #64748b; /* Slate 500 */
+  --c-text: #1e293b; /* Slate 800 for better readability */
   /* Modern border color to match the docs - updated to Slate 300 for definition */
   --c-border: #cbd5e1;
-  --c-black: #202020;
+  --c-black: #0f172a; /* Slate 900 as suggested by user */
 
   --c-error: #ff4d4f;
   --c-success: #22c55e;

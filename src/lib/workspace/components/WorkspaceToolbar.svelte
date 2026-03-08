@@ -275,7 +275,7 @@
     flex: 0 0 40px;
     width: 40px;
     align-self: stretch;
-    background-color: var(--c-lightgrey, #eaeaea);
+    background-color: var(--c-lightgrey, #f1f5f9);
     z-index: 2;
     transition: background-color 0.3s ease;
     border-right: 1px solid var(--c-border);

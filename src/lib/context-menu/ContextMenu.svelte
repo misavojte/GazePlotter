@@ -258,7 +258,7 @@
 
   li.divider {
     height: 1px;
-    background: #e5e7eb;
+    background: var(--c-grey);
     margin: 4px 0;
   }
 
@@ -267,7 +267,7 @@
     border: none;
     padding: 8px 12px;
     font-size: 13px;
-    color: #374151;
+    color: var(--c-text);
     cursor: pointer;
     width: 100%;
     text-align: left;
@@ -286,7 +286,7 @@
   }
 
   button:hover {
-    background: #f3f4f6;
+    background: var(--c-lightgrey);
     color: var(--c-black);
   }
 

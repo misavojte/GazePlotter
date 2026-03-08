@@ -86,7 +86,7 @@
       participantsGroups: [],
       categories: { data: [], orderVector: [] },
       noAoiTreatment: {
-        color: '#CCCCCC',
+        color: '#cbd5e1', // Slate 300 / var(--c-midgrey)
         displayedName: 'No AOI',
       },
       aois: {

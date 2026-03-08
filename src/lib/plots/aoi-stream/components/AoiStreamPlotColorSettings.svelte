@@ -248,7 +248,7 @@
   .sub-section-title {
     font-size: 10px;
     font-weight: 500;
-    color: #666;
+    color: var(--c-text);
   }
   .separator {
     height: 1px;

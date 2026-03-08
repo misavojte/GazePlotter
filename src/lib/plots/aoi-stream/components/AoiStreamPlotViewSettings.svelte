@@ -89,7 +89,7 @@
   }
   .separator {
     height: 1px;
-    background: #e5e7eb;
+    background: var(--c-grey);
     margin: 6px 0;
   }
   .timeline-row {
@@ -111,14 +111,14 @@
   .input-group label {
     font-size: 11px;
     font-weight: 500;
-    color: #666;
+    color: var(--c-darkgrey);
     display: block;
   }
   .input-group input {
     width: 100%;
     box-sizing: border-box;
     padding: 3px 6px;
-    border: 1px solid #ccc;
+    border: 1px solid var(--c-midgrey);
     border-radius: var(--rounded);
     font-size: 11px;
     outline: none;

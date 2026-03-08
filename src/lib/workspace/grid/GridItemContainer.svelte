@@ -140,7 +140,7 @@
     bottom: 4px;
     width: 8px;
     height: 8px;
-    border-right: 2px solid rgba(0, 0, 0, 0.2);
-    border-bottom: 2px solid rgba(0, 0, 0, 0.2);
+    border-right: 2px solid var(--c-midgrey);
+    border-bottom: 2px solid var(--c-midgrey);
   }
 </style>

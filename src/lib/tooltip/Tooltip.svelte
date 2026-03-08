@@ -225,7 +225,7 @@
   aside {
     position: absolute;
     font-size: 11px;
-    background: #374151; /* Deeper gray for better contrast */
+    background: var(--c-darkgrey); /* Modern Slate palette */
     color: white;
     border-radius: 4px;
     z-index: 10000;
