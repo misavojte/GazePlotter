@@ -135,7 +135,7 @@
     position: relative;
     display: flex;
     min-height: var(--min-workspace-height);
-    border: 1px solid #8888889c;
+    border: 1px solid var(--c-border);
   }
 
   .workspace-container {
@@ -151,7 +151,7 @@
     padding: 35px;
     will-change: height;
     cursor: grab;
-    background-color: var(--c-lightgrey);
+    background-color: var(--c-darkwhite);
   }
 
   :global(.grid-item) {

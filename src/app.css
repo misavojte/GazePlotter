@@ -19,13 +19,13 @@ body {
   --c-brand: #cd1404;
   --c-brand-dark: #a20d03;
   --c-white: #ffffff;
-  --c-darkwhite: #f3f3f5;
-  --c-lightgrey: #ebebef;
-  --c-grey: #e4e4e9;
-  --c-midgrey: #d9d9d9;
-  --c-darkgrey: #888888;
-  /* Midpoint between --c-darkgrey (#888888) and --c-midgrey (#d9d9d9) */
-  --c-border: #b1b1b1;
+  --c-darkwhite: #f8fafc;
+  --c-lightgrey: #f1f5f9;
+  --c-grey: #e2e8f0;
+  --c-midgrey: #cbd5e1;
+  --c-darkgrey: #64748b;
+  /* Modern border color to match the docs - updated to Slate 300 for definition */
+  --c-border: #cbd5e1;
   --c-black: #202020;
 
   --c-error: #ff4d4f;
@@ -36,6 +36,6 @@ body {
   --rounded: 4px;
   --rounded-md: 8px;
   --rounded-lg: 20px;
-  --menu-border-color: #d1d5db;
+  --menu-border-color: #cbd5e1;
   --menu-border-width: 1px;
 }

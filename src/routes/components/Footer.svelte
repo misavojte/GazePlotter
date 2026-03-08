@@ -56,13 +56,13 @@
   }
 
   .border-t {
-    border-top: #5858583a 1px solid;
+    border-top: var(--c-border) 1px solid;
   }
 
   footer p {
     margin: 0;
     line-height: 1.5;
-    color: #3c3c43bf;
+    color: var(--c-darkgrey);
   }
 
   footer p a {

@@ -54,7 +54,7 @@
   }
 
   .border-b {
-    border-bottom: #5858583a 1px solid;
+    border-bottom: var(--c-border) 1px solid;
   }
 
   header > div {

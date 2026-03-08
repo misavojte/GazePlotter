@@ -278,7 +278,7 @@
     background-color: var(--c-lightgrey, #eaeaea);
     z-index: 2;
     transition: background-color 0.3s ease;
-    border-right: 1px solid #88888862;
+    border-right: 1px solid var(--c-border);
     box-sizing: border-box;
   }
 

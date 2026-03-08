@@ -73,7 +73,7 @@
     border-radius: var(--rounded-lg, 8px) var(--rounded-lg, 8px) 0
       var(--rounded-lg, 8px);
 
-    border: 1px solid #88888863;
+    border: 1px solid var(--c-border);
     overflow: hidden;
     display: flex;
     flex-direction: column;

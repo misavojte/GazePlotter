@@ -232,8 +232,8 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    /* Google-like border */
-    border: 1px solid #dadce0;
+    /* Modern border matching the app theme */
+    border: 1px solid var(--c-border);
     box-shadow:
       0 1px 2px 0 rgba(60, 64, 67, 0.3),
       0 1px 3px 1px rgba(60, 64, 67, 0.15),
