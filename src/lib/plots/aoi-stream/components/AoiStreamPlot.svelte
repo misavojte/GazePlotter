@@ -47,59 +47,35 @@
   // We use PreviewSync to manage "preview" vs "committed" state for settings.
   // This allows submenus to share the same preview state (carrying over changes).
 
-  const binSizeSync = new PreviewSync(settings.binSize)
-  const ridgelineScaleSync = new PreviewSync(settings.ridgelineScale)
-  const timelineStartSync = new PreviewSync(settings.timelineStart)
-  const timelineEndSync = new PreviewSync(settings.timelineEnd)
-  const alignmentSync = new PreviewSync(settings.alignment)
-
-  const colorMinSync = new PreviewSync(
-    settings.colorScale?.[0] || PRESET_PALETTES.HEAT.colors[0]
+  const binSizeSync = new PreviewSync<number>(() => settings.binSize ?? 500)
+  const ridgelineScaleSync = new PreviewSync<number>(
+    () => settings.ridgelineScale ?? RIDGELINE_SCALE
   )
-  const colorMaxSync = new PreviewSync(
+  const timelineStartSync = new PreviewSync<number | undefined>(
+    () => settings.timelineStart
+  )
+  const timelineEndSync = new PreviewSync<number | undefined>(
+    () => settings.timelineEnd
+  )
+  const alignmentSync = new PreviewSync<
+    'stream' | 'distribution' | 'ridgeline' | 'heatmap'
+  >(() => settings.alignment ?? 'stream')
+
+  const colorMinSync = new PreviewSync<string>(
+    () => settings.colorScale?.[0] || PRESET_PALETTES.HEAT.colors[0]
+  )
+  const colorMaxSync = new PreviewSync<string>(() =>
     settings.colorScale?.length === 3
       ? settings.colorScale[2]
       : settings.colorScale?.[1] || PRESET_PALETTES.HEAT.colors[2]
   )
-  const colorMiddleSync = new PreviewSync(
+  const colorMiddleSync = new PreviewSync<string>(() =>
     settings.colorScale?.length === 3
       ? settings.colorScale[1]
       : settings.colorScale?.length === 2
         ? interpolateColor(settings.colorScale[0], settings.colorScale[1], 0.5)
         : PRESET_PALETTES.HEAT.colors[1]
   )
-
-  // Explicitly sync committed values when props change
-  $effect(() => {
-    binSizeSync.updateCommitted(settings.binSize, true)
-    ridgelineScaleSync.updateCommitted(settings.ridgelineScale, true)
-    timelineStartSync.updateCommitted(settings.timelineStart, true)
-    timelineEndSync.updateCommitted(settings.timelineEnd, true)
-    alignmentSync.updateCommitted(settings.alignment, true)
-
-    colorMinSync.updateCommitted(
-      settings.colorScale?.[0] || PRESET_PALETTES.HEAT.colors[0],
-      true
-    )
-    colorMaxSync.updateCommitted(
-      settings.colorScale?.length === 3
-        ? settings.colorScale[2]
-        : settings.colorScale?.[1] || PRESET_PALETTES.HEAT.colors[2],
-      true
-    )
-    colorMiddleSync.updateCommitted(
-      settings.colorScale?.length === 3
-        ? settings.colorScale[1]
-        : settings.colorScale?.length === 2
-          ? interpolateColor(
-              settings.colorScale[0],
-              settings.colorScale[1],
-              0.5
-            )
-          : PRESET_PALETTES.HEAT.colors[1],
-      true
-    )
-  })
 
   // Grouping them for easier passing to components (typed explicitly for AoiStreamPlotViewSettings)
   const syncs = {
@@ -128,7 +104,11 @@
     ridgelineScale: ridgelineScaleSync.value ?? RIDGELINE_SCALE,
     timelineStart: timelineStartSync.value,
     timelineEnd: timelineEndSync.value,
-    alignment: alignmentSync.value,
+    alignment: alignmentSync.value as
+      | 'stream'
+      | 'distribution'
+      | 'ridgeline'
+      | 'heatmap',
     colorScale: effectiveColorScale,
   })
 

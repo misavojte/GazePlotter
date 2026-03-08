@@ -4,11 +4,11 @@
  * before it is finally applied.
  */
 export class PreviewSync<T> {
-  #committed: T = $state() as T
+  #getCommitted: () => T
   #preview: T | undefined = $state(undefined)
 
-  constructor(initialValue: T) {
-    this.#committed = initialValue
+  constructor(getCommitted: () => T) {
+    this.#getCommitted = getCommitted
   }
 
   /**
@@ -16,7 +16,7 @@ export class PreviewSync<T> {
    * otherwise falling back to the committed value.
    */
   get value(): T {
-    return this.#preview !== undefined ? this.#preview : this.#committed
+    return this.#preview !== undefined ? this.#preview : this.#getCommitted()
   }
 
   set value(v: T) {
@@ -27,7 +27,7 @@ export class PreviewSync<T> {
    * Explicitly get the committed value, ignoring any preview.
    */
   get committed(): T {
-    return this.#committed
+    return this.#getCommitted()
   }
 
   /**
@@ -38,26 +38,14 @@ export class PreviewSync<T> {
   }
 
   /**
-   * Updates the base committed value.
-   * @param v New committed value
-   * @param keepPreview If true, existing preview is preserved. If false (default), preview is cleared.
-   */
-  updateCommitted(v: T, keepPreview = false) {
-    this.#committed = v
-    if (!keepPreview) {
-      this.#preview = undefined
-    }
-  }
-
-  /**
-   * Commits the current preview value to be the new committed value.
-   * Clears the preview state.
+   * Commits the current preview value logic.
+   * NOTE: This does not update the underlying source (e.g. workspace store).
+   * It is mostly useful for local-only state or manual overrides.
+   * Usually, completion of a menu calls a command that updates the source,
+   * which then updates #getCommitted() result.
    */
   commit() {
-    if (this.#preview !== undefined) {
-      this.#committed = this.#preview
-      this.#preview = undefined
-    }
+    this.#preview = undefined
   }
 
   /**
@@ -69,11 +57,9 @@ export class PreviewSync<T> {
 
   /**
    * Checks if there is an active preview that differs from the committed value.
-   * Note: This uses simple equality check. For objects, you might want a custom comparator
-   * but for primitives (settings) this is usually sufficient.
    */
   get isDirty(): boolean {
-    return this.#preview !== undefined && this.#preview !== this.#committed
+    return this.#preview !== undefined && this.#preview !== this.#getCommitted()
   }
 }
 

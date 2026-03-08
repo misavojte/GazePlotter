@@ -65,13 +65,15 @@
     settings.stimuliColorValueRanges?.[settings.stimulusId] ?? [0, 0]
   )
 
-  const colorMinSync = new PreviewSync(settings.colorScale?.[0] || '#f7fbff')
-  const colorMaxSync = new PreviewSync(
+  const colorMinSync = new PreviewSync<string>(
+    () => settings.colorScale?.[0] || '#f7fbff'
+  )
+  const colorMaxSync = new PreviewSync<string>(() =>
     settings.colorScale?.length === 3
       ? settings.colorScale[2]
       : settings.colorScale?.[1] || '#08306b'
   )
-  const colorMiddleSync = new PreviewSync(
+  const colorMiddleSync = new PreviewSync<string>(() =>
     settings.colorScale?.length === 3
       ? settings.colorScale[1]
       : interpolateColor(
@@ -81,30 +83,12 @@
         )
   )
 
-  const minValueSync = new PreviewSync(currentStimulusColorRange[0])
-  const maxValueSync = new PreviewSync(currentStimulusColorRange[1])
-
-  $effect(() => {
-    colorMinSync.updateCommitted(settings.colorScale?.[0] || '#f7fbff', true)
-    colorMaxSync.updateCommitted(
-      settings.colorScale?.length === 3
-        ? settings.colorScale[2]
-        : settings.colorScale?.[1] || '#08306b',
-      true
-    )
-    colorMiddleSync.updateCommitted(
-      settings.colorScale?.length === 3
-        ? settings.colorScale[1]
-        : interpolateColor(
-            settings.colorScale?.[0] || '#f7fbff',
-            settings.colorScale?.[1] || '#08306b',
-            0.5
-          ),
-      true
-    )
-    minValueSync.updateCommitted(currentStimulusColorRange[0], true)
-    maxValueSync.updateCommitted(currentStimulusColorRange[1], true)
-  })
+  const minValueSync = new PreviewSync<number>(
+    () => currentStimulusColorRange[0]
+  )
+  const maxValueSync = new PreviewSync<number>(
+    () => currentStimulusColorRange[1]
+  )
 
   const syncs = {
     colorMin: colorMinSync,

@@ -13,7 +13,7 @@
   import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
-  import { PreviewSync, PLOT_HEADER_HEIGHT } from '$lib/plots/shared'
+  import { PreviewSync } from '$lib/plots/shared'
 
   // Component Props using Svelte 5 $props() rune
   interface Props {
@@ -25,26 +25,14 @@
   let { settings: realSettings, onWorkspaceCommand }: Props = $props()
 
   // --- PREVIEW SYNC STATE ---
-  const timelineSync = new PreviewSync(realSettings.timeline)
-  const timelineStartSync = new PreviewSync(realSettings.timelineStart)
-  const timelineEndSync = new PreviewSync(realSettings.timelineEnd)
-  const ordinalStartSync = new PreviewSync(realSettings.ordinalStart)
-  const ordinalEndSync = new PreviewSync(realSettings.ordinalEnd)
+  const timelineSync = new PreviewSync(() => realSettings.timeline)
+  const timelineStartSync = new PreviewSync(() => realSettings.timelineStart)
+  const timelineEndSync = new PreviewSync(() => realSettings.timelineEnd)
+  const ordinalStartSync = new PreviewSync(() => realSettings.ordinalStart)
+  const ordinalEndSync = new PreviewSync(() => realSettings.ordinalEnd)
   const hideNonFixationsSync = new PreviewSync(
-    realSettings.hideNonFixations ?? false
+    () => realSettings.hideNonFixations ?? false
   )
-
-  $effect(() => {
-    timelineSync.updateCommitted(realSettings.timeline, true)
-    timelineStartSync.updateCommitted(realSettings.timelineStart, true)
-    timelineEndSync.updateCommitted(realSettings.timelineEnd, true)
-    ordinalStartSync.updateCommitted(realSettings.ordinalStart, true)
-    ordinalEndSync.updateCommitted(realSettings.ordinalEnd, true)
-    hideNonFixationsSync.updateCommitted(
-      realSettings.hideNonFixations ?? false,
-      true
-    )
-  })
 
   // Grouping for header
   const syncs = {

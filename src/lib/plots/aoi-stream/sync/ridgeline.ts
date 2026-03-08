@@ -67,21 +67,22 @@ export function scanForDynamicStripHeight(
     ridgelineScale: number
   }> = []
 
+  // Common values for all candidates with same height
+  const sharedSafeHeight =
+    targetHeight * DEFAULT_GRID_CONFIG.cellSize.height -
+    DEFAULT_GRID_CONFIG.gap * 2 -
+    PLOT_HEADER_HEIGHT
+
   for (const item of candidates) {
     const settings = item as any
     const stimulusId = settings.stimulusId
     const groupId = settings.groupId
     const itemScale = settings.ridgelineScale ?? RIDGELINE_SCALE
 
-    const dims = calculatePlotDimensionsWithHeader(
-      settings.w,
-      settings.h,
-      DEFAULT_GRID_CONFIG,
-      PLOT_HEADER_HEIGHT
-    )
-
-    const safeWidth = Math.max(1, dims.width)
-    const safeHeight = Math.max(1, dims.height)
+    // Width-based dimensions (needed for legend)
+    const safeWidth =
+      settings.w * DEFAULT_GRID_CONFIG.cellSize.width -
+      DEFAULT_GRID_CONFIG.gap * 2
 
     let tMin = settings.absoluteStimuliLimits?.[stimulusId]?.[0] ?? 0
     let tMax = settings.absoluteStimuliLimits?.[stimulusId]?.[1] ?? 0
@@ -117,15 +118,10 @@ export function scanForDynamicStripHeight(
     )
 
     const seriesCount = streamData.series.length
-    const plotAreaWidthBeforeLegend = Math.max(
-      0,
-      safeWidth - MARGIN.LEFT - MARGIN.RIGHT
-    )
-
-    let maxTextWidth = 0
     const { fontSize, fontFamily } = STREAM_LEGEND_CONFIG
 
-    if (streamData.series.length > 0) {
+    let maxTextWidth = 0
+    if (seriesCount > 0) {
       for (const series of streamData.series) {
         const label = series.label || ''
         const w = estimateTextWidth(label, fontSize, fontFamily)
@@ -141,7 +137,7 @@ export function scanForDynamicStripHeight(
     )
 
     const plotAreaHeight = Math.floor(
-      Math.max(0, safeHeight - MARGIN.TOP - MARGIN.BOTTOM - legendHeight)
+      Math.max(0, sharedSafeHeight - MARGIN.TOP - MARGIN.BOTTOM - legendHeight)
     )
 
     candidateData.push({

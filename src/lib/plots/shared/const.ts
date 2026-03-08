@@ -24,4 +24,4 @@ export const LEGEND_FONT = {
   COLOR: FONT_PRIMARY.COLOR,
 }
 
-export const PLOT_HEADER_HEIGHT = 145
+export const PLOT_HEADER_HEIGHT = 138

@@ -36,23 +36,27 @@
   let { settings, onWorkspaceCommand }: Props = $props()
 
   // --- PREVIEW SYNC STATE ---
-  const orderBySync = new PreviewSync(settings.orderBy)
-  const orderDirectionSync = new PreviewSync(settings.orderDirection)
-  const minScaleSync = new PreviewSync(settings.scaleRange?.[0] ?? 0)
-  const maxScaleSync = new PreviewSync(settings.scaleRange?.[1] ?? 0)
-  const barPlottingTypeSync = new PreviewSync(settings.barPlottingType)
-  const timelineStartSync = new PreviewSync(settings.timelineStart ?? 0)
-  const timelineEndSync = new PreviewSync(settings.timelineEnd ?? 0)
-
-  $effect(() => {
-    orderBySync.updateCommitted(settings.orderBy, true)
-    orderDirectionSync.updateCommitted(settings.orderDirection, true)
-    minScaleSync.updateCommitted(settings.scaleRange?.[0] ?? 0, true)
-    maxScaleSync.updateCommitted(settings.scaleRange?.[1] ?? 0, true)
-    barPlottingTypeSync.updateCommitted(settings.barPlottingType, true)
-    timelineStartSync.updateCommitted(settings.timelineStart ?? 0, true)
-    timelineEndSync.updateCommitted(settings.timelineEnd ?? 0, true)
-  })
+  const orderBySync = new PreviewSync<'value' | 'aoi'>(
+    () => settings.orderBy ?? 'value'
+  )
+  const orderDirectionSync = new PreviewSync<'desc' | 'asc'>(
+    () => settings.orderDirection ?? 'desc'
+  )
+  const minScaleSync = new PreviewSync<number>(
+    () => settings.scaleRange?.[0] ?? 0
+  )
+  const maxScaleSync = new PreviewSync<number>(
+    () => settings.scaleRange?.[1] ?? 0
+  )
+  const barPlottingTypeSync = new PreviewSync<'horizontal' | 'vertical'>(
+    () => settings.barPlottingType ?? 'horizontal'
+  )
+  const timelineStartSync = new PreviewSync<number | undefined>(
+    () => settings.timelineStart
+  )
+  const timelineEndSync = new PreviewSync<number | undefined>(
+    () => settings.timelineEnd
+  )
 
   // Grouping for the component
   const syncs = {
