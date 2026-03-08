@@ -8,9 +8,7 @@
   import { BasePlot } from '$lib/plots/shared/components'
   import Select from '$lib/shared/components/GeneralSelect.svelte'
 
-  import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
   import {
-    calculatePlotDimensionsWithHeader,
     getStimuliOptions,
     getParticipantsGroupOptions,
   } from '$lib/plots/shared'
@@ -24,7 +22,7 @@
     getParticipantEndTime,
     engine,
   } from '$lib/data/engine'
-  import { HEADER_HEIGHT, RIDGELINE_SCALE } from '../const'
+  import { RIDGELINE_SCALE } from '../const'
 
   import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
   import type { AoiStreamPlotResult } from '../types'
@@ -37,10 +35,6 @@
   import { PRESET_PALETTES } from '$lib/color/palettes'
   import AoiStreamPlotViewSettings from './AoiStreamPlotViewSettings.svelte'
   import AoiStreamPlotColorSettings from './AoiStreamPlotColorSettings.svelte'
-
-  const LAYOUT = {
-    headerHeight: HEADER_HEIGHT,
-  }
 
   interface Props {
     settings: AoiStreamPlotGridType
@@ -225,15 +219,6 @@
   })
 
   const streamResult = $derived(resultState.data)
-
-  const plotDimensions = $derived.by(() =>
-    calculatePlotDimensionsWithHeader(
-      effectiveSettings.w,
-      effectiveSettings.h,
-      DEFAULT_GRID_CONFIG,
-      LAYOUT.headerHeight
-    )
-  )
 
   const stripHeightOverride = $derived.by(() => {
     if (effectiveSettings.alignment !== 'heatmap') return null
@@ -439,12 +424,7 @@
   ])
 </script>
 
-<BasePlot
-  settings={effectiveSettings}
-  layoutConfig={LAYOUT}
-  hasData={!!streamResult}
-  dimensions={plotDimensions}
->
+<BasePlot settings={effectiveSettings} hasData={!!streamResult}>
   {#snippet header()}
     <div class="controls">
       <Select

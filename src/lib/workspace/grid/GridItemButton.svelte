@@ -99,23 +99,24 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 5px;
-    border-radius: 4px;
+    padding: 4px;
+    border-radius: 6px;
     color: var(--c-darkgrey, #666);
-    background: var(--c-grey);
+    background: transparent;
     stroke: var(--c-darkgrey);
-    stroke-width: 1px;
+    stroke-width: 1.5px;
     stroke-linecap: round;
     stroke-linejoin: round;
-    fill: var(--c-grey);
+    fill: none;
     transition: all 0.15s ease-out;
     border: none;
   }
 
   .grid-item-button:hover {
-    transform: scale(1.1);
-    background: var(--c-darkgrey);
-    color: var(--c-white);
+    transform: scale(1.05);
+    background: var(--c-midgrey, #e0e0e0);
+    color: var(--c-black);
+    stroke: var(--c-black);
   }
 
   .grid-item-button.disabled {

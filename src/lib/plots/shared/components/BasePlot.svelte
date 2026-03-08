@@ -5,6 +5,7 @@
   import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared'
   import { PlotPlaceholder } from '$lib/plots/shared/components'
+  import { PLOT_HEADER_HEIGHT } from '$lib/plots/shared/const'
 
   import type { GridType } from '$lib/workspace/type/gridType'
 
@@ -42,7 +43,7 @@
 
   // Default layout constants
   const DEFAULT_LAYOUT = {
-    HEADER_HEIGHT: 145,
+    HEADER_HEIGHT: PLOT_HEADER_HEIGHT,
   }
 
   const dimensions = $derived.by(() => {

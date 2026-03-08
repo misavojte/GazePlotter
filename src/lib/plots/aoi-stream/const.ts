@@ -14,8 +14,6 @@ export const MARGIN = {
   LEFT: 50,
 }
 
-export const HEADER_HEIGHT = 145
-
 export const FLOW_CURVE_TENSION = 0
 
 export const END_BIN_EPSILON = 1e-6

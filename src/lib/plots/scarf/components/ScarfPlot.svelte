@@ -9,12 +9,11 @@
     transformDataToScarfPlot,
     SCARF_LAYOUT,
   } from '$lib/plots/scarf'
-  import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared'
-  import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
+
   import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
-  import { PreviewSync } from '$lib/plots/shared'
+  import { PreviewSync, PLOT_HEADER_HEIGHT } from '$lib/plots/shared'
 
   // Component Props using Svelte 5 $props() rune
   interface Props {
@@ -81,15 +80,6 @@
     getParticipants(currentGroupId, currentStimulusId).map(p => p.id)
   )
 
-  const plotDimensions = $derived.by(() =>
-    calculatePlotDimensionsWithHeader(
-      effectiveSettings.w,
-      effectiveSettings.h,
-      DEFAULT_GRID_CONFIG,
-      SCARF_LAYOUT.HEADER_HEIGHT
-    )
-  )
-
   const scarfData = $derived.by(() => {
     // Dependencies: effectiveSettings, currentParticipantIds, redrawTimestamp
     redrawTimestamp
@@ -127,7 +117,6 @@
     return scarfData?.timeline.maxValue ?? 100
   })
 
-  const LAYOUT = { headerHeight: SCARF_LAYOUT.HEADER_HEIGHT }
   const PLOT_MARGIN = { TOP: 0, RIGHT: 0, BOTTOM: 0, LEFT: 0 }
 
   function hideTooltipAndHighlight() {
@@ -187,9 +176,9 @@
     })
   }
 
-  function handleDragStepX(stepChange: number) {
+  function handleDragStepX(stepChange: number, width: number) {
     const visibleRange = timelineMax - timelineMin
-    const moveAmount = -stepChange * (visibleRange / plotDimensions.width)
+    const moveAmount = -stepChange * (visibleRange / width)
 
     const newMin = Math.max(0, timelineMin + moveAmount)
     const newMax =
@@ -271,11 +260,7 @@
   }
 </script>
 
-<BasePlot
-  settings={effectiveSettings}
-  layoutConfig={LAYOUT}
-  dimensions={plotDimensions}
->
+<BasePlot settings={effectiveSettings}>
   {#snippet header()}
     <ScarfPlotHeader
       source={createCommandSourcePlotPattern(realSettings, 'plot')}
@@ -291,21 +276,21 @@
     <div class="scarf-viewport" style:height="{Math.floor(height)}px">
       {#if data}
         <ScarfPlotFigure
-          onTooltipActivation={handleTooltipActivation}
-          onTooltipDeactivation={handleTooltipDeactivation}
-          tooltipAreaElement={tooltipArea}
-          {data}
+          chartWidth={width}
+          availableHeight={height}
+          data={scarfData}
           settings={effectiveSettings}
           {highlights}
           onLegendClick={handleLegendClick}
-          onDragStepX={handleDragStepX}
+          onTooltipActivation={handleTooltipActivation}
+          onTooltipDeactivation={handleTooltipDeactivation}
+          onDragStepX={step => handleDragStepX(step, width)}
           onDragEnd={handleDragEnd}
-          chartWidth={width}
-          availableHeight={Math.floor(height)}
           marginTop={PLOT_MARGIN.TOP}
           marginRight={PLOT_MARGIN.RIGHT}
           marginBottom={PLOT_MARGIN.BOTTOM}
           marginLeft={PLOT_MARGIN.LEFT}
+          tooltipAreaElement={tooltipArea}
         />
       {/if}
     </div>

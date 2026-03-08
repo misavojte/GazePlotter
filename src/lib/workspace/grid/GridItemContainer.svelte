@@ -84,20 +84,21 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 20px;
+    padding: 8px 16px;
     background: var(--c-lightgrey);
     flex-wrap: wrap;
-    gap: 2px 5px;
+    gap: 2px 4px;
     /* Ensure header respects parent's rounded corners */
     overflow: hidden;
     border-radius: var(--rounded-lg, 8px) var(--rounded-lg, 8px) 0 0;
   }
 
   .header :global(h3) {
-    margin: 2px 0;
+    margin: 2px 0 2px 4px;
     flex-grow: 1;
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--c-black);
   }
 
   .body {

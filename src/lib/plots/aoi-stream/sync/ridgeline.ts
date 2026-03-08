@@ -1,5 +1,8 @@
 import { getParticipants, getParticipantEndTime } from '$lib/data/engine'
-import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/plotSizeUtility'
+import {
+  calculatePlotDimensionsWithHeader,
+  PLOT_HEADER_HEIGHT,
+} from '$lib/plots/shared'
 import {
   calculateFlatLegendHeight,
   STREAM_LEGEND_CONFIG,
@@ -13,7 +16,7 @@ import type { AoiStreamPlotResult } from '../types'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 import { calculateIdealStripHeight } from '../core/ridgeline'
 
-import { MARGIN, HEADER_HEIGHT, RIDGELINE_SCALE } from '../const'
+import { MARGIN, RIDGELINE_SCALE } from '../const'
 
 /**
  * Scan all active Time-binned AOI Occupancys with ridgeline alignment and the same height (h)
@@ -74,7 +77,7 @@ export function scanForDynamicStripHeight(
       settings.w,
       settings.h,
       DEFAULT_GRID_CONFIG,
-      HEADER_HEIGHT
+      PLOT_HEADER_HEIGHT
     )
 
     const safeWidth = Math.max(1, dims.width)

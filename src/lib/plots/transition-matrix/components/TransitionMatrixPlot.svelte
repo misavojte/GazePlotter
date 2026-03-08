@@ -12,13 +12,10 @@
   } from '$lib/shared/components/GeneralSelect.svelte'
 
   // Utilities and stores
-  import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
-  import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared'
-  import { modalState } from '$lib/modals'
+  import { PLOT_HEADER_HEIGHT } from '$lib/plots/shared'
   import { getTransitionMatrixData } from '$lib/plots/transition-matrix/core/transformer'
   import {
     MatrixAggregationMethod,
-    TRANSITION_MATRIX_LAYOUT,
     TRANSITION_MATRIX_LEGEND_TITLES,
   } from '$lib/plots/transition-matrix/const'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
@@ -176,15 +173,6 @@
     createCommandSourcePlotPattern(settings, 'modal')
   )
 
-  const plotDimensions = $derived(
-    calculatePlotDimensionsWithHeader(
-      settings.w,
-      settings.h,
-      DEFAULT_GRID_CONFIG,
-      TRANSITION_MATRIX_LAYOUT.headerHeight
-    )
-  )
-
   const transitionData = $derived.by(() => {
     return getTransitionMatrixData(
       settings.stimulusId,
@@ -195,17 +183,6 @@
 
   // Destructure for cleaner access in template
   const { aoiLabels, matrix } = $derived(transitionData)
-
-  const cellSize = $derived.by(() => {
-    const len = aoiLabels.length
-    if (len > 0) {
-      return Math.min(
-        Math.floor(plotDimensions.width / len),
-        Math.floor(plotDimensions.height / len)
-      )
-    }
-    return 60
-  })
 
   // Handlers
   function updateSettings(updates: Partial<typeof settings>) {
@@ -258,9 +235,7 @@
 
 <BasePlot
   {settings}
-  layoutConfig={TRANSITION_MATRIX_LAYOUT}
   hasData={settings?.stimulusId !== undefined && aoiLabels.length > 0}
-  dimensions={plotDimensions}
 >
   {#snippet header()}
     <div class="controls">

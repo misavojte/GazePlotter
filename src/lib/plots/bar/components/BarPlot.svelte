@@ -27,13 +27,6 @@
   import { PreviewSync } from '$lib/plots/shared'
   import BarPlotViewSettings from './BarPlotViewSettings.svelte'
 
-  // CONSTANTS - centralized for easier maintenance
-  const LAYOUT = {
-    headerHeight: 145,
-    horizontalPadding: 50,
-    contentPadding: 0,
-  }
-
   // Component Props using Svelte 5 $props() rune
   interface Props {
     settings: BarPlotGridType
@@ -198,7 +191,7 @@
   ])
 </script>
 
-<BasePlot {settings} layoutConfig={LAYOUT}>
+<BasePlot {settings}>
   {#snippet header()}
     <div class="controls">
       <Select ariaLabel="Bar filters" items={selectItems} label="Bar" />

@@ -18,7 +18,6 @@ export const SCARF_LAYOUT = {
   SPACE_ABOVE_RECT_DEFAULT: 5,
   HEIGHT_X_AXIS: 20,
   RIGHT_MARGIN: 8,
-  HEADER_HEIGHT: 145,
 
   // --- Tooltips ---
   TOOLTIP_WIDTH: 150,
