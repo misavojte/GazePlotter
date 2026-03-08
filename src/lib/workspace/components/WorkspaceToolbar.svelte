@@ -27,6 +27,7 @@
   // Track fullscreen state
   // let isFullscreen = $state(false)
   let bannerHeight = $state(0)
+  let toolbarTop = $derived(bannerHeight - 24) // for the better alignment in scrolls
 
   function detectOnScrollBannerHeight() {
     const banner = document.querySelector('.scroll-banner')
@@ -179,7 +180,7 @@
 </script>
 
 <div class="workspace-toolbar" style="--accent-color: {accentColor};">
-  <div class="toolbar-content" style="top: {bannerHeight}px;">
+  <div class="toolbar-content" style="top: {toolbarTop}px;">
     <!-- Undo button -->
     <WorkspaceToolbarItem
       id="undo"
@@ -271,8 +272,8 @@
 <style>
   .workspace-toolbar {
     /* Participate in the wrapper flex layout so it doesn't overlay the workspace */
-    flex: 0 0 46px;
-    width: 46px;
+    flex: 0 0 40px;
+    width: 40px;
     align-self: stretch;
     background-color: var(--c-lightgrey, #eaeaea);
     z-index: 2;
@@ -283,11 +284,11 @@
 
   .toolbar-content {
     position: sticky;
-    top: 0;
+    top: unset; /* unset as it is set by the banner height */
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 17px 0;
-    gap: 4px;
+    padding: 44px 0;
+    gap: 12px;
   }
 </style>
