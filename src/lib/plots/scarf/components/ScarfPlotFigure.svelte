@@ -985,7 +985,7 @@
   })
 </script>
 
-<svelte:window on:mousemove={handleDrag} on:mouseup={handleMouseUp} />
+<svelte:window onmousemove={handleDrag} onmouseup={handleMouseUp} />
 
 <canvas
   class="scarf-plot-figure"

@@ -1,114 +1,88 @@
-import { writable, type Writable } from 'svelte/store';
-import type { SurveyState, SurveyTask, SurveyActions } from '$survey/types/index';
+import type { SurveyTask } from '$survey/types/index'
 
 /**
- * Initial survey state with empty tasks array and no active task
+ * Survey store class using Svelte 5 runes for state management.
+ * This provides a more integrated and reactive experience than legacy writable stores.
  */
-const initialSurveyState: SurveyState = {
-  tasks: [],
-  currentActiveTaskIndex: -1,
-  isCompleted: false
-};
+class SurveyStore {
+  #tasks = $state<readonly SurveyTask[]>([])
+  #currentActiveTaskIndex = $state(-1)
+  #isCompleted = $state(false)
+  #tasksInitialized = false
 
-/**
- * Survey store containing the survey state and actions
- * The tasks array is readonly and cannot be modified after initial setup
- */
-function createSurveyStore() {
-  const { subscribe, set, update }: Writable<SurveyState> = writable(initialSurveyState);
-  
-  let tasksInitialized = false;
+  // Getters for read-only access to state
+  get tasks() {
+    return this.#tasks
+  }
+  get currentActiveTaskIndex() {
+    return this.#currentActiveTaskIndex
+  }
+  get isCompleted() {
+    return this.#isCompleted
+  }
 
   /**
    * Set the survey tasks array - can only be called once
    * @param newTasks - Array of survey tasks to set
    * @throws Error if tasks have already been initialized
    */
-  const setTasks = (newTasks: SurveyTask[]): void => {
-    if (tasksInitialized) {
-      throw new Error('Survey tasks cannot be modified after initialization');
+  setTasks(newTasks: SurveyTask[]): void {
+    if (this.#tasksInitialized) {
+      throw new Error('Survey tasks cannot be modified after initialization')
     }
-    
+
     // Create readonly copy of tasks array
-    const readonlyTasks = Object.freeze([...newTasks]) as readonly SurveyTask[];
-    
-    update(state => ({
-      ...state,
-      tasks: readonlyTasks,
-      currentActiveTaskIndex: newTasks.length > 0 ? 0 : -1,
-      isCompleted: false
-    }));
-    
-    tasksInitialized = true;
-  };
+    this.#tasks = Object.freeze([...newTasks]) as readonly SurveyTask[]
+    this.#currentActiveTaskIndex = newTasks.length > 0 ? 0 : -1
+    this.#isCompleted = false
+    this.#tasksInitialized = true
+  }
 
   /**
    * Move to the next task in the sequence
-   * Called externally when the current task is completed
    */
-  const nextTask = (): void => {
-    update(state => {
-      if (state.tasks.length === 0 || state.isCompleted) {
-        return state;
-      }
-      
-      const nextIndex = state.currentActiveTaskIndex + 1;
-      const isLastTask = nextIndex >= state.tasks.length;
-      
-      return {
-        ...state,
-        currentActiveTaskIndex: isLastTask ? state.currentActiveTaskIndex : nextIndex,
-        isCompleted: isLastTask
-      };
-    });
-  };
+  nextTask(): void {
+    if (this.#tasks.length === 0 || this.#isCompleted) {
+      return
+    }
+
+    const nextIndex = this.#currentActiveTaskIndex + 1
+    const isLastTask = nextIndex >= this.#tasks.length
+
+    if (isLastTask) {
+      this.#isCompleted = true
+    } else {
+      this.#currentActiveTaskIndex = nextIndex
+    }
+  }
 
   /**
    * Skip the current task if it is skippable
-   * Tasks are skippable by default unless explicitly marked as unskippable
    */
-  const skipTask = (): void => {
-    update(state => {
-      if (state.tasks.length === 0 || state.isCompleted) {
-        return state;
-      }
-      
-      const currentTask = state.tasks[state.currentActiveTaskIndex];
-      // Tasks are skippable by default (when skippable is undefined or true)
-      const isSkippable = currentTask?.skippable !== false;
-      
-      if (!isSkippable) {
-        return state;
-      }
-      
-      const nextIndex = state.currentActiveTaskIndex + 1;
-      const isLastTask = nextIndex >= state.tasks.length;
-      
-      return {
-        ...state,
-        currentActiveTaskIndex: isLastTask ? state.currentActiveTaskIndex : nextIndex,
-        isCompleted: isLastTask
-      };
-    });
-  };
+  skipTask(): void {
+    if (this.#tasks.length === 0 || this.#isCompleted) {
+      return
+    }
 
-  /**
-   * Survey actions object containing all available operations
-   */
-  const actions: SurveyActions = {
-    setTasks,
-    nextTask,
-    skipTask
-  };
+    const currentTask = this.#tasks[this.#currentActiveTaskIndex]
+    const isSkippable = currentTask?.skippable !== false
 
-  return {
-    subscribe,
-    ...actions
-  };
+    if (!isSkippable) {
+      return
+    }
+
+    const nextIndex = this.#currentActiveTaskIndex + 1
+    const isLastTask = nextIndex >= this.#tasks.length
+
+    if (isLastTask) {
+      this.#isCompleted = true
+    } else {
+      this.#currentActiveTaskIndex = nextIndex
+    }
+  }
 }
 
 /**
- * Main survey store instance
- * Use this store to access survey state and actions throughout the application
+ * Main survey store instance (Singleton)
  */
-export const surveyStore = createSurveyStore();
+export const surveyStore = new SurveyStore()

@@ -44,11 +44,10 @@
     }
   })
 
-  // --- Store Subscriptions ---
-  const surveyState = $derived($surveyStore)
-  const currentTaskIndex = $derived(surveyState.currentActiveTaskIndex)
-  const currentTask = $derived(surveyState.tasks[currentTaskIndex])
-  const isCompleted = $derived(surveyState.isCompleted)
+  // --- Task State (now directly from the store) ---
+  const currentTaskIndex = $derived(surveyStore.currentActiveTaskIndex)
+  const currentTask = $derived(surveyStore.tasks[currentTaskIndex])
+  const isCompleted = $derived(surveyStore.isCompleted)
 
   // Determine if current task is skippable (default to true if not specified)
   const isCurrentTaskSkippable = $derived(
@@ -118,11 +117,13 @@
   $effect(() => {
     if (!browser || isCompleted || !currentTask?.condition) return
 
-    const unsubscribe = currentTask.condition.subscribe(conditionMet => {
-      if (conditionMet) {
-        surveyStore.nextTask()
+    const unsubscribe = currentTask.condition.subscribe(
+      (conditionMet: boolean) => {
+        if (conditionMet) {
+          surveyStore.nextTask()
+        }
       }
-    })
+    )
 
     return unsubscribe
   })
