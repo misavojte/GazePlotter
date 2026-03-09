@@ -5,23 +5,23 @@
     truncateTextToPixelWidth,
     SYSTEM_SANS_SERIF_STACK,
   } from '$lib/shared/utils/textUtils'
-  import { getContext, onMount, untrack } from 'svelte'
-  const browser = typeof document !== 'undefined'
+  import { getContext, untrack } from 'svelte'
   import {
     createCanvasState,
-    setupCanvas,
-    resizeCanvas,
     getScaledMousePosition,
     getTooltipPosition,
-    setupDpiChangeListeners,
     beginCanvasDrawing,
     finishCanvasDrawing,
     alignToPixelCenter,
+    createRenderScheduler,
+    canvasLifecycleAction,
+    refreshCanvasLifecycle,
   } from '$lib/shared/utils/canvasUtils'
   import type { CanvasState } from '$lib/shared/utils/canvasUtils'
   import {
     EXPORT_SOURCE_CONTEXT,
     type ExportSourceRegistrar,
+    registerCanvasExportSource,
   } from '$lib/data/export'
   import {
     TRANSITION_MATRIX_LAYOUT,
@@ -117,28 +117,15 @@
   )
 
   $effect(() => {
-    if (!exportRegistrar) return
-    if (!canvas) return
-
-    exportRegistrar.register({ kind: 'canvas', getCanvas: () => canvas })
-
-    return () => {
-      exportRegistrar.register(null)
-    }
+    return registerCanvasExportSource(exportRegistrar, () => canvas)
   })
 
-  // Create a render scheduler function
-  function scheduleRender() {
-    if (!canvasState.renderScheduled && browser) {
-      canvasState.renderScheduled = true
-      requestAnimationFrame(() => {
-        if (canvasState.canvas && canvasState.context) {
-          renderCanvas()
-        }
-        canvasState.renderScheduled = false
-      })
-    }
-  }
+  const getCanvasDimensions = () => ({
+    width: width + marginLeft + marginRight,
+    height: height + marginTop + marginBottom,
+  })
+
+  const scheduleRender = createRenderScheduler(() => canvasState, renderCanvas)
 
   // Calculate the auto max value from the matrix efficiently
   const effectiveMaxValue = $derived.by(() => {
@@ -399,22 +386,6 @@
       cellValueFontSize: activeCellValueFontSize,
     }
   })
-
-  // Setup canvas and context using our utilities
-  function initCanvas() {
-    if (!canvas) return
-
-    // Initialize canvas with our utility
-    canvasState = setupCanvas(canvasState, canvas, dpiOverride)
-
-    // Resize and render initially
-    canvasState = resizeCanvas(
-      canvasState,
-      width + marginLeft + marginRight,
-      height + marginTop + marginBottom
-    )
-    renderCanvas()
-  }
 
   // Render everything to canvas
   function renderCanvas() {
@@ -878,61 +849,32 @@
     ]
 
     untrack(() => {
-      if (canvasState.canvas && canvasState.context) {
-        // Reset canvas state with new DPI override if it changed
-        if (canvasState.dpiOverride !== dpiOverride) {
-          canvasState = setupCanvas(
-            canvasState,
-            canvasState.canvas,
-            dpiOverride
-          )
-        }
-        canvasState = resizeCanvas(
-          canvasState,
-          width + marginLeft + marginRight,
-          height + marginTop + marginBottom
-        )
-        scheduleRender()
-      }
+      refreshCanvasLifecycle({
+        getState: () => canvasState,
+        setState: newState => {
+          canvasState = newState
+        },
+        getDimensions: getCanvasDimensions,
+        getDpiOverride: () => dpiOverride,
+        scheduleRender,
+      })
     })
   })
 
-  // Lifecycle hooks
-  onMount(() => {
-    if (canvas) {
-      initCanvas()
-
-      // Setup DPI and position change listeners with proper state management
-      const cleanup = setupDpiChangeListeners(
-        // State getter function that always returns the current state
-        () => canvasState,
-        // State setter function to properly update the state
-        newState => {
-          canvasState = newState
-          // Resize with new pixel ratio if it changed
-          if (canvasState.canvas) {
-            canvasState = resizeCanvas(
-              canvasState,
-              width + marginLeft + marginRight,
-              height + marginTop + marginBottom
-            )
-            renderCanvas() // Ensure canvas redraws after state update
-          }
-        },
-        dpiOverride,
-        renderCanvas
-      )
-
-      // Clean up event listeners and interval on destroy
-      return () => {
-        cleanup()
-      }
-    }
-  })
 </script>
 
 <canvas
   bind:this={canvas}
+  use:canvasLifecycleAction={{
+    getState: () => canvasState,
+    setState: newState => {
+      canvasState = newState
+    },
+    getDimensions: getCanvasDimensions,
+    getDpiOverride: () => dpiOverride,
+    render: renderCanvas,
+    scheduleRender,
+  }}
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
   onmousedown={handleMouseDown}

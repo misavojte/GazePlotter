@@ -1,19 +1,19 @@
 <script lang="ts">
-  const browser = typeof document !== 'undefined'
   import {
     beginCanvasDrawing,
+    canvasLifecycleAction,
+    createRenderScheduler,
     createCanvasState,
     finishCanvasDrawing,
     getScaledMousePosition,
     getTooltipPosition,
-    resizeCanvas,
-    setupCanvas,
-    setupDpiChangeListeners,
+    refreshCanvasLifecycle,
     type CanvasState,
   } from '$lib/shared/utils/canvasUtils'
   import {
     EXPORT_SOURCE_CONTEXT,
     type ExportSourceRegistrar,
+    registerCanvasExportSource,
   } from '$lib/data/export'
   import {
     computeGroupedLegendGeometry,
@@ -34,7 +34,7 @@
   import { UI_COLORS } from '$lib/color'
   import { updateTooltip } from '$lib/tooltip'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
-  import { getContext, onDestroy, onMount, untrack } from 'svelte'
+  import { getContext, onDestroy, untrack } from 'svelte'
   import { SCARF_LAYOUT } from '../const'
   import {
     calculateEffectiveMarginTop,
@@ -188,14 +188,7 @@
   )
 
   $effect(() => {
-    if (!exportRegistrar) return
-    if (!canvas) return
-
-    exportRegistrar.register({ kind: 'canvas', getCanvas: () => canvas })
-
-    return () => {
-      exportRegistrar.register(null)
-    }
+    return registerCanvasExportSource(exportRegistrar, () => canvas)
   })
   let dragStartX = $state(0) // Track drag start position
   let dragStartY = $state(0) // Track drag start position
@@ -373,6 +366,7 @@
 
   // Canvas height is strictly the available height (no scrolling)
   const totalHeight = $derived(availableHeight)
+  const getCanvasDimensions = () => ({ width: totalWidth, height: totalHeight })
 
   // Check if we have enough space to render
   // In compact mode, we can render with much less space (min 1px per participant)
@@ -827,60 +821,7 @@
     }
   }
 
-  // Create a render scheduler
-  function scheduleRender() {
-    if (!canvasState.renderScheduled && browser) {
-      canvasState.renderScheduled = true
-      requestAnimationFrame(() => {
-        renderCanvas()
-        canvasState.renderScheduled = false
-      })
-    }
-  }
-
-  // Lifecycle hooks
-  onMount(() => {
-    if (canvas) {
-      // Initialize canvas with our utility
-      canvasState = setupCanvas(canvasState, canvas, dpiOverride)
-
-      // Resize and render initially
-      canvasState = resizeCanvas(canvasState, totalWidth, totalHeight)
-      renderCanvas()
-
-      // Setup DPI and position change listeners with proper state management
-      const cleanup = setupDpiChangeListeners(
-        // State getter function that always returns the current state
-        () => canvasState,
-        // State setter function to properly update the state
-        newState => {
-          canvasState = newState
-          // Resize with new pixel ratio if it changed
-          if (canvasState.canvas) {
-            canvasState = resizeCanvas(canvasState, totalWidth, totalHeight)
-            renderCanvas() // Ensure canvas redraws after state update
-          }
-        },
-        dpiOverride,
-        renderCanvas
-      )
-
-      // Global event listeners are now handled by <svelte:window> in the template
-
-      return () => {
-        cleanup()
-
-        if (hoverTimeout !== null) {
-          window.clearTimeout(hoverTimeout)
-        }
-
-        // Clean up any remaining tooltips
-        if (hoveredLegendItem) {
-          updateTooltip(null)
-        }
-      }
-    }
-  })
+  const scheduleRender = createRenderScheduler(() => canvasState, renderCanvas)
 
   $effect(() => {
     const deps = [
@@ -901,12 +842,15 @@
 
     // Schedule a render instead of immediate execution
     untrack(() => {
-      // If dpiOverride changed, reinitialize the canvas with the new value
-      if (canvas && canvasState.dpiOverride !== dpiOverride) {
-        canvasState = setupCanvas(canvasState, canvas, dpiOverride)
-      }
-      canvasState = resizeCanvas(canvasState, totalWidth, totalHeight)
-      scheduleRender()
+      refreshCanvasLifecycle({
+        getState: () => canvasState,
+        setState: newState => {
+          canvasState = newState
+        },
+        getDimensions: getCanvasDimensions,
+        getDpiOverride: () => dpiOverride,
+        scheduleRender,
+      })
     })
   })
 
@@ -979,6 +923,10 @@
 
   // Clean up tooltip when unmounting
   onDestroy(() => {
+    if (hoverTimeout !== null) {
+      window.clearTimeout(hoverTimeout)
+    }
+
     if (hoveredLegendItem) {
       updateTooltip(null)
     }
@@ -992,6 +940,16 @@
   style:pointer-events={canRender ? 'auto' : 'none'}
   width={totalWidth}
   height={totalHeight}
+  use:canvasLifecycleAction={{
+    getState: () => canvasState,
+    setState: newState => {
+      canvasState = newState
+    },
+    getDimensions: getCanvasDimensions,
+    getDpiOverride: () => dpiOverride,
+    render: renderCanvas,
+    scheduleRender,
+  }}
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
   onmousedown={handleMouseDown}

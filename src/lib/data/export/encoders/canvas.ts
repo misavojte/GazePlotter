@@ -13,6 +13,23 @@ export type ExportSourceRegistrar = {
   register: (source: ExportSource | null) => void
 }
 
+/**
+ * Registers a canvas export source when available and returns cleanup
+ * that clears the registration.
+ */
+export function registerCanvasExportSource(
+  registrar: ExportSourceRegistrar | undefined,
+  getCanvas: () => HTMLCanvasElement | null
+): (() => void) | void {
+  if (!registrar) return
+  if (!getCanvas()) return
+
+  registrar.register({ kind: 'canvas', getCanvas })
+  return () => {
+    registrar.register(null)
+  }
+}
+
 export function getMimeType(fileType: ExportFileType): string {
   return fileType === '.png' ? 'image/png' : 'image/jpeg'
 }

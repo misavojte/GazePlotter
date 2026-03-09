@@ -5,6 +5,7 @@
 
 const browser = typeof document !== 'undefined'
 import { UI_COLORS } from '$lib/color'
+import type { Action } from 'svelte/action'
 
 /**
  * Tracks canvas state for DPI-aware rendering
@@ -16,6 +17,11 @@ export interface CanvasState {
   canvasRect: DOMRect | null
   renderScheduled: boolean
   dpiOverride: number | null
+}
+
+interface CanvasDimensions {
+  width: number
+  height: number
 }
 
 /**
@@ -210,7 +216,7 @@ export function forceCanvasRedraw(
  * Updates the DPI and canvas rect when display parameters change (e.g., moving to a different monitor)
  * @param getState - Function to get the current state (ensures we always use fresh state)
  * @param setStateFn - Function to set the updated state
- * @param dpiOverride - Optional DPI override (for export functionality)
+ * @param getDpiOverride - Optional DPI override getter (for export functionality)
  * @param renderCallback - Function to call to re-render canvas after update
  */
 export function updateDpiAndRect(
@@ -267,17 +273,17 @@ export function updateDpiAndRect(
 export function setupDpiChangeListeners(
   getState: () => CanvasState,
   setStateFn: (newState: CanvasState) => void,
-  dpiOverride: number | null,
+  getDpiOverride: () => number | null,
   renderCallback: () => void
 ): () => void {
   if (!browser) return () => {}
 
-  // Initially update with the dpiOverride
-  updateDpiAndRect(getState, setStateFn, dpiOverride, renderCallback)
+  // Initially update with the current DPI override
+  updateDpiAndRect(getState, setStateFn, getDpiOverride(), renderCallback)
 
   // Update handler that always gets fresh state
   const handleUpdate = () => {
-    updateDpiAndRect(getState, setStateFn, dpiOverride, renderCallback)
+    updateDpiAndRect(getState, setStateFn, getDpiOverride(), renderCallback)
   }
 
   // Force redraw handler for window movement
@@ -364,24 +370,168 @@ export function setupDpiChangeListeners(
   }
 }
 
+type CanvasStateSource = CanvasState | (() => CanvasState)
+
+function resolveCanvasState(stateSource: CanvasStateSource): CanvasState {
+  return typeof stateSource === 'function' ? stateSource() : stateSource
+}
+
+function normalizeCanvasDimensions(dimensions: CanvasDimensions): CanvasDimensions {
+  return {
+    width: Number.isFinite(dimensions.width) ? Math.max(1, dimensions.width) : 1,
+    height: Number.isFinite(dimensions.height)
+      ? Math.max(1, dimensions.height)
+      : 1,
+  }
+}
+
+function resizeStateToDimensions(
+  state: CanvasState,
+  getDimensions: () => CanvasDimensions
+): CanvasState {
+  const { width, height } = normalizeCanvasDimensions(getDimensions())
+  return resizeCanvas(state, width, height)
+}
+
 /**
  * Creates a throttled render scheduler to optimize canvas rendering
- * @param state - Current canvas state
+ * @param stateSource - Current canvas state or state getter
  * @param renderFn - Function to execute for rendering
  * @returns A function that schedules rendering with throttling
  */
 export function createRenderScheduler(
-  state: CanvasState,
+  stateSource: CanvasStateSource,
   renderFn: () => void
 ): () => void {
   return () => {
-    if (!state.renderScheduled && browser) {
-      state.renderScheduled = true
-      requestAnimationFrame(() => {
+    if (!browser) return
+    const state = resolveCanvasState(stateSource)
+    if (state.renderScheduled) return
+
+    state.renderScheduled = true
+    requestAnimationFrame(() => {
+      try {
         renderFn()
-        state.renderScheduled = false
+      } finally {
+        resolveCanvasState(stateSource).renderScheduled = false
+      }
+    })
+  }
+}
+
+export interface CanvasLifecycleOptions {
+  getCanvas: () => HTMLCanvasElement | null
+  getState: () => CanvasState
+  setState: (newState: CanvasState) => void
+  getDimensions: () => CanvasDimensions
+  getDpiOverride: () => number | null
+  render: () => void
+}
+
+export interface CanvasRefreshOptions {
+  getState: () => CanvasState
+  setState: (newState: CanvasState) => void
+  getDimensions: () => CanvasDimensions
+  getDpiOverride: () => number | null
+  scheduleRender: () => void
+}
+
+export interface CanvasLifecycleActionOptions
+  extends Omit<CanvasLifecycleOptions, 'getCanvas'>,
+    CanvasRefreshOptions {}
+
+/**
+ * Initializes canvas state, resizes it to current layout dimensions, and attaches DPI listeners.
+ * Returns a cleanup function for the listeners.
+ */
+export function mountCanvasLifecycle(
+  options: CanvasLifecycleOptions
+): () => void {
+  if (!browser) return () => {}
+
+  const canvas = options.getCanvas()
+  if (!canvas) return () => {}
+
+  let nextState = setupCanvas(
+    options.getState(),
+    canvas,
+    options.getDpiOverride()
+  )
+  nextState = resizeStateToDimensions(nextState, options.getDimensions)
+  options.setState(nextState)
+  options.render()
+
+  return setupDpiChangeListeners(
+    options.getState,
+    dpiState => {
+      const resized = resizeStateToDimensions(dpiState, options.getDimensions)
+      options.setState(resized)
+      options.render()
+    },
+    options.getDpiOverride,
+    options.render
+  )
+}
+
+/**
+ * Applies reactive canvas updates: optional DPI re-setup, resize, then scheduled redraw.
+ */
+export function refreshCanvasLifecycle(options: CanvasRefreshOptions): void {
+  const state = options.getState()
+  if (!state.canvas || !state.context) return
+  const canvas = state.canvas
+
+  let nextState = state
+  const dpiOverride = options.getDpiOverride()
+
+  if (nextState.dpiOverride !== dpiOverride) {
+    nextState = setupCanvas(nextState, canvas, dpiOverride)
+  }
+
+  nextState = resizeStateToDimensions(nextState, options.getDimensions)
+  options.setState(nextState)
+  options.scheduleRender()
+}
+
+/**
+ * Action that mounts and keeps a canvas lifecycle in sync with reactive updates.
+ */
+export const canvasLifecycleAction: Action<
+  HTMLCanvasElement,
+  CanvasLifecycleActionOptions
+> = (node, initialOptions) => {
+  let options = initialOptions
+
+  const getState = () => options.getState()
+  const setState = (nextState: CanvasState) => options.setState(nextState)
+  const getDimensions = () => options.getDimensions()
+  const getDpiOverride = () => options.getDpiOverride()
+  const render = () => options.render()
+  const scheduleRender = () => options.scheduleRender()
+
+  const cleanup = mountCanvasLifecycle({
+    getCanvas: () => node,
+    getState,
+    setState,
+    getDimensions,
+    getDpiOverride,
+    render,
+  })
+
+  return {
+    update(nextOptions) {
+      options = nextOptions
+      refreshCanvasLifecycle({
+        getState,
+        setState,
+        getDimensions,
+        getDpiOverride,
+        scheduleRender,
       })
-    }
+    },
+    destroy() {
+      cleanup()
+    },
   }
 }
 

@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { getContext, onMount, untrack } from 'svelte'
-  const browser = typeof document !== 'undefined'
+  import { getContext, untrack } from 'svelte'
   import {
     EXPORT_SOURCE_CONTEXT,
     type ExportSourceRegistrar,
+    registerCanvasExportSource,
   } from '$lib/data/export'
   import {
+    createRenderScheduler,
     createCanvasState,
-    setupCanvas,
-    resizeCanvas,
-    setupDpiChangeListeners,
+    canvasLifecycleAction,
+    refreshCanvasLifecycle,
     beginCanvasDrawing,
     finishCanvasDrawing,
     getScaledMousePosition,
@@ -176,14 +176,7 @@
   )
 
   $effect(() => {
-    if (!exportRegistrar) return
-    if (!canvas) return
-
-    exportRegistrar.register({ kind: 'canvas', getCanvas: () => canvas })
-
-    return () => {
-      exportRegistrar.register(null)
-    }
+    return registerCanvasExportSource(exportRegistrar, () => canvas)
   })
 
   // Convert series data to legend items format
@@ -267,31 +260,12 @@
     })
   })
 
-  function scheduleRender() {
-    if (!canvasState.renderScheduled && browser) {
-      canvasState.renderScheduled = true
-      requestAnimationFrame(() => {
-        renderCanvas()
-        canvasState.renderScheduled = false
-      })
-    }
-  }
+  const getCanvasDimensions = () => ({
+    width: safeWidth + safeMarginLeft + safeMarginRight,
+    height: safeHeight + safeMarginTop + safeMarginBottom,
+  })
 
-  function initCanvas() {
-    if (!canvas) return
-    canvasState = setupCanvas(canvasState, canvas, dpiOverride)
-
-    const targetWidth = Math.max(
-      1,
-      safeWidth + safeMarginLeft + safeMarginRight
-    )
-    const targetHeight = Math.max(
-      1,
-      safeHeight + safeMarginTop + safeMarginBottom
-    )
-    canvasState = resizeCanvas(canvasState, targetWidth, targetHeight)
-    renderCanvas()
-  }
+  const scheduleRender = createRenderScheduler(() => canvasState, renderCanvas)
 
   function renderCanvas() {
     beginCanvasDrawing(canvasState, true)
@@ -972,17 +946,15 @@
     }
 
     untrack(() => {
-      if (!canvasState.canvas || !canvasState.context) return
-
-      if (canvasState.dpiOverride !== deps.dpi) {
-        canvasState = setupCanvas(canvasState, canvasState.canvas, deps.dpi)
-      }
-
-      const targetWidth = Math.max(1, deps.w + deps.ml + deps.mr)
-      const targetHeight = Math.max(1, deps.h + deps.mt + deps.mb)
-
-      canvasState = resizeCanvas(canvasState, targetWidth, targetHeight)
-      scheduleRender()
+      refreshCanvasLifecycle({
+        getState: () => canvasState,
+        setState: newState => {
+          canvasState = newState
+        },
+        getDimensions: getCanvasDimensions,
+        getDpiOverride: () => deps.dpi,
+        scheduleRender,
+      })
     })
   })
 
@@ -991,46 +963,22 @@
     ctx.fillStyle = AXIS_CONFIG.color
   }
 
-  onMount(() => {
-    if (!canvas) return
-    initCanvas()
-
-    // Add mouse event listeners for legend interaction
-    canvas.addEventListener('mousemove', handleMouseMove)
-    canvas.addEventListener('mouseleave', handleMouseLeave)
-    canvas.addEventListener('click', handleClick)
-
-    const cleanup = setupDpiChangeListeners(
-      () => canvasState,
-      newState => {
-        canvasState = newState
-        if (canvasState.canvas) {
-          const targetWidth = Math.max(
-            1,
-            safeWidth + safeMarginLeft + safeMarginRight
-          )
-          const targetHeight = Math.max(
-            1,
-            safeHeight + safeMarginTop + safeMarginBottom
-          )
-          canvasState = resizeCanvas(canvasState, targetWidth, targetHeight)
-          renderCanvas()
-        }
-      },
-      dpiOverride,
-      renderCanvas
-    )
-
-    return () => {
-      cleanup()
-      if (canvas) {
-        canvas.removeEventListener('mousemove', handleMouseMove)
-        canvas.removeEventListener('mouseleave', handleMouseLeave)
-        canvas.removeEventListener('click', handleClick)
-      }
-    }
-  })
 </script>
 
-<canvas bind:this={canvas} aria-label="Time-binned AOI Occupancy visualization"
+<canvas
+  bind:this={canvas}
+  use:canvasLifecycleAction={{
+    getState: () => canvasState,
+    setState: newState => {
+      canvasState = newState
+    },
+    getDimensions: getCanvasDimensions,
+    getDpiOverride: () => dpiOverride,
+    render: renderCanvas,
+    scheduleRender,
+  }}
+  onmousemove={handleMouseMove}
+  onmouseleave={handleMouseLeave}
+  onclick={handleClick}
+  aria-label="Time-binned AOI Occupancy visualization"
 ></canvas>
