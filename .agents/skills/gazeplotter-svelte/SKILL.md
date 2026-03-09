@@ -17,6 +17,10 @@ description: Svelte 5 coding guidelines for GazePlotter. MUST use when writing o
   - GeneralSelect
 - Use lucide-svelte for icons.
 - Manage global state via class instances with runes in .state.svelte.ts files.
+- Use the session boundary consistently:
+  - Components read state/services from Svelte context via `$lib/session`.
+  - Plain TypeScript modules receive dependencies explicitly in function parameters.
+  - Do not introduce ambient globals, current-session fallbacks, or singleton bridges.
 
 ## DONTs
 
