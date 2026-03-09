@@ -31,6 +31,8 @@ interface UndoRedoState {
   isProcessingUndoRedo: boolean
 }
 
+export type { UndoRedoState }
+
 /**
  * Initial state for the undo/redo store
  */
@@ -261,25 +263,3 @@ export class UndoRedoStateStore {
   }
 }
 
-// Export a singleton instance
-export const undoRedo = new UndoRedoStateStore()
-
-// --- Backwards Compatibility Exports ---
-// These match the old store's API for drop-in replacement
-// Note: Using getter functions instead of $derived exports which are not allowed
-
-export const canUndo = () => undoRedo.canUndo
-export const canRedo = () => undoRedo.canRedo
-export const lastUndoCommandType = () => undoRedo.lastUndoCommandType
-export const lastRedoCommandType = () => undoRedo.lastRedoCommandType
-
-export const recordCommand = (original: WorkspaceCommandChain, reverse: WorkspaceCommandChain | null) =>
-  undoRedo.recordCommand(original, reverse)
-
-export const finalizeChain = () => undoRedo.finalizeChain()
-export const undo = () => undoRedo.undo()
-export const redo = () => undoRedo.redo()
-export const endUndoRedo = () => undoRedo.endUndoRedo()
-export const clear = () => undoRedo.clear()
-export const subscribe = (callback: (state: UndoRedoState) => void) => undoRedo.subscribe(callback)
-export const getState = () => undoRedo.getState()

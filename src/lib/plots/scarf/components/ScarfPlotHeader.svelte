@@ -16,7 +16,8 @@
   import Select, {
     type GroupSelectItem,
   } from '$lib/shared/components/GeneralSelect.svelte'
-  import type { WorkspaceCommand } from '$lib/workspace/commands'
+  import { getWorkspaceService } from '$lib/session'
+  import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import type { ScarfGridType } from '$lib/workspace/type/gridType'
   import RefreshCcw from 'lucide-svelte/icons/refresh-ccw'
   import ZoomIn from 'lucide-svelte/icons/zoom-in'
@@ -26,8 +27,6 @@
 
   interface Props {
     settings: ScarfGridType
-    source: string
-    onWorkspaceCommand: (command: WorkspaceCommand) => void
     syncs: {
       timelineStart: PreviewSync<number | undefined>
       timelineEnd: PreviewSync<number | undefined>
@@ -40,9 +39,10 @@
     onMenuClose?: () => void
   }
 
-  let { settings, source, onWorkspaceCommand, syncs, onMenuClose }: Props =
-    $props()
+  let { settings, syncs, onMenuClose }: Props = $props()
   const { engine } = getGazePlotterSession()
+  const workspace = getWorkspaceService()
+  const source = $derived(createCommandSourcePlotPattern(settings, 'plot'))
 
   function calculateActualMax(stimulusId: number): number {
     const participants = getParticipants(engine, settings.groupId, stimulusId)
@@ -115,12 +115,7 @@
       ? { ordinalStart: min, ordinalEnd: max }
       : { timelineStart: min, timelineEnd: max }
 
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      settings: updates,
-      source,
-    })
+    workspace.updateItemSettings(settings.id, updates, source)
   }
 
   const isRelativeTimeline = $derived(settings.timeline === 'relative')
@@ -171,22 +166,16 @@
 
   function onStimulusChange(event: CustomEvent) {
     const stimulusId = parseInt(event.detail)
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      settings: { stimulusId },
-      source,
-    })
+    workspace.updateItemSettings(
+      settings.id,
+      { stimulusId },
+      source
+    )
   }
 
   function onGroupChange(event: CustomEvent) {
     const groupId = parseInt(event.detail)
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      settings: { groupId },
-      source,
-    })
+    workspace.updateItemSettings(settings.id, { groupId }, source)
   }
 
   // Single grouped selects in order: Stimulus, Group, Timeline
@@ -260,7 +249,7 @@
     options={[]}
   />
   <Minor items={groupItems} ariaLabel="Zoom controls" />
-  <ScarfPlotButtonMenu {settings} {onWorkspaceCommand} />
+  <ScarfPlotButtonMenu {settings} />
 </div>
 
 <style>

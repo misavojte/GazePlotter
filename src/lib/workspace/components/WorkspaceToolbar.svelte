@@ -2,24 +2,13 @@
   import { WorkspaceToolbarItem } from '$lib/workspace'
   import { getGazePlotterSession } from '$lib/session'
   import { onMount } from 'svelte'
-  import type {
-    WorkspaceCommand,
-    WorkspaceCommandChain,
-  } from '$lib/workspace/commands'
-  import { createRootCommand } from '$lib/workspace/commands'
   import { ModalContentMetadataInfo } from '$lib/modals'
-  import { generateUniqueId } from '$lib/shared/utils/idUtils'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
-  import { undoRedo } from '$lib/workspace/commands'
-  import { getCommandLabel } from '$lib/workspace/commands/labels'
 
   // Configuration for toolbar items
   interface Props {
     accentColor?: string
     visualizations?: Array<{ id: string; label: string }>
-    onWorkspaceCommand: (
-      command: WorkspaceCommand | WorkspaceCommandChain
-    ) => void
     initialLayoutState?: Array<Partial<AllGridTypes> & { type: string }> | null
   }
 
@@ -68,25 +57,16 @@
   let {
     accentColor = 'var(--c-primary)',
     visualizations = [], // Default empty array for visualizations
-    onWorkspaceCommand,
     initialLayoutState = null,
   }: Props = $props()
-  const { ingest, engine, modalState } = getGazePlotterSession()
+  const { ingest, engine, modalState, workspace } = getGazePlotterSession()
 
   // Reactive variables to determine item states
   const isProcessing = $derived(ingest.isLoading)
   const isValidData = $derived(engine.hasValidData)
 
-  const undoLabel: string | null = $derived(
-    undoRedo.lastUndoCommandType
-      ? getCommandLabel(undoRedo.lastUndoCommandType, 'undo')
-      : null
-  )
-  const redoLabel: string | null = $derived(
-    undoRedo.lastRedoCommandType
-      ? getCommandLabel(undoRedo.lastRedoCommandType, 'redo')
-      : null
-  )
+  const undoLabel: string | null = $derived(workspace.lastUndoLabel)
+  const redoLabel: string | null = $derived(workspace.lastRedoLabel)
 
   /**
    * Handles toolbar item clicks directly.
@@ -106,14 +86,7 @@
       // Open the metadata info modal directly
       modalState.open(ModalContentMetadataInfo as any, 'Metadata Report', {})
     } else if (visualizations.map(viz => viz.id).includes(event.id)) {
-      // Handle visualization addition
-      const vizType = event.id
-      onWorkspaceCommand({
-        type: 'addGridItem',
-        vizType,
-        source: 'toolbar',
-        itemId: generateUniqueId(),
-      })
+      workspace.addVisualization(event.id, 'toolbar')
     }
   }
 
@@ -126,21 +99,11 @@
   }
 
   const handleUndo = () => {
-    const arrayOfCommands = undoRedo.undo()
-    if (!arrayOfCommands) return
-    arrayOfCommands.forEach((command: WorkspaceCommandChain) => {
-      onWorkspaceCommand(command)
-    })
-    undoRedo.endUndoRedo()
+    workspace.undo()
   }
 
   const handleRedo = () => {
-    const arrayOfCommands = undoRedo.redo()
-    if (!arrayOfCommands) return
-    arrayOfCommands.forEach((command: WorkspaceCommandChain) => {
-      onWorkspaceCommand(command)
-    })
-    undoRedo.endUndoRedo()
+    workspace.redo()
   }
 
   /**
@@ -152,15 +115,7 @@
       console.warn('Cannot reset layout: no initial layout state provided')
       return
     }
-
-    // Create a setLayoutState command with the initial layout state
-    const resetCommand = createRootCommand({
-      type: 'setLayoutState',
-      layoutState: initialLayoutState,
-      source: 'toolbar',
-    })
-
-    onWorkspaceCommand(resetCommand)
+    workspace.resetLayout(initialLayoutState)
   }
 
   // Listen for scroll and fullscreen changes
@@ -190,7 +145,7 @@
           <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
         </svg>`}
       actions={[{ id: 'undo', label: undoLabel || 'Nothing to undo' }]}
-      disabled={!undoRedo.canUndo}
+      disabled={!workspace.canUndo}
       onclick={handleItemClick}
     />
 
@@ -203,7 +158,7 @@
           <path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"></path>
         </svg>`}
       actions={[{ id: 'redo', label: redoLabel || 'Nothing to redo' }]}
-      disabled={!undoRedo.canRedo}
+      disabled={!workspace.canRedo}
       onclick={handleItemClick}
     />
 

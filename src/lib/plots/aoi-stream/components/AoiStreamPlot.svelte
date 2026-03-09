@@ -26,7 +26,6 @@
 
   import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
   import type { AoiStreamPlotResult } from '../types'
-  import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
   import { PreviewSync } from '$lib/plots/shared'
@@ -37,11 +36,10 @@
 
   interface Props {
     settings: AoiStreamPlotGridType
-    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { settings, onWorkspaceCommand }: Props = $props()
-  const { engine } = getGazePlotterSession()
+  let { settings }: Props = $props()
+  const { engine, workspace } = getGazePlotterSession()
   const grid = getGridState()
 
   // --- PREVIEW SYNC STATE ---
@@ -260,12 +258,7 @@
       const snapshotUpdates = $state.snapshot(updates)
       const snapshotSource = $state.snapshot(source)
 
-      onWorkspaceCommand({
-        type: 'updateSettings',
-        itemId: settings.id,
-        source: snapshotSource,
-        settings: snapshotUpdates,
-      })
+      workspace.updateItemSettings(settings.id, snapshotUpdates, snapshotSource)
 
       // IMPORTANT: Reset previews after dispatching.
       // The command will eventually update props, which will update committed values via $effect.
@@ -290,12 +283,7 @@
     alignmentSync.reset()
 
     if (settings.stimulusId === stimulusId) return
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      source,
-      settings: { stimulusId },
-    })
+    workspace.updateItemSettings(settings.id, { stimulusId }, source)
   }
 
   const handleUpperGroupChange = (event: CustomEvent) => {
@@ -308,12 +296,7 @@
     alignmentSync.reset()
 
     if (settings.groupId === groupId) return
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      source,
-      settings: { groupId },
-    })
+    workspace.updateItemSettings(settings.id, { groupId }, source)
   }
 
   const handleLegendClick = (aoiId: number) => {
@@ -324,12 +307,7 @@
       ? currentHighlights.filter(id => id !== aoiIdStr)
       : [...currentHighlights, aoiIdStr]
 
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      source,
-      settings: { highlights: newHighlights },
-    })
+    workspace.updateItemSettings(settings.id, { highlights: newHighlights }, source)
   }
 
   const selectItems = $derived([
@@ -425,7 +403,7 @@
         options={[]}
       />
       <div class="menu-button">
-        <AoiStreamPlotButtonMenu {settings} {onWorkspaceCommand} />
+        <AoiStreamPlotButtonMenu {settings} />
       </div>
     </div>
   {/snippet}

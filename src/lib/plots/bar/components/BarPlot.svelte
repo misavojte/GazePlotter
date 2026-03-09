@@ -23,7 +23,6 @@
     getBarPlotAxisLabel,
     type BarPlotAggregationMethodId,
   } from '$lib/plots/bar/const'
-  import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { PreviewSync } from '$lib/plots/shared'
   import BarPlotViewSettings from './BarPlotViewSettings.svelte'
@@ -31,11 +30,10 @@
   // Component Props using Svelte 5 $props() rune
   interface Props {
     settings: BarPlotGridType
-    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { settings, onWorkspaceCommand }: Props = $props()
-  const { engine } = getGazePlotterSession()
+  let { settings }: Props = $props()
+  const { engine, workspace } = getGazePlotterSession()
 
   // --- PREVIEW SYNC STATE ---
   const orderBySync = new PreviewSync<'value' | 'aoi'>(
@@ -130,12 +128,11 @@
         return
       }
 
-      onWorkspaceCommand({
-        type: 'updateSettings',
-        itemId: settings.id,
-        source: $state.snapshot(source),
-        settings: $state.snapshot(updates),
-      })
+      workspace.updateItemSettings(
+        settings.id,
+        $state.snapshot(updates),
+        $state.snapshot(source)
+      )
 
       orderBySync.reset()
       orderDirectionSync.reset()
@@ -148,12 +145,7 @@
   }
 
   function updateSetting(newSettings: Partial<BarPlotGridType>) {
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      source,
-      settings: newSettings,
-    })
+    workspace.updateItemSettings(settings.id, newSettings, source)
   }
 
   const stimulusOptions = $derived(getStimuliOptions(engine))
@@ -204,7 +196,7 @@
     <div class="controls">
       <Select ariaLabel="Bar filters" items={selectItems} label="Bar" />
       <div class="menu-button">
-        <BarPlotButtonMenu {settings} {onWorkspaceCommand} />
+        <BarPlotButtonMenu {settings} />
       </div>
     </div>
   {/snippet}

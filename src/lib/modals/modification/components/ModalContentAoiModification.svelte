@@ -19,22 +19,19 @@
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
   import { getStimuliOptions } from '$lib/plots/shared'
-  import type { WorkspaceCommand } from '$lib/workspace/commands'
 
   interface Props {
     selectedStimulus?: string
     userSelected?: string
     source: string
-    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
   let {
     selectedStimulus = $bindable('0'),
     userSelected = $bindable('this'),
     source,
-    onWorkspaceCommand,
   }: Props = $props()
-  const { engine, modalState, toastState } = getGazePlotterSession()
+  const { engine, modalState, toastState, workspace } = getGazePlotterSession()
 
   const isValidMatch = (displayedName: string): boolean =>
     typeof displayedName === 'string' &&
@@ -301,14 +298,13 @@
         new Set(hiddenAoiIds.filter(v => Number.isInteger(v) && v >= 0))
       ).sort((a, b) => a - b)
 
-      onWorkspaceCommand({
-        type: 'updateAois',
-        aois: cleanedAois,
-        source,
+      workspace.updateAois(
+        cleanedAois,
         stimulusId,
-        applyTo: handlerType,
-        hiddenAois: hiddenUniqueSorted,
-      })
+        handlerType,
+        source,
+        hiddenUniqueSorted
+      )
 
       // Update No AOI treatment if it changed
       if (
@@ -316,14 +312,13 @@
           lastNoAoiTreatmentSnapshot.displayedName ||
         noAoiTreatment.color !== lastNoAoiTreatmentSnapshot.color
       ) {
-        onWorkspaceCommand({
-          type: 'updateNoAoiTreatment',
-          noAoiTreatment: {
+        workspace.updateNoAoiTreatment(
+          {
             displayedName: (noAoiTreatment.displayedName || 'No AOI').trim(),
             color: noAoiTreatment.color,
           },
-          source,
-        })
+          source
+        )
 
         lastNoAoiTreatmentSnapshot = {
           displayedName: noAoiTreatment.displayedName,

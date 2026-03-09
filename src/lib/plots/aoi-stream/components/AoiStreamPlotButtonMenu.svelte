@@ -14,17 +14,15 @@
     ModalContentStimulusModification,
   } from '$lib/modals'
   import type { ComponentProps } from 'svelte'
-  import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
   import { untrack } from 'svelte'
 
   interface Props {
     settings: AoiStreamPlotGridType
-    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { settings, onWorkspaceCommand }: Props = $props()
+  let { settings }: Props = $props()
   const modalState = getModalState()
 
   const source = createCommandSourcePlotPattern(
@@ -39,7 +37,6 @@
       {
         selectedStimulus: settings.stimulusId.toString(),
         source,
-        onWorkspaceCommand,
       }
     )
   }
@@ -50,7 +47,6 @@
       'Stimulus customization',
       {
         source,
-        onWorkspaceCommand,
       }
     )
   }
@@ -61,7 +57,6 @@
       'Participants groups',
       {
         source,
-        onWorkspaceCommand,
       }
     )
   }

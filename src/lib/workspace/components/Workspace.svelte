@@ -12,12 +12,7 @@
     DEFAULT_GRID_CONFIG,
   } from '$lib/workspace/grid'
   import { visualizationRegistry } from '$lib/plots/registry'
-  import { createCommandHandler } from '$lib/workspace/commands'
-  import type {
-    WorkspaceCommand,
-    WorkspaceCommandChain,
-  } from '$lib/workspace/commands'
-  import { createRootCommand } from '$lib/workspace/commands'
+  import type { WorkspaceCommandChain } from '$lib/workspace/commands'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
   interface Props {
@@ -31,7 +26,7 @@
     onWorkspaceCommandChain,
     initialLayoutState = null,
   }: Props = $props()
-  const { engine, ingest, grid, toastState } = getGazePlotterSession()
+  const { ingest, grid, workspace } = getGazePlotterSession()
 
   const gridConfig = DEFAULT_GRID_CONFIG
 
@@ -63,41 +58,19 @@
     })
   )
 
-  // ---------------------------------------------------
-  // Command Orchestration
-  // ---------------------------------------------------
+  $effect(() => {
+    workspace.setCommandListener(onWorkspaceCommandChain)
 
-  // ---------------------------------------------------
-  // Command Orchestration
-  // ---------------------------------------------------
-
-  const handleCommand = createCommandHandler(
-    grid, // Synchronous class instance
-    engine,
-    message => toastState.addSuccess(message),
-    error => {
-      console.error('Command error:', error)
-      toastState.addError('Error applying changes. See console for details.')
-    },
-    command => onWorkspaceCommandChain(command)
-  )
-
-  const handleWorkspaceCommand = (
-    command: WorkspaceCommand | WorkspaceCommandChain
-  ) => {
-    if ('chainId' in command) {
-      handleCommand(command)
-      return
+    return () => {
+      workspace.setCommandListener(() => {})
     }
-    handleCommand(createRootCommand(command))
-  }
+  })
 
   const styleProps = `--min-workspace-height: ${MIN_WORKSPACE_HEIGHT}px; --grid-container-min-height: ${MIN_WORKSPACE_HEIGHT - 100}px;`
 </script>
 
 <div class="workspace-wrapper" style={styleProps}>
   <WorkspaceToolbar
-    onWorkspaceCommand={handleWorkspaceCommand}
     {initialLayoutState}
     {visualizations}
   />
@@ -109,11 +82,7 @@
     role="none"
   >
     {#if grid.isEmpty && !(ingest.isLoading || grid.isLoading)}
-      <WorkspaceIndicatorEmpty
-        {onReinitialize}
-        onWorkspaceCommand={handleWorkspaceCommand}
-        {initialLayoutState}
-      />
+      <WorkspaceIndicatorEmpty {onReinitialize} {initialLayoutState} />
     {:else if ingest.isLoading || grid.isLoading}
       <WorkspaceIndicatorLoading />
     {:else}
@@ -124,7 +93,6 @@
         gridWidth={grid.width}
         gridIsEmpty={grid.isEmpty}
         {workspaceContainer}
-        onWorkspaceCommand={handleWorkspaceCommand}
       />
     {/if}
   </div>

@@ -11,7 +11,6 @@
     SCARF_LAYOUT,
   } from '$lib/plots/scarf'
 
-  import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
   import { PreviewSync } from '$lib/plots/shared'
@@ -19,12 +18,11 @@
   // Component Props using Svelte 5 $props() rune
   interface Props {
     settings: ScarfGridType
-    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
   // Rename incoming settings prop to realSettings for clarity
-  let { settings: realSettings, onWorkspaceCommand }: Props = $props()
-  const { engine } = getGazePlotterSession()
+  let { settings: realSettings }: Props = $props()
+  const { engine, workspace } = getGazePlotterSession()
 
   // --- PREVIEW SYNC STATE ---
   const timelineSync = new PreviewSync(() => realSettings.timeline)
@@ -121,12 +119,11 @@
       ? highlights.filter(id => id !== identifier)
       : [...highlights, identifier]
 
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: realSettings.id,
-      source: createCommandSourcePlotPattern(realSettings, 'plot'),
-      settings: { highlights: newHighlights },
-    })
+    workspace.updateItemSettings(
+      realSettings.id,
+      { highlights: newHighlights },
+      createCommandSourcePlotPattern(realSettings, 'plot')
+    )
   }
 
   function handleMenuClose() {
@@ -151,12 +148,11 @@
         return
       }
 
-      onWorkspaceCommand({
-        type: 'updateSettings',
-        itemId: realSettings.id,
-        source: createCommandSourcePlotPattern(effectiveSettings, 'plot'),
-        settings: updates,
-      })
+      workspace.updateItemSettings(
+        realSettings.id,
+        updates,
+        createCommandSourcePlotPattern(effectiveSettings, 'plot')
+      )
 
       timelineSync.reset()
       timelineStartSync.reset()
@@ -211,12 +207,11 @@
     }
 
     if (Object.keys(updates).length > 0) {
-      onWorkspaceCommand({
-        type: 'updateSettings',
-        itemId: realSettings.id,
-        source: createCommandSourcePlotPattern(realSettings, 'plot'),
-        settings: updates,
-      })
+      workspace.updateItemSettings(
+        realSettings.id,
+        updates,
+        createCommandSourcePlotPattern(realSettings, 'plot')
+      )
     }
 
     // Reset syncs to clean slate (they will be updated by effect once props come back)
@@ -254,9 +249,7 @@
 <BasePlot settings={effectiveSettings}>
   {#snippet header()}
     <ScarfPlotHeader
-      source={createCommandSourcePlotPattern(realSettings, 'plot')}
       settings={effectiveSettings}
-      {onWorkspaceCommand}
       {syncs}
       onMenuClose={handleMenuClose}
     />

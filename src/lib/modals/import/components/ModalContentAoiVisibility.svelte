@@ -6,15 +6,13 @@
   import { getGazePlotterSession } from '$lib/session'
   import { processAoiVisibility } from '$lib/modals/import/utility/aoiVisibilityServices'
   import { getStimuliOptions, getParticipantOptions } from '$lib/plots/shared'
-  import type { UpdateAoiVisibilityCommand } from '$lib/workspace/commands'
 
   interface Props {
     source: string
-    onWorkspaceCommand: (command: UpdateAoiVisibilityCommand) => void
   }
 
-  let { source, onWorkspaceCommand }: Props = $props()
-  const { engine, modalState, toastState } = getGazePlotterSession()
+  let { source }: Props = $props()
+  const { engine, modalState, toastState, workspace } = getGazePlotterSession()
 
   let files: FileList | null = $state(null)
   let selectedStimulusId = $state('0')
@@ -24,7 +22,7 @@
   const participantOptions = [{ label: 'To all', value: 'all' }].concat(
     getParticipantOptions(engine)
   )
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (files === null) {
       toastState.addError('No file selected')
       return
@@ -33,16 +31,20 @@
       const stimulusId = parseInt(selectedStimulusId)
       const participantId =
         selectedParticipantId === 'all' ? null : parseInt(selectedParticipantId)
-      processAoiVisibility(
+      const data = await processAoiVisibility(
         engine,
         stimulusId,
         participantId,
-        files,
+        files
+      )
+      workspace.updateAoiVisibility(
+        data.stimulusId,
+        data.multipleAoiNames,
+        data.multipleAoiVisibilityArrays,
         source,
-        onWorkspaceCommand
-      ).then(() => {
-        modalState.close()
-      })
+        data.participantId
+      )
+      modalState.close()
     } catch (e) {
       console.error(e)
       const message = e instanceof Error ? e.message : 'Unknown error'

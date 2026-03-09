@@ -13,15 +13,13 @@
   import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
   import PatternRenamingTool from './PatternRenamingTool.svelte'
-  import type { UpdateStimuliCommand } from '$lib/workspace/commands'
 
   interface Props {
     source: string
-    onWorkspaceCommand: (command: UpdateStimuliCommand) => void
   }
 
-  let { source, onWorkspaceCommand }: Props = $props()
-  const { engine, modalState, toastState } = getGazePlotterSession()
+  let { source }: Props = $props()
+  const { engine, modalState, toastState, workspace } = getGazePlotterSession()
 
   // Sorting state
   let sortColumn = $state<'originalName' | 'displayedName' | null>(null)
@@ -95,11 +93,7 @@
     try {
       const stimulusObjectsCopy = deepCopyStimuli(stimulusObjects)
 
-      onWorkspaceCommand({
-        type: 'updateStimuli',
-        stimuli: stimulusObjectsCopy,
-        source,
-      })
+      workspace.updateStimuli(stimulusObjectsCopy, source)
 
       modalState.close()
     } catch (e) {

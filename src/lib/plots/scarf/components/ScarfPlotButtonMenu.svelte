@@ -17,16 +17,14 @@
     ModalContentParticipantsGroups,
     ModalContentExportSegmentedData,
   } from '$lib/modals'
-  import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { untrack } from 'svelte'
 
   interface Props {
     settings: ScarfGridType
-    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { settings, onWorkspaceCommand }: Props = $props()
+  let { settings }: Props = $props()
   const modalState = getModalState()
 
   const source = createCommandSourcePlotPattern(
@@ -41,7 +39,6 @@
   ) => {
     modalState.open(component as unknown as typeof SvelteComponent, title, {
       source,
-      onWorkspaceCommand,
       ...extraProps,
     })
   }

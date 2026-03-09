@@ -3,14 +3,19 @@
   import { fade } from 'svelte/transition'
   import GridItem from './GridItem.svelte'
   import { getVizConfig } from '$lib/plots/registry'
-  import { getGridState } from '$lib/session'
+  import { getGazePlotterSession, getGridState } from '$lib/session'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
   import type { GridConfig } from './types'
   import { calculateBottomEdgePosition } from './utils'
   import { WORKSPACE_BOTTOM_PADDING, MIN_WORKSPACE_HEIGHT } from './const'
   import { throttleByRaf } from '$lib/shared/utils/throttle'
+  import type {
+    WorkspaceCommand,
+    WorkspaceCommandChain,
+  } from '$lib/workspace/commands'
 
   const grid = getGridState()
+  const { workspace } = getGazePlotterSession()
 
   interface Props {
     // Grid state
@@ -23,8 +28,6 @@
     // Workspace container reference
     workspaceContainer: HTMLElement | null
 
-    // Command handler
-    onWorkspaceCommand: (command: any) => void
   }
 
   const {
@@ -34,8 +37,18 @@
     gridWidth,
     gridIsEmpty,
     workspaceContainer,
-    onWorkspaceCommand,
   }: Props = $props()
+
+  const dispatchWorkspaceCommand = (
+    command: WorkspaceCommand | WorkspaceCommandChain
+  ) => {
+    if ('chainId' in command) {
+      workspace.apply(command)
+      return
+    }
+
+    workspace.applyRoot(command)
+  }
 
   // ---------------------------------------------------
   // Panning state and handlers
@@ -116,12 +129,7 @@
     if (currentItem) {
       const { type, id } = currentItem
       const source = `${type}.${id}.workspace`
-      onWorkspaceCommand({
-        type: 'updateSettings',
-        itemId: id,
-        settings: { x: event.x, y: event.y },
-        source,
-      })
+      workspace.updateItemSettings(id, { x: event.x, y: event.y }, source)
     }
   }
 
@@ -158,12 +166,11 @@
     const constrainedW = Math.max(minWidth, event.w)
     const constrainedH = Math.max(minHeight, event.h)
 
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: id,
-      settings: { w: constrainedW, h: constrainedH },
-      source,
-    })
+    workspace.updateItemSettings(
+      id,
+      { w: constrainedW, h: constrainedH },
+      source
+    )
   }
 
   // Pointer tracking for central edge-detection
@@ -279,11 +286,10 @@
       (item: AllGridTypes) => item.id === event.id
     )
     if (itemToRemove) {
-      onWorkspaceCommand({
-        type: 'removeGridItem',
-        itemId: itemToRemove.id,
-        source: `${itemToRemove.type}.${itemToRemove.id}.workspace`,
-      })
+      workspace.removeVisualization(
+        itemToRemove.id,
+        `${itemToRemove.type}.${itemToRemove.id}.workspace`
+      )
     }
   }
 
@@ -292,12 +298,10 @@
       (item: AllGridTypes) => item.id === event.id
     )
     if (itemToDuplicate) {
-      onWorkspaceCommand({
-        type: 'duplicateGridItem',
-        itemId: itemToDuplicate.id,
-        duplicateId: Date.now(), // In real implementation, use generateUniqueId()
-        source: `${itemToDuplicate.type}.${itemToDuplicate.id}.workspace`,
-      })
+      workspace.duplicateVisualization(
+        itemToDuplicate.id,
+        `${itemToDuplicate.type}.${itemToDuplicate.id}.workspace`
+      )
     }
   }
 
@@ -552,8 +556,11 @@
             onduplicate={handleItemDuplicate}
           >
             {#snippet body()}
-              <div class="grid-item-content">
-                <visConfig.component settings={item} {onWorkspaceCommand} />
+                <div class="grid-item-content">
+                <visConfig.component
+                  settings={item}
+                  onWorkspaceCommand={dispatchWorkspaceCommand}
+                />
               </div>
             {/snippet}
           </GridItem>

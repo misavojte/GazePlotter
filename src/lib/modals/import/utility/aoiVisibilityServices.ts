@@ -5,23 +5,23 @@
  */
 import { getStimulusHighestEndTime } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import type { UpdateAoiVisibilityCommand } from '$lib/workspace/commands'
-
 /**
  * Main function to process the AOI visibility data
  * @param stimulusId id of the stimulus to which the AOIs belong
  * @param participantId id of the participant to which the AOIs belong (null if not participant-specific and should be applied to all participants)
  * @param files list of files to process
- * @param onWorkspaceCommand callback function to emit command for AOI visibility update
  */
 export const processAoiVisibility = async (
   engine: DataEngine,
   stimulusId: number,
   participantId: number | null,
-  files: FileList,
-  source: string,
-  onWorkspaceCommand: (command: UpdateAoiVisibilityCommand) => void
-): Promise<void> => {
+  files: FileList
+): Promise<{
+  stimulusId: number
+  multipleAoiNames: string[]
+  multipleAoiVisibilityArrays: number[][]
+  participantId: number | null
+}> => {
   const text = await files[0].text()
   const parser = new DOMParser()
   const xml = parser.parseFromString(text, 'application/xml')
@@ -48,19 +48,11 @@ export const processAoiVisibility = async (
     data = processSmi(engine, stimulusId, participantId, xml)
   }
 
-  // Emit command instead of directly calling store
-  onWorkspaceCommand({
-    type: 'updateAoiVisibility',
-    stimulusId: data.stimulusId,
-    aoiNames: data.multipleAoiNames,
-    visibilityArr: data.multipleAoiVisibilityArrays,
-    participantId: data.participantId,
-    source,
-  })
+  return data
 }
 
 /**
- * Process the dynamic AOIs SMI XML data and update the AOI visibility in the store
+ * Process dynamic AOIs from SMI XML into exportable visibility payloads.
  * @param stimulusId id of the stimulus to which the AOIs belong
  * @param participantId id of the participant to which the AOIs belong (null if not participant-specific and should be applied to all participants)
  * @returns data for the processAoiVisibility callback function
@@ -215,7 +207,7 @@ export const isTobiiJson = (json: unknown): json is TobiiJson => {
 }
 
 /**
- * Process the Tobii AOI visibility data and update the AOI visibility in the store
+ * Process Tobii AOI visibility data into a workspace-ready payload.
  * @param stimulusId id of the stimulus to which the AOIs belong
  * @param participantId id of the participant to which the AOIs belong (null if not participant-specific and should be applied to all participants)
  * @returns data for the processAoiVisibility callback function

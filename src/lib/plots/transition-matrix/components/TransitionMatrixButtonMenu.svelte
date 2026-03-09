@@ -12,15 +12,13 @@
     ModalContentAoiModification,
     ModalContentParticipantsGroups,
   } from '$lib/modals'
-  import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
   interface Props {
     settings: TransitionMatrixGridType
-    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { settings, onWorkspaceCommand }: Props = $props()
+  let { settings }: Props = $props()
   const modalState = getModalState()
 
   const source = createCommandSourcePlotPattern(
@@ -34,7 +32,6 @@
       'Stimulus customization',
       {
         source,
-        onWorkspaceCommand,
       }
     )
   }
@@ -43,7 +40,6 @@
     modalState.open(ModalContentAoiModification as any, 'AOI customization', {
       selectedStimulus: settings.stimulusId.toString(),
       source,
-      onWorkspaceCommand,
     })
   }
 
@@ -54,7 +50,6 @@
       {
         settings,
         source,
-        onWorkspaceCommand,
       }
     )
   }

@@ -16,15 +16,13 @@
   import { fade, slide } from 'svelte/transition'
   import { flip } from 'svelte/animate'
   import GeneralInputCheck from '$lib/shared/components/GeneralInputCheck.svelte'
-  import type { UpdateParticipantsGroupsCommand } from '$lib/workspace/commands'
 
   interface Props {
     source: string
-    onWorkspaceCommand: (command: UpdateParticipantsGroupsCommand) => void
   }
 
-  let { source, onWorkspaceCommand }: Props = $props()
-  const { engine, modalState, toastState } = getGazePlotterSession()
+  let { source }: Props = $props()
+  const { engine, modalState, toastState, workspace } = getGazePlotterSession()
 
   // State management
   let initialGroups = $state(
@@ -184,11 +182,7 @@
       })
     )
 
-    onWorkspaceCommand({
-      type: 'updateParticipantsGroups',
-      groups: groupsDeepCopy,
-      source,
-    })
+    workspace.updateParticipantsGroups(groupsDeepCopy, source)
 
     modalState.close()
   }

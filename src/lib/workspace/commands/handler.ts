@@ -1,8 +1,8 @@
 import type { WorkspaceCommandChain } from '$lib/workspace/commands'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import { isHistoryCommand, undoRedo } from '$lib/workspace/commands'
+import { isHistoryCommand } from '$lib/workspace/commands'
 import { GridState } from '$lib/workspace/grid'
-import { createWorkspaceCommandRegistry } from '$lib/workspace/commands'
+import { createWorkspaceCommandRegistry, UndoRedoStateStore } from '$lib/workspace/commands'
 import { getCommandLabel } from '$lib/workspace/commands/labels'
 
 /**
@@ -22,6 +22,7 @@ import { getCommandLabel } from '$lib/workspace/commands/labels'
 export function createCommandHandler(
   gridStore: GridState,
   engine: DataEngine,
+  history: UndoRedoStateStore,
   onSuccess: (message: string) => void,
   onError: (error: Error) => void,
   onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void
@@ -58,7 +59,7 @@ export function createCommandHandler(
 
         // Record the command BEFORE executing so it appears in correct order
         // (root first, then children)
-        undoRedo.recordCommand(command, reverseCommand)
+        history.recordCommand(command, reverseCommand)
       }
 
       commandRegistry.execute(command, {
@@ -69,7 +70,7 @@ export function createCommandHandler(
       // Finalize the command chain if this is a root command
       // This groups the root + all children together as an atomic operation
       if (isNormalRootCommand(command, isUndoRedoOperation)) {
-        undoRedo.finalizeChain()
+        history.finalizeChain()
       }
 
       if (shouldShowSuccessToast(command, isUndoRedoOperation)) {
@@ -81,7 +82,7 @@ export function createCommandHandler(
       onWorkspaceCommandChain(command)
     } catch (error) {
       // Make sure to end undo/redo processing on error
-      undoRedo.endUndoRedo()
+      history.endUndoRedo()
       onError(error as Error)
       throw error
     }

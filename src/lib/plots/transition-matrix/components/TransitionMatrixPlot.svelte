@@ -30,7 +30,6 @@
 
   // Types
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
-  import type { WorkspaceCommand } from '$lib/workspace/commands'
 
   const AGGREGATION_OPTIONS = [
     { value: MatrixAggregationMethod.SUM, label: 'Absolute frequency' },
@@ -56,11 +55,10 @@
 
   interface Props {
     settings: TransitionMatrixGridType
-    onWorkspaceCommand: (command: WorkspaceCommand) => void
   }
 
-  let { settings, onWorkspaceCommand }: Props = $props()
-  const { engine } = getGazePlotterSession()
+  let { settings }: Props = $props()
+  const { engine, workspace } = getGazePlotterSession()
 
   // Data reactive sources
   const currentStimulusColorRange = $derived(
@@ -139,12 +137,11 @@
         return
       }
 
-      onWorkspaceCommand({
-        type: 'updateSettings',
-        itemId: settings.id,
-        source: $state.snapshot(source),
-        settings: $state.snapshot(updates),
-      })
+      workspace.updateItemSettings(
+        settings.id,
+        $state.snapshot(updates),
+        $state.snapshot(source)
+      )
 
       colorMinSync.reset()
       colorMiddleSync.reset()
@@ -173,12 +170,7 @@
 
   // Handlers
   function updateSettings(updates: Partial<typeof settings>) {
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      settings: updates,
-      source,
-    })
+    workspace.updateItemSettings(settings.id, updates, source)
   }
 
   const selectItems = $derived<GroupSelectItem[]>([
@@ -233,7 +225,7 @@
         options={[]}
       />
       <div class="menu-button">
-        <TransitionMatrixButtonMenu {settings} {onWorkspaceCommand} />
+        <TransitionMatrixButtonMenu {settings} />
       </div>
     </div>
   {/snippet}

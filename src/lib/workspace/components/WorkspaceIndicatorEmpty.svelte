@@ -6,27 +6,18 @@
   import { getGazePlotterSession } from '$lib/session'
   import { ModalContentMetadataInfo } from '$lib/modals/info/components'
   import GridItemContainer from '$lib/workspace/grid/GridItemContainer.svelte'
-  import type {
-    WorkspaceCommand,
-    WorkspaceCommandChain,
-  } from '$lib/workspace/commands'
-  import { createRootCommand } from '$lib/workspace/commands'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
   interface Props {
     onReinitialize: () => void
-    onWorkspaceCommand: (
-      command: WorkspaceCommand | WorkspaceCommandChain
-    ) => void
     initialLayoutState?: Array<Partial<AllGridTypes> & { type: string }> | null
   }
 
   const {
     onReinitialize,
-    onWorkspaceCommand,
     initialLayoutState = null,
   }: Props = $props()
-  const { engine, modalState } = getGazePlotterSession()
+  const { engine, modalState, workspace } = getGazePlotterSession()
 
   /**
    * Determines if the reset layout button should be shown.
@@ -51,15 +42,7 @@
       console.warn('Cannot reset layout: no initial layout state provided')
       return
     }
-
-    // Create a setLayoutState command with the initial layout state
-    const resetCommand = createRootCommand({
-      type: 'setLayoutState',
-      layoutState: initialLayoutState,
-      source: 'emptyindicator',
-    })
-
-    onWorkspaceCommand(resetCommand)
+    workspace.resetLayout(initialLayoutState)
   }
 </script>
 
