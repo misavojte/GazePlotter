@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { browser } from '$app/environment'
+  const browser = typeof document !== 'undefined'
   import {
     beginCanvasDrawing,
     createCanvasState,

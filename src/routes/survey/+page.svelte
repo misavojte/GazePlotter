@@ -97,43 +97,39 @@
   $effect(() => {
     if (!browser) return
 
-    const unsubscribe = surveyStore.subscribe(state => {
-      const currentTaskIndex = state.currentActiveTaskIndex
+    const currentTaskIndex = surveyStore.currentActiveTaskIndex
 
-      // Log task fulfillment when index changes and it wasn't a skip
+    // Log task fulfillment when index changes and it wasn't a skip
+    if (
+      currentTaskIndex !== previousTaskIndex &&
+      previousTaskIndex >= 0 &&
+      !wasLastActionSkip
+    ) {
+      const completedTask = surveyStore.tasks[previousTaskIndex]
+
       if (
-        currentTaskIndex !== previousTaskIndex &&
-        previousTaskIndex >= 0 &&
-        !wasLastActionSkip
+        completedTask &&
+        hasInformedConsent &&
+        endpointService.isServiceInitialized()
       ) {
-        const completedTask = state.tasks[previousTaskIndex]
-
-        if (
-          completedTask &&
-          hasInformedConsent &&
-          endpointService.isServiceInitialized()
-        ) {
-          endpointService
-            .storeSurveyData({
-              type: 'task_fulfilled',
-              timestamp: Date.now(),
-              data: {
-                taskIndex: previousTaskIndex,
-                taskText: completedTask.text,
-              },
-            })
-            .catch(error => {
-              console.error('Failed to log task fulfillment:', error)
-            })
-        }
+        endpointService
+          .storeSurveyData({
+            type: 'task_fulfilled',
+            timestamp: Date.now(),
+            data: {
+              taskIndex: previousTaskIndex,
+              taskText: completedTask.text,
+            },
+          })
+          .catch(error => {
+            console.error('Failed to log task fulfillment:', error)
+          })
       }
+    }
 
-      // Reset skip flag after handling the transition
-      wasLastActionSkip = false
-      previousTaskIndex = currentTaskIndex
-    })
-
-    return unsubscribe
+    // Reset skip flag after handling the transition
+    wasLastActionSkip = false
+    previousTaskIndex = currentTaskIndex
   })
 
   // Survey state - persists when modal is closed and reopened

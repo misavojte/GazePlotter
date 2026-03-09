@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getContext, onMount, untrack } from 'svelte'
-  import { browser } from '$app/environment'
+  const browser = typeof document !== 'undefined'
   import {
     EXPORT_SOURCE_CONTEXT,
     type ExportSourceRegistrar,

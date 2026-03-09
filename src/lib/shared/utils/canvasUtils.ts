@@ -3,7 +3,7 @@
  * and optimized rendering for high-resolution displays.
  */
 
-import { browser } from '$app/environment'
+const browser = typeof document !== 'undefined'
 import { UI_COLORS } from '$lib/color'
 
 /**

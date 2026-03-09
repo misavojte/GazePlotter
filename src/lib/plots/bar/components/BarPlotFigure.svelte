@@ -15,7 +15,7 @@
   } from '$lib/shared/utils/textUtils'
   import { updateTooltip } from '$lib/tooltip'
   import { getContext, onMount, untrack } from 'svelte'
-  import { browser } from '$app/environment'
+  const browser = typeof document !== 'undefined'
   import {
     EXPORT_SOURCE_CONTEXT,
     type ExportSourceRegistrar,

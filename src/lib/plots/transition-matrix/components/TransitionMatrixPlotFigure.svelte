@@ -6,7 +6,7 @@
     SYSTEM_SANS_SERIF_STACK,
   } from '$lib/shared/utils/textUtils'
   import { getContext, onMount, untrack } from 'svelte'
-  import { browser } from '$app/environment'
+  const browser = typeof document !== 'undefined'
   import {
     createCanvasState,
     setupCanvas,
