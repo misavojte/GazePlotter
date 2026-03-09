@@ -15,7 +15,7 @@
   import { SurveyModal } from '$survey/components'
   import type { SurveyTask, SurveyModalState } from '$survey/types'
   import type { WorkspaceCommandChain } from '$lib/workspace/commands'
-  import { modalState } from '$lib/modals'
+  import type { GazePlotterSession } from '$lib/session'
   import type { UEQSResults, EyeTrackingExperienceResult } from '$survey/types'
   import { onMount } from 'svelte'
 
@@ -25,15 +25,25 @@
   }
 
   const pathToData = `${base}/data/etvis.json`
+  let gazePlotterRef = $state<{
+    resetLayout: () => void
+    getSession: () => GazePlotterSession
+  } | null>(null)
 
-  async function loadInitialData(): Promise<ParsedData> {
+  async function loadInitialData(
+    session: GazePlotterSession
+  ): Promise<ParsedData> {
     if (!pathToData || !browser)
       return Promise.reject('No path to data or not in browser')
 
     return new Promise((resolve, reject) => {
       const workerService = new EyeWorkerService(
         data => resolve(data),
-        () => reject(new Error('Failed to load initial data'))
+        () => reject(new Error('Failed to load initial data')),
+        {
+          modalState: session.modalState,
+          toastState: session.toastState,
+        }
       )
 
       // Fetch the data and create a File object
@@ -85,12 +95,10 @@
   let previousConsentSessionId = $state<string | null>(null)
   let showPreviousConsentBanner = $state(false)
 
-  // Reference to GazePlotter component for resetting layout
-  let gazePlotterRef = $state<any>(null)
-
   // Monitor modal store to force close banner when any modal is open
   $effect(() => {
-    forceCloseBanner = modalState.activeModal !== null
+    forceCloseBanner =
+      gazePlotterRef?.getSession().modalState.activeModal !== null
   })
 
   // Monitor survey store to log task fulfillment
@@ -209,7 +217,7 @@
       text: 'Read UX evaluation instructions & consent',
       buttonText: 'Open instructions & consent',
       onButtonClick: () => {
-        modalState.open(
+        gazePlotterRef?.getSession().modalState.open(
           ConsentModal as any,
           'UX Evaluation Instructions & Consent',
           {
@@ -328,39 +336,43 @@
       text: 'Feel free to explore the UI as long as you wish',
       buttonText: 'I now want to answer questions and end survey',
       onButtonClick: () => {
-        modalState.open(SurveyModal as any, 'User Experience Questionnaire', {
-          surveyState,
-          onComplete: (results: {
-            ueqs: UEQSResults
-            eyeTracking: EyeTrackingExperienceResult
-            feedback: string
-          }) => {
-            console.log('Survey completed with results:', results)
+        gazePlotterRef?.getSession().modalState.open(
+          SurveyModal as any,
+          'User Experience Questionnaire',
+          {
+            surveyState,
+            onComplete: (results: {
+              ueqs: UEQSResults
+              eyeTracking: EyeTrackingExperienceResult
+              feedback: string
+            }) => {
+              console.log('Survey completed with results:', results)
 
-            // Log survey completion to the endpoint service (fire-and-forget, non-blocking)
-            if (
-              browser &&
-              hasInformedConsent &&
-              endpointService.isServiceInitialized()
-            ) {
-              endpointService
-                .storeSurveyData({
-                  type: 'survey_completion',
-                  timestamp: Date.now(),
-                  data: {
-                    ueqsResults: results.ueqs,
-                    eyeTrackingResults: results.eyeTracking,
-                    feedback: results.feedback,
-                  },
-                })
-                .catch(error => {
-                  console.error('Failed to log survey completion:', error)
-                })
-            }
+              // Log survey completion to the endpoint service (fire-and-forget, non-blocking)
+              if (
+                browser &&
+                hasInformedConsent &&
+                endpointService.isServiceInitialized()
+              ) {
+                endpointService
+                  .storeSurveyData({
+                    type: 'survey_completion',
+                    timestamp: Date.now(),
+                    data: {
+                      ueqsResults: results.ueqs,
+                      eyeTrackingResults: results.eyeTracking,
+                      feedback: results.feedback,
+                    },
+                  })
+                  .catch(error => {
+                    console.error('Failed to log survey completion:', error)
+                  })
+              }
 
-            explorationCondition.set(true) // Manually trigger condition
-          },
-        })
+              explorationCondition.set(true) // Manually trigger condition
+            },
+          }
+        )
       },
       condition: explorationCondition,
       skippable: false,

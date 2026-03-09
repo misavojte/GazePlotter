@@ -3,7 +3,8 @@
   import type { ScarfData } from '$lib/plots/scarf/types'
   import { transformDataToScarfPlot, ScarfPlotFigure } from '$lib/plots'
   import GeneralCanvasPreview from '$lib/modals/shared/components/CanvasPreview.svelte'
-  import { getParticipants, engine } from '$lib/data/engine'
+  import { getParticipants } from '$lib/data/engine'
+  import { getGazePlotterSession } from '$lib/session'
   import type { BaseInterpretedDataType } from '$lib/data/types'
   import { untrack } from 'svelte'
   import { SectionHeader, DownloadPlotSettings } from '$lib/modals'
@@ -14,6 +15,7 @@
   }
 
   let { settings }: Props = $props()
+  const { engine } = getGazePlotterSession()
 
   // Export settings state
   let typeOfExport = $state<'.png' | '.jpg'>('.png')
@@ -33,12 +35,13 @@
     if (!meta) throw new Error('Data engine metadata not available')
 
     return transformDataToScarfPlot(
+      engine,
       untrack(() => settings.stimulusId),
-      untrack(() =>
-        getParticipants(settings.groupId, settings.stimulusId).map(
-          (participant: BaseInterpretedDataType) => participant.id
-        )
-      ),
+        untrack(() =>
+        getParticipants(engine, settings.groupId, settings.stimulusId).map(
+            (participant: BaseInterpretedDataType) => participant.id
+          )
+        ),
       untrack(() => settings),
       meta.noAoiTreatment
     )

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { setContext, tick } from 'svelte'
   import MajorButton from '$lib/shared/components/GeneralButtonMajor.svelte'
-  import { addErrorToast } from '$lib/toaster'
+  import { getToastState } from '$lib/session'
   import {
     EXPORT_SOURCE_CONTEXT,
     type ExportSource,
@@ -26,6 +26,7 @@
     showDownloadButton = false,
     children,
   }: Props = $props()
+  const toastState = getToastState()
 
   // States
   let componentContainer = $state<HTMLElement | null>(null) // Container for the child component
@@ -48,7 +49,7 @@
       exportSource?.kind === 'canvas' ? exportSource.getCanvas() : null
 
     if (!resolvedCanvas) {
-      addErrorToast(
+      toastState.addError(
         'Nothing to export: plot did not register an export source.'
       )
       return
@@ -69,7 +70,7 @@
       triggerDownload(blob, `${fileName}${fileType}`, '')
     } catch (error: any) {
       console.error('Error generating download:', error)
-      addErrorToast(
+      toastState.addError(
         `Failed to generate download: ${error.message || 'Unknown error'}`
       )
     } finally {

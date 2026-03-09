@@ -1,17 +1,18 @@
-import { getParticipants, getAois, engine } from '$lib/data/engine'
+import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import { getAoiRaw } from '$lib/data/engine/utils/interpreters'
 import { formatDecimal } from '$lib/shared/utils/mathUtils'
 import { MatrixAggregationMethod } from '../const'
 import type { TransitionMatrixData } from '../types'
 import { collectTransitionMetrics } from './collector'
 
 export function getTransitionMatrixData(
+  engine: DataEngine,
   stimulusId: number,
   groupId: number,
   aggregationMethod: MatrixAggregationMethod
 ): TransitionMatrixData {
-  const participants = getParticipants(groupId, stimulusId)
-  const participantIds = participants.map(p => p.id)
-  const aoiList = getAois(stimulusId)
+  const participantIds = getParticipantIdsForGroup(engine, groupId, stimulusId)
+  const aoiList = getVisibleAois(engine, stimulusId)
   const size = aoiList.length + 1
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
@@ -34,6 +35,7 @@ export function getTransitionMatrixData(
       ? 'visit'
       : 'fixation'
   const metrics = collectTransitionMetrics(
+    engine,
     stimulusId,
     participantIds,
     aoiList,
@@ -72,6 +74,67 @@ export function getTransitionMatrixData(
   }
 
   return { matrix, aoiLabels, aoiList }
+}
+
+function getParticipantOrderVector(engine: DataEngine): number[] {
+  const meta = engine.metadata
+  if (!meta) throw new Error('Data engine metadata not available')
+  const order = meta.participants.orderVector
+  if (order.length === 0) {
+    return Array.from({ length: meta.participants.data.length }, (_, i) => i)
+  }
+  return order
+}
+
+function getParticipantIdsForGroup(
+  engine: DataEngine,
+  groupId = -1,
+  stimulusId = 0
+): number[] {
+  const meta = engine.metadata
+  const reader = engine.getReader()
+  if (!meta || !reader) throw new Error('Data engine metadata not available')
+
+  const participantOrder = getParticipantOrderVector(engine)
+  if (groupId === -1) return participantOrder
+  if (groupId === -2) {
+    return participantOrder.filter(
+      participantId => reader.getSegmentCount(stimulusId, participantId) > 0
+    )
+  }
+
+  const group = meta.participantsGroups.find(candidate => candidate.id === groupId)
+  if (!group) throw new Error(`Participants group with id ${groupId} does not exist`)
+  return group.participantsIds
+}
+
+function getVisibleAois(
+  engine: DataEngine,
+  stimulusId: number
+) {
+  const meta = engine.metadata
+  if (!meta) throw new Error('Data engine metadata not available')
+
+  const stimulusAois = meta.aois.data[stimulusId]
+  if (!stimulusAois) throw new Error(`AOI data for stimulus ${stimulusId} not found`)
+
+  const order = meta.aois.orderVector?.[stimulusId]
+  const ids =
+    order == null
+      ? Array.from({ length: stimulusAois.length }, (_, i) => i)
+      : order
+
+  const hidden = meta.aois.hiddenAois?.[stimulusId] ?? []
+  const hiddenSet = hidden.length ? new Set<number>(hidden) : null
+  const uniqueMappedIds = new Set<number>()
+
+  for (let i = 0; i < ids.length; i++) {
+    const rawId = ids[i]
+    if (hiddenSet?.has(rawId)) continue
+    uniqueMappedIds.add(engine.getAoiMapping(stimulusId, rawId))
+  }
+
+  return Array.from(uniqueMappedIds, aoiId => getAoiRaw(stimulusId, aoiId, meta))
 }
 
 export function transformToRelativeFrequency(

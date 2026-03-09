@@ -1,6 +1,6 @@
 import { type DataType } from '$lib/data/types'
-import { BinaryBufferReader } from '$lib/data/types'
-import { getAoi, engine, getSegmentAoiIds } from '$lib/data/engine'
+import { AoiGroupReader, BinaryBufferReader } from '$lib/data/binary'
+import { getAoiRaw } from '$lib/data/engine/utils/interpreters'
 import {
   type CsvFormatOptions,
   resolveCsvFormatOptions,
@@ -43,7 +43,9 @@ function convertDataStructure(
   }> = []
 
   const reader = new BinaryBufferReader(data.segments)
-  const aoiGroupReader = engine.getAoiGroupReader()
+  const aoiGroupReader = new AoiGroupReader(reader)
+  aoiGroupReader.updateMap(data)
+  const aoiBuffer = new Uint16Array(32)
 
   for (
     let stimulusIndex = 0;
@@ -67,16 +69,17 @@ function convertDataStructure(
 
         if (filterFixations && category !== 0) return
 
-        const aoiIds = getSegmentAoiIds(
+        const aoiCount = aoiGroupReader.getSegmentAoisIntoUniqueTyped(
+          segmentIndex,
           stimulusIndex,
-          participantIndex,
-          segmentIndex -
-            reader.getSegmentRange(stimulusIndex, participantIndex).startIndex
+          aoiBuffer
         )
 
         const aoiNames =
-          aoiIds.length > 0
-            ? aoiIds.map(id => getAoi(stimulusIndex, id).displayedName)
+          aoiCount > 0
+            ? Array.from({ length: aoiCount }, (_, index) =>
+                getAoiRaw(stimulusIndex, aoiBuffer[index], data).displayedName
+              )
             : null
 
         result.push({

@@ -1,4 +1,4 @@
-import { getSegments } from '$lib/data/engine'
+import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
 import { arraysHaveSameElements } from '$lib/shared/utils/mathUtils'
 
@@ -7,14 +7,21 @@ import { arraysHaveSameElements } from '$lib/shared/utils/mathUtils'
  * This is an optimized single-pass collector that avoids redundant AOI lookups.
  */
 export function collectTransitionMetrics(
+  engine: DataEngine,
   stimulusId: number,
   participantIds: number[],
   aois: ExtendedInterpretedDataType[],
   mode: 'fixation' | 'visit' = 'fixation'
 ) {
+  const reader = engine.getReader()
+  const meta = engine.metadata
+  if (!reader || !meta) throw new Error('Data engine metadata not available')
+
   const aoiCount = aois.length
   const size = aoiCount + 1
   const outsideAoiIndex = aoiCount
+  const hiddenAois = meta.aois.hiddenAois?.[stimulusId] ?? []
+  const hiddenAoisSet = hiddenAois.length ? new Set(hiddenAois) : null
 
   // Pre-calculate AOI lookup map for O(1) index access
   const aoiLookup = new Map<number, number>()
@@ -30,30 +37,32 @@ export function collectTransitionMetrics(
   let totalTransitions = 0
 
   for (const participantId of participantIds) {
-    const segments = getSegments(stimulusId, participantId, [0])
-    if (segments.length <= 1) continue
-
     let prevIndices: number[] = []
     let prevDuration = 0
+    let fixationIndex = 0
+    const { startIndex, endIndex } = reader.getSegmentRange(stimulusId, participantId)
 
-    for (let i = 0; i < segments.length; i++) {
-      const seg = segments[i]
-      const currAois = seg.aoi
+    for (let segmentIndex = startIndex; segmentIndex < endIndex; segmentIndex++) {
+      if (reader.getSegmentCategory(segmentIndex) !== 0) continue
 
       // Resolve current indices
       let currIndices: number[]
-      if (currAois.length === 0) {
+      const rawAois = reader.getRawAois(segmentIndex)
+      if (rawAois.length === 0) {
         currIndices = [outsideAoiIndex]
       } else {
-        currIndices = []
-        for (let j = 0; j < currAois.length; j++) {
-          const idx = aoiLookup.get(currAois[j].id)
-          if (idx !== undefined) currIndices.push(idx)
+        const currentIndexSet = new Set<number>()
+        for (let rawIndex = 0; rawIndex < rawAois.length; rawIndex++) {
+          const rawAoiId = rawAois[rawIndex]
+          if (hiddenAoisSet?.has(rawAoiId)) continue
+          const idx = aoiLookup.get(engine.getAoiMapping(stimulusId, rawAoiId))
+          if (idx !== undefined) currentIndexSet.add(idx)
         }
+        currIndices = Array.from(currentIndexSet)
         if (currIndices.length === 0) currIndices.push(outsideAoiIndex)
       }
 
-      if (i > 0) {
+      if (fixationIndex > 0) {
         const isTransition =
           mode === 'fixation' ||
           !arraysHaveSameElements(prevIndices, currIndices)
@@ -74,13 +83,14 @@ export function collectTransitionMetrics(
             }
           }
         } else if (mode === 'visit') {
-          prevDuration += seg.end - seg.start
+          prevDuration += reader.getSegmentEnd(segmentIndex) - reader.getSegmentStart(segmentIndex)
           continue
         }
       }
 
       prevIndices = currIndices
-      prevDuration = seg.end - seg.start
+      prevDuration = reader.getSegmentEnd(segmentIndex) - reader.getSegmentStart(segmentIndex)
+      fixationIndex++
     }
   }
 

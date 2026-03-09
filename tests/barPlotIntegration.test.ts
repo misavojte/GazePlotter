@@ -1,45 +1,58 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
+import { createReaderFromJson } from '../src/lib/data/binary/converters'
 import { getBarPlotData } from '../src/lib/plots/bar/core/transformer'
-import {
-  getAois,
-  getParticipantsIds,
-  engine,
-  getSegments,
-} from '$lib/data/engine'
 
-vi.mock('$lib/data/engine', () => ({
-  getAois: vi.fn(),
-  getParticipantsIds: vi.fn(),
-  getSegments: vi.fn(),
-  engine: {
+function createMockEngine(segments: number[][][][]) {
+  const reader = createReaderFromJson(segments)
+
+  return {
     metadata: {
+      isOrdinalOnly: false,
+      aois: {
+        data: [[
+          ['AOI A', 'AOI A', 'red'],
+          ['AOI B', 'AOI B', 'blue'],
+        ]],
+        orderVector: [[]],
+        dynamicVisibility: {},
+        hiddenAois: [[]],
+      },
+      categories: {
+        data: [['Fixation', 'Fixation', '#000000']],
+        orderVector: [],
+      },
+      participants: {
+        data: [['P101', 'Participant 101']],
+        orderVector: [0],
+      },
+      participantsGroups: [],
+      stimuli: {
+        data: [['Stimulus 1', 'Stimulus 1']],
+        orderVector: [0],
+      },
       noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
     },
-  },
-}))
+    getReader: () => reader,
+    getAoiMapping: (_stimulusId: number, rawId: number) => rawId,
+  }
+}
 
 describe('Bar Plot Transformer (Integration)', () => {
   const stimulusId = 0
   const groupId = 0
 
-  beforeEach(() => {
-    vi.clearAllMocks()
-    vi.mocked(getAois).mockReturnValue([
-      { id: 0, displayedName: 'AOI A', color: 'red' },
-      { id: 1, displayedName: 'AOI B', color: 'blue' },
-    ] as any)
-    vi.mocked(getParticipantsIds).mockReturnValue([101])
-  })
-
   it('transforms raw segments into labeled and sorted bar data', () => {
-    // 101: A(100ms) -> B(200ms) -> Outside(50ms)
-    vi.mocked(getSegments).mockReturnValue([
-      { start: 0, end: 100, aoi: [{ id: 0 }] },
-      { start: 100, end: 300, aoi: [{ id: 1 }] },
-      { start: 300, end: 350, aoi: [] },
-    ] as any)
+    const engine = createMockEngine([
+      [
+        [
+          [0, 100, 0, 0],
+          [100, 300, 0, 1],
+          [300, 350, 0],
+        ],
+      ],
+    ])
 
-    const result = getBarPlotData({
+    const result = getBarPlotData(engine as any, {
       stimulusId,
       groupId,
       aggregationMethod: 'absoluteTime',
@@ -48,26 +61,26 @@ describe('Bar Plot Transformer (Integration)', () => {
       scaleRange: [0, 0],
     } as any)
 
-    expect(result.data).toHaveLength(3) // AOI A, AOI B, Outside
-
-    // Check values
+    expect(result.data).toHaveLength(3)
     expect(result.data[0].label).toBe('AOI A')
     expect(result.data[0].value).toBe(100)
-
     expect(result.data[1].label).toBe('AOI B')
     expect(result.data[1].value).toBe(200)
-
     expect(result.data[2].label).toBe('Outside')
     expect(result.data[2].value).toBe(50)
   })
 
   it('applies sorting by value descending', () => {
-    vi.mocked(getSegments).mockReturnValue([
-      { start: 0, end: 100, aoi: [{ id: 0 }] },
-      { start: 100, end: 300, aoi: [{ id: 1 }] },
-    ] as any)
+    const engine = createMockEngine([
+      [
+        [
+          [0, 100, 0, 0],
+          [100, 300, 0, 1],
+        ],
+      ],
+    ])
 
-    const result = getBarPlotData({
+    const result = getBarPlotData(engine as any, {
       stimulusId,
       groupId,
       aggregationMethod: 'absoluteTime',
@@ -76,32 +89,38 @@ describe('Bar Plot Transformer (Integration)', () => {
       scaleRange: [0, 0],
     } as any)
 
-    // AOI B (200) should be first, then AOI A (100)
     expect(result.data[0].label).toBe('AOI B')
     expect(result.data[1].label).toBe('AOI A')
   })
 
   it('generates a nice timeline based on data max value', () => {
-    vi.mocked(getSegments).mockReturnValue([
-      { start: 0, end: 450, aoi: [{ id: 0 }] },
-    ] as any)
+    const engine = createMockEngine([
+      [
+        [
+          [0, 450, 0, 0],
+        ],
+      ],
+    ])
 
-    const result = getBarPlotData({
+    const result = getBarPlotData(engine as any, {
       stimulusId,
       groupId,
       aggregationMethod: 'absoluteTime',
     } as any)
 
-    // Max value is 450. Timeline should probably end at a "nice" number >= 450 (e.g. 500)
     expect(result.timeline.maxValue).toBeGreaterThanOrEqual(450)
   })
 
   it('handles custom scale range', () => {
-    vi.mocked(getSegments).mockReturnValue([
-      { start: 0, end: 100, aoi: [{ id: 0 }] },
-    ] as any)
+    const engine = createMockEngine([
+      [
+        [
+          [0, 100, 0, 0],
+        ],
+      ],
+    ])
 
-    const result = getBarPlotData({
+    const result = getBarPlotData(engine as any, {
       stimulusId,
       groupId,
       aggregationMethod: 'absoluteTime',
@@ -112,9 +131,14 @@ describe('Bar Plot Transformer (Integration)', () => {
   })
 
   it('handles lack of participants', () => {
-    vi.mocked(getParticipantsIds).mockReturnValue([])
+    const engine = createMockEngine([[]])
+    engine.metadata.participants.data = []
+    engine.metadata.participants.orderVector = []
 
-    const result = getBarPlotData({ stimulusId, groupId } as any)
+    const result = getBarPlotData(engine as any, {
+      stimulusId,
+      groupId: -1,
+    } as any)
 
     expect(result.data).toEqual([])
   })

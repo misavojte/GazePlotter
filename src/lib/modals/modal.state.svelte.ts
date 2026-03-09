@@ -6,7 +6,7 @@ type Modal = {
   props?: Record<string, any>
 }
 
-class ModalState {
+export class ModalState {
   activeModal = $state<Modal | null>(null)
 
   open(component: ComponentType, title: string, props?: Record<string, any>) {
@@ -17,5 +17,3 @@ class ModalState {
     this.activeModal = null
   }
 }
-
-export const modalState = new ModalState()

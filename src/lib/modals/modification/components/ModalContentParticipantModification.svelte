@@ -5,9 +5,8 @@
     ModalButtons,
     IntroductoryParagraph,
   } from '$lib/modals'
-  import { modalState } from '$lib/modals'
   import { getAllParticipants } from '$lib/data/engine'
-  import { addErrorToast } from '$lib/toaster'
+  import { getGazePlotterSession } from '$lib/session'
   import type { BaseInterpretedDataType } from '$lib/data/types'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'
@@ -22,6 +21,7 @@
   }
 
   let { source, onWorkspaceCommand }: Props = $props()
+  const { modalState, toastState } = getGazePlotterSession()
 
   // Sorting state
   let sortColumn = $state<'originalName' | 'displayedName' | null>(null)
@@ -104,7 +104,7 @@
       modalState.close()
     } catch (e) {
       console.error(e)
-      addErrorToast(
+      toastState.addError(
         'Error while updating participants. See console for more details.'
       )
     }

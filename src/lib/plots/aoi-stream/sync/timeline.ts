@@ -2,6 +2,7 @@ import {
   getParticipants,
   getParticipantEndTime,
 } from '$lib/data/engine'
+import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 
 /**
@@ -21,6 +22,7 @@ import type { AllGridTypes } from '$lib/workspace/type/gridType'
  * @returns The synchronized timeline max, or null if no synchronization needed
  */
 export function scanForSynchronizedTimelineMax(
+  engine: DataEngine,
   items: AllGridTypes[],
   targetWidth: number,
   currentStimulus: number,
@@ -61,9 +63,10 @@ export function scanForSynchronizedTimelineMax(
     const stimulusId = settings.stimulusId
     const groupId = settings.groupId
 
-    const participants = getParticipants(groupId, stimulusId)
+    const participants = getParticipants(engine, groupId, stimulusId)
     const maxTime = participants.reduce(
-      (max, p) => Math.max(max, getParticipantEndTime(stimulusId, p.id)),
+      (max, p) =>
+        Math.max(max, getParticipantEndTime(engine, stimulusId, p.id)),
       0
     )
 

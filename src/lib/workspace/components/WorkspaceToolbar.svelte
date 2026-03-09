@@ -1,14 +1,13 @@
 <script lang="ts">
   import { WorkspaceToolbarItem } from '$lib/workspace'
-  import { fileState } from '$lib/file.state.svelte'
-  import { getHasValidData } from '$lib/data/engine'
+  import { getGazePlotterSession } from '$lib/session'
   import { onMount } from 'svelte'
   import type {
     WorkspaceCommand,
     WorkspaceCommandChain,
   } from '$lib/workspace/commands'
   import { createRootCommand } from '$lib/workspace/commands'
-  import { ModalContentMetadataInfo, modalState } from '$lib/modals'
+  import { ModalContentMetadataInfo } from '$lib/modals'
   import { generateUniqueId } from '$lib/shared/utils/idUtils'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
   import { undoRedo } from '$lib/workspace/commands'
@@ -72,10 +71,11 @@
     onWorkspaceCommand,
     initialLayoutState = null,
   }: Props = $props()
+  const { fileState, engine, modalState } = getGazePlotterSession()
 
   // Reactive variables to determine item states
   const isProcessing = $derived(fileState.processing === 'processing')
-  const isValidData = $derived(getHasValidData())
+  const isValidData = $derived(engine.hasValidData)
 
   const undoLabel: string | null = $derived(
     undoRedo.lastUndoCommandType

@@ -2,11 +2,11 @@ import type {
   WorkspaceCommand,
   WorkspaceCommandChain,
 } from '$lib/workspace/commands'
+import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import { createChildCommand } from '$lib/workspace/commands'
 import { SCARF_IDENTIFIERS } from '$lib/plots/scarf'
 import { GridState } from '$lib/workspace/grid'
 import {
-  engine,
   updateHiddenAoisWithPropagation,
   updateMultipleAoi,
   updateMultipleAoiVisibility,
@@ -16,7 +16,10 @@ import {
   updateParticipantsGroups,
 } from '$lib/data/engine'
 import type { GridItemMap, AllGridTypes } from '$lib/workspace/type/gridType'
-import type { ExtendedInterpretedDataType } from '$lib/data/types'
+import type {
+  ExtendedInterpretedDataType,
+  BaseInterpretedDataType,
+} from '$lib/data/types'
 
 const DEFAULT_AOI_COLORS = [
   '#66c5cc',
@@ -64,7 +67,8 @@ export type WorkspaceCommandRegistry = {
 }
 
 export function createWorkspaceCommandRegistry(
-  gridStore: GridState
+  gridStore: GridState,
+  engine: DataEngine
 ): WorkspaceCommandRegistry {
   const withMeta = (base: object, meta: CommandMeta): WorkspaceCommandChain => {
     return { ...base, ...meta } as unknown as WorkspaceCommandChain
@@ -131,27 +135,28 @@ export function createWorkspaceCommandRegistry(
   const handlers: CommandHandlers = {
     updateAois: (command, context) => {
       const { aois, stimulusId, applyTo, hiddenAois } = command
-      updateMultipleAoi(aois, stimulusId, applyTo)
+      updateMultipleAoi(engine, aois, stimulusId, applyTo)
       if (hiddenAois !== undefined) {
-        updateHiddenAoisWithPropagation(stimulusId, hiddenAois, applyTo)
+        updateHiddenAoisWithPropagation(engine, stimulusId, hiddenAois, applyTo)
       }
       gridStore.triggerRedraw()
       sanitizeScarfHighlightsAfterAoiRename(command, context)
     },
 
     updateParticipants: command => {
-      updateMultipleParticipants(command.participants)
+      updateMultipleParticipants(engine, command.participants)
       gridStore.triggerRedraw()
     },
 
     updateStimuli: command => {
-      updateMultipleStimuli(command.stimuli)
+      updateMultipleStimuli(engine, command.stimuli)
       gridStore.triggerRedraw()
     },
 
     updateAoiVisibility: command => {
       const { stimulusId, aoiNames, visibilityArr, participantId } = command
       updateMultipleAoiVisibility(
+        engine,
         stimulusId,
         aoiNames,
         visibilityArr,
@@ -161,12 +166,12 @@ export function createWorkspaceCommandRegistry(
     },
 
     updateParticipantsGroups: command => {
-      updateParticipantsGroups(command.groups)
+      updateParticipantsGroups(engine, command.groups)
       gridStore.triggerRedraw()
     },
 
     updateNoAoiTreatment: command => {
-      updateNoAoiTreatment(command.noAoiTreatment)
+      updateNoAoiTreatment(engine, command.noAoiTreatment)
       gridStore.triggerRedraw()
     },
 
@@ -266,8 +271,8 @@ export function createWorkspaceCommandRegistry(
           'Data engine metadata not available for command reversal'
         )
       const currentParticipants = dataMeta.participants.data || []
-      const participants = currentParticipants.map(
-        ([originalName, displayedName], index) => ({
+      const participants: BaseInterpretedDataType[] = currentParticipants.map(
+        ([originalName, displayedName]: string[], index: number) => ({
           id: index,
           originalName,
           displayedName,
@@ -283,8 +288,8 @@ export function createWorkspaceCommandRegistry(
           'Data engine metadata not available for command reversal'
         )
       const currentStimuli = dataMeta.stimuli.data || []
-      const stimuli = currentStimuli.map(
-        ([originalName, displayedName], index) => ({
+      const stimuli: BaseInterpretedDataType[] = currentStimuli.map(
+        ([originalName, displayedName]: string[], index: number) => ({
           id: index,
           originalName,
           displayedName,

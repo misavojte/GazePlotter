@@ -4,15 +4,13 @@
     WorkspaceIndicatorLoading,
     WorkspaceToolbar,
   } from '$lib/workspace'
-  import { fileState } from '$lib/file.state.svelte'
-  import { grid } from '$lib/workspace/grid'
   import Grid from '$lib/workspace/grid/Grid.svelte'
+  import { getGazePlotterSession } from '$lib/session'
 
   import {
     MIN_WORKSPACE_HEIGHT,
     DEFAULT_GRID_CONFIG,
   } from '$lib/workspace/grid'
-  import { addSuccessToast, addErrorToast } from '$lib/toaster'
   import { visualizationRegistry } from '$lib/plots/registry'
   import { createCommandHandler } from '$lib/workspace/commands'
   import type {
@@ -33,6 +31,7 @@
     onWorkspaceCommandChain,
     initialLayoutState = null,
   }: Props = $props()
+  const { engine, fileState, grid, toastState } = getGazePlotterSession()
 
   const gridConfig = DEFAULT_GRID_CONFIG
 
@@ -74,10 +73,11 @@
 
   const handleCommand = createCommandHandler(
     grid, // Synchronous class instance
-    message => addSuccessToast(message),
+    engine,
+    message => toastState.addSuccess(message),
     error => {
       console.error('Command error:', error)
-      addErrorToast('Error applying changes. See console for details.')
+      toastState.addError('Error applying changes. See console for details.')
     },
     command => onWorkspaceCommandChain(command)
   )

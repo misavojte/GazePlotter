@@ -2,10 +2,10 @@ import {
   type BaseInterpretedDataType,
   type ExtendedInterpretedDataType,
 } from '$lib/data/types'
-import { engine } from '../DataEngine.svelte'
+import type { DataEngine } from '../DataEngine.svelte'
 import { getCategoryRaw } from '../utils/interpreters'
 
-export const getStimuliOrderVector = (): number[] => {
+export const getStimuliOrderVector = (engine: DataEngine): number[] => {
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
   const order = meta.stimuli.orderVector
@@ -15,7 +15,10 @@ export const getStimuliOrderVector = (): number[] => {
   return order
 }
 
-export const getStimulus = (id: number): BaseInterpretedDataType => {
+export const getStimulus = (
+  engine: DataEngine,
+  id: number
+): BaseInterpretedDataType => {
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
   const stimulusArray = meta.stimuli.data[id]
@@ -29,16 +32,16 @@ export const getStimulus = (id: number): BaseInterpretedDataType => {
   }
 }
 
-export const getStimuli = (): BaseInterpretedDataType[] => {
-  const ids = getStimuliOrderVector()
+export const getStimuli = (engine: DataEngine): BaseInterpretedDataType[] => {
+  const ids = getStimuliOrderVector(engine)
   const result = new Array(ids.length)
   for (let i = 0; i < ids.length; i++) {
-    result[i] = getStimulus(ids[i])
+    result[i] = getStimulus(engine, ids[i])
   }
   return result
 }
 
-export const getParticipantOrderVector = (): number[] => {
+export const getParticipantOrderVector = (engine: DataEngine): number[] => {
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
   const order = meta.participants.orderVector
@@ -48,7 +51,10 @@ export const getParticipantOrderVector = (): number[] => {
   return order
 }
 
-export const getParticipant = (id: number): BaseInterpretedDataType => {
+export const getParticipant = (
+  engine: DataEngine,
+  id: number
+): BaseInterpretedDataType => {
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
   const participantArray = meta.participants.data[id]
@@ -63,16 +69,21 @@ export const getParticipant = (id: number): BaseInterpretedDataType => {
   }
 }
 
-export const getAllParticipants = (): BaseInterpretedDataType[] => {
-  const ids = getParticipantOrderVector()
+export const getAllParticipants = (
+  engine: DataEngine
+): BaseInterpretedDataType[] => {
+  const ids = getParticipantOrderVector(engine)
   const result = new Array(ids.length)
   for (let i = 0; i < ids.length; i++) {
-    result[i] = getParticipant(ids[i])
+    result[i] = getParticipant(engine, ids[i])
   }
   return result
 }
 
-export const getCategory = (id: number): ExtendedInterpretedDataType => {
+export const getCategory = (
+  engine: DataEngine,
+  id: number
+): ExtendedInterpretedDataType => {
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine not initialized')
   return getCategoryRaw(id, meta)

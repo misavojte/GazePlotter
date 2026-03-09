@@ -2,12 +2,13 @@ import {
   type BaseInterpretedDataType,
   type ParticipantsGroup,
 } from '$lib/data/types'
-import { engine } from '../DataEngine.svelte'
+import type { DataEngine } from '../DataEngine.svelte'
 
 /**
  * Updates multiple participant records and their display order.
  */
 export const updateMultipleParticipants = (
+  engine: DataEngine,
   participants: BaseInterpretedDataType[]
 ): void => {
   const meta = engine.metadata
@@ -28,7 +29,10 @@ export const updateMultipleParticipants = (
 /**
  * Updates the list of participant groups.
  */
-export const updateParticipantsGroups = (groups: ParticipantsGroup[]) => {
+export const updateParticipantsGroups = (
+  engine: DataEngine,
+  groups: ParticipantsGroup[]
+) => {
   if (!engine.metadata) return
   engine.setParticipantsGroups(groups)
 }
@@ -37,6 +41,7 @@ export const updateParticipantsGroups = (groups: ParticipantsGroup[]) => {
  * Updates multiple stimulus records and their display order.
  */
 export const updateMultipleStimuli = (
+  engine: DataEngine,
   stimuli: BaseInterpretedDataType[]
 ): void => {
   const meta = engine.metadata

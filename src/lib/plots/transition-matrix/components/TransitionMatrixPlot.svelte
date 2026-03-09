@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte'
+  import { getGazePlotterSession } from '$lib/session'
 
   // Core imports
   import {
@@ -59,6 +60,7 @@
   }
 
   let { settings, onWorkspaceCommand }: Props = $props()
+  const { engine } = getGazePlotterSession()
 
   // Data reactive sources
   const currentStimulusColorRange = $derived(
@@ -159,6 +161,7 @@
 
   const transitionData = $derived.by(() => {
     return getTransitionMatrixData(
+      engine,
       settings.stimulusId,
       settings.groupId,
       settings.aggregationMethod as MatrixAggregationMethod
@@ -182,7 +185,7 @@
     {
       label: 'Stimulus',
       options: (() => {
-        return getStimuliOptions()
+        return getStimuliOptions(engine)
       })(),
       value: settings.stimulusId.toString(),
       onchange: (e: CustomEvent) =>
@@ -191,7 +194,7 @@
     {
       label: 'Group',
       options: (() => {
-        return getParticipantsGroupOptions()
+        return getParticipantsGroupOptions(engine, true, settings.stimulusId)
       })(),
       value: settings.groupId.toString(),
       onchange: (e: CustomEvent) =>

@@ -20,8 +20,8 @@
   import {
     getParticipants,
     getParticipantEndTime,
-    engine,
   } from '$lib/data/engine'
+  import { getGazePlotterSession, getGridState } from '$lib/session'
   import { RIDGELINE_SCALE } from '../const'
 
   import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
@@ -29,7 +29,6 @@
   import type { WorkspaceCommand } from '$lib/workspace/commands'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
-  import { grid } from '$lib/workspace/grid/store.svelte'
   import { PreviewSync } from '$lib/plots/shared'
   import { interpolateColor } from '$lib/color/utility'
   import { PRESET_PALETTES } from '$lib/color/palettes'
@@ -42,6 +41,8 @@
   }
 
   let { settings, onWorkspaceCommand }: Props = $props()
+  const { engine } = getGazePlotterSession()
+  const grid = getGridState()
 
   // --- PREVIEW SYNC STATE ---
   // We use PreviewSync to manage "preview" vs "committed" state for settings.
@@ -118,8 +119,10 @@
     createCommandSourcePlotPattern(effectiveSettings, 'plot')
   )
 
-  const stimulusOptions = $derived(getStimuliOptions())
-  const groupOptions = $derived(getParticipantsGroupOptions())
+  const stimulusOptions = $derived(getStimuliOptions(engine))
+  const groupOptions = $derived(
+    getParticipantsGroupOptions(engine, true, effectiveSettings.stimulusId)
+  )
 
   const timelineMinValue = $derived.by(() => {
     if ((effectiveSettings.timelineStart ?? 0) > 0)
@@ -141,6 +144,7 @@
     if (maxValue !== 0) return maxValue
 
     const syncedMax = scanForSynchronizedTimelineMax(
+      engine,
       grid.items,
       effectiveSettings.w,
       effectiveSettings.stimulusId,
@@ -149,6 +153,7 @@
     if (syncedMax !== null) return syncedMax
 
     const participants = getParticipants(
+      engine,
       effectiveSettings.groupId,
       effectiveSettings.stimulusId
     )
@@ -156,7 +161,11 @@
       (max, participant) =>
         Math.max(
           max,
-          getParticipantEndTime(effectiveSettings.stimulusId, participant.id)
+          getParticipantEndTime(
+            engine,
+            effectiveSettings.stimulusId,
+            participant.id
+          )
         ),
       0
     )
@@ -182,6 +191,7 @@
     untrack(() => {
       try {
         const { data, workspace } = getAoiStreamPlotData(
+          engine,
           {
             ...s,
             timelineMin: tMin,
@@ -203,6 +213,7 @@
   const stripHeightOverride = $derived.by(() => {
     if (effectiveSettings.alignment !== 'heatmap') return null
     return scanForDynamicStripHeight(
+      engine,
       grid.items,
       effectiveSettings.h,
       effectiveSettings.id

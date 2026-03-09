@@ -7,16 +7,19 @@
     TRANSITION_MATRIX_LEGEND_TITLES,
   } from '$lib/plots/transition-matrix'
   import { PlotExportWrapper } from '$lib/modals'
+  import { getGazePlotterSession } from '$lib/session'
 
   interface Props {
     settings: TransitionMatrixGridType
   }
 
   let { settings }: Props = $props()
+  const { engine } = getGazePlotterSession()
 
   // Calculate matrix data for preview
   const { matrix, aoiLabels } = $derived(
     getTransitionMatrixData(
+      engine,
       settings.stimulusId,
       settings.groupId,
       settings.aggregationMethod as MatrixAggregationMethod

@@ -3,15 +3,17 @@
   import BarPlotFigure from '$lib/plots/bar/components/BarPlotFigure.svelte'
   import { getBarPlotData } from '$lib/plots/bar/core/transformer'
   import { PlotExportWrapper } from '$lib/modals'
+  import { getGazePlotterSession } from '$lib/session'
 
   interface Props {
     settings: BarPlotGridType
   }
 
   let { settings }: Props = $props()
+  const { engine } = getGazePlotterSession()
 
   const barPlotData = $derived(
-    getBarPlotData({
+    getBarPlotData(engine, {
       stimulusId: settings.stimulusId,
       groupId: settings.groupId,
       aggregationMethod: settings.aggregationMethod,

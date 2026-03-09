@@ -1,7 +1,7 @@
 <script lang="ts">
   import { GeneralButtonMenu as MenuButton } from '$lib/shared/components'
   import { untrack } from 'svelte'
-  import { modalState } from '$lib/modals'
+  import { getModalState } from '$lib/session'
   import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
   import Users from 'lucide-svelte/icons/users'
   import Download from 'lucide-svelte/icons/download'
@@ -21,6 +21,7 @@
   }
 
   let { settings, onWorkspaceCommand }: Props = $props()
+  const modalState = getModalState()
 
   const source = createCommandSourcePlotPattern(
     untrack(() => settings),

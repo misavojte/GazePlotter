@@ -4,8 +4,8 @@ import {
   getParticipantEndTime,
   getHiddenAois,
   getAoiOrderVector,
-  engine,
 } from '$lib/data/engine'
+import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
 import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
@@ -13,6 +13,7 @@ import { collectAoiStreamMetrics, type CollectorWorkspace } from './collector'
 import { COLOR_FALLBACKS } from '$lib/color'
 
 export function getAoiStreamPlotData(
+  engine: DataEngine,
   settings: Pick<
     AoiStreamPlotGridType,
     'stimulusId' | 'groupId' | 'binSize'
@@ -28,8 +29,8 @@ export function getAoiStreamPlotData(
   const { stimulusId, groupId, binSize: requestedBinSize } = settings
 
   // 1. Prepare filtering/ordering data
-  const rawAois = getAois(stimulusId)
-  const orderVector = getAoiOrderVector(stimulusId)
+  const rawAois = getAois(engine, stimulusId)
+  const orderVector = getAoiOrderVector(engine, stimulusId)
 
   // Use a simple array for ordered selection to avoid intermediate Map if possible
   // But we need to look up AOI details later. A local Map is fine if built once.
@@ -45,12 +46,12 @@ export function getAoiStreamPlotData(
   }
 
   // 2. Timeline and binning
-  const participantIds = getParticipantsIds(groupId, stimulusId)
+  const participantIds = getParticipantsIds(engine, groupId, stimulusId)
   const numParticipants = participantIds.length
 
   let maxTime = 0
   for (let i = 0; i < numParticipants; i++) {
-    const time = getParticipantEndTime(stimulusId, participantIds[i])
+    const time = getParticipantEndTime(engine, stimulusId, participantIds[i])
     if (time > maxTime) maxTime = time
   }
 
@@ -63,10 +64,11 @@ export function getAoiStreamPlotData(
   const collectionMaxTime = binCount * binSize
 
   // 3. Collection
-  const hidden = getHiddenAois(stimulusId)
+  const hidden = getHiddenAois(engine, stimulusId)
   const hiddenSet = hidden.length ? new Set<number>(hidden) : null
 
   const { metrics, workspace } = collectAoiStreamMetrics(
+    engine,
     stimulusId,
     participantIds,
     orderedAois,

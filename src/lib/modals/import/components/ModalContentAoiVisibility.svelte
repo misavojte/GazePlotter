@@ -3,8 +3,7 @@
 
   import { GeneralInputFile } from '$lib/shared/components'
   import { ModalButtons } from '$lib/modals'
-  import { modalState } from '$lib/modals'
-  import { addErrorToast } from '$lib/toaster'
+  import { getGazePlotterSession } from '$lib/session'
   import { processAoiVisibility } from '$lib/modals/import/utility/aoiVisibilityServices'
   import { getStimuliOptions, getParticipantOptions } from '$lib/plots/shared'
   import type { UpdateAoiVisibilityCommand } from '$lib/workspace/commands'
@@ -15,18 +14,19 @@
   }
 
   let { source, onWorkspaceCommand }: Props = $props()
+  const { engine, modalState, toastState } = getGazePlotterSession()
 
   let files: FileList | null = $state(null)
   let selectedStimulusId = $state('0')
   let selectedParticipantId = $state('all')
 
-  const stimuliOptions = getStimuliOptions()
+  const stimuliOptions = getStimuliOptions(engine)
   const participantOptions = [{ label: 'To all', value: 'all' }].concat(
-    getParticipantOptions()
+    getParticipantOptions(engine)
   )
   const handleSubmit = () => {
     if (files === null) {
-      addErrorToast('No file selected')
+      toastState.addError('No file selected')
       return
     }
     try {
@@ -34,6 +34,7 @@
       const participantId =
         selectedParticipantId === 'all' ? null : parseInt(selectedParticipantId)
       processAoiVisibility(
+        engine,
         stimulusId,
         participantId,
         files,
@@ -45,7 +46,7 @@
     } catch (e) {
       console.error(e)
       const message = e instanceof Error ? e.message : 'Unknown error'
-      addErrorToast('Could not read file. ' + message)
+      toastState.addError('Could not read file. ' + message)
     }
   }
 

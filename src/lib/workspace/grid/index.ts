@@ -1,4 +1,4 @@
-export { grid, GridState, initializeGridStateStore } from './store.svelte'
+export { GridState } from './store.svelte'
 
 export * from './types'
 export * from './utils'

@@ -1,4 +1,4 @@
-import { getSegments } from '$lib/data/engine'
+import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
 import { createArray } from '$lib/shared/utils/mathUtils'
 import type { ParticipantBarMetrics } from '../types'
@@ -9,17 +9,24 @@ import type { ParticipantBarMetrics } from '../types'
  * as it avoids redundant segment fetches and repeated traversals.
  */
 export function collectParticipantBarMetrics(
+  engine: DataEngine,
   stimulusId: number,
   participantIds: number[],
   aois: ExtendedInterpretedDataType[],
   timelineStart = 0,
   timelineEnd = 0
 ): ParticipantBarMetrics[] {
+  const reader = engine.getReader()
+  const meta = engine.metadata
+  if (!reader || !meta) throw new Error('Data engine metadata not available')
+
   const result: ParticipantBarMetrics[] = []
   const aoiCount = aois.length
   const noAoiIndex = aoiCount
   const anyFixationIndex = aoiCount + 1
   const totalSlots = aoiCount + 2
+  const hiddenAois = meta.aois.hiddenAois?.[stimulusId] ?? []
+  const hiddenAoisSet = hiddenAois.length ? new Set(hiddenAois) : null
 
   // Create AOI ID to index map for O(1) lookup
   const aoiLookup = new Map<number, number>()
@@ -39,8 +46,8 @@ export function collectParticipantBarMetrics(
       avgFixationDuration: Array.from({ length: totalSlots }, () => []),
     }
 
-    const segments = getSegments(stimulusId, participantId, [0])
-    if (segments.length === 0) {
+    const { startIndex, endIndex } = reader.getSegmentRange(stimulusId, participantId)
+    if (endIndex <= startIndex) {
       result.push(metrics)
       continue
     }
@@ -51,16 +58,22 @@ export function collectParticipantBarMetrics(
     let wasInNoAoi = false
     let currentNoAoiDwell = 0
     let currentAnyFixationDwell = 0
+    const currentAoiIndicesSet = new Set<number>()
 
     metrics.hitRatio[anyFixationIndex] = 1
 
-    for (const segment of segments) {
-      // Check if segment is fully outside the specified timeline range
-      if (timelineEnd > 0 && segment.start >= timelineEnd) continue
-      if (segment.end <= timelineStart) continue
+    for (let segmentIndex = startIndex; segmentIndex < endIndex; segmentIndex++) {
+      if (reader.getSegmentCategory(segmentIndex) !== 0) continue
 
-      const duration = segment.end - segment.start
-      const startTime = segment.start
+      const segmentStart = reader.getSegmentStart(segmentIndex)
+      const segmentEnd = reader.getSegmentEnd(segmentIndex)
+
+      // Check if segment is fully outside the specified timeline range
+      if (timelineEnd > 0 && segmentStart >= timelineEnd) continue
+      if (segmentEnd <= timelineStart) continue
+
+      const duration = segmentEnd - segmentStart
+      const startTime = segmentStart
 
       // TTFF for AnyFixation
       if (metrics.ttff[anyFixationIndex] === -1) {
@@ -70,11 +83,15 @@ export function collectParticipantBarMetrics(
       metrics.fixationCount[anyFixationIndex]++
       metrics.avgFixationDuration[anyFixationIndex].push(duration)
 
-      const currentAoiIndices: number[] = []
-      for (const aoi of segment.aoi) {
-        const idx = aoiLookup.get(aoi.id)
-        if (idx !== undefined) currentAoiIndices.push(idx)
+      currentAoiIndicesSet.clear()
+      const rawAois = reader.getRawAois(segmentIndex)
+      for (let rawIndex = 0; rawIndex < rawAois.length; rawIndex++) {
+        const rawAoiId = rawAois[rawIndex]
+        if (hiddenAoisSet?.has(rawAoiId)) continue
+        const idx = aoiLookup.get(engine.getAoiMapping(stimulusId, rawAoiId))
+        if (idx !== undefined) currentAoiIndicesSet.add(idx)
       }
+      const currentAoiIndices = Array.from(currentAoiIndicesSet)
 
       if (currentAoiIndices.length === 0) {
         // No-AOI case

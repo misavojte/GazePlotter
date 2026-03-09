@@ -2,18 +2,17 @@
   import { GeneralButtonMajor } from '$lib/shared/components'
   import { EyeWorkerService } from '$lib/data/ingest'
   import type { DataType } from '$lib/data/types'
-  import { initializeGridStateStore, clear } from '$lib/workspace'
-  import { fileState } from '$lib/file.state.svelte'
-  import { engine } from '$lib/data/engine'
-  import { addErrorToast } from '$lib/toaster'
+  import { clear } from '$lib/workspace'
+  import { getGazePlotterSession } from '$lib/session'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
   import type {
     FileInputType,
     FileMetadataType,
     FileMetadataFailureType,
   } from '$lib/workspace/type/fileMetadataType'
-  import { grid } from '$lib/workspace/grid'
 
+  const { fileState, engine, grid, toastState, modalState } =
+    getGazePlotterSession()
   let isDisabled = $derived(fileState.processing === 'processing')
 
   let input: HTMLInputElement | undefined = $state()
@@ -25,11 +24,14 @@
     if (files.length === 0) return
     fileState.processing = 'processing'
     try {
-      workerService = new EyeWorkerService(handleEyeData, handleFail)
+      workerService = new EyeWorkerService(handleEyeData, handleFail, {
+        modalState,
+        toastState,
+      })
       workerService.sendFiles(files)
     } catch (e) {
       console.error(e)
-      addErrorToast('Unable to set up file processing service')
+      toastState.addError('Unable to set up file processing service')
     }
     if (input) {
       input.value = ''
@@ -53,7 +55,7 @@
       fileState.metadata = null
     }
     engine.loadDataset(data.data)
-    initializeGridStateStore(data.gridItems)
+    grid.reset(data.gridItems)
     clear()
     fileState.processing = 'done'
     fileState.input = data.current
@@ -67,7 +69,7 @@
    * @param failureMetadata - Complete failure information including error details
    */
   const handleFail = (failureMetadata: FileMetadataFailureType) => {
-    addErrorToast('Data processing failed')
+    toastState.addError('Data processing failed')
 
     // Reset workspace to empty layout
     grid.reset([])

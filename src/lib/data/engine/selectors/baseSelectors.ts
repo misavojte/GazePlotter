@@ -1,20 +1,20 @@
-import { engine } from '../DataEngine.svelte'
+import type { DataEngine } from '../DataEngine.svelte'
 
 /**
  * Checks if the data store contains valid, non-empty data.
  * @returns true if data contains valid content
  */
-export const getHasValidData = (): boolean => {
+export const getHasValidData = (engine: DataEngine): boolean => {
   return engine.hasValidData
 }
 
-export const getNumberOfStimuli = (): number => {
+export const getNumberOfStimuli = (engine: DataEngine): number => {
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
   return meta.stimuli.data.length
 }
 
-export const getNumberOfParticipants = (): number => {
+export const getNumberOfParticipants = (engine: DataEngine): number => {
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
   return meta.participants.data.length
@@ -30,6 +30,10 @@ export const getNumberOfParticipants = (): number => {
  * @param aoiId - The original AOI ID
  * @returns The mapped (representative) AOI ID, or the original ID if no mapping exists
  */
-export const getAoiIdMapping = (stimulusId: number, aoiId: number): number => {
+export const getAoiIdMapping = (
+  engine: DataEngine,
+  stimulusId: number,
+  aoiId: number
+): number => {
   return engine.getAoiMapping(stimulusId, aoiId)
 }

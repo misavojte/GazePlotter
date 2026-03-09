@@ -1,4 +1,5 @@
-import { getAois, getParticipantsIds, engine } from '$lib/data/engine'
+import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import { getAoiRaw } from '$lib/data/engine/utils/interpreters'
 import {
   createAdaptiveTimeline,
   type AdaptiveTimeline,
@@ -17,6 +18,7 @@ import { collectParticipantBarMetrics } from './collector'
  * Now uses a single pass collector for all participants.
  */
 export function getBarPlotData(
+  engine: DataEngine,
   settings: Pick<
     BarPlotGridType,
     | 'stimulusId'
@@ -32,8 +34,9 @@ export function getBarPlotData(
   const meta = engine.metadata
   if (!meta) throw new Error('No metadata found')
 
-  const aois = getAois(settings.stimulusId)
-  const participantIds = getParticipantsIds(
+  const aois = getVisibleAois(engine, settings.stimulusId)
+  const participantIds = getParticipantIdsForGroup(
+    engine,
     settings.groupId,
     settings.stimulusId
   )
@@ -45,6 +48,7 @@ export function getBarPlotData(
 
   // Single pass collection of all metrics for all participants
   const participantMetrics = collectParticipantBarMetrics(
+    engine,
     settings.stimulusId,
     participantIds,
     aois,
@@ -81,6 +85,73 @@ export function getBarPlotData(
     data: sortedData,
     timeline,
   }
+}
+
+function getParticipantOrderVector(engine: DataEngine): number[] {
+  const meta = engine.metadata
+  if (!meta) throw new Error('Data engine metadata not available')
+  const order = meta.participants.orderVector
+  if (order.length === 0) {
+    return Array.from({ length: meta.participants.data.length }, (_, i) => i)
+  }
+  return order
+}
+
+function getParticipantIdsForGroup(
+  engine: DataEngine,
+  groupId = -1,
+  stimulusId = 0
+): number[] {
+  const meta = engine.metadata
+  const reader = engine.getReader()
+  if (!meta || !reader) throw new Error('Data engine metadata not available')
+
+  const participantOrder = getParticipantOrderVector(engine)
+  if (groupId === -1) return participantOrder
+
+  if (groupId === -2) {
+    return participantOrder.filter(
+      participantId => reader.getSegmentCount(stimulusId, participantId) > 0
+    )
+  }
+
+  const group = meta.participantsGroups.find(candidate => candidate.id === groupId)
+  if (!group) throw new Error(`Participants group with id ${groupId} does not exist`)
+  return group.participantsIds
+}
+
+function getVisibleAois(
+  engine: DataEngine,
+  stimulusId: number
+): ExtendedInterpretedDataType[] {
+  const meta = engine.metadata
+  if (!meta) throw new Error('Data engine metadata not available')
+
+  const stimulusAois = meta.aois.data[stimulusId]
+  if (!stimulusAois) throw new Error(`AOI data for stimulus ${stimulusId} not found`)
+
+  const order = meta.aois.orderVector?.[stimulusId]
+  const ids =
+    order == null
+      ? Array.from({ length: stimulusAois.length }, (_, i) => i)
+      : order
+
+  const hidden = meta.aois.hiddenAois?.[stimulusId] ?? []
+  const hiddenSet = hidden.length ? new Set<number>(hidden) : null
+  const uniqueMappedIds = new Set<number>()
+
+  for (let i = 0; i < ids.length; i++) {
+    const rawId = ids[i]
+    if (hiddenSet?.has(rawId)) continue
+    uniqueMappedIds.add(engine.getAoiMapping(stimulusId, rawId))
+  }
+
+  const aois: ExtendedInterpretedDataType[] = []
+  for (const aoiId of uniqueMappedIds) {
+    aois.push(getAoiRaw(stimulusId, aoiId, meta))
+  }
+
+  return aois
 }
 
 /**

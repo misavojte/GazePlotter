@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte'
+  import { getGazePlotterSession } from '$lib/session'
 
   // Local components
   import { BarPlotFigure, BarPlotButtonMenu } from '$lib/plots/bar/components'
@@ -34,6 +35,7 @@
   }
 
   let { settings, onWorkspaceCommand }: Props = $props()
+  const { engine } = getGazePlotterSession()
 
   // --- PREVIEW SYNC STATE ---
   const orderBySync = new PreviewSync<'value' | 'aoi'>(
@@ -80,7 +82,7 @@
   })
 
   // Get bar plot data and timeline from utility function
-  const barPlotResult = $derived(getBarPlotData(effectiveSettings))
+  const barPlotResult = $derived(getBarPlotData(engine, effectiveSettings))
   const labelededBarPlotData = $derived(barPlotResult.data)
   const timeline = $derived(barPlotResult.timeline)
 
@@ -154,8 +156,10 @@
     })
   }
 
-  const stimulusOptions = $derived(getStimuliOptions())
-  const groupOptions = $derived(getParticipantsGroupOptions())
+  const stimulusOptions = $derived(getStimuliOptions(engine))
+  const groupOptions = $derived(
+    getParticipantsGroupOptions(engine, true, settings.stimulusId)
+  )
 
   // Grouped selects like Scarf header: Stimulus, Group, Aggregation
   const selectItems = $derived<GroupSelectItem[]>([

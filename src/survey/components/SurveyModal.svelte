@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { modalState } from '$lib/modals'
+  import { getModalState } from '$lib/session'
   import {
     UEQSSurvey,
     OpenEndedFeedback,
@@ -24,6 +24,7 @@
   }
 
   let { surveyState, onComplete }: Props = $props()
+  const modalState = getModalState()
 
   // Navigation state
   const steps = ['ueqs', 'eye-tracking', 'feedback'] as const

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getParticipants, getParticipantsGroups } from '$lib/data/engine'
-  import { addSuccessToast } from '$lib/toaster'
+  import { getGazePlotterSession } from '$lib/session'
   import type { ParticipantsGroup } from '$lib/data/types'
   import {
     GeneralButtonMinor,
@@ -17,7 +17,6 @@
   import { flip } from 'svelte/animate'
   import GeneralInputCheck from '$lib/shared/components/GeneralInputCheck.svelte'
   import type { UpdateParticipantsGroupsCommand } from '$lib/workspace/commands'
-  import { modalState } from '$lib/modals'
 
   interface Props {
     source: string
@@ -25,10 +24,11 @@
   }
 
   let { source, onWorkspaceCommand }: Props = $props()
+  const { engine, modalState, toastState } = getGazePlotterSession()
 
   // State management
   let initialGroups = $state(
-    JSON.parse(JSON.stringify(getParticipantsGroups()))
+    JSON.parse(JSON.stringify(getParticipantsGroups(engine)))
   )
   let participantsGroups = $state(JSON.parse(JSON.stringify(initialGroups)))
   let hasChanged = $state(false)
@@ -39,7 +39,7 @@
   // Filter participants based on search for a specific group
   const getFilteredParticipants = (groupId: number) => {
     const searchFilter = searchFilters[groupId] || ''
-    return getParticipants().filter(participant =>
+    return getParticipants(engine).filter(participant =>
       participant.displayedName
         .toLowerCase()
         .includes(searchFilter.toLowerCase())
@@ -171,7 +171,7 @@
   const discardChanges = () => {
     resetToInitial()
     expandedGroupIds = []
-    addSuccessToast(`Unsaved changes discarded.`)
+    toastState.addSuccess(`Unsaved changes discarded.`)
   }
 
   const handleSubmit = () => {
@@ -197,7 +197,7 @@
   let expandedGroupIds: number[] = $state([])
 
   // Get all participants
-  const allParticipants = getParticipants()
+  const allParticipants = getParticipants(engine)
 
   // Toggle accordion expansion
   const toggleAccordion = (groupId: number) => {
@@ -257,7 +257,7 @@
     event.stopPropagation() // Prevent accordion toggle
     removeGroup(group.id)
     expandedGroupIds = expandedGroupIds.filter(id => id !== group.id)
-    addSuccessToast(`Deleted group ${group.name}.`)
+    toastState.addSuccess(`Deleted group ${group.name}.`)
   }
 
   // Create handler functions for each group to avoid event propagation to the accordion header

@@ -2,12 +2,13 @@ import {
   type SegmentInterpretedDataType,
   type ExtendedInterpretedDataType,
 } from '$lib/data/types'
-import { engine } from '../DataEngine.svelte'
+import type { DataEngine } from '../DataEngine.svelte'
 import { getNumberOfParticipants } from './baseSelectors'
 import { getHiddenAois } from './aoiSelectors'
 import { getAoiRaw, getCategoryRaw } from '../utils/interpreters'
 
 export const getNumberOfSegments = (
+  engine: DataEngine,
   stimulusId: number,
   participantId: number
 ): number => {
@@ -17,6 +18,7 @@ export const getNumberOfSegments = (
 }
 
 export const getParticipantEndTime = (
+  engine: DataEngine,
   stimulusId: number,
   particIndex: number
 ): number => {
@@ -25,21 +27,25 @@ export const getParticipantEndTime = (
   return reader.getParticipantEndTime(stimulusId, particIndex)
 }
 
-export const getStimulusHighestEndTime = (stimulusIndex: number): number => {
+export const getStimulusHighestEndTime = (
+  engine: DataEngine,
+  stimulusIndex: number
+): number => {
   let max = 0
-  const numParticipants = getNumberOfParticipants()
+  const numParticipants = getNumberOfParticipants(engine)
   for (
     let participantIndex = 0;
     participantIndex < numParticipants;
     participantIndex++
   ) {
-    const end = getParticipantEndTime(stimulusIndex, participantIndex)
+    const end = getParticipantEndTime(engine, stimulusIndex, participantIndex)
     if (end > max) max = end
   }
   return max
 }
 
 export const getSegments = (
+  engine: DataEngine,
   stimulusId: number,
   participantId: number,
   whereCategories: number[] | null = null,
@@ -57,7 +63,7 @@ export const getSegments = (
 
   if (segmentCount === 0 || limit === 0 || offset >= segmentCount) return []
 
-  const hidden = getHiddenAois(stimulusId)
+  const hidden = getHiddenAois(engine, stimulusId)
   const hiddenSet = hidden.length ? new Set<number>(hidden) : null
 
   const result: SegmentInterpretedDataType[] = []
@@ -129,6 +135,7 @@ export const getSegments = (
 }
 
 export const getSegment = (
+  engine: DataEngine,
   stimulusId: number,
   participantId: number,
   segmentId: number
@@ -146,7 +153,7 @@ export const getSegment = (
     throw new Error(`Segment ${segmentId} out of range`)
   }
 
-  const hidden = getHiddenAois(stimulusId)
+  const hidden = getHiddenAois(engine, stimulusId)
   const hiddenSet = hidden.length ? new Set<number>(hidden) : null
   const rawIds = reader.getRawAois(absoluteIndex)
   const aoi: ExtendedInterpretedDataType[] = []
@@ -178,6 +185,7 @@ export const getSegment = (
  * Legacy compatibility helper moved from AoiGroupReader.
  */
 export const getSegmentAoiIds = (
+  engine: DataEngine,
   stimulusId: number,
   participantId: number,
   segmentId: number

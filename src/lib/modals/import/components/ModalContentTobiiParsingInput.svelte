@@ -1,8 +1,10 @@
 <script lang="ts">
   import GeneralInputText from '$lib/shared/components/GeneralInputText.svelte'
   import { ModalButtons } from '$lib/modals'
-  import { modalState } from '$lib/modals'
+  import { getModalState } from '$lib/session'
   import { onDestroy } from 'svelte'
+
+  const modalState = getModalState()
 
   /**
    * Trigger string to activate Web Stimulus parsing mode.

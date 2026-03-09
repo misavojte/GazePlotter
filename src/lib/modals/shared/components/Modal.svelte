@@ -9,7 +9,9 @@
 
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { modalState } from '$lib/modals'
+  import { getModalState } from '$lib/session'
+
+  const modalState = getModalState()
 
   // $state derived from the singleton - simple reference
   const modal = $derived(modalState.activeModal)

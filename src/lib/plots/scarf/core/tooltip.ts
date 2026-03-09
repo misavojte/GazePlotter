@@ -1,4 +1,5 @@
 import { getParticipant, getSegment } from '$lib/data/engine'
+import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import { updateTooltip } from '$lib/tooltip'
 import type { ScarfTooltipData } from '$lib/plots/scarf/types'
 
@@ -8,12 +9,16 @@ import type { ScarfTooltipData } from '$lib/plots/scarf/types'
  * @param filling data to fill the tooltip with
  * @returns void
  */
-export const tooltipScarfService = (filling: ScarfTooltipData | null) => {
+export const tooltipScarfService = (
+  engine: DataEngine,
+  filling: ScarfTooltipData | null
+) => {
   if (filling === null) {
     updateTooltip(null)
     return
   }
   const segment = getSegment(
+    engine,
     filling.stimulusId,
     filling.participantId,
     filling.segmentId
@@ -25,7 +30,7 @@ export const tooltipScarfService = (filling: ScarfTooltipData | null) => {
   const content: Array<{ key: string; value: string }> = [
     {
       key: 'Participant',
-      value: getParticipant(filling.participantId).displayedName,
+      value: getParticipant(engine, filling.participantId).displayedName,
     },
     { key: 'Category', value: segment.category.displayedName },
   ]

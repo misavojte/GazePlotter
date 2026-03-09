@@ -1,4 +1,5 @@
 import type { WorkspaceCommandChain } from '$lib/workspace/commands'
+import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import { isHistoryCommand, undoRedo } from '$lib/workspace/commands'
 import { GridState } from '$lib/workspace/grid'
 import { createWorkspaceCommandRegistry } from '$lib/workspace/commands'
@@ -20,11 +21,12 @@ import { getCommandLabel } from '$lib/workspace/commands/labels'
  */
 export function createCommandHandler(
   gridStore: GridState,
+  engine: DataEngine,
   onSuccess: (message: string) => void,
   onError: (error: Error) => void,
   onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void
 ) {
-  const commandRegistry = createWorkspaceCommandRegistry(gridStore)
+  const commandRegistry = createWorkspaceCommandRegistry(gridStore, engine)
 
   const isNormalRootCommand = (
     command: WorkspaceCommandChain,

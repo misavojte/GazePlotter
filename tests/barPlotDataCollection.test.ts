@@ -1,10 +1,42 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
+import { createReaderFromJson } from '../src/lib/data/binary/converters'
 import { collectParticipantBarMetrics } from '../src/lib/plots/bar/core/collector'
-import { getSegments } from '$lib/data/engine'
 
-vi.mock('$lib/data/engine', () => ({
-  getSegments: vi.fn(),
-}))
+function createMockEngine(segments: number[][][][]) {
+  const reader = createReaderFromJson(segments)
+
+  return {
+    metadata: {
+      isOrdinalOnly: false,
+      aois: {
+        data: [[], [], [
+          ['AOI 0', 'AOI 0', '#000000'],
+          ['AOI 1', 'AOI 1', 'red'],
+          ['AOI 2', 'AOI 2', 'blue'],
+        ]],
+        orderVector: [[], [], [1, 2]],
+        dynamicVisibility: {},
+        hiddenAois: [[], [], []],
+      },
+      categories: {
+        data: [['Fixation', 'Fixation', '#000000']],
+        orderVector: [],
+      },
+      participants: {
+        data: [['P101', 'P101'], ['P102', 'P102'], ['P103', 'P103']],
+        orderVector: [],
+      },
+      participantsGroups: [],
+      stimuli: {
+        data: [['S0', 'S0'], ['S1', 'S1'], ['S2', 'S2']],
+        orderVector: [],
+      },
+      noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
+    },
+    getReader: () => reader,
+    getAoiMapping: (_stimulusId: number, rawId: number) => rawId,
+  }
+}
 
 describe('Bar Plot Data Collection', () => {
   const stimulusId = 1
@@ -14,57 +46,130 @@ describe('Bar Plot Data Collection', () => {
     { id: 2, displayedName: 'AOI 2', color: 'blue' },
   ] as any
 
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
   it('should collect basic dwell time and fixation counts', () => {
-    // Segment 1: AOI 1 (100ms)
-    // Segment 2: AOI 1 + 2 (200ms)
-    // Segment 3: No AOI (50ms)
-    // Segment 4: AOI 2 (150ms)
-    const mockedSegments = [
-      { start: 0, end: 100, aoi: [{ id: 1 }] },
-      { start: 100, end: 300, aoi: [{ id: 1 }, { id: 2 }] },
-      { start: 300, end: 350, aoi: [] },
-      { start: 350, end: 500, aoi: [{ id: 2 }] },
-    ]
-    vi.mocked(getSegments).mockReturnValue(mockedSegments as any)
+    const engine = createMockEngine([
+      [],
+      [
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [],
+        [
+          [0, 100, 0, 1],
+          [100, 300, 0, 1, 2],
+          [300, 350, 0],
+          [350, 500, 0, 2],
+        ],
+      ],
+    ])
 
-    const result = collectParticipantBarMetrics(
-      stimulusId,
-      participantIds,
-      aois
-    )
-
-    expect(result).toHaveLength(1)
+    const result = collectParticipantBarMetrics(engine as any, stimulusId, participantIds, aois)
     const p1 = result[0]
 
-    // Dwell Time:
-    // AOI 1: 100 + 200 = 300
-    // AOI 2: 200 + 150 = 350
-    // No-AOI: 50
-    // AnyFixation: 500 (total duration of all fixation segments)
+    expect(result).toHaveLength(1)
     expect(p1.dwellTime[0]).toBe(300)
     expect(p1.dwellTime[1]).toBe(350)
     expect(p1.dwellTime[2]).toBe(50)
     expect(p1.dwellTime[3]).toBe(500)
-
-    // Fixation Count:
-    // AOI 1: 2 segments
-    // AOI 2: 2 segments
-    // No-AOI: 1 segment
-    // AnyFixation: 4 segments
     expect(p1.fixationCount[0]).toBe(2)
     expect(p1.fixationCount[1]).toBe(2)
     expect(p1.fixationCount[2]).toBe(1)
     expect(p1.fixationCount[3]).toBe(4)
-
-    // Entry Count:
-    // AOI 1: Entered once at start, stayed through seg 2.
-    // AOI 2: Entered once at seg 2, left at seg 3, entered again at seg 4. -> 2 entries.
-    // No-AOI: Entered once at seg 3.
-    // AnyFixation: Entered at 1, 2 (change in set), 3 (change in set), 4 (change in set). -> 4 entries.
     expect(p1.entryCount[0]).toBe(1)
     expect(p1.entryCount[1]).toBe(2)
     expect(p1.entryCount[2]).toBe(1)
@@ -72,18 +177,25 @@ describe('Bar Plot Data Collection', () => {
   })
 
   it('should treat consecutive segments in same AOI as one entry', () => {
-    const mockedSegments = [
-      { start: 0, end: 100, aoi: [{ id: 1 }] },
-      { start: 100, end: 200, aoi: [{ id: 1 }] },
-      { start: 200, end: 300, aoi: [{ id: 1 }] },
-    ]
-    vi.mocked(getSegments).mockReturnValue(mockedSegments as any)
+    const engine = createMockEngine([
+      [],
+      Array.from({ length: 102 }, () => [] as number[][]),
+    ])
+    engine.getReader = () =>
+      createReaderFromJson([
+        [],
+        Array.from({ length: 102 }, (_, participantId) =>
+          participantId === 101
+            ? [
+                [0, 100, 0, 1],
+                [100, 200, 0, 1],
+                [200, 300, 0, 1],
+              ]
+            : []
+        ),
+      ])
 
-    const result = collectParticipantBarMetrics(
-      stimulusId,
-      participantIds,
-      aois
-    )
+    const result = collectParticipantBarMetrics(engine as any, stimulusId, participantIds, aois)
     const p1 = result[0]
 
     expect(p1.entryCount[0]).toBe(1)
@@ -92,14 +204,14 @@ describe('Bar Plot Data Collection', () => {
   })
 
   it('should handle AOI overlap correctly (multiple AOIs in one segment)', () => {
-    const mockedSegments = [{ start: 0, end: 100, aoi: [{ id: 1 }, { id: 2 }] }]
-    vi.mocked(getSegments).mockReturnValue(mockedSegments as any)
+    const engine = createMockEngine([
+      [],
+      Array.from({ length: 102 }, (_, participantId) =>
+        participantId === 101 ? [[0, 100, 0, 1, 2]] : []
+      ),
+    ])
 
-    const result = collectParticipantBarMetrics(
-      stimulusId,
-      participantIds,
-      aois
-    )
+    const result = collectParticipantBarMetrics(engine as any, stimulusId, participantIds, aois)
     const p1 = result[0]
 
     expect(p1.dwellTime[0]).toBe(100)
@@ -109,47 +221,48 @@ describe('Bar Plot Data Collection', () => {
   })
 
   it('should correctly capture TTFF from the very first segment', () => {
-    const mockedSegments = [{ start: 50, end: 100, aoi: [{ id: 1 }] }]
-    vi.mocked(getSegments).mockReturnValue(mockedSegments as any)
+    const engine = createMockEngine([
+      [],
+      Array.from({ length: 102 }, (_, participantId) =>
+        participantId === 101 ? [[50, 100, 0, 1]] : []
+      ),
+    ])
 
-    const result = collectParticipantBarMetrics(
-      stimulusId,
-      participantIds,
-      aois
-    )
+    const result = collectParticipantBarMetrics(engine as any, stimulusId, participantIds, aois)
     const p1 = result[0]
 
     expect(p1.ttff[0]).toBe(50)
-    expect(p1.ttff[3]).toBe(50) // AnyFixation
+    expect(p1.ttff[3]).toBe(50)
   })
 
   it('should handle gaps (No AOI) in timeToFirstFixation', () => {
-    const mockedSegments = [
-      { start: 0, end: 50, aoi: [] },
-      { start: 50, end: 100, aoi: [{ id: 1 }] },
-    ]
-    vi.mocked(getSegments).mockReturnValue(mockedSegments as any)
+    const engine = createMockEngine([
+      [],
+      Array.from({ length: 102 }, (_, participantId) =>
+        participantId === 101
+          ? [
+              [0, 50, 0],
+              [50, 100, 0, 1],
+            ]
+          : []
+      ),
+    ])
 
-    const result = collectParticipantBarMetrics(
-      stimulusId,
-      participantIds,
-      aois
-    )
+    const result = collectParticipantBarMetrics(engine as any, stimulusId, participantIds, aois)
     const p1 = result[0]
 
-    expect(p1.ttff[2]).toBe(0) // No AOI starts at 0
-    expect(p1.ttff[0]).toBe(50) // AOI 1 starts at 50
-    expect(p1.ttff[3]).toBe(0) // AnyFixation starts at 0
+    expect(p1.ttff[2]).toBe(0)
+    expect(p1.ttff[0]).toBe(50)
+    expect(p1.ttff[3]).toBe(0)
   })
 
   it('should handle participants with no data', () => {
-    vi.mocked(getSegments).mockReturnValue([])
+    const engine = createMockEngine([
+      [],
+      Array.from({ length: 102 }, () => [] as number[][]),
+    ])
 
-    const result = collectParticipantBarMetrics(
-      stimulusId,
-      participantIds,
-      aois
-    )
+    const result = collectParticipantBarMetrics(engine as any, stimulusId, participantIds, aois)
 
     expect(result).toHaveLength(1)
     expect(result[0].dwellTime.every(v => v === 0)).toBe(true)
@@ -158,25 +271,25 @@ describe('Bar Plot Data Collection', () => {
   })
 
   it('should correctly aggregate multiple participants', () => {
-    const participantIds = [101, 102]
-    vi.mocked(getSegments).mockImplementation((s, pid) => {
-      if (pid === 101) return [{ start: 0, end: 100, aoi: [{ id: 1 }] }] as any
-      if (pid === 102) return [{ start: 0, end: 200, aoi: [{ id: 2 }] }] as any
-      return []
-    })
+    const engine = createMockEngine([
+      [],
+      Array.from({ length: 103 }, (_, participantId) => {
+        if (participantId === 101) return [[0, 100, 0, 1]]
+        if (participantId === 102) return [[0, 200, 0, 2]]
+        return []
+      }),
+    ])
 
     const result = collectParticipantBarMetrics(
+      engine as any,
       stimulusId,
-      participantIds,
+      [101, 102],
       aois
     )
-    expect(result).toHaveLength(2)
 
-    // P1
+    expect(result).toHaveLength(2)
     expect(result[0].dwellTime[0]).toBe(100)
     expect(result[0].dwellTime[1]).toBe(0)
-
-    // P2
     expect(result[1].dwellTime[0]).toBe(0)
     expect(result[1].dwellTime[1]).toBe(200)
   })

@@ -3,12 +3,14 @@
   import { fade } from 'svelte/transition'
   import GridItem from './GridItem.svelte'
   import { getVizConfig } from '$lib/plots/registry'
-  import { grid } from '$lib/workspace/grid'
+  import { getGridState } from '$lib/session'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
   import type { GridConfig } from './types'
   import { calculateBottomEdgePosition } from './utils'
   import { WORKSPACE_BOTTOM_PADDING, MIN_WORKSPACE_HEIGHT } from './const'
   import { throttleByRaf } from '$lib/shared/utils/throttle'
+
+  const grid = getGridState()
 
   interface Props {
     // Grid state

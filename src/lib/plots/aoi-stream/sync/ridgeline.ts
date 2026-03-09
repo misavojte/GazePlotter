@@ -1,4 +1,5 @@
 import { getParticipants, getParticipantEndTime } from '$lib/data/engine'
+import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import {
   calculatePlotDimensionsWithHeader,
   PLOT_HEADER_HEIGHT,
@@ -11,7 +12,6 @@ import { estimateTextWidth } from '$lib/shared/utils/textUtils'
 import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
 import { getAoiStreamPlotData } from '../core/transformer'
 import { scanForSynchronizedTimelineMax } from './timeline'
-import { engine } from '$lib/data/engine'
 import type { AoiStreamPlotResult } from '../types'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 import { calculateIdealStripHeight } from '../core/ridgeline'
@@ -34,6 +34,7 @@ import { MARGIN, RIDGELINE_SCALE } from '../const'
  * @returns The synchronized strip height, or null if no synchronization needed
  */
 export function scanForDynamicStripHeight(
+  engine: DataEngine,
   items: AllGridTypes[],
   targetHeight: number,
   currentPlotId: number
@@ -89,6 +90,7 @@ export function scanForDynamicStripHeight(
 
     if (tMax === 0) {
       const syncedMax = scanForSynchronizedTimelineMax(
+        engine,
         items,
         settings.w,
         stimulusId,
@@ -98,15 +100,17 @@ export function scanForDynamicStripHeight(
       if (syncedMax !== null) {
         tMax = syncedMax
       } else {
-        const participants = getParticipants(groupId, stimulusId)
+        const participants = getParticipants(engine, groupId, stimulusId)
         tMax = participants.reduce(
-          (max, p) => Math.max(max, getParticipantEndTime(stimulusId, p.id)),
+          (max, p) =>
+            Math.max(max, getParticipantEndTime(engine, stimulusId, p.id)),
           0
         )
       }
     }
 
     const { data: streamData } = getAoiStreamPlotData(
+      engine,
       {
         stimulusId,
         groupId,

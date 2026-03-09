@@ -1,68 +1,58 @@
 import type { ToastFillingType } from './types'
 import { generateUniqueId } from '$lib/shared/utils/idUtils'
 
-let _toasts = $state<ToastFillingType[]>([])
+export class ToastState {
+  current = $state<ToastFillingType[]>([])
 
-/**
- * Global accessor for the toast state.
- */
-export const toastState = {
-  get current() {
-    return _toasts
-  },
-  set current(value: ToastFillingType[]) {
-    _toasts = value
-  },
-}
+  add(toast: ToastFillingType): void {
+    this.current = [...this.current, toast]
+  }
 
-export const addToast = (toast: ToastFillingType): void => {
-  _toasts = [..._toasts, toast]
-}
+  remove(id: number): void {
+    this.current = this.current.filter(t => t.id !== id)
+  }
 
-export const removeToast = (id: number): void => {
-  _toasts = _toasts.filter(t => t.id !== id)
-}
+  addError(message: string): void {
+    this.add({
+      id: generateUniqueId(),
+      title: 'Error',
+      message,
+      type: 'error',
+      duration: 8000,
+    })
+  }
 
-export const addErrorToast = (message: string): void => {
-  addToast({
-    id: generateUniqueId(),
-    title: 'Error',
-    message,
-    type: 'error',
-    duration: 8000,
-  })
-}
+  addSuccess(message: string): void {
+    this.add({
+      id: generateUniqueId(),
+      title: 'Success',
+      message,
+      type: 'success',
+      duration: 4000,
+    })
+  }
 
-export const addSuccessToast = (message: string): void => {
-  addToast({
-    id: generateUniqueId(),
-    title: 'Success',
-    message,
-    type: 'success',
-    duration: 4000,
-  })
-}
+  addWarning(message: string): void {
+    this.add({
+      id: generateUniqueId(),
+      title: 'Warning',
+      message,
+      type: 'warning',
+      duration: 6000,
+    })
+  }
 
-export const addWarningToast = (message: string): void => {
-  addToast({
-    id: generateUniqueId(),
-    title: 'Warning',
-    message,
-    type: 'warning',
-    duration: 6000,
-  })
-}
+  addInfo(message: string): void {
+    this.add({
+      id: generateUniqueId(),
+      title: 'Info',
+      message,
+      type: 'info',
+      duration: 8000,
+    })
+  }
 
-export const addInfoToast = (message: string): void => {
-  addToast({
-    id: generateUniqueId(),
-    title: 'Info',
-    message,
-    type: 'info',
-    duration: 8000,
-  })
-}
-
-export const clear = (): void => {
-  _toasts = []
+  clear(): void {
+    this.current = []
+  }
 }

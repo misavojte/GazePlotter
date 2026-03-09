@@ -1,17 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { engine, getAois, getAllAois } from '$lib/data/engine'
+import { getAllAois } from '$lib/data/engine'
 import { collectAoiStreamMetrics } from '../src/lib/plots/aoi-stream/core/collector'
 import { createReaderFromJson } from '../src/lib/data/binary/converters'
 import { FIXATION_CATEGORY_ID } from '../src/lib/plots/aoi-stream/const'
 
-// Mock the engine and selectors
+const mockEngine = {
+  getReader: vi.fn(),
+  getAoiMapping: vi.fn(),
+}
+
+// Mock the engine-backed selectors
 vi.mock('$lib/data/engine', () => {
   return {
-    engine: {
-      getReader: vi.fn(),
-      getAoiMapping: vi.fn(),
-    },
-    getAois: vi.fn(),
     getAllAois: vi.fn(),
   }
 })
@@ -180,10 +180,12 @@ describe('Time-binned AOI Occupancy Calculation Logic', () => {
       vi.mocked(getAllAois).mockReturnValue([{ id: 0 }, { id: 1 }] as any)
 
       // Mock mapping: both 0 and 1 map to 0
-      vi.mocked(engine.getAoiMapping).mockImplementation((sId, rawId) => {
-        if (rawId === 0 || rawId === 1) return 0
-        return rawId
-      })
+      vi.mocked(mockEngine.getAoiMapping).mockImplementation(
+        (sId: number, rawId: number) => {
+          if (rawId === 0 || rawId === 1) return 0
+          return rawId
+        }
+      )
 
       // Create segments for participant 0
       // Segment 1: 0-50ms, Category FIXATION, AOI 0
@@ -197,9 +199,10 @@ describe('Time-binned AOI Occupancy Calculation Logic', () => {
         ],
       ]
       const reader = createReaderFromJson(segments)
-      vi.mocked(engine.getReader).mockReturnValue(reader)
+      vi.mocked(mockEngine.getReader).mockReturnValue(reader)
 
       const { metrics } = collectAoiStreamMetrics(
+        mockEngine as any,
         stimulusId,
         participantIds,
         orderedAois,

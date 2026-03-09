@@ -3,14 +3,10 @@ import { createWorkspaceCommandRegistry } from '$lib/workspace/commands/registry
 import type { WorkspaceCommandChain } from '$lib/workspace/commands'
 import type { GridState } from '$lib/workspace/grid'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
-import { engine } from '$lib/data/engine'
 
-// Mock the data store
-vi.mock('$lib/data/engine', () => ({
-  engine: {
-    metadata: null,
-  },
-}))
+const mockEngine = {
+  metadata: null,
+}
 
 describe('workspaceCommandReverse', () => {
   let mockGridStore: GridState
@@ -22,7 +18,7 @@ describe('workspaceCommandReverse', () => {
     vi.clearAllMocks()
 
     // Ensure engine.metadata is a writable value property, not a getter from previous tests
-    Object.defineProperty(engine, 'metadata', {
+    Object.defineProperty(mockEngine, 'metadata', {
       value: null,
       writable: true,
       configurable: true,
@@ -94,7 +90,7 @@ describe('workspaceCommandReverse', () => {
     }
 
     // @ts-ignore
-    engine.metadata = mockData
+    mockEngine.metadata = mockData
 
     // Provide current items directly on the mock grid store
     mockGridStore.items = [
@@ -123,7 +119,8 @@ describe('workspaceCommandReverse', () => {
     ] as AllGridTypes[]
 
     reverseCommand = createWorkspaceCommandRegistry(
-      mockGridStore as any
+      mockGridStore as any,
+      mockEngine as any
     ).reverse
   })
 
@@ -439,7 +436,7 @@ describe('workspaceCommandReverse', () => {
 
     it('should return updateParticipants with empty list if no participants found', () => {
       // @ts-ignore
-      engine.metadata = {
+      mockEngine.metadata = {
         participants: { data: [], orderVector: [] },
         isOrdinalOnly: false,
         aois: {
@@ -503,7 +500,7 @@ describe('workspaceCommandReverse', () => {
 
     it('should return updateStimuli with empty list if no stimuli found', () => {
       // @ts-ignore
-      engine.metadata = {
+      mockEngine.metadata = {
         stimuli: { data: [], orderVector: [] },
         isOrdinalOnly: false,
         aois: {
@@ -618,7 +615,7 @@ describe('workspaceCommandReverse', () => {
 
     it('should return updateParticipantsGroups with empty list if no groups found', () => {
       // @ts-ignore
-      engine.metadata = {
+      mockEngine.metadata = {
         participantsGroups: [],
         isOrdinalOnly: false,
         aois: {
@@ -677,7 +674,7 @@ describe('workspaceCommandReverse', () => {
       // The original test wanted to check error handling.
       // Let's assume the component under test handles null metadata gracefully or throws.
       // If we *must* have it throw on access, we can define a getter on the mock object.
-      Object.defineProperty(engine, 'metadata', {
+      Object.defineProperty(mockEngine, 'metadata', {
         get: () => {
           throw new Error('Data store error')
         },
@@ -701,7 +698,7 @@ describe('workspaceCommandReverse', () => {
   describe('edge cases', () => {
     it('should handle empty data store gracefully', () => {
       // @ts-ignore
-      engine.metadata = {
+      mockEngine.metadata = {
         isOrdinalOnly: false,
         aois: {
           data: [],
@@ -740,7 +737,7 @@ describe('workspaceCommandReverse', () => {
 
     it('should handle null data store gracefully', () => {
       // @ts-ignore
-      engine.metadata = null
+      mockEngine.metadata = null
 
       const command: WorkspaceCommandChain = {
         type: 'updateParticipants',
@@ -757,7 +754,7 @@ describe('workspaceCommandReverse', () => {
 
     it('should handle undefined data store gracefully', () => {
       // @ts-ignore
-      engine.metadata = undefined
+      mockEngine.metadata = undefined
 
       const command: WorkspaceCommandChain = {
         type: 'updateParticipants',

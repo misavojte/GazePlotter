@@ -8,9 +8,9 @@ import { Archiver } from './encoders/zip'
 import { triggerDownload } from './download'
 import { generateScanGraph } from './mappers/scangraph'
 import { generateWorkplaceJson } from './mappers/workplace'
-import { engine } from '$lib/data/engine'
-import { fileState } from '$lib/file.state.svelte'
-import { grid } from '$lib/workspace/grid'
+import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { AllGridTypes } from '$lib/workspace/type/gridType'
+import type { FileMetadataType } from '$lib/workspace/type/fileMetadataType'
 
 /**
  * Downloads a unified CSV of all gaze segments.
@@ -56,21 +56,28 @@ export async function downloadBatchZip(
  * Downloads a ScanGraph TXT file for a specific stimulus.
  */
 export async function downloadScanGraph(
+  engine: DataEngine,
   stimulusId: number,
   fileName: string
 ): Promise<void> {
   const meta = engine.metadata
   const reader = engine.getReader()
-  if (!meta || !reader) return
+  const aoiGroupReader = engine.getAoiGroupReader()
+  if (!meta || !reader || !aoiGroupReader) return
 
-  const content = await generateScanGraph(meta, reader, stimulusId)
+  const content = await generateScanGraph(meta, reader, aoiGroupReader, stimulusId)
   triggerDownload(content, fileName, '.txt')
 }
 
 /**
  * High-level action to download the entire workspace state as JSON.
  */
-export function downloadWorkplace(data: DataType, fileName: string): void {
-  const json = generateWorkplaceJson(data, grid.items, fileState.metadata)
+export function downloadWorkplace(
+  data: DataType,
+  fileName: string,
+  layoutState: AllGridTypes[],
+  metadata: FileMetadataType | null
+): void {
+  const json = generateWorkplaceJson(data, layoutState, metadata)
   triggerDownload(json, fileName, '.json')
 }

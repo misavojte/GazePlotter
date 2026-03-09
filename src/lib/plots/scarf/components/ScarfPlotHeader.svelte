@@ -8,6 +8,7 @@
     getParticipantsGroupOptions,
     getStimuliOptions,
   } from '$lib/plots/shared'
+  import { getGazePlotterSession } from '$lib/session'
   import { PreviewSync } from '$lib/plots/shared'
   import Minor, {
     type MinorGroupItem,
@@ -41,20 +42,21 @@
 
   let { settings, source, onWorkspaceCommand, syncs, onMenuClose }: Props =
     $props()
+  const { engine } = getGazePlotterSession()
 
   function calculateActualMax(stimulusId: number): number {
-    const participants = getParticipants(settings.groupId, stimulusId)
+    const participants = getParticipants(engine, settings.groupId, stimulusId)
     const participantIds = participants.map(p => p.id)
     if (settings.timeline === 'absolute') {
       return participantIds.reduce(
         (max, participantId) =>
-          Math.max(max, getParticipantEndTime(stimulusId, participantId)),
+          Math.max(max, getParticipantEndTime(engine, stimulusId, participantId)),
         0
       )
     } else if (settings.timeline === 'ordinal') {
       return participantIds.reduce(
         (max, participantId) =>
-          Math.max(max, getNumberOfSegments(stimulusId, participantId)),
+          Math.max(max, getNumberOfSegments(engine, stimulusId, participantId)),
         0
       )
     }
@@ -160,10 +162,12 @@
   // ---------------------------
   // Grouped selects (Stimulus, Timeline, Group)
   // ---------------------------
-  let stimuliOptions = $derived(getStimuliOptions())
+  let stimuliOptions = $derived(getStimuliOptions(engine))
 
   // Keep group options in sync with data store
-  let participantsGroupOptions = $derived(getParticipantsGroupOptions())
+  let participantsGroupOptions = $derived(
+    getParticipantsGroupOptions(engine, true, settings.stimulusId)
+  )
 
   function onStimulusChange(event: CustomEvent) {
     const stimulusId = parseInt(event.detail)

@@ -2,7 +2,7 @@ import {
   type DataType,
   type ExtendedInterpretedDataType,
 } from '$lib/data/types'
-import { engine } from '../DataEngine.svelte'
+import type { DataEngine } from '../DataEngine.svelte'
 import { getAoiRaw } from '../utils/interpreters'
 
 const getAoiOrderVectorFromData = (
@@ -35,22 +35,29 @@ export const getAoisRawFromData = (
   return result
 }
 
-export const getAoiOrderVector = (stimulusId: number): number[] => {
+export const getAoiOrderVector = (
+  engine: DataEngine,
+  stimulusId: number
+): number[] => {
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
   return getAoiOrderVectorFromData(stimulusId, meta)
 }
 
-export const getHiddenAois = (stimulusId: number): number[] => {
+export const getHiddenAois = (
+  engine: DataEngine,
+  stimulusId: number
+): number[] => {
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
   return meta.aois.hiddenAois?.[stimulusId] ?? []
 }
 
 export const getAllAois = (
+  engine: DataEngine,
   stimulusId: number
 ): ExtendedInterpretedDataType[] => {
-  const ids = getAoiOrderVector(stimulusId)
+  const ids = getAoiOrderVector(engine, stimulusId)
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
 
@@ -61,7 +68,10 @@ export const getAllAois = (
   return result
 }
 
-export const getAois = (stimulusId: number): ExtendedInterpretedDataType[] => {
+export const getAois = (
+  engine: DataEngine,
+  stimulusId: number
+): ExtendedInterpretedDataType[] => {
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
 
@@ -84,6 +94,7 @@ export const getAois = (stimulusId: number): ExtendedInterpretedDataType[] => {
 }
 
 export const getAoi = (
+  engine: DataEngine,
   stimulusId: number,
   aoiId: number
 ): ExtendedInterpretedDataType => {

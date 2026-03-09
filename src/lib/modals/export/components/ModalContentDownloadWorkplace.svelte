@@ -1,14 +1,14 @@
 <script lang="ts">
   import { SectionHeader } from '$lib/modals'
   import { downloadWorkplace } from '$lib/data/export'
-  import { engine } from '$lib/data/engine'
-  import { modalState } from '$lib/modals'
+  import { getGazePlotterSession } from '$lib/session'
   import {
     ModalContentExportSegmentedData,
     ModalContentExportScangraph,
     ModalContentExportAggregatedData,
   } from '$lib/modals/export/components'
 
+  const { engine, modalState, grid, fileState } = getGazePlotterSession()
   const type = 'inner-json'
   let fileName = $state('GazePlotter-Export')
 
@@ -18,7 +18,12 @@
       const segments = engine.segments
       if (!meta || !segments)
         throw new Error('Data engine metadata or segments not available')
-      downloadWorkplace({ ...meta, segments }, fileName)
+      downloadWorkplace(
+        { ...meta, segments },
+        fileName,
+        grid.items,
+        fileState.metadata
+      )
     }
   }
 

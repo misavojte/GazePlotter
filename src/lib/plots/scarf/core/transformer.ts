@@ -5,13 +5,13 @@
 import {
   getAois,
   getAoiVisibility,
-  engine,
   getNumberOfSegments,
   getParticipant,
   getParticipantEndTime,
   getStimuli,
   hasStimulusAoiVisibility,
 } from '$lib/data/engine'
+import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import {
   SegmentField,
   SEGMENT_STRIDE,
@@ -133,6 +133,7 @@ export function getScarfParticipantBarHeight(
  * Calculates the timeline range for the plot based on settings and participant data
  */
 export function calculateTimelineRange(
+  engine: DataEngine,
   participantIds: number[],
   stimulusId: number,
   settings: ScarfGridType
@@ -146,9 +147,9 @@ export function calculateTimelineRange(
     let max = 0
     for (const pid of participantIds) {
       if (isOrdinalMode) {
-        max = Math.max(max, getNumberOfSegments(stimulusId, pid))
+        max = Math.max(max, getNumberOfSegments(engine, stimulusId, pid))
       } else {
-        max = Math.max(max, getParticipantEndTime(stimulusId, pid))
+        max = Math.max(max, getParticipantEndTime(engine, stimulusId, pid))
       }
     }
     return max
@@ -223,11 +224,13 @@ export function calculateTimelineRange(
  * Creates the axis breaks for the scarf plot
  */
 export function createScarfPlotAxis(
+  engine: DataEngine,
   participantIds: number[],
   stimulusId: number,
   settings: ScarfGridType
 ): AdaptiveTimeline {
   const { minValue, maxValue } = calculateTimelineRange(
+    engine,
     participantIds,
     stimulusId,
     settings
@@ -383,6 +386,7 @@ export function appendVisibilityEventsToBuffer(
  * Creates visualizable data for the ScarfPlot
  */
 export function transformDataToScarfPlot(
+  engine: DataEngine,
   stimulusId: number,
   participantIds: number[],
   settings: ScarfGridType,
@@ -399,13 +403,19 @@ export function transformDataToScarfPlot(
     HEIGHT_X_AXIS,
   } = SCARF_LAYOUT
 
-  const aoiData = getAois(stimulusId)
-  const timeline = createScarfPlotAxis(participantIds, stimulusId, settings)
+  const aoiData = getAois(engine, stimulusId)
+  const timeline = createScarfPlotAxis(
+    engine,
+    participantIds,
+    stimulusId,
+    settings
+  )
   const { minValue, maxValue } = timeline
   const invVisibleRange = 1 / (maxValue - minValue || 1)
 
   const showAoiVisibility =
-    hasStimulusAoiVisibility(stimulusId) && settings.timeline !== 'ordinal'
+    hasStimulusAoiVisibility(engine, stimulusId) &&
+    settings.timeline !== 'ordinal'
   const barWrapHeight = getScarfParticipantBarHeight(
     aoiData.length,
     showAoiVisibility
@@ -450,7 +460,7 @@ export function transformDataToScarfPlot(
 
   for (let pIndex = 0; pIndex < participantIds.length; pIndex++) {
     const pid = participantIds[pIndex]
-    const sessionDuration = getParticipantEndTime(stimulusId, pid)
+    const sessionDuration = getParticipantEndTime(engine, stimulusId, pid)
 
     let clipMin = minValue
     let clipMax = maxValue
@@ -546,7 +556,12 @@ export function transformDataToScarfPlot(
     if (showAoiVisibility) {
       const internalY = SPACE_ABOVE_RECT_DEFAULT + HEIGHT_BAR_DEFAULT * 0.5
       for (let aoiIdx = 0; aoiIdx < aoiData.length; aoiIdx++) {
-        const vis = getAoiVisibility(stimulusId, aoiData[aoiIdx].id, pid)
+        const vis = getAoiVisibility(
+          engine,
+          stimulusId,
+          aoiData[aoiIdx].id,
+          pid
+        )
         if (vis?.length) {
           appendVisibilityEventsToBuffer(
             eventBuckets[visibilityBaseStyleIdx + aoiIdx],
@@ -564,7 +579,7 @@ export function transformDataToScarfPlot(
 
     participants[pIndex] = {
       id: pid,
-      label: getParticipant(pid).displayedName,
+      label: getParticipant(engine, pid).displayedName,
       width: 0,
     }
   }
@@ -576,7 +591,7 @@ export function transformDataToScarfPlot(
     stimulusId,
     heightOfBarWrap: barWrapHeight,
     chartHeight: participantIds.length * barWrapHeight + HEIGHT_X_AXIS,
-    stimuli: getStimuli().map(s => ({ id: s.id, name: s.displayedName })),
+    stimuli: getStimuli(engine).map(s => ({ id: s.id, name: s.displayedName })),
     participants,
     timeline,
     stylingAndLegend,

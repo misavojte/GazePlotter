@@ -1,6 +1,6 @@
 <script lang="ts">
   import { GeneralButtonMenu as MenuButton } from '$lib/shared/components'
-  import { modalState } from '$lib/modals'
+  import { getModalState } from '$lib/session'
   import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
   import type { SvelteComponent } from 'svelte'
   import Download from 'lucide-svelte/icons/download'
@@ -25,6 +25,7 @@
   }
 
   let { settings, onWorkspaceCommand }: Props = $props()
+  const modalState = getModalState()
 
   const source = createCommandSourcePlotPattern(
     untrack(() => settings),

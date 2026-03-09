@@ -241,20 +241,3 @@ export class GridState {
     )
   }
 }
-
-export const grid = new GridState()
-
-// Backwards-compatible initializer for code that wants to set initial layout
-export function initializeGridStateStore(
-  layout: Array<
-    Partial<import('$lib/workspace/type/gridType').AllGridTypes> & {
-      type: string
-    }
-  > | null = null
-) {
-  if (!layout) {
-    grid.reset(DEFAULT_GRID_STATE_DATA)
-  } else {
-    grid.reset(layout)
-  }
-}

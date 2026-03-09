@@ -2,7 +2,8 @@
  * Optimized single-pass collector for AOI stream data.
  * Adheres to senior FP principles: Buffer recycling, zero per-frame allocations, and flat control flow.
  */
-import { engine, getAllAois } from '$lib/data/engine'
+import { getAllAois } from '$lib/data/engine'
+import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import {
   SEGMENT_STRIDE,
   SegmentField,
@@ -78,6 +79,7 @@ function ensureWorkspace(
 }
 
 export function collectAoiStreamMetrics(
+  engine: DataEngine,
   stimulusId: number,
   participantIds: number[],
   orderedAois: ExtendedInterpretedDataType[],
@@ -102,7 +104,7 @@ export function collectAoiStreamMetrics(
   const totalSeriesCount = aoiCount + 1
 
   // Find max AOI ID to size the lookup table
-  const aoiIdsInStimulus = getAllAois(stimulusId)
+  const aoiIdsInStimulus = getAllAois(engine, stimulusId)
   let aoiMaxId = 0
   for (let i = 0; i < aoiIdsInStimulus.length; i++) {
     if (aoiIdsInStimulus[i].id > aoiMaxId) aoiMaxId = aoiIdsInStimulus[i].id

@@ -6,13 +6,12 @@
   } from '$lib/shared/components'
   import { SectionHeader, ModalButtons } from '$lib/modals'
   import { downloadUnifiedCsv, downloadBatchZip } from '$lib/data/export'
-  import { engine } from '$lib/data/engine'
-  import { addSuccessToast } from '$lib/toaster'
-  import { modalState } from '$lib/modals'
+  import { getGazePlotterSession } from '$lib/session'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'
   import type { DecimalSeparator } from '$lib/data/export/encoders/csv'
   import { getStimuliOptions } from '$lib/plots/shared/selectOptionsGetters'
 
+  const { engine, toastState, modalState } = getGazePlotterSession()
   // Export settings state
   let fileName = $state('GazePlotter-SegmentedData')
   let exportType = $state('csv')
@@ -51,7 +50,7 @@
 
   // Get stimuli options
   const stimuliItems = $derived(
-    getStimuliOptions().map(option => ({
+    getStimuliOptions(engine).map(option => ({
       key: option.value,
       label: option.label,
       checked: selectedStimuliIds.has(option.value),
@@ -70,7 +69,7 @@
 
   // Pre-select all stimuli by default
   $effect(() => {
-    const options = getStimuliOptions()
+    const options = getStimuliOptions(engine)
     selectedStimuliIds = new Set(options.map(o => o.value))
   })
 
@@ -102,7 +101,7 @@
           exportFixationsOnly,
           csvOptions
         )
-        addSuccessToast('Single CSV file exported successfully')
+        toastState.addSuccess('Single CSV file exported successfully')
       } else if (exportType === 'individual-csv') {
         downloadBatchZip(
           data,
@@ -111,7 +110,9 @@
           exportFixationsOnly,
           csvOptions
         )
-        addSuccessToast('Individual CSV files exported and zipped successfully')
+        toastState.addSuccess(
+          'Individual CSV files exported and zipped successfully'
+        )
       }
     } catch (error) {
       console.error('Export failed:', error)

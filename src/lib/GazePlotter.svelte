@@ -7,19 +7,18 @@
   import { ContextMenu, contextMenuState } from '$lib/context-menu'
   import type { ParsedData } from '$lib/data/types'
   import { onMount, tick, setContext } from 'svelte'
-
-  // NEW: Import the unified grid instance
-  import { grid } from '$lib/workspace/grid'
+  import {
+    createGazePlotterSession,
+    setGazePlotterSessionContext,
+  } from '$lib/session'
 
   import { clear } from './workspace'
-  import { fileState } from '$lib/file.state.svelte'
-  import { engine } from '$lib/data/engine'
-  import { addSuccessToast } from '$lib/toaster'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
   import type { WorkspaceCommandChain } from '$lib/workspace/commands'
+  import type { GazePlotterSession } from '$lib/session'
 
   interface Props {
-    loadInitialData: () => Promise<ParsedData>
+    loadInitialData: (session: GazePlotterSession) => Promise<ParsedData>
     reinitializeLabel?: string
     onWorkspaceCommandChain?: (command: WorkspaceCommandChain) => void
   }
@@ -32,6 +31,9 @@
     },
   }: Props = $props()
 
+  const session = setGazePlotterSessionContext(createGazePlotterSession())
+  const { fileState, engine, grid, toastState } = session
+
   setContext('reinitializeLabel', reinitializeLabel)
 
   // Snapshot remains a $state rune
@@ -42,10 +44,10 @@
   async function loadData() {
     // Svelte 5 logic: Use class properties for loading states where possible
     // but keep legacy stores if they haven't been migrated to .svelte.ts yet
-    fileState.processing = 'processing'
+      fileState.processing = 'processing'
 
     try {
-      const initialData = await loadInitialData()
+      const initialData = await loadInitialData(session)
 
       // Update global data via Engine (Source of Truth)
       engine.loadDataset(initialData.data)
@@ -78,7 +80,7 @@
 
   const onReinitialize = () => {
     loadData().then(() => {
-      addSuccessToast('Workspace and data returned to the initial state.')
+      toastState.addSuccess('Workspace and data returned to the initial state.')
     })
     // clear() should now handle resetting history/undo-redo
     clear()
@@ -90,6 +92,10 @@
   export function resetLayout() {
     loadData()
     clear()
+  }
+
+  export function getSession() {
+    return session
   }
 
   onMount(() => {

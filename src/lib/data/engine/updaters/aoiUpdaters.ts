@@ -1,11 +1,12 @@
 import { type ExtendedInterpretedDataType } from '$lib/data/types'
-import { engine } from '../DataEngine.svelte'
+import type { DataEngine } from '../DataEngine.svelte'
 import { getAoiRaw } from '../utils/interpreters'
 
 /**
  * Updates multiple AOIs for a stimulus with optional propagation to other stimuli.
  */
 export const updateMultipleAoi = (
+  engine: DataEngine,
   aois: ExtendedInterpretedDataType[],
   stimulusId: number,
   applyTo: 'this_stimulus' | 'all_by_original_name' | 'all_by_displayed_name'
@@ -83,6 +84,7 @@ export const updateMultipleAoi = (
  * Updates hidden AOIs for a stimulus.
  */
 export const updateHiddenAois = (
+  engine: DataEngine,
   stimulusId: number,
   hiddenAois: number[]
 ): void => {
@@ -93,6 +95,7 @@ export const updateHiddenAois = (
  * Updates hidden AOIs for a stimulus and propagates the status.
  */
 export const updateHiddenAoisWithPropagation = (
+  engine: DataEngine,
   stimulusId: number,
   hiddenAois: number[],
   applyTo: 'this_stimulus' | 'all_by_original_name' | 'all_by_displayed_name'

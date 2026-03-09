@@ -1,9 +1,10 @@
-import { engine } from '../DataEngine.svelte'
+import type { DataEngine } from '../DataEngine.svelte'
 
 /**
  * Returns the visibility of the AOI for the given stimulus and participant.
  */
 export const getAoiVisibility = (
+  engine: DataEngine,
   stimulusId: number,
   aoiId: number,
   participantId: number | null = null
@@ -92,7 +93,10 @@ export const getAoiVisibility = (
 /**
  * Returns boolean value indicating if the AOI has any visibility set for the given stimulus.
  */
-export const hasStimulusAoiVisibility = (stimulusId: number): boolean => {
+export const hasStimulusAoiVisibility = (
+  engine: DataEngine,
+  stimulusId: number
+): boolean => {
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
   const prefix = `${stimulusId}_`

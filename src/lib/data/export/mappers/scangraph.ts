@@ -1,6 +1,7 @@
 import { type DataType } from '$lib/data/types'
 import { type BinaryBufferReader } from '$lib/data/types'
-import { getAoiRaw, engine, getSegmentAoiIds } from '$lib/data/engine'
+import { AoiGroupReader } from '$lib/data/binary'
+import { getAoiRaw } from '$lib/data/engine/utils/interpreters'
 
 /**
  * Generates a ScanGraph TXT string based on the Similarity Measurements format.
@@ -9,31 +10,30 @@ import { getAoiRaw, engine, getSegmentAoiIds } from '$lib/data/engine'
 export async function generateScanGraph(
   metadata: Omit<DataType, 'segments'>,
   reader: BinaryBufferReader,
+  aoiGroupReader: AoiGroupReader,
   stimulusId: number
 ): Promise<string> {
   let result = ''
   const aoiKey: string[] = []
   const alreadyUsedAoiIds: number[] = []
+  const aoiBuffer = new Uint16Array(32)
 
   const numParticipants = metadata.participants.data.length
-  const aoiGroupReader = engine.getAoiGroupReader()
-
   for (let i = 0; i < numParticipants; i++) {
     const participantName = metadata.participants.data[i][0]
     result += participantName + '\t'
 
     reader.forEachSegment(stimulusId, i, (segmentIndex: number) => {
-      const aoiIds = getSegmentAoiIds(
+      const aoiCount = aoiGroupReader.getSegmentAoisIntoUniqueTyped(
+        segmentIndex,
         stimulusId,
-        i,
-        segmentIndex - reader.getSegmentRange(stimulusId, i).startIndex
+        aoiBuffer
       )
 
-      if (aoiIds.length === 0) {
+      if (aoiCount === 0) {
         result += '#'
       } else {
-        const rawId = aoiIds[0]
-        const interpretedAoi = getAoiRaw(stimulusId, rawId, metadata)
+        const interpretedAoi = getAoiRaw(stimulusId, aoiBuffer[0], metadata)
         const letter = String.fromCharCode(65 + interpretedAoi.id)
         result += letter
 

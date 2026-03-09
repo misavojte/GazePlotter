@@ -170,5 +170,3 @@ export class DataEngine {
     return this._binary
   }
 }
-
-export const engine = new DataEngine()

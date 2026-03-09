@@ -8,13 +8,11 @@
     ModalButtons,
     IntroductoryParagraph,
   } from '$lib/modals'
-  import { modalState } from '$lib/modals'
+  import { getGazePlotterSession } from '$lib/session'
   import {
     getAllAois,
     getHiddenAois,
-    engine,
   } from '$lib/data/engine'
-  import { addErrorToast, addInfoToast } from '$lib/toaster'
   import type { ExtendedInterpretedDataType } from '$lib/data/types'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'
@@ -36,6 +34,7 @@
     source,
     onWorkspaceCommand,
   }: Props = $props()
+  const { engine, modalState, toastState } = getGazePlotterSession()
 
   const isValidMatch = (displayedName: string): boolean =>
     typeof displayedName === 'string' &&
@@ -168,22 +167,22 @@
       color: aoi.color,
     }))
 
-  const rawAois = getAllAois(parseInt(selectedStimulus))
+  const rawAois = getAllAois(engine, parseInt(selectedStimulus))
   let aoiObjects: ExtendedInterpretedDataType[] = $state(deepCopyAois(rawAois))
   let lastSelectedStimulus = $state(selectedStimulus)
 
-  const initialHidden = getHiddenAois(parseInt(selectedStimulus))
+  const initialHidden = getHiddenAois(engine, parseInt(selectedStimulus))
   let hiddenAoiIds: number[] = $state([...initialHidden])
   let lastHiddenSnapshot = $state([...initialHidden])
   const hiddenSet = $derived(new Set(hiddenAoiIds))
 
   $effect(() => {
     if (selectedStimulus !== lastSelectedStimulus) {
-      const rawAois = getAllAois(parseInt(selectedStimulus))
+      const rawAois = getAllAois(engine, parseInt(selectedStimulus))
       aoiObjects = deepCopyAois(rawAois)
       lastSelectedStimulus = selectedStimulus
 
-      const nextHidden = getHiddenAois(parseInt(selectedStimulus))
+      const nextHidden = getHiddenAois(engine, parseInt(selectedStimulus))
       hiddenAoiIds = [...nextHidden]
       lastHiddenSnapshot = [...nextHidden]
     }
@@ -336,13 +335,15 @@
       lastHiddenSnapshot = [...hiddenUniqueSorted]
 
       if (handlerType !== 'this_stimulus') {
-        addInfoToast('Ordering of AOIs is not updated for other stimuli')
+        toastState.addInfo('Ordering of AOIs is not updated for other stimuli')
       }
 
       modalState.close()
     } catch (e) {
       console.error(e)
-      addErrorToast('Error while updating AOIs. See console for more details.')
+      toastState.addError(
+        'Error while updating AOIs. See console for more details.'
+      )
     }
   }
 
@@ -350,7 +351,7 @@
     modalState.close()
   }
 
-  const stimuliOption = getStimuliOptions()
+  const stimuliOption = getStimuliOptions(engine)
 </script>
 
 <div class="content">

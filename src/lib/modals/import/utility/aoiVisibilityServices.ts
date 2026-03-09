@@ -4,6 +4,7 @@
  * @module services/aoiVisibilityServices
  */
 import { getStimulusHighestEndTime } from '$lib/data/engine'
+import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import type { UpdateAoiVisibilityCommand } from '$lib/workspace/commands'
 
 /**
@@ -14,6 +15,7 @@ import type { UpdateAoiVisibilityCommand } from '$lib/workspace/commands'
  * @param onWorkspaceCommand callback function to emit command for AOI visibility update
  */
 export const processAoiVisibility = async (
+  engine: DataEngine,
   stimulusId: number,
   participantId: number | null,
   files: FileList,
@@ -43,7 +45,7 @@ export const processAoiVisibility = async (
 
     data = processTobii(stimulusId, participantId, tobiiJson)
   } else {
-    data = processSmi(stimulusId, participantId, xml)
+    data = processSmi(engine, stimulusId, participantId, xml)
   }
 
   // Emit command instead of directly calling store
@@ -64,6 +66,7 @@ export const processAoiVisibility = async (
  * @returns data for the processAoiVisibility callback function
  */
 export const processSmi = (
+  engine: DataEngine,
   stimulusId: number,
   participantId: number | null,
   xml: Document
@@ -80,7 +83,11 @@ export const processSmi = (
     const aoiName = aoiNodes[i].querySelector('Name')?.innerHTML
     if (aoiName === undefined) continue
     const aoiKeyFrames = aoiNodes[i].getElementsByTagName('KeyFrame')
-    const aoiVisibilityArr = processSmiKeyFrames(aoiKeyFrames, stimulusId)
+    const aoiVisibilityArr = processSmiKeyFrames(
+      engine,
+      aoiKeyFrames,
+      stimulusId
+    )
     multipleAoiNames.push(aoiName)
     multipleAoiVisibilityArrays.push(aoiVisibilityArr)
   }
@@ -99,6 +106,7 @@ export const processSmi = (
  * @returns an array of timestamps when the AOI is visible
  */
 export const processSmiKeyFrames = (
+  engine: DataEngine,
   keyFrames: HTMLCollectionOf<Element>,
   stimulusId: number
 ): number[] => {
@@ -123,7 +131,7 @@ export const processSmiKeyFrames = (
       isAoiCurrentlyVisible = false
     }
     if (visibility === 'true' && i === keyFrames.length - 1) {
-      const timestamp = getStimulusHighestEndTime(stimulusId)
+      const timestamp = getStimulusHighestEndTime(engine, stimulusId)
       visibilityArr.push(timestamp)
       isAoiCurrentlyVisible = false
     }

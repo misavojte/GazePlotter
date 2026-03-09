@@ -1,16 +1,11 @@
 <script lang="ts">
   import SectionHeader from '$lib/modals/shared/components/SectionHeader.svelte'
   import ModalButtons from '$lib/modals/shared/components/ModalButtons.svelte'
-  import { fileState } from '$lib/file.state.svelte'
+  import { getGazePlotterSession } from '$lib/session'
   import { formatDuration } from '$lib/shared/utils/timeUtils'
   import { formatFileSize } from '$lib/shared/utils/fileUtils'
-  import {
-    engine,
-    getNumberOfStimuli,
-    getNumberOfParticipants,
-  } from '$lib/data/engine'
   import { onMount, onDestroy } from 'svelte'
-  import { modalState } from '$lib/modals'
+  const { fileState, engine, modalState } = getGazePlotterSession()
   const fileMetadata = $derived(fileState.metadata)
   const currentFileInput = $derived(fileState.input)
 
@@ -258,8 +253,17 @@
   // Data overview calculations
   const dataOverview = $derived.by(() => {
     try {
-      const numberOfStimuli = getNumberOfStimuli()
-      const numberOfParticipants = getNumberOfParticipants()
+      const meta = engine.metadata
+      if (!meta) {
+        return {
+          numberOfStimuli: 0,
+          numberOfParticipants: 0,
+          aoiCounts: { perStimulus: [], total: 0 },
+        }
+      }
+
+      const numberOfStimuli = meta.stimuli.data.length
+      const numberOfParticipants = meta.participants.data.length
       const aoiCounts = getAoiCounts()
 
       return {

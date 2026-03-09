@@ -2,7 +2,9 @@
   import { flip } from 'svelte/animate'
   import { fly } from 'svelte/transition'
   import type { ToastFillingType } from './types'
-  import { toastState, removeToast } from './toastState.svelte'
+  import { getToastState } from '$lib/session'
+
+  const toastState = getToastState()
 
   const timers = new Map<number, ReturnType<typeof setTimeout>>()
 
@@ -17,7 +19,7 @@
   const setRemovalTimer = (toast: ToastFillingType) => {
     if (!toast.duration || timers.has(toast.id)) return
     const timer = setTimeout(() => {
-      removeToast(toast.id)
+      toastState.remove(toast.id)
       timers.delete(toast.id)
     }, toast.duration)
     timers.set(toast.id, timer)
@@ -47,7 +49,7 @@
 
   const handleManualClose = (id: number) => {
     clearTimer(id)
-    removeToast(id)
+    toastState.remove(id)
   }
 </script>
 

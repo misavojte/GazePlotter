@@ -2,7 +2,7 @@ import {
   type ParticipantsGroup,
   type BaseInterpretedDataType,
 } from '$lib/data/types'
-import { engine } from '../DataEngine.svelte'
+import type { DataEngine } from '../DataEngine.svelte'
 import {
   getParticipant,
   getAllParticipants,
@@ -11,20 +11,22 @@ import {
 import { getNumberOfSegments } from './segmentSelectors'
 
 export const getNonEmptyParticipants = (
+  engine: DataEngine,
   stimulusId: number
 ): BaseInterpretedDataType[] => {
-  const ids = getParticipantOrderVector()
+  const ids = getParticipantOrderVector(engine)
   const result: BaseInterpretedDataType[] = []
   for (let i = 0; i < ids.length; i++) {
     const id = ids[i]
-    if (getNumberOfSegments(stimulusId, id) > 0) {
-      result.push(getParticipant(id))
+    if (getNumberOfSegments(engine, stimulusId, id) > 0) {
+      result.push(getParticipant(engine, id))
     }
   }
   return result
 }
 
 export const getParticipantsGroups = (
+  engine: DataEngine,
   isDefault = false,
   stimulusId = 0
 ): ParticipantsGroup[] => {
@@ -36,9 +38,9 @@ export const getParticipantsGroups = (
     result.push({
       id: -1,
       name: 'All participants',
-      participantsIds: getParticipantOrderVector(),
+      participantsIds: getParticipantOrderVector(engine),
     })
-    const nonEmpty = getNonEmptyParticipants(stimulusId)
+    const nonEmpty = getNonEmptyParticipants(engine, stimulusId)
     const nonEmptyIds = new Array(nonEmpty.length)
     for (let i = 0; i < nonEmpty.length; i++) {
       nonEmptyIds[i] = nonEmpty[i].id
@@ -57,8 +59,11 @@ export const getParticipantsGroups = (
   return result
 }
 
-export const getParticipantsGroup = (groupId: number): ParticipantsGroup => {
-  const groups = getParticipantsGroups()
+export const getParticipantsGroup = (
+  engine: DataEngine,
+  groupId: number
+): ParticipantsGroup => {
+  const groups = getParticipantsGroups(engine)
   for (let i = 0; i < groups.length; i++) {
     if (groups[i].id === groupId) return groups[i]
   }
@@ -69,35 +74,40 @@ export const getParticipantsGroup = (groupId: number): ParticipantsGroup => {
  * Get all participants of given group ID.
  */
 export const getParticipants = (
+  engine: DataEngine,
   groupId = -1,
   stimulusId = 0
 ): BaseInterpretedDataType[] => {
-  if (groupId === -1) return getAllParticipants()
-  if (groupId === -2) return getNonEmptyParticipants(stimulusId)
+  if (groupId === -1) return getAllParticipants(engine)
+  if (groupId === -2) return getNonEmptyParticipants(engine, stimulusId)
 
-  const group = getParticipantsGroup(groupId)
-  const ids = getParticipantOrderVector()
+  const group = getParticipantsGroup(engine, groupId)
+  const ids = getParticipantOrderVector(engine)
   const result: BaseInterpretedDataType[] = []
   const groupSet = new Set(group.participantsIds)
 
   for (let i = 0; i < ids.length; i++) {
     const id = ids[i]
     if (groupSet.has(id)) {
-      result.push(getParticipant(id))
+      result.push(getParticipant(engine, id))
     }
   }
   return result
 }
 
-export const getParticipantsIds = (groupId = -1, stimulusId = 0): number[] => {
-  if (groupId === -1) return getParticipantOrderVector()
+export const getParticipantsIds = (
+  engine: DataEngine,
+  groupId = -1,
+  stimulusId = 0
+): number[] => {
+  if (groupId === -1) return getParticipantOrderVector(engine)
   if (groupId === -2) {
-    const nonEmpty = getNonEmptyParticipants(stimulusId)
+    const nonEmpty = getNonEmptyParticipants(engine, stimulusId)
     const result = new Array(nonEmpty.length)
     for (let i = 0; i < nonEmpty.length; i++) {
       result[i] = nonEmpty[i].id
     }
     return result
   }
-  return getParticipantsGroup(groupId).participantsIds
+  return getParticipantsGroup(engine, groupId).participantsIds
 }

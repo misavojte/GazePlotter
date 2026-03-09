@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { getParticipants, engine } from '$lib/data/engine'
+  import { getParticipants } from '$lib/data/engine'
+  import { getGazePlotterSession } from '$lib/session'
   import { onDestroy, untrack } from 'svelte'
   import { ScarfPlotFigure, ScarfPlotHeader } from '$lib/plots/scarf/components'
   import { BasePlot } from '$lib/plots/shared/components'
@@ -23,6 +24,7 @@
 
   // Rename incoming settings prop to realSettings for clarity
   let { settings: realSettings, onWorkspaceCommand }: Props = $props()
+  const { engine } = getGazePlotterSession()
 
   // --- PREVIEW SYNC STATE ---
   const timelineSync = new PreviewSync(() => realSettings.timeline)
@@ -65,7 +67,7 @@
   const highlights = $derived(realSettings.highlights ?? [])
 
   const currentParticipantIds = $derived.by(() =>
-    getParticipants(currentGroupId, currentStimulusId).map(p => p.id)
+    getParticipants(engine, currentGroupId, currentStimulusId).map(p => p.id)
   )
 
   const scarfData = $derived.by(() => {
@@ -74,6 +76,7 @@
     const meta = engine.metadata
     if (!meta) return null
     return transformDataToScarfPlot(
+      engine,
       currentStimulusId,
       currentParticipantIds,
       effectiveSettings,
@@ -109,7 +112,7 @@
 
   function hideTooltipAndHighlight() {
     clearTimeout(timeout)
-    tooltipScarfService(null)
+    tooltipScarfService(engine, null)
   }
 
   function handleLegendClick(identifier: string) {
@@ -232,7 +235,7 @@
     y: number
   }) {
     clearTimeout(timeout)
-    tooltipScarfService({
+    tooltipScarfService(engine, {
       x: event.x,
       y: event.y,
       width: SCARF_LAYOUT.TOOLTIP_WIDTH,
@@ -244,7 +247,7 @@
 
   function handleTooltipDeactivation() {
     clearTimeout(timeout)
-    tooltipScarfService(null)
+    tooltipScarfService(engine, null)
   }
 </script>
 

@@ -1,6 +1,4 @@
 import { ModalContentTobiiParsingInput } from '$lib/modals'
-import { modalState } from '$lib/modals'
-import { addErrorToast, addInfoToast, addSuccessToast } from '$lib/toaster'
 import type { DataType, ParsedData } from '$lib/data/types'
 import { processJsonFileWithGrid } from './workspace/parser'
 import type { EyeSettingsType } from '$lib/data/ingest/types'
@@ -11,6 +9,13 @@ import type {
 import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace'
 import { formatDuration } from '$lib/shared/utils/timeUtils'
 import { formatFileSize } from '$lib/shared/utils/fileUtils'
+import type { ModalState } from '$lib/modals/modal.state.svelte'
+import type { ToastState } from '$lib/toaster/toastState.svelte'
+
+type IngestUiServices = {
+  modalState: Pick<ModalState, 'open' | 'close'>
+  toastState: Pick<ToastState, 'addError' | 'addInfo' | 'addSuccess'>
+}
 
 /**
  * Formats file information for display in success messages
@@ -56,9 +61,11 @@ export class EyeWorkerService {
   fileSizes: number[] = [] // in bytes
   onData: (data: ParsedData) => void
   onFail: (failureMetadata: FileMetadataFailureType) => void
+  ui: IngestUiServices
   constructor(
     onData: (data: ParsedData) => void,
-    onFail: (failureMetadata: FileMetadataFailureType) => void
+    onFail: (failureMetadata: FileMetadataFailureType) => void,
+    ui: IngestUiServices
   ) {
     this.worker = new Worker(
       new URL(
@@ -73,6 +80,7 @@ export class EyeWorkerService {
     this.worker.onerror = (event: ErrorEvent) => this.handleError(event.error)
     this.onData = onData
     this.onFail = onFail
+    this.ui = ui
   }
 
   /**
@@ -189,7 +197,7 @@ export class EyeWorkerService {
           Date.now() - this.parsingAnchorTime + this.parsingSumTime
         )
         const formattedFileInfo = formatFileInfo([file.name], [file.size])
-        addSuccessToast(
+        this.ui.toastState.addSuccess(
           `${formattedFileInfo} workspace loaded successfully in ${timeString}`
         )
         this.onData({
@@ -239,7 +247,9 @@ export class EyeWorkerService {
     }
     const timeString = formatDuration(parseDuration)
     const formattedFileInfo = formatFileInfo(this.fileNames, this.fileSizes)
-    addSuccessToast(`${formattedFileInfo} parsed successfully in ${timeString}`)
+    this.ui.toastState.addSuccess(
+      `${formattedFileInfo} parsed successfully in ${timeString}`
+    )
     this.onData({
       data: data,
       fileMetadata: fileMetadata,
@@ -280,7 +290,7 @@ export class EyeWorkerService {
    */
   protected handleError(error: Error): void {
     const message = error?.message ?? 'Unknown error'
-    addErrorToast('Could not process the file: ' + message)
+    this.ui.toastState.addError('Could not process the file: ' + message)
     console.error('EyeWorkerService.handleError() - error:', error)
 
     // Calculate partial parsing duration if we have timing information
@@ -326,10 +336,10 @@ export class EyeWorkerService {
       .then(userInput => {
         this.parsingAnchorTime = Date.now()
         this.worker.postMessage({ type: 'user-input', data: userInput })
-        modalState.close()
+        this.ui.modalState.close()
       })
       .catch(() => {
-        addInfoToast(
+        this.ui.toastState.addInfo(
           'User input was not provided. The file will be processed as Tobii without events'
         )
         this.worker.postMessage({ type: 'user-input', data: '' })
@@ -344,7 +354,7 @@ export class EyeWorkerService {
    */
   requestUserInput(): Promise<string> {
     return new Promise((resolve, reject) => {
-      modalState.open(
+      this.ui.modalState.open(
         ModalContentTobiiParsingInput as any,
         'Tobii Parsing Input',
         {

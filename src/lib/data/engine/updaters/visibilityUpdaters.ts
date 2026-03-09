@@ -1,9 +1,10 @@
-import { engine } from '../DataEngine.svelte'
+import type { DataEngine } from '../DataEngine.svelte'
 
 /**
  * Updates the visibility status of multiple AOIs.
  */
 export const updateMultipleAoiVisibility = (
+  engine: DataEngine,
   stimulusId: number,
   aoiNames: string[],
   visibilityArr: number[][],

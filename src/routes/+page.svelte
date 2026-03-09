@@ -4,17 +4,27 @@
   import { EyeWorkerService } from '$lib/data/ingest/controller'
   import type { ParsedData } from '$lib/data/types'
   import { browser } from '$app/environment'
+  import type { GazePlotterSession } from '$lib/session'
 
   const pathToData = `${base}/data/demo.json?v=2`
+  let gazePlotterRef = $state<{
+    getSession: () => GazePlotterSession
+  } | null>(null)
 
-  async function loadInitialData(): Promise<ParsedData> {
+  async function loadInitialData(
+    session: GazePlotterSession
+  ): Promise<ParsedData> {
     if (!pathToData || !browser)
       return Promise.reject('No path to data or not in browser')
 
     return new Promise((resolve, reject) => {
       const workerService = new EyeWorkerService(
         data => resolve(data),
-        () => reject(new Error('Failed to load initial data'))
+        () => reject(new Error('Failed to load initial data')),
+        {
+          modalState: session.modalState,
+          toastState: session.toastState,
+        }
       )
 
       // Fetch the data and create a File object
@@ -58,7 +68,7 @@
     </p>
   </section>
   <section>
-    <GazePlotter {loadInitialData} />
+    <GazePlotter bind:this={gazePlotterRef} {loadInitialData} />
   </section>
   <section class="main-section" id="about">
     <div class="about-grid">

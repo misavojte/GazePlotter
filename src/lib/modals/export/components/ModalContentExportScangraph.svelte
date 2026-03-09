@@ -3,17 +3,17 @@
   import { SectionHeader, ModalButtons } from '$lib/modals'
   import { downloadScanGraph } from '$lib/data/export'
   import { getStimuliOptions } from '$lib/plots/shared'
-  import { addSuccessToast } from '$lib/toaster'
-  import { modalState } from '$lib/modals'
+  import { getGazePlotterSession } from '$lib/session'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'
 
+  const { engine, toastState, modalState } = getGazePlotterSession()
   // Export settings state
   let fileName = $state('GazePlotter-ScanGraph')
   let stimulusId = $state('0')
   let isExporting = $state(false)
 
   // Get stimulus options
-  const stimulusOptions = getStimuliOptions()
+  const stimulusOptions = getStimuliOptions(engine)
 
   // Validation
   const canExport = $derived(fileName.trim().length > 0)
@@ -28,9 +28,9 @@
       // Small delay to show the loading state
       await new Promise(resolve => setTimeout(resolve, 100))
 
-      downloadScanGraph(parseInt(stimulusId), fileName.trim())
+      downloadScanGraph(engine, parseInt(stimulusId), fileName.trim())
 
-      addSuccessToast('ScanGraph file exported successfully')
+      toastState.addSuccess('ScanGraph file exported successfully')
     } catch (error) {
       console.error('Export failed:', error)
       // You might want to add an error toast here

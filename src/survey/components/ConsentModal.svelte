@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { modalState } from '$lib/modals'
+  import { getModalState } from '$lib/session'
   import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
 
   interface Props {
@@ -8,6 +8,7 @@
   }
 
   let { onConsent, sessionId }: Props = $props()
+  const modalState = getModalState()
 
   const CONSENT_WITHDRAW_EMAIL = 'mail@vojtechovska.com'
   const DECLINE_REDIRECT_URL = 'https://www.eyetracking.upol.cz'

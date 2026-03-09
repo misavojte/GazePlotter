@@ -8,6 +8,7 @@
   } from '$lib/shared/components'
   import { SectionHeader, ModalButtons } from '$lib/modals'
   import { getStimuliOptions } from '$lib/plots/shared'
+  import { getGazePlotterSession } from '$lib/session'
   import {
     getParticipantsGroups,
     getParticipantsIds,
@@ -18,8 +19,6 @@
   import type { ParticipantsGroup } from '$lib/data/types'
   import { collectParticipantBarMetrics } from '$lib/plots/bar/core/collector'
   import type { ParticipantBarMetrics } from '$lib/plots/bar/types'
-  import { addSuccessToast } from '$lib/toaster'
-  import { modalState } from '$lib/modals'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'
   import {
     type DecimalSeparator,
@@ -33,6 +32,7 @@
   }
 
   let { settings }: Props = $props()
+  const { toastState, modalState, engine } = getGazePlotterSession()
 
   // Export settings state
   let fileName = $state('GazePlotter-AggregatedData')
@@ -176,14 +176,14 @@
 
   // Get options for dropdowns and checkboxes
   const stimuliItems = $derived(
-    getStimuliOptions().map(option => ({
+    getStimuliOptions(engine).map(option => ({
       key: option.value,
       label: option.label,
       checked: selectedStimuliIds.has(option.value),
     }))
   )
   const groupOptions = $derived(
-    getParticipantsGroups(true).map(group => ({
+    getParticipantsGroups(engine, true).map(group => ({
       label: group.name,
       value: group.id.toString(),
     }))
@@ -224,7 +224,7 @@
       await new Promise(resolve => setTimeout(resolve, 100))
       const groupId = parseInt(selectedGroupId)
       const stimuliToProcess = Array.from(selectedStimuliIds).map(id =>
-        getStimulus(parseInt(id))
+        getStimulus(engine, parseInt(id))
       )
 
       const csvRows = [
@@ -246,20 +246,20 @@
       )
 
       for (const stimulus of stimuliToProcess) {
-        const participantIds = getParticipantsIds(groupId, stimulus.id)
-        const aois = getAllAois(stimulus.id)
+        const participantIds = getParticipantsIds(engine, groupId, stimulus.id)
+        const aois = getAllAois(engine, stimulus.id)
 
         // Collect all metrics for all participants in one pass
         const participantMetrics = collectParticipantBarMetrics(
+          engine,
           stimulus.id,
           participantIds,
           aois
         )
-
         // Generate CSV rows for each participant, then each metric, then each AOI
         for (let pIndex = 0; pIndex < participantIds.length; pIndex++) {
           const participantId = participantIds[pIndex]
-          const participant = getParticipant(participantId)
+          const participant = getParticipant(engine, participantId)
           const participantFullMetrics = participantMetrics[pIndex]
 
           for (const config of activeMetrics) {
@@ -320,7 +320,7 @@
       const totalRows = csvRows.length - 1 // Subtract header row
       const metricsCount = activeMetrics.length
       const stimuliCount = stimuliToProcess.length
-      addSuccessToast(
+      toastState.addSuccess(
         `Exported ${totalRows.toLocaleString()} data points (${metricsCount} metrics across ${stimuliCount} ${stimuliCount === 1 ? 'stimulus' : 'stimuli'})`
       )
     } finally {

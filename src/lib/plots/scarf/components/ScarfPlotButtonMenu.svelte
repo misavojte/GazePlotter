@@ -1,6 +1,6 @@
 <script lang="ts">
   import { GeneralButtonMenu as MenuButton } from '$lib/shared/components'
-  import { modalState } from '$lib/modals'
+  import { getModalState } from '$lib/session'
   import Download from 'lucide-svelte/icons/download'
   import Settings from 'lucide-svelte/icons/settings-2'
   import Users from 'lucide-svelte/icons/users'
@@ -27,6 +27,7 @@
   }
 
   let { settings, onWorkspaceCommand }: Props = $props()
+  const modalState = getModalState()
 
   const source = createCommandSourcePlotPattern(
     untrack(() => settings),
