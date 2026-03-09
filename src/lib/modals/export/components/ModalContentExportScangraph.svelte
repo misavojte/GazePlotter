@@ -1,12 +1,11 @@
 <script lang="ts">
   import { GeneralInputText, GeneralSelect } from '$lib/shared/components'
   import { SectionHeader, ModalButtons } from '$lib/modals'
-  import { downloadScanGraph } from '$lib/data/export'
   import { getStimuliOptions } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'
 
-  const { engine, toastState, modalState } = getGazePlotterSession()
+  const { engine, exportService, modalState } = getGazePlotterSession()
   // Export settings state
   let fileName = $state('GazePlotter-ScanGraph')
   let stimulusId = $state('0')
@@ -27,13 +26,12 @@
     try {
       // Small delay to show the loading state
       await new Promise(resolve => setTimeout(resolve, 100))
-
-      downloadScanGraph(engine, parseInt(stimulusId), fileName.trim())
-
-      toastState.addSuccess('ScanGraph file exported successfully')
+      await exportService.exportScangraph({
+        fileName,
+        stimulusId: parseInt(stimulusId),
+      })
     } catch (error) {
       console.error('Export failed:', error)
-      // You might want to add an error toast here
     } finally {
       isExporting = false
     }

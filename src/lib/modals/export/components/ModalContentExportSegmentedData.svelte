@@ -5,13 +5,12 @@
     GeneralInputGroup,
   } from '$lib/shared/components'
   import { SectionHeader, ModalButtons } from '$lib/modals'
-  import { downloadUnifiedCsv, downloadBatchZip } from '$lib/data/export'
+  import type { DecimalSeparator } from '$lib/data/export'
   import { getGazePlotterSession } from '$lib/session'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'
-  import type { DecimalSeparator } from '$lib/data/export/encoders/csv'
   import { getStimuliOptions } from '$lib/plots/shared/selectOptionsGetters'
 
-  const { engine, toastState, modalState } = getGazePlotterSession()
+  const { engine, exportService, modalState } = getGazePlotterSession()
   // Export settings state
   let fileName = $state('GazePlotter-SegmentedData')
   let exportType = $state('csv')
@@ -82,41 +81,18 @@
     try {
       // Small delay to show the loading state
       await new Promise(resolve => setTimeout(resolve, 100))
-
-      const meta = engine.metadata
-      const segments = engine.segments
-      if (!meta || !segments)
-        throw new Error('Data engine metadata or segments not available')
-      const data = { ...meta, segments }
-      const csvOptions = {
-        delimiter,
-        decimalSeparator,
-      }
-
-      if (exportType === 'csv') {
-        downloadUnifiedCsv(
-          data,
-          fileName.trim(),
-          selectedStimuliIds,
-          exportFixationsOnly,
-          csvOptions
-        )
-        toastState.addSuccess('Single CSV file exported successfully')
-      } else if (exportType === 'individual-csv') {
-        downloadBatchZip(
-          data,
-          fileName.trim(),
-          selectedStimuliIds,
-          exportFixationsOnly,
-          csvOptions
-        )
-        toastState.addSuccess(
-          'Individual CSV files exported and zipped successfully'
-        )
-      }
+      await exportService.exportSegmentedData({
+        fileName,
+        exportType: exportType as 'csv' | 'individual-csv',
+        stimulusIds: selectedStimuliIds,
+        filterFixations: exportFixationsOnly,
+        csvOptions: {
+          delimiter,
+          decimalSeparator,
+        },
+      })
     } catch (error) {
       console.error('Export failed:', error)
-      // You might want to add an error toast here
     } finally {
       isExporting = false
     }

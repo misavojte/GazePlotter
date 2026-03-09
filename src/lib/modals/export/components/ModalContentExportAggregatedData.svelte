@@ -9,22 +9,12 @@
   import { SectionHeader, ModalButtons } from '$lib/modals'
   import { getStimuliOptions } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'
-  import {
-    getParticipantsGroups,
-    getParticipantsIds,
-    getAllAois,
-    getParticipant,
-    getStimulus,
-  } from '$lib/data/engine'
-  import type { ParticipantsGroup } from '$lib/data/types'
-  import { collectParticipantBarMetrics } from '$lib/plots/bar/core/collector'
-  import type { ParticipantBarMetrics } from '$lib/plots/bar/types'
+  import { getParticipantsGroups } from '$lib/data/engine'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'
   import {
+    AGGREGATED_METRIC_CONFIG,
+    type AggregatedMetricKey,
     type DecimalSeparator,
-    escapeCsvField,
-    type CsvFormatOptions,
-    formatNumberForCsv,
   } from '$lib/data/export'
 
   interface Props {
@@ -32,9 +22,8 @@
   }
 
   let { settings }: Props = $props()
-  const { toastState, modalState, engine } = getGazePlotterSession()
+  const { exportService, modalState, engine } = getGazePlotterSession()
 
-  // Export settings state
   let fileName = $state('GazePlotter-AggregatedData')
   let selectedGroupId = $state(
     untrack(() => settings?.groupId.toString() ?? '-1')
@@ -56,107 +45,12 @@
     { value: ',', label: 'Comma (,)' },
   ]
 
-  // Metrics configuration and state
-  // Grouped logically: Time metrics → First fixation → Fixations → Visits
-  const metricsConfig = [
-    {
-      key: 'absoluteDwellTime' as const,
-      label: 'Absolute Dwell Time',
-      sublabel: 'Total time spent in each AOI (ms)',
-      csvName: 'Absolute_Dwell_Time',
-      metricKey: 'dwellTime' as const,
-    },
-    {
-      key: 'relativeDwellTime' as const,
-      label: 'Relative Dwell Time (%)',
-      sublabel: 'Dwell time as percentage of total viewing time',
-      csvName: 'Relative_Dwell_Time',
-      metricKey: 'dwellTime' as const,
-      processFunction: (
-        _values: any,
-        participantData?: ParticipantBarMetrics,
-        aoiIndex?: number
-      ) => {
-        // Calculate as percentage of total viewing time
-        // Total time is stored in the last index (Any_Fixation)
-        if (!participantData || aoiIndex === undefined) return 0
-        const dwellTime = participantData.dwellTime[aoiIndex]
-        const totalTime =
-          participantData.dwellTime[participantData.dwellTime.length - 1]
-        return totalTime > 0 ? (dwellTime / totalTime) * 100 : 0
-      },
-    },
-    {
-      key: 'timeToFirstFixation' as const,
-      label: 'Time to First Fixation',
-      sublabel: 'Time until first fixation on each AOI (-1 if never fixated)',
-      csvName: 'Time_To_First_Fixation',
-      metricKey: 'ttff' as const,
-    },
-    {
-      key: 'firstFixationDuration' as const,
-      label: 'First Fixation Duration',
-      sublabel:
-        'Duration of the first fixation on each AOI (-1 if never fixated)',
-      csvName: 'First_Fixation_Duration',
-      metricKey: 'firstFixationDuration' as const,
-    },
-    {
-      key: 'fixationCount' as const,
-      label: 'Fixation Count',
-      sublabel: 'Number of fixations on each AOI',
-      csvName: 'Fixation_Count',
-      metricKey: 'fixationCount' as const,
-    },
-    {
-      key: 'meanFixationDuration' as const,
-      label: 'Mean Fixation Duration',
-      sublabel: 'Average duration of fixations on each AOI',
-      csvName: 'Mean_Fixation_Duration',
-      metricKey: 'avgFixationDuration' as const,
-      processFunction: (
-        values: number[],
-        _participantData?: ParticipantBarMetrics,
-        _aoiIndex?: number
-      ) =>
-        values.length === 0
-          ? -1
-          : values.reduce((sum, val) => sum + val, 0) / values.length,
-    },
-    {
-      key: 'visitCount' as const,
-      label: 'Visit Count',
-      sublabel: 'Number of distinct visits to each AOI',
-      csvName: 'Visit_Count',
-      metricKey: 'entryCount' as const,
-    },
-    {
-      key: 'meanVisitDuration' as const,
-      label: 'Mean Visit Duration',
-      sublabel: 'Average duration of visits to each AOI',
-      csvName: 'Mean_Visit_Duration',
-      metricKey: 'dwellDurations' as const,
-      processFunction: (
-        values: number[],
-        _participantData?: ParticipantBarMetrics,
-        _aoiIndex?: number
-      ) =>
-        values.length === 0
-          ? -1
-          : values.reduce((sum, val) => sum + val, 0) / values.length,
-    },
-  ] as const
-
-  type MetricKey = (typeof metricsConfig)[number]['key']
-
-  // Metrics selection state
   let selectedMetrics = $state(
-    new Set<MetricKey>(metricsConfig.map(m => m.key))
+    new Set<AggregatedMetricKey>(AGGREGATED_METRIC_CONFIG.map(m => m.key))
   )
 
-  // Create metrics items for the group component
   const metricsItems = $derived(
-    metricsConfig.map(config => ({
+    AGGREGATED_METRIC_CONFIG.map(config => ({
       key: config.key,
       label: config.label,
       sublabel: config.sublabel,
@@ -164,17 +58,15 @@
     }))
   )
 
-  // Handle metric selection changes
   function handleMetricChange(key: string, checked: boolean) {
     if (checked) {
-      selectedMetrics.add(key as MetricKey)
+      selectedMetrics.add(key as AggregatedMetricKey)
     } else {
-      selectedMetrics.delete(key as MetricKey)
+      selectedMetrics.delete(key as AggregatedMetricKey)
     }
-    selectedMetrics = new Set(selectedMetrics) // Trigger reactivity
+    selectedMetrics = new Set(selectedMetrics)
   }
 
-  // Get options for dropdowns and checkboxes
   const stimuliItems = $derived(
     getStimuliOptions(engine).map(option => ({
       key: option.value,
@@ -182,6 +74,7 @@
       checked: selectedStimuliIds.has(option.value),
     }))
   )
+
   const groupOptions = $derived(
     getParticipantsGroups(engine, true).map(group => ({
       label: group.name,
@@ -189,156 +82,53 @@
     }))
   )
 
-  // Handle stimulus selection changes
   function handleStimulusChange(key: string, checked: boolean) {
     if (checked) {
       selectedStimuliIds.add(key)
     } else {
       selectedStimuliIds.delete(key)
     }
-    selectedStimuliIds = new Set(selectedStimuliIds) // Trigger reactivity
+    selectedStimuliIds = new Set(selectedStimuliIds)
   }
 
-  // Validation
   const canExport = $derived(
     selectedMetrics.size > 0 &&
       fileName.trim().length > 0 &&
       selectedStimuliIds.size > 0
   )
 
-  // Function to get AOI name for CSV
-  function getAoiName(aoiIndex: number, aois: any[]): string {
-    if (aoiIndex < aois.length) return aois[aoiIndex].displayedName
-    if (aoiIndex === aois.length) return 'No_AOI'
-    return 'Any_Fixation'
-  }
-
-  // Function to generate and download CSV
   const handleExport = async () => {
     if (!canExport) return
 
     isExporting = true
 
     try {
-      // Small delay to show the loading state
       await new Promise(resolve => setTimeout(resolve, 100))
-      const groupId = parseInt(selectedGroupId)
-      const stimuliToProcess = Array.from(selectedStimuliIds).map(id =>
-        getStimulus(engine, parseInt(id))
-      )
-
-      const csvRows = [
-        [
-          'Participant_ID',
-          'Participant_Name',
-          'Stimulus',
-          'AOI_Group',
-          'Metric',
-          'Value',
-        ]
-          .map(value => escapeCsvField(value, delimiter))
-          .join(delimiter),
-      ]
-
-      // Get selected metric configs
-      const activeMetrics = metricsConfig.filter(config =>
-        selectedMetrics.has(config.key)
-      )
-
-      for (const stimulus of stimuliToProcess) {
-        const participantIds = getParticipantsIds(engine, groupId, stimulus.id)
-        const aois = getAllAois(engine, stimulus.id)
-
-        // Collect all metrics for all participants in one pass
-        const participantMetrics = collectParticipantBarMetrics(
-          engine,
-          stimulus.id,
-          participantIds,
-          aois
-        )
-        // Generate CSV rows for each participant, then each metric, then each AOI
-        for (let pIndex = 0; pIndex < participantIds.length; pIndex++) {
-          const participantId = participantIds[pIndex]
-          const participant = getParticipant(engine, participantId)
-          const participantFullMetrics = participantMetrics[pIndex]
-
-          for (const config of activeMetrics) {
-            const metricDataArray = participantFullMetrics[config.metricKey]
-
-            for (
-              let aoiIndex = 0;
-              aoiIndex < metricDataArray.length;
-              aoiIndex++
-            ) {
-              const aoiGroup = getAoiName(aoiIndex, aois)
-              let value: number
-
-              // Apply processFunction if defined (handles arrays or special calculations)
-              if ('processFunction' in config) {
-                value = (config as any).processFunction(
-                  metricDataArray[aoiIndex],
-                  participantFullMetrics,
-                  aoiIndex
-                )
-              } else {
-                // No processing needed - use raw value
-                value = metricDataArray[aoiIndex] as number
-              }
-
-              const formattedValue = formatNumberForCsv(value, decimalSeparator)
-
-              csvRows.push(
-                [
-                  escapeCsvField(participantId.toString(), delimiter),
-                  escapeCsvField(participant.displayedName, delimiter),
-                  escapeCsvField(stimulus.displayedName, delimiter),
-                  escapeCsvField(aoiGroup, delimiter),
-                  escapeCsvField(config.csvName, delimiter),
-                  escapeCsvField(formattedValue, delimiter),
-                ].join(delimiter)
-              )
-            }
-          }
-        }
-      }
-
-      // Download CSV
-      const csvContent = csvRows.join('\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-
-      link.href = url
-      link.download = `${fileName.trim()}.csv`
-      link.style.display = 'none'
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-
-      // Show success message
-      const totalRows = csvRows.length - 1 // Subtract header row
-      const metricsCount = activeMetrics.length
-      const stimuliCount = stimuliToProcess.length
-      toastState.addSuccess(
-        `Exported ${totalRows.toLocaleString()} data points (${metricsCount} metrics across ${stimuliCount} ${stimuliCount === 1 ? 'stimulus' : 'stimuli'})`
-      )
+      await exportService.exportAggregatedData({
+        fileName,
+        groupId: parseInt(selectedGroupId),
+        stimulusIds: Array.from(selectedStimuliIds).map(id => parseInt(id)),
+        metrics: Array.from(selectedMetrics),
+        csvOptions: {
+          delimiter,
+          decimalSeparator,
+        },
+      })
+    } catch {
+      // ExportService already reports validation and runtime failures.
     } finally {
       isExporting = false
     }
   }
 
-  // Function to open main export options
   const handleOpenMainExport = () => {
     modalState.open(ModalContentDownloadWorkplace as any, 'Export Options')
   }
 
-  // Function to close modal
   const handleCancel = () => {
     modalState.close()
   }
 
-  // Button configuration (after handleExport declaration)
   const exportButtons = $derived([
     {
       label: isExporting ? 'Exporting...' : 'Export CSV',

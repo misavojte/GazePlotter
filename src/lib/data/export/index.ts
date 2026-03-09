@@ -10,7 +10,9 @@ export * from './mappers/segments'
 export * from './mappers/workplace'
 export * from './mappers/scangraph'
 export * from './mappers/aoi-metrics'
+export * from './mappers/aggregated'
 
 export * from './controller'
+export * from './service.svelte'
 
 export * from './types'
