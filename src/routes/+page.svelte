@@ -1,8 +1,6 @@
 <script lang="ts">
   import { GazePlotter } from '$lib'
   import { base } from '$app/paths'
-  import { EyeWorkerService } from '$lib/data/ingest/controller'
-  import type { ParsedData } from '$lib/data/types'
   import { browser } from '$app/environment'
   import type { GazePlotterSession } from '$lib/session'
 
@@ -13,39 +11,23 @@
 
   async function loadInitialData(
     session: GazePlotterSession
-  ): Promise<ParsedData> {
+  ): Promise<void> {
     if (!pathToData || !browser)
       return Promise.reject('No path to data or not in browser')
 
-    return new Promise((resolve, reject) => {
-      const workerService = new EyeWorkerService(
-        data => resolve(data),
-        () => reject(new Error('Failed to load initial data')),
-        {
-          modalState: session.modalState,
-          toastState: session.toastState,
-        }
-      )
-
-      // Fetch the data and create a File object
-      fetch(pathToData)
-        .then(response => response.blob())
-        .then(blob => {
-          const file = new File([blob], 'demo.json', {
-            type: 'application/json',
-          })
-          const fileList = Object.assign([file], {
-            item: (index: number) => file,
-            length: 1,
-            [Symbol.iterator]: function* () {
-              yield file
-            },
-          }) as FileList
-
-          workerService.sendFiles(fileList)
-        })
-        .catch(reject)
+    const blob = await fetch(pathToData).then(response => response.blob())
+    const file = new File([blob], 'demo.json', {
+      type: 'application/json',
     })
+    const fileList = Object.assign([file], {
+      item: () => file,
+      length: 1,
+      [Symbol.iterator]: function* () {
+        yield file
+      },
+    }) as FileList
+
+    await session.ingest.loadFiles(fileList)
   }
 </script>
 

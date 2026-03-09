@@ -71,10 +71,10 @@
     onWorkspaceCommand,
     initialLayoutState = null,
   }: Props = $props()
-  const { fileState, engine, modalState } = getGazePlotterSession()
+  const { ingest, engine, modalState } = getGazePlotterSession()
 
   // Reactive variables to determine item states
-  const isProcessing = $derived(fileState.processing === 'processing')
+  const isProcessing = $derived(ingest.isLoading)
   const isValidData = $derived(engine.hasValidData)
 
   const undoLabel: string | null = $derived(

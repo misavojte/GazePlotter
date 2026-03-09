@@ -1,4 +1,4 @@
-export * from './controller'
+export * from './service.svelte'
 export * from './writer'
 export * from './stream/Pipeline'
 export * from './stream/Classifier'

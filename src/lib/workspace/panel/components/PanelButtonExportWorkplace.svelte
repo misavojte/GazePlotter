@@ -4,8 +4,8 @@
   import { ModalContentDownloadWorkplace } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
 
-  const { modalState, fileState } = getGazePlotterSession()
-  let isDisabled = $derived(fileState.processing === 'processing')
+  const { modalState, ingest } = getGazePlotterSession()
+  let isDisabled = $derived(ingest.isLoading)
 
   const handleClick = () => {
     modalState.open(ModalContentDownloadWorkplace as any, 'Download workplace')

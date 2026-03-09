@@ -1,37 +1,20 @@
 <script lang="ts">
   import { GeneralButtonMajor } from '$lib/shared/components'
-  import { EyeWorkerService } from '$lib/data/ingest'
-  import type { DataType } from '$lib/data/types'
-  import { clear } from '$lib/workspace'
   import { getGazePlotterSession } from '$lib/session'
-  import type { AllGridTypes } from '$lib/workspace/type/gridType'
-  import type {
-    FileInputType,
-    FileMetadataType,
-    FileMetadataFailureType,
-  } from '$lib/workspace/type/fileMetadataType'
 
-  const { fileState, engine, grid, toastState, modalState } =
-    getGazePlotterSession()
-  let isDisabled = $derived(fileState.processing === 'processing')
+  const { ingest } = getGazePlotterSession()
+  let isDisabled = $derived(ingest.isLoading)
 
   let input: HTMLInputElement | undefined = $state()
-  let workerService: EyeWorkerService | null = null
 
   const handleFileUpload = async (e: Event) => {
     const files = (e.target as HTMLInputElement).files
     if (!(files instanceof FileList)) return
     if (files.length === 0) return
-    fileState.processing = 'processing'
     try {
-      workerService = new EyeWorkerService(handleEyeData, handleFail, {
-        modalState,
-        toastState,
-      })
-      workerService.sendFiles(files)
-    } catch (e) {
-      console.error(e)
-      toastState.addError('Unable to set up file processing service')
+      await ingest.loadFiles(files)
+    } catch {
+      // IngestService already applies failure state and user feedback.
     }
     if (input) {
       input.value = ''
@@ -41,73 +24,6 @@
     if (input) {
       input.click()
     }
-  }
-
-  const handleEyeData = (data: {
-    data: DataType
-    gridItems?: Array<Partial<AllGridTypes> & { type: string }>
-    fileMetadata?: FileMetadataType
-    current: FileInputType
-  }) => {
-    if (data.fileMetadata) {
-      fileState.metadata = data.fileMetadata
-    } else {
-      fileState.metadata = null
-    }
-    engine.loadDataset(data.data)
-    grid.reset(data.gridItems)
-    clear()
-    fileState.processing = 'done'
-    fileState.input = data.current
-  }
-
-  /**
-   * Handles file processing failures by storing failure metadata.
-   * This preserves information about what files were attempted and why they failed,
-   * which can be useful for debugging and user support.
-   *
-   * @param failureMetadata - Complete failure information including error details
-   */
-  const handleFail = (failureMetadata: FileMetadataFailureType) => {
-    toastState.addError('Data processing failed')
-
-    // Reset workspace to empty layout
-    grid.reset([])
-
-    fileState.metadata = failureMetadata
-    fileState.input = {
-      fileNames: failureMetadata.fileNames,
-      fileSizes: failureMetadata.fileSizes,
-      parseDate: failureMetadata.parseDate,
-    }
-
-    engine.loadDataset({
-      isOrdinalOnly: false,
-      stimuli: { data: [], orderVector: [] },
-      participants: { data: [], orderVector: [] },
-      participantsGroups: [],
-      categories: { data: [], orderVector: [] },
-      noAoiTreatment: {
-        color: '#cbd5e1', // Slate 300 / var(--c-midgrey)
-        displayedName: 'No AOI',
-      },
-      aois: {
-        data: [],
-        orderVector: [],
-        dynamicVisibility: {},
-        hiddenAois: [],
-      },
-      segments: {
-        segmentBuffer: new Float32Array(0),
-        indexTable: new Uint32Array(0),
-        aoiPool: new Uint16Array(0),
-        // FIX: Add missing metadata properties required by the interface
-        maxParticipants: 0,
-        stimuliCount: 0,
-      },
-    })
-
-    fileState.processing = 'fail'
   }
 </script>
 

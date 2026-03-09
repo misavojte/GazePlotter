@@ -8,7 +8,7 @@
     ModalContentExportAggregatedData,
   } from '$lib/modals/export/components'
 
-  const { engine, modalState, grid, fileState } = getGazePlotterSession()
+  const { engine, modalState, grid, ingest } = getGazePlotterSession()
   const type = 'inner-json'
   let fileName = $state('GazePlotter-Export')
 
@@ -22,7 +22,7 @@
         { ...meta, segments },
         fileName,
         grid.items,
-        fileState.metadata
+        ingest.metadata
       )
     }
   }

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { GeneralButtonMajor } from '$lib/shared/components'
-  import { getFileState } from '$lib/session'
+  import { getIngestService } from '$lib/session'
   import { getContext } from 'svelte'
 
-  const fileState = getFileState()
+  const ingest = getIngestService()
   const label = getContext('reinitializeLabel')
 
   interface Props {
@@ -12,7 +12,7 @@
 
   const { onReinitialize }: Props = $props()
 
-  let isDisabled = $derived(fileState.processing === 'processing')
+  let isDisabled = $derived(ingest.isLoading)
 </script>
 
 <GeneralButtonMajor {isDisabled} onclick={onReinitialize}>

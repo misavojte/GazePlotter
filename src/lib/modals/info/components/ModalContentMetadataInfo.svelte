@@ -5,9 +5,9 @@
   import { formatDuration } from '$lib/shared/utils/timeUtils'
   import { formatFileSize } from '$lib/shared/utils/fileUtils'
   import { onMount, onDestroy } from 'svelte'
-  const { fileState, engine, modalState } = getGazePlotterSession()
-  const fileMetadata = $derived(fileState.metadata)
-  const currentFileInput = $derived(fileState.input)
+  const { ingest, engine, modalState } = getGazePlotterSession()
+  const fileMetadata = $derived(ingest.metadata)
+  const currentFileInput = $derived(ingest.input)
 
   // Memory monitoring state
   let memoryInfo = $state<{

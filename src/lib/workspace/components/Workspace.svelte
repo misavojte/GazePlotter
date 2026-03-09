@@ -31,7 +31,7 @@
     onWorkspaceCommandChain,
     initialLayoutState = null,
   }: Props = $props()
-  const { engine, fileState, grid, toastState } = getGazePlotterSession()
+  const { engine, ingest, grid, toastState } = getGazePlotterSession()
 
   const gridConfig = DEFAULT_GRID_CONFIG
 
@@ -41,7 +41,7 @@
 
   // Sync external file processing state with the grid class
   $effect(() => {
-    grid.isLoading = fileState.processing === 'processing'
+    grid.isLoading = ingest.isLoading
   })
 
   let workspaceContainer: HTMLElement | null = $state(null)
@@ -108,13 +108,13 @@
     bind:this={workspaceContainer}
     role="none"
   >
-    {#if grid.isEmpty && !(fileState.processing === 'processing' || grid.isLoading)}
+    {#if grid.isEmpty && !(ingest.isLoading || grid.isLoading)}
       <WorkspaceIndicatorEmpty
         {onReinitialize}
         onWorkspaceCommand={handleWorkspaceCommand}
         {initialLayoutState}
       />
-    {:else if fileState.processing === 'processing' || grid.isLoading}
+    {:else if ingest.isLoading || grid.isLoading}
       <WorkspaceIndicatorLoading />
     {:else}
       <Grid

@@ -5,20 +5,18 @@
   import Workspace from '$lib/workspace/components/Workspace.svelte'
   import { Tooltip } from '$lib/tooltip'
   import { ContextMenu, contextMenuState } from '$lib/context-menu'
-  import type { ParsedData } from '$lib/data/types'
   import { onMount, tick, setContext } from 'svelte'
   import {
     createGazePlotterSession,
     setGazePlotterSessionContext,
   } from '$lib/session'
 
-  import { clear } from './workspace'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
   import type { WorkspaceCommandChain } from '$lib/workspace/commands'
   import type { GazePlotterSession } from '$lib/session'
 
   interface Props {
-    loadInitialData: (session: GazePlotterSession) => Promise<ParsedData>
+    loadInitialData: (session: GazePlotterSession) => Promise<void>
     reinitializeLabel?: string
     onWorkspaceCommandChain?: (command: WorkspaceCommandChain) => void
   }
@@ -32,7 +30,7 @@
   }: Props = $props()
 
   const session = setGazePlotterSessionContext(createGazePlotterSession())
-  const { fileState, engine, grid, toastState } = session
+  const { ingest, toastState } = session
 
   setContext('reinitializeLabel', reinitializeLabel)
 
@@ -42,39 +40,14 @@
   > | null>(null)
 
   async function loadData() {
-    // Svelte 5 logic: Use class properties for loading states where possible
-    // but keep legacy stores if they haven't been migrated to .svelte.ts yet
-      fileState.processing = 'processing'
-
     try {
-      const initialData = await loadInitialData(session)
-
-      // Update global data via Engine (Source of Truth)
-      engine.loadDataset(initialData.data)
-
-      // Capture the initial grid items for Reset layout
-      initialGridItemsSnapshot = initialData.gridItems as Array<
+      await loadInitialData(session)
+      initialGridItemsSnapshot = session.grid.items as Array<
         Partial<AllGridTypes> & { type: string }
       >
-
-      // Metadata handling
-      if (initialData.version === 3) {
-        fileState.metadata = initialData.fileMetadata
-      } else {
-        fileState.metadata = null
-      }
-
-      fileState.input = initialData.current
-
-      // CRITICAL CHANGE: Instead of initializeGridStateStore(initialData.gridItems),
-      // we use the class's reset method directly.
-      grid.reset(initialData.gridItems as any)
-
       await tick()
-      fileState.processing = 'done'
     } catch (error) {
       console.error('Error loading data:', error)
-      fileState.processing = 'fail'
     }
   }
 
@@ -82,8 +55,6 @@
     loadData().then(() => {
       toastState.addSuccess('Workspace and data returned to the initial state.')
     })
-    // clear() should now handle resetting history/undo-redo
-    clear()
   }
 
   /**
@@ -91,7 +62,6 @@
    */
   export function resetLayout() {
     loadData()
-    clear()
   }
 
   export function getSession() {
