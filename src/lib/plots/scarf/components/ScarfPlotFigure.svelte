@@ -387,27 +387,18 @@
   const visualRectBuckets = $derived(data.visualRectBuckets)
   const visualEventBuckets = $derived(data.visualEventBuckets)
 
-  // Optimize lookups: Convert Map to dense Array for O(1) access during render
-  const rectStyleArray = $derived(
+  // Optimize lookups: Convert Maps to dense Arrays once per dependency change
+  const styleArrays = $derived(
     createStyleArrays(
       identifierSystem,
       rectStyleMap,
       eventStyleMap,
       visualRectBuckets.length,
       visualEventBuckets.length
-    ).rectStyles
+    )
   )
-
-  // Optimize lookups: Convert Map to dense Array for O(1) access during render
-  const eventStyleArray = $derived(
-    createStyleArrays(
-      identifierSystem,
-      rectStyleMap,
-      eventStyleMap,
-      visualRectBuckets.length,
-      visualEventBuckets.length
-    ).eventStyles
-  )
+  const rectStyleArray = $derived(styleArrays.rectStyles)
+  const eventStyleArray = $derived(styleArrays.eventStyles)
 
   // Calculate layout overrides for overlapping events
   // IMPORTANT: This computation is expensive. We minimize reactive dependencies
