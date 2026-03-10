@@ -7,6 +7,9 @@ import {
 // Default ridge scale factor (equivalent to overlap ~60%)
 export const RIDGELINE_SCALE = 2.5
 
+// Fraction of strip height used for data content (remaining is visual padding)
+export const RIDGELINE_CONTENT_FILL = 0.9
+
 export const MARGIN = {
   TOP: 5,
   RIGHT: 1,

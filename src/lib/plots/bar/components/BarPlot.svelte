@@ -17,66 +17,87 @@
   } from '$lib/plots/shared'
 
   // Types and constants
-  import type { BarPlotGridType } from '$lib/workspace/type/gridType'
+  import type { BarPlotItem, BarPlotSettings } from '$lib/plots/bar/types'
   import {
     BAR_PLOT_AGGREGATION_METHODS,
     getBarPlotAxisLabel,
     type BarPlotAggregationMethodId,
   } from '$lib/plots/bar/const'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
-  import { PreviewSync } from '$lib/plots/shared'
+  import { PreviewModel } from '$lib/plots/shared'
   import BarPlotViewSettings from './BarPlotViewSettings.svelte'
 
   // Component Props using Svelte 5 $props() rune
   interface Props {
-    settings: BarPlotGridType
+    item: BarPlotItem
   }
 
-  let { settings }: Props = $props()
+  let { item }: Props = $props()
   const { engine, workspace } = getGazePlotterSession()
+  const settings = $derived(item.settings)
 
-  // --- PREVIEW SYNC STATE ---
-  const orderBySync = new PreviewSync<'value' | 'aoi'>(
-    () => settings.orderBy ?? 'value'
-  )
-  const orderDirectionSync = new PreviewSync<'desc' | 'asc'>(
-    () => settings.orderDirection ?? 'desc'
-  )
-  const minScaleSync = new PreviewSync<number>(
-    () => settings.scaleRange?.[0] ?? 0
-  )
-  const maxScaleSync = new PreviewSync<number>(
-    () => settings.scaleRange?.[1] ?? 0
-  )
-  const barPlottingTypeSync = new PreviewSync<'horizontal' | 'vertical'>(
-    () => settings.barPlottingType ?? 'horizontal'
-  )
-  const timelineStartSync = new PreviewSync<number | undefined>(
-    () => settings.timelineStart
-  )
-  const timelineEndSync = new PreviewSync<number | undefined>(
-    () => settings.timelineEnd
-  )
+  type BarPlotPreview = {
+    orderBy: 'value' | 'aoi'
+    orderDirection: 'desc' | 'asc'
+    minScale: number
+    maxScale: number
+    barPlottingType: 'horizontal' | 'vertical'
+    timelineStart: number | undefined
+    timelineEnd: number | undefined
+  }
+
+  const preview = new PreviewModel<BarPlotPreview, Partial<BarPlotSettings>>({
+    getCommitted: () => ({
+      orderBy: settings.orderBy ?? 'value',
+      orderDirection: settings.orderDirection ?? 'desc',
+      minScale: settings.scaleRange?.[0] ?? 0,
+      maxScale: settings.scaleRange?.[1] ?? 0,
+      barPlottingType: settings.barPlottingType ?? 'horizontal',
+      timelineStart: settings.timelineStart,
+      timelineEnd: settings.timelineEnd,
+    }),
+    buildPatch: (draft, committed) => {
+      const updates: Partial<BarPlotSettings> = {}
+
+      if (draft.orderBy !== committed.orderBy) updates.orderBy = draft.orderBy
+      if (draft.orderDirection !== committed.orderDirection) {
+        updates.orderDirection = draft.orderDirection
+      }
+      if (
+        draft.minScale !== committed.minScale ||
+        draft.maxScale !== committed.maxScale
+      ) {
+        updates.scaleRange = [draft.minScale, draft.maxScale]
+      }
+      if (draft.barPlottingType !== committed.barPlottingType) {
+        updates.barPlottingType = draft.barPlottingType
+      }
+      if (draft.timelineStart !== committed.timelineStart) {
+        updates.timelineStart = draft.timelineStart
+      }
+      if (draft.timelineEnd !== committed.timelineEnd) {
+        updates.timelineEnd = draft.timelineEnd
+      }
+
+      return updates
+    },
+  })
 
   // Grouping for the component
-  const syncs = {
-    orderBy: orderBySync,
-    orderDirection: orderDirectionSync,
-    minScale: minScaleSync,
-    maxScale: maxScaleSync,
-    barPlottingType: barPlottingTypeSync,
-    timelineStart: timelineStartSync,
-    timelineEnd: timelineEndSync,
-  }
+  const syncs = preview.fields
 
-  const effectiveSettings = $derived({
-    ...settings,
-    orderBy: orderBySync.value,
-    orderDirection: orderDirectionSync.value,
-    barPlottingType: barPlottingTypeSync.value,
-    scaleRange: [minScaleSync.value, maxScaleSync.value] as [number, number],
-    timelineStart: timelineStartSync.value,
-    timelineEnd: timelineEndSync.value,
+  const effectiveSettings = $derived.by(() => {
+    const draft = preview.draft
+
+    return {
+      ...settings,
+      orderBy: draft.orderBy,
+      orderDirection: draft.orderDirection,
+      barPlottingType: draft.barPlottingType,
+      scaleRange: [draft.minScale, draft.maxScale] as [number, number],
+      timelineStart: draft.timelineStart,
+      timelineEnd: draft.timelineEnd,
+    }
   })
 
   // Get bar plot data and timeline from utility function
@@ -93,59 +114,29 @@
   )
 
   // source for the workspace commands directly from the plot
-  const source = $derived.by(() =>
-    createCommandSourcePlotPattern(effectiveSettings, 'plot')
-  )
+  const source = $derived.by(() => createCommandSourcePlotPattern(item, 'plot'))
 
   function handleMenuClose() {
     untrack(() => {
-      const updates: Partial<BarPlotGridType> = {}
+      const updates = preview.buildPatch()
 
-      if (orderBySync.isDirty) updates.orderBy = orderBySync.value
-      if (orderDirectionSync.isDirty)
-        updates.orderDirection = orderDirectionSync.value
-
-      if (minScaleSync.isDirty || maxScaleSync.isDirty) {
-        updates.scaleRange = [minScaleSync.value, maxScaleSync.value]
-      }
-
-      if (barPlottingTypeSync.isDirty)
-        updates.barPlottingType = barPlottingTypeSync.value
-
-      if (timelineStartSync.isDirty)
-        updates.timelineStart = timelineStartSync.value
-
-      if (timelineEndSync.isDirty) updates.timelineEnd = timelineEndSync.value
-
-      if (Object.keys(updates).length === 0) {
-        orderBySync.reset()
-        orderDirectionSync.reset()
-        minScaleSync.reset()
-        maxScaleSync.reset()
-        barPlottingTypeSync.reset()
-        timelineStartSync.reset()
-        timelineEndSync.reset()
+      if (!updates || Object.keys(updates).length === 0) {
+        preview.resetAll()
         return
       }
 
       workspace.updateItemSettings(
-        settings.id,
+        item.id,
         $state.snapshot(updates),
         $state.snapshot(source)
       )
 
-      orderBySync.reset()
-      orderDirectionSync.reset()
-      minScaleSync.reset()
-      maxScaleSync.reset()
-      barPlottingTypeSync.reset()
-      timelineStartSync.reset()
-      timelineEndSync.reset()
+      preview.resetAll()
     })
   }
 
-  function updateSetting(newSettings: Partial<BarPlotGridType>) {
-    workspace.updateItemSettings(settings.id, newSettings, source)
+  function updateSetting(newSettings: Partial<BarPlotSettings>) {
+    workspace.updateItemSettings(item.id, newSettings, source)
   }
 
   const stimulusOptions = $derived(getStimuliOptions(engine))
@@ -191,12 +182,12 @@
   ])
 </script>
 
-<BasePlot {settings}>
+<BasePlot {item}>
   {#snippet header()}
     <div class="controls">
       <Select ariaLabel="Bar filters" items={selectItems} label="Bar" />
       <div class="menu-button">
-        <BarPlotButtonMenu {settings} />
+        <BarPlotButtonMenu {item} />
       </div>
     </div>
   {/snippet}

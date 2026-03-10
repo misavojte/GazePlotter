@@ -1,16 +1,17 @@
 <script lang="ts">
-  import type { BarPlotGridType } from '$lib/workspace/type/gridType'
+  import type { BarPlotItem } from '$lib/plots/bar/types'
   import BarPlotFigure from '$lib/plots/bar/components/BarPlotFigure.svelte'
   import { getBarPlotData } from '$lib/plots/bar/core/transformer'
   import { PlotExportWrapper } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
 
   interface Props {
-    settings: BarPlotGridType
+    item: BarPlotItem
   }
 
-  let { settings }: Props = $props()
+  let { item }: Props = $props()
   const { engine } = getGazePlotterSession()
+  const settings = $derived(item.settings)
 
   const barPlotData = $derived(
     getBarPlotData(engine, {

@@ -8,14 +8,14 @@ import {
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
-import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
+import type { AoiStreamPlotSettings } from '../types'
 import { collectAoiStreamMetrics, type CollectorWorkspace } from './collector'
 import { COLOR_FALLBACKS } from '$lib/color'
 
 export function getAoiStreamPlotData(
   engine: DataEngine,
   settings: Pick<
-    AoiStreamPlotGridType,
+    AoiStreamPlotSettings,
     'stimulusId' | 'groupId' | 'binSize'
   > & {
     timelineMin?: number

@@ -21,7 +21,6 @@ import {
   createAdaptiveTimeline,
   type AdaptiveTimeline,
 } from '$lib/plots/shared'
-import type { ScarfGridType } from '$lib/workspace/type/gridType'
 import { SCARF_IDENTIFIERS, SCARF_LAYOUT } from '../const'
 import type {
   ScarfData,
@@ -30,6 +29,7 @@ import type {
   ScarfLegendItem,
   ScarfLegendStyleType,
   ScarfParticipant,
+  ScarfPlotSettings,
   ScarfStyleItem,
   ScarfStyling,
 } from '../types'
@@ -136,7 +136,7 @@ export function calculateTimelineRange(
   engine: DataEngine,
   participantIds: number[],
   stimulusId: number,
-  settings: ScarfGridType
+  settings: ScarfPlotSettings
 ): { minValue: number; maxValue: number } {
   if (settings.timeline === 'relative') {
     return { minValue: 0, maxValue: 100 }
@@ -227,7 +227,7 @@ export function createScarfPlotAxis(
   engine: DataEngine,
   participantIds: number[],
   stimulusId: number,
-  settings: ScarfGridType
+  settings: ScarfPlotSettings
 ): AdaptiveTimeline {
   const { minValue, maxValue } = calculateTimelineRange(
     engine,
@@ -389,7 +389,7 @@ export function transformDataToScarfPlot(
   engine: DataEngine,
   stimulusId: number,
   participantIds: number[],
-  settings: ScarfGridType,
+  settings: ScarfPlotSettings,
   noAoiTreatment: { displayedName: string; color: string }
 ): ScarfData {
   if (!engine.segments) throw new Error('Data engine not initialized')

@@ -9,7 +9,6 @@
     getStimuliOptions,
   } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'
-  import { PreviewSync } from '$lib/plots/shared'
   import Minor, {
     type MinorGroupItem,
   } from '$lib/shared/components/GeneralButtonMinor.svelte'
@@ -18,7 +17,7 @@
   } from '$lib/shared/components/GeneralSelect.svelte'
   import { getWorkspaceService } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
-  import type { ScarfGridType } from '$lib/workspace/type/gridType'
+  import type { ScarfPlotItem, ScarfPlotSettings } from '$lib/plots/scarf/types'
   import RefreshCcw from 'lucide-svelte/icons/refresh-ccw'
   import ZoomIn from 'lucide-svelte/icons/zoom-in'
   import ZoomOut from 'lucide-svelte/icons/zoom-out'
@@ -26,23 +25,24 @@
   import ScarfPlotViewSettings from './ScarfPlotViewSettings.svelte'
 
   interface Props {
-    settings: ScarfGridType
+    item: ScarfPlotItem
+    settings: ScarfPlotSettings
     syncs: {
-      timelineStart: PreviewSync<number | undefined>
-      timelineEnd: PreviewSync<number | undefined>
-      ordinalStart: PreviewSync<number | undefined>
-      ordinalEnd: PreviewSync<number | undefined>
-      timeline: PreviewSync<'absolute' | 'relative' | 'ordinal'>
-      hideNonFixations: PreviewSync<boolean>
+      timelineStart: { value: number | undefined }
+      timelineEnd: { value: number | undefined }
+      ordinalStart: { value: number | undefined }
+      ordinalEnd: { value: number | undefined }
+      timeline: { value: 'absolute' | 'relative' | 'ordinal' }
+      hideNonFixations: { value: boolean }
     }
     // We still keep a close handler if needed, but managing syncs is cleaner
     onMenuClose?: () => void
   }
 
-  let { settings, syncs, onMenuClose }: Props = $props()
+  let { item, settings, syncs, onMenuClose }: Props = $props()
   const { engine } = getGazePlotterSession()
   const workspace = getWorkspaceService()
-  const source = $derived(createCommandSourcePlotPattern(settings, 'plot'))
+  const source = $derived(createCommandSourcePlotPattern(item, 'plot'))
 
   function calculateActualMax(stimulusId: number): number {
     const participants = getParticipants(engine, settings.groupId, stimulusId)
@@ -111,11 +111,11 @@
       }
     }
 
-    const updates: Partial<ScarfGridType> = isOrdinal
+    const updates: Partial<ScarfPlotSettings> = isOrdinal
       ? { ordinalStart: min, ordinalEnd: max }
       : { timelineStart: min, timelineEnd: max }
 
-    workspace.updateItemSettings(settings.id, updates, source)
+    workspace.updateItemSettings(item.id, updates, source)
   }
 
   const isRelativeTimeline = $derived(settings.timeline === 'relative')
@@ -167,7 +167,7 @@
   function onStimulusChange(event: CustomEvent) {
     const stimulusId = parseInt(event.detail)
     workspace.updateItemSettings(
-      settings.id,
+      item.id,
       { stimulusId },
       source
     )
@@ -175,7 +175,7 @@
 
   function onGroupChange(event: CustomEvent) {
     const groupId = parseInt(event.detail)
-    workspace.updateItemSettings(settings.id, { groupId }, source)
+    workspace.updateItemSettings(item.id, { groupId }, source)
   }
 
   // Single grouped selects in order: Stimulus, Group, Timeline
@@ -249,7 +249,7 @@
     options={[]}
   />
   <Minor items={groupItems} ariaLabel="Zoom controls" />
-  <ScarfPlotButtonMenu {settings} />
+  <ScarfPlotButtonMenu {item} />
 </div>
 
 <style>

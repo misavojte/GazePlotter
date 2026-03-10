@@ -1,176 +1,135 @@
-import { getParticipants, getParticipantEndTime } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import {
-  calculatePlotDimensionsWithHeader,
-  PLOT_HEADER_HEIGHT,
-} from '$lib/plots/shared'
-import {
-  calculateFlatLegendHeight,
-  STREAM_LEGEND_CONFIG,
-} from '$lib/plots/shared/legendRendering'
-import { estimateTextWidth } from '$lib/shared/utils/textUtils'
-import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
+import { getParticipants, getParticipantEndTime } from '$lib/data/engine'
 import { getAoiStreamPlotData } from '../core/transformer'
+import { computeMTop } from '../core/ridgeline'
 import { scanForSynchronizedTimelineMax } from './timeline'
-import type { AoiStreamPlotResult } from '../types'
+import type {
+  AoiStreamPlotItem,
+  AoiStreamPlotResult,
+  AoiStreamPlotSettings,
+} from '../types'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
-import { calculateIdealStripHeight } from '../core/ridgeline'
+import { RIDGELINE_SCALE } from '../const'
 
-import { MARGIN, RIDGELINE_SCALE } from '../const'
+type CurrentPlotContext = {
+  plotId: number
+  widthUnits: number
+  heightUnits: number
+  settings: AoiStreamPlotSettings
+  streamData: AoiStreamPlotResult
+}
 
 /**
- * Scan all active Time-binned AOI Occupancys with ridgeline alignment and the same height (h)
- * to find a synchronized strip height that works for all of them.
+ * Scan all active ridgeline plots with matching height and scale to find
+ * the most constraining mTop factor for synchronized data scale.
  *
- * Synchronization is only applied between plots that have:
- * - Same grid height (h)
- * - Same alignment ('ridgeline')
- * - Same ridgeline scale (scale)
- * - Same number of active AOIs
+ * mTop is dimension-independent (derived purely from data), so applying it
+ * in each plot's local `calculateIdealStripHeight(data, floorHeight, ..., mTop)`
+ * produces a strip height that:
+ *  - fills the actual available space (no whitespace from estimation mismatch)
+ *  - uses the same data scale across comparable plots
  *
- * @param items - Current grid items from the workspace
- * @param targetHeight - The grid height (h) to filter by
- * @param currentPlotId - The ID of the plot requesting the synchronized height
- * @returns The synchronized strip height, or null if no synchronization needed
+ * @returns The max mTop across candidates, or null if fewer than 2 qualify
  */
-export function scanForDynamicStripHeight(
+export function scanForDynamicRidgelineReferenceHeight(
   engine: DataEngine,
   items: AllGridTypes[],
   targetHeight: number,
-  currentPlotId: number
+  currentPlotId: number,
+  currentContext: CurrentPlotContext
 ): number | null {
   // Ensure reactivity for Svelte 5 when called from $derived
   const _ = engine.metadata
 
-  // Filter relevant plots by height and alignment
-  const targetPlot = items.find(i => i.id === currentPlotId) as any
-  const targetScale = targetPlot?.ridgelineScale ?? RIDGELINE_SCALE
+  const targetScale = currentContext.settings.ridgelineScale ?? RIDGELINE_SCALE
 
-  const candidates = items.filter(item => {
-    const settings = item as any
-    const itemScale = settings.ridgelineScale ?? RIDGELINE_SCALE
+  const aoiStreamItems = items.filter(
+    (item): item is AoiStreamPlotItem => item.type === 'aoiStreamPlot'
+  )
+
+  const candidates = aoiStreamItems.filter(item => {
+    const itemScale = item.settings.ridgelineScale ?? RIDGELINE_SCALE
     return (
-      item.type === 'aoiStreamPlot' &&
       item.h === targetHeight &&
-      settings.alignment === 'ridgeline' &&
+      item.settings.alignment === 'ridgeline' &&
       Math.abs(itemScale - targetScale) < 1e-4
     )
   })
 
   if (candidates.length < 2) return null
 
-  // Compute stream data for all candidates
-  const candidateData: Array<{
+  const candidateInfo: Array<{
     id: number
-    streamData: AoiStreamPlotResult
-    plotAreaHeight: number
     seriesCount: number
-    ridgelineScale: number
+    mTop: number
   }> = []
 
-  // Common values for all candidates with same height
-  const sharedSafeHeight =
-    targetHeight * DEFAULT_GRID_CONFIG.cellSize.height -
-    DEFAULT_GRID_CONFIG.gap * 2 -
-    PLOT_HEADER_HEIGHT
-
   for (const item of candidates) {
-    const settings = item as any
-    const stimulusId = settings.stimulusId
-    const groupId = settings.groupId
-    const itemScale = settings.ridgelineScale ?? RIDGELINE_SCALE
+    const s = item.settings
 
-    // Width-based dimensions (needed for legend)
-    const safeWidth =
-      settings.w * DEFAULT_GRID_CONFIG.cellSize.width -
-      DEFAULT_GRID_CONFIG.gap * 2
+    let streamData: AoiStreamPlotResult
 
-    let tMin = settings.absoluteStimuliLimits?.[stimulusId]?.[0] ?? 0
-    let tMax = settings.absoluteStimuliLimits?.[stimulusId]?.[1] ?? 0
+    if (item.id === currentPlotId) {
+      streamData = currentContext.streamData
+    } else {
+      const { stimulusId, groupId } = s
 
-    if (tMax === 0) {
-      const syncedMax = scanForSynchronizedTimelineMax(
+      let tMin = s.absoluteStimuliLimits?.[stimulusId]?.[0] ?? 0
+      let tMax = s.absoluteStimuliLimits?.[stimulusId]?.[1] ?? 0
+
+      if (tMax === 0) {
+        const syncedMax = scanForSynchronizedTimelineMax(
+          engine,
+          items,
+          item.w,
+          stimulusId,
+          s.absoluteStimuliLimits
+        )
+
+        if (syncedMax !== null) {
+          tMax = syncedMax
+        } else {
+          const participants = getParticipants(engine, groupId, stimulusId)
+          tMax = participants.reduce(
+            (max, p) =>
+              Math.max(max, getParticipantEndTime(engine, stimulusId, p.id)),
+            0
+          )
+        }
+      }
+
+      const { data } = getAoiStreamPlotData(
         engine,
-        items,
-        settings.w,
-        stimulusId,
-        settings.absoluteStimuliLimits
+        {
+          stimulusId,
+          groupId,
+          binSize: s.binSize ?? 500,
+          timelineMin: tMin,
+          timelineMax: tMax,
+        },
+        null
       )
 
-      if (syncedMax !== null) {
-        tMax = syncedMax
-      } else {
-        const participants = getParticipants(engine, groupId, stimulusId)
-        tMax = participants.reduce(
-          (max, p) =>
-            Math.max(max, getParticipantEndTime(engine, stimulusId, p.id)),
-          0
-        )
-      }
+      streamData = data
     }
 
-    const { data: streamData } = getAoiStreamPlotData(
-      engine,
-      {
-        stimulusId,
-        groupId,
-        binSize: settings.binSize ?? 500,
-        timelineMin: tMin,
-        timelineMax: tMax,
-      },
-      null
-    )
-
-    const seriesCount = streamData.series.length
-    const { fontSize, fontFamily } = STREAM_LEGEND_CONFIG
-
-    let maxTextWidth = 0
-    if (seriesCount > 0) {
-      for (const series of streamData.series) {
-        const label = series.label || ''
-        const w = estimateTextWidth(label, fontSize, fontFamily)
-        if (w > maxTextWidth) maxTextWidth = w
-      }
-    }
-
-    const legendHeight = calculateFlatLegendHeight(
-      seriesCount,
-      safeWidth,
-      STREAM_LEGEND_CONFIG,
-      maxTextWidth
-    )
-
-    const plotAreaHeight = Math.floor(
-      Math.max(0, sharedSafeHeight - MARGIN.TOP - MARGIN.BOTTOM - legendHeight)
-    )
-
-    candidateData.push({
+    candidateInfo.push({
       id: item.id,
-      streamData,
-      plotAreaHeight,
-      seriesCount,
-      ridgelineScale: itemScale,
+      seriesCount: streamData.series.length,
+      mTop: computeMTop(streamData, true),
     })
   }
 
-  const currentPlotData = candidateData.find(c => c.id === currentPlotId)
-  if (!currentPlotData) return null
+  const currentInfo = candidateInfo.find(c => c.id === currentPlotId)
+  if (!currentInfo) return null
 
-  const targetSeriesCount = currentPlotData.seriesCount
-  const matchingCandidates = candidateData.filter(
-    c => c.seriesCount === targetSeriesCount
+  // Only sync plots with the same number of series
+  const matching = candidateInfo.filter(
+    c => c.seriesCount === currentInfo.seriesCount
   )
 
-  if (matchingCandidates.length < 2) return null
+  if (matching.length < 2) return null
 
-  const idealHeights = matchingCandidates.map(c => {
-    return calculateIdealStripHeight(
-      c.streamData,
-      c.plotAreaHeight,
-      true,
-      c.ridgelineScale
-    )
-  })
-
-  return Math.min(...idealHeights)
+  // Return the max mTop — the most constraining factor
+  return Math.max(...matching.map(c => c.mTop))
 }

@@ -4,7 +4,7 @@
   import { onDestroy, untrack } from 'svelte'
   import { ScarfPlotFigure, ScarfPlotHeader } from '$lib/plots/scarf/components'
   import { BasePlot } from '$lib/plots/shared/components'
-  import type { ScarfGridType } from '$lib/workspace/type/gridType'
+  import type { ScarfPlotItem, ScarfPlotSettings } from '$lib/plots/scarf/types'
   import {
     tooltipScarfService,
     transformDataToScarfPlot,
@@ -13,45 +13,78 @@
 
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
-  import { PreviewSync } from '$lib/plots/shared'
+  import { PreviewModel } from '$lib/plots/shared'
 
   // Component Props using Svelte 5 $props() rune
   interface Props {
-    settings: ScarfGridType
+    item: ScarfPlotItem
   }
 
-  // Rename incoming settings prop to realSettings for clarity
-  let { settings: realSettings }: Props = $props()
+  let { item }: Props = $props()
   const { engine, workspace } = getGazePlotterSession()
+  const realSettings = $derived(item.settings)
 
-  // --- PREVIEW SYNC STATE ---
-  const timelineSync = new PreviewSync(() => realSettings.timeline)
-  const timelineStartSync = new PreviewSync(() => realSettings.timelineStart)
-  const timelineEndSync = new PreviewSync(() => realSettings.timelineEnd)
-  const ordinalStartSync = new PreviewSync(() => realSettings.ordinalStart)
-  const ordinalEndSync = new PreviewSync(() => realSettings.ordinalEnd)
-  const hideNonFixationsSync = new PreviewSync(
-    () => realSettings.hideNonFixations ?? false
-  )
+  type ScarfPlotPreview = {
+    timeline: 'absolute' | 'relative' | 'ordinal'
+    timelineStart: number | undefined
+    timelineEnd: number | undefined
+    ordinalStart: number | undefined
+    ordinalEnd: number | undefined
+    hideNonFixations: boolean
+  }
+
+  const preview = new PreviewModel<
+    ScarfPlotPreview,
+    Partial<ScarfPlotSettings>
+  >({
+    getCommitted: () => ({
+      timeline: realSettings.timeline,
+      timelineStart: realSettings.timelineStart,
+      timelineEnd: realSettings.timelineEnd,
+      ordinalStart: realSettings.ordinalStart,
+      ordinalEnd: realSettings.ordinalEnd,
+      hideNonFixations: realSettings.hideNonFixations ?? false,
+    }),
+    buildPatch: (draft, committed) => {
+      const updates: Partial<ScarfPlotSettings> = {}
+
+      if (draft.timeline !== committed.timeline)
+        updates.timeline = draft.timeline
+      if (draft.timelineStart !== committed.timelineStart) {
+        updates.timelineStart = draft.timelineStart
+      }
+      if (draft.timelineEnd !== committed.timelineEnd) {
+        updates.timelineEnd = draft.timelineEnd
+      }
+      if (draft.ordinalStart !== committed.ordinalStart) {
+        updates.ordinalStart = draft.ordinalStart
+      }
+      if (draft.ordinalEnd !== committed.ordinalEnd) {
+        updates.ordinalEnd = draft.ordinalEnd
+      }
+      if (draft.hideNonFixations !== committed.hideNonFixations) {
+        updates.hideNonFixations = draft.hideNonFixations
+      }
+
+      return updates
+    },
+  })
 
   // Grouping for header
-  const syncs = {
-    timeline: timelineSync,
-    timelineStart: timelineStartSync,
-    timelineEnd: timelineEndSync,
-    ordinalStart: ordinalStartSync,
-    ordinalEnd: ordinalEndSync,
-    hideNonFixations: hideNonFixationsSync,
-  }
+  const syncs = preview.fields
 
-  const effectiveSettings = $derived({
-    ...realSettings,
-    timeline: timelineSync.value,
-    timelineStart: timelineStartSync.value,
-    timelineEnd: timelineEndSync.value,
-    ordinalStart: ordinalStartSync.value,
-    ordinalEnd: ordinalEndSync.value,
-    hideNonFixations: hideNonFixationsSync.value,
+  const effectiveSettings = $derived.by(() => {
+    const draft = preview.draft
+
+    return {
+      ...realSettings,
+      timeline: draft.timeline,
+      timelineStart: draft.timelineStart,
+      timelineEnd: draft.timelineEnd,
+      ordinalStart: draft.ordinalStart,
+      ordinalEnd: draft.ordinalEnd,
+      hideNonFixations: draft.hideNonFixations,
+    }
   })
 
   // State management
@@ -61,7 +94,7 @@
   // Derived values
   const currentGroupId = $derived(effectiveSettings.groupId)
   const currentStimulusId = $derived(effectiveSettings.stimulusId)
-  const redrawTimestamp = $derived(effectiveSettings.redrawTimestamp)
+  const redrawTimestamp = $derived(item.redrawTimestamp)
   const highlights = $derived(realSettings.highlights ?? [])
 
   const currentParticipantIds = $derived.by(() =>
@@ -116,50 +149,32 @@
   function handleLegendClick(identifier: string) {
     hideTooltipAndHighlight()
     const newHighlights = highlights.includes(identifier)
-      ? highlights.filter(id => id !== identifier)
+      ? highlights.filter((id: string) => id !== identifier)
       : [...highlights, identifier]
 
     workspace.updateItemSettings(
-      realSettings.id,
+      item.id,
       { highlights: newHighlights },
-      createCommandSourcePlotPattern(realSettings, 'plot')
+      createCommandSourcePlotPattern(item, 'plot')
     )
   }
 
   function handleMenuClose() {
     untrack(() => {
-      const updates: Partial<ScarfGridType> = {}
+      const updates = preview.buildPatch()
 
-      if (timelineSync.isDirty) updates.timeline = timelineSync.value
-      if (timelineStartSync.isDirty)
-        updates.timelineStart = timelineStartSync.value
-      if (timelineEndSync.isDirty) updates.timelineEnd = timelineEndSync.value
-      if (ordinalEndSync.isDirty) updates.ordinalEnd = ordinalEndSync.value
-      if (hideNonFixationsSync.isDirty)
-        updates.hideNonFixations = hideNonFixationsSync.value
-
-      if (Object.keys(updates).length === 0) {
-        timelineSync.reset()
-        timelineStartSync.reset()
-        timelineEndSync.reset()
-        ordinalStartSync.reset()
-        ordinalEndSync.reset()
-        hideNonFixationsSync.reset()
+      if (!updates || Object.keys(updates).length === 0) {
+        preview.resetAll()
         return
       }
 
       workspace.updateItemSettings(
-        realSettings.id,
+        item.id,
         updates,
-        createCommandSourcePlotPattern(effectiveSettings, 'plot')
+        createCommandSourcePlotPattern(item, 'plot')
       )
 
-      timelineSync.reset()
-      timelineStartSync.reset()
-      timelineEndSync.reset()
-      ordinalStartSync.reset()
-      ordinalEndSync.reset()
-      hideNonFixationsSync.reset()
+      preview.resetAll()
     })
   }
 
@@ -175,11 +190,11 @@
       const isOrdinal = effectiveSettings.timeline === 'ordinal'
 
       if (isOrdinal) {
-        ordinalStartSync.value = newMin
-        ordinalEndSync.value = newMax
+        syncs.ordinalStart.value = newMin
+        syncs.ordinalEnd.value = newMax
       } else {
-        timelineStartSync.value = newMin
-        timelineEndSync.value = newMax
+        syncs.timelineStart.value = newMin
+        syncs.timelineEnd.value = newMax
       }
     }
   }
@@ -187,38 +202,38 @@
   function handleDragEnd() {
     if (effectiveSettings.timeline === 'relative') return
     const isOrdinal = effectiveSettings.timeline === 'ordinal'
-
-    // We can rely on handleMenuClose logic to commit dirty syncs
-    // But drag interaction is usually immediate, implying a commit.
-    // However, PreviewSync is designed for menu logic. For direct drag, we can just commit directly
-    // OR we can set value and then call commit manually.
-
-    // Let's reuse the commit logic:
-    const updates: Partial<ScarfGridType> = {}
+    const draft = preview.draft
+    const committed = preview.committed
+    const updates: Partial<ScarfPlotSettings> = {}
 
     if (isOrdinal) {
-      if (ordinalStartSync.isDirty)
-        updates.ordinalStart = ordinalStartSync.value
-      if (ordinalEndSync.isDirty) updates.ordinalEnd = ordinalEndSync.value
+      if (draft.ordinalStart !== committed.ordinalStart) {
+        updates.ordinalStart = draft.ordinalStart
+      }
+      if (draft.ordinalEnd !== committed.ordinalEnd) {
+        updates.ordinalEnd = draft.ordinalEnd
+      }
     } else {
-      if (timelineStartSync.isDirty)
-        updates.timelineStart = timelineStartSync.value
-      if (timelineEndSync.isDirty) updates.timelineEnd = timelineEndSync.value
+      if (draft.timelineStart !== committed.timelineStart) {
+        updates.timelineStart = draft.timelineStart
+      }
+      if (draft.timelineEnd !== committed.timelineEnd) {
+        updates.timelineEnd = draft.timelineEnd
+      }
     }
 
     if (Object.keys(updates).length > 0) {
       workspace.updateItemSettings(
-        realSettings.id,
+        item.id,
         updates,
-        createCommandSourcePlotPattern(realSettings, 'plot')
+        createCommandSourcePlotPattern(item, 'plot')
       )
     }
 
-    // Reset syncs to clean slate (they will be updated by effect once props come back)
-    timelineStartSync.reset()
-    timelineEndSync.reset()
-    ordinalStartSync.reset()
-    ordinalEndSync.reset()
+    syncs.timelineStart.reset()
+    syncs.timelineEnd.reset()
+    syncs.ordinalStart.reset()
+    syncs.ordinalEnd.reset()
   }
 
   onDestroy(hideTooltipAndHighlight)
@@ -246,9 +261,10 @@
   }
 </script>
 
-<BasePlot settings={effectiveSettings}>
+<BasePlot {item}>
   {#snippet header()}
     <ScarfPlotHeader
+      {item}
       settings={effectiveSettings}
       {syncs}
       onMenuClose={handleMenuClose}
@@ -280,12 +296,3 @@
     </div>
   {/snippet}
 </BasePlot>
-
-<style>
-  .scarf-viewport {
-    height: 100%;
-    width: 100%;
-    display: block;
-    overflow: hidden; /* No scrolling allowed */
-  }
-</style>

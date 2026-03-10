@@ -16,7 +16,12 @@ import {
 } from '$lib/workspace/commands'
 import { getCommandLabel } from '$lib/workspace/commands/labels'
 import { generateUniqueId } from '$lib/shared/utils/idUtils'
-import type { AllGridTypes, GridItemMap } from '$lib/workspace/type/gridType'
+import type {
+  AllPlotSettings,
+  GridItemMap,
+  GridItemSnapshot,
+  GridItemLayoutUpdate,
+} from '$lib/workspace/type/gridType'
 import type {
   BaseInterpretedDataType,
   ExtendedInterpretedDataType,
@@ -86,7 +91,7 @@ export class WorkspaceService {
   }
 
   resetLayout(
-    layoutState: Array<Partial<AllGridTypes> & { type: string }>
+    layoutState: GridItemSnapshot[]
   ): void {
     this.applyRoot({
       type: 'setLayoutState',
@@ -104,15 +109,24 @@ export class WorkspaceService {
     })
   }
 
-  updateItemSettings(
-    itemId: number,
-    settings: Partial<AllGridTypes>,
-    source: string
-  ): void {
+  updateItemSettings(itemId: number, settings: Partial<AllPlotSettings>, source: string): void {
     this.applyRoot({
       type: 'updateSettings',
       itemId,
       settings,
+      source,
+    })
+  }
+
+  updateItemLayout(
+    itemId: number,
+    layout: GridItemLayoutUpdate,
+    source: string
+  ): void {
+    this.applyRoot({
+      type: 'updateLayout',
+      itemId,
+      layout,
       source,
     })
   }

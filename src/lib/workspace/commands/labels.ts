@@ -67,6 +67,12 @@ export const WORKSPACE_COMMAND_LABELS: Record<
     default: 'Plot updated',
   },
 
+  updateLayout: {
+    undone: 'Undo layout update',
+    redone: 'Redo layout update',
+    default: 'Layout updated',
+  },
+
   // Grid item management commands
   addGridItem: {
     undone: 'Undo plot addition',

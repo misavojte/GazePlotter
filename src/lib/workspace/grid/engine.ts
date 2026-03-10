@@ -1,5 +1,8 @@
 import type { GridItemPosition, GridConfig } from './types'
-import type { AllGridTypes } from '$lib/workspace/type/gridType'
+import type {
+  AllGridTypes,
+  GridItemLayoutUpdate,
+} from '$lib/workspace/type/gridType'
 
 export function rectanglesOverlap(
   x1: number,
@@ -163,7 +166,7 @@ export function resolveItemPositionCollisions(
   config: GridConfig
 ): Array<{
   itemId: number
-  settings: Partial<AllGridTypes>
+  settings: GridItemLayoutUpdate
 }> {
   const priorityItem = positions.find(i => i.id === priorityItemId)
   if (!priorityItem) return []
@@ -179,7 +182,7 @@ export function resolveItemPositionCollisions(
 
   if (collisions.size === 0) return []
 
-  const commands: Array<{ itemId: number; settings: Partial<AllGridTypes> }> =
+  const commands: Array<{ itemId: number; settings: GridItemLayoutUpdate }> =
     []
 
   for (const itemId of collisions) {
@@ -203,7 +206,7 @@ export function resolveItemPositionCollisions(
         settings: {
           x: bestPosition.x,
           y: bestPosition.y,
-        } as Partial<AllGridTypes>,
+        } satisfies GridItemLayoutUpdate,
       })
     }
   }

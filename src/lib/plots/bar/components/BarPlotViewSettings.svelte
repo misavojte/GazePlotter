@@ -1,15 +1,15 @@
 <script lang="ts">
   import { type MenuItem } from '$lib/context-menu'
-  import type { BarPlotGridType } from '$lib/workspace/type/gridType'
+  import type { BarPlotSettings } from '$lib/plots/bar/types'
 
   interface Props {
     item: MenuItem
     syncs: {
-      orderBy: { value: BarPlotGridType['orderBy'] }
-      orderDirection: { value: BarPlotGridType['orderDirection'] }
+      orderBy: { value: BarPlotSettings['orderBy'] }
+      orderDirection: { value: BarPlotSettings['orderDirection'] }
       minScale: { value: number }
       maxScale: { value: number }
-      barPlottingType: { value: BarPlotGridType['barPlottingType'] }
+      barPlottingType: { value: BarPlotSettings['barPlottingType'] }
       timelineStart: { value: number }
       timelineEnd: { value: number }
     }

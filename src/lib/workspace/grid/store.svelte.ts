@@ -1,5 +1,11 @@
 // src/lib/workspace/grid/store.svelte.ts
-import type { GridItemMap, AllGridTypes } from '$lib/workspace/type/gridType'
+import type {
+  GridItemMap,
+  AllGridTypes,
+  GridItemLayoutUpdate,
+  GridItemSnapshot,
+  PlotSettingsMap,
+} from '$lib/workspace/type/gridType'
 import { getVizConfig } from '$lib/plots/registry'
 import {
   DEFAULT_GRID_CONFIG,
@@ -58,35 +64,31 @@ export class GridState {
 
   private createItem<K extends keyof GridItemMap>(
     type: K,
-    options: Partial<GridItemMap[K]> = {}
+    options: GridItemSnapshot<K> = { type }
   ): AllGridTypes {
     const viz = getVizConfig(type)
     const id = options.id ?? generateUniqueId()
+    const defaultSettings = viz.getDefaultSettings(options.settings)
 
-    // The registry now provides the correct default height/width based on the type key
     const base = {
       id,
       x: options.x ?? 0,
       y: options.y ?? 0,
-      w: options.w ?? viz.getDefaultWidth((options as any).stimulusId),
-      h: options.h ?? viz.getDefaultHeight((options as any).stimulusId),
-      min: options.min ?? viz.getDefaultConfig().min,
+      w: options.w ?? viz.getDefaultWidth({ ...defaultSettings, ...options }),
+      h: options.h ?? viz.getDefaultHeight({ ...defaultSettings, ...options }),
+      min: options.min ?? viz.getMinSize(options.settings),
       redrawTimestamp: Date.now(),
     }
 
-    // Type safety is guaranteed by the generic K
-    // Merge base properties with default config and options
     const merged = {
       ...base,
       type,
-      ...viz.getDefaultConfig(options),
-      ...options,
+      settings: {
+        ...defaultSettings,
+        ...(options.settings ?? {}),
+      },
     }
 
-    // Type assertion is safe because:
-    // 1. `type` ensures we have the correct discriminant
-    // 2. `viz.getDefaultConfig` provides all required properties for type K
-    // 3. `options` can override any properties
     return merged as unknown as AllGridTypes
   }
 
@@ -115,8 +117,11 @@ export class GridState {
     )
   }
 
-  addItem(type: AllGridTypes['type'], options: Partial<AllGridTypes> = {}) {
-    const newItem = this.createItem(type as keyof GridItemMap, options)
+  addItem(
+    type: AllGridTypes['type'],
+    options: GridItemSnapshot = { type }
+  ) {
+    const newItem = this.createItem(type as keyof GridItemMap, options as any)
     const suggested = this.findOptimalPosition(newItem.w, newItem.h)
 
     if (
@@ -139,17 +144,31 @@ export class GridState {
     this.items = this.items.filter(i => i.id !== id)
   }
 
-  updateSettings(id: number, settings: Partial<AllGridTypes>) {
+  updateSettings(id: number, settings: Partial<PlotSettingsMap[keyof PlotSettingsMap]>) {
     const index = this.items.findIndex(i => i.id === id)
     if (index !== -1) {
-      this.items[index] = { ...this.items[index], ...settings } as AllGridTypes
+      this.items[index] = {
+        ...this.items[index],
+        settings: {
+          ...this.items[index].settings,
+          ...settings,
+        },
+      } as AllGridTypes
+    }
+  }
+
+  updateLayout(id: number, layout: GridItemLayoutUpdate) {
+    const index = this.items.findIndex(i => i.id === id)
+    if (index !== -1) {
+      this.items[index] = {
+        ...this.items[index],
+        ...layout,
+      } as AllGridTypes
     }
   }
 
   reset(
-    layout: Array<
-      Partial<AllGridTypes> & { type: AllGridTypes['type'] }
-    > = DEFAULT_GRID_STATE_DATA
+    layout: GridItemSnapshot[] = DEFAULT_GRID_STATE_DATA
   ) {
     // Build all items locally first to avoid intermediate reactive updates.
     // Previously, `this.items = []` followed by N `push()` calls caused N+1
@@ -157,10 +176,7 @@ export class GridState {
     // in production builds where Svelte processes intermediate states eagerly.
     const newItems: AllGridTypes[] = []
     for (const itemDef of layout) {
-      const newItem = this.createItem(
-        itemDef.type as keyof GridItemMap,
-        itemDef
-      )
+      const newItem = this.createItem(itemDef.type as keyof GridItemMap, itemDef as any)
       // Use provided positions if available and valid
       const tempPositions = newItems.map(i => ({
         id: i.id,
@@ -206,21 +222,25 @@ export class GridState {
     })
   }
 
-  updateItem(id: number, settings: Partial<AllGridTypes>) {
+  updateItem(id: number, settings: Partial<PlotSettingsMap[keyof PlotSettingsMap]>) {
     this.updateSettings(id, settings)
   }
 
   duplicateItem(item: AllGridTypes, duplicateId?: number) {
-    const duplicate = { ...item, id: duplicateId ?? generateUniqueId() }
+    const duplicate = {
+      ...item,
+      id: duplicateId ?? generateUniqueId(),
+      settings: { ...item.settings },
+    }
     const newPosition = this.findOptimalPosition(item.w, item.h, item)
     duplicate.x = newPosition.x
     duplicate.y = newPosition.y
-    this.items.push(duplicate)
+    this.items.push(duplicate as AllGridTypes)
     return duplicate.id
   }
 
   setLayoutState(
-    layout: Array<Partial<AllGridTypes> & { type: AllGridTypes['type'] }>
+    layout: GridItemSnapshot[]
   ) {
     // Delegate to reset() which handles batched item creation
     this.reset(layout)
@@ -231,7 +251,7 @@ export class GridState {
    */
   resolveItemPositionCollisions(priorityItemId: number): Array<{
     itemId: number
-    settings: Partial<AllGridTypes>
+    settings: GridItemLayoutUpdate
   }> {
     return GridEngine.resolveItemPositionCollisions(
       priorityItemId,

@@ -13,7 +13,6 @@
   } from '$lib/shared/components/GeneralSelect.svelte'
 
   // Utilities and stores
-  import { PLOT_HEADER_HEIGHT } from '$lib/plots/shared'
   import { getTransitionMatrixData } from '$lib/plots/transition-matrix/core/transformer'
   import {
     MatrixAggregationMethod,
@@ -23,13 +22,16 @@
   import {
     getStimuliOptions,
     getParticipantsGroupOptions,
-    PreviewSync,
+    PreviewModel,
   } from '$lib/plots/shared'
   import { interpolateColor } from '$lib/color/utility'
   import TransitionMatrixViewSettings from './TransitionMatrixViewSettings.svelte'
 
   // Types
-  import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
+  import type {
+    TransitionMatrixPlotItem,
+    TransitionMatrixPlotSettings,
+  } from '$lib/plots/transition-matrix/types'
 
   const AGGREGATION_OPTIONS = [
     { value: MatrixAggregationMethod.SUM, label: 'Absolute frequency' },
@@ -54,54 +56,82 @@
   ]
 
   interface Props {
-    settings: TransitionMatrixGridType
+    item: TransitionMatrixPlotItem
   }
 
-  let { settings }: Props = $props()
+  let { item }: Props = $props()
   const { engine, workspace } = getGazePlotterSession()
+  const settings = $derived(item.settings)
 
   // Data reactive sources
   const currentStimulusColorRange = $derived(
     settings.stimuliColorValueRanges?.[settings.stimulusId] ?? [0, 0]
   )
 
-  const colorMinSync = new PreviewSync<string>(
-    () => settings.colorScale?.[0] || '#f7fbff'
-  )
-  const colorMaxSync = new PreviewSync<string>(() =>
-    settings.colorScale?.length === 3
-      ? settings.colorScale[2]
-      : settings.colorScale?.[1] || '#08306b'
-  )
-  const colorMiddleSync = new PreviewSync<string>(() =>
-    settings.colorScale?.length === 3
-      ? settings.colorScale[1]
-      : interpolateColor(
-          settings.colorScale?.[0] || '#f7fbff',
-          settings.colorScale?.[1] || '#08306b',
-          0.5
-        )
-  )
-
-  const minValueSync = new PreviewSync<number>(
-    () => currentStimulusColorRange[0]
-  )
-  const maxValueSync = new PreviewSync<number>(
-    () => currentStimulusColorRange[1]
-  )
-
-  const syncs = {
-    colorMin: colorMinSync,
-    colorMiddle: colorMiddleSync,
-    colorMax: colorMaxSync,
-    minValue: minValueSync,
-    maxValue: maxValueSync,
+  type TransitionMatrixPreview = {
+    colorMin: string
+    colorMiddle: string
+    colorMax: string
+    minValue: number
+    maxValue: number
   }
 
+  const preview = new PreviewModel<
+    TransitionMatrixPreview,
+    Partial<TransitionMatrixPlotSettings>
+  >({
+    getCommitted: () => ({
+      colorMin: settings.colorScale?.[0] || '#f7fbff',
+      colorMax:
+        settings.colorScale?.length === 3
+          ? settings.colorScale[2]
+          : settings.colorScale?.[1] || '#08306b',
+      colorMiddle:
+        settings.colorScale?.length === 3
+          ? settings.colorScale[1]
+          : interpolateColor(
+              settings.colorScale?.[0] || '#f7fbff',
+              settings.colorScale?.[1] || '#08306b',
+              0.5
+            ),
+      minValue: currentStimulusColorRange[0],
+      maxValue: currentStimulusColorRange[1],
+    }),
+    buildPatch: (draft, committed) => {
+      const updates: Partial<TransitionMatrixPlotSettings> = {}
+
+      const colorChanged =
+        draft.colorMin !== committed.colorMin ||
+        draft.colorMiddle !== committed.colorMiddle ||
+        draft.colorMax !== committed.colorMax
+      if (colorChanged) {
+        const autoMiddle = interpolateColor(draft.colorMin, draft.colorMax, 0.5)
+        updates.colorScale =
+          draft.colorMiddle === autoMiddle
+            ? [draft.colorMin, draft.colorMax]
+            : [draft.colorMin, draft.colorMiddle, draft.colorMax]
+      }
+
+      if (
+        draft.minValue !== committed.minValue ||
+        draft.maxValue !== committed.maxValue
+      ) {
+        const ranges = [...(settings.stimuliColorValueRanges || [])]
+        ranges[settings.stimulusId] = [draft.minValue, draft.maxValue]
+        updates.stimuliColorValueRanges = ranges
+      }
+
+      return updates
+    },
+  })
+
+  const syncs = preview.fields
+
   const effectiveColorScale = $derived.by(() => {
-    const min = colorMinSync.value
-    const middle = colorMiddleSync.value
-    const max = colorMaxSync.value
+    const draft = preview.draft
+    const min = draft.colorMin
+    const middle = draft.colorMiddle
+    const max = draft.colorMax
 
     const autoMiddle = interpolateColor(min, max, 0.5)
     if (middle === autoMiddle) {
@@ -112,49 +142,24 @@
 
   function handleMenuClose() {
     untrack(() => {
-      const updates: Partial<TransitionMatrixGridType> = {}
+      const updates = preview.buildPatch()
 
-      if (
-        colorMinSync.isDirty ||
-        colorMiddleSync.isDirty ||
-        colorMaxSync.isDirty
-      ) {
-        updates.colorScale = effectiveColorScale
-      }
-
-      if (minValueSync.isDirty || maxValueSync.isDirty) {
-        const ranges = [...(settings.stimuliColorValueRanges || [])]
-        ranges[settings.stimulusId] = [minValueSync.value, maxValueSync.value]
-        updates.stimuliColorValueRanges = ranges
-      }
-
-      if (Object.keys(updates).length === 0) {
-        colorMinSync.reset()
-        colorMiddleSync.reset()
-        colorMaxSync.reset()
-        minValueSync.reset()
-        maxValueSync.reset()
+      if (!updates || Object.keys(updates).length === 0) {
+        preview.resetAll()
         return
       }
 
       workspace.updateItemSettings(
-        settings.id,
+        item.id,
         $state.snapshot(updates),
         $state.snapshot(source)
       )
 
-      colorMinSync.reset()
-      colorMiddleSync.reset()
-      colorMaxSync.reset()
-      minValueSync.reset()
-      maxValueSync.reset()
+      preview.resetAll()
     })
   }
 
-  const source = untrack(() => createCommandSourcePlotPattern(settings, 'plot'))
-  const modalSource = untrack(() =>
-    createCommandSourcePlotPattern(settings, 'modal')
-  )
+  const source = untrack(() => createCommandSourcePlotPattern(item, 'plot'))
 
   const transitionData = $derived.by(() => {
     return getTransitionMatrixData(
@@ -170,7 +175,7 @@
 
   // Handlers
   function updateSettings(updates: Partial<typeof settings>) {
-    workspace.updateItemSettings(settings.id, updates, source)
+    workspace.updateItemSettings(item.id, updates, source)
   }
 
   const selectItems = $derived<GroupSelectItem[]>([
@@ -213,7 +218,7 @@
 </script>
 
 <BasePlot
-  {settings}
+  {item}
   hasData={settings?.stimulusId !== undefined && aoiLabels.length > 0}
 >
   {#snippet header()}
@@ -225,7 +230,7 @@
         options={[]}
       />
       <div class="menu-button">
-        <TransitionMatrixButtonMenu {settings} />
+        <TransitionMatrixButtonMenu {item} />
       </div>
     </div>
   {/snippet}
@@ -243,7 +248,7 @@
         legendTitle={TRANSITION_MATRIX_LEGEND_TITLES[
           settings.aggregationMethod
         ] ?? 'Transition Value'}
-        colorValueRange={[minValueSync.value, maxValueSync.value]}
+        colorValueRange={[syncs.minValue.value, syncs.maxValue.value]}
         belowMinColor={settings.belowMinColor}
         aboveMaxColor={settings.aboveMaxColor}
         showBelowMinLabels={settings.showBelowMinLabels}

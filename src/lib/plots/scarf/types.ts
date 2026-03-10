@@ -6,6 +6,24 @@
  */
 
 import type { AdaptiveTimeline } from '$lib/plots/shared'
+import type { PlotItemContract } from '$lib/plots/definePlot'
+
+export type ScarfPlotSettings = {
+  stimulusId: number
+  groupId: number
+  timeline: 'absolute' | 'relative' | 'ordinal'
+  absoluteStimuliLimits: [number, number][]
+  ordinalStimuliLimits: [number, number][]
+  dynamicAOI: boolean
+  highlights?: string[]
+  timelineStart?: number
+  timelineEnd?: number
+  ordinalStart?: number
+  ordinalEnd?: number
+  hideNonFixations?: boolean
+}
+
+export type ScarfPlotItem = PlotItemContract<'scarf', ScarfPlotSettings>
 
 // ============================================================================
 // Styling Types

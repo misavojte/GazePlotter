@@ -1,7 +1,7 @@
 <script lang="ts">
   import { GeneralButtonMenu as MenuButton } from '$lib/shared/components'
   import { getModalState } from '$lib/session'
-  import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
+  import type { AoiStreamPlotItem } from '$lib/plots/aoi-stream/types'
   import type { SvelteComponent } from 'svelte'
   import Download from 'lucide-svelte/icons/download'
   import Settings from 'lucide-svelte/icons/settings-2'
@@ -19,16 +19,14 @@
   import { untrack } from 'svelte'
 
   interface Props {
-    settings: AoiStreamPlotGridType
+    item: AoiStreamPlotItem
   }
 
-  let { settings }: Props = $props()
+  let { item }: Props = $props()
   const modalState = getModalState()
+  const settings = $derived(item.settings)
 
-  const source = createCommandSourcePlotPattern(
-    untrack(() => settings),
-    'modal'
-  )
+  const source = createCommandSourcePlotPattern(untrack(() => item), 'modal')
 
   const openAoiModificationModal = () => {
     modalState.open(
@@ -66,7 +64,7 @@
       ModalContentDownloadAoiStreamPlot as unknown as typeof SvelteComponent,
       'Download Time-binned AOI Occupancy',
       {
-        settings,
+        item,
       }
     )
   }

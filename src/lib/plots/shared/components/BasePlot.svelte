@@ -7,14 +7,17 @@
   import { PlotPlaceholder } from '$lib/plots/shared/components'
   import { PLOT_HEADER_HEIGHT } from '$lib/plots/shared/const'
 
-  import type { GridType } from '$lib/workspace/type/gridType'
-
   interface LayoutConfig {
     headerHeight?: number
   }
 
+  interface PlotFrame {
+    w: number
+    h: number
+  }
+
   interface Props {
-    settings: GridType
+    item: PlotFrame
     layoutConfig?: LayoutConfig
     // If provided, controls the fade in. If not provided, it assumes data is always ready or handled by parent.
     // If false is passed, it shows placeholder.
@@ -32,7 +35,7 @@
   }
 
   let {
-    settings,
+    item,
     layoutConfig = {},
     hasData = true,
     dimensions: parentDimensions,
@@ -50,8 +53,8 @@
     if (parentDimensions) return parentDimensions
 
     return calculatePlotDimensionsWithHeader(
-      settings.w,
-      settings.h,
+      item.w,
+      item.h,
       DEFAULT_GRID_CONFIG,
       layoutConfig.headerHeight ?? DEFAULT_LAYOUT.HEADER_HEIGHT
     )

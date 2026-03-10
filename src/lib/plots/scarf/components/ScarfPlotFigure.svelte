@@ -33,7 +33,6 @@
   } from '$lib/plots/shared'
   import { UI_COLORS } from '$lib/color'
   import { updateTooltip } from '$lib/tooltip'
-  import type { ScarfGridType } from '$lib/workspace/type/gridType'
   import { getContext, onDestroy, untrack } from 'svelte'
   import { SCARF_LAYOUT } from '../const'
   import {
@@ -59,12 +58,12 @@
     drawScarfRectangles,
     type ScarfLayoutContext,
   } from '../core/renderer'
-  import type { ScarfData } from '../types'
+  import type { ScarfData, ScarfPlotSettings } from '../types'
 
   interface Props {
     tooltipAreaElement: HTMLElement | SVGElement | null
     data: ScarfData
-    settings: ScarfGridType
+    settings: ScarfPlotSettings
     highlights: string[]
     onLegendClick: (identifier: string) => void
     onTooltipActivation: ({

@@ -2,7 +2,7 @@
   import { GeneralButtonMenu as MenuButton } from '$lib/shared/components'
   import { untrack } from 'svelte'
   import { getModalState } from '$lib/session'
-  import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
+  import type { TransitionMatrixPlotItem } from '$lib/plots/transition-matrix/types'
   import Users from 'lucide-svelte/icons/users'
   import Download from 'lucide-svelte/icons/download'
   import Settings from 'lucide-svelte/icons/settings-2'
@@ -15,16 +15,14 @@
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
   interface Props {
-    settings: TransitionMatrixGridType
+    item: TransitionMatrixPlotItem
   }
 
-  let { settings }: Props = $props()
+  let { item }: Props = $props()
   const modalState = getModalState()
+  const settings = $derived(item.settings)
 
-  const source = createCommandSourcePlotPattern(
-    untrack(() => settings),
-    'modal'
-  )
+  const source = createCommandSourcePlotPattern(untrack(() => item), 'modal')
 
   const openStimulusModificationModal = () => {
     modalState.open(
@@ -60,7 +58,7 @@
         ModalContentDownloadTransitionMatrix as any,
         'Download Transition Matrix',
         {
-          settings,
+          item,
         }
       )
     } catch (error) {

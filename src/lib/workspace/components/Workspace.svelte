@@ -11,14 +11,14 @@
     MIN_WORKSPACE_HEIGHT,
     DEFAULT_GRID_CONFIG,
   } from '$lib/workspace/grid'
-  import { visualizationRegistry } from '$lib/plots/registry'
+  import { plotRegistry } from '$lib/plots/registry'
   import type { WorkspaceCommandChain } from '$lib/workspace/commands'
-  import type { AllGridTypes } from '$lib/workspace/type/gridType'
+  import type { GridItemSnapshot } from '$lib/workspace/type/gridType'
 
   interface Props {
     onReinitialize: () => void
     onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void
-    initialLayoutState?: Array<Partial<AllGridTypes> & { type: string }> | null
+    initialLayoutState?: GridItemSnapshot[] | null
   }
 
   const {
@@ -51,12 +51,10 @@
     }
   })
 
-  const visualizations = Object.entries(visualizationRegistry).map(
-    ([id, config]) => ({
-      id,
-      label: config.name,
-    })
-  )
+  const visualizations = Object.entries(plotRegistry).map(([id, config]) => ({
+    id,
+    label: config.name,
+  }))
 
   $effect(() => {
     workspace.setCommandListener(onWorkspaceCommandChain)
@@ -70,10 +68,7 @@
 </script>
 
 <div class="workspace-wrapper" style={styleProps}>
-  <WorkspaceToolbar
-    {initialLayoutState}
-    {visualizations}
-  />
+  <WorkspaceToolbar {initialLayoutState} {visualizations} />
 
   <div
     class="workspace-container"

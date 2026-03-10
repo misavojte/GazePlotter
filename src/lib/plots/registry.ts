@@ -1,94 +1,32 @@
-import ScarfPlot from '$lib/plots/scarf/components/ScarfPlot.svelte'
-import TransitionMatrixPlot from '$lib/plots/transition-matrix/components/TransitionMatrixPlot.svelte'
-import BarPlot from '$lib/plots/bar/components/BarPlot.svelte'
-import AoiStreamPlot from '$lib/plots/aoi-stream/components/AoiStreamPlot.svelte'
-import type {
-  GridItemMap,
-  VisualizationConfig,
-} from '$lib/workspace/type/gridType'
-import { PRESET_PALETTES, INACTIVE_COLOR } from '$lib/color/palettes'
+import { aoiStreamPlotDefinition } from './aoi-stream/definition'
+import { barPlotDefinition } from './bar/definition'
+import { scarfPlotDefinition } from './scarf/definition'
+import { transitionMatrixDefinition } from './transition-matrix/definition'
 
-/**
- * Visualization registry - a map of all available visualization types.
- * Serves as a central catalog for the plots package.
- */
-export const registry: {
-  [K in keyof GridItemMap]: VisualizationConfig<K>
-} = {
-  scarf: {
-    name: 'Scarf Plot',
-    component: ScarfPlot,
-    getDefaultConfig: (params = {}) => ({
-      stimulusId: params.stimulusId ?? 0,
-      groupId: params.groupId ?? -1,
-      timeline: 'absolute',
-      absoluteStimuliLimits: [],
-      ordinalStimuliLimits: [],
-      dynamicAOI: true,
-      min: { w: 14, h: 10 },
-    }),
-    getDefaultHeight: () => 12,
-    getDefaultWidth: () => 20,
-  },
-  transitionMatrix: {
-    name: 'Transition Matrix',
-    component: TransitionMatrixPlot,
-    getDefaultConfig: (params = {}) => ({
-      stimulusId: params.stimulusId ?? 0,
-      groupId: params.groupId ?? -1,
-      stimuliColorValueRanges: [],
-      aggregationMethod: 'sum',
-      belowMinColor: INACTIVE_COLOR,
-      aboveMaxColor: INACTIVE_COLOR,
-      showBelowMinLabels: false,
-      showAboveMaxLabels: false,
-      colorScale: [...PRESET_PALETTES.BLUE.colors],
-      min: { w: 11, h: 10 },
-    }),
-    getDefaultHeight: () => 12,
-    getDefaultWidth: () => 12,
-  },
-  barPlot: {
-    name: 'Bar Plot',
-    component: BarPlot,
-    getDefaultConfig: (params = {}) => ({
-      stimulusId: params.stimulusId ?? 0,
-      groupId: params.groupId ?? -1,
-      barPlottingType: 'horizontal',
-      orderBy: 'aoi',
-      orderDirection: 'asc',
-      aggregationMethod: 'absoluteTime',
-      min: { w: 11, h: 10 },
-    }),
-    getDefaultHeight: () => 12,
-    getDefaultWidth: () => 12,
-  },
-  aoiStreamPlot: {
-    name: 'Time-binned AOI Occupancy',
-    component: AoiStreamPlot,
-    getDefaultConfig: (params = {}) => ({
-      stimulusId: params.stimulusId ?? 0,
-      groupId: params.groupId ?? -1,
-      binSize: 500,
-      absoluteStimuliLimits: [],
-      min: { w: 11, h: 10 },
-    }),
-    getDefaultHeight: () => 12,
-    getDefaultWidth: () => 12,
-  },
-}
+export const plotRegistry = {
+  scarf: scarfPlotDefinition,
+  transitionMatrix: transitionMatrixDefinition,
+  barPlot: barPlotDefinition,
+  aoiStreamPlot: aoiStreamPlotDefinition,
+} as const
 
-/**
- * Helper function to get visualization config by type
- */
-export function getVizConfig<K extends keyof GridItemMap>(
+const LEGACY_VISUALIZATION_TYPES = {
+  TransitionMatrix: 'transitionMatrix',
+} as const
+
+type VisualizationType = keyof typeof plotRegistry
+type LegacyVisualizationType = keyof typeof LEGACY_VISUALIZATION_TYPES
+
+export function getVizConfig<K extends VisualizationType>(
   type: K
-): VisualizationConfig<K> {
-  // Backward compatibility for old PascalCase type IDs
+): (typeof plotRegistry)[K]
+export function getVizConfig(
+  type: LegacyVisualizationType
+): (typeof plotRegistry)['transitionMatrix']
+export function getVizConfig(
+  type: VisualizationType | LegacyVisualizationType
+) {
   const normalizedType =
-    type === ('TransitionMatrix' as any) ? 'transitionMatrix' : type
-  return registry[normalizedType as K]
+    LEGACY_VISUALIZATION_TYPES[type as LegacyVisualizationType] ?? type
+  return plotRegistry[normalizedType]
 }
-
-// Alias for transition registry if visualizationRegistry is preferred as a name in some contexts
-export const visualizationRegistry = registry

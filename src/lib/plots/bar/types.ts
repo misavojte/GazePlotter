@@ -3,7 +3,22 @@ import type {
   BaseInterpretedDataType,
   SegmentInterpretedDataType,
 } from '$lib/data/types'
+import type { PlotItemContract } from '$lib/plots/definePlot'
 import type { BarPlotAggregationMethodId } from './const'
+
+export type BarPlotSettings = {
+  stimulusId: number
+  groupId: number
+  barPlottingType: 'vertical' | 'horizontal'
+  orderBy: 'value' | 'aoi'
+  orderDirection: 'asc' | 'desc'
+  aggregationMethod: string
+  scaleRange: [number, number]
+  timelineStart?: number
+  timelineEnd?: number
+}
+
+export type BarPlotItem = PlotItemContract<'barPlot', BarPlotSettings>
 
 export interface BarPlotDataItem {
   value: number

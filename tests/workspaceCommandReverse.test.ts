@@ -30,6 +30,7 @@ describe('workspaceCommandReverse', () => {
       triggerRedraw: vi.fn(),
       reset: vi.fn(),
       updateSettings: vi.fn(),
+      updateLayout: vi.fn(),
       removeItem: vi.fn(),
       duplicateItem: vi.fn(),
       batchDuplicateItems: vi.fn(),
@@ -102,7 +103,14 @@ describe('workspaceCommandReverse', () => {
         w: 6,
         h: 8,
         min: { w: 4, h: 4 },
-        stimulusId: 1,
+        settings: {
+          stimulusId: 1,
+          groupId: -1,
+          timeline: 'absolute',
+          absoluteStimuliLimits: [],
+          ordinalStimuliLimits: [],
+          dynamicAOI: true,
+        },
         redrawTimestamp: Date.now(),
       },
       {
@@ -113,7 +121,15 @@ describe('workspaceCommandReverse', () => {
         w: 6,
         h: 8,
         min: { w: 4, h: 4 },
-        stimulusId: 1,
+        settings: {
+          stimulusId: 1,
+          groupId: -1,
+          barPlottingType: 'horizontal',
+          orderBy: 'aoi',
+          orderDirection: 'asc',
+          aggregationMethod: 'absoluteTime',
+          scaleRange: [0, 0],
+        },
         redrawTimestamp: Date.now(),
       },
     ] as AllGridTypes[]
@@ -170,7 +186,14 @@ describe('workspaceCommandReverse', () => {
           w: 6,
           h: 8,
           min: { w: 4, h: 4 },
-          stimulusId: 1,
+          settings: {
+            stimulusId: 1,
+            groupId: -1,
+            timeline: 'absolute',
+            absoluteStimuliLimits: [],
+            ordinalStimuliLimits: [],
+            dynamicAOI: true,
+          },
         },
         source: 'source',
         chainId: 1,
@@ -205,7 +228,14 @@ describe('workspaceCommandReverse', () => {
           w: 6,
           h: 8,
           min: { w: 4, h: 4 },
-          stimulusId: 1,
+          settings: {
+            stimulusId: 1,
+            groupId: -1,
+            timeline: 'absolute',
+            absoluteStimuliLimits: [],
+            ordinalStimuliLimits: [],
+            dynamicAOI: true,
+          },
           redrawTimestamp: Date.now(),
         },
         {
@@ -216,7 +246,14 @@ describe('workspaceCommandReverse', () => {
           w: 6,
           h: 8,
           min: { w: 4, h: 4 },
-          stimulusId: 1,
+          settings: {
+            stimulusId: 1,
+            groupId: -1,
+            timeline: 'absolute',
+            absoluteStimuliLimits: [],
+            ordinalStimuliLimits: [],
+            dynamicAOI: true,
+          },
           redrawTimestamp: Date.now(),
         },
       ] as AllGridTypes[]
@@ -276,7 +313,14 @@ describe('workspaceCommandReverse', () => {
           w: 6,
           h: 8,
           min: { w: 4, h: 4 },
-          stimulusId: 1,
+          settings: {
+            stimulusId: 1,
+            groupId: -1,
+            timeline: 'absolute',
+            absoluteStimuliLimits: [],
+            ordinalStimuliLimits: [],
+            dynamicAOI: true,
+          },
           redrawTimestamp: Date.now(),
         },
       ] as AllGridTypes[]
@@ -296,12 +340,12 @@ describe('workspaceCommandReverse', () => {
     })
   })
 
-  describe('updateSettings command reversal', () => {
-    it('should reverse updateSettings by restoring previous settings', () => {
+  describe('updateLayout command reversal', () => {
+    it('should reverse updateLayout by restoring previous layout', () => {
       const command: WorkspaceCommandChain = {
-        type: 'updateSettings',
+        type: 'updateLayout',
         itemId: 1,
-        settings: { x: 10, y: 20, w: 8 },
+        layout: { x: 10, y: 20, w: 8 },
         source: 'source',
         chainId: 1,
         isRootCommand: true,
@@ -310,9 +354,9 @@ describe('workspaceCommandReverse', () => {
       const result = reverseCommand(command)
 
       expect(result).toEqual({
-        type: 'updateSettings',
+        type: 'updateLayout',
         itemId: 1,
-        settings: {
+        layout: {
           x: 0,
           y: 0,
           w: 6,
@@ -325,9 +369,9 @@ describe('workspaceCommandReverse', () => {
 
     it('should return null if item not found', () => {
       const command: WorkspaceCommandChain = {
-        type: 'updateSettings',
+        type: 'updateLayout',
         itemId: 999,
-        settings: { x: 10, y: 20 },
+        layout: { x: 10, y: 20 },
         source: 'source',
         chainId: 1,
         isRootCommand: true,
@@ -336,6 +380,30 @@ describe('workspaceCommandReverse', () => {
       const result = reverseCommand(command)
 
       expect(result).toBeNull()
+    })
+    it('should reverse updateSettings by restoring previous plot settings', () => {
+      const command: WorkspaceCommandChain = {
+        type: 'updateSettings',
+        itemId: 1,
+        settings: { timeline: 'relative', hideNonFixations: true },
+        source: 'source',
+        chainId: 1,
+        isRootCommand: true,
+      }
+
+      const result = reverseCommand(command)
+
+      expect(result).toEqual({
+        type: 'updateSettings',
+        itemId: 1,
+        settings: {
+          timeline: 'absolute',
+          hideNonFixations: undefined,
+        },
+        source: 'source',
+        chainId: 1,
+        isRootCommand: true,
+      })
     })
   })
 
@@ -775,7 +843,7 @@ describe('workspaceCommandReverse', () => {
       const command: WorkspaceCommandChain = {
         type: 'updateSettings',
         itemId: 1,
-        settings: { x: 10, y: 20 },
+        settings: { timeline: 'relative' },
         source: 'source',
         chainId: 1,
         isRootCommand: true,

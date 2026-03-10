@@ -2,7 +2,7 @@ import type {
   FileInputType,
   FileMetadataType,
 } from '$lib/workspace/type/fileMetadataType'
-import type { AllGridTypes } from '$lib/workspace/type/gridType'
+import type { GridItemSnapshot } from '$lib/workspace/type/gridType'
 import type { BinarySegmentBuffers } from './binary'
 
 import { DEFAULT_NO_AOI_COLOR } from '../color/palettes'
@@ -100,13 +100,13 @@ export type JsonImportNewFormat =
   | {
       version: 2
       data: DataType
-      gridItems: Array<Partial<AllGridTypes> & { type: string }>
+      gridItems: GridItemSnapshot[]
     }
   | {
       version: 3
       fileMetadata: FileMetadataType
       data: DataType
-      gridItems: Array<Partial<AllGridTypes> & { type: string }>
+      gridItems: GridItemSnapshot[]
     }
 
 export type ParsedData = JsonImportNewFormat & { current: FileInputType }

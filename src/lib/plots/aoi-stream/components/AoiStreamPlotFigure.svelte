@@ -17,11 +17,10 @@
     alignToPixelCenter,
     type CanvasState,
   } from '$lib/shared/utils/canvasUtils'
-  import { getXAxisLabel } from '$lib/plots/scarf'
   import { updateTooltip } from '$lib/tooltip'
   import { estimateTextWidth } from '$lib/shared/utils/textUtils'
   import { desaturateToWhite } from '$lib/color/utility'
-  import { INACTIVE_COLOR, COLOR_FALLBACKS } from '$lib/color'
+  import { INACTIVE_COLOR } from '$lib/color'
 
   import {
     GRIDLINE_SECONDARY,
@@ -57,11 +56,15 @@
     drawPlotOutline,
   } from '$lib/plots/shared/axisUtils'
   import { safeNumber } from '$lib/shared/utils/mathUtils'
-  import { Y_AXIS, AXIS_CONFIG, MARGIN as AOI_MARGIN } from '../const'
+  import {
+    Y_AXIS,
+    AXIS_CONFIG,
+    MARGIN as AOI_MARGIN,
+    RIDGELINE_CONTENT_FILL,
+  } from '../const'
   import {
     drawCatmullRom,
     transformStreamDataToCoordinates,
-    ensureRenderBuckets,
     type RenderBuckets,
   } from '../core'
   import type { AoiStreamPlotResult } from '../types'
@@ -80,7 +83,7 @@
     marginRight?: number
     marginBottom?: number
     marginLeft?: number
-    stripHeightOverride?: number | null
+    syncedMTopOverride?: number | null
     ridgelineScale?: number
     colorScale?: string[]
   }
@@ -97,7 +100,7 @@
     marginRight = 0,
     marginBottom = 0,
     marginLeft = 0,
-    stripHeightOverride = null,
+    syncedMTopOverride = null,
     ridgelineScale,
     colorScale,
   }: AoiStreamPlotFigureProps = $props()
@@ -303,7 +306,7 @@
         floorWidth,
         floorHeight,
         floorBottom,
-        stripHeightOverride,
+        syncedMTopOverride,
         highlightMaskById,
         ridgelineScale,
         colorScale,
@@ -562,8 +565,8 @@
 
     if (alignment === 'ridgeline') {
       const centerY = floorTop + floorHeight / 2
-      const stripHeight = seriesPaint[0]?.stripHeight ?? 0
-      let scaleHeight = stripHeight * 0.9
+      const referenceHeight = seriesPaint[0]?.referenceHeight ?? 0
+      let scaleHeight = referenceHeight * RIDGELINE_CONTENT_FILL
       let scaleMaxValue = 100
 
       // Adaptive scaling: halve until it fits the plot area
@@ -942,7 +945,7 @@
       mr: safeMarginRight,
       mb: safeMarginBottom,
       ml: safeMarginLeft,
-      stripHeight: stripHeightOverride,
+      referenceHeight: syncedMTopOverride,
     }
 
     untrack(() => {
@@ -962,7 +965,6 @@
     ctx.font = `${AXIS_CONFIG.fontSize}px ${AXIS_CONFIG.fontFamily}`
     ctx.fillStyle = AXIS_CONFIG.color
   }
-
 </script>
 
 <canvas

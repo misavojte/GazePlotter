@@ -1,6 +1,5 @@
 <script lang="ts">
-  import type { ScarfGridType } from '$lib/workspace/type/gridType'
-  import type { ScarfData } from '$lib/plots/scarf/types'
+  import type { ScarfPlotItem } from '$lib/plots/scarf/types'
   import { transformDataToScarfPlot, ScarfPlotFigure } from '$lib/plots'
   import GeneralCanvasPreview from '$lib/modals/shared/components/CanvasPreview.svelte'
   import { getParticipants } from '$lib/data/engine'
@@ -10,12 +9,12 @@
   import { SectionHeader, DownloadPlotSettings } from '$lib/modals'
 
   interface Props {
-    settings: ScarfGridType
-    data: ScarfData
+    item: ScarfPlotItem
   }
 
-  let { settings }: Props = $props()
+  let { item }: Props = $props()
   const { engine } = getGazePlotterSession()
+  const settings = $derived(item.settings)
 
   // Export settings state
   let typeOfExport = $state<'.png' | '.jpg'>('.png')
@@ -37,11 +36,11 @@
     return transformDataToScarfPlot(
       engine,
       untrack(() => settings.stimulusId),
-        untrack(() =>
+      untrack(() =>
         getParticipants(engine, settings.groupId, settings.stimulusId).map(
-            (participant: BaseInterpretedDataType) => participant.id
-          )
-        ),
+          (participant: BaseInterpretedDataType) => participant.id
+        )
+      ),
       untrack(() => settings),
       meta.noAoiTreatment
     )

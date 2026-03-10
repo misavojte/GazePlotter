@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { TransitionMatrixGridType } from '$lib/workspace/type/gridType'
+  import type { TransitionMatrixPlotItem } from '$lib/plots/transition-matrix/types'
   import TransitionMatrixPlotFigure from '$lib/plots/transition-matrix/components/TransitionMatrixPlotFigure.svelte'
   import {
     getTransitionMatrixData,
@@ -10,11 +10,12 @@
   import { getGazePlotterSession } from '$lib/session'
 
   interface Props {
-    settings: TransitionMatrixGridType
+    item: TransitionMatrixPlotItem
   }
 
-  let { settings }: Props = $props()
+  let { item }: Props = $props()
   const { engine } = getGazePlotterSession()
+  const settings = $derived(item.settings)
 
   // Calculate matrix data for preview
   const { matrix, aoiLabels } = $derived(

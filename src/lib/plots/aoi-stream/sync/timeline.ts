@@ -3,7 +3,18 @@ import {
   getParticipantEndTime,
 } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import type { AllGridTypes } from '$lib/workspace/type/gridType'
+import type { AoiStreamPlotSettings } from '../types'
+
+type TimelineSyncItem = {
+  type: string
+  w: number
+  settings: Partial<
+    Pick<
+      AoiStreamPlotSettings,
+      'stimulusId' | 'groupId' | 'absoluteStimuliLimits'
+    >
+  >
+}
 
 /**
  * Scan all active plots with the same width (w)
@@ -23,7 +34,7 @@ import type { AllGridTypes } from '$lib/workspace/type/gridType'
  */
 export function scanForSynchronizedTimelineMax(
   engine: DataEngine,
-  items: AllGridTypes[],
+  items: TimelineSyncItem[],
   targetWidth: number,
   currentStimulus: number,
   currentLimits: [number, number][] | undefined
@@ -40,8 +51,9 @@ export function scanForSynchronizedTimelineMax(
     if (item.type !== 'aoiStreamPlot') return false
     if (item.w !== targetWidth) return false
 
-    const settings = item as any
+    const settings = item.settings
     const stimulusId = settings.stimulusId
+    if (stimulusId === undefined) return false
     const limits = settings.absoluteStimuliLimits as
       | [number, number][]
       | undefined
@@ -59,9 +71,10 @@ export function scanForSynchronizedTimelineMax(
   let globalMaxTime = 0
 
   for (const item of candidates) {
-    const settings = item as any
+    const settings = item.settings
     const stimulusId = settings.stimulusId
     const groupId = settings.groupId
+    if (stimulusId === undefined || groupId === undefined) continue
 
     const participants = getParticipants(engine, groupId, stimulusId)
     const maxTime = participants.reduce(

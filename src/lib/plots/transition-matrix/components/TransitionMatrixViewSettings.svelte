@@ -2,16 +2,15 @@
   import { ColorPicker, ColorPickerManager } from '$lib/color'
   import { interpolateColor } from '$lib/color/utility'
   import { fade } from 'svelte/transition'
-  import type { PreviewSync } from '$lib/plots/shared'
   import { PRESET_PALETTES } from '$lib/color/palettes'
 
   interface Props {
     syncs: {
-      colorMin: PreviewSync<string>
-      colorMiddle: PreviewSync<string>
-      colorMax: PreviewSync<string>
-      minValue: PreviewSync<number>
-      maxValue: PreviewSync<number>
+      colorMin: { value: string }
+      colorMiddle: { value: string }
+      colorMax: { value: string }
+      minValue: { value: number }
+      maxValue: { value: number }
     }
   }
 

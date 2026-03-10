@@ -1,15 +1,13 @@
 <script lang="ts">
   import { type MenuItem } from '$lib/context-menu'
-  import type { PreviewSync } from '$lib/plots/shared'
-  import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
 
   interface Props {
     item: MenuItem
     syncs: {
-      binSize: PreviewSync<number>
-      ridgelineScale: PreviewSync<number>
-      timelineStart: PreviewSync<number>
-      timelineEnd: PreviewSync<number>
+      binSize: { value: number }
+      ridgelineScale: { value: number }
+      timelineStart: { value: number | undefined }
+      timelineEnd: { value: number | undefined }
     }
     close: () => void
   }

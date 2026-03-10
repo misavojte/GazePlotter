@@ -6,11 +6,11 @@
   import { getGazePlotterSession } from '$lib/session'
   import { ModalContentMetadataInfo } from '$lib/modals/info/components'
   import GridItemContainer from '$lib/workspace/grid/GridItemContainer.svelte'
-  import type { AllGridTypes } from '$lib/workspace/type/gridType'
+  import type { GridItemSnapshot } from '$lib/workspace/type/gridType'
 
   interface Props {
     onReinitialize: () => void
-    initialLayoutState?: Array<Partial<AllGridTypes> & { type: string }> | null
+    initialLayoutState?: GridItemSnapshot[] | null
   }
 
   const {

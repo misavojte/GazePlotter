@@ -15,7 +15,13 @@ import {
   updateNoAoiTreatment,
   updateParticipantsGroups,
 } from '$lib/data/engine'
-import type { GridItemMap, AllGridTypes } from '$lib/workspace/type/gridType'
+import type {
+  GridItemMap,
+  AllGridTypes,
+  AllPlotSettings,
+  GridItemLayoutUpdate,
+  GridItemSnapshot,
+} from '$lib/workspace/type/gridType'
 import type {
   ExtendedInterpretedDataType,
   BaseInterpretedDataType,
@@ -85,9 +91,9 @@ export function createWorkspaceCommandRegistry(
       context.dispatch(
         createChildCommand(
           {
-            type: 'updateSettings',
+            type: 'updateLayout',
             itemId: collisionCommand.itemId,
-            settings: collisionCommand.settings,
+            layout: collisionCommand.settings,
             source: 'collision',
           },
           chainId
@@ -180,8 +186,23 @@ export function createWorkspaceCommandRegistry(
       const currentItem = gridStore.items.find(item => item.id === itemId)
       if (!currentItem) throw new Error(`Grid item ${itemId} not found`)
 
-      gridStore.updateItem(itemId, {
-        ...settings,
+      gridStore.updateItem(itemId, settings)
+      gridStore.updateLayout(itemId, {
+        redrawTimestamp: Date.now(),
+      })
+
+      if (command.isRootCommand && !context.isUndoRedoOperation) {
+        emitCollisionResolutionChildren(itemId, command.chainId, context)
+      }
+    },
+
+    updateLayout: (command, context) => {
+      const { itemId, layout } = command
+      const currentItem = gridStore.items.find(item => item.id === itemId)
+      if (!currentItem) throw new Error(`Grid item ${itemId} not found`)
+
+      gridStore.updateLayout(itemId, {
+        ...layout,
         redrawTimestamp: Date.now(),
       })
 
@@ -196,6 +217,7 @@ export function createWorkspaceCommandRegistry(
       const createdId = gridStore.addItem(vizType as keyof GridItemMap, {
         ...options,
         id: itemId,
+        type: vizType as keyof GridItemMap,
       })
       if (command.isRootCommand && !context.isUndoRedoOperation) {
         emitCollisionResolutionChildren(createdId, command.chainId, context)
@@ -387,32 +409,44 @@ export function createWorkspaceCommandRegistry(
         )
         return null
       }
-      const reverseSettings: Partial<AllGridTypes> = {}
+      const reverseSettings: Partial<AllPlotSettings> = {}
       Object.keys(cmd.settings).forEach(key => {
-        if (key === 'highlights') {
-          // Special-case: resetting highlights to an empty array
-          ;(
-            reverseSettings as Partial<AllGridTypes> & {
-              highlights?: unknown[]
-            }
-          ).highlights = []
-        } else if (key === 'type') {
-          return
-        } else {
-          // Always capture the previous value, even if it's undefined
-          // This ensures that undoing a change to a property that was
-          // previously unset (using defaults) correctly reverts it to unset.
-          const typedKey = key as keyof AllGridTypes
-          Object.assign(reverseSettings, {
-            [typedKey]: (currentItem as any)[typedKey],
-          })
-        }
+        const typedKey = key as keyof typeof currentItem.settings
+        Object.assign(reverseSettings, {
+          [typedKey]: currentItem.settings[typedKey],
+        })
       })
       return withMeta(
         {
           type: 'updateSettings',
           itemId: cmd.itemId,
           settings: reverseSettings,
+        },
+        meta
+      )
+    },
+
+    updateLayout: (cmd, meta) => {
+      const currentItems = gridStore.items
+      const currentItem = currentItems.find(item => item.id === cmd.itemId)
+      if (!currentItem) {
+        console.warn(`Cannot reverse updateLayout: item ${cmd.itemId} not found`)
+        return null
+      }
+
+      const reverseLayout: GridItemLayoutUpdate = {}
+      Object.keys(cmd.layout).forEach(key => {
+        const typedKey = key as keyof GridItemLayoutUpdate
+        Object.assign(reverseLayout, {
+          [typedKey]: currentItem[typedKey as keyof typeof currentItem],
+        })
+      })
+
+      return withMeta(
+        {
+          type: 'updateLayout',
+          itemId: cmd.itemId,
+          layout: reverseLayout,
         },
         meta
       )
@@ -436,7 +470,11 @@ export function createWorkspaceCommandRegistry(
           type: 'addGridItem',
           vizType: removedItem.type,
           itemId: removedItem.id,
-          options: { ...options, id: removedItem.id },
+          options: {
+            ...options,
+            id: removedItem.id,
+            settings: { ...removedItem.settings },
+          },
         },
         meta
       )
@@ -456,7 +494,10 @@ export function createWorkspaceCommandRegistry(
       const currentItems = gridStore.items
       const currentLayoutState = currentItems.map(item => {
         const { redrawTimestamp, ...itemData } = item
-        return itemData as Partial<AllGridTypes> & { type: string }
+        return {
+          ...itemData,
+          settings: { ...item.settings },
+        } as GridItemSnapshot
       })
       return withMeta(
         { type: 'setLayoutState', layoutState: currentLayoutState },

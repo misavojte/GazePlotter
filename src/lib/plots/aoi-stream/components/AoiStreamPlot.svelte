@@ -14,108 +14,135 @@
   } from '$lib/plots/shared'
   import { getAoiStreamPlotData, type CollectorWorkspace } from '../core'
   import {
-    scanForDynamicStripHeight,
+    scanForDynamicRidgelineReferenceHeight,
     scanForSynchronizedTimelineMax,
   } from '../sync'
-  import {
-    getParticipants,
-    getParticipantEndTime,
-  } from '$lib/data/engine'
+  import { getParticipants, getParticipantEndTime } from '$lib/data/engine'
   import { getGazePlotterSession, getGridState } from '$lib/session'
   import { RIDGELINE_SCALE } from '../const'
 
-  import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
+  import type {
+    AoiStreamPlotItem,
+    AoiStreamPlotSettings,
+  } from '$lib/plots/aoi-stream/types'
   import type { AoiStreamPlotResult } from '../types'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
-  import { PreviewSync } from '$lib/plots/shared'
+  import { PreviewModel } from '$lib/plots/shared'
   import { interpolateColor } from '$lib/color/utility'
   import { PRESET_PALETTES } from '$lib/color/palettes'
   import AoiStreamPlotViewSettings from './AoiStreamPlotViewSettings.svelte'
   import AoiStreamPlotColorSettings from './AoiStreamPlotColorSettings.svelte'
 
   interface Props {
-    settings: AoiStreamPlotGridType
+    item: AoiStreamPlotItem
   }
 
-  let { settings }: Props = $props()
+  let { item }: Props = $props()
   const { engine, workspace } = getGazePlotterSession()
   const grid = getGridState()
+  const settings = $derived(item.settings)
 
-  // --- PREVIEW SYNC STATE ---
-  // We use PreviewSync to manage "preview" vs "committed" state for settings.
-  // This allows submenus to share the same preview state (carrying over changes).
-
-  const binSizeSync = new PreviewSync<number>(() => settings.binSize ?? 500)
-  const ridgelineScaleSync = new PreviewSync<number>(
-    () => settings.ridgelineScale ?? RIDGELINE_SCALE
-  )
-  const timelineStartSync = new PreviewSync<number | undefined>(
-    () => settings.timelineStart
-  )
-  const timelineEndSync = new PreviewSync<number | undefined>(
-    () => settings.timelineEnd
-  )
-  const alignmentSync = new PreviewSync<
-    'stream' | 'distribution' | 'ridgeline' | 'heatmap'
-  >(() => settings.alignment ?? 'stream')
-
-  const colorMinSync = new PreviewSync<string>(
-    () => settings.colorScale?.[0] || PRESET_PALETTES.HEAT.colors[0]
-  )
-  const colorMaxSync = new PreviewSync<string>(() =>
-    settings.colorScale?.length === 3
-      ? settings.colorScale[2]
-      : settings.colorScale?.[1] || PRESET_PALETTES.HEAT.colors[2]
-  )
-  const colorMiddleSync = new PreviewSync<string>(() =>
-    settings.colorScale?.length === 3
-      ? settings.colorScale[1]
-      : settings.colorScale?.length === 2
-        ? interpolateColor(settings.colorScale[0], settings.colorScale[1], 0.5)
-        : PRESET_PALETTES.HEAT.colors[1]
-  )
-
-  // Grouping them for easier passing to components (typed explicitly for AoiStreamPlotViewSettings)
-  const syncs = {
-    binSize: binSizeSync,
-    ridgelineScale: ridgelineScaleSync,
-    timelineStart: timelineStartSync,
-    timelineEnd: timelineEndSync,
-    // alignmentSync is handled separately in the menu structure but contributes to effectiveSettings
-    colorMin: colorMinSync,
-    colorMiddle: colorMiddleSync,
-    colorMax: colorMaxSync,
+  type AoiStreamPreview = {
+    binSize: number
+    ridgelineScale: number
+    timelineStart: number | undefined
+    timelineEnd: number | undefined
+    alignment: 'stream' | 'distribution' | 'ridgeline' | 'heatmap'
+    colorMin: string
+    colorMiddle: string
+    colorMax: string
   }
 
+  const preview = new PreviewModel<
+    AoiStreamPreview,
+    Partial<AoiStreamPlotSettings>
+  >({
+    getCommitted: () => ({
+      binSize: settings.binSize ?? 500,
+      ridgelineScale: settings.ridgelineScale ?? RIDGELINE_SCALE,
+      timelineStart: settings.timelineStart,
+      timelineEnd: settings.timelineEnd,
+      alignment: settings.alignment ?? 'stream',
+      colorMin: settings.colorScale?.[0] || PRESET_PALETTES.HEAT.colors[0],
+      colorMax:
+        settings.colorScale?.length === 3
+          ? settings.colorScale[2]
+          : settings.colorScale?.[1] || PRESET_PALETTES.HEAT.colors[2],
+      colorMiddle:
+        settings.colorScale?.length === 3
+          ? settings.colorScale[1]
+          : settings.colorScale?.length === 2
+            ? interpolateColor(
+                settings.colorScale[0],
+                settings.colorScale[1],
+                0.5
+              )
+            : PRESET_PALETTES.HEAT.colors[1],
+    }),
+    buildPatch: (draft, committed) => {
+      const updates: Partial<AoiStreamPlotSettings> = {}
+
+      if (draft.binSize !== committed.binSize) updates.binSize = draft.binSize
+      if (draft.ridgelineScale !== committed.ridgelineScale) {
+        updates.ridgelineScale = draft.ridgelineScale
+      }
+      if (draft.timelineStart !== committed.timelineStart) {
+        updates.timelineStart = draft.timelineStart
+      }
+      if (draft.timelineEnd !== committed.timelineEnd) {
+        updates.timelineEnd = draft.timelineEnd
+      }
+      if (draft.alignment !== committed.alignment) {
+        updates.alignment = draft.alignment
+      }
+
+      const colorChanged =
+        draft.colorMin !== committed.colorMin ||
+        draft.colorMiddle !== committed.colorMiddle ||
+        draft.colorMax !== committed.colorMax
+      if (colorChanged) {
+        const autoMiddle = interpolateColor(draft.colorMin, draft.colorMax, 0.5)
+        updates.colorScale =
+          draft.colorMiddle === autoMiddle
+            ? [draft.colorMin, draft.colorMax]
+            : [draft.colorMin, draft.colorMiddle, draft.colorMax]
+      }
+
+      return updates
+    },
+  })
+
+  // Grouping them for easier passing to components (typed explicitly for AoiStreamPlotViewSettings)
+  const syncs = preview.fields
+
   const effectiveColorScale = $derived.by(() => {
-    const min = colorMinSync.value
-    const middle = colorMiddleSync.value
-    const max = colorMaxSync.value
+    const draft = preview.draft
+    const min = draft.colorMin
+    const middle = draft.colorMiddle
+    const max = draft.colorMax
     const autoMiddle = interpolateColor(min, max, 0.5)
     if (middle === autoMiddle) return [min, max]
     return [min, middle, max]
   })
 
-  const effectiveSettings = $derived({
-    ...settings,
-    binSize: binSizeSync.value,
-    ridgelineScale: ridgelineScaleSync.value ?? RIDGELINE_SCALE,
-    timelineStart: timelineStartSync.value,
-    timelineEnd: timelineEndSync.value,
-    alignment: alignmentSync.value as
-      | 'stream'
-      | 'distribution'
-      | 'ridgeline'
-      | 'heatmap',
-    colorScale: effectiveColorScale,
+  const effectiveSettings = $derived.by(() => {
+    const draft = preview.draft
+
+    return {
+      ...settings,
+      binSize: draft.binSize,
+      ridgelineScale: draft.ridgelineScale ?? RIDGELINE_SCALE,
+      timelineStart: draft.timelineStart,
+      timelineEnd: draft.timelineEnd,
+      alignment: draft.alignment,
+      colorScale: effectiveColorScale,
+    }
   })
 
   // --- DERIVED PIPELINE ---
 
-  const source = $derived.by(() =>
-    createCommandSourcePlotPattern(effectiveSettings, 'plot')
-  )
+  const source = $derived.by(() => createCommandSourcePlotPattern(item, 'plot'))
 
   const stimulusOptions = $derived(getStimuliOptions(engine))
   const groupOptions = $derived(
@@ -144,7 +171,7 @@
     const syncedMax = scanForSynchronizedTimelineMax(
       engine,
       grid.items,
-      effectiveSettings.w,
+      item.w,
       effectiveSettings.stimulusId,
       effectiveSettings.absoluteStimuliLimits
     )
@@ -208,13 +235,21 @@
 
   const streamResult = $derived(resultState.data)
 
-  const stripHeightOverride = $derived.by(() => {
-    if (effectiveSettings.alignment !== 'heatmap') return null
-    return scanForDynamicStripHeight(
+  const syncedMTopOverride = $derived.by(() => {
+    if (effectiveSettings.alignment !== 'ridgeline' || !streamResult)
+      return null
+    return scanForDynamicRidgelineReferenceHeight(
       engine,
       grid.items,
-      effectiveSettings.h,
-      effectiveSettings.id
+      item.h,
+      item.id,
+      {
+        plotId: item.id,
+        widthUnits: item.w,
+        heightUnits: item.h,
+        settings: effectiveSettings,
+        streamData: streamResult,
+      }
     )
   })
 
@@ -222,81 +257,35 @@
 
   function handleMenuClose() {
     untrack(() => {
-      const updates: Partial<AoiStreamPlotGridType> = {}
+      const updates = preview.buildPatch()
 
-      if (binSizeSync.isDirty) updates.binSize = binSizeSync.value
-      if (ridgelineScaleSync.isDirty)
-        updates.ridgelineScale = ridgelineScaleSync.value
-      if (timelineStartSync.isDirty)
-        updates.timelineStart = timelineStartSync.value
-      if (timelineEndSync.isDirty) updates.timelineEnd = timelineEndSync.value
-      if (alignmentSync.isDirty) updates.alignment = alignmentSync.value as any
-
-      if (
-        colorMinSync.isDirty ||
-        colorMiddleSync.isDirty ||
-        colorMaxSync.isDirty
-      ) {
-        updates.colorScale = effectiveSettings.colorScale
-      }
-
-      // Only dispatch if there are actual diffs
-      if (Object.keys(updates).length === 0) {
-        // Just reset previews to be safe (cleans up any accidental state)
-        binSizeSync.reset()
-        ridgelineScaleSync.reset()
-        timelineStartSync.reset()
-        timelineEndSync.reset()
-        alignmentSync.reset()
-        colorMinSync.reset()
-        colorMiddleSync.reset()
-        colorMaxSync.reset()
+      if (!updates || Object.keys(updates).length === 0) {
+        preview.resetAll()
         return
       }
 
-      // Snapshot to ensure we send raw values, decoupling from reactive proxies
       const snapshotUpdates = $state.snapshot(updates)
       const snapshotSource = $state.snapshot(source)
 
-      workspace.updateItemSettings(settings.id, snapshotUpdates, snapshotSource)
-
-      // IMPORTANT: Reset previews after dispatching.
-      // The command will eventually update props, which will update committed values via $effect.
-      binSizeSync.reset()
-      ridgelineScaleSync.reset()
-      timelineStartSync.reset()
-      timelineEndSync.reset()
-      alignmentSync.reset()
-      colorMinSync.reset()
-      colorMiddleSync.reset()
-      colorMaxSync.reset()
+      workspace.updateItemSettings(item.id, snapshotUpdates, snapshotSource)
+      preview.resetAll()
     })
   }
 
   const handleStimulusChange = (event: CustomEvent) => {
     const stimulusId = parseInt(event.detail as string)
-    // Reset preview on structural change
-    binSizeSync.reset()
-    ridgelineScaleSync.reset()
-    timelineStartSync.reset()
-    timelineEndSync.reset()
-    alignmentSync.reset()
+    preview.resetAll()
 
     if (settings.stimulusId === stimulusId) return
-    workspace.updateItemSettings(settings.id, { stimulusId }, source)
+    workspace.updateItemSettings(item.id, { stimulusId }, source)
   }
 
   const handleUpperGroupChange = (event: CustomEvent) => {
     const groupId = parseInt(event.detail as string)
-    // Reset preview on structural change
-    binSizeSync.reset()
-    ridgelineScaleSync.reset()
-    timelineStartSync.reset()
-    timelineEndSync.reset()
-    alignmentSync.reset()
+    preview.resetAll()
 
     if (settings.groupId === groupId) return
-    workspace.updateItemSettings(settings.id, { groupId }, source)
+    workspace.updateItemSettings(item.id, { groupId }, source)
   }
 
   const handleLegendClick = (aoiId: number) => {
@@ -304,10 +293,10 @@
     const currentHighlights = settings.highlights ?? []
     const isCurrentlyHighlighted = currentHighlights.includes(aoiIdStr)
     const newHighlights = isCurrentlyHighlighted
-      ? currentHighlights.filter(id => id !== aoiIdStr)
+      ? currentHighlights.filter((id: string) => id !== aoiIdStr)
       : [...currentHighlights, aoiIdStr]
 
-    workspace.updateItemSettings(settings.id, { highlights: newHighlights }, source)
+    workspace.updateItemSettings(item.id, { highlights: newHighlights }, source)
   }
 
   const selectItems = $derived([
@@ -335,7 +324,7 @@
           value: 'stream',
           label: 'Stream',
           onSelect: (v: any) => {
-            alignmentSync.value = v
+            syncs.alignment.value = v
           },
           closeOnAction: false,
           component: AoiStreamPlotViewSettings,
@@ -348,7 +337,7 @@
           value: 'distribution',
           label: 'Distribution',
           onSelect: (v: any) => {
-            alignmentSync.value = v
+            syncs.alignment.value = v
           },
           closeOnAction: false,
           component: AoiStreamPlotViewSettings,
@@ -361,10 +350,10 @@
           value: 'ridgeline',
           label: 'Ridgeline',
           onSelect: (v: any) => {
-            alignmentSync.value = v
+            syncs.alignment.value = v
             // Ensure scale has a value for preview if it was undefined
-            if (!ridgelineScaleSync.value) {
-              ridgelineScaleSync.value =
+            if (!syncs.ridgelineScale.value) {
+              syncs.ridgelineScale.value =
                 settings.ridgelineScale ?? RIDGELINE_SCALE
             }
           },
@@ -379,7 +368,7 @@
           value: 'heatmap',
           label: 'Heatmap',
           onSelect: (v: any) => {
-            alignmentSync.value = v
+            syncs.alignment.value = v
           },
           closeOnAction: false,
           component: AoiStreamPlotColorSettings,
@@ -393,7 +382,7 @@
   ])
 </script>
 
-<BasePlot settings={effectiveSettings} hasData={!!streamResult}>
+<BasePlot {item} hasData={!!streamResult}>
   {#snippet header()}
     <div class="controls">
       <Select
@@ -403,7 +392,7 @@
         options={[]}
       />
       <div class="menu-button">
-        <AoiStreamPlotButtonMenu {settings} />
+        <AoiStreamPlotButtonMenu {item} />
       </div>
     </div>
   {/snippet}
@@ -417,7 +406,7 @@
         highlights={effectiveSettings.highlights}
         alignment={effectiveSettings.alignment ?? 'stream'}
         onLegendClick={handleLegendClick}
-        {stripHeightOverride}
+        {syncedMTopOverride}
         ridgelineScale={effectiveSettings.ridgelineScale}
         colorScale={effectiveSettings.colorScale}
       />

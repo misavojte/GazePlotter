@@ -3,7 +3,11 @@ import type {
   BaseInterpretedDataType,
   ParticipantsGroup,
 } from '$lib/data/types'
-import type { AllGridTypes } from '$lib/workspace/type/gridType'
+import type {
+  AllPlotSettings,
+  GridItemLayoutUpdate,
+  GridItemSnapshot,
+} from '$lib/workspace/type/gridType'
 
 /**
  * Workspace Command System
@@ -63,14 +67,20 @@ export interface UpdateNoAoiTreatmentCommand extends BaseCommandInterface {
 export interface UpdateSettingsCommand extends BaseCommandInterface {
   type: 'updateSettings'
   itemId: number
-  settings: Partial<AllGridTypes>
+  settings: Partial<AllPlotSettings>
+}
+
+export interface UpdateLayoutCommand extends BaseCommandInterface {
+  type: 'updateLayout'
+  itemId: number
+  layout: GridItemLayoutUpdate
 }
 
 // Grid item management commands
 export interface AddGridItemCommand extends BaseCommandInterface {
   type: 'addGridItem'
   vizType: string
-  options?: Partial<AllGridTypes> & { skipCollisionResolution?: boolean }
+  options?: GridItemSnapshot & { skipCollisionResolution?: boolean }
   itemId: number // Required itemId for command reversal
 }
 
@@ -87,7 +97,7 @@ export interface DuplicateGridItemCommand extends BaseCommandInterface {
 
 export interface SetLayoutStateCommand extends BaseCommandInterface {
   type: 'setLayoutState'
-  layoutState: Array<Partial<AllGridTypes> & { type: string }>
+  layoutState: GridItemSnapshot[]
 }
 
 export type WorkspaceCommand =
@@ -98,6 +108,7 @@ export type WorkspaceCommand =
   | UpdateParticipantsGroupsCommand
   | UpdateNoAoiTreatmentCommand
   | UpdateSettingsCommand // includes position and size updates
+  | UpdateLayoutCommand
   | AddGridItemCommand
   | RemoveGridItemCommand
   | DuplicateGridItemCommand

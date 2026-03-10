@@ -1,5 +1,5 @@
 import type { WorkspaceCommand, WorkspaceCommandChain } from './types'
-import type { AllGridTypes } from '$lib/workspace/type/gridType'
+import type { GridItemBase, PlotType } from '$lib/workspace/type/gridType'
 
 /**
  * Generates a unique chain ID for command chaining.
@@ -38,7 +38,7 @@ export function createChildCommand<T extends WorkspaceCommand>(
 }
 
 export function createCommandSourcePlotPattern(
-  settings: Partial<AllGridTypes> & { type: string },
+  settings: Partial<GridItemBase> & { type: PlotType },
   placement: 'plot' | 'modal' | 'workspace'
 ) {
   return `${settings.type}.${settings.id}.${placement}`

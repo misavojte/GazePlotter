@@ -1,7 +1,7 @@
 <script lang="ts">
   import { GeneralButtonMenu as MenuButton } from '$lib/shared/components'
   import { getModalState } from '$lib/session'
-  import type { BarPlotGridType } from '$lib/workspace/type/gridType'
+  import type { BarPlotItem } from '$lib/plots/bar/types'
   import type { SvelteComponent } from 'svelte'
   import Download from 'lucide-svelte/icons/download'
   import Settings from 'lucide-svelte/icons/settings-2'
@@ -18,16 +18,14 @@
   import { untrack } from 'svelte'
 
   interface Props {
-    settings: BarPlotGridType
+    item: BarPlotItem
   }
 
-  let { settings }: Props = $props()
+  let { item }: Props = $props()
   const modalState = getModalState()
+  const settings = $derived(item.settings)
 
-  const source = createCommandSourcePlotPattern(
-    untrack(() => settings),
-    'modal'
-  )
+  const source = createCommandSourcePlotPattern(untrack(() => item), 'modal')
 
   const openAoiModificationModal = () => {
     modalState.open(
@@ -65,7 +63,7 @@
       ModalContentDownloadBarPlot as unknown as typeof SvelteComponent,
       'Download bar plot',
       {
-        settings,
+        item,
       }
     )
   }
@@ -75,7 +73,7 @@
       ModalContentExportAggregatedData as unknown as typeof SvelteComponent,
       'Export aggregated data',
       {
-        settings,
+        item,
       }
     )
   }

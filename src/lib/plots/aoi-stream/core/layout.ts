@@ -1,5 +1,5 @@
 import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
-import { RIDGELINE_SCALE, Y_AXIS } from '../const'
+import { RIDGELINE_CONTENT_FILL, RIDGELINE_SCALE, Y_AXIS } from '../const'
 import { calculateIdealStripHeight } from './ridgeline'
 import { desaturateToWhite, interpolateColor } from '$lib/color/utility'
 import { PRESET_PALETTES, INACTIVE_COLOR } from '$lib/color/palettes'
@@ -67,7 +67,7 @@ export interface StreamCoordsParams {
   floorWidth: number
   floorHeight: number
   floorBottom: number
-  stripHeightOverride: number | null
+  syncedMTopOverride: number | null
   highlightMaskById: Map<number, boolean> | null
   ridgelineScale?: number
   colorScale?: string[]
@@ -79,6 +79,7 @@ export interface StreamPaintInfo {
   id: number
   stripBottom?: number
   stripHeight?: number
+  referenceHeight?: number
   heatmapBinColors?: string[]
 }
 
@@ -108,7 +109,7 @@ export function transformStreamDataToCoordinates(
     floorWidth,
     floorHeight,
     floorBottom,
-    stripHeightOverride,
+    syncedMTopOverride,
     highlightMaskById,
     ridgelineScale,
     colorScale,
@@ -189,14 +190,22 @@ export function transformStreamDataToCoordinates(
   let stripHeight = 0
   let overlapOffset = 0
   let totalGroupHeight = 0
+  let ridgelineReferenceHeight = 0
   if (isHeatmap) {
     stripHeight = floorHeight / Math.max(1, series.length)
     overlapOffset = stripHeight
     totalGroupHeight = floorHeight
   } else if (isRidgeline) {
-    stripHeight =
-      stripHeightOverride ??
-      calculateIdealStripHeight(data, floorHeight, true, scale)
+    // Strip layout always uses actual floorHeight — fills available space, no whitespace.
+    // When synced, mTopOverride ensures consistent data scale across comparable plots.
+    stripHeight = calculateIdealStripHeight(
+      data,
+      floorHeight,
+      true,
+      scale,
+      syncedMTopOverride ?? undefined
+    )
+    ridgelineReferenceHeight = stripHeight
     overlapOffset = stripHeight * (1 - overlap)
     totalGroupHeight = (series.length - 1) * overlapOffset + stripHeight
   }
@@ -228,6 +237,7 @@ export function transformStreamDataToCoordinates(
       info.id = source.id
       info.stripBottom = undefined
       info.stripHeight = undefined
+      info.referenceHeight = undefined
       info.heatmapBinColors = undefined
     }
 
@@ -276,6 +286,7 @@ export function transformStreamDataToCoordinates(
       info.id = source.id
       info.stripBottom = undefined
       info.stripHeight = undefined
+      info.referenceHeight = undefined
       info.heatmapBinColors = undefined
 
       if (isHeatmap || isRidgeline) {
@@ -283,6 +294,10 @@ export function transformStreamDataToCoordinates(
         const sBottom = sTop + stripHeight
         info.stripBottom = sBottom
         info.stripHeight = stripHeight
+
+        if (isRidgeline && s === 0) {
+          info.referenceHeight = ridgelineReferenceHeight
+        }
 
         if (isHeatmap) {
           info.heatmapBinColors = bucket.heatmapColors
@@ -312,7 +327,8 @@ export function transformStreamDataToCoordinates(
             bucket.bottomY[i] = sBottom
           }
         } else {
-          const localScaleY = (stripHeight * 0.9) / 100
+          const localScaleY =
+            (ridgelineReferenceHeight * RIDGELINE_CONTENT_FILL) / 100
           for (let i = 0; i < renderBinCount; i++) {
             const val =
               i === 0 || i === renderBinCount - 1

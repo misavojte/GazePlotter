@@ -1,16 +1,17 @@
 <script lang="ts">
-  import type { AoiStreamPlotGridType } from '$lib/workspace/type/gridType'
+  import type { AoiStreamPlotItem } from '$lib/plots/aoi-stream/types'
   import AoiStreamPlotFigure from '$lib/plots/aoi-stream/components/AoiStreamPlotFigure.svelte'
   import { getAoiStreamPlotData } from '$lib/plots/aoi-stream/core'
   import { PlotExportWrapper } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
 
   interface Props {
-    settings: AoiStreamPlotGridType
+    item: AoiStreamPlotItem
   }
 
-  let { settings }: Props = $props()
+  let { item }: Props = $props()
   const { engine } = getGazePlotterSession()
+  const settings = $derived(item.settings)
 
   const streamData = $derived.by(
     () =>

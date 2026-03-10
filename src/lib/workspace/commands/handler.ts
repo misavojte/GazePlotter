@@ -2,7 +2,10 @@ import type { WorkspaceCommandChain } from '$lib/workspace/commands'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import { isHistoryCommand } from '$lib/workspace/commands'
 import { GridState } from '$lib/workspace/grid'
-import { createWorkspaceCommandRegistry, UndoRedoStateStore } from '$lib/workspace/commands'
+import {
+  createWorkspaceCommandRegistry,
+  UndoRedoStateStore,
+} from '$lib/workspace/commands'
 import { getCommandLabel } from '$lib/workspace/commands/labels'
 
 /**
@@ -39,6 +42,11 @@ export function createCommandHandler(
     isUndoRedoOperation: boolean
   ) => {
     if (!isNormalRootCommand(command, isUndoRedoOperation)) return false
+
+    // Ignore layout updates as they are frequent and don't need notifications
+    if (command.type === 'updateLayout' || command.type === 'setLayoutState') {
+      return false
+    }
 
     // Ignore updateSettings unless it's clearly user-triggered from a modal.
     if (command.type === 'updateSettings') {

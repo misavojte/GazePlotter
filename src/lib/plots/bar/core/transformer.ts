@@ -4,13 +4,12 @@ import {
   createAdaptiveTimeline,
   type AdaptiveTimeline,
 } from '$lib/plots/shared'
-import type { BarPlotGridType } from '$lib/workspace/type/gridType'
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
 import {
   formatDecimal,
   normalizeToPercentages,
 } from '$lib/shared/utils/mathUtils'
-import type { BarPlotResult, BarPlotDataItem } from '../types'
+import type { BarPlotResult, BarPlotDataItem, BarPlotSettings } from '../types'
 import { collectParticipantBarMetrics } from './collector'
 
 /**
@@ -20,7 +19,7 @@ import { collectParticipantBarMetrics } from './collector'
 export function getBarPlotData(
   engine: DataEngine,
   settings: Pick<
-    BarPlotGridType,
+    BarPlotSettings,
     | 'stimulusId'
     | 'groupId'
     | 'aggregationMethod'
@@ -116,6 +115,7 @@ function getParticipantIdsForGroup(
   }
 
   const group = meta.participantsGroups.find(candidate => candidate.id === groupId)
+  if (!group && groupId === 0) return participantOrder
   if (!group) throw new Error(`Participants group with id ${groupId} does not exist`)
   return group.participantsIds
 }
@@ -132,7 +132,7 @@ function getVisibleAois(
 
   const order = meta.aois.orderVector?.[stimulusId]
   const ids =
-    order == null
+    order == null || order.length === 0
       ? Array.from({ length: stimulusAois.length }, (_, i) => i)
       : order
 

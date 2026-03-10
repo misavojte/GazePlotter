@@ -1,15 +1,14 @@
 <script lang="ts">
   import { type MenuItem } from '$lib/context-menu'
-  import type { PreviewSync } from '$lib/plots/shared'
 
   interface Props {
     item: MenuItem
     syncs: {
-      timelineStart: PreviewSync<number>
-      timelineEnd: PreviewSync<number>
-      ordinalStart: PreviewSync<number>
-      ordinalEnd: PreviewSync<number>
-      hideNonFixations: PreviewSync<boolean>
+      timelineStart: { value: number | undefined }
+      timelineEnd: { value: number | undefined }
+      ordinalStart: { value: number | undefined }
+      ordinalEnd: { value: number | undefined }
+      hideNonFixations: { value: boolean }
     }
     close: () => void
   }

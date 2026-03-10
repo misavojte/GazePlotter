@@ -3,6 +3,8 @@
 
 // Export shared components and utilities
 export * from './shared'
+export * from './definePlot'
+export * from './registry'
 
 // Export visualization types
 export * from './transition-matrix'

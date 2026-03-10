@@ -3,13 +3,13 @@
   import { getGazePlotterSession } from '$lib/session'
   import { onMount } from 'svelte'
   import { ModalContentMetadataInfo } from '$lib/modals'
-  import type { AllGridTypes } from '$lib/workspace/type/gridType'
+  import type { GridItemSnapshot } from '$lib/workspace/type/gridType'
 
   // Configuration for toolbar items
   interface Props {
     accentColor?: string
     visualizations?: Array<{ id: string; label: string }>
-    initialLayoutState?: Array<Partial<AllGridTypes> & { type: string }> | null
+    initialLayoutState?: GridItemSnapshot[] | null
   }
 
   // Track fullscreen state

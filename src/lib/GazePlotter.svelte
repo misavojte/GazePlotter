@@ -4,14 +4,14 @@
   import Panel from '$lib/workspace/panel/components/Panel.svelte'
   import Workspace from '$lib/workspace/components/Workspace.svelte'
   import { Tooltip } from '$lib/tooltip'
-  import { ContextMenu, contextMenuState } from '$lib/context-menu'
+  import { ContextMenu } from '$lib/context-menu'
   import { onMount, tick, setContext } from 'svelte'
   import {
     createGazePlotterSession,
     setGazePlotterSessionContext,
   } from '$lib/session'
 
-  import type { AllGridTypes } from '$lib/workspace/type/gridType'
+  import type { GridItemSnapshot } from '$lib/workspace/type/gridType'
   import type { WorkspaceCommandChain } from '$lib/workspace/commands'
   import type { GazePlotterSession } from '$lib/session'
 
@@ -35,16 +35,15 @@
   setContext('reinitializeLabel', reinitializeLabel)
 
   // Snapshot remains a $state rune
-  let initialGridItemsSnapshot = $state<Array<
-    Partial<AllGridTypes> & { type: string }
-  > | null>(null)
+  let initialGridItemsSnapshot = $state<GridItemSnapshot[] | null>(null)
 
   async function loadData() {
     try {
       await loadInitialData(session)
-      initialGridItemsSnapshot = session.grid.items as Array<
-        Partial<AllGridTypes> & { type: string }
-      >
+      initialGridItemsSnapshot = session.grid.items.map(item => ({
+        ...item,
+        settings: { ...item.settings },
+      }))
       await tick()
     } catch (error) {
       console.error('Error loading data:', error)

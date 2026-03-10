@@ -6,7 +6,7 @@
   import Users from 'lucide-svelte/icons/users'
   import View from 'lucide-svelte/icons/view'
   import type { ComponentProps } from 'svelte'
-  import type { ScarfGridType } from '$lib/workspace/type/gridType'
+  import type { ScarfPlotItem } from '$lib/plots/scarf/types'
   import type { SvelteComponent } from 'svelte'
   import {
     ModalContentParticipantModification,
@@ -21,16 +21,14 @@
   import { untrack } from 'svelte'
 
   interface Props {
-    settings: ScarfGridType
+    item: ScarfPlotItem
   }
 
-  let { settings }: Props = $props()
+  let { item }: Props = $props()
   const modalState = getModalState()
+  const settings = $derived(item.settings)
 
-  const source = createCommandSourcePlotPattern(
-    untrack(() => settings),
-    'modal'
-  )
+  const source = createCommandSourcePlotPattern(untrack(() => item), 'modal')
 
   const openModal = (
     component: any,
@@ -84,7 +82,7 @@
       label: 'Export segmented data',
       action: () =>
         openModal(ModalContentExportSegmentedData, 'Export segmented data', {
-          settings,
+          item,
         }),
       icon: Download,
     },
@@ -92,7 +90,7 @@
       label: 'Download plot',
       action: () =>
         openModal(ModalContentDownloadScarfPlot, 'Download scarf plot', {
-          settings,
+          item,
         }),
       icon: Download,
     },

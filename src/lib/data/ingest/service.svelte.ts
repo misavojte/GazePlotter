@@ -15,7 +15,7 @@ import type { ModalState } from '$lib/modals/modal.state.svelte'
 import type { ToastState } from '$lib/toaster/toastState.svelte'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import type { GridState } from '$lib/workspace/grid/store.svelte'
-import type { AllGridTypes } from '$lib/workspace/type/gridType'
+import type { GridItemSnapshot } from '$lib/workspace/type/gridType'
 
 export type IngestStatus = 'loading' | 'ready' | 'error'
 
@@ -375,9 +375,7 @@ export class IngestService {
     this.input = parsedData.current
     this.deps.engine.loadDataset(parsedData.data)
     this.deps.grid.reset(
-      (parsedData.gridItems ?? DEFAULT_GRID_STATE_DATA) as Array<
-        Partial<AllGridTypes> & { type: string }
-      >
+      (parsedData.gridItems ?? DEFAULT_GRID_STATE_DATA) as GridItemSnapshot[]
     )
     this.deps.resetWorkspaceHistory()
     this.status = 'ready'

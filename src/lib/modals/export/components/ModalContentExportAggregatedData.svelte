@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte'
-  import type { BarPlotGridType } from '$lib/workspace/type/gridType'
+  import type { GridItemMap } from '$lib/workspace/type/gridType'
   import {
     GeneralSelect,
     GeneralInputText,
@@ -18,11 +18,12 @@
   } from '$lib/data/export'
 
   interface Props {
-    settings?: BarPlotGridType
+    item?: GridItemMap['barPlot']
   }
 
-  let { settings }: Props = $props()
+  let { item }: Props = $props()
   const { exportService, modalState, engine } = getGazePlotterSession()
+  const settings = $derived(item?.settings)
 
   let fileName = $state('GazePlotter-AggregatedData')
   let selectedGroupId = $state(

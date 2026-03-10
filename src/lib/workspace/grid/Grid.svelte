@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte'
+  import { onDestroy, type Component } from 'svelte'
   import { fade } from 'svelte/transition'
   import GridItem from './GridItem.svelte'
   import { getVizConfig } from '$lib/plots/registry'
@@ -27,7 +27,6 @@
 
     // Workspace container reference
     workspaceContainer: HTMLElement | null
-
   }
 
   const {
@@ -48,6 +47,15 @@
     }
 
     workspace.applyRoot(command)
+  }
+
+  type WorkspacePlotComponent = Component<{
+    item: AllGridTypes
+    onWorkspaceCommand?: typeof dispatchWorkspaceCommand
+  }>
+
+  function getWorkspacePlotComponent(item: AllGridTypes): WorkspacePlotComponent {
+    return getVizConfig(item.type).component as WorkspacePlotComponent
   }
 
   // ---------------------------------------------------
@@ -129,7 +137,7 @@
     if (currentItem) {
       const { type, id } = currentItem
       const source = `${type}.${id}.workspace`
-      workspace.updateItemSettings(id, { x: event.x, y: event.y }, source)
+      workspace.updateItemLayout(id, { x: event.x, y: event.y }, source)
     }
   }
 
@@ -166,11 +174,7 @@
     const constrainedW = Math.max(minWidth, event.w)
     const constrainedH = Math.max(minHeight, event.h)
 
-    workspace.updateItemSettings(
-      id,
-      { w: constrainedW, h: constrainedH },
-      source
-    )
+    workspace.updateItemLayout(id, { w: constrainedW, h: constrainedH }, source)
   }
 
   // Pointer tracking for central edge-detection
@@ -530,6 +534,7 @@
   {#if !gridIsEmpty}
     {#each gridItems as item (item.id)}
       {@const visConfig = getVizConfig(item.type)}
+      {@const PlotComponent = getWorkspacePlotComponent(item)}
       {#if visConfig}
         <div transition:fade={{ duration: 300 }}>
           <GridItem
@@ -556,9 +561,9 @@
             onduplicate={handleItemDuplicate}
           >
             {#snippet body()}
-                <div class="grid-item-content">
-                <visConfig.component
-                  settings={item}
+              <div class="grid-item-content">
+                <PlotComponent
+                  {item}
                   onWorkspaceCommand={dispatchWorkspaceCommand}
                 />
               </div>
