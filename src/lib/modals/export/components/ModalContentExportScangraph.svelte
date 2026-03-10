@@ -4,68 +4,52 @@
   import { getStimuliOptions } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'
+  import {
+    createExportButtons,
+    waitForExportUi,
+  } from './helpers'
 
   const { engine, exportService, modalState } = getGazePlotterSession()
-  // Export settings state
   let fileName = $state('GazePlotter-ScanGraph')
   let stimulusId = $state('0')
   let isExporting = $state(false)
 
-  // Get stimulus options
   const stimulusOptions = getStimuliOptions(engine)
 
-  // Validation
   const canExport = $derived(fileName.trim().length > 0)
 
-  // Function to handle export
   const handleExport = async () => {
     if (!canExport) return
 
     isExporting = true
 
     try {
-      // Small delay to show the loading state
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await waitForExportUi()
       await exportService.exportScangraph({
         fileName,
         stimulusId: parseInt(stimulusId),
       })
-    } catch (error) {
-      console.error('Export failed:', error)
+    } catch {
+      // ExportService already reports validation and runtime failures.
     } finally {
       isExporting = false
     }
   }
 
-  // Function to open workplace download modal
-  const handleOpenWorkplaceExport = () => {
-    modalState.open(ModalContentDownloadWorkplace as any, 'Download Workplace')
-  }
-
-  // Function to close modal
-  const handleCancel = () => {
-    modalState.close()
-  }
-
-  // Button configuration
-  const exportButtons = $derived([
-    {
-      label: isExporting ? 'Exporting...' : 'Export ScanGraph',
-      onclick: handleExport,
-      isDisabled: !canExport || isExporting,
-      variant: 'primary' as const,
-    },
-    {
-      label: 'All Data Formats',
-      onclick: handleOpenWorkplaceExport,
-      isDisabled: false,
-    },
-    {
-      label: 'Cancel',
-      onclick: handleCancel,
-      isDisabled: false,
-    },
-  ])
+  const exportButtons = $derived(
+    createExportButtons({
+      canExport,
+      exportLabel: 'Export ScanGraph',
+      isExporting,
+      onCancel: () => modalState.close(),
+      onExport: handleExport,
+      onOpenFormats: () =>
+        modalState.open(
+          ModalContentDownloadWorkplace as any,
+          'Download Workplace'
+        ),
+    })
+  )
 </script>
 
 <div class="container">

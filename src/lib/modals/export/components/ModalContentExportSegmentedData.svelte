@@ -8,10 +8,17 @@
   import type { DecimalSeparator } from '$lib/data/export'
   import { getGazePlotterSession } from '$lib/session'
   import { ModalContentDownloadWorkplace } from '$lib/modals/export/components'
-  import { getStimuliOptions } from '$lib/plots/shared/selectOptionsGetters'
+  import { getStimuliOptions } from '$lib/plots/shared'
+  import {
+    createExportButtons,
+    CSV_DECIMAL_SEPARATOR_OPTIONS,
+    CSV_DELIMITER_OPTIONS,
+    mapSelectableItems,
+    toggleSetValue,
+    waitForExportUi,
+  } from './helpers'
 
   const { engine, exportService, modalState } = getGazePlotterSession()
-  // Export settings state
   let fileName = $state('GazePlotter-SegmentedData')
   let exportType = $state('csv')
   let delimiter = $state(',')
@@ -20,7 +27,6 @@
   let selectedStimuliIds = $state(new Set<string>())
   let isExporting = $state(false)
 
-  // Export type options
   const exportOptions = [
     {
       value: 'csv',
@@ -32,55 +38,29 @@
     },
   ]
 
-  // Validation
   const canExport = $derived(
     fileName.trim().length > 0 && selectedStimuliIds.size > 0
   )
 
-  const delimiterOptions = [
-    { value: ',', label: 'Comma (,)' },
-    { value: ';', label: 'Semicolon (;)' },
-  ]
-
-  const decimalSeparatorOptions = [
-    { value: '.', label: 'Dot (.)' },
-    { value: ',', label: 'Comma (,)' },
-  ]
-
-  // Get stimuli options
   const stimuliItems = $derived(
-    getStimuliOptions(engine).map(option => ({
-      key: option.value,
-      label: option.label,
-      checked: selectedStimuliIds.has(option.value),
-    }))
+    mapSelectableItems(getStimuliOptions(engine), selectedStimuliIds)
   )
 
-  // Handle stimulus selection changes
   function handleStimulusChange(key: string, checked: boolean) {
-    if (checked) {
-      selectedStimuliIds.add(key)
-    } else {
-      selectedStimuliIds.delete(key)
-    }
-    selectedStimuliIds = new Set(selectedStimuliIds) // Trigger reactivity
+    selectedStimuliIds = toggleSetValue(selectedStimuliIds, key, checked)
   }
 
-  // Pre-select all stimuli by default
   $effect(() => {
-    const options = getStimuliOptions(engine)
-    selectedStimuliIds = new Set(options.map(o => o.value))
+    selectedStimuliIds = new Set(getStimuliOptions(engine).map(({ value }) => value))
   })
 
-  // Function to handle export
   const handleExport = async () => {
     if (!canExport) return
 
     isExporting = true
 
     try {
-      // Small delay to show the loading state
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await waitForExportUi()
       await exportService.exportSegmentedData({
         fileName,
         exportType: exportType as 'csv' | 'individual-csv',
@@ -91,42 +71,27 @@
           decimalSeparator,
         },
       })
-    } catch (error) {
-      console.error('Export failed:', error)
+    } catch {
+      // ExportService already reports validation and runtime failures.
     } finally {
       isExporting = false
     }
   }
 
-  // Function to open workplace download modal
-  const handleOpenWorkplaceExport = () => {
-    modalState.open(ModalContentDownloadWorkplace as any, 'Download Workplace')
-  }
-
-  // Function to close modal
-  const handleCancel = () => {
-    modalState.close()
-  }
-
-  // Button configuration
-  const exportButtons = $derived([
-    {
-      label: isExporting ? 'Exporting...' : 'Export Data',
-      onclick: handleExport,
-      isDisabled: !canExport || isExporting,
-      variant: 'primary' as const,
-    },
-    {
-      label: 'All Data Formats',
-      onclick: handleOpenWorkplaceExport,
-      isDisabled: false,
-    },
-    {
-      label: 'Cancel',
-      onclick: handleCancel,
-      isDisabled: false,
-    },
-  ])
+  const exportButtons = $derived(
+    createExportButtons({
+      canExport,
+      exportLabel: 'Export Data',
+      isExporting,
+      onCancel: () => modalState.close(),
+      onExport: handleExport,
+      onOpenFormats: () =>
+        modalState.open(
+          ModalContentDownloadWorkplace as any,
+          'Download Workplace'
+        ),
+    })
+  )
 </script>
 
 <div class="container">
@@ -154,12 +119,12 @@
       />
       <GeneralSelect
         label="Delimiter"
-        options={delimiterOptions}
+        options={CSV_DELIMITER_OPTIONS}
         bind:value={delimiter}
       />
       <GeneralSelect
         label="Decimal Separator"
-        options={decimalSeparatorOptions}
+        options={CSV_DECIMAL_SEPARATOR_OPTIONS}
         bind:value={decimalSeparator}
       />
     </div>

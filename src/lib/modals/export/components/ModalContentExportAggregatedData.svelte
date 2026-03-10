@@ -16,6 +16,14 @@
     type AggregatedMetricKey,
     type DecimalSeparator,
   } from '$lib/data/export'
+  import {
+    createExportButtons,
+    CSV_DECIMAL_SEPARATOR_OPTIONS,
+    CSV_DELIMITER_OPTIONS,
+    mapSelectableItems,
+    toggleSetValue,
+    waitForExportUi,
+  } from './helpers'
 
   interface Props {
     item?: GridItemMap['barPlot']
@@ -36,44 +44,31 @@
   let decimalSeparator = $state<DecimalSeparator>('.')
   let isExporting = $state(false)
 
-  const delimiterOptions = [
-    { value: ',', label: 'Comma (,)' },
-    { value: ';', label: 'Semicolon (;)' },
-  ]
-
-  const decimalSeparatorOptions = [
-    { value: '.', label: 'Dot (.)' },
-    { value: ',', label: 'Comma (,)' },
-  ]
-
   let selectedMetrics = $state(
     new Set<AggregatedMetricKey>(AGGREGATED_METRIC_CONFIG.map(m => m.key))
   )
 
   const metricsItems = $derived(
-    AGGREGATED_METRIC_CONFIG.map(config => ({
-      key: config.key,
-      label: config.label,
-      sublabel: config.sublabel,
-      checked: selectedMetrics.has(config.key),
-    }))
+    mapSelectableItems(
+      AGGREGATED_METRIC_CONFIG.map(({ key, label, sublabel }) => ({
+        value: key,
+        label,
+        sublabel,
+      })),
+      selectedMetrics
+    )
   )
 
   function handleMetricChange(key: string, checked: boolean) {
-    if (checked) {
-      selectedMetrics.add(key as AggregatedMetricKey)
-    } else {
-      selectedMetrics.delete(key as AggregatedMetricKey)
-    }
-    selectedMetrics = new Set(selectedMetrics)
+    selectedMetrics = toggleSetValue(
+      selectedMetrics,
+      key as AggregatedMetricKey,
+      checked
+    )
   }
 
   const stimuliItems = $derived(
-    getStimuliOptions(engine).map(option => ({
-      key: option.value,
-      label: option.label,
-      checked: selectedStimuliIds.has(option.value),
-    }))
+    mapSelectableItems(getStimuliOptions(engine), selectedStimuliIds)
   )
 
   const groupOptions = $derived(
@@ -84,12 +79,7 @@
   )
 
   function handleStimulusChange(key: string, checked: boolean) {
-    if (checked) {
-      selectedStimuliIds.add(key)
-    } else {
-      selectedStimuliIds.delete(key)
-    }
-    selectedStimuliIds = new Set(selectedStimuliIds)
+    selectedStimuliIds = toggleSetValue(selectedStimuliIds, key, checked)
   }
 
   const canExport = $derived(
@@ -104,7 +94,7 @@
     isExporting = true
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await waitForExportUi()
       await exportService.exportAggregatedData({
         fileName,
         groupId: parseInt(selectedGroupId),
@@ -122,32 +112,17 @@
     }
   }
 
-  const handleOpenMainExport = () => {
-    modalState.open(ModalContentDownloadWorkplace as any, 'Export Options')
-  }
-
-  const handleCancel = () => {
-    modalState.close()
-  }
-
-  const exportButtons = $derived([
-    {
-      label: isExporting ? 'Exporting...' : 'Export CSV',
-      onclick: handleExport,
-      isDisabled: !canExport || isExporting,
-      variant: 'primary' as const,
-    },
-    {
-      label: 'All Data Formats',
-      onclick: handleOpenMainExport,
-      isDisabled: false,
-    },
-    {
-      label: 'Cancel',
-      onclick: handleCancel,
-      isDisabled: false,
-    },
-  ])
+  const exportButtons = $derived(
+    createExportButtons({
+      canExport,
+      exportLabel: 'Export CSV',
+      isExporting,
+      onCancel: () => modalState.close(),
+      onExport: handleExport,
+      onOpenFormats: () =>
+        modalState.open(ModalContentDownloadWorkplace as any, 'Export Options'),
+    })
+  )
 </script>
 
 <div class="container">
@@ -175,12 +150,12 @@
       />
       <GeneralSelect
         label="Delimiter"
-        options={delimiterOptions}
+        options={CSV_DELIMITER_OPTIONS}
         bind:value={delimiter}
       />
       <GeneralSelect
         label="Decimal Separator"
-        options={decimalSeparatorOptions}
+        options={CSV_DECIMAL_SEPARATOR_OPTIONS}
         bind:value={decimalSeparator}
       />
     </div>

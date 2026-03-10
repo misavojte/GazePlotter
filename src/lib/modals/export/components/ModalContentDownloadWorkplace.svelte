@@ -8,35 +8,40 @@
   } from '$lib/modals/export/components'
 
   const { exportService, modalState } = getGazePlotterSession()
-  const type = 'inner-json'
   let fileName = $state('GazePlotter-Export')
 
+  const researchExportOptions = [
+    {
+      component: ModalContentExportSegmentedData,
+      modalTitle: 'Export Segmented Data',
+      title: 'Segmented Data (CSV)',
+      subtitle: 'Raw eye-tracking segments with timing and AOI information',
+    },
+    {
+      component: ModalContentExportAggregatedData,
+      modalTitle: 'Export Aggregated Data',
+      title: 'Aggregated Data (CSV)',
+      subtitle:
+        'Statistical metrics like dwell time, fixation counts, and durations',
+    },
+    {
+      component: ModalContentExportScangraph,
+      modalTitle: 'Export ScanGraph',
+      title: 'ScanGraph Format',
+      subtitle: 'Scanpath data for similarity analysis and visualization',
+    },
+  ]
+
   const handleSubmit = async () => {
-    if (type === 'inner-json') {
-      try {
-        await exportService.exportWorkspace({ fileName })
-      } catch {
-        // ExportService already reports validation and runtime failures.
-      }
+    try {
+      await exportService.exportWorkspace({ fileName })
+    } catch {
+      // ExportService already reports validation and runtime failures.
     }
   }
 
-  const handleOpenSegmentedExport = () => {
-    modalState.open(
-      ModalContentExportSegmentedData as any,
-      'Export Segmented Data'
-    )
-  }
-
-  const handleOpenScangraphExport = () => {
-    modalState.open(ModalContentExportScangraph as any, 'Export ScanGraph')
-  }
-
-  const handleOpenAggregatedExport = () => {
-    modalState.open(
-      ModalContentExportAggregatedData as any,
-      'Export Aggregated Data'
-    )
+  const openExportModal = (component: unknown, title: string) => {
+    modalState.open(component as any, title)
   }
 </script>
 
@@ -71,33 +76,17 @@
         Choose from specialized data structures for detailed analysis:
       </p>
       <div class="export-options">
-        <button class="export-option-card" onclick={handleOpenSegmentedExport}>
-          <div class="export-option-content">
-            <h4 class="export-option-title">Segmented Data (CSV)</h4>
-            <p class="export-option-subtitle">
-              Raw eye-tracking segments with timing and AOI information
-            </p>
-          </div>
-        </button>
-
-        <button class="export-option-card" onclick={handleOpenAggregatedExport}>
-          <div class="export-option-content">
-            <h4 class="export-option-title">Aggregated Data (CSV)</h4>
-            <p class="export-option-subtitle">
-              Statistical metrics like dwell time, fixation counts, and
-              durations
-            </p>
-          </div>
-        </button>
-
-        <button class="export-option-card" onclick={handleOpenScangraphExport}>
-          <div class="export-option-content">
-            <h4 class="export-option-title">ScanGraph Format</h4>
-            <p class="export-option-subtitle">
-              Scanpath data for similarity analysis and visualization
-            </p>
-          </div>
-        </button>
+        {#each researchExportOptions as option (option.title)}
+          <button
+            class="export-option-card"
+            onclick={() => openExportModal(option.component, option.modalTitle)}
+          >
+            <div class="export-option-content">
+              <h4 class="export-option-title">{option.title}</h4>
+              <p class="export-option-subtitle">{option.subtitle}</p>
+            </div>
+          </button>
+        {/each}
       </div>
     </div>
   </section>
