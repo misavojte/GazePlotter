@@ -16,8 +16,8 @@
     createRenderScheduler,
     canvasLifecycleAction,
     refreshCanvasLifecycle,
-  } from '$lib/shared/utils/canvasUtils'
-  import type { CanvasState } from '$lib/shared/utils/canvasUtils'
+  } from '$lib/plots/shared/canvasUtils'
+  import type { CanvasState } from '$lib/plots/shared/canvasUtils'
   import {
     EXPORT_SOURCE_CONTEXT,
     type ExportSourceRegistrar,

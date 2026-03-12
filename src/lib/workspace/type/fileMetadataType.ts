@@ -1,4 +1,5 @@
 import type { EyeSettingsType } from '$lib/data/ingest/types'
+import type { ErrorRecord } from '$lib/errors'
 
 /**
  * Basic file input information captured when files are selected.
@@ -22,14 +23,13 @@ export interface FileMetadataSuccessType extends FileInputType {
   clientUserAgent: string // e.g. "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 }
 
-/**
- * Metadata for failed file processing attempts.
- * Captures error information and context for debugging.
- */
 export interface FileMetadataFailureType extends FileInputType {
   status: 'failure'
-  errorMessage: string
-  errorStack?: string
+  errorId: ErrorRecord['id']
+  errorCreatedAt: ErrorRecord['createdAt']
+  userMessage: ErrorRecord['userMessage']
+  debugMessage: ErrorRecord['debugMessage']
+  stack?: ErrorRecord['stack']
   attemptedParseDuration?: number // seconds - if we have partial timing
   gazePlotterVersion: string
   clientUserAgent: string

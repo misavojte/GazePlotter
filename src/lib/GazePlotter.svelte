@@ -30,28 +30,45 @@
   }: Props = $props()
 
   const session = setGazePlotterSessionContext(createGazePlotterSession())
-  const { ingest, toastState } = session
+  const { errorService, toastState } = session
 
   setContext('reinitializeLabel', reinitializeLabel)
 
   // Snapshot remains a $state rune
   let initialGridItemsSnapshot = $state<GridItemSnapshot[] | null>(null)
 
-  async function loadData() {
+  async function loadData(): Promise<boolean> {
+    errorService.clearFatalLoad()
+
     try {
       await loadInitialData(session)
+      if (errorService.fatalLoad) {
+        return false
+      }
+
       initialGridItemsSnapshot = session.grid.items.map(item => ({
         ...item,
         settings: { ...item.settings },
       }))
       await tick()
+      return true
     } catch (error) {
-      console.error('Error loading data:', error)
+      const shouldPersistFatalLoad =
+        !session.engine.hasValidData && session.grid.items.length === 0
+
+      errorService.report({
+        origin: 'bootstrap',
+        severity: shouldPersistFatalLoad ? 'fatal-load' : 'recoverable',
+        userMessage: 'Could not load initial workspace data.',
+        cause: error,
+      })
+      return false
     }
   }
 
   const onReinitialize = () => {
-    loadData().then(() => {
+    loadData().then(didLoad => {
+      if (!didLoad) return
       toastState.addSuccess('Workspace and data returned to the initial state.')
     })
   }
@@ -60,7 +77,7 @@
    * Exported function to reset the layout from parent components
    */
   export function resetLayout() {
-    loadData()
+    void loadData()
   }
 
   export function getSession() {
@@ -68,7 +85,7 @@
   }
 
   onMount(() => {
-    loadData()
+    void loadData()
   })
 </script>
 

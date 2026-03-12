@@ -1,4 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { ErrorService } from '$lib/errors'
 import type { GridState } from '$lib/workspace/grid/store.svelte'
 import type { IngestService } from '$lib/data/ingest'
 import type { ToastState } from '$lib/toaster/toastState.svelte'
@@ -17,9 +18,10 @@ import { triggerDownload } from './download'
 
 type ExportServiceDeps = {
   engine: DataEngine
+  errorService: Pick<ErrorService, 'report'>
   grid: GridState
   ingest: IngestService
-  toastState: Pick<ToastState, 'addSuccess' | 'addError'>
+  toastState: Pick<ToastState, 'addSuccess'>
 }
 
 export type WorkspaceExportOptions = {
@@ -61,32 +63,43 @@ export class ExportService {
 
   private async runExport(
     action: () => void | Promise<void>,
-    successMessage: string
-  ): Promise<void> {
+    successMessage: string,
+    context?: Record<string, unknown>
+  ): Promise<boolean> {
     try {
       await action()
       this.deps.toastState.addSuccess(successMessage)
+      return true
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Export failed unexpectedly'
-      this.deps.toastState.addError(message)
-      throw error
+      this.deps.errorService.report({
+        origin: 'export',
+        severity: 'recoverable',
+        userMessage: message,
+        cause: error,
+        context,
+      })
+      return false
     }
   }
 
-  async exportWorkspace(options: WorkspaceExportOptions): Promise<void> {
-    await this.runExport(() => {
+  async exportWorkspace(options: WorkspaceExportOptions): Promise<boolean> {
+    return this.runExport(() => {
       downloadWorkplace(
         this.getExportData(),
         this.resolveFileName(options.fileName),
         this.deps.grid.items,
         this.deps.ingest.metadata
       )
-    }, 'Workspace exported successfully')
+    }, 'Workspace exported successfully', {
+      exportType: 'workspace',
+      fileName: options.fileName,
+    })
   }
 
-  async exportSegmentedData(options: SegmentedExportOptions): Promise<void> {
-    await this.runExport(async () => {
+  async exportSegmentedData(options: SegmentedExportOptions): Promise<boolean> {
+    return this.runExport(async () => {
       if (options.stimulusIds.size === 0) {
         throw new Error('Select at least one stimulus to export')
       }
@@ -115,24 +128,37 @@ export class ExportService {
     },
       options.exportType === 'csv'
         ? 'Single CSV file exported successfully'
-        : 'Individual CSV files exported and zipped successfully'
+        : 'Individual CSV files exported and zipped successfully',
+      {
+        exportType: options.exportType,
+        fileName: options.fileName,
+        stimulusCount: options.stimulusIds.size,
+        filterFixations: options.filterFixations ?? false,
+      }
     )
   }
 
-  async exportScangraph(options: ScangraphExportOptions): Promise<void> {
-    await this.runExport(
+  async exportScangraph(options: ScangraphExportOptions): Promise<boolean> {
+    return this.runExport(
       () =>
         downloadScanGraph(
           this.deps.engine,
           options.stimulusId,
           this.resolveFileName(options.fileName)
         ),
-      'ScanGraph file exported successfully'
+      'ScanGraph file exported successfully',
+      {
+        exportType: 'scangraph',
+        fileName: options.fileName,
+        stimulusId: options.stimulusId,
+      }
     )
   }
 
-  async exportAggregatedData(options: AggregatedExportOptions): Promise<void> {
-    await this.runExport(() => {
+  async exportAggregatedData(
+    options: AggregatedExportOptions
+  ): Promise<boolean> {
+    return this.runExport(() => {
       if (options.metrics.length === 0) {
         throw new Error('Select at least one metric to export')
       }
@@ -146,17 +172,19 @@ export class ExportService {
         fileName,
       })
       triggerDownload(result.content, fileName, '.csv')
-      return Promise.resolve({
-        rows: result.rows,
-        metricCount: result.metricCount,
-        stimulusCount: result.stimulusCount,
-      }).then(() => {})
     },
       (() => {
         const metricCount = options.metrics.length
         const stimulusCount = options.stimulusIds.length
         return `Exported aggregated data (${metricCount} metrics across ${stimulusCount} ${stimulusCount === 1 ? 'stimulus' : 'stimuli'})`
-      })()
+      })(),
+      {
+        exportType: 'aggregated',
+        fileName: options.fileName,
+        metricCount: options.metrics.length,
+        stimulusCount: options.stimulusIds.length,
+        groupId: options.groupId,
+      }
     )
   }
 }

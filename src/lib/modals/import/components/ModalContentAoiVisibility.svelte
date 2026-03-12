@@ -12,21 +12,33 @@
   }
 
   let { source }: Props = $props()
-  const { engine, modalState, toastState, workspace } = getGazePlotterSession()
+  const { engine, errorService, modalState, workspace } =
+    getGazePlotterSession()
 
   let files: FileList | null = $state(null)
   let selectedStimulusId = $state('0')
   let selectedParticipantId = $state('all')
+  let validationMessage = $state<string | null>(null)
 
   const stimuliOptions = getStimuliOptions(engine)
   const participantOptions = [{ label: 'To all', value: 'all' }].concat(
     getParticipantOptions(engine)
   )
+
+  $effect(() => {
+    if (files !== null) {
+      validationMessage = null
+    }
+  })
+
   const handleSubmit = async () => {
     if (files === null) {
-      toastState.addError('No file selected')
+      validationMessage = 'Select a file to import.'
       return
     }
+
+    validationMessage = null
+
     try {
       const stimulusId = parseInt(selectedStimulusId)
       const participantId =
@@ -37,18 +49,35 @@
         participantId,
         files
       )
-      workspace.updateAoiVisibility(
-        data.stimulusId,
-        data.multipleAoiNames,
-        data.multipleAoiVisibilityArrays,
-        source,
-        data.participantId
-      )
-      modalState.close()
-    } catch (e) {
-      console.error(e)
-      const message = e instanceof Error ? e.message : 'Unknown error'
-      toastState.addError('Could not read file. ' + message)
+      if (
+        workspace.updateAoiVisibility(
+          data.stimulusId,
+          data.multipleAoiNames,
+          data.multipleAoiVisibilityArrays,
+          source,
+          data.participantId
+        )
+      ) {
+          modalState.close()
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message.trim().length > 0
+          ? error.message
+          : 'Unknown error'
+
+      errorService.report({
+        origin: 'workspace',
+        severity: 'recoverable',
+        userMessage: `Could not import the AOI visibility file: ${message}`,
+        cause: error,
+        context: {
+          selectedStimulusId,
+          selectedParticipantId,
+          fileCount: files.length,
+          fileNames: Array.from(files, file => file.name),
+        },
+      })
     }
   }
 
@@ -69,6 +98,9 @@
     bind:value={selectedParticipantId}
   />
   <GeneralInputFile label="AOI visibility file" bind:files />
+  {#if validationMessage}
+    <p class="validation-message">{validationMessage}</p>
+  {/if}
 </div>
 <ModalButtons
   buttons={[
@@ -87,5 +119,12 @@
 <style>
   .content {
     margin-bottom: 25px;
+  }
+
+  .validation-message {
+    margin: 0.75rem 0 0;
+    color: #8a4b00;
+    font-size: 0.85rem;
+    line-height: 1.4;
   }
 </style>

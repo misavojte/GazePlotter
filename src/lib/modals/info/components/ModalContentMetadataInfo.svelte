@@ -5,9 +5,10 @@
   import { formatDuration } from '$lib/shared/utils/timeUtils'
   import { formatFileSize } from '$lib/shared/utils/fileUtils'
   import { onMount, onDestroy } from 'svelte'
-  const { ingest, engine, modalState } = getGazePlotterSession()
+  const { errorService, ingest, engine, modalState } = getGazePlotterSession()
   const fileMetadata = $derived(ingest.metadata)
   const currentFileInput = $derived(ingest.input)
+  const recentErrors = $derived(errorService.recent)
 
   // Memory monitoring state
   let memoryInfo = $state<{
@@ -66,6 +67,10 @@
    */
   function formatDate(isoString: string): string {
     return new Date(isoString).toLocaleString()
+  }
+
+  function csvCell(value: string): string {
+    return JSON.stringify(value)
   }
 
   /**
@@ -155,7 +160,12 @@
           csvContent += `Section,Source Parsing - FAILED\n`
           csvContent += `Metric,Value\n`
           csvContent += `Status,FAILURE\n`
-          csvContent += `Error Message,"${fileMetadata.errorMessage}"\n`
+          csvContent += `Error ID,${fileMetadata.errorId}\n`
+          csvContent += `Error Timestamp,${formatDate(fileMetadata.errorCreatedAt)}\n`
+          csvContent += `User Message,${csvCell(fileMetadata.userMessage)}\n`
+          if (fileMetadata.debugMessage !== fileMetadata.userMessage) {
+            csvContent += `Debug Message,${csvCell(fileMetadata.debugMessage)}\n`
+          }
           csvContent += `Files Attempted,${fileMetadata.fileNames.length}\n`
           csvContent += `Total File Size,${formatFileSize(totalFileSize)}\n`
           if (fileMetadata.attemptedParseDuration !== undefined) {
@@ -172,9 +182,9 @@
           }
           csvContent += `\n`
 
-          if (fileMetadata.errorStack) {
+          if (fileMetadata.stack) {
             csvContent += `Section,Error Stack Trace\n`
-            csvContent += `"${fileMetadata.errorStack}"\n\n`
+            csvContent += `${csvCell(fileMetadata.stack)}\n\n`
           }
         } else {
           // Export success information
@@ -210,6 +220,24 @@
         csvContent += `Note,This data was parsed before GazePlotter version 1.7.0 and original parsing metadata is not available.\n\n`
       }
 
+      if (recentErrors.length > 0) {
+        csvContent += `Section,Recent Errors\n`
+        csvContent +=
+          `Timestamp,Origin,Severity,User Message,Debug Message,Context\n`
+        recentErrors.forEach(error => {
+          csvContent += [
+            csvCell(error.createdAt),
+            csvCell(error.origin),
+            csvCell(error.severity),
+            csvCell(error.userMessage),
+            csvCell(error.debugMessage),
+            csvCell(JSON.stringify(error.context ?? null)),
+          ].join(',')
+          csvContent += `\n`
+        })
+        csvContent += `\n`
+      }
+
       // Create and trigger download
       const blob = new Blob([csvContent], { type: 'text/csv' })
       const url = URL.createObjectURL(blob)
@@ -222,7 +250,16 @@
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
     } catch (error) {
-      console.error('Error exporting metadata:', error)
+      errorService.report({
+        origin: 'export',
+        severity: 'recoverable',
+        userMessage: 'Could not export metadata report.',
+        cause: error,
+        context: {
+          hasSourceMetadata: fileMetadata !== null,
+          recentErrorCount: recentErrors.length,
+        },
+      })
     }
   }
 
@@ -385,12 +422,22 @@
         <div class="info-group failure-details">
           <div class="info-item">
             <span class="label">Error message:</span>
-            <span class="value error-message">{fileMetadata.errorMessage}</span>
+            <span class="value error-message">{fileMetadata.userMessage}</span>
           </div>
-          {#if fileMetadata.errorStack}
+          {#if fileMetadata.debugMessage !== fileMetadata.userMessage}
+            <div class="info-item">
+              <span class="label">Debug message:</span>
+              <span class="value">{fileMetadata.debugMessage}</span>
+            </div>
+          {/if}
+          <div class="info-item">
+            <span class="label">Error ID:</span>
+            <span class="value">{fileMetadata.errorId}</span>
+          </div>
+          {#if fileMetadata.stack}
             <div class="info-item stack-trace">
               <span class="label">Error details:</span>
-              <pre class="value error-stack">{fileMetadata.errorStack}</pre>
+              <pre class="value error-stack">{fileMetadata.stack}</pre>
             </div>
           {/if}
         </div>
@@ -537,6 +584,41 @@
       {/if}
     </div>
   </section>
+  {#if recentErrors.length > 0}
+    <section class="section">
+      <SectionHeader text="Recent Errors" />
+      <div class="content">
+        <div class="info-group">
+          {#each [...recentErrors].reverse() as error (error.id)}
+            <div class="recent-error">
+              <div class="info-item">
+                <span class="label"
+                  >[{error.origin}] {error.severity}</span
+                >
+                <span class="value">{formatDate(error.createdAt)}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">User message:</span>
+                <span class="value error-message">{error.userMessage}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">Debug message:</span>
+                <span class="value">{error.debugMessage}</span>
+              </div>
+              {#if error.context}
+                <div class="info-item stack-trace">
+                  <span class="label">Context:</span>
+                  <pre class="value error-stack"
+                    >{JSON.stringify(error.context, null, 2)}</pre
+                  >
+                </div>
+              {/if}
+            </div>
+          {/each}
+        </div>
+      </div>
+    </section>
+  {/if}
   <!-- RAM Usage section -->
   {#if memoryInfo.available}
     <section class="section">
@@ -737,6 +819,19 @@
   .failure-details {
     background: #fff5f5;
     border: 1px solid #fca5a5;
+  }
+
+  .recent-error {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .recent-error:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
   }
 
   .error-message {

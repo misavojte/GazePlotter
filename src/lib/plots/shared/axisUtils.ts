@@ -1,7 +1,7 @@
 import {
   alignToPixelCenter,
   strokeCrispRect,
-} from '$lib/shared/utils/canvasUtils'
+} from '$lib/plots/shared/canvasUtils'
 import { GRIDLINE_PRIMARY, GRIDLINE_SECONDARY, FONT_PRIMARY } from './const'
 import type { AdaptiveTimeline } from './timelineUtils'
 

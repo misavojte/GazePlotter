@@ -16,7 +16,7 @@
     getTooltipPosition,
     alignToPixelCenter,
     type CanvasState,
-  } from '$lib/shared/utils/canvasUtils'
+  } from '$lib/plots/shared/canvasUtils'
   import { updateTooltip } from '$lib/tooltip'
   import { estimateTextWidth } from '$lib/shared/utils/textUtils'
   import { desaturateToWhite } from '$lib/color/utility'

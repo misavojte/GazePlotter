@@ -19,7 +19,7 @@
   }
 
   let { source }: Props = $props()
-  const { modalState, toastState, workspace, engine } = getGazePlotterSession()
+  const { modalState, workspace, engine } = getGazePlotterSession()
 
   // Sorting state
   let sortColumn = $state<'originalName' | 'displayedName' | null>(null)
@@ -90,17 +90,10 @@
   }
 
   const handleSubmit = () => {
-    try {
-      const participantObjectsCopy = deepCopyParticipants(participantObjects)
+    const participantObjectsCopy = deepCopyParticipants(participantObjects)
 
-      workspace.updateParticipants(participantObjectsCopy, source)
-
+    if (workspace.updateParticipants(participantObjectsCopy, source)) {
       modalState.close()
-    } catch (e) {
-      console.error(e)
-      toastState.addError(
-        'Error while updating participants. See console for more details.'
-      )
     }
   }
 

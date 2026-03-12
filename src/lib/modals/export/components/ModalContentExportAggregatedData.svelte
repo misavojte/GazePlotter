@@ -105,8 +105,6 @@
           decimalSeparator,
         },
       })
-    } catch {
-      // ExportService already reports validation and runtime failures.
     } finally {
       isExporting = false
     }

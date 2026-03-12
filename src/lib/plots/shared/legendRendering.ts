@@ -21,7 +21,7 @@ import {
   truncateTextToPixelWidth,
   estimateTextWidth,
 } from '$lib/shared/utils/textUtils'
-import { alignToPixelCenter } from '$lib/shared/utils/canvasUtils'
+import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
 import { desaturateToWhite } from '$lib/color/utility'
 import { COLOR_FALLBACKS, UI_COLORS } from '$lib/color'
 

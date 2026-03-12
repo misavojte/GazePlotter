@@ -1,4 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { ErrorService } from '$lib/errors'
 import type { ToastState } from '$lib/toaster/toastState.svelte'
 import { GridState } from '$lib/workspace/grid/store.svelte'
 import {
@@ -31,8 +32,9 @@ import type {
 
 type WorkspaceServiceDeps = {
   engine: DataEngine
+  errorService: Pick<ErrorService, 'report'>
   grid: GridState
-  toastState: Pick<ToastState, 'addSuccess' | 'addError'>
+  toastState: Pick<ToastState, 'addSuccess'>
 }
 
 export class WorkspaceService {
@@ -41,19 +43,15 @@ export class WorkspaceService {
   private onCommandApplied: (command: WorkspaceCommandChain) => void = () => {}
 
   private readonly handleCommand: (command: WorkspaceCommandChain) => void
+  private readonly errorService: Pick<ErrorService, 'report'>
 
   constructor(deps: WorkspaceServiceDeps) {
+    this.errorService = deps.errorService
     this.handleCommand = createCommandHandler(
       deps.grid,
       deps.engine,
       this.history,
       message => deps.toastState.addSuccess(message),
-      error => {
-        console.error('Command error:', error)
-        deps.toastState.addError(
-          'Error applying changes. See console for details.'
-        )
-      },
       command => this.onCommandApplied(command)
     )
   }
@@ -62,46 +60,84 @@ export class WorkspaceService {
     this.onCommandApplied = listener
   }
 
-  apply(command: WorkspaceCommandChain): void {
-    this.handleCommand(command)
+  private execute(command: WorkspaceCommandChain): boolean {
+    try {
+      this.handleCommand(command)
+      return true
+    } catch (error) {
+      this.errorService.report({
+        origin: 'workspace',
+        severity: 'recoverable',
+        userMessage: 'Error applying changes. See console for details.',
+        cause: error,
+        context: {
+          command,
+        },
+      })
+      return false
+    }
   }
 
-  applyRoot(command: WorkspaceCommand): void {
-    this.handleCommand(createRootCommand(command))
+  apply(command: WorkspaceCommandChain): boolean {
+    return this.execute(command)
   }
 
-  undo(): void {
+  applyRoot(command: WorkspaceCommand): boolean {
+    return this.execute(createRootCommand(command))
+  }
+
+  undo(): boolean {
     const commands = this.history.undo()
-    if (!commands) return
+    if (!commands) return false
+
+    let success = true
+
     try {
-      commands.forEach(command => this.handleCommand(command))
+      for (const command of commands) {
+        if (!this.execute(command)) {
+          success = false
+          break
+        }
+      }
     } finally {
       this.history.endUndoRedo()
     }
+
+    return success
   }
 
-  redo(): void {
+  redo(): boolean {
     const commands = this.history.redo()
-    if (!commands) return
+    if (!commands) return false
+
+    let success = true
+
     try {
-      commands.forEach(command => this.handleCommand(command))
+      for (const command of commands) {
+        if (!this.execute(command)) {
+          success = false
+          break
+        }
+      }
     } finally {
       this.history.endUndoRedo()
     }
+
+    return success
   }
 
   resetLayout(
     layoutState: GridItemSnapshot[]
-  ): void {
-    this.applyRoot({
+  ): boolean {
+    return this.applyRoot({
       type: 'setLayoutState',
       layoutState,
       source: 'workspace',
     })
   }
 
-  addVisualization(vizType: string, source: string, itemId?: number): void {
-    this.applyRoot({
+  addVisualization(vizType: string, source: string, itemId?: number): boolean {
+    return this.applyRoot({
       type: 'addGridItem',
       vizType: vizType as keyof GridItemMap,
       source,
@@ -109,8 +145,8 @@ export class WorkspaceService {
     })
   }
 
-  updateItemSettings(itemId: number, settings: Partial<AllPlotSettings>, source: string): void {
-    this.applyRoot({
+  updateItemSettings(itemId: number, settings: Partial<AllPlotSettings>, source: string): boolean {
+    return this.applyRoot({
       type: 'updateSettings',
       itemId,
       settings,
@@ -122,8 +158,8 @@ export class WorkspaceService {
     itemId: number,
     layout: GridItemLayoutUpdate,
     source: string
-  ): void {
-    this.applyRoot({
+  ): boolean {
+    return this.applyRoot({
       type: 'updateLayout',
       itemId,
       layout,
@@ -131,8 +167,8 @@ export class WorkspaceService {
     })
   }
 
-  removeVisualization(itemId: number, source: string): void {
-    this.applyRoot({
+  removeVisualization(itemId: number, source: string): boolean {
+    return this.applyRoot({
       type: 'removeGridItem',
       itemId,
       source,
@@ -143,8 +179,8 @@ export class WorkspaceService {
     itemId: number,
     source: string,
     duplicateId?: number
-  ): void {
-    this.applyRoot({
+  ): boolean {
+    return this.applyRoot({
       type: 'duplicateGridItem',
       itemId,
       duplicateId: duplicateId ?? generateUniqueId(),
@@ -155,31 +191,31 @@ export class WorkspaceService {
   updateParticipants(
     participants: BaseInterpretedDataType[],
     source: string
-  ): void {
+  ): boolean {
     const command: UpdateParticipantsCommand = {
       type: 'updateParticipants',
       participants,
       source,
     }
-    this.applyRoot(command)
+    return this.applyRoot(command)
   }
 
-  updateStimuli(stimuli: BaseInterpretedDataType[], source: string): void {
+  updateStimuli(stimuli: BaseInterpretedDataType[], source: string): boolean {
     const command: UpdateStimuliCommand = {
       type: 'updateStimuli',
       stimuli,
       source,
     }
-    this.applyRoot(command)
+    return this.applyRoot(command)
   }
 
-  updateParticipantsGroups(groups: ParticipantsGroup[], source: string): void {
+  updateParticipantsGroups(groups: ParticipantsGroup[], source: string): boolean {
     const command: UpdateParticipantsGroupsCommand = {
       type: 'updateParticipantsGroups',
       groups,
       source,
     }
-    this.applyRoot(command)
+    return this.applyRoot(command)
   }
 
   updateAois(
@@ -188,7 +224,7 @@ export class WorkspaceService {
     applyTo: UpdateAoisCommand['applyTo'],
     source: string,
     hiddenAois?: number[]
-  ): void {
+  ): boolean {
     const command: UpdateAoisCommand = {
       type: 'updateAois',
       aois,
@@ -197,7 +233,7 @@ export class WorkspaceService {
       source,
       ...(hiddenAois !== undefined ? { hiddenAois } : {}),
     }
-    this.applyRoot(command)
+    return this.applyRoot(command)
   }
 
   updateAoiVisibility(
@@ -206,7 +242,7 @@ export class WorkspaceService {
     visibilityArr: number[][],
     source: string,
     participantId?: number | null
-  ): void {
+  ): boolean {
     const command: UpdateAoiVisibilityCommand = {
       type: 'updateAoiVisibility',
       stimulusId,
@@ -215,19 +251,19 @@ export class WorkspaceService {
       source,
       participantId,
     }
-    this.applyRoot(command)
+    return this.applyRoot(command)
   }
 
   updateNoAoiTreatment(
     noAoiTreatment: NoAoiTreatmentType,
     source: string
-  ): void {
+  ): boolean {
     const command: UpdateNoAoiTreatmentCommand = {
       type: 'updateNoAoiTreatment',
       noAoiTreatment,
       source,
     }
-    this.applyRoot(command)
+    return this.applyRoot(command)
   }
 
   clearHistory(): void {

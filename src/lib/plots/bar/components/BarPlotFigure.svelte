@@ -32,7 +32,7 @@
     refreshCanvasLifecycle,
     strokeCrispRect,
     type CanvasState,
-  } from '$lib/shared/utils/canvasUtils'
+  } from '$lib/plots/shared/canvasUtils'
 
   // Layout constants
   const MARGIN = {

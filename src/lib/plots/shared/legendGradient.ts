@@ -5,7 +5,7 @@
  * Designed to be plot-agnostic.
  */
 
-import { strokeCrispRect } from '$lib/shared/utils/canvasUtils'
+import { strokeCrispRect } from '$lib/plots/shared/canvasUtils'
 
 // ============================================================================
 // TYPES

@@ -17,13 +17,18 @@
     onReinitialize,
     initialLayoutState = null,
   }: Props = $props()
-  const { engine, modalState, workspace } = getGazePlotterSession()
+  const { engine, errorService, ingest, modalState, workspace } =
+    getGazePlotterSession()
 
   /**
    * Determines if the reset layout button should be shown.
    * Valid data means we have loaded actual stimuli and participants.
    */
   const canResetLayout = $derived(engine.hasValidData)
+  const fatalLoadError = $derived(errorService.fatalLoad)
+  const canOpenErrorReport = $derived(
+    fatalLoadError !== null || ingest.metadata !== null
+  )
 
   /**
    * Opens the metadata modal to show the error report.
@@ -50,30 +55,38 @@
   <GridItemContainer class="indicator-content">
     {#snippet header()}
       <h3>
-        {#if canResetLayout}Workspace Empty{:else}Invalid Data{/if}
+        {#if fatalLoadError}
+          Data Load Failed
+        {:else if canResetLayout}
+          Workspace Empty
+        {:else}
+          No Data Loaded
+        {/if}
       </h3>
     {/snippet}
     {#snippet body()}
       <div class="content-inner">
         <p>
-          {#if canResetLayout}
+          {#if fatalLoadError}
+            {fatalLoadError.userMessage} You can inspect the report, upload
+            different data, or reload the initial data.
+          {:else if canResetLayout}
             Data is available in memory, but no visualisations are displayed.
             You can reload the views, upload new data, or explore our sample
             data.
           {:else}
-            Data could not be loaded correctly. Please, open the metadata report
-            to see the details, upload different data or reload the initial
-            data.
+            Upload new data or reload the initial sample data to start working
+            with the workspace.
           {/if}
         </p>
         <div class="actions">
-          {#if canResetLayout}
-            <GeneralButtonMajor onclick={handleResetLayout}
-              >Reset Layout</GeneralButtonMajor
-            >
-          {:else}
+          {#if fatalLoadError && canOpenErrorReport}
             <GeneralButtonMajor onclick={openErrorReport}
               >Open Report</GeneralButtonMajor
+            >
+          {:else if canResetLayout}
+            <GeneralButtonMajor onclick={handleResetLayout}
+              >Reset Layout</GeneralButtonMajor
             >
           {/if}
           <PanelButtonUpload />

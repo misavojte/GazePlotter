@@ -2,8 +2,10 @@
   import { onDestroy, type Component } from 'svelte'
   import { fade } from 'svelte/transition'
   import GridItem from './GridItem.svelte'
-  import { getVizConfig } from '$lib/plots/registry'
+  import WorkspacePlotRenderer from './WorkspacePlotRenderer.svelte'
+  import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
   import { getGazePlotterSession, getGridState } from '$lib/session'
+  import { getWorkspacePlotLabel } from './plotResolver'
   import type { AllGridTypes } from '$lib/workspace/type/gridType'
   import type { GridConfig } from './types'
   import { calculateBottomEdgePosition } from './utils'
@@ -15,7 +17,7 @@
   } from '$lib/workspace/commands'
 
   const grid = getGridState()
-  const { workspace } = getGazePlotterSession()
+  const { errorService, workspace } = getGazePlotterSession()
 
   interface Props {
     // Grid state
@@ -49,13 +51,34 @@
     workspace.applyRoot(command)
   }
 
-  type WorkspacePlotComponent = Component<{
-    item: AllGridTypes
-    onWorkspaceCommand?: typeof dispatchWorkspaceCommand
-  }>
+  function getPlotErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message.trim().length > 0) {
+      return error.message
+    }
 
-  function getWorkspacePlotComponent(item: AllGridTypes): WorkspacePlotComponent {
-    return getVizConfig(item.type).component as WorkspacePlotComponent
+    if (typeof error === 'string' && error.trim().length > 0) {
+      return error
+    }
+
+    return 'Unknown rendering error'
+  }
+
+  function reportPlotRenderError(
+    item: AllGridTypes,
+    plotName: string,
+    error: unknown
+  ): void {
+    errorService.report({
+      origin: 'plot',
+      severity: 'recoverable',
+      userMessage: `Plot "${plotName}" failed to render. The workspace is still active.`,
+      cause: error,
+      context: {
+        itemId: item.id,
+        plotName,
+        plotType: item.type,
+      },
+    })
   }
 
   // ---------------------------------------------------
@@ -533,9 +556,7 @@
 >
   {#if !gridIsEmpty}
     {#each gridItems as item (item.id)}
-      {@const visConfig = getVizConfig(item.type)}
-      {@const PlotComponent = getWorkspacePlotComponent(item)}
-      {#if visConfig}
+      {@const plotLabel = getWorkspacePlotLabel(item)}
         <div transition:fade={{ duration: 300 }}>
           <GridItem
             id={item.id}
@@ -549,7 +570,7 @@
             gap={gridConfig.gap}
             resizable={true}
             draggable={true}
-            title={visConfig.name}
+            title={plotLabel}
             onpreviewupdate={handlePreviewUpdate}
             onmove={handleItemMove}
             onresize={handleItemResize}
@@ -562,15 +583,38 @@
           >
             {#snippet body()}
               <div class="grid-item-content">
-                <PlotComponent
-                  {item}
-                  onWorkspaceCommand={dispatchWorkspaceCommand}
-                />
+                <svelte:boundary
+                  onerror={error =>
+                    reportPlotRenderError(item, plotLabel, error)}
+                >
+                  <WorkspacePlotRenderer
+                    {item}
+                    onWorkspaceCommand={dispatchWorkspaceCommand}
+                  />
+
+                  {#snippet failed(error, reset)}
+                    <div class="plot-error-state">
+                      <p class="plot-error-copy">
+                        {plotLabel} could not be displayed. The rest of the
+                        workspace is still available.
+                      </p>
+                      <p class="plot-error-detail">
+                        {getPlotErrorMessage(error)}
+                      </p>
+                      <GeneralButtonMajor
+                        size="sm"
+                        variant="secondary"
+                        onclick={() => reset()}
+                      >
+                        Retry plot
+                      </GeneralButtonMajor>
+                    </div>
+                  {/snippet}
+                </svelte:boundary>
               </div>
             {/snippet}
           </GridItem>
         </div>
-      {/if}
     {/each}
   {/if}
 </div>
@@ -579,5 +623,28 @@
   /* Utility to block interactions during drag/resize */
   .pointer-events-none {
     pointer-events: none !important;
+  }
+
+  .plot-error-state {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0;
+  }
+
+  .plot-error-copy,
+  .plot-error-detail {
+    margin: 0;
+    color: var(--c-text);
+    line-height: 1.45;
+    font-size: 0.9rem;
+  }
+
+  .plot-error-detail {
+    color: var(--c-midgrey);
+    overflow-wrap: anywhere;
   }
 </style>

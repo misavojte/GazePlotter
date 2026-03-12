@@ -283,63 +283,63 @@
     const handlerType =
       handlerTypeMap[userSelected as keyof typeof handlerTypeMap]
 
-    try {
-      // Trim all displayedName values before submitting to prevent empty strings
-      const cleanedAois = aoiObjects.map(aoi => ({
-        id: aoi.id,
-        originalName: aoi.originalName,
-        displayedName: (aoi.displayedName || '').trim(),
-        color: aoi.color,
-      }))
+    // Trim all displayedName values before submitting to prevent empty strings
+    const cleanedAois = aoiObjects.map(aoi => ({
+      id: aoi.id,
+      originalName: aoi.originalName,
+      displayedName: (aoi.displayedName || '').trim(),
+      color: aoi.color,
+    }))
 
-      const stimulusId = parseInt(selectedStimulus)
+    const stimulusId = parseInt(selectedStimulus)
 
-      const hiddenUniqueSorted = Array.from(
-        new Set(hiddenAoiIds.filter(v => Number.isInteger(v) && v >= 0))
-      ).sort((a, b) => a - b)
+    const hiddenUniqueSorted = Array.from(
+      new Set(hiddenAoiIds.filter(v => Number.isInteger(v) && v >= 0))
+    ).sort((a, b) => a - b)
 
-      workspace.updateAois(
+    if (
+      !workspace.updateAois(
         cleanedAois,
         stimulusId,
         handlerType,
         source,
         hiddenUniqueSorted
       )
-
-      // Update No AOI treatment if it changed
-      if (
-        noAoiTreatment.displayedName !==
-          lastNoAoiTreatmentSnapshot.displayedName ||
-        noAoiTreatment.color !== lastNoAoiTreatmentSnapshot.color
-      ) {
-        workspace.updateNoAoiTreatment(
-          {
-            displayedName: (noAoiTreatment.displayedName || 'No AOI').trim(),
-            color: noAoiTreatment.color,
-          },
-          source
-        )
-
-        lastNoAoiTreatmentSnapshot = {
-          displayedName: noAoiTreatment.displayedName,
-          color: noAoiTreatment.color,
-        }
-      }
-
-      // snapshot for undo baseline
-      lastHiddenSnapshot = [...hiddenUniqueSorted]
-
-      if (handlerType !== 'this_stimulus') {
-        toastState.addInfo('Ordering of AOIs is not updated for other stimuli')
-      }
-
-      modalState.close()
-    } catch (e) {
-      console.error(e)
-      toastState.addError(
-        'Error while updating AOIs. See console for more details.'
-      )
+    ) {
+      return
     }
+
+    // Update No AOI treatment if it changed
+    if (
+      noAoiTreatment.displayedName !== lastNoAoiTreatmentSnapshot.displayedName ||
+      noAoiTreatment.color !== lastNoAoiTreatmentSnapshot.color
+    ) {
+      const didUpdateNoAoiTreatment = workspace.updateNoAoiTreatment(
+        {
+          displayedName: (noAoiTreatment.displayedName || 'No AOI').trim(),
+          color: noAoiTreatment.color,
+        },
+        source
+      )
+
+      if (!didUpdateNoAoiTreatment) {
+        return
+      }
+
+      lastNoAoiTreatmentSnapshot = {
+        displayedName: noAoiTreatment.displayedName,
+        color: noAoiTreatment.color,
+      }
+    }
+
+    // snapshot for undo baseline
+    lastHiddenSnapshot = [...hiddenUniqueSorted]
+
+    if (handlerType !== 'this_stimulus') {
+      toastState.addInfo('Ordering of AOIs is not updated for other stimuli')
+    }
+
+    modalState.close()
   }
 
   const handleCancel = () => {

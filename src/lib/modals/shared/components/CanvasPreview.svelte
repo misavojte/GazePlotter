@@ -1,7 +1,7 @@
 <script lang="ts">
   import { setContext, tick } from 'svelte'
   import MajorButton from '$lib/shared/components/GeneralButtonMajor.svelte'
-  import { getToastState } from '$lib/session'
+  import { getGazePlotterSession } from '$lib/session'
   import {
     EXPORT_SOURCE_CONTEXT,
     type ExportSource,
@@ -26,7 +26,7 @@
     showDownloadButton = false,
     children,
   }: Props = $props()
-  const toastState = getToastState()
+  const { errorService } = getGazePlotterSession()
 
   // States
   let componentContainer = $state<HTMLElement | null>(null) // Container for the child component
@@ -49,9 +49,18 @@
       exportSource?.kind === 'canvas' ? exportSource.getCanvas() : null
 
     if (!resolvedCanvas) {
-      toastState.addError(
-        'Nothing to export: plot did not register an export source.'
-      )
+      errorService.report({
+        origin: 'export',
+        severity: 'recoverable',
+        userMessage: 'Nothing to export: plot did not register an export source.',
+        cause: new Error(
+          'Plot preview export source was not registered before download.'
+        ),
+        context: {
+          fileName,
+          fileType,
+        },
+      })
       return
     }
 
@@ -68,11 +77,23 @@
       )
 
       triggerDownload(blob, `${fileName}${fileType}`, '')
-    } catch (error: any) {
-      console.error('Error generating download:', error)
-      toastState.addError(
-        `Failed to generate download: ${error.message || 'Unknown error'}`
-      )
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message.trim().length > 0
+          ? error.message
+          : 'Unknown error'
+
+      errorService.report({
+        origin: 'export',
+        severity: 'recoverable',
+        userMessage: `Failed to generate download: ${message}`,
+        cause: error,
+        context: {
+          fileName,
+          fileType,
+          exportSourceKind: exportSource?.kind ?? null,
+        },
+      })
     } finally {
       isGeneratingDownload = false
     }

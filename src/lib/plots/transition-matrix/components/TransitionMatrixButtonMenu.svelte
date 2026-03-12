@@ -1,7 +1,7 @@
 <script lang="ts">
   import { GeneralButtonMenu as MenuButton } from '$lib/shared/components'
   import { untrack } from 'svelte'
-  import { getModalState } from '$lib/session'
+  import { getGazePlotterSession } from '$lib/session'
   import type { TransitionMatrixPlotItem } from '$lib/plots/transition-matrix/types'
   import Users from 'lucide-svelte/icons/users'
   import Download from 'lucide-svelte/icons/download'
@@ -19,7 +19,7 @@
   }
 
   let { item }: Props = $props()
-  const modalState = getModalState()
+  const { errorService, modalState } = getGazePlotterSession()
   const settings = $derived(item.settings)
 
   const source = createCommandSourcePlotPattern(untrack(() => item), 'modal')
@@ -62,7 +62,16 @@
         }
       )
     } catch (error) {
-      console.error('Error opening download modal:', error)
+      errorService.report({
+        origin: 'plot',
+        severity: 'recoverable',
+        userMessage: 'Could not open the Transition Matrix download dialog.',
+        cause: error,
+        context: {
+          itemId: item.id,
+          plotType: item.type,
+        },
+      })
     }
   }
 

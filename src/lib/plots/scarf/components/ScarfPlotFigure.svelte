@@ -9,7 +9,7 @@
     getTooltipPosition,
     refreshCanvasLifecycle,
     type CanvasState,
-  } from '$lib/shared/utils/canvasUtils'
+  } from '$lib/plots/shared/canvasUtils'
   import {
     EXPORT_SOURCE_CONTEXT,
     type ExportSourceRegistrar,

@@ -182,9 +182,9 @@
       })
     )
 
-    workspace.updateParticipantsGroups(groupsDeepCopy, source)
-
-    modalState.close()
+    if (workspace.updateParticipantsGroups(groupsDeepCopy, source)) {
+      modalState.close()
+    }
   }
 
   // Track expanded accordion items

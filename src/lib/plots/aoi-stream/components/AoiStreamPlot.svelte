@@ -214,22 +214,17 @@
     if (!meta) return
 
     untrack(() => {
-      try {
-        const { data, workspace } = getAoiStreamPlotData(
-          engine,
-          {
-            ...s,
-            timelineMin: tMin,
-            timelineMax: tMax,
-          },
-          resultState.workspace
-        )
-        resultState.data = data
-        resultState.workspace = workspace
-      } catch (e) {
-        console.error('Failed to fetch AOI stream data:', e)
-        resultState.data = null
-      }
+      const { data, workspace } = getAoiStreamPlotData(
+        engine,
+        {
+          ...s,
+          timelineMin: tMin,
+          timelineMax: tMax,
+        },
+        resultState.workspace
+      )
+      resultState.data = data
+      resultState.workspace = workspace
     })
   })
 

@@ -33,11 +33,7 @@
   ]
 
   const handleSubmit = async () => {
-    try {
-      await exportService.exportWorkspace({ fileName })
-    } catch {
-      // ExportService already reports validation and runtime failures.
-    }
+    await exportService.exportWorkspace({ fileName })
   }
 
   const openExportModal = (component: unknown, title: string) => {

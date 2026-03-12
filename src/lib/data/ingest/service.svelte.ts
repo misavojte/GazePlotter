@@ -1,6 +1,7 @@
 import { ModalContentTobiiParsingInput } from '$lib/modals'
 import { processJsonFileWithGrid } from './workspace/parser'
 import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace'
+import type { ErrorService } from '$lib/errors'
 import { formatDuration } from '$lib/shared/utils/timeUtils'
 import { formatFileSize } from '$lib/shared/utils/fileUtils'
 import type { DataType, ParsedData } from '$lib/data/types'
@@ -20,12 +21,14 @@ import type { GridItemSnapshot } from '$lib/workspace/type/gridType'
 export type IngestStatus = 'loading' | 'ready' | 'error'
 
 type IngestUiServices = {
+  errorService: Pick<ErrorService, 'report'>
   modalState: Pick<ModalState, 'open' | 'close'>
-  toastState: Pick<ToastState, 'addError' | 'addInfo' | 'addSuccess'>
+  toastState: Pick<ToastState, 'addInfo' | 'addSuccess'>
 }
 
 type IngestDependencies = {
   engine: DataEngine
+  errorService: ErrorService
   grid: GridState
   modalState: ModalState
   toastState: ToastState
@@ -102,7 +105,10 @@ class IngestWorkerClient {
       { type: 'module' }
     )
     this.worker.onmessage = this.handleMessage.bind(this)
-    this.worker.onerror = (event: ErrorEvent) => this.handleError(event.error)
+    this.worker.onerror = (event: ErrorEvent) =>
+      this.handleError(
+        event.error ?? new Error(event.message || 'File processing worker failed')
+      )
   }
 
   sendFiles(files: FileList): void {
@@ -294,27 +300,42 @@ class IngestWorkerClient {
     this.onProgress(progressPercent)
   }
 
-  private handleError(error: Error): void {
-    const message = error?.message ?? 'Unknown error'
-    this.ui.toastState.addError(`Could not process the file: ${message}`)
-    console.error('IngestWorkerClient.handleError() - error:', error)
+  private handleError(error: unknown): void {
+    const fallbackMessage = 'Unknown error'
+    const message =
+      error instanceof Error && error.message.trim().length > 0
+        ? error.message
+        : fallbackMessage
+    const record = this.ui.errorService.report({
+      origin: 'ingest',
+      severity: 'fatal-load',
+      userMessage: `Could not process the file: ${message}`,
+      cause: error,
+      context: {
+        fileNames: this.fileNames,
+        fileSizes: this.fileSizes,
+      },
+    })
 
     const attemptedParseDuration =
       this.parsingAnchorTime > 0
         ? Date.now() - this.parsingAnchorTime + this.parsingSumTime
         : undefined
 
-    const failureMetadata: FileMetadataFailureType = {
+    const failureMetadata = {
       status: 'failure',
       fileNames: this.fileNames.length > 0 ? this.fileNames : ['Unknown file'],
       fileSizes: this.fileSizes,
       parseDate: new Date().toISOString(),
-      errorMessage: message,
-      errorStack: error?.stack,
+      errorId: record.id,
+      errorCreatedAt: record.createdAt,
+      userMessage: record.userMessage,
+      debugMessage: record.debugMessage,
+      stack: record.stack,
       attemptedParseDuration,
       gazePlotterVersion: __APP_VERSION__,
       clientUserAgent: navigator.userAgent,
-    }
+    } satisfies FileMetadataFailureType
 
     this.onFail(failureMetadata)
   }
@@ -356,31 +377,32 @@ export class IngestService {
   progressPercent = $state(0)
 
   isLoading = $derived(this.status === 'loading')
-  hasError = $derived(this.status === 'error')
 
   constructor(private readonly deps: IngestDependencies) {}
 
-  async loadFiles(files: FileList): Promise<void> {
-    if (files.length === 0) return
+  async loadFiles(files: FileList): Promise<boolean> {
+    if (files.length === 0) return false
 
+    this.deps.errorService.clearFatalLoad()
     this.status = 'loading'
     this.progressPercent = 0
 
     try {
-      await new Promise<void>((resolve, reject) => {
+      return await new Promise<boolean>((resolve, reject) => {
         const client = new IngestWorkerClient(
           data => {
             this.applyParsedData(data)
-            resolve()
+            resolve(true)
           },
           failureMetadata => {
             this.applyFailure(failureMetadata)
-            reject(new Error(failureMetadata.errorMessage))
+            resolve(false)
           },
           progressPercent => {
             this.progressPercent = progressPercent
           },
           {
+            errorService: this.deps.errorService,
             modalState: this.deps.modalState,
             toastState: this.deps.toastState,
           }
@@ -388,16 +410,22 @@ export class IngestService {
         client.sendFiles(files)
       })
     } catch (error) {
-      console.error('IngestService.loadFiles() - error:', error)
-      if (!this.hasError) {
-        this.deps.toastState.addError('Unable to set up file processing service')
-        this.status = 'error'
-      }
-      throw error
+      this.deps.errorService.report({
+        origin: 'ingest',
+        severity: 'fatal-load',
+        userMessage: 'Unable to set up file processing service',
+        cause: error,
+        context: {
+          fileCount: files.length,
+        },
+      })
+      this.status = 'error'
+      return false
     }
   }
 
   applyParsedData(parsedData: ParsedData): void {
+    this.deps.errorService.clearFatalLoad()
     this.progressPercent = 100
     this.metadata = parsedData.version === 3 ? parsedData.fileMetadata : null
     this.input = parsedData.current

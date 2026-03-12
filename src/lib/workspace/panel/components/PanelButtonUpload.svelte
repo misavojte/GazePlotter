@@ -11,11 +11,7 @@
     const files = (e.target as HTMLInputElement).files
     if (!(files instanceof FileList)) return
     if (files.length === 0) return
-    try {
-      await ingest.loadFiles(files)
-    } catch {
-      // IngestService already applies failure state and user feedback.
-    }
+    await ingest.loadFiles(files)
     if (input) {
       input.value = ''
     }

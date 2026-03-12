@@ -14,7 +14,6 @@ export interface CanvasState {
   canvas: HTMLCanvasElement | null
   context: CanvasRenderingContext2D | null
   pixelRatio: number
-  canvasRect: DOMRect | null
   renderScheduled: boolean
   dpiOverride: number | null
 }
@@ -32,7 +31,6 @@ export function createCanvasState(): CanvasState {
     canvas: null,
     context: null,
     pixelRatio: browser ? window.devicePixelRatio || 1 : 1,
-    canvasRect: null,
     renderScheduled: false,
     dpiOverride: null,
   }
@@ -59,15 +57,11 @@ export function setupCanvas(
   // Get and save the context
   const context = canvas.getContext('2d')
 
-  // Store initial canvas rect for consistent coordinate calculations
-  const canvasRect = canvas.getBoundingClientRect()
-
   return {
     ...state,
     canvas,
     context,
     pixelRatio,
-    canvasRect,
     dpiOverride,
   }
 }
@@ -100,13 +94,7 @@ export function resizeCanvas(
   canvas.style.width = `${safeWidth}px`
   canvas.style.height = `${safeHeight}px`
 
-  // Update canvas rect
-  const canvasRect = canvas.getBoundingClientRect()
-
-  return {
-    ...state,
-    canvasRect,
-  }
+  return state
 }
 
 /**
@@ -213,7 +201,7 @@ export function forceCanvasRedraw(
 }
 
 /**
- * Updates the DPI and canvas rect when display parameters change (e.g., moving to a different monitor)
+ * Updates the DPI-dependent state when display parameters change.
  * @param getState - Function to get the current state (ensures we always use fresh state)
  * @param setStateFn - Function to set the updated state
  * @param getDpiOverride - Optional DPI override getter (for export functionality)
@@ -244,7 +232,6 @@ export function updateDpiAndRect(
     const newState = {
       ...state,
       pixelRatio: newPixelRatio,
-      canvasRect: canvas.getBoundingClientRect(),
       dpiOverride,
     }
 
@@ -253,12 +240,6 @@ export function updateDpiAndRect(
 
     // Execute render callback to update canvas
     renderCallback()
-  } else {
-    // Still update the canvasRect for accurate coordinates
-    setStateFn({
-      ...state,
-      canvasRect: canvas.getBoundingClientRect(),
-    })
   }
 }
 

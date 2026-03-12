@@ -19,7 +19,6 @@ import { getCommandLabel } from '$lib/workspace/commands/labels'
  *
  * @param gridStore - The grid store instance
  * @param onSuccess - Callback for successful operations
- * @param onError - Callback for error handling
  * @returns Object containing the handler function and undo/redo service
  */
 export function createCommandHandler(
@@ -27,7 +26,6 @@ export function createCommandHandler(
   engine: DataEngine,
   history: UndoRedoStateStore,
   onSuccess: (message: string) => void,
-  onError: (error: Error) => void,
   onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void
 ) {
   const commandRegistry = createWorkspaceCommandRegistry(gridStore, engine)
@@ -91,7 +89,6 @@ export function createCommandHandler(
     } catch (error) {
       // Make sure to end undo/redo processing on error
       history.endUndoRedo()
-      onError(error as Error)
       throw error
     }
   }
