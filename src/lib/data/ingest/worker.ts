@@ -14,6 +14,10 @@ let pupilCloudPipeline: PupilCloudPipeline | null = null
 let streams: ReadableStream[] = []
 let zipBuffers: ArrayBuffer[] = []
 let userInputResolver: (value: string) => void
+let processedBytes = 0
+let lastProgressMessageAt = 0
+
+const PROGRESS_MESSAGE_INTERVAL_MS = 200
 
 const isStringArray = (data: unknown): data is string[] => {
   if (!Array.isArray(data)) return false
@@ -36,8 +40,30 @@ const requestUserInput = (): Promise<string> => {
 
 type PipelineResult = { data: DataType; settings: EyeSettingsType }
 
+const resetProgressState = (): void => {
+  processedBytes = 0
+  lastProgressMessageAt = 0
+}
+
+const postProgressMessage = (force = false): void => {
+  const now = Date.now()
+  if (!force && now - lastProgressMessageAt < PROGRESS_MESSAGE_INTERVAL_MS) {
+    return
+  }
+
+  lastProgressMessageAt = now
+  self.postMessage({ type: 'progress', processedBytes })
+}
+
+const recordProcessedBytes = (byteLength: number, force = false): void => {
+  if (!Number.isFinite(byteLength) || byteLength <= 0) return
+  processedBytes += byteLength
+  postProgressMessage(force)
+}
+
 const postDoneMessage = (dataWithSettings: PipelineResult): void => {
   const { data } = dataWithSettings
+  postProgressMessage(true)
   // Transfer large binary buffers to avoid costly copies
   const transferBuffers = [
     data.segments.segmentBuffer.buffer,
@@ -63,6 +89,7 @@ async function processEvent(e: MessageEvent): Promise<void> {
       case 'file-names':
         if (!isStringArray(data)) throw new Error('File names are not string[]')
         fileNames = data
+        resetProgressState()
         // Check if files are ZIP files (Pupil Cloud) or regular eye-tracking files
         const isZipFiles = fileNames.some(name =>
           name.toLowerCase().endsWith('.zip')
@@ -70,7 +97,11 @@ async function processEvent(e: MessageEvent): Promise<void> {
         if (isZipFiles) {
           pupilCloudPipeline = new PupilCloudPipeline(fileNames)
         } else {
-          pipeline = new EyePipeline(fileNames, requestUserInput)
+          pipeline = new EyePipeline(
+            fileNames,
+            requestUserInput,
+            byteLength => recordProcessedBytes(byteLength)
+          )
         }
         return
       case 'test-stream':
@@ -166,6 +197,7 @@ const evalZipBuffer = async (data: unknown): Promise<void> => {
         new Uint8Array(zipBuffers[i]),
         fileNames[i]
       )
+      recordProcessedBytes(zipBuffers[i].byteLength, true)
       // Only the last ZIP returns non-null data (with all accumulated results)
       if (dataWithSettings !== null) {
         console.log('[Worker] Received final data, sending to main thread')

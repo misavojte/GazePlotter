@@ -1,6 +1,9 @@
 <script lang="ts">
   import { fade } from 'svelte/transition'
+  import { getGazePlotterSession } from '$lib/session'
   import GridItemContainer from '$lib/workspace/grid/GridItemContainer.svelte'
+
+  const { ingest } = getGazePlotterSession()
 </script>
 
 <div class="loading-workspace-indicator" transition:fade={{ duration: 400 }}>
@@ -12,10 +15,8 @@
       <div class="content-inner">
         <div class="spinner"></div>
         <div class="text-content">
-          <p>
-            Please wait while we prepare your visualisations. This may take a
-            moment depending on the size of your dataset.
-          </p>
+          <p>Please wait while we prepare your visualisations.</p>
+          <p>Processing data: {ingest.progressPercent}%</p>
         </div>
       </div>
     {/snippet}

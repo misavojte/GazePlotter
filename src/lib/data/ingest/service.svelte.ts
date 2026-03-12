@@ -89,10 +89,12 @@ class IngestWorkerClient {
   private parsingAnchorTime = 0
   private fileNames: string[] = []
   private fileSizes: number[] = []
+  private totalFileSize = 0
 
   constructor(
     private readonly onData: (data: ParsedData) => void,
     private readonly onFail: (failureMetadata: FileMetadataFailureType) => void,
+    private readonly onProgress: (progressPercent: number) => void,
     private readonly ui: IngestUiServices
   ) {
     this.worker = new Worker(
@@ -107,8 +109,10 @@ class IngestWorkerClient {
     const fileArray = Array.from(files)
     this.fileNames = fileArray.map(file => file.name)
     this.fileSizes = fileArray.map(file => file.size)
+    this.totalFileSize = this.fileSizes.reduce((sum, size) => sum + size, 0)
     this.parsingSumTime = 0
     this.parsingAnchorTime = Date.now()
+    this.onProgress(0)
 
     const firstFile = fileArray[0]
     const parts = firstFile.name.split('.')
@@ -187,6 +191,7 @@ class IngestWorkerClient {
     reader.onload = () => {
       try {
         const result = processJsonFileWithGrid(reader.result as string)
+        this.onProgress(100)
         const timeString = formatDuration(
           Date.now() - this.parsingAnchorTime + this.parsingSumTime
         )
@@ -237,6 +242,7 @@ class IngestWorkerClient {
     }
     const timeString = formatDuration(parseDuration)
     const formattedFileInfo = formatFileInfo(this.fileNames, this.fileSizes)
+    this.onProgress(100)
     this.ui.toastState.addSuccess(
       `${formattedFileInfo} parsed successfully in ${timeString}`
     )
@@ -255,6 +261,9 @@ class IngestWorkerClient {
 
   private handleMessage(event: MessageEvent): void {
     switch (event.data.type) {
+      case 'progress':
+        this.handleProgress(event.data.processedBytes)
+        break
       case 'done':
         this.handleData({
           data: event.data.data,
@@ -270,6 +279,19 @@ class IngestWorkerClient {
       default:
         console.error('IngestWorkerClient.handleMessage() - event:', event)
     }
+  }
+
+  private handleProgress(processedBytes: number): void {
+    if (typeof processedBytes !== 'number' || this.totalFileSize <= 0) {
+      this.onProgress(0)
+      return
+    }
+
+    const ratio = processedBytes / this.totalFileSize
+    const progressPercent = Math.floor(
+      Math.min(Math.max(ratio, 0), 0.99) * 100
+    )
+    this.onProgress(progressPercent)
   }
 
   private handleError(error: Error): void {
@@ -331,6 +353,7 @@ export class IngestService {
   status = $state<IngestStatus>('loading')
   metadata = $state<FileMetadataType | null>(null)
   input = $state<FileInputType | null>(null)
+  progressPercent = $state(0)
 
   isLoading = $derived(this.status === 'loading')
   hasError = $derived(this.status === 'error')
@@ -341,6 +364,7 @@ export class IngestService {
     if (files.length === 0) return
 
     this.status = 'loading'
+    this.progressPercent = 0
 
     try {
       await new Promise<void>((resolve, reject) => {
@@ -352,6 +376,9 @@ export class IngestService {
           failureMetadata => {
             this.applyFailure(failureMetadata)
             reject(new Error(failureMetadata.errorMessage))
+          },
+          progressPercent => {
+            this.progressPercent = progressPercent
           },
           {
             modalState: this.deps.modalState,
@@ -371,6 +398,7 @@ export class IngestService {
   }
 
   applyParsedData(parsedData: ParsedData): void {
+    this.progressPercent = 100
     this.metadata = parsedData.version === 3 ? parsedData.fileMetadata : null
     this.input = parsedData.current
     this.deps.engine.loadDataset(parsedData.data)
@@ -382,6 +410,7 @@ export class IngestService {
   }
 
   applyFailure(failureMetadata: FileMetadataFailureType): void {
+    this.progressPercent = 0
     this.deps.grid.reset([])
     this.metadata = failureMetadata
     this.input = {

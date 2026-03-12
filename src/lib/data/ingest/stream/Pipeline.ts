@@ -23,6 +23,7 @@ export class EyePipeline {
   completeSettings: EyeSettingsType | null = null
 
   requestUserInputCallback: () => Promise<string>
+  private readonly reportChunkProcessed: (byteLength: number) => void
   rowIndex = 0
 
   get isAllProcessed(): boolean {
@@ -37,10 +38,12 @@ export class EyePipeline {
 
   constructor(
     fileNames: string[],
-    requestUserInputCallback: () => Promise<string>
+    requestUserInputCallback: () => Promise<string>,
+    reportChunkProcessed: (byteLength: number) => void = () => {}
   ) {
     this.fileNames = fileNames
     this.requestUserInputCallback = requestUserInputCallback
+    this.reportChunkProcessed = reportChunkProcessed
   }
 
   async addNewStream(
@@ -78,19 +81,22 @@ export class EyePipeline {
       userStringInput,
       decoder
     )
+    this.reportChunkProcessed(firstChunk.byteLength)
 
     // process remaining chunks
     if (!firstRead.done) {
       while (true) {
         const { value, done } = await reader.read()
         if (done) break
+        const chunk = value ?? new Uint8Array()
         this.processChunkBytes(
-          value ?? new Uint8Array(),
+          chunk,
           settings,
           splitter,
           userStringInput,
           decoder
         )
+        this.reportChunkProcessed(chunk.byteLength)
       }
     }
 
