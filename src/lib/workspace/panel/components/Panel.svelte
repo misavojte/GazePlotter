@@ -27,5 +27,7 @@
     height: 100%;
     gap: 5px;
     margin-bottom: 25px;
+    padding-left: 40px;
+    box-sizing: border-box;
   }
 </style>
