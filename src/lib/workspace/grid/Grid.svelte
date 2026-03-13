@@ -79,13 +79,18 @@
   class:pointer-events-none={interaction.isInteracting}
   class:is-panning={interaction.isPanning}
   style="width: {gridWidth}px; height: {gridHeight}px;"
-  use:panSurfaceAction={{
-    enabled: !gridIsEmpty && workspaceContainer !== null,
-    interaction,
-    workspaceContainer,
-  }}
   role="application"
 >
+  <div
+    class="grid-pan-surface"
+    use:panSurfaceAction={{
+      enabled: !gridIsEmpty && workspaceContainer !== null,
+      interaction,
+      workspaceContainer,
+    }}
+    aria-hidden="true"
+  ></div>
+
   {#if !gridIsEmpty}
     {#each gridItems as item (item.id)}
       {@const plotLabel = getPlotDisplayName(item.type)}
@@ -159,6 +164,16 @@
 
   .grid-container.is-panning {
     cursor: grabbing;
+  }
+
+  .grid-container {
+    position: relative;
+  }
+
+  .grid-pan-surface {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
   }
 
   .plot-error-state {

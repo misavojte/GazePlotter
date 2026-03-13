@@ -105,7 +105,6 @@
   class:resizing={isResizing}
   class:is-ghosted={isGhosted}
   style={itemStyle}
-  data-grid-block-pan="true"
   transition:fade={{ duration: 150 }}
   role="figure"
 >

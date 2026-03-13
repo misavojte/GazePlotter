@@ -27,64 +27,37 @@ export function panSurfaceAction(
     params.interaction.updatePan(point)
   })
 
-  const session = createPointerSession(node, {
-    enabled: params.enabled,
-    preventDefaultOnStart: true,
-    shouldStart(event) {
-      const target = event.target as HTMLElement | null
-      if (!target) return false
-      return !target.closest('[data-grid-block-pan]')
-    },
-    onStart(point) {
-      setPanCursor('grabbing')
-      params.interaction.beginPan(point)
-    },
-    onMove(point) {
-      move(point)
-    },
-    onEnd(point) {
-      if (point) {
-        params.interaction.updatePan(point)
-      }
-      setPanCursor('')
-      params.interaction.endPan()
-    },
-    onCancel() {
-      setPanCursor('')
-      params.interaction.endPan()
-    },
-  })
+  function createSessionOptions() {
+    return {
+      enabled: params.enabled,
+      preventDefaultOnStart: true,
+      onStart(point: InteractionPoint) {
+        setPanCursor('grabbing')
+        params.interaction.beginPan(point)
+      },
+      onMove(point: InteractionPoint) {
+        move(point)
+      },
+      onEnd(point: InteractionPoint | null) {
+        if (point) {
+          params.interaction.updatePan(point)
+        }
+        setPanCursor('')
+        params.interaction.endPan()
+      },
+      onCancel() {
+        setPanCursor('')
+        params.interaction.endPan()
+      },
+    }
+  }
+
+  const session = createPointerSession(node, createSessionOptions())
 
   return {
     update(nextParams: PanSurfaceActionParams) {
       params = nextParams
-      session.update({
-        enabled: params.enabled,
-        preventDefaultOnStart: true,
-        shouldStart(event) {
-          const target = event.target as HTMLElement | null
-          if (!target) return false
-          return !target.closest('[data-grid-block-pan]')
-        },
-        onStart(point) {
-          setPanCursor('grabbing')
-          params.interaction.beginPan(point)
-        },
-        onMove(point) {
-          move(point)
-        },
-        onEnd(point) {
-          if (point) {
-            params.interaction.updatePan(point)
-          }
-          setPanCursor('')
-          params.interaction.endPan()
-        },
-        onCancel() {
-          setPanCursor('')
-          params.interaction.endPan()
-        },
-      })
+      session.update(createSessionOptions())
     },
     destroy() {
       setPanCursor('')
