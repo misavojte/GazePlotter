@@ -232,7 +232,7 @@
         <div class="navigation-buttons">
           {#if surveyState.currentStepIndex > 0}
             <button class="nav-button prev" onclick={goToPreviousStep}>
-              ← Previous
+              Previous
             </button>
           {:else}
             <div class="nav-button-placeholder"></div>
@@ -245,7 +245,7 @@
             {#if surveyState.currentStepIndex === steps.length - 1}
               Submit
             {:else}
-              Next →
+              Next
             {/if}
           </button>
         </div>
@@ -255,7 +255,7 @@
       <div class="completion-slide">
         <div class="completion-message">
           <div class="completion-content">
-            <h3>🎉 Thank you for your feedback!</h3>
+            <h3>Thank you for your feedback!</h3>
             <p>
               Your responses have been recorded and will help us improve
               GazePlotter for researchers and practitioners.

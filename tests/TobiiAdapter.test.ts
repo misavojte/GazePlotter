@@ -64,8 +64,6 @@ describe('TobiiAdapter', () => {
       deserializer.processRowBytes(encodeRow(row), decoder)
     }
     deserializer.finalize()
-    // outputs now contains all parsed segments, ready for future assertions
-    // console.log(outputs) // Uncomment for debugging
     expect(outputs.length).toBeGreaterThan(0)
   })
 

@@ -169,8 +169,6 @@ export function calculateTimelineRange(
       const min = startVal
       const max = hasEnd ? endVal : getDataMax(false)
 
-      console.log('[ScarfPlot] Global Absolute Limits Applied:', { min, max })
-
       // If user only provided start, ensure max is at least start + margin
       // If user provided end, we trust it (even if it clips data)
       return { minValue: min, maxValue: Math.max(min + 1, max) }
@@ -188,8 +186,6 @@ export function calculateTimelineRange(
       const min = startVal
       const max = hasEnd ? endVal : getDataMax(true)
 
-      console.log('[ScarfPlot] Global Ordinal Limits Applied:', { min, max })
-
       return { minValue: min, maxValue: Math.max(min + 1, max) }
     }
   }
@@ -204,15 +200,12 @@ export function calculateTimelineRange(
   // Check if limits are defined and maxValue > 0.
   // If maxValue is 0, we treat it as 'auto' and fallback to data-driven range (e.g. after reset).
   if (Array.isArray(limits) && limits.length === 2 && limits[1] > 0) {
-    console.log('[ScarfPlot] Per-Stimulus Limits Applied:', limits)
     return { minValue: Math.max(0, limits[0]), maxValue: limits[1] }
   }
 
   // 3. Fallback to data-driven range
   const isOrdinal = settings.timeline === 'ordinal'
   const maxValue = getDataMax(isOrdinal) // Reuse helper
-
-  console.log('[ScarfPlot] Data-based Limits (Auto):', maxValue)
 
   return {
     minValue: 0,

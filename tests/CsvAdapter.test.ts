@@ -203,15 +203,11 @@ describe('CSV Deserializer - Multiple data', async () => {
     }
     sut.finalize()
 
-    console.log(outputs)
-
     expect(outputs.length).toBe(16) // 16 segments while only 4 with different start and end
 
     // filter out segments with same start and end
     const filtered = outputs.filter(a => a.start !== a.end)
     expect(filtered.length).toBe(4)
-
-    console.log(filtered)
 
     expect(filtered[0].stimulus).toEqual('Map_A')
     expect(filtered[1].stimulus).toEqual('Map_B')
