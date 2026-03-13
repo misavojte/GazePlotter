@@ -1,17 +1,16 @@
 <script lang="ts">
   import { fade } from 'svelte/transition'
   import { getGazePlotterSession } from '$lib/session'
-  import GridItemContainer from '$lib/workspace/grid/GridItemContainer.svelte'
 
   const { ingest } = getGazePlotterSession()
 </script>
 
 <div class="loading-workspace-indicator" transition:fade={{ duration: 400 }}>
-  <GridItemContainer class="indicator-content">
-    {#snippet header()}
-      <h3>Processing data</h3>
-    {/snippet}
-    {#snippet body()}
+  <div class="indicator-card">
+    <div class="indicator-header">
+      <h3 class="indicator-title">Processing data</h3>
+    </div>
+    <div class="indicator-body">
       <div class="content-inner">
         <div class="spinner"></div>
         <div class="text-content">
@@ -19,8 +18,8 @@
           <p>Processing data: {ingest.progressPercent}%</p>
         </div>
       </div>
-    {/snippet}
-  </GridItemContainer>
+    </div>
+  </div>
 </div>
 
 <style>
@@ -36,9 +35,35 @@
     z-index: 10;
   }
 
-  :global(.indicator-content) {
+  .indicator-card {
     max-width: 500px;
     width: 100%;
+    box-sizing: border-box;
+    background-color: var(--c-lightgrey);
+    border-radius: var(--rounded-lg, 8px);
+    border: 1px solid var(--c-border);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .indicator-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    background: var(--c-lightgrey);
+  }
+
+  .indicator-title {
+    margin: 2px 0 2px 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--c-black);
+  }
+
+  .indicator-body {
+    padding: 20px;
+    background-color: var(--c-white);
   }
 
   .content-inner {
@@ -77,7 +102,7 @@
   }
 
   @media (max-width: 600px) {
-    :global(.indicator-content) {
+    .indicator-card {
       margin: 0 1rem;
     }
   }

@@ -6,90 +6,77 @@ import type {
   GridItemSnapshot,
   PlotSettingsMap,
 } from '$lib/workspace/type/gridType'
-import { getVizConfig } from '$lib/plots/registry'
-import {
-  DEFAULT_GRID_CONFIG,
-  calculateGridHeight,
-  calculateGridWidth,
-  calculateRequiredWorkspaceHeight,
-} from '$lib/workspace/grid'
-import { generateUniqueId } from '$lib/shared/utils/idUtils'
+import { DEFAULT_GRID_CONFIG } from './const'
 import type { GridConfig, GridItemPosition } from './types'
 import { DEFAULT_GRID_STATE_DATA } from './const'
 import * as GridEngine from './engine'
+import { createGridItem, duplicateGridItem } from './itemFactory'
+import { calculateViewportGridColumns } from './sizing'
+
+type GridStateOptions = {
+  getAvailableColumns?: (config: GridConfig) => number
+}
 
 export class GridState {
+  private readonly getAvailableColumnsFn: (config: GridConfig) => number
+
   // --- Core Reactive State ---
   items = $state<AllGridTypes[]>([])
   config = $state<GridConfig>(DEFAULT_GRID_CONFIG)
 
-  // UI Sync State (Previously scattered local stores)
-  temporaryDragHeight = $state<number | null>(null)
-  temporaryDragWidth = $state<number | null>(null)
+  // UI sync state that needs to survive outside local components.
   isLoading = $state(false)
 
   // --- Derived Calculations (Runes) ---
-  positions = $derived(
-    this.items.map(item => ({
+  positions = $derived(this.createPositionsSnapshot())
+
+  isEmpty = $derived(this.items.length === 0)
+
+  constructor(options: GridStateOptions = {}) {
+    this.getAvailableColumnsFn =
+      options.getAvailableColumns ?? calculateViewportGridColumns
+  }
+
+  private getAvailableColumns(): number {
+    return this.getAvailableColumnsFn(this.config)
+  }
+
+  private createPositionsSnapshot(
+    items: Pick<AllGridTypes, 'id' | 'x' | 'y' | 'w' | 'h'>[] = this.items
+  ): GridItemPosition[] {
+    return items.map(item => ({
       id: item.id,
       x: item.x,
       y: item.y,
       w: item.w,
       h: item.h,
     }))
-  )
+  }
 
-  isEmpty = $derived(this.items.length === 0)
+  private resolvePlacement(
+    item: Pick<AllGridTypes, 'w' | 'h'>,
+    positions: GridItemPosition[],
+    requested?: Partial<Pick<GridItemPosition, 'x' | 'y'>>,
+    referenceItem?: GridItemPosition
+  ): { x: number; y: number } {
+    if (
+      requested?.x !== undefined &&
+      requested?.y !== undefined &&
+      GridEngine.isAreaAvailable(requested.x, requested.y, item.w, item.h, positions)
+    ) {
+      return {
+        x: requested.x,
+        y: requested.y,
+      }
+    }
 
-  requiredWorkspaceHeight = $derived(
-    calculateRequiredWorkspaceHeight(this.positions, this.config)
-  )
-
-  height = $derived(
-    calculateGridHeight(
-      this.positions,
-      this.isEmpty,
-      this.isLoading,
-      this.temporaryDragHeight,
-      this.config
+    return GridEngine.findOptimalPosition(
+      item.w,
+      item.h,
+      positions,
+      this.getAvailableColumns(),
+      referenceItem
     )
-  )
-
-  width = $derived(
-    calculateGridWidth(this.positions, this.temporaryDragWidth, this.config)
-  )
-
-  // --- Private Logic ---
-  // (Internal geometry logic moved to engine.ts)
-
-  private createItem<K extends keyof GridItemMap>(
-    type: K,
-    options: GridItemSnapshot<K> = { type }
-  ): AllGridTypes {
-    const viz = getVizConfig(type)
-    const id = options.id ?? generateUniqueId()
-    const defaultSettings = viz.getDefaultSettings(options.settings)
-
-    const base = {
-      id,
-      x: options.x ?? 0,
-      y: options.y ?? 0,
-      w: options.w ?? viz.getDefaultWidth({ ...defaultSettings, ...options }),
-      h: options.h ?? viz.getDefaultHeight({ ...defaultSettings, ...options }),
-      min: options.min ?? viz.getMinSize(options.settings),
-      redrawTimestamp: Date.now(),
-    }
-
-    const merged = {
-      ...base,
-      type,
-      settings: {
-        ...defaultSettings,
-        ...(options.settings ?? {}),
-      },
-    }
-
-    return merged as unknown as AllGridTypes
   }
 
   // --- Grid Manipulation & Collision Logic ---
@@ -100,7 +87,14 @@ export class GridState {
     h: number,
     excludeId: number = -1
   ): boolean {
-    return GridEngine.isAreaAvailable(x, y, w, h, this.positions, excludeId)
+    return GridEngine.isAreaAvailable(
+      x,
+      y,
+      w,
+      h,
+      this.createPositionsSnapshot(),
+      excludeId
+    )
   }
 
   findOptimalPosition(
@@ -111,30 +105,24 @@ export class GridState {
     return GridEngine.findOptimalPosition(
       w,
       h,
-      this.positions,
-      this.config,
+      this.createPositionsSnapshot(),
+      this.getAvailableColumns(),
       referenceItem
     )
   }
 
-  addItem(
-    type: AllGridTypes['type'],
-    options: GridItemSnapshot = { type }
+  addItem<K extends keyof GridItemMap>(
+    type: K,
+    options: GridItemSnapshot<K> = { type }
   ) {
-    const newItem = this.createItem(type as keyof GridItemMap, options as any)
-    const suggested = this.findOptimalPosition(newItem.w, newItem.h)
-
-    if (
-      options.x !== undefined &&
-      options.y !== undefined &&
-      this.isAreaAvailable(options.x, options.y, newItem.w, newItem.h)
-    ) {
-      newItem.x = options.x
-      newItem.y = options.y
-    } else {
-      newItem.x = suggested.x
-      newItem.y = suggested.y
-    }
+    const newItem = createGridItem(type, options)
+    const placement = this.resolvePlacement(
+      newItem,
+      this.createPositionsSnapshot(),
+      options
+    )
+    newItem.x = placement.x
+    newItem.y = placement.y
 
     this.items.push(newItem)
     return newItem.id
@@ -176,38 +164,12 @@ export class GridState {
     // in production builds where Svelte processes intermediate states eagerly.
     const newItems: AllGridTypes[] = []
     for (const itemDef of layout) {
-      const newItem = this.createItem(itemDef.type as keyof GridItemMap, itemDef as any)
+      const newItem = createGridItem(itemDef.type, itemDef)
       // Use provided positions if available and valid
-      const tempPositions = newItems.map(i => ({
-        id: i.id,
-        x: i.x,
-        y: i.y,
-        w: i.w,
-        h: i.h,
-      }))
-      if (
-        itemDef.x !== undefined &&
-        itemDef.y !== undefined &&
-        GridEngine.isAreaAvailable(
-          itemDef.x,
-          itemDef.y,
-          newItem.w,
-          newItem.h,
-          tempPositions
-        )
-      ) {
-        newItem.x = itemDef.x
-        newItem.y = itemDef.y
-      } else {
-        const pos = GridEngine.findOptimalPosition(
-          newItem.w,
-          newItem.h,
-          tempPositions,
-          this.config
-        )
-        newItem.x = pos.x
-        newItem.y = pos.y
-      }
+      const tempPositions = this.createPositionsSnapshot(newItems)
+      const placement = this.resolvePlacement(newItem, tempPositions, itemDef)
+      newItem.x = placement.x
+      newItem.y = placement.y
       newItems.push(newItem)
     }
     // Single atomic assignment — one reactive update instead of N+1
@@ -227,15 +189,16 @@ export class GridState {
   }
 
   duplicateItem(item: AllGridTypes, duplicateId?: number) {
-    const duplicate = {
-      ...item,
-      id: duplicateId ?? generateUniqueId(),
-      settings: { ...item.settings },
-    }
-    const newPosition = this.findOptimalPosition(item.w, item.h, item)
-    duplicate.x = newPosition.x
-    duplicate.y = newPosition.y
-    this.items.push(duplicate as AllGridTypes)
+    const duplicate = duplicateGridItem(item, duplicateId)
+    const placement = this.resolvePlacement(
+      duplicate,
+      this.createPositionsSnapshot(),
+      undefined,
+      item
+    )
+    duplicate.x = placement.x
+    duplicate.y = placement.y
+    this.items.push(duplicate)
     return duplicate.id
   }
 
@@ -255,9 +218,9 @@ export class GridState {
   }> {
     return GridEngine.resolveItemPositionCollisions(
       priorityItemId,
-      this.positions,
+      this.createPositionsSnapshot(),
       this.items,
-      this.config
+      this.getAvailableColumns()
     )
   }
 }

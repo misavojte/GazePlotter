@@ -175,6 +175,11 @@
       updateTooltip(null)
     }
 
+    const hideImmediate = () => {
+      isHovering = false
+      updateTooltip(null, 0)
+    }
+
     const refresh = () => {
       if (isHovering) {
         state.disabled ? hide() : show()
@@ -183,6 +188,7 @@
 
     node.addEventListener('mouseenter', show)
     node.addEventListener('mouseleave', hide)
+    node.addEventListener('pointerdown', hideImmediate)
 
     return {
       update(newOptions: TooltipOptions) {
@@ -192,6 +198,7 @@
       destroy() {
         node.removeEventListener('mouseenter', show)
         node.removeEventListener('mouseleave', hide)
+        node.removeEventListener('pointerdown', hideImmediate)
         if (isHovering) hide()
       },
     }

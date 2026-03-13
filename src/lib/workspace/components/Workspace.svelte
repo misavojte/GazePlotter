@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte'
   import {
     WorkspaceIndicatorEmpty,
     WorkspaceIndicatorLoading,
@@ -10,7 +11,10 @@
   import {
     MIN_WORKSPACE_HEIGHT,
     DEFAULT_GRID_CONFIG,
+    calculateGridHeight,
+    calculateGridWidth,
   } from '$lib/workspace/grid'
+  import { GridInteractionController } from '$lib/workspace/grid/interaction'
   import { plotRegistry } from '$lib/plots/registry'
   import type { WorkspaceCommandChain } from '$lib/workspace/commands'
   import type { GridItemSnapshot } from '$lib/workspace/type/gridType'
@@ -40,6 +44,29 @@
   })
 
   let workspaceContainer: HTMLElement | null = $state(null)
+  const interaction = new GridInteractionController()
+  const positionsWithPreview = $derived.by(() =>
+    interaction.getPositionsWithPreview(grid.positions)
+  )
+  const gridHeight = $derived.by(() => {
+    const baseHeight = calculateGridHeight(
+      positionsWithPreview,
+      grid.isEmpty,
+      grid.isLoading,
+      gridConfig
+    )
+
+    return interaction.workspaceHeightHint === null
+      ? baseHeight
+      : Math.max(baseHeight, interaction.workspaceHeightHint)
+  })
+  const gridWidth = $derived.by(() => {
+    const baseWidth = calculateGridWidth(positionsWithPreview, gridConfig)
+
+    return interaction.workspaceWidthHint === null
+      ? baseWidth
+      : Math.max(baseWidth, interaction.workspaceWidthHint)
+  })
 
   // ---------------------------------------------------
   // Initialization Logic
@@ -48,6 +75,18 @@
   $effect(() => {
     if (workspaceContainer) {
       workspaceContainer.scrollLeft = 0
+    }
+  })
+
+  $effect(() => {
+    interaction.setGridConfig(gridConfig)
+  })
+
+  $effect(() => {
+    interaction.setViewportElement(workspaceContainer)
+
+    return () => {
+      interaction.setViewportElement(null)
     }
   })
 
@@ -64,6 +103,10 @@
     }
   })
 
+  onDestroy(() => {
+    interaction.destroy()
+  })
+
   const styleProps = `--min-workspace-height: ${MIN_WORKSPACE_HEIGHT}px; --grid-container-min-height: ${MIN_WORKSPACE_HEIGHT - 100}px;`
 </script>
 
@@ -72,7 +115,7 @@
 
   <div
     class="workspace-container"
-    style="height: {grid.height}px;"
+    style="height: {gridHeight}px;"
     bind:this={workspaceContainer}
     role="none"
   >
@@ -84,8 +127,9 @@
       <Grid
         gridItems={grid.items}
         {gridConfig}
-        gridHeight={grid.height}
-        gridWidth={grid.width}
+        {interaction}
+        {gridHeight}
+        {gridWidth}
         gridIsEmpty={grid.isEmpty}
         {workspaceContainer}
       />
@@ -115,24 +159,5 @@
     will-change: height;
     cursor: grab;
     background-color: var(--c-darkwhite);
-  }
-
-  :global(.grid-item) {
-    cursor: default;
-  }
-
-  :global(.resize-handle) {
-    cursor: se-resize !important;
-    z-index: 100 !important;
-  }
-
-  :global(.header > .tooltip-wrapper:first-child .workspace-item-button) {
-    cursor: grab !important;
-  }
-
-  :global(
-    .header > .tooltip-wrapper:first-child .workspace-item-button:active
-  ) {
-    cursor: grabbing !important;
   }
 </style>

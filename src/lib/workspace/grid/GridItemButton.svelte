@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { MoveHandleActionParams } from './interaction/moveHandleAction'
   import { tooltipAction } from '$lib/tooltip'
 
   interface Props {
@@ -8,10 +9,11 @@
     tooltip?: string
     disabled?: boolean
     useAction?: boolean
-    actionParams?: any
-    actionFn?: any
+    actionParams?: MoveHandleActionParams
+    actionFn?: typeof import('./interaction/moveHandleAction').moveHandleAction
+    class?: string
     children?: import('svelte').Snippet
-    onclick?: (event: CustomEvent) => void
+    onclick?: (event: CustomEvent<{ action: string }>) => void
   }
 
   let {
@@ -21,8 +23,9 @@
     tooltip = '',
     disabled = false,
     useAction = false,
-    actionParams = {},
-    actionFn = null,
+    actionParams = undefined,
+    actionFn = undefined,
+    class: customClass = '',
     children,
     onclick = () => {},
   }: Props = $props()
@@ -37,7 +40,7 @@
 <div class="tooltip-wrapper">
   {#if useAction && actionFn}
     <button
-      class="grid-item-button"
+      class="grid-item-button {customClass}"
       class:disabled
       onclick={handleClick}
       aria-label={label || tooltip}
@@ -46,7 +49,7 @@
         position: 'top',
         offset: 35,
       }}
-      use:actionFn={actionParams}
+      use:actionFn={actionParams!}
     >
       {#if children}
         {@render children()}
@@ -61,7 +64,7 @@
     </button>
   {:else}
     <button
-      class="grid-item-button"
+      class="grid-item-button {customClass}"
       class:disabled
       onclick={handleClick}
       aria-label={label || tooltip}
@@ -130,12 +133,15 @@
     color: var(--c-darkgrey);
   }
 
-  .label {
-    margin-left: 4px;
+  .grid-item-button.move-handle-button {
+    cursor: grab;
   }
 
-  /* Global style to help with tooltip overflow */
-  :global(.grid-item) {
-    overflow: visible;
+  .grid-item-button.move-handle-button:active {
+    cursor: grabbing;
+  }
+
+  .label {
+    margin-left: 4px;
   }
 </style>

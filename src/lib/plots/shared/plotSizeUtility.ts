@@ -1,5 +1,6 @@
-import type { GridConfig } from '$lib/workspace/grid'
-import { gridToPixelDimensions } from '$lib/workspace/grid'
+import { GRID_ITEM_BODY_PADDING } from '$lib/workspace/grid/const'
+import { gridToPixelDimensions } from '$lib/workspace/grid/pixels'
+import type { GridConfig } from '$lib/workspace/grid/types'
 import type { PlotDimensions } from './types'
 
 /**
@@ -40,12 +41,8 @@ export function calculatePlotDimensions(
   }
 }
 
-/**
- * Standard horizontal padding for plot containers.
- * This corresponds to the padding in GridItemContainer.svelte's .body element (20px each side = 40px total).
- * If you change this value, also update the padding in GridItemContainer.svelte.
- */
-const PLOT_CONTAINER_HORIZONTAL_PADDING = 40
+// Keep plot sizing aligned with the visual body padding inside GridItem.svelte.
+const PLOT_CONTAINER_HORIZONTAL_PADDING = GRID_ITEM_BODY_PADDING * 2
 
 /**
  * Calculates the available plot area dimensions with header adjustment

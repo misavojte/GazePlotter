@@ -1,4 +1,4 @@
-import type { GridItemPosition, GridConfig } from './types'
+import type { GridItemPosition } from './types'
 import type {
   AllGridTypes,
   GridItemLayoutUpdate,
@@ -55,7 +55,7 @@ export function findOptimalPosition(
   w: number,
   h: number,
   positions: GridItemPosition[],
-  config: GridConfig,
+  availableColumns: number,
   referenceItem?: GridItemPosition
 ): { x: number; y: number } {
   if (positions.length === 0) return { x: 0, y: 0 }
@@ -68,12 +68,7 @@ export function findOptimalPosition(
       return { x: oX, y: oY + oH }
   }
 
-  const cellWidth = config.cellSize.width + config.gap
-  const availableWidth = Math.floor(
-    (typeof window !== 'undefined' ? window.innerWidth : 1920) / cellWidth
-  )
-
-  let maxX = availableWidth
+  let maxX = availableColumns
   for (let i = 0; i < positions.length; i++) {
     const edge = positions[i].x + positions[i].w
     if (edge > maxX) maxX = edge
@@ -97,7 +92,7 @@ export function findBestConflictResolutionPosition(
   item: GridItemPosition,
   priorityItem: GridItemPosition,
   positions: GridItemPosition[],
-  config: GridConfig,
+  availableColumns: number,
   excludeId: number
 ): { x: number; y: number } | null {
   const { x: itemX, y: itemY, w: itemW, h: itemH } = item
@@ -151,7 +146,7 @@ export function findBestConflictResolutionPosition(
   )
 
   if (validPositions.length === 0) {
-    return findOptimalPosition(itemW, itemH, positions, config)
+    return findOptimalPosition(itemW, itemH, positions, availableColumns)
   }
 
   return validPositions.reduce((best, current) =>
@@ -163,7 +158,7 @@ export function resolveItemPositionCollisions(
   priorityItemId: number,
   positions: GridItemPosition[],
   items: AllGridTypes[],
-  config: GridConfig
+  availableColumns: number
 ): Array<{
   itemId: number
   settings: GridItemLayoutUpdate
@@ -193,7 +188,7 @@ export function resolveItemPositionCollisions(
       item as GridItemPosition,
       priorityItem,
       positions,
-      config,
+      availableColumns,
       itemId
     )
 

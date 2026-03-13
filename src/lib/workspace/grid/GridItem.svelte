@@ -1,25 +1,18 @@
 <script lang="ts">
   import { fade } from 'svelte/transition'
+  import type { Snippet } from 'svelte'
   import GridItemButton from './GridItemButton.svelte'
-  import GridItemContainer from './GridItemContainer.svelte'
-  import { type Snippet } from 'svelte'
-  import { draggable, resizable as resizableAction } from './actions.svelte'
+  import { GRID_ITEM_BODY_PADDING } from './const'
+  import {
+    moveHandleAction,
+    resizeHandleAction,
+    type GridInteractionController,
+  } from './interaction'
 
-  // Reusable types for props (concise)
   type GridRect = { id: number; x: number; y: number; w: number; h: number }
-
-  type PreviewUpdate = {
-    id: number
-    x: number
-    y: number
-    w: number
-    h: number
-  }
-
   type IdOnly = { id: number }
   type GridEvent<T> = (payload: T) => void
 
-  // GridItem properties
   interface Props {
     id: number
     x: number
@@ -37,14 +30,9 @@
     class?: string
     body?: Snippet
     children?: Snippet
-
+    interaction: GridInteractionController
     onmove?: GridEvent<GridRect>
-    onpreviewupdate?: GridEvent<PreviewUpdate>
     onresize?: GridEvent<GridRect>
-    ondragstart?: GridEvent<GridRect>
-    ondragend?: GridEvent<GridRect & { dragComplete: boolean }>
-    onresizestart?: GridEvent<GridRect>
-    onresizeend?: GridEvent<GridRect & { resizeComplete: boolean }>
     onremove?: GridEvent<IdOnly>
     onduplicate?: GridEvent<IdOnly>
   }
@@ -66,156 +54,70 @@
     class: customClass = '',
     body,
     children,
+    interaction,
     onmove = () => {},
-    onpreviewupdate = () => {},
     onresize = () => {},
-    ondragstart = () => {},
-    ondragend = () => {},
-    onresizestart = () => {},
-    onresizeend = () => {},
     onremove = () => {},
     onduplicate = () => {},
   }: Props = $props()
 
-  // Track state for visual feedback
-  let isDragging = $state(false)
-  let isResizing = $state(false)
-  let dragPosition = $state({ x: 0, y: 0 })
-  let resizePosition = $state({ w: 0, h: 0 })
-  let showDragPlaceholder = $state(false)
-  let showResizePlaceholder = $state(false)
+  const item = $derived({ id, x, y, w, h })
+  const minimumSize = $derived({ w: minW, h: minH })
+  const isDragging = $derived(
+    interaction.activeItemId === id && interaction.mode === 'moving'
+  )
+  const isResizing = $derived(
+    interaction.activeItemId === id && interaction.mode === 'resizing'
+  )
+  const isGhosted = $derived(interaction.isGhostedItem(id))
 
-  let bodyNode: HTMLElement | null = $state(null)
-  let itemNode: HTMLElement | null = $state(null)
+  const itemWidth = $derived(w * cellSize.width + (w - 1) * gap)
+  const itemHeight = $derived(h * cellSize.height + (h - 1) * gap)
+  const itemX = $derived(x * (cellSize.width + gap))
+  const itemY = $derived(y * (cellSize.height + gap))
 
-  // Calculate actual pixel dimensions and position
-  let itemWidth = $derived(w * cellSize.width + (w - 1) * gap)
-  let itemHeight = $derived(h * cellSize.height + (h - 1) * gap)
-  let itemX = $derived(x * (cellSize.width + gap))
-  let itemY = $derived(y * (cellSize.height + gap))
-
-  // Style for the actual item (always at its real position)
-  let itemStyle = $derived(`
+  const itemStyle = $derived(`
     transform: translate(${itemX}px, ${itemY}px);
     width: ${itemWidth}px;
     height: ${itemHeight}px;
+    --grid-item-body-padding: ${GRID_ITEM_BODY_PADDING}px;
   `)
 
-  // Style for the drag placeholder
-  let placeholderStyle = $derived(
-    showDragPlaceholder
-      ? `
-    transform: translate(${dragPosition.x * (cellSize.width + gap)}px, ${dragPosition.y * (cellSize.height + gap)}px);
-    width: ${itemWidth}px;
-    height: ${itemHeight}px;
-  `
-      : showResizePlaceholder
-        ? `
-    transform: translate(${itemX}px, ${itemY}px);
-    width: ${resizePosition.w * cellSize.width + (resizePosition.w - 1) * gap}px;
-    height: ${resizePosition.h * cellSize.height + (resizePosition.h - 1) * gap}px;
-  `
-        : ''
-  )
-
-  // define draggable params
-  let draggableParams = $derived({
+  const moveActionParams = $derived({
     enabled: isDraggableEnabled,
-    id,
-    x,
-    y,
-    w,
-    h,
-    cellSize,
-    gap,
-    onDragStart: (rect: GridRect) => {
-      isDragging = true
-      showDragPlaceholder = true
-      ondragstart(rect)
-    },
-    onDragEnd: (rect: GridRect & { dragComplete: boolean }) => {
-      ondragend(rect)
-      // Cleanup happens in onWrapEnd but we can ensure state consistency here
-    },
-    onMove: (rect: GridRect) => onmove(rect),
-    onPreviewUpdate: (update: PreviewUpdate) => onpreviewupdate(update),
-    onWrapStart: () => {
-      isDragging = true
-      showDragPlaceholder = true
-      if (itemNode) itemNode.classList.add('is-being-dragged')
-    },
-    onWrapEnd: (finalX: number, finalY: number) => {
-      isDragging = false
-      showDragPlaceholder = false
-      if (itemNode) itemNode.classList.remove('is-being-dragged')
-      // We can ensure the final position is set if needed, but the move event should handle it
-    },
-    updateDragPosition: (newX: number, newY: number) => {
-      dragPosition = { x: newX, y: newY }
-    },
+    item,
+    interaction,
+    onCommit: (rect: GridRect) => onmove(rect),
   })
 
-  // define resizable params
-  let resizableParams = $derived({
+  const resizeActionParams = $derived({
     enabled: resizable,
-    id,
-    x,
-    y,
-    w,
-    h,
-    minW,
-    minH,
-    cellSize,
-    gap,
-    onResizeStart: (rect: GridRect) => {
-      isResizing = true
-      showResizePlaceholder = true
-      onresizestart(rect)
-    },
-    onResizeEnd: (rect: GridRect & { resizeComplete: boolean }) => {
-      onresizeend(rect)
-    },
-    onResize: (rect: GridRect) => onresize(rect),
-    onPreviewUpdate: (update: PreviewUpdate) => onpreviewupdate(update),
-    onWrapStart: () => {
-      isResizing = true
-      showResizePlaceholder = true
-      if (itemNode) itemNode.classList.add('is-being-resized')
-    },
-    onWrapEnd: (finalW: number, finalH: number) => {
-      isResizing = false
-      showResizePlaceholder = false
-      if (itemNode) itemNode.classList.remove('is-being-resized')
-    },
-    updateResizePosition: (newW: number, newH: number) => {
-      resizePosition = { w: newW, h: newH }
-    },
+    item,
+    min: minimumSize,
+    interaction,
+    onCommit: (rect: GridRect) => onresize(rect),
   })
 </script>
 
-<!-- Actual grid item (stays in place until drag is complete) -->
 <div
   class="grid-item {customClass}"
   class:is-being-dragged={isDragging}
   class:resizing={isResizing}
+  class:is-ghosted={isGhosted}
   style={itemStyle}
-  data-id={id}
-  data-grid-x={x}
-  data-grid-y={y}
-  data-grid-w={w}
-  data-grid-h={h}
+  data-grid-block-pan="true"
   transition:fade={{ duration: 150 }}
-  bind:this={itemNode}
   role="figure"
 >
-  <GridItemContainer showResizeHandle={resizable} class="item-container">
-    {#snippet header()}
+  <div class="grid-item-frame" class:rounded-bottom={!resizable}>
+    <div class="grid-item-header">
       {#if isDraggableEnabled}
         <GridItemButton
+          class="move-handle-button"
           tooltip="Drag to move"
           useAction={true}
-          actionFn={draggable}
-          actionParams={draggableParams}
+          actionFn={moveHandleAction}
+          actionParams={moveActionParams}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -255,7 +157,7 @@
           </svg>
         </GridItemButton>
       {/if}
-      <h3>{title}</h3>
+      <h3 class="grid-item-title">{title}</h3>
       <div class="header-content">
         {#if removable}
           <GridItemButton
@@ -280,109 +182,118 @@
           </GridItemButton>
         {/if}
       </div>
-    {/snippet}
-    {#snippet body()}
-      <div bind:this={bodyNode}>
-        {#if body}{@render body()}{:else}
-          {@render children?.()}
-        {/if}
-      </div>
-    {/snippet}
-  </GridItemContainer>
+    </div>
+
+    <div class="grid-item-body">
+      {#if body}
+        {@render body()}
+      {:else}
+        {@render children?.()}
+      {/if}
+    </div>
+
+    {#if resizable}
+      <div class="grid-item-resize-corner" aria-hidden="true"></div>
+    {/if}
+  </div>
 
   {#if resizable}
     <div
       class="resize-handle-interactive"
-      use:resizableAction={resizableParams}
+      use:resizeHandleAction={resizeActionParams}
       aria-hidden="true"
     ></div>
   {/if}
 </div>
-
-<!-- Lightweight placeholder that moves during drag or resize -->
-{#if showDragPlaceholder || showResizePlaceholder}
-  <div
-    class="grid-item placeholder"
-    class:dragging={isDragging}
-    class:resizing={isResizing}
-    style={placeholderStyle}
-    data-id={`placeholder-${id}`}
-    transition:fade={{ duration: 100 }}
-  >
-    <GridItemContainer showResizeHandle={false} class="item-container">
-      {#snippet body()}
-        <!-- Empty placeholder body -->
-      {/snippet}
-    </GridItemContainer>
-  </div>
-{/if}
 
 <style>
   .grid-item {
     position: absolute;
     z-index: 1;
     box-sizing: border-box;
-    /* Add GPU acceleration but in a way that doesn't interfere with events */
     will-change: transform, width, height;
-    /* transition: transform 0.1s ease-out; Removed for snapping feel */
+    cursor: default;
   }
 
-  .grid-item.is-being-dragged {
+  .grid-item.is-being-dragged,
+  .grid-item.resizing,
+  .grid-item.is-ghosted {
     z-index: 100;
     opacity: 0.4;
   }
 
-  .grid-item.resizing {
-    z-index: 100;
-    opacity: 0.4;
-  }
-
-  /* Ensure the inner container fills the grid item */
-  :global(.item-container) {
+  .grid-item-frame {
     width: 100%;
     height: 100%;
-  }
-
-  /* Placeholder styling */
-  .grid-item.placeholder {
-    z-index: 50;
-    pointer-events: none;
-    opacity: 0.6;
-    border: 2px dashed var(--c-text);
+    box-sizing: border-box;
+    background-color: var(--c-lightgrey);
     border-radius: var(--rounded-lg, 8px) var(--rounded-lg, 8px) 0
       var(--rounded-lg, 8px);
+    border: 1px solid var(--c-border);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  .grid-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
     background: var(--c-lightgrey);
-    box-sizing: border-box; /* Ensure border doesn't add to width */
+    flex-wrap: wrap;
+    gap: 2px 4px;
+    overflow: hidden;
+    border-radius: var(--rounded-lg, 8px) var(--rounded-lg, 8px) 0 0;
   }
 
-  /* When dragging, the placeholder shows where it will land */
-  .grid-item.placeholder.dragging {
-    opacity: 0.5;
-    background: rgba(var(--c-main-rgb, 0, 0, 0), 0.05);
-    border-color: var(--c-main);
+  .grid-item-title {
+    margin: 2px 0 2px 4px;
+    flex-grow: 1;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--c-black);
   }
 
-  /* When resizing, the placeholder shows the new size */
-  .grid-item.placeholder.resizing {
-    opacity: 0.5;
-    background: rgba(var(--c-main-rgb, 0, 0, 0), 0.05);
-    border-color: var(--c-main);
+  .grid-item-body {
+    padding: var(--grid-item-body-padding);
+    flex-grow: 1;
+    overflow: auto;
+    border-radius: 15px 15px 0 15px;
+    background-color: var(--c-white);
   }
 
-  /* Hide the actual inner container styles when in placeholder mode */
-  .grid-item.placeholder :global(.grid-item-container) {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
+  .grid-item-frame.rounded-bottom {
+    border-radius: var(--rounded-lg, 8px);
   }
 
-  .grid-item.placeholder :global(.grid-item-container .header),
-  .grid-item.placeholder :global(.grid-item-container .body) {
-    background: transparent !important;
-    opacity: 0; /* Hide content in placeholder */
+  .grid-item-frame.rounded-bottom .grid-item-body {
+    border-radius: 10px;
   }
 
-  /* Resize handle interactive area (invisible but clickable) */
+  .grid-item-resize-corner {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 16px;
+    height: 16px;
+    background: transparent;
+    pointer-events: none;
+    cursor: se-resize;
+  }
+
+  .grid-item-resize-corner::after {
+    content: '';
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid var(--c-midgrey);
+    border-bottom: 2px solid var(--c-midgrey);
+  }
+
   .resize-handle-interactive {
     position: absolute;
     right: 0;

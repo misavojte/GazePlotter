@@ -24,3 +24,5 @@ export const WORKSPACE_BOTTOM_PADDING = 90
 export const WORKSPACE_RIGHT_PADDING = 0
 export const MIN_WORKSPACE_HEIGHT = 300 // Also used as fallback in height calculation
 export const DEFAULT_WORKSPACE_WIDTH = 1000
+// Shared by GridItem visual padding and plot size calculations.
+export const GRID_ITEM_BODY_PADDING = 20

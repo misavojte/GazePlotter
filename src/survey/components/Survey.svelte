@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { surveyStore } from '$survey/stores/surveyStore'
+  import { surveyStore } from '$survey/stores/surveyStore.svelte'
   import type { SurveyTask } from '$survey/types/index'
   import { browser } from '$app/environment'
   import { onMount } from 'svelte'
