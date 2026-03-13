@@ -24,9 +24,7 @@
   const {
     loadInitialData,
     reinitializeLabel = 'Reload Demo',
-    onWorkspaceCommandChain = (command: WorkspaceCommandChain) => {
-      console.log('onWorkspaceCommandChain', command)
-    },
+    onWorkspaceCommandChain = () => {},
   }: Props = $props()
 
   const session = setGazePlotterSessionContext(createGazePlotterSession())

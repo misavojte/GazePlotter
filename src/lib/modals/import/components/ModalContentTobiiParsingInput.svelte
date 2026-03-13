@@ -49,7 +49,6 @@
   const handleSubmit = () => {
     const finalValue =
       selectedOption === 'custom' ? customMarkers : selectedOption
-    console.log('value', finalValue)
     resolveValue(finalValue)
   }
 

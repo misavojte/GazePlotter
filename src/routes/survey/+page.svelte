@@ -328,8 +328,6 @@
               eyeTracking: EyeTrackingExperienceResult
               feedback: string
             }) => {
-              console.log('Survey completed with results:', results)
-
               // Log survey completion to the endpoint service (fire-and-forget, non-blocking)
               if (
                 browser &&
@@ -383,9 +381,6 @@
   }
 
   const handleWorkspaceCommand = (command: WorkspaceCommandChain) => {
-    console.log('command', command)
-    console.log('hasInformedConsent', hasInformedConsent)
-
     // Log the workspace command to the endpoint service (fire-and-forget, non-blocking)
     // Deep clone the command to prevent race conditions where the command data might be
     // mutated before async logging completes (especially on Windows Chrome where timing can differ)

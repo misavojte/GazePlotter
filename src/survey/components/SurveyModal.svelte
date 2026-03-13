@@ -44,9 +44,6 @@
     switch (currentStep) {
       case 'ueqs':
         complete = surveyState.ueqsComplete
-        console.log('UEQS complete check:', {
-          isComplete: surveyState.ueqsComplete,
-        })
         break
       case 'eye-tracking':
         complete = surveyState.eyeTrackingValue !== null
