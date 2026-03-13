@@ -16,9 +16,9 @@
   import type { ExtendedInterpretedDataType } from '$lib/data/types'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'
-  import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
   import { getStimuliOptions } from '$lib/plots/shared'
+  import ReorderButtons from './ReorderButtons.svelte'
 
   interface Props {
     selectedStimulus?: string
@@ -453,7 +453,7 @@
                 class:disabled-control={!isActive}
                 aria-disabled={!isActive}
               >
-                <GeneralPositionControl
+                <ReorderButtons
                   isFirst={(() => {
                     if (!isActive) return true
                     const trimmedName = (aoi.displayedName || '').trim()

@@ -10,9 +10,9 @@
   import type { BaseInterpretedDataType } from '$lib/data/types'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'
-  import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
   import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
   import PatternRenamingTool from './PatternRenamingTool.svelte'
+  import ReorderButtons from './ReorderButtons.svelte'
 
   interface Props {
     source: string
@@ -214,7 +214,7 @@
           </td>
           <td>
             <div class="button-group">
-              <GeneralPositionControl
+              <ReorderButtons
                 isFirst={participantObjects.indexOf(participant) === 0}
                 isLast={participantObjects.indexOf(participant) ===
                   participantObjects.length - 1}

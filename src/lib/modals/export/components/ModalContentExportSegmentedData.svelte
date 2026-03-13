@@ -2,7 +2,6 @@
   import {
     GeneralInputText,
     GeneralSelect,
-    GeneralInputGroup,
   } from '$lib/shared/components'
   import { SectionHeader, ModalButtons } from '$lib/modals'
   import type { DecimalSeparator } from '$lib/data/export'
@@ -17,6 +16,7 @@
     toggleSetValue,
     waitForExportUi,
   } from './helpers'
+  import CheckboxListField from './CheckboxListField.svelte'
 
   const { engine, exportService, modalState } = getGazePlotterSession()
   let fileName = $state('GazePlotter-SegmentedData')
@@ -131,7 +131,7 @@
   <section class="section">
     <div class="settings-grid">
       <div class="settings-column">
-        <GeneralInputGroup
+        <CheckboxListField
           title="Stimuli"
           items={stimuliItems}
           onItemChange={handleStimulusChange}
@@ -144,7 +144,7 @@
       </div>
 
       <div class="settings-column">
-        <GeneralInputGroup
+        <CheckboxListField
           title="Filters"
           showControls={false}
           items={[

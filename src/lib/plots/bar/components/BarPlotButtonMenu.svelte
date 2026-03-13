@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { GeneralButtonMenu as MenuButton } from '$lib/shared/components'
+  import { PlotMenuButton } from '$lib/plots/shared'
   import { getModalState } from '$lib/session'
   import type { BarPlotItem } from '$lib/plots/bar/types'
   import type { SvelteComponent } from 'svelte'
@@ -105,7 +105,7 @@
       action: downloadPlot,
       icon: Download,
     },
-  ] as ComponentProps<typeof MenuButton>['items'])
+  ] as ComponentProps<typeof PlotMenuButton>['items'])
 </script>
 
-<MenuButton {items} />
+<PlotMenuButton {items} />

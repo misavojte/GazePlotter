@@ -1,5 +1,5 @@
 <script lang="ts">
-  import MinorButton from './GeneralButtonMinor.svelte'
+  import GeneralButtonMinor from '$lib/shared/components/GeneralButtonMinor.svelte'
   import { type ComponentType } from 'svelte'
   import { tooltipAction } from '$lib/tooltip'
   import { contextMenuAction } from '$lib/context-menu'
@@ -69,7 +69,7 @@
     },
   }}
 >
-  <MinorButton isIcon={false} onclick={handleClick}>
+  <GeneralButtonMinor isIcon={false} onclick={handleClick}>
     <span class="triggerContent">
       <svg
         class="dots"
@@ -85,7 +85,7 @@
       </svg>
       <span class="triggerLabel">More</span>
     </span>
-  </MinorButton>
+  </GeneralButtonMinor>
 </div>
 
 <style>

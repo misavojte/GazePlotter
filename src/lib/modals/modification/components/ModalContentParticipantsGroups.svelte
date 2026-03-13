@@ -7,7 +7,6 @@
     GeneralButtonPreset,
   } from '$lib/shared/components'
   import { ModalButtons, IntroductoryParagraph } from '$lib/modals'
-  import GeneralPositionControl from '$lib/shared/components/GeneralPositionControl.svelte'
   import GeneralInputText from '$lib/shared/components/GeneralInputText.svelte'
   import Bin from 'lucide-svelte/icons/trash'
   import ChevronDown from 'lucide-svelte/icons/chevron-down'
@@ -16,6 +15,7 @@
   import { fade, slide } from 'svelte/transition'
   import { flip } from 'svelte/animate'
   import GeneralInputCheck from '$lib/shared/components/GeneralInputCheck.svelte'
+  import ReorderButtons from './ReorderButtons.svelte'
 
   interface Props {
     source: string
@@ -314,7 +314,7 @@
                 <ChevronDown size={'1em'} />
               {/if}
             </GeneralButtonMinor>
-            <GeneralPositionControl
+            <ReorderButtons
               isFirst={participantsGroups.indexOf(group) === 0}
               isLast={participantsGroups.indexOf(group) ===
                 participantsGroups.length - 1}

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { GeneralButtonMenu as MenuButton } from '$lib/shared/components'
+  import { PlotMenuButton } from '$lib/plots/shared'
   import { untrack } from 'svelte'
   import { getGazePlotterSession } from '$lib/session'
   import type { TransitionMatrixPlotItem } from '$lib/plots/transition-matrix/types'
@@ -100,4 +100,4 @@
   ] as any)
 </script>
 
-<MenuButton {items} />
+<PlotMenuButton {items} />

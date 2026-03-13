@@ -1,6 +1,8 @@
 <script lang="ts">
-  import GeneralInputCheck from './GeneralInputCheck.svelte'
-  import GeneralButtonPreset from './GeneralButtonPreset.svelte'
+  import {
+    GeneralButtonPreset,
+    GeneralInputCheck,
+  } from '$lib/shared/components'
 
   interface CheckboxItem {
     label: string

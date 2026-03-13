@@ -4,7 +4,6 @@
   import {
     GeneralSelect,
     GeneralInputText,
-    GeneralInputGroup,
   } from '$lib/shared/components'
   import { SectionHeader, ModalButtons } from '$lib/modals'
   import { getStimuliOptions } from '$lib/plots/shared'
@@ -24,6 +23,7 @@
     toggleSetValue,
     waitForExportUi,
   } from './helpers'
+  import CheckboxListField from './CheckboxListField.svelte'
 
   interface Props {
     item?: GridItemMap['barPlot']
@@ -162,7 +162,7 @@
   <section class="section">
     <div class="settings-grid">
       <div class="settings-column">
-        <GeneralInputGroup
+        <CheckboxListField
           title="Stimuli"
           items={stimuliItems}
           onItemChange={handleStimulusChange}
@@ -175,7 +175,7 @@
       </div>
 
       <div class="settings-column">
-        <GeneralInputGroup
+        <CheckboxListField
           title="Metrics"
           items={metricsItems}
           onItemChange={handleMetricChange}
