@@ -93,6 +93,7 @@ class IngestWorkerClient {
   private fileNames: string[] = []
   private fileSizes: number[] = []
   private totalFileSize = 0
+  private isSettled = false
 
   constructor(
     private readonly onData: (data: ParsedData) => void,
@@ -105,6 +106,10 @@ class IngestWorkerClient {
       { type: 'module' }
     )
     this.worker.onmessage = this.handleMessage.bind(this)
+    this.worker.onmessageerror = () =>
+      this.handleError(new Error('File processing worker sent an unreadable message'), {
+        stage: 'worker-messageerror',
+      })
     this.worker.onerror = (event: ErrorEvent) =>
       this.handleError(
         event.error ?? new Error(event.message || 'File processing worker failed')
@@ -129,14 +134,22 @@ class IngestWorkerClient {
       return
     }
 
-    this.worker.postMessage({ type: 'file-names', data: this.fileNames })
+    if (
+      !this.postWorkerMessage(
+        { type: 'file-names', data: this.fileNames },
+        [],
+        { stage: 'initialize-worker' }
+      )
+    ) {
+      return
+    }
 
     if (extension === 'zip') {
-      void this.processZipFiles(files)
+      void this.processZipFiles(fileArray)
     } else if (this.isStreamTransferable()) {
-      this.processDataAsStream(files)
+      this.processDataAsStream(fileArray)
     } else {
-      void this.processDataAsArrayBuffer(files)
+      void this.processDataAsArrayBuffer(fileArray)
     }
   }
 
@@ -164,31 +177,114 @@ class IngestWorkerClient {
     }
   }
 
-  private processDataAsStream(files: FileList): void {
+  private markSettled(): boolean {
+    if (this.isSettled) return false
+    this.isSettled = true
+    this.worker.terminate()
+    return true
+  }
+
+  private postWorkerMessage(
+    message: { type: string; data: unknown },
+    transfer: Transferable[] = [],
+    extraContext?: Record<string, unknown>
+  ): boolean {
+    if (this.isSettled) return false
+
+    try {
+      if (transfer.length > 0) {
+        this.worker.postMessage(message, transfer)
+      } else {
+        this.worker.postMessage(message)
+      }
+      return true
+    } catch (error) {
+      this.handleError(error, {
+        workerMessageType: message.type,
+        ...(extraContext ?? {}),
+      })
+      return false
+    }
+  }
+
+  private processDataAsStream(files: File[]): void {
     for (let index = 0; index < files.length; index++) {
       const stream = files[index].stream()
-      this.worker.postMessage({ type: 'stream', data: stream }, [stream])
+      if (
+        !this.postWorkerMessage(
+          { type: 'stream', data: stream },
+          [stream],
+          {
+            stage: 'dispatch-stream',
+            fileIndex: index,
+            fileName: files[index].name,
+          }
+        )
+      ) {
+        return
+      }
     }
   }
 
-  private async processDataAsArrayBuffer(files: FileList): Promise<void> {
+  private async processDataAsArrayBuffer(files: File[]): Promise<void> {
     for (let index = 0; index < files.length; index++) {
-      const buffer = await files[index].arrayBuffer()
-      this.worker.postMessage({ type: 'buffer', data: buffer }, [buffer])
+      const file = files[index]
+
+      try {
+        const buffer = await file.arrayBuffer()
+        if (
+          !this.postWorkerMessage(
+            { type: 'buffer', data: buffer },
+            [buffer],
+            {
+              stage: 'dispatch-buffer',
+              fileIndex: index,
+              fileName: file.name,
+            }
+          )
+        ) {
+          return
+        }
+      } catch (error) {
+        this.handleError(error, {
+          stage: 'read-array-buffer',
+          fileIndex: index,
+          fileName: file.name,
+        })
+        return
+      }
     }
   }
 
-  private async processZipFiles(files: FileList): Promise<void> {
-    const fileArray = Array.from(files)
+  private async processZipFiles(files: File[]): Promise<void> {
+    for (let index = 0; index < files.length; index++) {
+      const file = files[index]
 
-    for (let index = 0; index < fileArray.length; index++) {
-      const file = fileArray[index]
-      const buffer = await file.arrayBuffer()
-      const zipName = this.fileNames[index]
-      this.worker.postMessage(
-        { type: 'zip-buffer', data: { buffer, zipName } },
-        [buffer as ArrayBuffer]
-      )
+      try {
+        const buffer = await file.arrayBuffer()
+        const zipName = this.fileNames[index]
+        if (
+          !this.postWorkerMessage(
+            { type: 'zip-buffer', data: { buffer, zipName } },
+            [buffer],
+            {
+              stage: 'dispatch-zip-buffer',
+              fileIndex: index,
+              fileName: file.name,
+              zipName,
+            }
+          )
+        ) {
+          return
+        }
+      } catch (error) {
+        this.handleError(error, {
+          stage: 'read-zip-buffer',
+          fileIndex: index,
+          fileName: file.name,
+        })
+        return
+      }
     }
   }
 
@@ -205,6 +301,8 @@ class IngestWorkerClient {
         this.ui.toastState.addSuccess(
           `${formattedFileInfo} workspace loaded successfully in ${timeString}`
         )
+        if (!this.markSettled()) return
+
         this.onData({
           ...result,
           current: {
@@ -252,6 +350,9 @@ class IngestWorkerClient {
     this.ui.toastState.addSuccess(
       `${formattedFileInfo} parsed successfully in ${timeString}`
     )
+
+    if (!this.markSettled()) return
+
     this.onData({
       data,
       fileMetadata,
@@ -282,12 +383,27 @@ class IngestWorkerClient {
       case 'request-user-input':
         this.handleUserInputProcess()
         break
-      default:
-        console.error('IngestWorkerClient.handleMessage() - event:', event)
+      default: {
+        const workerMessageType =
+          typeof event.data?.type === 'string'
+            ? event.data.type
+            : String(event.data?.type ?? 'unknown')
+        this.handleError(
+          new Error(
+            `Ingest worker sent unsupported message type: ${workerMessageType}`
+          ),
+          {
+            workerMessageType,
+          }
+        )
+        break
+      }
     }
   }
 
   private handleProgress(processedBytes: number): void {
+    if (this.isSettled) return
+
     if (typeof processedBytes !== 'number' || this.totalFileSize <= 0) {
       this.onProgress(0)
       return
@@ -300,7 +416,12 @@ class IngestWorkerClient {
     this.onProgress(progressPercent)
   }
 
-  private handleError(error: unknown): void {
+  private handleError(
+    error: unknown,
+    extraContext?: Record<string, unknown>
+  ): void {
+    if (!this.markSettled()) return
+
     const fallbackMessage = 'Unknown error'
     const message =
       error instanceof Error && error.message.trim().length > 0
@@ -314,6 +435,7 @@ class IngestWorkerClient {
       context: {
         fileNames: this.fileNames,
         fileSizes: this.fileSizes,
+        ...(extraContext ?? {}),
       },
     })
 
@@ -345,14 +467,37 @@ class IngestWorkerClient {
     this.requestUserInput()
       .then(userInput => {
         this.parsingAnchorTime = Date.now()
-        this.worker.postMessage({ type: 'user-input', data: userInput })
+        if (
+          !this.postWorkerMessage(
+            { type: 'user-input', data: userInput },
+            [],
+            { stage: 'dispatch-user-input' }
+          )
+        ) {
+          this.ui.modalState.close()
+          return
+        }
         this.ui.modalState.close()
       })
-      .catch(() => {
+      .catch(error => {
+        const isExpectedCancellation =
+          error instanceof Error &&
+          (error.message === 'User cancelled' ||
+            error.message === 'Modal closed without value')
+
+        if (!isExpectedCancellation) {
+          this.handleError(error, { stage: 'request-user-input' })
+          return
+        }
+
         this.ui.toastState.addInfo(
           'User input was not provided. The file will be processed as Tobii without events'
         )
-        this.worker.postMessage({ type: 'user-input', data: '' })
+        this.postWorkerMessage(
+          { type: 'user-input', data: '' },
+          [],
+          { stage: 'dispatch-user-input-fallback' }
+        )
       })
   }
 

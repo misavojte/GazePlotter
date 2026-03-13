@@ -32,6 +32,19 @@
   let componentContainer = $state<HTMLElement | null>(null) // Container for the child component
   let isGeneratingDownload = $state(false)
   let exportSource = $state<ExportSource | null>(null)
+  let previewRenderError = $state<unknown | null>(null)
+
+  function getErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message.trim().length > 0) {
+      return error.message
+    }
+
+    if (typeof error === 'string' && error.trim().length > 0) {
+      return error
+    }
+
+    return 'Unknown preview error'
+  }
 
   const registrar: ExportSourceRegistrar = {
     register: source => {
@@ -40,6 +53,33 @@
   }
 
   setContext(EXPORT_SOURCE_CONTEXT, registrar)
+
+  const isDownloadDisabled = $derived(
+    isGeneratingDownload || previewRenderError !== null
+  )
+
+  function reportPreviewRenderError(error: unknown) {
+    previewRenderError = error
+    exportSource = null
+
+    errorService.report({
+      origin: 'export',
+      severity: 'recoverable',
+      userMessage:
+        'Could not render the export preview. The dialog is still available.',
+      cause: error,
+      context: {
+        fileName,
+        fileType,
+      },
+    })
+  }
+
+  function retryPreview(reset: () => void) {
+    previewRenderError = null
+    exportSource = null
+    reset()
+  }
 
   // Function to generate high-resolution download
   async function generateDownload() {
@@ -110,9 +150,28 @@
   <div class="component-container" bind:this={componentContainer}>
     <!-- Preview area -->
     <div class="preview-wrapper">
-      <div class="child-wrapper" style="background-color: white;">
-        {@render children()}
-      </div>
+      <svelte:boundary onerror={reportPreviewRenderError}>
+        <div class="child-wrapper" style="background-color: white;">
+          {@render children()}
+        </div>
+
+        {#snippet failed(error, reset)}
+          <div class="preview-error-state">
+            <p class="preview-error-copy">
+              Preview could not be generated. You can retry without closing the
+              dialog.
+            </p>
+            <p class="preview-error-detail">{getErrorMessage(error)}</p>
+            <MajorButton
+              onclick={() => retryPreview(reset)}
+              size="sm"
+              variant="secondary"
+            >
+              Retry preview
+            </MajorButton>
+          </div>
+        {/snippet}
+      </svelte:boundary>
     </div>
 
     <!-- Download button -->
@@ -120,12 +179,16 @@
       <div class="preview-actions">
         <MajorButton
           onclick={handleDownload}
-          isDisabled={isGeneratingDownload}
+          isDisabled={isDownloadDisabled}
           variant="primary"
         >
-          {isGeneratingDownload
-            ? `Generating ${fileType.substring(1).toUpperCase()}...`
-            : `Download ${fileName}${fileType}`}
+          {#if previewRenderError !== null}
+            Preview unavailable
+          {:else if isGeneratingDownload}
+            Generating {fileType.substring(1).toUpperCase()}...
+          {:else}
+            Download {fileName}{fileType}
+          {/if}
         </MajorButton>
       </div>
     {/if}
@@ -144,6 +207,32 @@
     width: fit-content;
     height: fit-content;
     pointer-events: none; /* Disable hover effects in download preview */
+  }
+
+  .preview-error-state {
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1.25rem;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid #d6dce5;
+    border-radius: 10px;
+  }
+
+  .preview-error-copy,
+  .preview-error-detail {
+    margin: 0;
+    color: var(--c-text);
+    line-height: 1.45;
+    font-size: 0.9rem;
+  }
+
+  .preview-error-detail {
+    color: var(--c-midgrey);
+    overflow-wrap: anywhere;
   }
 
   .preview-wrapper {

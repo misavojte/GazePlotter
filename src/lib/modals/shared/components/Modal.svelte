@@ -9,9 +9,10 @@
 
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { getModalState } from '$lib/session'
+  import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
+  import { getGazePlotterSession } from '$lib/session'
 
-  const modalState = getModalState()
+  const { errorService, modalState } = getGazePlotterSession()
 
   // $state derived from the singleton - simple reference
   const modal = $derived(modalState.activeModal)
@@ -33,6 +34,47 @@
   let showVersionMessage = $state(false)
   let bodyElement: HTMLElement | null = $state(null)
   let modalElement: HTMLElement | null = $state(null)
+
+  function getModalComponentName(component: unknown): string | null {
+    if (
+      typeof component === 'function' &&
+      'name' in component &&
+      typeof component.name === 'string' &&
+      component.name.trim().length > 0
+    ) {
+      return component.name
+    }
+
+    return null
+  }
+
+  function getModalErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message.trim().length > 0) {
+      return error.message
+    }
+
+    if (typeof error === 'string' && error.trim().length > 0) {
+      return error
+    }
+
+    return 'Unknown dialog error'
+  }
+
+  function reportModalRenderError(error: unknown): void {
+    if (!modal) return
+
+    errorService.report({
+      origin: 'modal',
+      severity: 'recoverable',
+      userMessage: `Could not display the "${modal.title}" dialog.`,
+      cause: error,
+      context: {
+        modalTitle: modal.title,
+        modalComponent: getModalComponentName(modal.component),
+        hasProps: modal.props !== undefined,
+      },
+    })
+  }
 
   function handleFullscreenChange() {
     isFullscreen = !!document.fullscreenElement
@@ -186,7 +228,28 @@
         </button>
       </div>
       <div class="body" bind:this={bodyElement} onscroll={checkScrollable}>
-        <modal.component {...modal.props} />
+        {#key modal}
+          <svelte:boundary onerror={reportModalRenderError}>
+            <modal.component {...modal.props} />
+
+            {#snippet failed(error, reset)}
+              <div class="modal-error-state">
+                <p class="modal-error-copy">
+                  This dialog could not be displayed. You can retry it or close
+                  the window.
+                </p>
+                <p class="modal-error-detail">{getModalErrorMessage(error)}</p>
+                <GeneralButtonMajor
+                  onclick={() => reset()}
+                  size="sm"
+                  variant="secondary"
+                >
+                  Retry dialog
+                </GeneralButtonMajor>
+              </div>
+            {/snippet}
+          </svelte:boundary>
+        {/key}
       </div>
       <div class="modal-footer">
         {#if showScrollIndicator}
@@ -292,6 +355,28 @@
     overflow-x: hidden;
     flex: 1;
     min-height: 0;
+  }
+
+  .modal-error-state {
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .modal-error-copy,
+  .modal-error-detail {
+    margin: 0;
+    color: var(--c-text);
+    line-height: 1.45;
+    font-size: 0.95rem;
+  }
+
+  .modal-error-detail {
+    color: var(--c-midgrey);
+    overflow-wrap: anywhere;
   }
 
   .modal-footer {

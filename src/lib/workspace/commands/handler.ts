@@ -4,6 +4,7 @@ import { isHistoryCommand } from '$lib/workspace/commands'
 import { GridState } from '$lib/workspace/grid'
 import {
   createWorkspaceCommandRegistry,
+  type WorkspaceCommandRegistryErrorContext,
   UndoRedoStateStore,
 } from '$lib/workspace/commands'
 import { getCommandLabel } from '$lib/workspace/commands/labels'
@@ -26,9 +27,17 @@ export function createCommandHandler(
   engine: DataEngine,
   history: UndoRedoStateStore,
   onSuccess: (message: string) => void,
-  onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void
+  onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void,
+  onRegistryError?: (
+    error: unknown,
+    context: WorkspaceCommandRegistryErrorContext
+  ) => void
 ) {
-  const commandRegistry = createWorkspaceCommandRegistry(gridStore, engine)
+  const commandRegistry = createWorkspaceCommandRegistry(
+    gridStore,
+    engine,
+    onRegistryError
+  )
 
   const isNormalRootCommand = (
     command: WorkspaceCommandChain,

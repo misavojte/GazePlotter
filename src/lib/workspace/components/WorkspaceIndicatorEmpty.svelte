@@ -44,7 +44,15 @@
    */
   const handleResetLayout = () => {
     if (!initialLayoutState) {
-      console.warn('Cannot reset layout: no initial layout state provided')
+      errorService.report({
+        origin: 'workspace',
+        severity: 'recoverable',
+        userMessage: 'The initial workspace layout is unavailable.',
+        cause: new Error('Cannot reset layout: no initial layout state provided'),
+        context: {
+          component: 'WorkspaceIndicatorEmpty',
+        },
+      })
       return
     }
     workspace.resetLayout(initialLayoutState)

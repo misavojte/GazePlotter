@@ -21,6 +21,8 @@ export function draggable(
       totalDragDistanceX: number,
       totalDragDistanceY: number
     ) => void
+    /** Optional callback for drag-step handler failures */
+    onError?: (error: unknown) => void
   } = {}
 ) {
   // Configuration
@@ -54,8 +56,8 @@ export function draggable(
 
         // Call the callback
         options.onDragStep?.(stepChangeX, stepChangeY)
-      } catch (e) {
-        console.error('Error in drag step:', e)
+      } catch (error) {
+        options.onError?.(error)
       }
     }
 

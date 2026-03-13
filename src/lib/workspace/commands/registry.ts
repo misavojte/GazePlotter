@@ -17,7 +17,6 @@ import {
 } from '$lib/data/engine'
 import type {
   GridItemMap,
-  AllGridTypes,
   AllPlotSettings,
   GridItemLayoutUpdate,
   GridItemSnapshot,
@@ -72,9 +71,18 @@ export type WorkspaceCommandRegistry = {
   reverse: (command: WorkspaceCommandChain) => WorkspaceCommandChain | null
 }
 
+export type WorkspaceCommandRegistryErrorContext = {
+  phase: 'reverse'
+  command: WorkspaceCommandChain
+}
+
 export function createWorkspaceCommandRegistry(
   gridStore: GridState,
-  engine: DataEngine
+  engine: DataEngine,
+  onError?: (
+    error: unknown,
+    context: WorkspaceCommandRegistryErrorContext
+  ) => void
 ): WorkspaceCommandRegistry {
   const withMeta = (base: object, meta: CommandMeta): WorkspaceCommandChain => {
     return { ...base, ...meta } as unknown as WorkspaceCommandChain
@@ -351,10 +359,9 @@ export function createWorkspaceCommandRegistry(
       })
 
       if (affectedVisibility.length === 0) {
-        console.warn(
+        throw new Error(
           `Cannot reverse updateAoiVisibility: no visibility data found for stimulus ${cmd.stimulusId}`
         )
-        return null
       }
 
       const visibilityArr = affectedVisibility.map(v => v.visibilityArr)
@@ -404,10 +411,9 @@ export function createWorkspaceCommandRegistry(
       const currentItems = gridStore.items
       const currentItem = currentItems.find(item => item.id === cmd.itemId)
       if (!currentItem) {
-        console.warn(
+        throw new Error(
           `Cannot reverse updateSettings: item ${cmd.itemId} not found`
         )
-        return null
       }
       const reverseSettings: Partial<AllPlotSettings> = {}
       Object.keys(cmd.settings).forEach(key => {
@@ -430,8 +436,7 @@ export function createWorkspaceCommandRegistry(
       const currentItems = gridStore.items
       const currentItem = currentItems.find(item => item.id === cmd.itemId)
       if (!currentItem) {
-        console.warn(`Cannot reverse updateLayout: item ${cmd.itemId} not found`)
-        return null
+        throw new Error(`Cannot reverse updateLayout: item ${cmd.itemId} not found`)
       }
 
       const reverseLayout: GridItemLayoutUpdate = {}
@@ -459,10 +464,9 @@ export function createWorkspaceCommandRegistry(
       const currentItems = gridStore.items
       const removedItem = currentItems.find(item => item.id === cmd.itemId)
       if (!removedItem) {
-        console.warn(
+        throw new Error(
           `Cannot reverse removeGridItem: item ${cmd.itemId} not found in current state`
         )
-        return null
       }
       const { id, type, redrawTimestamp, ...options } = removedItem
       return withMeta(
@@ -482,10 +486,9 @@ export function createWorkspaceCommandRegistry(
 
     duplicateGridItem: (cmd, meta) => {
       if (!cmd.duplicateId) {
-        console.warn(
+        throw new Error(
           `Cannot reverse duplicateGridItem: duplicateId not found in command`
         )
-        return null
       }
       return withMeta({ type: 'removeGridItem', itemId: cmd.duplicateId }, meta)
     },
@@ -521,8 +524,7 @@ export function createWorkspaceCommandRegistry(
     try {
       const handler = reverseHandlers[command.type]
       if (!handler) {
-        console.warn(`Cannot reverse command of type: ${(command as any).type}`)
-        return null
+        throw new Error(`Cannot reverse command of type: ${(command as any).type}`)
       }
 
       const meta: CommandMeta = {
@@ -533,7 +535,7 @@ export function createWorkspaceCommandRegistry(
 
       return handler(command as any, meta)
     } catch (error) {
-      console.error('Error reversing command:', error)
+      onError?.(error, { phase: 'reverse', command })
       return null
     }
   }

@@ -6,6 +6,12 @@ import type { WorkspaceCommandChain } from '$lib/workspace/commands'
  */
 const MAX_UNDO_STACK_SIZE = 50
 
+function createWorkspaceHistoryError(message: string): Error {
+  const error = new Error(message)
+  error.name = 'WorkspaceHistoryError'
+  return error
+}
+
 /**
  * Command chain entry - a group of related commands (root + children) that should be undone/redone together
  */
@@ -118,14 +124,16 @@ export class UndoRedoStateStore {
     } else {
       // This is a child command - add it to the pending chain
       if (!this.pendingChain) {
-        console.warn('Child command recorded without a pending chain')
-        return
+        throw createWorkspaceHistoryError(
+          'Child command recorded without a pending chain'
+        )
       }
 
       // Verify it belongs to the current chain
       if (this.pendingChain.chainId !== original.chainId) {
-        console.warn('Child command chainId does not match pending chain')
-        return
+        throw createWorkspaceHistoryError(
+          'Child command chainId does not match pending chain'
+        )
       }
 
       // Add to pending chain

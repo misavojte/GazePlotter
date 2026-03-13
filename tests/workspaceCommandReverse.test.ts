@@ -734,7 +734,47 @@ describe('workspaceCommandReverse', () => {
       expect(result).toBeNull()
     })
 
+    it('should report updateSettings reverse failure when item is missing', () => {
+      const onRegistryError = vi.fn()
+      const reverseWithErrorHandler = createWorkspaceCommandRegistry(
+        mockGridStore as any,
+        mockEngine as any,
+        onRegistryError
+      ).reverse
+
+      const command: WorkspaceCommandChain = {
+        type: 'updateSettings',
+        itemId: 999,
+        settings: { timeline: 'relative' },
+        source: 'source',
+        chainId: 1,
+        isRootCommand: true,
+      }
+
+      const result = reverseWithErrorHandler(command)
+
+      expect(result).toBeNull()
+      expect(onRegistryError).toHaveBeenCalledTimes(1)
+      expect(onRegistryError).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({
+          phase: 'reverse',
+          command: expect.objectContaining({
+            type: 'updateSettings',
+            itemId: 999,
+          }),
+        })
+      )
+    })
+
     it('should handle errors gracefully and return null', () => {
+      const onRegistryError = vi.fn()
+      const reverseWithErrorHandler = createWorkspaceCommandRegistry(
+        mockGridStore as any,
+        mockEngine as any,
+        onRegistryError
+      ).reverse
+
       // Mock getData to throw an error
       // Mock getData to throw an error by using a getter if possible, or just fail naturally if not mocked as function
       // Since we replaced the mock with an object, we can't easily make property access throw.
@@ -757,9 +797,19 @@ describe('workspaceCommandReverse', () => {
         isRootCommand: true,
       }
 
-      const result = reverseCommand(command)
+      const result = reverseWithErrorHandler(command)
 
       expect(result).toBeNull()
+      expect(onRegistryError).toHaveBeenCalledTimes(1)
+      expect(onRegistryError).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({
+          phase: 'reverse',
+          command: expect.objectContaining({
+            type: 'updateParticipants',
+          }),
+        })
+      )
     })
   })
 

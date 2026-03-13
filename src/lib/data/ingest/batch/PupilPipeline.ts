@@ -42,10 +42,6 @@ export class PupilCloudPipeline {
     zipBytes: Uint8Array,
     zipName: string
   ): Promise<{ data: DataType; settings: EyeSettingsType } | null> {
-    console.log(
-      `[PupilCloudPipeline] Processing ZIP ${this.zipCount + 1}/${this.zipNames.length}: ${zipName}`
-    )
-
     const zip = await JSZip.loadAsync(zipBytes)
     const [sectionsCsv, aoiFixationsCsv, fixationsCsv] = await Promise.all([
       readZipText(zip, 'sections.csv'),
@@ -81,22 +77,14 @@ export class PupilCloudPipeline {
       }
     }
 
-    console.log(
-      `[PupilCloudPipeline] Completed ZIP ${this.zipCount}/${this.zipNames.length}, isAllProcessed: ${this.isAllProcessed}`
-    )
-
     // Only return data when all ZIPs are processed
     if (this.isAllProcessed) {
-      console.log(
-        '[PupilCloudPipeline] All ZIPs processed, applying refiner and returning data'
-      )
       return {
         data: this.writer.buildFinalData(),
         settings: this.completeSettings,
       }
     }
 
-    console.log('[PupilCloudPipeline] Returning null, waiting for more ZIPs')
     return null
   }
 }
@@ -186,10 +174,6 @@ export function buildRecordingToParticipantMap(
   // Check uniqueness of stripped names
   const uniqueStripped = new Set(strippedNames.values())
   const useStripped = uniqueStripped.size === strippedNames.size
-
-  console.log(
-    `[PupilCloud] Recording names: ${rawMap.size} total, stripped to ${uniqueStripped.size} unique names, using ${useStripped ? 'stripped' : 'original'} names`
-  )
 
   return useStripped ? strippedNames : rawMap
 }

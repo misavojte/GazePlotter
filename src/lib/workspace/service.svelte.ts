@@ -30,6 +30,10 @@ import type {
   ParticipantsGroup,
 } from '$lib/data/types'
 
+function isWorkspaceHistoryError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'WorkspaceHistoryError'
+}
+
 type WorkspaceServiceDeps = {
   engine: DataEngine
   errorService: Pick<ErrorService, 'report'>
@@ -52,7 +56,23 @@ export class WorkspaceService {
       deps.engine,
       this.history,
       message => deps.toastState.addSuccess(message),
-      command => this.onCommandApplied(command)
+      command => this.onCommandApplied(command),
+      (error, context) => {
+        this.errorService.report({
+          origin: 'workspace',
+          severity: 'recoverable',
+          userMessage:
+            'Undo/redo history could not be recorded for this change.',
+          cause: error,
+          context: {
+            phase: context.phase,
+            commandType: context.command.type,
+            source: context.command.source,
+            chainId: context.command.chainId,
+            isRootCommand: context.command.isRootCommand,
+          },
+        })
+      }
     )
   }
 
@@ -68,7 +88,9 @@ export class WorkspaceService {
       this.errorService.report({
         origin: 'workspace',
         severity: 'recoverable',
-        userMessage: 'Error applying changes. See console for details.',
+        userMessage: isWorkspaceHistoryError(error)
+          ? 'Undo/redo history could not be recorded for this change.'
+          : 'Error applying changes. See console for details.',
         cause: error,
         context: {
           command,

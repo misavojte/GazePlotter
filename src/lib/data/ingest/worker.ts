@@ -61,6 +61,12 @@ const recordProcessedBytes = (byteLength: number, force = false): void => {
   postProgressMessage(force)
 }
 
+const resetZipState = (): void => {
+  zipBuffers = []
+  fileNames = []
+  pupilCloudPipeline = null
+}
+
 const postDoneMessage = (dataWithSettings: PipelineResult): void => {
   const { data } = dataWithSettings
   postProgressMessage(true)
@@ -120,7 +126,6 @@ async function processEvent(e: MessageEvent): Promise<void> {
         throw new Error('Unknown const type in worker', data)
     }
   } catch (error) {
-    console.error('Error in worker', error)
     self.postMessage({ type: 'fail', data: error })
   }
 }
@@ -179,41 +184,30 @@ const evalZipBuffer = async (data: unknown): Promise<void> => {
   if (fileNames.length === 0) throw new Error('No files to process')
 
   zipBuffers.push(buffer)
-  console.log(
-    `[Worker] Received ZIP buffer ${zipBuffers.length}/${fileNames.length}: ${zipName}`
-  )
 
   // Process all ZIPs when we have received them all
-  if (zipBuffers.length === fileNames.length) {
-    console.log(
-      `[Worker] All ${fileNames.length} ZIP buffers received, starting processing`
-    )
-    // Process each ZIP sequentially
-    for (let i = 0; i < zipBuffers.length; i++) {
-      console.log(
-        `[Worker] Processing ZIP ${i + 1}/${zipBuffers.length}: ${fileNames[i]}`
-      )
-      const dataWithSettings = await pupilCloudPipeline.addNewZip(
-        new Uint8Array(zipBuffers[i]),
-        fileNames[i]
-      )
-      recordProcessedBytes(zipBuffers[i].byteLength, true)
-      // Only the last ZIP returns non-null data (with all accumulated results)
-      if (dataWithSettings !== null) {
-        console.log('[Worker] Received final data, sending to main thread')
-        postDoneMessage(dataWithSettings)
-        // Clean up after successful processing
-        zipBuffers = []
-        fileNames = []
-        pupilCloudPipeline = null
-        console.log('[Worker] Cleanup complete')
-        return // Exit after sending the final result
-      }
-    }
-    console.log('[Worker] WARNING: Processed all ZIPs but got no final data!')
-  } else {
-    console.log(
-      `[Worker] Waiting for more ZIPs: ${zipBuffers.length}/${fileNames.length}`
-    )
+  if (zipBuffers.length !== fileNames.length) {
+    return
   }
+
+  // Process each ZIP sequentially once all ZIP inputs are present.
+  for (let i = 0; i < zipBuffers.length; i++) {
+    const dataWithSettings = await pupilCloudPipeline.addNewZip(
+      new Uint8Array(zipBuffers[i]),
+      fileNames[i]
+    )
+    recordProcessedBytes(zipBuffers[i].byteLength, true)
+    // Only the last ZIP should return the accumulated result.
+    if (dataWithSettings !== null) {
+      postDoneMessage(dataWithSettings)
+      resetZipState()
+      return
+    }
+  }
+
+  const processedZipNames = fileNames.join(', ')
+  resetZipState()
+  throw new Error(
+    `Pupil Cloud ZIP processing completed without producing final data for: ${processedZipNames}`
+  )
 }

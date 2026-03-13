@@ -8,6 +8,7 @@ export type ErrorOrigin =
   | 'ingest'
   | 'export'
   | 'bootstrap'
+  | 'modal'
   | 'plot'
 export type ErrorSeverity = 'recoverable' | 'fatal-load'
 

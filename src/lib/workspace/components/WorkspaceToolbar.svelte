@@ -59,7 +59,8 @@
     visualizations = [], // Default empty array for visualizations
     initialLayoutState = null,
   }: Props = $props()
-  const { ingest, engine, modalState, workspace } = getGazePlotterSession()
+  const { errorService, ingest, engine, modalState, workspace } =
+    getGazePlotterSession()
 
   // Reactive variables to determine item states
   const isProcessing = $derived(ingest.isLoading)
@@ -112,7 +113,15 @@
    */
   const handleResetLayout = () => {
     if (!initialLayoutState) {
-      console.warn('Cannot reset layout: no initial layout state provided')
+      errorService.report({
+        origin: 'workspace',
+        severity: 'recoverable',
+        userMessage: 'The initial workspace layout is unavailable.',
+        cause: new Error('Cannot reset layout: no initial layout state provided'),
+        context: {
+          component: 'WorkspaceToolbar',
+        },
+      })
       return
     }
     workspace.resetLayout(initialLayoutState)

@@ -14,8 +14,7 @@ export const updateMultipleAoiVisibility = (
   if (!meta) return
   const aoiData = meta.aois.data[stimulusId]
   if (!aoiData) {
-    console.error(`No AOI data found for stimulusId: ${stimulusId}`)
-    return
+    throw new Error(`No AOI data found for stimulusId: ${stimulusId}`)
   }
 
   const updates: {
@@ -23,24 +22,30 @@ export const updateMultipleAoiVisibility = (
     visibility: number[]
     participantId?: number | null
   }[] = []
+  const missingAoiNames: string[] = []
 
   for (let i = 0; i < aoiNames.length; i++) {
     const name = aoiNames[i]
     let aoiId = -1
     for (let j = 0; j < aoiData.length; j++) {
-      if (aoiData[j][0] === name) {
+      const [originalName, displayedName] = aoiData[j]
+      if (originalName === name || displayedName === name) {
         aoiId = j
         break
       }
     }
 
     if (aoiId === -1) {
-      console.warn(
-        `AOI with name ${name} not found for stimulusId: ${stimulusId}`
-      )
+      missingAoiNames.push(name)
       continue
     }
     updates.push({ aoiId, visibility: visibilityArr[i], participantId })
+  }
+
+  if (missingAoiNames.length > 0) {
+    throw new Error(
+      `AOI visibility update references unknown AOIs for stimulusId ${stimulusId}: ${missingAoiNames.join(', ')}`
+    )
   }
 
   if (updates.length > 0) {

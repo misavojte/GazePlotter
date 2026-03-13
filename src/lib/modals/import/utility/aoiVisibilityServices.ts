@@ -39,7 +39,6 @@ export const processAoiVisibility = async (
     const tobiiJson = JSON.parse(text)
 
     if (!isTobiiJson(tobiiJson)) {
-      console.warn(tobiiJson)
       throw new Error('Assumed Tobii JSON format, but it is not valid')
     }
 
