@@ -32,7 +32,7 @@
   const session = setGazePlotterSessionContext(createGazePlotterSession())
   const { errorService, toastState } = session
 
-  setContext('reinitializeLabel', reinitializeLabel)
+  setContext('reinitializeLabel', () => reinitializeLabel)
 
   // Snapshot remains a $state rune
   let initialGridItemsSnapshot = $state<GridItemSnapshot[] | null>(null)

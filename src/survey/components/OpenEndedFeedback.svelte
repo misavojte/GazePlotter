@@ -26,24 +26,26 @@
     onValueChange
   }: Props = $props();
   
-  let feedbackText = $state(initialValue || '');
+  let feedbackText = $state('');
+  let didSeedFeedbackText = false;
   const CHARACTER_LIMIT = 2000;
   let remainingChars = $derived(CHARACTER_LIMIT - feedbackText.length);
-  
-  // Expose value and isComplete for parent component - update via effect
-  let value = $state<string>(initialValue || '');
-  let isComplete = $state(false);
+
+  $effect(() => {
+    if (didSeedFeedbackText) return;
+    feedbackText = initialValue || '';
+    didSeedFeedbackText = true;
+  });
 
   // Update exposed values when feedbackText changes
   $effect(() => {
-    value = feedbackText;
-    isComplete = feedbackText.trim() !== '';
+    const complete = feedbackText.trim() !== '';
 
     if (onValueChange) {
-      onValueChange(feedbackText, feedbackText.trim() !== '');
+      onValueChange(feedbackText, complete);
     }
 
-    if (onComplete && feedbackText.trim() !== '') {
+    if (onComplete && complete) {
       onComplete(feedbackText);
     }
   });

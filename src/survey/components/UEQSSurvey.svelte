@@ -49,38 +49,34 @@
   const scaleValues = [-3, -2, -1, 0, 1, 2, 3] as const
   type ScaleValue = (typeof scaleValues)[number]
 
-  // Results state - initialize with provided values
-  // Ensure all scale items have entries (null if not in initialValues)
-  let results = $state<Record<string, ScaleValue | null>>(
-    initialValues
-      ? Object.fromEntries(
-          scaleItems.map(item => [
-            item.id,
-            (initialValues[item.id as keyof typeof initialValues] as
-              | ScaleValue
-              | undefined) ?? null,
-          ])
-        )
-      : {}
-  )
+  const createResults = (
+    values: UEQSResults | null
+  ): Record<string, ScaleValue | null> =>
+    Object.fromEntries(
+      scaleItems.map(item => [
+        item.id,
+        (values?.[item.id as keyof UEQSResults] as ScaleValue | undefined) ??
+          null,
+      ])
+    ) as Record<string, ScaleValue | null>
+
+  let results = $state<Record<string, ScaleValue | null>>(createResults(null))
+  let didSeedResults = false
 
   // Animation state
   let animatingItem = $state<string | null>(null)
 
-  // Expose value and isComplete for parent component - update via effect
-  let value = $state<UEQSResults | null>(null)
-  let isComplete = $state(false)
+  $effect(() => {
+    if (didSeedResults) return
+    results = createResults(initialValues)
+    didSeedResults = true
+  })
 
-  // Update exposed values when results change
   $effect(() => {
     const allCompleted = scaleItems.every(
       item => results[item.id] !== null && results[item.id] !== undefined
     )
     const resultsData = results as unknown as UEQSResults
-
-    isComplete = allCompleted
-    // Always expose the current results, even when incomplete, to preserve partial progress
-    value = resultsData
 
     if (onCompletionChange) {
       onCompletionChange(allCompleted, resultsData)

@@ -4,7 +4,7 @@
   import { getContext } from 'svelte'
 
   const ingest = getIngestService()
-  const label = getContext('reinitializeLabel')
+  const getLabel = getContext<() => string>('reinitializeLabel')
 
   interface Props {
     onReinitialize: () => void
@@ -16,5 +16,5 @@
 </script>
 
 <GeneralButtonMajor {isDisabled} onclick={onReinitialize}>
-  {label}
+  {getLabel()}
 </GeneralButtonMajor>

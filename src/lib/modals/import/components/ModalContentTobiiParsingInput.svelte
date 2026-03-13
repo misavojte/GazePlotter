@@ -26,48 +26,39 @@
    */
   let isPromiseSettled = false
 
-  /**
-   * Capture the promise handlers immediately in local scope to prevent
-   * accessing props during component destruction when modal state may be null.
-   * This is critical because onDestroy runs after animations complete.
-   */
-  const capturedResolve = valuePromiseResolve
-  const capturedReject = valuePromiseReject
+  const resolveValue = (value: string) => {
+    if (isPromiseSettled) return
+    isPromiseSettled = true
+    valuePromiseResolve(value)
+  }
+
+  const rejectValue = (reason: Error) => {
+    if (isPromiseSettled) return
+    isPromiseSettled = true
+    valuePromiseReject(reason)
+  }
 
   onDestroy(() => {
-    // Only reject if the promise hasn't been resolved or rejected yet
-    // Use captured handlers to avoid accessing props during destruction
-    if (!isPromiseSettled) {
-      isPromiseSettled = true
-      capturedReject(new Error('Modal closed without value'))
-    }
+    rejectValue(new Error('Modal closed without value'))
   })
 
   /**
    * Handles form submission by resolving the promise with the selected value.
    * Marks the promise as settled to prevent double-handling during cleanup.
-   * Uses captured resolve handler to ensure stability during lifecycle.
    */
   const handleSubmit = () => {
-    if (isPromiseSettled) return
-
     const finalValue =
       selectedOption === 'custom' ? customMarkers : selectedOption
     console.log('value', finalValue)
-    isPromiseSettled = true
-    capturedResolve(finalValue)
+    resolveValue(finalValue)
   }
 
   /**
    * Handles cancellation by rejecting the promise and closing the modal.
    * Marks the promise as settled to prevent double-handling during cleanup.
-   * Uses captured reject handler to ensure stability during lifecycle.
    */
   const handleCancel = () => {
-    if (isPromiseSettled) return
-
-    isPromiseSettled = true
-    capturedReject(new Error('User cancelled'))
+    rejectValue(new Error('User cancelled'))
     modalState.close()
   }
 
