@@ -7,7 +7,7 @@ order: 10
 
 Participants Customization in GazePlotter offers a comprehensive interface to semantically rename participants and dictate their global rendering order across all relevant eye-tracking plots. The tool provides granular row-level editing combined with a powerful, deterministic regex-based batch processing engine.
 
-![](/docs/images/participant-customization_1.jpg)
+![Participant customization table with displayed name and order controls.](/docs/images/participant-customization_1.jpg)
 
 ## Accessing the Tool
 
@@ -45,7 +45,7 @@ _Note: Clicking a header successively toggles between ascending and descending l
 
 For datasets consisting of dozens or hundreds of subjects with systemic naming errors or unwanted metadata, Pattern Renaming provides a global find-and-replace mechanism driven by Regular Expressions (Regex).
 
-![](/docs/images/participant-customization_2.jpg)
+![Participant customization pattern renaming panel with regex-based find and replace fields.](/docs/images/participant-customization_2.jpg)
 
 ### Execution Workflow
 

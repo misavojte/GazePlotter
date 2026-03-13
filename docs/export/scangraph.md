@@ -41,7 +41,7 @@ GazePlotter is capable of directly feeding the [ScanGraph Cloud Platform](http:/
 3. Command ScanGraph to process the serialized logical sequence matrices.
 4. Utilize ScanGraph's external algorithms to generate advanced heatmap parity networks and similarity visualizations.
 
-![](/docs/images/scangraph-1.png)
+![ScanGraph interface showing uploaded sequence data for external analysis.](/docs/images/scangraph-1.png)
 
 ## Development Roadmap
 

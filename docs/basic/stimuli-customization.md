@@ -7,7 +7,7 @@ order: 9
 
 Stimuli Customization in GazePlotter provides a robust mechanism to rename stimuli and reorder their sequence within all eye-tracking plots. The tool supports granular item-by-item editing as well as powerful, regex-driven pattern renaming for massive batch operations.
 
-![](/docs/images/stimuli-customization_1.jpg)
+![Stimulus customization table with displayed name and order controls.](/docs/images/stimuli-customization_1.jpg)
 
 ## Accessing the Tool
 
@@ -45,7 +45,7 @@ _Note: Clicking the same header multiple times toggles between ascending and des
 
 For high-volume datasets containing systemic naming flaws, Pattern Renaming enables global find-and-replace mechanics powered by Regular Expressions (Regex).
 
-![](/docs/images/stimuli-customization_2.jpg)
+![Stimulus customization pattern renaming panel with regex-based find and replace fields.](/docs/images/stimuli-customization_2.jpg)
 
 ### Execution Workflow
 

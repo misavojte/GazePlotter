@@ -31,7 +31,7 @@ In GazePlotter, scarf plots have the following main controls:
 
 > Note: Zooming controls and a reset view button are also available directly on the header to temporally navigate your scarf plot quickly.
 
-![](/docs/images/1.png)
+![Scarf plot header with Stimulus, Group, View, and More options controls.](/docs/images/1.png)
 
 ### Stimulus
 
@@ -57,7 +57,7 @@ Displays fixations and events plotted in their exact chronological timing (in mi
 | Time Range [ms]    | Limit the temporal bounds displayed in the plot (Start / End, where 0 = Auto)                  |
 | Hide non-fixations | Toggle visibility of saccades, blinks, and other non-fixation events to declutter the sequence |
 
-![](/docs/images/timeline-1.png)
+![Scarf plot rendered in Absolute time view.](/docs/images/timeline-1.png)
 
 #### Relative time
 
@@ -68,7 +68,7 @@ Displays sequences proportional to the duration of the participant with the long
 | Calculated from Time Range [ms] | Limit the temporal range based on absolute time from which relative percentages are formed     |
 | Hide non-fixations              | Toggle visibility of saccades, blinks, and other non-fixation events to declutter the sequence |
 
-![](/docs/images/timeline-2.png)
+![Scarf plot rendered in Relative time view.](/docs/images/timeline-2.png)
 
 #### Ordinal time
 
@@ -79,7 +79,7 @@ Displays strict sequential order indices of individual fixations, saccades, and 
 | Ordinal Range [indices] | Limit the indices sequence displayed in the plot (Start / End, where 0 = Auto)                 |
 | Hide non-fixations      | Toggle visibility of saccades, blinks, and other non-fixation events to declutter the sequence |
 
-![](/docs/images/timeline-3.png)
+![Scarf plot rendered in Ordinal time view.](/docs/images/timeline-3.png)
 
 > **Warning**: Some data, e.g. from [OGAMA software](/docs/upload-data/ogama/), support only ordinal time representation.
 
@@ -122,7 +122,7 @@ The scarf plot is interactive. Except for the basic controls and dragging the sc
 
 You can hover over fixations, saccades, and AOIs to see additional information, such as duration, start and end times, and AOI name. This information is displayed in a tooltip when you hover over the corresponding segment.
 
-![](/docs/images/4.png)
+![Tooltip showing sequence details for a selected scarf plot segment.](/docs/images/4.png)
 
 ### Highlighting
 
@@ -131,7 +131,7 @@ In the legend, you can highlight all segments of a specific category (fixations,
 1. Hovering over the category name in the legend to highlight all segments of that category temporarily.
 2. Clicking on the category name in the legend to highlight all segments of that category until you click on it again to remove the highlight.
 
-![](/docs/images/3.png)
+![Scarf plot with a highlighted legend category and matching segments.](/docs/images/3.png)
 
 ## Adding AOI visibility data
 
@@ -163,10 +163,10 @@ As seen on Figure 1, adding AOI visibility data to the workspace have following 
 4. Select whether to add the AOI visibility data to all participants or only to the selected one.
 5. Click `Apply` button. The AOI visibility data will be added to the workspace.
 
-![](/docs/images/aoi-visibility-1.png)
+![Dialog for adding AOI visibility data to a scarf plot.](/docs/images/aoi-visibility-1.png)
 
 ### Interactivity of AOI visibility data
 
 Each AOI visibility data is represented by a colored line. This is expanded and thus highlighted when the mouse is moved over the corresponding AOI category in the legend.
 
-![](/docs/images/aoi-visibility-2.png)
+![Scarf plot showing AOI visibility lines aligned with AOI categories.](/docs/images/aoi-visibility-2.png)

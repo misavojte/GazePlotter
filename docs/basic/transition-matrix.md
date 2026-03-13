@@ -7,7 +7,7 @@ order: 4
 
 Transition Matrix in GazePlotter provides a visual analysis of gaze transition patterns between Areas of Interest (AOIs). This heat map visualization shows how participants' gaze moves from one AOI to another, revealing scanpath patterns and visual attention flow in eye-tracking research.
 
-![](/docs/images/aoi-transition-matrix-gazeplotter.jpg)
+![Transition Matrix heat map showing gaze transitions between AOIs.](/docs/images/aoi-transition-matrix-gazeplotter.jpg)
 
 > Interested on how to operate with plots in general within the workspace? See:
 >

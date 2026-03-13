@@ -39,7 +39,7 @@ At the top of the GazePlotter workspace, you'll find these essential controls:
 2. **[Reload Demo](/docs/upload-data/#reload-demo-button)** - Reset to the sample data if you want to start over
 3. **[Export workspace or data](/docs/export/)** - Save your analysis or export data for other tools
 
-![](/docs/images/1.png)
+![GazePlotter workspace header with import, demo reload, and export controls.](/docs/images/1.png)
 
 ## Understanding the Interface
 

@@ -22,13 +22,13 @@ Down, you can see examples how the install button looked like in different brows
 
 PWA apps in a desktop version of Chrome are available in the search bar. The install button is located in the search bar (the right side of the address bar).
 
-![](/docs/images/chrome-desktop-download.png)
+![Chrome address bar showing the install button for the GazePlotter PWA.](/docs/images/chrome-desktop-download.png)
 
 ### Edge
 
 PWA apps in a desktop version of Edge are available in the search bar. The install button is located in the search bar (the right side of the address bar).
 
-![](/docs/images/edge-desktop-download.png)
+![Edge address bar showing the install button for the GazePlotter PWA.](/docs/images/edge-desktop-download.png)
 
 ## PWA app on Android
 

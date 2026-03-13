@@ -92,4 +92,4 @@ Choose how broadly to apply your targeted modifications across the dataset:
 
 - **Save**: Click the **Apply** button to execute the changes using the specified scope. Closing the window before clicking Apply immediately discards your session.
 
-![](/docs/images/1.png)
+![Workspace screenshot showing the plot controls used to open AOI customization.](/docs/images/1.png)

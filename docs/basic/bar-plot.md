@@ -7,7 +7,7 @@ order: 5
 
 Bar Plot in GazePlotter provides quantitative analysis of eye-tracking data through bar charts. It aggregates gaze metrics across Areas of Interest (AOIs) for statistical comparison and analysis.
 
-![](/docs/images/eyetracking-bar-plot-gazeplotter.jpg)
+![Bar Plot showing aggregated AOI metrics for a selected stimulus.](/docs/images/eyetracking-bar-plot-gazeplotter.jpg)
 
 > Interested on how to operate with plots in general within the workspace? See:
 >

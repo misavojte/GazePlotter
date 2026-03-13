@@ -51,14 +51,14 @@ _(For changing exactly what data is displayed inside the plot itself, consult th
 - **Action**: Click and drag the **drag handle** (the 4-dots group icon in the plot's top header).
 - **Behavior**: Plots snap cleanly to an underlying 50x50 pixel grid. The workspace canvas boundary automatically expands if a plot is dragged to the edges.
 
-![](/docs/images/how-to-move-plot-gazeplotter.jpg)
+![Dragging a plot across the GazePlotter workspace grid.](/docs/images/how-to-move-plot-gazeplotter.jpg)
 
 #### Resizing a plot
 
 - **Action**: Click and drag the **bottom-right corner** of the plot card.
 - **Behavior**: The plot bounding box maintains proportional sizing while snapping to the underlying grid configuration.
 
-![](/docs/images/how-to-resize-plot-gazeplotter.jpg)
+![Resizing a plot from the bottom-right corner in the workspace.](/docs/images/how-to-resize-plot-gazeplotter.jpg)
 
 ### Object Management
 
@@ -67,14 +67,14 @@ _(For changing exactly what data is displayed inside the plot itself, consult th
 - **Action**: Click the **Duplicate button** (the copy icon in the plot's top-left header).
 - **Behavior**: Creates an identical copy of the plot in the workspace. It faithfully copies _all_ current settings, including applied participant groups, stimulus selections, axis bounds, and custom color palettes.
 
-![](/docs/images/how-to-duplicate-plot-gazeplotter.jpg)
+![Using the Duplicate button to copy a plot in the workspace.](/docs/images/how-to-duplicate-plot-gazeplotter.jpg)
 
 #### Removing a plot
 
 - **Action**: Click the **Remove button** (the X icon in the plot's top-right header).
 - **Behavior**: The plot is permanently deleted from the workspace viewport.
 
-![](/docs/images/how-to-remove-plot-gazeplotter.jpg)
+![Using the Remove button to delete a plot from the workspace.](/docs/images/how-to-remove-plot-gazeplotter.jpg)
 
 ## State Preservation
 

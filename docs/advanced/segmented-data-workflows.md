@@ -44,8 +44,8 @@ Mobile eye-tracking data often contains extensive initial setup phases, calibrat
 
 **System Behavior Result**: The import engine reads the modified file and mechanically re-normalizes the timestamps. The _first remaining segment_ of that specific Participant × Stimulus block is automatically rewritten as the new absolute `0` start time baseline.
 
-![](/docs/images/segmented-data-workflow_1.jpg)
-![](/docs/images/segmented-data-workflow_2.jpg)
+![Segmented Data CSV before removing initialization rows.](/docs/images/segmented-data-workflow_1.jpg)
+![Segmented Data CSV after removing initialization rows.](/docs/images/segmented-data-workflow_2.jpg)
 
 ## Workflow 2: Segmenting Monolithic Stimuli
 
@@ -61,5 +61,5 @@ Lengthy, continuous recordings often encompass multiple independent analytical p
 
 **System Behavior Result**: GazePlotter processes the newly injected stimulus names as totally independent structures. Critically, each newly defined task phase is automatically assigned its own mathematical start baseline (time `0`), effectively isolating them into clean discrete analytical blocks.
 
-![](/docs/images/segmented-data-workflow_3.jpg)
-![](/docs/images/segmented-data-workflow_4.jpg)
+![Segmented Data CSV before splitting one stimulus into multiple phases.](/docs/images/segmented-data-workflow_3.jpg)
+![Segmented Data CSV after renaming stimulus values into separate phases.](/docs/images/segmented-data-workflow_4.jpg)
