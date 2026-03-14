@@ -1,10 +1,8 @@
 <script lang="ts">
   import { formatFileSize } from '$lib/shared/utils/fileUtils'
+  import { Card } from '$lib/shared/components'
   import MetadataSection from './MetadataSection.svelte'
-  import {
-    formatMemoryUtilization,
-    type MetadataMemoryInfo,
-  } from '../helpers'
+  import { formatMemoryUtilization, type MetadataMemoryInfo } from '../helpers'
 
   const { memoryInfo } = $props<{
     memoryInfo: MetadataMemoryInfo
@@ -13,7 +11,7 @@
 
 {#if memoryInfo.available}
   <MetadataSection title="RAM Usage">
-    <div class="info-group">
+    <Card padding="sm" gap="0.5rem">
       <div class="info-item">
         <span class="label">Current JS Heap Size (used):</span>
         <span class="value">{formatFileSize(memoryInfo.used)}</span>
@@ -30,21 +28,11 @@
         <span class="label">Memory utilization:</span>
         <span class="value">{formatMemoryUtilization(memoryInfo)}</span>
       </div>
-    </div>
+    </Card>
   </MetadataSection>
 {/if}
 
 <style>
-  .info-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.75rem;
-    background: #f9f9f9;
-    border-radius: 0.375rem;
-    border: 1px solid #e5e5e5;
-  }
-
   .info-item {
     display: flex;
     justify-content: space-between;

@@ -5,6 +5,7 @@
   import { getGazePlotterSession } from '$lib/session'
   import { formatFileSize } from '$lib/shared/utils/fileUtils'
   import { formatDuration } from '$lib/shared/utils/timeUtils'
+  import { Card } from '$lib/shared/components'
   import MetadataFileList from './components/MetadataFileList.svelte'
   import MetadataMemorySection from './components/MetadataMemorySection.svelte'
   import MetadataOverviewSection from './components/MetadataOverviewSection.svelte'
@@ -95,7 +96,7 @@
 
   {#if currentFileInput !== null && !isSameAsSource}
     <MetadataSection title="Current parsing">
-      <div class="info-group">
+      <Card padding="sm" gap="0.5rem">
         <div class="info-item">
           <span class="label">Files being processed:</span>
           <span class="value">{currentFileInput.fileNames.length}</span>
@@ -104,9 +105,9 @@
           fileNames={currentFileInput.fileNames}
           fileSizes={currentFileInput.fileSizes}
         />
-      </div>
+      </Card>
 
-      <div class="info-group">
+      <Card padding="sm" gap="0.5rem">
         <div class="info-item">
           <span class="label">Total file size:</span>
           <span class="value"
@@ -119,18 +120,18 @@
             >{formatMetadataDate(currentFileInput.parseDate)}</span
           >
         </div>
-      </div>
+      </Card>
     </MetadataSection>
   {/if}
 
   <MetadataSection title="Source parsing (original eye tracking export)">
     {#if fileMetadata === null}
-      <div class="info-group">
+      <Card padding="sm">
         This data was parsed before GazePlotter version 1.7.0 and original
         parsing metadata is thus not available.
-      </div>
+      </Card>
     {:else if fileMetadata.status === 'failure'}
-      <div class="info-group failure-details">
+      <Card padding="sm" gap="0.5rem" class="failure-details">
         <div class="info-item">
           <span class="label">Error message:</span>
           <span class="value error-message">{fileMetadata.userMessage}</span>
@@ -151,9 +152,9 @@
             <pre class="value error-stack">{fileMetadata.stack}</pre>
           </div>
         {/if}
-      </div>
+      </Card>
 
-      <div class="info-group">
+      <Card padding="sm" gap="0.5rem">
         <div class="info-item">
           <span class="label">Files attempted:</span>
           <span class="value">{fileMetadata.fileNames.length}</span>
@@ -162,9 +163,9 @@
           fileNames={fileMetadata.fileNames}
           fileSizes={fileMetadata.fileSizes}
         />
-      </div>
+      </Card>
 
-      <div class="info-group">
+      <Card padding="sm" gap="0.5rem">
         <div class="info-item">
           <span class="label">Total file size:</span>
           <span class="value">{formatFileSize(totalFileSize)}</span>
@@ -182,9 +183,9 @@
           <span class="value">{formatMetadataDate(fileMetadata.parseDate)}</span
           >
         </div>
-      </div>
+      </Card>
 
-      <div class="info-group">
+      <Card padding="sm" gap="0.5rem">
         <div class="info-item">
           <span class="label">GazePlotter version:</span>
           <span class="value">{fileMetadata.gazePlotterVersion}</span>
@@ -193,9 +194,9 @@
           <span class="label">Client:</span>
           <span class="value client-info">{fileMetadata.clientUserAgent}</span>
         </div>
-      </div>
+      </Card>
     {:else}
-      <div class="info-group">
+      <Card padding="sm" gap="0.5rem">
         <div class="info-item">
           <span class="label">Files processed:</span>
           <span class="value">{fileMetadata.fileNames.length}</span>
@@ -204,24 +205,26 @@
           fileNames={fileMetadata.fileNames}
           fileSizes={fileMetadata.fileSizes}
         />
-      </div>
+      </Card>
 
-      <div class="info-group">
+      <Card padding="sm" gap="0.5rem">
         <div class="info-item">
           <span class="label">Total file size:</span>
           <span class="value">{formatFileSize(totalFileSize)}</span>
         </div>
         <div class="info-item">
           <span class="label">Parse duration:</span>
-          <span class="value">{formatDuration(fileMetadata.parseDuration)}</span>
+          <span class="value">{formatDuration(fileMetadata.parseDuration)}</span
+          >
         </div>
         <div class="info-item">
           <span class="label">Parse date:</span>
-          <span class="value">{formatMetadataDate(fileMetadata.parseDate)}</span>
+          <span class="value">{formatMetadataDate(fileMetadata.parseDate)}</span
+          >
         </div>
-      </div>
+      </Card>
 
-      <div class="info-group">
+      <Card padding="sm" gap="0.5rem">
         <div class="info-item">
           <span class="label">GazePlotter version:</span>
           <span class="value">{fileMetadata.gazePlotterVersion}</span>
@@ -230,16 +233,17 @@
           <span class="label">Client:</span>
           <span class="value client-info">{fileMetadata.clientUserAgent}</span>
         </div>
-      </div>
+      </Card>
 
-      <div class="info-group">
+      <Card padding="sm" gap="0.5rem">
         <div class="info-item">
           <span class="label">Parse settings:</span>
         </div>
         <div class="settings-container">
           <div class="settings-item">
             <span class="settings-label">Type:</span>
-            <span class="settings-value">{fileMetadata.parseSettings.type}</span>
+            <span class="settings-value">{fileMetadata.parseSettings.type}</span
+            >
           </div>
 
           <div class="delimiter-row">
@@ -263,17 +267,18 @@
             <div class="settings-item">
               <span class="settings-label">User input setting:</span>
               <span class="settings-value"
-                >{fileMetadata.parseSettings.userInputSetting || '(empty)'}</span
+                >{fileMetadata.parseSettings.userInputSetting ||
+                  '(empty)'}</span
               >
             </div>
           {/if}
         </div>
-      </div>
+      </Card>
     {/if}
   </MetadataSection>
 
   <MetadataRecentErrorsSection errors={recentErrors} />
-  <MetadataMemorySection memoryInfo={memoryInfo} />
+  <MetadataMemorySection {memoryInfo} />
 
   <ModalButtons
     buttons={[
@@ -301,15 +306,7 @@
     max-width: 600px;
   }
 
-  .info-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.75rem;
-    background: #f9f9f9;
-    border-radius: 0.375rem;
-    border: 1px solid #e5e5e5;
-  }
+  /* .info-group styles moved to Card.svelte */
 
   .info-item {
     display: flex;
@@ -380,7 +377,7 @@
     font-size: 0.85rem;
   }
 
-  .failure-details {
+  :global(.card.failure-details) {
     background: #fff5f5;
     border: 1px solid #fca5a5;
   }

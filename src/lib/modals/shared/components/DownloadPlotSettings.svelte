@@ -4,6 +4,7 @@
     Select,
     InputText,
     ButtonPreset,
+    Card,
   } from '$lib/shared/components'
   import { SectionHeader } from '$lib/modals'
 
@@ -84,11 +85,7 @@
       />
     </div>
     <div class="settings-item">
-      <Select
-        label="Output file type"
-        {options}
-        bind:value={typeOfExport}
-      />
+      <Select label="Output file type" {options} bind:value={typeOfExport} />
     </div>
     <div class="settings-item">
       <InputText
@@ -129,12 +126,10 @@
   <!-- Margin Settings -->
   <div class="margin-settings">
     <SectionHeader text="Margins" />
-    <p class="margin-explanation">
-      Margins control the spacing around your plot. Use positive values to add
-      padding, or negative values to crop the image and focus on specific areas.
-      This is useful for removing unwanted whitespace or highlighting particular
-      regions of your visualization.
-    </p>
+    <Card padding="sm">
+      Use positive margins to add padding, or negative values to crop the image
+      and focus on specific areas.
+    </Card>
     <div class="settings-grid-margins">
       <div class="settings-item">
         <InputNumber
@@ -196,17 +191,6 @@
     margin-top: 1rem;
   }
 
-  .margin-explanation {
-    font-size: 0.85rem;
-    color: var(--c-darkgrey);
-    line-height: 1.4;
-    margin: 0.5rem 0 1rem 0;
-    padding: 0.75rem;
-    background-color: #e6f3ff;
-    border-radius: 4px;
-    border-left: 3px solid var(--c-primary, #007acc);
-  }
-
   .settings-grid-main {
     display: flex;
     flex-wrap: wrap;
@@ -217,6 +201,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 7px;
+    margin-top: 1rem;
   }
 
   .dpi-container {

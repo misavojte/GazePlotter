@@ -1,5 +1,6 @@
 <script lang="ts">
   import MetadataSection from './MetadataSection.svelte'
+  import { Card } from '$lib/shared/components'
   import type { MetadataOverview } from '../helpers'
 
   const { overview } = $props<{
@@ -8,7 +9,7 @@
 </script>
 
 <MetadataSection title="Data overview">
-  <div class="info-group">
+  <Card padding="sm" gap="0.5rem">
     <div class="info-item">
       <span class="label">Number of stimuli:</span>
       <span class="value">{overview.numberOfStimuli}</span>
@@ -21,10 +22,10 @@
       <span class="label">Total number of AOIs:</span>
       <span class="value">{overview.aoiCounts.total}</span>
     </div>
-  </div>
+  </Card>
 
   {#if overview.aoiCounts.perStimulus.length > 0}
-    <div class="info-group">
+    <Card padding="sm" gap="0.5rem">
       <div class="info-item">
         <span class="label">AOIs per stimulus:</span>
       </div>
@@ -38,21 +39,11 @@
           </div>
         {/each}
       </div>
-    </div>
+    </Card>
   {/if}
 </MetadataSection>
 
 <style>
-  .info-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.75rem;
-    background: #f9f9f9;
-    border-radius: 0.375rem;
-    border: 1px solid #e5e5e5;
-  }
-
   .info-item {
     display: flex;
     justify-content: space-between;

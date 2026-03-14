@@ -1,17 +1,13 @@
 <script lang="ts">
   import { GazePlotter } from '$lib'
+  import { Card } from '$lib/shared/components'
   import { base } from '$app/paths'
   import { browser } from '$app/environment'
   import type { GazePlotterSession } from '$lib/session'
 
   const pathToData = `${base}/data/demo.json?v=2`
-  let gazePlotterRef = $state<{
-    getSession: () => GazePlotterSession
-  } | null>(null)
 
-  async function loadInitialData(
-    session: GazePlotterSession
-  ): Promise<void> {
+  async function loadInitialData(session: GazePlotterSession): Promise<void> {
     if (!pathToData || !browser)
       return Promise.reject('No path to data or not in browser')
 
@@ -50,11 +46,11 @@
     </p>
   </section>
   <section>
-    <GazePlotter bind:this={gazePlotterRef} {loadInitialData} />
+    <GazePlotter {loadInitialData} />
   </section>
   <section class="main-section" id="about">
     <div class="about-grid">
-      <section class="box">
+      <Card padding="lg">
         <h2 class="box-title">Open source Svelte library</h2>
         <p>
           GazePlotter is an open source library, written in Svelte and
@@ -62,8 +58,8 @@
           specific needs in your projects.
         </p>
         <a href="https://github.com/misavojte/GazePlotter">See GitHub repo</a>
-      </section>
-      <section class="box">
+      </Card>
+      <Card padding="lg">
         <h2 class="box-title">Works with Tobii, SMI & more</h2>
         <p>
           The app creates interactive sequence charts and other analysis from
@@ -71,8 +67,8 @@
           and see the results.
         </p>
         <a href="/docs/upload-data"> Which files to upload? </a>
-      </section>
-      <section class="box long">
+      </Card>
+      <Card padding="lg" class="long">
         <h2 class="box-title">Interactive scarf plots</h2>
         <p>
           Scarf plots (sequence charts) are a great way to visualise
@@ -86,8 +82,8 @@
           src="/images/gazeplotter_scarf_plot.png"
           alt="Simplest scarf plot in GazePlotter"
         />
-      </section>
-      <section class="box">
+      </Card>
+      <Card padding="lg">
         <h2 class="box-title">Runs without Internet</h2>
         <p>
           GazePlotter does not store your data on a server, thus ensuring data
@@ -97,15 +93,15 @@
         <a href="/docs/advanced/download-gazeplotter"
           >How to download GazePlotter?</a
         >
-      </section>
-      <section class="box">
+      </Card>
+      <Card padding="lg">
         <h2 class="box-title">Other eye tracking tools</h2>
         <p>
           Eye-Tracking Group at Department of Geoinformatics, Palacký University
           Olomouc, develops other eye tracking tools for free use.
         </p>
         <a href="https://eyetracking.upol.cz/tools/">More eye tracking tools</a>
-      </section>
+      </Card>
     </div>
   </section>
 </main>
@@ -171,42 +167,33 @@
     color: var(--c-darkgrey);
   }
 
-  .box {
-    display: flex;
-    flex-direction: column;
-    padding: 32px;
-    background: var(--c-lightgrey);
-    border-radius: 12px;
-  }
+  /* .box styles moved to Card.svelte */
   .box-title {
     line-height: 30px;
     font-size: 20px;
     font-weight: bold;
     margin: 0;
   }
-  .box p {
-    margin-block: 16px;
-    font-size: 18px;
-    font-weight: 400;
+  /* .box styles moved to Card.svelte */
+  :global(.card.long) {
+    grid-row: span 2;
   }
-  .box a {
+  :global(.card img) {
+    width: 102%;
+    height: auto;
+    margin-block: auto;
+  }
+
+  :global(.card a) {
     font-size: 18px;
     font-weight: 600;
     color: var(--c-brand);
     text-decoration: none;
     margin-top: auto;
   }
-  .box a:hover,
-  .box a:focus {
+  :global(.card a:hover),
+  :global(.card a:focus) {
     color: var(--c-brand-dark);
-  }
-  .box.long {
-    grid-row: span 2;
-  }
-  .box img {
-    width: 102%;
-    height: auto;
-    margin-block: auto;
   }
 
   @media only screen and (max-width: 1100px) {
