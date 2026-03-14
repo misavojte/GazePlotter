@@ -13,6 +13,7 @@
   import Empty from '$lib/shared/components/Empty.svelte'
   import PatternRenamingTool from '../shared/PatternRenamingTool.svelte'
   import ReorderButtons from '../shared/ReorderButtons.svelte'
+  import { InputText } from '$lib/shared/components'
 
   interface Props {
     source: string
@@ -188,22 +189,19 @@
         >
           <td class="original-name">{stimulus.originalName}</td>
           <td>
-            <input
-              type="text"
-              id={stimulus.id + 'displayedName'}
+            <InputText
+              label="Displayed name"
+              showLabel={false}
+              fill={true}
               value={stimulus.displayedName}
               oninput={e => {
-                const target = e.currentTarget
                 const stimulusId = stimulus.id
-                // Find and update the stimulus by ID in the current array
-                // This ensures we update the correct object even after sorting
                 const index = stimulusObjects.findIndex(
                   s => s.id === stimulusId
                 )
                 if (index !== -1) {
-                  // Create a new array with the updated object to ensure reactivity
                   stimulusObjects = stimulusObjects.map((s, i) =>
-                    i === index ? { ...s, displayedName: target.value } : s
+                    i === index ? { ...s, displayedName: e.detail } : s
                   )
                 }
               }}
@@ -240,16 +238,6 @@
 {/if}
 
 <style>
-  /* Component Group */
-  input {
-    height: 34px;
-    box-sizing: border-box;
-    border: 1px solid var(--c-border);
-    border-radius: var(--rounded);
-    margin: 0;
-    padding: 0.5rem;
-  }
-
   .button-group {
     display: flex;
     gap: 5px;

@@ -1,11 +1,7 @@
 <script lang="ts">
   import Radio from '$lib/shared/components/Radio.svelte'
   import Select from '$lib/shared/components/Select.svelte'
-  import {
-    InputCheck,
-    InputColor,
-    InputText,
-  } from '$lib/shared/components'
+  import { InputCheck, InputColor, InputText } from '$lib/shared/components'
   import {
     SortableTableHeader,
     SectionHeader,
@@ -187,7 +183,6 @@
   })
 
   // Use $derived to compute reordered AOIs reactively without mutation
-  // This prevents race conditions during rapid input changes
   const reorderedAoiObjects = $derived(reorderAois([...aoiObjects]))
 
   // Get initial No AOI treatment and track changes
@@ -243,12 +238,10 @@
   }
 
   const handleObjectPositionUp = (aoi: ExtendedInterpretedDataType) => {
-    // Work on the already-reordered array where groups are contiguous
     const reordered = reorderAois([...aoiObjects])
     const movedAoi = reordered.find(a => a.id === aoi.id)
     if (movedAoi) {
       const result = moveItem(reordered, movedAoi, 'up')
-      // Map back to original aoiObjects by ID, preserving the untrimmed displayedName
       aoiObjects = result.map(r => {
         const original = aoiObjects.find(o => o.id === r.id)!
         return { ...original, color: r.color }
@@ -259,12 +252,10 @@
   }
 
   const handleObjectPositionDown = (aoi: ExtendedInterpretedDataType) => {
-    // Work on the already-reordered array where groups are contiguous
     const reordered = reorderAois([...aoiObjects])
     const movedAoi = reordered.find(a => a.id === aoi.id)
     if (movedAoi) {
       const result = moveItem(reordered, movedAoi, 'down')
-      // Map back to original aoiObjects by ID, preserving the untrimmed displayedName
       aoiObjects = result.map(r => {
         const original = aoiObjects.find(o => o.id === r.id)!
         return { ...original, color: r.color }
@@ -284,7 +275,6 @@
     const handlerType =
       handlerTypeMap[userSelected as keyof typeof handlerTypeMap]
 
-    // Trim all displayedName values before submitting to prevent empty strings
     const cleanedAois = aoiObjects.map(aoi => ({
       id: aoi.id,
       originalName: aoi.originalName,
@@ -310,7 +300,6 @@
       return
     }
 
-    // Update No AOI treatment if it changed
     if (
       noAoiTreatment.displayedName !==
         lastNoAoiTreatmentSnapshot.displayedName ||
@@ -334,7 +323,6 @@
       }
     }
 
-    // snapshot for undo baseline
     lastHiddenSnapshot = [...hiddenUniqueSorted]
 
     if (handlerType !== 'this_stimulus') {
@@ -416,7 +404,6 @@
           <td class="original-name">{aoi.originalName}</td>
           <td>
             <InputText
-              id={`displayed-name-${aoi.id}`}
               label="Displayed name"
               showLabel={false}
               fill={true}
@@ -424,7 +411,6 @@
               ariaLabel={`Displayed name for ${aoi.originalName}`}
               value={aoi.displayedName}
               oninput={e => {
-                // Find and update the original AOI in aoiObjects
                 const originalAoi = aoiObjects.find(a => a.id === aoi.id)
                 if (originalAoi) {
                   originalAoi.displayedName = e.detail
@@ -436,15 +422,13 @@
             <td class="color-cell">
               <div class:disabled-control={!isActive} aria-disabled={!isActive}>
                 <InputColor
-                  id={`color-${aoi.id}`}
                   label="Color"
                   showLabel={false}
                   ariaLabel={`Color for ${aoi.originalName}`}
                   value={aoi.color}
                   oninput={event => {
                     if (!isActive) return
-                    const aoiId = aoi.id
-                    const index = aoiObjects.findIndex(a => a.id === aoiId)
+                    const index = aoiObjects.findIndex(a => a.id === aoi.id)
                     if (index !== -1) {
                       aoiObjects = aoiObjects.map((a, i) =>
                         i === index ? { ...a, color: event.detail } : a
@@ -624,7 +608,7 @@
     width: 90px;
     line-height: 1.1;
     border: 1px solid var(--c-midgrey);
-    border-radius: 5px;
+    border-radius: var(--rounded-md);
     padding: 3px 7px;
   }
 

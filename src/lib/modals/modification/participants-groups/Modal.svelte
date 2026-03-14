@@ -292,12 +292,12 @@
           class:active={expandedGroupIds.includes(group.id)}
         >
           <div class="group-name">
-            <input
-              type="text"
-              id={group.id + 'name'}
+            <InputText
+              label="Group name"
+              showLabel={false}
+              fill={true}
               value={group.name}
-              oninput={e =>
-                updateGroup(group.id, { name: e.currentTarget.value })}
+              oninput={e => updateGroup(group.id, { name: e.detail })}
             />
           </div>
           <div class="button-group">
@@ -494,16 +494,6 @@
     flex-direction: row;
     flex-wrap: nowrap;
     margin-left: 5px;
-  }
-
-  input {
-    height: 34px;
-    box-sizing: border-box;
-    border: 1px solid var(--c-midgrey);
-    border-radius: var(--rounded-md);
-    margin: 0;
-    padding: 0.5rem;
-    width: 100%;
   }
 
   .search-filter {

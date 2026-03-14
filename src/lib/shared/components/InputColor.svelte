@@ -53,7 +53,7 @@
   // Calculate contrast text color for better readability
   const contrastTextColor = $derived(getContrastTextColor(formatColorValue))
 
-  const generatedId = `color-${untrack(() => label.toLowerCase().replace(/\s+/g, '-'))}`
+  const generatedId = untrack(() => `color-${crypto.randomUUID()}`)
   const inputId = $derived(id ?? generatedId)
 </script>
 

@@ -33,7 +33,7 @@
     oninput(new CustomEvent('input', { detail: value }))
   }
 
-  const generatedId = `text-${untrack(() => label.toLowerCase().replace(/\s+/g, '-'))}`
+  const generatedId = untrack(() => `text-${crypto.randomUUID()}`)
   const inputId = $derived(id ?? generatedId)
 </script>
 

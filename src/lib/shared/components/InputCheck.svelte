@@ -5,9 +5,11 @@
     checked?: boolean
     size?: 'xs' | 'sm' | 'md' | 'lg'
     appearance?: 'default' | 'compact'
+    id?: string
     ariaLabel?: string
     onchange?: (event: CustomEvent) => void
   }
+  import { untrack } from 'svelte'
 
   let {
     label,
@@ -15,9 +17,13 @@
     checked = $bindable(false),
     size = 'sm',
     appearance = 'default',
+    id,
     ariaLabel,
     onchange = () => {},
   }: Props = $props()
+
+  const generatedId = untrack(() => `check-${crypto.randomUUID()}`)
+  const inputId = $derived(id ?? generatedId)
 
   const hasLabel = $derived(!!label || !!sublabel)
 
@@ -33,6 +39,7 @@
     <input
       type="checkbox"
       class="check"
+      id={inputId}
       {checked}
       aria-label={ariaLabel}
       onchange={handleChange}
