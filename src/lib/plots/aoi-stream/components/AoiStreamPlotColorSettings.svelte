@@ -1,10 +1,11 @@
 <script lang="ts">
+  import type { MenuComponentBridgeProps } from '$lib/context-menu'
   import { ColorPicker, ColorPickerManager } from '$lib/color'
   import { interpolateColor } from '$lib/color/utility'
   import { fade } from 'svelte/transition'
   import { PRESET_PALETTES } from '$lib/color/palettes'
 
-  interface Props {
+  interface Props extends MenuComponentBridgeProps {
     syncs: {
       binSize: { value: number }
       timelineStart: { value: number | undefined }
@@ -13,7 +14,6 @@
       colorMiddle: { value: string }
       colorMax: { value: string }
     }
-    close: () => void
   }
 
   let { syncs, close }: Props = $props()

@@ -1,13 +1,13 @@
 <script lang="ts">
   import { untrack } from 'svelte'
   import { getGazePlotterSession } from '$lib/session'
+  import { createMenuComponentItem } from '$lib/context-menu'
 
   // Local components
   import { BarPlotFigure, BarPlotButtonMenu } from '$lib/plots/bar/components'
   import { BasePlot } from '$lib/plots/shared/components'
-  import Select, {
-    type GroupSelectItem,
-  } from '$lib/shared/components/GeneralSelect.svelte'
+  import Select from '$lib/shared/components/GeneralSelectGroup.svelte'
+  import type { GroupSelectItem } from '$lib/shared/components'
 
   // Utilities and stores
   import { getBarPlotData } from '$lib/plots/bar/core/transformer'
@@ -164,20 +164,20 @@
       label: 'View',
       value: settings.aggregationMethod,
       onClose: handleMenuClose,
-      options: BAR_PLOT_AGGREGATION_METHODS.map(method => ({
-        ...method,
-        onSelect: (v: any) => {
-          updateSetting({
-            aggregationMethod: v as BarPlotAggregationMethodId,
-          })
-        },
-        closeOnAction: false,
-        component: BarPlotViewSettings,
-        componentHeight: 225,
-        componentProps: {
-          syncs,
-        },
-      })),
+      options: BAR_PLOT_AGGREGATION_METHODS.map(method =>
+        createMenuComponentItem({
+          ...method,
+          onSelect: v => {
+            updateSetting({ aggregationMethod: v })
+          },
+          closeOnAction: false,
+          component: BarPlotViewSettings,
+          componentHeight: 225,
+          componentProps: {
+            syncs,
+          },
+        })
+      ),
     },
   ])
 </script>
@@ -185,7 +185,7 @@
 <BasePlot {item}>
   {#snippet header()}
     <div class="controls">
-      <Select ariaLabel="Bar filters" items={selectItems} label="Bar" />
+      <Select ariaLabel="Bar filters" items={selectItems} />
       <div class="menu-button">
         <BarPlotButtonMenu {item} />
       </div>

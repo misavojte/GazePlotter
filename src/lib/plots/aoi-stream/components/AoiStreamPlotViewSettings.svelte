@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { type MenuItem } from '$lib/context-menu'
+  import type { MenuComponentBridgeProps, MenuItem } from '$lib/context-menu'
 
-  interface Props {
+  interface Props extends MenuComponentBridgeProps {
     item: MenuItem
     syncs: {
       binSize: { value: number }
@@ -9,10 +9,10 @@
       timelineStart: { value: number | undefined }
       timelineEnd: { value: number | undefined }
     }
-    close: () => void
   }
 
   let { item, syncs, close }: Props = $props()
+  const isRidgeline = $derived('value' in item && item.value === 'ridgeline')
 
   function handleSubmit(e: Event) {
     e.preventDefault()
@@ -32,7 +32,7 @@
       />
     </div>
 
-    {#if item.value === 'ridgeline'}
+    {#if isRidgeline}
       <div class="input-group">
         <label for="ridge-scale">Ridge Scale</label>
         <input

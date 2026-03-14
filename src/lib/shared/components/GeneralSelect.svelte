@@ -1,253 +1,84 @@
-<script module lang="ts">
-  export interface GroupSelectItem {
-    options: readonly (MenuItem & { value: string })[]
-    label: string
-    value: string
-    disabled?: boolean
-    ariaLabel?: string
-    onchange?: (event: CustomEvent) => void
-    onClose?: () => void
-  }
-</script>
-
 <script lang="ts">
   import ChevronDown from 'lucide-svelte/icons/chevron-down'
   import { untrack } from 'svelte'
-  import { contextMenuAction, type MenuItem } from '$lib/context-menu'
+  import { contextMenuAction } from '$lib/context-menu'
   import GeneralInputScaffold from '$lib/shared/components/GeneralInputScaffold.svelte'
+  import {
+    createGeneralSelectChangeEvent,
+    createGeneralSelectMenuItems,
+    getGeneralSelectLabel,
+    type GeneralSelectOption,
+  } from './generalSelect'
 
   interface Props {
-    options?: readonly (MenuItem & { value: string })[]
+    options?: readonly GeneralSelectOption[]
     disabled?: boolean
     label: string
     value?: string
     compact?: boolean
-    onchange?: (event: CustomEvent) => void
+    onchange?: (event: CustomEvent<string>) => void
     onClose?: () => void
-    // Group mode props (optional, mirrors GeneralButtonMinor grouping)
-    items?: GroupSelectItem[]
-    ariaLabel?: string
   }
 
   let {
     options = [],
     disabled = false,
     label,
-    value = $bindable(options[0]?.value || ''),
+    value = $bindable(options[0]?.value ?? ''),
     compact = false,
     onchange = () => {},
     onClose = () => {},
-    // group
-    items,
-    ariaLabel,
   }: Props = $props()
 
-  // Group helpers
-  const itemsSafe = $derived((items ?? []) as GroupSelectItem[])
-  const isGroup = $derived(itemsSafe.length > 0)
+  let isOpen = $state(false)
 
-  // Single select state
-  let singleTriggerEl: HTMLButtonElement | null = $state(null)
-  let singleIsOpen = $state(false)
-
-  /**
-   * Convert options array to MenuItem format for the context menu.
-   *
-   * @param optionList - Array of option objects with value and label.
-   * @returns Array of MenuItem objects suitable for context menu action.
-   */
-  const optionsToMenuItems = (
-    optionList: readonly (MenuItem & { value: string })[]
-  ): MenuItem[] => {
-    return optionList.map(option => {
-      const onSelect = option.onSelect
-      const closeOnAction = option.closeOnAction
-
-      return {
-        ...option,
-        onSelect: (v: any) => {
-          value = option.value
-          onchange(new CustomEvent('change', { detail: option.value }))
-          if (onSelect) onSelect(v)
-        },
-        action: (data?: any) => {
-          if (option.action) {
-            option.action(data)
-          }
-        },
-        closeOnAction: closeOnAction,
-        isHighlighted: option.value === value,
-      }
-    })
-  }
-
-  const singleMenuItems = $derived(optionsToMenuItems(options))
-  const singleTriggerId = `select-${untrack(() =>
+  const triggerId = `select-${untrack(() =>
     label.toLowerCase().replace(/\s+/g, '-')
   )}`
 
-  const singleMenuConfig = $derived({
-    items: singleMenuItems,
+  const menuItems = $derived(
+    createGeneralSelectMenuItems(options, value, nextValue => {
+      value = nextValue
+      onchange(createGeneralSelectChangeEvent(nextValue))
+    })
+  )
+
+  const menuConfig = $derived({
+    items: menuItems,
     position: 'bottom' as const,
     horizontalAlign: 'start' as const,
     offset: 8,
     disabled,
     onOpen: () => {
-      singleIsOpen = true
+      isOpen = true
     },
     onClose: () => {
-      singleIsOpen = false
+      isOpen = false
       onClose()
     },
   })
-
-  // Group select state
-  let groupIsOpen = $state<Record<number, boolean>>({})
-
-  /**
-   * Convert a group item's options to MenuItem format for the context menu.
-   *
-   * @param idx - Index of the group item.
-   * @returns Array of MenuItem objects for this group item's options.
-   */
-  const groupItemToMenuItems = (idx: number): MenuItem[] => {
-    const item = itemsSafe[idx]
-    return item.options.map(option => {
-      const onSelect = option.onSelect
-      const closeOnAction = option.closeOnAction
-
-      return {
-        ...option,
-        onSelect: (v: any) => {
-          item.onchange?.(new CustomEvent('change', { detail: option.value }))
-          if (onSelect) onSelect(v)
-        },
-        action: (data?: any) => {
-          if (option.action) {
-            option.action(data)
-          }
-        },
-        closeOnAction: closeOnAction,
-        isHighlighted: option.value === item.value,
-      }
-    })
-  }
-
-  /**
-   * Get the context menu configuration for a specific group item.
-   *
-   * @param idx - Index of the group item.
-   * @returns Context menu options for this group item.
-   */
-  const getGroupMenuConfig = (idx: number) => ({
-    items: groupItemToMenuItems(idx),
-    position: 'bottom' as const,
-    horizontalAlign: 'start' as const,
-    offset: 8,
-    disabled: itemsSafe[idx]?.disabled ?? false,
-    onOpen: () => {
-      // Close all other selects in the group before opening this one.
-      groupIsOpen = { [idx]: true }
-    },
-    onClose: () => {
-      groupIsOpen[idx] = false
-      itemsSafe[idx]?.onClose?.()
-    },
-  })
-
-  // Helper functions
-  const getCurrentLabel = (
-    currentValue: string,
-    optionList: readonly any[]
-  ) => {
-    return (
-      optionList.find(opt => opt.value === currentValue)?.label ||
-      optionList[0]?.label ||
-      ''
-    )
-  }
-
-  let componentElement: HTMLDivElement | null = $state(null)
 </script>
 
-<div class="general-select-container" bind:this={componentElement}>
-  {#if !isGroup}
-    <!-- Single select mode -->
-    <GeneralInputScaffold label={label} id={singleTriggerId} compact={compact}>
-      <div
-        class="select-wrapper"
-        class:compact
-        use:contextMenuAction={singleMenuConfig}
-      >
-        <button
-          id={singleTriggerId}
-          class="trigger"
-          class:disabled
-          class:open={singleIsOpen}
-          bind:this={singleTriggerEl}
-          aria-expanded={singleIsOpen}
-          aria-haspopup="listbox"
-        >
-          <span class="trigger-content">
-            <span class="label">{getCurrentLabel(value, options)}</span>
-            <div class="svg-wrap" class:open={singleIsOpen}>
-              <ChevronDown strokeWidth={1} />
-            </div>
-          </span>
-        </button>
-      </div>
-    </GeneralInputScaffold>
-  {:else}
-    <!-- Group mode: always compact -->
-    <div class="selectGroup" role="group" aria-label={ariaLabel}>
-      {#each itemsSafe as item, idx}
-        <div
-          class="itemWrap"
-          class:first={idx === 0}
-          class:last={idx === itemsSafe.length - 1}
-        >
-          <div
-            class="select-wrapper compact"
-            use:contextMenuAction={getGroupMenuConfig(idx)}
-          >
-            <label for="group-select-trigger-{idx}">{item.label}</label>
-            <button
-              id="group-select-trigger-{idx}"
-              class="trigger"
-              class:disabled={item.disabled}
-              class:open={groupIsOpen[idx]}
-              aria-expanded={groupIsOpen[idx]}
-              aria-haspopup="listbox"
-            >
-              <span class="trigger-content">
-                <span class="label"
-                  >{getCurrentLabel(item.value, item.options)}</span
-                >
-                <div class="svg-wrap" class:open={groupIsOpen[idx]}>
-                  <ChevronDown strokeWidth={1} />
-                </div>
-              </span>
-            </button>
-          </div>
+<GeneralInputScaffold label={label} id={triggerId} {compact}>
+  <div class="select-wrapper" class:compact use:contextMenuAction={menuConfig}>
+    <button
+      id={triggerId}
+      class="trigger"
+      class:disabled
+      class:open={isOpen}
+      {disabled}
+      aria-expanded={isOpen}
+      aria-haspopup="listbox"
+    >
+      <span class="trigger-content">
+        <span class="label">{getGeneralSelectLabel(value, options)}</span>
+        <div class="svg-wrap" class:open={isOpen}>
+          <ChevronDown strokeWidth={1} />
         </div>
-      {/each}
-    </div>
-  {/if}
-</div>
-
-<!--
-Usage examples:
-
-<GeneralSelect label="Mode" options={[{ value: 'a', label: 'A' }]} />
-
-<GeneralSelect
-  ariaLabel="Filters"
-  items=[
-    { label: 'A', options: aOpts, value: aVal, onchange: e => aVal = e.detail },
-    { label: 'B', options: bOpts, value: bVal, onchange: e => bVal = e.detail }
-  ]
-/>
--->
+      </span>
+    </button>
+  </div>
+</GeneralInputScaffold>
 
 <style>
   .select-wrapper {
@@ -260,10 +91,7 @@ Usage examples:
       'Segoe UI',
       Roboto,
       sans-serif;
-    /* Track field background for syncing with compact label */
     --gp-field-bg: var(--c-white);
-    /* Fixed menu width to prevent item reflow/jump on hover */
-    --gp-menu-width: 18rem;
     user-select: none;
   }
 
@@ -275,48 +103,11 @@ Usage examples:
     gap: 5px;
   }
 
-  .select-wrapper.compact label {
-    cursor: pointer;
-  }
-
-  .select-wrapper.compact:has(.trigger:disabled) label {
-    cursor: not-allowed;
-  }
-
-  .compact label {
-    font-size: 8px;
-    position: absolute;
-    font-weight: 500;
-    line-height: 1rem;
-    letter-spacing: 0.0333333333em;
-    text-transform: uppercase;
-    color: var(--c-darkgrey);
-    background: var(--gp-field-bg);
-    border-radius: 8px;
-    padding-inline: 6px;
-    left: 10px;
-    top: -0.9em;
-    z-index: 2;
-    transition:
-      background-color 0.2s ease,
-      color 0.2s ease;
-  }
-
-  /* In open state, compact label text should be red (brand) */
-  .select-wrapper.compact:has(.trigger.open) label {
-    color: var(--c-brand);
-  }
-
-  /* In hover state, compact label text should also be red, with same transition */
-  .select-wrapper.compact:not(:has(.trigger.disabled)):hover label {
-    color: var(--c-brand);
-  }
-
-  /* Sync wrapper bg var with hover/open/disabled states */
-  .select-wrapper:not(:has(.trigger.disabled)):hover,
+  .select-wrapper:not(:has(.trigger:disabled)):hover,
   .select-wrapper:has(.trigger.open) {
     --gp-field-bg: #f6f7f9;
   }
+
   .select-wrapper:has(.trigger:disabled) {
     --gp-field-bg: var(--c-lightgrey, #f5f5f5);
   }
@@ -350,12 +141,11 @@ Usage examples:
     cursor: not-allowed;
   }
 
-  .select-wrapper:not(:has(.trigger.disabled)):hover .trigger {
+  .select-wrapper:not(:has(.trigger:disabled)):hover .trigger {
     background: #f6f7f9;
     color: var(--c-brand);
   }
 
-  /* Keep hovered styling when menu is open */
   .trigger.open {
     background: #f6f7f9;
     color: var(--c-brand);
@@ -371,7 +161,7 @@ Usage examples:
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    min-width: 0; /* allow ellipsis */
+    min-width: 0;
   }
 
   .trigger-content > .label {
@@ -401,7 +191,7 @@ Usage examples:
       color 0.2s ease;
   }
 
-  .select-wrapper:not(:has(.trigger.disabled)):hover .svg-wrap,
+  .select-wrapper:not(:has(.trigger:disabled)):hover .svg-wrap,
   .trigger:not(.disabled):focus-visible .svg-wrap {
     color: var(--c-brand);
   }
@@ -414,57 +204,6 @@ Usage examples:
     transform: rotate(180deg);
   }
 
-  /* Menu styling is now handled by the context menu component */
-
-  /* Group wrapper and separators (mirrors button group behavior) */
-  .selectGroup {
-    display: inline-flex;
-    gap: 0;
-    background: inherit;
-    border-radius: var(--rounded-md);
-  }
-
-  .itemWrap {
-    position: relative;
-  }
-
-  .selectGroup .itemWrap:not(.first)::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 1px;
-    bottom: 1px;
-    width: 1px;
-    background: var(--c-midgrey);
-    opacity: 0.7;
-    pointer-events: none;
-    z-index: 2;
-  }
-
-  /* Remove inner borders and radius so adjacent selects appear merged */
-  .selectGroup .itemWrap:not(.first) .trigger {
-    border-left: none;
-  }
-
-  .selectGroup .itemWrap:not(.last) .trigger {
-    border-right: none;
-  }
-
-  .selectGroup .itemWrap .trigger {
-    border-radius: 0;
-  }
-
-  .selectGroup .itemWrap.first .trigger {
-    border-top-left-radius: var(--rounded-md);
-    border-bottom-left-radius: var(--rounded-md);
-  }
-
-  .selectGroup .itemWrap.last .trigger {
-    border-top-right-radius: var(--rounded-md);
-    border-bottom-right-radius: var(--rounded-md);
-  }
-
-  /* Add these consistent styles to all components */
   * {
     box-sizing: border-box;
   }

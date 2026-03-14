@@ -1,29 +1,47 @@
 <script lang="ts">
   import { fade } from 'svelte/transition'
   import { MENU_MAX_HEIGHT, MENU_WIDTH } from './const'
-  import type { MenuItem } from './types'
+  import {
+    type MenuFlyoutItem,
+    type MenuInteractiveItem,
+    type MenuItem,
+    isMenuComponentItem,
+    isMenuDivider,
+    isMenuFlyoutItem,
+  } from './types'
   import { contextMenuState } from './contextMenuState.svelte'
   import { portal } from './utils'
   import ContextSubMenu from './ContextSubMenu.svelte'
 
+  interface PositionAction {
+    update?: () => void
+    destroy?: () => void
+  }
+
   interface Props {
-    item: MenuItem
+    item: MenuFlyoutItem
     coords: { x: number; y: number }
     parentZIndex: number
-    calculatePositionAction: (node: HTMLElement) => any
+    calculatePositionAction: (node: HTMLElement) => PositionAction
   }
 
   const { item, coords, parentZIndex, calculatePositionAction } = $props()
 
   let activeChildLabel = $state<string | null>(null)
 
-  const handleChildAction = (child: MenuItem) => {
-    if (child.onSelect) child.onSelect(child.value)
+  const handleChildAction = (child: MenuInteractiveItem) => {
+    if (child.disabled) return
+
+    if (child.onSelect && child.value !== undefined) {
+      child.onSelect(child.value)
+    }
     if (child.action) child.action()
 
     if (item.children) {
-      item.children.forEach((c: MenuItem) => {
-        c.isHighlighted = c.label === child.label
+      item.children.forEach((entry: MenuItem): void => {
+        if (!isMenuDivider(entry)) {
+          entry.isHighlighted = entry.label === child.label
+        }
       })
     }
 
@@ -32,7 +50,7 @@
     }
   }
 
-  const handleKeydown = (e: KeyboardEvent, child: MenuItem) => {
+  const handleKeydown = (e: KeyboardEvent, child: MenuInteractiveItem) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
       e.stopPropagation()
@@ -54,7 +72,7 @@
       onscroll={e => e.stopPropagation()}
       style={`max-height:${MENU_MAX_HEIGHT}px;`}
     >
-      {#if item.component}
+      {#if isMenuComponentItem(item)}
         {@const CustomComponent = item.component}
         <div
           class="custom-component-wrap"
@@ -65,7 +83,7 @@
           <CustomComponent
             {item}
             {...item.componentProps}
-            action={(data: any) => {
+            action={(data: unknown) => {
               if (item.action) item.action(data)
               contextMenuState.reset()
             }}
@@ -75,9 +93,9 @@
       {:else if item.children}
         <ul>
           {#each item.children as child}
-            {#if child.isDivider}
+            {#if isMenuDivider(child)}
               <li class="divider" role="presentation"></li>
-            {:else if (child.children && child.children.length) || child.component}
+            {:else if isMenuFlyoutItem(child)}
               <ContextSubMenu
                 item={child}
                 siblings={item.children}
@@ -85,13 +103,16 @@
                 isOpen={activeChildLabel === child.label}
                 onToggle={() =>
                   (activeChildLabel =
-                    activeChildLabel === child.label ? null : child.label)}
+                    activeChildLabel === child.label
+                      ? null
+                      : (child.label ?? null))}
               />
             {:else}
               <li>
                 <button
                   role="menuitem"
                   class:selected={child.isHighlighted}
+                  disabled={child.disabled}
                   onclick={e => {
                     e.stopPropagation()
                     handleChildAction(child)

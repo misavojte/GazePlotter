@@ -169,7 +169,7 @@ export const getActualSide = (
   const menuRight = menuLeft + menuRect.width
   const menuBottom = menuTop + menuRect.height
 
-  const isDOMRect = (r: any): r is DOMRect => 'bottom' in r
+  const isDOMRect = (rect: DOMRect | Point): rect is DOMRect => 'bottom' in rect
 
   if (isDOMRect(anchorRect)) {
     // If menu sits below the anchor rect, it's a 'bottom' placement

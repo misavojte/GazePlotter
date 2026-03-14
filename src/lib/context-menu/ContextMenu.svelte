@@ -1,7 +1,14 @@
 <script lang="ts">
   import { contextMenuState } from './contextMenuState.svelte'
   import { MENU_MAX_HEIGHT, MENU_WIDTH } from './const'
-  import type { MenuItem } from './types'
+  import {
+    type ContextMenuState,
+    type MenuInteractiveItem,
+    type Point,
+    type Position,
+    isMenuDivider,
+    isMenuFlyoutItem,
+  } from './types'
   import { portal, getArrowStyle } from './utils'
   import ContextSubMenu from './ContextSubMenu.svelte'
 
@@ -44,7 +51,7 @@
   const focusNext = (delta: number) => {
     if (!container) return
     const buttons = Array.from(
-      container.querySelectorAll('button[role="menuitem"]')
+      container.querySelectorAll('button[role="menuitem"]:not(:disabled)')
     ) as HTMLButtonElement[]
     if (buttons.length === 0) return
     const idx = buttons.findIndex(
@@ -55,21 +62,25 @@
     buttons[next].focus()
   }
 
-  const handleItemClick = (it: MenuItem) => {
+  const handleItemClick = (it: MenuInteractiveItem) => {
     const menu = contextMenuState.current
     if (!menu) return
+    if (it.disabled) return
 
-    if (it.onSelect) it.onSelect(it.value)
+    if (it.onSelect && it.value !== undefined) {
+      it.onSelect(it.value)
+    }
     if (it.action) it.action()
 
     if (menu.items) {
-      menu.items.forEach(item => {
-        item.isHighlighted = item.label === it.label
+      menu.items.forEach((item): void => {
+        if (!isMenuDivider(item)) {
+          item.isHighlighted = item.label === it.label
+        }
       })
     }
 
-    const hasFlyout = (it.children && it.children.length) || it.component
-    if (!hasFlyout && it.closeOnAction !== false) {
+    if (!isMenuFlyoutItem(it) && it.closeOnAction !== false) {
       onClose()
     }
   }
@@ -80,11 +91,11 @@
   })
 </script>
 
-{#snippet Arrow(position: string, anchor: { x: number; y: number }, menu: any)}
+{#snippet Arrow(position: Position, anchor: Point, menu: ContextMenuState)}
   <div
     class="menu-arrow"
     data-position={position}
-    style={getArrowStyle(position as any, anchor, {
+    style={getArrowStyle(position, anchor, {
       ...menu,
       height: menuElement?.clientHeight,
     })}
@@ -125,9 +136,9 @@
             {#if menu.items && menu.items.length}
               <ul bind:this={container}>
                 {#each menu.items as it}
-                  {#if it.isDivider}
+                  {#if isMenuDivider(it)}
                     <li class="divider" role="presentation"></li>
-                  {:else if (it.children && it.children.length) || it.component}
+                  {:else if isMenuFlyoutItem(it)}
                     <ContextSubMenu
                       item={it}
                       siblings={menu.items}
@@ -144,6 +155,7 @@
                       <button
                         role="menuitem"
                         class:selected={it.isHighlighted}
+                        disabled={it.disabled}
                         onclick={() => handleItemClick(it)}
                       >
                         {#if it.icon}

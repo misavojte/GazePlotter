@@ -1,6 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte'
   import { getGazePlotterSession } from '$lib/session'
+  import { createMenuComponentItem } from '$lib/context-menu'
 
   // Core imports
   import {
@@ -8,9 +9,8 @@
     TransitionMatrixButtonMenu,
   } from '$lib/plots/transition-matrix/components'
   import { BasePlot } from '$lib/plots/shared/components'
-  import Select, {
-    type GroupSelectItem,
-  } from '$lib/shared/components/GeneralSelect.svelte'
+  import Select from '$lib/shared/components/GeneralSelectGroup.svelte'
+  import type { GroupSelectItem } from '$lib/shared/components'
 
   // Utilities and stores
   import { getTransitionMatrixData } from '$lib/plots/transition-matrix/core/transformer'
@@ -201,18 +201,20 @@
       label: 'View',
       value: settings.aggregationMethod,
       onClose: handleMenuClose,
-      options: AGGREGATION_OPTIONS.map(opt => ({
-        ...opt,
-        onSelect: (v: any) => {
-          updateSettings({ aggregationMethod: v as MatrixAggregationMethod })
-        },
-        closeOnAction: false,
-        component: TransitionMatrixViewSettings,
-        componentHeight: 140,
-        componentProps: {
-          syncs,
-        },
-      })),
+      options: AGGREGATION_OPTIONS.map(opt =>
+        createMenuComponentItem({
+          ...opt,
+          onSelect: v => {
+            updateSettings({ aggregationMethod: v })
+          },
+          closeOnAction: false,
+          component: TransitionMatrixViewSettings,
+          componentHeight: 140,
+          componentProps: {
+            syncs,
+          },
+        })
+      ),
     },
   ])
 </script>
@@ -226,8 +228,6 @@
       <Select
         ariaLabel="Transition Matrix filters"
         items={selectItems}
-        label="Transition Matrix"
-        options={[]}
       />
       <div class="menu-button">
         <TransitionMatrixButtonMenu {item} />

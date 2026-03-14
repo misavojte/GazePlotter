@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { MenuItem } from '$lib/context-menu'
   import GeneralButtonMinor from '$lib/shared/components/GeneralButtonMinor.svelte'
   import type { PlotMenuItem } from '../plotMenuActions'
   import { tooltipAction } from '$lib/tooltip'
@@ -13,6 +14,20 @@
   // Track open state only to disable tooltip while menu is open
   let isOpen = $state(false)
   let menuElement: HTMLDivElement | null = $state(null)
+
+  const contextMenuItems = $derived(
+    items.map((item): MenuItem => {
+      if (item.isDivider) {
+        return { isDivider: true }
+      }
+
+      return {
+        label: item.label,
+        action: item.action,
+        icon: item.icon,
+      }
+    })
+  )
 
   const handleClick = () => {
     if (!menuElement) return
@@ -42,12 +57,7 @@
     disabled: isOpen,
   }}
   use:contextMenuAction={{
-    items: items.map(it => ({
-      label: it.label,
-      action: it.action,
-      icon: it.icon,
-      isDivider: it.isDivider,
-    })),
+    items: contextMenuItems,
     position: 'bottom',
     verticalAlign: 'end',
     horizontalAlign: 'start',

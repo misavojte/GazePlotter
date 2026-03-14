@@ -1,19 +1,17 @@
 <script lang="ts">
-  import { type MenuItem } from '$lib/context-menu'
+  import type { MenuComponentBridgeProps, MenuItem } from '$lib/context-menu'
   import type { BarPlotSettings } from '$lib/plots/bar/types'
 
-  interface Props {
-    item: MenuItem
+  interface Props extends MenuComponentBridgeProps {
     syncs: {
       orderBy: { value: BarPlotSettings['orderBy'] }
       orderDirection: { value: BarPlotSettings['orderDirection'] }
       minScale: { value: number }
       maxScale: { value: number }
       barPlottingType: { value: BarPlotSettings['barPlottingType'] }
-      timelineStart: { value: number }
-      timelineEnd: { value: number }
+      timelineStart: { value: number | undefined }
+      timelineEnd: { value: number | undefined }
     }
-    close: () => void
   }
 
   let { item, syncs, close }: Props = $props()

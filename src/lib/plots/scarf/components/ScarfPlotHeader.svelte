@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { createMenuComponentItem } from '$lib/context-menu'
   import {
     getNumberOfSegments,
     getParticipantEndTime,
@@ -12,9 +13,8 @@
   import Minor, {
     type MinorGroupItem,
   } from '$lib/shared/components/GeneralButtonMinor.svelte'
-  import Select, {
-    type GroupSelectItem,
-  } from '$lib/shared/components/GeneralSelect.svelte'
+  import Select from '$lib/shared/components/GeneralSelectGroup.svelte'
+  import type { GroupSelectItem } from '$lib/shared/components'
   import { getWorkspaceService } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import type { ScarfPlotItem, ScarfPlotSettings } from '$lib/plots/scarf/types'
@@ -197,11 +197,11 @@
       value: settings.timeline,
       onClose: onMenuClose,
       options: [
-        {
+        createMenuComponentItem({
           value: 'absolute',
           label: 'Absolute',
           onSelect: v => {
-            syncs.timeline.value = v
+            syncs.timeline.value = v as ScarfPlotSettings['timeline']
           },
           closeOnAction: false,
           component: ScarfPlotViewSettings,
@@ -209,12 +209,12 @@
           componentProps: {
             syncs,
           },
-        },
-        {
+        }),
+        createMenuComponentItem({
           value: 'relative',
           label: 'Relative',
           onSelect: v => {
-            syncs.timeline.value = v
+            syncs.timeline.value = v as ScarfPlotSettings['timeline']
           },
           closeOnAction: false,
           component: ScarfPlotViewSettings,
@@ -222,12 +222,12 @@
           componentProps: {
             syncs,
           },
-        },
-        {
+        }),
+        createMenuComponentItem({
           value: 'ordinal',
           label: 'Ordinal',
           onSelect: v => {
-            syncs.timeline.value = v
+            syncs.timeline.value = v as ScarfPlotSettings['timeline']
           },
           closeOnAction: false,
           component: ScarfPlotViewSettings,
@@ -235,19 +235,14 @@
           componentProps: {
             syncs,
           },
-        },
+        }),
       ],
     },
   ])
 </script>
 
 <div class="nav">
-  <Select
-    ariaLabel="Scarf filters"
-    items={selectItems}
-    label="Scarf"
-    options={[]}
-  />
+  <Select ariaLabel="Scarf filters" items={selectItems} />
   <Minor items={groupItems} ariaLabel="Zoom controls" />
   <ScarfPlotButtonMenu {item} />
 </div>

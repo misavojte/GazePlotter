@@ -3,6 +3,7 @@ export { default as GeneralInputNumber } from './GeneralInputNumber.svelte'
 export { default as GeneralInputFile } from './GeneralInputFile.svelte'
 export { default as GeneralInputCheck } from './GeneralInputCheck.svelte'
 export { default as GeneralSelect } from './GeneralSelect.svelte'
+export { default as GeneralSelectGroup } from './GeneralSelectGroup.svelte'
 export { default as GeneralInputScaffold } from './GeneralInputScaffold.svelte'
 export { default as GeneralInputColor } from './GeneralInputColor.svelte'
 export { default as GeneralButtonPreset } from './GeneralButtonPreset.svelte'
@@ -10,3 +11,7 @@ export { default as GeneralRadio } from './GeneralRadio.svelte'
 export { default as GeneralEmpty } from './GeneralEmpty.svelte'
 export { default as GeneralButtonMinor } from './GeneralButtonMinor.svelte'
 export { default as GeneralButtonMajor } from './GeneralButtonMajor.svelte'
+export type {
+  GeneralSelectOption,
+  GroupSelectItem,
+} from './generalSelect'

@@ -15,21 +15,53 @@ export interface Dimensions {
 import type { Component } from 'svelte'
 import type { LucideIconComponent } from '$lib/shared/types/iconComponent'
 
-export interface MenuItem {
+interface MenuDisplayItem {
   label?: string
-  value?: string
-  action?: (data?: Record<string, any>) => void
-  onSelect?: (value: any) => void
-  closeOnAction?: boolean // Default is true, set to false for persistent menus
   icon?: LucideIconComponent
   isHighlighted?: boolean
-  children?: MenuItem[]
   disabled?: boolean
-  isDivider?: boolean
-  component?: Component<any> // Custom Svelte component
-  componentProps?: Record<string, any>
+  closeOnAction?: boolean
+}
+
+export interface MenuDividerItem {
+  isDivider: true
+}
+
+export interface MenuActionItem extends MenuDisplayItem {
+  value?: string
+  action?: (data?: unknown) => void
+  onSelect?: (value: string) => void
+  isDivider?: false
+}
+
+export interface MenuSubMenuItem extends MenuActionItem {
+  children: MenuItem[]
+  component?: never
+  componentProps?: never
+  componentHeight?: never
+}
+
+export interface MenuComponentBridgeProps {
+  item: MenuItem
+  action: (data?: unknown) => void
+  close: () => void
+}
+
+export interface MenuComponentItem extends MenuActionItem {
+  children?: never
+  component: Component<Record<string, unknown>>
+  componentProps?: Record<string, unknown>
   componentHeight?: number
 }
+
+export type MenuInteractiveItem =
+  | MenuActionItem
+  | MenuSubMenuItem
+  | MenuComponentItem
+
+export type MenuFlyoutItem = MenuSubMenuItem | MenuComponentItem
+
+export type MenuItem = MenuDividerItem | MenuInteractiveItem
 
 export interface ContextMenuOptions {
   items?: MenuItem[]
@@ -81,4 +113,37 @@ export interface PlacementResult {
   top: number
   isFlippedX: boolean
   isFlippedY: boolean
+}
+
+export function isMenuDivider(item: MenuItem): item is MenuDividerItem {
+  return item.isDivider === true
+}
+
+export function isMenuSubMenuItem(item: MenuItem): item is MenuSubMenuItem {
+  return 'children' in item && Array.isArray(item.children)
+}
+
+export function isMenuComponentItem(
+  item: MenuItem
+): item is MenuComponentItem {
+  return 'component' in item && item.component !== undefined
+}
+
+export function isMenuFlyoutItem(
+  item: MenuItem
+): item is MenuFlyoutItem {
+  return isMenuSubMenuItem(item) || isMenuComponentItem(item)
+}
+
+export function createMenuComponentItem<
+  TComponentProps extends Record<string, unknown> = Record<string, never>,
+>(
+  item: Omit<MenuComponentItem, 'component' | 'componentProps' | 'label' | 'value'> & {
+    label: string
+    value: string
+    component: Component<TComponentProps & MenuComponentBridgeProps>
+    componentProps?: TComponentProps
+  }
+): MenuComponentItem & { label: string; value: string } {
+  return item as MenuComponentItem & { label: string; value: string }
 }

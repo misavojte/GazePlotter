@@ -1,12 +1,16 @@
 <script lang="ts">
   import { adjustPlacementForViewport, getMenuSize } from './utils'
   import { MENU_WIDTH, DEFAULT_COMPONENT_HEIGHT } from './const'
-  import type { MenuItem } from './types'
+  import {
+    type MenuFlyoutItem,
+    type MenuItem,
+    isMenuDivider,
+  } from './types'
   import ContextSubMenuContent from './ContextSubMenuContent.svelte'
 
   interface Props {
-    item: MenuItem
-    siblings: MenuItem[] // New prop to handle highlight coordination
+    item: MenuFlyoutItem
+    siblings: MenuItem[]
     parentZIndex: number
     isOpen: boolean
     onToggle: () => void
@@ -63,15 +67,20 @@
   const handleClick = (e: MouseEvent) => {
     e.stopPropagation()
     e.preventDefault()
+    if (item.disabled) return
 
     // Always call selection handlers even if there is a submenu
-    if (item.onSelect) item.onSelect(item.value)
+    if (item.onSelect && item.value !== undefined) {
+      item.onSelect(item.value)
+    }
     if (item.action) item.action()
 
     // Immediate visual feedback: Clear siblings and highlight self
     if (siblings) {
-      siblings.forEach((s: MenuItem) => {
-        s.isHighlighted = s.label === item.label
+      siblings.forEach((sibling: MenuItem): void => {
+        if (!isMenuDivider(sibling)) {
+          sibling.isHighlighted = sibling.label === item.label
+        }
       })
     }
 
@@ -86,6 +95,7 @@
     aria-expanded={isOpen}
     class:active={isOpen}
     class:selected={item.isHighlighted}
+    disabled={item.disabled}
     onclick={handleClick}
   >
     {#if item.icon}

@@ -1,12 +1,14 @@
 <script lang="ts">
   import { untrack } from 'svelte'
+  import { createMenuComponentItem } from '$lib/context-menu'
 
   import {
     AoiStreamPlotFigure,
     AoiStreamPlotButtonMenu,
   } from '$lib/plots/aoi-stream/components'
   import { BasePlot } from '$lib/plots/shared/components'
-  import Select from '$lib/shared/components/GeneralSelect.svelte'
+  import Select from '$lib/shared/components/GeneralSelectGroup.svelte'
+  import type { GroupSelectItem } from '$lib/shared/components'
 
   import {
     getStimuliOptions,
@@ -294,7 +296,7 @@
     workspace.updateItemSettings(item.id, { highlights: newHighlights }, source)
   }
 
-  const selectItems = $derived([
+  const selectItems = $derived<GroupSelectItem[]>([
     {
       label: 'Stimulus',
       options: stimulusOptions,
@@ -315,11 +317,12 @@
       },
       onClose: handleMenuClose,
       options: [
-        {
+        createMenuComponentItem({
           value: 'stream',
           label: 'Stream',
-          onSelect: (v: any) => {
-            syncs.alignment.value = v
+          onSelect: v => {
+            syncs.alignment.value =
+              v as NonNullable<AoiStreamPlotSettings['alignment']>
           },
           closeOnAction: false,
           component: AoiStreamPlotViewSettings,
@@ -327,12 +330,13 @@
           componentProps: {
             syncs,
           },
-        },
-        {
+        }),
+        createMenuComponentItem({
           value: 'distribution',
           label: 'Distribution',
-          onSelect: (v: any) => {
-            syncs.alignment.value = v
+          onSelect: v => {
+            syncs.alignment.value =
+              v as NonNullable<AoiStreamPlotSettings['alignment']>
           },
           closeOnAction: false,
           component: AoiStreamPlotViewSettings,
@@ -340,12 +344,13 @@
           componentProps: {
             syncs,
           },
-        },
-        {
+        }),
+        createMenuComponentItem({
           value: 'ridgeline',
           label: 'Ridgeline',
-          onSelect: (v: any) => {
-            syncs.alignment.value = v
+          onSelect: v => {
+            syncs.alignment.value =
+              v as NonNullable<AoiStreamPlotSettings['alignment']>
             // Ensure scale has a value for preview if it was undefined
             if (!syncs.ridgelineScale.value) {
               syncs.ridgelineScale.value =
@@ -358,12 +363,13 @@
           componentProps: {
             syncs,
           },
-        },
-        {
+        }),
+        createMenuComponentItem({
           value: 'heatmap',
           label: 'Heatmap',
-          onSelect: (v: any) => {
-            syncs.alignment.value = v
+          onSelect: v => {
+            syncs.alignment.value =
+              v as NonNullable<AoiStreamPlotSettings['alignment']>
           },
           closeOnAction: false,
           component: AoiStreamPlotColorSettings,
@@ -371,7 +377,7 @@
           componentProps: {
             syncs,
           },
-        },
+        }),
       ],
     },
   ])
@@ -383,8 +389,6 @@
       <Select
         ariaLabel="AOI stream filters"
         items={selectItems}
-        label="AOI Stream"
-        options={[]}
       />
       <div class="menu-button">
         <AoiStreamPlotButtonMenu {item} />

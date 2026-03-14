@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { type MenuItem } from '$lib/context-menu'
+  import type { MenuComponentBridgeProps, MenuItem } from '$lib/context-menu'
 
-  interface Props {
+  interface Props extends MenuComponentBridgeProps {
     item: MenuItem
     syncs: {
       timelineStart: { value: number | undefined }
@@ -10,7 +10,6 @@
       ordinalEnd: { value: number | undefined }
       hideNonFixations: { value: boolean }
     }
-    close: () => void
   }
 
   let { item, syncs, close }: Props = $props()
@@ -20,8 +19,8 @@
     close()
   }
 
-  const isOrdinal = $derived(item.value === 'ordinal')
-  const isRelative = $derived(item.value === 'relative')
+  const isOrdinal = $derived('value' in item && item.value === 'ordinal')
+  const isRelative = $derived('value' in item && item.value === 'relative')
 </script>
 
 <div class="settings-container">
