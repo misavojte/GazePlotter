@@ -1,5 +1,5 @@
 <script lang="ts">
-  import GeneralInputScaffold from '$lib/shared/components/GeneralInputScaffold.svelte'
+  import InputScaffold from './InputScaffold.svelte'
   import { ColorPicker, ColorPickerManager } from '$lib/color'
   import { getContrastTextColor, detectColorFormat } from '$lib/color/utility'
   import { untrack } from 'svelte'
@@ -50,7 +50,7 @@
   const id = `color-${untrack(() => label.toLowerCase().replace(/\s+/g, '-'))}`
 </script>
 
-<GeneralInputScaffold {label} {id}>
+<InputScaffold {label} {id}>
   <div class="color-input-container">
     <button
       type="button"
@@ -82,7 +82,7 @@
       </div>
     {/if}
   </div>
-</GeneralInputScaffold>
+</InputScaffold>
 
 <style>
   .color-input-container {

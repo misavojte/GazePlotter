@@ -1,7 +1,7 @@
 <script lang="ts">
   import {
-    GeneralButtonPreset,
-    GeneralInputCheck,
+    ButtonPreset,
+    InputCheck,
   } from '$lib/shared/components'
 
   interface CheckboxItem {
@@ -57,12 +57,12 @@
     <div class="group-title">{title}</div>
     {#if showControls}
       <div class="group-controls">
-        <GeneralButtonPreset
+        <ButtonPreset
           label="Select All"
           isActive={allChecked}
           onclick={handleSelectAll}
         />
-        <GeneralButtonPreset
+        <ButtonPreset
           label="Deselect All"
           isActive={noneChecked}
           onclick={handleDeselectAll}
@@ -73,7 +73,7 @@
 
   <div class="group-content" style:height={contentHeight}>
     {#each items as item (item.key)}
-      <GeneralInputCheck
+      <InputCheck
         label={item.label}
         sublabel={item.sublabel}
         checked={item.checked}

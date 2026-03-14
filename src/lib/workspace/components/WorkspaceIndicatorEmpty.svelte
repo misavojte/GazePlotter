@@ -2,7 +2,7 @@
   import PanelButtonUpload from '$lib/workspace/panel/components/PanelButtonUpload.svelte'
   import PanelButtonDemo from '$lib/workspace/panel/components/PanelButtonDemo.svelte'
   import { fade } from 'svelte/transition'
-  import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
+  import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
   import { getGazePlotterSession } from '$lib/session'
   import { metadataInfoModal } from '$lib/modals/definitions'
   import type { GridItemSnapshot } from '$lib/workspace/type/gridType'
@@ -88,12 +88,12 @@
         </p>
         <div class="actions">
           {#if fatalLoadError && canOpenErrorReport}
-            <GeneralButtonMajor onclick={openErrorReport}
-              >Open Report</GeneralButtonMajor
+            <ButtonMajor onclick={openErrorReport}
+              >Open Report</ButtonMajor
             >
           {:else if canResetLayout}
-            <GeneralButtonMajor onclick={handleResetLayout}
-              >Reset Layout</GeneralButtonMajor
+            <ButtonMajor onclick={handleResetLayout}
+              >Reset Layout</ButtonMajor
             >
           {/if}
           <PanelButtonUpload />

@@ -67,10 +67,11 @@
     if (!menu) return
     if (it.disabled) return
 
-    if (it.onSelect && it.value !== undefined) {
-      it.onSelect(it.value)
+    if (it.value !== undefined) {
+      it.onAction?.(it.value)
+    } else {
+      it.onAction?.()
     }
-    if (it.action) it.action()
 
     if (menu.items) {
       menu.items.forEach((item): void => {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { MenuItem } from '$lib/context-menu'
-  import GeneralButtonMinor from '$lib/shared/components/GeneralButtonMinor.svelte'
+  import ButtonMinor from '$lib/shared/components/ButtonMinor.svelte'
   import type { PlotMenuItem } from '../plotMenuActions'
   import { tooltipAction } from '$lib/tooltip'
   import { contextMenuAction } from '$lib/context-menu'
@@ -23,7 +23,7 @@
 
       return {
         label: item.label,
-        action: item.action,
+        onAction: item.onAction,
         icon: item.icon,
       }
     })
@@ -63,7 +63,7 @@
     horizontalAlign: 'start',
     offset: 8,
     slideFrom: 'top',
-    anchor: menuElement as HTMLElement,
+    anchor: menuElement ?? undefined,
     onOpen: () => {
       isOpen = true
     },
@@ -72,7 +72,7 @@
     },
   }}
 >
-  <GeneralButtonMinor isIcon={false} onclick={handleClick}>
+  <ButtonMinor isIcon={false} onclick={handleClick}>
     <span class="triggerContent">
       <svg
         class="dots"
@@ -88,7 +88,7 @@
       </svg>
       <span class="triggerLabel">More</span>
     </span>
-  </GeneralButtonMinor>
+  </ButtonMinor>
 </div>
 
 <style>

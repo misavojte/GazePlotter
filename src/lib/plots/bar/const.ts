@@ -1,10 +1,10 @@
 // Bar Plot Aggregation Methods Registry
 // This centralized registry ensures type safety and maintainability
-// Optimized to directly match GeneralSelect component expectations
+// Optimized to directly match Select component expectations
 
 /**
  * Registry of all available aggregation methods for bar plots
- * Structured to directly work with GeneralSelect component
+ * Structured to directly work with Select component
  * Add new methods here to automatically make them available throughout the application
  */
 export const BAR_PLOT_AGGREGATION_METHODS = [

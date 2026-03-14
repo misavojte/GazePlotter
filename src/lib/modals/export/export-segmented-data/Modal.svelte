@@ -1,7 +1,7 @@
 <script lang="ts">
   import {
-    GeneralInputText,
-    GeneralSelect,
+    InputText,
+    Select,
   } from '$lib/shared/components'
   import { SectionHeader, ModalButtons } from '$lib/modals'
   import type { DecimalSeparator } from '$lib/data/export'
@@ -102,22 +102,22 @@
   <section class="section">
     <SectionHeader text="Export Settings" />
     <div class="content-two-column">
-      <GeneralSelect
+      <Select
         label="Export Type"
         options={exportOptions}
         bind:value={exportType}
       />
-      <GeneralInputText
+      <InputText
         label="File name"
         bind:value={fileName}
         placeholder="Enter filename without extension"
       />
-      <GeneralSelect
+      <Select
         label="Delimiter"
         options={CSV_DELIMITER_OPTIONS}
         bind:value={delimiter}
       />
-      <GeneralSelect
+      <Select
         label="Decimal Separator"
         options={CSV_DECIMAL_SEPARATOR_OPTIONS}
         bind:value={decimalSeparator}

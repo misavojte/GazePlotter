@@ -1,5 +1,5 @@
 <script lang="ts">
-  import MajorControlButton from '$lib/shared/components/GeneralButtonMajor.svelte'
+  import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
 
   import { downloadWorkspaceModal } from '$lib/modals/definitions'
   import { getGazePlotterSession } from '$lib/session'
@@ -12,6 +12,6 @@
   }
 </script>
 
-<MajorControlButton {isDisabled} onclick={handleClick}>
+<ButtonMajor {isDisabled} onclick={handleClick}>
   Export workspace or data
-</MajorControlButton>
+</ButtonMajor>

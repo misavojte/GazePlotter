@@ -16,7 +16,7 @@ import type { ErrorService } from '$lib/errors'
 export interface PlotMenuItem {
   icon?: LucideIconComponent
   label?: string
-  action?: () => void
+  onAction?: () => void
   isDivider?: boolean
 }
 
@@ -84,7 +84,7 @@ export function createPlotModalAction<
   return {
     label: actionLabel,
     icon,
-    action: () => {
+    onAction: () => {
       try {
         openModal(definition, props)
       } catch (error) {

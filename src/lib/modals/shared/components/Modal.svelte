@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte'
-  import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
+  import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
   import type { ModalStackEntry } from '$lib/modals/modal.state.svelte'
   import { getGazePlotterSession } from '$lib/session'
 
@@ -239,13 +239,13 @@
                     close the window.
                   </p>
                   <p class="modal-error-detail">{getModalErrorMessage(error)}</p>
-                  <GeneralButtonMajor
+                  <ButtonMajor
                     onclick={() => reset()}
                     size="sm"
                     variant="secondary"
                   >
                     Retry dialog
-                  </GeneralButtonMajor>
+                  </ButtonMajor>
                 </div>
               {/snippet}
             </svelte:boundary>

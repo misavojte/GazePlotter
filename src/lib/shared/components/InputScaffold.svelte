@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * GeneralInputScaffold is a base component that provides consistent styling and structure
+   * InputScaffold is a base component that provides consistent styling and structure
    * for form input components. It handles the layout of labels and input elements,
    * ensuring consistent spacing and accessibility across all input types.
    *
@@ -9,9 +9,9 @@
    *
    * @example
    * ```svelte
-   * <GeneralInputScaffold label="Username" id="username">
+   * <InputScaffold label="Username" id="username">
    *   <input type="text" />
-   * </GeneralInputScaffold>
+   * </InputScaffold>
    * ```
    */
   interface Props {

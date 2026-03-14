@@ -7,7 +7,7 @@
     AoiStreamPlotButtonMenu,
   } from '$lib/plots/aoi-stream/components'
   import { BasePlot } from '$lib/plots/shared/components'
-  import Select from '$lib/shared/components/GeneralSelectGroup.svelte'
+  import GroupSelect from '$lib/shared/components/GroupSelect.svelte'
   import type { GroupSelectItem } from '$lib/shared/components'
 
   import {
@@ -269,20 +269,34 @@
     })
   }
 
-  const handleStimulusChange = (event: CustomEvent) => {
-    const stimulusId = parseInt(event.detail as string)
+  const handleStimulusChange = (event: CustomEvent<string>) => {
+    const stimulusId = parseInt(event.detail)
     preview.resetAll()
 
     if (settings.stimulusId === stimulusId) return
     workspace.updateItemSettings(item.id, { stimulusId }, source)
   }
 
-  const handleUpperGroupChange = (event: CustomEvent) => {
-    const groupId = parseInt(event.detail as string)
+  const handleUpperGroupChange = (event: CustomEvent<string>) => {
+    const groupId = parseInt(event.detail)
     preview.resetAll()
 
     if (settings.groupId === groupId) return
     workspace.updateItemSettings(item.id, { groupId }, source)
+  }
+
+  function previewAlignment(value?: string) {
+    if (
+      value !== 'stream' &&
+      value !== 'distribution' &&
+      value !== 'ridgeline' &&
+      value !== 'heatmap'
+    ) {
+      return
+    }
+
+    syncs.alignment.value = value
+    return value
   }
 
   const handleLegendClick = (aoiId: number) => {
@@ -313,17 +327,14 @@
       label: 'View',
       value: effectiveSettings.alignment ?? 'stream',
       onchange: (event: CustomEvent) => {
-        // Alignment changes are mainly driven by onSelect for preview
+        // Alignment changes are mainly driven by onAction for preview
       },
       onClose: handleMenuClose,
       options: [
         createMenuComponentItem({
           value: 'stream',
           label: 'Stream',
-          onSelect: v => {
-            syncs.alignment.value =
-              v as NonNullable<AoiStreamPlotSettings['alignment']>
-          },
+          onAction: previewAlignment,
           closeOnAction: false,
           component: AoiStreamPlotViewSettings,
           componentHeight: 170,
@@ -334,10 +345,7 @@
         createMenuComponentItem({
           value: 'distribution',
           label: 'Distribution',
-          onSelect: v => {
-            syncs.alignment.value =
-              v as NonNullable<AoiStreamPlotSettings['alignment']>
-          },
+          onAction: previewAlignment,
           closeOnAction: false,
           component: AoiStreamPlotViewSettings,
           componentHeight: 170,
@@ -348,11 +356,10 @@
         createMenuComponentItem({
           value: 'ridgeline',
           label: 'Ridgeline',
-          onSelect: v => {
-            syncs.alignment.value =
-              v as NonNullable<AoiStreamPlotSettings['alignment']>
+          onAction: v => {
+            const alignment = previewAlignment(v)
             // Ensure scale has a value for preview if it was undefined
-            if (!syncs.ridgelineScale.value) {
+            if (alignment === 'ridgeline' && !syncs.ridgelineScale.value) {
               syncs.ridgelineScale.value =
                 settings.ridgelineScale ?? RIDGELINE_SCALE
             }
@@ -367,10 +374,7 @@
         createMenuComponentItem({
           value: 'heatmap',
           label: 'Heatmap',
-          onSelect: v => {
-            syncs.alignment.value =
-              v as NonNullable<AoiStreamPlotSettings['alignment']>
-          },
+          onAction: previewAlignment,
           closeOnAction: false,
           component: AoiStreamPlotColorSettings,
           componentHeight: 140,
@@ -386,7 +390,7 @@
 <BasePlot {item} hasData={!!streamResult}>
   {#snippet header()}
     <div class="controls">
-      <Select
+      <GroupSelect
         ariaLabel="AOI stream filters"
         items={selectItems}
       />

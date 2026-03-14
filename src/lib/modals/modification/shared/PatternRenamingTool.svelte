@@ -1,8 +1,8 @@
 <script lang="ts">
   import {
-    GeneralButtonMajor,
-    GeneralButtonPreset,
-    GeneralInputText,
+    ButtonMajor,
+    ButtonPreset,
+    InputText,
   } from '$lib/shared/components'
   import { SectionHeader } from '$lib/modals'
 
@@ -46,14 +46,14 @@
   <div class="pattern-inputs">
     <div class="input-row">
       <div class="input-group">
-        <GeneralInputText
+        <InputText
           label="Find text"
           value={findText}
           oninput={handleFindTextInput}
         />
       </div>
       <div class="input-group">
-        <GeneralInputText
+        <InputText
           label="Replace with"
           value={replaceText}
           oninput={handleReplaceTextInput}
@@ -67,7 +67,7 @@
       </div>
       <div class="pattern-buttons">
         {#each WILDCARD_PATTERNS as pattern}
-          <GeneralButtonPreset
+          <ButtonPreset
             label={pattern.label}
             onclick={() => handlePatternButtonClick(pattern.value)}
           />
@@ -75,9 +75,9 @@
       </div>
     </div>
     <div class="apply-button">
-      <GeneralButtonMajor onclick={handlePatternRename} size="sm">
+      <ButtonMajor onclick={handlePatternRename} size="sm">
         Apply renaming to all
-      </GeneralButtonMajor>
+      </ButtonMajor>
     </div>
   </div>
 </div>

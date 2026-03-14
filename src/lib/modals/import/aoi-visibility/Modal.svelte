@@ -1,7 +1,7 @@
 <script lang="ts">
-  import GeneralSelectBase from '$lib/shared/components/GeneralSelect.svelte'
+  import Select from '$lib/shared/components/Select.svelte'
 
-  import { GeneralInputFile } from '$lib/shared/components'
+  import { InputFile } from '$lib/shared/components'
   import { ModalButtons } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
   import { processAoiVisibility } from '$lib/modals/import/shared/aoiVisibilityServices'
@@ -87,17 +87,17 @@
 </script>
 
 <div class="content">
-  <GeneralSelectBase
+  <Select
     label="For stimulus"
     options={stimuliOptions}
     bind:value={selectedStimulusId}
   />
-  <GeneralSelectBase
+  <Select
     label="For participant"
     options={participantOptions}
     bind:value={selectedParticipantId}
   />
-  <GeneralInputFile label="AOI visibility file" bind:files />
+  <InputFile label="AOI visibility file" bind:files />
   {#if validationMessage}
     <p class="validation-message">{validationMessage}</p>
   {/if}

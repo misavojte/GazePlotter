@@ -26,7 +26,7 @@
   const menuItems = $derived.by((): MenuItem[] => {
     return actions.map(action => ({
       label: action.label,
-      action: action.run,
+      onAction: action.run,
     }))
   })
 

@@ -32,10 +32,11 @@
   const handleChildAction = (child: MenuInteractiveItem) => {
     if (child.disabled) return
 
-    if (child.onSelect && child.value !== undefined) {
-      child.onSelect(child.value)
+    if (child.value !== undefined) {
+      child.onAction?.(child.value)
+    } else {
+      child.onAction?.()
     }
-    if (child.action) child.action()
 
     if (item.children) {
       item.children.forEach((entry: MenuItem): void => {
@@ -83,8 +84,10 @@
           <CustomComponent
             {item}
             {...item.componentProps}
-            action={(data: unknown) => {
-              if (item.action) item.action(data)
+            onAction={(data: unknown) => {
+              if (typeof data === 'string' || data === undefined) {
+                item.onAction?.(data)
+              }
               contextMenuState.reset()
             }}
             close={() => contextMenuState.reset()}

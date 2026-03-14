@@ -10,10 +10,10 @@
     getStimuliOptions,
   } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'
-  import Minor, {
+  import ButtonMinor, {
     type MinorGroupItem,
-  } from '$lib/shared/components/GeneralButtonMinor.svelte'
-  import Select from '$lib/shared/components/GeneralSelectGroup.svelte'
+  } from '$lib/shared/components/ButtonMinor.svelte'
+  import GroupSelect from '$lib/shared/components/GroupSelect.svelte'
   import type { GroupSelectItem } from '$lib/shared/components'
   import { getWorkspaceService } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
@@ -178,6 +178,14 @@
     workspace.updateItemSettings(item.id, { groupId }, source)
   }
 
+  function previewTimeline(value?: string) {
+    if (value !== 'absolute' && value !== 'relative' && value !== 'ordinal') {
+      return
+    }
+
+    syncs.timeline.value = value
+  }
+
   // Single grouped selects in order: Stimulus, Group, Timeline
   const selectItems = $derived<GroupSelectItem[]>([
     {
@@ -200,9 +208,7 @@
         createMenuComponentItem({
           value: 'absolute',
           label: 'Absolute',
-          onSelect: v => {
-            syncs.timeline.value = v as ScarfPlotSettings['timeline']
-          },
+          onAction: previewTimeline,
           closeOnAction: false,
           component: ScarfPlotViewSettings,
           componentHeight: 145, // Adjust as needed
@@ -213,9 +219,7 @@
         createMenuComponentItem({
           value: 'relative',
           label: 'Relative',
-          onSelect: v => {
-            syncs.timeline.value = v as ScarfPlotSettings['timeline']
-          },
+          onAction: previewTimeline,
           closeOnAction: false,
           component: ScarfPlotViewSettings,
           componentHeight: 145,
@@ -226,9 +230,7 @@
         createMenuComponentItem({
           value: 'ordinal',
           label: 'Ordinal',
-          onSelect: v => {
-            syncs.timeline.value = v as ScarfPlotSettings['timeline']
-          },
+          onAction: previewTimeline,
           closeOnAction: false,
           component: ScarfPlotViewSettings,
           componentHeight: 120,
@@ -242,8 +244,8 @@
 </script>
 
 <div class="nav">
-  <Select ariaLabel="Scarf filters" items={selectItems} />
-  <Minor items={groupItems} ariaLabel="Zoom controls" />
+  <GroupSelect ariaLabel="Scarf filters" items={selectItems} />
+  <ButtonMinor items={groupItems} ariaLabel="Zoom controls" />
   <ScarfPlotButtonMenu {item} />
 </div>
 

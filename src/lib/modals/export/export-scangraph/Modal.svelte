@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { GeneralInputText, GeneralSelect } from '$lib/shared/components'
+  import { InputText, Select } from '$lib/shared/components'
   import { SectionHeader, ModalButtons } from '$lib/modals'
   import { getStimuliOptions } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'
@@ -60,12 +60,12 @@
   <section class="section">
     <SectionHeader text="Export Settings" />
     <div class="content-two-column">
-      <GeneralSelect
+      <Select
         label="Stimulus"
         options={stimulusOptions}
         bind:value={stimulusId}
       />
-      <GeneralInputText
+      <InputText
         label="File name"
         bind:value={fileName}
         placeholder="Enter filename without extension"

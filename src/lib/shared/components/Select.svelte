@@ -2,16 +2,16 @@
   import ChevronDown from 'lucide-svelte/icons/chevron-down'
   import { untrack } from 'svelte'
   import { contextMenuAction } from '$lib/context-menu'
-  import GeneralInputScaffold from '$lib/shared/components/GeneralInputScaffold.svelte'
+  import InputScaffold from './InputScaffold.svelte'
   import {
-    createGeneralSelectChangeEvent,
-    createGeneralSelectMenuItems,
-    getGeneralSelectLabel,
-    type GeneralSelectOption,
-  } from './generalSelect'
+    createSelectChangeEvent,
+    createSelectMenuItems,
+    getSelectLabel,
+    type SelectOption,
+  } from './select'
 
   interface Props {
-    options?: readonly GeneralSelectOption[]
+    options?: readonly SelectOption[]
     disabled?: boolean
     label: string
     value?: string
@@ -37,9 +37,9 @@
   )}`
 
   const menuItems = $derived(
-    createGeneralSelectMenuItems(options, value, nextValue => {
+    createSelectMenuItems(options, value, nextValue => {
       value = nextValue
-      onchange(createGeneralSelectChangeEvent(nextValue))
+      onchange(createSelectChangeEvent(nextValue))
     })
   )
 
@@ -59,7 +59,7 @@
   })
 </script>
 
-<GeneralInputScaffold label={label} id={triggerId} {compact}>
+<InputScaffold label={label} id={triggerId} {compact}>
   <div class="select-wrapper" class:compact use:contextMenuAction={menuConfig}>
     <button
       id={triggerId}
@@ -71,14 +71,14 @@
       aria-haspopup="listbox"
     >
       <span class="trigger-content">
-        <span class="label">{getGeneralSelectLabel(value, options)}</span>
+        <span class="label">{getSelectLabel(value, options)}</span>
         <div class="svg-wrap" class:open={isOpen}>
           <ChevronDown strokeWidth={1} />
         </div>
       </span>
     </button>
   </div>
-</GeneralInputScaffold>
+</InputScaffold>
 
 <style>
   .select-wrapper {

@@ -6,7 +6,7 @@
   // Local components
   import { BarPlotFigure, BarPlotButtonMenu } from '$lib/plots/bar/components'
   import { BasePlot } from '$lib/plots/shared/components'
-  import Select from '$lib/shared/components/GeneralSelectGroup.svelte'
+  import GroupSelect from '$lib/shared/components/GroupSelect.svelte'
   import type { GroupSelectItem } from '$lib/shared/components'
 
   // Utilities and stores
@@ -167,7 +167,7 @@
       options: BAR_PLOT_AGGREGATION_METHODS.map(method =>
         createMenuComponentItem({
           ...method,
-          onSelect: v => {
+          onAction: v => {
             updateSetting({ aggregationMethod: v })
           },
           closeOnAction: false,
@@ -185,7 +185,7 @@
 <BasePlot {item}>
   {#snippet header()}
     <div class="controls">
-      <Select ariaLabel="Bar filters" items={selectItems} />
+      <GroupSelect ariaLabel="Bar filters" items={selectItems} />
       <div class="menu-button">
         <BarPlotButtonMenu {item} />
       </div>

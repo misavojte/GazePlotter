@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getModalState } from '$lib/session'
-  import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
+  import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
 
   interface Props {
     sessionId: string
@@ -200,15 +200,15 @@
   </label>
 
   <div class="button-container">
-    <GeneralButtonMajor
+    <ButtonMajor
       variant="primary"
       onclick={handleConsent}
       isDisabled={!over18 || !readInfo || !agreeToParticipate}
     >
       Start the study
-    </GeneralButtonMajor>
-    <GeneralButtonMajor onclick={handleDecline}
-      >I do not want to participate</GeneralButtonMajor
+    </ButtonMajor>
+    <ButtonMajor onclick={handleDecline}
+      >I do not want to participate</ButtonMajor
     >
   </div>
 </div>

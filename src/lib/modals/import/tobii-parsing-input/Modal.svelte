@@ -1,5 +1,5 @@
 <script lang="ts">
-  import GeneralInputText from '$lib/shared/components/GeneralInputText.svelte'
+  import InputText from '$lib/shared/components/InputText.svelte'
   import { ModalButtons } from '$lib/modals'
   import { getModalState } from '$lib/session'
 
@@ -146,7 +146,7 @@
           onpointerdown={handleInputClick}
           role="none"
         >
-          <GeneralInputText
+          <InputText
             bind:value={customMarkers}
             label="Markers (start;end)"
             placeholder="_start;_end"

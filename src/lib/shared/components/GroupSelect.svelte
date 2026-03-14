@@ -2,11 +2,11 @@
   import ChevronDown from 'lucide-svelte/icons/chevron-down'
   import { contextMenuAction } from '$lib/context-menu'
   import {
-    createGeneralSelectChangeEvent,
-    createGeneralSelectMenuItems,
-    getGeneralSelectLabel,
+    createSelectChangeEvent,
+    createSelectMenuItems,
+    getSelectLabel,
     type GroupSelectItem,
-  } from './generalSelect'
+  } from './select'
 
   interface Props {
     items: GroupSelectItem[]
@@ -21,8 +21,8 @@
     const item = items[index]
 
     return {
-      items: createGeneralSelectMenuItems(item.options, item.value, nextValue => {
-        item.onchange?.(createGeneralSelectChangeEvent(nextValue))
+      items: createSelectMenuItems(item.options, item.value, nextValue => {
+        item.onchange?.(createSelectChangeEvent(nextValue))
       }),
       position: 'bottom' as const,
       horizontalAlign: 'start' as const,
@@ -60,7 +60,7 @@
           aria-haspopup="listbox"
         >
           <span class="trigger-content">
-            <span class="label">{getGeneralSelectLabel(item.value, item.options)}</span>
+            <span class="label">{getSelectLabel(item.value, item.options)}</span>
             <div class="svg-wrap" class:open={groupIsOpen[index]}>
               <ChevronDown strokeWidth={1} />
             </div>

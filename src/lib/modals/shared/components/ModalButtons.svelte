@@ -1,5 +1,5 @@
 <script lang="ts">
-  import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
+  import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
 
   interface ModalButton {
     label: string
@@ -17,13 +17,13 @@
 
 <div class="modal-buttons">
   {#each buttons as button}
-    <GeneralButtonMajor
+    <ButtonMajor
       onclick={button.onclick}
       isDisabled={button.isDisabled ?? false}
       variant={button.variant ?? 'secondary'}
     >
       {button.label}
-    </GeneralButtonMajor>
+    </ButtonMajor>
   {/each}
 </div>
 

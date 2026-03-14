@@ -1,6 +1,6 @@
 <script lang="ts">
   import { setContext, tick } from 'svelte'
-  import MajorButton from '$lib/shared/components/GeneralButtonMajor.svelte'
+  import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
   import { getGazePlotterSession } from '$lib/session'
   import {
     EXPORT_SOURCE_CONTEXT,
@@ -162,13 +162,13 @@
               dialog.
             </p>
             <p class="preview-error-detail">{getErrorMessage(error)}</p>
-            <MajorButton
+            <ButtonMajor
               onclick={() => retryPreview(reset)}
               size="sm"
               variant="secondary"
             >
               Retry preview
-            </MajorButton>
+            </ButtonMajor>
           </div>
         {/snippet}
       </svelte:boundary>
@@ -177,7 +177,7 @@
     <!-- Download button -->
     {#if showDownloadButton}
       <div class="preview-actions">
-        <MajorButton
+        <ButtonMajor
           onclick={handleDownload}
           isDisabled={isDownloadDisabled}
           variant="primary"
@@ -189,7 +189,7 @@
           {:else}
             Download {fileName}{fileType}
           {/if}
-        </MajorButton>
+        </ButtonMajor>
       </div>
     {/if}
   </div>

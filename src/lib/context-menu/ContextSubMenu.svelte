@@ -69,11 +69,12 @@
     e.preventDefault()
     if (item.disabled) return
 
-    // Always call selection handlers even if there is a submenu
-    if (item.onSelect && item.value !== undefined) {
-      item.onSelect(item.value)
+    // Preserve current behavior: flyout anchors run their onAction before opening.
+    if (item.value !== undefined) {
+      item.onAction?.(item.value)
+    } else {
+      item.onAction?.()
     }
-    if (item.action) item.action()
 
     // Immediate visual feedback: Clear siblings and highlight self
     if (siblings) {

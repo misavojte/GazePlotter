@@ -1,9 +1,9 @@
 <script lang="ts">
   import {
-    GeneralInputNumber,
-    GeneralSelect,
-    GeneralInputText,
-    GeneralButtonPreset,
+    InputNumber,
+    Select,
+    InputText,
+    ButtonPreset,
   } from '$lib/shared/components'
   import { SectionHeader } from '$lib/modals'
 
@@ -68,7 +68,7 @@
   <SectionHeader text="Export Settings" />
   <div class="settings-grid-main">
     <div class="settings-item">
-      <GeneralInputNumber
+      <InputNumber
         label="Width [px]"
         bind:value={width}
         min={1}
@@ -76,7 +76,7 @@
       />
     </div>
     <div class="settings-item">
-      <GeneralInputNumber
+      <InputNumber
         label="Height [px]"
         bind:value={height}
         min={1}
@@ -84,14 +84,14 @@
       />
     </div>
     <div class="settings-item">
-      <GeneralSelect
+      <Select
         label="Output file type"
         {options}
         bind:value={typeOfExport}
       />
     </div>
     <div class="settings-item">
-      <GeneralInputText
+      <InputText
         label="Output file name"
         bind:value={fileName}
         appearance="selectMatched"
@@ -101,7 +101,7 @@
     <!-- DPI Settings -->
     <div class="settings-item">
       <div class="dpi-container" class:disabled={!isDpiEnabled}>
-        <GeneralInputNumber
+        <InputNumber
           label="Resolution [DPI]"
           bind:value={dpi}
           min={72}
@@ -117,7 +117,7 @@
     <div class="dpi-presets">
       <span class="presets-label">DPI Presets:</span>
       {#each dpiPresets as preset}
-        <GeneralButtonPreset
+        <ButtonPreset
           label={preset.label}
           isActive={dpi === preset.value}
           onclick={() => setDpi(preset.value)}
@@ -137,7 +137,7 @@
     </p>
     <div class="settings-grid-margins">
       <div class="settings-item">
-        <GeneralInputNumber
+        <InputNumber
           min={-9999}
           label="Top"
           bind:value={marginTop}
@@ -145,7 +145,7 @@
         />
       </div>
       <div class="settings-item">
-        <GeneralInputNumber
+        <InputNumber
           min={-9999}
           label="Right"
           bind:value={marginRight}
@@ -153,7 +153,7 @@
         />
       </div>
       <div class="settings-item">
-        <GeneralInputNumber
+        <InputNumber
           min={-9999}
           label="Bottom"
           bind:value={marginBottom}
@@ -161,7 +161,7 @@
         />
       </div>
       <div class="settings-item">
-        <GeneralInputNumber
+        <InputNumber
           min={-9999}
           label="Left"
           bind:value={marginLeft}
@@ -171,7 +171,7 @@
     </div>
     <div class="margin-presets">
       <span class="presets-label">Margin Presets:</span>
-      <GeneralButtonPreset
+      <ButtonPreset
         label="20px"
         isActive={marginTop === 20 &&
           marginRight === 20 &&
@@ -179,7 +179,7 @@
           marginLeft === 20}
         onclick={() => setAllMargins(20)}
       />
-      <GeneralButtonPreset
+      <ButtonPreset
         label="0px"
         isActive={marginTop === 0 &&
           marginRight === 0 &&

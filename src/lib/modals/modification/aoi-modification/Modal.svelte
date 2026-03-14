@@ -1,7 +1,7 @@
 <script lang="ts">
-  import GeneralRadio from '$lib/shared/components/GeneralRadio.svelte'
-  import GeneralSelectBase from '$lib/shared/components/GeneralSelect.svelte'
-  import { GeneralInputCheck, GeneralInputColor } from '$lib/shared/components'
+  import Radio from '$lib/shared/components/Radio.svelte'
+  import Select from '$lib/shared/components/Select.svelte'
+  import { InputCheck, InputColor } from '$lib/shared/components'
   import {
     SortableTableHeader,
     SectionHeader,
@@ -16,7 +16,7 @@
   import type { ExtendedInterpretedDataType } from '$lib/data/types'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'
-  import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
+  import Empty from '$lib/shared/components/Empty.svelte'
   import { getStimuliOptions } from '$lib/plots/shared'
   import ReorderButtons from '../shared/ReorderButtons.svelte'
 
@@ -357,7 +357,7 @@
       '**To create groups**, give multiple AOIs the same displayed name. The color of the first AOI with each name will be used for the entire group.',
     ]}
   />
-  <GeneralSelectBase
+  <Select
     label="For stimulus"
     options={stimuliOption}
     bind:value={selectedStimulus}
@@ -366,7 +366,7 @@
 
 <SectionHeader text="AOIs" />
 {#if reorderedAoiObjects.length === 0}
-  <GeneralEmpty message="No AOIs found in stimulus" />
+  <Empty message="No AOIs found in stimulus" />
 {/if}
 {#if reorderedAoiObjects.length > 0}
   <table class="grid content">
@@ -431,7 +431,7 @@
           {#if showGroupControls}
             <td class="color-cell">
               <div class:disabled-control={!isActive} aria-disabled={!isActive}>
-                <GeneralInputColor
+                <InputColor
                   label=""
                   value={aoi.color}
                   oninput={event => {
@@ -505,7 +505,7 @@
           {/if}
 
           <td class="active-col">
-            <GeneralInputCheck
+            <InputCheck
               label=""
               ariaLabel="Is active"
               size="lg"
@@ -525,7 +525,7 @@
     </tbody>
   </table>
   <div class="content">
-    <GeneralRadio
+    <Radio
       legend="Apply changes to"
       options={[
         { label: 'This stimulus', value: 'this' },
@@ -539,7 +539,7 @@
     <SectionHeader text="No AOI Hit Treatment" />
     <div class="noaoi-treatment-container">
       <div class="noaoi-color-wrapper">
-        <GeneralInputColor label="Color" bind:value={noAoiTreatment.color} />
+        <InputColor label="Color" bind:value={noAoiTreatment.color} />
       </div>
       <div class="noaoi-name-wrapper">
         <label for="noaoi-display-name">Display name</label>

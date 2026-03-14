@@ -9,7 +9,7 @@
     TransitionMatrixButtonMenu,
   } from '$lib/plots/transition-matrix/components'
   import { BasePlot } from '$lib/plots/shared/components'
-  import Select from '$lib/shared/components/GeneralSelectGroup.svelte'
+  import GroupSelect from '$lib/shared/components/GroupSelect.svelte'
   import type { GroupSelectItem } from '$lib/shared/components'
 
   // Utilities and stores
@@ -204,7 +204,7 @@
       options: AGGREGATION_OPTIONS.map(opt =>
         createMenuComponentItem({
           ...opt,
-          onSelect: v => {
+          onAction: v => {
             updateSettings({ aggregationMethod: v })
           },
           closeOnAction: false,
@@ -225,7 +225,7 @@
 >
   {#snippet header()}
     <div class="controls">
-      <Select
+      <GroupSelect
         ariaLabel="Transition Matrix filters"
         items={selectItems}
       />

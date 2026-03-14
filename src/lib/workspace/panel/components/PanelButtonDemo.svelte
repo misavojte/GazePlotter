@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { GeneralButtonMajor } from '$lib/shared/components'
+  import { ButtonMajor } from '$lib/shared/components'
   import { getIngestService } from '$lib/session'
   import { getContext } from 'svelte'
 
@@ -15,6 +15,6 @@
   let isDisabled = $derived(ingest.isLoading)
 </script>
 
-<GeneralButtonMajor {isDisabled} onclick={onReinitialize}>
+<ButtonMajor {isDisabled} onclick={onReinitialize}>
   {getLabel()}
-</GeneralButtonMajor>
+</ButtonMajor>

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fade } from 'svelte/transition'
   import GridItem from './GridItem.svelte'
-  import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
+  import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
   import {
     getPlotDisplayName,
     resolvePlotComponent,
@@ -133,13 +133,13 @@
                     <p class="plot-error-detail">
                       {getPlotErrorMessage(error)}
                     </p>
-                    <GeneralButtonMajor
+                    <ButtonMajor
                       size="sm"
                       variant="secondary"
                       onclick={() => reset()}
                     >
                       Retry plot
-                    </GeneralButtonMajor>
+                    </ButtonMajor>
                   </div>
                 {/snippet}
               </svelte:boundary>

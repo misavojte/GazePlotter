@@ -7,47 +7,47 @@ import type {
 
 type SelectMenuItem = MenuActionItem | MenuSubMenuItem | MenuComponentItem
 
-export type GeneralSelectOption = SelectMenuItem & {
+export type SelectOption = SelectMenuItem & {
   label: string
   value: string
 }
 
-export type GeneralSelectChangeEvent = CustomEvent<string>
+export type SelectChangeEvent = CustomEvent<string>
 
 export interface GroupSelectItem {
-  options: readonly GeneralSelectOption[]
+  options: readonly SelectOption[]
   label: string
   value: string
   disabled?: boolean
   ariaLabel?: string
-  onchange?: (event: GeneralSelectChangeEvent) => void
+  onchange?: (event: SelectChangeEvent) => void
   onClose?: () => void
 }
 
-export function createGeneralSelectChangeEvent(
+export function createSelectChangeEvent(
   value: string
-): GeneralSelectChangeEvent {
+): SelectChangeEvent {
   return new CustomEvent<string>('change', { detail: value })
 }
 
-export function createGeneralSelectMenuItems(
-  optionList: readonly GeneralSelectOption[],
+export function createSelectMenuItems(
+  optionList: readonly SelectOption[],
   currentValue: string,
   handleValueChange: (value: string) => void
 ): MenuItem[] {
   return optionList.map(option => ({
     ...option,
-    onSelect: () => {
+    onAction: () => {
       handleValueChange(option.value)
-      option.onSelect?.(option.value)
+      option.onAction?.(option.value)
     },
     isHighlighted: option.value === currentValue,
   }))
 }
 
-export function getGeneralSelectLabel(
+export function getSelectLabel(
   currentValue: string | undefined,
-  optionList: readonly GeneralSelectOption[]
+  optionList: readonly SelectOption[]
 ): string {
   return (
     optionList.find(option => option.value === currentValue)?.label ??

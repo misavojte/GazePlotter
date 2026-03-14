@@ -1,5 +1,5 @@
 <script lang="ts">
-  import GeneralInputScaffold from '$lib/shared/components/GeneralInputScaffold.svelte'
+  import InputScaffold from './InputScaffold.svelte'
   import { untrack } from 'svelte'
   interface Props {
     label: string
@@ -26,14 +26,14 @@
   const id = `file-${untrack(() => label.toLowerCase().replace(/\s+/g, '-'))}`
 </script>
 
-<GeneralInputScaffold {label} {id}>
+<InputScaffold {label} {id}>
   <input
     type="file"
     {multiple}
     accept={accept.join(',')}
     onchange={handleChange}
   />
-</GeneralInputScaffold>
+</InputScaffold>
 
 <style>
   input[type='file'] {

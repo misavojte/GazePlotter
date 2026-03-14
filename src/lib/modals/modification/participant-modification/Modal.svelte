@@ -10,7 +10,7 @@
   import type { BaseInterpretedDataType } from '$lib/data/types'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'
-  import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
+  import Empty from '$lib/shared/components/Empty.svelte'
   import PatternRenamingTool from '../shared/PatternRenamingTool.svelte'
   import ReorderButtons from '../shared/ReorderButtons.svelte'
 
@@ -155,7 +155,7 @@
 
 <SectionHeader text="Participants" />
 {#if participantObjects.length === 0}
-  <GeneralEmpty message="No participants found" />
+  <Empty message="No participants found" />
 {/if}
 {#if participantObjects.length > 0}
   <table class="grid content">

@@ -29,8 +29,7 @@ export interface MenuDividerItem {
 
 export interface MenuActionItem extends MenuDisplayItem {
   value?: string
-  action?: (data?: unknown) => void
-  onSelect?: (value: string) => void
+  onAction?: (value?: string) => void
   isDivider?: false
 }
 
@@ -43,7 +42,7 @@ export interface MenuSubMenuItem extends MenuActionItem {
 
 export interface MenuComponentBridgeProps {
   item: MenuItem
-  action: (data?: unknown) => void
+  onAction: (data?: unknown) => void
   close: () => void
 }
 
@@ -135,15 +134,19 @@ export function isMenuFlyoutItem(
   return isMenuSubMenuItem(item) || isMenuComponentItem(item)
 }
 
+type MenuComponentItemDefinition<
+  TComponentProps extends Record<string, unknown>,
+> = Omit<MenuComponentItem, 'component' | 'componentProps' | 'label' | 'value'> & {
+  label: string
+  value: string
+  component: Component<TComponentProps & MenuComponentBridgeProps>
+  componentProps?: TComponentProps
+}
+
 export function createMenuComponentItem<
   TComponentProps extends Record<string, unknown> = Record<string, never>,
 >(
-  item: Omit<MenuComponentItem, 'component' | 'componentProps' | 'label' | 'value'> & {
-    label: string
-    value: string
-    component: Component<TComponentProps & MenuComponentBridgeProps>
-    componentProps?: TComponentProps
-  }
-): MenuComponentItem & { label: string; value: string } {
-  return item as MenuComponentItem & { label: string; value: string }
+  item: MenuComponentItemDefinition<TComponentProps>
+): MenuComponentItemDefinition<TComponentProps> {
+  return item
 }

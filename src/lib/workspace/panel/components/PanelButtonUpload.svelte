@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { GeneralButtonMajor } from '$lib/shared/components'
+  import { ButtonMajor } from '$lib/shared/components'
   import { getGazePlotterSession } from '$lib/session'
 
   const { ingest } = getGazePlotterSession()
@@ -23,7 +23,7 @@
   }
 </script>
 
-<GeneralButtonMajor {isDisabled} onclick={triggerFileUpload}>
+<ButtonMajor {isDisabled} onclick={triggerFileUpload}>
   <label for="GP-file-upload">
     Import workspace or data
     <input
@@ -35,7 +35,7 @@
       bind:this={input}
     />
   </label>
-</GeneralButtonMajor>
+</ButtonMajor>
 
 <style>
   label {

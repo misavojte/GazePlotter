@@ -3,18 +3,18 @@
   import { getGazePlotterSession } from '$lib/session'
   import type { ParticipantsGroup } from '$lib/data/types'
   import {
-    GeneralButtonMinor,
-    GeneralButtonPreset,
+    ButtonMinor,
+    ButtonPreset,
+    InputCheck,
   } from '$lib/shared/components'
   import { ModalButtons, IntroductoryParagraph } from '$lib/modals'
-  import GeneralInputText from '$lib/shared/components/GeneralInputText.svelte'
+  import InputText from '$lib/shared/components/InputText.svelte'
   import Bin from 'lucide-svelte/icons/trash'
   import ChevronDown from 'lucide-svelte/icons/chevron-down'
   import ChevronUp from 'lucide-svelte/icons/chevron-up'
-  import GeneralEmpty from '$lib/shared/components/GeneralEmpty.svelte'
+  import Empty from '$lib/shared/components/Empty.svelte'
   import { fade, slide } from 'svelte/transition'
   import { flip } from 'svelte/animate'
-  import GeneralInputCheck from '$lib/shared/components/GeneralInputCheck.svelte'
   import ReorderButtons from '../shared/ReorderButtons.svelte'
 
   interface Props {
@@ -277,7 +277,7 @@
 
 {#if participantsGroups.length === 0}
   <div class="select-wrapper">
-    <GeneralEmpty message="No custom groups yet." />
+    <Empty message="No custom groups yet." />
   </div>
 {:else}
   <div class="accordion">
@@ -301,7 +301,7 @@
             />
           </div>
           <div class="button-group">
-            <GeneralButtonMinor
+            <ButtonMinor
               onclick={() => toggleAccordion(group.id)}
               isIcon={false}
             >
@@ -313,7 +313,7 @@
               {:else}
                 <ChevronDown size={'1em'} />
               {/if}
-            </GeneralButtonMinor>
+            </ButtonMinor>
             <ReorderButtons
               isFirst={participantsGroups.indexOf(group) === 0}
               isLast={participantsGroups.indexOf(group) ===
@@ -321,9 +321,9 @@
               onMoveUp={createMoveUpHandler(group)}
               onMoveDown={createMoveDownHandler(group)}
             />
-            <GeneralButtonMinor onclick={e => deleteGroup(e, group)}>
+            <ButtonMinor onclick={e => deleteGroup(e, group)}>
               <Bin size={'1em'} />
-            </GeneralButtonMinor>
+            </ButtonMinor>
           </div>
         </div>
 
@@ -334,7 +334,7 @@
             out:slide|local={{ duration: 200 }}
           >
             <div class="search-filter">
-              <GeneralInputText
+              <InputText
                 label="Search participants"
                 value={searchFilters[group.id] || ''}
                 oninput={e => (searchFilters[group.id] = e.detail)}
@@ -347,11 +347,11 @@
               in:fade|local={{ duration: 150, delay: 100 }}
               out:fade|local={{ duration: 150 }}
             >
-              <GeneralButtonPreset
+              <ButtonPreset
                 label="Select visible"
                 onclick={() => selectAllParticipants(group)}
               />
-              <GeneralButtonPreset
+              <ButtonPreset
                 label="Deselect visible"
                 onclick={() => removeAllParticipants(group)}
               />
@@ -363,7 +363,7 @@
               out:fade|local={{ duration: 150 }}
             >
               {#each getFilteredParticipants(group.id) as participant (participant.id)}
-                <GeneralInputCheck
+                <InputCheck
                   label={participant.displayedName}
                   checked={group.participantsIds.includes(participant.id)}
                   onchange={() => toggleParticipant(group, participant.id)}
