@@ -6,8 +6,8 @@
  */
 
 import { BeGazeAdapter } from '$lib/data/ingest/stream/adapters/BeGazeAdapter'
-import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
 import { it, expect, describe } from 'vitest'
+import { createAdapterHarness } from './helpers/ingestAdapterHarness'
 
 const begazeMockData = `Event Start Trial Time [ms],Event End Trial Time [ms],Stimulus,Participant,Category,AOI Name
 0,100,Map_A,Participant_1,Fixation,Region_1
@@ -15,37 +15,6 @@ const begazeMockData = `Event Start Trial Time [ms],Event End Trial Time [ms],St
 200,300,Map_A,Participant_1,Fixation,Region_1
 300,400,Map_A,Participant_1,Fixation,Region_2
 400,500,Map_A,Participant_1,Fixation,Region_3`
-
-type EmittedSegment = {
-  start: number
-  end: number
-  categoryId: number
-  stimulus: string
-  participant: string
-  aoi: string[] | null
-}
-
-const decoder = new TextDecoder('utf-8')
-const encodeRow = (row: string) => encodeString(row, 'utf-8')
-
-const collectOutputs = (sut: BeGazeAdapter) => {
-  const outputs: EmittedSegment[] = []
-  sut.onSegment = (start, end, categoryId, stimulus, participant, aoi) => {
-    outputs.push({
-      start,
-      end,
-      categoryId,
-      stimulus: decodeBytes(stimulus, decoder),
-      participant: decodeBytes(participant, decoder),
-      aoi: aoi ? aoi.map(a => decodeBytes(a, decoder)) : null,
-    })
-  }
-  return outputs
-}
-
-const processRow = (sut: BeGazeAdapter, row: string) => {
-  sut.processRowBytes(encodeRow(row), decoder)
-}
 
 describe('BeGaze Deserializer - Single data', () => {
   const begazeRows = begazeMockData.split('\n')
@@ -64,8 +33,8 @@ describe('BeGaze Deserializer - Single data', () => {
 
   it('Process first row', () => {
     const sut = new BeGazeAdapter(header, delim)
-    const outputs = collectOutputs(sut)
-    processRow(sut, begazeRows[1])
+    const { outputs, processRow } = createAdapterHarness(sut)
+    processRow(begazeRows[1])
     const result = outputs[0]
     expect(result).toEqual({
       aoi: ['Region_1'],
@@ -79,8 +48,8 @@ describe('BeGaze Deserializer - Single data', () => {
 
   it('Process last row', () => {
     const sut = new BeGazeAdapter(header, delim)
-    const outputs = collectOutputs(sut)
-    processRow(sut, begazeRows[5])
+    const { outputs, processRow } = createAdapterHarness(sut)
+    processRow(begazeRows[5])
     const result = outputs[0]
     expect(result).toEqual({
       aoi: ['Region_3'],
@@ -94,15 +63,15 @@ describe('BeGaze Deserializer - Single data', () => {
 
   it('Process row with invalid category', () => {
     const sut = new BeGazeAdapter(header, delim)
-    const outputs = collectOutputs(sut)
-    processRow(sut, '0,100,Map_A,Participant_1,Separator,Region_1')
+    const { outputs, processRow } = createAdapterHarness(sut)
+    processRow('0,100,Map_A,Participant_1,Separator,Region_1')
     expect(outputs).toHaveLength(0)
   })
 
   it('Process row with invalid start or end', () => {
     const sut = new BeGazeAdapter(header, delim)
-    const outputs = collectOutputs(sut)
-    processRow(sut, 'a,100,Map_A,Participant_1,Fixation,Region_1')
+    const { outputs, processRow } = createAdapterHarness(sut)
+    processRow('a,100,Map_A,Participant_1,Fixation,Region_1')
     expect(outputs).toHaveLength(0)
   })
 })

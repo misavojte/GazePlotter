@@ -7,7 +7,7 @@
 
 import { VarjoAdapter } from '$lib/data/ingest/stream/adapters/VarjoAdapter'
 import { test, expect, describe } from 'vitest'
-import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
+import { createAdapterHarness } from './helpers/ingestAdapterHarness'
 
 /*
   constructor (header: string[], fileName: string) {
@@ -25,37 +25,6 @@ const varjoMockData = `Time,Actor Label
 2022:11:11:15:50:18:34,Region_3
 2022:11:11:15:50:18:35,Region_4`
 
-type EmittedSegment = {
-  start: number
-  end: number
-  categoryId: number
-  stimulus: string
-  participant: string
-  aoi: string[] | null
-}
-
-const decoder = new TextDecoder('utf-8')
-const encodeRow = (row: string) => encodeString(row, 'utf-8')
-
-const collectOutputs = (sut: VarjoAdapter) => {
-  const outputs: EmittedSegment[] = []
-  sut.onSegment = (start, end, categoryId, stimulus, participant, aoi) => {
-    outputs.push({
-      start,
-      end,
-      categoryId,
-      stimulus: decodeBytes(stimulus, decoder),
-      participant: decodeBytes(participant, decoder),
-      aoi: aoi ? aoi.map(a => decodeBytes(a, decoder)) : null,
-    })
-  }
-  return outputs
-}
-
-const processRow = (sut: VarjoAdapter, row: string) => {
-  sut.processRowBytes(encodeRow(row), decoder)
-}
-
 describe('VarjoAdapter', () => {
   const varjoRows = varjoMockData.split('\n')
   const header = varjoRows[0].split(',')
@@ -70,35 +39,35 @@ describe('VarjoAdapter', () => {
 
   test('Process first row', () => {
     const sut = new VarjoAdapter(header, 'VarjoXXX.csv', delim)
-    const outputs = collectOutputs(sut)
-    processRow(sut, varjoRows[1])
+    const { outputs, processRow } = createAdapterHarness(sut)
+    processRow(varjoRows[1])
     expect(outputs).toHaveLength(0)
   })
 
   test('Process second row', () => {
     const sut = new VarjoAdapter(header, 'VarjoXXX.csv', delim)
-    const outputs = collectOutputs(sut)
-    processRow(sut, varjoRows[1])
-    processRow(sut, varjoRows[2])
+    const { outputs, processRow } = createAdapterHarness(sut)
+    processRow(varjoRows[1])
+    processRow(varjoRows[2])
     expect(outputs).toHaveLength(0)
   })
 
   test('Process third row', () => {
     const sut = new VarjoAdapter(header, 'VarjoXXX.csv', delim)
-    const outputs = collectOutputs(sut)
-    processRow(sut, varjoRows[1])
-    processRow(sut, varjoRows[2])
-    processRow(sut, varjoRows[3])
+    const { outputs, processRow } = createAdapterHarness(sut)
+    processRow(varjoRows[1])
+    processRow(varjoRows[2])
+    processRow(varjoRows[3])
     expect(outputs).toHaveLength(0)
   })
 
   test('Process fourth row', () => {
     const sut = new VarjoAdapter(header, 'VarjoXXX.csv', delim)
-    const outputs = collectOutputs(sut)
-    processRow(sut, varjoRows[1])
-    processRow(sut, varjoRows[2])
-    processRow(sut, varjoRows[3])
-    processRow(sut, varjoRows[4])
+    const { outputs, processRow } = createAdapterHarness(sut)
+    processRow(varjoRows[1])
+    processRow(varjoRows[2])
+    processRow(varjoRows[3])
+    processRow(varjoRows[4])
     const result = outputs[0]
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_1'])
@@ -111,12 +80,12 @@ describe('VarjoAdapter', () => {
 
   test('Process fifth row', () => {
     const sut = new VarjoAdapter(header, 'VarjoXXX.csv', delim)
-    const outputs = collectOutputs(sut)
-    processRow(sut, varjoRows[1])
-    processRow(sut, varjoRows[2])
-    processRow(sut, varjoRows[3])
-    processRow(sut, varjoRows[4])
-    processRow(sut, varjoRows[5])
+    const { outputs, processRow } = createAdapterHarness(sut)
+    processRow(varjoRows[1])
+    processRow(varjoRows[2])
+    processRow(varjoRows[3])
+    processRow(varjoRows[4])
+    processRow(varjoRows[5])
     const result = outputs[1]
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_2'])
@@ -129,13 +98,13 @@ describe('VarjoAdapter', () => {
 
   test('Process sixth row', () => {
     const sut = new VarjoAdapter(header, 'VarjoXXX.csv', delim)
-    const outputs = collectOutputs(sut)
-    processRow(sut, varjoRows[1])
-    processRow(sut, varjoRows[2])
-    processRow(sut, varjoRows[3])
-    processRow(sut, varjoRows[4])
-    processRow(sut, varjoRows[5])
-    processRow(sut, varjoRows[6])
+    const { outputs, processRow } = createAdapterHarness(sut)
+    processRow(varjoRows[1])
+    processRow(varjoRows[2])
+    processRow(varjoRows[3])
+    processRow(varjoRows[4])
+    processRow(varjoRows[5])
+    processRow(varjoRows[6])
     const result = outputs[2]
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_3'])
@@ -148,14 +117,14 @@ describe('VarjoAdapter', () => {
 
   test('Finalize', () => {
     const sut = new VarjoAdapter(header, 'VarjoXXX.csv', delim)
-    const outputs = collectOutputs(sut)
-    processRow(sut, varjoRows[1])
-    processRow(sut, varjoRows[2])
-    processRow(sut, varjoRows[3])
-    processRow(sut, varjoRows[4])
-    processRow(sut, varjoRows[5])
-    processRow(sut, varjoRows[6])
-    sut.finalize()
+    const { outputs, processRow, finalize } = createAdapterHarness(sut)
+    processRow(varjoRows[1])
+    processRow(varjoRows[2])
+    processRow(varjoRows[3])
+    processRow(varjoRows[4])
+    processRow(varjoRows[5])
+    processRow(varjoRows[6])
+    finalize()
     const result = outputs[3]
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_4'])

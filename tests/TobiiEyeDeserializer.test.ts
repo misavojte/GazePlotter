@@ -8,41 +8,7 @@
 import { describe, test, expect } from 'vitest'
 import { TobiiAdapter } from '$lib/data/ingest/stream/adapters/TobiiAdapter'
 import { testMobileTsvData } from './TobiiAdapter.test.data'
-import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
-
-type EmittedSegment = {
-  start: number
-  end: number
-  categoryId: number
-  stimulus: string
-  participant: string
-  aoi: string[] | null
-}
-
-const decoder = new TextDecoder('utf-8')
-const encodeRow = (row: string) => encodeString(row, 'utf-8')
-
-const collectOutputs = (deserializer: TobiiAdapter) => {
-  const outputs: EmittedSegment[] = []
-  deserializer.onSegment = (
-    start,
-    end,
-    categoryId,
-    stimulus,
-    participant,
-    aoi
-  ) => {
-    outputs.push({
-      start,
-      end,
-      categoryId,
-      stimulus: decodeBytes(stimulus, decoder),
-      participant: decodeBytes(participant, decoder),
-      aoi: aoi ? aoi.map(a => decodeBytes(a, decoder)) : null,
-    })
-  }
-  return outputs
-}
+import { createAdapterHarness } from './helpers/ingestAdapterHarness'
 
 describe('TobiiAdapter', () => {
   test('should construct', () => {
@@ -59,11 +25,8 @@ describe('TobiiAdapter', () => {
       'IntervalStart;IntervalEnd',
       '\t'
     )
-    const outputs = collectOutputs(deserializer)
-    for (const row of rows) {
-      deserializer.processRowBytes(encodeRow(row), decoder)
-    }
-    deserializer.finalize()
+    const { outputs, processRows } = createAdapterHarness(deserializer)
+    processRows(rows, { finalize: true })
     expect(outputs.length).toBeGreaterThan(0)
   })
 
@@ -76,11 +39,8 @@ describe('TobiiAdapter', () => {
       ' IntervalStart; IntervalEnd',
       '\t'
     )
-    const outputs = collectOutputs(deserializer)
-    for (const row of rows) {
-      deserializer.processRowBytes(encodeRow(row), decoder)
-    }
-    deserializer.finalize()
+    const { outputs, processRows } = createAdapterHarness(deserializer)
+    processRows(rows, { finalize: true })
     const first = outputs[0]
 
     expect(first).toBeDefined()

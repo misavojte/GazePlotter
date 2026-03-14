@@ -6,8 +6,8 @@
  */
 
 import { CsvSegmentedFromToAdapter } from '$lib/data/ingest/stream/adapters/CsvSegmentedFromToAdapter'
-import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
 import { test, expect, describe } from 'vitest'
+import { createAdapterHarness } from './helpers/ingestAdapterHarness'
 
 const csvMockDataOne = `From,To,Participant,Stimulus,AOI
 0,1,Participant_1,Map_A,Region_1
@@ -15,37 +15,6 @@ const csvMockDataOne = `From,To,Participant,Stimulus,AOI
 0,5,Participant_2,Map_B,Region_1
 5,6,Participant_2,Map_A,Region_1
 6,7,Participant_2,Map_A,Region_1|Region_2`
-
-type EmittedSegment = {
-  start: number
-  end: number
-  categoryId: number
-  stimulus: string
-  participant: string
-  aoi: string[] | null
-}
-
-const decoder = new TextDecoder('utf-8')
-const encodeRow = (row: string) => encodeString(row, 'utf-8')
-
-const collectOutputs = (sut: CsvSegmentedFromToAdapter) => {
-  const outputs: EmittedSegment[] = []
-  sut.onSegment = (start, end, categoryId, stimulus, participant, aoi) => {
-    outputs.push({
-      start,
-      end,
-      categoryId,
-      stimulus: decodeBytes(stimulus, decoder),
-      participant: decodeBytes(participant, decoder),
-      aoi: aoi ? aoi.map(a => decodeBytes(a, decoder)) : null,
-    })
-  }
-  return outputs
-}
-
-const processRow = (sut: CsvSegmentedFromToAdapter, row: string) => {
-  sut.processRowBytes(encodeRow(row), decoder)
-}
 
 describe('CSV Segmented FromTo Deserializer - Single data', () => {
   const csvRows = csvMockDataOne.split('\n')
@@ -63,8 +32,8 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
 
   test('Process first row', () => {
     const sut = new CsvSegmentedFromToAdapter(header, delim)
-    const outputs = collectOutputs(sut)
-    processRow(sut, csvRows[1])
+    const { outputs, processRow } = createAdapterHarness(sut)
+    processRow(csvRows[1])
     const result = outputs[0]
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_1'])
@@ -77,8 +46,8 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
 
   test('Process second row', () => {
     const sut = new CsvSegmentedFromToAdapter(header, delim)
-    const outputs = collectOutputs(sut)
-    processRow(sut, csvRows[2])
+    const { outputs, processRow } = createAdapterHarness(sut)
+    processRow(csvRows[2])
     const result = outputs[0]
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_1'])
@@ -91,8 +60,8 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
 
   test('Process third row', () => {
     const sut = new CsvSegmentedFromToAdapter(header, delim)
-    const outputs = collectOutputs(sut)
-    processRow(sut, csvRows[3])
+    const { outputs, processRow } = createAdapterHarness(sut)
+    processRow(csvRows[3])
     const result = outputs[0]
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_1'])
@@ -105,8 +74,8 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
 
   test('Process fourth row', () => {
     const sut = new CsvSegmentedFromToAdapter(header, delim)
-    const outputs = collectOutputs(sut)
-    processRow(sut, csvRows[4])
+    const { outputs, processRow } = createAdapterHarness(sut)
+    processRow(csvRows[4])
     const result = outputs[0]
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_1'])
@@ -119,8 +88,8 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
 
   test('Process fifth row (multiple AOIs)', () => {
     const sut = new CsvSegmentedFromToAdapter(header, delim)
-    const outputs = collectOutputs(sut)
-    processRow(sut, csvRows[5])
+    const { outputs, processRow } = createAdapterHarness(sut)
+    processRow(csvRows[5])
     const result = outputs[0]
     expect(result).toBeDefined()
     expect(result.aoi).toEqual(['Region_1', 'Region_2'])
@@ -133,9 +102,9 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
 
   test('Finalize', () => {
     const sut = new CsvSegmentedFromToAdapter(header, delim)
-    collectOutputs(sut)
-    processRow(sut, csvRows[4])
-    const result = sut.finalize()
+    const { processRow, finalize } = createAdapterHarness(sut)
+    processRow(csvRows[4])
+    const result = finalize()
     expect(result).toBeUndefined()
   })
 })

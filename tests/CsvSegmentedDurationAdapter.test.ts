@@ -9,8 +9,11 @@
  */
 
 import { CsvSegmentedDurationAdapter } from '$lib/data/ingest/stream/adapters/CsvSegmentedDurationAdapter'
-import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
 import { test, expect, describe } from 'vitest'
+import {
+  collectAdapterOutputs as collectOutputs,
+  processAdapterRow as processRow,
+} from './helpers/ingestAdapterHarness'
 
 /**
  * Mock CSV data representing eye-tracking segments with duration-based timing.
@@ -46,37 +49,6 @@ Map_A,,100,50,0,Region_1
 Map_A,Participant_1,,50,0,Region_1
 Map_A,Participant_1,100,,0,Region_1
 ,Participant_1,100,50,0,Region_1`
-
-type EmittedSegment = {
-  start: number
-  end: number
-  categoryId: number
-  stimulus: string
-  participant: string
-  aoi: string[] | null
-}
-
-const decoder = new TextDecoder('utf-8')
-const encodeRow = (row: string) => encodeString(row, 'utf-8')
-
-const collectOutputs = (sut: CsvSegmentedDurationAdapter) => {
-  const outputs: EmittedSegment[] = []
-  sut.onSegment = (start, end, categoryId, stimulus, participant, aoi) => {
-    outputs.push({
-      start,
-      end,
-      categoryId,
-      stimulus: decodeBytes(stimulus, decoder),
-      participant: decodeBytes(participant, decoder),
-      aoi: aoi ? aoi.map(a => decodeBytes(a, decoder)) : null,
-    })
-  }
-  return outputs
-}
-
-const processRow = (sut: CsvSegmentedDurationAdapter, row: string) => {
-  sut.processRowBytes(encodeRow(row), decoder)
-}
 
 describe('CsvSegmentedDurationAdapter - Constructor', () => {
   const csvRows = csvMockDataOne.split('\n')
