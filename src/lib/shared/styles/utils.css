@@ -1,4 +1,0 @@
-/* Global utility class to block pointer events */
-.pointer-events-none {
-  pointer-events: none !important;
-}
