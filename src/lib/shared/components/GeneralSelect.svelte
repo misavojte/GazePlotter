@@ -12,7 +12,9 @@
 
 <script lang="ts">
   import ChevronDown from 'lucide-svelte/icons/chevron-down'
+  import { untrack } from 'svelte'
   import { contextMenuAction, type MenuItem } from '$lib/context-menu'
+  import GeneralInputScaffold from '$lib/shared/components/GeneralInputScaffold.svelte'
 
   interface Props {
     options?: readonly (MenuItem & { value: string })[]
@@ -80,6 +82,9 @@
   }
 
   const singleMenuItems = $derived(optionsToMenuItems(options))
+  const singleTriggerId = `select-${untrack(() =>
+    label.toLowerCase().replace(/\s+/g, '-')
+  )}`
 
   const singleMenuConfig = $derived({
     items: singleMenuItems,
@@ -168,29 +173,30 @@
 <div class="general-select-container" bind:this={componentElement}>
   {#if !isGroup}
     <!-- Single select mode -->
-    <div
-      class="select-wrapper"
-      class:compact
-      use:contextMenuAction={singleMenuConfig}
-    >
-      <label for="single-select-trigger">{label}</label>
-      <button
-        id="single-select-trigger"
-        class="trigger"
-        class:disabled
-        class:open={singleIsOpen}
-        bind:this={singleTriggerEl}
-        aria-expanded={singleIsOpen}
-        aria-haspopup="listbox"
+    <GeneralInputScaffold label={label} id={singleTriggerId} compact={compact}>
+      <div
+        class="select-wrapper"
+        class:compact
+        use:contextMenuAction={singleMenuConfig}
       >
-        <span class="trigger-content">
-          <span class="label">{getCurrentLabel(value, options)}</span>
-          <div class="svg-wrap" class:open={singleIsOpen}>
-            <ChevronDown strokeWidth={1} />
-          </div>
-        </span>
-      </button>
-    </div>
+        <button
+          id={singleTriggerId}
+          class="trigger"
+          class:disabled
+          class:open={singleIsOpen}
+          bind:this={singleTriggerEl}
+          aria-expanded={singleIsOpen}
+          aria-haspopup="listbox"
+        >
+          <span class="trigger-content">
+            <span class="label">{getCurrentLabel(value, options)}</span>
+            <div class="svg-wrap" class:open={singleIsOpen}>
+              <ChevronDown strokeWidth={1} />
+            </div>
+          </span>
+        </button>
+      </div>
+    </GeneralInputScaffold>
   {:else}
     <!-- Group mode: always compact -->
     <div class="selectGroup" role="group" aria-label={ariaLabel}>
@@ -245,12 +251,8 @@ Usage examples:
 
 <style>
   .select-wrapper {
-    display: flex;
-    flex-direction: column;
     position: relative;
     width: 170px;
-    margin-bottom: 15px;
-    gap: 5px;
     font-family:
       system-ui,
       -apple-system,
@@ -266,17 +268,18 @@ Usage examples:
   }
 
   .select-wrapper.compact {
+    display: flex;
+    flex-direction: column;
     width: 140px;
     margin-bottom: 0;
+    gap: 5px;
   }
 
-  label {
-    font-size: 14px;
-    color: var(--c-black);
+  .select-wrapper.compact label {
     cursor: pointer;
   }
 
-  .select-wrapper:has(.trigger:disabled) label {
+  .select-wrapper.compact:has(.trigger:disabled) label {
     cursor: not-allowed;
   }
 
@@ -305,7 +308,7 @@ Usage examples:
   }
 
   /* In hover state, compact label text should also be red, with same transition */
-  .select-wrapper:not(:has(.trigger.disabled)):hover label {
+  .select-wrapper.compact:not(:has(.trigger.disabled)):hover label {
     color: var(--c-brand);
   }
 

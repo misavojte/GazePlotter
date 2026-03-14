@@ -1,8 +1,8 @@
 <script module lang="ts">
   /**
    * Standard export props that plot figures accept.
-   * All plot figures should handle margins internally by sizing
-   * their canvas to (width + marginLeft + marginRight) x (height + marginTop + marginBottom).
+   * Width and height represent the drawable export area after margins have been
+   * removed by the export UI.
    */
   export interface PlotExportProps {
     /** Content width (excluding margins) - plot figure adds margins to canvas size */
@@ -23,6 +23,7 @@
 </script>
 
 <script lang="ts">
+  import { DEFAULT_CANVAS_EXPORT_MARGIN } from '$lib/modals/export/shared/helpers'
   import GeneralCanvasPreview from './CanvasPreview.svelte'
   import DownloadPlotSettings from './DownloadPlotSettings.svelte'
   import SectionHeader from './SectionHeader.svelte'
@@ -34,10 +35,10 @@
   interface Props {
     /** Default filename for the export (without extension) */
     defaultFileName: string
-    /** Aspect ratio for the plot (height = width * aspectRatio). Default: 0.6 */
-    aspectRatio?: number
-    /** Default width in pixels. Default: 800 */
-    defaultWidth?: number
+    /** Default width in pixels */
+    defaultWidth: number
+    /** Default total height in pixels */
+    defaultHeight: number
     /** Default DPI. Default: 96 */
     defaultDpi?: number
     /** Default margin for all sides in pixels. Default: 20 */
@@ -51,16 +52,17 @@
 
   let {
     defaultFileName,
-    aspectRatio = 0.6,
-    defaultWidth = 800,
+    defaultWidth,
+    defaultHeight,
     defaultDpi = 96,
-    defaultMargin = 20,
+    defaultMargin = DEFAULT_CANVAS_EXPORT_MARGIN,
     children,
   }: Props = $props()
 
   // Export settings state
   let typeOfExport = $state<'.png' | '.jpg'>('.png')
   let width = $state(untrack(() => defaultWidth))
+  let height = $state(untrack(() => defaultHeight))
   let fileName = $state(untrack(() => defaultFileName))
   let dpi = $state(untrack(() => defaultDpi))
   let marginTop = $state(untrack(() => defaultMargin))
@@ -70,8 +72,10 @@
 
   // Computed content dimensions (what the plot figure receives)
   // Plot figures add margins internally when sizing their canvas
-  const contentWidth = $derived(width - marginLeft - marginRight)
-  const contentHeight = $derived(width * aspectRatio - marginTop - marginBottom)
+  const contentWidth = $derived(Math.max(1, width - marginLeft - marginRight))
+  const contentHeight = $derived(
+    Math.max(1, height - marginTop - marginBottom)
+  )
 
   // Props object to pass to child plot figure
   const exportProps: PlotExportProps = $derived({
@@ -90,6 +94,7 @@
   <DownloadPlotSettings
     bind:typeOfExport
     bind:width
+    bind:height
     bind:fileName
     bind:dpi
     bind:marginTop

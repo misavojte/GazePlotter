@@ -2,6 +2,10 @@
   import type { BarPlotItem } from '$lib/plots/bar/types'
   import BarPlotFigure from '$lib/plots/bar/components/BarPlotFigure.svelte'
   import { getBarPlotData } from '$lib/plots/bar/core/transformer'
+  import {
+    DEFAULT_CANVAS_EXPORT_MARGIN,
+    getWorkspaceCanvasExportDimensions,
+  } from '$lib/modals/export/shared/helpers'
   import { PlotExportWrapper } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
 
@@ -10,8 +14,15 @@
   }
 
   let { item }: Props = $props()
-  const { engine } = getGazePlotterSession()
+  const { engine, grid } = getGazePlotterSession()
   const settings = $derived(item.settings)
+  const exportDimensions = $derived(
+    getWorkspaceCanvasExportDimensions(
+      item,
+      grid.config,
+      DEFAULT_CANVAS_EXPORT_MARGIN
+    )
+  )
 
   const barPlotData = $derived(
     getBarPlotData(engine, {
@@ -41,7 +52,12 @@
   )
 </script>
 
-<PlotExportWrapper defaultFileName="GazePlotter-BarPlot">
+<PlotExportWrapper
+  defaultFileName="GazePlotter-BarPlot"
+  defaultWidth={exportDimensions.width}
+  defaultHeight={exportDimensions.height}
+  defaultMargin={DEFAULT_CANVAS_EXPORT_MARGIN}
+>
   {#snippet children(exportProps)}
     <BarPlotFigure
       width={exportProps.width}

@@ -19,14 +19,16 @@
     label: string
     /** The unique identifier for the input field */
     id: string
+    /** Removes the default bottom margin for dense inline layouts */
+    compact?: boolean
     /** The input element(s) to be wrapped by the scaffold */
     children?: import('svelte').Snippet<[any]>
   }
 
-  let { label, id, children }: Props = $props()
+  let { label, id, compact = false, children }: Props = $props()
 </script>
 
-<div class="input">
+<div class="input" class:compact>
   <label for={id}>{label}</label>
   {@render children?.({ itemtype: 'input' })}
 </div>
@@ -36,12 +38,18 @@
     display: flex;
     flex-direction: column;
     margin-bottom: 15px;
-    gap: 5px;
+    gap: 4px;
+  }
+
+  .input.compact {
+    margin-bottom: 0;
   }
 
   label {
-    font-size: 14px;
-    color: var(--c-black);
-    font-weight: 500;
+    font-size: 12px;
+    color: var(--c-darkgrey);
+    font-weight: 400;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
   }
 </style>

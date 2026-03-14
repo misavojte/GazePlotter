@@ -5,6 +5,7 @@
     value?: number
     min?: number
     label: string
+    appearance?: 'default' | 'selectMatched'
     oninput?: (event: Event) => void
     disabled?: boolean
     step?: number
@@ -14,6 +15,7 @@
     value = $bindable(0),
     min = 0,
     label,
+    appearance = 'default',
     oninput = () => {},
     disabled = false,
     step = 1,
@@ -32,10 +34,14 @@
   const id = `text-${untrack(() => label.toLowerCase().replace(/\s+/g, '-'))}`
 </script>
 
-<GeneralInputScaffold {label} {id}>
+<GeneralInputScaffold
+  {label}
+  {id}
+>
   <input
     {id}
     type="number"
+    class:select-matched={appearance === 'selectMatched'}
     bind:value
     {min}
     {disabled}
@@ -52,6 +58,21 @@
     font-size: 14px;
     width: 170px;
     box-sizing: border-box;
+  }
+
+  input.select-matched {
+    height: 34px;
+    padding: 0.25em 0.5em;
+    border: 1px solid var(--c-midgrey);
+    border-radius: var(--rounded-md);
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--c-black);
+  }
+
+  input.select-matched:focus-visible {
+    outline: 2px solid var(--c-primary, #1976d2);
+    outline-offset: 2px;
   }
 
   input:disabled {

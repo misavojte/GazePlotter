@@ -11,6 +11,7 @@
   interface Props {
     typeOfExport: '.svg' | '.png' | '.jpg' | '.webp'
     width: number
+    height: number
     fileName: string
     dpi: number
     marginTop: number
@@ -23,6 +24,7 @@
   let {
     typeOfExport = $bindable(),
     width = $bindable(),
+    height = $bindable(),
     fileName = $bindable(),
     dpi = $bindable(),
     marginTop = $bindable(),
@@ -66,7 +68,20 @@
   <SectionHeader text="Export Settings" />
   <div class="settings-grid-main">
     <div class="settings-item">
-      <GeneralInputNumber label="Width in px" bind:value={width} />
+      <GeneralInputNumber
+        label="Width [px]"
+        bind:value={width}
+        min={1}
+        appearance="selectMatched"
+      />
+    </div>
+    <div class="settings-item">
+      <GeneralInputNumber
+        label="Height [px]"
+        bind:value={height}
+        min={1}
+        appearance="selectMatched"
+      />
     </div>
     <div class="settings-item">
       <GeneralSelect
@@ -76,17 +91,22 @@
       />
     </div>
     <div class="settings-item">
-      <GeneralInputText label="Output file name" bind:value={fileName} />
+      <GeneralInputText
+        label="Output file name"
+        bind:value={fileName}
+        appearance="selectMatched"
+      />
     </div>
 
     <!-- DPI Settings -->
     <div class="settings-item">
       <div class="dpi-container" class:disabled={!isDpiEnabled}>
         <GeneralInputNumber
-          label="DPI (Resolution)"
+          label="Resolution [DPI]"
           bind:value={dpi}
           min={72}
           disabled={!isDpiEnabled}
+          appearance="selectMatched"
         />
       </div>
     </div>
@@ -110,17 +130,26 @@
   <div class="margin-settings">
     <SectionHeader text="Margins" />
     <p class="margin-explanation">
-      Margins control the spacing around your plot. Use positive values to add padding, or negative values to crop the image and focus on specific areas. This is useful for removing unwanted whitespace or highlighting particular regions of your visualization.
+      Margins control the spacing around your plot. Use positive values to add
+      padding, or negative values to crop the image and focus on specific areas.
+      This is useful for removing unwanted whitespace or highlighting particular
+      regions of your visualization.
     </p>
     <div class="settings-grid-margins">
       <div class="settings-item">
-        <GeneralInputNumber min={-9999} label="Top" bind:value={marginTop} />
+        <GeneralInputNumber
+          min={-9999}
+          label="Top"
+          bind:value={marginTop}
+          appearance="selectMatched"
+        />
       </div>
       <div class="settings-item">
         <GeneralInputNumber
           min={-9999}
           label="Right"
           bind:value={marginRight}
+          appearance="selectMatched"
         />
       </div>
       <div class="settings-item">
@@ -128,10 +157,16 @@
           min={-9999}
           label="Bottom"
           bind:value={marginBottom}
+          appearance="selectMatched"
         />
       </div>
       <div class="settings-item">
-        <GeneralInputNumber min={-9999} label="Left" bind:value={marginLeft} />
+        <GeneralInputNumber
+          min={-9999}
+          label="Left"
+          bind:value={marginLeft}
+          appearance="selectMatched"
+        />
       </div>
     </div>
     <div class="margin-presets">
