@@ -7,7 +7,7 @@ import {
   downloadBatchZip,
   downloadScanGraph,
   downloadUnifiedCsv,
-  downloadWorkplace,
+  downloadWorkspace,
 } from './controller'
 import type { CsvFormatOptions } from './encoders/csv'
 import {
@@ -86,7 +86,7 @@ export class ExportService {
 
   async exportWorkspace(options: WorkspaceExportOptions): Promise<boolean> {
     return this.runExport(() => {
-      downloadWorkplace(
+      downloadWorkspace(
         this.getExportData(),
         this.resolveFileName(options.fileName),
         this.deps.grid.items,

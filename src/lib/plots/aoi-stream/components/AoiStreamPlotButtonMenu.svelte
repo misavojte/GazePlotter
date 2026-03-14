@@ -2,17 +2,16 @@
   import { PlotMenuButton } from '$lib/plots/shared'
   import { getModalState } from '$lib/session'
   import type { AoiStreamPlotItem } from '$lib/plots/aoi-stream/types'
-  import type { SvelteComponent } from 'svelte'
   import Download from 'lucide-svelte/icons/download'
   import Settings from 'lucide-svelte/icons/settings-2'
   import Users from 'lucide-svelte/icons/users'
 
   import {
-    ModalContentAoiModification,
-    ModalContentDownloadAoiStreamPlot,
-    ModalContentParticipantsGroups,
-    ModalContentStimulusModification,
-  } from '$lib/modals'
+    aoiModificationModal,
+    downloadAoiStreamPlotModal,
+    participantsGroupsModal,
+    stimulusModificationModal,
+  } from '$lib/modals/definitions'
   import type { ComponentProps } from 'svelte'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
@@ -29,44 +28,28 @@
   const source = createCommandSourcePlotPattern(untrack(() => item), 'modal')
 
   const openAoiModificationModal = () => {
-    modalState.open(
-      ModalContentAoiModification as unknown as typeof SvelteComponent,
-      'AOI customization',
-      {
-        selectedStimulus: settings.stimulusId.toString(),
-        source,
-      }
-    )
+    modalState.open(aoiModificationModal, {
+      selectedStimulus: settings.stimulusId.toString(),
+      source,
+    })
   }
 
   const openStimulusModificationModal = () => {
-    modalState.open(
-      ModalContentStimulusModification as unknown as typeof SvelteComponent,
-      'Stimulus customization',
-      {
-        source,
-      }
-    )
+    modalState.open(stimulusModificationModal, {
+      source,
+    })
   }
 
   const openUserGroupsModal = () => {
-    modalState.open(
-      ModalContentParticipantsGroups as unknown as typeof SvelteComponent,
-      'Participants groups',
-      {
-        source,
-      }
-    )
+    modalState.open(participantsGroupsModal, {
+      source,
+    })
   }
 
   const openDownloadModal = () => {
-    modalState.open(
-      ModalContentDownloadAoiStreamPlot as unknown as typeof SvelteComponent,
-      'Download Time-binned AOI Occupancy',
-      {
-        item,
-      }
-    )
+    modalState.open(downloadAoiStreamPlotModal, {
+      item,
+    })
   }
 
   let items = $derived([

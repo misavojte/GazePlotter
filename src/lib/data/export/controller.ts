@@ -7,7 +7,7 @@ import {
 import { Archiver } from './encoders/zip'
 import { triggerDownload } from './download'
 import { generateScanGraph } from './mappers/scangraph'
-import { generateWorkplaceJson } from './mappers/workplace'
+import { generateWorkspaceJson } from './mappers/workspace'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import type { AllGridTypes } from '$lib/workspace/type/gridType'
 import type { FileMetadataType } from '$lib/workspace/type/fileMetadataType'
@@ -72,12 +72,12 @@ export async function downloadScanGraph(
 /**
  * High-level action to download the entire workspace state as JSON.
  */
-export function downloadWorkplace(
+export function downloadWorkspace(
   data: DataType,
   fileName: string,
   layoutState: AllGridTypes[],
   metadata: FileMetadataType | null
 ): void {
-  const json = generateWorkplaceJson(data, layoutState, metadata)
+  const json = generateWorkspaceJson(data, layoutState, metadata)
   triggerDownload(json, fileName, '.json')
 }

@@ -7,11 +7,11 @@
   import Download from 'lucide-svelte/icons/download'
   import Settings from 'lucide-svelte/icons/settings-2'
   import {
-    ModalContentDownloadTransitionMatrix,
-    ModalContentStimulusModification,
-    ModalContentAoiModification,
-    ModalContentParticipantsGroups,
-  } from '$lib/modals'
+    downloadTransitionMatrixModal,
+    stimulusModificationModal,
+    aoiModificationModal,
+    participantsGroupsModal,
+  } from '$lib/modals/definitions'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
   interface Props {
@@ -25,42 +25,29 @@
   const source = createCommandSourcePlotPattern(untrack(() => item), 'modal')
 
   const openStimulusModificationModal = () => {
-    modalState.open(
-      ModalContentStimulusModification as any,
-      'Stimulus customization',
-      {
-        source,
-      }
-    )
+    modalState.open(stimulusModificationModal, {
+      source,
+    })
   }
 
   const openAoiModificationModal = () => {
-    modalState.open(ModalContentAoiModification as any, 'AOI customization', {
+    modalState.open(aoiModificationModal, {
       selectedStimulus: settings.stimulusId.toString(),
       source,
     })
   }
 
   const openUserGroupsModal = () => {
-    modalState.open(
-      ModalContentParticipantsGroups as any,
-      'Participants groups',
-      {
-        settings,
-        source,
-      }
-    )
+    modalState.open(participantsGroupsModal, {
+      source,
+    })
   }
 
   const openDownloadModal = () => {
     try {
-      modalState.open(
-        ModalContentDownloadTransitionMatrix as any,
-        'Download Transition Matrix',
-        {
-          item,
-        }
-      )
+      modalState.open(downloadTransitionMatrixModal, {
+        item,
+      })
     } catch (error) {
       errorService.report({
         origin: 'plot',

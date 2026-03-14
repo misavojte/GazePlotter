@@ -1,5 +1,4 @@
 import BarPlot from './components/BarPlot.svelte'
-import ModalContentDownloadBarPlot from '$lib/modals/export/components/ModalContentDownloadBarPlot.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import type { BarPlotSettings } from './types'
 
@@ -7,7 +6,6 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
   type: 'barPlot',
   name: 'Bar Plot',
   component: BarPlot,
-  exportComponent: ModalContentDownloadBarPlot,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
     groupId: params.groupId ?? -1,

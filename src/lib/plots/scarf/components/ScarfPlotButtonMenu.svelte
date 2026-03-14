@@ -7,16 +7,15 @@
   import View from 'lucide-svelte/icons/view'
   import type { ComponentProps } from 'svelte'
   import type { ScarfPlotItem } from '$lib/plots/scarf/types'
-  import type { SvelteComponent } from 'svelte'
   import {
-    ModalContentParticipantModification,
-    ModalContentStimulusModification,
-    ModalContentAoiModification,
-    ModalContentAoiVisibility,
-    ModalContentDownloadScarfPlot,
-    ModalContentParticipantsGroups,
-    ModalContentExportSegmentedData,
-  } from '$lib/modals'
+    participantModificationModal,
+    stimulusModificationModal,
+    aoiModificationModal,
+    aoiVisibilityModal,
+    downloadScarfPlotModal,
+    participantsGroupsModal,
+    exportSegmentedDataModal,
+  } from '$lib/modals/definitions'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { untrack } from 'svelte'
 
@@ -30,68 +29,46 @@
 
   const source = createCommandSourcePlotPattern(untrack(() => item), 'modal')
 
-  const openModal = (
-    component: any,
-    title: string,
-    extraProps: Record<string, any> = {}
-  ) => {
-    modalState.open(component as unknown as typeof SvelteComponent, title, {
-      source,
-      ...extraProps,
-    })
-  }
-
   const items: ComponentProps<typeof PlotMenuButton>['items'] = [
     {
       label: 'AOI customization',
       action: () =>
-        openModal(ModalContentAoiModification, 'AOI customization', {
+        modalState.open(aoiModificationModal, {
           selectedStimulus: settings.stimulusId.toString(),
+          source,
         }),
       icon: Settings,
     },
     {
       label: 'Stimulus customization',
-      action: () =>
-        openModal(ModalContentStimulusModification, 'Stimulus customization'),
+      action: () => modalState.open(stimulusModificationModal, { source }),
       icon: Settings,
     },
     {
       label: 'Participant customization',
-      action: () =>
-        openModal(
-          ModalContentParticipantModification,
-          'Participant customization'
-        ),
+      action: () => modalState.open(participantModificationModal, { source }),
       icon: Users,
     },
     {
       label: 'Setup participants groups',
-      action: () =>
-        openModal(ModalContentParticipantsGroups, 'Participants groups'),
+      action: () => modalState.open(participantsGroupsModal, { source }),
       icon: Users,
     },
     { isDivider: true },
     {
       label: 'AOI visibility',
-      action: () => openModal(ModalContentAoiVisibility, 'AOI visibility'),
+      action: () => modalState.open(aoiVisibilityModal, { source }),
       icon: View,
     },
     { isDivider: true },
     {
       label: 'Export segmented data',
-      action: () =>
-        openModal(ModalContentExportSegmentedData, 'Export segmented data', {
-          item,
-        }),
+      action: () => modalState.open(exportSegmentedDataModal, {}),
       icon: Download,
     },
     {
       label: 'Download plot',
-      action: () =>
-        openModal(ModalContentDownloadScarfPlot, 'Download scarf plot', {
-          item,
-        }),
+      action: () => modalState.open(downloadScarfPlotModal, { item }),
       icon: Download,
     },
   ]

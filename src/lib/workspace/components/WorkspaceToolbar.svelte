@@ -2,7 +2,7 @@
   import { WorkspaceToolbarItem } from '$lib/workspace'
   import { getGazePlotterSession } from '$lib/session'
   import { onMount } from 'svelte'
-  import { ModalContentMetadataInfo } from '$lib/modals'
+  import { metadataInfoModal } from '$lib/modals/definitions'
   import type { GridItemSnapshot } from '$lib/workspace/type/gridType'
 
   // Configuration for toolbar items
@@ -85,7 +85,7 @@
       handleResetLayout()
     } else if (event.id === 'metadata') {
       // Open the metadata info modal directly
-      modalState.open(ModalContentMetadataInfo as any, 'Metadata Report', {})
+      modalState.open(metadataInfoModal, {})
     } else if (visualizations.map(viz => viz.id).includes(event.id)) {
       workspace.addVisualization(event.id, 'toolbar')
     }

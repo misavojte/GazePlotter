@@ -1,4 +1,4 @@
-import { ModalContentTobiiParsingInput } from '$lib/modals'
+import { tobiiParsingInputModal } from '$lib/modals/definitions'
 import { processJsonFileWithGrid } from './workspace/parser'
 import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace'
 import type { ErrorService } from '$lib/errors'
@@ -480,37 +480,20 @@ class IngestWorkerClient {
         this.ui.modalState.close()
       })
       .catch(error => {
-        const isExpectedCancellation =
-          error instanceof Error &&
-          (error.message === 'User cancelled' ||
-            error.message === 'Modal closed without value')
-
-        if (!isExpectedCancellation) {
-          this.handleError(error, { stage: 'request-user-input' })
-          return
-        }
-
-        this.ui.toastState.addInfo(
-          'User input was not provided. The file will be processed as Tobii without events'
-        )
-        this.postWorkerMessage(
-          { type: 'user-input', data: '' },
-          [],
-          { stage: 'dispatch-user-input-fallback' }
-        )
+        this.handleError(error, { stage: 'request-user-input' })
       })
   }
 
   private requestUserInput(): Promise<string> {
-    return new Promise((resolve, reject) => {
-      this.ui.modalState.open(
-        ModalContentTobiiParsingInput as any,
-        'Tobii Parsing Input',
-        {
-          valuePromiseResolve: resolve,
-          valuePromiseReject: reject,
-        }
+    return this.ui.modalState.open(tobiiParsingInputModal, {}).then(value => {
+      if (value !== null) {
+        return value
+      }
+
+      this.ui.toastState.addInfo(
+        'User input was not provided. The file will be processed as Tobii without events'
       )
+      return ''
     })
   }
 }

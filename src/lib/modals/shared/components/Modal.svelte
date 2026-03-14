@@ -1,39 +1,28 @@
-<script module lang="ts">
-  import type { SvelteComponent } from 'svelte'
-  export type Modal = {
-    component: typeof SvelteComponent
-    title: string
-    props?: Record<string, any>
-  }
-</script>
-
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, tick } from 'svelte'
   import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
+  import type { ModalStackEntry } from '$lib/modals/modal.state.svelte'
   import { getGazePlotterSession } from '$lib/session'
 
   const { errorService, modalState } = getGazePlotterSession()
 
-  // $state derived from the singleton - simple reference
-  const modal = $derived(modalState.activeModal)
+  const modalStack = $derived(modalState.stack)
+  const activeModal = $derived(modalState.activeModal)
 
   const handleClose = () => {
     modalState.close()
   }
 
-  // Add keyboard event handler for Escape key
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape' && modal) {
+    if (event.key === 'Escape' && activeModal) {
       handleClose()
     }
   }
 
-  // Track fullscreen state to prevent accidental closing
   let isFullscreen = false
   let showScrollIndicator = $state(false)
   let showVersionMessage = $state(false)
-  let bodyElement: HTMLElement | null = $state(null)
-  let modalElement: HTMLElement | null = $state(null)
+  let activeBodyElement: HTMLElement | null = $state(null)
 
   function getModalComponentName(component: unknown): string | null {
     if (
@@ -60,18 +49,19 @@
     return 'Unknown dialog error'
   }
 
-  function reportModalRenderError(error: unknown): void {
-    if (!modal) return
-
+  function reportModalRenderError(
+    entry: ModalStackEntry,
+    error: unknown
+  ): void {
     errorService.report({
       origin: 'modal',
       severity: 'recoverable',
-      userMessage: `Could not display the "${modal.title}" dialog.`,
+      userMessage: `Could not display the "${entry.definition.title}" dialog.`,
       cause: error,
       context: {
-        modalTitle: modal.title,
-        modalComponent: getModalComponentName(modal.component),
-        hasProps: modal.props !== undefined,
+        modalTitle: entry.definition.title,
+        modalComponent: getModalComponentName(entry.definition.component),
+        hasProps: Object.keys(entry.props).length > 0,
       },
     })
   }
@@ -80,32 +70,47 @@
     isFullscreen = !!document.fullscreenElement
   }
 
+  function updateActiveBodyElement() {
+    activeBodyElement = document.querySelector(
+      '.modal-stack-entry.is-active .body'
+    ) as HTMLElement | null
+
+    if (activeBodyElement) {
+      checkScrollable()
+      return
+    }
+
+    showScrollIndicator = false
+    showVersionMessage = false
+  }
+
   function checkScrollable() {
-    if (bodyElement) {
-      const isScrollable = bodyElement.scrollHeight > bodyElement.clientHeight
+    if (activeBodyElement) {
+      const isScrollable =
+        activeBodyElement.scrollHeight > activeBodyElement.clientHeight
       const isScrolledToBottom =
-        bodyElement.scrollTop + bodyElement.clientHeight >=
-        bodyElement.scrollHeight - 5
+        activeBodyElement.scrollTop + activeBodyElement.clientHeight >=
+        activeBodyElement.scrollHeight - 5
 
       if (isScrollable) {
-        // If content is scrollable, show scroll indicator unless scrolled to bottom
         showScrollIndicator = !isScrolledToBottom
         showVersionMessage = isScrolledToBottom
       } else {
-        // If content is not scrollable, show version message
         showScrollIndicator = false
         showVersionMessage = true
       }
+
+      return
     }
+
+    showScrollIndicator = false
+    showVersionMessage = false
   }
 
-  // Lock body scroll and preserve scroll position
   function lockBodyScroll() {
-    // Store current scroll position
     const scrollY = window.scrollY
     const scrollX = window.scrollX
 
-    // Store original styles
     const originalOverflow = document.body.style.overflow
     const originalPosition = document.body.style.position
     const originalTop = document.body.style.top
@@ -113,7 +118,6 @@
     const originalWidth = document.body.style.width
     const originalHeight = document.body.style.height
 
-    // Lock body scroll at current position
     document.body.style.overflow = 'hidden'
     document.body.style.position = 'fixed'
     document.body.style.top = `-${scrollY}px`
@@ -122,7 +126,6 @@
     document.body.style.height = '100%'
 
     return () => {
-      // Restore original styles
       document.body.style.overflow = originalOverflow
       document.body.style.position = originalPosition
       document.body.style.top = originalTop
@@ -130,147 +133,145 @@
       document.body.style.width = originalWidth
       document.body.style.height = originalHeight
 
-      // Restore scroll position
       window.scrollTo(scrollX, scrollY)
     }
   }
 
-  // Redirect window scroll events to modal content
   function handleWindowScroll(event: Event) {
-    if (bodyElement && modal) {
+    if (activeBodyElement && activeModal) {
       event.preventDefault()
       event.stopPropagation()
 
-      // Convert wheel event to scroll the modal content
       if (event instanceof WheelEvent) {
-        const deltaY = event.deltaY
-        const scrollAmount = deltaY * 0.5 // Adjust sensitivity
+        const scrollAmount = event.deltaY * 0.5
 
-        if (bodyElement.scrollHeight > bodyElement.clientHeight) {
-          bodyElement.scrollTop += scrollAmount
+        if (activeBodyElement.scrollHeight > activeBodyElement.clientHeight) {
+          activeBodyElement.scrollTop += scrollAmount
         }
       }
     }
   }
 
-  // Check when bodyElement becomes available
   $effect(() => {
-    if (bodyElement) {
-      checkScrollable()
-    }
+    const activeModalId = activeModal?.id ?? null
+
+    void tick().then(() => {
+      if (activeModalId !== (activeModal?.id ?? null)) return
+      updateActiveBodyElement()
+    })
   })
 
   let unlockBodyScroll: (() => void) | null = null
 
   onMount(() => {
-    // Add event listeners
     window.addEventListener('keydown', handleKeydown, { passive: true })
     document.addEventListener('fullscreenchange', handleFullscreenChange, {
       passive: true,
     })
 
-    // Lock body scroll when modal opens
-    if (modal) {
+    if (modalStack.length > 0) {
       unlockBodyScroll = lockBodyScroll()
-      // Add wheel event listener to redirect scroll to modal content
       window.addEventListener('wheel', handleWindowScroll, { passive: false })
     }
 
     return () => {
-      // Remove event listeners on component destruction
       window.removeEventListener('keydown', handleKeydown)
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
       window.removeEventListener('wheel', handleWindowScroll)
 
-      // Unlock body scroll
       if (unlockBodyScroll) {
         unlockBodyScroll()
       }
     }
   })
 
-  // Handle modal state changes
   $effect(() => {
-    if (modal && !unlockBodyScroll) {
-      // Modal opened - lock body scroll
+    if (modalStack.length > 0 && !unlockBodyScroll) {
       unlockBodyScroll = lockBodyScroll()
       window.addEventListener('wheel', handleWindowScroll, { passive: false })
-    } else if (!modal && unlockBodyScroll) {
-      // Modal closed - unlock body scroll
+      return
+    }
+
+    if (modalStack.length === 0 && unlockBodyScroll) {
       unlockBodyScroll()
       unlockBodyScroll = null
+      activeBodyElement = null
+      showScrollIndicator = false
+      showVersionMessage = false
       window.removeEventListener('wheel', handleWindowScroll)
     }
   })
 </script>
 
-{#if modal}
+{#if modalStack.length > 0}
   <div
     class="modal-overlay"
     onpointerdown={e => {
-      // Close only if clicking the overlay, not when in fullscreen
       if (e.target === e.currentTarget && !isFullscreen) {
         handleClose()
       }
     }}
   >
-    <div
-      class="modal"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="modal-title"
-      bind:this={modalElement}
-    >
-      <div class="modal-header">
-        <h3 id="modal-title">{modal.title}</h3>
-        <button onclick={handleClose} aria-label="Close modal">
-          <span aria-hidden="true">&times;</span>
-        </button>
-      </div>
-      <div class="body" bind:this={bodyElement} onscroll={checkScrollable}>
-        {#key modal}
-          <svelte:boundary onerror={reportModalRenderError}>
-            <modal.component {...modal.props} />
+    {#each modalStack as entry (entry.id)}
+      {@const isActive = entry.id === activeModal?.id}
+      <div class:is-active={isActive} class="modal-stack-entry">
+        <div
+          class="modal"
+          role="dialog"
+          aria-modal={isActive}
+          aria-hidden={!isActive}
+          aria-labelledby={`modal-title-${entry.id}`}
+        >
+          <div class="modal-header">
+            <h3 id={`modal-title-${entry.id}`}>{entry.definition.title}</h3>
+            <button onclick={handleClose} aria-label="Close modal">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="body" onscroll={checkScrollable}>
+            <svelte:boundary onerror={error => reportModalRenderError(entry, error)}>
+              <entry.definition.component {...entry.props} />
 
-            {#snippet failed(error, reset)}
-              <div class="modal-error-state">
-                <p class="modal-error-copy">
-                  This dialog could not be displayed. You can retry it or close
-                  the window.
-                </p>
-                <p class="modal-error-detail">{getModalErrorMessage(error)}</p>
-                <GeneralButtonMajor
-                  onclick={() => reset()}
-                  size="sm"
-                  variant="secondary"
-                >
-                  Retry dialog
-                </GeneralButtonMajor>
+              {#snippet failed(error, reset)}
+                <div class="modal-error-state">
+                  <p class="modal-error-copy">
+                    This dialog could not be displayed. You can retry it or
+                    close the window.
+                  </p>
+                  <p class="modal-error-detail">{getModalErrorMessage(error)}</p>
+                  <GeneralButtonMajor
+                    onclick={() => reset()}
+                    size="sm"
+                    variant="secondary"
+                  >
+                    Retry dialog
+                  </GeneralButtonMajor>
+                </div>
+              {/snippet}
+            </svelte:boundary>
+          </div>
+          <div class="modal-footer">
+            {#if isActive && showScrollIndicator}
+              <div class="footer-content">
+                <div class="scroll-indicator">&#8595;</div>
+                <span>Scroll down for more</span>
               </div>
-            {/snippet}
-          </svelte:boundary>
-        {/key}
-      </div>
-      <div class="modal-footer">
-        {#if showScrollIndicator}
-          <div class="footer-content">
-            <div class="scroll-indicator">↓</div>
-            <span>Scroll down for more</span>
+            {:else if isActive && showVersionMessage}
+              <div class="footer-content">
+                <span
+                  >GazePlotter {__APP_VERSION__} by Vojtechovska & Popelka,
+                  2025</span
+                >
+              </div>
+            {/if}
           </div>
-        {:else if showVersionMessage}
-          <div class="footer-content">
-            <span
-              >GazePlotter {__APP_VERSION__} by Vojtechovska & Popelka, 2025</span
-            >
-          </div>
-        {/if}
+        </div>
       </div>
-    </div>
+    {/each}
   </div>
 {/if}
 
 <style>
-  /* Material UI like modal */
   .modal-overlay {
     position: fixed;
     top: 0;
@@ -282,6 +283,15 @@
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }
+
+  .modal-stack-entry {
+    display: none;
+  }
+
+  .modal-stack-entry.is-active {
+    display: block;
+  }
+
   .modal {
     position: fixed;
     top: 50%;
@@ -297,7 +307,6 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    /* Modern border matching the app theme */
     border: 1px solid var(--c-border);
     box-shadow:
       0 1px 2px 0 rgba(60, 64, 67, 0.3),
@@ -318,6 +327,7 @@
       max-height: calc(100vh - 6rem);
     }
   }
+
   button {
     border: none;
     background-color: transparent;
@@ -332,9 +342,11 @@
     justify-content: center;
     align-items: center;
   }
+
   button:hover {
     background-color: var(--c-lightgrey);
   }
+
   .modal-header {
     display: flex;
     justify-content: space-between;
@@ -345,9 +357,11 @@
     gap: 0 20px;
     flex-shrink: 0;
   }
+
   .modal-header h3 {
     margin: 0;
   }
+
   .modal .body {
     padding: 1.25rem;
     max-height: calc(100vh - 200px);
@@ -418,9 +432,11 @@
     100% {
       transform: translateY(0);
     }
+
     40% {
       transform: translateY(-3px);
     }
+
     60% {
       transform: translateY(-2px);
     }

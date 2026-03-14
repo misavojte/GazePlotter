@@ -7,7 +7,7 @@ export * from './encoders/json'
 export * from './encoders/zip'
 
 export * from './mappers/segments'
-export * from './mappers/workplace'
+export * from './mappers/workspace'
 export * from './mappers/scangraph'
 export * from './mappers/aoi-metrics'
 export * from './mappers/aggregated'

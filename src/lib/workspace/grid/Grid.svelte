@@ -158,10 +158,6 @@
 </div>
 
 <style>
-  .pointer-events-none {
-    pointer-events: none !important;
-  }
-
   .grid-container.is-panning {
     cursor: grabbing;
   }

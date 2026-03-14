@@ -1,7 +1,7 @@
 <script lang="ts">
   import PanelButtonUpload from '$lib/workspace/panel/components/PanelButtonUpload.svelte'
   import PanelButtonDemo from '$lib/workspace/panel/components/PanelButtonDemo.svelte'
-  import PanelButtonExportWorkplace from '$lib/workspace/panel/components/PanelButtonExportWorkplace.svelte'
+  import PanelButtonExportWorkspace from '$lib/workspace/panel/components/PanelButtonExportWorkspace.svelte'
 
   interface Props {
     onReinitialize: () => void
@@ -13,7 +13,7 @@
 <div class="controls">
   <PanelButtonUpload />
   <PanelButtonDemo {onReinitialize} />
-  <PanelButtonExportWorkplace />
+  <PanelButtonExportWorkspace />
 </div>
 
 <style>

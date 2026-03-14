@@ -3,11 +3,10 @@
   import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
 
   interface Props {
-    onConsent: () => void
     sessionId: string
   }
 
-  let { onConsent, sessionId }: Props = $props()
+  let { sessionId }: Props = $props()
   const modalState = getModalState()
 
   const CONSENT_WITHDRAW_EMAIL = 'mail@vojtechovska.com'
@@ -18,13 +17,12 @@
   let agreeToParticipate = $state(false)
 
   /**
-   * Handles user consent - executes callback and closes modal
+   * Handles user consent and resolves the modal.
    * Only proceeds if all three checkboxes are checked
    */
   const handleConsent = () => {
     if (!over18 || !readInfo || !agreeToParticipate) return
-    onConsent()
-    modalState.close()
+    modalState.finish(true)
   }
 
   /**

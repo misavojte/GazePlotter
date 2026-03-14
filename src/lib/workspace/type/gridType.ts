@@ -19,7 +19,7 @@ type PlotDefinitions = typeof plotRegistry
 export type PlotType = keyof PlotDefinitions
 
 type InferPlotSettings<TDefinition> =
-  TDefinition extends PlotDefinition<any, infer TSettings, any, any, any>
+  TDefinition extends PlotDefinition<any, infer TSettings, any, any>
     ? TSettings
     : never
 

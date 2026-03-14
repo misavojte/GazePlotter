@@ -4,7 +4,7 @@
   import { fade } from 'svelte/transition'
   import GeneralButtonMajor from '$lib/shared/components/GeneralButtonMajor.svelte'
   import { getGazePlotterSession } from '$lib/session'
-  import { ModalContentMetadataInfo } from '$lib/modals/info/components'
+  import { metadataInfoModal } from '$lib/modals/definitions'
   import type { GridItemSnapshot } from '$lib/workspace/type/gridType'
 
   interface Props {
@@ -34,7 +34,7 @@
    * This is useful when file upload fails and users want to see details.
    */
   const openErrorReport = () => {
-    modalState.open(ModalContentMetadataInfo as any, 'Metadata Report')
+    modalState.open(metadataInfoModal, {})
   }
 
   /**

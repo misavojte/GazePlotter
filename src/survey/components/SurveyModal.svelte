@@ -1,29 +1,22 @@
 <script lang="ts">
   import { getModalState } from '$lib/session'
-  import {
-    UEQSSurvey,
-    OpenEndedFeedback,
-    SingleChoiceQuestion,
-  } from '$survey/components'
+  import UEQSSurvey from './UEQSSurvey.svelte'
+  import OpenEndedFeedback from './OpenEndedFeedback.svelte'
+  import SingleChoiceQuestion from './SingleChoiceQuestion.svelte'
   import { EyeTrackingExperience as ETExperience } from '$survey/types'
   import type {
     UEQSResults,
     EyeTrackingExperienceResult,
     SurveyModalState,
   } from '$survey/types'
+  import type { SurveyModalResult } from './SurveyModal.definition'
 
   interface Props {
     /** Survey state object - managed by parent to persist across modal closes */
     surveyState: SurveyModalState
-    /** Callback when survey is completed */
-    onComplete?: (results: {
-      ueqs: UEQSResults
-      eyeTracking: EyeTrackingExperienceResult
-      feedback: string
-    }) => void
   }
 
-  let { surveyState, onComplete }: Props = $props()
+  let { surveyState }: Props = $props()
   const modalState = getModalState()
 
   // Navigation state
@@ -89,18 +82,6 @@
     if (surveyState.currentStepIndex === steps.length - 1) {
       // Complete survey
       surveyState.isCompleted = true
-
-      if (
-        onComplete &&
-        surveyState.ueqsResults &&
-        surveyState.eyeTrackingResults
-      ) {
-        onComplete({
-          ueqs: surveyState.ueqsResults,
-          eyeTracking: surveyState.eyeTrackingResults,
-          feedback: surveyState.feedbackText,
-        })
-      }
     } else {
       surveyState.currentStepIndex++
       nextButtonEnabled = false
@@ -146,7 +127,28 @@
     }
   })
 
+  const completedSurveyResult = $derived.by<SurveyModalResult | null>(() => {
+    if (
+      !surveyState.isCompleted ||
+      !surveyState.ueqsResults ||
+      !surveyState.eyeTrackingResults
+    ) {
+      return null
+    }
+
+    return {
+      ueqs: surveyState.ueqsResults,
+      eyeTracking: surveyState.eyeTrackingResults,
+      feedback: surveyState.feedbackText,
+    }
+  })
+
   const handleGoToGazePlotter = () => {
+    if (completedSurveyResult) {
+      modalState.finish(completedSurveyResult)
+      return
+    }
+
     modalState.close()
   }
 </script>

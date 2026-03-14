@@ -76,7 +76,7 @@ export interface AoiDataType {
 }
 
 /**
- * Data for workplace are stored in this unique format.
+ * Data for workspace are stored in this unique format.
  */
 export interface DataType {
   isOrdinalOnly: boolean

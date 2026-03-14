@@ -32,15 +32,11 @@ export type PlotDefinition<
   } = {
     item: PlotItemContract<TType, TSettings>
   },
-  TExportProps extends {
-    item: TPlotProps['item']
-  } = TPlotProps,
   TParams extends DefaultPlotParams = DefaultPlotParams,
 > = {
   type: TType
   name: string
   component: Component<TPlotProps>
-  exportComponent?: Component<TExportProps>
   getDefaultSettings: (params?: TParams) => TSettings
   getDefaultHeight: (params?: PlotLayoutInput<TSettings>) => number
   getDefaultWidth: (params?: PlotLayoutInput<TSettings>) => number
@@ -55,10 +51,7 @@ export function definePlot<
   } = {
     item: PlotItemContract<TType, TSettings>
   },
-  TExportProps extends {
-    item: TPlotProps['item']
-  } = TPlotProps,
   TParams extends DefaultPlotParams = DefaultPlotParams,
->(definition: PlotDefinition<TType, TSettings, TPlotProps, TExportProps, TParams>) {
+>(definition: PlotDefinition<TType, TSettings, TPlotProps, TParams>) {
   return definition
 }

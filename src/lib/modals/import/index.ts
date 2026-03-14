@@ -1,2 +1,1 @@
-// Import-related modals
-export * from './components'
+export * from './definitions'

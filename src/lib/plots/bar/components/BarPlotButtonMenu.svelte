@@ -2,17 +2,16 @@
   import { PlotMenuButton } from '$lib/plots/shared'
   import { getModalState } from '$lib/session'
   import type { BarPlotItem } from '$lib/plots/bar/types'
-  import type { SvelteComponent } from 'svelte'
   import Download from 'lucide-svelte/icons/download'
   import Settings from 'lucide-svelte/icons/settings-2'
   import Users from 'lucide-svelte/icons/users'
   import {
-    ModalContentAoiModification,
-    ModalContentParticipantsGroups,
-    ModalContentDownloadBarPlot,
-    ModalContentStimulusModification,
-    ModalContentExportAggregatedData,
-  } from '$lib/modals'
+    aoiModificationModal,
+    participantsGroupsModal,
+    downloadBarPlotModal,
+    stimulusModificationModal,
+    exportAggregatedDataModal,
+  } from '$lib/modals/definitions'
   import type { ComponentProps } from 'svelte'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { untrack } from 'svelte'
@@ -28,54 +27,34 @@
   const source = createCommandSourcePlotPattern(untrack(() => item), 'modal')
 
   const openAoiModificationModal = () => {
-    modalState.open(
-      ModalContentAoiModification as unknown as typeof SvelteComponent,
-      'AOI customization',
-      {
-        selectedStimulus: settings.stimulusId.toString(),
-        source,
-      }
-    )
+    modalState.open(aoiModificationModal, {
+      selectedStimulus: settings.stimulusId.toString(),
+      source,
+    })
   }
 
   const openStimulusModificationModal = () => {
-    modalState.open(
-      ModalContentStimulusModification as unknown as typeof SvelteComponent,
-      'Stimulus customization',
-      {
-        source,
-      }
-    )
+    modalState.open(stimulusModificationModal, {
+      source,
+    })
   }
 
   const openUserGroupsModal = () => {
-    modalState.open(
-      ModalContentParticipantsGroups as unknown as typeof SvelteComponent,
-      'Participants groups',
-      {
-        source,
-      }
-    )
+    modalState.open(participantsGroupsModal, {
+      source,
+    })
   }
 
   const downloadPlot = () => {
-    modalState.open(
-      ModalContentDownloadBarPlot as unknown as typeof SvelteComponent,
-      'Download bar plot',
-      {
-        item,
-      }
-    )
+    modalState.open(downloadBarPlotModal, {
+      item,
+    })
   }
 
   const exportAggregatedData = () => {
-    modalState.open(
-      ModalContentExportAggregatedData as unknown as typeof SvelteComponent,
-      'Export aggregated data',
-      {
-        item,
-      }
-    )
+    modalState.open(exportAggregatedDataModal, {
+      item,
+    })
   }
 
   let items = $derived([

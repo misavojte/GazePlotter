@@ -6,15 +6,15 @@
     Survey,
     surveyStore,
     createCondition,
-    ConsentModal,
+    consentModal,
     endpointService,
     type EndpointConfig,
+    surveyModal,
+    type SurveyModalResult,
   } from '$survey'
-  import { SurveyModal } from '$survey/components'
   import type { SurveyTask, SurveyModalState } from '$survey/types'
   import type { WorkspaceCommandChain } from '$lib/workspace/commands'
   import type { GazePlotterSession } from '$lib/session'
-  import type { UEQSResults, EyeTrackingExperienceResult } from '$survey/types'
   import { onMount } from 'svelte'
 
   const endpointConfig: EndpointConfig = {
@@ -198,50 +198,49 @@
     {
       text: 'Read UX evaluation instructions & consent',
       buttonText: 'Open instructions & consent',
-      onButtonClick: () => {
-        gazePlotterRef?.getSession().modalState.open(
-          ConsentModal as any,
-          'UX Evaluation Instructions & Consent',
-          {
+      onButtonClick: async () => {
+        const didConsent = await gazePlotterRef
+          ?.getSession()
+          .modalState.open(consentModal, {
             sessionId: endpointService.getSessionId(),
-            onConsent: () => {
-              // Log informed consent event with URL data (fire-and-forget, non-blocking)
-              if (browser && endpointService.isServiceInitialized()) {
-                endpointService
-                  .storeSurveyData({
-                    type: 'informedConsentCollected',
-                    timestamp: Date.now(),
-                    data: {
-                      pageUrl: window.location.href,
-                      clientInfo: navigator.userAgent,
-                      windowDimensions:
-                        window.innerWidth + 'x' + window.innerHeight,
-                    },
-                  })
-                  .catch(error => {
-                    console.error('Failed to log informed consent:', error)
-                  })
-              }
+          })
 
-              // Set consent flag to enable data collection
-              hasInformedConsent = true
+        if (!didConsent) return
 
-              // Persist the consent session identifier for future visits and hide the banner for this session
-              endpointService.persistLastConsentSessionId(
-                endpointService.getSessionId()
-              )
-              previousConsentSessionId = null
-              showPreviousConsentBanner = false
+        // Log informed consent event with URL data (fire-and-forget, non-blocking)
+        if (browser && endpointService.isServiceInitialized()) {
+          endpointService
+            .storeSurveyData({
+              type: 'informedConsentCollected',
+              timestamp: Date.now(),
+              data: {
+                pageUrl: window.location.href,
+                clientInfo: navigator.userAgent,
+                windowDimensions:
+                  window.innerWidth + 'x' + window.innerHeight,
+              },
+            })
+            .catch(error => {
+              console.error('Failed to log informed consent:', error)
+            })
+        }
 
-              // Reset the GazePlotter layout to initial state
-              if (gazePlotterRef) {
-                gazePlotterRef.resetLayout()
-              }
+        // Set consent flag to enable data collection
+        hasInformedConsent = true
 
-              consentCondition.set(true) // Manually trigger condition
-            },
-          }
+        // Persist the consent session identifier for future visits and hide the banner for this session
+        endpointService.persistLastConsentSessionId(
+          endpointService.getSessionId()
         )
+        previousConsentSessionId = null
+        showPreviousConsentBanner = false
+
+        // Reset the GazePlotter layout to initial state
+        if (gazePlotterRef) {
+          gazePlotterRef.resetLayout()
+        }
+
+        consentCondition.set(true) // Manually trigger condition
       },
       condition: consentCondition,
       skippable: false,
@@ -317,42 +316,39 @@
     {
       text: 'Feel free to explore the UI as long as you wish',
       buttonText: 'I now want to answer questions and end survey',
-      onButtonClick: () => {
-        gazePlotterRef?.getSession().modalState.open(
-          SurveyModal as any,
-          'User Experience Questionnaire',
-          {
+      onButtonClick: async () => {
+        const results = await gazePlotterRef
+          ?.getSession()
+          .modalState.open(surveyModal, {
             surveyState,
-            onComplete: (results: {
-              ueqs: UEQSResults
-              eyeTracking: EyeTrackingExperienceResult
-              feedback: string
-            }) => {
-              // Log survey completion to the endpoint service (fire-and-forget, non-blocking)
-              if (
-                browser &&
-                hasInformedConsent &&
-                endpointService.isServiceInitialized()
-              ) {
-                endpointService
-                  .storeSurveyData({
-                    type: 'survey_completion',
-                    timestamp: Date.now(),
-                    data: {
-                      ueqsResults: results.ueqs,
-                      eyeTrackingResults: results.eyeTracking,
-                      feedback: results.feedback,
-                    },
-                  })
-                  .catch(error => {
-                    console.error('Failed to log survey completion:', error)
-                  })
-              }
+          })
 
-              explorationCondition.set(true) // Manually trigger condition
-            },
-          }
-        )
+        if (!results) return
+
+        const surveyResults = results as SurveyModalResult
+
+        // Log survey completion to the endpoint service (fire-and-forget, non-blocking)
+        if (
+          browser &&
+          hasInformedConsent &&
+          endpointService.isServiceInitialized()
+        ) {
+          endpointService
+            .storeSurveyData({
+              type: 'survey_completion',
+              timestamp: Date.now(),
+              data: {
+                ueqsResults: surveyResults.ueqs,
+                eyeTrackingResults: surveyResults.eyeTracking,
+                feedback: surveyResults.feedback,
+              },
+            })
+            .catch(error => {
+              console.error('Failed to log survey completion:', error)
+            })
+        }
+
+        explorationCondition.set(true) // Manually trigger condition
       },
       condition: explorationCondition,
       skippable: false,
