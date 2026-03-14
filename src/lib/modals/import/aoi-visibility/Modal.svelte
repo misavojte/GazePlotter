@@ -4,7 +4,7 @@
   import { GeneralInputFile } from '$lib/shared/components'
   import { ModalButtons } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
-  import { processAoiVisibility } from '$lib/modals/import/utility/aoiVisibilityServices'
+  import { processAoiVisibility } from '$lib/modals/import/shared/aoiVisibilityServices'
   import { getStimuliOptions, getParticipantOptions } from '$lib/plots/shared'
 
   interface Props {
