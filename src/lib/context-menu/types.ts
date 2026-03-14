@@ -13,6 +13,7 @@ export interface Dimensions {
 }
 
 import type { Component } from 'svelte'
+import type { LucideIconComponent } from '$lib/shared/types/iconComponent'
 
 export interface MenuItem {
   label?: string
@@ -20,7 +21,7 @@ export interface MenuItem {
   action?: (data?: Record<string, any>) => void
   onSelect?: (value: any) => void
   closeOnAction?: boolean // Default is true, set to false for persistent menus
-  icon?: Component<any>
+  icon?: LucideIconComponent
   isHighlighted?: boolean
   children?: MenuItem[]
   disabled?: boolean

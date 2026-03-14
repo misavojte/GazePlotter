@@ -1,11 +1,11 @@
 <script lang="ts">
   import GeneralButtonMinor from '$lib/shared/components/GeneralButtonMinor.svelte'
-  import { type ComponentType } from 'svelte'
+  import type { LucideIconComponent } from '$lib/shared/types/iconComponent'
   import { tooltipAction } from '$lib/tooltip'
   import { contextMenuAction } from '$lib/context-menu'
 
   interface ActionItem {
-    icon?: ComponentType
+    icon?: LucideIconComponent
     label?: string
     action?: () => void
     isDivider?: boolean
@@ -52,7 +52,7 @@
     items: items.map(it => ({
       label: it.label,
       action: it.action,
-      icon: it.icon as any,
+      icon: it.icon,
       isDivider: it.isDivider,
     })),
     position: 'bottom',

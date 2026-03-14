@@ -1,9 +1,9 @@
 <script module lang="ts">
-  import type { ComponentType } from 'svelte'
+  import type { LucideIconComponent } from '$lib/shared/types/iconComponent'
 
   // Group item and props
   export interface MinorGroupItem {
-    icon: ComponentType
+    icon: LucideIconComponent
     onclick: (event: MouseEvent) => void
     isDisabled?: boolean
     ariaLabel?: string
@@ -17,7 +17,7 @@
 
   // Single button props (backwards compatible with slot content)
   interface SingleProps {
-    icon?: import('svelte').ComponentType
+    icon?: LucideIconComponent
     onclick?: (event: MouseEvent) => void
     isDisabled?: boolean
     isIcon?: boolean

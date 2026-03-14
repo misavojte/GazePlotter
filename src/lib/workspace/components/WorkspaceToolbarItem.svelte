@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { LucideIconComponent } from '$lib/shared/types/iconComponent'
   import { tooltipAction } from '$lib/tooltip'
   import {
     contextMenuAction,
@@ -6,66 +7,32 @@
     contextMenuState,
   } from '$lib/context-menu'
 
-  /**
-   * Action item interface for toolbar actions.
-   */
   interface ActionItem {
-    id: string
     label: string
+    run: () => void
   }
 
-  /**
-   * Props for the toolbar item component.
-   */
   interface Props {
-    id: string
     label: string
-    icon: string
-    actions: ActionItem[] // Array of actions
-    onclick?: (event: { id: string; event: MouseEvent }) => void
+    icon: LucideIconComponent
+    actions: ActionItem[]
     disabled?: boolean
   }
 
-  let {
-    id,
-    label,
-    icon,
-    actions = [],
-    onclick = () => {},
-    disabled = false,
-  }: Props = $props()
+  let { label, icon: Icon, actions = [], disabled = false }: Props = $props()
 
-  let buttonElement: HTMLButtonElement | null = $state(null)
   let iconElement: HTMLDivElement | null = $state(null)
 
-  /**
-   * Convert action items to menu items format required by contextMenuAction.
-   * Each menu item's action will fire the onclick callback with the action's id.
-   *
-   * @returns Array of MenuItem objects for the context menu.
-   */
   const menuItems = $derived.by((): MenuItem[] => {
     return actions.map(action => ({
       label: action.label,
-      action: () => {
-        onclick({
-          id: action.id,
-          event: new MouseEvent('click'),
-        })
-      },
+      action: action.run,
     }))
   })
 
-  /**
-   * Handle item click with animation.
-   * For single actions, fires immediately. For multiple actions, the contextMenuAction handles showing the menu.
-   *
-   * @param event - Mouse click event from the button.
-   */
-  function handleClick(event: MouseEvent) {
+  function handleClick() {
     if (disabled) return
 
-    // Add click animation to icon only.
     if (iconElement) {
       iconElement.style.transform = 'scale(0.85)'
       setTimeout(() => {
@@ -75,33 +42,22 @@
       }, 100)
     }
 
-    // If only one action, fire it immediately (contextMenuAction is disabled for single actions).
     if (actions.length === 1) {
-      onclick({
-        id: actions[0].id,
-        event,
-      })
+      actions[0].run()
       return
     }
-
-    // If multiple actions, let the contextMenuAction handle showing the menu.
-    // The action will prevent default and show the menu automatically.
   }
 
-  /**
-   * Check if context menu is currently visible for this component.
-   * Used to disable tooltip when menu is open.
-   */
   const isMenuVisible = $derived(contextMenuState.current !== null)
 </script>
 
 <div class="tooltip-wrapper">
   <button
-    bind:this={buttonElement}
     class="toolbar-item"
     class:disabled
     onclick={handleClick}
     {disabled}
+    aria-label={label}
     use:tooltipAction={{
       content: label,
       position: 'right',
@@ -117,7 +73,7 @@
     }}
   >
     <div class="toolbar-item-icon" bind:this={iconElement}>
-      {@html icon}
+      <Icon size={16} strokeWidth={1.75} />
     </div>
   </button>
 </div>
