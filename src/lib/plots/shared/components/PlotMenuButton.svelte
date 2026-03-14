@@ -1,18 +1,11 @@
 <script lang="ts">
   import GeneralButtonMinor from '$lib/shared/components/GeneralButtonMinor.svelte'
-  import type { LucideIconComponent } from '$lib/shared/types/iconComponent'
+  import type { PlotMenuItem } from '../plotMenuActions'
   import { tooltipAction } from '$lib/tooltip'
   import { contextMenuAction } from '$lib/context-menu'
 
-  interface ActionItem {
-    icon?: LucideIconComponent
-    label?: string
-    action?: () => void
-    isDivider?: boolean
-  }
-
   interface Props {
-    items: ActionItem[]
+    items: PlotMenuItem[]
   }
 
   let { items }: Props = $props()

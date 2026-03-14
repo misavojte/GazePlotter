@@ -26,3 +26,4 @@ export * from './legendGradient'
 // Export shared constants
 export * from './const'
 export * from './previewSync.svelte'
+export * from './plotMenuActions'
