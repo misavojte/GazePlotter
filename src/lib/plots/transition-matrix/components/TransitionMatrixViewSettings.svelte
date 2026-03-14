@@ -2,6 +2,13 @@
   import type { MenuComponentBridgeProps } from '$lib/context-menu'
   import { ColorPicker, ColorPickerManager } from '$lib/color'
   import { interpolateColor } from '$lib/color/utility'
+  import {
+    CompactSettingsSection,
+    CompactSettingsSeparator,
+  } from '$lib/plots/shared/components'
+  import {
+    InputNumber,
+  } from '$lib/shared/components'
   import { fade } from 'svelte/transition'
   import { PRESET_PALETTES } from '$lib/color/palettes'
 
@@ -74,34 +81,28 @@
 </script>
 
 <div class="compact-color-settings">
-  <div class="section">
-    <div class="section-title">Scale Range</div>
+  <CompactSettingsSection title="Scale Range">
     <div class="range-inputs">
-      <div class="input-group">
-        <label for="min-val">Min</label>
-        <input
-          id="min-val"
-          type="number"
-          bind:value={syncs.minValue.value}
-          min="0"
-        />
-      </div>
-      <div class="input-group">
-        <label for="max-val">Max (0=auto)</label>
-        <input
-          id="max-val"
-          type="number"
-          bind:value={syncs.maxValue.value}
-          min="0"
-        />
-      </div>
+      <InputNumber
+        id="min-val"
+        label="Min"
+        bind:value={syncs.minValue.value}
+        min={0}
+        appearance="compact"
+      />
+      <InputNumber
+        id="max-val"
+        label="Max (0=auto)"
+        bind:value={syncs.maxValue.value}
+        min={0}
+        appearance="compact"
+      />
     </div>
-  </div>
+  </CompactSettingsSection>
 
-  <div class="separator"></div>
+  <CompactSettingsSeparator tone="light" />
 
-  <div class="section">
-    <div class="section-title">Colors</div>
+  <CompactSettingsSection title="Colors">
     <div class="preview-container">
       <div class="gradient-bar" style:background={gradientStyle}>
         <button
@@ -142,7 +143,7 @@
         ></button>
       {/each}
     </div>
-  </div>
+  </CompactSettingsSection>
 
   {#if minPicker.isOpen}
     <div
@@ -210,50 +211,10 @@
     min-width: 180px;
     box-sizing: border-box;
   }
-  .section {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .section-title {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--c-text);
-  }
-  .separator {
-    height: 1px;
-    background: #e5e7eb;
-    margin: 4px 0;
-  }
-
   .range-inputs {
     display: flex;
     gap: 8px;
   }
-  .input-group {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .input-group label {
-    font-size: 10px;
-    font-weight: 500;
-    color: #666;
-  }
-  .input-group input {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 2px 4px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 11px;
-    outline: none;
-  }
-  .input-group input:focus {
-    border-color: var(--c-brand);
-  }
-
   .preview-container {
     height: 16px;
     position: relative;

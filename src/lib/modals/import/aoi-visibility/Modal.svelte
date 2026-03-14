@@ -58,7 +58,7 @@
           data.participantId
         )
       ) {
-          modalState.close()
+        modalState.close()
       }
     } catch (error) {
       const message =
@@ -119,6 +119,9 @@
 <style>
   .content {
     margin-bottom: 25px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
 
   .validation-message {

@@ -13,14 +13,20 @@
   interface Props {
     value?: string
     label: string
+    id?: string
     width?: number
+    showLabel?: boolean
+    ariaLabel?: string
     oninput?: (event: CustomEvent<string>) => void
   }
 
   let {
     value = $bindable('#000000'),
     label,
+    id,
     width = $bindable(125),
+    showLabel = true,
+    ariaLabel,
     oninput = () => {},
   }: Props = $props()
 
@@ -47,15 +53,22 @@
   // Calculate contrast text color for better readability
   const contrastTextColor = $derived(getContrastTextColor(formatColorValue))
 
-  const id = `color-${untrack(() => label.toLowerCase().replace(/\s+/g, '-'))}`
+  const generatedId = `color-${untrack(() => label.toLowerCase().replace(/\s+/g, '-'))}`
+  const inputId = $derived(id ?? generatedId)
 </script>
 
-<InputScaffold {label} {id}>
+<InputScaffold
+  {label}
+  id={inputId}
+  showLabel={showLabel}
+>
   <div class="color-input-container">
     <button
+      id={inputId}
       type="button"
       class="color-preview"
       onclick={() => picker.toggle()}
+      aria-label={ariaLabel ?? (!showLabel ? label : undefined)}
       style:background-color={formatColorValue}
       style:width="{actualWidth}px"
       bind:this={picker.triggerElement}
@@ -96,7 +109,7 @@
     gap: 8px;
     padding: 0.5rem;
     border: 1px solid var(--c-border);
-    border-radius: var(--rounded);
+    border-radius: var(--rounded-md);
     font-size: 14px;
     height: 34px;
     cursor: pointer;
@@ -119,7 +132,7 @@
   .color-popup {
     padding: 10px;
     background-color: white;
-    border-radius: var(--rounded);
+    border-radius: var(--rounded-md);
     box-shadow: 0 3px 15px rgba(0, 0, 0, 0.3);
     z-index: 9999;
     width: 210px;

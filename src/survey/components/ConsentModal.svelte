@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getGazePlotterSession } from '$lib/session'
   import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
+  import { InputCheck } from '$lib/shared/components'
 
   interface Props {
     sessionId: string
@@ -186,18 +187,33 @@
     >
   </p>
 
-  <label class="mt-2 block">
-    <input type="checkbox" bind:checked={over18} />
-    <span>I confirm I am 18 years or older.</span>
-  </label>
-  <label class="mt-1 block">
-    <input type="checkbox" bind:checked={readInfo} />
-    <span>I have read and understood this information.</span>
-  </label>
-  <label class="mt-1 block">
-    <input type="checkbox" bind:checked={agreeToParticipate} />
-    <span>I agree to participate in the study.</span>
-  </label>
+  <div class="mt-2">
+    <InputCheck
+      label="I confirm I am 18 years or older."
+      checked={over18}
+      onchange={event => {
+        over18 = event.detail
+      }}
+    />
+  </div>
+  <div class="mt-1">
+    <InputCheck
+      label="I have read and understood this information."
+      checked={readInfo}
+      onchange={event => {
+        readInfo = event.detail
+      }}
+    />
+  </div>
+  <div class="mt-1">
+    <InputCheck
+      label="I agree to participate in the study."
+      checked={agreeToParticipate}
+      onchange={event => {
+        agreeToParticipate = event.detail
+      }}
+    />
+  </div>
 
   <div class="button-container">
     <ButtonMajor
@@ -277,18 +293,4 @@
     margin-top: 0.25rem;
   }
 
-  .block {
-    display: block;
-  }
-
-  label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
-  }
-
-  label input[type='checkbox'] {
-    cursor: pointer;
-  }
 </style>

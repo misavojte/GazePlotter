@@ -1,10 +1,14 @@
 <script lang="ts">
+  import {
+    highlightMenuItem,
+    isMenuActionActivationKey,
+    shouldCloseMenuOnAction,
+  } from './behavior'
   import { fade } from 'svelte/transition'
   import { MENU_MAX_HEIGHT, MENU_WIDTH } from './const'
   import {
     type MenuFlyoutItem,
     type MenuInteractiveItem,
-    type MenuItem,
     isMenuComponentItem,
     isMenuDivider,
     isMenuFlyoutItem,
@@ -25,7 +29,8 @@
     calculatePositionAction: (node: HTMLElement) => PositionAction
   }
 
-  const { item, coords, parentZIndex, calculatePositionAction } = $props()
+  const { item, coords, parentZIndex, calculatePositionAction }: Props =
+    $props()
 
   let activeChildLabel = $state<string | null>(null)
 
@@ -38,21 +43,15 @@
       child.onAction?.()
     }
 
-    if (item.children) {
-      item.children.forEach((entry: MenuItem): void => {
-        if (!isMenuDivider(entry)) {
-          entry.isHighlighted = entry.label === child.label
-        }
-      })
-    }
+    highlightMenuItem(item.children, child.label)
 
-    if (child.closeOnAction !== false) {
+    if (shouldCloseMenuOnAction(child)) {
       contextMenuState.reset()
     }
   }
 
   const handleKeydown = (e: KeyboardEvent, child: MenuInteractiveItem) => {
-    if (e.key === 'Enter' || e.key === ' ') {
+    if (isMenuActionActivationKey(e.key)) {
       e.preventDefault()
       e.stopPropagation()
       handleChildAction(child)

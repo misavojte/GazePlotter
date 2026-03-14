@@ -1,3 +1,4 @@
+import { clearOwnedContextMenu, isOwnedContextMenuState } from './behavior'
 import type { Action } from 'svelte/action'
 import { contextMenuState, updateContextMenu } from './contextMenuState.svelte'
 import {
@@ -10,7 +11,6 @@ import {
 } from './utils'
 import type {
   ContextMenuOptions,
-  ContextMenuState,
   Position,
   Alignment,
   SlideFrom,
@@ -59,10 +59,6 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
     handler: (e: Event) => void
   }> = []
 
-  const isOwnedState = (
-    value: ContextMenuState | null
-  ): value is ContextMenuState => Boolean(value && value.ownerId === ownerId)
-
   const onScroll = (e: Event) => {
     const target = e.target as HTMLElement | null
     if (!target) return
@@ -74,10 +70,11 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
     close()
   }
 
-  const onMouseDown = (e: MouseEvent) => {
+  const onPointerDown = (e: PointerEvent) => {
     const target = e.target as HTMLElement | null
     if (!target) {
       lastMouseDownInside = false
+      close()
       return
     }
 
@@ -88,39 +85,13 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
     const shouldIgnore = target.closest?.('[data-context-menu-ignore]')
 
     lastMouseDownInside = Boolean(insideMenu || insideAnchor || shouldIgnore)
-  }
 
-  const onDocClick = (e: MouseEvent) => {
-    const target = e.target as HTMLElement | null
-    if (!target) {
+    // Proactively close on pointerdown if strictly outside.
+    // This is more robust than mousedown/click as it works even if
+    // subsequent events are blocked or modified (e.g. by grid panning).
+    if (!lastMouseDownInside) {
       close()
-      return
     }
-
-    // If the click started inside the menu or anchor, don't close
-    if (lastMouseDownInside) {
-      return
-    }
-
-    // Double check if the released click target is inside the menu
-    if (target.closest?.(MENU_SELECTOR)) {
-      return
-    }
-
-    // Check if the released click is inside the anchor
-    if (
-      state.anchor &&
-      (state.anchor === target || state.anchor.contains(target))
-    ) {
-      return
-    }
-
-    // Double check for ignored elements on click release
-    if (target.closest?.('[data-context-menu-ignore]')) {
-      return
-    }
-
-    close()
   }
 
   const attachGlobalListeners = () => {
@@ -131,8 +102,7 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
       scrollListeners.push({ target: parent, handler })
       parent.addEventListener('scroll', handler, true)
     }
-    document.addEventListener('mousedown', onMouseDown, true)
-    document.addEventListener('click', onDocClick, true)
+    document.addEventListener('pointerdown', onPointerDown, true)
     hasGlobalListeners = true
   }
 
@@ -142,8 +112,7 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
       target.removeEventListener('scroll', handler, true)
     }
     scrollListeners = []
-    document.removeEventListener('mousedown', onMouseDown, true)
-    document.removeEventListener('click', onDocClick, true)
+    document.removeEventListener('pointerdown', onPointerDown, true)
     hasGlobalListeners = false
   }
 
@@ -164,9 +133,7 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
 
   const close = () => {
     if (!ownsMenu) return
-    updateContextMenu((curr: ContextMenuState | null) =>
-      isOwnedState(curr) ? null : curr
-    )
+    clearOwnedContextMenu(ownerId)
   }
 
   const openAt = () => {
@@ -250,7 +217,7 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
 
   $effect(() => {
     const value = contextMenuState.current
-    if (!isOwnedState(value)) {
+    if (!isOwnedContextMenuState(ownerId, value)) {
       finalizeClosure()
       return
     }

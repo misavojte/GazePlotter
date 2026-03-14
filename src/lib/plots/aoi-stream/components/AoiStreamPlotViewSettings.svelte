@@ -1,5 +1,12 @@
 <script lang="ts">
   import type { MenuComponentBridgeProps, MenuItem } from '$lib/context-menu'
+  import {
+    CompactSettingsSection,
+    CompactSettingsSeparator,
+  } from '$lib/plots/shared/components'
+  import {
+    InputNumber,
+  } from '$lib/shared/components'
 
   interface Props extends MenuComponentBridgeProps {
     item: MenuItem
@@ -22,57 +29,50 @@
 
 <div class="settings-container">
   <form onsubmit={handleSubmit}>
-    <div class="input-group">
-      <label for="bin-size">Bin Size [ms]</label>
-      <input
-        id="bin-size"
-        type="number"
-        bind:value={syncs.binSize.value}
-        min="1"
-      />
-    </div>
+    <InputNumber
+      id="bin-size"
+      label="Bin Size [ms]"
+      bind:value={syncs.binSize.value}
+      min={1}
+      appearance="compact"
+    />
 
     {#if isRidgeline}
-      <div class="input-group">
-        <label for="ridge-scale">Ridge Scale</label>
-        <input
-          id="ridge-scale"
-          type="number"
-          bind:value={syncs.ridgelineScale.value}
-          min="1"
-          max="10"
-          step="0.1"
-        />
-      </div>
+      <InputNumber
+        id="ridge-scale"
+        label="Ridge Scale"
+        bind:value={syncs.ridgelineScale.value}
+        min={1}
+        max={10}
+        step={0.1}
+        appearance="compact"
+      />
     {/if}
 
-    <div class="separator"></div>
+    <CompactSettingsSeparator margin={6} />
 
-    <div class="timeline-row">
-      <span class="section-title">Timeline [ms]</span>
+    <CompactSettingsSection title="Timeline [ms]">
       <div class="timeline-inputs">
-        <div class="input-group">
-          <label for="timeline-start">Start</label>
-          <input
-            id="timeline-start"
-            type="number"
-            bind:value={syncs.timelineStart.value}
-            min="0"
-            placeholder="0"
-          />
-        </div>
-        <div class="input-group">
-          <label for="timeline-end">End (0 = Auto)</label>
-          <input
-            id="timeline-end"
-            type="number"
-            bind:value={syncs.timelineEnd.value}
-            min="0"
-            placeholder="Auto"
-          />
-        </div>
+        <InputNumber
+          id="timeline-start"
+          label="Start"
+          bind:value={syncs.timelineStart.value}
+          min={0}
+          placeholder="0"
+          appearance="compact"
+          allowEmpty={true}
+        />
+        <InputNumber
+          id="timeline-end"
+          label="End (0 = Auto)"
+          bind:value={syncs.timelineEnd.value}
+          min={0}
+          placeholder="Auto"
+          appearance="compact"
+          allowEmpty={true}
+        />
       </div>
-    </div>
+    </CompactSettingsSection>
   </form>
 </div>
 
@@ -85,44 +85,8 @@
     flex-direction: column;
     gap: 6px;
   }
-  .separator {
-    height: 1px;
-    background: var(--c-grey);
-    margin: 6px 0;
-  }
-  .timeline-row {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
   .timeline-inputs {
     display: flex;
     gap: 8px;
-  }
-  .input-group {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .section-title,
-  .input-group label {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--c-darkgrey);
-    display: block;
-  }
-  .input-group input {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 3px 6px;
-    border: 1px solid var(--c-midgrey);
-    border-radius: var(--rounded);
-    font-size: 11px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-  .input-group input:focus {
-    border-color: var(--c-brand);
   }
 </style>

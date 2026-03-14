@@ -1,39 +1,27 @@
-export async function getDocs() {
-  const modules = import.meta.glob('/docs/**/*.md')
-  const rawModules = import.meta.glob('/docs/**/*.md', {
+import {
+  getDefaultDocTitle,
+  normalizeDocSlug,
+  type DocModule,
+  type LoadedDoc,
+  type LoadedDocMetadata,
+} from './navigation'
+
+export async function getDocs(): Promise<LoadedDoc[]> {
+  const modules = import.meta.glob<DocModule>('/docs/**/*.md')
+  const rawModules = import.meta.glob<string>('/docs/**/*.md', {
     query: '?raw',
     import: 'default',
   })
-  const docs = []
+  const docs: LoadedDoc[] = []
 
-  for (const path in modules) {
-    let slug = path.replace('/docs/', '').replace('.md', '')
-
-    // Normalize index slugs
-    if (slug === 'index') {
-      slug = ''
-    } else if (slug.endsWith('/index')) {
-      slug = slug.replace(/\/index$/, '')
-    }
-
-    const resolver = modules[path] as () => Promise<any>
+  for (const [path, resolver] of Object.entries(modules)) {
+    const slug = normalizeDocSlug(path.replace('/docs/', '').replace('.md', ''))
     const content = await resolver()
     const metadata = { ...content.metadata }
 
     // If no title in frontmatter, try to find it in the content (H1)
     if (!metadata.title) {
-      const fileName = slug === '' ? 'index' : slug.split('/').pop()
-      if (fileName === 'index' || slug === '') {
-        // Use directory name for index files
-        const parentDir = slug.split('/').slice(-2, -1)[0] || 'Introduction'
-        metadata.title = parentDir
-          .replace(/-/g, ' ')
-          .replace(/\b\w/g, l => l.toUpperCase())
-      } else {
-        metadata.title = fileName
-          ?.replace(/-/g, ' ')
-          .replace(/\b\w/g, l => l.toUpperCase())
-      }
+      metadata.title = getDefaultDocTitle(slug)
     }
 
     // SEO Title
@@ -74,10 +62,17 @@ export async function getDocs() {
         .slice(0, 160)
     }
 
+    const loadedMetadata: LoadedDocMetadata = {
+      title: metadata.title,
+      description: metadata.description,
+      order: metadata.order,
+      seoTitle: metadata.seoTitle,
+    }
+
     docs.push({
       path,
       slug,
-      metadata,
+      metadata: loadedMetadata,
       component: content.default,
     })
   }
@@ -85,7 +80,9 @@ export async function getDocs() {
   return docs
 }
 
-export async function getDoc(slug: string) {
+export async function getDoc(
+  slug: string
+): Promise<Pick<LoadedDoc, 'component' | 'metadata'> | null> {
   const docs = await getDocs()
 
   // Normalize lookup slug to remove trailing slash for consistent matching

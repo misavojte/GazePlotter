@@ -1,7 +1,11 @@
 <script lang="ts">
   import Radio from '$lib/shared/components/Radio.svelte'
   import Select from '$lib/shared/components/Select.svelte'
-  import { InputCheck, InputColor } from '$lib/shared/components'
+  import {
+    InputCheck,
+    InputColor,
+    InputText,
+  } from '$lib/shared/components'
   import {
     SortableTableHeader,
     SectionHeader,
@@ -9,10 +13,7 @@
     IntroductoryParagraph,
   } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
-  import {
-    getAllAois,
-    getHiddenAois,
-  } from '$lib/data/engine'
+  import { getAllAois, getHiddenAois } from '$lib/data/engine'
   import type { ExtendedInterpretedDataType } from '$lib/data/types'
   import { flip } from 'svelte/animate'
   import { fade } from 'svelte/transition'
@@ -311,7 +312,8 @@
 
     // Update No AOI treatment if it changed
     if (
-      noAoiTreatment.displayedName !== lastNoAoiTreatmentSnapshot.displayedName ||
+      noAoiTreatment.displayedName !==
+        lastNoAoiTreatmentSnapshot.displayedName ||
       noAoiTreatment.color !== lastNoAoiTreatmentSnapshot.color
     ) {
       const didUpdateNoAoiTreatment = workspace.updateNoAoiTreatment(
@@ -413,17 +415,19 @@
         >
           <td class="original-name">{aoi.originalName}</td>
           <td>
-            <input
-              type="text"
-              id={aoi.id + 'displayedName'}
-              value={aoi.displayedName}
+            <InputText
+              id={`displayed-name-${aoi.id}`}
+              label="Displayed name"
+              showLabel={false}
+              fill={true}
               disabled={!isActive}
+              ariaLabel={`Displayed name for ${aoi.originalName}`}
+              value={aoi.displayedName}
               oninput={e => {
-                const target = e.currentTarget
                 // Find and update the original AOI in aoiObjects
                 const originalAoi = aoiObjects.find(a => a.id === aoi.id)
                 if (originalAoi) {
-                  originalAoi.displayedName = target.value
+                  originalAoi.displayedName = e.detail
                 }
               }}
             />
@@ -432,7 +436,10 @@
             <td class="color-cell">
               <div class:disabled-control={!isActive} aria-disabled={!isActive}>
                 <InputColor
-                  label=""
+                  id={`color-${aoi.id}`}
+                  label="Color"
+                  showLabel={false}
+                  ariaLabel={`Color for ${aoi.originalName}`}
                   value={aoi.color}
                   oninput={event => {
                     if (!isActive) return
@@ -532,7 +539,7 @@
         { label: 'All by original name', value: 'all_original' },
         { label: 'All by displayed name', value: 'all_displayed' },
       ]}
-      bind:userSelected
+      bind:value={userSelected}
     />
   </div>
   <div class="content">
@@ -542,13 +549,11 @@
         <InputColor label="Color" bind:value={noAoiTreatment.color} />
       </div>
       <div class="noaoi-name-wrapper">
-        <label for="noaoi-display-name">Display name</label>
-        <input
-          id="noaoi-display-name"
-          type="text"
+        <InputText
+          label="Display name"
           placeholder="No AOI"
           bind:value={noAoiTreatment.displayedName}
-          class="noaoi-name-input"
+          fill={true}
         />
       </div>
     </div>
@@ -569,16 +574,6 @@
 {/if}
 
 <style>
-  /* Component Group */
-  input {
-    height: 34px;
-    box-sizing: border-box;
-    border: 1px solid var(--c-border);
-    border-radius: var(--rounded);
-    margin: 0;
-    padding: 0.5rem;
-  }
-
   .active-col {
     text-align: center;
     vertical-align: middle;
@@ -597,14 +592,6 @@
 
   .color-cell {
     padding: 0;
-  }
-
-  .color-cell :global(.input) {
-    margin-bottom: 0;
-  }
-
-  .color-cell :global(label) {
-    display: none;
   }
 
   .button-group {
@@ -641,11 +628,6 @@
     padding: 3px 7px;
   }
 
-  .noaoi-name-input {
-    width: 100%;
-    padding: 0.5rem;
-  }
-
   .noaoi-treatment-container {
     display: flex;
     gap: 20px;
@@ -660,29 +642,5 @@
   .noaoi-name-wrapper {
     flex: 1;
     max-width: 250px;
-  }
-
-  .noaoi-name-wrapper label {
-    display: block;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--c-text);
-    margin-bottom: 6px;
-  }
-
-  .noaoi-name-wrapper input {
-    width: 100%;
-    height: 34px;
-    box-sizing: border-box;
-    border: 1px solid var(--c-border);
-    border-radius: var(--rounded);
-    padding: 0.5rem;
-    font-size: 14px;
-  }
-
-  .noaoi-name-wrapper input:focus {
-    outline: none;
-    border-color: var(--c-primary);
-    box-shadow: 0 0 0 2px rgba(var(--rgb-primary), 0.1);
   }
 </style>

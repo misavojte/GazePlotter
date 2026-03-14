@@ -2,6 +2,11 @@
   import type { MenuComponentBridgeProps } from '$lib/context-menu'
   import { ColorPicker, ColorPickerManager } from '$lib/color'
   import { interpolateColor } from '$lib/color/utility'
+  import {
+    CompactSettingsSection,
+    CompactSettingsSeparator,
+  } from '$lib/plots/shared/components'
+  import { InputNumber } from '$lib/shared/components'
   import { fade } from 'svelte/transition'
   import { PRESET_PALETTES } from '$lib/color/palettes'
 
@@ -81,49 +86,42 @@
 
 <div class="compact-color-settings">
   <form onsubmit={handleSubmit}>
-    <div class="section">
-      <div class="section-title">Common Settings</div>
-      <div class="input-group">
-        <label for="bin-size">Bin Size [ms]</label>
-        <input
-          id="bin-size"
-          type="number"
-          bind:value={syncs.binSize.value}
-          min="1"
-        />
-      </div>
+    <CompactSettingsSection title="Common Settings">
+      <InputNumber
+        id="bin-size"
+        label="Bin Size [ms]"
+        bind:value={syncs.binSize.value}
+        min={1}
+        appearance="compact"
+      />
 
-      <div class="timeline-row">
-        <span class="sub-section-title">Timeline [ms]</span>
+      <CompactSettingsSection title="Timeline [ms]">
         <div class="timeline-inputs">
-          <div class="input-group">
-            <label for="timeline-start">Start</label>
-            <input
-              id="timeline-start"
-              type="number"
-              bind:value={syncs.timelineStart.value}
-              min="0"
-              placeholder="0"
-            />
-          </div>
-          <div class="input-group">
-            <label for="timeline-end">End (0=Auto)</label>
-            <input
-              id="timeline-end"
-              type="number"
-              bind:value={syncs.timelineEnd.value}
-              min="0"
-              placeholder="Auto"
-            />
-          </div>
+          <InputNumber
+            id="timeline-start"
+            label="Start"
+            bind:value={syncs.timelineStart.value}
+            min={0}
+            placeholder="0"
+            appearance="compact"
+            allowEmpty={true}
+          />
+          <InputNumber
+            id="timeline-end"
+            label="End (0=Auto)"
+            bind:value={syncs.timelineEnd.value}
+            min={0}
+            placeholder="Auto"
+            appearance="compact"
+            allowEmpty={true}
+          />
         </div>
-      </div>
-    </div>
+      </CompactSettingsSection>
+    </CompactSettingsSection>
 
-    <div class="separator"></div>
+    <CompactSettingsSeparator tone="light" margin={8} />
 
-    <div class="section">
-      <div class="section-title">Color Scale</div>
+    <CompactSettingsSection title="Color Scale">
       <div class="preview-container">
         <div class="gradient-bar" style:background={gradientStyle}>
           <button
@@ -164,7 +162,7 @@
           ></button>
         {/each}
       </div>
-    </div>
+    </CompactSettingsSection>
   </form>
 
   {#if minPicker.isOpen}
@@ -233,56 +231,9 @@
     min-width: 180px;
     box-sizing: border-box;
   }
-  .section {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .section-title {
-    font-size: 11px;
-    font-weight: 600;
-    color: #374151;
-    margin-bottom: 2px;
-  }
-  .sub-section-title {
-    font-size: 10px;
-    font-weight: 500;
-    color: var(--c-text);
-  }
-  .separator {
-    height: 1px;
-    background: #e5e7eb;
-    margin: 8px 0;
-  }
-
-  .timeline-row {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
   .timeline-inputs {
     display: flex;
     gap: 8px;
-  }
-  .input-group {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .input-group label {
-    font-size: 10px;
-    font-weight: 500;
-    color: #666;
-  }
-  .input-group input {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 2px 4px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 11px;
-    outline: none;
   }
   .preview-container {
     height: 16px;

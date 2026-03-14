@@ -1,21 +1,11 @@
 <script lang="ts">
   import { page } from '$app/state'
+  import { getPrevNextLinks } from '../navigation'
   let { data } = $props()
   const Doc = $derived(data.doc.component)
 
   let prevNext = $derived.by(() => {
-    const links = page.data.allLinks
-
-    if (!links) return { prev: null, next: null }
-    const currentPath = page.url.pathname.replace(/\/$/, '')
-    const idx = links.findIndex(
-      (l: { href: string }) =>
-        l.href === currentPath || l.href === currentPath + '/'
-    )
-    return {
-      prev: idx > 0 ? links[idx - 1] : null,
-      next: idx >= 0 && idx < links.length - 1 ? links[idx + 1] : null,
-    }
+    return getPrevNextLinks(page.url.pathname, page.data.allLinks ?? [])
   })
 </script>
 

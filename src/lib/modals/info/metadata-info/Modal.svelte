@@ -1,254 +1,80 @@
 <script lang="ts">
-  import SectionHeader from '$lib/modals/shared/components/SectionHeader.svelte'
+  import { onMount } from 'svelte'
+  import { triggerDownload } from '$lib/data/export'
   import ModalButtons from '$lib/modals/shared/components/ModalButtons.svelte'
   import { getGazePlotterSession } from '$lib/session'
-  import { formatDuration } from '$lib/shared/utils/timeUtils'
   import { formatFileSize } from '$lib/shared/utils/fileUtils'
-  import { onMount, onDestroy } from 'svelte'
+  import { formatDuration } from '$lib/shared/utils/timeUtils'
+  import MetadataFileList from './components/MetadataFileList.svelte'
+  import MetadataMemorySection from './components/MetadataMemorySection.svelte'
+  import MetadataOverviewSection from './components/MetadataOverviewSection.svelte'
+  import MetadataRecentErrorsSection from './components/MetadataRecentErrorsSection.svelte'
+  import MetadataSection from './components/MetadataSection.svelte'
+  import {
+    buildMetadataCsvReport,
+    buildMetadataExportFileName,
+    buildMetadataOverview,
+    formatMetadataDate,
+    getMetadataMemoryInfo,
+    isCurrentParsingSameAsSource,
+    sumFileSizes,
+  } from './helpers'
+
   const { errorService, ingest, engine, modalState } = getGazePlotterSession()
-  const fileMetadata = $derived(ingest.metadata)
+  const fileMetadata = $derived(ingest.metadata ?? null)
   const currentFileInput = $derived(ingest.input)
   const recentErrors = $derived(errorService.recent)
 
-  // Memory monitoring state
-  let memoryInfo = $state<{
-    used: number
-    total: number
-    limit: number
-    available: boolean
-  }>({
-    used: 0,
-    total: 0,
-    limit: 0,
-    available: false,
-  })
+  let memoryInfo = $state(getMetadataMemoryInfo(performance))
 
-  let memoryUpdateInterval: ReturnType<typeof setInterval> | null = null
-
-  /**
-   * Updates memory information if available
-   */
   function updateMemoryInfo(): void {
-    if ('memory' in performance && (performance as any).memory) {
-      const memory = (performance as any).memory
-      memoryInfo = {
-        used: memory.usedJSHeapSize,
-        total: memory.totalJSHeapSize,
-        limit: memory.jsHeapSizeLimit,
-        available: true,
-      }
-    } else {
-      memoryInfo = {
-        used: 0,
-        total: 0,
-        limit: 0,
-        available: false,
-      }
-    }
+    memoryInfo = getMetadataMemoryInfo(performance)
   }
 
-  // Start memory monitoring when component mounts
   onMount(() => {
     updateMemoryInfo()
-    // Update memory info every 2 seconds
-    memoryUpdateInterval = setInterval(updateMemoryInfo, 2000)
-  })
+    const interval = setInterval(updateMemoryInfo, 2000)
 
-  // Clean up interval when component unmounts
-  onDestroy(() => {
-    if (memoryUpdateInterval !== null) {
-      clearInterval(memoryUpdateInterval)
-      memoryUpdateInterval = null
+    return () => {
+      clearInterval(interval)
     }
   })
 
-  /**
-   * Formats ISO date string to readable format
-   */
-  function formatDate(isoString: string): string {
-    return new Date(isoString).toLocaleString()
-  }
+  const totalFileSize = $derived(
+    fileMetadata === null ? 0 : sumFileSizes(fileMetadata.fileSizes)
+  )
 
-  function csvCell(value: string): string {
-    return JSON.stringify(value)
-  }
+  const isSameAsSource = $derived(
+    isCurrentParsingSameAsSource(currentFileInput, fileMetadata)
+  )
 
-  /**
-   * Gets the number of AOIs per stimulus and total
-   */
-  function getAoiCounts(): {
-    perStimulus: { stimulusName: string; count: number }[]
-    total: number
-  } {
-    try {
-      const meta = engine.metadata
-      if (!meta) return { perStimulus: [], total: 0 }
-      const perStimulus: { stimulusName: string; count: number }[] = []
-      let total = 0
+  const dataOverview = $derived(buildMetadataOverview(engine.metadata))
 
-      for (let i = 0; i < meta.stimuli.data.length; i++) {
-        const stimulusName = meta.stimuli.data[i][0]
-        const aoiCount = meta.aois.data[i]?.length || 0
-        perStimulus.push({ stimulusName, count: aoiCount })
-        total += aoiCount
-      }
-
-      return { perStimulus, total }
-    } catch (error) {
-      return { perStimulus: [], total: 0 }
-    }
-  }
-
-  /**
-   * Exports metadata as CSV file
-   */
   function exportMetadata(): void {
     try {
-      const overview = dataOverview
-      const timestamp = new Date().toISOString()
-
-      // Build CSV content
-      let csvContent = `GazePlotter Metadata Export\nGenerated,${timestamp}\n\n`
-
-      // Data Overview Section
-      csvContent += `Section,Data Overview\n`
-      csvContent += `Metric,Value\n`
-      csvContent += `Number of Stimuli,${overview.numberOfStimuli}\n`
-      csvContent += `Number of Participants,${overview.numberOfParticipants}\n`
-      csvContent += `Total Number of AOIs,${overview.aoiCounts.total}\n\n`
-
-      // RAM Usage Section
-      if (memoryInfo.available) {
-        csvContent += `Section,RAM Usage\n`
-        csvContent += `Metric,Value\n`
-        csvContent += `Current JS Heap Size (used),${formatFileSize(memoryInfo.used)}\n`
-        csvContent += `Total JS Heap Size (allocated),${formatFileSize(memoryInfo.total)}\n`
-        csvContent += `JS Heap Size Limit (max available),${formatFileSize(memoryInfo.limit)}\n`
-        csvContent += `Memory utilization,${((memoryInfo.used / memoryInfo.limit) * 100).toFixed(1)}% of limit\n\n`
-      }
-
-      // AOIs per Stimulus
-      if (overview.aoiCounts.perStimulus.length > 0) {
-        csvContent += `Section,AOIs per Stimulus\n`
-        csvContent += `Stimulus Name,AOI Count\n`
-        for (const stimulus of overview.aoiCounts.perStimulus) {
-          csvContent += `${stimulus.stimulusName},${stimulus.count}\n`
+      const exportDate = new Date()
+      const csvContent = buildMetadataCsvReport(
+        {
+          overview: dataOverview,
+          memoryInfo,
+          currentFileInput,
+          isSameAsSource,
+          fileMetadata,
+          recentErrors,
+          generatedAt: exportDate.toISOString(),
+        },
+        {
+          formatDate: formatMetadataDate,
+          formatDuration,
+          formatFileSize,
         }
-        csvContent += `\n`
-      }
+      )
 
-      // Current Parsing Info (if different from source)
-      if (currentFileInput !== null && !isSameAsSource) {
-        csvContent += `Section,Current Parsing\n`
-        csvContent += `Metric,Value\n`
-        csvContent += `Files Being Processed,${currentFileInput.fileNames.length}\n`
-        csvContent += `Total File Size,${formatFileSize(currentFileInput.fileSizes.reduce((sum: number, size: number) => sum + size, 0))}\n`
-        csvContent += `Parse Date,${formatDate(currentFileInput.parseDate)}\n\n`
-
-        csvContent += `Section,Current Parsing Files\n`
-        csvContent += `File Name,File Size (bytes)\n`
-        for (let i = 0; i < currentFileInput.fileNames.length; i++) {
-          csvContent += `${currentFileInput.fileNames[i]},${currentFileInput.fileSizes[i]}\n`
-        }
-        csvContent += `\n`
-      }
-
-      // Source Parsing Info
-      if (fileMetadata !== null) {
-        if (fileMetadata.status === 'failure') {
-          // Export failure information
-          csvContent += `Section,Source Parsing - FAILED\n`
-          csvContent += `Metric,Value\n`
-          csvContent += `Status,FAILURE\n`
-          csvContent += `Error ID,${fileMetadata.errorId}\n`
-          csvContent += `Error Timestamp,${formatDate(fileMetadata.errorCreatedAt)}\n`
-          csvContent += `User Message,${csvCell(fileMetadata.userMessage)}\n`
-          if (fileMetadata.debugMessage !== fileMetadata.userMessage) {
-            csvContent += `Debug Message,${csvCell(fileMetadata.debugMessage)}\n`
-          }
-          csvContent += `Files Attempted,${fileMetadata.fileNames.length}\n`
-          csvContent += `Total File Size,${formatFileSize(totalFileSize)}\n`
-          if (fileMetadata.attemptedParseDuration !== undefined) {
-            csvContent += `Attempted Parse Duration,${formatDuration(fileMetadata.attemptedParseDuration)}\n`
-          }
-          csvContent += `Failure Date,${formatDate(fileMetadata.parseDate)}\n`
-          csvContent += `GazePlotter Version,${fileMetadata.gazePlotterVersion}\n`
-          csvContent += `Client,"${fileMetadata.clientUserAgent}"\n\n`
-
-          csvContent += `Section,Attempted Files\n`
-          csvContent += `File Name,File Size (bytes)\n`
-          for (let i = 0; i < fileMetadata.fileNames.length; i++) {
-            csvContent += `${fileMetadata.fileNames[i]},${fileMetadata.fileSizes[i]}\n`
-          }
-          csvContent += `\n`
-
-          if (fileMetadata.stack) {
-            csvContent += `Section,Error Stack Trace\n`
-            csvContent += `${csvCell(fileMetadata.stack)}\n\n`
-          }
-        } else {
-          // Export success information
-          csvContent += `Section,Source Parsing\n`
-          csvContent += `Metric,Value\n`
-          csvContent += `Status,SUCCESS\n`
-          csvContent += `Files Processed,${fileMetadata.fileNames.length}\n`
-          csvContent += `Total File Size,${formatFileSize(totalFileSize)}\n`
-          csvContent += `Parse Duration,${formatDuration(fileMetadata.parseDuration)}\n`
-          csvContent += `Parse Date,${formatDate(fileMetadata.parseDate)}\n`
-          csvContent += `GazePlotter Version,${fileMetadata.gazePlotterVersion}\n`
-          csvContent += `Client,"${fileMetadata.clientUserAgent}"\n\n`
-
-          csvContent += `Section,Source Parsing Files\n`
-          csvContent += `File Name,File Size (bytes)\n`
-          for (let i = 0; i < fileMetadata.fileNames.length; i++) {
-            csvContent += `${fileMetadata.fileNames[i]},${fileMetadata.fileSizes[i]}\n`
-          }
-          csvContent += `\n`
-
-          // Parse Settings
-          csvContent += `Section,Parse Settings\n`
-          csvContent += `Setting,Value\n`
-          csvContent += `Type,${fileMetadata.parseSettings.type}\n`
-          csvContent += `Row Delimiter,"${JSON.stringify(fileMetadata.parseSettings.rowDelimiter)}"\n`
-          csvContent += `Column Delimiter,"${JSON.stringify(fileMetadata.parseSettings.columnDelimiter)}"\n`
-          if ('userInputSetting' in fileMetadata.parseSettings) {
-            csvContent += `User Input Setting,${fileMetadata.parseSettings.userInputSetting || '(empty)'}\n`
-          }
-        }
-      } else {
-        csvContent += `Section,Source Parsing\n`
-        csvContent += `Note,This data was parsed before GazePlotter version 1.7.0 and original parsing metadata is not available.\n\n`
-      }
-
-      if (recentErrors.length > 0) {
-        csvContent += `Section,Recent Errors\n`
-        csvContent +=
-          `Timestamp,Origin,Severity,User Message,Debug Message,Context\n`
-        recentErrors.forEach(error => {
-          csvContent += [
-            csvCell(error.createdAt),
-            csvCell(error.origin),
-            csvCell(error.severity),
-            csvCell(error.userMessage),
-            csvCell(error.debugMessage),
-            csvCell(JSON.stringify(error.context ?? null)),
-          ].join(',')
-          csvContent += `\n`
-        })
-        csvContent += `\n`
-      }
-
-      // Create and trigger download
-      const blob = new Blob([csvContent], { type: 'text/csv' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `GazePlotter_Metadata_${new Date().toISOString().split('T')[0]}.csv`
-      link.style.opacity = '0'
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
+      triggerDownload(
+        new Blob([csvContent], { type: 'text/csv' }),
+        buildMetadataExportFileName(exportDate),
+        '.csv'
+      )
     } catch (error) {
       errorService.report({
         origin: 'export',
@@ -262,394 +88,193 @@
       })
     }
   }
-
-  /**
-   * Calculates the total file size from the metadata
-   */
-  const totalFileSize = $derived(
-    fileMetadata?.fileSizes.reduce(
-      (sum: number, size: number) => sum + size,
-      0
-    ) ?? 0
-  )
-
-  /**
-   * Checks if current parsing is the same as source file parsing
-   * by comparing file names, sizes, and parse dates
-   */
-  const isSameAsSource = $derived(
-    currentFileInput !== null &&
-      fileMetadata !== null &&
-      JSON.stringify(currentFileInput.fileNames) ===
-        JSON.stringify(fileMetadata.fileNames) &&
-      JSON.stringify(currentFileInput.fileSizes) ===
-        JSON.stringify(fileMetadata.fileSizes) &&
-      currentFileInput.parseDate === fileMetadata.parseDate
-  )
-
-  // Data overview calculations
-  const dataOverview = $derived.by(() => {
-    try {
-      const meta = engine.metadata
-      if (!meta) {
-        return {
-          numberOfStimuli: 0,
-          numberOfParticipants: 0,
-          aoiCounts: { perStimulus: [], total: 0 },
-        }
-      }
-
-      const numberOfStimuli = meta.stimuli.data.length
-      const numberOfParticipants = meta.participants.data.length
-      const aoiCounts = getAoiCounts()
-
-      return {
-        numberOfStimuli,
-        numberOfParticipants,
-        aoiCounts,
-      }
-    } catch (error) {
-      return {
-        numberOfStimuli: 0,
-        numberOfParticipants: 0,
-        aoiCounts: { perStimulus: [], total: 0 },
-      }
-    }
-  })
 </script>
 
 <div class="container">
-  <!-- Data overview section -->
-  <section class="section">
-    <SectionHeader text="Data overview" />
-    <div class="content">
+  <MetadataOverviewSection overview={dataOverview} />
+
+  {#if currentFileInput !== null && !isSameAsSource}
+    <MetadataSection title="Current parsing">
       <div class="info-group">
         <div class="info-item">
-          <span class="label">Number of stimuli:</span>
-          <span class="value">{dataOverview.numberOfStimuli}</span>
+          <span class="label">Files being processed:</span>
+          <span class="value">{currentFileInput.fileNames.length}</span>
         </div>
-        <div class="info-item">
-          <span class="label">Number of participants:</span>
-          <span class="value">{dataOverview.numberOfParticipants}</span>
-        </div>
-        <div class="info-item">
-          <span class="label">Total number of AOIs:</span>
-          <span class="value">{dataOverview.aoiCounts.total}</span>
-        </div>
+        <MetadataFileList
+          fileNames={currentFileInput.fileNames}
+          fileSizes={currentFileInput.fileSizes}
+        />
       </div>
 
-      {#if dataOverview.aoiCounts.perStimulus.length > 0}
-        <div class="info-group">
-          <div class="info-item">
-            <span class="label">AOIs per stimulus:</span>
-          </div>
-          <div class="aoi-list">
-            {#each dataOverview.aoiCounts.perStimulus as stimulus}
-              <div class="aoi-item">
-                <span class="stimulus-name">{stimulus.stimulusName}</span>
-                <span class="aoi-count"
-                  >{stimulus.count} AOI{stimulus.count !== 1 ? 's' : ''}</span
-                >
-              </div>
-            {/each}
-          </div>
+      <div class="info-group">
+        <div class="info-item">
+          <span class="label">Total file size:</span>
+          <span class="value"
+            >{formatFileSize(sumFileSizes(currentFileInput.fileSizes))}</span
+          >
         </div>
-      {/if}
-    </div>
-  </section>
+        <div class="info-item">
+          <span class="label">Parse date:</span>
+          <span class="value"
+            >{formatMetadataDate(currentFileInput.parseDate)}</span
+          >
+        </div>
+      </div>
+    </MetadataSection>
+  {/if}
 
-  <!-- Current parsing section -->
-  {#if currentFileInput !== null && !isSameAsSource}
-    <section class="section">
-      <SectionHeader text="Current parsing" />
-      <div class="content">
-        {#if isSameAsSource}
-          <div class="info-group">
-            Same as Source parsing (this is an original eye tracking data
-            import)
+  <MetadataSection title="Source parsing (original eye tracking export)">
+    {#if fileMetadata === null}
+      <div class="info-group">
+        This data was parsed before GazePlotter version 1.7.0 and original
+        parsing metadata is thus not available.
+      </div>
+    {:else if fileMetadata.status === 'failure'}
+      <div class="info-group failure-details">
+        <div class="info-item">
+          <span class="label">Error message:</span>
+          <span class="value error-message">{fileMetadata.userMessage}</span>
+        </div>
+        {#if fileMetadata.debugMessage !== fileMetadata.userMessage}
+          <div class="info-item">
+            <span class="label">Debug message:</span>
+            <span class="value">{fileMetadata.debugMessage}</span>
           </div>
-        {:else}
-          <div class="info-group">
-            <div class="info-item">
-              <span class="label">Files being processed:</span>
-              <span class="value">{currentFileInput.fileNames.length}</span>
-            </div>
-            <div class="file-list">
-              {#each currentFileInput.fileNames as fileName, index}
-                <div class="file-item">
-                  <span class="file-name">{fileName}</span>
-                  <span class="file-size"
-                    >({formatFileSize(currentFileInput.fileSizes[index])})</span
-                  >
-                </div>
-              {/each}
-            </div>
-          </div>
-
-          <div class="info-group">
-            <div class="info-item">
-              <span class="label">Total file size:</span>
-              <span class="value"
-                >{formatFileSize(
-                  currentFileInput.fileSizes.reduce(
-                    (sum: number, size: number) => sum + size,
-                    0
-                  )
-                )}</span
-              >
-            </div>
-            <div class="info-item">
-              <span class="label">Parse date:</span>
-              <span class="value">{formatDate(currentFileInput.parseDate)}</span
-              >
-            </div>
+        {/if}
+        <div class="info-item">
+          <span class="label">Error ID:</span>
+          <span class="value">{fileMetadata.errorId}</span>
+        </div>
+        {#if fileMetadata.stack}
+          <div class="info-item stack-trace">
+            <span class="label">Error details:</span>
+            <pre class="value error-stack">{fileMetadata.stack}</pre>
           </div>
         {/if}
       </div>
-    </section>
-  {/if}
 
-  <!-- Source file parsing section -->
-  <section class="section">
-    <SectionHeader text="Source parsing (original eye tracking export)" />
-    <div class="content">
-      {#if fileMetadata === null}
-        <div class="info-group">
-          This data was parsed before GazePlotter version 1.7.0 and original
-          parsing metadata is thus not available.
+      <div class="info-group">
+        <div class="info-item">
+          <span class="label">Files attempted:</span>
+          <span class="value">{fileMetadata.fileNames.length}</span>
         </div>
-      {:else if fileMetadata.status === 'failure'}
-        <div class="info-group failure-details">
-          <div class="info-item">
-            <span class="label">Error message:</span>
-            <span class="value error-message">{fileMetadata.userMessage}</span>
-          </div>
-          {#if fileMetadata.debugMessage !== fileMetadata.userMessage}
-            <div class="info-item">
-              <span class="label">Debug message:</span>
-              <span class="value">{fileMetadata.debugMessage}</span>
-            </div>
-          {/if}
-          <div class="info-item">
-            <span class="label">Error ID:</span>
-            <span class="value">{fileMetadata.errorId}</span>
-          </div>
-          {#if fileMetadata.stack}
-            <div class="info-item stack-trace">
-              <span class="label">Error details:</span>
-              <pre class="value error-stack">{fileMetadata.stack}</pre>
-            </div>
-          {/if}
-        </div>
+        <MetadataFileList
+          fileNames={fileMetadata.fileNames}
+          fileSizes={fileMetadata.fileSizes}
+        />
+      </div>
 
-        <div class="info-group">
-          <div class="info-item">
-            <span class="label">Files attempted:</span>
-            <span class="value">{fileMetadata.fileNames.length}</span>
-          </div>
-          <div class="file-list">
-            {#each fileMetadata.fileNames as fileName, index}
-              <div class="file-item">
-                <span class="file-name">{fileName}</span>
-                {#if fileMetadata.fileSizes[index] !== undefined}
-                  <span class="file-size"
-                    >({formatFileSize(fileMetadata.fileSizes[index])})</span
-                  >
-                {/if}
-              </div>
-            {/each}
-          </div>
+      <div class="info-group">
+        <div class="info-item">
+          <span class="label">Total file size:</span>
+          <span class="value">{formatFileSize(totalFileSize)}</span>
         </div>
-
-        <div class="info-group">
+        {#if fileMetadata.attemptedParseDuration !== undefined}
           <div class="info-item">
-            <span class="label">Total file size:</span>
-            <span class="value">{formatFileSize(totalFileSize)}</span>
-          </div>
-          {#if fileMetadata.attemptedParseDuration !== undefined}
-            <div class="info-item">
-              <span class="label">Attempted parse duration:</span>
-              <span class="value"
-                >{formatDuration(fileMetadata.attemptedParseDuration)}</span
-              >
-            </div>
-          {/if}
-          <div class="info-item">
-            <span class="label">Failure date:</span>
-            <span class="value">{formatDate(fileMetadata.parseDate)}</span>
-          </div>
-        </div>
-
-        <div class="info-group">
-          <div class="info-item">
-            <span class="label">GazePlotter version:</span>
-            <span class="value">{fileMetadata.gazePlotterVersion}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">Client:</span>
-            <span class="value client-info">{fileMetadata.clientUserAgent}</span
-            >
-          </div>
-        </div>
-      {:else}
-        <!-- Display success information -->
-        <div class="info-group">
-          <div class="info-item">
-            <span class="label">Files processed:</span>
-            <span class="value">{fileMetadata.fileNames.length}</span>
-          </div>
-          <div class="file-list">
-            {#each fileMetadata.fileNames as fileName, index}
-              <div class="file-item">
-                <span class="file-name">{fileName}</span>
-                <span class="file-size"
-                  >({formatFileSize(fileMetadata.fileSizes[index])})</span
-                >
-              </div>
-            {/each}
-          </div>
-        </div>
-
-        <div class="info-group">
-          <div class="info-item">
-            <span class="label">Total file size:</span>
-            <span class="value">{formatFileSize(totalFileSize)}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">Parse duration:</span>
+            <span class="label">Attempted parse duration:</span>
             <span class="value"
-              >{formatDuration(fileMetadata.parseDuration)}</span
+              >{formatDuration(fileMetadata.attemptedParseDuration)}</span
             >
           </div>
-          <div class="info-item">
-            <span class="label">Parse date:</span>
-            <span class="value">{formatDate(fileMetadata.parseDate)}</span>
-          </div>
+        {/if}
+        <div class="info-item">
+          <span class="label">Failure date:</span>
+          <span class="value">{formatMetadataDate(fileMetadata.parseDate)}</span
+          >
         </div>
+      </div>
 
-        <div class="info-group">
-          <div class="info-item">
-            <span class="label">GazePlotter version:</span>
-            <span class="value">{fileMetadata.gazePlotterVersion}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">Client:</span>
-            <span class="value client-info">{fileMetadata.clientUserAgent}</span
-            >
-          </div>
+      <div class="info-group">
+        <div class="info-item">
+          <span class="label">GazePlotter version:</span>
+          <span class="value">{fileMetadata.gazePlotterVersion}</span>
         </div>
+        <div class="info-item">
+          <span class="label">Client:</span>
+          <span class="value client-info">{fileMetadata.clientUserAgent}</span>
+        </div>
+      </div>
+    {:else}
+      <div class="info-group">
+        <div class="info-item">
+          <span class="label">Files processed:</span>
+          <span class="value">{fileMetadata.fileNames.length}</span>
+        </div>
+        <MetadataFileList
+          fileNames={fileMetadata.fileNames}
+          fileSizes={fileMetadata.fileSizes}
+        />
+      </div>
 
-        <div class="info-group">
-          <div class="info-item">
-            <span class="label">Parse settings:</span>
+      <div class="info-group">
+        <div class="info-item">
+          <span class="label">Total file size:</span>
+          <span class="value">{formatFileSize(totalFileSize)}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Parse duration:</span>
+          <span class="value">{formatDuration(fileMetadata.parseDuration)}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Parse date:</span>
+          <span class="value">{formatMetadataDate(fileMetadata.parseDate)}</span>
+        </div>
+      </div>
+
+      <div class="info-group">
+        <div class="info-item">
+          <span class="label">GazePlotter version:</span>
+          <span class="value">{fileMetadata.gazePlotterVersion}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">Client:</span>
+          <span class="value client-info">{fileMetadata.clientUserAgent}</span>
+        </div>
+      </div>
+
+      <div class="info-group">
+        <div class="info-item">
+          <span class="label">Parse settings:</span>
+        </div>
+        <div class="settings-container">
+          <div class="settings-item">
+            <span class="settings-label">Type:</span>
+            <span class="settings-value">{fileMetadata.parseSettings.type}</span>
           </div>
-          <div class="settings-container">
+
+          <div class="delimiter-row">
             <div class="settings-item">
-              <span class="settings-label">Type:</span>
-              <span class="settings-value"
-                >{fileMetadata.parseSettings.type}</span
+              <span class="settings-label">Row delimiter:</span>
+              <code class="settings-value delimiter-value"
+                >{JSON.stringify(fileMetadata.parseSettings.rowDelimiter)}</code
               >
             </div>
-
-            <div class="delimiter-row">
-              <div class="settings-item">
-                <span class="settings-label">Row delimiter:</span>
-                <code class="settings-value delimiter-value"
-                  >{JSON.stringify(
-                    fileMetadata.parseSettings.rowDelimiter
-                  )}</code
-                >
-              </div>
-              <div class="settings-item">
-                <span class="settings-label">Column delimiter:</span>
-                <code class="settings-value delimiter-value"
-                  >{JSON.stringify(
-                    fileMetadata.parseSettings.columnDelimiter
-                  )}</code
-                >
-              </div>
+            <div class="settings-item">
+              <span class="settings-label">Column delimiter:</span>
+              <code class="settings-value delimiter-value"
+                >{JSON.stringify(
+                  fileMetadata.parseSettings.columnDelimiter
+                )}</code
+              >
             </div>
-
-            {#if 'userInputSetting' in fileMetadata.parseSettings}
-              <div class="settings-item">
-                <span class="settings-label">User input setting:</span>
-                <span class="settings-value"
-                  >{fileMetadata.parseSettings.userInputSetting ||
-                    '(empty)'}</span
-                >
-              </div>
-            {/if}
           </div>
-        </div>
-      {/if}
-    </div>
-  </section>
-  {#if recentErrors.length > 0}
-    <section class="section">
-      <SectionHeader text="Recent Errors" />
-      <div class="content">
-        <div class="info-group">
-          {#each [...recentErrors].reverse() as error (error.id)}
-            <div class="recent-error">
-              <div class="info-item">
-                <span class="label"
-                  >[{error.origin}] {error.severity}</span
-                >
-                <span class="value">{formatDate(error.createdAt)}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">User message:</span>
-                <span class="value error-message">{error.userMessage}</span>
-              </div>
-              <div class="info-item">
-                <span class="label">Debug message:</span>
-                <span class="value">{error.debugMessage}</span>
-              </div>
-              {#if error.context}
-                <div class="info-item stack-trace">
-                  <span class="label">Context:</span>
-                  <pre class="value error-stack"
-                    >{JSON.stringify(error.context, null, 2)}</pre
-                  >
-                </div>
-              {/if}
+
+          {#if 'userInputSetting' in fileMetadata.parseSettings}
+            <div class="settings-item">
+              <span class="settings-label">User input setting:</span>
+              <span class="settings-value"
+                >{fileMetadata.parseSettings.userInputSetting || '(empty)'}</span
+              >
             </div>
-          {/each}
+          {/if}
         </div>
       </div>
-    </section>
-  {/if}
-  <!-- RAM Usage section -->
-  {#if memoryInfo.available}
-    <section class="section">
-      <SectionHeader text="RAM Usage" />
-      <div class="content">
-        <div class="info-group">
-          <div class="info-item">
-            <span class="label">Current JS Heap Size (used):</span>
-            <span class="value">{formatFileSize(memoryInfo.used)}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">Total JS Heap Size (allocated):</span>
-            <span class="value">{formatFileSize(memoryInfo.total)}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">JS Heap Size Limit (max available):</span>
-            <span class="value">{formatFileSize(memoryInfo.limit)}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">Memory utilization:</span>
-            <span class="value"
-              >{((memoryInfo.used / memoryInfo.limit) * 100).toFixed(1)}% of
-              limit</span
-            >
-          </div>
-        </div>
-      </div>
-    </section>
-  {/if}
+    {/if}
+  </MetadataSection>
 
-  <!-- Export button section -->
+  <MetadataRecentErrorsSection errors={recentErrors} />
+  <MetadataMemorySection memoryInfo={memoryInfo} />
+
   <ModalButtons
     buttons={[
       {
@@ -674,18 +299,6 @@
     flex-direction: column;
     gap: 1.5rem;
     max-width: 600px;
-  }
-
-  .section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .content {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
   }
 
   .info-group {
@@ -722,30 +335,6 @@
     font-size: 0.85rem;
     max-width: 300px;
     word-break: break-all;
-  }
-
-  .file-list {
-    margin-left: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .file-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-  }
-
-  .file-name {
-    color: #374151;
-    font-weight: 500;
-  }
-
-  .file-size {
-    color: #6b7280;
-    font-size: 0.85rem;
   }
 
   .settings-container {
@@ -791,47 +380,9 @@
     font-size: 0.85rem;
   }
 
-  .aoi-list {
-    margin-left: 1rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .aoi-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
-  }
-
-  .stimulus-name {
-    color: #374151;
-    font-weight: 500;
-  }
-
-  .aoi-count {
-    color: #6b7280;
-    font-size: 0.85rem;
-  }
-
   .failure-details {
     background: #fff5f5;
     border: 1px solid #fca5a5;
-  }
-
-  .recent-error {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid #e5e7eb;
-  }
-
-  .recent-error:last-child {
-    padding-bottom: 0;
-    border-bottom: none;
   }
 
   .error-message {

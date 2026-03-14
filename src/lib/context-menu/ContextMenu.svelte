@@ -1,4 +1,9 @@
 <script lang="ts">
+  import {
+    highlightMenuItem,
+    isMenuActionActivationKey,
+    shouldCloseMenuOnAction,
+  } from './behavior'
   import { contextMenuState } from './contextMenuState.svelte'
   import { MENU_MAX_HEIGHT, MENU_WIDTH } from './const'
   import {
@@ -39,7 +44,7 @@
       ev.preventDefault()
       focusNext(-1)
     }
-    if (ev.key === 'Enter' || ev.key === ' ') {
+    if (isMenuActionActivationKey(ev.key)) {
       const active = document.activeElement as HTMLButtonElement
       if (active && active.role === 'menuitem' && container?.contains(active)) {
         ev.preventDefault()
@@ -73,15 +78,9 @@
       it.onAction?.()
     }
 
-    if (menu.items) {
-      menu.items.forEach((item): void => {
-        if (!isMenuDivider(item)) {
-          item.isHighlighted = item.label === it.label
-        }
-      })
-    }
+    highlightMenuItem(menu.items, it.label)
 
-    if (!isMenuFlyoutItem(it) && it.closeOnAction !== false) {
+    if (shouldCloseMenuOnAction(it)) {
       onClose()
     }
   }

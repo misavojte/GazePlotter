@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state'
   import { onMount } from 'svelte'
+  import { buildDocBreadcrumbs, isMatchingDocPath } from './navigation'
   let { data, children } = $props()
   let sidebarOpen = $state(false)
 
@@ -16,63 +17,8 @@
     }
   })
 
-  const sectionNames: Record<string, string> = {
-    basic: 'Basic Usage',
-    'upload-data': 'Uploading Data',
-    export: 'Export',
-    advanced: 'Advanced',
-  }
-
   let breadcrumbs = $derived.by(() => {
-    const pathname = page.url.pathname.replace(/\/$/, '')
-    const crumbs = [
-      { name: 'GazePlotter', href: '/' },
-      { name: 'Docs', href: '/docs' },
-    ]
-
-    // Get path segments after /docs
-    const docsPath = pathname.replace(/^\/docs\/?/, '')
-    if (!docsPath) return crumbs
-
-    const segments = docsPath.split('/')
-    let currentPath = '/docs'
-
-    for (const segment of segments) {
-      currentPath += `/${segment}`
-
-      // Try to resolve a nice name: first from sidebar links, then from sectionNames, then format the slug
-      let name = null
-
-      // Check sidebar links for an exact match
-      if (data.sections) {
-        for (const section of data.sections) {
-          const match = section.links?.find(
-            (l: { href: string }) =>
-              l.href === currentPath || l.href === currentPath + '/'
-          )
-          if (match) {
-            name = match.name
-            break
-          }
-        }
-      }
-
-      // Check section names map
-      if (!name && sectionNames[segment]) {
-        name = sectionNames[segment]
-      }
-
-      // Fallback: format slug
-      if (!name) {
-        name = segment
-          .replace(/-/g, ' ')
-          .replace(/\b\w/g, (l: string) => l.toUpperCase())
-      }
-
-      crumbs.push({ name, href: currentPath })
-    }
-
-    return crumbs
+    return buildDocBreadcrumbs(page.url.pathname, data.sections)
   })
 
   let jsonLd = $derived(
@@ -173,8 +119,7 @@
                     <a
                       href={link.href}
                       class="nav-link"
-                      class:active={page.url.pathname === link.href ||
-                        page.url.pathname === link.href + '/'}
+                      class:active={isMatchingDocPath(link.href, page.url.pathname)}
                       onclick={() => (sidebarOpen = false)}
                     >
                       {link.name}

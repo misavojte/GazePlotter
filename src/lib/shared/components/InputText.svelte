@@ -4,16 +4,26 @@
   interface Props {
     value?: string
     label: string
+    id?: string
     appearance?: 'default' | 'selectMatched'
     placeholder?: string
+    fill?: boolean
+    showLabel?: boolean
+    disabled?: boolean
+    ariaLabel?: string
     oninput?: (event: CustomEvent) => void
   }
 
   let {
     value = $bindable(''),
     label,
+    id,
     appearance = 'default',
     placeholder,
+    fill = false,
+    showLabel = true,
+    disabled = false,
+    ariaLabel,
     oninput = () => {},
   }: Props = $props()
 
@@ -23,18 +33,19 @@
     oninput(new CustomEvent('input', { detail: value }))
   }
 
-  const id = `text-${untrack(() => label.toLowerCase().replace(/\s+/g, '-'))}`
+  const generatedId = `text-${untrack(() => label.toLowerCase().replace(/\s+/g, '-'))}`
+  const inputId = $derived(id ?? generatedId)
 </script>
 
-<InputScaffold
-  {label}
-  {id}
->
+<InputScaffold {label} id={inputId} {fill} {showLabel}>
   <input
-    {id}
+    id={inputId}
     type="text"
     class:select-matched={appearance === 'selectMatched'}
+    class:fill
     bind:value
+    {disabled}
+    aria-label={ariaLabel ?? (!showLabel ? label : undefined)}
     oninput={handleInput}
     {placeholder}
   />
@@ -44,10 +55,15 @@
   input {
     padding: 0.5rem;
     border: 1px solid var(--c-border);
-    border-radius: var(--rounded);
+    border-radius: var(--rounded-md);
     font-size: 14px;
     width: 170px;
     box-sizing: border-box;
+    margin: 0;
+  }
+
+  input.fill {
+    width: 100%;
   }
 
   input.select-matched {
@@ -63,5 +79,11 @@
   input.select-matched:focus-visible {
     outline: 2px solid var(--c-primary, #1976d2);
     outline-offset: 2px;
+  }
+
+  input:disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+    opacity: 0.7;
   }
 </style>

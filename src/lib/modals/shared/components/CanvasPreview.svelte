@@ -1,5 +1,6 @@
 <script lang="ts">
   import { setContext, tick } from 'svelte'
+  import type { Snippet } from 'svelte'
   import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
   import { getGazePlotterSession } from '$lib/session'
   import {
@@ -17,7 +18,7 @@
     fileName: string
     fileType: '.png' | '.jpg'
     showDownloadButton?: boolean
-    children: any // Child component that renders to Canvas
+    children: Snippet // Child component that renders to Canvas
   }
 
   let {

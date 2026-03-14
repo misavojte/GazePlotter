@@ -1,6 +1,11 @@
 <script lang="ts">
   import type { MenuComponentBridgeProps, MenuItem } from '$lib/context-menu'
   import type { BarPlotSettings } from '$lib/plots/bar/types'
+  import {
+    CompactSettingsSection,
+    CompactSettingsSeparator,
+  } from '$lib/plots/shared/components'
+  import { Radio, InputNumber } from '$lib/shared/components'
 
   interface Props extends MenuComponentBridgeProps {
     syncs: {
@@ -24,144 +29,92 @@
 
 <div class="settings-container">
   <form onsubmit={handleSubmit}>
-    <div class="order-row">
-      <!-- Bar Orientation Section -->
-      <span class="column-label">Bar orientation</span>
+    <CompactSettingsSection title="Bar orientation">
+      <Radio
+        ariaLabel="Bar orientation"
+        options={[
+          { label: 'Horizontal', value: 'horizontal' },
+          { label: 'Vertical', value: 'vertical' },
+        ]}
+        appearance="compact"
+        direction="row"
+        bind:value={syncs.barPlottingType.value}
+      />
+    </CompactSettingsSection>
+
+    <CompactSettingsSeparator />
+
+    <CompactSettingsSection title="Ordering">
       <div class="order-columns">
         <div class="column">
-          <div class="radio-group">
-            <label class="radio-label">
-              <input
-                type="radio"
-                name="barPlottingType"
-                value="horizontal"
-                bind:group={syncs.barPlottingType.value}
-              />
-              <span>Horizontal</span>
-            </label>
-          </div>
+          <Radio
+            legend="Order by"
+            options={[
+              { label: 'Value', value: 'value' },
+              { label: 'AOI order', value: 'aoi' },
+            ]}
+            appearance="compact"
+            bind:value={syncs.orderBy.value}
+          />
         </div>
+
         <div class="column">
-          <div class="radio-group">
-            <label class="radio-label">
-              <input
-                type="radio"
-                name="barPlottingType"
-                value="vertical"
-                bind:group={syncs.barPlottingType.value}
-              />
-              <span>Vertical</span>
-            </label>
-          </div>
+          <Radio
+            legend="Direction"
+            options={[
+              { label: 'ASC', value: 'asc' },
+              { label: 'DESC', value: 'desc' },
+            ]}
+            appearance="compact"
+            bind:value={syncs.orderDirection.value}
+          />
         </div>
       </div>
-    </div>
+    </CompactSettingsSection>
 
-    <div class="separator"></div>
+    <CompactSettingsSeparator />
 
-    <div class="order-row">
-      <div class="order-columns">
-        <div class="column">
-          <span class="column-label">Order by</span>
-          <div class="radio-group">
-            <label class="radio-label">
-              <input
-                type="radio"
-                name="orderBy"
-                value="value"
-                bind:group={syncs.orderBy.value}
-              />
-              <span>Value</span>
-            </label>
-            <label class="radio-label">
-              <input
-                type="radio"
-                name="orderBy"
-                value="aoi"
-                bind:group={syncs.orderBy.value}
-              />
-              <span>AOI order</span>
-            </label>
-          </div>
-        </div>
-
-        <div class="column">
-          <span class="column-label">Direction</span>
-          <div class="radio-group">
-            <label class="radio-label">
-              <input
-                type="radio"
-                name="orderDirection"
-                value="asc"
-                bind:group={syncs.orderDirection.value}
-              />
-              <span>ASC</span>
-            </label>
-            <label class="radio-label">
-              <input
-                type="radio"
-                name="orderDirection"
-                value="desc"
-                bind:group={syncs.orderDirection.value}
-              />
-              <span>DESC</span>
-            </label>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="separator"></div>
-
-    <div class="scale-row">
-      <span class="section-title">Scale range [ms]</span>
+    <CompactSettingsSection title="Scale range [ms]">
       <div class="scale-inputs">
-        <div class="input-group">
-          <label for="min-scale">Min</label>
-          <input
-            id="min-scale"
-            type="number"
-            bind:value={syncs.minScale.value}
-            min="0"
-          />
-        </div>
-        <div class="input-group">
-          <label for="max-scale">Max (0 = Auto)</label>
-          <input
-            id="max-scale"
-            type="number"
-            bind:value={syncs.maxScale.value}
-            min="0"
-          />
-        </div>
+        <InputNumber
+          id="min-scale"
+          label="Min"
+          bind:value={syncs.minScale.value}
+          min={0}
+          appearance="compact"
+        />
+        <InputNumber
+          id="max-scale"
+          label="Max (0 = Auto)"
+          bind:value={syncs.maxScale.value}
+          min={0}
+          appearance="compact"
+        />
       </div>
-    </div>
+    </CompactSettingsSection>
 
-    <div class="separator"></div>
+    <CompactSettingsSeparator />
 
-    <div class="scale-row">
-      <span class="section-title">Calculated from Time Range [ms]</span>
+    <CompactSettingsSection title="Calculated from Time Range [ms]">
       <div class="scale-inputs">
-        <div class="input-group">
-          <label for="timeline-start">Start</label>
-          <input
-            id="timeline-start"
-            type="number"
-            bind:value={syncs.timelineStart.value}
-            min="0"
-          />
-        </div>
-        <div class="input-group">
-          <label for="timeline-end">End (0 = Auto)</label>
-          <input
-            id="timeline-end"
-            type="number"
-            bind:value={syncs.timelineEnd.value}
-            min="0"
-          />
-        </div>
+        <InputNumber
+          id="timeline-start"
+          label="Start"
+          bind:value={syncs.timelineStart.value}
+          min={0}
+          appearance="compact"
+          allowEmpty={true}
+        />
+        <InputNumber
+          id="timeline-end"
+          label="End (0 = Auto)"
+          bind:value={syncs.timelineEnd.value}
+          min={0}
+          appearance="compact"
+          allowEmpty={true}
+        />
       </div>
-    </div>
+    </CompactSettingsSection>
   </form>
 </div>
 
@@ -174,23 +127,6 @@
     flex-direction: column;
     gap: 6px;
   }
-  .separator {
-    height: 1px;
-    background: var(--c-grey);
-    margin: 4px 0;
-  }
-  .order-row,
-  .scale-row {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .section-title {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--c-text);
-    display: block;
-  }
   .order-columns {
     display: flex;
     gap: 12px;
@@ -201,59 +137,8 @@
     flex-direction: column;
     gap: 4px;
   }
-  .column-label,
-  .input-group label {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--c-text);
-    display: block;
-  }
-  .radio-group {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .radio-label {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    cursor: pointer;
-    color: var(--c-black);
-    user-select: none;
-    white-space: nowrap;
-  }
-  .radio-label input {
-    margin: 0;
-    cursor: pointer;
-    accent-color: var(--c-brand);
-    width: 12px;
-    height: 12px;
-  }
-  .radio-label:hover {
-    color: var(--c-brand);
-  }
   .scale-inputs {
     display: flex;
     gap: 8px;
-  }
-  .input-group {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .input-group input {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 3px 6px;
-    border: 1px solid var(--c-midgrey);
-    border-radius: var(--rounded, 4px);
-    font-size: 11px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-  .input-group input:focus {
-    border-color: var(--c-brand);
   }
 </style>

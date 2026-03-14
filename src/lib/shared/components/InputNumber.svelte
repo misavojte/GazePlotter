@@ -1,52 +1,100 @@
 <script lang="ts">
   import InputScaffold from './InputScaffold.svelte'
-  import { untrack } from 'svelte'
+  import {
+    formatInputNumberValue,
+    resolveInputNumberCommit,
+  } from './numberInput'
+
   interface Props {
     value?: number
     min?: number
+    max?: number
     label: string
-    appearance?: 'default' | 'selectMatched'
-    oninput?: (event: Event) => void
+    appearance?: 'default' | 'selectMatched' | 'compact'
+    onValueChange?: (value: number | undefined) => void
     disabled?: boolean
-    step?: number
+    step?: number | string
+    placeholder?: string
+    allowEmpty?: boolean
+    id?: string
   }
 
   let {
-    value = $bindable(0),
+    value = $bindable(),
     min = 0,
+    max,
     label,
     appearance = 'default',
-    oninput = () => {},
+    onValueChange = () => {},
     disabled = false,
     step = 1,
+    placeholder,
+    allowEmpty = false,
+    id,
   }: Props = $props()
 
-  function handleInput(event: Event) {
-    const target = event.target as HTMLInputElement
-    value = target.valueAsNumber
+  let inputValue = $state(formatInputNumberValue(value))
+  let isFocused = $state(false)
 
-    // Call the oninput callback with the original event
-    if (typeof oninput === 'function') {
-      oninput(event)
+  function commitValue(nextValue: number | undefined) {
+    value = nextValue
+    onValueChange(nextValue)
+  }
+
+  function handleInput(event: Event) {
+    const target = event.currentTarget as HTMLInputElement
+    inputValue = target.value
+    const nextCommit = resolveInputNumberCommit(target.value, allowEmpty)
+
+    if (nextCommit.shouldCommit && nextCommit.value !== value) {
+      commitValue(nextCommit.value)
     }
   }
 
-  const id = `text-${untrack(() => label.toLowerCase().replace(/\s+/g, '-'))}`
+  function handleFocus() {
+    isFocused = true
+  }
+
+  function handleBlur() {
+    isFocused = false
+    inputValue = formatInputNumberValue(value)
+  }
+
+  $effect(() => {
+    const nextValue = formatInputNumberValue(value)
+
+    if (!isFocused && inputValue !== nextValue) {
+      inputValue = nextValue
+    }
+  })
+
+  const isCompact = $derived(appearance === 'compact')
+  const isSelectMatched = $derived(appearance === 'selectMatched')
+  const generatedId = $derived(`number-${label.toLowerCase().replace(/\s+/g, '-')}`)
+  const inputId = $derived(id ?? generatedId)
 </script>
 
 <InputScaffold
   {label}
-  {id}
+  id={inputId}
+  compact={isCompact}
+  fill={isCompact}
+  labelSize={isCompact ? 'compact' : 'default'}
 >
   <input
-    {id}
+    id={inputId}
     type="number"
-    class:select-matched={appearance === 'selectMatched'}
-    bind:value
+    class:select-matched={isSelectMatched}
+    class:compact={isCompact}
     {min}
+    {max}
     {disabled}
     {step}
+    {placeholder}
     oninput={handleInput}
+    onfocus={handleFocus}
+    onblur={handleBlur}
+    value={inputValue}
   />
 </InputScaffold>
 
@@ -60,14 +108,31 @@
     box-sizing: border-box;
   }
 
+  input.select-matched,
+  input.compact {
+    border-color: var(--c-midgrey);
+    color: var(--c-black);
+    font-weight: 400;
+  }
+
   input.select-matched {
     height: 34px;
     padding: 0.25em 0.5em;
-    border: 1px solid var(--c-midgrey);
     border-radius: var(--rounded-md);
     font-size: 13px;
-    font-weight: 400;
-    color: var(--c-black);
+  }
+
+  input.compact {
+    width: 100%;
+    padding: 3px 6px;
+    border-radius: var(--rounded, 4px);
+    font-size: 11px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input.compact:focus {
+    border-color: var(--c-brand);
   }
 
   input.select-matched:focus-visible {

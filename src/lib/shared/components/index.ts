@@ -10,7 +10,4 @@ export { default as Radio } from './Radio.svelte'
 export { default as Empty } from './Empty.svelte'
 export { default as ButtonMinor } from './ButtonMinor.svelte'
 export { default as ButtonMajor } from './ButtonMajor.svelte'
-export type {
-  SelectOption,
-  GroupSelectItem,
-} from './select'
+export type { SelectOption, GroupSelectItem } from './select'

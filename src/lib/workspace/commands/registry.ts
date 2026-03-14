@@ -63,6 +63,12 @@ type ReverseHandlers = {
   ) => WorkspaceCommandChain | null
 }
 
+type CommandType = WorkspaceCommandChain['type']
+type CommandOfType<TType extends CommandType> = Extract<
+  WorkspaceCommandChain,
+  { type: TType }
+>
+
 export type WorkspaceCommandRegistry = {
   execute: (
     command: WorkspaceCommandChain,
@@ -125,7 +131,7 @@ export function createWorkspaceCommandRegistry(
 
     gridStore.items.forEach(item => {
       if (item.type !== 'scarf') return
-      const highlights: string[] = (item as any).highlights || []
+      const highlights = item.settings.highlights ?? []
       const hasMatch = highlights.some(h => affectedIdentifiers.has(h))
       if (!hasMatch) return
 
@@ -512,9 +518,15 @@ export function createWorkspaceCommandRegistry(
   function execute(
     command: WorkspaceCommandChain,
     context: WorkspaceCommandExecutionContext
-  ) {
-    // No 'any' needed. The key lookup automatically invokes the correctly narrowed function.
-    const handler = handlers[command.type] as any
+  ): void {
+    executeTypedCommand(command, context)
+  }
+
+  function executeTypedCommand<TType extends CommandType>(
+    command: CommandOfType<TType>,
+    context: WorkspaceCommandExecutionContext
+  ): void {
+    const handler = handlers[command.type]
     handler(command, context)
   }
 
@@ -522,22 +534,25 @@ export function createWorkspaceCommandRegistry(
     command: WorkspaceCommandChain
   ): WorkspaceCommandChain | null {
     try {
-      const handler = reverseHandlers[command.type]
-      if (!handler) {
-        throw new Error(`Cannot reverse command of type: ${(command as any).type}`)
-      }
-
       const meta: CommandMeta = {
         source: command.source,
         chainId: command.chainId,
         isRootCommand: command.isRootCommand,
       }
 
-      return handler(command as any, meta)
+      return reverseTypedCommand(command, meta)
     } catch (error) {
       onError?.(error, { phase: 'reverse', command })
       return null
     }
+  }
+
+  function reverseTypedCommand<TType extends CommandType>(
+    command: CommandOfType<TType>,
+    meta: CommandMeta
+  ): WorkspaceCommandChain | null {
+    const handler = reverseHandlers[command.type]
+    return handler(command, meta)
   }
 
   return { execute, reverse }
