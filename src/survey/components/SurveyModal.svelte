@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getModalState } from '$lib/session'
+  import { getGazePlotterSession } from '$lib/session'
   import UEQSSurvey from './UEQSSurvey.svelte'
   import OpenEndedFeedback from './OpenEndedFeedback.svelte'
   import SingleChoiceQuestion from './SingleChoiceQuestion.svelte'
@@ -17,7 +17,7 @@
   }
 
   let { surveyState }: Props = $props()
-  const modalState = getModalState()
+  const { modalState } = getGazePlotterSession()
 
   // Navigation state
   const steps = ['ueqs', 'eye-tracking', 'feedback'] as const

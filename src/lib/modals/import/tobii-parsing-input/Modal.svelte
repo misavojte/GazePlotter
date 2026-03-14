@@ -1,9 +1,9 @@
 <script lang="ts">
   import InputText from '$lib/shared/components/InputText.svelte'
   import { ModalButtons } from '$lib/modals'
-  import { getModalState } from '$lib/session'
+  import { getGazePlotterSession } from '$lib/session'
 
-  const modalState = getModalState()
+  const { modalState } = getGazePlotterSession()
 
   /**
    * Trigger string to activate Web Stimulus parsing mode.

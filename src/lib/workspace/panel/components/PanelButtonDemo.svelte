@@ -1,9 +1,9 @@
 <script lang="ts">
   import { ButtonMajor } from '$lib/shared/components'
-  import { getIngestService } from '$lib/session'
+  import { getGazePlotterSession } from '$lib/session'
   import { getContext } from 'svelte'
 
-  const ingest = getIngestService()
+  const { ingest } = getGazePlotterSession()
   const getLabel = getContext<() => string>('reinitializeLabel')
 
   interface Props {

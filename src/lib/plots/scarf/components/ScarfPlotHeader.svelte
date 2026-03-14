@@ -15,7 +15,6 @@
   } from '$lib/shared/components/ButtonMinor.svelte'
   import GroupSelect from '$lib/shared/components/GroupSelect.svelte'
   import type { GroupSelectItem } from '$lib/shared/components'
-  import { getWorkspaceService } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import type { ScarfPlotItem, ScarfPlotSettings } from '$lib/plots/scarf/types'
   import RefreshCcw from 'lucide-svelte/icons/refresh-ccw'
@@ -40,8 +39,7 @@
   }
 
   let { item, settings, syncs, onMenuClose }: Props = $props()
-  const { engine } = getGazePlotterSession()
-  const workspace = getWorkspaceService()
+  const { engine, workspace } = getGazePlotterSession()
   const source = $derived(createCommandSourcePlotPattern(item, 'plot'))
 
   function calculateActualMax(stimulusId: number): number {

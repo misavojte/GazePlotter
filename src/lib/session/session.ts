@@ -80,31 +80,3 @@ export function getGazePlotterSession(): GazePlotterSession {
     'GazePlotter session is not available. Access it from within a GazePlotter tree or pass dependencies explicitly.'
   )
 }
-
-export function getIngestService(): IngestService {
-  return getGazePlotterSession().ingest
-}
-
-export function getExportService(): ExportService {
-  return getGazePlotterSession().exportService
-}
-
-export function getErrorService(): ErrorService {
-  return getGazePlotterSession().errorService
-}
-
-export function getGridState(): GridState {
-  return getGazePlotterSession().grid
-}
-
-export function getWorkspaceService(): WorkspaceService {
-  return getGazePlotterSession().workspace
-}
-
-export function getModalState(): ModalState {
-  return getGazePlotterSession().modalState
-}
-
-export function getToastState(): ToastState {
-  return getGazePlotterSession().toastState
-}

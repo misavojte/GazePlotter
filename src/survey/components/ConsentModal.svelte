@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getModalState } from '$lib/session'
+  import { getGazePlotterSession } from '$lib/session'
   import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
 
   interface Props {
@@ -7,7 +7,7 @@
   }
 
   let { sessionId }: Props = $props()
-  const modalState = getModalState()
+  const { modalState } = getGazePlotterSession()
 
   const CONSENT_WITHDRAW_EMAIL = 'mail@vojtechovska.com'
   const DECLINE_REDIRECT_URL = 'https://www.eyetracking.upol.cz'

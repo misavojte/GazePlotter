@@ -20,7 +20,7 @@
     scanForSynchronizedTimelineMax,
   } from '../sync'
   import { getParticipants, getParticipantEndTime } from '$lib/data/engine'
-  import { getGazePlotterSession, getGridState } from '$lib/session'
+  import { getGazePlotterSession } from '$lib/session'
   import { RIDGELINE_SCALE } from '../const'
 
   import type {
@@ -41,8 +41,7 @@
   }
 
   let { item }: Props = $props()
-  const { engine, workspace } = getGazePlotterSession()
-  const grid = getGridState()
+  const { engine, workspace, grid } = getGazePlotterSession()
   const settings = $derived(item.settings)
 
   type AoiStreamPreview = {

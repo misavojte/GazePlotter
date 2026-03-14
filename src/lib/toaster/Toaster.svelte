@@ -2,9 +2,9 @@
   import { flip } from 'svelte/animate'
   import { fly } from 'svelte/transition'
   import type { ToastFillingType } from './types'
-  import { getToastState } from '$lib/session'
+  import { getGazePlotterSession } from '$lib/session'
 
-  const toastState = getToastState()
+  const { toastState } = getGazePlotterSession()
 
   const timers = new Map<number, ReturnType<typeof setTimeout>>()
 
