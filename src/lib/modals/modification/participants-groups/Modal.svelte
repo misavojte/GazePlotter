@@ -416,33 +416,36 @@
   .accordion {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     margin-bottom: 20px;
+    width: min(520px, 100%);
   }
 
   .accordion-item {
-    border: 1px solid var(--c-darkgrey);
-    border-radius: var(--rounded);
+    border: 1px solid var(--c-border);
+    border-radius: var(--rounded-md);
     overflow: hidden;
-    width: 472px;
+    width: 100%;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   }
 
   .accordion-header {
-    padding: 12px 16px;
-    background-color: #f8f8f8;
+    padding: 12px 14px;
+    background-color: var(--c-darkwhite);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    cursor: pointer;
     user-select: none;
+    gap: 0.5rem;
   }
 
   .accordion-header.active {
-    background-color: #eef5ff;
+    background-color: rgba(205, 20, 4, 0.05);
   }
 
   .group-name {
     flex: 1;
+    min-width: 0;
   }
 
   .participant-count {
@@ -452,16 +455,16 @@
   }
 
   .accordion-content {
-    padding: 16px;
-    background-color: #ffffff;
-    border-top: 1px solid var(--c-lightgrey);
+    padding: 14px;
+    background-color: var(--c-white);
+    border-top: 1px solid var(--c-border);
     overflow: visible;
   }
 
   .participant-actions {
     display: flex;
     gap: 8px;
-    margin-bottom: 16px;
+    margin-bottom: 14px;
   }
 
   .participant-list {
@@ -471,14 +474,18 @@
   }
 
   .participant-list :global(label) {
-    padding: 8px;
-    border-radius: var(--rounded);
-    background-color: #f8f8f8;
-    transition: all 0.2s ease;
+    padding: 8px 10px;
+    border-radius: var(--rounded-md);
+    border: 1px solid transparent;
+    background-color: var(--c-darkwhite);
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease;
   }
 
   .participant-list :global(label:hover) {
-    background-color: #eef5ff;
+    background-color: var(--c-white);
+    border-color: var(--c-border);
   }
 
   .button-group {
@@ -492,15 +499,15 @@
   input {
     height: 34px;
     box-sizing: border-box;
-    border: 1px solid var(--c-darkgrey);
-    border-radius: var(--rounded);
+    border: 1px solid var(--c-midgrey);
+    border-radius: var(--rounded-md);
     margin: 0;
     padding: 0.5rem;
     width: 100%;
   }
 
   .search-filter {
-    margin-bottom: 16px;
+    margin-bottom: 14px;
   }
 
   .search-filter :global(input) {
@@ -508,9 +515,10 @@
   }
 
   .filter-summary {
-    padding: 8px 14px;
-    border-radius: var(--rounded);
-    background-color: var(--c-lightgrey);
+    padding: 8px 12px;
+    border: 1px solid var(--c-border);
+    border-radius: var(--rounded-md);
+    background-color: var(--c-darkwhite);
     color: var(--c-darkgrey);
     font-size: 12px;
     text-align: left;

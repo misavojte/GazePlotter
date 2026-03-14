@@ -1,12 +1,10 @@
 <script lang="ts">
   import GeneralInputScaffold from '$lib/shared/components/GeneralInputScaffold.svelte'
+  import { untrack } from 'svelte'
   interface Props {
     value?: string
     label: string
-    id?: string
     appearance?: 'default' | 'selectMatched'
-    fullWidth?: boolean
-    compact?: boolean
     placeholder?: string
     oninput?: (event: CustomEvent) => void
   }
@@ -14,10 +12,7 @@
   let {
     value = $bindable(''),
     label,
-    id: providedId,
     appearance = 'default',
-    fullWidth = false,
-    compact = false,
     placeholder,
     oninput = () => {},
   }: Props = $props()
@@ -28,20 +23,16 @@
     oninput(new CustomEvent('input', { detail: value }))
   }
 
-  const inputId = $derived(
-    providedId ?? `text-${label.toLowerCase().replace(/\s+/g, '-')}`
-  )
+  const id = `text-${untrack(() => label.toLowerCase().replace(/\s+/g, '-'))}`
 </script>
 
 <GeneralInputScaffold
   {label}
-  id={inputId}
-  {compact}
+  {id}
 >
   <input
-    id={inputId}
+    {id}
     type="text"
-    class:fullWidth
     class:select-matched={appearance === 'selectMatched'}
     bind:value
     oninput={handleInput}
@@ -56,12 +47,7 @@
     border-radius: var(--rounded);
     font-size: 14px;
     width: 170px;
-    max-width: 100%;
     box-sizing: border-box;
-  }
-
-  input.fullWidth {
-    width: 100%;
   }
 
   input.select-matched {
