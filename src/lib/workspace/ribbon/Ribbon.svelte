@@ -4,9 +4,10 @@
   import { createRibbonItems } from './config'
   import RibbonItem from './RibbonItem.svelte'
 
-  const { ingest, modalState } = getGazePlotterSession()
+  const { ingest, modalState, errorService } = getGazePlotterSession()
 
   const isProcessing = $derived(ingest.isLoading)
+  const hasFatalError = $derived(errorService.fatalLoad !== null)
 
   // File upload handling (from PanelButtonUpload)
   let fileInput: HTMLInputElement | undefined = $state()
@@ -38,6 +39,7 @@
   const ribbonItems = $derived.by(() =>
     createRibbonItems({
       isProcessing,
+      hasFatalError,
       onUpload: triggerFileUpload,
       onExport: handleExport,
       onOpenMetadata: handleOpenMetadata,

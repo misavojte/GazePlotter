@@ -14,6 +14,7 @@ export interface RibbonItemConfig {
 
 interface CreateRibbonItemsOptions {
   isProcessing: boolean
+  hasFatalError: boolean
   onUpload: () => void
   onExport: () => void
   onOpenMetadata: () => void
@@ -45,7 +46,7 @@ export function createRibbonItems(
       shortLabel: 'Export',
       icon: ribbonIcons.export,
       action: options.onExport,
-      disabled: options.isProcessing,
+      disabled: options.isProcessing || options.hasFatalError,
     },
     {
       id: 'metadata',
