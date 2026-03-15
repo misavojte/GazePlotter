@@ -57,7 +57,10 @@
 
 <div class="ribbon">
   <div class="ribbon-content">
-    {#each ribbonItems as item (item.id)}
+    {#each ribbonItems as item, i (item.id)}
+      {#if i > 0}
+        <div class="divider"></div>
+      {/if}
       <RibbonItem
         label={item.label}
         shortLabel={item.shortLabel}
@@ -78,7 +81,6 @@
     width: 100%;
     height: 48px;
     background-color: var(--c-lightgrey, #f1f5f9);
-    border-bottom: 1px solid var(--c-border);
     box-sizing: border-box;
     z-index: 2;
     transition: background-color 0.3s ease;
@@ -92,6 +94,12 @@
     justify-content: center;
     height: 100%;
     padding: 0 16px;
-    gap: 24px;
+    gap: 12px;
+  }
+
+  .divider {
+    width: 1px;
+    height: 16px;
+    background-color: #e2e8f0;
   }
 </style>

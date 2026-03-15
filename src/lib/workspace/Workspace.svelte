@@ -22,10 +22,7 @@
     initialLayoutState?: GridItemSnapshot[] | null
   }
 
-  const {
-    onWorkspaceCommandChain,
-    initialLayoutState = null,
-  }: Props = $props()
+  const { onWorkspaceCommandChain, initialLayoutState = null }: Props = $props()
   const { ingest, grid, workspace } = getGazePlotterSession()
 
   const gridConfig = DEFAULT_GRID_CONFIG
@@ -143,7 +140,9 @@
     display: flex;
     flex-direction: column;
     min-height: var(--min-workspace-height);
-    border: 1px solid var(--c-border);
+    background-color: #f1f5f9;
+    border-top: 1px solid var(--c-border);
+    border-bottom: 1px solid var(--c-border);
   }
 
   .workspace-body {
@@ -166,5 +165,8 @@
     will-change: height;
     cursor: grab;
     background-color: var(--c-darkwhite);
+    border-radius: 20px 0 0 0;
+    border-left: 1px solid #cbd5e1;
+    border-top: 1px solid #cbd5e1;
   }
 </style>
