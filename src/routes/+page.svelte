@@ -112,7 +112,7 @@
   }
   .intro {
     text-align: center;
-    margin-bottom: 60px;
+    margin-bottom: 45px;
   }
 
   .title-heading {
@@ -144,7 +144,7 @@
   }
 
   main > section:first-child {
-    padding-top: 60px;
+    padding-top: 75px;
   }
 
   .main-section {
@@ -217,7 +217,10 @@
       padding-inline: 24px;
     }
     main > section:first-child {
-      padding-top: 40px;
+      padding-top: 65px;
+    }
+    .intro {
+      margin-bottom: 40px;
     }
   }
 
@@ -226,7 +229,10 @@
       font-size: 2.2rem;
     }
     main > section:first-child {
-      padding-top: 30px;
+      padding-top: 55px;
+    }
+    .intro {
+      margin-bottom: 35px;
     }
     .intro-text {
       font-size: 1.2rem;

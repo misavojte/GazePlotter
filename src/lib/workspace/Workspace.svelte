@@ -165,7 +165,7 @@
     will-change: height;
     cursor: grab;
     background-color: var(--c-darkwhite);
-    border-radius: 20px 0 0 0;
+    border-radius: 0 0 0 0; /* 20px 0 0 0 is an alternative*/
     border-left: 1px solid #cbd5e1;
     border-top: 1px solid #cbd5e1;
   }
