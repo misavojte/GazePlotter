@@ -37,12 +37,12 @@
   <section class="main-section intro">
     <div class="title-container">
       <h1 class="title-heading red">GazePlotter</h1>
-      <h2 class="title-heading">Free eye-tracking data&nbsp;visualisation</h2>
+      <h2 class="title-heading">Free eye-tracking visualizations</h2>
     </div>
     <p class="intro-text">
-      Transform eye gaze data from eye trackers to interactive scarf plots.
-      No&nbsp;registration, no ads and no data stored on&nbsp;a&nbsp;server. We
-      love open science.
+      Generate scarf plots, transition matrices, and AOI metrics from eye gaze
+      data.<br />No&nbsp;registration, no ads and no data sent
+      to&nbsp;a&nbsp;server. Just open science.
     </p>
   </section>
   <section>
@@ -134,7 +134,7 @@
   }
 
   .intro-text {
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     max-width: 850px;
     margin-inline: auto;
   }
