@@ -98,6 +98,9 @@
 <div class="rail">
   <div class="rail-content" style="top: {toolbarTop}px;">
     {#each railItems as item (item.id)}
+      {#if item.id === 'add-visualization'}
+        <div class="divider"></div>
+      {/if}
       <RailItem
         label={item.label}
         icon={item.icon}
@@ -128,5 +131,12 @@
     align-items: center;
     padding: 44px 0;
     gap: 12px;
+  }
+
+  .divider {
+    width: 16px;
+    height: 1px;
+    background-color: #e2e8f0;
+    margin: 4px 0;
   }
 </style>

@@ -1,7 +1,4 @@
-import Plus from 'lucide-svelte/icons/plus'
-import Redo2 from 'lucide-svelte/icons/redo-2'
-import RotateCcw from 'lucide-svelte/icons/rotate-ccw'
-import Undo2 from 'lucide-svelte/icons/undo-2'
+import { SquarePlus, Undo2, Redo2, RotateCcw } from 'lucide-svelte'
 import type { LucideIconComponent } from '$lib/shared/types'
 
 export interface RailVisualization {
@@ -36,17 +33,13 @@ interface CreateRailItemsOptions {
   onAddVisualization: (id: string) => void
 }
 
-type RailItemId =
-  | 'undo'
-  | 'redo'
-  | 'reset-layout'
-  | 'add-visualization'
+type RailItemId = 'undo' | 'redo' | 'reset-layout' | 'add-visualization'
 
 const railIcons = {
   undo: Undo2,
   redo: Redo2,
   'reset-layout': RotateCcw,
-  'add-visualization': Plus,
+  'add-visualization': SquarePlus,
 } satisfies Record<RailItemId, LucideIconComponent>
 
 export function createRailItems(
