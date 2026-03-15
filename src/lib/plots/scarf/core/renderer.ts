@@ -167,7 +167,6 @@ export function drawScarfRectangles(
       ? desaturateToWhite(styleSet.normal.fill, 0.85)
       : styleSet.normal.fill
 
-    ctx.beginPath()
     const segmentCount = buffer.length / RECT_STRIDE
     for (let i = 0; i < segmentCount; i++) {
       const idx = i * RECT_STRIDE
@@ -193,14 +192,13 @@ export function drawScarfRectangles(
         }
       }
 
-      ctx.rect(
+      ctx.fillRect(
         pLeft + xNorm * pWidth,
         pIdx * layout.heightOfBarWrap + yInternal + layout.effectiveMarginTop,
         wNorm * pWidth,
         h
       )
     }
-    ctx.fill()
   }
 }
 
