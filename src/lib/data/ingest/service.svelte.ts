@@ -352,7 +352,7 @@ class IngestWorkerClient {
     this.onData({
       data,
       fileMetadata,
-      version: 3,
+      version: 4,
       gridItems: DEFAULT_GRID_STATE_DATA,
       current: {
         fileNames: this.fileNames,
@@ -547,7 +547,8 @@ export class IngestService {
   applyParsedData(parsedData: ParsedData): void {
     this.deps.errorService.clearFatalLoad()
     this.progressPercent = 100
-    this.metadata = parsedData.version === 3 ? parsedData.fileMetadata : null
+    this.metadata =
+      parsedData.version >= 3 ? parsedData.fileMetadata ?? null : null
     this.input = parsedData.current
     this.deps.engine.loadDataset(parsedData.data)
     this.deps.grid.reset(

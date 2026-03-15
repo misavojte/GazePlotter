@@ -1,138 +1,24 @@
-import type {
-  DataType,
-  JsonImportOldFormat,
-  JsonImportNewFormat,
-} from '$lib/data/types'
-import { jsonSegmentsToBinary, DEFAULT_NO_AOI_TREATMENT } from '$lib/data/types'
-import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace'
+import type { DataType, JsonImportNewFormat } from '$lib/data/types'
 import type { GridItemSnapshot } from '$lib/workspace'
-
-/**
- * Type guard to check if the data is in the new format
- */
-function isNewFormat(data: unknown): data is JsonImportNewFormat {
-  return (
-    typeof data === 'object' &&
-    data !== null &&
-    'version' in data &&
-    (data.version === 2 || data.version === 3) &&
-    'data' in data &&
-    'gridItems' in data
-  )
-}
-
-/**
- * Type guard to check if the data is in the old format
- */
-function isOldFormat(data: unknown): data is JsonImportOldFormat {
-  return (
-    typeof data === 'object' &&
-    data !== null &&
-    'stimuli' in data &&
-    'participants' in data
-  )
-}
-
-/**
- * Validates the basic structure of the data
- * @throws Error if the data structure is invalid
- */
-function validateBasicStructure(data: DataType): void {
-  if (!data.stimuli?.data || !Array.isArray(data.stimuli.data)) {
-    throw new Error('Invalid data structure: missing or invalid stimuli data')
-  }
-  if (!data.participants?.data || !Array.isArray(data.participants.data)) {
-    throw new Error(
-      'Invalid data structure: missing or invalid participants data'
-    )
-  }
-}
-
-/**
- * Normalizes and validates the data structure.
- * Ensures required fields exist and segments are properly formatted and sorted.
- */
-export function processAndValidateData(
-  data: Omit<DataType, 'segments'> & { segments?: any }
-): DataType {
-  const stimuliCount = data.stimuli.data.length
-
-  // 1. Normalize basic metadata
-  data.noAoiTreatment ??= { ...DEFAULT_NO_AOI_TREATMENT }
-  data.aois.hiddenAois ??= []
-
-  // Fill hiddenAois up to stimuliCount
-  for (let s = data.aois.hiddenAois.length; s < stimuliCount; s++) {
-    data.aois.hiddenAois.push([])
-  }
-
-  // 2. Validate and sort segments if they are in array format
-  if (Array.isArray(data.segments)) {
-    const rawSegments = data.segments as number[][][][]
-
-    for (let s = 0; s < rawSegments.length; s++) {
-      const stimSegments = rawSegments[s] || []
-      rawSegments[s] = stimSegments
-
-      for (let p = 0; p < stimSegments.length; p++) {
-        const pSegments = stimSegments[p]
-        if (!pSegments) {
-          stimSegments[p] = []
-          continue
-        }
-
-        // Inline validation and filtering to avoid extra passes
-        const valid = []
-        for (let i = 0; i < pSegments.length; i++) {
-          const seg = pSegments[i]
-          if (
-            Array.isArray(seg) &&
-            seg.length >= 3 &&
-            typeof seg[0] === 'number' &&
-            typeof seg[1] === 'number' &&
-            typeof seg[2] === 'number'
-          ) {
-            valid.push(seg)
-          }
-        }
-
-        // Sort in-place by start time
-        valid.sort((a, b) => a[0] - b[0])
-        stimSegments[p] = valid
-      }
-    }
-
-    data.segments = jsonSegmentsToBinary(rawSegments)
-  }
-
-  return data as DataType
-}
+import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace/grid/const'
+import { runMigrations } from './migrations'
+import { processAndValidateData, validateBasicStructure } from './validator'
 
 /**
  * Processes a JSON file and returns the parsed and validated data.
- * Handles both old and new format JSON files.
+ * Uses the migration pipeline to normalize legacy files.
  *
  * @param fileContent - The content of the JSON file as a string
  * @returns The processed DataType object
  * @throws Error if parsing or processing fails
  */
-export function processJsonFile(fileContent: string): DataType {
-  // Parse the JSON file content
-  const parsed = JSON.parse(fileContent)
+export function processJsonFile(fileContent: string) {
+  const rawParsed = JSON.parse(fileContent)
+  const modernData = runMigrations(rawParsed)
 
-  // Determine the format and extract the data
-  if (isNewFormat(parsed)) {
-    validateBasicStructure(parsed.data)
-    return processAndValidateData(parsed.data)
-  } else if (isOldFormat(parsed)) {
-    const data = parsed as unknown as DataType & { segments: number[][][][] }
-    validateBasicStructure(data)
-    return processAndValidateData(data)
-  } else {
-    throw new Error(
-      'Invalid JSON format: file must be GazePlotter JSON format (legacy or version 2 or 3)'
-    )
-  }
+  validateBasicStructure(modernData.data)
+
+  return processAndValidateData(modernData.data)
 }
 
 /**
@@ -153,25 +39,17 @@ export type JsonProcessingResult = {
 export function processJsonFileWithGrid(
   fileContent: string
 ): JsonImportNewFormat {
-  // Parse the JSON file content
-  const parsed = JSON.parse(fileContent)
+  const rawParsed = JSON.parse(fileContent)
 
-  // Determine the format and extract the data
-  if (isNewFormat(parsed)) {
-    validateBasicStructure(parsed.data)
-    return {
-      ...parsed,
-      data: processAndValidateData(parsed.data),
-    }
-  } else if (isOldFormat(parsed)) {
-    return {
-      version: 2,
-      data: processJsonFile(fileContent),
-      gridItems: DEFAULT_GRID_STATE_DATA,
-    }
-  } else {
-    throw new Error(
-      'Invalid JSON format: file must be GazePlotter JSON format (legacy or version 2 or 3)'
-    )
+  // 1. Pure data transformation isolates legacy support from modern logic
+  const modernData = runMigrations(rawParsed)
+
+  // 2. Validate the guaranteed modern structure
+  validateBasicStructure(modernData.data)
+
+  return {
+    ...modernData,
+    data: processAndValidateData(modernData.data),
+    gridItems: modernData.gridItems ?? DEFAULT_GRID_STATE_DATA,
   }
 }

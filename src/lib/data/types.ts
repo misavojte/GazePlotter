@@ -93,18 +93,12 @@ export type JsonImportOldFormat = Omit<DataType, 'segments'> & {
   segments: number[][][][]
 }
 
-export type JsonImportNewFormat =
-  | {
-      version: 2
-      data: DataType
-      gridItems: GridItemSnapshot[]
-    }
-  | {
-      version: 3
-      fileMetadata: FileMetadataType
-      data: DataType
-      gridItems: GridItemSnapshot[]
-    }
+export interface JsonImportNewFormat {
+  version: 2 | 3 | 4
+  data: DataType
+  gridItems?: GridItemSnapshot[]
+  fileMetadata?: FileMetadataType | null
+}
 
 export type ParsedData = JsonImportNewFormat & { current: FileInputType }
 
