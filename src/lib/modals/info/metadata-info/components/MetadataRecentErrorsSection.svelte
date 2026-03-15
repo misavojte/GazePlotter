@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { ErrorRecord } from '$lib/errors'
+  import { Card } from '$lib/shared/components'
   import MetadataSection from './MetadataSection.svelte'
   import { formatMetadataDate } from '../helpers'
 
@@ -12,7 +13,7 @@
 
 {#if errors.length > 0}
   <MetadataSection title="Recent Errors">
-    <div class="info-group">
+    <Card padding="sm" gap="0.75rem">
       {#each newestFirstErrors as error (error.id)}
         <div class="recent-error">
           <div class="info-item">
@@ -30,28 +31,20 @@
           {#if error.context}
             <div class="info-item stack-trace">
               <span class="label">Context:</span>
-              <pre class="value error-stack"
-                >{JSON.stringify(error.context, null, 2)}</pre
-              >
+              <pre class="value error-stack">{JSON.stringify(
+                  error.context,
+                  null,
+                  2
+                )}</pre>
             </div>
           {/if}
         </div>
       {/each}
-    </div>
+    </Card>
   </MetadataSection>
 {/if}
 
 <style>
-  .info-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.75rem;
-    background: #f9f9f9;
-    border-radius: 0.375rem;
-    border: 1px solid #e5e5e5;
-  }
-
   .recent-error {
     display: flex;
     flex-direction: column;
