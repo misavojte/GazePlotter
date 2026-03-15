@@ -10,8 +10,8 @@
     <a id="go-home" href="/">
       <img
         id="logo"
-        width="24"
-        height="24"
+        width="23"
+        height="23"
         src="/logos/gazeplotter.svg"
         alt="Logo"
       />
@@ -29,8 +29,8 @@
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
+          width="19"
+          height="19"
           fill="currentColor"
           viewBox="0 0 16 16"
         >
@@ -60,9 +60,9 @@
   header > div {
     width: 100%;
     margin: auto;
-    padding: 32px;
+    padding: 30px;
     padding-block: 0 !important;
-    height: 64px;
+    height: 60px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -90,7 +90,7 @@
 
   #sitetitle {
     font-weight: bold;
-    font-size: 18px;
+    font-size: 17px;
   }
 
   nav {
