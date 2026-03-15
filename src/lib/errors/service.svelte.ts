@@ -125,4 +125,9 @@ export class ErrorService {
   clearFatalLoad(): void {
     this.fatalLoad = null
   }
+
+  clearAll(): void {
+    this.fatalLoad = null
+    this.recent = []
+  }
 }

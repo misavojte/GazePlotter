@@ -503,7 +503,7 @@ export class IngestService {
   async loadFiles(files: FileList): Promise<boolean> {
     if (files.length === 0) return false
 
-    this.deps.errorService.clearFatalLoad()
+    this.deps.errorService.clearAll()
     this.status = 'loading'
     this.progressPercent = 0
 
