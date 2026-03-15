@@ -78,6 +78,10 @@
     color: var(--c-black);
   }
 
+  .ribbon-item:hover:not(.disabled) .ribbon-item-icon {
+    transform: scale(1.05);
+  }
+
   .ribbon-item.disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -104,5 +108,6 @@
     -webkit-font-smoothing: antialiased;
     text-align: center;
     line-height: 1;
+    margin-top: 1px;
   }
 </style>
