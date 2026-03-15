@@ -8,12 +8,12 @@ import {
   getMetadataMemoryInfo,
   isCurrentParsingSameAsSource,
 } from '$lib/modals/info/metadata-info/helpers'
-import type { EyeSettingsType } from '$lib/data/ingest/types'
+import type { EyeSettingsType } from '$lib/data/ingest'
 import type {
   FileInputType,
   FileMetadataFailureType,
   FileMetadataSuccessType,
-} from '$lib/workspace/type/fileMetadataType'
+} from '$lib/data/ingest'
 import { createMockMetadata } from './helpers/workspaceCommandFixtures'
 
 const csvFormatters = {
@@ -36,9 +36,7 @@ function createParseSettings(
   }
 }
 
-function createRecentError(
-  overrides: Partial<ErrorRecord> = {}
-): ErrorRecord {
+function createRecentError(overrides: Partial<ErrorRecord> = {}): ErrorRecord {
   return {
     id: 1,
     createdAt: '2026-03-14T12:00:00.000Z',
@@ -111,9 +109,9 @@ describe('metadata-info helpers', () => {
       parseDate: '2026-03-13T10:00:00.000Z',
     }
 
-    expect(
-      isCurrentParsingSameAsSource(current, createSuccessMetadata())
-    ).toBe(true)
+    expect(isCurrentParsingSameAsSource(current, createSuccessMetadata())).toBe(
+      true
+    )
 
     expect(
       isCurrentParsingSameAsSource(
@@ -214,9 +212,7 @@ describe('metadata-info helpers', () => {
     expect(csv).not.toContain('Section,Current Parsing')
     expect(csv).toContain('Section,Source Parsing - FAILED')
     expect(csv).toContain('Error ID,99')
-    expect(csv).toContain(
-      'Attempted Parse Duration,DURATION(1.5)'
-    )
+    expect(csv).toContain('Attempted Parse Duration,DURATION(1.5)')
     expect(csv).toContain('Client,"Agent/1.0"')
     expect(csv).toContain('Section,Error Stack Trace')
     expect(csv).toContain('"Error: Column count mismatch"')

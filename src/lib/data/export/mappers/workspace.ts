@@ -1,6 +1,6 @@
 import { type DataType } from '$lib/data/types'
 import { binarySegmentsToJson } from '$lib/data/binary'
-import type { FileMetadataType } from '$lib/workspace/type'
+import type { FileMetadataType } from '$lib/data/ingest'
 import { encodeJson, wrapProjectPayload } from '../encoders/json'
 
 /**

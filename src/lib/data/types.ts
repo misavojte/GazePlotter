@@ -1,8 +1,5 @@
-import type {
-  FileInputType,
-  FileMetadataType,
-} from '$lib/workspace/type/fileMetadataType'
-import type { GridItemSnapshot } from '$lib/workspace/type/gridType'
+import type { FileInputType, FileMetadataType } from '$lib/data/ingest'
+import type { GridItemSnapshot } from '$lib/workspace'
 import type { BinarySegmentBuffers } from './binary'
 
 import { DEFAULT_NO_AOI_COLOR } from '../color/palettes'

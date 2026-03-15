@@ -1,5 +1,0 @@
-export { default as Workspace } from './Workspace.svelte'
-export { default as WorkspaceIndicatorEmpty } from './WorkspaceIndicatorEmpty.svelte'
-export { default as WorkspaceIndicatorLoading } from './WorkspaceIndicatorLoading.svelte'
-export { default as WorkspaceToolbar } from './WorkspaceToolbar.svelte'
-export { default as WorkspaceToolbarItem } from './WorkspaceToolbarItem.svelte'

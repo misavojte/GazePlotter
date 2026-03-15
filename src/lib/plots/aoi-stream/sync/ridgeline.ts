@@ -8,7 +8,7 @@ import type {
   AoiStreamPlotResult,
   AoiStreamPlotSettings,
 } from '../types'
-import type { AllGridTypes } from '$lib/workspace/type/gridType'
+import type { AllGridTypes } from '$lib/workspace'
 import { RIDGELINE_SCALE } from '../const'
 
 type CurrentPlotContext = {

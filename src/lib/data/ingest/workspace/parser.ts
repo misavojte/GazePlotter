@@ -5,7 +5,7 @@ import type {
 } from '$lib/data/types'
 import { jsonSegmentsToBinary, DEFAULT_NO_AOI_TREATMENT } from '$lib/data/types'
 import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace'
-import type { GridItemSnapshot } from '$lib/workspace/type/gridType'
+import type { GridItemSnapshot } from '$lib/workspace'
 
 /**
  * Type guard to check if the data is in the new format

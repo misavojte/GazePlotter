@@ -1,10 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte'
-  import type { GridItemMap } from '$lib/workspace/type/gridType'
-  import {
-    Select,
-    InputText,
-  } from '$lib/shared/components'
+  import type { GridItemMap } from '$lib/workspace'
+  import { Select, InputText } from '$lib/shared/components'
   import { SectionHeader, ModalButtons } from '$lib/modals'
   import { getStimuliOptions } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'

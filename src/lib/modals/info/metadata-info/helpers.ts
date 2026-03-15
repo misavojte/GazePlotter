@@ -1,9 +1,6 @@
 import type { DataType } from '$lib/data/types'
 import type { ErrorRecord } from '$lib/errors'
-import type {
-  FileInputType,
-  FileMetadataType,
-} from '$lib/workspace/type/fileMetadataType'
+import type { FileInputType, FileMetadataType } from '$lib/data/ingest'
 
 type MetadataSource = Pick<DataType, 'aois' | 'participants' | 'stimuli'>
 
@@ -70,11 +67,11 @@ function createEmptyMemoryInfo(): MetadataMemoryInfo {
   }
 }
 
-function areArraysEqual<T>(
-  left: readonly T[],
-  right: readonly T[]
-): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index])
+function areArraysEqual<T>(left: readonly T[], right: readonly T[]): boolean {
+  return (
+    left.length === right.length &&
+    left.every((value, index) => value === right[index])
+  )
 }
 
 function isBrowserPerformanceMemory(
@@ -223,7 +220,9 @@ export function buildMetadataCsvReport(
   if (input.currentFileInput !== null && !input.isSameAsSource) {
     lines.push('Section,Current Parsing')
     lines.push('Metric,Value')
-    lines.push(`Files Being Processed,${input.currentFileInput.fileNames.length}`)
+    lines.push(
+      `Files Being Processed,${input.currentFileInput.fileNames.length}`
+    )
     lines.push(
       `Total File Size,${formatters.formatFileSize(sumFileSizes(input.currentFileInput.fileSizes))}`
     )
@@ -304,7 +303,9 @@ export function buildMetadataCsvReport(
     lines.push(
       `Parse Duration,${formatters.formatDuration(input.fileMetadata.parseDuration)}`
     )
-    lines.push(`Parse Date,${formatters.formatDate(input.fileMetadata.parseDate)}`)
+    lines.push(
+      `Parse Date,${formatters.formatDate(input.fileMetadata.parseDate)}`
+    )
     lines.push(`GazePlotter Version,${input.fileMetadata.gazePlotterVersion}`)
     lines.push(`Client,${csvCell(input.fileMetadata.clientUserAgent)}`)
     lines.push('')

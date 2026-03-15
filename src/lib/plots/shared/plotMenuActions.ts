@@ -6,7 +6,7 @@ import {
   participantsGroupsModal,
   stimulusModificationModal,
 } from '$lib/modals/definitions'
-import type { LucideIconComponent } from '$lib/shared/types/iconComponent'
+import type { LucideIconComponent } from '$lib/shared/types'
 import Settings from 'lucide-svelte/icons/settings-2'
 import Users from 'lucide-svelte/icons/users'
 import View from 'lucide-svelte/icons/view'
@@ -197,3 +197,4 @@ export function createAoiVisibilityMenuAction({
 export function createPlotMenuDivider(): PlotMenuItem {
   return { isDivider: true }
 }
+

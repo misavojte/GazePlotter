@@ -1,16 +1,13 @@
 <script lang="ts">
-  import { WorkspaceToolbarItem } from '$lib/workspace'
   import { getGazePlotterSession } from '$lib/session'
   import { onMount } from 'svelte'
   import { metadataInfoModal } from '$lib/modals/definitions'
-  import type { GridItemSnapshot } from '$lib/workspace/type/gridType'
-  import {
-    createWorkspaceToolbarItems,
-    type WorkspaceToolbarVisualization,
-  } from './workspaceToolbarConfig'
+  import type { GridItemSnapshot } from '$lib/workspace'
+  import { createRailItems, type RailVisualization } from './config'
+  import RailItem from './RailItem.svelte'
 
   interface Props {
-    visualizations?: WorkspaceToolbarVisualization[]
+    visualizations?: RailVisualization[]
     initialLayoutState?: GridItemSnapshot[] | null
   }
 
@@ -24,10 +21,7 @@
     }
   }
 
-  let {
-    visualizations = [],
-    initialLayoutState = null,
-  }: Props = $props()
+  let { visualizations = [], initialLayoutState = null }: Props = $props()
   const { errorService, ingest, engine, modalState, workspace } =
     getGazePlotterSession()
 
@@ -65,7 +59,9 @@
         origin: 'workspace',
         severity: 'recoverable',
         userMessage: 'The initial workspace layout is unavailable.',
-        cause: new Error('Cannot reset layout: no initial layout state provided'),
+        cause: new Error(
+          'Cannot reset layout: no initial layout state provided'
+        ),
         context: {
           component: 'WorkspaceToolbar',
         },
@@ -75,8 +71,8 @@
     workspace.resetLayout(initialLayoutState)
   }
 
-  const toolbarItems = $derived.by(() =>
-    createWorkspaceToolbarItems({
+  const railItems = $derived.by(() =>
+    createRailItems({
       undoLabel,
       redoLabel,
       canUndo,
@@ -104,10 +100,10 @@
   })
 </script>
 
-<div class="workspace-toolbar">
-  <div class="toolbar-content" style="top: {toolbarTop}px;">
-    {#each toolbarItems as item (item.id)}
-      <WorkspaceToolbarItem
+<div class="rail">
+  <div class="rail-content" style="top: {toolbarTop}px;">
+    {#each railItems as item (item.id)}
+      <RailItem
         label={item.label}
         icon={item.icon}
         actions={item.actions}
@@ -118,7 +114,7 @@
 </div>
 
 <style>
-  .workspace-toolbar {
+  .rail {
     /* Participate in the wrapper flex layout so it doesn't overlay the workspace */
     flex: 0 0 40px;
     width: 40px;
@@ -130,7 +126,7 @@
     box-sizing: border-box;
   }
 
-  .toolbar-content {
+  .rail-content {
     position: sticky;
     top: unset; /* unset as it is set by the banner height */
     display: flex;

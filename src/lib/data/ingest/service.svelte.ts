@@ -5,18 +5,18 @@ import type { ErrorService } from '$lib/errors'
 import { formatDuration } from '$lib/shared/utils/timeUtils'
 import { formatFileSize } from '$lib/shared/utils/fileUtils'
 import type { DataType, ParsedData } from '$lib/data/types'
-import type { EyeSettingsType } from '$lib/data/ingest/types'
 import type {
+  EyeSettingsType,
   FileInputType,
   FileMetadataFailureType,
   FileMetadataSuccessType,
   FileMetadataType,
-} from '$lib/workspace/type/fileMetadataType'
+} from '$lib/data/ingest'
 import type { ModalState } from '$lib/modals/modal.state.svelte'
 import type { ToastState } from '$lib/toaster/toastState.svelte'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import type { GridState } from '$lib/workspace/grid/store.svelte'
-import type { GridItemSnapshot } from '$lib/workspace/type/gridType'
+import type { GridItemSnapshot } from '$lib/workspace'
 
 export type IngestStatus = 'loading' | 'ready' | 'error'
 
@@ -107,12 +107,16 @@ class IngestWorkerClient {
     )
     this.worker.onmessage = this.handleMessage.bind(this)
     this.worker.onmessageerror = () =>
-      this.handleError(new Error('File processing worker sent an unreadable message'), {
-        stage: 'worker-messageerror',
-      })
+      this.handleError(
+        new Error('File processing worker sent an unreadable message'),
+        {
+          stage: 'worker-messageerror',
+        }
+      )
     this.worker.onerror = (event: ErrorEvent) =>
       this.handleError(
-        event.error ?? new Error(event.message || 'File processing worker failed')
+        event.error ??
+          new Error(event.message || 'File processing worker failed')
       )
   }
 
@@ -211,15 +215,11 @@ class IngestWorkerClient {
     for (let index = 0; index < files.length; index++) {
       const stream = files[index].stream()
       if (
-        !this.postWorkerMessage(
-          { type: 'stream', data: stream },
-          [stream],
-          {
-            stage: 'dispatch-stream',
-            fileIndex: index,
-            fileName: files[index].name,
-          }
-        )
+        !this.postWorkerMessage({ type: 'stream', data: stream }, [stream], {
+          stage: 'dispatch-stream',
+          fileIndex: index,
+          fileName: files[index].name,
+        })
       ) {
         return
       }
@@ -233,15 +233,11 @@ class IngestWorkerClient {
       try {
         const buffer = await file.arrayBuffer()
         if (
-          !this.postWorkerMessage(
-            { type: 'buffer', data: buffer },
-            [buffer],
-            {
-              stage: 'dispatch-buffer',
-              fileIndex: index,
-              fileName: file.name,
-            }
-          )
+          !this.postWorkerMessage({ type: 'buffer', data: buffer }, [buffer], {
+            stage: 'dispatch-buffer',
+            fileIndex: index,
+            fileName: file.name,
+          })
         ) {
           return
         }
@@ -410,9 +406,7 @@ class IngestWorkerClient {
     }
 
     const ratio = processedBytes / this.totalFileSize
-    const progressPercent = Math.floor(
-      Math.min(Math.max(ratio, 0), 0.99) * 100
-    )
+    const progressPercent = Math.floor(Math.min(Math.max(ratio, 0), 0.99) * 100)
     this.onProgress(progressPercent)
   }
 
@@ -468,11 +462,9 @@ class IngestWorkerClient {
       .then(userInput => {
         this.parsingAnchorTime = Date.now()
         if (
-          !this.postWorkerMessage(
-            { type: 'user-input', data: userInput },
-            [],
-            { stage: 'dispatch-user-input' }
-          )
+          !this.postWorkerMessage({ type: 'user-input', data: userInput }, [], {
+            stage: 'dispatch-user-input',
+          })
         ) {
           this.ui.modalState.close()
           return

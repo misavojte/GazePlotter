@@ -20,7 +20,7 @@ import type {
   AllPlotSettings,
   GridItemLayoutUpdate,
   GridItemSnapshot,
-} from '$lib/workspace/type/gridType'
+} from '$lib/workspace'
 import type {
   ExtendedInterpretedDataType,
   BaseInterpretedDataType,
@@ -442,7 +442,9 @@ export function createWorkspaceCommandRegistry(
       const currentItems = gridStore.items
       const currentItem = currentItems.find(item => item.id === cmd.itemId)
       if (!currentItem) {
-        throw new Error(`Cannot reverse updateLayout: item ${cmd.itemId} not found`)
+        throw new Error(
+          `Cannot reverse updateLayout: item ${cmd.itemId} not found`
+        )
       }
 
       const reverseLayout: GridItemLayoutUpdate = {}

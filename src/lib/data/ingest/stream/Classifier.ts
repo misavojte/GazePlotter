@@ -1,4 +1,4 @@
-import type { EyeFileType, EyeSettingsType } from '$lib/data/ingest/types'
+import type { EyeFileType, EyeSettingsType } from '$lib/data/ingest'
 
 /**
  * Class responsible for identifying and classifying eye-tracking data file formats.

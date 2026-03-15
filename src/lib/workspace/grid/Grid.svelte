@@ -2,12 +2,9 @@
   import { fade } from 'svelte/transition'
   import GridItem from './GridItem.svelte'
   import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
-  import {
-    getPlotDisplayName,
-    resolvePlotComponent,
-  } from '$lib/plots/registry'
+  import { getPlotDisplayName, resolvePlotComponent } from '$lib/plots/registry'
   import { getGazePlotterSession } from '$lib/session'
-  import type { AllGridTypes } from '$lib/workspace/type/gridType'
+  import type { AllGridTypes } from '$lib/workspace'
   import type { GridConfig } from './types'
   import {
     commitGridItemDuplication,
@@ -127,8 +124,8 @@
                 {#snippet failed(error, reset)}
                   <div class="plot-error-state">
                     <p class="plot-error-copy">
-                      {plotLabel} could not be displayed. The rest of the
-                      workspace is still available.
+                      {plotLabel} could not be displayed. The rest of the workspace
+                      is still available.
                     </p>
                     <p class="plot-error-detail">
                       {getPlotErrorMessage(error)}

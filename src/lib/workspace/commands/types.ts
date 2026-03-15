@@ -7,7 +7,7 @@ import type {
   AllPlotSettings,
   GridItemLayoutUpdate,
   GridItemSnapshot,
-} from '$lib/workspace/type/gridType'
+} from '$lib/workspace'
 
 /**
  * Workspace Command System

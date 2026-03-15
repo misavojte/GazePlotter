@@ -13,7 +13,7 @@ export interface Dimensions {
 }
 
 import type { Component } from 'svelte'
-import type { LucideIconComponent } from '$lib/shared/types/iconComponent'
+import type { LucideIconComponent } from '$lib/shared/types'
 
 interface MenuDisplayItem {
   label?: string
@@ -150,3 +150,4 @@ export function createMenuComponentItem<
 ): MenuComponentItemDefinition<TComponentProps> {
   return item
 }
+

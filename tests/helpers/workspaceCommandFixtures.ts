@@ -7,7 +7,7 @@ import type {
 } from '$lib/data/types'
 import type { WorkspaceCommandChain } from '$lib/workspace/commands'
 import type { GridState } from '$lib/workspace/grid'
-import type { AllGridTypes } from '$lib/workspace/type/gridType'
+import type { AllGridTypes } from '$lib/workspace'
 import type { ScarfPlotItem, ScarfPlotSettings } from '$lib/plots/scarf/types'
 import type { BarPlotItem, BarPlotSettings } from '$lib/plots/bar/types'
 

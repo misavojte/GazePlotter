@@ -5,17 +5,14 @@
   import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
   import { getGazePlotterSession } from '$lib/session'
   import { metadataInfoModal } from '$lib/modals/definitions'
-  import type { GridItemSnapshot } from '$lib/workspace/type/gridType'
+  import type { GridItemSnapshot } from '$lib/workspace'
 
   interface Props {
     onReinitialize: () => void
     initialLayoutState?: GridItemSnapshot[] | null
   }
 
-  const {
-    onReinitialize,
-    initialLayoutState = null,
-  }: Props = $props()
+  const { onReinitialize, initialLayoutState = null }: Props = $props()
   const { engine, errorService, ingest, modalState, workspace } =
     getGazePlotterSession()
 
@@ -47,9 +44,11 @@
         origin: 'workspace',
         severity: 'recoverable',
         userMessage: 'The initial workspace layout is unavailable.',
-        cause: new Error('Cannot reset layout: no initial layout state provided'),
+        cause: new Error(
+          'Cannot reset layout: no initial layout state provided'
+        ),
         context: {
-          component: 'WorkspaceIndicatorEmpty',
+          component: 'IndicatorEmpty',
         },
       })
       return
@@ -75,8 +74,8 @@
       <div class="content-inner">
         <p>
           {#if fatalLoadError}
-            {fatalLoadError.userMessage} You can inspect the report, upload
-            different data, or reload the initial data.
+            {fatalLoadError.userMessage} You can inspect the report, upload different
+            data, or reload the initial data.
           {:else if canResetLayout}
             Data is available in memory, but no visualisations are displayed.
             You can reload the views, upload new data, or explore our sample
@@ -88,13 +87,9 @@
         </p>
         <div class="actions">
           {#if fatalLoadError && canOpenErrorReport}
-            <ButtonMajor onclick={openErrorReport}
-              >Open Report</ButtonMajor
-            >
+            <ButtonMajor onclick={openErrorReport}>Open Report</ButtonMajor>
           {:else if canResetLayout}
-            <ButtonMajor onclick={handleResetLayout}
-              >Reset Layout</ButtonMajor
-            >
+            <ButtonMajor onclick={handleResetLayout}>Reset Layout</ButtonMajor>
           {/if}
           <PanelButtonUpload />
           <PanelButtonDemo {onReinitialize} />

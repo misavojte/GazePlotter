@@ -1,5 +1,5 @@
 <script module lang="ts">
-  import type { LucideIconComponent } from '$lib/shared/types/iconComponent'
+  import type { LucideIconComponent } from '$lib/shared/types'
 
   // Group item and props
   export interface MinorGroupItem {
@@ -257,3 +257,4 @@
     will-change: transform;
   }
 </style>
+

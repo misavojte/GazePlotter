@@ -1,23 +1,20 @@
 <script lang="ts">
   import { onDestroy } from 'svelte'
-  import {
-    WorkspaceIndicatorEmpty,
-    WorkspaceIndicatorLoading,
-    WorkspaceToolbar,
-  } from '$lib/workspace'
-  import Grid from '$lib/workspace/grid/Grid.svelte'
+  import { IndicatorEmpty, IndicatorLoading } from './'
+  import Grid from './grid/Grid.svelte'
   import { getGazePlotterSession } from '$lib/session'
+  import Rail from './rail/Rail.svelte'
 
   import {
     MIN_WORKSPACE_HEIGHT,
     DEFAULT_GRID_CONFIG,
     calculateGridHeight,
     calculateGridWidth,
-  } from '$lib/workspace/grid'
-  import { GridInteractionController } from '$lib/workspace/grid/interaction'
+  } from './grid'
+  import { GridInteractionController } from './grid/interaction'
   import { plotRegistry } from '$lib/plots/registry'
-  import type { WorkspaceCommandChain } from '$lib/workspace/commands'
-  import type { GridItemSnapshot } from '$lib/workspace/type/gridType'
+  import type { WorkspaceCommandChain } from './commands'
+  import type { GridItemSnapshot } from './'
 
   interface Props {
     onReinitialize: () => void
@@ -111,7 +108,7 @@
 </script>
 
 <div class="workspace-wrapper" style={styleProps}>
-  <WorkspaceToolbar {initialLayoutState} {visualizations} />
+  <Rail {initialLayoutState} {visualizations} />
 
   <div
     class="workspace-container"
@@ -120,9 +117,9 @@
     role="none"
   >
     {#if grid.isEmpty && !(ingest.isLoading || grid.isLoading)}
-      <WorkspaceIndicatorEmpty {onReinitialize} {initialLayoutState} />
+      <IndicatorEmpty {onReinitialize} {initialLayoutState} />
     {:else if ingest.isLoading || grid.isLoading}
-      <WorkspaceIndicatorLoading />
+      <IndicatorLoading />
     {:else}
       <Grid
         gridItems={grid.items}

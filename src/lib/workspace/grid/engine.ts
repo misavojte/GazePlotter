@@ -1,8 +1,5 @@
 import type { GridItemPosition } from './types'
-import type {
-  AllGridTypes,
-  GridItemLayoutUpdate,
-} from '$lib/workspace/type/gridType'
+import type { AllGridTypes, GridItemLayoutUpdate } from '$lib/workspace'
 
 export function rectanglesOverlap(
   x1: number,
@@ -177,8 +174,7 @@ export function resolveItemPositionCollisions(
 
   if (collisions.size === 0) return []
 
-  const commands: Array<{ itemId: number; settings: GridItemLayoutUpdate }> =
-    []
+  const commands: Array<{ itemId: number; settings: GridItemLayoutUpdate }> = []
 
   for (const itemId of collisions) {
     const item = items.find(i => i.id === itemId)

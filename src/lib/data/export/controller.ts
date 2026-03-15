@@ -9,8 +9,8 @@ import { triggerDownload } from './download'
 import { generateScanGraph } from './mappers/scangraph'
 import { generateWorkspaceJson } from './mappers/workspace'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import type { AllGridTypes } from '$lib/workspace/type/gridType'
-import type { FileMetadataType } from '$lib/workspace/type/fileMetadataType'
+import type { AllGridTypes } from '$lib/workspace'
+import type { FileMetadataType } from '$lib/data/ingest'
 
 /**
  * Downloads a unified CSV of all gaze segments.
@@ -65,7 +65,12 @@ export async function downloadScanGraph(
   const aoiGroupReader = engine.getAoiGroupReader()
   if (!meta || !reader || !aoiGroupReader) return
 
-  const content = await generateScanGraph(meta, reader, aoiGroupReader, stimulusId)
+  const content = await generateScanGraph(
+    meta,
+    reader,
+    aoiGroupReader,
+    stimulusId
+  )
   triggerDownload(content, fileName, '.txt')
 }
 

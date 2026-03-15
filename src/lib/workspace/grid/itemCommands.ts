@@ -1,5 +1,5 @@
 import type { WorkspaceService } from '$lib/workspace/service.svelte'
-import type { AllGridTypes } from '$lib/workspace/type/gridType'
+import type { AllGridTypes } from '$lib/workspace'
 import type { GridConfig } from './types'
 
 type WorkspaceGridCommands = Pick<

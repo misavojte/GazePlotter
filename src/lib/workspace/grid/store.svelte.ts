@@ -5,7 +5,7 @@ import type {
   GridItemLayoutUpdate,
   GridItemSnapshot,
   PlotSettingsMap,
-} from '$lib/workspace/type/gridType'
+} from '$lib/workspace'
 import { DEFAULT_GRID_CONFIG } from './const'
 import type { GridConfig, GridItemPosition } from './types'
 import { DEFAULT_GRID_STATE_DATA } from './const'
@@ -62,7 +62,13 @@ export class GridState {
     if (
       requested?.x !== undefined &&
       requested?.y !== undefined &&
-      GridEngine.isAreaAvailable(requested.x, requested.y, item.w, item.h, positions)
+      GridEngine.isAreaAvailable(
+        requested.x,
+        requested.y,
+        item.w,
+        item.h,
+        positions
+      )
     ) {
       return {
         x: requested.x,
@@ -132,7 +138,10 @@ export class GridState {
     this.items = this.items.filter(i => i.id !== id)
   }
 
-  updateSettings(id: number, settings: Partial<PlotSettingsMap[keyof PlotSettingsMap]>) {
+  updateSettings(
+    id: number,
+    settings: Partial<PlotSettingsMap[keyof PlotSettingsMap]>
+  ) {
     const index = this.items.findIndex(i => i.id === id)
     if (index !== -1) {
       this.items[index] = {
@@ -155,9 +164,7 @@ export class GridState {
     }
   }
 
-  reset(
-    layout: GridItemSnapshot[] = DEFAULT_GRID_STATE_DATA
-  ) {
+  reset(layout: GridItemSnapshot[] = DEFAULT_GRID_STATE_DATA) {
     // Build all items locally first to avoid intermediate reactive updates.
     // Previously, `this.items = []` followed by N `push()` calls caused N+1
     // reactive updates with partial/empty arrays, crashing downstream components
@@ -184,7 +191,10 @@ export class GridState {
     })
   }
 
-  updateItem(id: number, settings: Partial<PlotSettingsMap[keyof PlotSettingsMap]>) {
+  updateItem(
+    id: number,
+    settings: Partial<PlotSettingsMap[keyof PlotSettingsMap]>
+  ) {
     this.updateSettings(id, settings)
   }
 
@@ -202,9 +212,7 @@ export class GridState {
     return duplicate.id
   }
 
-  setLayoutState(
-    layout: GridItemSnapshot[]
-  ) {
+  setLayoutState(layout: GridItemSnapshot[]) {
     // Delegate to reset() which handles batched item creation
     this.reset(layout)
   }

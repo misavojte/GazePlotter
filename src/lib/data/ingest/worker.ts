@@ -1,6 +1,6 @@
 import { EyePipeline } from './stream/Pipeline'
 import { PupilCloudPipeline } from '$lib/data/ingest/batch/PupilPipeline'
-import type { EyeSettingsType } from '$lib/data/ingest/types'
+import type { EyeSettingsType } from '$lib/data/ingest'
 import type { DataType } from '$lib/data/types'
 
 /**
@@ -103,10 +103,8 @@ async function processEvent(e: MessageEvent): Promise<void> {
         if (isZipFiles) {
           pupilCloudPipeline = new PupilCloudPipeline(fileNames)
         } else {
-          pipeline = new EyePipeline(
-            fileNames,
-            requestUserInput,
-            byteLength => recordProcessedBytes(byteLength)
+          pipeline = new EyePipeline(fileNames, requestUserInput, byteLength =>
+            recordProcessedBytes(byteLength)
           )
         }
         return

@@ -1,4 +1,4 @@
-import type { EyeSettingsType } from '$lib/data/ingest/types'
+import type { EyeSettingsType } from '$lib/data/ingest'
 import { encodeString } from '$lib/data/ingest/utils/byteUtils'
 
 const concatUint8 = (a: Uint8Array, b: Uint8Array): Uint8Array => {

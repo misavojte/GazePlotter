@@ -2,7 +2,7 @@
   import { Toaster } from '$lib/toaster'
   import { Modal } from '$lib/modals'
   import Panel from '$lib/workspace/panel/components/Panel.svelte'
-  import Workspace from '$lib/workspace/components/Workspace.svelte'
+  import Workspace from '$lib/workspace/Workspace.svelte'
   import { Tooltip } from '$lib/tooltip'
   import { ContextMenu } from '$lib/context-menu'
   import { onMount, tick, setContext } from 'svelte'
@@ -11,7 +11,7 @@
     setGazePlotterSessionContext,
   } from '$lib/session'
 
-  import type { GridItemSnapshot } from '$lib/workspace/type/gridType'
+  import type { GridItemSnapshot } from '$lib/workspace'
   import type { WorkspaceCommandChain } from '$lib/workspace/commands'
   import type { GazePlotterSession } from '$lib/session'
 

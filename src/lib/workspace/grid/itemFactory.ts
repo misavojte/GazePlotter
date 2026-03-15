@@ -4,7 +4,7 @@ import type {
   AllGridTypes,
   GridItemMap,
   GridItemSnapshot,
-} from '$lib/workspace/type/gridType'
+} from '$lib/workspace'
 
 export function createGridItem<K extends keyof GridItemMap>(
   type: K,

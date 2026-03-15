@@ -1,6 +1,5 @@
 export { default as GazePlotter } from '$lib/GazePlotter.svelte'
-export {
-  createGazePlotterSession,
-  getGazePlotterSession,
-} from '$lib/session'
+export { createGazePlotterSession, getGazePlotterSession } from '$lib/session'
 export type { GazePlotterSession } from '$lib/session'
+export * from '$lib/workspace/grid'
+export * from '$lib/workspace/commands'

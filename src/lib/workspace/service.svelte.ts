@@ -22,7 +22,7 @@ import type {
   GridItemMap,
   GridItemSnapshot,
   GridItemLayoutUpdate,
-} from '$lib/workspace/type/gridType'
+} from '$lib/workspace'
 import type {
   BaseInterpretedDataType,
   ExtendedInterpretedDataType,
@@ -148,9 +148,7 @@ export class WorkspaceService {
     return success
   }
 
-  resetLayout(
-    layoutState: GridItemSnapshot[]
-  ): boolean {
+  resetLayout(layoutState: GridItemSnapshot[]): boolean {
     return this.applyRoot({
       type: 'setLayoutState',
       layoutState,
@@ -167,7 +165,11 @@ export class WorkspaceService {
     })
   }
 
-  updateItemSettings(itemId: number, settings: Partial<AllPlotSettings>, source: string): boolean {
+  updateItemSettings(
+    itemId: number,
+    settings: Partial<AllPlotSettings>,
+    source: string
+  ): boolean {
     return this.applyRoot({
       type: 'updateSettings',
       itemId,
@@ -231,7 +233,10 @@ export class WorkspaceService {
     return this.applyRoot(command)
   }
 
-  updateParticipantsGroups(groups: ParticipantsGroup[], source: string): boolean {
+  updateParticipantsGroups(
+    groups: ParticipantsGroup[],
+    source: string
+  ): boolean {
     const command: UpdateParticipantsGroupsCommand = {
       type: 'updateParticipantsGroups',
       groups,

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { LucideIconComponent } from '$lib/shared/types/iconComponent'
+  import type { LucideIconComponent } from '$lib/shared/types'
   import { tooltipAction } from '$lib/tooltip'
   import {
     contextMenuAction,
@@ -127,3 +127,4 @@
     transition: transform 0.1s ease;
   }
 </style>
+
