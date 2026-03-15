@@ -4,6 +4,7 @@
   import Grid from './grid/Grid.svelte'
   import { getGazePlotterSession } from '$lib/session'
   import Rail from './rail/Rail.svelte'
+  import Ribbon from './ribbon/Ribbon.svelte'
 
   import {
     MIN_WORKSPACE_HEIGHT,
@@ -17,13 +18,11 @@
   import type { GridItemSnapshot } from './'
 
   interface Props {
-    onReinitialize: () => void
     onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void
     initialLayoutState?: GridItemSnapshot[] | null
   }
 
   const {
-    onReinitialize,
     onWorkspaceCommandChain,
     initialLayoutState = null,
   }: Props = $props()
@@ -108,29 +107,33 @@
 </script>
 
 <div class="workspace-wrapper" style={styleProps}>
-  <Rail {initialLayoutState} {visualizations} />
+  <Ribbon />
 
-  <div
-    class="workspace-container"
-    style="height: {gridHeight}px;"
-    bind:this={workspaceContainer}
-    role="none"
-  >
-    {#if grid.isEmpty && !(ingest.isLoading || grid.isLoading)}
-      <IndicatorEmpty {onReinitialize} {initialLayoutState} />
-    {:else if ingest.isLoading || grid.isLoading}
-      <IndicatorLoading />
-    {:else}
-      <Grid
-        gridItems={grid.items}
-        {gridConfig}
-        {interaction}
-        {gridHeight}
-        {gridWidth}
-        gridIsEmpty={grid.isEmpty}
-        {workspaceContainer}
-      />
-    {/if}
+  <div class="workspace-body">
+    <Rail {initialLayoutState} {visualizations} />
+
+    <div
+      class="workspace-container"
+      style="height: {gridHeight}px;"
+      bind:this={workspaceContainer}
+      role="none"
+    >
+      {#if grid.isEmpty && !(ingest.isLoading || grid.isLoading)}
+        <IndicatorEmpty {initialLayoutState} />
+      {:else if ingest.isLoading || grid.isLoading}
+        <IndicatorLoading />
+      {:else}
+        <Grid
+          gridItems={grid.items}
+          {gridConfig}
+          {interaction}
+          {gridHeight}
+          {gridWidth}
+          gridIsEmpty={grid.isEmpty}
+          {workspaceContainer}
+        />
+      {/if}
+    </div>
   </div>
 </div>
 
@@ -138,8 +141,15 @@
   .workspace-wrapper {
     position: relative;
     display: flex;
+    flex-direction: column;
     min-height: var(--min-workspace-height);
     border: 1px solid var(--c-border);
+  }
+
+  .workspace-body {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
   }
 
   .workspace-container {

@@ -112,6 +112,7 @@
   }
   .intro {
     text-align: center;
+    margin-bottom: 3.5rem;
   }
 
   .title-heading {

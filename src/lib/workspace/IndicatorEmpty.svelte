@@ -1,6 +1,5 @@
 <script lang="ts">
   import PanelButtonUpload from '$lib/workspace/panel/components/PanelButtonUpload.svelte'
-  import PanelButtonDemo from '$lib/workspace/panel/components/PanelButtonDemo.svelte'
   import { fade } from 'svelte/transition'
   import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
   import { getGazePlotterSession } from '$lib/session'
@@ -8,36 +7,23 @@
   import type { GridItemSnapshot } from '$lib/workspace'
 
   interface Props {
-    onReinitialize: () => void
     initialLayoutState?: GridItemSnapshot[] | null
   }
 
-  const { onReinitialize, initialLayoutState = null }: Props = $props()
+  const { initialLayoutState = null }: Props = $props()
   const { engine, errorService, ingest, modalState, workspace } =
     getGazePlotterSession()
 
-  /**
-   * Determines if the reset layout button should be shown.
-   * Valid data means we have loaded actual stimuli and participants.
-   */
   const canResetLayout = $derived(engine.hasValidData)
   const fatalLoadError = $derived(errorService.fatalLoad)
   const canOpenErrorReport = $derived(
     fatalLoadError !== null || ingest.metadata !== null
   )
 
-  /**
-   * Opens the metadata modal to show the error report.
-   * This is useful when file upload fails and users want to see details.
-   */
   const openErrorReport = () => {
     modalState.open(metadataInfoModal, {})
   }
 
-  /**
-   * Handles layout reset by creating a setLayoutState command with the initial layout state.
-   * This replaces the direct callback approach with a proper workspace command.
-   */
   const handleResetLayout = () => {
     if (!initialLayoutState) {
       errorService.report({
@@ -74,15 +60,13 @@
       <div class="content-inner">
         <p>
           {#if fatalLoadError}
-            {fatalLoadError.userMessage} You can inspect the report, upload different
-            data, or reload the initial data.
+            {fatalLoadError.userMessage} You can inspect the report or upload different
+            data.
           {:else if canResetLayout}
             Data is available in memory, but no visualisations are displayed.
-            You can reload the views, upload new data, or explore our sample
-            data.
+            You can reset the layout or upload new data.
           {:else}
-            Upload new data or reload the initial sample data to start working
-            with the workspace.
+            Upload new data to start working with the workspace.
           {/if}
         </p>
         <div class="actions">
@@ -92,7 +76,6 @@
             <ButtonMajor onclick={handleResetLayout}>Reset Layout</ButtonMajor>
           {/if}
           <PanelButtonUpload />
-          <PanelButtonDemo {onReinitialize} />
         </div>
       </div>
     </div>

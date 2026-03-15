@@ -1,4 +1,3 @@
-import FileText from 'lucide-svelte/icons/file-text'
 import Plus from 'lucide-svelte/icons/plus'
 import Redo2 from 'lucide-svelte/icons/redo-2'
 import RotateCcw from 'lucide-svelte/icons/rotate-ccw'
@@ -34,7 +33,6 @@ interface CreateRailItemsOptions {
   onUndo: () => void
   onRedo: () => void
   onResetLayout: () => void
-  onOpenMetadata: () => void
   onAddVisualization: (id: string) => void
 }
 
@@ -43,14 +41,12 @@ type RailItemId =
   | 'redo'
   | 'reset-layout'
   | 'add-visualization'
-  | 'metadata'
 
 const railIcons = {
   undo: Undo2,
   redo: Redo2,
   'reset-layout': RotateCcw,
   'add-visualization': Plus,
-  metadata: FileText,
 } satisfies Record<RailItemId, LucideIconComponent>
 
 export function createRailItems(
@@ -95,18 +91,6 @@ export function createRailItems(
         run: () => options.onAddVisualization(visualization.id),
       })),
       disabled: options.isProcessing || !options.isValidData,
-    },
-    {
-      id: 'metadata',
-      label: 'Source Metadata',
-      icon: railIcons.metadata,
-      actions: [
-        {
-          label: 'Source Metadata',
-          run: options.onOpenMetadata,
-        },
-      ],
-      disabled: options.isProcessing,
     },
   ]
 }

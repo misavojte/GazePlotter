@@ -1,11 +1,10 @@
 <script lang="ts">
   import { Toaster } from '$lib/toaster'
   import { Modal } from '$lib/modals'
-  import Panel from '$lib/workspace/panel/components/Panel.svelte'
   import Workspace from '$lib/workspace/Workspace.svelte'
   import { Tooltip } from '$lib/tooltip'
   import { ContextMenu } from '$lib/context-menu'
-  import { onMount, tick, setContext } from 'svelte'
+  import { onMount, tick } from 'svelte'
   import {
     createGazePlotterSession,
     setGazePlotterSessionContext,
@@ -17,20 +16,16 @@
 
   interface Props {
     loadInitialData: (session: GazePlotterSession) => Promise<void>
-    reinitializeLabel?: string
     onWorkspaceCommandChain?: (command: WorkspaceCommandChain) => void
   }
 
   const {
     loadInitialData,
-    reinitializeLabel = 'Reload Demo',
     onWorkspaceCommandChain = () => {},
   }: Props = $props()
 
   const session = setGazePlotterSessionContext(createGazePlotterSession())
-  const { errorService, toastState } = session
-
-  setContext('reinitializeLabel', () => reinitializeLabel)
+  const { errorService } = session
 
   // Snapshot remains a $state rune
   let initialGridItemsSnapshot = $state<GridItemSnapshot[] | null>(null)
@@ -64,13 +59,6 @@
     }
   }
 
-  const onReinitialize = () => {
-    loadData().then(didLoad => {
-      if (!didLoad) return
-      toastState.addSuccess('Workspace and data returned to the initial state.')
-    })
-  }
-
   /**
    * Exported function to reset the layout from parent components
    */
@@ -88,12 +76,7 @@
 </script>
 
 <div id="GP-gazeplotter">
-  <div class="panel-container">
-    <Panel {onReinitialize} />
-  </div>
-
   <Workspace
-    {onReinitialize}
     {onWorkspaceCommandChain}
     initialLayoutState={initialGridItemsSnapshot}
   />
@@ -110,10 +93,5 @@
     font-size: 16px;
     line-height: 1.5;
     color: var(--c-black);
-  }
-  .panel-container {
-    max-width: 1220px;
-    margin-inline: auto;
-    margin-block: 40px;
   }
 </style>

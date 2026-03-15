@@ -49,10 +49,6 @@
     workspace.redo()
   }
 
-  const handleOpenMetadata = () => {
-    modalState.open(metadataInfoModal, {})
-  }
-
   const handleResetLayout = () => {
     if (!initialLayoutState) {
       errorService.report({
@@ -83,7 +79,6 @@
       onUndo: handleUndo,
       onRedo: handleRedo,
       onResetLayout: handleResetLayout,
-      onOpenMetadata: handleOpenMetadata,
       onAddVisualization: id => workspace.addVisualization(id, 'toolbar'),
     })
   )
