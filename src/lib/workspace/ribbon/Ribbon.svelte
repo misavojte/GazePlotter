@@ -82,6 +82,7 @@
     box-sizing: border-box;
     z-index: 2;
     transition: background-color 0.3s ease;
+    font-family: inherit;
   }
 
   .ribbon-content {

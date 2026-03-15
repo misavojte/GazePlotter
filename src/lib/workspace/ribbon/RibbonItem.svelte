@@ -70,6 +70,7 @@
     border: none;
     transition: all 0.15s ease-out;
     gap: 4px;
+    font-family: inherit;
   }
 
   .ribbon-item:hover:not(.disabled) {
