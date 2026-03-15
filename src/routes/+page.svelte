@@ -53,12 +53,15 @@
       <Card padding="lg">
         <h2 class="box-title">Cite this work</h2>
         <p>
-          Vojtechovska,&nbsp;M., Popelka,&nbsp;S. GazePlotter: An&nbsp;open-source
-          solution for&nbsp;the automatic generation of&nbsp;scarf plots
-          from&nbsp;eye-tracking data. Behav&nbsp;Res 58,&nbsp;85 (2026).
-          doi:10.3758/s13428-026-02959-5
+          Vojtechovska,&nbsp;M., Popelka,&nbsp;S. GazePlotter:
+          An&nbsp;open-source solution for&nbsp;the automatic generation
+          of&nbsp;scarf plots from&nbsp;eye-tracking data. Behav&nbsp;Res
+          58,&nbsp;85 (2026). doi:10.3758/s13428-026-02959-5
         </p>
-        <a href="https://link.springer.com/article/10.3758/s13428-026-02959-5">
+        <a
+          target="_blank"
+          href="https://link.springer.com/article/10.3758/s13428-026-02959-5"
+        >
           Go to article
         </a>
       </Card>
