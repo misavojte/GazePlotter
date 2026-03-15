@@ -8,6 +8,9 @@
     resizeHandleAction,
     type GridInteractionController,
   } from './interaction'
+  import GripVertical from 'lucide-svelte/icons/grip-vertical'
+  import Copy from 'lucide-svelte/icons/copy'
+  import X from 'lucide-svelte/icons/x'
 
   type GridRect = { id: number; x: number; y: number; w: number; h: number }
   type IdOnly = { id: number }
@@ -118,42 +121,14 @@
           actionFn={moveHandleAction}
           actionParams={moveActionParams}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <circle cx="8" cy="8" r="1.5" />
-            <circle cx="8" cy="16" r="1.5" />
-            <circle cx="16" cy="8" r="1.5" />
-            <circle cx="16" cy="16" r="1.5" />
-          </svg>
+          <GripVertical size={14} strokeWidth={1.75} aria-hidden="true" />
         </GridItemButton>
         <GridItemButton
           action="duplicate"
           tooltip="Duplicate item"
           onclick={() => onduplicate({ id })}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <rect x="8" y="8" width="12" height="12" rx="2" ry="2" />
-            <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
-          </svg>
+          <Copy size={14} strokeWidth={1.75} aria-hidden="true" />
         </GridItemButton>
       {/if}
       <h3 class="grid-item-title">{title}</h3>
@@ -164,20 +139,7 @@
             tooltip="Remove item"
             onclick={() => onremove({ id })}
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <X size={16} strokeWidth={1.75} aria-hidden="true" />
           </GridItemButton>
         {/if}
       </div>
