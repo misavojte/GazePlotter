@@ -129,13 +129,21 @@
   <section class="main-section" id="about">
     <div class="about-grid">
       <section class="box">
-        <h2 class="box-title">Open source Svelte library</h2>
+        <h2 class="box-title">Peer-reviewed in BRM</h2>
         <p>
-          GazePlotter is an open source library, written in Svelte and
-          TypeScript. You can use it for free or modify its code to fit your
-          specific needs in your projects.
+          Vojtechovska, M., Popelka, S. GazePlotter: An open-source solution for
+          the automatic generation of scarf plots from eye-tracking data. <i
+            >Behav Res</i
+          >
+          58, 85 (2026). doi:10.3758/s13428-026-02959-5
         </p>
-        <a href="https://github.com/misavojte/GazePlotter">See GitHub repo</a>
+        <a
+          href="https://link.springer.com/article/10.3758/s13428-026-02959-5"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Go to article
+        </a>
       </section>
       <section class="box">
         <h2 class="box-title">Works with Tobii, SMI & more</h2>
