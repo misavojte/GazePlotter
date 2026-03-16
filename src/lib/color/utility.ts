@@ -86,6 +86,8 @@ export function createColorGradient(
 ): string[] {
   const gradient: string[] = []
 
+  if (steps <= 1) return steps === 1 ? [colorStart] : []
+
   for (let i = 0; i < steps; i++) {
     const factor = i / (steps - 1)
     gradient.push(interpolateColor(colorStart, colorEnd, factor))
