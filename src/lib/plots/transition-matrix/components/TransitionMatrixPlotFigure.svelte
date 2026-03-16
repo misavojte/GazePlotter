@@ -27,20 +27,13 @@
     TRANSITION_MATRIX_LAYOUT,
     TRANSITION_MATRIX_DEFAULTS,
   } from '../const'
+  import { computeTransitionMatrixLayout } from '../core/layout'
   import {
     computeGradientLegendGeometry,
     drawGradientLegend,
     drawPlotOutline,
   } from '$lib/plots/shared'
   import { UI_COLORS } from '$lib/color'
-
-  const NICE_STEPS = [5, 10, 20, 25, 50, 100, 200, 500, 1000]
-  function calculateTickStep(len: number): number {
-    for (let i = 0; i < NICE_STEPS.length; i++) {
-      if (len / NICE_STEPS[i] <= 10) return NICE_STEPS[i]
-    }
-    return 1000
-  }
 
   /**
    * Props for the Transition Matrix Plot
@@ -139,253 +132,19 @@
     return Math.ceil(maxValue)
   })
 
-  // 1. IMPROVEMENT: Define a consistent optical gap constant
-  const AXIS_TITLE_GAP = 12 // Pixels between Axis Title and Axis Labels
-
   // Consolidated layout object
-  const layout = $derived.by(() => {
-    const aoiCount = aoiLabels.length
-    const fontSize = TRANSITION_MATRIX_LAYOUT.LABEL_FONT_SIZE
-
-    // 2. MEASURING TOOL: Calculate precise text geometry
-    // Estimate max text width based on avg char width (approx 0.6em) or use max allowed
-    // Note: In a perfect world, we'd use ctx.measureText, but for layout calculation
-    // before render, this heuristic combined with truncation logic is robust.
-    const approxCharWidth = fontSize * 0.6
-    let maxPixelWidth = 0
-
-    // Find longest label width
-    for (const label of aoiLabels) {
-      const width = label.length * approxCharWidth
-      if (width > maxPixelWidth) maxPixelWidth = width
-    }
-
-    // Cap it at the truncation limit defined in your constants
-    const effectiveMaxLabelWidth = Math.min(
-      maxPixelWidth,
-      TRANSITION_MATRIX_LAYOUT.maxLabelLength
-    )
-
-    // 3. IMPROVEMENT: Calculate layout mode and offsets correctly
-    // Step 1: Check Standard Fit
-    const standardAxisLabelSize = effectiveMaxLabelWidth
-    const standardXAxisHeight =
-      standardAxisLabelSize * 0.7071 + fontSize * 0.7071 // Rotated
-
-    const standardYSpace =
-      marginLeft +
-      TRANSITION_MATRIX_LAYOUT.leftMargin +
-      fontSize +
-      AXIS_TITLE_GAP +
-      standardAxisLabelSize +
-      10
-
-    const standardXSpace =
-      marginTop +
-      TRANSITION_MATRIX_LAYOUT.topMargin +
-      fontSize +
-      AXIS_TITLE_GAP +
-      standardXAxisHeight +
-      10
-
-    const legendSpace = 70 + marginBottom
-
-    const availableWidthStandard =
-      width -
-      standardYSpace -
-      marginRight -
-      TRANSITION_MATRIX_LAYOUT.rightMargin
-    const availableHeightStandard = height - standardXSpace - legendSpace
-
-    const cellStandard = Math.max(
-      0,
-      Math.min(
-        availableWidthStandard / Math.max(1, aoiCount),
-        availableHeightStandard / Math.max(1, aoiCount)
-      )
-    )
-
-    const needsCompact =
-      cellStandard < TRANSITION_MATRIX_LAYOUT.COMPACT_THRESHOLD
-
-    // Step 2: Check Extended/Ultra Fit
-    // If needsCompact is true, we use smaller headers, potentially freeing up space.
-    // If that freed up space still results in cells < 20px, we go Ultra.
-    const compactLabelSize = 25
-    const compactYSpace =
-      marginLeft +
-      TRANSITION_MATRIX_LAYOUT.leftMargin +
-      fontSize +
-      AXIS_TITLE_GAP +
-      compactLabelSize +
-      10
-    const compactXSpace =
-      marginTop +
-      TRANSITION_MATRIX_LAYOUT.topMargin +
-      fontSize +
-      AXIS_TITLE_GAP +
-      compactLabelSize +
-      10
-
-    const activeYSpace = needsCompact ? compactYSpace : standardYSpace
-    const activeXSpace = needsCompact ? compactXSpace : standardXSpace
-
-    const availableWidthReal =
-      width - activeYSpace - marginRight - TRANSITION_MATRIX_LAYOUT.rightMargin
-    const availableHeightReal = height - activeXSpace - legendSpace
-
-    const cellReal = Math.max(
-      0,
-      Math.min(
-        availableWidthReal / Math.max(1, aoiCount),
-        availableHeightReal / Math.max(1, aoiCount)
-      )
-    )
-
-    const isUltraCompactMode = cellReal < TRANSITION_MATRIX_LAYOUT.minCellSize
-    const isCompactMode = needsCompact || isUltraCompactMode
-
-    // 4. IMPROVEMENT: Geometric Spacing Calculation
-    // Calculate exact space needed for X and Y axis labels
-    let xAxisLabelHeight: number
-    let yAxisLabelWidth: number
-
-    if (isCompactMode) {
-      // Compact: Indices are small and essentially square
-      xAxisLabelHeight = 25
-      yAxisLabelWidth = 25
-    } else {
-      // Standard:
-      // Y-axis labels are horizontal. Space = Width.
-      yAxisLabelWidth = effectiveMaxLabelWidth
-
-      // X-axis labels are rotated 45 degrees.
-      // Height = (Width * sin(45)) + (FontHeight * cos(45))
-      const sin45 = 0.7071
-      xAxisLabelHeight = effectiveMaxLabelWidth * sin45 + fontSize * sin45
-    }
-
-    // Apply the constant gap
-    const yAxisSpace =
-      marginLeft +
-      TRANSITION_MATRIX_LAYOUT.leftMargin +
-      fontSize + // Space for Title Text Height
-      AXIS_TITLE_GAP +
-      yAxisLabelWidth +
-      10 // Small padding next to matrix
-
-    const xAxisSpace =
-      marginTop +
-      TRANSITION_MATRIX_LAYOUT.topMargin +
-      fontSize + // Space for Title Text Height
-      AXIS_TITLE_GAP +
-      xAxisLabelHeight +
-      10 // Small padding next to matrix
-
-    // Remaining layout logic...
-    const availableWidth =
-      width - yAxisSpace - marginRight - TRANSITION_MATRIX_LAYOUT.rightMargin
-    const availableHeight = height - xAxisSpace - legendSpace
-
-    const cellSize =
-      aoiCount === 0
-        ? TRANSITION_MATRIX_LAYOUT.minCellSize
-        : Math.floor(
-            isUltraCompactMode
-              ? Math.max(
-                  1,
-                  Math.min(
-                    availableWidth / aoiCount,
-                    availableHeight / aoiCount
-                  )
-                )
-              : Math.max(
-                  TRANSITION_MATRIX_LAYOUT.minCellSize,
-                  Math.min(
-                    availableWidth / aoiCount,
-                    availableHeight / aoiCount
-                  )
-                )
-          )
-
-    const gridWidth = cellSize * aoiCount
-    const gridHeight = cellSize * aoiCount
-
-    const xOffset = Math.floor(yAxisSpace + ((availableWidth - gridWidth) >> 1))
-    const yOffset = Math.floor(xAxisSpace)
-
-    // 5. IMPROVEMENT: Dynamic thinning for axis labels (indices)
-    let thinFactor = 1
-    let showAxisLabels = true
-
-    if (isUltraCompactMode) {
-      thinFactor = calculateTickStep(aoiCount)
-    } else if (isCompactMode) {
-      const maxIndexStr = aoiCount.toString()
-      const approxIndexWidth = maxIndexStr.length * (fontSize * 0.6)
-      // Factor is: How many cells we need to fit the widest index plus a 4px cushion
-      thinFactor = Math.max(1, Math.ceil((approxIndexWidth + 4) / cellSize))
-
-      // If thinning is so high that we'd only show like 2 labels or cells are tiny,
-      // we might want to hide them, but for now let's just ensure they fit.
-      if (cellSize < 5) showAxisLabels = false
-    }
-
-    // 6. IMPROVEMENT: Two-pass cell label visibility & scaling
-    const formatValue = (v: number) =>
-      Number.isInteger(v) ? v.toString() : v.toFixed(1)
-    const valueStr = formatValue(effectiveMaxValue)
-    const labelLen = Math.max(valueStr.length, effectiveMaxValue < 1 ? 3 : 0)
-
-    const defaultCellFontSize = TRANSITION_MATRIX_LAYOUT.CELL_VALUE_FONT_SIZE
-    const reducedCellFontSize = defaultCellFontSize - 2
-
-    let activeCellValueFontSize: number = defaultCellFontSize
-    let showCellValues = false
-
-    // Pass 1: Try default size with 6px cushion
-    const widthPass1 = labelLen * (defaultCellFontSize * 0.75)
-    if (
-      !isUltraCompactMode &&
-      cellSize >= widthPass1 + 6 &&
-      cellSize >= defaultCellFontSize + 4
-    ) {
-      showCellValues = true
-      activeCellValueFontSize = defaultCellFontSize
-    } else {
-      // Pass 2: Try reduced size with 4px cushion
-      const widthPass2 = labelLen * (reducedCellFontSize * 0.75)
-      if (
-        !isUltraCompactMode &&
-        cellSize >= widthPass2 + 4 &&
-        cellSize >= reducedCellFontSize + 2
-      ) {
-        showCellValues = true
-        activeCellValueFontSize = reducedCellFontSize
-      }
-    }
-
-    return {
-      fontSize,
-      // We expose these calculated bounds for the drawing function
-      xAxisLabelHeight,
-      yAxisLabelWidth,
-      axisTitleGap: AXIS_TITLE_GAP,
-      xOffset,
-      yOffset,
-      cellSize,
-      gridWidth,
-      gridHeight,
-      matrixBottom: yOffset + gridHeight,
-      isCompactMode,
-      isUltraCompactMode,
-      thinFactor,
-      individualLabelMargin: 10,
-      showCellValues,
-      showAxisLabels,
-      cellValueFontSize: activeCellValueFontSize,
-    }
-  })
+  const layout = $derived.by(() =>
+    computeTransitionMatrixLayout({
+      width,
+      height,
+      marginTop,
+      marginRight,
+      marginBottom,
+      marginLeft,
+      aoiLabels,
+      effectiveMaxValue,
+    })
+  )
 
   // Render everything to canvas
   function renderCanvas() {
