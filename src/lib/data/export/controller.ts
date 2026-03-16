@@ -63,7 +63,9 @@ export async function downloadScanGraph(
   const meta = engine.metadata
   const reader = engine.getReader()
   const aoiGroupReader = engine.getAoiGroupReader()
-  if (!meta || !reader || !aoiGroupReader) return
+  if (!meta || !reader || !aoiGroupReader) {
+    throw new Error('Data engine not ready for ScanGraph export')
+  }
 
   const content = await generateScanGraph(
     meta,

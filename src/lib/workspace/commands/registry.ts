@@ -352,7 +352,7 @@ export function createWorkspaceCommandRegistry(
         const participantId = parseInt(participantIdStr, 10)
         if (
           stimulusId === cmd.stimulusId &&
-          (!cmd.participantId || participantId === cmd.participantId)
+          (cmd.participantId == null || participantId === cmd.participantId)
         ) {
           const aoiData =
             dataMeta?.aois?.data?.[stimulusId]?.[parseInt(aoiIdStr, 10)]
