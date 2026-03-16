@@ -268,7 +268,7 @@
     height: safeHeight + safeMarginTop + safeMarginBottom,
   })
 
-  const scheduleRender = createRenderScheduler(() => canvasState, renderCanvas)
+  const scheduleRender = createRenderScheduler(renderCanvas)
 
   function renderCanvas() {
     beginCanvasDrawing(canvasState, true)

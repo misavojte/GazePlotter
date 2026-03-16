@@ -297,7 +297,7 @@
     })
   })
 
-  const scheduleRender = createRenderScheduler(() => canvasState, renderCanvas)
+  const scheduleRender = createRenderScheduler(renderCanvas)
 
   // Render everything to canvas
   function renderCanvas() {

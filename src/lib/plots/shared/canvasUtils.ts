@@ -351,15 +351,13 @@ export function setupDpiChangeListeners(
   }
 }
 
-type CanvasStateSource = CanvasState | (() => CanvasState)
-
-function resolveCanvasState(stateSource: CanvasStateSource): CanvasState {
-  return typeof stateSource === 'function' ? stateSource() : stateSource
-}
-
-function normalizeCanvasDimensions(dimensions: CanvasDimensions): CanvasDimensions {
+function normalizeCanvasDimensions(
+  dimensions: CanvasDimensions
+): CanvasDimensions {
   return {
-    width: Number.isFinite(dimensions.width) ? Math.max(1, dimensions.width) : 1,
+    width: Number.isFinite(dimensions.width)
+      ? Math.max(1, dimensions.width)
+      : 1,
     height: Number.isFinite(dimensions.height)
       ? Math.max(1, dimensions.height)
       : 1,
@@ -376,25 +374,21 @@ function resizeStateToDimensions(
 
 /**
  * Creates a throttled render scheduler to optimize canvas rendering
- * @param stateSource - Current canvas state or state getter
  * @param renderFn - Function to execute for rendering
  * @returns A function that schedules rendering with throttling
  */
-export function createRenderScheduler(
-  stateSource: CanvasStateSource,
-  renderFn: () => void
-): () => void {
+export function createRenderScheduler(renderFn: () => void): () => void {
+  let scheduled = false
   return () => {
     if (!browser) return
-    const state = resolveCanvasState(stateSource)
-    if (state.renderScheduled) return
+    if (scheduled) return
 
-    state.renderScheduled = true
+    scheduled = true
     requestAnimationFrame(() => {
       try {
         renderFn()
       } finally {
-        resolveCanvasState(stateSource).renderScheduled = false
+        scheduled = false
       }
     })
   }
@@ -418,8 +412,7 @@ export interface CanvasRefreshOptions {
 }
 
 export interface CanvasLifecycleActionOptions
-  extends Omit<CanvasLifecycleOptions, 'getCanvas'>,
-    CanvasRefreshOptions {}
+  extends Omit<CanvasLifecycleOptions, 'getCanvas'>, CanvasRefreshOptions {}
 
 /**
  * Initializes canvas state, resizes it to current layout dimensions, and attaches DPI listeners.

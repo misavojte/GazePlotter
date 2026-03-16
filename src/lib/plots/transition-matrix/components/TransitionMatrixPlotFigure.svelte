@@ -118,7 +118,7 @@
     height: height + marginTop + marginBottom,
   })
 
-  const scheduleRender = createRenderScheduler(() => canvasState, renderCanvas)
+  const scheduleRender = createRenderScheduler(renderCanvas)
 
   // Calculate the auto max value from the matrix efficiently
   const effectiveMaxValue = $derived.by(() => {

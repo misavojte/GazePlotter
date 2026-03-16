@@ -811,7 +811,7 @@
     }
   }
 
-  const scheduleRender = createRenderScheduler(() => canvasState, renderCanvas)
+  const scheduleRender = createRenderScheduler(renderCanvas)
 
   $effect(() => {
     const deps = [

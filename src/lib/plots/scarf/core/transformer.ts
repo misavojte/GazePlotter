@@ -531,7 +531,9 @@ export function transformDataToScarfPlot(
         } else {
           const h = HEIGHT_BAR_DEFAULT / count
           for (let i = 0; i < count; i++) {
-            rectBuckets[aoiOrderMap[overlapAoiBuffer[i]]].pushRect(
+            const bucketIdx = aoiOrderMap[overlapAoiBuffer[i]]
+            if (bucketIdx < 0) continue
+            rectBuckets[bucketIdx].pushRect(
               x,
               pIndex,
               width,
