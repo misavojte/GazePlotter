@@ -75,7 +75,7 @@ export class VarjoAdapter extends AbstractAdapter {
     const timeArray = time.split(':')
     return new Date(
       Number(timeArray[0]),
-      Number(timeArray[1]),
+      Number(timeArray[1]) - 1, // Months are 0-indexed
       Number(timeArray[2]),
       Number(timeArray[3]),
       Number(timeArray[4]),
