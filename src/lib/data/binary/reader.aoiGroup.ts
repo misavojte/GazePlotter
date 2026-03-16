@@ -216,6 +216,15 @@ export class AoiGroupReader {
    * Map a single raw AOI ID to its logical ID for a stimulus.
    */
   getAoiMapping(stimulusId: number, rawId: number): number {
-    return this.groupPool[this.indexTable[stimulusId * 2] + rawId]
+    const idx = stimulusId * 2
+    if (idx + 1 >= this.indexTable.length) {
+      throw new Error(`getAoiMapping: stimulusId ${stimulusId} out of range`)
+    }
+    const ptr = this.indexTable[idx]
+    const len = this.indexTable[idx + 1]
+    if (rawId < 0 || rawId >= len) {
+      throw new Error(`getAoiMapping: rawId ${rawId} out of range for stimulus ${stimulusId} (len=${len})`)
+    }
+    return this.groupPool[ptr + rawId]
   }
 }

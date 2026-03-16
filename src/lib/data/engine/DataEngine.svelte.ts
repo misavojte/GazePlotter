@@ -142,6 +142,8 @@ export class DataEngine {
     const meta = this.metadata
     if (!meta) return
 
+    if (!meta.aois.dynamicVisibility) meta.aois.dynamicVisibility = {}
+
     for (let i = 0; i < updates.length; i++) {
       const { aoiId, visibility, participantId } = updates[i]
       let key = `${stimulusId}_${aoiId}`
