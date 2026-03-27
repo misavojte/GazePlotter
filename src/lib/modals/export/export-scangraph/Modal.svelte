@@ -1,6 +1,6 @@
 <script lang="ts">
   import { InputText, Select } from '$lib/shared/components'
-  import { SectionHeader, ModalButtons } from '$lib/modals'
+  import { Section, ModalButtons } from '$lib/modals'
   import { getStimuliOptions } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'
   import {
@@ -48,17 +48,14 @@
 </script>
 
 <div class="container">
-  <section class="section">
-    <div class="content">
-      <p class="purpose-description">
-        Export scanpath data for similarity analysis and visualization.
-        Compatible with eyetracking.upol.cz/scangraph tool.
-      </p>
-    </div>
-  </section>
+  <div class="content">
+    <p class="purpose-description">
+      Export scanpath data for similarity analysis and visualization.
+      Compatible with eyetracking.upol.cz/scangraph tool.
+    </p>
+  </div>
 
-  <section class="section">
-    <SectionHeader text="Export Settings" />
+  <Section title="Export Settings">
     <div class="content-two-column">
       <Select
         label="Stimulus"
@@ -71,10 +68,9 @@
         placeholder="Enter filename without extension"
       />
     </div>
-  </section>
+  </Section>
 
-  <section class="section">
-    <SectionHeader text="Format Details" />
+  <Section title="Format Details">
     <div class="content">
       <p class="format-description">
         <strong>ScanGraph format</strong> contains scanpath data for the
@@ -83,11 +79,9 @@
         <strong>eyetracking.upol.cz/scangraph</strong> for scanpath similarity research.
       </p>
     </div>
-  </section>
+  </Section>
 
-  <section class="section">
-    <ModalButtons buttons={exportButtons} />
-  </section>
+  <ModalButtons buttons={exportButtons} />
 </div>
 
 <style>
@@ -96,12 +90,6 @@
     flex-direction: column;
     gap: 1.5rem;
     max-width: 600px;
-  }
-
-  .section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
   }
 
   .content {

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { SectionHeader } from '$lib/modals'
+  import { Section } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
   import { exportSegmentedDataModal } from '../export-segmented-data/definition'
   import { exportScangraphModal } from '../export-scangraph/definition'
@@ -39,8 +39,7 @@
 </script>
 
 <div class="container">
-  <section class="section">
-    <SectionHeader text="Export Workspace" />
+  <Section title="Export Workspace">
     <div class="content">
       <p class="workspace-description">
         Preserves all data, layout, and settings in a compact JSON file. Perfect
@@ -60,10 +59,9 @@
         </div>
       </div>
     </div>
-  </section>
+  </Section>
 
-  <section class="section">
-    <SectionHeader text="Research Data Formats" />
+  <Section title="Research Data Formats">
     <div class="content">
       <p class="info-text">
         Choose from specialized data structures for detailed analysis:
@@ -82,7 +80,7 @@
         {/each}
       </div>
     </div>
-  </section>
+  </Section>
 </div>
 
 <style>
@@ -92,11 +90,7 @@
     gap: 1.5rem;
   }
 
-  .section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
+
 
   .content {
     display: flex;

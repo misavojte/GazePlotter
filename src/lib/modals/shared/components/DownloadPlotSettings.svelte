@@ -6,7 +6,7 @@
     ButtonPreset,
     Card,
   } from '$lib/shared/components'
-  import { SectionHeader } from '$lib/modals'
+  import { Section } from '$lib/modals'
 
   // Define the props interface
   interface Props {
@@ -66,48 +66,49 @@
 </script>
 
 <div class="settings-section">
-  <SectionHeader text="Export Settings" />
-  <div class="settings-grid-main">
-    <div class="settings-item">
-      <InputNumber
-        label="Width [px]"
-        bind:value={width}
-        min={1}
-        appearance="selectMatched"
-      />
-    </div>
-    <div class="settings-item">
-      <InputNumber
-        label="Height [px]"
-        bind:value={height}
-        min={1}
-        appearance="selectMatched"
-      />
-    </div>
-    <div class="settings-item">
-      <Select label="Output file type" {options} bind:value={typeOfExport} />
-    </div>
-    <div class="settings-item">
-      <InputText
-        label="Output file name"
-        bind:value={fileName}
-        appearance="selectMatched"
-      />
-    </div>
-
-    <!-- DPI Settings -->
-    <div class="settings-item">
-      <div class="dpi-container" class:disabled={!isDpiEnabled}>
+  <Section title="Export Settings">
+    <div class="settings-grid-main">
+      <div class="settings-item">
         <InputNumber
-          label="Resolution [DPI]"
-          bind:value={dpi}
-          min={72}
-          disabled={!isDpiEnabled}
+          label="Width [px]"
+          bind:value={width}
+          min={1}
           appearance="selectMatched"
         />
       </div>
+      <div class="settings-item">
+        <InputNumber
+          label="Height [px]"
+          bind:value={height}
+          min={1}
+          appearance="selectMatched"
+        />
+      </div>
+      <div class="settings-item">
+        <Select label="Output file type" {options} bind:value={typeOfExport} />
+      </div>
+      <div class="settings-item">
+        <InputText
+          label="Output file name"
+          bind:value={fileName}
+          appearance="selectMatched"
+        />
+      </div>
+
+      <!-- DPI Settings -->
+      <div class="settings-item">
+        <div class="dpi-container" class:disabled={!isDpiEnabled}>
+          <InputNumber
+            label="Resolution [DPI]"
+            bind:value={dpi}
+            min={72}
+            disabled={!isDpiEnabled}
+            appearance="selectMatched"
+          />
+        </div>
+      </div>
     </div>
-  </div>
+  </Section>
 
   <!-- DPI Presets -->
   {#if isDpiEnabled}
@@ -125,64 +126,65 @@
 
   <!-- Margin Settings -->
   <div class="margin-settings">
-    <SectionHeader text="Margins" />
-    <Card padding="sm">
-      Use positive margins to add padding, or negative values to crop the image
-      and focus on specific areas.
-    </Card>
-    <div class="settings-grid-margins">
-      <div class="settings-item">
-        <InputNumber
-          min={-9999}
-          label="Top"
-          bind:value={marginTop}
-          appearance="selectMatched"
+    <Section title="Margins">
+      <Card padding="sm">
+        Use positive margins to add padding, or negative values to crop the image
+        and focus on specific areas.
+      </Card>
+      <div class="settings-grid-margins">
+        <div class="settings-item">
+          <InputNumber
+            min={-9999}
+            label="Top"
+            bind:value={marginTop}
+            appearance="selectMatched"
+          />
+        </div>
+        <div class="settings-item">
+          <InputNumber
+            min={-9999}
+            label="Right"
+            bind:value={marginRight}
+            appearance="selectMatched"
+          />
+        </div>
+        <div class="settings-item">
+          <InputNumber
+            min={-9999}
+            label="Bottom"
+            bind:value={marginBottom}
+            appearance="selectMatched"
+          />
+        </div>
+        <div class="settings-item">
+          <InputNumber
+            min={-9999}
+            label="Left"
+            bind:value={marginLeft}
+            appearance="selectMatched"
+          />
+        </div>
+      </div>
+      <div class="margin-presets">
+        <span class="presets-label">Margin Presets:</span>
+        <ButtonPreset
+          label="20px"
+          isActive={marginTop === 20 &&
+            marginRight === 20 &&
+            marginBottom === 20 &&
+            marginLeft === 20}
+          onclick={() => setAllMargins(20)}
+        />
+        <ButtonPreset
+          label="0px"
+          isActive={marginTop === 0 &&
+            marginRight === 0 &&
+            marginBottom === 0 &&
+            marginLeft === 0}
+          onclick={() => setAllMargins(0)}
         />
       </div>
-      <div class="settings-item">
-        <InputNumber
-          min={-9999}
-          label="Right"
-          bind:value={marginRight}
-          appearance="selectMatched"
-        />
-      </div>
-      <div class="settings-item">
-        <InputNumber
-          min={-9999}
-          label="Bottom"
-          bind:value={marginBottom}
-          appearance="selectMatched"
-        />
-      </div>
-      <div class="settings-item">
-        <InputNumber
-          min={-9999}
-          label="Left"
-          bind:value={marginLeft}
-          appearance="selectMatched"
-        />
-      </div>
-    </div>
-    <div class="margin-presets">
-      <span class="presets-label">Margin Presets:</span>
-      <ButtonPreset
-        label="20px"
-        isActive={marginTop === 20 &&
-          marginRight === 20 &&
-          marginBottom === 20 &&
-          marginLeft === 20}
-        onclick={() => setAllMargins(20)}
-      />
-      <ButtonPreset
-        label="0px"
-        isActive={marginTop === 0 &&
-          marginRight === 0 &&
-          marginBottom === 0 &&
-          marginLeft === 0}
-        onclick={() => setAllMargins(0)}
-      />
-    </div>
+    </Section>
   </div>
 </div>
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte'
-  import SectionHeader from '$lib/modals/shared/components/SectionHeader.svelte'
+  import { Section } from '$lib/modals'
 
   const { title, children } = $props<{
     title: string
@@ -8,20 +8,13 @@
   }>()
 </script>
 
-<section class="section">
-  <SectionHeader text={title} />
+<Section {title}>
   <div class="content">
     {@render children()}
   </div>
-</section>
+</Section>
 
 <style>
-  .section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
   .content {
     display: flex;
     flex-direction: column;

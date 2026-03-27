@@ -1,7 +1,7 @@
 <script lang="ts">
   import {
     SortableTableHeader,
-    SectionHeader,
+    Section,
     ModalButtons,
     IntroductoryParagraph,
   } from '$lib/modals'
@@ -154,91 +154,92 @@
   />
 </div>
 
-<SectionHeader text="Participants" />
-{#if participantObjects.length === 0}
-  <Empty message="No participants found" />
-{/if}
-{#if participantObjects.length > 0}
-  <table class="grid content">
-    <thead>
-      <tr class="gr-line header">
-        <th>
-          <SortableTableHeader
-            column="originalName"
-            label="Original name"
-            {sortColumn}
-            {sortDirection}
-            onSort={handleSort}
-          />
-        </th>
-        <th>
-          <SortableTableHeader
-            column="displayedName"
-            label="Displayed name"
-            {sortColumn}
-            {sortDirection}
-            onSort={handleSort}
-          />
-        </th>
-        <th>Order</th>
-      </tr>
-    </thead>
-    <tbody>
-      {#each participantObjects as participant (participant.id)}
-        <tr
-          class="gr-line"
-          animate:flip={{ duration: 250 }}
-          in:fade={{ duration: 200 }}
-        >
-          <td class="original-name">{participant.originalName}</td>
-          <td>
-            <InputText
-              label="Displayed name"
-              showLabel={false}
-              fill={true}
-              value={participant.displayedName}
-              oninput={e => {
-                const participantId = participant.id
-                const index = participantObjects.findIndex(
-                  p => p.id === participantId
-                )
-                if (index !== -1) {
-                  participantObjects = participantObjects.map((p, i) =>
-                    i === index ? { ...p, displayedName: e.detail } : p
-                  )
-                }
-              }}
+<Section title="Participants">
+  {#if participantObjects.length === 0}
+    <Empty message="No participants found" />
+  {/if}
+  {#if participantObjects.length > 0}
+    <table class="grid content">
+      <thead>
+        <tr class="gr-line header">
+          <th>
+            <SortableTableHeader
+              column="originalName"
+              label="Original name"
+              {sortColumn}
+              {sortDirection}
+              onSort={handleSort}
             />
-          </td>
-          <td>
-            <div class="button-group">
-              <ReorderButtons
-                isFirst={participantObjects.indexOf(participant) === 0}
-                isLast={participantObjects.indexOf(participant) ===
-                  participantObjects.length - 1}
-                onMoveDown={() => handleObjectPositionDown(participant)}
-                onMoveUp={() => handleObjectPositionUp(participant)}
-              />
-            </div>
-          </td>
+          </th>
+          <th>
+            <SortableTableHeader
+              column="displayedName"
+              label="Displayed name"
+              {sortColumn}
+              {sortDirection}
+              onSort={handleSort}
+            />
+          </th>
+          <th>Order</th>
         </tr>
-      {/each}
-    </tbody>
-  </table>
-  <ModalButtons
-    buttons={[
-      {
-        label: 'Apply',
-        onclick: handleSubmit,
-        variant: 'primary',
-      },
-      {
-        label: 'Cancel',
-        onclick: handleCancel,
-      },
-    ]}
-  />
-{/if}
+      </thead>
+      <tbody>
+        {#each participantObjects as participant (participant.id)}
+          <tr
+            class="gr-line"
+            animate:flip={{ duration: 250 }}
+            in:fade={{ duration: 200 }}
+          >
+            <td class="original-name">{participant.originalName}</td>
+            <td>
+              <InputText
+                label="Displayed name"
+                showLabel={false}
+                fill={true}
+                value={participant.displayedName}
+                oninput={e => {
+                  const participantId = participant.id
+                  const index = participantObjects.findIndex(
+                    p => p.id === participantId
+                  )
+                  if (index !== -1) {
+                    participantObjects = participantObjects.map((p, i) =>
+                      i === index ? { ...p, displayedName: e.detail } : p
+                    )
+                  }
+                }}
+              />
+            </td>
+            <td>
+              <div class="button-group">
+                <ReorderButtons
+                  isFirst={participantObjects.indexOf(participant) === 0}
+                  isLast={participantObjects.indexOf(participant) ===
+                    participantObjects.length - 1}
+                  onMoveDown={() => handleObjectPositionDown(participant)}
+                  onMoveUp={() => handleObjectPositionUp(participant)}
+                />
+              </div>
+            </td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+    <ModalButtons
+      buttons={[
+        {
+          label: 'Apply',
+          onclick: handleSubmit,
+          variant: 'primary',
+        },
+        {
+          label: 'Cancel',
+          onclick: handleCancel,
+        },
+      ]}
+    />
+  {/if}
+</Section>
 
 <style>
   .button-group {

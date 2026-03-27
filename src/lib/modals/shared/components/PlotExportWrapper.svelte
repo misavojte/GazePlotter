@@ -26,7 +26,7 @@
   import { DEFAULT_CANVAS_EXPORT_MARGIN } from '$lib/modals/export/shared/helpers'
   import CanvasPreview from './CanvasPreview.svelte'
   import DownloadPlotSettings from './DownloadPlotSettings.svelte'
-  import SectionHeader from './SectionHeader.svelte'
+  import Section from './Section.svelte'
   import { untrack, type Snippet } from 'svelte'
 
   /**
@@ -104,18 +104,15 @@
   />
 
   <!-- Preview Section -->
-  <div class="preview-section">
-    <SectionHeader text="Your exported plot" />
-    <div>
-      <CanvasPreview
-        {fileName}
-        fileType={typeOfExport}
-        showDownloadButton={true}
-      >
-        {@render children(exportProps)}
-      </CanvasPreview>
-    </div>
-  </div>
+  <Section title="Your exported plot">
+    <CanvasPreview
+      {fileName}
+      fileType={typeOfExport}
+      showDownloadButton={true}
+    >
+      {@render children(exportProps)}
+    </CanvasPreview>
+  </Section>
 </div>
 
 <style>
@@ -125,9 +122,5 @@
     gap: 1.5rem;
     max-height: 80vh;
     max-width: 830px;
-  }
-
-  .preview-section {
-    flex-grow: 1;
   }
 </style>

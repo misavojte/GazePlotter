@@ -4,7 +4,7 @@
   import { InputCheck, InputColor, InputText } from '$lib/shared/components'
   import {
     SortableTableHeader,
-    SectionHeader,
+    Section,
     ModalButtons,
     IntroductoryParagraph,
   } from '$lib/modals'
@@ -354,208 +354,210 @@
   />
 </div>
 
-<SectionHeader text="AOIs" />
-{#if reorderedAoiObjects.length === 0}
-  <Empty message="No AOIs found in stimulus" />
-{/if}
-{#if reorderedAoiObjects.length > 0}
-  <table class="grid content">
-    <thead>
-      <tr class="gr-line header">
-        <th>
-          <SortableTableHeader
-            column="originalName"
-            label="Name"
-            {sortColumn}
-            {sortDirection}
-            onSort={handleSort}
-          />
-        </th>
-        <th>
-          <SortableTableHeader
-            column="displayedName"
-            label="Displayed name"
-            {sortColumn}
-            {sortDirection}
-            onSort={handleSort}
-          />
-        </th>
-        <th>Color</th>
-        <th>Order</th>
-        <th>Is active</th>
-      </tr>
-    </thead>
-    <tbody>
-      {#each reorderedAoiObjects as aoi (aoi.id + selectedStimulus)}
-        {@const showGroupControls =
-          !isValidMatch((aoi.displayedName || '').trim()) ||
-          reorderedAoiObjects.findIndex(
-            a =>
-              isValidMatch((a.displayedName || '').trim()) &&
-              (a.displayedName || '').trim() ===
-                (aoi.displayedName || '').trim()
-          ) === reorderedAoiObjects.indexOf(aoi)}
-        {@const isActive = !hiddenSet.has(aoi.id)}
-        <tr
-          class="gr-line"
-          animate:flip={{ duration: 250 }}
-          in:fade={{ duration: 200 }}
-        >
-          <td class="original-name">{aoi.originalName}</td>
-          <td>
-            <InputText
+<Section title="AOIs">
+  {#if reorderedAoiObjects.length === 0}
+    <Empty message="No AOIs found in stimulus" />
+  {/if}
+  {#if reorderedAoiObjects.length > 0}
+    <table class="grid content">
+      <thead>
+        <tr class="gr-line header">
+          <th>
+            <SortableTableHeader
+              column="originalName"
+              label="Name"
+              {sortColumn}
+              {sortDirection}
+              onSort={handleSort}
+            />
+          </th>
+          <th>
+            <SortableTableHeader
+              column="displayedName"
               label="Displayed name"
-              showLabel={false}
-              fill={true}
-              disabled={!isActive}
-              ariaLabel={`Displayed name for ${aoi.originalName}`}
-              value={aoi.displayedName}
-              oninput={e => {
-                const originalAoi = aoiObjects.find(a => a.id === aoi.id)
-                if (originalAoi) {
-                  originalAoi.displayedName = e.detail
-                }
-              }}
+              {sortColumn}
+              {sortDirection}
+              onSort={handleSort}
             />
-          </td>
-          {#if showGroupControls}
-            <td class="color-cell">
-              <div class:disabled-control={!isActive} aria-disabled={!isActive}>
-                <InputColor
-                  label="Color"
-                  showLabel={false}
-                  ariaLabel={`Color for ${aoi.originalName}`}
-                  value={aoi.color}
-                  oninput={event => {
-                    if (!isActive) return
-                    const index = aoiObjects.findIndex(a => a.id === aoi.id)
-                    if (index !== -1) {
-                      aoiObjects = aoiObjects.map((a, i) =>
-                        i === index ? { ...a, color: event.detail } : a
-                      )
-                    }
-                  }}
-                />
-              </div>
-            </td>
-            <td>
-              <div
-                class="button-group"
-                class:disabled-control={!isActive}
-                aria-disabled={!isActive}
-              >
-                <ReorderButtons
-                  isFirst={(() => {
-                    if (!isActive) return true
-                    const trimmedName = (aoi.displayedName || '').trim()
-                    if (isValidMatch(trimmedName)) {
-                      let firstGroupIndex = reorderedAoiObjects.length
-                      reorderedAoiObjects.forEach((a, idx) => {
-                        const otherTrimmed = (a.displayedName || '').trim()
-                        if (otherTrimmed === trimmedName) {
-                          firstGroupIndex = Math.min(firstGroupIndex, idx)
-                        }
-                      })
-                      return firstGroupIndex === 0
-                    }
-                    return reorderedAoiObjects.indexOf(aoi) === 0
-                  })()}
-                  isLast={(() => {
-                    if (!isActive) return true
-                    const trimmedName = (aoi.displayedName || '').trim()
-                    if (isValidMatch(trimmedName)) {
-                      let lastGroupIndex = -1
-                      reorderedAoiObjects.forEach((a, idx) => {
-                        const otherTrimmed = (a.displayedName || '').trim()
-                        if (otherTrimmed === trimmedName) {
-                          lastGroupIndex = Math.max(lastGroupIndex, idx)
-                        }
-                      })
-                      return lastGroupIndex === reorderedAoiObjects.length - 1
-                    }
-                    return (
-                      reorderedAoiObjects.indexOf(aoi) ===
-                      reorderedAoiObjects.length - 1
-                    )
-                  })()}
-                  onMoveDown={() => {
-                    if (!isActive) return
-                    handleObjectPositionDown(aoi)
-                  }}
-                  onMoveUp={() => {
-                    if (!isActive) return
-                    handleObjectPositionUp(aoi)
-                  }}
-                />
-              </div>
-            </td>
-          {:else}
-            <td colspan="2" class="group-info"
-              >change name to detach from group</td
-            >
-          {/if}
-
-          <td class="active-col">
-            <InputCheck
-              label=""
-              ariaLabel="Is active"
-              size="lg"
-              checked={isActive}
-              onchange={e => {
-                const active = e.detail
-                if (active) {
-                  hiddenAoiIds = hiddenAoiIds.filter(id => id !== aoi.id)
-                } else {
-                  hiddenAoiIds = Array.from(new Set([...hiddenAoiIds, aoi.id]))
-                }
-              }}
-            />
-          </td>
+          </th>
+          <th>Color</th>
+          <th>Order</th>
+          <th>Is active</th>
         </tr>
-      {/each}
-    </tbody>
-  </table>
-  <div class="content">
-    <Radio
-      legend="Apply changes to"
-      options={[
-        { label: 'This stimulus', value: 'this' },
-        { label: 'All by original name', value: 'all_original' },
-        { label: 'All by displayed name', value: 'all_displayed' },
-      ]}
-      bind:value={userSelected}
-    />
-  </div>
-  <div class="content">
-    <SectionHeader text="No AOI Hit Treatment" />
-    <div class="noaoi-treatment-container">
-      <div class="noaoi-color-wrapper">
-        <InputColor label="Color" bind:value={noAoiTreatment.color} />
-      </div>
-      <div class="noaoi-name-wrapper">
-        <InputText
-          label="Display name"
-          placeholder="No AOI"
-          bind:value={noAoiTreatment.displayedName}
-          fill={true}
-        />
-      </div>
+      </thead>
+      <tbody>
+        {#each reorderedAoiObjects as aoi (aoi.id + selectedStimulus)}
+          {@const showGroupControls =
+            !isValidMatch((aoi.displayedName || '').trim()) ||
+            reorderedAoiObjects.findIndex(
+              a =>
+                isValidMatch((a.displayedName || '').trim()) &&
+                (a.displayedName || '').trim() ===
+                  (aoi.displayedName || '').trim()
+            ) === reorderedAoiObjects.indexOf(aoi)}
+          {@const isActive = !hiddenSet.has(aoi.id)}
+          <tr
+            class="gr-line"
+            animate:flip={{ duration: 250 }}
+            in:fade={{ duration: 200 }}
+          >
+            <td class="original-name">{aoi.originalName}</td>
+            <td>
+              <InputText
+                label="Displayed name"
+                showLabel={false}
+                fill={true}
+                disabled={!isActive}
+                ariaLabel={`Displayed name for ${aoi.originalName}`}
+                value={aoi.displayedName}
+                oninput={e => {
+                  const originalAoi = aoiObjects.find(a => a.id === aoi.id)
+                  if (originalAoi) {
+                    originalAoi.displayedName = e.detail
+                  }
+                }}
+              />
+            </td>
+            {#if showGroupControls}
+              <td class="color-cell">
+                <div class:disabled-control={!isActive} aria-disabled={!isActive}>
+                  <InputColor
+                    label="Color"
+                    showLabel={false}
+                    ariaLabel={`Color for ${aoi.originalName}`}
+                    value={aoi.color}
+                    oninput={event => {
+                      if (!isActive) return
+                      const index = aoiObjects.findIndex(a => a.id === aoi.id)
+                      if (index !== -1) {
+                        aoiObjects = aoiObjects.map((a, i) =>
+                          i === index ? { ...a, color: event.detail } : a
+                        )
+                      }
+                    }}
+                  />
+                </div>
+              </td>
+              <td>
+                <div
+                  class="button-group"
+                  class:disabled-control={!isActive}
+                  aria-disabled={!isActive}
+                >
+                  <ReorderButtons
+                    isFirst={(() => {
+                      if (!isActive) return true
+                      const trimmedName = (aoi.displayedName || '').trim()
+                      if (isValidMatch(trimmedName)) {
+                        let firstGroupIndex = reorderedAoiObjects.length
+                        reorderedAoiObjects.forEach((a, idx) => {
+                          const otherTrimmed = (a.displayedName || '').trim()
+                          if (otherTrimmed === trimmedName) {
+                            firstGroupIndex = Math.min(firstGroupIndex, idx)
+                          }
+                        })
+                        return firstGroupIndex === 0
+                      }
+                      return reorderedAoiObjects.indexOf(aoi) === 0
+                    })()}
+                    isLast={(() => {
+                      if (!isActive) return true
+                      const trimmedName = (aoi.displayedName || '').trim()
+                      if (isValidMatch(trimmedName)) {
+                        let lastGroupIndex = -1
+                        reorderedAoiObjects.forEach((a, idx) => {
+                          const otherTrimmed = (a.displayedName || '').trim()
+                          if (otherTrimmed === trimmedName) {
+                            lastGroupIndex = Math.max(lastGroupIndex, idx)
+                          }
+                        })
+                        return lastGroupIndex === reorderedAoiObjects.length - 1
+                      }
+                      return (
+                        reorderedAoiObjects.indexOf(aoi) ===
+                        reorderedAoiObjects.length - 1
+                      )
+                    })()}
+                    onMoveDown={() => {
+                      if (!isActive) return
+                      handleObjectPositionDown(aoi)
+                    }}
+                    onMoveUp={() => {
+                      if (!isActive) return
+                      handleObjectPositionUp(aoi)
+                    }}
+                  />
+                </div>
+              </td>
+            {:else}
+              <td colspan="2" class="group-info"
+                >change name to detach from group</td
+              >
+            {/if}
+
+            <td class="active-col">
+              <InputCheck
+                label=""
+                ariaLabel="Is active"
+                size="lg"
+                checked={isActive}
+                onchange={e => {
+                  const active = e.detail
+                  if (active) {
+                    hiddenAoiIds = hiddenAoiIds.filter(id => id !== aoi.id)
+                  } else {
+                    hiddenAoiIds = Array.from(new Set([...hiddenAoiIds, aoi.id]))
+                  }
+                }}
+              />
+            </td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+    <div class="content">
+      <Radio
+        legend="Apply changes to"
+        options={[
+          { label: 'This stimulus', value: 'this' },
+          { label: 'All by original name', value: 'all_original' },
+          { label: 'All by displayed name', value: 'all_displayed' },
+        ]}
+        bind:value={userSelected}
+      />
     </div>
-  </div>
-  <ModalButtons
-    buttons={[
-      {
-        label: 'Apply',
-        onclick: handleSubmit,
-        variant: 'primary',
-      },
-      {
-        label: 'Cancel',
-        onclick: handleCancel,
-      },
-    ]}
-  />
-{/if}
+    <div class="content">
+      <Section title="No AOI Hit Treatment">
+        <div class="noaoi-treatment-container">
+          <div class="noaoi-color-wrapper">
+            <InputColor label="Color" bind:value={noAoiTreatment.color} />
+          </div>
+          <div class="noaoi-name-wrapper">
+            <InputText
+              label="Display name"
+              placeholder="No AOI"
+              bind:value={noAoiTreatment.displayedName}
+              fill={true}
+            />
+          </div>
+        </div>
+      </Section>
+    </div>
+    <ModalButtons
+      buttons={[
+        {
+          label: 'Apply',
+          onclick: handleSubmit,
+          variant: 'primary',
+        },
+        {
+          label: 'Cancel',
+          onclick: handleCancel,
+        },
+      ]}
+    />
+  {/if}
+</Section>
 
 <style>
   .active-col {

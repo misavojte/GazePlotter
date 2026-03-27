@@ -4,7 +4,7 @@
     ButtonPreset,
     InputText,
   } from '$lib/shared/components'
-  import { SectionHeader } from '$lib/modals'
+  import { Section } from '$lib/modals'
 
   interface Props {
     onRenameCommand: (findText: string, replaceText: string) => void
@@ -41,8 +41,7 @@
   }
 </script>
 
-<div class="pattern-tool">
-  <SectionHeader text="Pattern Renaming" />
+<Section title="Pattern Renaming">
   <div class="pattern-inputs">
     <div class="input-row">
       <div class="input-group">
@@ -80,14 +79,9 @@
       </ButtonMajor>
     </div>
   </div>
-</div>
+</Section>
 
 <style>
-  .pattern-tool {
-    margin: 20px 0;
-    margin-bottom: 30px;
-  }
-
   .input-row {
     display: flex;
     gap: 15px;

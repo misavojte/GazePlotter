@@ -1,7 +1,7 @@
 <script lang="ts">
   import {
     SortableTableHeader,
-    SectionHeader,
+    Section,
     ModalButtons,
     IntroductoryParagraph,
   } from '$lib/modals'
@@ -151,91 +151,92 @@
   <PatternRenamingTool onRenameCommand={handlePatternRename} />
 </div>
 
-<SectionHeader text="Stimuli" />
-{#if stimulusObjects.length === 0}
-  <Empty message="No stimuli found" />
-{/if}
-{#if stimulusObjects.length > 0}
-  <table class="grid content">
-    <thead>
-      <tr class="gr-line header">
-        <th>
-          <SortableTableHeader
-            column="originalName"
-            label="Original name"
-            {sortColumn}
-            {sortDirection}
-            onSort={handleSort}
-          />
-        </th>
-        <th>
-          <SortableTableHeader
-            column="displayedName"
-            label="Displayed name"
-            {sortColumn}
-            {sortDirection}
-            onSort={handleSort}
-          />
-        </th>
-        <th>Order</th>
-      </tr>
-    </thead>
-    <tbody>
-      {#each stimulusObjects as stimulus (stimulus.id)}
-        <tr
-          class="gr-line"
-          animate:flip={{ duration: 250 }}
-          in:fade={{ duration: 200 }}
-        >
-          <td class="original-name">{stimulus.originalName}</td>
-          <td>
-            <InputText
-              label="Displayed name"
-              showLabel={false}
-              fill={true}
-              value={stimulus.displayedName}
-              oninput={e => {
-                const stimulusId = stimulus.id
-                const index = stimulusObjects.findIndex(
-                  s => s.id === stimulusId
-                )
-                if (index !== -1) {
-                  stimulusObjects = stimulusObjects.map((s, i) =>
-                    i === index ? { ...s, displayedName: e.detail } : s
-                  )
-                }
-              }}
+<Section title="Stimuli">
+  {#if stimulusObjects.length === 0}
+    <Empty message="No stimuli found" />
+  {/if}
+  {#if stimulusObjects.length > 0}
+    <table class="grid content">
+      <thead>
+        <tr class="gr-line header">
+          <th>
+            <SortableTableHeader
+              column="originalName"
+              label="Original name"
+              {sortColumn}
+              {sortDirection}
+              onSort={handleSort}
             />
-          </td>
-          <td>
-            <div class="button-group">
-              <ReorderButtons
-                isFirst={stimulusObjects.indexOf(stimulus) === 0}
-                isLast={stimulusObjects.indexOf(stimulus) ===
-                  stimulusObjects.length - 1}
-                onMoveDown={() => handleObjectPositionDown(stimulus)}
-                onMoveUp={() => handleObjectPositionUp(stimulus)}
-              />
-            </div>
-          </td>
+          </th>
+          <th>
+            <SortableTableHeader
+              column="displayedName"
+              label="Displayed name"
+              {sortColumn}
+              {sortDirection}
+              onSort={handleSort}
+            />
+          </th>
+          <th>Order</th>
         </tr>
-      {/each}
-    </tbody>
-  </table>
-  <ModalButtons
-    buttons={[
-      {
-        label: 'Apply',
-        onclick: handleSubmit,
-        variant: 'primary',
-      },
-      {
-        label: 'Cancel',
-        onclick: handleCancel,
-      },
-    ]}
-  />
-{/if}
+      </thead>
+      <tbody>
+        {#each stimulusObjects as stimulus (stimulus.id)}
+          <tr
+            class="gr-line"
+            animate:flip={{ duration: 250 }}
+            in:fade={{ duration: 200 }}
+          >
+            <td class="original-name">{stimulus.originalName}</td>
+            <td>
+              <InputText
+                label="Displayed name"
+                showLabel={false}
+                fill={true}
+                value={stimulus.displayedName}
+                oninput={e => {
+                  const stimulusId = stimulus.id
+                  const index = stimulusObjects.findIndex(
+                    s => s.id === stimulusId
+                  )
+                  if (index !== -1) {
+                    stimulusObjects = stimulusObjects.map((s, i) =>
+                      i === index ? { ...s, displayedName: e.detail } : s
+                    )
+                  }
+                }}
+              />
+            </td>
+            <td>
+              <div class="button-group">
+                <ReorderButtons
+                  isFirst={stimulusObjects.indexOf(stimulus) === 0}
+                  isLast={stimulusObjects.indexOf(stimulus) ===
+                    stimulusObjects.length - 1}
+                  onMoveDown={() => handleObjectPositionDown(stimulus)}
+                  onMoveUp={() => handleObjectPositionUp(stimulus)}
+                />
+              </div>
+            </td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+    <ModalButtons
+      buttons={[
+        {
+          label: 'Apply',
+          onclick: handleSubmit,
+          variant: 'primary',
+        },
+        {
+          label: 'Cancel',
+          onclick: handleCancel,
+        },
+      ]}
+    />
+  {/if}
+</Section>
 
 <style>
   .button-group {
