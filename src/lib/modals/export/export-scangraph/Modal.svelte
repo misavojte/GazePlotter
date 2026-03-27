@@ -48,12 +48,14 @@
 </script>
 
 <div class="container">
-  <div class="content">
+  <Section>
+    <div class="content">
     <p class="purpose-description">
       Export scanpath data for similarity analysis and visualization.
       Compatible with eyetracking.upol.cz/scangraph tool.
     </p>
   </div>
+  </Section>
 
   <Section title="Export Settings">
     <div class="content-two-column">
@@ -88,7 +90,6 @@
   .container {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
     max-width: 600px;
   }
 

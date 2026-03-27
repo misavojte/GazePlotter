@@ -2,7 +2,7 @@
   import { untrack } from 'svelte'
   import type { GridItemMap } from '$lib/workspace'
   import { Select, InputText } from '$lib/shared/components'
-  import { Section, ModalButtons } from '$lib/modals'
+  import { Section, ModalButtons, CheckboxListField } from '$lib/modals'
   import { getStimuliOptions } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'
   import { getParticipantsGroups } from '$lib/data/engine'
@@ -19,7 +19,6 @@
     toggleSetValue,
     waitForExportUi,
   } from '../shared/helpers'
-  import CheckboxListField from '../shared/CheckboxListField.svelte'
 
   interface Props {
     item?: GridItemMap['barPlot']
@@ -121,12 +120,14 @@
 </script>
 
 <div class="container">
-  <div class="content">
+  <Section>
+    <div class="content">
     <p class="purpose-description">
       Export statistical metrics (dwell time, fixation counts, durations) in
       long format for analysis in R, Python, or SPSS.
     </p>
   </div>
+  </Section>
 
   <Section title="Export Settings">
     <div class="content-two-column">
@@ -153,31 +154,29 @@
     </div>
   </Section>
 
-  <div class="settings-grid">
-    <div class="settings-column">
-      <CheckboxListField
-        title="Stimuli"
-        items={stimuliItems}
-        onItemChange={handleStimulusChange}
-      />
-      {#if selectedStimuliIds.size === 0}
-        <p class="validation-message">
-          Select at least one stimulus to export
-        </p>
-      {/if}
-    </div>
+  <Section title="Data Selection">
+    <div class="settings-grid">
+      <div class="settings-column">
+        <CheckboxListField
+          title="Stimuli"
+          items={stimuliItems}
+          onItemChange={handleStimulusChange}
+          hasError={selectedStimuliIds.size === 0}
+          errorMessage="Select at least one stimulus to export"
+        />
+      </div>
 
-    <div class="settings-column">
-      <CheckboxListField
-        title="Metrics"
-        items={metricsItems}
-        onItemChange={handleMetricChange}
-      />
-      {#if selectedMetrics.size === 0}
-        <p class="validation-message">Select at least one metric to export</p>
-      {/if}
+      <div class="settings-column">
+        <CheckboxListField
+          title="Metrics"
+          items={metricsItems}
+          onItemChange={handleMetricChange}
+          hasError={selectedMetrics.size === 0}
+          errorMessage="Select at least one metric to export"
+        />
+      </div>
     </div>
-  </div>
+  </Section>
 
   <Section title="Format Details">
     <div class="content">
@@ -197,7 +196,6 @@
   .container {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
     max-width: 600px;
   }
 
@@ -231,6 +229,7 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
+    min-height: 0;
   }
 
   @media (max-width: 700px) {
@@ -244,17 +243,10 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    min-height: 0;
   }
 
-  .validation-message {
-    margin: 0;
-    padding: 0.5rem;
-    background-color: #fff3cd;
-    border: 1px solid #ffeaa7;
-    border-radius: 4px;
-    color: #856404;
-    font-size: 0.85rem;
-  }
+
 
   .format-description {
     margin: 0;

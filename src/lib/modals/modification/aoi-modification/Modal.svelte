@@ -339,20 +339,22 @@
   const stimuliOption = getStimuliOptions(engine)
 </script>
 
-<div class="content">
-  <IntroductoryParagraph
-    maxWidth="440px"
-    paragraphs={[
-      'Modify AOI names, colors, and grouping. Each stimulus has its own AOI list.',
-      '**To create groups**, give multiple AOIs the same displayed name. The color of the first AOI with each name will be used for the entire group.',
-    ]}
-  />
-  <Select
-    label="For stimulus"
-    options={stimuliOption}
-    bind:value={selectedStimulus}
-  />
-</div>
+<Section>
+  <div class="content">
+    <IntroductoryParagraph
+      maxWidth="440px"
+      paragraphs={[
+        'Modify AOI names, colors, and grouping. Each stimulus has its own AOI list.',
+        '**To create groups**, give multiple AOIs the same displayed name. The color of the first AOI with each name will be used for the entire group.',
+      ]}
+    />
+    <Select
+      label="For stimulus"
+      options={stimuliOption}
+      bind:value={selectedStimulus}
+    />
+  </div>
+</Section>
 
 <Section title="AOIs">
   {#if reorderedAoiObjects.length === 0}

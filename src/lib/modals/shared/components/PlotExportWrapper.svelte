@@ -119,7 +119,6 @@
   .plot-export-container {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
     max-height: 80vh;
     max-width: 830px;
   }

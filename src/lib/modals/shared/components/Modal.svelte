@@ -139,6 +139,20 @@
 
   function handleWindowScroll(event: Event) {
     if (activeBodyElement && activeModal) {
+      // Allow nested scrollable elements to handle their own scrolling
+      const path = event.composedPath()
+      for (let i = 0; i < path.length; i++) {
+        const target = path[i] as HTMLElement
+        if (target === activeBodyElement) break
+
+        if (target && target.scrollHeight > target.clientHeight) {
+          const overflowY = window.getComputedStyle(target).overflowY
+          if (overflowY === 'auto' || overflowY === 'scroll') {
+            return // Let the nested element scroll natively
+          }
+        }
+      }
+
       event.preventDefault()
       event.stopPropagation()
 

@@ -107,26 +107,24 @@
           />
         </div>
       </div>
+      <!-- DPI Presets -->
+      {#if isDpiEnabled}
+        <div class="dpi-presets">
+          <span class="presets-label">DPI Presets:</span>
+          {#each dpiPresets as preset}
+            <ButtonPreset
+              label={preset.label}
+              isActive={dpi === preset.value}
+              onclick={() => setDpi(preset.value)}
+            />
+          {/each}
+        </div>
+      {/if}
     </div>
   </Section>
 
-  <!-- DPI Presets -->
-  {#if isDpiEnabled}
-    <div class="dpi-presets">
-      <span class="presets-label">DPI Presets:</span>
-      {#each dpiPresets as preset}
-        <ButtonPreset
-          label={preset.label}
-          isActive={dpi === preset.value}
-          onclick={() => setDpi(preset.value)}
-        />
-      {/each}
-    </div>
-  {/if}
-
   <!-- Margin Settings -->
-  <div class="margin-settings">
-    <Section title="Margins">
+  <Section title="Margins">
       <Card padding="sm">
         Use positive margins to add padding, or negative values to crop the image
         and focus on specific areas.
@@ -185,13 +183,9 @@
         />
       </div>
     </Section>
-  </div>
 </div>
 
 <style>
-  .margin-settings {
-    margin-top: 1rem;
-  }
 
   .settings-grid-main {
     display: flex;

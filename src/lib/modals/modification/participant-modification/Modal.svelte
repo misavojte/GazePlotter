@@ -140,19 +140,21 @@
   }
 </script>
 
-<IntroductoryParagraph
-  maxWidth="400px"
-  paragraphs={[
-    'Modify participant display names and order. Use pattern renaming to efficiently update multiple participants at once.',
-  ]}
-/>
-
-<div class="content">
-  <PatternRenamingTool
-    onRenameCommand={(findText: string, replaceText: string) =>
-      handlePatternRename(findText, replaceText)}
+<Section>
+  <IntroductoryParagraph
+    maxWidth="400px"
+    paragraphs={[
+      'Modify participant display names and order. Use pattern renaming to efficiently update multiple participants at once.',
+    ]}
   />
-</div>
+
+  <div class="content">
+    <PatternRenamingTool
+      onRenameCommand={(findText: string, replaceText: string) =>
+        handlePatternRename(findText, replaceText)}
+    />
+  </div>
+</Section>
 
 <Section title="Participants">
   {#if participantObjects.length === 0}

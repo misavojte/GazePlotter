@@ -3,7 +3,7 @@
     InputText,
     Select,
   } from '$lib/shared/components'
-  import { Section, ModalButtons } from '$lib/modals'
+  import { Section, ModalButtons, CheckboxListField } from '$lib/modals'
   import type { DecimalSeparator } from '$lib/data/export'
   import { getGazePlotterSession } from '$lib/session'
   import { getStimuliOptions } from '$lib/plots/shared'
@@ -15,7 +15,6 @@
     toggleSetValue,
     waitForExportUi,
   } from '../shared/helpers'
-  import CheckboxListField from '../shared/CheckboxListField.svelte'
 
   const { engine, exportService, modalState } = getGazePlotterSession()
   const canReturnToFormats = $derived(modalState.stack.length > 1)
@@ -90,12 +89,14 @@
 </script>
 
 <div class="container">
-  <div class="content">
+  <Section>
+    <div class="content">
     <p class="purpose-description">
       Export eye-tracking segments with timing, movement classifications, and
       AOI information.
     </p>
   </div>
+  </Section>
 
   <Section title="Export Settings">
     <div class="content-two-column">
@@ -122,35 +123,34 @@
     </div>
   </Section>
 
-  <div class="settings-grid">
-    <div class="settings-column">
-      <CheckboxListField
-        title="Stimuli"
-        items={stimuliItems}
-        onItemChange={handleStimulusChange}
-      />
-      {#if selectedStimuliIds.size === 0}
-        <p class="validation-message">
-          Select at least one stimulus to export
-        </p>
-      {/if}
-    </div>
+  <Section title="Data Selection">
+    <div class="settings-grid">
+      <div class="settings-column">
+        <CheckboxListField
+          title="Stimuli"
+          items={stimuliItems}
+          onItemChange={handleStimulusChange}
+          hasError={selectedStimuliIds.size === 0}
+          errorMessage="Select at least one stimulus to export"
+        />
+      </div>
 
-    <div class="settings-column">
-      <CheckboxListField
-        title="Filters"
-        showControls={false}
-        items={[
-          {
-            key: 'fixationsOnly',
-            label: 'Export only fixations',
-            checked: exportFixationsOnly,
-          },
-        ]}
-        onItemChange={(_, checked) => (exportFixationsOnly = checked)}
-      />
+      <div class="settings-column">
+        <CheckboxListField
+          title="Filters"
+          showControls={false}
+          items={[
+            {
+              key: 'fixationsOnly',
+              label: 'Export only fixations',
+              checked: exportFixationsOnly,
+            },
+          ]}
+          onItemChange={(_key: string, checked: boolean) => (exportFixationsOnly = checked)}
+        />
+      </div>
     </div>
-  </div>
+  </Section>
 
   <Section title="Format Details">
     <div class="content">
@@ -173,7 +173,6 @@
   .container {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
     max-width: 600px;
   }
 
@@ -233,13 +232,4 @@
     gap: 0.5rem;
   }
 
-  .validation-message {
-    margin: 0;
-    padding: 0.5rem;
-    background-color: #fff3cd;
-    border: 1px solid #ffeaa7;
-    border-radius: 4px;
-    color: #856404;
-    font-size: 0.85rem;
-  }
 </style>

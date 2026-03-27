@@ -140,16 +140,18 @@
   }
 </script>
 
-<IntroductoryParagraph
-  maxWidth="400px"
-  paragraphs={[
-    'Modify stimulus display names and order. Use pattern renaming to efficiently update multiple stimuli at once.',
-  ]}
-/>
+<Section>
+  <IntroductoryParagraph
+    maxWidth="400px"
+    paragraphs={[
+      'Modify stimulus display names and order. Use pattern renaming to efficiently update multiple stimuli at once.',
+    ]}
+  />
 
-<div class="content">
-  <PatternRenamingTool onRenameCommand={handlePatternRename} />
-</div>
+  <div class="content">
+    <PatternRenamingTool onRenameCommand={handlePatternRename} />
+  </div>
+</Section>
 
 <Section title="Stimuli">
   {#if stimulusObjects.length === 0}
