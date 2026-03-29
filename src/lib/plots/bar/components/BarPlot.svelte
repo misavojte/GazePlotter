@@ -1,111 +1,148 @@
 <script lang="ts">
-  // Svelte core imports
-  import { fade } from 'svelte/transition'
-  import { untrack, onMount } from 'svelte'
+  import { untrack } from 'svelte'
+  import { getGazePlotterSession } from '$lib/session'
+  import { createMenuComponentItem } from '$lib/context-menu'
 
   // Local components
   import { BarPlotFigure, BarPlotButtonMenu } from '$lib/plots/bar/components'
-  import { PlotPlaceholder } from '$lib/plots/shared/components'
-  import Select, { type GroupSelectItem } from '$lib/shared/components/GeneralSelect.svelte'
+  import { BasePlot } from '$lib/plots/shared/components'
+  import GroupSelect from '$lib/shared/components/GroupSelect.svelte'
+  import type { GroupSelectItem } from '$lib/shared/components'
 
   // Utilities and stores
-  import { DEFAULT_GRID_CONFIG } from '$lib/shared/utils/gridSizingUtils'
-  import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/utils/plotSizeUtility'
-  import { getBarPlotData } from '$lib/plots/bar/utils/barPlotUtils'
-  import { getStimuliOptions } from '$lib/plots/shared/utils/sharedPlotUtils'
-  import { getParticipantsGroups } from '$lib/gaze-data/front-process/stores/dataStore'
+  import { getBarPlotData } from '$lib/plots/bar/core/transformer'
+  import {
+    getStimuliOptions,
+    getParticipantsGroupOptions,
+  } from '$lib/plots/shared'
 
   // Types and constants
-  import type { BarPlotGridType } from '$lib/workspace/type/gridType'
-  import type { BarPlotAggregationMethodId } from '$lib/plots/bar/const'
-  import { BAR_PLOT_AGGREGATION_METHODS } from '$lib/plots/bar/const'
-  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
-  import { createCommandSourcePlotPattern } from '$lib/shared/types/workspaceInstructions'
-
-  // CONSTANTS - centralized for easier maintenance
-  const LAYOUT = {
-    HEADER_HEIGHT: 150,
-    HORIZONTAL_PADDING: 50,
-    CONTENT_PADDING: 0,
-  }
+  import type { BarPlotItem, BarPlotSettings } from '$lib/plots/bar/types'
+  import {
+    BAR_PLOT_AGGREGATION_METHODS,
+    getBarPlotAxisLabel,
+    type BarPlotAggregationMethodId,
+  } from '$lib/plots/bar/const'
+  import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
+  import { PreviewModel } from '$lib/plots/shared'
+  import BarPlotViewSettings from './BarPlotViewSettings.svelte'
 
   // Component Props using Svelte 5 $props() rune
   interface Props {
-    settings: BarPlotGridType
-    onWorkspaceCommand: (command: WorkspaceCommand) => void
+    item: BarPlotItem
   }
 
-  let { settings, onWorkspaceCommand }: Props = $props()
+  let { item }: Props = $props()
+  const { engine, workspace } = getGazePlotterSession()
+  const settings = $derived(item.settings)
 
-  // Calculate plot dimensions using a more descriptive approach
-  const plotDimensions = $derived.by(() =>
-    calculatePlotDimensionsWithHeader(
-      settings.w,
-      settings.h,
-      DEFAULT_GRID_CONFIG,
-      LAYOUT.HEADER_HEIGHT,
-      LAYOUT.HORIZONTAL_PADDING,
-      LAYOUT.CONTENT_PADDING
-    )
-  )
+  type BarPlotPreview = {
+    orderBy: 'value' | 'aoi'
+    orderDirection: 'desc' | 'asc'
+    minScale: number
+    maxScale: number
+    barPlottingType: 'horizontal' | 'vertical'
+    timelineStart: number | undefined
+    timelineEnd: number | undefined
+  }
+
+  const preview = new PreviewModel<BarPlotPreview, Partial<BarPlotSettings>>({
+    getCommitted: () => ({
+      orderBy: settings.orderBy ?? 'value',
+      orderDirection: settings.orderDirection ?? 'desc',
+      minScale: settings.scaleRange?.[0] ?? 0,
+      maxScale: settings.scaleRange?.[1] ?? 0,
+      barPlottingType: settings.barPlottingType ?? 'horizontal',
+      timelineStart: settings.timelineStart,
+      timelineEnd: settings.timelineEnd,
+    }),
+    buildPatch: (draft, committed) => {
+      const updates: Partial<BarPlotSettings> = {}
+
+      if (draft.orderBy !== committed.orderBy) updates.orderBy = draft.orderBy
+      if (draft.orderDirection !== committed.orderDirection) {
+        updates.orderDirection = draft.orderDirection
+      }
+      if (
+        draft.minScale !== committed.minScale ||
+        draft.maxScale !== committed.maxScale
+      ) {
+        updates.scaleRange = [draft.minScale, draft.maxScale]
+      }
+      if (draft.barPlottingType !== committed.barPlottingType) {
+        updates.barPlottingType = draft.barPlottingType
+      }
+      if (draft.timelineStart !== committed.timelineStart) {
+        updates.timelineStart = draft.timelineStart
+      }
+      if (draft.timelineEnd !== committed.timelineEnd) {
+        updates.timelineEnd = draft.timelineEnd
+      }
+
+      return updates
+    },
+  })
+
+  // Grouping for the component
+  const syncs = preview.fields
+
+  const effectiveSettings = $derived.by(() => {
+    const draft = preview.draft
+
+    return {
+      ...settings,
+      orderBy: draft.orderBy,
+      orderDirection: draft.orderDirection,
+      barPlottingType: draft.barPlottingType,
+      scaleRange: [draft.minScale, draft.maxScale] as [number, number],
+      timelineStart: draft.timelineStart,
+      timelineEnd: draft.timelineEnd,
+    }
+  })
 
   // Get bar plot data and timeline from utility function
-  let barPlotResult = $state(getBarPlotData(settings))
+  const barPlotResult = $derived(getBarPlotData(engine, effectiveSettings))
   const labelededBarPlotData = $derived(barPlotResult.data)
   const timeline = $derived(barPlotResult.timeline)
 
+  const axisLabel = $derived(
+    getBarPlotAxisLabel(
+      effectiveSettings.aggregationMethod as BarPlotAggregationMethodId,
+      effectiveSettings.timelineStart,
+      effectiveSettings.timelineEnd
+    )
+  )
+
   // source for the workspace commands directly from the plot
-  const source = createCommandSourcePlotPattern(settings, 'plot')
+  const source = $derived.by(() => createCommandSourcePlotPattern(item, 'plot'))
 
-  function handleStimulusChange(event: CustomEvent) {
-    const newStimulusId = event.detail as string
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      source,
-      settings: {
-        stimulusId: parseInt(newStimulusId),
+  function handleMenuClose() {
+    untrack(() => {
+      const updates = preview.buildPatch()
+
+      if (!updates || Object.keys(updates).length === 0) {
+        preview.resetAll()
+        return
       }
+
+      workspace.updateItemSettings(
+        item.id,
+        $state.snapshot(updates),
+        $state.snapshot(source)
+      )
+
+      preview.resetAll()
     })
   }
 
-  function handleGroupChange(event: CustomEvent) {
-    const newGroupId = event.detail as string
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      source,
-      settings: {
-        groupId: parseInt(newGroupId),
-      }
-    })
+  function updateSetting(newSettings: Partial<BarPlotSettings>) {
+    workspace.updateItemSettings(item.id, newSettings, source)
   }
 
-  function handleAggregationMethodChange(event: CustomEvent) {
-    const newAggregationMethod = event.detail as BarPlotAggregationMethodId
-    onWorkspaceCommand({
-      type: 'updateSettings',
-      itemId: settings.id,
-      source,
-      settings: {
-        aggregationMethod: newAggregationMethod,
-      }
-    })
-  }
-
-
-  let stimulusOptions =
-    $state<{ label: string; value: string }[]>(getStimuliOptions())
-
-  const getGroupOptions = () => {
-    return getParticipantsGroups(true).map(group => ({
-      value: group.id.toString(),
-      label: group.name,
-    }))
-  }
-
-  let groupOptions =
-    $state<{ label: string; value: string }[]>(getGroupOptions())
+  const stimulusOptions = $derived(getStimuliOptions(engine))
+  const groupOptions = $derived(
+    getParticipantsGroupOptions(engine, true, settings.stimulusId)
+  )
 
   // Grouped selects like Scarf header: Stimulus, Group, Aggregation
   const selectItems = $derived<GroupSelectItem[]>([
@@ -113,106 +150,67 @@
       label: 'Stimulus',
       options: stimulusOptions,
       value: settings.stimulusId.toString(),
-      onchange: handleStimulusChange,
+      onchange: (e: CustomEvent) =>
+        updateSetting({ stimulusId: parseInt(e.detail) }),
     },
     {
       label: 'Group',
       options: groupOptions,
       value: settings.groupId.toString(),
-      onchange: handleGroupChange,
+      onchange: (e: CustomEvent) =>
+        updateSetting({ groupId: parseInt(e.detail) }),
     },
     {
-      label: 'Aggregation',
-      options: BAR_PLOT_AGGREGATION_METHODS,
+      label: 'View',
       value: settings.aggregationMethod,
-      onchange: handleAggregationMethodChange,
+      onClose: handleMenuClose,
+      options: BAR_PLOT_AGGREGATION_METHODS.map(method =>
+        createMenuComponentItem({
+          ...method,
+          onAction: v => {
+            updateSetting({ aggregationMethod: v })
+          },
+          closeOnAction: false,
+          component: BarPlotViewSettings,
+          componentHeight: 225,
+          componentProps: {
+            syncs,
+          },
+        })
+      ),
     },
   ])
-
-  /**
-   * This is to prevent unnecessary recalculations when settings change in other components in the workspace
-   */
-  const redrawTimestamp = $derived.by(() => settings.redrawTimestamp)
-  $effect(() => {
-    console.log('redrawTimestampBarPlot', redrawTimestamp)
-
-    untrack(() => {
-      barPlotResult = getBarPlotData(settings)
-      stimulusOptions = getStimuliOptions()
-      groupOptions = getGroupOptions()
-    })
-  })
-
-  let mounted = $state(false)
-  onMount(() => {
-    mounted = true
-  })
 </script>
 
-<div class="bar-plot-container">
-  <div class="header">
+<BasePlot {item}>
+  {#snippet header()}
     <div class="controls">
-      <Select ariaLabel="Bar filters" items={selectItems} label="Bar" options={[]} />
+      <GroupSelect ariaLabel="Bar filters" items={selectItems} />
       <div class="menu-button">
-        <BarPlotButtonMenu
-          {settings}
-          {onWorkspaceCommand}
-        />
+        <BarPlotButtonMenu {item} />
       </div>
     </div>
-  </div>
+  {/snippet}
 
-  <div class="figure" style="height: {plotDimensions.height}px">
-    {#if mounted}
-      <div
-        class="figure-content"
-        in:fade={{ duration: 300 }}
-        style="height: {plotDimensions.height}px"
-      >
-        <BarPlotFigure
-          width={plotDimensions.width}
-          height={plotDimensions.height}
-          data={labelededBarPlotData}
-          {timeline}
-          barPlottingType={settings.barPlottingType}
-          barWidth={200}
-          barSpacing={20}
-          onDataHover={() => {}}
-        />
-      </div>
-    {:else}
-      <div class="figure-content" style="height: {plotDimensions.height}px">
-        <PlotPlaceholder
-          width={plotDimensions.width}
-          height={plotDimensions.height}
-        />
-      </div>
-    {/if}
-  </div>
-</div>
+  {#snippet figure({ width, height })}
+    <BarPlotFigure
+      {width}
+      {height}
+      data={labelededBarPlotData}
+      {timeline}
+      {axisLabel}
+      barPlottingType={effectiveSettings.barPlottingType}
+      barWidth={200}
+      barSpacing={20}
+      onDataHover={() => {}}
+    />
+  {/snippet}
+</BasePlot>
 
 <style>
-  .figure {
-    position: relative;
-    overflow: hidden;
-  }
-
-  .bar-plot-container {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    width: 100%;
-  }
-
-  .header {
-    padding: 0 0 10px 0;
-    margin-bottom: 10px;
-    background-color: var(--c-white);
-  }
-
   .controls {
     display: flex;
-    gap: 5px;
+    gap: 6px;
     flex-wrap: wrap;
     background: inherit;
   }

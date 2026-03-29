@@ -1,90 +1,86 @@
 <script lang="ts">
-  import Toaster from '$lib/toaster/components/Toaster.svelte'
+  import { Toaster } from '$lib/toaster'
   import { Modal } from '$lib/modals'
-  import Panel from '$lib/workspace/panel/components/Panel.svelte'
-  import Workspace from '$lib/workspace/components/Workspace.svelte'
-  import Tooltip from '$lib/tooltip/components/Tooltip.svelte'
-  import ContextMenu from '$lib/context-menu/components/ContextMenu.svelte'
-  import type { ParsedData } from '$lib/gaze-data/shared/types'
+  import Workspace from '$lib/workspace/Workspace.svelte'
+  import { Tooltip } from '$lib/tooltip'
+  import { ContextMenu } from '$lib/context-menu'
   import { onMount, tick } from 'svelte'
   import {
-    clear,
-    initializeGridStateStore,
-    processingFileStateStore,
-  } from './workspace'
-  import { data } from './gaze-data/front-process/stores/dataStore'
-  import { setContext } from 'svelte'
-  import { addSuccessToast } from '$lib/toaster'
-  import {
-    fileMetadataStore,
-    currentFileInputStore,
-  } from './workspace/stores/fileStore'
-  import type { AllGridTypes } from '$lib/workspace/type/gridType'
-  import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
+    createGazePlotterSession,
+    setGazePlotterSessionContext,
+  } from '$lib/session'
+
+  import type { GridItemSnapshot } from '$lib/workspace'
+  import type { WorkspaceCommandChain } from '$lib/workspace/commands'
+  import type { GazePlotterSession } from '$lib/session'
 
   interface Props {
-    loadInitialData: () => Promise<ParsedData>
-    reinitializeLabel?: string
+    loadInitialData: (session: GazePlotterSession) => Promise<void>
     onWorkspaceCommandChain?: (command: WorkspaceCommandChain) => void
   }
 
-  const { loadInitialData, reinitializeLabel = 'Reload Demo', onWorkspaceCommandChain = (command: WorkspaceCommandChain) => {
-    console.log('onWorkspaceCommandChain', command)
-  } }: Props = $props()
+  const {
+    loadInitialData,
+    onWorkspaceCommandChain = () => {},
+  }: Props = $props()
 
-  setContext('reinitializeLabel', reinitializeLabel)
+  const session = setGazePlotterSessionContext(createGazePlotterSession())
+  const { errorService } = session
 
-  // Cache the initial grid layout to avoid reloading data when only resetting layout
-  let initialGridItemsSnapshot = $state<Array<Partial<AllGridTypes> & { type: string }> | null>(null)
+  // Snapshot remains a $state rune
+  let initialGridItemsSnapshot = $state<GridItemSnapshot[] | null>(null)
 
-  async function loadData() {
-    processingFileStateStore.set('processing')
+  async function loadData(): Promise<boolean> {
+    errorService.clearFatalLoad()
+
     try {
-      const initialData = await loadInitialData()
-      data.set(initialData.data)
-      // Capture the initial grid items so Reset layout can restore without reloading data
-      initialGridItemsSnapshot = initialData.gridItems
-      if (initialData.version === 3) {
-        fileMetadataStore.set(initialData.fileMetadata)
-      } else {
-        fileMetadataStore.set(null)
+      await loadInitialData(session)
+      if (errorService.fatalLoad) {
+        return false
       }
-      currentFileInputStore.set(initialData.current)
-      initializeGridStateStore(initialData.gridItems)
-      await tick()
-      processingFileStateStore.set('done')
-    } catch (error) {
-      console.error('Error loading data:', error)
-      processingFileStateStore.set('fail')
-    }
-  }
 
-  const onReinitialize = () => {
-    loadData().then(() => {
-      addSuccessToast('Workspace and data returned to the initial state.')
-    })
-    clear()
+      initialGridItemsSnapshot = session.grid.items.map(item => ({
+        ...item,
+        settings: { ...item.settings },
+      }))
+      await tick()
+      return true
+    } catch (error) {
+      const shouldPersistFatalLoad =
+        !session.engine.hasValidData && session.grid.items.length === 0
+
+      errorService.report({
+        origin: 'bootstrap',
+        severity: shouldPersistFatalLoad ? 'fatal-load' : 'recoverable',
+        userMessage: 'Could not load initial workspace data.',
+        cause: error,
+      })
+      return false
+    }
   }
 
   /**
    * Exported function to reset the layout from parent components
-   * Resets the workspace to its initial state without showing a toast notification
    */
   export function resetLayout() {
-    loadData()
-    clear()
+    void loadData()
+  }
+
+  export function getSession() {
+    return session
   }
 
   onMount(() => {
-    loadData()
+    void loadData()
   })
 </script>
 
 <div id="GP-gazeplotter">
-  <div class="panel-container">
-    <Panel {onReinitialize} />
-  </div>
-  <Workspace {onReinitialize} {onWorkspaceCommandChain} initialLayoutState={initialGridItemsSnapshot} />
+  <Workspace
+    {onWorkspaceCommandChain}
+    initialLayoutState={initialGridItemsSnapshot}
+  />
+
   <Modal />
   <Toaster />
   <Tooltip />
@@ -97,10 +93,5 @@
     font-size: 16px;
     line-height: 1.5;
     color: var(--c-black);
-  }
-  .panel-container {
-    max-width: 1220px;
-    margin-inline: auto;
-    margin-block: 40px;
   }
 </style>

@@ -1,5 +1,3 @@
-import { sumArray } from '$lib/shared/utils/mathUtils'
-
 /**
  * Utility functions for text measurement and manipulation in SVG elements
  */
@@ -8,81 +6,92 @@ import { sumArray } from '$lib/shared/utils/mathUtils'
  * Defines the shape of our helper function, including its
  * static 'context' property for caching.
  */
-type MeasurementContextGetter = {
-  (): CanvasRenderingContext2D | null;
-  context: CanvasRenderingContext2D | null;
-};
+// --- Caching for Performance ---
 
 /**
- * A cached, singleton helper function to get a canvas 2D context.
- * This avoids creating a new canvas on every text measurement.
+ * Cache for Canvas contexts per unique font string.
+ * Keeping a context per font avoids the overhead of setting ctx.font,
+ * which can be a bottleneck when measuring many strings.
  */
-const getMeasurementContext: MeasurementContextGetter = () => {
-  // Check if we are in a browser environment
-  if (typeof document === 'undefined') {
-    return null; // Not in a browser
-  }
+const contextCache = new Map<string, CanvasRenderingContext2D>()
 
-  // Use the static 'context' property (now recognized by TypeScript)
-  if (!getMeasurementContext.context) {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    
-    // Store the context on the function itself
-    getMeasurementContext.context = context;
-  }
-  
-  return getMeasurementContext.context;
-};
-
-// Initialize the static property
-getMeasurementContext.context = null;
+/**
+ * Cache for measured text widths.
+ * Memoizing measurements avoids expensive Canvas API calls altogether
+ * for frequently reused strings (like participant labels).
+ */
+const widthCache = new Map<string, number>()
 
 /**
  * The CSS font stack used by browsers to render the default system sans-serif font.
  * This ensures the canvas measurement uses the *same font* as the DOM
  * (e.g., San Francisco on Mac, Segoe UI on Windows).
  */
-export const SYSTEM_SANS_SERIF_STACK = 
-  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
-
-// --- Main Function ---
+export const SYSTEM_SANS_SERIF_STACK =
+  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
 
 /**
-* Estimates the width of a text string in pixels based on its content and font size,
-* using the system's default sans-serif font.
-* Note: This is a fast and reliable approximation using the Canvas API.
-*
-* @param text The text string to measure
-* @param fontSize Font size in pixels
-* @returns Estimated width in pixels
-*/
-export const estimateTextWidth = (text: string, fontSize: number, fontFamily: string = SYSTEM_SANS_SERIF_STACK): number => {
-  const context = getMeasurementContext();
+ * Estimates the width of a text string in pixels based on its content and font size,
+ * using a specified or default font family.
+ *
+ * This implementation is highly optimized with:
+ * 1. Memoization of measurement results
+ * 2. Per-font context caching to avoid font reassignment overhead
+ *
+ * @param text The text string to measure
+ * @param fontSize Font size in pixels
+ * @param fontFamily Font family defaults to system sans-serif stack
+ * @returns Width in pixels
+ */
+export const estimateTextWidth = (
+  text: string,
+  fontSize: number,
+  fontFamily: string = SYSTEM_SANS_SERIF_STACK
+): number => {
+  // Use "sans-serif" as default if generic request
+  const family =
+    fontFamily === 'sans-serif' ? SYSTEM_SANS_SERIF_STACK : fontFamily
+  const fontKey = `${fontSize}px ${family}`
+  // 1. Fast path: Memoization lookup
+  // Construct cache key without template literal to reduce allocation churn in hot loops
+  const cacheKey = fontKey + '|' + text
 
-  if (context) {
-    // Browser environment: Use the cached canvas context
-    
-    // Set the font properties
-    // We hardcode "sans-serif" as requested.
-    context.font = `${fontSize}px ${SYSTEM_SANS_SERIF_STACK}`; 
-    
-    // Measure the text
-    const metrics = context.measureText(text);
-    return metrics.width;
-    
-  } else {
-    // Non-browser (e.g., Node.js/SSR) or context failure fallback.
-    // This provides a *very* rough estimate.
+  const cachedWidth = widthCache.get(cacheKey)
+  if (cachedWidth !== undefined) return cachedWidth
 
-    console.log('estimateTextWidth: Non-browser environment or context failure fallback. Returning rough estimate.')
-    
-    // '0.55' is an arbitrary average width for a sans-serif character
-    // relative to the font size. 'W' is ~1.0, 'i' is ~0.2.
-    const averageCharWidthFactor = 0.55;
-    return text.length * fontSize * averageCharWidthFactor;
+  // 2. Performance: Browser environment measurement
+  if (typeof document !== 'undefined') {
+    let ctx = contextCache.get(fontKey)
+
+    if (!ctx) {
+      const canvas = document.createElement('canvas')
+      const newCtx = canvas.getContext('2d')
+      if (newCtx) {
+        newCtx.font = fontKey
+        contextCache.set(fontKey, newCtx)
+        ctx = newCtx
+      }
+    }
+
+    if (ctx) {
+      const metrics = ctx.measureText(text)
+      const width = metrics.width
+
+      // Store in memoization cache
+      // Simple cap to prevent unbounded growth in very dynamic apps
+      if (widthCache.size < 5000) {
+        widthCache.set(cacheKey, width)
+      }
+
+      return width
+    }
   }
-};
+
+  // 3. Fallback path: SSR or context failure
+  // '0.55' is an arbitrary average width for a sans-serif character relative to fontSize
+  const averageCharWidthFactor = 0.55
+  return text.length * fontSize * averageCharWidthFactor
+}
 
 /**
  * Calculates text metrics for an array of strings
@@ -109,8 +118,16 @@ export function calculateTextMetrics(
   const widths = texts.map(text =>
     estimateTextWidth(text, fontSize, fontFamily)
   )
-  const maxWidth = Math.max(...widths)
-  const totalWidth = sumArray(widths)
+
+  // Use a loop for maxWidth to prevent stack overflow on extremely large sets
+  let maxWidth = 0
+  let totalWidth = 0
+  for (let i = 0; i < widths.length; i++) {
+    const w = widths[i]
+    if (w > maxWidth) maxWidth = w
+    totalWidth += w
+  }
+
   const averageWidth = totalWidth / widths.length
 
   return {

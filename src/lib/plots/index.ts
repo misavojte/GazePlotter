@@ -3,8 +3,11 @@
 
 // Export shared components and utilities
 export * from './shared'
+export * from './definePlot'
+export * from './registry'
 
 // Export visualization types
 export * from './transition-matrix'
 export * from './scarf'
 export * from './bar'
+export * from './aoi-stream'

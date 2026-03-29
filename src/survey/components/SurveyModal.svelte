@@ -1,50 +1,54 @@
 <script lang="ts">
-  import { modalStore } from '$lib/modals/shared/stores/modalStore';
-  import { UEQSSurvey, OpenEndedFeedback, SingleChoiceQuestion } from '$survey/components';
-  import { EyeTrackingExperience as ETExperience } from '$survey/types';
-  import type { UEQSResults, EyeTrackingExperienceResult, SurveyModalState } from '$survey/types';
+  import { getGazePlotterSession } from '$lib/session'
+  import UEQSSurvey from './UEQSSurvey.svelte'
+  import OpenEndedFeedback from './OpenEndedFeedback.svelte'
+  import SingleChoiceQuestion from './SingleChoiceQuestion.svelte'
+  import { EyeTrackingExperience as ETExperience } from '$survey/types'
+  import type {
+    UEQSResults,
+    EyeTrackingExperienceResult,
+    SurveyModalState,
+  } from '$survey/types'
+  import type { SurveyModalResult } from './SurveyModal.definition'
 
   interface Props {
     /** Survey state object - managed by parent to persist across modal closes */
-    surveyState: SurveyModalState;
-    /** Callback when survey is completed */
-    onComplete?: (results: { ueqs: UEQSResults; eyeTracking: EyeTrackingExperienceResult; feedback: string }) => void;
+    surveyState: SurveyModalState
   }
 
-  let { surveyState, onComplete }: Props = $props();
-  
+  let { surveyState }: Props = $props()
+  const { modalState } = getGazePlotterSession()
+
   // Navigation state
-  const steps = ['ueqs', 'eye-tracking', 'feedback'] as const;
-  let currentStep = $derived(steps[surveyState.currentStepIndex]);
-  
+  const steps = ['ueqs', 'eye-tracking', 'feedback'] as const
+  let currentStep = $derived(steps[surveyState.currentStepIndex])
+
   // Track when Next button should be enabled (400ms delay after selection)
-  let nextButtonEnabled = $state(false);
-  let selectionTimer: ReturnType<typeof setTimeout> | null = null;
-  
+  let nextButtonEnabled = $state(false)
+  let selectionTimer: ReturnType<typeof setTimeout> | null = null
 
   /**
    * Check if current step is completed
    */
   const isCurrentStepComplete = $derived.by(() => {
-    if (surveyState.isCompleted) return true;
+    if (surveyState.isCompleted) return true
 
-    let complete = false;
+    let complete = false
     switch (currentStep) {
       case 'ueqs':
-        complete = surveyState.ueqsComplete;
-        console.log('UEQS complete check:', { isComplete: surveyState.ueqsComplete });
-        break;
+        complete = surveyState.ueqsComplete
+        break
       case 'eye-tracking':
-        complete = surveyState.eyeTrackingValue !== null;
-        break;
+        complete = surveyState.eyeTrackingValue !== null
+        break
       case 'feedback':
-        complete = surveyState.feedbackValue.trim() !== '';
-        break;
+        complete = surveyState.feedbackValue.trim() !== ''
+        break
       default:
-        complete = false;
+        complete = false
     }
-    return complete;
-  });
+    return complete
+  })
 
   /**
    * Save current step data
@@ -53,85 +57,100 @@
     switch (currentStep) {
       case 'ueqs':
         // UEQS results are saved when the component emits the completion event
-        break;
+        break
       case 'eye-tracking':
         if (surveyState.eyeTrackingValue) {
-          surveyState.eyeTrackingResults = { experience: surveyState.eyeTrackingValue as ETExperience };
+          surveyState.eyeTrackingResults = {
+            experience: surveyState.eyeTrackingValue as ETExperience,
+          }
         }
-        break;
+        break
       case 'feedback':
-        surveyState.feedbackText = surveyState.feedbackValue;
-        break;
+        surveyState.feedbackText = surveyState.feedbackValue
+        break
     }
-  };
+  }
 
   /**
    * Navigate to next step
    */
   const goToNextStep = () => {
-    if (!isCurrentStepComplete) return;
-    
-    saveCurrentStepData();
-    
+    if (!isCurrentStepComplete) return
+
+    saveCurrentStepData()
+
     if (surveyState.currentStepIndex === steps.length - 1) {
       // Complete survey
-      surveyState.isCompleted = true;
-      
-      if (onComplete && surveyState.ueqsResults && surveyState.eyeTrackingResults) {
-        onComplete({
-          ueqs: surveyState.ueqsResults,
-          eyeTracking: surveyState.eyeTrackingResults,
-          feedback: surveyState.feedbackText
-        });
-      }
+      surveyState.isCompleted = true
     } else {
-      surveyState.currentStepIndex++;
-      nextButtonEnabled = false;
+      surveyState.currentStepIndex++
+      nextButtonEnabled = false
     }
-  };
+  }
 
   /**
    * Navigate to previous step
    */
   const goToPreviousStep = () => {
     if (surveyState.currentStepIndex > 0) {
-      saveCurrentStepData();
-      surveyState.currentStepIndex--;
-      nextButtonEnabled = false;
+      saveCurrentStepData()
+      surveyState.currentStepIndex--
+      nextButtonEnabled = false
     }
-  };
+  }
 
   /**
    * Initialize next button state when step changes or completion status changes
    */
   $effect(() => {
     // Watch for changes in surveyState.currentStepIndex
-    surveyState.currentStepIndex;
-    
+    surveyState.currentStepIndex
+
     // Clear any existing timer
     if (selectionTimer) {
-      clearTimeout(selectionTimer);
-      selectionTimer = null;
+      clearTimeout(selectionTimer)
+      selectionTimer = null
     }
-    
+
     // Reset button state
-    nextButtonEnabled = false;
-    
+    nextButtonEnabled = false
+
     // Enable button immediately if step is complete
     if (isCurrentStepComplete) {
-      nextButtonEnabled = true;
+      nextButtonEnabled = true
     }
-    
+
     return () => {
       if (selectionTimer) {
-        clearTimeout(selectionTimer);
+        clearTimeout(selectionTimer)
       }
-    };
-  });
+    }
+  })
+
+  const completedSurveyResult = $derived.by<SurveyModalResult | null>(() => {
+    if (
+      !surveyState.isCompleted ||
+      !surveyState.ueqsResults ||
+      !surveyState.eyeTrackingResults
+    ) {
+      return null
+    }
+
+    return {
+      ueqs: surveyState.ueqsResults,
+      eyeTracking: surveyState.eyeTrackingResults,
+      feedback: surveyState.feedbackText,
+    }
+  })
 
   const handleGoToGazePlotter = () => {
-    modalStore.close();
-  };
+    if (completedSurveyResult) {
+      modalState.finish(completedSurveyResult)
+      return
+    }
+
+    modalState.close()
+  }
 </script>
 
 <div class="survey-modal">
@@ -139,11 +158,14 @@
   {#if !surveyState.isCompleted}
     <div class="progress-dots">
       {#each Array(steps.length) as _, index}
-        <div class="dot" class:active={index === surveyState.currentStepIndex}></div>
+        <div
+          class="dot"
+          class:active={index === surveyState.currentStepIndex}
+        ></div>
       {/each}
     </div>
   {/if}
-  
+
   <div class="survey-content">
     {#if !surveyState.isCompleted}
       <div class="slide-wrapper">
@@ -152,22 +174,22 @@
           <div class:hidden={currentStep !== 'ueqs'}>
             <UEQSSurvey
               initialValues={surveyState.ueqsResults}
-              onComplete={(results) => {
-                surveyState.ueqsResults = results;
-                surveyState.ueqsComplete = true;
+              onComplete={results => {
+                surveyState.ueqsResults = results
+                surveyState.ueqsComplete = true
               }}
               onCompletionChange={(complete, results) => {
-                surveyState.ueqsComplete = complete;
+                surveyState.ueqsComplete = complete
                 // Always save results to preserve partial progress
                 if (results) {
-                  surveyState.ueqsResults = results;
+                  surveyState.ueqsResults = results
                 }
               }}
               onValueChange={(results, complete) => {
-                surveyState.ueqsComplete = complete;
+                surveyState.ueqsComplete = complete
                 // Always save results, even when incomplete, to preserve partial progress
                 if (results) {
-                  surveyState.ueqsResults = results;
+                  surveyState.ueqsResults = results
                 }
               }}
             />
@@ -181,14 +203,14 @@
                 ETExperience.SIX_TO_TWELVE_MONTHS,
                 ETExperience.ONE_TO_TWO_YEARS,
                 ETExperience.THREE_TO_FIVE_YEARS,
-                ETExperience.MORE_THAN_5_YEARS
+                ETExperience.MORE_THAN_5_YEARS,
               ]}
               initialValue={surveyState.eyeTrackingResults?.experience}
-              onComplete={(value) => {
-                surveyState.eyeTrackingValue = value;
+              onComplete={value => {
+                surveyState.eyeTrackingValue = value
               }}
               onValueChange={(value, complete) => {
-                surveyState.eyeTrackingValue = value;
+                surveyState.eyeTrackingValue = value
               }}
             />
           </div>
@@ -198,24 +220,21 @@
               instructions="(i) One thing you liked, (ii) one thing you disliked, and (iii) any other comment. Write as much or as little as you wish."
               placeholder="Share your thoughts here..."
               initialValue={surveyState.feedbackText}
-              onComplete={(value) => {
-                surveyState.feedbackValue = value;
+              onComplete={value => {
+                surveyState.feedbackValue = value
               }}
               onValueChange={(value, complete) => {
-                surveyState.feedbackValue = value;
+                surveyState.feedbackValue = value
               }}
             />
           </div>
         </div>
-        
+
         <!-- Navigation Buttons -->
         <div class="navigation-buttons">
           {#if surveyState.currentStepIndex > 0}
-            <button
-              class="nav-button prev"
-              onclick={goToPreviousStep}
-            >
-              ← Previous
+            <button class="nav-button prev" onclick={goToPreviousStep}>
+              Previous
             </button>
           {:else}
             <div class="nav-button-placeholder"></div>
@@ -228,7 +247,7 @@
             {#if surveyState.currentStepIndex === steps.length - 1}
               Submit
             {:else}
-              Next →
+              Next
             {/if}
           </button>
         </div>
@@ -238,8 +257,11 @@
       <div class="completion-slide">
         <div class="completion-message">
           <div class="completion-content">
-            <h3>🎉 Thank you for your feedback!</h3>
-            <p>Your responses have been recorded and will help us improve GazePlotter for researchers and practitioners.</p>
+            <h3>Thank you for your feedback!</h3>
+            <p>
+              Your responses have been recorded and will help us improve
+              GazePlotter for researchers and practitioners.
+            </p>
             <button class="continue-button" onclick={handleGoToGazePlotter}>
               Go to GazePlotter
             </button>

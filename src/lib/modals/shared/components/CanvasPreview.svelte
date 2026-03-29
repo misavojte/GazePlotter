@@ -1,13 +1,24 @@
 <script lang="ts">
-  import MajorButton from '$lib/shared/components/GeneralButtonMajor.svelte'
-  import { addErrorToast } from '$lib/toaster'
+  import { setContext, tick } from 'svelte'
+  import type { Snippet } from 'svelte'
+  import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
+  import { getGazePlotterSession } from '$lib/session'
+  import {
+    EXPORT_SOURCE_CONTEXT,
+    type ExportSource,
+    type ExportSourceRegistrar,
+    canvasToBlobWithWhiteBackground,
+    triggerDownload,
+    getMimeType,
+    getQuality,
+  } from '$lib/data/export'
 
   // Component props
   interface Props {
     fileName: string
     fileType: '.png' | '.jpg'
     showDownloadButton?: boolean
-    children: any // Child component that renders to Canvas
+    children: Snippet // Child component that renders to Canvas
   }
 
   let {
@@ -16,66 +27,114 @@
     showDownloadButton = false,
     children,
   }: Props = $props()
+  const { errorService } = getGazePlotterSession()
 
   // States
   let componentContainer = $state<HTMLElement | null>(null) // Container for the child component
   let isGeneratingDownload = $state(false)
+  let exportSource = $state<ExportSource | null>(null)
+  let previewRenderError = $state<unknown | null>(null)
+
+  function getErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message.trim().length > 0) {
+      return error.message
+    }
+
+    if (typeof error === 'string' && error.trim().length > 0) {
+      return error
+    }
+
+    return 'Unknown preview error'
+  }
+
+  const registrar: ExportSourceRegistrar = {
+    register: source => {
+      exportSource = source
+    },
+  }
+
+  setContext(EXPORT_SOURCE_CONTEXT, registrar)
+
+  const isDownloadDisabled = $derived(
+    isGeneratingDownload || previewRenderError !== null
+  )
+
+  function reportPreviewRenderError(error: unknown) {
+    previewRenderError = error
+    exportSource = null
+
+    errorService.report({
+      origin: 'export',
+      severity: 'recoverable',
+      userMessage:
+        'Could not render the export preview. The dialog is still available.',
+      cause: error,
+      context: {
+        fileName,
+        fileType,
+      },
+    })
+  }
+
+  function retryPreview(reset: () => void) {
+    previewRenderError = null
+    exportSource = null
+    reset()
+  }
 
   // Function to generate high-resolution download
   async function generateDownload() {
-    // Obtain through DOM - first canvas element inside the child wrapper
-    const childCanvas = componentContainer?.querySelector('canvas')
-    if (!childCanvas) return
+    await tick()
+
+    const resolvedCanvas =
+      exportSource?.kind === 'canvas' ? exportSource.getCanvas() : null
+
+    if (!resolvedCanvas) {
+      errorService.report({
+        origin: 'export',
+        severity: 'recoverable',
+        userMessage: 'Nothing to export: plot did not register an export source.',
+        cause: new Error(
+          'Plot preview export source was not registered before download.'
+        ),
+        context: {
+          fileName,
+          fileType,
+        },
+      })
+      return
+    }
 
     isGeneratingDownload = true
 
     try {
-      // Convert to blob and download
-      const mimeType = fileType === '.png' ? 'image/png' : 'image/jpeg'
-      const quality = fileType === '.jpg' ? 0.95 : undefined
+      const mimeType = getMimeType(fileType)
+      const quality = getQuality(fileType)
 
-      let exportCanvas = childCanvas
-
-      // Add white background for both PNG and JPG
-      // Create a temporary canvas with white background
-      const tempCanvas = document.createElement('canvas')
-      const ctx = tempCanvas.getContext('2d')
-      if (!ctx) throw new Error('Failed to get canvas context')
-
-      // Set the same dimensions as the original canvas
-      tempCanvas.width = childCanvas.width
-      tempCanvas.height = childCanvas.height
-
-      // Fill with white background
-      ctx.fillStyle = 'white'
-      ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height)
-
-      // Draw the original canvas content on top
-      ctx.drawImage(childCanvas, 0, 0)
-      exportCanvas = tempCanvas
-
-      const blob = await new Promise<Blob | null>(resolve => {
-        exportCanvas.toBlob(resolve, mimeType, quality)
-      })
-
-      if (!blob) throw new Error('Failed to create image blob')
-
-      // Create download link
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${fileName}${fileType}`
-      document.body.appendChild(a)
-      a.click()
-
-      // Clean up
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-    } catch (error: any) {
-      console.error('Error generating download:', error)
-      addErrorToast(
-        `Failed to generate download: ${error.message || 'Unknown error'}`
+      const blob = await canvasToBlobWithWhiteBackground(
+        resolvedCanvas,
+        mimeType,
+        quality
       )
+
+      triggerDownload(blob, `${fileName}${fileType}`, '')
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message.trim().length > 0
+          ? error.message
+          : 'Unknown error'
+
+      errorService.report({
+        origin: 'export',
+        severity: 'recoverable',
+        userMessage: `Failed to generate download: ${message}`,
+        cause: error,
+        context: {
+          fileName,
+          fileType,
+          exportSourceKind: exportSource?.kind ?? null,
+        },
+      })
     } finally {
       isGeneratingDownload = false
     }
@@ -92,26 +151,46 @@
   <div class="component-container" bind:this={componentContainer}>
     <!-- Preview area -->
     <div class="preview-wrapper">
-      <div
-        class="child-wrapper"
-        style="background-color: white;"
-      >
-        {@render children()}
-      </div>
+      <svelte:boundary onerror={reportPreviewRenderError}>
+        <div class="child-wrapper" style="background-color: white;">
+          {@render children()}
+        </div>
+
+        {#snippet failed(error, reset)}
+          <div class="preview-error-state">
+            <p class="preview-error-copy">
+              Preview could not be generated. You can retry without closing the
+              dialog.
+            </p>
+            <p class="preview-error-detail">{getErrorMessage(error)}</p>
+            <ButtonMajor
+              onclick={() => retryPreview(reset)}
+              size="sm"
+              variant="secondary"
+            >
+              Retry preview
+            </ButtonMajor>
+          </div>
+        {/snippet}
+      </svelte:boundary>
     </div>
 
     <!-- Download button -->
     {#if showDownloadButton}
       <div class="preview-actions">
-        <MajorButton
+        <ButtonMajor
           onclick={handleDownload}
-          isDisabled={isGeneratingDownload}
+          isDisabled={isDownloadDisabled}
           variant="primary"
         >
-          {isGeneratingDownload
-            ? `Generating ${fileType.substring(1).toUpperCase()}...`
-            : `Download ${fileName}${fileType}`}
-        </MajorButton>
+          {#if previewRenderError !== null}
+            Preview unavailable
+          {:else if isGeneratingDownload}
+            Generating {fileType.substring(1).toUpperCase()}...
+          {:else}
+            Download {fileName}{fileType}
+          {/if}
+        </ButtonMajor>
       </div>
     {/if}
   </div>
@@ -128,6 +207,33 @@
     border: 1px dashed #ddd;
     width: fit-content;
     height: fit-content;
+    pointer-events: none; /* Disable hover effects in download preview */
+  }
+
+  .preview-error-state {
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 1.25rem;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid #d6dce5;
+    border-radius: 10px;
+  }
+
+  .preview-error-copy,
+  .preview-error-detail {
+    margin: 0;
+    color: var(--c-text);
+    line-height: 1.45;
+    font-size: 0.9rem;
+  }
+
+  .preview-error-detail {
+    color: var(--c-midgrey);
+    overflow-wrap: anywhere;
   }
 
   .preview-wrapper {
@@ -139,7 +245,8 @@
     background-color: #f9f9f9;
     min-height: 200px;
     padding: 2rem;
-    background-image: linear-gradient(45deg, #f0f0f0 25%, transparent 25%),
+    background-image:
+      linear-gradient(45deg, #f0f0f0 25%, transparent 25%),
       linear-gradient(-45deg, #f0f0f0 25%, transparent 25%),
       linear-gradient(45deg, transparent 75%, #f0f0f0 75%),
       linear-gradient(-45deg, transparent 75%, #f0f0f0 75%);

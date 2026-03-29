@@ -26,20 +26,21 @@
     onValueChange
   }: Props = $props();
 
-  // Selected option - initialize with provided value
-  let selectedOption = $state<string | null>(initialValue);
+  let selectedOption = $state<string | null>(null);
+  let didSeedSelection = false;
 
-  // Expose value and isComplete for parent component - update via effect
-  let value = $state<string | null>(initialValue);
-  let isComplete = $state(false);
+  $effect(() => {
+    if (didSeedSelection) return;
+    selectedOption = initialValue;
+    didSeedSelection = true;
+  });
 
   // Update exposed values when selectedOption changes
   $effect(() => {
-    value = selectedOption;
-    isComplete = selectedOption !== null;
+    const complete = selectedOption !== null;
 
     if (onValueChange) {
-      onValueChange(selectedOption, selectedOption !== null);
+      onValueChange(selectedOption, complete);
     }
 
     if (onComplete && selectedOption) {

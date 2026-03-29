@@ -2,10 +2,10 @@
  * Vitest test for EyeClassifier
  *
  * @module EyeClassifier
- * @see $lib/gaze-data/back-process/class/EyeClassifier/EyeClassifier.ts
+ * @see $lib/data/ingest/stream/Classifier.ts
  */
 
-import { EyeClassifier } from '$lib/gaze-data/back-process/class/EyeClassifier/EyeClassifier'
+import { EyeClassifier } from '$lib/data/ingest/stream/Classifier'
 import { test, expect, describe } from 'vitest'
 
 const mockBeGazeData = `Event Start Trial Time [ms],Event End Trial Time [ms],Stimulus,Participant,Category,AOI Name
@@ -24,11 +24,14 @@ Sequence Similarity,Scanpath string
 Participant_1,ABCD`
 
 // Mock CSV data with proper line endings (\r\n)
-const mockCsvData = 'Time,Participant,Stimulus,AOI\r\n0,Participant_1,Map_A,Region_1\r\n1,Participant_1,Map_A,Region_1'
+const mockCsvData =
+  'Time,Participant,Stimulus,AOI\r\n0,Participant_1,Map_A,Region_1\r\n1,Participant_1,Map_A,Region_1'
 
-const mockCsvSegmentedData = 'From,To,Participant,Stimulus,AOI\r\n0,1,Participant_1,Map_A,Region_1\r\n1,2,Participant_1,Map_A,Region_1'
+const mockCsvSegmentedData =
+  'From,To,Participant,Stimulus,AOI\r\n0,1,Participant_1,Map_A,Region_1\r\n1,2,Participant_1,Map_A,Region_1'
 
-const mockCsvSegmentedDurationData = 'stimulus,participant,timestamp,duration,eyemovementtype,AOI\r\nSMI Base,Anna,226.2,72,1,\r\nSMI Base,Anna,298.2,120,0,Map'
+const mockCsvSegmentedDurationData =
+  'stimulus,participant,timestamp,duration,eyemovementtype,AOI\r\nSMI Base,Anna,226.2,72,1,\r\nSMI Base,Anna,298.2,120,0,Map'
 
 describe('EyeClassifier', () => {
   test('Constructor', () => {
@@ -43,6 +46,7 @@ describe('EyeClassifier', () => {
       type: 'begaze',
       rowDelimiter: '\n',
       columnDelimiter: '\t',
+      encoding: 'utf-8',
       userInputSetting: '',
       headerRowId: 0,
     })
@@ -55,6 +59,7 @@ describe('EyeClassifier', () => {
       type: 'gazepoint',
       rowDelimiter: '\n',
       columnDelimiter: ',',
+      encoding: 'utf-8',
       userInputSetting: '',
       headerRowId: 0,
     })
@@ -67,6 +72,7 @@ describe('EyeClassifier', () => {
       type: 'ogama',
       rowDelimiter: '\n',
       columnDelimiter: '\t',
+      encoding: 'utf-8',
       userInputSetting: '',
       headerRowId: 8,
     })
@@ -79,6 +85,7 @@ describe('EyeClassifier', () => {
       type: 'csv',
       rowDelimiter: '\r\n',
       columnDelimiter: ',',
+      encoding: 'utf-8',
       userInputSetting: '',
       headerRowId: 0,
     })
@@ -91,6 +98,7 @@ describe('EyeClassifier', () => {
       type: 'csv-segmented',
       rowDelimiter: '\r\n',
       columnDelimiter: ',',
+      encoding: 'utf-8',
       userInputSetting: '',
       headerRowId: 0,
     })
@@ -103,6 +111,7 @@ describe('EyeClassifier', () => {
       type: 'csv-segmented-duration',
       rowDelimiter: '\r\n',
       columnDelimiter: ',',
+      encoding: 'utf-8',
       userInputSetting: '',
       headerRowId: 0,
     })
@@ -143,7 +152,9 @@ describe('EyeClassifier - Type detection methods', () => {
   test('getTypeFromSlice prioritizes more specific formats', () => {
     const sut = new EyeClassifier()
     // Duration-based should be detected before regular segmented
-    expect(sut.getTypeFromSlice(mockCsvSegmentedDurationData)).toBe('csv-segmented-duration')
+    expect(sut.getTypeFromSlice(mockCsvSegmentedDurationData)).toBe(
+      'csv-segmented-duration'
+    )
     // Segmented should be detected before regular CSV
     expect(sut.getTypeFromSlice(mockCsvSegmentedData)).toBe('csv-segmented')
     // Regular CSV is detected last

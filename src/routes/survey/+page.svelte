@@ -1,135 +1,125 @@
 <script lang="ts">
   import { GazePlotter } from '$lib'
+  import { Card } from '$lib/shared/components'
   import { base } from '$app/paths'
   import { browser } from '$app/environment'
-  import type { ParsedData } from '$lib/gaze-data/shared/types'
-  import { EyeWorkerService } from '$lib/gaze-data/front-process/class/EyeWorkerService'
-  import { Survey, surveyStore, createCondition, ConsentModal, endpointService, type EndpointConfig } from '$survey'
-  import { SurveyModal } from '$survey/components'
+  import {
+    Survey,
+    surveyStore,
+    createCondition,
+    consentModal,
+    endpointService,
+    type EndpointConfig,
+    surveyModal,
+    type SurveyModalResult,
+  } from '$survey'
   import type { SurveyTask, SurveyModalState } from '$survey/types'
-  import type { WorkspaceCommandChain } from '$lib/shared/types/workspaceInstructions'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
-  import type { UEQSResults, EyeTrackingExperienceResult } from '$survey/types'
+  import type { WorkspaceCommandChain } from '$lib/workspace/commands'
+  import type { GazePlotterSession } from '$lib/session'
   import { onMount } from 'svelte'
-  // Format the build date
-  const buildDate = new Date(__BUILD_DATE__)
-  const formattedDate = new Intl.DateTimeFormat('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(buildDate)
 
   const endpointConfig: EndpointConfig = {
-    endpoint: "https://eyetracking.upol.cz/GPsurvey/GazePlotterSurveyEndpoint.php"
-  };
+    endpoint:
+      'https://eyetracking.upol.cz/GPsurvey/GazePlotterSurveyEndpoint.php',
+  }
 
   const pathToData = `${base}/data/etvis.json`
+  let gazePlotterRef = $state<{
+    resetLayout: () => void
+    getSession: () => GazePlotterSession
+  } | null>(null)
 
-  async function loadInitialData(): Promise<ParsedData> {
+  async function loadInitialData(session: GazePlotterSession): Promise<void> {
     if (!pathToData || !browser)
       return Promise.reject('No path to data or not in browser')
 
-    return new Promise((resolve, reject) => {
-      const workerService = new EyeWorkerService(
-        data => resolve(data),
-        () => reject(new Error('Failed to load initial data'))
-      )
-
-      // Fetch the data and create a File object
-      fetch(pathToData)
-        .then(response => response.blob())
-        .then(blob => {
-          const file = new File([blob], 'demo.json', {
-            type: 'application/json',
-          })
-          const fileList = Object.assign([file], {
-            item: (index: number) => file,
-            length: 1,
-            [Symbol.iterator]: function* () {
-              yield file
-            },
-          }) as FileList
-
-          workerService.sendFiles(fileList)
-        })
-        .catch(reject)
+    const blob = await fetch(pathToData).then(response => response.blob())
+    const file = new File([blob], 'demo.json', {
+      type: 'application/json',
     })
+    const fileList = Object.assign([file], {
+      item: () => file,
+      length: 1,
+      [Symbol.iterator]: function* () {
+        yield file
+      },
+    }) as FileList
+
+    await session.ingest.loadFiles(fileList)
   }
 
-  // Use the version from vite.config.ts
-  const version = __APP_VERSION__
-
   // Create condition stores for automatic task completion
-  const consentCondition = createCondition(); // Monitor for consent confirmation
-  const stimulusCondition = createCondition(); // Monitor for "Task 2" stimulus
-  const timelineCondition = createCondition(); // Monitor for "relative" timeline
-  const groupCondition = createCondition(); // Monitor for "Group 1" selection
-  const duplicateCondition = createCondition(); // Monitor for plot duplication
-  const group2Condition = createCondition(); // Monitor for "Group 2" selection
-  const aoiCustomizationCondition = createCondition(); // Monitor for AOI grouping
-  const transitionMatrixCondition = createCondition(); // Monitor for Transition Matrix aggregation
-  const barPlotCondition = createCondition(); // Monitor for Bar Plot aggregation
-  const explorationCondition = createCondition(); // Monitor for UI exploration completion
-  const transitionMatrixStimulusCondition = createCondition(); // Monitor for Transition Matrix stimulus
-  const barPlotStimulusCondition = createCondition(); // Monitor for Bar Plot stimulus
+  const consentCondition = createCondition() // Monitor for consent confirmation
+  const stimulusCondition = createCondition() // Monitor for "Task 2" stimulus
+  const timelineCondition = createCondition() // Monitor for "relative" timeline
+  const groupCondition = createCondition() // Monitor for "Group 1" selection
+  const duplicateCondition = createCondition() // Monitor for plot duplication
+  const group2Condition = createCondition() // Monitor for "Group 2" selection
+  const aoiCustomizationCondition = createCondition() // Monitor for AOI grouping
+  const transitionMatrixCondition = createCondition() // Monitor for Transition Matrix aggregation
+  const barPlotCondition = createCondition() // Monitor for Bar Plot aggregation
+  const explorationCondition = createCondition() // Monitor for UI exploration completion
+  const transitionMatrixStimulusCondition = createCondition() // Monitor for Transition Matrix stimulus
+  const barPlotStimulusCondition = createCondition() // Monitor for Bar Plot stimulus
 
   // State for forcing banner to close on any modal content
-  let forceCloseBanner = $state(false);
+  let forceCloseBanner = $state(false)
 
   // Track previous task index for logging task progression
-  let previousTaskIndex = $state(-1);
-  let wasLastActionSkip = $state(false);
+  let previousTaskIndex = $state(-1)
+  let wasLastActionSkip = $state(false)
 
   // Track if informed consent has been given
-  let hasInformedConsent = $state(false);
+  let hasInformedConsent = $state(false)
 
   // Track previous consent session information to surface a warning banner when necessary
-  let previousConsentSessionId = $state<string | null>(null);
-  let showPreviousConsentBanner = $state(false);
-
-  // Reference to GazePlotter component for resetting layout
-  let gazePlotterRef = $state<any>(null);
+  let previousConsentSessionId = $state<string | null>(null)
+  let showPreviousConsentBanner = $state(false)
 
   // Monitor modal store to force close banner when any modal is open
   $effect(() => {
-    const unsubscribe = modalStore.subscribe((modal) => {
-      forceCloseBanner = modal !== null;
-    });
-    return unsubscribe;
-  });
+    forceCloseBanner =
+      gazePlotterRef?.getSession().modalState.activeModal !== null
+  })
 
   // Monitor survey store to log task fulfillment
   $effect(() => {
-    if (!browser) return;
-    
-    const unsubscribe = surveyStore.subscribe((state) => {
-      const currentTaskIndex = state.currentActiveTaskIndex;
-      
-      // Log task fulfillment when index changes and it wasn't a skip
-      if (currentTaskIndex !== previousTaskIndex && previousTaskIndex >= 0 && !wasLastActionSkip) {
-        const completedTask = state.tasks[previousTaskIndex];
-        
-        if (completedTask && hasInformedConsent && endpointService.isServiceInitialized()) {
-          endpointService.storeSurveyData({
+    if (!browser) return
+
+    const currentTaskIndex = surveyStore.currentActiveTaskIndex
+
+    // Log task fulfillment when index changes and it wasn't a skip
+    if (
+      currentTaskIndex !== previousTaskIndex &&
+      previousTaskIndex >= 0 &&
+      !wasLastActionSkip
+    ) {
+      const completedTask = surveyStore.tasks[previousTaskIndex]
+
+      if (
+        completedTask &&
+        hasInformedConsent &&
+        endpointService.isServiceInitialized()
+      ) {
+        endpointService
+          .storeSurveyData({
             type: 'task_fulfilled',
             timestamp: Date.now(),
             data: {
               taskIndex: previousTaskIndex,
               taskText: completedTask.text,
-            }
-          }).catch((error) => {
-            console.error('Failed to log task fulfillment:', error);
-          });
-        }
+            },
+          })
+          .catch(error => {
+            console.error('Failed to log task fulfillment:', error)
+          })
       }
-      
-      // Reset skip flag after handling the transition
-      wasLastActionSkip = false;
-      previousTaskIndex = currentTaskIndex;
-    });
-    
-    return unsubscribe;
-  });
+    }
+
+    // Reset skip flag after handling the transition
+    wasLastActionSkip = false
+    previousTaskIndex = currentTaskIndex
+  })
 
   // Survey state - persists when modal is closed and reopened
   let surveyState = $state<SurveyModalState>({
@@ -140,27 +130,27 @@
     currentStepIndex: 0,
     ueqsComplete: false,
     eyeTrackingValue: null,
-    feedbackValue: ''
-  });
+    feedbackValue: '',
+  })
 
   // Initialize endpoint service for logging (only in browser)
   if (browser) {
-    endpointService.initialize(endpointConfig).catch((error) => {
-      console.error('Failed to initialize endpoint service:', error);
-    });
+    endpointService.initialize(endpointConfig).catch(error => {
+      console.error('Failed to initialize endpoint service:', error)
+    })
   }
 
   onMount(() => {
     if (!browser) {
-      return;
+      return
     }
 
-    const storedSessionId = endpointService.getLastConsentSessionId();
+    const storedSessionId = endpointService.getLastConsentSessionId()
     if (storedSessionId) {
-      previousConsentSessionId = storedSessionId;
-      showPreviousConsentBanner = true;
+      previousConsentSessionId = storedSessionId
+      showPreviousConsentBanner = true
     }
-  });
+  })
 
   /**
    * Helper function to create onSkip callback for logging task skips
@@ -168,164 +158,199 @@
    * @param taskText - The text of the task being skipped
    * @returns Callback function that logs the skip and sets the skip flag
    */
-  function createSkipHandler(taskIndex: number, taskText: string): (taskIndex: number, reason: string) => void {
+  function createSkipHandler(
+    taskIndex: number,
+    taskText: string
+  ): (taskIndex: number, reason: string) => void {
     return (_, reason: string) => {
-      wasLastActionSkip = true;
-      
+      wasLastActionSkip = true
+
       // Log task skip event (fire-and-forget, non-blocking)
-      if (browser && hasInformedConsent && endpointService.isServiceInitialized()) {
-        endpointService.storeSurveyData({
-          type: 'task_skipped',
-          timestamp: Date.now(),
-          data: {
-            taskIndex,
-            taskText,
-            skipReason: reason
-          }
-        }).catch((error) => {
-          console.error('Failed to log task skip:', error);
-        });
+      if (
+        browser &&
+        hasInformedConsent &&
+        endpointService.isServiceInitialized()
+      ) {
+        endpointService
+          .storeSurveyData({
+            type: 'task_skipped',
+            timestamp: Date.now(),
+            data: {
+              taskIndex,
+              taskText,
+              skipReason: reason,
+            },
+          })
+          .catch(error => {
+            console.error('Failed to log task skip:', error)
+          })
       }
-    };
+    }
   }
 
   const dismissPreviousConsentBanner = (): void => {
-    showPreviousConsentBanner = false;
-  };
+    showPreviousConsentBanner = false
+  }
 
   // Example tasks with conditions and alert buttons
   const exampleTasks: SurveyTask[] = [
-      { 
-      text: "Read UX evaluation instructions & consent",
-      buttonText: "Open instructions & consent",
-      onButtonClick: () => {
-        modalStore.open(
-          ConsentModal as any,
-          'UX Evaluation Instructions & Consent',
-          {
+    {
+      text: 'Read UX evaluation instructions & consent',
+      buttonText: 'Open instructions & consent',
+      onButtonClick: async () => {
+        const didConsent = await gazePlotterRef
+          ?.getSession()
+          .modalState.open(consentModal, {
             sessionId: endpointService.getSessionId(),
-            onConsent: () => {
-              // Log informed consent event with URL data (fire-and-forget, non-blocking)
-              if (browser && endpointService.isServiceInitialized()) {
-                endpointService.storeSurveyData({
-                  type: 'informedConsentCollected',
-                  timestamp: Date.now(),
-                  data: {
-                    pageUrl: window.location.href,
-                    clientInfo: navigator.userAgent,
-                    windowDimensions: window.innerWidth + 'x' + window.innerHeight,
-                  }
-                }).catch((error) => {
-                  console.error('Failed to log informed consent:', error);
-                });
-              }
-              
-              // Set consent flag to enable data collection
-              hasInformedConsent = true;
+          })
 
-              // Persist the consent session identifier for future visits and hide the banner for this session
-              endpointService.persistLastConsentSessionId(endpointService.getSessionId());
-              previousConsentSessionId = null;
-              showPreviousConsentBanner = false;
-              
-              // Reset the GazePlotter layout to initial state
-              if (gazePlotterRef) {
-                gazePlotterRef.resetLayout();
-              }
-              
-              consentCondition.set(true); // Manually trigger condition
-            }
-          }
+        if (!didConsent) return
+
+        // Log informed consent event with URL data (fire-and-forget, non-blocking)
+        if (browser && endpointService.isServiceInitialized()) {
+          endpointService
+            .storeSurveyData({
+              type: 'informedConsentCollected',
+              timestamp: Date.now(),
+              data: {
+                pageUrl: window.location.href,
+                clientInfo: navigator.userAgent,
+                windowDimensions: window.innerWidth + 'x' + window.innerHeight,
+              },
+            })
+            .catch(error => {
+              console.error('Failed to log informed consent:', error)
+            })
+        }
+
+        // Set consent flag to enable data collection
+        hasInformedConsent = true
+
+        // Persist the consent session identifier for future visits and hide the banner for this session
+        endpointService.persistLastConsentSessionId(
+          endpointService.getSessionId()
         )
+        previousConsentSessionId = null
+        showPreviousConsentBanner = false
+
+        // Reset the GazePlotter layout to initial state
+        if (gazePlotterRef) {
+          gazePlotterRef.resetLayout()
+        }
+
+        consentCondition.set(true) // Manually trigger condition
       },
       condition: consentCondition,
-      skippable: false
+      skippable: false,
     },
-    { 
-      text: "Scroll to workspace below. On Scarf Plot, set stimulus to Task 2",
+    {
+      text: 'Scroll to workspace below. On Scarf Plot, set stimulus to Task 2',
       condition: stimulusCondition, // Auto-completes when stimulus is set to Task 2
-      onSkip: createSkipHandler(1, "On scarf plot, set stimulus to Task 2")
+      onSkip: createSkipHandler(1, 'On scarf plot, set stimulus to Task 2'),
     },
-    { 
+    {
       text: "On Scarf Plot, set group to 'Analytics'",
       condition: groupCondition, // Auto-completes when group is set to Group 1
-      onSkip: createSkipHandler(2, "Set group to 'Analytics'")
+      onSkip: createSkipHandler(2, "Set group to 'Analytics'"),
     },
-    { 
-      text: "On Scarf Plot, set timeline to relative",
+    {
+      text: 'On Scarf Plot, set timeline to relative',
       condition: timelineCondition, // Auto-completes when timeline is set to relative
-      onSkip: createSkipHandler(3, "Set timeline to relative")
+      onSkip: createSkipHandler(3, 'Set timeline to relative'),
     },
-    { 
-      text: "Duplicate Scarf Plot",
+    {
+      text: 'Duplicate Scarf Plot',
       condition: duplicateCondition, // Auto-completes when plot is duplicated
-      onSkip: createSkipHandler(4, "Duplicate Scarf Plot")
+      onSkip: createSkipHandler(4, 'Duplicate Scarf Plot'),
     },
-    { 
+    {
       text: "On the duplicated Scarf Plot, set group to 'Holistics'",
       condition: group2Condition, // Auto-completes when group is set to Group 2
-      onSkip: createSkipHandler(5, "On the duplicated Scarf Plot, set group to 'Holistics'")
+      onSkip: createSkipHandler(
+        5,
+        "On the duplicated Scarf Plot, set group to 'Holistics'"
+      ),
     },
-    { 
+    {
       text: "Find 'AOI Customization' and group XAxis and YAxis (in stimulus Task 2) by giving them the same name",
       condition: aoiCustomizationCondition, // Auto-completes when AOIs are grouped
-      onSkip: createSkipHandler(6, "Find 'AOI Customization' and group XAxis and YAxis (in stimulus Task 2) by giving them the same name")
+      onSkip: createSkipHandler(
+        6,
+        "Find 'AOI Customization' and group XAxis and YAxis (in stimulus Task 2) by giving them the same name"
+      ),
     },
-    { 
-      text: "Pan to Transition Matrix and set its stimulus to Task 2",
+    {
+      text: 'Pan to Transition Matrix and set its stimulus to Task 2',
       condition: transitionMatrixStimulusCondition, // Auto-completes when stimulus is set to Task 2
-      onSkip: createSkipHandler(7, "Pan to Transition Matrix and set its stimulus to Task 2")
+      onSkip: createSkipHandler(
+        7,
+        'Pan to Transition Matrix and set its stimulus to Task 2'
+      ),
     },
-    { 
+    {
       text: "On Transition Matrix, change aggregation metric to '1-step probability'",
       condition: transitionMatrixCondition, // Auto-completes when aggregation is changed
-      onSkip: createSkipHandler(8, "On Transition Matrix, change aggregation metric to '1-step probability'")
+      onSkip: createSkipHandler(
+        8,
+        "On Transition Matrix, change aggregation metric to '1-step probability'"
+      ),
     },
-    { 
-      text: "Pan to Bar Plot and set its stimulus to Task 2",
+    {
+      text: 'Pan to Bar Plot and set its stimulus to Task 2',
       condition: barPlotStimulusCondition, // Auto-completes when stimulus is set to Task 2
-      onSkip: createSkipHandler(9, "Pan to Bar Plot and set its stimulus to Task 2")
+      onSkip: createSkipHandler(
+        9,
+        'Pan to Bar Plot and set its stimulus to Task 2'
+      ),
     },
-    { 
+    {
       text: "On Bar Plot, set aggregation method to 'Mean visits'",
       condition: barPlotCondition, // Auto-completes when aggregation is changed
-      onSkip: createSkipHandler(10, "On Bar Plot, set aggregation method to 'Mean visits'")
+      onSkip: createSkipHandler(
+        10,
+        "On Bar Plot, set aggregation method to 'Mean visits'"
+      ),
     },
-    { 
-      text: "Feel free to explore the UI as long as you wish",
-      buttonText: "I now want to answer questions and end survey",
-      onButtonClick: () => {
-        modalStore.open(
-          SurveyModal as any,
-          'User Experience Questionnaire',
-          {
+    {
+      text: 'Feel free to explore the UI as long as you wish',
+      buttonText: 'I now want to answer questions and end survey',
+      onButtonClick: async () => {
+        const results = await gazePlotterRef
+          ?.getSession()
+          .modalState.open(surveyModal, {
             surveyState,
-            onComplete: (results: { ueqs: UEQSResults; eyeTracking: EyeTrackingExperienceResult; feedback: string }) => {
-              console.log('Survey completed with results:', results);
-              
-              // Log survey completion to the endpoint service (fire-and-forget, non-blocking)
-              if (browser && hasInformedConsent && endpointService.isServiceInitialized()) {
-                endpointService.storeSurveyData({
-                  type: 'survey_completion',
-                  timestamp: Date.now(),
-                  data: {
-                    ueqsResults: results.ueqs,
-                    eyeTrackingResults: results.eyeTracking,
-                    feedback: results.feedback,
-                  }
-                }).catch((error) => {
-                  console.error('Failed to log survey completion:', error);
-                });
-              }
-              
-              explorationCondition.set(true); // Manually trigger condition
-            }
-          }
-        );
+          })
+
+        if (!results) return
+
+        const surveyResults = results as SurveyModalResult
+
+        // Log survey completion to the endpoint service (fire-and-forget, non-blocking)
+        if (
+          browser &&
+          hasInformedConsent &&
+          endpointService.isServiceInitialized()
+        ) {
+          endpointService
+            .storeSurveyData({
+              type: 'survey_completion',
+              timestamp: Date.now(),
+              data: {
+                ueqsResults: surveyResults.ueqs,
+                eyeTrackingResults: surveyResults.eyeTracking,
+                feedback: surveyResults.feedback,
+              },
+            })
+            .catch(error => {
+              console.error('Failed to log survey completion:', error)
+            })
+        }
+
+        explorationCondition.set(true) // Manually trigger condition
       },
       condition: explorationCondition,
-      skippable: false
-    }
+      skippable: false,
+    },
   ]
 
   /**
@@ -342,137 +367,167 @@
    * @returns true if the source matches the plot type
    */
   function isCommandFromPlotType(source: string, plotType: string): boolean {
-    return source.startsWith(`${plotType}.`) || source.startsWith(`undo.${plotType}.`) || source.startsWith(`redo.${plotType}.`);
+    return (
+      source.startsWith(`${plotType}.`) ||
+      source.startsWith(`undo.${plotType}.`) ||
+      source.startsWith(`redo.${plotType}.`)
+    )
   }
 
   const handleWorkspaceCommand = (command: WorkspaceCommandChain) => {
-    console.log('command', command)
-    console.log('hasInformedConsent', hasInformedConsent)
-    
     // Log the workspace command to the endpoint service (fire-and-forget, non-blocking)
     // Deep clone the command to prevent race conditions where the command data might be
     // mutated before async logging completes (especially on Windows Chrome where timing can differ)
     if (hasInformedConsent && endpointService.isServiceInitialized()) {
       // Create a deep clone to ensure we capture the command state at this exact moment
       const commandSnapshot = structuredClone(command)
-      
-      endpointService.storeSurveyData({
+
+      endpointService
+        .storeSurveyData({
           type: 'workspace_command',
           timestamp: Date.now(),
-          data: { command: commandSnapshot }
-        }).catch((error) => {
-          console.error('Failed to log workspace command:', error);
-        });
-      }
-    
+          data: { command: commandSnapshot },
+        })
+        .catch(error => {
+          console.error('Failed to log workspace command:', error)
+        })
+    }
+
     // Prevent any conditions from being set until informed consent is given
     if (!hasInformedConsent) {
-      return;
+      return
     }
-    
+
     // Check for stimulus change to Task 2 (stimulusId === 1) from scarf plot
-    if (command.type === 'updateSettings' && 
-        command.settings && 
-        'stimulusId' in command.settings && 
-        command.settings.stimulusId === 1 &&
-        isCommandFromPlotType(command.source, 'scarf')) {
-      stimulusCondition.set(true);
+    if (
+      command.type === 'updateSettings' &&
+      command.settings &&
+      'stimulusId' in command.settings &&
+      command.settings.stimulusId === 1 &&
+      isCommandFromPlotType(command.source, 'scarf')
+    ) {
+      stimulusCondition.set(true)
     }
-    
+
     // Check for timeline change to relative from scarf plot
-    if (command.type === 'updateSettings' && 
-        command.settings && 
-        'timeline' in command.settings && 
-        command.settings.timeline === 'relative' &&
-        isCommandFromPlotType(command.source, 'scarf')) {
-      timelineCondition.set(true);
+    if (
+      command.type === 'updateSettings' &&
+      command.settings &&
+      'timeline' in command.settings &&
+      command.settings.timeline === 'relative' &&
+      isCommandFromPlotType(command.source, 'scarf')
+    ) {
+      timelineCondition.set(true)
     }
-    
+
     // Check for group change to Analytics (groupId === 1) from scarf plot
-    if (command.type === 'updateSettings' && 
-        command.settings && 
-        'groupId' in command.settings && 
-        command.settings.groupId === 1 &&
-        isCommandFromPlotType(command.source, 'scarf')) {
-      groupCondition.set(true);
+    if (
+      command.type === 'updateSettings' &&
+      command.settings &&
+      'groupId' in command.settings &&
+      command.settings.groupId === 1 &&
+      isCommandFromPlotType(command.source, 'scarf')
+    ) {
+      groupCondition.set(true)
     }
-    
+
     // Check for group change to Holistics (groupId === 2) from scarf plot
-    if (command.type === 'updateSettings' && 
-        command.settings && 
-        'groupId' in command.settings && 
-        command.settings.groupId === 2 &&
-        isCommandFromPlotType(command.source, 'scarf')) {
-      group2Condition.set(true);
+    if (
+      command.type === 'updateSettings' &&
+      command.settings &&
+      'groupId' in command.settings &&
+      command.settings.groupId === 2 &&
+      isCommandFromPlotType(command.source, 'scarf')
+    ) {
+      group2Condition.set(true)
     }
-    
+
     // Check for plot duplication (works from any plot type)
     if (command.type === 'duplicateGridItem') {
-      duplicateCondition.set(true);
+      duplicateCondition.set(true)
     }
-    
+
     // Check for AOI customization - detect when at least two AOIs have the same displayed name
     // This can come from any plot type that supports AOI customization
-    if (command.type === 'updateAois' && command.aois && command.aois.length > 0) {
+    if (
+      command.type === 'updateAois' &&
+      command.aois &&
+      command.aois.length > 0
+    ) {
       // Count occurrences of each displayed name
-      const nameCounts = new Map<string, number>();
-      
+      const nameCounts = new Map<string, number>()
+
       command.aois.forEach(aoi => {
-        const displayedName = (aoi.displayedName || '').trim();
+        const displayedName = (aoi.displayedName || '').trim()
         if (displayedName !== '') {
-          nameCounts.set(displayedName, (nameCounts.get(displayedName) || 0) + 1);
+          nameCounts.set(
+            displayedName,
+            (nameCounts.get(displayedName) || 0) + 1
+          )
         }
-      });
-      
+      })
+
       // Check whether the aois with original names "T2-DataPAQ-OsayY" and "T2-DataPAQ-OsaX" are grouped
       // i.e. having the same displayed name (trimmed and normalized)
-      const aoi1 = command.aois.find(aoi => aoi.originalName === 'T2-DataPAQ-OsayY');
-      const aoi2 = command.aois.find(aoi => aoi.originalName === 'T2-DataPAQ-OsaX');
-      
+      const aoi1 = command.aois.find(
+        aoi => aoi.originalName === 'T2-DataPAQ-OsayY'
+      )
+      const aoi2 = command.aois.find(
+        aoi => aoi.originalName === 'T2-DataPAQ-OsaX'
+      )
+
       // Normalize names by trimming and handling empty strings
-      const name1 = (aoi1?.displayedName || '').trim();
-      const name2 = (aoi2?.displayedName || '').trim();
-      
+      const name1 = (aoi1?.displayedName || '').trim()
+      const name2 = (aoi2?.displayedName || '').trim()
+
       // Both names must be non-empty and equal for grouping
       if (aoi1 && aoi2 && name1 !== '' && name2 !== '' && name1 === name2) {
-        aoiCustomizationCondition.set(true);
+        aoiCustomizationCondition.set(true)
       }
     }
-    
+
     // Check for Transition Matrix aggregation change to '1-step probability'
-    if (command.type === 'updateSettings' && 
-        command.settings && 
-        'aggregationMethod' in command.settings && 
-        command.settings.aggregationMethod === 'probability' &&
-        isCommandFromPlotType(command.source, 'TransitionMatrix')) {
-      transitionMatrixCondition.set(true);
+    if (
+      command.type === 'updateSettings' &&
+      command.settings &&
+      'aggregationMethod' in command.settings &&
+      command.settings.aggregationMethod === 'probability' &&
+      isCommandFromPlotType(command.source, 'transitionMatrix')
+    ) {
+      transitionMatrixCondition.set(true)
     }
-    
+
     // Check for Bar Plot aggregation change to 'Mean visits'
-    if (command.type === 'updateSettings' && 
-        command.settings && 
-        'aggregationMethod' in command.settings && 
-        command.settings.aggregationMethod === 'averageEntries' &&
-        isCommandFromPlotType(command.source, 'barPlot')) {
-      barPlotCondition.set(true);
+    if (
+      command.type === 'updateSettings' &&
+      command.settings &&
+      'aggregationMethod' in command.settings &&
+      command.settings.aggregationMethod === 'averageEntries' &&
+      isCommandFromPlotType(command.source, 'barPlot')
+    ) {
+      barPlotCondition.set(true)
     }
 
     // Check for Transition Matrix stimulus change to Task 2
-    if (command.type === 'updateSettings' && 
-        command.settings && 
-        'stimulusId' in command.settings && 
-        command.settings.stimulusId === 1 &&
-        isCommandFromPlotType(command.source, 'TransitionMatrix')) {
-      transitionMatrixStimulusCondition.set(true);
+    if (
+      command.type === 'updateSettings' &&
+      command.settings &&
+      'stimulusId' in command.settings &&
+      command.settings.stimulusId === 1 &&
+      isCommandFromPlotType(command.source, 'transitionMatrix')
+    ) {
+      transitionMatrixStimulusCondition.set(true)
     }
-    
+
     // Check for Bar Plot stimulus change to Task 2
-    if (command.type === 'updateSettings' && 
-        command.settings && 
-        'stimulusId' in command.settings && 
-        command.settings.stimulusId === 1 &&
-        isCommandFromPlotType(command.source, 'barPlot')) {
-      barPlotStimulusCondition.set(true);
+    if (
+      command.type === 'updateSettings' &&
+      command.settings &&
+      'stimulusId' in command.settings &&
+      command.settings.stimulusId === 1 &&
+      isCommandFromPlotType(command.source, 'barPlot')
+    ) {
+      barPlotStimulusCondition.set(true)
     }
   }
 </script>
@@ -483,62 +538,6 @@
   >
 </svelte:head>
 
-<header class="border-b">
-  <div>
-    <a id="go-home" href="/">
-      <img
-        id="logo"
-        width="24"
-        height="24"
-        src="/logos/gazeplotter.svg"
-        alt="Logo"
-      />
-      <span id="sitetitle">GazePlotter</span>
-    </a>
-    <nav>
-      <a
-        class="external-link"
-        target="_blank"
-        href="https://docs.gazeplotter.com/"
-      >
-        Guide
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-          focusable="false"
-          height="24px"
-          viewBox="0 0 24 24"
-          width="24px"
-          class="icon"
-          data-v-f3ed0000=""
-          ><path d="M0 0h24v24H0V0z" fill="none"></path><path
-            d="M9 5v2h6.59L4 18.59 5.41 20 17 8.41V15h2V5H9z"
-          ></path></svg
-        >
-      </a>
-      <a
-        href="https://github.com/misavojte/GazePlotter"
-        target="_blank"
-        class="a-icon"
-        rel="nofollow"
-        aria-label="GitHub"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          fill="currentColor"
-          class="icon"
-          viewBox="0 0 16 16"
-        >
-          <path
-            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"
-          />
-        </svg>
-      </a>
-    </nav>
-  </div>
-</header>
 <main>
   <section class="main-section intro">
     <div class="title-container">
@@ -554,11 +553,17 @@
       <div class="previous-consent-banner" role="alert">
         <p class="previous-consent-banner__message">
           <strong>Warning!</strong>
-          There has already been a survey started from this computer with the session named
-          <span class="previous-consent-banner__session-id">{previousConsentSessionId}</span>.
+          There has already been a survey started from this computer with the session
+          named
+          <span class="previous-consent-banner__session-id"
+            >{previousConsentSessionId}</span
+          >.
         </p>
         <p class="previous-consent-banner__contact">
-          Do you wish to contact admin at <a href="mailto:mail@vojtechovska.com" class="previous-consent-banner__link">mail@vojtechovska.com</a>?
+          Do you wish to contact admin at <a
+            href="mailto:mail@vojtechovska.com"
+            class="previous-consent-banner__link">mail@vojtechovska.com</a
+          >?
         </p>
         <button
           type="button"
@@ -572,11 +577,15 @@
     <Survey tasks={exampleTasks} {forceCloseBanner} />
   </section>
   <section>
-    <GazePlotter bind:this={gazePlotterRef} {loadInitialData} onWorkspaceCommandChain={handleWorkspaceCommand} reinitializeLabel="Reload ETVIS data" />
+    <GazePlotter
+      bind:this={gazePlotterRef}
+      {loadInitialData}
+      onWorkspaceCommandChain={handleWorkspaceCommand}
+    />
   </section>
   <section class="main-section" id="about">
     <div class="about-grid">
-      <section class="box">
+      <Card padding="lg">
         <h2 class="box-title">Open source Svelte library</h2>
         <p>
           GazePlotter is an open source library, written in Svelte and
@@ -584,19 +593,17 @@
           specific needs in your projects.
         </p>
         <a href="https://github.com/misavojte/GazePlotter">See GitHub repo</a>
-      </section>
-      <section class="box">
+      </Card>
+      <Card padding="lg">
         <h2 class="box-title">Works with Tobii, SMI & more</h2>
         <p>
           The app creates interactive sequence charts and other analysis from
           Tobii, SMI, GazePoint and other eye trackers. Just upload your data
           and see the results.
         </p>
-        <a href="https://docs.gazeplotter.com/upload-data">
-          Which files to upload?
-        </a>
-      </section>
-      <section class="box long">
+        <a href="/docs/upload-data"> Which files to upload? </a>
+      </Card>
+      <Card padding="lg" class="long">
         <h2 class="box-title">Interactive scarf plots</h2>
         <p>
           Scarf plots (sequence charts) are a great way to visualise
@@ -610,55 +617,32 @@
           src="/images/gazeplotter_scarf_plot.png"
           alt="Simplest scarf plot in GazePlotter"
         />
-      </section>
-      <section class="box">
+      </Card>
+      <Card padding="lg">
         <h2 class="box-title">Runs without Internet</h2>
         <p>
           GazePlotter does not store your data on a server, thus ensuring data
           privacy. All is done in your browser. You can use it on PCs, Macs,
           tablets, even off-line!
         </p>
-        <a href="https://docs.gazeplotter.com/advanced/download-gazeplotter"
+        <a href="/docs/advanced/download-gazeplotter"
           >How to download GazePlotter?</a
         >
-      </section>
-      <section class="box">
+      </Card>
+      <Card padding="lg">
         <h2 class="box-title">Other eye tracking tools</h2>
         <p>
           Eye-Tracking Group at Department of Geoinformatics, Palacký University
           Olomouc, develops other eye tracking tools for free use.
         </p>
         <a href="https://eyetracking.upol.cz/tools/">More eye tracking tools</a>
-      </section>
+      </Card>
     </div>
   </section>
 </main>
-<footer class="border-t">
-  <div>
-    <p>GazePlotter, version {version} ({formattedDate})</p>
-    <p>
-      Coded & designed by <a href="https://vojtechovska.com" target="_blank"
-        >Michaela Vojtěchovská</a
-      >, idea by Stanislav Popelka
-    </p>
-    <p>
-      <a href="https://geoinformatics.upol.cz" target="_blank" rel="nofollow"
-        >Department of Geoinformatics</a
-      >, Palacký University Olomouc
-    </p>
-    <img
-      class="up-logo"
-      src="/logos/upol.png"
-      alt="Palacký University Olomouc logo"
-      width="300"
-      height="137"
-    />
-  </div>
-</footer>
 
 <style>
-  main,
-  header {
+  main {
     color: var(--c-black);
   }
   .intro {
@@ -710,7 +694,8 @@
   }
 
   .previous-consent-banner__session-id {
-    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-family:
+      'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
     font-weight: 600;
   }
 
@@ -749,79 +734,8 @@
     background: #0a4fae;
   }
 
-  header > div {
-    width: 100%;
-    margin: auto;
-    padding: 32px;
-    display: flex;
-    justify-content: space-between;
-    align-items: start;
-    gap: 12px;
-    flex-wrap: wrap;
-    font-size: 14px;
-    box-sizing: border-box;
-  }
-
-  header > div {
-    padding-block: 0 !important;
-    height: 64px;
-    align-items: center;
-  }
-
-  footer {
-    margin-top: 60px;
-  }
-
-  footer > div {
-    text-align: center;
-    padding: 32px;
-    font-size: 14px;
-    box-sizing: border-box;
-  }
-
-  .up-logo {
-    margin-top: 30px;
-    width: 150px;
-    height: auto;
-    user-select: none;
-  }
-
-  header {
-    display: flex;
-    align-items: center;
-  }
-
-  .border-b {
-    border-bottom: #5858583a 1px solid;
-  }
-
-  .border-t {
-    border-top: #5858583a 1px solid;
-  }
-
   main {
     flex-grow: 1;
-  }
-
-  #go-home {
-    text-decoration: none;
-    display: flex;
-    align-items: center;
-    color: inherit;
-  }
-
-  #go-home:hover,
-  #go-home:focus {
-    opacity: 0.8;
-  }
-
-  #logo {
-    margin-right: 10px;
-  }
-
-  #sitetitle {
-    font-weight: bold;
-    font-size: 18px;
   }
 
   main > section:first-child {
@@ -836,58 +750,12 @@
     margin-right: auto;
   }
 
-  footer p a {
-    color: inherit;
-    text-decoration: none;
-    border-bottom: 1px dotted;
-    transition: all 0.3s ease-in-out;
-  }
-
-  footer p a:hover,
-  footer p a:focus {
-    color: black;
-  }
-
-  .a-icon {
-    color: var(--c-d3);
-    font-size: 20px;
-    display: contents;
-  }
-
-  .a-icon > svg {
-    margin-block: auto;
-  }
-
   .about-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(310px, auto));
     margin-top: 80px;
+    margin-bottom: 80px;
     gap: 24px;
-  }
-
-  footer p {
-    margin: 0;
-  }
-
-  nav {
-    display: flex;
-    gap: 15px;
-  }
-
-  header nav {
-    margin-top: 3px;
-  }
-
-  a.external-link {
-    display: flex;
-    align-items: center;
-    color: var(--c-d3);
-    transition: color 0.25s;
-    text-decoration: none;
-  }
-
-  a.external-link:hover {
-    color: var(--c-brand);
   }
 
   p {
@@ -895,62 +763,33 @@
     color: #3c3c43bf;
   }
 
-  .external-link > svg {
-    display: inline-block;
-    margin-left: 3px;
-    width: 11px;
-    height: 11px;
-    fill: var(--c-d3);
-    transition: fill 0.25s;
-    flex-shrink: 0;
-  }
-
-  .a-icon::before {
-    margin-right: 8px;
-    margin-left: 8px;
-    width: 1px;
-    height: 24px;
-    background-color: #5858583a;
-    content: '';
-    pointer-events: none;
-  }
-
-  .box {
-    display: flex;
-    flex-direction: column;
-    padding: 32px;
-    background: var(--c-lightgrey);
-    border-radius: 12px;
-  }
+  /* .box styles moved to Card.svelte */
   .box-title {
     line-height: 30px;
     font-size: 20px;
     font-weight: bold;
     margin: 0;
   }
-  .box p {
-    margin-block: 16px;
-    font-size: 18px;
-    font-weight: 400;
+  :global(.card.long) {
+    grid-row: span 2;
   }
-  .box a {
+
+  :global(.card img) {
+    width: 102%;
+    height: auto;
+    margin-block: auto;
+  }
+
+  :global(.card a) {
     font-size: 18px;
     font-weight: 600;
     color: var(--c-brand);
     text-decoration: none;
     margin-top: auto;
   }
-  .box a:hover,
-  .box a:focus {
+  :global(.card a:hover),
+  :global(.card a:focus) {
     color: var(--c-brand-dark);
-  }
-  .box.long {
-    grid-row: span 2;
-  }
-  .box img {
-    width: 102%;
-    height: auto;
-    margin-block: auto;
   }
 
   @media only screen and (max-width: 1100px) {
@@ -969,8 +808,6 @@
     .intro-text {
       font-size: 1.3rem;
     }
-    header > div,
-    footer > div,
     .main-section {
       padding-inline: 24px;
     }
@@ -1001,23 +838,12 @@
     .intro-text {
       font-size: 1.1rem;
     }
-    footer {
-      font-size: 0.9rem;
-      margin-top: 40px;
-    }
-    header > div,
-    footer > div,
     .main-section {
       padding-inline: 22px;
     }
   }
 
   @media only screen and (max-width: 665px) {
-    footer {
-      font-size: 0.8rem;
-    }
-    header > div,
-    footer > div,
     .main-section {
       padding-inline: 20px;
     }
@@ -1027,8 +853,6 @@
     .about-grid {
       gap: 18px;
     }
-    header > div,
-    footer > div,
     .main-section {
       padding-inline: 18px;
     }
@@ -1044,19 +868,12 @@
     .intro-text {
       font-size: 1rem;
     }
-    header > div,
-    footer > div,
     .main-section {
       padding-inline: 15px;
-    }
-    nav {
-      gap: 8px;
     }
   }
 
   @media only screen and (max-width: 380px) {
-    header > div,
-    footer > div,
     .main-section {
       padding-inline: 12px;
     }

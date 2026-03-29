@@ -1,131 +1,74 @@
 <script lang="ts">
-  import { GeneralButtonMenu as MenuButton } from '$lib/shared/components'
-  import { modalStore } from '$lib/modals/shared/stores/modalStore'
-  import type { BarPlotGridType } from '$lib/workspace/type/gridType'
-  import type { SvelteComponent } from 'svelte'
-  import Download from 'lucide-svelte/icons/download'
-  import Settings from 'lucide-svelte/icons/settings-2'
-  import Users from 'lucide-svelte/icons/users'
-  import BarChartIcon from 'lucide-svelte/icons/bar-chart'
   import {
-    ModalContentAoiModification,
-    ModalContentParticipantsGroups,
-    ModalContentDownloadBarPlot,
-    ModalContentBarChartAxes,
-    ModalContentStimulusModification,
-    ModalContentExportAggregatedData,
-  } from '$lib/modals'
-  import type { ComponentProps } from 'svelte'
-  import type { WorkspaceCommand } from '$lib/shared/types/workspaceInstructions'
-  import { createCommandSourcePlotPattern } from '$lib/shared/types/workspaceInstructions'
+    PlotMenuButton,
+    createAoiCustomizationMenuAction,
+    createParticipantsGroupsMenuAction,
+    createPlotMenuErrorContext,
+    createPlotMenuDivider,
+    createPlotModalAction,
+    createStimulusCustomizationMenuAction,
+  } from '$lib/plots/shared'
+  import { getGazePlotterSession } from '$lib/session'
+  import type { BarPlotItem } from '$lib/plots/bar/types'
+  import Download from 'lucide-svelte/icons/download'
+  import {
+    downloadBarPlotModal,
+    exportAggregatedDataModal,
+  } from '$lib/modals/definitions'
+  import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
+  import { untrack } from 'svelte'
 
   interface Props {
-    settings: BarPlotGridType
-    onWorkspaceCommand: (command: WorkspaceCommand) => void
+    item: BarPlotItem
   }
 
-  let { settings, onWorkspaceCommand }: Props = $props()
+  let { item }: Props = $props()
+  const { errorService, modalState } = getGazePlotterSession()
+  const settings = $derived(item.settings)
+  const openModal = modalState.open.bind(modalState)
+  const errorContext = createPlotMenuErrorContext(errorService, () => item)
 
-  const source = createCommandSourcePlotPattern(settings, 'modal')
-
-  const openAoiModificationModal = () => {
-    modalStore.open(
-      ModalContentAoiModification as unknown as typeof SvelteComponent,
-      'AOI customization',
-      {
-        selectedStimulus: settings.stimulusId.toString(),
-        source,
-        onWorkspaceCommand,
-      }
-    )
-  }
-
-  const openStimulusModificationModal = () => {
-    modalStore.open(
-      ModalContentStimulusModification as unknown as typeof SvelteComponent,
-      'Stimulus customization',
-      {
-        source,
-        onWorkspaceCommand,
-      }
-    )
-  }
-
-  const openUserGroupsModal = () => {
-    modalStore.open(
-      ModalContentParticipantsGroups as unknown as typeof SvelteComponent,
-      'Participants groups',
-      {
-        source,
-        onWorkspaceCommand,
-      }
-    )
-  }
-
-  const openBarChartAxesModal = () => {
-    modalStore.open(
-      ModalContentBarChartAxes as unknown as typeof SvelteComponent,
-      'Bar Chart Axes',
-      {
-        settings,
-        onWorkspaceCommand,
-        source,
-      }
-    )
-  }
-
-  const downloadPlot = () => {
-    modalStore.open(
-      ModalContentDownloadBarPlot as unknown as typeof SvelteComponent,
-      'Download bar plot',
-      {
-        settings,
-      }
-    )
-  }
-
-  const exportAggregatedData = () => {
-    modalStore.open(
-      ModalContentExportAggregatedData as unknown as typeof SvelteComponent,
-      'Export aggregated data',
-      {
-        settings,
-      }
-    )
-  }
+  const source = createCommandSourcePlotPattern(untrack(() => item), 'modal')
 
   let items = $derived([
-    {
-      label: 'AOI customization',
-      action: openAoiModificationModal,
-      icon: Settings,
-    },
-    {
-      label: 'Stimulus customization',
-      action: openStimulusModificationModal,
-      icon: Settings,
-    },
-    {
-      label: 'Setup participants groups',
-      action: openUserGroupsModal,
-      icon: Users,
-    },
-    {
-      label: 'Bar Chart Axes',
-      action: openBarChartAxesModal,
-      icon: BarChartIcon,
-    },
-    {
-      label: 'Export aggregated data',
-      action: exportAggregatedData,
+    createAoiCustomizationMenuAction({
+      openModal,
+      source,
+      stimulusId: settings.stimulusId,
+      errorContext,
+    }),
+    createStimulusCustomizationMenuAction({
+      openModal,
+      source,
+      errorContext,
+    }),
+    createParticipantsGroupsMenuAction({
+      openModal,
+      source,
+      errorContext,
+    }),
+    createPlotMenuDivider(),
+    createPlotModalAction({
+      openModal,
+      definition: exportAggregatedDataModal,
+      props: {
+        item,
+      },
       icon: Download,
-    },
-    {
+      errorContext,
+    }),
+    createPlotModalAction({
+      openModal,
+      definition: downloadBarPlotModal,
+      props: {
+        item,
+      },
       label: 'Download plot',
-      action: downloadPlot,
       icon: Download,
-    },
-  ] as ComponentProps<typeof MenuButton>['items'])
+      errorContext,
+    }),
+  ])
 </script>
 
-<MenuButton {items} />
+<PlotMenuButton {items} />
+

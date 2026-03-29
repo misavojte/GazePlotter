@@ -1,19 +1,11 @@
 <script lang="ts">
   import PanelButtonUpload from '$lib/workspace/panel/components/PanelButtonUpload.svelte'
-  import PanelButtonDemo from '$lib/workspace/panel/components/PanelButtonDemo.svelte'
-  import PanelButtonExportWorkplace from '$lib/workspace/panel/components/PanelButtonExportWorkplace.svelte'
-
-  interface Props {
-    onReinitialize: () => void
-  }
-
-  const { onReinitialize }: Props = $props()
+  import PanelButtonExportWorkspace from '$lib/workspace/panel/components/PanelButtonExportWorkspace.svelte'
 </script>
 
 <div class="controls">
   <PanelButtonUpload />
-  <PanelButtonDemo {onReinitialize} />
-  <PanelButtonExportWorkplace />
+  <PanelButtonExportWorkspace />
 </div>
 
 <style>
@@ -27,5 +19,7 @@
     height: 100%;
     gap: 5px;
     margin-bottom: 25px;
+    padding-left: 40px;
+    box-sizing: border-box;
   }
 </style>

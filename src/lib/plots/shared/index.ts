@@ -9,11 +9,21 @@
 // Export shared components
 export * from './components'
 
-// Export shared classes
-export * from './class'
-
 // Export shared types
 export type * from './types'
 
 // Export shared utilities
-export * from './utils'
+export * from './selectOptionsGetters'
+export * from './plotSizeUtility'
+export * from './timelineUtils'
+export * from './axisUtils'
+export * from './canvasUtils'
+
+// Export legend rendering utilities
+export * from './legendRendering'
+export * from './legendGradient'
+
+// Export shared constants
+export * from './const'
+export * from './previewSync.svelte'
+export * from './plotMenuActions'

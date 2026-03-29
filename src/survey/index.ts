@@ -10,7 +10,9 @@ export { EyeTrackingExperience } from './types/index';
 export { surveyStore } from './stores/index';
 
 // Export components
-export { Survey, ConsentModal, SurveyModal } from './components/index';
+export { default as Survey } from './components/Survey.svelte';
+export { consentModal } from './components/ConsentModal.definition';
+export { surveyModal, type SurveyModalResult } from './components/SurveyModal.definition';
 
 // Export utilities
 export { createCondition } from './utils/index';

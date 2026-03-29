@@ -1,16 +1,18 @@
 <script lang="ts">
   import {
-    GeneralInputNumber,
-    GeneralSelect,
-    GeneralInputText,
-    GeneralButtonPreset,
+    InputNumber,
+    Select,
+    InputText,
+    ButtonPreset,
+    Card,
   } from '$lib/shared/components'
-  import { SectionHeader } from '$lib/modals'
+  import { Section } from '$lib/modals'
 
   // Define the props interface
   interface Props {
     typeOfExport: '.svg' | '.png' | '.jpg' | '.webp'
     width: number
+    height: number
     fileName: string
     dpi: number
     marginTop: number
@@ -23,6 +25,7 @@
   let {
     typeOfExport = $bindable(),
     width = $bindable(),
+    height = $bindable(),
     fileName = $bindable(),
     dpi = $bindable(),
     marginTop = $bindable(),
@@ -63,114 +66,126 @@
 </script>
 
 <div class="settings-section">
-  <SectionHeader text="Export Settings" />
-  <div class="settings-grid-main">
-    <div class="settings-item">
-      <GeneralInputNumber label="Width in px" bind:value={width} />
-    </div>
-    <div class="settings-item">
-      <GeneralSelect
-        label="Output file type"
-        {options}
-        bind:value={typeOfExport}
-      />
-    </div>
-    <div class="settings-item">
-      <GeneralInputText label="Output file name" bind:value={fileName} />
-    </div>
-
-    <!-- DPI Settings -->
-    <div class="settings-item">
-      <div class="dpi-container" class:disabled={!isDpiEnabled}>
-        <GeneralInputNumber
-          label="DPI (Resolution)"
-          bind:value={dpi}
-          min={72}
-          disabled={!isDpiEnabled}
+  <Section title="Export Settings">
+    <div class="settings-grid-main">
+      <div class="settings-item">
+        <InputNumber
+          label="Width [px]"
+          bind:value={width}
+          min={1}
+          appearance="selectMatched"
         />
       </div>
-    </div>
-  </div>
-
-  <!-- DPI Presets -->
-  {#if isDpiEnabled}
-    <div class="dpi-presets">
-      <span class="presets-label">DPI Presets:</span>
-      {#each dpiPresets as preset}
-        <GeneralButtonPreset
-          label={preset.label}
-          isActive={dpi === preset.value}
-          onclick={() => setDpi(preset.value)}
+      <div class="settings-item">
+        <InputNumber
+          label="Height [px]"
+          bind:value={height}
+          min={1}
+          appearance="selectMatched"
         />
-      {/each}
+      </div>
+      <div class="settings-item">
+        <Select label="Output file type" {options} bind:value={typeOfExport} />
+      </div>
+      <div class="settings-item">
+        <InputText
+          label="Output file name"
+          bind:value={fileName}
+          appearance="selectMatched"
+        />
+      </div>
+
+      <!-- DPI Settings -->
+      <div class="settings-item">
+        <div class="dpi-container" class:disabled={!isDpiEnabled}>
+          <InputNumber
+            label="Resolution [DPI]"
+            bind:value={dpi}
+            min={72}
+            disabled={!isDpiEnabled}
+            appearance="selectMatched"
+          />
+        </div>
+      </div>
+      <!-- DPI Presets -->
+      {#if isDpiEnabled}
+        <div class="dpi-presets">
+          <span class="presets-label">DPI Presets:</span>
+          {#each dpiPresets as preset}
+            <ButtonPreset
+              label={preset.label}
+              isActive={dpi === preset.value}
+              onclick={() => setDpi(preset.value)}
+            />
+          {/each}
+        </div>
+      {/if}
     </div>
-  {/if}
+  </Section>
 
   <!-- Margin Settings -->
-  <div class="margin-settings">
-    <SectionHeader text="Margins" />
-    <p class="margin-explanation">
-      Margins control the spacing around your plot. Use positive values to add padding, or negative values to crop the image and focus on specific areas. This is useful for removing unwanted whitespace or highlighting particular regions of your visualization.
-    </p>
-    <div class="settings-grid-margins">
-      <div class="settings-item">
-        <GeneralInputNumber min={-9999} label="Top" bind:value={marginTop} />
+  <Section title="Margins">
+      <Card padding="sm">
+        Use positive margins to add padding, or negative values to crop the image
+        and focus on specific areas.
+      </Card>
+      <div class="settings-grid-margins">
+        <div class="settings-item">
+          <InputNumber
+            min={-9999}
+            label="Top"
+            bind:value={marginTop}
+            appearance="selectMatched"
+          />
+        </div>
+        <div class="settings-item">
+          <InputNumber
+            min={-9999}
+            label="Right"
+            bind:value={marginRight}
+            appearance="selectMatched"
+          />
+        </div>
+        <div class="settings-item">
+          <InputNumber
+            min={-9999}
+            label="Bottom"
+            bind:value={marginBottom}
+            appearance="selectMatched"
+          />
+        </div>
+        <div class="settings-item">
+          <InputNumber
+            min={-9999}
+            label="Left"
+            bind:value={marginLeft}
+            appearance="selectMatched"
+          />
+        </div>
       </div>
-      <div class="settings-item">
-        <GeneralInputNumber
-          min={-9999}
-          label="Right"
-          bind:value={marginRight}
+      <div class="margin-presets">
+        <span class="presets-label">Margin Presets:</span>
+        <ButtonPreset
+          label="20px"
+          isActive={marginTop === 20 &&
+            marginRight === 20 &&
+            marginBottom === 20 &&
+            marginLeft === 20}
+          onclick={() => setAllMargins(20)}
+        />
+        <ButtonPreset
+          label="0px"
+          isActive={marginTop === 0 &&
+            marginRight === 0 &&
+            marginBottom === 0 &&
+            marginLeft === 0}
+          onclick={() => setAllMargins(0)}
         />
       </div>
-      <div class="settings-item">
-        <GeneralInputNumber
-          min={-9999}
-          label="Bottom"
-          bind:value={marginBottom}
-        />
-      </div>
-      <div class="settings-item">
-        <GeneralInputNumber min={-9999} label="Left" bind:value={marginLeft} />
-      </div>
-    </div>
-    <div class="margin-presets">
-      <span class="presets-label">Margin Presets:</span>
-      <GeneralButtonPreset
-        label="20px"
-        isActive={marginTop === 20 &&
-          marginRight === 20 &&
-          marginBottom === 20 &&
-          marginLeft === 20}
-        onclick={() => setAllMargins(20)}
-      />
-      <GeneralButtonPreset
-        label="0px"
-        isActive={marginTop === 0 &&
-          marginRight === 0 &&
-          marginBottom === 0 &&
-          marginLeft === 0}
-        onclick={() => setAllMargins(0)}
-      />
-    </div>
-  </div>
+    </Section>
 </div>
 
 <style>
-  .margin-settings {
-    margin-top: 1rem;
-  }
-
-  .margin-explanation {
-    font-size: 0.85rem;
-    color: var(--c-darkgrey);
-    line-height: 1.4;
-    margin: 0.5rem 0 1rem 0;
-    padding: 0.75rem;
-    background-color: #e6f3ff;
-    border-radius: 4px;
-    border-left: 3px solid var(--c-primary, #007acc);
-  }
 
   .settings-grid-main {
     display: flex;
@@ -182,6 +197,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 7px;
+    margin-top: 1rem;
   }
 
   .dpi-container {
