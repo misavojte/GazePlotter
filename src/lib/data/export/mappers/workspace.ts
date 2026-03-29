@@ -1,4 +1,4 @@
-import { type DataType } from '$lib/data/types'
+import { type DataType, type JsonImportOldFormat } from '$lib/data/types'
 import { binarySegmentsToJson } from '$lib/data/binary'
 import type { FileMetadataType } from '$lib/data/ingest'
 import { encodeJson, wrapProjectPayload } from '../encoders/json'
@@ -13,10 +13,10 @@ export function generateWorkspaceJson(
   fileMetadata: FileMetadataType | null
 ): string {
   // 1. Prepare domain data (convert binary to legacy JSON for compatibility if needed)
-  const exportData = {
+  const exportData: JsonImportOldFormat = {
     ...data,
     segments: binarySegmentsToJson(data.segments),
-  } as unknown as DataType
+  }
 
   // 2. Wrap into project schema
   const payload = wrapProjectPayload(
