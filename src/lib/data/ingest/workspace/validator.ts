@@ -34,7 +34,11 @@ export function processAndValidateData(
     data.aois.hiddenAois.push([])
   }
 
-  // 2. Validate and sort segments if they are in array format
+  // 2. Validate and sort segments
+  if (!data.segments) {
+    throw new Error('Invalid data structure: missing segments data')
+  }
+
   if (Array.isArray(data.segments)) {
     const rawSegments = data.segments as number[][][][]
 
@@ -71,6 +75,20 @@ export function processAndValidateData(
     }
 
     data.segments = jsonSegmentsToBinary(rawSegments)
+  } else {
+    // Basic structural validation for binary segments to ensure they aren't plain objects
+    const bins = data.segments as any
+    if (
+      !(bins.segmentBuffer instanceof Float32Array) ||
+      !(bins.indexTable instanceof Uint32Array) ||
+      !(bins.aoiPool instanceof Uint16Array) ||
+      typeof bins.maxParticipants !== 'number' ||
+      typeof bins.stimuliCount !== 'number'
+    ) {
+      throw new Error(
+        'Invalid data structure: segments are not in valid array or binary buffer format'
+      )
+    }
   }
 
   return data as DataType
