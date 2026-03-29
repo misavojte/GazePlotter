@@ -15,14 +15,14 @@
   <div class="footer-content">
     <p>GazePlotter, version {version} ({formattedDate})</p>
     <p>
-      Coded & designed by <a href="https://vojtechovska.com" target="_blank"
+      Authors: <a href="https://vojtechovska.com" target="_blank"
         >Michaela Vojtěchovská</a
-      >, idea by Stanislav Popelka
+      > & Stanislav Popelka
     </p>
     <p>
-      <a href="https://geoinformatics.upol.cz" target="_blank" rel="nofollow"
-        >Department of Geoinformatics</a
-      >, Palacký University Olomouc
+      DOI: <a href="https://doi.org/10.3758/s13428-026-02959-5" target="_blank"
+        >10.3758/s13428-026-02959-5</a
+      >
     </p>
     <img
       class="up-logo"
