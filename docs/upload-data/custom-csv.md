@@ -74,7 +74,7 @@ This specialized schema ingests discrete segments while simultaneously executing
 
 #### Structure Requirements
 
-- **Row 1 Headers**: Must contain exactly `timestamp`, `duration`, `eyemovementtype`, `participant`, `stimulus`, and `AOI`.
+- **Row 1 Headers**: Must contain exactly `stimulus`, `participant`, `timestamp`, `duration`, `eyemovementtype`, and `AOI`.
 - **Timestamp Value**: Absolute integer start marker.
 - **Duration Value**: Absolute integer length calculation.
 - **EyeMovementType Value**: Deep binary classifier (`0` = Fixation, `1` = Saccade).
