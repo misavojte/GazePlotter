@@ -5,6 +5,7 @@ import {
   type CsvFormatOptions,
   resolveCsvFormatOptions,
   generateCsvString,
+  formatNumberForCsv,
 } from '../encoders/csv'
 
 const SEGMENT_HEADER = [
@@ -114,8 +115,8 @@ export function generateUnifiedCsv(
     return [
       item.stimulus,
       item.participant,
-      Number(item.timestamp).toFixed(decimalSeparator === ',' ? 1 : 0),
-      Number(item.duration).toFixed(decimalSeparator === ',' ? 1 : 0),
+      formatNumberForCsv(item.timestamp, decimalSeparator),
+      formatNumberForCsv(item.duration, decimalSeparator),
       item.eyemovementtype,
       aoiNames,
     ]
@@ -155,8 +156,8 @@ export function generateMetadataForBatchCsv(
       const rows = combinedData.map(item => {
         const aoiNames = item.AOI ? item.AOI.join(';') : ''
         return [
-          Number(item.timestamp).toFixed(decimalSeparator === ',' ? 1 : 0),
-          Number(item.duration).toFixed(decimalSeparator === ',' ? 1 : 0),
+          formatNumberForCsv(item.timestamp, decimalSeparator),
+          formatNumberForCsv(item.duration, decimalSeparator),
           item.eyemovementtype,
           aoiNames,
         ]
