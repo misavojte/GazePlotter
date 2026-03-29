@@ -56,7 +56,7 @@ export class EyeClassifier {
   /**
    * Detects the row delimiter used in the file content.
    * @param slice - A portion of the file content to analyze
-   * @returns The detected row delimiter ('$libr$libn', '$libn', or '$libr')
+   * @returns The detected row delimiter ('\r\n', '\n', or '\r')
    */
   private detectRowDelimiter(slice: string): string {
     // Check for Windows line endings first (most common)

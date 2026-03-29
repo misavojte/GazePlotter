@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+title: GazePlotter
+abstract: >-
+  Open-source, browser-based application for automatic generation
+  of interactive scarf plots from eye-tracking data.
+authors:
+  - family-names: Vojtechovska
+    given-names: Michaela
+    orcid: 'https://orcid.org/0009-0003-6881-1758'
+  - family-names: Popelka
+    given-names: Stanislav
+type: software
+license: GPL-3.0
+repository-code: 'https://github.com/misavojte/GazePlotter'
+url: 'https://gazeplotter.com'
+preferred-citation:
+  type: article
+  title: >-
+    GazePlotter: An open-source solution for the automatic generation
+    of scarf plots from eye-tracking data
+  authors:
+    - family-names: Vojtechovska
+      given-names: Michaela
+      orcid: 'https://orcid.org/0009-0003-6881-1758'
+    - family-names: Popelka
+      given-names: Stanislav
+  journal: Behavior Research Methods
+  year: 2026
+  volume: 58
+  article-number: '85'
+  doi: 10.3758/s13428-026-02959-5
