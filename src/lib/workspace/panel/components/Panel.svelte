@@ -1,18 +1,10 @@
 <script lang="ts">
   import PanelButtonUpload from '$lib/workspace/panel/components/PanelButtonUpload.svelte'
-  import PanelButtonDemo from '$lib/workspace/panel/components/PanelButtonDemo.svelte'
   import PanelButtonExportWorkspace from '$lib/workspace/panel/components/PanelButtonExportWorkspace.svelte'
-
-  interface Props {
-    onReinitialize: () => void
-  }
-
-  const { onReinitialize }: Props = $props()
 </script>
 
 <div class="controls">
   <PanelButtonUpload />
-  <PanelButtonDemo {onReinitialize} />
   <PanelButtonExportWorkspace />
 </div>
 

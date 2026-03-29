@@ -581,7 +581,6 @@
       bind:this={gazePlotterRef}
       {loadInitialData}
       onWorkspaceCommandChain={handleWorkspaceCommand}
-      reinitializeLabel="Reload ETVIS data"
     />
   </section>
   <section class="main-section" id="about">

@@ -1,4 +1,4 @@
-import type { GridItemSnapshot } from '../type'
+import type { GridItemSnapshot } from './types'
 import type { GridConfig } from './types'
 
 /**

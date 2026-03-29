@@ -1,7 +1,9 @@
 import { error } from '@sveltejs/kit'
 import { getDoc } from '../docs'
 
-export async function load({ params }) {
+import type { PageLoad } from './$types'
+
+export const load: PageLoad = async ({ params }) => {
   const doc = await getDoc(params.slug)
 
   if (!doc) {
