@@ -26,8 +26,8 @@
     try {
       await waitForExportUi()
       await exportService.exportScangraph({
-        fileName,
-        stimulusId: parseInt(stimulusId),
+        fileName: fileName.trim(),
+        stimulusId: parseInt(stimulusId, 10),
       })
     } finally {
       isExporting = false
