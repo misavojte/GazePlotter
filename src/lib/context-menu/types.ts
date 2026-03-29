@@ -1,3 +1,6 @@
+import type { Component } from 'svelte'
+import type { LucideIconComponent } from '$lib/shared/types'
+
 export type SlideFrom = 'top' | 'left'
 export type Position = 'top' | 'bottom' | 'left' | 'right'
 export type Alignment = 'start' | 'center' | 'end'
@@ -11,9 +14,6 @@ export interface Dimensions {
   width: number
   height: number
 }
-
-import type { Component } from 'svelte'
-import type { LucideIconComponent } from '$lib/shared/types'
 
 interface MenuDisplayItem {
   label?: string
