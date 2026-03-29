@@ -120,17 +120,28 @@ export function isTransformSession(
   return session.kind === 'moving' || session.kind === 'resizing'
 }
 
+/**
+ * Converts pointer displacement to grid-cell displacement.
+ *
+ * @param zoom - Current workspace zoom factor (CSS `transform: scale(zoom)`).
+ *   Because the grid is rendered inside a scaled container, 1 px of pointer
+ *   movement corresponds to `1 / zoom` px in grid-space. Dividing the raw
+ *   delta by `zoom` corrects this mismatch.
+ */
 function getGridDelta(
   pointerStart: InteractionPoint,
   pointerCurrent: InteractionPoint,
   scrollStart: ScrollOffset,
   scrollCurrent: ScrollOffset,
-  config: GridConfig
+  config: GridConfig,
+  zoom: number = 1
 ) {
   const deltaX =
-    pointerCurrent.x - pointerStart.x + (scrollCurrent.x - scrollStart.x)
+    (pointerCurrent.x - pointerStart.x + (scrollCurrent.x - scrollStart.x)) /
+    zoom
   const deltaY =
-    pointerCurrent.y - pointerStart.y + (scrollCurrent.y - scrollStart.y)
+    (pointerCurrent.y - pointerStart.y + (scrollCurrent.y - scrollStart.y)) /
+    zoom
 
   return {
     x: Math.round(deltaX / (config.cellSize.width + config.gap)),
@@ -142,14 +153,16 @@ export function updateMoveSession(
   session: MoveSession,
   point: InteractionPoint,
   scroll: ScrollOffset,
-  config: GridConfig
+  config: GridConfig,
+  zoom: number = 1
 ): MoveSession {
   const delta = getGridDelta(
     session.pointerStart,
     point,
     session.scrollStart,
     scroll,
-    config
+    config,
+    zoom
   )
 
   return {
@@ -167,14 +180,16 @@ export function updateResizeSession(
   session: ResizeSession,
   point: InteractionPoint,
   scroll: ScrollOffset,
-  config: GridConfig
+  config: GridConfig,
+  zoom: number = 1
 ): ResizeSession {
   const delta = getGridDelta(
     session.pointerStart,
     point,
     session.scrollStart,
     scroll,
-    config
+    config,
+    zoom
   )
 
   return {

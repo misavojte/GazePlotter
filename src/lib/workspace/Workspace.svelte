@@ -14,6 +14,7 @@
   } from './grid'
   import { GridInteractionController } from './grid/interaction'
   import { plotRegistry } from '$lib/plots/registry'
+  import { clampZoom, ZOOM_WHEEL_SENSITIVITY } from './zoom'
   import type { WorkspaceCommandChain } from './commands'
   import type { GridItemSnapshot } from './'
 
@@ -37,6 +38,7 @@
   })
 
   let workspaceContainer: HTMLElement | null = $state(null)
+  let zoom = $state(1)
   const interaction = new GridInteractionController()
   const positionsWithPreview = $derived.by(() =>
     interaction.getPositionsWithPreview(grid.positions)
@@ -76,6 +78,10 @@
   })
 
   $effect(() => {
+    interaction.setZoom(zoom)
+  })
+
+  $effect(() => {
     interaction.setViewportElement(workspaceContainer)
 
     return () => {
@@ -100,6 +106,60 @@
     interaction.destroy()
   })
 
+  // ---------------------------------------------------
+  // Ctrl+Wheel / Trackpad-pinch zoom
+  // ---------------------------------------------------
+
+  /**
+   * Zoom toward / away from the pointer while keeping the point
+   * under the cursor visually stationary (scroll-compensation).
+   *
+   * Browsers fire `ctrlKey = true` for both Ctrl+wheel and
+   * trackpad pinch gestures, so this single handler covers
+   * Windows, Mac, and touchpads.
+   */
+  function handleWheelZoom(event: WheelEvent): void {
+    if (!(event.ctrlKey || event.metaKey)) return
+    event.preventDefault()
+
+    const container = workspaceContainer
+    if (!container) return
+
+    const oldZoom = zoom
+    const newZoom = clampZoom(oldZoom - event.deltaY * ZOOM_WHEEL_SENSITIVITY)
+    if (newZoom === oldZoom) return
+
+    // Pointer position relative to the container's padding box.
+    const rect = container.getBoundingClientRect()
+    const pointerX = event.clientX - rect.left
+    const pointerY = event.clientY - rect.top
+
+    // The grid-space coordinate under the cursor before zoom.
+    const gridX = (container.scrollLeft + pointerX) / oldZoom
+    const gridY = (container.scrollTop + pointerY) / oldZoom
+
+    zoom = newZoom
+
+    // After Svelte flushes the DOM with the new zoom, adjust
+    // scroll so the same grid-space point stays under the cursor.
+    requestAnimationFrame(() => {
+      container.scrollLeft = gridX * newZoom - pointerX
+      container.scrollTop = gridY * newZoom - pointerY
+    })
+  }
+
+  $effect(() => {
+    const container = workspaceContainer
+    if (!container) return
+
+    // Must be { passive: false } to allow preventDefault on wheel.
+    container.addEventListener('wheel', handleWheelZoom, { passive: false })
+
+    return () => {
+      container.removeEventListener('wheel', handleWheelZoom)
+    }
+  })
+
   const styleProps = `--min-workspace-height: ${MIN_WORKSPACE_HEIGHT}px; --grid-container-min-height: ${MIN_WORKSPACE_HEIGHT - 100}px;`
 </script>
 
@@ -107,11 +167,10 @@
   <Ribbon />
 
   <div class="workspace-body">
-    <Rail {initialLayoutState} {visualizations} />
+    <Rail {initialLayoutState} {visualizations} bind:zoom />
 
     <div
       class="workspace-container"
-      style="height: {gridHeight}px;"
       bind:this={workspaceContainer}
       role="none"
     >
@@ -120,15 +179,25 @@
       {:else if ingest.isLoading || grid.isLoading}
         <IndicatorLoading />
       {:else}
-        <Grid
-          gridItems={grid.items}
-          {gridConfig}
-          {interaction}
-          {gridHeight}
-          {gridWidth}
-          gridIsEmpty={grid.isEmpty}
-          {workspaceContainer}
-        />
+        <div
+          class="zoom-viewport"
+          style="width: {gridWidth * zoom}px; height: {gridHeight * zoom}px;"
+        >
+          <div
+            class="zoom-surface"
+            style="transform: scale({zoom}); width: {gridWidth}px; height: {gridHeight}px;"
+          >
+            <Grid
+              gridItems={grid.items}
+              {gridConfig}
+              {interaction}
+              {gridHeight}
+              {gridWidth}
+              gridIsEmpty={grid.isEmpty}
+              {workspaceContainer}
+            />
+          </div>
+        </div>
       {/if}
     </div>
   </div>
@@ -157,16 +226,25 @@
     flex: 1 1 auto;
     min-width: 0;
     z-index: 1;
-    transition: height 0.3s ease-out;
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: auto;
     min-height: var(--min-workspace-height);
     padding: 35px;
-    will-change: height;
     cursor: grab;
     background-color: var(--c-darkwhite);
     border-radius: 0 0 0 0; /* 20px 0 0 0 is an alternative*/
     border-left: 1px solid #cbd5e1;
     border-top: 1px solid #cbd5e1;
+  }
+
+  .zoom-viewport {
+    position: relative;
+  }
+
+  .zoom-surface {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: top left;
   }
 </style>
