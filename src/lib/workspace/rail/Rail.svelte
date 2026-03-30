@@ -38,13 +38,6 @@
   const undoLabel: string | null = $derived(workspace.lastUndoLabel)
   const redoLabel: string | null = $derived(workspace.lastRedoLabel)
 
-  function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'z' && event.ctrlKey) {
-      handleUndo()
-    } else if (event.key === 'y' && event.ctrlKey) {
-      handleRedo()
-    }
-  }
 
   const handleUndo = () => {
     workspace.undo()
@@ -92,10 +85,8 @@
     window.addEventListener('scroll', detectOnScrollBannerHeight, {
       passive: true,
     })
-    document.addEventListener('keydown', handleKeydown, { passive: true })
     return () => {
       window.removeEventListener('scroll', detectOnScrollBannerHeight)
-      document.removeEventListener('keydown', handleKeydown)
     }
   })
 </script>

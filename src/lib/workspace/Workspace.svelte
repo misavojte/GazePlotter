@@ -14,7 +14,7 @@
   } from './grid'
   import { GridInteractionController } from './grid/interaction'
   import { plotRegistry } from '$lib/plots/registry'
-  import { clampZoom, ZOOM_WHEEL_SENSITIVITY } from './zoom'
+  import { clampZoom, ZOOM_WHEEL_SENSITIVITY, ZOOM_STEP } from './zoom'
   import type { WorkspaceCommandChain } from './commands'
   import type { GridItemSnapshot } from './'
 
@@ -107,6 +107,51 @@
   })
 
   // ---------------------------------------------------
+  // Keyboard Shortcuts (Global)
+  // ---------------------------------------------------
+
+  function handleGlobalKeydown(event: KeyboardEvent): void {
+    const isCtrlOrMeta = event.ctrlKey || event.metaKey
+    if (!isCtrlOrMeta) return
+
+    // Undo: Ctrl+Z
+    if (event.code === 'KeyZ' && !event.shiftKey) {
+      event.preventDefault()
+      workspace.undo()
+    }
+    // Redo: Ctrl+Y or Ctrl+Shift+Z
+    else if (
+      (event.code === 'KeyY' && !event.shiftKey) ||
+      (event.code === 'KeyZ' && event.shiftKey)
+    ) {
+      event.preventDefault()
+      workspace.redo()
+    }
+    // Zoom In: Ctrl + Plus / Equal
+    else if (event.key === '+' || event.key === '=') {
+      event.preventDefault()
+      zoom = clampZoom(zoom + ZOOM_STEP)
+    }
+    // Zoom Out: Ctrl + Minus
+    else if (event.key === '-') {
+      event.preventDefault()
+      zoom = clampZoom(zoom - ZOOM_STEP)
+    }
+    // Reset Zoom: Ctrl + 0
+    else if (event.key === '0') {
+      event.preventDefault()
+      zoom = 1
+    }
+  }
+
+  $effect(() => {
+    document.addEventListener('keydown', handleGlobalKeydown)
+    return () => {
+      document.removeEventListener('keydown', handleGlobalKeydown)
+    }
+  })
+
+  // ---------------------------------------------------
   // Ctrl+Wheel / Trackpad-pinch zoom
   // ---------------------------------------------------
 
@@ -148,22 +193,24 @@
     })
   }
 
+  let workspaceWrapper: HTMLElement | null = $state(null)
+
   $effect(() => {
-    const container = workspaceContainer
-    if (!container) return
+    const wrapper = workspaceWrapper
+    if (!wrapper) return
 
     // Must be { passive: false } to allow preventDefault on wheel.
-    container.addEventListener('wheel', handleWheelZoom, { passive: false })
+    wrapper.addEventListener('wheel', handleWheelZoom, { passive: false })
 
     return () => {
-      container.removeEventListener('wheel', handleWheelZoom)
+      wrapper.removeEventListener('wheel', handleWheelZoom)
     }
   })
 
   const styleProps = `--min-workspace-height: ${MIN_WORKSPACE_HEIGHT}px; --grid-container-min-height: ${MIN_WORKSPACE_HEIGHT - 100}px;`
 </script>
 
-<div class="workspace-wrapper" style={styleProps}>
+<div class="workspace-wrapper" style={styleProps} bind:this={workspaceWrapper}>
   <Ribbon />
 
   <div class="workspace-body">
