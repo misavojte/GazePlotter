@@ -1,100 +1,60 @@
-import {
-  getDefaultDocTitle,
-  normalizeDocSlug,
-  type DocModule,
-  type LoadedDoc,
-  type LoadedDocMetadata,
-} from './navigation'
+import type { Component } from 'svelte'
+import { SIDEBAR } from './sidebarConfig'
 
-export async function getDocs(): Promise<LoadedDoc[]> {
-  const modules = import.meta.glob<DocModule>('/docs/**/*.md')
-  const rawModules = import.meta.glob<string>('/docs/**/*.md', {
-    query: '?raw',
-    import: 'default',
-  })
-  const docs: LoadedDoc[] = []
-
-  for (const [path, resolver] of Object.entries(modules)) {
-    const slug = normalizeDocSlug(path.replace('/docs/', '').replace('.md', ''))
-    const content = await resolver()
-    const metadata = { ...content.metadata }
-
-    // If no title in frontmatter, try to find it in the content (H1)
-    if (!metadata.title) {
-      metadata.title = getDefaultDocTitle(slug)
-    }
-
-    // SEO Title
-    metadata.seoTitle = `${metadata.title} | GazePlotter Docs`
-
-    // Description fallback from the first paragraph
-    if (!metadata.description) {
-      const rawResolver = rawModules[path] as () => Promise<string>
-      const rawContent = (await rawResolver()) || ''
-
-      // Remove frontmatter
-      const contentWithoutFrontmatter = rawContent.replace(
-        /^---[\s\S]*?---\n?/,
-        ''
-      )
-
-      // Find first paragraph (non-empty line that doesn't start with #, !, or :::)
-      const lines = contentWithoutFrontmatter.split('\n')
-      let firstParagraph = ''
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (
-          trimmed &&
-          !trimmed.startsWith('#') &&
-          !trimmed.startsWith('!') &&
-          !trimmed.startsWith(':')
-        ) {
-          firstParagraph = trimmed
-          break
-        }
-      }
-
-      // Clean markdown from description and limit length
-      metadata.description = firstParagraph
-        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Strip links [text](url) -> text
-        .replace(/[*_`]/g, '') // Strip basic formatting *, _, `
-        .trim()
-        .slice(0, 160)
-    }
-
-    const loadedMetadata: LoadedDocMetadata = {
-      title: metadata.title,
-      description: metadata.description,
-      order: metadata.order,
-      seoTitle: metadata.seoTitle,
-    }
-
-    docs.push({
-      path,
-      slug,
-      metadata: loadedMetadata,
-      component: content.default,
-    })
-  }
-
-  return docs
+export interface LoadedDocMetadata {
+  title: string
+  seoTitle: string
+  description?: string
 }
+
+export interface LoadedDoc {
+  component: Component<Record<string, unknown>>
+  metadata: LoadedDocMetadata
+}
+
+// Map that matches raw routes to our dynamically imported svelte components
+type DocModule = { default: Component<Record<string, unknown>> }
+const modules = import.meta.glob<DocModule>('/docs/**/*.md')
 
 export async function getDoc(
   slug: string
-): Promise<Pick<LoadedDoc, 'component' | 'metadata'> | null> {
-  const docs = await getDocs()
-
-  // Normalize lookup slug to remove trailing slash for consistent matching
-  // (Since getDocs generates slugs without trailing slashes)
+): Promise<LoadedDoc | null> {
   const normalizedSlug = slug.endsWith('/') ? slug.slice(0, -1) : slug
+  
+  // Find metadata from SIDEBAR config
+  let metadata: LoadedDocMetadata = {
+    title: 'Unknown',
+    seoTitle: 'Unknown | GazePlotter Docs'
+  }
+  
+  const hrefToMatch = `/docs${normalizedSlug ? `/${normalizedSlug}` : ''}`
+  for (const section of SIDEBAR) {
+    const link = section.links.find(l => l.href === hrefToMatch)
+    if (link) {
+      metadata = {
+        title: link.name,
+        seoTitle: `${link.name} | GazePlotter Docs`
+      }
+      break
+    }
+  }
 
-  const doc = docs.find(d => d.slug === normalizedSlug)
+  // Find the file path from the glob keys
+  let path = `/docs/${normalizedSlug}.md`
+  if (normalizedSlug === '') path = '/docs/index.md'
+  
+  // Just in case it's a folder with an index
+  if (!modules[path]) {
+    path = `/docs/${normalizedSlug}/index.md`
+  }
 
-  if (!doc) return null
+  const resolver = modules[path]
+  if (!resolver) return null
+
+  const content = await resolver()
 
   return {
-    component: doc.component,
-    metadata: doc.metadata,
+    component: content.default,
+    metadata
   }
 }

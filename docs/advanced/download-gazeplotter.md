@@ -1,9 +1,3 @@
----
-title: Download GazePlotter
-order: 3
-outline: deep
----
-
 # How to download GazePlotter?
 
 While GazePlotter works out-of-the-box directly in your browser at [gazeplotter.com](https://gazeplotter.com) without any download required, you can also install it as a progressive web application (PWA) for offline use and a more app-like experience. The PWA download is available for most major desktop and mobile browsers.

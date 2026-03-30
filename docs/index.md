@@ -1,8 +1,3 @@
----
-title: Introduction
-order: 1
----
-
 # Welcome to GazePlotter Guide & Docs
 
 GazePlotter is a free web application for eye-tracking data analysis and visualization. Built with a commitment to open science, GazePlotter transforms complex gaze data into intuitive, interactive visualizations without requiring registration, subscriptions, or server uploads.

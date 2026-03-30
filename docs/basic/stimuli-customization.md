@@ -1,8 +1,3 @@
----
-title: Stimuli customization
-order: 9
----
-
 # Stimuli Customization
 
 Stimuli Customization in GazePlotter provides a robust mechanism to rename stimuli and reorder their sequence within all eye-tracking plots. The tool supports granular item-by-item editing as well as powerful, regex-driven pattern renaming for massive batch operations.

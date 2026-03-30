@@ -1,8 +1,3 @@
----
-title: OGAMA upload
-order: 4
----
-
 # OGAMA upload
 
 GazePlotter supports the upload of data from the [OGAMA](https://ogama.net) eye-tracking software.

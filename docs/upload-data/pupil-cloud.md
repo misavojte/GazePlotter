@@ -1,8 +1,3 @@
----
-title: Pupil Cloud upload
-order: 7
----
-
 # Pupil Cloud Data Upload
 
 GazePlotter supports importing eye-tracking data from **Pupil Cloud** exports. This format allows you to import multiple experimental conditions (surfaces) as separate stimuli in a single upload.

@@ -1,8 +1,3 @@
----
-title: Bar Plot
-order: 5
----
-
 # Bar Plot
 
 Bar Plot in GazePlotter provides quantitative analysis of eye-tracking data through bar charts. It aggregates gaze metrics across Areas of Interest (AOIs) for statistical comparison and analysis.

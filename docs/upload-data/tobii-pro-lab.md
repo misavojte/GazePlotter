@@ -1,9 +1,3 @@
----
-title: Tobii Pro Lab upload
-order: 2
-outline: deep
----
-
 # Tobii Pro Lab Synchronization
 
 To integrate gaze arrays natively exported from Tobii Pro Lab architecture directly into GazePlotter, the raw data structures must be serialized into the `.tsv` file extension protocol.

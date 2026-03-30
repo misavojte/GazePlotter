@@ -1,8 +1,3 @@
----
-title: Workspace export
-order: 2
----
-
 # Workspace Export
 
 Workspace Export serialization allows you to download your entire active GazePlotter session as a lightweight JSON file. This format preserves all visualization layouts, granular plot settings, and semantic global customizations exactly as they appear in your browser.

@@ -1,8 +1,3 @@
----
-title: GazePoint upload
-order: 5
----
-
 # GazePoint Analysis export and upload
 
 GazePlotter supports the upload of data from the GazePoint Analysis eye-tracking software.

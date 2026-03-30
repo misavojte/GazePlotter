@@ -1,8 +1,3 @@
----
-title: AOI customization
-order: 8
----
-
 # AOI Customization
 
 AOI Customization in GazePlotter acts as a centralized tool to modify the visual aesthetics, names, and processing order of Areas of Interest (AOIs). Use this module to construct AOI groups, map custom color palettes, and seamlessly propagate naming conventions across multiple target stimuli.

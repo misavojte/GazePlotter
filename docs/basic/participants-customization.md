@@ -1,8 +1,3 @@
----
-title: Participants customization
-order: 10
----
-
 # Participants Customization
 
 Participants Customization in GazePlotter offers a comprehensive interface to semantically rename participants and dictate their global rendering order across all relevant eye-tracking plots. The tool provides granular row-level editing combined with a powerful, deterministic regex-based batch processing engine.
