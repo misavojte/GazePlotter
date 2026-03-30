@@ -14,7 +14,7 @@ const getAoiOrderVectorFromData = (
     throw new Error(`AOI data for stimulus ${stimulusId} not found`)
 
   const order = metadata.aois.orderVector?.[stimulusId]
-  if (order == null) {
+  if (order == null || order.length === 0) {
     return Array.from({ length: stimulusAois.length }, (_, i) => i)
   }
   return order

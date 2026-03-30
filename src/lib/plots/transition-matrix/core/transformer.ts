@@ -120,7 +120,7 @@ function getVisibleAois(
 
   const order = meta.aois.orderVector?.[stimulusId]
   const ids =
-    order == null
+    order == null || order.length === 0
       ? Array.from({ length: stimulusAois.length }, (_, i) => i)
       : order
 
