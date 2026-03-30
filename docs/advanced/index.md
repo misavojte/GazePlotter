@@ -1,8 +1,3 @@
----
-title: Advanced features
-order: 1
----
-
 # Advanced GazePlotter possibilities
 
 With GazePlotter, you can go beyond the scope of the common user. It's possible to download the source code and build your own version of the app, with own features and modifications.

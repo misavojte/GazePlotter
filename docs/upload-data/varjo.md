@@ -1,8 +1,3 @@
----
-title: Varjo upload
-order: 6
----
-
 # Varjo XR export and upload
 
 GazePlotter supports the upload of data from the Varjo XR eye-tracking software.

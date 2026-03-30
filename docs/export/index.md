@@ -1,8 +1,3 @@
----
-title: Export options
-order: 1
----
-
 # Export
 
 GazePlotter provides four export options for different eye-tracking analysis use cases. Access export functionality through the **Export workspace or data** button in the workspace toolbar.

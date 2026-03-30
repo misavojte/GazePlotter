@@ -1,8 +1,3 @@
----
-title: Source Metadata
-order: 2
----
-
 # Eye-Tracking Source Metadata
 
 The persistent Source Metadata dashboard inside GazePlotter grants analysts complete operational visibility over ingested eye-tracking datasets. It exposes deep technical processing logs, architectural file sizing, and real-time computation memory utilization.

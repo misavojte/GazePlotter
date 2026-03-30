@@ -1,8 +1,3 @@
----
-title: Basic guide
-order: 1
----
-
 # GazePlotter Basic Guide
 
 GazePlotter is a free web application for analyzing eye-tracking data. Simply visit [gazeplotter.com](https://gazeplotter.com) to start analyzing your data immediately. No registration or installation required.

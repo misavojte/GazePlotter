@@ -1,8 +1,3 @@
----
-title: Aggregated data export
-order: 4
----
-
 # Aggregated Data Export
 
 The Aggregated Data Export pipeline condenses raw eye-tracking vectors into a highly structural, mathematically rigorous long-format CSV. This output is explicitly designed for seamless ingestion into advanced statistical processing engines (R, Python, SPSS).

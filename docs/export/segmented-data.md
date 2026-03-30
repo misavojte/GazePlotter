@@ -1,8 +1,3 @@
----
-title: Segmented data export
-order: 3
----
-
 # Segmented Data Export
 
 The Segmented Data Export pipeline serializes raw eye-tracking vectors into structured CSV files meticulously formatted for advanced manipulation in spreadsheet software (Excel, Google Sheets) or command-line scripting architectures (Python, R).

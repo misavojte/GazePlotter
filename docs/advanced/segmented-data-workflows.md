@@ -1,9 +1,3 @@
----
-title: Segmented Data workflows
-order: 4
-outline: deep
----
-
 # Segmented Data Workflows (Export → Edit → Re-upload)
 
 The Segmented Duration CSV format natively supports bi-directional round-trip pipelines: you can export raw segmented vectors, mechanically edit them inside a spreadsheet or programmatic text editor, and seamlessly re-ingest them back into GazePlotter.

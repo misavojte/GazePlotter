@@ -1,9 +1,3 @@
----
-title: SMI BeGaze upload
-order: 3
-outline: deep
----
-
 # SMI BeGaze upload
 
 GazePlotter supports the upload of data from the SMI BeGaze eye-tracking software, which is currently unfortunately no longer supported. Some researchers still use this software, and we want to support them in visualizing their data.

@@ -1,9 +1,3 @@
----
-title: Workspace
-order: 2
-outline: 'deep'
----
-
 # Workspace
 
 The workspace is your main analysis area in GazePlotter. Think of it as your primary dashboard where you can simultaneously view multiple visualizations, juxtapose different data sets, and create custom layouts that precisely fit your analytical workflow.

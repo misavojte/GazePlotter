@@ -1,8 +1,3 @@
----
-title: Custom CSV
-order: 8
----
-
 # Uploading Custom CSV Architectures
 
 GazePlotter natively supports three highly formalized CSV ingestion formats. These structures allow users to manually import custom eye-tracking vectors directly from non-standard hardware or heavily modified post-processing pipelines.

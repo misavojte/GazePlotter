@@ -27,12 +27,18 @@ export class GridInteractionController {
   #session = $state<GridInteractionSession>(createIdleSession())
   #viewport = new GridViewportController()
   #config = $state<GridConfig | null>(null)
-  #workspaceGrowthHint = $state<{ width: number | null; height: number | null }>(
-    { width: null, height: null }
-  )
+  #zoom = $state(1)
+  #workspaceGrowthHint = $state<{ width: number | null; height: number | null }>({
+    width: null,
+    height: null,
+  })
 
   setGridConfig(config: GridConfig): void {
     this.#config = config
+  }
+
+  setZoom(zoom: number): void {
+    this.#zoom = zoom
   }
 
   setViewportElement(element: HTMLElement | null): void {
@@ -92,7 +98,8 @@ export class GridInteractionController {
       this.#session,
       point,
       this.#viewport.getScrollOffset(),
-      this.#config
+      this.#config,
+      this.#zoom
     )
     this.#viewport.updateAutoScroll(point, () => this.#refreshTransformSession())
     this.#syncWorkspaceGrowthHint(point)
@@ -127,7 +134,8 @@ export class GridInteractionController {
       this.#session,
       point,
       this.#viewport.getScrollOffset(),
-      this.#config
+      this.#config,
+      this.#zoom
     )
     this.#viewport.updateAutoScroll(point, () => this.#refreshTransformSession())
     this.#syncWorkspaceGrowthHint(point)
@@ -150,7 +158,12 @@ export class GridInteractionController {
     if (this.#session.kind !== 'panning') return
 
     const prevPoint = this.#session.pointerCurrent
-    this.#viewport.panBy(point.x - prevPoint.x, point.y - prevPoint.y)
+    // Divide by zoom so 1 px of pointer movement produces 1 px of scroll
+    // in the *unscaled* coordinate space (consistent pan speed at any zoom).
+    this.#viewport.panBy(
+      (point.x - prevPoint.x) / this.#zoom,
+      (point.y - prevPoint.y) / this.#zoom
+    )
     this.#session = updatePanSession(this.#session, point)
   }
 
@@ -185,7 +198,8 @@ export class GridInteractionController {
         this.#session,
         this.#session.pointerCurrent,
         this.#viewport.getScrollOffset(),
-        this.#config
+        this.#config,
+        this.#zoom
       )
       this.#syncWorkspaceGrowthHint(this.#session.pointerCurrent)
       return
@@ -196,7 +210,8 @@ export class GridInteractionController {
         this.#session,
         this.#session.pointerCurrent,
         this.#viewport.getScrollOffset(),
-        this.#config
+        this.#config,
+        this.#zoom
       )
       this.#syncWorkspaceGrowthHint(this.#session.pointerCurrent)
     }
@@ -242,7 +257,10 @@ export class GridInteractionController {
       height:
         nextHeightCandidate === null
           ? this.#workspaceGrowthHint.height
-          : Math.max(this.#workspaceGrowthHint.height ?? 0, nextHeightCandidate),
+          : Math.max(
+              this.#workspaceGrowthHint.height ?? 0,
+              nextHeightCandidate
+            ),
     }
   }
 }

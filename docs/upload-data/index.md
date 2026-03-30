@@ -1,8 +1,3 @@
----
-title: Import options
-order: 1
----
-
 # Getting started with GazePlotter
 
 GazePlotter is a web application for visualizing gaze data from eye-tracking software. It uses interactive scarf plots (or sequence charts) which are built automatically from your eye-tracking data without any manual configuration and data transformation.

@@ -1,8 +1,3 @@
----
-title: ScanGraph export
-order: 5
----
-
 # ScanGraph Export
 
 The specialized ScanGraph Export format serializes standard spatial gaze tracking data strictly into letter-coded sequence strings. This structural transformation bridges native GazePlotter analysis directly into the algorithmic sequence-matching software provided by the ScanGraph suite.

@@ -1,14 +1,15 @@
 <script lang="ts">
   import { getGazePlotterSession } from '$lib/session'
   import { onMount } from 'svelte'
-  import { metadataInfoModal } from '$lib/modals/definitions'
   import type { GridItemSnapshot } from '$lib/workspace'
   import { createRailItems, type RailVisualization } from './config'
   import RailItem from './RailItem.svelte'
+  import RailZoomSlider from './RailZoomSlider.svelte'
 
   interface Props {
     visualizations?: RailVisualization[]
     initialLayoutState?: GridItemSnapshot[] | null
+    zoom?: number
   }
 
   let bannerHeight = $state(0)
@@ -21,7 +22,11 @@
     }
   }
 
-  let { visualizations = [], initialLayoutState = null }: Props = $props()
+  let {
+    visualizations = [],
+    initialLayoutState = null,
+    zoom = $bindable(1),
+  }: Props = $props()
   const { errorService, ingest, engine, modalState, workspace } =
     getGazePlotterSession()
 
@@ -33,13 +38,6 @@
   const undoLabel: string | null = $derived(workspace.lastUndoLabel)
   const redoLabel: string | null = $derived(workspace.lastRedoLabel)
 
-  function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'z' && event.ctrlKey) {
-      handleUndo()
-    } else if (event.key === 'y' && event.ctrlKey) {
-      handleRedo()
-    }
-  }
 
   const handleUndo = () => {
     workspace.undo()
@@ -87,10 +85,8 @@
     window.addEventListener('scroll', detectOnScrollBannerHeight, {
       passive: true,
     })
-    document.addEventListener('keydown', handleKeydown, { passive: true })
     return () => {
       window.removeEventListener('scroll', detectOnScrollBannerHeight)
-      document.removeEventListener('keydown', handleKeydown)
     }
   })
 </script>
@@ -108,6 +104,14 @@
         disabled={item.disabled}
       />
     {/each}
+
+    <div class="zoom-slot">
+      <div class="divider"></div>
+      <RailZoomSlider
+        bind:value={zoom}
+        disabled={isProcessing || !isValidData}
+      />
+    </div>
   </div>
 </div>
 
@@ -138,5 +142,13 @@
     height: 1px;
     background-color: #e2e8f0;
     margin: 4px 0;
+  }
+
+  .zoom-slot {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
   }
 </style>
