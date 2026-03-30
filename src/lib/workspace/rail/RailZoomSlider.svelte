@@ -1,17 +1,30 @@
 <script lang="ts">
   import { ZOOM_MIN, ZOOM_MAX, ZOOM_STEP } from '$lib/workspace/zoom'
+  import { tooltipAction } from '$lib/tooltip'
 
   interface Props {
     value: number
+    label?: string
     disabled?: boolean
   }
 
-  let { value = $bindable(1), disabled = false }: Props = $props()
+  let {
+    value = $bindable(1),
+    label = 'Zoom',
+    disabled = false,
+  }: Props = $props()
 
   const displayValue = $derived(`${value.toFixed(2)}x`)
 </script>
 
-<div class="zoom-control" class:disabled>
+<div
+  class="zoom-control"
+  class:disabled
+  use:tooltipAction={{
+    content: label,
+    position: 'right',
+  }}
+>
   <input
     class="zoom-slider"
     type="range"
@@ -50,7 +63,7 @@
     padding: 0;
     cursor: pointer;
     background: transparent;
-    opacity: 0.4;
+    opacity: 0.8;
     transition: opacity 0.15s;
   }
 
@@ -58,9 +71,8 @@
     outline: none;
   }
 
-  .zoom-slider:hover,
-  .zoom-slider:focus {
-    opacity: 0.8;
+  .zoom-slider:hover {
+    opacity: 1;
   }
 
   /* WebKit Track */
