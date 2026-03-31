@@ -50,7 +50,10 @@
   )
 
   const dataOverview = $derived(
-    buildMetadataOverview(engine.metadata, engine.segments?.hasSpatialData ?? false)
+    buildMetadataOverview(
+      engine.metadata,
+      engine.segments?.hasSpatialData ?? false
+    )
   )
 
   function exportMetadata(): void {

@@ -191,9 +191,7 @@ export function buildMetadataCsvReport(
   lines.push('Metric,Value')
   lines.push(`Number of Stimuli,${input.overview.numberOfStimuli}`)
   lines.push(`Number of Participants,${input.overview.numberOfParticipants}`)
-  lines.push(
-    `Has Spatial Data,${input.overview.hasSpatialData ? 'Yes' : 'No'}`
-  )
+  lines.push(`Has Spatial Data,${input.overview.hasSpatialData ? 'Yes' : 'No'}`)
   lines.push(`Total Number of AOIs,${input.overview.aoiCounts.total}`)
   lines.push('')
 
