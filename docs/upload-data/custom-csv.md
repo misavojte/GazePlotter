@@ -13,10 +13,12 @@ This schema ingests raw, continuous gaze coordinate arrays where every individua
 #### Structure Requirements
 
 - **Row 1 Headers**: Must contain exactly `Time`, `Participant`, `Stimulus`, and `AOI` (case-sensitive).
+- **Optional Spatial Headers**: You may additionally include `X` and `Y` columns (case-insensitive) to provide per-segment spatial coordinates.
 - **Time Value**: Absolute numerical integer. Commas and units (e.g., "ms") are strictly prohibited.
 - **Participant Value**: Semantic display string.
 - **Stimulus Value**: Semantic display string.
 - **AOI Value**: Semantic display string. Multiple AOIs can be assigned to a single row by separating them with a pipe character (`|`), e.g., `Header|Menu`.
+- **X/Y Values**: Both values must be numeric on a row to be parsed. If one is missing, that row is treated as no spatial data.
 
 #### Delimitation Constraints
 
@@ -27,6 +29,8 @@ This schema ingests raw, continuous gaze coordinate arrays where every individua
 
 Segments are detected dynamically. The engine automatically fractures the continuous time series into discrete segments whenever the string values within the `AOI`, `Participant`, or `Stimulus` columns change homogenously.
 
+If `X` and `Y` columns are present, the first valid pair in a segment is stored as that segment's spatial coordinate.
+
 ```csv
 Time,Participant,Stimulus,AOI
 0,Participant 1,Stimulus 1,AOI 1
@@ -34,6 +38,11 @@ Time,Participant,Stimulus,AOI
 50,Participant 1,Stimulus 1,AOI 1|AOI 3
 75,Participant 1,Stimulus 1,AOI 2
 100,Participant 1,Stimulus 1,AOI 2
+
+Time,Participant,Stimulus,AOI,X,Y
+0,Participant 1,Stimulus 1,AOI 1,1120,640
+25,Participant 1,Stimulus 1,AOI 1,1120,640
+50,Participant 1,Stimulus 1,AOI 1|AOI 3,1125,642
 ```
 
 ### Format 2: Segmented From/To CSV
@@ -43,9 +52,11 @@ This schema ingests pre-processed data algorithms that have already been fractur
 #### Structure Requirements
 
 - **Row 1 Headers**: Must contain exactly `From`, `To`, `Participant`, `Stimulus`, and `AOI`.
+- **Optional Spatial Headers**: You may additionally include `X` and `Y` columns (case-insensitive).
 - **From Value**: Explicit integer start timestamp.
 - **To Value**: Explicit integer end timestamp.
 - **Metadata Values**: Standard semantic strings. For the `AOI` column, multiple AOIs can be assigned by separating them with a pipe character (`|`), e.g., `Header|Menu`.
+- **X/Y Values**: Both values must be numeric on a row to be parsed. If one is missing, that row is treated as no spatial data.
 
 #### Delimitation Constraints
 
@@ -61,6 +72,10 @@ From,To,Participant,Stimulus,AOI
 0,100,Participant 1,Stimulus 1,AOI 1
 100,125,Participant 1,Stimulus 1,AOI 2|AOI 3
 200,300,Participant 1,Stimulus 2,AOI 1
+
+From,To,Participant,Stimulus,AOI,X,Y
+0,100,Participant 1,Stimulus 1,AOI 1,960,540
+100,125,Participant 1,Stimulus 1,AOI 2|AOI 3,970,548
 ```
 
 ### Format 3: Segmented Duration CSV
@@ -70,10 +85,12 @@ This specialized schema ingests discrete segments while simultaneously executing
 #### Structure Requirements
 
 - **Row 1 Headers**: Must contain exactly `stimulus`, `participant`, `timestamp`, `duration`, `eyemovementtype`, and `AOI`.
+- **Optional Spatial Headers**: You may additionally include `X` and `Y` columns (case-insensitive).
 - **Timestamp Value**: Absolute integer start marker.
 - **Duration Value**: Absolute integer length calculation.
 - **EyeMovementType Value**: Deep binary classifier (`0` = Fixation, `1` = Saccade).
 - **Metadata Values**: Standard semantic strings. For the `AOI` column, multiple AOIs can be assigned by separating them with a pipe character (`|`), e.g., `Header|Menu`.
+- **X/Y Values**: Both values must be numeric on a row to be parsed. If one is missing, that row is treated as no spatial data.
 
 #### Delimitation Constraints
 
@@ -94,4 +111,8 @@ SMI Base,Anna,226.2,72,1,
 SMI Base,Anna,298.2,120,0,Map
 SMI Base,Anna,418.2,28,1,
 SMI Base,Anna,446.2,208,0,Map|Menu
+
+stimulus,participant,timestamp,duration,eyemovementtype,AOI,X,Y
+SMI Base,Anna,226.2,72,1,,1012,603
+SMI Base,Anna,298.2,120,0,Map,1030,611
 ```

@@ -145,6 +145,15 @@ export class TobiiAdapter extends AbstractAdapter {
   private readonly cEventValue: number
   private readonly cEyeMovementTypeIndex: number
   private readonly cSensor: number
+  /* ── Spatial coordinate columns with fallback ─────────────────────
+   * Priority: Mapped fixation [stimulus-specific] → Fixation point [generic].
+   * Tobii data already maps fixations per stimulus/participant/segment boundary,
+   * so no per-row aggregation needed; first non-NaN coordinate pair is captured.
+   */
+  private readonly cMappedFixationX: number | null
+  private readonly cMappedFixationY: number | null
+  private readonly cFixationX: number
+  private readonly cFixationY: number
 
   private readonly pRecordingTimestamp = 0
   private readonly pStimulus = 1
@@ -155,6 +164,10 @@ export class TobiiAdapter extends AbstractAdapter {
   private readonly pEventValue = 6
   private readonly pEyeMovementTypeIndex = 7
   private readonly pSensor = 8
+  private readonly pMappedFixationX = 9
+  private readonly pMappedFixationY = 10
+  private readonly pFixationX = 11
+  private readonly pFixationY = 12
 
   /* ── Optimized AOI Info ─────────────────────────────────────────── */
   private readonly aoiNames: Uint8Array[] = []
@@ -173,6 +186,9 @@ export class TobiiAdapter extends AbstractAdapter {
   private mAoi: Uint8Array[] | null = null
   private aoiHitFlags: Uint8Array = new Uint8Array(0)
   private aoiHitCount = 0
+  /* ── Spatial segment state ──────────────────────────────────────── */
+  private mSegmentSpatialX: number | null = null
+  private mSegmentSpatialY: number | null = null
 
   // Last processed Eye Tracker row (not necessarily the previous input row).
   // Tobii exports can interleave IntervalStart/IntervalEnd events between samples.
@@ -241,6 +257,14 @@ export class TobiiAdapter extends AbstractAdapter {
       header.indexOf('Eye movement type index')
     this.cSensor = header.indexOf('Sensor')
 
+    /* Initialize spatial column indices with fallback support */
+    this.cMappedFixationX =
+      this.findColumnByPrefix(header, 'Mapped fixation X')
+    this.cMappedFixationY =
+      this.findColumnByPrefix(header, 'Mapped fixation Y')
+    this.cFixationX = header.indexOf('Fixation point X')
+    this.cFixationY = header.indexOf('Fixation point Y')
+
     this.hasSensorColumn = this.cSensor !== -1
 
     this.setupColumns([
@@ -253,6 +277,10 @@ export class TobiiAdapter extends AbstractAdapter {
       this.cEventValue,
       this.cEyeMovementTypeIndex,
       this.cSensor,
+      this.cMappedFixationX ?? -1,
+      this.cMappedFixationY ?? -1,
+      this.cFixationX,
+      this.cFixationY,
     ])
 
     const aoiInfo = headerBytes
@@ -284,6 +312,51 @@ export class TobiiAdapter extends AbstractAdapter {
     }
     this.cachedStimulusStackBytes = Array.from(this.intervalStack.values())
     this.cachedStimulusStackKeys = Array.from(this.intervalStack.keys())
+  }
+
+  /* ── Spatial coordinate extraction ──────────────────────────────── */
+  /**
+   * Extract spatial coordinates with priority fallback.
+   * Priority: Mapped fixation X/Y (stimulus-specific) → Fixation point X/Y (generic).
+   * Returns { x, y } | null if valid pair found.
+   */
+  private getSpatialCoordinates(): { x: number; y: number } | null {
+    let x: number
+    let y: number
+
+    // Try mapped fixation coordinates first
+    if (this.cMappedFixationX !== null && this.cMappedFixationY !== null) {
+      x = this.getNumber(this.pMappedFixationX)
+      y = this.getNumber(this.pMappedFixationY)
+      if (Number.isFinite(x) && Number.isFinite(y)) {
+        return { x, y }
+      }
+    }
+
+    // Fallback to standard fixation point coordinates
+    x = this.getNumber(this.pFixationX)
+    y = this.getNumber(this.pFixationY)
+    if (Number.isFinite(x) && Number.isFinite(y)) {
+      return { x, y }
+    }
+
+    // No valid coordinate pair found
+    return null
+  }
+
+  /**
+   * Update segment spatial state with first non-null coordinate pair.
+   * Called during row deserialization; only captures coordinates once per segment.
+   */
+  private updateSegmentSpatial(): void {
+    // Only set spatial if not already set in this segment (capture first valid pair)
+    if (this.mSegmentSpatialX === null && this.mSegmentSpatialY === null) {
+      const spatial = this.getSpatialCoordinates()
+      if (spatial) {
+        this.mSegmentSpatialX = spatial.x
+        this.mSegmentSpatialY = spatial.y
+      }
+    }
   }
 
   /* ── Public API ─────────────────────────────────────────────────── */
@@ -358,6 +431,7 @@ export class TobiiAdapter extends AbstractAdapter {
       if (lastStimulusKey === this.mStimulusKey) {
         this.mRecordingLast = currentTimestampNum
         this.trackAoiHitsInline()
+        this.updateSegmentSpatial()
         this.lastEyeTrackerTimestamp = currentTimestampNum
         this.lastEyeTrackerSampleKey = sampleKey
         return
@@ -500,7 +574,11 @@ export class TobiiAdapter extends AbstractAdapter {
     this.mCategoryId = this.getCategoryId(categoryBytes)
     if (this.aoiHitFlags.length) this.aoiHitFlags.fill(0)
     this.aoiHitCount = 0
+    /* Reset spatial state for new segment */
+    this.mSegmentSpatialX = null
+    this.mSegmentSpatialY = null
     this.trackAoiHitsInline()
+    this.updateSegmentSpatial()
 
     this.mEyeMovementTypeIndexBytes = eyeMovementTypeIndexBytes
     this.mRecordingLast = currentTsNum
@@ -581,13 +659,18 @@ export class TobiiAdapter extends AbstractAdapter {
       const start = (startNum - baseTime) * TIME_MODIFIER
       const end = (endNum - baseTime) * TIME_MODIFIER
       if (!this.mParticipantBytes) continue
+      const spatial: { x: number; y: number } | null =
+        this.mSegmentSpatialX !== null && this.mSegmentSpatialY !== null
+          ? { x: this.mSegmentSpatialX, y: this.mSegmentSpatialY }
+          : null
       this.emitSegment(
         start,
         end,
         this.mCategoryId,
         stimulusBytes,
         this.mParticipantBytes,
-        this.mAoi
+        this.mAoi,
+        spatial
       )
     }
     return
@@ -604,13 +687,18 @@ export class TobiiAdapter extends AbstractAdapter {
     const baseTime = this.stimuliBaseTimes.get(key) ?? this.mRecordingStart
     const start = (this.mRecordingStart - baseTime) * TIME_MODIFIER
     const end = (this.mRecordingLast - baseTime) * TIME_MODIFIER
+    const spatial: { x: number; y: number } | null =
+      this.mSegmentSpatialX !== null && this.mSegmentSpatialY !== null
+        ? { x: this.mSegmentSpatialX, y: this.mSegmentSpatialY }
+        : null
     this.emitSegment(
       start,
       end,
       this.mCategoryId,
       this.mStimulusBytes,
       this.mParticipantBytes,
-      this.mAoi
+      this.mAoi,
+      spatial
     )
     return
   }

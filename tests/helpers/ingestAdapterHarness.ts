@@ -7,6 +7,7 @@ export type EmittedSegment = {
   stimulus: string
   participant: string
   aoi: string[] | null
+  spatial?: { x: number; y: number } | null
 }
 
 type SegmentHandler = (
@@ -15,7 +16,8 @@ type SegmentHandler = (
   categoryId: number,
   stimulus: Uint8Array,
   participant: Uint8Array,
-  aoi: Uint8Array[] | null
+  aoi: Uint8Array[] | null,
+  spatial?: { x: number; y: number } | null
 ) => void
 
 type SegmentEmittingAdapter = {
@@ -30,15 +32,21 @@ export function collectAdapterOutputs<T extends SegmentEmittingAdapter>(
   sut: T
 ): EmittedSegment[] {
   const outputs: EmittedSegment[] = []
-  sut.onSegment = (start, end, categoryId, stimulus, participant, aoi) => {
-    outputs.push({
+  sut.onSegment = (start, end, categoryId, stimulus, participant, aoi, spatial) => {
+    const output: EmittedSegment = {
       start,
       end,
       categoryId,
       stimulus: decodeBytes(stimulus, decoder),
       participant: decodeBytes(participant, decoder),
       aoi: aoi ? aoi.map(value => decodeBytes(value, decoder)) : null,
-    })
+    }
+
+    if (spatial !== undefined) {
+      output.spatial = spatial
+    }
+
+    outputs.push(output)
   }
   return outputs
 }
