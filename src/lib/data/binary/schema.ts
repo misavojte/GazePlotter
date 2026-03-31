@@ -43,6 +43,17 @@ export interface BinarySegmentBuffers {
   aoiPool: Uint16Array
 
   /**
+   * True when spatial segment coordinates are available.
+   */
+  hasSpatialData: boolean
+
+  /**
+   * Optional parallel spatial storage with stride 2.
+   * Layout: [x0, y0, x1, y1, ...]. Missing coordinates are represented as NaN.
+   */
+  spatialBuffer?: Float32Array
+
+  /**
    * Maximum participants per stimulus (for index table calculations)
    */
   maxParticipants: number
@@ -64,7 +75,8 @@ export interface BinarySegmentBuilder {
     endTime: number,
     categoryId: number,
     aoiIds: number[],
-    segmentId: number
+    segmentId: number,
+    spatial?: { x: number; y: number } | null
   ): void
 
   build(): BinarySegmentBuffers

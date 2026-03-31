@@ -49,7 +49,9 @@
     isCurrentParsingSameAsSource(currentFileInput, fileMetadata)
   )
 
-  const dataOverview = $derived(buildMetadataOverview(engine.metadata))
+  const dataOverview = $derived(
+    buildMetadataOverview(engine.metadata, engine.segments?.hasSpatialData ?? false)
+  )
 
   function exportMetadata(): void {
     try {

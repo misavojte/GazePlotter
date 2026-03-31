@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest'
 import {
   jsonSegmentsToBinary,
   binarySegmentsToJson,
+  binarySegmentsToJsonWithSpatial,
   validateRoundtrip,
   createReaderFromJson,
 } from '../src/lib/data/binary/converters'
@@ -16,6 +17,10 @@ describe('Binary Converters Roundtrip', () => {
     const empty: number[][][][] = []
     const result = validateRoundtrip(empty)
     expect(result).toBe(true)
+
+    const buffers = jsonSegmentsToBinary(empty)
+    expect(buffers.hasSpatialData).toBe(false)
+    expect(buffers.spatialBuffer).toBeUndefined()
   })
 
   it('should handle single segment without AOIs', () => {
@@ -261,5 +266,76 @@ describe('Binary Converters Roundtrip', () => {
     for (let i = 0; i < segments[0][0].length; i++) {
       expect(converted[0][0][i]).toEqual(segments[0][0][i])
     }
+  })
+
+  it('should preserve optional spatial data in roundtrip', () => {
+    const segments: number[][][][] = [
+      [
+        [
+          [0, 100, 0],
+          [100, 200, 1, 5],
+        ],
+      ],
+    ]
+
+    const spatialData: (number[] | null)[][][] = [
+      [
+        [
+          [10.5, 20.25],
+          null,
+        ],
+      ],
+    ]
+
+    const result = validateRoundtrip(segments, spatialData)
+    expect(result).toBe(true)
+
+    const buffers = jsonSegmentsToBinary(segments, undefined, spatialData)
+    expect(buffers.hasSpatialData).toBe(true)
+    expect(buffers.spatialBuffer).toBeDefined()
+
+    const converted = binarySegmentsToJsonWithSpatial(buffers)
+    expect(converted.spatialData).toEqual(spatialData)
+  })
+
+  it('should map missing spatial entries to null with NaN sentinels', () => {
+    const segments: number[][][][] = [
+      [
+        [
+          [0, 100, 0],
+          [100, 200, 1],
+        ],
+      ],
+    ]
+
+    const spatialData: (number[] | null)[][][] = [
+      [
+        [
+          [1, 2],
+        ],
+      ],
+    ]
+
+    const buffers = jsonSegmentsToBinary(segments, undefined, spatialData)
+    const spatialBuffer = buffers.spatialBuffer
+
+    expect(spatialBuffer).toBeDefined()
+    expect(Number.isNaN(spatialBuffer![2])).toBe(true)
+    expect(Number.isNaN(spatialBuffer![3])).toBe(true)
+
+    const reader = createReaderFromJson(segments, spatialData)
+    const range = reader.getSegmentRange(0, 0)
+    expect(reader.getSegmentSpatial(range.startIndex)).toEqual({ x: 1, y: 2 })
+    expect(reader.getSegmentSpatial(range.startIndex + 1)).toBeNull()
+  })
+
+  it('should not emit spatial payload when none is present', () => {
+    const segments: number[][][][] = [[[[0, 100, 0]]]]
+    const buffers = jsonSegmentsToBinary(segments)
+    const converted = binarySegmentsToJsonWithSpatial(buffers)
+
+    expect(buffers.hasSpatialData).toBe(false)
+    expect(converted.spatialData).toBeUndefined()
+    expect(binarySegmentsToJson(buffers)).toEqual(segments)
   })
 })

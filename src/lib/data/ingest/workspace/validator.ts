@@ -41,6 +41,9 @@ export function processAndValidateData(
 
   if (Array.isArray(data.segments)) {
     const rawSegments = data.segments as number[][][][]
+    const spatialData = Array.isArray((data as any).spatialData)
+      ? ((data as any).spatialData as (number[] | null)[][][])
+      : undefined
 
     for (let s = 0; s < rawSegments.length; s++) {
       const stimSegments = rawSegments[s] || []
@@ -74,7 +77,7 @@ export function processAndValidateData(
       }
     }
 
-    data.segments = jsonSegmentsToBinary(rawSegments)
+    data.segments = jsonSegmentsToBinary(rawSegments, undefined, spatialData)
   } else {
     // Basic structural validation for binary segments to ensure they aren't plain objects
     const bins = data.segments as any
@@ -88,6 +91,10 @@ export function processAndValidateData(
       throw new Error(
         'Invalid data structure: segments are not in valid array or binary buffer format'
       )
+    }
+
+    if (typeof bins.hasSpatialData !== 'boolean') {
+      bins.hasSpatialData = false
     }
   }
 
