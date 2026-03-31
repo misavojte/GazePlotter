@@ -41,9 +41,6 @@ export function processAndValidateData(
 
   if (Array.isArray(data.segments)) {
     const rawSegments = data.segments as number[][][][]
-    const spatialData = Array.isArray((data as any).spatialData)
-      ? ((data as any).spatialData as (number[] | null)[][][])
-      : undefined
 
     for (let s = 0; s < rawSegments.length; s++) {
       const stimSegments = rawSegments[s] || []
@@ -77,7 +74,8 @@ export function processAndValidateData(
       }
     }
 
-    data.segments = jsonSegmentsToBinary(rawSegments, undefined, spatialData)
+    // Phase 1 note: workspace JSON does not hydrate spatial segment coordinates yet.
+    data.segments = jsonSegmentsToBinary(rawSegments)
   } else {
     // Basic structural validation for binary segments to ensure they aren't plain objects
     const bins = data.segments as any

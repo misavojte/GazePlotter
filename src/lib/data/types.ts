@@ -91,7 +91,6 @@ export interface DataType {
  */
 export type JsonImportOldFormat = Omit<DataType, 'segments'> & {
   segments: number[][][][]
-  spatialData?: (number[] | null)[][][]
 }
 
 export interface JsonImportNewFormat {
