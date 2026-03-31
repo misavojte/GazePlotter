@@ -1,8 +1,5 @@
 <script lang="ts">
-  import {
-    InputText,
-    Select,
-  } from '$lib/shared/components'
+  import { InputText, Select } from '$lib/shared/components'
   import { Section, ModalButtons, CheckboxListField } from '$lib/modals'
   import type { DecimalSeparator } from '$lib/data/export'
   import { getGazePlotterSession } from '$lib/session'
@@ -25,6 +22,8 @@
   let exportFixationsOnly = $state(false)
   let selectedStimuliIds = $state(new Set<string>())
   let isExporting = $state(false)
+
+  const hasSpatialData = $derived(engine.segments?.hasSpatialData ?? false)
 
   const exportOptions = [
     {
@@ -50,7 +49,9 @@
   }
 
   $effect(() => {
-    selectedStimuliIds = new Set(getStimuliOptions(engine).map(({ value }) => value))
+    selectedStimuliIds = new Set(
+      getStimuliOptions(engine).map(({ value }) => value)
+    )
   })
 
   const handleExport = async () => {
@@ -91,11 +92,11 @@
 <div class="container">
   <Section>
     <div class="content">
-    <p class="purpose-description">
-      Export eye-tracking segments with timing, movement classifications, and
-      AOI information.
-    </p>
-  </div>
+      <p class="purpose-description">
+        Export eye-tracking segments with timing, movement classifications, and
+        AOI information.
+      </p>
+    </div>
   </Section>
 
   <Section title="Export Settings">
@@ -146,7 +147,8 @@
               checked: exportFixationsOnly,
             },
           ]}
-          onItemChange={(_key: string, checked: boolean) => (exportFixationsOnly = checked)}
+          onItemChange={(_key: string, checked: boolean) =>
+            (exportFixationsOnly = checked)}
         />
       </div>
     </div>
@@ -154,11 +156,27 @@
 
   <Section title="Format Details">
     <div class="content">
-      <p class="format-description">
-        <strong>CSV format</strong> with columns: stimulus, participant, timestamp,
-        duration, eyemovementtype, AOI. Output respects selected stimuli and filter
-        settings.
-      </p>
+      {#if hasSpatialData}
+        <p class="format-description">
+          <strong>CSV format</strong> with columns: stimulus, participant, timestamp,
+          duration, eyemovementtype, AOI, x, y. Output respects selected stimuli and
+          filter settings.
+        </p>
+        <p class="format-description">
+          Spatial coordinates are exported per segment. Segments without
+          coordinates keep empty x/y fields.
+        </p>
+      {:else}
+        <p class="format-description">
+          <strong>CSV format</strong> with columns: stimulus, participant, timestamp,
+          duration, eyemovementtype, AOI. Output respects selected stimuli and filter
+          settings.
+        </p>
+        <p class="format-description">
+          Load spatially annotated data to unlock x/y coordinate export for each
+          segment.
+        </p>
+      {/if}
       <p class="format-description">
         Eye movement types: "0" = fixation, other values = saccades etc. AOI
         column contains semicolon-separated area names.
@@ -231,5 +249,4 @@
     flex-direction: column;
     gap: 0.5rem;
   }
-
 </style>
