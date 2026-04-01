@@ -98,4 +98,3 @@ describe('TobiiAdapter - Spatial Parsing', () => {
     })
   })
 })
-

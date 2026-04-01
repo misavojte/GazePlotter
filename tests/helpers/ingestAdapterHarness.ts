@@ -32,7 +32,15 @@ export function collectAdapterOutputs<T extends SegmentEmittingAdapter>(
   sut: T
 ): EmittedSegment[] {
   const outputs: EmittedSegment[] = []
-  sut.onSegment = (start, end, categoryId, stimulus, participant, aoi, spatial) => {
+  sut.onSegment = (
+    start,
+    end,
+    categoryId,
+    stimulus,
+    participant,
+    aoi,
+    spatial
+  ) => {
     const output: EmittedSegment = {
       start,
       end,

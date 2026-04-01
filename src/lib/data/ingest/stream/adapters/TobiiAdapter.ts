@@ -258,10 +258,8 @@ export class TobiiAdapter extends AbstractAdapter {
     this.cSensor = header.indexOf('Sensor')
 
     /* Initialize spatial column indices with fallback support */
-    this.cMappedFixationX =
-      this.findColumnByPrefix(header, 'Mapped fixation X')
-    this.cMappedFixationY =
-      this.findColumnByPrefix(header, 'Mapped fixation Y')
+    this.cMappedFixationX = this.findColumnByPrefix(header, 'Mapped fixation X')
+    this.cMappedFixationY = this.findColumnByPrefix(header, 'Mapped fixation Y')
     this.cFixationX = header.indexOf('Fixation point X')
     this.cFixationY = header.indexOf('Fixation point Y')
 
