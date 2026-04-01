@@ -7,6 +7,10 @@ import {
 import { Archiver } from './encoders/zip'
 import { triggerDownload } from './download'
 import { generateScanGraph } from './mappers/scangraph'
+import {
+  type ScanpathSimilarityExportOptions,
+  generateScanpathSimilarityCsv,
+} from './mappers/scanpath-similarity'
 import { generateWorkspaceJson } from './mappers/workspace'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import type { AllGridTypes } from '$lib/workspace'
@@ -74,6 +78,17 @@ export async function downloadScanGraph(
     stimulusId
   )
   triggerDownload(content, fileName, '.txt')
+}
+
+/**
+ * Downloads a Scanpath Similarity matrix as CSV.
+ */
+export function downloadScanpathSimilarity(
+  engine: DataEngine,
+  options: ScanpathSimilarityExportOptions
+): void {
+  const { content } = generateScanpathSimilarityCsv(engine, options)
+  triggerDownload(content, options.fileName, '.csv')
 }
 
 /**

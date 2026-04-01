@@ -5,6 +5,7 @@ import type { IngestService } from '$lib/data/ingest'
 import type { ToastState } from '$lib/toaster/toastState.svelte'
 import {
   downloadBatchZip,
+  downloadScanpathSimilarity,
   downloadScanGraph,
   downloadUnifiedCsv,
   downloadWorkspace,
@@ -14,6 +15,7 @@ import {
   type AggregatedExportOptions,
   generateAggregatedCsv,
 } from './mappers/aggregated'
+import type { SimilarityMethod } from '$lib/plots/scanpath-similarity/types'
 import { triggerDownload } from './download'
 
 type ExportServiceDeps = {
@@ -39,6 +41,15 @@ export type SegmentedExportOptions = {
 export type ScangraphExportOptions = {
   fileName: string
   stimulusId: number
+}
+
+export type ScanpathSimilarityExportOptions = {
+  fileName: string
+  stimulusId: number
+  groupId: number
+  similarityMethod: SimilarityMethod
+  collapsed: boolean
+  csvOptions?: CsvFormatOptions
 }
 
 export class ExportService {
@@ -151,6 +162,28 @@ export class ExportService {
         exportType: 'scangraph',
         fileName: options.fileName,
         stimulusId: options.stimulusId,
+      }
+    )
+  }
+
+  async exportScanpathSimilarity(
+    options: ScanpathSimilarityExportOptions
+  ): Promise<boolean> {
+    const fileName = this.resolveFileName(options.fileName)
+    return this.runExport(
+      () =>
+        downloadScanpathSimilarity(this.deps.engine, {
+          ...options,
+          fileName,
+        }),
+      'Scanpath similarity matrix exported successfully',
+      {
+        exportType: 'scanpath-similarity',
+        fileName: options.fileName,
+        stimulusId: options.stimulusId,
+        groupId: options.groupId,
+        similarityMethod: options.similarityMethod,
+        collapsed: options.collapsed,
       }
     )
   }

@@ -4,6 +4,7 @@
   import { exportSegmentedDataModal } from '../export-segmented-data/definition'
   import { exportScangraphModal } from '../export-scangraph/definition'
   import { exportAggregatedDataModal } from '../export-aggregated-data/definition'
+  import { exportScanpathSimilarityModal } from '../export-scanpath-similarity/definition'
 
   const { exportService, modalState } = getGazePlotterSession()
   let fileName = $state('GazePlotter-Export')
@@ -19,6 +20,11 @@
       title: 'Aggregated Data (CSV)',
       subtitle:
         'Statistical metrics like dwell time, fixation counts, and durations',
+    },
+    {
+      definition: exportScanpathSimilarityModal,
+      title: 'Scanpath Similarity (CSV)',
+      subtitle: 'Similarity matrix for comparing participant scanpaths',
     },
     {
       definition: exportScangraphModal,

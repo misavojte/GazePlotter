@@ -1,6 +1,6 @@
 # Export
 
-GazePlotter provides four export options for different eye-tracking analysis use cases. Access export functionality through the **Export workspace or data** button in the workspace toolbar.
+GazePlotter provides five export options for different eye-tracking analysis use cases. Access export functionality through the **Export workspace or data** button in the workspace toolbar.
 
 ## Export Types
 
@@ -15,6 +15,10 @@ Export processed eye-tracking data as CSV files. Available as single file or ind
 ### [Aggregated Data Export](/docs/export/aggregated-data/)
 
 Export statistical eye-tracking metrics in long format CSV for analysis in R, Python, or SPSS. Includes dwell time, fixation counts, and duration metrics.
+
+### [Scanpath Similarity Export](/docs/export/scanpath-similarity/)
+
+Export a scanpath similarity matrix as CSV for comparing participant scanpaths.
 
 ### [ScanGraph Export](/docs/export/scangraph/)
 
