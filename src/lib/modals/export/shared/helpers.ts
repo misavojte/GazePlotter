@@ -95,8 +95,6 @@ export function createExportButtons({
   isExporting,
   onCancel,
   onExport,
-  onOpenFormats,
-  openFormatsLabel = 'All Data Formats',
 }: ExportButtonConfig) {
   const buttons = [
     {
@@ -111,14 +109,6 @@ export function createExportButtons({
       isDisabled: false,
     },
   ]
-
-  if (onOpenFormats) {
-    buttons.splice(1, 0, {
-      label: openFormatsLabel,
-      onclick: onOpenFormats,
-      isDisabled: false,
-    })
-  }
 
   return buttons
 }

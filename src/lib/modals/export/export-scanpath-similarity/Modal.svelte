@@ -2,7 +2,10 @@
   import { untrack } from 'svelte'
   import type { DecimalSeparator } from '$lib/data/export'
   import { Section, ModalButtons } from '$lib/modals'
-  import { getParticipantsGroupOptions, getStimuliOptions } from '$lib/plots/shared'
+  import {
+    getParticipantsGroupOptions,
+    getStimuliOptions,
+  } from '$lib/plots/shared'
   import { SIMILARITY_METHODS } from '$lib/plots/scanpath-similarity/const'
   import type {
     SimilarityMethod,
@@ -24,15 +27,12 @@
   let { item }: Props = $props()
   const { engine, exportService, modalState } = getGazePlotterSession()
   const settings = $derived(item?.settings)
-  const canReturnToFormats = $derived(modalState.stack.length > 1)
 
   let fileName = $state('GazePlotter-ScanpathSimilarity')
   let stimulusId = $state(
     untrack(() => settings?.stimulusId?.toString() ?? '0')
   )
-  let groupId = $state(
-    untrack(() => settings?.groupId?.toString() ?? '-1')
-  )
+  let groupId = $state(untrack(() => settings?.groupId?.toString() ?? '-1'))
   let similarityMethod = $state<SimilarityMethod>(
     untrack(() => settings?.similarityMethod ?? 'levenshtein')
   )
@@ -94,8 +94,6 @@
       isExporting,
       onCancel: () => modalState.close(),
       onExport: handleExport,
-      onOpenFormats: canReturnToFormats ? () => modalState.close() : undefined,
-      openFormatsLabel: 'Back to All Data Formats',
     })
   )
 </script>
@@ -159,10 +157,9 @@
   <Section title="Format Details">
     <div class="content">
       <p class="format-description">
-        <strong>Similarity matrix CSV</strong> with rows and columns for each
-        participant. Values range from 0 to 1, where 1 represents identical
-        scanpaths. The first two columns include participant IDs and labels for
-        easier joins.
+        <strong>Similarity matrix CSV</strong> with rows and columns for each participant.
+        Values range from 0 to 1, where 1 represents identical scanpaths. The first
+        two columns include participant IDs and labels for easier joins.
       </p>
     </div>
   </Section>

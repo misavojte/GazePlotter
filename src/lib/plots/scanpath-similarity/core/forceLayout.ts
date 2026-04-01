@@ -73,11 +73,19 @@ function findComponents(n: number, links: ScangraphData['links']): Int32Array {
  *   natural groups separate visually.
  * - Deterministic seeded PRNG for consistent results across runs.
  */
+export type ForceLayoutMargins = {
+  top: number
+  right: number
+  bottom: number
+  left: number
+}
+
 export function computeForceLayout(
   data: ScangraphData,
   width: number,
   height: number,
-  iterations = 500
+  iterations = 500,
+  externalMargins?: ForceLayoutMargins
 ): LayoutResult {
   const { nodes: inputNodes, links } = data
   const n = inputNodes.length
@@ -93,16 +101,20 @@ export function computeForceLayout(
   }
   const comp = findComponents(n, links)
 
-  // Canvas geometry
-  const margin = Math.max(16, Math.min(width, height) * 0.05)
-  const xMin = margin
-  const xMax = width - margin
-  const yMin = margin
-  const yMax = height - margin
+  // Canvas geometry — external margins define the content area,
+  // internal padding provides additional breathing room within it
+  const em = externalMargins ?? { top: 0, right: 0, bottom: 0, left: 0 }
+  const contentW = width - em.left - em.right
+  const contentH = height - em.top - em.bottom
+  const internalPad = Math.max(16, Math.min(contentW, contentH) * 0.05)
+  const xMin = em.left + internalPad
+  const xMax = width - em.right - internalPad
+  const yMin = em.top + internalPad
+  const yMax = height - em.bottom - internalPad
   const usableW = xMax - xMin
   const usableH = yMax - yMin
-  const cx = width / 2
-  const cy = height / 2
+  const cx = em.left + contentW / 2
+  const cy = em.top + contentH / 2
 
   // Initialise positions: seeded random scatter across the usable area
   const nodes: NodePosition[] = inputNodes.map((node, i) => ({

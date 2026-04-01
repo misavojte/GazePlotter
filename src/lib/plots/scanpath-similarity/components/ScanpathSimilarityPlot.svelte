@@ -188,6 +188,19 @@
     workspace.updateItemSettings(item.id, updates, source)
   }
 
+  const handleNodeClick = (nodeIndex: number) => {
+    const current = settings.participantHighlights ?? []
+    const isHighlighted = current.includes(nodeIndex)
+    const newHighlights = isHighlighted
+      ? current.filter(id => id !== nodeIndex)
+      : [...current, nodeIndex]
+    workspace.updateItemSettings(
+      item.id,
+      { participantHighlights: newHighlights },
+      source
+    )
+  }
+
   function previewView(value?: string) {
     if (value !== 'matrix' && value !== 'scangraph') return
     syncs.view.value = value
@@ -272,6 +285,8 @@
           data={scangraphData}
           {width}
           {height}
+          highlights={settings.participantHighlights ?? []}
+          onNodeClick={handleNodeClick}
         />
       {/if}
     </div>

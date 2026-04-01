@@ -11,6 +11,10 @@ export type SimilarityMatrixLayoutInput = {
   height: number
   labels: string[]
   effectiveMaxValue: number
+  marginTop: number
+  marginRight: number
+  marginBottom: number
+  marginLeft: number
 }
 
 export type SimilarityMatrixLayout = {
@@ -57,7 +61,7 @@ function estimateMaxLabelWidth(
 export function computeSimilarityMatrixLayout(
   input: SimilarityMatrixLayoutInput
 ): SimilarityMatrixLayout {
-  const { width, height, labels, effectiveMaxValue } = input
+  const { width, height, labels, effectiveMaxValue, marginTop, marginRight, marginBottom, marginLeft } = input
   const count = labels.length
   const safeCount = Math.max(1, count)
   const fontSize = SIMILARITY_MATRIX_LAYOUT.LABEL_FONT_SIZE
@@ -72,6 +76,7 @@ export function computeSimilarityMatrixLayout(
   const standardXAxisHeight = standardAxisLabelSize * SIN_45 + fontSize * SIN_45
 
   const standardYSpace =
+    marginLeft +
     SIMILARITY_MATRIX_LAYOUT.leftMargin +
     fontSize +
     AXIS_TITLE_GAP +
@@ -79,16 +84,17 @@ export function computeSimilarityMatrixLayout(
     10
 
   const standardXSpace =
+    marginTop +
     SIMILARITY_MATRIX_LAYOUT.topMargin +
     fontSize +
     AXIS_TITLE_GAP +
     standardXAxisHeight +
     10
 
-  const legendSpace = 70
+  const legendSpace = 70 + marginBottom
 
   const availableWidthStandard =
-    width - standardYSpace - SIMILARITY_MATRIX_LAYOUT.rightMargin
+    width - standardYSpace - marginRight - SIMILARITY_MATRIX_LAYOUT.rightMargin
   const availableHeightStandard = height - standardXSpace - legendSpace
 
   const cellStandard = Math.max(
@@ -103,6 +109,7 @@ export function computeSimilarityMatrixLayout(
     cellStandard < SIMILARITY_MATRIX_LAYOUT.COMPACT_THRESHOLD
 
   const compactYSpace =
+    marginLeft +
     SIMILARITY_MATRIX_LAYOUT.leftMargin +
     fontSize +
     AXIS_TITLE_GAP +
@@ -110,6 +117,7 @@ export function computeSimilarityMatrixLayout(
     10
 
   const compactXSpace =
+    marginTop +
     SIMILARITY_MATRIX_LAYOUT.topMargin +
     fontSize +
     AXIS_TITLE_GAP +
@@ -120,7 +128,7 @@ export function computeSimilarityMatrixLayout(
   const activeXSpace = needsCompact ? compactXSpace : standardXSpace
 
   const availableWidthReal =
-    width - activeYSpace - SIMILARITY_MATRIX_LAYOUT.rightMargin
+    width - activeYSpace - marginRight - SIMILARITY_MATRIX_LAYOUT.rightMargin
   const availableHeightReal = height - activeXSpace - legendSpace
 
   const cellReal = Math.max(
@@ -144,6 +152,7 @@ export function computeSimilarityMatrixLayout(
   }
 
   const yAxisSpace =
+    marginLeft +
     SIMILARITY_MATRIX_LAYOUT.leftMargin +
     fontSize +
     AXIS_TITLE_GAP +
@@ -151,6 +160,7 @@ export function computeSimilarityMatrixLayout(
     10
 
   const xAxisSpace =
+    marginTop +
     SIMILARITY_MATRIX_LAYOUT.topMargin +
     fontSize +
     AXIS_TITLE_GAP +
@@ -158,7 +168,7 @@ export function computeSimilarityMatrixLayout(
     10
 
   const availableWidth =
-    width - yAxisSpace - SIMILARITY_MATRIX_LAYOUT.rightMargin
+    width - yAxisSpace - marginRight - SIMILARITY_MATRIX_LAYOUT.rightMargin
   const availableHeight = height - xAxisSpace - legendSpace
 
   const cellSize =

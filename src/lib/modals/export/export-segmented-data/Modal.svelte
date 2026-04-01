@@ -1,8 +1,5 @@
 <script lang="ts">
-  import {
-    InputText,
-    Select,
-  } from '$lib/shared/components'
+  import { InputText, Select } from '$lib/shared/components'
   import { Section, ModalButtons, CheckboxListField } from '$lib/modals'
   import type { DecimalSeparator } from '$lib/data/export'
   import { getGazePlotterSession } from '$lib/session'
@@ -17,7 +14,6 @@
   } from '../shared/helpers'
 
   const { engine, exportService, modalState } = getGazePlotterSession()
-  const canReturnToFormats = $derived(modalState.stack.length > 1)
   let fileName = $state('GazePlotter-SegmentedData')
   let exportType = $state('csv')
   let delimiter = $state(',')
@@ -50,7 +46,9 @@
   }
 
   $effect(() => {
-    selectedStimuliIds = new Set(getStimuliOptions(engine).map(({ value }) => value))
+    selectedStimuliIds = new Set(
+      getStimuliOptions(engine).map(({ value }) => value)
+    )
   })
 
   const handleExport = async () => {
@@ -82,8 +80,6 @@
       isExporting,
       onCancel: () => modalState.close(),
       onExport: handleExport,
-      onOpenFormats: canReturnToFormats ? () => modalState.close() : undefined,
-      openFormatsLabel: 'Back to All Data Formats',
     })
   )
 </script>
@@ -91,11 +87,11 @@
 <div class="container">
   <Section>
     <div class="content">
-    <p class="purpose-description">
-      Export eye-tracking segments with timing, movement classifications, and
-      AOI information.
-    </p>
-  </div>
+      <p class="purpose-description">
+        Export eye-tracking segments with timing, movement classifications, and
+        AOI information.
+      </p>
+    </div>
   </Section>
 
   <Section title="Export Settings">
@@ -146,7 +142,8 @@
               checked: exportFixationsOnly,
             },
           ]}
-          onItemChange={(_key: string, checked: boolean) => (exportFixationsOnly = checked)}
+          onItemChange={(_key: string, checked: boolean) =>
+            (exportFixationsOnly = checked)}
         />
       </div>
     </div>
@@ -231,5 +228,4 @@
     flex-direction: column;
     gap: 0.5rem;
   }
-
 </style>

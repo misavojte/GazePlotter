@@ -15,7 +15,7 @@ import {
   type AggregatedExportOptions,
   generateAggregatedCsv,
 } from './mappers/aggregated'
-import type { SimilarityMethod } from '$lib/plots/scanpath-similarity/types'
+import type { ScanpathSimilarityExportOptions } from './mappers/scanpath-similarity'
 import { triggerDownload } from './download'
 
 type ExportServiceDeps = {
@@ -43,14 +43,7 @@ export type ScangraphExportOptions = {
   stimulusId: number
 }
 
-export type ScanpathSimilarityExportOptions = {
-  fileName: string
-  stimulusId: number
-  groupId: number
-  similarityMethod: SimilarityMethod
-  collapsed: boolean
-  csvOptions?: CsvFormatOptions
-}
+export type { ScanpathSimilarityExportOptions }
 
 export class ExportService {
   constructor(private readonly deps: ExportServiceDeps) {}

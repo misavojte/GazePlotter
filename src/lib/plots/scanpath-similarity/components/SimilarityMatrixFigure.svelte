@@ -40,6 +40,10 @@
     colorScale = ['#f7fbff', '#08306b'],
     colorValueRange = [0, 1],
     dpiOverride = null,
+    marginTop = 0,
+    marginRight = 0,
+    marginBottom = 0,
+    marginLeft = 0,
   } = $props<{
     matrix: Float64Array
     labels: string[]
@@ -48,6 +52,10 @@
     colorScale?: string[]
     colorValueRange: [number, number]
     dpiOverride?: number | null
+    marginTop?: number
+    marginRight?: number
+    marginBottom?: number
+    marginLeft?: number
   }>()
 
   let canvas = $state<HTMLCanvasElement | null>(null)
@@ -61,7 +69,10 @@
     return registerCanvasExportSource(exportRegistrar, () => canvas)
   })
 
-  const getCanvasDimensions = () => ({ width, height })
+  const getCanvasDimensions = () => ({
+    width: width + marginLeft + marginRight,
+    height: height + marginTop + marginBottom,
+  })
   const scheduleRender = createRenderScheduler(renderCanvas)
 
   const effectiveMaxValue = $derived.by(() => {
@@ -75,10 +86,14 @@
 
   const layout = $derived.by(() =>
     computeSimilarityMatrixLayout({
-      width,
-      height,
+      width: width + marginLeft + marginRight,
+      height: height + marginTop + marginBottom,
       labels,
       effectiveMaxValue,
+      marginTop,
+      marginRight,
+      marginBottom,
+      marginLeft,
     })
   )
 
@@ -92,7 +107,9 @@
       ctx.fillStyle = UI_COLORS.TEXT_SECONDARY
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText('No participant data available', width >> 1, height >> 1)
+      const cw = width + marginLeft + marginRight
+      const ch = height + marginTop + marginBottom
+      ctx.fillText('No participant data available', cw >> 1, ch >> 1)
       finishCanvasDrawing(canvasState)
       return
     }
@@ -325,7 +342,8 @@
 
   const legendGeometry = $derived.by(() => {
     const { gridWidth, xOffset, matrixBottom } = layout
-    const availableLegendSpace = height - matrixBottom - 10
+    const canvasHeight = height + marginTop + marginBottom
+    const availableLegendSpace = canvasHeight - matrixBottom - 10
 
     return computeGradientLegendGeometry({
       x: xOffset,
@@ -409,6 +427,10 @@
       colorScale,
       colorValueRange,
       dpiOverride,
+      marginTop,
+      marginRight,
+      marginBottom,
+      marginLeft,
     ]
 
     untrack(() => {

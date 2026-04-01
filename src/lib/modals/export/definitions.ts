@@ -1,6 +1,7 @@
 export { downloadAoiStreamPlotModal } from './download-aoi-stream-plot/definition'
 export { downloadBarPlotModal } from './download-bar-plot/definition'
 export { downloadScarfPlotModal } from './download-scarf-plot/definition'
+export { downloadScanpathSimilarityPlotModal } from './download-scanpath-similarity/definition'
 export { downloadTransitionMatrixModal } from './download-transition-matrix/definition'
 export { downloadWorkspaceModal } from './workspace-export/definition'
 export { exportAggregatedDataModal } from './export-aggregated-data/definition'
