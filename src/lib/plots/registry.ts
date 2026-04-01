@@ -3,12 +3,14 @@ import { aoiStreamPlotDefinition } from './aoi-stream/definition'
 import { barPlotDefinition } from './bar/definition'
 import { scarfPlotDefinition } from './scarf/definition'
 import { transitionMatrixDefinition } from './transition-matrix/definition'
+import { scanpathSimilarityDefinition } from './scanpath-similarity/definition'
 
 export const plotRegistry = {
   scarf: scarfPlotDefinition,
   transitionMatrix: transitionMatrixDefinition,
   barPlot: barPlotDefinition,
   aoiStreamPlot: aoiStreamPlotDefinition,
+  scanpathSimilarity: scanpathSimilarityDefinition,
 } as const
 
 const LEGACY_VISUALIZATION_TYPES = {
