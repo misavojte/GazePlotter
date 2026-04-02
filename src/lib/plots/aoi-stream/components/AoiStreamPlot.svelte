@@ -211,6 +211,7 @@
     const tMin = timelineMinValue
     const tMax = timelineMaxValue
     const meta = engine.metadata
+    void item.redrawTimestamp
 
     if (!meta) return
 
@@ -389,10 +390,7 @@
 <BasePlot {item} hasData={!!streamResult}>
   {#snippet header()}
     <div class="controls">
-      <GroupSelect
-        ariaLabel="AOI stream filters"
-        items={selectItems}
-      />
+      <GroupSelect ariaLabel="AOI stream filters" items={selectItems} />
       <div class="menu-button">
         <AoiStreamPlotButtonMenu {item} />
       </div>
