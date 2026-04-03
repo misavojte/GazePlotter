@@ -130,9 +130,6 @@ export function binarySegmentsToJson(
 
 /**
  * Convert binary buffers back to legacy JSON segments format with optional spatial data.
- *
- * NOTE: Phase 1 intentionally keeps workspace JSON import/export segment-only.
- * This helper exists for segmented-data export and controlled internal use.
  */
 export function binarySegmentsToJsonWithSpatial(
   buffers: BinarySegmentBuffers

@@ -1,5 +1,5 @@
 import { type DataType, type JsonImportOldFormat } from '$lib/data/types'
-import { binarySegmentsToJson } from '$lib/data/binary'
+import { binarySegmentsToJsonWithSpatial } from '$lib/data/binary'
 import type { FileMetadataType } from '$lib/data/ingest'
 import { encodeJson, wrapProjectPayload } from '../encoders/json'
 
@@ -13,13 +13,14 @@ export function generateWorkspaceJson(
   fileMetadata: FileMetadataType | null
 ): string {
   // 1. Prepare domain data (convert binary to legacy JSON for compatibility)
-  // Phase 1 note: spatial segment coordinates are intentionally not serialized
-  // into workspace JSON yet. They are currently preserved only in live/session data.
-  const segments = binarySegmentsToJson(data.segments)
+  const { segments, spatialData } = binarySegmentsToJsonWithSpatial(
+    data.segments
+  )
 
   const exportData: JsonImportOldFormat = {
     ...data,
     segments,
+    ...(spatialData ? { spatialData } : {}),
   }
 
   // 2. Wrap into project schema

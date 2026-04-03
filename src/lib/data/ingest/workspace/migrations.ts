@@ -10,7 +10,7 @@ const CORE_LAYOUT_KEYS = new Set([
 ])
 
 /**
- * Sequentially upgrades raw JSON data to the modern Version 4 schema.
+ * Sequentially upgrades raw JSON data to the current Version 4 schema.
  * Operates entirely on raw data objects to ensure Web Worker safety.
  */
 export function runMigrations(parsedJson: any): any {

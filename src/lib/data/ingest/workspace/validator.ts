@@ -74,8 +74,9 @@ export function processAndValidateData(
       }
     }
 
-    // Phase 1 note: workspace JSON does not hydrate spatial segment coordinates yet.
-    data.segments = jsonSegmentsToBinary(rawSegments)
+    const rawSpatialData = (data as any).spatialData
+    delete (data as any).spatialData
+    data.segments = jsonSegmentsToBinary(rawSegments, undefined, rawSpatialData)
   } else {
     // Basic structural validation for binary segments to ensure they aren't plain objects
     const bins = data.segments as any
