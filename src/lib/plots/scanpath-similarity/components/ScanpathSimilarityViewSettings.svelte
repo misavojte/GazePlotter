@@ -6,7 +6,7 @@
     CompactSettingsSection,
     CompactSettingsSeparator,
   } from '$lib/plots/shared/components'
-  import { InputNumber } from '$lib/shared/components'
+  import { InputNumber, Radio, InputCheck } from '$lib/shared/components'
   import { fade } from 'svelte/transition'
   import { PRESET_PALETTES } from '$lib/color/palettes'
   import { SIMILARITY_METHODS } from '../const'
@@ -85,22 +85,12 @@
 
 <div class="compact-color-settings">
   <CompactSettingsSection title="Method">
-    <div class="radio-group">
-      {#each SIMILARITY_METHODS as method}
-        <label class="radio-label">
-          <input
-            type="radio"
-            name="similarity-method"
-            value={method.value}
-            checked={syncs.similarityMethod.value === method.value}
-            onchange={() => {
-              syncs.similarityMethod.value = method.value
-            }}
-          />
-          {method.label}
-        </label>
-      {/each}
-    </div>
+    <Radio
+      ariaLabel="Similarity method"
+      options={[...SIMILARITY_METHODS]}
+      appearance="compact"
+      bind:value={syncs.similarityMethod.value}
+    />
   </CompactSettingsSection>
 
   <CompactSettingsSeparator tone="light" />
@@ -121,13 +111,11 @@
   {/if}
 
   <CompactSettingsSection title="Options">
-    <label class="checkbox-label">
-      <input
-        type="checkbox"
-        bind:checked={syncs.collapsed.value}
-      />
-      Collapse consecutive AOIs
-    </label>
+    <InputCheck
+      label="Collapse consecutive AOIs"
+      bind:checked={syncs.collapsed.value}
+      appearance="compact"
+    />
   </CompactSettingsSection>
 
   {#if !showThreshold}
@@ -268,34 +256,9 @@
     min-width: 180px;
     box-sizing: border-box;
   }
-  .radio-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .radio-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    cursor: pointer;
-  }
-  .radio-label input {
-    margin: 0;
-  }
   .range-inputs {
     display: flex;
     gap: 8px;
-  }
-  .checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    cursor: pointer;
-  }
-  .checkbox-label input {
-    margin: 0;
   }
   .preview-container {
     height: 16px;
