@@ -17,7 +17,22 @@ const SEGMENT_HEADER = [
   'AOI',
 ]
 
+const SEGMENT_HEADER_WITH_SPATIAL = [...SEGMENT_HEADER, 'x', 'y']
+
 const BATCH_HEADER = ['timestamp', 'duration', 'eyemovementtype', 'AOI']
+
+const BATCH_HEADER_WITH_SPATIAL = [...BATCH_HEADER, 'x', 'y']
+
+type SegmentCsvRow = {
+  stimulus: string
+  participant: string
+  timestamp: string
+  duration: string
+  eyemovementtype: string
+  AOI: string[] | null
+  x?: string
+  y?: string
+}
 
 /**
  * Converts the complex hierarchical eye-tracking data structure to a flat array format.
@@ -26,22 +41,8 @@ function convertDataStructure(
   data: DataType,
   stimulusIds?: Set<string>,
   filterFixations: boolean = false
-): Array<{
-  stimulus: string
-  participant: string
-  timestamp: string
-  duration: string
-  eyemovementtype: string
-  AOI: string[] | null
-}> {
-  const result: Array<{
-    stimulus: string
-    participant: string
-    timestamp: string
-    duration: string
-    eyemovementtype: string
-    AOI: string[] | null
-  }> = []
+): SegmentCsvRow[] {
+  const result: SegmentCsvRow[] = []
 
   const reader = new BinaryBufferReader(data.segments)
   const aoiGroupReader = new AoiGroupReader(reader)
@@ -78,10 +79,14 @@ function convertDataStructure(
 
         const aoiNames =
           aoiCount > 0
-            ? Array.from({ length: aoiCount }, (_, index) =>
-                getAoiRaw(stimulusIndex, aoiBuffer[index], data).displayedName
+            ? Array.from(
+                { length: aoiCount },
+                (_, index) =>
+                  getAoiRaw(stimulusIndex, aoiBuffer[index], data).displayedName
               )
             : null
+
+        const spatial = reader.getSegmentSpatial(segmentIndex)
 
         result.push({
           stimulus: stimulusName,
@@ -90,6 +95,12 @@ function convertDataStructure(
           duration: String(end - start),
           eyemovementtype: String(category),
           AOI: aoiNames,
+          ...(spatial
+            ? {
+                x: String(spatial.x),
+                y: String(spatial.y),
+              }
+            : {}),
         })
       })
     }
@@ -109,9 +120,22 @@ export function generateUnifiedCsv(
 ): string {
   const { decimalSeparator } = resolveCsvFormatOptions(options)
   const csvPreData = convertDataStructure(data, stimulusIds, filterFixations)
+  const includeSpatialColumns = data.segments.hasSpatialData
 
   const rows = csvPreData.map(item => {
     const aoiNames = item.AOI ? item.AOI.join(';') : ''
+
+    if (!includeSpatialColumns) {
+      return [
+        item.stimulus,
+        item.participant,
+        formatNumberForCsv(item.timestamp, decimalSeparator),
+        formatNumberForCsv(item.duration, decimalSeparator),
+        item.eyemovementtype,
+        aoiNames,
+      ]
+    }
+
     return [
       item.stimulus,
       item.participant,
@@ -119,10 +143,16 @@ export function generateUnifiedCsv(
       formatNumberForCsv(item.duration, decimalSeparator),
       item.eyemovementtype,
       aoiNames,
+      formatNumberForCsv(item.x, decimalSeparator),
+      formatNumberForCsv(item.y, decimalSeparator),
     ]
   })
 
-  return generateCsvString(SEGMENT_HEADER, rows, options)
+  return generateCsvString(
+    includeSpatialColumns ? SEGMENT_HEADER_WITH_SPATIAL : SEGMENT_HEADER,
+    rows,
+    options
+  )
 }
 
 /**
@@ -137,6 +167,7 @@ export function generateMetadataForBatchCsv(
 ): Array<{ fileName: string; content: string }> {
   const { decimalSeparator } = resolveCsvFormatOptions(options)
   const csvPreData = convertDataStructure(data, stimulusIds, filterFixations)
+  const includeSpatialColumns = data.segments.hasSpatialData
 
   const results: Array<{ fileName: string; content: string }> = []
 
@@ -155,17 +186,33 @@ export function generateMetadataForBatchCsv(
 
       const rows = combinedData.map(item => {
         const aoiNames = item.AOI ? item.AOI.join(';') : ''
+
+        if (!includeSpatialColumns) {
+          return [
+            formatNumberForCsv(item.timestamp, decimalSeparator),
+            formatNumberForCsv(item.duration, decimalSeparator),
+            item.eyemovementtype,
+            aoiNames,
+          ]
+        }
+
         return [
           formatNumberForCsv(item.timestamp, decimalSeparator),
           formatNumberForCsv(item.duration, decimalSeparator),
           item.eyemovementtype,
           aoiNames,
+          formatNumberForCsv(item.x, decimalSeparator),
+          formatNumberForCsv(item.y, decimalSeparator),
         ]
       })
 
       results.push({
         fileName: `${stimulus}_${participant}`,
-        content: generateCsvString(BATCH_HEADER, rows, options),
+        content: generateCsvString(
+          includeSpatialColumns ? BATCH_HEADER_WITH_SPATIAL : BATCH_HEADER,
+          rows,
+          options
+        ),
       })
     }
   }

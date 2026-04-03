@@ -583,3 +583,26 @@ describe('CsvSegmentedDurationAdapter - Finalize', () => {
     }).not.toThrow()
   })
 })
+
+describe('CsvSegmentedDurationAdapter - Spatial coordinates', () => {
+  test('parses optional X/Y columns', () => {
+    const raw = `stimulus,participant,timestamp,duration,eyemovementtype,AOI,X,Y
+S1,P1,100,50,0,A1,10,20
+S1,P1,150,50,1,,,
+S1,P1,200,50,0,A2,30,40`
+
+    const rows = raw.split('\n')
+    const header = rows[0].split(',')
+    const sut = new CsvSegmentedDurationAdapter(header, ',')
+    const outputs = collectOutputs(sut)
+
+    processRow(sut, rows[1])
+    processRow(sut, rows[2])
+    processRow(sut, rows[3])
+
+    expect(outputs).toHaveLength(3)
+    expect(outputs[0].spatial).toEqual({ x: 10, y: 20 })
+    expect(outputs[1].spatial).toBeNull()
+    expect(outputs[2].spatial).toEqual({ x: 30, y: 40 })
+  })
+})

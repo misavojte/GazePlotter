@@ -25,6 +25,11 @@ class SegmentBucket {
   aoiOffsets: Uint32Array
   aoiBuffer: Uint16Array
 
+  // Optional spatial coordinate storage
+  // spatialData[i*2] = x, spatialData[i*2+1] = y; NaN for missing coordinates
+  spatialData: Float32Array | null = null
+  hasSpatialData = false
+
   count = 0
   aoiTotalCount = 0 // Pointer for aoiBuffer
 
@@ -36,7 +41,13 @@ class SegmentBucket {
     this.aoiBuffer = new Uint16Array(initialCapacity)
   }
 
-  add(start: number, end: number, cat: number, aois: number[] | null) {
+  add(
+    start: number,
+    end: number,
+    cat: number,
+    aois: number[] | null,
+    spatial?: { x: number; y: number } | null
+  ) {
     // 1. Resize Row Buffers if full
     if (this.count >= this.data.length / 3) {
       const oldLen = this.data.length
@@ -54,6 +65,17 @@ class SegmentBucket {
       const newOffsets = new Uint32Array(newLen / 3)
       newOffsets.set(this.aoiOffsets)
       this.aoiOffsets = newOffsets
+
+      // Resize spatial buffer if allocated
+      if (this.spatialData) {
+        const newSpatial = new Float32Array(newLen * 2)
+        newSpatial.set(this.spatialData)
+        // Fill expanded space with NaN
+        for (let i = this.spatialData.length; i < newLen * 2; i++) {
+          newSpatial[i] = Number.NaN
+        }
+        this.spatialData = newSpatial
+      }
     }
 
     // 2. Resize AOI Content Buffer if needed
@@ -78,6 +100,22 @@ class SegmentBucket {
       for (let i = 0; i < aoiLen; i++) {
         this.aoiBuffer[this.aoiTotalCount++] = aois[i]
       }
+    }
+
+    // 5. Write Spatial Data
+    if (spatial) {
+      // Lazily allocate spatial buffer on first use
+      if (!this.spatialData) {
+        this.spatialData = new Float32Array(this.data.length)
+        // Fill with NaN initially
+        for (let i = 0; i < this.spatialData.length; i++) {
+          this.spatialData[i] = Number.NaN
+        }
+        this.hasSpatialData = true
+      }
+      const spatialPtr = this.count * 2
+      this.spatialData[spatialPtr] = spatial.x
+      this.spatialData[spatialPtr + 1] = spatial.y
     }
 
     this.count++
@@ -169,7 +207,8 @@ export class BinaryEyeWriter {
     categoryId: number,
     stimulus: Uint8Array,
     participant: Uint8Array,
-    aoi: Uint8Array[] | null
+    aoi: Uint8Array[] | null,
+    spatial?: { x: number; y: number } | null
   ): void {
     const sIdx = this.getOrAddBytes(
       this.stimuli,
@@ -202,7 +241,7 @@ export class BinaryEyeWriter {
       this.buckets[sIdx][pIdx] = new SegmentBucket()
     }
 
-    this.buckets[sIdx][pIdx].add(start, end, categoryId, aoiIds)
+    this.buckets[sIdx][pIdx].add(start, end, categoryId, aoiIds, spatial)
     this.totalSegments++
   }
 
@@ -250,8 +289,29 @@ export class BinaryEyeWriter {
     const aoiPool = new Uint16Array(this.totalAoiHits)
     const indexTable = new Uint32Array(maxStimuli * maxParticipants * 2)
 
+    /* Spatial buffer allocation: check if any buckets have spatial data */
+    let hasSpatialData = false
+    for (let s = 0; s < maxStimuli; s++) {
+      const pBuckets = this.buckets[s]
+      if (!pBuckets) continue
+      for (let p = 0; p < maxParticipants; p++) {
+        const bucket = pBuckets[p]
+        if (bucket && bucket.hasSpatialData) {
+          hasSpatialData = true
+          break
+        }
+      }
+      if (hasSpatialData) break
+    }
+
+    // Allocate spatial buffer if needed (stride 2: x, y per segment)
+    const spatialBuffer = hasSpatialData
+      ? new Float32Array(this.totalSegments * 2)
+      : undefined
+
     let segPtr = 0
     let poolPtr = 0
+    let spatialPtr = 0
 
     // Iterate Stimuli -> Participants
     for (let s = 0; s < maxStimuli; s++) {
@@ -279,6 +339,7 @@ export class BinaryEyeWriter {
         const bAoiCounts = bucket.aoiCounts
         const bAoiOffsets = bucket.aoiOffsets
         const bAoiBuf = bucket.aoiBuffer
+        const bSpatial = bucket.spatialData
 
         for (let i = 0; i < indices.length; i++) {
           const idx = indices[i]
@@ -325,12 +386,23 @@ export class BinaryEyeWriter {
               }
             }
 
+            // Copy Spatial Data (stride 2)
+            if (spatialBuffer && bSpatial) {
+              spatialBuffer[spatialPtr * 2] = bSpatial[idx * 2]
+              spatialBuffer[spatialPtr * 2 + 1] = bSpatial[idx * 2 + 1]
+            } else if (spatialBuffer) {
+              // Fill with NaN if spatial buffer allocated but no data for this segment
+              spatialBuffer[spatialPtr * 2] = Number.NaN
+              spatialBuffer[spatialPtr * 2 + 1] = Number.NaN
+            }
+
             // Update State
             lastStart = start
             lastEnd = end
             lastCat = cat
             isFirst = false
             segPtr++
+            spatialPtr++
           }
         }
 
@@ -420,6 +492,10 @@ export class BinaryEyeWriter {
         segmentBuffer: finalSegBuffer.subarray(0, segPtr * SEGMENT_STRIDE),
         indexTable,
         aoiPool: aoiPool.subarray(0, poolPtr),
+        hasSpatialData,
+        spatialBuffer: spatialBuffer
+          ? spatialBuffer.subarray(0, spatialPtr * 2)
+          : undefined,
         maxParticipants,
         stimuliCount: maxStimuli,
       },

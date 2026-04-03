@@ -22,6 +22,10 @@
       <span class="label">Total number of AOIs:</span>
       <span class="value">{overview.aoiCounts.total}</span>
     </div>
+    <div class="info-item">
+      <span class="label">Has spatial data:</span>
+      <span class="value">{overview.hasSpatialData ? 'Yes' : 'No'}</span>
+    </div>
   </Card>
 
   {#if overview.aoiCounts.perStimulus.length > 0}

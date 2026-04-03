@@ -12,6 +12,10 @@ type TextEncoding = 'utf-8' | 'utf-16le' | 'utf-16be'
  * - Zero-fills missing AOI tail to prevent carry-over.
  */
 export abstract class AbstractAdapter {
+  /**
+   * Segment emission callback. Spatial coordinate is optional and set only when available.
+   * Different adapters contribute spatial data based on their source format.
+   */
   onSegment:
     | ((
         start: number,
@@ -19,7 +23,8 @@ export abstract class AbstractAdapter {
         categoryId: number,
         stimulus: Uint8Array,
         participant: Uint8Array,
-        aoi: Uint8Array[] | null
+        aoi: Uint8Array[] | null,
+        spatial?: { x: number; y: number } | null
       ) => void)
     | null = null
   protected readonly delim: string
@@ -81,16 +86,20 @@ export abstract class AbstractAdapter {
     return this.parseNumberFromBytes(this.currRowBytes, start, end)
   }
 
+  /**
+   * Emit a segment to the consumer. Optionally includes spatial coordinates.
+   */
   protected emitSegment(
     start: number,
     end: number,
     categoryId: number,
     stimulus: Uint8Array,
     participant: Uint8Array,
-    aoi: Uint8Array[] | null
+    aoi: Uint8Array[] | null,
+    spatial?: { x: number; y: number } | null
   ): void {
     if (!this.onSegment) return
-    this.onSegment(start, end, categoryId, stimulus, participant, aoi)
+    this.onSegment(start, end, categoryId, stimulus, participant, aoi, spatial)
   }
 
   protected setupColumns(indices: number[]): void {

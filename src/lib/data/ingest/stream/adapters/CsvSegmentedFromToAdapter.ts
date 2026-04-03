@@ -11,12 +11,16 @@ export class CsvSegmentedFromToAdapter extends AbstractAdapter {
   cParticipant: number
   cStimulus: number
   cAoi: number
+  cX: number
+  cY: number
 
   private readonly pFrom = 0
   private readonly pTo = 1
   private readonly pAoi = 2
   private readonly pParticipant = 3
   private readonly pStimulus = 4
+  private readonly pX = 5
+  private readonly pY = 6
 
   protected readonly pipeDelimiterBytes: Uint8Array
 
@@ -31,6 +35,8 @@ export class CsvSegmentedFromToAdapter extends AbstractAdapter {
     this.cAoi = this.getIndex(header, 'AOI')
     this.cParticipant = this.getIndex(header, 'Participant')
     this.cStimulus = this.getIndex(header, 'Stimulus')
+    this.cX = this.findOptionalColumn(header, 'x')
+    this.cY = this.findOptionalColumn(header, 'y')
     this.pipeDelimiterBytes = encodeString('|', encoding)
 
     this.setupColumns([
@@ -39,6 +45,8 @@ export class CsvSegmentedFromToAdapter extends AbstractAdapter {
       this.cAoi,
       this.cParticipant,
       this.cStimulus,
+      this.cX,
+      this.cY,
     ])
   }
 
@@ -72,7 +80,16 @@ export class CsvSegmentedFromToAdapter extends AbstractAdapter {
       aoiBytes.length > 0
         ? splitAoiColumn(aoiBytes, this.pipeDelimiterBytes)
         : null
-    this.emitSegment(from, to, 0, stimulusBytes, participantBytes, aoi)
+    const x = this.getNumber(this.pX)
+    const y = this.getNumber(this.pY)
+    const hasSpatialColumns = this.cX !== -1 && this.cY !== -1
+    const spatial = hasSpatialColumns
+      ? Number.isFinite(x) && Number.isFinite(y)
+        ? { x, y }
+        : null
+      : undefined
+
+    this.emitSegment(from, to, 0, stimulusBytes, participantBytes, aoi, spatial)
   }
 
   /**
@@ -80,5 +97,12 @@ export class CsvSegmentedFromToAdapter extends AbstractAdapter {
    */
   finalize(): void {
     return
+  }
+
+  private findOptionalColumn(header: string[], target: string): number {
+    for (let i = 0; i < header.length; i++) {
+      if (header[i].trim().toLowerCase() === target) return i
+    }
+    return -1
   }
 }

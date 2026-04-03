@@ -108,3 +108,21 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
     expect(result).toBeUndefined()
   })
 })
+
+describe('CSV Segmented FromTo Deserializer - Spatial coordinates', () => {
+  test('parses optional X/Y columns', () => {
+    const raw = `From,To,Participant,Stimulus,AOI,X,Y
+0,10,P1,S1,A1,640,360
+10,20,P1,S1,A2,,`
+
+    const rows = raw.split('\n')
+    const header = rows[0].split(',')
+    const sut = new CsvSegmentedFromToAdapter(header, ',')
+    const { outputs, processRows } = createAdapterHarness(sut)
+    processRows(rows.slice(1), { finalize: true })
+
+    expect(outputs).toHaveLength(2)
+    expect(outputs[0].spatial).toEqual({ x: 640, y: 360 })
+    expect(outputs[1].spatial).toBeNull()
+  })
+})

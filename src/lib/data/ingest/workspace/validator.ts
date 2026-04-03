@@ -74,6 +74,7 @@ export function processAndValidateData(
       }
     }
 
+    // Phase 1 note: workspace JSON does not hydrate spatial segment coordinates yet.
     data.segments = jsonSegmentsToBinary(rawSegments)
   } else {
     // Basic structural validation for binary segments to ensure they aren't plain objects
@@ -88,6 +89,10 @@ export function processAndValidateData(
       throw new Error(
         'Invalid data structure: segments are not in valid array or binary buffer format'
       )
+    }
+
+    if (typeof bins.hasSpatialData !== 'boolean') {
+      bins.hasSpatialData = false
     }
   }
 

@@ -92,6 +92,7 @@ describe('metadata-info helpers', () => {
     expect(overview).toEqual({
       numberOfStimuli: 2,
       numberOfParticipants: 2,
+      hasSpatialData: false,
       aoiCounts: {
         perStimulus: [
           { stimulusName: 'Stimulus1', count: 0 },
@@ -100,6 +101,11 @@ describe('metadata-info helpers', () => {
         total: 2,
       },
     })
+  })
+
+  it('includes spatial availability in overview when provided', () => {
+    const overview = buildMetadataOverview(createMockMetadata(), true)
+    expect(overview.hasSpatialData).toBe(true)
   })
 
   it('compares current parsing to source metadata by names, sizes, and parse date', () => {
@@ -176,6 +182,7 @@ describe('metadata-info helpers', () => {
     expect(csv).toContain('Section,Current Parsing')
     expect(csv).toContain('Total File Size,SIZE(300)')
     expect(csv).toContain('Parse Date,DATE(2026-03-14T10:00:00.000Z)')
+    expect(csv).toContain('Has Spatial Data,No')
     expect(csv).toContain('Section,Source Parsing')
     expect(csv).toContain('Status,SUCCESS')
     expect(csv).toContain('Parse Duration,DURATION(3)')

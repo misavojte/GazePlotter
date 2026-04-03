@@ -416,13 +416,40 @@
                   const originalAoi = aoiObjects.find(a => a.id === aoi.id)
                   if (originalAoi) {
                     originalAoi.displayedName = e.detail
+
+                    // Sync visibility when joining a group
+                    const trimmedName = (e.detail || '').trim()
+                    if (isValidMatch(trimmedName)) {
+                      const groupMember = aoiObjects.find(
+                        a =>
+                          a.id !== aoi.id &&
+                          (a.displayedName || '').trim() === trimmedName
+                      )
+                      if (groupMember) {
+                        const isGroupHidden = hiddenAoiIds.includes(
+                          groupMember.id
+                        )
+                        if (isGroupHidden) {
+                          if (!hiddenAoiIds.includes(aoi.id)) {
+                            hiddenAoiIds = [...hiddenAoiIds, aoi.id]
+                          }
+                        } else {
+                          hiddenAoiIds = hiddenAoiIds.filter(
+                            id => id !== aoi.id
+                          )
+                        }
+                      }
+                    }
                   }
                 }}
               />
             </td>
             {#if showGroupControls}
               <td class="color-cell">
-                <div class:disabled-control={!isActive} aria-disabled={!isActive}>
+                <div
+                  class:disabled-control={!isActive}
+                  aria-disabled={!isActive}
+                >
                   <InputColor
                     label="Color"
                     showLabel={false}
@@ -491,28 +518,42 @@
                   />
                 </div>
               </td>
-            {:else}
-              <td colspan="2" class="group-info"
-                >change name to detach from group</td
-              >
-            {/if}
+              <td class="active-col">
+                <InputCheck
+                  label=""
+                  ariaLabel="Is active"
+                  size="lg"
+                  checked={isActive}
+                  onchange={e => {
+                    const active = e.detail
+                    const trimmedName = (aoi.displayedName || '').trim()
+                    const affectedIds = isValidMatch(trimmedName)
+                      ? aoiObjects
+                          .filter(
+                            a => (a.displayedName || '').trim() === trimmedName
+                          )
+                          .map(a => a.id)
+                      : [aoi.id]
 
-            <td class="active-col">
-              <InputCheck
-                label=""
-                ariaLabel="Is active"
-                size="lg"
-                checked={isActive}
-                onchange={e => {
-                  const active = e.detail
-                  if (active) {
-                    hiddenAoiIds = hiddenAoiIds.filter(id => id !== aoi.id)
-                  } else {
-                    hiddenAoiIds = Array.from(new Set([...hiddenAoiIds, aoi.id]))
-                  }
-                }}
-              />
-            </td>
+                    if (active) {
+                      hiddenAoiIds = hiddenAoiIds.filter(
+                        id => !affectedIds.includes(id)
+                      )
+                    } else {
+                      hiddenAoiIds = Array.from(
+                        new Set([...hiddenAoiIds, ...affectedIds])
+                      )
+                    }
+                  }}
+                />
+              </td>
+            {:else}
+              <td colspan="3">
+                <div class="group-info" class:is-hidden={!isActive}>
+                  rename to detach from group
+                </div>
+              </td>
+            {/if}
           </tr>
         {/each}
       </tbody>
@@ -606,14 +647,24 @@
     white-space: nowrap;
   }
   .group-info {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--c-midgrey);
-    font-style: italic;
-    width: 90px;
-    line-height: 1.1;
     border: 1px solid var(--c-midgrey);
     border-radius: var(--rounded-md);
-    padding: 3px 7px;
+    padding: 0 7px;
+    text-align: center;
+    background: transparent;
+    width: 236px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    opacity: 0.8;
+    box-sizing: border-box;
+  }
+  .group-info.is-hidden {
+    background: var(--c-lightgrey);
   }
 
   .noaoi-treatment-container {

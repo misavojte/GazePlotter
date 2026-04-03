@@ -2,8 +2,6 @@
 
 To integrate gaze arrays natively exported from Tobii Pro Lab architecture directly into GazePlotter, the raw data structures must be serialized into the `.tsv` file extension protocol.
 
-> **Structural Limitations**: Due to the strict proprietary nature of Tobii's export engines, their natively generated `.tsv` files completely fail to export dynamic AOI visibility matrices or moving spatial parameters.
-
 ## Pre-Processing Workflow (Tobii Pro Lab)
 
 Execute these technical steps securely within the native Tobii interface prior to importing.
@@ -16,17 +14,28 @@ Execute these technical steps securely within the native Tobii interface prior t
 ### Configuring Parameters
 
 1. **Data Architecture**: Within the right-hand properties panel, explicitly force the `Format` directive strictly to `Single standard file (.tsv)`.
-2. **Column Constraints**: To optimize internal ingestion speeds and prevent parsing footprint bloat, exclusively select only these 7 precise column metrics. All others are recommended to be deselected:
+2. **Column Constraints**: To optimize internal ingestion speeds and prevent parsing footprint bloat, include these core metrics. Spatial columns are optional:
 
 | System Target Column Name |
 | :------------------------ |
+| Recording timestamp       |
 | Participant name          |
 | Recording name            |
 | Presented Stimulus name   |
 | Eye movement type         |
 | Eye movement type index   |
 | Event                     |
+| Event value               |
 | AOI hit                   |
+
+Optional spatial columns:
+
+| Spatial Target Column Name |
+| :------------------------- |
+| Mapped fixation X          |
+| Mapped fixation Y          |
+| Fixation point X           |
+| Fixation point Y           |
 
 ### Execution
 
@@ -50,6 +59,22 @@ Once the structural `.tsv` is successfully received, the GazePlotter engine will
 - **Interval Events**: Instructs the engine to isolate stimuli computationally based upon explicit `IntervalStart` and `IntervalEnd` markers nested within the Event column. Used predominantly for mobile/wearable **Glasses experiments**.
 - **Web Stimulus Events**: Instructs the engine to isolate individual dynamic URLs as independent stimuli matrices.
 - **Custom Markers**: Allows you to explicitly define and input your own custom delimiter string markers (e.g., `_start;_end`) to force temporal stimulus boxing.
+
+## Spatial Coordinate Parsing
+
+When Tobii coordinate columns are available, GazePlotter stores a segment-level spatial coordinate for fixation segments.
+
+Priority order:
+
+1. `Mapped fixation X` + `Mapped fixation Y` (preferred)
+2. `Fixation point X` + `Fixation point Y` (fallback)
+3. If neither complete pair is available, no spatial coordinate is stored for that segment
+
+Notes:
+
+- Both X and Y are required as a pair.
+- If only one value is present, the row is treated as no spatial data.
+- The first valid coordinate pair within a segment is used for that segment.
 
 ## Data Reference Standard
 

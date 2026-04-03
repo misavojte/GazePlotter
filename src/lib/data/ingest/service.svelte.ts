@@ -55,6 +55,7 @@ const EMPTY_DATASET: DataType = {
     segmentBuffer: new Float32Array(0),
     indexTable: new Uint32Array(0),
     aoiPool: new Uint16Array(0),
+    hasSpatialData: false,
     maxParticipants: 0,
     stimuliCount: 0,
   },
