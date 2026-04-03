@@ -25,6 +25,7 @@ export interface MetadataAoiCount {
 export interface MetadataOverview {
   numberOfStimuli: number
   numberOfParticipants: number
+  hasSpatialData: boolean
   aoiCounts: {
     perStimulus: MetadataAoiCount[]
     total: number
@@ -51,6 +52,7 @@ function createEmptyMetadataOverview(): MetadataOverview {
   return {
     numberOfStimuli: 0,
     numberOfParticipants: 0,
+    hasSpatialData: false,
     aoiCounts: {
       perStimulus: [],
       total: 0,
@@ -121,7 +123,8 @@ export function isCurrentParsingSameAsSource(
 }
 
 export function buildMetadataOverview(
-  metadata: MetadataSource | null | undefined
+  metadata: MetadataSource | null | undefined,
+  hasSpatialData: boolean = false
 ): MetadataOverview {
   if (metadata === null || metadata === undefined) {
     return createEmptyMetadataOverview()
@@ -137,6 +140,7 @@ export function buildMetadataOverview(
   return {
     numberOfStimuli: metadata.stimuli.data.length,
     numberOfParticipants: metadata.participants.data.length,
+    hasSpatialData,
     aoiCounts: {
       perStimulus,
       total: perStimulus.reduce((sum, stimulus) => sum + stimulus.count, 0),
@@ -187,6 +191,7 @@ export function buildMetadataCsvReport(
   lines.push('Metric,Value')
   lines.push(`Number of Stimuli,${input.overview.numberOfStimuli}`)
   lines.push(`Number of Participants,${input.overview.numberOfParticipants}`)
+  lines.push(`Has Spatial Data,${input.overview.hasSpatialData ? 'Yes' : 'No'}`)
   lines.push(`Total Number of AOIs,${input.overview.aoiCounts.total}`)
   lines.push('')
 

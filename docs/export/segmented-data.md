@@ -9,6 +9,7 @@ Segmented CSV file outputs contain highly granular, row-level sequential eye-tra
 - Unified participant identifiers.
 - Stimulus metadata connections.
 - Raw fixation coordinates (X, Y) and localized duration metrics.
+- Segment spatial coordinates (when available from source data).
 - Hardcoded AOI collision assignments.
 - Absolute micro-second timestamp delineations.
 - Computed gaze event classifications.

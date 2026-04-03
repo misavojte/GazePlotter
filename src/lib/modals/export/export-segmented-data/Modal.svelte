@@ -22,6 +22,8 @@
   let selectedStimuliIds = $state(new Set<string>())
   let isExporting = $state(false)
 
+  const hasSpatialData = $derived(engine.segments?.hasSpatialData ?? false)
+
   const exportOptions = [
     {
       value: 'csv',
@@ -151,11 +153,27 @@
 
   <Section title="Format Details">
     <div class="content">
-      <p class="format-description">
-        <strong>CSV format</strong> with columns: stimulus, participant, timestamp,
-        duration, eyemovementtype, AOI. Output respects selected stimuli and filter
-        settings.
-      </p>
+      {#if hasSpatialData}
+        <p class="format-description">
+          <strong>CSV format</strong> with columns: stimulus, participant, timestamp,
+          duration, eyemovementtype, AOI, x, y. Output respects selected stimuli and
+          filter settings.
+        </p>
+        <p class="format-description">
+          Spatial coordinates are exported per segment. Segments without
+          coordinates keep empty x/y fields.
+        </p>
+      {:else}
+        <p class="format-description">
+          <strong>CSV format</strong> with columns: stimulus, participant, timestamp,
+          duration, eyemovementtype, AOI. Output respects selected stimuli and filter
+          settings.
+        </p>
+        <p class="format-description">
+          Load spatially annotated data to unlock x/y coordinate export for each
+          segment.
+        </p>
+      {/if}
       <p class="format-description">
         Eye movement types: "0" = fixation, other values = saccades etc. AOI
         column contains semicolon-separated area names.

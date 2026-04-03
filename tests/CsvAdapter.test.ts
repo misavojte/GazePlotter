@@ -189,3 +189,38 @@ describe('CSV Deserializer - Multiple data', async () => {
     expect(filtered[3].aoi).toEqual(['Region_3'])
   })
 })
+
+describe('CSV Deserializer - Spatial coordinates', () => {
+  test('parses optional X/Y columns and emits first valid pair per segment', () => {
+    const raw = `Time,Participant,Stimulus,AOI,X,Y
+0,P1,S1,A1,100,200
+1,P1,S1,A1,150,250
+2,P1,S1,A2,300,400`
+
+    const rows = raw.split('\n')
+    const header = rows[0].split(',')
+    const sut = new CsvAdapter(header, ',')
+    const { outputs, processRows } = createAdapterHarness(sut)
+    processRows(rows.slice(1), { finalize: true })
+
+    expect(outputs).toHaveLength(2)
+    expect(outputs[0].spatial).toEqual({ x: 100, y: 200 })
+    expect(outputs[1].spatial).toEqual({ x: 300, y: 400 })
+  })
+
+  test('uses null spatial when X/Y columns exist but row lacks valid pair', () => {
+    const raw = `Time,Participant,Stimulus,AOI,X,Y
+0,P1,S1,A1,,
+1,P1,S1,A2,300,400`
+
+    const rows = raw.split('\n')
+    const header = rows[0].split(',')
+    const sut = new CsvAdapter(header, ',')
+    const { outputs, processRows } = createAdapterHarness(sut)
+    processRows(rows.slice(1), { finalize: true })
+
+    expect(outputs).toHaveLength(2)
+    expect(outputs[0].spatial).toBeNull()
+    expect(outputs[1].spatial).toEqual({ x: 300, y: 400 })
+  })
+})

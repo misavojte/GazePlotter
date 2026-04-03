@@ -51,6 +51,12 @@ export class CsvSegmentedDurationAdapter extends AbstractAdapter {
   /** Column index for eye movement type field */
   cEyeMovementType: number
 
+  /** Optional spatial X coordinate column index */
+  cX: number
+
+  /** Optional spatial Y coordinate column index */
+  cY: number
+
   // Packed string columns
   private readonly pTimestamp = 0
   private readonly pDuration = 1
@@ -58,6 +64,8 @@ export class CsvSegmentedDurationAdapter extends AbstractAdapter {
   private readonly pParticipant = 3
   private readonly pStimulus = 4
   private readonly pEyeMovementType = 5
+  private readonly pX = 6
+  private readonly pY = 7
 
   /** Base time for the current participant/stimulus combination (used for time normalization) */
   mTimeBase: number | null = null
@@ -96,6 +104,8 @@ export class CsvSegmentedDurationAdapter extends AbstractAdapter {
     this.cParticipant = this.getIndex(trimmedHeader, 'participant')
     this.cStimulus = this.getIndex(trimmedHeader, 'stimulus')
     this.cEyeMovementType = this.getIndex(trimmedHeader, 'eyemovementtype')
+    this.cX = this.findOptionalColumn(trimmedHeader, 'x')
+    this.cY = this.findOptionalColumn(trimmedHeader, 'y')
     this.pipeDelimiterBytes = encodeString('|', encoding)
 
     this.setupColumns([
@@ -105,6 +115,8 @@ export class CsvSegmentedDurationAdapter extends AbstractAdapter {
       this.cParticipant,
       this.cStimulus,
       this.cEyeMovementType,
+      this.cX,
+      this.cY,
     ])
   }
 
@@ -166,6 +178,14 @@ export class CsvSegmentedDurationAdapter extends AbstractAdapter {
 
     const categoryId = this.isZero(eyeMovementTypeBytes) ? 0 : 1
     const aoi = splitAoiColumn(aoiBytes, this.pipeDelimiterBytes)
+    const x = this.getNumber(this.pX)
+    const y = this.getNumber(this.pY)
+    const hasSpatialColumns = this.cX !== -1 && this.cY !== -1
+    const spatial = hasSpatialColumns
+      ? Number.isFinite(x) && Number.isFinite(y)
+        ? { x, y }
+        : null
+      : undefined
 
     this.emitSegment(
       normalizedStartTime,
@@ -173,7 +193,8 @@ export class CsvSegmentedDurationAdapter extends AbstractAdapter {
       categoryId,
       stimulusBytes,
       participantBytes,
-      aoi
+      aoi,
+      spatial
     )
   }
 
@@ -198,5 +219,12 @@ export class CsvSegmentedDurationAdapter extends AbstractAdapter {
       return bytes.length === 2 && bytes[0] === 0 && bytes[1] === 48
     }
     return bytes.length === 1 && bytes[0] === 48
+  }
+
+  private findOptionalColumn(header: string[], target: string): number {
+    for (let i = 0; i < header.length; i++) {
+      if (header[i].trim().toLowerCase() === target) return i
+    }
+    return -1
   }
 }

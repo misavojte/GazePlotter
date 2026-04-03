@@ -13,6 +13,8 @@ export class BinaryBufferReader {
   private segmentBuffer: Float32Array
   private indexTable: Uint32Array
   private aoiPool: Uint16Array
+  public readonly hasSpatialData: boolean
+  private spatialBuffer?: Float32Array
   private maxParticipants: number
   private stimuliCount: number
 
@@ -20,6 +22,8 @@ export class BinaryBufferReader {
     this.segmentBuffer = buffers.segmentBuffer
     this.indexTable = buffers.indexTable
     this.aoiPool = buffers.aoiPool
+    this.hasSpatialData = buffers.hasSpatialData ?? false
+    this.spatialBuffer = buffers.spatialBuffer
     this.maxParticipants = buffers.maxParticipants
     this.stimuliCount = buffers.stimuliCount
   }
@@ -111,6 +115,24 @@ export class BinaryBufferReader {
   }
 
   /**
+   * Get spatial coordinates for a segment.
+   * Returns null if the workspace has no spatial data or this segment has missing coordinates.
+   */
+  getSegmentSpatial(segmentIndex: number): { x: number; y: number } | null {
+    if (!this.hasSpatialData || !this.spatialBuffer) return null
+
+    const base = segmentIndex * 2
+    const x = this.spatialBuffer[base]
+
+    if (Number.isNaN(x)) return null
+
+    return {
+      x,
+      y: this.spatialBuffer[base + 1],
+    }
+  }
+
+  /**
    * Iterate over all segments for a stimulus and participant.
    */
   forEachSegment(
@@ -135,6 +157,8 @@ export class BinaryBufferReader {
       segmentBuffer: this.segmentBuffer,
       indexTable: this.indexTable,
       aoiPool: this.aoiPool,
+      hasSpatialData: this.hasSpatialData,
+      spatialBuffer: this.spatialBuffer,
       maxParticipants: this.maxParticipants,
       stimuliCount: this.stimuliCount,
     }

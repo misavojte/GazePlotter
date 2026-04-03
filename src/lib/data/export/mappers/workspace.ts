@@ -12,10 +12,14 @@ export function generateWorkspaceJson(
   gridItems: any[],
   fileMetadata: FileMetadataType | null
 ): string {
-  // 1. Prepare domain data (convert binary to legacy JSON for compatibility if needed)
+  // 1. Prepare domain data (convert binary to legacy JSON for compatibility)
+  // Phase 1 note: spatial segment coordinates are intentionally not serialized
+  // into workspace JSON yet. They are currently preserved only in live/session data.
+  const segments = binarySegmentsToJson(data.segments)
+
   const exportData: JsonImportOldFormat = {
     ...data,
-    segments: binarySegmentsToJson(data.segments),
+    segments,
   }
 
   // 2. Wrap into project schema
