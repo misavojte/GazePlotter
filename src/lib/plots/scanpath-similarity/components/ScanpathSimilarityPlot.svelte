@@ -25,6 +25,7 @@
     buildScangraphData,
   } from '../core/transformer'
 
+  import { SIMILARITY_LEGEND_TITLES } from '../const'
   import type {
     ScanpathSimilarityItem,
     ScanpathSimilaritySettings,
@@ -279,6 +280,7 @@
           {height}
           colorScale={effectiveColorScale}
           colorValueRange={[syncs.minValue.value, syncs.maxValue.value]}
+          legendTitle={SIMILARITY_LEGEND_TITLES[effectiveMethod] ?? 'Similarity'}
         />
       {:else if effectiveView === 'scangraph' && scangraphData}
         <ScangraphFigure

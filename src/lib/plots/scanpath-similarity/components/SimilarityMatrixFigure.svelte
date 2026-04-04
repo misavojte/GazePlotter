@@ -39,6 +39,7 @@
     width = 500,
     colorScale = ['#f7fbff', '#08306b'],
     colorValueRange = [0, 1],
+    legendTitle = 'Similarity',
     dpiOverride = null,
     marginTop = 0,
     marginRight = 0,
@@ -51,6 +52,7 @@
     width?: number
     colorScale?: string[]
     colorValueRange: [number, number]
+    legendTitle?: string
     dpiOverride?: number | null
     marginTop?: number
     marginRight?: number
@@ -353,7 +355,7 @@
       colorScale,
       valueRange: colorValueRange,
       effectiveMaxValue,
-      title: 'Similarity',
+      title: legendTitle,
     })
   })
 
@@ -367,7 +369,7 @@
         colorScale,
         valueRange: colorValueRange,
         effectiveMaxValue,
-        title: 'Similarity',
+        title: legendTitle,
       })
     }
   }
@@ -399,7 +401,7 @@
         content: [
           { key: 'Row', value: labels[row] },
           { key: 'Column', value: labels[col] },
-          { key: 'Similarity', value: value.toFixed(3) },
+          { key: legendTitle, value: value.toFixed(3) },
         ],
         visible: true,
         width: 160,
@@ -427,6 +429,7 @@
       colorScale,
       colorValueRange,
       dpiOverride,
+      legendTitle,
       marginTop,
       marginRight,
       marginBottom,

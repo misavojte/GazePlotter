@@ -35,6 +35,10 @@
     width = 400,
     height = 400,
     dpiOverride = null,
+    marginTop = 0,
+    marginRight = 0,
+    marginBottom = 0,
+    marginLeft = 0,
   } = $props<{
     data: RecurrenceData
     highlight?: RecurrenceHighlight
@@ -43,6 +47,10 @@
     width?: number
     height?: number
     dpiOverride?: number | null
+    marginTop?: number
+    marginRight?: number
+    marginBottom?: number
+    marginLeft?: number
   }>()
 
   let canvas = $state<HTMLCanvasElement | null>(null)
@@ -58,7 +66,10 @@
     return registerCanvasExportSource(exportRegistrar, () => canvas)
   })
 
-  const getCanvasDimensions = () => ({ width, height })
+  const getCanvasDimensions = () => ({
+    width: width + marginLeft + marginRight,
+    height: height + marginTop + marginBottom,
+  })
   const scheduleRender = createRenderScheduler(renderCanvas)
 
   const L = RECURRENCE_LAYOUT
@@ -88,8 +99,8 @@
     const cellSize = N < 2 ? 0 : Math.max(L.minCellSize, plotSize / N)
     const gridSize = cellSize * N
 
-    const xOffset = Math.floor(yAxisSpace + (availW - gridSize) / 2)
-    const yOffset = Math.floor(L.topMargin)
+    const xOffset = Math.floor(marginLeft + yAxisSpace + (availW - gridSize) / 2)
+    const yOffset = Math.floor(marginTop + L.topMargin)
 
     const tickStep = N <= 20 ? 1 : Math.ceil(N / 10)
 
@@ -141,7 +152,9 @@
       ctx.fillStyle = UI_COLORS.TEXT_SECONDARY
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText('Not enough fixations', width >> 1, height >> 1)
+      const cw = width + marginLeft + marginRight
+      const ch = height + marginTop + marginBottom
+      ctx.fillText('Not enough fixations', cw >> 1, ch >> 1)
       finishCanvasDrawing(canvasState)
       return
     }
@@ -416,7 +429,7 @@
   }
 
   $effect(() => {
-    const _ = [data, highlight, masking, highlightMask, width, height, dpiOverride]
+    const _ = [data, highlight, masking, highlightMask, width, height, dpiOverride, marginTop, marginRight, marginBottom, marginLeft]
 
     untrack(() => {
       refreshCanvasLifecycle({

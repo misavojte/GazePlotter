@@ -41,7 +41,7 @@ export const RECURRENCE_DEFAULTS = {
 export const RECURRENCE_LAYOUT = {
   leftMargin: 30,
   rightMargin: 10,
-  topMargin: 10,
+  topMargin: 0,
   bottomMargin: 0,
   axisTitleGap: 12,
   labelFontSize: 12,

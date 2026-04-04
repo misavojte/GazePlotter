@@ -5,6 +5,11 @@ export const SIMILARITY_METHODS = [
   { value: 'needlemanWunsch' as const, label: 'Needleman-Wunsch' },
 ] as const
 
+export const SIMILARITY_LEGEND_TITLES: Record<string, string> = {
+  levenshtein: 'Similarity [Levenshtein]',
+  needlemanWunsch: 'Similarity [Needleman-Wunsch]',
+}
+
 export const SCANPATH_SIMILARITY_DEFAULTS = {
   threshold: 0.5,
   collapsed: false,
