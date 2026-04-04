@@ -1,4 +1,5 @@
 import type { Component } from 'svelte'
+import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 
 export type DefaultPlotParams = {
   stimulusId?: number
@@ -41,6 +42,7 @@ export type PlotDefinition<
   getDefaultHeight: (params?: PlotLayoutInput<TSettings>) => number
   getDefaultWidth: (params?: PlotLayoutInput<TSettings>) => number
   getMinSize: (params?: TParams) => { w: number; h: number }
+  canAdd?: (engine: DataEngine) => boolean
 }
 
 export function definePlot<

@@ -22,6 +22,8 @@
     // If provided, controls the fade in. If not provided, it assumes data is always ready or handled by parent.
     // If false is passed, it shows placeholder.
     hasData?: boolean
+    // If provided and hasData is false, shows a static message instead of spinner.
+    unavailableMessage?: string | null
 
     // Optional dimensions override if parent already calculated them
     dimensions?: { width: number; height: number }
@@ -38,6 +40,7 @@
     item,
     layoutConfig = {},
     hasData = true,
+    unavailableMessage = null,
     dimensions: parentDimensions,
     contentHeight,
     header,
@@ -101,7 +104,12 @@
       </div>
     {:else}
       <div class="figure-content" style="height: {dimensions.height}px">
-        <PlotPlaceholder width={dimensions.width} height={dimensions.height} />
+        <PlotPlaceholder
+          width={dimensions.width}
+          height={dimensions.height}
+          message={unavailableMessage ?? 'Loading visualization...'}
+          loading={!unavailableMessage}
+        />
       </div>
     {/if}
   </div>

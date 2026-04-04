@@ -3,6 +3,7 @@
   import { onMount } from 'svelte'
   import type { GridItemSnapshot } from '$lib/workspace'
   import { createRailItems, type RailVisualization } from './config'
+  import { plotRegistry } from '$lib/plots/registry'
   import RailItem from './RailItem.svelte'
   import RailZoomSlider from './RailZoomSlider.svelte'
 
@@ -34,6 +35,13 @@
   const isValidData = $derived(engine.hasValidData)
   const canUndo = $derived(workspace.canUndo)
   const canRedo = $derived(workspace.canRedo)
+
+  const filteredVisualizations = $derived(
+    visualizations.filter(v => {
+      const config = plotRegistry[v.id as keyof typeof plotRegistry]
+      return !config?.canAdd || config.canAdd(engine)
+    })
+  )
 
   const undoLabel: string | null = $derived(workspace.lastUndoLabel)
   const redoLabel: string | null = $derived(workspace.lastRedoLabel)
@@ -73,7 +81,7 @@
       canRedo,
       isProcessing,
       isValidData,
-      visualizations,
+      visualizations: filteredVisualizations,
       onUndo: handleUndo,
       onRedo: handleRedo,
       onResetLayout: handleResetLayout,

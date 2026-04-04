@@ -4,6 +4,7 @@ import { barPlotDefinition } from './bar/definition'
 import { scarfPlotDefinition } from './scarf/definition'
 import { transitionMatrixDefinition } from './transition-matrix/definition'
 import { scanpathSimilarityDefinition } from './scanpath-similarity/definition'
+import { recurrencePlotDefinition } from './recurrence/definition'
 
 export const plotRegistry = {
   scarf: scarfPlotDefinition,
@@ -11,6 +12,7 @@ export const plotRegistry = {
   barPlot: barPlotDefinition,
   aoiStreamPlot: aoiStreamPlotDefinition,
   scanpathSimilarity: scanpathSimilarityDefinition,
+  recurrencePlot: recurrencePlotDefinition,
 } as const
 
 const LEGACY_VISUALIZATION_TYPES = {

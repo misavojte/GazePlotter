@@ -19,6 +19,10 @@ export class DataEngine {
     !!this.metadata && this.metadata.stimuli.data.length > 0
   )
 
+  hasSpatialData = $derived(
+    this.hasValidData && (this._reader?.hasSpatialData ?? false)
+  )
+
   // ==========================================
   // Core Engine Logic
   // ==========================================
