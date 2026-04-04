@@ -103,7 +103,7 @@
         bind:value={syncs.threshold.value}
         min={0}
         max={1}
-        step={0.05}
+        step={0.01}
         appearance="compact"
       />
     </CompactSettingsSection>
