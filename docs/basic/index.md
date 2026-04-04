@@ -53,6 +53,7 @@ GazePlotter offers three main ways to view your eye-tracking data:
 - **[Bar Plot](/docs/basic/bar-plot/)** - Bar charts comparing how much time was spent in different areas
 - **[Transition Matrix](/docs/basic/transition-matrix/)** - Heat map showing how gaze moved between areas
 - **[Time-binned AOI Occupancy](/docs/basic/aoi-occupancy/)** - Visualizations showing how attention is distributed across AOIs over time
+- **[Recurrence Plot](/docs/basic/recurrence-plot/)** - N×N matrix revealing temporal self-similarity in a single participant's fixation sequence
 
 ## Customizing Your Analysis
 
