@@ -32,6 +32,7 @@
     data,
     height = 500,
     width = 500,
+    threshold = 0.5,
     highlights = [],
     onNodeClick,
     dpiOverride = null,
@@ -43,6 +44,7 @@
     data: ScangraphData
     height?: number
     width?: number
+    threshold?: number
     highlights?: number[]
     onNodeClick?: (nodeIndex: number) => void
     dpiOverride?: number | null
@@ -68,13 +70,11 @@
   const getCanvasDimensions = () => ({ width: canvasWidth, height: canvasHeight })
   const scheduleRender = createRenderScheduler(renderCanvas)
 
-  const contentWidth = $derived(width)
-  const contentHeight = $derived(height)
 
   const nodeRadius = $derived.by(() => {
     const n = data?.nodes.length ?? 0
     if (n === 0) return SCANGRAPH_LAYOUT.nodeRadius
-    const minDim = Math.min(contentWidth, contentHeight)
+    const minDim = Math.min(width, height)
     return Math.round(Math.max(3, Math.min(8, minDim / (n * 1.2))) * 10) / 10
   })
 
@@ -187,7 +187,7 @@
         const rect: Rect = { x: rx, y: baseY, w: labelW, h: labelH }
 
         // Out of canvas bounds?
-        if (rect.x < marginLeft || rect.y < marginTop || rect.x + rect.w > marginLeft + contentWidth || rect.y + rect.h > marginTop + contentHeight) {
+        if (rect.x < marginLeft || rect.y < marginTop || rect.x + rect.w > marginLeft + width || rect.y + rect.h > marginTop + height) {
           continue
         }
 
@@ -243,8 +243,8 @@
 
     const hasHighlights = highlightSet.size > 0
 
-    // Draw links
-    ctx.lineWidth = 1
+    // Draw links — thickness encodes similarity value
+    const thresholdRange = 1 - threshold
     for (const link of links) {
       const s = nodes[link.source]
       const t = nodes[link.target]
@@ -254,6 +254,8 @@
         hasHighlights &&
         (highlightSet.has(link.source) || highlightSet.has(link.target))
 
+      const norm = thresholdRange > 0 ? (link.value - threshold) / thresholdRange : 0
+      ctx.lineWidth = 0.5 + norm * 3.5
       ctx.strokeStyle = touchesHighlight
         ? HIGHLIGHT_COLOR
         : SCANGRAPH_LAYOUT.linkColor
@@ -290,7 +292,7 @@
     }
 
     // Draw outline around the content area (before labels so labels render on top)
-    drawPlotOutline(ctx, marginLeft + 0.5, marginTop + 0.5, contentWidth - 1, contentHeight - 1)
+    drawPlotOutline(ctx, marginLeft + 0.5, marginTop + 0.5, width - 1, height - 1)
 
     // Draw labels — last step in rendering
     const fontSize = Math.max(8, Math.min(11, Math.round(r * 1.6)))
@@ -353,21 +355,21 @@
     return items
   }
 
-  function handleMouseMove(event: MouseEvent) {
-    if (!canvas) return
+  function findNodeAtEvent(event: MouseEvent): NodePosition | null {
     const { x: mx, y: my } = getScaledMousePosition(canvasState, event)
-    const { nodes } = layoutResult
     const hitR = nodeRadius + 4
-
-    let hoveredNode: (typeof nodes)[0] | null = null
-    for (const node of nodes) {
+    const hitR2 = hitR * hitR
+    for (const node of layoutResult.nodes) {
       const dx = mx - node.x
       const dy = my - node.y
-      if (dx * dx + dy * dy <= hitR * hitR) {
-        hoveredNode = node
-        break
-      }
+      if (dx * dx + dy * dy <= hitR2) return node
     }
+    return null
+  }
+
+  function handleMouseMove(event: MouseEvent) {
+    if (!canvas) return
+    const hoveredNode = findNodeAtEvent(event)
 
     if (hoveredNode) {
       const tooltipPos = getTooltipPosition(
@@ -411,22 +413,12 @@
 
   function handleClick(event: MouseEvent) {
     if (!canvas || !onNodeClick) return
-    const { x: mx, y: my } = getScaledMousePosition(canvasState, event)
-    const { nodes } = layoutResult
-    const hitR = nodeRadius + 4
-
-    for (const node of nodes) {
-      const dx = mx - node.x
-      const dy = my - node.y
-      if (dx * dx + dy * dy <= hitR * hitR) {
-        onNodeClick(node.id)
-        return
-      }
-    }
+    const node = findNodeAtEvent(event)
+    if (node) onNodeClick(node.id)
   }
 
   $effect(() => {
-    const _ = [data, width, height, highlights, dpiOverride, marginTop, marginRight, marginBottom, marginLeft]
+    const _ = [data, width, height, threshold, highlights, dpiOverride, marginTop, marginRight, marginBottom, marginLeft]
 
     untrack(() => {
       refreshCanvasLifecycle({

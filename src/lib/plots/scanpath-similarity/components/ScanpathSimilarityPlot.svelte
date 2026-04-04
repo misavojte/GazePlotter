@@ -285,6 +285,7 @@
           data={scangraphData}
           {width}
           {height}
+          threshold={effectiveThreshold}
           highlights={settings.participantHighlights ?? []}
           onNodeClick={handleNodeClick}
         />

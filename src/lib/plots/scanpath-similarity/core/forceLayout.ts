@@ -202,7 +202,8 @@ export function computeForceLayout(
       const dist = Math.sqrt(dx * dx + dy * dy)
       if (dist < 0.1) continue
 
-      const displacement = dist - linkDist
+      const targetDist = linkDist * (2 - link.value)
+      const displacement = dist - targetDist
       const force = displacement * linkStr
       const fx = (dx / dist) * force
       const fy = (dy / dist) * force
@@ -213,23 +214,16 @@ export function computeForceLayout(
       t.vy -= fy
     }
 
-    // 3) Wall repulsion — each edge pushes nodes away, force ~ 1/dist²
+    // 3) Wall repulsion + gentle center gravity
     for (let i = 0; i < n; i++) {
-      const distL = Math.max(1, nodes[i].x - xMin)
-      const distR = Math.max(1, xMax - nodes[i].x)
-      const distT = Math.max(1, nodes[i].y - yMin)
-      const distB = Math.max(1, yMax - nodes[i].y)
+      const ni = nodes[i]
+      const distL = Math.max(1, ni.x - xMin)
+      const distR = Math.max(1, xMax - ni.x)
+      const distT = Math.max(1, ni.y - yMin)
+      const distB = Math.max(1, yMax - ni.y)
 
-      nodes[i].vx += wallStrength / (distL * distL)
-      nodes[i].vx -= wallStrength / (distR * distR)
-      nodes[i].vy += wallStrength / (distT * distT)
-      nodes[i].vy -= wallStrength / (distB * distB)
-    }
-
-    // 4) Gentle center gravity (prevents oscillation, not clustering)
-    for (let i = 0; i < n; i++) {
-      nodes[i].vx += (cx - nodes[i].x) * centerStr
-      nodes[i].vy += (cy - nodes[i].y) * centerStr
+      ni.vx += wallStrength / (distL * distL) - wallStrength / (distR * distR) + (cx - ni.x) * centerStr
+      ni.vy += wallStrength / (distT * distT) - wallStrength / (distB * distB) + (cy - ni.y) * centerStr
     }
 
     // 5) Apply forces with step-size limiting (prevents overshoot)
