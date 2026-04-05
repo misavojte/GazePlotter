@@ -12,7 +12,7 @@
   import type { RecurrencePlotItem } from '$lib/plots/recurrence/types'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import Download from 'lucide-svelte/icons/download'
-  import { downloadRecurrencePlotModal } from '$lib/modals/definitions'
+  import { downloadPlotModal } from '$lib/modals/definitions'
 
   interface Props {
     item: RecurrencePlotItem
@@ -44,7 +44,7 @@
     createPlotMenuDivider(),
     createPlotModalAction({
       openModal,
-      definition: downloadRecurrencePlotModal,
+      definition: downloadPlotModal,
       props: {
         item,
       },

@@ -13,7 +13,7 @@
   import Download from 'lucide-svelte/icons/download'
 
   import {
-    downloadAoiStreamPlotModal,
+    downloadPlotModal,
   } from '$lib/modals/definitions'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { untrack } from 'svelte'
@@ -50,7 +50,7 @@
     createPlotMenuDivider(),
     createPlotModalAction({
       openModal,
-      definition: downloadAoiStreamPlotModal,
+      definition: downloadPlotModal,
       props: {
         item,
       },

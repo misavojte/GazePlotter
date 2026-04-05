@@ -1,25 +1,16 @@
 <script lang="ts">
   import { updateTooltip } from '$lib/tooltip'
   import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
-  import { getContext, untrack } from 'svelte'
+  import { untrack } from 'svelte'
   import {
-    createCanvasState,
     getScaledMousePosition,
     getTooltipPosition,
     beginCanvasDrawing,
     finishCanvasDrawing,
-    createRenderScheduler,
     canvasLifecycleAction,
-    refreshCanvasLifecycle,
   } from '$lib/plots/shared/canvasUtils'
-  import type { CanvasState } from '$lib/plots/shared/canvasUtils'
-  import {
-    EXPORT_SOURCE_CONTEXT,
-    type ExportSourceRegistrar,
-    registerCanvasExportSource,
-  } from '$lib/data/export'
   import { RECURRENCE_LAYOUT } from '../const'
-  import { drawPlotOutline } from '$lib/plots/shared'
+  import { drawPlotOutline, useCanvasPlot } from '$lib/plots/shared'
   import { UI_COLORS } from '$lib/color'
   import type {
     RecurrenceData,
@@ -54,23 +45,18 @@
   }>()
 
   let canvas = $state<HTMLCanvasElement | null>(null)
-  let canvasState = $state<CanvasState>(createCanvasState())
   let hoveredCell = $state<{ row: number; col: number } | null>(null)
   let cursorStyle = $derived(hoveredCell ? 'crosshair' : 'default')
 
-  const exportRegistrar = getContext<ExportSourceRegistrar | undefined>(
-    EXPORT_SOURCE_CONTEXT
-  )
-
-  $effect(() => {
-    return registerCanvasExportSource(exportRegistrar, () => canvas)
+  const plot = useCanvasPlot({
+    render: renderCanvas,
+    getWidth: () => width,
+    getHeight: () => height,
+    getMargins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
+    getDpiOverride: () => dpiOverride,
   })
 
-  const getCanvasDimensions = () => ({
-    width: width + marginLeft + marginRight,
-    height: height + marginTop + marginBottom,
-  })
-  const scheduleRender = createRenderScheduler(renderCanvas)
+  $effect(() => plot.registerExportSource(() => canvas))
 
   const L = RECURRENCE_LAYOUT
 
@@ -141,8 +127,8 @@
   }
 
   function renderCanvas() {
-    beginCanvasDrawing(canvasState, true)
-    const ctx = canvasState.context
+    beginCanvasDrawing(plot.canvasState, true)
+    const ctx = plot.canvasState.context
     if (!ctx) return
 
     const { N, cellSize, gridSize, xOffset, yOffset } = layout
@@ -155,7 +141,7 @@
       const cw = width + marginLeft + marginRight
       const ch = height + marginTop + marginBottom
       ctx.fillText('Not enough fixations', cw >> 1, ch >> 1)
-      finishCanvasDrawing(canvasState)
+      finishCanvasDrawing(plot.canvasState)
       return
     }
 
@@ -299,7 +285,7 @@
     // Axis labels
     drawAxisLabels(ctx)
 
-    finishCanvasDrawing(canvasState)
+    finishCanvasDrawing(plot.canvasState)
   }
 
   function drawAxisLabels(ctx: CanvasRenderingContext2D) {
@@ -368,7 +354,7 @@
 
   function handleMouseMove(event: MouseEvent) {
     if (!canvas) return
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(plot.canvasState, event)
 
     const { N, cellSize, xOffset, yOffset } = layout
 
@@ -380,7 +366,7 @@
     if (isOverCell) {
       if (!hoveredCell || hoveredCell.row !== row || hoveredCell.col !== col) {
         hoveredCell = { row, col }
-        scheduleRender()
+        plot.scheduleRender()
       }
 
       const idx = row * N + col
@@ -397,7 +383,7 @@
       }
 
       const tooltipPos = getTooltipPosition(
-        canvasState,
+        plot.canvasState,
         colToX(col) + cellSize,
         rowToY(row) + cellSize / 2,
         { x: 10, y: 0 }
@@ -414,7 +400,7 @@
     } else {
       if (hoveredCell) {
         hoveredCell = null
-        scheduleRender()
+        plot.scheduleRender()
       }
       updateTooltip(null)
     }
@@ -423,41 +409,21 @@
   function handleMouseLeave() {
     if (hoveredCell) {
       hoveredCell = null
-      scheduleRender()
+      plot.scheduleRender()
     }
     updateTooltip(null)
   }
 
   $effect(() => {
     const _ = [data, highlight, masking, highlightMask, width, height, dpiOverride, marginTop, marginRight, marginBottom, marginLeft]
-
-    untrack(() => {
-      refreshCanvasLifecycle({
-        getState: () => canvasState,
-        setState: newState => {
-          canvasState = newState
-        },
-        getDimensions: getCanvasDimensions,
-        getDpiOverride: () => dpiOverride,
-        scheduleRender,
-      })
-    })
+    untrack(() => plot.refresh())
   })
 </script>
 
 <canvas
   bind:this={canvas}
   style="cursor: {cursorStyle};"
-  use:canvasLifecycleAction={{
-    getState: () => canvasState,
-    setState: newState => {
-      canvasState = newState
-    },
-    getDimensions: getCanvasDimensions,
-    getDpiOverride: () => dpiOverride,
-    render: renderCanvas,
-    scheduleRender,
-  }}
+  use:canvasLifecycleAction={plot.actionOptions}
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
 ></canvas>

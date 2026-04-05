@@ -12,7 +12,7 @@
   import type { BarPlotItem } from '$lib/plots/bar/types'
   import Download from 'lucide-svelte/icons/download'
   import {
-    downloadBarPlotModal,
+    downloadPlotModal,
     exportAggregatedDataModal,
   } from '$lib/modals/definitions'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
@@ -59,7 +59,7 @@
     }),
     createPlotModalAction({
       openModal,
-      definition: downloadBarPlotModal,
+      definition: downloadPlotModal,
       props: {
         item,
       },

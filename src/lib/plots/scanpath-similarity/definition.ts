@@ -1,4 +1,5 @@
 import ScanpathSimilarityPlot from './components/ScanpathSimilarityPlot.svelte'
+import ScanpathSimilarityExportFigure from './components/ScanpathSimilarityExportFigure.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import type { ScanpathSimilaritySettings } from './types'
@@ -10,6 +11,7 @@ export const scanpathSimilarityDefinition = definePlot<
   type: 'scanpathSimilarity',
   name: 'Scanpath Similarity',
   component: ScanpathSimilarityPlot,
+  export: { figure: ScanpathSimilarityExportFigure },
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
     groupId: params.groupId ?? -1,

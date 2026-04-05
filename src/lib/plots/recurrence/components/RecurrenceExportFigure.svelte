@@ -1,33 +1,23 @@
 <script lang="ts">
+  import type { PlotExportProps } from '$lib/modals/export/download-plot/types'
   import type { RecurrencePlotItem } from '$lib/plots/recurrence/types'
-  import RecurrencePlotFigure from '$lib/plots/recurrence/components/RecurrencePlotFigure.svelte'
+  import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+  import RecurrencePlotFigure from './RecurrencePlotFigure.svelte'
   import { getRecurrenceData } from '$lib/plots/recurrence/core/transformer'
   import {
     buildDiagonalLineMask,
     buildHorizontalLineMask,
     buildVerticalLineMask,
   } from '$lib/plots/recurrence/core/rqa'
-  import {
-    DEFAULT_CANVAS_EXPORT_MARGIN,
-    getWorkspaceCanvasExportDimensions,
-  } from '$lib/modals/export/shared/helpers'
-  import { PlotExportWrapper } from '$lib/modals'
-  import { getGazePlotterSession } from '$lib/session'
 
   interface Props {
     item: RecurrencePlotItem
+    engine: DataEngine
+    exportProps: PlotExportProps
   }
 
-  let { item }: Props = $props()
-  const { engine, grid } = getGazePlotterSession()
+  let { item, engine, exportProps }: Props = $props()
   const settings = $derived(item.settings)
-  const exportDimensions = $derived(
-    getWorkspaceCanvasExportDimensions(
-      item,
-      grid.config,
-      DEFAULT_CANVAS_EXPORT_MARGIN
-    )
-  )
 
   const recurrenceData = $derived.by(() => {
     return getRecurrenceData(engine, settings)
@@ -77,27 +67,18 @@
   })
 </script>
 
-<PlotExportWrapper
-  defaultFileName="GazePlotter-RecurrencePlot"
-  defaultWidth={exportDimensions.width}
-  defaultHeight={exportDimensions.height}
-  defaultMargin={DEFAULT_CANVAS_EXPORT_MARGIN}
->
-  {#snippet children(exportProps)}
-    {#if recurrenceData}
-      <RecurrencePlotFigure
-        data={recurrenceData}
-        highlight={settings.highlight}
-        masking={settings.masking}
-        {highlightMask}
-        width={exportProps.width}
-        height={exportProps.height}
-        dpiOverride={exportProps.dpiOverride}
-        marginTop={exportProps.marginTop}
-        marginRight={exportProps.marginRight}
-        marginBottom={exportProps.marginBottom}
-        marginLeft={exportProps.marginLeft}
-      />
-    {/if}
-  {/snippet}
-</PlotExportWrapper>
+{#if recurrenceData}
+  <RecurrencePlotFigure
+    data={recurrenceData}
+    highlight={settings.highlight}
+    masking={settings.masking}
+    {highlightMask}
+    width={exportProps.width}
+    height={exportProps.height}
+    dpiOverride={exportProps.dpiOverride}
+    marginTop={exportProps.marginTop}
+    marginRight={exportProps.marginRight}
+    marginBottom={exportProps.marginBottom}
+    marginLeft={exportProps.marginLeft}
+  />
+{/if}

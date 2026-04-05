@@ -1,5 +1,6 @@
 import type { Component } from 'svelte'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { PlotExportProps } from '$lib/modals/export/download-plot/types'
 
 export type DefaultPlotParams = {
   stimulusId?: number
@@ -25,6 +26,20 @@ export type PlotItemContract<TType extends string, TSettings> = {
   settings: TSettings
 }
 
+/**
+ * Declares how a plot can be exported as an image via the download modal.
+ * When provided on a PlotDefinition, the generic download modal can render
+ * this plot's export without a dedicated per-plot modal.
+ */
+export type PlotExportConfig<TType extends string, TSettings> = {
+  /** Component that derives plot data and renders the Figure for export. */
+  figure: Component<{
+    item: PlotItemContract<TType, TSettings>
+    engine: DataEngine
+    exportProps: PlotExportProps
+  }>
+}
+
 export type PlotDefinition<
   TType extends string,
   TSettings,
@@ -43,6 +58,8 @@ export type PlotDefinition<
   getDefaultWidth: (params?: PlotLayoutInput<TSettings>) => number
   getMinSize: (params?: TParams) => { w: number; h: number }
   canAdd?: (engine: DataEngine) => boolean
+  /** Export configuration for the generic download modal. */
+  export?: PlotExportConfig<TType, TSettings>
 }
 
 export function definePlot<

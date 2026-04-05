@@ -14,7 +14,7 @@
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import Download from 'lucide-svelte/icons/download'
   import {
-    downloadScanpathSimilarityPlotModal,
+    downloadPlotModal,
     exportScanpathSimilarityModal,
   } from '$lib/modals/definitions'
 
@@ -62,7 +62,7 @@
     }),
     createPlotModalAction({
       openModal,
-      definition: downloadScanpathSimilarityPlotModal,
+      definition: downloadPlotModal,
       props: {
         item,
       },

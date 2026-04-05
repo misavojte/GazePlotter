@@ -1,22 +1,14 @@
 <script lang="ts">
-  import { getContext, untrack } from 'svelte'
+  import { untrack } from 'svelte'
   import {
-    EXPORT_SOURCE_CONTEXT,
-    type ExportSourceRegistrar,
-    registerCanvasExportSource,
-  } from '$lib/data/export'
-  import {
-    createRenderScheduler,
-    createCanvasState,
     canvasLifecycleAction,
-    refreshCanvasLifecycle,
     beginCanvasDrawing,
     finishCanvasDrawing,
     getScaledMousePosition,
     getTooltipPosition,
     alignToPixelCenter,
-    type CanvasState,
   } from '$lib/plots/shared/canvasUtils'
+  import { useCanvasPlot } from '$lib/plots/shared'
   import { updateTooltip } from '$lib/tooltip'
   import { estimateTextWidth } from '$lib/shared/utils/textUtils'
   import { desaturateToWhite } from '$lib/color/utility'
@@ -113,7 +105,6 @@
   }
 
   let canvas = $state<HTMLCanvasElement | null>(null)
-  let canvasState = $state<CanvasState>(createCanvasState())
 
   // Render buckets (cached x/y positions for all series and workspace buffers)
   let renderBuckets = $state<RenderBuckets | null>(null)
@@ -174,13 +165,15 @@
       : MARGIN.RIGHT + 5 // +5 for tick length when not in ridgeline mode
   )
 
-  const exportRegistrar = getContext<ExportSourceRegistrar | undefined>(
-    EXPORT_SOURCE_CONTEXT
-  )
-
-  $effect(() => {
-    return registerCanvasExportSource(exportRegistrar, () => canvas)
+  const plot = useCanvasPlot({
+    render: renderCanvas,
+    getWidth: () => width,
+    getHeight: () => height,
+    getMargins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
+    getDpiOverride: () => dpiOverride,
   })
+
+  $effect(() => plot.registerExportSource(() => canvas))
 
   // Convert series data to legend items format
   const legendItems: LegendItem[] = $derived(
@@ -263,17 +256,10 @@
     })
   })
 
-  const getCanvasDimensions = () => ({
-    width: safeWidth + safeMarginLeft + safeMarginRight,
-    height: safeHeight + safeMarginTop + safeMarginBottom,
-  })
-
-  const scheduleRender = createRenderScheduler(renderCanvas)
-
   function renderCanvas() {
-    beginCanvasDrawing(canvasState, true)
+    beginCanvasDrawing(plot.canvasState, true)
 
-    const ctx = canvasState.context
+    const ctx = plot.canvasState.context
     if (!ctx) return
 
     // Floor dimensions for pixel-perfect synchronization
@@ -285,7 +271,7 @@
     const floorRight = floorLeft + floorWidth
 
     if (floorWidth <= 0 || floorHeight <= 0 || data.binCount <= 0) {
-      finishCanvasDrawing(canvasState)
+      finishCanvasDrawing(plot.canvasState)
       return
     }
 
@@ -726,7 +712,7 @@
     }
 
     ctx.restore()
-    finishCanvasDrawing(canvasState)
+    finishCanvasDrawing(plot.canvasState)
   }
 
   // Check if mouse is over a legend item (now uses shared utility)
@@ -770,7 +756,7 @@
   function handleMouseMove(event: MouseEvent) {
     if (!canvas) return
 
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(plot.canvasState, event)
     const legendItem = isMouseOverLegendItem(mouseX, mouseY)
     const binIndex = getHoveredBinIndex(mouseX, mouseY)
 
@@ -790,7 +776,7 @@
           STREAM_LEGEND_CONFIG
         )
         const tooltipPos = getTooltipPosition(
-          canvasState,
+          plot.canvasState,
           tooltipItemPos.x,
           tooltipItemPos.y,
           { x: 0, y: 7 }
@@ -876,7 +862,7 @@
 
         // Position tooltip near mouse cursor
         const tooltipPos = getTooltipPosition(
-          canvasState,
+          plot.canvasState,
           mouseX,
           mouseY,
           { x: 15, y: 15 } // Offset from cursor
@@ -898,7 +884,7 @@
       }
 
       // Re-render to show/hide bin highlight
-      scheduleRender()
+      plot.scheduleRender()
     }
   }
 
@@ -913,14 +899,14 @@
       hoveredBinIndex = null
       updateTooltip(null)
       if (canvas) canvas.style.cursor = 'default'
-      scheduleRender()
+      plot.scheduleRender()
     }
   }
 
   function handleClick(event: MouseEvent) {
     if (!canvas) return
 
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(plot.canvasState, event)
     const legendItem = isMouseOverLegendItem(mouseX, mouseY)
 
     if (legendItem) {
@@ -948,17 +934,7 @@
       referenceHeight: syncedMTopOverride,
     }
 
-    untrack(() => {
-      refreshCanvasLifecycle({
-        getState: () => canvasState,
-        setState: newState => {
-          canvasState = newState
-        },
-        getDimensions: getCanvasDimensions,
-        getDpiOverride: () => deps.dpi,
-        scheduleRender,
-      })
-    })
+    untrack(() => plot.refresh())
   })
 
   function setUpFont(ctx: CanvasRenderingContext2D) {
@@ -969,16 +945,7 @@
 
 <canvas
   bind:this={canvas}
-  use:canvasLifecycleAction={{
-    getState: () => canvasState,
-    setState: newState => {
-      canvasState = newState
-    },
-    getDimensions: getCanvasDimensions,
-    getDpiOverride: () => dpiOverride,
-    render: renderCanvas,
-    scheduleRender,
-  }}
+  use:canvasLifecycleAction={plot.actionOptions}
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
   onclick={handleClick}

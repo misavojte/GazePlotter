@@ -1,4 +1,5 @@
 import RecurrencePlot from './components/RecurrencePlot.svelte'
+import RecurrenceExportFigure from './components/RecurrenceExportFigure.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import type { RecurrencePlotSettings } from './types'
 
@@ -9,6 +10,7 @@ export const recurrencePlotDefinition = definePlot<
   type: 'recurrencePlot',
   name: 'Recurrence Plot',
   component: RecurrencePlot,
+  export: { figure: RecurrenceExportFigure },
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
     groupId: params.groupId ?? -1,

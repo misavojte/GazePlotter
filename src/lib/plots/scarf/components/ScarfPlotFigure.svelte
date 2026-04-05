@@ -2,19 +2,10 @@
   import {
     beginCanvasDrawing,
     canvasLifecycleAction,
-    createRenderScheduler,
-    createCanvasState,
     finishCanvasDrawing,
     getScaledMousePosition,
     getTooltipPosition,
-    refreshCanvasLifecycle,
-    type CanvasState,
   } from '$lib/plots/shared/canvasUtils'
-  import {
-    EXPORT_SOURCE_CONTEXT,
-    type ExportSourceRegistrar,
-    registerCanvasExportSource,
-  } from '$lib/data/export'
   import {
     computeGroupedLegendGeometry,
     drawLegend,
@@ -27,13 +18,14 @@
     getLegendTooltipPosition,
     hitTestLegend,
     SCARF_LEGEND_CONFIG,
+    useCanvasPlot,
     type LegendGeometry,
     type LegendGroup,
     type LegendItemGeometry,
   } from '$lib/plots/shared'
   import { UI_COLORS } from '$lib/color'
   import { updateTooltip } from '$lib/tooltip'
-  import { getContext, onDestroy, untrack } from 'svelte'
+  import { onDestroy, untrack } from 'svelte'
   import { SCARF_LAYOUT } from '../const'
   import {
     calculateEffectiveMarginTop,
@@ -180,15 +172,16 @@
   let isHoveringSegment = $state(false) // Track if hovering or recently hovering a segment
   let hoverTimeout: number | null = $state(null) // Timeout ID
   let canvas = $state<HTMLCanvasElement | null>(null)
-  let canvasState = $state<CanvasState>(createCanvasState())
-
-  const exportRegistrar = getContext<ExportSourceRegistrar | undefined>(
-    EXPORT_SOURCE_CONTEXT
-  )
-
-  $effect(() => {
-    return registerCanvasExportSource(exportRegistrar, () => canvas)
+  const plot = useCanvasPlot({
+    render: renderCanvas,
+    getWidth: () => totalWidth,
+    getHeight: () => totalHeight,
+    getMargins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
+    getDpiOverride: () => dpiOverride,
   })
+
+  $effect(() => plot.registerExportSource(() => canvas))
+
   let dragStartX = $state(0) // Track drag start position
   let dragStartY = $state(0) // Track drag start position
   let hasDragStarted = $state(false) // Track if drag threshold has been exceeded
@@ -365,7 +358,6 @@
 
   // Canvas height is strictly the available height (no scrolling)
   const totalHeight = $derived(availableHeight)
-  const getCanvasDimensions = () => ({ width: totalWidth, height: totalHeight })
 
   // Check if we have enough space to render
   // In compact mode, we can render with much less space (min 1px per participant)
@@ -419,9 +411,9 @@
 
   // Canvas drawing functions
   function renderCanvas() {
-    beginCanvasDrawing(canvasState, true)
+    beginCanvasDrawing(plot.canvasState, true)
 
-    const ctx = canvasState.context
+    const ctx = plot.canvasState.context
     if (!ctx) return
 
     if (!canRender) {
@@ -434,7 +426,7 @@
         totalWidth / 2,
         totalHeight / 2
       )
-      finishCanvasDrawing(canvasState)
+      finishCanvasDrawing(plot.canvasState)
       return
     }
 
@@ -515,7 +507,7 @@
     drawLegendGroupTitles(ctx, legendGeometry, SCARF_LEGEND_CONFIG)
     drawLegend(ctx, legendGeometry, SCARF_LEGEND_CONFIG, usedHighlights)
 
-    finishCanvasDrawing(canvasState)
+    finishCanvasDrawing(plot.canvasState)
   }
 
   // Check if a mouse click or hover is on a legend item
@@ -532,7 +524,7 @@
     if (!canvas) return
 
     // Get mouse position with correct scaling
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(plot.canvasState, event)
 
     // Check if mouse is over a legend item
     const legendItem = isMouseOverLegendItem(mouseX, mouseY)
@@ -559,7 +551,7 @@
           SCARF_LEGEND_CONFIG
         )
         const tooltipPos = getTooltipPosition(
-          canvasState,
+          plot.canvasState,
           tooltipItemPos.x,
           tooltipItemPos.y,
           { x: 0, y: 7 }
@@ -642,7 +634,7 @@
         pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
 
       const tooltipPos = getTooltipPosition(
-        canvasState,
+        plot.canvasState,
         pxX1 + pxW,
         pxY + rectH / 2,
         { x: 5, y: 0 }
@@ -710,7 +702,7 @@
     if (!canvas) return
 
     // Get mouse position with correct scaling
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(plot.canvasState, event)
 
     // Check if clicking on a legend item
     const clickedLegendItem = isMouseOverLegendItem(mouseX, mouseY)
@@ -761,7 +753,7 @@
     if (!canvas) return
 
     // Get mouse position with correct scaling
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(plot.canvasState, event)
 
     // If we haven't started dragging yet, check if we should
     if (!hasDragStarted && dragStartX !== 0) {
@@ -811,8 +803,6 @@
     }
   }
 
-  const scheduleRender = createRenderScheduler(renderCanvas)
-
   $effect(() => {
     const deps = [
       data,
@@ -831,17 +821,7 @@
     ]
 
     // Schedule a render instead of immediate execution
-    untrack(() => {
-      refreshCanvasLifecycle({
-        getState: () => canvasState,
-        setState: newState => {
-          canvasState = newState
-        },
-        getDimensions: getCanvasDimensions,
-        getDpiOverride: () => dpiOverride,
-        scheduleRender,
-      })
-    })
+    untrack(() => plot.refresh())
   })
 
   function findHoveredRectSegment(mouseX: number, mouseY: number) {
@@ -930,16 +910,7 @@
   style:pointer-events={canRender ? 'auto' : 'none'}
   width={totalWidth}
   height={totalHeight}
-  use:canvasLifecycleAction={{
-    getState: () => canvasState,
-    setState: newState => {
-      canvasState = newState
-    },
-    getDimensions: getCanvasDimensions,
-    getDpiOverride: () => dpiOverride,
-    render: renderCanvas,
-    scheduleRender,
-  }}
+  use:canvasLifecycleAction={plot.actionOptions}
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
   onmousedown={handleMouseDown}

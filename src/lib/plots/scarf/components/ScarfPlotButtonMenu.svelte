@@ -14,7 +14,7 @@
   import Download from 'lucide-svelte/icons/download'
   import type { ScarfPlotItem } from '$lib/plots/scarf/types'
   import {
-    downloadScarfPlotModal,
+    downloadPlotModal,
     exportSegmentedDataModal,
   } from '$lib/modals/definitions'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
@@ -70,7 +70,7 @@
     }),
     createPlotModalAction({
       openModal,
-      definition: downloadScarfPlotModal,
+      definition: downloadPlotModal,
       props: {
         item,
       },

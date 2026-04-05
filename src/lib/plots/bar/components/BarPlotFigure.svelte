@@ -1,6 +1,5 @@
 <script lang="ts">
   import {
-    GRIDLINE_SECONDARY,
     GRIDLINE_PRIMARY,
     FONT_PRIMARY,
     type AdaptiveTimeline,
@@ -8,30 +7,21 @@
     drawPlotOutline,
     drawYAxisMainLabel,
     drawXAxisLabel,
+    useCanvasPlot,
   } from '$lib/plots/shared'
   import {
     calculateLabelOffset,
     truncateTextToPixelWidth,
   } from '$lib/shared/utils/textUtils'
   import { updateTooltip } from '$lib/tooltip'
-  import { getContext, untrack } from 'svelte'
+  import { untrack } from 'svelte'
   import {
-    EXPORT_SOURCE_CONTEXT,
-    type ExportSourceRegistrar,
-    registerCanvasExportSource,
-  } from '$lib/data/export'
-  import {
-    createCanvasState,
     getScaledMousePosition,
     getTooltipPosition,
     beginCanvasDrawing,
     finishCanvasDrawing,
     alignToPixelCenter,
-    createRenderScheduler,
     canvasLifecycleAction,
-    refreshCanvasLifecycle,
-    strokeCrispRect,
-    type CanvasState,
   } from '$lib/plots/shared/canvasUtils'
 
   // Layout constants
@@ -93,22 +83,17 @@
   let lastMouseMoveTime = $state(0)
   const FRAME_TIME = 1000 / 30 // Throttle to 30fps
 
-  // Canvas and rendering state using our utility
   let canvas = $state<HTMLCanvasElement | null>(null)
-  let canvasState = $state<CanvasState>(createCanvasState())
 
-  const exportRegistrar = getContext<ExportSourceRegistrar | undefined>(
-    EXPORT_SOURCE_CONTEXT
-  )
-
-  $effect(() => {
-    return registerCanvasExportSource(exportRegistrar, () => canvas)
+  const plot = useCanvasPlot({
+    render: renderCanvas,
+    getWidth: () => width,
+    getHeight: () => height,
+    getMargins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
+    getDpiOverride: () => dpiOverride,
   })
 
-  const getCanvasDimensions = () => ({
-    width: width + marginLeft + marginRight,
-    height: height + marginTop + marginBottom,
-  })
+  $effect(() => plot.registerExportSource(() => canvas))
 
   // Calculate dynamic margins
   const effectiveTopMargin = $derived(
@@ -297,14 +282,12 @@
     })
   })
 
-  const scheduleRender = createRenderScheduler(renderCanvas)
-
   // Render everything to canvas
   function renderCanvas() {
-    beginCanvasDrawing(canvasState, true)
+    beginCanvasDrawing(plot.canvasState, true)
 
     // Get context from state
-    const ctx = canvasState.context
+    const ctx = plot.canvasState.context
     if (!ctx) return
 
     // Set up common context properties once
@@ -344,7 +327,7 @@
     }
 
     // Finish drawing
-    finishCanvasDrawing(canvasState)
+    finishCanvasDrawing(plot.canvasState)
   }
 
   // Set up common context properties once to avoid repeated assignments
@@ -521,7 +504,7 @@
     if (!canvas) return
 
     // Get properly scaled mouse position
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(plot.canvasState, event)
 
     // Find hovered bar
     const hoveredIndex = bars.findIndex(bar => {
@@ -539,7 +522,7 @@
 
       // Calculate tooltip position using utility
       const tooltipPos = getTooltipPosition(
-        canvasState,
+        plot.canvasState,
         bar.x + bar.width,
         bar.y,
         { x: 10, y: 0 }
@@ -560,14 +543,14 @@
       onDataHover(data[hoveredIndex])
 
       // Request render in case we want to highlight the bar
-      scheduleRender()
+      plot.scheduleRender()
     } else if (hoveredIndex === -1 && hoveredBarIndex !== null) {
       hoveredBarIndex = null
       updateTooltip(null)
       onDataHover(null)
 
       // Request render to remove any highlights
-      scheduleRender()
+      plot.scheduleRender()
     }
   }
 
@@ -577,52 +560,19 @@
     onDataHover(null)
 
     // Request render to remove any highlights
-    scheduleRender()
+    plot.scheduleRender()
   }
 
   // Track data changes and schedule renders
   $effect(() => {
-    // Just track the data dependencies
-    const _ = [
-      data,
-      timeline,
-      barPlottingType,
-      barWidth,
-      barSpacing,
-      dpiOverride,
-      marginTop,
-      marginRight,
-      marginBottom,
-      marginLeft,
-    ]
-
-    untrack(() => {
-      refreshCanvasLifecycle({
-        getState: () => canvasState,
-        setState: newState => {
-          canvasState = newState
-        },
-        getDimensions: getCanvasDimensions,
-        getDpiOverride: () => dpiOverride,
-        scheduleRender,
-      })
-    })
+    const _ = [data, timeline, barPlottingType, barWidth, barSpacing, dpiOverride, marginTop, marginRight, marginBottom, marginLeft]
+    untrack(() => plot.refresh())
   })
-
 </script>
 
 <canvas
   bind:this={canvas}
-  use:canvasLifecycleAction={{
-    getState: () => canvasState,
-    setState: newState => {
-      canvasState = newState
-    },
-    getDimensions: getCanvasDimensions,
-    getDpiOverride: () => dpiOverride,
-    render: renderCanvas,
-    scheduleRender,
-  }}
+  use:canvasLifecycleAction={plot.actionOptions}
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
   aria-label="Bar plot visualization"

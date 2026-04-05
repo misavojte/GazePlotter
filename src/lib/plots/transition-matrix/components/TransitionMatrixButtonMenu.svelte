@@ -12,7 +12,7 @@
   import { getGazePlotterSession } from '$lib/session'
   import type { TransitionMatrixPlotItem } from '$lib/plots/transition-matrix/types'
   import Download from 'lucide-svelte/icons/download'
-  import { downloadTransitionMatrixModal } from '$lib/modals/definitions'
+  import { downloadPlotModal } from '$lib/modals/definitions'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
   interface Props {
@@ -50,7 +50,7 @@
     createPlotMenuDivider(),
     createPlotModalAction({
       openModal,
-      definition: downloadTransitionMatrixModal,
+      definition: downloadPlotModal,
       props: {
         item,
       },

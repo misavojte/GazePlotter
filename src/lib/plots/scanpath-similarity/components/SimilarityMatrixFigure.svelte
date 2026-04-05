@@ -5,30 +5,22 @@
     truncateTextToPixelWidth,
     SYSTEM_SANS_SERIF_STACK,
   } from '$lib/shared/utils/textUtils'
-  import { getContext, untrack } from 'svelte'
+  import { untrack } from 'svelte'
   import {
-    createCanvasState,
     getScaledMousePosition,
     getTooltipPosition,
     beginCanvasDrawing,
     finishCanvasDrawing,
     alignToPixelCenter,
-    createRenderScheduler,
     canvasLifecycleAction,
-    refreshCanvasLifecycle,
   } from '$lib/plots/shared/canvasUtils'
-  import type { CanvasState } from '$lib/plots/shared/canvasUtils'
-  import {
-    EXPORT_SOURCE_CONTEXT,
-    type ExportSourceRegistrar,
-    registerCanvasExportSource,
-  } from '$lib/data/export'
   import { SIMILARITY_MATRIX_LAYOUT } from '../const'
   import { computeSimilarityMatrixLayout } from '../core/layout'
   import {
     computeGradientLegendGeometry,
     drawGradientLegend,
     drawPlotOutline,
+    useCanvasPlot,
   } from '$lib/plots/shared'
   import { UI_COLORS } from '$lib/color'
 
@@ -61,21 +53,16 @@
   }>()
 
   let canvas = $state<HTMLCanvasElement | null>(null)
-  let canvasState = $state<CanvasState>(createCanvasState())
 
-  const exportRegistrar = getContext<ExportSourceRegistrar | undefined>(
-    EXPORT_SOURCE_CONTEXT
-  )
-
-  $effect(() => {
-    return registerCanvasExportSource(exportRegistrar, () => canvas)
+  const plot = useCanvasPlot({
+    render: renderCanvas,
+    getWidth: () => width,
+    getHeight: () => height,
+    getMargins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
+    getDpiOverride: () => dpiOverride,
   })
 
-  const getCanvasDimensions = () => ({
-    width: width + marginLeft + marginRight,
-    height: height + marginTop + marginBottom,
-  })
-  const scheduleRender = createRenderScheduler(renderCanvas)
+  $effect(() => plot.registerExportSource(() => canvas))
 
   const effectiveMaxValue = $derived.by(() => {
     if (colorValueRange[1] !== 0) return colorValueRange[1]
@@ -100,8 +87,8 @@
   )
 
   function renderCanvas() {
-    beginCanvasDrawing(canvasState, true)
-    const ctx = canvasState.context
+    beginCanvasDrawing(plot.canvasState, true)
+    const ctx = plot.canvasState.context
     if (!ctx) return
 
     if (labels.length === 0) {
@@ -112,7 +99,7 @@
       const cw = width + marginLeft + marginRight
       const ch = height + marginTop + marginBottom
       ctx.fillText('No participant data available', cw >> 1, ch >> 1)
-      finishCanvasDrawing(canvasState)
+      finishCanvasDrawing(plot.canvasState)
       return
     }
 
@@ -132,7 +119,7 @@
     drawRowLabels(ctx, labelFontSize)
     drawColumnLabels(ctx, labelFontSize)
     drawCellsText(ctx)
-    finishCanvasDrawing(canvasState)
+    finishCanvasDrawing(plot.canvasState)
   }
 
   function setUpFont(ctx: CanvasRenderingContext2D) {
@@ -376,7 +363,7 @@
 
   function handleMouseMove(event: MouseEvent) {
     if (!canvas) return
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(plot.canvasState, event)
     const { xOffset, yOffset, cellSize } = layout
     const col = Math.floor((mouseX - xOffset) / cellSize)
     const row = Math.floor((mouseY - yOffset) / cellSize)
@@ -389,7 +376,7 @@
       const x = xOffset + col * cellSize
       const y = yOffset + row * cellSize
       const tooltipPos = getTooltipPosition(
-        canvasState,
+        plot.canvasState,
         x + cellSize,
         y + (cellSize >> 1),
         { x: 10, y: 0 }
@@ -437,31 +424,14 @@
     ]
 
     untrack(() => {
-      refreshCanvasLifecycle({
-        getState: () => canvasState,
-        setState: newState => {
-          canvasState = newState
-        },
-        getDimensions: getCanvasDimensions,
-        getDpiOverride: () => dpiOverride,
-        scheduleRender,
-      })
+      plot.refresh()
     })
   })
 </script>
 
 <canvas
   bind:this={canvas}
-  use:canvasLifecycleAction={{
-    getState: () => canvasState,
-    setState: newState => {
-      canvasState = newState
-    },
-    getDimensions: getCanvasDimensions,
-    getDpiOverride: () => dpiOverride,
-    render: renderCanvas,
-    scheduleRender,
-  }}
+  use:canvasLifecycleAction={plot.actionOptions}
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
 ></canvas>
