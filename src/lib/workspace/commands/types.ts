@@ -52,6 +52,14 @@ export interface UpdateEventDataCommand extends BaseCommandInterface {
   eventBuffers: number[][][]
 }
 
+export interface UpdateEventChannelsCommand extends BaseCommandInterface {
+  type: 'updateEventChannels'
+  stimulusId: number
+  channels: ExtendedInterpretedDataType[]
+  /** Optional raw channel ids to hide for this stimulus (treated as inactive). */
+  hiddenChannels?: number[]
+}
+
 export interface UpdateParticipantsGroupsCommand extends BaseCommandInterface {
   type: 'updateParticipantsGroups'
   groups: ParticipantsGroup[]
@@ -104,6 +112,7 @@ export type WorkspaceCommand =
   | UpdateParticipantsCommand
   | UpdateStimuliCommand
   | UpdateEventDataCommand
+  | UpdateEventChannelsCommand
   | UpdateParticipantsGroupsCommand
   | UpdateNoAoiTreatmentCommand
   | UpdateSettingsCommand // includes position and size updates

@@ -7,6 +7,7 @@ import {
   createRootCommand,
   type UpdateAoisCommand,
   type UpdateEventDataCommand,
+  type UpdateEventChannelsCommand,
   type UpdateNoAoiTreatmentCommand,
   type UpdateParticipantsCommand,
   type UpdateParticipantsGroupsCommand,
@@ -275,6 +276,22 @@ export class WorkspaceService {
       channelDefs,
       eventBuffers,
       source,
+    }
+    return this.applyRoot(command)
+  }
+
+  updateEventChannels(
+    channels: ExtendedInterpretedDataType[],
+    stimulusId: number,
+    source: string,
+    hiddenChannels?: number[]
+  ): boolean {
+    const command: UpdateEventChannelsCommand = {
+      type: 'updateEventChannels',
+      channels,
+      stimulusId,
+      source,
+      ...(hiddenChannels !== undefined ? { hiddenChannels } : {}),
     }
     return this.applyRoot(command)
   }

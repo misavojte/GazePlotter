@@ -14,27 +14,56 @@
   let { fileNames, stimuliOptions, participantOptions }: Props = $props()
   const { modalState } = getGazePlotterSession()
 
+  const IGNORE = 'ignore'
+  const ALL = 'all'
+
   // Per-file mapping state: stimulus + participant selections
   let stimulusSelections = $state<string[]>(
     fileNames.map(() => stimuliOptions[0]?.value ?? '0')
   )
   let participantSelections = $state<string[]>(
-    fileNames.map(() => 'all')
+    fileNames.map(() => IGNORE)
   )
 
-  const allParticipantOptions: SelectOption[] = [
-    { label: 'To all', value: 'all' },
-    ...participantOptions,
-  ]
+  // When any file is set to "To all", hide individual participant options
+  let hasToAll = $derived(participantSelections.some(s => s === ALL))
+
+  let visibleParticipantOptions = $derived<SelectOption[]>(
+    hasToAll
+      ? [
+          { label: 'Ignore', value: IGNORE },
+          { label: 'To all', value: ALL },
+        ]
+      : [
+          { label: 'Ignore', value: IGNORE },
+          { label: 'To all', value: ALL },
+          ...participantOptions,
+        ]
+  )
+
+  // When switching to "To all" mode, reset individual selections to "Ignore"
+  $effect(() => {
+    if (hasToAll) {
+      for (let i = 0; i < participantSelections.length; i++) {
+        if (
+          participantSelections[i] !== IGNORE &&
+          participantSelections[i] !== ALL
+        ) {
+          participantSelections[i] = IGNORE
+        }
+      }
+    }
+  })
 
   const handleSubmit = () => {
-    const mapping: EventFileMapping[] = fileNames.map((_, i) => ({
-      stimulusId: parseInt(stimulusSelections[i]),
-      participantId:
-        participantSelections[i] === 'all'
-          ? null
-          : parseInt(participantSelections[i]),
-    }))
+    const mapping: EventFileMapping[] = fileNames.map((_, i) => {
+      const sel = participantSelections[i]
+      return {
+        stimulusId: parseInt(stimulusSelections[i]),
+        participantId: sel === ALL ? null : parseInt(sel),
+        skip: sel === IGNORE,
+      }
+    })
     modalState.finish(mapping)
   }
 
@@ -50,7 +79,7 @@
 
   <div class="file-list">
     {#each fileNames as fileName, i}
-      <div class="file-row">
+      <div class="file-row" class:ignored={participantSelections[i] === IGNORE}>
         <span class="file-name" title={fileName}>{fileName}</span>
         <div class="selects">
           <Select
@@ -60,7 +89,7 @@
           />
           <Select
             label="Participant"
-            options={allParticipantOptions}
+            options={visibleParticipantOptions}
             bind:value={participantSelections[i]}
           />
         </div>
@@ -109,6 +138,11 @@
     background: #fafafa;
     border: 1px solid #ddd;
     border-radius: 4px;
+    transition: opacity 0.15s ease;
+  }
+
+  .file-row.ignored {
+    opacity: 0.5;
   }
 
   .file-name {

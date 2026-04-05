@@ -14,6 +14,8 @@ import {
   updateNoAoiTreatment,
   updateParticipantsGroups,
   updateEventData,
+  updateEventChannels,
+  updateHiddenEventChannels,
 } from '$lib/data/engine'
 import type {
   GridItemMap,
@@ -176,6 +178,15 @@ export function createWorkspaceCommandRegistry(
     updateEventData: command => {
       const { stimulusId, channelDefs, eventBuffers } = command
       updateEventData(engine, stimulusId, channelDefs, eventBuffers)
+      gridStore.triggerRedraw()
+    },
+
+    updateEventChannels: command => {
+      const { channels, stimulusId, hiddenChannels } = command
+      updateEventChannels(engine, channels, stimulusId)
+      if (hiddenChannels !== undefined) {
+        updateHiddenEventChannels(engine, stimulusId, hiddenChannels)
+      }
       gridStore.triggerRedraw()
     },
 
@@ -345,6 +356,43 @@ export function createWorkspaceCommandRegistry(
           eventBuffers: currentBuffers.map(ch =>
             ch.map(p => [...p])
           ),
+        },
+        meta
+      )
+    },
+
+    updateEventChannels: (cmd, meta) => {
+      const dataMeta = engine.metadata
+      if (!dataMeta)
+        throw new Error(
+          'Data engine metadata not available for command reversal'
+        )
+      const ed = dataMeta.eventData
+      const currentDefs = ed.data[cmd.stimulusId] ?? []
+      const order = ed.orderVector?.[cmd.stimulusId] ?? []
+      const ids =
+        order.length > 0
+          ? order
+          : Array.from({ length: currentDefs.length }, (_, i) => i)
+
+      const channels: ExtendedInterpretedDataType[] = ids.map(id => {
+        const ch = currentDefs[id]
+        return {
+          id,
+          originalName: ch?.[0] ?? '',
+          displayedName: ch?.[1] ?? ch?.[0] ?? '',
+          color: ch?.[2] ?? '#888888',
+        }
+      })
+
+      const shouldIncludeHidden = cmd.hiddenChannels !== undefined
+      const hidden = ed.hiddenChannels?.[cmd.stimulusId] ?? []
+      return withMeta(
+        {
+          type: 'updateEventChannels',
+          stimulusId: cmd.stimulusId,
+          channels,
+          ...(shouldIncludeHidden ? { hiddenChannels: [...hidden] } : {}),
         },
         meta
       )

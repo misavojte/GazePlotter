@@ -1,7 +1,7 @@
 import type { ModalDefinition, ModalProps } from '$lib/modals/defineModal'
 import {
   aoiModificationModal,
-  aoiVisibilityModal,
+  eventChannelModificationModal,
   participantModificationModal,
   participantsGroupsModal,
   stimulusModificationModal,
@@ -9,7 +9,6 @@ import {
 import type { LucideIconComponent } from '$lib/shared/types'
 import Settings from 'lucide-svelte/icons/settings-2'
 import Users from 'lucide-svelte/icons/users'
-import View from 'lucide-svelte/icons/view'
 import type { Component } from 'svelte'
 import type { ErrorService } from '$lib/errors'
 
@@ -130,6 +129,24 @@ export function createAoiCustomizationMenuAction({
   })
 }
 
+export function createEventChannelCustomizationMenuAction({
+  openModal,
+  source,
+  stimulusId,
+  errorContext,
+}: PlotAoiActionParams): PlotMenuItem {
+  return createPlotModalAction({
+    openModal,
+    definition: eventChannelModificationModal,
+    props: {
+      selectedStimulus: stimulusId.toString(),
+      source,
+    },
+    icon: Settings,
+    errorContext,
+  })
+}
+
 export function createStimulusCustomizationMenuAction({
   openModal,
   source,
@@ -174,22 +191,6 @@ export function createParticipantCustomizationMenuAction({
       source,
     },
     icon: Users,
-    errorContext,
-  })
-}
-
-export function createAoiVisibilityMenuAction({
-  openModal,
-  source,
-  errorContext,
-}: PlotSharedActionParams): PlotMenuItem {
-  return createPlotModalAction({
-    openModal,
-    definition: aoiVisibilityModal,
-    props: {
-      source,
-    },
-    icon: View,
     errorContext,
   })
 }

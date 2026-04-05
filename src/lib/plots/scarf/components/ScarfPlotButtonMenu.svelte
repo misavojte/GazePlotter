@@ -2,7 +2,7 @@
   import {
     PlotMenuButton,
     createAoiCustomizationMenuAction,
-    createAoiVisibilityMenuAction,
+    createEventChannelCustomizationMenuAction,
     createParticipantCustomizationMenuAction,
     createParticipantsGroupsMenuAction,
     createPlotMenuErrorContext,
@@ -39,6 +39,12 @@
       stimulusId: settings.stimulusId,
       errorContext,
     }),
+    createEventChannelCustomizationMenuAction({
+      openModal,
+      source,
+      stimulusId: settings.stimulusId,
+      errorContext,
+    }),
     createStimulusCustomizationMenuAction({
       openModal,
       source,
@@ -50,12 +56,6 @@
       errorContext,
     }),
     createParticipantsGroupsMenuAction({
-      openModal,
-      source,
-      errorContext,
-    }),
-    createPlotMenuDivider(),
-    createAoiVisibilityMenuAction({
       openModal,
       source,
       errorContext,

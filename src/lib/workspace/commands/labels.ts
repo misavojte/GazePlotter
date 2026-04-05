@@ -48,6 +48,12 @@ export const WORKSPACE_COMMAND_LABELS: Record<
     default: 'Event data updated',
   },
 
+  updateEventChannels: {
+    undone: 'Undo event channels update',
+    redone: 'Redo event channels update',
+    default: 'Event channels updated',
+  },
+
   updateParticipantsGroups: {
     undone: 'Undo participant groups update',
     redone: 'Redo participant groups update',

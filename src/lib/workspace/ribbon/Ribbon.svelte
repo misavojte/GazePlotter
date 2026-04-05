@@ -52,7 +52,7 @@
   name="GP-ribbon-file-upload"
   class="hidden-file-input"
   multiple
-  accept=".csv, .txt, .tsv, .json, .zip"
+  accept=".csv,.txt,.tsv,.json,.zip,.xml"
   onchange={handleFileUpload}
   bind:this={fileInput}
 />

@@ -9,7 +9,7 @@ import {
   getParticipantEndTime,
   getStimuli,
   hasEventsForStimulus,
-  getEventChannels,
+  getVisibleEventChannels,
   getEventBuffer,
 } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
@@ -447,7 +447,7 @@ export function transformDataToScarfPlot(
   const invVisibleRange = 1 / (maxValue - minValue || 1)
 
   const eventChannels = hasEventsForStimulus(engine, stimulusId)
-    ? getEventChannels(engine, stimulusId)
+    ? getVisibleEventChannels(engine, stimulusId)
     : []
   const showAoiVisibility =
     eventChannels.length > 0 && settings.timeline !== 'ordinal'
