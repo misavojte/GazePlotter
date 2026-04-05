@@ -30,7 +30,7 @@
       type="file"
       name="GP-file-upload"
       multiple
-      accept=".csv, .txt, .tsv, .json, .zip"
+      accept=".csv, .txt, .tsv, .json, .zip, .xml"
       onchange={handleFileUpload}
       bind:this={input}
     />

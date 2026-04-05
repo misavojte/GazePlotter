@@ -1,4 +1,14 @@
 import { tobiiParsingInputModal } from '$lib/modals/definitions'
+import {
+  eventFileMappingModal,
+  type EventFileMapping,
+} from '$lib/modals/import/definitions'
+import {
+  isTobiiJson,
+  processAoiVisibilityFromText,
+  buildEventChannelsFromParsed,
+} from '$lib/modals/import/shared/aoiVisibilityServices'
+import { BinaryBufferReader } from '$lib/data/binary/reader.segment'
 import { processJsonFileWithGrid } from './workspace/parser'
 import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace'
 import type { ErrorService } from '$lib/errors'
@@ -92,6 +102,88 @@ function formatFileInfo(fileNames: string[], fileSizes: number[]): string {
   return fileInfo
 }
 
+/**
+ * Separates uploaded files into eye-tracking data files and event files.
+ * .xml → event file; .json with Tobii AOI structure → event file; rest → eye-tracking.
+ */
+async function separateEventFiles(
+  files: File[]
+): Promise<{ eyeFiles: File[]; eventFiles: File[] }> {
+  const eyeFiles: File[] = []
+  const eventFiles: File[] = []
+  for (const file of files) {
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    if (ext === 'xml') {
+      eventFiles.push(file)
+    } else if (ext === 'json' && files.length > 1) {
+      // Multi-file upload: check if a JSON file is a Tobii event file
+      const text = await file.text()
+      try {
+        const json = JSON.parse(text)
+        if (isTobiiJson(json)) {
+          eventFiles.push(file)
+        } else {
+          eyeFiles.push(file)
+        }
+      } catch {
+        eyeFiles.push(file)
+      }
+    } else {
+      eyeFiles.push(file)
+    }
+  }
+  return { eyeFiles, eventFiles }
+}
+
+/**
+ * Compute per-stimulus highest participant end time from raw segment buffers.
+ */
+function computeHighestEndTimes(data: DataType): number[] {
+  const reader = new BinaryBufferReader(data.segments)
+  const stimuliCount = data.stimuli.data.length
+  const participantCount = data.participants.data.length
+  const result: number[] = []
+  for (let s = 0; s < stimuliCount; s++) {
+    let max = 0
+    for (let p = 0; p < participantCount; p++) {
+      const end = reader.getParticipantEndTime(s, p)
+      if (end > max) max = end
+    }
+    result.push(max)
+  }
+  return result
+}
+
+/**
+ * Merge parsed event channels into DataType.eventData for a given stimulus.
+ */
+function mergeEventDataForStimulus(
+  data: DataType,
+  stimulusId: number,
+  participantId: number | null,
+  parsed: {
+    multipleAoiNames: string[]
+    multipleAoiVisibilityArrays: number[][]
+  }
+): void {
+  const participantCount = data.participants.data.length
+  const aoiData = data.aois.data[stimulusId]
+  const { channelDefs, eventBuffers } = buildEventChannelsFromParsed(
+    parsed,
+    participantId,
+    participantCount,
+    aoiData
+  )
+
+  const ed = data.eventData
+  for (let i = 0; i < channelDefs.length; i++) {
+    const chIdx = ed.data[stimulusId].length
+    ed.data[stimulusId].push(channelDefs[i])
+    ed.events[stimulusId].push(eventBuffers[i])
+    ed.orderVector[stimulusId].push(chIdx)
+  }
+}
+
 class IngestWorkerClient {
   private worker: Worker
   private parsingSumTime = 0
@@ -126,8 +218,8 @@ class IngestWorkerClient {
       )
   }
 
-  sendFiles(files: FileList): void {
-    const fileArray = Array.from(files)
+  sendFiles(files: File[]): void {
+    const fileArray = files
     this.fileNames = fileArray.map(file => file.name)
     this.fileSizes = fileArray.map(file => file.size)
     this.totalFileSize = this.fileSizes.reduce((sum, size) => sum + size, 0)
@@ -514,9 +606,44 @@ export class IngestService {
     this.progressPercent = 0
 
     try {
+      const allFiles = Array.from(files)
+      const { eyeFiles, eventFiles } = await separateEventFiles(allFiles)
+
+      if (eyeFiles.length === 0 && eventFiles.length > 0) {
+        this.deps.errorService.report({
+          origin: 'ingest',
+          severity: 'fatal-load',
+          userMessage:
+            'Only event files were uploaded. Please include eye-tracking data files together with event files.',
+          cause: new Error('No eye-tracking data files found'),
+          context: {
+            eventFileCount: eventFiles.length,
+            eventFileNames: eventFiles.map(f => f.name),
+          },
+        })
+        this.status = 'error'
+        return false
+      }
+
       return await new Promise<boolean>((resolve, reject) => {
         const client = new IngestWorkerClient(
-          data => {
+          async data => {
+            try {
+              if (eventFiles.length > 0) {
+                await this.processEventFilesIntoData(data, eventFiles)
+              }
+            } catch (error) {
+              this.deps.errorService.report({
+                origin: 'ingest',
+                severity: 'recoverable',
+                userMessage:
+                  'Event files could not be processed. Eye-tracking data was loaded without events.',
+                cause: error,
+                context: {
+                  eventFileNames: eventFiles.map(f => f.name),
+                },
+              })
+            }
             this.applyParsedData(data)
             resolve(true)
           },
@@ -533,7 +660,7 @@ export class IngestService {
             toastState: this.deps.toastState,
           }
         )
-        client.sendFiles(files)
+        client.sendFiles(eyeFiles)
       })
     } catch (error) {
       this.deps.errorService.report({
@@ -576,5 +703,49 @@ export class IngestService {
     this.deps.engine.loadDataset(EMPTY_DATASET)
     this.deps.resetWorkspaceHistory()
     this.status = 'error'
+  }
+
+  private async processEventFilesIntoData(
+    parsedData: ParsedData,
+    eventFiles: File[]
+  ): Promise<void> {
+    const data = parsedData.data
+    const stimuliNames = data.stimuli.data.map(s => s[1])
+    const participantNames = data.participants.data.map(p => p[1])
+
+    const mapping = await this.deps.modalState.open(eventFileMappingModal, {
+      fileNames: eventFiles.map(f => f.name),
+      stimuliOptions: stimuliNames.map((name, i) => ({
+        label: name,
+        value: String(i),
+      })),
+      participantOptions: participantNames.map((name, i) => ({
+        label: name,
+        value: String(i),
+      })),
+    })
+
+    if (!mapping) {
+      this.deps.toastState.addInfo(
+        'Event file mapping was cancelled. Data loaded without events.'
+      )
+      return
+    }
+
+    const highestEndTimes = computeHighestEndTimes(data)
+
+    for (let i = 0; i < eventFiles.length; i++) {
+      const { stimulusId, participantId } = mapping[i]
+      const text = await eventFiles[i].text()
+      const parsed = processAoiVisibilityFromText(
+        text,
+        highestEndTimes[stimulusId] ?? 0
+      )
+      mergeEventDataForStimulus(data, stimulusId, participantId, parsed)
+    }
+
+    this.deps.toastState.addSuccess(
+      `${eventFiles.length} event file${eventFiles.length > 1 ? 's' : ''} processed successfully`
+    )
   }
 }

@@ -5,8 +5,39 @@
  */
 import { getStimulusHighestEndTime } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+
+type AoiVisibilityResult = {
+  multipleAoiNames: string[]
+  multipleAoiVisibilityArrays: number[][]
+}
+
 /**
- * Main function to process the AOI visibility data
+ * Parse event file text into AOI names + alternating visibility arrays.
+ * Engine-free — suitable for use during ingest before engine is loaded.
+ * @param text raw file content (SMI XML or Tobii JSON)
+ * @param highestEndTime end time in ms for open-ended SMI keyframes
+ */
+export const processAoiVisibilityFromText = (
+  text: string,
+  highestEndTime: number
+): AoiVisibilityResult => {
+  const parser = new DOMParser()
+  const xml = parser.parseFromString(text, 'application/xml')
+
+  if (xml.getElementsByTagName('DynamicAOI').length > 0) {
+    return processSmiFromXml(xml, highestEndTime)
+  }
+
+  const tobiiJson = JSON.parse(text)
+  if (isTobiiJson(tobiiJson)) {
+    return processTobiiChannels(tobiiJson)
+  }
+
+  throw new Error('Unrecognized event file format')
+}
+
+/**
+ * Main function to process the AOI visibility data (engine-dependent wrapper).
  * @param stimulusId id of the stimulus to which the AOIs belong
  * @param participantId id of the participant to which the AOIs belong (null if not participant-specific and should be applied to all participants)
  * @param files list of files to process
@@ -23,50 +54,18 @@ export const processAoiVisibility = async (
   participantId: number | null
 }> => {
   const text = await files[0].text()
-  const parser = new DOMParser()
-  const xml = parser.parseFromString(text, 'application/xml')
-
-  let data: {
-    stimulusId: number
-    multipleAoiNames: string[]
-    multipleAoiVisibilityArrays: number[][]
-    participantId: number | null
-  }
-
-  if (xml.getElementsByTagName('DynamicAOI').length === 0) {
-    // Tobii AOI visibility file
-    // Parse as JSON instead of XML
-    const tobiiJson = JSON.parse(text)
-
-    if (!isTobiiJson(tobiiJson)) {
-      throw new Error('Assumed Tobii JSON format, but it is not valid')
-    }
-
-    data = processTobii(stimulusId, participantId, tobiiJson)
-  } else {
-    data = processSmi(engine, stimulusId, participantId, xml)
-  }
-
-  return data
+  const highestEndTime = getStimulusHighestEndTime(engine, stimulusId)
+  const result = processAoiVisibilityFromText(text, highestEndTime)
+  return { stimulusId, ...result, participantId }
 }
 
 /**
- * Process dynamic AOIs from SMI XML into exportable visibility payloads.
- * @param stimulusId id of the stimulus to which the AOIs belong
- * @param participantId id of the participant to which the AOIs belong (null if not participant-specific and should be applied to all participants)
- * @returns data for the processAoiVisibility callback function
+ * Parse SMI XML document into AOI names + visibility arrays (engine-free).
  */
-export const processSmi = (
-  engine: DataEngine,
-  stimulusId: number,
-  participantId: number | null,
-  xml: Document
-): {
-  stimulusId: number
-  multipleAoiNames: string[]
-  multipleAoiVisibilityArrays: number[][]
-  participantId: number | null
-} => {
+const processSmiFromXml = (
+  xml: Document,
+  highestEndTime: number
+): AoiVisibilityResult => {
   const aoiNodes = xml.getElementsByTagName('DynamicAOI')
   const multipleAoiNames: string[] = []
   const multipleAoiVisibilityArrays: number[][] = []
@@ -74,32 +73,22 @@ export const processSmi = (
     const aoiName = aoiNodes[i].querySelector('Name')?.innerHTML
     if (aoiName === undefined) continue
     const aoiKeyFrames = aoiNodes[i].getElementsByTagName('KeyFrame')
-    const aoiVisibilityArr = processSmiKeyFrames(
-      engine,
-      aoiKeyFrames,
-      stimulusId
-    )
+    const aoiVisibilityArr = processSmiKeyFrames(aoiKeyFrames, highestEndTime)
     multipleAoiNames.push(aoiName)
     multipleAoiVisibilityArrays.push(aoiVisibilityArr)
   }
-  return {
-    stimulusId,
-    multipleAoiNames,
-    multipleAoiVisibilityArrays,
-    participantId,
-  }
+  return { multipleAoiNames, multipleAoiVisibilityArrays }
 }
 
 /**
  * Process the keyframes of a dynamic AOI in SMI XML data
  * @param keyFrames keyframes of the dynamic AOI
- * @param stimulusId id of the stimulus to which the AOI belongs
- * @returns an array of timestamps when the AOI is visible
+ * @param highestEndTime end time in ms to close open-ended visibility intervals
+ * @returns an array of alternating [start, end, ...] timestamps in ms
  */
 export const processSmiKeyFrames = (
-  engine: DataEngine,
   keyFrames: HTMLCollectionOf<Element>,
-  stimulusId: number
+  highestEndTime: number
 ): number[] => {
   const visibilityArr = []
   let isAoiCurrentlyVisible = false
@@ -122,8 +111,7 @@ export const processSmiKeyFrames = (
       isAoiCurrentlyVisible = false
     }
     if (visibility === 'true' && i === keyFrames.length - 1) {
-      const timestamp = getStimulusHighestEndTime(engine, stimulusId)
-      visibilityArr.push(timestamp)
+      visibilityArr.push(highestEndTime)
       isAoiCurrentlyVisible = false
     }
   }
@@ -206,6 +194,20 @@ export const isTobiiJson = (json: unknown): json is TobiiJson => {
 }
 
 /**
+ * Parse Tobii JSON into AOI names + visibility arrays (engine-free).
+ */
+const processTobiiChannels = (tobiiJson: TobiiJson): AoiVisibilityResult => {
+  const multipleAoiNames: string[] = []
+  const multipleAoiVisibilityArrays: number[][] = []
+  for (const aoiId in tobiiJson.Aois) {
+    const aoi = tobiiJson.Aois[aoiId]
+    multipleAoiNames.push(aoi.Name)
+    multipleAoiVisibilityArrays.push(processTobiiKeyFrames(aoi.KeyFrames))
+  }
+  return { multipleAoiNames, multipleAoiVisibilityArrays }
+}
+
+/**
  * Process Tobii AOI visibility data into a workspace-ready payload.
  * @param stimulusId id of the stimulus to which the AOIs belong
  * @param participantId id of the participant to which the AOIs belong (null if not participant-specific and should be applied to all participants)
@@ -221,22 +223,8 @@ export const processTobii = (
   multipleAoiVisibilityArrays: number[][]
   participantId: number | null
 } => {
-  const multipleAoiNames: string[] = []
-  const multipleAoiVisibilityArrays: number[][] = []
-  for (const aoiId in tobiiJson.Aois) {
-    const aoi = tobiiJson.Aois[aoiId]
-    const aoiName = aoi.Name
-    const aoiKeyFrames = aoi.KeyFrames
-    const aoiVisibilityArr = processTobiiKeyFrames(aoiKeyFrames)
-    multipleAoiNames.push(aoiName)
-    multipleAoiVisibilityArrays.push(aoiVisibilityArr)
-  }
-  return {
-    stimulusId,
-    multipleAoiNames,
-    multipleAoiVisibilityArrays,
-    participantId,
-  }
+  const result = processTobiiChannels(tobiiJson)
+  return { stimulusId, ...result, participantId }
 }
 
 /**
@@ -268,4 +256,55 @@ export const processTobiiKeyFrames = (
     throw new Error('Odd number of keyframes in AOI visibility data')
   }
   return visibilityArr
+}
+
+/**
+ * Convert parsed AOI visibility data into event channel definitions and
+ * per-participant stride-2 event buffers ready for EventDataType.
+ */
+export function buildEventChannelsFromParsed(
+  parsed: AoiVisibilityResult,
+  participantId: number | null,
+  participantCount: number,
+  aoiData?: string[][]
+): { channelDefs: string[][]; eventBuffers: number[][][] } {
+  const channelDefs: string[][] = []
+  const eventBuffers: number[][][] = []
+
+  for (let i = 0; i < parsed.multipleAoiNames.length; i++) {
+    const name = parsed.multipleAoiNames[i]
+    let color = '#888888'
+    if (aoiData) {
+      for (const row of aoiData) {
+        if (row[0] === name || row[1] === name) {
+          color = row[2] ?? color
+          break
+        }
+      }
+    }
+    channelDefs.push([name, name, color])
+
+    // Convert alternating [start, end] to stride-2 [start, duration]
+    const intervals = parsed.multipleAoiVisibilityArrays[i]
+    const events: number[] = []
+    for (let j = 0; j < intervals.length; j += 2) {
+      const start = intervals[j]
+      const end = intervals[j + 1]
+      events.push(start, end != null ? end - start : 0)
+    }
+
+    // Per-participant buffer
+    const perParticipant: number[][] = Array.from(
+      { length: participantCount },
+      () => []
+    )
+    if (participantId !== null) {
+      perParticipant[participantId] = events
+    } else {
+      for (let p = 0; p < participantCount; p++) perParticipant[p] = events
+    }
+    eventBuffers.push(perParticipant)
+  }
+
+  return { channelDefs, eventBuffers }
 }
