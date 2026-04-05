@@ -485,7 +485,6 @@ export class BinaryEyeWriter {
           list.map(a => [decodeBytes(a, this.decoder)])
         ),
         orderVector: aoisOrderVectors,
-        dynamicVisibility: {},
         hiddenAois: [],
       },
       segments: {
@@ -500,6 +499,12 @@ export class BinaryEyeWriter {
         stimuliCount: maxStimuli,
       },
       noAoiTreatment: { ...DEFAULT_NO_AOI_TREATMENT },
+      eventData: {
+        data: Array.from({ length: maxStimuli }, () => []),
+        orderVector: [],
+        hiddenChannels: [],
+        events: Array.from({ length: maxStimuli }, () => [] as number[][][]),
+      },
     }
   }
 

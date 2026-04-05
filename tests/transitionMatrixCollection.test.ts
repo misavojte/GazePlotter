@@ -14,7 +14,6 @@ function createMockEngine(segments: number[][][][]) {
           ['AOI 2', 'AOI 2', 'blue'],
         ]],
         orderVector: [[], [1, 2]],
-        dynamicVisibility: {},
         hiddenAois: [[], []],
       },
       categories: {

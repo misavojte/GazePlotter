@@ -10,7 +10,6 @@ import {
 const engineMocks = vi.hoisted(() => ({
   updateMultipleAoi: vi.fn(),
   updateHiddenAoisWithPropagation: vi.fn(),
-  updateMultipleAoiVisibility: vi.fn(),
   updateMultipleParticipants: vi.fn(),
   updateMultipleStimuli: vi.fn(),
   updateNoAoiTreatment: vi.fn(),

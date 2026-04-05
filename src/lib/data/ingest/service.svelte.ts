@@ -48,7 +48,6 @@ const EMPTY_DATASET: DataType = {
   aois: {
     data: [],
     orderVector: [],
-    dynamicVisibility: {},
     hiddenAois: [],
   },
   segments: {
@@ -58,6 +57,12 @@ const EMPTY_DATASET: DataType = {
     hasSpatialData: false,
     maxParticipants: 0,
     stimuliCount: 0,
+  },
+  eventData: {
+    data: [],
+    orderVector: [],
+    hiddenChannels: [],
+    events: [],
   },
 }
 

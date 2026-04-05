@@ -5,8 +5,8 @@ import { GridState } from '$lib/workspace/grid/store.svelte'
 import {
   createCommandHandler,
   createRootCommand,
-  type UpdateAoiVisibilityCommand,
   type UpdateAoisCommand,
+  type UpdateEventDataCommand,
   type UpdateNoAoiTreatmentCommand,
   type UpdateParticipantsCommand,
   type UpdateParticipantsGroupsCommand,
@@ -263,20 +263,18 @@ export class WorkspaceService {
     return this.applyRoot(command)
   }
 
-  updateAoiVisibility(
+  updateEventData(
     stimulusId: number,
-    aoiNames: string[],
-    visibilityArr: number[][],
-    source: string,
-    participantId?: number | null
+    channelDefs: string[][],
+    eventBuffers: number[][][],
+    source: string
   ): boolean {
-    const command: UpdateAoiVisibilityCommand = {
-      type: 'updateAoiVisibility',
+    const command: UpdateEventDataCommand = {
+      type: 'updateEventData',
       stimulusId,
-      aoiNames,
-      visibilityArr,
+      channelDefs,
+      eventBuffers,
       source,
-      participantId,
     }
     return this.applyRoot(command)
   }

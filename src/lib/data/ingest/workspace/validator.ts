@@ -34,6 +34,22 @@ export function processAndValidateData(
     data.aois.hiddenAois.push([])
   }
 
+  // Normalize eventData
+  const ed = ((data as any).eventData ??= {
+    data: [],
+    orderVector: [],
+    hiddenChannels: [],
+    events: [],
+  })
+  ed.data ??= []
+  ed.orderVector ??= []
+  ed.hiddenChannels ??= []
+  ed.events ??= []
+  for (let s = ed.data.length; s < stimuliCount; s++) ed.data.push([])
+  for (let s = ed.events.length; s < stimuliCount; s++) ed.events.push([])
+  for (let s = ed.hiddenChannels.length; s < stimuliCount; s++)
+    ed.hiddenChannels.push([])
+
   // 2. Validate and sort segments
   if (!data.segments) {
     throw new Error('Invalid data structure: missing segments data')

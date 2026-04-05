@@ -9,11 +9,11 @@ import { GridState } from '$lib/workspace/grid'
 import {
   updateHiddenAoisWithPropagation,
   updateMultipleAoi,
-  updateMultipleAoiVisibility,
   updateMultipleParticipants,
   updateMultipleStimuli,
   updateNoAoiTreatment,
   updateParticipantsGroups,
+  updateEventData,
 } from '$lib/data/engine'
 import type {
   GridItemMap,
@@ -173,15 +173,9 @@ export function createWorkspaceCommandRegistry(
       gridStore.triggerRedraw()
     },
 
-    updateAoiVisibility: command => {
-      const { stimulusId, aoiNames, visibilityArr, participantId } = command
-      updateMultipleAoiVisibility(
-        engine,
-        stimulusId,
-        aoiNames,
-        visibilityArr,
-        participantId
-      )
+    updateEventData: command => {
+      const { stimulusId, channelDefs, eventBuffers } = command
+      updateEventData(engine, stimulusId, channelDefs, eventBuffers)
       gridStore.triggerRedraw()
     },
 
@@ -334,51 +328,23 @@ export function createWorkspaceCommandRegistry(
       return withMeta({ type: 'updateStimuli', stimuli }, meta)
     },
 
-    updateAoiVisibility: (cmd, meta) => {
+    updateEventData: (cmd, meta) => {
       const dataMeta = engine.metadata
       if (!dataMeta)
         throw new Error(
           'Data engine metadata not available for command reversal'
         )
-      const currentAoiVisibility = dataMeta.aois.dynamicVisibility || {}
-      const affectedVisibility: {
-        aoiName: string
-        visibilityArr: number[]
-      }[] = []
-
-      Object.entries(currentAoiVisibility).forEach(([key, visibilityArr]) => {
-        const [stimulusIdStr, aoiIdStr, participantIdStr] = key.split('_')
-        const stimulusId = parseInt(stimulusIdStr, 10)
-        const participantId = parseInt(participantIdStr, 10)
-        if (
-          stimulusId === cmd.stimulusId &&
-          (cmd.participantId == null || participantId === cmd.participantId)
-        ) {
-          const aoiData =
-            dataMeta?.aois?.data?.[stimulusId]?.[parseInt(aoiIdStr, 10)]
-          const aoiName = aoiData?.[1] || `AOI_${aoiIdStr}`
-          affectedVisibility.push({
-            aoiName,
-            visibilityArr: visibilityArr as number[],
-          })
-        }
-      })
-
-      if (affectedVisibility.length === 0) {
-        throw new Error(
-          `Cannot reverse updateAoiVisibility: no visibility data found for stimulus ${cmd.stimulusId}`
-        )
-      }
-
-      const visibilityArr = affectedVisibility.map(v => v.visibilityArr)
-      const aoiNames = affectedVisibility.map(v => v.aoiName)
+      const ed = dataMeta.eventData
+      const currentDefs = ed.data[cmd.stimulusId] ?? []
+      const currentBuffers = ed.events[cmd.stimulusId] ?? []
       return withMeta(
         {
-          type: 'updateAoiVisibility',
+          type: 'updateEventData',
           stimulusId: cmd.stimulusId,
-          aoiNames,
-          visibilityArr,
-          participantId: cmd.participantId,
+          channelDefs: currentDefs.map(d => [...d]),
+          eventBuffers: currentBuffers.map(ch =>
+            ch.map(p => [...p])
+          ),
         },
         meta
       )

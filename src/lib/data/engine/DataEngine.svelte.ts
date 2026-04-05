@@ -1,6 +1,7 @@
 import { BinaryBufferReader, AoiGroupReader } from '../binary'
 import type {
   DataType,
+  EventDataType,
   ExtendedInterpretedDataType,
   ParticipantsGroup,
 } from '../types'
@@ -21,6 +22,11 @@ export class DataEngine {
 
   hasSpatialData = $derived(
     this.hasValidData && (this._reader?.hasSpatialData ?? false)
+  )
+
+  /** Per-stimulus boolean: true if that stimulus has any event channels. */
+  hasEventsPerStimulus = $derived(
+    this.metadata?.eventData.data.map(channels => channels.length > 0) ?? []
   )
 
   // ==========================================
@@ -135,25 +141,53 @@ export class DataEngine {
     if (this.metadata) this.metadata.participantsGroups = groups
   }
 
-  updateDynamicVisibility(
-    stimulusId: number,
+  updateEventDataBatch(
     updates: {
-      aoiId: number
-      visibility: number[]
-      participantId?: number | null
+      stimulusId: number
+      channelDefs: string[][]
+      eventBuffers: number[][][]
     }[]
   ) {
     const meta = this.metadata
     if (!meta) return
 
-    if (!meta.aois.dynamicVisibility) meta.aois.dynamicVisibility = {}
-
+    const ed = meta.eventData
     for (let i = 0; i < updates.length; i++) {
-      const { aoiId, visibility, participantId } = updates[i]
-      let key = `${stimulusId}_${aoiId}`
-      if (participantId != null) key += `_${participantId}`
-      meta.aois.dynamicVisibility[key] = visibility
+      const { stimulusId, channelDefs, eventBuffers } = updates[i]
+      while (ed.data.length <= stimulusId) {
+        ed.data.push([])
+        ed.events.push([])
+      }
+      ed.data[stimulusId] = channelDefs
+      ed.events[stimulusId] = eventBuffers
+
+      if (!ed.orderVector) ed.orderVector = []
+      while (ed.orderVector.length <= stimulusId) ed.orderVector.push([])
+      ed.orderVector[stimulusId] = channelDefs.map((_, idx) => idx)
+
+      if (!ed.hiddenChannels) ed.hiddenChannels = []
+      while (ed.hiddenChannels.length <= stimulusId) ed.hiddenChannels.push([])
     }
+  }
+
+  setHiddenEventChannels(stimulusId: number, hiddenIds: number[]) {
+    const meta = this.metadata
+    if (!meta) return
+
+    const ed = meta.eventData
+    if (!ed.hiddenChannels) ed.hiddenChannels = []
+    while (ed.hiddenChannels.length <= stimulusId) ed.hiddenChannels.push([])
+
+    const channelCount = ed.data[stimulusId]?.length ?? 0
+    ed.hiddenChannels[stimulusId] = hiddenIds
+      .filter(
+        (v, i, self) =>
+          Number.isInteger(v) &&
+          v >= 0 &&
+          v < channelCount &&
+          self.indexOf(v) === i
+      )
+      .sort((a, b) => a - b)
   }
 
   // ==========================================

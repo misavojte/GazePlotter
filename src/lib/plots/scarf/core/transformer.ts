@@ -4,12 +4,13 @@
 
 import {
   getAois,
-  getAoiVisibility,
   getNumberOfSegments,
   getParticipant,
   getParticipantEndTime,
   getStimuli,
-  hasStimulusAoiVisibility,
+  hasEventsForStimulus,
+  getEventChannels,
+  getEventBuffer,
 } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import {
@@ -249,7 +250,7 @@ export function createScarfPlotAxis(
 export function createStylingAndLegend(
   aoiData: ExtendedInterpretedDataType[],
   noAoiTreatment: { displayedName: string; color: string },
-  showAoiVisibility = false
+  eventChannelData: ExtendedInterpretedDataType[] = []
 ): ScarfStyling {
   const aoi: ScarfStyleItem[] = []
   for (let i = 0; i < aoiData.length; i++) {
@@ -280,15 +281,13 @@ export function createStylingAndLegend(
   ]
 
   const visibility: ScarfStyleItem[] = []
-  if (showAoiVisibility) {
-    for (let i = 0; i < aoiData.length; i++) {
-      const a = aoiData[i]
-      visibility.push({
-        identifier: `${SCARF_IDENTIFIERS.EVENT}${a.id}`,
-        name: a.displayedName,
-        color: a.color,
-      })
-    }
+  for (let i = 0; i < eventChannelData.length; i++) {
+    const ch = eventChannelData[i]
+    visibility.push({
+      identifier: `${SCARF_IDENTIFIERS.EVENT}${ch.id}`,
+      name: ch.displayedName,
+      color: ch.color,
+    })
   }
 
   return { aoi, category, visibility }
@@ -376,6 +375,47 @@ export function appendVisibilityEventsToBuffer(
 }
 
 /**
+ * Appends stride-2 event buffer [start, duration, ...] to the visual event buffer.
+ * Converts start+duration to start/end marker pairs for rendering.
+ */
+export function appendEventBufferToVisualBuffer(
+  builder: Float32GrowBuffer,
+  events: number[],
+  minValue: number,
+  maxValue: number,
+  visibleRange: number,
+  pIndex: number,
+  participantId: number,
+  internalY: number
+): void {
+  if (!events || events.length < 2) return
+
+  const len = events.length
+  for (let i = 0; i < len; i += 2) {
+    const start = events[i]
+    const duration = events[i + 1]
+
+    if (duration === 0) {
+      // Discrete event — emit single marker if in range
+      if (start >= minValue && start < maxValue) {
+        const x = (start - minValue) / visibleRange
+        builder.pushEvent(x, pIndex, 0, participantId, internalY)
+      }
+      continue
+    }
+
+    const end = start + duration
+    if (end <= minValue || start >= maxValue) continue
+    const x1 = (Math.max(minValue, start) - minValue) / visibleRange
+    const x2 = (Math.min(maxValue, end) - minValue) / visibleRange
+    if (x2 > x1) {
+      builder.pushEvent(x1, pIndex, 0, participantId, internalY)
+      builder.pushEvent(x2, pIndex, 1, participantId, internalY)
+    }
+  }
+}
+
+/**
  * Creates visualizable data for the ScarfPlot
  */
 export function transformDataToScarfPlot(
@@ -406,9 +446,11 @@ export function transformDataToScarfPlot(
   const { minValue, maxValue } = timeline
   const invVisibleRange = 1 / (maxValue - minValue || 1)
 
+  const eventChannels = hasEventsForStimulus(engine, stimulusId)
+    ? getEventChannels(engine, stimulusId)
+    : []
   const showAoiVisibility =
-    hasStimulusAoiVisibility(engine, stimulusId) &&
-    settings.timeline !== 'ordinal'
+    eventChannels.length > 0 && settings.timeline !== 'ordinal'
   const barWrapHeight = getScarfParticipantBarHeight(
     aoiData.length,
     showAoiVisibility
@@ -416,7 +458,7 @@ export function transformDataToScarfPlot(
   const stylingAndLegend = createStylingAndLegend(
     aoiData,
     noAoiTreatment,
-    showAoiVisibility
+    showAoiVisibility ? eventChannels : []
   )
 
   // Style mapping: pre-calculate indices for the hot loop
@@ -550,17 +592,12 @@ export function transformDataToScarfPlot(
 
     if (showAoiVisibility) {
       const internalY = SPACE_ABOVE_RECT_DEFAULT + HEIGHT_BAR_DEFAULT * 0.5
-      for (let aoiIdx = 0; aoiIdx < aoiData.length; aoiIdx++) {
-        const vis = getAoiVisibility(
-          engine,
-          stimulusId,
-          aoiData[aoiIdx].id,
-          pid
-        )
-        if (vis?.length) {
-          appendVisibilityEventsToBuffer(
-            eventBuckets[visibilityBaseStyleIdx + aoiIdx],
-            vis,
+      for (let chIdx = 0; chIdx < eventChannels.length; chIdx++) {
+        const buf = getEventBuffer(engine, stimulusId, eventChannels[chIdx].id, pid)
+        if (buf && buf.length >= 2) {
+          appendEventBufferToVisualBuffer(
+            eventBuckets[visibilityBaseStyleIdx + chIdx],
+            buf,
             clipMin,
             clipMax,
             clipMax - clipMin || 1,

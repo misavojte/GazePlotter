@@ -42,10 +42,10 @@ export const WORKSPACE_COMMAND_LABELS: Record<
     default: 'Stimuli updated',
   },
 
-  updateAoiVisibility: {
-    undone: 'Undo AOI visibility update',
-    redone: 'Redo AOI visibility update',
-    default: 'AOI visibility updated',
+  updateEventData: {
+    undone: 'Undo event data update',
+    redone: 'Redo event data update',
+    default: 'Event data updated',
   },
 
   updateParticipantsGroups: {

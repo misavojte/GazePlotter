@@ -49,15 +49,46 @@
         participantId,
         files
       )
-      if (
-        workspace.updateAoiVisibility(
-          data.stimulusId,
-          data.multipleAoiNames,
-          data.multipleAoiVisibilityArrays,
-          source,
-          data.participantId
-        )
-      ) {
+
+      // Convert parsed visibility data to event channel format
+      const participantCount = engine.metadata?.participants.data.length ?? 0
+      const channelDefs: string[][] = []
+      const eventBuffers: number[][][] = []
+      for (let i = 0; i < data.multipleAoiNames.length; i++) {
+        const name = data.multipleAoiNames[i]
+        // Look up AOI color from engine metadata, fallback to default
+        const aoiData = engine.metadata?.aois.data[stimulusId]
+        let color = '#888888'
+        if (aoiData) {
+          for (let j = 0; j < aoiData.length; j++) {
+            if (aoiData[j][0] === name || aoiData[j][1] === name) {
+              color = aoiData[j][2] ?? color
+              break
+            }
+          }
+        }
+        channelDefs.push([name, name, color])
+
+        // Convert alternating [start, end, ...] to stride-2 [start, duration, ...]
+        const intervals = data.multipleAoiVisibilityArrays[i]
+        const events: number[] = []
+        for (let j = 0; j < intervals.length; j += 2) {
+          const start = intervals[j]
+          const end = intervals[j + 1]
+          events.push(start, end != null ? end - start : 0)
+        }
+
+        // Build per-participant buffer: apply to selected participant or all
+        const perParticipant: number[][] = Array.from({ length: participantCount }, () => [])
+        if (participantId !== null) {
+          perParticipant[participantId] = events
+        } else {
+          for (let p = 0; p < participantCount; p++) perParticipant[p] = events
+        }
+        eventBuffers.push(perParticipant)
+      }
+
+      if (workspace.updateEventData(stimulusId, channelDefs, eventBuffers, source)) {
         modalState.close()
       }
     } catch (error) {

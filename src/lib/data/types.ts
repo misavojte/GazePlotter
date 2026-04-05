@@ -57,17 +57,39 @@ export interface ParticipantsGroup {
 }
 
 /**
- * An object that represents the visibility blocks for AOIs.
+ * All event data for the workspace.
+ * Mirrors AoiDataType structure: per-stimulus channel definitions,
+ * ordering, hiding, grouping (by displayedName), and per-channel event buffers.
  */
-export interface VisibilityAoiDataType {
-  [key: string]: number[]
+export interface EventDataType {
+  /**
+   * Per-stimulus channel definitions.
+   * [stimulusId][channelId][fieldIndex]
+   * Fields: 0=originalName, 1=displayedName, 2=color
+   *
+   * Same shape as AoiDataType.data. displayedName drives grouping.
+   */
+  data: string[][][]
+
+  /** Per-stimulus display order of channels. */
+  orderVector: number[][]
+
+  /** Per-stimulus hidden channel IDs. */
+  hiddenChannels: number[][]
+
+  /**
+   * Per-stimulus per-channel per-participant event buffers.
+   * [stimulusId][channelId][participantId] → stride-2 number[]
+   * Layout: [start₀, duration₀, start₁, duration₁, ...] in ms.
+   * Duration = 0 for discrete/instant events.
+   */
+  events: number[][][][]
 }
 
 export interface AoiDataType {
   /** Nested array mapping: [stimulusIndex][aoiIndex][fieldIndex] where fieldIndex: 0=originalName, 1=displayedName, 2=color (optional) */
   data: string[][][]
   orderVector: number[][]
-  dynamicVisibility: VisibilityAoiDataType
   /** Per-stimulus list of raw AOI ids that should be treated as nonexistent in visualizations. */
   hiddenAois: number[][]
 }
@@ -84,6 +106,7 @@ export interface DataType {
   stimuli: AttributeDataType
   segments: BinarySegmentBuffers
   noAoiTreatment: NoAoiTreatmentType
+  eventData: EventDataType
 }
 
 /**
@@ -95,7 +118,7 @@ export type JsonImportOldFormat = Omit<DataType, 'segments'> & {
 }
 
 export interface JsonImportNewFormat {
-  version: 2 | 3 | 4
+  version: 2 | 3 | 4 | 5
   data: DataType
   gridItems?: GridItemSnapshot[]
   fileMetadata?: FileMetadataType | null

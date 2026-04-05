@@ -29,10 +29,15 @@ function createData(segments: DataType['segments']): DataType {
     aois: {
       data: [[['AOI 1', 'AOI 1', '#ff0000']]],
       orderVector: [[0]],
-      dynamicVisibility: {},
       hiddenAois: [[]],
     },
     segments,
+    eventData: {
+      data: [[]],
+      orderVector: [],
+      hiddenChannels: [],
+      events: [[]],
+    },
   }
 }
 

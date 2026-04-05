@@ -45,12 +45,11 @@ export interface UpdateStimuliCommand extends BaseCommandInterface {
   stimuli: BaseInterpretedDataType[]
 }
 
-export interface UpdateAoiVisibilityCommand extends BaseCommandInterface {
-  type: 'updateAoiVisibility'
+export interface UpdateEventDataCommand extends BaseCommandInterface {
+  type: 'updateEventData'
   stimulusId: number
-  aoiNames: string[]
-  visibilityArr: number[][]
-  participantId?: number | null
+  channelDefs: string[][]
+  eventBuffers: number[][][]
 }
 
 export interface UpdateParticipantsGroupsCommand extends BaseCommandInterface {
@@ -104,7 +103,7 @@ export type WorkspaceCommand =
   | UpdateAoisCommand
   | UpdateParticipantsCommand
   | UpdateStimuliCommand
-  | UpdateAoiVisibilityCommand
+  | UpdateEventDataCommand
   | UpdateParticipantsGroupsCommand
   | UpdateNoAoiTreatmentCommand
   | UpdateSettingsCommand // includes position and size updates

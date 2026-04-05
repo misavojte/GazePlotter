@@ -173,45 +173,6 @@ describe('workspaceCommandReverse metadata commands', () => {
     expect(reverseCommand(command)).toEqual(expected)
   })
 
-  it('reverses updateAoiVisibility by restoring the current visibility arrays', () => {
-    expect(
-      reverseCommand(
-        createChainedCommand({
-          type: 'updateAoiVisibility',
-          stimulusId: 1,
-          aoiNames: ['AOI1'],
-          visibilityArr: [[1, 0, 1]],
-          participantId: 1,
-        })
-      )
-    ).toEqual(
-      createChainedCommand({
-        type: 'updateAoiVisibility',
-        stimulusId: 1,
-        aoiNames: ['AOI 1', 'AOI 2'],
-        visibilityArr: [
-          [0, 100, 104, 120],
-          [10, 20, 30, 40],
-        ],
-        participantId: 1,
-      })
-    )
-  })
-
-  it('returns null when updateAoiVisibility has no matching visibility data', () => {
-    expect(
-      reverseCommand(
-        createChainedCommand({
-          type: 'updateAoiVisibility',
-          stimulusId: 999,
-          aoiNames: ['AOI1'],
-          visibilityArr: [[1, 0, 1]],
-          participantId: 1,
-        })
-      )
-    ).toBeNull()
-  })
-
   it.each([null, undefined] as const)(
     'returns null for updateParticipants when metadata is %s',
     metadata => {

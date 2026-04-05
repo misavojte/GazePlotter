@@ -113,6 +113,100 @@ export function runMigrations(parsedJson: any): any {
       gridItems: migratedItems,
       fileMetadata: data.fileMetadata ?? null,
     }
+    version = 4
+  }
+
+  // V4 to V5: Migrate dynamicVisibility → eventData
+  if (version === 4) {
+    const payload = data.data
+    const stimuliCount: number = payload.stimuli?.data?.length ?? 0
+
+    const participantCount: number = payload.participants?.data?.length ?? 0
+
+    const eventDataData: string[][][] = Array.from(
+      { length: stimuliCount },
+      () => [] as string[][]
+    )
+    // events: [stimulusId][channelId][participantId] → stride-2 number[]
+    const eventDataEvents: number[][][][] = Array.from(
+      { length: stimuliCount },
+      () => [] as number[][][]
+    )
+
+    const dv = payload.aois?.dynamicVisibility
+    if (dv && typeof dv === 'object') {
+      // Group keys by stimulus+AOI, collecting per-participant intervals
+      const grouped: Record<string, Record<number, number[]>> = {}
+      for (const oldKey in dv) {
+        const parts = oldKey.split('_')
+        const stimulusId = parseInt(parts[0], 10)
+        const aoiId = parseInt(parts[1], 10)
+        if (isNaN(stimulusId) || stimulusId < 0 || stimulusId >= stimuliCount)
+          continue
+        if (isNaN(aoiId)) continue
+
+        const groupKey = `${stimulusId}_${aoiId}`
+        if (!grouped[groupKey]) grouped[groupKey] = {}
+
+        // Convert alternating [start, end, ...] → stride-2 [start, duration, ...]
+        const intervals: number[] = dv[oldKey]
+        const events: number[] = []
+        for (let i = 0; i < intervals.length; i += 2) {
+          const start = intervals[i]
+          const end = intervals[i + 1]
+          if (end === undefined || end === null) {
+            events.push(start, 0)
+          } else {
+            events.push(start, end - start)
+          }
+        }
+
+        if (parts.length > 2) {
+          // Per-participant key: stimulusId_aoiId_participantId
+          const participantId = parseInt(parts[2], 10)
+          if (!isNaN(participantId) && participantId >= 0 && participantId < participantCount) {
+            grouped[groupKey][participantId] = events
+          }
+        } else {
+          // Global key: apply same events to all participants
+          for (let p = 0; p < participantCount; p++) {
+            grouped[groupKey][p] = events
+          }
+        }
+      }
+
+      for (const groupKey in grouped) {
+        const [stimStr, aoiStr] = groupKey.split('_')
+        const stimulusId = parseInt(stimStr, 10)
+        const aoiId = parseInt(aoiStr, 10)
+
+        const aoiRow = payload.aois?.data?.[stimulusId]?.[aoiId]
+        const originalName = aoiRow?.[0] ?? `AOI ${aoiId}`
+        const displayedName = aoiRow?.[1] ?? originalName
+        const color = aoiRow?.[2] ?? '#888888'
+
+        // Build per-participant buffer array
+        const perParticipant: number[][] = Array.from({ length: participantCount }, () => [])
+        const participantEvents = grouped[groupKey]
+        for (const pStr in participantEvents) {
+          perParticipant[parseInt(pStr, 10)] = participantEvents[parseInt(pStr, 10)]
+        }
+
+        eventDataData[stimulusId].push([originalName, displayedName, color])
+        eventDataEvents[stimulusId].push(perParticipant)
+      }
+    }
+
+    payload.eventData = {
+      data: eventDataData,
+      orderVector: eventDataData.map(channels =>
+        channels.map((_, i) => i)
+      ),
+      hiddenChannels: Array.from({ length: stimuliCount }, () => []),
+      events: eventDataEvents,
+    }
+
+    data = { ...data, version: 5, data: payload }
   }
 
   return data

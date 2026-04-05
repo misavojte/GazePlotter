@@ -38,10 +38,6 @@ export function createMockMetadata(
           ['AOI2', 'AOI 2', '#00FF00', '100,100,200,200'],
         ],
       ],
-      dynamicVisibility: {
-        '1_0_1': [0, 100, 104, 120],
-        '1_1_1': [10, 20, 30, 40],
-      },
       hiddenAois: [],
       orderVector: [],
     },
@@ -72,6 +68,12 @@ export function createMockMetadata(
     ],
     noAoiTreatment: createNoAoiTreatment(),
     isOrdinalOnly: false,
+    eventData: {
+      data: [[], []],
+      orderVector: [],
+      hiddenChannels: [],
+      events: [[], []],
+    },
     ...overrides,
   }
 }
@@ -82,7 +84,6 @@ export function createEmptyMockMetadata(
   return createMockMetadata({
     aois: {
       data: [],
-      dynamicVisibility: {},
       hiddenAois: [],
       orderVector: [],
     },
