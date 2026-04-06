@@ -293,6 +293,53 @@ export function createStylingAndLegend(
   return { aoi, category, visibility }
 }
 
+type GroupedEventChannel = ExtendedInterpretedDataType & {
+  memberIds: number[]
+}
+
+/**
+ * Groups channels by trimmed displayed name while preserving first occurrence order.
+ * Channels with empty displayed names stay as standalone entries.
+ */
+export function groupEventChannelsByDisplayedName(
+  eventChannels: ExtendedInterpretedDataType[]
+): GroupedEventChannel[] {
+  if (eventChannels.length === 0) return []
+
+  const grouped: GroupedEventChannel[] = []
+  const processed = new Set<number>()
+
+  for (let i = 0; i < eventChannels.length; i++) {
+    const channel = eventChannels[i]
+    if (processed.has(channel.id)) continue
+
+    const trimmedName = (channel.displayedName || '').trim()
+    const memberIds = [channel.id]
+    processed.add(channel.id)
+
+    if (trimmedName.length > 0) {
+      for (let j = i + 1; j < eventChannels.length; j++) {
+        const candidate = eventChannels[j]
+        if (processed.has(candidate.id)) continue
+        if ((candidate.displayedName || '').trim() === trimmedName) {
+          memberIds.push(candidate.id)
+          processed.add(candidate.id)
+        }
+      }
+    }
+
+    grouped.push({
+      id: channel.id,
+      originalName: channel.originalName,
+      displayedName: channel.displayedName,
+      color: channel.color,
+      memberIds,
+    })
+  }
+
+  return grouped
+}
+
 /**
  * Creates group-aware legend data from styling information.
  * This is a data-only transformation - no layout geometry is computed here.
@@ -329,7 +376,7 @@ export function createScarfLegendData(
   if (!hideNonFixations) {
     addGroup('Non-fixations', styling.category, 'nonFixation')
   }
-  addGroup('Events (start/end)', styling.visibility, 'visibility')
+  addGroup('Events', styling.visibility, 'visibility')
 
   return { groups }
 }
@@ -446,11 +493,13 @@ export function transformDataToScarfPlot(
   const { minValue, maxValue } = timeline
   const invVisibleRange = 1 / (maxValue - minValue || 1)
 
-  const eventChannels = hasEventsForStimulus(engine, stimulusId)
+  const visibleEventChannels = hasEventsForStimulus(engine, stimulusId)
     ? getVisibleEventChannels(engine, stimulusId)
     : []
+  const groupedEventChannels =
+    groupEventChannelsByDisplayedName(visibleEventChannels)
   const showAoiVisibility =
-    eventChannels.length > 0 && settings.timeline !== 'ordinal'
+    groupedEventChannels.length > 0 && settings.timeline !== 'ordinal'
   const barWrapHeight = getScarfParticipantBarHeight(
     aoiData.length,
     settings.dynamicAOI
@@ -458,7 +507,7 @@ export function transformDataToScarfPlot(
   const stylingAndLegend = createStylingAndLegend(
     aoiData,
     noAoiTreatment,
-    showAoiVisibility ? eventChannels : []
+    showAoiVisibility ? groupedEventChannels : []
   )
 
   // Style mapping: pre-calculate indices for the hot loop
@@ -592,24 +641,27 @@ export function transformDataToScarfPlot(
 
     if (showAoiVisibility) {
       const internalY = SPACE_ABOVE_RECT_DEFAULT + HEIGHT_BAR_DEFAULT * 0.5
-      for (let chIdx = 0; chIdx < eventChannels.length; chIdx++) {
-        const buf = getEventBuffer(
-          engine,
-          stimulusId,
-          eventChannels[chIdx].id,
-          pid
-        )
-        if (buf && buf.length >= 2) {
-          appendEventBufferToVisualBuffer(
-            eventBuckets[visibilityBaseStyleIdx + chIdx],
-            buf,
-            clipMin,
-            clipMax,
-            clipMax - clipMin || 1,
-            pIndex,
-            pid,
-            internalY
+      for (let chIdx = 0; chIdx < groupedEventChannels.length; chIdx++) {
+        const group = groupedEventChannels[chIdx]
+        for (let mIdx = 0; mIdx < group.memberIds.length; mIdx++) {
+          const buf = getEventBuffer(
+            engine,
+            stimulusId,
+            group.memberIds[mIdx],
+            pid
           )
+          if (buf && buf.length >= 2) {
+            appendEventBufferToVisualBuffer(
+              eventBuckets[visibilityBaseStyleIdx + chIdx],
+              buf,
+              clipMin,
+              clipMax,
+              clipMax - clipMin || 1,
+              pIndex,
+              pid,
+              internalY
+            )
+          }
         }
       }
     }

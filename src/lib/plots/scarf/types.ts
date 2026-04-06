@@ -61,7 +61,7 @@ export interface ScarfStyling {
  * Style type for legend items, determining how the icon is rendered.
  * - 'fixation': Full-height rectangle (AOI fixations)
  * - 'nonFixation': Thin rectangle (saccades, other events)
- * - 'visibility': Dashed line (AOI visibility intervals)
+ * - 'visibility': Paired directional start/end markers for event intervals
  */
 export type ScarfLegendStyleType = 'fixation' | 'nonFixation' | 'visibility'
 

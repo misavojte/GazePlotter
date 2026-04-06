@@ -23,7 +23,6 @@ import {
 } from '$lib/shared/utils/textUtils'
 import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
 import { desaturateToWhite } from '$lib/color/utility'
-import { COLOR_FALLBACKS, UI_COLORS } from '$lib/color'
 
 // ============================================================================
 // TYPES
@@ -149,6 +148,72 @@ export const STREAM_LEGEND_CONFIG: LegendConfig = {
   topPadding: 5,
   lineDash: [2, 2] as const,
   nonFixationHeight: 4,
+}
+
+function drawDirectionalLegendCompositeMarker(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  radius: number,
+  isStart: boolean,
+  color: string | null
+) {
+  const r = radius * 0.85
+  const offset = radius * 0.3
+  const tipOffset = radius * 1.2
+
+  ctx.beginPath()
+  if (isStart) {
+    const cx = x - offset
+    const px = x + tipOffset
+
+    ctx.arc(cx, y, r, Math.PI / 2, (3 * Math.PI) / 2, false)
+    ctx.bezierCurveTo(cx + r * 0.8, y - r, px - r * 0.6, y - r * 0.15, px, y)
+    ctx.bezierCurveTo(
+      px - r * 0.6,
+      y + r * 0.15,
+      cx + r * 0.8,
+      y + r,
+      cx,
+      y + r
+    )
+  } else {
+    const cx = x + offset
+    const px = x - tipOffset
+
+    ctx.arc(cx, y, r, Math.PI / 2, -Math.PI / 2, true)
+    ctx.bezierCurveTo(cx - r * 0.8, y - r, px + r * 0.6, y - r * 0.15, px, y)
+    ctx.bezierCurveTo(
+      px + r * 0.6,
+      y + r * 0.15,
+      cx - r * 0.8,
+      y + r,
+      cx,
+      y + r
+    )
+  }
+  ctx.closePath()
+
+  if (color === null) {
+    ctx.lineJoin = 'round'
+    ctx.lineWidth = 5.5
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
+    ctx.stroke()
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
+    ctx.fill()
+  } else {
+    ctx.fillStyle = color
+    ctx.fill()
+
+    ctx.lineJoin = 'miter'
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+  }
+}
+
+function getLegendEventOutlineColor(baseColor: string): string {
+  return 'rgba(0, 0, 0, 0.4)'
 }
 
 // ============================================================================
@@ -535,66 +600,21 @@ export function drawLegend(
       )
       ctx.fillRect(item.x, iconY, iconWidth, item.height)
     } else if (item.type === 'eventPair') {
-      // Event pair icon (start and end markers side-by-side)
-      // Radius ~4px to fit two 8px circles in 20px width
-      const size = 9
-      const radius = size / 2
-      const innerRadius = 2
-      const gap = 2
-
+      // Simple circle for events
+      const radius = 5
       const centerY = alignToPixelCenter(item.y + itemHeight / 2)
-      // Center the pair in the iconWidth
-      // Pair width = size * 2 + gap
-      const pairWidth = size * 2 + gap
-      const startX = item.x + (iconWidth - pairWidth) / 2 + radius
-      const endX = startX + size + gap
+      const centerX = alignToPixelCenter(item.x + iconWidth / 2)
 
-      const OUTLINE_WIDTH = 1
-
-      // Determine colors based on highlighting state
-      // For events, we dehighlight by desaturating color to white (0.75) instead of using alpha
-      // effectively keeping the marker opaque but pale.
       const isDimmed = isHighlightActive && !isHighlighted
       const effectiveColor = isDimmed
         ? desaturateToWhite(item.color, 0.85)
         : item.color
-      const effectiveOutlineColor = isDimmed
-        ? desaturateToWhite(UI_COLORS.MARKER_OUTLINE, 0.85)
-        : UI_COLORS.MARKER_OUTLINE
 
-      // 1. Start Marker (Left): Colored outer, white inner
+      ctx.beginPath()
+      ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI)
+      ctx.closePath()
       ctx.fillStyle = effectiveColor
-      ctx.beginPath()
-      ctx.arc(startX, centerY, radius, 0, Math.PI * 2)
       ctx.fill()
-
-      ctx.fillStyle = COLOR_FALLBACKS.WHITE
-      ctx.beginPath()
-      ctx.arc(startX, centerY, innerRadius, 0, Math.PI * 2)
-      ctx.fill()
-
-      ctx.strokeStyle = effectiveOutlineColor
-      ctx.lineWidth = OUTLINE_WIDTH
-      ctx.beginPath()
-      ctx.arc(startX, centerY, radius + 0.2, 0, Math.PI * 2)
-      ctx.stroke()
-
-      // 2. End Marker (Right): White outer, colored inner
-      ctx.fillStyle = COLOR_FALLBACKS.WHITE
-      ctx.beginPath()
-      ctx.arc(endX, centerY, radius, 0, Math.PI * 2)
-      ctx.fill()
-
-      ctx.fillStyle = effectiveColor
-      ctx.beginPath()
-      ctx.arc(endX, centerY, innerRadius, 0, Math.PI * 2)
-      ctx.fill()
-
-      ctx.strokeStyle = effectiveOutlineColor
-      ctx.lineWidth = OUTLINE_WIDTH
-      ctx.beginPath()
-      ctx.arc(endX, centerY, radius + 0.2, 0, Math.PI * 2)
-      ctx.stroke()
     }
   }
 
@@ -654,14 +674,75 @@ export function drawLegendGroupTitles(
 
   const { fontSize, fontFamily, fontColor } = config
 
-  ctx.font = `600 ${fontSize}px ${fontFamily}` // Semi-bold
-  ctx.fillStyle = fontColor
-  ctx.textAlign = 'left'
-  ctx.textBaseline = 'top'
-
   for (let i = 0; i < geometry.groupTitles.length; i++) {
     const group = geometry.groupTitles[i]
-    ctx.fillText(group.title, group.x, alignToPixelCenter(group.y))
+    const labelY = alignToPixelCenter(group.y)
+
+    if (group.title === 'Events') {
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'top'
+
+      const baseX = group.x
+
+      // Main "Events" text
+      ctx.font = `600 ${fontSize}px ${fontFamily}`
+      ctx.fillStyle = fontColor
+      ctx.fillText('Events', baseX, labelY)
+      let currentX = baseX + ctx.measureText('Events').width + 6
+
+      // Secondary styling
+      ctx.font = `400 ${fontSize - 1}px ${fontFamily}`
+      ctx.fillStyle = fontColor
+      ctx.textBaseline = 'middle'
+      const midY = labelY + fontSize / 2
+
+      ctx.fillText('(', currentX, midY)
+      currentX += ctx.measureText('(').width + 4
+
+      // Start Marker
+      drawDirectionalLegendCompositeMarker(
+        ctx,
+        currentX + 4.5,
+        midY,
+        4.5,
+        true,
+        '#aaa'
+      )
+      currentX += 9 + 4
+      ctx.fillText('start /', currentX, midY)
+      currentX += ctx.measureText('start /').width + 6
+
+      // End Marker
+      drawDirectionalLegendCompositeMarker(
+        ctx,
+        currentX + 4.5,
+        midY,
+        4.5,
+        false,
+        '#aaa'
+      )
+      currentX += 9 + 4
+      ctx.fillText('end /', currentX, midY)
+      currentX += ctx.measureText('end /').width + 6
+
+      // Circle Marker
+      ctx.beginPath()
+      ctx.arc(currentX + 4, midY, 4, 0, Math.PI * 2)
+      ctx.fillStyle = '#aaa'
+      ctx.fill()
+      ctx.strokeStyle = '#666'
+      ctx.lineWidth = 1
+      ctx.stroke()
+      currentX += 8 + 4
+
+      ctx.fillText('generalised )', currentX, midY)
+    } else {
+      ctx.font = `600 ${fontSize}px ${fontFamily}` // Semi-bold
+      ctx.fillStyle = fontColor
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'top'
+      ctx.fillText(group.title, group.x, labelY)
+    }
   }
 }
 

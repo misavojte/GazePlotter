@@ -5,7 +5,6 @@ import {
 } from '$lib/plots/shared'
 import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
 import { desaturateToWhite } from '$lib/color/utility'
-import { COLOR_FALLBACKS, UI_COLORS } from '$lib/color'
 import type { ScarfData } from '../types'
 
 export interface ScarfLayoutContext {
@@ -21,6 +20,120 @@ export interface ScarfLayoutContext {
   participantBarsHeight: number
   totalWidth: number
   marginLeft: number
+}
+
+function drawDirectionalCompositeMarker(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  radius: number,
+  isStart: boolean,
+  color: string | null
+) {
+  const r = radius * 0.85
+  const offset = radius * 0.3
+  const tipOffset = radius * 1.2
+
+  ctx.beginPath()
+  if (isStart) {
+    const cx = x - offset
+    const px = x + tipOffset
+
+    ctx.arc(cx, y, r, Math.PI / 2, (3 * Math.PI) / 2, false)
+    ctx.bezierCurveTo(cx + r * 0.8, y - r, px - r * 0.6, y - r * 0.15, px, y)
+    ctx.bezierCurveTo(
+      px - r * 0.6,
+      y + r * 0.15,
+      cx + r * 0.8,
+      y + r,
+      cx,
+      y + r
+    )
+  } else {
+    const cx = x + offset
+    const px = x - tipOffset
+
+    ctx.arc(cx, y, r, Math.PI / 2, -Math.PI / 2, true)
+    ctx.bezierCurveTo(cx - r * 0.8, y - r, px + r * 0.6, y - r * 0.15, px, y)
+    ctx.bezierCurveTo(
+      px + r * 0.6,
+      y + r * 0.15,
+      cx - r * 0.8,
+      y + r,
+      cx,
+      y + r
+    )
+  }
+  ctx.closePath()
+
+  if (color === null) {
+    // Halo pass
+    ctx.lineJoin = 'round'
+    ctx.lineWidth = 5.5
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
+    ctx.stroke()
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
+    ctx.fill()
+  } else {
+    // Normal pass
+    ctx.fillStyle = color
+    ctx.fill()
+
+    ctx.lineJoin = 'miter'
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+  }
+}
+
+function getMarkerOutlineColor(baseColor: string): string {
+  return 'rgba(0, 0, 0, 0.4)'
+}
+
+function drawCircleEventMarker(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  radius: number,
+  color: string | null
+) {
+  const r = radius * 0.85
+
+  ctx.beginPath()
+  ctx.arc(x, y, r, 0, Math.PI * 2)
+  ctx.closePath()
+
+  if (color === null) {
+    ctx.lineJoin = 'round'
+    ctx.lineWidth = 5.5
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
+    ctx.stroke()
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
+    ctx.fill()
+  } else {
+    ctx.fillStyle = color
+    ctx.fill()
+
+    ctx.lineJoin = 'miter'
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+  }
+}
+
+function drawDirectionalEventMarker(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  radius: number,
+  type: number,
+  color: string | null
+) {
+  if (type === 0) {
+    drawDirectionalCompositeMarker(ctx, x, y, radius, true, color)
+  } else {
+    drawDirectionalCompositeMarker(ctx, x, y, radius, false, color)
+  }
 }
 
 /**
@@ -223,13 +336,82 @@ export function drawScarfEvents(
     const buffer = buckets[styleIdx]
     if (buffer.length === 0) continue
 
+    const segmentCount = buffer.length / EVENT_STRIDE
+    for (let i = 0; i < segmentCount; i++) {
+      const idx = i * EVENT_STRIDE
+      const xNorm = buffer[idx]
+      const pIdx = buffer[idx + 1]
+      const type = buffer[idx + 2] | 0
+
+      const key = styleIdx * 1000000 + i
+      const overrideY = layout.isCompact ? undefined : overrides.get(key)
+      const yInternal =
+        overrideY !== undefined
+          ? overrideY * layout.scaleFactor
+          : layout.spaceAboveRect + layout.heightOfBar / 2
+
+      const pxX = pLeft + xNorm * pWidth
+      const pxY =
+        pIdx * layout.heightOfBarWrap + yInternal + layout.effectiveMarginTop
+      const radius = Math.max(7, Math.min(12, layout.heightOfBar * 0.8)) / 2
+
+      if (type === 0 && i + 1 < segmentCount) {
+        const nextIdx = (i + 1) * EVENT_STRIDE
+        const nextPIdx = buffer[nextIdx + 1]
+        const nextType = buffer[nextIdx + 2] | 0
+
+        if (nextPIdx === pIdx && nextType === 1) {
+          const nextPxX = pLeft + buffer[nextIdx] * pWidth
+
+          // Merge overlapping markers into a single dot or edge-specific marker
+          if (nextPxX - pxX <= radius * 1.8) {
+            const centerX = (pxX + nextPxX) / 2
+            const edgeThreshold = radius * 1.2
+
+            if (centerX - pLeft <= edgeThreshold) {
+              // Left edge: End marker (points left, outwards to indicate continuation)
+              drawDirectionalEventMarker(
+                ctx,
+                Math.max(pLeft, centerX),
+                pxY,
+                radius,
+                1,
+                null
+              )
+            } else if (pLeft + pWidth - centerX <= edgeThreshold) {
+              // Right edge: Start marker (points right, outwards to indicate continuation)
+              drawDirectionalEventMarker(
+                ctx,
+                Math.min(pLeft + pWidth, centerX),
+                pxY,
+                radius,
+                0,
+                null
+              )
+            } else {
+              // Inland: Normal circle
+              drawCircleEventMarker(ctx, centerX, pxY, radius, null)
+            }
+
+            i++ // Skip the next marker
+            continue
+          }
+        }
+      }
+
+      drawDirectionalEventMarker(ctx, pxX, pxY, radius, type, null)
+    }
+  }
+
+  for (let styleIdx = buckets.length - 1; styleIdx >= 0; styleIdx--) {
+    const buffer = buckets[styleIdx]
+    if (buffer.length === 0) continue
+
     const isDimmed = isHighlightActive ? highlightMask[styleIdx] !== 1 : false
     const color = isDimmed
       ? desaturateToWhite(styleArray[styleIdx].normal.stroke, 0.85)
       : styleArray[styleIdx].normal.stroke
-    const outline = isDimmed
-      ? desaturateToWhite(UI_COLORS.MARKER_OUTLINE, 0.85)
-      : UI_COLORS.MARKER_OUTLINE
+    const effectiveColor = isDimmed ? desaturateToWhite(color, 0.85) : color
 
     const segmentCount = buffer.length / EVENT_STRIDE
     for (let i = 0; i < segmentCount; i++) {
@@ -249,23 +431,52 @@ export function drawScarfEvents(
       const pxY =
         pIdx * layout.heightOfBarWrap + yInternal + layout.effectiveMarginTop
       const radius = Math.max(7, Math.min(12, layout.heightOfBar * 0.8)) / 2
-      const innerRadius = Math.max(2, radius * 0.4)
 
-      ctx.beginPath()
-      ctx.fillStyle = type === 0 ? color : COLOR_FALLBACKS.WHITE
-      ctx.arc(pxX, pxY, radius, 0, Math.PI * 2)
-      ctx.fill()
+      if (type === 0 && i + 1 < segmentCount) {
+        const nextIdx = (i + 1) * EVENT_STRIDE
+        const nextPIdx = buffer[nextIdx + 1]
+        const nextType = buffer[nextIdx + 2] | 0
 
-      ctx.beginPath()
-      ctx.fillStyle = type === 0 ? COLOR_FALLBACKS.WHITE : color
-      ctx.arc(pxX, pxY, innerRadius, 0, Math.PI * 2)
-      ctx.fill()
+        if (nextPIdx === pIdx && nextType === 1) {
+          const nextPxX = pLeft + buffer[nextIdx] * pWidth
 
-      ctx.beginPath()
-      ctx.strokeStyle = outline
-      ctx.lineWidth = 1
-      ctx.arc(pxX, pxY, radius + 0.2, 0, Math.PI * 2)
-      ctx.stroke()
+          // Merge overlapping markers into a single dot or edge-specific marker
+          if (nextPxX - pxX <= radius * 1.8) {
+            const centerX = (pxX + nextPxX) / 2
+            const edgeThreshold = radius * 1.2
+
+            if (centerX - pLeft <= edgeThreshold) {
+              // Left edge: End marker (points left, outwards to indicate continuation)
+              drawDirectionalEventMarker(
+                ctx,
+                Math.max(pLeft, centerX),
+                pxY,
+                radius,
+                1,
+                effectiveColor
+              )
+            } else if (pLeft + pWidth - centerX <= edgeThreshold) {
+              // Right edge: Start marker (points right, outwards to indicate continuation)
+              drawDirectionalEventMarker(
+                ctx,
+                Math.min(pLeft + pWidth, centerX),
+                pxY,
+                radius,
+                0,
+                effectiveColor
+              )
+            } else {
+              // Inland: Normal circle
+              drawCircleEventMarker(ctx, centerX, pxY, radius, effectiveColor)
+            }
+
+            i++ // Skip the next marker
+            continue
+          }
+        }
+      }
+
+      drawDirectionalEventMarker(ctx, pxX, pxY, radius, type, effectiveColor)
     }
   }
 }
