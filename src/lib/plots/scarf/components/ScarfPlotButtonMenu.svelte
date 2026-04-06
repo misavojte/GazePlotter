@@ -25,61 +25,75 @@
   }
 
   let { item }: Props = $props()
-  const { errorService, modalState } = getGazePlotterSession()
+  const { engine, errorService, modalState } = getGazePlotterSession()
   const settings = $derived(item.settings)
   const openModal = modalState.open.bind(modalState)
   const errorContext = createPlotMenuErrorContext(errorService, () => item)
 
-  const source = createCommandSourcePlotPattern(untrack(() => item), 'modal')
+  const source = createCommandSourcePlotPattern(
+    untrack(() => item),
+    'modal'
+  )
+  const hasEventCapability = $derived(engine.hasCapabilities(['event']))
 
-  const items = $derived([
-    createAoiCustomizationMenuAction({
-      openModal,
-      source,
-      stimulusId: settings.stimulusId,
-      errorContext,
-    }),
-    createEventChannelCustomizationMenuAction({
-      openModal,
-      source,
-      stimulusId: settings.stimulusId,
-      errorContext,
-    }),
-    createStimulusCustomizationMenuAction({
-      openModal,
-      source,
-      errorContext,
-    }),
-    createParticipantCustomizationMenuAction({
-      openModal,
-      source,
-      errorContext,
-    }),
-    createParticipantsGroupsMenuAction({
-      openModal,
-      source,
-      errorContext,
-    }),
-    createPlotMenuDivider(),
-    createPlotModalAction({
-      openModal,
-      definition: exportSegmentedDataModal,
-      props: {},
-      icon: Download,
-      errorContext,
-    }),
-    createPlotModalAction({
-      openModal,
-      definition: downloadPlotModal,
-      props: {
-        item,
-      },
-      label: 'Download plot',
-      icon: Download,
-      errorContext,
-    }),
-  ])
+  const items = $derived.by(() => {
+    const menuItems = [
+      createAoiCustomizationMenuAction({
+        openModal,
+        source,
+        stimulusId: settings.stimulusId,
+        errorContext,
+      }),
+      createStimulusCustomizationMenuAction({
+        openModal,
+        source,
+        errorContext,
+      }),
+      createParticipantCustomizationMenuAction({
+        openModal,
+        source,
+        errorContext,
+      }),
+      createParticipantsGroupsMenuAction({
+        openModal,
+        source,
+        errorContext,
+      }),
+      createPlotMenuDivider(),
+      createPlotModalAction({
+        openModal,
+        definition: exportSegmentedDataModal,
+        props: {},
+        icon: Download,
+        errorContext,
+      }),
+      createPlotModalAction({
+        openModal,
+        definition: downloadPlotModal,
+        props: {
+          item,
+        },
+        label: 'Download plot',
+        icon: Download,
+        errorContext,
+      }),
+    ]
+
+    if (hasEventCapability) {
+      menuItems.splice(
+        1,
+        0,
+        createEventChannelCustomizationMenuAction({
+          openModal,
+          source,
+          stimulusId: settings.stimulusId,
+          errorContext,
+        })
+      )
+    }
+
+    return menuItems
+  })
 </script>
 
 <PlotMenuButton {items} />
-
