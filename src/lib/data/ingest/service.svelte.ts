@@ -1,14 +1,12 @@
 import { tobiiParsingInputModal } from '$lib/modals/definitions'
-import {
-  eventFileMappingModal,
-  type EventFileMapping,
-} from '$lib/modals/import/definitions'
+import { eventFileMappingModal } from '$lib/modals/import/definitions'
 import {
   isTobiiJson,
   processAoiVisibilityFromText,
   buildEventChannelsFromParsed,
 } from '$lib/modals/import/shared/aoiVisibilityServices'
-import { BinaryBufferReader } from '$lib/data/binary/reader.segment'
+import { getStimuliOptions, getParticipantOptions } from '$lib/plots/shared'
+import { getStimulusHighestEndTime } from '$lib/data/engine'
 import { processJsonFileWithGrid } from './workspace/parser'
 import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace'
 import type { ErrorService } from '$lib/errors'
@@ -133,55 +131,6 @@ async function separateEventFiles(
     }
   }
   return { eyeFiles, eventFiles }
-}
-
-/**
- * Compute per-stimulus highest participant end time from raw segment buffers.
- */
-function computeHighestEndTimes(data: DataType): number[] {
-  const reader = new BinaryBufferReader(data.segments)
-  const stimuliCount = data.stimuli.data.length
-  const participantCount = data.participants.data.length
-  const result: number[] = []
-  for (let s = 0; s < stimuliCount; s++) {
-    let max = 0
-    for (let p = 0; p < participantCount; p++) {
-      const end = reader.getParticipantEndTime(s, p)
-      if (end > max) max = end
-    }
-    result.push(max)
-  }
-  return result
-}
-
-/**
- * Merge parsed event channels into DataType.eventData for a given stimulus.
- */
-function mergeEventDataForStimulus(
-  data: DataType,
-  stimulusId: number,
-  participantId: number | null,
-  parsed: {
-    multipleAoiNames: string[]
-    multipleAoiVisibilityArrays: number[][]
-  }
-): void {
-  const participantCount = data.participants.data.length
-  const aoiData = data.aois.data[stimulusId]
-  const { channelDefs, eventBuffers } = buildEventChannelsFromParsed(
-    parsed,
-    participantId,
-    participantCount,
-    aoiData
-  )
-
-  const ed = data.eventData
-  for (let i = 0; i < channelDefs.length; i++) {
-    const chIdx = ed.data[stimulusId].length
-    ed.data[stimulusId].push(channelDefs[i])
-    ed.events[stimulusId].push(eventBuffers[i])
-    ed.orderVector[stimulusId].push(chIdx)
-  }
 }
 
 class IngestWorkerClient {
@@ -628,23 +577,26 @@ export class IngestService {
       return await new Promise<boolean>((resolve, reject) => {
         const client = new IngestWorkerClient(
           async data => {
-            try {
-              if (eventFiles.length > 0) {
-                await this.processEventFilesIntoData(data, eventFiles)
-              }
-            } catch (error) {
-              this.deps.errorService.report({
-                origin: 'ingest',
-                severity: 'recoverable',
-                userMessage:
-                  'Event files could not be processed. Eye-tracking data was loaded without events.',
-                cause: error,
-                context: {
-                  eventFileNames: eventFiles.map(f => f.name),
-                },
-              })
-            }
+            // Pass 1: load eye-tracking data into engine
             this.applyParsedData(data)
+
+            // Pass 2: if event files exist, process them using the now-loaded engine
+            if (eventFiles.length > 0) {
+              try {
+                await this.processEventFilesPostLoad(eventFiles)
+              } catch (error) {
+                this.deps.errorService.report({
+                  origin: 'ingest',
+                  severity: 'recoverable',
+                  userMessage:
+                    'Event files could not be processed. Eye-tracking data was loaded without events.',
+                  cause: error,
+                  context: {
+                    eventFileNames: eventFiles.map(f => f.name),
+                  },
+                })
+              }
+            }
             resolve(true)
           },
           failureMetadata => {
@@ -705,24 +657,13 @@ export class IngestService {
     this.status = 'error'
   }
 
-  private async processEventFilesIntoData(
-    parsedData: ParsedData,
-    eventFiles: File[]
-  ): Promise<void> {
-    const data = parsedData.data
-    const stimuliNames = data.stimuli.data.map(s => s[1])
-    const participantNames = data.participants.data.map(p => p[1])
+  private async processEventFilesPostLoad(eventFiles: File[]): Promise<void> {
+    const engine = this.deps.engine
 
     const mapping = await this.deps.modalState.open(eventFileMappingModal, {
       fileNames: eventFiles.map(f => f.name),
-      stimuliOptions: stimuliNames.map((name, i) => ({
-        label: name,
-        value: String(i),
-      })),
-      participantOptions: participantNames.map((name, i) => ({
-        label: name,
-        value: String(i),
-      })),
+      stimuliOptions: getStimuliOptions(engine),
+      participantOptions: getParticipantOptions(engine),
     })
 
     if (!mapping) {
@@ -732,20 +673,87 @@ export class IngestService {
       return
     }
 
-    const highestEndTimes = computeHighestEndTimes(data)
+    const participantCount = engine.metadata?.participants.data.length ?? 0
+
+    // Merge channels by stimulus + channel name so multiple files
+    // targeting the same stimulus don't overwrite each other.
+    // Key: stimulusId → channelName → { def, perParticipant }
+    const stimulusMap = new Map<
+      number,
+      Map<string, { def: string[]; perParticipant: number[][] }>
+    >()
 
     for (let i = 0; i < eventFiles.length; i++) {
+      if (mapping[i].skip) continue
       const { stimulusId, participantId } = mapping[i]
       const text = await eventFiles[i].text()
-      const parsed = processAoiVisibilityFromText(
-        text,
-        highestEndTimes[stimulusId] ?? 0
+      const highestEndTime = getStimulusHighestEndTime(engine, stimulusId)
+      const parsed = processAoiVisibilityFromText(text, highestEndTime)
+      const aoiData = engine.metadata?.aois.data[stimulusId]
+      const { channelDefs, eventBuffers } = buildEventChannelsFromParsed(
+        parsed,
+        participantId,
+        participantCount,
+        aoiData
       )
-      mergeEventDataForStimulus(data, stimulusId, participantId, parsed)
+
+      if (!stimulusMap.has(stimulusId)) {
+        stimulusMap.set(stimulusId, new Map())
+      }
+      const channelMap = stimulusMap.get(stimulusId)!
+
+      for (let ch = 0; ch < channelDefs.length; ch++) {
+        const name = channelDefs[ch][0]
+        const existing = channelMap.get(name)
+        if (!existing) {
+          channelMap.set(name, {
+            def: channelDefs[ch],
+            perParticipant: eventBuffers[ch].map(buf => [...buf]),
+          })
+        } else {
+          // Merge: concatenate events when both files contribute
+          for (let p = 0; p < eventBuffers[ch].length; p++) {
+            if (eventBuffers[ch][p].length > 0) {
+              if (existing.perParticipant[p].length > 0) {
+                existing.perParticipant[p] = [
+                  ...existing.perParticipant[p],
+                  ...eventBuffers[ch][p],
+                ]
+              } else {
+                existing.perParticipant[p] = eventBuffers[ch][p]
+              }
+            }
+          }
+        }
+      }
     }
 
+    // Build merged updates — one per stimulus
+    const mergedUpdates: {
+      stimulusId: number
+      channelDefs: string[][]
+      eventBuffers: number[][][]
+    }[] = []
+
+    for (const [stimulusId, channelMap] of stimulusMap) {
+      const channelDefs: string[][] = []
+      const eventBuffers: number[][][] = []
+      for (const { def, perParticipant } of channelMap.values()) {
+        channelDefs.push(def)
+        eventBuffers.push(perParticipant)
+      }
+      mergedUpdates.push({ stimulusId, channelDefs, eventBuffers })
+    }
+
+    if (mergedUpdates.length === 0) {
+      this.deps.toastState.addInfo('All event files were set to Ignore.')
+      return
+    }
+
+    engine.updateEventDataBatch(mergedUpdates)
+    const processed = mapping.filter(m => !m.skip).length
     this.deps.toastState.addSuccess(
-      `${eventFiles.length} event file${eventFiles.length > 1 ? 's' : ''} processed successfully`
+      `${processed} event file${processed > 1 ? 's' : ''} processed successfully`
     )
   }
 }

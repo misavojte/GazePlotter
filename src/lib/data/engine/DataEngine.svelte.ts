@@ -184,7 +184,7 @@ export class DataEngine {
       const stimulusData = ed.data[stimulusId]
       for (let j = 0; j < channels.length; j++) {
         const ch = channels[j]
-        const id = ch.id as number
+        const id = ch.id
         if (id >= 0 && id < stimulusData.length) {
           stimulusData[id] = [ch.originalName, ch.displayedName, ch.color]
         }
@@ -192,7 +192,7 @@ export class DataEngine {
 
       if (!ed.orderVector) ed.orderVector = []
       while (ed.orderVector.length <= stimulusId) ed.orderVector.push([])
-      ed.orderVector[stimulusId] = channels.map(ch => ch.id as number)
+      ed.orderVector[stimulusId] = channels.map(ch => ch.id)
     }
   }
 
