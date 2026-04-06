@@ -178,7 +178,7 @@ export function draggable(
     updateDrag(mouseEvent.clientX, mouseEvent.clientY)
   }
 
-  const handleMouseUp = (event: Event) => {
+  const handleMouseUp = () => {
     endDrag()
 
     // Remove document-level event listeners
@@ -257,7 +257,6 @@ export function draggable(
   document.addEventListener('touchcancel', handleTouchEnd, { passive: true })
 
   // Use regular cursor on the node
-  const originalCursor = getComputedStyle(node).cursor
   //node.style.cursor = 'grab'
 
   // Return the action object

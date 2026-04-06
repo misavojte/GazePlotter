@@ -17,7 +17,6 @@ type SegmentsWithSpatialJson = {
  */
 export function jsonSegmentsToBinary(
   segments: number[][][][],
-  groupMap?: Uint16Array,
   spatialData?: SpatialDataJson
 ): BinarySegmentBuffers {
   const stimuliCount = segments.length
@@ -203,7 +202,7 @@ export function createReaderFromJson(
   segments: number[][][][],
   spatialData?: SpatialDataJson
 ): BinaryBufferReader {
-  const buffers = jsonSegmentsToBinary(segments, undefined, spatialData)
+  const buffers = jsonSegmentsToBinary(segments, spatialData)
   return new BinaryBufferReader(buffers)
 }
 
@@ -214,7 +213,7 @@ export function validateRoundtrip(
   original: number[][][][],
   spatialData?: SpatialDataJson
 ): boolean {
-  const buffers = jsonSegmentsToBinary(original, undefined, spatialData)
+  const buffers = jsonSegmentsToBinary(original, spatialData)
   const converted = binarySegmentsToJson(buffers)
   const convertedWithSpatial = binarySegmentsToJsonWithSpatial(buffers)
 

@@ -39,7 +39,7 @@ export function scanForDynamicRidgelineReferenceHeight(
   currentContext: CurrentPlotContext
 ): number | null {
   // Ensure reactivity for Svelte 5 when called from $derived
-  const _ = engine.metadata
+  void engine.metadata
 
   const targetScale = currentContext.settings.ridgelineScale ?? RIDGELINE_SCALE
 

@@ -91,7 +91,6 @@ export function collectAoiStreamMetrics(
 ): { metrics: AoiStreamMetrics; workspace: CollectorWorkspace } {
   const reader = engine.getReader()
   if (!reader) {
-    const emptyMetrics = { series: [], maxTotal: 0 }
     // We still return a workspace if possible, or null.
     // For simplicity here, if no reader, we just return empty.
     throw new Error('Data reader not available')
@@ -126,7 +125,6 @@ export function collectAoiStreamMetrics(
     diffBuffer,
     partialBuffer,
     seenStamp,
-    binCount: wsBinCount,
   } = workspace
   let { currentStamp } = workspace
 

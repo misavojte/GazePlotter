@@ -147,7 +147,7 @@ export abstract class AbstractAdapter {
     this.compileBinaryRowParser()
   }
 
-  processRowBytes(rawRow: Uint8Array, decoder: TextDecoder): void {
+  processRowBytes(rawRow: Uint8Array, _decoder: TextDecoder): void {
     this.processRowBinary(rawRow)
   }
 

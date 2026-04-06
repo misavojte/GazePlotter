@@ -18,7 +18,6 @@ describe('Bar Plot Aggregation Metrics', () => {
   })
 
   const aoiCount = 2
-  const totalSlots = 3 // AOI1, AOI2, No-AOI
 
   describe('absoluteTime & relativeTime', () => {
     it('sum aggregation (absoluteTime)', () => {

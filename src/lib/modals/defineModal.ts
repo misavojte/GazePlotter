@@ -3,6 +3,8 @@ import type { Component, ComponentProps } from 'svelte'
 export type ModalDefinition<TComponent extends Component<any>, TResult = void> = {
   component: TComponent
   title: string
+  /** Type-only marker to retain modal result type information. */
+  __resultType?: TResult
 }
 
 type ModalComponentFromDefinition<

@@ -596,7 +596,7 @@ export class IngestService {
         return false
       }
 
-      return await new Promise<boolean>((resolve, reject) => {
+      return await new Promise<boolean>(resolve => {
         const client = new IngestWorkerClient(
           async data => {
             // Pass 1: load eye-tracking data into engine

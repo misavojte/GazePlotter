@@ -290,7 +290,7 @@ describe('Binary Converters Roundtrip', () => {
     const result = validateRoundtrip(segments, spatialData)
     expect(result).toBe(true)
 
-    const buffers = jsonSegmentsToBinary(segments, undefined, spatialData)
+    const buffers = jsonSegmentsToBinary(segments, spatialData)
     expect(buffers.hasSpatialData).toBe(true)
     expect(buffers.spatialBuffer).toBeDefined()
 
@@ -316,7 +316,7 @@ describe('Binary Converters Roundtrip', () => {
       ],
     ]
 
-    const buffers = jsonSegmentsToBinary(segments, undefined, spatialData)
+    const buffers = jsonSegmentsToBinary(segments, spatialData)
     const spatialBuffer = buffers.spatialBuffer
 
     expect(spatialBuffer).toBeDefined()

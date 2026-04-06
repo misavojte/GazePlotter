@@ -503,7 +503,6 @@ export function drawLegend(
     fontSize,
     fontFamily,
     fontColor,
-    lineDash,
   } = config
 
   // Convert to Set for O(1) lookup if array provided

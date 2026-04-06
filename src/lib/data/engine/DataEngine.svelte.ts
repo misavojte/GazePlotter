@@ -3,7 +3,6 @@ import type {
   DataCapabilityRequirements,
   DataCapabilities,
   DataType,
-  EventDataType,
   ExtendedInterpretedDataType,
   ParticipantsGroup,
 } from '../types'

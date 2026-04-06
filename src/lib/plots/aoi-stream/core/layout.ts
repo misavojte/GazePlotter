@@ -1,4 +1,4 @@
-import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
+import type { AoiStreamPlotResult } from '../types'
 import { RIDGELINE_CONTENT_FILL, RIDGELINE_SCALE, Y_AXIS } from '../const'
 import { calculateIdealStripHeight } from './ridgeline'
 import { desaturateToWhite, interpolateColor } from '$lib/color/utility'

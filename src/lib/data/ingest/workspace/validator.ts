@@ -101,7 +101,7 @@ export function processAndValidateData(
 
     const rawSpatialData = (data as any).spatialData
     delete (data as any).spatialData
-    data.segments = jsonSegmentsToBinary(rawSegments, undefined, rawSpatialData)
+    data.segments = jsonSegmentsToBinary(rawSegments, rawSpatialData)
   } else {
     // Basic structural validation for binary segments to ensure they aren't plain objects
     const bins = data.segments as any

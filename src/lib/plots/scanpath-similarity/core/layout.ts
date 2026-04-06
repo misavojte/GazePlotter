@@ -61,7 +61,7 @@ function estimateMaxLabelWidth(
 export function computeSimilarityMatrixLayout(
   input: SimilarityMatrixLayoutInput
 ): SimilarityMatrixLayout {
-  const { width, height, labels, effectiveMaxValue, marginTop, marginRight, marginBottom, marginLeft } = input
+  const { width, height, labels, marginTop, marginRight, marginBottom, marginLeft } = input
   const count = labels.length
   const safeCount = Math.max(1, count)
   const fontSize = SIMILARITY_MATRIX_LAYOUT.LABEL_FONT_SIZE

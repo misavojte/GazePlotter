@@ -119,8 +119,8 @@ export class Float32GrowBuffer {
  * Calculates the participant bar height based on configuration parameters
  */
 export function getScarfParticipantBarHeight(
-  aoiCount: number,
-  showAoiVisibility: boolean
+  _aoiCount: number,
+  _showAoiVisibility: boolean
 ): number {
   const { HEIGHT_BAR_DEFAULT, SPACE_ABOVE_RECT_DEFAULT } = SCARF_LAYOUT
   const rectWrappedHeight = HEIGHT_BAR_DEFAULT + SPACE_ABOVE_RECT_DEFAULT * 2
@@ -452,9 +452,9 @@ export function transformDataToScarfPlot(
   const showAoiVisibility =
     eventChannels.length > 0 && settings.timeline !== 'ordinal'
   const barWrapHeight = getScarfParticipantBarHeight(
-    aoiData.length,
-    showAoiVisibility
-  )
+      aoiData.length,
+      settings.dynamicAOI
+    )
   const stylingAndLegend = createStylingAndLegend(
     aoiData,
     noAoiTreatment,

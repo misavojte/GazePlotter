@@ -61,7 +61,7 @@ export class AoiGroupReader {
       this.indexTable = new Uint32Array(sCount * 2)
     }
 
-    const { aois: aoisMeta, stimuli } = meta
+    const { aois: aoisMeta } = meta
     let totalCap = 0
     for (let sId = 0; sId < sCount; sId++) {
       const len = aoisMeta.data[sId]?.length ?? 0

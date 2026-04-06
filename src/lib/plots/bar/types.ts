@@ -4,7 +4,6 @@ import type {
   SegmentInterpretedDataType,
 } from '$lib/data/types'
 import type { PlotItemContract } from '$lib/plots/definePlot'
-import type { BarPlotAggregationMethodId } from './const'
 
 export type BarPlotSettings = {
   stimulusId: number

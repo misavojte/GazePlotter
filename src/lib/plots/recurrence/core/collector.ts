@@ -1,5 +1,4 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import type { ExtendedInterpretedDataType } from '$lib/data/types'
 import type {
   RecurrenceData,
   RecurrenceMethod,

@@ -96,17 +96,6 @@ export function calculatePlotLayout(
 }
 
 /**
- * Computes the timeline unit string.
- */
-function getTimelineUnit(
-  timelineType: 'absolute' | 'relative' | 'ordinal'
-): string {
-  if (timelineType === 'relative') return '%'
-  if (timelineType === 'absolute') return 'ms'
-  return ''
-}
-
-/**
  * Computes the x-axis label.
  */
 export function getXAxisLabel(

@@ -92,15 +92,9 @@ export function computeGradientLegendGeometry(
   } = config
 
   // Constants
-  const fontSize = LEGEND_FONT.SIZE
-  const fontFamily = LEGEND_FONT.FAMILY
-
-  // Constants
   const MININALIST_THRESHOLD = 30
-  const GRADIENT_HEIGHT = 12
   const MINIMALIST_HEIGHT = 8
   const MAX_WIDTH = 300
-  const PADDING = 10 // general padding
 
   const isMinimalist = availableHeight < MININALIST_THRESHOLD
 
@@ -297,7 +291,7 @@ export function drawGradientLegend(
 ): void {
   const { title, gradientRect, belowMinRect, labels, zones } = geometry
   const { colorScale } = config
-  const { FAMILY: fontFamily, SIZE: fontSize, COLOR: fontColor } = LEGEND_FONT
+  const { FAMILY: fontFamily, COLOR: fontColor } = LEGEND_FONT
 
   // 1. Draw Hover Effects
   if (highlightState && highlightState !== 'none') {

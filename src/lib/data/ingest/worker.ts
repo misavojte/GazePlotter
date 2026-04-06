@@ -175,7 +175,7 @@ const evalStream = async (rs: ReadableStream): Promise<void> => {
  * @param data - Object containing buffer and zipName
  */
 const evalZipBuffer = async (data: unknown): Promise<void> => {
-  const { buffer, zipName } = data as { buffer: ArrayBuffer; zipName: string }
+  const { buffer } = data as { buffer: ArrayBuffer; zipName: string }
 
   if (pupilCloudPipeline === null)
     throw new Error('Pupil Cloud pipeline is not initialized')

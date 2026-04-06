@@ -181,7 +181,7 @@ describe('Time-binned AOI Occupancy Calculation Logic', () => {
 
       // Mock mapping: both 0 and 1 map to 0
       vi.mocked(mockEngine.getAoiMapping).mockImplementation(
-        (sId: number, rawId: number) => {
+        (_sId: number, rawId: number) => {
           if (rawId === 0 || rawId === 1) return 0
           return rawId
         }
