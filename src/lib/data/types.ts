@@ -109,7 +109,20 @@ export interface DataCapabilities {
 /**
  * Declarative capability keys used by plot/view availability requirements.
  */
-export type DataCapabilityRequirement = keyof DataCapabilities
+export type DataCapabilityKey = keyof DataCapabilities
+
+/**
+ * A single capability requirement item.
+ *
+ * - `"segmented"` means the capability is required directly.
+ * - `["spatial", "event"]` means either capability is enough for that item.
+ */
+export type DataCapabilityRequirement = DataCapabilityKey | DataCapabilityKey[]
+
+/**
+ * Capability requirements are evaluated as AND across the list.
+ */
+export type DataCapabilityRequirements = DataCapabilityRequirement[]
 
 /**
  * Data for workspace are stored in this unique format.

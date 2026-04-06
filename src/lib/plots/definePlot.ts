@@ -1,6 +1,6 @@
 import type { Component } from 'svelte'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import type { DataCapabilityRequirement } from '$lib/data/types'
+import type { DataCapabilityRequirements } from '$lib/data/types'
 import type { PlotExportProps } from '$lib/modals/export/download-plot/types'
 
 export type DefaultPlotParams = {
@@ -58,7 +58,7 @@ export type PlotDefinition<
   getDefaultHeight: (params?: PlotLayoutInput<TSettings>) => number
   getDefaultWidth: (params?: PlotLayoutInput<TSettings>) => number
   getMinSize: (params?: TParams) => { w: number; h: number }
-  requireCapabilities?: DataCapabilityRequirement[]
+  requireCapabilities?: DataCapabilityRequirements
   /** Export configuration for the generic download modal. */
   export?: PlotExportConfig<TType, TSettings>
 }

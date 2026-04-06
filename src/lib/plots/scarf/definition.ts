@@ -19,4 +19,5 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
   getMinSize: () => ({ w: 14, h: 10 }),
   getDefaultHeight: () => 12,
   getDefaultWidth: () => 20,
+  requireCapabilities: ['segmented'],
 })

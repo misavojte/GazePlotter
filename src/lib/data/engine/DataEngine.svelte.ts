@@ -1,6 +1,6 @@
 import { BinaryBufferReader, AoiGroupReader } from '../binary'
 import type {
-  DataCapabilityRequirement,
+  DataCapabilityRequirements,
   DataCapabilities,
   DataType,
   EventDataType,
@@ -240,12 +240,31 @@ export class DataEngine {
   // Hot-Path Accessors
   // ==========================================
 
+  /**
+   * Checks whether the dataset satisfies the requested capabilities.
+   *
+   * Evaluation rules:
+   * - The top-level array is AND.
+   * - A string item is a direct requirement.
+   * - A nested array item is OR, where any matching capability satisfies it.
+   *
+   * Examples:
+   * - `['segmented']` -> requires segmented data.
+   * - `['segmented', 'spatial']` -> requires both segmented and spatial data.
+   * - `[['spatial', 'event'], 'segmented']` -> requires segmented data and either spatial or event data.
+   */
   hasCapabilities(
-    requirements: DataCapabilityRequirement[] | undefined
+    requirements: DataCapabilityRequirements | undefined
   ): boolean {
     if (!requirements || requirements.length === 0) return true
     const caps = this.capabilities
-    return requirements.every(r => caps[r])
+    return requirements.every(requirement => {
+      if (Array.isArray(requirement)) {
+        return requirement.some(key => caps[key])
+      }
+
+      return caps[requirement]
+    })
   }
 
   getAoiMapping(sId: number, rawId: number): number {

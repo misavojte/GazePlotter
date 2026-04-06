@@ -20,4 +20,5 @@ export const aoiStreamPlotDefinition = definePlot<
   getMinSize: () => ({ w: 11, h: 10 }),
   getDefaultHeight: () => 12,
   getDefaultWidth: () => 12,
+  requireCapabilities: ['segmented'],
 })
