@@ -9,6 +9,11 @@ import {
 function createData(segments: DataType['segments']): DataType {
   return {
     isOrdinalOnly: false,
+    capabilities: {
+      segmented: segments.segmentBuffer.length / 6 > 0,
+      spatial: segments.hasSpatialData,
+      event: false,
+    },
     stimuli: {
       data: [['Stimulus A', 'Stimulus A']],
       orderVector: [0],

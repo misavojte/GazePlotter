@@ -1,5 +1,7 @@
 import { BinaryBufferReader, AoiGroupReader } from '../binary'
 import type {
+  DataCapabilityRequirement,
+  DataCapabilities,
   DataType,
   EventDataType,
   ExtendedInterpretedDataType,
@@ -20,13 +22,25 @@ export class DataEngine {
     !!this.metadata && this.metadata.stimuli.data.length > 0
   )
 
-  hasSpatialData = $derived(
-    this.hasValidData && (this._reader?.hasSpatialData ?? false)
-  )
+  capabilities = $derived.by((): DataCapabilities => {
+    if (!this.metadata) {
+      return {
+        segmented: false,
+        spatial: false,
+        event: false,
+      }
+    }
+
+    return this.metadata.capabilities
+  })
 
   /** Per-stimulus boolean: true if that stimulus has any event channels. */
-  hasEventsPerStimulus = $derived(
-    this.metadata?.eventData.data.map(channels => channels.length > 0) ?? []
+  eventsPerStimulus = $derived(
+    this.metadata?.eventData.events.map(channels =>
+      channels.some(participants =>
+        participants.some(buffer => (buffer?.length ?? 0) > 0)
+      )
+    ) ?? []
   )
 
   // ==========================================
@@ -168,6 +182,12 @@ export class DataEngine {
       if (!ed.hiddenChannels) ed.hiddenChannels = []
       while (ed.hiddenChannels.length <= stimulusId) ed.hiddenChannels.push([])
     }
+
+    meta.capabilities.event = ed.events.some(channels =>
+      channels.some(participants =>
+        participants.some(buffer => (buffer?.length ?? 0) > 0)
+      )
+    )
   }
 
   updateEventChannelsBatch(
@@ -219,6 +239,14 @@ export class DataEngine {
   // ==========================================
   // Hot-Path Accessors
   // ==========================================
+
+  hasCapabilities(
+    requirements: DataCapabilityRequirement[] | undefined
+  ): boolean {
+    if (!requirements || requirements.length === 0) return true
+    const caps = this.capabilities
+    return requirements.every(r => caps[r])
+  }
 
   getAoiMapping(sId: number, rawId: number): number {
     return this._aoiGroupReader?.getAoiMapping(sId, rawId) ?? rawId

@@ -39,13 +39,12 @@
   const filteredVisualizations = $derived(
     visualizations.filter(v => {
       const config = plotRegistry[v.id as keyof typeof plotRegistry]
-      return !config?.canAdd || config.canAdd(engine)
+      return engine.hasCapabilities(config?.requireCapabilities)
     })
   )
 
   const undoLabel: string | null = $derived(workspace.lastUndoLabel)
   const redoLabel: string | null = $derived(workspace.lastRedoLabel)
-
 
   const handleUndo = () => {
     workspace.undo()

@@ -470,6 +470,11 @@ export class BinaryEyeWriter {
 
     return {
       isOrdinalOnly: false,
+      capabilities: {
+        segmented: segPtr > 0,
+        spatial: hasSpatialData,
+        event: false,
+      },
       stimuli: {
         data: this.stimuliBytes.map(v => [decodeBytes(v, this.decoder)]),
         orderVector: stimuliOrderVector,

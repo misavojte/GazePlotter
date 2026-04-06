@@ -8,11 +8,18 @@ function createMockEngine(segments: number[][][][]) {
   return {
     metadata: {
       isOrdinalOnly: false,
+      capabilities: {
+        segmented: true,
+        spatial: false,
+        event: false,
+      },
       aois: {
-        data: [[
-          ['AOI A', 'AOI A', 'red'],
-          ['AOI B', 'AOI B', 'blue'],
-        ]],
+        data: [
+          [
+            ['AOI A', 'AOI A', 'red'],
+            ['AOI B', 'AOI B', 'blue'],
+          ],
+        ],
         orderVector: [[]],
         hiddenAois: [[]],
       },
@@ -51,14 +58,17 @@ describe('Bar Plot Transformer (Integration)', () => {
       ],
     ])
 
-    const result = getBarPlotData(engine as any, {
-      stimulusId,
-      groupId,
-      aggregationMethod: 'absoluteTime',
-      orderBy: 'aoi',
-      orderDirection: 'asc',
-      scaleRange: [0, 0],
-    } as any)
+    const result = getBarPlotData(
+      engine as any,
+      {
+        stimulusId,
+        groupId,
+        aggregationMethod: 'absoluteTime',
+        orderBy: 'aoi',
+        orderDirection: 'asc',
+        scaleRange: [0, 0],
+      } as any
+    )
 
     expect(result.data).toHaveLength(3)
     expect(result.data[0].label).toBe('AOI A')
@@ -79,52 +89,49 @@ describe('Bar Plot Transformer (Integration)', () => {
       ],
     ])
 
-    const result = getBarPlotData(engine as any, {
-      stimulusId,
-      groupId,
-      aggregationMethod: 'absoluteTime',
-      orderBy: 'value',
-      orderDirection: 'desc',
-      scaleRange: [0, 0],
-    } as any)
+    const result = getBarPlotData(
+      engine as any,
+      {
+        stimulusId,
+        groupId,
+        aggregationMethod: 'absoluteTime',
+        orderBy: 'value',
+        orderDirection: 'desc',
+        scaleRange: [0, 0],
+      } as any
+    )
 
     expect(result.data[0].label).toBe('AOI B')
     expect(result.data[1].label).toBe('AOI A')
   })
 
   it('generates a nice timeline based on data max value', () => {
-    const engine = createMockEngine([
-      [
-        [
-          [0, 450, 0, 0],
-        ],
-      ],
-    ])
+    const engine = createMockEngine([[[[0, 450, 0, 0]]]])
 
-    const result = getBarPlotData(engine as any, {
-      stimulusId,
-      groupId,
-      aggregationMethod: 'absoluteTime',
-    } as any)
+    const result = getBarPlotData(
+      engine as any,
+      {
+        stimulusId,
+        groupId,
+        aggregationMethod: 'absoluteTime',
+      } as any
+    )
 
     expect(result.timeline.maxValue).toBeGreaterThanOrEqual(450)
   })
 
   it('handles custom scale range', () => {
-    const engine = createMockEngine([
-      [
-        [
-          [0, 100, 0, 0],
-        ],
-      ],
-    ])
+    const engine = createMockEngine([[[[0, 100, 0, 0]]]])
 
-    const result = getBarPlotData(engine as any, {
-      stimulusId,
-      groupId,
-      aggregationMethod: 'absoluteTime',
-      scaleRange: [0, 1000],
-    } as any)
+    const result = getBarPlotData(
+      engine as any,
+      {
+        stimulusId,
+        groupId,
+        aggregationMethod: 'absoluteTime',
+        scaleRange: [0, 1000],
+      } as any
+    )
 
     expect(result.timeline.maxValue).toBe(1000)
   })
@@ -134,10 +141,13 @@ describe('Bar Plot Transformer (Integration)', () => {
     engine.metadata.participants.data = []
     engine.metadata.participants.orderVector = []
 
-    const result = getBarPlotData(engine as any, {
-      stimulusId,
-      groupId: -1,
-    } as any)
+    const result = getBarPlotData(
+      engine as any,
+      {
+        stimulusId,
+        groupId: -1,
+      } as any
+    )
 
     expect(result.data).toEqual([])
   })

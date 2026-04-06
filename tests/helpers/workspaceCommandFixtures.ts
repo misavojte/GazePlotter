@@ -68,6 +68,11 @@ export function createMockMetadata(
     ],
     noAoiTreatment: createNoAoiTreatment(),
     isOrdinalOnly: false,
+    capabilities: {
+      segmented: true,
+      spatial: false,
+      event: false,
+    },
     eventData: {
       data: [[], []],
       orderVector: [],

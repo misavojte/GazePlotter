@@ -120,7 +120,7 @@ export function generateUnifiedCsv(
 ): string {
   const { decimalSeparator } = resolveCsvFormatOptions(options)
   const csvPreData = convertDataStructure(data, stimulusIds, filterFixations)
-  const includeSpatialColumns = data.segments.hasSpatialData
+  const includeSpatialColumns = data.capabilities.spatial
 
   const rows = csvPreData.map(item => {
     const aoiNames = item.AOI ? item.AOI.join(';') : ''
@@ -167,7 +167,7 @@ export function generateMetadataForBatchCsv(
 ): Array<{ fileName: string; content: string }> {
   const { decimalSeparator } = resolveCsvFormatOptions(options)
   const csvPreData = convertDataStructure(data, stimulusIds, filterFixations)
-  const includeSpatialColumns = data.segments.hasSpatialData
+  const includeSpatialColumns = data.capabilities.spatial
 
   const results: Array<{ fileName: string; content: string }> = []
 

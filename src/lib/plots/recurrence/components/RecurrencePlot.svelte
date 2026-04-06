@@ -205,7 +205,7 @@
 <BasePlot
   {item}
   hasData={recurrenceData !== null}
-  unavailableMessage={!engine.hasSpatialData
+  unavailableMessage={!engine.capabilities.spatial
     ? 'This visualization requires spatial coordinate data.'
     : null}
 >

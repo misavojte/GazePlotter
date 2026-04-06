@@ -8,7 +8,8 @@ export const hasEventsForStimulus = (
   engine: DataEngine,
   stimulusId: number
 ): boolean => {
-  return engine.hasEventsPerStimulus[stimulusId] ?? false
+  if (!engine.capabilities.event) return false
+  return engine.eventsPerStimulus[stimulusId] ?? false
 }
 
 /**

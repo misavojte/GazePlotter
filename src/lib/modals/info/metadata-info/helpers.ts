@@ -1,4 +1,5 @@
 import type { DataType } from '$lib/data/types'
+import type { DataCapabilities } from '$lib/data/types'
 import type { ErrorRecord } from '$lib/errors'
 import type { FileInputType, FileMetadataType } from '$lib/data/ingest'
 
@@ -25,7 +26,9 @@ export interface MetadataAoiCount {
 export interface MetadataOverview {
   numberOfStimuli: number
   numberOfParticipants: number
-  hasSpatialData: boolean
+  segmented: boolean
+  spatial: boolean
+  event: boolean
   aoiCounts: {
     perStimulus: MetadataAoiCount[]
     total: number
@@ -52,7 +55,9 @@ function createEmptyMetadataOverview(): MetadataOverview {
   return {
     numberOfStimuli: 0,
     numberOfParticipants: 0,
-    hasSpatialData: false,
+    segmented: false,
+    spatial: false,
+    event: false,
     aoiCounts: {
       perStimulus: [],
       total: 0,
@@ -124,7 +129,11 @@ export function isCurrentParsingSameAsSource(
 
 export function buildMetadataOverview(
   metadata: MetadataSource | null | undefined,
-  hasSpatialData: boolean = false
+  capabilities: DataCapabilities = {
+    segmented: false,
+    spatial: false,
+    event: false,
+  }
 ): MetadataOverview {
   if (metadata === null || metadata === undefined) {
     return createEmptyMetadataOverview()
@@ -140,7 +149,9 @@ export function buildMetadataOverview(
   return {
     numberOfStimuli: metadata.stimuli.data.length,
     numberOfParticipants: metadata.participants.data.length,
-    hasSpatialData,
+    segmented: capabilities.segmented,
+    spatial: capabilities.spatial,
+    event: capabilities.event,
     aoiCounts: {
       perStimulus,
       total: perStimulus.reduce((sum, stimulus) => sum + stimulus.count, 0),
@@ -191,7 +202,9 @@ export function buildMetadataCsvReport(
   lines.push('Metric,Value')
   lines.push(`Number of Stimuli,${input.overview.numberOfStimuli}`)
   lines.push(`Number of Participants,${input.overview.numberOfParticipants}`)
-  lines.push(`Has Spatial Data,${input.overview.hasSpatialData ? 'Yes' : 'No'}`)
+  lines.push(`Segmented,${input.overview.segmented ? 'Yes' : 'No'}`)
+  lines.push(`Spatial,${input.overview.spatial ? 'Yes' : 'No'}`)
+  lines.push(`Event,${input.overview.event ? 'Yes' : 'No'}`)
   lines.push(`Total Number of AOIs,${input.overview.aoiCounts.total}`)
   lines.push('')
 

@@ -95,10 +95,28 @@ export interface AoiDataType {
 }
 
 /**
+ * Canonical dataset-level capabilities used for feature gating.
+ */
+export interface DataCapabilities {
+  /** True when the dataset contains at least one segment row. */
+  segmented: boolean
+  /** True when at least one segment has valid spatial coordinates (x, y). */
+  spatial: boolean
+  /** True when at least one event channel has at least one event buffer entry. */
+  event: boolean
+}
+
+/**
+ * Declarative capability keys used by plot/view availability requirements.
+ */
+export type DataCapabilityRequirement = keyof DataCapabilities
+
+/**
  * Data for workspace are stored in this unique format.
  */
 export interface DataType {
   isOrdinalOnly: boolean
+  capabilities: DataCapabilities
   aois: AoiDataType
   categories: AttributeDataType
   participants: AttributeDataType

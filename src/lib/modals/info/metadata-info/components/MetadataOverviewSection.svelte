@@ -23,8 +23,21 @@
       <span class="value">{overview.aoiCounts.total}</span>
     </div>
     <div class="info-item">
-      <span class="label">Has spatial data:</span>
-      <span class="value">{overview.hasSpatialData ? 'Yes' : 'No'}</span>
+      <span class="label">Capabilities:</span>
+    </div>
+    <div class="aoi-list">
+      <div class="aoi-item">
+        <span class="stimulus-name">Segmented</span>
+        <span class="aoi-count">{overview.segmented ? 'Yes' : 'No'}</span>
+      </div>
+      <div class="aoi-item">
+        <span class="stimulus-name">Spatial</span>
+        <span class="aoi-count">{overview.spatial ? 'Yes' : 'No'}</span>
+      </div>
+      <div class="aoi-item">
+        <span class="stimulus-name">Event</span>
+        <span class="aoi-count">{overview.event ? 'Yes' : 'No'}</span>
+      </div>
     </div>
   </Card>
 

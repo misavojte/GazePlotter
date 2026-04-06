@@ -8,11 +8,19 @@ function createMockEngine(segments: number[][][][]) {
   return {
     metadata: {
       isOrdinalOnly: false,
+      capabilities: {
+        segmented: true,
+        spatial: false,
+        event: false,
+      },
       aois: {
-        data: [[], [
-          ['AOI 1', 'AOI 1', 'red'],
-          ['AOI 2', 'AOI 2', 'blue'],
-        ]],
+        data: [
+          [],
+          [
+            ['AOI 1', 'AOI 1', 'red'],
+            ['AOI 2', 'AOI 2', 'blue'],
+          ],
+        ],
         orderVector: [[], [1, 2]],
         hiddenAois: [[], []],
       },
@@ -21,12 +29,18 @@ function createMockEngine(segments: number[][][][]) {
         orderVector: [],
       },
       participants: {
-        data: [['P0', 'P0'], ['P1', 'P1']],
+        data: [
+          ['P0', 'P0'],
+          ['P1', 'P1'],
+        ],
         orderVector: [],
       },
       participantsGroups: [],
       stimuli: {
-        data: [['S0', 'S0'], ['S1', 'S1']],
+        data: [
+          ['S0', 'S0'],
+          ['S1', 'S1'],
+        ],
         orderVector: [],
       },
       noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
@@ -55,7 +69,13 @@ describe('collectTransitionMetrics', () => {
       ],
     ])
 
-    const result = collectTransitionMetrics(engine as any, 1, [1], mockAois, 'fixation')
+    const result = collectTransitionMetrics(
+      engine as any,
+      1,
+      [1],
+      mockAois,
+      'fixation'
+    )
     const size = mockAois.length + 1
 
     expect(result.sumMatrix[0 * size + 1]).toBe(1)
@@ -78,7 +98,13 @@ describe('collectTransitionMetrics', () => {
       ],
     ])
 
-    const result = collectTransitionMetrics(engine as any, 1, [1], mockAois, 'visit')
+    const result = collectTransitionMetrics(
+      engine as any,
+      1,
+      [1],
+      mockAois,
+      'visit'
+    )
     const size = mockAois.length + 1
 
     expect(result.sumMatrix[0 * size + 1]).toBe(1)

@@ -1,4 +1,4 @@
-import type { DataType } from '$lib/data/types'
+import type { DataCapabilities, DataType } from '$lib/data/types'
 import { jsonSegmentsToBinary, DEFAULT_NO_AOI_TREATMENT } from '$lib/data/types'
 
 /**
@@ -21,7 +21,10 @@ export function validateBasicStructure(data: DataType): void {
  * Ensures required fields exist and segments are properly formatted and sorted.
  */
 export function processAndValidateData(
-  data: Omit<DataType, 'segments'> & { segments?: any }
+  data: Omit<DataType, 'segments' | 'capabilities'> & {
+    segments?: any
+    capabilities?: Partial<DataCapabilities>
+  }
 ): DataType {
   const stimuliCount = data.stimuli.data.length
 
@@ -49,6 +52,12 @@ export function processAndValidateData(
   for (let s = ed.events.length; s < stimuliCount; s++) ed.events.push([])
   for (let s = ed.hiddenChannels.length; s < stimuliCount; s++)
     ed.hiddenChannels.push([])
+
+  const hasEventData = ed.events.some((channels: number[][][]) =>
+    channels.some((participants: number[][]) =>
+      participants.some((buffer: number[]) => (buffer?.length ?? 0) > 0)
+    )
+  )
 
   // 2. Validate and sort segments
   if (!data.segments) {
@@ -111,6 +120,22 @@ export function processAndValidateData(
     if (typeof bins.hasSpatialData !== 'boolean') {
       bins.hasSpatialData = false
     }
+  }
+
+  const bins = data.segments as DataType['segments']
+  const segmentCount = (bins.segmentBuffer?.length ?? 0) / 6
+  const normalizedCapabilities: DataCapabilities = {
+    segmented: segmentCount > 0,
+    spatial: bins.hasSpatialData ?? false,
+    event: hasEventData,
+  }
+
+  data.capabilities = {
+    ...normalizedCapabilities,
+    ...(data.capabilities ?? {}),
+    segmented: normalizedCapabilities.segmented,
+    spatial: normalizedCapabilities.spatial,
+    event: normalizedCapabilities.event,
   }
 
   return data as DataType

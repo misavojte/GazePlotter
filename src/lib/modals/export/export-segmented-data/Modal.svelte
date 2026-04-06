@@ -22,7 +22,7 @@
   let selectedStimuliIds = $state(new Set<string>())
   let isExporting = $state(false)
 
-  const hasSpatialData = $derived(engine.segments?.hasSpatialData ?? false)
+  const hasSpatialData = $derived(engine.capabilities.spatial)
 
   const exportOptions = [
     {

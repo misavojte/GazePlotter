@@ -8,12 +8,21 @@ function createMockEngine(segments: number[][][][]) {
   return {
     metadata: {
       isOrdinalOnly: false,
+      capabilities: {
+        segmented: true,
+        spatial: false,
+        event: false,
+      },
       aois: {
-        data: [[], [], [
-          ['AOI 0', 'AOI 0', '#000000'],
-          ['AOI 1', 'AOI 1', 'red'],
-          ['AOI 2', 'AOI 2', 'blue'],
-        ]],
+        data: [
+          [],
+          [],
+          [
+            ['AOI 0', 'AOI 0', '#000000'],
+            ['AOI 1', 'AOI 1', 'red'],
+            ['AOI 2', 'AOI 2', 'blue'],
+          ],
+        ],
         orderVector: [[], [], [1, 2]],
         hiddenAois: [[], [], []],
       },
@@ -22,12 +31,20 @@ function createMockEngine(segments: number[][][][]) {
         orderVector: [],
       },
       participants: {
-        data: [['P101', 'P101'], ['P102', 'P102'], ['P103', 'P103']],
+        data: [
+          ['P101', 'P101'],
+          ['P102', 'P102'],
+          ['P103', 'P103'],
+        ],
         orderVector: [],
       },
       participantsGroups: [],
       stimuli: {
-        data: [['S0', 'S0'], ['S1', 'S1'], ['S2', 'S2']],
+        data: [
+          ['S0', 'S0'],
+          ['S1', 'S1'],
+          ['S2', 'S2'],
+        ],
         orderVector: [],
       },
       noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
@@ -60,7 +77,12 @@ describe('Bar Plot Data Collection', () => {
       ),
     ])
 
-    const result = collectParticipantBarMetrics(engine as any, stimulusId, participantIds, aois)
+    const result = collectParticipantBarMetrics(
+      engine as any,
+      stimulusId,
+      participantIds,
+      aois
+    )
     const p1 = result[0]
 
     expect(result).toHaveLength(1)
@@ -97,7 +119,12 @@ describe('Bar Plot Data Collection', () => {
         ),
       ])
 
-    const result = collectParticipantBarMetrics(engine as any, stimulusId, participantIds, aois)
+    const result = collectParticipantBarMetrics(
+      engine as any,
+      stimulusId,
+      participantIds,
+      aois
+    )
     const p1 = result[0]
 
     expect(p1.entryCount[0]).toBe(1)
@@ -113,7 +140,12 @@ describe('Bar Plot Data Collection', () => {
       ),
     ])
 
-    const result = collectParticipantBarMetrics(engine as any, stimulusId, participantIds, aois)
+    const result = collectParticipantBarMetrics(
+      engine as any,
+      stimulusId,
+      participantIds,
+      aois
+    )
     const p1 = result[0]
 
     expect(p1.dwellTime[0]).toBe(100)
@@ -130,7 +162,12 @@ describe('Bar Plot Data Collection', () => {
       ),
     ])
 
-    const result = collectParticipantBarMetrics(engine as any, stimulusId, participantIds, aois)
+    const result = collectParticipantBarMetrics(
+      engine as any,
+      stimulusId,
+      participantIds,
+      aois
+    )
     const p1 = result[0]
 
     expect(p1.ttff[0]).toBe(50)
@@ -150,7 +187,12 @@ describe('Bar Plot Data Collection', () => {
       ),
     ])
 
-    const result = collectParticipantBarMetrics(engine as any, stimulusId, participantIds, aois)
+    const result = collectParticipantBarMetrics(
+      engine as any,
+      stimulusId,
+      participantIds,
+      aois
+    )
     const p1 = result[0]
 
     expect(p1.ttff[2]).toBe(0)
@@ -164,7 +206,12 @@ describe('Bar Plot Data Collection', () => {
       Array.from({ length: 102 }, () => [] as number[][]),
     ])
 
-    const result = collectParticipantBarMetrics(engine as any, stimulusId, participantIds, aois)
+    const result = collectParticipantBarMetrics(
+      engine as any,
+      stimulusId,
+      participantIds,
+      aois
+    )
 
     expect(result).toHaveLength(1)
     expect(result[0].dwellTime.every(v => v === 0)).toBe(true)

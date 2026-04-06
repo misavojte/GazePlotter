@@ -51,6 +51,11 @@ type IngestDependencies = {
 
 const EMPTY_DATASET: DataType = {
   isOrdinalOnly: false,
+  capabilities: {
+    segmented: false,
+    spatial: false,
+    event: false,
+  },
   stimuli: { data: [], orderVector: [] },
   participants: { data: [], orderVector: [] },
   participantsGroups: [],
@@ -650,7 +655,7 @@ export class IngestService {
     this.deps.errorService.clearFatalLoad()
     this.progressPercent = 100
     this.metadata =
-      parsedData.version >= 3 ? parsedData.fileMetadata ?? null : null
+      parsedData.version >= 3 ? (parsedData.fileMetadata ?? null) : null
     this.input = parsedData.current
     this.deps.engine.loadDataset(parsedData.data)
     this.deps.grid.reset(
@@ -742,10 +747,7 @@ export class IngestService {
           if (!stimulusMap.has(stimulusId)) {
             stimulusMap.set(stimulusId, new Map())
           }
-          mergeIntoStimulusMap(
-            stimulusMap,
-            new Map([[stimulusId, legacyMap]])
-          )
+          mergeIntoStimulusMap(stimulusMap, new Map([[stimulusId, legacyMap]]))
         }
       }
     }
@@ -799,10 +801,7 @@ export class IngestService {
 
     engine.updateEventDataBatch(mergedUpdates)
     const totalProcessed =
-      csvFiles.length +
-      (legacyFiles.length > 0
-        ? legacyFiles.length
-        : 0)
+      csvFiles.length + (legacyFiles.length > 0 ? legacyFiles.length : 0)
     this.deps.toastState.addSuccess(
       `${totalProcessed} event file${totalProcessed > 1 ? 's' : ''} processed successfully`
     )

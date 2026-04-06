@@ -14,11 +14,19 @@ function createMockEngine(segments: number[][][][]) {
   return {
     metadata: {
       isOrdinalOnly: false,
+      capabilities: {
+        segmented: true,
+        spatial: false,
+        event: false,
+      },
       aois: {
-        data: [[], [
-          ['AOI A', 'AOI A', 'red'],
-          ['AOI B', 'AOI B', 'blue'],
-        ]],
+        data: [
+          [],
+          [
+            ['AOI A', 'AOI A', 'red'],
+            ['AOI B', 'AOI B', 'blue'],
+          ],
+        ],
         orderVector: [[], [1, 2]],
         hiddenAois: [[], []],
       },
@@ -32,7 +40,10 @@ function createMockEngine(segments: number[][][][]) {
       },
       participantsGroups: [],
       stimuli: {
-        data: [['S0', 'S0'], ['S1', 'S1']],
+        data: [
+          ['S0', 'S0'],
+          ['S1', 'S1'],
+        ],
         orderVector: [],
       },
       noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
