@@ -76,6 +76,16 @@ Notes:
 - If only one value is present, the row is treated as no spatial data.
 - The first valid coordinate pair within a segment is used for that segment.
 
+## Event Data
+
+To include dynamic AOI visibility as event data in your scarf plots:
+
+1. In Tobii Pro Lab, open the **AOI** tab.
+2. Click **Export** to export the AOI data as a `.json` file.
+3. When uploading to GazePlotter, select both the eye-tracking `.tsv` file and the exported `.json` file together in the file picker.
+
+GazePlotter automatically detects `.json` files matching the Tobii AOI structure as event files when multiple files are selected. After the eye-tracking data is parsed, the **Map Event Files** modal appears to assign each event file to a stimulus and participant. See [Event Data](/docs/upload-data/events/) for full details.
+
 ## Data Reference Standard
 
 Engineers or technicians seeking properly formatted source architecture tests can clone standardized sample files safely from our Open Science repositories.

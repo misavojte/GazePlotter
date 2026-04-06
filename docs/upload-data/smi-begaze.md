@@ -2,7 +2,7 @@
 
 GazePlotter supports the upload of data from the SMI BeGaze eye-tracking software, which is currently unfortunately no longer supported. Some researchers still use this software, and we want to support them in visualizing their data.
 
-From SMI BeGaze, you can visualize eye-tracking AOI data with all timeline types (absolute, relative, and ordinal). You can also visualize dynamic AOI visibility information.
+From SMI BeGaze, you can visualize eye-tracking AOI data with all timeline types (absolute, relative, and ordinal). You can also upload dynamic AOI visibility information as event data.
 
 ## Export & upload basic data
 
@@ -60,9 +60,15 @@ Then click `Export` to export the data.
 
 After that, click the `Upload data` button (see [GazePlotter GUI overview](/docs/basic/)) and select both the first exported `.csv` file and the second one for starting the upload and visualization.
 
-## Adding dynamic AOI visibility information
+## Event data
 
-If you have dynamic AOI visibility information you wish to visualize, firstly export and upload the data as in the one of the previous sections. Then follow instruction in [Adding AOI visibility data](/docs/basic/scarf-plot/#adding-aoi-visibility-data) section.
+To include dynamic AOI visibility as event data in your scarf plots:
+
+1. In SMI BeGaze, open **AOI Editor**.
+2. Click **Save** to export the AOI visibility data as an `.xml` file.
+3. When uploading to GazePlotter, select both the eye-tracking `.csv` file(s) and the exported `.xml` file(s) together in the file picker.
+
+GazePlotter automatically detects the `.xml` files as event files. After the eye-tracking data is parsed, the **Map Event Files** modal appears to assign each event file to a stimulus and participant. See [Event Data](/docs/upload-data/events/) for full details.
 
 ## Sample data
 

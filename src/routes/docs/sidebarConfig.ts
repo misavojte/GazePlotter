@@ -55,6 +55,10 @@ export const SIDEBAR: readonly SidebarSection[] = [
         name: 'Varjo',
         href: '/docs/upload-data/varjo',
       },
+      {
+        name: 'Events',
+        href: '/docs/upload-data/events',
+      },
     ],
   },
   {
@@ -92,6 +96,10 @@ export const SIDEBAR: readonly SidebarSection[] = [
       {
         name: 'AOI Customization',
         href: '/docs/basic/aoi-customization',
+      },
+      {
+        name: 'Event Customization',
+        href: '/docs/basic/event-customization',
       },
       {
         name: 'Groups',

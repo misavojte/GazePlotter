@@ -84,13 +84,10 @@ The scarf plot menu (⋮) provides quick access to customization and specific fe
 #### Customization Options
 
 - **AOI customization** - Modify colors, names, and order of Areas of Interest. See [AOI Customization](/docs/basic/aoi-customization/) for details.
+- **Event customization** - Modify event channel names, colors, ordering, and visibility. See [Event Customization](/docs/basic/event-customization/) for details.
 - **Stimulus customization** - Manage stimulus properties and settings. See [Stimuli Customization](/docs/basic/stimuli-customization/) for details.
 - **Participant customization** - Customize individual participant properties and metadata. See [Participants Customization](/docs/basic/participants-customization/) for details.
 - **Setup participants groups** - Create and modify participant groups for comparative analysis. See [Participant Groups](/docs/basic/groups/) for details.
-
-#### Adding AOI visibility data
-
-Add dynamic AOI visibility data to enhance visualization. See below for details on how to generate and add this data.
 
 #### Download plot
 
@@ -127,40 +124,16 @@ In the legend, you can highlight all segments of a specific category (fixations,
 
 ![Scarf plot with a highlighted legend category and matching segments.](/docs/images/3.png)
 
-## Adding AOI visibility data
+## Event data
 
-GazePlotter supports the upload of AOI visibility data, allowing for the effective visualization of dynamic AOIs and their visibility in the stimulus. This enhances interpretability of your eye-tracking data and allows for more detailed analysis.
+GazePlotter supports event data that enriches the scarf plot with additional time-based information layers (e.g., dynamic AOI visibility intervals). Event channels are rendered as colored lines beneath each participant's gaze sequence row.
 
-### Getting AOI visibility data
+Event files are uploaded together with eye-tracking data files via the **Import** button. For full details on exporting, uploading, and mapping event files, see [Event Data](/docs/upload-data/events/).
 
-> **Warning**: This feature is available only for [SMI BeGaze](/docs/upload-data/smi-begaze/) and [Tobii Pro Lab](/docs/upload-data/tobii-pro-lab/) data.
+To modify event channel names, colors, ordering, or visibility, use **Event customization** from the **More options** (⋮) menu. See [Event Customization](/docs/basic/event-customization/) for details.
 
-#### From SMI BeGaze
+> **Note**: Event data is displayed only in **Absolute time** and **Relative time** views. The **Ordinal time** view does not render event channels.
 
-In the SMI BeGaze software, open `AOI Editor`. Export the AOI visibility data as `.xml` file by clicking `Save` button. In this file, you can find the information about the visibility of each AOI in a given stimulus.
+### Interactivity of event data
 
-The exported file can be then simply added to the workspace to already uploaded [SMI BeGaze](/docs/upload-data/smi-begaze/) data, see below.
-
-#### From Tobii Pro Lab
-
-In the Tobii Pro Lab software, open `AOI` tab. Export the AOI visibility data as `.xml` file by clicking `Export` button. In this file, you can find the information about the visibility of each AOI in a given stimulus.
-
-The exported file can be then simply added to the workspace to already uploaded [Tobii Pro Lab](/docs/upload-data/tobii-pro-lab/) data, see below.
-
-### Adding AOI visibility data to the workspace
-
-As seen on Figure 1, adding AOI visibility data to the workspace have following steps:
-
-1. Click `More options` button in the top right corner of the scarf plot with desired stimulus set.
-2. In the pop-up menu, select `Add AOI visibility data`.
-3. In new window, select the `.xml` file with AOI visibility data (either from SMI BeGaze or Tobii Pro Lab).
-4. Select whether to add the AOI visibility data to all participants or only to the selected one.
-5. Click `Apply` button. The AOI visibility data will be added to the workspace.
-
-![Dialog for adding AOI visibility data to a scarf plot.](/docs/images/aoi-visibility-1.png)
-
-### Interactivity of AOI visibility data
-
-Each AOI visibility data is represented by a colored line. This is expanded and thus highlighted when the mouse is moved over the corresponding AOI category in the legend.
-
-![Scarf plot showing AOI visibility lines aligned with AOI categories.](/docs/images/aoi-visibility-2.png)
+Each event channel is represented by a colored line beneath the participant's scarf row. Hovering over an event channel name in the legend expands and highlights the corresponding line across all participants.

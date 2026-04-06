@@ -2,7 +2,7 @@
 
 GazePlotter supports the upload of data from the GazePoint Analysis eye-tracking software.
 
-> **Warning**: GazePoint export doesn't support dynamic AOI visibility information.
+> **Warning**: GazePoint export does not support dynamic AOI visibility information. However, you can use custom [Event Data](/docs/upload-data/events/) to add this information to your plots.
 
 In the GazePoint Analysis software, select `Analyze Data > Export > Select CSV Data`. Then click `Export CSV data` to export the data.
 

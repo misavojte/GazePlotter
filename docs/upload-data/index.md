@@ -26,6 +26,10 @@ The workspace supports the following file types:
 
 You can also select `.json` data from the GazePlotter workspace for data upload. This is useful if you want to share your data with someone else.
 
+### Event files
+
+When uploading eye-tracking data, you can include event files (`.xml` or `.json`) in the same file selection. GazePlotter automatically detects event files and prompts you to map them to stimuli and participants after the eye-tracking data is parsed. See [Event Data](/docs/upload-data/events/) for details.
+
 ## Reload Demo button
 
 To revert the workspace to its initial state, hit `Reload Demo` button. This will remove all the data from the workspace and load the demo data again.
