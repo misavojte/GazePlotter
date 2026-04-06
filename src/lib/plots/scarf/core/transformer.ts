@@ -452,9 +452,9 @@ export function transformDataToScarfPlot(
   const showAoiVisibility =
     eventChannels.length > 0 && settings.timeline !== 'ordinal'
   const barWrapHeight = getScarfParticipantBarHeight(
-      aoiData.length,
-      settings.dynamicAOI
-    )
+    aoiData.length,
+    settings.dynamicAOI
+  )
   const stylingAndLegend = createStylingAndLegend(
     aoiData,
     noAoiTreatment,
@@ -593,7 +593,12 @@ export function transformDataToScarfPlot(
     if (showAoiVisibility) {
       const internalY = SPACE_ABOVE_RECT_DEFAULT + HEIGHT_BAR_DEFAULT * 0.5
       for (let chIdx = 0; chIdx < eventChannels.length; chIdx++) {
-        const buf = getEventBuffer(engine, stimulusId, eventChannels[chIdx].id, pid)
+        const buf = getEventBuffer(
+          engine,
+          stimulusId,
+          eventChannels[chIdx].id,
+          pid
+        )
         if (buf && buf.length >= 2) {
           appendEventBufferToVisualBuffer(
             eventBuckets[visibilityBaseStyleIdx + chIdx],

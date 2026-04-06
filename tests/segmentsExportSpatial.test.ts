@@ -70,9 +70,7 @@ describe('segmented export spatial columns', () => {
       ],
     ]
     const spatialData: (number[] | null)[][][] = [[[[10, 20], null]]]
-    const data = createData(
-      jsonSegmentsToBinary(segmentsJson, spatialData)
-    )
+    const data = createData(jsonSegmentsToBinary(segmentsJson, spatialData))
 
     const csv = generateUnifiedCsv(data)
     const lines = csv.split('\n')
@@ -87,9 +85,7 @@ describe('segmented export spatial columns', () => {
   it('exports batch CSV with x/y columns when spatial data exists', () => {
     const segmentsJson: number[][][][] = [[[[0, 100, 0, 0]]]]
     const spatialData: (number[] | null)[][][] = [[[[15, 25]]]]
-    const data = createData(
-      jsonSegmentsToBinary(segmentsJson, spatialData)
-    )
+    const data = createData(jsonSegmentsToBinary(segmentsJson, spatialData))
 
     const batch = generateMetadataForBatchCsv(data)
 

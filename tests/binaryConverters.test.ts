@@ -278,14 +278,7 @@ describe('Binary Converters Roundtrip', () => {
       ],
     ]
 
-    const spatialData: (number[] | null)[][][] = [
-      [
-        [
-          [10.5, 20.25],
-          null,
-        ],
-      ],
-    ]
+    const spatialData: (number[] | null)[][][] = [[[[10.5, 20.25], null]]]
 
     const result = validateRoundtrip(segments, spatialData)
     expect(result).toBe(true)
@@ -308,13 +301,7 @@ describe('Binary Converters Roundtrip', () => {
       ],
     ]
 
-    const spatialData: (number[] | null)[][][] = [
-      [
-        [
-          [1, 2],
-        ],
-      ],
-    ]
+    const spatialData: (number[] | null)[][][] = [[[[1, 2]]]]
 
     const buffers = jsonSegmentsToBinary(segments, spatialData)
     const spatialBuffer = buffers.spatialBuffer

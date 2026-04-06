@@ -61,7 +61,15 @@ function estimateMaxLabelWidth(
 export function computeSimilarityMatrixLayout(
   input: SimilarityMatrixLayoutInput
 ): SimilarityMatrixLayout {
-  const { width, height, labels, marginTop, marginRight, marginBottom, marginLeft } = input
+  const {
+    width,
+    height,
+    labels,
+    marginTop,
+    marginRight,
+    marginBottom,
+    marginLeft,
+  } = input
   const count = labels.length
   const safeCount = Math.max(1, count)
   const fontSize = SIMILARITY_MATRIX_LAYOUT.LABEL_FONT_SIZE
@@ -105,8 +113,7 @@ export function computeSimilarityMatrixLayout(
     )
   )
 
-  const needsCompact =
-    cellStandard < SIMILARITY_MATRIX_LAYOUT.COMPACT_THRESHOLD
+  const needsCompact = cellStandard < SIMILARITY_MATRIX_LAYOUT.COMPACT_THRESHOLD
 
   const compactYSpace =
     marginLeft +
@@ -136,8 +143,7 @@ export function computeSimilarityMatrixLayout(
     Math.min(availableWidthReal / safeCount, availableHeightReal / safeCount)
   )
 
-  const isUltraCompactMode =
-    cellReal < SIMILARITY_MATRIX_LAYOUT.minCellSize
+  const isUltraCompactMode = cellReal < SIMILARITY_MATRIX_LAYOUT.minCellSize
   const isCompactMode = needsCompact || isUltraCompactMode
 
   let xAxisLabelHeight: number
@@ -198,8 +204,7 @@ export function computeSimilarityMatrixLayout(
     thinFactor = calculateTickStep(count)
   } else if (isCompactMode) {
     const maxIndexStr = count.toString()
-    const approxIndexWidth =
-      maxIndexStr.length * (fontSize * APPROX_CHAR_WIDTH)
+    const approxIndexWidth = maxIndexStr.length * (fontSize * APPROX_CHAR_WIDTH)
     thinFactor = Math.max(1, Math.ceil((approxIndexWidth + 4) / cellSize))
     if (cellSize < 5) showAxisLabels = false
   }

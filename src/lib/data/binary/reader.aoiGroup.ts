@@ -223,7 +223,9 @@ export class AoiGroupReader {
     const ptr = this.indexTable[idx]
     const len = this.indexTable[idx + 1]
     if (rawId < 0 || rawId >= len) {
-      throw new Error(`getAoiMapping: rawId ${rawId} out of range for stimulus ${stimulusId} (len=${len})`)
+      throw new Error(
+        `getAoiMapping: rawId ${rawId} out of range for stimulus ${stimulusId} (len=${len})`
+      )
     }
     return this.groupPool[ptr + rawId]
   }

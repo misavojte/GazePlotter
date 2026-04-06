@@ -1,9 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import type {
-  RecurrenceData,
-  RecurrenceMethod,
-  FixationRecord,
-} from '../types'
+import type { RecurrenceData, RecurrenceMethod, FixationRecord } from '../types'
 import { computeRQA, computeRQAWithDuration } from './rqa'
 
 /**
@@ -184,8 +180,14 @@ function buildFixedGridMatrix(
   // Map each fixation to a grid cell
   const cellIds = new Int32Array(N)
   for (let i = 0; i < N; i++) {
-    const cx = Math.min(Math.floor((fixations[i].x - minX) / cellW), gridSize - 1)
-    const cy = Math.min(Math.floor((fixations[i].y - minY) / cellH), gridSize - 1)
+    const cx = Math.min(
+      Math.floor((fixations[i].x - minX) / cellW),
+      gridSize - 1
+    )
+    const cy = Math.min(
+      Math.floor((fixations[i].y - minY) / cellH),
+      gridSize - 1
+    )
     cellIds[i] = cy * gridSize + cx
   }
 

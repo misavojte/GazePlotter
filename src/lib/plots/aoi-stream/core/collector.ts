@@ -120,12 +120,7 @@ export function collectAoiStreamMetrics(
     aoiMaxId
   )
 
-  const {
-    aoiLookup,
-    diffBuffer,
-    partialBuffer,
-    seenStamp,
-  } = workspace
+  const { aoiLookup, diffBuffer, partialBuffer, seenStamp } = workspace
   let { currentStamp } = workspace
 
   // Hot path optimization: Use flat array for AOI mapping instead of Map
