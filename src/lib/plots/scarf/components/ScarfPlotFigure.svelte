@@ -26,9 +26,10 @@
   import { UI_COLORS } from '$lib/color'
   import { updateTooltip } from '$lib/tooltip'
   import { onDestroy, untrack } from 'svelte'
-  import { SCARF_LAYOUT } from '../const'
+  import { RECT_STRIDE, SCARF_IDENTIFIERS, SCARF_LAYOUT } from '../const'
   import {
     calculateEffectiveMarginTop,
+    calculateEventOnlyLayout,
     calculateIntrinsicContentHeight,
     calculateIsCompactMode,
     calculateLegendStructuralHeight,
@@ -44,6 +45,7 @@
     mapDataToLegendGroups,
   } from '../core/transformer'
   import {
+    drawEventChannelRects,
     drawScarfEvents,
     drawScarfGrid,
     drawScarfLabels,
@@ -105,6 +107,9 @@
   const INTERNAL_PADDING_TOP = 6 // Space for top ticks
   const INTERNAL_PADDING_BOTTOM = 0 // Zero padding at bottom as it serves no purpose (only top needs space for ticks)
 
+  const resolvedDisplayMode = $derived(data.resolvedDisplayMode ?? 'overlay')
+  const isEventsOnlyMode = $derived(resolvedDisplayMode === 'events')
+
   // 1. Calculate Legend structural metrics (data-only, no layout dependency)
   // This breaks the circular dependency: legend structural height depends only on data.
   const legendHeight = $derived(
@@ -121,6 +126,16 @@
   const netAvailableHeight = $derived(
     Math.max(1, availableHeight - totalFixedOverhead)
   )
+
+  // Events-only layout (independent from segment layout)
+  const eventOnlyLayout = $derived.by(() => {
+    if (!isEventsOnlyMode) return null
+    return calculateEventOnlyLayout(
+      data.participants.length,
+      data.totalLanesPerParticipant ?? 1,
+      netAvailableHeight
+    )
+  })
 
   const isCompactMode = $derived(
     calculateIsCompactMode(data.participants.length, netAvailableHeight)
@@ -162,15 +177,15 @@
 
   // 3. Derived dimensions using dynamic layout
   const participantBarsHeight = $derived(
-    data.participants.length * layout.heightOfBarWrap
+    isEventsOnlyMode && eventOnlyLayout
+      ? data.participants.length * eventOnlyLayout.rowHeight
+      : data.participants.length * layout.heightOfBarWrap
   )
   const axisLabelY = $derived(participantBarsHeight + 30)
   const legendY = $derived(participantBarsHeight + 45)
 
   // State management with Svelte 5 runes
-  let isDragging = $state(false) // New state to track if actively dragging
-  let isHoveringSegment = $state(false) // Track if hovering or recently hovering a segment
-  let hoverTimeout: number | null = $state(null) // Timeout ID
+  let isDragging = $state(false)
   let canvas = $state<HTMLCanvasElement | null>(null)
   const plot = useCanvasPlot({
     render: renderCanvas,
@@ -185,7 +200,7 @@
   let dragStartX = $state(0) // Track drag start position
   let dragStartY = $state(0) // Track drag start position
   let hasDragStarted = $state(false) // Track if drag threshold has been exceeded
-  let preparedForDragging = $state(false) // Track if prepared for dragging (shows draggable cursor)
+
   let hoveredLegendItem = $state<LegendItemGeometry | null>(null) // Track currently hovered legend item
 
   // Use highlights directly from props - workspace is the single source of truth
@@ -351,6 +366,14 @@
     calculateHighlightMask(usedHighlights, identifierSystem)
   )
 
+  // Map event channel array index → identifier system style index (for highlight lookup)
+  const channelStyleIndices = $derived.by(() => {
+    if (!data.eventChannels) return null
+    return data.eventChannels.map(ch =>
+      identifierSystem.idToIndex.get(`${SCARF_IDENTIFIERS.EVENT}${ch.id}`) ?? -1
+    )
+  })
+
   // Total content height with effective margins
   const totalContentHeight = $derived(
     intrinsicContentHeight + effectiveMarginTop + marginBottom
@@ -434,12 +457,16 @@
     const scarfPlotWidth = Math.floor(plotAreaWidth)
 
     const renderCtx: ScarfLayoutContext = {
-      heightOfBar: layout.heightOfBar,
-      spaceAboveRect: layout.spaceAboveRect,
-      nonFixationHeight: layout.nonFixationHeight,
-      heightOfBarWrap: layout.heightOfBarWrap,
-      scaleFactor: layout.scaleFactor,
-      isCompact: layout.isCompact,
+      heightOfBar: isEventsOnlyMode && eventOnlyLayout
+        ? eventOnlyLayout.rowHeight
+        : layout.heightOfBar,
+      spaceAboveRect: isEventsOnlyMode ? 0 : layout.spaceAboveRect,
+      nonFixationHeight: isEventsOnlyMode ? 0 : layout.nonFixationHeight,
+      heightOfBarWrap: isEventsOnlyMode && eventOnlyLayout
+        ? eventOnlyLayout.rowHeight
+        : layout.heightOfBarWrap,
+      scaleFactor: isEventsOnlyMode ? 1 : layout.scaleFactor,
+      isCompact: isEventsOnlyMode ? false : layout.isCompact,
       leftLabelWidth: LEFT_LABEL_WIDTH,
       plotAreaWidth: plotAreaWidth,
       effectiveMarginTop: effectiveMarginTop,
@@ -460,22 +487,36 @@
       effectiveMarginTop
     )
 
-    // 2. Draw Data segments
-    drawScarfRectangles(
-      ctx,
-      data,
-      renderCtx,
-      rectStyleArray,
-      highlightMaskByIndex
-    )
-    drawScarfEvents(
-      ctx,
-      data,
-      renderCtx,
-      eventStyleArray,
-      highlightMaskByIndex,
-      eventLayoutOverrides
-    )
+    // 2. Draw Data segments (mode-aware)
+    if (isEventsOnlyMode && eventOnlyLayout) {
+      drawEventChannelRects(
+        ctx,
+        data,
+        renderCtx,
+        eventOnlyLayout.laneHeight,
+        eventOnlyLayout.rowHeight,
+        highlightMaskByIndex,
+        channelStyleIndices
+      )
+    } else {
+      drawScarfRectangles(
+        ctx,
+        data,
+        renderCtx,
+        rectStyleArray,
+        highlightMaskByIndex
+      )
+      if (resolvedDisplayMode !== 'segments') {
+        drawScarfEvents(
+          ctx,
+          data,
+          renderCtx,
+          eventStyleArray,
+          highlightMaskByIndex,
+          eventLayoutOverrides
+        )
+      }
+    }
 
     // 3. Draw Axis labels and details
     drawTimelineLabels(
@@ -576,27 +617,19 @@
       return
     }
 
-    // Check if mouse is in the draggable area
-    const inDraggableArea =
+    // Check if mouse is in the plot area
+    const inPlotArea =
       mouseX >= LEFT_LABEL_WIDTH + marginLeft &&
       mouseX <= LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft &&
       mouseY >= effectiveMarginTop &&
-      mouseY <=
-        data.participants.length * layout.heightOfBarWrap + effectiveMarginTop
+      mouseY <= participantBarsHeight + effectiveMarginTop
 
-    // Update cursor based on dragging state and location
-    if (isDragging || preparedForDragging) {
-      canvas.style.cursor = 'grabbing'
-    } else if (inDraggableArea && !isHoveringSegment) {
-      canvas.style.cursor = 'grab'
-    } else {
-      canvas.style.cursor = 'default'
-    }
+    canvas.style.cursor = inPlotArea ? 'crosshair' : 'default'
 
     // Find the segment under the mouse pointer using TypedArray
     const hoveredSegment = findHoveredRectSegment(mouseX, mouseY)
 
-    // If hovering over a new segment, handle it
+    // If hovering over a new segment, show tooltip
     if (
       hoveredSegment &&
       (!currentHoveredSegment ||
@@ -608,23 +641,12 @@
         orderId: hoveredSegment.orderId,
       }
 
-      // Set hovering state to true
-      isHoveringSegment = true
-
-      // Clear any existing timeout
-      if (hoverTimeout !== null) {
-        window.clearTimeout(hoverTimeout)
-        hoverTimeout = null
-      }
-
-      // Get consistent tooltip position
       const xNormalized = hoveredSegment.x
       const widthNormalized = hoveredSegment.width
       const pIndex = hoveredSegment.y
       const rectH = hoveredSegment.height
       const internalY = hoveredSegment.internalY
 
-      // Floor dimensions for pixel-perfect synchronization
       const floorLeft = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
       const floorWidth = Math.floor(plotAreaWidth)
 
@@ -647,52 +669,28 @@
         y: tooltipPos.y,
       })
     } else if (!hoveredSegment && currentHoveredSegment) {
-      // If moved out of a segment but still in canvas
       currentHoveredSegment = null
       onTooltipDeactivation()
-
-      // Set delayed reset of hovering state
-      if (hoverTimeout !== null) {
-        window.clearTimeout(hoverTimeout)
-      }
-
-      hoverTimeout = window.setTimeout(() => {
-        isHoveringSegment = false
-        hoverTimeout = null
-      }, 150) // Keep default cursor for 150ms after leaving segment
     }
   }
 
   function handleMouseLeave() {
-    // Hide legend tooltip when mouse leaves canvas
     if (hoveredLegendItem) {
       hoveredLegendItem = null
       updateTooltip(null)
     }
 
-    // If there was a hovered segment, log that hover has stopped
     if (currentHoveredSegment) {
       currentHoveredSegment = null
       onTooltipDeactivation()
-
-      // Set delayed reset of hovering state
-      if (hoverTimeout !== null) {
-        window.clearTimeout(hoverTimeout)
-      }
-
-      hoverTimeout = window.setTimeout(() => {
-        isHoveringSegment = false
-        hoverTimeout = null
-      }, 150) // Keep default cursor for 150ms after leaving segment
     }
 
-    // Reset dragging if mouse leaves during drag
+    // Reset drag state
     if (isDragging) {
       isDragging = false
     }
-    // Reset all drag state
     hasDragStarted = false
-    preparedForDragging = false
+
     dragStartX = 0
     dragStartY = 0
   }
@@ -717,34 +715,24 @@
       mouseX >= LEFT_LABEL_WIDTH + marginLeft &&
       mouseX <= LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft &&
       mouseY >= effectiveMarginTop &&
-      mouseY <=
-        data.participants.length * layout.heightOfBarWrap +
-          effectiveMarginTop &&
-      !isHoveringSegment
+      mouseY <= participantBarsHeight + effectiveMarginTop
     ) {
       // Store initial position and prepare for dragging
       dragStartX = mouseX
       dragStartY = mouseY
       hasDragStarted = false
-      preparedForDragging = true
-      // Show grabbing cursor immediately
-      if (canvas) {
-        canvas.style.cursor = 'grabbing'
-      }
+
     }
   }
 
   function handleMouseUp() {
     if (isDragging) {
       isDragging = false
-      onDragEnd() // Call drag end handler
-      if (canvas) {
-        canvas.style.cursor = 'grab'
-      }
+      onDragEnd()
     }
     // Reset all drag state
     hasDragStarted = false
-    preparedForDragging = false
+
     dragStartX = 0
     dragStartY = 0
   }
@@ -765,10 +753,6 @@
         // Start actual dragging
         hasDragStarted = true
         isDragging = true
-        preparedForDragging = false // No longer just prepared, now actively dragging
-        if (canvas) {
-          canvas.style.cursor = 'grabbing'
-        }
       } else {
         // Still within threshold, don't start dragging yet
         return
@@ -783,12 +767,9 @@
     if (hoveredLegendItem) {
       isDragging = false
       hasDragStarted = false
-      preparedForDragging = false
+  
       dragStartX = 0
       dragStartY = 0
-      if (canvas) {
-        canvas.style.cursor = 'pointer'
-      }
       return
     }
 
@@ -803,24 +784,24 @@
     }
   }
 
+  // Re-render when any visual dependency changes.
+  // Svelte 5 tracks all reactive reads implicitly — listing them
+  // in an array is unnecessary but we reference them so the effect fires.
   $effect(() => {
-    const deps = [
-      data,
-      settings,
-      totalWidth,
-      totalHeight,
-      highlights,
-      usedHighlights,
-      chartWidth,
-      availableHeight,
-      dpiOverride,
-      marginLeft,
-      marginRight,
-      effectiveMarginTop,
-      marginBottom,
-    ]
+    data
+    settings
+    totalWidth
+    totalHeight
+    highlights
+    usedHighlights
+    chartWidth
+    availableHeight
+    dpiOverride
+    marginLeft
+    marginRight
+    effectiveMarginTop
+    marginBottom
 
-    // Schedule a render instead of immediate execution
     untrack(() => plot.refresh())
   })
 
@@ -828,7 +809,6 @@
     const buckets = visualRectBuckets
     if (buckets.length === 0) return null
 
-    const RECT_STRIDE = 8
     const { indexToId } = identifierSystem
     const scale = layout.scaleFactor
     const barWrapHeight = layout.heightOfBarWrap
@@ -893,10 +873,6 @@
 
   // Clean up tooltip when unmounting
   onDestroy(() => {
-    if (hoverTimeout !== null) {
-      window.clearTimeout(hoverTimeout)
-    }
-
     if (hoveredLegendItem) {
       updateTooltip(null)
     }

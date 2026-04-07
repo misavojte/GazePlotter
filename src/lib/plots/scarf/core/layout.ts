@@ -96,6 +96,26 @@ export function calculatePlotLayout(
 }
 
 /**
+ * Computes layout for events-only display mode.
+ * Each participant row is divided into sub-lanes for event channels.
+ */
+export function calculateEventOnlyLayout(
+  participantCount: number,
+  totalLanesPerParticipant: number,
+  availableHeight: number
+) {
+  if (participantCount === 0 || totalLanesPerParticipant === 0) {
+    return { laneHeight: 10, rowHeight: 10, scaleFactor: 1 }
+  }
+
+  const targetRowHeight = availableHeight / participantCount
+  const laneHeight = Math.max(2, Math.min(20, targetRowHeight / totalLanesPerParticipant))
+  const rowHeight = laneHeight * totalLanesPerParticipant
+
+  return { laneHeight, rowHeight, scaleFactor: 1 }
+}
+
+/**
  * Computes the x-axis label.
  */
 export function getXAxisLabel(

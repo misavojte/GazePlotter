@@ -46,3 +46,8 @@ export const SCARF_LAYOUT = {
   MIN_PLOT_HEIGHT_COMPACT: 100,
   COMPACT_MODE_THRESHOLD: 7,
 } as const
+
+// --- Buffer Strides ---
+export const RECT_STRIDE = 8
+export const EVENT_STRIDE = 5
+export const EVENT_CHANNEL_STRIDE = 5

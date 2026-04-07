@@ -8,6 +8,8 @@
 import type { AdaptiveTimeline } from '$lib/plots/shared'
 import type { PlotItemContract } from '$lib/plots/definePlot'
 
+export type ScarfDisplayMode = 'overlay' | 'events' | 'segments'
+
 export type ScarfPlotSettings = {
   stimulusId: number
   groupId: number
@@ -21,6 +23,7 @@ export type ScarfPlotSettings = {
   ordinalStart?: number
   ordinalEnd?: number
   hideNonFixations?: boolean
+  displayMode?: ScarfDisplayMode
 }
 
 export type ScarfPlotItem = PlotItemContract<'scarf', ScarfPlotSettings>
@@ -186,6 +189,22 @@ export type ScarfData = {
    */
   visualRectBuckets: Float32Array[]
   visualEventBuckets: Float32Array[]
+
+  /** Resolved display mode after auto-detection */
+  resolvedDisplayMode: ScarfDisplayMode
+
+  // --- Events-only mode data ---
+  /** Event channel metadata for events-only rendering */
+  eventChannels?: { id: number; name: string; color: string }[]
+  /** Max depth per channel (for lane stacking) */
+  channelMaxDepths?: number[]
+  /** Total number of sub-lanes per participant row */
+  totalLanesPerParticipant?: number
+  /**
+   * Precomputed visual buffer for event channel rectangles (events-only mode).
+   * Stride-5: [xNormalized, widthNormalized, channelLaneIndex, participantIndex, reserved]
+   */
+  visualEventChannelBuffer?: Float32Array
 }
 
 /**

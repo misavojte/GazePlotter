@@ -16,7 +16,7 @@
   import GroupSelect from '$lib/shared/components/GroupSelect.svelte'
   import type { GroupSelectItem } from '$lib/shared/components'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
-  import type { ScarfPlotItem, ScarfPlotSettings } from '$lib/plots/scarf/types'
+  import type { ScarfDisplayMode, ScarfPlotItem, ScarfPlotSettings } from '$lib/plots/scarf/types'
   import RefreshCcw from 'lucide-svelte/icons/refresh-ccw'
   import ZoomIn from 'lucide-svelte/icons/zoom-in'
   import ZoomOut from 'lucide-svelte/icons/zoom-out'
@@ -33,12 +33,15 @@
       ordinalEnd: { value: number | undefined }
       timeline: { value: 'absolute' | 'relative' | 'ordinal' }
       hideNonFixations: { value: boolean }
+      displayMode: { value: ScarfDisplayMode | undefined }
     }
+    stimulusHasEvents?: boolean
+    stimulusHasSegments?: boolean
     // We still keep a close handler if needed, but managing syncs is cleaner
     onMenuClose?: () => void
   }
 
-  let { item, settings, syncs, onMenuClose }: Props = $props()
+  let { item, settings, syncs, stimulusHasEvents = false, stimulusHasSegments = true, onMenuClose }: Props = $props()
   const { engine, workspace } = getGazePlotterSession()
   const source = $derived(createCommandSourcePlotPattern(item, 'plot'))
 
@@ -185,6 +188,54 @@
   }
 
   // Single grouped selects in order: Stimulus, Group, Timeline
+  // Component height depends on which optional sections are visible
+  // Base (range inputs): ~95px, +checkbox: ~25px, +radio: ~65px
+  const timeViewHeight = $derived(
+    95 + (stimulusHasSegments ? 25 : 0) + (stimulusHasEvents ? 65 : 0)
+  )
+
+  const viewOptions = $derived.by(() => {
+    const sharedProps = { syncs, stimulusHasEvents, stimulusHasSegments }
+
+    const opts = [
+      createMenuComponentItem({
+        value: 'absolute',
+        label: 'Absolute',
+        onAction: previewTimeline,
+        closeOnAction: false,
+        component: ScarfPlotViewSettings,
+        componentHeight: timeViewHeight,
+        componentProps: sharedProps,
+      }),
+      createMenuComponentItem({
+        value: 'relative',
+        label: 'Relative',
+        onAction: previewTimeline,
+        closeOnAction: false,
+        component: ScarfPlotViewSettings,
+        componentHeight: timeViewHeight,
+        componentProps: sharedProps,
+      }),
+    ]
+
+    if (stimulusHasSegments) {
+      opts.push(
+        createMenuComponentItem({
+          value: 'ordinal',
+          label: 'Ordinal',
+          onAction: previewTimeline,
+          closeOnAction: false,
+          component: ScarfPlotViewSettings,
+          // Ordinal never shows event radio, so just base + optional checkbox
+          componentHeight: 120,
+          componentProps: sharedProps,
+        })
+      )
+    }
+
+    return opts
+  })
+
   const selectItems = $derived<GroupSelectItem[]>([
     {
       label: 'Stimulus',
@@ -202,41 +253,7 @@
       label: 'View',
       value: settings.timeline,
       onClose: onMenuClose,
-      options: [
-        createMenuComponentItem({
-          value: 'absolute',
-          label: 'Absolute',
-          onAction: previewTimeline,
-          closeOnAction: false,
-          component: ScarfPlotViewSettings,
-          componentHeight: 145, // Adjust as needed
-          componentProps: {
-            syncs,
-          },
-        }),
-        createMenuComponentItem({
-          value: 'relative',
-          label: 'Relative',
-          onAction: previewTimeline,
-          closeOnAction: false,
-          component: ScarfPlotViewSettings,
-          componentHeight: 145,
-          componentProps: {
-            syncs,
-          },
-        }),
-        createMenuComponentItem({
-          value: 'ordinal',
-          label: 'Ordinal',
-          onAction: previewTimeline,
-          closeOnAction: false,
-          component: ScarfPlotViewSettings,
-          componentHeight: 120,
-          componentProps: {
-            syncs,
-          },
-        }),
-      ],
+      options: viewOptions,
     },
   ])
 </script>

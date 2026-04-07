@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { MenuComponentBridgeProps, MenuItem } from '$lib/context-menu'
+  import type { ScarfDisplayMode } from '$lib/plots/scarf/types'
   import {
     CompactSettingsSection,
     CompactSettingsSeparator,
@@ -7,6 +8,7 @@
   import {
     InputCheck,
     InputNumber,
+    Radio,
   } from '$lib/shared/components'
 
   interface Props extends MenuComponentBridgeProps {
@@ -17,10 +19,33 @@
       ordinalStart: { value: number | undefined }
       ordinalEnd: { value: number | undefined }
       hideNonFixations: { value: boolean }
+      displayMode: { value: ScarfDisplayMode | undefined }
     }
+    stimulusHasEvents?: boolean
+    stimulusHasSegments?: boolean
   }
 
-  let { item, syncs, close }: Props = $props()
+  let { item, syncs, close, stimulusHasEvents = false, stimulusHasSegments = true }: Props = $props()
+
+  const eventDisplayOptions = [
+    { value: 'segments', label: 'None' },
+    { value: 'overlay', label: 'Overlay' },
+    { value: 'events', label: 'Only events' },
+  ]
+
+  // Local non-undefined mirror for the Radio bind:value (Radio rejects undefined)
+  let eventDisplayValue = $state(syncs.displayMode.value ?? 'overlay')
+
+  // Sync: external → local
+  $effect(() => {
+    const v = syncs.displayMode.value
+    if (v !== undefined) eventDisplayValue = v
+  })
+
+  // Sync: local → external
+  $effect(() => {
+    syncs.displayMode.value = eventDisplayValue as ScarfDisplayMode
+  })
 
   function handleSubmit(e: Event) {
     e.preventDefault()
@@ -49,6 +74,8 @@
 
   const isOrdinal = $derived('value' in item && item.value === 'ordinal')
   const isRelative = $derived('value' in item && item.value === 'relative')
+  const showEventDisplayRadio = $derived(stimulusHasEvents && !isOrdinal)
+  const showHideNonFixations = $derived(stimulusHasSegments && eventDisplayValue !== 'events')
 </script>
 
 <div class="settings-container">
@@ -87,19 +114,31 @@
         />
       </div>
     </CompactSettingsSection>
-    <CompactSettingsSeparator tone="light" margin={4} />
+    {#if showHideNonFixations}
+      <CompactSettingsSeparator tone="light" margin={4} />
 
-    <div class="settings-row">
-      <InputCheck
-        label="Hide non-fixations"
+      <div class="settings-row">
+        <InputCheck
+          label="Hide non-fixations"
+          appearance="compact"
+          size="xs"
+          checked={syncs.hideNonFixations.value}
+          onchange={event => {
+            syncs.hideNonFixations.value = event.detail
+          }}
+        />
+      </div>
+    {/if}
+
+    {#if showEventDisplayRadio}
+      <CompactSettingsSeparator tone="light" margin={4} />
+      <Radio
+        legend="Event display"
+        options={eventDisplayOptions}
         appearance="compact"
-        size="xs"
-        checked={syncs.hideNonFixations.value}
-        onchange={event => {
-          syncs.hideNonFixations.value = event.detail
-        }}
+        bind:value={eventDisplayValue}
       />
-    </div>
+    {/if}
   </form>
 </div>
 

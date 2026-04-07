@@ -15,9 +15,10 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
     absoluteStimuliLimits: [],
     ordinalStimuliLimits: [],
     dynamicAOI: true,
+    displayMode: undefined,
   }),
   getMinSize: () => ({ w: 14, h: 10 }),
   getDefaultHeight: () => 12,
   getDefaultWidth: () => 20,
-  requireCapabilities: ['segmented'],
+  requireCapabilities: [['segmented', 'event']],
 })

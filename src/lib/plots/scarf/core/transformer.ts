@@ -22,9 +22,16 @@ import {
   createAdaptiveTimeline,
   type AdaptiveTimeline,
 } from '$lib/plots/shared'
-import { SCARF_IDENTIFIERS, SCARF_LAYOUT } from '../const'
+import {
+  EVENT_CHANNEL_STRIDE,
+  EVENT_STRIDE,
+  RECT_STRIDE,
+  SCARF_IDENTIFIERS,
+  SCARF_LAYOUT,
+} from '../const'
 import type {
   ScarfData,
+  ScarfDisplayMode,
   ScarfLegendData,
   ScarfLegendGroup,
   ScarfLegendItem,
@@ -35,9 +42,6 @@ import type {
   ScarfStyling,
 } from '../types'
 import type { LegendGroup } from '$lib/plots/shared'
-
-const RECT_STRIDE = 8
-const EVENT_STRIDE = 5
 
 export class Float32GrowBuffer {
   private buffer: Float32Array
@@ -118,10 +122,7 @@ export class Float32GrowBuffer {
 /**
  * Calculates the participant bar height based on configuration parameters
  */
-export function getScarfParticipantBarHeight(
-  _aoiCount: number,
-  _showAoiVisibility: boolean
-): number {
+export function getScarfParticipantBarHeight(): number {
   const { HEIGHT_BAR_DEFAULT, SPACE_ABOVE_RECT_DEFAULT } = SCARF_LAYOUT
   const rectWrappedHeight = HEIGHT_BAR_DEFAULT + SPACE_ABOVE_RECT_DEFAULT * 2
 
@@ -341,20 +342,79 @@ export function groupEventChannelsByDisplayedName(
 }
 
 /**
- * Creates group-aware legend data from styling information.
- * This is a data-only transformation - no layout geometry is computed here.
- * Layout geometry (including icon heights) is computed in the Svelte component
- * based on viewport width and layout constants.
- *
- * @param styling - The styling information from createStylingAndLegend
- * @returns A ScarfLegendData object with categorized groups
+ * Resolves the display mode based on user request and available data.
+ * When the current stimulus has no event data, always falls back to 'segments'
+ * regardless of the user's setting.
  */
+export function resolveDisplayMode(
+  requested: ScarfDisplayMode | undefined,
+  hasSegmented: boolean,
+  stimulusHasEvents: boolean
+): ScarfDisplayMode {
+  // No event data for this stimulus — force segments regardless of setting
+  if (!stimulusHasEvents) return 'segments'
+
+  if (requested === 'events' && stimulusHasEvents) return 'events'
+  if (requested === 'segments' && hasSegmented) return 'segments'
+  if (requested === 'overlay' && hasSegmented) return 'overlay'
+
+  // Auto-detect: if both available, default to overlay; else whichever is available
+  if (hasSegmented && stimulusHasEvents) return 'overlay'
+  if (stimulusHasEvents) return 'events'
+  return 'segments'
+}
+
+/**
+ * Greedy depth assignment for overlapping events in a stride-2 buffer [start, duration, ...].
+ * Returns per-event depth indices and the maximum depth used.
+ */
+export function assignEventDepths(events: number[]): {
+  depths: number[]
+  maxDepth: number
+} {
+  const eventCount = Math.floor(events.length / 2)
+  if (eventCount === 0) return { depths: [], maxDepth: 1 }
+
+  // Build sorted index by start time
+  const indices = Array.from({ length: eventCount }, (_, i) => i)
+  indices.sort((a, b) => events[a * 2] - events[b * 2])
+
+  const depths = new Array<number>(eventCount)
+  const laneEnds: number[] = [] // end time of each lane
+
+  for (const sortedIdx of indices) {
+    const start = events[sortedIdx * 2]
+    const duration = events[sortedIdx * 2 + 1]
+    const end = start + duration
+
+    // Find first lane where the event fits
+    let assigned = -1
+    for (let lane = 0; lane < laneEnds.length; lane++) {
+      if (laneEnds[lane] <= start) {
+        assigned = lane
+        laneEnds[lane] = end
+        break
+      }
+    }
+
+    if (assigned === -1) {
+      assigned = laneEnds.length
+      laneEnds.push(end)
+    }
+
+    depths[sortedIdx] = assigned
+  }
+
+  return { depths, maxDepth: Math.max(1, laneEnds.length) }
+}
+
 /**
  * Creates group-aware legend data from styling information.
  */
 export function createScarfLegendData(
   styling: ScarfStyling,
-  hideNonFixations = false
+  hideNonFixations = false,
+  displayMode: ScarfDisplayMode = 'overlay'
 ): ScarfLegendData {
   const groups: ScarfLegendGroup[] = []
 
@@ -372,11 +432,20 @@ export function createScarfLegendData(
     groups.push({ title, items: legendItems })
   }
 
-  addGroup('Fixations', styling.aoi, 'fixation')
-  if (!hideNonFixations) {
-    addGroup('Non-fixations', styling.category, 'nonFixation')
+  if (displayMode !== 'events') {
+    addGroup('Fixations', styling.aoi, 'fixation')
+    if (!hideNonFixations) {
+      addGroup('Non-fixations', styling.category, 'nonFixation')
+    }
   }
-  addGroup('Events', styling.visibility, 'visibility')
+
+  if (displayMode === 'events') {
+    // Events-only mode: show channels as fixation-style rectangles
+    addGroup('Event Channels', styling.visibility, 'fixation')
+  } else if (displayMode === 'overlay') {
+    addGroup('Event Channels', styling.visibility, 'visibility')
+  }
+  // 'segments' mode: no event legend group
 
   return { groups }
 }
@@ -472,9 +541,17 @@ export function transformDataToScarfPlot(
   settings: ScarfPlotSettings,
   noAoiTreatment: { displayedName: string; color: string }
 ): ScarfData {
-  if (!engine.segments) throw new Error('Data engine not initialized')
-  const aoiGroupReader = engine.getAoiGroupReader()
-  if (!aoiGroupReader) throw new Error('AOI reader not initialized')
+  const caps = engine.capabilities
+  const stimulusHasEvents = hasEventsForStimulus(engine, stimulusId)
+  // Ordinal view is segment-index-based — force segments only
+  const requestedMode = settings.timeline === 'ordinal'
+    ? 'segments'
+    : settings.displayMode
+  const displayMode = resolveDisplayMode(
+    requestedMode,
+    caps.segmented,
+    stimulusHasEvents
+  )
 
   const {
     HEIGHT_BAR_DEFAULT,
@@ -483,7 +560,7 @@ export function transformDataToScarfPlot(
     HEIGHT_X_AXIS,
   } = SCARF_LAYOUT
 
-  const aoiData = getAois(engine, stimulusId)
+  const aoiData = displayMode !== 'events' ? getAois(engine, stimulusId) : []
   const timeline = createScarfPlotAxis(
     engine,
     participantIds,
@@ -498,17 +575,37 @@ export function transformDataToScarfPlot(
     : []
   const groupedEventChannels =
     groupEventChannelsByDisplayedName(visibleEventChannels)
-  const showAoiVisibility =
-    groupedEventChannels.length > 0 && settings.timeline !== 'ordinal'
-  const barWrapHeight = getScarfParticipantBarHeight(
-    aoiData.length,
-    settings.dynamicAOI
-  )
+  const showVisibilityMarkers =
+    displayMode === 'overlay' &&
+    groupedEventChannels.length > 0 &&
+    settings.timeline !== 'ordinal'
+  const barWrapHeight = getScarfParticipantBarHeight()
   const stylingAndLegend = createStylingAndLegend(
     aoiData,
     noAoiTreatment,
-    showAoiVisibility ? groupedEventChannels : []
+    (showVisibilityMarkers || displayMode === 'events')
+      ? groupedEventChannels
+      : []
   )
+
+  // --- Events-only mode ---
+  if (displayMode === 'events') {
+    return transformEventOnlyMode(
+      engine,
+      stimulusId,
+      participantIds,
+      settings,
+      groupedEventChannels,
+      timeline,
+      stylingAndLegend,
+      displayMode
+    )
+  }
+
+  // --- Segments or Overlay mode ---
+  if (!engine.segments) throw new Error('Data engine not initialized')
+  const aoiGroupReader = engine.getAoiGroupReader()
+  if (!aoiGroupReader) throw new Error('AOI reader not initialized')
 
   // Style mapping: pre-calculate indices for the hot loop
   const aoiStyleCount = stylingAndLegend.aoi.length
@@ -639,7 +736,7 @@ export function transformDataToScarfPlot(
       }
     }
 
-    if (showAoiVisibility) {
+    if (showVisibilityMarkers) {
       const internalY = SPACE_ABOVE_RECT_DEFAULT + HEIGHT_BAR_DEFAULT * 0.5
       for (let chIdx = 0; chIdx < groupedEventChannels.length; chIdx++) {
         const group = groupedEventChannels[chIdx]
@@ -686,12 +783,170 @@ export function transformDataToScarfPlot(
     stylingAndLegend,
     legendData: createScarfLegendData(
       stylingAndLegend,
-      settings.hideNonFixations
+      settings.hideNonFixations,
+      displayMode
     ),
     leftLabelWidth: 0,
     plotAreaWidth: 0,
     visualRectBuckets: rectBuckets.map(b => b.finalize()),
     visualEventBuckets: eventBuckets.map(b => b.finalize()),
+    resolvedDisplayMode: displayMode,
+  }
+}
+
+/**
+ * Transforms data for events-only display mode.
+ * Produces gantt-style event channel rectangles with depth stacking.
+ */
+function transformEventOnlyMode(
+  engine: DataEngine,
+  stimulusId: number,
+  participantIds: number[],
+  settings: ScarfPlotSettings,
+  groupedEventChannels: ReturnType<typeof groupEventChannelsByDisplayedName>,
+  timeline: ReturnType<typeof createScarfPlotAxis>,
+  stylingAndLegend: ScarfStyling,
+  displayMode: ScarfDisplayMode
+): ScarfData {
+  const { HEIGHT_BAR_DEFAULT, SPACE_ABOVE_RECT_DEFAULT, HEIGHT_X_AXIS } =
+    SCARF_LAYOUT
+  const { minValue, maxValue } = timeline
+  const visibleRange = maxValue - minValue || 1
+
+  const channelCount = groupedEventChannels.length
+  const eventChannels = groupedEventChannels.map(g => ({
+    id: g.id,
+    name: g.displayedName || g.originalName,
+    color: g.color,
+  }))
+
+  // First pass: determine max depths per channel across all participants
+  const channelMaxDepths = new Array<number>(channelCount).fill(1)
+
+  for (const pid of participantIds) {
+    for (let chIdx = 0; chIdx < channelCount; chIdx++) {
+      const group = groupedEventChannels[chIdx]
+      // Collect all events from all members of this group for this participant
+      const allEvents: number[] = []
+      for (const memberId of group.memberIds) {
+        const buf = getEventBuffer(engine, stimulusId, memberId, pid)
+        if (buf && buf.length >= 2) {
+          for (let i = 0; i < buf.length; i++) allEvents.push(buf[i])
+        }
+      }
+      if (allEvents.length >= 2) {
+        const { maxDepth } = assignEventDepths(allEvents)
+        channelMaxDepths[chIdx] = Math.max(channelMaxDepths[chIdx], maxDepth)
+      }
+    }
+  }
+
+  const totalLanesPerParticipant = channelMaxDepths.reduce((s, d) => s + d, 0)
+  const barWrapHeight = getScarfParticipantBarHeight()
+
+  // Second pass: build event channel buffer
+  const builder = new Float32GrowBuffer(4096)
+  const participants: ScarfParticipant[] = new Array(participantIds.length)
+  const isRelative = settings.timeline === 'relative'
+
+  // Pre-compute lane offsets per channel
+  const channelLaneOffset = new Array<number>(channelCount)
+  let offset = 0
+  for (let i = 0; i < channelCount; i++) {
+    channelLaneOffset[i] = offset
+    offset += channelMaxDepths[i]
+  }
+
+  for (let pIndex = 0; pIndex < participantIds.length; pIndex++) {
+    const pid = participantIds[pIndex]
+
+    // Per-participant clipping range (same logic as segment transformer)
+    let clipMin = minValue
+    let clipMax = maxValue
+    let clipRange = visibleRange
+
+    if (isRelative) {
+      const sessionDuration = getParticipantEndTime(engine, stimulusId, pid)
+      const tStart = settings.timelineStart
+      const tEnd = settings.timelineEnd
+      clipMin = typeof tStart === 'number' && !isNaN(tStart) ? tStart : 0
+      clipMax = typeof tEnd === 'number' && !isNaN(tEnd) ? tEnd : 0
+
+      if (clipMin === 0 && clipMax === 0) {
+        clipMax = sessionDuration
+      } else {
+        if (clipMax === 0) clipMax = sessionDuration
+        if (clipMax <= clipMin) clipMax = Math.max(sessionDuration, clipMin + 1)
+      }
+      clipRange = clipMax - clipMin || 1
+    }
+
+    for (let chIdx = 0; chIdx < channelCount; chIdx++) {
+      const group = groupedEventChannels[chIdx]
+      const allEvents: number[] = []
+      for (const memberId of group.memberIds) {
+        const buf = getEventBuffer(engine, stimulusId, memberId, pid)
+        if (buf && buf.length >= 2) {
+          for (let i = 0; i < buf.length; i++) allEvents.push(buf[i])
+        }
+      }
+      if (allEvents.length < 2) continue
+
+      const { depths } = assignEventDepths(allEvents)
+      const eventCount = allEvents.length / 2
+
+      for (let i = 0; i < eventCount; i++) {
+        const start = allEvents[i * 2]
+        const duration = allEvents[i * 2 + 1]
+        const end = start + duration
+
+        if (end <= clipMin || start >= clipMax) continue
+        const clippedStart = Math.max(clipMin, start)
+        const clippedEnd = Math.min(clipMax, end)
+
+        const x = (clippedStart - clipMin) / clipRange
+        const w = (clippedEnd - clippedStart) / clipRange
+        if (w <= 0) continue
+
+        const laneIndex = channelLaneOffset[chIdx] + depths[i]
+
+        // EVENT_CHANNEL_STRIDE = 5: [xNorm, wNorm, laneIndex, pIndex, channelIndex]
+        builder.pushEvent(x, w, laneIndex, pIndex, chIdx)
+      }
+    }
+
+    participants[pIndex] = {
+      id: pid,
+      label: getParticipant(engine, pid).displayedName,
+      width: 0,
+    }
+  }
+
+  return {
+    id: stimulusId,
+    timelineType: settings.timeline,
+    barHeight: HEIGHT_BAR_DEFAULT,
+    stimulusId,
+    heightOfBarWrap: barWrapHeight,
+    chartHeight: participantIds.length * barWrapHeight + HEIGHT_X_AXIS,
+    stimuli: getStimuli(engine).map(s => ({ id: s.id, name: s.displayedName })),
+    participants,
+    timeline,
+    stylingAndLegend,
+    legendData: createScarfLegendData(
+      stylingAndLegend,
+      settings.hideNonFixations,
+      displayMode
+    ),
+    leftLabelWidth: 0,
+    plotAreaWidth: 0,
+    visualRectBuckets: [],
+    visualEventBuckets: [],
+    resolvedDisplayMode: displayMode,
+    eventChannels,
+    channelMaxDepths,
+    totalLanesPerParticipant,
+    visualEventChannelBuffer: builder.finalize(),
   }
 }
 
@@ -831,7 +1086,6 @@ export function calculateEventLayoutOverrides(
   if (isCompactMode) return new Map<number, number>()
   if (visualEventBuckets.length === 0) return new Map<number, number>()
 
-  const EVENT_STRIDE = 5
   const size = Math.max(7, Math.min(20, barHeight * 0.8))
   const normalizedThreshold = (size * 0.25) / 1000
   const KEY_MULTIPLIER = 1000000

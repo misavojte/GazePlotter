@@ -5,6 +5,7 @@ import {
 } from '$lib/plots/shared'
 import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
 import { desaturateToWhite } from '$lib/color/utility'
+import { EVENT_STRIDE, RECT_STRIDE } from '../const'
 import type { ScarfData } from '../types'
 
 export interface ScarfLayoutContext {
@@ -21,6 +22,12 @@ export interface ScarfLayoutContext {
   totalWidth: number
   marginLeft: number
 }
+
+// --- Event marker geometry constants ---
+/** Distance (in radius multiples) for merging nearby start/end markers into a dot */
+const MARKER_MERGE_DISTANCE = 1.8
+/** Margin (in radius multiples) from plot edge where markers are edge-clipped */
+const MARKER_EDGE_THRESHOLD = 1.2
 
 function drawDirectionalCompositeMarker(
   ctx: CanvasRenderingContext2D,
@@ -84,10 +91,6 @@ function drawDirectionalCompositeMarker(
     ctx.lineWidth = 1
     ctx.stroke()
   }
-}
-
-function getMarkerOutlineColor(baseColor: string): string {
-  return 'rgba(0, 0, 0, 0.4)'
 }
 
 function drawCircleEventMarker(
@@ -268,7 +271,6 @@ export function drawScarfRectangles(
   const isHighlightActive = highlightMask !== null
   const pLeft = Math.floor(layout.leftLabelWidth + layout.marginLeft)
   const pWidth = Math.floor(layout.plotAreaWidth)
-  const RECT_STRIDE = 8
 
   for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
     const buffer = buckets[styleIdx]
@@ -330,7 +332,6 @@ export function drawScarfEvents(
   const isHighlightActive = highlightMask !== null
   const pLeft = Math.floor(layout.leftLabelWidth + layout.marginLeft)
   const pWidth = Math.floor(layout.plotAreaWidth)
-  const EVENT_STRIDE = 5
 
   for (let styleIdx = buckets.length - 1; styleIdx >= 0; styleIdx--) {
     const buffer = buckets[styleIdx]
@@ -364,9 +365,9 @@ export function drawScarfEvents(
           const nextPxX = pLeft + buffer[nextIdx] * pWidth
 
           // Merge overlapping markers into a single dot or edge-specific marker
-          if (nextPxX - pxX <= radius * 1.8) {
+          if (nextPxX - pxX <= radius * MARKER_MERGE_DISTANCE) {
             const centerX = (pxX + nextPxX) / 2
-            const edgeThreshold = radius * 1.2
+            const edgeThreshold = radius * MARKER_EDGE_THRESHOLD
 
             if (centerX - pLeft <= edgeThreshold) {
               // Left edge: End marker (points left, outwards to indicate continuation)
@@ -441,9 +442,9 @@ export function drawScarfEvents(
           const nextPxX = pLeft + buffer[nextIdx] * pWidth
 
           // Merge overlapping markers into a single dot or edge-specific marker
-          if (nextPxX - pxX <= radius * 1.8) {
+          if (nextPxX - pxX <= radius * MARKER_MERGE_DISTANCE) {
             const centerX = (pxX + nextPxX) / 2
-            const edgeThreshold = radius * 1.2
+            const edgeThreshold = radius * MARKER_EDGE_THRESHOLD
 
             if (centerX - pLeft <= edgeThreshold) {
               // Left edge: End marker (points left, outwards to indicate continuation)
@@ -478,6 +479,56 @@ export function drawScarfEvents(
 
       drawDirectionalEventMarker(ctx, pxX, pxY, radius, type, effectiveColor)
     }
+  }
+}
+
+/**
+ * Core drawing for event channel rectangles (events-only mode).
+ * Renders gantt-style colored rectangles from the event channel buffer.
+ */
+export function drawEventChannelRects(
+  ctx: CanvasRenderingContext2D,
+  data: ScarfData,
+  layout: ScarfLayoutContext,
+  laneHeight: number,
+  rowHeight: number,
+  highlightMask: Uint8Array | null,
+  channelStyleIndices: number[] | null
+) {
+  const buffer = data.visualEventChannelBuffer
+  if (!buffer || buffer.length === 0) return
+  const channels = data.eventChannels
+  if (!channels || channels.length === 0) return
+
+  const EVENT_CHANNEL_STRIDE = 5
+  const pLeft = Math.floor(layout.leftLabelWidth + layout.marginLeft)
+  const pWidth = Math.floor(layout.plotAreaWidth)
+  const segmentCount = buffer.length / EVENT_CHANNEL_STRIDE
+  const isHighlightActive = highlightMask !== null
+
+  for (let i = 0; i < segmentCount; i++) {
+    const idx = i * EVENT_CHANNEL_STRIDE
+    const xNorm = buffer[idx]
+    const wNorm = buffer[idx + 1]
+    const laneIndex = buffer[idx + 2] | 0
+    const pIdx = buffer[idx + 3] | 0
+    const chIdx = buffer[idx + 4] | 0
+
+    const channel = channels[chIdx]
+    if (!channel) continue
+
+    const pxX = pLeft + xNorm * pWidth
+    const pxW = Math.max(1, wNorm * pWidth)
+    const pxY =
+      pIdx * rowHeight + laneIndex * laneHeight + layout.effectiveMarginTop
+
+    const styleIdx = channelStyleIndices ? channelStyleIndices[chIdx] : -1
+    const isDimmed =
+      isHighlightActive && styleIdx >= 0 ? highlightMask[styleIdx] !== 1 : false
+    ctx.fillStyle = isDimmed
+      ? desaturateToWhite(channel.color, 0.85)
+      : channel.color
+    ctx.fillRect(pxX, pxY, pxW, laneHeight)
   }
 }
 
