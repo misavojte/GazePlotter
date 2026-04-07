@@ -9,6 +9,7 @@ import {
   isCsvEventFile,
   parseCsvEventText,
   buildEventDataFromCsvRows,
+  buildDataTypeFromCsvEvents,
   mergeIntoStimulusMap,
 } from '$lib/modals/import/shared/csvEventParser'
 import { getStimuliOptions, getParticipantOptions } from '$lib/plots/shared'
@@ -581,19 +582,7 @@ export class IngestService {
       const { eyeFiles, eventFiles } = await separateEventFiles(allFiles)
 
       if (eyeFiles.length === 0 && eventFiles.length > 0) {
-        this.deps.errorService.report({
-          origin: 'ingest',
-          severity: 'fatal-load',
-          userMessage:
-            'Only event files were uploaded. Please include eye-tracking data files together with event files.',
-          cause: new Error('No eye-tracking data files found'),
-          context: {
-            eventFileCount: eventFiles.length,
-            eventFileNames: eventFiles.map(f => f.name),
-          },
-        })
-        this.status = 'error'
-        return false
+        return await this.processStandaloneEventFiles(eventFiles)
       }
 
       return await new Promise<boolean>(resolve => {
@@ -677,6 +666,100 @@ export class IngestService {
     this.deps.engine.loadDataset(EMPTY_DATASET)
     this.deps.resetWorkspaceHistory()
     this.status = 'error'
+  }
+
+  private async processStandaloneEventFiles(
+    eventFiles: File[]
+  ): Promise<boolean> {
+    // Partition into CSV vs legacy event files
+    const csvFiles: File[] = []
+    const legacyFiles: File[] = []
+    for (const file of eventFiles) {
+      if (await isCsvEventFile(file)) {
+        csvFiles.push(file)
+      } else {
+        legacyFiles.push(file)
+      }
+    }
+
+    if (csvFiles.length === 0) {
+      this.deps.errorService.report({
+        origin: 'ingest',
+        severity: 'fatal-load',
+        userMessage:
+          'Only event files were uploaded. XML and JSON event files require eye-tracking data. Use custom CSV event files for standalone upload.',
+        cause: new Error('No CSV event files found in event-only upload'),
+        context: {
+          eventFileCount: eventFiles.length,
+          eventFileNames: eventFiles.map(f => f.name),
+        },
+      })
+      this.status = 'error'
+      return false
+    }
+
+    if (legacyFiles.length > 0) {
+      this.deps.toastState.addWarning(
+        `${legacyFiles.length} non-CSV event file${legacyFiles.length > 1 ? 's' : ''} ignored (XML/JSON event files require eye-tracking data)`
+      )
+    }
+
+    // Parse all CSV files
+    const allRows: Parameters<typeof buildDataTypeFromCsvEvents>[0] = []
+    const allWarnings: string[] = []
+    for (const file of csvFiles) {
+      const text = await file.text()
+      const { rows, warnings } = parseCsvEventText(text)
+      allWarnings.push(...warnings.map(w => `${file.name}: ${w}`))
+      allRows.push(...rows)
+    }
+
+    if (allRows.length === 0) {
+      this.deps.errorService.report({
+        origin: 'ingest',
+        severity: 'fatal-load',
+        userMessage:
+          'No valid event data found in the uploaded CSV file(s). Check that the files contain rows with stimulus, participant, eventName, start, and duration columns.',
+        cause: new Error('CSV event files produced zero valid rows'),
+        context: {
+          csvFileNames: csvFiles.map(f => f.name),
+          warnings: allWarnings,
+        },
+      })
+      this.status = 'error'
+      return false
+    }
+
+    // Build complete DataType from event rows
+    const { data, warnings: buildWarnings } = buildDataTypeFromCsvEvents(allRows)
+    allWarnings.push(...buildWarnings)
+
+    if (allWarnings.length > 0) {
+      this.deps.toastState.addWarning(
+        `Event CSV: ${allWarnings.length} warning${allWarnings.length > 1 ? 's' : ''} (${allWarnings.slice(0, 3).join('; ')}${allWarnings.length > 3 ? '...' : ''})`
+      )
+    }
+
+    const now = new Date().toISOString()
+    const parsedData: ParsedData = {
+      version: 4,
+      data,
+      gridItems: DEFAULT_GRID_STATE_DATA as GridItemSnapshot[],
+      fileMetadata: null,
+      current: {
+        fileNames: csvFiles.map(f => f.name),
+        fileSizes: csvFiles.map(f => f.size),
+        parseDate: now,
+      },
+    }
+
+    this.applyParsedData(parsedData)
+    const fileInfo = formatFileInfo(
+      csvFiles.map(f => f.name),
+      csvFiles.map(f => f.size)
+    )
+    this.deps.toastState.addSuccess(`Event data loaded: ${fileInfo}`)
+    return true
   }
 
   private async processEventFilesPostLoad(eventFiles: File[]): Promise<void> {
