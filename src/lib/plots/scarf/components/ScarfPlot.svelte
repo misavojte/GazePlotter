@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { getParticipants } from '$lib/data/engine'
+  import { getParticipants, hasEventsForStimulus } from '$lib/data/engine'
   import { getGazePlotterSession } from '$lib/session'
   import { onDestroy, untrack } from 'svelte'
   import { ScarfPlotFigure, ScarfPlotHeader } from '$lib/plots/scarf/components'
   import { BasePlot } from '$lib/plots/shared/components'
-  import type { ScarfPlotItem, ScarfPlotSettings } from '$lib/plots/scarf/types'
+  import type { ScarfDisplayMode, ScarfPlotItem, ScarfPlotSettings } from '$lib/plots/scarf/types'
   import {
     tooltipScarfService,
     transformDataToScarfPlot,
@@ -31,6 +31,7 @@
     ordinalStart: number | undefined
     ordinalEnd: number | undefined
     hideNonFixations: boolean
+    displayMode: ScarfDisplayMode | undefined
   }
 
   const preview = new PreviewModel<
@@ -44,6 +45,7 @@
       ordinalStart: realSettings.ordinalStart,
       ordinalEnd: realSettings.ordinalEnd,
       hideNonFixations: realSettings.hideNonFixations ?? false,
+      displayMode: realSettings.displayMode,
     }),
     buildPatch: (draft, committed) => {
       const updates: Partial<ScarfPlotSettings> = {}
@@ -65,6 +67,9 @@
       if (draft.hideNonFixations !== committed.hideNonFixations) {
         updates.hideNonFixations = draft.hideNonFixations
       }
+      if (draft.displayMode !== committed.displayMode) {
+        updates.displayMode = draft.displayMode
+      }
 
       return updates
     },
@@ -84,6 +89,7 @@
       ordinalStart: draft.ordinalStart,
       ordinalEnd: draft.ordinalEnd,
       hideNonFixations: draft.hideNonFixations,
+      displayMode: draft.displayMode,
     }
   })
 
@@ -96,6 +102,8 @@
   const currentStimulusId = $derived(effectiveSettings.stimulusId)
   const redrawTimestamp = $derived(item.redrawTimestamp)
   const highlights = $derived(realSettings.highlights ?? [])
+  const stimulusHasEvents = $derived(hasEventsForStimulus(engine, currentStimulusId))
+  const stimulusHasSegments = $derived(engine.capabilities.segmented)
 
   const currentParticipantIds = $derived.by(() =>
     getParticipants(engine, currentGroupId, currentStimulusId).map(p => p.id)
@@ -267,6 +275,8 @@
       {item}
       settings={effectiveSettings}
       {syncs}
+      {stimulusHasEvents}
+      {stimulusHasSegments}
       onMenuClose={handleMenuClose}
     />
   {/snippet}

@@ -5,6 +5,31 @@ import type {
 } from '$lib/data/types'
 import type { PlotItemContract } from '$lib/plots/definePlot'
 
+// --- Visualization overlay on top of beeswarm points ---
+
+export type StatisticalOverlayType =
+  | 'none'
+  | 'meanCi95'
+  | 'meanSd'
+  | 'boxplot'
+
+// --- Per-AOI statistics bundle ---
+
+export interface AoiSummaryStatistics {
+  mean: number
+  median: number
+  q1: number
+  q3: number
+  min: number
+  max: number
+  sd: number
+  sem: number
+  whiskerLow: number // max(min, Q1 - 1.5*IQR)
+  whiskerHigh: number // min(max, Q3 + 1.5*IQR)
+  count: number
+  outliers: number[] // values beyond whiskers
+}
+
 export type BarPlotSettings = {
   stimulusId: number
   groupId: number
@@ -15,6 +40,7 @@ export type BarPlotSettings = {
   scaleRange: [number, number]
   timelineStart?: number
   timelineEnd?: number
+  statisticalOverlay: StatisticalOverlayType
 }
 
 export type BarPlotItem = PlotItemContract<'barPlot', BarPlotSettings>
@@ -23,6 +49,9 @@ export interface BarPlotDataItem {
   value: number
   label: string
   color: string
+  stats: AoiSummaryStatistics | null
+  individualValues: number[] | null
+  individualParticipantNames: string[] | null
 }
 
 export interface BarPlotResult {

@@ -1,6 +1,9 @@
 <script lang="ts">
   import type { MenuComponentBridgeProps, MenuItem } from '$lib/context-menu'
-  import type { BarPlotSettings } from '$lib/plots/bar/types'
+  import type {
+    BarPlotSettings,
+    StatisticalOverlayType,
+  } from '$lib/plots/bar/types'
   import {
     CompactSettingsSection,
     CompactSettingsSeparator,
@@ -16,6 +19,7 @@
       barPlottingType: { value: BarPlotSettings['barPlottingType'] }
       timelineStart: { value: number | undefined }
       timelineEnd: { value: number | undefined }
+      statisticalOverlay: { value: StatisticalOverlayType }
     }
   }
 
@@ -29,9 +33,28 @@
 
 <div class="settings-container">
   <form onsubmit={handleSubmit}>
-    <CompactSettingsSection title="Bar orientation">
+    <CompactSettingsSection title="Statistical overlay">
+      <div class="overlay-grid">
+        <Radio
+          ariaLabel="Statistical overlay"
+          options={[
+            { label: 'None', value: 'none' },
+            { label: 'Mean ± 95% CI', value: 'meanCi95' },
+            { label: 'Mean ± SD', value: 'meanSd' },
+            { label: 'Boxplot', value: 'boxplot' },
+          ]}
+          appearance="compact"
+          direction="row"
+          bind:value={syncs.statisticalOverlay.value}
+        />
+      </div>
+    </CompactSettingsSection>
+
+    <CompactSettingsSeparator />
+
+    <CompactSettingsSection title="Orientation">
       <Radio
-        ariaLabel="Bar orientation"
+        ariaLabel="Plot orientation"
         options={[
           { label: 'Horizontal', value: 'horizontal' },
           { label: 'Vertical', value: 'vertical' },
@@ -140,5 +163,10 @@
   .scale-inputs {
     display: flex;
     gap: 8px;
+  }
+  .overlay-grid :global(.options.row) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
   }
 </style>

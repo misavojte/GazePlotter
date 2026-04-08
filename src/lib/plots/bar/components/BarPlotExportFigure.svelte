@@ -28,6 +28,7 @@
       timelineEnd: settings.timelineEnd,
       orderBy: settings.orderBy,
       orderDirection: settings.orderDirection,
+      statisticalOverlay: settings.statisticalOverlay,
     })
   )
   const data = $derived(barPlotData.data)
@@ -37,7 +38,8 @@
     getBarPlotAxisLabel(
       settings.aggregationMethod as BarPlotAggregationMethodId,
       settings.timelineStart,
-      settings.timelineEnd
+      settings.timelineEnd,
+      settings.statisticalOverlay
     )
   )
 </script>
@@ -52,6 +54,7 @@
   barWidth={200}
   barSpacing={20}
   onDataHover={() => {}}
+  statisticalOverlay={settings.statisticalOverlay}
   dpiOverride={exportProps.dpiOverride}
   marginTop={exportProps.marginTop}
   marginRight={exportProps.marginRight}

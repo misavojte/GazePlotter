@@ -75,7 +75,7 @@
   const isOrdinal = $derived('value' in item && item.value === 'ordinal')
   const isRelative = $derived('value' in item && item.value === 'relative')
   const showEventDisplayRadio = $derived(stimulusHasEvents && !isOrdinal)
-  const showHideNonFixations = $derived(stimulusHasSegments && eventDisplayValue !== 'events')
+  const showHideNonFixations = $derived(stimulusHasSegments && (isOrdinal || eventDisplayValue !== 'events'))
 </script>
 
 <div class="settings-container">

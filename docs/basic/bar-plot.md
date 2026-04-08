@@ -40,7 +40,7 @@ Select participant groups:
 
 The `View` dropdown determines what metric is calculated and displayed. Clicking on a view option opens a settings dialog with customizable parameters for the plot.
 
-#### Absolute times
+#### Absolute dwell time
 
 Total time spent in each AOI across all participants, summing all fixation durations.
 
@@ -52,7 +52,7 @@ Total time spent in each AOI across all participants, summing all fixation durat
 | Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
 | Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
 
-#### Relative times
+#### Relative dwell time
 
 Proportional time spent in each AOI as percentages of total viewing time.
 
@@ -64,7 +64,7 @@ Proportional time spent in each AOI as percentages of total viewing time.
 | Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
 | Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
 
-#### Mean visits
+#### Visit count
 
 Average number of distinct encounters participants had with each AOI.
 
@@ -76,7 +76,7 @@ Average number of distinct encounters participants had with each AOI.
 | Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
 | Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
 
-#### Mean visit durations
+#### Visit duration
 
 Average duration of each visit (consecutive fixations) to each AOI.
 
@@ -88,7 +88,7 @@ Average duration of each visit (consecutive fixations) to each AOI.
 | Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
 | Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
 
-#### Mean fixation counts
+#### Fixation count
 
 Average number of separate fixations per participant for each AOI.
 
@@ -100,7 +100,7 @@ Average number of separate fixations per participant for each AOI.
 | Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
 | Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
 
-#### Mean fixation durations
+#### Fixation duration
 
 Average length of all individual fixations within each AOI across participants.
 
@@ -112,7 +112,7 @@ Average length of all individual fixations within each AOI across participants.
 | Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
 | Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
 
-#### Mean times to first fixation
+#### Time to first fixation
 
 Average time when participants first looked at each AOI (from stimulus start).
 
@@ -124,21 +124,9 @@ Average time when participants first looked at each AOI (from stimulus start).
 | Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
 | Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
 
-#### Mean first fixation durations
+#### First fixation duration
 
 Average duration of the very first fixation each participant made on each AOI.
-
-| Parameter                       | Description                                                                             |
-| ------------------------------- | --------------------------------------------------------------------------------------- |
-| Bar orientation                 | Choose whether bars are Horizontal (default) or Vertical                                |
-| Order by                        | Control the bar sorting (by Value or by AOI order)                                      |
-| Direction                       | Sort bars ascending (ASC) or descending (DESC)                                          |
-| Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
-| Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
-
-#### Hit ratios (seen)
-
-Percentage of participants who looked at each AOI at least once.
 
 | Parameter                       | Description                                                                             |
 | ------------------------------- | --------------------------------------------------------------------------------------- |

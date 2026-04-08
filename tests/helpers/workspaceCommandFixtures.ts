@@ -192,6 +192,7 @@ export function createBarPlotGridItem(
     orderDirection: 'asc',
     aggregationMethod: 'absoluteTime',
     scaleRange: [0, 0],
+    statisticalOverlay: 'none',
   }
   Object.assign(settings, settingsOverrides)
 

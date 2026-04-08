@@ -10,48 +10,43 @@
 export const BAR_PLOT_AGGREGATION_METHODS = [
   {
     value: 'absoluteTime',
-    label: 'Absolute times',
+    label: 'Absolute dwell time',
     unit: 'ms',
   },
   {
     value: 'relativeTime',
-    label: 'Relative times',
+    label: 'Relative dwell time',
     unit: '%',
   },
   {
     value: 'averageEntries',
-    label: 'Mean visits',
+    label: 'Visit count',
     unit: 'count',
   },
   {
     value: 'avgDwellDuration',
-    label: 'Mean visit durations',
+    label: 'Visit duration',
     unit: 'ms',
   },
   {
     value: 'averageFixationCount',
-    label: 'Mean fixation counts',
+    label: 'Fixation count',
     unit: 'count',
   },
   {
     value: 'avgFixationDuration',
-    label: 'Mean fixation durations',
+    label: 'Fixation duration',
     unit: 'ms',
   },
   {
     value: 'timeToFirstFixation',
-    label: 'Mean times to first fixation',
+    label: 'Time to first fixation',
     unit: 'ms',
   },
   {
     value: 'avgFirstFixationDuration',
-    label: 'Mean first fixation durations',
+    label: 'First fixation duration',
     unit: 'ms',
-  },
-  {
-    value: 'hitRatio',
-    label: 'Hit ratios (seen)',
-    unit: '%',
   },
 ] as const
 
@@ -73,17 +68,29 @@ export function getAggregationMethodLabel(
 }
 
 /**
- * Utility function to generate the full axis label for the bar plot including metric, unit and time range
+ * Utility function to generate the full axis label for the bar plot including metric, unit and time range.
+ * Uses scientific bracket notation: metric [unit, stat indicator]
  */
 export function getBarPlotAxisLabel(
   methodId: BarPlotAggregationMethodId,
   timelineStart = 0,
-  timelineEnd = 0
+  timelineEnd = 0,
+  overlay: 'none' | 'meanCi95' | 'meanSd' | 'boxplot' = 'none'
 ): string {
   const method = BAR_PLOT_AGGREGATION_METHODS.find(m => m.value === methodId)
   if (!method) return methodId
 
-  let label = `${method.label} [${method.unit}]`
+  // Build bracket content: unit + optional stat indicator
+  let bracketContent = method.unit
+  if (overlay === 'meanSd') {
+    bracketContent += ', x̄ ± SD'
+  } else if (overlay === 'meanCi95') {
+    bracketContent += ', x̄ ± 95% CI'
+  } else if (overlay === 'boxplot') {
+    bracketContent += ', x̃/IQR'
+  }
+
+  let label = `${method.label} [${bracketContent}]`
 
   if (timelineStart > 0 && timelineEnd > 0) {
     label += `, t ∈ [${timelineStart}, ${timelineEnd}] ms`

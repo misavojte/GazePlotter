@@ -304,11 +304,11 @@
       ),
     },
     {
-      text: "On Bar Plot, set aggregation method to 'Mean visits'",
+      text: "On Bar Plot, set aggregation method to 'Visit count'",
       condition: barPlotCondition, // Auto-completes when aggregation is changed
       onSkip: createSkipHandler(
         10,
-        "On Bar Plot, set aggregation method to 'Mean visits'"
+        "On Bar Plot, set aggregation method to 'Visit count'"
       ),
     },
     {
@@ -497,7 +497,7 @@
       transitionMatrixCondition.set(true)
     }
 
-    // Check for Bar Plot aggregation change to 'Mean visits'
+    // Check for Bar Plot aggregation change to 'Visit count'
     if (
       command.type === 'updateSettings' &&
       command.settings &&

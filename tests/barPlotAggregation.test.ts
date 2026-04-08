@@ -111,20 +111,6 @@ describe('Bar Plot Aggregation Metrics', () => {
       expect(result).toEqual([5, 5, 2])
     })
 
-    it('hitRatio: percentage of participants who had at least one fixation', () => {
-      const metrics = [
-        createMetric({ hitRatio: [1, 0, 1] }),
-        createMetric({ hitRatio: [1, 1, 0] }),
-        createMetric({ hitRatio: [1, 0, 0] }),
-        createMetric({ hitRatio: [0, 0, 0] }),
-      ]
-      const result = aggregateMetrics(metrics, 'hitRatio', aoiCount)
-      // AOI1: 3/4 = 75%
-      // AOI2: 1/4 = 25%
-      // NoAOI: 1/4 = 25%
-      expect(result).toEqual([75, 25, 25])
-    })
-
     it('averageEntries is mean of entryCount per participant', () => {
       const metrics = [
         createMetric({ entryCount: [1, 5, 0] }),

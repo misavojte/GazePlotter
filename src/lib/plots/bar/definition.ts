@@ -16,6 +16,7 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
     orderDirection: 'asc',
     aggregationMethod: 'absoluteTime',
     scaleRange: [0, 0],
+    statisticalOverlay: 'meanCi95',
   }),
   getMinSize: () => ({ w: 11, h: 10 }),
   getDefaultHeight: () => 12,

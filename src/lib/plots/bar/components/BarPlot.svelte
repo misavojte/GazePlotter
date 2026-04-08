@@ -17,7 +17,11 @@
   } from '$lib/plots/shared'
 
   // Types and constants
-  import type { BarPlotItem, BarPlotSettings } from '$lib/plots/bar/types'
+  import type {
+    BarPlotItem,
+    BarPlotSettings,
+    StatisticalOverlayType,
+  } from '$lib/plots/bar/types'
   import {
     BAR_PLOT_AGGREGATION_METHODS,
     getBarPlotAxisLabel,
@@ -44,6 +48,7 @@
     barPlottingType: 'horizontal' | 'vertical'
     timelineStart: number | undefined
     timelineEnd: number | undefined
+    statisticalOverlay: StatisticalOverlayType
   }
 
   const preview = new PreviewModel<BarPlotPreview, Partial<BarPlotSettings>>({
@@ -55,6 +60,7 @@
       barPlottingType: settings.barPlottingType ?? 'horizontal',
       timelineStart: settings.timelineStart,
       timelineEnd: settings.timelineEnd,
+      statisticalOverlay: settings.statisticalOverlay ?? 'none',
     }),
     buildPatch: (draft, committed) => {
       const updates: Partial<BarPlotSettings> = {}
@@ -78,6 +84,9 @@
       if (draft.timelineEnd !== committed.timelineEnd) {
         updates.timelineEnd = draft.timelineEnd
       }
+      if (draft.statisticalOverlay !== committed.statisticalOverlay) {
+        updates.statisticalOverlay = draft.statisticalOverlay
+      }
 
       return updates
     },
@@ -97,6 +106,7 @@
       scaleRange: [draft.minScale, draft.maxScale] as [number, number],
       timelineStart: draft.timelineStart,
       timelineEnd: draft.timelineEnd,
+      statisticalOverlay: draft.statisticalOverlay,
     }
   })
 
@@ -109,7 +119,8 @@
     getBarPlotAxisLabel(
       effectiveSettings.aggregationMethod as BarPlotAggregationMethodId,
       effectiveSettings.timelineStart,
-      effectiveSettings.timelineEnd
+      effectiveSettings.timelineEnd,
+      effectiveSettings.statisticalOverlay
     )
   )
 
@@ -203,6 +214,7 @@
       barWidth={200}
       barSpacing={20}
       onDataHover={() => {}}
+      statisticalOverlay={effectiveSettings.statisticalOverlay}
     />
   {/snippet}
 </BasePlot>

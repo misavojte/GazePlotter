@@ -23,6 +23,16 @@
     alignToPixelCenter,
     canvasLifecycleAction,
   } from '$lib/plots/shared/canvasUtils'
+  import type { StatisticalOverlayType } from '$lib/plots/bar/types'
+  import {
+    drawOverlayBackgrounds,
+    drawCategoryDelimiters,
+    drawBeeswarmPoints,
+    drawStatisticalOverlay,
+    computeDotStyle,
+    valueToPixel,
+    type BarPlotLayout,
+  } from '$lib/plots/bar/core/renderers'
 
   // Layout constants
   const MARGIN = {
@@ -32,11 +42,10 @@
   }
   const LABEL_FONT_SIZE = FONT_PRIMARY.SIZE
   const TICK_LENGTH = 5
-  // GRID_COLOR and GRID_STROKE_WIDTH removed in favor of shared constants
-  const BAR_SPACING_TOLERANCE = 20 // Additional spacing on both sides
-  const VALUE_LABEL_OFFSET = 5 // Space between bar and value label
-  const CATEGORY_LABEL_OFFSET = 15 // Space between plot area and category labels
-  const MIN_BAR_SPACING = 2 // Minimum spacing between bars when space is limited
+  const BAR_SPACING_TOLERANCE = 20 // px padding on both sides of the bar region
+  const VALUE_LABEL_OFFSET = 5 // gap between axis edge and tick labels
+  const CATEGORY_LABEL_OFFSET = 15 // gap between plot border and AOI category labels
+  const MIN_BAR_SPACING = 2 // minimum gap between bars when space is tight
 
   type BarPlotFigureProps = {
     width: number
@@ -45,6 +54,9 @@
       value: number
       label: string
       color: string
+      stats?: { count: number; mean: number; median: number; sd: number; sem: number } | null
+      individualValues?: number[] | null
+      individualParticipantNames?: string[] | null
     }[]
     timeline: AdaptiveTimeline
     axisLabel: string
@@ -54,7 +66,8 @@
     onDataHover: (
       data: { value: number; label: string; color: string } | null
     ) => void
-    dpiOverride?: number | null // Override for DPI settings when exporting
+    statisticalOverlay?: StatisticalOverlayType
+    dpiOverride?: number | null
     marginTop?: number
     marginRight?: number
     marginBottom?: number
@@ -71,6 +84,7 @@
     barWidth,
     barSpacing,
     onDataHover,
+    statisticalOverlay = 'none',
     dpiOverride = null,
     marginTop = 0,
     marginRight = 0,
@@ -78,8 +92,14 @@
     marginLeft = 0,
   }: BarPlotFigureProps = $props()
 
+  // Crosshair / hover constants
+  const HIGHLIGHT_COLOR = '#007acc'
+  const HIGHLIGHT_FILL_ALPHA = 0.2
+  const HIGHLIGHT_DASH = [2, 2]
+
   // State management
   let hoveredBarIndex = $state<number | null>(null)
+  let mouseValuePx = $state<number | null>(null) // pixel position on value axis
   let lastMouseMoveTime = $state(0)
   const FRAME_TIME = 1000 / 30 // Throttle to 30fps
 
@@ -282,91 +302,115 @@
     })
   })
 
+  // Compute layout for composable renderers
+  const rendererLayout = $derived.by((): BarPlotLayout => {
+    const fullCategoryWidth = data.length > 0
+      ? (barPlottingType === 'vertical' ? plotAreaWidth : plotAreaHeight) / data.length
+      : 0
+    const items = bars.map((bar, index) => ({
+      categoryCenter: barPlottingType === 'vertical'
+        ? Math.floor(trueLeftMargin) + (index + 0.5) * fullCategoryWidth
+        : Math.floor(effectiveTopMargin + marginTop) + (index + 0.5) * fullCategoryWidth,
+      categoryWidth: fullCategoryWidth,
+      data: data[index] as any,
+    }))
+
+    return {
+      plotLeft: Math.floor(trueLeftMargin),
+      plotTop: Math.floor(effectiveTopMargin + marginTop),
+      plotWidth: Math.floor(plotAreaWidth),
+      plotHeight: Math.floor(plotAreaHeight),
+      barPlottingType,
+      timeline,
+      items,
+    }
+  })
+
   // Render everything to canvas
+  /**
+   * Render pipeline (layer order matters):
+   *  1. White base fill       — ensures multiply compositing is neutral on background
+   *  2. Overlay backgrounds   — light gray fill showing stat region extent
+   *  3. Category delimiters   — thin lines between AOI strips
+   *  4. Beeswarm dots         — individual participant data points
+   *  5. Statistical overlay   — mean/median/whiskers drawn with multiply blend mode
+   *  ── clip boundary ──
+   *  6. Plot outline + ticks  — border and axis tick marks (outside clip)
+   *  7. Crosshair highlight   — hover feedback on AOI + value axis (above outline)
+   *  8. Text labels           — AOI names, tick values, axis title
+   */
   function renderCanvas() {
     beginCanvasDrawing(plot.canvasState, true)
 
-    // Get context from state
     const ctx = plot.canvasState.context
     if (!ctx) return
 
-    // Set up common context properties once
-    setupContextProperties(ctx)
-
-    // Floor dimensions for pixel-perfect synchronization
     const floorLeft = Math.floor(trueLeftMargin)
     const floorWidth = Math.floor(plotAreaWidth)
     const floorTop = Math.floor(effectiveTopMargin + marginTop)
     const floorHeight = Math.floor(plotAreaHeight)
-    const floorBottom = floorTop + floorHeight
 
-    // Draw plot area border
+    // --- Clipped data layers ---
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(floorLeft, floorTop, floorWidth, floorHeight)
+    ctx.clip()
+
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(floorLeft, floorTop, floorWidth, floorHeight)
+
+    drawOverlayBackgrounds(ctx, rendererLayout, statisticalOverlay)
+    drawCategoryDelimiters(ctx, rendererLayout)
+    drawBeeswarmPoints(ctx, rendererLayout)
+    drawStatisticalOverlay(ctx, rendererLayout, statisticalOverlay)
+
+    ctx.restore()
+
+    // --- Unclipped chrome: border, ticks, labels ---
     drawPlotOutline(ctx, floorLeft, floorTop, floorWidth, floorHeight)
-
-    // Draw grid lines
-    drawGridLines(ctx, floorLeft, floorWidth, floorTop, floorHeight)
-
-    // Draw bars
-    drawBars(ctx)
-
-    // Draw all text elements (value labels, category labels, tick labels)
+    drawCrosshairHighlight(ctx, floorLeft, floorTop, floorWidth, floorHeight)
+    drawAxisTicks(ctx, floorLeft, floorWidth, floorTop, floorHeight)
     drawAllTextElements(ctx, floorLeft, floorWidth, floorTop, floorHeight)
 
-    // Draw main axis labels
     if (barPlottingType === 'vertical') {
-      drawYAxisMainLabel(
-        ctx,
-        axisLabel,
-        floorLeft,
-        floorTop,
-        floorHeight,
-        Math.floor(trueLeftMargin - 15)
-      )
+      drawYAxisMainLabel(ctx, axisLabel, floorLeft, floorTop, floorHeight, Math.floor(trueLeftMargin - 15))
     } else {
-      drawXAxisLabel(ctx, axisLabel, floorLeft, floorWidth, floorBottom, 35)
+      drawXAxisLabel(ctx, axisLabel, floorLeft, floorWidth, floorTop + floorHeight, 35)
     }
 
-    // Finish drawing
     finishCanvasDrawing(plot.canvasState)
   }
 
-  // Set up common context properties once to avoid repeated assignments
-  function setupContextProperties(ctx: CanvasRenderingContext2D) {
-    // Set up stroke properties for grid lines and axis ticks
-    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
-    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
-  }
-
-  // Draw grid lines
-  function drawGridLines(
+  /** Draws tick marks on both sides of the value axis (outside the plot border). */
+  function drawAxisTicks(
     ctx: CanvasRenderingContext2D,
     leftX: number,
     plotWidth: number,
     plotTop: number,
     plotHeight: number
   ) {
-    // Context properties already set in setupContextProperties()
-    if (barPlottingType === 'vertical') {
-      const ticks = timeline.ticks.filter(tick => tick.isNice)
+    const ticks = timeline.ticks.filter(tick => tick.isNice)
+    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
+    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
 
-      // Draw ticks (primary)
-      ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
-      ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
+    if (barPlottingType === 'vertical') {
+      const rightX = leftX + plotWidth
       ticks.forEach(tick => {
         const y = alignToPixelCenter(
           plotTop + plotHeight - tick.position * plotHeight
         )
+        // Left ticks
         ctx.beginPath()
         ctx.moveTo(leftX - TICK_LENGTH, y)
         ctx.lineTo(leftX, y)
         ctx.stroke()
+        // Right ticks
+        ctx.beginPath()
+        ctx.moveTo(rightX, y)
+        ctx.lineTo(rightX + TICK_LENGTH, y)
+        ctx.stroke()
       })
     } else {
-      const ticks = timeline.ticks.filter(tick => tick.isNice)
-
-      // Draw ticks (primary)
-      ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
-      ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
       ticks.forEach(tick => {
         const x = alignToPixelCenter(leftX + tick.position * plotWidth)
         // Bottom ticks
@@ -374,7 +418,6 @@
         ctx.moveTo(x, plotTop + plotHeight)
         ctx.lineTo(x, plotTop + plotHeight + TICK_LENGTH)
         ctx.stroke()
-
         // Top ticks
         ctx.beginPath()
         ctx.moveTo(x, plotTop)
@@ -382,32 +425,6 @@
         ctx.stroke()
       })
     }
-  }
-
-  // Draw the bars
-  function drawBars(ctx: CanvasRenderingContext2D) {
-    const floorLeft = Math.floor(trueLeftMargin)
-    const floorWidth = Math.floor(plotAreaWidth)
-    const floorTop = Math.floor(effectiveTopMargin + marginTop)
-    const floorHeight = Math.floor(plotAreaHeight)
-
-    // Clip bars to the plot area to prevent overflow over axes or labels
-    ctx.save()
-    ctx.beginPath()
-    ctx.rect(floorLeft, floorTop, floorWidth, floorHeight)
-    ctx.clip()
-
-    // bars already contains all calculated positions and dimensions
-    for (const bar of bars) {
-      ctx.fillStyle = bar.color
-      ctx.fillRect(
-        alignToPixelCenter(bar.x),
-        alignToPixelCenter(bar.y),
-        Math.floor(bar.width),
-        Math.floor(bar.height)
-      )
-    }
-    ctx.restore()
   }
 
   // Draw all text elements in one optimized function
@@ -423,45 +440,24 @@
 
     const isVertical = barPlottingType === 'vertical'
 
-    // Draw value labels
-    ctx.textAlign = isVertical ? 'center' : 'left'
-    ctx.textBaseline = isVertical ? 'alphabetic' : 'middle'
-
-    for (const bar of bars) {
-      const text = bar.value.toString()
-
-      // Calculate label position, capping the X to the plot area bounds if needed
-      // so labels don't disappear miles to the right in horizontal mode.
-      const labelX = isVertical
-        ? alignToPixelCenter(bar.x + bar.width / 2)
-        : Math.min(
-            leftX + plotWidth + VALUE_LABEL_OFFSET,
-            bar.x + bar.width + VALUE_LABEL_OFFSET
-          )
-
-      const y = isVertical
-        ? bar.y - VALUE_LABEL_OFFSET
-        : alignToPixelCenter(bar.y + bar.height / 2)
-
-      ctx.fillText(text, labelX, y)
-    }
-
-    // Draw category labels
+    // Draw category labels — aligned to renderer layout centers (where dots are)
     ctx.textAlign = isVertical ? 'center' : 'right'
     ctx.textBaseline = 'middle'
 
-    for (const bar of bars) {
+    for (let i = 0; i < bars.length; i++) {
+      const bar = bars[i]
+      const layoutItem = rendererLayout.items[i]
       let text = bar.label
       let x, y
 
       if (isVertical) {
-        text = truncateTextToPixelWidth(text, bar.width, LABEL_FONT_SIZE)
-        x = alignToPixelCenter(bar.x + bar.width / 2)
+        text = truncateTextToPixelWidth(text, layoutItem.categoryWidth, LABEL_FONT_SIZE)
+        x = alignToPixelCenter(layoutItem.categoryCenter)
         y = alignToPixelCenter(plotTop + plotHeight + CATEGORY_LABEL_OFFSET)
       } else {
         text = truncateTextToPixelWidth(text, trueLeftMargin, LABEL_FONT_SIZE)
         x = trueLeftMargin - VALUE_LABEL_OFFSET
-        y = alignToPixelCenter(bar.y + bar.height / 2)
+        y = alignToPixelCenter(layoutItem.categoryCenter)
       }
 
       ctx.fillText(text, x, y)
@@ -493,6 +489,102 @@
     }
   }
 
+  // Draw crosshair highlight: AOI row highlight + value axis dashed line
+  function drawCrosshairHighlight(
+    ctx: CanvasRenderingContext2D,
+    plotLeft: number,
+    plotTop: number,
+    plotWidth: number,
+    plotHeight: number
+  ) {
+    if (hoveredBarIndex === null || mouseValuePx === null) return
+
+    const item = rendererLayout.items[hoveredBarIndex]
+    if (!item) return
+
+    const isVertical = barPlottingType === 'vertical'
+    const halfCat = item.categoryWidth / 2
+
+    // 1. Light blue fill over hovered AOI column/row
+    ctx.save()
+    ctx.globalAlpha = HIGHLIGHT_FILL_ALPHA
+    ctx.fillStyle = HIGHLIGHT_COLOR
+    if (isVertical) {
+      ctx.fillRect(item.categoryCenter - halfCat, plotTop, item.categoryWidth, plotHeight)
+    } else {
+      ctx.fillRect(plotLeft, item.categoryCenter - halfCat, plotWidth, item.categoryWidth)
+    }
+    ctx.restore()
+
+    // 2. Blue dashed borders on category edges
+    ctx.save()
+    ctx.strokeStyle = HIGHLIGHT_COLOR
+    ctx.lineWidth = 1
+    ctx.setLineDash(HIGHLIGHT_DASH)
+    ctx.beginPath()
+    if (isVertical) {
+      const left = alignToPixelCenter(item.categoryCenter - halfCat)
+      const right = alignToPixelCenter(item.categoryCenter + halfCat)
+      ctx.moveTo(left, plotTop)
+      ctx.lineTo(left, plotTop + plotHeight)
+      ctx.moveTo(right, plotTop)
+      ctx.lineTo(right, plotTop + plotHeight)
+    } else {
+      const top = alignToPixelCenter(item.categoryCenter - halfCat)
+      const bottom = alignToPixelCenter(item.categoryCenter + halfCat)
+      ctx.moveTo(plotLeft, top)
+      ctx.lineTo(plotLeft + plotWidth, top)
+      ctx.moveTo(plotLeft, bottom)
+      ctx.lineTo(plotLeft + plotWidth, bottom)
+    }
+    ctx.stroke()
+    ctx.restore()
+
+    // 3. Dashed crosshair line on value axis
+    ctx.save()
+    ctx.strokeStyle = HIGHLIGHT_COLOR
+    ctx.lineWidth = 1
+    ctx.setLineDash(HIGHLIGHT_DASH)
+    ctx.beginPath()
+    if (isVertical) {
+      const y = alignToPixelCenter(mouseValuePx)
+      ctx.moveTo(plotLeft, y)
+      ctx.lineTo(plotLeft + plotWidth, y)
+    } else {
+      const x = alignToPixelCenter(mouseValuePx)
+      ctx.moveTo(x, plotTop)
+      ctx.lineTo(x, plotTop + plotHeight)
+    }
+    ctx.stroke()
+    ctx.restore()
+  }
+
+  // --- Tooltip helpers ---
+
+  function fmt(v: number): string {
+    return v % 1 === 0 ? v.toString() : v.toFixed(2)
+  }
+
+  /** Find participant names whose data points are within pixel tolerance of the mouse cursor. */
+  function findNearbyParticipants(
+    values: number[],
+    names: string[],
+    mousePx: number,
+    tolerancePx: number,
+    layout: BarPlotLayout
+  ): string[] {
+    const result: string[] = []
+    for (let i = 0; i < values.length; i++) {
+      const name = names[i]
+      if (!name) continue
+      const px = valueToPixel(layout, values[i], true)
+      if (Math.abs(px - mousePx) <= tolerancePx) {
+        result.push(name)
+      }
+    }
+    return result
+  }
+
   // Event handlers
   function handleMouseMove(event: MouseEvent) {
     const currentTime = performance.now()
@@ -503,69 +595,182 @@
 
     if (!canvas) return
 
-    // Get properly scaled mouse position
     const { x: mouseX, y: mouseY } = getScaledMousePosition(plot.canvasState, event)
 
-    // Find hovered bar
-    const hoveredIndex = bars.findIndex(bar => {
-      return (
-        mouseX >= bar.x &&
-        mouseX <= bar.x + bar.width &&
-        mouseY >= bar.y &&
-        mouseY <= bar.y + bar.height
-      )
-    })
+    const isVertical = barPlottingType === 'vertical'
+    const floorLeft = Math.floor(trueLeftMargin)
+    const floorTop = Math.floor(effectiveTopMargin + marginTop)
+    const floorWidth = Math.floor(plotAreaWidth)
+    const floorHeight = Math.floor(plotAreaHeight)
 
-    if (hoveredIndex !== -1 && hoveredIndex !== hoveredBarIndex) {
-      hoveredBarIndex = hoveredIndex
-      const bar = bars[hoveredIndex]
+    // Check if mouse is inside the plot area
+    const inPlot =
+      mouseX >= floorLeft &&
+      mouseX <= floorLeft + floorWidth &&
+      mouseY >= floorTop &&
+      mouseY <= floorTop + floorHeight
 
-      // Calculate tooltip position using utility
+    if (!inPlot) {
+      if (hoveredBarIndex !== null) {
+        hoveredBarIndex = null
+        mouseValuePx = null
+        updateTooltip(null)
+        onDataHover(null)
+        if (canvas) canvas.style.cursor = 'default'
+        plot.scheduleRender()
+      }
+      return
+    }
+
+    if (canvas) canvas.style.cursor = 'crosshair'
+
+    // Store raw pixel position on value axis
+    mouseValuePx = isVertical ? mouseY : mouseX
+
+    // Determine which AOI category the mouse is over
+    const categoryPos = isVertical ? mouseX : mouseY
+    let newIndex: number | null = null
+    for (let i = 0; i < rendererLayout.items.length; i++) {
+      const item = rendererLayout.items[i]
+      const half = item.categoryWidth / 2
+      if (categoryPos >= item.categoryCenter - half && categoryPos <= item.categoryCenter + half) {
+        newIndex = i
+        break
+      }
+    }
+
+    const changed = newIndex !== hoveredBarIndex
+    hoveredBarIndex = newIndex
+
+    if (newIndex !== null) {
+      const dataItem = data[newIndex]
+      const stats = dataItem.stats
+
+      // Compute value at mouse position on the value axis
+      const ratio = isVertical
+        ? 1 - (mouseY - floorTop) / floorHeight
+        : (mouseX - floorLeft) / floorWidth
+      const mouseValue = timeline.minValue + ratio * (timeline.maxValue - timeline.minValue)
+
+      const tooltipContent: { key: string; value: string }[] = [
+        { key: 'AOI', value: dataItem.label },
+        { key: 'Value', value: fmt(mouseValue) },
+      ]
+
+      // Proximity-based participant detection
+      const dotStyle = computeDotStyle(rendererLayout)
+      const tolerance = dotStyle.radius
+      const values = dataItem.individualValues
+      const names = dataItem.individualParticipantNames
+
+      if (values && names && values.length > 0) {
+        const nearbyParticipants = findNearbyParticipants(
+          values, names, mouseValuePx!, tolerance, rendererLayout
+        )
+
+        if (nearbyParticipants.length > 0) {
+          // Check if this is a multi-value-per-participant metric
+          const nameSet = new Set(names)
+          const isMultiValueMetric = names.length > nameSet.size
+
+          if (isMultiValueMetric) {
+            // Group by participant, show "name × count", ordered by count
+            const counts = new Map<string, number>()
+            for (const n of nearbyParticipants) {
+              counts.set(n, (counts.get(n) ?? 0) + 1)
+            }
+            const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1])
+            const maxShow = 4
+            for (let i = 0; i < Math.min(maxShow, sorted.length); i++) {
+              const [name, count] = sorted[i]
+              tooltipContent.push({
+                key: i === 0 ? 'Nearby' : '',
+                value: `${name} × ${count}`,
+              })
+            }
+            if (sorted.length > maxShow) {
+              tooltipContent.push({
+                key: '',
+                value: `+${sorted.length - maxShow} others`,
+              })
+            }
+          } else {
+            // One value per participant — show first 4 by order, then others
+            const unique = [...new Set(nearbyParticipants)]
+            const maxShow = 4
+            for (let i = 0; i < Math.min(maxShow, unique.length); i++) {
+              tooltipContent.push({
+                key: i === 0 ? 'Nearby' : '',
+                value: unique[i],
+              })
+            }
+            if (unique.length > maxShow) {
+              tooltipContent.push({
+                key: '',
+                value: `+${unique.length - maxShow} others`,
+              })
+            }
+          }
+        } else if (stats && stats.count > 0) {
+          tooltipContent.push(
+            { key: 'Stats', value: `n = ${stats.count}` },
+            { key: '', value: `x̄ = ${fmt(stats.mean)}` },
+            { key: '', value: `x̃ = ${fmt(stats.median)}` },
+            { key: '', value: `σ = ${fmt(stats.sd)}` },
+            { key: '', value: `95% CI = ±${fmt(stats.sem * 1.96)}` },
+          )
+        }
+      } else if (stats && stats.count > 0) {
+        tooltipContent.push(
+          { key: 'Stats', value: `n = ${stats.count}` },
+          { key: '', value: `x̄ = ${fmt(stats.mean)}` },
+          { key: '', value: `x̃ = ${fmt(stats.median)}` },
+          { key: '', value: `σ = ${fmt(stats.sd)}` },
+          { key: '', value: `95% CI = ±${fmt(stats.sem * 1.96)}` },
+        )
+      }
+
+      // Anchor tooltip to AOI strip edge: below row (horizontal) or right of column (vertical)
+      const hoveredItem = rendererLayout.items[newIndex]
+      const stripEdge = hoveredItem.categoryCenter + hoveredItem.categoryWidth / 2
+      const TOOLTIP_GAP = 8
       const tooltipPos = getTooltipPosition(
         plot.canvasState,
-        bar.x + bar.width,
-        bar.y,
-        { x: 10, y: 0 }
+        isVertical ? stripEdge + TOOLTIP_GAP : mouseX,
+        isVertical ? mouseY : stripEdge + TOOLTIP_GAP,
+        { x: 0, y: 0 }
       )
 
       updateTooltip({
-        id: 'bar-plot-tooltip',
+        id: 'bar-crosshair',
         x: tooltipPos.x,
         y: tooltipPos.y,
-        content: [
-          { key: 'Label', value: bar.label },
-          { key: 'Value', value: bar.value.toString() },
-        ],
+        content: tooltipContent,
         visible: true,
-        width: 150,
-      })
+        width: 180,
+      }, 0)
 
-      onDataHover(data[hoveredIndex])
-
-      // Request render in case we want to highlight the bar
-      plot.scheduleRender()
-    } else if (hoveredIndex === -1 && hoveredBarIndex !== null) {
-      hoveredBarIndex = null
+      if (changed) onDataHover(dataItem)
+    } else {
       updateTooltip(null)
-      onDataHover(null)
-
-      // Request render to remove any highlights
-      plot.scheduleRender()
+      if (changed) onDataHover(null)
     }
+
+    plot.scheduleRender()
   }
 
   function handleMouseLeave() {
     hoveredBarIndex = null
+    mouseValuePx = null
     updateTooltip(null)
     onDataHover(null)
-
-    // Request render to remove any highlights
+    if (canvas) canvas.style.cursor = 'default'
     plot.scheduleRender()
   }
 
   // Track data changes and schedule renders
   $effect(() => {
-    const _ = [data, timeline, barPlottingType, barWidth, barSpacing, dpiOverride, marginTop, marginRight, marginBottom, marginLeft]
+    const _ = [data, width, height, timeline, barPlottingType, barWidth, barSpacing, statisticalOverlay, dpiOverride, marginTop, marginRight, marginBottom, marginLeft]
     untrack(() => plot.refresh())
   })
 </script>
