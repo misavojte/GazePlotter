@@ -1,5 +1,6 @@
 <script lang="ts">
   import {
+    alignToPixelCenter,
     beginCanvasDrawing,
     canvasLifecycleAction,
     finishCanvasDrawing,
@@ -103,6 +104,12 @@
     marginLeft = 0,
   }: Props = $props()
 
+  // Crosshair / hover constants
+  const HIGHLIGHT_COLOR = '#007acc'
+  const HIGHLIGHT_FILL_ALPHA = 0.2
+  const HIGHLIGHT_DASH: number[] = [2, 2]
+  const FRAME_TIME = 1000 / 30 // Throttle to 30fps
+
   // Internal layout constants for compact rendering
   const INTERNAL_PADDING_TOP = 6 // Space for top ticks
   const INTERNAL_PADDING_BOTTOM = 0 // Zero padding at bottom as it serves no purpose (only top needs space for ticks)
@@ -185,6 +192,9 @@
   const legendY = $derived(participantBarsHeight + 45)
 
   // State management with Svelte 5 runes
+  let hoveredRowIndex = $state<number | null>(null)
+  let mouseXPx = $state<number | null>(null)
+  let lastMouseMoveTime = $state(0)
   let isDragging = $state(false)
   let canvas = $state<HTMLCanvasElement | null>(null)
   const plot = useCanvasPlot({
@@ -518,6 +528,18 @@
       }
     }
 
+    // 2.5. Draw crosshair highlight (above data, below text/legend)
+    drawCrosshairHighlight(
+      ctx,
+      scarfPlotLeft,
+      effectiveMarginTop,
+      scarfPlotWidth,
+      participantBarsHeight,
+      isEventsOnlyMode && eventOnlyLayout
+        ? eventOnlyLayout.rowHeight
+        : layout.heightOfBarWrap
+    )
+
     // 3. Draw Axis labels and details
     drawTimelineLabels(
       ctx,
@@ -551,6 +573,53 @@
     finishCanvasDrawing(plot.canvasState)
   }
 
+  function drawCrosshairHighlight(
+    ctx: CanvasRenderingContext2D,
+    plotLeft: number,
+    plotTop: number,
+    plotWidth: number,
+    plotHeight: number,
+    rowHeight: number
+  ) {
+    if (hoveredRowIndex === null || mouseXPx === null) return
+
+    const rowY = plotTop + hoveredRowIndex * rowHeight
+
+    // 1. Light blue fill over hovered participant row
+    ctx.save()
+    ctx.globalAlpha = HIGHLIGHT_FILL_ALPHA
+    ctx.fillStyle = HIGHLIGHT_COLOR
+    ctx.fillRect(plotLeft, rowY, plotWidth, rowHeight)
+    ctx.restore()
+
+    // 2. Blue dashed borders on top/bottom edges of row
+    ctx.save()
+    ctx.strokeStyle = HIGHLIGHT_COLOR
+    ctx.lineWidth = 1
+    ctx.setLineDash(HIGHLIGHT_DASH)
+    ctx.beginPath()
+    const topEdge = alignToPixelCenter(rowY)
+    const bottomEdge = alignToPixelCenter(rowY + rowHeight)
+    ctx.moveTo(plotLeft, topEdge)
+    ctx.lineTo(plotLeft + plotWidth, topEdge)
+    ctx.moveTo(plotLeft, bottomEdge)
+    ctx.lineTo(plotLeft + plotWidth, bottomEdge)
+    ctx.stroke()
+    ctx.restore()
+
+    // 3. Vertical dashed crosshair at mouse X
+    ctx.save()
+    ctx.strokeStyle = HIGHLIGHT_COLOR
+    ctx.lineWidth = 1
+    ctx.setLineDash(HIGHLIGHT_DASH)
+    ctx.beginPath()
+    const x = alignToPixelCenter(mouseXPx)
+    ctx.moveTo(x, plotTop)
+    ctx.lineTo(x, plotTop + plotHeight)
+    ctx.stroke()
+    ctx.restore()
+  }
+
   // Check if a mouse click or hover is on a legend item
   function isMouseOverLegendItem(
     mouseX: number,
@@ -562,6 +631,10 @@
 
   // Mouse event handling for canvas
   function handleMouseMove(event: MouseEvent) {
+    const currentTime = performance.now()
+    if (currentTime - lastMouseMoveTime < FRAME_TIME) return
+    lastMouseMoveTime = currentTime
+
     if (!canvas) return
 
     // Get mouse position with correct scaling
@@ -614,6 +687,12 @@
 
     if (hoveredLegendItem) {
       canvas.style.cursor = 'pointer'
+      // Clear crosshair when over legend
+      if (hoveredRowIndex !== null) {
+        hoveredRowIndex = null
+        mouseXPx = null
+        plot.scheduleRender()
+      }
       return
     }
 
@@ -624,10 +703,38 @@
       mouseY >= effectiveMarginTop &&
       mouseY <= participantBarsHeight + effectiveMarginTop
 
-    canvas.style.cursor = inPlotArea ? 'crosshair' : 'default'
+    if (!inPlotArea) {
+      canvas.style.cursor = 'default'
+      if (hoveredRowIndex !== null) {
+        hoveredRowIndex = null
+        mouseXPx = null
+        plot.scheduleRender()
+      }
+      if (currentHoveredSegment) {
+        currentHoveredSegment = null
+        onTooltipDeactivation()
+      }
+      return
+    }
+
+    canvas.style.cursor = 'crosshair'
+
+    // Update crosshair state
+    const rowHeight = isEventsOnlyMode && eventOnlyLayout
+      ? eventOnlyLayout.rowHeight
+      : layout.heightOfBarWrap
+    const relativeY = mouseY - effectiveMarginTop
+    const newRowIndex = Math.floor(relativeY / rowHeight)
+    hoveredRowIndex = (newRowIndex >= 0 && newRowIndex < data.participants.length)
+      ? newRowIndex
+      : null
+    mouseXPx = mouseX
+    plot.scheduleRender()
 
     // Find the segment under the mouse pointer using TypedArray
-    const hoveredSegment = findHoveredRectSegment(mouseX, mouseY)
+    const hoveredSegment = hoveredRowIndex !== null
+      ? findSegmentAtRowAndTime(hoveredRowIndex, mouseX)
+      : null
 
     // If hovering over a new segment, show tooltip
     if (
@@ -641,25 +748,17 @@
         orderId: hoveredSegment.orderId,
       }
 
-      const xNormalized = hoveredSegment.x
-      const widthNormalized = hoveredSegment.width
       const pIndex = hoveredSegment.y
-      const rectH = hoveredSegment.height
-      const internalY = hoveredSegment.internalY
-
       const floorLeft = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
       const floorWidth = Math.floor(plotAreaWidth)
-
-      const pxX1 = floorLeft + xNormalized * floorWidth
-      const pxW = widthNormalized * floorWidth
-      const pxY =
-        pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
+      const segEndX = floorLeft + (hoveredSegment.x + hoveredSegment.width) * floorWidth
+      const rowBottomY = pIndex * rowHeight + rowHeight + effectiveMarginTop
 
       const tooltipPos = getTooltipPosition(
         plot.canvasState,
-        pxX1 + pxW,
-        pxY + rectH / 2,
-        { x: 5, y: 0 }
+        segEndX,
+        rowBottomY,
+        { x: 5, y: 5 }
       )
 
       onTooltipActivation({
@@ -675,6 +774,13 @@
   }
 
   function handleMouseLeave() {
+    // Clear crosshair highlight
+    if (hoveredRowIndex !== null || mouseXPx !== null) {
+      hoveredRowIndex = null
+      mouseXPx = null
+      plot.scheduleRender()
+    }
+
     if (hoveredLegendItem) {
       hoveredLegendItem = null
       updateTooltip(null)
@@ -805,13 +911,12 @@
     untrack(() => plot.refresh())
   })
 
-  function findHoveredRectSegment(mouseX: number, mouseY: number) {
+  function findSegmentAtRowAndTime(rowIndex: number, mouseX: number) {
     const buckets = visualRectBuckets
     if (buckets.length === 0) return null
 
     const { indexToId } = identifierSystem
     const scale = layout.scaleFactor
-    const barWrapHeight = layout.heightOfBarWrap
     const floorLeft = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
     const floorWidth = Math.floor(plotAreaWidth)
 
@@ -821,39 +926,35 @@
 
       for (let i = buffer.length / RECT_STRIDE - 1; i >= 0; i--) {
         const idx = i * RECT_STRIDE
-        const xNormalized = buffer[idx]
         const pIndex = buffer[idx + 1]
+        if (pIndex !== rowIndex) continue
+
+        const xNormalized = buffer[idx]
         const widthNormalized = buffer[idx + 2]
         const origRectH = buffer[idx + 3]
         const origInternalY = buffer[idx + 7]
 
-        let rectH = origRectH
-        let internalY = origInternalY
-
-        if (scale !== 1) {
-          if (origRectH === SCARF_LAYOUT.HEIGHT_NON_FIXATION_DEFAULT) {
-            rectH = layout.nonFixationHeight
-            internalY =
-              layout.spaceAboveRect +
-              (layout.heightOfBar - layout.nonFixationHeight) / 2
-          } else {
-            rectH = origRectH * scale
-            internalY =
-              layout.spaceAboveRect +
-              (origInternalY - SCARF_LAYOUT.SPACE_ABOVE_RECT_DEFAULT) * scale
-          }
-        }
-
         const pxX = floorLeft + xNormalized * floorWidth
         const pxW = widthNormalized * floorWidth
-        const pxY = pIndex * barWrapHeight + internalY + effectiveMarginTop
 
-        if (
-          mouseX >= pxX &&
-          mouseX <= pxX + pxW &&
-          mouseY >= pxY &&
-          mouseY <= pxY + rectH
-        ) {
+        if (mouseX >= pxX && mouseX <= pxX + pxW) {
+          let rectH = origRectH
+          let internalY = origInternalY
+
+          if (scale !== 1) {
+            if (origRectH === SCARF_LAYOUT.HEIGHT_NON_FIXATION_DEFAULT) {
+              rectH = layout.nonFixationHeight
+              internalY =
+                layout.spaceAboveRect +
+                (layout.heightOfBar - layout.nonFixationHeight) / 2
+            } else {
+              rectH = origRectH * scale
+              internalY =
+                layout.spaceAboveRect +
+                (origInternalY - SCARF_LAYOUT.SPACE_ABOVE_RECT_DEFAULT) * scale
+            }
+          }
+
           return {
             x: xNormalized,
             y: pIndex,
