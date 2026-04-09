@@ -7,15 +7,18 @@
     ButtonPreset,
     InputCheck,
   } from '$lib/shared/components'
-  import { ModalButtons, IntroductoryParagraph } from '$lib/modals'
+  import { ModalButtons } from '$lib/modals'
   import InputText from '$lib/shared/components/InputText.svelte'
   import Bin from 'lucide-svelte/icons/trash'
   import ChevronDown from 'lucide-svelte/icons/chevron-down'
   import ChevronUp from 'lucide-svelte/icons/chevron-up'
-  import Empty from '$lib/shared/components/Empty.svelte'
-  import { fade, slide } from 'svelte/transition'
+  import Copy from 'lucide-svelte/icons/copy'
+  import Plus from 'lucide-svelte/icons/plus'
+  import { tick } from 'svelte'
+  import { slide } from 'svelte/transition'
   import { flip } from 'svelte/animate'
-  import ReorderButtons from '../shared/ReorderButtons.svelte'
+  import GripVertical from 'lucide-svelte/icons/grip-vertical'
+  import { createDragReorder } from '../shared/dragReorder'
 
   interface Props {
     source: string
@@ -25,11 +28,9 @@
   const { engine, modalState, toastState, workspace } = getGazePlotterSession()
 
   // State management
-  let initialGroups = $state(
+  let participantsGroups = $state(
     JSON.parse(JSON.stringify(getParticipantsGroups(engine)))
   )
-  let participantsGroups = $state(JSON.parse(JSON.stringify(initialGroups)))
-  let hasChanged = $state(false)
 
   // Add search filter state
   let searchFilters = $state<Record<number, string>>({})
@@ -42,42 +43,6 @@
         .toLowerCase()
         .includes(searchFilter.toLowerCase())
     )
-  }
-
-  // Helper to check if current state differs from initial
-  const checkIfChanged = (
-    current: ParticipantsGroup[],
-    initial: ParticipantsGroup[]
-  ): boolean => {
-    if (current.length !== initial.length) return true
-
-    // Check if order has changed
-    for (let i = 0; i < current.length; i++) {
-      if (current[i].id !== initial[i].id) return true
-    }
-
-    // Check if any group has changed
-    for (let i = 0; i < current.length; i++) {
-      const currentGroup = current[i]
-      const initialGroup = initial.find(g => g.id === currentGroup.id)
-
-      if (!initialGroup) return true // New group added
-
-      // Check if name or participants have changed
-      if (currentGroup.name !== initialGroup.name) return true
-      if (
-        currentGroup.participantsIds.length !==
-        initialGroup.participantsIds.length
-      )
-        return true
-
-      // Check if any participant was added or removed
-      for (const id of currentGroup.participantsIds) {
-        if (!initialGroup.participantsIds.includes(id)) return true
-      }
-    }
-
-    return false
   }
 
   // Add a new group
@@ -113,7 +78,11 @@
     }
 
     participantsGroups = [...participantsGroups, newGroup]
-    hasChanged = checkIfChanged(participantsGroups, initialGroups)
+    expandedGroupIds = [id]
+    tick().then(() => {
+      const items = document.querySelectorAll('.accordion-item')
+      items[items.length - 1]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    })
   }
 
   // Remove a group
@@ -121,13 +90,6 @@
     participantsGroups = participantsGroups.filter(
       (group: ParticipantsGroup) => group.id !== id
     )
-    hasChanged = checkIfChanged(participantsGroups, initialGroups)
-  }
-
-  // Reset to initial state
-  const resetToInitial = () => {
-    participantsGroups = JSON.parse(JSON.stringify(initialGroups))
-    hasChanged = false
   }
 
   // Update a group's properties
@@ -138,38 +100,31 @@
       }
       return group
     })
-    hasChanged = checkIfChanged(participantsGroups, initialGroups)
   }
 
-  // Helper functions for moving groups up/down
-  const handleObjectPositionUp = (group: ParticipantsGroup) => {
-    const index = participantsGroups.indexOf(group)
-    if (index > 0) {
+  // Drag reorder
+  let dragGroupId: number | null = $state(null)
+
+  const dragHandle = createDragReorder({
+    itemSelector: '.accordion-item',
+    containerSelector: '.accordion',
+    onDragStart: id => {
+      dragGroupId = id
+      expandedGroupIds = []
+    },
+    onDragEnd: () => {
+      dragGroupId = null
+    },
+    onReorder: (fromIndex, toIndex) => {
       const newGroups = [...participantsGroups]
-      const temp = newGroups[index]
-      newGroups[index] = newGroups[index - 1]
-      newGroups[index - 1] = temp
+      const [moved] = newGroups.splice(fromIndex, 1)
+      newGroups.splice(toIndex, 0, moved)
       participantsGroups = newGroups
-      hasChanged = checkIfChanged(participantsGroups, initialGroups)
-    }
-  }
+    },
+  })
 
-  const handleObjectPositionDown = (group: ParticipantsGroup) => {
-    const index = participantsGroups.indexOf(group)
-    if (index < participantsGroups.length - 1) {
-      const newGroups = [...participantsGroups]
-      const temp = newGroups[index]
-      newGroups[index] = newGroups[index + 1]
-      newGroups[index + 1] = temp
-      participantsGroups = newGroups
-      hasChanged = checkIfChanged(participantsGroups, initialGroups)
-    }
-  }
-
-  const discardChanges = () => {
-    resetToInitial()
-    expandedGroupIds = []
-    toastState.addSuccess(`Unsaved changes discarded.`)
+  const handleCancel = () => {
+    modalState.close()
   }
 
   const handleSubmit = () => {
@@ -196,9 +151,9 @@
   // Toggle accordion expansion
   const toggleAccordion = (groupId: number) => {
     if (expandedGroupIds.includes(groupId)) {
-      expandedGroupIds = expandedGroupIds.filter(id => id !== groupId)
+      expandedGroupIds = []
     } else {
-      expandedGroupIds = [...expandedGroupIds, groupId]
+      expandedGroupIds = [groupId]
     }
   }
 
@@ -246,122 +201,172 @@
     updateGroup(group.id, updatedGroup)
   }
 
-  // Delete a group
+  // Duplicate a group
+  const duplicateGroup = (event: Event, group: ParticipantsGroup) => {
+    event.stopPropagation()
+    const usedIds = new Set(
+      participantsGroups.map((g: ParticipantsGroup) => g.id)
+    )
+    let id = 1
+    while (usedIds.has(id)) {
+      id++
+    }
+
+    const newGroup = {
+      id,
+      name: `${group.name} (copy)`,
+      participantsIds: [...group.participantsIds],
+    }
+
+    const index = participantsGroups.indexOf(group)
+    participantsGroups = [
+      ...participantsGroups.slice(0, index + 1),
+      newGroup,
+      ...participantsGroups.slice(index + 1),
+    ]
+    expandedGroupIds = [id]
+  }
+
+  // Delete confirmation state
+  let confirmingDeleteId: number | null = $state(null)
+
+  // Delete a group (with confirmation for non-empty groups)
   const deleteGroup = (event: Event, group: ParticipantsGroup) => {
-    event.stopPropagation() // Prevent accordion toggle
+    event.stopPropagation()
+    if (group.participantsIds.length > 0 && confirmingDeleteId !== group.id) {
+      confirmingDeleteId = group.id
+      expandedGroupIds = []
+      return
+    }
+    confirmingDeleteId = null
     removeGroup(group.id)
     expandedGroupIds = expandedGroupIds.filter(id => id !== group.id)
     toastState.addSuccess(`Deleted group ${group.name}.`)
   }
 
-  // Create handler functions for each group to avoid event propagation to the accordion header
-  const createMoveUpHandler = (group: ParticipantsGroup) => {
-    return () => {
-      handleObjectPositionUp(group)
+  const cancelDelete = (event: Event) => {
+    event.stopPropagation()
+    confirmingDeleteId = null
+  }
+
+  // Click outside action for delete confirmation
+  const clickOutside = (node: HTMLElement, callback: () => void) => {
+    const handleClick = (e: MouseEvent) => {
+      if (!node.contains(e.target as Node)) {
+        callback()
+      }
+    }
+    document.addEventListener('click', handleClick, true)
+    return {
+      destroy() {
+        document.removeEventListener('click', handleClick, true)
+      },
     }
   }
 
-  const createMoveDownHandler = (group: ParticipantsGroup) => {
-    return () => {
-      handleObjectPositionDown(group)
-    }
-  }
+  // Smart select/deselect labels
+  const isFiltered = (groupId: number) => (searchFilters[groupId] || '') !== ''
+
 </script>
 
-<IntroductoryParagraph
-  maxWidth="500px"
-  paragraphs={[
-    'Create and manage custom participant groups for analysis. Groups help organize participants by conditions, demographics, or other criteria.',
-  ]}
-/>
+<div class="accordion">
+  {#if participantsGroups.length === 0}
+    <p class="empty-message">No custom groups yet.</p>
+  {/if}
 
-{#if participantsGroups.length === 0}
-  <div class="select-wrapper">
-    <Empty message="No custom groups yet." />
-  </div>
-{:else}
-  <div class="accordion">
-    {#each participantsGroups as group (group.id)}
+  {#each participantsGroups as group (group.id)}
       <div
         class="accordion-item"
-        animate:flip={{ duration: 250 }}
-        in:fade={{ duration: 200 }}
+        class:dragging={dragGroupId === group.id}
+        data-group-id={group.id}
+        animate:flip={{ duration: 200 }}
       >
-        <div
-          class="accordion-header"
-          class:active={expandedGroupIds.includes(group.id)}
-        >
-          <div class="group-name">
-            <InputText
-              label="Group name"
-              showLabel={false}
-              fill={true}
-              value={group.name}
-              oninput={e => updateGroup(group.id, { name: e.detail })}
-            />
+        {#if confirmingDeleteId === group.id}
+          <div
+            class="accordion-header confirm"
+            use:clickOutside={() => { confirmingDeleteId = null }}
+          >
+            <span class="confirm-label">Delete <strong>{group.name}</strong>?</span>
+            <div class="button-group">
+              <ButtonMinor isIcon={false} onclick={e => deleteGroup(e, group)}>
+                <span class="confirm-delete">Delete</span>
+              </ButtonMinor>
+              <ButtonMinor isIcon={false} onclick={cancelDelete}>
+                <span class="cancel-delete">Keep</span>
+              </ButtonMinor>
+            </div>
           </div>
-          <div class="button-group">
-            <ButtonMinor
-              onclick={() => toggleAccordion(group.id)}
-              isIcon={false}
+        {:else}
+          <div
+            class="accordion-header"
+            class:active={expandedGroupIds.includes(group.id)}
+          >
+            <div
+              class="drag-handle"
+              use:dragHandle={group.id}
             >
-              <span class="participant-count">
-                {group.participantsIds.length}/{allParticipants.length} participants
-              </span>
-              {#if expandedGroupIds.includes(group.id)}
-                <ChevronUp size={'1em'} />
-              {:else}
-                <ChevronDown size={'1em'} />
-              {/if}
-            </ButtonMinor>
-            <ReorderButtons
-              isFirst={participantsGroups.indexOf(group) === 0}
-              isLast={participantsGroups.indexOf(group) ===
-                participantsGroups.length - 1}
-              onMoveUp={createMoveUpHandler(group)}
-              onMoveDown={createMoveDownHandler(group)}
-            />
-            <ButtonMinor onclick={e => deleteGroup(e, group)}>
-              <Bin size={'1em'} />
-            </ButtonMinor>
+              <GripVertical size={'1em'} />
+            </div>
+            <div class="group-name">
+              <InputText
+                label="Group name"
+                showLabel={false}
+                fill={true}
+                value={group.name}
+                oninput={e => updateGroup(group.id, { name: e.detail })}
+              />
+            </div>
+            <div class="button-group">
+              <ButtonMinor
+                onclick={() => toggleAccordion(group.id)}
+                isIcon={false}
+              >
+                <span class="participant-count">
+                  {group.participantsIds.length}/{allParticipants.length} participants
+                </span>
+                {#if expandedGroupIds.includes(group.id)}
+                  <ChevronUp size={'1em'} />
+                {:else}
+                  <ChevronDown size={'1em'} />
+                {/if}
+              </ButtonMinor>
+              <ButtonMinor onclick={e => duplicateGroup(e, group)}>
+                <Copy size={'1em'} />
+              </ButtonMinor>
+              <ButtonMinor onclick={e => deleteGroup(e, group)}>
+                <Bin size={'1em'} />
+              </ButtonMinor>
+            </div>
           </div>
-        </div>
+        {/if}
 
         {#if expandedGroupIds.includes(group.id)}
           <div
             class="accordion-content"
-            in:slide|local={{ duration: 200, delay: 50 }}
-            out:slide|local={{ duration: 200 }}
+            in:slide|local={{ duration: 150 }}
+            out:slide|local={{ duration: 120 }}
           >
             <div class="search-filter">
               <InputText
                 label="Search participants"
                 value={searchFilters[group.id] || ''}
                 oninput={e => (searchFilters[group.id] = e.detail)}
-                placeholder="All participants are shown when search is empty"
+                placeholder="Search participants"
               />
             </div>
 
-            <div
-              class="participant-actions"
-              in:fade|local={{ duration: 150, delay: 100 }}
-              out:fade|local={{ duration: 150 }}
-            >
+            <div class="participant-actions">
               <ButtonPreset
-                label="Select visible"
+                label={isFiltered(group.id) ? 'Select visible' : 'Select all'}
                 onclick={() => selectAllParticipants(group)}
               />
               <ButtonPreset
-                label="Deselect visible"
+                label={isFiltered(group.id) ? 'Deselect visible' : 'Deselect all'}
                 onclick={() => removeAllParticipants(group)}
               />
             </div>
 
-            <div
-              class="participant-list"
-              in:fade|local={{ duration: 150, delay: 150 }}
-              out:fade|local={{ duration: 150 }}
-            >
+            <div class="participant-list">
               {#each getFilteredParticipants(group.id) as participant (participant.id)}
                 <InputCheck
                   label={participant.displayedName}
@@ -382,35 +387,55 @@
         {/if}
       </div>
     {/each}
-  </div>
-{/if}
+
+  <button class="add-group-button" onclick={addGroup}>
+    <Plus size={'1em'} />
+    <span>Add group</span>
+  </button>
+</div>
 
 <ModalButtons
   buttons={[
     {
-      label: 'Save',
+      label: 'Apply',
       onclick: handleSubmit,
-      isDisabled: !hasChanged,
       variant: 'primary',
     },
     {
-      label: 'Discard Changes',
-      onclick: discardChanges,
-      isDisabled: !hasChanged,
-    },
-    {
-      label: 'Add group',
-      onclick: addGroup,
+      label: 'Cancel',
+      onclick: handleCancel,
     },
   ]}
 />
 
 <style>
-  .select-wrapper {
-    margin-bottom: 1em;
+  .empty-message {
+    color: var(--c-darkgrey);
+    font-size: 0.9rem;
+    text-align: center;
+    margin: 0;
+  }
+
+  .add-group-button {
     display: flex;
-    flex-direction: column;
-    gap: 1em;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5em;
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px dashed var(--c-midgrey);
+    border-radius: var(--rounded-md);
+    background: none;
+    color: var(--c-darkgrey);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .add-group-button:hover {
+    border-color: var(--c-brand);
+    color: var(--c-brand);
+    background-color: rgba(205, 20, 4, 0.03);
   }
 
   .accordion {
@@ -441,6 +466,54 @@
 
   .accordion-header.active {
     background-color: rgba(205, 20, 4, 0.05);
+  }
+
+  .accordion-header.confirm {
+    padding: 12px 14px;
+    background-color: rgba(205, 20, 4, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .confirm-label {
+    font-size: 0.9rem;
+    color: var(--c-darkgrey);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .drag-handle {
+    cursor: grab;
+    color: var(--c-midgrey);
+    display: flex;
+    align-items: center;
+    padding: 2px 0;
+    flex-shrink: 0;
+    transition: color 0.1s ease;
+  }
+
+  .drag-handle:hover {
+    color: var(--c-darkgrey);
+  }
+
+  .drag-handle:active {
+    cursor: grabbing;
+  }
+
+  .accordion-item.dragging {
+    opacity: 0.3;
+    border-style: dashed;
+    border-color: var(--c-midgrey);
+    box-shadow: none;
+  }
+
+  .accordion-item.dragging > * {
+    visibility: hidden;
   }
 
   .group-name {
@@ -486,6 +559,17 @@
   .participant-list :global(label:hover) {
     background-color: var(--c-white);
     border-color: var(--c-border);
+  }
+
+  .confirm-delete {
+    font-size: 12px;
+    color: var(--c-brand);
+    font-weight: 500;
+  }
+
+  .cancel-delete {
+    font-size: 12px;
+    color: var(--c-darkgrey);
   }
 
   .button-group {

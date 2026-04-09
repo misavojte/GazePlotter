@@ -1,10 +1,11 @@
 <script lang="ts">
+  import { InputText } from '$lib/shared/components'
+  import ButtonPreset from '$lib/shared/components/ButtonPreset.svelte'
   import {
-    ButtonMajor,
-    ButtonPreset,
-    InputText,
-  } from '$lib/shared/components'
-  import { Section } from '$lib/modals'
+    CompactSettingsSection,
+    CompactSettingsSeparator,
+  } from '$lib/plots/shared/components'
+  import { tooltipAction } from '$lib/tooltip'
 
   interface Props {
     onRenameCommand: (findText: string, replaceText: string) => void
@@ -12,24 +13,15 @@
 
   let { onRenameCommand }: Props = $props()
 
-  // Pattern renaming state
   let findText = $state('')
   let replaceText = $state('')
 
   const WILDCARD_PATTERNS = [
-    { label: 'Any number (e.g., 123)', value: '\\d+' },
-    { label: 'Any space', value: '\\s' },
-    { label: 'Any letter', value: '[A-Za-z]' },
-    { label: 'Any character', value: '.' },
+    { label: '\\d+', value: '\\d+', tooltip: 'Any number' },
+    { label: '\\s', value: '\\s', tooltip: 'Any space' },
+    { label: '[A-Za-z]', value: '[A-Za-z]', tooltip: 'Any letter' },
+    { label: '.', value: '.', tooltip: 'Any character' },
   ]
-
-  const handleFindTextInput = (event: CustomEvent) => {
-    findText = event.detail
-  }
-
-  const handleReplaceTextInput = (event: CustomEvent) => {
-    replaceText = event.detail
-  }
 
   const handlePatternButtonClick = (pattern: string) => {
     findText += pattern
@@ -41,73 +33,99 @@
   }
 </script>
 
-<Section title="Pattern Renaming">
-  <div class="pattern-inputs">
-    <div class="input-row">
-      <div class="input-group">
-        <InputText
-          label="Find text"
-          value={findText}
-          oninput={handleFindTextInput}
-        />
-      </div>
-      <div class="input-group">
-        <InputText
-          label="Replace with"
-          value={replaceText}
-          oninput={handleReplaceTextInput}
-        />
-      </div>
+<div class="rename-container">
+  <div class="input-pair">
+    <div class="compact-input">
+      <InputText
+        label="Find (regex)"
+        value={findText}
+        fill={true}
+        oninput={e => {
+          findText = e.detail
+        }}
+      />
     </div>
-    <div class="pattern-section">
-      <div class="pattern-title">
-        Wildcard Patterns (e.g., "\d+" to remove numbers", and "\s" to remove
-        spaces)
-      </div>
-      <div class="pattern-buttons">
-        {#each WILDCARD_PATTERNS as pattern}
+    <div class="compact-input">
+      <InputText
+        label="Replace with"
+        value={replaceText}
+        fill={true}
+        oninput={e => {
+          replaceText = e.detail
+        }}
+      />
+    </div>
+  </div>
+
+  <CompactSettingsSeparator />
+
+  <CompactSettingsSection title="Wildcards">
+    <div class="wildcard-buttons">
+      {#each WILDCARD_PATTERNS as pattern}
+        <span use:tooltipAction={{ content: pattern.tooltip, position: 'bottom' }}>
           <ButtonPreset
             label={pattern.label}
             onclick={() => handlePatternButtonClick(pattern.value)}
           />
-        {/each}
-      </div>
+        </span>
+      {/each}
     </div>
-    <div class="apply-button">
-      <ButtonMajor onclick={handlePatternRename} size="sm">
-        Apply renaming to all
-      </ButtonMajor>
-    </div>
-  </div>
-</Section>
+  </CompactSettingsSection>
+
+  <CompactSettingsSeparator />
+
+  <button class="apply-btn" onclick={handlePatternRename}>
+    Apply to all
+  </button>
+</div>
 
 <style>
-  .input-row {
+  .rename-container {
     display: flex;
-    gap: 15px;
+    flex-direction: column;
+    gap: 6px;
   }
 
-  .input-group {
+  .input-pair {
+    display: flex;
+    gap: 8px;
+  }
+
+  .compact-input {
     flex: 1;
+    min-width: 0;
   }
 
-  .pattern-section {
-    margin-top: 2px;
+  .compact-input :global(label) {
+    font-size: 11px;
+    color: var(--c-darkgrey);
   }
 
-  .pattern-title {
+  .compact-input :global(input) {
     font-size: 12px;
-    color: var(--c-midgrey);
-    margin-bottom: 3px;
+    padding: 4px 6px;
   }
 
-  .pattern-buttons {
+  .wildcard-buttons {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
   }
 
-  .apply-button {
-    margin-top: 10px;
+  .apply-btn {
+    align-self: flex-end;
+    background-color: var(--c-brand);
+    border: none;
+    border-radius: var(--rounded);
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--c-white);
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+
+  .apply-btn:hover {
+    opacity: 0.85;
   }
 </style>

@@ -2,20 +2,18 @@
   import Radio from '$lib/shared/components/Radio.svelte'
   import Select from '$lib/shared/components/Select.svelte'
   import { InputCheck, InputColor, InputText } from '$lib/shared/components'
-  import {
-    SortableTableHeader,
-    Section,
-    ModalButtons,
-    IntroductoryParagraph,
-  } from '$lib/modals'
+  import { Section, ModalButtons } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
   import { getAllAois, getHiddenAois } from '$lib/data/engine'
   import type { ExtendedInterpretedDataType } from '$lib/data/types'
   import { flip } from 'svelte/animate'
-  import { fade } from 'svelte/transition'
   import Empty from '$lib/shared/components/Empty.svelte'
   import { getStimuliOptions } from '$lib/plots/shared'
-  import ReorderButtons from '../shared/ReorderButtons.svelte'
+  import GripVertical from 'lucide-svelte/icons/grip-vertical'
+  import ArrowDownAZ from 'lucide-svelte/icons/arrow-down-a-z'
+  import Info from 'lucide-svelte/icons/info'
+  import { createDragReorder } from '../shared/dragReorder'
+  import { tooltipAction } from '$lib/tooltip'
 
   interface Props {
     selectedStimulus?: string
@@ -34,122 +32,6 @@
     typeof displayedName === 'string' &&
     displayedName.trim() !== '' &&
     displayedName !== undefined
-
-  const reorderAois = (
-    aois: ExtendedInterpretedDataType[]
-  ): ExtendedInterpretedDataType[] => {
-    const processed = new Set<number>()
-    const result: ExtendedInterpretedDataType[] = []
-
-    // Go through AOIs in order, grouping only valid names
-    for (let i = 0; i < aois.length; i++) {
-      if (processed.has(i)) continue
-
-      const aoi = aois[i]
-      const trimmedName = (aoi.displayedName || '').trim()
-
-      // If empty or invalid name, keep in place
-      if (!isValidMatch(trimmedName)) {
-        result.push(aoi)
-        processed.add(i)
-        continue
-      }
-
-      // Find all AOIs with the same trimmed name
-      const group: ExtendedInterpretedDataType[] = []
-      for (let j = i; j < aois.length; j++) {
-        if (processed.has(j)) continue
-        const otherTrimmed = (aois[j].displayedName || '').trim()
-        if (otherTrimmed === trimmedName) {
-          group.push(aois[j])
-          processed.add(j)
-        }
-      }
-
-      // Do not hard-set color, plots will correctly use the color of the first AOI in the group
-      group.forEach(g => result.push(g))
-    }
-
-    return result
-  }
-
-  const moveItem = (
-    aois: ExtendedInterpretedDataType[],
-    aoi: ExtendedInterpretedDataType,
-    direction: 'up' | 'down'
-  ): ExtendedInterpretedDataType[] => {
-    const trimmedName = (aoi.displayedName || '').trim()
-    const groupedAois = isValidMatch(trimmedName)
-      ? aois.filter(a => (a.displayedName || '').trim() === trimmedName)
-      : [aoi]
-
-    const firstGroupIndex = aois.indexOf(groupedAois[0])
-    const currentIndex = aois.indexOf(aoi)
-
-    if (direction === 'up' && currentIndex > 0) {
-      if (groupedAois.length === 1) {
-        const prevItemIndex = currentIndex - 1
-        const prevItemDisplayedName = (
-          aois[prevItemIndex].displayedName || ''
-        ).trim()
-
-        if (isValidMatch(prevItemDisplayedName)) {
-          const prevGroup = aois.filter(
-            (a, i) =>
-              i < currentIndex &&
-              (a.displayedName || '').trim() === prevItemDisplayedName
-          )
-          const prevGroupStart = aois.indexOf(prevGroup[0])
-
-          return [
-            ...aois.slice(0, prevGroupStart),
-            aoi,
-            ...aois.slice(prevGroupStart, currentIndex),
-            ...aois.slice(currentIndex + 1),
-          ]
-        }
-
-        return [
-          ...aois.slice(0, currentIndex - 1),
-          aois[currentIndex],
-          aois[currentIndex - 1],
-          ...aois.slice(currentIndex + 1),
-        ]
-      } else if (firstGroupIndex > 0) {
-        const prevItem = aois[firstGroupIndex - 1]
-        const prevItemTrimmed = (prevItem.displayedName || '').trim()
-        const prevGroup = isValidMatch(prevItemTrimmed)
-          ? aois.filter(a => (a.displayedName || '').trim() === prevItemTrimmed)
-          : [prevItem]
-        const prevGroupStart = aois.indexOf(prevGroup[0])
-
-        return [
-          ...aois.slice(0, prevGroupStart),
-          ...groupedAois,
-          ...prevGroup,
-          ...aois.slice(firstGroupIndex + groupedAois.length),
-        ]
-      }
-    }
-
-    if (direction === 'down' && currentIndex < aois.length - 1) {
-      if (groupedAois.length === 1) {
-        return [
-          ...aois.slice(0, currentIndex),
-          aois[currentIndex + 1],
-          aois[currentIndex],
-          ...aois.slice(currentIndex + 2),
-        ]
-      } else if (firstGroupIndex < aois.length - groupedAois.length) {
-        const beforeGroup = aois.slice(0, firstGroupIndex)
-        const afterGroup = aois.slice(firstGroupIndex + groupedAois.length + 1)
-        const swapItem = aois[firstGroupIndex + groupedAois.length]
-        return [...beforeGroup, swapItem, ...groupedAois, ...afterGroup]
-      }
-    }
-
-    return aois
-  }
 
   const deepCopyAois = (
     aois: ExtendedInterpretedDataType[]
@@ -182,10 +64,38 @@
     }
   })
 
-  // Use $derived to compute reordered AOIs reactively without mutation
-  const reorderedAoiObjects = $derived(reorderAois([...aoiObjects]))
+  // --- Grouping logic ---
 
-  // Get initial No AOI treatment and track changes
+  interface AoiGroup {
+    key: number
+    members: ExtendedInterpretedDataType[]
+  }
+
+  const groupedAois = $derived.by<AoiGroup[]>(() => {
+    const seen = new Set<string>()
+    const groups: AoiGroup[] = []
+
+    for (const aoi of aoiObjects) {
+      const trimmed = (aoi.displayedName || '').trim()
+      if (!isValidMatch(trimmed)) {
+        groups.push({ key: aoi.id, members: [aoi] })
+        continue
+      }
+      if (seen.has(trimmed)) continue
+      seen.add(trimmed)
+      const members = aoiObjects.filter(
+        a => (a.displayedName || '').trim() === trimmed
+      )
+      groups.push({ key: members[0].id, members })
+    }
+
+    return groups
+  })
+
+  const hasGroups = $derived(groupedAois.some(g => g.members.length > 1))
+
+  // --- No AOI treatment ---
+
   const modificationMeta = engine.metadata
   if (!modificationMeta) throw new Error('Data engine metadata not available')
 
@@ -198,72 +108,145 @@
     color: modificationMeta.noAoiTreatment.color,
   })
 
-  // Sorting state
-  let sortColumn = $state<'originalName' | 'displayedName' | null>(null)
-  let sortDirection = $state<'asc' | 'desc' | null>(null)
+  // --- Name editing ---
 
-  // Natural sort function for alphanumeric strings
+  const handleNameInput = (
+    aoi: ExtendedInterpretedDataType,
+    newName: string,
+    isLeader: boolean,
+    group: AoiGroup
+  ) => {
+    if (isLeader && group.members.length > 1) {
+      // Leader rename — propagate to all group members
+      const memberIds = new Set(group.members.map(m => m.id))
+      for (const a of aoiObjects) {
+        if (memberIds.has(a.id)) {
+          a.displayedName = newName
+        }
+      }
+    } else {
+      // Single AOI rename (ungrouped or non-leader detaching)
+      const originalAoi = aoiObjects.find(a => a.id === aoi.id)
+      if (originalAoi) {
+        originalAoi.displayedName = newName
+      }
+
+      // Sync visibility when joining a group
+      const trimmedName = (newName || '').trim()
+      if (isValidMatch(trimmedName)) {
+        const groupMember = aoiObjects.find(
+          a =>
+            a.id !== aoi.id &&
+            (a.displayedName || '').trim() === trimmedName
+        )
+        if (groupMember) {
+          const isGroupHidden = hiddenAoiIds.includes(groupMember.id)
+          if (isGroupHidden) {
+            if (!hiddenAoiIds.includes(aoi.id)) {
+              hiddenAoiIds = [...hiddenAoiIds, aoi.id]
+            }
+          } else {
+            hiddenAoiIds = hiddenAoiIds.filter(id => id !== aoi.id)
+          }
+        }
+      }
+    }
+  }
+
+  // --- Visibility toggle ---
+
+  const toggleActive = (group: AoiGroup, active: boolean) => {
+    const affectedIds = group.members.map(a => a.id)
+    if (active) {
+      hiddenAoiIds = hiddenAoiIds.filter(id => !affectedIds.includes(id))
+    } else {
+      hiddenAoiIds = Array.from(new Set([...hiddenAoiIds, ...affectedIds]))
+    }
+  }
+
+  // --- Color change ---
+
+  const handleColorInput = (group: AoiGroup, newColor: string) => {
+    const leaderId = group.members[0].id
+    aoiObjects = aoiObjects.map(a =>
+      a.id === leaderId ? { ...a, color: newColor } : a
+    )
+  }
+
+  // --- Drag reorder ---
+
+  let dragGroupKey: number | null = $state(null)
+
+  const dragHandle = createDragReorder({
+    itemSelector: '.aoi-card',
+    containerSelector: '.aoi-grid',
+    onDragStart: key => {
+      dragGroupKey = key
+    },
+    onDragEnd: () => {
+      dragGroupKey = null
+    },
+    onReorder: (fromIndex, toIndex) => {
+      const current = groupedAois
+      const dragged = current[fromIndex]
+      const without = current.filter((_, i) => i !== fromIndex)
+      without.splice(toIndex, 0, dragged)
+
+      const newOrder: ExtendedInterpretedDataType[] = []
+      for (const g of without) {
+        for (const m of g.members) {
+          newOrder.push(aoiObjects.find(a => a.id === m.id)!)
+        }
+      }
+      aoiObjects = newOrder
+    },
+  })
+
+  // --- Sort ---
+
+  let showSortMenu = $state(false)
+
   const naturalSort = (a: string, b: string): number => {
     const aParts = a.match(/(\d+|\D+)/g) || []
     const bParts = b.match(/(\d+|\D+)/g) || []
-
     for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
-      const aPart = aParts[i]
-      const bPart = bParts[i]
-
-      if (/^\d+$/.test(aPart) && /^\d+$/.test(bPart)) {
-        const numA = parseInt(aPart, 10)
-        const numB = parseInt(bPart, 10)
-        if (numA !== numB) return numA - numB
+      if (/^\d+$/.test(aParts[i]) && /^\d+$/.test(bParts[i])) {
+        const diff = parseInt(aParts[i], 10) - parseInt(bParts[i], 10)
+        if (diff !== 0) return diff
       } else {
-        const strCompare = aPart.localeCompare(bPart)
-        if (strCompare !== 0) return strCompare
+        const cmp = aParts[i].localeCompare(bParts[i])
+        if (cmp !== 0) return cmp
       }
     }
-
     return aParts.length - bParts.length
   }
 
-  const handleSort = (params: {
-    column: 'originalName' | 'displayedName'
-    newSortDirection: 'asc' | 'desc'
-  }) => {
-    sortColumn = params.column
-    sortDirection = params.newSortDirection
-
+  const sortAois = (
+    column: 'originalName' | 'displayedName',
+    direction: 'asc' | 'desc'
+  ) => {
     aoiObjects = [...aoiObjects].sort((a, b) => {
-      const compare = naturalSort(a[params.column], b[params.column])
-      return params.newSortDirection === 'asc' ? compare : -compare
+      const cmp = naturalSort(a[column], b[column])
+      return direction === 'asc' ? cmp : -cmp
     })
+    showSortMenu = false
   }
 
-  const handleObjectPositionUp = (aoi: ExtendedInterpretedDataType) => {
-    const reordered = reorderAois([...aoiObjects])
-    const movedAoi = reordered.find(a => a.id === aoi.id)
-    if (movedAoi) {
-      const result = moveItem(reordered, movedAoi, 'up')
-      aoiObjects = result.map(r => {
-        const original = aoiObjects.find(o => o.id === r.id)!
-        return { ...original, color: r.color }
-      })
+  const clickOutsideSort = (node: HTMLElement) => {
+    const handleClick = (e: MouseEvent) => {
+      if (!node.contains(e.target as Node)) {
+        showSortMenu = false
+      }
     }
-    sortColumn = null
-    sortDirection = null
+    document.addEventListener('click', handleClick, true)
+    return {
+      destroy() {
+        document.removeEventListener('click', handleClick, true)
+      },
+    }
   }
 
-  const handleObjectPositionDown = (aoi: ExtendedInterpretedDataType) => {
-    const reordered = reorderAois([...aoiObjects])
-    const movedAoi = reordered.find(a => a.id === aoi.id)
-    if (movedAoi) {
-      const result = moveItem(reordered, movedAoi, 'down')
-      aoiObjects = result.map(r => {
-        const original = aoiObjects.find(o => o.id === r.id)!
-        return { ...original, color: r.color }
-      })
-    }
-    sortColumn = null
-    sortDirection = null
-  }
+  // --- Submit ---
 
   const handleSubmit = () => {
     const handlerTypeMap = {
@@ -339,225 +322,132 @@
   const stimuliOption = getStimuliOptions(engine)
 </script>
 
+<div class="stimulus-row">
+  <Select
+    label="For stimulus"
+    options={stimuliOption}
+    bind:value={selectedStimulus}
+  />
+</div>
+
 <Section>
-  <div class="content">
-    <IntroductoryParagraph
-      maxWidth="440px"
-      paragraphs={[
-        'Modify AOI names, colors, and grouping. Each stimulus has its own AOI list.',
-        '**To create groups**, give multiple AOIs the same displayed name. The color of the first AOI with each name will be used for the entire group.',
-      ]}
-    />
-    <Select
-      label="For stimulus"
-      options={stimuliOption}
-      bind:value={selectedStimulus}
-    />
+  <div class="section-title-row">
+    <span class="section-title">AOIs</span>
+    {#if groupedAois.length > 0}
+      <div class="sort-wrapper" use:clickOutsideSort>
+        <button
+          class="tool-button"
+          class:active={showSortMenu}
+          onclick={() => { showSortMenu = !showSortMenu }}
+          aria-label="Sort AOIs"
+          use:tooltipAction={{ content: 'Sort', position: 'bottom', disabled: showSortMenu }}
+        >
+          <ArrowDownAZ size={'1em'} />
+        </button>
+        {#if showSortMenu}
+          <div class="sort-menu">
+            <button class="sort-option" onclick={() => sortAois('originalName', 'asc')}>Original name A–Z</button>
+            <button class="sort-option" onclick={() => sortAois('originalName', 'desc')}>Original name Z–A</button>
+            <button class="sort-option" onclick={() => sortAois('displayedName', 'asc')}>Displayed name A–Z</button>
+            <button class="sort-option" onclick={() => sortAois('displayedName', 'desc')}>Displayed name Z–A</button>
+          </div>
+        {/if}
+      </div>
+    {/if}
   </div>
-</Section>
 
-<Section title="AOIs">
-  {#if reorderedAoiObjects.length === 0}
+  {#if groupedAois.length === 0}
     <Empty message="No AOIs found in stimulus" />
-  {/if}
-  {#if reorderedAoiObjects.length > 0}
-    <table class="grid content">
-      <thead>
-        <tr class="gr-line header">
-          <th>
-            <SortableTableHeader
-              column="originalName"
-              label="Name"
-              {sortColumn}
-              {sortDirection}
-              onSort={handleSort}
-            />
-          </th>
-          <th>
-            <SortableTableHeader
-              column="displayedName"
-              label="Displayed name"
-              {sortColumn}
-              {sortDirection}
-              onSort={handleSort}
-            />
-          </th>
-          <th>Color</th>
-          <th>Order</th>
-          <th>Is active</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each reorderedAoiObjects as aoi (aoi.id + selectedStimulus)}
-          {@const showGroupControls =
-            !isValidMatch((aoi.displayedName || '').trim()) ||
-            reorderedAoiObjects.findIndex(
-              a =>
-                isValidMatch((a.displayedName || '').trim()) &&
-                (a.displayedName || '').trim() ===
-                  (aoi.displayedName || '').trim()
-            ) === reorderedAoiObjects.indexOf(aoi)}
-          {@const isActive = !hiddenSet.has(aoi.id)}
-          <tr
-            class="gr-line"
-            animate:flip={{ duration: 250 }}
-            in:fade={{ duration: 200 }}
-          >
-            <td class="original-name">{aoi.originalName}</td>
-            <td>
-              <InputText
-                label="Displayed name"
-                showLabel={false}
-                fill={true}
-                disabled={!isActive}
-                ariaLabel={`Displayed name for ${aoi.originalName}`}
-                value={aoi.displayedName}
-                oninput={e => {
-                  const originalAoi = aoiObjects.find(a => a.id === aoi.id)
-                  if (originalAoi) {
-                    originalAoi.displayedName = e.detail
-
-                    // Sync visibility when joining a group
-                    const trimmedName = (e.detail || '').trim()
-                    if (isValidMatch(trimmedName)) {
-                      const groupMember = aoiObjects.find(
-                        a =>
-                          a.id !== aoi.id &&
-                          (a.displayedName || '').trim() === trimmedName
-                      )
-                      if (groupMember) {
-                        const isGroupHidden = hiddenAoiIds.includes(
-                          groupMember.id
-                        )
-                        if (isGroupHidden) {
-                          if (!hiddenAoiIds.includes(aoi.id)) {
-                            hiddenAoiIds = [...hiddenAoiIds, aoi.id]
-                          }
-                        } else {
-                          hiddenAoiIds = hiddenAoiIds.filter(
-                            id => id !== aoi.id
-                          )
-                        }
-                      }
-                    }
+  {:else}
+    <div class="aoi-grid">
+      <div class="aoi-column-labels">
+        <span>Move</span>
+        <span>Original</span>
+        <span>Displayed</span>
+        <span>Color</span>
+        <span>Visible</span>
+      </div>
+      {#each groupedAois as group (group.key)}
+        {@const isActive = !hiddenSet.has(group.members[0].id)}
+        <div
+          class="aoi-card"
+          class:dragging={dragGroupKey === group.key}
+          data-group-key={group.key}
+          animate:flip={{ duration: 200 }}
+        >
+          {#each group.members as aoi, i (aoi.id)}
+            {@const isLeader = i === 0}
+            <div
+              class="aoi-row"
+              class:leader={isLeader}
+              class:inactive={!isActive}
+            >
+              <div class="col-handle">
+                {#if isLeader}
+                  <div
+                    class="drag-handle"
+                    class:disabled-control={!isActive}
+                    use:dragHandle={group.key}
+                  >
+                    <GripVertical size={'1em'} />
+                  </div>
+                {/if}
+              </div>
+              <div class="col-original">{aoi.originalName}</div>
+              <div class="col-displayed">
+                <InputText
+                  label="Displayed name"
+                  showLabel={false}
+                  fill={true}
+                  disabled={!isActive}
+                  ariaLabel={`Displayed name for ${aoi.originalName}`}
+                  value={aoi.displayedName}
+                  oninput={e =>
+                    handleNameInput(aoi, e.detail, isLeader, group)
                   }
-                }}
-              />
-            </td>
-            {#if showGroupControls}
-              <td class="color-cell">
-                <div
-                  class:disabled-control={!isActive}
-                  aria-disabled={!isActive}
-                >
-                  <InputColor
-                    label="Color"
-                    showLabel={false}
-                    ariaLabel={`Color for ${aoi.originalName}`}
-                    value={aoi.color}
-                    oninput={event => {
-                      if (!isActive) return
-                      const index = aoiObjects.findIndex(a => a.id === aoi.id)
-                      if (index !== -1) {
-                        aoiObjects = aoiObjects.map((a, i) =>
-                          i === index ? { ...a, color: event.detail } : a
-                        )
-                      }
-                    }}
-                  />
-                </div>
-              </td>
-              <td>
-                <div
-                  class="button-group"
-                  class:disabled-control={!isActive}
-                  aria-disabled={!isActive}
-                >
-                  <ReorderButtons
-                    isFirst={(() => {
-                      if (!isActive) return true
-                      const trimmedName = (aoi.displayedName || '').trim()
-                      if (isValidMatch(trimmedName)) {
-                        let firstGroupIndex = reorderedAoiObjects.length
-                        reorderedAoiObjects.forEach((a, idx) => {
-                          const otherTrimmed = (a.displayedName || '').trim()
-                          if (otherTrimmed === trimmedName) {
-                            firstGroupIndex = Math.min(firstGroupIndex, idx)
-                          }
-                        })
-                        return firstGroupIndex === 0
-                      }
-                      return reorderedAoiObjects.indexOf(aoi) === 0
-                    })()}
-                    isLast={(() => {
-                      if (!isActive) return true
-                      const trimmedName = (aoi.displayedName || '').trim()
-                      if (isValidMatch(trimmedName)) {
-                        let lastGroupIndex = -1
-                        reorderedAoiObjects.forEach((a, idx) => {
-                          const otherTrimmed = (a.displayedName || '').trim()
-                          if (otherTrimmed === trimmedName) {
-                            lastGroupIndex = Math.max(lastGroupIndex, idx)
-                          }
-                        })
-                        return lastGroupIndex === reorderedAoiObjects.length - 1
-                      }
-                      return (
-                        reorderedAoiObjects.indexOf(aoi) ===
-                        reorderedAoiObjects.length - 1
-                      )
-                    })()}
-                    onMoveDown={() => {
-                      if (!isActive) return
-                      handleObjectPositionDown(aoi)
-                    }}
-                    onMoveUp={() => {
-                      if (!isActive) return
-                      handleObjectPositionUp(aoi)
-                    }}
-                  />
-                </div>
-              </td>
-              <td class="active-col">
-                <InputCheck
-                  label=""
-                  ariaLabel="Is active"
-                  size="lg"
-                  checked={isActive}
-                  onchange={e => {
-                    const active = e.detail
-                    const trimmedName = (aoi.displayedName || '').trim()
-                    const affectedIds = isValidMatch(trimmedName)
-                      ? aoiObjects
-                          .filter(
-                            a => (a.displayedName || '').trim() === trimmedName
-                          )
-                          .map(a => a.id)
-                      : [aoi.id]
-
-                    if (active) {
-                      hiddenAoiIds = hiddenAoiIds.filter(
-                        id => !affectedIds.includes(id)
-                      )
-                    } else {
-                      hiddenAoiIds = Array.from(
-                        new Set([...hiddenAoiIds, ...affectedIds])
-                      )
-                    }
-                  }}
                 />
-              </td>
-            {:else}
-              <td colspan="3">
-                <div class="group-info" class:is-hidden={!isActive}>
-                  rename to detach from group
-                </div>
-              </td>
-            {/if}
-          </tr>
-        {/each}
-      </tbody>
-    </table>
+              </div>
+              <div class="col-color">
+                {#if isLeader}
+                  <div class:disabled-control={!isActive}>
+                    <InputColor
+                      label="Color"
+                      showLabel={false}
+                      width={35}
+                      ariaLabel={`Color for ${aoi.originalName}`}
+                      value={aoi.color}
+                      oninput={event =>
+                        isActive && handleColorInput(group, event.detail)
+                      }
+                    />
+                  </div>
+                {/if}
+              </div>
+              <div class="col-active">
+                {#if isLeader}
+                  <InputCheck
+                    label=""
+                    ariaLabel="Is active"
+                    size="lg"
+                    checked={isActive}
+                    onchange={e => toggleActive(group, e.detail)}
+                  />
+                {/if}
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/each}
+      {#if !hasGroups}
+        <div class="aoi-hint">
+          <div class="col-handle">
+            <Info size={'1em'} />
+          </div>
+          <div class="hint-text" style="grid-column: 2 / -1;">Name AOIs the same to <strong>group</strong> them together</div>
+        </div>
+      {/if}
+    </div>
+
     <div class="content">
       <Radio
         legend="Apply changes to"
@@ -603,14 +493,171 @@
 </Section>
 
 <style>
-  .active-col {
-    text-align: center;
-    vertical-align: middle;
-    width: 80px;
-    padding: 0;
+  .stimulus-row {
+    margin-bottom: 20px;
+  }
+
+  .content {
+    margin-bottom: 25px;
+  }
+
+  .section-title-row {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+  }
+
+  .section-title {
+    font-weight: 600;
+  }
+
+  .sort-wrapper {
+    position: relative;
+  }
+
+  .tool-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 1px solid var(--c-midgrey);
+    border-radius: var(--rounded-md);
+    color: var(--c-darkgrey);
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    transition: color 0.1s ease, border-color 0.1s ease, background-color 0.1s ease;
+  }
+
+  .tool-button:hover {
+    color: var(--c-brand);
+    border-color: var(--c-brand);
+  }
+
+  .tool-button.active {
+    color: var(--c-brand);
+    border-color: var(--c-brand);
+    background-color: #f0f4ff;
+  }
+
+  .sort-menu {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 4px;
+    background: var(--c-white);
+    border: 1px solid var(--c-border);
+    border-radius: var(--rounded-md);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+    min-width: 180px;
+    overflow: hidden;
+  }
+
+  .sort-option {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    background: none;
+    border: none;
+    text-align: left;
+    font-size: 13px;
+    color: var(--c-black);
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+  }
+
+  .sort-option:hover {
+    background-color: var(--c-darkwhite);
+  }
+
+  .sort-option:not(:last-child) {
+    border-bottom: 1px solid var(--c-border);
+  }
+
+  .aoi-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: min(600px, 100%);
+    margin-bottom: 20px;
+  }
+
+  .aoi-column-labels {
+    display: grid;
+    grid-template-columns: 28px 1fr 1fr 40px 40px;
+    gap: 8px;
+    padding: 0 12px;
+    font-size: 10px;
+    color: var(--c-midgrey);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .aoi-column-labels span:first-child {
+    margin-left: -12px;
+  }
+
+  .aoi-column-labels span:nth-child(4),
+  .aoi-column-labels span:nth-child(5) {
+    text-align: center;
+  }
+
+  .aoi-hint {
+    display: grid;
+    grid-template-columns: 28px 1fr 1fr 40px 40px;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 12px;
+    border: 1px dashed var(--c-midgrey);
+    border-radius: var(--rounded-md);
+    background-color: var(--c-darkwhite);
+    color: var(--c-black);
+    height: 50px;
+    box-sizing: border-box;
+  }
+
+  .hint-text {
+    font-size: 13px;
+    color: var(--c-black);
+  }
+
+  .aoi-card {
+    border: 1px solid var(--c-border);
+    border-radius: var(--rounded-md);
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  .aoi-card.dragging {
+    opacity: 0.3;
+    border-style: dashed;
+    border-color: var(--c-midgrey);
+    box-shadow: none;
+  }
+
+  .aoi-card.dragging > * {
+    visibility: hidden;
+  }
+
+  .aoi-row {
+    display: grid;
+    grid-template-columns: 28px 1fr 1fr 40px 40px;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: var(--c-darkwhite);
+  }
+
+  .aoi-row:not(.leader) {
+    border-top: 1px solid var(--c-border);
+    background-color: var(--c-white);
+  }
+
+  .aoi-row.inactive {
+    opacity: 0.45;
+    filter: grayscale(0.2);
   }
 
   .disabled-control {
@@ -619,52 +666,48 @@
     filter: grayscale(0.2);
   }
 
-  .color-cell {
-    padding: 0;
-  }
-
-  .button-group {
-    display: flex;
-    gap: 3px;
-    flex-direction: row;
-  }
-
-  th {
-    text-align: left;
-    font-size: 14px;
-  }
-  .original-name {
-    font-size: 14px;
-    padding-right: 10px;
-    color: var(--c-midgrey);
-    cursor: not-allowed;
-  }
-  .content {
-    margin-bottom: 25px;
-  }
-  .original-name {
-    line-height: 1;
-    white-space: nowrap;
-  }
-  .group-info {
-    font-size: 11px;
-    color: var(--c-midgrey);
-    border: 1px solid var(--c-midgrey);
-    border-radius: var(--rounded-md);
-    padding: 0 7px;
-    text-align: center;
-    background: transparent;
-    width: 236px;
-    height: 35px;
+  .col-handle {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0;
-    opacity: 0.8;
-    box-sizing: border-box;
   }
-  .group-info.is-hidden {
-    background: var(--c-lightgrey);
+
+  .drag-handle {
+    cursor: grab;
+    color: var(--c-midgrey);
+    display: flex;
+    align-items: center;
+    padding: 2px 0;
+    transition: color 0.1s ease;
+  }
+
+  .drag-handle:hover {
+    color: var(--c-darkgrey);
+  }
+
+  .drag-handle:active {
+    cursor: grabbing;
+  }
+
+  .col-original {
+    font-size: 14px;
+    color: var(--c-midgrey);
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .col-color {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .col-active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .noaoi-treatment-container {

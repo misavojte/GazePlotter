@@ -1,20 +1,18 @@
 <script lang="ts">
   import Select from '$lib/shared/components/Select.svelte'
   import { InputCheck, InputColor, InputText } from '$lib/shared/components'
-  import {
-    SortableTableHeader,
-    Section,
-    ModalButtons,
-    IntroductoryParagraph,
-  } from '$lib/modals'
+  import { Section, ModalButtons } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
   import { getEventChannels, getHiddenEventChannels } from '$lib/data/engine'
   import type { ExtendedInterpretedDataType } from '$lib/data/types'
   import { flip } from 'svelte/animate'
-  import { fade } from 'svelte/transition'
   import Empty from '$lib/shared/components/Empty.svelte'
   import { getStimuliOptions } from '$lib/plots/shared'
-  import ReorderButtons from '../shared/ReorderButtons.svelte'
+  import GripVertical from 'lucide-svelte/icons/grip-vertical'
+  import ArrowDownAZ from 'lucide-svelte/icons/arrow-down-a-z'
+  import Info from 'lucide-svelte/icons/info'
+  import { createDragReorder } from '../shared/dragReorder'
+  import { tooltipAction } from '$lib/tooltip'
 
   interface Props {
     selectedStimulus?: string
@@ -31,118 +29,6 @@
     typeof displayedName === 'string' &&
     displayedName.trim() !== '' &&
     displayedName !== undefined
-
-  const reorderChannels = (
-    channels: ExtendedInterpretedDataType[]
-  ): ExtendedInterpretedDataType[] => {
-    const processed = new Set<number>()
-    const result: ExtendedInterpretedDataType[] = []
-
-    for (let i = 0; i < channels.length; i++) {
-      if (processed.has(i)) continue
-
-      const channel = channels[i]
-      const trimmedName = (channel.displayedName || '').trim()
-
-      if (!isValidMatch(trimmedName)) {
-        result.push(channel)
-        processed.add(i)
-        continue
-      }
-
-      const group: ExtendedInterpretedDataType[] = []
-      for (let j = i; j < channels.length; j++) {
-        if (processed.has(j)) continue
-        const otherTrimmed = (channels[j].displayedName || '').trim()
-        if (otherTrimmed === trimmedName) {
-          group.push(channels[j])
-          processed.add(j)
-        }
-      }
-
-      group.forEach(g => result.push(g))
-    }
-
-    return result
-  }
-
-  const moveItem = (
-    channels: ExtendedInterpretedDataType[],
-    channel: ExtendedInterpretedDataType,
-    direction: 'up' | 'down'
-  ): ExtendedInterpretedDataType[] => {
-    const trimmedName = (channel.displayedName || '').trim()
-    const groupedChannels = isValidMatch(trimmedName)
-      ? channels.filter(c => (c.displayedName || '').trim() === trimmedName)
-      : [channel]
-
-    const firstGroupIndex = channels.indexOf(groupedChannels[0])
-    const currentIndex = channels.indexOf(channel)
-
-    if (direction === 'up' && currentIndex > 0) {
-      if (groupedChannels.length === 1) {
-        const prevItemIndex = currentIndex - 1
-        const prevItemDisplayedName = (
-          channels[prevItemIndex].displayedName || ''
-        ).trim()
-
-        if (isValidMatch(prevItemDisplayedName)) {
-          const prevGroup = channels.filter(
-            (c, i) =>
-              i < currentIndex &&
-              (c.displayedName || '').trim() === prevItemDisplayedName
-          )
-          const prevGroupStart = channels.indexOf(prevGroup[0])
-
-          return [
-            ...channels.slice(0, prevGroupStart),
-            channel,
-            ...channels.slice(prevGroupStart, currentIndex),
-            ...channels.slice(currentIndex + 1),
-          ]
-        }
-
-        return [
-          ...channels.slice(0, currentIndex - 1),
-          channels[currentIndex],
-          channels[currentIndex - 1],
-          ...channels.slice(currentIndex + 1),
-        ]
-      } else if (firstGroupIndex > 0) {
-        const prevItem = channels[firstGroupIndex - 1]
-        const prevItemTrimmed = (prevItem.displayedName || '').trim()
-        const prevGroup = isValidMatch(prevItemTrimmed)
-          ? channels.filter(c => (c.displayedName || '').trim() === prevItemTrimmed)
-          : [prevItem]
-        const prevGroupStart = channels.indexOf(prevGroup[0])
-
-        return [
-          ...channels.slice(0, prevGroupStart),
-          ...groupedChannels,
-          ...prevGroup,
-          ...channels.slice(firstGroupIndex + groupedChannels.length),
-        ]
-      }
-    }
-
-    if (direction === 'down' && currentIndex < channels.length - 1) {
-      if (groupedChannels.length === 1) {
-        return [
-          ...channels.slice(0, currentIndex),
-          channels[currentIndex + 1],
-          channels[currentIndex],
-          ...channels.slice(currentIndex + 2),
-        ]
-      } else if (firstGroupIndex < channels.length - groupedChannels.length) {
-        const beforeGroup = channels.slice(0, firstGroupIndex)
-        const afterGroup = channels.slice(firstGroupIndex + groupedChannels.length + 1)
-        const swapItem = channels[firstGroupIndex + groupedChannels.length]
-        return [...beforeGroup, swapItem, ...groupedChannels, ...afterGroup]
-      }
-    }
-
-    return channels
-  }
 
   const deepCopyChannels = (
     channels: ExtendedInterpretedDataType[]
@@ -173,73 +59,170 @@
     }
   })
 
-  const reorderedChannelObjects = $derived(reorderChannels([...channelObjects]))
+  // --- Grouping ---
 
-  // Sorting state
-  let sortColumn = $state<'originalName' | 'displayedName' | null>(null)
-  let sortDirection = $state<'asc' | 'desc' | null>(null)
+  interface ChannelGroup {
+    key: number
+    members: ExtendedInterpretedDataType[]
+  }
+
+  const groupedChannels = $derived.by<ChannelGroup[]>(() => {
+    const seen = new Set<string>()
+    const groups: ChannelGroup[] = []
+
+    for (const ch of channelObjects) {
+      const trimmed = (ch.displayedName || '').trim()
+      if (!isValidMatch(trimmed)) {
+        groups.push({ key: ch.id, members: [ch] })
+        continue
+      }
+      if (seen.has(trimmed)) continue
+      seen.add(trimmed)
+      const members = channelObjects.filter(
+        c => (c.displayedName || '').trim() === trimmed
+      )
+      groups.push({ key: members[0].id, members })
+    }
+
+    return groups
+  })
+
+  const hasGroups = $derived(groupedChannels.some(g => g.members.length > 1))
+
+  // --- Name editing ---
+
+  const handleNameInput = (
+    ch: ExtendedInterpretedDataType,
+    newName: string,
+    isLeader: boolean,
+    group: ChannelGroup
+  ) => {
+    if (isLeader && group.members.length > 1) {
+      const memberIds = new Set(group.members.map(m => m.id))
+      for (const c of channelObjects) {
+        if (memberIds.has(c.id)) {
+          c.displayedName = newName
+        }
+      }
+    } else {
+      const original = channelObjects.find(c => c.id === ch.id)
+      if (original) {
+        original.displayedName = newName
+
+        const trimmedName = (newName || '').trim()
+        if (isValidMatch(trimmedName)) {
+          const groupMember = channelObjects.find(
+            c =>
+              c.id !== ch.id &&
+              (c.displayedName || '').trim() === trimmedName
+          )
+          if (groupMember) {
+            const isGroupHidden = hiddenChannelIds.includes(groupMember.id)
+            if (isGroupHidden) {
+              if (!hiddenChannelIds.includes(ch.id)) {
+                hiddenChannelIds = [...hiddenChannelIds, ch.id]
+              }
+            } else {
+              hiddenChannelIds = hiddenChannelIds.filter(id => id !== ch.id)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // --- Visibility toggle ---
+
+  const toggleActive = (group: ChannelGroup, active: boolean) => {
+    const affectedIds = group.members.map(c => c.id)
+    if (active) {
+      hiddenChannelIds = hiddenChannelIds.filter(id => !affectedIds.includes(id))
+    } else {
+      hiddenChannelIds = Array.from(new Set([...hiddenChannelIds, ...affectedIds]))
+    }
+  }
+
+  // --- Color change ---
+
+  const handleColorInput = (group: ChannelGroup, newColor: string) => {
+    const leaderId = group.members[0].id
+    channelObjects = channelObjects.map(c =>
+      c.id === leaderId ? { ...c, color: newColor } : c
+    )
+  }
+
+  // --- Drag reorder ---
+
+  let dragGroupKey: number | null = $state(null)
+
+  const dragHandle = createDragReorder({
+    itemSelector: '.channel-card',
+    containerSelector: '.channel-grid',
+    onDragStart: key => {
+      dragGroupKey = key
+    },
+    onDragEnd: () => {
+      dragGroupKey = null
+    },
+    onReorder: (fromIndex, toIndex) => {
+      const current = groupedChannels
+      const dragged = current[fromIndex]
+      const without = current.filter((_, i) => i !== fromIndex)
+      without.splice(toIndex, 0, dragged)
+
+      const newOrder: ExtendedInterpretedDataType[] = []
+      for (const g of without) {
+        for (const m of g.members) {
+          newOrder.push(channelObjects.find(c => c.id === m.id)!)
+        }
+      }
+      channelObjects = newOrder
+    },
+  })
+
+  // --- Sort ---
+
+  let showSortMenu = $state(false)
 
   const naturalSort = (a: string, b: string): number => {
     const aParts = a.match(/(\d+|\D+)/g) || []
     const bParts = b.match(/(\d+|\D+)/g) || []
-
     for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
-      const aPart = aParts[i]
-      const bPart = bParts[i]
-
-      if (/^\d+$/.test(aPart) && /^\d+$/.test(bPart)) {
-        const numA = parseInt(aPart, 10)
-        const numB = parseInt(bPart, 10)
-        if (numA !== numB) return numA - numB
+      if (/^\d+$/.test(aParts[i]) && /^\d+$/.test(bParts[i])) {
+        const diff = parseInt(aParts[i], 10) - parseInt(bParts[i], 10)
+        if (diff !== 0) return diff
       } else {
-        const strCompare = aPart.localeCompare(bPart)
-        if (strCompare !== 0) return strCompare
+        const cmp = aParts[i].localeCompare(bParts[i])
+        if (cmp !== 0) return cmp
       }
     }
-
     return aParts.length - bParts.length
   }
 
-  const handleSort = (params: {
-    column: 'originalName' | 'displayedName'
-    newSortDirection: 'asc' | 'desc'
-  }) => {
-    sortColumn = params.column
-    sortDirection = params.newSortDirection
-
+  const sortChannels = (
+    column: 'originalName' | 'displayedName',
+    direction: 'asc' | 'desc'
+  ) => {
     channelObjects = [...channelObjects].sort((a, b) => {
-      const compare = naturalSort(a[params.column], b[params.column])
-      return params.newSortDirection === 'asc' ? compare : -compare
+      const cmp = naturalSort(a[column], b[column])
+      return direction === 'asc' ? cmp : -cmp
     })
+    showSortMenu = false
   }
 
-  const handleObjectPositionUp = (channel: ExtendedInterpretedDataType) => {
-    const reordered = reorderChannels([...channelObjects])
-    const movedChannel = reordered.find(c => c.id === channel.id)
-    if (movedChannel) {
-      const result = moveItem(reordered, movedChannel, 'up')
-      channelObjects = result.map(r => {
-        const original = channelObjects.find(o => o.id === r.id)!
-        return { ...original, color: r.color }
-      })
+  const clickOutsideSort = (node: HTMLElement) => {
+    const handleClick = (e: MouseEvent) => {
+      if (!node.contains(e.target as Node)) showSortMenu = false
     }
-    sortColumn = null
-    sortDirection = null
+    document.addEventListener('click', handleClick, true)
+    return {
+      destroy() {
+        document.removeEventListener('click', handleClick, true)
+      },
+    }
   }
 
-  const handleObjectPositionDown = (channel: ExtendedInterpretedDataType) => {
-    const reordered = reorderChannels([...channelObjects])
-    const movedChannel = reordered.find(c => c.id === channel.id)
-    if (movedChannel) {
-      const result = moveItem(reordered, movedChannel, 'down')
-      channelObjects = result.map(r => {
-        const original = channelObjects.find(o => o.id === r.id)!
-        return { ...original, color: r.color }
-      })
-    }
-    sortColumn = null
-    sortDirection = null
-  }
+  // --- Submit ---
 
   const handleSubmit = () => {
     const cleanedChannels = channelObjects.map(ch => ({
@@ -277,223 +260,127 @@
 </script>
 
 <Section>
-  <div class="content">
-    <IntroductoryParagraph
-      maxWidth="440px"
-      paragraphs={[
-        'Modify event channel names, colors, and grouping. Each stimulus has its own event channel list.',
-        '**To create groups**, give multiple channels the same displayed name. The color of the first channel with each name will be used for the entire group.',
-      ]}
-    />
-    <Select
-      label="For stimulus"
-      options={stimuliOption}
-      bind:value={selectedStimulus}
-    />
-  </div>
+  <Select
+    label="For stimulus"
+    options={stimuliOption}
+    bind:value={selectedStimulus}
+  />
 </Section>
 
-<Section title="Event channels">
-  {#if reorderedChannelObjects.length === 0}
+<Section>
+  <div class="section-title-row">
+    <span class="section-title">Event channels</span>
+    {#if groupedChannels.length > 0}
+      <div class="sort-wrapper" use:clickOutsideSort>
+        <button
+          class="tool-button"
+          class:active={showSortMenu}
+          onclick={() => { showSortMenu = !showSortMenu }}
+          aria-label="Sort event channels"
+          use:tooltipAction={{ content: 'Sort', position: 'bottom', disabled: showSortMenu }}
+        >
+          <ArrowDownAZ size={'1em'} />
+        </button>
+        {#if showSortMenu}
+          <div class="sort-menu">
+            <button class="sort-option" onclick={() => sortChannels('originalName', 'asc')}>Original name A–Z</button>
+            <button class="sort-option" onclick={() => sortChannels('originalName', 'desc')}>Original name Z–A</button>
+            <button class="sort-option" onclick={() => sortChannels('displayedName', 'asc')}>Displayed name A–Z</button>
+            <button class="sort-option" onclick={() => sortChannels('displayedName', 'desc')}>Displayed name Z–A</button>
+          </div>
+        {/if}
+      </div>
+    {/if}
+  </div>
+
+  {#if groupedChannels.length === 0}
     <Empty message="No event channels found in stimulus" />
-  {/if}
-  {#if reorderedChannelObjects.length > 0}
-    <table class="grid content">
-      <thead>
-        <tr class="gr-line header">
-          <th>
-            <SortableTableHeader
-              column="originalName"
-              label="Name"
-              {sortColumn}
-              {sortDirection}
-              onSort={handleSort}
-            />
-          </th>
-          <th>
-            <SortableTableHeader
-              column="displayedName"
-              label="Displayed name"
-              {sortColumn}
-              {sortDirection}
-              onSort={handleSort}
-            />
-          </th>
-          <th>Color</th>
-          <th>Order</th>
-          <th>Is active</th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each reorderedChannelObjects as channel (channel.id + selectedStimulus)}
-          {@const showGroupControls =
-            !isValidMatch((channel.displayedName || '').trim()) ||
-            reorderedChannelObjects.findIndex(
-              c =>
-                isValidMatch((c.displayedName || '').trim()) &&
-                (c.displayedName || '').trim() ===
-                  (channel.displayedName || '').trim()
-            ) === reorderedChannelObjects.indexOf(channel)}
-          {@const isActive = !hiddenSet.has(channel.id)}
-          <tr
-            class="gr-line"
-            animate:flip={{ duration: 250 }}
-            in:fade={{ duration: 200 }}
-          >
-            <td class="original-name">{channel.originalName}</td>
-            <td>
-              <InputText
-                label="Displayed name"
-                showLabel={false}
-                fill={true}
-                disabled={!isActive}
-                ariaLabel={`Displayed name for ${channel.originalName}`}
-                value={channel.displayedName}
-                oninput={e => {
-                  const originalChannel = channelObjects.find(c => c.id === channel.id)
-                  if (originalChannel) {
-                    originalChannel.displayedName = e.detail
-
-                    const trimmedName = (e.detail || '').trim()
-                    if (isValidMatch(trimmedName)) {
-                      const groupMember = channelObjects.find(
-                        c =>
-                          c.id !== channel.id &&
-                          (c.displayedName || '').trim() === trimmedName
-                      )
-                      if (groupMember) {
-                        const isGroupHidden = hiddenChannelIds.includes(
-                          groupMember.id
-                        )
-                        if (isGroupHidden) {
-                          if (!hiddenChannelIds.includes(channel.id)) {
-                            hiddenChannelIds = [...hiddenChannelIds, channel.id]
-                          }
-                        } else {
-                          hiddenChannelIds = hiddenChannelIds.filter(
-                            id => id !== channel.id
-                          )
-                        }
-                      }
-                    }
-                  }
-                }}
-              />
-            </td>
-            {#if showGroupControls}
-              <td class="color-cell">
-                <div
-                  class:disabled-control={!isActive}
-                  aria-disabled={!isActive}
-                >
-                  <InputColor
-                    label="Color"
-                    showLabel={false}
-                    ariaLabel={`Color for ${channel.originalName}`}
-                    value={channel.color}
-                    oninput={event => {
-                      if (!isActive) return
-                      const index = channelObjects.findIndex(c => c.id === channel.id)
-                      if (index !== -1) {
-                        channelObjects = channelObjects.map((c, i) =>
-                          i === index ? { ...c, color: event.detail } : c
-                        )
-                      }
-                    }}
-                  />
-                </div>
-              </td>
-              <td>
-                <div
-                  class="button-group"
-                  class:disabled-control={!isActive}
-                  aria-disabled={!isActive}
-                >
-                  <ReorderButtons
-                    isFirst={(() => {
-                      if (!isActive) return true
-                      const trimmedName = (channel.displayedName || '').trim()
-                      if (isValidMatch(trimmedName)) {
-                        let firstGroupIndex = reorderedChannelObjects.length
-                        reorderedChannelObjects.forEach((c, idx) => {
-                          const otherTrimmed = (c.displayedName || '').trim()
-                          if (otherTrimmed === trimmedName) {
-                            firstGroupIndex = Math.min(firstGroupIndex, idx)
-                          }
-                        })
-                        return firstGroupIndex === 0
-                      }
-                      return reorderedChannelObjects.indexOf(channel) === 0
-                    })()}
-                    isLast={(() => {
-                      if (!isActive) return true
-                      const trimmedName = (channel.displayedName || '').trim()
-                      if (isValidMatch(trimmedName)) {
-                        let lastGroupIndex = -1
-                        reorderedChannelObjects.forEach((c, idx) => {
-                          const otherTrimmed = (c.displayedName || '').trim()
-                          if (otherTrimmed === trimmedName) {
-                            lastGroupIndex = Math.max(lastGroupIndex, idx)
-                          }
-                        })
-                        return lastGroupIndex === reorderedChannelObjects.length - 1
-                      }
-                      return (
-                        reorderedChannelObjects.indexOf(channel) ===
-                        reorderedChannelObjects.length - 1
-                      )
-                    })()}
-                    onMoveDown={() => {
-                      if (!isActive) return
-                      handleObjectPositionDown(channel)
-                    }}
-                    onMoveUp={() => {
-                      if (!isActive) return
-                      handleObjectPositionUp(channel)
-                    }}
-                  />
-                </div>
-              </td>
-              <td class="active-col">
-                <InputCheck
-                  label=""
-                  ariaLabel="Is active"
-                  size="lg"
-                  checked={isActive}
-                  onchange={e => {
-                    const active = e.detail
-                    const trimmedName = (channel.displayedName || '').trim()
-                    const affectedIds = isValidMatch(trimmedName)
-                      ? channelObjects
-                          .filter(
-                            c => (c.displayedName || '').trim() === trimmedName
-                          )
-                          .map(c => c.id)
-                      : [channel.id]
-
-                    if (active) {
-                      hiddenChannelIds = hiddenChannelIds.filter(
-                        id => !affectedIds.includes(id)
-                      )
-                    } else {
-                      hiddenChannelIds = Array.from(
-                        new Set([...hiddenChannelIds, ...affectedIds])
-                      )
-                    }
-                  }}
+  {:else}
+    <div class="channel-grid">
+      <div class="channel-column-labels">
+        <span>Move</span>
+        <span>Original</span>
+        <span>Displayed</span>
+        <span>Color</span>
+        <span>Visible</span>
+      </div>
+      {#each groupedChannels as group (group.key)}
+        {@const isActive = !hiddenSet.has(group.members[0].id)}
+        <div
+          class="channel-card"
+          class:dragging={dragGroupKey === group.key}
+          data-group-key={group.key}
+          animate:flip={{ duration: 200 }}
+        >
+          {#each group.members as ch, i (ch.id)}
+            {@const isLeader = i === 0}
+            <div
+              class="channel-row"
+              class:leader={isLeader}
+              class:inactive={!isActive}
+            >
+              <div class="col-handle">
+                {#if isLeader}
+                  <div
+                    class="drag-handle"
+                    class:disabled-control={!isActive}
+                    use:dragHandle={group.key}
+                  >
+                    <GripVertical size={'1em'} />
+                  </div>
+                {/if}
+              </div>
+              <div class="col-original">{ch.originalName}</div>
+              <div class="col-displayed">
+                <InputText
+                  label="Displayed name"
+                  showLabel={false}
+                  fill={true}
+                  disabled={!isActive}
+                  ariaLabel={`Displayed name for ${ch.originalName}`}
+                  value={ch.displayedName}
+                  oninput={e => handleNameInput(ch, e.detail, isLeader, group)}
                 />
-              </td>
-            {:else}
-              <td colspan="3">
-                <div class="group-info" class:is-hidden={!isActive}>
-                  rename to detach from group
-                </div>
-              </td>
-            {/if}
-          </tr>
-        {/each}
-      </tbody>
-    </table>
+              </div>
+              <div class="col-color">
+                {#if isLeader}
+                  <div class:disabled-control={!isActive}>
+                    <InputColor
+                      label="Color"
+                      showLabel={false}
+                      width={35}
+                      ariaLabel={`Color for ${ch.originalName}`}
+                      value={ch.color}
+                      oninput={event =>
+                        isActive && handleColorInput(group, event.detail)}
+                    />
+                  </div>
+                {/if}
+              </div>
+              <div class="col-active">
+                {#if isLeader}
+                  <InputCheck
+                    label=""
+                    ariaLabel="Is active"
+                    size="lg"
+                    checked={isActive}
+                    onchange={e => toggleActive(group, e.detail)}
+                  />
+                {/if}
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/each}
+      {#if !hasGroups}
+        <div class="channel-hint">
+          <div class="col-handle">
+            <Info size={'1em'} />
+          </div>
+          <div class="hint-text" style="grid-column: 2 / -1;">Name channels the same to <strong>group</strong> them together</div>
+        </div>
+      {/if}
+    </div>
     <ModalButtons
       buttons={[
         {
@@ -511,14 +398,163 @@
 </Section>
 
 <style>
-  .active-col {
-    text-align: center;
-    vertical-align: middle;
-    width: 80px;
-    padding: 0;
+.section-title-row {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+  }
+
+  .section-title {
+    font-weight: 600;
+  }
+
+  .sort-wrapper {
+    position: relative;
+  }
+
+  .tool-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: 1px solid var(--c-midgrey);
+    border-radius: var(--rounded-md);
+    color: var(--c-darkgrey);
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    transition: color 0.1s ease, border-color 0.1s ease, background-color 0.1s ease;
+  }
+
+  .tool-button:hover {
+    color: var(--c-brand);
+    border-color: var(--c-brand);
+  }
+
+  .tool-button.active {
+    color: var(--c-brand);
+    border-color: var(--c-brand);
+    background-color: #f0f4ff;
+  }
+
+  .sort-menu {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 4px;
+    background: var(--c-white);
+    border: 1px solid var(--c-border);
+    border-radius: var(--rounded-md);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    z-index: 10;
+    min-width: 180px;
+    overflow: hidden;
+  }
+
+  .sort-option {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    background: none;
+    border: none;
+    text-align: left;
+    font-size: 13px;
+    color: var(--c-black);
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+  }
+
+  .sort-option:hover {
+    background-color: var(--c-darkwhite);
+  }
+
+  .sort-option:not(:last-child) {
+    border-bottom: 1px solid var(--c-border);
+  }
+
+  .channel-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: min(600px, 100%);
+    margin-bottom: 20px;
+  }
+
+  .channel-column-labels {
+    display: grid;
+    grid-template-columns: 28px 1fr 1fr 40px 40px;
+    gap: 8px;
+    padding: 0 12px;
+    font-size: 10px;
+    color: var(--c-midgrey);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .channel-column-labels span:first-child {
+    margin-left: -12px;
+  }
+
+  .channel-column-labels span:nth-child(4),
+  .channel-column-labels span:nth-child(5) {
+    text-align: center;
+  }
+
+  .channel-hint {
+    display: grid;
+    grid-template-columns: 28px 1fr 1fr 40px 40px;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 12px;
+    border: 1px dashed var(--c-midgrey);
+    border-radius: var(--rounded-md);
+    background-color: var(--c-darkwhite);
+    color: var(--c-black);
+    height: 50px;
+    box-sizing: border-box;
+  }
+
+  .hint-text {
+    font-size: 13px;
+    color: var(--c-black);
+  }
+
+  .channel-card {
+    border: 1px solid var(--c-border);
+    border-radius: var(--rounded-md);
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  .channel-card.dragging {
+    opacity: 0.3;
+    border-style: dashed;
+    border-color: var(--c-midgrey);
+    box-shadow: none;
+  }
+
+  .channel-card.dragging > * {
+    visibility: hidden;
+  }
+
+  .channel-row {
+    display: grid;
+    grid-template-columns: 28px 1fr 1fr 40px 40px;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: var(--c-darkwhite);
+  }
+
+  .channel-row:not(.leader) {
+    border-top: 1px solid var(--c-border);
+    background-color: var(--c-white);
+  }
+
+  .channel-row.inactive {
+    opacity: 0.45;
+    filter: grayscale(0.2);
   }
 
   .disabled-control {
@@ -527,51 +563,47 @@
     filter: grayscale(0.2);
   }
 
-  .color-cell {
-    padding: 0;
-  }
-
-  .button-group {
-    display: flex;
-    gap: 3px;
-    flex-direction: row;
-  }
-
-  th {
-    text-align: left;
-    font-size: 14px;
-  }
-  .original-name {
-    font-size: 14px;
-    padding-right: 10px;
-    color: var(--c-midgrey);
-    cursor: not-allowed;
-  }
-  .content {
-    margin-bottom: 25px;
-  }
-  .original-name {
-    line-height: 1;
-    white-space: nowrap;
-  }
-  .group-info {
-    font-size: 11px;
-    color: var(--c-midgrey);
-    border: 1px solid var(--c-midgrey);
-    border-radius: var(--rounded-md);
-    padding: 0 7px;
-    text-align: center;
-    background: transparent;
-    width: 236px;
-    height: 35px;
+  .col-handle {
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0;
-    opacity: 0.8;
-    box-sizing: border-box;
   }
-  .group-info.is-hidden {
-    background: var(--c-lightgrey);
+
+  .drag-handle {
+    cursor: grab;
+    color: var(--c-midgrey);
+    display: flex;
+    align-items: center;
+    padding: 2px 0;
+    transition: color 0.1s ease;
+  }
+
+  .drag-handle:hover {
+    color: var(--c-darkgrey);
+  }
+
+  .drag-handle:active {
+    cursor: grabbing;
+  }
+
+  .col-original {
+    font-size: 14px;
+    color: var(--c-midgrey);
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .col-color {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .col-active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 </style>
