@@ -116,8 +116,9 @@
   $effect(() => plot.registerExportSource(() => canvas))
 
   // Calculate dynamic margins
-  const effectiveTopMargin = $derived(
-    barPlottingType === 'horizontal' ? TICK_LENGTH : MARGIN.TOP
+  const effectiveTopMargin = $derived(TICK_LENGTH)
+  const effectiveBottomMargin = $derived(
+    barPlottingType === 'horizontal' ? MARGIN.BOTTOM : 30
   )
 
   // Calculate dynamic left margin based on plotting type and label lengths
@@ -185,7 +186,7 @@
     Math.max(
       1,
       Math.floor(
-        height - effectiveTopMargin - MARGIN.BOTTOM - marginTop - marginBottom
+        height - effectiveTopMargin - effectiveBottomMargin - marginTop - marginBottom
       )
     )
   )
@@ -475,11 +476,25 @@
           plotTop + plotHeight - tick.position * plotHeight
         )
         textAlign = 'right'
-        textBaseline = 'middle'
+        // Smart baseline: prevent text from overflowing above plotTop or below plotBottom
+        if (Math.abs(y - plotTop) < 1) {
+          textBaseline = 'top'
+        } else if (Math.abs(y - (plotTop + plotHeight)) < 1) {
+          textBaseline = 'bottom'
+        } else {
+          textBaseline = 'middle'
+        }
       } else {
         x = alignToPixelCenter(leftX + tick.position * plotWidth)
-        y = plotTop + plotHeight + CATEGORY_LABEL_OFFSET
-        textAlign = 'center'
+        y = alignToPixelCenter(plotTop + plotHeight + CATEGORY_LABEL_OFFSET)
+        // Smart alignment: prevent text from overflowing left or right of plot
+        if (Math.abs(x - leftX) < 1) {
+          textAlign = 'left'
+        } else if (Math.abs(x - (leftX + plotWidth)) < 1) {
+          textAlign = 'right'
+        } else {
+          textAlign = 'center'
+        }
         textBaseline = 'hanging'
       }
 
