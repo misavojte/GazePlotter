@@ -69,6 +69,28 @@ describe('PreviewModel', () => {
     })
   })
 
+  it('buildSimplePatch diffs only the specified keys', () => {
+    const draft = { a: 1, b: 'changed', c: true, d: 'same' }
+    const committed = { a: 1, b: 'original', c: false, d: 'same' }
+
+    const patch = PreviewModel.buildSimplePatch(draft, committed, ['a', 'b', 'c', 'd'])
+    expect(patch).toEqual({ b: 'changed', c: true })
+  })
+
+  it('buildSimplePatch returns empty object when nothing changed', () => {
+    const state = { x: 10, y: 20 }
+    const patch = PreviewModel.buildSimplePatch(state, { ...state }, ['x', 'y'])
+    expect(patch).toEqual({})
+  })
+
+  it('buildSimplePatch only checks requested keys', () => {
+    const draft = { a: 1, b: 99 }
+    const committed = { a: 1, b: 0 }
+
+    const patch = PreviewModel.buildSimplePatch(draft, committed, ['a'])
+    expect(patch).toEqual({})
+  })
+
   it('resets every preview field together', () => {
     let committed = {
       start: 5,

@@ -1,4 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { GroupSelectItem } from '$lib/shared/components'
 
 /**
  * Get the stimuli options for a plot
@@ -92,4 +93,30 @@ export function getParticipantOptions(engine: DataEngine) {
       value: id.toString(),
     }
   })
+}
+
+/**
+ * Creates standard Stimulus + Group select items for plot headers.
+ */
+export function createStimulusGroupSelects(
+  engine: DataEngine,
+  stimulusId: number,
+  groupId: number,
+  onStimulusChange: (stimulusId: number) => void,
+  onGroupChange: (groupId: number) => void
+): GroupSelectItem[] {
+  return [
+    {
+      label: 'Stimulus',
+      options: getStimuliOptions(engine),
+      value: stimulusId.toString(),
+      onchange: (e: CustomEvent) => onStimulusChange(parseInt(e.detail)),
+    },
+    {
+      label: 'Group',
+      options: getParticipantsGroupOptions(engine, true, stimulusId),
+      value: groupId.toString(),
+      onchange: (e: CustomEvent) => onGroupChange(parseInt(e.detail)),
+    },
+  ]
 }

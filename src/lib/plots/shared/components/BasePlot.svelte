@@ -130,6 +130,13 @@
     background-color: var(--c-white);
   }
 
+  .header :global(.plot-controls) {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    background: inherit;
+  }
+
   .figure {
     position: relative;
     /* overflow handled by inline style */

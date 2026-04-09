@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { untrack } from 'svelte'
   import { getGazePlotterSession } from '$lib/session'
   import { createMenuComponentItem } from '$lib/context-menu'
 
@@ -11,10 +10,7 @@
 
   // Utilities and stores
   import { getBarPlotData } from '$lib/plots/bar/core/transformer'
-  import {
-    getStimuliOptions,
-    getParticipantsGroupOptions,
-  } from '$lib/plots/shared'
+  import { createStimulusGroupSelects } from '$lib/plots/shared'
 
   // Types and constants
   import type {
@@ -28,7 +24,7 @@
     type BarPlotAggregationMethodId,
   } from '$lib/plots/bar/const'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
-  import { PreviewModel } from '$lib/plots/shared'
+  import { PreviewModel, createMenuCloseHandler } from '$lib/plots/shared'
   import BarPlotViewSettings from './BarPlotViewSettings.svelte'
 
   // Component Props using Svelte 5 $props() rune
@@ -63,29 +59,15 @@
       statisticalOverlay: settings.statisticalOverlay ?? 'none',
     }),
     buildPatch: (draft, committed) => {
-      const updates: Partial<BarPlotSettings> = {}
+      const updates: Partial<BarPlotSettings> = {
+        ...PreviewModel.buildSimplePatch(draft, committed, [
+          'orderBy', 'orderDirection', 'barPlottingType',
+          'timelineStart', 'timelineEnd', 'statisticalOverlay',
+        ]),
+      }
 
-      if (draft.orderBy !== committed.orderBy) updates.orderBy = draft.orderBy
-      if (draft.orderDirection !== committed.orderDirection) {
-        updates.orderDirection = draft.orderDirection
-      }
-      if (
-        draft.minScale !== committed.minScale ||
-        draft.maxScale !== committed.maxScale
-      ) {
+      if (draft.minScale !== committed.minScale || draft.maxScale !== committed.maxScale) {
         updates.scaleRange = [draft.minScale, draft.maxScale]
-      }
-      if (draft.barPlottingType !== committed.barPlottingType) {
-        updates.barPlottingType = draft.barPlottingType
-      }
-      if (draft.timelineStart !== committed.timelineStart) {
-        updates.timelineStart = draft.timelineStart
-      }
-      if (draft.timelineEnd !== committed.timelineEnd) {
-        updates.timelineEnd = draft.timelineEnd
-      }
-      if (draft.statisticalOverlay !== committed.statisticalOverlay) {
-        updates.statisticalOverlay = draft.statisticalOverlay
       }
 
       return updates
@@ -127,50 +109,21 @@
   // source for the workspace commands directly from the plot
   const source = $derived.by(() => createCommandSourcePlotPattern(item, 'plot'))
 
-  function handleMenuClose() {
-    untrack(() => {
-      const updates = preview.buildPatch()
-
-      if (!updates || Object.keys(updates).length === 0) {
-        preview.resetAll()
-        return
-      }
-
-      workspace.updateItemSettings(
-        item.id,
-        $state.snapshot(updates),
-        $state.snapshot(source)
-      )
-
-      preview.resetAll()
-    })
-  }
+  const handleMenuClose = createMenuCloseHandler(preview, patch =>
+    workspace.updateItemSettings(item.id, patch, $state.snapshot(source))
+  )
 
   function updateSetting(newSettings: Partial<BarPlotSettings>) {
     workspace.updateItemSettings(item.id, newSettings, source)
   }
 
-  const stimulusOptions = $derived(getStimuliOptions(engine))
-  const groupOptions = $derived(
-    getParticipantsGroupOptions(engine, true, settings.stimulusId)
-  )
-
   // Grouped selects like Scarf header: Stimulus, Group, Aggregation
   const selectItems = $derived<GroupSelectItem[]>([
-    {
-      label: 'Stimulus',
-      options: stimulusOptions,
-      value: settings.stimulusId.toString(),
-      onchange: (e: CustomEvent) =>
-        updateSetting({ stimulusId: parseInt(e.detail) }),
-    },
-    {
-      label: 'Group',
-      options: groupOptions,
-      value: settings.groupId.toString(),
-      onchange: (e: CustomEvent) =>
-        updateSetting({ groupId: parseInt(e.detail) }),
-    },
+    ...createStimulusGroupSelects(
+      engine, settings.stimulusId, settings.groupId,
+      id => updateSetting({ stimulusId: id }),
+      id => updateSetting({ groupId: id })
+    ),
     {
       label: 'View',
       value: settings.aggregationMethod,
@@ -195,7 +148,7 @@
 
 <BasePlot {item}>
   {#snippet header()}
-    <div class="controls">
+    <div class="plot-controls">
       <GroupSelect ariaLabel="Bar filters" items={selectItems} />
       <div class="menu-button">
         <BarPlotButtonMenu {item} />
@@ -219,11 +172,3 @@
   {/snippet}
 </BasePlot>
 
-<style>
-  .controls {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    background: inherit;
-  }
-</style>

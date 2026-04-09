@@ -1,3 +1,5 @@
+import { untrack } from 'svelte'
+
 const NO_PREVIEW = Symbol('no-preview')
 
 type Equality<T> = (left: T, right: T) => boolean
@@ -104,5 +106,46 @@ export class PreviewModel<
     for (const key of Object.keys(this.fields) as (keyof TFields)[]) {
       this.fields[key].reset()
     }
+  }
+
+  /**
+   * Auto-diff fields that map 1:1 from preview to settings.
+   * Returns a partial object with only the changed fields.
+   */
+  static buildSimplePatch<T extends PreviewFields>(
+    draft: Readonly<T>,
+    committed: Readonly<T>,
+    keys: (keyof T)[]
+  ): Partial<T> {
+    const updates: Partial<T> = {}
+    for (const key of keys) {
+      if (draft[key] !== committed[key]) {
+        updates[key] = draft[key]
+      }
+    }
+    return updates
+  }
+}
+
+/**
+ * Creates a standard handleMenuClose callback for plot components.
+ * Builds a patch from preview state, commits it via workspace, then resets.
+ */
+export function createMenuCloseHandler<TFields extends PreviewFields, TPatch extends object>(
+  preview: PreviewModel<TFields, TPatch>,
+  commit: (patch: TPatch) => void
+): () => void {
+  return () => {
+    untrack(() => {
+      const updates = preview.buildPatch()
+
+      if (!updates || Object.keys(updates).length === 0) {
+        preview.resetAll()
+        return
+      }
+
+      commit($state.snapshot(updates) as TPatch)
+      preview.resetAll()
+    })
   }
 }

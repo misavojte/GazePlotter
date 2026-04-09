@@ -45,7 +45,7 @@ function createMockEngine(segments: number[][][][]) {
 
 describe('Bar Plot Transformer (Integration)', () => {
   const stimulusId = 0
-  const groupId = 0
+  const groupId = -1
 
   it('transforms raw segments into labeled and sorted bar data', () => {
     const engine = createMockEngine([
