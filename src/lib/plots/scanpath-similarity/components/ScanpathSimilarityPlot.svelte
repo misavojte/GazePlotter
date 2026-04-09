@@ -18,7 +18,9 @@
     createMenuCloseHandler,
     getColorScaleCommitted,
     buildColorScalePatch,
+    buildValueRangePatch,
     deriveEffectiveColorScale,
+    toggleInArray,
   } from '$lib/plots/shared'
   import { PRESET_PALETTES } from '$lib/color/palettes'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
@@ -82,11 +84,8 @@
       const colorScale = buildColorScalePatch(draft, committed)
       if (colorScale) updates.colorScale = colorScale
 
-      if (draft.minValue !== committed.minValue || draft.maxValue !== committed.maxValue) {
-        const ranges = [...(settings.stimuliColorValueRanges || [])]
-        ranges[settings.stimulusId] = [draft.minValue, draft.maxValue]
-        updates.stimuliColorValueRanges = ranges
-      }
+      const valueRanges = buildValueRangePatch(draft, committed, settings.stimuliColorValueRanges, settings.stimulusId)
+      if (valueRanges) updates.stimuliColorValueRanges = valueRanges
 
       return updates
     },
@@ -130,14 +129,9 @@
   }
 
   const handleNodeClick = (nodeIndex: number) => {
-    const current = settings.participantHighlights ?? []
-    const isHighlighted = current.includes(nodeIndex)
-    const newHighlights = isHighlighted
-      ? current.filter(id => id !== nodeIndex)
-      : [...current, nodeIndex]
     workspace.updateItemSettings(
       item.id,
-      { participantHighlights: newHighlights },
+      { participantHighlights: toggleInArray(settings.participantHighlights ?? [], nodeIndex) },
       source
     )
   }

@@ -1,4 +1,5 @@
 export { default as ColorPicker } from './ColorPicker.svelte'
+export { default as ColorGradientPicker } from './ColorGradientPicker.svelte'
 export * from './palettes'
 export * from './colorPickerManager.svelte'
 export * from './utility'

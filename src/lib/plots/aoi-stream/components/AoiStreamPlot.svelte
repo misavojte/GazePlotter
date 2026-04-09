@@ -36,6 +36,7 @@
     getColorScaleCommitted,
     buildColorScalePatch,
     deriveEffectiveColorScale,
+    toggleInArray,
   } from '$lib/plots/shared'
   import { PRESET_PALETTES } from '$lib/color/palettes'
   import AoiStreamPlotViewSettings from './AoiStreamPlotViewSettings.svelte'
@@ -251,14 +252,9 @@
   }
 
   const handleLegendClick = (aoiId: number) => {
-    const aoiIdStr = aoiId.toString()
-    const currentHighlights = settings.highlights ?? []
-    const isCurrentlyHighlighted = currentHighlights.includes(aoiIdStr)
-    const newHighlights = isCurrentlyHighlighted
-      ? currentHighlights.filter((id: string) => id !== aoiIdStr)
-      : [...currentHighlights, aoiIdStr]
-
-    workspace.updateItemSettings(item.id, { highlights: newHighlights }, source)
+    workspace.updateItemSettings(item.id, {
+      highlights: toggleInArray(settings.highlights ?? [], aoiId.toString()),
+    }, source)
   }
 
   const selectItems = $derived<GroupSelectItem[]>([

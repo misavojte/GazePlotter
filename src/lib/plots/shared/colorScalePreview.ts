@@ -52,6 +52,22 @@ export function buildColorScalePatch(
 }
 
 /**
+ * Build a patch for per-stimulus color value ranges.
+ * Returns null if min/max are unchanged.
+ */
+export function buildValueRangePatch(
+  draft: { minValue: number; maxValue: number },
+  committed: { minValue: number; maxValue: number },
+  currentRanges: [number, number][] | undefined,
+  stimulusId: number
+): [number, number][] | null {
+  if (draft.minValue === committed.minValue && draft.maxValue === committed.maxValue) return null
+  const ranges = [...(currentRanges || [])]
+  ranges[stimulusId] = [draft.minValue, draft.maxValue]
+  return ranges
+}
+
+/**
  * Derive the effective color scale from draft fields.
  * Optimizes to 2-element when middle is the auto-interpolated value.
  */

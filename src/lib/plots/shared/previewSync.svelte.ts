@@ -1,5 +1,14 @@
 import { untrack } from 'svelte'
 
+/**
+ * Returns a new array with `item` toggled: removed if present, appended if absent.
+ */
+export function toggleInArray<T>(array: T[], item: T): T[] {
+  return array.includes(item)
+    ? array.filter(v => v !== item)
+    : [...array, item]
+}
+
 const NO_PREVIEW = Symbol('no-preview')
 
 type Equality<T> = (left: T, right: T) => boolean

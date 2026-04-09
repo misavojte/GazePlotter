@@ -1,17 +1,13 @@
 <script lang="ts">
-  import { getColorForValue, getContrastTextColor } from '$lib/color/utility'
+  import { getColorForValue } from '$lib/color/utility'
   import { updateTooltip } from '$lib/tooltip'
-  import {
-    truncateTextToPixelWidth,
-    SYSTEM_SANS_SERIF_STACK,
-  } from '$lib/shared/utils/textUtils'
+  import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
   import { untrack } from 'svelte'
   import {
     getScaledMousePosition,
     getTooltipPosition,
     beginCanvasDrawing,
     finishCanvasDrawing,
-    alignToPixelCenter,
     canvasLifecycleAction,
   } from '$lib/plots/shared/canvasUtils'
   import { SIMILARITY_MATRIX_LAYOUT } from '../const'
@@ -21,6 +17,8 @@
     drawGradientLegend,
     drawPlotOutline,
     useCanvasPlot,
+    renderMatrixContent,
+    type MatrixRenderConfig,
   } from '$lib/plots/shared'
   import { UI_COLORS } from '$lib/color'
 
@@ -86,6 +84,28 @@
     })
   )
 
+  function getColor(value: number): string {
+    return getColorForValue(
+      value,
+      colorValueRange[0],
+      effectiveMaxValue,
+      colorScale
+    )
+  }
+
+  const renderConfig = $derived<MatrixRenderConfig>({
+    layout,
+    labels,
+    matrix,
+    maxLabelLength: SIMILARITY_MATRIX_LAYOUT.maxLabelLength,
+    xAxisTitle: 'Participant',
+    yAxisTitle: 'Participant',
+    compactUnitText: '[indices]',
+    standardUnitText: '[names]',
+    formatCellValue: (v: number) => v.toFixed(2),
+    getCellColor: getColor,
+  })
+
   function renderCanvas() {
     beginCanvasDrawing(plot.canvasState, true)
     const ctx = plot.canvasState.context
@@ -103,8 +123,8 @@
       return
     }
 
-    drawGrid(ctx)
-    drawCells(ctx)
+    renderMatrixContent(ctx, renderConfig)
+
     drawPlotOutline(
       ctx,
       layout.xOffset,
@@ -112,221 +132,10 @@
       layout.gridWidth,
       layout.gridHeight
     )
+
     drawLegend(ctx)
-    setUpFont(ctx)
-    drawAxisLabels(ctx)
-    const labelFontSize = setUpLabelFont(ctx)
-    drawRowLabels(ctx, labelFontSize)
-    drawColumnLabels(ctx, labelFontSize)
-    drawCellsText(ctx)
+
     finishCanvasDrawing(plot.canvasState)
-  }
-
-  function setUpFont(ctx: CanvasRenderingContext2D) {
-    ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
-    ctx.fillStyle = UI_COLORS.TEXT_PRIMARY
-  }
-
-  function drawAxisLabels(ctx: CanvasRenderingContext2D) {
-    setUpFont(ctx)
-    const unitText = layout.isCompactMode ? '[indices]' : '[names]'
-    const {
-      xOffset,
-      yOffset,
-      gridWidth,
-      gridHeight,
-      xAxisLabelHeight,
-      yAxisLabelWidth,
-      axisTitleGap,
-    } = layout
-
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'bottom'
-    const xTitleY = yOffset - xAxisLabelHeight - axisTitleGap
-    ctx.fillText(
-      `Participant ${unitText}`,
-      xOffset + gridWidth * 0.5,
-      xTitleY
-    )
-
-    ctx.save()
-    const yTitleX = xOffset - yAxisLabelWidth - axisTitleGap
-    const yTitleY = yOffset + gridHeight * 0.5
-    ctx.translate(yTitleX, yTitleY)
-    ctx.rotate(-Math.PI / 2)
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'bottom'
-    ctx.fillText(`Participant ${unitText}`, 0, 0)
-    ctx.restore()
-  }
-
-  function setUpLabelFont(ctx: CanvasRenderingContext2D): number {
-    ctx.font = `${layout.fontSize}px ${SYSTEM_SANS_SERIF_STACK}`
-    return layout.fontSize
-  }
-
-  function drawRowLabels(ctx: CanvasRenderingContext2D, labelFontSize: number) {
-    if (!layout.showAxisLabels) return
-    ctx.textAlign = 'end'
-    ctx.textBaseline = 'middle'
-    for (let row = 0; row < labels.length; row++) {
-      if (layout.isUltraCompactMode && row % layout.thinFactor !== 0) continue
-      if (
-        layout.isCompactMode &&
-        !layout.isUltraCompactMode &&
-        (row + 1) % layout.thinFactor !== 0
-      )
-        continue
-
-      const x = layout.xOffset - layout.individualLabelMargin
-      const y =
-        layout.yOffset + row * layout.cellSize + layout.cellSize * 0.5 + 1
-
-      if (layout.isUltraCompactMode) {
-        ctx.beginPath()
-        ctx.moveTo(layout.xOffset, y - 1)
-        ctx.lineTo(layout.xOffset - 4, y - 1)
-        ctx.strokeStyle = UI_COLORS.TEXT_SECONDARY
-        ctx.stroke()
-      }
-
-      const labelText = layout.isCompactMode
-        ? layout.isUltraCompactMode
-          ? row.toString()
-          : (row + 1).toString()
-        : truncateTextToPixelWidth(
-            labels[row],
-            SIMILARITY_MATRIX_LAYOUT.maxLabelLength,
-            labelFontSize,
-            SYSTEM_SANS_SERIF_STACK,
-            '...'
-          )
-
-      ctx.fillText(labelText, x, y)
-    }
-  }
-
-  function drawColumnLabels(
-    ctx: CanvasRenderingContext2D,
-    labelFontSize: number
-  ) {
-    if (!layout.showAxisLabels) return
-    ctx.textAlign = 'left'
-    ctx.textBaseline = 'middle'
-
-    for (let col = 0; col < labels.length; col++) {
-      if (layout.isUltraCompactMode && col % layout.thinFactor !== 0) continue
-      if (
-        layout.isCompactMode &&
-        !layout.isUltraCompactMode &&
-        (col + 1) % layout.thinFactor !== 0
-      )
-        continue
-
-      const x = layout.xOffset + col * layout.cellSize + layout.cellSize * 0.5
-      const y = layout.yOffset - layout.individualLabelMargin
-
-      if (layout.isUltraCompactMode) {
-        ctx.beginPath()
-        ctx.moveTo(x, layout.yOffset)
-        ctx.lineTo(x, layout.yOffset - 4)
-        ctx.strokeStyle = UI_COLORS.TEXT_SECONDARY
-        ctx.stroke()
-      }
-
-      ctx.save()
-      ctx.translate(x, y)
-      if (!layout.isCompactMode) {
-        ctx.rotate(-Math.PI / 4)
-      } else {
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'bottom'
-      }
-
-      const labelText = layout.isCompactMode
-        ? layout.isUltraCompactMode
-          ? col.toString()
-          : (col + 1).toString()
-        : truncateTextToPixelWidth(
-            labels[col],
-            SIMILARITY_MATRIX_LAYOUT.maxLabelLength * 1.5,
-            labelFontSize,
-            SYSTEM_SANS_SERIF_STACK,
-            '...'
-          )
-
-      ctx.fillText(labelText, 0, 0)
-      ctx.restore()
-    }
-  }
-
-  function drawGrid(ctx: CanvasRenderingContext2D) {
-    ctx.strokeStyle = UI_COLORS.BORDER_DEFAULT
-    ctx.lineWidth = 0.5
-    const { xOffset, yOffset, cellSize, gridWidth, gridHeight } = layout
-    const size = labels.length
-
-    for (let col = 0; col <= size; col++) {
-      const x = alignToPixelCenter(xOffset + col * cellSize)
-      ctx.beginPath()
-      ctx.moveTo(x, yOffset)
-      ctx.lineTo(x, yOffset + gridHeight)
-      ctx.stroke()
-    }
-
-    for (let row = 0; row <= size; row++) {
-      const y = alignToPixelCenter(yOffset + row * cellSize)
-      ctx.beginPath()
-      ctx.moveTo(xOffset, y)
-      ctx.lineTo(xOffset + gridWidth, y)
-      ctx.stroke()
-    }
-  }
-
-  function drawCells(ctx: CanvasRenderingContext2D) {
-    const { xOffset, yOffset, cellSize } = layout
-    const size = labels.length
-
-    for (let row = 0; row < size; row++) {
-      const rowOffset = row * size
-      for (let col = 0; col < size; col++) {
-        const value = matrix[rowOffset + col] ?? 0
-        const x = xOffset + col * cellSize
-        const y = yOffset + row * cellSize
-        ctx.fillStyle = getColor(value)
-        ctx.fillRect(x, y, cellSize, cellSize)
-      }
-    }
-  }
-
-  function drawCellsText(ctx: CanvasRenderingContext2D) {
-    if (!layout.showCellValues) return
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    const { xOffset, yOffset, cellSize, cellValueFontSize } = layout
-    ctx.font = `${cellValueFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
-    const size = labels.length
-
-    for (let row = 0; row < size; row++) {
-      const rowOffset = row * size
-      for (let col = 0; col < size; col++) {
-        const value = matrix[rowOffset + col] ?? 0
-        const displayValue = value.toFixed(2)
-        ctx.fillStyle = getContrastTextColor(getColor(value))
-        const x = xOffset + col * cellSize
-        const y = yOffset + row * cellSize
-        ctx.fillText(displayValue, x + cellSize * 0.5, y + cellSize * 0.5 + 1)
-      }
-    }
-  }
-
-  function getColor(value: number): string {
-    return getColorForValue(
-      value,
-      colorValueRange[0],
-      effectiveMaxValue,
-      colorScale
-    )
   }
 
   const legendGeometry = $derived.by(() => {

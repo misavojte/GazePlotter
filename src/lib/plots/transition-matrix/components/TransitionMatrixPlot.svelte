@@ -25,6 +25,7 @@
     createMenuCloseHandler,
     getColorScaleCommitted,
     buildColorScalePatch,
+    buildValueRangePatch,
     deriveEffectiveColorScale,
   } from '$lib/plots/shared'
   import TransitionMatrixViewSettings from './TransitionMatrixViewSettings.svelte'
@@ -93,14 +94,8 @@
       const colorScale = buildColorScalePatch(draft, committed)
       if (colorScale) updates.colorScale = colorScale
 
-      if (
-        draft.minValue !== committed.minValue ||
-        draft.maxValue !== committed.maxValue
-      ) {
-        const ranges = [...(settings.stimuliColorValueRanges || [])]
-        ranges[settings.stimulusId] = [draft.minValue, draft.maxValue]
-        updates.stimuliColorValueRanges = ranges
-      }
+      const valueRanges = buildValueRangePatch(draft, committed, settings.stimuliColorValueRanges, settings.stimulusId)
+      if (valueRanges) updates.stimuliColorValueRanges = valueRanges
 
       return updates
     },
