@@ -13,6 +13,7 @@
   import ChevronDown from 'lucide-svelte/icons/chevron-down'
   import ChevronUp from 'lucide-svelte/icons/chevron-up'
   import Copy from 'lucide-svelte/icons/copy'
+  import { clickOutside } from '../shared/clickOutside'
   import Plus from 'lucide-svelte/icons/plus'
   import { tick } from 'svelte'
   import { slide } from 'svelte/transition'
@@ -249,20 +250,6 @@
     confirmingDeleteId = null
   }
 
-  // Click outside action for delete confirmation
-  const clickOutside = (node: HTMLElement, callback: () => void) => {
-    const handleClick = (e: MouseEvent) => {
-      if (!node.contains(e.target as Node)) {
-        callback()
-      }
-    }
-    document.addEventListener('click', handleClick, true)
-    return {
-      destroy() {
-        document.removeEventListener('click', handleClick, true)
-      },
-    }
-  }
 
   // Smart select/deselect labels
   const isFiltered = (groupId: number) => (searchFilters[groupId] || '') !== ''

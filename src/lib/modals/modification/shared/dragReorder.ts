@@ -37,7 +37,7 @@ export function createDragReorder(
       const offsetX = e.clientX - rect.left
       const offsetY = e.clientY - rect.top
       let swapCooldown = false
-      const SWAP_COOLDOWN_MS = 250
+      const SWAP_COOLDOWN_MS = 150
 
       const container = item.closest(
         config.containerSelector

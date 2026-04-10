@@ -160,7 +160,7 @@ export function getTooltipPosition(
     canvas.height > 0 ? (canvasY * pixelRatio) / canvas.height : 0
 
   const screenX = rect.left + xPercent * rect.width + offset.x
-  const screenY = rect.top + yPercent * rect.height + offset.y + window.scrollY
+  const screenY = rect.top + yPercent * rect.height + offset.y
 
   return { x: screenX, y: screenY }
 }

@@ -39,25 +39,22 @@ const calculatePosition = (
   hAlign: Alignment,
   vAlign: Alignment
 ): [number, number] => {
-  const scrollX = window.scrollX
-  const scrollY = window.scrollY
-
   const positions: Record<Position, [number, number]> = {
     top: [
-      calculateAlignedPosition(rect.left + scrollX, rect.width, width, hAlign),
-      rect.top + scrollY - offset,
+      calculateAlignedPosition(rect.left, rect.width, width, hAlign),
+      rect.top - offset,
     ],
     bottom: [
-      calculateAlignedPosition(rect.left + scrollX, rect.width, width, hAlign),
-      rect.bottom + scrollY + offset,
+      calculateAlignedPosition(rect.left, rect.width, width, hAlign),
+      rect.bottom + offset,
     ],
     left: [
-      rect.left + scrollX - width - offset,
-      calculateAlignedPosition(rect.top + scrollY, rect.height, 20, vAlign),
+      rect.left - width - offset,
+      calculateAlignedPosition(rect.top, rect.height, 20, vAlign),
     ],
     right: [
-      rect.right + scrollX + offset,
-      calculateAlignedPosition(rect.top + scrollY, rect.height, 20, vAlign),
+      rect.right + offset,
+      calculateAlignedPosition(rect.top, rect.height, 20, vAlign),
     ],
   }
 
