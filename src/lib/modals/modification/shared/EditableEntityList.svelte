@@ -147,6 +147,7 @@
             {@const isLeader = i === 0}
             <div
               class="entity-row"
+              class:member={!isLeader}
               style:grid-template-columns={gridTemplate}
               class:leader={isLeader}
               class:inactive={!isActive}
@@ -205,7 +206,7 @@
           {/each}
         {:else}
           {@const flat = item as BaseInterpretedDataType}
-          <div class="entity-row leader" style:grid-template-columns={gridTemplate}>
+          <div class="entity-row" style:grid-template-columns={gridTemplate}>
             {#each columns as col}
               {#if col.type === 'handle'}
                 <div class="col-handle">
@@ -372,7 +373,7 @@
     background-color: var(--c-darkwhite);
   }
 
-  .entity-row:not(.leader) {
+  .entity-row.member {
     border-top: 1px solid var(--c-border);
     background-color: var(--c-white);
   }
