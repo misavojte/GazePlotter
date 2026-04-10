@@ -13,11 +13,15 @@
   import type { GroupSelectItem } from '$lib/shared/components'
 
   import {
-    getStimuliOptions,
-    getParticipantsGroupOptions,
+    createStimulusGroupSelects,
     PreviewModel,
+    createMenuCloseHandler,
+    getColorScaleCommitted,
+    buildColorScalePatch,
+    buildValueRangePatch,
+    deriveEffectiveColorScale,
+    toggleInArray,
   } from '$lib/plots/shared'
-  import { interpolateColor } from '$lib/color/utility'
   import { PRESET_PALETTES } from '$lib/color/palettes'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import {
@@ -62,19 +66,7 @@
     Partial<ScanpathSimilaritySettings>
   >({
     getCommitted: () => ({
-      colorMin: settings.colorScale?.[0] || PRESET_PALETTES.BLUE.colors[0],
-      colorMax:
-        settings.colorScale?.length === 3
-          ? settings.colorScale[2]
-          : settings.colorScale?.[1] || PRESET_PALETTES.BLUE.colors[2],
-      colorMiddle:
-        settings.colorScale?.length === 3
-          ? settings.colorScale[1]
-          : interpolateColor(
-              settings.colorScale?.[0] || PRESET_PALETTES.BLUE.colors[0],
-              settings.colorScale?.[1] || PRESET_PALETTES.BLUE.colors[2],
-              0.5
-            ),
+      ...getColorScaleCommitted(settings.colorScale, PRESET_PALETTES.BLUE.colors[0], PRESET_PALETTES.BLUE.colors[2]),
       minValue: currentStimulusColorRange[0],
       maxValue: currentStimulusColorRange[1],
       threshold: settings.threshold ?? 0.5,
@@ -83,44 +75,17 @@
       similarityMethod: settings.similarityMethod ?? 'levenshtein',
     }),
     buildPatch: (draft, committed) => {
-      const updates: Partial<ScanpathSimilaritySettings> = {}
-
-      const colorChanged =
-        draft.colorMin !== committed.colorMin ||
-        draft.colorMiddle !== committed.colorMiddle ||
-        draft.colorMax !== committed.colorMax
-      if (colorChanged) {
-        const autoMiddle = interpolateColor(draft.colorMin, draft.colorMax, 0.5)
-        updates.colorScale =
-          draft.colorMiddle === autoMiddle
-            ? [draft.colorMin, draft.colorMax]
-            : [draft.colorMin, draft.colorMiddle, draft.colorMax]
+      const updates: Partial<ScanpathSimilaritySettings> = {
+        ...PreviewModel.buildSimplePatch(draft, committed, [
+          'threshold', 'collapsed', 'view', 'similarityMethod',
+        ]),
       }
 
-      if (
-        draft.minValue !== committed.minValue ||
-        draft.maxValue !== committed.maxValue
-      ) {
-        const ranges = [...(settings.stimuliColorValueRanges || [])]
-        ranges[settings.stimulusId] = [draft.minValue, draft.maxValue]
-        updates.stimuliColorValueRanges = ranges
-      }
+      const colorScale = buildColorScalePatch(draft, committed)
+      if (colorScale) updates.colorScale = colorScale
 
-      if (draft.threshold !== committed.threshold) {
-        updates.threshold = draft.threshold
-      }
-
-      if (draft.collapsed !== committed.collapsed) {
-        updates.collapsed = draft.collapsed
-      }
-
-      if (draft.view !== committed.view) {
-        updates.view = draft.view
-      }
-
-      if (draft.similarityMethod !== committed.similarityMethod) {
-        updates.similarityMethod = draft.similarityMethod
-      }
+      const valueRanges = buildValueRangePatch(draft, committed, settings.stimuliColorValueRanges, settings.stimulusId)
+      if (valueRanges) updates.stimuliColorValueRanges = valueRanges
 
       return updates
     },
@@ -128,15 +93,7 @@
 
   const syncs = preview.fields
 
-  const effectiveColorScale = $derived.by(() => {
-    const draft = preview.draft
-    const min = draft.colorMin
-    const middle = draft.colorMiddle
-    const max = draft.colorMax
-    const autoMiddle = interpolateColor(min, max, 0.5)
-    if (middle === autoMiddle) return [min, max]
-    return [min, middle, max]
-  })
+  const effectiveColorScale = $derived(deriveEffectiveColorScale(preview.draft))
 
   const effectiveView = $derived(preview.draft.view)
   const effectiveMethod = $derived(preview.draft.similarityMethod)
@@ -145,10 +102,6 @@
 
   const source = untrack(() => createCommandSourcePlotPattern(item, 'plot'))
 
-  const stimulusOptions = $derived(getStimuliOptions(engine))
-  const groupOptions = $derived(
-    getParticipantsGroupOptions(engine, true, settings.stimulusId)
-  )
 
   // Compute similarity data
   const similarityData = $derived.by(() => {
@@ -167,37 +120,18 @@
     return buildScangraphData(similarityData, effectiveThreshold)
   })
 
-  function handleMenuClose() {
-    untrack(() => {
-      const updates = preview.buildPatch()
-
-      if (!updates || Object.keys(updates).length === 0) {
-        preview.resetAll()
-        return
-      }
-
-      workspace.updateItemSettings(
-        item.id,
-        $state.snapshot(updates),
-        $state.snapshot(source)
-      )
-      preview.resetAll()
-    })
-  }
+  const handleMenuClose = createMenuCloseHandler(preview, patch =>
+    workspace.updateItemSettings(item.id, patch, $state.snapshot(source))
+  )
 
   function updateSettings(updates: Partial<typeof settings>) {
     workspace.updateItemSettings(item.id, updates, source)
   }
 
   const handleNodeClick = (nodeIndex: number) => {
-    const current = settings.participantHighlights ?? []
-    const isHighlighted = current.includes(nodeIndex)
-    const newHighlights = isHighlighted
-      ? current.filter(id => id !== nodeIndex)
-      : [...current, nodeIndex]
     workspace.updateItemSettings(
       item.id,
-      { participantHighlights: newHighlights },
+      { participantHighlights: toggleInArray(settings.participantHighlights ?? [], nodeIndex) },
       source
     )
   }
@@ -209,20 +143,11 @@
   }
 
   const selectItems = $derived<GroupSelectItem[]>([
-    {
-      label: 'Stimulus',
-      options: stimulusOptions,
-      value: settings.stimulusId.toString(),
-      onchange: (e: CustomEvent) =>
-        updateSettings({ stimulusId: parseInt(e.detail) }),
-    },
-    {
-      label: 'Group',
-      options: groupOptions,
-      value: settings.groupId.toString(),
-      onchange: (e: CustomEvent) =>
-        updateSettings({ groupId: parseInt(e.detail) }),
-    },
+    ...createStimulusGroupSelects(
+      engine, settings.stimulusId, settings.groupId,
+      id => updateSettings({ stimulusId: id }),
+      id => updateSettings({ groupId: id })
+    ),
     {
       label: 'View',
       value: effectiveView,
@@ -259,7 +184,7 @@
 
 <BasePlot {item} hasData={similarityData.size > 0}>
   {#snippet header()}
-    <div class="controls">
+    <div class="plot-controls">
       <GroupSelect
         ariaLabel="Scanpath Similarity filters"
         items={selectItems}
@@ -297,12 +222,6 @@
 </BasePlot>
 
 <style>
-  .controls {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    background: inherit;
-  }
   .menu-button {
     display: flex;
     align-items: center;

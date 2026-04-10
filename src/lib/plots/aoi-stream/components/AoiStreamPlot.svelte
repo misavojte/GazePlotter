@@ -30,8 +30,14 @@
   import type { AoiStreamPlotResult } from '../types'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
-  import { PreviewModel } from '$lib/plots/shared'
-  import { interpolateColor } from '$lib/color/utility'
+  import {
+    PreviewModel,
+    createMenuCloseHandler,
+    getColorScaleCommitted,
+    buildColorScalePatch,
+    deriveEffectiveColorScale,
+    toggleInArray,
+  } from '$lib/plots/shared'
   import { PRESET_PALETTES } from '$lib/color/palettes'
   import AoiStreamPlotViewSettings from './AoiStreamPlotViewSettings.svelte'
   import AoiStreamPlotColorSettings from './AoiStreamPlotColorSettings.svelte'
@@ -65,50 +71,17 @@
       timelineStart: settings.timelineStart,
       timelineEnd: settings.timelineEnd,
       alignment: settings.alignment ?? 'stream',
-      colorMin: settings.colorScale?.[0] || PRESET_PALETTES.HEAT.colors[0],
-      colorMax:
-        settings.colorScale?.length === 3
-          ? settings.colorScale[2]
-          : settings.colorScale?.[1] || PRESET_PALETTES.HEAT.colors[2],
-      colorMiddle:
-        settings.colorScale?.length === 3
-          ? settings.colorScale[1]
-          : settings.colorScale?.length === 2
-            ? interpolateColor(
-                settings.colorScale[0],
-                settings.colorScale[1],
-                0.5
-              )
-            : PRESET_PALETTES.HEAT.colors[1],
+      ...getColorScaleCommitted(settings.colorScale, PRESET_PALETTES.HEAT.colors[0], PRESET_PALETTES.HEAT.colors[2]),
     }),
     buildPatch: (draft, committed) => {
-      const updates: Partial<AoiStreamPlotSettings> = {}
-
-      if (draft.binSize !== committed.binSize) updates.binSize = draft.binSize
-      if (draft.ridgelineScale !== committed.ridgelineScale) {
-        updates.ridgelineScale = draft.ridgelineScale
-      }
-      if (draft.timelineStart !== committed.timelineStart) {
-        updates.timelineStart = draft.timelineStart
-      }
-      if (draft.timelineEnd !== committed.timelineEnd) {
-        updates.timelineEnd = draft.timelineEnd
-      }
-      if (draft.alignment !== committed.alignment) {
-        updates.alignment = draft.alignment
+      const updates: Partial<AoiStreamPlotSettings> = {
+        ...PreviewModel.buildSimplePatch(draft, committed, [
+          'binSize', 'ridgelineScale', 'timelineStart', 'timelineEnd', 'alignment',
+        ]),
       }
 
-      const colorChanged =
-        draft.colorMin !== committed.colorMin ||
-        draft.colorMiddle !== committed.colorMiddle ||
-        draft.colorMax !== committed.colorMax
-      if (colorChanged) {
-        const autoMiddle = interpolateColor(draft.colorMin, draft.colorMax, 0.5)
-        updates.colorScale =
-          draft.colorMiddle === autoMiddle
-            ? [draft.colorMin, draft.colorMax]
-            : [draft.colorMin, draft.colorMiddle, draft.colorMax]
-      }
+      const colorScale = buildColorScalePatch(draft, committed)
+      if (colorScale) updates.colorScale = colorScale
 
       return updates
     },
@@ -117,15 +90,7 @@
   // Grouping them for easier passing to components (typed explicitly for AoiStreamPlotViewSettings)
   const syncs = preview.fields
 
-  const effectiveColorScale = $derived.by(() => {
-    const draft = preview.draft
-    const min = draft.colorMin
-    const middle = draft.colorMiddle
-    const max = draft.colorMax
-    const autoMiddle = interpolateColor(min, max, 0.5)
-    if (middle === autoMiddle) return [min, max]
-    return [min, middle, max]
-  })
+  const effectiveColorScale = $derived(deriveEffectiveColorScale(preview.draft))
 
   const effectiveSettings = $derived.by(() => {
     const draft = preview.draft
@@ -252,22 +217,9 @@
 
   // --- ACTIONS ---
 
-  function handleMenuClose() {
-    untrack(() => {
-      const updates = preview.buildPatch()
-
-      if (!updates || Object.keys(updates).length === 0) {
-        preview.resetAll()
-        return
-      }
-
-      const snapshotUpdates = $state.snapshot(updates)
-      const snapshotSource = $state.snapshot(source)
-
-      workspace.updateItemSettings(item.id, snapshotUpdates, snapshotSource)
-      preview.resetAll()
-    })
-  }
+  const handleMenuClose = createMenuCloseHandler(preview, patch =>
+    workspace.updateItemSettings(item.id, patch, $state.snapshot(source))
+  )
 
   const handleStimulusChange = (event: CustomEvent<string>) => {
     const stimulusId = parseInt(event.detail)
@@ -300,14 +252,9 @@
   }
 
   const handleLegendClick = (aoiId: number) => {
-    const aoiIdStr = aoiId.toString()
-    const currentHighlights = settings.highlights ?? []
-    const isCurrentlyHighlighted = currentHighlights.includes(aoiIdStr)
-    const newHighlights = isCurrentlyHighlighted
-      ? currentHighlights.filter((id: string) => id !== aoiIdStr)
-      : [...currentHighlights, aoiIdStr]
-
-    workspace.updateItemSettings(item.id, { highlights: newHighlights }, source)
+    workspace.updateItemSettings(item.id, {
+      highlights: toggleInArray(settings.highlights ?? [], aoiId.toString()),
+    }, source)
   }
 
   const selectItems = $derived<GroupSelectItem[]>([
@@ -389,7 +336,7 @@
 
 <BasePlot {item} hasData={!!streamResult}>
   {#snippet header()}
-    <div class="controls">
+    <div class="plot-controls">
       <GroupSelect ariaLabel="AOI stream filters" items={selectItems} />
       <div class="menu-button">
         <AoiStreamPlotButtonMenu {item} />
@@ -415,12 +362,6 @@
 </BasePlot>
 
 <style>
-  .controls {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    background: inherit;
-  }
   .menu-button {
     display: flex;
     align-items: center;

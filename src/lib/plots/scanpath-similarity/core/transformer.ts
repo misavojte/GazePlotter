@@ -1,6 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import type { ExtendedInterpretedDataType } from '$lib/data/types'
-import { getAoiRaw } from '$lib/data/engine/utils/interpreters'
+import { getAois, getParticipantsIds } from '$lib/data/engine'
 import type {
   SimilarityMethod,
   ScanpathSimilarityData,
@@ -11,68 +10,6 @@ import {
   levenshteinSimilarity,
   needlemanWunschSimilarity,
 } from './similarity'
-
-function getParticipantOrderVector(engine: DataEngine): number[] {
-  const meta = engine.metadata
-  if (!meta) throw new Error('Data engine metadata not available')
-  const order = meta.participants.orderVector
-  if (order.length === 0) {
-    return Array.from({ length: meta.participants.data.length }, (_, i) => i)
-  }
-  return order
-}
-
-function getParticipantIdsForGroup(
-  engine: DataEngine,
-  groupId: number,
-  stimulusId: number
-): number[] {
-  const meta = engine.metadata
-  const reader = engine.getReader()
-  if (!meta || !reader) throw new Error('Data engine metadata not available')
-
-  const participantOrder = getParticipantOrderVector(engine)
-  if (groupId === -1) return participantOrder
-  if (groupId === -2) {
-    return participantOrder.filter(
-      pid => reader.getSegmentCount(stimulusId, pid) > 0
-    )
-  }
-
-  const group = meta.participantsGroups.find(g => g.id === groupId)
-  if (!group) throw new Error(`Group ${groupId} not found`)
-  return group.participantsIds
-}
-
-function getVisibleAois(
-  engine: DataEngine,
-  stimulusId: number
-): ExtendedInterpretedDataType[] {
-  const meta = engine.metadata
-  if (!meta) throw new Error('Data engine metadata not available')
-
-  const stimulusAois = meta.aois.data[stimulusId]
-  if (!stimulusAois) return []
-
-  const order = meta.aois.orderVector?.[stimulusId]
-  const ids =
-    order == null || order.length === 0
-      ? Array.from({ length: stimulusAois.length }, (_, i) => i)
-      : order
-
-  const hidden = meta.aois.hiddenAois?.[stimulusId] ?? []
-  const hiddenSet = hidden.length ? new Set<number>(hidden) : null
-  const uniqueMappedIds = new Set<number>()
-
-  for (const rawId of ids) {
-    if (hiddenSet?.has(rawId)) continue
-    uniqueMappedIds.add(engine.getAoiMapping(stimulusId, rawId))
-  }
-
-  return Array.from(uniqueMappedIds, aoiId =>
-    getAoiRaw(stimulusId, aoiId, meta)
-  )
-}
 
 const similarityFn: Record<
   SimilarityMethod,
@@ -92,8 +29,9 @@ export function getScanpathSimilarityData(
   method: SimilarityMethod,
   collapsed: boolean
 ): ScanpathSimilarityData {
-  const participantIds = getParticipantIdsForGroup(engine, groupId, stimulusId)
-  const aois = getVisibleAois(engine, stimulusId)
+  const participantIds = getParticipantsIds(engine, groupId, stimulusId)
+  const meta = engine.metadata
+  const aois = meta?.aois.data[stimulusId] ? getAois(engine, stimulusId) : []
   const entries = collectAllScanpaths(
     engine,
     stimulusId,

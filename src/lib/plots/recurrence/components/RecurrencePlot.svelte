@@ -21,6 +21,7 @@
     getStimuliOptions,
     getParticipantOptions,
     PreviewModel,
+    createMenuCloseHandler,
   } from '$lib/plots/shared'
   import RecurrenceViewSettings from './RecurrenceViewSettings.svelte'
 
@@ -60,40 +61,18 @@
       highlight: settings.highlight,
       masking: settings.masking,
     }),
-    buildPatch: (draft, committed) => {
-      const updates: Partial<RecurrencePlotSettings> = {}
-      if (draft.radius !== committed.radius) updates.radius = draft.radius
-      if (draft.gridSize !== committed.gridSize)
-        updates.gridSize = draft.gridSize
-      if (draft.showDuration !== committed.showDuration)
-        updates.showDuration = draft.showDuration
-      if (draft.minLineLength !== committed.minLineLength)
-        updates.minLineLength = draft.minLineLength
-      if (draft.highlight !== committed.highlight)
-        updates.highlight = draft.highlight as RecurrenceHighlight
-      if (draft.masking !== committed.masking)
-        updates.masking = draft.masking as RecurrenceMasking
-      return updates
-    },
+    buildPatch: (draft, committed) =>
+      PreviewModel.buildSimplePatch(draft, committed, [
+        'radius', 'gridSize', 'showDuration', 'minLineLength',
+        'highlight', 'masking',
+      ]) as Partial<RecurrencePlotSettings>,
   })
 
   const syncs = preview.fields
 
-  function handleMenuClose() {
-    untrack(() => {
-      const updates = preview.buildPatch()
-      if (!updates || Object.keys(updates).length === 0) {
-        preview.resetAll()
-        return
-      }
-      workspace.updateItemSettings(
-        item.id,
-        $state.snapshot(updates),
-        $state.snapshot(source)
-      )
-      preview.resetAll()
-    })
-  }
+  const handleMenuClose = createMenuCloseHandler(preview, patch =>
+    workspace.updateItemSettings(item.id, patch, $state.snapshot(source))
+  )
 
   const source = untrack(() => createCommandSourcePlotPattern(item, 'plot'))
 
@@ -210,7 +189,7 @@
     : null}
 >
   {#snippet header()}
-    <div class="controls">
+    <div class="plot-controls">
       <GroupSelect ariaLabel="Recurrence Plot filters" items={selectItems} />
       <div class="menu-button">
         <RecurrenceButtonMenu {item} />
@@ -235,13 +214,6 @@
 </BasePlot>
 
 <style>
-  .controls {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    background: inherit;
-  }
-
   .figure-container {
     flex: 1;
     position: relative;

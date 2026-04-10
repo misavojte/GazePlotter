@@ -20,11 +20,14 @@
   } from '$lib/plots/transition-matrix/const'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import {
-    getStimuliOptions,
-    getParticipantsGroupOptions,
+    createStimulusGroupSelects,
     PreviewModel,
+    createMenuCloseHandler,
+    getColorScaleCommitted,
+    buildColorScalePatch,
+    buildValueRangePatch,
+    deriveEffectiveColorScale,
   } from '$lib/plots/shared'
-  import { interpolateColor } from '$lib/color/utility'
   import TransitionMatrixViewSettings from './TransitionMatrixViewSettings.svelte'
 
   // Types
@@ -81,45 +84,18 @@
     Partial<TransitionMatrixPlotSettings>
   >({
     getCommitted: () => ({
-      colorMin: settings.colorScale?.[0] || '#f7fbff',
-      colorMax:
-        settings.colorScale?.length === 3
-          ? settings.colorScale[2]
-          : settings.colorScale?.[1] || '#08306b',
-      colorMiddle:
-        settings.colorScale?.length === 3
-          ? settings.colorScale[1]
-          : interpolateColor(
-              settings.colorScale?.[0] || '#f7fbff',
-              settings.colorScale?.[1] || '#08306b',
-              0.5
-            ),
+      ...getColorScaleCommitted(settings.colorScale, '#f7fbff', '#08306b'),
       minValue: currentStimulusColorRange[0],
       maxValue: currentStimulusColorRange[1],
     }),
     buildPatch: (draft, committed) => {
       const updates: Partial<TransitionMatrixPlotSettings> = {}
 
-      const colorChanged =
-        draft.colorMin !== committed.colorMin ||
-        draft.colorMiddle !== committed.colorMiddle ||
-        draft.colorMax !== committed.colorMax
-      if (colorChanged) {
-        const autoMiddle = interpolateColor(draft.colorMin, draft.colorMax, 0.5)
-        updates.colorScale =
-          draft.colorMiddle === autoMiddle
-            ? [draft.colorMin, draft.colorMax]
-            : [draft.colorMin, draft.colorMiddle, draft.colorMax]
-      }
+      const colorScale = buildColorScalePatch(draft, committed)
+      if (colorScale) updates.colorScale = colorScale
 
-      if (
-        draft.minValue !== committed.minValue ||
-        draft.maxValue !== committed.maxValue
-      ) {
-        const ranges = [...(settings.stimuliColorValueRanges || [])]
-        ranges[settings.stimulusId] = [draft.minValue, draft.maxValue]
-        updates.stimuliColorValueRanges = ranges
-      }
+      const valueRanges = buildValueRangePatch(draft, committed, settings.stimuliColorValueRanges, settings.stimulusId)
+      if (valueRanges) updates.stimuliColorValueRanges = valueRanges
 
       return updates
     },
@@ -127,37 +103,11 @@
 
   const syncs = preview.fields
 
-  const effectiveColorScale = $derived.by(() => {
-    const draft = preview.draft
-    const min = draft.colorMin
-    const middle = draft.colorMiddle
-    const max = draft.colorMax
+  const effectiveColorScale = $derived(deriveEffectiveColorScale(preview.draft))
 
-    const autoMiddle = interpolateColor(min, max, 0.5)
-    if (middle === autoMiddle) {
-      return [min, max]
-    }
-    return [min, middle, max]
-  })
-
-  function handleMenuClose() {
-    untrack(() => {
-      const updates = preview.buildPatch()
-
-      if (!updates || Object.keys(updates).length === 0) {
-        preview.resetAll()
-        return
-      }
-
-      workspace.updateItemSettings(
-        item.id,
-        $state.snapshot(updates),
-        $state.snapshot(source)
-      )
-
-      preview.resetAll()
-    })
-  }
+  const handleMenuClose = createMenuCloseHandler(preview, patch =>
+    workspace.updateItemSettings(item.id, patch, $state.snapshot(source))
+  )
 
   const source = untrack(() => createCommandSourcePlotPattern(item, 'plot'))
 
@@ -179,24 +129,11 @@
   }
 
   const selectItems = $derived<GroupSelectItem[]>([
-    {
-      label: 'Stimulus',
-      options: (() => {
-        return getStimuliOptions(engine)
-      })(),
-      value: settings.stimulusId.toString(),
-      onchange: (e: CustomEvent) =>
-        updateSettings({ stimulusId: parseInt(e.detail) }),
-    },
-    {
-      label: 'Group',
-      options: (() => {
-        return getParticipantsGroupOptions(engine, true, settings.stimulusId)
-      })(),
-      value: settings.groupId.toString(),
-      onchange: (e: CustomEvent) =>
-        updateSettings({ groupId: parseInt(e.detail) }),
-    },
+    ...createStimulusGroupSelects(
+      engine, settings.stimulusId, settings.groupId,
+      id => updateSettings({ stimulusId: id }),
+      id => updateSettings({ groupId: id })
+    ),
     {
       label: 'View',
       value: settings.aggregationMethod,
@@ -224,7 +161,7 @@
   hasData={settings?.stimulusId !== undefined && aoiLabels.length > 0}
 >
   {#snippet header()}
-    <div class="controls">
+    <div class="plot-controls">
       <GroupSelect
         ariaLabel="Transition Matrix filters"
         items={selectItems}
@@ -259,13 +196,6 @@
 </BasePlot>
 
 <style>
-  .controls {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    background: inherit;
-  }
-
   .figure-container {
     flex: 1;
     position: relative;

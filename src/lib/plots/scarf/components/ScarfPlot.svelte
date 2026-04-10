@@ -13,7 +13,7 @@
 
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
-  import { PreviewModel } from '$lib/plots/shared'
+  import { PreviewModel, createMenuCloseHandler } from '$lib/plots/shared'
 
   // Component Props using Svelte 5 $props() rune
   interface Props {
@@ -47,32 +47,11 @@
       hideNonFixations: realSettings.hideNonFixations ?? false,
       displayMode: realSettings.displayMode,
     }),
-    buildPatch: (draft, committed) => {
-      const updates: Partial<ScarfPlotSettings> = {}
-
-      if (draft.timeline !== committed.timeline)
-        updates.timeline = draft.timeline
-      if (draft.timelineStart !== committed.timelineStart) {
-        updates.timelineStart = draft.timelineStart
-      }
-      if (draft.timelineEnd !== committed.timelineEnd) {
-        updates.timelineEnd = draft.timelineEnd
-      }
-      if (draft.ordinalStart !== committed.ordinalStart) {
-        updates.ordinalStart = draft.ordinalStart
-      }
-      if (draft.ordinalEnd !== committed.ordinalEnd) {
-        updates.ordinalEnd = draft.ordinalEnd
-      }
-      if (draft.hideNonFixations !== committed.hideNonFixations) {
-        updates.hideNonFixations = draft.hideNonFixations
-      }
-      if (draft.displayMode !== committed.displayMode) {
-        updates.displayMode = draft.displayMode
-      }
-
-      return updates
-    },
+    buildPatch: (draft, committed) =>
+      PreviewModel.buildSimplePatch(draft, committed, [
+        'timeline', 'timelineStart', 'timelineEnd',
+        'ordinalStart', 'ordinalEnd', 'hideNonFixations', 'displayMode',
+      ]) as Partial<ScarfPlotSettings>,
   })
 
   // Grouping for header
@@ -167,24 +146,9 @@
     )
   }
 
-  function handleMenuClose() {
-    untrack(() => {
-      const updates = preview.buildPatch()
-
-      if (!updates || Object.keys(updates).length === 0) {
-        preview.resetAll()
-        return
-      }
-
-      workspace.updateItemSettings(
-        item.id,
-        updates,
-        createCommandSourcePlotPattern(item, 'plot')
-      )
-
-      preview.resetAll()
-    })
-  }
+  const handleMenuClose = createMenuCloseHandler(preview, patch =>
+    workspace.updateItemSettings(item.id, patch, createCommandSourcePlotPattern(item, 'plot'))
+  )
 
   function handleDragStepX(stepChange: number, width: number) {
     const visibleRange = timelineMax - timelineMin

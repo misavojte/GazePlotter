@@ -13,19 +13,7 @@ export enum MatrixAggregationMethod {
   SEGMENT_DWELL_TIME = 'segmentDwellTime',
 }
 
-export const TRANSITION_MATRIX_LAYOUT = {
-  horizontalPadding: 50,
-  baseLabelOffset: 5,
-  topMargin: 0,
-  leftMargin: 30,
-  rightMargin: 10,
-  minCellSize: 20,
-  maxLabelLength: 85,
-  COMPACT_THRESHOLD: 26,
-  THIN_THRESHOLD: 15,
-  LABEL_FONT_SIZE: 12,
-  CELL_VALUE_FONT_SIZE: 9,
-} as const
+export { MATRIX_LAYOUT as TRANSITION_MATRIX_LAYOUT } from '$lib/plots/shared'
 
 export const TRANSITION_MATRIX_DEFAULTS = {
   width: 500,
