@@ -96,6 +96,12 @@ export function createWorkspaceCommandRegistry(
     return { ...base, ...meta } as unknown as WorkspaceCommandChain
   }
 
+  const requireMetadata = () => {
+    const meta = engine.metadata
+    if (!meta) throw new Error('Data engine metadata not available for command reversal')
+    return meta
+  }
+
   function emitCollisionResolutionChildren(
     priorityItemId: number,
     chainId: number,
@@ -269,11 +275,7 @@ export function createWorkspaceCommandRegistry(
 
   const reverseHandlers: ReverseHandlers = {
     updateAois: (cmd, meta) => {
-      const dataMeta = engine.metadata
-      if (!dataMeta)
-        throw new Error(
-          'Data engine metadata not available for command reversal'
-        )
+      const dataMeta = requireMetadata()
       const stimulusId = cmd.stimulusId
       const currentAois = dataMeta.aois.data[stimulusId] || []
       const affectedAois: ExtendedInterpretedDataType[] = []
@@ -306,11 +308,7 @@ export function createWorkspaceCommandRegistry(
     },
 
     updateParticipants: (_cmd, meta) => {
-      const dataMeta = engine.metadata
-      if (!dataMeta)
-        throw new Error(
-          'Data engine metadata not available for command reversal'
-        )
+      const dataMeta = requireMetadata()
       const currentParticipants = dataMeta.participants.data || []
       const participants: BaseInterpretedDataType[] = currentParticipants.map(
         ([originalName, displayedName]: string[], index: number) => ({
@@ -323,11 +321,7 @@ export function createWorkspaceCommandRegistry(
     },
 
     updateStimuli: (_cmd, meta) => {
-      const dataMeta = engine.metadata
-      if (!dataMeta)
-        throw new Error(
-          'Data engine metadata not available for command reversal'
-        )
+      const dataMeta = requireMetadata()
       const currentStimuli = dataMeta.stimuli.data || []
       const stimuli: BaseInterpretedDataType[] = currentStimuli.map(
         ([originalName, displayedName]: string[], index: number) => ({
@@ -340,11 +334,7 @@ export function createWorkspaceCommandRegistry(
     },
 
     updateEventData: (cmd, meta) => {
-      const dataMeta = engine.metadata
-      if (!dataMeta)
-        throw new Error(
-          'Data engine metadata not available for command reversal'
-        )
+      const dataMeta = requireMetadata()
       const ed = dataMeta.eventData
       const currentDefs = ed.data[cmd.stimulusId] ?? []
       const currentBuffers = ed.events[cmd.stimulusId] ?? []
@@ -362,11 +352,7 @@ export function createWorkspaceCommandRegistry(
     },
 
     updateEventChannels: (cmd, meta) => {
-      const dataMeta = engine.metadata
-      if (!dataMeta)
-        throw new Error(
-          'Data engine metadata not available for command reversal'
-        )
+      const dataMeta = requireMetadata()
       const ed = dataMeta.eventData
       const currentDefs = ed.data[cmd.stimulusId] ?? []
       const order = ed.orderVector?.[cmd.stimulusId] ?? []
@@ -399,11 +385,7 @@ export function createWorkspaceCommandRegistry(
     },
 
     updateParticipantsGroups: (_cmd, meta) => {
-      const dataMeta = engine.metadata
-      if (!dataMeta)
-        throw new Error(
-          'Data engine metadata not available for command reversal'
-        )
+      const dataMeta = requireMetadata()
       const currentGroups = dataMeta.participantsGroups || []
       return withMeta(
         { type: 'updateParticipantsGroups', groups: currentGroups },
@@ -412,11 +394,7 @@ export function createWorkspaceCommandRegistry(
     },
 
     updateNoAoiTreatment: (_cmd, meta) => {
-      const dataMeta = engine.metadata
-      if (!dataMeta)
-        throw new Error(
-          'Data engine metadata not available for command reversal'
-        )
+      const dataMeta = requireMetadata()
       const currentNoAoiTreatment = dataMeta.noAoiTreatment
       return withMeta(
         {

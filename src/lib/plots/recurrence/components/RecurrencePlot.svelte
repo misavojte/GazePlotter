@@ -11,11 +11,7 @@
 
   import { getRecurrenceData } from '$lib/plots/recurrence/core/transformer'
   import { RECURRENCE_METHODS } from '$lib/plots/recurrence/const'
-  import {
-    buildDiagonalLineMask,
-    buildHorizontalLineMask,
-    buildVerticalLineMask,
-  } from '$lib/plots/recurrence/core/rqa'
+  import { buildHighlightMask } from '$lib/plots/recurrence/core/rqa'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import {
     getStimuliOptions,
@@ -80,59 +76,15 @@
     return getRecurrenceData(engine, settings)
   })
 
-  // Compute highlight mask based on current highlight mode.
-  // The mask builders operate on the mathematical upper triangle (j > i),
-  // which is the visual LOWER triangle (since rowToY inverts the y-axis).
-  // Visual upper = i > j, visual lower = i < j (equivalently j > i).
-  // Horizontal lines in one triangle become vertical in the other due to
-  // the matrix symmetry, so we must swap h↔v when mirroring.
   const highlightMask = $derived.by((): Uint8Array | null => {
     if (!recurrenceData) return null
-    const h = settings.highlight
-    if (h === 'none') return null
-
-    const { matrix, fixationCount: N } = recurrenceData
-    const L = settings.minLineLength
-    const showLower = settings.masking !== 'diagonalLower'
-
-    const mask = new Uint8Array(N * N)
-
-    // Masks computed on math upper triangle (j > i = visual lower)
-    let lowerSrc: Uint8Array // source for visual lower triangle
-    let upperSrc: Uint8Array // source to transpose into visual upper triangle
-
-    if (h === 'diagonal') {
-      const dMask = buildDiagonalLineMask(matrix, N, L)
-      lowerSrc = dMask
-      upperSrc = dMask // diagonal lines mirror to diagonal lines
-    } else if (h === 'horizontal') {
-      lowerSrc = buildHorizontalLineMask(matrix, N, L)
-      // Horizontal in visual upper = vertical in math upper (transposed)
-      upperSrc = buildVerticalLineMask(matrix, N, L)
-    } else {
-      // h === 'vertical'
-      lowerSrc = buildVerticalLineMask(matrix, N, L)
-      // Vertical in visual upper = horizontal in math upper (transposed)
-      upperSrc = buildHorizontalLineMask(matrix, N, L)
-    }
-
-    // Copy visual lower triangle (j > i) from lowerSrc
-    if (showLower) {
-      for (let i = 0; i < N; i++) {
-        for (let j = i + 1; j < N; j++) {
-          if (lowerSrc[i * N + j]) mask[i * N + j] = 1
-        }
-      }
-    }
-
-    // Transpose upperSrc into visual upper triangle (i > j)
-    for (let i = 0; i < N; i++) {
-      for (let j = i + 1; j < N; j++) {
-        if (upperSrc[i * N + j]) mask[j * N + i] = 1
-      }
-    }
-
-    return mask
+    return buildHighlightMask(
+      recurrenceData.matrix,
+      recurrenceData.fixationCount,
+      settings.highlight,
+      settings.masking,
+      settings.minLineLength
+    )
   })
 
   function updateSettings(updates: Partial<typeof settings>) {

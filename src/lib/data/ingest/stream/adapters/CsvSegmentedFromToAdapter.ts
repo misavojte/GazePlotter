@@ -99,10 +99,4 @@ export class CsvSegmentedFromToAdapter extends AbstractAdapter {
     return
   }
 
-  private findOptionalColumn(header: string[], target: string): number {
-    for (let i = 0; i < header.length; i++) {
-      if (header[i].trim().toLowerCase() === target) return i
-    }
-    return -1
-  }
 }

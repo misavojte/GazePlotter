@@ -1,4 +1,8 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import {
+  getStimuliOrderVector,
+  getParticipantOrderVector,
+} from '$lib/data/engine'
 import type { GroupSelectItem } from '$lib/shared/components'
 
 /**
@@ -9,10 +13,7 @@ export function getStimuliOptions(engine: DataEngine) {
   const meta = engine.metadata
   if (!meta) return []
 
-  const order =
-    meta.stimuli.orderVector.length === 0
-      ? Array.from({ length: meta.stimuli.data.length }, (_, i) => i)
-      : meta.stimuli.orderVector
+  const order = getStimuliOrderVector(engine)
 
   return order.map(id => {
     const stimulus = meta.stimuli.data[id]
@@ -81,10 +82,7 @@ export function getParticipantOptions(engine: DataEngine) {
   const meta = engine.metadata
   if (!meta) return []
 
-  const order =
-    meta.participants.orderVector.length === 0
-      ? Array.from({ length: meta.participants.data.length }, (_, i) => i)
-      : meta.participants.orderVector
+  const order = getParticipantOrderVector(engine)
 
   return order.map(id => {
     const participant = meta.participants.data[id]

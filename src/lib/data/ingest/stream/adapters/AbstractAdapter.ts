@@ -161,6 +161,13 @@ export abstract class AbstractAdapter {
     return index
   }
 
+  protected findOptionalColumn(header: string[], target: string): number {
+    for (let i = 0; i < header.length; i++) {
+      if (header[i].trim().toLowerCase() === target) return i
+    }
+    return -1
+  }
+
   protected deserializeFromBytes(_rawRowRef: Uint8Array): void {
     throw new Error(
       `Binary deserialization not implemented for ${this.constructor.name}.`

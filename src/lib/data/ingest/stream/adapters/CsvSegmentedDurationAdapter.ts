@@ -221,10 +221,4 @@ export class CsvSegmentedDurationAdapter extends AbstractAdapter {
     return bytes.length === 1 && bytes[0] === 48
   }
 
-  private findOptionalColumn(header: string[], target: string): number {
-    for (let i = 0; i < header.length; i++) {
-      if (header[i].trim().toLowerCase() === target) return i
-    }
-    return -1
-  }
 }
