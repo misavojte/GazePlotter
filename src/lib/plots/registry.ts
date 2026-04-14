@@ -5,6 +5,7 @@ import { scarfPlotDefinition } from './scarf/definition'
 import { transitionMatrixDefinition } from './transition-matrix/definition'
 import { scanpathSimilarityDefinition } from './scanpath-similarity/definition'
 import { recurrencePlotDefinition } from './recurrence/definition'
+import { evolvingMetricsDefinition } from './evolving-metrics/definition'
 
 export const plotRegistry = {
   scarf: scarfPlotDefinition,
@@ -13,6 +14,7 @@ export const plotRegistry = {
   aoiStreamPlot: aoiStreamPlotDefinition,
   scanpathSimilarity: scanpathSimilarityDefinition,
   recurrencePlot: recurrencePlotDefinition,
+  evolvingMetrics: evolvingMetricsDefinition,
 } as const
 
 const LEGACY_VISUALIZATION_TYPES = {

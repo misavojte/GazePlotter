@@ -458,57 +458,44 @@ export function computeBeeswarmPositions(
   }
 
   const minDist = dotRadius * 2.2
-  const placed: Array<{ valuePos: number; categoryPos: number }> = []
+  const loBound = categoryCenter - maxCategorySpread
+  const hiBound = categoryCenter + maxCategorySpread
+  const available = hiBound - loBound
 
-  // Sort by value for deterministic layout
-  const indexed = workingValues.map((v, i) => ({ v, i }))
-  indexed.sort((a, b) => a.v - b.v)
+  // Map values to pixel positions
+  const vps = workingValues.map(v => valueFn(v))
 
-  for (const { v } of indexed) {
-    const vp = valueFn(v)
-    let bestCat = categoryCenter
-
-    // Check for overlaps and shift outward in symmetric rings from center
-    let ring = 0
-    const step = minDist * 0.8
-    const maxAttempts = 50
-
-    while (ring < maxAttempts) {
-      // Ring 0 = center, then alternate: +1×step, −1×step, +2×step, −2×step, ...
-      const level = Math.ceil(ring / 2)
-      const sign = ring % 2 === 1 ? 1 : -1
-      const offset = ring === 0 ? 0 : level * step * sign
-      const candidate = categoryCenter + offset
-      let overlaps = false
-
-      for (const p of placed) {
-        const dv = vp - p.valuePos
-        const dc = candidate - p.categoryPos
-        const dist = Math.sqrt(dv * dv + dc * dc)
-        if (dist < minDist) {
-          overlaps = true
-          break
-        }
-      }
-
-      if (!overlaps) {
-        bestCat = candidate
-        break
-      }
-
-      ring++
-    }
-
-    // Clamp to max spread
-    bestCat = Math.max(
-      categoryCenter - maxCategorySpread,
-      Math.min(categoryCenter + maxCategorySpread, bestCat)
-    )
-
-    placed.push({ valuePos: vp, categoryPos: bestCat })
+  // Bin dots by value position (bin width = minDist).
+  // Dots sharing a bin get a centered row; dots in different bins are
+  // far enough apart in value to safely share category positions.
+  const bins = new Map<number, number[]>()
+  for (let i = 0; i < vps.length; i++) {
+    const key = Math.floor(vps[i] / minDist)
+    if (!bins.has(key)) bins.set(key, [])
+    bins.get(key)!.push(i)
   }
 
-  return placed
+  // Place each bin as a centered row: center + (i − (n−1)/2) × spacing
+  const result: Array<{ valuePos: number; categoryPos: number }> = new Array(vps.length)
+
+  for (const indices of bins.values()) {
+    indices.sort((a, b) => vps[a] - vps[b])
+    const n = indices.length
+    const spacing = n > 1 && (n - 1) * minDist > available
+      ? available / (n - 1)
+      : minDist
+
+    for (let i = 0; i < n; i++) {
+      const offset = (i - (n - 1) / 2) * spacing
+      const idx = indices[i]
+      result[idx] = {
+        valuePos: vps[idx],
+        categoryPos: Math.max(loBound, Math.min(hiBound, categoryCenter + offset)),
+      }
+    }
+  }
+
+  return result
 }
 
 // --- Drawing primitives ---
