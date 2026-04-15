@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte'
   import { getGazePlotterSession } from '$lib/session'
   import { createMenuComponentItem } from '$lib/context-menu'
 
@@ -10,7 +11,8 @@
 
   // Utilities and stores
   import { getBarPlotData } from '$lib/plots/bar/core/transformer'
-  import { createStimulusGroupSelects } from '$lib/plots/shared'
+  import { barPlotValueAxisSync } from '$lib/plots/bar/core/sync.svelte'
+  import { createAdaptiveTimeline, createStimulusGroupSelects } from '$lib/plots/shared'
 
   // Types and constants
   import type {
@@ -95,7 +97,50 @@
   // Get bar plot data and timeline from utility function
   const barPlotResult = $derived(getBarPlotData(engine, effectiveSettings))
   const labelededBarPlotData = $derived(barPlotResult.data)
-  const timeline = $derived(barPlotResult.timeline)
+
+  // --- Cross-plot value-axis sync ---
+  // Sync participates strictly in auto mode: a plot opts out the moment the
+  // user sets any custom value on scaleRange (min or max). Opted-out plots
+  // neither publish their dataMax nor read from the registry.
+  const hasCustomScale = $derived(
+    effectiveSettings.scaleRange !== undefined &&
+      (effectiveSettings.scaleRange[0] !== 0 ||
+        effectiveSettings.scaleRange[1] !== 0)
+  )
+
+  // Publish this plot's raw dataMax to the shared registry when in auto mode
+  // so other bar plots sharing (aggregationMethod, w, h) can pick it up. When
+  // the plot switches to a custom range, pull its entry out of the registry.
+  $effect(() => {
+    if (hasCustomScale) {
+      barPlotValueAxisSync.clearEntry(item.id)
+      return
+    }
+    barPlotValueAxisSync.setEntry(item.id, {
+      aggregationMethod: effectiveSettings.aggregationMethod,
+      w: item.w,
+      h: item.h,
+      dataMax: barPlotResult.dataMax,
+    })
+  })
+  onDestroy(() => barPlotValueAxisSync.clearEntry(item.id))
+
+  // In auto mode, substitute own dataMax with the synced max when larger.
+  const timeline = $derived.by(() => {
+    const raw = barPlotResult.timeline
+    if (hasCustomScale) return raw
+
+    const syncedMax = barPlotValueAxisSync.getSyncedMax(
+      effectiveSettings.aggregationMethod,
+      item.w,
+      item.h
+    )
+    if (syncedMax <= barPlotResult.dataMax) return raw
+
+    // Rebuild with the synced max — same 6-tick, nice-rounded shape that
+    // createTimeline() uses in auto mode.
+    return createAdaptiveTimeline(raw.minValue, syncedMax, 6, true)
+  })
 
   const axisLabel = $derived(
     getBarPlotAxisLabel(

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte'
+  import { onDestroy, untrack } from 'svelte'
   import { getGazePlotterSession } from '$lib/session'
   import { createMenuComponentItem } from '$lib/context-menu'
 
@@ -14,6 +14,10 @@
 
   // Utilities and stores
   import { getTransitionMatrixData } from '$lib/plots/transition-matrix/core/transformer'
+  import {
+    transitionMatrixColorSync,
+    colorScaleToKey,
+  } from '$lib/plots/transition-matrix/core/sync.svelte'
   import {
     MatrixAggregationMethod,
     TRANSITION_MATRIX_LEGEND_TITLES,
@@ -123,6 +127,60 @@
   // Destructure for cleaner access in template
   const { aoiLabels, matrix } = $derived(transitionData)
 
+  // --- Cross-plot color-scale sync ---
+  // Sync applies only when the user has left the per-stimulus color range at
+  // its default [0, 0]; any custom min or max opts the plot out of the
+  // sync group (no publish, no read). The sync key is
+  // (aggregationMethod, colorScale, w, h) — same metric, same palette, same
+  // grid footprint.
+  const ownDataMax = $derived.by(() => {
+    let max = 0
+    for (let i = 0; i < matrix.length; i++) {
+      if (matrix[i] > max) max = matrix[i]
+    }
+    return Math.ceil(max)
+  })
+
+  const isDefaultColorRange = $derived(
+    preview.draft.minValue === 0 && preview.draft.maxValue === 0
+  )
+
+  const effectiveColorScaleKey = $derived(colorScaleToKey(effectiveColorScale))
+
+  $effect(() => {
+    if (!isDefaultColorRange) {
+      transitionMatrixColorSync.clearEntry(item.id)
+      return
+    }
+    transitionMatrixColorSync.setEntry(item.id, {
+      aggregationMethod: settings.aggregationMethod,
+      colorScaleKey: effectiveColorScaleKey,
+      w: item.w,
+      h: item.h,
+      dataMax: ownDataMax,
+    })
+  })
+  onDestroy(() => transitionMatrixColorSync.clearEntry(item.id))
+
+  // Value range passed to the figure: user's draft values when customized,
+  // else [0, syncedMax] when sync contributes a larger max than own data.
+  // The figure treats colorValueRange[1] !== 0 as "user-set" and uses it
+  // verbatim instead of scanning the matrix — which is exactly the hook we
+  // need to inject the synced max here.
+  const effectiveColorValueRange = $derived.by<[number, number]>(() => {
+    const manual: [number, number] = [preview.draft.minValue, preview.draft.maxValue]
+    if (!isDefaultColorRange) return manual
+
+    const syncedMax = transitionMatrixColorSync.getSyncedMax(
+      settings.aggregationMethod,
+      effectiveColorScaleKey,
+      item.w,
+      item.h
+    )
+    if (syncedMax <= ownDataMax) return manual
+    return [0, syncedMax]
+  })
+
   // Handlers
   function updateSettings(updates: Partial<typeof settings>) {
     workspace.updateItemSettings(item.id, updates, source)
@@ -185,7 +243,7 @@
         legendTitle={TRANSITION_MATRIX_LEGEND_TITLES[
           settings.aggregationMethod
         ] ?? 'Transition Value'}
-        colorValueRange={[syncs.minValue.value, syncs.maxValue.value]}
+        colorValueRange={effectiveColorValueRange}
         belowMinColor={settings.belowMinColor}
         aboveMaxColor={settings.aboveMaxColor}
         showBelowMinLabels={settings.showBelowMinLabels}

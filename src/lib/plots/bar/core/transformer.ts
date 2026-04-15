@@ -49,7 +49,7 @@ export function getBarPlotData(
   const overlay = settings.statisticalOverlay ?? 'none'
 
   if (participantIds.length === 0) {
-    return { data: [], timeline: createAdaptiveTimeline(0, 100, 6) }
+    return { data: [], timeline: createAdaptiveTimeline(0, 100, 6), dataMax: 0 }
   }
 
   // Single pass collection of all metrics for all participants
@@ -134,6 +134,7 @@ export function getBarPlotData(
   return {
     data: sortedData,
     timeline,
+    dataMax,
   }
 }
 

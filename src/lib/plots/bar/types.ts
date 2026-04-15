@@ -57,6 +57,12 @@ export interface BarPlotDataItem {
 export interface BarPlotResult {
   data: BarPlotDataItem[]
   timeline: AdaptiveTimeline
+  /**
+   * Raw maximum across individual values (and whiskers for the boxplot
+   * overlay), before nice-rounding is applied to the timeline. Exposed so
+   * cross-plot sync can compare apples to apples between plots.
+   */
+  dataMax: number
 }
 
 export interface ParticipantSegmentData {
