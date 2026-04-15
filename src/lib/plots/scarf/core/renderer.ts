@@ -2,6 +2,7 @@ import {
   FONT_PRIMARY,
   GRIDLINE_PRIMARY,
   GRIDLINE_SECONDARY,
+  ROW_LABEL_GAP,
 } from '$lib/plots/shared'
 import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
 import { desaturateToWhite } from '$lib/color/utility'
@@ -191,7 +192,7 @@ export function drawScarfLabels(
     }
   } else {
     ctx.textAlign = 'end'
-    const xPos = leftX - 10
+    const xPos = leftX - ROW_LABEL_GAP
     for (let i = 0; i < len; i++) {
       ctx.fillText(
         participants[i].label,

@@ -1,6 +1,7 @@
 <script lang="ts">
   import {
     FONT_PRIMARY,
+    ROW_LABEL_GAP,
     type AdaptiveTimeline,
     getTimelinePositionRatio,
     drawYAxisMainLabel,
@@ -131,7 +132,7 @@
           ? Math.min(
               150,
               calculateLabelOffset(data.map(item => item.label)) +
-                VALUE_LABEL_OFFSET
+                ROW_LABEL_GAP
             ) + marginLeft
           : Math.max(
               65,
@@ -430,7 +431,7 @@
         y = alignToPixelCenter(plotTop + plotHeight + CATEGORY_LABEL_OFFSET)
       } else {
         text = truncateTextToPixelWidth(text, trueLeftMargin, LABEL_FONT_SIZE)
-        x = trueLeftMargin - VALUE_LABEL_OFFSET
+        x = trueLeftMargin - ROW_LABEL_GAP
         y = alignToPixelCenter(layoutItem.categoryCenter)
       }
 

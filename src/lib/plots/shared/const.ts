@@ -25,3 +25,11 @@ export const LEGEND_FONT = {
 }
 
 export const PLOT_HEADER_HEIGHT = 138
+
+/**
+ * Gap in px between the plot-area border and adjacent per-row / per-category
+ * text labels (participant names in scarf, AOI names in horizontal bar plot).
+ * Keep in sync with plotArea's internal TICK_LABEL_GAP so row labels align
+ * visually with tick labels on the same edge.
+ */
+export const ROW_LABEL_GAP = 10
