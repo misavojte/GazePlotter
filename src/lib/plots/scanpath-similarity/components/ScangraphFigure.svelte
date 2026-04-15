@@ -281,12 +281,15 @@
       ctx.stroke()
     }
 
-    // Draw outline around the content area (before labels so labels render on top)
+    // Draw outline around the content area (before labels so labels render on top).
+    // Inset by 1px on right/bottom: the scangraph fills the entire canvas with no
+    // axis-label margin, so a full-size rect would draw its right/bottom stroke
+    // half a pixel beyond the canvas and get cropped.
     drawPlotArea(ctx, {
       x: marginLeft,
       y: marginTop,
-      width,
-      height,
+      width: width - 1,
+      height: height - 1,
     })
 
     // Draw labels — last step in rendering
