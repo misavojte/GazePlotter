@@ -4,7 +4,6 @@ import {
 } from '$lib/plots/shared'
 import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
 import { GRIDLINE_PRIMARY } from '$lib/plots/shared/const'
-import { hexToRgb } from '$lib/color/utility'
 import type { BarPlotDataItem, StatisticalOverlayType } from '../types'
 
 // --- Shared layout types ---
@@ -30,7 +29,6 @@ export interface BarLayoutItem {
 // Beeswarm dot sizing
 const DOT_RADIUS_MAX = 5
 const DOT_RADIUS_MIN = 1.5
-const DOT_ALPHA_MIN = 0.25
 const DENSITY_BIN_SIZE = 20 // px — bin width for measuring local density along value axis
 
 // Visual styling
@@ -43,11 +41,6 @@ const CAP_WIDTH_RATIO = 0.3 // whisker/error cap width as fraction of category w
 const DIAMOND_SIZE = 4 // half-size of the mean diamond marker
 
 // --- Helpers ---
-
-function colorWithAlpha(hex: string, alpha: number): string {
-  const { r, g, b } = hexToRgb(hex)
-  return `rgba(${r},${g},${b},${alpha})`
-}
 
 export function valueToPixel(
   layout: BarPlotLayout,
@@ -63,10 +56,11 @@ export function valueToPixel(
 // --- Adaptive dot sizing ---
 
 /**
- * Computes dot radius and alpha based on the densest cluster across all AOIs.
- * Shrinks dots when too many overlap in a small region; reduces alpha as last resort.
+ * Computes dot radius based on the densest cluster across all AOIs.
+ * Shrinks dots when too many overlap in a small region. Dots are always
+ * drawn at full opacity — overlap is accepted as a visual tradeoff.
  */
-export function computeDotStyle(layout: BarPlotLayout): { radius: number; alpha: number } {
+export function computeDotStyle(layout: BarPlotLayout): { radius: number } {
   const categoryWidth = layout.items.length > 0 ? layout.items[0].categoryWidth : 100
 
   // Find the highest dot count within any single density bin across all AOIs
@@ -100,7 +94,7 @@ export function computeDotStyle(layout: BarPlotLayout): { radius: number; alpha:
     peakDensity = Math.max(peakDensity, ...bins)
   }
 
-  if (peakDensity === 0) return { radius: DOT_RADIUS_MAX, alpha: 1 }
+  if (peakDensity === 0) return { radius: DOT_RADIUS_MAX }
 
   // Determine largest radius where dots fit in the densest region
   // maxAcross = how many dots fit side-by-side in the category width
@@ -115,16 +109,7 @@ export function computeDotStyle(layout: BarPlotLayout): { radius: number; alpha:
   }
   radius = Math.max(DOT_RADIUS_MIN, radius)
 
-  // Determine alpha — if even min radius can't fit, reduce opacity
-  let alpha = 1.0
-  const maxAcrossAtRadius = Math.floor(categoryWidth / (radius * 2.2))
-  const rowsAtRadius = Math.max(1, Math.floor(DENSITY_BIN_SIZE / (radius * 2)))
-  const capacityAtRadius = maxAcrossAtRadius * rowsAtRadius
-  if (peakDensity > capacityAtRadius) {
-    alpha = Math.max(DOT_ALPHA_MIN, capacityAtRadius / peakDensity)
-  }
-
-  return { radius, alpha }
+  return { radius }
 }
 
 // --- Overlay backgrounds (light fill behind data to show stat region extent) ---
@@ -237,7 +222,7 @@ export function drawBeeswarmPoints(
   layout: BarPlotLayout
 ): void {
   const isVertical = layout.barPlottingType === 'vertical'
-  const { radius, alpha } = computeDotStyle(layout)
+  const { radius } = computeDotStyle(layout)
 
   for (const item of layout.items) {
     const values = item.data.individualValues
@@ -251,7 +236,7 @@ export function drawBeeswarmPoints(
       radius
     )
 
-    ctx.fillStyle = colorWithAlpha(item.data.color, alpha)
+    ctx.fillStyle = item.data.color
 
     for (const pos of positions) {
       ctx.beginPath()
