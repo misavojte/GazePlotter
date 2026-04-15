@@ -73,7 +73,8 @@
     WIDTH: 1,
   }
   const HEATMAP_LEGEND_HEIGHT = 60
-  const RIDGELINE_SCALE_WIDTH = 50
+  const RIDGELINE_SCALE_WIDTH = 56
+  const RIDGELINE_SCALE_LABEL = 'Fixation duration [ms]'
 
   let canvas = $state<HTMLCanvasElement | null>(null)
   let hoveredBinIndex = $state<number | null>(null)
@@ -470,17 +471,35 @@
       const scaleTop = alignToPixelCenter(centerY - drawHeight / 2)
       const scaleBottom = alignToPixelCenter(centerY + drawHeight / 2)
 
-      const scaleX = alignToPixelCenter(floorRight + 5)
+      // Layout: [rotated axis label] [scale bar] |— tick — tick_label
+      // Rotated label sits on the "inside" of the scale bar (ticks point out).
+      const scaleLabelGap = 4
+      const scaleLabelSlot = AXIS_CONFIG.fontSize - 2
+      const scaleX = alignToPixelCenter(
+        floorRight + scaleLabelGap + scaleLabelSlot + scaleLabelGap
+      )
       const tickLength = 5
       const tickXEnd = alignToPixelCenter(scaleX + tickLength)
+      const tickLabelX = tickXEnd + 3
+      const rotatedLabelY = (scaleTop + scaleBottom) / 2
 
       ctx.save()
+      ctx.fillStyle = AXIS_CONFIG.color
+
+      // Rotated scale description — metric [unit] — to the LEFT of the scale bar
+      ctx.save()
+      ctx.font = `${AXIS_CONFIG.fontSize - 2}px ${FONT_PRIMARY.FAMILY}`
+      ctx.translate(floorRight + scaleLabelGap + scaleLabelSlot / 2, rotatedLabelY)
+      ctx.rotate(-Math.PI / 2)
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(RIDGELINE_SCALE_LABEL, 0, 0)
+      ctx.restore()
+
+      // Numeric tick labels (right of the scale bar)
       ctx.textAlign = 'left'
       ctx.textBaseline = 'middle'
       ctx.font = `${AXIS_CONFIG.fontSize - 2}px ${FONT_PRIMARY.FAMILY}`
-      ctx.fillStyle = AXIS_CONFIG.color
-
-      const tickLabelX = tickXEnd + 3
       ctx.fillText('0', tickLabelX, scaleBottom)
       ctx.fillText(`${scaleMaxValue}`, tickLabelX, scaleTop)
 

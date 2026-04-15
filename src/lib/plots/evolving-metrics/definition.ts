@@ -18,7 +18,7 @@ export const evolvingMetricsDefinition = definePlot<
     windowMultiplier: 1,
   }),
   getMinSize: () => ({ w: 11, h: 10 }),
-  getDefaultHeight: () => 14,
-  getDefaultWidth: () => 14,
+  getDefaultHeight: () => 12,
+  getDefaultWidth: () => 12,
   requireCapabilities: ['segmented'],
 })
