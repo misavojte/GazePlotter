@@ -1,5 +1,10 @@
 <script lang="ts">
-  import { getParticipants, hasEventsForStimulus } from '$lib/data/engine'
+  import {
+    getNumberOfSegments,
+    getParticipantEndTime,
+    getParticipants,
+    hasEventsForStimulus,
+  } from '$lib/data/engine'
   import { getGazePlotterSession } from '$lib/session'
   import { onDestroy, untrack } from 'svelte'
   import { ScarfPlotFigure, ScarfPlotHeader } from '$lib/plots/scarf/components'
@@ -10,6 +15,7 @@
     transformDataToScarfPlot,
     SCARF_LAYOUT,
   } from '$lib/plots/scarf'
+  import { scarfTimelineSync } from '$lib/plots/scarf/core/sync.svelte'
 
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
@@ -88,8 +94,74 @@
     getParticipants(engine, currentGroupId, currentStimulusId).map(p => p.id)
   )
 
+  // --- Cross-plot timeline-axis sync ---
+  // Sync applies only when the user has left every range field at its default:
+  // no global timelineStart/End (or ordinalStart/End in ordinal mode) AND no
+  // legacy per-stimulus limits. The sync key is (timeline, w, h) — 'relative'
+  // mode is fixed 0–100 and always opts out.
+  const ownDataMax = $derived.by(() => {
+    redrawTimestamp
+    const timeline = effectiveSettings.timeline
+    if (timeline === 'relative') return 0
+    const isOrdinal = timeline === 'ordinal'
+    let max = 0
+    for (const pid of currentParticipantIds) {
+      const v = isOrdinal
+        ? getNumberOfSegments(engine, currentStimulusId, pid)
+        : getParticipantEndTime(engine, currentStimulusId, pid)
+      if (v > max) max = v
+    }
+    return max
+  })
+
+  const isDefaultRange = $derived.by(() => {
+    const s = effectiveSettings
+    if (s.timeline === 'relative') return false
+    if (s.timeline === 'absolute') {
+      const globalSet = (s.timelineStart ?? 0) > 0 || (s.timelineEnd ?? 0) > 0
+      const perStim = s.absoluteStimuliLimits?.[s.stimulusId]
+      const perStimSet = Array.isArray(perStim) && perStim[1] > 0
+      return !globalSet && !perStimSet
+    }
+    const globalSet = (s.ordinalStart ?? 0) > 0 || (s.ordinalEnd ?? 0) > 0
+    const perStim = s.ordinalStimuliLimits?.[s.stimulusId]
+    const perStimSet = Array.isArray(perStim) && perStim[1] > 0
+    return !globalSet && !perStimSet
+  })
+
+  $effect(() => {
+    if (!isDefaultRange) {
+      scarfTimelineSync.clearEntry(item.id)
+      return
+    }
+    scarfTimelineSync.setEntry(item.id, {
+      timeline: effectiveSettings.timeline as 'absolute' | 'ordinal',
+      w: item.w,
+      h: item.h,
+      dataMax: ownDataMax,
+    })
+  })
+  onDestroy(() => scarfTimelineSync.clearEntry(item.id))
+
+  // Inject the synced max into the transformer input as timelineEnd/ordinalEnd.
+  // This reuses the transformer's existing "user set an end" code path to
+  // widen the axis — scarfData.timeline.maxValue comes out at the synced value,
+  // and downstream layout / renderer logic Just Works. The ScarfPlotFigure
+  // still receives un-injected effectiveSettings so the x-axis label and the
+  // existing drag → preview.draft flow aren't affected.
+  const syncedSettings = $derived.by(() => {
+    if (!isDefaultRange) return effectiveSettings
+    const timeline = effectiveSettings.timeline as 'absolute' | 'ordinal'
+    const syncedMax = scarfTimelineSync.getSyncedMax(timeline, item.w, item.h)
+    if (syncedMax <= ownDataMax) return effectiveSettings
+    return timeline === 'absolute'
+      ? { ...effectiveSettings, timelineEnd: syncedMax }
+      : { ...effectiveSettings, ordinalEnd: syncedMax }
+  })
+
   const scarfData = $derived.by(() => {
-    // Dependencies: effectiveSettings, currentParticipantIds, redrawTimestamp
+    // Dependencies: syncedSettings (which tracks effectiveSettings + sync),
+    // currentParticipantIds, redrawTimestamp
     redrawTimestamp
     const meta = engine.metadata
     if (!meta) return null
@@ -97,7 +169,7 @@
       engine,
       currentStimulusId,
       currentParticipantIds,
-      effectiveSettings,
+      syncedSettings,
       meta.noAoiTreatment
     )
   })
