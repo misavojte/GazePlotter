@@ -23,13 +23,12 @@
     computeGradientLegendGeometry,
     drawGradientLegend,
   } from '$lib/plots/shared/legendGradient'
+  import { drawXAxisLabel } from '$lib/plots/shared/axisUtils'
   import {
-    drawTimelineLabels,
-    drawXAxisTicksAndBorder,
-    drawXAxisLabel,
-    drawTopXAxisTicksAndBorder,
-    drawPlotOutline,
-  } from '$lib/plots/shared/axisUtils'
+    drawPlotArea,
+    fillPlotAreaBackground,
+    niceTimelineTicks,
+  } from '$lib/plots/shared/plotArea'
   import { safeNumber } from '$lib/shared/utils/mathUtils'
   import { MARGIN, AXIS_CONFIG, getEvolvingMetricsXAxisLabel } from '../const'
   import type { EvolvingMetricsResult } from '../types'
@@ -294,11 +293,17 @@
       }
     } else {
       // --- Heatmap rendering ---
-      // Background fill for N/A bins — one rect instead of per-cell paints
-      ctx.fillStyle = INACTIVE_COLOR
-      ctx.fillRect(floorLeft, floorTop, floorWidth, floorHeight)
+      // Solid-gray background communicates NODATA; cells with data overpaint it.
+      fillPlotAreaBackground(
+        ctx,
+        floorLeft,
+        floorTop,
+        floorWidth,
+        floorHeight,
+        INACTIVE_COLOR
+      )
 
-      // Draw only cells with data (skip NaN — background already covers them)
+      // Draw only cells with data (skip NaN — gray background shows through)
       for (let p = 0; p < participantCount; p++) {
         const values = data.participants[p].values
         const rowY = floorTop + p * rowHeight
@@ -412,15 +417,16 @@
     }
     ctx.restore()
 
-    // X-axis
-    drawTimelineLabels(
-      ctx,
-      data.timeline,
-      floorLeft,
-      floorWidth,
-      floorBottom,
-      AXIS_CONFIG
-    )
+    // X-axis chrome (ticks on top+bottom, labels on bottom, border). Heatmap
+    // already has the striped gray background; ridgeline doesn't need a bg.
+    const xTicks = niceTimelineTicks(data.timeline)
+    drawPlotArea(ctx, {
+      x: floorLeft,
+      y: floorTop,
+      width: floorWidth,
+      height: floorHeight,
+      ticks: { bottom: xTicks, top: { positions: xTicks.positions } },
+    })
     drawXAxisLabel(
       ctx,
       X_AXIS_LABEL,
@@ -429,32 +435,6 @@
       floorBottom,
       X_AXIS_LABEL_OFFSET,
       AXIS_CONFIG
-    )
-    drawPlotOutline(
-      ctx,
-      floorLeft,
-      floorTop,
-      floorWidth,
-      floorHeight,
-      AXIS_CONFIG.baselineColor
-    )
-    drawXAxisTicksAndBorder(
-      ctx,
-      data.timeline,
-      floorLeft,
-      floorWidth,
-      floorBottom,
-      AXIS_CONFIG,
-      false
-    )
-    drawTopXAxisTicksAndBorder(
-      ctx,
-      data.timeline,
-      floorLeft,
-      floorWidth,
-      floorTop,
-      AXIS_CONFIG,
-      false
     )
 
     // Gradient legend (heatmap only)

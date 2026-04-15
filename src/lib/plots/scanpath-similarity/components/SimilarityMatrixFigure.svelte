@@ -15,7 +15,7 @@
   import {
     computeGradientLegendGeometry,
     drawGradientLegend,
-    drawPlotOutline,
+    drawPlotArea,
     useCanvasPlot,
     renderMatrixContent,
     type MatrixRenderConfig,
@@ -125,13 +125,12 @@
 
     renderMatrixContent(ctx, renderConfig)
 
-    drawPlotOutline(
-      ctx,
-      layout.xOffset,
-      layout.yOffset,
-      layout.gridWidth,
-      layout.gridHeight
-    )
+    drawPlotArea(ctx, {
+      x: layout.xOffset,
+      y: layout.yOffset,
+      width: layout.gridWidth,
+      height: layout.gridHeight,
+    })
 
     drawLegend(ctx)
 

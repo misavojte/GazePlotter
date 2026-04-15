@@ -10,7 +10,7 @@
     canvasLifecycleAction,
   } from '$lib/plots/shared/canvasUtils'
   import { UI_COLORS } from '$lib/color'
-  import { drawPlotOutline, useCanvasPlot } from '$lib/plots/shared'
+  import { drawPlotArea, useCanvasPlot } from '$lib/plots/shared'
   import { SCANGRAPH_LAYOUT } from '../const'
   import type { ScangraphData } from '../types'
   import { computeForceLayout, type ForceLayoutMargins, type LayoutResult, type NodePosition } from '../core/forceLayout'
@@ -282,7 +282,12 @@
     }
 
     // Draw outline around the content area (before labels so labels render on top)
-    drawPlotOutline(ctx, marginLeft + 0.5, marginTop + 0.5, width - 1, height - 1)
+    drawPlotArea(ctx, {
+      x: marginLeft,
+      y: marginTop,
+      width,
+      height,
+    })
 
     // Draw labels — last step in rendering
     const fontSize = Math.max(8, Math.min(11, Math.round(r * 1.6)))

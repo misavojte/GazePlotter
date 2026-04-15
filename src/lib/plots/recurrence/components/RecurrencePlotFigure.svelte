@@ -10,7 +10,7 @@
     canvasLifecycleAction,
   } from '$lib/plots/shared/canvasUtils'
   import { RECURRENCE_LAYOUT } from '../const'
-  import { drawPlotOutline, useCanvasPlot } from '$lib/plots/shared'
+  import { drawPlotArea, useCanvasPlot } from '$lib/plots/shared'
   import { UI_COLORS } from '$lib/color'
   import type {
     RecurrenceData,
@@ -280,7 +280,12 @@
     }
 
     // Plot outline
-    drawPlotOutline(ctx, xOffset, yOffset, gridSize, gridSize)
+    drawPlotArea(ctx, {
+      x: xOffset,
+      y: yOffset,
+      width: gridSize,
+      height: gridSize,
+    })
 
     // Axis labels
     drawAxisLabels(ctx)

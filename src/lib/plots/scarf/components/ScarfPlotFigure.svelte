@@ -11,13 +11,12 @@
     computeGroupedLegendGeometry,
     drawLegend,
     drawLegendGroupTitles,
-    drawTimelineLabels,
-    drawTopXAxisTicksAndBorder,
+    drawPlotArea,
     drawXAxisLabel,
-    drawXAxisTicksAndBorder,
     getLegendTooltipContent,
     getLegendTooltipPosition,
     hitTestLegend,
+    niceTimelineTicks,
     SCARF_LEGEND_CONFIG,
     useCanvasPlot,
     type LegendGeometry,
@@ -489,14 +488,6 @@
     drawScarfLabels(ctx, data, renderCtx)
     drawScarfGrid(ctx, data, renderCtx)
 
-    drawTopXAxisTicksAndBorder(
-      ctx,
-      data.timeline,
-      scarfPlotLeft,
-      scarfPlotWidth,
-      effectiveMarginTop
-    )
-
     // 2. Draw Data segments (mode-aware)
     if (isEventsOnlyMode && eventOnlyLayout) {
       drawEventChannelRects(
@@ -540,15 +531,15 @@
         : layout.heightOfBarWrap
     )
 
-    // 3. Draw Axis labels and details
-    drawTimelineLabels(
-      ctx,
-      data.timeline,
-      scarfPlotLeft,
-      scarfPlotWidth,
-      participantBarsHeight + effectiveMarginTop
-    )
-
+    // 3. Draw plot-area chrome (ticks on top+bottom, labels on bottom, full border)
+    const scarfXTicks = niceTimelineTicks(data.timeline)
+    drawPlotArea(ctx, {
+      x: scarfPlotLeft,
+      y: effectiveMarginTop,
+      width: scarfPlotWidth,
+      height: participantBarsHeight,
+      ticks: { bottom: scarfXTicks, top: { positions: scarfXTicks.positions } },
+    })
     drawXAxisLabel(
       ctx,
       xAxisLabel,
@@ -556,14 +547,6 @@
       scarfPlotWidth,
       participantBarsHeight + effectiveMarginTop,
       30
-    )
-
-    drawXAxisTicksAndBorder(
-      ctx,
-      data.timeline,
-      scarfPlotLeft,
-      scarfPlotWidth,
-      participantBarsHeight + effectiveMarginTop
     )
 
     // 4. Draw legend

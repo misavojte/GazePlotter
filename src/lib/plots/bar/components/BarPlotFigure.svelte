@@ -1,13 +1,14 @@
 <script lang="ts">
   import {
-    GRIDLINE_PRIMARY,
     FONT_PRIMARY,
     type AdaptiveTimeline,
     getTimelinePositionRatio,
-    drawPlotOutline,
     drawYAxisMainLabel,
     drawXAxisLabel,
     useCanvasPlot,
+    drawPlotArea,
+    fillPlotAreaBackground,
+    type PlotAreaTicks,
   } from '$lib/plots/shared'
   import {
     calculateLabelOffset,
@@ -357,8 +358,7 @@
     ctx.rect(floorLeft, floorTop, floorWidth, floorHeight)
     ctx.clip()
 
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(floorLeft, floorTop, floorWidth, floorHeight)
+    fillPlotAreaBackground(ctx, floorLeft, floorTop, floorWidth, floorHeight, 'white')
 
     drawOverlayBackgrounds(ctx, rendererLayout, statisticalOverlay)
     drawCategoryDelimiters(ctx, rendererLayout)
@@ -367,11 +367,32 @@
 
     ctx.restore()
 
-    // --- Unclipped chrome: border, ticks, labels ---
-    drawPlotOutline(ctx, floorLeft, floorTop, floorWidth, floorHeight)
+    // --- Unclipped chrome: ticks + border + labels ---
+    const niceTicks = timeline.ticks.filter(t => t.isNice)
+    const isVertical = barPlottingType === 'vertical'
+    // Vertical: value axis runs top-to-bottom on left/right edges (0 at bottom,
+    // so invert). Horizontal: value axis runs left-to-right on top/bottom edges.
+    const valueTicks: PlotAreaTicks = isVertical
+      ? {
+          positions: niceTicks.map(t => 1 - t.position),
+          labels: niceTicks.map(t => t.label),
+        }
+      : {
+          positions: niceTicks.map(t => t.position),
+          labels: niceTicks.map(t => t.label),
+        }
+    const positionsOnly = { positions: valueTicks.positions }
+    drawPlotArea(ctx, {
+      x: floorLeft,
+      y: floorTop,
+      width: floorWidth,
+      height: floorHeight,
+      ticks: isVertical
+        ? { left: valueTicks, right: positionsOnly }
+        : { bottom: valueTicks, top: positionsOnly },
+    })
     drawCrosshairHighlight(ctx, floorLeft, floorTop, floorWidth, floorHeight)
-    drawAxisTicks(ctx, floorLeft, floorWidth, floorTop, floorHeight)
-    drawAllTextElements(ctx, floorLeft, floorWidth, floorTop, floorHeight)
+    drawCategoryLabels(ctx, floorLeft, floorWidth, floorTop, floorHeight)
 
     if (barPlottingType === 'vertical') {
       drawYAxisMainLabel(ctx, axisLabel, floorLeft, floorTop, floorHeight, Math.floor(trueLeftMargin - 15))
@@ -382,54 +403,8 @@
     finishCanvasDrawing(plot.canvasState)
   }
 
-  /** Draws tick marks on both sides of the value axis (outside the plot border). */
-  function drawAxisTicks(
-    ctx: CanvasRenderingContext2D,
-    leftX: number,
-    plotWidth: number,
-    plotTop: number,
-    plotHeight: number
-  ) {
-    const ticks = timeline.ticks.filter(tick => tick.isNice)
-    ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
-    ctx.lineWidth = GRIDLINE_PRIMARY.WIDTH
-
-    if (barPlottingType === 'vertical') {
-      const rightX = leftX + plotWidth
-      ticks.forEach(tick => {
-        const y = alignToPixelCenter(
-          plotTop + plotHeight - tick.position * plotHeight
-        )
-        // Left ticks
-        ctx.beginPath()
-        ctx.moveTo(leftX - TICK_LENGTH, y)
-        ctx.lineTo(leftX, y)
-        ctx.stroke()
-        // Right ticks
-        ctx.beginPath()
-        ctx.moveTo(rightX, y)
-        ctx.lineTo(rightX + TICK_LENGTH, y)
-        ctx.stroke()
-      })
-    } else {
-      ticks.forEach(tick => {
-        const x = alignToPixelCenter(leftX + tick.position * plotWidth)
-        // Bottom ticks
-        ctx.beginPath()
-        ctx.moveTo(x, plotTop + plotHeight)
-        ctx.lineTo(x, plotTop + plotHeight + TICK_LENGTH)
-        ctx.stroke()
-        // Top ticks
-        ctx.beginPath()
-        ctx.moveTo(x, plotTop)
-        ctx.lineTo(x, plotTop - TICK_LENGTH)
-        ctx.stroke()
-      })
-    }
-  }
-
-  // Draw all text elements in one optimized function
-  function drawAllTextElements(
+  /** Draws the per-AOI category labels (axis of categories, one per bar). */
+  function drawCategoryLabels(
     ctx: CanvasRenderingContext2D,
     leftX: number,
     plotWidth: number,
@@ -440,8 +415,6 @@
     ctx.fillStyle = FONT_PRIMARY.COLOR
 
     const isVertical = barPlottingType === 'vertical'
-
-    // Draw category labels — aligned to renderer layout centers (where dots are)
     ctx.textAlign = isVertical ? 'center' : 'right'
     ctx.textBaseline = 'middle'
 
@@ -462,45 +435,6 @@
       }
 
       ctx.fillText(text, x, y)
-    }
-
-    // Draw tick labels
-    for (const tick of timeline.ticks) {
-      if (!tick.isNice) continue
-
-      let x, y, textAlign, textBaseline
-
-      if (isVertical) {
-        x = leftX - VALUE_LABEL_OFFSET
-        y = alignToPixelCenter(
-          plotTop + plotHeight - tick.position * plotHeight
-        )
-        textAlign = 'right'
-        // Smart baseline: prevent text from overflowing above plotTop or below plotBottom
-        if (Math.abs(y - plotTop) < 1) {
-          textBaseline = 'top'
-        } else if (Math.abs(y - (plotTop + plotHeight)) < 1) {
-          textBaseline = 'bottom'
-        } else {
-          textBaseline = 'middle'
-        }
-      } else {
-        x = alignToPixelCenter(leftX + tick.position * plotWidth)
-        y = alignToPixelCenter(plotTop + plotHeight + CATEGORY_LABEL_OFFSET)
-        // Smart alignment: prevent text from overflowing left or right of plot
-        if (Math.abs(x - leftX) < 1) {
-          textAlign = 'left'
-        } else if (Math.abs(x - (leftX + plotWidth)) < 1) {
-          textAlign = 'right'
-        } else {
-          textAlign = 'center'
-        }
-        textBaseline = 'hanging'
-      }
-
-      ctx.textAlign = textAlign as CanvasTextAlign
-      ctx.textBaseline = textBaseline as CanvasTextBaseline
-      ctx.fillText(tick.label, x, y)
     }
   }
 

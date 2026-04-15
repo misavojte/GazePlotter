@@ -2,7 +2,7 @@ import type { AoiStreamPlotResult } from '../types'
 import { RIDGELINE_CONTENT_FILL, RIDGELINE_SCALE, Y_AXIS } from '../const'
 import { calculateIdealStripHeight } from './ridgeline'
 import { desaturateToWhite, interpolateColor } from '$lib/color/utility'
-import { PRESET_PALETTES, INACTIVE_COLOR } from '$lib/color/palettes'
+import { PRESET_PALETTES } from '$lib/color/palettes'
 import { computeNiceYAxis, niceStep } from './axis'
 
 export interface RenderBuckets {
@@ -311,7 +311,8 @@ export function transformStreamDataToCoordinates(
                 Math.min(100, source.values[i - 1] * percentFactor)
               )
               if (val <= 0) {
-                bucket.heatmapColors[i] = INACTIVE_COLOR
+                // NODATA: let the plot-area gray background show through.
+                bucket.heatmapColors[i] = 'transparent'
               } else {
                 const scaledVal = (val / 100) * paletteStopCount
                 const baseIdx = Math.floor(scaledVal)

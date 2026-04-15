@@ -18,6 +18,7 @@ export * from './plotSizeUtility'
 export * from './timelineUtils'
 export * from './axisUtils'
 export * from './canvasUtils'
+export * from './plotArea'
 
 // Export legend rendering utilities
 export * from './legendRendering'

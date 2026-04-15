@@ -36,17 +36,17 @@
     drawGradientLegend,
   } from '$lib/plots/shared/legendGradient'
   import {
-    drawTimelineLabels,
-    drawXAxisTicksAndBorder,
     drawXAxisLabel,
     drawYAxisMainLabel,
-    drawCenteredYAxis,
-    drawBottomYAxis,
-    drawTopXAxisTicksAndBorder,
-    drawRightYAxisTicks,
-    drawRightCenteredYAxisTicks,
-    drawPlotOutline,
   } from '$lib/plots/shared/axisUtils'
+  import {
+    drawPlotArea,
+    fillPlotAreaBackground,
+    niceTimelineTicks,
+    bottomOriginYTicks,
+    centeredYTicks,
+    type PlotAreaTicks,
+  } from '$lib/plots/shared/plotArea'
   import { safeNumber } from '$lib/shared/utils/mathUtils'
   import {
     Y_AXIS,
@@ -311,6 +311,18 @@
     ctx.beginPath()
     ctx.rect(floorLeft, floorTop, floorWidth, floorHeight)
     ctx.clip()
+
+    // Heatmap: solid-gray NODATA background shows through cells without data.
+    if (alignment === 'heatmap') {
+      fillPlotAreaBackground(
+        ctx,
+        floorLeft,
+        floorTop,
+        floorWidth,
+        floorHeight,
+        INACTIVE_COLOR
+      )
+    }
 
     // Draw each series
     for (let s = 0; s < data.series.length; s++) {
@@ -595,47 +607,32 @@
 
       ctx.stroke()
       ctx.restore()
-    } else if (alignment === 'stream') {
-      drawCenteredYAxis(
-        ctx,
-        plotTop + plotAreaHeight / 2,
-        plotAreaHeight / 2,
-        axisHalfRange,
-        axisTicks,
-        plotLeft,
-        AXIS_CONFIG
-      )
-      drawRightCenteredYAxisTicks(
-        ctx,
-        plotTop + plotAreaHeight / 2,
-        plotAreaHeight / 2,
-        axisHalfRange,
-        axisTicks,
-        floorRight,
-        AXIS_CONFIG
-      )
-    } else if (alignment === 'distribution') {
-      drawBottomYAxis(
-        ctx,
-        plotBottom,
-        plotAreaHeight,
-        yAxisMax,
-        axisTicks,
-        plotLeft,
-        AXIS_CONFIG
-      )
-      drawRightYAxisTicks(
-        ctx,
-        plotBottom,
-        plotAreaHeight,
-        yAxisMax,
-        axisTicks,
-        floorRight,
-        AXIS_CONFIG
-      )
     }
 
-    // Shared Y-axis main label and X-axis components
+    // Plot-area chrome: border, ticks on all four edges as needed.
+    const xTicks = niceTimelineTicks(data.timeline)
+    let leftTicks: PlotAreaTicks | undefined
+    let rightTicks: PlotAreaTicks | undefined
+    if (alignment === 'stream') {
+      leftTicks = centeredYTicks(axisTicks, axisHalfRange)
+      rightTicks = centeredYTicks(axisTicks, axisHalfRange, String, false)
+    } else if (alignment === 'distribution') {
+      leftTicks = bottomOriginYTicks(axisTicks, yAxisMax)
+      rightTicks = { positions: leftTicks.positions }
+    }
+    drawPlotArea(ctx, {
+      x: floorLeft,
+      y: floorTop,
+      width: floorWidth,
+      height: floorHeight,
+      ticks: {
+        bottom: xTicks,
+        top: { positions: xTicks.positions },
+        left: leftTicks,
+        right: rightTicks,
+      },
+    })
+
     if (alignment !== 'heatmap') {
       drawYAxisMainLabel(
         ctx,
@@ -647,14 +644,6 @@
         AXIS_CONFIG
       )
     }
-    drawTimelineLabels(
-      ctx,
-      data.timeline,
-      floorLeft,
-      floorWidth,
-      floorBottom,
-      AXIS_CONFIG
-    )
     drawXAxisLabel(
       ctx,
       X_AXIS_LABEL,
@@ -663,32 +652,6 @@
       floorBottom,
       X_AXIS_LABEL_OFFSET,
       AXIS_CONFIG
-    )
-    drawPlotOutline(
-      ctx,
-      floorLeft,
-      floorTop,
-      floorWidth,
-      floorHeight,
-      AXIS_CONFIG.baselineColor
-    )
-    drawXAxisTicksAndBorder(
-      ctx,
-      data.timeline,
-      floorLeft,
-      floorWidth,
-      floorBottom,
-      AXIS_CONFIG,
-      false // Already drawn by drawPlotOutline
-    )
-    drawTopXAxisTicksAndBorder(
-      ctx,
-      data.timeline,
-      floorLeft,
-      floorWidth,
-      floorTop,
-      AXIS_CONFIG,
-      false // Baseline is already drawn by drawPlotOutline
     )
 
     // Legend - use shared utility for consistent rendering
