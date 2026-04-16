@@ -1,5 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import type { RecurrencePlotSettings, RecurrenceData } from '../types'
+import type { RecurrencePlotSettings, RecurrenceData, RecurrenceMethod } from '../types'
 import { collectRecurrenceData } from './collector'
 
 export function getRecurrenceData(
@@ -7,13 +7,20 @@ export function getRecurrenceData(
   settings: RecurrencePlotSettings
 ): RecurrenceData | null {
   const reader = engine.getReader()
-  if (!reader?.hasSpatialData) return null
+  if (!reader) return null
+
+  const method: RecurrenceMethod =
+    !reader.hasSpatialData && settings.recurrenceMethod !== 'aoi'
+      ? 'aoi'
+      : settings.recurrenceMethod
+
+  if (method !== 'aoi' && !reader.hasSpatialData) return null
 
   return collectRecurrenceData(
     engine,
     settings.stimulusId,
     settings.participantId,
-    settings.recurrenceMethod,
+    method,
     settings.radius,
     settings.gridSize,
     settings.showDuration,

@@ -46,7 +46,6 @@
 
   let canvas = $state<HTMLCanvasElement | null>(null)
   let hoveredCell = $state<{ row: number; col: number } | null>(null)
-  let cursorStyle = $derived(hoveredCell ? 'crosshair' : 'default')
 
   const plot = useCanvasPlot({
     render: renderCanvas,
@@ -369,6 +368,7 @@
     const isOverCell = row >= 0 && row < N && col >= 0 && col < N
 
     if (isOverCell) {
+      if (canvas) canvas.style.cursor = 'crosshair'
       if (!hoveredCell || hoveredCell.row !== row || hoveredCell.col !== col) {
         hoveredCell = { row, col }
         plot.scheduleRender()
@@ -403,6 +403,7 @@
         width: 140,
       })
     } else {
+      if (canvas) canvas.style.cursor = 'default'
       if (hoveredCell) {
         hoveredCell = null
         plot.scheduleRender()
@@ -412,6 +413,7 @@
   }
 
   function handleMouseLeave() {
+    if (canvas) canvas.style.cursor = 'default'
     if (hoveredCell) {
       hoveredCell = null
       plot.scheduleRender()
@@ -427,7 +429,6 @@
 
 <canvas
   bind:this={canvas}
-  style="cursor: {cursorStyle};"
   use:canvasLifecycleAction={plot.actionOptions}
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}

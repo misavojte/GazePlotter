@@ -9,12 +9,13 @@ import { computeRQA, computeRQAWithDuration } from './rqa'
 export function collectFixations(
   engine: DataEngine,
   stimulusId: number,
-  participantId: number
+  participantId: number,
+  requireSpatial: boolean = true
 ): FixationRecord[] | null {
   const reader = engine.getReader()
   const meta = engine.metadata
   if (!reader || !meta) return null
-  if (!reader.hasSpatialData) return null
+  if (requireSpatial && !reader.hasSpatialData) return null
 
   const { startIndex, endIndex } = reader.getSegmentRange(
     stimulusId,
@@ -29,7 +30,7 @@ export function collectFixations(
     if (reader.getSegmentCategory(segIdx) !== 0) continue
 
     const spatial = reader.getSegmentSpatial(segIdx)
-    if (!spatial) continue
+    if (requireSpatial && !spatial) continue
 
     const duration =
       reader.getSegmentEnd(segIdx) - reader.getSegmentStart(segIdx)
@@ -44,8 +45,8 @@ export function collectFixations(
     }
 
     fixations.push({
-      x: spatial.x,
-      y: spatial.y,
+      x: spatial?.x ?? 0,
+      y: spatial?.y ?? 0,
       duration,
       aoiIds,
     })
@@ -67,7 +68,7 @@ export function collectRecurrenceData(
   showDuration: boolean,
   minLineLength: number
 ): RecurrenceData | null {
-  const fixations = collectFixations(engine, stimulusId, participantId)
+  const fixations = collectFixations(engine, stimulusId, participantId, method !== 'aoi')
   if (!fixations || fixations.length < 2) return null
 
   const N = fixations.length

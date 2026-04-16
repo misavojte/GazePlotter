@@ -72,8 +72,33 @@
 
   const source = untrack(() => createCommandSourcePlotPattern(item, 'plot'))
 
+  const hasSpatial = $derived(engine.capabilities.spatial)
+
+  const effectiveMethod = $derived(
+    hasSpatial ? settings.recurrenceMethod : 'aoi'
+  )
+
+  const availableMethods = $derived(
+    hasSpatial
+      ? RECURRENCE_METHODS
+      : RECURRENCE_METHODS.filter(m => m.value === 'aoi')
+  )
+
+  const effectiveSettings = $derived.by(() => {
+    const draft = preview.draft
+    return {
+      ...settings,
+      radius: draft.radius,
+      gridSize: draft.gridSize,
+      showDuration: draft.showDuration,
+      minLineLength: draft.minLineLength,
+      highlight: draft.highlight as RecurrenceHighlight,
+      masking: draft.masking as RecurrenceMasking,
+    }
+  })
+
   const recurrenceData = $derived.by(() => {
-    return getRecurrenceData(engine, settings)
+    return getRecurrenceData(engine, effectiveSettings)
   })
 
   const highlightMask = $derived.by((): Uint8Array | null => {
@@ -81,9 +106,9 @@
     return buildHighlightMask(
       recurrenceData.matrix,
       recurrenceData.fixationCount,
-      settings.highlight,
-      settings.masking,
-      settings.minLineLength
+      effectiveSettings.highlight,
+      effectiveSettings.masking,
+      effectiveSettings.minLineLength
     )
   })
 
@@ -108,9 +133,9 @@
     },
     {
       label: 'View',
-      value: settings.recurrenceMethod,
+      value: effectiveMethod,
       onClose: handleMenuClose,
-      options: RECURRENCE_METHODS.map(opt =>
+      options: availableMethods.map(opt =>
         createMenuComponentItem({
           ...opt,
           onAction: (v?: string) => {
@@ -136,9 +161,7 @@
 <BasePlot
   {item}
   hasData={recurrenceData !== null}
-  unavailableMessage={!engine.capabilities.spatial
-    ? 'This visualization requires spatial coordinate data.'
-    : null}
+  unavailableMessage={null}
 >
   {#snippet header()}
     <div class="plot-controls">
@@ -154,8 +177,8 @@
       {#if recurrenceData}
         <RecurrencePlotFigure
           data={recurrenceData}
-          highlight={settings.highlight}
-          masking={settings.masking}
+          highlight={effectiveSettings.highlight}
+          masking={effectiveSettings.masking}
           {highlightMask}
           {width}
           {height}
