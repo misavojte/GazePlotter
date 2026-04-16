@@ -207,6 +207,36 @@
     }
   })
 
+  // ---------------------------------------------------
+  // Drag-and-drop file overlay
+  // ---------------------------------------------------
+
+  let dragCounter = $state(0)
+  const isDraggingOver = $derived(dragCounter > 0)
+
+  function handleDragEnter(event: DragEvent): void {
+    if (!event.dataTransfer?.types.includes('Files')) return
+    event.preventDefault()
+    dragCounter++
+  }
+
+  function handleDragOver(event: DragEvent): void {
+    if (!event.dataTransfer?.types.includes('Files')) return
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'copy'
+  }
+
+  function handleDragLeave(event: DragEvent): void {
+    dragCounter--
+  }
+
+  async function handleDrop(event: DragEvent): Promise<void> {
+    dragCounter = 0
+    if (!event.dataTransfer?.files.length) return
+    event.preventDefault()
+    await ingest.loadFiles(event.dataTransfer.files)
+  }
+
   const styleProps = `--min-workspace-height: ${MIN_WORKSPACE_HEIGHT}px; --grid-container-min-height: ${MIN_WORKSPACE_HEIGHT - 100}px;`
 </script>
 
@@ -216,12 +246,22 @@
   <div class="workspace-body">
     <Rail {initialLayoutState} {visualizations} bind:zoom />
 
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
       class="workspace-container"
       bind:this={workspaceContainer}
       role="none"
+      ondragenter={handleDragEnter}
+      ondragover={handleDragOver}
+      ondragleave={handleDragLeave}
+      ondrop={handleDrop}
     >
-      {#if grid.isEmpty && !(ingest.isLoading || grid.isLoading)}
+      {#if isDraggingOver}
+        <div class="drop-indicator">
+          <p class="drop-title">Drop files to load</p>
+          <p class="drop-hint">Supported formats are detected and parsed automatically</p>
+        </div>
+      {:else if grid.isEmpty && !(ingest.isLoading || grid.isLoading)}
         <IndicatorEmpty {initialLayoutState} />
       {:else if ingest.isLoading || grid.isLoading}
         <IndicatorLoading />
@@ -293,5 +333,31 @@
     top: 0;
     left: 0;
     transform-origin: top left;
+  }
+
+  /* ---- drag-and-drop indicator ---- */
+
+  .drop-indicator {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    z-index: 10;
+  }
+
+  .drop-title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--c-text);
+  }
+
+  .drop-hint {
+    margin: 0;
+    font-size: 12px;
+    color: var(--c-darkgrey);
   }
 </style>
