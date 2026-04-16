@@ -137,9 +137,9 @@
     )
     if (syncedMax <= barPlotResult.dataMax) return raw
 
-    // Rebuild with the synced max — same 6-tick, nice-rounded shape that
-    // createTimeline() uses in auto mode.
-    return createAdaptiveTimeline(raw.minValue, syncedMax, 6, true)
+    // Rebuild with the synced max — same shape that createTimeline() uses
+    // in auto mode.
+    return createAdaptiveTimeline(raw.minValue, syncedMax, 6)
   })
 
   const axisLabel = $derived(

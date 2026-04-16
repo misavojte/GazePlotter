@@ -128,8 +128,15 @@ export function getBarPlotData(
     }
   }
 
-  // Create timeline with appropriate scale
-  const timeline = createTimeline(rawData, settings.scaleRange, dataMax)
+  // Create timeline — apply scaleRange overrides when set, else use dataMax
+  let timelineMin = 0
+  let timelineMax = dataMax || 100
+  if (settings.scaleRange) {
+    if (settings.scaleRange[0] !== 0) timelineMin = settings.scaleRange[0]
+    if (settings.scaleRange[1] !== 0) timelineMax = settings.scaleRange[1]
+  }
+  if (timelineMax <= timelineMin) timelineMax = timelineMin + 1
+  const timeline = createAdaptiveTimeline(timelineMin, timelineMax, 6)
 
   return {
     data: sortedData,
@@ -311,59 +318,6 @@ function applySorting(
   return sorted.sort((a, b) =>
     orderDirection === 'asc' ? a.value - b.value : b.value - a.value
   )
-}
-
-/**
- * Creates a timeline with appropriate scale based on data and user settings
- */
-function createTimeline(
-  rawData: number[],
-  scaleRange?: [number, number],
-  dataMaxOverride?: number
-): AdaptiveTimeline {
-  let maxValue = 0
-  let hasData = false
-
-  for (let i = 0; i < rawData.length; i++) {
-    const val = rawData[i]
-    if (!isNaN(val)) {
-      if (val > maxValue) {
-        maxValue = val
-      }
-      hasData = true
-    }
-  }
-
-  // Use the override if it's larger (accounts for whiskers/individual values)
-  if (dataMaxOverride !== undefined && dataMaxOverride > maxValue) {
-    maxValue = dataMaxOverride
-    hasData = true
-  }
-
-  // Handle empty or invalid data
-  if (!hasData) {
-    return createAdaptiveTimeline(0, 100, 6)
-  }
-
-  let min = 0
-  let max = maxValue
-
-  const hasCustomScale =
-    scaleRange && (scaleRange[0] !== 0 || scaleRange[1] !== 0)
-
-  if (scaleRange) {
-    if (scaleRange[0] !== 0) min = scaleRange[0]
-    if (scaleRange[1] !== 0) max = scaleRange[1]
-  }
-
-  // Ensure min < max
-  if (max <= min) {
-    max = min + 1
-  }
-
-  // If we are in "Auto" mode (no custom scale range), use nice max rounding
-  // so bars have some breathing room.
-  return createAdaptiveTimeline(min, max, 6, !hasCustomScale)
 }
 
 /**
