@@ -89,6 +89,8 @@ export interface AddGridItemCommand extends BaseCommandInterface {
   vizType: string
   options?: GridItemSnapshot & { skipCollisionResolution?: boolean }
   itemId: number // Required itemId for command reversal
+  /** Explicit grid-coord placement; omit to fall back to auto-placement. */
+  position?: { x: number; y: number }
 }
 
 export interface RemoveGridItemCommand extends BaseCommandInterface {
@@ -100,6 +102,8 @@ export interface DuplicateGridItemCommand extends BaseCommandInterface {
   type: 'duplicateGridItem'
   itemId: number
   duplicateId: number
+  /** Explicit grid-coord placement; omit to fall back to auto-placement. */
+  position?: { x: number; y: number }
 }
 
 export interface SetLayoutStateCommand extends BaseCommandInterface {

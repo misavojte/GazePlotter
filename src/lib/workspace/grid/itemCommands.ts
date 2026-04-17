@@ -97,13 +97,17 @@ export function commitGridItemRemoval(
 export function commitGridItemDuplication(
   workspace: WorkspaceGridCommands,
   items: AllGridTypes[],
-  commit: GridIdentityCommit
+  commit: GridIdentityCommit,
+  position?: { x: number; y: number },
+  duplicateId?: number
 ): boolean {
   const item = findGridItem(items, commit.id)
   if (!item) return false
 
   return workspace.duplicateVisualization(
     item.id,
-    getGridItemCommandSource(item)
+    getGridItemCommandSource(item),
+    duplicateId,
+    position
   )
 }

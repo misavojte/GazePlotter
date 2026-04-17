@@ -12,6 +12,13 @@
     visualizations?: RailVisualization[]
     initialLayoutState?: GridItemSnapshot[] | null
     zoom?: number
+    /**
+     * Optional override for the "Add Visualization" action. Workspace
+     * passes a handler that enters placement mode so the user picks
+     * the target cell for the new item. When omitted, falls back to
+     * the previous auto-placement behavior via workspace.addVisualization.
+     */
+    onAddVisualization?: (vizType: string) => void
   }
 
   let bannerHeight = $state(0)
@@ -28,6 +35,7 @@
     visualizations = [],
     initialLayoutState = null,
     zoom = $bindable(1),
+    onAddVisualization,
   }: Props = $props()
   const { errorService, ingest, engine, modalState, workspace, grid } =
     getGazePlotterSession()
@@ -92,7 +100,10 @@
       onUndo: handleUndo,
       onRedo: handleRedo,
       onResetLayout: handleResetLayout,
-      onAddVisualization: id => workspace.addVisualization(id, 'toolbar'),
+      onAddVisualization: id =>
+        onAddVisualization
+          ? onAddVisualization(id)
+          : workspace.addVisualization(id, 'toolbar'),
     })
   )
 

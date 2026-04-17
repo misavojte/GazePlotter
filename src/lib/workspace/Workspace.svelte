@@ -14,7 +14,7 @@
     calculateGridWidth,
   } from './grid'
   import { GridInteractionController } from './grid/interaction'
-  import { plotRegistry } from '$lib/plots/registry'
+  import { plotRegistry, getVizConfig } from '$lib/plots/registry'
   import { clampZoom, ZOOM_WHEEL_SENSITIVITY, ZOOM_STEP } from './zoom'
   import type { WorkspaceCommandChain } from './commands'
   import type { GridItemSnapshot } from './'
@@ -106,6 +106,27 @@
     id,
     label: config.name,
   }))
+
+  /**
+   * Rail "Add Visualization" entry point. Instead of dropping the new
+   * item at an auto-resolved position, enter placement mode so the
+   * user picks the target cell themselves — same ghost flow as
+   * duplicate. Seeds at the visible viewport center (we don't have
+   * the menu-item click's clientX/Y without plumbing it through the
+   * context-menu stack); first pointermove snaps to wherever the
+   * cursor actually is. Pointer→grid conversion happens inside the
+   * controller.
+   */
+  function handleAddVisualizationFromRail(vizType: string): void {
+    const vizConfig = getVizConfig(vizType as any)
+    if (!vizConfig || !workspaceContainer) return
+    const rect = workspaceContainer.getBoundingClientRect()
+    interaction.beginPlacement(
+      { kind: 'add', vizType },
+      { w: vizConfig.getDefaultWidth(), h: vizConfig.getDefaultHeight() },
+      { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+    )
+  }
 
   $effect(() => {
     workspace.setCommandListener(onWorkspaceCommandChain)
@@ -257,7 +278,12 @@
   <Ribbon />
 
   <div class="workspace-body">
-    <Rail {initialLayoutState} {visualizations} bind:zoom />
+    <Rail
+      {initialLayoutState}
+      {visualizations}
+      bind:zoom
+      onAddVisualization={handleAddVisualizationFromRail}
+    />
 
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- svelte-ignore a11y_click_events_have_key_events -->

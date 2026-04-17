@@ -13,15 +13,19 @@ import {
   mergePreviewPosition,
   startMoveSession,
   startPanSession,
+  startPlacingSession,
   startResizeSession,
   updateMoveSession,
   updatePanSession,
+  updatePlacingSession,
   updateResizeSession,
   type GridInteractionRect,
   type GridInteractionSession,
   type InteractionPoint,
+  type PlacementPayload,
   type ResizeDirection,
 } from './model'
+import { pointerToGridPoint } from './coords'
 import { GridViewportController } from './viewport'
 
 export class GridInteractionController {
@@ -46,7 +50,7 @@ export class GridInteractionController {
     this.#viewport.setElement(element)
   }
 
-  get mode(): 'idle' | 'panning' | 'moving' | 'resizing' {
+  get mode(): 'idle' | 'panning' | 'moving' | 'resizing' | 'placing' {
     return this.#session.kind
   }
 
@@ -67,7 +71,13 @@ export class GridInteractionController {
   }
 
   get previewRect(): GridInteractionRect | null {
-    return isTransformSession(this.#session) ? this.#session.preview : null
+    if (isTransformSession(this.#session)) return this.#session.preview
+    if (this.#session.kind === 'placing') return this.#session.preview
+    return null
+  }
+
+  get isPlacing(): boolean {
+    return this.#session.kind === 'placing'
   }
 
   get workspaceWidthHint(): number | null {
@@ -151,6 +161,74 @@ export class GridInteractionController {
     return preview
   }
 
+  /**
+   * Begin a placement session. Mirrors the `beginMove` / `updateMove`
+   * shape so callers only ever deal in viewport-space pointer coords —
+   * the controller owns the grid-coord conversion (via the viewport
+   * element + zoom + config it already holds) so there's only one
+   * place that knows about the 35px padding / scale / cell geometry.
+   */
+  beginPlacement(
+    payload: PlacementPayload,
+    size: { w: number; h: number },
+    pointerPoint: InteractionPoint
+  ): void {
+    if (!this.#config) return
+    this.#viewport.stopAutoScroll()
+    const seed = this.#gridPointFromPointer(pointerPoint)
+    this.#session = startPlacingSession(
+      payload,
+      {
+        id: -1,
+        x: seed.x,
+        y: seed.y,
+        w: size.w,
+        h: size.h,
+      },
+      pointerPoint
+    )
+    this.#syncWorkspaceGrowthHint(pointerPoint)
+  }
+
+  updatePlacement(pointerPoint: InteractionPoint): void {
+    if (this.#session.kind !== 'placing' || !this.#config) return
+    const gridPoint = this.#gridPointFromPointer(pointerPoint)
+    this.#session = updatePlacingSession(this.#session, gridPoint, pointerPoint)
+    // Same auto-scroll behavior as dragging a grid item: when the
+    // pointer nears a viewport edge the workspace scrolls, and the
+    // refresh callback recomputes the preview against the new scroll
+    // offset so the ghost keeps tracking the cell under the cursor.
+    this.#viewport.updateAutoScroll(pointerPoint, () =>
+      this.#refreshPlacementFromPointer()
+    )
+    this.#syncWorkspaceGrowthHint(pointerPoint)
+  }
+
+  finishPlacement(): {
+    payload: PlacementPayload
+    x: number
+    y: number
+  } | null {
+    if (this.#session.kind !== 'placing') return null
+    const { payload, preview } = this.#session
+    this.cancel()
+    return { payload, x: preview.x, y: preview.y }
+  }
+
+  #gridPointFromPointer(pt: InteractionPoint): { x: number; y: number } {
+    const el = this.#viewport.getElement()
+    if (!el || !this.#config) return { x: 0, y: 0 }
+    return pointerToGridPoint(pt.x, pt.y, el, this.#config, this.#zoom)
+  }
+
+  #refreshPlacementFromPointer(): void {
+    if (this.#session.kind !== 'placing') return
+    const pt = this.#session.pointerCurrent
+    const gridPoint = this.#gridPointFromPointer(pt)
+    this.#session = updatePlacingSession(this.#session, gridPoint, pt)
+    this.#syncWorkspaceGrowthHint(pt)
+  }
+
   beginPan(point: InteractionPoint): void {
     this.#viewport.stopAutoScroll()
     this.#workspaceGrowthHint = { width: null, height: null }
@@ -221,7 +299,17 @@ export class GridInteractionController {
   }
 
   #syncWorkspaceGrowthHint(point: InteractionPoint): void {
-    if (!this.#config || !isTransformSession(this.#session)) {
+    if (!this.#config) {
+      this.#workspaceGrowthHint = { width: null, height: null }
+      return
+    }
+    // Both transform (move/resize) and placement sessions carry a
+    // preview rect that should be able to push the workspace larger
+    // when the pointer nears its edge.
+    if (
+      !isTransformSession(this.#session) &&
+      this.#session.kind !== 'placing'
+    ) {
       this.#workspaceGrowthHint = { width: null, height: null }
       return
     }

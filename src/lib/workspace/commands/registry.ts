@@ -237,13 +237,17 @@ export function createWorkspaceCommandRegistry(
     },
 
     addGridItem: (command, context) => {
-      const { vizType, options, itemId } = command
+      const { vizType, options, itemId, position } = command
       // cmd.vizType is now type-checked against GridItemMap keys
-      const createdId = gridStore.addItem(vizType as keyof GridItemMap, {
-        ...options,
-        id: itemId,
-        type: vizType as keyof GridItemMap,
-      })
+      const createdId = gridStore.addItem(
+        vizType as keyof GridItemMap,
+        {
+          ...options,
+          id: itemId,
+          type: vizType as keyof GridItemMap,
+        },
+        position
+      )
       if (command.isRootCommand && !context.isUndoRedoOperation) {
         emitCollisionResolutionChildren(createdId, command.chainId, context)
       }
@@ -261,7 +265,8 @@ export function createWorkspaceCommandRegistry(
 
       const createdId = gridStore.duplicateItem(
         currentItem,
-        command.duplicateId
+        command.duplicateId,
+        command.position
       )
       if (command.isRootCommand && !context.isUndoRedoOperation) {
         emitCollisionResolutionChildren(createdId, command.chainId, context)

@@ -157,12 +157,18 @@ export class WorkspaceService {
     })
   }
 
-  addVisualization(vizType: string, source: string, itemId?: number): boolean {
+  addVisualization(
+    vizType: string,
+    source: string,
+    itemId?: number,
+    position?: { x: number; y: number }
+  ): boolean {
     return this.applyRoot({
       type: 'addGridItem',
       vizType: vizType as keyof GridItemMap,
       source,
       itemId: itemId ?? generateUniqueId(),
+      ...(position ? { position } : {}),
     })
   }
 
@@ -203,13 +209,15 @@ export class WorkspaceService {
   duplicateVisualization(
     itemId: number,
     source: string,
-    duplicateId?: number
+    duplicateId?: number,
+    position?: { x: number; y: number }
   ): boolean {
     return this.applyRoot({
       type: 'duplicateGridItem',
       itemId,
       duplicateId: duplicateId ?? generateUniqueId(),
       source,
+      ...(position ? { position } : {}),
     })
   }
 

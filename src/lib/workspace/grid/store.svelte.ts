@@ -129,16 +129,25 @@ export class GridState {
 
   addItem<K extends keyof GridItemMap>(
     type: K,
-    options: GridItemSnapshot<K> = { type }
+    options: GridItemSnapshot<K> = { type },
+    requestedPosition?: { x: number; y: number }
   ) {
     const newItem = createGridItem(type, options)
-    const placement = this.resolvePlacement(
-      newItem,
-      this.createPositionsSnapshot(),
-      options
-    )
-    newItem.x = placement.x
-    newItem.y = placement.y
+    if (requestedPosition) {
+      // Explicit position from a placement-mode commit: honor directly
+      // and let `emitCollisionResolutionChildren` push overlapping
+      // items aside (same downstream behavior as a move commit).
+      newItem.x = Math.max(0, requestedPosition.x)
+      newItem.y = Math.max(0, requestedPosition.y)
+    } else {
+      const placement = this.resolvePlacement(
+        newItem,
+        this.createPositionsSnapshot(),
+        options
+      )
+      newItem.x = placement.x
+      newItem.y = placement.y
+    }
 
     this.items.push(newItem)
     return newItem.id
@@ -222,16 +231,29 @@ export class GridState {
     this.updateSettings(id, settings)
   }
 
-  duplicateItem(item: AllGridTypes, duplicateId?: number) {
+  duplicateItem(
+    item: AllGridTypes,
+    duplicateId?: number,
+    requestedPosition?: { x: number; y: number }
+  ) {
     const duplicate = duplicateGridItem(item, duplicateId)
-    const placement = this.resolvePlacement(
-      duplicate,
-      this.createPositionsSnapshot(),
-      undefined,
-      item
-    )
-    duplicate.x = placement.x
-    duplicate.y = placement.y
+    if (requestedPosition) {
+      // When the caller specifies a position (duplicate-to-cursor flow),
+      // honor it directly. Any resulting collision is resolved by the
+      // command registry via `emitCollisionResolutionChildren`, which
+      // pushes overlapping items aside — same behavior as a move commit.
+      duplicate.x = Math.max(0, requestedPosition.x)
+      duplicate.y = Math.max(0, requestedPosition.y)
+    } else {
+      const placement = this.resolvePlacement(
+        duplicate,
+        this.createPositionsSnapshot(),
+        undefined,
+        item
+      )
+      duplicate.x = placement.x
+      duplicate.y = placement.y
+    }
     this.items.push(duplicate)
     return duplicate.id
   }

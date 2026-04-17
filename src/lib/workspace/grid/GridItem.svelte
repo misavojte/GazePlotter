@@ -17,6 +17,7 @@
 
   type GridRect = { id: number; x: number; y: number; w: number; h: number }
   type IdOnly = { id: number }
+  type DuplicateRequest = { id: number; clientX: number; clientY: number }
   type GridEvent<T> = (payload: T) => void
 
   interface Props {
@@ -41,7 +42,7 @@
     onmove?: GridEvent<GridRect>
     onresize?: GridEvent<GridRect>
     onremove?: GridEvent<IdOnly>
-    onduplicate?: GridEvent<IdOnly>
+    onduplicate?: GridEvent<DuplicateRequest>
   }
 
   let {
@@ -171,6 +172,7 @@
   class:is-being-dragged={isDragging}
   class:resizing={isResizing}
   class:is-ghosted={isGhosted}
+  class:selected={isSelected}
   style={itemStyle}
   transition:fade={{ duration: 150 }}
   role="figure"
@@ -276,7 +278,8 @@
         <button
           type="button"
           class="action-toolbar-button"
-          onclick={() => onduplicate({ id })}
+          onclick={e =>
+            onduplicate({ id, clientX: e.clientX, clientY: e.clientY })}
           aria-label="Duplicate item"
         >
           <Copy size={12} strokeWidth={1.75} aria-hidden="true" />
@@ -307,6 +310,22 @@
     cursor: default;
   }
 
+  /* Selected items render above unselected peers. Without this, the
+     action chip (anchored via `translateY(-100%)` so it sits *above* the
+     frame's top edge) gets obscured by any neighbor grid item whose box
+     overlaps that strip — selection outline and resize handles have the
+     same problem. `is-being-dragged` / `resizing` / `is-ghosted` already
+     jump to 100 during the interaction; 10 gives static selection a
+     clear lane above neighbors without competing with the drag layer.
+     Intentionally uses a class directly on `.grid-item` rather than a
+     `:has(.grid-item-frame.selected)` selector: `:has()` can resolve a
+     frame later than normal selector matching, and for a just-duplicated
+     item that lag shows up as the chip briefly rendering behind the
+     neighbor above before z-index lifts it into place. */
+  .grid-item.selected {
+    z-index: 10;
+  }
+
   .grid-item.is-being-dragged,
   .grid-item.resizing,
   .grid-item.is-ghosted {
@@ -330,7 +349,6 @@
        Hover is a quiet 1px solid preview; selected widens to 2px. */
     outline: 1px solid transparent;
     outline-offset: -1px;
-    transition: outline-color 0.15s ease;
   }
 
   /* Suppress the hover affordance when:

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { fade } from 'svelte/transition'
   import GridItem from './GridItem.svelte'
   import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
   import {
@@ -8,6 +7,7 @@
     resolvePlotComponent,
   } from '$lib/plots/registry'
   import { getGazePlotterSession } from '$lib/session'
+  import { generateUniqueId } from '$lib/shared/utils/idUtils'
   import type { AllGridTypes } from '$lib/workspace'
   import type { GridConfig } from './types'
   import {
@@ -21,8 +21,40 @@
     panSurfaceAction,
     type GridInteractionController,
   } from './interaction'
+  import { isPointerInWorkspace } from './interaction/coords'
 
-  const { engine, errorService, workspace } = getGazePlotterSession()
+  const { engine, errorService, workspace, grid } = getGazePlotterSession()
+
+  // Mac's main "delete" key emits Backspace, so we handle both.
+  $effect(() => {
+    function onKeydown(event: KeyboardEvent) {
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+      const selectedId = grid.selectedItemId
+      if (selectedId === null) return
+      const target = event.target as HTMLElement | null
+      if (target) {
+        const tag = target.tagName
+        if (
+          tag === 'INPUT' ||
+          tag === 'TEXTAREA' ||
+          tag === 'SELECT' ||
+          target.isContentEditable
+        )
+          return
+      }
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        event.preventDefault()
+        commitGridItemRemoval(workspace, gridItems, { id: selectedId })
+        return
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        grid.setSelectedItem(null)
+      }
+    }
+    window.addEventListener('keydown', onKeydown)
+    return () => window.removeEventListener('keydown', onKeydown)
+  })
 
   interface Props {
     gridItems: AllGridTypes[]
@@ -43,6 +75,114 @@
     interaction,
     workspaceContainer,
   }: Props = $props()
+
+  /**
+   * Duplicate click no longer commits immediately. It opens a placement
+   * session so the user picks the target cell themselves — the ghost
+   * tracks the cursor via the document-level listeners installed by the
+   * `$effect` below, and the next click commits at the preview
+   * position. Collision resolution pushes overlapping items aside the
+   * same way it does on a move commit.
+   */
+  function handleDuplicate(event: {
+    id: number
+    clientX: number
+    clientY: number
+  }): void {
+    const source = gridItems.find(i => i.id === event.id)
+    if (!source) return
+    interaction.beginPlacement(
+      { kind: 'duplicate', sourceItemId: source.id },
+      { w: source.w, h: source.h },
+      { x: event.clientX, y: event.clientY }
+    )
+  }
+
+  // Placement mode: while the session is 'placing', intercept pointer
+  // and keyboard events at the document level so the cursor-follow
+  // ghost works no matter where the mouse is, and so commit/cancel
+  // clicks don't bubble to whatever element happens to be under the
+  // pointer (other grid items, toolbar buttons, workspace background).
+  $effect(() => {
+    if (interaction.mode !== 'placing') return
+
+    document.body.style.cursor = 'copy'
+
+    // Note we do NOT gate pointermove on `isPointerInWorkspace`: the
+    // controller's `updatePlacement` also triggers viewport auto-scroll
+    // and workspace-growth hints, and those need to see pointer events
+    // all the way to the viewport edge (that's what drives the grid
+    // extending during a drag — same as a move gesture).
+    function onPointerMove(e: PointerEvent): void {
+      interaction.updatePlacement({ x: e.clientX, y: e.clientY })
+    }
+
+    function onClick(e: MouseEvent): void {
+      // Swallow this click so it doesn't also toggle selection on a
+      // grid item, activate a ribbon button, etc. In placement mode
+      // the click's only meaning is "commit here" (or "cancel" if out
+      // of bounds).
+      e.preventDefault()
+      e.stopPropagation()
+      if (
+        !workspaceContainer ||
+        !isPointerInWorkspace(e.clientX, e.clientY, workspaceContainer)
+      ) {
+        interaction.cancel()
+        return
+      }
+      const commit = interaction.finishPlacement()
+      if (!commit) return
+      // Reserve the new item's id up front so it becomes the selected
+      // item as soon as the command lands — matches Figma behavior:
+      // the thing you just placed is the thing you're about to tweak,
+      // so the Pane opens on it without a second click. Both placement
+      // flavors (duplicate / add) share this selection behavior; the
+      // difference is only which workspace command we dispatch.
+      const newId = generateUniqueId()
+      let ok = false
+      if (commit.payload.kind === 'duplicate') {
+        ok = commitGridItemDuplication(
+          workspace,
+          gridItems,
+          { id: commit.payload.sourceItemId },
+          { x: commit.x, y: commit.y },
+          newId
+        )
+      } else {
+        ok = workspace.addVisualization(
+          commit.payload.vizType,
+          'rail',
+          newId,
+          { x: commit.x, y: commit.y }
+        )
+      }
+      if (ok) grid.setSelectedItem(newId)
+    }
+
+    function onKeyDown(e: KeyboardEvent): void {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        interaction.cancel()
+      }
+    }
+
+    document.addEventListener('pointermove', onPointerMove)
+    document.addEventListener('click', onClick, { capture: true })
+    document.addEventListener('keydown', onKeyDown, { capture: true })
+
+    return () => {
+      document.body.style.cursor = ''
+      document.removeEventListener('pointermove', onPointerMove)
+      document.removeEventListener('click', onClick, {
+        capture: true,
+      } as EventListenerOptions)
+      document.removeEventListener('keydown', onKeyDown, {
+        capture: true,
+      } as EventListenerOptions)
+    }
+  })
 
   function getPlotErrorMessage(error: unknown): string {
     if (error instanceof Error && error.message.trim().length > 0) {
@@ -96,7 +236,13 @@
     {#each gridItems as item (item.id)}
       {@const plotLabel = getPlotDisplayName(item.type)}
       {@const plotSubtitle = getPlotSubtitle(item, engine)}
-      <div transition:fade={{ duration: 300 }}>
+      <!-- No wrapper transition here: GridItem's root `.grid-item`
+           already fades (150ms). An outer `transition:fade` would wrap
+           the component in an opacity<1 stacking context with z-index
+           auto, which paints below neighbors' `.grid-item { z-index: 1 }`
+           — causing a freshly-duplicated item's action chip to sit
+           behind the item above it until the fade completes and the
+           stacking context dissolves. -->
         <GridItem
           id={item.id}
           x={item.x}
@@ -116,8 +262,7 @@
           onresize={event =>
             commitGridItemResize(workspace, gridItems, gridConfig, event)}
           onremove={event => commitGridItemRemoval(workspace, gridItems, event)}
-          onduplicate={event =>
-            commitGridItemDuplication(workspace, gridItems, event)}
+          onduplicate={handleDuplicate}
         >
           {#snippet body()}
             <div class="grid-item-content">
@@ -149,7 +294,6 @@
             </div>
           {/snippet}
         </GridItem>
-      </div>
     {/each}
   {/if}
 
