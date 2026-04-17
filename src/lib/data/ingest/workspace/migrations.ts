@@ -2,6 +2,7 @@ import {
   createSystemMetricInstances,
   findSystemInstanceIdByBaseId,
 } from '$lib/plots/metrics/instances'
+import { LEGACY_VISUALIZATION_TYPES } from '$lib/plots/registry'
 
 const CORE_LAYOUT_KEYS = new Set([
   'id',
@@ -251,6 +252,22 @@ export function runMigrations(parsedJson: any): any {
     }
 
     data = { ...data, version: 6, data: payload }
+  }
+
+  // Version-independent normalization: rewrite any legacy gridItem `type`
+  // keys (e.g. capital-T 'TransitionMatrix' → 'transitionMatrix') to the
+  // current registry key. Runs on every load — including already-current
+  // files and URL-loaded layouts — so downstream lookups like
+  // `plotRegistry[item.type]` always hit.
+  if (Array.isArray(data.gridItems)) {
+    data.gridItems = data.gridItems.map((item: any) => {
+      if (!item || typeof item.type !== 'string') return item
+      const normalized =
+        LEGACY_VISUALIZATION_TYPES[
+          item.type as keyof typeof LEGACY_VISUALIZATION_TYPES
+        ]
+      return normalized ? { ...item, type: normalized } : item
+    })
   }
 
   return data

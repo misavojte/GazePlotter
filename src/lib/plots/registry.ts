@@ -21,7 +21,7 @@ export const plotRegistry = {
   metricCorrelation: metricCorrelationDefinition,
 } as const
 
-const LEGACY_VISUALIZATION_TYPES = {
+export const LEGACY_VISUALIZATION_TYPES = {
   TransitionMatrix: 'transitionMatrix',
 } as const
 
