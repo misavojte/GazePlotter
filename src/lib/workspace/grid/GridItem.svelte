@@ -112,6 +112,26 @@
     onCommit: (rect: GridRect) => onmove(rect),
   })
 
+  // Frame-level drag: once the item is selected, allow grabbing it from
+  // anywhere on the frame (title bar, padding, empty plot chrome) — not
+  // just the Move button. `shouldStart` carves out regions that have
+  // their own click semantics (buttons, inputs, plot canvas) via the
+  // same BLOCK_SELECTOR the frame click handler uses. `moveHandleAction`
+  // waits for a 3px drag threshold before starting the interaction, so
+  // a plain click on the frame still deselects cleanly.
+  const frameMoveActionParams = $derived({
+    enabled: isDraggableEnabled && isSelected,
+    item,
+    interaction,
+    onCommit: (rect: GridRect) => onmove(rect),
+    shouldStart: (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null
+      if (!target) return false
+      if (target.closest(BLOCK_SELECTOR)) return false
+      return true
+    },
+  })
+
   const resizeActionParamsTL = $derived({
     enabled: resizable,
     item,
@@ -174,6 +194,7 @@
     class="grid-item-frame"
     class:selected={isSelected}
     onclick={onFrameClick}
+    use:moveHandleAction={frameMoveActionParams}
   >
     <div class="grid-item-header">
       <h3 class="grid-item-title">{title}</h3>
@@ -340,6 +361,19 @@
     outline-width: 2px;
     outline-style: solid;
     outline-color: var(--c-info);
+    /* Signals the selected-frame "drag-from-anywhere" affordance: once an
+       item is selected, the whole frame becomes a grab target (see
+       frameMoveActionParams in the script). Children that have their own
+       click semantics — anything inside `[data-block-select]` — reset to
+       `auto` so the plot canvas, inputs, buttons etc. keep their own
+       cursors. Interactive elements like buttons/links already carry
+       their own `cursor: pointer`, so this mostly matters for canvas
+       and static chrome inside figures. */
+    cursor: move;
+  }
+
+  .grid-item-frame.selected [data-block-select] {
+    cursor: auto;
   }
 
   .grid-item-header {
