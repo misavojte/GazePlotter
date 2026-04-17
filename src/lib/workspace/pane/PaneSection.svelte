@@ -49,7 +49,25 @@
   .pane-section {
     display: flex;
     flex-direction: column;
-    border-bottom: 1px solid var(--c-border, #e5e7eb);
+    position: relative;
+  }
+
+  /* Top divider — same visual language as the rail: 1px tall, inset by
+     the section's horizontal padding on both sides so it lines up with
+     the heading/body content instead of running edge-to-edge. */
+  .pane-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 16px;
+    right: 16px;
+    height: 1px;
+    background-color: #e2e8f0;
+  }
+
+  /* Skip on the first section so it sits flush under the pane header. */
+  .pane-section:first-of-type::before {
+    content: none;
   }
 
   .heading {

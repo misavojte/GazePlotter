@@ -24,18 +24,19 @@ export const LEGEND_FONT = {
   COLOR: FONT_PRIMARY.COLOR,
 }
 
-export const PLOT_HEADER_HEIGHT = 138
+export const PLOT_HEADER_HEIGHT = 155
 
 /**
  * Chrome height outside a plot's own (inline) header that has to be
  * reclaimed from the grid-item's pixel dimensions before sizing the
  * figure. Composition:
- *   40 — grid-item header (`min-height: 40px` in GridItem.svelte)
- *   40 — `.grid-item-body` padding top + bottom
+ *   47 — grid-item header (`min-height: 47px` in GridItem.svelte)
+ *   50 — `.grid-item-body` padding top + bottom
+ *        (GRID_ITEM_BODY_PADDING = 25 on each side)
  *    2 — `.grid-item-frame` border top + bottom (1px each; box-sizing
  *        is border-box so the border eats into the content area)
  */
-export const PLOT_BASE_CHROME_HEIGHT = 82
+export const PLOT_BASE_CHROME_HEIGHT = 99
 
 /**
  * Gap in px between the plot-area border and adjacent per-row / per-category

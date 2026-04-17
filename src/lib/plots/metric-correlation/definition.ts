@@ -2,6 +2,7 @@ import MetricCorrelationPlot from './components/MetricCorrelationPlot.svelte'
 import MetricCorrelationExportFigure from './components/MetricCorrelationExportFigure.svelte'
 import MetricCorrelationPaneSettings from './components/MetricCorrelationPaneSettings.svelte'
 import { definePlot } from '$lib/plots/definePlot'
+import type { PlotSubtitleParts } from '$lib/plots/definePlot'
 import {
   getStimuliOptions,
   getParticipantsGroupOptions,
@@ -18,18 +19,18 @@ export const metricCorrelationDefinition = definePlot<
   paneSettings: MetricCorrelationPaneSettings,
   export: { figure: MetricCorrelationExportFigure },
   getSubtitle: ({ item, engine }) => {
-    const parts: string[] = []
+    const parts: PlotSubtitleParts = []
     const stim = getStimuliOptions(engine).find(
       o => o.value === String(item.settings.stimulusId)
     )
-    if (stim?.label) parts.push(stim.label)
+    if (stim?.label) parts.push({ label: 'Stimulus', value: stim.label })
     const group = getParticipantsGroupOptions(
       engine,
       true,
       item.settings.stimulusId
     ).find(o => o.value === String(item.settings.groupId))
-    if (group?.label) parts.push(group.label)
-    return parts.length === 0 ? undefined : parts.join(' · ')
+    if (group?.label) parts.push({ label: 'Group', value: group.label })
+    return parts.length === 0 ? undefined : parts
   },
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,

@@ -2,6 +2,7 @@
   import { getGazePlotterSession } from '$lib/session'
   import { onMount } from 'svelte'
   import type { GridItemSnapshot } from '$lib/workspace'
+  import { PANE_TRANSITION, slideFlex } from '../pane/transition'
   import { createRailItems, type RailVisualization } from './config'
   import { plotRegistry } from '$lib/plots/registry'
   import RailItem from './RailItem.svelte'
@@ -28,8 +29,15 @@
     initialLayoutState = null,
     zoom = $bindable(1),
   }: Props = $props()
-  const { errorService, ingest, engine, modalState, workspace } =
+  const { errorService, ingest, engine, modalState, workspace, grid } =
     getGazePlotterSession()
+
+  // Drives the rail's slide-out. When a grid item is selected for
+  // configuration, the Pane takes over the right edge and we retract the
+  // rail to the left — reducing cognitive load and ushering the eye from
+  // the selected item toward the settings. The Pane uses the same
+  // easing/duration so the two motions read as one coordinated sweep.
+  const isHidden = $derived(grid.selectedItemId !== null)
 
   const isProcessing = $derived(ingest.isLoading)
   const isValidData = $derived(engine.hasValidData)
@@ -89,6 +97,12 @@
   )
 
   onMount(() => {
+    // Detect synchronously so `toolbarTop` is correct on the very first
+    // frame when the rail re-mounts after being hidden by a pane
+    // selection — otherwise the enter animation would start with a
+    // stale bannerHeight of 0 and snap into place only once the user
+    // next scrolls.
+    detectOnScrollBannerHeight()
     window.addEventListener('scroll', detectOnScrollBannerHeight, {
       passive: true,
     })
@@ -98,7 +112,15 @@
   })
 </script>
 
-<div class="rail">
+{#if !isHidden}
+<div
+  class="rail"
+  transition:slideFlex={{
+    axis: 'x',
+    duration: PANE_TRANSITION.duration,
+    easing: PANE_TRANSITION.easing,
+  }}
+>
   <div class="rail-content" style="top: {toolbarTop}px;">
     {#each railItems as item (item.id)}
       {#if item.id === 'add-visualization'}
@@ -121,6 +143,7 @@
     </div>
   </div>
 </div>
+{/if}
 
 <style>
   .rail {

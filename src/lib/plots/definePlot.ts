@@ -41,6 +41,16 @@ export type PlotExportConfig<TType extends string, TSettings> = {
   }>
 }
 
+/**
+ * A single captioned value rendered in the grid-item header (e.g.
+ * `{ label: 'Stimulus', value: 'SMI Base' }`). Plots return an array of
+ * these so the header can lay them out as a label/value grid divided by
+ * thin separators, instead of a single joined string.
+ */
+export type PlotSubtitlePart = { label: string; value: string }
+
+export type PlotSubtitleParts = PlotSubtitlePart[]
+
 export type PlotDefinition<
   TType extends string,
   TSettings,
@@ -70,14 +80,15 @@ export type PlotDefinition<
   paneSettings?: Component<{ item: PlotItemContract<TType, TSettings> }>
 
   /**
-   * Optional: builds the short subtitle shown under the plot's title in its
-   * grid-item header (and in the workspace Pane header). Typically renders
-   * current filter state like "Stimulus · Group". Return undefined to hide.
+   * Optional: builds the captioned label/value parts shown under the
+   * plot's title in its grid-item header. Typically one entry per filter
+   * (e.g. stimulus, participant group). Return undefined or an empty
+   * array to hide.
    */
   getSubtitle?: (params: {
     item: PlotItemContract<TType, TSettings>
     engine: DataEngine
-  }) => string | undefined
+  }) => PlotSubtitleParts | undefined
 }
 
 export function definePlot<

@@ -20,8 +20,8 @@ describe('getWorkspaceCanvasExportDimensions', () => {
         DEFAULT_CANVAS_EXPORT_MARGIN
       )
     ).toEqual({
-      width: 590,
-      height: 492,
+      width: 580,
+      height: 475,
     })
   })
 
@@ -34,7 +34,7 @@ describe('getWorkspaceCanvasExportDimensions', () => {
       )
     ).toEqual({
       width: 41,
-      height: 42,
+      height: 41,
     })
   })
 })

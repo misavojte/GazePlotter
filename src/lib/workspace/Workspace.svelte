@@ -323,6 +323,12 @@
     display: flex;
     flex: 1 1 auto;
     min-height: 0;
+    /* Intentionally `overflow: visible` — Rail's `.rail-content` and
+       Pane's `.pane-content` both use `position: sticky` against the
+       page's viewport scroll to stay in view. Adding overflow:hidden
+       here would create a new scroll container and break the sticky
+       behaviour. Clipping of the collapse animations is done locally
+       on .rail (when .is-hidden) and on .pane (when closed) instead. */
   }
 
   .workspace-container {

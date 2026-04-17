@@ -1,28 +1,11 @@
 <script lang="ts">
   import { untrack } from 'svelte'
-  import { createMenuComponentItem } from '$lib/context-menu'
   import { getGazePlotterSession } from '$lib/session'
 
   import SimilarityMatrixFigure from './SimilarityMatrixFigure.svelte'
   import ScangraphFigure from './ScangraphFigure.svelte'
-  import ScanpathSimilarityButtonMenu from './ScanpathSimilarityButtonMenu.svelte'
-  import ScanpathSimilarityViewSettings from './ScanpathSimilarityViewSettings.svelte'
-
   import { BasePlot } from '$lib/plots/shared/components'
-  import GroupSelect from '$lib/shared/components/GroupSelect.svelte'
-  import type { GroupSelectItem } from '$lib/shared/components'
-
-  import {
-    createStimulusGroupSelects,
-    PreviewModel,
-    createMenuCloseHandler,
-    getColorScaleCommitted,
-    buildColorScalePatch,
-    buildValueRangePatch,
-    deriveEffectiveColorScale,
-    toggleInArray,
-  } from '$lib/plots/shared'
-  import { PRESET_PALETTES } from '$lib/color/palettes'
+  import { toggleInArray } from '$lib/plots/shared'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import {
     getScanpathSimilarityData,
@@ -30,12 +13,7 @@
   } from '../core/transformer'
 
   import { SIMILARITY_LEGEND_TITLES } from '../const'
-  import type {
-    ScanpathSimilarityItem,
-    ScanpathSimilaritySettings,
-    SimilarityMethod,
-    ScanpathSimilarityView,
-  } from '../types'
+  import type { ScanpathSimilarityItem } from '../types'
 
   interface Props {
     item: ScanpathSimilarityItem
@@ -45,174 +23,63 @@
   const { engine, workspace } = getGazePlotterSession()
   const settings = $derived(item.settings)
 
-  const currentStimulusColorRange = $derived(
+  const source = untrack(() => createCommandSourcePlotPattern(item, 'plot'))
+
+  const effectiveColorScale = $derived(settings.colorScale ?? [])
+  const colorValueRange = $derived<[number, number]>(
     settings.stimuliColorValueRanges?.[settings.stimulusId] ?? [0, 0]
   )
 
-  type SimilarityPreview = {
-    colorMin: string
-    colorMiddle: string
-    colorMax: string
-    minValue: number
-    maxValue: number
-    threshold: number
-    collapsed: boolean
-    view: ScanpathSimilarityView
-    similarityMethod: SimilarityMethod
-  }
-
-  const preview = new PreviewModel<
-    SimilarityPreview,
-    Partial<ScanpathSimilaritySettings>
-  >({
-    getCommitted: () => ({
-      ...getColorScaleCommitted(settings.colorScale, PRESET_PALETTES.BLUE.colors[0], PRESET_PALETTES.BLUE.colors[2]),
-      minValue: currentStimulusColorRange[0],
-      maxValue: currentStimulusColorRange[1],
-      threshold: settings.threshold ?? 0.5,
-      collapsed: settings.collapsed ?? false,
-      view: settings.view ?? 'matrix',
-      similarityMethod: settings.similarityMethod ?? 'levenshtein',
-    }),
-    buildPatch: (draft, committed) => {
-      const updates: Partial<ScanpathSimilaritySettings> = {
-        ...PreviewModel.buildSimplePatch(draft, committed, [
-          'threshold', 'collapsed', 'view', 'similarityMethod',
-        ]),
-      }
-
-      const colorScale = buildColorScalePatch(draft, committed)
-      if (colorScale) updates.colorScale = colorScale
-
-      const valueRanges = buildValueRangePatch(draft, committed, settings.stimuliColorValueRanges, settings.stimulusId)
-      if (valueRanges) updates.stimuliColorValueRanges = valueRanges
-
-      return updates
-    },
-  })
-
-  const syncs = preview.fields
-
-  const effectiveColorScale = $derived(deriveEffectiveColorScale(preview.draft))
-
-  const effectiveView = $derived(preview.draft.view)
-  const effectiveMethod = $derived(preview.draft.similarityMethod)
-  const effectiveCollapsed = $derived(preview.draft.collapsed)
-  const effectiveThreshold = $derived(preview.draft.threshold)
-
-  const source = untrack(() => createCommandSourcePlotPattern(item, 'plot'))
-
-
-  // Compute similarity data
   const similarityData = $derived.by(() => {
     return getScanpathSimilarityData(
       engine,
       settings.stimulusId,
       settings.groupId,
-      effectiveMethod,
-      effectiveCollapsed
+      settings.similarityMethod ?? 'levenshtein',
+      settings.collapsed ?? false
     )
   })
 
-  // Build scangraph from similarity data when in graph view
   const scangraphData = $derived.by(() => {
-    if (effectiveView !== 'scangraph') return null
-    return buildScangraphData(similarityData, effectiveThreshold)
+    if (settings.view !== 'scangraph') return null
+    return buildScangraphData(similarityData, settings.threshold ?? 0.5)
   })
-
-  const handleMenuClose = createMenuCloseHandler(preview, patch =>
-    workspace.updateItemSettings(item.id, patch, $state.snapshot(source))
-  )
-
-  function updateSettings(updates: Partial<typeof settings>) {
-    workspace.updateItemSettings(item.id, updates, source)
-  }
 
   const handleNodeClick = (nodeIndex: number) => {
     workspace.updateItemSettings(
       item.id,
-      { participantHighlights: toggleInArray(settings.participantHighlights ?? [], nodeIndex) },
+      {
+        participantHighlights: toggleInArray(
+          settings.participantHighlights ?? [],
+          nodeIndex
+        ),
+      },
       source
     )
   }
-
-  function previewView(value?: string) {
-    if (value !== 'matrix' && value !== 'scangraph') return
-    syncs.view.value = value
-    return value
-  }
-
-  const selectItems = $derived<GroupSelectItem[]>([
-    ...createStimulusGroupSelects(
-      engine, settings.stimulusId, settings.groupId,
-      id => updateSettings({ stimulusId: id }),
-      id => updateSettings({ groupId: id })
-    ),
-    {
-      label: 'View',
-      value: effectiveView,
-      onClose: handleMenuClose,
-      options: [
-        createMenuComponentItem({
-          value: 'matrix',
-          label: 'Similarity Matrix',
-          onAction: previewView,
-          closeOnAction: false,
-          component: ScanpathSimilarityViewSettings,
-          componentHeight: 310,
-          componentProps: {
-            syncs,
-            showThreshold: false,
-          },
-        }),
-        createMenuComponentItem({
-          value: 'scangraph',
-          label: 'ScanGraph',
-          onAction: previewView,
-          closeOnAction: false,
-          component: ScanpathSimilarityViewSettings,
-          componentHeight: 160,
-          componentProps: {
-            syncs,
-            showThreshold: true,
-          },
-        }),
-      ],
-    },
-  ])
 </script>
 
 <BasePlot {item} hasData={similarityData.size > 0}>
-  {#snippet header()}
-    <div class="plot-controls">
-      <GroupSelect
-        ariaLabel="Scanpath Similarity filters"
-        items={selectItems}
-      />
-      <div class="menu-button">
-        <ScanpathSimilarityButtonMenu {item} />
-      </div>
-    </div>
-  {/snippet}
-
   {#snippet figure({ width, height })}
     <div class="figure-container">
-      {#if effectiveView === 'matrix'}
+      {#if (settings.view ?? 'matrix') === 'matrix'}
         <SimilarityMatrixFigure
           matrix={similarityData.matrix}
           labels={similarityData.labels}
           {width}
           {height}
           colorScale={effectiveColorScale}
-          colorValueRange={[syncs.minValue.value, syncs.maxValue.value]}
-          legendTitle={SIMILARITY_LEGEND_TITLES[effectiveMethod] ?? 'Similarity'}
+          {colorValueRange}
+          legendTitle={SIMILARITY_LEGEND_TITLES[
+            settings.similarityMethod ?? 'levenshtein'
+          ] ?? 'Similarity'}
         />
-      {:else if effectiveView === 'scangraph' && scangraphData}
+      {:else if settings.view === 'scangraph' && scangraphData}
         <ScangraphFigure
           data={scangraphData}
           {width}
           {height}
-          threshold={effectiveThreshold}
+          threshold={settings.threshold ?? 0.5}
           highlights={settings.participantHighlights ?? []}
           onNodeClick={handleNodeClick}
         />
@@ -222,10 +89,6 @@
 </BasePlot>
 
 <style>
-  .menu-button {
-    display: flex;
-    align-items: center;
-  }
   .figure-container {
     flex: 1;
     position: relative;

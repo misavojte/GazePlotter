@@ -11,6 +11,7 @@
   import Copy from 'lucide-svelte/icons/copy'
   import X from 'lucide-svelte/icons/x'
   import { getGazePlotterSession } from '$lib/session'
+  import type { PlotSubtitleParts } from '$lib/plots/definePlot'
 
   const { grid } = getGazePlotterSession()
 
@@ -31,7 +32,7 @@
     resizable?: boolean
     draggable?: boolean
     title?: string
-    subtitle?: string
+    subtitle?: PlotSubtitleParts
     removable?: boolean
     class?: string
     body?: Snippet
@@ -154,6 +155,19 @@
   transition:fade={{ duration: 150 }}
   role="figure"
 >
+  {#if isSelected}
+    <!-- Solid blue square tucked behind the plot frame at the top-right.
+         The frame has a rounded top-right corner, which normally lets the
+         workspace background bleed through the 8×8 arc cutout — breaking
+         the visual continuity between the selection rail (above the frame)
+         and the selection outline (around the frame). This square sits in
+         front of the workspace background and behind the frame, so the
+         rounded cutout renders as solid c-info instead of page chrome,
+         "squaring off" the corner visually while the frame itself stays
+         rounded. aria-hidden: pure decoration. -->
+    <div class="selection-corner-fill" aria-hidden="true"></div>
+  {/if}
+
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
@@ -163,8 +177,18 @@
   >
     <div class="grid-item-header">
       <h3 class="grid-item-title">{title}</h3>
-      {#if subtitle}
-        <span class="grid-item-subtitle">{subtitle}</span>
+      {#if subtitle && subtitle.length > 0}
+        <div class="grid-item-subtitle">
+          {#each subtitle as part, i (part.label)}
+            {#if i > 0}
+              <span class="grid-item-subtitle-divider" aria-hidden="true"></span>
+            {/if}
+            <div class="grid-item-subtitle-part">
+              <span class="grid-item-subtitle-label">{part.label}</span>
+              <span class="grid-item-subtitle-value">{part.value}</span>
+            </div>
+          {/each}
+        </div>
       {/if}
     </div>
 
@@ -211,11 +235,12 @@
   {/if}
 
   {#if isSelected && (isDraggableEnabled || removable)}
-    <!-- Floating action toolbar. "Pops" out of the top of the blue frame
-         on selection, grouping manipulation actions (move, duplicate,
-         remove). Sibling of the frame so it isn't clipped by
-         overflow:hidden. Each button carries data-block-select so clicks
-         don't re-toggle selection. -->
+    <!-- Compact action chip anchored at the top-left, sitting on the
+         selection outline's top edge. Pill-shaped with both top corners
+         rounded; sibling of the frame so it isn't clipped by
+         overflow:hidden. The selection-corner-fill above paints the
+         frame's rounded top-left cutout so the chip reads as an
+         integral extension of the selection. -->
     <div class="action-toolbar" data-block-select>
       {#if isDraggableEnabled}
         <button
@@ -280,21 +305,22 @@
     flex-direction: column;
     position: relative;
 
-    /* Affordance ring sits ON TOP of the frame's existing 1px border
-       (outline-offset: -1px + width 2px puts the outline from 1px inside
-       to 1px outside the border-box edge, visually replacing the gray
-       border with the accent colour when active). */
-    outline: 2px dashed transparent;
+    /* Affordance ring sits ON TOP of the frame's existing 1px border.
+       Hover is a quiet 1px solid preview; selected widens to 2px. */
+    outline: 1px solid transparent;
     outline-offset: -1px;
     transition: outline-color 0.15s ease;
   }
 
-  /* Suppress the hover affordance when the user is actually hovering an
-     interactive child or a region explicitly marked with
-     `data-block-select` (via the blockGridSelect action — plot figures,
-     legends, etc.). Those have their own click semantics, and showing
-     the selection hint at the same time would distract. */
-  .grid-item-frame:hover:not(
+  /* Suppress the hover affordance when:
+     - the item is already selected (the solid selected ring is the
+       authoritative state; layering a hover preview on top of it is
+       redundant noise — desired: hover has no effect once selected); or
+     - the user is actually hovering an interactive child or a region
+       explicitly marked with `data-block-select` (via the blockGridSelect
+       action — plot figures, legends, etc.). Those have their own click
+       semantics, and showing the selection hint would distract. */
+  .grid-item-frame:hover:not(.selected):not(
       :has(
         :is(
             button,
@@ -307,10 +333,11 @@
           ):hover
       )
     ) {
-    outline-color: color-mix(in srgb, var(--c-info) 55%, transparent);
+    outline-color: color-mix(in srgb, var(--c-info) 30%, transparent);
   }
 
   .grid-item-frame.selected {
+    outline-width: 2px;
     outline-style: solid;
     outline-color: var(--c-info);
   }
@@ -321,7 +348,7 @@
     justify-content: space-between;
     gap: 12px;
     padding: 10px 25px;
-    min-height: 40px;
+    min-height: 47px;
     box-sizing: border-box;
     background: var(--c-lightgrey);
     overflow: hidden;
@@ -332,7 +359,7 @@
 
   .grid-item-title {
     margin: 0;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--c-black);
     line-height: 1.2;
@@ -342,19 +369,49 @@
     white-space: nowrap;
   }
 
+  /* Subtitle is a row of captioned parts divided by thin 1px separators
+     (same visual language as the ribbon / rail dividers elsewhere in
+     the workspace). Each part stacks a tiny uppercase label over a
+     slightly larger non-uppercase value. */
   .grid-item-subtitle {
-    font-size: 10px;
-    font-weight: 400;
-    text-transform: uppercase;
-    letter-spacing: 0.0333em;
-    color: var(--c-darkgrey);
-    line-height: 1.2;
-    text-align: right;
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
     flex-shrink: 0;
     max-width: 60%;
+    min-width: 0;
+  }
+
+  .grid-item-subtitle-part {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .grid-item-subtitle-label {
+    font-size: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--c-darkgrey);
+    line-height: 1;
+  }
+
+  .grid-item-subtitle-value {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--c-darkgrey);
+    line-height: 1.2;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .grid-item-subtitle-divider {
+    width: 1px;
+    align-self: stretch;
+    background-color: #e2e8f0;
   }
 
   .grid-item-body {
@@ -368,7 +425,8 @@
   /* Selected-state corner handles. Centered exactly on each corner of the
      blue outline (which itself sits on the frame's border). Handles, the
      outline and the border occupy the same visual ring — one cohesive
-     selection frame. */
+     selection frame. z-index is above the action toolbar so the
+     top-left handle stays visible on top of the chip. */
   .corner-handle {
     position: absolute;
     width: 9px;
@@ -378,7 +436,7 @@
     border: 1.5px solid var(--c-info);
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
     box-sizing: border-box;
-    z-index: 5;
+    z-index: 7;
     transition: background 0.12s ease;
   }
   .corner-handle:hover {
@@ -409,24 +467,44 @@
     cursor: nwse-resize;
   }
 
-  /* Floating action toolbar "pops" out of the top of the blue frame on
-     selection. White pill with blue border — same visual language as
-     the corner handles, so selection chrome reads as one unified layer. */
+  /* Compact action chip anchored at the top-left, sitting on the
+     selection outline's top edge (y = -1px). Pill-shaped with both top
+     corners rounded at 6px; content-width so it doesn't stretch across
+     the frame. */
   .action-toolbar {
     position: absolute;
-    top: -3px;
-    left: 50%;
-    transform: translate(-50%, -100%);
+    top: -1px;
+    left: -1px;
+    transform: translateY(-100%);
     display: inline-flex;
     align-items: stretch;
     gap: 0;
-    padding: 2px;
-    background: var(--c-white);
-    border: 1.5px solid var(--c-info);
-    border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+    padding: 2px 4px;
+    background: var(--c-info);
+    border: none;
+    border-radius: 6px 6px 0 0;
     z-index: 6;
     white-space: nowrap;
+  }
+
+  /* Corner fill: sits behind the plot frame and in front of the
+     workspace background at the top-left. Its purpose is to paint the
+     ~8×8 px area the frame's rounded top-left corner cuts out, so the
+     chip's bottom-left joins the selection outline in a continuous
+     blue L-shape instead of being interrupted by a crescent of
+     workspace background. z-index: -1 keeps it below the frame (which
+     is at default z-index 0 inside the grid-item stacking context)
+     while still staying within the grid-item's z-index 1 context so
+     it doesn't escape the workspace layer. */
+  .selection-corner-fill {
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    width: calc(var(--rounded-lg, 8px) + 2px);
+    height: calc(var(--rounded-lg, 8px) + 2px);
+    background: var(--c-info);
+    z-index: -1;
+    pointer-events: none;
   }
 
   .action-toolbar-button {
@@ -435,7 +513,7 @@
     gap: 5px;
     padding: 4px 8px;
     background: transparent;
-    color: var(--c-info);
+    color: var(--c-white);
     border: none;
     border-radius: 3px;
     font-size: 11px;
@@ -446,11 +524,7 @@
     transition: background 0.1s ease, color 0.1s ease;
   }
   .action-toolbar-button:hover {
-    background: color-mix(in srgb, var(--c-info) 12%, transparent);
-  }
-  .action-toolbar-button.danger:hover {
-    background: color-mix(in srgb, var(--c-error, #ff4d4f) 12%, transparent);
-    color: var(--c-error, #ff4d4f);
+    background: rgba(255, 255, 255, 0.18);
   }
   .action-toolbar-button[aria-label='Drag to move'] {
     cursor: grab;

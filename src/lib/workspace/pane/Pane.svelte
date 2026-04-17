@@ -2,13 +2,11 @@
   import { onMount } from 'svelte'
   import { getGazePlotterSession } from '$lib/session'
   import { plotRegistry, getPlotDisplayName } from '$lib/plots/registry'
-  import {
-    getStimuliOptions,
-    getParticipantsGroupOptions,
-  } from '$lib/plots/shared'
   import PaneHeader from './PaneHeader.svelte'
+  import PaneQuickActions from './PaneQuickActions.svelte'
+  import { PANE_TRANSITION, slideFlex } from './transition'
 
-  const { engine, grid } = getGazePlotterSession()
+  const { grid } = getGazePlotterSession()
 
   const item = $derived(grid.selectedItem)
 
@@ -19,27 +17,6 @@
   const PaneSettings = $derived(definition?.paneSettings ?? null)
 
   const title = $derived(item ? getPlotDisplayName(item.type) : '')
-
-  const subtitle = $derived.by(() => {
-    if (!item) return undefined
-    const settings: any = item.settings ?? {}
-    const parts: string[] = []
-    if (typeof settings.stimulusId === 'number') {
-      const stimOpt = getStimuliOptions(engine).find(
-        o => o.value === String(settings.stimulusId)
-      )
-      if (stimOpt?.label) parts.push(stimOpt.label)
-    }
-    if (typeof settings.groupId === 'number') {
-      const groupOpt = getParticipantsGroupOptions(
-        engine,
-        true,
-        settings.stimulusId ?? 0
-      ).find(o => o.value === String(settings.groupId))
-      if (groupOpt?.label) parts.push(groupOpt.label)
-    }
-    return parts.length === 0 ? undefined : parts.join(' · ')
-  })
 
   function close() {
     grid.setSelectedItem(null)
@@ -81,13 +58,28 @@
   })
 </script>
 
+<!-- Conditionally mounted with `slideFlex` on the x axis. We animate
+     both `width` AND `flex-basis` — the built-in `slide` only animates
+     width, which is silently ignored by a flex item whose container
+     sets `flex: 0 0 <size>` (the fixed basis wins over width in the
+     flex algorithm, so nothing visually moves). Duration/easing match
+     Rail.svelte's slide-out so the two motions read as one sweep. -->
 {#if item && PaneSettings}
-  <aside class="pane" aria-label={`${title} settings`}>
+  <aside
+    class="pane"
+    aria-label={`${title} settings`}
+    transition:slideFlex={{
+      axis: 'x',
+      duration: PANE_TRANSITION.duration,
+      easing: PANE_TRANSITION.easing,
+    }}
+  >
     <div
       class="pane-content"
       style="top: {contentTop}px; max-height: calc(100vh - {contentTop}px);"
     >
-      <PaneHeader {title} {subtitle} onClose={close} />
+      <PaneHeader {title} onClose={close} />
+      <PaneQuickActions {item} />
       <div class="body">
         <PaneSettings {item} />
       </div>
@@ -96,17 +88,15 @@
 {/if}
 
 <style>
-  /* Mirrors Rail.svelte's .rail + .rail-content pattern:
-     - outer flex child sits in workspace-body on the right
-     - inner content is position:sticky so it stays visible while the page scrolls */
   .pane {
     flex: 0 0 400px;
     align-self: stretch;
     background-color: var(--c-lightgrey);
     z-index: 2;
-    transition: background-color 0.3s ease;
     box-sizing: border-box;
     border-left: 1px solid var(--c-border);
+    border-top: 1px solid var(--c-border);
+    transition: background-color 0.3s ease;
   }
 
   .pane-content {

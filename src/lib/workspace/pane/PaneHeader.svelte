@@ -3,20 +3,17 @@
 
   interface Props {
     title: string
-    subtitle?: string
     onClose: () => void
   }
 
-  const { title, subtitle, onClose }: Props = $props()
+  const { title, onClose }: Props = $props()
 </script>
 
 <div class="pane-header">
-  <div class="titles">
-    <div class="title">{title}</div>
-    {#if subtitle}
-      <div class="subtitle">{subtitle}</div>
-    {/if}
-  </div>
+  <!-- Title is rendered in the same typographic style as a PaneSection
+       heading (10px uppercase, 600, darkgrey) so it reads as the root
+       section of the settings stack rather than a heavier display title. -->
+  <span class="title">{title} settings</span>
   <button type="button" class="close" onclick={onClose} aria-label="Close pane">
     <X size={16} />
   </button>
@@ -25,39 +22,22 @@
 <style>
   .pane-header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: 14px 16px 12px;
-    border-bottom: 1px solid var(--c-border);
+    padding: 10px 16px 8px;
     background: transparent;
   }
 
-  .titles {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-    flex: 1;
-  }
-
   .title {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--c-text);
-    line-height: 1.2;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .subtitle {
-    font-size: 10px;
-    font-weight: 400;
-    text-transform: uppercase;
-    letter-spacing: 0.0333em;
+    flex: 1;
+    min-width: 0;
     color: var(--c-darkgrey);
-    line-height: 1.2;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    line-height: 1;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

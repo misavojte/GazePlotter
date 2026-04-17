@@ -1,100 +1,26 @@
 <script lang="ts">
-  import { untrack } from 'svelte'
   import { getGazePlotterSession } from '$lib/session'
-  import { createMenuComponentItem } from '$lib/context-menu'
 
   import RecurrencePlotFigure from './RecurrencePlotFigure.svelte'
-  import RecurrenceButtonMenu from './RecurrenceButtonMenu.svelte'
   import { BasePlot } from '$lib/plots/shared/components'
-  import GroupSelect from '$lib/shared/components/GroupSelect.svelte'
-  import type { GroupSelectItem } from '$lib/shared/components'
 
   import { getRecurrenceData } from '$lib/plots/recurrence/core/transformer'
-  import { RECURRENCE_METHODS } from '$lib/plots/recurrence/const'
   import { buildHighlightMask } from '$lib/plots/recurrence/core/rqa'
-  import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
-  import {
-    getStimuliOptions,
-    getParticipantOptions,
-    PreviewModel,
-    createMenuCloseHandler,
-  } from '$lib/plots/shared'
-  import RecurrenceViewSettings from './RecurrenceViewSettings.svelte'
 
-  import type {
-    RecurrencePlotItem,
-    RecurrencePlotSettings,
-    RecurrenceHighlight,
-    RecurrenceMasking,
-  } from '$lib/plots/recurrence/types'
+  import type { RecurrencePlotItem } from '$lib/plots/recurrence/types'
 
   interface Props {
     item: RecurrencePlotItem
   }
 
   let { item }: Props = $props()
-  const { engine, workspace } = getGazePlotterSession()
+  const { engine } = getGazePlotterSession()
   const settings = $derived(item.settings)
 
-  type RecurrencePreview = {
-    radius: number
-    gridSize: number
-    showDuration: boolean
-    minLineLength: number
-    highlight: string
-    masking: string
-  }
-
-  const preview = new PreviewModel<
-    RecurrencePreview,
-    Partial<RecurrencePlotSettings>
-  >({
-    getCommitted: () => ({
-      radius: settings.radius,
-      gridSize: settings.gridSize,
-      showDuration: settings.showDuration,
-      minLineLength: settings.minLineLength,
-      highlight: settings.highlight,
-      masking: settings.masking,
-    }),
-    buildPatch: (draft, committed) =>
-      PreviewModel.buildSimplePatch(draft, committed, [
-        'radius', 'gridSize', 'showDuration', 'minLineLength',
-        'highlight', 'masking',
-      ]) as Partial<RecurrencePlotSettings>,
-  })
-
-  const syncs = preview.fields
-
-  const handleMenuClose = createMenuCloseHandler(preview, patch =>
-    workspace.updateItemSettings(item.id, patch, $state.snapshot(source))
-  )
-
-  const source = untrack(() => createCommandSourcePlotPattern(item, 'plot'))
-
   const hasSpatial = $derived(engine.capabilities.spatial)
-
-  const effectiveMethod = $derived(
-    hasSpatial ? settings.recurrenceMethod : 'aoi'
-  )
-
-  const availableMethods = $derived(
-    hasSpatial
-      ? RECURRENCE_METHODS
-      : RECURRENCE_METHODS.filter(m => m.value === 'aoi')
-  )
-
   const effectiveSettings = $derived.by(() => {
-    const draft = preview.draft
-    return {
-      ...settings,
-      radius: draft.radius,
-      gridSize: draft.gridSize,
-      showDuration: draft.showDuration,
-      minLineLength: draft.minLineLength,
-      highlight: draft.highlight as RecurrenceHighlight,
-      masking: draft.masking as RecurrenceMasking,
-    }
+    if (hasSpatial) return settings
+    return { ...settings, recurrenceMethod: 'aoi' as const }
   })
 
   const recurrenceData = $derived.by(() => {
@@ -111,67 +37,9 @@
       effectiveSettings.minLineLength
     )
   })
-
-  function updateSettings(updates: Partial<typeof settings>) {
-    workspace.updateItemSettings(item.id, updates, source)
-  }
-
-  const selectItems = $derived<GroupSelectItem[]>([
-    {
-      label: 'Stimulus',
-      options: getStimuliOptions(engine),
-      value: settings.stimulusId.toString(),
-      onchange: (e: CustomEvent) =>
-        updateSettings({ stimulusId: parseInt(e.detail) }),
-    },
-    {
-      label: 'Participant',
-      options: getParticipantOptions(engine),
-      value: settings.participantId.toString(),
-      onchange: (e: CustomEvent) =>
-        updateSettings({ participantId: parseInt(e.detail) }),
-    },
-    {
-      label: 'View',
-      value: effectiveMethod,
-      onClose: handleMenuClose,
-      options: availableMethods.map(opt =>
-        createMenuComponentItem({
-          ...opt,
-          onAction: (v?: string) => {
-            if (v)
-              updateSettings({
-                recurrenceMethod:
-                  v as RecurrencePlotSettings['recurrenceMethod'],
-              })
-          },
-          closeOnAction: false,
-          component: RecurrenceViewSettings,
-          componentHeight: 310,
-          componentProps: {
-            syncs,
-            method: opt.value,
-          },
-        })
-      ),
-    },
-  ])
 </script>
 
-<BasePlot
-  {item}
-  hasData={recurrenceData !== null}
-  unavailableMessage={null}
->
-  {#snippet header()}
-    <div class="plot-controls">
-      <GroupSelect ariaLabel="Recurrence Plot filters" items={selectItems} />
-      <div class="menu-button">
-        <RecurrenceButtonMenu {item} />
-      </div>
-    </div>
-  {/snippet}
-
+<BasePlot {item} hasData={recurrenceData !== null} unavailableMessage={null}>
   {#snippet figure({ width, height })}
     <div class="figure-container">
       {#if recurrenceData}
