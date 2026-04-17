@@ -69,9 +69,9 @@
   />
 </PaneSection>
 
-<PaneSection title="Statistical overlay">
+<PaneSection title="Layout">
   <Radio
-    ariaLabel="Statistical overlay"
+    legend="Statistical overlay"
     options={[
       { label: 'None', value: 'none' },
       { label: 'Mean ± 95% CI', value: 'meanCi95' },
@@ -85,9 +85,6 @@
       update({ statisticalOverlay: v })
     }}
   />
-</PaneSection>
-
-<PaneSection title="Presentation">
   <Radio
     legend="Orientation"
     options={[

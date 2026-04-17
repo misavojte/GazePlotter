@@ -107,10 +107,7 @@
       update({ timeline: v })
     }}
   />
-</PaneSection>
-
-{#if !isRelative}
-  <PaneSection title={rangeTitle}>
+  {#if !isRelative}
     <div class="inline-pair">
       <InputNumber
         id="scarf-range-start"
@@ -131,8 +128,8 @@
         onValueChange={v => updateRange('end', v)}
       />
     </div>
-  </PaneSection>
-{/if}
+  {/if}
+</PaneSection>
 
 {#if showDisplayMode}
   <PaneSection title="Event display">

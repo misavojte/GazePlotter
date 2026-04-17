@@ -98,20 +98,17 @@
   {/if}
 </PaneSection>
 
-<PaneSection title="Highlight">
+<PaneSection title="Presentation">
   <Radio
-    ariaLabel="Highlight mode"
+    legend="Highlight"
     options={[...RECURRENCE_HIGHLIGHTS]}
     appearance="compact"
     value={settings.highlight}
     onchange={e =>
       update({ highlight: (e as CustomEvent<string>).detail as RecurrenceHighlight })}
   />
-</PaneSection>
-
-<PaneSection title="Masking">
   <Radio
-    ariaLabel="Masking mode"
+    legend="Masking"
     options={[...RECURRENCE_MASKINGS]}
     appearance="compact"
     value={settings.masking}

@@ -114,10 +114,7 @@
     appearance="compact"
     onValueChange={v => update({ binSize: v ?? 500 })}
   />
-</PaneSection>
-
-{#if isRidgeline}
-  <PaneSection title="Ridgeline">
+  {#if isRidgeline}
     <InputNumber
       id="aoi-stream-ridge-scale"
       label="Ridge scale"
@@ -128,8 +125,8 @@
       appearance="compact"
       onValueChange={v => update({ ridgelineScale: v ?? RIDGELINE_SCALE })}
     />
-  </PaneSection>
-{/if}
+  {/if}
+</PaneSection>
 
 <PaneSection title="Time range [ms]" defaultOpen={false}>
   <div class="inline-pair">

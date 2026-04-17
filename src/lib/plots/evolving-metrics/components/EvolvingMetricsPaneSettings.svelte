@@ -84,7 +84,7 @@
   />
 </PaneSection>
 
-<PaneSection title="Presentation">
+<PaneSection title="View">
   <Radio
     ariaLabel="Presentation"
     options={[

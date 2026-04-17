@@ -99,11 +99,8 @@
     value={String(settings.groupId)}
     onchange={e => update({ groupId: Number((e as CustomEvent).detail) })}
   />
-</PaneSection>
-
-<PaneSection title="Scope">
   <Select
-    label="AOI / stimulus"
+    label="AOI scope"
     options={scopeOptions}
     value={scopeValue}
     onchange={e => {
