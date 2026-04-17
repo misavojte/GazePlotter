@@ -11,7 +11,7 @@
   import { useCanvasPlot } from '$lib/plots/shared'
   import { updateTooltip } from '$lib/tooltip'
   import { estimateTextWidth } from '$lib/shared/utils/textUtils'
-  import { interpolateColor, desaturateToWhite } from '$lib/color/utility'
+  import { interpolateColor } from '$lib/color/utility'
   import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color/palettes'
 
   import {
@@ -23,25 +23,31 @@
     computeGradientLegendGeometry,
     drawGradientLegend,
   } from '$lib/plots/shared/legendGradient'
-  import { drawXAxisLabel } from '$lib/plots/shared/axisUtils'
+  import { drawXAxisLabel, drawYAxisMainLabel } from '$lib/plots/shared/axisUtils'
   import {
     drawPlotArea,
     fillPlotAreaBackground,
     niceTimelineTicks,
+    bottomOriginYTicks,
   } from '$lib/plots/shared/plotArea'
+  import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
   import { safeNumber } from '$lib/shared/utils/mathUtils'
   import { MARGIN, AXIS_CONFIG, getEvolvingMetricsXAxisLabel } from '../const'
   import type { EvolvingMetricsResult } from '../types'
 
-  const RIDGELINE_SCALE_DEFAULT = 2.5
-  const RIDGELINE_CONTENT_FILL = 0.9
+  const OVERLAY_LEFT_MARGIN = 65
+  // Branding red #cd1404 as RGB components, reused for band + mean line.
+  const OVERLAY_SUMMARY_RGB = '205, 20, 4'
+  const OVERLAY_SUMMARY_COLOR = `rgb(${OVERLAY_SUMMARY_RGB})`
+  const OVERLAY_BAND_ALPHA = 0.12
+  const OVERLAY_MEAN_LINE_WIDTH = 1.5
+  const OVERLAY_INDIVIDUAL_RGB = '210, 210, 210'
 
   type EvolvingMetricsFigureProps = {
     width: number
     height: number
     data: EvolvingMetricsResult
-    alignment?: 'heatmap' | 'ridgeline'
-    ridgelineScale?: number
+    alignment?: 'heatmap' | 'overlay'
     colorScale?: string[]
     dpiOverride?: number | null
     marginTop?: number
@@ -55,7 +61,6 @@
     height,
     data,
     alignment = 'heatmap',
-    ridgelineScale = RIDGELINE_SCALE_DEFAULT,
     colorScale,
     dpiOverride = null,
     marginTop = 0,
@@ -73,8 +78,6 @@
     WIDTH: 1,
   }
   const HEATMAP_LEGEND_HEIGHT = 60
-  const RIDGELINE_SCALE_WIDTH = 56
-  const RIDGELINE_SCALE_LABEL = 'Fixation duration [ms]'
 
   let canvas = $state<HTMLCanvasElement | null>(null)
   let hoveredBinIndex = $state<number | null>(null)
@@ -88,21 +91,20 @@
   const safeMarginLeft = $derived(safeNumber(marginLeft, 0))
 
   const legendHeight = $derived(alignment === 'heatmap' ? HEATMAP_LEGEND_HEIGHT : 0)
-  const effectiveRightMargin = $derived(
-    alignment === 'ridgeline' ? RIDGELINE_SCALE_WIDTH : MARGIN.RIGHT
-  )
 
-  // Compact mode: when row height < font size, switch to index ticks
+  // Compact mode: when row height < font size, switch to index ticks (heatmap only)
   const COMPACT_THRESHOLD = AXIS_CONFIG.fontSize + 2
   const isCompact = $derived(
-    data.participants.length > 0 &&
+    alignment === 'heatmap' &&
+      data.participants.length > 0 &&
       (safeHeight - MARGIN.TOP - MARGIN.BOTTOM - legendHeight) /
         data.participants.length <
         COMPACT_THRESHOLD
   )
 
-  // Compute effective left margin based on label mode
+  // Compute effective left margin based on mode
   const effectiveLeftMargin = $derived.by(() => {
+    if (alignment === 'overlay') return OVERLAY_LEFT_MARGIN
     if (isCompact) return 55
     let max = 0
     for (let i = 0; i < data.participants.length; i++) {
@@ -118,7 +120,7 @@
 
   const plotAreaWidth = $derived(
     Math.floor(
-      Math.max(0, safeWidth - effectiveLeftMargin - effectiveRightMargin)
+      Math.max(0, safeWidth - effectiveLeftMargin - MARGIN.RIGHT)
     )
   )
   const plotAreaHeight = $derived(
@@ -132,7 +134,7 @@
   const plotBottom = $derived(plotTop + plotAreaHeight)
   const plotRight = $derived(plotLeft + plotAreaWidth)
 
-  // Color palette
+  // Color palette (heatmap)
   const palette = $derived<string[]>(
     colorScale && colorScale.length >= 2
       ? colorScale
@@ -154,6 +156,95 @@
       belowMinColor: INACTIVE_COLOR,
     })
   })
+
+  // Overlay: Y-axis timeline and ticks
+  const yTimeline = $derived.by(() => {
+    if (alignment !== 'overlay') return null
+    return createAdaptiveTimeline(0, data.valueMax, 6)
+  })
+
+  const yAxisMax = $derived(yTimeline ? yTimeline.maxValue : data.valueMax)
+
+  const yTicks = $derived.by(() => {
+    if (!yTimeline) return null
+    const niceValues = yTimeline.ticks
+      .filter((t) => t.isNice)
+      .map((t) => t.value)
+    return bottomOriginYTicks(niceValues, yAxisMax, (v) =>
+      String(Math.round(v))
+    )
+  })
+
+  // Overlay: aggregate statistics (mean, P25, P75) per bin
+  const overlayAggregates = $derived.by(() => {
+    if (alignment !== 'overlay') return null
+    const binCount = data.binCount
+    const participantCount = data.participants.length
+    const meanValues = new Float32Array(binCount)
+    const p25Values = new Float32Array(binCount)
+    const p75Values = new Float32Array(binCount)
+    const temp: number[] = []
+
+    for (let i = 0; i < binCount; i++) {
+      temp.length = 0
+      for (let p = 0; p < participantCount; p++) {
+        const v = data.participants[p].values[i]
+        if (v === v && v > 0) temp.push(v)
+      }
+      if (temp.length === 0) {
+        meanValues[i] = NaN
+        p25Values[i] = NaN
+        p75Values[i] = NaN
+      } else {
+        let sum = 0
+        for (let j = 0; j < temp.length; j++) sum += temp[j]
+        meanValues[i] = sum / temp.length
+        temp.sort((a, b) => a - b)
+        p25Values[i] = computePercentile(temp, 0.25)
+        p75Values[i] = computePercentile(temp, 0.75)
+      }
+    }
+    // Smooth the aggregates with a triangular-weighted moving average so the
+    // summary lines read as smooth trends rather than noisy per-bin spikes.
+    // Kernel adapts to pixel density: cover ~3 pixels worth of bins.
+    const binsPerPixel = plotAreaWidth > 0 ? binCount / plotAreaWidth : 1
+    const halfWidth = Math.max(1, Math.round(binsPerPixel * 3))
+    return {
+      meanValues: smoothArray(meanValues, halfWidth),
+      p25Values: smoothArray(p25Values, halfWidth),
+      p75Values: smoothArray(p75Values, halfWidth),
+    }
+  })
+
+  function smoothArray(values: Float32Array, halfWidth: number): Float32Array {
+    const n = values.length
+    const result = new Float32Array(n)
+    for (let i = 0; i < n; i++) {
+      let sum = 0
+      let weight = 0
+      for (let j = -halfWidth; j <= halfWidth; j++) {
+        const idx = i + j
+        if (idx < 0 || idx >= n) continue
+        const v = values[idx]
+        if (v !== v) continue
+        const w = halfWidth + 1 - Math.abs(j)
+        sum += v * w
+        weight += w
+      }
+      result[i] = weight > 0 ? sum / weight : NaN
+    }
+    return result
+  }
+
+  function computePercentile(sorted: number[], p: number): number {
+    const n = sorted.length
+    if (n === 1) return sorted[0]
+    const k = (n - 1) * p
+    const f = Math.floor(k)
+    const c = Math.ceil(k)
+    if (f === c) return sorted[f]
+    return sorted[f] * (c - k) + sorted[c] * (k - f)
+  }
 
   const plot = useCanvasPlot({
     render: renderCanvas,
@@ -189,11 +280,7 @@
       return
     }
 
-    const rowHeight = floorHeight / participantCount
     const binWidth = floorWidth / data.binCount
-    const paletteStopCount = palette.length - 1
-    const valueRange = data.valueMax - data.valueMin
-    const invValueRange = valueRange > 0 ? 1 / valueRange : 0
 
     // Clip to plot area
     ctx.save()
@@ -201,174 +288,148 @@
     ctx.rect(floorLeft, floorTop, floorWidth, floorHeight)
     ctx.clip()
 
-    if (alignment === 'ridgeline') {
-      // --- Ridgeline rendering ---
-      const scale = ridgelineScale ?? RIDGELINE_SCALE_DEFAULT
-      const stripHeight = rowHeight * scale
-      const scaleY = data.valueMax > 0 ? (stripHeight * RIDGELINE_CONTENT_FILL) / data.valueMax : 0
-
-      // Precompute x positions and per-participant topY arrays
-      const xPositions = new Float32Array(data.binCount)
-      for (let i = 0; i < data.binCount; i++) {
-        xPositions[i] = floorLeft + (i + 0.5) * binWidth
-      }
-
-      const baselines = new Float32Array(participantCount)
-      const topYArrays: Float32Array[] = new Array(participantCount)
-
-      for (let p = 0; p < participantCount; p++) {
-        const values = data.participants[p].values
-        const baseline = floorTop + (p + 1) * rowHeight
-        baselines[p] = baseline
-
-        const topY = new Float32Array(data.binCount)
-        for (let i = 0; i < data.binCount; i++) {
-          const val = values[i]
-          topY[i] = val === val && val > 0 ? baseline - val * scaleY : baseline
-        }
-        topYArrays[p] = topY
-      }
-
-      // Helper to trace a ridgeline path (top edge forward, baseline back)
-      const traceRidgePath = (c: CanvasRenderingContext2D, p: number) => {
-        c.moveTo(floorLeft, baselines[p])
-        const topY = topYArrays[p]
-        for (let i = 0; i < data.binCount; i++) {
-          c.lineTo(xPositions[i], topY[i])
-        }
-        c.lineTo(floorRight, baselines[p])
-        c.closePath()
-      }
-
-      // Pass 1: Draw baselines
-      ctx.strokeStyle = GRIDLINE_SECONDARY.COLOR
-      ctx.lineWidth = GRIDLINE_SECONDARY.WIDTH
-      for (let p = 0; p < participantCount; p++) {
-        const y = alignToPixelCenter(baselines[p])
-        ctx.beginPath()
-        ctx.moveTo(alignToPixelCenter(floorLeft), y)
-        ctx.lineTo(alignToPixelCenter(floorRight), y)
-        ctx.stroke()
-      }
-
-      // Pass 2: Draw filled areas
-      ctx.fillStyle = INACTIVE_COLOR
-      for (let p = 0; p < participantCount; p++) {
-        ctx.beginPath()
-        traceRidgePath(ctx, p)
-        ctx.fill()
-      }
-
-      // Pass 3: Relief effect — where a later row overlaps an earlier row,
-      // paint the overlapped portion in a lighter tone for depth
-      const reliefColor = desaturateToWhite(INACTIVE_COLOR, 0.3)
-      ctx.save()
-      for (let p = 0; p < participantCount - 1; p++) {
-        for (let cover = p + 1; cover < participantCount; cover++) {
-          // Clip to covering row's shape
-          ctx.save()
-          ctx.beginPath()
-          traceRidgePath(ctx, cover)
-          ctx.clip()
-
-          // Paint current row's shape in lighter tone
-          ctx.fillStyle = reliefColor
-          ctx.beginPath()
-          traceRidgePath(ctx, p)
-          ctx.fill()
-
-          ctx.restore()
-        }
-      }
-      ctx.restore()
-
-      // Hover highlight
-      if (hoveredBinIndex !== null) {
-        const binX = floorLeft + hoveredBinIndex * binWidth
-
-        ctx.save()
-        ctx.globalAlpha = 0.15
-        ctx.fillStyle = '#007acc'
-        ctx.fillRect(binX, floorTop, binWidth, floorHeight)
-        ctx.restore()
-      }
-    } else {
-      // --- Heatmap rendering ---
-      // Solid-gray background communicates NODATA; cells with data overpaint it.
-      fillPlotAreaBackground(
+    if (alignment === 'overlay') {
+      renderOverlay(
         ctx,
         floorLeft,
         floorTop,
         floorWidth,
         floorHeight,
-        INACTIVE_COLOR
+        floorBottom,
+        floorRight,
+        binWidth,
+        participantCount
       )
-
-      // Draw only cells with data (skip NaN — gray background shows through)
-      for (let p = 0; p < participantCount; p++) {
-        const values = data.participants[p].values
-        const rowY = floorTop + p * rowHeight
-
-        for (let i = 0; i < data.binCount; i++) {
-          const val = values[i]
-          if (val !== val || val <= 0) continue // NaN or zero — already background
-
-          const normalized = (val - data.valueMin) * invValueRange
-          const scaledVal = Math.max(0, Math.min(1, normalized)) * paletteStopCount
-          const baseIdx = scaledVal | 0
-          const nextIdx = Math.min(paletteStopCount, baseIdx + 1)
-
-          ctx.fillStyle = interpolateColor(
-            palette[baseIdx],
-            palette[nextIdx],
-            scaledVal - baseIdx
-          )
-          ctx.fillRect(floorLeft + i * binWidth, rowY, binWidth + 0.5, rowHeight)
-        }
-      }
-
-      // Row dividers
-      ctx.strokeStyle = AREA_DIVIDER.COLOR
-      ctx.lineWidth = AREA_DIVIDER.WIDTH
-      for (let p = 1; p < participantCount; p++) {
-        const y = alignToPixelCenter(floorTop + p * rowHeight)
-        ctx.beginPath()
-        ctx.moveTo(floorLeft, y)
-        ctx.lineTo(floorRight, y)
-        ctx.stroke()
-      }
-
-      // Hover highlight
-      if (hoveredBinIndex !== null && hoveredParticipantIndex !== null) {
-        const cellX = floorLeft + hoveredBinIndex * binWidth
-        const cellY = floorTop + hoveredParticipantIndex * rowHeight
-
-        ctx.save()
-        ctx.globalAlpha = 0.3
-        ctx.fillStyle = '#007acc'
-        ctx.fillRect(cellX, cellY, binWidth, rowHeight)
-        ctx.restore()
-      } else if (hoveredBinIndex !== null) {
-        const binX = floorLeft + hoveredBinIndex * binWidth
-
-        ctx.save()
-        ctx.globalAlpha = 0.15
-        ctx.fillStyle = '#007acc'
-        ctx.fillRect(binX, floorTop, binWidth, floorHeight)
-        ctx.restore()
-      }
+    } else {
+      renderHeatmap(
+        ctx,
+        floorLeft,
+        floorTop,
+        floorWidth,
+        floorHeight,
+        floorBottom,
+        floorRight,
+        binWidth,
+        participantCount
+      )
     }
 
     ctx.restore()
 
-    // Participant labels (outside clip)
+    // Axes and labels (outside clip)
+    if (alignment === 'overlay') {
+      renderOverlayAxes(ctx, floorLeft, floorTop, floorWidth, floorHeight, floorBottom)
+    } else {
+      renderHeatmapLabels(ctx, floorLeft, floorTop, floorHeight, floorRight, participantCount, binWidth)
+    }
+
+    ctx.restore()
+    finishCanvasDrawing(plot.canvasState)
+  }
+
+  // ──────────────────────────────────────────────────────────────────
+  // HEATMAP RENDERING
+  // ──────────────────────────────────────────────────────────────────
+
+  function renderHeatmap(
+    ctx: CanvasRenderingContext2D,
+    floorLeft: number,
+    floorTop: number,
+    floorWidth: number,
+    floorHeight: number,
+    floorBottom: number,
+    floorRight: number,
+    binWidth: number,
+    participantCount: number
+  ) {
+    const rowHeight = floorHeight / participantCount
+    const paletteStopCount = palette.length - 1
+    const valueRange = data.valueMax - data.valueMin
+    const invValueRange = valueRange > 0 ? 1 / valueRange : 0
+
+    fillPlotAreaBackground(
+      ctx,
+      floorLeft,
+      floorTop,
+      floorWidth,
+      floorHeight,
+      INACTIVE_COLOR
+    )
+
+    for (let p = 0; p < participantCount; p++) {
+      const values = data.participants[p].values
+      const rowY = floorTop + p * rowHeight
+
+      for (let i = 0; i < data.binCount; i++) {
+        const val = values[i]
+        if (val !== val || val <= 0) continue
+
+        const normalized = (val - data.valueMin) * invValueRange
+        const scaledVal = Math.max(0, Math.min(1, normalized)) * paletteStopCount
+        const baseIdx = scaledVal | 0
+        const nextIdx = Math.min(paletteStopCount, baseIdx + 1)
+
+        ctx.fillStyle = interpolateColor(
+          palette[baseIdx],
+          palette[nextIdx],
+          scaledVal - baseIdx
+        )
+        ctx.fillRect(floorLeft + i * binWidth, rowY, binWidth + 0.5, rowHeight)
+      }
+    }
+
+    // Row dividers
+    ctx.strokeStyle = AREA_DIVIDER.COLOR
+    ctx.lineWidth = AREA_DIVIDER.WIDTH
+    for (let p = 1; p < participantCount; p++) {
+      const y = alignToPixelCenter(floorTop + p * rowHeight)
+      ctx.beginPath()
+      ctx.moveTo(floorLeft, y)
+      ctx.lineTo(floorRight, y)
+      ctx.stroke()
+    }
+
+    // Hover highlight
+    if (hoveredBinIndex !== null && hoveredParticipantIndex !== null) {
+      const cellX = floorLeft + hoveredBinIndex * binWidth
+      const cellY = floorTop + hoveredParticipantIndex * rowHeight
+
+      ctx.save()
+      ctx.globalAlpha = 0.3
+      ctx.fillStyle = '#007acc'
+      ctx.fillRect(cellX, cellY, binWidth, rowHeight)
+      ctx.restore()
+    } else if (hoveredBinIndex !== null) {
+      const binX = floorLeft + hoveredBinIndex * binWidth
+
+      ctx.save()
+      ctx.globalAlpha = 0.15
+      ctx.fillStyle = '#007acc'
+      ctx.fillRect(binX, floorTop, binWidth, floorHeight)
+      ctx.restore()
+    }
+  }
+
+  function renderHeatmapLabels(
+    ctx: CanvasRenderingContext2D,
+    floorLeft: number,
+    floorTop: number,
+    floorHeight: number,
+    floorRight: number,
+    participantCount: number,
+    binWidth: number
+  ) {
+    const rowHeight = floorHeight / participantCount
+    const floorBottom = floorTop + floorHeight
+    const floorWidth = floorRight - floorLeft
+
+    // Participant labels
     ctx.save()
     ctx.font = `${AXIS_CONFIG.fontSize}px ${FONT_PRIMARY.FAMILY}`
     ctx.fillStyle = AXIS_CONFIG.color
     ctx.textBaseline = 'middle'
 
     if (isCompact) {
-      // Compact: rotated "Participants [order indices]" + index ticks
       ctx.save()
       ctx.textAlign = 'center'
       const labelX = floorLeft - 40
@@ -394,7 +455,6 @@
         ctx.fillText(String(lastIdx), tickX, y)
       }
     } else {
-      // Normal: participant name labels with truncation
       ctx.textAlign = 'right'
       const maxLabelPx = effectiveLeftMargin - 15
 
@@ -418,8 +478,7 @@
     }
     ctx.restore()
 
-    // X-axis chrome (ticks on top+bottom, labels on bottom, border). Heatmap
-    // already has the striped gray background; ridgeline doesn't need a bg.
+    // X-axis chrome
     const xTicks = niceTimelineTicks(data.timeline)
     drawPlotArea(ctx, {
       x: floorLeft,
@@ -439,10 +498,10 @@
     )
 
     // Gradient legend (heatmap only)
-    if (alignment === 'heatmap' && gradientLegendGeometry) {
+    if (gradientLegendGeometry) {
       drawGradientLegend(ctx, gradientLegendGeometry, {
         x: safeMarginLeft,
-        y: plotBottom + MARGIN.BOTTOM,
+        y: floorBottom + MARGIN.BOTTOM,
         availableWidth: safeWidth,
         availableHeight: legendHeight,
         colorScale: palette,
@@ -452,74 +511,208 @@
         belowMinColor: INACTIVE_COLOR,
       })
     }
+  }
 
-    // Right-side scale bar (ridgeline only)
-    if (alignment === 'ridgeline' && data.valueMax > 0) {
-      const scale = ridgelineScale ?? RIDGELINE_SCALE_DEFAULT
-      const stripHeight = rowHeight * scale
-      const scaleHeight = stripHeight * RIDGELINE_CONTENT_FILL
-      let scaleMaxValue = Math.round(data.valueMax)
+  // ──────────────────────────────────────────────────────────────────
+  // OVERLAY RENDERING
+  // ──────────────────────────────────────────────────────────────────
 
-      // Adaptive: halve if the scale bar would exceed plot area
-      let drawHeight = scaleHeight
-      while (drawHeight > floorHeight && scaleMaxValue > 1) {
-        drawHeight /= 2
-        scaleMaxValue = Math.round(scaleMaxValue / 2)
-      }
+  function renderOverlay(
+    ctx: CanvasRenderingContext2D,
+    floorLeft: number,
+    floorTop: number,
+    floorWidth: number,
+    floorHeight: number,
+    floorBottom: number,
+    floorRight: number,
+    binWidth: number,
+    participantCount: number
+  ) {
+    if (!overlayAggregates) return
+    const { meanValues, p25Values, p75Values } = overlayAggregates
+    const axisMax = yAxisMax
 
-      const centerY = floorTop + floorHeight / 2
-      const scaleTop = alignToPixelCenter(centerY - drawHeight / 2)
-      const scaleBottom = alignToPixelCenter(centerY + drawHeight / 2)
+    const valueToY = (v: number) =>
+      floorBottom - (v / axisMax) * floorHeight
+    const binToX = (i: number) => floorLeft + (i + 0.5) * binWidth
 
-      // Layout: [rotated axis label] [scale bar] |— tick — tick_label
-      // Rotated label sits on the "inside" of the scale bar (ticks point out).
-      const scaleLabelGap = 4
-      const scaleLabelSlot = AXIS_CONFIG.fontSize - 2
-      const scaleX = alignToPixelCenter(
-        floorRight + scaleLabelGap + scaleLabelSlot + scaleLabelGap
-      )
-      const tickLength = 5
-      const tickXEnd = alignToPixelCenter(scaleX + tickLength)
-      const tickLabelX = tickXEnd + 3
-      const rotatedLabelY = (scaleTop + scaleBottom) / 2
+    // --- Individual participant lines ---
+    // Alpha and width scale with N so that spaghetti recedes into a density
+    // cloud at high counts while remaining individually traceable at low N.
+    const alpha = Math.max(0.04, Math.min(0.5, 2 / Math.sqrt(participantCount)))
+    ctx.lineWidth = participantCount > 30 ? 0.5 : 1
 
-      ctx.save()
-      ctx.fillStyle = AXIS_CONFIG.color
+    for (let p = 0; p < participantCount; p++) {
+      if (hoveredParticipantIndex === p) continue
+      const values = data.participants[p].values
 
-      // Rotated scale description — metric [unit] — to the LEFT of the scale bar
-      ctx.save()
-      ctx.font = `${AXIS_CONFIG.fontSize - 2}px ${FONT_PRIMARY.FAMILY}`
-      ctx.translate(floorRight + scaleLabelGap + scaleLabelSlot / 2, rotatedLabelY)
-      ctx.rotate(-Math.PI / 2)
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText(RIDGELINE_SCALE_LABEL, 0, 0)
-      ctx.restore()
-
-      // Numeric tick labels (right of the scale bar)
-      ctx.textAlign = 'left'
-      ctx.textBaseline = 'middle'
-      ctx.font = `${AXIS_CONFIG.fontSize - 2}px ${FONT_PRIMARY.FAMILY}`
-      ctx.fillText('0', tickLabelX, scaleBottom)
-      ctx.fillText(`${scaleMaxValue}`, tickLabelX, scaleTop)
-
-      // Vertical bar + ticks
+      ctx.strokeStyle = `rgba(${OVERLAY_INDIVIDUAL_RGB}, ${alpha})`
       ctx.beginPath()
-      ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
+      let drawing = false
+      for (let i = 0; i < data.binCount; i++) {
+        const v = values[i]
+        if (v !== v || v <= 0) {
+          drawing = false
+          continue
+        }
+        const x = binToX(i)
+        const y = valueToY(v)
+        if (!drawing) {
+          ctx.moveTo(x, y)
+          drawing = true
+        } else {
+          ctx.lineTo(x, y)
+        }
+      }
+      ctx.stroke()
+    }
+
+    // --- P25–P75 band ---
+    ctx.fillStyle = `rgba(${OVERLAY_SUMMARY_RGB}, ${OVERLAY_BAND_ALPHA})`
+    let segStart = -1
+    for (let i = 0; i <= data.binCount; i++) {
+      const valid =
+        i < data.binCount &&
+        p25Values[i] === p25Values[i] &&
+        p75Values[i] === p75Values[i]
+      if (valid && segStart < 0) {
+        segStart = i
+      } else if (!valid && segStart >= 0) {
+        drawBandSegment(ctx, p25Values, p75Values, segStart, i - 1, binToX, valueToY)
+        segStart = -1
+      }
+    }
+
+    // --- Mean line ---
+    // Solid stroke in branding color — distinguished from spaghetti by color
+    // and weight, not by dash pattern (dashes look messy on noisy data).
+    ctx.save()
+    ctx.strokeStyle = OVERLAY_SUMMARY_COLOR
+    ctx.lineWidth = OVERLAY_MEAN_LINE_WIDTH
+    ctx.beginPath()
+    let drawingMean = false
+    for (let i = 0; i < data.binCount; i++) {
+      const v = meanValues[i]
+      if (v !== v) {
+        drawingMean = false
+        continue
+      }
+      const x = binToX(i)
+      const y = valueToY(v)
+      if (!drawingMean) {
+        ctx.moveTo(x, y)
+        drawingMean = true
+      } else {
+        ctx.lineTo(x, y)
+      }
+    }
+    ctx.stroke()
+    ctx.restore()
+
+    // --- Hover: dashed vertical line at bin center ---
+    if (hoveredBinIndex !== null) {
+      const cx = alignToPixelCenter(binToX(hoveredBinIndex))
+      ctx.save()
+      ctx.strokeStyle = '#007acc'
       ctx.lineWidth = 1
-      ctx.moveTo(scaleX, scaleBottom)
-      ctx.lineTo(scaleX, scaleTop)
-      ctx.moveTo(scaleX, scaleBottom)
-      ctx.lineTo(tickXEnd, scaleBottom)
-      ctx.moveTo(scaleX, scaleTop)
-      ctx.lineTo(tickXEnd, scaleTop)
+      ctx.setLineDash([3, 3])
+      ctx.beginPath()
+      ctx.moveTo(cx, floorTop)
+      ctx.lineTo(cx, floorBottom)
       ctx.stroke()
       ctx.restore()
     }
 
-    ctx.restore()
-    finishCanvasDrawing(plot.canvasState)
+    // --- Highlighted participant (on hover) ---
+    if (hoveredParticipantIndex !== null) {
+      const values = data.participants[hoveredParticipantIndex].values
+      ctx.strokeStyle = '#007acc'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      let drawingHL = false
+      for (let i = 0; i < data.binCount; i++) {
+        const v = values[i]
+        if (v !== v || v <= 0) {
+          drawingHL = false
+          continue
+        }
+        const x = binToX(i)
+        const y = valueToY(v)
+        if (!drawingHL) {
+          ctx.moveTo(x, y)
+          drawingHL = true
+        } else {
+          ctx.lineTo(x, y)
+        }
+      }
+      ctx.stroke()
+    }
   }
+
+  function drawBandSegment(
+    ctx: CanvasRenderingContext2D,
+    p25: Float32Array,
+    p75: Float32Array,
+    from: number,
+    to: number,
+    binToX: (i: number) => number,
+    valueToY: (v: number) => number
+  ) {
+    ctx.beginPath()
+    ctx.moveTo(binToX(from), valueToY(p75[from]))
+    for (let i = from + 1; i <= to; i++) {
+      ctx.lineTo(binToX(i), valueToY(p75[i]))
+    }
+    for (let i = to; i >= from; i--) {
+      ctx.lineTo(binToX(i), valueToY(p25[i]))
+    }
+    ctx.closePath()
+    ctx.fill()
+  }
+
+  function renderOverlayAxes(
+    ctx: CanvasRenderingContext2D,
+    floorLeft: number,
+    floorTop: number,
+    floorWidth: number,
+    floorHeight: number,
+    floorBottom: number
+  ) {
+    const xTicks = niceTimelineTicks(data.timeline)
+    drawPlotArea(ctx, {
+      x: floorLeft,
+      y: floorTop,
+      width: floorWidth,
+      height: floorHeight,
+      ticks: {
+        bottom: xTicks,
+        top: { positions: xTicks.positions },
+        left: yTicks ?? undefined,
+      },
+    })
+
+    drawXAxisLabel(
+      ctx,
+      X_AXIS_LABEL,
+      floorLeft,
+      floorWidth,
+      floorBottom,
+      X_AXIS_LABEL_OFFSET,
+      AXIS_CONFIG
+    )
+
+    drawYAxisMainLabel(
+      ctx,
+      'Fixation duration [ms]',
+      floorLeft,
+      floorTop,
+      floorHeight
+    )
+  }
+
+  // ──────────────────────────────────────────────────────────────────
+  // HOVER
+  // ──────────────────────────────────────────────────────────────────
 
   function getHoveredCell(
     mouseX: number,
@@ -535,16 +728,34 @@
     }
 
     const relativeX = mouseX - plotLeft
-    const relativeY = mouseY - plotTop
     const binWidth = plotAreaWidth / data.binCount
-    const rowHeight = plotAreaHeight / data.participants.length
-
     const bin = Math.max(0, Math.min(data.binCount - 1, Math.floor(relativeX / binWidth)))
+
+    if (alignment === 'overlay') {
+      // Find nearest participant by Y-distance at this bin
+      let nearest: number | null = null
+      let nearestDist = Infinity
+      const axisMax = yAxisMax
+      for (let p = 0; p < data.participants.length; p++) {
+        const v = data.participants[p].values[bin]
+        if (v !== v || v <= 0) continue
+        const py = plotBottom - (v / axisMax) * plotAreaHeight
+        const dist = Math.abs(mouseY - py)
+        if (dist < nearestDist) {
+          nearestDist = dist
+          nearest = p
+        }
+      }
+      return { bin, participant: nearest }
+    }
+
+    // Heatmap: row-based
+    const relativeY = mouseY - plotTop
+    const rowHeight = plotAreaHeight / data.participants.length
     const participant = Math.max(
       0,
       Math.min(data.participants.length - 1, Math.floor(relativeY / rowHeight))
     )
-
     return { bin, participant }
   }
 
@@ -652,5 +863,5 @@
   use:canvasLifecycleAction={plot.actionOptions}
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
-  aria-label="Evolving Metrics heatmap visualization"
+  aria-label="Evolving Metrics visualization"
 ></canvas>

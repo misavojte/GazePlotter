@@ -47,7 +47,6 @@
     stepSize: number
     windowMultiplier: number
     presentation: string
-    ridgelineScale: number
     colorMin: string
     colorMiddle: string
     colorMax: string
@@ -63,7 +62,6 @@
       stepSize: settings.stepSize ?? 100,
       windowMultiplier: settings.windowMultiplier ?? 1,
       presentation: settings.presentation ?? 'heatmap',
-      ridgelineScale: settings.ridgelineScale ?? 2.5,
       ...getColorScaleCommitted(
         settings.colorScale,
         PRESET_PALETTES.HEAT.colors[0],
@@ -76,13 +74,12 @@
       const updates = PreviewModel.buildSimplePatch(draft, committed, [
         'stepSize',
         'windowMultiplier',
-        'ridgelineScale',
         'timelineStart',
         'timelineEnd',
       ]) as Partial<EvolvingMetricsSettings>
 
       if (draft.presentation !== committed.presentation) {
-        updates.presentation = draft.presentation as 'heatmap' | 'ridgeline'
+        updates.presentation = draft.presentation as 'heatmap' | 'overlay'
       }
 
       const colorScale = buildColorScalePatch(draft, committed)
@@ -103,8 +100,7 @@
       ...settings,
       stepSize: draft.stepSize,
       windowMultiplier: draft.windowMultiplier,
-      presentation: draft.presentation as 'heatmap' | 'ridgeline',
-      ridgelineScale: draft.ridgelineScale,
+      presentation: draft.presentation as 'heatmap' | 'overlay',
       colorScale: effectiveColorScale,
       timelineStart: draft.timelineStart,
       timelineEnd: draft.timelineEnd,
@@ -239,7 +235,6 @@
         {height}
         data={resultData}
         alignment={effectiveSettings.presentation ?? 'heatmap'}
-        ridgelineScale={effectiveSettings.ridgelineScale}
         colorScale={effectiveSettings.colorScale}
       />
     {/if}

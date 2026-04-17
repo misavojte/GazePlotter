@@ -29,7 +29,6 @@
   height={exportProps.height}
   data={evolvingData}
   alignment={settings.presentation ?? 'heatmap'}
-  ridgelineScale={settings.ridgelineScale}
   colorScale={settings.colorScale}
   dpiOverride={exportProps.dpiOverride}
   marginTop={exportProps.marginTop}

@@ -6,6 +6,7 @@ import { transitionMatrixDefinition } from './transition-matrix/definition'
 import { scanpathSimilarityDefinition } from './scanpath-similarity/definition'
 import { recurrencePlotDefinition } from './recurrence/definition'
 import { evolvingMetricsDefinition } from './evolving-metrics/definition'
+import { metricCorrelationDefinition } from './metric-correlation/definition'
 
 export const plotRegistry = {
   scarf: scarfPlotDefinition,
@@ -15,6 +16,7 @@ export const plotRegistry = {
   scanpathSimilarity: scanpathSimilarityDefinition,
   recurrencePlot: recurrencePlotDefinition,
   evolvingMetrics: evolvingMetricsDefinition,
+  metricCorrelation: metricCorrelationDefinition,
 } as const
 
 const LEGACY_VISUALIZATION_TYPES = {

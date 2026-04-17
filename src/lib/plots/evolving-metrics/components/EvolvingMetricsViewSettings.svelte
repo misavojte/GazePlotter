@@ -14,7 +14,6 @@
       stepSize: { value: number }
       windowMultiplier: { value: number }
       presentation: { value: string }
-      ridgelineScale: { value: number }
       colorMin: { value: string }
       colorMiddle: { value: string }
       colorMax: { value: string }
@@ -29,7 +28,6 @@
   const step = $derived(syncs.stepSize.value)
   const windowMs = $derived(multiplierToMs(n, step))
   const isHeatmap = $derived(syncs.presentation.value === 'heatmap')
-  const isRidgeline = $derived(syncs.presentation.value === 'ridgeline')
 
   function handleSubmit(e: Event) {
     e.preventDefault()
@@ -71,7 +69,7 @@
       <Radio
         options={[
           { value: 'heatmap', label: 'Heatmap' },
-          { value: 'ridgeline', label: 'Ridgeline' },
+          { value: 'overlay', label: 'Overlay' },
         ]}
         bind:value={syncs.presentation.value}
         appearance="compact"
@@ -86,18 +84,6 @@
             bind:colorMax={syncs.colorMax.value}
           />
         </div>
-      {/if}
-
-      {#if isRidgeline}
-        <InputNumber
-          id="ridge-scale"
-          label="Ridge Scale"
-          bind:value={syncs.ridgelineScale.value}
-          min={1}
-          max={10}
-          step={0.1}
-          appearance="compact"
-        />
       {/if}
     </CompactSettingsSection>
 

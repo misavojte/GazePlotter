@@ -7,8 +7,7 @@ export type EvolvingMetricsSettings = {
   stepSize: number
   /** SW multiplier: 0 = tumbling, 1 = 3 bins, 2 = 5 bins, etc. */
   windowMultiplier: number
-  presentation?: 'heatmap' | 'ridgeline'
-  ridgelineScale?: number
+  presentation?: 'heatmap' | 'overlay'
   colorScale?: string[]
   timelineStart?: number
   timelineEnd?: number
