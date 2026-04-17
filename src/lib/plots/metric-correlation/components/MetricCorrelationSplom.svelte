@@ -18,6 +18,8 @@
     drawMatrixRowLabels,
     drawPlotArea,
     useCanvasPlot,
+    canvasBlockSelect,
+    type BlockedRegion,
     type MatrixRenderConfig,
     type SquareMatrixLayout,
   } from '$lib/plots/shared'
@@ -79,6 +81,16 @@
       marginLeft,
     })
   )
+
+  // SPLOM cells are the data area; axis labels around them stay selectable.
+  const blockedRegions = $derived<BlockedRegion[]>([
+    {
+      x: layout.xOffset,
+      y: layout.yOffset,
+      w: layout.gridWidth,
+      h: layout.gridHeight,
+    },
+  ])
 
   // Per-metric value ranges, used to place scatter points inside each cell.
   const ranges = $derived.by(() =>
@@ -300,6 +312,7 @@
 <canvas
   bind:this={canvas}
   use:canvasLifecycleAction={plot.actionOptions}
+  use:canvasBlockSelect={{ regions: blockedRegions }}
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
 ></canvas>

@@ -8,7 +8,11 @@
     getTooltipPosition,
     alignToPixelCenter,
   } from '$lib/plots/shared/canvasUtils'
-  import { useCanvasPlot } from '$lib/plots/shared'
+  import {
+    useCanvasPlot,
+    canvasBlockSelect,
+    type BlockedRegion,
+  } from '$lib/plots/shared'
   import { updateTooltip } from '$lib/tooltip'
   import { estimateTextWidth } from '$lib/shared/utils/textUtils'
   import { desaturateToWhite } from '$lib/color/utility'
@@ -250,6 +254,25 @@
       legendY,
       legendWidth
     )
+  })
+
+  // Blocked regions: plot area always, plus the legend strip when it's
+  // interactive (stream/distribution/ridgeline — clicks toggle AOI
+  // highlight). The heatmap's gradient legend is non-interactive, so
+  // it stays clickable-to-select like the rest of the chrome.
+  const blockedRegions = $derived.by<BlockedRegion[]>(() => {
+    const regions: BlockedRegion[] = [
+      { x: plotLeft, y: plotTop, w: plotAreaWidth, h: plotAreaHeight },
+    ]
+    if (alignment !== 'heatmap' && legendHeight > 0) {
+      regions.push({
+        x: safeMarginLeft,
+        y: plotBottom + MARGIN.BOTTOM,
+        w: Math.max(0, safeWidth),
+        h: legendHeight,
+      })
+    }
+    return regions
   })
 
   // Compute gradient legend geometry for heatmap mode
@@ -927,6 +950,7 @@
 <canvas
   bind:this={canvas}
   use:canvasLifecycleAction={plot.actionOptions}
+  use:canvasBlockSelect={{ regions: blockedRegions }}
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
   onclick={handleClick}

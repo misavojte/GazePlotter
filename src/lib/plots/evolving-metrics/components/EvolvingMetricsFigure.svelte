@@ -8,7 +8,11 @@
     getTooltipPosition,
     alignToPixelCenter,
   } from '$lib/plots/shared/canvasUtils'
-  import { useCanvasPlot } from '$lib/plots/shared'
+  import {
+    useCanvasPlot,
+    canvasBlockSelect,
+    type BlockedRegion,
+  } from '$lib/plots/shared'
   import { updateTooltip } from '$lib/tooltip'
   import { estimateTextWidth } from '$lib/shared/utils/textUtils'
   import { interpolateColor } from '$lib/color/utility'
@@ -133,6 +137,13 @@
   const plotTop = $derived(Math.floor(safeMarginTop + MARGIN.TOP))
   const plotBottom = $derived(plotTop + plotAreaHeight)
   const plotRight = $derived(plotLeft + plotAreaWidth)
+
+  // Evolving-metrics' only legend is the heatmap gradient (static, not
+  // interactive), so only the plot area is blocked — everything else
+  // (title, axes, legend strip) stays clickable to open the Pane.
+  const blockedRegions = $derived<BlockedRegion[]>([
+    { x: plotLeft, y: plotTop, w: plotAreaWidth, h: plotAreaHeight },
+  ])
 
   // Color palette (heatmap)
   const palette = $derived<string[]>(
@@ -861,6 +872,7 @@
 <canvas
   bind:this={canvas}
   use:canvasLifecycleAction={plot.actionOptions}
+  use:canvasBlockSelect={{ regions: blockedRegions }}
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
   aria-label="Evolving Metrics visualization"

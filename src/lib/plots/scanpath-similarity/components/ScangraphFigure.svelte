@@ -10,7 +10,12 @@
     canvasLifecycleAction,
   } from '$lib/plots/shared/canvasUtils'
   import { UI_COLORS } from '$lib/color'
-  import { drawPlotArea, useCanvasPlot } from '$lib/plots/shared'
+  import {
+    drawPlotArea,
+    useCanvasPlot,
+    canvasBlockSelect,
+    type BlockedRegion,
+  } from '$lib/plots/shared'
   import { SCANGRAPH_LAYOUT } from '../const'
   import type { ScangraphData } from '../types'
   import { computeForceLayout, type ForceLayoutMargins, type LayoutResult, type NodePosition } from '../core/forceLayout'
@@ -59,6 +64,14 @@
 
   const canvasWidth = $derived(width + marginLeft + marginRight)
   const canvasHeight = $derived(height + marginTop + marginBottom)
+
+  // Scangraph's entire content area is interactive (clickable nodes +
+  // edges). There's no legend, so the plot area is the only blocked
+  // region; everything outside (the margin frame around it) stays
+  // clickable-to-select.
+  const blockedRegions = $derived<BlockedRegion[]>([
+    { x: marginLeft, y: marginTop, w: width, h: height },
+  ])
 
 
   const nodeRadius = $derived.by(() => {
@@ -427,6 +440,7 @@
 <canvas
   bind:this={canvas}
   use:canvasLifecycleAction={plot.actionOptions}
+  use:canvasBlockSelect={{ regions: blockedRegions }}
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
   onclick={handleClick}

@@ -9,7 +9,9 @@
     useCanvasPlot,
     drawPlotArea,
     fillPlotAreaBackground,
+    canvasBlockSelect,
     type PlotAreaTicks,
+    type BlockedRegion,
   } from '$lib/plots/shared'
   import {
     calculateLabelOffset,
@@ -192,6 +194,17 @@
       )
     )
   )
+
+  // Bar plot has no legend — only the data rectangle is blocked so
+  // the surrounding chrome (axes, title, padding) opens the Pane.
+  const blockedRegions = $derived<BlockedRegion[]>([
+    {
+      x: trueLeftMargin,
+      y: effectiveTopMargin + marginTop,
+      w: plotAreaWidth,
+      h: plotAreaHeight,
+    },
+  ])
 
   // Scale values to plot area using AdaptiveTimeline
   function scaleValue(value: number, clamp: boolean = true): number {
@@ -728,6 +741,7 @@
 <canvas
   bind:this={canvas}
   use:canvasLifecycleAction={plot.actionOptions}
+  use:canvasBlockSelect={{ regions: blockedRegions }}
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
   aria-label="Bar plot visualization"

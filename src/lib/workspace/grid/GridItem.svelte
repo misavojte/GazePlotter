@@ -334,8 +334,11 @@
     position: relative;
 
     /* Affordance ring sits ON TOP of the frame's existing 1px border.
-       Hover is a quiet 1px solid preview; selected widens to 2px. */
-    outline: 1px solid transparent;
+       Hover and selected share the 2px width so the visual "weight"
+       doesn't jump when the user actually clicks — only the color
+       intensity changes. Hover is a lighter blue (mixed toward white),
+       selected is the full info-color. */
+    outline: 2px solid transparent;
     outline-offset: -1px;
   }
 
@@ -360,12 +363,10 @@
           ):hover
       )
     ) {
-    outline-color: color-mix(in srgb, var(--c-info) 30%, transparent);
+    outline-color: color-mix(in srgb, var(--c-info) 25%, #e2e8f0);
   }
 
   .grid-item-frame.selected {
-    outline-width: 2px;
-    outline-style: solid;
     outline-color: var(--c-info);
     /* Signals the selected-frame "drag-from-anywhere" affordance: once an
        item is selected, the whole frame becomes a grab target (see

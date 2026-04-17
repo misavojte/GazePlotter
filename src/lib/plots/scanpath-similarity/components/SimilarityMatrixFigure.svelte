@@ -18,6 +18,8 @@
     drawPlotArea,
     useCanvasPlot,
     renderMatrixContent,
+    canvasBlockSelect,
+    type BlockedRegion,
     type MatrixRenderConfig,
   } from '$lib/plots/shared'
   import { UI_COLORS } from '$lib/color'
@@ -83,6 +85,17 @@
       marginLeft,
     })
   )
+
+  // Matrix body is the only blocked region — the gradient legend below
+  // is static (no clickable cells), so it stays selectable chrome.
+  const blockedRegions = $derived<BlockedRegion[]>([
+    {
+      x: layout.xOffset,
+      y: layout.yOffset,
+      w: layout.gridWidth,
+      h: layout.gridHeight,
+    },
+  ])
 
   function getColor(value: number): string {
     return getColorForValue(
@@ -240,6 +253,7 @@
 <canvas
   bind:this={canvas}
   use:canvasLifecycleAction={plot.actionOptions}
+  use:canvasBlockSelect={{ regions: blockedRegions }}
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
 ></canvas>

@@ -10,7 +10,12 @@
     canvasLifecycleAction,
   } from '$lib/plots/shared/canvasUtils'
   import { RECURRENCE_LAYOUT } from '../const'
-  import { drawPlotArea, useCanvasPlot } from '$lib/plots/shared'
+  import {
+    drawPlotArea,
+    useCanvasPlot,
+    canvasBlockSelect,
+    type BlockedRegion,
+  } from '$lib/plots/shared'
   import { UI_COLORS } from '$lib/color'
   import type {
     RecurrenceData,
@@ -91,6 +96,16 @@
 
     return { N, cellSize, gridSize, xOffset, yOffset, tickStep }
   })
+
+  // Recurrence matrix body is the only blocked region; no legend.
+  const blockedRegions = $derived<BlockedRegion[]>([
+    {
+      x: layout.xOffset,
+      y: layout.yOffset,
+      w: layout.gridSize,
+      h: layout.gridSize,
+    },
+  ])
 
   const maxDuration = $derived.by(() => {
     if (!data.durationMatrix) return 0
@@ -430,6 +445,7 @@
 <canvas
   bind:this={canvas}
   use:canvasLifecycleAction={plot.actionOptions}
+  use:canvasBlockSelect={{ regions: blockedRegions }}
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
 ></canvas>

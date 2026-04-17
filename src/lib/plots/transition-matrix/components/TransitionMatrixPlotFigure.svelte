@@ -21,6 +21,8 @@
     drawPlotArea,
     useCanvasPlot,
     renderMatrixContent,
+    canvasBlockSelect,
+    type BlockedRegion,
     type MatrixRenderConfig,
   } from '$lib/plots/shared'
   import { UI_COLORS } from '$lib/color'
@@ -100,6 +102,18 @@
       effectiveMaxValue,
     })
   )
+
+  // The matrix body is the only blocked region: its gradient legend is
+  // static (no clickable cells), so chrome around either one — title,
+  // axis labels, padding, the legend itself — stays selectable.
+  const blockedRegions = $derived<BlockedRegion[]>([
+    {
+      x: layout.xOffset,
+      y: layout.yOffset,
+      w: layout.gridWidth,
+      h: layout.gridHeight,
+    },
+  ])
 
   function isBelowMinimum(value: number): boolean {
     return value < colorValueRange[0]
@@ -287,6 +301,7 @@
 <canvas
   bind:this={canvas}
   use:canvasLifecycleAction={plot.actionOptions}
+  use:canvasBlockSelect={{ regions: blockedRegions }}
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
   onmousedown={handleMouseDown}

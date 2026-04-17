@@ -19,6 +19,8 @@
     niceTimelineTicks,
     SCARF_LEGEND_CONFIG,
     useCanvasPlot,
+    canvasBlockSelect,
+    type BlockedRegion,
     type LegendGeometry,
     type LegendGroup,
     type LegendItemGeometry,
@@ -276,6 +278,24 @@
       chartWidth
     )
   })
+
+  // Blocked regions: scarf has a clickable legend (toggles AOI
+  // highlight), so both the participant rows (plot area) and the
+  // legend strip must not trigger grid-item selection.
+  const blockedRegions = $derived<BlockedRegion[]>([
+    {
+      x: LEFT_LABEL_WIDTH + marginLeft,
+      y: effectiveMarginTop,
+      w: plotAreaWidth,
+      h: participantBarsHeight,
+    },
+    {
+      x: marginLeft,
+      y: legendY + effectiveMarginTop,
+      w: chartWidth,
+      h: legendHeight,
+    },
+  ])
 
   // Canvas size exactly matches available chartWidth
   const totalWidth = $derived(chartWidth)
@@ -971,6 +991,7 @@
   width={totalWidth}
   height={totalHeight}
   use:canvasLifecycleAction={plot.actionOptions}
+  use:canvasBlockSelect={{ regions: blockedRegions }}
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
   onmousedown={handleMouseDown}
