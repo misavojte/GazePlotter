@@ -58,16 +58,15 @@
   let colorMiddle = $state(colorFields.colorMiddle)
   let colorMax = $state(colorFields.colorMax)
 
-  let syncingFromProps = false
+  // External -> local sync + local -> committed. buildColorScalePatch
+  // returns null when draft matches committed, so the round-trip
+  // self-terminates — no microtask-gated flag needed.
   $effect(() => {
-    syncingFromProps = true
     colorMin = colorFields.colorMin
     colorMiddle = colorFields.colorMiddle
     colorMax = colorFields.colorMax
-    queueMicrotask(() => (syncingFromProps = false))
   })
   $effect(() => {
-    if (syncingFromProps) return
     const patch = buildColorScalePatch(
       { colorMin, colorMiddle, colorMax },
       colorFields

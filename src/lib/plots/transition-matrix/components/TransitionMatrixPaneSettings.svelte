@@ -58,21 +58,18 @@
   let colorMiddle = $state(colorFields.colorMiddle)
   let colorMax = $state(colorFields.colorMax)
 
-  // External -> local sync: whenever the committed settings change, resync
-  // the picker. Guarded to avoid clobbering in-flight local edits.
-  let syncingFromProps = false
+  // External -> local sync: mirror committed settings into the picker.
+  // No microtask-gated "syncing" flag needed — buildColorScalePatch
+  // returns null when draft matches committed, so the commit effect
+  // below self-terminates without looping.
   $effect(() => {
-    syncingFromProps = true
     colorMin = colorFields.colorMin
     colorMiddle = colorFields.colorMiddle
     colorMax = colorFields.colorMax
-    queueMicrotask(() => (syncingFromProps = false))
   })
 
-  // Local -> committed: every user-driven change commits a patch.
   $effect(() => {
     const draft = { colorMin, colorMiddle, colorMax }
-    if (syncingFromProps) return
     const patch = buildColorScalePatch(draft, colorFields)
     if (patch) update({ colorScale: patch })
   })
