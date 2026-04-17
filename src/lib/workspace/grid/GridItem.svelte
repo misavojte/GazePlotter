@@ -320,12 +320,14 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 10px 16px;
+    padding: 10px 25px;
     min-height: 40px;
     box-sizing: border-box;
     background: var(--c-lightgrey);
     overflow: hidden;
     border-radius: var(--rounded-lg, 8px) var(--rounded-lg, 8px) 0 0;
+    user-select: none;
+    -webkit-user-select: none;
   }
 
   .grid-item-title {

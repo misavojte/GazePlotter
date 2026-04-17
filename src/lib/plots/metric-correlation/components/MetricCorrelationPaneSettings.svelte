@@ -18,6 +18,10 @@
     MetricCorrelationItem,
     MetricCorrelationSettings,
   } from '../types'
+  import {
+    createSystemMetricInstances,
+    type MetricInstance,
+  } from '$lib/plots/metrics'
   import MetricInstancePicker from './MetricInstancePicker.svelte'
 
   interface Props {
@@ -63,14 +67,18 @@
       : String(settings.selectedAoiId)
   )
 
-  const metricInstances = $derived(engine.metadata?.metricInstances ?? [])
+  const library = $derived<readonly MetricInstance[]>(
+    engine.metadata?.metricInstances && engine.metadata.metricInstances.length > 0
+      ? engine.metadata.metricInstances
+      : createSystemMetricInstances()
+  )
 
   // Empty selection means "all system instances" — expand so the picker
   // shows the concrete list the user can manage.
   const effectiveIds = $derived(
     settings.enabledMetricIds.length > 0
       ? settings.enabledMetricIds
-      : metricInstances.filter(i => i.system).map(i => i.id)
+      : library.filter(i => i.system).map(i => i.id)
   )
 
   function onrenameInstance(id: number, label: string) {
@@ -105,6 +113,15 @@
   />
 </PaneSection>
 
+<PaneSection title="Metrics">
+  <MetricInstancePicker
+    instances={library}
+    selectedIds={effectiveIds}
+    onchange={ids => update({ enabledMetricIds: ids })}
+    {onrenameInstance}
+  />
+</PaneSection>
+
 <PaneSection title="View">
   <Radio
     ariaLabel="View"
@@ -112,6 +129,7 @@
       label: v.label,
       value: v.value,
     }))}
+    appearance="compact"
     direction="row"
     value={settings.view}
     onchange={e => {
@@ -128,6 +146,7 @@
       label: m.label,
       value: m.value,
     }))}
+    appearance="compact"
     direction="row"
     value={settings.correlationMethod}
     onchange={e => {
@@ -135,15 +154,6 @@
       if (v === 'pearson' || v === 'spearman')
         update({ correlationMethod: v })
     }}
-  />
-</PaneSection>
-
-<PaneSection title="Metrics">
-  <MetricInstancePicker
-    instances={metricInstances}
-    selectedIds={effectiveIds}
-    onchange={ids => update({ enabledMetricIds: ids })}
-    {onrenameInstance}
   />
 </PaneSection>
 
