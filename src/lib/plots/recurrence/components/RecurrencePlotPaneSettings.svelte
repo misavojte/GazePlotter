@@ -74,10 +74,7 @@
       update({ recurrenceMethod: v })
     }}
   />
-</PaneSection>
-
-{#if effectiveMethod === 'fixedDistance'}
-  <PaneSection title="Distance">
+  {#if effectiveMethod === 'fixedDistance'}
     <InputNumber
       id="rec-radius"
       label="Radius [px]"
@@ -87,11 +84,8 @@
       appearance="compact"
       onValueChange={v => update({ radius: v ?? settings.radius })}
     />
-  </PaneSection>
-{/if}
-
-{#if effectiveMethod === 'fixedGrid'}
-  <PaneSection title="Grid">
+  {/if}
+  {#if effectiveMethod === 'fixedGrid'}
     <InputNumber
       id="rec-grid-size"
       label="Cells per axis"
@@ -101,8 +95,8 @@
       appearance="compact"
       onValueChange={v => update({ gridSize: v ?? settings.gridSize })}
     />
-  </PaneSection>
-{/if}
+  {/if}
+</PaneSection>
 
 <PaneSection title="Highlight">
   <Radio
@@ -126,7 +120,7 @@
   />
 </PaneSection>
 
-<PaneSection title="Options">
+<PaneSection title="Lines">
   <InputCheck
     label="Duration weighting"
     appearance="compact"

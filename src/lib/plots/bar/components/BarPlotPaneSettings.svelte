@@ -87,9 +87,9 @@
   />
 </PaneSection>
 
-<PaneSection title="Orientation">
+<PaneSection title="Presentation">
   <Radio
-    ariaLabel="Plot orientation"
+    legend="Orientation"
     options={[
       { label: 'Horizontal', value: 'horizontal' },
       { label: 'Vertical', value: 'vertical' },
@@ -102,9 +102,6 @@
       update({ barPlottingType: v })
     }}
   />
-</PaneSection>
-
-<PaneSection title="Ordering">
   <Radio
     legend="Order by"
     options={[

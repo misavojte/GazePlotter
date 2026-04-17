@@ -124,7 +124,7 @@
   </div>
 </PaneSection>
 
-<PaneSection title="Time range [ms]">
+<PaneSection title="Time range [ms]" defaultOpen={false}>
   <div class="inline-pair">
     <InputNumber
       id="ev-timeline-start"

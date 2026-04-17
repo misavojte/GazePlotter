@@ -133,9 +133,6 @@
       update({ similarityMethod: v })
     }}
   />
-</PaneSection>
-
-<PaneSection title="Options">
   <InputCheck
     label="Collapse consecutive AOIs"
     appearance="compact"
@@ -158,8 +155,16 @@
       onValueChange={v => update({ threshold: v ?? 0.5 })}
     />
   </PaneSection>
-{:else}
-  <PaneSection title="Scale range">
+{/if}
+
+<!-- Picker stays mounted regardless of view — toggling via an
+     outer `{#if}` broke the bindable plumbing in practice (the picker
+     remounted with stale bindings on re-entry and its writes never
+     reached parent state, so the colorScale commit never fired). Hide
+     visually when not matrix, but keep the component instance alive
+     so the `bind:` bindings never tear down mid-edit. -->
+<div style:display={isScangraph ? 'none' : 'contents'}>
+  <PaneSection title="Color scale">
     <div class="inline-pair">
       <InputNumber
         id="scanpath-min-val"
@@ -182,16 +187,6 @@
         onValueChange={v => updateValueRange({ max: v ?? 0 })}
       />
     </div>
-  </PaneSection>
-{/if}
-
-<!-- Keep the picker always mounted regardless of view: wrapping `bind:`
-     on a component in an `{#if}` block breaks the upstream write path
-     (the picker remounts with stale bindings and its writes never
-     reach parent state, so colorScale commits are silently lost). See
-     AoiStream/EvolvingMetrics for the same workaround. -->
-<div style:display={isScangraph ? 'none' : 'contents'}>
-  <PaneSection title="Colors">
     <ColorGradientPicker bind:colorMin bind:colorMiddle bind:colorMax />
   </PaneSection>
 </div>

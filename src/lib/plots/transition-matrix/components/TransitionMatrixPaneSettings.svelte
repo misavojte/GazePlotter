@@ -114,7 +114,7 @@
   />
 </PaneSection>
 
-<PaneSection title="Scale range">
+<PaneSection title="Color scale">
   <div class="inline-pair">
     <InputNumber
       id="tm-min-val"
@@ -133,9 +133,6 @@
       onValueChange={v => updateValueRange({ max: v ?? 0 })}
     />
   </div>
-</PaneSection>
-
-<PaneSection title="Colors">
   <ColorGradientPicker bind:colorMin bind:colorMiddle bind:colorMax />
 </PaneSection>
 

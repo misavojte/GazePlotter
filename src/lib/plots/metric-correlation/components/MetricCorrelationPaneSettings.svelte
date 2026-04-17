@@ -113,15 +113,6 @@
   />
 </PaneSection>
 
-<PaneSection title="Metrics">
-  <MetricInstancePicker
-    instances={library}
-    selectedIds={effectiveIds}
-    onchange={ids => update({ enabledMetricIds: ids })}
-    {onrenameInstance}
-  />
-</PaneSection>
-
 <PaneSection title="View">
   <Radio
     ariaLabel="View"
@@ -136,6 +127,15 @@
       const v = (e as CustomEvent<string>).detail
       if (v === 'heatmap' || v === 'splom') update({ view: v })
     }}
+  />
+</PaneSection>
+
+<PaneSection title="Metrics">
+  <MetricInstancePicker
+    instances={library}
+    selectedIds={effectiveIds}
+    onchange={ids => update({ enabledMetricIds: ids })}
+    {onrenameInstance}
   />
 </PaneSection>
 

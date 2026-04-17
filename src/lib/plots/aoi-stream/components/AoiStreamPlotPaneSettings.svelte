@@ -131,7 +131,7 @@
   </PaneSection>
 {/if}
 
-<PaneSection title="Time range [ms]">
+<PaneSection title="Time range [ms]" defaultOpen={false}>
   <div class="inline-pair">
     <InputNumber
       id="aoi-stream-timeline-start"
