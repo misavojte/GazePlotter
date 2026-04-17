@@ -7,7 +7,6 @@
     resizeHandleAction,
     type GridInteractionController,
   } from './interaction'
-  import GripVertical from 'lucide-svelte/icons/grip-vertical'
   import Copy from 'lucide-svelte/icons/copy'
   import X from 'lucide-svelte/icons/x'
   import { getGazePlotterSession } from '$lib/session'
@@ -106,20 +105,14 @@
     --grid-item-body-padding: ${GRID_ITEM_BODY_PADDING}px;
   `)
 
-  const moveActionParams = $derived({
-    enabled: isDraggableEnabled,
-    item,
-    interaction,
-    onCommit: (rect: GridRect) => onmove(rect),
-  })
-
-  // Frame-level drag: once the item is selected, allow grabbing it from
-  // anywhere on the frame (title bar, padding, empty plot chrome) — not
-  // just the Move button. `shouldStart` carves out regions that have
-  // their own click semantics (buttons, inputs, plot canvas) via the
-  // same BLOCK_SELECTOR the frame click handler uses. `moveHandleAction`
-  // waits for a 3px drag threshold before starting the interaction, so
-  // a plain click on the frame still deselects cleanly.
+  // Frame-level drag: once the item is selected, the whole frame is a
+  // drag target (title bar, padding, empty plot chrome) — there's no
+  // dedicated Move button anymore. `shouldStart` carves out regions
+  // that have their own click semantics (buttons, inputs, plot canvas)
+  // via the same BLOCK_SELECTOR the frame click handler uses.
+  // `moveHandleAction` waits for a 3px drag threshold before starting
+  // the interaction, so a plain click on the frame still toggles
+  // selection cleanly rather than spawning a no-op move session.
   const frameMoveActionParams = $derived({
     enabled: isDraggableEnabled && isSelected,
     item,
@@ -264,17 +257,12 @@
          overflow:hidden. The selection-corner-fill above paints the
          frame's rounded top-left cutout so the chip reads as an
          integral extension of the selection. -->
+    <!-- No Move button here: the whole frame is already a drag target
+         when selected (`cursor: move` signals it), so a dedicated
+         Move button duplicates the affordance and mixes drag-to-act
+         with the click-to-act Duplicate/Remove buttons next to it. -->
     <div class="action-toolbar" data-block-select>
       {#if isDraggableEnabled}
-        <button
-          type="button"
-          class="action-toolbar-button"
-          use:moveHandleAction={moveActionParams}
-          aria-label="Drag to move"
-        >
-          <GripVertical size={12} strokeWidth={1.75} aria-hidden="true" />
-          <span>Move</span>
-        </button>
         <button
           type="button"
           class="action-toolbar-button"
@@ -577,12 +565,6 @@
   }
   .action-toolbar-button:hover {
     background: rgba(255, 255, 255, 0.18);
-  }
-  .action-toolbar-button[aria-label='Drag to move'] {
-    cursor: grab;
-  }
-  .action-toolbar-button[aria-label='Drag to move']:active {
-    cursor: grabbing;
   }
 
   .header-content {
