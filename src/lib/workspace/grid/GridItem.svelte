@@ -1,7 +1,6 @@
 <script lang="ts">
   import { fade } from 'svelte/transition'
   import type { Snippet } from 'svelte'
-  import GridItemButton from './GridItemButton.svelte'
   import { GRID_ITEM_BODY_PADDING } from './const'
   import {
     moveHandleAction,
@@ -112,12 +111,37 @@
     onCommit: (rect: GridRect) => onmove(rect),
   })
 
-  const resizeActionParams = $derived({
+  const resizeActionParamsTL = $derived({
     enabled: resizable,
     item,
     min: minimumSize,
     interaction,
     onCommit: (rect: GridRect) => onresize(rect),
+    direction: 'tl' as const,
+  })
+  const resizeActionParamsTR = $derived({
+    enabled: resizable,
+    item,
+    min: minimumSize,
+    interaction,
+    onCommit: (rect: GridRect) => onresize(rect),
+    direction: 'tr' as const,
+  })
+  const resizeActionParamsBL = $derived({
+    enabled: resizable,
+    item,
+    min: minimumSize,
+    interaction,
+    onCommit: (rect: GridRect) => onresize(rect),
+    direction: 'bl' as const,
+  })
+  const resizeActionParamsBR = $derived({
+    enabled: resizable,
+    item,
+    min: minimumSize,
+    interaction,
+    onCommit: (rect: GridRect) => onresize(rect),
+    direction: 'br' as const,
   })
 </script>
 
@@ -134,39 +158,14 @@
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
     class="grid-item-frame"
-    class:rounded-bottom={!resizable}
     class:selected={isSelected}
     onclick={onFrameClick}
   >
     <div class="grid-item-header">
-      {#if isDraggableEnabled && isSelected}
-        <GridItemButton
-          class="move-handle-button"
-          tooltip="Drag to move"
-          useAction={true}
-          actionFn={moveHandleAction}
-          actionParams={moveActionParams}
-        >
-          <GripVertical size={14} strokeWidth={1.75} aria-hidden="true" />
-        </GridItemButton>
+      <h3 class="grid-item-title">{title}</h3>
+      {#if subtitle}
+        <span class="grid-item-subtitle">{subtitle}</span>
       {/if}
-      <div class="grid-item-heading">
-        <h3 class="grid-item-title">{title}</h3>
-        {#if subtitle}
-          <span class="grid-item-subtitle">{subtitle}</span>
-        {/if}
-      </div>
-      <div class="header-content">
-        {#if removable}
-          <GridItemButton
-            action="remove"
-            tooltip="Remove item"
-            onclick={() => onremove({ id })}
-          >
-            <X size={16} strokeWidth={1.75} aria-hidden="true" />
-          </GridItemButton>
-        {/if}
-      </div>
     </div>
 
     <div class="grid-item-body">
@@ -188,40 +187,68 @@
     <div
       class="corner-handle top-left"
       data-block-select
+      use:resizeHandleAction={resizeActionParamsTL}
       aria-hidden="true"
     ></div>
     <div
       class="corner-handle top-right"
       data-block-select
+      use:resizeHandleAction={resizeActionParamsTR}
       aria-hidden="true"
     ></div>
     <div
       class="corner-handle bottom-left"
       data-block-select
+      use:resizeHandleAction={resizeActionParamsBL}
       aria-hidden="true"
     ></div>
     <div
       class="corner-handle bottom-right"
       data-block-select
-      use:resizeHandleAction={resizeActionParams}
+      use:resizeHandleAction={resizeActionParamsBR}
       aria-hidden="true"
     ></div>
   {/if}
 
-  {#if isDraggableEnabled && isSelected}
-    <!-- "Pops" out of the blue frame, above the header, as a floating
-         pill with icon + text. Sibling of the frame so it isn't clipped
-         by overflow:hidden. Carries data-block-select so clicking it
-         doesn't re-toggle selection. -->
-    <button
-      type="button"
-      class="pop-action pop-action-duplicate"
-      onclick={() => onduplicate({ id })}
-      data-block-select
-    >
-      <Copy size={12} strokeWidth={1.75} aria-hidden="true" />
-      <span>Duplicate</span>
-    </button>
+  {#if isSelected && (isDraggableEnabled || removable)}
+    <!-- Floating action toolbar. "Pops" out of the top of the blue frame
+         on selection, grouping manipulation actions (move, duplicate,
+         remove). Sibling of the frame so it isn't clipped by
+         overflow:hidden. Each button carries data-block-select so clicks
+         don't re-toggle selection. -->
+    <div class="action-toolbar" data-block-select>
+      {#if isDraggableEnabled}
+        <button
+          type="button"
+          class="action-toolbar-button"
+          use:moveHandleAction={moveActionParams}
+          aria-label="Drag to move"
+        >
+          <GripVertical size={12} strokeWidth={1.75} aria-hidden="true" />
+          <span>Move</span>
+        </button>
+        <button
+          type="button"
+          class="action-toolbar-button"
+          onclick={() => onduplicate({ id })}
+          aria-label="Duplicate item"
+        >
+          <Copy size={12} strokeWidth={1.75} aria-hidden="true" />
+          <span>Duplicate</span>
+        </button>
+      {/if}
+      {#if removable}
+        <button
+          type="button"
+          class="action-toolbar-button danger"
+          onclick={() => onremove({ id })}
+          aria-label="Remove item"
+        >
+          <X size={12} strokeWidth={1.75} aria-hidden="true" />
+          <span>Remove</span>
+        </button>
+      {/if}
+    </div>
   {/if}
 </div>
 
@@ -246,19 +273,19 @@
     height: 100%;
     box-sizing: border-box;
     background-color: var(--c-lightgrey);
-    border-radius: var(--rounded-lg, 8px) var(--rounded-lg, 8px) 0
-      var(--rounded-lg, 8px);
+    border-radius: var(--rounded-lg, 8px);
     border: 1px solid var(--c-border);
     overflow: hidden;
     display: flex;
     flex-direction: column;
     position: relative;
 
-    /* Affordance ring sits 2px OUTSIDE the frame. Invisible by default;
-       lights up on hover (dashed, as "this chart can be selected") and
-       is promoted to solid when the plot is actually selected. */
+    /* Affordance ring sits ON TOP of the frame's existing 1px border
+       (outline-offset: -1px + width 2px puts the outline from 1px inside
+       to 1px outside the border-box edge, visually replacing the gray
+       border with the accent colour when active). */
     outline: 2px dashed transparent;
-    outline-offset: 2px;
+    outline-offset: -1px;
     transition: outline-color 0.15s ease;
   }
 
@@ -291,22 +318,14 @@
   .grid-item-header {
     display: flex;
     align-items: center;
-    padding: 8px 16px;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 16px;
+    min-height: 40px;
+    box-sizing: border-box;
     background: var(--c-lightgrey);
-    flex-wrap: wrap;
-    gap: 2px 4px;
     overflow: hidden;
     border-radius: var(--rounded-lg, 8px) var(--rounded-lg, 8px) 0 0;
-  }
-
-  .grid-item-heading {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1px;
-    padding: 2px 6px;
-    min-width: 0;
-    max-width: 100%;
   }
 
   .grid-item-title {
@@ -315,20 +334,22 @@
     font-weight: 600;
     color: var(--c-black);
     line-height: 1.2;
-    max-width: 100%;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .grid-item-subtitle {
-    font-size: 8px;
-    font-weight: 500;
+    font-size: 10px;
+    font-weight: 400;
     text-transform: uppercase;
     letter-spacing: 0.0333em;
     color: var(--c-darkgrey);
     line-height: 1.2;
-    max-width: 100%;
+    text-align: right;
+    flex-shrink: 0;
+    max-width: 60%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -338,29 +359,14 @@
     padding: var(--grid-item-body-padding);
     flex-grow: 1;
     overflow: auto;
-    border-radius: 15px 15px 0 15px;
+    border-radius: var(--rounded-lg, 8px);
     background-color: var(--c-white);
   }
 
-  .grid-item-frame.rounded-bottom {
-    border-radius: var(--rounded-lg, 8px);
-  }
-
-  .grid-item-frame.rounded-bottom .grid-item-body {
-    border-radius: 10px;
-  }
-
-  /* Selected-state manipulation affordances: four small circles that sit
-     exactly on the blue outline's centerline, one per corner. Standard
-     Figma/canvas-editor pattern — the outline + circles read as a single
-     integrated selection frame.
-
-     Geometry: the frame's outline is drawn with `outline: 2px solid;
-     outline-offset: 2px`, so the outline's centerline runs 3px outside
-     the frame edge (offset 2 + half width 1). Placing each circle's
-     center at exactly that offset visually welds the handles to the
-     outline. Width/height 9px with a 1.5px border matches the outline's
-     thickness for a clean silhouette. */
+  /* Selected-state corner handles. Centered exactly on each corner of the
+     blue outline (which itself sits on the frame's border). Handles, the
+     outline and the border occupy the same visual ring — one cohesive
+     selection frame. */
   .corner-handle {
     position: absolute;
     width: 9px;
@@ -371,67 +377,84 @@
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
     box-sizing: border-box;
     z-index: 5;
-    transition: transform 0.1s ease, background 0.12s ease;
+    transition: background 0.12s ease;
   }
   .corner-handle:hover {
     background: var(--c-info);
   }
   .corner-handle.top-left {
-    top: -3px;
-    left: -3px;
+    top: 0;
+    left: 0;
     transform: translate(-50%, -50%);
     cursor: nwse-resize;
   }
   .corner-handle.top-right {
-    top: -3px;
-    right: -3px;
+    top: 0;
+    right: 0;
     transform: translate(50%, -50%);
     cursor: nesw-resize;
   }
   .corner-handle.bottom-left {
-    bottom: -3px;
-    left: -3px;
+    bottom: 0;
+    left: 0;
     transform: translate(-50%, 50%);
     cursor: nesw-resize;
   }
   .corner-handle.bottom-right {
-    bottom: -3px;
-    right: -3px;
+    bottom: 0;
+    right: 0;
     transform: translate(50%, 50%);
     cursor: nwse-resize;
   }
 
-  /* Floating "pop" action button that emerges from the blue frame when
-     the item is selected. Same blue treatment as the outline + corner
-     handles for a unified look. */
-  .pop-action {
+  /* Floating action toolbar "pops" out of the top of the blue frame on
+     selection. White pill with blue border — same visual language as
+     the corner handles, so selection chrome reads as one unified layer. */
+  .action-toolbar {
     position: absolute;
     top: -3px;
     left: 50%;
     transform: translate(-50%, -100%);
     display: inline-flex;
+    align-items: stretch;
+    gap: 0;
+    padding: 2px;
+    background: var(--c-white);
+    border: 1.5px solid var(--c-info);
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
+    z-index: 6;
+    white-space: nowrap;
+  }
+
+  .action-toolbar-button {
+    display: inline-flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 10px;
-    background: var(--c-info);
-    color: var(--c-white);
+    gap: 5px;
+    padding: 4px 8px;
+    background: transparent;
+    color: var(--c-info);
     border: none;
-    border-radius: 4px;
+    border-radius: 3px;
     font-size: 11px;
     font-weight: 500;
     line-height: 1;
     cursor: pointer;
-    z-index: 6;
     white-space: nowrap;
-    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
-    transition: background 0.12s ease, box-shadow 0.12s ease;
+    transition: background 0.1s ease, color 0.1s ease;
   }
-  .pop-action:hover {
-    background: color-mix(in srgb, var(--c-info) 85%, black);
-    box-shadow: 0 3px 8px rgba(15, 23, 42, 0.2);
+  .action-toolbar-button:hover {
+    background: color-mix(in srgb, var(--c-info) 12%, transparent);
   }
-  .pop-action span {
-    letter-spacing: 0.01em;
+  .action-toolbar-button.danger:hover {
+    background: color-mix(in srgb, var(--c-error, #ff4d4f) 12%, transparent);
+    color: var(--c-error, #ff4d4f);
+  }
+  .action-toolbar-button[aria-label='Drag to move'] {
+    cursor: grab;
+  }
+  .action-toolbar-button[aria-label='Drag to move']:active {
+    cursor: grabbing;
   }
 
   .header-content {

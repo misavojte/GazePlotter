@@ -52,8 +52,8 @@
   }
 
   .subtitle {
-    font-size: 8px;
-    font-weight: 500;
+    font-size: 10px;
+    font-weight: 400;
     text-transform: uppercase;
     letter-spacing: 0.0333em;
     color: var(--c-darkgrey);

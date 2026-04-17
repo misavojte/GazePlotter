@@ -27,6 +27,17 @@ export const LEGEND_FONT = {
 export const PLOT_HEADER_HEIGHT = 138
 
 /**
+ * Chrome height outside a plot's own (inline) header that has to be
+ * reclaimed from the grid-item's pixel dimensions before sizing the
+ * figure. Composition:
+ *   40 — grid-item header (`min-height: 40px` in GridItem.svelte)
+ *   40 — `.grid-item-body` padding top + bottom
+ *    2 — `.grid-item-frame` border top + bottom (1px each; box-sizing
+ *        is border-box so the border eats into the content area)
+ */
+export const PLOT_BASE_CHROME_HEIGHT = 82
+
+/**
  * Gap in px between the plot-area border and adjacent per-row / per-category
  * text labels (participant names in scarf, AOI names in horizontal bar plot).
  * Keep in sync with plotArea's internal TICK_LABEL_GAP so row labels align

@@ -20,6 +20,7 @@ import {
   type GridInteractionRect,
   type GridInteractionSession,
   type InteractionPoint,
+  type ResizeDirection,
 } from './model'
 import { GridViewportController } from './viewport'
 
@@ -115,7 +116,8 @@ export class GridInteractionController {
   beginResize(
     item: GridInteractionRect,
     min: { w: number; h: number },
-    point: InteractionPoint
+    point: InteractionPoint,
+    direction: ResizeDirection = 'br'
   ): void {
     if (!this.#config) return
     this.#viewport.stopAutoScroll()
@@ -123,7 +125,8 @@ export class GridInteractionController {
       item,
       min,
       point,
-      this.#viewport.getScrollOffset()
+      this.#viewport.getScrollOffset(),
+      direction
     )
     this.#syncWorkspaceGrowthHint(point)
   }

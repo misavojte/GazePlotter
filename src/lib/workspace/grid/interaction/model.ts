@@ -43,8 +43,11 @@ export type MoveSession = TransformSessionBase & {
   kind: 'moving'
 }
 
+export type ResizeDirection = 'tl' | 'tr' | 'bl' | 'br'
+
 export type ResizeSession = TransformSessionBase & {
   kind: 'resizing'
+  direction: ResizeDirection
 }
 
 export type GridInteractionSession =
@@ -100,7 +103,8 @@ export function startResizeSession(
   rect: GridInteractionRect,
   min: { w: number; h: number },
   point: InteractionPoint,
-  scroll: ScrollOffset
+  scroll: ScrollOffset,
+  direction: ResizeDirection = 'br'
 ): ResizeSession {
   return {
     kind: 'resizing',
@@ -111,6 +115,7 @@ export function startResizeSession(
     pointerCurrent: point,
     scrollStart: scroll,
     min,
+    direction,
   }
 }
 
@@ -192,13 +197,33 @@ export function updateResizeSession(
     zoom
   )
 
+  const { origin, min, direction } = session
+
+  // Left-side corners (tl, bl) invert dx so dragging *right* shrinks w;
+  // top-side corners (tl, tr) invert dy so dragging *down* shrinks h.
+  const signX = direction === 'tl' || direction === 'bl' ? -1 : 1
+  const signY = direction === 'tl' || direction === 'tr' ? -1 : 1
+
+  const newW = Math.max(min.w, origin.w + signX * delta.x)
+  const newH = Math.max(min.h, origin.h + signY * delta.y)
+
+  // When the anchor edge is on the right (signX === -1), shrinking w
+  // means the left edge slides right by the reduction amount. Mirror
+  // for the top edge.
+  const newX =
+    signX === -1 ? Math.max(0, origin.x + (origin.w - newW)) : origin.x
+  const newY =
+    signY === -1 ? Math.max(0, origin.y + (origin.h - newH)) : origin.y
+
   return {
     ...session,
     pointerCurrent: point,
     preview: {
-      ...session.origin,
-      w: Math.max(session.min.w, session.origin.w + delta.x),
-      h: Math.max(session.min.h, session.origin.h + delta.y),
+      ...origin,
+      x: newX,
+      y: newY,
+      w: newW,
+      h: newH,
     },
   }
 }

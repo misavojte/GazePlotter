@@ -5,7 +5,10 @@
   import { DEFAULT_GRID_CONFIG, blockGridSelect } from '$lib/workspace/grid'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared'
   import { PlotPlaceholder } from '$lib/plots/shared/components'
-  import { PLOT_HEADER_HEIGHT } from '$lib/plots/shared/const'
+  import {
+    PLOT_HEADER_HEIGHT,
+    PLOT_BASE_CHROME_HEIGHT,
+  } from '$lib/plots/shared/const'
 
   interface LayoutConfig {
     headerHeight?: number
@@ -52,6 +55,16 @@
     HEADER_HEIGHT: PLOT_HEADER_HEIGHT,
   }
 
+  // For plots with an inline header: use the classic PLOT_HEADER_HEIGHT
+  // (which already bakes in the grid-item header + body padding + the
+  // inline controls strip). For plots without one (metric-correlation
+  // post-Pane refactor): subtract only the base chrome — grid-item
+  // header + body padding — so the figure fills the rest of the body.
+  const effectiveHeaderHeight = $derived(
+    layoutConfig.headerHeight ??
+      (header ? DEFAULT_LAYOUT.HEADER_HEIGHT : PLOT_BASE_CHROME_HEIGHT)
+  )
+
   const dimensions = $derived.by(() => {
     if (parentDimensions) return parentDimensions
 
@@ -59,7 +72,7 @@
       item.w,
       item.h,
       DEFAULT_GRID_CONFIG,
-      layoutConfig.headerHeight ?? DEFAULT_LAYOUT.HEADER_HEIGHT
+      effectiveHeaderHeight
     )
   })
 
@@ -71,11 +84,11 @@
 </script>
 
 <div class="base-plot-container">
-  <div class="header">
-    {#if header}
+  {#if header}
+    <div class="header">
       {@render header()}
-    {/if}
-  </div>
+    </div>
+  {/if}
 
   <div
     class="figure"

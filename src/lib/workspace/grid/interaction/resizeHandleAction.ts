@@ -1,7 +1,11 @@
 import { throttleByRaf } from '$lib/shared/utils/throttle'
 import { createPointerSession } from './pointerSession'
 import type { GridInteractionController } from './controller.svelte'
-import type { GridInteractionRect, InteractionPoint } from './model'
+import type {
+  GridInteractionRect,
+  InteractionPoint,
+  ResizeDirection,
+} from './model'
 
 type ResizeHandleActionParams = {
   enabled: boolean
@@ -9,6 +13,13 @@ type ResizeHandleActionParams = {
   min: { w: number; h: number }
   interaction: GridInteractionController
   onCommit: (rect: GridInteractionRect) => void
+  /** Which corner drives the resize. Defaults to bottom-right for back-compat. */
+  direction?: ResizeDirection
+}
+
+function cursorFor(direction: ResizeDirection): string {
+  // Diagonal resize cursors: tl/br share one axis, tr/bl share the other.
+  return direction === 'tl' || direction === 'br' ? 'nwse-resize' : 'nesw-resize'
 }
 
 export function resizeHandleAction(
@@ -21,19 +32,20 @@ export function resizeHandleAction(
     params.interaction.updateResize(point)
   })
 
-  const session = createPointerSession(node, {
+  const buildHandlers = () => ({
     enabled: params.enabled,
     preventDefaultOnStart: true,
     preventDefaultOnMove: true,
     stopPropagationOnStart: true,
-    onStart(point) {
-      document.body.style.cursor = 'se-resize'
-      params.interaction.beginResize(params.item, params.min, point)
+    onStart(point: InteractionPoint) {
+      const direction = params.direction ?? 'br'
+      document.body.style.cursor = cursorFor(direction)
+      params.interaction.beginResize(params.item, params.min, point, direction)
     },
-    onMove(point) {
+    onMove(point: InteractionPoint) {
       move(point)
     },
-    onEnd(point) {
+    onEnd(point: InteractionPoint | null) {
       if (point) {
         params.interaction.updateResize(point)
       }
@@ -49,36 +61,12 @@ export function resizeHandleAction(
     },
   })
 
+  const session = createPointerSession(node, buildHandlers())
+
   return {
     update(nextParams: ResizeHandleActionParams) {
       params = nextParams
-      session.update({
-        enabled: params.enabled,
-        preventDefaultOnStart: true,
-        preventDefaultOnMove: true,
-        stopPropagationOnStart: true,
-        onStart(point) {
-          document.body.style.cursor = 'se-resize'
-          params.interaction.beginResize(params.item, params.min, point)
-        },
-        onMove(point) {
-          move(point)
-        },
-        onEnd(point) {
-          if (point) {
-            params.interaction.updateResize(point)
-          }
-          const commit = params.interaction.finishResize()
-          document.body.style.cursor = ''
-          if (commit) {
-            params.onCommit(commit)
-          }
-        },
-        onCancel() {
-          document.body.style.cursor = ''
-          params.interaction.cancel()
-        },
-      })
+      session.update(buildHandlers())
     },
     destroy() {
       document.body.style.cursor = ''

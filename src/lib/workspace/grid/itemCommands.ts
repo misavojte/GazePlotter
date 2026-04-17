@@ -11,7 +11,13 @@ type GridItemIdentity = Pick<AllGridTypes, 'id' | 'type'>
 type GridItemMinimum = Pick<AllGridTypes, 'min'>
 
 export type GridMoveCommit = { id: number; x: number; y: number }
-export type GridResizeCommit = { id: number; w: number; h: number }
+export type GridResizeCommit = {
+  id: number
+  x: number
+  y: number
+  w: number
+  h: number
+}
 export type GridIdentityCommit = { id: number }
 
 function findGridItem(
@@ -61,9 +67,15 @@ export function commitGridItemResize(
 
   const min = getGridItemMinimumSize(item, gridConfig)
 
+  // Resizing from a TL/TR/BL corner anchors the opposite edge and moves
+  // x/y as the opposite dimension shrinks. Persist the new position along
+  // with the new size; committing only w/h would leave the item anchored
+  // to its original top-left on the grid.
   return workspace.updateItemLayout(
     item.id,
     {
+      x: Math.max(0, commit.x),
+      y: Math.max(0, commit.y),
       w: Math.max(min.w, commit.w),
       h: Math.max(min.h, commit.h),
     },

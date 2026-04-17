@@ -3,7 +3,6 @@
 
   import MetricCorrelationHeatmap from './MetricCorrelationHeatmap.svelte'
   import MetricCorrelationSplom from './MetricCorrelationSplom.svelte'
-  import MetricCorrelationButtonMenu from './MetricCorrelationButtonMenu.svelte'
 
   import { BasePlot } from '$lib/plots/shared/components'
   import { getMetricCorrelationData } from '../core/transformer'
@@ -27,12 +26,6 @@
 </script>
 
 <BasePlot {item} {hasData}>
-  {#snippet header()}
-    <div class="plot-controls">
-      <MetricCorrelationButtonMenu {item} />
-    </div>
-  {/snippet}
-
   {#snippet figure({ width, height })}
     {#if settings.view === 'splom'}
       <MetricCorrelationSplom {width} {height} {result} />
@@ -41,12 +34,3 @@
     {/if}
   {/snippet}
 </BasePlot>
-
-<style>
-  .plot-controls {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    width: 100%;
-  }
-</style>

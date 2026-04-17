@@ -59,6 +59,8 @@ describe('gridItemCommands', () => {
     expect(
       commitGridItemResize(workspace, items, gridConfig, {
         id: 21,
+        x: 3,
+        y: 4,
         w: 2,
         h: 1,
       })
@@ -66,7 +68,7 @@ describe('gridItemCommands', () => {
     expect(workspace.updateItemLayout).toHaveBeenNthCalledWith(
       2,
       21,
-      { w: 11, h: 10 },
+      { x: 3, y: 4, w: 11, h: 10 },
       'barPlot.21.workspace'
     )
 
@@ -92,6 +94,8 @@ describe('gridItemCommands', () => {
     expect(
       commitGridItemResize(workspace, [], gridConfig, {
         id: 999,
+        x: 0,
+        y: 0,
         w: 5,
         h: 5,
       })

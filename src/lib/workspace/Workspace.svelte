@@ -27,6 +27,18 @@
   const { onWorkspaceCommandChain, initialLayoutState = null }: Props = $props()
   const { ingest, grid, workspace } = getGazePlotterSession()
 
+  function handleWorkspaceBackgroundClick(event: MouseEvent): void {
+    // Clicking anywhere in the workspace that isn't a grid item deselects
+    // the currently selected plot (and closes the Pane). Clicks inside a
+    // grid item keep bubbling — the item's own frame handler runs first
+    // and sets selection; this outer handler then runs with a target
+    // still inside `.grid-item`, so we no-op.
+    const target = event.target as HTMLElement | null
+    if (!target) return
+    if (target.closest('.grid-item')) return
+    grid.setSelectedItem(null)
+  }
+
   const gridConfig = DEFAULT_GRID_CONFIG
 
   // ---------------------------------------------------
@@ -248,6 +260,7 @@
     <Rail {initialLayoutState} {visualizations} bind:zoom />
 
     <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
       class="workspace-container"
       bind:this={workspaceContainer}
@@ -256,6 +269,7 @@
       ondragover={handleDragOver}
       ondragleave={handleDragLeave}
       ondrop={handleDrop}
+      onclick={handleWorkspaceBackgroundClick}
     >
       {#if isDraggingOver}
         <div class="drop-indicator">
