@@ -52,16 +52,20 @@
   let colorMiddle = $state(colorFields.colorMiddle)
   let colorMax = $state(colorFields.colorMax)
 
-  let syncingFromProps = false
+  // External → local mirror. No microtask-gated `syncingFromProps`
+  // flag: `buildColorScalePatch` already returns null when the draft
+  // matches committed, so the sync → commit → sync round-trip
+  // self-terminates without needing to suppress the local→commit
+  // effect. The previous flag used `queueMicrotask` to unlock, which
+  // races with Svelte's own effect scheduling microtask — if the unlock
+  // fired after the commit effect had already been queued, the commit
+  // was silently dropped.
   $effect(() => {
-    syncingFromProps = true
     colorMin = colorFields.colorMin
     colorMiddle = colorFields.colorMiddle
     colorMax = colorFields.colorMax
-    queueMicrotask(() => (syncingFromProps = false))
   })
   $effect(() => {
-    if (syncingFromProps) return
     const draft = { colorMin, colorMiddle, colorMax }
     const patch = buildColorScalePatch(draft, colorFields)
     if (patch) update({ colorScale: patch })
@@ -150,11 +154,17 @@
   </div>
 </PaneSection>
 
-{#if isHeatmap}
+<!-- Picker stays mounted regardless of alignment — toggling via an
+     outer `{#if}` broke the bindable plumbing in practice (the picker
+     remounted with stale bindings on re-entry and its writes never
+     reached parent state, so the colorScale commit never fired). Hide
+     visually when not heatmap, but keep the component instance alive
+     so the `bind:` bindings never tear down mid-edit. -->
+<div style:display={isHeatmap ? 'contents' : 'none'}>
   <PaneSection title="Colors">
     <ColorGradientPicker bind:colorMin bind:colorMiddle bind:colorMax />
   </PaneSection>
-{/if}
+</div>
 
 <style>
   .inline-pair {

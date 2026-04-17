@@ -184,11 +184,18 @@
       />
     </div>
   </PaneSection>
+{/if}
 
+<!-- Keep the picker always mounted regardless of view: wrapping `bind:`
+     on a component in an `{#if}` block breaks the upstream write path
+     (the picker remounts with stale bindings and its writes never
+     reach parent state, so colorScale commits are silently lost). See
+     AoiStream/EvolvingMetrics for the same workaround. -->
+<div style:display={isScangraph ? 'none' : 'contents'}>
   <PaneSection title="Colors">
     <ColorGradientPicker bind:colorMin bind:colorMiddle bind:colorMax />
   </PaneSection>
-{/if}
+</div>
 
 <style>
   .inline-pair {

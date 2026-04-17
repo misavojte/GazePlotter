@@ -148,11 +148,17 @@
   </div>
 </PaneSection>
 
-{#if isHeatmap}
+<!-- Keep the picker always mounted regardless of presentation mode:
+     wrapping `bind:` on a component in an `{#if}` block breaks the
+     upstream write path (the picker remounts with stale bindings and
+     its writes never reach parent state, so colorScale commits are
+     silently lost). See AoiStream/ScanpathSimilarity for the same
+     workaround. -->
+<div style:display={isHeatmap ? 'contents' : 'none'}>
   <PaneSection title="Colors">
     <ColorGradientPicker bind:colorMin bind:colorMiddle bind:colorMax />
   </PaneSection>
-{/if}
+</div>
 
 <style>
   .inline-pair {

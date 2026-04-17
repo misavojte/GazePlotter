@@ -13,6 +13,7 @@
   import { estimateTextWidth } from '$lib/shared/utils/textUtils'
   import { desaturateToWhite } from '$lib/color/utility'
   import { INACTIVE_COLOR } from '$lib/color'
+  import { PRESET_PALETTES } from '$lib/color/palettes'
 
   import {
     GRIDLINE_SECONDARY,
@@ -96,6 +97,18 @@
     ridgelineScale,
     colorScale,
   }: AoiStreamPlotFigureProps = $props()
+
+  // Single source of truth for the heatmap palette. When the user hasn't
+  // explicitly picked a colorScale yet (initial switch to heatmap),
+  // settings.colorScale is undefined — the plot-area transform in
+  // core/layout.ts falls back to HEAT.colors, so we mirror that fallback
+  // here so the gradient legend doesn't render an empty/grayscale
+  // palette until the user triggers a pick.
+  const effectiveColorScale = $derived(
+    colorScale && colorScale.length > 0
+      ? colorScale
+      : [...PRESET_PALETTES.HEAT.colors]
+  )
 
   const X_AXIS_LABEL = $derived(`Elapsed time [ms; Δ ${data.binSize} ms]`)
   const X_AXIS_LABEL_OFFSET = 30
@@ -248,7 +261,7 @@
       y: plotBottom + MARGIN.BOTTOM,
       availableWidth: safeWidth,
       availableHeight: legendHeight,
-      colorScale: colorScale || [],
+      colorScale: effectiveColorScale,
       valueRange: [0, 100],
       effectiveMaxValue: 100,
       title: 'Share of participants fixating [%]',
@@ -295,7 +308,7 @@
         syncedMTopOverride,
         highlightMaskById,
         ridgelineScale,
-        colorScale,
+        colorScale: effectiveColorScale,
       },
       renderBuckets
     )
@@ -662,7 +675,7 @@
           y: plotBottom + MARGIN.BOTTOM,
           availableWidth: safeWidth,
           availableHeight: legendHeight,
-          colorScale: colorScale || [],
+          colorScale: effectiveColorScale,
           valueRange: [0, 100],
           effectiveMaxValue: 100,
           title: 'Share of participants fixating [%]',
@@ -882,7 +895,10 @@
 
   // Optimized effect: Consolidate all reactive updates
   $effect(() => {
-    // Track all dependencies explicitly
+    // Track all dependencies explicitly. Omitting a prop here means
+    // changes to it don't re-render the canvas — colorScale and
+    // highlights were previously missing, which is why heatmap colors
+    // picked in the Pane didn't reflect until some *other* prop changed.
     const deps = {
       data,
       alignment,
@@ -895,6 +911,8 @@
       mb: safeMarginBottom,
       ml: safeMarginLeft,
       referenceHeight: syncedMTopOverride,
+      colorScale,
+      highlights,
     }
 
     untrack(() => plot.refresh())
