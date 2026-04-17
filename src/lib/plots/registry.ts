@@ -1,4 +1,5 @@
 import type { Component } from 'svelte'
+import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import { aoiStreamPlotDefinition } from './aoi-stream/definition'
 import { barPlotDefinition } from './bar/definition'
 import { scarfPlotDefinition } from './scarf/definition'
@@ -70,4 +71,16 @@ export function resolvePlotComponent(type: string): PlotHostComponent {
 export function getPlotDisplayName(type: string): string {
   const normalizedType = normalizeVisualizationType(type)
   return normalizedType ? plotRegistry[normalizedType].name : type
+}
+
+export function getPlotSubtitle(
+  item: { type: string; settings: unknown; id: number; x: number; y: number; w: number; h: number; min: { w: number; h: number }; redrawTimestamp: number },
+  engine: DataEngine
+): string | undefined {
+  const normalizedType = normalizeVisualizationType(item.type)
+  if (!normalizedType) return undefined
+  const def = plotRegistry[normalizedType] as {
+    getSubtitle?: (params: { item: unknown; engine: DataEngine }) => string | undefined
+  }
+  return def.getSubtitle?.({ item, engine })
 }

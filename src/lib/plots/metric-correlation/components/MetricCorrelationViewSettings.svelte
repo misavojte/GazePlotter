@@ -4,10 +4,9 @@
     CompactSettingsSection,
     CompactSettingsSeparator,
   } from '$lib/plots/shared/components'
-  import { InputNumber, Radio, InputCheck, Select } from '$lib/shared/components'
+  import { InputNumber, Radio, Select } from '$lib/shared/components'
   import type { SelectOption } from '$lib/shared/components'
   import {
-    BAR_PLOT_AGGREGATION_METHODS,
     METRIC_CORRELATION_METHODS,
     WHOLE_STIMULUS_AOI_LABEL,
   } from '../const'
@@ -15,21 +14,30 @@
     CorrelationMethod,
     MetricCorrelationView,
   } from '../types'
+  import {
+    createSystemMetricInstances,
+    type MetricInstance,
+  } from '$lib/plots/metrics'
+  import MetricInstancePicker from './MetricInstancePicker.svelte'
 
   interface Props extends MenuComponentBridgeProps {
     syncs: {
       view: { value: MetricCorrelationView }
       selectedAoiId: { value: number | null }
       correlationMethod: { value: CorrelationMethod }
-      enabledMetrics: { value: string[] }
+      enabledMetricIds: { value: number[] }
       timelineStart: { value: number | undefined }
       timelineEnd: { value: number | undefined }
     }
     /** Pure AOI list (does NOT include the whole-stimulus sentinel). */
     aoiOptions: SelectOption[]
+    /** Workspace-level metric library. Empty/undefined → system seeds used. */
+    metricInstances?: readonly MetricInstance[]
+    /** Invoked when a user renames a library instance inline. */
+    onrenameInstance?: (id: number, label: string) => void
   }
 
-  let { syncs, aoiOptions }: Props = $props()
+  let { syncs, aoiOptions, metricInstances, onrenameInstance }: Props = $props()
 
   const WHOLE_STIMULUS_SENTINEL = '__whole_stimulus__'
 
@@ -49,13 +57,22 @@
       e.detail === WHOLE_STIMULUS_SENTINEL ? null : Number(e.detail)
   }
 
-  const enabledSet = $derived(new Set(syncs.enabledMetrics.value))
+  const library = $derived<readonly MetricInstance[]>(
+    metricInstances && metricInstances.length > 0
+      ? metricInstances
+      : createSystemMetricInstances()
+  )
 
-  function toggleMetric(metricId: string, checked: boolean) {
-    const next = new Set(enabledSet)
-    if (checked) next.add(metricId)
-    else next.delete(metricId)
-    syncs.enabledMetrics.value = Array.from(next)
+  // Empty selection is persisted as "all system" — but for the picker UI we
+  // want to expand it so the user can see and manage what's included.
+  const effectiveIds = $derived(
+    syncs.enabledMetricIds.value.length > 0
+      ? syncs.enabledMetricIds.value
+      : library.filter(i => i.system).map(i => i.id)
+  )
+
+  function onMetricsChange(ids: number[]) {
+    syncs.enabledMetricIds.value = ids
   }
 </script>
 
@@ -85,16 +102,12 @@
   <CompactSettingsSeparator />
 
   <CompactSettingsSection title="Metrics">
-    <div class="metrics-grid">
-      {#each BAR_PLOT_AGGREGATION_METHODS as metric}
-        <InputCheck
-          label={metric.label}
-          checked={enabledSet.has(metric.value)}
-          appearance="compact"
-          onchange={e => toggleMetric(metric.value, (e as CustomEvent<boolean>).detail)}
-        />
-      {/each}
-    </div>
+    <MetricInstancePicker
+      instances={library}
+      selectedIds={effectiveIds}
+      onchange={onMetricsChange}
+      {onrenameInstance}
+    />
   </CompactSettingsSection>
 
   <CompactSettingsSeparator />
@@ -127,16 +140,12 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    min-width: 240px;
+    width: 100%;
+    min-width: 0;
     box-sizing: border-box;
   }
   .range-inputs {
     display: flex;
     gap: 8px;
-  }
-  .metrics-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2px 10px;
   }
 </style>

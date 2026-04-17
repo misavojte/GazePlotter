@@ -2,7 +2,7 @@
   import { onMount, type Snippet } from 'svelte'
   import { fade } from 'svelte/transition'
 
-  import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
+  import { DEFAULT_GRID_CONFIG, blockGridSelect } from '$lib/workspace/grid'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared'
   import { PlotPlaceholder } from '$lib/plots/shared/components'
   import { PLOT_HEADER_HEIGHT } from '$lib/plots/shared/const'
@@ -82,6 +82,7 @@
     style="height: {contentHeight
       ? `${contentHeight}px`
       : `${dimensions.height}px`}"
+    use:blockGridSelect
   >
     {#if mounted && hasData}
       <div

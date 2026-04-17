@@ -33,7 +33,8 @@
       let menuSize = { width: MENU_WIDTH, height: 0 }
       if (item.component) {
         const h = item.componentHeight ?? DEFAULT_COMPONENT_HEIGHT
-        menuSize = { width: MENU_WIDTH, height: h }
+        const w = item.componentWidth ?? MENU_WIDTH
+        menuSize = { width: w, height: h }
       } else {
         menuSize = getMenuSize(item.children, false)
       }

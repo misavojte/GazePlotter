@@ -2,7 +2,11 @@
   import { fade } from 'svelte/transition'
   import GridItem from './GridItem.svelte'
   import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
-  import { getPlotDisplayName, resolvePlotComponent } from '$lib/plots/registry'
+  import {
+    getPlotDisplayName,
+    getPlotSubtitle,
+    resolvePlotComponent,
+  } from '$lib/plots/registry'
   import { getGazePlotterSession } from '$lib/session'
   import type { AllGridTypes } from '$lib/workspace'
   import type { GridConfig } from './types'
@@ -18,7 +22,7 @@
     type GridInteractionController,
   } from './interaction'
 
-  const { errorService, workspace } = getGazePlotterSession()
+  const { engine, errorService, workspace } = getGazePlotterSession()
 
   interface Props {
     gridItems: AllGridTypes[]
@@ -91,6 +95,7 @@
   {#if !gridIsEmpty}
     {#each gridItems as item (item.id)}
       {@const plotLabel = getPlotDisplayName(item.type)}
+      {@const plotSubtitle = getPlotSubtitle(item, engine)}
       <div transition:fade={{ duration: 300 }}>
         <GridItem
           id={item.id}
@@ -106,6 +111,7 @@
           draggable={true}
           {interaction}
           title={plotLabel}
+          subtitle={plotSubtitle}
           onmove={event => commitGridItemMove(workspace, gridItems, event)}
           onresize={event =>
             commitGridItemResize(workspace, gridItems, gridConfig, event)}

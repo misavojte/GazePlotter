@@ -8,6 +8,7 @@
     value?: string
     appearance?: 'default' | 'compact'
     direction?: 'column' | 'row'
+    onchange?: (event: CustomEvent<string>) => void
   }
 
   let {
@@ -17,6 +18,7 @@
     value = $bindable(options[0].value),
     appearance = 'default',
     direction = 'column',
+    onchange,
   }: Props = $props()
 
   const uniqueID: number = generateUniqueId()
@@ -52,7 +54,10 @@
           name={`group-${uniqueID}`}
           value={optionValue}
           checked={value === optionValue}
-          onchange={() => (value = optionValue)}
+          onchange={() => {
+            value = optionValue
+            onchange?.(new CustomEvent('change', { detail: optionValue }))
+          }}
         />
         <label for={optionId}>
           {label}

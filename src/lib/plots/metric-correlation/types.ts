@@ -20,8 +20,12 @@ export type MetricCorrelationSettings = {
    */
   selectedAoiId: number | null
   correlationMethod: CorrelationMethod
-  /** List of BAR_PLOT_AGGREGATION_METHODS ids. Empty means all defaults. */
-  enabledMetrics: string[]
+  /**
+   * List of MetricInstance ids (workspace-level library references). Empty
+   * means "all system instances" — the runtime fallback preserves the old
+   * default-when-unconfigured behavior.
+   */
+  enabledMetricIds: number[]
   timelineStart?: number
   timelineEnd?: number
 }

@@ -1,10 +1,13 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import { getAois, getParticipantsIds } from '$lib/data/engine'
 import { collectParticipantBarMetrics } from '$lib/plots/bar/core/collector'
+import { WHOLE_STIMULUS_AOI_LABEL } from '../const'
 import {
-  BAR_PLOT_AGGREGATION_METHODS,
-  WHOLE_STIMULUS_AOI_LABEL,
-} from '../const'
+  computeParticipantScalar,
+  createSystemMetricInstances,
+  getMetricDef,
+  type MetricInstance,
+} from '$lib/plots/metrics'
 import type {
   CorrelationCell,
   CorrelationPoint,
@@ -14,7 +17,6 @@ import type {
   MetricVector,
 } from '../types'
 import { correlate } from './correlations'
-import { perParticipantScalar } from './perParticipantScalar'
 
 interface BuildOptions {
   /** Whether to populate paired-sample points for SPLOM rendering. */
@@ -46,7 +48,10 @@ export function getMetricCorrelationData(
   const scope = resolveScope(aois, settings.selectedAoiId)
   const scopeIndex = scope.kind === 'aoi' ? scope.aoiIndex : aois.length + 1
 
-  const metrics = resolveMetrics(settings.enabledMetrics)
+  const { metrics, instances } = resolveMetrics(
+    settings.enabledMetricIds,
+    meta.metricInstances
+  )
   if (metrics.length < 2 || participantIds.length === 0) {
     return emptyResult(settings, scope.kind, scope.label, scope.aoiId)
   }
@@ -72,11 +77,10 @@ export function getMetricCorrelationData(
 
   for (let p = 0; p < participantMetrics.length; p++) {
     for (let mIdx = 0; mIdx < metrics.length; mIdx++) {
-      vectors[mIdx].values[p] = perParticipantScalar(
-        participantMetrics[p],
-        metrics[mIdx].id,
-        scopeIndex
-      )
+      vectors[mIdx].values[p] = computeParticipantScalar(instances[mIdx], {
+        participantMetrics: participantMetrics[p],
+        aoiIndex: scopeIndex,
+      })
     }
   }
 
@@ -103,14 +107,33 @@ export function getMetricCorrelationData(
   }
 }
 
-function resolveMetrics(enabled: string[]): MetricDescriptor[] {
-  const active = enabled.length > 0 ? new Set(enabled) : null
-  const result: MetricDescriptor[] = []
-  for (const method of BAR_PLOT_AGGREGATION_METHODS) {
-    if (active && !active.has(method.value)) continue
-    result.push({ id: method.value, label: method.label, unit: method.unit })
+function resolveMetrics(
+  enabledIds: number[],
+  workspaceInstances: readonly MetricInstance[] | undefined
+): { metrics: MetricDescriptor[]; instances: MetricInstance[] } {
+  const library: readonly MetricInstance[] =
+    workspaceInstances && workspaceInstances.length > 0
+      ? workspaceInstances
+      : createSystemMetricInstances()
+
+  // Empty selection means "all system instances" — preserves the old
+  // unconfigured-means-all behavior.
+  const selected: MetricInstance[] =
+    enabledIds.length === 0
+      ? library.filter(i => i.system)
+      : enabledIds
+          .map(id => library.find(i => i.id === id))
+          .filter((i): i is MetricInstance => !!i)
+
+  const metrics: MetricDescriptor[] = []
+  const instances: MetricInstance[] = []
+  for (const inst of selected) {
+    const def = getMetricDef(inst.baseId)
+    if (!def) continue
+    metrics.push({ id: String(inst.id), label: inst.label, unit: def.unit })
+    instances.push(inst)
   }
-  return result
+  return { metrics, instances }
 }
 
 type ResolvedScope =

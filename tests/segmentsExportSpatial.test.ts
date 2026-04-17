@@ -23,6 +23,7 @@ function createData(segments: DataType['segments']): DataType {
       orderVector: [0],
     },
     participantsGroups: [],
+    metricInstances: [],
     categories: {
       data: [['Fixation', 'Fixation', '#000000']],
       orderVector: [0],

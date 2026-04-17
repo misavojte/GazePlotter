@@ -61,6 +61,23 @@ export type PlotDefinition<
   requireCapabilities?: DataCapabilityRequirements
   /** Export configuration for the generic download modal. */
   export?: PlotExportConfig<TType, TSettings>
+  /**
+   * Optional: the component rendered inside the workspace Pane when this
+   * plot instance is selected. Receives the grid item as its prop and wires
+   * all edits live via `workspace.updateItemSettings(...)`. Plots without
+   * `paneSettings` simply don't open a Pane when selected.
+   */
+  paneSettings?: Component<{ item: PlotItemContract<TType, TSettings> }>
+
+  /**
+   * Optional: builds the short subtitle shown under the plot's title in its
+   * grid-item header (and in the workspace Pane header). Typically renders
+   * current filter state like "Stimulus · Group". Return undefined to hide.
+   */
+  getSubtitle?: (params: {
+    item: PlotItemContract<TType, TSettings>
+    engine: DataEngine
+  }) => string | undefined
 }
 
 export function definePlot<

@@ -13,6 +13,8 @@
     isMenuDivider,
     isMenuFlyoutItem,
   } from './types'
+
+
   import { contextMenuState } from './contextMenuState.svelte'
   import { portal } from './utils'
   import ContextSubMenu from './ContextSubMenu.svelte'
@@ -31,6 +33,12 @@
 
   const { item, coords, parentZIndex, calculatePositionAction }: Props =
     $props()
+
+  const menuWidth = $derived(
+    isMenuComponentItem(item) && item.componentWidth
+      ? item.componentWidth
+      : MENU_WIDTH
+  )
 
   let activeChildLabel = $state<string | null>(null)
 
@@ -63,7 +71,7 @@
   class="menu-wrapper submenu"
   use:portal={'gp-context-menu-portal-host'}
   use:calculatePositionAction
-  style={`left:${coords.x}px; top:${coords.y}px; z-index:${parentZIndex + 1}; --menu-width: ${MENU_WIDTH}px;`}
+  style={`left:${coords.x}px; top:${coords.y}px; z-index:${parentZIndex + 1}; --menu-width: ${menuWidth}px;`}
   in:fade={{ duration: 200 }}
 >
   <div class="menu" role="menu">

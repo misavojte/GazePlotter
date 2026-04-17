@@ -27,10 +27,20 @@ export class GridState {
   // UI sync state that needs to survive outside local components.
   isLoading = $state(false)
 
+  // Ephemeral: which grid item the right-side Pane is currently configuring.
+  // Not persisted to workspace JSON; lives only in runtime state.
+  selectedItemId = $state<number | null>(null)
+
   // --- Derived Calculations (Runes) ---
   positions = $derived(this.createPositionsSnapshot())
 
   isEmpty = $derived(this.items.length === 0)
+
+  selectedItem = $derived(
+    this.selectedItemId === null
+      ? null
+      : (this.items.find(i => i.id === this.selectedItemId) ?? null)
+  )
 
   constructor(options: GridStateOptions = {}) {
     this.getAvailableColumnsFn =
@@ -136,6 +146,19 @@ export class GridState {
 
   removeItem(id: number) {
     this.items = this.items.filter(i => i.id !== id)
+    if (this.selectedItemId === id) this.selectedItemId = null
+  }
+
+  setSelectedItem(id: number | null) {
+    if (id === null) {
+      this.selectedItemId = null
+      return
+    }
+    if (this.items.some(i => i.id === id)) this.selectedItemId = id
+  }
+
+  toggleSelectedItem(id: number) {
+    this.setSelectedItem(this.selectedItemId === id ? null : id)
   }
 
   updateSettings(
@@ -181,6 +204,7 @@ export class GridState {
     }
     // Single atomic assignment — one reactive update instead of N+1
     this.items = newItems
+    this.selectedItemId = null
   }
 
   triggerRedraw(id?: number) {

@@ -134,10 +134,19 @@ export interface DataType {
   categories: AttributeDataType
   participants: AttributeDataType
   participantsGroups: ParticipantsGroup[]
+  metricInstances: MetricInstance[]
   stimuli: AttributeDataType
   segments: BinarySegmentBuffers
   noAoiTreatment: NoAoiTreatmentType
   eventData: EventDataType
+}
+
+export interface MetricInstance {
+  id: number
+  baseId: string
+  params: Record<string, unknown>
+  label: string
+  system?: true
 }
 
 /**

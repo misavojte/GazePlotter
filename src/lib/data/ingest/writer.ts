@@ -1,6 +1,7 @@
 import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary'
 import type { DataType } from '$lib/data/types'
 import { DEFAULT_NO_AOI_TREATMENT } from '$lib/data/types'
+import { createSystemMetricInstances } from '$lib/plots/metrics/instances'
 import type { SingleDeserializerOutput } from '$lib/data/ingest'
 import type { TextEncoding } from '$lib/data/ingest/utils/byteUtils'
 import {
@@ -484,6 +485,7 @@ export class BinaryEyeWriter {
         orderVector: participantsOrderVector,
       },
       participantsGroups: [],
+      metricInstances: createSystemMetricInstances(),
       categories: { data: [['Fixation'], ['Saccade']], orderVector: [] },
       aois: {
         data: this.aoisPerStimulus.map(list =>

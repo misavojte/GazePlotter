@@ -38,6 +38,7 @@ export interface MenuSubMenuItem extends MenuActionItem {
   component?: never
   componentProps?: never
   componentHeight?: never
+  componentWidth?: never
 }
 
 export interface MenuComponentBridgeProps {
@@ -51,6 +52,7 @@ export interface MenuComponentItem extends MenuActionItem {
   component: Component<Record<string, unknown>>
   componentProps?: Record<string, unknown>
   componentHeight?: number
+  componentWidth?: number
 }
 
 export type MenuInteractiveItem =

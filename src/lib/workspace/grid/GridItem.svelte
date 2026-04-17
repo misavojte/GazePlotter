@@ -11,6 +11,9 @@
   import GripVertical from 'lucide-svelte/icons/grip-vertical'
   import Copy from 'lucide-svelte/icons/copy'
   import X from 'lucide-svelte/icons/x'
+  import { getGazePlotterSession } from '$lib/session'
+
+  const { grid } = getGazePlotterSession()
 
   type GridRect = { id: number; x: number; y: number; w: number; h: number }
   type IdOnly = { id: number }
@@ -29,6 +32,7 @@
     resizable?: boolean
     draggable?: boolean
     title?: string
+    subtitle?: string
     removable?: boolean
     class?: string
     body?: Snippet
@@ -53,6 +57,7 @@
     resizable = true,
     draggable: isDraggableEnabled = true,
     title = '',
+    subtitle,
     removable = true,
     class: customClass = '',
     body,
@@ -73,6 +78,20 @@
     interaction.activeItemId === id && interaction.mode === 'resizing'
   )
   const isGhosted = $derived(interaction.isGhostedItem(id))
+  const isSelected = $derived(grid.selectedItemId === id)
+
+  // Any of these — either native interactive controls OR elements explicitly
+  // opted out via the `data-block-select` attribute (see blockGridSelect
+  // action) — bypass the grid-item's click-to-select behavior and suppress
+  // the dashed hover affordance.
+  const BLOCK_SELECTOR =
+    'button, a, [role="button"], input, select, textarea, [data-block-select]'
+
+  function onFrameClick(e: MouseEvent) {
+    const target = e.target as HTMLElement | null
+    if (target?.closest(BLOCK_SELECTOR)) return
+    grid.toggleSelectedItem(id)
+  }
 
   const itemWidth = $derived(w * cellSize.width + (w - 1) * gap)
   const itemHeight = $derived(h * cellSize.height + (h - 1) * gap)
@@ -111,9 +130,16 @@
   transition:fade={{ duration: 150 }}
   role="figure"
 >
-  <div class="grid-item-frame" class:rounded-bottom={!resizable}>
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="grid-item-frame"
+    class:rounded-bottom={!resizable}
+    class:selected={isSelected}
+    onclick={onFrameClick}
+  >
     <div class="grid-item-header">
-      {#if isDraggableEnabled}
+      {#if isDraggableEnabled && isSelected}
         <GridItemButton
           class="move-handle-button"
           tooltip="Drag to move"
@@ -123,15 +149,13 @@
         >
           <GripVertical size={14} strokeWidth={1.75} aria-hidden="true" />
         </GridItemButton>
-        <GridItemButton
-          action="duplicate"
-          tooltip="Duplicate item"
-          onclick={() => onduplicate({ id })}
-        >
-          <Copy size={14} strokeWidth={1.75} aria-hidden="true" />
-        </GridItemButton>
       {/if}
-      <h3 class="grid-item-title">{title}</h3>
+      <div class="grid-item-heading">
+        <h3 class="grid-item-title">{title}</h3>
+        {#if subtitle}
+          <span class="grid-item-subtitle">{subtitle}</span>
+        {/if}
+      </div>
       <div class="header-content">
         {#if removable}
           <GridItemButton
@@ -152,18 +176,52 @@
         {@render children?.()}
       {/if}
     </div>
-
-    {#if resizable}
-      <div class="grid-item-resize-corner" aria-hidden="true"></div>
-    {/if}
   </div>
 
-  {#if resizable}
+  {#if resizable && isSelected}
+    <!-- Corner resize affordances. Placed outside the .grid-item-frame
+         (which has overflow:hidden) so their half-outside-half-inside
+         positioning isn't clipped. Only the bottom-right is currently
+         wired to the resize action; the other three are visual for now
+         so the selected state reads symmetrically. Each carries
+         data-block-select so its clicks don't toggle selection. -->
     <div
-      class="resize-handle-interactive"
+      class="corner-handle top-left"
+      data-block-select
+      aria-hidden="true"
+    ></div>
+    <div
+      class="corner-handle top-right"
+      data-block-select
+      aria-hidden="true"
+    ></div>
+    <div
+      class="corner-handle bottom-left"
+      data-block-select
+      aria-hidden="true"
+    ></div>
+    <div
+      class="corner-handle bottom-right"
+      data-block-select
       use:resizeHandleAction={resizeActionParams}
       aria-hidden="true"
     ></div>
+  {/if}
+
+  {#if isDraggableEnabled && isSelected}
+    <!-- "Pops" out of the blue frame, above the header, as a floating
+         pill with icon + text. Sibling of the frame so it isn't clipped
+         by overflow:hidden. Carries data-block-select so clicking it
+         doesn't re-toggle selection. -->
+    <button
+      type="button"
+      class="pop-action pop-action-duplicate"
+      onclick={() => onduplicate({ id })}
+      data-block-select
+    >
+      <Copy size={12} strokeWidth={1.75} aria-hidden="true" />
+      <span>Duplicate</span>
+    </button>
   {/if}
 </div>
 
@@ -195,11 +253,43 @@
     display: flex;
     flex-direction: column;
     position: relative;
+
+    /* Affordance ring sits 2px OUTSIDE the frame. Invisible by default;
+       lights up on hover (dashed, as "this chart can be selected") and
+       is promoted to solid when the plot is actually selected. */
+    outline: 2px dashed transparent;
+    outline-offset: 2px;
+    transition: outline-color 0.15s ease;
+  }
+
+  /* Suppress the hover affordance when the user is actually hovering an
+     interactive child or a region explicitly marked with
+     `data-block-select` (via the blockGridSelect action — plot figures,
+     legends, etc.). Those have their own click semantics, and showing
+     the selection hint at the same time would distract. */
+  .grid-item-frame:hover:not(
+      :has(
+        :is(
+            button,
+            a,
+            [role='button'],
+            input,
+            select,
+            textarea,
+            [data-block-select]
+          ):hover
+      )
+    ) {
+    outline-color: color-mix(in srgb, var(--c-info) 55%, transparent);
+  }
+
+  .grid-item-frame.selected {
+    outline-style: solid;
+    outline-color: var(--c-info);
   }
 
   .grid-item-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
     padding: 8px 16px;
     background: var(--c-lightgrey);
@@ -209,12 +299,39 @@
     border-radius: var(--rounded-lg, 8px) var(--rounded-lg, 8px) 0 0;
   }
 
+  .grid-item-heading {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    padding: 2px 6px;
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .grid-item-title {
-    margin: 2px 0 2px 4px;
-    flex-grow: 1;
+    margin: 0;
     font-size: 13px;
     font-weight: 600;
     color: var(--c-black);
+    line-height: 1.2;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .grid-item-subtitle {
+    font-size: 8px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.0333em;
+    color: var(--c-darkgrey);
+    line-height: 1.2;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .grid-item-body {
@@ -233,40 +350,93 @@
     border-radius: 10px;
   }
 
-  .grid-item-resize-corner {
+  /* Selected-state manipulation affordances: four small circles that sit
+     exactly on the blue outline's centerline, one per corner. Standard
+     Figma/canvas-editor pattern — the outline + circles read as a single
+     integrated selection frame.
+
+     Geometry: the frame's outline is drawn with `outline: 2px solid;
+     outline-offset: 2px`, so the outline's centerline runs 3px outside
+     the frame edge (offset 2 + half width 1). Placing each circle's
+     center at exactly that offset visually welds the handles to the
+     outline. Width/height 9px with a 1.5px border matches the outline's
+     thickness for a clean silhouette. */
+  .corner-handle {
     position: absolute;
-    right: 0;
-    bottom: 0;
-    width: 16px;
-    height: 16px;
-    background: transparent;
-    pointer-events: none;
-    cursor: se-resize;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--c-white);
+    border: 1.5px solid var(--c-info);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+    box-sizing: border-box;
+    z-index: 5;
+    transition: transform 0.1s ease, background 0.12s ease;
+  }
+  .corner-handle:hover {
+    background: var(--c-info);
+  }
+  .corner-handle.top-left {
+    top: -3px;
+    left: -3px;
+    transform: translate(-50%, -50%);
+    cursor: nwse-resize;
+  }
+  .corner-handle.top-right {
+    top: -3px;
+    right: -3px;
+    transform: translate(50%, -50%);
+    cursor: nesw-resize;
+  }
+  .corner-handle.bottom-left {
+    bottom: -3px;
+    left: -3px;
+    transform: translate(-50%, 50%);
+    cursor: nesw-resize;
+  }
+  .corner-handle.bottom-right {
+    bottom: -3px;
+    right: -3px;
+    transform: translate(50%, 50%);
+    cursor: nwse-resize;
   }
 
-  .grid-item-resize-corner::after {
-    content: '';
+  /* Floating "pop" action button that emerges from the blue frame when
+     the item is selected. Same blue treatment as the outline + corner
+     handles for a unified look. */
+  .pop-action {
     position: absolute;
-    right: 4px;
-    bottom: 4px;
-    width: 8px;
-    height: 8px;
-    border-right: 2px solid var(--c-midgrey);
-    border-bottom: 2px solid var(--c-midgrey);
+    top: -3px;
+    left: 50%;
+    transform: translate(-50%, -100%);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: var(--c-info);
+    color: var(--c-white);
+    border: none;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 6;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
+    transition: background 0.12s ease, box-shadow 0.12s ease;
   }
-
-  .resize-handle-interactive {
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    width: 20px;
-    height: 20px;
-    cursor: se-resize;
-    z-index: 10;
+  .pop-action:hover {
+    background: color-mix(in srgb, var(--c-info) 85%, black);
+    box-shadow: 0 3px 8px rgba(15, 23, 42, 0.2);
+  }
+  .pop-action span {
+    letter-spacing: 0.01em;
   }
 
   .header-content {
     display: flex;
     gap: 4px;
+    margin-left: auto;
   }
 </style>

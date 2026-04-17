@@ -5,6 +5,7 @@
   import { getGazePlotterSession } from '$lib/session'
   import Rail from './rail/Rail.svelte'
   import Ribbon from './ribbon/Ribbon.svelte'
+  import { Pane } from './pane'
 
   import {
     MIN_WORKSPACE_HEIGHT,
@@ -287,6 +288,8 @@
         </div>
       {/if}
     </div>
+
+    <Pane />
   </div>
 </div>
 
@@ -302,6 +305,7 @@
   }
 
   .workspace-body {
+    position: relative;
     display: flex;
     flex: 1 1 auto;
     min-height: 0;

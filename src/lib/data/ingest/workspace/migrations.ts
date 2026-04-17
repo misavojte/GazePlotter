@@ -1,3 +1,8 @@
+import {
+  createSystemMetricInstances,
+  findSystemInstanceIdByBaseId,
+} from '$lib/plots/metrics/instances'
+
 const CORE_LAYOUT_KEYS = new Set([
   'id',
   'type',
@@ -207,6 +212,45 @@ export function runMigrations(parsedJson: any): any {
     }
 
     data = { ...data, version: 5, data: payload }
+  }
+
+  // V5 to V6: Seed metric instances on metadata and translate
+  // metric-correlation plots' `enabledMetrics: string[]` → `enabledMetricIds: number[]`
+  if (version === 5) {
+    const payload = data.data
+    if (!Array.isArray(payload.metricInstances)) {
+      payload.metricInstances = createSystemMetricInstances()
+    }
+
+    if (Array.isArray(data.gridItems)) {
+      data.gridItems = data.gridItems.map((item: any) => {
+        if (item?.type !== 'metricCorrelation') return item
+        const settings = item.settings ?? {}
+        if (Array.isArray(settings.enabledMetricIds)) return item
+
+        const rawLegacy: unknown = settings.enabledMetrics
+        const legacy: string[] =
+          Array.isArray(rawLegacy) && rawLegacy.length > 0
+            ? rawLegacy.filter((s): s is string => typeof s === 'string')
+            : // Empty legacy array meant "all" — keep that semantics by
+              // selecting every system id.
+              (payload.metricInstances ?? createSystemMetricInstances())
+                .filter((i: any) => i?.system)
+                .map((i: any) => i.baseId as string)
+
+        const enabledMetricIds = legacy
+          .map(baseId => findSystemInstanceIdByBaseId(baseId))
+          .filter((id): id is number => id !== null)
+
+        const { enabledMetrics: _drop, ...rest } = settings
+        return {
+          ...item,
+          settings: { ...rest, enabledMetricIds },
+        }
+      })
+    }
+
+    data = { ...data, version: 6, data: payload }
   }
 
   return data

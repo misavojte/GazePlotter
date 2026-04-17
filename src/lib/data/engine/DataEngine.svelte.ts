@@ -4,6 +4,7 @@ import type {
   DataCapabilities,
   DataType,
   ExtendedInterpretedDataType,
+  MetricInstance,
   ParticipantsGroup,
 } from '../types'
 
@@ -152,6 +153,23 @@ export class DataEngine {
 
   setParticipantsGroups(groups: ParticipantsGroup[]) {
     if (this.metadata) this.metadata.participantsGroups = groups
+  }
+
+  setMetricInstances(instances: MetricInstance[]) {
+    if (this.metadata) this.metadata.metricInstances = instances
+  }
+
+  updateMetricInstanceLabel(id: number, label: string) {
+    const meta = this.metadata
+    if (!meta) return
+    const trimmed = label.trim()
+    if (trimmed.length === 0) return
+    const idx = meta.metricInstances.findIndex(i => i.id === id)
+    if (idx < 0) return
+    meta.metricInstances[idx] = {
+      ...meta.metricInstances[idx],
+      label: trimmed,
+    }
   }
 
   updateEventDataBatch(

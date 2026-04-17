@@ -66,6 +66,7 @@ export function createMockMetadata(
         participantsIds: [1, 2],
       },
     ],
+    metricInstances: [],
     noAoiTreatment: createNoAoiTreatment(),
     isOrdinalOnly: false,
     capabilities: {
