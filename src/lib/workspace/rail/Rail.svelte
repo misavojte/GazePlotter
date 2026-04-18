@@ -166,6 +166,12 @@
     z-index: 2;
     transition: background-color 0.3s ease;
     box-sizing: border-box;
+    /* Also act as a flex container so we can right-align .rail-content.
+       Right-aligning means as the container's right edge slides leftward,
+       the content tracks it (overflow goes left, off-screen) instead of
+       staying pinned at the left edge and appearing stationary. */
+    display: flex;
+    flex-direction: column;
   }
 
   .rail-content {
@@ -176,6 +182,11 @@
     align-items: center;
     padding: 44px 0;
     gap: 12px;
+    /* Pin to the right edge of the animated container so the content
+       tracks the sliding edge (overflowing leftward) rather than staying
+       anchored to the static left edge and looking frozen. */
+    align-self: flex-end;
+    min-width: 40px;
   }
 
   .divider {

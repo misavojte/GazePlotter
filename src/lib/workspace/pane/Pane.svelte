@@ -105,6 +105,9 @@
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
+    /* Keep content at natural width so the animated outer container clips
+       it rather than squishing it — gives a true slide feel. */
+    min-width: 400px;
   }
 
   .body {
