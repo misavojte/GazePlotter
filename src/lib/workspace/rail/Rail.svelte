@@ -221,90 +221,75 @@
 {/if}
 
 {#snippet railBody()}
-  {#if isMobile}
-    <!-- Mobile: rail-content is a plain bottom-docked flex row. The
-         mode-swap animation lives on an inner wrapper so workspace ⇄
-         plot-selected content can transition independently of the
-         outer rail sliding in/out. -->
-    <div class="rail-content">
-      {#key mode}
-        <!-- Sequential mode swap: outgoing set slides 8px down while
-             fading out (140ms), then incoming set rises from 8px
-             below while fading in (180ms, delayed by the outro). No
-             DOM-overlap window so the flex center stays put. -->
-        <div
-          class="rail-inner horizontal"
-          in:fly={{ y: 8, duration: 180, delay: 140, easing: cubicInOut }}
-          out:fly={{ y: 8, duration: 140, easing: cubicInOut }}
-        >
-          {#if mode === 'workspace'}
-            {#each workspaceRailItems as item (item.id)}
-              {#if item.id === 'add-visualization'}
-                <div class="divider horizontal"></div>
-              {/if}
-              <RailItem
-                label={item.label}
-                icon={item.icon}
-                actions={item.actions}
-                disabled={item.disabled}
-              />
-            {/each}
+  <!-- Shared markup for both orientations. Orientation-specific
+       behavior is driven by the `.horizontal` class toggle and by
+       the `orientation` prop forwarded to RailZoomSlider. The
+       rail-inner wrapper is needed on mobile for the keyed mode-swap
+       animation; on desktop it collapses to `display: contents` so
+       the zoom-slot's `margin-top: auto` still pushes against
+       rail-content's padding to dock at the bottom. -->
+  <div
+    class="rail-content"
+    class:horizontal={isMobile}
+    style={isMobile ? '' : `top: ${toolbarTop}px;`}
+  >
+    {#key mode}
+      <!-- Sequential mode swap (mobile only — mode doesn't change on
+           desktop, so these transitions never fire there). Outgoing
+           set slides 8px down while fading out (140ms); incoming set
+           rises from 8px below while fading in (180ms, delayed by
+           the outro). `mounted` suppresses the intro on first load. -->
+      <div
+        class="rail-inner"
+        class:horizontal={isMobile}
+        in:fly={{
+          y: 8,
+          duration: mounted ? 180 : 0,
+          delay: mounted ? 140 : 0,
+          easing: cubicInOut,
+        }}
+        out:fly={{ y: 8, duration: 140, easing: cubicInOut }}
+      >
+        {#if mode === 'workspace'}
+          {#each workspaceRailItems as item (item.id)}
+            {#if item.id === 'add-visualization'}
+              <div class="divider" class:horizontal={isMobile}></div>
+            {/if}
+            <RailItem
+              label={item.label}
+              icon={item.icon}
+              actions={item.actions}
+              disabled={item.disabled}
+            />
+          {/each}
 
-            <div class="zoom-slot horizontal">
-              <div class="divider horizontal"></div>
-              <RailZoomSlider
-                bind:value={zoom}
-                disabled={isProcessing || !isValidData}
-                orientation="horizontal"
-              />
-            </div>
-          {:else}
-            <RailItem
-              label={editRailItem.label}
-              icon={editRailItem.icon}
-              actions={editRailItem.actions}
-              disabled={editRailItem.disabled}
-              showLabel
+          <div class="zoom-slot" class:horizontal={isMobile}>
+            <div class="divider" class:horizontal={isMobile}></div>
+            <RailZoomSlider
+              bind:value={zoom}
+              disabled={isProcessing || !isValidData}
+              orientation={isMobile ? 'horizontal' : 'vertical'}
             />
-            <div class="divider horizontal"></div>
-            <RailItem
-              label="Deselect"
-              icon={X}
-              actions={[{ label: 'Deselect', run: handleDeselect }]}
-              showLabel
-            />
-          {/if}
-        </div>
-      {/key}
-    </div>
-  {:else}
-    <!-- Desktop: original layout — rail items live directly inside
-         rail-content with no inner wrapper, so the zoom slot's
-         `margin-top: auto` can push against rail-content's padding
-         and dock the slider to the bottom of the rail. -->
-    <div class="rail-content" style="top: {toolbarTop}px;">
-      {#each workspaceRailItems as item (item.id)}
-        {#if item.id === 'add-visualization'}
-          <div class="divider"></div>
+          </div>
+        {:else}
+          <RailItem
+            label={editRailItem.label}
+            icon={editRailItem.icon}
+            actions={editRailItem.actions}
+            disabled={editRailItem.disabled}
+            showLabel
+          />
+          <div class="divider" class:horizontal={isMobile}></div>
+          <RailItem
+            label="Deselect"
+            icon={X}
+            actions={[{ label: 'Deselect', run: handleDeselect }]}
+            showLabel
+          />
         {/if}
-        <RailItem
-          label={item.label}
-          icon={item.icon}
-          actions={item.actions}
-          disabled={item.disabled}
-        />
-      {/each}
-
-      <div class="zoom-slot">
-        <div class="divider"></div>
-        <RailZoomSlider
-          bind:value={zoom}
-          disabled={isProcessing || !isValidData}
-          orientation="vertical"
-        />
       </div>
-    </div>
-  {/if}
+    {/key}
+  </div>
 {/snippet}
 
 <style>
@@ -384,23 +369,27 @@
     min-width: 0;
   }
 
+  /* Desktop: rail-inner is a structurally transparent wrapper — its
+     children act as direct flex children of rail-content, which lets
+     the zoom-slot's `margin-top: auto` dock the slider at the bottom
+     of the rail. On desktop, mode never changes, so the {#key mode}
+     transition on this element never fires; `display: contents`
+     suppressing transform/opacity has no practical consequence. */
   .rail-inner {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    width: 100%;
+    display: contents;
   }
 
+  /* Mobile: real flex box — the mode-swap fly transition needs a
+     layout box to transform. Both the outgoing and incoming
+     rail-inner during a swap share the single grid cell in
+     `.rail.horizontal .rail-content`, stacking on each other while
+     both remain centered. */
   .rail-inner.horizontal {
-    /* Both the outgoing and incoming rail-inner during a mode swap
-       share this single grid cell, stacking on each other while both
-       remain centered. */
+    display: flex;
+    flex-direction: row;
     grid-column: 1;
     grid-row: 1;
-    flex-direction: row;
     gap: 10px;
-    width: auto;
     max-width: 100%;
     flex-wrap: nowrap;
     overflow-x: auto;

@@ -18,22 +18,19 @@
   }: Props = $props()
 
   const displayValue = $derived(`${value.toFixed(2)}x`)
-  const isHorizontal = $derived(orientation === 'horizontal')
 </script>
 
 <div
-  class="zoom-control"
-  class:horizontal={isHorizontal}
+  class="zoom-control {orientation}"
   class:disabled
   use:tooltipAction={{
     content: label,
-    position: isHorizontal ? 'top' : 'right',
+    position: orientation === 'horizontal' ? 'top' : 'right',
     disabled: responsive.isMobile,
   }}
 >
   <input
     class="zoom-slider"
-    class:horizontal={isHorizontal}
     type="range"
     min={ZOOM_MIN}
     max={ZOOM_MAX}
@@ -46,21 +43,26 @@
 </div>
 
 <style>
-  /* Vertical (desktop) default: label stacks below a vertical slider.
-     Horizontal (mobile) variant: label sits to the right of a
-     horizontal slider. Same visual tokens across orientations so the
-     control reads as one control, just rotated. */
+  /* One visual identity, two orientations. The slider uses a single
+     thumb + track style; `writing-mode: vertical-lr` rotates the
+     whole control for the vertical variant. The only orientation-
+     specific rules below are the wrapper layout, the slider's outer
+     dimensions, and the cross-axis margin needed to center the thumb
+     on the 2px track. */
+
   .zoom-control {
     display: flex;
-    flex-direction: column;
     align-items: center;
+  }
+
+  .zoom-control.vertical {
+    flex-direction: column;
     gap: 6px;
     padding: 4px 0;
   }
 
   .zoom-control.horizontal {
     flex-direction: row;
-    align-items: center;
     gap: 8px;
     padding: 0 4px;
   }
@@ -73,23 +75,12 @@
   .zoom-slider {
     -webkit-appearance: none;
     appearance: none;
-    writing-mode: vertical-lr;
-    direction: rtl;
-    width: 12px;
-    height: 64px;
     margin: 0;
     padding: 0;
     cursor: pointer;
     background: transparent;
     opacity: 0.8;
     transition: opacity 0.15s;
-  }
-
-  .zoom-slider.horizontal {
-    writing-mode: horizontal-tb;
-    direction: ltr;
-    width: 120px;
-    height: 20px;
   }
 
   .zoom-slider:focus {
@@ -100,31 +91,56 @@
     opacity: 1;
   }
 
-  /* Vertical track (WebKit + Mozilla) */
-  .zoom-slider::-webkit-slider-runnable-track {
+  /* Vertical variant: writing-mode rotates the intrinsic slider axis
+     so the track flows top-to-bottom and the thumb slides along it.
+     A small fixed inline size (width) keeps the hit target narrow but
+     reachable with the mouse. */
+  .vertical .zoom-slider {
+    writing-mode: vertical-lr;
+    direction: rtl;
+    width: 12px;
+    height: 64px;
+  }
+
+  .horizontal .zoom-slider {
+    width: 120px;
+    height: 20px;
+  }
+
+  /* Track: thin (2px cross-axis) line stretching the full main-axis
+     length. Vendor-prefixed pseudo-elements CANNOT be combined into
+     one selector — Chrome drops the whole rule if it contains a
+     `::-moz-*` selector, and Firefox does the reverse. Each vendor
+     needs its own complete rule block. */
+  .vertical .zoom-slider::-webkit-slider-runnable-track {
     width: 2px;
+    height: 100%;
+    background: var(--c-border, rgba(136, 136, 136, 0.3));
+    border-radius: 1px;
+  }
+  .vertical .zoom-slider::-moz-range-track {
+    width: 2px;
+    height: 100%;
     background: var(--c-border, rgba(136, 136, 136, 0.3));
     border-radius: 1px;
   }
 
-  .zoom-slider::-moz-range-track {
-    width: 2px;
+  .horizontal .zoom-slider::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 2px;
+    background: var(--c-border, rgba(136, 136, 136, 0.3));
+    border-radius: 1px;
+  }
+  .horizontal .zoom-slider::-moz-range-track {
+    width: 100%;
+    height: 2px;
     background: var(--c-border, rgba(136, 136, 136, 0.3));
     border-radius: 1px;
   }
 
-  /* Horizontal track overrides */
-  .zoom-slider.horizontal::-webkit-slider-runnable-track {
-    width: 100%;
-    height: 2px;
-  }
-
-  .zoom-slider.horizontal::-moz-range-track {
-    width: 100%;
-    height: 2px;
-  }
-
-  /* Vertical thumb — thin bar (drags up/down) */
+  /* Shared thumb: a 12×3 pill — same visual identity in both
+     orientations, writing-mode rotates it for the vertical variant.
+     Cross-axis margin centers the 12px dimension on the 2px track. */
   .zoom-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
@@ -133,7 +149,6 @@
     background: var(--c-darkgrey, #888);
     border-radius: 2px;
     border: none;
-    margin-left: -5px;
   }
 
   .zoom-slider::-moz-range-thumb {
@@ -144,19 +159,14 @@
     border: none;
   }
 
-  /* Horizontal thumb — rounded pill (drags left/right, comfortable on touch) */
-  .zoom-slider.horizontal::-webkit-slider-thumb {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    margin-left: 0;
-    margin-top: -6px;
+  /* Center the thumb on the 2px track: the cross-axis margin
+     compensates for the thumb/track size difference. Only the axis
+     differs per orientation. */
+  .vertical .zoom-slider::-webkit-slider-thumb {
+    margin-left: -5px;
   }
-
-  .zoom-slider.horizontal::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
+  .horizontal .zoom-slider::-webkit-slider-thumb {
+    margin-top: -0.5px;
   }
 
   .zoom-value {
@@ -169,7 +179,7 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .zoom-control.horizontal .zoom-value {
+  .horizontal .zoom-value {
     font-size: 10px;
     min-width: 38px;
     text-align: right;
