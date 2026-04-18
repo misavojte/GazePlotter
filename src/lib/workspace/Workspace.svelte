@@ -54,6 +54,7 @@
   })
 
   let workspaceContainer: HTMLElement | null = $state(null)
+  let mobileRailElement: HTMLElement | null = $state(null)
   let zoom = $state(1)
   const interaction = new GridInteractionController()
   const positionsWithPreview = $derived.by(() =>
@@ -290,7 +291,12 @@
       ondrop={handleDrop}
       onclick={handleWorkspaceBackgroundClick}
     >
-      <SelectionIndicator {workspaceContainer} {zoom} {gridConfig} />
+      <SelectionIndicator
+        {workspaceContainer}
+        {zoom}
+        {gridConfig}
+        bottomOcclusionElement={mobileRailElement}
+      />
       {#if isDraggingOver}
         <div class="drop-indicator">
           <p class="drop-title">Drop files to load</p>
@@ -339,6 +345,7 @@
       {initialLayoutState}
       {visualizations}
       bind:zoom
+      bind:element={mobileRailElement}
       onAddVisualization={handleAddVisualization}
     />
   {/if}

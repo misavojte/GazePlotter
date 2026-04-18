@@ -21,6 +21,7 @@
     initialLayoutState?: GridItemSnapshot[] | null
     zoom?: number
     onAddVisualization?: (vizType: string) => void
+    element?: HTMLElement | null
   }
 
   // Suppresses the very first intro animation. `|global` transitions
@@ -49,6 +50,7 @@
     initialLayoutState = null,
     zoom = $bindable(1),
     onAddVisualization,
+    element = $bindable(null),
   }: Props = $props()
   const { errorService, ingest, engine, workspace, grid } =
     getGazePlotterSession()
@@ -169,6 +171,7 @@
          transitions don't fire on ancestor-block toggles). -->
     <div
       class="rail horizontal"
+      bind:this={element}
       in:fly|global={{
         y: 56,
         duration: mounted ? PANE_TRANSITION.duration : 0,

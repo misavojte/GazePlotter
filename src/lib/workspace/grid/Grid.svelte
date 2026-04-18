@@ -82,13 +82,10 @@
   function handleDuplicate(event: { id: number }): void {
     const newId = generateUniqueId()
     if (
-      commitGridItemDuplication(
-        workspace,
-        gridItems,
-        { id: event.id },
-        undefined,
-        newId
-      )
+      commitGridItemDuplication(workspace, gridItems, {
+        id: event.id,
+        duplicateId: newId,
+      })
     ) {
       grid.setSelectedItem(newId)
     }

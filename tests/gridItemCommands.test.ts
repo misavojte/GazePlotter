@@ -81,7 +81,8 @@ describe('gridItemCommands', () => {
     expect(commitGridItemDuplication(workspace, items, { id: 21 })).toBe(true)
     expect(workspace.duplicateVisualization).toHaveBeenCalledWith(
       21,
-      'barPlot.21.workspace'
+      'barPlot.21.workspace',
+      { duplicateId: undefined, position: undefined }
     )
   })
 

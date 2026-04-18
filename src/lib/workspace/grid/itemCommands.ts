@@ -19,6 +19,11 @@ export type GridResizeCommit = {
   h: number
 }
 export type GridIdentityCommit = { id: number }
+export type GridDuplicationCommit = {
+  id: number
+  duplicateId?: number
+  position?: { x: number; y: number }
+}
 
 function findGridItem(
   items: AllGridTypes[],
@@ -97,9 +102,7 @@ export function commitGridItemRemoval(
 export function commitGridItemDuplication(
   workspace: WorkspaceGridCommands,
   items: AllGridTypes[],
-  commit: GridIdentityCommit,
-  position?: { x: number; y: number },
-  duplicateId?: number
+  commit: GridDuplicationCommit
 ): boolean {
   const item = findGridItem(items, commit.id)
   if (!item) return false
@@ -107,7 +110,6 @@ export function commitGridItemDuplication(
   return workspace.duplicateVisualization(
     item.id,
     getGridItemCommandSource(item),
-    duplicateId,
-    position
+    { duplicateId: commit.duplicateId, position: commit.position }
   )
 }

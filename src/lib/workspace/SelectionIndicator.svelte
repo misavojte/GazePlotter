@@ -8,9 +8,16 @@
     workspaceContainer: HTMLElement | null
     zoom: number
     gridConfig: GridConfig
+    // Element occluding the viewport bottom (mobile rail); null when none.
+    bottomOcclusionElement?: HTMLElement | null
   }
 
-  const { workspaceContainer, zoom, gridConfig }: Props = $props()
+  const {
+    workspaceContainer,
+    zoom,
+    gridConfig,
+    bottomOcclusionElement = null,
+  }: Props = $props()
   const { grid } = getGazePlotterSession()
 
   const PADDING = 35
@@ -91,10 +98,12 @@
 
     // Effective visible region in page coords: intersection of the
     // container's on-screen rect with the browser window.
+    const bottomInset =
+      bottomOcclusionElement?.getBoundingClientRect().height ?? 0
     const pageLeft = Math.max(0, rectLeft)
     const pageTop = Math.max(0, rectTop)
     const pageRight = Math.min(windowW, rectLeft + viewportW)
-    const pageBottom = Math.min(windowH, rectTop + viewportH)
+    const pageBottom = Math.min(windowH - bottomInset, rectTop + viewportH)
     const pageW = pageRight - pageLeft
     const pageH = pageBottom - pageTop
     if (pageW <= 0 || pageH <= 0) return null

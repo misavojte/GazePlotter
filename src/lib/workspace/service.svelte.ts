@@ -209,15 +209,17 @@ export class WorkspaceService {
   duplicateVisualization(
     itemId: number,
     source: string,
-    duplicateId?: number,
-    position?: { x: number; y: number }
+    options: {
+      duplicateId?: number
+      position?: { x: number; y: number }
+    } = {}
   ): boolean {
     return this.applyRoot({
       type: 'duplicateGridItem',
       itemId,
-      duplicateId: duplicateId ?? generateUniqueId(),
+      duplicateId: options.duplicateId ?? generateUniqueId(),
       source,
-      ...(position ? { position } : {}),
+      ...(options.position ? { position: options.position } : {}),
     })
   }
 
