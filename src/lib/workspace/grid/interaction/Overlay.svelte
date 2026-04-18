@@ -6,7 +6,7 @@
   interface Props {
     preview: GridInteractionRect | null
     gridConfig: GridConfig
-    mode: 'moving' | 'resizing' | 'idle' | 'panning' | 'placing'
+    mode: 'moving' | 'resizing' | 'idle' | 'panning'
   }
 
   const { preview, gridConfig, mode }: Props = $props()
@@ -30,7 +30,6 @@
     class="grid-interaction-overlay"
     class:moving={mode === 'moving'}
     class:resizing={mode === 'resizing'}
-    class:placing={mode === 'placing'}
     style={overlayStyle}
     aria-hidden="true"
   ></div>
@@ -53,15 +52,5 @@
   .grid-interaction-overlay.resizing {
     background: rgba(var(--c-main-rgb, 0, 0, 0), 0.05);
     border-color: var(--c-main);
-  }
-
-  /* Placement (duplicate-to-cursor) reads as a "new arrival" rather than
-     an active drag: slightly more saturated than the default idle ghost,
-     and tinted with the selection blue so the affordance lines up with
-     the selection outline of the source item it was spawned from. */
-  .grid-interaction-overlay.placing {
-    opacity: 0.75;
-    background: color-mix(in srgb, var(--c-info) 8%, transparent);
-    border-color: var(--c-info);
   }
 </style>

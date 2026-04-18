@@ -50,37 +50,11 @@ export type ResizeSession = TransformSessionBase & {
   direction: ResizeDirection
 }
 
-/**
- * Discriminated commit descriptor for a placement session. The session
- * only tracks a ghost preview rect; the payload tells the commit
- * handler in Grid.svelte which workspace command to dispatch when the
- * user clicks. Kept here (not in the controller) so the commit side can
- * stay a pure switch on `payload.kind`.
- */
-export type PlacementPayload =
-  | { kind: 'duplicate'; sourceItemId: number }
-  | { kind: 'add'; vizType: string }
-
-/**
- * Placement session: a cursor-driven ghost preview used when placing a
- * to-be-created item (new visualization or a duplicate). Unlike a move
- * session this has no existing item to ghost — the item doesn't exist
- * yet. On commit, the grid-coord `preview` is handed off to the
- * workspace command identified by `payload`.
- */
-export type PlacingSession = {
-  kind: 'placing'
-  payload: PlacementPayload
-  preview: GridInteractionRect
-  pointerCurrent: InteractionPoint
-}
-
 export type GridInteractionSession =
   | IdleSession
   | PanSession
   | MoveSession
   | ResizeSession
-  | PlacingSession
 
 export function createIdleSession(): IdleSession {
   return { kind: 'idle' }
@@ -149,35 +123,6 @@ export function isTransformSession(
   session: GridInteractionSession
 ): session is MoveSession | ResizeSession {
   return session.kind === 'moving' || session.kind === 'resizing'
-}
-
-export function startPlacingSession(
-  payload: PlacementPayload,
-  rect: GridInteractionRect,
-  point: InteractionPoint
-): PlacingSession {
-  return {
-    kind: 'placing',
-    payload,
-    preview: { ...rect },
-    pointerCurrent: point,
-  }
-}
-
-export function updatePlacingSession(
-  session: PlacingSession,
-  gridPoint: { x: number; y: number },
-  point: InteractionPoint
-): PlacingSession {
-  return {
-    ...session,
-    preview: {
-      ...session.preview,
-      x: Math.max(0, gridPoint.x),
-      y: Math.max(0, gridPoint.y),
-    },
-    pointerCurrent: point,
-  }
 }
 
 /**

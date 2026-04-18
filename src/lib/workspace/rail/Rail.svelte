@@ -1,7 +1,7 @@
 <script lang="ts">
   import { getGazePlotterSession } from '$lib/session'
   import { onMount } from 'svelte'
-  import { fade, fly } from 'svelte/transition'
+  import { fly } from 'svelte/transition'
   import { cubicInOut } from 'svelte/easing'
   import type { GridItemSnapshot } from '$lib/workspace'
   import { PANE_TRANSITION, slideFlex } from '../pane/transition'
@@ -20,12 +20,6 @@
     visualizations?: RailVisualization[]
     initialLayoutState?: GridItemSnapshot[] | null
     zoom?: number
-    /**
-     * Optional override for the "Add Visualization" action. Workspace
-     * passes a handler that enters placement mode so the user picks
-     * the target cell for the new item. When omitted, falls back to
-     * the previous auto-placement behavior via workspace.addVisualization.
-     */
     onAddVisualization?: (vizType: string) => void
   }
 
@@ -61,29 +55,17 @@
 
   const isMobile = $derived(responsive.isMobile)
 
-  // Rail content mode. Desktop is always 'workspace' — selecting a plot
-  // retracts the rail entirely (no contents visible). Mobile introduces
-  // a 'plot' mode: when a plot is selected but the sheet hasn't been
-  // opened yet, the rail swaps to a single Edit action so the two-step
-  // select → open-settings flow has an obvious trigger without a
-  // separate floating affordance. If the sheet is open on mobile, the
-  // rail is hidden entirely (see isHidden below) — 'plot' mode only
-  // applies during the intermediate selected-but-not-yet-open state.
+  // Desktop: rail retracts when a plot is selected so the pane can
+  // take the right edge. Mobile: rail stays visible in 'plot' mode
+  // (swapped to an Edit action) until the settings sheet actually
+  // opens — otherwise the user would lose their toolbar without an
+  // obvious path back.
   const mode = $derived<'workspace' | 'plot'>(
     isMobile && grid.selectedItemId !== null ? 'plot' : 'workspace'
   )
 
-  // Drives the rail's slide-out.
-  // Desktop: rail retracts as soon as a plot is selected — selection
-  // and pane-open are atomic on desktop so the rail steps aside for
-  // the pane taking over the right edge.
-  // Mobile: rail stays visible during the intermediate selected state
-  // (swapping to an Edit action instead), and only hides once the
-  // sheet actually opens — otherwise the user would lose their
-  // workspace toolbar without an obvious path back.
-  const isHidden = $derived(
-    isMobile ? grid.paneOpenId !== null : grid.selectedItemId !== null
-  )
+  const isHidden = false
+
 
   const isProcessing = $derived(ingest.isLoading)
   const isValidData = $derived(engine.hasValidData)
@@ -235,10 +217,7 @@
   >
     {#key mode}
       <!-- Sequential mode swap (mobile only — mode doesn't change on
-           desktop, so these transitions never fire there). Outgoing
-           set slides 8px down while fading out (140ms); incoming set
-           rises from 8px below while fading in (180ms, delayed by
-           the outro). `mounted` suppresses the intro on first load. -->
+           desktop, so these transitions never fire there). -->
       <div
         class="rail-inner"
         class:horizontal={isMobile}

@@ -21,7 +21,6 @@
     panSurfaceAction,
     type GridInteractionController,
   } from './interaction'
-  import { isPointerInWorkspace } from './interaction/coords'
 
   const { engine, errorService, workspace, grid } = getGazePlotterSession()
 
@@ -76,113 +75,24 @@
     workspaceContainer,
   }: Props = $props()
 
-  /**
-   * Duplicate click no longer commits immediately. It opens a placement
-   * session so the user picks the target cell themselves — the ghost
-   * tracks the cursor via the document-level listeners installed by the
-   * `$effect` below, and the next click commits at the preview
-   * position. Collision resolution pushes overlapping items aside the
-   * same way it does on a move commit.
-   */
-  function handleDuplicate(event: {
-    id: number
-    clientX: number
-    clientY: number
-  }): void {
-    const source = gridItems.find(i => i.id === event.id)
-    if (!source) return
-    interaction.beginPlacement(
-      { kind: 'duplicate', sourceItemId: source.id },
-      { w: source.w, h: source.h },
-      { x: event.clientX, y: event.clientY }
-    )
+  // Duplicate commits immediately. The store's findOptimalPosition
+  // places the copy adjacent-right of the source (falling back to
+  // below, then any free cell), so the user sees the new item land
+  // near the one they acted on.
+  function handleDuplicate(event: { id: number }): void {
+    const newId = generateUniqueId()
+    if (
+      commitGridItemDuplication(
+        workspace,
+        gridItems,
+        { id: event.id },
+        undefined,
+        newId
+      )
+    ) {
+      grid.setSelectedItem(newId)
+    }
   }
-
-  // Placement mode: while the session is 'placing', intercept pointer
-  // and keyboard events at the document level so the cursor-follow
-  // ghost works no matter where the mouse is, and so commit/cancel
-  // clicks don't bubble to whatever element happens to be under the
-  // pointer (other grid items, toolbar buttons, workspace background).
-  $effect(() => {
-    if (interaction.mode !== 'placing') return
-
-    document.body.style.cursor = 'copy'
-
-    // Note we do NOT gate pointermove on `isPointerInWorkspace`: the
-    // controller's `updatePlacement` also triggers viewport auto-scroll
-    // and workspace-growth hints, and those need to see pointer events
-    // all the way to the viewport edge (that's what drives the grid
-    // extending during a drag — same as a move gesture).
-    function onPointerMove(e: PointerEvent): void {
-      interaction.updatePlacement({ x: e.clientX, y: e.clientY })
-    }
-
-    function onClick(e: MouseEvent): void {
-      // Swallow this click so it doesn't also toggle selection on a
-      // grid item, activate a ribbon button, etc. In placement mode
-      // the click's only meaning is "commit here" (or "cancel" if out
-      // of bounds).
-      e.preventDefault()
-      e.stopPropagation()
-      if (
-        !workspaceContainer ||
-        !isPointerInWorkspace(e.clientX, e.clientY, workspaceContainer)
-      ) {
-        interaction.cancel()
-        return
-      }
-      const commit = interaction.finishPlacement()
-      if (!commit) return
-      // Reserve the new item's id up front so it becomes the selected
-      // item as soon as the command lands — matches Figma behavior:
-      // the thing you just placed is the thing you're about to tweak,
-      // so the Pane opens on it without a second click. Both placement
-      // flavors (duplicate / add) share this selection behavior; the
-      // difference is only which workspace command we dispatch.
-      const newId = generateUniqueId()
-      let ok = false
-      if (commit.payload.kind === 'duplicate') {
-        ok = commitGridItemDuplication(
-          workspace,
-          gridItems,
-          { id: commit.payload.sourceItemId },
-          { x: commit.x, y: commit.y },
-          newId
-        )
-      } else {
-        ok = workspace.addVisualization(
-          commit.payload.vizType,
-          'rail',
-          newId,
-          { x: commit.x, y: commit.y }
-        )
-      }
-      if (ok) grid.setSelectedItem(newId)
-    }
-
-    function onKeyDown(e: KeyboardEvent): void {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        e.stopPropagation()
-        interaction.cancel()
-      }
-    }
-
-    document.addEventListener('pointermove', onPointerMove)
-    document.addEventListener('click', onClick, { capture: true })
-    document.addEventListener('keydown', onKeyDown, { capture: true })
-
-    return () => {
-      document.body.style.cursor = ''
-      document.removeEventListener('pointermove', onPointerMove)
-      document.removeEventListener('click', onClick, {
-        capture: true,
-      } as EventListenerOptions)
-      document.removeEventListener('keydown', onKeyDown, {
-        capture: true,
-      } as EventListenerOptions)
-    }
-  })
 
   function getPlotErrorMessage(error: unknown): string {
     if (error instanceof Error && error.message.trim().length > 0) {
@@ -303,6 +213,7 @@
     mode={interaction.mode}
   />
 </div>
+
 
 <style>
   .grid-container.is-panning {
