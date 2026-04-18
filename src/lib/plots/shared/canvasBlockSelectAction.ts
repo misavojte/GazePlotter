@@ -66,8 +66,10 @@ export const canvasBlockSelect: Action<
 
   function onMove(e: MouseEvent): void {
     const rect = node.getBoundingClientRect()
-    const cssX = e.clientX - rect.left
-    const cssY = e.clientY - rect.top
+    const scaleX = node.clientWidth / rect.width
+    const scaleY = node.clientHeight / rect.height
+    const cssX = (e.clientX - rect.left) * scaleX
+    const cssY = (e.clientY - rect.top) * scaleY
     if (isInAnyRegion(cssX, cssY)) {
       node.setAttribute('data-block-select', '')
     } else {

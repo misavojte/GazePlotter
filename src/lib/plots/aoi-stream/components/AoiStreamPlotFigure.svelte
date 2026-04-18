@@ -256,21 +256,24 @@
     )
   })
 
-  // Blocked regions: plot area always, plus the legend strip when it's
-  // interactive (stream/distribution/ridgeline — clicks toggle AOI
-  // highlight). The heatmap's gradient legend is non-interactive, so
-  // it stays clickable-to-select like the rest of the chrome.
+  // Blocked regions: plot area always, plus per-item legend regions when
+  // interactive (stream/distribution/ridgeline). Padding = half item
+  // spacing so adjacent regions tile with no gaps. Heatmap gradient
+  // legend is non-interactive so it stays clickable-to-select.
   const blockedRegions = $derived.by<BlockedRegion[]>(() => {
     const regions: BlockedRegion[] = [
       { x: plotLeft, y: plotTop, w: plotAreaWidth, h: plotAreaHeight },
     ]
-    if (alignment !== 'heatmap' && legendHeight > 0) {
-      regions.push({
-        x: safeMarginLeft,
-        y: plotBottom + MARGIN.BOTTOM,
-        w: Math.max(0, safeWidth),
-        h: legendHeight,
-      })
+    if (alignment !== 'heatmap') {
+      const pad = Math.ceil(STREAM_LEGEND_CONFIG.itemSpacing / 2)
+      for (const item of legendGeometry.items) {
+        regions.push({
+          x: item.x - pad,
+          y: item.y - pad,
+          w: item.width + pad * 2,
+          h: STREAM_LEGEND_CONFIG.itemHeight + pad * 2,
+        })
+      }
     }
     return regions
   })

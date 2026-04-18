@@ -279,23 +279,29 @@
     )
   })
 
-  // Blocked regions: scarf has a clickable legend (toggles AOI
-  // highlight), so both the participant rows (plot area) and the
-  // legend strip must not trigger grid-item selection.
-  const blockedRegions = $derived<BlockedRegion[]>([
-    {
-      x: LEFT_LABEL_WIDTH + marginLeft,
-      y: effectiveMarginTop,
-      w: plotAreaWidth,
-      h: participantBarsHeight,
-    },
-    {
-      x: marginLeft,
-      y: legendY + effectiveMarginTop,
-      w: chartWidth,
-      h: legendHeight,
-    },
-  ])
+  // Blocked regions: the plot area is fully blocked; the legend is
+  // blocked per-item with padding = half the item spacing so adjacent
+  // regions tile seamlessly, leaving only group titles unblocked.
+  const blockedRegions = $derived.by<BlockedRegion[]>(() => {
+    const pad = Math.ceil(SCARF_LEGEND_CONFIG.itemSpacing / 2)
+    const regions: BlockedRegion[] = [
+      {
+        x: LEFT_LABEL_WIDTH + marginLeft,
+        y: effectiveMarginTop,
+        w: plotAreaWidth,
+        h: participantBarsHeight,
+      },
+    ]
+    for (const item of legendGeometry.items) {
+      regions.push({
+        x: item.x - pad,
+        y: item.y - pad,
+        w: item.width + pad * 2,
+        h: SCARF_LEGEND_CONFIG.itemHeight + pad * 2,
+      })
+    }
+    return regions
+  })
 
   // Canvas size exactly matches available chartWidth
   const totalWidth = $derived(chartWidth)
