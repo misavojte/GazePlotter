@@ -11,6 +11,7 @@
   import X from 'lucide-svelte/icons/x'
   import { getGazePlotterSession } from '$lib/session'
   import type { PlotSubtitleParts } from '$lib/plots/definePlot'
+  import { responsive } from '../responsive.svelte'
 
   const { grid } = getGazePlotterSession()
 
@@ -90,7 +91,15 @@
   function onFrameClick(e: MouseEvent) {
     const target = e.target as HTMLElement | null
     if (target?.closest(BLOCK_SELECTOR)) return
+    const wasSelected = grid.selectedItemId === id
     grid.toggleSelectedItem(id)
+    // Desktop: selection immediately opens the settings pane — the two
+    // are conceptually one action. Mobile: decouple — tap only selects
+    // (so the plot becomes draggable), and the floating Edit FAB drives
+    // the explicit second step that opens the sheet.
+    if (!wasSelected && !responsive.isMobile) {
+      grid.openPane(id)
+    }
   }
 
   const itemWidth = $derived(w * cellSize.width + (w - 1) * gap)

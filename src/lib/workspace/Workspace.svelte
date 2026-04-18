@@ -6,6 +6,7 @@
   import Rail from './rail/Rail.svelte'
   import Ribbon from './ribbon/Ribbon.svelte'
   import { Pane } from './pane'
+  import { responsive } from './responsive.svelte'
 
   import {
     MIN_WORKSPACE_HEIGHT,
@@ -277,13 +278,17 @@
 <div class="workspace-wrapper" style={styleProps} bind:this={workspaceWrapper}>
   <Ribbon />
 
-  <div class="workspace-body">
-    <Rail
-      {initialLayoutState}
-      {visualizations}
-      bind:zoom
-      onAddVisualization={handleAddVisualizationFromRail}
-    />
+  <div class="workspace-body" class:mobile={responsive.isMobile}>
+    {#if !responsive.isMobile}
+      <!-- Desktop: Rail is a flex item on the left edge of the -->
+      <!-- workspace-body row, next to the scrolling container. -->
+      <Rail
+        {initialLayoutState}
+        {visualizations}
+        bind:zoom
+        onAddVisualization={handleAddVisualizationFromRail}
+      />
+    {/if}
 
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -331,6 +336,23 @@
 
     <Pane />
   </div>
+
+  {#if responsive.isMobile}
+    <!-- Mobile: Rail lives as the LAST child of .workspace-wrapper -->
+    <!-- (not .workspace-body) so its sticky containing block is the -->
+    <!-- full-height wrapper. The wrapper extends below the viewport -->
+    <!-- as long as the user is scrolled within the workspace, which -->
+    <!-- gives `position: sticky; bottom: 0` on the rail the range it -->
+    <!-- needs to pin to the viewport bottom. When the user scrolls -->
+    <!-- past the workspace on the page, the wrapper's bottom edge -->
+    <!-- enters the viewport and the rail scrolls away with it. -->
+    <Rail
+      {initialLayoutState}
+      {visualizations}
+      bind:zoom
+      onAddVisualization={handleAddVisualizationFromRail}
+    />
+  {/if}
 </div>
 
 <style>
@@ -356,6 +378,10 @@
        behaviour. Clipping of the collapse animations is done locally
        on .rail (when .is-hidden) and on .pane (when closed) instead. */
   }
+
+  /* Mobile: workspace-body keeps flex-row; the Rail mounts outside
+     workspace-body (as a sibling) directly inside .workspace-wrapper
+     so its sticky containing block is the full-height wrapper. */
 
   .workspace-container {
     box-sizing: border-box;

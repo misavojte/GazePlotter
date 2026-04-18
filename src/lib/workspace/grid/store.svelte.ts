@@ -31,6 +31,13 @@ export class GridState {
   // Not persisted to workspace JSON; lives only in runtime state.
   selectedItemId = $state<number | null>(null)
 
+  // Ephemeral: which grid item currently has its settings pane/sheet open.
+  // On desktop this mirrors `selectedItemId` — click a plot, pane opens.
+  // On mobile, selection and pane-open decouple: tapping a plot only
+  // selects (enabling drag); the floating Edit FAB drives pane open.
+  // Orchestration happens at the click site, not here.
+  paneOpenId = $state<number | null>(null)
+
   // --- Derived Calculations (Runes) ---
   positions = $derived(this.createPositionsSnapshot())
 
@@ -156,11 +163,17 @@ export class GridState {
   removeItem(id: number) {
     this.items = this.items.filter(i => i.id !== id)
     if (this.selectedItemId === id) this.selectedItemId = null
+    if (this.paneOpenId === id) this.paneOpenId = null
   }
 
   setSelectedItem(id: number | null) {
     if (id === null) {
       this.selectedItemId = null
+      // Deselect always closes any open pane/sheet. A pane is always
+      // bound to a selected item — keeping it open without a selection
+      // would strand the "drag/duplicate/remove" chrome that the
+      // selection also owns.
+      this.paneOpenId = null
       return
     }
     if (this.items.some(i => i.id === id)) this.selectedItemId = id
@@ -168,6 +181,14 @@ export class GridState {
 
   toggleSelectedItem(id: number) {
     this.setSelectedItem(this.selectedItemId === id ? null : id)
+  }
+
+  openPane(id: number) {
+    if (this.items.some(i => i.id === id)) this.paneOpenId = id
+  }
+
+  closePane() {
+    this.paneOpenId = null
   }
 
   updateSettings(
@@ -214,6 +235,7 @@ export class GridState {
     // Single atomic assignment — one reactive update instead of N+1
     this.items = newItems
     this.selectedItemId = null
+    this.paneOpenId = null
   }
 
   triggerRedraw(id?: number) {

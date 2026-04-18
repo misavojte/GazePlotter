@@ -4,22 +4,41 @@
   import { plotRegistry, getPlotDisplayName } from '$lib/plots/registry'
   import PaneHeader from './PaneHeader.svelte'
   import PaneQuickActions from './PaneQuickActions.svelte'
+  import PaneSheet from './PaneSheet.svelte'
   import { PANE_TRANSITION, slideFlex } from './transition'
+  import { responsive } from '../responsive.svelte'
 
   const { grid } = getGazePlotterSession()
 
-  const item = $derived(grid.selectedItem)
+  // Pane/sheet visibility is driven by paneOpenId (explicitly opened by a
+  // click on desktop or by the mobile FAB). Selection alone no longer
+  // implies the pane is open — that decoupling is what enables the
+  // two-step mobile flow while leaving desktop behavior unchanged (the
+  // click handler sets both state fields together on desktop).
+  const paneItem = $derived(
+    grid.paneOpenId === null
+      ? null
+      : (grid.items.find(i => i.id === grid.paneOpenId) ?? null)
+  )
 
   const definition = $derived(
-    item ? (plotRegistry as Record<string, any>)[item.type] : null
+    paneItem ? (plotRegistry as Record<string, any>)[paneItem.type] : null
   )
 
   const PaneSettings = $derived(definition?.paneSettings ?? null)
 
-  const title = $derived(item ? getPlotDisplayName(item.type) : '')
+  const title = $derived(paneItem ? getPlotDisplayName(paneItem.type) : '')
 
+  // Desktop: closing the pane also deselects (setSelectedItem(null)
+  // clears paneOpenId transitively). Mobile: keep the plot selected so
+  // the FAB returns and the user can still drag — closePane() only
+  // closes the sheet.
   function close() {
-    grid.setSelectedItem(null)
+    if (responsive.isMobile) {
+      grid.closePane()
+    } else {
+      grid.setSelectedItem(null)
+    }
   }
 
   // Match Rail.svelte:17-24 viewport-anchoring mechanism so the pane's
@@ -45,8 +64,11 @@
       window.removeEventListener('scroll', detectOnScrollBannerHeight)
   })
 
+  // Escape closes whichever surface is open (desktop pane or mobile
+  // sheet). Keyed on paneItem so the listener detaches when nothing is
+  // open, avoiding a global key handler that'd fire on every keystroke.
   $effect(() => {
-    if (!item) return
+    if (!paneItem) return
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         e.preventDefault()
@@ -56,15 +78,24 @@
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   })
+
 </script>
 
-<!-- Conditionally mounted with `slideFlex` on the x axis. We animate
-     both `width` AND `flex-basis` — the built-in `slide` only animates
-     width, which is silently ignored by a flex item whose container
-     sets `flex: 0 0 <size>` (the fixed basis wins over width in the
-     flex algorithm, so nothing visually moves). Duration/easing match
-     Rail.svelte's slide-out so the two motions read as one sweep. -->
-{#if item && PaneSettings}
+{#if responsive.isMobile}
+  {#if paneItem && PaneSettings}
+    <PaneSheet {title} onClose={close}>
+      <PaneQuickActions item={paneItem} />
+      <PaneSettings item={paneItem} />
+    </PaneSheet>
+  {/if}
+{:else if paneItem && PaneSettings}
+  <!-- Desktop side pane. Conditionally mounted with `slideFlex` on the
+       x axis. We animate both `width` AND `flex-basis` — the built-in
+       `slide` only animates width, which is silently ignored by a flex
+       item whose container sets `flex: 0 0 <size>` (the fixed basis
+       wins over width in the flex algorithm, so nothing visually moves).
+       Duration/easing match Rail.svelte's slide-out so the two motions
+       read as one sweep. -->
   <aside
     class="pane"
     aria-label={`${title} settings`}
@@ -79,9 +110,9 @@
       style="top: {contentTop}px; max-height: calc(100vh - {contentTop}px);"
     >
       <PaneHeader {title} onClose={close} />
-      <PaneQuickActions {item} />
+      <PaneQuickActions item={paneItem} />
       <div class="body">
-        <PaneSettings {item} />
+        <PaneSettings item={paneItem} />
       </div>
     </div>
   </aside>

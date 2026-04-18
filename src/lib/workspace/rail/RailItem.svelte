@@ -6,6 +6,7 @@
     type MenuItem,
     contextMenuState,
   } from '$lib/context-menu'
+  import { responsive } from '../responsive.svelte'
 
   interface ActionItem {
     label: string
@@ -17,9 +18,22 @@
     icon: LucideIconComponent
     actions: ActionItem[]
     disabled?: boolean
+    /**
+     * When true, renders the `label` text inline beside the icon
+     * instead of exposing it only through tooltip/aria. Used by the
+     * rail's mobile plot-selected mode where the single Edit action
+     * carries a readable label so there's no tooltip dependency.
+     */
+    showLabel?: boolean
   }
 
-  let { label, icon: Icon, actions = [], disabled = false }: Props = $props()
+  let {
+    label,
+    icon: Icon,
+    actions = [],
+    disabled = false,
+    showLabel = false,
+  }: Props = $props()
 
   let iconElement: HTMLDivElement | null = $state(null)
 
@@ -55,26 +69,31 @@
   <button
     class="toolbar-item"
     class:disabled
+    class:with-label={showLabel}
     onclick={handleClick}
     {disabled}
     aria-label={label}
     use:tooltipAction={{
       content: label,
-      position: 'right',
-      disabled: isMenuVisible,
+      position: responsive.isMobile ? 'top' : 'right',
+      disabled: isMenuVisible || responsive.isMobile,
     }}
     use:contextMenuAction={{
       items: actions.length > 1 ? menuItems : undefined,
-      position: 'right',
-      horizontalAlign: 'start',
+      position: responsive.isMobile ? 'top' : 'right',
+      horizontalAlign: responsive.isMobile ? 'center' : 'start',
+      verticalAlign: responsive.isMobile ? 'end' : undefined,
       offset: 8,
-      slideFrom: 'left',
+      slideFrom: responsive.isMobile ? 'top' : 'left',
       disabled: disabled || actions.length <= 1,
     }}
   >
     <div class="toolbar-item-icon" bind:this={iconElement}>
       <Icon size={16} strokeWidth={1.75} />
     </div>
+    {#if showLabel}
+      <span class="toolbar-item-label">{label}</span>
+    {/if}
   </button>
 </div>
 
@@ -118,6 +137,17 @@
     cursor: not-allowed;
   }
 
+  /* Label variant: reuses the same toolbar-item base styles; just
+     widens the button to fit an inline label beside the icon. No
+     new color or shape tokens — the button keeps its existing
+     transparent-background + darkgrey/black hover behavior. */
+  .toolbar-item.with-label {
+    width: auto;
+    height: auto;
+    padding: 6px 10px;
+    gap: 6px;
+  }
+
   .toolbar-item-icon {
     width: 16px;
     height: 16px;
@@ -125,6 +155,13 @@
     align-items: center;
     justify-content: center;
     transition: transform 0.1s ease;
+  }
+
+  .toolbar-item-label {
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
   }
 </style>
 

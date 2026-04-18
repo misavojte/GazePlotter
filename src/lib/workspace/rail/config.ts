@@ -1,4 +1,4 @@
-import { SquarePlus, Undo2, Redo2, RotateCcw } from 'lucide-svelte'
+import { SquarePlus, Undo2, Redo2, RotateCcw, Settings2 } from 'lucide-svelte'
 import type { LucideIconComponent } from '$lib/shared/types'
 
 export interface RailVisualization {
@@ -33,13 +33,19 @@ interface CreateRailItemsOptions {
   onAddVisualization: (id: string) => void
 }
 
-type RailItemId = 'undo' | 'redo' | 'reset-layout' | 'add-visualization'
+type RailItemId =
+  | 'undo'
+  | 'redo'
+  | 'reset-layout'
+  | 'add-visualization'
+  | 'edit-plot'
 
 const railIcons = {
   undo: Undo2,
   redo: Redo2,
   'reset-layout': RotateCcw,
   'add-visualization': SquarePlus,
+  'edit-plot': Settings2,
 } satisfies Record<RailItemId, LucideIconComponent>
 
 export function createRailItems(
@@ -86,4 +92,20 @@ export function createRailItems(
       disabled: options.isProcessing || !options.isValidData,
     },
   ]
+}
+
+// Mobile-only: when a plot is selected but the settings sheet isn't
+// open yet, the rail swaps its contents to a single Edit action that
+// opens the sheet. Desktop never enters this state (selection opens
+// the pane atomically there).
+export function createEditPlotRailItem(
+  onEdit: () => void
+): RailItemConfig {
+  return {
+    id: 'edit-plot',
+    label: 'Edit plot settings',
+    icon: railIcons['edit-plot'],
+    actions: [{ label: 'Edit plot settings', run: onEdit }],
+    disabled: false,
+  }
 }
