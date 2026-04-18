@@ -138,35 +138,32 @@
     border-radius: 1px;
   }
 
-  /* Shared thumb: a 12×3 pill — same visual identity in both
-     orientations, writing-mode rotates it for the vertical variant.
-     Cross-axis margin centers the 12px dimension on the 2px track. */
+  /* Shared thumb: a 10×10 circle — rotation-invariant, identical
+     visual identity in both orientations. The cross-axis margin
+     centers the 10px thumb on the 2px track: (10 − 2) / 2 = 4px. */
   .zoom-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 12px;
-    height: 3px;
+    width: 10px;
+    height: 10px;
     background: var(--c-darkgrey, #888);
-    border-radius: 2px;
+    border-radius: 50%;
     border: none;
   }
 
   .zoom-slider::-moz-range-thumb {
-    width: 12px;
-    height: 3px;
+    width: 10px;
+    height: 10px;
     background: var(--c-darkgrey, #888);
-    border-radius: 2px;
+    border-radius: 50%;
     border: none;
   }
 
-  /* Center the thumb on the 2px track: the cross-axis margin
-     compensates for the thumb/track size difference. Only the axis
-     differs per orientation. */
   .vertical .zoom-slider::-webkit-slider-thumb {
-    margin-left: -5px;
+    margin-left: -4px;
   }
   .horizontal .zoom-slider::-webkit-slider-thumb {
-    margin-top: -0.5px;
+    margin-top: -4px;
   }
 
   .zoom-value {
