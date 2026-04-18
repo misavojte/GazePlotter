@@ -210,8 +210,8 @@
 <style>
   .indicator {
     position: fixed;
-    width: 36px;
-    height: 36px;
+    width: 48px;
+    height: 48px;
     border: 0;
     padding: 0;
     background: transparent;
@@ -225,8 +225,8 @@
   }
 
   .indicator svg {
-    width: 20px;
-    height: 20px;
+    width: 28px;
+    height: 28px;
     fill: currentColor;
     stroke: #ffffff;
     stroke-width: 1;
@@ -239,14 +239,25 @@
     border-radius: 50%;
   }
 
-  @media (max-width: 768px) {
+  @media (max-width: 1024px) {
     .indicator {
-      width: 28px;
-      height: 28px;
+      width: 40px;
+      height: 40px;
     }
     .indicator svg {
-      width: 14px;
-      height: 14px;
+      width: 22px;
+      height: 22px;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .indicator {
+      width: 32px;
+      height: 32px;
+    }
+    .indicator svg {
+      width: 16px;
+      height: 16px;
     }
   }
 </style>
