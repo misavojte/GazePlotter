@@ -93,4 +93,6 @@ export interface ParticipantBarMetrics {
   dwellDurations: number[][] // [aoi0[], aoi1[], ..., noAoi[], anyFixation[]]
   firstFixationDuration: number[] // [aoi0, aoi1, ..., noAoi, anyFixation] (-1 if not seen)
   avgFixationDuration: number[][] // [aoi0[], aoi1[], ..., noAoi[], anyFixation[]]
+  fixationAoiSequence: number[] // AOI index per fixation (unambiguous single-AOI hits only)
+  fixationTimestamps: number[] // segment start time (ms), parallel to fixationAoiSequence
 }

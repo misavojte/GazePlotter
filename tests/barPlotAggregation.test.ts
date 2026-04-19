@@ -14,6 +14,8 @@ describe('Bar Plot Aggregation Metrics', () => {
     dwellDurations: [],
     firstFixationDuration: [],
     avgFixationDuration: [],
+    fixationAoiSequence: [],
+    fixationTimestamps: [],
     ...overrides,
   })
 

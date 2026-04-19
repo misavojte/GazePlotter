@@ -97,6 +97,14 @@ export function formatParamReadout(instance: MetricInstance): string[] {
     .filter((s): s is string => s.length > 0)
 }
 
+export function formatWindowingReadout(instance: MetricInstance): string | null {
+  const w = instance.windowing
+  if (!w) return null
+  const unit = ['rqaRec', 'rqaDet', 'rqaLam'].includes(instance.baseId) ? 'fix' : 'ms'
+  const modeLabel = w.mode === 'epoch' ? 'Epoch' : 'Sliding'
+  return `${modeLabel} ${w.windowSize}${unit} · ${w.reduction}`
+}
+
 function formatParamShort(
   def: MetricParamDef,
   value: unknown

@@ -133,8 +133,8 @@
     selectedIds={effectiveIds}
     onchange={ids => update({ enabledMetricIds: ids })}
     {onrenameInstance}
-    oncreateInstance={(baseId, params, label) => {
-      const newId = engine.addMetricInstance(baseId, params, label)
+    oncreateInstance={(baseId, params, label, windowing) => {
+      const newId = engine.addMetricInstance(baseId, params, label, windowing)
       if (newId >= 0) update({ enabledMetricIds: [...effectiveIds, newId] })
     }}
     ondeleteInstance={(id) => engine.deleteMetricInstance(id)}

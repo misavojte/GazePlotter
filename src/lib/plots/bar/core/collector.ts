@@ -44,6 +44,8 @@ export function collectParticipantBarMetrics(
       dwellDurations: Array.from({ length: totalSlots }, () => []),
       firstFixationDuration: createArray(totalSlots, -1),
       avgFixationDuration: Array.from({ length: totalSlots }, () => []),
+      fixationAoiSequence: [],
+      fixationTimestamps: [],
     }
 
     const { startIndex, endIndex } = reader.getSegmentRange(stimulusId, participantId)
@@ -92,6 +94,11 @@ export function collectParticipantBarMetrics(
         if (idx !== undefined) currentAoiIndicesSet.add(idx)
       }
       const currentAoiIndices = Array.from(currentAoiIndicesSet)
+
+      if (currentAoiIndices.length === 1) {
+        metrics.fixationAoiSequence.push(currentAoiIndices[0])
+        metrics.fixationTimestamps.push(segmentStart)
+      }
 
       if (currentAoiIndices.length === 0) {
         // No-AOI case

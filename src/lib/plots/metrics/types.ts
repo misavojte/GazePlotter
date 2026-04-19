@@ -19,6 +19,8 @@ export type MetricCategory =
   | 'rqa-aoi'
   | 'rqa-spatial'
 
+export type MetricComputationMode = 'global' | 'epoch' | 'sliding'
+
 export interface MetricDef {
   id: string
   label: string
@@ -26,6 +28,7 @@ export interface MetricDef {
   category: MetricCategory
   params?: MetricParamDef[]
   defaultLabel?: (params: Record<string, unknown>) => string
+  computationModes?: MetricComputationMode[]
 }
 
 export type { MetricInstance } from '$lib/data/types'

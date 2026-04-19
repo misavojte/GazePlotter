@@ -17,18 +17,22 @@
     METRIC_CATEGORY_LABELS,
     getMetricDef,
     formatParamReadout,
+    formatWindowingReadout,
     defaultInstanceLabel,
     type MetricInstance,
     type MetricParamDef,
+    type MetricComputationMode,
   } from '$lib/plots/metrics'
+  import type { WindowingConfig } from '$lib/data/types'
 
   interface Props {
     instances: readonly MetricInstance[]
     selectedIds: number[]
     onchange: (ids: number[]) => void
     onrenameInstance?: (id: number, label: string) => void
-    oncreateInstance?: (baseId: string, params: Record<string, unknown>, label: string) => void
+    oncreateInstance?: (baseId: string, params: Record<string, unknown>, label: string, windowing?: WindowingConfig) => void
     ondeleteInstance?: (id: number) => void
+    showWindowing?: boolean
   }
 
   let {
@@ -38,6 +42,7 @@
     onrenameInstance,
     oncreateInstance,
     ondeleteInstance,
+    showWindowing = false,
   }: Props = $props()
 
   // Active list state
@@ -55,8 +60,16 @@
   let creatingBaseId = $state<string | null>(null)
   let paramDraft = $state<Record<string, unknown>>({})
   let labelOverride = $state('')
+  let createMode = $state<MetricComputationMode>('global')
+  let windowSize = $state(20)
+  let windowReduction = $state<WindowingConfig['reduction']>('mean')
 
   const selectedSet = $derived(new Set(selectedIds))
+
+  function isCreatable(d: (typeof METRIC_DEFS)[number]): boolean {
+    if (d.params && d.params.length > 0) return true
+    return showWindowing && !!(d.computationModes && d.computationModes.length > 1)
+  }
 
   const activeInstances = $derived(
     selectedIds
@@ -93,17 +106,13 @@
 
     return METRIC_CATEGORY_ORDER.filter(key => {
       const hasInstances = buckets.has(key)
-      const hasCreatable = METRIC_DEFS.some(
-        d => d.category === key && d.params && d.params.length > 0
-      )
+      const hasCreatable = METRIC_DEFS.some(d => d.category === key && isCreatable(d))
       return hasInstances || hasCreatable
     }).map(key => ({
       key,
       label: METRIC_CATEGORY_LABELS[key] ?? key,
       items: buckets.get(key) ?? [],
-      creatableDefs: METRIC_DEFS.filter(
-        d => d.category === key && d.params && d.params.length > 0
-      ),
+      creatableDefs: METRIC_DEFS.filter(d => d.category === key && isCreatable(d)),
     }))
   })
 
@@ -199,12 +208,16 @@
     const def = getMetricDef(baseId)
     paramDraft = Object.fromEntries((def?.params ?? []).map(p => [p.id, p.default]))
     labelOverride = ''
+    createMode = 'global'
+    windowSize = def?.category === 'rqa-aoi' ? 20 : 2000
+    windowReduction = 'mean'
   }
 
   function cancelCreate() {
     creatingBaseId = null
     paramDraft = {}
     labelOverride = ''
+    createMode = 'global'
   }
 
   function commitCreate() {
@@ -212,8 +225,11 @@
     const baseId = creatingBaseId
     const params = { ...paramDraft }
     const label = labelOverride.trim() || defaultInstanceLabel(baseId, params)
+    const windowing: WindowingConfig | undefined = createMode === 'global'
+      ? undefined
+      : { mode: createMode as 'epoch' | 'sliding', windowSize, reduction: windowReduction }
     cancelCreate()
-    oncreateInstance(baseId, params, label)
+    oncreateInstance(baseId, params, label, windowing)
     paletteOpen = false
     searchQuery = ''
   }
@@ -237,6 +253,7 @@
       <ul class="metrics-list">
         {#each activeInstances as inst (inst.id)}
           {@const readout = formatParamReadout(inst)}
+          {@const winLine = formatWindowingReadout(inst)}
           <li
             class="metrics-item"
             class:dragging={dragItemId === inst.id}
@@ -268,6 +285,9 @@
               {/if}
               {#if readout.length > 0}
                 <div class="item-params">{readout.join(' · ')}</div>
+              {/if}
+              {#if winLine}
+                <div class="item-params">{winLine}</div>
               {/if}
             </div>
             <button
@@ -319,13 +339,12 @@
       <div class="empty">No matching metrics.</div>
     {:else}
       <div class="palette-list">
-        {#each paletteGroups as group, gi (group.key)}
+        {#each paletteGroups as group (group.key)}
           <div class="group">
-            <div class="group-label"><span class="group-num">{gi + 1}.</span> {group.label}</div>
+            <div class="group-label">{group.label}</div>
 
-            {#each group.items as inst, ii (inst.id)}
+            {#each group.items as inst (inst.id)}
               {@const readout = formatParamReadout(inst)}
-              {@const numPrefix = `${gi + 1}.${ii + 1}`}
               {#if renamingPaletteId === inst.id}
                 <input
                   class="palette-rename-input"
@@ -345,7 +364,7 @@
                     onclick={() => addInstance(inst.id)}
                   >
                     <div class="palette-item-label">
-                      <span class="item-num">{numPrefix}</span>
+                      <span class="item-plus">+</span>
                       {inst.label}
                     </div>
                     {#if readout.length > 0}
@@ -379,7 +398,7 @@
                   onclick={() => addInstance(inst.id)}
                 >
                   <div class="palette-item-label">
-                    <span class="item-num">{numPrefix}</span>
+                    <span class="item-plus">+</span>
                     {inst.label}
                   </div>
                   {#if readout.length > 0}
@@ -396,6 +415,7 @@
                   onsubmit={e => { e.preventDefault(); commitCreate() }}
                   onkeydown={e => { if (e.key === 'Escape') { e.preventDefault(); cancelCreate() } }}
                 >
+                  <div class="create-form-title">New {def.label} variant</div>
                   {#each def.params ?? [] as param (param.id)}
                     <div class="param-row">
                       {#if param.type === 'enum'}
@@ -434,6 +454,54 @@
                       {/if}
                     </div>
                   {/each}
+                  {#if showWindowing && def.computationModes && def.computationModes.length > 1}
+                    <div class="windowing-section">
+                      <div class="param-label">Computation</div>
+                      <div class="mode-tabs">
+                        {#each def.computationModes as mode}
+                          <button
+                            type="button"
+                            class="mode-tab"
+                            class:active={createMode === mode}
+                            onclick={() => { createMode = mode }}
+                          >
+                            {mode === 'global' ? 'Global' : mode === 'epoch' ? 'Epoch' : 'Sliding'}
+                          </button>
+                        {/each}
+                      </div>
+                      {#if createMode !== 'global'}
+                        <div class="window-row">
+                          <label class="param-label" for={`window-${def.id}`}>Window</label>
+                          <div class="window-input-group">
+                            <input
+                              id={`window-${def.id}`}
+                              class="window-input"
+                              type="number"
+                              bind:value={windowSize}
+                              min={def.category === 'rqa-aoi' ? 15 : 500}
+                              step={def.category === 'rqa-aoi' ? 1 : 500}
+                            />
+                            <span class="window-unit">{def.category === 'rqa-aoi' ? 'fixations' : 'ms'}</span>
+                          </div>
+                        </div>
+                        {#if def.category === 'rqa-aoi' && windowSize < 20}
+                          <div class="field-hint">Recommended ≥ 20 fixations for stable DET / LAM estimates</div>
+                        {/if}
+                        <div class="window-row">
+                          <label class="param-label" for={`reduction-${def.id}`}>Reduce by</label>
+                          <select id={`reduction-${def.id}`} class="reduction-select" bind:value={windowReduction}>
+                            <option value="mean">Mean</option>
+                            <option value="max">Max</option>
+                            <option value="min">Min</option>
+                            <option value="final">Final</option>
+                          </select>
+                        </div>
+                        {#if createMode === 'sliding'}
+                          <div class="field-hint">Step = 1 fixation (fully overlapping). Prefer Max / Min / Final to characterise temporal dynamics.</div>
+                        {/if}
+                      {/if}
+                    </div>
+                  {/if}
                   <div class="create-label-row">
                     <label class="param-label" for={`label-${def.id}`}>Label</label>
                     <input
@@ -676,22 +744,12 @@
     text-transform: uppercase;
     letter-spacing: 0.06em;
     padding: 0 8px 4px;
-    display: flex;
-    align-items: baseline;
-    gap: 4px;
-  }
-
-  .group-num {
-    font-variant-numeric: tabular-nums;
-    min-width: 1.8em;
-    flex-shrink: 0;
-    color: var(--c-midgrey);
   }
 
   .palette-item-label {
     display: flex;
     align-items: baseline;
-    gap: 6px;
+    gap: 5px;
     font-size: 12px;
     color: var(--c-text);
     line-height: 1.2;
@@ -701,12 +759,11 @@
     min-width: 0;
   }
 
-  .item-num {
-    font-size: 10px;
+  .item-plus {
+    font-size: 11px;
     color: var(--c-midgrey);
-    font-variant-numeric: tabular-nums;
-    min-width: 1.8em;
     flex-shrink: 0;
+    line-height: 1;
   }
 
   /* System instances */
@@ -813,6 +870,14 @@
     margin: 2px 0;
   }
 
+  .create-form-title {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--c-darkgrey);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
   .param-row { display: flex; flex-direction: column; }
 
   .bool-label {
@@ -822,6 +887,91 @@
     font-size: 11px;
     color: var(--c-darkgrey);
     cursor: pointer;
+  }
+
+  .windowing-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 2px;
+    border-top: 1px solid var(--c-grey);
+  }
+
+  .mode-tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--c-grey);
+    border-radius: var(--rounded);
+    padding: 2px;
+  }
+
+  .mode-tab {
+    flex: 1;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--c-darkgrey);
+    padding: 3px 6px;
+    border-radius: calc(var(--rounded) - 1px);
+    transition: background 0.1s, color 0.1s;
+    text-align: center;
+  }
+  .mode-tab:hover { color: var(--c-text); }
+  .mode-tab.active { background: var(--c-white); color: var(--c-text); font-weight: 500; }
+
+  .window-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .window-row .param-label {
+    min-width: 52px;
+    flex-shrink: 0;
+  }
+
+  .window-input-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+  }
+
+  .window-input {
+    width: 64px;
+    font-size: 12px;
+    padding: 3px 6px;
+    border: 1px solid var(--c-border);
+    border-radius: var(--rounded);
+    background: var(--c-white);
+    color: var(--c-text);
+    outline: none;
+    box-sizing: border-box;
+  }
+  .window-input:focus { border-color: var(--c-brand); }
+
+  .window-unit {
+    font-size: 11px;
+    color: var(--c-darkgrey);
+  }
+
+  .reduction-select {
+    font-size: 12px;
+    padding: 3px 6px;
+    border: 1px solid var(--c-border);
+    border-radius: var(--rounded);
+    background: var(--c-white);
+    color: var(--c-text);
+    outline: none;
+    cursor: pointer;
+  }
+  .reduction-select:focus { border-color: var(--c-brand); }
+
+  .field-hint {
+    font-size: 10px;
+    color: var(--c-darkgrey);
+    line-height: 1.4;
   }
 
   .create-label-row {

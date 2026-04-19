@@ -6,10 +6,12 @@ import type {
   ExtendedInterpretedDataType,
   MetricInstance,
   ParticipantsGroup,
+  WindowingConfig,
 } from '../types'
 import {
   nextInstanceId,
   defaultInstanceLabel,
+  reconcileSystemInstances,
 } from '$lib/plots/metrics/instances'
 
 export class DataEngine {
@@ -179,15 +181,17 @@ export class DataEngine {
   addMetricInstance(
     baseId: string,
     params: Record<string, unknown>,
-    label?: string
+    label?: string,
+    windowing?: WindowingConfig
   ): number {
     const meta = this.metadata
     if (!meta) return -1
-    const id = nextInstanceId(meta.metricInstances)
+    const existing = reconcileSystemInstances(meta.metricInstances ?? [])
+    const id = nextInstanceId(existing)
     const resolvedLabel = label?.trim() || defaultInstanceLabel(baseId, params)
     meta.metricInstances = [
-      ...meta.metricInstances,
-      { id, baseId, params, label: resolvedLabel },
+      ...existing,
+      { id, baseId, params, label: resolvedLabel, windowing },
     ]
     return id
   }
@@ -195,7 +199,7 @@ export class DataEngine {
   deleteMetricInstance(id: number): void {
     const meta = this.metadata
     if (!meta || id < 1000) return
-    meta.metricInstances = meta.metricInstances.filter(i => i.id !== id)
+    meta.metricInstances = (meta.metricInstances ?? []).filter(i => i.id !== id)
   }
 
   updateEventDataBatch(

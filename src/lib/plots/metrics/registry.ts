@@ -12,36 +12,42 @@ export const METRIC_DEFS: readonly MetricDef[] = [
     label: 'Absolute dwell time',
     unit: 'ms',
     category: 'duration',
+    computationModes: ['global', 'epoch'],
   },
   {
     id: 'relativeTime',
     label: 'Relative dwell time',
     unit: '%',
     category: 'duration',
+    computationModes: ['global', 'epoch'],
   },
   {
     id: 'averageEntries',
     label: 'Visit count',
     unit: 'count',
     category: 'counts',
+    computationModes: ['global', 'epoch'],
   },
   {
     id: 'avgDwellDuration',
     label: 'Visit duration',
     unit: 'ms',
     category: 'duration',
+    computationModes: ['global', 'epoch'],
   },
   {
     id: 'averageFixationCount',
     label: 'Fixation count',
     unit: 'count',
     category: 'counts',
+    computationModes: ['global', 'epoch'],
   },
   {
     id: 'avgFixationDuration',
     label: 'Fixation duration',
     unit: 'ms',
     category: 'duration',
+    computationModes: ['global', 'epoch'],
   },
   {
     id: 'timeToFirstFixation',
@@ -54,6 +60,33 @@ export const METRIC_DEFS: readonly MetricDef[] = [
     label: 'First fixation duration',
     unit: 'ms',
     category: 'ttf',
+  },
+  {
+    id: 'rqaRec',
+    label: 'Recurrence rate',
+    unit: '%',
+    category: 'rqa-aoi',
+    computationModes: ['global', 'epoch', 'sliding'],
+  },
+  {
+    id: 'rqaDet',
+    label: 'Determinism',
+    unit: '%',
+    category: 'rqa-aoi',
+    computationModes: ['global', 'epoch', 'sliding'],
+    params: [
+      { id: 'l_min', label: 'Min line', type: 'integer', default: 2, min: 2, max: 20 },
+    ],
+  },
+  {
+    id: 'rqaLam',
+    label: 'Laminarity',
+    unit: '%',
+    category: 'rqa-aoi',
+    computationModes: ['global', 'epoch', 'sliding'],
+    params: [
+      { id: 'v_min', label: 'Min line', type: 'integer', default: 2, min: 2, max: 20 },
+    ],
   },
 ]
 

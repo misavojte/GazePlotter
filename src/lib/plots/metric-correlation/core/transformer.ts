@@ -8,6 +8,7 @@ import {
   getMetricDef,
   type MetricInstance,
 } from '$lib/plots/metrics'
+import { computeWindowedScalar } from '$lib/plots/metrics/windowed'
 import type {
   CorrelationCell,
   CorrelationPoint,
@@ -77,10 +78,17 @@ export function getMetricCorrelationData(
 
   for (let p = 0; p < participantMetrics.length; p++) {
     for (let mIdx = 0; mIdx < metrics.length; mIdx++) {
-      vectors[mIdx].values[p] = computeParticipantScalar(instances[mIdx], {
-        participantMetrics: participantMetrics[p],
-        aoiIndex: scopeIndex,
-      })
+      const inst = instances[mIdx]
+      vectors[mIdx].values[p] = inst.windowing
+        ? computeWindowedScalar(
+            inst, participantMetrics[p], scopeIndex,
+            settings.timelineStart ?? 0, settings.timelineEnd ?? 0,
+            engine, settings.stimulusId, participantIds[p], aois
+          )
+        : computeParticipantScalar(inst, {
+            participantMetrics: participantMetrics[p],
+            aoiIndex: scopeIndex,
+          })
     }
   }
 

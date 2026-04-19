@@ -141,12 +141,19 @@ export interface DataType {
   eventData: EventDataType
 }
 
+export interface WindowingConfig {
+  mode: 'epoch' | 'sliding'
+  windowSize: number
+  reduction: 'mean' | 'max' | 'min' | 'final'
+}
+
 export interface MetricInstance {
   id: number
   baseId: string
   params: Record<string, unknown>
   label: string
   system?: true
+  windowing?: WindowingConfig
 }
 
 /**
