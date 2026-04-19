@@ -7,6 +7,10 @@ import type {
   MetricInstance,
   ParticipantsGroup,
 } from '../types'
+import {
+  nextInstanceId,
+  defaultInstanceLabel,
+} from '$lib/plots/metrics/instances'
 
 export class DataEngine {
   // --- Private Memory (Non-Reactive) ---
@@ -170,6 +174,28 @@ export class DataEngine {
       ...meta.metricInstances[idx],
       label: trimmed,
     }
+  }
+
+  addMetricInstance(
+    baseId: string,
+    params: Record<string, unknown>,
+    label?: string
+  ): number {
+    const meta = this.metadata
+    if (!meta) return -1
+    const id = nextInstanceId(meta.metricInstances)
+    const resolvedLabel = label?.trim() || defaultInstanceLabel(baseId, params)
+    meta.metricInstances = [
+      ...meta.metricInstances,
+      { id, baseId, params, label: resolvedLabel },
+    ]
+    return id
+  }
+
+  deleteMetricInstance(id: number): void {
+    const meta = this.metadata
+    if (!meta || id < 1000) return
+    meta.metricInstances = meta.metricInstances.filter(i => i.id !== id)
   }
 
   updateEventDataBatch(

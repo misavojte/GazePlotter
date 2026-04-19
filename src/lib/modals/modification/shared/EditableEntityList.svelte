@@ -8,7 +8,7 @@
   import GripVertical from 'lucide-svelte/icons/grip-vertical'
   import Info from 'lucide-svelte/icons/info'
   import { tooltipAction } from '$lib/tooltip'
-  import { createDragReorder, type DragReorderConfig } from './dragReorder'
+  import { createDragReorder, type DragReorderConfig } from '$lib/shared/actions/dragReorder'
   import { clickOutside } from './clickOutside'
   import type { EntityGroup } from './groupedEntityEditor.svelte'
   import type {

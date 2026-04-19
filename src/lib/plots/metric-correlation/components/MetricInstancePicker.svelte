@@ -1,16 +1,25 @@
 <script lang="ts">
-  import ChevronUp from 'lucide-svelte/icons/chevron-up'
-  import ChevronDown from 'lucide-svelte/icons/chevron-down'
+  import { flip } from 'svelte/animate'
+  import { cubicOut } from 'svelte/easing'
+  import GripVertical from 'lucide-svelte/icons/grip-vertical'
   import Plus from 'lucide-svelte/icons/plus'
   import X from 'lucide-svelte/icons/x'
   import ArrowLeft from 'lucide-svelte/icons/arrow-left'
   import Search from 'lucide-svelte/icons/search'
+  import Pencil from 'lucide-svelte/icons/pencil'
+  import Trash2 from 'lucide-svelte/icons/trash-2'
+  import { createDragReorder } from '$lib/shared/actions/dragReorder'
+  import { InputNumber, Select } from '$lib/shared/components'
+  import type { SelectOption } from '$lib/shared/components'
   import {
+    METRIC_DEFS,
     METRIC_CATEGORY_ORDER,
     METRIC_CATEGORY_LABELS,
     getMetricDef,
     formatParamReadout,
+    defaultInstanceLabel,
     type MetricInstance,
+    type MetricParamDef,
   } from '$lib/plots/metrics'
 
   interface Props {
@@ -18,14 +27,34 @@
     selectedIds: number[]
     onchange: (ids: number[]) => void
     onrenameInstance?: (id: number, label: string) => void
+    oncreateInstance?: (baseId: string, params: Record<string, unknown>, label: string) => void
+    ondeleteInstance?: (id: number) => void
   }
 
-  let { instances, selectedIds, onchange, onrenameInstance }: Props = $props()
+  let {
+    instances,
+    selectedIds,
+    onchange,
+    onrenameInstance,
+    oncreateInstance,
+    ondeleteInstance,
+  }: Props = $props()
 
+  // Active list state
   let paletteOpen = $state(false)
-  let searchQuery = $state('')
   let renamingId = $state<number | null>(null)
   let renameDraft = $state('')
+  let dragItemId = $state<number | null>(null)
+
+  // Palette state
+  let searchQuery = $state('')
+  let renamingPaletteId = $state<number | null>(null)
+  let renamingPaletteDraft = $state('')
+
+  // Create form state
+  let creatingBaseId = $state<string | null>(null)
+  let paramDraft = $state<Record<string, unknown>>({})
+  let labelOverride = $state('')
 
   const selectedSet = $derived(new Set(selectedIds))
 
@@ -45,6 +74,7 @@
     key: string
     label: string
     items: MetricInstance[]
+    creatableDefs: (typeof METRIC_DEFS)[number][]
   }
 
   const paletteGroups = $derived.by<PaletteGroup[]>(() => {
@@ -57,11 +87,7 @@
       if (!def) continue
 
       if (q.length > 0) {
-        const hay = [
-          inst.label,
-          def.label,
-          ...formatParamReadout(inst),
-        ]
+        const hay = [inst.label, def.label, ...formatParamReadout(inst)]
           .join(' ')
           .toLowerCase()
         if (!hay.includes(q)) continue
@@ -71,12 +97,42 @@
       buckets.get(def.category)!.push(inst)
     }
 
-    return METRIC_CATEGORY_ORDER.filter(k => buckets.has(k)).map(k => ({
-      key: k,
-      label: METRIC_CATEGORY_LABELS[k] ?? k,
-      items: buckets.get(k)!,
+    return METRIC_CATEGORY_ORDER.filter(key => {
+      const hasInstances = buckets.has(key)
+      const hasCreatable = METRIC_DEFS.some(
+        d => d.category === key && d.params && d.params.length > 0
+      )
+      return hasInstances || hasCreatable
+    }).map(key => ({
+      key,
+      label: METRIC_CATEGORY_LABELS[key] ?? key,
+      items: buckets.get(key) ?? [],
+      creatableDefs: METRIC_DEFS.filter(
+        d => d.category === key && d.params && d.params.length > 0
+      ),
     }))
   })
+
+  const liveLabel = $derived.by(() => {
+    if (!creatingBaseId) return ''
+    const override = labelOverride.trim()
+    return override.length > 0 ? override : defaultInstanceLabel(creatingBaseId, paramDraft)
+  })
+
+  const dragHandle = createDragReorder({
+    itemSelector: '.metrics-item',
+    containerSelector: '.metrics-list',
+    onDragStart: (id) => { dragItemId = id },
+    onDragEnd: () => { dragItemId = null },
+    onReorder: (from, to) => {
+      const next = [...selectedIds]
+      const [removed] = next.splice(from, 1)
+      next.splice(to, 0, removed)
+      onchange(next)
+    },
+  })
+
+  // --- Active list ---
 
   function addInstance(id: number) {
     if (selectedSet.has(id)) return
@@ -87,18 +143,6 @@
 
   function removeInstance(id: number) {
     onchange(selectedIds.filter(x => x !== id))
-  }
-
-  function moveInstance(index: number, delta: number) {
-    const next = [...selectedIds]
-    const target = index + delta
-    if (target < 0 || target >= next.length) return
-    ;[next[index], next[target]] = [next[target], next[index]]
-    onchange(next)
-  }
-
-  function clearAll() {
-    onchange([])
   }
 
   function beginRename(inst: MetricInstance) {
@@ -113,8 +157,7 @@
     const label = renameDraft.trim()
     renamingId = null
     renameDraft = ''
-    if (label.length === 0) return
-    onrenameInstance?.(id, label)
+    if (label.length > 0) onrenameInstance?.(id, label)
   }
 
   function cancelRename() {
@@ -123,13 +166,66 @@
   }
 
   function onRenameKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      commitRename()
-    } else if (e.key === 'Escape') {
-      e.preventDefault()
-      cancelRename()
-    }
+    if (e.key === 'Enter') { e.preventDefault(); commitRename() }
+    else if (e.key === 'Escape') { e.preventDefault(); cancelRename() }
+  }
+
+  // --- Palette rename ---
+
+  function beginPaletteRename(inst: MetricInstance) {
+    creatingBaseId = null
+    renamingPaletteId = inst.id
+    renamingPaletteDraft = inst.label
+  }
+
+  function commitPaletteRename() {
+    if (renamingPaletteId === null) return
+    const id = renamingPaletteId
+    const label = renamingPaletteDraft.trim()
+    renamingPaletteId = null
+    renamingPaletteDraft = ''
+    if (label.length > 0) onrenameInstance?.(id, label)
+  }
+
+  function cancelPaletteRename() {
+    renamingPaletteId = null
+    renamingPaletteDraft = ''
+  }
+
+  function onPaletteRenameKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter') { e.preventDefault(); commitPaletteRename() }
+    else if (e.key === 'Escape') { e.preventDefault(); cancelPaletteRename() }
+  }
+
+  // --- Create form ---
+
+  function openCreate(baseId: string) {
+    renamingPaletteId = null
+    creatingBaseId = baseId
+    const def = getMetricDef(baseId)
+    paramDraft = Object.fromEntries((def?.params ?? []).map(p => [p.id, p.default]))
+    labelOverride = ''
+  }
+
+  function cancelCreate() {
+    creatingBaseId = null
+    paramDraft = {}
+    labelOverride = ''
+  }
+
+  function commitCreate() {
+    if (!creatingBaseId || !oncreateInstance) return
+    const baseId = creatingBaseId
+    const params = { ...paramDraft }
+    const label = labelOverride.trim() || defaultInstanceLabel(baseId, params)
+    cancelCreate()
+    oncreateInstance(baseId, params, label)
+    paletteOpen = false
+    searchQuery = ''
+  }
+
+  function paramSelectOptions(p: MetricParamDef): SelectOption[] {
+    return (p.options ?? []).map(o => ({ label: o.label, value: o.value }))
   }
 
   function focusOnMount(node: HTMLInputElement) {
@@ -139,44 +235,21 @@
 </script>
 
 <div class="picker">
-  <div class="header">
-    <span class="counter"
-      >{activeInstances.length} selected{activeInstances.length >= 2
-        ? ` · ${pairCount} pairs`
-        : ''}</span
-    >
-    {#if activeInstances.length > 0 && !paletteOpen}
-      <button class="clear" type="button" onclick={clearAll}>Clear</button>
-    {/if}
-  </div>
-
   {#if !paletteOpen}
+    <!-- Active list -->
     {#if activeInstances.length === 0}
       <div class="empty">No metrics selected.</div>
     {:else}
-      <ul class="active-list">
-        {#each activeInstances as inst, i (inst.id)}
+      <ul class="metrics-list">
+        {#each activeInstances as inst (inst.id)}
           {@const readout = formatParamReadout(inst)}
-          <li class="active-item">
-            <div class="reorder">
-              <button
-                type="button"
-                class="arrow"
-                onclick={() => moveInstance(i, -1)}
-                disabled={i === 0}
-                aria-label="Move up"
-              >
-                <ChevronUp size={12} />
-              </button>
-              <button
-                type="button"
-                class="arrow"
-                onclick={() => moveInstance(i, 1)}
-                disabled={i === activeInstances.length - 1}
-                aria-label="Move down"
-              >
-                <ChevronDown size={12} />
-              </button>
+          <li
+            class="metrics-item"
+            class:dragging={dragItemId === inst.id}
+            animate:flip={{ duration: dragItemId === inst.id ? 0 : 150, easing: cubicOut }}
+          >
+            <div class="grip" use:dragHandle={inst.id} aria-hidden="true">
+              <GripVertical size={13} />
             </div>
             <div class="item-body">
               {#if renamingId === inst.id}
@@ -216,10 +289,20 @@
       </ul>
     {/if}
 
-    <button class="add" type="button" onclick={() => (paletteOpen = true)}>
-      <Plus size={12} /> Add metric
-    </button>
+    <div class="picker-footer">
+      <button class="add" type="button" onclick={() => (paletteOpen = true)}>
+        <Plus size={12} /> Add metric
+      </button>
+      {#if activeInstances.length > 0}
+        <span class="counter">
+          {activeInstances.length} selected{activeInstances.length >= 2
+            ? ` · ${pairCount} pairs`
+            : ''}
+        </span>
+      {/if}
+    </div>
   {:else}
+    <!-- Palette (library view) -->
     <div class="palette-header">
       <button
         type="button"
@@ -227,6 +310,8 @@
         onclick={() => {
           paletteOpen = false
           searchQuery = ''
+          cancelCreate()
+          cancelPaletteRename()
         }}
         aria-label="Back to selected metrics"
       >
@@ -236,7 +321,7 @@
         <Search size={12} />
         <input
           type="text"
-          placeholder="Search..."
+          placeholder="Search…"
           bind:value={searchQuery}
           aria-label="Search metrics"
         />
@@ -247,21 +332,145 @@
       <div class="empty">No matching metrics.</div>
     {:else}
       <div class="palette-list">
-        {#each paletteGroups as group (group.key)}
+        {#each paletteGroups as group, gi (group.key)}
           <div class="group">
-            <div class="group-label">{group.label}</div>
-            {#each group.items as inst (inst.id)}
+            <div class="group-label"><span class="group-num">{gi + 1}.</span> {group.label}</div>
+
+            {#each group.items as inst, ii (inst.id)}
               {@const readout = formatParamReadout(inst)}
-              <button
-                type="button"
-                class="palette-item"
-                onclick={() => addInstance(inst.id)}
-              >
-                <div class="item-label">{inst.label}</div>
-                {#if readout.length > 0}
-                  <div class="item-params">{readout.join(' · ')}</div>
-                {/if}
-              </button>
+              {@const numPrefix = `${gi + 1}.${ii + 1}`}
+              {#if renamingPaletteId === inst.id}
+                <input
+                  class="palette-rename-input"
+                  type="text"
+                  bind:value={renamingPaletteDraft}
+                  onblur={commitPaletteRename}
+                  onkeydown={onPaletteRenameKeydown}
+                  aria-label="Rename metric"
+                  use:focusOnMount
+                />
+              {:else if inst.id >= 1000}
+                <!-- User instance: label click to add + manage icons -->
+                <div class="palette-row">
+                  <button
+                    type="button"
+                    class="palette-row-label"
+                    onclick={() => addInstance(inst.id)}
+                  >
+                    <div class="palette-item-label">
+                      <span class="item-num">{numPrefix}</span>
+                      {inst.label}
+                    </div>
+                    {#if readout.length > 0}
+                      <div class="item-params">{readout.join(' · ')}</div>
+                    {/if}
+                  </button>
+                  <div class="palette-row-actions">
+                    <button
+                      type="button"
+                      class="action-icon"
+                      onclick={() => beginPaletteRename(inst)}
+                      aria-label="Rename"
+                    >
+                      <Pencil size={11} />
+                    </button>
+                    <button
+                      type="button"
+                      class="action-icon danger"
+                      onclick={() => ondeleteInstance?.(inst.id)}
+                      aria-label="Delete from library"
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
+                </div>
+              {:else}
+                <!-- System instance: click to add, no icons -->
+                <button
+                  type="button"
+                  class="palette-item"
+                  onclick={() => addInstance(inst.id)}
+                >
+                  <div class="palette-item-label">
+                    <span class="item-num">{numPrefix}</span>
+                    {inst.label}
+                  </div>
+                  {#if readout.length > 0}
+                    <div class="item-params">{readout.join(' · ')}</div>
+                  {/if}
+                </button>
+              {/if}
+            {/each}
+
+            {#each group.creatableDefs as def (def.id)}
+              {#if creatingBaseId === def.id}
+                <form
+                  class="create-form"
+                  onsubmit={e => { e.preventDefault(); commitCreate() }}
+                  onkeydown={e => { if (e.key === 'Escape') { e.preventDefault(); cancelCreate() } }}
+                >
+                  {#each def.params ?? [] as param (param.id)}
+                    <div class="param-row">
+                      {#if param.type === 'enum'}
+                        <Select
+                          label={param.label}
+                          options={paramSelectOptions(param)}
+                          value={String(paramDraft[param.id] ?? param.default)}
+                          onchange={e => {
+                            paramDraft = { ...paramDraft, [param.id]: (e as CustomEvent<string>).detail }
+                          }}
+                        />
+                      {:else if param.type === 'integer' || param.type === 'number'}
+                        <InputNumber
+                          id={`param-${def.id}-${param.id}`}
+                          label={param.label}
+                          value={Number(paramDraft[param.id] ?? param.default)}
+                          min={param.min}
+                          max={param.max}
+                          step={param.type === 'integer' ? 1 : (param.step ?? 0.01)}
+                          appearance="compact"
+                          onValueChange={v => {
+                            if (v !== undefined) paramDraft = { ...paramDraft, [param.id]: v }
+                          }}
+                        />
+                      {:else if param.type === 'boolean'}
+                        <label class="bool-label">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(paramDraft[param.id] ?? param.default)}
+                            onchange={e => {
+                              paramDraft = { ...paramDraft, [param.id]: (e.target as HTMLInputElement).checked }
+                            }}
+                          />
+                          {param.label}
+                        </label>
+                      {/if}
+                    </div>
+                  {/each}
+                  <div class="create-label-row">
+                    <label class="param-label" for={`label-${def.id}`}>Label</label>
+                    <input
+                      id={`label-${def.id}`}
+                      class="label-input"
+                      type="text"
+                      bind:value={labelOverride}
+                      placeholder={liveLabel}
+                    />
+                  </div>
+                  <div class="create-footer">
+                    <button type="submit" class="btn-create">Create & add</button>
+                    <button type="button" class="btn-cancel" onclick={cancelCreate}>Cancel</button>
+                  </div>
+                </form>
+              {:else}
+                <button
+                  type="button"
+                  class="create-row"
+                  onclick={() => openCreate(def.id)}
+                >
+                  <Plus size={11} /> New {def.label} variant…
+                </button>
+              {/if}
             {/each}
           </div>
         {/each}
@@ -280,29 +489,6 @@
     box-sizing: border-box;
   }
 
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 2px;
-  }
-  .counter {
-    font-size: 11px;
-    color: var(--c-darkgrey);
-  }
-  .clear {
-    background: none;
-    border: none;
-    color: var(--c-darkgrey);
-    font-size: 11px;
-    cursor: pointer;
-    padding: 2px 4px;
-  }
-  .clear:hover {
-    color: var(--c-text);
-    text-decoration: underline;
-  }
-
   .empty {
     font-size: 11px;
     color: var(--c-darkgrey);
@@ -310,56 +496,55 @@
     text-align: center;
   }
 
-  .active-list {
+  /* ── Active list ── */
+
+  .metrics-list {
     list-style: none;
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
     max-height: 240px;
     overflow-y: auto;
   }
 
-  .active-item {
+  .metrics-item {
     display: grid;
-    grid-template-columns: auto 1fr auto;
-    gap: 4px;
+    grid-template-columns: 16px 1fr auto;
+    gap: 6px;
     align-items: center;
-    padding: 4px 6px;
-    border-radius: 4px;
-    background: var(--c-lightergrey, #f5f5f5);
+    padding: 5px 8px;
+    border-radius: var(--rounded);
+    background: var(--c-lightgrey);
   }
 
-  .reorder {
-    display: flex;
-    flex-direction: column;
+  .metrics-item.dragging {
+    opacity: 0.3;
+    outline: 1px dashed var(--c-midgrey);
+    background: transparent;
   }
-  .arrow {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--c-darkgrey);
-    padding: 1px;
+
+  .grip {
+    color: var(--c-midgrey);
+    cursor: grab;
     line-height: 0;
+    opacity: 0.35;
+    transition: opacity 0.1s;
     display: flex;
     align-items: center;
-    justify-content: center;
   }
-  .arrow:hover:not(:disabled) {
-    color: var(--c-text);
-  }
-  .arrow:disabled {
-    opacity: 0.3;
-    cursor: default;
-  }
+  .metrics-item:hover .grip,
+  .metrics-item:focus-within .grip { opacity: 1; }
+  .grip:active { cursor: grabbing; }
 
   .item-body {
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 2px;
     min-width: 0;
   }
+
   .item-label {
     font-size: 12px;
     color: var(--c-text);
@@ -374,24 +559,23 @@
     cursor: text;
     font: inherit;
     font-size: 12px;
-    color: var(--c-text);
   }
+
   .rename-input {
     font-size: 12px;
     line-height: 1.2;
     padding: 1px 4px;
-    border: 1px solid var(--c-lightgrey, #d0d0d0);
-    border-radius: 3px;
-    background: var(--c-background, #fff);
+    border: 1px solid var(--c-border);
+    border-radius: var(--rounded);
+    background: var(--c-white);
     color: var(--c-text);
     outline: none;
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
   }
-  .rename-input:focus {
-    border-color: var(--c-brand, #4a90e2);
-  }
+  .rename-input:focus { border-color: var(--c-brand); }
+
   .item-params {
     font-size: 10px;
     color: var(--c-darkgrey);
@@ -406,62 +590,76 @@
     border: none;
     cursor: pointer;
     color: var(--c-darkgrey);
-    padding: 2px;
+    padding: 3px;
     line-height: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 3px;
+    border-radius: var(--rounded);
   }
-  .remove:hover {
-    background: var(--c-lightgrey, #e5e5e5);
-    color: var(--c-text);
+  .remove:hover { background: var(--c-grey); color: var(--c-text); }
+
+  /* ── Footer ── */
+
+  .picker-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid var(--c-grey);
+    padding-top: 6px;
+    margin-top: 2px;
   }
 
   .add {
     background: none;
-    border: 1px dashed var(--c-lightgrey, #d0d0d0);
+    border: none;
     cursor: pointer;
     font-size: 11px;
     color: var(--c-darkgrey);
-    padding: 4px 8px;
-    border-radius: 4px;
+    padding: 2px 4px;
+    margin-left: -4px;
     display: flex;
     align-items: center;
     gap: 4px;
-    justify-content: center;
+    border-radius: var(--rounded);
   }
-  .add:hover {
-    border-color: var(--c-darkgrey);
-    color: var(--c-text);
+  .add:hover { color: var(--c-text); background: var(--c-lightgrey); }
+
+  .counter {
+    font-size: 11px;
+    color: var(--c-darkgrey);
   }
+
+  /* ── Palette header ── */
 
   .palette-header {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
   }
+
   .back {
     background: none;
     border: none;
     cursor: pointer;
     color: var(--c-darkgrey);
-    padding: 2px;
+    padding: 3px;
     line-height: 0;
     display: flex;
+    border-radius: var(--rounded);
+    flex-shrink: 0;
   }
-  .back:hover {
-    color: var(--c-text);
-  }
+  .back:hover { color: var(--c-text); background: var(--c-lightgrey); }
+
   .search {
     flex: 1;
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 2px 6px;
-    border: 1px solid var(--c-lightgrey, #d0d0d0);
-    border-radius: 4px;
-    background: var(--c-background, #fff);
+    gap: 6px;
+    padding: 4px 8px;
+    border: 1px solid var(--c-border);
+    border-radius: var(--rounded);
+    background: var(--c-white);
   }
   .search input {
     flex: 1;
@@ -470,41 +668,230 @@
     outline: none;
     font-size: 12px;
     min-width: 0;
+    color: var(--c-text);
   }
+  .search input::placeholder { color: var(--c-midgrey); }
+
+  /* ── Palette list ── */
 
   .palette-list {
-    max-height: 260px;
+    max-height: 300px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 8px;
+    padding-top: 4px;
   }
+
   .group {
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 2px;
   }
+
   .group-label {
     font-size: 10px;
     font-weight: 600;
     color: var(--c-darkgrey);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 2px 4px;
+    letter-spacing: 0.06em;
+    padding: 0 8px 4px;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
   }
+
+  .group-num {
+    font-variant-numeric: tabular-nums;
+    min-width: 1.8em;
+    flex-shrink: 0;
+    color: var(--c-midgrey);
+  }
+
+  .palette-item-label {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--c-text);
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  .item-num {
+    font-size: 10px;
+    color: var(--c-midgrey);
+    font-variant-numeric: tabular-nums;
+    min-width: 1.8em;
+    flex-shrink: 0;
+  }
+
+  /* System instances */
   .palette-item {
+    background: var(--c-darkwhite);
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    padding: 5px 8px;
+    border-radius: var(--rounded);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .palette-item:hover { background: var(--c-lightgrey); }
+
+  /* User instances */
+  .palette-row {
+    display: flex;
+    align-items: center;
+    border-radius: var(--rounded);
+    background: var(--c-darkwhite);
+  }
+  .palette-row:hover { background: var(--c-lightgrey); }
+
+  .palette-row-label {
+    flex: 1;
+    min-width: 0;
     background: none;
     border: none;
     cursor: pointer;
     text-align: left;
-    padding: 4px 8px;
-    border-radius: 4px;
+    padding: 5px 4px 5px 8px;
     display: flex;
     flex-direction: column;
-    gap: 1px;
-    min-width: 0;
+    gap: 2px;
   }
-  .palette-item:hover {
-    background: var(--c-lightergrey, #f5f5f5);
+
+  .palette-row-actions {
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.1s;
+    flex-shrink: 0;
+    padding-right: 4px;
   }
+  .palette-row:hover .palette-row-actions,
+  .palette-row:focus-within .palette-row-actions { opacity: 1; }
+
+  .action-icon {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--c-darkgrey);
+    padding: 3px;
+    line-height: 0;
+    border-radius: var(--rounded);
+    display: flex;
+    align-items: center;
+  }
+  .action-icon:hover { color: var(--c-text); background: var(--c-grey); }
+  .action-icon.danger:hover { color: var(--c-error); background: var(--c-lightgrey); }
+
+  .palette-rename-input {
+    font-size: 12px;
+    padding: 4px 8px;
+    border: 1px solid var(--c-brand);
+    border-radius: var(--rounded);
+    background: var(--c-white);
+    color: var(--c-text);
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Create row + form */
+  .create-row {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--c-darkgrey);
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: var(--rounded);
+    width: 100%;
+    text-align: left;
+    box-sizing: border-box;
+  }
+  .create-row:hover { color: var(--c-text); background: var(--c-lightgrey); }
+
+  .create-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--c-darkwhite);
+    border: 1px solid var(--c-grey);
+    border-radius: var(--rounded);
+    padding: 10px 12px;
+    margin: 2px 0;
+  }
+
+  .param-row { display: flex; flex-direction: column; }
+
+  .bool-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--c-darkgrey);
+    cursor: pointer;
+  }
+
+  .create-label-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .param-label {
+    font-size: 11px;
+    color: var(--c-darkgrey);
+  }
+
+  .label-input {
+    font-size: 12px;
+    padding: 4px 6px;
+    border: 1px solid var(--c-border);
+    border-radius: var(--rounded);
+    background: var(--c-white);
+    color: var(--c-text);
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .label-input:focus { border-color: var(--c-brand); }
+
+  .create-footer {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    padding-top: 2px;
+  }
+
+  .btn-create {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--c-brand);
+    padding: 2px 4px;
+  }
+  .btn-create:hover { text-decoration: underline; }
+
+  .btn-cancel {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--c-darkgrey);
+    padding: 2px 4px;
+  }
+  .btn-cancel:hover { color: var(--c-text); }
 </style>

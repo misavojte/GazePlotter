@@ -19,7 +19,7 @@
   import { slide } from 'svelte/transition'
   import { flip } from 'svelte/animate'
   import GripVertical from 'lucide-svelte/icons/grip-vertical'
-  import { createDragReorder } from '../shared/dragReorder'
+  import { createDragReorder } from '$lib/shared/actions/dragReorder'
 
   interface Props {
     source: string
