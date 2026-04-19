@@ -36,7 +36,7 @@
   } from '$lib/plots/shared/plotArea'
   import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
   import { safeNumber } from '$lib/shared/utils/mathUtils'
-  import { MARGIN, AXIS_CONFIG, getEvolvingMetricsXAxisLabel } from '../const'
+  import { MARGIN, AXIS_CONFIG } from '../const'
   import type { EvolvingMetricsResult } from '../types'
 
   const OVERLAY_LEFT_MARGIN = 65
@@ -73,9 +73,7 @@
     marginLeft = 0,
   }: EvolvingMetricsFigureProps = $props()
 
-  const X_AXIS_LABEL = $derived(
-    getEvolvingMetricsXAxisLabel(data.stepSize, data.windowMs)
-  )
+  const X_AXIS_LABEL = $derived(data.xAxisLabel)
   const X_AXIS_LABEL_OFFSET = 30
   const AREA_DIVIDER = {
     COLOR: 'rgba(255, 255, 255, 0.4)',
@@ -163,7 +161,7 @@
       colorScale: palette,
       valueRange: [Math.round(data.valueMin), Math.round(data.valueMax)],
       effectiveMaxValue: Math.round(data.valueMax),
-      title: 'Fixation duration [ms]',
+      title: data.yAxisLabel,
       belowMinColor: INACTIVE_COLOR,
     })
   })
@@ -200,7 +198,7 @@
       temp.length = 0
       for (let p = 0; p < participantCount; p++) {
         const v = data.participants[p].values[i]
-        if (v === v && v > 0) temp.push(v)
+        if (Number.isFinite(v)) temp.push(v)
       }
       if (temp.length === 0) {
         meanValues[i] = NaN
@@ -518,7 +516,7 @@
         colorScale: palette,
         valueRange: [Math.round(data.valueMin), Math.round(data.valueMax)],
         effectiveMaxValue: Math.round(data.valueMax),
-        title: 'Fixation duration [ms]',
+        title: data.yAxisLabel,
         belowMinColor: INACTIVE_COLOR,
       })
     }
@@ -562,7 +560,7 @@
       let drawing = false
       for (let i = 0; i < data.binCount; i++) {
         const v = values[i]
-        if (v !== v || v <= 0) {
+        if (!Number.isFinite(v)) {
           drawing = false
           continue
         }
@@ -643,7 +641,7 @@
       let drawingHL = false
       for (let i = 0; i < data.binCount; i++) {
         const v = values[i]
-        if (v !== v || v <= 0) {
+        if (!Number.isFinite(v)) {
           drawingHL = false
           continue
         }
@@ -714,7 +712,7 @@
 
     drawYAxisMainLabel(
       ctx,
-      'Fixation duration [ms]',
+      data.yAxisLabel,
       floorLeft,
       floorTop,
       floorHeight
@@ -749,7 +747,7 @@
       const axisMax = yAxisMax
       for (let p = 0; p < data.participants.length; p++) {
         const v = data.participants[p].values[bin]
-        if (v !== v || v <= 0) continue
+        if (!Number.isFinite(v)) continue
         const py = plotBottom - (v / axisMax) * plotAreaHeight
         const dist = Math.abs(mouseY - py)
         if (dist < nearestDist) {
@@ -801,11 +799,8 @@
             value: `${Math.round(binStartTime)}\u2013${Math.round(binEndTime)} ms`,
           },
           {
-            key: 'Fixation duration',
-            value:
-              value !== value || value <= 0
-                ? 'No fixations'
-                : `${value.toFixed(1)} ms`,
+            key: data.yAxisLabel,
+            value: !Number.isFinite(value) ? 'No data' : value.toFixed(2),
           },
         ]
 

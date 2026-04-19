@@ -1,82 +1,199 @@
 /**
  * Transformer for evolving metrics data.
- * Orchestrates per-participant collection, applies sliding window pooling,
- * computes global value range, and assembles the final result.
  *
- * Empty bins (no fixations) are represented as NaN — the renderer shows these
- * as a distinct "no data" color rather than interpolating through zero.
+ * The metric instance drives both WHAT is computed and HOW the window is sized:
+ * - RQA metrics (rqa-aoi): fixation-sequence-based window. Each sliding window
+ *   of W fixations is computed and mapped to the time grid via fixationTimestamps.
+ * - Other metrics: time-based window. At each time step the collector is called
+ *   for the surrounding window [t - halfWindow, t + halfWindow].
+ *
+ * Instances with no windowing config use stepSize as the window (tumbling bins).
+ * Empty bins are NaN — the renderer shows these as a distinct "no data" colour.
  */
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import {
   getParticipants,
   getParticipantsIds,
   getParticipantEndTime,
+  getAois,
 } from '$lib/data/engine'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
+import { collectParticipantBarMetrics } from '$lib/plots/bar/core/collector'
+import { computeRqaAoiScalar } from '$lib/plots/metrics/rqaAoiCompute'
+import { computeParticipantScalar } from '$lib/plots/metrics'
+import { reconcileSystemInstances, getMetricDef } from '$lib/plots/metrics'
+import type { MetricInstance } from '$lib/data/types'
+import type { ParticipantBarMetrics } from '$lib/plots/bar/types'
+import { getEvolvingMetricsXAxisLabel } from '../const'
 import type {
   EvolvingMetricsSettings,
   EvolvingMetricsResult,
   EvolvingMetricsParticipant,
 } from '../types'
-import { collectParticipantBinnedFixations } from './collector'
 
-/**
- * Converts a window multiplier to the number of bins in the sliding window.
- * 0 → 0 (tumbling), 1 → 3, 2 → 5, 3 → 7, ...
- */
-export function multiplierToBins(multiplier: number): number {
-  if (multiplier <= 0) return 0
-  return 2 * multiplier + 1
+const MIN_FIXATIONS_RQA = 5
+const RQA_BASE_IDS = new Set(['rqaRec', 'rqaDet', 'rqaLam'])
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function resolveInstance(
+  engine: DataEngine,
+  selectedMetricId: number | null
+): MetricInstance | null {
+  if (selectedMetricId === null) return null
+  const meta = engine.metadata
+  if (!meta) return null
+  const library = reconcileSystemInstances(meta.metricInstances ?? [])
+  return library.find(i => i.id === selectedMetricId) ?? null
 }
 
-/**
- * Converts a window multiplier + step size to the effective window size in ms.
- */
-export function multiplierToMs(multiplier: number, stepSize: number): number {
-  return multiplierToBins(multiplier) * stepSize
+function windowDescLabel(instance: MetricInstance): string {
+  const w = instance.windowing
+  if (!w) return ''
+  const isRqa = RQA_BASE_IDS.has(instance.baseId)
+  const unit = isRqa ? 'fix' : 'ms'
+  return w.mode === 'sliding'
+    ? `Sliding ${w.windowSize} ${unit}`
+    : `Epoch ${w.windowSize} ${unit}`
 }
 
-/**
- * Main data pipeline for the Evolving Metrics plot.
- */
+// For epoch non-RQA: bin width = epoch window size.
+// For RQA (fixation-count windows): use 100 ms time bins.
+function deriveStepSize(instance: MetricInstance): number {
+  const isRqa = RQA_BASE_IDS.has(instance.baseId)
+  if (!isRqa && instance.windowing?.mode === 'epoch') return instance.windowing.windowSize
+  return 100
+}
+
+// ─── RQA path: fixation-sequence → time grid ─────────────────────────────────
+
+function computeRqaBins(
+  instance: MetricInstance,
+  participantMetrics: ParticipantBarMetrics,
+  binCount: number,
+  stepSize: number,
+  timelineMin: number
+): Float32Array {
+  const seq = participantMetrics.fixationAoiSequence
+  const timestamps = participantMetrics.fixationTimestamps
+  const W = instance.windowing?.windowSize ?? 20
+  const N = seq.length
+  const values = new Float32Array(binCount).fill(NaN)
+
+  if (N < Math.max(W, MIN_FIXATIONS_RQA)) return values
+
+  // Accumulators for binning (multiple windows may map to the same bin)
+  const sums = new Float64Array(binCount)
+  const counts = new Uint32Array(binCount)
+
+  for (let i = 0; i + W <= N; i++) {
+    const sub = seq.slice(i, i + W)
+    const scalar = computeRqaAoiScalar(instance, { fixationAoiSequence: sub } as ParticipantBarMetrics)
+    if (!Number.isFinite(scalar)) continue
+
+    const centerTime = timestamps[i + Math.floor(W / 2)]
+    const bin = Math.floor((centerTime - timelineMin) / stepSize)
+    if (bin >= 0 && bin < binCount) {
+      sums[bin] += scalar
+      counts[bin]++
+    }
+  }
+
+  for (let i = 0; i < binCount; i++) {
+    if (counts[i] > 0) values[i] = sums[i] / counts[i]
+  }
+  return values
+}
+
+// ─── Non-RQA path: per-bin collector calls ───────────────────────────────────
+
+function computeNonRqaBins(
+  instance: MetricInstance,
+  engine: DataEngine,
+  stimulusId: number,
+  participantId: number,
+  aois: ReturnType<typeof getAois>,
+  aoiIndex: number,
+  binCount: number,
+  stepSize: number,
+  halfWindowMs: number,
+  timelineMin: number
+): Float32Array {
+  const values = new Float32Array(binCount).fill(NaN)
+
+  for (let i = 0; i < binCount; i++) {
+    const center = timelineMin + i * stepSize + stepSize / 2
+    const wStart = Math.max(0, center - halfWindowMs)
+    const wEnd = center + halfWindowMs
+
+    const wMetrics = collectParticipantBarMetrics(
+      engine, stimulusId, [participantId], aois, wStart, wEnd
+    )
+    if (!wMetrics[0]) continue
+    const v = computeParticipantScalar(instance, {
+      participantMetrics: wMetrics[0],
+      aoiIndex,
+    })
+    if (Number.isFinite(v)) values[i] = v
+  }
+  return values
+}
+
+// ─── Main export ─────────────────────────────────────────────────────────────
+
 export function getEvolvingMetricsData(
   engine: DataEngine,
-  settings: Pick<
-    EvolvingMetricsSettings,
-    'stimulusId' | 'groupId' | 'stepSize' | 'windowMultiplier'
-  > & {
+  settings: Pick<EvolvingMetricsSettings, 'stimulusId' | 'groupId' | 'selectedMetricId'> & {
     timelineMin?: number
     timelineMax?: number
   }
-): EvolvingMetricsResult {
+): EvolvingMetricsResult | null {
   const meta = engine.metadata
-  if (!meta) throw new Error('Data engine not initialized')
+  if (!meta) return null
 
-  const { stimulusId, groupId, stepSize, windowMultiplier } = settings
+  const instance = resolveInstance(engine, settings.selectedMetricId)
+  if (!instance) return null
 
-  // 1. Get participants
+  // Only windowed metrics are valid for the evolving metrics plot
+  if (!instance.windowing) return null
+
+  const def = getMetricDef(instance.baseId)
+  if (!def) return null
+
+  const isRqa = RQA_BASE_IDS.has(instance.baseId)
+  const { stimulusId, groupId } = settings
+  const stepSize = deriveStepSize(instance)
+
+  // Window half-size in ms for non-RQA
+  const windowSizeMs = instance.windowing?.windowSize ?? stepSize
+  const halfWindowMs = windowSizeMs / 2
+
+  // Participant resolution
   const participantIds = getParticipantsIds(engine, groupId, stimulusId)
   const participantEntities = getParticipants(engine, groupId, stimulusId)
   const numParticipants = participantIds.length
 
-  // 2. Compute timeline bounds
+  if (numParticipants === 0) return null
+
+  // Timeline bounds
   let maxTime = 0
   for (let i = 0; i < numParticipants; i++) {
-    const time = getParticipantEndTime(engine, stimulusId, participantIds[i])
-    if (time > maxTime) maxTime = time
+    const t = getParticipantEndTime(engine, stimulusId, participantIds[i])
+    if (t > maxTime) maxTime = t
   }
-
   const timelineMin = settings.timelineMin ?? 0
   const timelineMax = settings.timelineMax ?? maxTime
-  const safeMaxTime = Math.max(1, timelineMax - timelineMin)
+  const duration = Math.max(1, timelineMax - timelineMin)
+  const binCount = Math.max(1, Math.ceil(duration / stepSize))
 
-  const safeStepSize = Math.max(1, stepSize)
-  const binCount = Math.max(1, Math.ceil(safeMaxTime / safeStepSize))
-  const effectiveMaxTime = binCount * safeStepSize
+  // AOI context for non-RQA (whole-stimulus = AnyFixation slot)
+  const aois = getAois(engine, stimulusId)
+  const aoiIndex = aois.length + 1 // AnyFixation slot
 
-  // 3. Compute window from multiplier
-  const safeMultiplier = Math.max(0, windowMultiplier | 0)
-  const windowBins = multiplierToBins(safeMultiplier)
+  // Collect per-participant full-trial metrics (for RQA sequence)
+  const fullMetrics: ParticipantBarMetrics[] = isRqa
+    ? collectParticipantBarMetrics(engine, stimulusId, participantIds, aois)
+    : []
 
   let valueMin = Infinity
   let valueMax = -Infinity
@@ -86,39 +203,13 @@ export function getEvolvingMetricsData(
     const pid = participantIds[p]
     const entity = participantEntities[p]
 
-    const { fixationDurationSum, fixationCount } =
-      collectParticipantBinnedFixations(
-        engine,
-        stimulusId,
-        pid,
-        binCount,
-        safeStepSize,
-        timelineMin
-      )
+    const values = isRqa
+      ? computeRqaBins(instance, fullMetrics[p], binCount, stepSize, timelineMin)
+      : computeNonRqaBins(instance, engine, stimulusId, pid, aois, aoiIndex, binCount, stepSize, halfWindowMs, timelineMin)
 
-    // Compute per-position mean by pooling fixations across the window.
-    // Edges use a truncated window (fewer bins contribute).
-    const halfWindow = windowBins > 1 ? (windowBins >> 1) | 0 : 0
-    const values = new Float32Array(binCount)
-
-    for (let i = 0; i < binCount; i++) {
-      const wStart = Math.max(0, i - halfWindow)
-      const wEnd = Math.min(binCount - 1, i + halfWindow)
-
-      let totalSum = 0
-      let totalCount = 0
-      for (let j = wStart; j <= wEnd; j++) {
-        totalSum += fixationDurationSum[j]
-        totalCount += fixationCount[j]
-      }
-
-      values[i] = totalCount > 0 ? totalSum / totalCount : NaN
-    }
-
-    // Track global min/max (ignoring NaN)
     for (let i = 0; i < binCount; i++) {
       const v = values[i]
-      if (v !== v) continue // NaN check
+      if (!Number.isFinite(v)) continue
       if (v < valueMin) valueMin = v
       if (v > valueMax) valueMax = v
     }
@@ -130,25 +221,23 @@ export function getEvolvingMetricsData(
     }
   }
 
-  // Handle edge cases
-  if (valueMin === Infinity) valueMin = 0
+  if (!Number.isFinite(valueMin)) valueMin = 0
   if (valueMax <= valueMin) valueMax = valueMin + 1
 
-  // 4. Build result
-  const timeline = createAdaptiveTimeline(
-    timelineMin,
-    timelineMin + effectiveMaxTime,
-    6
-  )
+  const effectiveMaxTime = timelineMin + binCount * stepSize
+  const timeline = createAdaptiveTimeline(timelineMin, effectiveMaxTime, 6)
+
+  const xAxisLabel = getEvolvingMetricsXAxisLabel(stepSize, windowDescLabel(instance))
+  const yAxisLabel = `${def.label} [${def.unit}]`
 
   return {
     participants,
     timeline,
     binCount,
-    stepSize: safeStepSize,
-    windowMultiplier: safeMultiplier,
-    windowMs: multiplierToMs(safeMultiplier, safeStepSize),
-    maxTime: timelineMin + effectiveMaxTime,
+    stepSize,
+    xAxisLabel,
+    yAxisLabel,
+    maxTime: effectiveMaxTime,
     valueMin,
     valueMax,
   }

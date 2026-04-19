@@ -11,7 +11,8 @@
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { PRESET_PALETTES } from '$lib/color/palettes'
-  import { multiplierToMs } from '../core'
+  import { type MetricInstance } from '$lib/plots/metrics'
+  import MetricInstancePicker from '$lib/plots/metric-correlation/components/MetricInstancePicker.svelte'
   import type { EvolvingMetricsItem, EvolvingMetricsSettings } from '../types'
 
   interface Props {
@@ -36,9 +37,10 @@
   const presentation = $derived(settings.presentation ?? 'heatmap')
   const isHeatmap = $derived(presentation === 'heatmap')
 
-  const step = $derived(settings.stepSize ?? 100)
-  const n = $derived(settings.windowMultiplier ?? 1)
-  const windowMs = $derived(multiplierToMs(n, step))
+  // Only windowed instances belong in the evolving metrics plot
+  const library = $derived<readonly MetricInstance[]>(
+    (engine.metadata?.metricInstances ?? []).filter(i => !!i.windowing)
+  )
 
   const colorFields = $derived(
     getColorScaleCommitted(
@@ -52,9 +54,6 @@
   let colorMiddle = $state(colorFields.colorMiddle)
   let colorMax = $state(colorFields.colorMax)
 
-  // External -> local sync + local -> committed. buildColorScalePatch
-  // returns null when draft matches committed, so the round-trip
-  // self-terminates — no microtask-gated flag needed.
   $effect(() => {
     colorMin = colorFields.colorMin
     colorMiddle = colorFields.colorMiddle
@@ -84,6 +83,21 @@
   />
 </PaneSection>
 
+<PaneSection title="Metric">
+  <MetricInstancePicker
+    instances={library}
+    selectedIds={settings.selectedMetricId !== null ? [settings.selectedMetricId] : []}
+    onchange={ids => update({ selectedMetricId: ids.at(-1) ?? null })}
+    onrenameInstance={(id, label) => engine.updateMetricInstanceLabel(id, label)}
+    oncreateInstance={(baseId, params, label, windowing) => {
+      const newId = engine.addMetricInstance(baseId, params, label, windowing)
+      if (newId >= 0) update({ selectedMetricId: newId })
+    }}
+    ondeleteInstance={id => engine.deleteMetricInstance(id)}
+    context="windowed"
+  />
+</PaneSection>
+
 <PaneSection title="View">
   <Radio
     ariaLabel="Presentation"
@@ -99,29 +113,6 @@
       update({ presentation: v })
     }}
   />
-</PaneSection>
-
-<PaneSection title="Window">
-  <InputNumber
-    id="ev-step-size"
-    label="Step size [ms]"
-    value={step}
-    min={1}
-    appearance="compact"
-    onValueChange={v => update({ stepSize: v ?? step })}
-  />
-  <div class="window-row">
-    <InputNumber
-      id="ev-window-multiplier"
-      label="SW multiplier (2n+1)"
-      value={n}
-      min={0}
-      step={1}
-      appearance="compact"
-      onValueChange={v => update({ windowMultiplier: v ?? n })}
-    />
-    <span class="window-value">{n > 0 ? `${windowMs} ms` : 'off'}</span>
-  </div>
 </PaneSection>
 
 <PaneSection title="Time range [ms]" defaultOpen={false}>
@@ -147,12 +138,6 @@
   </div>
 </PaneSection>
 
-<!-- Keep the picker always mounted regardless of presentation mode:
-     wrapping `bind:` on a component in an `{#if}` block breaks the
-     upstream write path (the picker remounts with stale bindings and
-     its writes never reach parent state, so colorScale commits are
-     silently lost). See AoiStream/ScanpathSimilarity for the same
-     workaround. -->
 <div style:display={isHeatmap ? 'contents' : 'none'}>
   <PaneSection title="Colors">
     <ColorGradientPicker bind:colorMin bind:colorMiddle bind:colorMax />
@@ -163,16 +148,5 @@
   .inline-pair {
     display: flex;
     gap: 8px;
-  }
-  .window-row {
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
-  }
-  .window-value {
-    font-size: 11px;
-    color: var(--c-darkgrey);
-    padding-bottom: 6px;
-    white-space: nowrap;
   }
 </style>

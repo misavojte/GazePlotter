@@ -18,21 +18,22 @@
     getEvolvingMetricsData(engine, {
       stimulusId: settings.stimulusId,
       groupId: settings.groupId,
-      stepSize: settings.stepSize,
-      windowMultiplier: settings.windowMultiplier ?? 1,
+      selectedMetricId: settings.selectedMetricId,
     })
   )
 </script>
 
-<EvolvingMetricsFigure
-  width={exportProps.width}
-  height={exportProps.height}
-  data={evolvingData}
-  alignment={settings.presentation ?? 'heatmap'}
-  colorScale={settings.colorScale}
-  dpiOverride={exportProps.dpiOverride}
-  marginTop={exportProps.marginTop}
-  marginRight={exportProps.marginRight}
-  marginBottom={exportProps.marginBottom}
-  marginLeft={exportProps.marginLeft}
-/>
+{#if evolvingData}
+  <EvolvingMetricsFigure
+    width={exportProps.width}
+    height={exportProps.height}
+    data={evolvingData}
+    alignment={settings.presentation ?? 'heatmap'}
+    colorScale={settings.colorScale}
+    dpiOverride={exportProps.dpiOverride}
+    marginTop={exportProps.marginTop}
+    marginRight={exportProps.marginRight}
+    marginBottom={exportProps.marginBottom}
+    marginLeft={exportProps.marginLeft}
+  />
+{/if}

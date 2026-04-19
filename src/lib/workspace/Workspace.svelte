@@ -115,6 +115,9 @@
     const newId = generateUniqueId()
     if (workspace.addVisualization(vizType, 'rail', newId)) {
       grid.setSelectedItem(newId)
+      if (!responsive.isMobile) {
+        grid.openPane(newId)
+      }
     }
   }
 

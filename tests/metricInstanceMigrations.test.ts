@@ -82,7 +82,7 @@ describe('V5 → V6 metric-instance migration', () => {
     const migrated = runMigrations(file)
 
     const mc = migrated.gridItems[0]
-    expect(mc.settings.enabledMetricIds).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
+    expect(mc.settings.enabledMetricIds).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11])
     expect(mc.settings.enabledMetrics).toBeUndefined()
   })
 

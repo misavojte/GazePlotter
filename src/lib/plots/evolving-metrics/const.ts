@@ -26,13 +26,15 @@ export const AXIS_CONFIG = {
 
 /**
  * Builds the X-axis label with scientific bracket notation.
+ * windowDesc is the human-readable window description ("SW 20 fix", "2000 ms", etc.)
+ * or empty string for simple tumbling-bin mode.
  */
 export function getEvolvingMetricsXAxisLabel(
   stepSize: number,
-  windowMs: number
+  windowDesc: string
 ): string {
-  if (windowMs > 0) {
-    return `Elapsed time [ms; SW ${windowMs} ms, step ${stepSize} ms]`
+  if (windowDesc) {
+    return `Elapsed time [ms; ${windowDesc}, step ${stepSize} ms]`
   }
   return `Elapsed time [ms; \u0394 ${stepSize} ms]`
 }

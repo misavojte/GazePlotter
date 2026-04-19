@@ -21,6 +21,7 @@
     panSurfaceAction,
     type GridInteractionController,
   } from './interaction'
+  import { responsive } from '../responsive.svelte'
 
   const { engine, errorService, workspace, grid } = getGazePlotterSession()
 
@@ -88,6 +89,9 @@
       })
     ) {
       grid.setSelectedItem(newId)
+      if (!responsive.isMobile) {
+        grid.openPane(newId)
+      }
     }
   }
 

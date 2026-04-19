@@ -4,9 +4,7 @@ import type { PlotItemContract } from '$lib/plots/definePlot'
 export type EvolvingMetricsSettings = {
   stimulusId: number
   groupId: number
-  stepSize: number
-  /** SW multiplier: 0 = tumbling, 1 = 3 bins, 2 = 5 bins, etc. */
-  windowMultiplier: number
+  selectedMetricId: number | null
   presentation?: 'heatmap' | 'overlay'
   colorScale?: string[]
   timelineStart?: number
@@ -29,9 +27,8 @@ export interface EvolvingMetricsResult {
   timeline: AdaptiveTimeline
   binCount: number
   stepSize: number
-  windowMultiplier: number
-  /** Effective window size in ms (derived from multiplier) */
-  windowMs: number
+  xAxisLabel: string
+  yAxisLabel: string
   maxTime: number
   valueMin: number
   valueMax: number

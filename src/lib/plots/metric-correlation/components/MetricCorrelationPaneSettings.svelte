@@ -20,6 +20,7 @@
   } from '../types'
   import {
     createSystemMetricInstances,
+    reconcileSystemInstances,
     type MetricInstance,
   } from '$lib/plots/metrics'
   import MetricInstancePicker from './MetricInstancePicker.svelte'
@@ -67,10 +68,10 @@
       : String(settings.selectedAoiId)
   )
 
+  // Windowed instances belong in the evolving metrics plot, not correlation
   const library = $derived<readonly MetricInstance[]>(
-    engine.metadata?.metricInstances && engine.metadata.metricInstances.length > 0
-      ? engine.metadata.metricInstances
-      : createSystemMetricInstances()
+    reconcileSystemInstances(engine.metadata?.metricInstances ?? [])
+      .filter(i => !i.windowing)
   )
 
   // Empty selection means "all system instances" — expand so the picker
@@ -129,6 +130,7 @@
 
 <PaneSection title="Metrics">
   <MetricInstancePicker
+    context="global"
     instances={library}
     selectedIds={effectiveIds}
     onchange={ids => update({ enabledMetricIds: ids })}
