@@ -144,6 +144,8 @@ export interface DataType {
 export interface WindowingConfig {
   mode: 'epoch' | 'sliding'
   windowSize: number
+  /** Step between bin centers in ms. Defaults to windowSize (epoch) or 100 (sliding/RQA). */
+  stepSize?: number
   reduction: 'mean' | 'max' | 'min' | 'final'
 }
 

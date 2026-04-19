@@ -84,15 +84,4 @@ export type AggregationFunction = (
   participantIds: number[]
 ) => ParticipantAggregationData[]
 
-export interface ParticipantBarMetrics {
-  dwellTime: number[] // [aoi0, aoi1, ..., noAoi, anyFixation]
-  ttff: number[] // [aoi0, aoi1, ..., noAoi, anyFixation] (-1 if not seen)
-  fixationCount: number[] // [aoi0, aoi1, ..., noAoi, anyFixation]
-  hitRatio: number[] // [aoi0, aoi1, ..., noAoi, anyFixation] (binary 0/1)
-  entryCount: number[] // [aoi0, aoi1, ..., noAoi, anyFixation]
-  dwellDurations: number[][] // [aoi0[], aoi1[], ..., noAoi[], anyFixation[]]
-  firstFixationDuration: number[] // [aoi0, aoi1, ..., noAoi, anyFixation] (-1 if not seen)
-  avgFixationDuration: number[][] // [aoi0[], aoi1[], ..., noAoi[], anyFixation[]]
-  fixationAoiSequence: number[] // AOI index per fixation (unambiguous single-AOI hits only)
-  fixationTimestamps: number[] // segment start time (ms), parallel to fixationAoiSequence
-}
+export type { MetricData as ParticipantBarMetrics } from '$lib/metrics'

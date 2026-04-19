@@ -11,8 +11,7 @@
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { PRESET_PALETTES } from '$lib/color/palettes'
-  import { type MetricInstance } from '$lib/plots/metrics'
-  import MetricInstancePicker from '$lib/plots/metric-correlation/components/MetricInstancePicker.svelte'
+  import { type MetricInstance, MetricSelect } from '$lib/metrics'
   import type { EvolvingMetricsItem, EvolvingMetricsSettings } from '../types'
 
   interface Props {
@@ -83,22 +82,24 @@
   />
 </PaneSection>
 
-<PaneSection title="Metric">
-  <MetricInstancePicker
+<PaneSection title="View">
+  <MetricSelect
+    label="Metric"
+    context="windowed"
     instances={library}
     selectedIds={settings.selectedMetricId !== null ? [settings.selectedMetricId] : []}
     onchange={ids => update({ selectedMetricId: ids.at(-1) ?? null })}
     onrenameInstance={(id, label) => engine.updateMetricInstanceLabel(id, label)}
-    oncreateInstance={(baseId, params, label, windowing) => {
+    oncreateInstance={(baseId, params, label, windowing, replacingId) => {
+      if (replacingId != null) engine.deleteMetricInstance(replacingId)
       const newId = engine.addMetricInstance(baseId, params, label, windowing)
       if (newId >= 0) update({ selectedMetricId: newId })
     }}
-    ondeleteInstance={id => engine.deleteMetricInstance(id)}
-    context="windowed"
+    ondeleteInstance={id => {
+      engine.deleteMetricInstance(id)
+      if (settings.selectedMetricId === id) update({ selectedMetricId: null })
+    }}
   />
-</PaneSection>
-
-<PaneSection title="View">
   <Radio
     ariaLabel="Presentation"
     options={[

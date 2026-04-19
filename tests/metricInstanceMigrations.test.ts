@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { runMigrations } from '../src/lib/data/ingest/workspace/migrations'
-import { createSystemMetricInstances } from '../src/lib/plots/metrics/instances'
+import {
+  createSystemMetricInstances,
+  createDefaultWindowedInstances,
+} from '../src/lib/metrics/instances'
 
 function buildV5File(overrides: {
   enabledMetrics?: unknown
@@ -52,19 +55,22 @@ function buildV5File(overrides: {
   }
 }
 
-describe('V5 → V6 metric-instance migration', () => {
+describe('V5 → V7 metric-instance migration', () => {
   it('seeds metricInstances on metadata when missing', () => {
     const file = buildV5File({ enabledMetrics: [] })
     const migrated = runMigrations(file)
 
-    expect(migrated.version).toBe(6)
+    expect(migrated.version).toBe(7)
     const seeded = migrated.data.metricInstances
     expect(Array.isArray(seeded)).toBe(true)
-    expect(seeded.length).toBe(createSystemMetricInstances().length)
-    expect(seeded.every((i: any) => i.system === true)).toBe(true)
+    const expectedCount =
+      createSystemMetricInstances().length + createDefaultWindowedInstances().length
+    expect(seeded.length).toBe(expectedCount)
+    const systemInstances = seeded.filter((i: any) => i.system === true)
+    expect(systemInstances.length).toBe(createSystemMetricInstances().length)
   })
 
-  it('preserves an existing metricInstances array (idempotent)', () => {
+  it('preserves an existing metricInstances array and adds windowed defaults', () => {
     const file = buildV5File({ enabledMetrics: [] })
     ;(file.data as any).metricInstances = [
       { id: 1, baseId: 'absoluteTime', params: {}, label: 'Renamed', system: true },
@@ -72,8 +78,11 @@ describe('V5 → V6 metric-instance migration', () => {
 
     const migrated = runMigrations(file)
 
+    // V7 migration appends default windowed instances not yet present
+    const windowed = createDefaultWindowedInstances()
     expect(migrated.data.metricInstances).toEqual([
       { id: 1, baseId: 'absoluteTime', params: {}, label: 'Renamed', system: true },
+      ...windowed,
     ])
   })
 

@@ -18,12 +18,11 @@ import {
   getAois,
 } from '$lib/data/engine'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
-import { collectParticipantBarMetrics } from '$lib/plots/bar/core/collector'
-import { computeRqaAoiScalar } from '$lib/plots/metrics/rqaAoiCompute'
-import { computeParticipantScalar } from '$lib/plots/metrics'
-import { reconcileSystemInstances, getMetricDef } from '$lib/plots/metrics'
+import { collectMetricData } from '$lib/metrics/collector'
+import { computeRqaAoiScalar } from '$lib/metrics/rqaAoiCompute'
+import { getMetricDef } from '$lib/metrics/registry'
+import type { MetricData } from '$lib/metrics/types'
 import type { MetricInstance } from '$lib/data/types'
-import type { ParticipantBarMetrics } from '$lib/plots/bar/types'
 import { getEvolvingMetricsXAxisLabel } from '../const'
 import type {
   EvolvingMetricsSettings,
@@ -32,7 +31,6 @@ import type {
 } from '../types'
 
 const MIN_FIXATIONS_RQA = 5
-const RQA_BASE_IDS = new Set(['rqaRec', 'rqaDet', 'rqaLam'])
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -43,25 +41,31 @@ function resolveInstance(
   if (selectedMetricId === null) return null
   const meta = engine.metadata
   if (!meta) return null
-  const library = reconcileSystemInstances(meta.metricInstances ?? [])
-  return library.find(i => i.id === selectedMetricId) ?? null
+  return (meta.metricInstances ?? []).find(i => i.id === selectedMetricId) ?? null
+}
+
+function isRqaInstance(instance: MetricInstance): boolean {
+  return getMetricDef(instance.baseId)?.windowUnit === 'fixations'
 }
 
 function windowDescLabel(instance: MetricInstance): string {
   const w = instance.windowing
   if (!w) return ''
-  const isRqa = RQA_BASE_IDS.has(instance.baseId)
+  const isRqa = isRqaInstance(instance)
   const unit = isRqa ? 'fix' : 'ms'
-  return w.mode === 'sliding'
-    ? `Sliding ${w.windowSize} ${unit}`
-    : `Epoch ${w.windowSize} ${unit}`
+  const modeLabel = w.mode === 'sliding' ? 'Sliding' : 'Epoch'
+  if (!isRqa && w.stepSize != null && w.stepSize !== w.windowSize) {
+    return `${modeLabel} ${w.windowSize}${unit} win / ${w.stepSize}ms step`
+  }
+  return `${modeLabel} ${w.windowSize} ${unit}`
 }
 
-// For epoch non-RQA: bin width = epoch window size.
-// For RQA (fixation-count windows): use 100 ms time bins.
 function deriveStepSize(instance: MetricInstance): number {
-  const isRqa = RQA_BASE_IDS.has(instance.baseId)
-  if (!isRqa && instance.windowing?.mode === 'epoch') return instance.windowing.windowSize
+  const isRqa = isRqaInstance(instance)
+  if (!isRqa) {
+    if (instance.windowing?.stepSize != null) return instance.windowing.stepSize
+    if (instance.windowing?.mode === 'epoch') return instance.windowing.windowSize
+  }
   return 100
 }
 
@@ -69,7 +73,7 @@ function deriveStepSize(instance: MetricInstance): number {
 
 function computeRqaBins(
   instance: MetricInstance,
-  participantMetrics: ParticipantBarMetrics,
+  participantMetrics: MetricData,
   binCount: number,
   stepSize: number,
   timelineMin: number
@@ -77,30 +81,35 @@ function computeRqaBins(
   const seq = participantMetrics.fixationAoiSequence
   const timestamps = participantMetrics.fixationTimestamps
   const W = instance.windowing?.windowSize ?? 20
+  const reduction = instance.windowing?.reduction ?? 'mean'
   const N = seq.length
   const values = new Float32Array(binCount).fill(NaN)
 
   if (N < Math.max(W, MIN_FIXATIONS_RQA)) return values
 
-  // Accumulators for binning (multiple windows may map to the same bin)
-  const sums = new Float64Array(binCount)
-  const counts = new Uint32Array(binCount)
+  const sums = reduction === 'mean' ? new Float64Array(binCount) : null
+  const cnts = reduction === 'mean' ? new Uint32Array(binCount) : null
 
   for (let i = 0; i + W <= N; i++) {
     const sub = seq.slice(i, i + W)
-    const scalar = computeRqaAoiScalar(instance, { fixationAoiSequence: sub } as ParticipantBarMetrics)
+    const scalar = computeRqaAoiScalar(instance, { fixationAoiSequence: sub })
     if (!Number.isFinite(scalar)) continue
 
     const centerTime = timestamps[i + Math.floor(W / 2)]
     const bin = Math.floor((centerTime - timelineMin) / stepSize)
-    if (bin >= 0 && bin < binCount) {
-      sums[bin] += scalar
-      counts[bin]++
+    if (bin < 0 || bin >= binCount) continue
+
+    switch (reduction) {
+      case 'mean':  sums![bin] += scalar; cnts![bin]++; break
+      case 'max':   values[bin] = Number.isNaN(values[bin]) ? scalar : Math.max(values[bin], scalar); break
+      case 'min':   values[bin] = Number.isNaN(values[bin]) ? scalar : Math.min(values[bin], scalar); break
+      case 'final': values[bin] = scalar; break
     }
   }
 
-  for (let i = 0; i < binCount; i++) {
-    if (counts[i] > 0) values[i] = sums[i] / counts[i]
+  if (reduction === 'mean') {
+    for (let i = 0; i < binCount; i++)
+      if (cnts![i] > 0) values[i] = sums![i] / cnts![i]
   }
   return values
 }
@@ -119,6 +128,9 @@ function computeNonRqaBins(
   halfWindowMs: number,
   timelineMin: number
 ): Float32Array {
+  const def = getMetricDef(instance.baseId)
+  if (!def) return new Float32Array(binCount).fill(NaN)
+
   const values = new Float32Array(binCount).fill(NaN)
 
   for (let i = 0; i < binCount; i++) {
@@ -126,14 +138,11 @@ function computeNonRqaBins(
     const wStart = Math.max(0, center - halfWindowMs)
     const wEnd = center + halfWindowMs
 
-    const wMetrics = collectParticipantBarMetrics(
+    const wMetrics = collectMetricData(
       engine, stimulusId, [participantId], aois, wStart, wEnd
     )
     if (!wMetrics[0]) continue
-    const v = computeParticipantScalar(instance, {
-      participantMetrics: wMetrics[0],
-      aoiIndex,
-    })
+    const v = def.compute(wMetrics[0], aoiIndex, instance)
     if (Number.isFinite(v)) values[i] = v
   }
   return values
@@ -154,28 +163,24 @@ export function getEvolvingMetricsData(
   const instance = resolveInstance(engine, settings.selectedMetricId)
   if (!instance) return null
 
-  // Only windowed metrics are valid for the evolving metrics plot
   if (!instance.windowing) return null
 
   const def = getMetricDef(instance.baseId)
   if (!def) return null
 
-  const isRqa = RQA_BASE_IDS.has(instance.baseId)
+  const isRqa = isRqaInstance(instance)
   const { stimulusId, groupId } = settings
   const stepSize = deriveStepSize(instance)
 
-  // Window half-size in ms for non-RQA
   const windowSizeMs = instance.windowing?.windowSize ?? stepSize
   const halfWindowMs = windowSizeMs / 2
 
-  // Participant resolution
   const participantIds = getParticipantsIds(engine, groupId, stimulusId)
   const participantEntities = getParticipants(engine, groupId, stimulusId)
   const numParticipants = participantIds.length
 
   if (numParticipants === 0) return null
 
-  // Timeline bounds
   let maxTime = 0
   for (let i = 0; i < numParticipants; i++) {
     const t = getParticipantEndTime(engine, stimulusId, participantIds[i])
@@ -186,13 +191,11 @@ export function getEvolvingMetricsData(
   const duration = Math.max(1, timelineMax - timelineMin)
   const binCount = Math.max(1, Math.ceil(duration / stepSize))
 
-  // AOI context for non-RQA (whole-stimulus = AnyFixation slot)
   const aois = getAois(engine, stimulusId)
   const aoiIndex = aois.length + 1 // AnyFixation slot
 
-  // Collect per-participant full-trial metrics (for RQA sequence)
-  const fullMetrics: ParticipantBarMetrics[] = isRqa
-    ? collectParticipantBarMetrics(engine, stimulusId, participantIds, aois)
+  const fullMetrics: MetricData[] = isRqa
+    ? collectMetricData(engine, stimulusId, participantIds, aois)
     : []
 
   let valueMin = Infinity
@@ -227,7 +230,7 @@ export function getEvolvingMetricsData(
   const effectiveMaxTime = timelineMin + binCount * stepSize
   const timeline = createAdaptiveTimeline(timelineMin, effectiveMaxTime, 6)
 
-  const xAxisLabel = getEvolvingMetricsXAxisLabel(stepSize, windowDescLabel(instance))
+  const xAxisLabel = getEvolvingMetricsXAxisLabel(windowDescLabel(instance))
   const yAxisLabel = `${def.label} [${def.unit}]`
 
   return {

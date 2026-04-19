@@ -11,8 +11,7 @@ import type {
 import {
   nextInstanceId,
   defaultInstanceLabel,
-  reconcileSystemInstances,
-} from '$lib/plots/metrics/instances'
+} from '$lib/metrics/instances'
 
 export class DataEngine {
   // --- Private Memory (Non-Reactive) ---
@@ -186,7 +185,7 @@ export class DataEngine {
   ): number {
     const meta = this.metadata
     if (!meta) return -1
-    const existing = reconcileSystemInstances(meta.metricInstances ?? [])
+    const existing = meta.metricInstances ?? []
     const id = nextInstanceId(existing)
     const resolvedLabel = label?.trim() || defaultInstanceLabel(baseId, params)
     meta.metricInstances = [
@@ -198,7 +197,7 @@ export class DataEngine {
 
   deleteMetricInstance(id: number): void {
     const meta = this.metadata
-    if (!meta || id < 1000) return
+    if (!meta) return
     meta.metricInstances = (meta.metricInstances ?? []).filter(i => i.id !== id)
   }
 

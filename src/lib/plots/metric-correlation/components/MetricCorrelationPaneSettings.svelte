@@ -18,12 +18,7 @@
     MetricCorrelationItem,
     MetricCorrelationSettings,
   } from '../types'
-  import {
-    createSystemMetricInstances,
-    reconcileSystemInstances,
-    type MetricInstance,
-  } from '$lib/plots/metrics'
-  import MetricInstancePicker from './MetricInstancePicker.svelte'
+  import { type MetricInstance, MetricSelect } from '$lib/metrics'
 
   interface Props {
     item: MetricCorrelationItem
@@ -68,23 +63,10 @@
       : String(settings.selectedAoiId)
   )
 
-  // Windowed instances belong in the evolving metrics plot, not correlation
   const library = $derived<readonly MetricInstance[]>(
-    reconcileSystemInstances(engine.metadata?.metricInstances ?? [])
-      .filter(i => !i.windowing)
+    (engine.metadata?.metricInstances ?? []).filter(i => !i.windowing)
   )
 
-  // Empty selection means "all system instances" — expand so the picker
-  // shows the concrete list the user can manage.
-  const effectiveIds = $derived(
-    settings.enabledMetricIds.length > 0
-      ? settings.enabledMetricIds
-      : library.filter(i => i.system).map(i => i.id)
-  )
-
-  function onrenameInstance(id: number, label: string) {
-    engine.updateMetricInstanceLabel(id, label)
-  }
 </script>
 
 <PaneSection title="Filters" alwaysOpen>
@@ -112,6 +94,28 @@
 </PaneSection>
 
 <PaneSection title="View">
+  <MetricSelect
+    label="Metrics"
+    context="global"
+    instances={library}
+    selectedIds={settings.enabledMetricIds}
+    onchange={ids => update({ enabledMetricIds: ids })}
+    onrenameInstance={(id, label) => engine.updateMetricInstanceLabel(id, label)}
+    oncreateInstance={(baseId, params, label, windowing, replacingId) => {
+      const newId = engine.addMetricInstance(baseId, params, label, windowing)
+      if (newId < 0) return
+      if (replacingId != null) {
+        engine.deleteMetricInstance(replacingId)
+        update({ enabledMetricIds: settings.enabledMetricIds.map(id => id === replacingId ? newId : id) })
+      } else {
+        update({ enabledMetricIds: [...settings.enabledMetricIds, newId] })
+      }
+    }}
+    ondeleteInstance={id => {
+      engine.deleteMetricInstance(id)
+      update({ enabledMetricIds: settings.enabledMetricIds.filter(x => x !== id) })
+    }}
+  />
   <Radio
     ariaLabel="View"
     options={METRIC_CORRELATION_VIEWS.map(v => ({
@@ -125,21 +129,6 @@
       const v = (e as CustomEvent<string>).detail
       if (v === 'heatmap' || v === 'splom') update({ view: v })
     }}
-  />
-</PaneSection>
-
-<PaneSection title="Metrics">
-  <MetricInstancePicker
-    context="global"
-    instances={library}
-    selectedIds={effectiveIds}
-    onchange={ids => update({ enabledMetricIds: ids })}
-    {onrenameInstance}
-    oncreateInstance={(baseId, params, label, windowing) => {
-      const newId = engine.addMetricInstance(baseId, params, label, windowing)
-      if (newId >= 0) update({ enabledMetricIds: [...effectiveIds, newId] })
-    }}
-    ondeleteInstance={(id) => engine.deleteMetricInstance(id)}
   />
 </PaneSection>
 

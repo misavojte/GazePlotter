@@ -1,7 +1,8 @@
 import {
   createSystemMetricInstances,
+  createDefaultWindowedInstances,
   findSystemInstanceIdByBaseId,
-} from '$lib/plots/metrics/instances'
+} from '$lib/metrics/instances'
 import { LEGACY_VISUALIZATION_TYPES } from '$lib/plots/registry'
 
 const CORE_LAYOUT_KEYS = new Set([
@@ -213,6 +214,7 @@ export function runMigrations(parsedJson: any): any {
     }
 
     data = { ...data, version: 5, data: payload }
+    version = 5
   }
 
   // V5 to V6: Seed metric instances on metadata and translate
@@ -252,6 +254,22 @@ export function runMigrations(parsedJson: any): any {
     }
 
     data = { ...data, version: 6, data: payload }
+    version = 6
+  }
+
+  // V6 to V7: Seed default windowed metric instances
+  if (version === 6) {
+    const payload = data.data
+    const windowed = createDefaultWindowedInstances()
+    const existing: any[] = Array.isArray(payload.metricInstances)
+      ? payload.metricInstances
+      : []
+    const existingIds = new Set(existing.map((i: any) => i.id))
+    for (const w of windowed) {
+      if (!existingIds.has(w.id)) existing.push(w)
+    }
+    payload.metricInstances = existing
+    data = { ...data, version: 7, data: payload }
   }
 
   // Version-independent normalization: rewrite any legacy gridItem `type`

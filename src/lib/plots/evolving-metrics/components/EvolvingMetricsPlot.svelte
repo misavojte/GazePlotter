@@ -57,7 +57,7 @@
   })
 </script>
 
-<BasePlot {item} hasData={!!resultData}>
+<BasePlot {item} hasData={!!resultData} unavailableMessage={settings.selectedMetricId === null ? 'Select a metric in the settings panel' : null}>
   {#snippet figure({ width, height })}
     {#if resultData}
       <EvolvingMetricsFigure

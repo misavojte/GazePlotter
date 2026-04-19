@@ -1,14 +1,12 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import { getAois, getParticipantsIds } from '$lib/data/engine'
-import { collectParticipantBarMetrics } from '$lib/plots/bar/core/collector'
+import { collectMetricData } from '$lib/metrics/collector'
 import { WHOLE_STIMULUS_AOI_LABEL } from '../const'
 import {
-  computeParticipantScalar,
-  createSystemMetricInstances,
   getMetricDef,
+  queryMetric,
   type MetricInstance,
-} from '$lib/plots/metrics'
-import { computeWindowedScalar } from '$lib/plots/metrics/windowed'
+} from '$lib/metrics'
 import type {
   CorrelationCell,
   CorrelationPoint,
@@ -24,11 +22,6 @@ interface BuildOptions {
   includePoints: boolean
 }
 
-/**
- * Correlates metrics across participants at a single scope (either one AOI
- * or the whole stimulus via the AnyFixation slot). No other scopes are
- * supported on purpose — see MetricCorrelationSettings for the rationale.
- */
 export function getMetricCorrelationData(
   engine: DataEngine,
   settings: MetricCorrelationSettings,
@@ -57,7 +50,7 @@ export function getMetricCorrelationData(
     return emptyResult(settings, scope.kind, scope.label, scope.aoiId)
   }
 
-  const participantMetrics = collectParticipantBarMetrics(
+  const participantMetrics = collectMetricData(
     engine,
     settings.stimulusId,
     participantIds,
@@ -79,16 +72,19 @@ export function getMetricCorrelationData(
   for (let p = 0; p < participantMetrics.length; p++) {
     for (let mIdx = 0; mIdx < metrics.length; mIdx++) {
       const inst = instances[mIdx]
-      vectors[mIdx].values[p] = inst.windowing
-        ? computeWindowedScalar(
-            inst, participantMetrics[p], scopeIndex,
-            settings.timelineStart ?? 0, settings.timelineEnd ?? 0,
-            engine, settings.stimulusId, participantIds[p], aois
-          )
-        : computeParticipantScalar(inst, {
-            participantMetrics: participantMetrics[p],
-            aoiIndex: scopeIndex,
-          })
+      vectors[mIdx].values[p] = queryMetric(
+        engine,
+        inst,
+        {
+          stimulusId: settings.stimulusId,
+          participantId: participantIds[p],
+          aoiIndex: scopeIndex,
+          timeStart: settings.timelineStart ?? 0,
+          timeEnd: settings.timelineEnd ?? 0,
+        },
+        aois,
+        participantMetrics[p]
+      )
     }
   }
 
@@ -119,19 +115,11 @@ function resolveMetrics(
   enabledIds: number[],
   workspaceInstances: readonly MetricInstance[] | undefined
 ): { metrics: MetricDescriptor[]; instances: MetricInstance[] } {
-  const library: readonly MetricInstance[] =
-    workspaceInstances && workspaceInstances.length > 0
-      ? workspaceInstances
-      : createSystemMetricInstances()
+  const library: readonly MetricInstance[] = workspaceInstances ?? []
 
-  // Empty selection means "all system instances" — preserves the old
-  // unconfigured-means-all behavior.
-  const selected: MetricInstance[] =
-    enabledIds.length === 0
-      ? library.filter(i => i.system)
-      : enabledIds
-          .map(id => library.find(i => i.id === id))
-          .filter((i): i is MetricInstance => !!i)
+  const selected: MetricInstance[] = enabledIds
+    .map(id => library.find(i => i.id === id))
+    .filter((i): i is MetricInstance => !!i)
 
   const metrics: MetricDescriptor[] = []
   const instances: MetricInstance[] = []
@@ -157,8 +145,6 @@ function resolveScope(
   }
   const aoiIndex = aois.findIndex(a => a.id === selectedAoiId)
   if (aoiIndex < 0) {
-    // Stale id from a previous stimulus — fall back to whole stimulus so
-    // the plot stays valid instead of silently picking a different AOI.
     return { kind: 'wholeStimulus', label: WHOLE_STIMULUS_AOI_LABEL }
   }
   return {

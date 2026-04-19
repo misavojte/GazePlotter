@@ -8,7 +8,7 @@
 
 import type { DataType } from '$lib/data/types'
 import { DEFAULT_NO_AOI_TREATMENT } from '$lib/data/types'
-import { createSystemMetricInstances } from '$lib/plots/metrics/instances'
+import { createSystemMetricInstances } from '$lib/metrics/instances'
 
 const REQUIRED_COLUMNS = [
   'stimulus',

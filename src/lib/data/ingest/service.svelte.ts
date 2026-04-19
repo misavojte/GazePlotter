@@ -20,7 +20,7 @@ import type { ErrorService } from '$lib/errors'
 import { formatDuration } from '$lib/shared/utils/timeUtils'
 import { formatFileSize } from '$lib/shared/utils/fileUtils'
 import type { DataType, ParsedData } from '$lib/data/types'
-import { createSystemMetricInstances } from '$lib/plots/metrics/instances'
+import { createDefaultMetricInstances } from '$lib/metrics/instances'
 import type {
   EyeSettingsType,
   FileInputType,
@@ -61,7 +61,7 @@ const EMPTY_DATASET: DataType = {
   stimuli: { data: [], orderVector: [] },
   participants: { data: [], orderVector: [] },
   participantsGroups: [],
-  metricInstances: createSystemMetricInstances(),
+  metricInstances: createDefaultMetricInstances(),
   categories: { data: [], orderVector: [] },
   noAoiTreatment: {
     color: '#cbd5e1',
