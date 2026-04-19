@@ -64,12 +64,6 @@
       .filter((i): i is MetricInstance => !!i)
   )
 
-  const pairCount = $derived(
-    activeInstances.length < 2
-      ? 0
-      : (activeInstances.length * (activeInstances.length - 1)) / 2
-  )
-
   type PaletteGroup = {
     key: string
     label: string
@@ -293,13 +287,6 @@
       <button class="add" type="button" onclick={() => (paletteOpen = true)}>
         <Plus size={12} /> Add metric
       </button>
-      {#if activeInstances.length > 0}
-        <span class="counter">
-          {activeInstances.length} selected{activeInstances.length >= 2
-            ? ` · ${pairCount} pairs`
-            : ''}
-        </span>
-      {/if}
     </div>
   {:else}
     <!-- Palette (library view) -->
@@ -605,9 +592,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-top: 1px solid var(--c-grey);
-    padding-top: 6px;
-    margin-top: 2px;
+    padding-top: 4px;
   }
 
   .add {
@@ -624,11 +609,6 @@
     border-radius: var(--rounded);
   }
   .add:hover { color: var(--c-text); background: var(--c-lightgrey); }
-
-  .counter {
-    font-size: 11px;
-    color: var(--c-darkgrey);
-  }
 
   /* ── Palette header ── */
 

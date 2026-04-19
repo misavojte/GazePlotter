@@ -110,8 +110,8 @@
       style="top: {contentTop}px; max-height: calc(100vh - {contentTop}px);"
     >
       <PaneHeader {title} onClose={close} />
-      <PaneQuickActions item={paneItem} />
       <div class="body">
+        <PaneQuickActions item={paneItem} />
         <PaneSettings item={paneItem} />
       </div>
     </div>
