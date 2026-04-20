@@ -17,17 +17,19 @@ defineMetric({
     'In fixation mode every consecutive pair counts; in visit mode only actual AOI changes count.',
   unit: 'count',
   category: 'transition',
-  outputShape: 'aoi-pair-matrix',
+  rawShape: 'aoi-pair-matrix',
   windowUnit: 'ms',
-  computationModes: ['global', 'epoch', 'sliding'],
   groupAggregation: 'sum',
-  defaultParamSets: [{ mode: 'fixation' }, { mode: 'visit' }],
   defaultLabel: (p) =>
     p.mode === 'visit'
       ? 'Transition count (visit changes)'
       : 'Transition count (fixation pairs)',
   searchTags: ['transition', 'matrix', 'pair', 'aoi', 'count', 'sequence', 'markov'],
   params,
+  starterInstances: [
+    { params: { mode: 'fixation' } },
+    { params: { mode: 'visit' } },
+  ],
   init: ({ slots }) => initTransitionAcc(slots.totalSlots),
   onFixation: (acc, fix, { params: p }) => {
     processFixation(acc, fix, p.mode, (cellIdx) => { acc.matrix[cellIdx]++ })

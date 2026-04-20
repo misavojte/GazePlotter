@@ -56,13 +56,13 @@
 <PaneSection title="View">
   <MetricSelect
     label="Metrics"
-    context={metricCorrelationDefinition.consumesMetrics!}
+    contract={metricCorrelationDefinition.consumesMetrics!}
     instances={engine.metadata?.metricInstances ?? []}
     selectedIds={settings.enabledMetricIds}
     onchange={ids => update({ enabledMetricIds: ids })}
     onrenameInstance={(id, label) => engine.updateMetricInstanceLabel(id, label)}
-    oncreateInstance={(baseId, params, label, windowing, replacingId, projection) => {
-      const newId = engine.addMetricInstance(baseId, params, label, windowing, projection)
+    oncreateInstance={(baseId, params, label, projection, replacingId) => {
+      const newId = engine.addMetricInstance(baseId, params, label, projection)
       if (newId < 0) return
       if (replacingId != null) {
         engine.deleteMetricInstance(replacingId)

@@ -5,10 +5,13 @@ import { resolveParams } from './params'
 import { getRecipe } from './defineMetric'
 import {
   applyProjection,
-  computeEffectiveShape,
+  leafOf,
+  PROJECTION_LEAVES,
+  projectionOutputShape,
   type Projection,
+  type WindowedProjection,
 } from './projection'
-import type { AoiSlotInfo, FixationEvent, MetricRecipe, OutputShape, Reduction, WindowingConfig } from './dsl'
+import type { AoiSlotInfo, MetricRecipe, OutputShape } from './dsl'
 import type { MetricInstance } from '../instances'
 
 export interface Scope {
@@ -22,75 +25,43 @@ export interface Scope {
 const _cache = new WeakMap<DataEngine, Map<string, number[]>>()
 
 /**
- * Core compute path. Returns a raw number[] matching the recipe's finalize shape:
- *  - scalar         → [value]
- *  - aoi-vector     → [v0, v1, …, vNoAoi, vAnyFix]
- *  - aoi-pair-matrix → flattened row-major matrix
- * Consumers should use `query()` in `../query.ts` for typed results.
+ * Scalar / vector / matrix result for a single metric instance over a scope.
+ * `timeline` is populated only when `shape === 'scalar-timeseries'` and
+ * contains window start times (ms for time-windowed, fixation indices for
+ * fixation-windowed).
  */
-export function runRecipe(recipe: MetricRecipe<any, any>, instance: MetricInstance, scope: Scope): number[] {
-  const timeStart = scope.timeStart ?? 0
-  const timeEnd = scope.timeEnd ?? 0
-
-  if (instance.windowing) {
-    if (recipe.windowUnit === 'fixations') {
-      return runFixationWindowed(recipe, instance, instance.windowing, scope, timeStart, timeEnd)
-    }
-    return runTimeWindowed(recipe, instance, instance.windowing, scope, timeStart, timeEnd)
-  }
-
-  return runSingleWindow(recipe, instance, scope, timeStart, timeEnd)
-}
-
-/** Convenience bridge used by consumers via MetricInstance.baseId. Returns [] if id not found. */
-export function runMetric(instance: MetricInstance, scope: Scope): number[] {
-  const recipe = getRecipe(instance.baseId)
-  if (!recipe) return []
-  return runRecipe(recipe, instance, scope)
+export interface ProjectedResult {
+  shape: OutputShape
+  values: number[]
+  aoiMissing: boolean
+  timeline?: number[]
 }
 
 /**
- * Run the recipe and apply the instance's projection. Returns the projected
- * values along with the *effective* shape the consumer should treat them as.
- * When `instance.projection` is absent or identity, this is equivalent to
- * `runRecipe` wrapped with the recipe's raw shape.
+ * Run an instance's recipe and apply its projection. Single entry point for
+ * consumers; dispatches on projection.kind (leaf vs windowed).
  */
-export interface ProjectedResult {
-  values: number[]
-  effectiveShape: OutputShape
-  rawShape: OutputShape
-  aoiMissing: boolean
-}
-
 export function runProjected(instance: MetricInstance, scope: Scope): ProjectedResult | null {
   const recipe = getRecipe(instance.baseId)
   if (!recipe) return null
-  const raw = runRecipe(recipe, instance, scope)
-  return projectRawOutput(raw, recipe.outputShape, instance.projection, scope)
+  const p = instance.projection
+
+  if (p.kind !== 'windowed') {
+    const raw = runSingleWindow(recipe, instance, scope, scope.timeStart ?? 0, scope.timeEnd ?? 0)
+    const out = applyProjection(p, { aoiNames: getAoiNames(scope), rawValues: raw })
+    return {
+      shape: projectionOutputShape(p),
+      values: out.values,
+      aoiMissing: out.aoiMissing,
+    }
+  }
+
+  return runWindowed(recipe, instance, scope, p)
 }
 
-export function projectRawOutput(
-  raw: number[],
-  rawShape: OutputShape,
-  projection: Projection | undefined,
-  scope: Scope
-): ProjectedResult {
-  const aoiNames = getAoiNames(scope)
-  const { values, aoiMissing } = applyProjection(raw, rawShape, projection, { aoiNames })
-  return {
-    values,
-    effectiveShape: computeEffectiveShape(rawShape, projection),
-    rawShape,
-    aoiMissing,
-  }
-}
-
-function getAoiNames(scope: Scope): string[] {
-  try {
-    return getAois(scope.engine, scope.stimulusId).map(a => a.displayedName)
-  } catch {
-    return []
-  }
+/** Raw finalize output for the recipe — no projection. Used by scanner batch path. */
+export function runRaw(recipe: MetricRecipe<any, any>, instance: MetricInstance, scope: Scope): number[] {
+  return runSingleWindow(recipe, instance, scope, scope.timeStart ?? 0, scope.timeEnd ?? 0)
 }
 
 export function runIndividuals(
@@ -106,6 +77,87 @@ export function runIndividuals(
   // individuals inspects the accumulator.
   recipe.finalize(out.acc, out.slots, { params: out.params, slots: out.slots })
   return recipe.individuals(out.acc, slotIndex)
+}
+
+// ─── Windowed dispatch ────────────────────────────────────────────────────────
+
+function runWindowed(
+  recipe: MetricRecipe<any, any>,
+  instance: MetricInstance,
+  scope: Scope,
+  p: WindowedProjection,
+): ProjectedResult {
+  return recipe.windowUnit === 'fixations'
+    ? runFixationWindowed(recipe, instance, scope, p)
+    : runTimeWindowed(recipe, instance, scope, p)
+}
+
+function runTimeWindowed(
+  recipe: MetricRecipe<any, any>,
+  instance: MetricInstance,
+  scope: Scope,
+  p: WindowedProjection,
+): ProjectedResult {
+  const { window, inner } = p
+  const tStart = scope.timeStart ?? 0
+  const tEnd = scope.timeEnd ?? 0
+  if (tEnd <= tStart) return { shape: 'scalar-timeseries', values: [], aoiMissing: false, timeline: [] }
+
+  const step = window.mode === 'epoch' ? window.windowSize : (window.stepSize ?? window.windowSize)
+  const values: number[] = []
+  const timeline: number[] = []
+  const aoiNames = getAoiNames(scope)
+  let aoiMissing = false
+
+  for (let wStart = tStart; wStart + window.windowSize <= tEnd; wStart += step) {
+    const raw = runSingleWindow(recipe, instance, scope, wStart, wStart + window.windowSize)
+    const out = applyProjection(inner, { aoiNames, rawValues: raw })
+    if (out.aoiMissing) aoiMissing = true
+    values.push(out.values[0] ?? Number.NaN)
+    timeline.push(wStart)
+  }
+  return { shape: 'scalar-timeseries', values, aoiMissing, timeline }
+}
+
+function runFixationWindowed(
+  recipe: MetricRecipe<any, any>,
+  instance: MetricInstance,
+  scope: Scope,
+  p: WindowedProjection,
+): ProjectedResult {
+  // Fixation-windowed recipes slice the accumulator directly. The inner leaf
+  // must be identity-scalar (enforced by registry + validator), so the per-window
+  // scalar is just `windowedFinalize(acc, from, to)` wrapped into ApplyResult.
+  if (!recipe.windowedFinalize) {
+    throw new Error(`[metrics] recipe ${recipe.id} uses windowUnit 'fixations' but defines no windowedFinalize hook`)
+  }
+  // Registry guarantees: wrapper's inner is always scalar, and fixation-windowed
+  // recipes have rawShape === 'scalar'. Only identity-scalar is compatible.
+  if (p.inner.kind !== 'identity-scalar') {
+    throw new Error(`[metrics] fixation-windowed recipe ${recipe.id} requires identity-scalar inner, got ${p.inner.kind}`)
+  }
+
+  const out = scanAccumulator(recipe, instance, scope, scope.timeStart ?? 0, scope.timeEnd ?? 0)
+  if (!out) return { shape: 'scalar-timeseries', values: [], aoiMissing: false, timeline: [] }
+  const acc: any = out.acc
+  const seq: number[] | undefined = acc?.seq
+  if (!Array.isArray(seq)) {
+    throw new Error(`[metrics] recipe ${recipe.id} with windowUnit 'fixations' must accumulate into { seq: number[] }`)
+  }
+
+  const N = seq.length
+  const { mode, windowSize, stepSize } = p.window
+  const step = mode === 'epoch' ? windowSize : (stepSize ?? 1)
+  if (N < windowSize) return { shape: 'scalar-timeseries', values: [], aoiMissing: false, timeline: [] }
+
+  const values: number[] = []
+  const timeline: number[] = []
+  const ctx = { params: out.params, slots: out.slots }
+  for (let start = 0; start + windowSize <= N; start += step) {
+    values.push(recipe.windowedFinalize!(out.acc, start, start + windowSize, ctx))
+    timeline.push(start)
+  }
+  return { shape: 'scalar-timeseries', values, aoiMissing: false, timeline }
 }
 
 // ─── Internals ────────────────────────────────────────────────────────────────
@@ -126,69 +178,6 @@ function runSingleWindow(
   const result = recipe.finalize(out.acc, out.slots, { params: out.params, slots: out.slots })
   cacheSet(scope.engine, scope, instance, timeStart, timeEnd, result)
   return result
-}
-
-function runTimeWindowed(
-  recipe: MetricRecipe<any, any>,
-  instance: MetricInstance,
-  windowing: WindowingConfig,
-  scope: Scope,
-  timeStart: number,
-  timeEnd: number,
-): number[] {
-  const { mode, windowSize, stepSize, reduction } = windowing
-  if (timeEnd <= timeStart) return []
-  const step = mode === 'epoch' ? windowSize : (stepSize ?? windowSize)
-  const perWindow: number[][] = []
-  for (let wStart = timeStart; wStart + windowSize <= timeEnd; wStart += step) {
-    perWindow.push(runSingleWindow(recipe, instance, scope, wStart, wStart + windowSize))
-  }
-  if (perWindow.length === 0) return []
-  const slotCount = perWindow[0].length
-  const result = new Array<number>(slotCount)
-  for (let s = 0; s < slotCount; s++) {
-    result[s] = reduceScalars(perWindow.map(w => w[s] ?? Number.NaN), reduction)
-  }
-  return result
-}
-
-function runFixationWindowed(
-  recipe: MetricRecipe<any, any>,
-  instance: MetricInstance,
-  windowing: WindowingConfig,
-  scope: Scope,
-  timeStart: number,
-  timeEnd: number,
-): number[] {
-  if (!recipe.windowedFinalize) {
-    throw new Error(`[metrics] recipe ${recipe.id} uses windowUnit 'fixations' but defines no windowedFinalize hook`)
-  }
-  const out = scanAccumulator(recipe, instance, scope, timeStart, timeEnd)
-  if (!out) return []
-  const acc: any = out.acc
-  const seq: number[] | undefined = acc?.seq
-  if (!Array.isArray(seq)) {
-    throw new Error(`[metrics] recipe ${recipe.id} with windowUnit 'fixations' must accumulate into { seq: number[] }`)
-  }
-  const N = seq.length
-  const { mode, windowSize, stepSize, reduction } = windowing
-  const step = mode === 'epoch' ? windowSize : (stepSize ?? 1)
-  if (N < windowSize) {
-    return fillOutputShape(recipe.outputShape, Number.NaN, out.slots)
-  }
-  const scalars: number[] = []
-  const ctx = { params: out.params, slots: out.slots }
-  for (let start = 0; start + windowSize <= N; start += step) {
-    scalars.push(recipe.windowedFinalize!(out.acc, start, start + windowSize, ctx))
-  }
-  const reduced = reduceScalars(scalars, reduction)
-  return fillOutputShape(recipe.outputShape, reduced, out.slots)
-}
-
-function fillOutputShape(shape: MetricRecipe<any, any>['outputShape'], value: number, slots: AoiSlotInfo): number[] {
-  if (shape === 'scalar') return [value]
-  if (shape === 'aoi-vector') return new Array<number>(slots.totalSlots).fill(value)
-  return new Array<number>((slots.totalSlots - 2 + 1) ** 2).fill(value)
 }
 
 export function scanAccumulator(
@@ -231,6 +220,14 @@ export function scanAccumulator(
   return { acc, slots, params }
 }
 
+function getAoiNames(scope: Scope): string[] {
+  try {
+    return getAois(scope.engine, scope.stimulusId).map(a => a.displayedName)
+  } catch {
+    return []
+  }
+}
+
 // ─── Cache (per-engine, keyed on baseId+params+time range) ────────────────────
 
 function cacheKey(instance: MetricInstance, scope: Scope, tStart: number, tEnd: number): string {
@@ -256,16 +253,6 @@ function cacheSet(engine: DataEngine, scope: Scope, instance: MetricInstance, tS
   map.set(cacheKey(instance, scope, tStart, tEnd), value)
 }
 
-// ─── Reduction ────────────────────────────────────────────────────────────────
-
-function reduceScalars(values: readonly number[], method: Reduction): number {
-  const valid: number[] = []
-  for (const v of values) if (Number.isFinite(v)) valid.push(v)
-  if (valid.length === 0) return Number.NaN
-  switch (method) {
-    case 'mean':  { let s = 0; for (const v of valid) s += v; return s / valid.length }
-    case 'max':   { let m = valid[0]; for (let i = 1; i < valid.length; i++) if (valid[i] > m) m = valid[i]; return m }
-    case 'min':   { let m = valid[0]; for (let i = 1; i < valid.length; i++) if (valid[i] < m) m = valid[i]; return m }
-    case 'final': return valid[valid.length - 1]
-  }
-}
+// Re-export PROJECTION_LEAVES and leafOf so runtime consumers can peek.
+export { PROJECTION_LEAVES, leafOf }
+export type { Projection }

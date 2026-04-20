@@ -63,7 +63,7 @@ describe('V5 → V8 metric-instance migration', () => {
     const file = buildV5File({ enabledMetrics: [] })
     const migrated = runMigrations(file)
 
-    expect(migrated.version).toBe(9)
+    expect(migrated.version).toBe(10)
     const seeded = migrated.data.metricInstances
     expect(Array.isArray(seeded)).toBe(true)
     const expectedCount =
@@ -86,8 +86,9 @@ describe('V5 → V8 metric-instance migration', () => {
 
     const windowed = createDefaultWindowedInstances()
     const pairs = createDefaultAoiPairInstances()
+    // V9 → V10 fills in the identity projection for the pre-existing bare instance.
     expect(migrated.data.metricInstances).toEqual([
-      { id: 1, baseId: 'absoluteTime', params: {}, label: 'Renamed', system: true },
+      { id: 1, baseId: 'absoluteTime', params: {}, label: 'Renamed', system: true, projection: { kind: 'identity-aoi-vector' } },
       ...windowed,
       ...pairs,
     ])
@@ -204,7 +205,7 @@ describe('V7 → V8 transition-matrix settings migration', () => {
 
   it('drops aggregationMethod + old display/step fields on migrated settings', () => {
     const m = runMigrations(buildV7TransitionMatrixFile('sum'))
-    expect(m.version).toBe(9)
+    expect(m.version).toBe(10)
     const s = m.gridItems[0].settings
     expect(s.aggregationMethod).toBeUndefined()
     expect(s.display).toBeUndefined()
@@ -306,7 +307,7 @@ describe('V8 → V9 bar-plot settings migration', () => {
   }
 
   it('bumps version to 9', () => {
-    expect(runMigrations(buildV8BarPlotFile('absoluteTime')).version).toBe(9)
+    expect(runMigrations(buildV8BarPlotFile('absoluteTime')).version).toBe(10)
   })
 
   it('drops aggregationMethod from migrated settings', () => {
@@ -348,9 +349,9 @@ describe('V8 → V9 bar-plot settings migration', () => {
 
 describe('resolveInstanceWithFallback — referential integrity', () => {
   const library: MetricInstance[] = [
-    { id: 50, baseId: 'transitionCount', params: { mode: 'fixation' }, label: 'TC fix',   system: true },
-    { id: 51, baseId: 'transitionCount', params: { mode: 'visit' },    label: 'TC visit', system: true },
-    { id: 100, baseId: 'transitionCount', params: { mode: 'fixation' }, label: 'Custom' },
+    { id: 50,  baseId: 'transitionCount', params: { mode: 'fixation' }, label: 'TC fix',   system: true, projection: { kind: 'identity-aoi-pair-matrix' } },
+    { id: 51,  baseId: 'transitionCount', params: { mode: 'visit' },    label: 'TC visit', system: true, projection: { kind: 'identity-aoi-pair-matrix' } },
+    { id: 100, baseId: 'transitionCount', params: { mode: 'fixation' }, label: 'Custom',                projection: { kind: 'identity-aoi-pair-matrix' } },
   ]
 
   it('returns the direct instance when its id exists', () => {

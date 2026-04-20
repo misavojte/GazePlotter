@@ -23,9 +23,8 @@ defineMetric({
     'duration of the preceding visit (consecutive same-AOI fixations merged).',
   unit: 'ms',
   category: 'transition',
-  outputShape: 'aoi-pair-matrix',
+  rawShape: 'aoi-pair-matrix',
   windowUnit: 'ms',
-  computationModes: ['global', 'epoch', 'sliding'],
   groupAggregation: 'sum',
   defaultLabel: (p) =>
     p.mode === 'visit'

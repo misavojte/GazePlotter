@@ -81,14 +81,14 @@
 <PaneSection title="View">
   <MetricSelect
     label="Metric"
-    context={evolvingMetricsDefinition.consumesMetrics!}
+    contract={evolvingMetricsDefinition.consumesMetrics!}
     instances={engine.metadata?.metricInstances ?? []}
     selectedIds={settings.selectedMetricId !== null ? [settings.selectedMetricId] : []}
     onchange={ids => update({ selectedMetricId: ids.at(-1) ?? null })}
     onrenameInstance={(id, label) => engine.updateMetricInstanceLabel(id, label)}
-    oncreateInstance={(baseId, params, label, windowing, replacingId, projection) => {
+    oncreateInstance={(baseId, params, label, projection, replacingId) => {
       if (replacingId != null) engine.deleteMetricInstance(replacingId)
-      const newId = engine.addMetricInstance(baseId, params, label, windowing, projection)
+      const newId = engine.addMetricInstance(baseId, params, label, projection)
       if (newId >= 0) update({ selectedMetricId: newId })
     }}
     ondeleteInstance={id => {

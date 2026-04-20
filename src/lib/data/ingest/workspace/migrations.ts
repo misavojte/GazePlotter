@@ -3,7 +3,12 @@ import {
   createDefaultWindowedInstances,
   createDefaultAoiPairInstances,
   findSystemInstanceIdByBaseId,
-} from '$lib/metrics/instances'
+  identityFor,
+} from '$lib/metrics'
+import { PROJECTION_LEAVES } from '$lib/metrics'
+import { getRecipe } from '$lib/metrics/core/defineMetric'
+import type { LeafProjection, Projection, WindowSpec } from '$lib/metrics'
+import type { OutputShape } from '$lib/metrics'
 import { LEGACY_VISUALIZATION_TYPES } from '$lib/plots/registry'
 
 const CORE_LAYOUT_KEYS = new Set([
@@ -382,6 +387,22 @@ export function runMigrations(parsedJson: any): any {
     version = 9
   }
 
+  // V9 to V10: fold legacy `windowing` field + old `{target, from}` projection
+  // shape into the unified `Projection` tree (LeafProjection | WindowedProjection).
+  // See feedback_no_legacy_remnants — no compat shim in the runtime, only in the
+  // migration itself. Lossy cases (bare-windowed aoi-vector / aoi-pair-matrix)
+  // degrade to `aggregate-aoi`/`matrix-aggregate` with reducer 'mean' and a warn.
+  if (version === 9) {
+    const payload = data.data
+    if (Array.isArray(payload.metricInstances)) {
+      payload.metricInstances = payload.metricInstances.map((inst: any) =>
+        migrateMetricInstanceV9toV10(inst),
+      )
+    }
+    data = { ...data, version: 10, data: payload }
+    version = 10
+  }
+
   // Version-independent normalization: rewrite any legacy gridItem `type`
   // keys (e.g. capital-T 'TransitionMatrix' → 'transitionMatrix') to the
   // current registry key. Runs on every load — including already-current
@@ -399,4 +420,62 @@ export function runMigrations(parsedJson: any): any {
   }
 
   return data
+}
+
+function migrateMetricInstanceV9toV10(inst: any): any {
+  // Already in the new format → pass through.
+  if (inst?.projection && typeof inst.projection.kind === 'string') return inst
+
+  const recipe = getRecipe(inst.baseId)
+  const rawShape: OutputShape = recipe?.rawShape ?? 'aoi-vector'
+
+  let innerLeaf: LeafProjection = inst.projection
+    ? translateOldLeaf(inst.projection, rawShape)
+    : identityFor(rawShape)
+
+  const old = inst.windowing
+  if (!old) {
+    const { projection: _dropP, windowing: _dropW, ...rest } = inst
+    return { ...rest, projection: innerLeaf }
+  }
+
+  const window: WindowSpec = {
+    mode: old.mode === 'sliding' ? 'sliding' : 'epoch',
+    windowSize: Number(old.windowSize) || 1,
+    ...(typeof old.stepSize === 'number' ? { stepSize: old.stepSize } : {}),
+  }
+
+  const leafOutput = PROJECTION_LEAVES[innerLeaf.kind].outputShape
+  if (leafOutput !== 'scalar') {
+    console.warn(
+      `[migration V9→V10] Metric instance "${inst.label ?? inst.baseId}" was a bare-windowed ${rawShape} metric; migrating lossy to aggregate-mean. Re-create with an explicit reducer in the library modal.`,
+    )
+    if (rawShape === 'aoi-vector') innerLeaf = { kind: 'aggregate-aoi', reducer: 'mean' }
+    else if (rawShape === 'aoi-pair-matrix') innerLeaf = { kind: 'matrix-aggregate', reducer: 'mean' }
+    else innerLeaf = { kind: 'identity-scalar' }
+  }
+
+  const projection: Projection = { kind: 'windowed', window, inner: innerLeaf }
+  const { projection: _dropP, windowing: _dropW, ...rest } = inst
+  return { ...rest, projection }
+}
+
+function translateOldLeaf(old: any, rawShape: OutputShape): LeafProjection {
+  const target: string | undefined = old?.target
+  const from:   string | undefined = old?.from
+  if (target === 'scalar'          && from === 'identity') return { kind: 'identity-scalar' }
+  if (target === 'aoi-vector'      && from === 'identity') return { kind: 'identity-aoi-vector' }
+  if (target === 'aoi-pair-matrix' && from === 'identity') return { kind: 'identity-aoi-pair-matrix' }
+  if (from === 'pick-aoi')         return { kind: 'pick-aoi',         aoiRef:  old.aoiRef }
+  if (from === 'aggregate-aoi')    return { kind: 'aggregate-aoi',    reducer: old.reducer }
+  if (from === 'matrix-diagonal')  return { kind: 'matrix-diagonal' }
+  if (from === 'matrix-row')       return { kind: 'matrix-row',       aoiRef:  old.aoiRef }
+  if (from === 'matrix-col')       return { kind: 'matrix-col',       aoiRef:  old.aoiRef }
+  if (from === 'matrix-cell')      return { kind: 'matrix-cell',      fromAoi: old.fromAoi, toAoi: old.toAoi }
+  if (from === 'matrix-aggregate') return {
+    kind: 'matrix-aggregate',
+    reducer: old.reducer,
+    ...(old.exclude === 'diagonal' ? { exclude: 'diagonal' as const } : {}),
+  }
+  return identityFor(rawShape)
 }

@@ -48,7 +48,7 @@ function createMockEngine(segments: number[][][][]) {
 const STIM = 1
 
 function inst(baseId: string): MetricInstance {
-  return { id: 0, baseId, params: {}, label: '' }
+  return { id: 0, baseId, params: {}, label: '', projection: { kind: 'identity-aoi-vector' } }
 }
 
 function scope(engine: any, participantId: number, tStart = 0, tEnd = 0): Scope {
@@ -58,7 +58,8 @@ function scope(engine: any, participantId: number, tStart = 0, tEnd = 0): Scope 
 function values(result: ReturnType<typeof query>): number[] {
   if (result.shape === 'aoi-vector') return result.values
   if (result.shape === 'scalar') return [result.value]
-  return result.matrix
+  if (result.shape === 'aoi-pair-matrix') return result.matrix
+  return result.values
 }
 
 describe('Metric definitions — segment data collection', () => {

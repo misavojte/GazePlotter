@@ -1,15 +1,16 @@
 /**
- * Transformer for evolving metrics data.
+ * Transformer for evolving-metrics data.
  *
- * The metric instance drives both WHAT is computed and HOW the window is sized:
- * - Sequence metrics (windowUnit 'fixations', e.g. RQA): per W-fixation window,
- *   compute the scalar via the metric's own selector and map to the time grid
- *   using fixation timestamps.
- * - Other metrics: time-based window. At each bin the metric is queried over
- *   `[center - halfWindow, center + halfWindow]` via the DSL's `query()`.
+ * Relies on the metrics runtime for windowing: `query()` on a windowed instance
+ * returns `{shape: 'scalar-timeseries', values, timeline}`. The transformer's
+ * only job is to re-bin that timeseries onto the plot's ms grid:
  *
- * Instances with no windowing config use stepSize as the window (tumbling bins).
- * Empty bins are NaN — the renderer shows these as a distinct "no data" colour.
+ *   - Time-windowed metrics: `timeline` is ms start-of-window — each value
+ *     slots into the corresponding bin.
+ *   - Fixation-windowed metrics: `timeline` is fix-index start-of-window —
+ *     the bin is looked up via the participant's fixation-timestamp sequence.
+ *     When multiple windows fall in the same bin (sliding mode), the bin
+ *     becomes their arithmetic mean.
  */
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import {
@@ -22,9 +23,10 @@ import {
   query,
   getMetric,
   extractFixationSequence,
-  computeSequenceScalar,
+  windowLabel,
   type MetricInstance,
   type Scope,
+  type WindowSpec,
 } from '$lib/metrics'
 import { getEvolvingMetricsXAxisLabel } from '../const'
 import type {
@@ -33,13 +35,9 @@ import type {
   EvolvingMetricsParticipant,
 } from '../types'
 
-const MIN_FIXATIONS_SEQUENCE = 5
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function resolveInstance(
   engine: DataEngine,
-  selectedMetricId: number | null
+  selectedMetricId: number | null,
 ): MetricInstance | null {
   if (selectedMetricId === null) return null
   const meta = engine.metadata
@@ -47,135 +45,70 @@ function resolveInstance(
   return (meta.metricInstances ?? []).find(i => i.id === selectedMetricId) ?? null
 }
 
-function isSequenceInstance(instance: MetricInstance): boolean {
-  return getMetric(instance.baseId)?.meta.windowUnit === 'fixations'
+function defaultStepSize(window: WindowSpec, windowUnit: 'ms' | 'fixations'): number {
+  if (windowUnit === 'fixations') return 100
+  return window.mode === 'epoch' ? window.windowSize : (window.stepSize ?? window.windowSize)
 }
 
-function windowDescLabel(instance: MetricInstance): string {
-  const w = instance.windowing
-  if (!w) return ''
-  const isSeq = isSequenceInstance(instance)
-  const unit = isSeq ? 'fix' : 'ms'
-  const modeLabel = w.mode === 'sliding' ? 'Sliding' : 'Epoch'
-  if (!isSeq && w.stepSize != null && w.stepSize !== w.windowSize) {
-    return `${modeLabel} ${w.windowSize}${unit} win / ${w.stepSize}ms step`
-  }
-  return `${modeLabel} ${w.windowSize} ${unit}`
-}
-
-function deriveStepSize(instance: MetricInstance): number {
-  const isSeq = isSequenceInstance(instance)
-  if (!isSeq) {
-    if (instance.windowing?.stepSize != null) return instance.windowing.stepSize
-    if (instance.windowing?.mode === 'epoch') return instance.windowing.windowSize
-  }
-  return 100
-}
-
-// ─── Sequence path: read fixation sequence + per-window scalar ───────────────
-
-function computeSequenceBins(
-  instance: MetricInstance,
-  seq: readonly number[],
-  timestamps: readonly number[],
+function mapTimeseriesToBins(
+  values: readonly number[],
+  timeline: readonly number[],
   binCount: number,
   stepSize: number,
   timelineMin: number,
 ): Float32Array {
-  const W = instance.windowing?.windowSize ?? 20
-  const reduction = instance.windowing?.reduction ?? 'mean'
-  const N = seq.length
-  const values = new Float32Array(binCount).fill(NaN)
-
-  if (N < Math.max(W, MIN_FIXATIONS_SEQUENCE)) return values
-
-  const sums = reduction === 'mean' ? new Float64Array(binCount) : null
-  const cnts = reduction === 'mean' ? new Uint32Array(binCount) : null
-
-  for (let i = 0; i + W <= N; i++) {
-    const sub = seq.slice(i, i + W)
-    const scalar = computeSequenceScalar(instance, sub)
-    if (!Number.isFinite(scalar)) continue
-
-    const centerTime = timestamps[i + Math.floor(W / 2)]
-    const bin = Math.floor((centerTime - timelineMin) / stepSize)
+  const out = new Float32Array(binCount).fill(NaN)
+  const sums = new Float64Array(binCount)
+  const counts = new Uint32Array(binCount)
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i]
+    if (!Number.isFinite(v)) continue
+    const bin = Math.floor((timeline[i] - timelineMin) / stepSize)
     if (bin < 0 || bin >= binCount) continue
-
-    switch (reduction) {
-      case 'mean':  sums![bin] += scalar; cnts![bin]++; break
-      case 'max':   values[bin] = Number.isNaN(values[bin]) ? scalar : Math.max(values[bin], scalar); break
-      case 'min':   values[bin] = Number.isNaN(values[bin]) ? scalar : Math.min(values[bin], scalar); break
-      case 'final': values[bin] = scalar; break
-    }
+    sums[bin] += v
+    counts[bin]++
   }
-
-  if (reduction === 'mean') {
-    for (let i = 0; i < binCount; i++)
-      if (cnts![i] > 0) values[i] = sums![i] / cnts![i]
-  }
-  return values
-}
-
-// ─── Time-bin path: query metric over sliding window per bin ─────────────────
-
-function computeTimeBins(
-  instance: MetricInstance,
-  engine: DataEngine,
-  stimulusId: number,
-  participantId: number,
-  binCount: number,
-  stepSize: number,
-  halfWindowMs: number,
-  timelineMin: number,
-): Float32Array {
-  const values = new Float32Array(binCount).fill(NaN)
-  // Strip windowing so `query()` returns a raw per-bin result we place on the
-  // timeline ourselves. Projection is preserved and applied inside query().
-  const bare: MetricInstance = { ...instance, windowing: undefined }
-
   for (let i = 0; i < binCount; i++) {
-    const center = timelineMin + i * stepSize + stepSize / 2
-    const wStart = Math.max(0, center - halfWindowMs)
-    const wEnd = center + halfWindowMs
-    const scope: Scope = { engine, stimulusId, participantId, timeStart: wStart, timeEnd: wEnd }
-    const result = query(bare, scope)
-    const v = result.shape === 'scalar' ? result.value : Number.NaN
-    if (Number.isFinite(v)) values[i] = v
+    if (counts[i] > 0) out[i] = sums[i] / counts[i]
   }
-  return values
+  return out
 }
 
-// ─── Main export ─────────────────────────────────────────────────────────────
+function mapFixIndexTimelineToMs(
+  timeline: readonly number[],
+  windowSize: number,
+  timestamps: readonly number[],
+): number[] {
+  const centerOffset = Math.floor(windowSize / 2)
+  const out: number[] = new Array(timeline.length)
+  for (let i = 0; i < timeline.length; i++) {
+    const centerIdx = timeline[i] + centerOffset
+    const ts = timestamps[centerIdx]
+    out[i] = ts ?? Number.NaN
+  }
+  return out
+}
 
 export function getEvolvingMetricsData(
   engine: DataEngine,
   settings: Pick<EvolvingMetricsSettings, 'stimulusId' | 'groupId' | 'selectedMetricId'> & {
     timelineMin?: number
     timelineMax?: number
-  }
+  },
 ): EvolvingMetricsResult | null {
   const meta = engine.metadata
   if (!meta) return null
 
   const instance = resolveInstance(engine, settings.selectedMetricId)
-  if (!instance) return null
-
-  if (!instance.windowing) return null
+  if (!instance || instance.projection.kind !== 'windowed') return null
 
   const metric = getMetric(instance.baseId)
   if (!metric) return null
 
-  const isSeq = isSequenceInstance(instance)
   const { stimulusId, groupId } = settings
-  const stepSize = deriveStepSize(instance)
-
-  const windowSizeMs = instance.windowing?.windowSize ?? stepSize
-  const halfWindowMs = windowSizeMs / 2
-
   const participantIds = getParticipantsIds(engine, groupId, stimulusId)
   const participantEntities = getParticipants(engine, groupId, stimulusId)
   const numParticipants = participantIds.length
-
   if (numParticipants === 0) return null
 
   let maxTime = 0
@@ -186,11 +119,11 @@ export function getEvolvingMetricsData(
   const timelineMin = settings.timelineMin ?? 0
   const timelineMax = settings.timelineMax ?? maxTime
   const duration = Math.max(1, timelineMax - timelineMin)
-  const binCount = Math.max(1, Math.ceil(duration / stepSize))
 
-  const sequences = isSeq
-    ? participantIds.map(pid => extractFixationSequence(engine, stimulusId, pid))
-    : []
+  const window = instance.projection.window
+  const windowUnit = metric.meta.windowUnit
+  const stepSize = defaultStepSize(window, windowUnit)
+  const binCount = Math.max(1, Math.ceil(duration / stepSize))
 
   let valueMin = Infinity
   let valueMax = -Infinity
@@ -199,10 +132,29 @@ export function getEvolvingMetricsData(
   for (let p = 0; p < numParticipants; p++) {
     const pid = participantIds[p]
     const entity = participantEntities[p]
+    const scope: Scope = {
+      engine, stimulusId, participantId: pid,
+      timeStart: timelineMin, timeEnd: timelineMax,
+    }
+    const result = query(instance, scope)
+    if (result.shape !== 'scalar-timeseries') {
+      participants[p] = {
+        id: pid,
+        label: entity?.displayedName ?? entity?.originalName ?? `P${pid}`,
+        values: new Float32Array(binCount).fill(NaN),
+      }
+      continue
+    }
 
-    const values = isSeq
-      ? computeSequenceBins(instance, sequences[p].seq, sequences[p].timestamps, binCount, stepSize, timelineMin)
-      : computeTimeBins(instance, engine, stimulusId, pid, binCount, stepSize, halfWindowMs, timelineMin)
+    const msTimeline = windowUnit === 'fixations'
+      ? mapFixIndexTimelineToMs(
+          result.timeline,
+          window.windowSize,
+          extractFixationSequence(engine, stimulusId, pid).timestamps,
+        )
+      : result.timeline
+
+    const values = mapTimeseriesToBins(result.values, msTimeline, binCount, stepSize, timelineMin)
 
     for (let i = 0; i < binCount; i++) {
       const v = values[i]
@@ -224,7 +176,8 @@ export function getEvolvingMetricsData(
   const effectiveMaxTime = timelineMin + binCount * stepSize
   const timeline = createAdaptiveTimeline(timelineMin, effectiveMaxTime, 6)
 
-  const xAxisLabel = getEvolvingMetricsXAxisLabel(windowDescLabel(instance))
+  const unitSuffix = windowUnit === 'fixations' ? ' fix' : ' ms'
+  const xAxisLabel = getEvolvingMetricsXAxisLabel(windowLabel(window) + unitSuffix)
   const yAxisLabel = `${metric.meta.label} [${metric.meta.unit}]`
 
   return {

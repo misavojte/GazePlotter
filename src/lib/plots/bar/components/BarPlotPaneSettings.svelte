@@ -12,7 +12,6 @@
   import {
     MetricSelect,
     type MetricInstance,
-    type WindowingConfig,
     type Projection,
   } from '$lib/metrics'
 
@@ -43,13 +42,12 @@
     baseId: string,
     params: Record<string, unknown>,
     label: string,
-    windowing?: WindowingConfig,
+    projection: Projection,
     replacingId?: number,
-    projection?: Projection,
   ) {
     const list = [...(engine.metadata?.metricInstances ?? [])]
     const nextId = Math.max(0, ...list.map(i => i.id)) + 1
-    const next: MetricInstance = { id: nextId, baseId, params, label, windowing, projection }
+    const next: MetricInstance = { id: nextId, baseId, params, label, projection }
     if (replacingId !== undefined) {
       const idx = list.findIndex(i => i.id === replacingId)
       if (idx >= 0) list[idx] = { ...next, id: replacingId }
@@ -108,7 +106,7 @@
     onrenameInstance={onRenameInstance}
     oncreateInstance={onCreateInstance}
     ondeleteInstance={onDeleteInstance}
-    context={barPlotDefinition.consumesMetrics!}
+    contract={barPlotDefinition.consumesMetrics!}
   />
 </PaneSection>
 

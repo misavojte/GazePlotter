@@ -7,7 +7,6 @@ import {
   getStimuliOptions,
   getParticipantsGroupOptions,
 } from '$lib/plots/shared'
-import { METRIC_CONTEXTS } from '$lib/metrics'
 import type { EvolvingMetricsSettings } from './types'
 
 export const evolvingMetricsDefinition = definePlot<
@@ -42,5 +41,8 @@ export const evolvingMetricsDefinition = definePlot<
   getDefaultHeight: () => 12,
   getDefaultWidth: () => 12,
   requireCapabilities: ['segmented'],
-  consumesMetrics: METRIC_CONTEXTS.windowed,
+  consumesMetrics: {
+    leaves: ['identity-scalar', 'pick-aoi', 'aggregate-aoi', 'matrix-cell', 'matrix-aggregate'],
+    windowing: 'required',
+  },
 })

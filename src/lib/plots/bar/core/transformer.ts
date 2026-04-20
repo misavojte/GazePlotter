@@ -177,9 +177,10 @@ function extractIndividualValuesWithIdentity(
 
 function valueAt(result: ReturnType<typeof query>, aoiIndex: number): number {
   switch (result.shape) {
-    case 'scalar':          return result.value
-    case 'aoi-vector':      return result.values[aoiIndex] ?? Number.NaN
-    case 'aoi-pair-matrix': return result.matrix[aoiIndex] ?? Number.NaN
+    case 'scalar':            return result.value
+    case 'aoi-vector':        return result.values[aoiIndex] ?? Number.NaN
+    case 'aoi-pair-matrix':   return result.matrix[aoiIndex] ?? Number.NaN
+    case 'scalar-timeseries': return Number.NaN
   }
 }
 

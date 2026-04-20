@@ -53,14 +53,12 @@ function toMeta(r: MetricRecipe<any, any>): MetricMeta {
     unit: r.unit,
     description: r.description,
     category: r.category,
-    outputShape: r.outputShape,
+    rawShape: r.rawShape,
     windowUnit: r.windowUnit,
     params: r.params ?? [],
     searchTags: r.searchTags ?? [],
-    computationModes: r.computationModes ?? ['global'],
     groupAggregation: r.groupAggregation ?? 'mean',
-    defaultWindowing: r.defaultWindowing,
-    defaultParamSets: r.defaultParamSets ?? [],
+    supportsWindowing: r.supportsWindowing ?? true,
     defaultLabel: r.defaultLabel as ((p: Record<string, unknown>) => string) | undefined,
   }
 }

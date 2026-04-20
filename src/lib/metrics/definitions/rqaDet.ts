@@ -10,12 +10,17 @@ defineMetric({
   description: 'Determinism (%): fraction of recurrent fixation pairs forming diagonal lines in the recurrence matrix. High values indicate predictable, repeated scanning paths.',
   unit: '%',
   category: 'rqa-aoi',
-  outputShape: 'scalar',
+  rawShape: 'scalar',
   windowUnit: 'fixations',
-  computationModes: ['global', 'epoch', 'sliding'],
-  defaultWindowing: { mode: 'epoch', windowSize: 20, reduction: 'mean' },
   searchTags: ['rqa', 'determinism', 'det', 'diagonal', 'nonlinear', 'aoi', 'sequence'],
   params,
+  starterInstances: [{
+    projection: {
+      kind: 'windowed',
+      window: { mode: 'epoch', windowSize: 20 },
+      inner: { kind: 'identity-scalar' },
+    },
+  }],
   init: (): { seq: number[] } => ({ seq: [] }),
   onFixation: (acc, { slots }) => {
     if (slots.length === 1) acc.seq.push(slots[0])

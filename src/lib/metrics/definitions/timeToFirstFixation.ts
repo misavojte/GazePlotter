@@ -1,4 +1,5 @@
 import { defineMetric } from '../core/defineMetric'
+import { leafOf } from '../core/projection'
 
 defineMetric({
   id: 'timeToFirstFixation',
@@ -6,19 +7,20 @@ defineMetric({
   description: 'Elapsed time (ms) from stimulus onset until the first fixation on the AOI. Lower values mean the region captured attention earlier. Returns NaN if the AOI was never fixated.',
   unit: 'ms',
   category: 'ttf',
-  outputShape: 'aoi-vector',
+  rawShape: 'aoi-vector',
   windowUnit: 'ms',
+  supportsWindowing: false,
   searchTags: ['ttff', 'ttf', 'first', 'fixation', 'time', 'latency', 'onset', 'aoi'],
   params: [] as const,
   // Aggregating "first times" across AOIs is only interpretable as `min`
   // (= time until attention first landed anywhere) or `max` (= time until
   // every AOI had been looked at). Mean/median/sum of first-times mix
   // apples and oranges — hide them.
-  rejectedProjections: (p) => {
-    if (p.target === 'scalar' && p.from === 'aggregate-aoi') {
-      if (p.reducer === 'mean' || p.reducer === 'median' || p.reducer === 'sum') {
-        return 'Use min (earliest AOI fixated) or max (latest AOI fixated) — other aggregates of first-times are not meaningful.'
-      }
+  rejects: (p) => {
+    const leaf = leafOf(p)
+    if (leaf.kind === 'aggregate-aoi'
+      && (leaf.reducer === 'mean' || leaf.reducer === 'median' || leaf.reducer === 'sum')) {
+      return 'Use min (earliest AOI fixated) or max (latest AOI fixated) — other aggregates of first-times are not meaningful.'
     }
     return null
   },

@@ -28,17 +28,19 @@ defineMetric({
     'the total duration of the preceding visit.',
   unit: 'ms',
   category: 'transition',
-  outputShape: 'aoi-pair-matrix',
+  rawShape: 'aoi-pair-matrix',
   windowUnit: 'ms',
-  computationModes: ['global', 'epoch', 'sliding'],
   groupAggregation: 'mean',
-  defaultParamSets: [{ mode: 'fixation' }, { mode: 'visit' }],
   defaultLabel: (p) =>
     p.mode === 'visit'
       ? 'Mean transition dwell time (visit changes)'
       : 'Mean transition dwell time (fixation pairs)',
   searchTags: ['transition', 'dwell', 'mean', 'average', 'duration', 'pair', 'aoi', 'time'],
   params,
+  starterInstances: [
+    { params: { mode: 'fixation' } },
+    { params: { mode: 'visit' } },
+  ],
   init: ({ slots }) => initTransitionAcc(slots.totalSlots, /* withAux */ true),
   onFixation: (acc, fix, { params: p }) => {
     processFixation(acc, fix, p.mode, (cellIdx, prevDuration) => {

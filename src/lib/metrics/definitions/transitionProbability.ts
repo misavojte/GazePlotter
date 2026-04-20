@@ -20,6 +20,9 @@ const params = [
  * (not NaN) — "no transitions" is a real observation, not missing data.
  * Participants with NO transitions at all produce an all-NaN matrix so they're
  * excluded from the cross-participant mean.
+ *
+ * matrix-aggregate projections are automatically rejected by the central
+ * validator for row-normalised probability matrices.
  */
 defineMetric({
   id: 'transitionProbability',
@@ -30,26 +33,18 @@ defineMetric({
     'returns P^k, the probability of arriving at AOI_j after k transitions.',
   unit: '%',
   category: 'transition',
-  outputShape: 'aoi-pair-matrix',
+  rawShape: 'aoi-pair-matrix',
   windowUnit: 'ms',
-  computationModes: ['global', 'epoch', 'sliding'],
   groupAggregation: 'mean',
-  defaultParamSets: [{ mode: 'fixation', step: 1 }],
   defaultLabel: (p) => {
     const modeLabel = p.mode === 'visit' ? 'visit' : 'fixation'
     return `Transition probability (${modeLabel}, ${p.step}-step)`
   },
   searchTags: ['transition', 'probability', 'markov', 'chain', 'aoi', 'pair', 'k-step'],
-  // Author-level veto (redundant with the central %-unit rule, stated here
-  // so the intent lives with the formula): matrix-aggregate is always
-  // degenerate on a row-normalised probability matrix — force matrix-cell.
-  rejectedProjections: (p) => {
-    if (p.target === 'scalar' && p.from === 'matrix-aggregate') {
-      return 'Probability matrices are row-normalised — use matrix-cell for a specific transition.'
-    }
-    return null
-  },
   params,
+  starterInstances: [
+    { params: { mode: 'fixation', step: 1 } },
+  ],
   init: ({ slots }) => initTransitionAcc(slots.totalSlots),
   onFixation: (acc, fix, { params: p }) => {
     processFixation(acc, fix, p.mode, (cellIdx) => { acc.matrix[cellIdx]++ })

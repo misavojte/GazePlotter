@@ -7,17 +7,15 @@
   import { metricLibraryModal } from '$lib/modals/definitions'
   import {
     formatParamReadout,
-    formatWindowingReadout,
     formatProjectionReadout,
-    instanceMatchesContext,
-    type MetricContext,
+    instanceMatchesContract,
     type MetricInstance,
     type Projection,
+    type PlotMetricContract,
   } from '$lib/metrics'
-  import type { WindowingConfig } from '$lib/data/types'
 
   interface Props {
-    /** Raw instance library. MetricSelect filters by `context` internally. */
+    /** Raw instance library. MetricSelect filters by `contract` internally. */
     instances: readonly MetricInstance[]
     selectedIds: number[]
     onchange: (ids: number[]) => void
@@ -26,14 +24,13 @@
       baseId: string,
       params: Record<string, unknown>,
       label: string,
-      windowing?: WindowingConfig,
+      projection: Projection,
       replacingId?: number,
-      projection?: Projection
     ) => void
     ondeleteInstance?: (id: number) => void
-    /** Descriptor of which shapes/windowing this consumer accepts and whether
+    /** Descriptor of which leaves/windowing this consumer accepts and whether
      *  selection is multi- or single-valued. */
-    context: MetricContext
+    contract: PlotMetricContract
     label?: string
   }
 
@@ -44,7 +41,7 @@
     onrenameInstance,
     oncreateInstance,
     ondeleteInstance,
-    context,
+    contract,
     label,
   }: Props = $props()
 
@@ -55,15 +52,15 @@
   let dropdownEl = $state<HTMLDivElement | null>(null)
   let dropdownStyle = $state('')
 
-  /** Instances filtered by the context descriptor. The rest of the component
+  /** Instances filtered by the contract descriptor. The rest of the component
    *  operates on this filtered view, so callers can safely pass the raw
    *  `engine.metadata.metricInstances` array. */
   const visibleInstances = $derived(
-    instances.filter(i => instanceMatchesContext(i, context))
+    instances.filter(i => instanceMatchesContract(i, contract))
   )
 
   const selectedSet = $derived(new Set(selectedIds))
-  const isSingleSelect = $derived(!context.multiSelect)
+  const isSingleSelect = $derived(!contract.multiSelect)
 
   const triggerLine1 = $derived.by(() => {
     if (isSingleSelect) {
@@ -88,8 +85,8 @@
     const sel = visibleInstances.find(i => selectedSet.has(i.id))
     if (!sel) return ''
     const readout = formatParamReadout(sel)
-    const winLine = formatWindowingReadout(sel)
-    return [...readout, ...(winLine ? [winLine] : [])].join(' · ')
+    const projLine = formatProjectionReadout(sel)
+    return [...readout, ...(projLine ? [projLine] : [])].join(' · ')
   })
 
   function openDropdown() {
@@ -174,7 +171,7 @@
         onclick={() => {
           closeDropdown()
           modalState.open(metricLibraryModal, {
-            context,
+            contract,
             oncreateInstance,
             ondeleteInstance,
             onrenameInstance,
@@ -188,11 +185,8 @@
       {#each visibleInstances as inst (inst.id)}
         {@const isSelected = selectedSet.has(inst.id)}
         {@const readout = formatParamReadout(inst)}
-        {@const winLine = formatWindowingReadout(inst)}
         {@const projLine = formatProjectionReadout(inst)}
-        {@const detail = [...readout, ...(projLine ? [projLine] : []), ...(winLine ? [winLine] : [])].join(
-          ' · '
-        )}
+        {@const detail = [...readout, ...(projLine ? [projLine] : [])].join(' · ')}
         <button
           class="dd-item"
           class:is-selected={isSelected}

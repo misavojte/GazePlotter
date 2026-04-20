@@ -7,9 +7,8 @@ import type { MetricInstance } from '../instances'
 /**
  * Iterate a participant's fixation segments exactly once and fan results out to
  * every instance. Returns a Map<instanceId, number[]> matching each recipe's
- * `finalize` output shape. Instances whose windowing config requires per-window
- * re-scanning or fixation-slicing are skipped — the caller should use `query()`
- * for those, which goes through the full runtime.
+ * `finalize` output shape. Windowed instances are skipped — their per-window
+ * scan requires `runProjected()` in runtime.ts.
  */
 export function scanBatch(
   engine: DataEngine,
@@ -31,7 +30,7 @@ export function scanBatch(
 
   const active: Active[] = []
   for (const inst of instances) {
-    if (inst.windowing) continue
+    if (inst.projection.kind === 'windowed') continue
     const recipe = getRecipe(inst.baseId)
     if (!recipe) continue
     const params = resolveParams(recipe.params, inst.params)

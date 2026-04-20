@@ -12,9 +12,8 @@ defineMetric({
   description: 'Number of distinct visits (entries) to the AOI. Each return after leaving counts as a new visit. Reflects revisitation frequency and scanning strategy.',
   unit: 'count',
   category: 'counts',
-  outputShape: 'aoi-vector',
+  rawShape: 'aoi-vector',
   windowUnit: 'ms',
-  computationModes: ['global', 'epoch', 'sliding'],
   searchTags: ['visit', 'entry', 'entries', 'count', 'aoi', 'number', 'transitions'],
   params: [] as const,
   init: ({ slots }): Acc => ({

@@ -6,7 +6,6 @@ import type {
   ExtendedInterpretedDataType,
   MetricInstance,
   ParticipantsGroup,
-  WindowingConfig,
 } from '../types'
 import {
   nextInstanceId,
@@ -181,9 +180,8 @@ export class DataEngine {
   addMetricInstance(
     baseId: string,
     params: Record<string, unknown>,
-    label?: string,
-    windowing?: WindowingConfig,
-    projection?: Projection
+    label: string | undefined,
+    projection: Projection,
   ): number {
     const meta = this.metadata
     if (!meta) return -1
@@ -192,7 +190,7 @@ export class DataEngine {
     const resolvedLabel = label?.trim() || defaultInstanceLabel(baseId, params, projection)
     meta.metricInstances = [
       ...existing,
-      { id, baseId, params, label: resolvedLabel, windowing, projection },
+      { id, baseId, params, label: resolvedLabel, projection },
     ]
     return id
   }

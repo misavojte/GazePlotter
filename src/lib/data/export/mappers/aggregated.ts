@@ -22,13 +22,17 @@ type ComputeFn = (
 ) => number
 
 function _computeAtSlot(baseId: string): ComputeFn {
-  const inst: MetricInstance = { id: 0, baseId, params: {}, label: '' }
+  const inst: MetricInstance = {
+    id: 0, baseId, params: {}, label: '',
+    projection: { kind: 'identity-aoi-vector' },
+  }
   return (engine, stimulusId, participantId, aoiIdx) => {
     const scope: Scope = { engine, stimulusId, participantId, timeStart: 0, timeEnd: 0 }
     const result = query(inst, scope)
     if (result.shape === 'aoi-vector') return result.values[aoiIdx] ?? Number.NaN
     if (result.shape === 'scalar') return result.value
-    return result.matrix[aoiIdx] ?? Number.NaN
+    if (result.shape === 'aoi-pair-matrix') return result.matrix[aoiIdx] ?? Number.NaN
+    return Number.NaN
   }
 }
 

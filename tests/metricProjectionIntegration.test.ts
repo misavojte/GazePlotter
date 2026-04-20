@@ -9,14 +9,20 @@ import { createReaderFromJson } from '../src/lib/data/binary/converters'
 import '../src/lib/metrics/init'
 import {
   query,
-  instanceMatchesContext,
-  METRIC_CONTEXTS,
+  instanceMatchesContract,
   type MetricInstance,
+  type PlotMetricContract,
   type Scope,
 } from '../src/lib/metrics'
 
 const STIM = 1
 const PID = 0
+
+const GLOBAL_SCALAR_CONTRACT: PlotMetricContract = {
+  leaves: ['identity-scalar', 'pick-aoi', 'aggregate-aoi', 'matrix-cell', 'matrix-aggregate'],
+  windowing: 'forbidden',
+  multiSelect: true,
+}
 
 function createEngine(segmentsForPid: number[][]) {
   const segments: number[][][][] = [[], [segmentsForPid]]
@@ -56,7 +62,10 @@ const SEGMENTS = [
 describe('projection via query()', () => {
   it('aoi-vector identity returns raw per-AOI values', () => {
     const engine = createEngine(SEGMENTS)
-    const instance: MetricInstance = { id: 1, baseId: 'absoluteTime', params: {}, label: '' }
+    const instance: MetricInstance = {
+      id: 1, baseId: 'absoluteTime', params: {}, label: '',
+      projection: { kind: 'identity-aoi-vector' },
+    }
     const r = query(instance, scope(engine))
     expect(r.shape).toBe('aoi-vector')
     if (r.shape !== 'aoi-vector') return
@@ -68,13 +77,13 @@ describe('projection via query()', () => {
     const engine = createEngine(SEGMENTS)
     const instance: MetricInstance = {
       id: 1, baseId: 'absoluteTime', params: {}, label: '',
-      projection: { target: 'scalar', from: 'pick-aoi', aoiRef: { by: 'name', name: 'CTA' } },
+      projection: { kind: 'pick-aoi', aoiRef: { by: 'name', name: 'CTA' } },
     }
     const r = query(instance, scope(engine))
     expect(r.shape).toBe('scalar')
     if (r.shape !== 'scalar') return
     expect(r.value).toBe(200)
-    expect(r.provenance.projection).toEqual({ target: 'scalar', from: 'pick-aoi', aoiRef: { by: 'name', name: 'CTA' } })
+    expect(r.provenance.projection).toEqual({ kind: 'pick-aoi', aoiRef: { by: 'name', name: 'CTA' } })
     expect(r.provenance.aoiMissing).toBeUndefined()
   })
 
@@ -82,7 +91,7 @@ describe('projection via query()', () => {
     const engine = createEngine(SEGMENTS)
     const instance: MetricInstance = {
       id: 1, baseId: 'absoluteTime', params: {}, label: '',
-      projection: { target: 'scalar', from: 'pick-aoi', aoiRef: { by: 'name', name: 'DoesNotExist' } },
+      projection: { kind: 'pick-aoi', aoiRef: { by: 'name', name: 'DoesNotExist' } },
     }
     const r = query(instance, scope(engine))
     expect(r.shape).toBe('scalar')
@@ -95,7 +104,7 @@ describe('projection via query()', () => {
     const engine = createEngine(SEGMENTS)
     const instance: MetricInstance = {
       id: 1, baseId: 'absoluteTime', params: {}, label: '',
-      projection: { target: 'scalar', from: 'aggregate-aoi', reducer: 'mean' },
+      projection: { kind: 'aggregate-aoi', reducer: 'mean' },
     }
     const r = query(instance, scope(engine))
     expect(r.shape).toBe('scalar')
@@ -103,31 +112,31 @@ describe('projection via query()', () => {
     expect(r.value).toBe(150) // (100 + 200) / 2
   })
 
-  it('invalid saved instance drops from context (matrix-aggregate on probability)', () => {
+  it('invalid saved instance drops from contract (matrix-aggregate on probability)', () => {
     const invalid: MetricInstance = {
       id: 1, baseId: 'transitionProbability', params: { mode: 'fixation', step: 1 }, label: '',
-      projection: { target: 'scalar', from: 'matrix-aggregate', reducer: 'mean' },
+      projection: { kind: 'matrix-aggregate', reducer: 'mean' },
     }
-    expect(instanceMatchesContext(invalid, METRIC_CONTEXTS.globalMulti)).toBe(false)
+    expect(instanceMatchesContract(invalid, GLOBAL_SCALAR_CONTRACT)).toBe(false)
   })
 
-  it('valid saved instance stays in context (matrix-cell on probability)', () => {
+  it('valid saved instance stays in contract (matrix-cell on probability)', () => {
     const valid: MetricInstance = {
       id: 2, baseId: 'transitionProbability', params: { mode: 'fixation', step: 1 }, label: '',
       projection: {
-        target: 'scalar', from: 'matrix-cell',
+        kind: 'matrix-cell',
         fromAoi: { by: 'name', name: 'Nav' },
-        toAoi: { by: 'name', name: 'CTA' },
+        toAoi:   { by: 'name', name: 'CTA' },
       },
     }
-    expect(instanceMatchesContext(valid, METRIC_CONTEXTS.globalMulti)).toBe(true)
+    expect(instanceMatchesContract(valid, GLOBAL_SCALAR_CONTRACT)).toBe(true)
   })
 
   it('transition matrix + matrix-diagonal → aoi-vector', () => {
     const engine = createEngine(SEGMENTS)
     const instance: MetricInstance = {
       id: 1, baseId: 'transitionCount', params: { mode: 'fixation' }, label: '',
-      projection: { target: 'aoi-vector', from: 'matrix-diagonal' },
+      projection: { kind: 'matrix-diagonal' },
     }
     const r = query(instance, scope(engine))
     expect(r.shape).toBe('aoi-vector')

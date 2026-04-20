@@ -1,18 +1,18 @@
 /**
- * Hand-written JSON Schema for discriminated-union shapes not auto-derived
- * from TS types. Used by future WebMCP / LLM tool surfaces to validate
- * instance creation payloads without pulling a schema generator.
+ * Hand-written JSON Schema for the Projection discriminated tree.
+ * Used by future WebMCP / LLM tool surfaces to validate instance creation
+ * payloads without pulling a schema generator.
  */
 
-export const WindowingConfigSchema = {
+const WindowSpecSchema = {
   type: 'object',
   required: ['mode', 'windowSize', 'reduction'],
   additionalProperties: false,
   properties: {
-    mode: { enum: ['epoch', 'sliding'] },
+    mode:       { enum: ['epoch', 'sliding'] },
     windowSize: { type: 'number', minimum: 1 },
-    stepSize: { type: 'number', minimum: 1 },
-    reduction: { enum: ['mean', 'max', 'min', 'final'] },
+    stepSize:   { type: 'number', minimum: 1 },
+    reduction:  { enum: ['mean', 'max', 'min', 'final'] },
   },
 } as const
 
@@ -33,46 +33,63 @@ const AoiRefSchema = {
   ],
 } as const
 
-/**
- * Projection schema — two-axis discriminator. Every variant carries:
- *   - target: desired output shape (drives consumer context matching)
- *   - from:   method for deriving `target` from the recipe's raw shape
- * plus any method-specific parameters.
- */
-export const ProjectionSchema = {
+/** Leaf projections. Every variant carries a `kind` discriminator. */
+export const LeafProjectionSchema = {
   oneOf: [
-    // → scalar
-    { type: 'object', required: ['target', 'from'], additionalProperties: false,
-      properties: { target: { const: 'scalar' }, from: { const: 'identity' } } },
-    { type: 'object', required: ['target', 'from', 'aoiRef'], additionalProperties: false,
-      properties: { target: { const: 'scalar' }, from: { const: 'pick-aoi' }, aoiRef: AoiRefSchema } },
-    { type: 'object', required: ['target', 'from', 'reducer'], additionalProperties: false,
+    { type: 'object', required: ['kind'], additionalProperties: false,
+      properties: { kind: { const: 'identity-scalar' } } },
+    { type: 'object', required: ['kind'], additionalProperties: false,
+      properties: { kind: { const: 'identity-aoi-vector' } } },
+    { type: 'object', required: ['kind'], additionalProperties: false,
+      properties: { kind: { const: 'identity-aoi-pair-matrix' } } },
+
+    { type: 'object', required: ['kind', 'aoiRef'], additionalProperties: false,
+      properties: { kind: { const: 'pick-aoi' }, aoiRef: AoiRefSchema } },
+    { type: 'object', required: ['kind', 'reducer'], additionalProperties: false,
       properties: {
-        target: { const: 'scalar' }, from: { const: 'aggregate-aoi' },
+        kind:    { const: 'aggregate-aoi' },
         reducer: { enum: ['mean', 'sum', 'max', 'min', 'median'] },
       } },
-    { type: 'object', required: ['target', 'from', 'reducer'], additionalProperties: false,
+
+    { type: 'object', required: ['kind'], additionalProperties: false,
+      properties: { kind: { const: 'matrix-diagonal' } } },
+    { type: 'object', required: ['kind', 'aoiRef'], additionalProperties: false,
+      properties: { kind: { const: 'matrix-row' }, aoiRef: AoiRefSchema } },
+    { type: 'object', required: ['kind', 'aoiRef'], additionalProperties: false,
+      properties: { kind: { const: 'matrix-col' }, aoiRef: AoiRefSchema } },
+    { type: 'object', required: ['kind', 'fromAoi', 'toAoi'], additionalProperties: false,
       properties: {
-        target: { const: 'scalar' }, from: { const: 'matrix-aggregate' },
+        kind: { const: 'matrix-cell' },
+        fromAoi: AoiRefSchema,
+        toAoi:   AoiRefSchema,
+      } },
+    { type: 'object', required: ['kind', 'reducer'], additionalProperties: false,
+      properties: {
+        kind:    { const: 'matrix-aggregate' },
         reducer: { enum: ['mean', 'sum'] },
         exclude: { enum: ['diagonal'] },
       } },
-    { type: 'object', required: ['target', 'from', 'fromAoi', 'toAoi'], additionalProperties: false,
-      properties: {
-        target: { const: 'scalar' }, from: { const: 'matrix-cell' },
-        fromAoi: AoiRefSchema, toAoi: AoiRefSchema,
-      } },
-    // → aoi-vector
-    { type: 'object', required: ['target', 'from'], additionalProperties: false,
-      properties: { target: { const: 'aoi-vector' }, from: { const: 'identity' } } },
-    { type: 'object', required: ['target', 'from'], additionalProperties: false,
-      properties: { target: { const: 'aoi-vector' }, from: { const: 'matrix-diagonal' } } },
-    { type: 'object', required: ['target', 'from', 'aoiRef'], additionalProperties: false,
-      properties: { target: { const: 'aoi-vector' }, from: { const: 'matrix-row' }, aoiRef: AoiRefSchema } },
-    { type: 'object', required: ['target', 'from', 'aoiRef'], additionalProperties: false,
-      properties: { target: { const: 'aoi-vector' }, from: { const: 'matrix-col' }, aoiRef: AoiRefSchema } },
-    // → aoi-pair-matrix
-    { type: 'object', required: ['target', 'from'], additionalProperties: false,
-      properties: { target: { const: 'aoi-pair-matrix' }, from: { const: 'identity' } } },
   ],
 } as const
+
+/**
+ * Projection = leaf | windowed wrapper. The wrapper's `inner` must itself be
+ * a leaf whose effective shape is scalar (enforced at apply time).
+ */
+export const ProjectionSchema = {
+  oneOf: [
+    LeafProjectionSchema,
+    {
+      type: 'object',
+      required: ['kind', 'window', 'inner'],
+      additionalProperties: false,
+      properties: {
+        kind:   { const: 'windowed' },
+        window: WindowSpecSchema,
+        inner:  LeafProjectionSchema,
+      },
+    },
+  ],
+} as const
+
+export { WindowSpecSchema }

@@ -15,9 +15,8 @@ defineMetric({
   description: 'Mean duration (ms) per distinct visit to the AOI. A visit begins on first entry and ends when gaze leaves; consecutive fixations in the same AOI accumulate as one visit.',
   unit: 'ms',
   category: 'duration',
-  outputShape: 'aoi-vector',
+  rawShape: 'aoi-vector',
   windowUnit: 'ms',
-  computationModes: ['global', 'epoch', 'sliding'],
   searchTags: ['visit', 'dwell', 'duration', 'average', 'mean', 'aoi'],
   params: [] as const,
   init: ({ slots }): Acc => ({

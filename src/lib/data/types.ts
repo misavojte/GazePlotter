@@ -2,9 +2,7 @@ import type { FileInputType, FileMetadataType } from '$lib/data/ingest'
 import type { GridItemSnapshot } from '$lib/workspace'
 import type { BinarySegmentBuffers } from './binary'
 import type { MetricInstance } from '$lib/metrics/instances'
-import type { WindowingConfig } from '$lib/metrics/core/dsl'
 export type { MetricInstance } from '$lib/metrics/instances'
-export type { WindowingConfig } from '$lib/metrics/core/dsl'
 
 import { DEFAULT_NO_AOI_COLOR } from '../color/palettes'
 

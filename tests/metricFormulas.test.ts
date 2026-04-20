@@ -84,7 +84,16 @@ function createMultiParticipantEngine(perParticipantSegments: number[][][]) {
 }
 
 function inst(baseId: string, params: Record<string, unknown> = {}): MetricInstance {
-  return { id: 0, baseId, params, label: '' }
+  // Tests focus on raw formulas — use aoi-vector identity as a safe default;
+  // absoluteTime/etc. are aoi-vector and transition metrics explicitly override.
+  return {
+    id: 0, baseId, params, label: '',
+    projection: baseId.startsWith('transition')
+      ? { kind: 'identity-aoi-pair-matrix' }
+      : baseId.startsWith('rqa')
+        ? { kind: 'identity-scalar' }
+        : { kind: 'identity-aoi-vector' },
+  }
 }
 
 function scope(engine: any): Scope {
@@ -94,7 +103,8 @@ function scope(engine: any): Scope {
 function values(result: ReturnType<typeof query>): number[] {
   if (result.shape === 'aoi-vector') return result.values
   if (result.shape === 'scalar') return [result.value]
-  return result.matrix
+  if (result.shape === 'aoi-pair-matrix') return result.matrix
+  return result.values
 }
 
 function scalar(result: ReturnType<typeof query>): number {

@@ -6,12 +6,17 @@ defineMetric({
   description: "Total time (ms) the participant's gaze dwelled within an AOI across all fixation segments. Higher values indicate more total attention allocated to the region.",
   unit: 'ms',
   category: 'duration',
-  outputShape: 'aoi-vector',
+  rawShape: 'aoi-vector',
   windowUnit: 'ms',
-  computationModes: ['global', 'epoch', 'sliding'],
-  defaultWindowing: { mode: 'epoch', windowSize: 2000, reduction: 'mean' },
   searchTags: ['dwell', 'gaze', 'time', 'absolute', 'total', 'duration', 'aoi'],
   params: [] as const,
+  starterInstances: [{
+    projection: {
+      kind: 'windowed',
+      window: { mode: 'epoch', windowSize: 2000 },
+      inner: { kind: 'aggregate-aoi', reducer: 'mean' },
+    },
+  }],
   init: ({ slots }) => new Float64Array(slots.totalSlots),
   onFixation: (acc, { duration, slots }, { slots: info }) => {
     acc[info.anyFixationSlot] += duration

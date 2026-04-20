@@ -31,10 +31,11 @@ export {
   getCategoryLabels,
 } from './registry'
 export {
+  buildStarterInstances,
   createSystemMetricInstances,
-  createDefaultMetricInstances,
   createDefaultWindowedInstances,
   createDefaultAoiPairInstances,
+  createDefaultMetricInstances,
   findSystemInstanceIdByBaseId,
   reconcileSystemInstances,
   nextInstanceId,
@@ -42,33 +43,41 @@ export {
   resolveInstanceWithFallback,
   defaultInstanceLabel,
   formatParamReadout,
-  formatWindowingReadout,
   formatProjectionReadout,
+  makeLeafInstance,
 } from './instances'
 
 // ─── Projection surface ────────────────────────────────────────────────────
 export {
-  IDENTITY_PROJECTION,
-  identityFor,
+  PROJECTION_LEAVES,
   applyProjection,
-  computeEffectiveShape,
-  targetsFor,
-  fromMethodsFor,
-  isProjectionValid,
+  projectionOutputShape,
   projectionToLabel,
-  projectionKey,
+  projectionCacheKey,
+  identityFor,
+  leafOf,
+  leafOutputShape,
+  leafRawShapes,
+  windowLabel,
+  windowKey,
 } from './core/projection'
-// Validation (cooking-system guardrails)
-export { validateCombination, validateProjectionForUnit } from './core/validation'
-export type { ValidationInput, ValidationResult } from './core/validation'
+export { recipeSupports } from './core/validation'
+export type { ValidationResult } from './core/validation'
 export type {
   Projection,
-  ProjectionShape,
+  LeafProjection,
+  WindowedProjection,
+  LeafKind,
+  ProjectionKind,
+  LeafKindDef,
+  ApplyContext,
+  ApplyResult,
   AoiRef,
   AoiReducer,
   MatrixReducer,
+  WindowSpec,
 } from './core/projection'
-export { ProjectionSchema, WindowingConfigSchema } from './core/schemas'
+export { ProjectionSchema, LeafProjectionSchema, WindowSpecSchema } from './core/schemas'
 export { paramToJsonSchema, paramsSchemaFor } from './core/params'
 export { describeMetricsForLLM } from './describe'
 
@@ -77,13 +86,11 @@ export type {
   Metric,
   MetricMeta,
   MetricRecipe,
-  WindowingConfig,
   AoiSlotInfo,
   FixationEvent,
   OutputShape,
   WindowUnit,
-  ComputationMode,
-  Reduction,
+  StarterSpec,
 } from './core/dsl'
 export type { ParamDef, ParamType, ParamsOf } from './core/params'
 export type { MetricInstance } from './instances'
@@ -92,13 +99,13 @@ export type { MetricCategoryDef } from './categories'
 export type { RqaResult } from './core/rqa'
 export type { FixationSequence } from './core/fixations'
 
-// ─── Context (who consumes what) ───────────────────────────────────────────
+// ─── Plot contract + filters ───────────────────────────────────────────────
 export {
-  instanceMatchesContext,
-  metricIsCreatableInContext,
-  METRIC_CONTEXTS,
-} from './context'
-export type { MetricContext } from './context'
+  instanceMatchesContract,
+  metricIsCreatableInContract,
+  metricsForPlot,
+} from './filters'
+export type { PlotMetricContract } from './filters'
 
 // ─── UI ────────────────────────────────────────────────────────────────────
 export { default as MetricSelect } from './components/MetricSelect.svelte'

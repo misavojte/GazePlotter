@@ -15,6 +15,10 @@ const params = [
  * each participant contributes equally regardless of their absolute count.
  * Participants with zero total transitions contribute NaN (excluded from the
  * group reduce).
+ *
+ * matrix-aggregate of this metric is rejected automatically by the central
+ * validator: the matrix sums to 100% by construction, so both mean and sum
+ * are trivially determined.
  */
 defineMetric({
   id: 'transitionRelativeFrequency',
@@ -24,23 +28,14 @@ defineMetric({
     'Answers: "what share of this participant\'s transitions were AOI_i → AOI_j?"',
   unit: '%',
   category: 'transition',
-  outputShape: 'aoi-pair-matrix',
+  rawShape: 'aoi-pair-matrix',
   windowUnit: 'ms',
-  computationModes: ['global', 'epoch', 'sliding'],
   groupAggregation: 'mean',
   defaultLabel: (p) =>
     p.mode === 'visit'
       ? 'Transition relative frequency (visit)'
       : 'Transition relative frequency (fixation)',
   searchTags: ['transition', 'frequency', 'relative', 'percent', 'proportion', 'aoi', 'pair'],
-  // Author-level veto: the matrix sums to 100% by construction, so both
-  // matrix-aggregate mean and sum are trivially determined — force matrix-cell.
-  rejectedProjections: (p) => {
-    if (p.target === 'scalar' && p.from === 'matrix-aggregate') {
-      return 'Relative-frequency matrix sums to 100% — use matrix-cell for a specific transition share.'
-    }
-    return null
-  },
   params,
   init: ({ slots }) => initTransitionAcc(slots.totalSlots),
   onFixation: (acc, fix, { params: p }) => {

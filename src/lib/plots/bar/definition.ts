@@ -7,7 +7,7 @@ import {
   getStimuliOptions,
   getParticipantsGroupOptions,
 } from '$lib/plots/shared'
-import { findSystemInstanceIdByBaseId, METRIC_CONTEXTS } from '$lib/metrics'
+import { findSystemInstanceIdByBaseId } from '$lib/metrics'
 import type { BarPlotSettings } from './types'
 
 export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
@@ -44,5 +44,8 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
   getDefaultHeight: () => 12,
   getDefaultWidth: () => 12,
   requireCapabilities: ['segmented'],
-  consumesMetrics: METRIC_CONTEXTS.aoiVector,
+  consumesMetrics: {
+    leaves: ['identity-aoi-vector', 'matrix-diagonal', 'matrix-row', 'matrix-col'],
+    windowing: 'forbidden',
+  },
 })

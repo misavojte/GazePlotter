@@ -8,7 +8,6 @@ import {
   getStimuliOptions,
   getParticipantsGroupOptions,
 } from '$lib/plots/shared'
-import { METRIC_CONTEXTS } from '$lib/metrics'
 import type { TransitionMatrixPlotSettings } from './types'
 
 export const transitionMatrixDefinition = definePlot<
@@ -49,5 +48,8 @@ export const transitionMatrixDefinition = definePlot<
   getDefaultHeight: () => 12,
   getDefaultWidth: () => 12,
   requireCapabilities: ['segmented'],
-  consumesMetrics: METRIC_CONTEXTS.aoiPair,
+  consumesMetrics: {
+    leaves: ['identity-aoi-pair-matrix'],
+    windowing: 'forbidden',
+  },
 })

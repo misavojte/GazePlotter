@@ -1,16 +1,8 @@
 import type { ParamDef } from './params'
+import type { Projection } from './projection'
 
-export type OutputShape = 'scalar' | 'aoi-vector' | 'aoi-pair-matrix'
+export type OutputShape = 'scalar' | 'aoi-vector' | 'aoi-pair-matrix' | 'scalar-timeseries'
 export type WindowUnit = 'ms' | 'fixations'
-export type ComputationMode = 'global' | 'epoch' | 'sliding'
-export type Reduction = 'mean' | 'max' | 'min' | 'final'
-
-export interface WindowingConfig {
-  mode: 'epoch' | 'sliding'
-  windowSize: number
-  stepSize?: number
-  reduction: Reduction
-}
 
 export interface AoiSlotInfo {
   totalSlots: number
@@ -30,27 +22,37 @@ export interface InitCtx<P> {
   slots: AoiSlotInfo
 }
 
+/** Seed for a system-starter instance emitted into the library on project load. */
+export interface StarterSpec<P = Record<string, unknown>> {
+  params?: Partial<P>
+  /** Defaults to the recipe's identity leaf when omitted. */
+  projection?: Projection
+  label?: string
+}
+
 export interface MetricMeta {
   readonly id: string
   readonly label: string
   readonly unit: string
   readonly description: string
   readonly category: string
-  readonly outputShape: OutputShape
+  /** Shape produced by the recipe's `finalize` call — before any projection. */
+  readonly rawShape: OutputShape
   readonly windowUnit: WindowUnit
   readonly params: readonly ParamDef<any>[]
   readonly searchTags: readonly string[]
-  readonly computationModes: readonly ComputationMode[]
   readonly groupAggregation: 'mean' | 'median' | 'sum'
-  readonly defaultWindowing?: WindowingConfig
-  readonly defaultParamSets: readonly Record<string, unknown>[]
+  /**
+   * True unless the recipe explicitly opts out. Windowing compatibility is
+   * ultimately gated by `recipeSupports(recipe, projection)` — the effective
+   * inner leaf must produce scalar. This flag only lets a recipe say
+   * "never windowed" (e.g. time-to-first-fixation).
+   */
+  readonly supportsWindowing: boolean
   readonly defaultLabel?: (p: Record<string, unknown>) => string
 }
 
-/** The registered, public view of a metric. */
-export interface Metric {
-  readonly meta: MetricMeta
-}
+export interface Metric { readonly meta: MetricMeta }
 
 export interface MetricRecipe<P, A> {
   id: string
@@ -58,48 +60,31 @@ export interface MetricRecipe<P, A> {
   unit: string
   description: string
   category: string
-  outputShape: OutputShape
+  rawShape: OutputShape
   windowUnit: WindowUnit
   params?: readonly ParamDef<any>[]
   searchTags?: readonly string[]
-  computationModes?: ComputationMode[]
   groupAggregation?: 'mean' | 'median' | 'sum'
-  defaultWindowing?: WindowingConfig
+  /** Defaults to true. Set to false when windowing is not meaningful (e.g. TTFF). */
+  supportsWindowing?: boolean
   /**
-   * Parameter sets to seed as pre-curated system instances in the project
-   * library. Primarily for aoi-pair-matrix metrics (which createSystemMetricInstances
-   * filters out), but any metric can use it to expose starter variants with
-   * different params.
+   * Author-level veto over specific projections. Receives the full `Projection`
+   * — use `p.kind === 'windowed' ? p.inner : p` when the check applies to the
+   * leaf regardless of windowing. Return a non-null reason to reject.
    */
-  defaultParamSets?: ReadonlyArray<Record<string, unknown>>
+  rejects?: (projection: Projection) => string | null
+  /**
+   * System starter instances seeded into the library on project load. Missing
+   * fields fall back to: identity projection for the recipe's raw shape;
+   * param defaults from `params[*].default`; auto-generated label.
+   */
+  starterInstances?: ReadonlyArray<StarterSpec<P>>
   defaultLabel?: (params: P) => string
-  /**
-   * Authorial veto over specific projection/windowing combinations. Returns
-   * a non-null reason to reject; the central validator runs this AFTER the
-   * built-in cross-cutting rules. Use for domain knowledge the rules can't
-   * know — e.g., TTFF + aggregate-aoi mean is defensible only under `min`.
-   */
-  rejectedProjections?: (
-    p: import('./projection').Projection,
-    w?: WindowingConfig
-  ) => string | null
 
   init(ctx: InitCtx<P>): A
   onFixation(acc: A, fix: FixationEvent, ctx: InitCtx<P>): void
   finalize(acc: A, slots: AoiSlotInfo, ctx: InitCtx<P>): number[]
   individuals?(acc: A, slotIndex: number): number[]
-
-  /**
-   * Optional hook for fixation-windowed metrics (RQA). Given the full accumulator
-   * (which typically holds a fixation sequence) and a `[from, to)` index range,
-   * returns the scalar result for just that sub-range. If omitted, fixation windowing
-   * falls back to calling `finalize` over a re-scoped accumulator, which most metrics
-   * do not support.
-   */
-  windowedFinalize?(
-    acc: A,
-    fromIndex: number,
-    toIndex: number,
-    ctx: InitCtx<P>
-  ): number
+  /** Fixation-windowed metrics (RQA) slice the accumulator per window. */
+  windowedFinalize?(acc: A, fromIndex: number, toIndex: number, ctx: InitCtx<P>): number
 }

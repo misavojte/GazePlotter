@@ -1,7 +1,7 @@
 import type { Component } from 'svelte'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import type { DataCapabilityRequirements } from '$lib/data/types'
-import type { MetricContext } from '$lib/metrics'
+import type { PlotMetricContract } from '$lib/metrics'
 import type { PlotExportProps } from '$lib/modals/export/download-plot/types'
 
 export type DefaultPlotParams = {
@@ -96,7 +96,7 @@ export type PlotDefinition<
    * pane's MetricSelect filter and the library modal's filter — single
    * source of truth so pane and modal can't drift.
    */
-  consumesMetrics?: MetricContext
+  consumesMetrics?: PlotMetricContract
 }
 
 export function definePlot<

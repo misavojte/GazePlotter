@@ -1,11 +1,14 @@
 import './init'
-import { getMetric, listMetrics } from './core/defineMetric'
-import type { WindowingConfig } from './core/dsl'
+import { getMetric, getRecipe, listRecipeIds } from './core/defineMetric'
 import type { ParamDef } from './core/params'
-import { projectionToLabel, type Projection } from './core/projection'
+import {
+  identityFor,
+  projectionToLabel,
+  type Projection,
+  type LeafProjection,
+} from './core/projection'
 
-export type { WindowingConfig } from './core/dsl'
-export type { Projection, AoiRef, AoiReducer, MatrixReducer } from './core/projection'
+export type { Projection, LeafProjection, AoiRef, AoiReducer, MatrixReducer, WindowSpec } from './core/projection'
 
 export interface MetricInstance {
   id: number
@@ -13,112 +16,121 @@ export interface MetricInstance {
   params: Record<string, unknown>
   label: string
   system?: true
-  windowing?: WindowingConfig
-  /** Optional post-finalize reshape. Absent ⇔ identity (recipe's raw shape). */
-  projection?: Projection
+  /** Required. Defaults to the recipe's identity leaf for its raw shape. */
+  projection: Projection
 }
 
 const SYSTEM_ID_OFFSET = 1000
 const WINDOWED_ID_START = 12
 const AOI_PAIR_ID_START = 50
 
-// ─── Factories ───────────────────────────────────────────────────────────────
+// ─── Starter instances (system defaults) ────────────────────────────────────
+
+/**
+ * Emits the full set of system-seeded instances. Three partitions, walked in
+ * recipe registration order so IDs are stable across runs:
+ *
+ *   Phase 1 (IDs 1+)  — identity instance for every non-matrix recipe.
+ *   Phase 2 (IDs 12+) — recipe.starterInstances entries with a windowed projection.
+ *   Phase 3 (IDs 50+) — recipe.starterInstances entries for matrix recipes (params variants).
+ *
+ * A pinning test asserts ID 50 = transitionCount (fixation), 52 = transitionProbability (fix, step=1),
+ * 53 = transitionDwellMean (fixation). Do not reorder metric definition imports.
+ */
+export function buildStarterInstances(): MetricInstance[] {
+  const recipes = listRecipeIds().map(id => getRecipe(id)!).filter(Boolean)
+  const out: MetricInstance[] = []
+
+  // Phase 1: identity instance per non-matrix recipe
+  let id = 1
+  for (const r of recipes) {
+    if (r.rawShape === 'aoi-pair-matrix') continue
+    out.push({
+      id: id++,
+      baseId: r.id,
+      params: {},
+      label: defaultInstanceLabel(r.id, {}),
+      system: true as const,
+      projection: identityFor(r.rawShape),
+    })
+  }
+
+  // Phase 2: windowed starters
+  id = WINDOWED_ID_START
+  for (const r of recipes) {
+    for (const starter of r.starterInstances ?? []) {
+      if (starter.projection?.kind !== 'windowed') continue
+      const params = { ...(starter.params ?? {}) } as Record<string, unknown>
+      out.push({
+        id: id++,
+        baseId: r.id,
+        params,
+        label: starter.label ?? defaultInstanceLabel(r.id, params, starter.projection),
+        system: true as const,
+        projection: starter.projection,
+      })
+    }
+  }
+
+  // Phase 3: matrix starters (param variants)
+  id = AOI_PAIR_ID_START
+  for (const r of recipes) {
+    if (r.rawShape !== 'aoi-pair-matrix') continue
+    for (const starter of r.starterInstances ?? []) {
+      if (starter.projection && starter.projection.kind === 'windowed') continue
+      const params = { ...(starter.params ?? {}) } as Record<string, unknown>
+      const projection = starter.projection ?? identityFor(r.rawShape)
+      out.push({
+        id: id++,
+        baseId: r.id,
+        params,
+        label: starter.label ?? defaultInstanceLabel(r.id, params, projection),
+        system: true as const,
+        projection,
+      })
+    }
+  }
+
+  return out
+}
+
+// ── Legacy-compatibility phase helpers (used by workspace migrations) ─────
+// These exist so V5→V6 / V6→V7 / V7→V8 migrations can seed the exact partition
+// they used to. Prefer buildStarterInstances() in new code.
 
 export function createSystemMetricInstances(): MetricInstance[] {
-  return listMetrics()
-    .filter(m => m.meta.outputShape !== 'aoi-pair-matrix')
-    .map((m, idx) => ({
-      id: idx + 1,
-      baseId: m.meta.id,
-      params: {},
-      label: m.meta.label,
-      system: true as const,
-    }))
+  return buildStarterInstances().filter(i => i.id < WINDOWED_ID_START)
+}
+
+export function createDefaultWindowedInstances(): MetricInstance[] {
+  return buildStarterInstances().filter(i => i.id >= WINDOWED_ID_START && i.id < AOI_PAIR_ID_START)
+}
+
+export function createDefaultAoiPairInstances(): MetricInstance[] {
+  return buildStarterInstances().filter(i => i.id >= AOI_PAIR_ID_START)
+}
+
+export function createDefaultMetricInstances(): MetricInstance[] {
+  return buildStarterInstances()
 }
 
 export function findSystemInstanceIdByBaseId(baseId: string): number | null {
-  const metrics = listMetrics().filter(
-    m => m.meta.outputShape !== 'aoi-pair-matrix'
-  )
-  const idx = metrics.findIndex(m => m.meta.id === baseId)
-  return idx < 0 ? null : idx + 1
+  const recipes = listRecipeIds().map(id => getRecipe(id)!)
+  let id = 1
+  for (const r of recipes) {
+    if (r.rawShape === 'aoi-pair-matrix') continue
+    if (r.id === baseId) return id
+    id++
+  }
+  return null
 }
 
-export function reconcileSystemInstances(
-  existing: MetricInstance[]
-): MetricInstance[] {
-  const seeded = [
-    ...createSystemMetricInstances(),
-    ...createDefaultWindowedInstances(),
-    ...createDefaultAoiPairInstances(),
-  ]
+export function reconcileSystemInstances(existing: MetricInstance[]): MetricInstance[] {
+  const seeded = buildStarterInstances()
   const existingIds = new Set(existing.map(i => i.id))
   const result = [...existing]
   for (const s of seeded) if (!existingIds.has(s.id)) result.push(s)
   return result
-}
-
-/**
- * Default windowed instances are derived from each metric's `defaultWindowing`.
- * IDs are assigned in metric registration order starting at WINDOWED_ID_START (12).
- * A pinning test asserts that the first three emitted instances have IDs 12/13/14
- * and baseIds `averageFixationCount` / `absoluteTime` / `rqaDet`.
- */
-export function createDefaultWindowedInstances(): MetricInstance[] {
-  const out: MetricInstance[] = []
-  let id = WINDOWED_ID_START
-  for (const m of listMetrics()) {
-    const wc = m.meta.defaultWindowing
-    if (!wc) continue
-    out.push({
-      id: id++,
-      baseId: m.meta.id,
-      params: {},
-      label: defaultInstanceLabel(m.meta.id, {}),
-      windowing: wc,
-      system: true as const,
-    })
-  }
-  return out
-}
-
-/**
- * Default aoi-pair-matrix instances, derived from each metric's `defaultParamSets`.
- * Needed because `createSystemMetricInstances` filters out aoi-pair-matrix metrics
- * (they can't expose a sensible default with empty params). Every pair-matrix
- * metric that declares `defaultParamSets` emits one instance per entry.
- *
- * IDs assigned deterministically from AOI_PAIR_ID_START (50) in metric-registration
- * × param-set order. Current layout:
- *   50 → transitionCount   { mode: 'fixation' }
- *   51 → transitionCount   { mode: 'visit' }
- *   52 → transitionDwellSum { mode: 'fixation' }
- *   53 → transitionDwellSum { mode: 'visit' }
- */
-export function createDefaultAoiPairInstances(): MetricInstance[] {
-  const out: MetricInstance[] = []
-  let id = AOI_PAIR_ID_START
-  for (const m of listMetrics()) {
-    if (m.meta.outputShape !== 'aoi-pair-matrix') continue
-    for (const params of m.meta.defaultParamSets) {
-      out.push({
-        id: id++,
-        baseId: m.meta.id,
-        params: { ...params },
-        label: defaultInstanceLabel(m.meta.id, params),
-        system: true as const,
-      })
-    }
-  }
-  return out
-}
-
-export function createDefaultMetricInstances(): MetricInstance[] {
-  return [
-    ...createSystemMetricInstances(),
-    ...createDefaultWindowedInstances(),
-    ...createDefaultAoiPairInstances(),
-  ]
 }
 
 /**
@@ -132,7 +144,7 @@ export function createDefaultMetricInstances(): MetricInstance[] {
 export function resolveInstanceWithFallback(
   instanceId: number | null,
   fallbackBaseId: string,
-  library: readonly MetricInstance[]
+  library: readonly MetricInstance[],
 ): MetricInstance | null {
   if (instanceId != null) {
     const direct = library.find(i => i.id === instanceId)
@@ -149,7 +161,7 @@ export function nextInstanceId(existing: readonly MetricInstance[]): number {
 
 export function resolveInstance(
   instances: readonly MetricInstance[],
-  id: number
+  id: number,
 ): MetricInstance | undefined {
   return instances.find(i => i.id === id)
 }
@@ -159,7 +171,7 @@ export function resolveInstance(
 export function defaultInstanceLabel(
   baseId: string,
   params: Record<string, unknown>,
-  projection?: Projection
+  projection?: Projection,
 ): string {
   const m = getMetric(baseId)
   if (!m) return baseId
@@ -180,10 +192,10 @@ export function defaultInstanceLabel(
   return projLabel ? `${base} · ${projLabel}` : base
 }
 
+/** Human-readable readout of the projection (including window suffix). */
 export function formatProjectionReadout(instance: MetricInstance): string | null {
-  const p = instance.projection
-  if (!p || p.from === 'identity') return null
-  return projectionToLabel(p)
+  const label = projectionToLabel(instance.projection)
+  return label.length > 0 ? label : null
 }
 
 export function formatParamReadout(instance: MetricInstance): string[] {
@@ -194,28 +206,28 @@ export function formatParamReadout(instance: MetricInstance): string[] {
     .filter((s): s is string => s.length > 0)
 }
 
-export function formatWindowingReadout(
-  instance: MetricInstance
-): string | null {
-  const w = instance.windowing
-  if (!w) return null
-  const m = getMetric(instance.baseId)
-  const isRqa = m?.meta.windowUnit === 'fixations'
-  const unit = isRqa ? 'fix' : 'ms'
-  const modeLabel = w.mode === 'epoch' ? 'Epoch' : 'Sliding'
-  const showStep = !isRqa && w.stepSize != null && w.stepSize !== w.windowSize
-  const stepStr = showStep ? ` / ${w.stepSize}ms step` : ''
-  return `${modeLabel} ${w.windowSize}${unit}${stepStr} · ${w.reduction}`
-}
-
 function formatParamShort(def: ParamDef<unknown>, value: unknown): string {
   if (value === undefined || value === null) return ''
   if (def.type === 'enum') {
-    // Just the option label — the enum's purpose is usually clear from context
-    // (e.g. "Fixation pairs" instead of "mode=Fixation pairs").
     const opt = def.options?.find(o => o.value === value)
     return opt?.label ?? String(value)
   }
   if (def.type === 'boolean') return value ? def.id : ''
   return `${def.id}=${value}`
+}
+
+// ─── Convenience constructors ────────────────────────────────────────────────
+
+export function makeLeafInstance(
+  id: number,
+  baseId: string,
+  params: Record<string, unknown>,
+  leaf: LeafProjection,
+  label?: string,
+): MetricInstance {
+  return {
+    id, baseId, params,
+    projection: leaf,
+    label: label ?? defaultInstanceLabel(baseId, params, leaf),
+  }
 }
