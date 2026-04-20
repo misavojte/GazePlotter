@@ -8,9 +8,11 @@
   import {
     formatParamReadout,
     formatWindowingReadout,
+    formatProjectionReadout,
     instanceMatchesContext,
     type MetricContext,
     type MetricInstance,
+    type Projection,
   } from '$lib/metrics'
   import type { WindowingConfig } from '$lib/data/types'
 
@@ -25,7 +27,8 @@
       params: Record<string, unknown>,
       label: string,
       windowing?: WindowingConfig,
-      replacingId?: number
+      replacingId?: number,
+      projection?: Projection
     ) => void
     ondeleteInstance?: (id: number) => void
     /** Descriptor of which shapes/windowing this consumer accepts and whether
@@ -186,7 +189,8 @@
         {@const isSelected = selectedSet.has(inst.id)}
         {@const readout = formatParamReadout(inst)}
         {@const winLine = formatWindowingReadout(inst)}
-        {@const detail = [...readout, ...(winLine ? [winLine] : [])].join(
+        {@const projLine = formatProjectionReadout(inst)}
+        {@const detail = [...readout, ...(projLine ? [projLine] : []), ...(winLine ? [winLine] : [])].join(
           ' · '
         )}
         <button

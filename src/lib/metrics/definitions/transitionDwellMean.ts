@@ -30,7 +30,7 @@ defineMetric({
   category: 'transition',
   outputShape: 'aoi-pair-matrix',
   windowUnit: 'ms',
-  computationModes: ['global'],
+  computationModes: ['global', 'epoch', 'sliding'],
   groupAggregation: 'mean',
   defaultParamSets: [{ mode: 'fixation' }, { mode: 'visit' }],
   defaultLabel: (p) =>

@@ -2,8 +2,10 @@ import './init'
 import { getMetric, listMetrics } from './core/defineMetric'
 import type { WindowingConfig } from './core/dsl'
 import type { ParamDef } from './core/params'
+import { projectionToLabel, type Projection } from './core/projection'
 
 export type { WindowingConfig } from './core/dsl'
+export type { Projection, AoiRef, AoiReducer, MatrixReducer } from './core/projection'
 
 export interface MetricInstance {
   id: number
@@ -12,6 +14,8 @@ export interface MetricInstance {
   label: string
   system?: true
   windowing?: WindowingConfig
+  /** Optional post-finalize reshape. Absent ⇔ identity (recipe's raw shape). */
+  projection?: Projection
 }
 
 const SYSTEM_ID_OFFSET = 1000
@@ -33,12 +37,16 @@ export function createSystemMetricInstances(): MetricInstance[] {
 }
 
 export function findSystemInstanceIdByBaseId(baseId: string): number | null {
-  const metrics = listMetrics().filter(m => m.meta.outputShape !== 'aoi-pair-matrix')
+  const metrics = listMetrics().filter(
+    m => m.meta.outputShape !== 'aoi-pair-matrix'
+  )
   const idx = metrics.findIndex(m => m.meta.id === baseId)
   return idx < 0 ? null : idx + 1
 }
 
-export function reconcileSystemInstances(existing: MetricInstance[]): MetricInstance[] {
+export function reconcileSystemInstances(
+  existing: MetricInstance[]
+): MetricInstance[] {
   const seeded = [
     ...createSystemMetricInstances(),
     ...createDefaultWindowedInstances(),
@@ -124,7 +132,7 @@ export function createDefaultMetricInstances(): MetricInstance[] {
 export function resolveInstanceWithFallback(
   instanceId: number | null,
   fallbackBaseId: string,
-  library: readonly MetricInstance[],
+  library: readonly MetricInstance[]
 ): MetricInstance | null {
   if (instanceId != null) {
     const direct = library.find(i => i.id === instanceId)
@@ -141,24 +149,41 @@ export function nextInstanceId(existing: readonly MetricInstance[]): number {
 
 export function resolveInstance(
   instances: readonly MetricInstance[],
-  id: number,
+  id: number
 ): MetricInstance | undefined {
   return instances.find(i => i.id === id)
 }
 
 // ─── Label / readout helpers ─────────────────────────────────────────────────
 
-export function defaultInstanceLabel(baseId: string, params: Record<string, unknown>): string {
+export function defaultInstanceLabel(
+  baseId: string,
+  params: Record<string, unknown>,
+  projection?: Projection
+): string {
   const m = getMetric(baseId)
   if (!m) return baseId
-  if (m.meta.defaultLabel) return m.meta.defaultLabel(params)
-  if (m.meta.params.length === 0) return m.meta.label
+  const base = m.meta.defaultLabel
+    ? m.meta.defaultLabel(params)
+    : m.meta.params.length === 0
+      ? m.meta.label
+      : (() => {
+          const paramStrs = m.meta.params
+            .map(p => formatParamShort(p, params[p.id] ?? p.default))
+            .filter(s => s.length > 0)
+          return paramStrs.length > 0
+            ? `${m.meta.label} (${paramStrs.join(', ')})`
+            : m.meta.label
+        })()
 
-  const paramStrs = m.meta.params
-    .map(p => formatParamShort(p, params[p.id] ?? p.default))
-    .filter(s => s.length > 0)
+  const projLabel = projection ? projectionToLabel(projection) : ''
+  return projLabel ? `${base} · ${projLabel}` : base
+}
 
-  return paramStrs.length > 0 ? `${m.meta.label} (${paramStrs.join(', ')})` : m.meta.label
+export function formatProjectionReadout(instance: MetricInstance): string | null {
+  const p = instance.projection
+  if (!p || p.from === 'identity') return null
+  return projectionToLabel(p)
 }
 
 export function formatParamReadout(instance: MetricInstance): string[] {
@@ -169,7 +194,9 @@ export function formatParamReadout(instance: MetricInstance): string[] {
     .filter((s): s is string => s.length > 0)
 }
 
-export function formatWindowingReadout(instance: MetricInstance): string | null {
+export function formatWindowingReadout(
+  instance: MetricInstance
+): string | null {
   const w = instance.windowing
   if (!w) return null
   const m = getMetric(instance.baseId)

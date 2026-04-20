@@ -25,7 +25,7 @@ defineMetric({
   category: 'transition',
   outputShape: 'aoi-pair-matrix',
   windowUnit: 'ms',
-  computationModes: ['global'],
+  computationModes: ['global', 'epoch', 'sliding'],
   groupAggregation: 'sum',
   defaultLabel: (p) =>
     p.mode === 'visit'

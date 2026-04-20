@@ -77,8 +77,6 @@
     result.correlationMethod === 'spearman' ? 'ρ' : 'r'
   )
 
-  const scopeLabel = $derived(result.scope.label)
-
   const layout = $derived.by(() =>
     computeSquareMatrixLayout({
       width: width + marginLeft + marginRight,
@@ -139,7 +137,7 @@
     xAxisTitle: 'Metric',
     yAxisTitle: 'Metric',
     compactUnitText: `[${methodLabel}]`,
-    standardUnitText: `[${methodLabel} · ${scopeLabel}]`,
+    standardUnitText: `[${methodLabel}]`,
     formatCellValue,
     getCellColor: cellColor,
     showCellValue,
@@ -259,7 +257,6 @@
     const _ = [
       flatMatrix,
       labels,
-      scopeLabel,
       width,
       height,
       methodLabel,

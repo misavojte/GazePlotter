@@ -16,7 +16,6 @@ import {
   getParticipants,
   getParticipantsIds,
   getParticipantEndTime,
-  getAois,
 } from '$lib/data/engine'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import {
@@ -124,13 +123,14 @@ function computeTimeBins(
   engine: DataEngine,
   stimulusId: number,
   participantId: number,
-  aoiIndex: number,
   binCount: number,
   stepSize: number,
   halfWindowMs: number,
   timelineMin: number,
 ): Float32Array {
   const values = new Float32Array(binCount).fill(NaN)
+  // Strip windowing so `query()` returns a raw per-bin result we place on the
+  // timeline ourselves. Projection is preserved and applied inside query().
   const bare: MetricInstance = { ...instance, windowing: undefined }
 
   for (let i = 0; i < binCount; i++) {
@@ -139,10 +139,7 @@ function computeTimeBins(
     const wEnd = center + halfWindowMs
     const scope: Scope = { engine, stimulusId, participantId, timeStart: wStart, timeEnd: wEnd }
     const result = query(bare, scope)
-    const v =
-      result.shape === 'aoi-vector' ? (result.values[aoiIndex] ?? Number.NaN)
-      : result.shape === 'scalar'    ? result.value
-      :                                 Number.NaN
+    const v = result.shape === 'scalar' ? result.value : Number.NaN
     if (Number.isFinite(v)) values[i] = v
   }
   return values
@@ -191,9 +188,6 @@ export function getEvolvingMetricsData(
   const duration = Math.max(1, timelineMax - timelineMin)
   const binCount = Math.max(1, Math.ceil(duration / stepSize))
 
-  const aois = getAois(engine, stimulusId)
-  const aoiIndex = aois.length + 1 // AnyFixation slot
-
   const sequences = isSeq
     ? participantIds.map(pid => extractFixationSequence(engine, stimulusId, pid))
     : []
@@ -208,7 +202,7 @@ export function getEvolvingMetricsData(
 
     const values = isSeq
       ? computeSequenceBins(instance, sequences[p].seq, sequences[p].timestamps, binCount, stepSize, timelineMin)
-      : computeTimeBins(instance, engine, stimulusId, pid, aoiIndex, binCount, stepSize, halfWindowMs, timelineMin)
+      : computeTimeBins(instance, engine, stimulusId, pid, binCount, stepSize, halfWindowMs, timelineMin)
 
     for (let i = 0; i < binCount; i++) {
       const v = values[i]

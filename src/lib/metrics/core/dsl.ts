@@ -73,6 +73,16 @@ export interface MetricRecipe<P, A> {
    */
   defaultParamSets?: ReadonlyArray<Record<string, unknown>>
   defaultLabel?: (params: P) => string
+  /**
+   * Authorial veto over specific projection/windowing combinations. Returns
+   * a non-null reason to reject; the central validator runs this AFTER the
+   * built-in cross-cutting rules. Use for domain knowledge the rules can't
+   * know — e.g., TTFF + aggregate-aoi mean is defensible only under `min`.
+   */
+  rejectedProjections?: (
+    p: import('./projection').Projection,
+    w?: WindowingConfig
+  ) => string | null
 
   init(ctx: InitCtx<P>): A
   onFixation(acc: A, fix: FixationEvent, ctx: InitCtx<P>): void
@@ -86,5 +96,10 @@ export interface MetricRecipe<P, A> {
    * falls back to calling `finalize` over a re-scoped accumulator, which most metrics
    * do not support.
    */
-  windowedFinalize?(acc: A, fromIndex: number, toIndex: number, ctx: InitCtx<P>): number
+  windowedFinalize?(
+    acc: A,
+    fromIndex: number,
+    toIndex: number,
+    ctx: InitCtx<P>
+  ): number
 }

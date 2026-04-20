@@ -13,6 +13,7 @@
     MetricSelect,
     type MetricInstance,
     type WindowingConfig,
+    type Projection,
   } from '$lib/metrics'
 
   interface Props {
@@ -44,10 +45,11 @@
     label: string,
     windowing?: WindowingConfig,
     replacingId?: number,
+    projection?: Projection,
   ) {
     const list = [...(engine.metadata?.metricInstances ?? [])]
     const nextId = Math.max(0, ...list.map(i => i.id)) + 1
-    const next: MetricInstance = { id: nextId, baseId, params, label, windowing }
+    const next: MetricInstance = { id: nextId, baseId, params, label, windowing, projection }
     if (replacingId !== undefined) {
       const idx = list.findIndex(i => i.id === replacingId)
       if (idx >= 0) list[idx] = { ...next, id: replacingId }

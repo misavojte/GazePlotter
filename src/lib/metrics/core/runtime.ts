@@ -1,8 +1,14 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import { getAois } from '$lib/data/engine'
 import { buildAoiSlots } from './aoiSlots'
 import { resolveParams } from './params'
 import { getRecipe } from './defineMetric'
-import type { AoiSlotInfo, FixationEvent, MetricRecipe, Reduction, WindowingConfig } from './dsl'
+import {
+  applyProjection,
+  computeEffectiveShape,
+  type Projection,
+} from './projection'
+import type { AoiSlotInfo, FixationEvent, MetricRecipe, OutputShape, Reduction, WindowingConfig } from './dsl'
 import type { MetricInstance } from '../instances'
 
 export interface Scope {
@@ -41,6 +47,50 @@ export function runMetric(instance: MetricInstance, scope: Scope): number[] {
   const recipe = getRecipe(instance.baseId)
   if (!recipe) return []
   return runRecipe(recipe, instance, scope)
+}
+
+/**
+ * Run the recipe and apply the instance's projection. Returns the projected
+ * values along with the *effective* shape the consumer should treat them as.
+ * When `instance.projection` is absent or identity, this is equivalent to
+ * `runRecipe` wrapped with the recipe's raw shape.
+ */
+export interface ProjectedResult {
+  values: number[]
+  effectiveShape: OutputShape
+  rawShape: OutputShape
+  aoiMissing: boolean
+}
+
+export function runProjected(instance: MetricInstance, scope: Scope): ProjectedResult | null {
+  const recipe = getRecipe(instance.baseId)
+  if (!recipe) return null
+  const raw = runRecipe(recipe, instance, scope)
+  return projectRawOutput(raw, recipe.outputShape, instance.projection, scope)
+}
+
+export function projectRawOutput(
+  raw: number[],
+  rawShape: OutputShape,
+  projection: Projection | undefined,
+  scope: Scope
+): ProjectedResult {
+  const aoiNames = getAoiNames(scope)
+  const { values, aoiMissing } = applyProjection(raw, rawShape, projection, { aoiNames })
+  return {
+    values,
+    effectiveShape: computeEffectiveShape(rawShape, projection),
+    rawShape,
+    aoiMissing,
+  }
+}
+
+function getAoiNames(scope: Scope): string[] {
+  try {
+    return getAois(scope.engine, scope.stimulusId).map(a => a.displayedName)
+  } catch {
+    return []
+  }
 }
 
 export function runIndividuals(

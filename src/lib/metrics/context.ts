@@ -1,6 +1,9 @@
 import type { Metric, OutputShape } from './core/dsl'
 import type { MetricInstance } from './instances'
 import { getMetric } from './registry'
+import { getRecipe } from './core/defineMetric'
+import { computeEffectiveShape, targetsFor } from './core/projection'
+import { validateCombination } from './core/validation'
 
 /**
  * Descriptor of what metric instances a UI surface (plot pane, library
@@ -17,23 +20,45 @@ export type MetricContext = {
   multiSelect?: boolean
 }
 
-/** Does an existing instance belong in this context? */
+/** Does an existing instance belong in this context? Uses effective
+ *  (post-projection) shape, then runs the central validator so invalid
+ *  combinations (e.g., a saved `transitionProbability · matrix-aggregate`
+ *  from an older build) silently disappear from dropdowns. */
 export function instanceMatchesContext(
   instance: MetricInstance,
   ctx: MetricContext,
 ): boolean {
-  const shape = getMetric(instance.baseId)?.meta.outputShape
-  if (!shape || !ctx.shapes.includes(shape)) return false
+  const rawShape = getMetric(instance.baseId)?.meta.outputShape
+  if (!rawShape) return false
+  const effective = computeEffectiveShape(rawShape, instance.projection)
+  if (!ctx.shapes.includes(effective)) return false
   const hasWindowing = !!instance.windowing
-  return ctx.windowing === 'only' ? hasWindowing : !hasWindowing
+  if ((ctx.windowing === 'only') !== hasWindowing) return false
+  // Validator runs only when projection is set; bare recipes (no projection)
+  // are always structurally valid against their raw shape.
+  if (instance.projection) {
+    const recipe = getRecipe(instance.baseId)
+    if (!recipe) return false
+    if (!validateCombination({ recipe, projection: instance.projection, windowing: instance.windowing }).ok) {
+      return false
+    }
+  }
+  return true
 }
 
-/** Can a metric definition be instantiated via this context's "Create" UI? */
+/**
+ * Can a metric definition be instantiated via this context's "Create" UI?
+ * A metric is creatable if SOME target shape of its projection space matches
+ * the context's accepted shapes — purely projection-target-based, regardless
+ * of the recipe's raw output shape.
+ */
 export function metricIsCreatableInContext(
   metric: Metric,
   ctx: MetricContext,
 ): boolean {
-  if (!ctx.shapes.includes(metric.meta.outputShape)) return false
+  const raw = metric.meta.outputShape
+  const anyTargetFits = targetsFor(raw).some(t => ctx.shapes.includes(t))
+  if (!anyTargetFits) return false
   if (ctx.windowing === 'only') {
     return metric.meta.computationModes.some(m => m !== 'global')
   }
@@ -54,15 +79,18 @@ export const METRIC_CONTEXTS = {
     windowing: 'never',
     multiSelect: false,
   },
-  /** Multiple scalar+aoi-vector metrics (metric correlation). */
+  /** Multiple scalar metrics (metric correlation). AOI binding lives inside
+   *  the projection of each selected instance — the plot has no plot-level
+   *  AOI scope picker. */
   globalMulti: {
-    shapes: ['scalar', 'aoi-vector'],
+    shapes: ['scalar'],
     windowing: 'never',
     multiSelect: true,
   },
-  /** Single windowed metric, any non-pair shape (evolving metrics). */
+  /** Single windowed scalar metric (evolving metrics). AOI binding lives in
+   *  the projection of the instance — no plot-level AOI scope picker. */
   windowed: {
-    shapes: ['scalar', 'aoi-vector'],
+    shapes: ['scalar'],
     windowing: 'only',
     multiSelect: false,
   },

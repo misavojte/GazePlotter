@@ -37,7 +37,6 @@ export const metricCorrelationDefinition = definePlot<
     stimulusId: params.stimulusId ?? 0,
     groupId: params.groupId ?? -1,
     view: 'heatmap',
-    selectedAoiId: null,
     correlationMethod: 'spearman',
     enabledMetricIds: [],
   }),

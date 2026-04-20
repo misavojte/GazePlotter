@@ -86,9 +86,9 @@
     selectedIds={settings.selectedMetricId !== null ? [settings.selectedMetricId] : []}
     onchange={ids => update({ selectedMetricId: ids.at(-1) ?? null })}
     onrenameInstance={(id, label) => engine.updateMetricInstanceLabel(id, label)}
-    oncreateInstance={(baseId, params, label, windowing, replacingId) => {
+    oncreateInstance={(baseId, params, label, windowing, replacingId, projection) => {
       if (replacingId != null) engine.deleteMetricInstance(replacingId)
-      const newId = engine.addMetricInstance(baseId, params, label, windowing)
+      const newId = engine.addMetricInstance(baseId, params, label, windowing, projection)
       if (newId >= 0) update({ selectedMetricId: newId })
     }}
     ondeleteInstance={id => {

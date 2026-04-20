@@ -8,22 +8,15 @@ export type MetricCorrelationSettings = {
   stimulusId: number
   groupId: number
   view: MetricCorrelationView
+  correlationMethod: CorrelationMethod
   /**
-   * AOI id the participant-level correlation is computed over. `null` means
-   * the whole stimulus (AnyFixation slot) — one point per participant based
-   * on their stimulus-wide gaze behavior. A stale id from a previous stimulus
-   * falls back to null at render time.
+   * List of MetricInstance ids (workspace-level library references). Each
+   * selected metric must project to a scalar — AOI binding lives inside the
+   * projection of the instance, not on the plot.
    *
    * Only participant-level correlation is supported on purpose: across-AOI
    * and participant×AOI modes are statistically unsound (ecological fallacy,
    * pseudo-replication) and are deliberately not shipped.
-   */
-  selectedAoiId: number | null
-  correlationMethod: CorrelationMethod
-  /**
-   * List of MetricInstance ids (workspace-level library references). Empty
-   * means "all system instances" — the runtime fallback preserves the old
-   * default-when-unconfigured behavior.
    */
   enabledMetricIds: number[]
   timelineStart?: number
@@ -72,14 +65,6 @@ export interface MetricCorrelationResult {
   correlationMethod: CorrelationMethod
   /** Number of participants in the group (base N before NaN filtering). */
   sampleSize: number
-  /** Scope the correlation is taken over. */
-  scope: {
-    kind: 'aoi' | 'wholeStimulus'
-    /** AOI displayed name (or 'Whole stimulus'). */
-    label: string
-    /** Canonical AOI id for reference; undefined for wholeStimulus. */
-    aoiId?: number
-  }
   /** Participant labels parallel to vectors' rows (for SPLOM tooltips). */
   participantLabels?: string[]
 }

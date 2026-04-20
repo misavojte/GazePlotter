@@ -1,6 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import { getAois, getParticipantsIds } from '$lib/data/engine'
-import { WHOLE_STIMULUS_AOI_LABEL } from '../const'
+import { getParticipantsIds } from '$lib/data/engine'
 import { getMetric, queryBatch, type MetricInstance, type Scope } from '$lib/metrics'
 import type {
   CorrelationCell,
@@ -17,33 +16,27 @@ interface BuildOptions {
   includePoints: boolean
 }
 
+/**
+ * Correlates scalar-valued metric instances across participants. The context
+ * filter already ensures every selected instance has projection.target =
+ * 'scalar' — any AOI binding is baked into the instance's projection, not the
+ * plot — so the transformer has no plot-level scope to resolve.
+ */
 export function getMetricCorrelationData(
   engine: DataEngine,
   settings: MetricCorrelationSettings,
   options: BuildOptions = { includePoints: false }
 ): MetricCorrelationResult {
   const meta = engine.metadata
-  if (!meta) {
-    return emptyResult(settings, 'wholeStimulus', WHOLE_STIMULUS_AOI_LABEL)
-  }
+  if (!meta) return emptyResult(settings)
 
-  const aois = getAois(engine, settings.stimulusId)
-  const participantIds = getParticipantsIds(
-    engine,
-    settings.groupId,
-    settings.stimulusId
-  )
-
-  const scope = resolveScope(aois, settings.selectedAoiId)
-  const scopeIndex = scope.kind === 'aoi' ? scope.aoiIndex : aois.length + 1
+  const participantIds = getParticipantsIds(engine, settings.groupId, settings.stimulusId)
 
   const { metrics, instances } = resolveMetrics(
     settings.enabledMetricIds,
     meta.metricInstances
   )
-  if (metrics.length < 2 || participantIds.length === 0) {
-    return emptyResult(settings, scope.kind, scope.label, scope.aoiId)
-  }
+  if (metrics.length < 2 || participantIds.length === 0) return emptyResult(settings)
 
   const participantLabels = participantIds.map(id => {
     const pData = meta.participants.data[id]
@@ -57,13 +50,17 @@ export function getMetricCorrelationData(
 
   for (let p = 0; p < participantIds.length; p++) {
     const pid = participantIds[p]
-    const timeStart = settings.timelineStart ?? 0
-    const timeEnd = settings.timelineEnd ?? 0
-    const pScope: Scope = { engine, stimulusId: settings.stimulusId, participantId: pid, timeStart, timeEnd }
+    const pScope: Scope = {
+      engine,
+      stimulusId: settings.stimulusId,
+      participantId: pid,
+      timeStart: settings.timelineStart ?? 0,
+      timeEnd: settings.timelineEnd ?? 0,
+    }
     const results = queryBatch(instances, pScope)
     for (let mIdx = 0; mIdx < metrics.length; mIdx++) {
       const result = results.get(instances[mIdx].id)
-      vectors[mIdx].values[p] = extractScopeValue(result, scopeIndex)
+      vectors[mIdx].values[p] = result?.shape === 'scalar' ? result.value : Number.NaN
     }
   }
 
@@ -81,21 +78,7 @@ export function getMetricCorrelationData(
     cells,
     correlationMethod: settings.correlationMethod,
     sampleSize: participantIds.length,
-    scope: {
-      kind: scope.kind,
-      label: scope.label,
-      aoiId: scope.aoiId,
-    },
     participantLabels,
-  }
-}
-
-function extractScopeValue(result: ReturnType<typeof queryBatch> extends Map<number, infer R> ? R | undefined : never, scopeIndex: number): number {
-  if (!result) return Number.NaN
-  switch (result.shape) {
-    case 'scalar':          return result.value
-    case 'aoi-vector':      return result.values[scopeIndex] ?? Number.NaN
-    case 'aoi-pair-matrix': return result.matrix[scopeIndex] ?? Number.NaN
   }
 }
 
@@ -120,29 +103,6 @@ function resolveMetrics(
   return { metrics, instances }
 }
 
-type ResolvedScope =
-  | { kind: 'wholeStimulus'; label: string; aoiId?: undefined; aoiIndex?: undefined }
-  | { kind: 'aoi'; label: string; aoiId: number; aoiIndex: number }
-
-function resolveScope(
-  aois: ReturnType<typeof getAois>,
-  selectedAoiId: number | null
-): ResolvedScope {
-  if (selectedAoiId == null) {
-    return { kind: 'wholeStimulus', label: WHOLE_STIMULUS_AOI_LABEL }
-  }
-  const aoiIndex = aois.findIndex(a => a.id === selectedAoiId)
-  if (aoiIndex < 0) {
-    return { kind: 'wholeStimulus', label: WHOLE_STIMULUS_AOI_LABEL }
-  }
-  return {
-    kind: 'aoi',
-    label: aois[aoiIndex].displayedName,
-    aoiId: aois[aoiIndex].id,
-    aoiIndex,
-  }
-}
-
 function computeCells(
   metrics: MetricDescriptor[],
   vectors: MetricVector[],
@@ -164,11 +124,7 @@ function computeCells(
           const x = colVec[i]
           const y = rowVec[i]
           if (Number.isNaN(x) || Number.isNaN(y)) continue
-          points.push({
-            x,
-            y,
-            participantLabel: participantLabels[i],
-          })
+          points.push({ x, y, participantLabel: participantLabels[i] })
         }
       }
 
@@ -184,18 +140,12 @@ function computeCells(
   return cells
 }
 
-function emptyResult(
-  settings: MetricCorrelationSettings,
-  kind: 'aoi' | 'wholeStimulus',
-  label: string,
-  aoiId?: number
-): MetricCorrelationResult {
+function emptyResult(settings: MetricCorrelationSettings): MetricCorrelationResult {
   return {
     metrics: [],
     vectors: [],
     cells: [],
     correlationMethod: settings.correlationMethod,
     sampleSize: 0,
-    scope: { kind, label, aoiId },
   }
 }

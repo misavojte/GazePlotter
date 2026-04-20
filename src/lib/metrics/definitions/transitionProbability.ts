@@ -32,7 +32,7 @@ defineMetric({
   category: 'transition',
   outputShape: 'aoi-pair-matrix',
   windowUnit: 'ms',
-  computationModes: ['global'],
+  computationModes: ['global', 'epoch', 'sliding'],
   groupAggregation: 'mean',
   defaultParamSets: [{ mode: 'fixation', step: 1 }],
   defaultLabel: (p) => {
@@ -40,6 +40,15 @@ defineMetric({
     return `Transition probability (${modeLabel}, ${p.step}-step)`
   },
   searchTags: ['transition', 'probability', 'markov', 'chain', 'aoi', 'pair', 'k-step'],
+  // Author-level veto (redundant with the central %-unit rule, stated here
+  // so the intent lives with the formula): matrix-aggregate is always
+  // degenerate on a row-normalised probability matrix — force matrix-cell.
+  rejectedProjections: (p) => {
+    if (p.target === 'scalar' && p.from === 'matrix-aggregate') {
+      return 'Probability matrices are row-normalised — use matrix-cell for a specific transition.'
+    }
+    return null
+  },
   params,
   init: ({ slots }) => initTransitionAcc(slots.totalSlots),
   onFixation: (acc, fix, { params: p }) => {

@@ -20,5 +20,3 @@ export const METRIC_CORRELATION_VIEWS: {
 ]
 
 export const MIN_CORRELATION_SAMPLES = 3
-
-export const WHOLE_STIMULUS_AOI_LABEL = 'Whole stimulus (any fixation)'

@@ -14,7 +14,7 @@ export interface ResolvedAoiSlots {
 export function buildAoiSlots(
   engine: DataEngine,
   stimulusId: number,
-  aois?: ExtendedInterpretedDataType[],
+  aois?: ExtendedInterpretedDataType[]
 ): ResolvedAoiSlots | null {
   const reader = engine.getReader()
   if (!reader) return null
@@ -27,5 +27,12 @@ export function buildAoiSlots(
   const hiddenAoisSet = hiddenAois.length ? new Set<number>(hiddenAois) : null
   const aoiLookup = new Map<number, number>()
   for (let i = 0; i < aoiCount; i++) aoiLookup.set(aoiList[i].id, i)
-  return { reader, totalSlots, noAoiSlot, anyFixationSlot, hiddenAoisSet, aoiLookup }
+  return {
+    reader,
+    totalSlots,
+    noAoiSlot,
+    anyFixationSlot,
+    hiddenAoisSet,
+    aoiLookup,
+  }
 }

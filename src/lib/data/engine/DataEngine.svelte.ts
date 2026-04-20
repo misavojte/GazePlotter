@@ -12,6 +12,7 @@ import {
   nextInstanceId,
   defaultInstanceLabel,
 } from '$lib/metrics/instances'
+import type { Projection } from '$lib/metrics/core/projection'
 
 export class DataEngine {
   // --- Private Memory (Non-Reactive) ---
@@ -181,16 +182,17 @@ export class DataEngine {
     baseId: string,
     params: Record<string, unknown>,
     label?: string,
-    windowing?: WindowingConfig
+    windowing?: WindowingConfig,
+    projection?: Projection
   ): number {
     const meta = this.metadata
     if (!meta) return -1
     const existing = meta.metricInstances ?? []
     const id = nextInstanceId(existing)
-    const resolvedLabel = label?.trim() || defaultInstanceLabel(baseId, params)
+    const resolvedLabel = label?.trim() || defaultInstanceLabel(baseId, params, projection)
     meta.metricInstances = [
       ...existing,
-      { id, baseId, params, label: resolvedLabel, windowing },
+      { id, baseId, params, label: resolvedLabel, windowing, projection },
     ]
     return id
   }
