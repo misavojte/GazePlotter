@@ -108,6 +108,25 @@ export function computeRqaFromSequence(seq: readonly number[], minLineLength: nu
   return computeRqa(matrix, N, minLineLength)
 }
 
+/**
+ * Evaluate RQA on a sequence, returning a single scalar selected by the caller.
+ *   • Returns `Number.NaN` when the sequence is too short for any recurrence (N < 2).
+ *   • Returns `scalarOnNoRecurrence` (default NaN) when the matrix has no recurrent
+ *     pairs (R = 0) — the denominator-zero case for DET/LAM. REC callers pass 0
+ *     because 0 recurrences = 0% recurrence rate.
+ */
+export function rqaScalar(
+  seq: readonly number[],
+  minLineLength: number,
+  selector: (result: RqaResult) => number,
+  scalarOnNoRecurrence: number = Number.NaN,
+): number {
+  const result = computeRqaFromSequence(seq, minLineLength)
+  if (!result) return Number.NaN
+  if (result.R === 0) return scalarOnNoRecurrence
+  return selector(result)
+}
+
 /** Build a binary recurrence matrix from a categorical sequence (upper triangle only). */
 export function buildCategoricalRecurrenceMatrix(seq: readonly number[]): Uint8Array {
   const N = seq.length

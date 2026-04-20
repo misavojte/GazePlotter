@@ -5,7 +5,7 @@
   import { BasePlot } from '$lib/plots/shared/components'
 
   import { getRecurrenceData } from '$lib/plots/recurrence/core/transformer'
-  import { buildHighlightMask } from '$lib/plots/recurrence/core/rqa'
+  import { buildHighlightMask } from '$lib/plots/recurrence/core/highlightMask'
 
   import type { RecurrencePlotItem } from '$lib/plots/recurrence/types'
 

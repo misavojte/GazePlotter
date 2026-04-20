@@ -1,18 +1,26 @@
-import { defineSequenceMetric } from '../core/sequenceMetric'
+import { defineMetric } from '../core/defineMetric'
 import { integerParam } from '../core/params'
+import { rqaScalar } from '../core/rqa'
 
 const params = [integerParam('v_min', 'Min line', 2, { min: 2, max: 20 })] as const
 
-defineSequenceMetric({
+defineMetric({
   id: 'rqaLam',
   label: 'Laminarity',
   description: 'Laminarity (%): fraction of recurrent fixation pairs forming vertical lines in the recurrence matrix. High values indicate the gaze repeatedly dwells on the same AOI before transitioning.',
   unit: '%',
   category: 'rqa-aoi',
   outputShape: 'scalar',
+  windowUnit: 'fixations',
   computationModes: ['global', 'epoch', 'sliding'],
   searchTags: ['rqa', 'laminarity', 'lam', 'vertical', 'nonlinear', 'aoi', 'sequence'],
   params,
-  minLineLength: (p) => p.v_min,
-  rqaSelector: (r) => r.LAM,
+  init: (): { seq: number[] } => ({ seq: [] }),
+  onFixation: (acc, { slots }) => {
+    if (slots.length === 1) acc.seq.push(slots[0])
+  },
+  finalize: (acc, _slots, ctx) =>
+    [rqaScalar(acc.seq, ctx.params.v_min, r => r.LAM)],
+  windowedFinalize: (acc, from, to, ctx) =>
+    rqaScalar(acc.seq.slice(from, to), ctx.params.v_min, r => r.LAM),
 })

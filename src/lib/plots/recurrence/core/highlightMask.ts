@@ -6,9 +6,9 @@ import {
 import type { RecurrenceHighlight, RecurrenceMasking } from '../types'
 
 /**
- * Build a full NxN highlight mask from a recurrence matrix. Plot-only: mixes
- * line-mask primitives (in `$lib/metrics/core/rqa`) with the plot's highlight /
- * masking enums. Returns null when highlight is 'none'.
+ * Build a full NxN highlight mask from a recurrence matrix. Plot-only: composes
+ * the line-mask primitives from `$lib/metrics/core/rqa` according to the plot's
+ * highlight / masking enums. Returns null when highlight is 'none'.
  */
 export function buildHighlightMask(
   matrix: Uint8Array,

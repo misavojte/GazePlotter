@@ -1,4 +1,5 @@
 import type { PlotItemContract } from '$lib/plots/definePlot'
+import type { RqaResult } from '$lib/metrics/core/rqa'
 
 export type RecurrenceMethod = 'fixedDistance' | 'fixedGrid' | 'aoi'
 
@@ -28,9 +29,6 @@ export type RecurrencePlotItem = PlotItemContract<
   RecurrencePlotSettings
 >
 
-import type { RqaResult } from '$lib/metrics/core/rqa'
-export type RQAMetrics = RqaResult
-
 export interface RecurrenceData {
   /** Flat NxN binary matrix (1 = recurrent, 0 = not) */
   matrix: Uint8Array
@@ -38,8 +36,8 @@ export interface RecurrenceData {
   durationMatrix: Float32Array | null
   /** Number of fixations (N) */
   fixationCount: number
-  /** RQA metrics computed from the matrix */
-  rqa: RQAMetrics
+  /** RQA scalar metrics computed from the matrix */
+  rqa: RqaResult
   /** Per-fixation primary AOI color (hex string), null if no AOI */
   fixationAoiColors: (string | null)[]
 }

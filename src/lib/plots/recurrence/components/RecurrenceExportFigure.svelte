@@ -4,7 +4,7 @@
   import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
   import RecurrencePlotFigure from './RecurrencePlotFigure.svelte'
   import { getRecurrenceData } from '$lib/plots/recurrence/core/transformer'
-  import { buildHighlightMask } from '$lib/plots/recurrence/core/rqa'
+  import { buildHighlightMask } from '$lib/plots/recurrence/core/highlightMask'
 
   interface Props {
     item: RecurrencePlotItem

@@ -17,9 +17,11 @@ defineMetric({
     if (slots.length === 0) acc[info.noAoiSlot] += duration
     else for (let i = 0; i < slots.length; i++) acc[slots[i]] += duration
   },
-  finalize: (acc) => {
-    let total = 0
-    for (let i = 0; i < acc.length; i++) total += acc[i]
+  finalize: (acc, slots) => {
+    // Normalise by total fixation time (the anyFixation slot), NOT by the sum
+    // of all slots — that would double-count every fixation (once in its AOI
+    // slot, once in anyFixation) and halve every reported percentage.
+    const total = acc[slots.anyFixationSlot]
     const out = new Array<number>(acc.length)
     for (let i = 0; i < acc.length; i++) out[i] = total > 0 ? (acc[i] / total) * 100 : 0
     return out

@@ -2,12 +2,13 @@ import './init'
 
 // ─── Author surface ─────────────────────────────────────────────────────────
 export { defineMetric } from './core/defineMetric'
-export { defineSequenceMetric, extractFixationSequence, computeSequenceScalar, isSequenceMetric } from './core/sequenceMetric'
+export { extractFixationSequence, computeSequenceScalar } from './core/fixations'
 export { integerParam, numberParam, boolParam, enumParam } from './core/params'
 export {
   computeRqa,
   computeRqaWithDuration,
   computeRqaFromSequence,
+  rqaScalar,
   buildCategoricalRecurrenceMatrix,
   buildDiagonalLineMask,
   buildHorizontalLineMask,
@@ -38,7 +39,7 @@ export type { MetricInstance } from './instances'
 export type { MetricResult, Scope, GroupScope } from './query'
 export type { MetricCategoryDef } from './categories'
 export type { RqaResult } from './core/rqa'
-export type { FixationSequence } from './core/sequenceMetric'
+export type { FixationSequence } from './core/fixations'
 
 // ─── UI ────────────────────────────────────────────────────────────────────
 export { default as MetricSelect } from './components/MetricSelect.svelte'
