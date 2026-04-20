@@ -1,12 +1,10 @@
 import { computeRQA } from '$lib/plots/recurrence/core/rqa'
-import type { MetricData } from './types'
-import type { MetricInstance } from '$lib/data/types'
+import type { MetricInstance } from './types'
 
 export function computeRqaAoiScalar(
   instance: MetricInstance,
-  metrics: Pick<MetricData, 'fixationAoiSequence'>
+  seq: number[]
 ): number {
-  const seq = metrics.fixationAoiSequence
   const N = seq.length
   if (N < 2) return Number.NaN
 

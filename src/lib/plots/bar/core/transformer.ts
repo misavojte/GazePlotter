@@ -14,9 +14,8 @@ import type {
   BarPlotSettings,
   AoiSummaryStatistics,
 } from '../types'
-import { collectParticipantBarMetrics } from './collector'
 import { getMetricDef } from '$lib/metrics/registry'
-import type { MetricData } from '$lib/metrics/types'
+import type { MetricComputeContext } from '$lib/metrics/types'
 
 export function getBarPlotData(
   engine: DataEngine,
@@ -49,15 +48,8 @@ export function getBarPlotData(
     return { data: [], timeline: createAdaptiveTimeline(0, 100, 6), dataMax: 0 }
   }
 
-  const participantMetrics = collectParticipantBarMetrics(
-    engine,
-    settings.stimulusId,
-    participantIds,
-    aois,
-    settings.timelineStart ?? 0,
-    settings.timelineEnd ?? 0
-  )
-
+  const timeStart = settings.timelineStart ?? 0
+  const timeEnd = settings.timelineEnd ?? 0
   const totalSlots = aois.length + 1
 
   const participantDisplayNames = participantIds.map(id => {
@@ -69,9 +61,13 @@ export function getBarPlotData(
   const individualNameArrays = new Array<string[]>(totalSlots)
   for (let i = 0; i < totalSlots; i++) {
     const result = extractIndividualValuesWithIdentity(
-      participantMetrics,
+      engine,
       aggregationMethod,
+      settings.stimulusId,
+      participantIds,
       i,
+      timeStart,
+      timeEnd,
       participantDisplayNames
     )
     individualArrays[i] = result.values
@@ -134,13 +130,16 @@ export function getBarPlotData(
 }
 
 function extractIndividualValuesWithIdentity(
-  metrics: MetricData[],
+  engine: DataEngine,
   method: string,
+  stimulusId: number,
+  participantIds: number[],
   aoiIndex: number,
+  timeStart: number,
+  timeEnd: number,
   participantNames: string[]
 ): { values: number[]; names: string[] } {
-  const participantCount = metrics.length
-  if (participantCount === 0) return { values: [], names: [] }
+  if (participantIds.length === 0) return { values: [], names: [] }
 
   const def = getMetricDef(method)
   if (!def) return { values: [], names: [] }
@@ -149,10 +148,11 @@ function extractIndividualValuesWithIdentity(
   const names: string[] = []
   const fakeInstance = { id: 0, baseId: method, params: {}, label: '' }
 
-  for (let p = 0; p < participantCount; p++) {
+  for (let p = 0; p < participantIds.length; p++) {
+    const ctx: MetricComputeContext = { stimulusId, participantId: participantIds[p], timeStart, timeEnd }
     const expanded = def.extractIndividuals
-      ? def.extractIndividuals(metrics[p], aoiIndex, fakeInstance)
-      : [def.compute(metrics[p], aoiIndex, fakeInstance)]
+      ? def.extractIndividuals(engine, ctx, aoiIndex, fakeInstance)
+      : [def.compute(engine, ctx, fakeInstance)[aoiIndex] ?? Number.NaN]
     for (const v of expanded) {
       if (Number.isFinite(v)) {
         values.push(v)

@@ -1,6 +1,8 @@
-import type { MetricInstance } from '$lib/data/types'
+import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 
 export type MetricParamType = 'integer' | 'number' | 'enum' | 'boolean'
+
+export type MetricOutputShape = 'scalar' | 'aoi-vector' | 'aoi-pair-matrix'
 
 export interface MetricParamDef {
   id: string
@@ -14,6 +16,7 @@ export interface MetricParamDef {
   options?: { value: string; label: string }[]
 }
 
+/** @deprecated Use open string category instead — kept for backwards compat */
 export type MetricCategory =
   | 'duration'
   | 'counts'
@@ -23,45 +26,52 @@ export type MetricCategory =
 
 export type MetricComputationMode = 'global' | 'epoch' | 'sliding'
 
-export interface MetricData {
-  dwellTime: number[]
-  ttff: number[]
-  fixationCount: number[]
-  hitRatio: number[]
-  entryCount: number[]
-  dwellDurations: number[][]
-  firstFixationDuration: number[]
-  avgFixationDuration: number[][]
-  fixationAoiSequence: number[]
-  fixationTimestamps: number[]
+export interface WindowingConfig {
+  mode: 'epoch' | 'sliding'
+  windowSize: number
+  stepSize?: number
+  reduction: 'mean' | 'max' | 'min' | 'final'
+}
+
+export interface MetricInstance {
+  id: number
+  baseId: string
+  params: Record<string, unknown>
+  label: string
+  system?: true
+  windowing?: WindowingConfig
+}
+
+export interface MetricComputeContext {
+  stimulusId: number
+  participantId: number
+  timeStart: number
+  timeEnd: number
+}
+
+export interface SegmentScanner {
+  push(fixStart: number, fixDuration: number, slots: ReadonlyArray<number>): void
+  finalize(): number[]
+  extractIndividuals?(aoiIndex: number): number[]
 }
 
 export interface MetricDef {
-  id: string
-  label: string
-  unit: string
-  category: MetricCategory
-  params?: MetricParamDef[]
-  defaultLabel?: (params: Record<string, unknown>) => string
-  computationModes?: MetricComputationMode[]
-  searchTags?: string[]
+  readonly id: string
+  readonly label: string
+  readonly unit: string
+  readonly category: string
+  readonly description: string
+  readonly outputShape: MetricOutputShape
+  readonly params?: MetricParamDef[]
+  readonly defaultLabel?: (params: Record<string, unknown>) => string
+  readonly computationModes?: MetricComputationMode[]
+  readonly searchTags?: string[]
+  readonly windowUnit: 'ms' | 'fixations'
+  readonly requires?: { segmented?: boolean; spatial?: boolean; event?: boolean }
 
-  /** 'fixations' = RQA (window in fixation count); 'ms' = all others */
-  windowUnit: 'ms' | 'fixations'
+  groupAggregation?: 'mean' | 'median' | 'sum'
 
-  /** Per-participant scalar. Returns NaN when undefined. */
-  compute: (
-    data: MetricData,
-    aoiIndex: number,
-    instance: MetricInstance
-  ) => number
-
-  /** Expands to N individual values per participant (for bar beeswarm). */
-  extractIndividuals?: (
-    data: MetricData,
-    aoiIndex: number,
-    instance: MetricInstance
-  ) => number[]
+  compute(engine: DataEngine, ctx: MetricComputeContext, instance: MetricInstance): number[]
+  extractIndividuals?(engine: DataEngine, ctx: MetricComputeContext, aoiIndex: number, instance: MetricInstance): number[]
+  createScanner?(totalSlots: number, noAoiSlot: number, anyFixationSlot: number, instance: MetricInstance): SegmentScanner
 }
-
-export type { MetricInstance } from '$lib/data/types'

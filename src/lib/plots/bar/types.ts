@@ -84,4 +84,3 @@ export type AggregationFunction = (
   participantIds: number[]
 ) => ParticipantAggregationData[]
 
-export type { MetricData as ParticipantBarMetrics } from '$lib/metrics'

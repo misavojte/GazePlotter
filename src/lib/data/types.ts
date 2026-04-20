@@ -1,6 +1,8 @@
 import type { FileInputType, FileMetadataType } from '$lib/data/ingest'
 import type { GridItemSnapshot } from '$lib/workspace'
 import type { BinarySegmentBuffers } from './binary'
+import type { MetricInstance, WindowingConfig } from '$lib/metrics/types'
+export type { MetricInstance, WindowingConfig } from '$lib/metrics/types'
 
 import { DEFAULT_NO_AOI_COLOR } from '../color/palettes'
 
@@ -139,23 +141,6 @@ export interface DataType {
   segments: BinarySegmentBuffers
   noAoiTreatment: NoAoiTreatmentType
   eventData: EventDataType
-}
-
-export interface WindowingConfig {
-  mode: 'epoch' | 'sliding'
-  windowSize: number
-  /** Step between bin centers in ms. Defaults to windowSize (epoch) or 100 (sliding/RQA). */
-  stepSize?: number
-  reduction: 'mean' | 'max' | 'min' | 'final'
-}
-
-export interface MetricInstance {
-  id: number
-  baseId: string
-  params: Record<string, unknown>
-  label: string
-  system?: true
-  windowing?: WindowingConfig
 }
 
 /**

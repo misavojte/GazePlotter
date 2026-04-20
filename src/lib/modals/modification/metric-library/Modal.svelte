@@ -321,6 +321,8 @@
       onsubmit={e => { e.preventDefault(); commitForm(baseId) }}
       onkeydown={e => { if (e.key === 'Escape') { e.preventDefault(); collapseAll() } }}
     >
+      <p class="metric-description">{def.description}</p>
+
       {#each def.params ?? [] as param (param.id)}
         <div class="param-row">
           {#if param.type === 'enum'}
@@ -633,6 +635,14 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+  }
+
+  .metric-description {
+    font-size: 11px;
+    color: var(--c-darkgrey);
+    line-height: 1.5;
+    margin: 0;
+    padding-bottom: 2px;
   }
 
   .param-row { display: flex; flex-direction: column; }

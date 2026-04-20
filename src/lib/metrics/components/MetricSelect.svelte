@@ -4,7 +4,7 @@
   import Check from 'lucide-svelte/icons/check'
   import { getGazePlotterSession } from '$lib/session'
   import { portal } from '$lib/context-menu/utils'
-  import { metricLibraryModal } from './metricLibraryModal'
+  import { metricLibraryModal } from '$lib/modals/definitions'
   import {
     formatParamReadout,
     formatWindowingReadout,

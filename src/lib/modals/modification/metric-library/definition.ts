@@ -1,7 +1,7 @@
 import { defineModal } from '$lib/modals/defineModal'
-import MetricLibraryModal from './MetricLibraryModal.svelte'
+import Modal from './Modal.svelte'
 
 export const metricLibraryModal = defineModal({
-  component: MetricLibraryModal,
+  component: Modal,
   title: 'Metric library',
 })

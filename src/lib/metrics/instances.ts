@@ -1,21 +1,24 @@
-import { METRIC_DEFS, getMetricDef } from './registry'
-import type { MetricInstance } from '$lib/data/types'
-import type { MetricParamDef } from './types'
+import './init'
+import { getMetricDefs, getMetricDef } from './defineMetric'
+import type { MetricInstance, MetricParamDef } from './types'
 
 const SYSTEM_ID_OFFSET = 1000
 
 export function createSystemMetricInstances(): MetricInstance[] {
-  return METRIC_DEFS.map((def, idx) => ({
-    id: idx + 1,
-    baseId: def.id,
-    params: {},
-    label: def.label,
-    system: true,
-  }))
+  return getMetricDefs()
+    .filter(def => def.outputShape !== 'aoi-pair-matrix')
+    .map((def, idx) => ({
+      id: idx + 1,
+      baseId: def.id,
+      params: {},
+      label: def.label,
+      system: true as const,
+    }))
 }
 
 export function findSystemInstanceIdByBaseId(baseId: string): number | null {
-  const idx = METRIC_DEFS.findIndex(d => d.id === baseId)
+  const defs = getMetricDefs()
+  const idx = defs.findIndex(d => d.id === baseId)
   return idx < 0 ? null : idx + 1
 }
 

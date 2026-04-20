@@ -18,10 +18,9 @@ import {
   getAois,
 } from '$lib/data/engine'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
-import { collectMetricData } from '$lib/metrics/collector'
 import { computeRqaAoiScalar } from '$lib/metrics/rqaAoiCompute'
 import { getMetricDef } from '$lib/metrics/registry'
-import type { MetricData } from '$lib/metrics/types'
+import type { MetricComputeContext } from '$lib/metrics/types'
 import type { MetricInstance } from '$lib/data/types'
 import { getEvolvingMetricsXAxisLabel } from '../const'
 import type {
@@ -69,17 +68,54 @@ function deriveStepSize(instance: MetricInstance): number {
   return 100
 }
 
-// ─── RQA path: fixation-sequence → time grid ─────────────────────────────────
+// ─── RQA path: read fixation sequence directly from engine ───────────────────
+
+interface RqaSequenceData {
+  seq: number[]
+  timestamps: number[]
+}
+
+function _readFixationSequence(
+  engine: DataEngine,
+  stimulusId: number,
+  participantId: number
+): RqaSequenceData {
+  const reader = engine.getReader()
+  if (!reader) return { seq: [], timestamps: [] }
+  const aois = getAois(engine, stimulusId)
+  const hiddenAois = engine.metadata?.aois.hiddenAois?.[stimulusId] ?? []
+  const hiddenAoisSet = hiddenAois.length ? new Set<number>(hiddenAois) : null
+  const aoiLookup = new Map<number, number>()
+  for (let i = 0; i < aois.length; i++) aoiLookup.set(aois[i].id, i)
+  const { startIndex, endIndex } = reader.getSegmentRange(stimulusId, participantId)
+  const seq: number[] = []
+  const timestamps: number[] = []
+  const aoiSet = new Set<number>()
+  for (let i = startIndex; i < endIndex; i++) {
+    if (reader.getSegmentCategory(i) !== 0) continue
+    aoiSet.clear()
+    const rawAois = reader.getRawAois(i)
+    for (let r = 0; r < rawAois.length; r++) {
+      if (hiddenAoisSet?.has(rawAois[r])) continue
+      const slot = aoiLookup.get(engine.getAoiMapping(stimulusId, rawAois[r]))
+      if (slot !== undefined) aoiSet.add(slot)
+    }
+    if (aoiSet.size === 1) {
+      seq.push(aoiSet.values().next().value!)
+      timestamps.push(reader.getSegmentStart(i))
+    }
+  }
+  return { seq, timestamps }
+}
 
 function computeRqaBins(
   instance: MetricInstance,
-  participantMetrics: MetricData,
+  data: RqaSequenceData,
   binCount: number,
   stepSize: number,
   timelineMin: number
 ): Float32Array {
-  const seq = participantMetrics.fixationAoiSequence
-  const timestamps = participantMetrics.fixationTimestamps
+  const { seq, timestamps } = data
   const W = instance.windowing?.windowSize ?? 20
   const reduction = instance.windowing?.reduction ?? 'mean'
   const N = seq.length
@@ -92,7 +128,7 @@ function computeRqaBins(
 
   for (let i = 0; i + W <= N; i++) {
     const sub = seq.slice(i, i + W)
-    const scalar = computeRqaAoiScalar(instance, { fixationAoiSequence: sub })
+    const scalar = computeRqaAoiScalar(instance, sub)
     if (!Number.isFinite(scalar)) continue
 
     const centerTime = timestamps[i + Math.floor(W / 2)]
@@ -121,7 +157,6 @@ function computeNonRqaBins(
   engine: DataEngine,
   stimulusId: number,
   participantId: number,
-  aois: ReturnType<typeof getAois>,
   aoiIndex: number,
   binCount: number,
   stepSize: number,
@@ -137,12 +172,8 @@ function computeNonRqaBins(
     const center = timelineMin + i * stepSize + stepSize / 2
     const wStart = Math.max(0, center - halfWindowMs)
     const wEnd = center + halfWindowMs
-
-    const wMetrics = collectMetricData(
-      engine, stimulusId, [participantId], aois, wStart, wEnd
-    )
-    if (!wMetrics[0]) continue
-    const v = def.compute(wMetrics[0], aoiIndex, instance)
+    const ctx: MetricComputeContext = { stimulusId, participantId, timeStart: wStart, timeEnd: wEnd }
+    const v = def.compute(engine, ctx, instance)[aoiIndex] ?? Number.NaN
     if (Number.isFinite(v)) values[i] = v
   }
   return values
@@ -194,8 +225,8 @@ export function getEvolvingMetricsData(
   const aois = getAois(engine, stimulusId)
   const aoiIndex = aois.length + 1 // AnyFixation slot
 
-  const fullMetrics: MetricData[] = isRqa
-    ? collectMetricData(engine, stimulusId, participantIds, aois)
+  const rqaData: RqaSequenceData[] = isRqa
+    ? participantIds.map(pid => _readFixationSequence(engine, stimulusId, pid))
     : []
 
   let valueMin = Infinity
@@ -207,8 +238,8 @@ export function getEvolvingMetricsData(
     const entity = participantEntities[p]
 
     const values = isRqa
-      ? computeRqaBins(instance, fullMetrics[p], binCount, stepSize, timelineMin)
-      : computeNonRqaBins(instance, engine, stimulusId, pid, aois, aoiIndex, binCount, stepSize, halfWindowMs, timelineMin)
+      ? computeRqaBins(instance, rqaData[p], binCount, stepSize, timelineMin)
+      : computeNonRqaBins(instance, engine, stimulusId, pid, aoiIndex, binCount, stepSize, halfWindowMs, timelineMin)
 
     for (let i = 0; i < binCount; i++) {
       const v = values[i]

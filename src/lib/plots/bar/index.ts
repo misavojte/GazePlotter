@@ -9,4 +9,3 @@ export * from './const'
 
 // Export bar plot core logic
 export * from './core/transformer'
-export * from './core/collector'

@@ -1,12 +1,12 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import { getAois, getParticipantsIds } from '$lib/data/engine'
-import { collectMetricData } from '$lib/metrics/collector'
 import { WHOLE_STIMULUS_AOI_LABEL } from '../const'
 import {
   getMetricDef,
   queryMetric,
   type MetricInstance,
 } from '$lib/metrics'
+import { batchScanMetrics } from '$lib/metrics/helpers/batchScan'
 import type {
   CorrelationCell,
   CorrelationPoint,
@@ -50,15 +50,6 @@ export function getMetricCorrelationData(
     return emptyResult(settings, scope.kind, scope.label, scope.aoiId)
   }
 
-  const participantMetrics = collectMetricData(
-    engine,
-    settings.stimulusId,
-    participantIds,
-    aois,
-    settings.timelineStart ?? 0,
-    settings.timelineEnd ?? 0
-  )
-
   const participantLabels = participantIds.map(id => {
     const pData = meta.participants.data[id]
     return pData?.[1] ?? pData?.[0] ?? `P${id}`
@@ -66,25 +57,25 @@ export function getMetricCorrelationData(
 
   const vectors: MetricVector[] = metrics.map(m => ({
     metricId: m.id,
-    values: new Array<number>(participantMetrics.length),
+    values: new Array<number>(participantIds.length),
   }))
 
-  for (let p = 0; p < participantMetrics.length; p++) {
+  for (let p = 0; p < participantIds.length; p++) {
+    const pid = participantIds[p]
+    const timeStart = settings.timelineStart ?? 0
+    const timeEnd = settings.timelineEnd ?? 0
+    const slotResults = batchScanMetrics(engine, settings.stimulusId, pid, timeStart, timeEnd, instances)
+    const ctx = {
+      stimulusId: settings.stimulusId,
+      participantId: pid,
+      timeStart,
+      timeEnd,
+    }
     for (let mIdx = 0; mIdx < metrics.length; mIdx++) {
-      const inst = instances[mIdx]
-      vectors[mIdx].values[p] = queryMetric(
-        engine,
-        inst,
-        {
-          stimulusId: settings.stimulusId,
-          participantId: participantIds[p],
-          aoiIndex: scopeIndex,
-          timeStart: settings.timelineStart ?? 0,
-          timeEnd: settings.timelineEnd ?? 0,
-        },
-        aois,
-        participantMetrics[p]
-      )
+      const slotResult = slotResults.get(instances[mIdx].id)
+      vectors[mIdx].values[p] = slotResult != null
+        ? (slotResult[scopeIndex] ?? Number.NaN)
+        : queryMetric(engine, instances[mIdx], ctx, scopeIndex)
     }
   }
 
@@ -101,7 +92,7 @@ export function getMetricCorrelationData(
     vectors,
     cells,
     correlationMethod: settings.correlationMethod,
-    sampleSize: participantMetrics.length,
+    sampleSize: participantIds.length,
     scope: {
       kind: scope.kind,
       label: scope.label,
