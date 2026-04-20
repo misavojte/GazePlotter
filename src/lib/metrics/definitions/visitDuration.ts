@@ -1,133 +1,12 @@
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import { getAois } from '$lib/data/engine'
-import { defineMetric } from '../defineMetric'
-import { buildAoiSlots } from '../helpers/aoiSlots'
-import { applyGroupedTimeWindowing } from '../helpers/windowing'
-import type { MetricComputeContext, MetricInstance } from '../types'
+import { defineMetric } from '../core/defineMetric'
 
-const _cache = new WeakMap<object, Map<string, number[][]>>()
-
-function _scan(engine: DataEngine, ctx: MetricComputeContext): number[][] {
-  const aois = getAois(engine, ctx.stimulusId)
-  const slots = buildAoiSlots(engine, ctx.stimulusId, aois)
-  if (!slots) return []
-  const { reader, totalSlots, noAoiSlot, anyFixationSlot, hiddenAoisSet, aoiLookup } = slots
-  const dwellDurations: number[][] = Array.from({ length: totalSlots }, () => [])
-  const { startIndex, endIndex } = reader.getSegmentRange(ctx.stimulusId, ctx.participantId)
-
-  const previousAois = new Set<number>()
-  const activeDwellDurations = new Map<number, number>()
-  let wasInNoAoi = false
-  let currentNoAoiDwell = 0
-  let currentAnyFixationDwell = 0
-  const currentAoiIndicesSet = new Set<number>()
-
-  for (let i = startIndex; i < endIndex; i++) {
-    if (reader.getSegmentCategory(i) !== 0) continue
-    const start = reader.getSegmentStart(i)
-    const end = reader.getSegmentEnd(i)
-    if (ctx.timeEnd > 0 && start >= ctx.timeEnd) continue
-    if (end <= ctx.timeStart) continue
-    const dur = end - start
-
-    currentAoiIndicesSet.clear()
-    const rawAois = reader.getRawAois(i)
-    for (let r = 0; r < rawAois.length; r++) {
-      if (hiddenAoisSet?.has(rawAois[r])) continue
-      const slot = aoiLookup.get(engine.getAoiMapping(ctx.stimulusId, rawAois[r]))
-      if (slot !== undefined) currentAoiIndicesSet.add(slot)
-    }
-    const currentAoiIndices = Array.from(currentAoiIndicesSet)
-
-    if (currentAoiIndices.length === 0) {
-      if (!wasInNoAoi) {
-        currentNoAoiDwell = dur
-        currentAnyFixationDwell = dur
-        wasInNoAoi = true
-      } else {
-        currentNoAoiDwell += dur
-        currentAnyFixationDwell += dur
-      }
-      for (const [idx, d] of activeDwellDurations.entries()) {
-        dwellDurations[idx].push(d)
-      }
-      activeDwellDurations.clear()
-      previousAois.clear()
-    } else {
-      if (wasInNoAoi) {
-        dwellDurations[noAoiSlot].push(currentNoAoiDwell)
-        dwellDurations[anyFixationSlot].push(currentAnyFixationDwell)
-        currentNoAoiDwell = 0
-        currentAnyFixationDwell = 0
-        wasInNoAoi = false
-      }
-
-      const setsMatch =
-        currentAoiIndices.length === previousAois.size &&
-        currentAoiIndices.every(idx => previousAois.has(idx))
-
-      if (previousAois.size > 0 && !setsMatch) {
-        if (currentAnyFixationDwell > 0) {
-          dwellDurations[anyFixationSlot].push(currentAnyFixationDwell)
-        }
-        currentAnyFixationDwell = dur
-      } else if (previousAois.size === 0) {
-        currentAnyFixationDwell = dur
-      } else {
-        currentAnyFixationDwell += dur
-      }
-
-      for (const idx of currentAoiIndices) {
-        if (previousAois.has(idx)) {
-          activeDwellDurations.set(idx, (activeDwellDurations.get(idx) ?? 0) + dur)
-        } else {
-          activeDwellDurations.set(idx, dur)
-        }
-      }
-
-      for (const prevIdx of previousAois) {
-        if (!currentAoiIndicesSet.has(prevIdx)) {
-          const d = activeDwellDurations.get(prevIdx)
-          if (d !== undefined) dwellDurations[prevIdx].push(d)
-          activeDwellDurations.delete(prevIdx)
-        }
-      }
-
-      previousAois.clear()
-      for (const idx of currentAoiIndices) previousAois.add(idx)
-    }
-  }
-
-  for (const [idx, d] of activeDwellDurations.entries()) {
-    dwellDurations[idx].push(d)
-  }
-  if (wasInNoAoi) {
-    dwellDurations[noAoiSlot].push(currentNoAoiDwell)
-  }
-  if (currentAnyFixationDwell > 0) {
-    dwellDurations[anyFixationSlot].push(currentAnyFixationDwell)
-  }
-
-  return dwellDurations
-}
-
-function _mean(arr: number[]): number {
-  if (arr.length === 0) return Number.NaN
-  let sum = 0
-  for (let i = 0; i < arr.length; i++) sum += arr[i]
-  return sum / arr.length
-}
-
-function _getScan(engine: DataEngine, ctx: MetricComputeContext): number[][] {
-  let map = _cache.get(engine)
-  if (!map) { map = new Map(); _cache.set(engine, map) }
-  const key = `${ctx.stimulusId}:${ctx.participantId}:${ctx.timeStart}:${ctx.timeEnd}`
-  if (!map.has(key)) map.set(key, _scan(engine, ctx))
-  return map.get(key)!
-}
-
-function _computeAllSlots(engine: DataEngine, ctx: MetricComputeContext): number[] {
-  return _getScan(engine, ctx).map(_mean)
+interface Acc {
+  dwells: number[][]
+  previousAois: Set<number>
+  activeDwells: Map<number, number>
+  wasInNoAoi: boolean
+  currentNoAoiDwell: number
+  currentAnyFixationDwell: number
 }
 
 defineMetric({
@@ -140,77 +19,75 @@ defineMetric({
   windowUnit: 'ms',
   computationModes: ['global', 'epoch', 'sliding'],
   searchTags: ['visit', 'dwell', 'duration', 'average', 'mean', 'aoi'],
-  compute: (engine: DataEngine, ctx: MetricComputeContext, instance: MetricInstance) => {
-    if (instance.windowing) {
-      const { mode, windowSize, stepSize, reduction } = instance.windowing
-      return applyGroupedTimeWindowing(
-        mode, windowSize, stepSize ?? windowSize,
-        ctx.timeStart, ctx.timeEnd, reduction,
-        (tStart, tEnd) => _computeAllSlots(engine, { ...ctx, timeStart: tStart, timeEnd: tEnd })
+  params: [] as const,
+  init: ({ slots }): Acc => ({
+    dwells: Array.from({ length: slots.totalSlots }, () => []),
+    previousAois: new Set(),
+    activeDwells: new Map(),
+    wasInNoAoi: false,
+    currentNoAoiDwell: 0,
+    currentAnyFixationDwell: 0,
+  }),
+  onFixation: (acc, { duration, slots }, { slots: info }) => {
+    if (slots.length === 0) {
+      if (!acc.wasInNoAoi) {
+        acc.currentNoAoiDwell = duration
+        acc.currentAnyFixationDwell = duration
+        acc.wasInNoAoi = true
+      } else {
+        acc.currentNoAoiDwell += duration
+        acc.currentAnyFixationDwell += duration
+      }
+      for (const [idx, d] of acc.activeDwells) acc.dwells[idx].push(d)
+      acc.activeDwells.clear()
+      acc.previousAois.clear()
+      return
+    }
+    if (acc.wasInNoAoi) {
+      acc.dwells[info.noAoiSlot].push(acc.currentNoAoiDwell)
+      acc.dwells[info.anyFixationSlot].push(acc.currentAnyFixationDwell)
+      acc.currentNoAoiDwell = 0
+      acc.currentAnyFixationDwell = 0
+      acc.wasInNoAoi = false
+    }
+    const setsMatch = slots.length === acc.previousAois.size && slots.every(s => acc.previousAois.has(s))
+    if (acc.previousAois.size > 0 && !setsMatch) {
+      if (acc.currentAnyFixationDwell > 0) acc.dwells[info.anyFixationSlot].push(acc.currentAnyFixationDwell)
+      acc.currentAnyFixationDwell = duration
+    } else if (acc.previousAois.size === 0) {
+      acc.currentAnyFixationDwell = duration
+    } else {
+      acc.currentAnyFixationDwell += duration
+    }
+    for (let i = 0; i < slots.length; i++) {
+      const s = slots[i]
+      acc.activeDwells.set(
+        s,
+        (acc.previousAois.has(s) ? (acc.activeDwells.get(s) ?? 0) : 0) + duration,
       )
     }
-    return _computeAllSlots(engine, ctx)
-  },
-  extractIndividuals: (engine: DataEngine, ctx: MetricComputeContext, aoiIndex: number) =>
-    _getScan(engine, ctx)[aoiIndex] ?? [],
-  createScanner: (totalSlots, noAoiSlot, anyFixSlot) => {
-    const dwellDurations: number[][] = Array.from({ length: totalSlots }, () => [])
-    const previousAois = new Set<number>()
-    const activeDwellDurations = new Map<number, number>()
-    let wasInNoAoi = false
-    let currentNoAoiDwell = 0
-    let currentAnyFixationDwell = 0
-    return {
-      push(_start, dur, slots) {
-        if (slots.length === 0) {
-          if (!wasInNoAoi) {
-            currentNoAoiDwell = dur; currentAnyFixationDwell = dur; wasInNoAoi = true
-          } else {
-            currentNoAoiDwell += dur; currentAnyFixationDwell += dur
-          }
-          for (const [idx, d] of activeDwellDurations.entries()) dwellDurations[idx].push(d)
-          activeDwellDurations.clear()
-          previousAois.clear()
-        } else {
-          if (wasInNoAoi) {
-            dwellDurations[noAoiSlot].push(currentNoAoiDwell)
-            dwellDurations[anyFixSlot].push(currentAnyFixationDwell)
-            currentNoAoiDwell = 0; currentAnyFixationDwell = 0; wasInNoAoi = false
-          }
-          const setsMatch = slots.length === previousAois.size && slots.every(s => previousAois.has(s))
-          if (previousAois.size > 0 && !setsMatch) {
-            if (currentAnyFixationDwell > 0) dwellDurations[anyFixSlot].push(currentAnyFixationDwell)
-            currentAnyFixationDwell = dur
-          } else if (previousAois.size === 0) {
-            currentAnyFixationDwell = dur
-          } else {
-            currentAnyFixationDwell += dur
-          }
-          for (let i = 0; i < slots.length; i++) {
-            const idx = slots[i]
-            activeDwellDurations.set(idx, (previousAois.has(idx) ? (activeDwellDurations.get(idx) ?? 0) : 0) + dur)
-          }
-          for (const prevIdx of previousAois) {
-            if (!slots.includes(prevIdx)) {
-              const d = activeDwellDurations.get(prevIdx)
-              if (d !== undefined) { dwellDurations[prevIdx].push(d); activeDwellDurations.delete(prevIdx) }
-            }
-          }
-          previousAois.clear()
-          for (let i = 0; i < slots.length; i++) previousAois.add(slots[i])
+    for (const prev of acc.previousAois) {
+      if (!slots.includes(prev)) {
+        const d = acc.activeDwells.get(prev)
+        if (d !== undefined) {
+          acc.dwells[prev].push(d)
+          acc.activeDwells.delete(prev)
         }
-      },
-      finalize() {
-        for (const [idx, d] of activeDwellDurations.entries()) dwellDurations[idx].push(d)
-        if (wasInNoAoi) dwellDurations[noAoiSlot].push(currentNoAoiDwell)
-        if (currentAnyFixationDwell > 0) dwellDurations[anyFixSlot].push(currentAnyFixationDwell)
-        return dwellDurations.map(arr => {
-          if (arr.length === 0) return Number.NaN
-          let sum = 0; for (const d of arr) sum += d
-          return sum / arr.length
-        })
-      },
-      extractIndividuals: (aoiIndex) => dwellDurations[aoiIndex] ?? [],
+      }
     }
+    acc.previousAois.clear()
+    for (let i = 0; i < slots.length; i++) acc.previousAois.add(slots[i])
   },
+  finalize: (acc, slots) => {
+    for (const [idx, d] of acc.activeDwells) acc.dwells[idx].push(d)
+    if (acc.wasInNoAoi) acc.dwells[slots.noAoiSlot].push(acc.currentNoAoiDwell)
+    if (acc.currentAnyFixationDwell > 0) acc.dwells[slots.anyFixationSlot].push(acc.currentAnyFixationDwell)
+    return acc.dwells.map(arr => {
+      if (arr.length === 0) return Number.NaN
+      let sum = 0
+      for (const d of arr) sum += d
+      return sum / arr.length
+    })
+  },
+  individuals: (acc, slotIndex) => acc.dwells[slotIndex] ?? [],
 })

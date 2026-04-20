@@ -6,8 +6,7 @@ import {
 } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import '$lib/metrics/init'
-import { getMetricDef } from '$lib/metrics/registry'
-import type { MetricComputeContext, MetricInstance } from '$lib/metrics/types'
+import { query, type MetricInstance, type Scope } from '$lib/metrics'
 import {
   escapeCsvField,
   formatNumberForCsv,
@@ -22,12 +21,15 @@ type ComputeFn = (
   anyFixationSlot: number
 ) => number
 
-function _inst(baseId: string): MetricInstance {
-  return { id: 0, baseId, params: {}, label: '' }
-}
-
-function _ctx(stimulusId: number, participantId: number): MetricComputeContext {
-  return { stimulusId, participantId, timeStart: 0, timeEnd: 0 }
+function _computeAtSlot(baseId: string): ComputeFn {
+  const inst: MetricInstance = { id: 0, baseId, params: {}, label: '' }
+  return (engine, stimulusId, participantId, aoiIdx) => {
+    const scope: Scope = { engine, stimulusId, participantId, timeStart: 0, timeEnd: 0 }
+    const result = query(inst, scope)
+    if (result.shape === 'aoi-vector') return result.values[aoiIdx] ?? Number.NaN
+    if (result.shape === 'scalar') return result.value
+    return result.matrix[aoiIdx] ?? Number.NaN
+  }
 }
 
 function _nanToNeg(v: number): number {
@@ -46,16 +48,20 @@ export const AGGREGATED_METRIC_CONFIG: ReadonlyArray<{
     label: 'Absolute Dwell Time',
     sublabel: 'Total time spent in each AOI (ms)',
     csvName: 'Absolute_Dwell_Time',
-    compute: (engine, sId, pId, aoiIdx) =>
-      getMetricDef('absoluteTime')?.compute(engine, _ctx(sId, pId), _inst('absoluteTime'))[aoiIdx] ?? -1,
+    compute: (engine, sId, pId, aoiIdx) => {
+      const v = _computeAtSlot('absoluteTime')(engine, sId, pId, aoiIdx, 0)
+      return Number.isFinite(v) ? v : -1
+    },
   },
   {
     key: 'relativeDwellTime',
     label: 'Relative Dwell Time (%)',
     sublabel: 'Dwell time as percentage of total viewing time',
     csvName: 'Relative_Dwell_Time',
-    compute: (engine, sId, pId, aoiIdx) =>
-      getMetricDef('relativeTime')?.compute(engine, _ctx(sId, pId), _inst('relativeTime'))[aoiIdx] ?? 0,
+    compute: (engine, sId, pId, aoiIdx) => {
+      const v = _computeAtSlot('relativeTime')(engine, sId, pId, aoiIdx, 0)
+      return Number.isFinite(v) ? v : 0
+    },
   },
   {
     key: 'timeToFirstFixation',
@@ -63,7 +69,7 @@ export const AGGREGATED_METRIC_CONFIG: ReadonlyArray<{
     sublabel: 'Time until first fixation on each AOI (-1 if never fixated)',
     csvName: 'Time_To_First_Fixation',
     compute: (engine, sId, pId, aoiIdx) =>
-      _nanToNeg(getMetricDef('timeToFirstFixation')?.compute(engine, _ctx(sId, pId), _inst('timeToFirstFixation'))[aoiIdx] ?? NaN),
+      _nanToNeg(_computeAtSlot('timeToFirstFixation')(engine, sId, pId, aoiIdx, 0)),
   },
   {
     key: 'firstFixationDuration',
@@ -71,15 +77,17 @@ export const AGGREGATED_METRIC_CONFIG: ReadonlyArray<{
     sublabel: 'Duration of the first fixation on each AOI (-1 if never fixated)',
     csvName: 'First_Fixation_Duration',
     compute: (engine, sId, pId, aoiIdx) =>
-      _nanToNeg(getMetricDef('avgFirstFixationDuration')?.compute(engine, _ctx(sId, pId), _inst('avgFirstFixationDuration'))[aoiIdx] ?? NaN),
+      _nanToNeg(_computeAtSlot('avgFirstFixationDuration')(engine, sId, pId, aoiIdx, 0)),
   },
   {
     key: 'fixationCount',
     label: 'Fixation Count',
     sublabel: 'Number of fixations on each AOI',
     csvName: 'Fixation_Count',
-    compute: (engine, sId, pId, aoiIdx) =>
-      getMetricDef('averageFixationCount')?.compute(engine, _ctx(sId, pId), _inst('averageFixationCount'))[aoiIdx] ?? -1,
+    compute: (engine, sId, pId, aoiIdx) => {
+      const v = _computeAtSlot('averageFixationCount')(engine, sId, pId, aoiIdx, 0)
+      return Number.isFinite(v) ? v : -1
+    },
   },
   {
     key: 'meanFixationDuration',
@@ -87,15 +95,17 @@ export const AGGREGATED_METRIC_CONFIG: ReadonlyArray<{
     sublabel: 'Average duration of fixations on each AOI',
     csvName: 'Mean_Fixation_Duration',
     compute: (engine, sId, pId, aoiIdx) =>
-      _nanToNeg(getMetricDef('avgFixationDuration')?.compute(engine, _ctx(sId, pId), _inst('avgFixationDuration'))[aoiIdx] ?? NaN),
+      _nanToNeg(_computeAtSlot('avgFixationDuration')(engine, sId, pId, aoiIdx, 0)),
   },
   {
     key: 'visitCount',
     label: 'Visit Count',
     sublabel: 'Number of distinct visits to each AOI',
     csvName: 'Visit_Count',
-    compute: (engine, sId, pId, aoiIdx) =>
-      getMetricDef('averageEntries')?.compute(engine, _ctx(sId, pId), _inst('averageEntries'))[aoiIdx] ?? -1,
+    compute: (engine, sId, pId, aoiIdx) => {
+      const v = _computeAtSlot('averageEntries')(engine, sId, pId, aoiIdx, 0)
+      return Number.isFinite(v) ? v : -1
+    },
   },
   {
     key: 'meanVisitDuration',
@@ -103,7 +113,7 @@ export const AGGREGATED_METRIC_CONFIG: ReadonlyArray<{
     sublabel: 'Average duration of visits to each AOI',
     csvName: 'Mean_Visit_Duration',
     compute: (engine, sId, pId, aoiIdx) =>
-      _nanToNeg(getMetricDef('avgDwellDuration')?.compute(engine, _ctx(sId, pId), _inst('avgDwellDuration'))[aoiIdx] ?? NaN),
+      _nanToNeg(_computeAtSlot('avgDwellDuration')(engine, sId, pId, aoiIdx, 0)),
   },
 ] as const
 

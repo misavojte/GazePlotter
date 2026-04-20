@@ -28,18 +28,8 @@ export type RecurrencePlotItem = PlotItemContract<
   RecurrencePlotSettings
 >
 
-export interface RQAMetrics {
-  /** Raw upper-triangle sum (count or duration sum) */
-  R: number
-  /** Recurrence rate (%) */
-  REC: number
-  /** Determinism (%) */
-  DET: number
-  /** Laminarity (%) */
-  LAM: number
-  /** Center of recurrent mass (%) */
-  CORM: number
-}
+import type { RqaResult } from '$lib/metrics/core/rqa'
+export type RQAMetrics = RqaResult
 
 export interface RecurrenceData {
   /** Flat NxN binary matrix (1 = recurrent, 0 = not) */

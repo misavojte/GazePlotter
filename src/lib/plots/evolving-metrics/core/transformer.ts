@@ -2,10 +2,11 @@
  * Transformer for evolving metrics data.
  *
  * The metric instance drives both WHAT is computed and HOW the window is sized:
- * - RQA metrics (rqa-aoi): fixation-sequence-based window. Each sliding window
- *   of W fixations is computed and mapped to the time grid via fixationTimestamps.
- * - Other metrics: time-based window. At each time step the collector is called
- *   for the surrounding window [t - halfWindow, t + halfWindow].
+ * - Sequence metrics (windowUnit 'fixations', e.g. RQA): per W-fixation window,
+ *   compute the scalar via the metric's own selector and map to the time grid
+ *   using fixation timestamps.
+ * - Other metrics: time-based window. At each bin the metric is queried over
+ *   `[center - halfWindow, center + halfWindow]` via the DSL's `query()`.
  *
  * Instances with no windowing config use stepSize as the window (tumbling bins).
  * Empty bins are NaN — the renderer shows these as a distinct "no data" colour.
@@ -18,10 +19,14 @@ import {
   getAois,
 } from '$lib/data/engine'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
-import { computeRqaAoiScalar } from '$lib/metrics/rqaAoiCompute'
-import { getMetricDef } from '$lib/metrics/registry'
-import type { MetricComputeContext } from '$lib/metrics/types'
-import type { MetricInstance } from '$lib/data/types'
+import {
+  query,
+  getMetric,
+  extractFixationSequence,
+  computeSequenceScalar,
+  type MetricInstance,
+  type Scope,
+} from '$lib/metrics'
 import { getEvolvingMetricsXAxisLabel } from '../const'
 import type {
   EvolvingMetricsSettings,
@@ -29,7 +34,7 @@ import type {
   EvolvingMetricsParticipant,
 } from '../types'
 
-const MIN_FIXATIONS_RQA = 5
+const MIN_FIXATIONS_SEQUENCE = 5
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -43,92 +48,54 @@ function resolveInstance(
   return (meta.metricInstances ?? []).find(i => i.id === selectedMetricId) ?? null
 }
 
-function isRqaInstance(instance: MetricInstance): boolean {
-  return getMetricDef(instance.baseId)?.windowUnit === 'fixations'
+function isSequenceInstance(instance: MetricInstance): boolean {
+  return getMetric(instance.baseId)?.meta.windowUnit === 'fixations'
 }
 
 function windowDescLabel(instance: MetricInstance): string {
   const w = instance.windowing
   if (!w) return ''
-  const isRqa = isRqaInstance(instance)
-  const unit = isRqa ? 'fix' : 'ms'
+  const isSeq = isSequenceInstance(instance)
+  const unit = isSeq ? 'fix' : 'ms'
   const modeLabel = w.mode === 'sliding' ? 'Sliding' : 'Epoch'
-  if (!isRqa && w.stepSize != null && w.stepSize !== w.windowSize) {
+  if (!isSeq && w.stepSize != null && w.stepSize !== w.windowSize) {
     return `${modeLabel} ${w.windowSize}${unit} win / ${w.stepSize}ms step`
   }
   return `${modeLabel} ${w.windowSize} ${unit}`
 }
 
 function deriveStepSize(instance: MetricInstance): number {
-  const isRqa = isRqaInstance(instance)
-  if (!isRqa) {
+  const isSeq = isSequenceInstance(instance)
+  if (!isSeq) {
     if (instance.windowing?.stepSize != null) return instance.windowing.stepSize
     if (instance.windowing?.mode === 'epoch') return instance.windowing.windowSize
   }
   return 100
 }
 
-// ─── RQA path: read fixation sequence directly from engine ───────────────────
+// ─── Sequence path: read fixation sequence + per-window scalar ───────────────
 
-interface RqaSequenceData {
-  seq: number[]
-  timestamps: number[]
-}
-
-function _readFixationSequence(
-  engine: DataEngine,
-  stimulusId: number,
-  participantId: number
-): RqaSequenceData {
-  const reader = engine.getReader()
-  if (!reader) return { seq: [], timestamps: [] }
-  const aois = getAois(engine, stimulusId)
-  const hiddenAois = engine.metadata?.aois.hiddenAois?.[stimulusId] ?? []
-  const hiddenAoisSet = hiddenAois.length ? new Set<number>(hiddenAois) : null
-  const aoiLookup = new Map<number, number>()
-  for (let i = 0; i < aois.length; i++) aoiLookup.set(aois[i].id, i)
-  const { startIndex, endIndex } = reader.getSegmentRange(stimulusId, participantId)
-  const seq: number[] = []
-  const timestamps: number[] = []
-  const aoiSet = new Set<number>()
-  for (let i = startIndex; i < endIndex; i++) {
-    if (reader.getSegmentCategory(i) !== 0) continue
-    aoiSet.clear()
-    const rawAois = reader.getRawAois(i)
-    for (let r = 0; r < rawAois.length; r++) {
-      if (hiddenAoisSet?.has(rawAois[r])) continue
-      const slot = aoiLookup.get(engine.getAoiMapping(stimulusId, rawAois[r]))
-      if (slot !== undefined) aoiSet.add(slot)
-    }
-    if (aoiSet.size === 1) {
-      seq.push(aoiSet.values().next().value!)
-      timestamps.push(reader.getSegmentStart(i))
-    }
-  }
-  return { seq, timestamps }
-}
-
-function computeRqaBins(
+function computeSequenceBins(
   instance: MetricInstance,
-  data: RqaSequenceData,
+  seq: readonly number[],
+  timestamps: readonly number[],
   binCount: number,
   stepSize: number,
-  timelineMin: number
+  timelineMin: number,
 ): Float32Array {
-  const { seq, timestamps } = data
   const W = instance.windowing?.windowSize ?? 20
   const reduction = instance.windowing?.reduction ?? 'mean'
   const N = seq.length
   const values = new Float32Array(binCount).fill(NaN)
 
-  if (N < Math.max(W, MIN_FIXATIONS_RQA)) return values
+  if (N < Math.max(W, MIN_FIXATIONS_SEQUENCE)) return values
 
   const sums = reduction === 'mean' ? new Float64Array(binCount) : null
   const cnts = reduction === 'mean' ? new Uint32Array(binCount) : null
 
   for (let i = 0; i + W <= N; i++) {
     const sub = seq.slice(i, i + W)
-    const scalar = computeRqaAoiScalar(instance, sub)
+    const scalar = computeSequenceScalar(instance, sub)
     if (!Number.isFinite(scalar)) continue
 
     const centerTime = timestamps[i + Math.floor(W / 2)]
@@ -150,9 +117,9 @@ function computeRqaBins(
   return values
 }
 
-// ─── Non-RQA path: per-bin collector calls ───────────────────────────────────
+// ─── Time-bin path: query metric over sliding window per bin ─────────────────
 
-function computeNonRqaBins(
+function computeTimeBins(
   instance: MetricInstance,
   engine: DataEngine,
   stimulusId: number,
@@ -161,19 +128,21 @@ function computeNonRqaBins(
   binCount: number,
   stepSize: number,
   halfWindowMs: number,
-  timelineMin: number
+  timelineMin: number,
 ): Float32Array {
-  const def = getMetricDef(instance.baseId)
-  if (!def) return new Float32Array(binCount).fill(NaN)
-
   const values = new Float32Array(binCount).fill(NaN)
+  const bare: MetricInstance = { ...instance, windowing: undefined }
 
   for (let i = 0; i < binCount; i++) {
     const center = timelineMin + i * stepSize + stepSize / 2
     const wStart = Math.max(0, center - halfWindowMs)
     const wEnd = center + halfWindowMs
-    const ctx: MetricComputeContext = { stimulusId, participantId, timeStart: wStart, timeEnd: wEnd }
-    const v = def.compute(engine, ctx, instance)[aoiIndex] ?? Number.NaN
+    const scope: Scope = { engine, stimulusId, participantId, timeStart: wStart, timeEnd: wEnd }
+    const result = query(bare, scope)
+    const v =
+      result.shape === 'aoi-vector' ? (result.values[aoiIndex] ?? Number.NaN)
+      : result.shape === 'scalar'    ? result.value
+      :                                 Number.NaN
     if (Number.isFinite(v)) values[i] = v
   }
   return values
@@ -196,10 +165,10 @@ export function getEvolvingMetricsData(
 
   if (!instance.windowing) return null
 
-  const def = getMetricDef(instance.baseId)
-  if (!def) return null
+  const metric = getMetric(instance.baseId)
+  if (!metric) return null
 
-  const isRqa = isRqaInstance(instance)
+  const isSeq = isSequenceInstance(instance)
   const { stimulusId, groupId } = settings
   const stepSize = deriveStepSize(instance)
 
@@ -225,8 +194,8 @@ export function getEvolvingMetricsData(
   const aois = getAois(engine, stimulusId)
   const aoiIndex = aois.length + 1 // AnyFixation slot
 
-  const rqaData: RqaSequenceData[] = isRqa
-    ? participantIds.map(pid => _readFixationSequence(engine, stimulusId, pid))
+  const sequences = isSeq
+    ? participantIds.map(pid => extractFixationSequence(engine, stimulusId, pid))
     : []
 
   let valueMin = Infinity
@@ -237,9 +206,9 @@ export function getEvolvingMetricsData(
     const pid = participantIds[p]
     const entity = participantEntities[p]
 
-    const values = isRqa
-      ? computeRqaBins(instance, rqaData[p], binCount, stepSize, timelineMin)
-      : computeNonRqaBins(instance, engine, stimulusId, pid, aoiIndex, binCount, stepSize, halfWindowMs, timelineMin)
+    const values = isSeq
+      ? computeSequenceBins(instance, sequences[p].seq, sequences[p].timestamps, binCount, stepSize, timelineMin)
+      : computeTimeBins(instance, engine, stimulusId, pid, aoiIndex, binCount, stepSize, halfWindowMs, timelineMin)
 
     for (let i = 0; i < binCount; i++) {
       const v = values[i]
@@ -262,7 +231,7 @@ export function getEvolvingMetricsData(
   const timeline = createAdaptiveTimeline(timelineMin, effectiveMaxTime, 6)
 
   const xAxisLabel = getEvolvingMetricsXAxisLabel(windowDescLabel(instance))
-  const yAxisLabel = `${def.label} [${def.unit}]`
+  const yAxisLabel = `${metric.meta.label} [${metric.meta.unit}]`
 
   return {
     participants,

@@ -1,6 +1,6 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import type { RecurrenceData, RecurrenceMethod, FixationRecord } from '../types'
-import { computeRQA, computeRQAWithDuration } from './rqa'
+import { computeRqa, computeRqaWithDuration } from '$lib/metrics/core/rqa'
 
 /**
  * Collect fixation records for a single participant on a stimulus.
@@ -105,7 +105,7 @@ export function collectRecurrenceData(
   let rqa
   if (showDuration && durationMatrix) {
     const totalDuration = fixations.reduce((sum, f) => sum + f.duration, 0)
-    rqa = computeRQAWithDuration(
+    rqa = computeRqaWithDuration(
       matrix,
       durationMatrix,
       N,
@@ -113,7 +113,7 @@ export function collectRecurrenceData(
       totalDuration
     )
   } else {
-    rqa = computeRQA(matrix, N, minLineLength)
+    rqa = computeRqa(matrix, N, minLineLength)
   }
 
   // Build per-fixation AOI colors for AOI highlight mode

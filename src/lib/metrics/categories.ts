@@ -4,7 +4,10 @@ export interface MetricCategoryDef {
   readonly order: number
 }
 
-const _cats = new Map<string, MetricCategoryDef>()
+const CATS_KEY = Symbol.for('gazeplotter.metrics.categories')
+const _cats: Map<string, MetricCategoryDef> =
+  ((globalThis as Record<symbol, unknown>)[CATS_KEY] as Map<string, MetricCategoryDef>) ??
+  ((globalThis as Record<symbol, unknown>)[CATS_KEY] = new Map())
 
 export function defineCategory(cat: MetricCategoryDef): MetricCategoryDef {
   if (_cats.has(cat.id)) return _cats.get(cat.id)!
@@ -16,14 +19,14 @@ export function getCategory(id: string): MetricCategoryDef | undefined {
   return _cats.get(id)
 }
 
-export function getAllCategories(): MetricCategoryDef[] {
+export function listCategories(): MetricCategoryDef[] {
   return [..._cats.values()].sort((a, b) => a.order - b.order)
 }
 
 export function getCategoryOrder(): string[] {
-  return getAllCategories().map(c => c.id)
+  return listCategories().map(c => c.id)
 }
 
 export function getCategoryLabels(): Record<string, string> {
-  return Object.fromEntries(getAllCategories().map(c => [c.id, c.label]))
+  return Object.fromEntries(listCategories().map(c => [c.id, c.label]))
 }

@@ -1,12 +1,7 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import { getAois, getParticipantsIds } from '$lib/data/engine'
 import { WHOLE_STIMULUS_AOI_LABEL } from '../const'
-import {
-  getMetricDef,
-  queryMetric,
-  type MetricInstance,
-} from '$lib/metrics'
-import { batchScanMetrics } from '$lib/metrics/helpers/batchScan'
+import { getMetric, queryBatch, type MetricInstance, type Scope } from '$lib/metrics'
 import type {
   CorrelationCell,
   CorrelationPoint,
@@ -64,18 +59,11 @@ export function getMetricCorrelationData(
     const pid = participantIds[p]
     const timeStart = settings.timelineStart ?? 0
     const timeEnd = settings.timelineEnd ?? 0
-    const slotResults = batchScanMetrics(engine, settings.stimulusId, pid, timeStart, timeEnd, instances)
-    const ctx = {
-      stimulusId: settings.stimulusId,
-      participantId: pid,
-      timeStart,
-      timeEnd,
-    }
+    const pScope: Scope = { engine, stimulusId: settings.stimulusId, participantId: pid, timeStart, timeEnd }
+    const results = queryBatch(instances, pScope)
     for (let mIdx = 0; mIdx < metrics.length; mIdx++) {
-      const slotResult = slotResults.get(instances[mIdx].id)
-      vectors[mIdx].values[p] = slotResult != null
-        ? (slotResult[scopeIndex] ?? Number.NaN)
-        : queryMetric(engine, instances[mIdx], ctx, scopeIndex)
+      const result = results.get(instances[mIdx].id)
+      vectors[mIdx].values[p] = extractScopeValue(result, scopeIndex)
     }
   }
 
@@ -102,6 +90,15 @@ export function getMetricCorrelationData(
   }
 }
 
+function extractScopeValue(result: ReturnType<typeof queryBatch> extends Map<number, infer R> ? R | undefined : never, scopeIndex: number): number {
+  if (!result) return Number.NaN
+  switch (result.shape) {
+    case 'scalar':          return result.value
+    case 'aoi-vector':      return result.values[scopeIndex] ?? Number.NaN
+    case 'aoi-pair-matrix': return result.matrix[scopeIndex] ?? Number.NaN
+  }
+}
+
 function resolveMetrics(
   enabledIds: number[],
   workspaceInstances: readonly MetricInstance[] | undefined
@@ -115,9 +112,9 @@ function resolveMetrics(
   const metrics: MetricDescriptor[] = []
   const instances: MetricInstance[] = []
   for (const inst of selected) {
-    const def = getMetricDef(inst.baseId)
-    if (!def) continue
-    metrics.push({ id: String(inst.id), label: inst.label, unit: def.unit })
+    const metric = getMetric(inst.baseId)
+    if (!metric) continue
+    metrics.push({ id: String(inst.id), label: inst.label, unit: metric.meta.unit })
     instances.push(inst)
   }
   return { metrics, instances }

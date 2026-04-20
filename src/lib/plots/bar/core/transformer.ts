@@ -14,8 +14,7 @@ import type {
   BarPlotSettings,
   AoiSummaryStatistics,
 } from '../types'
-import { getMetricDef } from '$lib/metrics/registry'
-import type { MetricComputeContext } from '$lib/metrics/types'
+import { query, queryIndividuals, type MetricInstance, type Scope } from '$lib/metrics'
 
 export function getBarPlotData(
   engine: DataEngine,
@@ -141,18 +140,20 @@ function extractIndividualValuesWithIdentity(
 ): { values: number[]; names: string[] } {
   if (participantIds.length === 0) return { values: [], names: [] }
 
-  const def = getMetricDef(method)
-  if (!def) return { values: [], names: [] }
+  const fakeInstance: MetricInstance = { id: 0, baseId: method, params: {}, label: '' }
 
   const values: number[] = []
   const names: string[] = []
-  const fakeInstance = { id: 0, baseId: method, params: {}, label: '' }
 
   for (let p = 0; p < participantIds.length; p++) {
-    const ctx: MetricComputeContext = { stimulusId, participantId: participantIds[p], timeStart, timeEnd }
-    const expanded = def.extractIndividuals
-      ? def.extractIndividuals(engine, ctx, aoiIndex, fakeInstance)
-      : [def.compute(engine, ctx, fakeInstance)[aoiIndex] ?? Number.NaN]
+    const scope: Scope = {
+      engine, stimulusId, participantId: participantIds[p],
+      timeStart, timeEnd,
+    }
+    const individuals = queryIndividuals(fakeInstance, scope, aoiIndex)
+    const expanded = individuals.length > 0
+      ? individuals
+      : [valueAt(query(fakeInstance, scope), aoiIndex)]
     for (const v of expanded) {
       if (Number.isFinite(v)) {
         values.push(v)
@@ -161,6 +162,14 @@ function extractIndividualValuesWithIdentity(
     }
   }
   return { values, names }
+}
+
+function valueAt(result: ReturnType<typeof query>, aoiIndex: number): number {
+  switch (result.shape) {
+    case 'scalar':          return result.value
+    case 'aoi-vector':      return result.values[aoiIndex] ?? Number.NaN
+    case 'aoi-pair-matrix': return result.matrix[aoiIndex] ?? Number.NaN
+  }
 }
 
 function createLabeledData(

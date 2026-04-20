@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { createReaderFromJson } from '../src/lib/data/binary/converters'
 import '../src/lib/metrics/init'
-import { getMetricDef } from '../src/lib/metrics/defineMetric'
+import { query, queryIndividuals, type MetricInstance, type Scope } from '../src/lib/metrics'
 
 // Stimulus 1 has 2 AOIs (raw IDs 1 and 2)
 // Slot layout: 0=AOI1, 1=AOI2, 2=noAoi, 3=anyFixation
@@ -46,9 +46,19 @@ function createMockEngine(segments: number[][][][]) {
 }
 
 const STIM = 1
-const FAKE = { id: 0, baseId: '', params: {}, label: '' }
-function ctx(participantId: number, tStart = 0, tEnd = 0) {
-  return { stimulusId: STIM, participantId, timeStart: tStart, timeEnd: tEnd }
+
+function inst(baseId: string): MetricInstance {
+  return { id: 0, baseId, params: {}, label: '' }
+}
+
+function scope(engine: any, participantId: number, tStart = 0, tEnd = 0): Scope {
+  return { engine, stimulusId: STIM, participantId, timeStart: tStart, timeEnd: tEnd }
+}
+
+function values(result: ReturnType<typeof query>): number[] {
+  if (result.shape === 'aoi-vector') return result.values
+  if (result.shape === 'scalar') return [result.value]
+  return result.matrix
 }
 
 describe('Metric definitions — segment data collection', () => {
@@ -62,9 +72,7 @@ describe('Metric definitions — segment data collection', () => {
       ),
     ])
 
-    const def = getMetricDef('absoluteTime')!
-    const inst = { ...FAKE, baseId: 'absoluteTime' }
-    const result = def.compute(engine as any, ctx(101), inst)
+    const result = values(query(inst('absoluteTime'), scope(engine, 101)))
     // slot 0 = AOI1: segments [0,100] and [100,300] → 100+200=300
     expect(result[0]).toBe(300)
     // slot 1 = AOI2: segments [100,300] and [350,500] → 200+150=350
@@ -85,9 +93,7 @@ describe('Metric definitions — segment data collection', () => {
       ),
     ])
 
-    const def = getMetricDef('averageFixationCount')!
-    const inst = { ...FAKE, baseId: 'averageFixationCount' }
-    const result = def.compute(engine as any, ctx(101), inst)
+    const result = values(query(inst('averageFixationCount'), scope(engine, 101)))
     expect(result[0]).toBe(2) // AOI1: 2 fixations
     expect(result[1]).toBe(2) // AOI2: 2 fixations
     expect(result[2]).toBe(1) // noAoi: 1 fixation
@@ -104,9 +110,7 @@ describe('Metric definitions — segment data collection', () => {
       ),
     ])
 
-    const def = getMetricDef('averageEntries')!
-    const inst = { ...FAKE, baseId: 'averageEntries' }
-    expect(def.compute(engine as any, ctx(101), inst)[0]).toBe(1)
+    expect(values(query(inst('averageEntries'), scope(engine, 101)))[0]).toBe(1)
   })
 
   it('visitDuration: consecutive segments in same AOI accumulate as one dwell', () => {
@@ -119,11 +123,10 @@ describe('Metric definitions — segment data collection', () => {
       ),
     ])
 
-    const def = getMetricDef('avgDwellDuration')!
-    const inst = { ...FAKE, baseId: 'avgDwellDuration' }
+    const dwell = values(query(inst('avgDwellDuration'), scope(engine, 101)))
     // One visit of 300ms total → mean = 300
-    expect(def.compute(engine as any, ctx(101), inst)[0]).toBe(300)
-    expect(def.extractIndividuals!(engine as any, ctx(101), 0, inst)).toEqual([300])
+    expect(dwell[0]).toBe(300)
+    expect(queryIndividuals(inst('avgDwellDuration'), scope(engine, 101), 0)).toEqual([300])
   })
 
   it('visitCount: AOI overlap — both AOIs receive an entry', () => {
@@ -134,9 +137,7 @@ describe('Metric definitions — segment data collection', () => {
       ),
     ])
 
-    const def = getMetricDef('averageEntries')!
-    const inst = { ...FAKE, baseId: 'averageEntries' }
-    const result = def.compute(engine as any, ctx(101), inst)
+    const result = values(query(inst('averageEntries'), scope(engine, 101)))
     expect(result[0]).toBe(1) // AOI1
     expect(result[1]).toBe(1) // AOI2
   })
@@ -149,9 +150,7 @@ describe('Metric definitions — segment data collection', () => {
       ),
     ])
 
-    const def = getMetricDef('timeToFirstFixation')!
-    const inst = { ...FAKE, baseId: 'timeToFirstFixation' }
-    const result = def.compute(engine as any, ctx(101), inst)
+    const result = values(query(inst('timeToFirstFixation'), scope(engine, 101)))
     expect(result[0]).toBe(50)  // AOI1 TTFF
     expect(result[3]).toBe(50)  // anyFixation TTFF
   })
@@ -164,9 +163,7 @@ describe('Metric definitions — segment data collection', () => {
       ),
     ])
 
-    const def = getMetricDef('timeToFirstFixation')!
-    const inst = { ...FAKE, baseId: 'timeToFirstFixation' }
-    const result = def.compute(engine as any, ctx(101), inst)
+    const result = values(query(inst('timeToFirstFixation'), scope(engine, 101)))
     expect(result[2]).toBe(0)   // noAoi TTFF = 0
     expect(result[0]).toBe(50)  // AOI1 TTFF = 50
     expect(result[3]).toBe(0)   // anyFixation TTFF = 0
@@ -178,9 +175,7 @@ describe('Metric definitions — segment data collection', () => {
       Array.from({ length: 102 }, () => [] as number[][]),
     ])
 
-    const def = getMetricDef('absoluteTime')!
-    const inst = { ...FAKE, baseId: 'absoluteTime' }
-    const result = def.compute(engine as any, ctx(101), inst)
+    const result = values(query(inst('absoluteTime'), scope(engine, 101)))
     expect(result[0]).toBe(0)
     expect(result[1]).toBe(0)
     expect(result[3]).toBe(0)
@@ -192,9 +187,7 @@ describe('Metric definitions — segment data collection', () => {
       Array.from({ length: 102 }, () => [] as number[][]),
     ])
 
-    const def = getMetricDef('timeToFirstFixation')!
-    const inst = { ...FAKE, baseId: 'timeToFirstFixation' }
-    expect(Number.isNaN(def.compute(engine as any, ctx(101), inst)[0])).toBe(true)
+    expect(Number.isNaN(values(query(inst('timeToFirstFixation'), scope(engine, 101)))[0])).toBe(true)
   })
 
   it('absoluteTime: correctly separates values across multiple participants', () => {
@@ -207,10 +200,8 @@ describe('Metric definitions — segment data collection', () => {
       }),
     ])
 
-    const def = getMetricDef('absoluteTime')!
-    const inst = { ...FAKE, baseId: 'absoluteTime' }
-    const r101 = def.compute(engine as any, ctx(101), inst)
-    const r102 = def.compute(engine as any, ctx(102), inst)
+    const r101 = values(query(inst('absoluteTime'), scope(engine, 101)))
+    const r102 = values(query(inst('absoluteTime'), scope(engine, 102)))
     expect(r101[0]).toBe(100) // P101 AOI1
     expect(r101[1]).toBe(0)   // P101 AOI2
     expect(r102[0]).toBe(0)   // P102 AOI1

@@ -13,18 +13,21 @@
   import { createDragReorder } from '$lib/shared/actions/dragReorder'
   import { getGazePlotterSession } from '$lib/session'
   import {
-    METRIC_DEFS,
-    METRIC_CATEGORY_ORDER,
-    METRIC_CATEGORY_LABELS,
-    getMetricDef,
+    listMetrics,
+    getMetric,
+    getCategoryLabels,
     formatParamReadout,
     formatWindowingReadout,
     defaultInstanceLabel,
+    type Metric,
     type MetricInstance,
-    type MetricParamDef,
-    type MetricComputationMode,
+    type ParamDef,
+    type ComputationMode,
   } from '$lib/metrics'
   import type { WindowingConfig } from '$lib/data/types'
+
+  const METRICS = listMetrics()
+  const CATEGORY_LABELS = getCategoryLabels()
 
   interface Props {
     context: 'global' | 'windowed'
@@ -90,7 +93,7 @@
   // ── Form state (shared between create and edit) ───────────
   let paramDraft = $state<Record<string, unknown>>({})
   let labelOverride = $state('')
-  let createMode = $state<MetricComputationMode>('global')
+  let createMode = $state<ComputationMode>('global')
   let windowSize = $state(2000)
   let stepSize = $state(2000)
   let windowReduction = $state<WindowingConfig['reduction']>('mean')
@@ -108,14 +111,14 @@
     expandedCardId = inst.id
     expandedAddId = null
     isEditMode = true
-    const def = getMetricDef(inst.baseId)
+    const m = getMetric(inst.baseId)
     paramDraft = { ...inst.params }
     const autoLabel = defaultInstanceLabel(inst.baseId, inst.params)
     labelOverride = inst.label !== autoLabel ? inst.label : ''
     const w = inst.windowing
     createMode = w?.mode ?? (context === 'windowed' ? 'epoch' : 'global')
-    windowSize = w?.windowSize ?? (def?.category === 'rqa-aoi' ? 20 : 2000)
-    stepSize = w?.stepSize ?? (def?.category === 'rqa-aoi' ? 100 : (w?.mode === 'epoch' ? windowSize : 100))
+    windowSize = w?.windowSize ?? (m?.meta.category === 'rqa-aoi' ? 20 : 2000)
+    stepSize = w?.stepSize ?? (m?.meta.category === 'rqa-aoi' ? 100 : (w?.mode === 'epoch' ? windowSize : 100))
     windowReduction = w?.reduction ?? 'mean'
   }
 
@@ -124,12 +127,12 @@
     expandedCardId = null
     expandedAddId = baseId
     isEditMode = false
-    const def = getMetricDef(baseId)
-    paramDraft = Object.fromEntries((def?.params ?? []).map(p => [p.id, p.default]))
+    const m = getMetric(baseId)
+    paramDraft = Object.fromEntries((m?.meta.params ?? []).map(p => [p.id, p.default]))
     labelOverride = ''
     createMode = context === 'windowed' ? 'epoch' : 'global'
-    windowSize = def?.category === 'rqa-aoi' ? 20 : 2000
-    stepSize = def?.category === 'rqa-aoi' ? 100 : windowSize
+    windowSize = m?.meta.category === 'rqa-aoi' ? 20 : 2000
+    stepSize = m?.meta.category === 'rqa-aoi' ? 100 : windowSize
     windowReduction = 'mean'
   }
 
@@ -140,8 +143,8 @@
 
   // ── Form submission ───────────────────────────────────────
   function commitForm(baseId: string) {
-    const def = getMetricDef(baseId)
-    const isRqa = def?.category === 'rqa-aoi'
+    const m = getMetric(baseId)
+    const isRqa = m?.meta.category === 'rqa-aoi'
     const params = { ...paramDraft }
     const label = labelOverride.trim() || defaultInstanceLabel(baseId, params)
     const windowing: WindowingConfig | undefined =
@@ -179,16 +182,16 @@
     oncreateInstance(baseId, params, label, windowing, replacingId)
   }
 
-  // ── Add section: which defs are creatable & filterable ───
-  function isCreatable(d: (typeof METRIC_DEFS)[number]): boolean {
-    if (context === 'windowed') return !!(d.computationModes?.some(m => m !== 'global'))
+  // ── Add section: which metrics are creatable & filterable ───
+  function isCreatable(m: Metric): boolean {
+    if (context === 'windowed') return m.meta.computationModes.some(mode => mode !== 'global')
     return true
   }
 
   const filteredAddDefs = $derived(
-    METRIC_DEFS.filter(d =>
-      isCreatable(d) &&
-      (!q || d.label.toLowerCase().includes(q) || (d.searchTags ?? []).some(t => t.includes(q)))
+    METRICS.filter(m =>
+      isCreatable(m) &&
+      (!q || m.meta.label.toLowerCase().includes(q) || m.meta.searchTags.some(t => t.includes(q)))
     )
   )
 
@@ -198,14 +201,14 @@
     return override.length > 0 ? override : defaultInstanceLabel(baseId, paramDraft)
   }
 
-  function paramSelectOptions(p: MetricParamDef): SelectOption[] {
-    return (p.options ?? []).map(o => ({ label: o.label, value: o.value }))
+  function paramSelectOptions(p: ParamDef<unknown>): SelectOption[] {
+    return (p.options ?? []).map(o => ({ label: o.label, value: o.value as string }))
   }
 
-  function getAvailableModes(baseId: string): MetricComputationMode[] {
-    const def = getMetricDef(baseId)
+  function getAvailableModes(baseId: string): ComputationMode[] {
+    const m = getMetric(baseId)
     return context === 'windowed'
-      ? (def?.computationModes ?? []).filter(m => m !== 'global') as MetricComputationMode[]
+      ? (m?.meta.computationModes ?? []).filter(mode => mode !== 'global') as ComputationMode[]
       : []
   }
 </script>
@@ -233,7 +236,7 @@
         {@const readout = formatParamReadout(inst)}
         {@const winLine = formatWindowingReadout(inst)}
         {@const detail = [...readout, ...(winLine ? [winLine] : [])].join(' · ')}
-        {@const def = getMetricDef(inst.baseId)}
+        {@const metric = getMetric(inst.baseId)}
         {@const availableModes = getAvailableModes(inst.baseId)}
         <div
           class="metric-card"
@@ -269,7 +272,7 @@
 
           {#if expandedCardId === inst.id}
             <div class="inline-form" in:slide|local={{ duration: 150 }} out:slide|local={{ duration: 120 }}>
-              {@render formBody(inst.baseId, availableModes, def)}
+              {@render formBody(inst.baseId, availableModes, metric)}
             </div>
           {/if}
         </div>
@@ -285,25 +288,25 @@
   {#if filteredAddDefs.length > 0}
     <div class="section-label" style:margin-top="16px">Add metric</div>
     <div class="add-list">
-      {#each filteredAddDefs as def (def.id)}
+      {#each filteredAddDefs as m (m.meta.id)}
         <div class="add-row">
           <button
             class="add-row-header"
-            class:active={expandedAddId === def.id}
-            onclick={() => toggleAdd(def.id)}
+            class:active={expandedAddId === m.meta.id}
+            onclick={() => toggleAdd(m.meta.id)}
             type="button"
           >
-            <span class="add-badge">{METRIC_CATEGORY_LABELS[def.category] ?? def.category}</span>
-            <span class="add-label">{def.label}</span>
-            <span class="add-chevron" class:rotated={expandedAddId === def.id}>
+            <span class="add-badge">{CATEGORY_LABELS[m.meta.category] ?? m.meta.category}</span>
+            <span class="add-label">{m.meta.label}</span>
+            <span class="add-chevron" class:rotated={expandedAddId === m.meta.id}>
               <ChevronDown size={13} strokeWidth={1.5} />
             </span>
           </button>
 
-          {#if expandedAddId === def.id}
-            {@const availableModes = getAvailableModes(def.id)}
+          {#if expandedAddId === m.meta.id}
+            {@const availableModes = getAvailableModes(m.meta.id)}
             <div class="inline-form" in:slide|local={{ duration: 150 }} out:slide|local={{ duration: 120 }}>
-              {@render formBody(def.id, availableModes, def)}
+              {@render formBody(m.meta.id, availableModes, m)}
             </div>
           {/if}
         </div>
@@ -314,16 +317,16 @@
   {/if}
 </div>
 
-{#snippet formBody(baseId: string, availableModes: MetricComputationMode[], def: ReturnType<typeof getMetricDef>)}
-  {#if def}
+{#snippet formBody(baseId: string, availableModes: ComputationMode[], m: Metric | undefined)}
+  {#if m}
     <form
       class="form-inner"
       onsubmit={e => { e.preventDefault(); commitForm(baseId) }}
       onkeydown={e => { if (e.key === 'Escape') { e.preventDefault(); collapseAll() } }}
     >
-      <p class="metric-description">{def.description}</p>
+      <p class="metric-description">{m.meta.description}</p>
 
-      {#each def.params ?? [] as param (param.id)}
+      {#each m.meta.params as param (param.id)}
         <div class="param-row">
           {#if param.type === 'enum'}
             <Select
@@ -334,7 +337,7 @@
             />
           {:else if param.type === 'integer' || param.type === 'number'}
             <InputNumber
-              id={`modal-param-${def.id}-${param.id}`}
+              id={`modal-param-${m.meta.id}-${param.id}`}
               label={param.label}
               value={Number(paramDraft[param.id] ?? param.default)}
               min={param.min}
@@ -368,7 +371,7 @@
                   class:active={createMode === mode}
                   onclick={() => {
                     createMode = mode
-                    if (def?.category !== 'rqa-aoi') {
+                    if (m.meta.category !== 'rqa-aoi') {
                       stepSize = mode === 'epoch' ? windowSize : 100
                     }
                   }}
@@ -380,27 +383,27 @@
           {/if}
           <div class="window-step-row">
             <div class="field-row">
-              <label class="field-label" for="modal-window-{def.id}">
-                {def.category === 'rqa-aoi' || createMode === 'epoch' ? 'Epoch' : 'Window'}
+              <label class="field-label" for="modal-window-{m.meta.id}">
+                {m.meta.category === 'rqa-aoi' || createMode === 'epoch' ? 'Epoch' : 'Window'}
               </label>
               <div class="window-group">
                 <input
-                  id="modal-window-{def.id}"
+                  id="modal-window-{m.meta.id}"
                   class="number-input"
                   type="number"
                   bind:value={windowSize}
-                  min={def.category === 'rqa-aoi' ? 15 : 100}
-                  step={def.category === 'rqa-aoi' ? 1 : 100}
+                  min={m.meta.category === 'rqa-aoi' ? 15 : 100}
+                  step={m.meta.category === 'rqa-aoi' ? 1 : 100}
                 />
-                <span class="field-unit">{def.category === 'rqa-aoi' ? 'fix' : 'ms'}</span>
+                <span class="field-unit">{m.meta.category === 'rqa-aoi' ? 'fix' : 'ms'}</span>
               </div>
             </div>
-            {#if def.category !== 'rqa-aoi' && createMode === 'sliding'}
+            {#if m.meta.category !== 'rqa-aoi' && createMode === 'sliding'}
               <div class="field-row">
-                <label class="field-label" for="modal-step-{def.id}">Step</label>
+                <label class="field-label" for="modal-step-{m.meta.id}">Step</label>
                 <div class="window-group">
                   <input
-                    id="modal-step-{def.id}"
+                    id="modal-step-{m.meta.id}"
                     class="number-input"
                     type="number"
                     bind:value={stepSize}
@@ -412,15 +415,15 @@
               </div>
             {/if}
           </div>
-          {#if def.category === 'rqa-aoi' && windowSize < 20}
+          {#if m.meta.category === 'rqa-aoi' && windowSize < 20}
             <div class="field-hint">Recommended ≥ 20 fixations for stable DET / LAM estimates</div>
-          {:else if def.category !== 'rqa-aoi' && createMode === 'sliding' && stepSize > windowSize}
+          {:else if m.meta.category !== 'rqa-aoi' && createMode === 'sliding' && stepSize > windowSize}
             <div class="field-hint">Step &gt; window — gaps between bins (some data unanalyzed)</div>
           {/if}
-          {#if def.category === 'rqa-aoi'}
+          {#if m.meta.category === 'rqa-aoi'}
             <div class="field-row">
-              <label class="field-label" for="modal-reduction-{def.id}">Reduce by</label>
-              <select id="modal-reduction-{def.id}" class="reduction-select" bind:value={windowReduction}>
+              <label class="field-label" for="modal-reduction-{m.meta.id}">Reduce by</label>
+              <select id="modal-reduction-{m.meta.id}" class="reduction-select" bind:value={windowReduction}>
                 <option value="mean">Mean</option>
                 <option value="max">Max</option>
                 <option value="min">Min</option>
@@ -432,9 +435,9 @@
       {/if}
 
       <div class="field-col">
-        <label class="field-label" for="modal-label-{def.id}">Label</label>
+        <label class="field-label" for="modal-label-{m.meta.id}">Label</label>
         <input
-          id="modal-label-{def.id}"
+          id="modal-label-{m.meta.id}"
           class="text-input"
           type="text"
           bind:value={labelOverride}

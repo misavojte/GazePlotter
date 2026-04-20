@@ -1,106 +1,109 @@
 import './init'
-import { getMetricDefs, getMetricDef } from './defineMetric'
-import type { MetricInstance, MetricParamDef } from './types'
+import { getMetric, listMetrics } from './core/defineMetric'
+import type { WindowingConfig } from './core/dsl'
+import type { ParamDef } from './core/params'
+
+export type { WindowingConfig } from './core/dsl'
+
+export interface MetricInstance {
+  id: number
+  baseId: string
+  params: Record<string, unknown>
+  label: string
+  system?: true
+  windowing?: WindowingConfig
+}
 
 const SYSTEM_ID_OFFSET = 1000
+const WINDOWED_ID_START = 12
+
+// ─── Factories ───────────────────────────────────────────────────────────────
 
 export function createSystemMetricInstances(): MetricInstance[] {
-  return getMetricDefs()
-    .filter(def => def.outputShape !== 'aoi-pair-matrix')
-    .map((def, idx) => ({
+  return listMetrics()
+    .filter(m => m.meta.outputShape !== 'aoi-pair-matrix')
+    .map((m, idx) => ({
       id: idx + 1,
-      baseId: def.id,
+      baseId: m.meta.id,
       params: {},
-      label: def.label,
+      label: m.meta.label,
       system: true as const,
     }))
 }
 
 export function findSystemInstanceIdByBaseId(baseId: string): number | null {
-  const defs = getMetricDefs()
-  const idx = defs.findIndex(d => d.id === baseId)
+  const metrics = listMetrics().filter(m => m.meta.outputShape !== 'aoi-pair-matrix')
+  const idx = metrics.findIndex(m => m.meta.id === baseId)
   return idx < 0 ? null : idx + 1
 }
 
-export function reconcileSystemInstances(
-  existing: MetricInstance[]
-): MetricInstance[] {
+export function reconcileSystemInstances(existing: MetricInstance[]): MetricInstance[] {
   const system = createSystemMetricInstances()
   const existingIds = new Set(existing.map(i => i.id))
   const result = [...existing]
-  for (const s of system) {
-    if (!existingIds.has(s.id)) result.push(s)
-  }
+  for (const s of system) if (!existingIds.has(s.id)) result.push(s)
   return result
 }
 
+/**
+ * Default windowed instances are derived from each metric's `defaultWindowing`.
+ * IDs are assigned in metric registration order starting at WINDOWED_ID_START (12).
+ * A pinning test asserts that the first three emitted instances have IDs 12/13/14
+ * and baseIds `averageFixationCount` / `absoluteTime` / `rqaDet`.
+ */
 export function createDefaultWindowedInstances(): MetricInstance[] {
-  return [
-    {
-      id: 12,
-      baseId: 'averageFixationCount',
+  const out: MetricInstance[] = []
+  let id = WINDOWED_ID_START
+  for (const m of listMetrics()) {
+    const wc = m.meta.defaultWindowing
+    if (!wc) continue
+    out.push({
+      id: id++,
+      baseId: m.meta.id,
       params: {},
-      label: 'Fixation count',
-      windowing: { mode: 'epoch', windowSize: 2000, reduction: 'mean' },
-    },
-    {
-      id: 13,
-      baseId: 'absoluteTime',
-      params: {},
-      label: 'Absolute dwell time',
-      windowing: { mode: 'epoch', windowSize: 2000, reduction: 'mean' },
-    },
-    {
-      id: 14,
-      baseId: 'rqaDet',
-      params: { l_min: 2 },
-      label: 'DET (L_min=2)',
-      windowing: { mode: 'epoch', windowSize: 20, reduction: 'mean' },
-    },
-  ]
+      label: defaultInstanceLabel(m.meta.id, {}),
+      windowing: wc,
+    })
+  }
+  return out
 }
 
 export function createDefaultMetricInstances(): MetricInstance[] {
   return [...createSystemMetricInstances(), ...createDefaultWindowedInstances()]
 }
 
-export function nextInstanceId(existing: MetricInstance[]): number {
+export function nextInstanceId(existing: readonly MetricInstance[]): number {
   let max = SYSTEM_ID_OFFSET - 1
-  for (const inst of existing) {
-    if (inst.id > max) max = inst.id
-  }
+  for (const inst of existing) if (inst.id > max) max = inst.id
   return Math.max(max + 1, SYSTEM_ID_OFFSET)
 }
 
 export function resolveInstance(
   instances: readonly MetricInstance[],
-  id: number
+  id: number,
 ): MetricInstance | undefined {
   return instances.find(i => i.id === id)
 }
 
-export function defaultInstanceLabel(
-  baseId: string,
-  params: Record<string, unknown>
-): string {
-  const def = getMetricDef(baseId)
-  if (!def) return baseId
-  if (def.defaultLabel) return def.defaultLabel(params)
-  if (!def.params || def.params.length === 0) return def.label
+// ─── Label / readout helpers ─────────────────────────────────────────────────
 
-  const paramStrs = def.params
+export function defaultInstanceLabel(baseId: string, params: Record<string, unknown>): string {
+  const m = getMetric(baseId)
+  if (!m) return baseId
+  if (m.meta.defaultLabel) return m.meta.defaultLabel(params)
+  if (m.meta.params.length === 0) return m.meta.label
+
+  const paramStrs = m.meta.params
     .map(p => formatParamShort(p, params[p.id] ?? p.default))
-    .filter(Boolean)
+    .filter(s => s.length > 0)
 
-  return paramStrs.length > 0
-    ? `${def.label} (${paramStrs.join(', ')})`
-    : def.label
+  return paramStrs.length > 0 ? `${m.meta.label} (${paramStrs.join(', ')})` : m.meta.label
 }
 
 export function formatParamReadout(instance: MetricInstance): string[] {
-  const def = getMetricDef(instance.baseId)
-  if (!def || !def.params || def.params.length === 0) return []
-  return def.params
+  const m = getMetric(instance.baseId)
+  if (!m || m.meta.params.length === 0) return []
+  return m.meta.params
     .map(p => formatParamShort(p, instance.params[p.id] ?? p.default))
     .filter((s): s is string => s.length > 0)
 }
@@ -108,8 +111,8 @@ export function formatParamReadout(instance: MetricInstance): string[] {
 export function formatWindowingReadout(instance: MetricInstance): string | null {
   const w = instance.windowing
   if (!w) return null
-  const def = getMetricDef(instance.baseId)
-  const isRqa = def?.windowUnit === 'fixations'
+  const m = getMetric(instance.baseId)
+  const isRqa = m?.meta.windowUnit === 'fixations'
   const unit = isRqa ? 'fix' : 'ms'
   const modeLabel = w.mode === 'epoch' ? 'Epoch' : 'Sliding'
   const showStep = !isRqa && w.stepSize != null && w.stepSize !== w.windowSize
@@ -117,14 +120,12 @@ export function formatWindowingReadout(instance: MetricInstance): string | null 
   return `${modeLabel} ${w.windowSize}${unit}${stepStr} · ${w.reduction}`
 }
 
-function formatParamShort(def: MetricParamDef, value: unknown): string {
+function formatParamShort(def: ParamDef<unknown>, value: unknown): string {
   if (value === undefined || value === null) return ''
   if (def.type === 'enum') {
     const opt = def.options?.find(o => o.value === value)
     return `${def.id}=${opt?.label ?? String(value)}`
   }
-  if (def.type === 'boolean') {
-    return value ? def.id : ''
-  }
+  if (def.type === 'boolean') return value ? def.id : ''
   return `${def.id}=${value}`
 }

@@ -1,12 +1,11 @@
 import './init'
-import { getMetricDefs } from './defineMetric'
-import { getCategoryOrder, getCategoryLabels } from './categories'
+export { getMetric, listMetrics } from './core/defineMetric'
+import { listMetrics } from './core/defineMetric'
+import type { Metric } from './core/dsl'
 
-export { getMetricDef, getMetricDefs } from './defineMetric'
-export { getCategoryOrder, getCategoryLabels, getAllCategories, getCategory } from './categories'
+export function listByCategory(categoryId: string): Metric[] {
+  return listMetrics().filter(m => m.meta.category === categoryId)
+}
 
-export const METRIC_DEFS = getMetricDefs()
-
-export const METRIC_CATEGORY_ORDER: readonly string[] = getCategoryOrder()
-
-export const METRIC_CATEGORY_LABELS: Record<string, string> = getCategoryLabels()
+export { listCategories, getCategory, defineCategory, getCategoryOrder, getCategoryLabels } from './categories'
+export type { MetricCategoryDef } from './categories'
