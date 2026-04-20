@@ -1,18 +1,5 @@
 import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color'
 
-/**
- * Defines available aggregation methods for transition matrices
- */
-export enum MatrixAggregationMethod {
-  SUM = 'sum',
-  FREQUENCY_RELATIVE = 'frequencyRelative',
-  PROBABILITY = 'probability',
-  PROBABILITY_2 = 'probability2',
-  PROBABILITY_3 = 'probability3',
-  DWELL_TIME = 'dwellTime',
-  SEGMENT_DWELL_TIME = 'segmentDwellTime',
-}
-
 export { MATRIX_LAYOUT as TRANSITION_MATRIX_LAYOUT } from '$lib/plots/shared'
 
 export const TRANSITION_MATRIX_DEFAULTS = {
@@ -24,12 +11,12 @@ export const TRANSITION_MATRIX_DEFAULTS = {
   yLabel: 'From AOI',
 } as const
 
-export const TRANSITION_MATRIX_LEGEND_TITLES: Record<string, string> = {
-  [MatrixAggregationMethod.SUM]: 'Absolute frequency',
-  [MatrixAggregationMethod.FREQUENCY_RELATIVE]: 'Relative frequency [%]',
-  [MatrixAggregationMethod.PROBABILITY]: '1-step probability [%]',
-  [MatrixAggregationMethod.PROBABILITY_2]: '2-step probability [%]',
-  [MatrixAggregationMethod.PROBABILITY_3]: '3-step probability [%]',
-  [MatrixAggregationMethod.DWELL_TIME]: 'Fixation duration [ms]',
-  [MatrixAggregationMethod.SEGMENT_DWELL_TIME]: 'Dwell duration [ms]',
+/**
+ * Legend title derived from the selected metric. Labels come straight from the
+ * metric's `meta.label` + `meta.unit` — no plot-side display switch needed now
+ * that transforms live on the metric.
+ */
+export function getLegendTitle(metricLabel: string, metricUnit: string): string {
+  if (!metricLabel) return 'Transition value'
+  return metricUnit ? `${metricLabel} [${metricUnit}]` : metricLabel
 }

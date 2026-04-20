@@ -23,10 +23,12 @@ export {
   createSystemMetricInstances,
   createDefaultMetricInstances,
   createDefaultWindowedInstances,
+  createDefaultAoiPairInstances,
   findSystemInstanceIdByBaseId,
   reconcileSystemInstances,
   nextInstanceId,
   resolveInstance,
+  resolveInstanceWithFallback,
   defaultInstanceLabel,
   formatParamReadout,
   formatWindowingReadout,
@@ -40,6 +42,14 @@ export type { MetricResult, Scope, GroupScope } from './query'
 export type { MetricCategoryDef } from './categories'
 export type { RqaResult } from './core/rqa'
 export type { FixationSequence } from './core/fixations'
+
+// ─── Context (who consumes what) ───────────────────────────────────────────
+export {
+  instanceMatchesContext,
+  metricIsCreatableInContext,
+  METRIC_CONTEXTS,
+} from './context'
+export type { MetricContext } from './context'
 
 // ─── UI ────────────────────────────────────────────────────────────────────
 export { default as MetricSelect } from './components/MetricSelect.svelte'

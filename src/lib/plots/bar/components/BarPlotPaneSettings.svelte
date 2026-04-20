@@ -7,8 +7,13 @@
   } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
-  import { BAR_PLOT_AGGREGATION_METHODS } from '../const'
   import type { BarPlotItem, BarPlotSettings } from '../types'
+  import { barPlotDefinition } from '../definition'
+  import {
+    MetricSelect,
+    type MetricInstance,
+    type WindowingConfig,
+  } from '$lib/metrics'
 
   interface Props {
     item: BarPlotItem
@@ -28,10 +33,42 @@
   const groupOptions = $derived(
     getParticipantsGroupOptions(engine, true, settings.stimulusId)
   )
-  const aggregationOptions = BAR_PLOT_AGGREGATION_METHODS.map(m => ({
-    label: m.label,
-    value: m.value,
-  }))
+
+  function onMetricChange(ids: number[]) {
+    update({ metricInstanceId: ids[0] ?? null })
+  }
+
+  function onCreateInstance(
+    baseId: string,
+    params: Record<string, unknown>,
+    label: string,
+    windowing?: WindowingConfig,
+    replacingId?: number,
+  ) {
+    const list = [...(engine.metadata?.metricInstances ?? [])]
+    const nextId = Math.max(0, ...list.map(i => i.id)) + 1
+    const next: MetricInstance = { id: nextId, baseId, params, label, windowing }
+    if (replacingId !== undefined) {
+      const idx = list.findIndex(i => i.id === replacingId)
+      if (idx >= 0) list[idx] = { ...next, id: replacingId }
+    } else {
+      list.push(next)
+    }
+    engine.setMetricInstances(list)
+    if (replacingId === undefined) update({ metricInstanceId: nextId })
+  }
+
+  function onDeleteInstance(id: number) {
+    const list = (engine.metadata?.metricInstances ?? []).filter(i => i.id !== id)
+    engine.setMetricInstances(list)
+  }
+
+  function onRenameInstance(id: number, label: string) {
+    const list = (engine.metadata?.metricInstances ?? []).map(i =>
+      i.id === id ? { ...i, label } : i
+    )
+    engine.setMetricInstances(list)
+  }
 
   const minScale = $derived(settings.scaleRange?.[0] ?? 0)
   const maxScale = $derived(settings.scaleRange?.[1] ?? 0)
@@ -45,7 +82,7 @@
   }
 </script>
 
-<PaneSection title="Filters" alwaysOpen>
+<PaneSection title="Filters">
   <Select
     label="Stimulus"
     options={stimulusOptions}
@@ -60,12 +97,16 @@
   />
 </PaneSection>
 
-<PaneSection title="Aggregation">
-  <Select
-    label="Method"
-    options={aggregationOptions}
-    value={settings.aggregationMethod}
-    onchange={e => update({ aggregationMethod: (e as CustomEvent<string>).detail })}
+<PaneSection title="Metric">
+  <MetricSelect
+    label="Metric"
+    instances={engine.metadata?.metricInstances ?? []}
+    selectedIds={settings.metricInstanceId == null ? [] : [settings.metricInstanceId]}
+    onchange={onMetricChange}
+    onrenameInstance={onRenameInstance}
+    oncreateInstance={onCreateInstance}
+    ondeleteInstance={onDeleteInstance}
+    context={barPlotDefinition.consumesMetrics!}
   />
 </PaneSection>
 
@@ -129,7 +170,7 @@
   />
 </PaneSection>
 
-<PaneSection title="Scale range" defaultOpen={false}>
+<PaneSection title="Scale range">
   <div class="inline-pair">
     <InputNumber
       id="bar-min-scale"
@@ -150,7 +191,7 @@
   </div>
 </PaneSection>
 
-<PaneSection title="Time range [ms]" defaultOpen={false}>
+<PaneSection title="Time range [ms]">
   <div class="inline-pair">
     <InputNumber
       id="bar-timeline-start"

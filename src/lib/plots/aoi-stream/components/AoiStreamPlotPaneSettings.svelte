@@ -72,7 +72,7 @@
   })
 </script>
 
-<PaneSection title="Filters" alwaysOpen>
+<PaneSection title="Filters">
   <Select
     label="Stimulus"
     options={stimulusOptions}
@@ -128,7 +128,7 @@
   {/if}
 </PaneSection>
 
-<PaneSection title="Time range [ms]" defaultOpen={false}>
+<PaneSection title="Time range [ms]">
   <div class="inline-pair">
     <InputNumber
       id="aoi-stream-timeline-start"

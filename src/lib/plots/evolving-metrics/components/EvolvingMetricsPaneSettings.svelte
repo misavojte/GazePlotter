@@ -11,7 +11,8 @@
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { PRESET_PALETTES } from '$lib/color/palettes'
-  import { type MetricInstance, MetricSelect } from '$lib/metrics'
+  import { MetricSelect } from '$lib/metrics'
+  import { evolvingMetricsDefinition } from '../definition'
   import type { EvolvingMetricsItem, EvolvingMetricsSettings } from '../types'
 
   interface Props {
@@ -35,11 +36,6 @@
 
   const presentation = $derived(settings.presentation ?? 'heatmap')
   const isHeatmap = $derived(presentation === 'heatmap')
-
-  // Only windowed instances belong in the evolving metrics plot
-  const library = $derived<readonly MetricInstance[]>(
-    (engine.metadata?.metricInstances ?? []).filter(i => !!i.windowing)
-  )
 
   const colorFields = $derived(
     getColorScaleCommitted(
@@ -67,7 +63,7 @@
   })
 </script>
 
-<PaneSection title="Filters" alwaysOpen>
+<PaneSection title="Filters">
   <Select
     label="Stimulus"
     options={stimulusOptions}
@@ -85,8 +81,8 @@
 <PaneSection title="View">
   <MetricSelect
     label="Metric"
-    context="windowed"
-    instances={library}
+    context={evolvingMetricsDefinition.consumesMetrics!}
+    instances={engine.metadata?.metricInstances ?? []}
     selectedIds={settings.selectedMetricId !== null ? [settings.selectedMetricId] : []}
     onchange={ids => update({ selectedMetricId: ids.at(-1) ?? null })}
     onrenameInstance={(id, label) => engine.updateMetricInstanceLabel(id, label)}
@@ -116,7 +112,7 @@
   />
 </PaneSection>
 
-<PaneSection title="Time range [ms]" defaultOpen={false}>
+<PaneSection title="Time range [ms]">
   <div class="inline-pair">
     <InputNumber
       id="ev-timeline-start"

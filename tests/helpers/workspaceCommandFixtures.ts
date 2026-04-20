@@ -191,7 +191,7 @@ export function createBarPlotGridItem(
     barPlottingType: 'horizontal',
     orderBy: 'aoi',
     orderDirection: 'asc',
-    aggregationMethod: 'absoluteTime',
+    metricInstanceId: 1,
     scaleRange: [0, 0],
     statisticalOverlay: 'none',
   }

@@ -10,11 +10,9 @@
     transitionMatrixColorSync,
     colorScaleToKey,
   } from '$lib/plots/transition-matrix/core/sync.svelte'
-  import {
-    MatrixAggregationMethod,
-    TRANSITION_MATRIX_LEGEND_TITLES,
-  } from '$lib/plots/transition-matrix/const'
+  import { getLegendTitle } from '$lib/plots/transition-matrix/const'
 
+  import { getMetric, resolveInstanceWithFallback } from '$lib/metrics'
   import type { TransitionMatrixPlotItem } from '$lib/plots/transition-matrix/types'
 
   interface Props {
@@ -31,14 +29,26 @@
 
   const effectiveColorScale = $derived(settings.colorScale ?? [])
 
-  const transitionData = $derived.by(() => {
-    return getTransitionMatrixData(
+  const resolvedInstance = $derived(
+    resolveInstanceWithFallback(
+      settings.metricInstanceId,
+      'transitionCount',
+      engine.metadata?.metricInstances ?? [],
+    )
+  )
+
+  const resolvedMetric = $derived(
+    resolvedInstance ? getMetric(resolvedInstance.baseId) : undefined
+  )
+
+  const transitionData = $derived(
+    getTransitionMatrixData(
       engine,
       settings.stimulusId,
       settings.groupId,
-      settings.aggregationMethod as MatrixAggregationMethod
+      settings.metricInstanceId,
     )
-  })
+  )
 
   const { aoiLabels, matrix } = $derived(transitionData)
 
@@ -56,13 +66,16 @@
 
   const effectiveColorScaleKey = $derived(colorScaleToKey(effectiveColorScale))
 
+  /** Matrices sharing the same instance are directly comparable (same metric + params). */
+  const syncGroupKey = $derived(String(resolvedInstance?.id ?? 'none'))
+
   $effect(() => {
     if (!isDefaultColorRange) {
       transitionMatrixColorSync.clearEntry(item.id)
       return
     }
     transitionMatrixColorSync.setEntry(item.id, {
-      aggregationMethod: settings.aggregationMethod,
+      groupKey: syncGroupKey,
       colorScaleKey: effectiveColorScaleKey,
       w: item.w,
       h: item.h,
@@ -73,9 +86,8 @@
 
   const effectiveColorValueRange = $derived.by<[number, number]>(() => {
     if (!isDefaultColorRange) return currentStimulusColorRange
-
     const syncedMax = transitionMatrixColorSync.getSyncedMax(
-      settings.aggregationMethod,
+      syncGroupKey,
       effectiveColorScaleKey,
       item.w,
       item.h
@@ -83,6 +95,13 @@
     if (syncedMax <= ownDataMax) return currentStimulusColorRange
     return [0, syncedMax]
   })
+
+  const legendTitle = $derived(
+    getLegendTitle(
+      resolvedInstance?.label ?? resolvedMetric?.meta.label ?? '',
+      resolvedMetric?.meta.unit ?? '',
+    )
+  )
 </script>
 
 <BasePlot
@@ -99,9 +118,7 @@
         colorScale={effectiveColorScale}
         xLabel="To AOI"
         yLabel="From AOI"
-        legendTitle={TRANSITION_MATRIX_LEGEND_TITLES[
-          settings.aggregationMethod
-        ] ?? 'Transition Value'}
+        {legendTitle}
         colorValueRange={effectiveColorValueRange}
         belowMinColor={settings.belowMinColor}
         aboveMaxColor={settings.aboveMaxColor}

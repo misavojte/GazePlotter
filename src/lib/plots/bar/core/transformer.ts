@@ -14,7 +14,15 @@ import type {
   BarPlotSettings,
   AoiSummaryStatistics,
 } from '../types'
-import { query, queryIndividuals, type MetricInstance, type Scope } from '$lib/metrics'
+import {
+  query,
+  queryIndividuals,
+  resolveInstanceWithFallback,
+  type MetricInstance,
+  type Scope,
+} from '$lib/metrics'
+
+const FALLBACK_BASE_ID = 'absoluteTime'
 
 export function getBarPlotData(
   engine: DataEngine,
@@ -22,7 +30,7 @@ export function getBarPlotData(
     BarPlotSettings,
     | 'stimulusId'
     | 'groupId'
-    | 'aggregationMethod'
+    | 'metricInstanceId'
     | 'orderBy'
     | 'orderDirection'
     | 'scaleRange'
@@ -40,10 +48,15 @@ export function getBarPlotData(
     settings.groupId,
     settings.stimulusId
   )
-  const aggregationMethod = settings.aggregationMethod || 'absoluteTime'
   const overlay = settings.statisticalOverlay ?? 'none'
 
-  if (participantIds.length === 0) {
+  const instance = resolveInstanceWithFallback(
+    settings.metricInstanceId ?? null,
+    FALLBACK_BASE_ID,
+    meta.metricInstances ?? [],
+  )
+
+  if (participantIds.length === 0 || !instance) {
     return { data: [], timeline: createAdaptiveTimeline(0, 100, 6), dataMax: 0 }
   }
 
@@ -61,7 +74,7 @@ export function getBarPlotData(
   for (let i = 0; i < totalSlots; i++) {
     const result = extractIndividualValuesWithIdentity(
       engine,
-      aggregationMethod,
+      instance,
       settings.stimulusId,
       participantIds,
       i,
@@ -87,7 +100,7 @@ export function getBarPlotData(
     rawData,
     aois,
     meta.noAoiTreatment,
-    aggregationMethod,
+    instance,
     individualArrays,
     statsArrays,
     individualNameArrays
@@ -130,7 +143,7 @@ export function getBarPlotData(
 
 function extractIndividualValuesWithIdentity(
   engine: DataEngine,
-  method: string,
+  instance: MetricInstance,
   stimulusId: number,
   participantIds: number[],
   aoiIndex: number,
@@ -140,8 +153,6 @@ function extractIndividualValuesWithIdentity(
 ): { values: number[]; names: string[] } {
   if (participantIds.length === 0) return { values: [], names: [] }
 
-  const fakeInstance: MetricInstance = { id: 0, baseId: method, params: {}, label: '' }
-
   const values: number[] = []
   const names: string[] = []
 
@@ -150,10 +161,10 @@ function extractIndividualValuesWithIdentity(
       engine, stimulusId, participantId: participantIds[p],
       timeStart, timeEnd,
     }
-    const individuals = queryIndividuals(fakeInstance, scope, aoiIndex)
+    const individuals = queryIndividuals(instance, scope, aoiIndex)
     const expanded = individuals.length > 0
       ? individuals
-      : [valueAt(query(fakeInstance, scope), aoiIndex)]
+      : [valueAt(query(instance, scope), aoiIndex)]
     for (const v of expanded) {
       if (Number.isFinite(v)) {
         values.push(v)
@@ -176,12 +187,13 @@ function createLabeledData(
   rawData: number[],
   aois: ExtendedInterpretedDataType[],
   noAoiTreatment: { displayedName: string; color: string },
-  aggregationMethod: string,
+  instance: MetricInstance,
   individualArrays: number[][] | null = null,
   statsArrays: AoiSummaryStatistics[] | null = null,
   individualNameArrays: string[][] | null = null
 ): BarPlotDataItem[] {
   const result: BarPlotDataItem[] = new Array(rawData.length)
+  const isTimeToFirstFixation = instance.baseId === 'timeToFirstFixation'
 
   for (let i = 0; i < rawData.length; i++) {
     const value = rawData[i]
@@ -190,9 +202,7 @@ function createLabeledData(
     const color = isNoAoi ? noAoiTreatment.color : aois[i].color
 
     const formattedValue =
-      aggregationMethod === 'timeToFirstFixation' && value === 0
-        ? 0
-        : formatDecimal(value)
+      isTimeToFirstFixation && value === 0 ? 0 : formatDecimal(value)
 
     result[i] = {
       value: formattedValue,

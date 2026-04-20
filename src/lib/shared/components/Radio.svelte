@@ -1,5 +1,6 @@
 <script lang="ts">
   import { generateUniqueId } from '$lib/shared/utils/idUtils'
+  import { isInPane } from './paneContext'
 
   interface Props {
     options: { value: string; label: string }[]
@@ -23,7 +24,9 @@
 
   const uniqueID: number = generateUniqueId()
   const hasLegend = $derived(legend.trim().length > 0)
-  const isCompact = $derived(appearance === 'compact')
+  /** Inside a Pane / PaneSheet → auto-apply compact appearance. */
+  const inPane = isInPane()
+  const isCompact = $derived(appearance === 'compact' || inPane)
   const isRow = $derived(direction === 'row')
 
   const slugify = (str = ''): string =>

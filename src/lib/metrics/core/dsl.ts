@@ -43,6 +43,7 @@ export interface MetricMeta {
   readonly computationModes: readonly ComputationMode[]
   readonly groupAggregation: 'mean' | 'median' | 'sum'
   readonly defaultWindowing?: WindowingConfig
+  readonly defaultParamSets: readonly Record<string, unknown>[]
   readonly defaultLabel?: (p: Record<string, unknown>) => string
 }
 
@@ -64,6 +65,13 @@ export interface MetricRecipe<P, A> {
   computationModes?: ComputationMode[]
   groupAggregation?: 'mean' | 'median' | 'sum'
   defaultWindowing?: WindowingConfig
+  /**
+   * Parameter sets to seed as pre-curated system instances in the project
+   * library. Primarily for aoi-pair-matrix metrics (which createSystemMetricInstances
+   * filters out), but any metric can use it to expose starter variants with
+   * different params.
+   */
+  defaultParamSets?: ReadonlyArray<Record<string, unknown>>
   defaultLabel?: (params: P) => string
 
   init(ctx: InitCtx<P>): A

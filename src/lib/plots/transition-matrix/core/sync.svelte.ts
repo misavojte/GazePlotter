@@ -9,7 +9,8 @@
  */
 
 interface SyncEntry {
-  aggregationMethod: string
+  /** Composite key identifying matrices that are comparable (metric + display + step). */
+  groupKey: string
   /** Stringified colorScale — compared byte-for-byte across plots. */
   colorScaleKey: string
   w: number
@@ -31,11 +32,11 @@ class TransitionMatrixColorSync {
   }
 
   /**
-   * Largest dataMax across all plots sharing (aggregationMethod,
-   * colorScaleKey, w, h). Returns 0 when nothing matches.
+   * Largest dataMax across all plots sharing (groupKey, colorScaleKey, w, h).
+   * Returns 0 when nothing matches.
    */
   getSyncedMax(
-    aggregationMethod: string,
+    groupKey: string,
     colorScaleKey: string,
     w: number,
     h: number
@@ -44,7 +45,7 @@ class TransitionMatrixColorSync {
     for (const id in this.#entries) {
       const e = this.#entries[id]
       if (
-        e.aggregationMethod === aggregationMethod &&
+        e.groupKey === groupKey &&
         e.colorScaleKey === colorScaleKey &&
         e.w === w &&
         e.h === h &&

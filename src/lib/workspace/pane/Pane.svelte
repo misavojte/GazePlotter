@@ -6,7 +6,10 @@
   import PaneQuickActions from './PaneQuickActions.svelte'
   import PaneSheet from './PaneSheet.svelte'
   import { PANE_TRANSITION, slideFlex } from './transition'
+  import { markInPane } from '$lib/shared/components/paneContext'
   import { responsive } from '../responsive.svelte'
+
+  markInPane()
 
   const { grid } = getGazePlotterSession()
 
@@ -147,22 +150,7 @@
     overflow-y: auto;
   }
 
-  /* Make form fields inside the pane fill the available width and align
-     typography with PaneSection's small, muted label styling so controls
-     read as a single form surface rather than a mix of floating widgets. */
-  .body :global(.select-wrapper) {
-    width: 100%;
-  }
-  .body :global(.input > label),
-  .body :global(.group-container .legend) {
-    font-size: 11px;
-    font-weight: 400;
-    color: var(--c-darkgrey);
-    letter-spacing: 0.01em;
-    line-height: 1.2;
-  }
-  .body :global(.trigger) {
-    height: 30px;
-    font-size: 12px;
-  }
+  /* Form-control compactness is handled by each component via `isInPane()`
+     from $lib/shared/components/paneContext — the pane just signals the
+     context with `markInPane()` in the script block. No `:global()` overrides. */
 </style>

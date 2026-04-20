@@ -4,6 +4,9 @@
   import type { Snippet } from 'svelte'
   import PaneHeader from './PaneHeader.svelte'
   import { PANE_TRANSITION } from './transition'
+  import { markInPane } from '$lib/shared/components/paneContext'
+
+  markInPane()
 
   interface Props {
     title: string
@@ -103,23 +106,6 @@
     overflow-y: auto;
   }
 
-  /* Mirrors Pane.svelte's form-control sizing so the sheet contents
-     look identical to the desktop pane — same 30px triggers, same
-     muted 11px labels — rather than reading as a separate visual
-     system. */
-  .body :global(.select-wrapper) {
-    width: 100%;
-  }
-  .body :global(.input > label),
-  .body :global(.group-container .legend) {
-    font-size: 11px;
-    font-weight: 400;
-    color: var(--c-darkgrey);
-    letter-spacing: 0.01em;
-    line-height: 1.2;
-  }
-  .body :global(.trigger) {
-    height: 30px;
-    font-size: 12px;
-  }
+  /* Form-control compactness is handled per-component via the pane context —
+     see $lib/shared/components/paneContext. No `:global()` overrides here. */
 </style>

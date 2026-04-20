@@ -8,6 +8,7 @@ import {
   getStimuliOptions,
   getParticipantsGroupOptions,
 } from '$lib/plots/shared'
+import { METRIC_CONTEXTS } from '$lib/metrics'
 import type { TransitionMatrixPlotSettings } from './types'
 
 export const transitionMatrixDefinition = definePlot<
@@ -37,7 +38,7 @@ export const transitionMatrixDefinition = definePlot<
     stimulusId: params.stimulusId ?? 0,
     groupId: params.groupId ?? -1,
     stimuliColorValueRanges: [],
-    aggregationMethod: 'sum',
+    metricInstanceId: 50,                // transitionCount (fixation pairs) — pre-curated default
     belowMinColor: INACTIVE_COLOR,
     aboveMaxColor: INACTIVE_COLOR,
     showBelowMinLabels: false,
@@ -48,4 +49,5 @@ export const transitionMatrixDefinition = definePlot<
   getDefaultHeight: () => 12,
   getDefaultWidth: () => 12,
   requireCapabilities: ['segmented'],
+  consumesMetrics: METRIC_CONTEXTS.aoiPair,
 })

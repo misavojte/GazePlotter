@@ -1,6 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { createReaderFromJson } from '../src/lib/data/binary/converters'
 import { getBarPlotData } from '../src/lib/plots/bar/core/transformer'
+import {
+  createSystemMetricInstances,
+  findSystemInstanceIdByBaseId,
+} from '../src/lib/metrics/instances'
+
+const ABSOLUTE_TIME_INSTANCE_ID =
+  findSystemInstanceIdByBaseId('absoluteTime') ?? 1
 
 function createMockEngine(segments: number[][][][]) {
   const reader = createReaderFromJson(segments)
@@ -37,6 +44,7 @@ function createMockEngine(segments: number[][][][]) {
         orderVector: [0],
       },
       noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
+      metricInstances: createSystemMetricInstances(),
     },
     getReader: () => reader,
     getAoiMapping: (_stimulusId: number, rawId: number) => rawId,
@@ -63,7 +71,7 @@ describe('Bar Plot Transformer (Integration)', () => {
       {
         stimulusId,
         groupId,
-        aggregationMethod: 'absoluteTime',
+        metricInstanceId: ABSOLUTE_TIME_INSTANCE_ID,
         orderBy: 'aoi',
         orderDirection: 'asc',
         scaleRange: [0, 0],
@@ -94,7 +102,7 @@ describe('Bar Plot Transformer (Integration)', () => {
       {
         stimulusId,
         groupId,
-        aggregationMethod: 'absoluteTime',
+        metricInstanceId: ABSOLUTE_TIME_INSTANCE_ID,
         orderBy: 'value',
         orderDirection: 'desc',
         scaleRange: [0, 0],
@@ -113,7 +121,7 @@ describe('Bar Plot Transformer (Integration)', () => {
       {
         stimulusId,
         groupId,
-        aggregationMethod: 'absoluteTime',
+        metricInstanceId: ABSOLUTE_TIME_INSTANCE_ID,
       } as any
     )
 
@@ -128,7 +136,7 @@ describe('Bar Plot Transformer (Integration)', () => {
       {
         stimulusId,
         groupId,
-        aggregationMethod: 'absoluteTime',
+        metricInstanceId: ABSOLUTE_TIME_INSTANCE_ID,
         scaleRange: [0, 1000],
       } as any
     )
@@ -150,5 +158,32 @@ describe('Bar Plot Transformer (Integration)', () => {
     )
 
     expect(result.data).toEqual([])
+  })
+
+  it('falls back to absoluteTime when metricInstanceId references a deleted instance', () => {
+    const engine = createMockEngine([
+      [
+        [
+          [0, 100, 0, 0],
+          [100, 300, 0, 1],
+        ],
+      ],
+    ])
+
+    const result = getBarPlotData(
+      engine as any,
+      {
+        stimulusId,
+        groupId,
+        metricInstanceId: 99999, // does not exist in the library
+        orderBy: 'aoi',
+        orderDirection: 'asc',
+        scaleRange: [0, 0],
+      } as any
+    )
+
+    // Falls back to absoluteTime → same values as the first test.
+    expect(result.data[0].value).toBe(100)
+    expect(result.data[1].value).toBe(200)
   })
 })

@@ -18,7 +18,8 @@
     MetricCorrelationItem,
     MetricCorrelationSettings,
   } from '../types'
-  import { type MetricInstance, MetricSelect } from '$lib/metrics'
+  import { MetricSelect } from '$lib/metrics'
+  import { metricCorrelationDefinition } from '../definition'
 
   interface Props {
     item: MetricCorrelationItem
@@ -63,13 +64,9 @@
       : String(settings.selectedAoiId)
   )
 
-  const library = $derived<readonly MetricInstance[]>(
-    (engine.metadata?.metricInstances ?? []).filter(i => !i.windowing)
-  )
-
 </script>
 
-<PaneSection title="Filters" alwaysOpen>
+<PaneSection title="Filters">
   <Select
     label="Stimulus"
     options={stimulusOptions}
@@ -96,8 +93,8 @@
 <PaneSection title="View">
   <MetricSelect
     label="Metrics"
-    context="global"
-    instances={library}
+    context={metricCorrelationDefinition.consumesMetrics!}
+    instances={engine.metadata?.metricInstances ?? []}
     selectedIds={settings.enabledMetricIds}
     onchange={ids => update({ enabledMetricIds: ids })}
     onrenameInstance={(id, label) => engine.updateMetricInstanceLabel(id, label)}
@@ -150,7 +147,7 @@
   />
 </PaneSection>
 
-<PaneSection title="Time range [ms]" defaultOpen={false}>
+<PaneSection title="Time range [ms]">
   <div class="time-range">
     <InputNumber
       id="timeline-start"

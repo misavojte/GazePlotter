@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { isInPane } from './paneContext'
   /**
    * InputScaffold is a base component that provides consistent styling and structure
    * for form input components. It handles the layout of labels and input elements,
@@ -40,11 +41,16 @@
     labelSize = 'default',
     children,
   }: Props = $props()
+
+  /** Inside a Pane / PaneSheet → auto-apply the compact label + spacing. */
+  const inPane = isInPane()
+  const effectiveCompact = $derived(compact || inPane)
+  const effectiveLabelSize = $derived(labelSize === 'compact' || inPane ? 'compact' : 'default')
 </script>
 
-<div class="input" class:compact class:fill class:noLabel={!showLabel}>
+<div class="input" class:compact={effectiveCompact} class:fill class:noLabel={!showLabel}>
   {#if showLabel}
-    <label class:compact-label={labelSize === 'compact'} for={id}>{label}</label
+    <label class:compact-label={effectiveLabelSize === 'compact'} for={id}>{label}</label
     >
   {/if}
   {@render children?.({ itemtype: 'input' })}

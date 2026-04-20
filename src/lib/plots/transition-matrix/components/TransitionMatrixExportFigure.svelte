@@ -5,9 +5,9 @@
   import TransitionMatrixPlotFigure from './TransitionMatrixPlotFigure.svelte'
   import {
     getTransitionMatrixData,
-    MatrixAggregationMethod,
-    TRANSITION_MATRIX_LEGEND_TITLES,
+    getLegendTitle,
   } from '$lib/plots/transition-matrix'
+  import { getMetric, resolveInstanceWithFallback } from '$lib/metrics'
 
   interface Props {
     item: TransitionMatrixPlotItem
@@ -23,7 +23,7 @@
       engine,
       settings.stimulusId,
       settings.groupId,
-      settings.aggregationMethod as MatrixAggregationMethod
+      settings.metricInstanceId,
     )
   )
 
@@ -32,9 +32,17 @@
     return settings.stimuliColorValueRanges?.[stimulusId] || [0, 0]
   })
 
-  function getLegendTitle(method: string): string {
-    return TRANSITION_MATRIX_LEGEND_TITLES[method] ?? 'Transition Value'
-  }
+  const resolved = $derived.by(() => {
+    const inst = resolveInstanceWithFallback(
+      settings.metricInstanceId,
+      'transitionCount',
+      engine.metadata?.metricInstances ?? [],
+    )
+    return {
+      label: inst?.label ?? '',
+      unit: inst ? (getMetric(inst.baseId)?.meta.unit ?? '') : '',
+    }
+  })
 </script>
 
 <TransitionMatrixPlotFigure
@@ -45,7 +53,7 @@
   colorScale={settings.colorScale}
   xLabel="To AOI"
   yLabel="From AOI"
-  legendTitle={getLegendTitle(settings.aggregationMethod)}
+  legendTitle={getLegendTitle(resolved.label, resolved.unit)}
   colorValueRange={currentStimulusColorRange}
   belowMinColor={settings.belowMinColor}
   aboveMaxColor={settings.aboveMaxColor}

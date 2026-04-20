@@ -4,10 +4,8 @@
   import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
   import BarPlotFigure from './BarPlotFigure.svelte'
   import { getBarPlotData } from '$lib/plots/bar/core/transformer'
-  import {
-    getBarPlotAxisLabel,
-    type BarPlotAggregationMethodId,
-  } from '$lib/plots/bar/const'
+  import { getBarPlotAxisLabel } from '$lib/plots/bar/const'
+  import { resolveInstanceWithFallback } from '$lib/metrics'
 
   interface Props {
     item: BarPlotItem
@@ -22,7 +20,7 @@
     getBarPlotData(engine, {
       stimulusId: settings.stimulusId,
       groupId: settings.groupId,
-      aggregationMethod: settings.aggregationMethod,
+      metricInstanceId: settings.metricInstanceId,
       scaleRange: settings.scaleRange,
       timelineStart: settings.timelineStart,
       timelineEnd: settings.timelineEnd,
@@ -34,9 +32,17 @@
   const data = $derived(barPlotData.data)
   const timeline = $derived(barPlotData.timeline)
 
+  const resolvedInstance = $derived(
+    resolveInstanceWithFallback(
+      settings.metricInstanceId ?? null,
+      'absoluteTime',
+      engine.metadata?.metricInstances ?? [],
+    )
+  )
+
   const axisLabel = $derived(
     getBarPlotAxisLabel(
-      settings.aggregationMethod as BarPlotAggregationMethodId,
+      resolvedInstance,
       settings.timelineStart,
       settings.timelineEnd,
       settings.statisticalOverlay

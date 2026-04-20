@@ -8,11 +8,14 @@
   import {
     formatParamReadout,
     formatWindowingReadout,
+    instanceMatchesContext,
+    type MetricContext,
     type MetricInstance,
   } from '$lib/metrics'
   import type { WindowingConfig } from '$lib/data/types'
 
   interface Props {
+    /** Raw instance library. MetricSelect filters by `context` internally. */
     instances: readonly MetricInstance[]
     selectedIds: number[]
     onchange: (ids: number[]) => void
@@ -22,10 +25,12 @@
       params: Record<string, unknown>,
       label: string,
       windowing?: WindowingConfig,
-      replacingId?: number,
+      replacingId?: number
     ) => void
     ondeleteInstance?: (id: number) => void
-    context?: 'global' | 'windowed'
+    /** Descriptor of which shapes/windowing this consumer accepts and whether
+     *  selection is multi- or single-valued. */
+    context: MetricContext
     label?: string
   }
 
@@ -36,7 +41,7 @@
     onrenameInstance,
     oncreateInstance,
     ondeleteInstance,
-    context = 'global',
+    context,
     label,
   }: Props = $props()
 
@@ -47,25 +52,37 @@
   let dropdownEl = $state<HTMLDivElement | null>(null)
   let dropdownStyle = $state('')
 
+  /** Instances filtered by the context descriptor. The rest of the component
+   *  operates on this filtered view, so callers can safely pass the raw
+   *  `engine.metadata.metricInstances` array. */
+  const visibleInstances = $derived(
+    instances.filter(i => instanceMatchesContext(i, context))
+  )
+
   const selectedSet = $derived(new Set(selectedIds))
+  const isSingleSelect = $derived(!context.multiSelect)
 
   const triggerLine1 = $derived.by(() => {
-    if (context === 'windowed') {
-      const sel = instances.find(i => selectedSet.has(i.id))
+    if (isSingleSelect) {
+      const sel = visibleInstances.find(i => selectedSet.has(i.id))
       return sel?.label ?? 'Choose metric…'
     }
-    const count = selectedIds.filter(id => instances.some(i => i.id === id)).length
+    const count = selectedIds.filter(id =>
+      visibleInstances.some(i => i.id === id)
+    ).length
     if (count === 0) return 'No metrics selected'
     if (count <= 2) {
-      const names = instances.filter(i => selectedSet.has(i.id)).map(i => i.label)
+      const names = visibleInstances
+        .filter(i => selectedSet.has(i.id))
+        .map(i => i.label)
       if (names.length > 0) return names.join(', ')
     }
     return `${count} metrics selected`
   })
 
   const triggerLine2 = $derived.by(() => {
-    if (context !== 'windowed') return ''
-    const sel = instances.find(i => selectedSet.has(i.id))
+    if (!isSingleSelect) return ''
+    const sel = visibleInstances.find(i => selectedSet.has(i.id))
     if (!sel) return ''
     const readout = formatParamReadout(sel)
     const winLine = formatWindowingReadout(sel)
@@ -101,7 +118,7 @@
   })
 
   function toggleMetric(id: number) {
-    if (context === 'windowed') {
+    if (isSingleSelect) {
       onchange([id])
       closeDropdown()
     } else if (selectedSet.has(id)) {
@@ -126,7 +143,10 @@
     type="button"
   >
     <span class="trigger-body">
-      <span class="trigger-line1" class:placeholder={!instances.some(i => selectedSet.has(i.id))}>
+      <span
+        class="trigger-line1"
+        class:placeholder={!visibleInstances.some(i => selectedSet.has(i.id))}
+      >
         {triggerLine1}
       </span>
       {#if triggerLine2}
@@ -139,7 +159,12 @@
   </button>
 
   {#if isOpen}
-    <div bind:this={dropdownEl} class="dropdown" style={dropdownStyle} use:portal>
+    <div
+      bind:this={dropdownEl}
+      class="dropdown"
+      style={dropdownStyle}
+      use:portal
+    >
       <button
         class="dd-action"
         type="button"
@@ -157,23 +182,25 @@
         Edit library…
       </button>
       <div class="dd-divider"></div>
-      {#each instances as inst (inst.id)}
+      {#each visibleInstances as inst (inst.id)}
         {@const isSelected = selectedSet.has(inst.id)}
         {@const readout = formatParamReadout(inst)}
         {@const winLine = formatWindowingReadout(inst)}
-        {@const detail = [...readout, ...(winLine ? [winLine] : [])].join(' · ')}
+        {@const detail = [...readout, ...(winLine ? [winLine] : [])].join(
+          ' · '
+        )}
         <button
           class="dd-item"
           class:is-selected={isSelected}
           type="button"
           onclick={() => toggleMetric(inst.id)}
         >
-          {#if context === 'global'}
+          {#if isSingleSelect}
+            <span class="radio" class:checked={isSelected}></span>
+          {:else}
             <span class="checkbox" class:checked={isSelected}>
               {#if isSelected}<Check size={10} strokeWidth={2.5} />{/if}
             </span>
-          {:else}
-            <span class="radio" class:checked={isSelected}></span>
           {/if}
           <span class="item-body">
             <span class="item-name">{inst.label}</span>
@@ -181,8 +208,10 @@
           </span>
         </button>
       {/each}
-      {#if instances.length === 0}
-        <div class="dd-empty">No metrics. Click "Edit library…" to add one.</div>
+      {#if visibleInstances.length === 0}
+        <div class="dd-empty">
+          No metrics. Click "Edit library…" to add one.
+        </div>
       {/if}
     </div>
   {/if}
@@ -195,6 +224,10 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    /* Intrinsic breathing room below — padding is part of the box and survives
+       flex/gap interactions and third-party margin resets. */
+    padding-bottom: 10px;
+    box-sizing: border-box;
   }
 
   .select-label {
@@ -210,16 +243,21 @@
     background: var(--c-white);
     border: 1px solid var(--c-midgrey);
     border-radius: var(--rounded-md);
-    padding: 5px 28px 5px 10px;
+    padding: 10px 28px 10px 10px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: space-between;
     position: relative;
-    transition: background 0.15s, color 0.15s;
+    transition:
+      background 0.15s,
+      color 0.15s;
     box-sizing: border-box;
     text-align: left;
-    height: 46px;
+    /* Visibly taller than a plain Select (34px) — the box needs room around
+       the two-line name + params subtitle, not just room for it to fit. */
+    height: 42px;
+    flex-shrink: 0;
   }
 
   .trigger:hover,
@@ -243,13 +281,15 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .trigger-line1.placeholder { color: var(--c-darkgrey); }
+  .trigger-line1.placeholder {
+    color: var(--c-darkgrey);
+  }
 
   .trigger-line2 {
-    font-size: 8.5px;
+    font-size: 9px;
     color: var(--c-darkgrey);
     line-height: 1;
-    margin-top: 0.5px;
+    margin-top: 3px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -265,7 +305,9 @@
     pointer-events: none;
     transition: transform 0.15s;
   }
-  .chevron.rotated { transform: translateY(-50%) rotate(180deg); }
+  .chevron.rotated {
+    transform: translateY(-50%) rotate(180deg);
+  }
 
   /* Dropdown */
   .dropdown {
@@ -292,13 +334,18 @@
     align-items: center;
     gap: 8px;
     text-align: left;
-    transition: background 0.1s, color 0.1s;
+    transition:
+      background 0.1s,
+      color 0.1s;
     border-radius: 4px;
     margin: 0 4px;
     width: calc(100% - 8px);
     box-sizing: border-box;
   }
-  .dd-action:hover { background: var(--c-lightgrey); color: var(--c-text); }
+  .dd-action:hover {
+    background: var(--c-lightgrey);
+    color: var(--c-text);
+  }
 
   .dd-divider {
     height: 1px;
@@ -322,9 +369,15 @@
     width: calc(100% - 8px);
     box-sizing: border-box;
   }
-  .dd-item:hover { background: var(--c-lightgrey); }
-  .dd-item.is-selected { background: color-mix(in srgb, var(--c-brand) 6%, var(--c-white)); }
-  .dd-item.is-selected:hover { background: color-mix(in srgb, var(--c-brand) 10%, var(--c-white)); }
+  .dd-item:hover {
+    background: var(--c-lightgrey);
+  }
+  .dd-item.is-selected {
+    background: color-mix(in srgb, var(--c-brand) 6%, var(--c-white));
+  }
+  .dd-item.is-selected:hover {
+    background: color-mix(in srgb, var(--c-brand) 10%, var(--c-white));
+  }
 
   .checkbox {
     width: 10px;
@@ -337,7 +390,9 @@
     justify-content: center;
     color: var(--c-white);
     background: var(--c-white);
-    transition: background 0.1s, border-color 0.1s;
+    transition:
+      background 0.1s,
+      border-color 0.1s;
   }
   .checkbox.checked {
     background: var(--c-brand);

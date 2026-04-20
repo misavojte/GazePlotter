@@ -1,6 +1,7 @@
 import type { Component } from 'svelte'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import type { DataCapabilityRequirements } from '$lib/data/types'
+import type { MetricContext } from '$lib/metrics'
 import type { PlotExportProps } from '$lib/modals/export/download-plot/types'
 
 export type DefaultPlotParams = {
@@ -89,6 +90,13 @@ export type PlotDefinition<
     item: PlotItemContract<TType, TSettings>
     engine: DataEngine
   }) => PlotSubtitleParts | undefined
+
+  /**
+   * Which metric instances this plot consumes, if any. Drives both the
+   * pane's MetricSelect filter and the library modal's filter — single
+   * source of truth so pane and modal can't drift.
+   */
+  consumesMetrics?: MetricContext
 }
 
 export function definePlot<

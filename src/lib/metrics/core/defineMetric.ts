@@ -60,6 +60,7 @@ function toMeta(r: MetricRecipe<any, any>): MetricMeta {
     computationModes: r.computationModes ?? ['global'],
     groupAggregation: r.groupAggregation ?? 'mean',
     defaultWindowing: r.defaultWindowing,
+    defaultParamSets: r.defaultParamSets ?? [],
     defaultLabel: r.defaultLabel as ((p: Record<string, unknown>) => string) | undefined,
   }
 }

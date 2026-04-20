@@ -1,10 +1,7 @@
-import { BAR_PLOT_AGGREGATION_METHODS } from '$lib/plots/bar/const'
 import type {
   CorrelationMethod,
   MetricCorrelationView,
 } from './types'
-
-export { BAR_PLOT_AGGREGATION_METHODS }
 
 export const METRIC_CORRELATION_METHODS: {
   value: CorrelationMethod

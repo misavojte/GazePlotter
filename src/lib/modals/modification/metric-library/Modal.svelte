@@ -19,7 +19,10 @@
     formatParamReadout,
     formatWindowingReadout,
     defaultInstanceLabel,
+    instanceMatchesContext,
+    metricIsCreatableInContext,
     type Metric,
+    type MetricContext,
     type MetricInstance,
     type ParamDef,
     type ComputationMode,
@@ -30,7 +33,7 @@
   const CATEGORY_LABELS = getCategoryLabels()
 
   interface Props {
-    context: 'global' | 'windowed'
+    context: MetricContext
     oncreateInstance?: (
       baseId: string,
       params: Record<string, unknown>,
@@ -46,10 +49,14 @@
 
   const { engine } = getGazePlotterSession()
 
+  /** Shared predicate — same one MetricSelect uses — so the modal and the
+   *  opener dropdown always agree on what's in scope. */
+  function belongsInContext(i: MetricInstance): boolean {
+    return instanceMatchesContext(i, context)
+  }
+
   const instances = $derived(
-    (engine.metadata?.metricInstances ?? []).filter(
-      i => context === 'windowed' ? !!i.windowing : !i.windowing
-    )
+    (engine.metadata?.metricInstances ?? []).filter(belongsInContext)
   )
 
   // ── Search ───────────────────────────────────────────────
@@ -75,7 +82,7 @@
     onReorder: (from, to) => {
       const all = [...(engine.metadata?.metricInstances ?? [])]
       const indices = all.reduce<number[]>((acc, inst, i) => {
-        if (context === 'windowed' ? !!inst.windowing : !inst.windowing) acc.push(i)
+        if (belongsInContext(inst)) acc.push(i)
         return acc
       }, [])
       const fromGlobal = indices[from]
@@ -116,7 +123,7 @@
     const autoLabel = defaultInstanceLabel(inst.baseId, inst.params)
     labelOverride = inst.label !== autoLabel ? inst.label : ''
     const w = inst.windowing
-    createMode = w?.mode ?? (context === 'windowed' ? 'epoch' : 'global')
+    createMode = w?.mode ?? (context.windowing === 'only' ? 'epoch' : 'global')
     windowSize = w?.windowSize ?? (m?.meta.category === 'rqa-aoi' ? 20 : 2000)
     stepSize = w?.stepSize ?? (m?.meta.category === 'rqa-aoi' ? 100 : (w?.mode === 'epoch' ? windowSize : 100))
     windowReduction = w?.reduction ?? 'mean'
@@ -130,7 +137,7 @@
     const m = getMetric(baseId)
     paramDraft = Object.fromEntries((m?.meta.params ?? []).map(p => [p.id, p.default]))
     labelOverride = ''
-    createMode = context === 'windowed' ? 'epoch' : 'global'
+    createMode = context.windowing === 'only' ? 'epoch' : 'global'
     windowSize = m?.meta.category === 'rqa-aoi' ? 20 : 2000
     stepSize = m?.meta.category === 'rqa-aoi' ? 100 : windowSize
     windowReduction = 'mean'
@@ -182,15 +189,9 @@
     oncreateInstance(baseId, params, label, windowing, replacingId)
   }
 
-  // ── Add section: which metrics are creatable & filterable ───
-  function isCreatable(m: Metric): boolean {
-    if (context === 'windowed') return m.meta.computationModes.some(mode => mode !== 'global')
-    return true
-  }
-
   const filteredAddDefs = $derived(
     METRICS.filter(m =>
-      isCreatable(m) &&
+      metricIsCreatableInContext(m, context) &&
       (!q || m.meta.label.toLowerCase().includes(q) || m.meta.searchTags.some(t => t.includes(q)))
     )
   )
@@ -207,7 +208,7 @@
 
   function getAvailableModes(baseId: string): ComputationMode[] {
     const m = getMetric(baseId)
-    return context === 'windowed'
+    return context.windowing === 'only'
       ? (m?.meta.computationModes ?? []).filter(mode => mode !== 'global') as ComputationMode[]
       : []
   }
@@ -260,14 +261,16 @@
             >
               <Pencil size={13} />
             </button>
-            <button
-              class="icon-btn danger"
-              onclick={() => ondeleteInstance?.(inst.id)}
-              title="Delete"
-              aria-label="Delete"
-            >
-              <X size={13} />
-            </button>
+            {#if !inst.system}
+              <button
+                class="icon-btn danger"
+                onclick={() => ondeleteInstance?.(inst.id)}
+                title="Delete"
+                aria-label="Delete"
+              >
+                <X size={13} />
+              </button>
+            {/if}
           </div>
 
           {#if expandedCardId === inst.id}

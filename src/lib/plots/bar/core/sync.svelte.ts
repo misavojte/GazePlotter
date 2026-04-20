@@ -1,10 +1,9 @@
 /**
  * Cross-plot value-axis synchronization for bar plots.
  *
- * Two bar plots that share the same selected metric (aggregationMethod) AND
- * the same grid footprint (w, h) will share their value-axis maximum so the
- * beeswarms and overlays stay directly comparable across a row/grid of
- * same-shape plots.
+ * Two bar plots that share the same selected metric instance AND the same
+ * grid footprint (w, h) will share their value-axis maximum so the beeswarms
+ * and overlays stay directly comparable across a row/grid of same-shape plots.
  *
  * Each plot registers its own raw dataMax. When deriving the timeline in
  * "auto" mode, a plot substitutes its own dataMax with the largest registered
@@ -13,7 +12,7 @@
  */
 
 interface SyncEntry {
-  aggregationMethod: string
+  metricInstanceId: number
   w: number
   h: number
   dataMax: number
@@ -37,12 +36,12 @@ class BarPlotValueAxisSync {
    * Returns 0 when no plot matches — callers should fall back to their own
    * data max in that case.
    */
-  getSyncedMax(aggregationMethod: string, w: number, h: number): number {
+  getSyncedMax(metricInstanceId: number, w: number, h: number): number {
     let max = 0
     for (const id in this.#entries) {
       const e = this.#entries[id]
       if (
-        e.aggregationMethod === aggregationMethod &&
+        e.metricInstanceId === metricInstanceId &&
         e.w === w &&
         e.h === h &&
         e.dataMax > max

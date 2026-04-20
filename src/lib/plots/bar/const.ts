@@ -1,12 +1,6 @@
-// Bar Plot Aggregation Methods Registry
-// This centralized registry ensures type safety and maintainability
-// Optimized to directly match Select component expectations
+import { getMetric, type MetricInstance } from '$lib/metrics'
+import type { StatisticalOverlayType } from './types'
 
-/**
- * Registry of all available aggregation methods for bar plots
- * Structured to directly work with Select component
- * Add new methods here to automatically make them available throughout the application
- */
 export const BAR_PLOT_AGGREGATION_METHODS = [
   {
     value: 'absoluteTime',
@@ -50,47 +44,37 @@ export const BAR_PLOT_AGGREGATION_METHODS = [
   },
 ] as const
 
-/**
- * Inferred type for aggregation method IDs
- * Automatically derived from the registry above
- */
 export type BarPlotAggregationMethodId =
   (typeof BAR_PLOT_AGGREGATION_METHODS)[number]['value']
 
 /**
- * Utility function to get aggregation method label by value
- */
-export function getAggregationMethodLabel(
-  value: BarPlotAggregationMethodId
-): string {
-  const method = BAR_PLOT_AGGREGATION_METHODS.find(m => m.value === value)
-  return method?.label || value
-}
-
-/**
- * Utility function to generate the full axis label for the bar plot including metric, unit and time range.
- * Uses scientific bracket notation: metric [unit, stat indicator]
+ * Generate the bar plot axis label for a resolved metric instance.
+ *
+ * Scientific bracket notation: `${label} [unit, stat indicator]`
+ * with an optional `, t ∈ [start, end] ms` time-range suffix.
  */
 export function getBarPlotAxisLabel(
-  methodId: BarPlotAggregationMethodId,
+  instance: MetricInstance | null,
   timelineStart = 0,
   timelineEnd = 0,
-  overlay: 'none' | 'meanCi95' | 'meanSd' | 'boxplot' = 'none'
+  overlay: StatisticalOverlayType = 'none'
 ): string {
-  const method = BAR_PLOT_AGGREGATION_METHODS.find(m => m.value === methodId)
-  if (!method) return methodId
+  if (!instance) return ''
+  const metric = getMetric(instance.baseId)
+  const unit = metric?.meta.unit ?? ''
 
-  // Build bracket content: unit + optional stat indicator
-  let bracketContent = method.unit
+  let bracketContent = unit
   if (overlay === 'meanSd') {
-    bracketContent += ', x̄ ± SD'
+    bracketContent += bracketContent ? ', x̄ ± SD' : 'x̄ ± SD'
   } else if (overlay === 'meanCi95') {
-    bracketContent += ', x̄ ± 95% CI'
+    bracketContent += bracketContent ? ', x̄ ± 95% CI' : 'x̄ ± 95% CI'
   } else if (overlay === 'boxplot') {
-    bracketContent += ', x̃/IQR'
+    bracketContent += bracketContent ? ', x̃/IQR' : 'x̃/IQR'
   }
 
-  let label = `${method.label} [${bracketContent}]`
+  let label = bracketContent
+    ? `${instance.label} [${bracketContent}]`
+    : instance.label
 
   if (timelineStart > 0 && timelineEnd > 0) {
     label += `, t ∈ [${timelineStart}, ${timelineEnd}] ms`

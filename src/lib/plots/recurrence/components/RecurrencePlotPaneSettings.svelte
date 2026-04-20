@@ -47,7 +47,7 @@
   )
 </script>
 
-<PaneSection title="Filters" alwaysOpen>
+<PaneSection title="Filters">
   <Select
     label="Stimulus"
     options={stimulusOptions}

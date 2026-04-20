@@ -2,6 +2,7 @@
   import ChevronDown from 'lucide-svelte/icons/chevron-down'
   import { untrack } from 'svelte'
   import { contextMenuAction } from '$lib/context-menu'
+  import { isInPane } from './paneContext'
   import InputScaffold from './InputScaffold.svelte'
   import {
     createSelectChangeEvent,
@@ -29,6 +30,10 @@
     onchange = () => {},
     onClose = () => {},
   }: Props = $props()
+
+  /** Rendered inside a Pane? Auto-activate compact so panes don't have to pass it. */
+  const inPane = isInPane()
+  const isCompact = $derived(compact || inPane)
 
   let isOpen = $state(false)
 
@@ -59,11 +64,12 @@
   })
 </script>
 
-<InputScaffold label={label} id={triggerId} {compact}>
-  <div class="select-wrapper" class:compact use:contextMenuAction={menuConfig}>
+<InputScaffold label={label} id={triggerId} compact={isCompact}>
+  <div class="select-wrapper" class:compact={isCompact} use:contextMenuAction={menuConfig}>
     <button
       id={triggerId}
       class="trigger"
+      class:compact={isCompact}
       class:disabled
       class:open={isOpen}
       {disabled}
@@ -98,7 +104,9 @@
   .select-wrapper.compact {
     display: flex;
     flex-direction: column;
-    width: 140px;
+    /* Fills the container in dense UI surfaces (panes, sidesheets) — replaces
+       the old `.body :global(.select-wrapper) { width: 100% }` override. */
+    width: 100%;
     margin-bottom: 0;
     gap: 5px;
   }
@@ -170,7 +178,10 @@
     text-overflow: ellipsis;
   }
 
-  .compact .trigger {
+  .compact .trigger,
+  .trigger.compact {
+    height: 30px;
+    font-size: 12px;
     padding-left: 14px;
     padding-right: 22px;
   }

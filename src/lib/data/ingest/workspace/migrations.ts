@@ -1,6 +1,7 @@
 import {
   createSystemMetricInstances,
   createDefaultWindowedInstances,
+  createDefaultAoiPairInstances,
   findSystemInstanceIdByBaseId,
 } from '$lib/metrics/instances'
 import { LEGACY_VISUALIZATION_TYPES } from '$lib/plots/registry'
@@ -270,6 +271,115 @@ export function runMigrations(parsedJson: any): any {
     }
     payload.metricInstances = existing
     data = { ...data, version: 7, data: payload }
+    version = 7
+  }
+
+  // V7 to V8: Seed aoi-pair-matrix defaults + migrate transition-matrix settings.
+  // Transforms moved from the plot (display + probabilityStep) onto the metrics
+  // themselves. The plot now stores only `metricInstanceId`. Old aggregation
+  // methods without a matching pre-curated default (e.g. 'frequencyRelative',
+  // 'probability2') trigger on-demand creation of custom instances.
+  if (version === 7) {
+    const payload = data.data
+    const pairs = createDefaultAoiPairInstances()
+    const existing: any[] = Array.isArray(payload.metricInstances)
+      ? payload.metricInstances
+      : []
+    const existingIds = new Set(existing.map((i: any) => i.id))
+    for (const p of pairs) if (!existingIds.has(p.id)) existing.push(p)
+
+    // Deterministic ID layout from createDefaultAoiPairInstances given current
+    // registration order (transitionCount → Probability → DwellMean):
+    //   50 = transitionCount         {mode: fixation}
+    //   51 = transitionCount         {mode: visit}
+    //   52 = transitionProbability   {mode: fixation, step: 1}
+    //   53 = transitionDwellMean     {mode: fixation}
+    //   54 = transitionDwellMean     {mode: visit}
+    const SEEDED_COUNT_FIX = 50
+    const SEEDED_PROB_FIX = 52
+    const SEEDED_DWELL_FIX = 53
+    const SEEDED_DWELL_VISIT = 54
+
+    // Cache of on-demand custom instances so repeated grid items reusing the
+    // same aggregationMethod share a single instance id.
+    const customCache = new Map<string, number>()
+    const nextId = () => {
+      let max = 1000 - 1
+      for (const i of existing) if (typeof i.id === 'number' && i.id > max) max = i.id
+      return max + 1
+    }
+    function ensureCustom(baseId: string, params: Record<string, unknown>, label: string): number {
+      const key = `${baseId}|${JSON.stringify(params)}`
+      const cached = customCache.get(key)
+      if (cached !== undefined) return cached
+      const id = nextId()
+      existing.push({ id, baseId, params, label })
+      customCache.set(key, id)
+      return id
+    }
+
+    function mapAggregationMethod(method: string): number {
+      switch (method) {
+        case 'sum':              return SEEDED_COUNT_FIX
+        case 'probability':      return SEEDED_PROB_FIX
+        case 'dwellTime':        return SEEDED_DWELL_FIX
+        case 'segmentDwellTime': return SEEDED_DWELL_VISIT
+        case 'frequencyRelative':
+          return ensureCustom(
+            'transitionRelativeFrequency',
+            { mode: 'fixation' },
+            'Transition relative frequency (fixation)',
+          )
+        case 'probability2':
+          return ensureCustom(
+            'transitionProbability',
+            { mode: 'fixation', step: 2 },
+            'Transition probability (fixation, 2-step)',
+          )
+        case 'probability3':
+          return ensureCustom(
+            'transitionProbability',
+            { mode: 'fixation', step: 3 },
+            'Transition probability (fixation, 3-step)',
+          )
+        default: return SEEDED_COUNT_FIX
+      }
+    }
+
+    if (Array.isArray(data.gridItems)) {
+      data.gridItems = data.gridItems.map((item: any) => {
+        if (item?.type !== 'transitionMatrix') return item
+        const s = item.settings ?? {}
+        const metricInstanceId = mapAggregationMethod(s.aggregationMethod as string)
+        const { aggregationMethod: _drop, display: _drop2, probabilityStep: _drop3, ...rest } = s
+        return { ...item, settings: { ...rest, metricInstanceId } }
+      })
+    }
+
+    payload.metricInstances = existing
+    data = { ...data, version: 8, data: payload }
+    version = 8
+  }
+
+  // V8 to V9: Migrate bar-plot settings from string `aggregationMethod` to
+  // `metricInstanceId` referencing the shared metric library. The 8 historical
+  // methods all map 1:1 to pre-curated system instances (ids 1–11).
+  if (version === 8) {
+    if (Array.isArray(data.gridItems)) {
+      data.gridItems = data.gridItems.map((item: any) => {
+        if (item?.type !== 'barPlot') return item
+        const s = item.settings ?? {}
+        const baseId =
+          typeof s.aggregationMethod === 'string' ? s.aggregationMethod : 'absoluteTime'
+        const metricInstanceId =
+          findSystemInstanceIdByBaseId(baseId) ??
+          findSystemInstanceIdByBaseId('absoluteTime')
+        const { aggregationMethod: _drop, ...rest } = s
+        return { ...item, settings: { ...rest, metricInstanceId } }
+      })
+    }
+    data = { ...data, version: 9 }
+    version = 9
   }
 
   // Version-independent normalization: rewrite any legacy gridItem `type`

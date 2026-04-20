@@ -7,6 +7,7 @@ import {
   getStimuliOptions,
   getParticipantsGroupOptions,
 } from '$lib/plots/shared'
+import { METRIC_CONTEXTS } from '$lib/metrics'
 import type { MetricCorrelationSettings } from './types'
 
 export const metricCorrelationDefinition = definePlot<
@@ -44,4 +45,5 @@ export const metricCorrelationDefinition = definePlot<
   getDefaultHeight: () => 13,
   getDefaultWidth: () => 13,
   requireCapabilities: ['segmented'],
+  consumesMetrics: METRIC_CONTEXTS.globalMulti,
 })

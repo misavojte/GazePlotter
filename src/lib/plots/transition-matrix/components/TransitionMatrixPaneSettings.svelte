@@ -11,11 +11,16 @@
   } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
-  import { MatrixAggregationMethod } from '../const'
   import type {
     TransitionMatrixPlotItem,
     TransitionMatrixPlotSettings,
   } from '../types'
+  import {
+    MetricSelect,
+    type MetricInstance,
+    type WindowingConfig,
+  } from '$lib/metrics'
+  import { transitionMatrixDefinition } from '../definition'
 
   interface Props {
     item: TransitionMatrixPlotItem
@@ -36,15 +41,42 @@
     getParticipantsGroupOptions(engine, true, settings.stimulusId)
   )
 
-  const AGGREGATION_OPTIONS = [
-    { value: MatrixAggregationMethod.SUM, label: 'Absolute frequency' },
-    { value: MatrixAggregationMethod.FREQUENCY_RELATIVE, label: 'Relative frequency' },
-    { value: MatrixAggregationMethod.PROBABILITY, label: '1-step probability' },
-    { value: MatrixAggregationMethod.PROBABILITY_2, label: '2-step probability' },
-    { value: MatrixAggregationMethod.PROBABILITY_3, label: '3-step probability' },
-    { value: MatrixAggregationMethod.DWELL_TIME, label: 'Fixation duration' },
-    { value: MatrixAggregationMethod.SEGMENT_DWELL_TIME, label: 'Dwell duration' },
-  ]
+  function onMetricChange(ids: number[]) {
+    update({ metricInstanceId: ids[0] ?? null })
+  }
+
+  function onCreateInstance(
+    baseId: string,
+    params: Record<string, unknown>,
+    label: string,
+    windowing?: WindowingConfig,
+    replacingId?: number,
+  ) {
+    const list = [...(engine.metadata?.metricInstances ?? [])]
+    const nextId = Math.max(0, ...list.map(i => i.id)) + 1
+    const next: MetricInstance = { id: nextId, baseId, params, label, windowing }
+    if (replacingId !== undefined) {
+      const idx = list.findIndex(i => i.id === replacingId)
+      if (idx >= 0) list[idx] = { ...next, id: replacingId }
+    } else {
+      list.push(next)
+    }
+    engine.setMetricInstances(list)
+    if (replacingId === undefined) update({ metricInstanceId: nextId })
+  }
+
+  function onDeleteInstance(id: number) {
+    const list = (engine.metadata?.metricInstances ?? []).filter(i => i.id !== id)
+    engine.setMetricInstances(list)
+    // Lazy fallback in the transformer picks up the deletion at render time.
+  }
+
+  function onRenameInstance(id: number, label: string) {
+    const list = (engine.metadata?.metricInstances ?? []).map(i =>
+      i.id === id ? { ...i, label } : i
+    )
+    engine.setMetricInstances(list)
+  }
 
   const colorFields = $derived(
     getColorScaleCommitted(settings.colorScale, '#f7fbff', '#08306b')
@@ -58,10 +90,6 @@
   let colorMiddle = $state(colorFields.colorMiddle)
   let colorMax = $state(colorFields.colorMax)
 
-  // External -> local sync: mirror committed settings into the picker.
-  // No microtask-gated "syncing" flag needed — buildColorScalePatch
-  // returns null when draft matches committed, so the commit effect
-  // below self-terminates without looping.
   $effect(() => {
     colorMin = colorFields.colorMin
     colorMiddle = colorFields.colorMiddle
@@ -90,7 +118,7 @@
   }
 </script>
 
-<PaneSection title="Filters" alwaysOpen>
+<PaneSection title="Filters">
   <Select
     label="Stimulus"
     options={stimulusOptions}
@@ -105,12 +133,16 @@
   />
 </PaneSection>
 
-<PaneSection title="Aggregation">
-  <Select
-    label="Method"
-    options={AGGREGATION_OPTIONS}
-    value={settings.aggregationMethod}
-    onchange={e => update({ aggregationMethod: (e as CustomEvent<string>).detail })}
+<PaneSection title="Metric">
+  <MetricSelect
+    label="Metric"
+    instances={engine.metadata?.metricInstances ?? []}
+    selectedIds={settings.metricInstanceId == null ? [] : [settings.metricInstanceId]}
+    onchange={onMetricChange}
+    onrenameInstance={onRenameInstance}
+    oncreateInstance={onCreateInstance}
+    ondeleteInstance={onDeleteInstance}
+    context={transitionMatrixDefinition.consumesMetrics!}
   />
 </PaneSection>
 

@@ -10,9 +10,11 @@ import { createReaderFromJson } from '../src/lib/data/binary/converters'
 import '../src/lib/metrics/init'
 import {
   query,
+  queryGroup,
   queryIndividuals,
   type MetricInstance,
   type Scope,
+  type GroupScope,
 } from '../src/lib/metrics'
 
 const STIM = 1
@@ -42,6 +44,35 @@ function createEngine(segmentsForPid: number[][]) {
       },
       categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [] },
       participants: { data: [['P0', 'P0']], orderVector: [] },
+      participantsGroups: [],
+      stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
+      noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
+      metricInstances: [],
+    },
+    getReader: () => reader,
+    getAoiMapping: (_s: number, rawId: number) => rawId,
+  }
+}
+
+function createMultiParticipantEngine(perParticipantSegments: number[][][]) {
+  // perParticipantSegments[participantId] = that participant's segment rows.
+  const segments: number[][][][] = [[], perParticipantSegments]
+  const reader = createReaderFromJson(segments)
+  const n = perParticipantSegments.length
+  return {
+    metadata: {
+      isOrdinalOnly: false,
+      capabilities: { segmented: true, spatial: false, event: false },
+      aois: {
+        data: [
+          [],
+          [null, ['AOI 1', 'AOI 1', 'red'], ['AOI 2', 'AOI 2', 'blue']],
+        ],
+        orderVector: [[], [1, 2]],
+        hiddenAois: [[], []],
+      },
+      categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [] },
+      participants: { data: Array.from({ length: n }, (_, i) => [`P${i}`, `P${i}`]), orderVector: [] },
       participantsGroups: [],
       stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
       noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
@@ -354,5 +385,177 @@ describe('transitionCount — count of AOI transitions (fixation pairs or visit 
     const result = values(query(inst('transitionCount', { mode: 'visit' }), scope(engine)))
     expect(result[0 * 3 + 0]).toBe(0) // no self-transition in visit mode
     expect(result[0 * 3 + 1]).toBe(1) // AOI1 → AOI2 (the real transition)
+  })
+
+  it('groupAggregation: sum — queryGroup adds per-participant counts', () => {
+    // Two participants, each with 1 AOI1→AOI2 transition.
+    //   per-participant matrix[0, 1] = 1
+    //   Sum across participants → matrix[0, 1] = 2
+    //   (Default 'mean' would give 1, which is WRONG for counts.)
+    const engine = createMultiParticipantEngine([
+      [[0, 100, 0, 1], [100, 200, 0, 2]],
+      [[0, 100, 0, 1], [100, 200, 0, 2]],
+    ])
+    const groupScope: GroupScope = {
+      engine: engine as any,
+      stimulusId: STIM,
+      participantIds: [0, 1],
+    }
+    const result = queryGroup(inst('transitionCount', { mode: 'fixation' }), groupScope)
+    expect(result.shape).toBe('aoi-pair-matrix')
+    if (result.shape !== 'aoi-pair-matrix') throw new Error('expected pair matrix')
+    expect(result.matrix[0 * 3 + 1]).toBe(2)
+  })
+})
+
+// ─── transitionDwellSum ─────────────────────────────────────────────────────
+
+describe('transitionDwellSum — Σ of pre-transition durations per AOI pair', () => {
+  it('fixation mode: sums the "from" fixation duration across all transitions', () => {
+    // 3 fixations: AOI1(0-100, dur 100), AOI1(100-300, dur 200), AOI2(300-600, dur 300).
+    //   Transition 1 (fix 0 → fix 1): from=AOI1, dur=100 → matrix[0, 0] += 100
+    //   Transition 2 (fix 1 → fix 2): from=AOI1, dur=200 → matrix[0, 1] += 200
+    //   Expected: matrix[0, 0] = 100, matrix[0, 1] = 200, rest = 0
+    const engine = createEngine([
+      [0, 100, 0, 1],
+      [100, 300, 0, 1],
+      [300, 600, 0, 2],
+    ])
+    const result = values(query(inst('transitionDwellSum', { mode: 'fixation' }), scope(engine)))
+    expect(result[0 * 3 + 0]).toBe(100) // AOI1 → AOI1 (dur of first fixation)
+    expect(result[0 * 3 + 1]).toBe(200) // AOI1 → AOI2 (dur of second fixation)
+    expect(result[1 * 3 + 0]).toBe(0)
+    expect(result[1 * 3 + 1]).toBe(0)
+  })
+
+  it('visit mode: sums the whole preceding visit duration (merged consecutive same-AOI)', () => {
+    // Fixations: AOI1(0-100), AOI1(100-300), AOI2(300-600).
+    //   Visit 1: AOI1 over 0..300 → total duration 300
+    //   Visit 2: AOI2 over 300..600 → total duration 300
+    //   Only transition: visit1(AOI1, 300ms) → visit2(AOI2)
+    //   matrix[0, 1] = 300
+    const engine = createEngine([
+      [0, 100, 0, 1],
+      [100, 300, 0, 1],
+      [300, 600, 0, 2],
+    ])
+    const result = values(query(inst('transitionDwellSum', { mode: 'visit' }), scope(engine)))
+    expect(result[0 * 3 + 1]).toBe(300)
+    expect(result[0 * 3 + 0]).toBe(0) // no AOI1→AOI1 visit-transition
+  })
+})
+
+// ─── transitionRelativeFrequency ────────────────────────────────────────────
+
+describe('transitionRelativeFrequency — per-cell share of participant total, in %', () => {
+  it('distributes counts as percentages of the total transition count', () => {
+    // 4 fixations: AOI1, AOI2, AOI1, AOI2 → 3 transitions
+    //   AOI1→AOI2 twice, AOI2→AOI1 once. total = 3.
+    //   matrix[0,1] = 2/3 × 100 = 66.67
+    //   matrix[1,0] = 1/3 × 100 = 33.33
+    const engine = createEngine([
+      [0, 100, 0, 1],
+      [100, 200, 0, 2],
+      [200, 300, 0, 1],
+      [300, 400, 0, 2],
+    ])
+    const result = values(query(inst('transitionRelativeFrequency', { mode: 'fixation' }), scope(engine)))
+    expect(result[0 * 3 + 1]).toBeCloseTo(66.6666, 3)
+    expect(result[1 * 3 + 0]).toBeCloseTo(33.3333, 3)
+    expect(result[0 * 3 + 0]).toBe(0)
+    expect(result[1 * 3 + 1]).toBe(0)
+    // All cells together must sum to 100%.
+    const sum = result.reduce((a, b) => a + b, 0)
+    expect(sum).toBeCloseTo(100, 3)
+  })
+
+  it('emits NaN when the participant has no transitions at all', () => {
+    // Single fixation → 0 transitions → all-NaN so group reduce excludes this participant.
+    const engine = createEngine([[0, 100, 0, 1]])
+    const result = values(query(inst('transitionRelativeFrequency', { mode: 'fixation' }), scope(engine)))
+    expect(result.every(v => Number.isNaN(v))).toBe(true)
+  })
+})
+
+// ─── transitionProbability ──────────────────────────────────────────────────
+
+describe('transitionProbability — row-normalised Markov transition matrix, in %', () => {
+  it('step=1: row-normalises counts per "from" AOI', () => {
+    // Same sequence: AOI1, AOI2, AOI1, AOI2 → 3 transitions.
+    //   Row 0 (from AOI1, 2 out-transitions, both to AOI2): matrix[0,1] = 100%.
+    //   Row 1 (from AOI2, 1 out-transition, to AOI1):        matrix[1,0] = 100%.
+    const engine = createEngine([
+      [0, 100, 0, 1],
+      [100, 200, 0, 2],
+      [200, 300, 0, 1],
+      [300, 400, 0, 2],
+    ])
+    const result = values(query(inst('transitionProbability', { mode: 'fixation', step: 1 }), scope(engine)))
+    expect(result[0 * 3 + 1]).toBe(100)
+    expect(result[1 * 3 + 0]).toBe(100)
+    expect(result[0 * 3 + 0]).toBe(0)
+  })
+
+  it('step=2: returns P² (arrive at column after 2 transitions)', () => {
+    // P = [[0, 1, 0], [1, 0, 0], [0, 0, 0]].
+    // P² = [[1, 0, 0], [0, 1, 0], [0, 0, 0]].  (×100 for percent output)
+    //   From AOI1 after 2 transitions → back at AOI1 with 100%.
+    //   From AOI2 after 2 transitions → back at AOI2 with 100%.
+    const engine = createEngine([
+      [0, 100, 0, 1],
+      [100, 200, 0, 2],
+      [200, 300, 0, 1],
+      [300, 400, 0, 2],
+    ])
+    const result = values(query(inst('transitionProbability', { mode: 'fixation', step: 2 }), scope(engine)))
+    expect(result[0 * 3 + 0]).toBe(100)
+    expect(result[1 * 3 + 1]).toBe(100)
+    expect(result[0 * 3 + 1]).toBe(0)
+  })
+
+  it('emits NaN when no transitions exist at all', () => {
+    const engine = createEngine([[0, 100, 0, 1]])
+    const result = values(query(inst('transitionProbability', { mode: 'fixation', step: 1 }), scope(engine)))
+    expect(result.every(v => Number.isNaN(v))).toBe(true)
+  })
+})
+
+// ─── transitionDwellMean ────────────────────────────────────────────────────
+
+describe('transitionDwellMean — per-cell mean of pre-transition dwell times', () => {
+  it('fixation mode: cell-wise dwellSum / count', () => {
+    // Fixations with durations:
+    //   AOI1 (dur 100), AOI2 (dur 300), AOI1 (dur 200).
+    //   Transitions:
+    //     fix0 (AOI1, 100) → fix1 (AOI2): cell[0,1] dwellSum += 100, count++
+    //     fix1 (AOI2, 300) → fix2 (AOI1): cell[1,0] dwellSum += 300, count++
+    //   Means:
+    //     cell[0,1] = 100/1 = 100
+    //     cell[1,0] = 300/1 = 300
+    //   Cells with count=0: NaN (not 0 — "no transition to average" ≠ "average is zero").
+    const engine = createEngine([
+      [0, 100, 0, 1],
+      [100, 400, 0, 2],
+      [400, 600, 0, 1],
+    ])
+    const result = values(query(inst('transitionDwellMean', { mode: 'fixation' }), scope(engine)))
+    expect(result[0 * 3 + 1]).toBe(100)
+    expect(result[1 * 3 + 0]).toBe(300)
+    expect(Number.isNaN(result[0 * 3 + 0])).toBe(true)
+    expect(Number.isNaN(result[1 * 3 + 1])).toBe(true)
+  })
+
+  it('averages across multiple transitions into the same cell', () => {
+    // Fixations AOI1(dur 100), AOI2(dur 0), AOI1(dur 200), AOI2(dur 0).
+    //   Transitions into [0,1] (AOI1→AOI2): twice, dwellSums = [100, 200]; count=2.
+    //   Mean = 300 / 2 = 150.
+    const engine = createEngine([
+      [0, 100, 0, 1],
+      [100, 100, 0, 2],
+      [100, 300, 0, 1],
+      [300, 300, 0, 2],
+    ])
+    const result = values(query(inst('transitionDwellMean', { mode: 'fixation' }), scope(engine)))
+    expect(result[0 * 3 + 1]).toBe(150)
   })
 })

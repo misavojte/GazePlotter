@@ -9,4 +9,3 @@ export * from './const'
 
 // Export transition matrix core logic
 export * from './core/transformer'
-export * from './core/collector'

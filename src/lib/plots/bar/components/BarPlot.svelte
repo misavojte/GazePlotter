@@ -8,12 +8,10 @@
   import { getBarPlotData } from '$lib/plots/bar/core/transformer'
   import { barPlotValueAxisSync } from '$lib/plots/bar/core/sync.svelte'
   import { createAdaptiveTimeline } from '$lib/plots/shared'
+  import { resolveInstanceWithFallback } from '$lib/metrics'
 
   import type { BarPlotItem } from '$lib/plots/bar/types'
-  import {
-    getBarPlotAxisLabel,
-    type BarPlotAggregationMethodId,
-  } from '$lib/plots/bar/const'
+  import { getBarPlotAxisLabel } from '$lib/plots/bar/const'
 
   interface Props {
     item: BarPlotItem
@@ -26,18 +24,27 @@
   const barPlotResult = $derived(getBarPlotData(engine, settings))
   const labelededBarPlotData = $derived(barPlotResult.data)
 
+  const resolvedInstance = $derived(
+    resolveInstanceWithFallback(
+      settings.metricInstanceId ?? null,
+      'absoluteTime',
+      engine.metadata?.metricInstances ?? [],
+    )
+  )
+  const syncKey = $derived(resolvedInstance?.id ?? -1)
+
   const hasCustomScale = $derived(
     settings.scaleRange !== undefined &&
       (settings.scaleRange[0] !== 0 || settings.scaleRange[1] !== 0)
   )
 
   $effect(() => {
-    if (hasCustomScale) {
+    if (hasCustomScale || syncKey < 0) {
       barPlotValueAxisSync.clearEntry(item.id)
       return
     }
     barPlotValueAxisSync.setEntry(item.id, {
-      aggregationMethod: settings.aggregationMethod,
+      metricInstanceId: syncKey,
       w: item.w,
       h: item.h,
       dataMax: barPlotResult.dataMax,
@@ -47,10 +54,10 @@
 
   const timeline = $derived.by(() => {
     const raw = barPlotResult.timeline
-    if (hasCustomScale) return raw
+    if (hasCustomScale || syncKey < 0) return raw
 
     const syncedMax = barPlotValueAxisSync.getSyncedMax(
-      settings.aggregationMethod,
+      syncKey,
       item.w,
       item.h
     )
@@ -61,7 +68,7 @@
 
   const axisLabel = $derived(
     getBarPlotAxisLabel(
-      settings.aggregationMethod as BarPlotAggregationMethodId,
+      resolvedInstance,
       settings.timelineStart,
       settings.timelineEnd,
       settings.statisticalOverlay

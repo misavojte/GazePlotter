@@ -7,6 +7,7 @@ import {
   getStimuliOptions,
   getParticipantsGroupOptions,
 } from '$lib/plots/shared'
+import { findSystemInstanceIdByBaseId, METRIC_CONTEXTS } from '$lib/metrics'
 import type { BarPlotSettings } from './types'
 
 export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
@@ -35,7 +36,7 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
     barPlottingType: 'horizontal',
     orderBy: 'aoi',
     orderDirection: 'asc',
-    aggregationMethod: 'absoluteTime',
+    metricInstanceId: findSystemInstanceIdByBaseId('absoluteTime'),
     scaleRange: [0, 0],
     statisticalOverlay: 'meanCi95',
   }),
@@ -43,4 +44,5 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
   getDefaultHeight: () => 12,
   getDefaultWidth: () => 12,
   requireCapabilities: ['segmented'],
+  consumesMetrics: METRIC_CONTEXTS.aoiVector,
 })
