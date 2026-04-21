@@ -4,6 +4,7 @@
   import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
   import EvolvingMetricsFigure from './EvolvingMetricsFigure.svelte'
   import { getEvolvingMetricsData } from '$lib/plots/evolving-metrics/core'
+  import { CanvasPlaceholder } from '$lib/plots/shared/components'
 
   interface Props {
     item: EvolvingMetricsItem
@@ -35,5 +36,11 @@
     marginRight={exportProps.marginRight}
     marginBottom={exportProps.marginBottom}
     marginLeft={exportProps.marginLeft}
+  />
+{:else}
+  <CanvasPlaceholder
+    width={exportProps.width}
+    height={exportProps.height}
+    message="Select a metric"
   />
 {/if}

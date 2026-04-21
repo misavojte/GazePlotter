@@ -67,4 +67,6 @@ export interface MetricCorrelationResult {
   sampleSize: number
   /** Participant labels parallel to vectors' rows (for SPLOM tooltips). */
   participantLabels?: string[]
+  /** True when fewer than 2 enabled metric instances exist / resolve. */
+  noMetric?: boolean
 }

@@ -36,7 +36,8 @@ export function getMetricCorrelationData(
     settings.enabledMetricIds,
     meta.metricInstances
   )
-  if (metrics.length < 2 || participantIds.length === 0) return emptyResult(settings)
+  if (metrics.length < 2) return emptyResult(settings, true)
+  if (participantIds.length === 0) return emptyResult(settings)
 
   const participantLabels = participantIds.map(id => {
     const pData = meta.participants.data[id]
@@ -140,12 +141,13 @@ function computeCells(
   return cells
 }
 
-function emptyResult(settings: MetricCorrelationSettings): MetricCorrelationResult {
+function emptyResult(settings: MetricCorrelationSettings, noMetric = false): MetricCorrelationResult {
   return {
     metrics: [],
     vectors: [],
     cells: [],
     correlationMethod: settings.correlationMethod,
     sampleSize: 0,
+    ...(noMetric ? { noMetric: true as const } : {}),
   }
 }

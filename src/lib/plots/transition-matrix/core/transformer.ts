@@ -2,14 +2,11 @@ import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import { getAois, getParticipantsIds } from '$lib/data/engine'
 import {
   queryGroup,
-  resolveInstanceWithFallback,
+  resolveInstance,
   type GroupScope,
   type MetricResult,
 } from '$lib/metrics'
 import type { TransitionMatrixData } from '../types'
-
-/** Plot's declared fallback when the user's picked instance has been deleted. */
-const FALLBACK_BASE_ID = 'transitionCount'
 
 export function getTransitionMatrixData(
   engine: DataEngine,
@@ -28,12 +25,11 @@ export function getTransitionMatrixData(
     meta.noAoiTreatment.displayedName,
   ]
 
-  const instance = resolveInstanceWithFallback(
-    metricInstanceId,
-    FALLBACK_BASE_ID,
-    meta.metricInstances ?? [],
-  )
-  if (!instance || participantIds.length === 0) {
+  const instance = resolveInstance(meta.metricInstances ?? [], metricInstanceId)
+  if (!instance) {
+    return { matrix: new Float64Array(size * size), aoiLabels, aoiList, noMetric: true }
+  }
+  if (participantIds.length === 0) {
     return { matrix: new Float64Array(size * size), aoiLabels, aoiList }
   }
 

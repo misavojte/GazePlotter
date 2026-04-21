@@ -63,6 +63,8 @@ export interface BarPlotResult {
    * cross-plot sync can compare apples to apples between plots.
    */
   dataMax: number
+  /** True when the plot's `metricInstanceId` points to a missing instance. */
+  noMetric?: boolean
 }
 
 export interface ParticipantSegmentData {

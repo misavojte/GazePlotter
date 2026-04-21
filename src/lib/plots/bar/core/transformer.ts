@@ -17,12 +17,10 @@ import type {
 import {
   query,
   queryIndividuals,
-  resolveInstanceWithFallback,
+  resolveInstance,
   type MetricInstance,
   type Scope,
 } from '$lib/metrics'
-
-const FALLBACK_BASE_ID = 'absoluteTime'
 
 export function getBarPlotData(
   engine: DataEngine,
@@ -50,13 +48,12 @@ export function getBarPlotData(
   )
   const overlay = settings.statisticalOverlay ?? 'none'
 
-  const instance = resolveInstanceWithFallback(
-    settings.metricInstanceId ?? null,
-    FALLBACK_BASE_ID,
-    meta.metricInstances ?? [],
-  )
+  const instance = resolveInstance(meta.metricInstances ?? [], settings.metricInstanceId ?? null)
 
-  if (participantIds.length === 0 || !instance) {
+  if (!instance) {
+    return { data: [], timeline: createAdaptiveTimeline(0, 100, 6), dataMax: 0, noMetric: true }
+  }
+  if (participantIds.length === 0) {
     return { data: [], timeline: createAdaptiveTimeline(0, 100, 6), dataMax: 0 }
   }
 

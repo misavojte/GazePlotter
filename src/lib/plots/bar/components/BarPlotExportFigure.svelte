@@ -5,7 +5,7 @@
   import BarPlotFigure from './BarPlotFigure.svelte'
   import { getBarPlotData } from '$lib/plots/bar/core/transformer'
   import { getBarPlotAxisLabel } from '$lib/plots/bar/const'
-  import { resolveInstanceWithFallback } from '$lib/metrics'
+  import { resolveInstance } from '$lib/metrics'
 
   interface Props {
     item: BarPlotItem
@@ -33,11 +33,7 @@
   const timeline = $derived(barPlotData.timeline)
 
   const resolvedInstance = $derived(
-    resolveInstanceWithFallback(
-      settings.metricInstanceId ?? null,
-      'absoluteTime',
-      engine.metadata?.metricInstances ?? [],
-    )
+    resolveInstance(engine.metadata?.metricInstances ?? [], settings.metricInstanceId ?? null)
   )
 
   const axisLabel = $derived(
@@ -61,6 +57,7 @@
   barSpacing={20}
   onDataHover={() => {}}
   statisticalOverlay={settings.statisticalOverlay}
+  noMetric={barPlotData.noMetric ?? false}
   dpiOverride={exportProps.dpiOverride}
   marginTop={exportProps.marginTop}
   marginRight={exportProps.marginRight}

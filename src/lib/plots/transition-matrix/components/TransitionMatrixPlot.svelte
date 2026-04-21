@@ -12,7 +12,7 @@
   } from '$lib/plots/transition-matrix/core/sync.svelte'
   import { getLegendTitle } from '$lib/plots/transition-matrix/const'
 
-  import { getMetric, resolveInstanceWithFallback } from '$lib/metrics'
+  import { getMetric, resolveInstance } from '$lib/metrics'
   import type { TransitionMatrixPlotItem } from '$lib/plots/transition-matrix/types'
 
   interface Props {
@@ -30,11 +30,7 @@
   const effectiveColorScale = $derived(settings.colorScale ?? [])
 
   const resolvedInstance = $derived(
-    resolveInstanceWithFallback(
-      settings.metricInstanceId,
-      'transitionCount',
-      engine.metadata?.metricInstances ?? [],
-    )
+    resolveInstance(engine.metadata?.metricInstances ?? [], settings.metricInstanceId)
   )
 
   const resolvedMetric = $derived(
@@ -104,10 +100,7 @@
   )
 </script>
 
-<BasePlot
-  {item}
-  hasData={settings?.stimulusId !== undefined && aoiLabels.length > 0}
->
+<BasePlot {item}>
   {#snippet figure({ width, height })}
     <div class="figure-container">
       <TransitionMatrixPlotFigure
@@ -124,6 +117,7 @@
         aboveMaxColor={settings.aboveMaxColor}
         showBelowMinLabels={settings.showBelowMinLabels}
         showAboveMaxLabels={settings.showAboveMaxLabels}
+        noMetric={transitionData.noMetric ?? false}
       />
     </div>
   {/snippet}

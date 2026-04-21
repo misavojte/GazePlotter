@@ -403,6 +403,20 @@ export function runMigrations(parsedJson: any): any {
     version = 10
   }
 
+  // V10 to V11: drop `system: true` from every metric instance. Every instance
+  // is now equally user-owned — no protected tier, no fallback restore.
+  if (version === 10) {
+    const payload = data.data
+    if (Array.isArray(payload.metricInstances)) {
+      payload.metricInstances = payload.metricInstances.map((inst: any) => {
+        const { system: _drop, ...rest } = inst
+        return rest
+      })
+    }
+    data = { ...data, version: 11, data: payload }
+    version = 11
+  }
+
   // Version-independent normalization: rewrite any legacy gridItem `type`
   // keys (e.g. capital-T 'TransitionMatrix' → 'transitionMatrix') to the
   // current registry key. Runs on every load — including already-current

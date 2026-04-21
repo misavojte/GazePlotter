@@ -27,4 +27,6 @@ export interface TransitionMatrixData {
   matrix: Float64Array | number[]
   aoiLabels: string[]
   aoiList: ExtendedInterpretedDataType[]
+  /** True when the plot's `metricInstanceId` points to a missing instance. */
+  noMetric?: boolean
 }

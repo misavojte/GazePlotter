@@ -20,6 +20,7 @@
     SCARF_LEGEND_CONFIG,
     useCanvasPlot,
     canvasBlockSelect,
+    drawCanvasPlaceholder,
     type BlockedRegion,
     type LegendGeometry,
     type LegendGroup,
@@ -475,15 +476,7 @@
     if (!ctx) return
 
     if (!canRender) {
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillStyle = UI_COLORS.TEXT_SECONDARY
-      ctx.font = '14px sans-serif'
-      ctx.fillText(
-        'Increase height to view plot',
-        totalWidth / 2,
-        totalHeight / 2
-      )
+      drawCanvasPlaceholder(ctx, totalWidth, totalHeight, 'Increase height to view plot')
       finishCanvasDrawing(plot.canvasState)
       return
     }

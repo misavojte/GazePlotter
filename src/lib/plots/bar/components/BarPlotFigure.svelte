@@ -27,6 +27,7 @@
     alignToPixelCenter,
     canvasLifecycleAction,
   } from '$lib/plots/shared/canvasUtils'
+  import { drawCanvasPlaceholder } from '$lib/plots/shared/drawCanvasPlaceholder'
   import type { StatisticalOverlayType } from '$lib/plots/bar/types'
   import {
     drawOverlayBackgrounds,
@@ -76,6 +77,7 @@
     marginRight?: number
     marginBottom?: number
     marginLeft?: number
+    noMetric?: boolean
   }
 
   let {
@@ -94,6 +96,7 @@
     marginRight = 0,
     marginBottom = 0,
     marginLeft = 0,
+    noMetric = false,
   }: BarPlotFigureProps = $props()
 
   // Crosshair / hover constants
@@ -360,6 +363,12 @@
 
     const ctx = plot.canvasState.context
     if (!ctx) return
+
+    if (noMetric) {
+      drawCanvasPlaceholder(ctx, width, height, 'Select a metric')
+      finishCanvasDrawing(plot.canvasState)
+      return
+    }
 
     const floorLeft = Math.floor(trueLeftMargin)
     const floorWidth = Math.floor(plotAreaWidth)

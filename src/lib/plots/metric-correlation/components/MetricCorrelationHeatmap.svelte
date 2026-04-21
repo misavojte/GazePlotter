@@ -9,6 +9,7 @@
     finishCanvasDrawing,
     canvasLifecycleAction,
   } from '$lib/plots/shared/canvasUtils'
+  import { drawCanvasPlaceholder } from '$lib/plots/shared/drawCanvasPlaceholder'
   import {
     MATRIX_LAYOUT,
     computeSquareMatrixLayout,
@@ -94,14 +95,17 @@
 
   // Matrix body is the only blocked region; the gradient legend is
   // static so it stays selectable chrome.
-  const blockedRegions = $derived<BlockedRegion[]>([
-    {
-      x: layout.xOffset,
-      y: layout.yOffset,
-      w: layout.gridWidth,
-      h: layout.gridHeight,
-    },
-  ])
+  const blockedRegions = $derived.by<BlockedRegion[]>(() => {
+    if (result.noMetric || labels.length < 2) return []
+    return [
+      {
+        x: layout.xOffset,
+        y: layout.yOffset,
+        w: layout.gridWidth,
+        h: layout.gridHeight,
+      },
+    ]
+  })
 
   function cellColor(value: number): string {
     if (Number.isNaN(value)) return '#f2f2f2'
@@ -151,12 +155,8 @@
     const totalW = width + marginLeft + marginRight
     const totalH = height + marginTop + marginBottom
 
-    if (labels.length === 0) {
-      ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
-      ctx.fillStyle = UI_COLORS.TEXT_SECONDARY
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText('Select at least two metrics to view correlations', totalW >> 1, totalH >> 1)
+    if (result.noMetric || labels.length < 2) {
+      drawCanvasPlaceholder(ctx, totalW, totalH, 'Select at least two metrics')
       finishCanvasDrawing(plot.canvasState)
       return
     }

@@ -15,7 +15,6 @@ export interface MetricInstance {
   baseId: string
   params: Record<string, unknown>
   label: string
-  system?: true
   /** Required. Defaults to the recipe's identity leaf for its raw shape. */
   projection: Projection
 }
@@ -27,15 +26,17 @@ const AOI_PAIR_ID_START = 50
 // ─── Starter instances (system defaults) ────────────────────────────────────
 
 /**
- * Emits the full set of system-seeded instances. Three partitions, walked in
- * recipe registration order so IDs are stable across runs:
+ * Emits the seed set of metric instances for a fresh project. Three partitions,
+ * walked in recipe registration order so IDs are stable across runs:
  *
  *   Phase 1 (IDs 1+)  — identity instance for every non-matrix recipe.
  *   Phase 2 (IDs 12+) — recipe.starterInstances entries with a windowed projection.
  *   Phase 3 (IDs 50+) — recipe.starterInstances entries for matrix recipes (params variants).
  *
- * A pinning test asserts ID 50 = transitionCount (fixation), 52 = transitionProbability (fix, step=1),
- * 53 = transitionDwellMean (fixation). Do not reorder metric definition imports.
+ * Starters are user-owned from the moment they're seeded: no protected / hidden
+ * tier. A pinning test asserts ID 50 = transitionCount (fixation),
+ * 52 = transitionProbability (fix, step=1), 53 = transitionDwellMean (fixation).
+ * Do not reorder metric definition imports.
  */
 export function buildStarterInstances(): MetricInstance[] {
   const recipes = listRecipeIds().map(id => getRecipe(id)!).filter(Boolean)
@@ -50,7 +51,6 @@ export function buildStarterInstances(): MetricInstance[] {
       baseId: r.id,
       params: {},
       label: defaultInstanceLabel(r.id, {}),
-      system: true as const,
       projection: identityFor(r.rawShape),
     })
   }
@@ -66,7 +66,6 @@ export function buildStarterInstances(): MetricInstance[] {
         baseId: r.id,
         params,
         label: starter.label ?? defaultInstanceLabel(r.id, params, starter.projection),
-        system: true as const,
         projection: starter.projection,
       })
     }
@@ -85,7 +84,6 @@ export function buildStarterInstances(): MetricInstance[] {
         baseId: r.id,
         params,
         label: starter.label ?? defaultInstanceLabel(r.id, params, projection),
-        system: true as const,
         projection,
       })
     }
@@ -94,9 +92,9 @@ export function buildStarterInstances(): MetricInstance[] {
   return out
 }
 
-// ── Legacy-compatibility phase helpers (used by workspace migrations) ─────
-// These exist so V5→V6 / V6→V7 / V7→V8 migrations can seed the exact partition
-// they used to. Prefer buildStarterInstances() in new code.
+// ── Legacy-compatibility phase helpers (used by V5→V8 workspace migrations) ─
+// These exist so historical migrations can seed the exact partition they used
+// to. Prefer buildStarterInstances() in new code.
 
 export function createSystemMetricInstances(): MetricInstance[] {
   return buildStarterInstances().filter(i => i.id < WINDOWED_ID_START)
@@ -114,6 +112,11 @@ export function createDefaultMetricInstances(): MetricInstance[] {
   return buildStarterInstances()
 }
 
+/**
+ * Resolves a baseId to its sequential starter instance ID (Phase 1). Useful for
+ * legacy workspace migrations that need to translate pre-id string tags into
+ * numeric instance ids. Returns null when no Phase 1 starter matches.
+ */
 export function findSystemInstanceIdByBaseId(baseId: string): number | null {
   const recipes = listRecipeIds().map(id => getRecipe(id)!)
   let id = 1
@@ -125,34 +128,6 @@ export function findSystemInstanceIdByBaseId(baseId: string): number | null {
   return null
 }
 
-export function reconcileSystemInstances(existing: MetricInstance[]): MetricInstance[] {
-  const seeded = buildStarterInstances()
-  const existingIds = new Set(existing.map(i => i.id))
-  const result = [...existing]
-  for (const s of seeded) if (!existingIds.has(s.id)) result.push(s)
-  return result
-}
-
-/**
- * Resolve a plot's stored `metricInstanceId` with a graceful fallback. When the
- * stored id points to an instance that no longer exists (user deleted a custom
- * instance), returns the first system instance matching `fallbackBaseId`.
- *
- * Render-time (lazy) fallback — no eager mutation of plot settings on deletion.
- * The next save will persist the fallback id.
- */
-export function resolveInstanceWithFallback(
-  instanceId: number | null,
-  fallbackBaseId: string,
-  library: readonly MetricInstance[],
-): MetricInstance | null {
-  if (instanceId != null) {
-    const direct = library.find(i => i.id === instanceId)
-    if (direct) return direct
-  }
-  return library.find(i => i.system && i.baseId === fallbackBaseId) ?? null
-}
-
 export function nextInstanceId(existing: readonly MetricInstance[]): number {
   let max = SYSTEM_ID_OFFSET - 1
   for (const inst of existing) if (inst.id > max) max = inst.id
@@ -161,8 +136,9 @@ export function nextInstanceId(existing: readonly MetricInstance[]): number {
 
 export function resolveInstance(
   instances: readonly MetricInstance[],
-  id: number,
+  id: number | null,
 ): MetricInstance | undefined {
+  if (id == null) return undefined
   return instances.find(i => i.id === id)
 }
 

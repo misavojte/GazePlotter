@@ -7,7 +7,7 @@
     getTransitionMatrixData,
     getLegendTitle,
   } from '$lib/plots/transition-matrix'
-  import { getMetric, resolveInstanceWithFallback } from '$lib/metrics'
+  import { getMetric, resolveInstance } from '$lib/metrics'
 
   interface Props {
     item: TransitionMatrixPlotItem
@@ -18,7 +18,7 @@
   let { item, engine, exportProps }: Props = $props()
   const settings = $derived(item.settings)
 
-  const { matrix, aoiLabels } = $derived(
+  const transitionData = $derived(
     getTransitionMatrixData(
       engine,
       settings.stimulusId,
@@ -26,6 +26,7 @@
       settings.metricInstanceId,
     )
   )
+  const { matrix, aoiLabels } = $derived(transitionData)
 
   const currentStimulusColorRange = $derived.by(() => {
     const stimulusId = settings.stimulusId
@@ -33,10 +34,9 @@
   })
 
   const resolved = $derived.by(() => {
-    const inst = resolveInstanceWithFallback(
-      settings.metricInstanceId,
-      'transitionCount',
+    const inst = resolveInstance(
       engine.metadata?.metricInstances ?? [],
+      settings.metricInstanceId,
     )
     return {
       label: inst?.label ?? '',
@@ -59,6 +59,7 @@
   aboveMaxColor={settings.aboveMaxColor}
   showBelowMinLabels={settings.showBelowMinLabels}
   showAboveMaxLabels={settings.showAboveMaxLabels}
+  noMetric={transitionData.noMetric ?? false}
   dpiOverride={exportProps.dpiOverride}
   marginTop={exportProps.marginTop}
   marginRight={exportProps.marginRight}

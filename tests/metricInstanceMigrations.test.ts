@@ -4,7 +4,7 @@ import {
   createSystemMetricInstances,
   createDefaultWindowedInstances,
   createDefaultAoiPairInstances,
-  resolveInstanceWithFallback,
+  resolveInstance,
   type MetricInstance,
 } from '../src/lib/metrics/instances'
 
@@ -63,7 +63,7 @@ describe('V5 → V8 metric-instance migration', () => {
     const file = buildV5File({ enabledMetrics: [] })
     const migrated = runMigrations(file)
 
-    expect(migrated.version).toBe(10)
+    expect(migrated.version).toBe(11)
     const seeded = migrated.data.metricInstances
     expect(Array.isArray(seeded)).toBe(true)
     const expectedCount =
@@ -71,9 +71,8 @@ describe('V5 → V8 metric-instance migration', () => {
       createDefaultWindowedInstances().length +
       createDefaultAoiPairInstances().length
     expect(seeded.length).toBe(expectedCount)
-    // All seeded defaults (system + windowed + aoi-pair) are flagged system: true.
-    const systemInstances = seeded.filter((i: any) => i.system === true)
-    expect(systemInstances.length).toBe(expectedCount)
+    // No more `system` marker — all instances are equally user-owned.
+    for (const inst of seeded) expect(inst.system).toBeUndefined()
   })
 
   it('preserves an existing metricInstances array and adds seeded defaults', () => {
@@ -86,9 +85,10 @@ describe('V5 → V8 metric-instance migration', () => {
 
     const windowed = createDefaultWindowedInstances()
     const pairs = createDefaultAoiPairInstances()
-    // V9 → V10 fills in the identity projection for the pre-existing bare instance.
+    // V9 → V10 fills in the identity projection for the pre-existing bare instance;
+    // V10 → V11 strips the `system` marker.
     expect(migrated.data.metricInstances).toEqual([
-      { id: 1, baseId: 'absoluteTime', params: {}, label: 'Renamed', system: true, projection: { kind: 'identity-aoi-vector' } },
+      { id: 1, baseId: 'absoluteTime', params: {}, label: 'Renamed', projection: { kind: 'identity-aoi-vector' } },
       ...windowed,
       ...pairs,
     ])
@@ -170,9 +170,6 @@ describe('createDefaultAoiPairInstances — curated 5-instance pre-seeded librar
     expect(byId.get(54)).toBe('Mean transition dwell time (visit changes)')
   })
 
-  it('marks all pair defaults as system: true (protected from deletion)', () => {
-    for (const p of createDefaultAoiPairInstances()) expect(p.system).toBe(true)
-  })
 })
 
 describe('V7 → V8 transition-matrix settings migration', () => {
@@ -205,7 +202,7 @@ describe('V7 → V8 transition-matrix settings migration', () => {
 
   it('drops aggregationMethod + old display/step fields on migrated settings', () => {
     const m = runMigrations(buildV7TransitionMatrixFile('sum'))
-    expect(m.version).toBe(10)
+    expect(m.version).toBe(11)
     const s = m.gridItems[0].settings
     expect(s.aggregationMethod).toBeUndefined()
     expect(s.display).toBeUndefined()
@@ -307,7 +304,7 @@ describe('V8 → V9 bar-plot settings migration', () => {
   }
 
   it('bumps version to 9', () => {
-    expect(runMigrations(buildV8BarPlotFile('absoluteTime')).version).toBe(10)
+    expect(runMigrations(buildV8BarPlotFile('absoluteTime')).version).toBe(11)
   })
 
   it('drops aggregationMethod from migrated settings', () => {
@@ -347,26 +344,22 @@ describe('V8 → V9 bar-plot settings migration', () => {
   })
 })
 
-describe('resolveInstanceWithFallback — referential integrity', () => {
+describe('resolveInstance — direct lookup, no fallback', () => {
   const library: MetricInstance[] = [
-    { id: 50,  baseId: 'transitionCount', params: { mode: 'fixation' }, label: 'TC fix',   system: true, projection: { kind: 'identity-aoi-pair-matrix' } },
-    { id: 51,  baseId: 'transitionCount', params: { mode: 'visit' },    label: 'TC visit', system: true, projection: { kind: 'identity-aoi-pair-matrix' } },
-    { id: 100, baseId: 'transitionCount', params: { mode: 'fixation' }, label: 'Custom',                projection: { kind: 'identity-aoi-pair-matrix' } },
+    { id: 50,  baseId: 'transitionCount', params: { mode: 'fixation' }, label: 'TC fix',   projection: { kind: 'identity-aoi-pair-matrix' } },
+    { id: 51,  baseId: 'transitionCount', params: { mode: 'visit' },    label: 'TC visit', projection: { kind: 'identity-aoi-pair-matrix' } },
+    { id: 100, baseId: 'transitionCount', params: { mode: 'fixation' }, label: 'Custom',   projection: { kind: 'identity-aoi-pair-matrix' } },
   ]
 
   it('returns the direct instance when its id exists', () => {
-    expect(resolveInstanceWithFallback(100, 'transitionCount', library)?.id).toBe(100)
+    expect(resolveInstance(library, 100)?.id).toBe(100)
   })
 
-  it('falls back to the first SYSTEM instance of the baseId when id is missing', () => {
-    expect(resolveInstanceWithFallback(999, 'transitionCount', library)?.id).toBe(50)
+  it('returns undefined when id is missing', () => {
+    expect(resolveInstance(library, 999)).toBeUndefined()
   })
 
-  it('falls back when id is null', () => {
-    expect(resolveInstanceWithFallback(null, 'transitionCount', library)?.id).toBe(50)
-  })
-
-  it('returns null when no system instance matches the fallback baseId', () => {
-    expect(resolveInstanceWithFallback(999, 'nonExistentMetric', library)).toBeNull()
+  it('returns undefined when id is null', () => {
+    expect(resolveInstance(library, null)).toBeUndefined()
   })
 })

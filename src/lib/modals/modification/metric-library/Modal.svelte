@@ -338,16 +338,14 @@
             >
               <Pencil size={13} />
             </button>
-            {#if !inst.system}
-              <button
-                class="icon-btn danger"
-                onclick={() => ondeleteInstance?.(inst.id)}
-                title="Delete"
-                aria-label="Delete"
-              >
-                <X size={13} />
-              </button>
-            {/if}
+            <button
+              class="icon-btn danger"
+              onclick={() => ondeleteInstance?.(inst.id)}
+              title="Delete"
+              aria-label="Delete"
+            >
+              <X size={13} />
+            </button>
           </div>
 
           {#if expandedCardId === inst.id}

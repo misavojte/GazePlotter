@@ -9,6 +9,7 @@
     finishCanvasDrawing,
     canvasLifecycleAction,
   } from '$lib/plots/shared/canvasUtils'
+  import { drawCanvasPlaceholder } from '$lib/plots/shared/drawCanvasPlaceholder'
   import {
     MATRIX_LAYOUT,
     computeSquareMatrixLayout,
@@ -81,14 +82,17 @@
   )
 
   // SPLOM cells are the data area; axis labels around them stay selectable.
-  const blockedRegions = $derived<BlockedRegion[]>([
-    {
-      x: layout.xOffset,
-      y: layout.yOffset,
-      w: layout.gridWidth,
-      h: layout.gridHeight,
-    },
-  ])
+  const blockedRegions = $derived.by<BlockedRegion[]>(() => {
+    if (result.noMetric || labels.length < 2) return []
+    return [
+      {
+        x: layout.xOffset,
+        y: layout.yOffset,
+        w: layout.gridWidth,
+        h: layout.gridHeight,
+      },
+    ]
+  })
 
   // Per-metric value ranges, used to place scatter points inside each cell.
   const ranges = $derived.by(() =>
@@ -216,12 +220,8 @@
     const totalW = width + marginLeft + marginRight
     const totalH = height + marginTop + marginBottom
 
-    if (labels.length === 0) {
-      ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
-      ctx.fillStyle = UI_COLORS.TEXT_SECONDARY
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText('Select at least two metrics to view correlations', totalW >> 1, totalH >> 1)
+    if (result.noMetric || labels.length < 2) {
+      drawCanvasPlaceholder(ctx, totalW, totalH, 'Select at least two metrics')
       finishCanvasDrawing(plot.canvasState)
       return
     }

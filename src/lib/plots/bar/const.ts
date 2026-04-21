@@ -54,7 +54,7 @@ export type BarPlotAggregationMethodId =
  * with an optional `, t ∈ [start, end] ms` time-range suffix.
  */
 export function getBarPlotAxisLabel(
-  instance: MetricInstance | null,
+  instance: MetricInstance | null | undefined,
   timelineStart = 0,
   timelineEnd = 0,
   overlay: StatisticalOverlayType = 'none'

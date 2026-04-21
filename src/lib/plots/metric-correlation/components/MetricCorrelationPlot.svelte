@@ -21,11 +21,9 @@
   const result = $derived(
     getMetricCorrelationData(engine, settings, { includePoints })
   )
-
-  const hasData = $derived(result.metrics.length >= 2 && result.sampleSize > 0)
 </script>
 
-<BasePlot {item} {hasData}>
+<BasePlot {item}>
   {#snippet figure({ width, height })}
     {#if settings.view === 'splom'}
       <MetricCorrelationSplom {width} {height} {result} />

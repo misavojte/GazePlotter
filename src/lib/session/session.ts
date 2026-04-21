@@ -8,7 +8,7 @@ import { ToastState } from '$lib/toaster/toastState.svelte'
 import { GridState } from '$lib/workspace/grid/store.svelte'
 import { WorkspaceService } from '$lib/workspace/service.svelte'
 
-const GAZEPLOTTER_SESSION_CONTEXT = Symbol('gazeplotter-session')
+const GAZEPLOTTER_SESSION_CONTEXT = Symbol.for('gazeplotter-session')
 
 export type GazePlotterSession = {
   engine: DataEngine
@@ -80,3 +80,4 @@ export function getGazePlotterSession(): GazePlotterSession {
     'GazePlotter session is not available. Access it from within a GazePlotter tree or pass dependencies explicitly.'
   )
 }
+

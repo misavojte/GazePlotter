@@ -8,7 +8,7 @@
   import { getBarPlotData } from '$lib/plots/bar/core/transformer'
   import { barPlotValueAxisSync } from '$lib/plots/bar/core/sync.svelte'
   import { createAdaptiveTimeline } from '$lib/plots/shared'
-  import { resolveInstanceWithFallback } from '$lib/metrics'
+  import { resolveInstance } from '$lib/metrics'
 
   import type { BarPlotItem } from '$lib/plots/bar/types'
   import { getBarPlotAxisLabel } from '$lib/plots/bar/const'
@@ -25,11 +25,7 @@
   const labelededBarPlotData = $derived(barPlotResult.data)
 
   const resolvedInstance = $derived(
-    resolveInstanceWithFallback(
-      settings.metricInstanceId ?? null,
-      'absoluteTime',
-      engine.metadata?.metricInstances ?? [],
-    )
+    resolveInstance(engine.metadata?.metricInstances ?? [], settings.metricInstanceId ?? null)
   )
   const syncKey = $derived(resolvedInstance?.id ?? -1)
 
@@ -89,6 +85,7 @@
       barSpacing={20}
       onDataHover={() => {}}
       statisticalOverlay={settings.statisticalOverlay}
+      noMetric={barPlotResult.noMetric ?? false}
     />
   {/snippet}
 </BasePlot>

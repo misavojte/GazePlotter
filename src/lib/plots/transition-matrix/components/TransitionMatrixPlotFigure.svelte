@@ -10,6 +10,7 @@
     finishCanvasDrawing,
     canvasLifecycleAction,
   } from '$lib/plots/shared/canvasUtils'
+  import { drawCanvasPlaceholder } from '$lib/plots/shared/drawCanvasPlaceholder'
   import {
     TRANSITION_MATRIX_LAYOUT,
     TRANSITION_MATRIX_DEFAULTS,
@@ -46,6 +47,7 @@
     marginRight = 0,
     marginBottom = 0,
     marginLeft = 0,
+    noMetric = false,
   } = $props<{
     TransitionMatrix: Float64Array | number[]
     aoiLabels: string[]
@@ -65,6 +67,7 @@
     marginRight?: number
     marginBottom?: number
     marginLeft?: number
+    noMetric?: boolean
   }>()
 
   let canvas = $state<HTMLCanvasElement | null>(null)
@@ -106,14 +109,17 @@
   // The matrix body is the only blocked region: its gradient legend is
   // static (no clickable cells), so chrome around either one — title,
   // axis labels, padding, the legend itself — stays selectable.
-  const blockedRegions = $derived<BlockedRegion[]>([
-    {
-      x: layout.xOffset,
-      y: layout.yOffset,
-      w: layout.gridWidth,
-      h: layout.gridHeight,
-    },
-  ])
+  const blockedRegions = $derived.by<BlockedRegion[]>(() => {
+    if (noMetric || aoiLabels.length === 0) return []
+    return [
+      {
+        x: layout.xOffset,
+        y: layout.yOffset,
+        w: layout.gridWidth,
+        h: layout.gridHeight,
+      },
+    ]
+  })
 
   function isBelowMinimum(value: number): boolean {
     return value < colorValueRange[0]
@@ -161,6 +167,12 @@
     beginCanvasDrawing(plot.canvasState, true)
     const ctx = plot.canvasState.context
     if (!ctx) return
+
+    if (noMetric) {
+      drawCanvasPlaceholder(ctx, width, height, 'Select a metric')
+      finishCanvasDrawing(plot.canvasState)
+      return
+    }
 
     if (aoiLabels.length === 0) {
       ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`

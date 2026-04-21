@@ -7,7 +7,6 @@ import {
   getStimuliOptions,
   getParticipantsGroupOptions,
 } from '$lib/plots/shared'
-import { findSystemInstanceIdByBaseId } from '$lib/metrics'
 import type { BarPlotSettings } from './types'
 
 export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
@@ -36,7 +35,7 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
     barPlottingType: 'horizontal',
     orderBy: 'aoi',
     orderDirection: 'asc',
-    metricInstanceId: findSystemInstanceIdByBaseId('absoluteTime'),
+    metricInstanceId: null,
     scaleRange: [0, 0],
     statisticalOverlay: 'meanCi95',
   }),
