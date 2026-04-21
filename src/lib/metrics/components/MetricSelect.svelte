@@ -5,6 +5,8 @@
   import { getGazePlotterSession } from '$lib/session'
   import { portal } from '$lib/context-menu/utils'
   import { metricLibraryModal } from '$lib/modals/definitions'
+  import { untrack } from 'svelte'
+  import InputScaffold from '$lib/shared/components/InputScaffold.svelte'
   import {
     formatParamReadout,
     formatProjectionReadout,
@@ -51,6 +53,10 @@
   let triggerEl = $state<HTMLButtonElement | null>(null)
   let dropdownEl = $state<HTMLDivElement | null>(null)
   let dropdownStyle = $state('')
+
+  const triggerId = `metric-select-${untrack(() =>
+    (label ?? 'metric').toLowerCase().replace(/\s+/g, '-')
+  )}`
 
   /** Instances filtered by the contract descriptor. The rest of the component
    *  operates on this filtered view, so callers can safely pass the raw
@@ -129,34 +135,38 @@
   }
 </script>
 
-<div class="metric-select">
-  {#if label}
-    <label class="select-label">{label}</label>
-  {/if}
-  <button
-    bind:this={triggerEl}
-    class="trigger"
-    class:open={isOpen}
-    onclick={toggle}
-    aria-expanded={isOpen}
-    aria-haspopup="listbox"
-    type="button"
-  >
-    <span class="trigger-body">
-      <span
-        class="trigger-line1"
-        class:placeholder={!visibleInstances.some(i => selectedSet.has(i.id))}
+<InputScaffold label={label ?? ''} showLabel={!!label} id={triggerId} compact={true}>
+  <div class="metric-select-container">
+    <div class="select-wrapper compact">
+      <button
+        id={triggerId}
+        bind:this={triggerEl}
+        class="trigger compact"
+        class:open={isOpen}
+        onclick={toggle}
+        aria-expanded={isOpen}
+        aria-haspopup="listbox"
+        type="button"
       >
-        {triggerLine1}
-      </span>
-      {#if triggerLine2}
-        <span class="trigger-line2">{triggerLine2}</span>
-      {/if}
-    </span>
-    <span class="chevron" class:rotated={isOpen}>
-      <ChevronDown size={14} strokeWidth={1.5} />
-    </span>
-  </button>
+        <span class="trigger-content">
+          <span
+            class="label"
+            class:placeholder={!visibleInstances.some(i => selectedSet.has(i.id))}
+          >
+            {triggerLine1}
+          </span>
+          <div class="svg-wrap" class:open={isOpen}>
+            <ChevronDown strokeWidth={1} />
+          </div>
+        </span>
+      </button>
+    </div>
+
+    {#if triggerLine2}
+      <div class="param-detail">
+        Parameters: {triggerLine2}
+      </div>
+    {/if}
 
   {#if isOpen}
     <div
@@ -213,98 +223,138 @@
       {/if}
     </div>
   {/if}
-</div>
+  </div>
+</InputScaffold>
 
 <style>
-  .metric-select {
+  .metric-select-container {
     width: 100%;
     position: relative;
     display: flex;
     flex-direction: column;
     gap: 4px;
-    /* Intrinsic breathing room below — padding is part of the box and survives
-       flex/gap interactions and third-party margin resets. */
-    padding-bottom: 10px;
     box-sizing: border-box;
   }
 
-  .select-label {
-    font-size: 12px;
-    color: var(--c-darkgrey);
-    font-weight: 400;
-    line-height: 1.2;
-    letter-spacing: 0.01em;
+  .select-wrapper {
+    position: relative;
+    width: 100%;
+    user-select: none;
+  }
+
+  .select-wrapper.compact {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    margin-bottom: 0;
   }
 
   .trigger {
-    width: 100%;
     background: var(--c-white);
     border: 1px solid var(--c-midgrey);
     border-radius: var(--rounded-md);
-    padding: 10px 28px 10px 10px;
+    height: 34px;
+    padding: 0.25em 0.5em;
+    padding-right: 22px;
+    font-size: 13px;
+    color: var(--c-black);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: space-between;
     position: relative;
-    transition:
-      background 0.15s,
-      color 0.15s;
+    transition: all 0.2s ease;
+    font-weight: 400;
+    line-height: 1.5rem;
+    letter-spacing: 0.00938em;
+    width: 100%;
     box-sizing: border-box;
-    text-align: left;
-    /* Visibly taller than a plain Select (34px) — the box needs room around
-       the two-line name + params subtitle, not just room for it to fit. */
-    height: 42px;
-    flex-shrink: 0;
   }
 
-  .trigger:hover,
+  .trigger.compact {
+    height: 30px;
+    font-size: 12px;
+    padding-left: 14px;
+    padding-right: 22px;
+  }
+
+  .select-wrapper:hover .trigger {
+    background: #f6f7f9;
+    color: var(--c-brand);
+  }
+
   .trigger.open {
     background: #f6f7f9;
+    color: var(--c-brand);
   }
 
-  .trigger-body {
+  .trigger:focus-visible {
+    outline: 2px solid var(--c-primary, #1976d2);
+    outline-offset: 2px;
+  }
+
+  .trigger-content {
     display: flex;
-    flex-direction: column;
-    gap: 0;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
     min-width: 0;
-    flex: 1;
   }
 
-  .trigger-line1 {
-    font-size: 11.5px;
-    color: var(--c-black);
-    line-height: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .trigger-line1.placeholder {
-    color: var(--c-darkgrey);
-  }
-
-  .trigger-line2 {
-    font-size: 9px;
-    color: var(--c-darkgrey);
-    line-height: 1;
-    margin-top: 3px;
+  .trigger-content > .label {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  .chevron {
+  .label.placeholder {
+    color: var(--c-darkgrey);
+  }
+
+  .svg-wrap {
     position: absolute;
-    right: 6px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--c-darkgrey);
-    line-height: 0;
+    right: 3px;
+    top: 0;
+    height: 100%;
+    width: 15px;
     pointer-events: none;
-    transition: transform 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--c-darkgrey);
+    transition:
+      transform 0.2s ease,
+      color 0.2s ease;
   }
-  .chevron.rotated {
-    transform: translateY(-50%) rotate(180deg);
+
+  .select-wrapper:hover .svg-wrap,
+  .trigger:focus-visible .svg-wrap {
+    color: var(--c-brand);
+  }
+
+  .trigger.open .svg-wrap {
+    color: var(--c-brand);
+  }
+
+  .svg-wrap.open {
+    transform: rotate(180deg);
+  }
+
+  .param-detail {
+    color: var(--c-darkgrey);
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    max-width: 100%;
+    box-sizing: border-box;
+    /* Optional indent or subtle padding so it aligns nicely under the select wrapper,
+       but leaving raw margins is fine too since select-wrapper handles core layout. */
+    padding-left: 2px;
   }
 
   /* Dropdown */
