@@ -1,6 +1,6 @@
 <script lang="ts">
   import { PaneSection } from '$lib/workspace/pane'
-  import { InputNumber, Select } from '$lib/shared/components'
+  import { InputNumber, Select, InputCheck, InputColor } from '$lib/shared/components'
   import { ColorGradientPicker } from '$lib/color'
   import {
     getStimuliOptions,
@@ -165,9 +165,53 @@
   <ColorGradientPicker bind:colorMin bind:colorMiddle bind:colorMax />
 </PaneSection>
 
+<PaneSection title="Out of bounds">
+  <div class="inline-pair">
+    <InputColor
+      label="Below min"
+      size="xs"
+      value={settings.belowMinColor}
+      oninput={(e: CustomEvent<string>) => update({ belowMinColor: e.detail })}
+      width={40}
+    />
+    <div class="oob-check">
+      <InputCheck
+        label="Show text"
+        appearance="compact"
+        size="xs"
+        checked={settings.showBelowMinLabels}
+        onchange={e => update({ showBelowMinLabels: (e as CustomEvent<boolean>).detail })}
+      />
+    </div>
+  </div>
+  <div class="inline-pair">
+    <InputColor
+      label="Above max"
+      size="xs"
+      value={settings.aboveMaxColor}
+      oninput={(e: CustomEvent<string>) => update({ aboveMaxColor: e.detail })}
+      width={40}
+    />
+    <div class="oob-check">
+      <InputCheck
+        label="Show text"
+        appearance="compact"
+        size="xs"
+        checked={settings.showAboveMaxLabels}
+        onchange={e => update({ showAboveMaxLabels: (e as CustomEvent<boolean>).detail })}
+      />
+    </div>
+  </div>
+</PaneSection>
+
 <style>
   .inline-pair {
     display: flex;
     gap: 8px;
+    align-items: flex-end;
+  }
+
+  .oob-check {
+    padding-bottom: 2px;
   }
 </style>

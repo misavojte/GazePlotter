@@ -52,7 +52,7 @@
     isRelative
       ? 'Time range [ms]'
       : isOrdinal
-        ? 'Ordinal range'
+        ? 'Ordinal range [indices]'
         : 'Time range [ms]'
   )
   const rangeStart = $derived(
@@ -102,29 +102,32 @@
       update({ timeline: v })
     }}
   />
+  </PaneSection>
+  
   {#if !isRelative}
-    <div class="inline-pair">
-      <InputNumber
-        id="scarf-range-start"
-        label="Start"
-        value={rangeStart}
-        min={0}
-        appearance="compact"
-        allowEmpty={true}
-        onValueChange={v => updateRange('start', v)}
-      />
-      <InputNumber
-        id="scarf-range-end"
-        label="End (0 = Auto)"
-        value={rangeEnd}
-        min={0}
-        appearance="compact"
-        allowEmpty={true}
-        onValueChange={v => updateRange('end', v)}
-      />
-    </div>
+    <PaneSection title={rangeTitle}>
+      <div class="inline-pair">
+        <InputNumber
+          id="scarf-range-start"
+          label="Start"
+          value={rangeStart}
+          min={0}
+          appearance="compact"
+          allowEmpty={true}
+          onValueChange={v => updateRange('start', v)}
+        />
+        <InputNumber
+          id="scarf-range-end"
+          label="End (0 = Auto)"
+          value={rangeEnd}
+          min={0}
+          appearance="compact"
+          allowEmpty={true}
+          onValueChange={v => updateRange('end', v)}
+        />
+      </div>
+    </PaneSection>
   {/if}
-</PaneSection>
 
 {#if showDisplayMode}
   <PaneSection title="Event display">

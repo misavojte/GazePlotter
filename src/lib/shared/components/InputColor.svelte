@@ -4,6 +4,7 @@
   import { getContrastTextColor, detectColorFormat } from '$lib/color/utility'
   import { untrack } from 'svelte'
   import { fade } from 'svelte/transition'
+  import { isInPane } from './paneContext'
 
   /**
    * Color picker input component wrapper.
@@ -17,6 +18,8 @@
     width?: number
     showLabel?: boolean
     ariaLabel?: string
+    compact?: boolean
+    size?: 'xs' | 'sm' | 'md' | 'lg'
     oninput?: (event: CustomEvent<string>) => void
   }
 
@@ -27,8 +30,13 @@
     width = $bindable(125),
     showLabel = true,
     ariaLabel,
+    compact = false,
+    size = 'sm',
     oninput = () => {},
   }: Props = $props()
+
+  const inPane = isInPane()
+  const isCompact = $derived(compact || inPane)
 
   // Controller for the color picker popup logic
   const picker = new ColorPickerManager()
@@ -61,12 +69,14 @@
   {label}
   id={inputId}
   showLabel={showLabel}
+  compact={isCompact}
 >
   <div class="color-input-container">
     <button
       id={inputId}
       type="button"
-      class="color-preview"
+      class="color-preview size-{size}"
+      class:compact={isCompact}
       onclick={() => picker.toggle()}
       aria-label={ariaLabel ?? (!showLabel ? label : undefined)}
       style:background-color={formatColorValue}
@@ -115,6 +125,20 @@
     cursor: pointer;
     background-color: white;
     transition: all 0.2s;
+  }
+
+  .color-preview.compact {
+    height: 30px;
+    font-size: 12px;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+  }
+
+  .color-preview.size-xs {
+    height: 24px;
+    font-size: 10px;
+    padding: 0 4px;
+    border-radius: var(--rounded-sm, 4px);
   }
 
   .color-preview:hover {
