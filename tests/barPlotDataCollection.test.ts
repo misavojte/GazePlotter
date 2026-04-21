@@ -48,7 +48,7 @@ function createMockEngine(segments: number[][][][]) {
 const STIM = 1
 
 function inst(baseId: string): MetricInstance {
-  return { id: 0, baseId, params: {}, label: '', projection: { kind: 'identity-aoi-vector' } }
+  return { id: 't1', baseId, params: {}, label: '', projection: { kind: 'identity-aoi-vector' } }
 }
 
 function scope(engine: any, participantId: number, tStart = 0, tEnd = 0): Scope {

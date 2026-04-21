@@ -27,7 +27,7 @@
   const resolvedInstance = $derived(
     resolveInstance(engine.metadata?.metricInstances ?? [], settings.metricInstanceId ?? null)
   )
-  const syncKey = $derived(resolvedInstance?.id ?? -1)
+  const syncKey = $derived(resolvedInstance?.id ?? null)
 
   const hasCustomScale = $derived(
     settings.scaleRange !== undefined &&
@@ -35,7 +35,7 @@
   )
 
   $effect(() => {
-    if (hasCustomScale || syncKey < 0) {
+    if (hasCustomScale || syncKey === null) {
       barPlotValueAxisSync.clearEntry(item.id)
       return
     }
@@ -50,7 +50,7 @@
 
   const timeline = $derived.by(() => {
     const raw = barPlotResult.timeline
-    if (hasCustomScale || syncKey < 0) return raw
+    if (hasCustomScale || syncKey === null) return raw
 
     const syncedMax = barPlotValueAxisSync.getSyncedMax(
       syncKey,

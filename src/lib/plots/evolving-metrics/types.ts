@@ -4,7 +4,7 @@ import type { PlotItemContract } from '$lib/plots/definePlot'
 export type EvolvingMetricsSettings = {
   stimulusId: number
   groupId: number
-  selectedMetricId: number | null
+  selectedMetricId: string | null
   presentation?: 'heatmap' | 'overlay'
   colorScale?: string[]
   timelineStart?: number

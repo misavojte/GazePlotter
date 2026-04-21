@@ -10,13 +10,6 @@ defineMetric({
   windowUnit: 'ms',
   searchTags: ['dwell', 'gaze', 'time', 'absolute', 'total', 'duration', 'aoi'],
   params: [] as const,
-  starterInstances: [{
-    projection: {
-      kind: 'windowed',
-      window: { mode: 'epoch', windowSize: 2000 },
-      inner: { kind: 'aggregate-aoi', reducer: 'mean' },
-    },
-  }],
   init: ({ slots }) => new Float64Array(slots.totalSlots),
   onFixation: (acc, { duration, slots }, { slots: info }) => {
     acc[info.anyFixationSlot] += duration

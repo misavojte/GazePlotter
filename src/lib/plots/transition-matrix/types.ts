@@ -9,7 +9,7 @@ export type TransitionMatrixPlotSettings = {
    * Presentation transforms (probability, relative frequency, mean dwell) live on
    * the metric itself — the plot just renders whatever matrix the metric produces.
    */
-  metricInstanceId: number | null
+  metricInstanceId: string | null
   stimuliColorValueRanges: [number, number][]
   belowMinColor: string
   aboveMaxColor: string

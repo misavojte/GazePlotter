@@ -84,7 +84,7 @@ export function getMetricCorrelationData(
 }
 
 function resolveMetrics(
-  enabledIds: number[],
+  enabledIds: readonly string[],
   workspaceInstances: readonly MetricInstance[] | undefined
 ): { metrics: MetricDescriptor[]; instances: MetricInstance[] } {
   const library: readonly MetricInstance[] = workspaceInstances ?? []
@@ -98,7 +98,7 @@ function resolveMetrics(
   for (const inst of selected) {
     const metric = getMetric(inst.baseId)
     if (!metric) continue
-    metrics.push({ id: String(inst.id), label: inst.label, unit: metric.meta.unit })
+    metrics.push({ id: inst.id, label: inst.label, unit: metric.meta.unit })
     instances.push(inst)
   }
   return { metrics, instances }

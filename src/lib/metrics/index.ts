@@ -32,18 +32,15 @@ export {
 } from './registry'
 export {
   buildStarterInstances,
-  createSystemMetricInstances,
-  createDefaultWindowedInstances,
-  createDefaultAoiPairInstances,
   createDefaultMetricInstances,
-  findSystemInstanceIdByBaseId,
-  nextInstanceId,
   resolveInstance,
   defaultInstanceLabel,
   formatParamReadout,
   formatProjectionReadout,
   makeLeafInstance,
 } from './instances'
+export { STARTING_METRICS } from './startingMetrics'
+export type { StartingMetricSpec } from './startingMetrics'
 
 // ─── Projection surface ────────────────────────────────────────────────────
 export {
@@ -88,7 +85,6 @@ export type {
   FixationEvent,
   OutputShape,
   WindowUnit,
-  StarterSpec,
 } from './core/dsl'
 export type { ParamDef, ParamType, ParamsOf } from './core/params'
 export type { MetricInstance } from './instances'

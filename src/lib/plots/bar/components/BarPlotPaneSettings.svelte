@@ -34,7 +34,7 @@
     getParticipantsGroupOptions(engine, true, settings.stimulusId)
   )
 
-  function onMetricChange(ids: number[]) {
+  function onMetricChange(ids: string[]) {
     update({ metricInstanceId: ids[0] ?? null })
   }
 
@@ -43,10 +43,10 @@
     params: Record<string, unknown>,
     label: string,
     projection: Projection,
-    replacingId?: number,
+    replacingId?: string,
   ) {
     const list = [...(engine.metadata?.metricInstances ?? [])]
-    const nextId = Math.max(0, ...list.map(i => i.id)) + 1
+    const nextId = crypto.randomUUID()
     const next: MetricInstance = { id: nextId, baseId, params, label, projection }
     if (replacingId !== undefined) {
       const idx = list.findIndex(i => i.id === replacingId)
@@ -58,12 +58,12 @@
     if (replacingId === undefined) update({ metricInstanceId: nextId })
   }
 
-  function onDeleteInstance(id: number) {
+  function onDeleteInstance(id: string) {
     const list = (engine.metadata?.metricInstances ?? []).filter(i => i.id !== id)
     engine.setMetricInstances(list)
   }
 
-  function onRenameInstance(id: number, label: string) {
+  function onRenameInstance(id: string, label: string) {
     const list = (engine.metadata?.metricInstances ?? []).map(i =>
       i.id === id ? { ...i, label } : i
     )

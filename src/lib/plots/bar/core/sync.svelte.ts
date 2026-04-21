@@ -12,7 +12,7 @@
  */
 
 interface SyncEntry {
-  metricInstanceId: number
+  metricInstanceId: string
   w: number
   h: number
   dataMax: number
@@ -36,7 +36,7 @@ class BarPlotValueAxisSync {
    * Returns 0 when no plot matches — callers should fall back to their own
    * data max in that case.
    */
-  getSyncedMax(metricInstanceId: number, w: number, h: number): number {
+  getSyncedMax(metricInstanceId: string, w: number, h: number): number {
     let max = 0
     for (const id in this.#entries) {
       const e = this.#entries[id]

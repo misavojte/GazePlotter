@@ -23,7 +23,7 @@ type ComputeFn = (
 
 function _computeAtSlot(baseId: string): ComputeFn {
   const inst: MetricInstance = {
-    id: 0, baseId, params: {}, label: '',
+    id: '', baseId, params: {}, label: '',
     projection: { kind: 'identity-aoi-vector' },
   }
   return (engine, stimulusId, participantId, aoiIdx) => {

@@ -36,7 +36,7 @@ export type BarPlotSettings = {
   barPlottingType: 'vertical' | 'horizontal'
   orderBy: 'value' | 'aoi'
   orderDirection: 'asc' | 'desc'
-  metricInstanceId: number | null
+  metricInstanceId: string | null
   scaleRange: [number, number]
   timelineStart?: number
   timelineEnd?: number

@@ -26,7 +26,7 @@ describe('gridItemFactory', () => {
     expect(item.settings).toMatchObject({
       stimulusId: 3,
       groupId: -1,
-      metricInstanceId: 1,
+      metricInstanceId: null,
     })
   })
 

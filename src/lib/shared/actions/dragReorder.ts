@@ -1,20 +1,20 @@
-export interface DragReorderConfig {
+export interface DragReorderConfig<TId = number> {
   /** Selector for draggable item (e.g. '.aoi-card', '.accordion-item') */
   itemSelector: string
   /** Selector for container holding all items (e.g. '.aoi-grid', '.accordion') */
   containerSelector: string
   /** Called on drag start — modal sets its drag state */
-  onDragStart?: (itemId: number) => void
+  onDragStart?: (itemId: TId) => void
   /** Called on drag end — modal clears its drag state */
   onDragEnd?: () => void
   /** Called when items should swap — modal performs its own array reorder */
   onReorder: (fromIndex: number, toIndex: number) => void
 }
 
-export function createDragReorder(
-  config: DragReorderConfig
-): (node: HTMLElement, itemId: number) => { destroy(): void } {
-  return (node: HTMLElement, itemId: number) => {
+export function createDragReorder<TId = number>(
+  config: DragReorderConfig<TId>
+): (node: HTMLElement, itemId: TId) => { destroy(): void } {
+  return (node: HTMLElement, itemId: TId) => {
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return
       e.preventDefault()

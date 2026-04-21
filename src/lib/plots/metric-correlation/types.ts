@@ -18,7 +18,7 @@ export type MetricCorrelationSettings = {
    * and participant×AOI modes are statistically unsound (ecological fallacy,
    * pseudo-replication) and are deliberately not shipped.
    */
-  enabledMetricIds: number[]
+  enabledMetricIds: string[]
   timelineStart?: number
   timelineEnd?: number
 }

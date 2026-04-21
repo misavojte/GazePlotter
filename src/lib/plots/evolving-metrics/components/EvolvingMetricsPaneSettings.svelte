@@ -89,7 +89,7 @@
     oncreateInstance={(baseId, params, label, projection, replacingId) => {
       if (replacingId != null) engine.deleteMetricInstance(replacingId)
       const newId = engine.addMetricInstance(baseId, params, label, projection)
-      if (newId >= 0) update({ selectedMetricId: newId })
+      if (newId !== null) update({ selectedMetricId: newId })
     }}
     ondeleteInstance={id => {
       engine.deleteMetricInstance(id)

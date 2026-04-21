@@ -26,10 +26,6 @@ defineMetric({
       : 'Transition count (fixation pairs)',
   searchTags: ['transition', 'matrix', 'pair', 'aoi', 'count', 'sequence', 'markov'],
   params,
-  starterInstances: [
-    { params: { mode: 'fixation' } },
-    { params: { mode: 'visit' } },
-  ],
   init: ({ slots }) => initTransitionAcc(slots.totalSlots),
   onFixation: (acc, fix, { params: p }) => {
     processFixation(acc, fix, p.mode, (cellIdx) => { acc.matrix[cellIdx]++ })

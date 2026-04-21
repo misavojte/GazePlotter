@@ -42,9 +42,6 @@ defineMetric({
   },
   searchTags: ['transition', 'probability', 'markov', 'chain', 'aoi', 'pair', 'k-step'],
   params,
-  starterInstances: [
-    { params: { mode: 'fixation', step: 1 } },
-  ],
   init: ({ slots }) => initTransitionAcc(slots.totalSlots),
   onFixation: (acc, fix, { params: p }) => {
     processFixation(acc, fix, p.mode, (cellIdx) => { acc.matrix[cellIdx]++ })

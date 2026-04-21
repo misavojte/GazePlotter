@@ -1,15 +1,9 @@
-import {
-  createSystemMetricInstances,
-  createDefaultWindowedInstances,
-  createDefaultAoiPairInstances,
-  findSystemInstanceIdByBaseId,
-  identityFor,
-} from '$lib/metrics'
-import { PROJECTION_LEAVES } from '$lib/metrics'
-import { getRecipe } from '$lib/metrics/core/defineMetric'
-import type { LeafProjection, Projection, WindowSpec } from '$lib/metrics'
-import type { OutputShape } from '$lib/metrics'
 import { LEGACY_VISUALIZATION_TYPES } from '$lib/plots/registry'
+import {
+  createDefaultMetricInstances,
+  defaultInstanceLabel,
+  type MetricInstance,
+} from '$lib/metrics/instances'
 
 const CORE_LAYOUT_KEYS = new Set([
   'id',
@@ -23,7 +17,7 @@ const CORE_LAYOUT_KEYS = new Set([
 ])
 
 /**
- * Sequentially upgrades raw JSON data to the current Version 4 schema.
+ * Sequentially upgrades raw JSON data to the current schema.
  * Operates entirely on raw data objects to ensure Web Worker safety.
  */
 export function runMigrations(parsedJson: any): any {
@@ -129,13 +123,20 @@ export function runMigrations(parsedJson: any): any {
     version = 4
   }
 
-  // V4 to V5: Migrate dynamicVisibility → eventData
+  // V4 to V5: consolidated migration for the 1.9.0 metrics refactor.
+  //   1. Materialize `eventData` from legacy `aois.dynamicVisibility`.
+  //   2. Seed `payload.metricInstances` with the slug-keyed starter library.
+  //   3. Translate legacy plot settings to reference that library:
+  //      - barPlot:          aggregationMethod (string) → metricInstanceId (slug)
+  //      - transitionMatrix: aggregationMethod (string) → metricInstanceId
+  //        (slug for the 4 starter-backed methods; new UUID-keyed custom
+  //        instance for frequencyRelative / probability2 / probability3).
   if (version === 4) {
     const payload = data.data
     const stimuliCount: number = payload.stimuli?.data?.length ?? 0
-
     const participantCount: number = payload.participants?.data?.length ?? 0
 
+    // 1. dynamicVisibility → eventData
     const eventDataData: string[][][] = Array.from(
       { length: stimuliCount },
       () => [] as string[][]
@@ -219,202 +220,88 @@ export function runMigrations(parsedJson: any): any {
       events: eventDataEvents,
     }
 
-    data = { ...data, version: 5, data: payload }
-    version = 5
-  }
+    // 2. Seed metric-instance library with the slug-keyed starter set.
+    const metricInstances: MetricInstance[] = createDefaultMetricInstances()
+    payload.metricInstances = metricInstances
 
-  // V5 to V6: Seed metric instances on metadata and translate
-  // metric-correlation plots' `enabledMetrics: string[]` → `enabledMetricIds: number[]`
-  if (version === 5) {
-    const payload = data.data
-    if (!Array.isArray(payload.metricInstances)) {
-      payload.metricInstances = createSystemMetricInstances()
+    // 3. Translate legacy plot settings.
+    // Slugs below match STARTING_METRICS in src/lib/metrics/startingMetrics.ts.
+    const BAR_BASEID_TO_SLUG: Record<string, string> = {
+      absoluteTime:             'absoluteTime',
+      relativeTime:             'relativeTime',
+      averageEntries:           'visitCount',
+      avgDwellDuration:         'visitDuration',
+      averageFixationCount:     'fixationCount',
+      avgFixationDuration:      'fixationDuration',
+      timeToFirstFixation:      'timeToFirstFixation',
+      avgFirstFixationDuration: 'firstFixationDuration',
     }
 
-    if (Array.isArray(data.gridItems)) {
-      data.gridItems = data.gridItems.map((item: any) => {
-        if (item?.type !== 'metricCorrelation') return item
-        const settings = item.settings ?? {}
-        if (Array.isArray(settings.enabledMetricIds)) return item
-
-        const rawLegacy: unknown = settings.enabledMetrics
-        const legacy: string[] =
-          Array.isArray(rawLegacy) && rawLegacy.length > 0
-            ? rawLegacy.filter((s): s is string => typeof s === 'string')
-            : // Empty legacy array meant "all" — keep that semantics by
-              // selecting every system id.
-              (payload.metricInstances ?? createSystemMetricInstances())
-                .filter((i: any) => i?.system)
-                .map((i: any) => i.baseId as string)
-
-        const enabledMetricIds = legacy
-          .map(baseId => findSystemInstanceIdByBaseId(baseId))
-          .filter((id): id is number => id !== null)
-
-        const { enabledMetrics: _drop, ...rest } = settings
-        return {
-          ...item,
-          settings: { ...rest, enabledMetricIds },
-        }
-      })
-    }
-
-    data = { ...data, version: 6, data: payload }
-    version = 6
-  }
-
-  // V6 to V7: Seed default windowed metric instances
-  if (version === 6) {
-    const payload = data.data
-    const windowed = createDefaultWindowedInstances()
-    const existing: any[] = Array.isArray(payload.metricInstances)
-      ? payload.metricInstances
-      : []
-    const existingIds = new Set(existing.map((i: any) => i.id))
-    for (const w of windowed) {
-      if (!existingIds.has(w.id)) existing.push(w)
-    }
-    payload.metricInstances = existing
-    data = { ...data, version: 7, data: payload }
-    version = 7
-  }
-
-  // V7 to V8: Seed aoi-pair-matrix defaults + migrate transition-matrix settings.
-  // Transforms moved from the plot (display + probabilityStep) onto the metrics
-  // themselves. The plot now stores only `metricInstanceId`. Old aggregation
-  // methods without a matching pre-curated default (e.g. 'frequencyRelative',
-  // 'probability2') trigger on-demand creation of custom instances.
-  if (version === 7) {
-    const payload = data.data
-    const pairs = createDefaultAoiPairInstances()
-    const existing: any[] = Array.isArray(payload.metricInstances)
-      ? payload.metricInstances
-      : []
-    const existingIds = new Set(existing.map((i: any) => i.id))
-    for (const p of pairs) if (!existingIds.has(p.id)) existing.push(p)
-
-    // Deterministic ID layout from createDefaultAoiPairInstances given current
-    // registration order (transitionCount → Probability → DwellMean):
-    //   50 = transitionCount         {mode: fixation}
-    //   51 = transitionCount         {mode: visit}
-    //   52 = transitionProbability   {mode: fixation, step: 1}
-    //   53 = transitionDwellMean     {mode: fixation}
-    //   54 = transitionDwellMean     {mode: visit}
-    const SEEDED_COUNT_FIX = 50
-    const SEEDED_PROB_FIX = 52
-    const SEEDED_DWELL_FIX = 53
-    const SEEDED_DWELL_VISIT = 54
-
-    // Cache of on-demand custom instances so repeated grid items reusing the
-    // same aggregationMethod share a single instance id.
-    const customCache = new Map<string, number>()
-    const nextId = () => {
-      let max = 1000 - 1
-      for (const i of existing) if (typeof i.id === 'number' && i.id > max) max = i.id
-      return max + 1
-    }
-    function ensureCustom(baseId: string, params: Record<string, unknown>, label: string): number {
+    // Cache of on-demand custom instances so repeated grid items sharing
+    // the same legacy aggregationMethod share a single MetricInstance.
+    const customCache = new Map<string, string>()
+    function ensureCustomMatrix(
+      baseId: string,
+      params: Record<string, unknown>,
+    ): string {
       const key = `${baseId}|${JSON.stringify(params)}`
       const cached = customCache.get(key)
       if (cached !== undefined) return cached
-      const id = nextId()
-      existing.push({ id, baseId, params, label })
+      const id = crypto.randomUUID()
+      const projection = { kind: 'identity-aoi-pair-matrix' as const }
+      metricInstances.push({
+        id,
+        baseId,
+        params,
+        projection,
+        label: defaultInstanceLabel(baseId, params, projection),
+      })
       customCache.set(key, id)
       return id
     }
 
-    function mapAggregationMethod(method: string): number {
+    function mapTransitionAggregation(method: unknown): string {
       switch (method) {
-        case 'sum':              return SEEDED_COUNT_FIX
-        case 'probability':      return SEEDED_PROB_FIX
-        case 'dwellTime':        return SEEDED_DWELL_FIX
-        case 'segmentDwellTime': return SEEDED_DWELL_VISIT
+        case 'sum':              return 'transitionCount-fix'
+        case 'probability':      return 'transitionProbability-fix'
+        case 'dwellTime':        return 'transitionDwellMean-fix'
+        case 'segmentDwellTime': return 'transitionDwellMean-visit'
         case 'frequencyRelative':
-          return ensureCustom(
-            'transitionRelativeFrequency',
-            { mode: 'fixation' },
-            'Transition relative frequency (fixation)',
-          )
+          return ensureCustomMatrix('transitionRelativeFrequency', { mode: 'fixation' })
         case 'probability2':
-          return ensureCustom(
-            'transitionProbability',
-            { mode: 'fixation', step: 2 },
-            'Transition probability (fixation, 2-step)',
-          )
+          return ensureCustomMatrix('transitionProbability', { mode: 'fixation', step: 2 })
         case 'probability3':
-          return ensureCustom(
-            'transitionProbability',
-            { mode: 'fixation', step: 3 },
-            'Transition probability (fixation, 3-step)',
-          )
-        default: return SEEDED_COUNT_FIX
+          return ensureCustomMatrix('transitionProbability', { mode: 'fixation', step: 3 })
+        default: return 'transitionCount-fix'
       }
     }
 
     if (Array.isArray(data.gridItems)) {
       data.gridItems = data.gridItems.map((item: any) => {
-        if (item?.type !== 'transitionMatrix') return item
-        const s = item.settings ?? {}
-        const metricInstanceId = mapAggregationMethod(s.aggregationMethod as string)
-        const { aggregationMethod: _drop, display: _drop2, probabilityStep: _drop3, ...rest } = s
-        return { ...item, settings: { ...rest, metricInstanceId } }
+        if (!item || typeof item.type !== 'string') return item
+        const s = item.settings
+        if (!s || typeof s !== 'object') return item
+
+        if (item.type === 'barPlot') {
+          const baseId =
+            typeof s.aggregationMethod === 'string' ? s.aggregationMethod : 'absoluteTime'
+          const metricInstanceId = BAR_BASEID_TO_SLUG[baseId] ?? 'absoluteTime'
+          const { aggregationMethod: _drop, ...rest } = s
+          return { ...item, settings: { ...rest, metricInstanceId } }
+        }
+
+        if (item.type === 'transitionMatrix') {
+          const metricInstanceId = mapTransitionAggregation(s.aggregationMethod)
+          const { aggregationMethod: _drop, ...rest } = s
+          return { ...item, settings: { ...rest, metricInstanceId } }
+        }
+
+        return item
       })
     }
 
-    payload.metricInstances = existing
-    data = { ...data, version: 8, data: payload }
-    version = 8
-  }
-
-  // V8 to V9: Migrate bar-plot settings from string `aggregationMethod` to
-  // `metricInstanceId` referencing the shared metric library. The 8 historical
-  // methods all map 1:1 to pre-curated system instances (ids 1–11).
-  if (version === 8) {
-    if (Array.isArray(data.gridItems)) {
-      data.gridItems = data.gridItems.map((item: any) => {
-        if (item?.type !== 'barPlot') return item
-        const s = item.settings ?? {}
-        const baseId =
-          typeof s.aggregationMethod === 'string' ? s.aggregationMethod : 'absoluteTime'
-        const metricInstanceId =
-          findSystemInstanceIdByBaseId(baseId) ??
-          findSystemInstanceIdByBaseId('absoluteTime')
-        const { aggregationMethod: _drop, ...rest } = s
-        return { ...item, settings: { ...rest, metricInstanceId } }
-      })
-    }
-    data = { ...data, version: 9 }
-    version = 9
-  }
-
-  // V9 to V10: fold legacy `windowing` field + old `{target, from}` projection
-  // shape into the unified `Projection` tree (LeafProjection | WindowedProjection).
-  // See feedback_no_legacy_remnants — no compat shim in the runtime, only in the
-  // migration itself. Lossy cases (bare-windowed aoi-vector / aoi-pair-matrix)
-  // degrade to `aggregate-aoi`/`matrix-aggregate` with reducer 'mean' and a warn.
-  if (version === 9) {
-    const payload = data.data
-    if (Array.isArray(payload.metricInstances)) {
-      payload.metricInstances = payload.metricInstances.map((inst: any) =>
-        migrateMetricInstanceV9toV10(inst),
-      )
-    }
-    data = { ...data, version: 10, data: payload }
-    version = 10
-  }
-
-  // V10 to V11: drop `system: true` from every metric instance. Every instance
-  // is now equally user-owned — no protected tier, no fallback restore.
-  if (version === 10) {
-    const payload = data.data
-    if (Array.isArray(payload.metricInstances)) {
-      payload.metricInstances = payload.metricInstances.map((inst: any) => {
-        const { system: _drop, ...rest } = inst
-        return rest
-      })
-    }
-    data = { ...data, version: 11, data: payload }
-    version = 11
+    data = { ...data, version: 5, data: payload }
+    version = 5
   }
 
   // Version-independent normalization: rewrite any legacy gridItem `type`
@@ -434,62 +321,4 @@ export function runMigrations(parsedJson: any): any {
   }
 
   return data
-}
-
-function migrateMetricInstanceV9toV10(inst: any): any {
-  // Already in the new format → pass through.
-  if (inst?.projection && typeof inst.projection.kind === 'string') return inst
-
-  const recipe = getRecipe(inst.baseId)
-  const rawShape: OutputShape = recipe?.rawShape ?? 'aoi-vector'
-
-  let innerLeaf: LeafProjection = inst.projection
-    ? translateOldLeaf(inst.projection, rawShape)
-    : identityFor(rawShape)
-
-  const old = inst.windowing
-  if (!old) {
-    const { projection: _dropP, windowing: _dropW, ...rest } = inst
-    return { ...rest, projection: innerLeaf }
-  }
-
-  const window: WindowSpec = {
-    mode: old.mode === 'sliding' ? 'sliding' : 'epoch',
-    windowSize: Number(old.windowSize) || 1,
-    ...(typeof old.stepSize === 'number' ? { stepSize: old.stepSize } : {}),
-  }
-
-  const leafOutput = PROJECTION_LEAVES[innerLeaf.kind].outputShape
-  if (leafOutput !== 'scalar') {
-    console.warn(
-      `[migration V9→V10] Metric instance "${inst.label ?? inst.baseId}" was a bare-windowed ${rawShape} metric; migrating lossy to aggregate-mean. Re-create with an explicit reducer in the library modal.`,
-    )
-    if (rawShape === 'aoi-vector') innerLeaf = { kind: 'aggregate-aoi', reducer: 'mean' }
-    else if (rawShape === 'aoi-pair-matrix') innerLeaf = { kind: 'matrix-aggregate', reducer: 'mean' }
-    else innerLeaf = { kind: 'identity-scalar' }
-  }
-
-  const projection: Projection = { kind: 'windowed', window, inner: innerLeaf }
-  const { projection: _dropP, windowing: _dropW, ...rest } = inst
-  return { ...rest, projection }
-}
-
-function translateOldLeaf(old: any, rawShape: OutputShape): LeafProjection {
-  const target: string | undefined = old?.target
-  const from:   string | undefined = old?.from
-  if (target === 'scalar'          && from === 'identity') return { kind: 'identity-scalar' }
-  if (target === 'aoi-vector'      && from === 'identity') return { kind: 'identity-aoi-vector' }
-  if (target === 'aoi-pair-matrix' && from === 'identity') return { kind: 'identity-aoi-pair-matrix' }
-  if (from === 'pick-aoi')         return { kind: 'pick-aoi',         aoiRef:  old.aoiRef }
-  if (from === 'aggregate-aoi')    return { kind: 'aggregate-aoi',    reducer: old.reducer }
-  if (from === 'matrix-diagonal')  return { kind: 'matrix-diagonal' }
-  if (from === 'matrix-row')       return { kind: 'matrix-row',       aoiRef:  old.aoiRef }
-  if (from === 'matrix-col')       return { kind: 'matrix-col',       aoiRef:  old.aoiRef }
-  if (from === 'matrix-cell')      return { kind: 'matrix-cell',      fromAoi: old.fromAoi, toAoi: old.toAoi }
-  if (from === 'matrix-aggregate') return {
-    kind: 'matrix-aggregate',
-    reducer: old.reducer,
-    ...(old.exclude === 'diagonal' ? { exclude: 'diagonal' as const } : {}),
-  }
-  return identityFor(rawShape)
 }

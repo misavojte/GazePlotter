@@ -30,7 +30,7 @@ export function generateWorkspaceJson(
       gridItems,
       fileMetadata,
     },
-    4
+    5
   )
 
   // 3. Encode to JSON string

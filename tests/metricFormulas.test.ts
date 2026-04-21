@@ -87,7 +87,7 @@ function inst(baseId: string, params: Record<string, unknown> = {}): MetricInsta
   // Tests focus on raw formulas — use aoi-vector identity as a safe default;
   // absoluteTime/etc. are aoi-vector and transition metrics explicitly override.
   return {
-    id: 0, baseId, params, label: '',
+    id: 't1', baseId, params, label: '',
     projection: baseId.startsWith('transition')
       ? { kind: 'identity-aoi-pair-matrix' }
       : baseId.startsWith('rqa')

@@ -37,7 +37,7 @@ import type {
 
 function resolveInstance(
   engine: DataEngine,
-  selectedMetricId: number | null,
+  selectedMetricId: string | null,
 ): MetricInstance | null {
   if (selectedMetricId === null) return null
   const meta = engine.metadata

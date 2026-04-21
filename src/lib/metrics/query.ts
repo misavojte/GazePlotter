@@ -59,8 +59,8 @@ export function query(instance: MetricInstance, scope: Scope): MetricResult {
  * Compute many instances in a single segment pass per participant. Windowed
  * instances fall back to the standard `query()` path (separate scans).
  */
-export function queryBatch(instances: readonly MetricInstance[], scope: Scope): Map<number, MetricResult> {
-  const out = new Map<number, MetricResult>()
+export function queryBatch(instances: readonly MetricInstance[], scope: Scope): Map<string, MetricResult> {
+  const out = new Map<string, MetricResult>()
   const windowed: MetricInstance[] = []
   const plain: MetricInstance[] = []
   for (const inst of instances) (inst.projection.kind === 'windowed' ? windowed : plain).push(inst)

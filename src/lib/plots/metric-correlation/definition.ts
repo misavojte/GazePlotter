@@ -37,7 +37,7 @@ export const metricCorrelationDefinition = definePlot<
     groupId: params.groupId ?? -1,
     view: 'heatmap',
     correlationMethod: 'spearman',
-    enabledMetricIds: [9, 10, 11, 55, 56],
+    enabledMetricIds: ['rqaRec', 'rqaDet', 'rqaLam'],
   }),
   getMinSize: () => ({ w: 11, h: 11 }),
   getDefaultHeight: () => 13,

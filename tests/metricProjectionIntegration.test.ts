@@ -63,7 +63,7 @@ describe('projection via query()', () => {
   it('aoi-vector identity returns raw per-AOI values', () => {
     const engine = createEngine(SEGMENTS)
     const instance: MetricInstance = {
-      id: 1, baseId: 'absoluteTime', params: {}, label: '',
+      id: 't1', baseId: 'absoluteTime', params: {}, label: '',
       projection: { kind: 'identity-aoi-vector' },
     }
     const r = query(instance, scope(engine))
@@ -76,7 +76,7 @@ describe('projection via query()', () => {
   it('pick-aoi by name reshapes to scalar', () => {
     const engine = createEngine(SEGMENTS)
     const instance: MetricInstance = {
-      id: 1, baseId: 'absoluteTime', params: {}, label: '',
+      id: 't1', baseId: 'absoluteTime', params: {}, label: '',
       projection: { kind: 'pick-aoi', aoiRef: { by: 'name', name: 'CTA' } },
     }
     const r = query(instance, scope(engine))
@@ -90,7 +90,7 @@ describe('projection via query()', () => {
   it('pick-aoi missing name sets aoiMissing in provenance', () => {
     const engine = createEngine(SEGMENTS)
     const instance: MetricInstance = {
-      id: 1, baseId: 'absoluteTime', params: {}, label: '',
+      id: 't1', baseId: 'absoluteTime', params: {}, label: '',
       projection: { kind: 'pick-aoi', aoiRef: { by: 'name', name: 'DoesNotExist' } },
     }
     const r = query(instance, scope(engine))
@@ -103,7 +103,7 @@ describe('projection via query()', () => {
   it('aggregate-aoi mean excludes noAoi & anyFixation slots', () => {
     const engine = createEngine(SEGMENTS)
     const instance: MetricInstance = {
-      id: 1, baseId: 'absoluteTime', params: {}, label: '',
+      id: 't1', baseId: 'absoluteTime', params: {}, label: '',
       projection: { kind: 'aggregate-aoi', reducer: 'mean' },
     }
     const r = query(instance, scope(engine))
@@ -114,7 +114,7 @@ describe('projection via query()', () => {
 
   it('invalid saved instance drops from contract (matrix-aggregate on probability)', () => {
     const invalid: MetricInstance = {
-      id: 1, baseId: 'transitionProbability', params: { mode: 'fixation', step: 1 }, label: '',
+      id: 't1', baseId: 'transitionProbability', params: { mode: 'fixation', step: 1 }, label: '',
       projection: { kind: 'matrix-aggregate', reducer: 'mean' },
     }
     expect(instanceMatchesContract(invalid, GLOBAL_SCALAR_CONTRACT)).toBe(false)
@@ -122,7 +122,7 @@ describe('projection via query()', () => {
 
   it('valid saved instance stays in contract (matrix-cell on probability)', () => {
     const valid: MetricInstance = {
-      id: 2, baseId: 'transitionProbability', params: { mode: 'fixation', step: 1 }, label: '',
+      id: 't2', baseId: 'transitionProbability', params: { mode: 'fixation', step: 1 }, label: '',
       projection: {
         kind: 'matrix-cell',
         fromAoi: { by: 'name', name: 'Nav' },
@@ -135,7 +135,7 @@ describe('projection via query()', () => {
   it('transition matrix + matrix-diagonal → aoi-vector', () => {
     const engine = createEngine(SEGMENTS)
     const instance: MetricInstance = {
-      id: 1, baseId: 'transitionCount', params: { mode: 'fixation' }, label: '',
+      id: 't1', baseId: 'transitionCount', params: { mode: 'fixation' }, label: '',
       projection: { kind: 'matrix-diagonal' },
     }
     const r = query(instance, scope(engine))

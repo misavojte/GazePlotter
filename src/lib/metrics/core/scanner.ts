@@ -17,7 +17,7 @@ export function scanBatch(
   instances: readonly MetricInstance[],
   timeStart: number = 0,
   timeEnd: number = 0,
-): Map<number, number[]> {
+): Map<string, number[]> {
   const slots = buildAoiSlots(engine, stimulusId)
   if (!slots) return new Map()
 
@@ -65,7 +65,7 @@ export function scanBatch(
     index++
   }
 
-  const out = new Map<number, number[]>()
+  const out = new Map<string, number[]>()
   for (const a of active) {
     out.set(a.inst.id, a.recipe!.finalize(a.acc, slots, a.ctx))
   }

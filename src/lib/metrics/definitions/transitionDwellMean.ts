@@ -37,10 +37,6 @@ defineMetric({
       : 'Mean transition dwell time (fixation pairs)',
   searchTags: ['transition', 'dwell', 'mean', 'average', 'duration', 'pair', 'aoi', 'time'],
   params,
-  starterInstances: [
-    { params: { mode: 'fixation' } },
-    { params: { mode: 'visit' } },
-  ],
   init: ({ slots }) => initTransitionAcc(slots.totalSlots, /* withAux */ true),
   onFixation: (acc, fix, { params: p }) => {
     processFixation(acc, fix, p.mode, (cellIdx, prevDuration) => {

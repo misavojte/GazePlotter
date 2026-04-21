@@ -17,7 +17,6 @@
   import type { WorkspaceCommandChain } from '$lib/workspace/commands'
   import type { GazePlotterSession } from '$lib/session'
   import { onMount } from 'svelte'
-  import { findSystemInstanceIdByBaseId } from '$lib/metrics'
 
   const endpointConfig: EndpointConfig = {
     endpoint:
@@ -503,8 +502,7 @@
       command.type === 'updateSettings' &&
       command.settings &&
       'metricInstanceId' in command.settings &&
-      command.settings.metricInstanceId ===
-        findSystemInstanceIdByBaseId('averageEntries') &&
+      command.settings.metricInstanceId === 'visitCount' &&
       isCommandFromPlotType(command.source, 'barPlot')
     ) {
       barPlotCondition.set(true)

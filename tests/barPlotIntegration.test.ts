@@ -1,13 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { createReaderFromJson } from '../src/lib/data/binary/converters'
 import { getBarPlotData } from '../src/lib/plots/bar/core/transformer'
-import {
-  createSystemMetricInstances,
-  findSystemInstanceIdByBaseId,
-} from '../src/lib/metrics/instances'
+import { createDefaultMetricInstances } from '../src/lib/metrics/instances'
 
-const ABSOLUTE_TIME_INSTANCE_ID =
-  findSystemInstanceIdByBaseId('absoluteTime') ?? 1
+const ABSOLUTE_TIME_INSTANCE_ID = 'absoluteTime'
 
 function createMockEngine(segments: number[][][][]) {
   const reader = createReaderFromJson(segments)
@@ -44,7 +40,7 @@ function createMockEngine(segments: number[][][][]) {
         orderVector: [0],
       },
       noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
-      metricInstances: createSystemMetricInstances(),
+      metricInstances: createDefaultMetricInstances(),
     },
     getReader: () => reader,
     getAoiMapping: (_stimulusId: number, rawId: number) => rawId,
@@ -160,7 +156,7 @@ describe('Bar Plot Transformer (Integration)', () => {
     expect(result.data).toEqual([])
   })
 
-  it('falls back to absoluteTime when metricInstanceId references a deleted instance', () => {
+  it('flags noMetric when metricInstanceId references a deleted instance', () => {
     const engine = createMockEngine([
       [
         [
@@ -175,15 +171,14 @@ describe('Bar Plot Transformer (Integration)', () => {
       {
         stimulusId,
         groupId,
-        metricInstanceId: 99999, // does not exist in the library
+        metricInstanceId: 'nonexistent-id', // does not exist in the library
         orderBy: 'aoi',
         orderDirection: 'asc',
         scaleRange: [0, 0],
       } as any
     )
 
-    // Falls back to absoluteTime → same values as the first test.
-    expect(result.data[0].value).toBe(100)
-    expect(result.data[1].value).toBe(200)
+    expect(result.noMetric).toBe(true)
+    expect(result.data).toEqual([])
   })
 })

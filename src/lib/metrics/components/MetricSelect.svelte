@@ -17,17 +17,17 @@
   interface Props {
     /** Raw instance library. MetricSelect filters by `contract` internally. */
     instances: readonly MetricInstance[]
-    selectedIds: number[]
-    onchange: (ids: number[]) => void
-    onrenameInstance?: (id: number, label: string) => void
+    selectedIds: string[]
+    onchange: (ids: string[]) => void
+    onrenameInstance?: (id: string, label: string) => void
     oncreateInstance?: (
       baseId: string,
       params: Record<string, unknown>,
       label: string,
       projection: Projection,
-      replacingId?: number,
+      replacingId?: string,
     ) => void
-    ondeleteInstance?: (id: number) => void
+    ondeleteInstance?: (id: string) => void
     /** Descriptor of which leaves/windowing this consumer accepts and whether
      *  selection is multi- or single-valued. */
     contract: PlotMetricContract
@@ -117,7 +117,7 @@
     return () => document.removeEventListener('click', onDocClick, true)
   })
 
-  function toggleMetric(id: number) {
+  function toggleMetric(id: string) {
     if (isSingleSelect) {
       onchange([id])
       closeDropdown()

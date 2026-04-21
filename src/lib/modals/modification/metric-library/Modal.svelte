@@ -47,10 +47,10 @@
       params: Record<string, unknown>,
       label: string,
       projection: Projection,
-      replacingId?: number,
+      replacingId?: string,
     ) => void
-    ondeleteInstance?: (id: number) => void
-    onrenameInstance?: (id: number, label: string) => void
+    ondeleteInstance?: (id: string) => void
+    onrenameInstance?: (id: string, label: string) => void
   }
 
   let { contract, oncreateInstance, ondeleteInstance, onrenameInstance }: Props = $props()
@@ -74,8 +74,8 @@
   )
 
   // ── Drag reorder ─────────────────────────────────────────
-  let dragItemId = $state<number | null>(null)
-  const dragHandle = createDragReorder({
+  let dragItemId = $state<string | null>(null)
+  const dragHandle = createDragReorder<string>({
     itemSelector: '.metric-card',
     containerSelector: '.metric-grid',
     onDragStart: id => { dragItemId = id },
@@ -95,7 +95,7 @@
   })
 
   // ── Expand + form state ──────────────────────────────────
-  let expandedCardId = $state<number | null>(null)
+  let expandedCardId = $state<string | null>(null)
   let expandedAddId = $state<string | null>(null)
 
   let paramDraft = $state<Record<string, unknown>>({})

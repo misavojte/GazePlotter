@@ -12,7 +12,7 @@ export function getTransitionMatrixData(
   engine: DataEngine,
   stimulusId: number,
   groupId: number,
-  metricInstanceId: number | null,
+  metricInstanceId: string | null,
 ): TransitionMatrixData {
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')

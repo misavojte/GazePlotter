@@ -7,10 +7,7 @@ import type {
   MetricInstance,
   ParticipantsGroup,
 } from '../types'
-import {
-  nextInstanceId,
-  defaultInstanceLabel,
-} from '$lib/metrics/instances'
+import { defaultInstanceLabel } from '$lib/metrics/instances'
 import type { Projection } from '$lib/metrics/core/projection'
 
 export class DataEngine {
@@ -164,7 +161,7 @@ export class DataEngine {
     if (this.metadata) this.metadata.metricInstances = instances
   }
 
-  updateMetricInstanceLabel(id: number, label: string) {
+  updateMetricInstanceLabel(id: string, label: string) {
     const meta = this.metadata
     if (!meta) return
     const trimmed = label.trim()
@@ -182,11 +179,11 @@ export class DataEngine {
     params: Record<string, unknown>,
     label: string | undefined,
     projection: Projection,
-  ): number {
+  ): string | null {
     const meta = this.metadata
-    if (!meta) return -1
+    if (!meta) return null
     const existing = meta.metricInstances ?? []
-    const id = nextInstanceId(existing)
+    const id = crypto.randomUUID()
     const resolvedLabel = label?.trim() || defaultInstanceLabel(baseId, params, projection)
     meta.metricInstances = [
       ...existing,
@@ -195,7 +192,7 @@ export class DataEngine {
     return id
   }
 
-  deleteMetricInstance(id: number): void {
+  deleteMetricInstance(id: string): void {
     const meta = this.metadata
     if (!meta) return
     meta.metricInstances = (meta.metricInstances ?? []).filter(i => i.id !== id)

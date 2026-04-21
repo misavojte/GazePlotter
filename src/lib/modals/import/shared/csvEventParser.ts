@@ -8,7 +8,7 @@
 
 import type { DataType } from '$lib/data/types'
 import { DEFAULT_NO_AOI_TREATMENT } from '$lib/data/types'
-import { createSystemMetricInstances } from '$lib/metrics/instances'
+import { createDefaultMetricInstances } from '$lib/metrics/instances'
 
 const REQUIRED_COLUMNS = [
   'stimulus',
@@ -327,7 +327,7 @@ export function buildDataTypeFromCsvEvents(
       orderVector: participantsData.map((_, i) => i),
     },
     participantsGroups: [],
-    metricInstances: createSystemMetricInstances(),
+    metricInstances: createDefaultMetricInstances(),
     categories: { data: [], orderVector: [] },
     noAoiTreatment: DEFAULT_NO_AOI_TREATMENT,
     aois: {

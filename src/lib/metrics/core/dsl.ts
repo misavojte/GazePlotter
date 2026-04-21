@@ -22,14 +22,6 @@ export interface InitCtx<P> {
   slots: AoiSlotInfo
 }
 
-/** Seed for a system-starter instance emitted into the library on project load. */
-export interface StarterSpec<P = Record<string, unknown>> {
-  params?: Partial<P>
-  /** Defaults to the recipe's identity leaf when omitted. */
-  projection?: Projection
-  label?: string
-}
-
 export interface MetricMeta {
   readonly id: string
   readonly label: string
@@ -73,12 +65,6 @@ export interface MetricRecipe<P, A> {
    * leaf regardless of windowing. Return a non-null reason to reject.
    */
   rejects?: (projection: Projection) => string | null
-  /**
-   * System starter instances seeded into the library on project load. Missing
-   * fields fall back to: identity projection for the recipe's raw shape;
-   * param defaults from `params[*].default`; auto-generated label.
-   */
-  starterInstances?: ReadonlyArray<StarterSpec<P>>
   defaultLabel?: (params: P) => string
 
   init(ctx: InitCtx<P>): A

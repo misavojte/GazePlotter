@@ -63,7 +63,7 @@
     onrenameInstance={(id, label) => engine.updateMetricInstanceLabel(id, label)}
     oncreateInstance={(baseId, params, label, projection, replacingId) => {
       const newId = engine.addMetricInstance(baseId, params, label, projection)
-      if (newId < 0) return
+      if (newId === null) return
       if (replacingId != null) {
         engine.deleteMetricInstance(replacingId)
         update({ enabledMetricIds: settings.enabledMetricIds.map(id => id === replacingId ? newId : id) })

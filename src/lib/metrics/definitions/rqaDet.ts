@@ -14,13 +14,6 @@ defineMetric({
   windowUnit: 'fixations',
   searchTags: ['rqa', 'determinism', 'det', 'diagonal', 'nonlinear', 'aoi', 'sequence'],
   params,
-  starterInstances: [{
-    projection: {
-      kind: 'windowed',
-      window: { mode: 'epoch', windowSize: 20 },
-      inner: { kind: 'identity-scalar' },
-    },
-  }],
   init: (): { seq: number[] } => ({ seq: [] }),
   onFixation: (acc, { slots }) => {
     if (slots.length === 1) acc.seq.push(slots[0])
