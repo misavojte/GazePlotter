@@ -47,7 +47,7 @@
   )
 </script>
 
-<PaneSection title="Filters">
+<PaneSection>
   <Select
     label="Stimulus"
     options={stimulusOptions}
@@ -60,9 +60,6 @@
     value={String(settings.participantId)}
     onchange={e => update({ participantId: Number((e as CustomEvent).detail) })}
   />
-</PaneSection>
-
-<PaneSection title="Method">
   <Radio
     ariaLabel="Recurrence method"
     options={[...availableMethods]}

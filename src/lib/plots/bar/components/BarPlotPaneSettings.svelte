@@ -82,7 +82,7 @@
   }
 </script>
 
-<PaneSection title="Filters">
+<PaneSection>
   <Select
     label="Stimulus"
     options={stimulusOptions}
@@ -95,9 +95,6 @@
     value={String(settings.groupId)}
     onchange={e => update({ groupId: Number((e as CustomEvent).detail) })}
   />
-</PaneSection>
-
-<PaneSection title="Metric">
   <MetricSelect
     label="Metric"
     instances={engine.metadata?.metricInstances ?? []}

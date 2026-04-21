@@ -2,7 +2,7 @@
   import type { Snippet } from 'svelte'
 
   interface Props {
-    title: string
+    title?: string
     children: Snippet
   }
 
@@ -10,11 +10,13 @@
 </script>
 
 <section class="pane-section">
-  <div class="heading">
-    <span class="label">{title}</span>
-  </div>
+  {#if title !== undefined}
+    <div class="heading">
+      <span class="label">{title}</span>
+    </div>
+  {/if}
 
-  <div class="body">
+  <div class="body" class:no-heading={title === undefined}>
     {@render children()}
   </div>
 </section>
@@ -66,5 +68,9 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+  }
+
+  .body.no-heading {
+    padding-top: 14px;
   }
 </style>
