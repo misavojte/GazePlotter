@@ -73,14 +73,12 @@
       update({ enabledMetricIds: settings.enabledMetricIds.filter(x => x !== id) })
     }}
   />
-  <Radio
-    ariaLabel="View"
+  <Select
+    label="Visualisation lense"
     options={METRIC_CORRELATION_VIEWS.map(v => ({
       label: v.label,
       value: v.value,
     }))}
-    appearance="compact"
-    direction="row"
     value={settings.view}
     onchange={e => {
       const v = (e as CustomEvent<string>).detail

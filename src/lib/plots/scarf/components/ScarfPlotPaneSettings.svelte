@@ -89,15 +89,13 @@
     value={String(settings.groupId)}
     onchange={e => update({ groupId: Number((e as CustomEvent).detail) })}
   />
-  <Radio
-    ariaLabel="Timeline mode"
+  <Select
+    label="Timeline"
     options={[
       { label: 'Absolute', value: 'absolute' },
       { label: 'Relative', value: 'relative' },
       { label: 'Ordinal', value: 'ordinal' },
     ]}
-    appearance="compact"
-    direction="row"
     value={settings.timeline}
     onchange={e => {
       const v = (e as CustomEvent<string>).detail as ScarfPlotSettings['timeline']

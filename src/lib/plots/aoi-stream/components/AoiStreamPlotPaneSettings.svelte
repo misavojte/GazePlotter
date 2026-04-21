@@ -85,15 +85,14 @@
     value={String(settings.groupId)}
     onchange={e => update({ groupId: Number((e as CustomEvent).detail) })}
   />
-  <Radio
-    ariaLabel="View"
+  <Select
+    label="Visualisation lense"
     options={[
       { label: 'Stream', value: 'stream' },
       { label: 'Distribution', value: 'distribution' },
       { label: 'Ridgeline', value: 'ridgeline' },
       { label: 'Heatmap', value: 'heatmap' },
     ]}
-    appearance="compact"
     value={alignment}
     onchange={e => {
       const v = (e as CustomEvent<string>).detail as AoiStreamPlotSettings['alignment']

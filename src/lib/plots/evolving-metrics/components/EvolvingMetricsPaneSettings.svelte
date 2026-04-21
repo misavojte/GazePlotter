@@ -93,14 +93,12 @@
       if (settings.selectedMetricId === id) update({ selectedMetricId: null })
     }}
   />
-  <Radio
-    ariaLabel="Presentation"
+  <Select
+    label="Visualisation lense"
     options={[
       { label: 'Heatmap', value: 'heatmap' },
       { label: 'Overlay', value: 'overlay' },
     ]}
-    appearance="compact"
-    direction="row"
     value={presentation}
     onchange={e => {
       const v = (e as CustomEvent<string>).detail as 'heatmap' | 'overlay'
