@@ -23,6 +23,8 @@
     instanceMatchesContract,
     metricIsCreatableInContract,
     PROJECTION_LEAVES,
+    AOI_REDUCERS,
+    MATRIX_REDUCERS,
     type Metric,
     type MetricInstance,
     type ParamDef,
@@ -131,7 +133,8 @@
       case 'identity-aoi-vector':      return { kind }
       case 'identity-aoi-pair-matrix': return { kind }
       case 'pick-aoi':         return { kind, aoiRef: { by: 'name', name: defaultAoi } }
-      case 'aggregate-aoi':    return { kind, reducer: availableAoiReducers(currentBaseId)[0] ?? 'mean' }
+      case 'pick-any-fixation': return { kind }
+      case 'aggregate-aoi':    return { kind, reducer: availableAoiReducers(currentBaseId)[0] ?? 'max' }
       case 'matrix-diagonal':  return { kind }
       case 'matrix-row':       return { kind, aoiRef: { by: 'name', name: defaultAoi } }
       case 'matrix-col':       return { kind, aoiRef: { by: 'name', name: defaultAoi } }
@@ -262,6 +265,7 @@
       case 'identity-aoi-vector':      return 'Per-AOI'
       case 'identity-aoi-pair-matrix': return 'Matrix'
       case 'pick-aoi':         return 'Pick AOI'
+      case 'pick-any-fixation': return 'Any fixation'
       case 'aggregate-aoi':    return 'Aggregate AOIs'
       case 'matrix-diagonal':  return 'Diagonal'
       case 'matrix-row':       return 'Row'
@@ -273,14 +277,14 @@
 
   function availableAoiReducers(baseId: string): AoiReducer[] {
     const recipe = getRecipe(baseId); if (!recipe) return []
-    return (['mean', 'sum', 'max', 'min', 'median'] as AoiReducer[]).filter(r =>
+    return AOI_REDUCERS.filter(r =>
       recipeSupports(recipe, { kind: 'aggregate-aoi', reducer: r }) === true,
     )
   }
 
   function availableMatrixReducers(baseId: string, exclude?: 'diagonal'): MatrixReducer[] {
     const recipe = getRecipe(baseId); if (!recipe) return []
-    return (['mean', 'sum'] as MatrixReducer[]).filter(r =>
+    return MATRIX_REDUCERS.filter(r =>
       recipeSupports(recipe, { kind: 'matrix-aggregate', reducer: r, ...(exclude ? { exclude } : {}) }) === true,
     )
   }

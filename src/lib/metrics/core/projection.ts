@@ -12,8 +12,11 @@ export type AoiRef =
   | { by: 'name'; name: string }
   | { by: 'slot'; slot: number }
 
-export type AoiReducer    = 'mean' | 'sum' | 'max' | 'min' | 'median'
-export type MatrixReducer = 'mean' | 'sum'
+export const AOI_REDUCERS = ['mean', 'sum', 'max', 'min', 'median'] as const
+export type AoiReducer = typeof AOI_REDUCERS[number]
+
+export const MATRIX_REDUCERS = ['sum', 'mean', 'max', 'min'] as const
+export type MatrixReducer = typeof MATRIX_REDUCERS[number]
 
 export interface WindowSpec {
   windowSize: number
@@ -28,6 +31,7 @@ export type LeafKind =
   | 'identity-aoi-vector'
   | 'identity-aoi-pair-matrix'
   | 'pick-aoi'
+  | 'pick-any-fixation'
   | 'aggregate-aoi'
   | 'matrix-diagonal'
   | 'matrix-row'
@@ -40,6 +44,7 @@ export type LeafProjection =
   | { kind: 'identity-aoi-vector' }
   | { kind: 'identity-aoi-pair-matrix' }
   | { kind: 'pick-aoi';          aoiRef: AoiRef }
+  | { kind: 'pick-any-fixation' }
   | { kind: 'aggregate-aoi';     reducer: AoiReducer }
   | { kind: 'matrix-diagonal' }
   | { kind: 'matrix-row';        aoiRef: AoiRef }
@@ -124,6 +129,16 @@ export const PROJECTION_LEAVES: Record<LeafKind, LeafKindDef> = {
     label:    (p) => aoiRefLabel((p as LeafProjection & { kind: 'pick-aoi' }).aoiRef),
     cacheKey: (p) => `pick:${aoiRefKey((p as LeafProjection & { kind: 'pick-aoi' }).aoiRef)}`,
     apply:    (p, c) => pickAoi((p as LeafProjection & { kind: 'pick-aoi' }).aoiRef, c),
+  },
+  'pick-any-fixation': {
+    outputShape: 'scalar',
+    rawShapes: ['aoi-vector'],
+    label:    () => 'any fixation',
+    cacheKey: () => 'pick:any',
+    // Convention: recipes using the aoi-vector output-with-sentinels pattern
+    // allocate `aoiCount + 2` slots (aoiCount, noAoiSlot, anyFixationSlot).
+    // The any-fixation aggregate is always at index aoiCount + 1.
+    apply:    (_p, c) => pickAnyFixation(c),
   },
   'aggregate-aoi': {
     outputShape: 'scalar',
@@ -249,6 +264,14 @@ function pickAoi(ref: AoiRef, c: ApplyContext): ApplyResult {
   return { values: [c.rawValues[slot] ?? Number.NaN], aoiMissing: false }
 }
 
+function pickAnyFixation(c: ApplyContext): ApplyResult {
+  // Convention: aoi-vector rawValues has layout [aoi_0, ..., aoi_{n-1}, noAoi, anyFixation].
+  // anyFixation lives at index aoiNames.length + 1.
+  const idx = c.aoiNames.length + 1
+  const v = c.rawValues[idx]
+  return { values: [Number.isFinite(v) ? v : Number.NaN], aoiMissing: false }
+}
+
 function aggregateAoi(reducer: AoiReducer, c: ApplyContext): ApplyResult {
   const n = c.aoiNames.length
   return { values: [reduceNumeric(c.rawValues.slice(0, n), reducer)], aoiMissing: false }
@@ -299,6 +322,8 @@ function matrixAggregate(
   const excludeDiag = exclude === 'diagonal'
   let sum = 0
   let count = 0
+  let mn = Infinity
+  let mx = -Infinity
   for (let i = 0; i < side; i++) {
     for (let j = 0; j < side; j++) {
       if (excludeDiag && i === j) continue
@@ -306,10 +331,17 @@ function matrixAggregate(
       if (!Number.isFinite(v)) continue
       sum += v
       count++
+      if (v < mn) mn = v
+      if (v > mx) mx = v
     }
   }
   if (count === 0) return { values: [Number.NaN], aoiMissing: false }
-  return { values: [reducer === 'sum' ? sum : sum / count], aoiMissing: false }
+  switch (reducer) {
+    case 'sum':  return { values: [sum], aoiMissing: false }
+    case 'mean': return { values: [sum / count], aoiMissing: false }
+    case 'max':  return { values: [mx], aoiMissing: false }
+    case 'min':  return { values: [mn], aoiMissing: false }
+  }
 }
 
 function resolveAoiRef(ref: AoiRef, aoiNames: readonly string[]): number {

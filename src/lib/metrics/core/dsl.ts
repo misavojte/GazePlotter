@@ -41,6 +41,20 @@ export interface MetricMeta {
    * "never windowed" (e.g. time-to-first-fixation).
    */
   readonly supportsWindowing: boolean
+  /**
+   * Opt-in marker for metrics whose underlying quantity is truly additive
+   * across matrix cells (counts, summed durations). Unlocks `sum` / `mean`
+   * for `matrix-aggregate`. Default `false` restricts matrix-aggregate to
+   * `max | min`, matching the majority scientific reading (averages, rates,
+   * probabilities). Has no effect on `aggregate-aoi` (always `max | min`).
+   */
+  readonly additive: boolean
+  /**
+   * True when the recipe writes a meaningful stimulus-level aggregate into
+   * the `anyFixationSlot` sentinel (index `aoiCount + 1` of an aoi-vector).
+   * Required for the `pick-any-fixation` projection to be allowed.
+   */
+  readonly providesAnyFixation: boolean
   readonly defaultLabel?: (p: Record<string, unknown>) => string
 }
 
@@ -59,6 +73,19 @@ export interface MetricRecipe<P, A> {
   groupAggregation?: 'mean' | 'median' | 'sum'
   /** Defaults to true. Set to false when windowing is not meaningful (e.g. TTFF). */
   supportsWindowing?: boolean
+  /**
+   * Defaults to false. Opt in for count / summed-duration metrics where sum /
+   * mean across matrix cells is scientifically defensible; unlocks the full
+   * `matrix-aggregate` reducer set. Non-additive recipes (averages, rates,
+   * first-occurrences) get the restricted `max | min` reducer set.
+   */
+  additive?: boolean
+  /**
+   * Defaults to false. Set to true when the recipe writes a meaningful
+   * stimulus-level aggregate into `anyFixationSlot`; opens the
+   * `pick-any-fixation` projection for the metric.
+   */
+  providesAnyFixation?: boolean
   /**
    * Author-level veto over specific projections. Receives the full `Projection`
    * — use `p.kind === 'windowed' ? p.inner : p` when the check applies to the

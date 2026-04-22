@@ -17,6 +17,7 @@ defineMetric({
   category: 'duration',
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
+  providesAnyFixation: true,
   searchTags: ['visit', 'dwell', 'duration', 'average', 'mean', 'aoi'],
   params: [] as const,
   init: ({ slots }): Acc => ({

@@ -14,6 +14,7 @@ defineMetric({
   category: 'counts',
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
+  providesAnyFixation: true,
   searchTags: ['visit', 'entry', 'entries', 'count', 'aoi', 'number', 'transitions'],
   params: [] as const,
   init: ({ slots }): Acc => ({

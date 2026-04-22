@@ -10,6 +10,7 @@ defineMetric({
   category: 'duration',
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
+  providesAnyFixation: true,
   searchTags: ['fixation', 'duration', 'average', 'mean', 'fix', 'aoi'],
   params: [] as const,
   init: ({ slots }): Acc => ({ durations: Array.from({ length: slots.totalSlots }, () => []) }),

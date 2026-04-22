@@ -8,6 +8,7 @@ defineMetric({
   category: 'duration',
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
+  providesAnyFixation: true,
   searchTags: ['dwell', 'gaze', 'time', 'absolute', 'total', 'duration', 'aoi'],
   params: [] as const,
   init: ({ slots }) => new Float64Array(slots.totalSlots),

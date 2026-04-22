@@ -64,6 +64,7 @@ function buildProbeLeaf(kind: LeafKind): LeafProjection {
     case 'identity-aoi-vector':      return { kind }
     case 'identity-aoi-pair-matrix': return { kind }
     case 'pick-aoi':         return { kind, aoiRef: aoi }
+    case 'pick-any-fixation': return { kind }
     case 'aggregate-aoi':    return { kind, reducer: 'mean' }
     case 'matrix-diagonal':  return { kind }
     case 'matrix-row':       return { kind, aoiRef: aoi }

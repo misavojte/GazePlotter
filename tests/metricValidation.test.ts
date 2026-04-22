@@ -1,7 +1,12 @@
 /**
- * Tests for the central validation function `recipeSupports`. Covers each
- * built-in scientific guard plus per-recipe `rejects` hooks. Ensures invalid
- * combinations are rejected so the library modal hides them.
+ * Tests for the central validation function `recipeSupports`. The rules are:
+ *
+ *   - `aggregate-aoi` (across an aoi-vector): only `max` and `min` — blanket rule.
+ *   - `matrix-aggregate` (across cells): `max | min` by default;
+ *     recipes that set `additive: true` get the full `sum | mean | max | min`.
+ *   - Windowing gated by `supportsWindowing`.
+ *   - Slot refs must be non-negative.
+ *   - Raw-shape compatibility is enforced via the leaf registry.
  */
 import { describe, it, expect } from 'vitest'
 import '../src/lib/metrics/init'
@@ -15,46 +20,76 @@ function recipe(id: string) {
   return r
 }
 
-describe('scientific guard: aggregate-aoi sum on percent recipe', () => {
-  it('rejects sum of percentages', () => {
-    const r = recipe('relativeTime')
-    const p: Projection = { kind: 'aggregate-aoi', reducer: 'sum' }
-    expect(recipeSupports(r, p)).not.toBe(true)
-  })
-  it('accepts mean of percentages', () => {
-    const r = recipe('relativeTime')
-    const p: Projection = { kind: 'aggregate-aoi', reducer: 'mean' }
-    expect(recipeSupports(r, p)).toBe(true)
-  })
-  it('accepts sum of ms (non-percentage)', () => {
-    const r = recipe('absoluteTime')
-    const p: Projection = { kind: 'aggregate-aoi', reducer: 'sum' }
-    expect(recipeSupports(r, p)).toBe(true)
-  })
+describe('aggregate-aoi: blanket max/min rule across every aoi-vector recipe', () => {
+  it.each(['absoluteTime', 'relativeTime', 'fixationCount', 'timeToFirstFixation'])(
+    '%s rejects mean across AOIs',
+    (id) => {
+      const p: Projection = { kind: 'aggregate-aoi', reducer: 'mean' }
+      expect(recipeSupports(recipe(id), p)).not.toBe(true)
+    },
+  )
+  it.each(['absoluteTime', 'relativeTime', 'fixationCount', 'timeToFirstFixation'])(
+    '%s rejects sum across AOIs',
+    (id) => {
+      const p: Projection = { kind: 'aggregate-aoi', reducer: 'sum' }
+      expect(recipeSupports(recipe(id), p)).not.toBe(true)
+    },
+  )
+  it.each(['absoluteTime', 'relativeTime', 'fixationCount', 'timeToFirstFixation'])(
+    '%s rejects median across AOIs',
+    (id) => {
+      const p: Projection = { kind: 'aggregate-aoi', reducer: 'median' }
+      expect(recipeSupports(recipe(id), p)).not.toBe(true)
+    },
+  )
+  it.each(['absoluteTime', 'relativeTime', 'fixationCount', 'timeToFirstFixation'])(
+    '%s accepts min across AOIs',
+    (id) => {
+      const p: Projection = { kind: 'aggregate-aoi', reducer: 'min' }
+      expect(recipeSupports(recipe(id), p)).toBe(true)
+    },
+  )
+  it.each(['absoluteTime', 'relativeTime', 'fixationCount', 'timeToFirstFixation'])(
+    '%s accepts max across AOIs',
+    (id) => {
+      const p: Projection = { kind: 'aggregate-aoi', reducer: 'max' }
+      expect(recipeSupports(recipe(id), p)).toBe(true)
+    },
+  )
 })
 
-describe('scientific guard: matrix-aggregate on percent/probability matrix', () => {
-  it('rejects matrix-aggregate mean on transitionProbability', () => {
+describe('matrix-aggregate: additive opt-in', () => {
+  it('rejects matrix-aggregate mean on transitionProbability (non-additive)', () => {
     const r = recipe('transitionProbability')
     const p: Projection = { kind: 'matrix-aggregate', reducer: 'mean' }
     expect(recipeSupports(r, p)).not.toBe(true)
   })
-  it('rejects matrix-aggregate sum on transitionProbability', () => {
+  it('rejects matrix-aggregate sum on transitionProbability (non-additive)', () => {
     const r = recipe('transitionProbability')
     const p: Projection = { kind: 'matrix-aggregate', reducer: 'sum' }
     expect(recipeSupports(r, p)).not.toBe(true)
   })
-  it('rejects matrix-aggregate on transitionRelativeFrequency', () => {
+  it('rejects matrix-aggregate mean on transitionRelativeFrequency (non-additive)', () => {
     const r = recipe('transitionRelativeFrequency')
     const p: Projection = { kind: 'matrix-aggregate', reducer: 'mean' }
     expect(recipeSupports(r, p)).not.toBe(true)
   })
-  it('accepts matrix-aggregate mean on transitionCount (unit=count)', () => {
+  it('rejects matrix-aggregate mean on transitionDwellMean (non-additive)', () => {
+    const r = recipe('transitionDwellMean')
+    const p: Projection = { kind: 'matrix-aggregate', reducer: 'mean' }
+    expect(recipeSupports(r, p)).not.toBe(true)
+  })
+  it('accepts matrix-aggregate sum on transitionCount (additive)', () => {
+    const r = recipe('transitionCount')
+    const p: Projection = { kind: 'matrix-aggregate', reducer: 'sum' }
+    expect(recipeSupports(r, p)).toBe(true)
+  })
+  it('accepts matrix-aggregate mean on transitionCount (additive)', () => {
     const r = recipe('transitionCount')
     const p: Projection = { kind: 'matrix-aggregate', reducer: 'mean' }
     expect(recipeSupports(r, p)).toBe(true)
   })
-  it('accepts matrix-cell on probability recipes (user goal: specific transition)', () => {
+  it('accepts matrix-cell on probability recipes (specific transition)', () => {
     const r = recipe('transitionProbability')
     const p: Projection = {
       kind: 'matrix-cell',
@@ -62,6 +97,10 @@ describe('scientific guard: matrix-aggregate on percent/probability matrix', () 
       toAoi:   { by: 'name', name: 'B' },
     }
     expect(recipeSupports(r, p)).toBe(true)
+  })
+  it('accepts matrix-aggregate max on any matrix recipe', () => {
+    expect(recipeSupports(recipe('transitionProbability'), { kind: 'matrix-aggregate', reducer: 'max' } as Projection)).toBe(true)
+    expect(recipeSupports(recipe('transitionCount'),       { kind: 'matrix-aggregate', reducer: 'max' } as Projection)).toBe(true)
   })
 })
 
@@ -93,29 +132,6 @@ describe('windowing support gate', () => {
       inner: { kind: 'identity-aoi-vector' } as any,
     }
     expect(recipeSupports(r, p)).not.toBe(true)
-  })
-})
-
-describe('per-recipe rejects: timeToFirstFixation excludes mean/median/sum aggregates', () => {
-  it('rejects aggregate-aoi mean', () => {
-    const r = recipe('timeToFirstFixation')
-    const p: Projection = { kind: 'aggregate-aoi', reducer: 'mean' }
-    expect(recipeSupports(r, p)).not.toBe(true)
-  })
-  it('rejects aggregate-aoi median', () => {
-    const r = recipe('timeToFirstFixation')
-    const p: Projection = { kind: 'aggregate-aoi', reducer: 'median' }
-    expect(recipeSupports(r, p)).not.toBe(true)
-  })
-  it('accepts aggregate-aoi min (= earliest AOI fixated)', () => {
-    const r = recipe('timeToFirstFixation')
-    const p: Projection = { kind: 'aggregate-aoi', reducer: 'min' }
-    expect(recipeSupports(r, p)).toBe(true)
-  })
-  it('accepts aggregate-aoi max (= latest AOI fixated)', () => {
-    const r = recipe('timeToFirstFixation')
-    const p: Projection = { kind: 'aggregate-aoi', reducer: 'max' }
-    expect(recipeSupports(r, p)).toBe(true)
   })
 })
 

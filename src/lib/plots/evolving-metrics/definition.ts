@@ -42,7 +42,7 @@ export const evolvingMetricsDefinition = definePlot<
   getDefaultWidth: () => 12,
   requireCapabilities: ['segmented'],
   consumesMetrics: {
-    leaves: ['identity-scalar', 'pick-aoi', 'aggregate-aoi', 'matrix-cell', 'matrix-aggregate'],
+    leaves: ['identity-scalar', 'pick-aoi', 'pick-any-fixation', 'aggregate-aoi', 'matrix-cell', 'matrix-aggregate'],
     windowing: 'required',
   },
 })

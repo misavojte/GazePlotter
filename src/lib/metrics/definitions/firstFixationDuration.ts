@@ -9,6 +9,7 @@ defineMetric({
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
   supportsWindowing: false,
+  providesAnyFixation: true,
   searchTags: ['first', 'fixation', 'duration', 'ttf', 'aoi'],
   params: [] as const,
   init: ({ slots }) => new Array<number>(slots.totalSlots).fill(-1),

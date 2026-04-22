@@ -1,5 +1,4 @@
 import { defineMetric } from '../core/defineMetric'
-import { leafOf } from '../core/projection'
 
 defineMetric({
   id: 'timeToFirstFixation',
@@ -10,20 +9,9 @@ defineMetric({
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
   supportsWindowing: false,
+  providesAnyFixation: true,
   searchTags: ['ttff', 'ttf', 'first', 'fixation', 'time', 'latency', 'onset', 'aoi'],
   params: [] as const,
-  // Aggregating "first times" across AOIs is only interpretable as `min`
-  // (= time until attention first landed anywhere) or `max` (= time until
-  // every AOI had been looked at). Mean/median/sum of first-times mix
-  // apples and oranges — hide them.
-  rejects: (p) => {
-    const leaf = leafOf(p)
-    if (leaf.kind === 'aggregate-aoi'
-      && (leaf.reducer === 'mean' || leaf.reducer === 'median' || leaf.reducer === 'sum')) {
-      return 'Use min (earliest AOI fixated) or max (latest AOI fixated) — other aggregates of first-times are not meaningful.'
-    }
-    return null
-  },
   init: ({ slots }) => new Array<number>(slots.totalSlots).fill(-1),
   onFixation: (acc, { start, slots }, { slots: info }) => {
     if (acc[info.anyFixationSlot] === -1) acc[info.anyFixationSlot] = start

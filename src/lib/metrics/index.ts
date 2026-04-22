@@ -45,6 +45,8 @@ export type { StartingMetricSpec } from './startingMetrics'
 // ─── Projection surface ────────────────────────────────────────────────────
 export {
   PROJECTION_LEAVES,
+  AOI_REDUCERS,
+  MATRIX_REDUCERS,
   applyProjection,
   projectionOutputShape,
   projectionToLabel,

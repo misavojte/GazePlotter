@@ -8,6 +8,7 @@ defineMetric({
   category: 'counts',
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
+  providesAnyFixation: true,
   searchTags: ['fixation', 'count', 'number', 'fix', 'aoi'],
   params: [] as const,
   init: ({ slots }) => new Float64Array(slots.totalSlots),

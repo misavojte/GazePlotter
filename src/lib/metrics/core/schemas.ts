@@ -3,6 +3,7 @@
  * Used by future WebMCP / LLM tool surfaces to validate instance creation
  * payloads without pulling a schema generator.
  */
+import { AOI_REDUCERS, MATRIX_REDUCERS } from './projection'
 
 const WindowSpecSchema = {
   type: 'object',
@@ -43,10 +44,12 @@ export const LeafProjectionSchema = {
 
     { type: 'object', required: ['kind', 'aoiRef'], additionalProperties: false,
       properties: { kind: { const: 'pick-aoi' }, aoiRef: AoiRefSchema } },
+    { type: 'object', required: ['kind'], additionalProperties: false,
+      properties: { kind: { const: 'pick-any-fixation' } } },
     { type: 'object', required: ['kind', 'reducer'], additionalProperties: false,
       properties: {
         kind:    { const: 'aggregate-aoi' },
-        reducer: { enum: ['mean', 'sum', 'max', 'min', 'median'] },
+        reducer: { enum: [...AOI_REDUCERS] },
       } },
 
     { type: 'object', required: ['kind'], additionalProperties: false,
@@ -64,7 +67,7 @@ export const LeafProjectionSchema = {
     { type: 'object', required: ['kind', 'reducer'], additionalProperties: false,
       properties: {
         kind:    { const: 'matrix-aggregate' },
-        reducer: { enum: ['mean', 'sum'] },
+        reducer: { enum: [...MATRIX_REDUCERS] },
         exclude: { enum: ['diagonal'] },
       } },
   ],

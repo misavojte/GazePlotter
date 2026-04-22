@@ -20,6 +20,7 @@ defineMetric({
   rawShape: 'aoi-pair-matrix',
   windowUnit: 'ms',
   groupAggregation: 'sum',
+  additive: true,
   defaultLabel: (p) =>
     p.mode === 'visit'
       ? 'Transition count (visit changes)'

@@ -21,8 +21,9 @@ const params = [
  * Participants with NO transitions at all produce an all-NaN matrix so they're
  * excluded from the cross-participant mean.
  *
- * matrix-aggregate projections are automatically rejected by the central
- * validator for row-normalised probability matrices.
+ * `matrix-aggregate` sum / mean is meaningless for a row-stochastic matrix,
+ * so this recipe does NOT set `additive: true` — the validator restricts
+ * matrix-aggregate to `max | min` automatically.
  */
 defineMetric({
   id: 'transitionProbability',
