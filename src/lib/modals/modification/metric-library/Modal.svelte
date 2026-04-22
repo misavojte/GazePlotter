@@ -167,9 +167,9 @@
 
   function defaultWindow(m: Metric): WindowSpec {
     if (m.meta.windowUnit === 'fixations') {
-      return { mode: 'epoch', windowSize: 20 }
+      return { windowSize: 20, stepSize: 20 }
     }
-    return { mode: 'epoch', windowSize: 2000 }
+    return { windowSize: 2000, stepSize: 2000 }
   }
 
   function expandEdit(inst: MetricInstance) {
@@ -606,35 +606,9 @@
           {/if}
 
           {#if windowDraft}
-            <div class="mode-tabs">
-              <button
-                type="button"
-                class="mode-tab"
-                class:active={windowDraft.mode === 'epoch'}
-                onclick={() => {
-                  if (!windowDraft) return
-                  windowDraft = { ...windowDraft, mode: 'epoch', stepSize: undefined }
-                }}
-              >Epoch</button>
-              <button
-                type="button"
-                class="mode-tab"
-                class:active={windowDraft.mode === 'sliding'}
-                onclick={() => {
-                  if (!windowDraft) return
-                  const defaultStep = m.meta.windowUnit === 'fixations'
-                    ? 1
-                    : Math.max(1, Math.floor(windowDraft.windowSize / 2))
-                  const step = windowDraft.stepSize ?? defaultStep
-                  windowDraft = { ...windowDraft, mode: 'sliding', stepSize: step }
-                }}
-              >Sliding</button>
-            </div>
             <div class="window-step-row">
               <div class="field-row">
-                <label class="field-label" for="modal-window-{m.meta.id}">
-                  {windowDraft.mode === 'epoch' ? 'Epoch' : 'Window'}
-                </label>
+                <label class="field-label" for="modal-window-{m.meta.id}">Window</label>
                 <div class="window-group">
                   <input
                     id="modal-window-{m.meta.id}"
@@ -652,27 +626,25 @@
                   <span class="field-unit">{m.meta.windowUnit === 'fixations' ? 'fix' : 'ms'}</span>
                 </div>
               </div>
-              {#if windowDraft.mode === 'sliding'}
-                <div class="field-row">
-                  <label class="field-label" for="modal-step-{m.meta.id}">Step</label>
-                  <div class="window-group">
-                    <input
-                      id="modal-step-{m.meta.id}"
-                      class="number-input"
-                      type="number"
-                      value={windowDraft.stepSize ?? windowDraft.windowSize}
-                      min={m.meta.windowUnit === 'fixations' ? 1 : 100}
-                      step={m.meta.windowUnit === 'fixations' ? 1 : 100}
-                      oninput={(e) => {
-                        if (!windowDraft) return
-                        const v = Number((e.target as HTMLInputElement).value)
-                        windowDraft = { ...windowDraft, stepSize: v }
-                      }}
-                    />
-                    <span class="field-unit">{m.meta.windowUnit === 'fixations' ? 'fix' : 'ms'}</span>
-                  </div>
+              <div class="field-row">
+                <label class="field-label" for="modal-step-{m.meta.id}">Step</label>
+                <div class="window-group">
+                  <input
+                    id="modal-step-{m.meta.id}"
+                    class="number-input"
+                    type="number"
+                    value={windowDraft.stepSize}
+                    min={m.meta.windowUnit === 'fixations' ? 1 : 100}
+                    step={m.meta.windowUnit === 'fixations' ? 1 : 100}
+                    oninput={(e) => {
+                      if (!windowDraft) return
+                      const v = Number((e.target as HTMLInputElement).value)
+                      windowDraft = { ...windowDraft, stepSize: v }
+                    }}
+                  />
+                  <span class="field-unit">{m.meta.windowUnit === 'fixations' ? 'fix' : 'ms'}</span>
                 </div>
-              {/if}
+              </div>
             </div>
           {/if}
         </div>

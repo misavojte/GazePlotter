@@ -70,7 +70,7 @@ describe('windowing support gate', () => {
     const r = recipe('timeToFirstFixation') // supportsWindowing: false
     const p: Projection = {
       kind: 'windowed',
-      window: { mode: 'sliding', windowSize: 2000 },
+      window: { windowSize: 2000, stepSize: 500 },
       inner: { kind: 'pick-aoi', aoiRef: { by: 'slot', slot: 0 } },
     }
     expect(recipeSupports(r, p)).not.toBe(true)
@@ -79,7 +79,7 @@ describe('windowing support gate', () => {
     const r = recipe('absoluteTime')
     const p: Projection = {
       kind: 'windowed',
-      window: { mode: 'sliding', windowSize: 2000 },
+      window: { windowSize: 2000, stepSize: 500 },
       inner: { kind: 'pick-aoi', aoiRef: { by: 'slot', slot: 0 } },
     }
     expect(recipeSupports(r, p)).toBe(true)
@@ -88,7 +88,7 @@ describe('windowing support gate', () => {
     const r = recipe('absoluteTime')
     const p: Projection = {
       kind: 'windowed',
-      window: { mode: 'epoch', windowSize: 1000 },
+      window: { windowSize: 1000, stepSize: 1000 },
       // identity-aoi-vector produces aoi-vector, not scalar — invalid
       inner: { kind: 'identity-aoi-vector' } as any,
     }

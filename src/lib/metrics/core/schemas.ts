@@ -6,13 +6,11 @@
 
 const WindowSpecSchema = {
   type: 'object',
-  required: ['mode', 'windowSize', 'reduction'],
+  required: ['windowSize', 'stepSize'],
   additionalProperties: false,
   properties: {
-    mode:       { enum: ['epoch', 'sliding'] },
     windowSize: { type: 'number', minimum: 1 },
     stepSize:   { type: 'number', minimum: 1 },
-    reduction:  { enum: ['mean', 'max', 'min', 'final'] },
   },
 } as const
 

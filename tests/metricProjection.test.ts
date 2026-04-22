@@ -25,7 +25,7 @@ describe('projectionOutputShape', () => {
   it('windowed projection is always scalar-timeseries', () => {
     expect(projectionOutputShape({
       kind: 'windowed',
-      window: { mode: 'epoch', windowSize: 100 },
+      window: { windowSize: 100, stepSize: 100 },
       inner: { kind: 'identity-scalar' },
     })).toBe('scalar-timeseries')
   })
@@ -151,7 +151,7 @@ describe('wrapper: applyProjection delegates to inner leaf', () => {
   it('windowed leaf applies inner to raw values', () => {
     const windowed: Projection = {
       kind: 'windowed',
-      window: { mode: 'epoch', windowSize: 100 },
+      window: { windowSize: 100, stepSize: 100 },
       inner: { kind: 'aggregate-aoi', reducer: 'mean' },
     }
     const out = applyProjection(windowed, { aoiNames: AOIS, rawValues: [10, 20, 30, 5, 65] })
@@ -170,10 +170,10 @@ describe('projectionToLabel', () => {
   it('windowed label appends window suffix', () => {
     const p: Projection = {
       kind: 'windowed',
-      window: { mode: 'epoch', windowSize: 100 },
+      window: { windowSize: 100, stepSize: 100 },
       inner: { kind: 'identity-scalar' },
     }
-    expect(projectionToLabel(p)).toMatch(/Epoch 100/)
+    expect(projectionToLabel(p)).toMatch(/Window 100/)
   })
 })
 
@@ -186,7 +186,7 @@ describe('projectionCacheKey', () => {
   it('differs when windowed', () => {
     const leaf: Projection = { kind: 'identity-scalar' }
     const wrapped: Projection = {
-      kind: 'windowed', window: { mode: 'epoch', windowSize: 100 }, inner: { kind: 'identity-scalar' },
+      kind: 'windowed', window: { windowSize: 100, stepSize: 100 }, inner: { kind: 'identity-scalar' },
     }
     expect(projectionCacheKey(leaf)).not.toBe(projectionCacheKey(wrapped))
   })

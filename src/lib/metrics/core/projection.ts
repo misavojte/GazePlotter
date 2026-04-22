@@ -16,9 +16,9 @@ export type AoiReducer    = 'mean' | 'sum' | 'max' | 'min' | 'median'
 export type MatrixReducer = 'mean' | 'sum'
 
 export interface WindowSpec {
-  mode: 'epoch' | 'sliding'
   windowSize: number
-  stepSize?: number
+  /** Required. `stepSize === windowSize` means non-overlapping (the former "epoch"); anything smaller means sliding/overlapping. */
+  stepSize: number
 }
 
 // ─── Projection tree ────────────────────────────────────────────────────────
@@ -232,13 +232,12 @@ export function leafRawShapes(kind: LeafKind): readonly OutputShape[] {
 // ─── Window label / key ─────────────────────────────────────────────────────
 
 export function windowLabel(w: WindowSpec): string {
-  const modeLabel = w.mode === 'epoch' ? 'Epoch' : 'Sliding'
-  const step = w.stepSize != null && w.stepSize !== w.windowSize ? ` / ${w.stepSize} step` : ''
-  return `${modeLabel} ${w.windowSize}${step}`
+  const step = w.stepSize !== w.windowSize ? ` / ${w.stepSize} step` : ''
+  return `Window ${w.windowSize}${step}`
 }
 
 export function windowKey(w: WindowSpec): string {
-  return `${w.mode}:${w.windowSize}:${w.stepSize ?? ''}`
+  return `${w.windowSize}:${w.stepSize}`
 }
 
 // ─── Private reshape helpers ────────────────────────────────────────────────

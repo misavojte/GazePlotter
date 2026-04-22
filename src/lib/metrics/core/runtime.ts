@@ -103,7 +103,7 @@ function runTimeWindowed(
   const tEnd = scope.timeEnd ?? 0
   if (tEnd <= tStart) return { shape: 'scalar-timeseries', values: [], aoiMissing: false, timeline: [] }
 
-  const step = window.mode === 'epoch' ? window.windowSize : (window.stepSize ?? window.windowSize)
+  const step = window.stepSize
   const values: number[] = []
   const timeline: number[] = []
   const aoiNames = getAoiNames(scope)
@@ -146,8 +146,8 @@ function runFixationWindowed(
   }
 
   const N = seq.length
-  const { mode, windowSize, stepSize } = p.window
-  const step = mode === 'epoch' ? windowSize : (stepSize ?? 1)
+  const { windowSize, stepSize } = p.window
+  const step = stepSize
   if (N < windowSize) return { shape: 'scalar-timeseries', values: [], aoiMissing: false, timeline: [] }
 
   const values: number[] = []

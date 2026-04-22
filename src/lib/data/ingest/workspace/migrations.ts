@@ -320,5 +320,32 @@ export function runMigrations(parsedJson: any): any {
     })
   }
 
+  // Version-independent normalization: collapse legacy WindowSpec `mode` field
+  // into an explicit `stepSize`. Epoch was always `stepSize === windowSize`;
+  // sliding without a stepSize defaulted to windowSize too. After this,
+  // projections only carry `{ windowSize, stepSize }`.
+  const instances = data?.data?.metricInstances
+  if (Array.isArray(instances)) {
+    data.data.metricInstances = instances.map((inst: any) => {
+      const proj = inst?.projection
+      if (!proj || proj.kind !== 'windowed' || !proj.window) return inst
+      const w = proj.window
+      if (!('mode' in w) && typeof w.stepSize === 'number') return inst
+      const windowSize = typeof w.windowSize === 'number' ? w.windowSize : 0
+      const stepSize =
+        typeof w.stepSize === 'number'
+          ? w.stepSize
+          : windowSize
+      const { mode: _mode, ...restWindow } = w
+      return {
+        ...inst,
+        projection: {
+          ...proj,
+          window: { ...restWindow, windowSize, stepSize },
+        },
+      }
+    })
+  }
+
   return data
 }

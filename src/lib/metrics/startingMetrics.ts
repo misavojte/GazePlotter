@@ -48,7 +48,7 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
     baseId: 'absoluteTime',
     projection: {
       kind: 'windowed',
-      window: { mode: 'epoch', windowSize: 2000 },
+      window: { windowSize: 2000, stepSize: 2000 },
       inner: { kind: 'aggregate-aoi', reducer: 'mean' },
     },
   },
@@ -57,7 +57,7 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
     baseId: 'averageFixationCount',
     projection: {
       kind: 'windowed',
-      window: { mode: 'epoch', windowSize: 2000 },
+      window: { windowSize: 2000, stepSize: 2000 },
       inner: { kind: 'aggregate-aoi', reducer: 'mean' },
     },
   },
@@ -66,7 +66,7 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
     baseId: 'rqaDet',
     projection: {
       kind: 'windowed',
-      window: { mode: 'epoch', windowSize: 20 },
+      window: { windowSize: 20, stepSize: 20 },
       inner: { kind: 'identity-scalar' },
     },
   },

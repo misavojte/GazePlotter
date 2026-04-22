@@ -14,9 +14,10 @@
  *     windows like Ida's 21 fixations with a 20-fix / 1-step sliding metric,
  *     which produces just two measurements).
  *   - Time-windowed metrics paint Voronoi-style boundaries derived from
- *     adjacent centers — for epoch mode this equals the window's own span,
- *     for sliding mode it equals `stepSize` wide centred on each `centerMs`.
- *     Both give gap-free coverage on the ms axis.
+ *     adjacent centres — when `stepSize === windowSize` this equals the
+ *     window's own span (non-overlapping), otherwise it equals `stepSize`
+ *     wide centred on each `centerMs` (overlapping). Both give gap-free
+ *     coverage on the ms axis.
  */
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import {
