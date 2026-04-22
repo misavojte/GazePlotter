@@ -622,7 +622,10 @@
                 class:active={windowDraft.mode === 'sliding'}
                 onclick={() => {
                   if (!windowDraft) return
-                  const step = windowDraft.stepSize ?? Math.max(1, Math.floor(windowDraft.windowSize / 2))
+                  const defaultStep = m.meta.windowUnit === 'fixations'
+                    ? 1
+                    : Math.max(1, Math.floor(windowDraft.windowSize / 2))
+                  const step = windowDraft.stepSize ?? defaultStep
                   windowDraft = { ...windowDraft, mode: 'sliding', stepSize: step }
                 }}
               >Sliding</button>
@@ -630,7 +633,7 @@
             <div class="window-step-row">
               <div class="field-row">
                 <label class="field-label" for="modal-window-{m.meta.id}">
-                  {m.meta.windowUnit === 'fixations' ? 'Epoch' : windowDraft.mode === 'epoch' ? 'Epoch' : 'Window'}
+                  {windowDraft.mode === 'epoch' ? 'Epoch' : 'Window'}
                 </label>
                 <div class="window-group">
                   <input
@@ -649,7 +652,7 @@
                   <span class="field-unit">{m.meta.windowUnit === 'fixations' ? 'fix' : 'ms'}</span>
                 </div>
               </div>
-              {#if m.meta.windowUnit !== 'fixations' && windowDraft.mode === 'sliding'}
+              {#if windowDraft.mode === 'sliding'}
                 <div class="field-row">
                   <label class="field-label" for="modal-step-{m.meta.id}">Step</label>
                   <div class="window-group">
@@ -658,15 +661,15 @@
                       class="number-input"
                       type="number"
                       value={windowDraft.stepSize ?? windowDraft.windowSize}
-                      min={100}
-                      step={100}
+                      min={m.meta.windowUnit === 'fixations' ? 1 : 100}
+                      step={m.meta.windowUnit === 'fixations' ? 1 : 100}
                       oninput={(e) => {
                         if (!windowDraft) return
                         const v = Number((e.target as HTMLInputElement).value)
                         windowDraft = { ...windowDraft, stepSize: v }
                       }}
                     />
-                    <span class="field-unit">ms</span>
+                    <span class="field-unit">{m.meta.windowUnit === 'fixations' ? 'fix' : 'ms'}</span>
                   </div>
                 </div>
               {/if}

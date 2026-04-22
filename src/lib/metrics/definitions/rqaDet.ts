@@ -1,8 +1,11 @@
 import { defineMetric } from '../core/defineMetric'
-import { integerParam } from '../core/params'
+import { boolParam, integerParam } from '../core/params'
 import { rqaScalar } from '../core/rqa'
 
-const params = [integerParam('l_min', 'Min line', 2, { min: 2, max: 20 })] as const
+const params = [
+  integerParam('l_min', 'Min line', 2, { min: 2, max: 20 }),
+  boolParam('include_no_aoi', 'Include off-AOI fixations', false),
+] as const
 
 defineMetric({
   id: 'rqaDet',
@@ -15,8 +18,9 @@ defineMetric({
   searchTags: ['rqa', 'determinism', 'det', 'diagonal', 'nonlinear', 'aoi', 'sequence'],
   params,
   init: (): { seq: number[] } => ({ seq: [] }),
-  onFixation: (acc, { slots }) => {
+  onFixation: (acc, { slots }, { slots: info, params }) => {
     if (slots.length === 1) acc.seq.push(slots[0])
+    else if (params.include_no_aoi && slots.length === 0) acc.seq.push(info.noAoiSlot)
   },
   finalize: (acc, _slots, ctx) =>
     [rqaScalar(acc.seq, ctx.params.l_min, r => r.DET)],

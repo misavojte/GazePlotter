@@ -57,7 +57,7 @@ export function scanBatch(
       const rawId = rawAois[r]
       if (hiddenAoisSet?.has(rawId)) continue
       const slot = aoiLookup.get(engine.getAoiMapping(stimulusId, rawId))
-      if (slot !== undefined) resolvedSlots.push(slot)
+      if (slot !== undefined && resolvedSlots.indexOf(slot) === -1) resolvedSlots.push(slot)
     }
 
     const fix = { start, duration: end - start, slots: resolvedSlots, index }

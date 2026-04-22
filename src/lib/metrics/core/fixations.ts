@@ -17,24 +17,36 @@ import type { MetricInstance } from '../instances'
 export interface FixationSequence {
   seq: number[]
   timestamps: number[]
+  endTimestamps: number[]
 }
 
 /**
- * Extract the single-AOI fixation sequence with segment timestamps for a
- * participant. Fixations that resolve to zero AOIs or multiple AOIs are
- * skipped — RQA-style metrics operate on unambiguous categorical streams.
+ * Extract the fixation sequence with segment timestamps for a participant.
+ * Single-AOI fixations are always included. Multi-AOI fixations are always
+ * skipped — there is no canonical sentinel for "simultaneously in several
+ * AOIs". Zero-AOI (off-AOI) fixations are included only when `includeNoAoi`
+ * is set, in which case they map to `slots.noAoiSlot` so the RQA equality
+ * check treats two off-AOI fixations as recurrent.
+ *
+ * Must stay index-aligned with the metric recipe's `onFixation` filter:
+ * callers that feed a recipe's accumulator (e.g. the evolving-metrics
+ * transformer resolving window start indices back to ms) must pass the
+ * same `includeNoAoi` value the recipe was instantiated with.
  */
 export function extractFixationSequence(
   engine: DataEngine,
   stimulusId: number,
   participantId: number,
+  options?: { includeNoAoi?: boolean },
 ): FixationSequence {
   const slots = buildAoiSlots(engine, stimulusId)
-  if (!slots) return { seq: [], timestamps: [] }
-  const { reader, hiddenAoisSet, aoiLookup } = slots
+  if (!slots) return { seq: [], timestamps: [], endTimestamps: [] }
+  const { reader, hiddenAoisSet, aoiLookup, noAoiSlot } = slots
   const { startIndex, endIndex } = reader.getSegmentRange(stimulusId, participantId)
+  const includeNoAoi = options?.includeNoAoi ?? false
   const seq: number[] = []
   const timestamps: number[] = []
+  const endTimestamps: number[] = []
   const aoiSet = new Set<number>()
   for (let i = startIndex; i < endIndex; i++) {
     if (reader.getSegmentCategory(i) !== 0) continue
@@ -49,9 +61,14 @@ export function extractFixationSequence(
     if (aoiSet.size === 1) {
       seq.push(aoiSet.values().next().value!)
       timestamps.push(reader.getSegmentStart(i))
+      endTimestamps.push(reader.getSegmentEnd(i))
+    } else if (includeNoAoi && aoiSet.size === 0) {
+      seq.push(noAoiSlot)
+      timestamps.push(reader.getSegmentStart(i))
+      endTimestamps.push(reader.getSegmentEnd(i))
     }
   }
-  return { seq, timestamps }
+  return { seq, timestamps, endTimestamps }
 }
 
 /**

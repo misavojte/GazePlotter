@@ -1,5 +1,10 @@
 import { defineMetric } from '../core/defineMetric'
+import { boolParam } from '../core/params'
 import { rqaScalar } from '../core/rqa'
+
+const params = [
+  boolParam('include_no_aoi', 'Include off-AOI fixations', false),
+] as const
 
 defineMetric({
   id: 'rqaRec',
@@ -10,10 +15,11 @@ defineMetric({
   rawShape: 'scalar',
   windowUnit: 'fixations',
   searchTags: ['rqa', 'recurrence', 'rec', 'nonlinear', 'aoi', 'sequence', 'cross'],
-  params: [] as const,
+  params,
   init: (): { seq: number[] } => ({ seq: [] }),
-  onFixation: (acc, { slots }) => {
+  onFixation: (acc, { slots }, { slots: info, params }) => {
     if (slots.length === 1) acc.seq.push(slots[0])
+    else if (params.include_no_aoi && slots.length === 0) acc.seq.push(info.noAoiSlot)
   },
   finalize: (acc) => [rqaScalar(acc.seq, 2, r => r.REC, 0)],
   windowedFinalize: (acc, from, to) =>

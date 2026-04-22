@@ -1,16 +1,22 @@
 /**
  * Transformer for evolving-metrics data.
  *
- * Relies on the metrics runtime for windowing: `query()` on a windowed instance
- * returns `{shape: 'scalar-timeseries', values, timeline}`. The transformer's
- * only job is to re-bin that timeseries onto the plot's ms grid:
+ * Turns the runtime's `scalar-timeseries` output into a list of
+ * `EvolvingMetricsWindow`s per participant. Each window carries a scientific
+ * `centerMs` anchor (the midpoint of its data) plus paint boundaries that
+ * drive heatmap rectangles. Overlay line plots anchor each point at
+ * `centerMs`.
  *
- *   - Time-windowed metrics: `timeline` is ms start-of-window — each value
- *     slots into the corresponding bin.
- *   - Fixation-windowed metrics: `timeline` is fix-index start-of-window —
- *     the bin is looked up via the participant's fixation-timestamp sequence.
- *     When multiple windows fall in the same bin (sliding mode), the bin
- *     becomes their arithmetic mean.
+ *   - Fixation-windowed metrics paint the **middle fixation's own span** —
+ *     `[timestamps[midFix], endTimestamps[midFix]]`. Adjacent windows are
+ *     visually separated by the saccade between their middle fixations,
+ *     making each SW measurement individually visible (critical for small
+ *     windows like Ida's 21 fixations with a 20-fix / 1-step sliding metric,
+ *     which produces just two measurements).
+ *   - Time-windowed metrics paint Voronoi-style boundaries derived from
+ *     adjacent centers — for epoch mode this equals the window's own span,
+ *     for sliding mode it equals `stepSize` wide centred on each `centerMs`.
+ *     Both give gap-free coverage on the ms axis.
  */
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import {
@@ -26,13 +32,13 @@ import {
   windowLabel,
   type MetricInstance,
   type Scope,
-  type WindowSpec,
 } from '$lib/metrics'
 import { getEvolvingMetricsXAxisLabel } from '../const'
 import type {
   EvolvingMetricsSettings,
   EvolvingMetricsResult,
   EvolvingMetricsParticipant,
+  EvolvingMetricsWindow,
 } from '../types'
 
 function resolveInstance(
@@ -45,48 +51,50 @@ function resolveInstance(
   return (meta.metricInstances ?? []).find(i => i.id === selectedMetricId) ?? null
 }
 
-function defaultStepSize(window: WindowSpec, windowUnit: 'ms' | 'fixations'): number {
-  if (windowUnit === 'fixations') return 100
-  return window.mode === 'epoch' ? window.windowSize : (window.stepSize ?? window.windowSize)
-}
+/**
+ * Given an array of center-ms per window, return paired
+ * `(startMs[], endMs[])` Voronoi boundaries. First and last windows use
+ * symmetric half-gap extrapolation so they render the same width as their
+ * interior neighbours. `NaN` centers produce `NaN` boundaries (skipped
+ * downstream). Arrays with a single finite center return `null` for its
+ * boundaries — the caller falls back to the window's raw data span.
+ */
+function voronoiBoundaries(
+  centers: Float64Array,
+): { starts: Float64Array; ends: Float64Array } {
+  const N = centers.length
+  const starts = new Float64Array(N).fill(NaN)
+  const ends = new Float64Array(N).fill(NaN)
 
-function mapTimeseriesToBins(
-  values: readonly number[],
-  timeline: readonly number[],
-  binCount: number,
-  stepSize: number,
-  timelineMin: number,
-): Float32Array {
-  const out = new Float32Array(binCount).fill(NaN)
-  const sums = new Float64Array(binCount)
-  const counts = new Uint32Array(binCount)
-  for (let i = 0; i < values.length; i++) {
-    const v = values[i]
-    if (!Number.isFinite(v)) continue
-    const bin = Math.floor((timeline[i] - timelineMin) / stepSize)
-    if (bin < 0 || bin >= binCount) continue
-    sums[bin] += v
-    counts[bin]++
-  }
-  for (let i = 0; i < binCount; i++) {
-    if (counts[i] > 0) out[i] = sums[i] / counts[i]
-  }
-  return out
-}
+  // Walk only the valid (finite) centers so NaN slots in the middle don't
+  // break Voronoi for their neighbours — they just get skipped.
+  const validIdx: number[] = []
+  for (let i = 0; i < N; i++) if (Number.isFinite(centers[i])) validIdx.push(i)
 
-function mapFixIndexTimelineToMs(
-  timeline: readonly number[],
-  windowSize: number,
-  timestamps: readonly number[],
-): number[] {
-  const centerOffset = Math.floor(windowSize / 2)
-  const out: number[] = new Array(timeline.length)
-  for (let i = 0; i < timeline.length; i++) {
-    const centerIdx = timeline[i] + centerOffset
-    const ts = timestamps[centerIdx]
-    out[i] = ts ?? Number.NaN
+  for (let k = 0; k < validIdx.length; k++) {
+    const i = validIdx[k]
+    const c = centers[i]
+    const hasPrev = k > 0
+    const hasNext = k < validIdx.length - 1
+    if (hasPrev && hasNext) {
+      const prev = centers[validIdx[k - 1]]
+      const next = centers[validIdx[k + 1]]
+      starts[i] = (prev + c) / 2
+      ends[i] = (c + next) / 2
+    } else if (hasNext) {
+      const next = centers[validIdx[k + 1]]
+      const half = (next - c) / 2
+      starts[i] = c - half
+      ends[i] = c + half
+    } else if (hasPrev) {
+      const prev = centers[validIdx[k - 1]]
+      const half = (c - prev) / 2
+      starts[i] = c - half
+      ends[i] = c + half
+    }
+    // else: sole valid center — leave NaN, caller falls back to raw span
   }
-  return out
+  return { starts, ends }
 }
 
 export function getEvolvingMetricsData(
@@ -118,12 +126,11 @@ export function getEvolvingMetricsData(
   }
   const timelineMin = settings.timelineMin ?? 0
   const timelineMax = settings.timelineMax ?? maxTime
-  const duration = Math.max(1, timelineMax - timelineMin)
 
   const window = instance.projection.window
   const windowUnit = metric.meta.windowUnit
-  const stepSize = defaultStepSize(window, windowUnit)
-  const binCount = Math.max(1, Math.ceil(duration / stepSize))
+  const halfWindowSize = window.windowSize / 2
+  const midOffsetFix = Math.floor(window.windowSize / 2)
 
   let valueMin = Infinity
   let valueMax = -Infinity
@@ -132,49 +139,80 @@ export function getEvolvingMetricsData(
   for (let p = 0; p < numParticipants; p++) {
     const pid = participantIds[p]
     const entity = participantEntities[p]
+    const label = entity?.displayedName ?? entity?.originalName ?? `P${pid}`
     const scope: Scope = {
       engine, stimulusId, participantId: pid,
       timeStart: timelineMin, timeEnd: timelineMax,
     }
     const result = query(instance, scope)
-    if (result.shape !== 'scalar-timeseries') {
-      participants[p] = {
-        id: pid,
-        label: entity?.displayedName ?? entity?.originalName ?? `P${pid}`,
-        values: new Float32Array(binCount).fill(NaN),
-      }
+    if (result.shape !== 'scalar-timeseries' || !result.timeline) {
+      participants[p] = { id: pid, label, windows: [] }
       continue
     }
 
-    const msTimeline = windowUnit === 'fixations'
-      ? mapFixIndexTimelineToMs(
-          result.timeline,
-          window.windowSize,
-          extractFixationSequence(engine, stimulusId, pid).timestamps,
-        )
-      : result.timeline
+    const values = result.values
+    const timeline = result.timeline
+    const N = values.length
+    const windows: EvolvingMetricsWindow[] = []
 
-    const values = mapTimeseriesToBins(result.values, msTimeline, binCount, stepSize, timelineMin)
-
-    for (let i = 0; i < binCount; i++) {
-      const v = values[i]
-      if (!Number.isFinite(v)) continue
-      if (v < valueMin) valueMin = v
-      if (v > valueMax) valueMax = v
+    if (windowUnit === 'fixations') {
+      // Middle-fixation painting: each SW measurement is visualised across
+      // the span of the single fixation that sits at the window's centre.
+      // Adjacent windows are naturally separated by the saccade between
+      // their centre fixations.
+      // Keep extract's filter in lock-step with the recipe's onFixation so
+      // timeline indices stay aligned. For RQA metrics this is driven by the
+      // instance's `include_no_aoi` boolean (default false).
+      const includeNoAoi = Boolean(instance.params?.include_no_aoi)
+      const seq = extractFixationSequence(engine, stimulusId, pid, { includeNoAoi })
+      const totalFix = seq.timestamps.length
+      for (let i = 0; i < N; i++) {
+        const v = values[i]
+        if (!Number.isFinite(v)) continue
+        const midFix = timeline[i] + midOffsetFix
+        if (midFix >= totalFix) continue
+        const a = seq.timestamps[midFix]
+        const b = seq.endTimestamps[midFix]
+        if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) continue
+        windows.push({ startMs: a, endMs: b, centerMs: (a + b) / 2, value: v })
+        if (v < valueMin) valueMin = v
+        if (v > valueMax) valueMax = v
+      }
+    } else {
+      // Time-windowed: Voronoi boundaries give gap-free coverage (equal to
+      // the window itself for epoch, `stepSize` wide for sliding).
+      const centers = new Float64Array(N).fill(NaN)
+      for (let i = 0; i < N; i++) {
+        if (!Number.isFinite(values[i])) continue
+        centers[i] = timeline[i] + halfWindowSize
+      }
+      const { starts, ends } = voronoiBoundaries(centers)
+      for (let i = 0; i < N; i++) {
+        const v = values[i]
+        if (!Number.isFinite(v)) continue
+        const c = centers[i]
+        if (!Number.isFinite(c)) continue
+        let startMs = starts[i]
+        let endMs = ends[i]
+        if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) {
+          // Lone window fallback: use the raw time-window span.
+          startMs = timeline[i]
+          endMs = timeline[i] + window.windowSize
+        }
+        if (endMs <= startMs) continue
+        windows.push({ startMs, endMs, centerMs: c, value: v })
+        if (v < valueMin) valueMin = v
+        if (v > valueMax) valueMax = v
+      }
     }
 
-    participants[p] = {
-      id: pid,
-      label: entity?.displayedName ?? entity?.originalName ?? `P${pid}`,
-      values,
-    }
+    participants[p] = { id: pid, label, windows }
   }
 
   if (!Number.isFinite(valueMin)) valueMin = 0
   if (valueMax <= valueMin) valueMax = valueMin + 1
 
-  const effectiveMaxTime = timelineMin + binCount * stepSize
-  const timeline = createAdaptiveTimeline(timelineMin, effectiveMaxTime, 6)
+  const timeline = createAdaptiveTimeline(timelineMin, timelineMax, 6)
 
   const unitSuffix = windowUnit === 'fixations' ? ' fix' : ' ms'
   const xAxisLabel = getEvolvingMetricsXAxisLabel(windowLabel(window) + unitSuffix)
@@ -183,11 +221,9 @@ export function getEvolvingMetricsData(
   return {
     participants,
     timeline,
-    binCount,
-    stepSize,
     xAxisLabel,
     yAxisLabel,
-    maxTime: effectiveMaxTime,
+    maxTime: timelineMax,
     valueMin,
     valueMax,
   }

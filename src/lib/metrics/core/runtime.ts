@@ -211,7 +211,11 @@ export function scanAccumulator(
       const rawId = rawAois[r]
       if (hiddenAoisSet?.has(rawId)) continue
       const slot = aoiLookup.get(scope.engine.getAoiMapping(scope.stimulusId, rawId))
-      if (slot !== undefined) resolvedSlots.push(slot)
+      // Dedupe so recipes testing `slots.length === 1` (e.g. RQA's
+      // single-AOI filter) and counters iterating slots treat a fixation
+      // tagged by multiple raw IDs that map to the same AOI slot as a
+      // single labelled fixation, matching extractFixationSequence.
+      if (slot !== undefined && resolvedSlots.indexOf(slot) === -1) resolvedSlots.push(slot)
     }
 
     recipe.onFixation(acc, { start, duration: end - start, slots: resolvedSlots, index }, ctx)

@@ -19,8 +19,6 @@
   import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color/palettes'
 
   import {
-    GRIDLINE_SECONDARY,
-    GRIDLINE_PRIMARY,
     FONT_PRIMARY,
   } from '$lib/plots/shared/const'
   import {
@@ -37,7 +35,7 @@
   import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
   import { safeNumber } from '$lib/shared/utils/mathUtils'
   import { MARGIN, AXIS_CONFIG } from '../const'
-  import type { EvolvingMetricsResult } from '../types'
+  import type { EvolvingMetricsResult, EvolvingMetricsWindow } from '../types'
 
   const OVERLAY_LEFT_MARGIN = 65
   // Branding red #cd1404 as RGB components, reused for band + mean line.
@@ -82,7 +80,9 @@
   const HEATMAP_LEGEND_HEIGHT = 60
 
   let canvas = $state<HTMLCanvasElement | null>(null)
-  let hoveredBinIndex = $state<number | null>(null)
+  // Track hover position in ms (not bin index) — the plot renders directly on
+  // the ms axis, so ms is the primary coordinate for hit-testing.
+  let hoveredMsTime = $state<number | null>(null)
   let hoveredParticipantIndex = $state<number | null>(null)
 
   const safeWidth = $derived(Math.max(1, safeNumber(width, 1)))
@@ -184,66 +184,49 @@
     )
   })
 
-  // Overlay: aggregate statistics (mean, P25, P75) per bin
+  // Overlay aggregates: sampled at one position per pixel across the plot
+  // width. At each sample, look up each participant's window containing that
+  // ms (via a monotonic pointer since samples advance), then compute
+  // mean/P25/P75 across participants. Using pixel-resolution sampling keeps
+  // the aggregate line visually smooth without introducing a bin grid.
   const overlayAggregates = $derived.by(() => {
     if (alignment !== 'overlay') return null
-    const binCount = data.binCount
     const participantCount = data.participants.length
-    const meanValues = new Float32Array(binCount)
-    const p25Values = new Float32Array(binCount)
-    const p75Values = new Float32Array(binCount)
+    if (participantCount === 0 || plotAreaWidth <= 0) return null
+
+    const sampleCount = Math.max(50, plotAreaWidth)
+    const timelineMin = data.timeline.minValue
+    const timelineMax = data.timeline.maxValue
+    const duration = Math.max(1, timelineMax - timelineMin)
+
+    const meanValues = new Float32Array(sampleCount).fill(NaN)
+    const p25Values = new Float32Array(sampleCount).fill(NaN)
+    const p75Values = new Float32Array(sampleCount).fill(NaN)
+    const pointers = new Int32Array(participantCount)
     const temp: number[] = []
 
-    for (let i = 0; i < binCount; i++) {
+    for (let s = 0; s < sampleCount; s++) {
+      const t = timelineMin + ((s + 0.5) / sampleCount) * duration
       temp.length = 0
       for (let p = 0; p < participantCount; p++) {
-        const v = data.participants[p].values[i]
-        if (Number.isFinite(v)) temp.push(v)
+        const wins = data.participants[p].windows
+        let idx = pointers[p]
+        while (idx < wins.length && wins[idx].endMs <= t) idx++
+        pointers[p] = idx
+        if (idx < wins.length && wins[idx].startMs <= t) {
+          temp.push(wins[idx].value)
+        }
       }
-      if (temp.length === 0) {
-        meanValues[i] = NaN
-        p25Values[i] = NaN
-        p75Values[i] = NaN
-      } else {
-        let sum = 0
-        for (let j = 0; j < temp.length; j++) sum += temp[j]
-        meanValues[i] = sum / temp.length
-        temp.sort((a, b) => a - b)
-        p25Values[i] = computePercentile(temp, 0.25)
-        p75Values[i] = computePercentile(temp, 0.75)
-      }
-    }
-    // Smooth the aggregates with a triangular-weighted moving average so the
-    // summary lines read as smooth trends rather than noisy per-bin spikes.
-    // Kernel adapts to pixel density: cover ~3 pixels worth of bins.
-    const binsPerPixel = plotAreaWidth > 0 ? binCount / plotAreaWidth : 1
-    const halfWidth = Math.max(1, Math.round(binsPerPixel * 3))
-    return {
-      meanValues: smoothArray(meanValues, halfWidth),
-      p25Values: smoothArray(p25Values, halfWidth),
-      p75Values: smoothArray(p75Values, halfWidth),
-    }
-  })
-
-  function smoothArray(values: Float32Array, halfWidth: number): Float32Array {
-    const n = values.length
-    const result = new Float32Array(n)
-    for (let i = 0; i < n; i++) {
+      if (temp.length === 0) continue
       let sum = 0
-      let weight = 0
-      for (let j = -halfWidth; j <= halfWidth; j++) {
-        const idx = i + j
-        if (idx < 0 || idx >= n) continue
-        const v = values[idx]
-        if (v !== v) continue
-        const w = halfWidth + 1 - Math.abs(j)
-        sum += v * w
-        weight += w
-      }
-      result[i] = weight > 0 ? sum / weight : NaN
+      for (let j = 0; j < temp.length; j++) sum += temp[j]
+      meanValues[s] = sum / temp.length
+      temp.sort((a, b) => a - b)
+      p25Values[s] = computePercentile(temp, 0.25)
+      p75Values[s] = computePercentile(temp, 0.75)
     }
-    return result
-  }
+    return { meanValues, p25Values, p75Values, sampleCount }
+  })
 
   function computePercentile(sorted: number[], p: number): number {
     const n = sorted.length
@@ -270,6 +253,22 @@
 
   $effect(() => plot.registerExportSource(() => canvas))
 
+  function findWindowAt(
+    windows: readonly EvolvingMetricsWindow[],
+    t: number
+  ): EvolvingMetricsWindow | null {
+    let lo = 0
+    let hi = windows.length - 1
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1
+      const w = windows[mid]
+      if (t < w.startMs) hi = mid - 1
+      else if (t >= w.endMs) lo = mid + 1
+      else return w
+    }
+    return null
+  }
+
   function renderCanvas() {
     beginCanvasDrawing(plot.canvasState, true)
 
@@ -284,12 +283,10 @@
     const floorRight = floorLeft + floorWidth
 
     const participantCount = data.participants.length
-    if (floorWidth <= 0 || floorHeight <= 0 || data.binCount <= 0 || participantCount === 0) {
+    if (floorWidth <= 0 || floorHeight <= 0 || participantCount === 0) {
       finishCanvasDrawing(plot.canvasState)
       return
     }
-
-    const binWidth = floorWidth / data.binCount
 
     // Clip to plot area
     ctx.save()
@@ -306,7 +303,6 @@
         floorHeight,
         floorBottom,
         floorRight,
-        binWidth,
         participantCount
       )
     } else {
@@ -318,7 +314,6 @@
         floorHeight,
         floorBottom,
         floorRight,
-        binWidth,
         participantCount
       )
     }
@@ -329,7 +324,7 @@
     if (alignment === 'overlay') {
       renderOverlayAxes(ctx, floorLeft, floorTop, floorWidth, floorHeight, floorBottom)
     } else {
-      renderHeatmapLabels(ctx, floorLeft, floorTop, floorHeight, floorRight, participantCount, binWidth)
+      renderHeatmapLabels(ctx, floorLeft, floorTop, floorHeight, floorRight, participantCount)
     }
 
     ctx.restore()
@@ -348,13 +343,17 @@
     floorHeight: number,
     floorBottom: number,
     floorRight: number,
-    binWidth: number,
     participantCount: number
   ) {
     const rowHeight = floorHeight / participantCount
     const paletteStopCount = palette.length - 1
     const valueRange = data.valueMax - data.valueMin
     const invValueRange = valueRange > 0 ? 1 / valueRange : 0
+    const timelineMin = data.timeline.minValue
+    const timelineMax = data.timeline.maxValue
+    const duration = Math.max(1, timelineMax - timelineMin)
+    const msPerPx = duration / floorWidth
+    const invMsPerPx = 1 / msPerPx
 
     fillPlotAreaBackground(
       ctx,
@@ -366,14 +365,21 @@
     )
 
     for (let p = 0; p < participantCount; p++) {
-      const values = data.participants[p].values
+      const participant = data.participants[p]
       const rowY = floorTop + p * rowHeight
+      const wins = participant.windows
 
-      for (let i = 0; i < data.binCount; i++) {
-        const val = values[i]
-        if (val !== val || val <= 0) continue
+      for (let i = 0; i < wins.length; i++) {
+        const w = wins[i]
+        // NaN values are already filtered in the transformer, but guard
+        // defensively. Note: a 0 value (e.g. DET = 0% when R > 0 but no
+        // diagonals) is legitimate and must render with the bottom colour.
+        if (!Number.isFinite(w.value)) continue
+        const xStart = floorLeft + (w.startMs - timelineMin) * invMsPerPx
+        const xEnd = floorLeft + (w.endMs - timelineMin) * invMsPerPx
+        if (xEnd <= floorLeft || xStart >= floorRight) continue
 
-        const normalized = (val - data.valueMin) * invValueRange
+        const normalized = (w.value - data.valueMin) * invValueRange
         const scaledVal = Math.max(0, Math.min(1, normalized)) * paletteStopCount
         const baseIdx = scaledVal | 0
         const nextIdx = Math.min(paletteStopCount, baseIdx + 1)
@@ -383,7 +389,14 @@
           palette[nextIdx],
           scaledVal - baseIdx
         )
-        ctx.fillRect(floorLeft + i * binWidth, rowY, binWidth + 0.5, rowHeight)
+
+        // Paint exactly over the window's ms extent — no anti-alias bleed
+        // across boundaries. That preserves the saccade gap between adjacent
+        // middle fixations so two sliding-window measurements stay visually
+        // distinct instead of smearing into one band.
+        const x = Math.max(floorLeft, xStart)
+        const rectWidth = Math.min(floorRight, xEnd) - x
+        if (rectWidth > 0) ctx.fillRect(x, rowY, rectWidth, rowHeight)
       }
     }
 
@@ -398,23 +411,31 @@
       ctx.stroke()
     }
 
-    // Hover highlight
-    if (hoveredBinIndex !== null && hoveredParticipantIndex !== null) {
-      const cellX = floorLeft + hoveredBinIndex * binWidth
-      const cellY = floorTop + hoveredParticipantIndex * rowHeight
-
-      ctx.save()
-      ctx.globalAlpha = 0.3
-      ctx.fillStyle = '#007acc'
-      ctx.fillRect(cellX, cellY, binWidth, rowHeight)
-      ctx.restore()
-    } else if (hoveredBinIndex !== null) {
-      const binX = floorLeft + hoveredBinIndex * binWidth
-
+    // Hover highlight — the hovered window of the hovered participant, or a
+    // thin vertical marker when hovering outside any participant's window.
+    if (hoveredMsTime !== null && hoveredParticipantIndex !== null) {
+      const participant = data.participants[hoveredParticipantIndex]
+      const w = findWindowAt(participant.windows, hoveredMsTime)
+      if (w) {
+        const xStart = floorLeft + (w.startMs - timelineMin) * invMsPerPx
+        const xEnd = floorLeft + (w.endMs - timelineMin) * invMsPerPx
+        const rowY = floorTop + hoveredParticipantIndex * rowHeight
+        const x = Math.max(floorLeft, xStart)
+        const rectWidth = Math.min(floorRight, xEnd) - x
+        ctx.save()
+        ctx.globalAlpha = 0.3
+        ctx.fillStyle = '#007acc'
+        ctx.fillRect(x, rowY, rectWidth, rowHeight)
+        ctx.restore()
+      }
+    } else if (hoveredMsTime !== null) {
+      const cx = alignToPixelCenter(
+        floorLeft + (hoveredMsTime - timelineMin) * invMsPerPx
+      )
       ctx.save()
       ctx.globalAlpha = 0.15
       ctx.fillStyle = '#007acc'
-      ctx.fillRect(binX, floorTop, binWidth, floorHeight)
+      ctx.fillRect(cx - 0.5, floorTop, 1.5, floorHeight)
       ctx.restore()
     }
   }
@@ -425,8 +446,7 @@
     floorTop: number,
     floorHeight: number,
     floorRight: number,
-    participantCount: number,
-    binWidth: number
+    participantCount: number
   ) {
     const rowHeight = floorHeight / participantCount
     const floorBottom = floorTop + floorHeight
@@ -534,79 +554,65 @@
     floorHeight: number,
     floorBottom: number,
     floorRight: number,
-    binWidth: number,
     participantCount: number
   ) {
     if (!overlayAggregates) return
-    const { meanValues, p25Values, p75Values } = overlayAggregates
+    const { meanValues, p25Values, p75Values, sampleCount } = overlayAggregates
     const axisMax = yAxisMax
+    const timelineMin = data.timeline.minValue
+    const duration = Math.max(1, data.timeline.maxValue - timelineMin)
+    const invMsPerPx = floorWidth / duration
 
-    const valueToY = (v: number) =>
-      floorBottom - (v / axisMax) * floorHeight
-    const binToX = (i: number) => floorLeft + (i + 0.5) * binWidth
+    const valueToY = (v: number) => floorBottom - (v / axisMax) * floorHeight
+    const msToX = (ms: number) => floorLeft + (ms - timelineMin) * invMsPerPx
+    const sampleToX = (i: number) =>
+      floorLeft + ((i + 0.5) / sampleCount) * floorWidth
 
-    // --- Individual participant lines ---
-    // Alpha and width scale with N so that spaghetti recedes into a density
-    // cloud at high counts while remaining individually traceable at low N.
+    // Individual participants as center-aligned line plots — each window is
+    // plotted as a point at its `centerMs` (scientific anchor) and connected
+    // to its neighbours by straight lines. This is the classic SW-metric
+    // rendering; Voronoi paint boundaries only matter for the heatmap.
     const alpha = Math.max(0.04, Math.min(0.5, 2 / Math.sqrt(participantCount)))
     ctx.lineWidth = participantCount > 30 ? 0.5 : 1
 
     for (let p = 0; p < participantCount; p++) {
       if (hoveredParticipantIndex === p) continue
-      const values = data.participants[p].values
-
+      const wins = data.participants[p].windows
+      if (wins.length === 0) continue
       ctx.strokeStyle = `rgba(${OVERLAY_INDIVIDUAL_RGB}, ${alpha})`
-      ctx.beginPath()
-      let drawing = false
-      for (let i = 0; i < data.binCount; i++) {
-        const v = values[i]
-        if (!Number.isFinite(v)) {
-          drawing = false
-          continue
-        }
-        const x = binToX(i)
-        const y = valueToY(v)
-        if (!drawing) {
-          ctx.moveTo(x, y)
-          drawing = true
-        } else {
-          ctx.lineTo(x, y)
-        }
-      }
+      drawCenterLinePath(ctx, wins, msToX, valueToY)
       ctx.stroke()
     }
 
     // --- P25–P75 band ---
     ctx.fillStyle = `rgba(${OVERLAY_SUMMARY_RGB}, ${OVERLAY_BAND_ALPHA})`
     let segStart = -1
-    for (let i = 0; i <= data.binCount; i++) {
+    for (let i = 0; i <= sampleCount; i++) {
       const valid =
-        i < data.binCount &&
+        i < sampleCount &&
         p25Values[i] === p25Values[i] &&
         p75Values[i] === p75Values[i]
       if (valid && segStart < 0) {
         segStart = i
       } else if (!valid && segStart >= 0) {
-        drawBandSegment(ctx, p25Values, p75Values, segStart, i - 1, binToX, valueToY)
+        drawBandSegment(ctx, p25Values, p75Values, segStart, i - 1, sampleToX, valueToY)
         segStart = -1
       }
     }
 
     // --- Mean line ---
-    // Solid stroke in branding color — distinguished from spaghetti by color
-    // and weight, not by dash pattern (dashes look messy on noisy data).
     ctx.save()
     ctx.strokeStyle = OVERLAY_SUMMARY_COLOR
     ctx.lineWidth = OVERLAY_MEAN_LINE_WIDTH
     ctx.beginPath()
     let drawingMean = false
-    for (let i = 0; i < data.binCount; i++) {
+    for (let i = 0; i < sampleCount; i++) {
       const v = meanValues[i]
       if (v !== v) {
         drawingMean = false
         continue
       }
-      const x = binToX(i)
+      const x = sampleToX(i)
       const y = valueToY(v)
       if (!drawingMean) {
         ctx.moveTo(x, y)
@@ -618,9 +624,9 @@
     ctx.stroke()
     ctx.restore()
 
-    // --- Hover: dashed vertical line at bin center ---
-    if (hoveredBinIndex !== null) {
-      const cx = alignToPixelCenter(binToX(hoveredBinIndex))
+    // --- Hover: dashed vertical line at cursor ms ---
+    if (hoveredMsTime !== null) {
+      const cx = alignToPixelCenter(msToX(hoveredMsTime))
       ctx.save()
       ctx.strokeStyle = '#007acc'
       ctx.lineWidth = 1
@@ -634,27 +640,38 @@
 
     // --- Highlighted participant (on hover) ---
     if (hoveredParticipantIndex !== null) {
-      const values = data.participants[hoveredParticipantIndex].values
-      ctx.strokeStyle = '#007acc'
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      let drawingHL = false
-      for (let i = 0; i < data.binCount; i++) {
-        const v = values[i]
-        if (!Number.isFinite(v)) {
-          drawingHL = false
-          continue
-        }
-        const x = binToX(i)
-        const y = valueToY(v)
-        if (!drawingHL) {
-          ctx.moveTo(x, y)
-          drawingHL = true
-        } else {
-          ctx.lineTo(x, y)
-        }
+      const wins = data.participants[hoveredParticipantIndex].windows
+      if (wins.length > 0) {
+        ctx.strokeStyle = '#007acc'
+        ctx.lineWidth = 1
+        drawCenterLinePath(ctx, wins, msToX, valueToY)
+        ctx.stroke()
       }
-      ctx.stroke()
+    }
+  }
+
+  function drawCenterLinePath(
+    ctx: CanvasRenderingContext2D,
+    wins: readonly EvolvingMetricsWindow[],
+    msToX: (ms: number) => number,
+    valueToY: (v: number) => number
+  ) {
+    ctx.beginPath()
+    let drawing = false
+    for (let i = 0; i < wins.length; i++) {
+      const w = wins[i]
+      // Break the line if this window doesn't abut the previous — signals a
+      // data hole rather than stitching across it.
+      const prev = i > 0 ? wins[i - 1] : null
+      const hasGap = prev !== null && Math.abs(w.startMs - prev.endMs) > 0.5
+      const x = msToX(w.centerMs)
+      const y = valueToY(w.value)
+      if (!drawing || hasGap) {
+        ctx.moveTo(x, y)
+        drawing = true
+      } else {
+        ctx.lineTo(x, y)
+      }
     }
   }
 
@@ -664,16 +681,16 @@
     p75: Float32Array,
     from: number,
     to: number,
-    binToX: (i: number) => number,
+    sampleToX: (i: number) => number,
     valueToY: (v: number) => number
   ) {
     ctx.beginPath()
-    ctx.moveTo(binToX(from), valueToY(p75[from]))
+    ctx.moveTo(sampleToX(from), valueToY(p75[from]))
     for (let i = from + 1; i <= to; i++) {
-      ctx.lineTo(binToX(i), valueToY(p75[i]))
+      ctx.lineTo(sampleToX(i), valueToY(p75[i]))
     }
     for (let i = to; i >= from; i--) {
-      ctx.lineTo(binToX(i), valueToY(p25[i]))
+      ctx.lineTo(sampleToX(i), valueToY(p25[i]))
     }
     ctx.closePath()
     ctx.fill()
@@ -723,51 +740,6 @@
   // HOVER
   // ──────────────────────────────────────────────────────────────────
 
-  function getHoveredCell(
-    mouseX: number,
-    mouseY: number
-  ): { bin: number | null; participant: number | null } {
-    if (
-      mouseX < plotLeft ||
-      mouseX > plotRight ||
-      mouseY < plotTop ||
-      mouseY > plotBottom
-    ) {
-      return { bin: null, participant: null }
-    }
-
-    const relativeX = mouseX - plotLeft
-    const binWidth = plotAreaWidth / data.binCount
-    const bin = Math.max(0, Math.min(data.binCount - 1, Math.floor(relativeX / binWidth)))
-
-    if (alignment === 'overlay') {
-      // Find nearest participant by Y-distance at this bin
-      let nearest: number | null = null
-      let nearestDist = Infinity
-      const axisMax = yAxisMax
-      for (let p = 0; p < data.participants.length; p++) {
-        const v = data.participants[p].values[bin]
-        if (!Number.isFinite(v)) continue
-        const py = plotBottom - (v / axisMax) * plotAreaHeight
-        const dist = Math.abs(mouseY - py)
-        if (dist < nearestDist) {
-          nearestDist = dist
-          nearest = p
-        }
-      }
-      return { bin, participant: nearest }
-    }
-
-    // Heatmap: row-based
-    const relativeY = mouseY - plotTop
-    const rowHeight = plotAreaHeight / data.participants.length
-    const participant = Math.max(
-      0,
-      Math.min(data.participants.length - 1, Math.floor(relativeY / rowHeight))
-    )
-    return { bin, participant }
-  }
-
   function handleMouseMove(event: MouseEvent) {
     if (!canvas) return
 
@@ -775,32 +747,68 @@
       plot.canvasState,
       event
     )
-    const { bin, participant } = getHoveredCell(mouseX, mouseY)
 
-    if (bin !== hoveredBinIndex || participant !== hoveredParticipantIndex) {
-      hoveredBinIndex = bin
-      hoveredParticipantIndex = participant
+    if (
+      mouseX < plotLeft ||
+      mouseX > plotRight ||
+      mouseY < plotTop ||
+      mouseY > plotBottom
+    ) {
+      clearHover()
+      return
+    }
 
-      if (bin !== null && participant !== null) {
-        const p = data.participants[participant]
-        const value = p.values[bin]
-        const binStartTime =
-          data.timeline.minValue + bin * data.stepSize
-        const binEndTime =
-          data.timeline.minValue + (bin + 1) * data.stepSize
+    const timelineMin = data.timeline.minValue
+    const duration = Math.max(1, data.timeline.maxValue - timelineMin)
+    const t = timelineMin + ((mouseX - plotLeft) / plotAreaWidth) * duration
 
+    let participantIdx: number | null = null
+
+    if (alignment === 'overlay') {
+      // Nearest participant by Y-distance using their window value at t.
+      const axisMax = yAxisMax
+      let nearestDist = Infinity
+      for (let p = 0; p < data.participants.length; p++) {
+        const w = findWindowAt(data.participants[p].windows, t)
+        if (!w) continue
+        const py = plotBottom - (w.value / axisMax) * plotAreaHeight
+        const dist = Math.abs(mouseY - py)
+        if (dist < nearestDist) {
+          nearestDist = dist
+          participantIdx = p
+        }
+      }
+    } else {
+      // Heatmap: row-based
+      const rowHeight = plotAreaHeight / data.participants.length
+      const relY = mouseY - plotTop
+      participantIdx = Math.max(
+        0,
+        Math.min(
+          data.participants.length - 1,
+          Math.floor(relY / rowHeight)
+        )
+      )
+    }
+
+    if (t !== hoveredMsTime || participantIdx !== hoveredParticipantIndex) {
+      hoveredMsTime = t
+      hoveredParticipantIndex = participantIdx
+
+      if (participantIdx !== null) {
+        const participant = data.participants[participantIdx]
+        const w = findWindowAt(participant.windows, t)
         const tooltipContent = [
-          {
-            key: 'Participant',
-            value: p.label,
-          },
+          { key: 'Participant', value: participant.label },
           {
             key: 'Time',
-            value: `${Math.round(binStartTime)}\u2013${Math.round(binEndTime)} ms`,
+            value: w
+              ? `${Math.round(w.startMs)}\u2013${Math.round(w.endMs)} ms`
+              : `${Math.round(t)} ms`,
           },
           {
             key: data.yAxisLabel,
-            value: !Number.isFinite(value) ? 'No data' : value.toFixed(2),
+            value: w ? w.value.toFixed(2) : 'No data',
           },
         ]
 
@@ -829,14 +837,18 @@
     }
   }
 
-  function handleMouseLeave() {
-    if (hoveredBinIndex !== null || hoveredParticipantIndex !== null) {
-      hoveredBinIndex = null
+  function clearHover() {
+    if (hoveredMsTime !== null || hoveredParticipantIndex !== null) {
+      hoveredMsTime = null
       hoveredParticipantIndex = null
       updateTooltip(null)
       if (canvas) canvas.style.cursor = 'default'
       plot.scheduleRender()
     }
+  }
+
+  function handleMouseLeave() {
+    clearHover()
   }
 
   $effect(() => {
