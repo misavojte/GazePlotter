@@ -30,51 +30,54 @@ export interface StartingMetricSpec {
  */
 export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   // ── identity starters ────────────────────────────────────────────────
-  { id: 'absoluteTime',          baseId: 'absoluteTime' },
-  { id: 'relativeTime',          baseId: 'relativeTime' },
-  { id: 'visitCount',            baseId: 'averageEntries' },
-  { id: 'visitDuration',         baseId: 'avgDwellDuration' },
-  { id: 'fixationCount',         baseId: 'averageFixationCount' },
-  { id: 'fixationDuration',      baseId: 'avgFixationDuration' },
-  { id: 'timeToFirstFixation',   baseId: 'timeToFirstFixation' },
+  { id: 'absoluteTime', baseId: 'absoluteTime' },
+  { id: 'relativeTime', baseId: 'relativeTime' },
+  { id: 'visitCount', baseId: 'averageEntries' },
+  { id: 'visitDuration', baseId: 'avgDwellDuration' },
+  { id: 'fixationCount', baseId: 'averageFixationCount' },
+  { id: 'fixationDuration', baseId: 'avgFixationDuration' },
+  { id: 'timeToFirstFixation', baseId: 'timeToFirstFixation' },
   { id: 'firstFixationDuration', baseId: 'avgFirstFixationDuration' },
-  { id: 'rqaRec',                baseId: 'rqaRec' },
-  { id: 'rqaDet',                baseId: 'rqaDet' },
-  { id: 'rqaLam',                baseId: 'rqaLam' },
+  { id: 'rqaRec', baseId: 'rqaRec' },
+  { id: 'rqaDet', baseId: 'rqaDet' },
+  { id: 'rqaLam', baseId: 'rqaLam' },
 
   // ── windowed starters ────────────────────────────────────────────────
   {
-    id: 'absoluteTime-windowed',
-    baseId: 'absoluteTime',
+    id: 'avgFixationDuration-any-windowed',
+    baseId: 'avgFixationDuration',
+    label: 'Average fixation duration',
     projection: {
       kind: 'windowed',
-      window: { windowSize: 2000, stepSize: 2000 },
-      inner: { kind: 'aggregate-aoi', reducer: 'mean' },
-    },
-  },
-  {
-    id: 'fixationCount-windowed',
-    baseId: 'averageFixationCount',
-    projection: {
-      kind: 'windowed',
-      window: { windowSize: 2000, stepSize: 2000 },
-      inner: { kind: 'aggregate-aoi', reducer: 'mean' },
-    },
-  },
-  {
-    id: 'rqaDet-windowed',
-    baseId: 'rqaDet',
-    projection: {
-      kind: 'windowed',
-      window: { windowSize: 20, stepSize: 20 },
-      inner: { kind: 'identity-scalar' },
+      window: { windowSize: 2000, stepSize: 100 },
+      inner: { kind: 'pick-any-fixation' },
     },
   },
 
   // ── matrix starters ──────────────────────────────────────────────────
-  { id: 'transitionCount-fix',       baseId: 'transitionCount',       params: { mode: 'fixation' } },
-  { id: 'transitionCount-visit',     baseId: 'transitionCount',       params: { mode: 'visit' } },
-  { id: 'transitionProbability-fix', baseId: 'transitionProbability', params: { mode: 'fixation', step: 1 } },
-  { id: 'transitionDwellMean-fix',   baseId: 'transitionDwellMean',   params: { mode: 'fixation' } },
-  { id: 'transitionDwellMean-visit', baseId: 'transitionDwellMean',   params: { mode: 'visit' } },
+  {
+    id: 'transitionCount-fix',
+    baseId: 'transitionCount',
+    params: { mode: 'fixation' },
+  },
+  {
+    id: 'transitionCount-visit',
+    baseId: 'transitionCount',
+    params: { mode: 'visit' },
+  },
+  {
+    id: 'transitionProbability-fix',
+    baseId: 'transitionProbability',
+    params: { mode: 'fixation', step: 1 },
+  },
+  {
+    id: 'transitionDwellMean-fix',
+    baseId: 'transitionDwellMean',
+    params: { mode: 'fixation' },
+  },
+  {
+    id: 'transitionDwellMean-visit',
+    baseId: 'transitionDwellMean',
+    params: { mode: 'visit' },
+  },
 ]
