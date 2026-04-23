@@ -88,10 +88,9 @@ function resolveMetrics(
   workspaceInstances: readonly MetricInstance[] | undefined
 ): { metrics: MetricDescriptor[]; instances: MetricInstance[] } {
   const library: readonly MetricInstance[] = workspaceInstances ?? []
+  const enabledSet = new Set(enabledIds)
 
-  const selected: MetricInstance[] = enabledIds
-    .map(id => library.find(i => i.id === id))
-    .filter((i): i is MetricInstance => !!i)
+  const selected = library.filter(inst => enabledSet.has(inst.id))
 
   const metrics: MetricDescriptor[] = []
   const instances: MetricInstance[] = []

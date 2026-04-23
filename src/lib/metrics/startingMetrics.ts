@@ -38,9 +38,6 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   { id: 'fixationDuration', baseId: 'avgFixationDuration' },
   { id: 'timeToFirstFixation', baseId: 'timeToFirstFixation' },
   { id: 'firstFixationDuration', baseId: 'avgFirstFixationDuration' },
-  { id: 'rqaRec', baseId: 'rqaRec' },
-  { id: 'rqaDet', baseId: 'rqaDet' },
-  { id: 'rqaLam', baseId: 'rqaLam' },
 
   // ── windowed starters ────────────────────────────────────────────────
   {
@@ -52,6 +49,43 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
       window: { windowSize: 2000, stepSize: 100 },
       inner: { kind: 'pick-any-fixation' },
     },
+  },
+
+  // ── any-fixation starters ────────────────────────────────────────────
+  {
+    id: 'absoluteTime-any',
+    baseId: 'absoluteTime',
+    projection: { kind: 'pick-any-fixation' },
+  },
+  {
+    id: 'visitCount-any',
+    baseId: 'averageEntries',
+    projection: { kind: 'pick-any-fixation' },
+  },
+  {
+    id: 'visitDuration-any',
+    baseId: 'avgDwellDuration',
+    projection: { kind: 'pick-any-fixation' },
+  },
+  {
+    id: 'fixationCount-any',
+    baseId: 'averageFixationCount',
+    projection: { kind: 'pick-any-fixation' },
+  },
+  {
+    id: 'fixationDuration-any',
+    baseId: 'avgFixationDuration',
+    projection: { kind: 'pick-any-fixation' },
+  },
+  {
+    id: 'timeToFirstFixation-any',
+    baseId: 'timeToFirstFixation',
+    projection: { kind: 'pick-any-fixation' },
+  },
+  {
+    id: 'firstFixationDuration-any',
+    baseId: 'avgFirstFixationDuration',
+    projection: { kind: 'pick-any-fixation' },
   },
 
   // ── matrix starters ──────────────────────────────────────────────────
@@ -80,4 +114,9 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
     baseId: 'transitionDwellMean',
     params: { mode: 'visit' },
   },
+
+  // ── rqa starters ──────────────────────────────────────────────────
+  { id: 'rqaRec', baseId: 'rqaRec' },
+  { id: 'rqaDet', baseId: 'rqaDet' },
+  { id: 'rqaLam', baseId: 'rqaLam' },
 ]
