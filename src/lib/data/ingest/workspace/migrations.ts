@@ -304,6 +304,33 @@ export function runMigrations(parsedJson: any): any {
     version = 5
   }
 
+  // V5 → V6: baseId rename to align with starter slugs and human labels.
+  // Earlier recipe ids (`averageEntries`, `avgDwellDuration`, …) diverged
+  // from their labels (`Visit count`, `Visit duration`, …) and from their
+  // starter slugs. V6 collapses both into a single canonical name per metric.
+  //
+  // Workspace-stored baseIds live on every `MetricInstance` and must be
+  // rewritten in place; slugs (`id`) are append-only and remain untouched.
+  if (version === 5) {
+    const BASEID_RENAMES: Record<string, string> = {
+      averageEntries:           'visitCount',
+      avgDwellDuration:         'visitDuration',
+      averageFixationCount:     'fixationCount',
+      avgFixationDuration:      'fixationDuration',
+      avgFirstFixationDuration: 'firstFixationDuration',
+    }
+    const legacyInstances = data?.data?.metricInstances
+    if (Array.isArray(legacyInstances)) {
+      data.data.metricInstances = legacyInstances.map((inst: any) => {
+        if (!inst || typeof inst.baseId !== 'string') return inst
+        const next = BASEID_RENAMES[inst.baseId]
+        return next ? { ...inst, baseId: next } : inst
+      })
+    }
+    data = { ...data, version: 6 }
+    version = 6
+  }
+
   // Version-independent normalization: rewrite any legacy gridItem `type`
   // keys (e.g. capital-T 'TransitionMatrix' → 'transitionMatrix') to the
   // current registry key. Runs on every load — including already-current

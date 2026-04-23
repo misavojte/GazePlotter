@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import { createReaderFromJson } from '../src/lib/data/binary/converters'
-import '../src/lib/metrics/init'
 import { query, queryIndividuals, type MetricInstance, type Scope } from '../src/lib/metrics'
 
 // Stimulus 1 has 2 AOIs (raw IDs 1 and 2)
@@ -94,7 +93,7 @@ describe('Metric definitions — segment data collection', () => {
       ),
     ])
 
-    const result = values(query(inst('averageFixationCount'), scope(engine, 101)))
+    const result = values(query(inst('fixationCount'), scope(engine, 101)))
     expect(result[0]).toBe(2) // AOI1: 2 fixations
     expect(result[1]).toBe(2) // AOI2: 2 fixations
     expect(result[2]).toBe(1) // noAoi: 1 fixation
@@ -111,7 +110,7 @@ describe('Metric definitions — segment data collection', () => {
       ),
     ])
 
-    expect(values(query(inst('averageEntries'), scope(engine, 101)))[0]).toBe(1)
+    expect(values(query(inst('visitCount'), scope(engine, 101)))[0]).toBe(1)
   })
 
   it('visitDuration: consecutive segments in same AOI accumulate as one dwell', () => {
@@ -124,10 +123,10 @@ describe('Metric definitions — segment data collection', () => {
       ),
     ])
 
-    const dwell = values(query(inst('avgDwellDuration'), scope(engine, 101)))
+    const dwell = values(query(inst('visitDuration'), scope(engine, 101)))
     // One visit of 300ms total → mean = 300
     expect(dwell[0]).toBe(300)
-    expect(queryIndividuals(inst('avgDwellDuration'), scope(engine, 101), 0)).toEqual([300])
+    expect(queryIndividuals(inst('visitDuration'), scope(engine, 101), 0)).toEqual([300])
   })
 
   it('visitCount: AOI overlap — both AOIs receive an entry', () => {
@@ -138,7 +137,7 @@ describe('Metric definitions — segment data collection', () => {
       ),
     ])
 
-    const result = values(query(inst('averageEntries'), scope(engine, 101)))
+    const result = values(query(inst('visitCount'), scope(engine, 101)))
     expect(result[0]).toBe(1) // AOI1
     expect(result[1]).toBe(1) // AOI2
   })

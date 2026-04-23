@@ -1,12 +1,41 @@
-import { defineMetric } from '../core/defineMetric'
-import { boolParam, integerParam } from '../core/params'
-import { rqaScalar } from '../core/rqa'
+import { defineMetric } from '../../core/defineMetric'
+import { boolParam, integerParam } from '../../core/params'
+import { rqaScalar } from '../../core/rqa'
 
 const params = [
   integerParam('v_min', 'Min line', 2, { min: 2, max: 20 }),
   boolParam('include_no_aoi', 'Include off-AOI fixations', false),
 ] as const
 
+/**
+ * ## Laminarity (LAM)
+ *
+ * Fraction of recurrent fixation pairs that form vertical lines in the
+ * recurrence matrix, as a percentage. High values indicate gaze repeatedly
+ * dwells on the same AOI before transitioning.
+ *
+ * - **Shape:** `scalar`
+ * - **Unit:** `%`
+ * - **Category:** `rqa-aoi`
+ * - **Windowing:** supported — fixation-windowed.
+ *
+ * ### Parameters
+ * - `v_min` (integer, default `2`, range 2–20): minimum vertical line
+ *   length counted as "laminar".
+ * - `include_no_aoi` (boolean, default `false`): include off-AOI fixations.
+ *
+ * ### Usage
+ * ```ts
+ * query(
+ *   { id: 'rqaLam', baseId: 'rqaLam', params: { v_min: 2 },
+ *     projection: { kind: 'identity-scalar' }, label: 'Laminarity' },
+ *   { engine, stimulusId, participantId },
+ * )
+ * ```
+ *
+ * ### Invariants
+ * - Shares the `{ seq: number[] }` accumulator shape with other RQA metrics.
+ */
 defineMetric({
   id: 'rqaLam',
   label: 'Laminarity',

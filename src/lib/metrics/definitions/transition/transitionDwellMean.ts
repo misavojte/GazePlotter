@@ -1,6 +1,6 @@
-import { defineMetric } from '../core/defineMetric'
-import { enumParam } from '../core/params'
-import { initTransitionAcc, processFixation } from '../core/transitionScan'
+import { defineMetric } from '../../core/defineMetric'
+import { enumParam } from '../../core/params'
+import { initTransitionAcc, processFixation } from '../../core/transitionScan'
 
 const params = [
   enumParam('mode', 'Count mode', 'fixation' as 'fixation' | 'visit', [
@@ -10,14 +10,38 @@ const params = [
 ] as const
 
 /**
- * Per-cell mean pre-transition dwell time — the average time the participant
- * spent at AOI_i before transitioning to AOI_j.
+ * ## Mean transition dwell time
  *
- * At the participant level this is `dwellSum / count` per cell; cells with
- * no observed transitions emit NaN (so the cross-participant mean reduces
- * across only participants who actually made that transition). The group
- * aggregation is mean-of-per-participant-means — each participant is one
- * observational unit, consistent with standard eye-tracking reporting.
+ * Average time (ms) spent at AOI `i` before transitioning to AOI `j`.
+ *
+ * - **Shape:** `aoi-pair-matrix`
+ * - **Unit:** `ms`
+ * - **Category:** `transition`
+ * - **Windowing:** supported (matrix-cell / matrix-aggregate inner leaf).
+ *
+ * ### Parameters
+ * - `mode` (enum, default `'fixation'`): fixation → duration of the single
+ *   preceding fixation; visit → total duration of the preceding visit.
+ *
+ * ### Usage
+ * ```ts
+ * query(
+ *   { id: 'transitionDwellMean-fix', baseId: 'transitionDwellMean',
+ *     params: { mode: 'fixation' },
+ *     projection: { kind: 'identity-aoi-pair-matrix' },
+ *     label: 'Mean transition dwell time' },
+ *   { engine, stimulusId, participantId },
+ * )
+ * ```
+ *
+ * ### Invariants
+ * - Per-participant: cell `[i, j]` = `auxMatrix[i,j] / matrix[i,j]` (dwell
+ *   sum / transition count). Cells with no observed transitions emit `NaN`.
+ * - Cross-participant: mean-of-per-participant-means, so each participant
+ *   contributes equally regardless of their transition count — standard
+ *   eye-tracking reporting. Non-observing participants drop via NaN.
+ * - Not `additive` — averaging averages across cells is not meaningful;
+ *   `matrix-aggregate` restricted to `max | min`.
  */
 defineMetric({
   id: 'transitionDwellMean',

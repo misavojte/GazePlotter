@@ -1,52 +1,6 @@
 import { getMetric, type MetricInstance } from '$lib/metrics'
 import type { StatisticalOverlayType } from './types'
 
-export const BAR_PLOT_AGGREGATION_METHODS = [
-  {
-    value: 'absoluteTime',
-    label: 'Absolute dwell time',
-    unit: 'ms',
-  },
-  {
-    value: 'relativeTime',
-    label: 'Relative dwell time',
-    unit: '%',
-  },
-  {
-    value: 'averageEntries',
-    label: 'Visit count',
-    unit: 'count',
-  },
-  {
-    value: 'avgDwellDuration',
-    label: 'Visit duration',
-    unit: 'ms',
-  },
-  {
-    value: 'averageFixationCount',
-    label: 'Fixation count',
-    unit: 'count',
-  },
-  {
-    value: 'avgFixationDuration',
-    label: 'Fixation duration',
-    unit: 'ms',
-  },
-  {
-    value: 'timeToFirstFixation',
-    label: 'Time to first fixation',
-    unit: 'ms',
-  },
-  {
-    value: 'avgFirstFixationDuration',
-    label: 'First fixation duration',
-    unit: 'ms',
-  },
-] as const
-
-export type BarPlotAggregationMethodId =
-  (typeof BAR_PLOT_AGGREGATION_METHODS)[number]['value']
-
 /**
  * Generate the bar plot axis label for a resolved metric instance.
  *

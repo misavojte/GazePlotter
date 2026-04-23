@@ -1,6 +1,6 @@
-import { defineMetric } from '../core/defineMetric'
-import { enumParam, integerParam } from '../core/params'
-import { initTransitionAcc, processFixation, matrixPower } from '../core/transitionScan'
+import { defineMetric } from '../../core/defineMetric'
+import { enumParam, integerParam } from '../../core/params'
+import { initTransitionAcc, processFixation, matrixPower } from '../../core/transitionScan'
 
 const params = [
   enumParam('mode', 'Count mode', 'fixation' as 'fixation' | 'visit', [
@@ -11,19 +11,41 @@ const params = [
 ] as const
 
 /**
+ * ## Transition probability
+ *
  * Row-normalised transition probability matrix — the classical eye-tracking
- * Markov view. `step = 1` is the direct probability; `step = k > 1` is the
- * k-step matrix power, i.e. P(being at column j after k transitions given the
- * participant is currently at row i).
+ * Markov view. Cell `[i, j]` = probability that the next transition from
+ * AOI `i` lands on AOI `j`.
  *
- * Participants with no transitions out of an AOI get row-of-zeros for that row
- * (not NaN) — "no transitions" is a real observation, not missing data.
- * Participants with NO transitions at all produce an all-NaN matrix so they're
- * excluded from the cross-participant mean.
+ * - **Shape:** `aoi-pair-matrix`
+ * - **Unit:** `%`
+ * - **Category:** `transition`
+ * - **Windowing:** supported (matrix-cell / matrix-aggregate inner leaf).
  *
- * `matrix-aggregate` sum / mean is meaningless for a row-stochastic matrix,
- * so this recipe does NOT set `additive: true` — the validator restricts
- * matrix-aggregate to `max | min` automatically.
+ * ### Parameters
+ * - `mode` (enum, default `'fixation'`): `'fixation'` or `'visit'` counting.
+ * - `step` (integer, default `1`, range 1–10): k-step matrix power —
+ *   `step = 1` is the direct probability; `step = k > 1` returns `P^k`,
+ *   the probability of arriving at AOI `j` after `k` transitions.
+ *
+ * ### Usage
+ * ```ts
+ * query(
+ *   { id: 'transitionProbability-fix', baseId: 'transitionProbability',
+ *     params: { mode: 'fixation', step: 1 },
+ *     projection: { kind: 'identity-aoi-pair-matrix' },
+ *     label: 'Transition probability' },
+ *   { engine, stimulusId, participantId },
+ * )
+ * ```
+ *
+ * ### Invariants
+ * - Rows sum to 100% (or 0% for "no transitions out" rows — distinguished
+ *   from NaN, which signals the participant had zero transitions total).
+ * - Not `additive` — row-stochastic matrices are not summable across cells.
+ *   `matrix-aggregate` is restricted to `max | min` by the validator.
+ * - Group aggregation is `mean` — each participant contributes one P matrix,
+ *   equal-weighted.
  */
 defineMetric({
   id: 'transitionProbability',

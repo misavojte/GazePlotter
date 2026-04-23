@@ -1,6 +1,6 @@
-import { defineMetric } from '../core/defineMetric'
-import { enumParam } from '../core/params'
-import { initTransitionAcc, processFixation } from '../core/transitionScan'
+import { defineMetric } from '../../core/defineMetric'
+import { enumParam } from '../../core/params'
+import { initTransitionAcc, processFixation } from '../../core/transitionScan'
 
 const params = [
   enumParam('mode', 'Count mode', 'fixation' as 'fixation' | 'visit', [
@@ -10,15 +10,38 @@ const params = [
 ] as const
 
 /**
- * Per-cell share of the participant's total transitions, as a percentage.
- * Cross-participant aggregation is mean-of-per-participant-percentages —
- * each participant contributes equally regardless of their absolute count.
- * Participants with zero total transitions contribute NaN (excluded from the
- * group reduce).
+ * ## Transition relative frequency
  *
- * matrix-aggregate of this metric is rejected automatically by the central
- * validator: the matrix sums to 100% by construction, so both mean and sum
- * are trivially determined.
+ * Per-cell share of the participant's total transitions, as a percentage.
+ *
+ * - **Shape:** `aoi-pair-matrix`
+ * - **Unit:** `%`
+ * - **Category:** `transition`
+ * - **Windowing:** supported (matrix-cell / matrix-aggregate inner leaf only).
+ *
+ * ### Parameters
+ * - `mode` (enum, default `'fixation'`): `'fixation'` counts consecutive
+ *   fixation pairs; `'visit'` counts distinct-AOI transitions only.
+ *
+ * ### Usage
+ * ```ts
+ * query(
+ *   { id: 'custom-rf', baseId: 'transitionRelativeFrequency',
+ *     params: { mode: 'fixation' },
+ *     projection: { kind: 'identity-aoi-pair-matrix' },
+ *     label: 'Transition relative frequency' },
+ *   { engine, stimulusId, participantId },
+ * )
+ * ```
+ *
+ * ### Invariants
+ * - Matrix sums to 100% by construction (per participant).
+ * - Participants with zero total transitions emit all-NaN — they drop from
+ *   cross-participant reduces.
+ * - Cross-participant `groupAggregation` is `mean`: each participant
+ *   contributes their own percentage, equal-weighted.
+ * - Not `additive` — summing percentages across cells is meaningless, so
+ *   the validator restricts `matrix-aggregate` to `max | min`.
  */
 defineMetric({
   id: 'transitionRelativeFrequency',

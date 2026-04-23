@@ -5,7 +5,6 @@ import {
   getStimulus,
 } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import '$lib/metrics/init'
 import { query, type MetricInstance, type Scope } from '$lib/metrics'
 import {
   escapeCsvField,
@@ -81,7 +80,7 @@ export const AGGREGATED_METRIC_CONFIG: ReadonlyArray<{
     sublabel: 'Duration of the first fixation on each AOI (-1 if never fixated)',
     csvName: 'First_Fixation_Duration',
     compute: (engine, sId, pId, aoiIdx) =>
-      _nanToNeg(_computeAtSlot('avgFirstFixationDuration')(engine, sId, pId, aoiIdx, 0)),
+      _nanToNeg(_computeAtSlot('firstFixationDuration')(engine, sId, pId, aoiIdx, 0)),
   },
   {
     key: 'fixationCount',
@@ -89,7 +88,7 @@ export const AGGREGATED_METRIC_CONFIG: ReadonlyArray<{
     sublabel: 'Number of fixations on each AOI',
     csvName: 'Fixation_Count',
     compute: (engine, sId, pId, aoiIdx) => {
-      const v = _computeAtSlot('averageFixationCount')(engine, sId, pId, aoiIdx, 0)
+      const v = _computeAtSlot('fixationCount')(engine, sId, pId, aoiIdx, 0)
       return Number.isFinite(v) ? v : -1
     },
   },
@@ -99,7 +98,7 @@ export const AGGREGATED_METRIC_CONFIG: ReadonlyArray<{
     sublabel: 'Average duration of fixations on each AOI',
     csvName: 'Mean_Fixation_Duration',
     compute: (engine, sId, pId, aoiIdx) =>
-      _nanToNeg(_computeAtSlot('avgFixationDuration')(engine, sId, pId, aoiIdx, 0)),
+      _nanToNeg(_computeAtSlot('fixationDuration')(engine, sId, pId, aoiIdx, 0)),
   },
   {
     key: 'visitCount',
@@ -107,7 +106,7 @@ export const AGGREGATED_METRIC_CONFIG: ReadonlyArray<{
     sublabel: 'Number of distinct visits to each AOI',
     csvName: 'Visit_Count',
     compute: (engine, sId, pId, aoiIdx) => {
-      const v = _computeAtSlot('averageEntries')(engine, sId, pId, aoiIdx, 0)
+      const v = _computeAtSlot('visitCount')(engine, sId, pId, aoiIdx, 0)
       return Number.isFinite(v) ? v : -1
     },
   },
@@ -117,7 +116,7 @@ export const AGGREGATED_METRIC_CONFIG: ReadonlyArray<{
     sublabel: 'Average duration of visits to each AOI',
     csvName: 'Mean_Visit_Duration',
     compute: (engine, sId, pId, aoiIdx) =>
-      _nanToNeg(_computeAtSlot('avgDwellDuration')(engine, sId, pId, aoiIdx, 0)),
+      _nanToNeg(_computeAtSlot('visitDuration')(engine, sId, pId, aoiIdx, 0)),
   },
 ] as const
 

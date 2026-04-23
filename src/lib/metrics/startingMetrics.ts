@@ -15,6 +15,12 @@ export interface StartingMetricSpec {
    *
    * Append-only: never rename a slug that's already shipped, and never reuse
    * a deleted one — some saved workspace out there might still reference it.
+   *
+   * Some slugs carry the legacy recipe-id prefix (`avgFixationDuration-any-windowed`)
+   * even though the `baseId` has since been renamed (`fixationDuration`). This
+   * drift is deliberate: slugs are workspace-persisted identifiers and never
+   * renamed; `baseId` is the recipe key and was normalised in the v5→v6
+   * migration. Do NOT "fix" the slug spellings.
    */
   id: string
   baseId: string
@@ -32,17 +38,18 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   // ── identity starters ────────────────────────────────────────────────
   { id: 'absoluteTime', baseId: 'absoluteTime' },
   { id: 'relativeTime', baseId: 'relativeTime' },
-  { id: 'visitCount', baseId: 'averageEntries' },
-  { id: 'visitDuration', baseId: 'avgDwellDuration' },
-  { id: 'fixationCount', baseId: 'averageFixationCount' },
-  { id: 'fixationDuration', baseId: 'avgFixationDuration' },
+  { id: 'visitCount', baseId: 'visitCount' },
+  { id: 'visitDuration', baseId: 'visitDuration' },
+  { id: 'fixationCount', baseId: 'fixationCount' },
+  { id: 'fixationDuration', baseId: 'fixationDuration' },
   { id: 'timeToFirstFixation', baseId: 'timeToFirstFixation' },
-  { id: 'firstFixationDuration', baseId: 'avgFirstFixationDuration' },
+  { id: 'firstFixationDuration', baseId: 'firstFixationDuration' },
 
   // ── windowed starters ────────────────────────────────────────────────
   {
+    // Slug retains the legacy `avgFixationDuration-` prefix (see interface doc).
     id: 'avgFixationDuration-any-windowed',
-    baseId: 'avgFixationDuration',
+    baseId: 'fixationDuration',
     label: 'Average fixation duration',
     projection: {
       kind: 'windowed',
@@ -59,22 +66,22 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   },
   {
     id: 'visitCount-any',
-    baseId: 'averageEntries',
+    baseId: 'visitCount',
     projection: { kind: 'pick-any-fixation' },
   },
   {
     id: 'visitDuration-any',
-    baseId: 'avgDwellDuration',
+    baseId: 'visitDuration',
     projection: { kind: 'pick-any-fixation' },
   },
   {
     id: 'fixationCount-any',
-    baseId: 'averageFixationCount',
+    baseId: 'fixationCount',
     projection: { kind: 'pick-any-fixation' },
   },
   {
     id: 'fixationDuration-any',
-    baseId: 'avgFixationDuration',
+    baseId: 'fixationDuration',
     projection: { kind: 'pick-any-fixation' },
   },
   {
@@ -84,7 +91,7 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   },
   {
     id: 'firstFixationDuration-any',
-    baseId: 'avgFirstFixationDuration',
+    baseId: 'firstFixationDuration',
     projection: { kind: 'pick-any-fixation' },
   },
 

@@ -104,18 +104,3 @@ function formatParamShort(def: ParamDef<unknown>, value: unknown): string {
   return `${def.id}=${value}`
 }
 
-// ─── Convenience constructors ────────────────────────────────────────────────
-
-export function makeLeafInstance(
-  id: string,
-  baseId: string,
-  params: Record<string, unknown>,
-  leaf: LeafProjection,
-  label?: string,
-): MetricInstance {
-  return {
-    id, baseId, params,
-    projection: leaf,
-    label: label ?? defaultInstanceLabel(baseId, params, leaf),
-  }
-}

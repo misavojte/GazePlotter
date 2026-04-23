@@ -43,10 +43,3 @@ export function metricIsCreatableInContract(
   if (c.windowing === 'required' && m.meta.supportsWindowing === false) return false
   return c.leaves.some(leaf => PROJECTION_LEAVES[leaf].rawShapes.includes(m.meta.rawShape))
 }
-
-export function metricsForPlot(
-  all: readonly MetricInstance[],
-  c: PlotMetricContract,
-): MetricInstance[] {
-  return all.filter(i => instanceMatchesContract(i, c))
-}

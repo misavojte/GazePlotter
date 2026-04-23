@@ -1,4 +1,4 @@
-import { defineMetric } from '../core/defineMetric'
+import { defineMetric } from '../../core/defineMetric'
 
 interface Acc {
   entries: Float64Array
@@ -6,8 +6,40 @@ interface Acc {
   wasInNoAoi: boolean
 }
 
+/**
+ * ## Visit count
+ *
+ * Number of distinct visits (entries) to each AOI. Each return after leaving
+ * counts as a new visit. Reflects revisitation frequency and scanning
+ * strategy.
+ *
+ * - **Shape:** `aoi-vector`
+ * - **Unit:** `count`
+ * - **Category:** `counts`
+ * - **Windowing:** supported
+ *
+ * ### Parameters
+ * None.
+ *
+ * ### Usage
+ * ```ts
+ * query(
+ *   { id: 'visitCount', baseId: 'visitCount', params: {},
+ *     projection: { kind: 'identity-aoi-vector' }, label: 'Visit count' },
+ *   { engine, stimulusId, participantId },
+ * )
+ * ```
+ *
+ * ### Invariants
+ * - Increments slot `s` only if `s` was NOT in the previous fixation's slot
+ *   set; a visit is a transition from absent → present.
+ * - `anyFixationSlot` increments on any set-of-slots change (including when
+ *   the set becomes empty), so it captures "number of distinct
+ *   attended-to-something intervals".
+ * - Off-AOI runs collapse to a single visit of `noAoiSlot`.
+ */
 defineMetric({
-  id: 'averageEntries',
+  id: 'visitCount',
   label: 'Visit count',
   description: 'Number of distinct visits (entries) to the AOI. Each return after leaving counts as a new visit. Reflects revisitation frequency and scanning strategy.',
   unit: 'count',

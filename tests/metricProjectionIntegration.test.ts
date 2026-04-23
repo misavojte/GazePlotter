@@ -6,7 +6,6 @@
  */
 import { describe, it, expect } from 'vitest'
 import { createReaderFromJson } from '../src/lib/data/binary/converters'
-import '../src/lib/metrics/init'
 import {
   query,
   instanceMatchesContract,

@@ -15,16 +15,19 @@ export function defineCategory(cat: MetricCategoryDef): MetricCategoryDef {
   return cat
 }
 
-export function getCategory(id: string): MetricCategoryDef | undefined {
-  return _cats.get(id)
-}
+// ─── Seeded categories ──────────────────────────────────────────────────────
+// The six metric categories shipped with GazePlotter. `order` drives the
+// sidebar sort in the metric-library modal.
 
-export function listCategories(): MetricCategoryDef[] {
+defineCategory({ id: 'duration',     label: 'Duration',               order: 0 })
+defineCategory({ id: 'counts',       label: 'Counts',                 order: 1 })
+defineCategory({ id: 'ttf',          label: 'Time to first fixation', order: 2 })
+defineCategory({ id: 'rqa-aoi',      label: 'RQA (AOI-based)',        order: 3 })
+defineCategory({ id: 'rqa-spatial',  label: 'RQA (spatial)',          order: 4 })
+defineCategory({ id: 'transition',   label: 'Transitions',            order: 5 })
+
+function listCategories(): MetricCategoryDef[] {
   return [..._cats.values()].sort((a, b) => a.order - b.order)
-}
-
-export function getCategoryOrder(): string[] {
-  return listCategories().map(c => c.id)
 }
 
 export function getCategoryLabels(): Record<string, string> {

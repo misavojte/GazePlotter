@@ -83,58 +83,6 @@ export function resolveParams<T extends readonly ParamDef<any>[]>(
   return out as ParamsOf<T>
 }
 
-/**
- * Emit a JSON Schema fragment for one param. Paired with ProjectionSchema /
- * WindowingConfigSchema in `./schemas.ts` to form a complete instance-creation
- * schema that a future WebMCP server can validate without pulling a generator.
- */
-export function paramToJsonSchema(def: ParamDef<any>): Record<string, unknown> {
-  switch (def.type) {
-    case 'integer':
-      return {
-        type: 'integer',
-        default: def.default,
-        ...(def.min !== undefined ? { minimum: def.min } : {}),
-        ...(def.max !== undefined ? { maximum: def.max } : {}),
-        ...(def.unit ? { 'x-unit': def.unit } : {}),
-      }
-    case 'number':
-      return {
-        type: 'number',
-        default: def.default,
-        ...(def.min !== undefined ? { minimum: def.min } : {}),
-        ...(def.max !== undefined ? { maximum: def.max } : {}),
-        ...(def.unit ? { 'x-unit': def.unit } : {}),
-      }
-    case 'boolean':
-      return { type: 'boolean', default: def.default }
-    case 'enum':
-      return {
-        type: 'string',
-        enum: (def.options ?? []).map(o => o.value),
-        default: def.default,
-      }
-    case 'string':
-      return { type: 'string', default: def.default }
-  }
-}
-
-/** JSON Schema for a recipe's full params bag: { [paramId]: paramSchema }. */
-export function paramsSchemaFor(defs: readonly ParamDef<any>[] | undefined): Record<string, unknown> {
-  const properties: Record<string, unknown> = {}
-  const required: string[] = []
-  for (const d of defs ?? []) {
-    properties[d.id] = paramToJsonSchema(d)
-    required.push(d.id)
-  }
-  return {
-    type: 'object',
-    additionalProperties: false,
-    properties,
-    ...(required.length ? { required } : {}),
-  }
-}
-
 function coerceParam<T>(def: ParamDef<T>, raw: unknown): T {
   switch (def.type) {
     case 'integer':

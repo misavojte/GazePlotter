@@ -51,7 +51,7 @@ describe('V4 → V5 consolidated migration: metric-instance seeding', () => {
   it('seeds metricInstances with the slug-keyed starter library', () => {
     const migrated = runMigrations(buildV4File())
 
-    expect(migrated.version).toBe(5)
+    expect(migrated.version).toBe(6)
     const seeded = migrated.data.metricInstances as MetricInstance[]
     expect(Array.isArray(seeded)).toBe(true)
     expect(seeded.length).toBe(STARTER_COUNT)
@@ -64,7 +64,7 @@ describe('V4 → V5 consolidated migration: metric-instance seeding', () => {
     const ids = new Set(seeded.map(i => i.id))
     expect(ids.has('absoluteTime')).toBe(true)
     expect(ids.has('transitionCount-fix')).toBe(true)
-    expect(ids.has('rqaDet-windowed')).toBe(true)
+    expect(ids.has('rqaDet')).toBe(true)
   })
 
   it('materializes eventData from legacy dynamicVisibility', () => {
@@ -100,7 +100,7 @@ describe('V4 → V5 transition-matrix settings migration', () => {
   }
 
   it('bumps version to 5', () => {
-    expect(runMigrations(buildTMFile('sum')).version).toBe(5)
+    expect(runMigrations(buildTMFile('sum')).version).toBe(6)
   })
 
   it('drops aggregationMethod from migrated settings', () => {
@@ -228,7 +228,7 @@ describe('V4 → V5 bar-plot settings migration', () => {
   }
 
   it('bumps version to 5', () => {
-    expect(runMigrations(buildBarFile('absoluteTime')).version).toBe(5)
+    expect(runMigrations(buildBarFile('absoluteTime')).version).toBe(6)
   })
 
   it('drops aggregationMethod from migrated settings', () => {
@@ -272,6 +272,69 @@ describe('V4 → V5 bar-plot settings migration', () => {
     const scarf = m.gridItems.find((g: any) => g.type === 'scarf')
     expect(scarf.settings.metricInstanceId).toBeUndefined()
     expect(scarf.settings.aggregationMethod).toBeUndefined()
+  })
+})
+
+describe('V5 → V6 baseId rename migration', () => {
+  function buildV5File(metricInstances: MetricInstance[]): Record<string, unknown> {
+    return {
+      version: 5,
+      data: {
+        stimuli: { data: [['S1']], orderVector: [0] },
+        participants: { data: [['P1']], orderVector: [0] },
+        participantsGroups: [],
+        categories: { data: [], orderVector: [] },
+        aois: { data: [[]], orderVector: [[]], hiddenAois: [], dynamicVisibility: {} },
+        eventData: { data: [[]], hiddenChannels: [[]], events: [] },
+        capabilities: { segmented: true, spatial: false, event: false },
+        noAoiTreatment: { color: '#cbd5e1', displayedName: 'No AOI' },
+        isOrdinalOnly: false,
+        metricInstances,
+      },
+      gridItems: [],
+      fileMetadata: null,
+    }
+  }
+
+  it('bumps version to 6', () => {
+    const migrated = runMigrations(buildV5File([]))
+    expect(migrated.version).toBe(6)
+  })
+
+  const renames: Array<[string, string]> = [
+    ['averageEntries',           'visitCount'],
+    ['avgDwellDuration',         'visitDuration'],
+    ['averageFixationCount',     'fixationCount'],
+    ['avgFixationDuration',      'fixationDuration'],
+    ['avgFirstFixationDuration', 'firstFixationDuration'],
+  ]
+
+  for (const [legacy, canonical] of renames) {
+    it(`rewrites stored baseId ${legacy} → ${canonical}`, () => {
+      const legacyInst: MetricInstance = {
+        id: 'custom-uuid',
+        baseId: legacy,
+        params: {},
+        projection: { kind: 'identity-aoi-vector' },
+        label: 'legacy',
+      }
+      const migrated = runMigrations(buildV5File([legacyInst]))
+      const result = (migrated.data.metricInstances as MetricInstance[])[0]
+      expect(result.baseId).toBe(canonical)
+      expect(result.id).toBe('custom-uuid')
+    })
+  }
+
+  it('leaves unknown baseIds untouched', () => {
+    const inst: MetricInstance = {
+      id: 'custom-uuid',
+      baseId: 'someFutureRecipe',
+      params: {},
+      projection: { kind: 'identity-aoi-vector' },
+      label: 'future',
+    }
+    const migrated = runMigrations(buildV5File([inst]))
+    expect((migrated.data.metricInstances as MetricInstance[])[0].baseId).toBe('someFutureRecipe')
   })
 })
 

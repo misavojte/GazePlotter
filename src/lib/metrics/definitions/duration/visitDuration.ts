@@ -1,4 +1,4 @@
-import { defineMetric } from '../core/defineMetric'
+import { defineMetric } from '../../core/defineMetric'
 
 interface Acc {
   dwells: number[][]
@@ -9,8 +9,42 @@ interface Acc {
   currentAnyFixationDwell: number
 }
 
+/**
+ * ## Visit duration (mean dwell per visit)
+ *
+ * Mean duration (ms) of a distinct visit to each AOI. A visit begins on first
+ * entry and ends when gaze leaves; consecutive fixations in the same AOI
+ * accumulate as a single visit.
+ *
+ * - **Shape:** `aoi-vector`
+ * - **Unit:** `ms`
+ * - **Category:** `duration`
+ * - **Windowing:** supported
+ *
+ * ### Parameters
+ * None.
+ *
+ * ### Usage
+ * ```ts
+ * query(
+ *   { id: 'visitDuration', baseId: 'visitDuration', params: {},
+ *     projection: { kind: 'identity-aoi-vector' }, label: 'Visit duration' },
+ *   { engine, stimulusId, participantId },
+ * )
+ * ```
+ *
+ * ### Invariants
+ * - Tracks overlapping visits via `activeDwells: Map<slot, accumulated-ms>`;
+ *   a fixation that drops an AOI from its slot set closes the visit for that
+ *   slot and pushes the accumulated duration into `dwells[slot]`.
+ * - `anyFixationSlot` closes a visit whenever the overall AOI set changes
+ *   (including transitions through off-AOI), so it captures "contiguous
+ *   attended-to-something" intervals rather than raw fixation runs.
+ * - `finalize` flushes still-open visits at scan end so trailing visits
+ *   are not lost.
+ */
 defineMetric({
-  id: 'avgDwellDuration',
+  id: 'visitDuration',
   label: 'Visit duration',
   description: 'Mean duration (ms) per distinct visit to the AOI. A visit begins on first entry and ends when gaze leaves; consecutive fixations in the same AOI accumulate as one visit.',
   unit: 'ms',

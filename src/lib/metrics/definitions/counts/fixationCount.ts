@@ -1,0 +1,51 @@
+import { defineMetric } from '../../core/defineMetric'
+
+/**
+ * ## Fixation count
+ *
+ * Total number of fixations on each AOI. Unlike visit count, every fixation
+ * separated by a saccade is counted even within the same visit.
+ *
+ * - **Shape:** `aoi-vector`
+ * - **Unit:** `count`
+ * - **Category:** `counts`
+ * - **Windowing:** supported
+ *
+ * ### Parameters
+ * None.
+ *
+ * ### Usage
+ * ```ts
+ * query(
+ *   { id: 'fixationCount', baseId: 'fixationCount', params: {},
+ *     projection: { kind: 'identity-aoi-vector' }, label: 'Fixation count' },
+ *   { engine, stimulusId, participantId },
+ * )
+ * ```
+ *
+ * ### Invariants
+ * - Increments `anyFixationSlot` once per fixation (not per labelled AOI),
+ *   so it matches "how many fixations were there in total" — making
+ *   `pick-any-fixation` a meaningful stimulus-level count.
+ * - Increments every unique AOI slot the fixation was tagged with, so a
+ *   fixation covered by two overlapping AOIs counts in both slots.
+ */
+defineMetric({
+  id: 'fixationCount',
+  label: 'Fixation count',
+  description: 'Total count of fixations on the AOI. Unlike visit count, each fixation separated by a saccade is counted even within the same visit.',
+  unit: 'count',
+  category: 'counts',
+  rawShape: 'aoi-vector',
+  windowUnit: 'ms',
+  providesAnyFixation: true,
+  searchTags: ['fixation', 'count', 'number', 'fix', 'aoi'],
+  params: [] as const,
+  init: ({ slots }) => new Float64Array(slots.totalSlots),
+  onFixation: (acc, { slots }, { slots: info }) => {
+    acc[info.anyFixationSlot]++
+    if (slots.length === 0) { acc[info.noAoiSlot]++; return }
+    for (let i = 0; i < slots.length; i++) acc[slots[i]]++
+  },
+  finalize: (acc) => Array.from(acc),
+})

@@ -1,5 +1,36 @@
-import { defineMetric } from '../core/defineMetric'
+import { defineMetric } from '../../core/defineMetric'
 
+/**
+ * ## Relative dwell time
+ *
+ * Dwell time per AOI as a percentage of the participant's total fixation time
+ * on the stimulus. Normalises attention across participants with different
+ * overall scan durations.
+ *
+ * - **Shape:** `aoi-vector`
+ * - **Unit:** `%`
+ * - **Category:** `duration`
+ * - **Windowing:** supported
+ *
+ * ### Parameters
+ * None.
+ *
+ * ### Usage
+ * ```ts
+ * query(
+ *   { id: 'relativeTime', baseId: 'relativeTime', params: {},
+ *     projection: { kind: 'identity-aoi-vector' }, label: 'Relative dwell time' },
+ *   { engine, stimulusId, participantId },
+ * )
+ * // → { shape: 'aoi-vector', values: [percent_per_slot], ... }
+ * ```
+ *
+ * ### Invariants
+ * - Normalised by `anyFixationSlot` total, NOT the sum across AOI slots —
+ *   summing AOI slots would double-count every fixation (once in its slot,
+ *   once in anyFixation) and halve every percentage.
+ * - Participants with zero total fixation time get all-zero output.
+ */
 defineMetric({
   id: 'relativeTime',
   label: 'Relative dwell time',

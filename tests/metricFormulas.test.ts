@@ -7,7 +7,6 @@
  */
 import { describe, it, expect } from 'vitest'
 import { createReaderFromJson } from '../src/lib/data/binary/converters'
-import '../src/lib/metrics/init'
 import {
   query,
   queryGroup,
@@ -174,9 +173,9 @@ describe('relativeTime — (absolute / total fixation time) × 100', () => {
   })
 })
 
-// ─── averageFixationCount ───────────────────────────────────────────────────
+// ─── fixationCount ──────────────────────────────────────────────────────────
 
-describe('averageFixationCount — count of fixations landing in AOI', () => {
+describe('fixationCount — count of fixations landing in AOI', () => {
   it('counts per slot with overlaps and noAoi', () => {
     // 4 fixations: AOI1, [AOI1,AOI2], noAoi, AOI2
     //   AOI1=2, AOI2=2, noAoi=1, anyFixation=4
@@ -186,7 +185,7 @@ describe('averageFixationCount — count of fixations landing in AOI', () => {
       [200, 300, 0],
       [300, 400, 0, 2],
     ])
-    const result = values(query(inst('averageFixationCount'), scope(engine)))
+    const result = values(query(inst('fixationCount'), scope(engine)))
     expect(result[0]).toBe(2)
     expect(result[1]).toBe(2)
     expect(result[2]).toBe(1)
@@ -194,9 +193,9 @@ describe('averageFixationCount — count of fixations landing in AOI', () => {
   })
 })
 
-// ─── avgFixationDuration ────────────────────────────────────────────────────
+// ─── fixationDuration ───────────────────────────────────────────────────────
 
-describe('avgFixationDuration — mean of per-fixation durations on AOI', () => {
+describe('fixationDuration — mean of per-fixation durations on AOI', () => {
   it('averages durations per slot; NaN when no fixations touch the slot', () => {
     // Fixations:
     //   100ms on AOI1, 300ms on AOI1, 200ms on AOI2
@@ -206,7 +205,7 @@ describe('avgFixationDuration — mean of per-fixation durations on AOI', () => 
       [100, 400, 0, 1],
       [400, 600, 0, 2],
     ])
-    const result = values(query(inst('avgFixationDuration'), scope(engine)))
+    const result = values(query(inst('fixationDuration'), scope(engine)))
     expect(result[0]).toBe(200)
     expect(result[1]).toBe(200)
     expect(Number.isNaN(result[2])).toBe(true)
@@ -214,9 +213,9 @@ describe('avgFixationDuration — mean of per-fixation durations on AOI', () => 
   })
 })
 
-// ─── averageEntries (visitCount) ────────────────────────────────────────────
+// ─── visitCount ─────────────────────────────────────────────────────────────
 
-describe('averageEntries — distinct entries; consecutive-same = one visit', () => {
+describe('visitCount — distinct entries; consecutive-same = one visit', () => {
   it('consecutive fixations on same AOI collapse; re-entry counts again', () => {
     // Fixations: AOI1, AOI1, AOI2, AOI1
     //   AOI1 visits: {0-1}, {3} → 2 entries
@@ -227,15 +226,15 @@ describe('averageEntries — distinct entries; consecutive-same = one visit', ()
       [200, 300, 0, 2],
       [300, 400, 0, 1],
     ])
-    const result = values(query(inst('averageEntries'), scope(engine)))
+    const result = values(query(inst('visitCount'), scope(engine)))
     expect(result[0]).toBe(2)
     expect(result[1]).toBe(1)
   })
 })
 
-// ─── avgDwellDuration (visitDuration) ───────────────────────────────────────
+// ─── visitDuration ──────────────────────────────────────────────────────────
 
-describe('avgDwellDuration — mean sum-of-durations per visit', () => {
+describe('visitDuration — mean sum-of-durations per visit', () => {
   it('one visit sums all fixation durations; re-entries create new visits', () => {
     // Fixations: AOI1 (0-100), AOI1 (100-200), AOI2 (200-300), AOI1 (300-400)
     //   AOI1 visits: [200ms, 100ms] → mean 150
@@ -246,10 +245,10 @@ describe('avgDwellDuration — mean sum-of-durations per visit', () => {
       [200, 300, 0, 2],
       [300, 400, 0, 1],
     ])
-    const result = values(query(inst('avgDwellDuration'), scope(engine)))
+    const result = values(query(inst('visitDuration'), scope(engine)))
     expect(result[0]).toBe(150)
     expect(result[1]).toBe(100)
-    expect(queryIndividuals(inst('avgDwellDuration'), scope(engine), 0)).toEqual([200, 100])
+    expect(queryIndividuals(inst('visitDuration'), scope(engine), 0)).toEqual([200, 100])
   })
 })
 
@@ -271,9 +270,9 @@ describe('timeToFirstFixation — segment start of first fixation on AOI', () =>
   })
 })
 
-// ─── avgFirstFixationDuration ───────────────────────────────────────────────
+// ─── firstFixationDuration ──────────────────────────────────────────────────
 
-describe('avgFirstFixationDuration — duration of the first fixation on AOI', () => {
+describe('firstFixationDuration — duration of the first fixation on AOI', () => {
   it('captures the FIRST fixation duration only, not subsequent ones', () => {
     // Fixations: AOI1 (0-100, dur=100), AOI1 (200-500, dur=300)
     //   firstFixDur[AOI1] = 100 (not 200 = mean)
@@ -281,7 +280,7 @@ describe('avgFirstFixationDuration — duration of the first fixation on AOI', (
       [0, 100, 0, 1],
       [200, 500, 0, 1],
     ])
-    const result = values(query(inst('avgFirstFixationDuration'), scope(engine)))
+    const result = values(query(inst('firstFixationDuration'), scope(engine)))
     expect(result[0]).toBe(100)
     expect(Number.isNaN(result[1])).toBe(true)
   })
