@@ -120,9 +120,11 @@ export function getEvolvingMetricsData(
   const numParticipants = participantIds.length
   if (numParticipants === 0) return null
 
+  const participantEnds: number[] = new Array(numParticipants)
   let maxTime = 0
   for (let i = 0; i < numParticipants; i++) {
     const t = getParticipantEndTime(engine, stimulusId, participantIds[i])
+    participantEnds[i] = t
     if (t > maxTime) maxTime = t
   }
   const timelineMin = settings.timelineMin ?? 0
@@ -143,7 +145,11 @@ export function getEvolvingMetricsData(
     const label = entity?.displayedName ?? entity?.originalName ?? `P${pid}`
     const scope: Scope = {
       engine, stimulusId, participantId: pid,
-      timeStart: timelineMin, timeEnd: timelineMax,
+      timeStart: timelineMin,
+      // Clamp to this participant's own run end so windows past their data
+      // aren't synthesised — they'd report 0 (count) or NaN (mean), conflating
+      // missing data with real zero observations.
+      timeEnd: Math.min(timelineMax, participantEnds[p]),
     }
     const result = query(instance, scope)
     if (result.shape !== 'scalar-timeseries' || !result.timeline) {

@@ -53,7 +53,17 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
     label: 'Average fixation duration',
     projection: {
       kind: 'windowed',
-      window: { windowSize: 2000, stepSize: 100 },
+      window: { windowSize: 1000, stepSize: 100 },
+      inner: { kind: 'pick-any-fixation' },
+    },
+  },
+  {
+    id: 'fixationCount-any-windowed',
+    baseId: 'fixationCount',
+    label: 'Fixation count',
+    projection: {
+      kind: 'windowed',
+      window: { windowSize: 1000, stepSize: 100 },
       inner: { kind: 'pick-any-fixation' },
     },
   },
