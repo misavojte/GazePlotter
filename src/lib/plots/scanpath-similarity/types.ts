@@ -1,18 +1,19 @@
 import type { PlotItemContract } from '$lib/plots/definePlot'
 
-export type SimilarityMethod = 'levenshtein' | 'needlemanWunsch'
-
 export type ScanpathSimilarityView = 'matrix' | 'scangraph'
 
 export type ScanpathSimilaritySettings = {
   stimulusId: number
   groupId: number
-  similarityMethod: SimilarityMethod
+  /**
+   * Picked from the metric library; filtered to participant-pair-matrix
+   * metrics. The similarity method and any preprocessing flags (e.g.,
+   * collapsed AOIs) live on the metric, not the plot.
+   */
+  metricInstanceId: string | null
   view: ScanpathSimilarityView
   /** Threshold parameter for scangraph adjacency (0-1) */
   threshold: number
-  /** Whether to collapse consecutive identical AOIs */
-  collapsed: boolean
   colorScale: string[]
   /** Per-stimulus color value ranges [min, max] */
   stimuliColorValueRanges: [number, number][]
@@ -34,6 +35,8 @@ export interface ScanpathSimilarityData {
   matrix: Float64Array
   /** Size of the square matrix */
   size: number
+  /** True when the plot's `metricInstanceId` points to a missing instance. */
+  noMetric?: boolean
 }
 
 export interface ScangraphData {

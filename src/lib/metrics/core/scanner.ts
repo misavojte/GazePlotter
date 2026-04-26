@@ -2,6 +2,7 @@ import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import { buildAoiSlots } from './aoiSlots'
 import { resolveParams } from './params'
 import { getRecipe } from './defineMetric'
+import type { FixationEvent, InitCtx, MetricRecipe } from './dsl'
 import type { MetricInstance } from '../instances'
 
 /**
@@ -23,9 +24,10 @@ export function scanBatch(
 
   type Active = {
     inst: MetricInstance
-    recipe: ReturnType<typeof getRecipe>
+    onFixation: NonNullable<MetricRecipe<any, any>['onFixation']>
+    finalize: NonNullable<MetricRecipe<any, any>['finalize']>
     acc: any
-    ctx: { params: Record<string, unknown>; slots: typeof slots }
+    ctx: InitCtx<Record<string, unknown>>
   }
 
   const active: Active[] = []
@@ -33,9 +35,13 @@ export function scanBatch(
     if (inst.projection.kind === 'windowed') continue
     const recipe = getRecipe(inst.baseId)
     if (!recipe) continue
+    // Group-shape recipes own their evaluation via scanGroup; they don't
+    // expose the per-participant trio that this batch path requires.
+    const { init, onFixation, finalize } = recipe
+    if (!init || !onFixation || !finalize) continue
     const params = resolveParams(recipe.params, inst.params)
     const ctx = { params, slots }
-    active.push({ inst, recipe, acc: recipe.init(ctx), ctx })
+    active.push({ inst, onFixation, finalize, acc: init(ctx), ctx })
   }
   if (active.length === 0) return new Map()
 
@@ -60,14 +66,14 @@ export function scanBatch(
       if (slot !== undefined && resolvedSlots.indexOf(slot) === -1) resolvedSlots.push(slot)
     }
 
-    const fix = { start, duration: end - start, slots: resolvedSlots, index }
-    for (const a of active) a.recipe!.onFixation(a.acc, fix, a.ctx)
+    const fix: FixationEvent = { start, duration: end - start, slots: resolvedSlots, index }
+    for (const a of active) a.onFixation(a.acc, fix, a.ctx)
     index++
   }
 
   const out = new Map<string, number[]>()
   for (const a of active) {
-    out.set(a.inst.id, a.recipe!.finalize(a.acc, slots, a.ctx))
+    out.set(a.inst.id, a.finalize(a.acc, slots, a.ctx))
   }
   return out
 }

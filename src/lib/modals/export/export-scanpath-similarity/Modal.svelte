@@ -6,11 +6,13 @@
     getParticipantsGroupOptions,
     getStimuliOptions,
   } from '$lib/plots/shared'
-  import { SIMILARITY_METHODS } from '$lib/plots/scanpath-similarity/const'
-  import type {
-    SimilarityMethod,
-    ScanpathSimilarityItem,
-  } from '$lib/plots/scanpath-similarity/types'
+  import type { SimilarityMethod } from '$lib/metrics'
+  import type { ScanpathSimilarityItem } from '$lib/plots/scanpath-similarity/types'
+
+  const SIMILARITY_METHODS: readonly { value: SimilarityMethod; label: string }[] = [
+    { value: 'levenshtein',     label: 'Levenshtein' },
+    { value: 'needlemanWunsch', label: 'Needleman-Wunsch' },
+  ]
   import { getGazePlotterSession } from '$lib/session'
   import { InputCheck, InputText, Select } from '$lib/shared/components'
   import {
@@ -33,10 +35,8 @@
     untrack(() => settings?.stimulusId?.toString() ?? '0')
   )
   let groupId = $state(untrack(() => settings?.groupId?.toString() ?? '-1'))
-  let similarityMethod = $state<SimilarityMethod>(
-    untrack(() => settings?.similarityMethod ?? 'levenshtein')
-  )
-  let collapsed = $state(untrack(() => settings?.collapsed ?? false))
+  let similarityMethod = $state<SimilarityMethod>('levenshtein')
+  let collapsed = $state(false)
   let delimiter = $state(',')
   let decimalSeparator = $state<DecimalSeparator>('.')
   let isExporting = $state(false)

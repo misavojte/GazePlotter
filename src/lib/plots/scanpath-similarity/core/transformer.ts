@@ -1,62 +1,60 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import { getAois, getParticipantsIds } from '$lib/data/engine'
-import type {
-  SimilarityMethod,
-  ScanpathSimilarityData,
-  ScangraphData,
-} from '../types'
-import { collectAllScanpaths } from './collector'
+import { getParticipantsIds } from '$lib/data/engine'
 import {
-  levenshteinSimilarity,
-  needlemanWunschSimilarity,
-} from './similarity'
-
-const similarityFn: Record<
-  SimilarityMethod,
-  (a: string, b: string) => number
-> = {
-  levenshtein: levenshteinSimilarity,
-  needlemanWunsch: needlemanWunschSimilarity,
-}
+  queryGroup,
+  resolveInstance,
+  type GroupScope,
+  type MetricResult,
+} from '$lib/metrics'
+import type { ScanpathSimilarityData, ScangraphData } from '../types'
 
 /**
- * Compute the pairwise similarity matrix for all participants.
+ * Resolve the configured metric instance and run `queryGroup` to obtain the
+ * participant-pair similarity matrix. Returns `noMetric: true` when the
+ * configured metric instance is missing — the plot then renders a placeholder.
  */
 export function getScanpathSimilarityData(
   engine: DataEngine,
   stimulusId: number,
   groupId: number,
-  method: SimilarityMethod,
-  collapsed: boolean
+  metricInstanceId: string | null,
 ): ScanpathSimilarityData {
-  const participantIds = getParticipantsIds(engine, groupId, stimulusId)
   const meta = engine.metadata
-  const aois = meta?.aois.data[stimulusId] ? getAois(engine, stimulusId) : []
-  const entries = collectAllScanpaths(
-    engine,
-    stimulusId,
-    participantIds,
-    aois,
-    collapsed
-  )
-
-  const size = entries.length
-  const matrix = new Float64Array(size * size)
-  const labels = entries.map(e => e.label)
-  const pids = entries.map(e => e.participantId)
-  const compute = similarityFn[method]
-
-  for (let i = 0; i < size; i++) {
-    matrix[i * size + i] = 1 // Self-similarity = 1
-    for (let j = i + 1; j < size; j++) {
-      const sim = compute(entries[i].scanpath, entries[j].scanpath)
-      const rounded = Math.round(sim * 1000) / 1000
-      matrix[i * size + j] = rounded
-      matrix[j * size + i] = rounded
-    }
+  if (!meta) {
+    return { labels: [], participantIds: [], matrix: new Float64Array(0), size: 0 }
   }
 
-  return { labels, participantIds: pids, matrix, size }
+  const instance = resolveInstance(meta.metricInstances ?? [], metricInstanceId)
+  if (!instance) {
+    return { labels: [], participantIds: [], matrix: new Float64Array(0), size: 0, noMetric: true }
+  }
+
+  const participantIds = getParticipantsIds(engine, groupId, stimulusId)
+  if (participantIds.length === 0) {
+    return { labels: [], participantIds: [], matrix: new Float64Array(0), size: 0 }
+  }
+
+  const scope: GroupScope = { engine, stimulusId, participantIds }
+  const result = queryGroup(instance, scope)
+  if (result.shape !== 'participant-pair-matrix') {
+    return { labels: [], participantIds: [], matrix: new Float64Array(0), size: 0, noMetric: true }
+  }
+
+  const labels = labelsFor(engine, result.participantIds)
+  return {
+    labels,
+    participantIds: result.participantIds,
+    matrix: Float64Array.from(result.matrix),
+    size: result.size,
+  }
+}
+
+function labelsFor(engine: DataEngine, participantIds: readonly number[]): string[] {
+  const meta = engine.metadata
+  if (!meta) return participantIds.map(pid => `P${pid}`)
+  return participantIds.map(pid =>
+    meta.participants.data[pid]?.[1] ?? meta.participants.data[pid]?.[0] ?? `P${pid}`,
+  )
 }
 
 /**
@@ -65,7 +63,7 @@ export function getScanpathSimilarityData(
  */
 export function buildScangraphData(
   simData: ScanpathSimilarityData,
-  threshold: number
+  threshold: number,
 ): ScangraphData {
   const { labels, size, matrix } = simData
 
@@ -87,3 +85,6 @@ export function buildScangraphData(
 
   return { nodes, links }
 }
+
+// Re-export MetricResult for type consumers, in case callers need the raw shape.
+export type { MetricResult }

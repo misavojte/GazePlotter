@@ -2,9 +2,10 @@ import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
 
 /**
- * Extract scanpath string for a single participant on a stimulus.
- * Each fixation's primary AOI is mapped to a letter (A, B, C...).
- * '#' represents fixations outside any AOI.
+ * Encode one participant's fixation sequence as an AOI-letter scanpath.
+ * Each fixation's primary AOI is mapped to a letter (A, B, C…); fixations
+ * outside any visible AOI become '#'. With `collapsed=true`, consecutive
+ * identical characters are folded so that "AABBC" becomes "ABC".
  */
 export function collectScanpath(
   engine: DataEngine,
@@ -23,7 +24,6 @@ export function collectScanpath(
   const hiddenAois = meta.aois.hiddenAois?.[stimulusId] ?? []
   const hiddenSet = hiddenAois.length ? new Set(hiddenAois) : null
 
-  // Build AOI ID -> index lookup
   const aoiLookup = new Map<number, number>()
   for (let i = 0; i < aois.length; i++) {
     aoiLookup.set(aois[i].id, i)
@@ -51,7 +51,6 @@ export function collectScanpath(
     if (aoiCount === 0) {
       ch = '#'
     } else {
-      // Find first visible mapped AOI
       let foundIdx = -1
       for (let a = 0; a < aoiCount; a++) {
         const rawId = aoiBuffer[a]
@@ -74,14 +73,11 @@ export function collectScanpath(
   return result
 }
 
-/**
- * Collect scanpaths for all given participants.
- * Returns an array of { participantId, label, scanpath } objects.
- */
+/** Collect AOI-letter scanpaths for all given participants in their input order. */
 export function collectAllScanpaths(
   engine: DataEngine,
   stimulusId: number,
-  participantIds: number[],
+  participantIds: readonly number[],
   aois: ExtendedInterpretedDataType[],
   collapsed: boolean
 ): { participantId: number; label: string; scanpath: string }[] {

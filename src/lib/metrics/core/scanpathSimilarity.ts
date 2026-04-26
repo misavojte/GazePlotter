@@ -1,14 +1,12 @@
 /**
- * Scanpath similarity algorithms.
+ * Pairwise similarity kernels for AOI-letter scanpaths.
  *
  * Levenshtein: edit distance normalized to 0-1 similarity.
  * Needleman-Wunsch: global alignment score normalized to 0-1 similarity.
  */
 
-/**
- * Compute Levenshtein edit distance between two strings.
- * Returns raw distance (number of edits).
- */
+export type SimilarityMethod = 'levenshtein' | 'needlemanWunsch'
+
 function levenshteinDistance(
   a: string,
   b: string,
@@ -19,7 +17,6 @@ function levenshteinDistance(
   const m = a.length
   const n = b.length
 
-  // Single-row DP for memory efficiency
   const prev = new Float64Array(n + 1)
   const curr = new Float64Array(n + 1)
 
@@ -44,10 +41,6 @@ function levenshteinDistance(
   return prev[n]
 }
 
-/**
- * Needleman-Wunsch global alignment score.
- * Returns the optimal alignment score.
- */
 function needlemanWunschScore(
   a: string,
   b: string,
@@ -77,9 +70,7 @@ function needlemanWunschScore(
   return prev[n]
 }
 
-/**
- * Compute normalized Levenshtein similarity (0-1, where 1 = identical).
- */
+/** Normalized Levenshtein similarity (0-1, where 1 = identical). */
 export function levenshteinSimilarity(a: string, b: string): number {
   if (a.length === 0 && b.length === 0) return 1
   const maxLen = Math.max(a.length, b.length)
@@ -87,17 +78,43 @@ export function levenshteinSimilarity(a: string, b: string): number {
   return 1 - distance / maxLen
 }
 
-/**
- * Compute normalized Needleman-Wunsch similarity (0-1, where 1 = identical).
- */
+/** Normalized Needleman-Wunsch similarity (0-1, where 1 = identical). */
 export function needlemanWunschSimilarity(a: string, b: string): number {
   if (a.length === 0 && b.length === 0) return 1
   const maxLen = Math.max(a.length, b.length)
   const score = needlemanWunschScore(a, b)
   // NW score ranges from maxLen*gapPenalty (worst) to maxLen*matchScore (best)
   // With defaults: worst = -maxLen, best = maxLen
-  // Normalize: (score - worst) / (best - worst)
-  const best = maxLen // maxLen * matchScore(1)
-  const worst = -maxLen // maxLen * gapPenalty(-1)
+  const best = maxLen
+  const worst = -maxLen
   return (score - worst) / (best - worst)
+}
+
+const SIMILARITY_FN: Record<SimilarityMethod, (a: string, b: string) => number> = {
+  levenshtein: levenshteinSimilarity,
+  needlemanWunsch: needlemanWunschSimilarity,
+}
+
+/**
+ * Compute a symmetric pairwise similarity matrix (flat row-major) over a set of
+ * scanpaths using the chosen kernel. Diagonal = 1; off-diagonal cells are
+ * rounded to three decimals to keep label readouts stable.
+ */
+export function computeSimilarityMatrix(
+  scanpaths: readonly string[],
+  method: SimilarityMethod,
+): number[] {
+  const size = scanpaths.length
+  const matrix = new Array<number>(size * size).fill(0)
+  const compute = SIMILARITY_FN[method]
+  for (let i = 0; i < size; i++) {
+    matrix[i * size + i] = 1
+    for (let j = i + 1; j < size; j++) {
+      const sim = compute(scanpaths[i], scanpaths[j])
+      const rounded = Math.round(sim * 1000) / 1000
+      matrix[i * size + j] = rounded
+      matrix[j * size + i] = rounded
+    }
+  }
+  return matrix
 }

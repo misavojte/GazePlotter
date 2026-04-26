@@ -1,6 +1,10 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import type { SimilarityMethod } from '$lib/plots/scanpath-similarity/types'
-import { getScanpathSimilarityData } from '$lib/plots/scanpath-similarity/core/transformer'
+import { getAois, getParticipantsIds } from '$lib/data/engine'
+import {
+  collectAllScanpaths,
+  computeSimilarityMatrix,
+  type SimilarityMethod,
+} from '$lib/metrics'
 import {
   formatNumberForCsv,
   generateCsvString,
@@ -30,17 +34,24 @@ export function generateScanpathSimilarityCsv(
   engine: DataEngine,
   options: ScanpathSimilarityExportOptions
 ): { content: string; participantCount: number } {
-  const { labels, participantIds, matrix, size } = getScanpathSimilarityData(
+  const meta = engine.metadata
+  const participantIds = getParticipantsIds(engine, options.groupId, options.stimulusId)
+  const aois = meta?.aois.data[options.stimulusId] ? getAois(engine, options.stimulusId) : []
+  const entries = collectAllScanpaths(
     engine,
     options.stimulusId,
-    options.groupId,
-    options.similarityMethod,
-    options.collapsed
+    participantIds,
+    aois,
+    options.collapsed,
   )
+  const labels = entries.map(e => e.label)
+  const resolvedIds = entries.map(e => e.participantId)
+  const matrix = computeSimilarityMatrix(entries.map(e => e.scanpath), options.similarityMethod)
+  const size = entries.length
 
   const decimalSeparator = options.csvOptions?.decimalSeparator ?? '.'
   const columnHeaders = labels.map((label, index) =>
-    buildColumnHeader(label, participantIds[index])
+    buildColumnHeader(label, resolvedIds[index])
   )
 
   const header = ['Participant_ID', 'Participant_Label', ...columnHeaders]
@@ -48,8 +59,8 @@ export function generateScanpathSimilarityCsv(
 
   for (let i = 0; i < size; i++) {
     const row: string[] = [
-      participantIds[i]?.toString() ?? '',
-      buildParticipantLabel(labels[i] ?? '', participantIds[i] ?? i),
+      resolvedIds[i]?.toString() ?? '',
+      buildParticipantLabel(labels[i] ?? '', resolvedIds[i] ?? i),
     ]
 
     for (let j = 0; j < size; j++) {

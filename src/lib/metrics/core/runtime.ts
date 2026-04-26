@@ -44,6 +44,9 @@ export interface ProjectedResult {
 export function runProjected(instance: MetricInstance, scope: Scope): ProjectedResult | null {
   const recipe = getRecipe(instance.baseId)
   if (!recipe) return null
+  // Group-shape recipes have no per-participant scan trio. queryGroup owns
+  // their entry point via recipe.scanGroup; per-participant calls return null.
+  if (recipe.rawShape === 'participant-pair-matrix') return null
   const p = instance.projection
 
   if (p.kind !== 'windowed') {
@@ -70,7 +73,7 @@ export function runIndividuals(
   scope: Scope,
   slotIndex: number,
 ): number[] {
-  if (!recipe.individuals) return []
+  if (!recipe.individuals || !recipe.finalize) return []
   const out = scanAccumulator(recipe, instance, scope, scope.timeStart ?? 0, scope.timeEnd ?? 0)
   if (!out) return []
   // finalize may flush pending state (e.g., visitDuration's activeDwells) before
@@ -171,6 +174,7 @@ function runSingleWindow(
   timeStart: number,
   timeEnd: number,
 ): number[] {
+  if (!recipe.finalize) return []
   const cached = cacheGet(scope.engine, scope, instance, timeStart, timeEnd)
   if (cached) return cached
   const out = scanAccumulator(recipe, instance, scope, timeStart, timeEnd)
@@ -187,6 +191,9 @@ export function scanAccumulator(
   timeStart: number,
   timeEnd: number,
 ): ScanOutput<any> | null {
+  // Per-participant scan trio. Group-shape recipes (participant-pair-matrix)
+  // never reach here — runProjected and queryBatch filter them upstream.
+  if (!recipe.init || !recipe.onFixation) return null
   const slots = buildAoiSlots(scope.engine, scope.stimulusId)
   if (!slots) return null
   const params = resolveParams(recipe.params, instance.params)

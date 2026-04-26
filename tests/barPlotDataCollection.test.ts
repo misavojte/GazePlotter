@@ -58,6 +58,7 @@ function values(result: ReturnType<typeof query>): number[] {
   if (result.shape === 'aoi-vector') return result.values
   if (result.shape === 'scalar') return [result.value]
   if (result.shape === 'aoi-pair-matrix') return result.matrix
+  if (result.shape === 'participant-pair-matrix') return result.matrix
   return result.values
 }
 

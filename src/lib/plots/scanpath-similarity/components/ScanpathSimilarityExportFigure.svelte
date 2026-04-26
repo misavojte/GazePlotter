@@ -24,13 +24,13 @@
       engine,
       settings.stimulusId,
       settings.groupId,
-      settings.similarityMethod,
-      settings.collapsed
+      settings.metricInstanceId,
     )
   )
 
   const scangraphData = $derived.by(() => {
     if (settings.view !== 'scangraph') return null
+    if (similarityData.size === 0) return null
     return buildScangraphData(
       similarityData,
       settings.threshold ?? SCANPATH_SIMILARITY_DEFAULTS.threshold

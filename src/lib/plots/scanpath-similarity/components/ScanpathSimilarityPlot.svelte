@@ -12,7 +12,7 @@
     buildScangraphData,
   } from '../core/transformer'
 
-  import { SIMILARITY_LEGEND_TITLES } from '../const'
+  import { getMetric, resolveInstance } from '$lib/metrics'
   import type { ScanpathSimilarityItem } from '../types'
 
   interface Props {
@@ -30,20 +30,31 @@
     settings.stimuliColorValueRanges?.[settings.stimulusId] ?? [0, 0]
   )
 
-  const similarityData = $derived.by(() => {
-    return getScanpathSimilarityData(
+  const resolvedInstance = $derived(
+    resolveInstance(engine.metadata?.metricInstances ?? [], settings.metricInstanceId)
+  )
+  const resolvedMetric = $derived(
+    resolvedInstance ? getMetric(resolvedInstance.baseId) : undefined
+  )
+
+  const similarityData = $derived(
+    getScanpathSimilarityData(
       engine,
       settings.stimulusId,
       settings.groupId,
-      settings.similarityMethod ?? 'levenshtein',
-      settings.collapsed ?? false
+      settings.metricInstanceId,
     )
-  })
+  )
 
   const scangraphData = $derived.by(() => {
     if (settings.view !== 'scangraph') return null
+    if (similarityData.size === 0) return null
     return buildScangraphData(similarityData, settings.threshold ?? 0.5)
   })
+
+  const legendTitle = $derived(
+    resolvedInstance?.label ?? resolvedMetric?.meta.label ?? 'Similarity'
+  )
 
   const handleNodeClick = (nodeIndex: number) => {
     workspace.updateItemSettings(
@@ -70,9 +81,7 @@
           {height}
           colorScale={effectiveColorScale}
           {colorValueRange}
-          legendTitle={SIMILARITY_LEGEND_TITLES[
-            settings.similarityMethod ?? 'levenshtein'
-          ] ?? 'Similarity'}
+          {legendTitle}
         />
       {:else if settings.view === 'scangraph' && scangraphData}
         <ScangraphFigure

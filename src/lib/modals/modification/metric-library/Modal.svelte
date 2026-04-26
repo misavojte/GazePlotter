@@ -130,9 +130,10 @@
   function buildLeaf(kind: LeafKind, currentAoi?: string): LeafProjection {
     const defaultAoi = currentAoi ?? aoiNameUnion[0] ?? ''
     switch (kind) {
-      case 'identity-scalar':          return { kind }
-      case 'identity-aoi-vector':      return { kind }
-      case 'identity-aoi-pair-matrix': return { kind }
+      case 'identity-scalar':                    return { kind }
+      case 'identity-aoi-vector':                return { kind }
+      case 'identity-aoi-pair-matrix':           return { kind }
+      case 'identity-participant-pair-matrix':   return { kind }
       case 'pick-aoi':         return { kind, aoiRef: { by: 'name', name: defaultAoi } }
       case 'pick-any-fixation': return { kind }
       case 'aggregate-aoi':    return { kind, reducer: availableAoiReducers(currentBaseId)[0] ?? 'max' }
@@ -262,9 +263,10 @@
 
   function leafKindLabel(k: LeafKind): string {
     switch (k) {
-      case 'identity-scalar':          return 'Scalar'
-      case 'identity-aoi-vector':      return 'Per-AOI'
-      case 'identity-aoi-pair-matrix': return 'Matrix'
+      case 'identity-scalar':                    return 'Scalar'
+      case 'identity-aoi-vector':                return 'Per-AOI'
+      case 'identity-aoi-pair-matrix':           return 'Matrix'
+      case 'identity-participant-pair-matrix':   return 'Participant matrix'
       case 'pick-aoi':         return 'Pick AOI'
       case 'pick-any-fixation': return 'Any fixation'
       case 'aggregate-aoi':    return 'Aggregate AOIs'

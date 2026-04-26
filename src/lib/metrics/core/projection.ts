@@ -30,6 +30,7 @@ export type LeafKind =
   | 'identity-scalar'
   | 'identity-aoi-vector'
   | 'identity-aoi-pair-matrix'
+  | 'identity-participant-pair-matrix'
   | 'pick-aoi'
   | 'pick-any-fixation'
   | 'aggregate-aoi'
@@ -43,6 +44,7 @@ export type LeafProjection =
   | { kind: 'identity-scalar' }
   | { kind: 'identity-aoi-vector' }
   | { kind: 'identity-aoi-pair-matrix' }
+  | { kind: 'identity-participant-pair-matrix' }
   | { kind: 'pick-aoi';          aoiRef: AoiRef }
   | { kind: 'pick-any-fixation' }
   | { kind: 'aggregate-aoi';     reducer: AoiReducer }
@@ -66,6 +68,7 @@ export function identityFor(raw: OutputShape): LeafProjection {
   if (raw === 'scalar')       return { kind: 'identity-scalar' }
   if (raw === 'aoi-vector')   return { kind: 'identity-aoi-vector' }
   if (raw === 'aoi-pair-matrix') return { kind: 'identity-aoi-pair-matrix' }
+  if (raw === 'participant-pair-matrix') return { kind: 'identity-participant-pair-matrix' }
   throw new Error(`identityFor: no identity leaf for output shape "${raw}"`)
 }
 
@@ -121,6 +124,13 @@ export const PROJECTION_LEAVES: Record<LeafKind, LeafKindDef> = {
     rawShapes: ['aoi-pair-matrix'],
     label: () => '',
     cacheKey: () => 'id:m',
+    apply: passthrough,
+  },
+  'identity-participant-pair-matrix': {
+    outputShape: 'participant-pair-matrix',
+    rawShapes: ['participant-pair-matrix'],
+    label: () => '',
+    cacheKey: () => 'id:pm',
     apply: passthrough,
   },
   'pick-aoi': {

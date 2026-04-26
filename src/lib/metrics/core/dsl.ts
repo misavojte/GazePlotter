@@ -1,8 +1,40 @@
+import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import type { ParamDef } from './params'
 import type { Projection } from './projection'
 
-export type OutputShape = 'scalar' | 'aoi-vector' | 'aoi-pair-matrix' | 'scalar-timeseries'
+export type OutputShape =
+  | 'scalar'
+  | 'aoi-vector'
+  | 'aoi-pair-matrix'
+  | 'participant-pair-matrix'
+  | 'scalar-timeseries'
 export type WindowUnit = 'ms' | 'fixations'
+
+/**
+ * Group-level evaluation context for recipes whose computation is inherently
+ * pairwise across participants (e.g. scanpath similarity). A `GroupScope` carries
+ * the *set* of participants the comparison ranges over, in contrast to the
+ * single-participant {@link Scope} used by per-participant scans.
+ */
+export interface GroupScope {
+  engine: DataEngine
+  stimulusId: number
+  participantIds: readonly number[]
+  timeStart?: number
+  timeEnd?: number
+}
+
+/**
+ * Result shape returned by {@link MetricRecipe.scanGroup}. The matrix is
+ * row-major M×M where `M === participantIds.length`. Recipes are free to
+ * filter or reorder participants from the input scope (e.g. drop participants
+ * with empty scanpaths) — the returned `participantIds` is the authoritative
+ * axis labelling for the matrix.
+ */
+export interface GroupResult {
+  matrix: number[]
+  participantIds: number[]
+}
 
 export interface AoiSlotInfo {
   totalSlots: number
@@ -45,6 +77,14 @@ export interface MetricMeta {
   readonly params: readonly ParamDef<any>[]
   readonly searchTags: readonly string[]
   readonly groupAggregation: 'mean' | 'median' | 'sum'
+  /**
+   * Whether `queryGroup` reduces this metric across participants via per-slot
+   * aggregation. Defaults to true. Set to false for shapes whose computation
+   * is intrinsically group-level (e.g. participant-pair-matrix), where the
+   * recipe owns the full group entry point via {@link MetricRecipe.scanGroup}
+   * and per-slot reduction would collapse the very axis the shape is built on.
+   */
+  readonly supportsGroupAggregation: boolean
   /**
    * True unless the recipe explicitly opts out. Windowing compatibility is
    * ultimately gated by `recipeSupports(recipe, projection)` — the effective
@@ -98,6 +138,13 @@ export interface MetricRecipe<P, A> {
    */
   providesAnyFixation?: boolean
   /**
+   * Defaults to true. Set to false for recipes whose `rawShape` is inherently
+   * group-level (e.g. participant-pair-matrix). When false, `queryGroup`
+   * short-circuits to {@link MetricRecipe.scanGroup} and skips per-slot
+   * reduction across participants.
+   */
+  supportsGroupAggregation?: boolean
+  /**
    * Author-level veto over specific projections. Receives the full `Projection`
    * — use `p.kind === 'windowed' ? p.inner : p` when the check applies to the
    * leaf regardless of windowing. Return a non-null reason to reject.
@@ -105,10 +152,24 @@ export interface MetricRecipe<P, A> {
   rejects?: (projection: Projection) => string | null
   defaultLabel?: (params: P) => string
 
-  init(ctx: InitCtx<P>): A
-  onFixation(acc: A, fix: FixationEvent, ctx: InitCtx<P>): void
-  finalize(acc: A, slots: AoiSlotInfo, ctx: InitCtx<P>): number[]
+  /**
+   * Per-participant scan trio. Required for recipes whose `rawShape` is one of
+   * the participant-local shapes (`scalar`, `aoi-vector`, `aoi-pair-matrix`,
+   * `scalar-timeseries`). Absent for `participant-pair-matrix` recipes, which
+   * compute via {@link scanGroup} instead. The pairing invariant is enforced
+   * at registration time in `defineMetric`.
+   */
+  init?(ctx: InitCtx<P>): A
+  onFixation?(acc: A, fix: FixationEvent, ctx: InitCtx<P>): void
+  finalize?(acc: A, slots: AoiSlotInfo, ctx: InitCtx<P>): number[]
   individuals?(acc: A, slotIndex: number): number[]
   /** Fixation-windowed metrics (RQA) slice the accumulator per window. */
   windowedFinalize?(acc: A, fromIndex: number, toIndex: number, ctx: InitCtx<P>): number
+  /**
+   * Group-level entry point. Required for recipes with
+   * `rawShape === 'participant-pair-matrix'` and forbidden otherwise. Receives
+   * the full {@link GroupScope} and returns a flat row-major M×M matrix
+   * together with the participant ordering for its axes.
+   */
+  scanGroup?(scope: GroupScope, params: P): GroupResult
 }

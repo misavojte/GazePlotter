@@ -126,4 +126,21 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   { id: 'rqaRec', baseId: 'rqaRec' },
   { id: 'rqaDet', baseId: 'rqaDet' },
   { id: 'rqaLam', baseId: 'rqaLam' },
+
+  // ── scanpath similarity starters ──────────────────────────────────
+  {
+    id: 'participantPairSimilarity-lev',
+    baseId: 'participantPairSimilarity',
+    params: { method: 'levenshtein', collapsed: false },
+  },
+  {
+    id: 'participantPairSimilarity-lev-collapsed',
+    baseId: 'participantPairSimilarity',
+    params: { method: 'levenshtein', collapsed: true },
+  },
+  {
+    id: 'participantPairSimilarity-nw',
+    baseId: 'participantPairSimilarity',
+    params: { method: 'needlemanWunsch', collapsed: false },
+  },
 ]

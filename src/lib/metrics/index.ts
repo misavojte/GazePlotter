@@ -6,6 +6,13 @@ export { defineCategory } from './categories'
 export { extractFixationSequence } from './core/fixations'
 export { integerParam, numberParam, boolParam, enumParam } from './core/params'
 export { computeRqa, rqaScalar } from './core/rqa'
+export {
+  levenshteinSimilarity,
+  needlemanWunschSimilarity,
+  computeSimilarityMatrix,
+} from './core/scanpathSimilarity'
+export type { SimilarityMethod } from './core/scanpathSimilarity'
+export { collectScanpath, collectAllScanpaths } from './core/scanpathEncoding'
 
 // ─── Consumer surface (what plots + export pipelines call at runtime) ──────
 export { query, queryBatch, queryGroup, queryIndividuals } from './query'

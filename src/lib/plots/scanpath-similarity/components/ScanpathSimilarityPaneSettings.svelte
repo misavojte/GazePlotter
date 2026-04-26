@@ -1,6 +1,6 @@
 <script lang="ts">
   import { PaneSection } from '$lib/workspace/pane'
-  import { InputCheck, InputNumber, Radio, Select } from '$lib/shared/components'
+  import { InputNumber, Select } from '$lib/shared/components'
   import { ColorGradientPicker } from '$lib/color'
   import {
     getStimuliOptions,
@@ -8,15 +8,16 @@
     getColorScaleCommitted,
     buildColorScalePatch,
     buildValueRangePatch,
+    singleSelectMetricHandlers,
   } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { PRESET_PALETTES } from '$lib/color/palettes'
-  import { SIMILARITY_METHODS } from '../const'
+  import { MetricSelect } from '$lib/metrics'
+  import { scanpathSimilarityDefinition } from '../definition'
   import type {
     ScanpathSimilarityItem,
     ScanpathSimilaritySettings,
-    SimilarityMethod,
     ScanpathSimilarityView,
   } from '../types'
 
@@ -39,6 +40,12 @@
     getParticipantsGroupOptions(engine, true, settings.stimulusId)
   )
 
+  const metricHandlers = $derived(singleSelectMetricHandlers(
+    engine,
+    () => settings.metricInstanceId,
+    id => update({ metricInstanceId: id }),
+  ))
+
   const view = $derived(settings.view ?? 'matrix')
   const isScangraph = $derived(view === 'scangraph')
 
@@ -58,9 +65,6 @@
   let colorMiddle = $state(colorFields.colorMiddle)
   let colorMax = $state(colorFields.colorMax)
 
-  // External -> local sync + local -> committed. buildColorScalePatch
-  // returns null when draft matches committed, so the round-trip
-  // self-terminates — no microtask-gated flag needed.
   $effect(() => {
     colorMin = colorFields.colorMin
     colorMiddle = colorFields.colorMiddle
@@ -103,36 +107,24 @@
     value={String(settings.groupId)}
     onchange={e => update({ groupId: Number((e as CustomEvent).detail) })}
   />
-  <Radio
-    ariaLabel="View"
+  <MetricSelect
+    label="Metric"
+    instances={engine.metadata?.metricInstances ?? []}
+    selectedIds={settings.metricInstanceId == null ? [] : [settings.metricInstanceId]}
+    {...metricHandlers}
+    contract={scanpathSimilarityDefinition.consumesMetrics!}
+  />
+  <Select
+    label="Visualisation lense"
     options={[
       { label: 'Matrix', value: 'matrix' },
       { label: 'ScanGraph', value: 'scangraph' },
     ]}
-    appearance="compact"
-    direction="row"
     value={view}
     onchange={e => {
       const v = (e as CustomEvent<string>).detail as ScanpathSimilarityView
       update({ view: v })
     }}
-  />
-  <Radio
-    ariaLabel="Similarity method"
-    options={[...SIMILARITY_METHODS]}
-    appearance="compact"
-    value={settings.similarityMethod ?? 'levenshtein'}
-    onchange={e => {
-      const v = (e as CustomEvent<string>).detail as SimilarityMethod
-      update({ similarityMethod: v })
-    }}
-  />
-  <InputCheck
-    label="Collapse consecutive AOIs"
-    appearance="compact"
-    size="xs"
-    checked={settings.collapsed ?? false}
-    onchange={e => update({ collapsed: (e as CustomEvent<boolean>).detail })}
   />
 </PaneSection>
 

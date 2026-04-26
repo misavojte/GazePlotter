@@ -36,10 +36,9 @@ export const scanpathSimilarityDefinition = definePlot<
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
     groupId: params.groupId ?? -1,
-    similarityMethod: 'levenshtein',
+    metricInstanceId: 'participantPairSimilarity-lev',
     view: 'matrix',
     threshold: 0.5,
-    collapsed: false,
     colorScale: [...PRESET_PALETTES.BLUE.colors],
     stimuliColorValueRanges: [],
   }),
@@ -47,4 +46,8 @@ export const scanpathSimilarityDefinition = definePlot<
   getDefaultHeight: () => 12,
   getDefaultWidth: () => 12,
   requireCapabilities: ['segmented'],
+  consumesMetrics: {
+    outputShape: 'participant-pair-matrix',
+    windowing: 'forbidden',
+  },
 })
