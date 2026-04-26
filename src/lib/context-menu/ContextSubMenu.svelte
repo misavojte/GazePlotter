@@ -107,8 +107,8 @@
     <span class="label">{item.label}</span>
     <svg
       class="arrow"
-      width="12"
-      height="12"
+      width="14"
+      height="14"
       viewBox="0 0 24 24"
       aria-hidden="true"
       focusable="false"
@@ -142,11 +142,10 @@
   button {
     background: none;
     border: none;
-    padding: 8px 12px;
+    padding: 6px 12px;
     font-size: 13px;
-    color: var(--c-darkgrey);
+    color: var(--c-text);
     cursor: pointer;
-    width: 100%;
     text-align: left;
     display: flex;
     align-items: center;
@@ -158,6 +157,11 @@
     justify-content: space-between;
   }
 
+  button:focus-visible {
+    outline: 2px solid var(--c-brand);
+    outline-offset: -2px;
+  }
+
   .label {
     flex: 1;
     display: flex;
@@ -166,16 +170,10 @@
   }
 
   .arrow {
-    width: 12px;
-    height: 12px;
-    color: var(--c-midgrey);
-    opacity: 0.8;
+    width: 14px;
+    height: 14px;
+    color: var(--c-darkgrey);
     flex-shrink: 0;
-  }
-
-  button.selected {
-    color: var(--c-brand);
-    font-weight: 500;
   }
 
   button.active {
@@ -186,5 +184,17 @@
   button:hover {
     background: var(--c-lightgrey);
     color: var(--c-black);
+  }
+
+  button.selected {
+    background: color-mix(in srgb, var(--c-brand) 6%, var(--c-white));
+    color: var(--c-brand);
+    font-weight: 500;
+  }
+
+  button.selected:hover,
+  button.selected.active {
+    background: color-mix(in srgb, var(--c-brand) 10%, var(--c-white));
+    color: var(--c-brand);
   }
 </style>

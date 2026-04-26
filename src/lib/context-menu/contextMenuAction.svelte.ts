@@ -7,7 +7,6 @@ import {
   getMenuSize,
   findScrollableParents,
   computeZIndex,
-  getActualSide,
 } from './utils'
 import type {
   ContextMenuOptions,
@@ -160,19 +159,6 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
       { width: window.innerWidth, height: window.innerHeight }
     )
 
-    // Determine which side the menu actually landed on relative to the anchor
-    // so the pointer can reflect reality (handles flipping/clamping cases).
-    const actualSide = getActualSide(
-      {
-        left: adjustedPlacement.left,
-        top: adjustedPlacement.top,
-        width: menuSize.width,
-        height: menuSize.height,
-      },
-      rect,
-      state.position
-    )
-
     updateContextMenu({
       visible: true,
       items: options.items,
@@ -180,11 +166,6 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
       x: adjustedPlacement.left,
       y: adjustedPlacement.top,
       slideFrom: state.slideFrom,
-      position: actualSide,
-      anchorCenter: {
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2,
-      },
       ownerId,
       zIndex: computedZIndex + 1,
     })

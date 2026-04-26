@@ -6,9 +6,6 @@ import {
   MODAL_Z_INDEX,
   ITEM_HEIGHT,
   DIVIDER_HEIGHT,
-  ARROW_WIDTH,
-  ARROW_HEIGHT,
-  ARROW_GUTTER,
 } from './const'
 import type {
   MenuItem,
@@ -155,36 +152,6 @@ export const estimateMenuHeight = (
   return 0
 }
 
-/**
- * Determine which side the menu actually landed on relative to the anchor rect.
- * This is used to correctly position the arrow/pointer.
- */
-export const getActualSide = (
-  menuRect: { left: number; top: number; width: number; height: number },
-  anchorRect: DOMRect | Point,
-  fallback: Position
-): Position => {
-  const menuLeft = menuRect.left
-  const menuTop = menuRect.top
-  const menuRight = menuLeft + menuRect.width
-  const menuBottom = menuTop + menuRect.height
-
-  const isDOMRect = (rect: DOMRect | Point): rect is DOMRect => 'bottom' in rect
-
-  if (isDOMRect(anchorRect)) {
-    // If menu sits below the anchor rect, it's a 'bottom' placement
-    if (menuTop >= anchorRect.bottom - 1) return 'bottom'
-    // If menu sits above the anchor rect, it's a 'top' placement
-    if (menuBottom <= anchorRect.top + 1) return 'top'
-    // If menu sits to the right of the anchor rect, it's 'right'
-    if (menuLeft >= anchorRect.right - 1) return 'right'
-    // If menu sits to the left of the anchor rect, it's 'left'
-    if (menuRight <= anchorRect.left + 1) return 'left'
-  }
-
-  return fallback
-}
-
 export const getMenuSize = (
   items: MenuItem[] | undefined,
   hasContent: boolean
@@ -276,29 +243,3 @@ export const portal = (node: HTMLElement, target?: HTMLElement | string) => {
   }
 }
 
-/**
- * Compute the CSS style for the menu arrow based on its position and anchor.
- */
-export const getArrowStyle = (
-  position: Position | undefined,
-  anchor: Point | undefined,
-  menu: { x: number; y: number; width?: number; height?: number }
-): string => {
-  if (!position || !anchor) return ''
-
-  if (position === 'bottom' || position === 'top') {
-    let left = anchor.x - menu.x - ARROW_WIDTH / 2
-    const min = ARROW_GUTTER
-    const max = (menu.width ?? MENU_WIDTH) - ARROW_GUTTER - ARROW_WIDTH
-    left = Math.max(min, Math.min(left, max))
-    const vertical = position === 'bottom' ? 'bottom: 100%' : 'top: 100%'
-    return `left:${left}px; ${vertical};`
-  } else {
-    let top = anchor.y - menu.y - ARROW_HEIGHT / 2
-    const min = ARROW_GUTTER
-    const max = (menu.height ?? 200) - ARROW_GUTTER - ARROW_HEIGHT
-    top = Math.max(min, Math.min(top, max))
-    const horizontal = position === 'right' ? 'right: 100%' : 'left: 100%'
-    return `${horizontal}; top:${top}px;`
-  }
-}
