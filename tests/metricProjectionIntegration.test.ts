@@ -18,7 +18,7 @@ const STIM = 1
 const PID = 0
 
 const GLOBAL_SCALAR_CONTRACT: PlotMetricContract = {
-  leaves: ['identity-scalar', 'pick-aoi', 'aggregate-aoi', 'matrix-cell', 'matrix-aggregate'],
+  outputShape: 'scalar',
   windowing: 'forbidden',
   multiSelect: true,
 }

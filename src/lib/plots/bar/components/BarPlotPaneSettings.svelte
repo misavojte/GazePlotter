@@ -4,16 +4,13 @@
   import {
     getStimuliOptions,
     getParticipantsGroupOptions,
+    singleSelectMetricHandlers,
   } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import type { BarPlotItem, BarPlotSettings } from '../types'
   import { barPlotDefinition } from '../definition'
-  import {
-    MetricSelect,
-    type MetricInstance,
-    type Projection,
-  } from '$lib/metrics'
+  import { MetricSelect } from '$lib/metrics'
 
   interface Props {
     item: BarPlotItem
@@ -34,41 +31,11 @@
     getParticipantsGroupOptions(engine, true, settings.stimulusId)
   )
 
-  function onMetricChange(ids: string[]) {
-    update({ metricInstanceId: ids[0] ?? null })
-  }
-
-  function onCreateInstance(
-    baseId: string,
-    params: Record<string, unknown>,
-    label: string,
-    projection: Projection,
-    replacingId?: string,
-  ) {
-    const list = [...(engine.metadata?.metricInstances ?? [])]
-    const nextId = crypto.randomUUID()
-    const next: MetricInstance = { id: nextId, baseId, params, label, projection }
-    if (replacingId !== undefined) {
-      const idx = list.findIndex(i => i.id === replacingId)
-      if (idx >= 0) list[idx] = { ...next, id: replacingId }
-    } else {
-      list.push(next)
-    }
-    engine.setMetricInstances(list)
-    if (replacingId === undefined) update({ metricInstanceId: nextId })
-  }
-
-  function onDeleteInstance(id: string) {
-    const list = (engine.metadata?.metricInstances ?? []).filter(i => i.id !== id)
-    engine.setMetricInstances(list)
-  }
-
-  function onRenameInstance(id: string, label: string) {
-    const list = (engine.metadata?.metricInstances ?? []).map(i =>
-      i.id === id ? { ...i, label } : i
-    )
-    engine.setMetricInstances(list)
-  }
+  const metricHandlers = $derived(singleSelectMetricHandlers(
+    engine,
+    () => settings.metricInstanceId,
+    id => update({ metricInstanceId: id }),
+  ))
 
   const minScale = $derived(settings.scaleRange?.[0] ?? 0)
   const maxScale = $derived(settings.scaleRange?.[1] ?? 0)
@@ -99,10 +66,7 @@
     label="Metric"
     instances={engine.metadata?.metricInstances ?? []}
     selectedIds={settings.metricInstanceId == null ? [] : [settings.metricInstanceId]}
-    onchange={onMetricChange}
-    onrenameInstance={onRenameInstance}
-    oncreateInstance={onCreateInstance}
-    ondeleteInstance={onDeleteInstance}
+    {...metricHandlers}
     contract={barPlotDefinition.consumesMetrics!}
   />
 </PaneSection>

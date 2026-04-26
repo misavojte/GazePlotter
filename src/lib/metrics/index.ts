@@ -74,6 +74,7 @@ export type { MetricCategoryDef } from './categories'
 export {
   instanceMatchesContract,
   metricIsCreatableInContract,
+  contractLeafKinds,
 } from './filters'
 export type { PlotMetricContract } from './filters'
 

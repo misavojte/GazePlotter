@@ -44,7 +44,7 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
   getDefaultWidth: () => 12,
   requireCapabilities: ['segmented'],
   consumesMetrics: {
-    leaves: ['identity-aoi-vector', 'matrix-diagonal', 'matrix-row', 'matrix-col'],
+    outputShape: 'aoi-vector',
     windowing: 'forbidden',
   },
 })

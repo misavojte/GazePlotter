@@ -22,6 +22,7 @@
     recipeSupports,
     instanceMatchesContract,
     metricIsCreatableInContract,
+    contractLeafKinds,
     PROJECTION_LEAVES,
     AOI_REDUCERS,
     MATRIX_REDUCERS,
@@ -154,7 +155,7 @@
   let currentBaseId = $state<string>('')
 
   function availableLeavesFor(m: Metric): LeafKind[] {
-    return contract.leaves.filter(kind => {
+    return contractLeafKinds(contract).filter(kind => {
       if (!PROJECTION_LEAVES[kind].rawShapes.includes(m.meta.rawShape)) return false
       const recipe = getRecipe(m.meta.id)
       if (!recipe) return false

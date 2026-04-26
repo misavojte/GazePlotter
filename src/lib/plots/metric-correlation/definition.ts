@@ -55,14 +55,7 @@ export const metricCorrelationDefinition = definePlot<
   getDefaultWidth: () => 13,
   requireCapabilities: ['segmented'],
   consumesMetrics: {
-    leaves: [
-      'identity-scalar',
-      'pick-aoi',
-      'pick-any-fixation',
-      'aggregate-aoi',
-      'matrix-cell',
-      'matrix-aggregate',
-    ],
+    outputShape: 'scalar',
     windowing: 'forbidden',
     multiSelect: true,
   },

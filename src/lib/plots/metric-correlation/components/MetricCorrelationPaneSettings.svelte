@@ -4,6 +4,7 @@
   import {
     getStimuliOptions,
     getParticipantsGroupOptions,
+    multiSelectMetricHandlers,
   } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
@@ -36,6 +37,12 @@
   const groupOptions = $derived(
     getParticipantsGroupOptions(engine, true, settings.stimulusId)
   )
+
+  const metricHandlers = $derived(multiSelectMetricHandlers(
+    engine,
+    () => settings.enabledMetricIds,
+    ids => update({ enabledMetricIds: ids }),
+  ))
 </script>
 
 <PaneSection>
@@ -56,22 +63,7 @@
     contract={metricCorrelationDefinition.consumesMetrics!}
     instances={engine.metadata?.metricInstances ?? []}
     selectedIds={settings.enabledMetricIds}
-    onchange={ids => update({ enabledMetricIds: ids })}
-    onrenameInstance={(id, label) => engine.updateMetricInstanceLabel(id, label)}
-    oncreateInstance={(baseId, params, label, projection, replacingId) => {
-      const newId = engine.addMetricInstance(baseId, params, label, projection)
-      if (newId === null) return
-      if (replacingId != null) {
-        engine.deleteMetricInstance(replacingId)
-        update({ enabledMetricIds: settings.enabledMetricIds.map(id => id === replacingId ? newId : id) })
-      } else {
-        update({ enabledMetricIds: [...settings.enabledMetricIds, newId] })
-      }
-    }}
-    ondeleteInstance={id => {
-      engine.deleteMetricInstance(id)
-      update({ enabledMetricIds: settings.enabledMetricIds.filter(x => x !== id) })
-    }}
+    {...metricHandlers}
   />
   <Select
     label="Visualisation lense"

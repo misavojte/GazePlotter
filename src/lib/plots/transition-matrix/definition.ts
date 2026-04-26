@@ -49,7 +49,7 @@ export const transitionMatrixDefinition = definePlot<
   getDefaultWidth: () => 12,
   requireCapabilities: ['segmented'],
   consumesMetrics: {
-    leaves: ['identity-aoi-pair-matrix'],
+    outputShape: 'aoi-pair-matrix',
     windowing: 'forbidden',
   },
 })
