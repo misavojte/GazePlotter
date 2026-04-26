@@ -46,7 +46,7 @@ interface Acc {
 defineMetric({
   id: 'visitDuration',
   label: 'Visit duration',
-  description: 'Mean duration (ms) per distinct visit to the AOI. A visit begins on first entry and ends when gaze leaves; consecutive fixations in the same AOI accumulate as one visit.',
+  description: 'Per AOI: mean visit duration (ms), where a visit accumulates consecutive same-AOI fixations and ends when gaze leaves.',
   unit: 'ms',
   category: 'duration',
   rawShape: 'aoi-vector',

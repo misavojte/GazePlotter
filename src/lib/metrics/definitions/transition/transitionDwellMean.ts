@@ -47,9 +47,9 @@ defineMetric({
   id: 'transitionDwellMean',
   label: 'Mean transition dwell time',
   description:
-    'Average time spent at the "from" AOI before each transition to the "to" AOI. ' +
-    'In fixation mode, the duration of the single preceding fixation; in visit mode, ' +
-    'the total duration of the preceding visit.',
+    'Per AOI pair (row → column): mean pre-transition dwell time before each row → column transition. ' +
+    'In fixation mode that\'s the duration of the single preceding fixation; in visit mode, the duration ' +
+    'of the preceding visit.',
   unit: 'ms',
   category: 'transition',
   rawShape: 'aoi-pair-matrix',

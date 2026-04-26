@@ -36,7 +36,7 @@ import { defineMetric } from '../../core/defineMetric'
 defineMetric({
   id: 'absoluteTime',
   label: 'Absolute dwell time',
-  description: "Total time (ms) the participant's gaze dwelled within an AOI across all fixation segments. Higher values indicate more total attention allocated to the region.",
+  description: 'Per AOI: total dwell time (ms) — summed durations of fixations whose dwell covers the AOI. Higher values mean more total attention there.',
   unit: 'ms',
   category: 'duration',
   rawShape: 'aoi-vector',

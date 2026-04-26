@@ -48,7 +48,7 @@ const params = [
 defineMetric({
   id: 'rqaRec',
   label: 'Recurrence rate',
-  description: "Recurrence rate (%): fraction of fixation sequence pairs that revisit the same AOI. Quantifies how repetitive the participant's gaze pattern is across the stimulus.",
+  description: "Stimulus-level: recurrence rate (%) — fraction of fixation-sequence pairs that revisit the same AOI. Higher values indicate a more repetitive gaze pattern across the stimulus.",
   unit: '%',
   category: 'rqa-aoi',
   rawShape: 'scalar',

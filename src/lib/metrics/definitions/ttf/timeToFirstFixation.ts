@@ -33,7 +33,7 @@ import { defineMetric } from '../../core/defineMetric'
 defineMetric({
   id: 'timeToFirstFixation',
   label: 'Time to first fixation',
-  description: 'Elapsed time (ms) from stimulus onset until the first fixation on the AOI. Lower values mean the region captured attention earlier. Returns NaN if the AOI was never fixated.',
+  description: 'Per AOI: elapsed time (ms) from stimulus onset to the first fixation that landed in the AOI. Lower values mean the AOI captured attention earlier. NaN if never fixated.',
   unit: 'ms',
   category: 'ttf',
   rawShape: 'aoi-vector',

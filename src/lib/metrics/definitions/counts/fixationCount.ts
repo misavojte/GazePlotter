@@ -33,7 +33,7 @@ import { defineMetric } from '../../core/defineMetric'
 defineMetric({
   id: 'fixationCount',
   label: 'Fixation count',
-  description: 'Total count of fixations on the AOI. Unlike visit count, each fixation separated by a saccade is counted even within the same visit.',
+  description: 'Per AOI: count of fixations whose dwell covers it. A fixation tagged with multiple AOIs counts in each. The any-fixation aggregate equals the total fixation count regardless of AOI.',
   unit: 'count',
   category: 'counts',
   rawShape: 'aoi-vector',

@@ -35,7 +35,7 @@ interface Acc { durations: number[][] }
 defineMetric({
   id: 'fixationDuration',
   label: 'Fixation duration',
-  description: 'Mean duration (ms) of individual fixations on the AOI. Longer fixations typically indicate deeper cognitive processing.',
+  description: 'Per AOI: mean duration (ms) of fixations whose dwell covers it. Longer mean fixations typically indicate deeper cognitive processing.',
   unit: 'ms',
   category: 'duration',
   rawShape: 'aoi-vector',

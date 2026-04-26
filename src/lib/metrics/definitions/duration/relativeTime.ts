@@ -34,7 +34,7 @@ import { defineMetric } from '../../core/defineMetric'
 defineMetric({
   id: 'relativeTime',
   label: 'Relative dwell time',
-  description: 'Dwell time as a percentage of total fixation time on the stimulus. Normalises attention across participants with different overall scan durations.',
+  description: "Per AOI: dwell time as a percentage of the participant's total fixation time on the stimulus. Normalises attention across participants with different overall scan durations.",
   unit: '%',
   category: 'duration',
   rawShape: 'aoi-vector',

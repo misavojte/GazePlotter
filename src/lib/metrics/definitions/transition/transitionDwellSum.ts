@@ -48,9 +48,9 @@ defineMetric({
   id: 'transitionDwellSum',
   label: 'Transition dwell sum',
   description:
-    'Sum of pre-transition fixation durations per AOI pair. In fixation mode, ' +
-    'the duration of the single preceding fixation; in visit mode, the total ' +
-    'duration of the preceding visit (consecutive same-AOI fixations merged).',
+    'Per AOI pair (row → column): sum of pre-transition dwell times before each row → column transition. ' +
+    'In fixation mode that\'s the duration of the single preceding fixation; in visit mode, the duration ' +
+    'of the preceding visit (consecutive same-AOI fixations merged).',
   unit: 'ms',
   category: 'transition',
   rawShape: 'aoi-pair-matrix',

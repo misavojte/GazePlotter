@@ -39,7 +39,7 @@ const params = [
 defineMetric({
   id: 'rqaLam',
   label: 'Laminarity',
-  description: 'Laminarity (%): fraction of recurrent fixation pairs forming vertical lines in the recurrence matrix. High values indicate the gaze repeatedly dwells on the same AOI before transitioning.',
+  description: 'Stimulus-level: laminarity (%) — fraction of recurrent fixation pairs forming vertical lines in the recurrence matrix. Higher values indicate the gaze repeatedly dwells on the same AOI before transitioning.',
   unit: '%',
   category: 'rqa-aoi',
   rawShape: 'scalar',

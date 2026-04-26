@@ -51,9 +51,9 @@ defineMetric({
   id: 'transitionProbability',
   label: 'Transition probability',
   description:
-    'Row-normalised transition probability matrix (Markov chain view). Cell [i, j] = ' +
-    'probability that the next transition from AOI_i lands on AOI_j. k-step mode (step ≥ 2) ' +
-    'returns P^k, the probability of arriving at AOI_j after k transitions.',
+    'Per AOI pair (row → column): row-normalised transition probability — the probability that the ' +
+    'next transition out of row-AOI lands on column-AOI (Markov-chain view). With step ≥ 2, returns ' +
+    'P^k — the probability of arriving at column-AOI after k transitions.',
   unit: '%',
   category: 'transition',
   rawShape: 'aoi-pair-matrix',

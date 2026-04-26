@@ -41,7 +41,7 @@ interface Acc {
 defineMetric({
   id: 'visitCount',
   label: 'Visit count',
-  description: 'Number of distinct visits (entries) to the AOI. Each return after leaving counts as a new visit. Reflects revisitation frequency and scanning strategy.',
+  description: 'Per AOI: count of distinct visits — entries into the AOI separated by at least one fixation outside it. Reflects revisitation frequency and scanning strategy.',
   unit: 'count',
   category: 'counts',
   rawShape: 'aoi-vector',

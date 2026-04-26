@@ -47,8 +47,8 @@ defineMetric({
   id: 'transitionRelativeFrequency',
   label: 'Transition relative frequency',
   description:
-    'Per-cell fraction of the participant\'s total transitions, as a percentage. ' +
-    'Answers: "what share of this participant\'s transitions were AOI_i → AOI_j?"',
+    "Per AOI pair (row → column): share of the participant's total transitions that went row → column, " +
+    'expressed as a percentage. Matrix sums to 100% per participant.',
   unit: '%',
   category: 'transition',
   rawShape: 'aoi-pair-matrix',

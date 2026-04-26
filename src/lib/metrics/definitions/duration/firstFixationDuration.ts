@@ -33,7 +33,7 @@ import { defineMetric } from '../../core/defineMetric'
 defineMetric({
   id: 'firstFixationDuration',
   label: 'First fixation duration',
-  description: 'Duration (ms) of the very first fixation on the AOI. Reflects initial processing depth upon first encounter. Returns NaN if the AOI was never fixated.',
+  description: 'Per AOI: duration (ms) of the first fixation that landed inside it. Reflects initial processing depth on first encounter. NaN if the AOI was never fixated.',
   unit: 'ms',
   category: 'ttf',
   rawShape: 'aoi-vector',

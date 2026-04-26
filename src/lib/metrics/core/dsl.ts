@@ -26,6 +26,17 @@ export interface MetricMeta {
   readonly id: string
   readonly label: string
   readonly unit: string
+  /**
+   * Leaf-neutral one-paragraph summary, written at the metric's natural shape
+   * (`rawShape`). Convention:
+   *   - aoi-vector       → lead with "Per AOI: …"
+   *   - aoi-pair-matrix  → lead with "Per AOI pair (row → column): …"
+   *   - scalar           → lead with "Stimulus-level: …"
+   * Then state how the value is computed at that shape, optionally followed
+   * by one sentence of scientific interpretation and any caveats (NaN
+   * behaviour, mode-dependent rules). Must read correctly under every
+   * supported projection — never assume a specific leaf.
+   */
   readonly description: string
   readonly category: string
   /** Shape produced by the recipe's `finalize` call — before any projection. */

@@ -47,8 +47,8 @@ defineMetric({
   id: 'transitionCount',
   label: 'Transition count',
   description:
-    'Number of times gaze transitioned from one AOI (row) to another (column). ' +
-    'In fixation mode every consecutive pair counts; in visit mode only actual AOI changes count.',
+    'Per AOI pair (row → column): count of times gaze transitioned from row-AOI to column-AOI. ' +
+    'In fixation mode every consecutive fixation pair counts; in visit mode only actual AOI changes count.',
   unit: 'count',
   category: 'transition',
   rawShape: 'aoi-pair-matrix',

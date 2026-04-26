@@ -41,7 +41,7 @@ const params = [
 defineMetric({
   id: 'rqaDet',
   label: 'Determinism',
-  description: 'Determinism (%): fraction of recurrent fixation pairs forming diagonal lines in the recurrence matrix. High values indicate predictable, repeated scanning paths.',
+  description: 'Stimulus-level: determinism (%) — fraction of recurrent fixation pairs forming diagonal lines in the recurrence matrix. Higher values indicate predictable, repeated scan paths.',
   unit: '%',
   category: 'rqa-aoi',
   rawShape: 'scalar',
