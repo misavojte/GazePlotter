@@ -133,7 +133,14 @@
                   {@const ChildIcon = child.icon}
                   <ChildIcon size={'1em'} strokeWidth={1} />
                 {/if}
-                {child.label}
+                {#if child.detail}
+                  <span class="item-body">
+                    <span class="item-label">{child.label}</span>
+                    <span class="item-detail">{child.detail}</span>
+                  </span>
+                {:else}
+                  {child.label}
+                {/if}
               </button>
             </li>
           {/if}
@@ -208,7 +215,34 @@
 
   button.selected:hover {
     background: color-mix(in srgb, var(--c-brand) 10%, var(--c-white));
-    color: var(--c-brand);
+  }
+
+  .item-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .item-label {
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .item-detail {
+    font-size: 10px;
+    color: var(--c-darkgrey);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  button.selected .item-detail {
+    color: color-mix(in srgb, var(--c-brand) 70%, var(--c-darkgrey));
   }
 
   .custom-component-wrap {

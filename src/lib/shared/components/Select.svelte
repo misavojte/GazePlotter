@@ -2,31 +2,57 @@
   import ChevronDown from 'lucide-svelte/icons/chevron-down'
   import { untrack } from 'svelte'
   import { contextMenuAction } from '$lib/context-menu'
+  import type {
+    MenuActionItem,
+    MenuDividerItem,
+    MenuItem,
+  } from '$lib/context-menu'
+  import type { LucideIconComponent } from '$lib/shared/types'
   import { isInPane } from './paneContext'
   import InputScaffold from './InputScaffold.svelte'
   import {
     createSelectChangeEvent,
     createSelectMenuItems,
     getSelectLabel,
+    isSelectionEmpty,
     type SelectOption,
   } from './select'
+
+  interface TopAction {
+    label: string
+    icon?: LucideIconComponent
+    onAction: () => void
+  }
 
   interface Props {
     options?: readonly SelectOption[]
     disabled?: boolean
-    label: string
-    value?: string
+    label?: string
+    value?: string | string[]
+    multiple?: boolean
     compact?: boolean
-    onchange?: (event: CustomEvent<string>) => void
+    placeholder?: string
+    /** Optional secondary line rendered below the trigger (e.g. parameter readout). */
+    subLabel?: string
+    /** Optional action item rendered at the top of the dropdown above a divider. */
+    topAction?: TopAction
+    /** Message rendered as a disabled item when `options` is empty. */
+    emptyMessage?: string
+    onchange?: (event: CustomEvent<string | string[]>) => void
     onClose?: () => void
   }
 
   let {
     options = [],
     disabled = false,
-    label,
-    value = $bindable(options[0]?.value ?? ''),
+    label = '',
+    value = $bindable<string | string[]>(options[0]?.value ?? ''),
+    multiple = false,
     compact = false,
+    placeholder,
+    subLabel,
+    topAction,
+    emptyMessage,
     onchange = () => {},
     onClose = () => {},
   }: Props = $props()
@@ -36,23 +62,87 @@
   const isCompact = $derived(compact || inPane)
 
   let isOpen = $state(false)
+  let wrapperEl = $state<HTMLDivElement | null>(null)
+  let wrapperWidth = $state<number | undefined>(undefined)
+
+  $effect(() => {
+    if (!wrapperEl) return
+    const ro = new ResizeObserver(entries => {
+      const entry = entries[0]
+      if (entry) wrapperWidth = entry.contentRect.width
+    })
+    ro.observe(wrapperEl)
+    return () => ro.disconnect()
+  })
 
   const triggerId = `select-${untrack(() =>
-    label.toLowerCase().replace(/\s+/g, '-')
+    (label || 'select').toLowerCase().replace(/\s+/g, '-')
   )}`
 
-  const menuItems = $derived(
-    createSelectMenuItems(options, value, nextValue => {
+  const currentSelection = $derived(
+    multiple ? (Array.isArray(value) ? value : []) : value
+  )
+
+  const triggerLabel = $derived(
+    getSelectLabel(currentSelection, options, placeholder)
+  )
+
+  const showPlaceholder = $derived(
+    Boolean(placeholder) && isSelectionEmpty(currentSelection, options)
+  )
+
+  function handleSelectionChange(nextValue: string) {
+    if (multiple) {
+      const arr = Array.isArray(value) ? value : []
+      const next = arr.includes(nextValue)
+        ? arr.filter(v => v !== nextValue)
+        : [...arr, nextValue]
+      value = next
+      onchange(createSelectChangeEvent(next))
+    } else {
       value = nextValue
       onchange(createSelectChangeEvent(nextValue))
-    })
+    }
+  }
+
+  const optionItems = $derived(
+    createSelectMenuItems(options, currentSelection, handleSelectionChange)
   )
+
+  const menuItems = $derived.by<MenuItem[]>(() => {
+    const out: MenuItem[] = []
+    if (topAction) {
+      const action: MenuActionItem = {
+        label: topAction.label,
+        icon: topAction.icon,
+        onAction: () => topAction.onAction(),
+        closeOnAction: true,
+      }
+      out.push(action)
+      if (optionItems.length > 0) {
+        const divider: MenuDividerItem = { isDivider: true }
+        out.push(divider)
+      }
+    }
+    out.push(...optionItems)
+    if (optionItems.length === 0 && emptyMessage) {
+      const empty: MenuActionItem = {
+        label: emptyMessage,
+        disabled: true,
+        closeOnAction: false,
+      }
+      out.push(empty)
+    }
+    return out
+  })
 
   const menuConfig = $derived({
     items: menuItems,
     position: 'bottom' as const,
     horizontalAlign: 'start' as const,
-    offset: 8,
+    offset: 4,
+    selectionMode: (multiple ? 'checkbox' : 'radio') as 'radio' | 'checkbox',
+    width: wrapperWidth,
     disabled,
     onOpen: () => {
       isOpen = true
@@ -64,8 +154,8 @@
   })
 </script>
 
-<InputScaffold label={label} id={triggerId} compact={isCompact}>
-  <div class="select-wrapper" class:compact={isCompact} use:contextMenuAction={menuConfig}>
+<InputScaffold {label} id={triggerId} compact={isCompact} showLabel={!!label}>
+  <div bind:this={wrapperEl} class="select-wrapper" class:compact={isCompact} use:contextMenuAction={menuConfig}>
     <button
       id={triggerId}
       class="trigger"
@@ -77,12 +167,15 @@
       aria-haspopup="listbox"
     >
       <span class="trigger-content">
-        <span class="label">{getSelectLabel(value, options)}</span>
+        <span class="label" class:placeholder={showPlaceholder}>{triggerLabel}</span>
         <div class="svg-wrap" class:open={isOpen}>
           <ChevronDown strokeWidth={1} />
         </div>
       </span>
     </button>
+    {#if subLabel}
+      <div class="sub-label">{subLabel}</div>
+    {/if}
   </div>
 </InputScaffold>
 
@@ -108,7 +201,7 @@
        the old `.body :global(.select-wrapper) { width: 100% }` override. */
     width: 100%;
     margin-bottom: 0;
-    gap: 5px;
+    gap: 4px;
   }
 
   .select-wrapper:not(:has(.trigger:disabled)):hover,
@@ -178,6 +271,10 @@
     text-overflow: ellipsis;
   }
 
+  .label.placeholder {
+    color: var(--c-darkgrey);
+  }
+
   .compact .trigger,
   .trigger.compact {
     height: 30px;
@@ -213,6 +310,18 @@
 
   .svg-wrap.open {
     transform: rotate(180deg);
+  }
+
+  .sub-label {
+    color: var(--c-darkgrey);
+    font-size: 11px;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-left: 2px;
+    box-sizing: border-box;
   }
 
   * {

@@ -4,6 +4,7 @@
     isMenuActionActivationKey,
     shouldCloseMenuOnAction,
   } from './behavior'
+  import Check from 'lucide-svelte/icons/check'
   import { contextMenuState } from './contextMenuState.svelte'
   import { MENU_MAX_HEIGHT, MENU_WIDTH } from './const'
   import {
@@ -95,7 +96,7 @@
       <div
         class="menu"
         role="menu"
-        style={`left:${menu.x}px; top:${menu.y}px; z-index:${menu.zIndex}; --menu-width: ${MENU_WIDTH}px;`}
+        style={`left:${menu.x}px; top:${menu.y}px; z-index:${menu.zIndex}; --menu-width: ${menu.width ?? MENU_WIDTH}px;`}
       >
         <div
           class="menu-content"
@@ -120,6 +121,8 @@
                           : (it.label ?? null))}
                   />
                 {:else}
+                  {@const showIndicator =
+                    menu.selectionMode !== undefined && it.value !== undefined}
                   <li>
                     <button
                       role="menuitem"
@@ -127,11 +130,24 @@
                       disabled={it.disabled}
                       onclick={() => handleItemClick(it)}
                     >
-                      {#if it.icon}
+                      {#if showIndicator && menu.selectionMode === 'radio'}
+                        <span class="indicator radio" class:checked={it.isHighlighted}></span>
+                      {:else if showIndicator && menu.selectionMode === 'checkbox'}
+                        <span class="indicator checkbox" class:checked={it.isHighlighted}>
+                          {#if it.isHighlighted}<Check size={10} strokeWidth={2.5} />{/if}
+                        </span>
+                      {:else if it.icon}
                         {@const Icon = it.icon}
                         <Icon size={'1em'} strokeWidth={1} />
                       {/if}
-                      {it.label}
+                      {#if it.detail}
+                        <span class="item-body">
+                          <span class="item-label">{it.label}</span>
+                          <span class="item-detail">{it.detail}</span>
+                        </span>
+                      {:else}
+                        {it.label}
+                      {/if}
                     </button>
                   </li>
                 {/if}
@@ -222,13 +238,88 @@
 
   button.selected {
     background: color-mix(in srgb, var(--c-brand) 6%, var(--c-white));
-    color: var(--c-brand);
-    font-weight: 500;
   }
 
   button.selected:hover {
     background: color-mix(in srgb, var(--c-brand) 10%, var(--c-white));
+  }
+
+  button.selected:not(:has(.indicator)) {
     color: var(--c-brand);
+    font-weight: 500;
+  }
+
+  .indicator {
+    flex-shrink: 0;
+    width: 10px;
+    height: 10px;
+    border: 1.5px solid var(--c-midgrey);
+    transition:
+      background 0.1s,
+      border-color 0.1s;
+  }
+
+  .indicator.radio {
+    border-radius: 50%;
+    position: relative;
+  }
+
+  .indicator.radio.checked {
+    border-color: var(--c-brand);
+  }
+
+  .indicator.radio.checked::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--c-brand);
+  }
+
+  .indicator.checkbox {
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--c-white);
+    background: var(--c-white);
+  }
+
+  .indicator.checkbox.checked {
+    background: var(--c-brand);
+    border-color: var(--c-brand);
+  }
+
+  .item-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .item-label {
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .item-detail {
+    font-size: 10px;
+    color: var(--c-darkgrey);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  button.selected .item-detail {
+    color: color-mix(in srgb, var(--c-brand) 70%, var(--c-darkgrey));
   }
 
   .custom {

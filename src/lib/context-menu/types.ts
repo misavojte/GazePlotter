@@ -18,6 +18,8 @@ export interface Dimensions {
 interface MenuDisplayItem {
   label?: string
   icon?: LucideIconComponent
+  /** Secondary line rendered below the label in muted style. */
+  detail?: string
   isHighlighted?: boolean
   disabled?: boolean
   closeOnAction?: boolean
@@ -73,6 +75,13 @@ export interface ContextMenuOptions {
   horizontalAlign?: Alignment
   offset?: number
   slideFrom?: SlideFrom
+  /** When set, items with a `value` field render a leading radio/checkbox
+   *  affordance, checked iff `isHighlighted`. Used by Select; action menus
+   *  leave it unset. */
+  selectionMode?: 'radio' | 'checkbox'
+  /** Override the menu width in px. Default falls back to MENU_WIDTH.
+   *  Width sourcing (e.g. matching a trigger) is the consumer's responsibility. */
+  width?: number
   disabled?: boolean
   onOpen?: () => void
   onClose?: () => void
@@ -99,6 +108,10 @@ export interface ContextMenuState {
   y: number
   /** Direction the menu slides in from. */
   slideFrom: SlideFrom
+  /** When set, value-bearing items render a leading radio/checkbox indicator. */
+  selectionMode?: 'radio' | 'checkbox'
+  /** Resolved menu width in px (overrides MENU_WIDTH when set). */
+  width?: number
   /** Symbol identifying which anchor currently controls the menu. */
   ownerId: symbol
   /** Z-index for the menu, automatically computed based on whether anchor is in a modal. */

@@ -143,7 +143,11 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
 
     const rect = state.anchor.getBoundingClientRect()
     const hasContent = Boolean(options.content)
-    const menuSize = getMenuSize(options.items, hasContent)
+    const baseSize = getMenuSize(options.items, hasContent)
+    const menuSize =
+      options.width !== undefined
+        ? { ...baseSize, width: options.width }
+        : baseSize
     const initialPlacement = computePlacement(
       rect,
       menuSize,
@@ -166,6 +170,8 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
       x: adjustedPlacement.left,
       y: adjustedPlacement.top,
       slideFrom: state.slideFrom,
+      selectionMode: options.selectionMode,
+      width: options.width,
       ownerId,
       zIndex: computedZIndex + 1,
     })
