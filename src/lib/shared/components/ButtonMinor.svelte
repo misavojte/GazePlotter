@@ -51,51 +51,10 @@
   const itemsSafe = $derived((items ?? []) as MinorGroupItem[])
   const isGroup = $derived(itemsSafe.length > 0)
 
-  /**
-   * Triggers a brief scale animation on the immediate content of a button
-   * to provide tactile feedback on clicks.
-   */
-  function animateClickFeedback(event: MouseEvent) {
-    const button = event.currentTarget as HTMLElement | null
-    if (!button) return
-    const content = button.querySelector('.btnContent') as HTMLElement | null
-    if (!content) return
-    // Scale down then restore
-    content.style.transform = 'scale(0.92)'
-    const restore = () => {
-      content.style.transform = 'scale(1)'
-    }
-    // Restore after short delay; also on mouseup/mouseleave just in case
-    setTimeout(restore, 120)
-  }
-
-  /** Wrap a click handler to include the click feedback animation. */
-  function withFeedback(handler: (event: MouseEvent) => void) {
-    return (event: MouseEvent) => {
-      animateClickFeedback(event)
-      handler?.(event)
-    }
-  }
-
-  /**
-   * Immediate press feedback using Pointer Events so the scale effect is visible
-   * even if the click opens a menu or triggers fast UI changes.
-   */
-  function handlePointerDown(event: PointerEvent) {
-    const button = event.currentTarget as HTMLElement | null
-    if (!button) return
-    const content = button.querySelector('.btnContent') as HTMLElement | null
-    if (!content) return
-    content.style.transform = 'scale(0.92)'
-  }
-
-  function handlePointerEnd(event: PointerEvent) {
-    const button = event.currentTarget as HTMLElement | null
-    if (!button) return
-    const content = button.querySelector('.btnContent') as HTMLElement | null
-    if (!content) return
-    content.style.transform = 'scale(1)'
-  }
+  // Press-feedback (scale-down on press, restore on release) is pure CSS
+  // via `button:active .btnContent { transform: scale(0.92) }` — see the
+  // stylesheet below. The 120 ms transition smooths very short clicks so
+  // the dip is still perceptible without any JS event tracking.
 </script>
 
 {#if !isGroup}
@@ -110,11 +69,7 @@
     }}
     disabled={isDisabled}
     class:isIcon
-    onclick={withFeedback(onclick)}
-    onpointerdown={handlePointerDown}
-    onpointerup={handlePointerEnd}
-    onpointerleave={handlePointerEnd}
-    onpointercancel={handlePointerEnd}
+    {onclick}
     aria-label={ariaLabel}
   >
     <span class="btnContent">
@@ -145,11 +100,7 @@
         <button
           disabled={item.isDisabled}
           class:isIcon={true}
-          onclick={withFeedback(item.onclick)}
-          onpointerdown={handlePointerDown}
-          onpointerup={handlePointerEnd}
-          onpointerleave={handlePointerEnd}
-          onpointercancel={handlePointerEnd}
+          onclick={item.onclick}
           aria-label={item.ariaLabel}
         >
           <span class="btnContent">
@@ -248,13 +199,17 @@
     background: #e9f2ff;
   }
 
-  /* Content scaling feedback */
+  /* Content scaling feedback — pressed state via `:active` pseudoclass.
+     The transition smooths instant clicks so the dip is still perceived. */
   .btnContent {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     transition: transform 120ms ease;
     will-change: transform;
+  }
+  button:active:not(:disabled) .btnContent {
+    transform: scale(0.92);
   }
 </style>
 
