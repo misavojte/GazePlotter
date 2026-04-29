@@ -98,18 +98,18 @@ export function scanForDynamicRidgelineReferenceHeight(
         }
       }
 
-      const { data } = getAoiStreamPlotData(
+      const data = getAoiStreamPlotData(
         engine,
         {
           stimulusId,
           groupId,
-          binSize: s.binSize ?? 500,
+          metricInstanceId: s.metricInstanceId ?? null,
           timelineMin: tMin,
           timelineMax: tMax,
         },
-        null
       )
 
+      if (!data) continue
       streamData = data
     }
 

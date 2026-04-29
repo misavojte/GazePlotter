@@ -26,6 +26,7 @@ import {
   getParticipantEndTime,
 } from '$lib/data/engine'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
+import { formatMetricLabel } from '$lib/plots/shared/metricLabels'
 import {
   query,
   getMetric,
@@ -221,9 +222,8 @@ export function getEvolvingMetricsData(
 
   const timeline = createAdaptiveTimeline(timelineMin, timelineMax, 6)
 
-  const unitSuffix = windowUnit === 'fixations' ? ' fix' : ' ms'
-  const xAxisLabel = getEvolvingMetricsXAxisLabel(windowLabel(window) + unitSuffix)
-  const yAxisLabel = `${metric.meta.label} [${metric.meta.unit}]`
+  const xAxisLabel = getEvolvingMetricsXAxisLabel(windowLabel(window, windowUnit))
+  const yAxisLabel = formatMetricLabel(metric)
 
   return {
     participants,

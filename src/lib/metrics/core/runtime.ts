@@ -1,5 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import { getAois } from '$lib/data/engine'
+import { getAois, getParticipantEndTime } from '$lib/data/engine'
 import { buildAoiSlots } from './aoiSlots'
 import { resolveParams } from './params'
 import { getRecipe } from './defineMetric'
@@ -11,7 +11,7 @@ import {
   type Projection,
   type WindowedProjection,
 } from './projection'
-import type { AoiSlotInfo, MetricRecipe, OutputShape } from './dsl'
+import type { AoiSlotInfo, GroupScope, MetricRecipe, OutputShape } from './dsl'
 import type { MetricInstance } from '../instances'
 
 export interface Scope {
@@ -26,13 +26,22 @@ const _cache = new WeakMap<DataEngine, Map<string, number[]>>()
 
 /**
  * Scalar / vector / matrix result for a single metric instance over a scope.
- * `timeline` is populated only when `shape === 'scalar-timeseries'` and
- * contains window start times (ms for time-windowed, fixation indices for
- * fixation-windowed).
+ * `timeline` is populated for both timeseries shapes and contains window
+ * start times (ms for time-windowed, fixation indices for fixation-windowed).
+ * `vectors` is populated only when `shape === 'aoi-vector-timeseries'` and
+ * carries one aoi-vector per window (window-major, AOI-minor).
+ *
+ * `slots` is the authoritative `AoiSlotInfo` for the result's stimulus —
+ * built once via `buildAoiSlots` and threaded through both the leaf and
+ * windowed paths so downstream consumers (e.g. `wrapProjectedResult`,
+ * plot transformers) never have to reconstruct slot indices from vector
+ * lengths. Always present when the result is non-null.
  */
 export interface ProjectedResult {
   shape: OutputShape
   values: number[]
+  vectors?: number[][]
+  slots: AoiSlotInfo
   aoiMissing: boolean
   timeline?: number[]
 }
@@ -47,6 +56,11 @@ export function runProjected(instance: MetricInstance, scope: Scope): ProjectedR
   // Group-shape recipes have no per-participant scan trio. queryGroup owns
   // their entry point via recipe.scanGroup; per-participant calls return null.
   if (recipe.rawShape === 'participant-pair-matrix') return null
+  // Build slots once here; thread through every branch so the result has
+  // an authoritative `AoiSlotInfo` and downstream code never reconstructs
+  // it from vector length.
+  const slots = buildAoiSlots(scope.engine, scope.stimulusId)
+  if (!slots) return null
   const p = instance.projection
 
   if (p.kind !== 'windowed') {
@@ -55,11 +69,12 @@ export function runProjected(instance: MetricInstance, scope: Scope): ProjectedR
     return {
       shape: projectionOutputShape(p),
       values: out.values,
+      slots,
       aoiMissing: out.aoiMissing,
     }
   }
 
-  return runWindowed(recipe, instance, scope, p)
+  return runWindowed(recipe, instance, scope, p, slots)
 }
 
 /** Raw finalize output for the recipe — no projection. Used by scanner batch path. */
@@ -89,10 +104,11 @@ function runWindowed(
   instance: MetricInstance,
   scope: Scope,
   p: WindowedProjection,
+  slots: AoiSlotInfo,
 ): ProjectedResult {
   return recipe.windowUnit === 'fixations'
-    ? runFixationWindowed(recipe, instance, scope, p)
-    : runTimeWindowed(recipe, instance, scope, p)
+    ? runFixationWindowed(recipe, instance, scope, p, slots)
+    : runTimeWindowed(recipe, instance, scope, p, slots)
 }
 
 function runTimeWindowed(
@@ -100,14 +116,22 @@ function runTimeWindowed(
   instance: MetricInstance,
   scope: Scope,
   p: WindowedProjection,
+  slots: AoiSlotInfo,
 ): ProjectedResult {
   const { window, inner } = p
   const tStart = scope.timeStart ?? 0
   const tEnd = scope.timeEnd ?? 0
-  if (tEnd <= tStart) return { shape: 'scalar-timeseries', values: [], aoiMissing: false, timeline: [] }
+  const isVector = PROJECTION_LEAVES[inner.kind].outputShape === 'aoi-vector'
+  const outShape: OutputShape = isVector ? 'aoi-vector-timeseries' : 'scalar-timeseries'
+  if (tEnd <= tStart) {
+    return isVector
+      ? { shape: outShape, values: [], vectors: [], slots, aoiMissing: false, timeline: [] }
+      : { shape: outShape, values: [], slots, aoiMissing: false, timeline: [] }
+  }
 
   const step = window.stepSize
   const values: number[] = []
+  const vectors: number[][] = []
   const timeline: number[] = []
   const aoiNames = getAoiNames(scope)
   let aoiMissing = false
@@ -116,10 +140,13 @@ function runTimeWindowed(
     const raw = runSingleWindow(recipe, instance, scope, wStart, wStart + window.windowSize)
     const out = applyProjection(inner, { aoiNames, rawValues: raw })
     if (out.aoiMissing) aoiMissing = true
-    values.push(out.values[0] ?? Number.NaN)
+    if (isVector) vectors.push(out.values)
+    else values.push(out.values[0] ?? Number.NaN)
     timeline.push(wStart)
   }
-  return { shape: 'scalar-timeseries', values, aoiMissing, timeline }
+  return isVector
+    ? { shape: outShape, values: [], vectors, slots, aoiMissing, timeline }
+    : { shape: outShape, values, slots, aoiMissing, timeline }
 }
 
 function runFixationWindowed(
@@ -127,6 +154,7 @@ function runFixationWindowed(
   instance: MetricInstance,
   scope: Scope,
   p: WindowedProjection,
+  slots: AoiSlotInfo,
 ): ProjectedResult {
   // Fixation-windowed recipes slice the accumulator directly. The inner leaf
   // must be identity-scalar (enforced by registry + validator), so the per-window
@@ -141,7 +169,7 @@ function runFixationWindowed(
   }
 
   const out = scanAccumulator(recipe, instance, scope, scope.timeStart ?? 0, scope.timeEnd ?? 0)
-  if (!out) return { shape: 'scalar-timeseries', values: [], aoiMissing: false, timeline: [] }
+  if (!out) return { shape: 'scalar-timeseries', values: [], slots, aoiMissing: false, timeline: [] }
   const acc: any = out.acc
   const seq: number[] | undefined = acc?.seq
   if (!Array.isArray(seq)) {
@@ -151,7 +179,7 @@ function runFixationWindowed(
   const N = seq.length
   const { windowSize, stepSize } = p.window
   const step = stepSize
-  if (N < windowSize) return { shape: 'scalar-timeseries', values: [], aoiMissing: false, timeline: [] }
+  if (N < windowSize) return { shape: 'scalar-timeseries', values: [], slots, aoiMissing: false, timeline: [] }
 
   const values: number[] = []
   const timeline: number[] = []
@@ -160,7 +188,129 @@ function runFixationWindowed(
     values.push(recipe.windowedFinalize!(out.acc, start, start + windowSize, ctx))
     timeline.push(start)
   }
-  return { shape: 'scalar-timeseries', values, aoiMissing: false, timeline }
+  return { shape: 'scalar-timeseries', values, slots, aoiMissing: false, timeline }
+}
+
+// ─── Group-aggregated windowed dispatch ──────────────────────────────────────
+
+/**
+ * Aggregate a windowed projection across all participants in a `GroupScope`,
+ * per the recipe's `groupAggregation` (mean / median / sum). Returns a single
+ * timeseries shape — `aoi-vector-timeseries` when the inner leaf emits
+ * aoi-vector, `scalar-timeseries` when it emits scalar — matching the
+ * per-participant `query()` output shapes so consumers don't need a separate
+ * code path.
+ *
+ * Algorithm:
+ *   1. Resolve a canonical time range from `group.{timeStart,timeEnd}`,
+ *      falling back to `[0, max participant end]` when bounds are absent.
+ *   2. Generate the timeline once from the projection's window/step.
+ *   3. Per participant, run `runTimeWindowed` over the canonical range,
+ *      collecting per-cell values (window × slot for vector, window for
+ *      scalar). Participants whose data ends earlier produce shorter
+ *      timeseries; missing cells contribute `NaN` to the reduction.
+ *   4. Per (window[, slot]) cell, drop NaNs and apply `reduceFinite` with
+ *      the recipe's `groupAggregation` (or `mean` if the recipe's
+ *      `groupAggregationGuard` rejects the requested method).
+ *
+ * Caller-side: `query.ts:queryGroup` dispatches windowed projections here
+ * instead of the legacy "first participant only" placeholder.
+ */
+export function runWindowedGroup(
+  recipe: MetricRecipe<any, any>,
+  instance: MetricInstance,
+  group: GroupScope,
+  p: WindowedProjection,
+  method: 'mean' | 'median' | 'sum',
+  reduce: (values: readonly number[], method: 'mean' | 'median' | 'sum') => number,
+): ProjectedResult | null {
+  const slots = buildAoiSlots(group.engine, group.stimulusId)
+  if (!slots) return null
+
+  const isVector = PROJECTION_LEAVES[p.inner.kind].outputShape === 'aoi-vector'
+  const outShape: OutputShape = isVector ? 'aoi-vector-timeseries' : 'scalar-timeseries'
+
+  // Recipe-level last-ditch guard: if the requested aggregation is
+  // scientifically incoherent for this projection (e.g. `sum` over a
+  // windowed `relativeTime`), fall back to `mean`. UI/validator usually
+  // catches this upstream; stale workspaces could still trip it here.
+  const guardReason = recipe.groupAggregationGuard?.(p, method)
+  const effectiveMethod = guardReason ? 'mean' : method
+
+  // Canonical time range. Explicit group bounds win; otherwise the union
+  // of participants' data spans [0, max participant end].
+  const tStart = group.timeStart ?? 0
+  let tEnd = group.timeEnd ?? 0
+  if (!(tEnd > tStart)) {
+    let maxEnd = 0
+    for (const pid of group.participantIds) {
+      const pe = getParticipantEndTime(group.engine, group.stimulusId, pid)
+      if (pe > maxEnd) maxEnd = pe
+    }
+    tEnd = maxEnd
+  }
+  if (tEnd <= tStart) {
+    return isVector
+      ? { shape: outShape, values: [], vectors: [], slots, aoiMissing: false, timeline: [] }
+      : { shape: outShape, values: [], slots, aoiMissing: false, timeline: [] }
+  }
+
+  const { window } = p
+  const timeline: number[] = []
+  for (let wStart = tStart; wStart + window.windowSize <= tEnd; wStart += window.stepSize) {
+    timeline.push(wStart)
+  }
+  const W = timeline.length
+
+  // Per-participant timeseries collection. `runTimeWindowed` already does
+  // the per-window scan + projection — we just gather the per-cell values
+  // across participants and reduce.
+  const perPVectors: (number[][])[] = []
+  const perPValues: (number[])[] = []
+  let aoiMissing = false
+  for (const pid of group.participantIds) {
+    const scope: Scope = {
+      engine: group.engine,
+      stimulusId: group.stimulusId,
+      participantId: pid,
+      timeStart: tStart,
+      timeEnd: tEnd,
+    }
+    const r = runTimeWindowed(recipe, instance, scope, p, slots)
+    if (r.aoiMissing) aoiMissing = true
+    if (isVector) perPVectors.push(r.vectors ?? [])
+    else perPValues.push(r.values ?? [])
+  }
+
+  if (isVector) {
+    const vectors: number[][] = new Array(W)
+    const cell: number[] = []
+    for (let w = 0; w < W; w++) {
+      const v: number[] = new Array(slots.totalSlots).fill(Number.NaN)
+      for (let s = 0; s < slots.totalSlots; s++) {
+        cell.length = 0
+        for (const pv of perPVectors) {
+          const x = pv[w]?.[s]
+          if (typeof x === 'number') cell.push(x)
+        }
+        v[s] = reduce(cell, effectiveMethod)
+      }
+      vectors[w] = v
+    }
+    return { shape: outShape, values: [], vectors, slots, aoiMissing, timeline }
+  } else {
+    const values: number[] = new Array(W).fill(Number.NaN)
+    const cell: number[] = []
+    for (let w = 0; w < W; w++) {
+      cell.length = 0
+      for (const pv of perPValues) {
+        const x = pv[w]
+        if (typeof x === 'number') cell.push(x)
+      }
+      values[w] = reduce(cell, effectiveMethod)
+    }
+    return { shape: outShape, values, slots, aoiMissing, timeline }
+  }
 }
 
 // ─── Internals ────────────────────────────────────────────────────────────────
@@ -225,7 +375,26 @@ export function scanAccumulator(
       if (slot !== undefined && resolvedSlots.indexOf(slot) === -1) resolvedSlots.push(slot)
     }
 
-    recipe.onFixation(acc, { start, duration: end - start, slots: resolvedSlots, index }, ctx)
+    const duration = end - start
+    const bounded = timeEnd > 0
+    const windowStart = bounded ? timeStart : 0
+    const windowEnd = bounded ? timeEnd : Number.POSITIVE_INFINITY
+    const frameStart = Math.max(start, windowStart)
+    const frameEnd = bounded ? Math.min(end, windowEnd) : end
+    const frameDuration = frameEnd - frameStart
+    const isClipped = bounded && (start < windowStart || end > windowEnd)
+    const mid = start + duration / 2
+    const midpointInWindow = bounded ? mid >= windowStart && mid < windowEnd : true
+    const frame = {
+      windowStart,
+      windowEnd,
+      start: frameStart,
+      end: frameEnd,
+      duration: frameDuration,
+      isClipped,
+      midpointInWindow,
+    }
+    recipe.onFixation(acc, { start, duration, frame, slots: resolvedSlots, index }, ctx)
     index++
   }
   return { acc, slots, params }

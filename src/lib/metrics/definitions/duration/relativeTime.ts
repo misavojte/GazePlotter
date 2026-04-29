@@ -41,11 +41,25 @@ defineMetric({
   windowUnit: 'ms',
   searchTags: ['dwell', 'gaze', 'time', 'relative', 'percent', 'proportion', 'duration', 'aoi'],
   params: [] as const,
+  // Cross-participant `sum` over a windowed projection is incoherent here:
+  // each participant's per-window value is already a per-participant share
+  // (0..100); summing across N participants yields a scalar of
+  // `≈ N · share` with no physical meaning. Mean/median preserve the
+  // "share" semantics.
+  groupAggregationGuard: (projection, method) => {
+    if (projection.kind === 'windowed' && method === 'sum') {
+      return 'Cross-participant `sum` of relativeTime over a windowed projection is not meaningful — each participant\'s per-window value is already a per-participant share. Use `mean` or `median`.'
+    }
+    return null
+  },
   init: ({ slots }) => new Float64Array(slots.totalSlots),
-  onFixation: (acc, { duration, slots }, { slots: info }) => {
-    acc[info.anyFixationSlot] += duration
-    if (slots.length === 0) acc[info.noAoiSlot] += duration
-    else for (let i = 0; i < slots.length; i++) acc[slots[i]] += duration
+  onFixation: (acc, { frame, slots }, { slots: info }) => {
+    // See absoluteTime — read `frame.duration` so windowed totals don't
+    // double-count fixations spanning bin boundaries.
+    const dur = frame.duration
+    acc[info.anyFixationSlot] += dur
+    if (slots.length === 0) acc[info.noAoiSlot] += dur
+    else for (let i = 0; i < slots.length; i++) acc[slots[i]] += dur
   },
   finalize: (acc, slots) => {
     // Normalise by total fixation time (the anyFixation slot), NOT by the sum

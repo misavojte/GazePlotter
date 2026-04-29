@@ -42,7 +42,12 @@ defineMetric({
   searchTags: ['fixation', 'count', 'number', 'fix', 'aoi'],
   params: [] as const,
   init: ({ slots }) => new Float64Array(slots.totalSlots),
-  onFixation: (acc, { slots }, { slots: info }) => {
+  onFixation: (acc, { frame, slots }, { slots: info }) => {
+    // Window membership uses the SW-RQA convention: a fixation belongs to
+    // exactly one window — the one whose interval contains its midpoint.
+    // For unbounded scopes `midpointInWindow` is always true, so non-
+    // windowed queries are unaffected.
+    if (!frame.midpointInWindow) return
     acc[info.anyFixationSlot]++
     if (slots.length === 0) { acc[info.noAoiSlot]++; return }
     for (let i = 0; i < slots.length; i++) acc[slots[i]]++

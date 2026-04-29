@@ -5,9 +5,11 @@ import {
   runProjected,
   runIndividuals,
   runRaw,
+  runWindowedGroup,
   type Scope,
 } from './core/runtime'
 import { scanBatch } from './core/scanner'
+import { buildAoiSlots } from './core/aoiSlots'
 import {
   applyProjection,
   projectionOutputShape,
@@ -39,6 +41,7 @@ export type MetricResult =
   | { shape: 'aoi-pair-matrix';            metricId: string; unit: string; matrix: number[]; size: number; provenance: MetricProvenance }
   | { shape: 'participant-pair-matrix';    metricId: string; unit: string; matrix: number[]; size: number; participantIds: number[]; provenance: MetricProvenance }
   | { shape: 'scalar-timeseries';          metricId: string; unit: string; values: number[]; timeline: number[]; provenance: MetricProvenance }
+  | { shape: 'aoi-vector-timeseries';      metricId: string; unit: string; vectors: number[][]; timeline: number[]; slots: AoiSlotInfo; provenance: MetricProvenance }
 
 /** Compute a metric instance for a single participant. */
 export function query(instance: MetricInstance, scope: Scope): MetricResult {
@@ -80,18 +83,22 @@ export function queryBatch(instances: readonly MetricInstance[], scope: Scope): 
       scope.timeStart ?? 0,
       scope.timeEnd ?? 0,
     )
-    const aoiNames = getAois(scope.engine, scope.stimulusId).map(a => a.displayedName)
-    for (const inst of plain) {
-      const recipe = getRecipe(inst.baseId)
-      if (!recipe) continue
-      const raw = raws.get(inst.id)
-      if (!raw) continue
-      const applied = applyProjection(inst.projection, { aoiNames, rawValues: raw })
-      out.set(inst.id, wrapProjectedResult(recipe.id, recipe.unit, inst, {
-        shape: projectionOutputShape(inst.projection),
-        values: applied.values,
-        aoiMissing: applied.aoiMissing,
-      }))
+    const slots = buildAoiSlots(scope.engine, scope.stimulusId)
+    if (slots) {
+      const aoiNames = getAois(scope.engine, scope.stimulusId).map(a => a.displayedName)
+      for (const inst of plain) {
+        const recipe = getRecipe(inst.baseId)
+        if (!recipe) continue
+        const raw = raws.get(inst.id)
+        if (!raw) continue
+        const applied = applyProjection(inst.projection, { aoiNames, rawValues: raw })
+        out.set(inst.id, wrapProjectedResult(recipe.id, recipe.unit, inst, {
+          shape: projectionOutputShape(inst.projection),
+          values: applied.values,
+          slots,
+          aoiMissing: applied.aoiMissing,
+        }))
+      }
     }
   }
   for (const inst of windowed) out.set(inst.id, query(inst, scope))
@@ -124,12 +131,22 @@ export function queryGroup(instance: MetricInstance, group: GroupScope): MetricR
     }
   }
   if (instance.projection.kind === 'windowed') {
-    // Windowed group aggregation is out of scope — no consumer needs it today.
-    // Return the first participant's timeseries as a placeholder.
-    return query(instance, {
-      engine: group.engine, stimulusId: group.stimulusId, participantId: group.participantIds[0] ?? -1,
-      timeStart: group.timeStart, timeEnd: group.timeEnd,
-    })
+    // Native cross-participant aggregation for windowed projections —
+    // dispatched into the runtime so plot transformers don't reimplement
+    // per-cell reduction. The recipe's `groupAggregation` (mean / sum /
+    // median) drives the reducer; `groupAggregationGuard` provides a
+    // recipe-level veto with a defensive fallback to mean.
+    const method = recipe.groupAggregation ?? 'mean'
+    const projected = runWindowedGroup(
+      recipe,
+      instance,
+      group,
+      instance.projection,
+      method,
+      reduceFinite,
+    )
+    if (!projected) return emptyResult(instance, 'scalar', recipe.unit)
+    return wrapProjectedResult(recipe.id, recipe.unit, instance, projected)
   }
   const perParticipant = group.participantIds.map(pid =>
     runRaw(recipe, instance, {
@@ -140,9 +157,12 @@ export function queryGroup(instance: MetricInstance, group: GroupScope): MetricR
   const reduced = reducePerSlot(perParticipant, recipe.groupAggregation ?? 'mean')
   const aoiNames = getAois(group.engine, group.stimulusId).map(a => a.displayedName)
   const applied = applyProjection(instance.projection, { aoiNames, rawValues: reduced })
+  const slots = buildAoiSlots(group.engine, group.stimulusId)
+  if (!slots) return emptyResult(instance, 'scalar', recipe.unit)
   return wrapProjectedResult(recipe.id, recipe.unit, instance, {
     shape: projectionOutputShape(instance.projection),
     values: applied.values,
+    slots,
     aoiMissing: applied.aoiMissing,
   })
 }
@@ -160,7 +180,14 @@ function wrapProjectedResult(
   metricId: string,
   unit: string,
   instance: MetricInstance,
-  projected: { shape: OutputShape; values: number[]; aoiMissing: boolean; timeline?: number[] },
+  projected: {
+    shape: OutputShape
+    values: number[]
+    vectors?: number[][]
+    slots: AoiSlotInfo
+    aoiMissing: boolean
+    timeline?: number[]
+  },
 ): MetricResult {
   const provenance: MetricProvenance = {
     baseId: instance.baseId,
@@ -168,17 +195,20 @@ function wrapProjectedResult(
     projection: instance.projection,
     aoiMissing: projected.aoiMissing || undefined,
   }
-  const { values, shape } = projected
+  const { values, shape, slots } = projected
   if (shape === 'scalar') {
     const v = values[0] ?? Number.NaN
     return { shape, metricId, unit, value: v, isFinite: Number.isFinite(v), provenance }
   }
   if (shape === 'aoi-vector') {
-    const slots = deriveSlotInfo(values.length)
     return { shape, metricId, unit, values, slots, provenance }
   }
   if (shape === 'scalar-timeseries') {
     return { shape, metricId, unit, values, timeline: projected.timeline ?? [], provenance }
+  }
+  if (shape === 'aoi-vector-timeseries') {
+    const vectors = projected.vectors ?? []
+    return { shape, metricId, unit, vectors, timeline: projected.timeline ?? [], slots, provenance }
   }
   if (shape === 'participant-pair-matrix') {
     // queryGroup short-circuits scanGroup recipes upstream; this branch only
@@ -188,12 +218,6 @@ function wrapProjectedResult(
   }
   const size = Math.round(Math.sqrt(values.length))
   return { shape: 'aoi-pair-matrix', metricId, unit, matrix: values, size, provenance }
-}
-
-function deriveSlotInfo(totalSlots: number): AoiSlotInfo {
-  const noAoiSlot = totalSlots - 2
-  const anyFixationSlot = totalSlots - 1
-  return { totalSlots, noAoiSlot, anyFixationSlot }
 }
 
 function emptyResult(
@@ -212,24 +236,55 @@ function emptyResult(
   return { shape: 'aoi-pair-matrix', metricId, unit, matrix: [], size: 0, provenance }
 }
 
+/**
+ * Reduce a flat list of values across a single dimension via mean / sum /
+ * median. Non-finite entries (`NaN`, `Infinity`) are filtered before
+ * reduction; an all-NaN input yields `NaN`. The atomic primitive that
+ * `reducePerSlot` (per-slot 2D reduction) and `runWindowedGroup` (per-cell
+ * 3D reduction across windows × slots) both compose against — keeping the
+ * actual reduction maths in one place.
+ */
+export function reduceFinite(
+  values: readonly number[],
+  method: 'mean' | 'median' | 'sum',
+): number {
+  let acc: number[] | null = null
+  let sum = 0
+  let count = 0
+  for (const v of values) {
+    if (!Number.isFinite(v)) continue
+    if (method === 'median') {
+      if (!acc) acc = []
+      acc.push(v)
+    } else {
+      sum += v
+      count++
+    }
+  }
+  if (method === 'median') {
+    const arr = acc
+    if (!arr || arr.length === 0) return Number.NaN
+    arr.sort((a, b) => a - b)
+    const mid = Math.floor(arr.length / 2)
+    return arr.length % 2 === 0 ? (arr[mid - 1] + arr[mid]) / 2 : arr[mid]
+  }
+  if (count === 0) return Number.NaN
+  return method === 'sum' ? sum : sum / count
+}
+
+/**
+ * 2D reduction: rows × slots → one value per slot. Thin wrapper over
+ * `reduceFinite` — keeps the per-slot iteration here while the actual
+ * reduction maths lives in one place.
+ */
 function reducePerSlot(rows: number[][], method: 'mean' | 'median' | 'sum'): number[] {
   if (rows.length === 0) return []
   const slotCount = rows[0].length
   const out = new Array<number>(slotCount)
+  const column: number[] = new Array(rows.length)
   for (let s = 0; s < slotCount; s++) {
-    const vals: number[] = []
-    for (const row of rows) {
-      const v = row[s]
-      if (Number.isFinite(v)) vals.push(v)
-    }
-    if (vals.length === 0) { out[s] = Number.NaN; continue }
-    if (method === 'sum') { let sum = 0; for (const v of vals) sum += v; out[s] = sum }
-    else if (method === 'mean') { let sum = 0; for (const v of vals) sum += v; out[s] = sum / vals.length }
-    else {
-      const sorted = [...vals].sort((a, b) => a - b)
-      const mid = Math.floor(sorted.length / 2)
-      out[s] = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
-    }
+    for (let r = 0; r < rows.length; r++) column[r] = rows[r][s]
+    out[s] = reduceFinite(column, method)
   }
   return out
 }

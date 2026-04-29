@@ -3,8 +3,14 @@ import {
   calculateFilledRidgelineStripHeight,
   calculateIdealStripHeight,
   calculateMaxReferenceHeight,
+  computeMTop,
 } from '$lib/plots/aoi-stream/core/ridgeline'
 import { scanForDynamicRidgelineReferenceHeight } from '$lib/plots/aoi-stream/sync/ridgeline'
+import {
+  RIDGELINE_CONTENT_FILL,
+  RIDGELINE_MIN_M_TOP,
+  RIDGELINE_SCALE,
+} from '$lib/plots/aoi-stream/const'
 import type {
   AoiStreamPlotItem,
   AoiStreamPlotSettings,
@@ -33,22 +39,22 @@ vi.mock('$lib/data/engine', () => ({
 
 vi.mock('$lib/plots/aoi-stream/core/transformer', () => ({
   getAoiStreamPlotData: () => ({
-    data: {
-      series: [
-        {
-          values: new Float32Array(10).fill(1),
-          id: 1,
-          label: 'AOI 1',
-          color: 'red',
-        },
-      ],
-      binCount: 10,
-      participants: 1,
-      timeline: { minValue: 0, maxValue: 100 },
-      maxTime: 100,
-      maxTotal: 1,
-    },
-    workspace: null,
+    series: [
+      {
+        values: new Float32Array(10).fill(1),
+        id: 1,
+        label: 'AOI 1',
+        color: 'red',
+      },
+    ],
+    binCount: 10,
+    windowSize: 100,
+    stepSize: 100,
+    participants: 1,
+    maxValue: 1,
+    timeline: { minValue: 0, maxValue: 100 },
+    maxTime: 100,
+    maxTotal: 1,
   }),
 }))
 
@@ -56,150 +62,214 @@ vi.mock('$lib/plots/aoi-stream/sync/timeline', () => ({
   scanForSynchronizedTimelineMax: () => null,
 }))
 
-describe('Ridgeline Utilities', () => {
+// ─── Fixture builders ────────────────────────────────────────────────────────
+
+/**
+ * Build a minimal AoiStreamPlotResult-shaped fixture. `topPeak` becomes the
+ * max value of the first series; `bottomPeak` of the last; `maxValue` is the
+ * single-cell max the ridgeline math normalises against. Tests use these
+ * fields directly rather than relying on coincidental fill-value × participants
+ * arithmetic (the previous fixtures broke when participants changed).
+ */
+function buildData(opts: {
+  seriesCount: number
+  topPeak?: number
+  bottomPeak?: number
+  maxValue: number
+}) {
+  const { seriesCount, topPeak = 0, bottomPeak = 0, maxValue } = opts
+  const series = Array.from({ length: seriesCount }, (_, i) => {
+    const peak =
+      i === 0 ? topPeak
+        : i === seriesCount - 1 ? bottomPeak
+          : 0
+    return {
+      values: new Float32Array(10).fill(peak),
+      id: i + 1,
+      label: `s${i + 1}`,
+      color: 'red',
+    }
+  })
+  return {
+    series,
+    binCount: 10,
+    windowSize: 100,
+    stepSize: 100,
+    participants: 1,
+    maxValue,
+    timeline: { minValue: 0, maxValue: 100 },
+    maxTime: 100,
+    maxTotal: maxValue,
+  } as any
+}
+
+// Closed-form expected values derived from the geometry formulas in
+// `ridgeline.ts`. Tests assert against these so the suite documents the
+// invariants rather than locking in coincidental numbers.
+const expectedFilledStripHeight = (plotHeight: number, n: number, scale: number) =>
+  (plotHeight * scale) / (n - 1 + scale)
+
+const expectedIdealStripHeight = (plotHeight: number, n: number, scale: number, mTop: number) =>
+  (plotHeight * scale) / (n - 1 + mTop * scale)
+
+const expectedMTop = (topPeak: number, maxValue: number) =>
+  (topPeak / maxValue) * RIDGELINE_CONTENT_FILL
+
+// ─── Tests ───────────────────────────────────────────────────────────────────
+
+describe('Ridgeline geometry invariants', () => {
+  describe('calculateFilledRidgelineStripHeight', () => {
+    it.each([
+      { plotHeight: 100, n: 1, scale: 2.5 },
+      { plotHeight: 100, n: 2, scale: 2.5 },
+      { plotHeight: 100, n: 5, scale: 2.5 },
+      { plotHeight: 600, n: 8, scale: 1 },
+      { plotHeight: 240, n: 3, scale: 1.5 },
+    ])(
+      'matches closed-form: $plotHeight × $scale / ($n − 1 + $scale) [n=$n, plotHeight=$plotHeight, scale=$scale]',
+      ({ plotHeight, n, scale }) => {
+        const h = calculateFilledRidgelineStripHeight(plotHeight, n, scale)
+        expect(h).toBeCloseTo(expectedFilledStripHeight(plotHeight, n, scale), 6)
+      }
+    )
+
+    it('returns plotHeight when seriesCount <= 0 (degenerate fallback)', () => {
+      expect(calculateFilledRidgelineStripHeight(100, 0, 2.5)).toBe(100)
+    })
+  })
+
+  describe('computeMTop', () => {
+    it('mTop scales as peak / maxValue × CONTENT_FILL', () => {
+      const data = buildData({ seriesCount: 1, topPeak: 1, maxValue: 1 })
+      expect(computeMTop(data)).toBeCloseTo(expectedMTop(1, 1), 6)
+    })
+
+    it('doubling maxValue halves mTop when top peak is unchanged', () => {
+      const before = computeMTop(buildData({ seriesCount: 1, topPeak: 1, maxValue: 1 }))
+      const after = computeMTop(buildData({ seriesCount: 1, topPeak: 1, maxValue: 2 }))
+      expect(after).toBeCloseTo(before / 2, 6)
+    })
+
+    it('halving the top peak halves mTop when maxValue is unchanged', () => {
+      const before = computeMTop(buildData({ seriesCount: 1, topPeak: 1, maxValue: 1 }))
+      const after = computeMTop(buildData({ seriesCount: 1, topPeak: 0.5, maxValue: 1 }))
+      expect(after).toBeCloseTo(before / 2, 6)
+    })
+
+    it('returns 0 with zero peak and applyMinTopHeight=false', () => {
+      expect(
+        computeMTop(buildData({ seriesCount: 2, topPeak: 0, maxValue: 1 }))
+      ).toBe(0)
+    })
+
+    it('returns RIDGELINE_MIN_M_TOP with zero peak and applyMinTopHeight=true', () => {
+      const m = computeMTop(
+        buildData({ seriesCount: 2, topPeak: 0, maxValue: 1 }),
+        true
+      )
+      expect(m).toBe(RIDGELINE_MIN_M_TOP)
+    })
+
+    it('returns 0 / RIDGELINE_MIN_M_TOP when maxValue is non-positive (degenerate data)', () => {
+      const data = buildData({ seriesCount: 1, topPeak: 1, maxValue: 0 })
+      expect(computeMTop(data)).toBe(0)
+      expect(computeMTop(data, true)).toBe(RIDGELINE_MIN_M_TOP)
+    })
+  })
+
   describe('calculateIdealStripHeight', () => {
-    it('should calculate correct height for single series at 100%', () => {
-      // Setup: 1 series, 100% max value
-      const data = {
-        series: [
-          {
-            values: new Float32Array(10).fill(1),
-            id: 1,
-            label: 's1',
-            color: 'red',
-          },
-        ],
-        binCount: 10,
-        participants: 1,
-      } as any
-      const plotHeight = 100
+    it.each([
+      // (n, plotHeight, scale, topPeak, maxValue, applyMinTopHeight)
+      { n: 1, plotHeight: 100, scale: RIDGELINE_SCALE, topPeak: 1, maxValue: 1, applyMin: false },
+      { n: 2, plotHeight: 100, scale: RIDGELINE_SCALE, topPeak: 0, maxValue: 1, applyMin: false },
+      { n: 2, plotHeight: 100, scale: RIDGELINE_SCALE, topPeak: 0, maxValue: 1, applyMin: true },
+      { n: 2, plotHeight: 100, scale: RIDGELINE_SCALE, topPeak: 1, maxValue: 1, applyMin: false },
+      { n: 5, plotHeight: 600, scale: RIDGELINE_SCALE, topPeak: 0.4, maxValue: 1, applyMin: false },
+    ])(
+      'matches geometric identity h × ((N−1)/scale + mTop) = plotHeight  [n=$n, plotHeight=$plotHeight, scale=$scale, topPeak=$topPeak, maxValue=$maxValue, applyMin=$applyMin]',
+      ({ n, plotHeight, scale, topPeak, maxValue, applyMin }) => {
+        const data = buildData({ seriesCount: n, topPeak, maxValue })
+        const h = calculateIdealStripHeight(data, plotHeight, applyMin, scale)
+        const mTopRaw = expectedMTop(topPeak, maxValue)
+        const mTop = applyMin ? Math.max(mTopRaw, RIDGELINE_MIN_M_TOP) : mTopRaw
+        expect(h).toBeCloseTo(expectedIdealStripHeight(plotHeight, n, scale, mTop), 4)
+      }
+    )
 
-      // Logic (without applyMinTopHeight):
-      // geometricOffset = (1-1-0)*(1-0.6) = 0
-      // dataHeight = (100 * 0.9 / 100) = 0.9
-      // maxFactor = 0.9
-      // Ideal = 100 / 0.9 = 111.11
-
-      const height = calculateIdealStripHeight(data, plotHeight)
-      expect(height).toBeCloseTo(111.11, 1)
-    })
-
-    it('should respect stacking offset for multiple series', () => {
-      // Setup: 2 series, both 0% (empty) to test pure geometric stacking
-      // Note: calculateMaxConstraintFactor iterates all.
-      const data = {
-        series: [
-          { values: new Float32Array(10).fill(0), id: 1 }, // Top (s=0)
-          { values: new Float32Array(10).fill(0), id: 2 }, // Bottom (s=1)
-        ],
-        binCount: 10,
-        participants: 1,
-      } as any
-      const plotHeight = 100
-
-      // Logic (without applyMinTopHeight - default for sync):
-      // s=0: geom=(2-1-0)*0.4 = 0.4. data=0. Total=0.4
-      // s=1: geom=(2-1-1)*0.4 = 0.0. data=0. Total=0.0
-      // maxFactor = 0.4
-
-      // Ideal = 100 / 0.4 = 250
-
-      const height = calculateIdealStripHeight(data, plotHeight)
-      expect(height).toBeCloseTo(250, 1)
-    })
-
-    it('should apply minTopHeight constraint when flag is true', () => {
-      // Setup: 2 series, both 0% (empty) to test minTopHeight constraint
-      const data = {
-        series: [
-          { values: new Float32Array(10).fill(0), id: 1 }, // Top (s=0)
-          { values: new Float32Array(10).fill(0), id: 2 }, // Bottom (s=1)
-        ],
-        binCount: 10,
-        participants: 1,
-      } as any
-      const plotHeight = 100
-
-      // Logic (WITH applyMinTopHeight - for local rendering):
-      // s=0: geom=(2-1-0)*0.4 = 0.4. data=0. minTopHeight=0.2. Total=0.4 + 0.2 = 0.6
-      // s=1: geom=(2-1-1)*0.4 = 0.0. data=0. Total=0.0
-      // maxFactor = 0.6
-
-      // Ideal = 100 / 0.6 = 166.67
-
-      const height = calculateIdealStripHeight(data, plotHeight, true)
-      expect(height).toBeCloseTo(166.67, 1)
-    })
-
-    it('should account for data height in stacking', () => {
-      // Setup: 2 series. Top(s=0) has 100%, Bot(s=1) has 0%.
-      // Note: Raw value '1' with participants=1 becomes 100%.
-      const data = {
-        series: [
-          { values: new Float32Array(10).fill(1), id: 1 },
-          { values: new Float32Array(10).fill(0), id: 2 },
-        ],
-        binCount: 10,
-        participants: 1,
-      } as any
-      const plotHeight = 100
-
-      // Logic:
-      // s=0: geom=0.4. data=(100*0.9/100)=0.9. Total=1.3
-      // s=1: geom=0.0. data=0.0. Total=0.0
-      // maxFactor = 1.3
-
-      // Ideal = 100 / 1.3 = 76.92
-
-      const height = calculateIdealStripHeight(data, plotHeight)
-      expect(height).toBeCloseTo(76.92, 1)
+    it('returns plotHeight when no series (degenerate fallback)', () => {
+      const empty = buildData({ seriesCount: 0, maxValue: 1 })
+      expect(calculateIdealStripHeight(empty, 100)).toBe(100)
     })
   })
 
   describe('calculateMaxReferenceHeight', () => {
-    it('should remove top whitespace according to the highest visible peak when overlap is allowed', () => {
-      const data = {
-        series: [
-          { values: new Float32Array(10).fill(0), id: 1 },
-          { values: new Float32Array(10).fill(1), id: 2 },
-        ],
-        binCount: 10,
-        participants: 1,
-      } as any
-
-      const referenceHeight = calculateMaxReferenceHeight(data, 100, 2.5, true)
-
-      expect(referenceHeight).toBeCloseTo(111.11, 1)
+    it('with overlap allowed and scale > 1, fills the full plot height — peakFraction × CONTENT_FILL × ref = plotHeight', () => {
+      // bottom-series peak fixed; vary maxValue to vary the peakFraction.
+      const plotHeight = 100
+      const scale = RIDGELINE_SCALE // > 1
+      const data = buildData({
+        seriesCount: 2,
+        topPeak: 0,
+        bottomPeak: 1,
+        maxValue: 1, // peakFraction = 1.0
+      })
+      const ref = calculateMaxReferenceHeight(data, plotHeight, scale, true)
+      const peakFraction = 1 / 1
+      expect(ref * peakFraction * RIDGELINE_CONTENT_FILL).toBeCloseTo(plotHeight, 4)
     })
 
-    it('should keep scale 1 inside a single strip with no cross-strip overlap', () => {
-      const data = {
-        series: [
-          { values: new Float32Array(10).fill(0.5), id: 1 },
-          { values: new Float32Array(10).fill(1), id: 2 },
-        ],
-        binCount: 10,
-        participants: 1,
-      } as any
-
+    it('halving the bottom peak doubles the reference height (less data → more empty space to absorb)', () => {
       const plotHeight = 100
-      const stripHeight = calculateFilledRidgelineStripHeight(plotHeight, 2, 1)
-      const referenceHeight = calculateMaxReferenceHeight(
-        data,
+      const scale = RIDGELINE_SCALE
+      const tall = calculateMaxReferenceHeight(
+        buildData({ seriesCount: 2, bottomPeak: 1, maxValue: 1 }),
         plotHeight,
-        1,
-        true
+        scale,
+        true,
       )
+      const taller = calculateMaxReferenceHeight(
+        buildData({ seriesCount: 2, bottomPeak: 0.5, maxValue: 1 }),
+        plotHeight,
+        scale,
+        true,
+      )
+      expect(taller).toBeCloseTo(tall * 2, 4)
+    })
 
-      expect(referenceHeight * 0.9).toBeCloseTo(stripHeight, 1)
+    it('with scale=1 (no cross-strip overlap), reference fills exactly the strip — ref × peakFraction × CONTENT_FILL = stripHeight', () => {
+      const plotHeight = 100
+      const scale = 1
+      const n = 2
+      const data = buildData({
+        seriesCount: n,
+        topPeak: 0,
+        bottomPeak: 1,
+        maxValue: 1,
+      })
+      const stripHeight = calculateFilledRidgelineStripHeight(plotHeight, n, scale)
+      const ref = calculateMaxReferenceHeight(data, plotHeight, scale, true)
+      const peakFraction = 1 / 1
+      expect(ref * peakFraction * RIDGELINE_CONTENT_FILL).toBeCloseTo(stripHeight, 4)
+    })
+
+    it('falls back to filledStripHeight when bottom-series peak is zero (degenerate)', () => {
+      const plotHeight = 100
+      const scale = RIDGELINE_SCALE
+      const n = 2
+      const stripHeight = calculateFilledRidgelineStripHeight(plotHeight, n, scale)
+      const data = buildData({
+        seriesCount: n,
+        topPeak: 1,
+        bottomPeak: 0,
+        maxValue: 1,
+      })
+      expect(calculateMaxReferenceHeight(data, plotHeight, scale, true)).toBe(stripHeight)
     })
   })
 
   describe('scanForDynamicRidgelineReferenceHeight', () => {
-    it('should synchronize ridgeline plots with matching height and scale', () => {
-      const engine = {
-        metadata: {},
-      } as any
+    it('returns a finite mTop in (0, 1] for two matching ridgeline plots', () => {
+      const engine = { metadata: {} } as any
 
       const createItem = (
         id: number,
@@ -216,38 +286,22 @@ describe('Ridgeline Utilities', () => {
         settings: {
           stimulusId: 0,
           groupId: -1,
-          binSize: 500,
+          metricInstanceId: 'absoluteTime-aoi-windowed-500',
           absoluteStimuliLimits: [],
           ...settings,
         },
       })
 
       const items: AoiStreamPlotItem[] = [
-        createItem(1, {
-          alignment: 'ridgeline',
-          ridgelineScale: 0.6,
-        }),
-        createItem(2, {
-          alignment: 'ridgeline',
-          ridgelineScale: 0.6,
-        }),
+        createItem(1, { alignment: 'ridgeline', ridgelineScale: 0.6 }),
+        createItem(2, { alignment: 'ridgeline', ridgelineScale: 0.6 }),
       ]
 
-      const currentStreamData = {
-        series: [
-          {
-            values: new Float32Array(10).fill(1),
-            id: 1,
-            label: 'AOI 1',
-            color: 'red',
-          },
-        ],
-        binCount: 10,
-        participants: 1,
-        timeline: { minValue: 0, maxValue: 100 },
-        maxTime: 100,
-        maxTotal: 1,
-      } as any
+      const currentStreamData = buildData({
+        seriesCount: 1,
+        topPeak: 1,
+        maxValue: 1,
+      })
 
       const result = scanForDynamicRidgelineReferenceHeight(
         engine,
@@ -263,12 +317,11 @@ describe('Ridgeline Utilities', () => {
         }
       )
 
-      // The sync now returns the max mTop across candidates (dimension-independent).
-      // Both items are identical with 1 series at 100% occupancy (values=1, participants=1).
-      // mTop = (100/100) * RIDGELINE_CONTENT_FILL = 0.9, clamped to max(0.9, 0.2) = 0.9
+      // Both candidates render the same fixture → mTop = peakFraction × CONTENT_FILL.
       expect(result).not.toBeNull()
       expect(result!).toBeGreaterThan(0)
       expect(result!).toBeLessThanOrEqual(1)
+      expect(result!).toBeCloseTo(expectedMTop(1, 1), 6)
     })
   })
 })

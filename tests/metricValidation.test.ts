@@ -123,13 +123,40 @@ describe('windowing support gate', () => {
     }
     expect(recipeSupports(r, p)).toBe(true)
   })
-  it('rejects windowed wrapper around a non-scalar leaf', () => {
+  it('accepts windowed wrapper around an aoi-vector leaf (synthesizes aoi-vector-timeseries)', () => {
     const r = recipe('absoluteTime')
     const p: Projection = {
       kind: 'windowed',
       window: { windowSize: 1000, stepSize: 1000 },
-      // identity-aoi-vector produces aoi-vector, not scalar — invalid
-      inner: { kind: 'identity-aoi-vector' } as any,
+      inner: { kind: 'identity-aoi-vector' },
+    }
+    expect(recipeSupports(r, p)).toBe(true)
+  })
+  it('rejects windowed wrapper around a matrix-shape leaf', () => {
+    const r = recipe('transitionCount')
+    const p: Projection = {
+      kind: 'windowed',
+      window: { windowSize: 1000, stepSize: 1000 },
+      // identity-aoi-pair-matrix produces aoi-pair-matrix — not allowed under windowing
+      inner: { kind: 'identity-aoi-pair-matrix' },
+    }
+    expect(recipeSupports(r, p)).not.toBe(true)
+  })
+  it('rejects windowed wrapper on TTFF even with aoi-vector inner', () => {
+    const r = recipe('timeToFirstFixation') // supportsWindowing: false
+    const p: Projection = {
+      kind: 'windowed',
+      window: { windowSize: 1000, stepSize: 1000 },
+      inner: { kind: 'identity-aoi-vector' },
+    }
+    expect(recipeSupports(r, p)).not.toBe(true)
+  })
+  it('still rejects windowed × aggregate-aoi mean (across-AOI reducer rule applies)', () => {
+    const r = recipe('absoluteTime')
+    const p: Projection = {
+      kind: 'windowed',
+      window: { windowSize: 1000, stepSize: 1000 },
+      inner: { kind: 'aggregate-aoi', reducer: 'mean' },
     }
     expect(recipeSupports(r, p)).not.toBe(true)
   })

@@ -68,6 +68,48 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
     },
   },
 
+  // ── windowed aoi-vector starters (aoi-stream consumers) ──────────────
+  {
+    id: 'absoluteTime-aoi-windowed-500',
+    baseId: 'absoluteTime',
+    label: 'Time on AOI (per 500 ms bin)',
+    projection: {
+      kind: 'windowed',
+      window: { windowSize: 500, stepSize: 500 },
+      inner: { kind: 'identity-aoi-vector' },
+    },
+  },
+  {
+    id: 'fixationCount-aoi-windowed-500',
+    baseId: 'fixationCount',
+    label: 'Fixation count per AOI (per 500 ms bin)',
+    projection: {
+      kind: 'windowed',
+      window: { windowSize: 500, stepSize: 500 },
+      inner: { kind: 'identity-aoi-vector' },
+    },
+  },
+  {
+    id: 'relativeTime-aoi-windowed-500',
+    baseId: 'relativeTime',
+    label: 'Relative time on AOI (per 500 ms bin)',
+    projection: {
+      kind: 'windowed',
+      window: { windowSize: 500, stepSize: 500 },
+      inner: { kind: 'identity-aoi-vector' },
+    },
+  },
+  {
+    id: 'visitCount-aoi-windowed-500',
+    baseId: 'visitCount',
+    label: 'Visit count per AOI (per 500 ms bin)',
+    projection: {
+      kind: 'windowed',
+      window: { windowSize: 500, stepSize: 500 },
+      inner: { kind: 'identity-aoi-vector' },
+    },
+  },
+
   // ── any-fixation starters ────────────────────────────────────────────
   {
     id: 'absoluteTime-any',

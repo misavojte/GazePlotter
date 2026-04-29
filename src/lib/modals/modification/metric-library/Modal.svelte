@@ -167,13 +167,25 @@
   function canBeWindowed(m: Metric, leaf: LeafProjection): boolean {
     if (contract.windowing === 'forbidden') return false
     if (m.meta.supportsWindowing === false) return false
-    return PROJECTION_LEAVES[leaf.kind].outputShape === 'scalar'
+    // The projection algebra accepts windowing over both `scalar`-emitting
+    // leaves (→ `scalar-timeseries`) and `aoi-vector`-emitting leaves
+    // (→ `aoi-vector-timeseries`). Anything else (matrix shapes etc.) is
+    // not a meaningful windowing target.
+    const inner = PROJECTION_LEAVES[leaf.kind].outputShape
+    return inner === 'scalar' || inner === 'aoi-vector'
   }
 
-  function defaultWindow(m: Metric): WindowSpec {
+  function defaultWindow(m: Metric, leaf: LeafProjection): WindowSpec {
     if (m.meta.windowUnit === 'fixations') {
       return { windowSize: 20, stepSize: 20 }
     }
+    // aoi-vector leaves (e.g. `identity-aoi-vector` consumed by aoi-stream)
+    // default to 500 ms × 500 ms — matches the legacy occupancy-collector
+    // bin size so existing workspaces' values stay stable on upgrade. Slider
+    // / sliding-step UI is exposed via the standard windowing controls so
+    // users can opt into overlap (e.g. windowSize 1000 / stepSize 100).
+    const inner = PROJECTION_LEAVES[leaf.kind].outputShape
+    if (inner === 'aoi-vector') return { windowSize: 500, stepSize: 500 }
     return { windowSize: 2000, stepSize: 2000 }
   }
 
@@ -207,7 +219,7 @@
     const firstLeaf = availableLeavesFor(m)[0] ?? identityFor(m.meta.rawShape).kind
     leafDraft = buildLeaf(firstLeaf)
     windowDraft = contract.windowing === 'required' && canBeWindowed(m, leafDraft)
-      ? defaultWindow(m)
+      ? defaultWindow(m, leafDraft)
       : null
   }
 
@@ -605,7 +617,7 @@
                 type="checkbox"
                 checked={windowDraft !== null}
                 onchange={(e) => {
-                  windowDraft = (e.target as HTMLInputElement).checked ? defaultWindow(m) : null
+                  windowDraft = (e.target as HTMLInputElement).checked ? defaultWindow(m, leafDraft) : null
                 }}
               />
               Evaluate in sliding windows

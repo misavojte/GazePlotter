@@ -7,10 +7,13 @@
     getParticipantsGroupOptions,
     getColorScaleCommitted,
     buildColorScalePatch,
+    singleSelectMetricHandlers,
   } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { PRESET_PALETTES } from '$lib/color/palettes'
+  import { MetricSelect } from '$lib/metrics'
+  import { aoiStreamPlotDefinition } from '../definition'
   import { RIDGELINE_SCALE } from '../const'
   import type {
     AoiStreamPlotItem,
@@ -70,6 +73,12 @@
     const patch = buildColorScalePatch(draft, colorFields)
     if (patch) update({ colorScale: patch })
   })
+
+  const metricHandlers = $derived(singleSelectMetricHandlers(
+    engine,
+    () => settings.metricInstanceId,
+    id => update({ metricInstanceId: id }),
+  ))
 </script>
 
 <PaneSection>
@@ -84,6 +93,13 @@
     options={groupOptions}
     value={String(settings.groupId)}
     onchange={e => update({ groupId: Number((e as CustomEvent).detail) })}
+  />
+  <MetricSelect
+    label="Metric"
+    contract={aoiStreamPlotDefinition.consumesMetrics!}
+    instances={engine.metadata?.metricInstances ?? []}
+    selectedIds={settings.metricInstanceId !== null && settings.metricInstanceId !== undefined ? [settings.metricInstanceId] : []}
+    {...metricHandlers}
   />
   <Select
     label="Visualisation lense"
@@ -101,16 +117,8 @@
   />
 </PaneSection>
 
-<PaneSection title="Binning">
-  <InputNumber
-    id="aoi-stream-bin-size"
-    label="Bin size [ms]"
-    value={settings.binSize ?? 500}
-    min={1}
-    appearance="compact"
-    onValueChange={v => update({ binSize: v ?? 500 })}
-  />
-  {#if isRidgeline}
+{#if isRidgeline}
+  <PaneSection title="Ridgeline">
     <InputNumber
       id="aoi-stream-ridge-scale"
       label="Ridge scale"
@@ -121,8 +129,8 @@
       appearance="compact"
       onValueChange={v => update({ ridgelineScale: v ?? RIDGELINE_SCALE })}
     />
-  {/if}
-</PaneSection>
+  </PaneSection>
+{/if}
 
 <PaneSection title="Time range [ms]">
   <div class="inline-pair">

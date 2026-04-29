@@ -1,5 +1,10 @@
 import type { AoiStreamPlotResult } from '../types'
-import { RIDGELINE_CONTENT_FILL, RIDGELINE_SCALE, Y_AXIS } from '../const'
+import {
+  RIDGELINE_CONTENT_FILL,
+  RIDGELINE_SCALE,
+  STREAM_SYMMETRY_FACTOR,
+  Y_AXIS,
+} from '../const'
 import { calculateIdealStripHeight } from './ridgeline'
 import { desaturateToWhite, interpolateColor } from '$lib/color/utility'
 import { PRESET_PALETTES } from '$lib/color/palettes'
@@ -115,10 +120,28 @@ export function transformStreamDataToCoordinates(
     colorScale,
   } = params
 
-  const { series, binCount: dataBinCount, participants, maxTotal } = data
+  const {
+    series,
+    binCount: dataBinCount,
+    maxTotal,
+    maxValue,
+    windowSize,
+    stepSize,
+  } = data
   const renderBinCount = dataBinCount + 2
-  const percentFactor = participants > 0 ? 100 / participants : 0
-  const maxTotalPercent = Math.max(1, maxTotal) * percentFactor
+  // Values arrive in the metric's native unit (ms / count / %). The y-axis
+  // range is driven directly by the data; no per-participant percent
+  // conversion happens here. `maxTotal` is the largest stacked sum across
+  // bins (drives stream/distribution); `maxValue` is the largest single-cell
+  // value (drives the heatmap gradient).
+  const maxTotalForAxis = Math.max(1, maxTotal)
+  const maxCellForHeat = Math.max(maxValue, Number.EPSILON)
+  // Each data bin represents a window of length `windowSize`, offset from
+  // the previous window by `stepSize`. Total time covered by all windows is
+  // (binCount - 1) × step + window — equals `binCount × window` when
+  // windows tile (step === window) and is shorter otherwise. Bin centres
+  // land at `binIdx × step + window / 2` along that range.
+  const plotRange = Math.max(1, (dataBinCount - 1) * stepSize + windowSize)
 
   const buckets = ensureRenderBuckets(
     existingBuckets,
@@ -128,11 +151,21 @@ export function transformStreamDataToCoordinates(
   const { xPositions, seriesBuckets, totals, cumulative, seriesPaint } = buckets
 
   // 1. Static Geometry Calculation
-  const invBinCount = 1 / dataBinCount
+  // Bin centre formula: for the i-th data bin, its window centre lands at
+  // `i × stepSize + windowSize / 2` ms (relative to plot start), which
+  // maps to `(i × step + window / 2) / plotRange` of the plot width. For
+  // non-overlapping windows (step === window) this collapses to the older
+  // even-spacing `(i + 0.5) / dataBinCount` exactly. For sliding windows
+  // it shifts bin centres inward (the first bin centre lands at
+  // `windowSize / 2` ms, not at the plot edge).
   for (let i = 0; i < renderBinCount; i++) {
     if (i === 0) xPositions[i] = floorLeft
     else if (i === renderBinCount - 1) xPositions[i] = floorLeft + floorWidth
-    else xPositions[i] = floorLeft + (i - 0.5) * invBinCount * floorWidth
+    else {
+      const dataIdx = i - 1
+      const centreMs = dataIdx * stepSize + windowSize / 2
+      xPositions[i] = floorLeft + (centreMs / plotRange) * floorWidth
+    }
   }
 
   // 2. Axis and Scaling Configuration
@@ -142,32 +175,31 @@ export function transformStreamDataToCoordinates(
   let yAxisMax = 100
 
   if (alignment === 'stream' || alignment === 'distribution') {
-    // Populate totals for stacking
+    // Populate totals for stacking (raw values, no scaling)
     for (let s = 0; s < series.length; s++) {
       const vals = series[s].values
       for (let i = 0; i < dataBinCount; i++) {
-        totals[i + 1] += vals[i] * percentFactor
+        totals[i + 1] += vals[i]
       }
     }
 
     if (alignment === 'stream') {
-      const computed = computeNiceYAxis(maxTotalPercent / 2)
+      const computed = computeNiceYAxis(maxTotalForAxis / 2)
       axisHalfRange = computed.axisHalfRange
       axisTicks = computed.ticks
       yAxisMin = -axisHalfRange
       yAxisMax = axisHalfRange
-      for (let i = 0; i < renderBinCount; i++) cumulative[i] = -totals[i] * 0.5
+      for (let i = 0; i < renderBinCount; i++) cumulative[i] = -totals[i] * STREAM_SYMMETRY_FACTOR
     } else {
-      const padded = Math.max(1, maxTotalPercent)
-      const step = niceStep(padded / (Y_AXIS.TARGET_POSITIVE_TICKS * 2))
-      const axisMax = Math.max(1, Math.ceil(padded / step) * step)
+      const step = niceStep(maxTotalForAxis / (Y_AXIS.TARGET_POSITIVE_TICKS * 2))
+      const axisMax = Math.max(step, Math.ceil(maxTotalForAxis / step) * step)
       axisTicks = [0]
       for (let v = step; v <= axisMax + step * 0.001; v += step)
         axisTicks.push(v)
       yAxisMax = axisMax
     }
   } else if (alignment === 'ridgeline') {
-    axisTicks = [0, 100]
+    axisTicks = [0, maxCellForHeat]
   }
 
   let scaleY = 1
@@ -257,7 +289,7 @@ export function transformStreamDataToCoordinates(
         const val =
           i === 0 || i === renderBinCount - 1
             ? 0
-            : series[s].values[i - 1] * percentFactor
+            : series[s].values[i - 1]
 
         // Store rank: sIdx is the visual stack index (0 is bottom)
         seriesRanks[s * renderBinCount + i] = sIdx
@@ -306,15 +338,13 @@ export function transformStreamDataToCoordinates(
               bucket.heatmapColors[i] = 'transparent'
               bucket.topY[i] = sBottom
             } else {
-              const val = Math.max(
-                0,
-                Math.min(100, source.values[i - 1] * percentFactor)
-              )
+              const raw = source.values[i - 1]
+              const val = Math.max(0, Math.min(maxCellForHeat, raw))
               if (val <= 0) {
                 // NODATA: let the plot-area gray background show through.
                 bucket.heatmapColors[i] = 'transparent'
               } else {
-                const scaledVal = (val / 100) * paletteStopCount
+                const scaledVal = (val / maxCellForHeat) * paletteStopCount
                 const baseIdx = Math.floor(scaledVal)
                 const nextIdx = Math.min(palette.length - 1, baseIdx + 1)
                 bucket.heatmapColors[i] = interpolateColor(
@@ -328,13 +358,15 @@ export function transformStreamDataToCoordinates(
             bucket.bottomY[i] = sBottom
           }
         } else {
+          // Ridgeline: pixels per native-unit value, computed so that the
+          // overall max value occupies CONTENT_FILL of the strip height.
           const localScaleY =
-            (ridgelineReferenceHeight * RIDGELINE_CONTENT_FILL) / 100
+            (ridgelineReferenceHeight * RIDGELINE_CONTENT_FILL) / maxCellForHeat
           for (let i = 0; i < renderBinCount; i++) {
             const val =
               i === 0 || i === renderBinCount - 1
                 ? 0
-                : source.values[i - 1] * percentFactor
+                : source.values[i - 1]
             bucket.bottomY[i] = sBottom
             bucket.topY[i] = sBottom - val * localScaleY
           }
@@ -346,7 +378,7 @@ export function transformStreamDataToCoordinates(
           const val =
             i === 0 || i === renderBinCount - 1
               ? 0
-              : source.values[i - 1] * percentFactor
+              : source.values[i - 1]
           const endVal = startVal + val
           cumulative[i] = endVal
           bucket.topY[i] = yBase - endVal * scaleY

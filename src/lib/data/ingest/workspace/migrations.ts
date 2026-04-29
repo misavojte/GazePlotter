@@ -304,13 +304,23 @@ export function runMigrations(parsedJson: any): any {
     version = 5
   }
 
-  // V5 → V6: baseId rename to align with starter slugs and human labels.
-  // Earlier recipe ids (`averageEntries`, `avgDwellDuration`, …) diverged
-  // from their labels (`Visit count`, `Visit duration`, …) and from their
-  // starter slugs. V6 collapses both into a single canonical name per metric.
+  // V5 → V6: 1.9.0 metrics-system consolidation. Two coordinated rewrites:
+  //   1. `MetricInstance.baseId` rename — earlier recipe ids
+  //      (`averageEntries`, `avgDwellDuration`, …) diverged from their labels
+  //      and starter slugs; V6 collapses both into a single canonical name
+  //      per metric. Slugs (`id`) are append-only and remain untouched.
+  //   2. `aoiStreamPlot` migrated off its bespoke per-bin collector onto the
+  //      shared metric library. Settings used to carry `binSize: number`;
+  //      now they carry `metricInstanceId: string` pointing at a windowed ×
+  //      identity-aoi-vector instance. For each unique `binSize` an item
+  //      references, ensure a matching `absoluteTime` windowed instance
+  //      exists in the library and rewrite the item's settings.
   //
-  // Workspace-stored baseIds live on every `MetricInstance` and must be
-  // rewritten in place; slugs (`id`) are append-only and remain untouched.
+  // Schema bumps: 5 → 6. (V6 is unreleased, so no v6 → v7 is needed; new 1.9
+  // changes belong here.) `metricInstances` may be missing on older v5 files
+  // that predate the seed-on-v4→v5 step (e.g. workspaces created without
+  // ingesting data); hydrate via `createDefaultMetricInstances()` so the
+  // starter library is always present after migration.
   if (version === 5) {
     const BASEID_RENAMES: Record<string, string> = {
       averageEntries:           'visitCount',
@@ -319,13 +329,88 @@ export function runMigrations(parsedJson: any): any {
       avgFixationDuration:      'fixationDuration',
       avgFirstFixationDuration: 'firstFixationDuration',
     }
-    const legacyInstances = data?.data?.metricInstances
-    if (Array.isArray(legacyInstances)) {
-      data.data.metricInstances = legacyInstances.map((inst: any) => {
-        if (!inst || typeof inst.baseId !== 'string') return inst
-        const next = BASEID_RENAMES[inst.baseId]
-        return next ? { ...inst, baseId: next } : inst
+    const payload = data?.data
+    let instances: MetricInstance[] = Array.isArray(payload?.metricInstances)
+      ? payload.metricInstances.map((inst: any) => {
+          if (!inst || typeof inst.baseId !== 'string') return inst
+          const next = BASEID_RENAMES[inst.baseId]
+          return next ? { ...inst, baseId: next } : inst
+        })
+      : createDefaultMetricInstances()
+
+    // Migrate aoi-stream gridItems' `binSize → metricInstanceId`. Each
+    // distinct `binSize` maps to a deterministic slug. Slug collision is
+    // resolved by validating the existing instance's shape against the one
+    // we'd create; on mismatch we generate a UUID-suffixed slug rather than
+    // hijacking a user-authored instance.
+    const slugByBinSize = new Map<number, string>()
+    const matchesExpectedShape = (inst: any, binSize: number): boolean => {
+      if (!inst || inst.baseId !== 'absoluteTime') return false
+      const proj = inst.projection
+      if (!proj || proj.kind !== 'windowed') return false
+      const w = proj.window
+      if (!w || w.windowSize !== binSize || w.stepSize !== binSize) return false
+      const inner = proj.inner
+      return !!inner && inner.kind === 'identity-aoi-vector'
+    }
+    function ensureWindowedAoiInstance(binSize: number): string {
+      const cached = slugByBinSize.get(binSize)
+      if (cached !== undefined) return cached
+      const baseSlug = `absoluteTime-aoi-windowed-${binSize}`
+      const existing = instances.find((i: any) => i && i.id === baseSlug)
+      let slug: string
+      if (!existing) {
+        slug = baseSlug
+        instances.push({
+          id: slug,
+          baseId: 'absoluteTime',
+          params: {},
+          label: `Time on AOI (per ${binSize} ms bin)`,
+          projection: {
+            kind: 'windowed',
+            window: { windowSize: binSize, stepSize: binSize },
+            inner: { kind: 'identity-aoi-vector' },
+          },
+        } as MetricInstance)
+      } else if (matchesExpectedShape(existing, binSize)) {
+        slug = baseSlug
+      } else {
+        // User-authored instance occupies the deterministic slug with a
+        // different shape. Mint a UUID-suffixed slug so we never silently
+        // hijack their instance.
+        slug = `${baseSlug}-${crypto.randomUUID().slice(0, 8)}`
+        instances.push({
+          id: slug,
+          baseId: 'absoluteTime',
+          params: {},
+          label: `Time on AOI (per ${binSize} ms bin)`,
+          projection: {
+            kind: 'windowed',
+            window: { windowSize: binSize, stepSize: binSize },
+            inner: { kind: 'identity-aoi-vector' },
+          },
+        } as MetricInstance)
+      }
+      slugByBinSize.set(binSize, slug)
+      return slug
+    }
+
+    if (Array.isArray(data.gridItems)) {
+      data.gridItems = data.gridItems.map((item: any) => {
+        if (!item || item.type !== 'aoiStreamPlot') return item
+        const s = item.settings
+        if (!s || typeof s !== 'object') return item
+        if (typeof s.metricInstanceId === 'string') return item // already migrated
+        const binSize =
+          typeof s.binSize === 'number' && s.binSize > 0 ? s.binSize : 500
+        const metricInstanceId = ensureWindowedAoiInstance(binSize)
+        const { binSize: _drop, ...rest } = s
+        return { ...item, settings: { ...rest, metricInstanceId } }
       })
+    }
+
+    if (payload && typeof payload === 'object') {
+      payload.metricInstances = instances
     }
     data = { ...data, version: 6 }
     version = 6

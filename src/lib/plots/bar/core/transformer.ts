@@ -179,6 +179,7 @@ function valueAt(result: ReturnType<typeof query>, aoiIndex: number): number {
     case 'aoi-pair-matrix':         return result.matrix[aoiIndex] ?? Number.NaN
     case 'participant-pair-matrix': return Number.NaN
     case 'scalar-timeseries':       return Number.NaN
+    case 'aoi-vector-timeseries':   return Number.NaN
   }
 }
 

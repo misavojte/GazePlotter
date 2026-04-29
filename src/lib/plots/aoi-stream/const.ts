@@ -10,6 +10,22 @@ export const RIDGELINE_SCALE = 2.5
 // Fraction of strip height used for data content (remaining is visual padding)
 export const RIDGELINE_CONTENT_FILL = 0.9
 
+/**
+ * Floor for the top ridgeline strip's data fraction (`mTop`) when local
+ * rendering is requested via `applyMinTopHeight`. Empty / sparse data
+ * would otherwise collapse the top strip to zero pixels; this keeps a
+ * visible baseline so an empty plot still shows the strip layout.
+ */
+export const RIDGELINE_MIN_M_TOP = 0.2
+
+/**
+ * Stream-graph baseline factor. The stacked totals are centred at
+ * `-totals × STREAM_SYMMETRY_FACTOR` so the curve is vertically symmetric
+ * around `axisHalfRange`. 0.5 puts the baseline at the midpoint of the
+ * total — half above, half below.
+ */
+export const STREAM_SYMMETRY_FACTOR = 0.5
+
 export const MARGIN = {
   TOP: 5,
   RIGHT: 1,

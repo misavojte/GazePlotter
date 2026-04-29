@@ -35,11 +35,15 @@ export const aoiStreamPlotDefinition = definePlot<
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
     groupId: params.groupId ?? -1,
-    binSize: 500,
+    metricInstanceId: 'absoluteTime-aoi-windowed-500',
     absoluteStimuliLimits: [],
   }),
   getMinSize: () => ({ w: 11, h: 10 }),
   getDefaultHeight: () => 12,
   getDefaultWidth: () => 12,
   requireCapabilities: ['segmented'],
+  consumesMetrics: {
+    outputShape: 'aoi-vector',
+    windowing: 'required',
+  },
 })

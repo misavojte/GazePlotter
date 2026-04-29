@@ -114,7 +114,7 @@
       : [...PRESET_PALETTES.HEAT.colors]
   )
 
-  const X_AXIS_LABEL = $derived(`Elapsed time [ms; Δ ${data.binSize} ms]`)
+  const X_AXIS_LABEL = $derived(`Elapsed time [${data.windowLabel}]`)
   const X_AXIS_LABEL_OFFSET = 30
   const AREA_DIVIDER = {
     COLOR: 'rgba(255, 255, 255, 0.4)',
@@ -288,9 +288,9 @@
       availableWidth: safeWidth,
       availableHeight: legendHeight,
       colorScale: effectiveColorScale,
-      valueRange: [0, 100],
-      effectiveMaxValue: 100,
-      title: 'Share of participants fixating [%]',
+      valueRange: [0, Math.max(1, data.maxValue)],
+      effectiveMaxValue: Math.max(1, data.maxValue),
+      title: data.yAxisLabel,
       belowMinColor: INACTIVE_COLOR,
     })
   })
@@ -675,7 +675,7 @@
     if (alignment !== 'heatmap') {
       drawYAxisMainLabel(
         ctx,
-        'Share of participants fixating [%]',
+        data.yAxisLabel,
         floorLeft,
         floorTop,
         floorHeight,
@@ -702,9 +702,9 @@
           availableWidth: safeWidth,
           availableHeight: legendHeight,
           colorScale: effectiveColorScale,
-          valueRange: [0, 100],
-          effectiveMaxValue: 100,
-          title: 'Share of participants fixating [%]',
+          valueRange: [0, Math.max(1, data.maxValue)],
+          effectiveMaxValue: Math.max(1, data.maxValue),
+          title: data.yAxisLabel,
           belowMinColor: INACTIVE_COLOR,
         })
       }
@@ -805,14 +805,18 @@
     if (binIndex !== hoveredBinIndex) {
       hoveredBinIndex = binIndex
       if (binIndex !== null) {
-        // Show tooltip for bin information
-        const binStartTime = data.timeline.minValue + binIndex * data.binSize
-        const binEndTime =
-          data.timeline.minValue + (binIndex + 1) * data.binSize
+        // Window time math: each bin represents a window of length
+        // `windowSize`, with adjacent windows offset by `stepSize`. For
+        // non-overlapping (step === window) this collapses to the disjoint
+        // tile case; for sliding (step < window) consecutive windows
+        // overlap and tooltip times reflect the bin's own window span.
+        const binStartTime =
+          data.timeline.minValue + binIndex * data.stepSize
+        const binEndTime = binStartTime + data.windowSize
         const tooltipContent = [
           {
-            key: 'Time Range',
-            value: `${Math.round(binStartTime)}ms - ${Math.round(binEndTime)}ms`,
+            key: 'Window',
+            value: `${Math.round(binStartTime)} ms – ${Math.round(binEndTime)} ms`,
           },
           {
             key: 'Bin',

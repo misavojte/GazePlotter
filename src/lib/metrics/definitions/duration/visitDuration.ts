@@ -19,7 +19,15 @@ interface Acc {
  * - **Shape:** `aoi-vector`
  * - **Unit:** `ms`
  * - **Category:** `duration`
- * - **Windowing:** supported
+ * - **Windowing:** supported (status quo: any-overlap membership). The
+ *   scientifically-correct rule for windowed visits — "a visit belongs to
+ *   the window containing the visit's midpoint timestamp" — is **deferred**
+ *   until the project specifies the visit-level membership semantics.
+ *   Today, with windowing, a visit that crosses a window boundary
+ *   contributes its accumulated duration to every overlapping window's
+ *   mean. This will change once the visit-membership rule is specified;
+ *   `fixationCount` / `visitCount` already use the SW-RQA midpoint rule.
+ *   See `WindowFrame` in `core/dsl.ts` for the available signals.
  *
  * ### Parameters
  * None.

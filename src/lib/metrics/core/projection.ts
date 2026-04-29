@@ -1,11 +1,15 @@
-import type { OutputShape } from './dsl'
+import type { OutputShape, WindowUnit } from './dsl'
 
 /**
  * Projection is a tree: a LeafProjection reshapes one window's raw finalize
  * output, and an optional `windowed` wrapper carries a WindowSpec + an inner
- * leaf that produces a scalar. Every registered leaf has one entry in
- * PROJECTION_LEAVES that owns its effective shape, label, cache key, and
- * apply function — all dispatch reduces to a single registry lookup.
+ * leaf that produces a scalar or an aoi-vector. Every registered leaf has one
+ * entry in PROJECTION_LEAVES that owns its effective shape, label, cache key,
+ * and apply function — all dispatch reduces to a single registry lookup.
+ *
+ * Synthesized output shapes from windowing:
+ *   windowed × scalar-leaf      → 'scalar-timeseries'
+ *   windowed × aoi-vector-leaf  → 'aoi-vector-timeseries'
  */
 
 export type AoiRef =
@@ -57,7 +61,7 @@ export type LeafProjection =
 export interface WindowedProjection {
   kind: 'windowed'
   window: WindowSpec
-  /** Invariant: PROJECTION_LEAVES[inner.kind].outputShape === 'scalar'. */
+  /** Invariant: PROJECTION_LEAVES[inner.kind].outputShape ∈ { 'scalar', 'aoi-vector' }. */
   inner: LeafProjection
 }
 
@@ -214,7 +218,7 @@ export const PROJECTION_LEAVES: Record<LeafKind, LeafKindDef> = {
   },
 }
 
-// Module-load invariant: any future windowed-by-default leaf must produce scalar.
+// Module-load invariant: any future windowable leaf must produce scalar or aoi-vector.
 // (The invariant is checked per-instance via recipeSupports at the validation layer.)
 
 // ─── Public dispatchers ─────────────────────────────────────────────────────
@@ -225,14 +229,17 @@ export function applyProjection(projection: Projection, ctx: ApplyContext): Appl
 }
 
 export function projectionOutputShape(projection: Projection): OutputShape {
-  if (projection.kind === 'windowed') return 'scalar-timeseries'
+  if (projection.kind === 'windowed') {
+    const innerShape = PROJECTION_LEAVES[projection.inner.kind].outputShape
+    return innerShape === 'aoi-vector' ? 'aoi-vector-timeseries' : 'scalar-timeseries'
+  }
   return PROJECTION_LEAVES[projection.kind].outputShape
 }
 
-export function projectionToLabel(projection: Projection): string {
+export function projectionToLabel(projection: Projection, unit: WindowUnit): string {
   if (projection.kind === 'windowed') {
     const inner = PROJECTION_LEAVES[projection.inner.kind].label(projection.inner)
-    const wlabel = windowLabel(projection.window)
+    const wlabel = windowLabel(projection.window, unit)
     return inner ? `${inner} · ${wlabel}` : wlabel
   }
   return PROJECTION_LEAVES[projection.kind].label(projection)
@@ -256,9 +263,22 @@ export function leafRawShapes(kind: LeafKind): readonly OutputShape[] {
 
 // ─── Window label / key ─────────────────────────────────────────────────────
 
-export function windowLabel(w: WindowSpec): string {
-  const step = w.stepSize !== w.windowSize ? ` / ${w.stepSize} step` : ''
-  return `Window ${w.windowSize}${step}`
+/**
+ * Standardised human-readable window descriptor used across plot axis
+ * labels, instance readouts, and the metric library UI. Format:
+ *
+ *   - non-overlapping (`stepSize === windowSize`):   `"500 ms window"`
+ *   - sliding         (`stepSize !== windowSize`):   `"1000 ms window / 100 ms step"`
+ *
+ * `unit` is the recipe's `windowUnit` ('ms' for time-windowed, 'fixations'
+ * for fixation-windowed RQA recipes; rendered as 'fix' for compactness).
+ */
+export function windowLabel(w: WindowSpec, unit: WindowUnit): string {
+  const u = unit === 'fixations' ? 'fix' : 'ms'
+  if (w.stepSize === w.windowSize) {
+    return `${w.windowSize} ${u} window`
+  }
+  return `${w.windowSize} ${u} window / ${w.stepSize} ${u} step`
 }
 
 export function windowKey(w: WindowSpec): string {

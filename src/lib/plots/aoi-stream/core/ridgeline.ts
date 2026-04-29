@@ -1,6 +1,10 @@
 import type { AoiStreamPlotResult } from '../types'
 
-import { RIDGELINE_CONTENT_FILL, RIDGELINE_SCALE } from '../const'
+import {
+  RIDGELINE_CONTENT_FILL,
+  RIDGELINE_MIN_M_TOP,
+  RIDGELINE_SCALE,
+} from '../const'
 
 /**
  * Calculate the strip height that exactly fills the plot area with n strips
@@ -42,19 +46,21 @@ export function calculateMaxReferenceHeight(
   const availableHeight =
     allowOverlap && scale > 1 ? plotHeight : filledStripHeight
 
-  // Find the max peak percentage of the bottom series (last = outermost ridge)
-  const percentFactor = data.participants > 0 ? 100 / data.participants : 0
+  // Native-unit scale: peak fraction = bottomSeriesMax / maxValueOverall.
+  // The strip's content area occupies CONTENT_FILL of its height; the peak
+  // is positioned at peakFraction × CONTENT_FILL × referenceHeight, so we
+  // solve for the referenceHeight that fills availableHeight at that peak.
+  const maxValue = data.maxValue
+  if (!Number.isFinite(maxValue) || maxValue <= 0) return filledStripHeight
   const bottomSeries = data.series[n - 1]
   let maxPeak = 0
   for (const v of bottomSeries.values) {
-    const pct = v * percentFactor
-    if (pct > maxPeak) maxPeak = pct
+    if (v > maxPeak) maxPeak = v
   }
-
   if (maxPeak <= 0) return filledStripHeight
 
-  // referenceHeight s.t. maxPeak% * CONTENT_FILL / 100 * referenceHeight = availableHeight
-  return (availableHeight * 100) / (maxPeak * RIDGELINE_CONTENT_FILL)
+  const peakFraction = maxPeak / maxValue
+  return availableHeight / (peakFraction * RIDGELINE_CONTENT_FILL)
 }
 
 /**
@@ -72,18 +78,23 @@ export function computeMTop(
   const n = data.series.length
   if (n === 0) return 1.0
 
-  const topSeries = data.series[0]
-  const percentFactor = data.participants > 0 ? 100 / data.participants : 0
-  let maxVal = 0
-  for (const v of topSeries.values) {
-    const val = v * percentFactor
-    if (val > maxVal) maxVal = val
+  // Native-unit scale: top series' max value as a fraction of the overall
+  // single-cell max, scaled by the strip's content-fill factor.
+  const maxValue = data.maxValue
+  if (!Number.isFinite(maxValue) || maxValue <= 0) {
+    return applyMinTopHeight ? RIDGELINE_MIN_M_TOP : 0
   }
 
-  let mTop = (maxVal / 100) * RIDGELINE_CONTENT_FILL
+  const topSeries = data.series[0]
+  let maxVal = 0
+  for (const v of topSeries.values) {
+    if (v > maxVal) maxVal = v
+  }
+
+  let mTop = (maxVal / maxValue) * RIDGELINE_CONTENT_FILL
 
   if (applyMinTopHeight) {
-    mTop = Math.max(mTop, 0.2)
+    mTop = Math.max(mTop, RIDGELINE_MIN_M_TOP)
   }
 
   return mTop

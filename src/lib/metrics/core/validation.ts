@@ -90,8 +90,8 @@ export function recipeSupports(
     return `Metric "${recipe.id}" does not provide an "any fixation" aggregate.`
   }
   if (projection.kind === 'windowed') {
-    if (def.outputShape !== 'scalar') {
-      return 'Only scalar-producing projections can be windowed.'
+    if (def.outputShape !== 'scalar' && def.outputShape !== 'aoi-vector') {
+      return 'Only scalar- or aoi-vector-producing projections can be windowed.'
     }
     if (recipe.supportsWindowing === false) {
       return `Metric "${recipe.id}" does not support windowing.`

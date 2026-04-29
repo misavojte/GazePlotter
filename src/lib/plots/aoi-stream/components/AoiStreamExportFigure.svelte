@@ -14,29 +14,26 @@
   let { item, engine, exportProps }: Props = $props()
   const settings = $derived(item.settings)
 
-  const streamData = $derived.by(
-    () =>
-      getAoiStreamPlotData(
-        engine,
-        {
-          stimulusId: settings.stimulusId,
-          groupId: settings.groupId,
-          binSize: settings.binSize,
-        },
-        null
-      ).data
+  const streamData = $derived(
+    getAoiStreamPlotData(engine, {
+      stimulusId: settings.stimulusId,
+      groupId: settings.groupId,
+      metricInstanceId: settings.metricInstanceId ?? null,
+    })
   )
 </script>
 
-<AoiStreamPlotFigure
-  width={exportProps.width}
-  height={exportProps.height}
-  data={streamData}
-  alignment={settings.alignment ?? 'stream'}
-  highlights={settings.highlights ?? []}
-  dpiOverride={exportProps.dpiOverride}
-  marginTop={exportProps.marginTop}
-  marginRight={exportProps.marginRight}
-  marginBottom={exportProps.marginBottom}
-  marginLeft={exportProps.marginLeft}
-/>
+{#if streamData}
+  <AoiStreamPlotFigure
+    width={exportProps.width}
+    height={exportProps.height}
+    data={streamData}
+    alignment={settings.alignment ?? 'stream'}
+    highlights={settings.highlights ?? []}
+    dpiOverride={exportProps.dpiOverride}
+    marginTop={exportProps.marginTop}
+    marginRight={exportProps.marginRight}
+    marginBottom={exportProps.marginBottom}
+    marginLeft={exportProps.marginLeft}
+  />
+{/if}

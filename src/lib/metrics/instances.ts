@@ -76,13 +76,15 @@ export function defaultInstanceLabel(
             : m.meta.label
         })()
 
-  const projLabel = projection ? projectionToLabel(projection) : ''
+  const projLabel = projection ? projectionToLabel(projection, m.meta.windowUnit) : ''
   return projLabel ? `${base} · ${projLabel}` : base
 }
 
 /** Human-readable readout of the projection (including window suffix). */
 export function formatProjectionReadout(instance: MetricInstance): string | null {
-  const label = projectionToLabel(instance.projection)
+  const m = getMetric(instance.baseId)
+  const unit = m?.meta.windowUnit ?? 'ms'
+  const label = projectionToLabel(instance.projection, unit)
   return label.length > 0 ? label : null
 }
 

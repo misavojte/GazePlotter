@@ -338,6 +338,181 @@ describe('V5 → V6 baseId rename migration', () => {
   })
 })
 
+describe('V5 → V6 aoi-stream binSize → metricInstanceId migration', () => {
+  function buildV5FileWithAoiStream(
+    metricInstances: MetricInstance[],
+    aoiStreamBinSizes: number[]
+  ): Record<string, unknown> {
+    const gridItems = aoiStreamBinSizes.map((binSize, idx) => ({
+      id: idx + 1,
+      type: 'aoiStreamPlot',
+      x: 0,
+      y: idx,
+      w: 12,
+      h: 10,
+      settings: {
+        stimulusId: 0,
+        groupId: -1,
+        binSize,
+        absoluteStimuliLimits: [],
+      },
+    }))
+    return {
+      version: 5,
+      data: {
+        stimuli: { data: [['S1']], orderVector: [0] },
+        participants: { data: [['P1']], orderVector: [0] },
+        participantsGroups: [],
+        categories: { data: [], orderVector: [] },
+        aois: { data: [[]], orderVector: [[]], hiddenAois: [], dynamicVisibility: {} },
+        eventData: { data: [[]], hiddenChannels: [[]], events: [] },
+        capabilities: { segmented: true, spatial: false, event: false },
+        noAoiTreatment: { color: '#cbd5e1', displayedName: 'No AOI' },
+        isOrdinalOnly: false,
+        metricInstances,
+      },
+      gridItems,
+      fileMetadata: null,
+    }
+  }
+
+  it('replaces aoi-stream binSize with metricInstanceId pointing at a deterministic slug', () => {
+    const m = runMigrations(buildV5FileWithAoiStream([], [500]))
+    const item = m.gridItems[0]
+    expect(item.settings.binSize).toBeUndefined()
+    expect(item.settings.metricInstanceId).toBe('absoluteTime-aoi-windowed-500')
+  })
+
+  it('reuses one MetricInstance for multiple items sharing a binSize (deduped slug)', () => {
+    const m = runMigrations(buildV5FileWithAoiStream([], [500, 500, 500]))
+    const ids = m.gridItems.map((g: any) => g.settings.metricInstanceId)
+    expect(new Set(ids).size).toBe(1)
+    const seeded = (m.data.metricInstances as MetricInstance[]).filter(
+      (i: any) => i.id === 'absoluteTime-aoi-windowed-500'
+    )
+    expect(seeded).toHaveLength(1)
+  })
+
+  it('mints distinct MetricInstances per distinct binSize', () => {
+    const m = runMigrations(buildV5FileWithAoiStream([], [500, 1000, 250]))
+    const ids = new Set<string>(
+      m.gridItems.map((g: any) => g.settings.metricInstanceId)
+    )
+    expect(ids).toEqual(
+      new Set([
+        'absoluteTime-aoi-windowed-500',
+        'absoluteTime-aoi-windowed-1000',
+        'absoluteTime-aoi-windowed-250',
+      ])
+    )
+  })
+
+  it('does NOT hijack a user-authored slug — assigns a UUID-suffixed slug on shape mismatch', () => {
+    // User's pre-existing instance shares the deterministic slug but has a
+    // wildly different shape (different baseId + projection). Migration must
+    // preserve it and mint a new slug for the aoi-stream item.
+    const userInstance: MetricInstance = {
+      id: 'absoluteTime-aoi-windowed-500',
+      baseId: 'fixationCount',
+      params: { foo: 'bar' },
+      projection: { kind: 'identity-aoi-vector' },
+      label: "user's metric",
+    }
+    const m = runMigrations(buildV5FileWithAoiStream([userInstance], [500]))
+    const itemInstanceId: string = m.gridItems[0].settings.metricInstanceId
+    expect(itemInstanceId).not.toBe('absoluteTime-aoi-windowed-500')
+    expect(itemInstanceId).toMatch(/^absoluteTime-aoi-windowed-500-[0-9a-f]{8}$/)
+    // Original user instance is preserved unchanged.
+    const preserved = (m.data.metricInstances as MetricInstance[]).find(
+      (i: any) => i.id === 'absoluteTime-aoi-windowed-500'
+    )
+    expect(preserved).toBeDefined()
+    expect(preserved!.baseId).toBe('fixationCount')
+    // The new aoi-stream-pointed instance carries the right shape.
+    const minted = (m.data.metricInstances as MetricInstance[]).find(
+      (i: any) => i.id === itemInstanceId
+    )
+    expect(minted).toBeDefined()
+    expect(minted!.baseId).toBe('absoluteTime')
+    expect((minted!.projection as any).window.windowSize).toBe(500)
+  })
+
+  it('reuses an existing MetricInstance when its shape matches exactly', () => {
+    const matchingInstance: MetricInstance = {
+      id: 'absoluteTime-aoi-windowed-500',
+      baseId: 'absoluteTime',
+      params: {},
+      projection: {
+        kind: 'windowed',
+        window: { windowSize: 500, stepSize: 500 },
+        inner: { kind: 'identity-aoi-vector' },
+      },
+      label: 'Time on AOI (per 500 ms bin)',
+    }
+    const m = runMigrations(
+      buildV5FileWithAoiStream([matchingInstance], [500])
+    )
+    expect(m.gridItems[0].settings.metricInstanceId).toBe(
+      'absoluteTime-aoi-windowed-500'
+    )
+    // No duplicate added.
+    const matches = (m.data.metricInstances as MetricInstance[]).filter(
+      (i: any) => i.id === 'absoluteTime-aoi-windowed-500'
+    )
+    expect(matches).toHaveLength(1)
+  })
+
+  it('hydrates the starter library when metricInstances is missing entirely', () => {
+    // V5 file without `metricInstances` array — must populate via
+    // createDefaultMetricInstances() rather than ending up with `[]` (which
+    // would leave the user without their starter metrics post-upgrade).
+    const file = buildV5FileWithAoiStream([], [500])
+    delete (file.data as any).metricInstances
+    const m = runMigrations(file)
+    const instances = m.data.metricInstances as MetricInstance[]
+    expect(instances.length).toBeGreaterThan(5) // starter library is non-trivial
+    // The aoi-stream's slug also lands.
+    expect(instances.find((i: any) => i.id === 'absoluteTime-aoi-windowed-500')).toBeDefined()
+  })
+
+  it('leaves already-migrated aoi-stream items alone', () => {
+    const file: Record<string, unknown> = {
+      version: 5,
+      data: {
+        stimuli: { data: [['S1']], orderVector: [0] },
+        participants: { data: [['P1']], orderVector: [0] },
+        participantsGroups: [],
+        categories: { data: [], orderVector: [] },
+        aois: { data: [[]], orderVector: [[]], hiddenAois: [], dynamicVisibility: {} },
+        eventData: { data: [[]], hiddenChannels: [[]], events: [] },
+        capabilities: { segmented: true, spatial: false, event: false },
+        noAoiTreatment: { color: '#cbd5e1', displayedName: 'No AOI' },
+        isOrdinalOnly: false,
+        metricInstances: [],
+      },
+      gridItems: [
+        {
+          id: 1,
+          type: 'aoiStreamPlot',
+          x: 0,
+          y: 0,
+          w: 12,
+          h: 10,
+          settings: {
+            stimulusId: 0,
+            groupId: -1,
+            metricInstanceId: 'pre-existing-slug',
+            absoluteStimuliLimits: [],
+          },
+        },
+      ],
+      fileMetadata: null,
+    }
+    const m = runMigrations(file)
+    expect(m.gridItems[0].settings.metricInstanceId).toBe('pre-existing-slug')
+  })
+})
+
 describe('STARTING_METRICS — settings-file integrity', () => {
   it('has unique ids', () => {
     const ids = new Set(STARTING_METRICS.map(s => s.id))

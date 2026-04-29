@@ -44,7 +44,13 @@ defineMetric({
   searchTags: ['fixation', 'duration', 'average', 'mean', 'fix', 'aoi'],
   params: [] as const,
   init: ({ slots }): Acc => ({ durations: Array.from({ length: slots.totalSlots }, () => []) }),
-  onFixation: (acc, { duration, slots }, { slots: info }) => {
+  onFixation: (acc, { frame, duration, slots }, { slots: info }) => {
+    // SW-RQA membership for which window this fixation contributes to;
+    // value uses the actual fixation `duration` (NOT clipped) — the mean
+    // describes "typical fixation length on this AOI", not "typical
+    // overlap with the window". `midpointInWindow` is true for unbounded
+    // scopes, so non-windowed queries are unaffected.
+    if (!frame.midpointInWindow) return
     acc.durations[info.anyFixationSlot].push(duration)
     if (slots.length === 0) { acc.durations[info.noAoiSlot].push(duration); return }
     for (let i = 0; i < slots.length; i++) acc.durations[slots[i]].push(duration)

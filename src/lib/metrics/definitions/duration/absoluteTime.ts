@@ -45,10 +45,16 @@ defineMetric({
   searchTags: ['dwell', 'gaze', 'time', 'absolute', 'total', 'duration', 'aoi'],
   params: [] as const,
   init: ({ slots }) => new Float64Array(slots.totalSlots),
-  onFixation: (acc, { duration, slots }, { slots: info }) => {
-    acc[info.anyFixationSlot] += duration
-    if (slots.length === 0) acc[info.noAoiSlot] += duration
-    else for (let i = 0; i < slots.length; i++) acc[slots[i]] += duration
+  onFixation: (acc, { frame, slots }, { slots: info }) => {
+    // Read `frame.duration` (sub-bin overlap with the active window) so a
+    // fixation crossing window boundaries contributes only its in-window
+    // portion. Across an unbounded scope, frame.duration === fix.duration,
+    // so non-windowed queries are unaffected. Matches the legacy
+    // aoi-stream collector's per-bin overlap math exactly.
+    const dur = frame.duration
+    acc[info.anyFixationSlot] += dur
+    if (slots.length === 0) acc[info.noAoiSlot] += dur
+    else for (let i = 0; i < slots.length; i++) acc[slots[i]] += dur
   },
   finalize: (acc) => Array.from(acc),
 })

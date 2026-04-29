@@ -8,6 +8,7 @@ export type OutputShape =
   | 'aoi-pair-matrix'
   | 'participant-pair-matrix'
   | 'scalar-timeseries'
+  | 'aoi-vector-timeseries'
 export type WindowUnit = 'ms' | 'fixations'
 
 /**
@@ -42,9 +43,80 @@ export interface AoiSlotInfo {
   anyFixationSlot: number
 }
 
+/**
+ * Window-aware projection of a fixation onto the current scope's time
+ * range. Carried on every {@link FixationEvent} so recipes choose their
+ * windowing semantics by the field they read — the *code itself* declares
+ * intent, no meta flag, no parallel field.
+ *
+ * Two scientific signals live here:
+ *
+ *   - `duration` is **fractional sub-bin overlap**:
+ *     `min(fix.end, windowEnd) - max(fix.start, windowStart)`. Matches the
+ *     legacy aoi-stream collector's per-bin overlap math exactly. Use this
+ *     for additive dwell metrics (e.g. `absoluteTime`, `relativeTime`) so
+ *     a fixation crossing window boundaries contributes only its in-window
+ *     portion and per-window sums equal the unwindowed total.
+ *
+ *   - `midpointInWindow` is the **SW-RQA membership rule**: a fixation
+ *     "belongs to" exactly one window — the one whose interval contains
+ *     the fixation's midpoint. Use this to gate count-style metrics (e.g.
+ *     `fixationCount`, `visitCount`) so each fixation contributes to one
+ *     window only and per-window counts sum to the unwindowed total. For
+ *     unbounded scopes this is always `true`.
+ *
+ * For unbounded scopes (`timeStart === 0 && timeEnd === 0`), `windowStart`
+ * is `0`, `windowEnd` is `+Infinity`, `start`/`end`/`duration` mirror the
+ * fixation's own interval, `isClipped` is `false`, and `midpointInWindow`
+ * is `true`.
+ */
+export interface WindowFrame {
+  /** Active scope's lower bound (inclusive). `0` for unbounded scopes. */
+  windowStart: number
+  /** Active scope's upper bound (exclusive). `+Infinity` for unbounded scopes. */
+  windowEnd: number
+  /** `max(fix.start, windowStart)`. */
+  start: number
+  /** `min(fix.end, windowEnd)`. */
+  end: number
+  /**
+   * Sub-bin overlap duration: `end - start`. Matches the legacy
+   * aoi-stream collector's per-bin overlap math exactly. THE established
+   * semantics for the "AOI occupancy" view; never drift.
+   */
+  duration: number
+  /** `true` when the original fixation extends beyond either bound. */
+  isClipped: boolean
+  /**
+   * SW-RQA convention: this fixation's midpoint falls within the window.
+   * Use to gate count-style contributions so each fixation belongs to
+   * exactly one window. `true` for unbounded scopes.
+   */
+  midpointInWindow: boolean
+}
+
+/**
+ * A single fixation passed to a recipe's `onFixation`. Recipes choose
+ * window-aware vs window-naive semantics by the field they read:
+ *
+ *   - `fix.duration` / `fix.start` — the actual fixation's properties,
+ *     irrespective of the active window. Right for mean-of-actual-durations
+ *     metrics (`fixationDuration`, `firstFixationDuration`) and start-time
+ *     queries (`timeToFirstFixation`).
+ *
+ *   - `fix.frame.duration` / `fix.frame.start` / `fix.frame.midpointInWindow`
+ *     — the fixation's projection onto the current scope window. Right for
+ *     additive dwell metrics (`absoluteTime`, `relativeTime`) and count
+ *     metrics (`fixationCount`, `visitCount`).
+ *
+ * The choice is statically inspectable: any `onFixation` body that reads
+ * `fix.frame.*` declares a windowable recipe; bodies that only read
+ * `fix.duration` / `fix.start` / `fix.slots` declare a window-naive one.
+ */
 export interface FixationEvent {
   start: number
   duration: number
+  frame: WindowFrame
   slots: ReadonlyArray<number>
   index: number
 }
@@ -150,6 +222,21 @@ export interface MetricRecipe<P, A> {
    * leaf regardless of windowing. Return a non-null reason to reject.
    */
   rejects?: (projection: Projection) => string | null
+  /**
+   * Author-level veto over a `groupAggregation` × projection combination at
+   * `queryGroup` evaluation time. Lets a recipe declare that a particular
+   * cross-participant reduction is scientifically incoherent for a given
+   * projection — e.g. `relativeTime` (a per-participant percentage) cannot
+   * be summed across participants over a windowed projection without
+   * producing a nonsense scalar. Return a non-null reason to reject.
+   *
+   * Validators (`recipeSupports`) call this at instance creation; runtime
+   * (`runWindowedGroup`) falls back to `mean` if a stale instance trips it.
+   */
+  groupAggregationGuard?(
+    projection: Projection,
+    method: 'mean' | 'median' | 'sum',
+  ): string | null
   defaultLabel?: (params: P) => string
 
   /**

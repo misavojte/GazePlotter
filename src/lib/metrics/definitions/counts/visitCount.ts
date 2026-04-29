@@ -54,7 +54,14 @@ defineMetric({
     previousAois: new Set(),
     wasInNoAoi: false,
   }),
-  onFixation: (acc, { slots }, { slots: info }) => {
+  onFixation: (acc, { frame, slots }, { slots: info }) => {
+    // SW-RQA membership: a visit "belongs to" the window containing the
+    // visit's defining fixation midpoint. Skip-and-don't-update-state for
+    // fixations whose midpoint falls outside the active scope so per-window
+    // visit counts compose to the unwindowed total. For unbounded scopes
+    // `midpointInWindow` is always true, so non-windowed queries match the
+    // existing behaviour.
+    if (!frame.midpointInWindow) return
     if (slots.length === 0) {
       if (!acc.wasInNoAoi) {
         acc.entries[info.noAoiSlot]++

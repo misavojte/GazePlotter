@@ -22,12 +22,29 @@ describe('projectionOutputShape', () => {
     expect(projectionOutputShape({ kind: 'aggregate-aoi', reducer: 'mean' })).toBe('scalar')
     expect(projectionOutputShape({ kind: 'matrix-diagonal' })).toBe('aoi-vector')
   })
-  it('windowed projection is always scalar-timeseries', () => {
+  it('windowed × scalar-leaf → scalar-timeseries', () => {
     expect(projectionOutputShape({
       kind: 'windowed',
       window: { windowSize: 100, stepSize: 100 },
       inner: { kind: 'identity-scalar' },
     })).toBe('scalar-timeseries')
+    expect(projectionOutputShape({
+      kind: 'windowed',
+      window: { windowSize: 100, stepSize: 100 },
+      inner: { kind: 'aggregate-aoi', reducer: 'max' },
+    })).toBe('scalar-timeseries')
+  })
+  it('windowed × aoi-vector-leaf → aoi-vector-timeseries', () => {
+    expect(projectionOutputShape({
+      kind: 'windowed',
+      window: { windowSize: 500, stepSize: 500 },
+      inner: { kind: 'identity-aoi-vector' },
+    })).toBe('aoi-vector-timeseries')
+    expect(projectionOutputShape({
+      kind: 'windowed',
+      window: { windowSize: 500, stepSize: 500 },
+      inner: { kind: 'matrix-diagonal' },
+    })).toBe('aoi-vector-timeseries')
   })
 })
 
@@ -161,19 +178,43 @@ describe('wrapper: applyProjection delegates to inner leaf', () => {
 
 describe('projectionToLabel', () => {
   it('empty string for identity leaves', () => {
-    expect(projectionToLabel({ kind: 'identity-scalar' })).toBe('')
+    expect(projectionToLabel({ kind: 'identity-scalar' }, 'ms')).toBe('')
   })
   it('aoi reducer for aggregate-aoi', () => {
-    expect(projectionToLabel({ kind: 'aggregate-aoi', reducer: 'mean' }))
+    expect(projectionToLabel({ kind: 'aggregate-aoi', reducer: 'mean' }, 'ms'))
       .toMatch(/mean across AOIs/i)
   })
-  it('windowed label appends window suffix', () => {
+  it('non-overlapping window: "<N> ms window"', () => {
     const p: Projection = {
       kind: 'windowed',
-      window: { windowSize: 100, stepSize: 100 },
+      window: { windowSize: 500, stepSize: 500 },
       inner: { kind: 'identity-scalar' },
     }
-    expect(projectionToLabel(p)).toMatch(/Window 100/)
+    expect(projectionToLabel(p, 'ms')).toBe('500 ms window')
+  })
+  it('sliding window: "<N> ms window / <S> ms step"', () => {
+    const p: Projection = {
+      kind: 'windowed',
+      window: { windowSize: 1000, stepSize: 100 },
+      inner: { kind: 'identity-scalar' },
+    }
+    expect(projectionToLabel(p, 'ms')).toBe('1000 ms window / 100 ms step')
+  })
+  it('fixation-windowed RQA renders unit as "fix"', () => {
+    const p: Projection = {
+      kind: 'windowed',
+      window: { windowSize: 20, stepSize: 1 },
+      inner: { kind: 'identity-scalar' },
+    }
+    expect(projectionToLabel(p, 'fixations')).toBe('20 fix window / 1 fix step')
+  })
+  it('inner-leaf label joined with the window via "·"', () => {
+    const p: Projection = {
+      kind: 'windowed',
+      window: { windowSize: 500, stepSize: 500 },
+      inner: { kind: 'aggregate-aoi', reducer: 'max' },
+    }
+    expect(projectionToLabel(p, 'ms')).toMatch(/max across AOIs · 500 ms window/)
   })
 })
 

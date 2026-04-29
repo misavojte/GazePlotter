@@ -4,7 +4,7 @@
   import { AoiStreamPlotFigure } from '$lib/plots/aoi-stream/components'
   import { BasePlot } from '$lib/plots/shared/components'
 
-  import { getAoiStreamPlotData, type CollectorWorkspace } from '../core'
+  import { getAoiStreamPlotData } from '../core'
   import {
     scanForDynamicRidgelineReferenceHeight,
     scanForSynchronizedTimelineMax,
@@ -62,13 +62,7 @@
     )
   })
 
-  let resultState = $state<{
-    data: AoiStreamPlotResult | null
-    workspace: CollectorWorkspace | null
-  }>({
-    data: null,
-    workspace: null,
-  })
+  let resultState = $state<{ data: AoiStreamPlotResult | null }>({ data: null })
 
   $effect(() => {
     const s = settings
@@ -80,17 +74,11 @@
     if (!meta) return
 
     untrack(() => {
-      const { data, workspace } = getAoiStreamPlotData(
-        engine,
-        {
-          ...s,
-          timelineMin: tMin,
-          timelineMax: tMax,
-        },
-        resultState.workspace
-      )
-      resultState.data = data
-      resultState.workspace = workspace
+      resultState.data = getAoiStreamPlotData(engine, {
+        ...s,
+        timelineMin: tMin,
+        timelineMax: tMax,
+      })
     })
   })
 
