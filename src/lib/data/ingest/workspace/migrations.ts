@@ -400,12 +400,50 @@ export function runMigrations(parsedJson: any): any {
         if (!item || item.type !== 'aoiStreamPlot') return item
         const s = item.settings
         if (!s || typeof s !== 'object') return item
-        if (typeof s.metricInstanceId === 'string') return item // already migrated
+        if (Array.isArray(s.metricInstanceIds)) return item // already migrated
+        if (typeof s.metricInstanceId === 'string') return item // first-pass binSize migration done; field-name pass below picks it up
         const binSize =
           typeof s.binSize === 'number' && s.binSize > 0 ? s.binSize : 500
         const metricInstanceId = ensureWindowedAoiInstance(binSize)
         const { binSize: _drop, ...rest } = s
         return { ...item, settings: { ...rest, metricInstanceId } }
+      })
+    }
+
+    // Normalize all metric-reference settings fields to `metricInstanceIds: string[]`.
+    // Per the 1.9.0 plan ("collapse equivalent variants"): three legacy field names
+    // (`metricInstanceId`, `selectedMetricId`, `enabledMetricIds`) collapse into one
+    // canonical array shape. Singleton plots store length-0 (none) or length-1
+    // arrays; multi-select plots (metric-correlation) store N. Idempotent — if
+    // `metricInstanceIds` already exists, the pass is a no-op.
+    if (Array.isArray(data.gridItems)) {
+      data.gridItems = data.gridItems.map((item: any) => {
+        if (!item || typeof item !== 'object') return item
+        const s = item.settings
+        if (!s || typeof s !== 'object') return item
+        if (Array.isArray(s.metricInstanceIds)) return item // already on the new shape
+
+        let nextIds: string[] | null = null
+        let dropKey: 'metricInstanceId' | 'selectedMetricId' | 'enabledMetricIds' | null = null
+        if (typeof s.metricInstanceId === 'string') {
+          nextIds = [s.metricInstanceId]
+          dropKey = 'metricInstanceId'
+        } else if (s.metricInstanceId === null) {
+          nextIds = []
+          dropKey = 'metricInstanceId'
+        } else if (typeof s.selectedMetricId === 'string') {
+          nextIds = [s.selectedMetricId]
+          dropKey = 'selectedMetricId'
+        } else if (s.selectedMetricId === null) {
+          nextIds = []
+          dropKey = 'selectedMetricId'
+        } else if (Array.isArray(s.enabledMetricIds)) {
+          nextIds = s.enabledMetricIds.filter((id: unknown): id is string => typeof id === 'string')
+          dropKey = 'enabledMetricIds'
+        }
+        if (nextIds === null || dropKey === null) return item
+        const { [dropKey]: _drop, ...rest } = s
+        return { ...item, settings: { ...rest, metricInstanceIds: nextIds } }
       })
     }
 

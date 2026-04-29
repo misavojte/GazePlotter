@@ -36,7 +36,14 @@ export type BarPlotSettings = {
   barPlottingType: 'vertical' | 'horizontal'
   orderBy: 'value' | 'aoi'
   orderDirection: 'asc' | 'desc'
-  metricInstanceId: string | null
+  /**
+   * Workspace-level metric library reference, stored as an array even for
+   * single-select plots so persistence is uniform with multi-select plots
+   * like metric-correlation. Length 0 = no selection; length 1 = the chosen
+   * instance id. The plot's contract (`multiSelect: false`) constrains the
+   * UI to a single choice; the array shape is the canonical wire format.
+   */
+  metricInstanceIds: string[]
   scaleRange: [number, number]
   timelineStart?: number
   timelineEnd?: number
@@ -63,7 +70,7 @@ export interface BarPlotResult {
    * cross-plot sync can compare apples to apples between plots.
    */
   dataMax: number
-  /** True when the plot's `metricInstanceId` points to a missing instance. */
+  /** True when the plot's `metricInstanceIds[0]` points to a missing instance. */
   noMetric?: boolean
 }
 

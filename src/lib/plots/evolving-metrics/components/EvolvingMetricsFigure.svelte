@@ -32,6 +32,7 @@
     niceTimelineTicks,
     bottomOriginYTicks,
   } from '$lib/plots/shared/plotArea'
+  import { drawCanvasPlaceholder, METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
   import { safeNumber } from '$lib/shared/utils/mathUtils'
   import { MARGIN, AXIS_CONFIG } from '../const'
@@ -274,6 +275,14 @@
 
     const ctx = plot.canvasState.context
     if (!ctx) return
+
+    // Empty-state branch: paint the standardized placeholder onto the canvas
+    // so exports include the message instead of a blank PNG/SVG.
+    if (data.noMetric) {
+      drawCanvasPlaceholder(ctx, width, height, METRIC_MISSING_MESSAGE)
+      finishCanvasDrawing(plot.canvasState)
+      return
+    }
 
     const floorLeft = Math.floor(plotLeft)
     const floorTop = Math.floor(plotTop)

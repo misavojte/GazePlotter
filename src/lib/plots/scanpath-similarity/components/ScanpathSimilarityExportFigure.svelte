@@ -24,7 +24,7 @@
       engine,
       settings.stimulusId,
       settings.groupId,
-      settings.metricInstanceId,
+      settings.metricInstanceIds[0] ?? null,
     )
   )
 
@@ -48,9 +48,13 @@
   )
 </script>
 
-{#if settings.view === 'scangraph' && scangraphData}
+<!-- Always render the figure; it paints the canvas-based "Select a metric"
+     placeholder internally when `similarityData.noMetric` is set, so exports
+     include the message instead of a blank PNG/SVG. -->
+{#if settings.view === 'scangraph'}
   <ScangraphFigure
-    data={scangraphData}
+    data={scangraphData ?? { nodes: [], links: [] }}
+    noMetric={similarityData.noMetric ?? false}
     width={exportProps.width}
     height={exportProps.height}
     dpiOverride={exportProps.dpiOverride}
@@ -63,6 +67,7 @@
   <SimilarityMatrixFigure
     matrix={similarityData.matrix}
     labels={similarityData.labels}
+    noMetric={similarityData.noMetric ?? false}
     width={exportProps.width}
     height={exportProps.height}
     colorScale={colorScale}

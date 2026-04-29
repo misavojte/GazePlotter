@@ -83,9 +83,14 @@
   })
 
   const streamResult = $derived(resultState.data)
+  const hasRenderableData = $derived(
+    !!streamResult && !streamResult.noMetric && streamResult.series.length > 0
+  )
 
   const syncedMTopOverride = $derived.by(() => {
-    if (settings.alignment !== 'ridgeline' || !streamResult) return null
+    if (settings.alignment !== 'ridgeline' || !streamResult || !hasRenderableData) {
+      return null
+    }
     return scanForDynamicRidgelineReferenceHeight(
       engine,
       grid.items,

@@ -18,22 +18,23 @@
     getAoiStreamPlotData(engine, {
       stimulusId: settings.stimulusId,
       groupId: settings.groupId,
-      metricInstanceId: settings.metricInstanceId ?? null,
+      metricInstanceIds: settings.metricInstanceIds,
     })
   )
 </script>
 
-{#if streamData}
-  <AoiStreamPlotFigure
-    width={exportProps.width}
-    height={exportProps.height}
-    data={streamData}
-    alignment={settings.alignment ?? 'stream'}
-    highlights={settings.highlights ?? []}
-    dpiOverride={exportProps.dpiOverride}
-    marginTop={exportProps.marginTop}
-    marginRight={exportProps.marginRight}
-    marginBottom={exportProps.marginBottom}
-    marginLeft={exportProps.marginLeft}
-  />
-{/if}
+<!-- Always render the figure; it paints the canvas-based "Select a metric"
+     placeholder internally when `streamData.noMetric` is set, so exports
+     include the message instead of a blank PNG/SVG. -->
+<AoiStreamPlotFigure
+  width={exportProps.width}
+  height={exportProps.height}
+  data={streamData}
+  alignment={settings.alignment ?? 'stream'}
+  highlights={settings.highlights ?? []}
+  dpiOverride={exportProps.dpiOverride}
+  marginTop={exportProps.marginTop}
+  marginRight={exportProps.marginRight}
+  marginBottom={exportProps.marginBottom}
+  marginLeft={exportProps.marginLeft}
+/>

@@ -2,6 +2,10 @@
   import { getColorForValue } from '$lib/color/utility'
   import { updateTooltip } from '$lib/tooltip'
   import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
+  import {
+    drawCanvasPlaceholder,
+    METRIC_MISSING_MESSAGE,
+  } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { untrack } from 'svelte'
   import {
     getScaledMousePosition,
@@ -32,6 +36,7 @@
     colorScale = ['#f7fbff', '#08306b'],
     colorValueRange = [0, 1],
     legendTitle = 'Similarity',
+    noMetric = false,
     dpiOverride = null,
     marginTop = 0,
     marginRight = 0,
@@ -45,6 +50,7 @@
     colorScale?: string[]
     colorValueRange: [number, number]
     legendTitle?: string
+    noMetric?: boolean
     dpiOverride?: number | null
     marginTop?: number
     marginRight?: number
@@ -123,6 +129,18 @@
     beginCanvasDrawing(plot.canvasState, true)
     const ctx = plot.canvasState.context
     if (!ctx) return
+
+    // Empty-state branches: paint onto the canvas so exports include the
+    // message instead of a blank PNG/SVG. `noMetric` (resolution failed)
+    // takes priority over `labels.length === 0` (no participant data) since
+    // the user's first action is fixing the metric, not the data.
+    if (noMetric) {
+      const cw = width + marginLeft + marginRight
+      const ch = height + marginTop + marginBottom
+      drawCanvasPlaceholder(ctx, cw, ch, METRIC_MISSING_MESSAGE)
+      finishCanvasDrawing(plot.canvasState)
+      return
+    }
 
     if (labels.length === 0) {
       ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`

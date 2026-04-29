@@ -37,7 +37,7 @@ export const transitionMatrixDefinition = definePlot<
     stimulusId: params.stimulusId ?? 0,
     groupId: params.groupId ?? -1,
     stimuliColorValueRanges: [],
-    metricInstanceId: 'transitionCount-fix',
+    metricInstanceIds: ['transitionCount-fix'],
     belowMinColor: INACTIVE_COLOR,
     aboveMaxColor: INACTIVE_COLOR,
     showBelowMinLabels: false,

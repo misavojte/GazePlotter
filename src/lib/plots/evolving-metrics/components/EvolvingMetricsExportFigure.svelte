@@ -4,7 +4,6 @@
   import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
   import EvolvingMetricsFigure from './EvolvingMetricsFigure.svelte'
   import { getEvolvingMetricsData } from '$lib/plots/evolving-metrics/core'
-  import { CanvasPlaceholder } from '$lib/plots/shared/components'
 
   interface Props {
     item: EvolvingMetricsItem
@@ -19,28 +18,23 @@
     getEvolvingMetricsData(engine, {
       stimulusId: settings.stimulusId,
       groupId: settings.groupId,
-      selectedMetricId: settings.selectedMetricId,
+      metricInstanceIds: settings.metricInstanceIds,
     })
   )
 </script>
 
-{#if evolvingData}
-  <EvolvingMetricsFigure
-    width={exportProps.width}
-    height={exportProps.height}
-    data={evolvingData}
-    alignment={settings.presentation ?? 'heatmap'}
-    colorScale={settings.colorScale}
-    dpiOverride={exportProps.dpiOverride}
-    marginTop={exportProps.marginTop}
-    marginRight={exportProps.marginRight}
-    marginBottom={exportProps.marginBottom}
-    marginLeft={exportProps.marginLeft}
-  />
-{:else}
-  <CanvasPlaceholder
-    width={exportProps.width}
-    height={exportProps.height}
-    message="Select a metric"
-  />
-{/if}
+<!-- Always render the figure; it paints the canvas-based "Select a metric"
+     placeholder internally when `evolvingData.noMetric` is set, so exports
+     include the message instead of a blank PNG/SVG. -->
+<EvolvingMetricsFigure
+  width={exportProps.width}
+  height={exportProps.height}
+  data={evolvingData}
+  alignment={settings.presentation ?? 'heatmap'}
+  colorScale={settings.colorScale}
+  dpiOverride={exportProps.dpiOverride}
+  marginTop={exportProps.marginTop}
+  marginRight={exportProps.marginRight}
+  marginBottom={exportProps.marginBottom}
+  marginLeft={exportProps.marginLeft}
+/>

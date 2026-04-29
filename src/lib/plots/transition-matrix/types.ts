@@ -5,11 +5,13 @@ export type TransitionMatrixPlotSettings = {
   stimulusId: number
   groupId: number
   /**
-   * Picked from the metric library; filtered to aoi-pair-matrix metrics.
-   * Presentation transforms (probability, relative frequency, mean dwell) live on
-   * the metric itself — the plot just renders whatever matrix the metric produces.
+   * Slug(s) of the aoi-pair-matrix MetricInstance(s) this plot renders.
+   * Stored as an array for uniformity with multi-select plots; the contract
+   * is single-select so length is 0 (none) or 1 (selected). Presentation
+   * transforms (probability, relative frequency, mean dwell) live on the
+   * metric — the plot just renders whatever matrix the metric produces.
    */
-  metricInstanceId: string | null
+  metricInstanceIds: string[]
   stimuliColorValueRanges: [number, number][]
   belowMinColor: string
   aboveMaxColor: string
@@ -27,6 +29,6 @@ export interface TransitionMatrixData {
   matrix: Float64Array | number[]
   aoiLabels: string[]
   aoiList: ExtendedInterpretedDataType[]
-  /** True when the plot's `metricInstanceId` points to a missing instance. */
+  /** True when the plot's `metricInstanceIds[0]` points to a missing instance. */
   noMetric?: boolean
 }

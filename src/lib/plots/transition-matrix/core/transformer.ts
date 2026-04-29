@@ -2,11 +2,16 @@ import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import { getAois, getParticipantsIds } from '$lib/data/engine'
 import {
   queryGroup,
-  resolveInstance,
   type GroupScope,
-  type MetricResult,
+  type PlotMetricContract,
 } from '$lib/metrics'
+import {
+  asAoiPairMatrix,
+  resolveContractedInstance,
+} from '$lib/plots/shared'
 import type { TransitionMatrixData } from '../types'
+
+const CONTRACT = { outputShape: 'aoi-pair-matrix', windowing: 'forbidden' } as const satisfies PlotMetricContract
 
 export function getTransitionMatrixData(
   engine: DataEngine,
@@ -25,8 +30,8 @@ export function getTransitionMatrixData(
     meta.noAoiTreatment.displayedName,
   ]
 
-  const instance = resolveInstance(meta.metricInstances ?? [], metricInstanceId)
-  if (!instance) {
+  const resolution = resolveContractedInstance(meta.metricInstances, metricInstanceId, CONTRACT)
+  if (!resolution.ok) {
     return { matrix: new Float64Array(size * size), aoiLabels, aoiList, noMetric: true }
   }
   if (participantIds.length === 0) {
@@ -34,11 +39,10 @@ export function getTransitionMatrixData(
   }
 
   const scope: GroupScope = { engine, stimulusId, participantIds }
-  const matrix = matrixOf(queryGroup(instance, scope))
-  return { matrix, aoiLabels, aoiList }
-}
-
-function matrixOf(result: MetricResult): Float64Array {
-  if (result.shape !== 'aoi-pair-matrix') return new Float64Array(0)
-  return Float64Array.from(result.matrix)
+  const matrix = asAoiPairMatrix(queryGroup(resolution.instance, scope))
+  return {
+    matrix: matrix ? Float64Array.from(matrix.matrix) : new Float64Array(0),
+    aoiLabels,
+    aoiList,
+  }
 }

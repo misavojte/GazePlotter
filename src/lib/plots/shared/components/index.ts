@@ -12,3 +12,4 @@ export { default as CompactSettingsSection } from './CompactSettingsSection.svel
 export { default as CompactSettingsSeparator } from './CompactSettingsSeparator.svelte'
 export { default as PlotSubheader } from './PlotSubheader.svelte'
 export { default as CanvasPlaceholder } from './CanvasPlaceholder.svelte'
+export { default as ContractMetricSelect } from './ContractMetricSelect.svelte'

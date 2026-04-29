@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { flip } from 'svelte/animate'
   import { slide } from 'svelte/transition'
   import { cubicOut } from 'svelte/easing'
+  import Copy from 'lucide-svelte/icons/copy'
   import GripVertical from 'lucide-svelte/icons/grip-vertical'
   import Pencil from 'lucide-svelte/icons/pencil'
   import X from 'lucide-svelte/icons/x'
@@ -45,6 +47,8 @@
 
   interface Props {
     contract: PlotMetricContract
+    /** If provided, the matching instance auto-expands in edit mode on mount. */
+    editMetricId?: string
     oncreateInstance?: (
       baseId: string,
       params: Record<string, unknown>,
@@ -56,7 +60,13 @@
     onrenameInstance?: (id: string, label: string) => void
   }
 
-  let { contract, oncreateInstance, ondeleteInstance, onrenameInstance }: Props = $props()
+  let {
+    contract,
+    editMetricId,
+    oncreateInstance,
+    ondeleteInstance,
+    onrenameInstance,
+  }: Props = $props()
 
   const { engine } = getGazePlotterSession()
 
@@ -228,6 +238,26 @@
     expandEdit(inst)
   }
 
+  function duplicateInstance(inst: MetricInstance) {
+    const params = { ...inst.params }
+    const projection: Projection = JSON.parse(JSON.stringify(inst.projection))
+    const label = `${inst.label} (copy)`
+    const newId = engine.addMetricInstance(inst.baseId, params, label, projection)
+    if (!newId) return
+    expandEdit({ id: newId, baseId: inst.baseId, params, label, projection })
+  }
+
+  // Auto-expand the requested metric for editing on mount. Tracks only
+  // `editMetricId` (a one-shot prop set when the modal opens); the lookup
+  // runs untracked so subsequent metadata edits don't re-trigger the effect.
+  $effect(() => {
+    if (!editMetricId) return
+    untrack(() => {
+      const inst = engine.metadata?.metricInstances.find(i => i.id === editMetricId)
+      if (inst) expandEdit(inst)
+    })
+  })
+
   function buildProjection(leaf: LeafProjection, window: WindowSpec | null): Projection {
     return window ? { kind: 'windowed', window, inner: leaf } : leaf
   }
@@ -356,6 +386,14 @@
               aria-label="Edit"
             >
               <Pencil size={13} />
+            </button>
+            <button
+              class="icon-btn"
+              onclick={() => duplicateInstance(inst)}
+              title="Duplicate"
+              aria-label="Duplicate"
+            >
+              <Copy size={13} />
             </button>
             <button
               class="icon-btn danger"
@@ -693,8 +731,7 @@
     display: flex;
     flex-direction: column;
     gap: 0;
-    min-width: 360px;
-    max-width: 480px;
+    width: min(560px, calc(100vw - 4rem));
   }
 
   .search-row { margin-bottom: 14px; }

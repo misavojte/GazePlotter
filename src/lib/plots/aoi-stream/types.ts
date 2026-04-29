@@ -5,11 +5,12 @@ export type AoiStreamPlotSettings = {
   stimulusId: number
   groupId: number
   /**
-   * Slug of the windowed × aoi-vector MetricInstance this plot renders.
-   * The instance's WindowedProjection owns the bin size — there is no
-   * separate `binSize` setting; window configuration lives on the metric.
+   * Slug(s) of the windowed × aoi-vector MetricInstance this plot renders.
+   * Stored as an array for uniformity with multi-select plots; the contract
+   * is single-select so length is 0 (none) or 1 (selected). The instance's
+   * WindowedProjection owns the bin size — no separate `binSize` setting.
    */
-  metricInstanceId: string | null
+  metricInstanceIds: string[]
   highlights?: string[]
   absoluteStimuliLimits: [number, number][]
   alignment?: 'stream' | 'distribution' | 'ridgeline' | 'heatmap'
@@ -79,4 +80,6 @@ export interface AoiStreamPlotResult {
    * same phrasing regardless of metric.
    */
   windowLabel: string
+  /** True when the plot's `metricInstanceIds[0]` points to a missing instance. */
+  noMetric?: boolean
 }

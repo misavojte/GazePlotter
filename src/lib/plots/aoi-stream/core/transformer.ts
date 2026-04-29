@@ -7,16 +7,43 @@ import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import { formatMetricLabel } from '$lib/plots/shared/metricLabels'
 import {
+  asAoiVectorTimeseries,
+  resolveContractedInstance,
+} from '$lib/plots/shared'
+import {
   queryGroup,
-  resolveInstance,
   getMetric,
   windowLabel,
   type GroupScope,
-  type MetricInstance,
+  type PlotMetricContract,
 } from '$lib/metrics'
 import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
 import type { AoiStreamPlotSettings } from '../types'
 import { COLOR_FALLBACKS } from '$lib/color'
+
+const CONTRACT = { outputShape: 'aoi-vector', windowing: 'required' } as const satisfies PlotMetricContract
+
+/**
+ * Empty result shell. Used for both "no metric configured" and "no data"
+ * fallbacks; the discriminator is `noMetric` (set only when the configured
+ * instance is missing or doesn't match the contract).
+ */
+function emptyAoiStreamResult(noMetric = false): AoiStreamPlotResult {
+  return {
+    series: [],
+    timeline: createAdaptiveTimeline(0, 100, 6),
+    binCount: 0,
+    windowSize: 0,
+    stepSize: 0,
+    maxTime: 0,
+    participants: 0,
+    maxTotal: 0,
+    maxValue: 0,
+    yAxisLabel: '',
+    windowLabel: '',
+    ...(noMetric ? { noMetric: true as const } : {}),
+  }
+}
 
 /**
  * Compute aoi-stream data via a single `queryGroup()` call into the metric
@@ -38,29 +65,35 @@ export function getAoiStreamPlotData(
   engine: DataEngine,
   settings: Pick<
     AoiStreamPlotSettings,
-    'stimulusId' | 'groupId' | 'metricInstanceId'
+    'stimulusId' | 'groupId' | 'metricInstanceIds'
   > & {
     timelineMin?: number
     timelineMax?: number
   }
-): AoiStreamPlotResult | null {
+): AoiStreamPlotResult {
   const meta = engine.metadata
-  if (!meta) return null
+  if (!meta) return emptyAoiStreamResult()
 
-  const instance: MetricInstance | undefined = resolveInstance(
-    meta.metricInstances ?? [],
-    settings.metricInstanceId ?? null,
+  const resolution = resolveContractedInstance(
+    meta.metricInstances,
+    settings.metricInstanceIds?.[0] ?? null,
+    CONTRACT,
   )
-  if (!instance || instance.projection.kind !== 'windowed') return null
+  if (!resolution.ok) return emptyAoiStreamResult(true)
+
+  const { instance } = resolution
+  // Contract-guaranteed (windowing: 'required') — the type narrows for callers
+  // that read `projection.window` below.
+  if (instance.projection.kind !== 'windowed') return emptyAoiStreamResult(true)
 
   const windowSize = instance.projection.window.windowSize
   const stepSize = instance.projection.window.stepSize
-  if (!Number.isFinite(windowSize) || windowSize <= 0) return null
-  if (!Number.isFinite(stepSize) || stepSize <= 0) return null
+  if (!Number.isFinite(windowSize) || windowSize <= 0) return emptyAoiStreamResult(true)
+  if (!Number.isFinite(stepSize) || stepSize <= 0) return emptyAoiStreamResult(true)
 
   const { stimulusId, groupId } = settings
   const participantIds = getParticipantsIds(engine, groupId, stimulusId)
-  if (participantIds.length === 0) return null
+  if (participantIds.length === 0) return emptyAoiStreamResult()
 
   let maxTime = 0
   for (let i = 0; i < participantIds.length; i++) {
@@ -82,8 +115,8 @@ export function getAoiStreamPlotData(
     timeStart: timelineMin,
     timeEnd: Math.max(timelineMin + windowSize, timelineMax),
   }
-  const result = queryGroup(instance, groupScope)
-  if (result.shape !== 'aoi-vector-timeseries') return null
+  const result = asAoiVectorTimeseries(queryGroup(instance, groupScope))
+  if (!result) return emptyAoiStreamResult(true)
 
   // Reshape the library's per-window aoi-vectors into per-AOI time series.
   // `result.slots` is the authoritative slot layout — never reach into

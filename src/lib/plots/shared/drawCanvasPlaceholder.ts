@@ -1,4 +1,15 @@
 /**
+ * Standardized "empty state" copy. Each plot's figure paints this onto its
+ * own canvas when the contracted metric resolution failed, so exports include
+ * the message instead of rendering blank. Single-select plots use
+ * METRIC_MISSING_MESSAGE; multi-select (metric-correlation) uses
+ * METRIC_MISSING_MULTI_MESSAGE because "select a metric" is misleading when
+ * the user actually needs ≥ 2.
+ */
+export const METRIC_MISSING_MESSAGE = 'Select a metric'
+export const METRIC_MISSING_MULTI_MESSAGE = 'Select at least two metrics'
+
+/**
  * Paints a centered "empty state" message onto a canvas. Used by every plot
  * when its selected metric instance has been deleted — the placeholder sits
  * on the canvas itself so exports include the message instead of rendering

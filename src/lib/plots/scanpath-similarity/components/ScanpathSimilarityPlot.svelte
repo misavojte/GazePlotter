@@ -31,7 +31,7 @@
   )
 
   const resolvedInstance = $derived(
-    resolveInstance(engine.metadata?.metricInstances ?? [], settings.metricInstanceId)
+    resolveInstance(engine.metadata?.metricInstances ?? [], settings.metricInstanceIds[0] ?? null)
   )
   const resolvedMetric = $derived(
     resolvedInstance ? getMetric(resolvedInstance.baseId) : undefined
@@ -42,7 +42,7 @@
       engine,
       settings.stimulusId,
       settings.groupId,
-      settings.metricInstanceId,
+      settings.metricInstanceIds[0] ?? null,
     )
   )
 
@@ -70,22 +70,24 @@
   }
 </script>
 
-<BasePlot {item} hasData={similarityData.size > 0}>
+<BasePlot {item} hasData={similarityData.size > 0 || (similarityData.noMetric ?? false)}>
   {#snippet figure({ width, height })}
     <div class="figure-container">
       {#if (settings.view ?? 'matrix') === 'matrix'}
         <SimilarityMatrixFigure
           matrix={similarityData.matrix}
           labels={similarityData.labels}
+          noMetric={similarityData.noMetric ?? false}
           {width}
           {height}
           colorScale={effectiveColorScale}
           {colorValueRange}
           {legendTitle}
         />
-      {:else if settings.view === 'scangraph' && scangraphData}
+      {:else if settings.view === 'scangraph'}
         <ScangraphFigure
-          data={scangraphData}
+          data={scangraphData ?? { nodes: [], links: [] }}
+          noMetric={similarityData.noMetric ?? false}
           {width}
           {height}
           threshold={settings.threshold ?? 0.5}

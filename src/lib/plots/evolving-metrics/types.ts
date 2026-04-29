@@ -4,7 +4,12 @@ import type { PlotItemContract } from '$lib/plots/definePlot'
 export type EvolvingMetricsSettings = {
   stimulusId: number
   groupId: number
-  selectedMetricId: string | null
+  /**
+   * Slug(s) of the windowed × scalar MetricInstance this plot renders.
+   * Stored as an array for uniformity with multi-select plots; the contract
+   * is single-select so length is 0 (none) or 1 (selected).
+   */
+  metricInstanceIds: string[]
   presentation?: 'heatmap' | 'overlay'
   colorScale?: string[]
   timelineStart?: number
@@ -51,4 +56,6 @@ export interface EvolvingMetricsResult {
   maxTime: number
   valueMin: number
   valueMax: number
+  /** True when the plot's `metricInstanceIds[0]` points to a missing instance. */
+  noMetric?: boolean
 }

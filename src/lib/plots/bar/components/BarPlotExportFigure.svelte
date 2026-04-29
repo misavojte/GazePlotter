@@ -20,7 +20,7 @@
     getBarPlotData(engine, {
       stimulusId: settings.stimulusId,
       groupId: settings.groupId,
-      metricInstanceId: settings.metricInstanceId,
+      metricInstanceIds: settings.metricInstanceIds,
       scaleRange: settings.scaleRange,
       timelineStart: settings.timelineStart,
       timelineEnd: settings.timelineEnd,
@@ -33,7 +33,7 @@
   const timeline = $derived(barPlotData.timeline)
 
   const resolvedInstance = $derived(
-    resolveInstance(engine.metadata?.metricInstances ?? [], settings.metricInstanceId ?? null)
+    resolveInstance(engine.metadata?.metricInstances ?? [], settings.metricInstanceIds[0] ?? null)
   )
 
   const axisLabel = $derived(

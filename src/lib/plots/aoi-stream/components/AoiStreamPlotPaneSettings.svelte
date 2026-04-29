@@ -7,12 +7,11 @@
     getParticipantsGroupOptions,
     getColorScaleCommitted,
     buildColorScalePatch,
-    singleSelectMetricHandlers,
   } from '$lib/plots/shared'
+  import { ContractMetricSelect } from '$lib/plots/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { PRESET_PALETTES } from '$lib/color/palettes'
-  import { MetricSelect } from '$lib/metrics'
   import { aoiStreamPlotDefinition } from '../definition'
   import { RIDGELINE_SCALE } from '../const'
   import type {
@@ -74,11 +73,6 @@
     if (patch) update({ colorScale: patch })
   })
 
-  const metricHandlers = $derived(singleSelectMetricHandlers(
-    engine,
-    () => settings.metricInstanceId,
-    id => update({ metricInstanceId: id }),
-  ))
 </script>
 
 <PaneSection>
@@ -94,12 +88,11 @@
     value={String(settings.groupId)}
     onchange={e => update({ groupId: Number((e as CustomEvent).detail) })}
   />
-  <MetricSelect
-    label="Metric"
+  <ContractMetricSelect
+    {engine}
     contract={aoiStreamPlotDefinition.consumesMetrics!}
-    instances={engine.metadata?.metricInstances ?? []}
-    selectedIds={settings.metricInstanceId !== null && settings.metricInstanceId !== undefined ? [settings.metricInstanceId] : []}
-    {...metricHandlers}
+    metricInstanceIds={settings.metricInstanceIds}
+    onMetricsChange={ids => update({ metricInstanceIds: ids })}
   />
   <Select
     label="Visualisation lense"

@@ -10,7 +10,7 @@
     finishCanvasDrawing,
     canvasLifecycleAction,
   } from '$lib/plots/shared/canvasUtils'
-  import { drawCanvasPlaceholder } from '$lib/plots/shared/drawCanvasPlaceholder'
+  import { drawCanvasPlaceholder, METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
   import {
     TRANSITION_MATRIX_LAYOUT,
     TRANSITION_MATRIX_DEFAULTS,
@@ -169,7 +169,7 @@
     if (!ctx) return
 
     if (noMetric) {
-      drawCanvasPlaceholder(ctx, width, height, 'Select a metric')
+      drawCanvasPlaceholder(ctx, width, height, METRIC_MISSING_MESSAGE)
       finishCanvasDrawing(plot.canvasState)
       return
     }

@@ -4,8 +4,8 @@
   import {
     getStimuliOptions,
     getParticipantsGroupOptions,
-    multiSelectMetricHandlers,
   } from '$lib/plots/shared'
+  import { ContractMetricSelect } from '$lib/plots/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import {
@@ -16,7 +16,6 @@
     MetricCorrelationItem,
     MetricCorrelationSettings,
   } from '../types'
-  import { MetricSelect } from '$lib/metrics'
   import { metricCorrelationDefinition } from '../definition'
 
   interface Props {
@@ -38,11 +37,6 @@
     getParticipantsGroupOptions(engine, true, settings.stimulusId)
   )
 
-  const metricHandlers = $derived(multiSelectMetricHandlers(
-    engine,
-    () => settings.enabledMetricIds,
-    ids => update({ enabledMetricIds: ids }),
-  ))
 </script>
 
 <PaneSection>
@@ -58,12 +52,12 @@
     value={String(settings.groupId)}
     onchange={e => update({ groupId: Number((e as CustomEvent).detail) })}
   />
-  <MetricSelect
-    label="Metrics"
+  <ContractMetricSelect
+    {engine}
     contract={metricCorrelationDefinition.consumesMetrics!}
-    instances={engine.metadata?.metricInstances ?? []}
-    selectedIds={settings.enabledMetricIds}
-    {...metricHandlers}
+    metricInstanceIds={settings.metricInstanceIds}
+    onMetricsChange={ids => update({ metricInstanceIds: ids })}
+    label="Metrics"
   />
   <Select
     label="Visualisation lense"

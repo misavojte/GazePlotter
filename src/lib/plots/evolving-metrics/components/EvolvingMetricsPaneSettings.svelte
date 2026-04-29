@@ -7,12 +7,11 @@
     getParticipantsGroupOptions,
     getColorScaleCommitted,
     buildColorScalePatch,
-    singleSelectMetricHandlers,
   } from '$lib/plots/shared'
+  import { ContractMetricSelect } from '$lib/plots/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { PRESET_PALETTES } from '$lib/color/palettes'
-  import { MetricSelect } from '$lib/metrics'
   import { evolvingMetricsDefinition } from '../definition'
   import type { EvolvingMetricsItem, EvolvingMetricsSettings } from '../types'
 
@@ -63,11 +62,6 @@
     if (patch) update({ colorScale: patch })
   })
 
-  const metricHandlers = $derived(singleSelectMetricHandlers(
-    engine,
-    () => settings.selectedMetricId,
-    id => update({ selectedMetricId: id }),
-  ))
 </script>
 
 <PaneSection>
@@ -83,12 +77,11 @@
     value={String(settings.groupId)}
     onchange={e => update({ groupId: Number((e as CustomEvent).detail) })}
   />
-  <MetricSelect
-    label="Metric"
+  <ContractMetricSelect
+    {engine}
     contract={evolvingMetricsDefinition.consumesMetrics!}
-    instances={engine.metadata?.metricInstances ?? []}
-    selectedIds={settings.selectedMetricId !== null ? [settings.selectedMetricId] : []}
-    {...metricHandlers}
+    metricInstanceIds={settings.metricInstanceIds}
+    onMetricsChange={ids => update({ metricInstanceIds: ids })}
   />
   <Select
     label="Visualisation lense"

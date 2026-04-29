@@ -103,13 +103,13 @@ export function scanForDynamicRidgelineReferenceHeight(
         {
           stimulusId,
           groupId,
-          metricInstanceId: s.metricInstanceId ?? null,
+          metricInstanceIds: s.metricInstanceIds,
           timelineMin: tMin,
           timelineMax: tMax,
         },
       )
 
-      if (!data) continue
+      if (data.noMetric || data.series.length === 0) continue
       streamData = data
     }
 

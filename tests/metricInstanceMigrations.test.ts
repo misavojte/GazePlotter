@@ -110,27 +110,27 @@ describe('V4 → V5 transition-matrix settings migration', () => {
 
   it('sum → metricInstanceId = "transitionCount-fix"', () => {
     const s = runMigrations(buildTMFile('sum')).gridItems[0].settings
-    expect(s.metricInstanceId).toBe('transitionCount-fix')
+    expect(s.metricInstanceIds[0]).toBe('transitionCount-fix')
   })
 
   it('probability → metricInstanceId = "transitionProbability-fix"', () => {
     const s = runMigrations(buildTMFile('probability')).gridItems[0].settings
-    expect(s.metricInstanceId).toBe('transitionProbability-fix')
+    expect(s.metricInstanceIds[0]).toBe('transitionProbability-fix')
   })
 
   it('dwellTime → metricInstanceId = "transitionDwellMean-fix"', () => {
     const s = runMigrations(buildTMFile('dwellTime')).gridItems[0].settings
-    expect(s.metricInstanceId).toBe('transitionDwellMean-fix')
+    expect(s.metricInstanceIds[0]).toBe('transitionDwellMean-fix')
   })
 
   it('segmentDwellTime → metricInstanceId = "transitionDwellMean-visit"', () => {
     const s = runMigrations(buildTMFile('segmentDwellTime')).gridItems[0].settings
-    expect(s.metricInstanceId).toBe('transitionDwellMean-visit')
+    expect(s.metricInstanceIds[0]).toBe('transitionDwellMean-visit')
   })
 
   it('frequencyRelative → creates custom transitionRelativeFrequency instance (UUID id)', () => {
     const m = runMigrations(buildTMFile('frequencyRelative'))
-    const id = m.gridItems[0].settings.metricInstanceId
+    const id = m.gridItems[0].settings.metricInstanceIds[0]
     expect(typeof id).toBe('string')
     expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
     const created = (m.data.metricInstances as MetricInstance[]).find(i => i.id === id)
@@ -143,7 +143,7 @@ describe('V4 → V5 transition-matrix settings migration', () => {
   it('probability2 / probability3 → custom transitionProbability instances with step 2/3', () => {
     for (const [method, step] of [['probability2', 2], ['probability3', 3]] as const) {
       const m = runMigrations(buildTMFile(method))
-      const id = m.gridItems[0].settings.metricInstanceId
+      const id = m.gridItems[0].settings.metricInstanceIds[0]
       expect(typeof id).toBe('string')
       const created = (m.data.metricInstances as MetricInstance[]).find(i => i.id === id)
       expect(created).toBeDefined()
@@ -154,7 +154,7 @@ describe('V4 → V5 transition-matrix settings migration', () => {
 
   it('unknown aggregationMethod falls back to "transitionCount-fix"', () => {
     const s = runMigrations(buildTMFile('notARealMethod')).gridItems[0].settings
-    expect(s.metricInstanceId).toBe('transitionCount-fix')
+    expect(s.metricInstanceIds[0]).toBe('transitionCount-fix')
   })
 
   it('all matrix starter slugs are present in seeded metricInstances', () => {
@@ -187,7 +187,7 @@ describe('V4 → V5 transition-matrix settings migration', () => {
       },
     ])
     const m = runMigrations(file)
-    const [id1, id2] = m.gridItems.map((g: any) => g.settings.metricInstanceId)
+    const [id1, id2] = m.gridItems.map((g: any) => g.settings.metricInstanceIds[0])
     expect(id1).toBe(id2)
     // Only one custom instance should exist for that baseId+params.
     const instances = (m.data.metricInstances as MetricInstance[]).filter(
@@ -239,18 +239,18 @@ describe('V4 → V5 bar-plot settings migration', () => {
   for (const [method, expectedSlug] of Object.entries(expectedSlugFor)) {
     it(`${method} → metricInstanceId = "${expectedSlug}"`, () => {
       const m = runMigrations(buildBarFile(method))
-      expect(m.gridItems[0].settings.metricInstanceId).toBe(expectedSlug)
+      expect(m.gridItems[0].settings.metricInstanceIds[0]).toBe(expectedSlug)
     })
   }
 
   it('unknown aggregationMethod falls back to "absoluteTime"', () => {
     const m = runMigrations(buildBarFile('notARealMethod'))
-    expect(m.gridItems[0].settings.metricInstanceId).toBe('absoluteTime')
+    expect(m.gridItems[0].settings.metricInstanceIds[0]).toBe('absoluteTime')
   })
 
   it('missing aggregationMethod falls back to "absoluteTime"', () => {
     const m = runMigrations(buildBarFile(undefined))
-    expect(m.gridItems[0].settings.metricInstanceId).toBe('absoluteTime')
+    expect(m.gridItems[0].settings.metricInstanceIds[0]).toBe('absoluteTime')
   })
 
   it('leaves non-barPlot / non-transitionMatrix grid items untouched', () => {
@@ -270,7 +270,7 @@ describe('V4 → V5 bar-plot settings migration', () => {
     ])
     const m = runMigrations(file)
     const scarf = m.gridItems.find((g: any) => g.type === 'scarf')
-    expect(scarf.settings.metricInstanceId).toBeUndefined()
+    expect(scarf.settings.metricInstanceIds).toBeUndefined()
     expect(scarf.settings.aggregationMethod).toBeUndefined()
   })
 })
@@ -380,12 +380,12 @@ describe('V5 → V6 aoi-stream binSize → metricInstanceId migration', () => {
     const m = runMigrations(buildV5FileWithAoiStream([], [500]))
     const item = m.gridItems[0]
     expect(item.settings.binSize).toBeUndefined()
-    expect(item.settings.metricInstanceId).toBe('absoluteTime-aoi-windowed-500')
+    expect(item.settings.metricInstanceIds[0]).toBe('absoluteTime-aoi-windowed-500')
   })
 
   it('reuses one MetricInstance for multiple items sharing a binSize (deduped slug)', () => {
     const m = runMigrations(buildV5FileWithAoiStream([], [500, 500, 500]))
-    const ids = m.gridItems.map((g: any) => g.settings.metricInstanceId)
+    const ids = m.gridItems.map((g: any) => g.settings.metricInstanceIds[0])
     expect(new Set(ids).size).toBe(1)
     const seeded = (m.data.metricInstances as MetricInstance[]).filter(
       (i: any) => i.id === 'absoluteTime-aoi-windowed-500'
@@ -396,7 +396,7 @@ describe('V5 → V6 aoi-stream binSize → metricInstanceId migration', () => {
   it('mints distinct MetricInstances per distinct binSize', () => {
     const m = runMigrations(buildV5FileWithAoiStream([], [500, 1000, 250]))
     const ids = new Set<string>(
-      m.gridItems.map((g: any) => g.settings.metricInstanceId)
+      m.gridItems.map((g: any) => g.settings.metricInstanceIds[0])
     )
     expect(ids).toEqual(
       new Set([
@@ -419,7 +419,7 @@ describe('V5 → V6 aoi-stream binSize → metricInstanceId migration', () => {
       label: "user's metric",
     }
     const m = runMigrations(buildV5FileWithAoiStream([userInstance], [500]))
-    const itemInstanceId: string = m.gridItems[0].settings.metricInstanceId
+    const itemInstanceId: string = m.gridItems[0].settings.metricInstanceIds[0]
     expect(itemInstanceId).not.toBe('absoluteTime-aoi-windowed-500')
     expect(itemInstanceId).toMatch(/^absoluteTime-aoi-windowed-500-[0-9a-f]{8}$/)
     // Original user instance is preserved unchanged.
@@ -452,7 +452,7 @@ describe('V5 → V6 aoi-stream binSize → metricInstanceId migration', () => {
     const m = runMigrations(
       buildV5FileWithAoiStream([matchingInstance], [500])
     )
-    expect(m.gridItems[0].settings.metricInstanceId).toBe(
+    expect(m.gridItems[0].settings.metricInstanceIds[0]).toBe(
       'absoluteTime-aoi-windowed-500'
     )
     // No duplicate added.
@@ -509,7 +509,103 @@ describe('V5 → V6 aoi-stream binSize → metricInstanceId migration', () => {
       fileMetadata: null,
     }
     const m = runMigrations(file)
-    expect(m.gridItems[0].settings.metricInstanceId).toBe('pre-existing-slug')
+    expect(m.gridItems[0].settings.metricInstanceIds[0]).toBe('pre-existing-slug')
+  })
+})
+
+describe('V5 → V6 metric-reference field rename to metricInstanceIds: string[]', () => {
+  function buildV5File(gridItems: V4GridItem[]): Record<string, unknown> {
+    return {
+      version: 5,
+      data: {
+        stimuli: { data: [['S1']], orderVector: [0] },
+        participants: { data: [['P1']], orderVector: [0] },
+        participantsGroups: [],
+        categories: { data: [], orderVector: [] },
+        aois: { data: [[]], orderVector: [[]], hiddenAois: [], dynamicVisibility: {} },
+        eventData: { data: [[]], hiddenChannels: [[]], events: [] },
+        capabilities: { segmented: true, spatial: false, event: false },
+        noAoiTreatment: { color: '#cbd5e1', displayedName: 'No AOI' },
+        isOrdinalOnly: false,
+        metricInstances: [],
+      },
+      gridItems,
+      fileMetadata: null,
+    }
+  }
+
+  it('barPlot settings.metricInstanceId (string) → metricInstanceIds: [id]', () => {
+    const m = runMigrations(buildV5File([{
+      id: 'b', type: 'barPlot', x: 0, y: 0, w: 6, h: 6,
+      settings: { stimulusId: 0, groupId: -1, metricInstanceId: 'absoluteTime' },
+    }]))
+    const s = m.gridItems[0].settings
+    expect(s.metricInstanceIds).toEqual(['absoluteTime'])
+    expect(s.metricInstanceId).toBeUndefined()
+  })
+
+  it('barPlot settings.metricInstanceId === null → metricInstanceIds: []', () => {
+    const m = runMigrations(buildV5File([{
+      id: 'b', type: 'barPlot', x: 0, y: 0, w: 6, h: 6,
+      settings: { stimulusId: 0, groupId: -1, metricInstanceId: null },
+    }]))
+    expect(m.gridItems[0].settings.metricInstanceIds).toEqual([])
+  })
+
+  it('evolvingMetrics settings.selectedMetricId → metricInstanceIds: [id]', () => {
+    const m = runMigrations(buildV5File([{
+      id: 'e', type: 'evolvingMetrics', x: 0, y: 0, w: 6, h: 6,
+      settings: { stimulusId: 0, groupId: -1, selectedMetricId: 'avgFixationDuration-any-windowed' },
+    }]))
+    const s = m.gridItems[0].settings
+    expect(s.metricInstanceIds).toEqual(['avgFixationDuration-any-windowed'])
+    expect(s.selectedMetricId).toBeUndefined()
+  })
+
+  it('metricCorrelation settings.enabledMetricIds → metricInstanceIds (rename only)', () => {
+    const m = runMigrations(buildV5File([{
+      id: 'mc', type: 'metricCorrelation', x: 0, y: 0, w: 6, h: 6,
+      settings: { stimulusId: 0, groupId: -1, enabledMetricIds: ['rqaRec', 'rqaDet'] },
+    }]))
+    const s = m.gridItems[0].settings
+    expect(s.metricInstanceIds).toEqual(['rqaRec', 'rqaDet'])
+    expect(s.enabledMetricIds).toBeUndefined()
+  })
+
+  it('is idempotent: an already-migrated v6-shape grid item is left alone', () => {
+    const m = runMigrations(buildV5File([{
+      id: 'b', type: 'barPlot', x: 0, y: 0, w: 6, h: 6,
+      settings: { stimulusId: 0, groupId: -1, metricInstanceIds: ['absoluteTime'] },
+    }]))
+    expect(m.gridItems[0].settings.metricInstanceIds).toEqual(['absoluteTime'])
+  })
+
+  it('combines with the aoi-stream binSize migration end-to-end', () => {
+    // V4 → V5 → V6 chain: an aoi-stream with `binSize` first becomes
+    // `metricInstanceId`, then folds into `metricInstanceIds: [...]`.
+    const v4: Record<string, unknown> = {
+      version: 4,
+      data: {
+        stimuli: { data: [['S1']], orderVector: [0] },
+        participants: { data: [['P1']], orderVector: [0] },
+        participantsGroups: [],
+        categories: { data: [], orderVector: [] },
+        aois: { data: [[]], orderVector: [[]], hiddenAois: [], dynamicVisibility: {} },
+        capabilities: { segmented: true, spatial: false, event: false },
+        noAoiTreatment: { color: '#cbd5e1', displayedName: 'No AOI' },
+        isOrdinalOnly: false,
+      },
+      gridItems: [{
+        id: 'a', type: 'aoiStreamPlot', x: 0, y: 0, w: 12, h: 10,
+        settings: { stimulusId: 0, groupId: -1, binSize: 500, absoluteStimuliLimits: [] },
+      }],
+      fileMetadata: null,
+    }
+    const m = runMigrations(v4)
+    const s = m.gridItems[0].settings
+    expect(s.binSize).toBeUndefined()
+    expect(s.metricInstanceId).toBeUndefined()
+    expect(s.metricInstanceIds).toEqual(['absoluteTime-aoi-windowed-500'])
   })
 })
 

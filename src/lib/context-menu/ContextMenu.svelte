@@ -123,10 +123,11 @@
                 {:else}
                   {@const showIndicator =
                     menu.selectionMode !== undefined && it.value !== undefined}
-                  <li>
+                  <li class:has-secondary={!!it.secondaryAction}>
                     <button
                       role="menuitem"
                       class:selected={it.isHighlighted}
+                      class:has-secondary={!!it.secondaryAction}
                       disabled={it.disabled}
                       onclick={() => handleItemClick(it)}
                     >
@@ -149,6 +150,22 @@
                         {it.label}
                       {/if}
                     </button>
+                    {#if it.secondaryAction}
+                      {@const SecIcon = it.secondaryAction.icon}
+                      <button
+                        type="button"
+                        class="secondary-action"
+                        aria-label={it.secondaryAction.label}
+                        title={it.secondaryAction.label}
+                        onclick={ev => {
+                          ev.stopPropagation()
+                          it.secondaryAction!.onAction()
+                          onClose()
+                        }}
+                      >
+                        <SecIcon size={13} strokeWidth={1.5} />
+                      </button>
+                    {/if}
                   </li>
                 {/if}
               {/each}
@@ -320,6 +337,54 @@
 
   button.selected .item-detail {
     color: color-mix(in srgb, var(--c-brand) 70%, var(--c-darkgrey));
+  }
+
+  li.has-secondary {
+    position: relative;
+  }
+
+  button[role='menuitem'].has-secondary {
+    padding-right: 32px;
+  }
+
+  .secondary-action {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+    pointer-events: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    padding: 4px;
+    color: var(--c-darkgrey);
+    cursor: pointer;
+    transition:
+      opacity 0.1s ease,
+      background 0.1s ease,
+      color 0.1s ease;
+  }
+
+  li.has-secondary:hover .secondary-action,
+  li.has-secondary:focus-within .secondary-action {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .secondary-action:hover {
+    background: var(--c-grey);
+    color: var(--c-brand);
+  }
+
+  .secondary-action:focus-visible {
+    outline: 2px solid var(--c-brand);
+    outline-offset: -2px;
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .custom {

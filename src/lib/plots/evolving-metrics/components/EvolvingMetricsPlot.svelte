@@ -2,7 +2,7 @@
   import { untrack } from 'svelte'
 
   import { EvolvingMetricsFigure } from '$lib/plots/evolving-metrics/components'
-  import { BasePlot, CanvasPlaceholder } from '$lib/plots/shared/components'
+  import { BasePlot } from '$lib/plots/shared/components'
 
   import { getEvolvingMetricsData } from '../core'
   import { getParticipants, getParticipantEndTime } from '$lib/data/engine'
@@ -57,7 +57,7 @@
   })
 </script>
 
-<BasePlot {item}>
+<BasePlot {item} hasData={!!resultData}>
   {#snippet figure({ width, height })}
     {#if resultData}
       <EvolvingMetricsFigure
@@ -67,8 +67,6 @@
         alignment={settings.presentation ?? 'heatmap'}
         colorScale={settings.colorScale}
       />
-    {:else}
-      <CanvasPlaceholder {width} {height} message="Select a metric" />
     {/if}
   {/snippet}
 </BasePlot>

@@ -67,7 +67,7 @@ describe('Bar Plot Transformer (Integration)', () => {
       {
         stimulusId,
         groupId,
-        metricInstanceId: ABSOLUTE_TIME_INSTANCE_ID,
+        metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
         orderBy: 'aoi',
         orderDirection: 'asc',
         scaleRange: [0, 0],
@@ -98,7 +98,7 @@ describe('Bar Plot Transformer (Integration)', () => {
       {
         stimulusId,
         groupId,
-        metricInstanceId: ABSOLUTE_TIME_INSTANCE_ID,
+        metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
         orderBy: 'value',
         orderDirection: 'desc',
         scaleRange: [0, 0],
@@ -117,7 +117,7 @@ describe('Bar Plot Transformer (Integration)', () => {
       {
         stimulusId,
         groupId,
-        metricInstanceId: ABSOLUTE_TIME_INSTANCE_ID,
+        metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
       } as any
     )
 
@@ -132,7 +132,7 @@ describe('Bar Plot Transformer (Integration)', () => {
       {
         stimulusId,
         groupId,
-        metricInstanceId: ABSOLUTE_TIME_INSTANCE_ID,
+        metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
         scaleRange: [0, 1000],
       } as any
     )
@@ -156,7 +156,7 @@ describe('Bar Plot Transformer (Integration)', () => {
     expect(result.data).toEqual([])
   })
 
-  it('flags noMetric when metricInstanceId references a deleted instance', () => {
+  it('flags noMetric when metricInstanceIds[0] references a deleted instance', () => {
     const engine = createMockEngine([
       [
         [
@@ -171,7 +171,7 @@ describe('Bar Plot Transformer (Integration)', () => {
       {
         stimulusId,
         groupId,
-        metricInstanceId: 'nonexistent-id', // does not exist in the library
+        metricInstanceIds: ['nonexistent-id'], // does not exist in the library
         orderBy: 'aoi',
         orderDirection: 'asc',
         scaleRange: [0, 0],

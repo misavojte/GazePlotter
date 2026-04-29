@@ -23,6 +23,14 @@ interface MenuDisplayItem {
   isHighlighted?: boolean
   disabled?: boolean
   closeOnAction?: boolean
+  /** Optional hover/focus-only trailing action. Click is independent of the
+   *  row's main onAction and does NOT trigger row selection; the menu
+   *  auto-closes after invoking it. */
+  secondaryAction?: {
+    icon: LucideIconComponent
+    label: string
+    onAction: () => void
+  }
 }
 
 export interface MenuDividerItem {

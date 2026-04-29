@@ -8,15 +8,14 @@
     getColorScaleCommitted,
     buildColorScalePatch,
     buildValueRangePatch,
-    singleSelectMetricHandlers,
   } from '$lib/plots/shared'
+  import { ContractMetricSelect } from '$lib/plots/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import type {
     TransitionMatrixPlotItem,
     TransitionMatrixPlotSettings,
   } from '../types'
-  import { MetricSelect } from '$lib/metrics'
   import { transitionMatrixDefinition } from '../definition'
 
   interface Props {
@@ -37,12 +36,6 @@
   const groupOptions = $derived(
     getParticipantsGroupOptions(engine, true, settings.stimulusId)
   )
-
-  const metricHandlers = $derived(singleSelectMetricHandlers(
-    engine,
-    () => settings.metricInstanceId,
-    id => update({ metricInstanceId: id }),
-  ))
 
   const colorFields = $derived(
     getColorScaleCommitted(settings.colorScale, '#f7fbff', '#08306b')
@@ -97,12 +90,11 @@
     value={String(settings.groupId)}
     onchange={e => update({ groupId: Number((e as CustomEvent).detail) })}
   />
-  <MetricSelect
-    label="Metric"
-    instances={engine.metadata?.metricInstances ?? []}
-    selectedIds={settings.metricInstanceId == null ? [] : [settings.metricInstanceId]}
-    {...metricHandlers}
+  <ContractMetricSelect
+    {engine}
     contract={transitionMatrixDefinition.consumesMetrics!}
+    metricInstanceIds={settings.metricInstanceIds}
+    onMetricsChange={ids => update({ metricInstanceIds: ids })}
   />
 </PaneSection>
 

@@ -35,7 +35,7 @@ export const evolvingMetricsDefinition = definePlot<
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
     groupId: params.groupId ?? -1,
-    selectedMetricId: 'avgFixationDuration-any-windowed',
+    metricInstanceIds: ['avgFixationDuration-any-windowed'],
   }),
   getMinSize: () => ({ w: 11, h: 10 }),
   getDefaultHeight: () => 12,

@@ -1,6 +1,7 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import { getParticipantsIds } from '$lib/data/engine'
 import { getMetric, queryBatch, type MetricInstance, type Scope } from '$lib/metrics'
+import { asScalar } from '$lib/plots/shared'
 import type {
   CorrelationCell,
   CorrelationPoint,
@@ -33,7 +34,7 @@ export function getMetricCorrelationData(
   const participantIds = getParticipantsIds(engine, settings.groupId, settings.stimulusId)
 
   const { metrics, instances } = resolveMetrics(
-    settings.enabledMetricIds,
+    settings.metricInstanceIds,
     meta.metricInstances
   )
   if (metrics.length < 2) return emptyResult(settings, true)
@@ -61,7 +62,8 @@ export function getMetricCorrelationData(
     const results = queryBatch(instances, pScope)
     for (let mIdx = 0; mIdx < metrics.length; mIdx++) {
       const result = results.get(instances[mIdx].id)
-      vectors[mIdx].values[p] = result?.shape === 'scalar' ? result.value : Number.NaN
+      const scalar = result ? asScalar(result) : null
+      vectors[mIdx].values[p] = scalar?.value ?? Number.NaN
     }
   }
 

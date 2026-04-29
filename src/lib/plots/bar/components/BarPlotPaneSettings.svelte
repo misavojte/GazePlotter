@@ -4,13 +4,12 @@
   import {
     getStimuliOptions,
     getParticipantsGroupOptions,
-    singleSelectMetricHandlers,
   } from '$lib/plots/shared'
+  import { ContractMetricSelect } from '$lib/plots/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import type { BarPlotItem, BarPlotSettings } from '../types'
   import { barPlotDefinition } from '../definition'
-  import { MetricSelect } from '$lib/metrics'
 
   interface Props {
     item: BarPlotItem
@@ -30,12 +29,6 @@
   const groupOptions = $derived(
     getParticipantsGroupOptions(engine, true, settings.stimulusId)
   )
-
-  const metricHandlers = $derived(singleSelectMetricHandlers(
-    engine,
-    () => settings.metricInstanceId,
-    id => update({ metricInstanceId: id }),
-  ))
 
   const minScale = $derived(settings.scaleRange?.[0] ?? 0)
   const maxScale = $derived(settings.scaleRange?.[1] ?? 0)
@@ -62,12 +55,11 @@
     value={String(settings.groupId)}
     onchange={e => update({ groupId: Number((e as CustomEvent).detail) })}
   />
-  <MetricSelect
-    label="Metric"
-    instances={engine.metadata?.metricInstances ?? []}
-    selectedIds={settings.metricInstanceId == null ? [] : [settings.metricInstanceId]}
-    {...metricHandlers}
+  <ContractMetricSelect
+    {engine}
     contract={barPlotDefinition.consumesMetrics!}
+    metricInstanceIds={settings.metricInstanceIds}
+    onMetricsChange={ids => update({ metricInstanceIds: ids })}
   />
 </PaneSection>
 

@@ -37,7 +37,7 @@ export const metricCorrelationDefinition = definePlot<
     groupId: params.groupId ?? -1,
     view: 'heatmap',
     correlationMethod: 'spearman',
-    enabledMetricIds: [
+    metricInstanceIds: [
       'absoluteTime-any',
       'visitCount-any',
       'visitDuration-any',

@@ -28,11 +28,15 @@ import {
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import { formatMetricLabel } from '$lib/plots/shared/metricLabels'
 import {
+  asScalarTimeseries,
+  resolveContractedInstance,
+} from '$lib/plots/shared'
+import {
   query,
   getMetric,
   extractFixationSequence,
   windowLabel,
-  type MetricInstance,
+  type PlotMetricContract,
   type Scope,
 } from '$lib/metrics'
 import { getEvolvingMetricsXAxisLabel } from '../const'
@@ -43,14 +47,25 @@ import type {
   EvolvingMetricsWindow,
 } from '../types'
 
-function resolveInstance(
-  engine: DataEngine,
-  selectedMetricId: string | null,
-): MetricInstance | null {
-  if (selectedMetricId === null) return null
-  const meta = engine.metadata
-  if (!meta) return null
-  return (meta.metricInstances ?? []).find(i => i.id === selectedMetricId) ?? null
+const CONTRACT = { outputShape: 'scalar', windowing: 'required' } as const satisfies PlotMetricContract
+
+/**
+ * Empty result shell. `noMetric: true` only when the configured instance is
+ * missing or doesn't match the contract — other "no data" paths (no
+ * participants, broken projection) return the empty shell without the flag,
+ * matching the bar / transition-matrix conventions.
+ */
+function emptyEvolvingMetricsResult(noMetric = false): EvolvingMetricsResult {
+  return {
+    participants: [],
+    timeline: createAdaptiveTimeline(0, 100, 6),
+    xAxisLabel: '',
+    yAxisLabel: '',
+    maxTime: 0,
+    valueMin: 0,
+    valueMax: 1,
+    ...(noMetric ? { noMetric: true as const } : {}),
+  }
 }
 
 /**
@@ -101,25 +116,30 @@ function voronoiBoundaries(
 
 export function getEvolvingMetricsData(
   engine: DataEngine,
-  settings: Pick<EvolvingMetricsSettings, 'stimulusId' | 'groupId' | 'selectedMetricId'> & {
+  settings: Pick<EvolvingMetricsSettings, 'stimulusId' | 'groupId' | 'metricInstanceIds'> & {
     timelineMin?: number
     timelineMax?: number
   },
-): EvolvingMetricsResult | null {
+): EvolvingMetricsResult {
   const meta = engine.metadata
-  if (!meta) return null
+  if (!meta) return emptyEvolvingMetricsResult()
 
-  const instance = resolveInstance(engine, settings.selectedMetricId)
-  if (!instance || instance.projection.kind !== 'windowed') return null
+  const resolution = resolveContractedInstance(meta.metricInstances, settings.metricInstanceIds?.[0] ?? null, CONTRACT)
+  if (!resolution.ok) return emptyEvolvingMetricsResult(true)
+
+  const { instance } = resolution
+  // Contract-guaranteed (windowing: 'required') — narrows the projection type
+  // for `instance.projection.window` reads below.
+  if (instance.projection.kind !== 'windowed') return emptyEvolvingMetricsResult(true)
 
   const metric = getMetric(instance.baseId)
-  if (!metric) return null
+  if (!metric) return emptyEvolvingMetricsResult(true)
 
   const { stimulusId, groupId } = settings
   const participantIds = getParticipantsIds(engine, groupId, stimulusId)
   const participantEntities = getParticipants(engine, groupId, stimulusId)
   const numParticipants = participantIds.length
-  if (numParticipants === 0) return null
+  if (numParticipants === 0) return emptyEvolvingMetricsResult()
 
   const participantEnds: number[] = new Array(numParticipants)
   let maxTime = 0
@@ -152,8 +172,8 @@ export function getEvolvingMetricsData(
       // missing data with real zero observations.
       timeEnd: Math.min(timelineMax, participantEnds[p]),
     }
-    const result = query(instance, scope)
-    if (result.shape !== 'scalar-timeseries' || !result.timeline) {
+    const result = asScalarTimeseries(query(instance, scope))
+    if (!result || !result.timeline) {
       participants[p] = { id: pid, label, windows: [] }
       continue
     }

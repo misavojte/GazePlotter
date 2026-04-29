@@ -36,7 +36,7 @@ export const scanpathSimilarityDefinition = definePlot<
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
     groupId: params.groupId ?? -1,
-    metricInstanceId: 'participantPairSimilarity-lev',
+    metricInstanceIds: ['participantPairSimilarity-lev'],
     view: 'matrix',
     threshold: 0.5,
     colorScale: [...PRESET_PALETTES.BLUE.colors],

@@ -8,12 +8,11 @@
     getColorScaleCommitted,
     buildColorScalePatch,
     buildValueRangePatch,
-    singleSelectMetricHandlers,
   } from '$lib/plots/shared'
+  import { ContractMetricSelect } from '$lib/plots/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { PRESET_PALETTES } from '$lib/color/palettes'
-  import { MetricSelect } from '$lib/metrics'
   import { scanpathSimilarityDefinition } from '../definition'
   import type {
     ScanpathSimilarityItem,
@@ -39,12 +38,6 @@
   const groupOptions = $derived(
     getParticipantsGroupOptions(engine, true, settings.stimulusId)
   )
-
-  const metricHandlers = $derived(singleSelectMetricHandlers(
-    engine,
-    () => settings.metricInstanceId,
-    id => update({ metricInstanceId: id }),
-  ))
 
   const view = $derived(settings.view ?? 'matrix')
   const isScangraph = $derived(view === 'scangraph')
@@ -107,12 +100,11 @@
     value={String(settings.groupId)}
     onchange={e => update({ groupId: Number((e as CustomEvent).detail) })}
   />
-  <MetricSelect
-    label="Metric"
-    instances={engine.metadata?.metricInstances ?? []}
-    selectedIds={settings.metricInstanceId == null ? [] : [settings.metricInstanceId]}
-    {...metricHandlers}
+  <ContractMetricSelect
+    {engine}
     contract={scanpathSimilarityDefinition.consumesMetrics!}
+    metricInstanceIds={settings.metricInstanceIds}
+    onMetricsChange={ids => update({ metricInstanceIds: ids })}
   />
   <Select
     label="Visualisation lense"

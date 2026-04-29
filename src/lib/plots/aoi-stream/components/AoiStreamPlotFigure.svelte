@@ -52,6 +52,7 @@
     centeredYTicks,
     type PlotAreaTicks,
   } from '$lib/plots/shared/plotArea'
+  import { drawCanvasPlaceholder, METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { safeNumber } from '$lib/shared/utils/mathUtils'
   import {
     Y_AXIS,
@@ -300,6 +301,14 @@
 
     const ctx = plot.canvasState.context
     if (!ctx) return
+
+    // Empty-state branch: paint the standardized placeholder onto the canvas
+    // so exports include the message instead of a blank PNG/SVG.
+    if (data.noMetric) {
+      drawCanvasPlaceholder(ctx, width, height, METRIC_MISSING_MESSAGE)
+      finishCanvasDrawing(plot.canvasState)
+      return
+    }
 
     // Floor dimensions for pixel-perfect synchronization
     const floorLeft = Math.floor(plotLeft)

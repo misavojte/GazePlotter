@@ -16,6 +16,10 @@
     canvasBlockSelect,
     type BlockedRegion,
   } from '$lib/plots/shared'
+  import {
+    drawCanvasPlaceholder,
+    METRIC_MISSING_MESSAGE,
+  } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { SCANGRAPH_LAYOUT } from '../const'
   import type { ScangraphData } from '../types'
   import { computeForceLayout, type ForceLayoutMargins, type LayoutResult, type NodePosition } from '../core/forceLayout'
@@ -30,6 +34,7 @@
     width = 500,
     threshold = 0.5,
     highlights = [],
+    noMetric = false,
     onNodeClick,
     dpiOverride = null,
     marginTop = 0,
@@ -42,6 +47,7 @@
     width?: number
     threshold?: number
     highlights?: number[]
+    noMetric?: boolean
     onNodeClick?: (nodeIndex: number) => void
     dpiOverride?: number | null
     marginTop?: number
@@ -229,6 +235,14 @@
     beginCanvasDrawing(plot.canvasState, true)
     const ctx = plot.canvasState.context
     if (!ctx) return
+
+    // Empty-state branches: paint onto the canvas so exports include the
+    // message instead of a blank PNG/SVG.
+    if (noMetric) {
+      drawCanvasPlaceholder(ctx, canvasWidth, canvasHeight, METRIC_MISSING_MESSAGE)
+      finishCanvasDrawing(plot.canvasState)
+      return
+    }
 
     const { nodes, links } = layoutResult
 

@@ -23,7 +23,7 @@
       engine,
       settings.stimulusId,
       settings.groupId,
-      settings.metricInstanceId,
+      settings.metricInstanceIds[0] ?? null,
     )
   )
   const { matrix, aoiLabels } = $derived(transitionData)
@@ -36,7 +36,7 @@
   const resolved = $derived.by(() => {
     const inst = resolveInstance(
       engine.metadata?.metricInstances ?? [],
-      settings.metricInstanceId,
+      settings.metricInstanceIds[0] ?? null,
     )
     return {
       label: inst?.label ?? '',

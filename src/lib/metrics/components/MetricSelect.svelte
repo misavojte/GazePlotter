@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Pencil from 'lucide-svelte/icons/pencil'
   import Settings from 'lucide-svelte/icons/settings'
   import { getGazePlotterSession } from '$lib/session'
   import { metricLibraryModal } from '$lib/modals/definitions'
@@ -62,6 +63,11 @@
       label: inst.label,
       value: inst.id,
       detail: readoutOf(inst),
+      secondaryAction: {
+        icon: Pencil,
+        label: `Edit ${inst.label}`,
+        onAction: () => openLibraryEditing(inst.id),
+      },
     }))
   )
 
@@ -95,6 +101,16 @@
   function openLibrary() {
     modalState.open(metricLibraryModal, {
       contract,
+      oncreateInstance,
+      ondeleteInstance,
+      onrenameInstance,
+    })
+  }
+
+  function openLibraryEditing(metricId: string) {
+    modalState.open(metricLibraryModal, {
+      contract,
+      editMetricId: metricId,
       oncreateInstance,
       ondeleteInstance,
       onrenameInstance,

@@ -25,7 +25,7 @@
   const labelededBarPlotData = $derived(barPlotResult.data)
 
   const resolvedInstance = $derived(
-    resolveInstance(engine.metadata?.metricInstances ?? [], settings.metricInstanceId ?? null)
+    resolveInstance(engine.metadata?.metricInstances ?? [], settings.metricInstanceIds[0] ?? null)
   )
   const syncKey = $derived(resolvedInstance?.id ?? null)
 

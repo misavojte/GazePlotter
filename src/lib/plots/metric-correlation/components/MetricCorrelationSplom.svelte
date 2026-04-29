@@ -9,7 +9,7 @@
     finishCanvasDrawing,
     canvasLifecycleAction,
   } from '$lib/plots/shared/canvasUtils'
-  import { drawCanvasPlaceholder } from '$lib/plots/shared/drawCanvasPlaceholder'
+  import { drawCanvasPlaceholder, METRIC_MISSING_MULTI_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
   import {
     MATRIX_LAYOUT,
     computeSquareMatrixLayout,
@@ -221,7 +221,7 @@
     const totalH = height + marginTop + marginBottom
 
     if (result.noMetric || labels.length < 2) {
-      drawCanvasPlaceholder(ctx, totalW, totalH, 'Select at least two metrics')
+      drawCanvasPlaceholder(ctx, totalW, totalH, METRIC_MISSING_MULTI_MESSAGE)
       finishCanvasDrawing(plot.canvasState)
       return
     }

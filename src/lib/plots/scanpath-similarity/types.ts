@@ -6,11 +6,13 @@ export type ScanpathSimilaritySettings = {
   stimulusId: number
   groupId: number
   /**
-   * Picked from the metric library; filtered to participant-pair-matrix
-   * metrics. The similarity method and any preprocessing flags (e.g.,
-   * collapsed AOIs) live on the metric, not the plot.
+   * Slug(s) of the participant-pair-matrix MetricInstance(s) this plot renders.
+   * Stored as an array for uniformity with multi-select plots; the contract
+   * is single-select so length is 0 (none) or 1 (selected). The similarity
+   * method and any preprocessing flags (e.g., collapsed AOIs) live on the
+   * metric, not the plot.
    */
-  metricInstanceId: string | null
+  metricInstanceIds: string[]
   view: ScanpathSimilarityView
   /** Threshold parameter for scangraph adjacency (0-1) */
   threshold: number
@@ -35,7 +37,7 @@ export interface ScanpathSimilarityData {
   matrix: Float64Array
   /** Size of the square matrix */
   size: number
-  /** True when the plot's `metricInstanceId` points to a missing instance. */
+  /** True when the plot's `metricInstanceIds[0]` points to a missing instance. */
   noMetric?: boolean
 }
 

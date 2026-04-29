@@ -501,8 +501,9 @@
     if (
       command.type === 'updateSettings' &&
       command.settings &&
-      'metricInstanceId' in command.settings &&
-      command.settings.metricInstanceId === 'visitCount' &&
+      'metricInstanceIds' in command.settings &&
+      Array.isArray(command.settings.metricInstanceIds) &&
+      command.settings.metricInstanceIds[0] === 'visitCount' &&
       isCommandFromPlotType(command.source, 'barPlot')
     ) {
       barPlotCondition.set(true)

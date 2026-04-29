@@ -2,7 +2,9 @@ import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import { getAois, getParticipantsIds } from '$lib/data/engine'
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
 import {
+  asAoiVector,
   createAdaptiveTimeline,
+  resolveContractedInstance,
   type AdaptiveTimeline,
 } from '$lib/plots/shared'
 import {
@@ -17,10 +19,12 @@ import type {
 import {
   query,
   queryIndividuals,
-  resolveInstance,
   type MetricInstance,
+  type PlotMetricContract,
   type Scope,
 } from '$lib/metrics'
+
+const CONTRACT = { outputShape: 'aoi-vector', windowing: 'forbidden' } as const satisfies PlotMetricContract
 
 export function getBarPlotData(
   engine: DataEngine,
@@ -28,7 +32,7 @@ export function getBarPlotData(
     BarPlotSettings,
     | 'stimulusId'
     | 'groupId'
-    | 'metricInstanceId'
+    | 'metricInstanceIds'
     | 'orderBy'
     | 'orderDirection'
     | 'scaleRange'
@@ -48,14 +52,18 @@ export function getBarPlotData(
   )
   const overlay = settings.statisticalOverlay ?? 'none'
 
-  const instance = resolveInstance(meta.metricInstances ?? [], settings.metricInstanceId ?? null)
-
-  if (!instance) {
+  const resolution = resolveContractedInstance(
+    meta.metricInstances,
+    settings.metricInstanceIds?.[0] ?? null,
+    CONTRACT,
+  )
+  if (!resolution.ok) {
     return { data: [], timeline: createAdaptiveTimeline(0, 100, 6), dataMax: 0, noMetric: true }
   }
   if (participantIds.length === 0) {
     return { data: [], timeline: createAdaptiveTimeline(0, 100, 6), dataMax: 0 }
   }
+  const instance = resolution.instance
 
   const timeStart = settings.timelineStart ?? 0
   const timeEnd = settings.timelineEnd ?? 0
@@ -161,7 +169,7 @@ function extractIndividualValuesWithIdentity(
     const individuals = queryIndividuals(instance, scope, aoiIndex)
     const expanded = individuals.length > 0
       ? individuals
-      : [valueAt(query(instance, scope), aoiIndex)]
+      : [asAoiVector(query(instance, scope))?.values[aoiIndex] ?? Number.NaN]
     for (const v of expanded) {
       if (Number.isFinite(v)) {
         values.push(v)
@@ -170,17 +178,6 @@ function extractIndividualValuesWithIdentity(
     }
   }
   return { values, names }
-}
-
-function valueAt(result: ReturnType<typeof query>, aoiIndex: number): number {
-  switch (result.shape) {
-    case 'scalar':                  return result.value
-    case 'aoi-vector':              return result.values[aoiIndex] ?? Number.NaN
-    case 'aoi-pair-matrix':         return result.matrix[aoiIndex] ?? Number.NaN
-    case 'participant-pair-matrix': return Number.NaN
-    case 'scalar-timeseries':       return Number.NaN
-    case 'aoi-vector-timeseries':   return Number.NaN
-  }
 }
 
 function createLabeledData(

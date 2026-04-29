@@ -286,7 +286,7 @@ describe('Ridgeline geometry invariants', () => {
         settings: {
           stimulusId: 0,
           groupId: -1,
-          metricInstanceId: 'absoluteTime-aoi-windowed-500',
+          metricInstanceIds: ['absoluteTime-aoi-windowed-500'],
           absoluteStimuliLimits: [],
           ...settings,
         },

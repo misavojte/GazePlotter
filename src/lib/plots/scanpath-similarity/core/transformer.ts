@@ -2,11 +2,17 @@ import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import { getParticipantsIds } from '$lib/data/engine'
 import {
   queryGroup,
-  resolveInstance,
   type GroupScope,
   type MetricResult,
+  type PlotMetricContract,
 } from '$lib/metrics'
+import {
+  asParticipantPairMatrix,
+  resolveContractedInstance,
+} from '$lib/plots/shared'
 import type { ScanpathSimilarityData, ScangraphData } from '../types'
+
+const CONTRACT = { outputShape: 'participant-pair-matrix', windowing: 'forbidden' } as const satisfies PlotMetricContract
 
 /**
  * Resolve the configured metric instance and run `queryGroup` to obtain the
@@ -24,8 +30,8 @@ export function getScanpathSimilarityData(
     return { labels: [], participantIds: [], matrix: new Float64Array(0), size: 0 }
   }
 
-  const instance = resolveInstance(meta.metricInstances ?? [], metricInstanceId)
-  if (!instance) {
+  const resolution = resolveContractedInstance(meta.metricInstances, metricInstanceId, CONTRACT)
+  if (!resolution.ok) {
     return { labels: [], participantIds: [], matrix: new Float64Array(0), size: 0, noMetric: true }
   }
 
@@ -35,8 +41,8 @@ export function getScanpathSimilarityData(
   }
 
   const scope: GroupScope = { engine, stimulusId, participantIds }
-  const result = queryGroup(instance, scope)
-  if (result.shape !== 'participant-pair-matrix') {
+  const result = asParticipantPairMatrix(queryGroup(resolution.instance, scope))
+  if (!result) {
     return { labels: [], participantIds: [], matrix: new Float64Array(0), size: 0, noMetric: true }
   }
 

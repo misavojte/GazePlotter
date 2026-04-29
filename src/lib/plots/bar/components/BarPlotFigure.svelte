@@ -27,7 +27,7 @@
     alignToPixelCenter,
     canvasLifecycleAction,
   } from '$lib/plots/shared/canvasUtils'
-  import { drawCanvasPlaceholder } from '$lib/plots/shared/drawCanvasPlaceholder'
+  import { drawCanvasPlaceholder, METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
   import type { StatisticalOverlayType } from '$lib/plots/bar/types'
   import {
     drawOverlayBackgrounds,
@@ -365,7 +365,7 @@
     if (!ctx) return
 
     if (noMetric) {
-      drawCanvasPlaceholder(ctx, width, height, 'Select a metric')
+      drawCanvasPlaceholder(ctx, width, height, METRIC_MISSING_MESSAGE)
       finishCanvasDrawing(plot.canvasState)
       return
     }

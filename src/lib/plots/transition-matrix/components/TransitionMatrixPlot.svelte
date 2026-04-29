@@ -30,7 +30,7 @@
   const effectiveColorScale = $derived(settings.colorScale ?? [])
 
   const resolvedInstance = $derived(
-    resolveInstance(engine.metadata?.metricInstances ?? [], settings.metricInstanceId)
+    resolveInstance(engine.metadata?.metricInstances ?? [], settings.metricInstanceIds[0] ?? null)
   )
 
   const resolvedMetric = $derived(
@@ -42,7 +42,7 @@
       engine,
       settings.stimulusId,
       settings.groupId,
-      settings.metricInstanceId,
+      settings.metricInstanceIds[0] ?? null,
     )
   )
 
