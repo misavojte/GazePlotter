@@ -1,15 +1,11 @@
 <script lang="ts">
   import { PaneSection } from '$lib/workspace/pane'
   import { InputNumber, Select } from '$lib/shared/components'
-  import { ColorGradientPicker } from '$lib/color'
+  import { buildValueRangePatch } from '$lib/plots/shared'
   import {
-    getStimuliOptions,
-    getParticipantsGroupOptions,
-    getColorScaleCommitted,
-    buildColorScalePatch,
-    buildValueRangePatch,
-  } from '$lib/plots/shared'
-  import { ContractMetricSelect } from '$lib/plots/shared/components'
+    ColorScalePicker,
+    CommonPlotPaneFields,
+  } from '$lib/plots/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { PRESET_PALETTES } from '$lib/color/palettes'
@@ -25,7 +21,7 @@
   }
 
   let { item }: Props = $props()
-  const { engine, workspace } = getGazePlotterSession()
+  const { workspace } = getGazePlotterSession()
   const settings = $derived(item.settings)
 
   const source = $derived(createCommandSourcePlotPattern(item, 'pane'))
@@ -34,42 +30,12 @@
     workspace.updateItemSettings(item.id, patch, source)
   }
 
-  const stimulusOptions = $derived(getStimuliOptions(engine))
-  const groupOptions = $derived(
-    getParticipantsGroupOptions(engine, true, settings.stimulusId)
-  )
-
   const view = $derived(settings.view ?? 'matrix')
   const isScangraph = $derived(view === 'scangraph')
-
-  const colorFields = $derived(
-    getColorScaleCommitted(
-      settings.colorScale,
-      PRESET_PALETTES.BLUE.colors[0],
-      PRESET_PALETTES.BLUE.colors[2]
-    )
-  )
 
   const range = $derived<[number, number]>(
     settings.stimuliColorValueRanges?.[settings.stimulusId] ?? [0, 0]
   )
-
-  let colorMin = $state(colorFields.colorMin)
-  let colorMiddle = $state(colorFields.colorMiddle)
-  let colorMax = $state(colorFields.colorMax)
-
-  $effect(() => {
-    colorMin = colorFields.colorMin
-    colorMiddle = colorFields.colorMiddle
-    colorMax = colorFields.colorMax
-  })
-  $effect(() => {
-    const patch = buildColorScalePatch(
-      { colorMin, colorMiddle, colorMax },
-      colorFields
-    )
-    if (patch) update({ colorScale: patch })
-  })
 
   function updateValueRange(next: { min?: number; max?: number }) {
     const draft = {
@@ -88,24 +54,7 @@
 </script>
 
 <PaneSection>
-  <Select
-    label="Stimulus"
-    options={stimulusOptions}
-    value={String(settings.stimulusId)}
-    onchange={e => update({ stimulusId: Number((e as CustomEvent).detail) })}
-  />
-  <Select
-    label="Participant group"
-    options={groupOptions}
-    value={String(settings.groupId)}
-    onchange={e => update({ groupId: Number((e as CustomEvent).detail) })}
-  />
-  <ContractMetricSelect
-    {engine}
-    contract={scanpathSimilarityDefinition.consumesMetrics!}
-    metricInstanceIds={settings.metricInstanceIds}
-    onMetricsChange={ids => update({ metricInstanceIds: ids })}
-  />
+  <CommonPlotPaneFields {item} contract={scanpathSimilarityDefinition.consumesMetrics!} />
   <Select
     label="Visualisation lense"
     options={[
@@ -165,7 +114,12 @@
         onValueChange={v => updateValueRange({ max: v ?? 0 })}
       />
     </div>
-    <ColorGradientPicker bind:colorMin bind:colorMiddle bind:colorMax />
+    <ColorScalePicker
+      colorScale={settings.colorScale}
+      defaultMin={PRESET_PALETTES.BLUE.colors[0]}
+      defaultMax={PRESET_PALETTES.BLUE.colors[2]}
+      onCommit={patch => update({ colorScale: patch })}
+    />
   </PaneSection>
 </div>
 

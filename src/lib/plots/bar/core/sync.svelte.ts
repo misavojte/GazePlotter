@@ -11,6 +11,8 @@
  * always wins over sync — sync only affects the auto-mode fallback.
  */
 
+import { PlotSyncRegistry } from '$lib/plots/shared/PlotSyncRegistry.svelte'
+
 interface SyncEntry {
   metricInstanceId: string
   w: number
@@ -18,38 +20,12 @@ interface SyncEntry {
   dataMax: number
 }
 
-class BarPlotValueAxisSync {
-  #entries: Record<number, SyncEntry> = $state({})
-
-  /** Register or update a plot's contribution to its matching sync group. */
-  setEntry(plotId: number, entry: SyncEntry): void {
-    this.#entries[plotId] = entry
-  }
-
-  /** Remove a plot from the registry (call on component unmount). */
-  clearEntry(plotId: number): void {
-    delete this.#entries[plotId]
-  }
-
-  /**
-   * Returns the largest dataMax across all plots that share (metric, w, h).
-   * Returns 0 when no plot matches — callers should fall back to their own
-   * data max in that case.
-   */
+class BarPlotValueAxisSync extends PlotSyncRegistry<SyncEntry> {
+  /** Largest dataMax across all bar plots sharing (metric, w, h). */
   getSyncedMax(metricInstanceId: string, w: number, h: number): number {
-    let max = 0
-    for (const id in this.#entries) {
-      const e = this.#entries[id]
-      if (
-        e.metricInstanceId === metricInstanceId &&
-        e.w === w &&
-        e.h === h &&
-        e.dataMax > max
-      ) {
-        max = e.dataMax
-      }
-    }
-    return max
+    return this.maxWhere(
+      e => e.metricInstanceId === metricInstanceId && e.w === w && e.h === h,
+    )
   }
 }
 

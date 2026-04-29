@@ -1,13 +1,6 @@
-import { defineMetric } from '../../core/defineMetric'
-import { enumParam } from '../../core/params'
-import { initTransitionAcc, processFixation } from '../../core/transitionScan'
+import { defineTransitionMetric } from '../../core/defineTransitionMetric'
 
-const params = [
-  enumParam('mode', 'Count mode', 'fixation' as 'fixation' | 'visit', [
-    { value: 'fixation', label: 'Fixation pairs' },
-    { value: 'visit',    label: 'Visit changes' },
-  ]),
-] as const
+interface Params { mode: 'fixation' | 'visit' }
 
 /**
  * ## Mean transition dwell time
@@ -23,17 +16,6 @@ const params = [
  * - `mode` (enum, default `'fixation'`): fixation → duration of the single
  *   preceding fixation; visit → total duration of the preceding visit.
  *
- * ### Usage
- * ```ts
- * query(
- *   { id: 'transitionDwellMean-fix', baseId: 'transitionDwellMean',
- *     params: { mode: 'fixation' },
- *     projection: { kind: 'identity-aoi-pair-matrix' },
- *     label: 'Mean transition dwell time' },
- *   { engine, stimulusId, participantId },
- * )
- * ```
- *
  * ### Invariants
  * - Per-participant: cell `[i, j]` = `auxMatrix[i,j] / matrix[i,j]` (dwell
  *   sum / transition count). Cells with no observed transitions emit `NaN`.
@@ -43,7 +25,7 @@ const params = [
  * - Not `additive` — averaging averages across cells is not meaningful;
  *   `matrix-aggregate` restricted to `max | min`.
  */
-defineMetric({
+defineTransitionMetric<Params>({
   id: 'transitionDwellMean',
   label: 'Mean transition dwell time',
   description:
@@ -51,24 +33,18 @@ defineMetric({
     'In fixation mode that\'s the duration of the single preceding fixation; in visit mode, the duration ' +
     'of the preceding visit.',
   unit: 'ms',
-  category: 'transition',
-  rawShape: 'aoi-pair-matrix',
-  windowUnit: 'ms',
   groupAggregation: 'mean',
-  defaultLabel: (p) =>
+  defaultLabel: p =>
     p.mode === 'visit'
       ? 'Mean transition dwell time (visit changes)'
       : 'Mean transition dwell time (fixation pairs)',
   searchTags: ['transition', 'dwell', 'mean', 'average', 'duration', 'pair', 'aoi', 'time'],
-  params,
-  init: ({ slots }) => initTransitionAcc(slots.totalSlots, /* withAux */ true),
-  onFixation: (acc, fix, { params: p }) => {
-    processFixation(acc, fix, p.mode, (cellIdx, prevDuration) => {
-      acc.matrix[cellIdx]++                     // count
-      acc.auxMatrix![cellIdx] += prevDuration   // dwell sum
-    })
+  withAux: true,
+  onTransition: (acc, cellIdx, prevDuration) => {
+    acc.matrix[cellIdx]++                     // count
+    acc.auxMatrix![cellIdx] += prevDuration   // dwell sum
   },
-  finalize: (acc) => {
+  finalize: acc => {
     const out = new Array<number>(acc.matrix.length)
     for (let i = 0; i < acc.matrix.length; i++) {
       out[i] = acc.matrix[i] > 0 ? acc.auxMatrix![i] / acc.matrix[i] : Number.NaN

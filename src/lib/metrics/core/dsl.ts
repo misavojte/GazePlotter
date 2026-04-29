@@ -96,6 +96,41 @@ export interface WindowFrame {
 }
 
 /**
+ * Single canonical construction of a {@link WindowFrame} from a fixation's
+ * raw `(start, end, duration)` and the active scope's `(timeStart, timeEnd)`.
+ * Both `scanAccumulator` (in `runtime.ts`) and `scanBatch` (in `scanner.ts`)
+ * call this — keeping SW-RQA midpoint semantics, occupancy duration math,
+ * and the clipped-flag rule in one place. Unbounded scopes (`timeEnd <= 0`)
+ * get `windowStart=0`, `windowEnd=+Infinity`, frame mirrors fixation, and
+ * `midpointInWindow=true`.
+ */
+export function buildWindowFrame(
+  start: number,
+  end: number,
+  duration: number,
+  timeStart: number,
+  timeEnd: number,
+): WindowFrame {
+  const bounded = timeEnd > 0
+  const windowStart = bounded ? timeStart : 0
+  const windowEnd = bounded ? timeEnd : Number.POSITIVE_INFINITY
+  const frameStart = Math.max(start, windowStart)
+  const frameEnd = bounded ? Math.min(end, windowEnd) : end
+  const isClipped = bounded && (start < windowStart || end > windowEnd)
+  const mid = start + duration / 2
+  const midpointInWindow = bounded ? mid >= windowStart && mid < windowEnd : true
+  return {
+    windowStart,
+    windowEnd,
+    start: frameStart,
+    end: frameEnd,
+    duration: frameEnd - frameStart,
+    isClipped,
+    midpointInWindow,
+  }
+}
+
+/**
  * A single fixation passed to a recipe's `onFixation`. Recipes choose
  * window-aware vs window-naive semantics by the field they read:
  *

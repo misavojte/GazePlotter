@@ -1,14 +1,11 @@
 <script lang="ts">
   import { PaneSection } from '$lib/workspace/pane'
-  import { InputNumber, Radio, Select } from '$lib/shared/components'
-  import { ColorGradientPicker } from '$lib/color'
+  import { Radio, Select } from '$lib/shared/components'
   import {
-    getStimuliOptions,
-    getParticipantsGroupOptions,
-    getColorScaleCommitted,
-    buildColorScalePatch,
-  } from '$lib/plots/shared'
-  import { ContractMetricSelect } from '$lib/plots/shared/components'
+    ColorScalePicker,
+    CommonPlotPaneFields,
+    TimelineRangeSection,
+  } from '$lib/plots/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { PRESET_PALETTES } from '$lib/color/palettes'
@@ -20,7 +17,7 @@
   }
 
   let { item }: Props = $props()
-  const { engine, workspace } = getGazePlotterSession()
+  const { workspace } = getGazePlotterSession()
   const settings = $derived(item.settings)
 
   const source = $derived(createCommandSourcePlotPattern(item, 'pane'))
@@ -29,60 +26,12 @@
     workspace.updateItemSettings(item.id, patch, source)
   }
 
-  const stimulusOptions = $derived(getStimuliOptions(engine))
-  const groupOptions = $derived(
-    getParticipantsGroupOptions(engine, true, settings.stimulusId)
-  )
-
   const presentation = $derived(settings.presentation ?? 'heatmap')
   const isHeatmap = $derived(presentation === 'heatmap')
-
-  const colorFields = $derived(
-    getColorScaleCommitted(
-      settings.colorScale,
-      PRESET_PALETTES.HEAT.colors[0],
-      PRESET_PALETTES.HEAT.colors[2]
-    )
-  )
-
-  let colorMin = $state(colorFields.colorMin)
-  let colorMiddle = $state(colorFields.colorMiddle)
-  let colorMax = $state(colorFields.colorMax)
-
-  $effect(() => {
-    colorMin = colorFields.colorMin
-    colorMiddle = colorFields.colorMiddle
-    colorMax = colorFields.colorMax
-  })
-  $effect(() => {
-    const patch = buildColorScalePatch(
-      { colorMin, colorMiddle, colorMax },
-      colorFields
-    )
-    if (patch) update({ colorScale: patch })
-  })
-
 </script>
 
 <PaneSection>
-  <Select
-    label="Stimulus"
-    options={stimulusOptions}
-    value={String(settings.stimulusId)}
-    onchange={e => update({ stimulusId: Number((e as CustomEvent).detail) })}
-  />
-  <Select
-    label="Participant group"
-    options={groupOptions}
-    value={String(settings.groupId)}
-    onchange={e => update({ groupId: Number((e as CustomEvent).detail) })}
-  />
-  <ContractMetricSelect
-    {engine}
-    contract={evolvingMetricsDefinition.consumesMetrics!}
-    metricInstanceIds={settings.metricInstanceIds}
-    onMetricsChange={ids => update({ metricInstanceIds: ids })}
-  />
+  <CommonPlotPaneFields {item} contract={evolvingMetricsDefinition.consumesMetrics!} />
   <Select
     label="Visualisation lense"
     options={[
@@ -97,38 +46,16 @@
   />
 </PaneSection>
 
-<PaneSection title="Time range [ms]">
-  <div class="inline-pair">
-    <InputNumber
-      id="ev-timeline-start"
-      label="Start"
-      value={settings.timelineStart}
-      min={0}
-      appearance="compact"
-      allowEmpty={true}
-      onValueChange={v => update({ timelineStart: v })}
-    />
-    <InputNumber
-      id="ev-timeline-end"
-      label="End (0 = Auto)"
-      value={settings.timelineEnd}
-      min={0}
-      appearance="compact"
-      allowEmpty={true}
-      onValueChange={v => update({ timelineEnd: v })}
-    />
-  </div>
-</PaneSection>
+<TimelineRangeSection {item} />
 
 <div style:display={isHeatmap ? 'contents' : 'none'}>
   <PaneSection title="Colors">
-    <ColorGradientPicker bind:colorMin bind:colorMiddle bind:colorMax />
+    <ColorScalePicker
+      colorScale={settings.colorScale}
+      defaultMin={PRESET_PALETTES.HEAT.colors[0]}
+      defaultMax={PRESET_PALETTES.HEAT.colors[2]}
+      onCommit={patch => update({ colorScale: patch })}
+    />
   </PaneSection>
 </div>
 
-<style>
-  .inline-pair {
-    display: flex;
-    gap: 8px;
-  }
-</style>

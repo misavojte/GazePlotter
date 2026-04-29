@@ -14,6 +14,8 @@
  * Opted-out plots neither contribute to nor read from the registry.
  */
 
+import { PlotSyncRegistry } from '$lib/plots/shared/PlotSyncRegistry.svelte'
+
 export type ScarfSyncTimelineMode = 'absolute' | 'ordinal'
 
 interface SyncEntry {
@@ -23,41 +25,16 @@ interface SyncEntry {
   dataMax: number
 }
 
-class ScarfTimelineSync {
-  #entries: Record<number, SyncEntry> = $state({})
-
-  /** Register or update a plot's contribution to its matching sync group. */
-  setEntry(plotId: number, entry: SyncEntry): void {
-    this.#entries[plotId] = entry
-  }
-
-  /** Remove a plot from the registry (call on component unmount). */
-  clearEntry(plotId: number): void {
-    delete this.#entries[plotId]
-  }
-
-  /**
-   * Largest dataMax across all plots sharing (timeline, w, h). Returns 0
-   * when nothing matches — callers fall back to their own data max.
-   */
+class ScarfTimelineSync extends PlotSyncRegistry<SyncEntry> {
+  /** Largest dataMax across all plots sharing (timeline, w, h). */
   getSyncedMax(
     timeline: ScarfSyncTimelineMode,
     w: number,
-    h: number
+    h: number,
   ): number {
-    let max = 0
-    for (const id in this.#entries) {
-      const e = this.#entries[id]
-      if (
-        e.timeline === timeline &&
-        e.w === w &&
-        e.h === h &&
-        e.dataMax > max
-      ) {
-        max = e.dataMax
-      }
-    }
-    return max
+    return this.maxWhere(
+      e => e.timeline === timeline && e.w === w && e.h === h,
+    )
   }
 }
 

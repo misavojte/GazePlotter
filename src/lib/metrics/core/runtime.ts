@@ -11,6 +11,7 @@ import {
   type Projection,
   type WindowedProjection,
 } from './projection'
+import { buildWindowFrame } from './dsl'
 import type { AoiSlotInfo, GroupScope, MetricRecipe, OutputShape } from './dsl'
 import type { MetricInstance } from '../instances'
 
@@ -376,24 +377,7 @@ export function scanAccumulator(
     }
 
     const duration = end - start
-    const bounded = timeEnd > 0
-    const windowStart = bounded ? timeStart : 0
-    const windowEnd = bounded ? timeEnd : Number.POSITIVE_INFINITY
-    const frameStart = Math.max(start, windowStart)
-    const frameEnd = bounded ? Math.min(end, windowEnd) : end
-    const frameDuration = frameEnd - frameStart
-    const isClipped = bounded && (start < windowStart || end > windowEnd)
-    const mid = start + duration / 2
-    const midpointInWindow = bounded ? mid >= windowStart && mid < windowEnd : true
-    const frame = {
-      windowStart,
-      windowEnd,
-      start: frameStart,
-      end: frameEnd,
-      duration: frameDuration,
-      isClipped,
-      midpointInWindow,
-    }
+    const frame = buildWindowFrame(start, end, duration, timeStart, timeEnd)
     recipe.onFixation(acc, { start, duration, frame, slots: resolvedSlots, index }, ctx)
     index++
   }

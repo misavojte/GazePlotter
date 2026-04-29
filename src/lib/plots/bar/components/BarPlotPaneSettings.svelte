@@ -1,11 +1,10 @@
 <script lang="ts">
   import { PaneSection } from '$lib/workspace/pane'
-  import { InputNumber, Radio, Select } from '$lib/shared/components'
+  import { InputNumber, Radio } from '$lib/shared/components'
   import {
-    getStimuliOptions,
-    getParticipantsGroupOptions,
-  } from '$lib/plots/shared'
-  import { ContractMetricSelect } from '$lib/plots/shared/components'
+    CommonPlotPaneFields,
+    TimelineRangeSection,
+  } from '$lib/plots/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import type { BarPlotItem, BarPlotSettings } from '../types'
@@ -16,7 +15,7 @@
   }
 
   let { item }: Props = $props()
-  const { engine, workspace } = getGazePlotterSession()
+  const { workspace } = getGazePlotterSession()
   const settings = $derived(item.settings)
 
   const source = $derived(createCommandSourcePlotPattern(item, 'pane'))
@@ -24,11 +23,6 @@
   function update(patch: Partial<BarPlotSettings>) {
     workspace.updateItemSettings(item.id, patch, source)
   }
-
-  const stimulusOptions = $derived(getStimuliOptions(engine))
-  const groupOptions = $derived(
-    getParticipantsGroupOptions(engine, true, settings.stimulusId)
-  )
 
   const minScale = $derived(settings.scaleRange?.[0] ?? 0)
   const maxScale = $derived(settings.scaleRange?.[1] ?? 0)
@@ -43,24 +37,7 @@
 </script>
 
 <PaneSection>
-  <Select
-    label="Stimulus"
-    options={stimulusOptions}
-    value={String(settings.stimulusId)}
-    onchange={e => update({ stimulusId: Number((e as CustomEvent).detail) })}
-  />
-  <Select
-    label="Participant group"
-    options={groupOptions}
-    value={String(settings.groupId)}
-    onchange={e => update({ groupId: Number((e as CustomEvent).detail) })}
-  />
-  <ContractMetricSelect
-    {engine}
-    contract={barPlotDefinition.consumesMetrics!}
-    metricInstanceIds={settings.metricInstanceIds}
-    onMetricsChange={ids => update({ metricInstanceIds: ids })}
-  />
+  <CommonPlotPaneFields {item} contract={barPlotDefinition.consumesMetrics!} />
 </PaneSection>
 
 <PaneSection title="Layout">
@@ -144,28 +121,7 @@
   </div>
 </PaneSection>
 
-<PaneSection title="Time range [ms]">
-  <div class="inline-pair">
-    <InputNumber
-      id="bar-timeline-start"
-      label="Start"
-      value={settings.timelineStart}
-      min={0}
-      appearance="compact"
-      allowEmpty={true}
-      onValueChange={v => update({ timelineStart: v })}
-    />
-    <InputNumber
-      id="bar-timeline-end"
-      label="End (0 = Auto)"
-      value={settings.timelineEnd}
-      min={0}
-      appearance="compact"
-      allowEmpty={true}
-      onValueChange={v => update({ timelineEnd: v })}
-    />
-  </div>
-</PaneSection>
+<TimelineRangeSection {item} />
 
 <style>
   .inline-pair {

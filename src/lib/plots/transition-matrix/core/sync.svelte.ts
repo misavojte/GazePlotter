@@ -8,6 +8,8 @@
  * out (does not contribute, does not read).
  */
 
+import { PlotSyncRegistry } from '$lib/plots/shared/PlotSyncRegistry.svelte'
+
 interface SyncEntry {
   /** Composite key identifying matrices that are comparable (metric + display + step). */
   groupKey: string
@@ -18,43 +20,21 @@ interface SyncEntry {
   dataMax: number
 }
 
-class TransitionMatrixColorSync {
-  #entries: Record<number, SyncEntry> = $state({})
-
-  /** Register or update a plot's contribution to its matching sync group. */
-  setEntry(plotId: number, entry: SyncEntry): void {
-    this.#entries[plotId] = entry
-  }
-
-  /** Remove a plot from the registry (call on component unmount). */
-  clearEntry(plotId: number): void {
-    delete this.#entries[plotId]
-  }
-
-  /**
-   * Largest dataMax across all plots sharing (groupKey, colorScaleKey, w, h).
-   * Returns 0 when nothing matches.
-   */
+class TransitionMatrixColorSync extends PlotSyncRegistry<SyncEntry> {
+  /** Largest dataMax across plots sharing (groupKey, colorScaleKey, w, h). */
   getSyncedMax(
     groupKey: string,
     colorScaleKey: string,
     w: number,
-    h: number
+    h: number,
   ): number {
-    let max = 0
-    for (const id in this.#entries) {
-      const e = this.#entries[id]
-      if (
+    return this.maxWhere(
+      e =>
         e.groupKey === groupKey &&
         e.colorScaleKey === colorScaleKey &&
         e.w === w &&
-        e.h === h &&
-        e.dataMax > max
-      ) {
-        max = e.dataMax
-      }
-    }
-    return max
+        e.h === h,
+    )
   }
 }
 

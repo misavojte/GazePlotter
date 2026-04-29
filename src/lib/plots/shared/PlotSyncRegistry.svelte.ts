@@ -1,0 +1,42 @@
+/**
+ * Shared base for cross-plot sync registries (value-axis, color-axis, timeline).
+ *
+ * Plots that participate in cross-plot sync register a per-plot `Entry`
+ * (carrying `dataMax` plus whatever match keys distinguish the sync group)
+ * keyed by their grid item id. Reads consult `getSyncedMax(match)` to find
+ * the largest `dataMax` across entries that satisfy a match predicate.
+ *
+ * The `$state`-backed map is the only Svelte-aware piece — readers depend on
+ * it for reactivity, so subclasses don't need their own state plumbing. Each
+ * concrete registry is a 5–10-line subclass that wraps `getSyncedMax` with a
+ * shape-specific signature.
+ */
+export class PlotSyncRegistry<E extends { dataMax: number }> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  protected entries: Record<number, E> = $state({}) as any
+
+  /** Register or update a plot's contribution to its matching sync group. */
+  setEntry(plotId: number, entry: E): void {
+    this.entries[plotId] = entry
+  }
+
+  /** Remove a plot from the registry (call on component unmount). */
+  clearEntry(plotId: number): void {
+    delete this.entries[plotId]
+  }
+
+  /**
+   * Return the largest `dataMax` across entries that satisfy `match`. Returns
+   * `0` when nothing matches — callers fall back to their own data max in that
+   * case. Protected so each subclass exposes a `getSyncedMax(...)` method with
+   * its own typed match-key signature, calling this internally.
+   */
+  protected maxWhere(match: (entry: E) => boolean): number {
+    let max = 0
+    for (const id in this.entries) {
+      const e = this.entries[id]
+      if (match(e) && e.dataMax > max) max = e.dataMax
+    }
+    return max
+  }
+}

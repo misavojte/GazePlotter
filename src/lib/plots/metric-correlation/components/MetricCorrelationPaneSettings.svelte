@@ -1,11 +1,10 @@
 <script lang="ts">
   import { PaneSection } from '$lib/workspace/pane'
-  import { InputNumber, Radio, Select } from '$lib/shared/components'
+  import { Radio, Select } from '$lib/shared/components'
   import {
-    getStimuliOptions,
-    getParticipantsGroupOptions,
-  } from '$lib/plots/shared'
-  import { ContractMetricSelect } from '$lib/plots/shared/components'
+    CommonPlotPaneFields,
+    TimelineRangeSection,
+  } from '$lib/plots/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import {
@@ -23,7 +22,7 @@
   }
 
   let { item }: Props = $props()
-  const { engine, workspace } = getGazePlotterSession()
+  const { workspace } = getGazePlotterSession()
   const settings = $derived(item.settings)
 
   const source = $derived(createCommandSourcePlotPattern(item, 'pane'))
@@ -31,33 +30,13 @@
   function update(patch: Partial<MetricCorrelationSettings>) {
     workspace.updateItemSettings(item.id, patch, source)
   }
-
-  const stimulusOptions = $derived(getStimuliOptions(engine))
-  const groupOptions = $derived(
-    getParticipantsGroupOptions(engine, true, settings.stimulusId)
-  )
-
 </script>
 
 <PaneSection>
-  <Select
-    label="Stimulus"
-    options={stimulusOptions}
-    value={String(settings.stimulusId)}
-    onchange={e => update({ stimulusId: Number((e as CustomEvent).detail) })}
-  />
-  <Select
-    label="Participant group"
-    options={groupOptions}
-    value={String(settings.groupId)}
-    onchange={e => update({ groupId: Number((e as CustomEvent).detail) })}
-  />
-  <ContractMetricSelect
-    {engine}
+  <CommonPlotPaneFields
+    {item}
     contract={metricCorrelationDefinition.consumesMetrics!}
-    metricInstanceIds={settings.metricInstanceIds}
-    onMetricsChange={ids => update({ metricInstanceIds: ids })}
-    label="Metrics"
+    metricLabel="Metrics"
   />
   <Select
     label="Visualisation lense"
@@ -91,32 +70,4 @@
   />
 </PaneSection>
 
-<PaneSection title="Time range [ms]">
-  <div class="time-range">
-    <InputNumber
-      id="timeline-start"
-      label="Start"
-      value={settings.timelineStart}
-      min={0}
-      appearance="compact"
-      allowEmpty={true}
-      onValueChange={v => update({ timelineStart: v })}
-    />
-    <InputNumber
-      id="timeline-end"
-      label="End (0 = Auto)"
-      value={settings.timelineEnd}
-      min={0}
-      appearance="compact"
-      allowEmpty={true}
-      onValueChange={v => update({ timelineEnd: v })}
-    />
-  </div>
-</PaneSection>
-
-<style>
-  .time-range {
-    display: flex;
-    gap: 8px;
-  }
-</style>
+<TimelineRangeSection {item} />
