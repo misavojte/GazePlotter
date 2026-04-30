@@ -396,7 +396,7 @@
               <Copy size={13} />
             </button>
             <button
-              class="icon-btn danger"
+              class="icon-btn"
               onclick={() => ondeleteInstance?.(inst.id)}
               title="Delete"
               aria-label="Delete"
@@ -826,7 +826,6 @@
   }
   .icon-btn:hover { background: var(--c-lightgrey); color: var(--c-text); }
   .icon-btn.active { color: var(--c-brand); }
-  .icon-btn.danger:hover { background: #fee2e2; color: #dc2626; }
 
   .add-list {
     display: flex;

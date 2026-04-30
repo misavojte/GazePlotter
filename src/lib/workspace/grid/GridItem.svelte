@@ -286,7 +286,7 @@
       {#if removable}
         <button
           type="button"
-          class="action-toolbar-button danger"
+          class="action-toolbar-button"
           onclick={() => onremove({ id })}
           aria-label="Remove item"
         >
