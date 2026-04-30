@@ -35,8 +35,6 @@
     showLabel = false,
   }: Props = $props()
 
-  let iconElement: HTMLDivElement | null = $state(null)
-
   const menuItems = $derived.by((): MenuItem[] => {
     return actions.map(action => ({
       label: action.label,
@@ -44,22 +42,14 @@
     }))
   })
 
+  // Press-feedback (icon scale-down) is pure CSS — see the
+  // `.toolbar-item:active ... .toolbar-item-icon` rule below. The
+  // button's `disabled` attribute suppresses clicks at the platform
+  // level. `handleClick` only routes the single-action case here;
+  // multi-action falls through to `contextMenuAction`.
   function handleClick() {
     if (disabled) return
-
-    if (iconElement) {
-      iconElement.style.transform = 'scale(0.85)'
-      setTimeout(() => {
-        if (iconElement) {
-          iconElement.style.transform = 'scale(1)'
-        }
-      }, 100)
-    }
-
-    if (actions.length === 1) {
-      actions[0].run()
-      return
-    }
+    if (actions.length === 1) actions[0].run()
   }
 
   const isMenuVisible = $derived(contextMenuState.current !== null)
@@ -88,7 +78,7 @@
       disabled: disabled || actions.length <= 1,
     }}
   >
-    <div class="toolbar-item-icon" bind:this={iconElement}>
+    <div class="toolbar-item-icon">
       <Icon size={16} strokeWidth={1.75} />
     </div>
     {#if showLabel}
@@ -155,6 +145,10 @@
     align-items: center;
     justify-content: center;
     transition: transform 0.1s ease;
+  }
+
+  .toolbar-item:active:not(.disabled) .toolbar-item-icon {
+    transform: scale(0.85);
   }
 
   .toolbar-item-label {
