@@ -161,6 +161,11 @@ export class TobiiAdapter extends AbstractAdapter {
   private readonly cMappedFixationY: number | null
   private readonly cFixationX: number
   private readonly cFixationY: number
+  // Multiplier that converts the file's `Recording timestamp` into microseconds.
+  // Older Tobii Pro Lab versions exported microseconds without a unit suffix;
+  // newer versions can label the column `[μs]` or `[ms]`. Internal logic is
+  // microsecond-based, so `[ms]` files are scaled at read time.
+  private readonly recordingTimestampScaleToMicros: number
   // Unmapped (generic) fallbacks for category/index. Non-null only when the
   // file ALSO has per-stimulus `Mapped eye movement type [...]` columns, so the
   // unmapped column is a distinct fallback. When the file has only the unmapped
@@ -275,6 +280,9 @@ export class TobiiAdapter extends AbstractAdapter {
     this.cRecordingTimestamp = this.findColumnByNameOrUnit(
       header,
       'Recording timestamp'
+    )
+    this.recordingTimestampScaleToMicros = this.detectMicrosecondScale(
+      this.cRecordingTimestamp !== -1 ? header[this.cRecordingTimestamp] : ''
     )
     const altStim = header.indexOf('Presented Stimulus name')
     this.cStimulus =
@@ -505,7 +513,7 @@ export class TobiiAdapter extends AbstractAdapter {
       if (!bytesEqual(sensorBytes, this.eyeTrackerSensorBytes)) return
     }
 
-    const currentTimestampNum = this.getNumber(this.pRecordingTimestamp)
+    const currentTimestampNum = this.getRecordingTimestampMicros()
     if (!Number.isFinite(currentTimestampNum)) return
 
     const recordingBytes = this.getBytes(this.pRecording)
@@ -992,7 +1000,7 @@ export class TobiiAdapter extends AbstractAdapter {
             recordingKey,
             participantKey
           )
-          const tsNum = this.getNumber(this.pRecordingTimestamp)
+          const tsNum = this.getRecordingTimestampMicros()
           if (Number.isFinite(tsNum)) this.intervalStartTimes.set(key, tsNum)
           this.updateCachedStimulusStackBinary()
         }
@@ -1028,7 +1036,7 @@ export class TobiiAdapter extends AbstractAdapter {
             recordingKey,
             participantKey
           )
-          const tsNum = this.getNumber(this.pRecordingTimestamp)
+          const tsNum = this.getRecordingTimestampMicros()
           if (Number.isFinite(tsNum)) this.intervalStartTimes.set(key, tsNum)
           this.updateCachedStimulusStackBinary()
         }
@@ -1073,6 +1081,31 @@ export class TobiiAdapter extends AbstractAdapter {
       if (header[i].startsWith(prefix)) return i
     }
     return null
+  }
+
+  /**
+   * Read the recording timestamp from the current row, returning microseconds
+   * regardless of the source file's labelled unit (`[μs]` vs `[ms]`).
+   */
+  private getRecordingTimestampMicros(): number {
+    return (
+      this.getNumber(this.pRecordingTimestamp) *
+      this.recordingTimestampScaleToMicros
+    )
+  }
+
+  /**
+   * Pick the µs scale factor from a `Recording timestamp` header cell. Bare
+   * `Recording timestamp` and `Recording timestamp [μs]` both mean
+   * microseconds (factor 1); `Recording timestamp [ms]` means milliseconds
+   * (factor 1000). Anything else also defaults to 1 — Tobii Pro Lab is not
+   * known to export `Recording timestamp` in any other unit.
+   */
+  private detectMicrosecondScale(headerCell: string): number {
+    const open = headerCell.lastIndexOf('[')
+    if (open === -1 || !headerCell.endsWith(']')) return 1
+    const unit = headerCell.substring(open + 1, headerCell.length - 1).trim()
+    return unit === 'ms' ? 1000 : 1
   }
 
   /**
