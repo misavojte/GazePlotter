@@ -21,6 +21,13 @@ const MAX_SAMPLE_INTERVAL_US = 50000
 const SAMPLE_INTERVAL_TOLERANCE_FACTOR = 1.5
 const WEB_STIMULUS_TRIGGER = 'WebStimulus'
 
+type StimulusPackedCols = {
+  pCategory: number
+  pCategoryIndex: number
+  pMappedFixationX: number
+  pMappedFixationY: number
+}
+
 class BigIntNumberMap {
   private keys: bigint[]
   private values: Float64Array
@@ -154,6 +161,12 @@ export class TobiiAdapter extends AbstractAdapter {
   private readonly cMappedFixationY: number | null
   private readonly cFixationX: number
   private readonly cFixationY: number
+  // Unmapped (generic) fallbacks for category/index. Non-null only when the
+  // file ALSO has per-stimulus `Mapped eye movement type [...]` columns, so the
+  // unmapped column is a distinct fallback. When the file has only the unmapped
+  // column, cCategory already points there and these stay -1.
+  private readonly cCategoryUnmapped: number
+  private readonly cEyeMovementTypeIndexUnmapped: number
 
   private readonly pRecordingTimestamp = 0
   private readonly pStimulus = 1
@@ -168,6 +181,19 @@ export class TobiiAdapter extends AbstractAdapter {
   private readonly pMappedFixationY = 10
   private readonly pFixationX = 11
   private readonly pFixationY = 12
+  private readonly pCategoryUnmapped = 13
+  private readonly pEyeMovementTypeIndexUnmapped = 14
+
+  // Per-stimulus packed-column overrides, keyed by FNV hash of the stimulus name.
+  // Tobii exports may carry one set of `Mapped eye movement type / index / fixation X/Y`
+  // columns per stimulus; the relevant column is non-empty only while that stimulus is
+  // active. Falls back to the first-mapped/unmapped pCategory etc. when no override.
+  private readonly stimulusPackedCols = new Map<number, StimulusPackedCols>()
+  private activeStimulusPackedCols: StimulusPackedCols | null = null
+  // Media-name parsing must never read per-stimulus mapped columns: those are
+  // keyed to interval names, not to media files, so they're meaningless here.
+  // Set in the constructor when the base/media stimulus updater is selected.
+  private mappedColumnsAllowed = true
 
   /* ── Optimized AOI Info ─────────────────────────────────────────── */
   private readonly aoiNames: Uint8Array[] = []
@@ -184,6 +210,11 @@ export class TobiiAdapter extends AbstractAdapter {
   private mCategoryBytes: Uint8Array | null = null
   private mCategoryId = 0
   private mAoi: Uint8Array[] | null = null
+  // Snapshot of the interval stack at the moment the current segment started.
+  // Used when emitting that segment so it isn't mis-attributed if IntervalEnd_A
+  // and IntervalStart_B both arrive before the next eye-tracker sample.
+  private mActiveStimuliBytes: Uint8Array[] = []
+  private mActiveStimuliKeys: number[] = []
   private aoiHitFlags: Uint8Array = new Uint8Array(0)
   private aoiHitCount = 0
   /* ── Spatial segment state ──────────────────────────────────────── */
@@ -247,14 +278,34 @@ export class TobiiAdapter extends AbstractAdapter {
       altStim === -1 ? header.indexOf('Recording media name') : altStim
     this.cParticipant = header.indexOf('Participant name')
     this.cRecording = header.indexOf('Recording name')
-    this.cCategory =
-      this.findColumnByPrefix(header, 'Mapped eye movement type') ??
-      header.indexOf('Eye movement type')
+    const cCategoryUnmappedRaw = header.indexOf('Eye movement type')
+    const cCategoryFirstMapped = this.findColumnByPrefix(
+      header,
+      'Mapped eye movement type'
+    )
+    this.cCategory = cCategoryFirstMapped ?? cCategoryUnmappedRaw
+    // Track the unmapped column separately only when it's distinct from cCategory,
+    // so the deserializer can fall back to it when the mapped column is empty.
+    this.cCategoryUnmapped =
+      cCategoryFirstMapped !== null && cCategoryUnmappedRaw !== -1
+        ? cCategoryUnmappedRaw
+        : -1
     this.cEvent = header.indexOf('Event')
     this.cEventValue = header.indexOf('Event value')
+    const cEyeMovementTypeIndexUnmappedRaw = header.indexOf(
+      'Eye movement type index'
+    )
+    const cEyeMovementTypeIndexFirstMapped = this.findColumnByPrefix(
+      header,
+      'Mapped eye movement type index'
+    )
     this.cEyeMovementTypeIndex =
-      this.findColumnByPrefix(header, 'Mapped eye movement type index') ??
-      header.indexOf('Eye movement type index')
+      cEyeMovementTypeIndexFirstMapped ?? cEyeMovementTypeIndexUnmappedRaw
+    this.cEyeMovementTypeIndexUnmapped =
+      cEyeMovementTypeIndexFirstMapped !== null &&
+      cEyeMovementTypeIndexUnmappedRaw !== -1
+        ? cEyeMovementTypeIndexUnmappedRaw
+        : -1
     this.cSensor = header.indexOf('Sensor')
 
     /* Initialize spatial column indices with fallback support */
@@ -265,7 +316,7 @@ export class TobiiAdapter extends AbstractAdapter {
 
     this.hasSensorColumn = this.cSensor !== -1
 
-    this.setupColumns([
+    const baseColumns: number[] = [
       this.cRecordingTimestamp,
       this.cStimulus,
       this.cParticipant,
@@ -279,7 +330,51 @@ export class TobiiAdapter extends AbstractAdapter {
       this.cMappedFixationY ?? -1,
       this.cFixationX,
       this.cFixationY,
+      this.cCategoryUnmapped,
+      this.cEyeMovementTypeIndexUnmapped,
+    ]
+
+    const mappedCategoryByStim = this.collectColumnsByBracketedSuffix(
+      header,
+      'Mapped eye movement type ['
+    )
+    const mappedCategoryIndexByStim = this.collectColumnsByBracketedSuffix(
+      header,
+      'Mapped eye movement type index ['
+    )
+    const mappedFixXByStim = this.collectColumnsByBracketedSuffix(
+      header,
+      'Mapped fixation X ['
+    )
+    const mappedFixYByStim = this.collectColumnsByBracketedSuffix(
+      header,
+      'Mapped fixation Y ['
+    )
+
+    const stimNames = new Set<string>([
+      ...mappedCategoryByStim.keys(),
+      ...mappedCategoryIndexByStim.keys(),
+      ...mappedFixXByStim.keys(),
+      ...mappedFixYByStim.keys(),
     ])
+    for (const stimName of stimNames) {
+      const stimKey = this.makeKey(encodeString(stimName, this.encoding))
+      const cols: StimulusPackedCols = {
+        pCategory: baseColumns.length,
+        pCategoryIndex: baseColumns.length + 1,
+        pMappedFixationX: baseColumns.length + 2,
+        pMappedFixationY: baseColumns.length + 3,
+      }
+      baseColumns.push(
+        mappedCategoryByStim.get(stimName) ?? -1,
+        mappedCategoryIndexByStim.get(stimName) ?? -1,
+        mappedFixXByStim.get(stimName) ?? -1,
+        mappedFixYByStim.get(stimName) ?? -1
+      )
+      this.stimulusPackedCols.set(stimKey, cols)
+    }
+
+    this.setupColumns(baseColumns)
 
     const aoiInfo = headerBytes
       ? this.constructAoiInfoFromBytes(headerBytes)
@@ -292,11 +387,13 @@ export class TobiiAdapter extends AbstractAdapter {
 
     if (userInput === WEB_STIMULUS_TRIGGER) {
       this.stimulusUpdater = this.constructWebStimulusUpdaterBinary()
+    } else if (userInput === EMPTY_STRING) {
+      this.mappedColumnsAllowed = false
+      this.stimulusUpdater = this.constructBaseStimulusUpdaterBinary()
     } else {
-      this.stimulusUpdater =
-        userInput === EMPTY_STRING
-          ? this.constructBaseStimulusUpdaterBinary()
-          : this.constructIntervalStimulusUpdaterBinary(userInput)
+      this.stimulusUpdater = this.constructIntervalStimulusUpdaterBinary(
+        userInput
+      )
     }
   }
 
@@ -306,10 +403,15 @@ export class TobiiAdapter extends AbstractAdapter {
     if (!this.intervalStack.size) {
       this.cachedStimulusStackBytes = []
       this.cachedStimulusStackKeys = []
+      this.activeStimulusPackedCols = null
       return
     }
     this.cachedStimulusStackBytes = Array.from(this.intervalStack.values())
     this.cachedStimulusStackKeys = Array.from(this.intervalStack.keys())
+    const lastKey =
+      this.cachedStimulusStackKeys[this.cachedStimulusStackKeys.length - 1]
+    this.activeStimulusPackedCols =
+      this.stimulusPackedCols.get(lastKey) ?? null
   }
 
   /* ── Spatial coordinate extraction ──────────────────────────────── */
@@ -322,16 +424,29 @@ export class TobiiAdapter extends AbstractAdapter {
     let x: number
     let y: number
 
-    // Try mapped fixation coordinates first
-    if (this.cMappedFixationX !== null && this.cMappedFixationY !== null) {
-      x = this.getNumber(this.pMappedFixationX)
-      y = this.getNumber(this.pMappedFixationY)
-      if (Number.isFinite(x) && Number.isFinite(y)) {
-        return { x, y }
+    if (this.mappedColumnsAllowed) {
+      // Try the active stimulus's mapped fixation columns first
+      const active = this.activeStimulusPackedCols
+      if (active) {
+        x = this.getNumber(active.pMappedFixationX)
+        y = this.getNumber(active.pMappedFixationY)
+        if (Number.isFinite(x) && Number.isFinite(y)) {
+          return { x, y }
+        }
+      }
+
+      // Fallback to first-mapped fixation columns (legacy single-stimulus path)
+      if (this.cMappedFixationX !== null && this.cMappedFixationY !== null) {
+        x = this.getNumber(this.pMappedFixationX)
+        y = this.getNumber(this.pMappedFixationY)
+        if (Number.isFinite(x) && Number.isFinite(y)) {
+          return { x, y }
+        }
       }
     }
 
-    // Fallback to standard fixation point coordinates
+    // Fallback to standard fixation point coordinates (also the only path in
+    // media mode, where mapped fixations don't apply to media-named stimuli)
     x = this.getNumber(this.pFixationX)
     y = this.getNumber(this.pFixationY)
     if (Number.isFinite(x) && Number.isFinite(y)) {
@@ -361,7 +476,25 @@ export class TobiiAdapter extends AbstractAdapter {
   protected deserializeFromBytes(_rawRowRef: Uint8Array): void {
     this.stimulusUpdater()
 
-    const categoryBytes = this.getBytes(this.pCategory)
+    let categoryBytes: Uint8Array
+    let eyeMovementTypeIndexBytes: Uint8Array
+    if (this.mappedColumnsAllowed) {
+      const active = this.activeStimulusPackedCols
+      categoryBytes = active
+        ? this.getBytes(active.pCategory)
+        : new Uint8Array(0)
+      if (!categoryBytes.length) categoryBytes = this.getBytes(this.pCategory)
+      if (!categoryBytes.length && this.cCategoryUnmapped !== -1) {
+        categoryBytes = this.getBytes(this.pCategoryUnmapped)
+      }
+    } else {
+      // Media mode: ignore mapped columns; per-stimulus mappings are tied to
+      // interval names, not media files, so they can't carry valid data here.
+      categoryBytes =
+        this.cCategoryUnmapped !== -1
+          ? this.getBytes(this.pCategoryUnmapped)
+          : this.getBytes(this.pCategory)
+    }
     if (!categoryBytes.length) return
 
     if (this.hasSensorColumn) {
@@ -374,7 +507,28 @@ export class TobiiAdapter extends AbstractAdapter {
 
     const recordingBytes = this.getBytes(this.pRecording)
     const participantBytes = this.getBytes(this.pParticipant)
-    const eyeMovementTypeIndexBytes = this.getBytes(this.pEyeMovementTypeIndex)
+    if (this.mappedColumnsAllowed) {
+      const active = this.activeStimulusPackedCols
+      eyeMovementTypeIndexBytes = active
+        ? this.getBytes(active.pCategoryIndex)
+        : new Uint8Array(0)
+      if (!eyeMovementTypeIndexBytes.length) {
+        eyeMovementTypeIndexBytes = this.getBytes(this.pEyeMovementTypeIndex)
+      }
+      if (
+        !eyeMovementTypeIndexBytes.length &&
+        this.cEyeMovementTypeIndexUnmapped !== -1
+      ) {
+        eyeMovementTypeIndexBytes = this.getBytes(
+          this.pEyeMovementTypeIndexUnmapped
+        )
+      }
+    } else {
+      eyeMovementTypeIndexBytes =
+        this.cEyeMovementTypeIndexUnmapped !== -1
+          ? this.getBytes(this.pEyeMovementTypeIndexUnmapped)
+          : this.getBytes(this.pEyeMovementTypeIndex)
+    }
 
     const recordingChanged = !bytesEqual(
       recordingBytes,
@@ -554,6 +708,8 @@ export class TobiiAdapter extends AbstractAdapter {
     /* mutate state for new segment */
     this.mStimulusBytes = newStimulusBytes
     this.mStimulusKey = newStimulusKey
+    this.mActiveStimuliBytes = activeStimuliBytes.slice()
+    this.mActiveStimuliKeys = activeStimuliKeys.slice()
 
     const fullParticipantBytes = new Uint8Array(
       recordingBytes.length + this.spaceBytes.length + participantBytes.length
@@ -648,9 +804,19 @@ export class TobiiAdapter extends AbstractAdapter {
     const startNum = this.mRecordingStart
     const endNum = this.mRecordingLast
 
-    for (let i = 0; i < this.cachedStimulusStackBytes.length; i++) {
-      const stimulusBytes = this.cachedStimulusStackBytes[i]
-      const stimulusKey = this.cachedStimulusStackKeys[i]
+    // Use the stack snapshot taken when this segment began. Falls back to the
+    // current stack when no snapshot was captured (e.g. finalize() with active
+    // intervals).
+    const stimuliBytes = this.mActiveStimuliBytes.length
+      ? this.mActiveStimuliBytes
+      : this.cachedStimulusStackBytes
+    const stimuliKeys = this.mActiveStimuliKeys.length
+      ? this.mActiveStimuliKeys
+      : this.cachedStimulusStackKeys
+
+    for (let i = 0; i < stimuliBytes.length; i++) {
+      const stimulusBytes = stimuliBytes[i]
+      const stimulusKey = stimuliKeys[i]
       if (this.mParticipantKey === null) continue
       const key = this.makeCompositeKey32x64(stimulusKey, this.mParticipantKey)
       const baseTime = this.stimuliBaseTimes.get(key) ?? startNum
@@ -773,6 +939,9 @@ export class TobiiAdapter extends AbstractAdapter {
 
   /* ── Stimulus Updaters ──────────────────────────────────────────── */
   private constructBaseStimulusUpdaterBinary() {
+    // Media-name stimulus parsing: don't activate per-stimulus mapped columns.
+    // Mapped fixation/category columns are keyed by interval names (e.g. `01-walk`),
+    // which don't correspond to media file names — keep the standard fallback path.
     return (): void => {
       const stimBytes = this.getBytes(this.pStimulus)
       if (stimBytes.length) {
@@ -901,5 +1070,26 @@ export class TobiiAdapter extends AbstractAdapter {
       if (header[i].startsWith(prefix)) return i
     }
     return null
+  }
+
+  /**
+   * Collect header columns of the form `<prefix><stimName>]` (e.g.
+   * `Mapped fixation X [01-walk]`), keyed by the stimulus name inside the
+   * brackets. The prefix is expected to end with `[`.
+   */
+  private collectColumnsByBracketedSuffix(
+    header: string[],
+    prefix: string
+  ): Map<string, number> {
+    const result = new Map<string, number>()
+    for (let i = 0; i < header.length; i++) {
+      const h = header[i]
+      if (!h.startsWith(prefix)) continue
+      if (!h.endsWith(']')) continue
+      const stim = h.substring(prefix.length, h.length - 1)
+      if (stim.length === 0) continue
+      result.set(stim, i)
+    }
+    return result
   }
 }
