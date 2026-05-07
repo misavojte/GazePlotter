@@ -272,7 +272,10 @@ export class TobiiAdapter extends AbstractAdapter {
     this.aoiDashBytes = encodeString(' - ', this.encoding)
     this.fixationBytes = encodeString('Fixation', this.encoding)
     this.spaceBytes = encodeString(' ', this.encoding)
-    this.cRecordingTimestamp = header.indexOf('Recording timestamp')
+    this.cRecordingTimestamp = this.findColumnByNameOrUnit(
+      header,
+      'Recording timestamp'
+    )
     const altStim = header.indexOf('Presented Stimulus name')
     this.cStimulus =
       altStim === -1 ? header.indexOf('Recording media name') : altStim
@@ -311,8 +314,8 @@ export class TobiiAdapter extends AbstractAdapter {
     /* Initialize spatial column indices with fallback support */
     this.cMappedFixationX = this.findColumnByPrefix(header, 'Mapped fixation X')
     this.cMappedFixationY = this.findColumnByPrefix(header, 'Mapped fixation Y')
-    this.cFixationX = header.indexOf('Fixation point X')
-    this.cFixationY = header.indexOf('Fixation point Y')
+    this.cFixationX = this.findColumnByNameOrUnit(header, 'Fixation point X')
+    this.cFixationY = this.findColumnByNameOrUnit(header, 'Fixation point Y')
 
     this.hasSensorColumn = this.cSensor !== -1
 
@@ -1070,6 +1073,23 @@ export class TobiiAdapter extends AbstractAdapter {
       if (header[i].startsWith(prefix)) return i
     }
     return null
+  }
+
+  /**
+   * Resolve a header cell by exact name OR by `name [<unit>]`. Newer Tobii Pro
+   * Lab exports add unit suffixes (e.g. `Recording timestamp [ms]`,
+   * `Fixation point X [DACS px]`) to quantitative columns. Returns -1 if
+   * neither form is found.
+   */
+  private findColumnByNameOrUnit(header: string[], name: string): number {
+    const exact = header.indexOf(name)
+    if (exact !== -1) return exact
+    const prefix = name + ' ['
+    for (let i = 0; i < header.length; i++) {
+      const h = header[i]
+      if (h.startsWith(prefix) && h.endsWith(']')) return i
+    }
+    return -1
   }
 
   /**
