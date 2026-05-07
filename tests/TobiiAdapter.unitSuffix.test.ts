@@ -123,6 +123,52 @@ describe('TobiiAdapter — unit-suffixed header tolerance', () => {
     expect(outputs[0].spatial).toEqual({ x: 100, y: 200 })
   })
 
+  it('[μs] timestamp produces correct millisecond durations', () => {
+    const header = buildHeader({
+      ts: 'Recording timestamp [μs]',
+      fx: FORMS.bare.fx,
+      fy: FORMS.bare.fy,
+    })
+    const idxFx = header.indexOf('Fixation point X')
+    const idxFy = header.indexOf('Fixation point Y')
+    const baseRow = buildRows(header)[0].split('\t')
+    const rows = [1_000_000, 1_005_000, 1_010_000, 1_015_000].map(ts => {
+      const cells = [...baseRow]
+      cells[0] = String(ts)
+      cells[idxFx] = '100'
+      cells[idxFy] = '200'
+      return cells.join('\t')
+    })
+    const outputs = runAdapter(header, rows)
+    expect(outputs.length).toBe(1)
+    expect(outputs[0].start).toBe(0)
+    // 4 rows at 5000µs apart → sampInt=5000 → end = (15000 + 2500) * 0.001
+    expect(outputs[0].end).toBeCloseTo(17.5, 6)
+  })
+
+  it('[ms] timestamp is scaled to µs and produces the same durations as [μs]', () => {
+    const header = buildHeader({
+      ts: 'Recording timestamp [ms]',
+      fx: FORMS.bare.fx,
+      fy: FORMS.bare.fy,
+    })
+    const idxFx = header.indexOf('Fixation point X')
+    const idxFy = header.indexOf('Fixation point Y')
+    const baseRow = buildRows(header)[0].split('\t')
+    // Same semantic durations as the µs test above, expressed in ms.
+    const rows = [1000, 1005, 1010, 1015].map(ts => {
+      const cells = [...baseRow]
+      cells[0] = String(ts)
+      cells[idxFx] = '100'
+      cells[idxFy] = '200'
+      return cells.join('\t')
+    })
+    const outputs = runAdapter(header, rows)
+    expect(outputs.length).toBe(1)
+    expect(outputs[0].start).toBe(0)
+    expect(outputs[0].end).toBeCloseTo(17.5, 6)
+  })
+
   it('near-miss `Recording timestampX [ms]` must NOT match `Recording timestamp`', () => {
     const header = buildHeader({
       ts: 'Recording timestampX [ms]',
