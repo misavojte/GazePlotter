@@ -8,6 +8,7 @@
   import {
     formatParamReadout,
     formatProjectionReadout,
+    getMetric,
     instanceMatchesContract,
     type MetricInstance,
     type Projection,
@@ -53,9 +54,10 @@
   )
 
   function readoutOf(inst: MetricInstance): string {
+    const unit = getMetric(inst.baseId)?.meta.unit ?? ''
     const params = formatParamReadout(inst)
     const projLine = formatProjectionReadout(inst)
-    return [...params, ...(projLine ? [projLine] : [])].join(' · ')
+    return [unit, ...params, projLine].filter(Boolean).join(' · ')
   }
 
   const options = $derived<SelectOption[]>(

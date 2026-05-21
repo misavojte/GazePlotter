@@ -72,7 +72,7 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   {
     id: 'absoluteTime-aoi-windowed-500',
     baseId: 'absoluteTime',
-    label: 'Time on AOI (per 500 ms bin)',
+    label: 'Time on AOI',
     projection: {
       kind: 'windowed',
       window: { windowSize: 500, stepSize: 500 },
@@ -82,7 +82,7 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   {
     id: 'fixationCount-aoi-windowed-500',
     baseId: 'fixationCount',
-    label: 'Fixation count per AOI (per 500 ms bin)',
+    label: 'Fixation count per AOI',
     projection: {
       kind: 'windowed',
       window: { windowSize: 500, stepSize: 500 },
@@ -92,7 +92,7 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   {
     id: 'relativeTime-aoi-windowed-500',
     baseId: 'relativeTime',
-    label: 'Relative time on AOI (per 500 ms bin)',
+    label: 'Relative time on AOI',
     projection: {
       kind: 'windowed',
       window: { windowSize: 500, stepSize: 500 },
@@ -102,7 +102,7 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   {
     id: 'visitCount-aoi-windowed-500',
     baseId: 'visitCount',
-    label: 'Visit count per AOI (per 500 ms bin)',
+    label: 'Visit count per AOI',
     projection: {
       kind: 'windowed',
       window: { windowSize: 500, stepSize: 500 },

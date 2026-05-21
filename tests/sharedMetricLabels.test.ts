@@ -24,22 +24,22 @@ function buildMetric(label: string, unit: string): Metric {
 }
 
 describe('formatMetricLabel', () => {
-  it('renders "<label> [<unit>]" for a duration metric', () => {
+  it('renders "<label> / <unit>" (IUPAC convention) for a duration metric', () => {
     expect(formatMetricLabel(buildMetric('Absolute dwell time', 'ms')))
-      .toBe('Absolute dwell time [ms]')
+      .toBe('Absolute dwell time / ms')
   })
 
-  it('renders "<label> [count]" for a count metric', () => {
+  it('renders "<label> / count" for a count metric', () => {
     expect(formatMetricLabel(buildMetric('Fixation count', 'count')))
-      .toBe('Fixation count [count]')
+      .toBe('Fixation count / count')
   })
 
-  it('renders "<label> [%]" for a percentage metric', () => {
+  it('renders "<label> / %" for a percentage metric', () => {
     expect(formatMetricLabel(buildMetric('Relative dwell time', '%')))
-      .toBe('Relative dwell time [%]')
+      .toBe('Relative dwell time / %')
   })
 
-  it('drops the bracketed unit when unit is empty', () => {
+  it('drops the unit suffix when unit is empty', () => {
     expect(formatMetricLabel(buildMetric('Some metric', '')))
       .toBe('Some metric')
   })

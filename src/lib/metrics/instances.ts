@@ -56,28 +56,25 @@ export function resolveInstance(
 
 // ─── Label / readout helpers ─────────────────────────────────────────────────
 
+/**
+ * Bare semantic name for a metric instance — answers "what does this metric
+ * mean?" and nothing else. Never includes unit, params, window, projection,
+ * or brackets. Shaping metadata is shown alongside as a subtitle in selection
+ * UIs, and as `Label / unit` (IUPAC) on plot axes — both composed from the
+ * recipe definition, not baked into this string.
+ *
+ * Recipes can supply `meta.defaultLabel(params)` when the bare name varies
+ * with a param (e.g., a reducer choice that changes the quantity entirely);
+ * those callbacks must also return a bare semantic name.
+ */
 export function defaultInstanceLabel(
   baseId: string,
   params: Record<string, unknown>,
-  projection?: Projection,
+  _projection?: Projection,
 ): string {
   const m = getMetric(baseId)
   if (!m) return baseId
-  const base = m.meta.defaultLabel
-    ? m.meta.defaultLabel(params)
-    : m.meta.params.length === 0
-      ? m.meta.label
-      : (() => {
-          const paramStrs = m.meta.params
-            .map(p => formatParamShort(p, params[p.id] ?? p.default))
-            .filter(s => s.length > 0)
-          return paramStrs.length > 0
-            ? `${m.meta.label} (${paramStrs.join(', ')})`
-            : m.meta.label
-        })()
-
-  const projLabel = projection ? projectionToLabel(projection, m.meta.windowUnit) : ''
-  return projLabel ? `${base} · ${projLabel}` : base
+  return m.meta.defaultLabel ? m.meta.defaultLabel(params) : m.meta.label
 }
 
 /** Human-readable readout of the projection (including window suffix). */

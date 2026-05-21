@@ -361,10 +361,11 @@
   {#if filteredInstances.length > 0}
     <div class="metric-grid">
       {#each filteredInstances as inst (inst.id)}
+        {@const metric = getMetric(inst.baseId)}
+        {@const unit = metric?.meta.unit ?? ''}
         {@const readout = formatParamReadout(inst)}
         {@const projLine = formatProjectionReadout(inst)}
-        {@const detail = [...readout, ...(projLine ? [projLine] : [])].join(' · ')}
-        {@const metric = getMetric(inst.baseId)}
+        {@const detail = [unit, ...readout, projLine].filter(Boolean).join(' · ')}
         <div
           class="metric-card"
           class:dragging={dragItemId === inst.id}
