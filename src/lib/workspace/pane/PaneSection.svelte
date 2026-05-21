@@ -1,22 +1,70 @@
 <script lang="ts">
+  import { getContext, onMount } from 'svelte'
   import type { Snippet } from 'svelte'
+  import { slide } from 'svelte/transition'
+  import { cubicOut } from 'svelte/easing'
   import ChevronDown from 'lucide-svelte/icons/chevron-down'
+  import { PANE_ACCORDION_KEY, type PaneAccordion } from './accordion'
 
   interface Props {
     title?: string
+    /**
+     * Short readout shown to the right of the heading — usually the current
+     * value of the picker inside. Lets researchers scan the pane's state
+     * without expanding every section.
+     */
+    summary?: string
+    /**
+     * If true and no section is currently claimed in the accordion, this
+     * section opens itself on mount. Use it to nominate the most-likely-
+     * useful section to be expanded first (e.g., Stimulus). Only the first
+     * `defaultOpen` section to mount claims openId; subsequent ones don't.
+     */
+    defaultOpen?: boolean
     children: Snippet
   }
 
-  const { title, children }: Props = $props()
+  const { title, summary, defaultOpen = false, children }: Props = $props()
 
-  // No title -> always open (expanded = true).
-  // Has title -> default collapsed (expanded = false).
-  let expanded = $state(title === undefined)
-  let isCollapsible = $derived(title !== undefined)
+  // Per-instance id so the parent accordion (provided by `Pane` via
+  // context) can identify which section is currently open. Untitled
+  // sections are uncollapsible and don't participate.
+  const id = crypto.randomUUID()
+  const accordion = getContext<PaneAccordion | undefined>(PANE_ACCORDION_KEY)
+
+  // Fallback for the no-context case (component used standalone): the
+  // section manages its own open state, defaulting to expanded only when
+  // there's no heading.
+  let standaloneExpanded = $state(title === undefined)
+
+  const isCollapsible = $derived(title !== undefined)
+  const expanded = $derived(
+    !isCollapsible
+      ? true
+      : accordion
+        ? accordion.openId === id
+        : standaloneExpanded,
+  )
 
   function toggle() {
-    if (isCollapsible) expanded = !expanded
+    if (!isCollapsible) return
+    if (accordion) {
+      accordion.openId = accordion.openId === id ? null : id
+    } else {
+      standaloneExpanded = !standaloneExpanded
+    }
   }
+
+  // `defaultOpen` claims openId on mount, unconditionally — every plot's
+  // Stimulus section opens itself the moment it mounts, overriding any
+  // stale openId left over from the previously-focused plot. onMount only
+  // fires once per section instance, so if the user later collapses it
+  // manually it stays collapsed for the rest of that plot's session.
+  onMount(() => {
+    if (defaultOpen && isCollapsible && accordion) {
+      accordion.openId = id
+    }
+  })
 </script>
 
 <section class="pane-section">
@@ -26,12 +74,19 @@
         <ChevronDown size={14} strokeWidth={1.5} />
       </span>
       <span class="label">{title}</span>
+      {#if summary}<span class="summary">{summary}</span>{/if}
     </button>
   {/if}
 
-  <div class="body" class:no-heading={title === undefined} style:display={expanded ? 'flex' : 'none'}>
-    {@render children()}
-  </div>
+  {#if expanded}
+    <div
+      class="body"
+      class:no-heading={title === undefined}
+      transition:slide|local={{ duration: 180, easing: cubicOut, axis: 'y' }}
+    >
+      {@render children()}
+    </div>
+  {/if}
 </section>
 
 <style>
@@ -102,6 +157,24 @@
   .label {
     line-height: 1;
     margin-top: 1px;
+  }
+
+  /* Right-aligned readout of the section's current state. Muted, mixed-
+     case, smaller weight so the section title still dominates. Truncates
+     gracefully if the value is long (e.g. a verbose stimulus name). */
+  .summary {
+    margin-left: auto;
+    color: var(--c-mediumgrey, #94a3b8);
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+    line-height: 1;
+    margin-top: 1px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 60%;
   }
 
   .body {

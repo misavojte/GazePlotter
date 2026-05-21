@@ -1,17 +1,32 @@
 <script lang="ts">
-  import { onMount } from 'svelte'
+  import { onMount, setContext } from 'svelte'
   import { getGazePlotterSession } from '$lib/session'
   import { plotRegistry, getPlotDisplayName } from '$lib/plots/registry'
+  import { downloadPlotModal } from '$lib/modals/definitions'
   import PaneHeader from './PaneHeader.svelte'
-  import PaneQuickActions from './PaneQuickActions.svelte'
+  import PaneSection from './PaneSection.svelte'
+  import PaneEditLink from './PaneEditLink.svelte'
   import PaneSheet from './PaneSheet.svelte'
+  import { PANE_ACCORDION_KEY, type PaneAccordion } from './accordion'
   import { PANE_TRANSITION, slideFlex } from './transition'
   import { markInPane } from '$lib/shared/components/paneContext'
   import { responsive } from '../responsive.svelte'
 
   markInPane()
 
-  const { grid } = getGazePlotterSession()
+  // Single-open accordion shared by every PaneSection inside this Pane.
+  // Opening one section sets `openId` to that section's id, which closes
+  // whichever section was previously open. Reset to `null` on plot swap
+  // so the new plot's `defaultOpen` section gets to claim it on mount.
+  const accordion = $state<PaneAccordion>({ openId: null })
+  setContext(PANE_ACCORDION_KEY, accordion)
+
+  const { grid, modalState } = getGazePlotterSession()
+
+  function openExport() {
+    if (!paneItem) return
+    modalState.open(downloadPlotModal, { item: paneItem as any })
+  }
 
   // Pane/sheet visibility is driven by paneOpenId (explicitly opened by a
   // click on desktop or by the mobile FAB). Selection alone no longer
@@ -84,11 +99,17 @@
 
 </script>
 
+{#snippet exportSection()}
+  <PaneSection title="Export">
+    <PaneEditLink onclick={openExport}>Download plot…</PaneEditLink>
+  </PaneSection>
+{/snippet}
+
 {#if responsive.isMobile}
   {#if paneItem && PaneSettings}
     <PaneSheet {title} onClose={close}>
-      <PaneQuickActions item={paneItem} />
       <PaneSettings item={paneItem} />
+      {@render exportSection()}
     </PaneSheet>
   {/if}
 {:else if paneItem && PaneSettings}
@@ -114,8 +135,8 @@
     >
       <PaneHeader {title} onClose={close} />
       <div class="body">
-        <PaneQuickActions item={paneItem} />
         <PaneSettings item={paneItem} />
+        {@render exportSection()}
       </div>
     </div>
   </aside>

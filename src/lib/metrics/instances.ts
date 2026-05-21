@@ -1,6 +1,6 @@
 import './init'
 import { getMetric, getRecipe } from './core/defineMetric'
-import type { ParamDef } from './core/params'
+import { resolveParams, type ParamDef } from './core/params'
 import {
   identityFor,
   projectionToLabel,
@@ -24,21 +24,59 @@ export interface MetricInstance {
   projection: Projection
 }
 
+// ─── Instance construction ──────────────────────────────────────────────────
+
+/**
+ * Single constructor for a `MetricInstance`. All instance-creation paths route
+ * through here — `DataEngine.addMetricInstance`, starter seeding, and future
+ * agent-callable compute APIs — so a metric instance always carries fully
+ * resolved params, a valid projection, and a non-empty label regardless of
+ * where it came from.
+ *
+ *   - `id`         defaults to `crypto.randomUUID()`. Starters pass their slug.
+ *   - `params`     are run through `resolveParams` so any missing keys are
+ *                  filled with the recipe's declared defaults (and primitive
+ *                  values get coerced to the declared type).
+ *   - `projection` defaults to the recipe's identity leaf (`identityFor`).
+ *   - `label`      defaults to `defaultInstanceLabel(baseId, params, projection)`.
+ *
+ * Returns `null` when `baseId` does not name a registered recipe — callers
+ * (UI, starter loader, agent) handle the miss in their own way.
+ */
+export function createMetricInstance(opts: {
+  baseId: string
+  params?: Record<string, unknown>
+  projection?: Projection
+  label?: string
+  id?: string
+}): MetricInstance | null {
+  const recipe = getRecipe(opts.baseId)
+  if (!recipe) return null
+  const projection = opts.projection ?? identityFor(recipe.rawShape)
+  const params = resolveParams(recipe.params, opts.params) as Record<string, unknown>
+  const label = opts.label?.trim() || defaultInstanceLabel(opts.baseId, params, projection)
+  return {
+    id: opts.id ?? crypto.randomUUID(),
+    baseId: opts.baseId,
+    params,
+    projection,
+    label,
+  }
+}
+
 // ─── Starter instances (from the shared settings file) ──────────────────────
 
 export function buildStarterInstances(): MetricInstance[] {
   return STARTING_METRICS.map(spec => {
-    const recipe = getRecipe(spec.baseId)
-    if (!recipe) throw new Error(`Starter "${spec.id}" references unknown recipe: ${spec.baseId}`)
-    const projection = spec.projection ?? identityFor(recipe.rawShape)
-    const params = { ...(spec.params ?? {}) }
-    return {
+    const inst = createMetricInstance({
       id: spec.id,
       baseId: spec.baseId,
-      params,
-      projection,
-      label: spec.label ?? defaultInstanceLabel(spec.baseId, params, projection),
-    }
+      params: spec.params,
+      projection: spec.projection,
+      label: spec.label,
+    })
+    if (!inst) throw new Error(`Starter "${spec.id}" references unknown recipe: ${spec.baseId}`)
+    return inst
   })
 }
 

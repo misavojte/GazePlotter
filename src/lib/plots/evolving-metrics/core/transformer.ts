@@ -29,7 +29,7 @@ import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import { formatMetricLabel } from '$lib/plots/shared/metricLabels'
 import {
   asScalarTimeseries,
-  resolveContractedInstance,
+  resolveMetric,
 } from '$lib/plots/shared'
 import {
   query,
@@ -124,14 +124,14 @@ export function getEvolvingMetricsData(
   const meta = engine.metadata
   if (!meta) return emptyEvolvingMetricsResult()
 
-  const resolution = resolveContractedInstance(meta.metricInstances, settings.metricInstanceIds?.[0] ?? null, CONTRACT)
-  if (!resolution.ok) return emptyEvolvingMetricsResult(true)
+  const resolved = resolveMetric({
+    instances: meta.metricInstances,
+    id: settings.metricInstanceIds?.[0] ?? null,
+    contract: CONTRACT,
+  })
+  if (!resolved.ok) return emptyEvolvingMetricsResult(true)
 
-  const { instance } = resolution
-  // Contract-guaranteed (windowing: 'required') — narrows the projection type
-  // for `instance.projection.window` reads below.
-  if (instance.projection.kind !== 'windowed') return emptyEvolvingMetricsResult(true)
-
+  const { instance, window } = resolved
   const metric = getMetric(instance.baseId)
   if (!metric) return emptyEvolvingMetricsResult(true)
 
@@ -151,7 +151,6 @@ export function getEvolvingMetricsData(
   const timelineMin = settings.timelineMin ?? 0
   const timelineMax = settings.timelineMax ?? maxTime
 
-  const window = instance.projection.window
   const windowUnit = metric.meta.windowUnit
   const halfWindowSize = window.windowSize / 2
   const midOffsetFix = Math.floor(window.windowSize / 2)

@@ -36,9 +36,7 @@
   }
 </script>
 
-<PaneSection>
-  <CommonPlotPaneFields {item} contract={barPlotDefinition.consumesMetrics!} />
-</PaneSection>
+<CommonPlotPaneFields {item} contract={barPlotDefinition.consumesMetrics!} />
 
 <PaneSection title="Layout">
   <Radio

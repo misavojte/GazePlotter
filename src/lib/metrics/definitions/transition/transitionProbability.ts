@@ -40,8 +40,9 @@ defineTransitionMetric<Params>({
   unit: '%',
   groupAggregation: 'mean',
   defaultLabel: p => {
-    const modeLabel = p.mode === 'visit' ? 'visit' : 'fixation'
-    return `Transition probability (${modeLabel}, ${p.step}-step)`
+    const pair = p.mode === 'visit' ? 'Visit-to-visit' : 'Fixation-to-fixation'
+    const stepPhrase = p.step > 1 ? `${p.step}-step transition probability` : 'transition probability'
+    return `${pair} ${stepPhrase}`
   },
   searchTags: ['transition', 'probability', 'markov', 'chain', 'aoi', 'pair', 'k-step'],
   extraParams: [integerParam('step', 'Step', 1, { min: 1, max: 10 })],

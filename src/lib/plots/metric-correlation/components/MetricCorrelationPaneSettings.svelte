@@ -32,14 +32,14 @@
   }
 </script>
 
-<PaneSection>
-  <CommonPlotPaneFields
-    {item}
-    contract={metricCorrelationDefinition.consumesMetrics!}
-    metricLabel="Metrics"
-  />
+<CommonPlotPaneFields
+  {item}
+  contract={metricCorrelationDefinition.consumesMetrics!}
+  metricLabel="Metrics"
+/>
+
+<PaneSection title="Visualisation">
   <Select
-    label="Visualisation lense"
     options={METRIC_CORRELATION_VIEWS.map(v => ({
       label: v.label,
       value: v.value,

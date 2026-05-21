@@ -7,7 +7,7 @@ import {
 } from '$lib/metrics'
 import {
   asAoiPairMatrix,
-  resolveContractedInstance,
+  resolveMetric,
 } from '$lib/plots/shared'
 import type { TransitionMatrixData } from '../types'
 
@@ -30,8 +30,12 @@ export function getTransitionMatrixData(
     meta.noAoiTreatment.displayedName,
   ]
 
-  const resolution = resolveContractedInstance(meta.metricInstances, metricInstanceId, CONTRACT)
-  if (!resolution.ok) {
+  const resolved = resolveMetric({
+    instances: meta.metricInstances,
+    id: metricInstanceId,
+    contract: CONTRACT,
+  })
+  if (!resolved.ok) {
     return { matrix: new Float64Array(size * size), aoiLabels, aoiList, noMetric: true }
   }
   if (participantIds.length === 0) {
@@ -39,7 +43,7 @@ export function getTransitionMatrixData(
   }
 
   const scope: GroupScope = { engine, stimulusId, participantIds }
-  const matrix = asAoiPairMatrix(queryGroup(resolution.instance, scope))
+  const matrix = asAoiPairMatrix(queryGroup(resolved.instance, scope))
   return {
     matrix: matrix ? Float64Array.from(matrix.matrix) : new Float64Array(0),
     aoiLabels,

@@ -8,7 +8,7 @@ import {
 } from '$lib/metrics'
 import {
   asParticipantPairMatrix,
-  resolveContractedInstance,
+  resolveMetric,
 } from '$lib/plots/shared'
 import type { ScanpathSimilarityData, ScangraphData } from '../types'
 
@@ -30,8 +30,12 @@ export function getScanpathSimilarityData(
     return { labels: [], participantIds: [], matrix: new Float64Array(0), size: 0 }
   }
 
-  const resolution = resolveContractedInstance(meta.metricInstances, metricInstanceId, CONTRACT)
-  if (!resolution.ok) {
+  const resolved = resolveMetric({
+    instances: meta.metricInstances,
+    id: metricInstanceId,
+    contract: CONTRACT,
+  })
+  if (!resolved.ok) {
     return { labels: [], participantIds: [], matrix: new Float64Array(0), size: 0, noMetric: true }
   }
 
@@ -41,7 +45,7 @@ export function getScanpathSimilarityData(
   }
 
   const scope: GroupScope = { engine, stimulusId, participantIds }
-  const result = asParticipantPairMatrix(queryGroup(resolution.instance, scope))
+  const result = asParticipantPairMatrix(queryGroup(resolved.instance, scope))
   if (!result) {
     return { labels: [], participantIds: [], matrix: new Float64Array(0), size: 0, noMetric: true }
   }

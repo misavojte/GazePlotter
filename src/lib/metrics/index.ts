@@ -21,6 +21,7 @@ export { getCategoryLabels } from './categories'
 export {
   buildStarterInstances,
   createDefaultMetricInstances,
+  createMetricInstance,
   resolveInstance,
   defaultInstanceLabel,
   formatParamReadout,
@@ -42,6 +43,7 @@ export {
   leafOf,
   leafOutputShape,
   leafRawShapes,
+  supportedLeaves,
   windowLabel,
   windowKey,
 } from './core/projection'

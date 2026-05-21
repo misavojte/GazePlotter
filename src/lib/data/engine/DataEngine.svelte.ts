@@ -7,7 +7,7 @@ import type {
   MetricInstance,
   ParticipantsGroup,
 } from '../types'
-import { defaultInstanceLabel } from '$lib/metrics/instances'
+import { createMetricInstance } from '$lib/metrics/instances'
 import type { Projection } from '$lib/metrics/core/projection'
 
 export class DataEngine {
@@ -182,14 +182,10 @@ export class DataEngine {
   ): string | null {
     const meta = this.metadata
     if (!meta) return null
-    const existing = meta.metricInstances ?? []
-    const id = crypto.randomUUID()
-    const resolvedLabel = label?.trim() || defaultInstanceLabel(baseId, params, projection)
-    meta.metricInstances = [
-      ...existing,
-      { id, baseId, params, label: resolvedLabel, projection },
-    ]
-    return id
+    const inst = createMetricInstance({ baseId, params, projection, label })
+    if (!inst) return null
+    meta.metricInstances = [...(meta.metricInstances ?? []), inst]
+    return inst.id
   }
 
   deleteMetricInstance(id: string): void {

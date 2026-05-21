@@ -35,10 +35,10 @@
   const isHeatmap = $derived(alignment === 'heatmap')
 </script>
 
-<PaneSection>
-  <CommonPlotPaneFields {item} contract={aoiStreamPlotDefinition.consumesMetrics!} />
+<CommonPlotPaneFields {item} contract={aoiStreamPlotDefinition.consumesMetrics!} />
+
+<PaneSection title="Visualisation">
   <Select
-    label="Visualisation lense"
     options={[
       { label: 'Stream', value: 'stream' },
       { label: 'Distribution', value: 'distribution' },

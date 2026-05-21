@@ -5,6 +5,13 @@ export interface ParamDef<T> {
   label: string
   type: ParamType
   default: T
+  /**
+   * One-sentence explanation of what the parameter does. Optional today, but
+   * required for agent-callable manifests (WebMCP / future MCP surfaces) — the
+   * description is what an LLM reads to pick a sensible value. Recipe authors
+   * should backfill it for any param whose `label` isn't self-evident.
+   */
+  description?: string
   min?: number
   max?: number
   step?: number

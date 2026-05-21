@@ -48,9 +48,7 @@
   }
 </script>
 
-<PaneSection>
-  <CommonPlotPaneFields {item} contract={transitionMatrixDefinition.consumesMetrics!} />
-</PaneSection>
+<CommonPlotPaneFields {item} contract={transitionMatrixDefinition.consumesMetrics!} />
 
 <PaneSection title="Color scale">
   <div class="inline-pair">

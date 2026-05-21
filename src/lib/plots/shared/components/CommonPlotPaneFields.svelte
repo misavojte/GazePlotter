@@ -3,11 +3,11 @@
    * The "first three fields" every metric-consuming plot pane opens with:
    * stimulus, participant group, and the contract-driven metric selector.
    *
-   * Six PaneSettings used to repeat the same 15–20-line preamble (options
-   * derivation + command source + update patch) and JSX block before any
-   * plot-specific controls. This component captures all of it. Plot-specific
-   * sections (overlays, color scales, ordering) stay where they are; the
-   * pane simply nests the wrapper at the top of its layout.
+   * Each picker lives in its own collapsible `PaneSection` so the pane reads
+   * as a single column of sections — heading + current-value summary —
+   * matching the rest of the pane's visual language. Each section also
+   * carries the inline "Edit X library…" affordance for the global editor
+   * that's contextually relevant to the picker above it.
    */
   import { Select } from '$lib/shared/components'
   import {
@@ -15,8 +15,20 @@
     getParticipantsGroupOptions,
   } from '../index'
   import ContractMetricSelect from './ContractMetricSelect.svelte'
+  import { PaneSection, PaneEditLink, PaneEditRow } from '$lib/workspace/pane'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
+  import {
+    aoiModificationModal,
+    metricLibraryModal,
+    participantModificationModal,
+    participantsGroupsModal,
+    stimulusModificationModal,
+  } from '$lib/modals/definitions'
+  import {
+    multiSelectMetricHandlers,
+    singleSelectMetricHandlers,
+  } from '../metricInstanceHandlers'
   import type { PlotItemContract } from '../../definePlot'
   import type { PlotMetricContract } from '$lib/metrics'
   import type { PlotType } from '$lib/workspace'
@@ -34,7 +46,7 @@
 
   let { item, contract, metricLabel }: Props = $props()
 
-  const { engine, workspace } = getGazePlotterSession()
+  const { engine, modalState, workspace } = getGazePlotterSession()
   const settings = $derived(item.settings)
   const source = $derived(createCommandSourcePlotPattern(item, 'pane'))
 
@@ -46,29 +58,96 @@
   const groupOptions = $derived(
     getParticipantsGroupOptions(engine, true, settings.stimulusId),
   )
+
+  const stimulusSummary = $derived(
+    stimulusOptions.find(o => o.value === String(settings.stimulusId))?.label ?? '',
+  )
+  const groupSummary = $derived(
+    groupOptions.find(o => o.value === String(settings.groupId))?.label ?? '',
+  )
+
+  function openStimuli() {
+    modalState.open(stimulusModificationModal, { source })
+  }
+  function openAois() {
+    modalState.open(aoiModificationModal, {
+      selectedStimulus: String(settings.stimulusId),
+      source,
+    })
+  }
+  function openGroups() {
+    modalState.open(participantsGroupsModal, { source })
+  }
+  function openParticipants() {
+    modalState.open(participantModificationModal, { source })
+  }
+
+  const metricSummary = $derived.by(() => {
+    const lib = engine.metadata?.metricInstances ?? []
+    const picked = settings.metricInstanceIds
+      .map(id => lib.find(i => i.id === id))
+      .filter((x): x is (typeof lib)[number] => !!x)
+    if (picked.length === 0) return ''
+    if (picked.length === 1) return picked[0].label
+    return `${picked[0].label} +${picked.length - 1}`
+  })
+
+  function openMetricLibrary() {
+    if (!contract) return
+    const handlers = contract.multiSelect
+      ? multiSelectMetricHandlers(
+          engine,
+          () => settings.metricInstanceIds,
+          ids => update({ metricInstanceIds: ids } as Partial<TSettings>),
+        )
+      : singleSelectMetricHandlers(
+          engine,
+          () => settings.metricInstanceIds[0] ?? null,
+          id =>
+            update({
+              metricInstanceIds: id == null ? [] : [id],
+            } as Partial<TSettings>),
+        )
+    modalState.open(metricLibraryModal, { contract, ...handlers })
+  }
 </script>
 
-<Select
-  label="Stimulus"
-  options={stimulusOptions}
-  value={String(settings.stimulusId)}
-  onchange={e =>
-    update({ stimulusId: Number((e as CustomEvent).detail) } as Partial<TSettings>)}
-/>
-<Select
-  label="Participant group"
-  options={groupOptions}
-  value={String(settings.groupId)}
-  onchange={e =>
-    update({ groupId: Number((e as CustomEvent).detail) } as Partial<TSettings>)}
-/>
-{#if contract}
-  <ContractMetricSelect
-    {engine}
-    {contract}
-    metricInstanceIds={settings.metricInstanceIds}
-    onMetricsChange={ids =>
-      update({ metricInstanceIds: ids } as Partial<TSettings>)}
-    label={metricLabel ?? 'Metric'}
+<PaneSection title="Stimulus" summary={stimulusSummary} defaultOpen>
+  <Select
+    options={stimulusOptions}
+    value={String(settings.stimulusId)}
+    onchange={e =>
+      update({ stimulusId: Number((e as CustomEvent).detail) } as Partial<TSettings>)}
   />
+  <PaneEditRow>
+    <PaneEditLink onclick={openStimuli}>Edit stimulus library…</PaneEditLink>
+    <PaneEditLink onclick={openAois}>Edit AOIs…</PaneEditLink>
+  </PaneEditRow>
+</PaneSection>
+
+<PaneSection title="Participant group" summary={groupSummary}>
+  <Select
+    options={groupOptions}
+    value={String(settings.groupId)}
+    onchange={e =>
+      update({ groupId: Number((e as CustomEvent).detail) } as Partial<TSettings>)}
+  />
+  <PaneEditRow>
+    <PaneEditLink onclick={openGroups}>Edit groups…</PaneEditLink>
+    <PaneEditLink onclick={openParticipants}>Edit participants…</PaneEditLink>
+  </PaneEditRow>
+</PaneSection>
+
+{#if contract}
+  <PaneSection title={metricLabel ?? 'Metric'} summary={metricSummary}>
+    <ContractMetricSelect
+      {engine}
+      {contract}
+      metricInstanceIds={settings.metricInstanceIds}
+      onMetricsChange={ids =>
+        update({ metricInstanceIds: ids } as Partial<TSettings>)}
+      label=""
+    />
+    <PaneEditLink onclick={openMetricLibrary}>Edit metric library…</PaneEditLink>
+  </PaneSection>
 {/if}

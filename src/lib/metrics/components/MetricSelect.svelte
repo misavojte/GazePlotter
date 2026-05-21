@@ -1,6 +1,5 @@
 <script lang="ts">
   import Pencil from 'lucide-svelte/icons/pencil'
-  import Settings from 'lucide-svelte/icons/settings'
   import { getGazePlotterSession } from '$lib/session'
   import { metricLibraryModal } from '$lib/modals/definitions'
   import { Select } from '$lib/shared/components'
@@ -100,15 +99,6 @@
     }
   }
 
-  function openLibrary() {
-    modalState.open(metricLibraryModal, {
-      contract,
-      oncreateInstance,
-      ondeleteInstance,
-      onrenameInstance,
-    })
-  }
-
   function openLibraryEditing(metricId: string) {
     modalState.open(metricLibraryModal, {
       contract,
@@ -127,11 +117,6 @@
   {subLabel}
   {placeholder}
   multiple={!isSingleSelect}
-  topAction={{
-    label: 'Edit library…',
-    icon: Settings,
-    onAction: openLibrary,
-  }}
-  emptyMessage='No metrics. Click "Edit library…" to add one.'
+  emptyMessage="No metrics yet."
   onchange={handleChange}
 />

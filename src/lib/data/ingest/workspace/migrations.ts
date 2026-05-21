@@ -1,7 +1,7 @@
 import { LEGACY_VISUALIZATION_TYPES } from '$lib/plots/registry'
 import {
   createDefaultMetricInstances,
-  defaultInstanceLabel,
+  createMetricInstance,
   type MetricInstance,
 } from '$lib/metrics/instances'
 
@@ -247,17 +247,15 @@ export function runMigrations(parsedJson: any): any {
       const key = `${baseId}|${JSON.stringify(params)}`
       const cached = customCache.get(key)
       if (cached !== undefined) return cached
-      const id = crypto.randomUUID()
-      const projection = { kind: 'identity-aoi-pair-matrix' as const }
-      metricInstances.push({
-        id,
+      const inst = createMetricInstance({
         baseId,
         params,
-        projection,
-        label: defaultInstanceLabel(baseId, params, projection),
+        projection: { kind: 'identity-aoi-pair-matrix' },
       })
-      customCache.set(key, id)
-      return id
+      if (!inst) throw new Error(`Migration: unknown recipe "${baseId}"`)
+      metricInstances.push(inst)
+      customCache.set(key, inst.id)
+      return inst.id
     }
 
     function mapTransitionAggregation(method: unknown): string {
@@ -358,39 +356,26 @@ export function runMigrations(parsedJson: any): any {
       if (cached !== undefined) return cached
       const baseSlug = `absoluteTime-aoi-windowed-${binSize}`
       const existing = instances.find((i: any) => i && i.id === baseSlug)
-      let slug: string
-      if (!existing) {
-        slug = baseSlug
-        instances.push({
-          id: slug,
-          baseId: 'absoluteTime',
-          params: {},
-          label: `Time on AOI (per ${binSize} ms bin)`,
-          projection: {
-            kind: 'windowed',
-            window: { windowSize: binSize, stepSize: binSize },
-            inner: { kind: 'identity-aoi-vector' },
-          },
-        } as MetricInstance)
-      } else if (matchesExpectedShape(existing, binSize)) {
-        slug = baseSlug
-      } else {
-        // User-authored instance occupies the deterministic slug with a
-        // different shape. Mint a UUID-suffixed slug so we never silently
-        // hijack their instance.
-        slug = `${baseSlug}-${crypto.randomUUID().slice(0, 8)}`
-        instances.push({
-          id: slug,
-          baseId: 'absoluteTime',
-          params: {},
-          label: `Time on AOI (per ${binSize} ms bin)`,
-          projection: {
-            kind: 'windowed',
-            window: { windowSize: binSize, stepSize: binSize },
-            inner: { kind: 'identity-aoi-vector' },
-          },
-        } as MetricInstance)
+      if (existing && matchesExpectedShape(existing, binSize)) {
+        slugByBinSize.set(binSize, baseSlug)
+        return baseSlug
       }
+      // No collision → claim the deterministic slug.
+      // Collision with a differently-shaped instance → mint a UUID-suffixed
+      // slug so we never silently hijack a user-authored entry.
+      const slug = existing ? `${baseSlug}-${crypto.randomUUID().slice(0, 8)}` : baseSlug
+      const inst = createMetricInstance({
+        id: slug,
+        baseId: 'absoluteTime',
+        label: `Time on AOI (per ${binSize} ms bin)`,
+        projection: {
+          kind: 'windowed',
+          window: { windowSize: binSize, stepSize: binSize },
+          inner: { kind: 'identity-aoi-vector' },
+        },
+      })
+      if (!inst) throw new Error('Migration: recipe "absoluteTime" missing')
+      instances.push(inst)
       slugByBinSize.set(binSize, slug)
       return slug
     }

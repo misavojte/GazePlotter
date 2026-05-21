@@ -53,10 +53,10 @@
   }
 </script>
 
-<PaneSection>
-  <CommonPlotPaneFields {item} contract={scanpathSimilarityDefinition.consumesMetrics!} />
+<CommonPlotPaneFields {item} contract={scanpathSimilarityDefinition.consumesMetrics!} />
+
+<PaneSection title="Visualisation">
   <Select
-    label="Visualisation lense"
     options={[
       { label: 'Matrix', value: 'matrix' },
       { label: 'ScanGraph', value: 'scangraph' },

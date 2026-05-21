@@ -30,10 +30,10 @@
   const isHeatmap = $derived(presentation === 'heatmap')
 </script>
 
-<PaneSection>
-  <CommonPlotPaneFields {item} contract={evolvingMetricsDefinition.consumesMetrics!} />
+<CommonPlotPaneFields {item} contract={evolvingMetricsDefinition.consumesMetrics!} />
+
+<PaneSection title="Visualisation">
   <Select
-    label="Visualisation lense"
     options={[
       { label: 'Heatmap', value: 'heatmap' },
       { label: 'Overlay', value: 'overlay' },

@@ -1,4 +1,4 @@
-import type { OutputShape, WindowUnit } from './dsl'
+import type { Metric, OutputShape, WindowUnit } from './dsl'
 
 /**
  * Projection is a tree: a LeafProjection reshapes one window's raw finalize
@@ -259,6 +259,28 @@ export function leafOutputShape(leaf: LeafProjection): OutputShape {
 
 export function leafRawShapes(kind: LeafKind): readonly OutputShape[] {
   return PROJECTION_LEAVES[kind].rawShapes
+}
+
+/**
+ * The set of leaf kinds a metric can produce, given only its declared
+ * `rawShape` and the meta-level capability flags (`providesAnyFixation`). The
+ * single answer to "what projection leaves does this metric support?" — read
+ * by the metric-library modal, manifest builders, and (future) agent-callable
+ * compute APIs so they don't each roll a one-line filter against
+ * `PROJECTION_LEAVES`.
+ *
+ * Concrete-projection validity (reducer choice, slot-ref bounds, windowing
+ * support) is layered on top via {@link recipeSupports} — this function only
+ * answers the kind-level question.
+ */
+export function supportedLeaves(metric: Metric): LeafKind[] {
+  const out: LeafKind[] = []
+  for (const kind of Object.keys(PROJECTION_LEAVES) as LeafKind[]) {
+    if (!PROJECTION_LEAVES[kind].rawShapes.includes(metric.meta.rawShape)) continue
+    if (kind === 'pick-any-fixation' && !metric.meta.providesAnyFixation) continue
+    out.push(kind)
+  }
+  return out
 }
 
 // ─── Window label / key ─────────────────────────────────────────────────────

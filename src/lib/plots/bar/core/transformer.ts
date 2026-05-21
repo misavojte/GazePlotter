@@ -4,7 +4,7 @@ import type { ExtendedInterpretedDataType } from '$lib/data/types'
 import {
   asAoiVector,
   createAdaptiveTimeline,
-  resolveContractedInstance,
+  resolveMetric,
   type AdaptiveTimeline,
 } from '$lib/plots/shared'
 import {
@@ -52,18 +52,18 @@ export function getBarPlotData(
   )
   const overlay = settings.statisticalOverlay ?? 'none'
 
-  const resolution = resolveContractedInstance(
-    meta.metricInstances,
-    settings.metricInstanceIds?.[0] ?? null,
-    CONTRACT,
-  )
-  if (!resolution.ok) {
+  const resolved = resolveMetric({
+    instances: meta.metricInstances,
+    id: settings.metricInstanceIds?.[0] ?? null,
+    contract: CONTRACT,
+  })
+  if (!resolved.ok) {
     return { data: [], timeline: createAdaptiveTimeline(0, 100, 6), dataMax: 0, noMetric: true }
   }
   if (participantIds.length === 0) {
     return { data: [], timeline: createAdaptiveTimeline(0, 100, 6), dataMax: 0 }
   }
-  const instance = resolution.instance
+  const { instance } = resolved
 
   const timeStart = settings.timelineStart ?? 0
   const timeEnd = settings.timelineEnd ?? 0

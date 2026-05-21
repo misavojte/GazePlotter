@@ -139,6 +139,11 @@
   }
 
   function getCellColor(value: number): string {
+    // Non-finite (NaN / ±Infinity) marks a cell where the metric is undefined
+    // for this row/column — e.g. transitionProbability for a source AOI with
+    // no outgoing transitions (division by zero). Render as out-of-bounds so
+    // it's visually distinct from a real zero.
+    if (!Number.isFinite(value)) return belowMinColor
     if (isBelowMinimum(value)) return belowMinColor
     if (isAboveMaximum(value)) return aboveMaxColor
     return getColor(value)
@@ -157,9 +162,10 @@
       Number.isInteger(v) ? v.toString() : v.toFixed(1),
     getCellColor,
     showCellValue: (v: number) =>
-      (!isBelowMinimum(v) && !isAboveMaximum(v)) ||
-      (isBelowMinimum(v) && showBelowMinLabels) ||
-      (isAboveMaximum(v) && showAboveMaxLabels),
+      Number.isFinite(v) &&
+      ((!isBelowMinimum(v) && !isAboveMaximum(v)) ||
+       (isBelowMinimum(v) && showBelowMinLabels) ||
+       (isAboveMaximum(v) && showAboveMaxLabels)),
     hasLastRowSentinel: true,
   })
 
@@ -260,7 +266,7 @@
         content: [
           { key: 'From', value: aoiLabels[row] },
           { key: 'To', value: aoiLabels[col] },
-          { key: 'Value', value: value.toString() },
+          { key: 'Value', value: Number.isFinite(value) ? value.toString() : '—' },
         ],
         visible: true,
         width: 150,

@@ -22,9 +22,11 @@
     defaultInstanceLabel,
     identityFor,
     recipeSupports,
+    resolveInstance,
     instanceMatchesContract,
     metricIsCreatableInContract,
     contractLeafKinds,
+    supportedLeaves,
     PROJECTION_LEAVES,
     AOI_REDUCERS,
     MATRIX_REDUCERS,
@@ -39,6 +41,7 @@
     type MatrixReducer,
     type WindowSpec,
   } from '$lib/metrics'
+  import { resolveParams } from '$lib/metrics/core/params'
   import { getRecipe } from '$lib/metrics/core/defineMetric'
   import { getAois } from '$lib/data/engine'
 
@@ -166,12 +169,13 @@
   let currentBaseId = $state<string>('')
 
   function availableLeavesFor(m: Metric): LeafKind[] {
-    return contractLeafKinds(contract).filter(kind => {
-      if (!PROJECTION_LEAVES[kind].rawShapes.includes(m.meta.rawShape)) return false
-      const recipe = getRecipe(m.meta.id)
-      if (!recipe) return false
-      return recipeSupports(recipe, buildLeaf(kind, aoiNameUnion[0])) === true
-    })
+    const allowedByContract = new Set(contractLeafKinds(contract))
+    const recipe = getRecipe(m.meta.id)
+    if (!recipe) return []
+    return supportedLeaves(m).filter(kind =>
+      allowedByContract.has(kind) &&
+      recipeSupports(recipe, buildLeaf(kind, aoiNameUnion[0])) === true,
+    )
   }
 
   function canBeWindowed(m: Metric, leaf: LeafProjection): boolean {
@@ -224,7 +228,7 @@
     currentBaseId = baseId
     const m = getMetric(baseId)
     if (!m) return
-    paramDraft = Object.fromEntries((m.meta.params ?? []).map(p => [p.id, p.default]))
+    paramDraft = resolveParams(m.meta.params, undefined) as Record<string, unknown>
     labelOverride = ''
     const firstLeaf = availableLeavesFor(m)[0] ?? identityFor(m.meta.rawShape).kind
     leafDraft = buildLeaf(firstLeaf)
@@ -240,7 +244,7 @@
 
   function duplicateInstance(inst: MetricInstance) {
     const params = { ...inst.params }
-    const projection: Projection = JSON.parse(JSON.stringify(inst.projection))
+    const projection: Projection = structuredClone(inst.projection)
     const label = `${inst.label} (copy)`
     const newId = engine.addMetricInstance(inst.baseId, params, label, projection)
     if (!newId) return
@@ -253,7 +257,7 @@
   $effect(() => {
     if (!editMetricId) return
     untrack(() => {
-      const inst = engine.metadata?.metricInstances.find(i => i.id === editMetricId)
+      const inst = resolveInstance(engine.metadata?.metricInstances ?? [], editMetricId)
       if (inst) expandEdit(inst)
     })
   })
@@ -268,7 +272,7 @@
     const label = labelOverride.trim() || defaultInstanceLabel(baseId, params, projection)
 
     if (isEditMode && expandedCardId !== null && onrenameInstance) {
-      const orig = instances.find(i => i.id === expandedCardId)
+      const orig = resolveInstance(instances, expandedCardId)
       const paramsUnchanged = JSON.stringify(params) === JSON.stringify(orig?.params ?? {})
       const projectionUnchanged =
         JSON.stringify(projection) === JSON.stringify(orig?.projection)

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { PaneSection } from '$lib/workspace/pane'
+  import { PaneSection, PaneEditLink, PaneEditRow } from '$lib/workspace/pane'
   import { InputCheck, InputNumber, Radio, Select } from '$lib/shared/components'
   import {
     getStimuliOptions,
@@ -7,6 +7,11 @@
   } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
+  import {
+    aoiModificationModal,
+    participantModificationModal,
+    stimulusModificationModal,
+  } from '$lib/modals/definitions'
   import {
     RECURRENCE_METHODS,
     RECURRENCE_HIGHLIGHTS,
@@ -24,7 +29,7 @@
   }
 
   let { item }: Props = $props()
-  const { engine, workspace } = getGazePlotterSession()
+  const { engine, modalState, workspace } = getGazePlotterSession()
   const settings = $derived(item.settings)
 
   const source = $derived(createCommandSourcePlotPattern(item, 'pane'))
@@ -35,6 +40,20 @@
 
   const stimulusOptions = $derived(getStimuliOptions(engine))
   const participantOptions = $derived(getParticipantOptions(engine))
+  const stimulusSummary = $derived(
+    stimulusOptions.find(o => o.value === String(settings.stimulusId))?.label ?? '',
+  )
+  const participantSummary = $derived(
+    participantOptions.find(o => o.value === String(settings.participantId))?.label ?? '',
+  )
+
+  const openStimuli = () => modalState.open(stimulusModificationModal, { source })
+  const openAois = () =>
+    modalState.open(aoiModificationModal, {
+      selectedStimulus: String(settings.stimulusId),
+      source,
+    })
+  const openParticipants = () => modalState.open(participantModificationModal, { source })
 
   const hasSpatial = $derived(engine.capabilities.spatial)
   const availableMethods = $derived(
@@ -47,19 +66,28 @@
   )
 </script>
 
-<PaneSection>
+<PaneSection title="Stimulus" summary={stimulusSummary} defaultOpen>
   <Select
-    label="Stimulus"
     options={stimulusOptions}
     value={String(settings.stimulusId)}
     onchange={e => update({ stimulusId: Number((e as CustomEvent).detail) })}
   />
+  <PaneEditRow>
+    <PaneEditLink onclick={openStimuli}>Edit stimulus library…</PaneEditLink>
+    <PaneEditLink onclick={openAois}>Edit AOIs…</PaneEditLink>
+  </PaneEditRow>
+</PaneSection>
+
+<PaneSection title="Participant" summary={participantSummary}>
   <Select
-    label="Participant"
     options={participantOptions}
     value={String(settings.participantId)}
     onchange={e => update({ participantId: Number((e as CustomEvent).detail) })}
   />
+  <PaneEditLink onclick={openParticipants}>Edit participants…</PaneEditLink>
+</PaneSection>
+
+<PaneSection title="Method" summary={effectiveMethod}>
   <Radio
     ariaLabel="Recurrence method"
     options={[...availableMethods]}

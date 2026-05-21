@@ -26,7 +26,7 @@ interface Params { mode: 'fixation' | 'visit' }
  */
 defineTransitionMetric<Params>({
   id: 'transitionCount',
-  label: 'Transition count',
+  label: 'Transitions',
   description:
     'Per AOI pair (row → column): count of times gaze transitioned from row-AOI to column-AOI. ' +
     'In fixation mode every consecutive fixation pair counts; in visit mode only actual AOI changes count.',
@@ -35,8 +35,8 @@ defineTransitionMetric<Params>({
   additive: true,
   defaultLabel: p =>
     p.mode === 'visit'
-      ? 'Transition count (visit changes)'
-      : 'Transition count (fixation pairs)',
+      ? 'Visit-to-visit transitions'
+      : 'Fixation-to-fixation transitions',
   searchTags: ['transition', 'matrix', 'pair', 'aoi', 'count', 'sequence', 'markov'],
   onTransition: (acc, cellIdx) => { acc.matrix[cellIdx]++ },
   finalize: acc => Array.from(acc.matrix),

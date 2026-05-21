@@ -1,3 +1,5 @@
 export { default as Pane } from './Pane.svelte'
 export { default as PaneHeader } from './PaneHeader.svelte'
 export { default as PaneSection } from './PaneSection.svelte'
+export { default as PaneEditLink } from './PaneEditLink.svelte'
+export { default as PaneEditRow } from './PaneEditRow.svelte'

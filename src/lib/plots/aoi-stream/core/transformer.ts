@@ -8,7 +8,7 @@ import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import { formatMetricLabel } from '$lib/plots/shared/metricLabels'
 import {
   asAoiVectorTimeseries,
-  resolveContractedInstance,
+  resolveMetric,
 } from '$lib/plots/shared'
 import {
   queryGroup,
@@ -74,20 +74,15 @@ export function getAoiStreamPlotData(
   const meta = engine.metadata
   if (!meta) return emptyAoiStreamResult()
 
-  const resolution = resolveContractedInstance(
-    meta.metricInstances,
-    settings.metricInstanceIds?.[0] ?? null,
-    CONTRACT,
-  )
-  if (!resolution.ok) return emptyAoiStreamResult(true)
+  const resolved = resolveMetric({
+    instances: meta.metricInstances,
+    id: settings.metricInstanceIds?.[0] ?? null,
+    contract: CONTRACT,
+  })
+  if (!resolved.ok) return emptyAoiStreamResult(true)
 
-  const { instance } = resolution
-  // Contract-guaranteed (windowing: 'required') — the type narrows for callers
-  // that read `projection.window` below.
-  if (instance.projection.kind !== 'windowed') return emptyAoiStreamResult(true)
-
-  const windowSize = instance.projection.window.windowSize
-  const stepSize = instance.projection.window.stepSize
+  const { instance, window } = resolved
+  const { windowSize, stepSize } = window
   if (!Number.isFinite(windowSize) || windowSize <= 0) return emptyAoiStreamResult(true)
   if (!Number.isFinite(stepSize) || stepSize <= 0) return emptyAoiStreamResult(true)
 
@@ -194,9 +189,6 @@ export function getAoiStreamPlotData(
     maxTotal,
     maxValue,
     yAxisLabel: formatMetricLabel(metric),
-    windowLabel: windowLabel(
-      instance.projection.window,
-      metric?.meta.windowUnit ?? 'ms',
-    ),
+    windowLabel: windowLabel(window, metric?.meta.windowUnit ?? 'ms'),
   }
 }
