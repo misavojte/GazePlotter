@@ -102,16 +102,34 @@
     }
   }
 
+  let isPressed = $state(false)
+
+  function onPointerDown(e: PointerEvent) {
+    if (!isDraggableEnabled && !removable && !resizable && !onmove) return
+    const target = e.target as HTMLElement | null
+    if (target?.closest(BLOCK_SELECTOR)) return
+    isPressed = true
+  }
+
+  function onPointerUp() {
+    isPressed = false
+  }
+
   const itemWidth = $derived(w * cellSize.width + (w - 1) * gap)
   const itemHeight = $derived(h * cellSize.height + (h - 1) * gap)
   const itemX = $derived(x * (cellSize.width + gap))
   const itemY = $derived(y * (cellSize.height + gap))
+
+  const pressScaleX = $derived(Math.max(0.8, (itemWidth - 3) / itemWidth))
+  const pressScaleY = $derived(Math.max(0.8, (itemHeight - 3) / itemHeight))
 
   const itemStyle = $derived(`
     transform: translate(${itemX}px, ${itemY}px);
     width: ${itemWidth}px;
     height: ${itemHeight}px;
     --grid-item-body-padding: ${GRID_ITEM_BODY_PADDING}px;
+    --press-scale-x: ${pressScaleX};
+    --press-scale-y: ${pressScaleY};
   `)
 
   // Frame-level drag: once the item is selected, the whole frame is a
@@ -179,7 +197,15 @@
   transition:fade={{ duration: 150 }}
   role="figure"
 >
-  {#if isSelected}
+  <div 
+    class="grid-item-scaler" 
+    class:is-pressed={isPressed}
+    onpointerdowncapture={onPointerDown}
+    onpointerupcapture={onPointerUp}
+    onpointercancelcapture={onPointerUp}
+    onpointerleavecapture={onPointerUp}
+  >
+    {#if isSelected}
     <!-- Solid blue square tucked behind the plot frame at the top-right.
          The frame has a rounded top-right corner, which normally lets the
          workspace background bleed through the 8×8 arc cutout — breaking
@@ -296,6 +322,7 @@
       {/if}
     </div>
   {/if}
+  </div>
 </div>
 
 <style>
@@ -305,6 +332,21 @@
     box-sizing: border-box;
     will-change: transform, width, height;
     cursor: default;
+  }
+
+  .grid-item-scaler {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform-origin: center center;
+    transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    will-change: transform;
+  }
+
+  .grid-item-scaler.is-pressed {
+    transform: scale(var(--press-scale-x, 0.99), var(--press-scale-y, 0.99));
   }
 
   /* Selected items render above unselected peers. Without this, the
@@ -341,6 +383,7 @@
     display: flex;
     flex-direction: column;
     position: relative;
+    transition: box-shadow 0.1s ease;
 
     /* Affordance ring sits ON TOP of the frame's existing 1px border.
        Hover and selected share the 2px width so the visual "weight"
@@ -405,6 +448,7 @@
     border-radius: var(--rounded-lg, 8px) var(--rounded-lg, 8px) 0 0;
     user-select: none;
     -webkit-user-select: none;
+    transition: background-color 0.1s ease;
   }
 
   .grid-item-title {
@@ -470,6 +514,7 @@
     overflow: auto;
     border-radius: var(--rounded-lg, 8px);
     background-color: var(--c-white);
+    transition: background-color 0.1s ease;
   }
 
   /* Selected-state corner handles. Centered exactly on each corner of the
@@ -581,5 +626,11 @@
     display: flex;
     gap: 4px;
     margin-left: auto;
+  }
+
+  /* Tactile "press" feedback */
+  .grid-item-scaler.is-pressed:not(.selected) .grid-item-frame {
+    /* Add a subtle inner shadow to make it feel pushed 'in' */
+    box-shadow: inset 0 1px 4px rgba(15, 23, 42, 0.06);
   }
 </style>
