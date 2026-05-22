@@ -28,7 +28,7 @@
     canvasLifecycleAction,
   } from '$lib/plots/shared/canvasUtils'
   import { drawCanvasPlaceholder, METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
-  import type { StatisticalOverlayType } from '$lib/plots/bar/types'
+  import type { StatisticalOverlayType, BarPlotDataItem } from '$lib/plots/bar/types'
   import {
     drawOverlayBackgrounds,
     drawCategoryDelimiters,
@@ -55,14 +55,7 @@
   type BarPlotFigureProps = {
     width: number
     height: number
-    data: {
-      value: number
-      label: string
-      color: string
-      stats?: { count: number; mean: number; median: number; sd: number; sem: number } | null
-      individualValues?: number[] | null
-      individualParticipantNames?: string[] | null
-    }[]
+    data: BarPlotDataItem[]
     timeline: AdaptiveTimeline
     axisLabel: string
     barPlottingType: 'horizontal' | 'vertical'
@@ -329,7 +322,7 @@
         ? Math.floor(trueLeftMargin) + (index + 0.5) * fullCategoryWidth
         : Math.floor(effectiveTopMargin + marginTop) + (index + 0.5) * fullCategoryWidth,
       categoryWidth: fullCategoryWidth,
-      data: data[index] as any,
+      data: data[index],
     }))
 
     return {

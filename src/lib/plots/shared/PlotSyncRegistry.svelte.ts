@@ -12,8 +12,7 @@
  * shape-specific signature.
  */
 export class PlotSyncRegistry<E extends { dataMax: number }> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected entries: Record<number, E> = $state({}) as any
+  protected entries = $state<Record<number, E>>({})
 
   /** Register or update a plot's contribution to its matching sync group. */
   setEntry(plotId: number, entry: E): void {
