@@ -135,11 +135,11 @@
                       disabled={it.disabled}
                       onclick={() => handleItemClick(it)}
                     >
-                      {#if showIndicator && menu.selectionMode === 'radio'}
-                        <span class="indicator radio" class:checked={it.isHighlighted}></span>
-                      {:else if showIndicator && menu.selectionMode === 'checkbox'}
-                        <span class="indicator checkbox" class:checked={it.isHighlighted}>
-                          {#if it.isHighlighted}<Check size={10} strokeWidth={2.5} />{/if}
+                      {#if showIndicator}
+                        <span class={`indicator ${menu.selectionMode}`} class:checked={it.isHighlighted}>
+                          {#if menu.selectionMode === 'checkbox' && it.isHighlighted}
+                            <Check size={10} strokeWidth={2.5} />
+                          {/if}
                         </span>
                       {:else if it.icon}
                         {@const Icon = it.icon}
