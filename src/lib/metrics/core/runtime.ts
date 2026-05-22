@@ -360,7 +360,7 @@ export function scanAccumulator(
     if (reader.getSegmentCategory(i) !== 0) continue
     const start = reader.getSegmentStart(i)
     const end = reader.getSegmentEnd(i)
-    if (timeEnd > 0 && start >= timeEnd) continue
+    if (timeEnd > 0 && start >= timeEnd) break
     if (end <= timeStart) continue
 
     resolvedSlots.length = 0

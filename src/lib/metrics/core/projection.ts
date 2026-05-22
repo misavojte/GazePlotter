@@ -68,12 +68,19 @@ export interface WindowedProjection {
 export type Projection = LeafProjection | WindowedProjection
 export type ProjectionKind = LeafProjection['kind'] | 'windowed'
 
+const IDENTITY_MAP: Record<OutputShape, LeafProjection> = {
+  scalar: { kind: 'identity-scalar' },
+  'aoi-vector': { kind: 'identity-aoi-vector' },
+  'aoi-pair-matrix': { kind: 'identity-aoi-pair-matrix' },
+  'participant-pair-matrix': { kind: 'identity-participant-pair-matrix' },
+  'scalar-timeseries': { kind: 'identity-scalar' },
+  'aoi-vector-timeseries': { kind: 'identity-aoi-vector' },
+}
+
 export function identityFor(raw: OutputShape): LeafProjection {
-  if (raw === 'scalar')       return { kind: 'identity-scalar' }
-  if (raw === 'aoi-vector')   return { kind: 'identity-aoi-vector' }
-  if (raw === 'aoi-pair-matrix') return { kind: 'identity-aoi-pair-matrix' }
-  if (raw === 'participant-pair-matrix') return { kind: 'identity-participant-pair-matrix' }
-  throw new Error(`identityFor: no identity leaf for output shape "${raw}"`)
+  const id = IDENTITY_MAP[raw]
+  if (!id) throw new Error(`identityFor: no identity leaf for output shape "${raw}"`)
+  return id
 }
 
 export function leafOf(p: Projection): LeafProjection {
@@ -402,14 +409,13 @@ function resolveAoiRef(ref: AoiRef, aoiNames: readonly string[]): number {
 }
 
 function reduceNumeric(values: readonly number[], method: AoiReducer): number {
-  const valid: number[] = []
-  for (const v of values) if (Number.isFinite(v)) valid.push(v)
+  const valid = values.filter(Number.isFinite)
   if (valid.length === 0) return Number.NaN
   switch (method) {
-    case 'sum':  { let s = 0; for (const v of valid) s += v; return s }
-    case 'mean': { let s = 0; for (const v of valid) s += v; return s / valid.length }
-    case 'max':  { let m = valid[0]; for (let i = 1; i < valid.length; i++) if (valid[i] > m) m = valid[i]; return m }
-    case 'min':  { let m = valid[0]; for (let i = 1; i < valid.length; i++) if (valid[i] < m) m = valid[i]; return m }
+    case 'sum': return valid.reduce((a, b) => a + b, 0)
+    case 'mean': return valid.reduce((a, b) => a + b, 0) / valid.length
+    case 'max': return Math.max(...valid)
+    case 'min': return Math.min(...valid)
     case 'median': {
       const s = [...valid].sort((a, b) => a - b)
       const mid = Math.floor(s.length / 2)

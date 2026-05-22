@@ -248,28 +248,15 @@ export function reduceFinite(
   values: readonly number[],
   method: 'mean' | 'median' | 'sum',
 ): number {
-  let acc: number[] | null = null
-  let sum = 0
-  let count = 0
-  for (const v of values) {
-    if (!Number.isFinite(v)) continue
-    if (method === 'median') {
-      if (!acc) acc = []
-      acc.push(v)
-    } else {
-      sum += v
-      count++
-    }
-  }
-  if (method === 'median') {
-    const arr = acc
-    if (!arr || arr.length === 0) return Number.NaN
-    arr.sort((a, b) => a - b)
-    const mid = Math.floor(arr.length / 2)
-    return arr.length % 2 === 0 ? (arr[mid - 1] + arr[mid]) / 2 : arr[mid]
-  }
-  if (count === 0) return Number.NaN
-  return method === 'sum' ? sum : sum / count
+  const valid = values.filter(Number.isFinite)
+  if (valid.length === 0) return Number.NaN
+  if (method === 'sum') return valid.reduce((a, b) => a + b, 0)
+  if (method === 'mean') return valid.reduce((a, b) => a + b, 0) / valid.length
+  
+  // median
+  const s = [...valid].sort((a, b) => a - b)
+  const mid = Math.floor(s.length / 2)
+  return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid]
 }
 
 /**
