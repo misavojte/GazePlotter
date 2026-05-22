@@ -238,7 +238,7 @@ export function drawMatrixColumnLabels(
       ? getCompactLabel(col, labels.length, layout, hasLastRowSentinel)
       : truncateTextToPixelWidth(
           labels[col],
-          config.maxLabelLength * 1.5,
+          config.maxLabelLength,
           labelFontSize,
           SYSTEM_SANS_SERIF_STACK,
           '...'

@@ -169,7 +169,7 @@
   const legendGeometry = $derived.by(() => {
     const { gridWidth, xOffset, matrixBottom } = layout
     const canvasHeight = height + marginTop + marginBottom
-    const availableLegendSpace = canvasHeight - matrixBottom - 10
+    const availableLegendSpace = canvasHeight - matrixBottom - 10 - marginBottom
 
     return computeGradientLegendGeometry({
       x: xOffset,

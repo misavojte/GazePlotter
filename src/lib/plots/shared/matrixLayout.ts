@@ -101,7 +101,7 @@ export function computeSquareMatrixLayout(
   const effectiveMaxColLabelWidth = estimateMaxLabelWidth(
     labels,
     fontSize,
-    cfg.maxLabelLength * 1.5
+    cfg.maxLabelLength
   )
 
   const standardAxisLabelSize = effectiveMaxLabelWidth
@@ -113,7 +113,9 @@ export function computeSquareMatrixLayout(
   const standardXSpace =
     marginTop + cfg.topMargin + fontSize + AXIS_TITLE_GAP + standardXAxisHeight + 10
 
-  const legendSpace = 55 + marginBottom
+  const PLOT_TO_LEGEND_GAP = 10
+  const GRADIENT_LEGEND_HEIGHT = 52
+  const legendSpace = PLOT_TO_LEGEND_GAP + GRADIENT_LEGEND_HEIGHT + marginBottom
 
   const availableWidthStandard =
     width - standardYSpace - marginRight - cfg.rightMargin
