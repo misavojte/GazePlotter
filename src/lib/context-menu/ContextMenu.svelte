@@ -74,7 +74,11 @@
       it.onAction?.()
     }
 
-    highlightMenuItem(menu.items, it.label)
+    if (menu.selectionMode === 'checkbox') {
+      it.isHighlighted = !it.isHighlighted
+    } else {
+      highlightMenuItem(menu.items, it.label)
+    }
 
     if (shouldCloseMenuOnAction(it)) {
       onClose()

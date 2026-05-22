@@ -173,7 +173,7 @@
 
     return computeGradientLegendGeometry({
       x: xOffset,
-      y: matrixBottom + 5,
+      y: matrixBottom + 10,
       availableWidth: gridWidth,
       availableHeight: availableLegendSpace,
       colorScale,

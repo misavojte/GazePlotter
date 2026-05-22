@@ -46,8 +46,8 @@
     options = [],
     disabled = false,
     label = '',
-    value = $bindable<string | string[]>(options[0]?.value ?? ''),
     multiple = false,
+    value = $bindable<string | string[]>(multiple ? [] : (options[0]?.value ?? '')),
     compact = false,
     placeholder,
     subLabel,
@@ -97,10 +97,18 @@
       const next = arr.includes(nextValue)
         ? arr.filter(v => v !== nextValue)
         : [...arr, nextValue]
-      value = next
+      try {
+        value = next
+      } catch (e) {
+        // Safe safeguard: ignore read-only mutation crashes in Svelte 5 when passed a derived prop
+      }
       onchange(createSelectChangeEvent(next))
     } else {
-      value = nextValue
+      try {
+        value = nextValue
+      } catch (e) {
+        // Safe safeguard: ignore read-only mutation crashes in Svelte 5 when passed a derived prop
+      }
       onchange(createSelectChangeEvent(nextValue))
     }
   }
