@@ -120,8 +120,6 @@
     getDpiOverride: () => dpiOverride,
   })
 
-  $effect(() => plot.registerExportSource(() => canvas))
-
   // Calculate dynamic margins
   const effectiveTopMargin = $derived(TICK_LENGTH)
   const effectiveBottomMargin = $derived(

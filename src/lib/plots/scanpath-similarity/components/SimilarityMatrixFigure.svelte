@@ -68,8 +68,6 @@
     getDpiOverride: () => dpiOverride,
   })
 
-  $effect(() => plot.registerExportSource(() => canvas))
-
   const effectiveMaxValue = $derived.by(() => {
     if (colorValueRange[1] !== 0) return colorValueRange[1]
     let maxValue = 0

@@ -119,6 +119,7 @@ export function useCanvasPlot(options: UseCanvasPlotOptions): CanvasPlotHandle {
     getDpiOverride: getDpiOverride,
     render: options.render,
     scheduleRender,
+    registerExportSource: (canvasElement) => registerExportSource(() => canvasElement),
   })
 
   function refresh() {

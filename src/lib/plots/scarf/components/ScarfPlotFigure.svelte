@@ -207,8 +207,6 @@
     getDpiOverride: () => dpiOverride,
   })
 
-  $effect(() => plot.registerExportSource(() => canvas))
-
   let dragStartX = $state(0) // Track drag start position
   let dragStartY = $state(0) // Track drag start position
   let hasDragStarted = $state(false) // Track if drag threshold has been exceeded

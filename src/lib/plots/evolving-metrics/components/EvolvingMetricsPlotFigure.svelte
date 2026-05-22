@@ -252,8 +252,6 @@
     getDpiOverride: () => dpiOverride,
   })
 
-  $effect(() => plot.registerExportSource(() => canvas))
-
   function findWindowAt(
     windows: readonly EvolvingMetricsWindow[],
     t: number

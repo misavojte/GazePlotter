@@ -66,8 +66,6 @@
     getDpiOverride: () => dpiOverride,
   })
 
-  $effect(() => plot.registerExportSource(() => canvas))
-
   const canvasWidth = $derived(width + marginLeft + marginRight)
   const canvasHeight = $derived(height + marginTop + marginBottom)
 

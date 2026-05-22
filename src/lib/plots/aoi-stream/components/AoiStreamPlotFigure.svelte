@@ -191,8 +191,6 @@
     getDpiOverride: () => dpiOverride,
   })
 
-  $effect(() => plot.registerExportSource(() => canvas))
-
   // Convert series data to legend items format
   const legendItems: LegendItem[] = $derived(
     data.series.map(s => ({

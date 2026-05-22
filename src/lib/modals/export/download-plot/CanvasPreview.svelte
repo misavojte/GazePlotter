@@ -86,6 +86,9 @@
   async function generateDownload() {
     await tick()
 
+    // Yield to the browser's next paint frame to allow scheduled canvas redraws to finish
+    await new Promise(requestAnimationFrame)
+
     const resolvedCanvas =
       exportSource?.kind === 'canvas' ? exportSource.getCanvas() : null
 

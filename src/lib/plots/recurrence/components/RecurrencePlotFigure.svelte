@@ -60,8 +60,6 @@
     getDpiOverride: () => dpiOverride,
   })
 
-  $effect(() => plot.registerExportSource(() => canvas))
-
   const L = RECURRENCE_LAYOUT
 
   const layout = $derived.by(() => {

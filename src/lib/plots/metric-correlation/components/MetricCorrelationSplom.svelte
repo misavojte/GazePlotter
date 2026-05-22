@@ -59,8 +59,6 @@
     getDpiOverride: () => dpiOverride,
   })
 
-  $effect(() => plot.registerExportSource(() => canvas))
-
   const labels = $derived(result.metrics.map(m => m.label))
 
   const methodLabel = $derived(

@@ -57,8 +57,6 @@
     getDpiOverride: () => dpiOverride,
   })
 
-  $effect(() => plot.registerExportSource(() => canvas))
-
   const labels = $derived(result.metrics.map(m => m.label))
 
   // Flat row-major matrix of r values. NaN marks "undefined" (null r) so the
