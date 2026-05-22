@@ -26,10 +26,11 @@
 
   const { title, summary, defaultOpen = false, children }: Props = $props()
 
-  // Per-instance id so the parent accordion (provided by `Pane` via
-  // context) can identify which section is currently open. Untitled
-  // sections are uncollapsible and don't participate.
-  const id = crypto.randomUUID()
+  // Stable ID derived from the title, so that when a user switches plots
+  // (which recreates the sections but preserves the Pane.svelte state),
+  // the previously open section (e.g., 'Group') remains open. Untitled
+  // sections are uncollapsible and get a random UUID just in case.
+  const id = title ?? crypto.randomUUID()
   const accordion = getContext<PaneAccordion | undefined>(PANE_ACCORDION_KEY)
 
   // Fallback for the no-context case (component used standalone): the
@@ -55,13 +56,12 @@
     }
   }
 
-  // `defaultOpen` claims openId on mount, unconditionally — every plot's
-  // Stimulus section opens itself the moment it mounts, overriding any
-  // stale openId left over from the previously-focused plot. onMount only
-  // fires once per section instance, so if the user later collapses it
-  // manually it stays collapsed for the rest of that plot's session.
+  // `defaultOpen` claims openId on mount if no section is currently open.
+  // This allows it to open by default on the first plot, but respects the
+  // user's active selection (e.g. 'Group') when switching to a different plot
+  // which shares the same parent Pane accordion state.
   onMount(() => {
-    if (defaultOpen && isCollapsible && accordion) {
+    if (defaultOpen && isCollapsible && accordion && accordion.openId === null) {
       accordion.openId = id
     }
   })
