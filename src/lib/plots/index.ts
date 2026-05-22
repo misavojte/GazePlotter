@@ -13,3 +13,6 @@ export * from './bar'
 export * from './aoi-stream'
 export * from './scanpath-similarity'
 export * from './evolving-metrics'
+export * from './recurrence'
+export * from './metric-correlation'
+

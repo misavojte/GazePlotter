@@ -1,6 +1,6 @@
 import EvolvingMetricsPlot from './components/EvolvingMetricsPlot.svelte'
 import EvolvingMetricsExportFigure from './components/EvolvingMetricsExportFigure.svelte'
-import EvolvingMetricsPaneSettings from './components/EvolvingMetricsPaneSettings.svelte'
+import EvolvingMetricsPlotPaneSettings from './components/EvolvingMetricsPlotPaneSettings.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
 import {
@@ -16,7 +16,7 @@ export const evolvingMetricsDefinition = definePlot<
   type: 'evolvingMetrics',
   name: 'Evolving Metrics',
   component: EvolvingMetricsPlot,
-  paneSettings: EvolvingMetricsPaneSettings,
+  paneSettings: EvolvingMetricsPlotPaneSettings,
   export: { figure: EvolvingMetricsExportFigure },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []
@@ -36,6 +36,8 @@ export const evolvingMetricsDefinition = definePlot<
     stimulusId: params.stimulusId ?? 0,
     groupId: params.groupId ?? -1,
     metricInstanceIds: ['avgFixationDuration-any-windowed'],
+    timelineStart: 0,
+    timelineEnd: 0,
   }),
   getMinSize: () => ({ w: 11, h: 10 }),
   getDefaultHeight: () => 12,

@@ -1,6 +1,6 @@
 import ScanpathSimilarityPlot from './components/ScanpathSimilarityPlot.svelte'
 import ScanpathSimilarityExportFigure from './components/ScanpathSimilarityExportFigure.svelte'
-import ScanpathSimilarityPaneSettings from './components/ScanpathSimilarityPaneSettings.svelte'
+import ScanpathSimilarityPlotPaneSettings from './components/ScanpathSimilarityPlotPaneSettings.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
 import { PRESET_PALETTES } from '$lib/color/palettes'
@@ -17,7 +17,7 @@ export const scanpathSimilarityDefinition = definePlot<
   type: 'scanpathSimilarity',
   name: 'Scanpath Similarity',
   component: ScanpathSimilarityPlot,
-  paneSettings: ScanpathSimilarityPaneSettings,
+  paneSettings: ScanpathSimilarityPlotPaneSettings,
   export: { figure: ScanpathSimilarityExportFigure },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []

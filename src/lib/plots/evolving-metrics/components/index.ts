@@ -1,2 +1,3 @@
 export { default as EvolvingMetricsPlot } from './EvolvingMetricsPlot.svelte'
-export { default as EvolvingMetricsFigure } from './EvolvingMetricsFigure.svelte'
+export { default as EvolvingMetricsPlotFigure } from './EvolvingMetricsPlotFigure.svelte'
+

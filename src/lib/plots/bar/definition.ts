@@ -38,6 +38,8 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
     metricInstanceIds: [],
     scaleRange: [0, 0],
     statisticalOverlay: 'meanCi95',
+    timelineStart: 0,
+    timelineEnd: 0,
   }),
   getMinSize: () => ({ w: 11, h: 10 }),
   getDefaultHeight: () => 12,

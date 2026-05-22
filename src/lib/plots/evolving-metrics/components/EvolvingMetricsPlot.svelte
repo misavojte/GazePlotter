@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte'
 
-  import { EvolvingMetricsFigure } from '$lib/plots/evolving-metrics/components'
+  import { EvolvingMetricsPlotFigure } from '$lib/plots/evolving-metrics/components'
   import { BasePlot } from '$lib/plots/shared/components'
 
   import { getEvolvingMetricsData } from '../core'
@@ -60,7 +60,7 @@
 <BasePlot {item} hasData={!!resultData}>
   {#snippet figure({ width, height })}
     {#if resultData}
-      <EvolvingMetricsFigure
+      <EvolvingMetricsPlotFigure
         {width}
         {height}
         data={resultData}

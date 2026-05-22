@@ -37,6 +37,8 @@ export const aoiStreamPlotDefinition = definePlot<
     groupId: params.groupId ?? -1,
     metricInstanceIds: ['absoluteTime-aoi-windowed-500'],
     absoluteStimuliLimits: [],
+    timelineStart: 0,
+    timelineEnd: 0,
   }),
   getMinSize: () => ({ w: 11, h: 10 }),
   getDefaultHeight: () => 12,
