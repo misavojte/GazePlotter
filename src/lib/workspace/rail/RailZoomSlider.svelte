@@ -29,16 +29,18 @@
     disabled: responsive.isMobile,
   }}
 >
-  <input
-    class="zoom-slider"
-    type="range"
-    min={ZOOM_MIN}
-    max={ZOOM_MAX}
-    step={ZOOM_STEP}
-    bind:value
-    {disabled}
-    aria-label="Workspace zoom level"
-  />
+  <div class="slider-wrapper">
+    <input
+      class="zoom-slider"
+      type="range"
+      min={ZOOM_MIN}
+      max={ZOOM_MAX}
+      step={ZOOM_STEP}
+      bind:value
+      {disabled}
+      aria-label="Workspace zoom level"
+    />
+  </div>
   <span class="zoom-value">{displayValue}</span>
 </div>
 
@@ -91,15 +93,24 @@
     opacity: 1;
   }
 
-  /* Vertical variant: writing-mode rotates the intrinsic slider axis
-     so the track flows top-to-bottom and the thumb slides along it.
-     A small fixed inline size (width) keeps the hit target narrow but
-     reachable with the mouse. */
-  .vertical .zoom-slider {
-    writing-mode: vertical-lr;
-    direction: rtl;
+  .vertical .slider-wrapper {
     width: 12px;
     height: 64px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Vertical variant: horizontal slider rotated -90deg inside the slider-wrapper.
+     This maintains custom styled track and thumb elements without native rendering. */
+  .vertical .zoom-slider {
+    position: absolute;
+    width: 64px;
+    height: 12px;
+    transform: rotate(-90deg);
+    transform-origin: center;
+    margin: 0;
   }
 
   .horizontal .zoom-slider {
