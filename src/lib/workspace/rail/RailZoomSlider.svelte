@@ -118,40 +118,24 @@
     height: 20px;
   }
 
-  /* Track: thin (2px cross-axis) line stretching the full main-axis
-     length. Vendor-prefixed pseudo-elements CANNOT be combined into
-     one selector — Chrome drops the whole rule if it contains a
-     `::-moz-*` selector, and Firefox does the reverse. Each vendor
-     needs its own complete rule block. */
-  .vertical .zoom-slider::-webkit-slider-runnable-track {
-    width: 2px;
-    height: 100%;
-    background: var(--c-border, rgba(136, 136, 136, 0.3));
-    border-radius: 1px;
-  }
-  .vertical .zoom-slider::-moz-range-track {
-    width: 2px;
-    height: 100%;
-    background: var(--c-border, rgba(136, 136, 136, 0.3));
-    border-radius: 1px;
-  }
-
-  .horizontal .zoom-slider::-webkit-slider-runnable-track {
+  /* Track: thin (2px) line stretching the full main-axis length.
+     Because the vertical slider is rotated via transform, it also uses 
+     the standard horizontal track styling beneath the rotation. */
+  .zoom-slider::-webkit-slider-runnable-track {
     width: 100%;
     height: 2px;
     background: var(--c-border, rgba(136, 136, 136, 0.3));
     border-radius: 1px;
   }
-  .horizontal .zoom-slider::-moz-range-track {
+  .zoom-slider::-moz-range-track {
     width: 100%;
     height: 2px;
     background: var(--c-border, rgba(136, 136, 136, 0.3));
     border-radius: 1px;
   }
 
-  /* Shared thumb: a 10×10 circle — rotation-invariant, identical
-     visual identity in both orientations. The cross-axis margin
-     centers the 10px thumb on the 2px track: (10 − 2) / 2 = 4px. */
+  /* Shared thumb: a 10×10 circle. The margin-top of -4px centers 
+     the 10px thumb on the 2px track: (10 − 2) / 2 = 4px. */
   .zoom-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
@@ -160,6 +144,7 @@
     background: var(--c-darkgrey, #888);
     border-radius: 50%;
     border: none;
+    margin-top: -4px;
   }
 
   .zoom-slider::-moz-range-thumb {
@@ -168,13 +153,6 @@
     background: var(--c-darkgrey, #888);
     border-radius: 50%;
     border: none;
-  }
-
-  .vertical .zoom-slider::-webkit-slider-thumb {
-    margin-left: -4px;
-  }
-  .horizontal .zoom-slider::-webkit-slider-thumb {
-    margin-top: -4px;
   }
 
   .zoom-value {
