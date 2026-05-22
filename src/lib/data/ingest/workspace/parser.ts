@@ -1,5 +1,6 @@
 import type { DataType, JsonImportNewFormat } from '$lib/data/types'
-import type { GridItemSnapshot } from '$lib/workspace'
+import type { FileMetadataType } from '../types'
+import type { GridItemSnapshot } from '$lib/workspace/grid/types'
 import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace/grid/const'
 import { runMigrations } from './migrations'
 import { processAndValidateData, validateBasicStructure } from './validator'
@@ -48,8 +49,9 @@ export function processJsonFileWithGrid(
   validateBasicStructure(modernData.data)
 
   return {
-    ...modernData,
+    version: modernData.version as JsonImportNewFormat['version'],
     data: processAndValidateData(modernData.data),
-    gridItems: modernData.gridItems ?? DEFAULT_GRID_STATE_DATA,
+    gridItems: (modernData.gridItems as GridItemSnapshot[] | undefined) ?? DEFAULT_GRID_STATE_DATA,
+    fileMetadata: modernData.fileMetadata as FileMetadataType | null | undefined,
   }
 }

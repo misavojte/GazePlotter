@@ -1,5 +1,5 @@
 import type { DataType, ExtendedInterpretedDataType } from '$lib/data/types'
-import { DEFAULT_AOI_COLORS, DEFAULT_CATEGORY_COLOR } from '$lib/color'
+import { DEFAULT_AOI_COLORS, DEFAULT_CATEGORY_COLOR } from '$lib/color/palettes'
 
 export const getDefaultColor = (index: number): string =>
   DEFAULT_AOI_COLORS[index % DEFAULT_AOI_COLORS.length]

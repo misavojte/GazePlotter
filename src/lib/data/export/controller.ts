@@ -14,7 +14,7 @@ import {
 import { generateWorkspaceJson } from './mappers/workspace'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import type { AllGridTypes } from '$lib/workspace'
-import type { FileMetadataType } from '$lib/data/ingest'
+import type { FileMetadataType } from '$lib/data/ingest/types'
 
 /**
  * Downloads a unified CSV of all gaze segments.

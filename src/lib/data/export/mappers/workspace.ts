@@ -1,6 +1,6 @@
 import { type DataType, type JsonImportOldFormat } from '$lib/data/types'
 import { binarySegmentsToJsonWithSpatial } from '$lib/data/binary'
-import type { FileMetadataType } from '$lib/data/ingest'
+import type { FileMetadataType } from '$lib/data/ingest/types'
 import { encodeJson, wrapProjectPayload } from '../encoders/json'
 
 /**

@@ -1,11 +1,11 @@
-import type { DataCapabilities, DataType } from '$lib/data/types'
+import type { DataCapabilities, DataType, RawIngestPayload, BinarySegmentBuffers } from '$lib/data/types'
 import { jsonSegmentsToBinary, DEFAULT_NO_AOI_TREATMENT } from '$lib/data/types'
 
 /**
  * Validates the basic structure of the data
  * @throws Error if the data structure is invalid
  */
-export function validateBasicStructure(data: DataType): void {
+export function validateBasicStructure(data: RawIngestPayload): void {
   if (!data.stimuli?.data || !Array.isArray(data.stimuli.data)) {
     throw new Error('Invalid data structure: missing or invalid stimuli data')
   }
@@ -21,10 +21,7 @@ export function validateBasicStructure(data: DataType): void {
  * Ensures required fields exist and segments are properly formatted and sorted.
  */
 export function processAndValidateData(
-  data: Omit<DataType, 'segments' | 'capabilities'> & {
-    segments?: any
-    capabilities?: Partial<DataCapabilities>
-  }
+  data: RawIngestPayload
 ): DataType {
   const stimuliCount = data.stimuli.data.length
 
@@ -38,7 +35,7 @@ export function processAndValidateData(
   }
 
   // Normalize eventData
-  const ed = ((data as any).eventData ??= {
+  const ed = (data.eventData ??= {
     data: [],
     orderVector: [],
     hiddenChannels: [],
@@ -53,7 +50,8 @@ export function processAndValidateData(
   for (let s = ed.hiddenChannels.length; s < stimuliCount; s++)
     ed.hiddenChannels.push([])
 
-  const hasEventData = ed.events.some((channels: number[][][]) =>
+  const events = ed.events ?? []
+  const hasEventData = events.some((channels: number[][][]) =>
     channels.some((participants: number[][]) =>
       participants.some((buffer: number[]) => (buffer?.length ?? 0) > 0)
     )
@@ -99,13 +97,14 @@ export function processAndValidateData(
       }
     }
 
-    const rawSpatialData = (data as any).spatialData
-    delete (data as any).spatialData
+    const rawSpatialData = data.spatialData as (number[] | null)[][][] | undefined
+    delete data.spatialData
     data.segments = jsonSegmentsToBinary(rawSegments, rawSpatialData)
   } else {
     // Basic structural validation for binary segments to ensure they aren't plain objects
-    const bins = data.segments as any
+    const bins = data.segments as Partial<BinarySegmentBuffers> & Record<string, unknown>
     if (
+      !bins ||
       !(bins.segmentBuffer instanceof Float32Array) ||
       !(bins.indexTable instanceof Uint32Array) ||
       !(bins.aoiPool instanceof Uint16Array) ||

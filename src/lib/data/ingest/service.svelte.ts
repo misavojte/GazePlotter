@@ -27,12 +27,12 @@ import type {
   FileMetadataFailureType,
   FileMetadataSuccessType,
   FileMetadataType,
-} from '$lib/data/ingest'
+} from './types'
 import type { ModalState } from '$lib/modals/modal.state.svelte'
 import type { ToastState } from '$lib/toaster/toastState.svelte'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import type { GridState } from '$lib/workspace/grid/store.svelte'
-import type { GridItemSnapshot } from '$lib/workspace'
+import type { GridItemSnapshot } from '$lib/workspace/grid/types'
 
 export type IngestStatus = 'loading' | 'ready' | 'error'
 

@@ -1,7 +1,7 @@
 import { EyePipeline } from './stream/Pipeline'
-import { PupilCloudPipeline } from '$lib/data/ingest/batch/PupilPipeline'
-import type { EyeSettingsType } from '$lib/data/ingest'
-import type { DataType } from '$lib/data/types'
+import { PupilCloudPipeline } from './batch/PupilPipeline'
+import type { EyeSettingsType } from './types'
+import type { DataType } from '../types'
 
 /**
  * A worker file handling whole eyefiles processing.

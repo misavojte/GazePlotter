@@ -4,6 +4,7 @@ import {
   createMetricInstance,
   type MetricInstance,
 } from '$lib/metrics/instances'
+import type { MigratedJsonFormat } from '$lib/data/types'
 
 const CORE_LAYOUT_KEYS = new Set([
   'id',
@@ -20,8 +21,8 @@ const CORE_LAYOUT_KEYS = new Set([
  * Sequentially upgrades raw JSON data to the current schema.
  * Operates entirely on raw data objects to ensure Web Worker safety.
  */
-export function runMigrations(parsedJson: any): any {
-  let data = parsedJson
+export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
+  let data = parsedJson as any
   let version = data.version || 1 // Fallback for unversioned legacy files
 
   // V1/V2 to V3: Standardize the version marker
@@ -482,5 +483,5 @@ export function runMigrations(parsedJson: any): any {
     })
   }
 
-  return data
+  return data as MigratedJsonFormat
 }

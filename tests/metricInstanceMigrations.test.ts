@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { runMigrations } from '../src/lib/data/ingest/workspace/migrations'
+import { runMigrations as runMigrationsTyped } from '../src/lib/data/ingest/workspace/migrations'
+const runMigrations = runMigrationsTyped as (parsedJson: unknown) => any
 import {
   createDefaultMetricInstances,
   resolveInstance,

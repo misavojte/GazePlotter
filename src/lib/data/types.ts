@@ -1,5 +1,5 @@
-import type { FileInputType, FileMetadataType } from '$lib/data/ingest'
-import type { GridItemSnapshot } from '$lib/workspace'
+import type { FileInputType, FileMetadataType } from './ingest/types'
+import type { GridItemSnapshot } from '$lib/workspace/grid/types'
 import type { BinarySegmentBuffers } from './binary'
 import type { MetricInstance } from '$lib/metrics/instances'
 export type { MetricInstance } from '$lib/metrics/instances'
@@ -152,10 +152,44 @@ export type JsonImportOldFormat = Omit<DataType, 'segments'> & {
 }
 
 export interface JsonImportNewFormat {
-  version: 2 | 3 | 4 | 5
+  version: 2 | 3 | 4 | 5 | 6
   data: DataType
   gridItems?: GridItemSnapshot[]
   fileMetadata?: FileMetadataType | null
+}
+
+export interface RawEventDataType {
+  data?: string[][][]
+  orderVector?: number[][]
+  hiddenChannels?: number[][]
+  events?: number[][][][]
+}
+
+export interface RawIngestPayload {
+  isOrdinalOnly?: boolean
+  capabilities?: Partial<DataCapabilities>
+  aois: {
+    data: string[][][]
+    orderVector?: number[][]
+    hiddenAois?: number[][]
+    dynamicVisibility?: Record<string, unknown>
+  }
+  categories?: AttributeDataType
+  participants: AttributeDataType
+  participantsGroups?: ParticipantsGroup[]
+  metricInstances?: MetricInstance[]
+  stimuli: AttributeDataType
+  segments?: unknown
+  noAoiTreatment?: NoAoiTreatmentType
+  eventData?: RawEventDataType
+  spatialData?: unknown
+}
+
+export interface MigratedJsonFormat {
+  version: number
+  data: RawIngestPayload
+  gridItems?: unknown[]
+  fileMetadata?: unknown
 }
 
 export type ParsedData = JsonImportNewFormat & { current: FileInputType }

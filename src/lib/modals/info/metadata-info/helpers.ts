@@ -1,7 +1,7 @@
 import type { DataType } from '$lib/data/types'
 import type { DataCapabilities } from '$lib/data/types'
 import type { ErrorRecord } from '$lib/errors'
-import type { FileInputType, FileMetadataType } from '$lib/data/ingest'
+import type { FileInputType, FileMetadataType } from '$lib/data/ingest/types'
 
 type MetadataSource = Pick<DataType, 'aois' | 'participants' | 'stimuli'>
 

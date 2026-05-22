@@ -1,7 +1,7 @@
 import JSZip from 'jszip'
 import type { DataType } from '$lib/data/types'
-import type { EyeSettingsType } from '$lib/data/ingest'
-import { BinaryEyeWriter as EyeWriter } from '$lib/data/ingest/writer'
+import type { EyeSettingsType } from '../types'
+import { BinaryEyeWriter as EyeWriter } from '../writer'
 
 /**
  * Stateful pipeline for processing multiple Pupil Cloud ZIP files.

@@ -48,13 +48,13 @@ export function escapeCsvField(
  * Knows NOTHING about Gaze data or application state.
  */
 
-export function encodeCsvRow(fields: any[], delimiter: string): string {
+export function encodeCsvRow(fields: unknown[], delimiter: string): string {
   return fields.map(f => escapeCsvField(String(f), delimiter)).join(delimiter)
 }
 
 export function generateCsvString(
   header: string[],
-  rows: any[][],
+  rows: unknown[][],
   options?: CsvFormatOptions
 ): string {
   const { delimiter } = resolveCsvFormatOptions(options)
