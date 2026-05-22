@@ -1,8 +1,17 @@
+import { getGradientLegendRequiredHeight } from './legendGradient'
+
 const NICE_STEPS = [5, 10, 20, 25, 50, 100, 200, 500, 1000] as const
 const AXIS_TITLE_GAP = 12
 const SIN_45 = 0.7071
 const APPROX_CHAR_WIDTH = 0.6
 const COMPACT_LABEL_SIZE = 25
+
+/**
+ * Vertical gap between the bottom of the matrix grid and the top of the
+ * gradient legend.  Exported so figure components can re-use the same
+ * value when positioning the legend.
+ */
+export const MATRIX_LEGEND_GAP = 10
 
 export const MATRIX_LAYOUT = {
   horizontalPadding: 50,
@@ -98,14 +107,8 @@ export function computeSquareMatrixLayout(
     cfg.maxLabelLength
   )
 
-  const effectiveMaxColLabelWidth = estimateMaxLabelWidth(
-    labels,
-    fontSize,
-    cfg.maxLabelLength
-  )
-
   const standardAxisLabelSize = effectiveMaxLabelWidth
-  const standardXAxisHeight = effectiveMaxColLabelWidth * SIN_45 + fontSize * SIN_45
+  const standardXAxisHeight = effectiveMaxLabelWidth * SIN_45 + fontSize * SIN_45
 
   const standardYSpace =
     marginLeft + cfg.leftMargin + fontSize + AXIS_TITLE_GAP + standardAxisLabelSize + 10
@@ -113,9 +116,7 @@ export function computeSquareMatrixLayout(
   const standardXSpace =
     marginTop + cfg.topMargin + fontSize + AXIS_TITLE_GAP + standardXAxisHeight + 10
 
-  const PLOT_TO_LEGEND_GAP = 10
-  const GRADIENT_LEGEND_HEIGHT = 52
-  const legendSpace = PLOT_TO_LEGEND_GAP + GRADIENT_LEGEND_HEIGHT + marginBottom
+  const legendSpace = MATRIX_LEGEND_GAP + getGradientLegendRequiredHeight(fontSize) + marginBottom
 
   const availableWidthStandard =
     width - standardYSpace - marginRight - cfg.rightMargin
@@ -157,7 +158,7 @@ export function computeSquareMatrixLayout(
     yAxisLabelWidth = COMPACT_LABEL_SIZE
   } else {
     yAxisLabelWidth = effectiveMaxLabelWidth
-    xAxisLabelHeight = effectiveMaxColLabelWidth * SIN_45 + fontSize * SIN_45
+    xAxisLabelHeight = effectiveMaxLabelWidth * SIN_45 + fontSize * SIN_45
   }
 
   const yAxisSpace =

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { updateTooltip } from '$lib/tooltip'
-  import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
+
   import { untrack } from 'svelte'
   import {
     getScaledMousePosition,
@@ -19,10 +19,11 @@
     useCanvasPlot,
     renderMatrixContent,
     canvasBlockSelect,
+    MATRIX_LEGEND_GAP,
     type BlockedRegion,
     type MatrixRenderConfig,
   } from '$lib/plots/shared'
-  import { UI_COLORS } from '$lib/color'
+
   import type { MetricCorrelationResult } from '../types'
 
   interface Props {
@@ -176,11 +177,11 @@
   const legendGeometry = $derived.by(() => {
     const { gridWidth, xOffset, matrixBottom } = layout
     const totalH = height + marginTop + marginBottom
-    const availableLegendSpace = totalH - matrixBottom - 10 - marginBottom
+    const availableLegendSpace = totalH - matrixBottom - MATRIX_LEGEND_GAP - marginBottom
 
     return computeGradientLegendGeometry({
       x: xOffset,
-      y: matrixBottom + 10,
+      y: matrixBottom + MATRIX_LEGEND_GAP,
       availableWidth: gridWidth,
       availableHeight: availableLegendSpace,
       colorScale: ['#2166ac', '#ffffff', '#ca0020'],

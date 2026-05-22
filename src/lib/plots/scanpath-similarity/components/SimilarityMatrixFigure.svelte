@@ -23,6 +23,7 @@
     useCanvasPlot,
     renderMatrixContent,
     canvasBlockSelect,
+    MATRIX_LEGEND_GAP,
     type BlockedRegion,
     type MatrixRenderConfig,
   } from '$lib/plots/shared'
@@ -169,11 +170,11 @@
   const legendGeometry = $derived.by(() => {
     const { gridWidth, xOffset, matrixBottom } = layout
     const canvasHeight = height + marginTop + marginBottom
-    const availableLegendSpace = canvasHeight - matrixBottom - 10 - marginBottom
+    const availableLegendSpace = canvasHeight - matrixBottom - MATRIX_LEGEND_GAP - marginBottom
 
     return computeGradientLegendGeometry({
       x: xOffset,
-      y: matrixBottom + 10,
+      y: matrixBottom + MATRIX_LEGEND_GAP,
       availableWidth: gridWidth,
       availableHeight: availableLegendSpace,
       colorScale,

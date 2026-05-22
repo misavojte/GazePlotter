@@ -71,6 +71,44 @@ export interface GradientLegendGeometry {
 }
 
 // ============================================================================
+// VERTICAL SIZING CONSTANTS
+// ============================================================================
+
+/** Gap between the title baseline and the top of the gradient bar. */
+export const GRADIENT_LEGEND_TITLE_GAP = 3
+
+/** Height of the gradient colour bar itself. */
+export const GRADIENT_LEGEND_BAR_HEIGHT = 12
+
+/** Gap between the bottom of the gradient bar and the value labels. */
+export const GRADIENT_LEGEND_LABEL_GAP = 10
+
+/** Minimum available height before the legend switches to minimalist mode. */
+export const GRADIENT_LEGEND_MINIMALIST_THRESHOLD = 30
+
+/**
+ * Compute the total vertical height the gradient legend needs in full mode
+ * (title + bar + value labels).  The result is font-size–aware so the
+ * layout stays correct even when the system font metrics differ.
+ *
+ * @param fontSize  The label / title font size in px (default: `LEGEND_FONT.SIZE`).
+ */
+export function getGradientLegendRequiredHeight(
+  fontSize: number = LEGEND_FONT.SIZE
+): number {
+  // Title line height is ~1.25× the font size, approximated to the
+  // nearest integer so canvas pixel math stays sharp.
+  const titleLineHeight = Math.ceil(fontSize * 1.25)
+  return (
+    titleLineHeight +
+    GRADIENT_LEGEND_TITLE_GAP +
+    GRADIENT_LEGEND_BAR_HEIGHT +
+    GRADIENT_LEGEND_LABEL_GAP +
+    fontSize                       // value-label text height
+  )
+}
+
+// ============================================================================
 // GEOMETRY COMPUTATION
 // ============================================================================
 
@@ -92,11 +130,10 @@ export function computeGradientLegendGeometry(
   } = config
 
   // Constants
-  const MININALIST_THRESHOLD = 30
   const MINIMALIST_HEIGHT = 8
   const MAX_WIDTH = 300
 
-  const isMinimalist = availableHeight < MININALIST_THRESHOLD
+  const isMinimalist = availableHeight < GRADIENT_LEGEND_MINIMALIST_THRESHOLD
 
   // Layout Width
   const hasBelowMin = !!config.belowMinColor
@@ -174,25 +211,21 @@ export function computeGradientLegendGeometry(
   }
 
   // Full Mode
-  // Fixed vertical layout
-  // Title -> 3px gap -> Gradient (12px) -> 4px gap -> Labels
+  // Fixed vertical layout:
+  //   Title -> TITLE_GAP -> Gradient bar -> LABEL_GAP -> Value labels
 
-  const showTitle = availableHeight >= 30
-  const titleHeight = showTitle ? 15 : 0 // approximate height for 12px font
+  const { SIZE: legendFontSize } = LEGEND_FONT
+  const showTitle = availableHeight >= GRADIENT_LEGEND_MINIMALIST_THRESHOLD
+  const titleLineHeight = Math.ceil(legendFontSize * 1.25)
+  const titleHeight = showTitle ? titleLineHeight : 0
 
-  // Use fixed spacing
-  const TITLE_GAP = 3
-  const LABEL_GAP = 10
-  const BAR_HEIGHT = 12
+  const TITLE_GAP = GRADIENT_LEGEND_TITLE_GAP
+  const LABEL_GAP = GRADIENT_LEGEND_LABEL_GAP
+  const BAR_HEIGHT = GRADIENT_LEGEND_BAR_HEIGHT
 
-  // Center the whole block vertically in the available space?
-  // Or just top-align as requested "within fixed distance"?
-  // Let's top-align relative to y, or center if there's excess space to avoid it floating too high?
-  // User said "height of the legendGradient should be fixed", implying the *internal* height.
-  // We'll calculate the required height and center that block in availableHeight.
-
+  // Total height the legend block occupies, derived from font size.
   const requiredHeight =
-    titleHeight + (showTitle ? TITLE_GAP : 0) + BAR_HEIGHT + LABEL_GAP + 12 // 12 for label text height
+    titleHeight + (showTitle ? TITLE_GAP : 0) + BAR_HEIGHT + LABEL_GAP + legendFontSize
 
   // Center vertically
   const startY = y + Math.max(0, (availableHeight - requiredHeight) / 2)
