@@ -32,10 +32,9 @@
   }
 
   const props: Props = $props()
-  const { colorScale, defaultMin, defaultMax, onCommit } = props
 
   const colorFields = $derived(
-    getColorScaleCommitted(colorScale, defaultMin, defaultMax)
+    getColorScaleCommitted(props.colorScale, props.defaultMin, props.defaultMax)
   )
 
   const initialFields = getColorScaleCommitted(props.colorScale, props.defaultMin, props.defaultMax)
@@ -55,7 +54,7 @@
       { colorMin, colorMiddle, colorMax },
       colorFields,
     )
-    if (patch) onCommit(patch)
+    if (patch) props.onCommit(patch)
   })
 </script>
 
