@@ -31,11 +31,9 @@ export class PlotSyncRegistry<E extends { dataMax: number }> {
    * its own typed match-key signature, calling this internally.
    */
   protected maxWhere(match: (entry: E) => boolean): number {
-    let max = 0
-    for (const id in this.entries) {
-      const e = this.entries[id]
-      if (match(e) && e.dataMax > max) max = e.dataMax
-    }
-    return max
+    return Object.values(this.entries).reduce(
+      (max, e) => (match(e) && e.dataMax > max ? e.dataMax : max),
+      0
+    )
   }
 }
