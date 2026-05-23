@@ -115,11 +115,11 @@ export const updateHiddenAoisWithPropagation = (
 
   const updates: { stimulusId: number; hiddenAois: number[] }[] = []
 
-  const sourceAoisForFiltering = meta.aois.data[stimulusId]
+  const sourceAois = meta.aois.data[stimulusId]
   const unique = Array.from(
     new Set(
       hiddenAois.filter(
-        v => Number.isInteger(v) && v >= 0 && v < sourceAoisForFiltering.length
+        v => Number.isInteger(v) && v >= 0 && v < sourceAois.length
       )
     )
   ).sort((a, b) => a - b)
@@ -128,7 +128,7 @@ export const updateHiddenAoisWithPropagation = (
   const keysToHide = new Set(
     unique
       .map(idx => sourceAois[idx])
-      .filter((row): row is [string, string | undefined] => row !== undefined)
+      .filter((row): row is string[] => row !== undefined)
       .map(row =>
         applyTo === 'all_by_original_name' ? row[0] : (row[1] ?? row[0]).trim()
       )
