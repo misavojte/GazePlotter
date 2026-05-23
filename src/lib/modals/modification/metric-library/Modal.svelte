@@ -461,6 +461,7 @@
     {@const showLeafPicker = leaves.length > 1}
     {@const windowable = canBeWindowed(m, leafDraft)}
     {@const windowingLocked = contract.windowing === 'required'}
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <form
       class="form-inner"
       onsubmit={e => { e.preventDefault(); commitForm(baseId) }}

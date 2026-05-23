@@ -86,10 +86,3 @@
     />
   </PaneSection>
 </div>
-
-<style>
-  .inline-pair {
-    display: flex;
-    gap: 8px;
-  }
-</style>
