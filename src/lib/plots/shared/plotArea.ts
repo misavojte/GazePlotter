@@ -247,16 +247,11 @@ function drawVerticalEdge(
  * Shared helper so every caller uses the same filter consistently.
  */
 export function niceTimelineTicks(timeline: AdaptiveTimeline): PlotAreaTicks {
-  const positions: number[] = []
-  const labels: string[] = []
-  const src = timeline.ticks
-  for (let i = 0; i < src.length; i++) {
-    const t = src[i]
-    if (!t.isNice) continue
-    positions.push(t.position)
-    labels.push(t.label)
+  const niceTicks = timeline.ticks.filter(t => t.isNice)
+  return {
+    positions: niceTicks.map(t => t.position),
+    labels: niceTicks.map(t => t.label),
   }
-  return { positions, labels }
 }
 
 /**
@@ -269,14 +264,11 @@ export function bottomOriginYTicks(
   axisMax: number,
   format: (v: number) => string = String
 ): PlotAreaTicks {
-  const positions: number[] = new Array(values.length)
-  const labels: string[] = new Array(values.length)
   const invMax = axisMax > 0 ? 1 / axisMax : 0
-  for (let i = 0; i < values.length; i++) {
-    positions[i] = 1 - values[i] * invMax
-    labels[i] = format(values[i])
+  return {
+    positions: values.map(v => 1 - v * invMax),
+    labels: values.map(v => format(v)),
   }
-  return { positions, labels }
 }
 
 /**
