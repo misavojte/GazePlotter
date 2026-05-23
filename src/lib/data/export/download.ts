@@ -17,7 +17,7 @@ export function triggerDownload(
     link.download = finalFileName
     document.body.appendChild(link)
     link.click()
-    document.body.removeChild(link)
+    link.remove()
     return
   }
 
@@ -33,7 +33,7 @@ export function triggerDownload(
   link.download = finalFileName
   document.body.appendChild(link)
   link.click()
-  document.body.removeChild(link)
+  link.remove()
 
   // Clean up
   setTimeout(() => URL.revokeObjectURL(url), 100)

@@ -228,9 +228,7 @@ export const portal = (node: HTMLElement, target?: HTMLElement | string) => {
 
   return {
     destroy() {
-      if (node.parentNode) {
-        node.parentNode.removeChild(node)
-      }
+      node.remove()
     },
   }
 }

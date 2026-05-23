@@ -1,4 +1,5 @@
 import { tick } from 'svelte'
+import { findScrollableParents } from '$lib/context-menu/utils'
 
 /**
  * Manages the state and positioning logic for a color picker popup.
@@ -142,42 +143,9 @@ export class ColorPickerManager {
         }
         this.#scrollListeners = []
 
-        if (node.parentNode) {
-          node.parentNode.removeChild(node)
-        }
+        node.remove()
       },
     }
   }
 }
 
-/**
- * Find all scrollable parent elements for the given element.
- */
-function findScrollableParents(element: HTMLElement): (Window | HTMLElement)[] {
-  const scrollable: (Window | HTMLElement)[] = [window]
-  let current: HTMLElement | null = element
-
-  while (current && current !== document.body) {
-    const style = window.getComputedStyle(current)
-    const overflow = style.overflow
-    const overflowX = style.overflowX
-    const overflowY = style.overflowY
-
-    const isScrollable =
-      /auto|scroll|overlay/.test(overflow) ||
-      /auto|scroll|overlay/.test(overflowX) ||
-      /auto|scroll|overlay/.test(overflowY)
-
-    const hasScrollableContent =
-      current.scrollHeight > current.clientHeight ||
-      current.scrollWidth > current.clientWidth
-
-    if (isScrollable && hasScrollableContent) {
-      scrollable.push(current)
-    }
-
-    current = current.parentElement
-  }
-
-  return scrollable
-}

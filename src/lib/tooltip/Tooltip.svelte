@@ -45,7 +45,7 @@
     target.appendChild(node)
     return {
       destroy() {
-        if (node.parentNode) node.parentNode.removeChild(node)
+        node.remove()
       },
     }
   }
