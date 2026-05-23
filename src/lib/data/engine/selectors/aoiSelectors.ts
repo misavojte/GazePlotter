@@ -27,12 +27,9 @@ export const getAoisRawFromData = (
   stimulusId: number,
   dataSnapshot: DataType
 ): ExtendedInterpretedDataType[] => {
-  const ids = getAoiOrderVectorFromData(stimulusId, dataSnapshot)
-  const result = new Array(ids.length)
-  for (let i = 0; i < ids.length; i++) {
-    result[i] = getAoiRaw(stimulusId, ids[i], dataSnapshot)
-  }
-  return result
+  return getAoiOrderVectorFromData(stimulusId, dataSnapshot).map(id =>
+    getAoiRaw(stimulusId, id, dataSnapshot)
+  )
 }
 
 export const getAoiOrderVector = (
@@ -61,11 +58,7 @@ export const getAllAois = (
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
 
-  const result = new Array(ids.length)
-  for (let i = 0; i < ids.length; i++) {
-    result[i] = getAoiRaw(stimulusId, ids[i], meta)
-  }
-  return result
+  return ids.map(id => getAoiRaw(stimulusId, id, meta))
 }
 
 export const getAois = (
@@ -79,18 +72,15 @@ export const getAois = (
   const hidden = meta.aois.hiddenAois?.[stimulusId] ?? []
   const hiddenSet = hidden.length ? new Set<number>(hidden) : null
 
-  const uniqueMappedIds = new Set<number>()
-  for (let i = 0; i < ids.length; i++) {
-    const id = ids[i]
-    if (hiddenSet?.has(id)) continue
-    uniqueMappedIds.add(engine.getAoiMapping(stimulusId, id))
-  }
+  const uniqueMappedIds = Array.from(
+    new Set(
+      ids
+        .filter(id => !hiddenSet?.has(id))
+        .map(id => engine.getAoiMapping(stimulusId, id))
+    )
+  )
 
-  const result: ExtendedInterpretedDataType[] = []
-  for (const id of uniqueMappedIds) {
-    result.push(getAoiRaw(stimulusId, id, meta))
-  }
-  return result
+  return uniqueMappedIds.map(id => getAoiRaw(stimulusId, id, meta))
 }
 
 export const getAoi = (
