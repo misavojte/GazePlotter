@@ -21,7 +21,7 @@ export type PlotMetricContract = {
 }
 
 export function contractLeafKinds(c: PlotMetricContract): LeafKind[] {
-  const shapes = Array.isArray(c.outputShape) ? c.outputShape : [c.outputShape as OutputShape]
+  const shapes: readonly OutputShape[] = Array.isArray(c.outputShape) ? c.outputShape : [c.outputShape]
   return (Object.keys(PROJECTION_LEAVES) as LeafKind[]).filter(k =>
     shapes.includes(PROJECTION_LEAVES[k].outputShape)
   )
