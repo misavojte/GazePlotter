@@ -22,11 +22,9 @@ export type PlotMetricContract = {
 
 export function contractLeafKinds(c: PlotMetricContract): LeafKind[] {
   const shapes = Array.isArray(c.outputShape) ? c.outputShape : [c.outputShape as OutputShape]
-  const out: LeafKind[] = []
-  for (const k of Object.keys(PROJECTION_LEAVES) as LeafKind[]) {
-    if (shapes.includes(PROJECTION_LEAVES[k].outputShape)) out.push(k)
-  }
-  return out
+  return (Object.keys(PROJECTION_LEAVES) as LeafKind[]).filter(k =>
+    shapes.includes(PROJECTION_LEAVES[k].outputShape)
+  )
 }
 
 export function instanceMatchesContract(
