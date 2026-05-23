@@ -44,34 +44,29 @@ export function getParticipantsGroupOptions(
       ? Array.from({ length: meta.participants.data.length }, (_, i) => i)
       : meta.participants.orderVector
 
-  const groups: Array<{ id: number; name: string; participantsIds: number[] }> =
-    []
+  const defaultGroups = includeDefault
+    ? [
+        {
+          id: -1,
+          name: 'All participants',
+          participantsIds: participantOrder,
+        },
+        {
+          id: -2,
+          name: 'Non-empty',
+          participantsIds: participantOrder.filter(
+            participantId => reader.getSegmentCount(stimulusId, participantId) > 0
+          ),
+        },
+      ]
+    : []
 
-  if (includeDefault) {
-    groups.push({
-      id: -1,
-      name: 'All participants',
-      participantsIds: participantOrder,
-    })
-    groups.push({
-      id: -2,
-      name: 'Non-empty',
-      participantsIds: participantOrder.filter(
-        participantId => reader.getSegmentCount(stimulusId, participantId) > 0
-      ),
-    })
-  }
+  const groups = [...defaultGroups, ...meta.participantsGroups]
 
-  for (let i = 0; i < meta.participantsGroups.length; i++) {
-    groups.push(meta.participantsGroups[i])
-  }
-
-  return groups.map(group => {
-    return {
-      label: group.name,
-      value: group.id.toString(),
-    }
-  })
+  return groups.map(group => ({
+    label: group.name,
+    value: group.id.toString(),
+  }))
 }
 
 /**
