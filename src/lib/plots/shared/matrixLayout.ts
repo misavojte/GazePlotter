@@ -62,10 +62,7 @@ export type SquareMatrixLayout = {
 }
 
 function calculateTickStep(count: number): number {
-  for (let i = 0; i < NICE_STEPS.length; i++) {
-    if (count / NICE_STEPS[i] <= 10) return NICE_STEPS[i]
-  }
-  return 1000
+  return NICE_STEPS.find(step => count / step <= 10) ?? 1000
 }
 
 function estimateMaxLabelWidth(
@@ -74,11 +71,10 @@ function estimateMaxLabelWidth(
   maxLabelLength: number
 ): number {
   const approxCharWidth = fontSize * APPROX_CHAR_WIDTH
-  let maxPixelWidth = 0
-  for (let i = 0; i < labels.length; i++) {
-    const width = labels[i].length * approxCharWidth
-    if (width > maxPixelWidth) maxPixelWidth = width
-  }
+  const maxPixelWidth = labels.reduce(
+    (max, label) => Math.max(max, label.length * approxCharWidth),
+    0
+  )
   return Math.min(maxPixelWidth, maxLabelLength)
 }
 
