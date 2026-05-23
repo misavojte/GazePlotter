@@ -74,9 +74,7 @@ export function scanBatch(
     index++
   }
 
-  const out = new Map<string, number[]>()
-  for (const a of active) {
-    out.set(a.inst.id, a.finalize(a.acc, slots, a.ctx))
-  }
-  return out
+  return new Map(
+    active.map(a => [a.inst.id, a.finalize(a.acc, slots, a.ctx)])
+  )
 }
