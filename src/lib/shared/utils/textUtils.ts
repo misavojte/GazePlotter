@@ -119,15 +119,8 @@ export function calculateTextMetrics(
     estimateTextWidth(text, fontSize, fontFamily)
   )
 
-  // Use a loop for maxWidth to prevent stack overflow on extremely large sets
-  let maxWidth = 0
-  let totalWidth = 0
-  for (let i = 0; i < widths.length; i++) {
-    const w = widths[i]
-    if (w > maxWidth) maxWidth = w
-    totalWidth += w
-  }
-
+  const totalWidth = widths.reduce((sum, w) => sum + w, 0)
+  const maxWidth = widths.reduce((max, w) => (w > max ? w : max), 0)
   const averageWidth = totalWidth / widths.length
 
   return {
