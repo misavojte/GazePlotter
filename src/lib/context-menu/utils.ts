@@ -167,15 +167,7 @@ export const getMenuSize = (
  * Check if the given element is inside a modal.
  */
 export const isElementInModal = (element: HTMLElement): boolean => {
-  let current: HTMLElement | null = element
-  while (current && current !== document.body) {
-    const role = current.getAttribute('role')
-    if (role === 'dialog' || role === 'alertdialog') {
-      return true
-    }
-    current = current.parentElement
-  }
-  return false
+  return element.closest('[role="dialog"], [role="alertdialog"]') !== null
 }
 
 /**
