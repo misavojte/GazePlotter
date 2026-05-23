@@ -89,7 +89,7 @@
       .filter((x): x is (typeof lib)[number] => !!x)
     if (picked.length === 0) return ''
     if (picked.length === 1) return picked[0].label
-    return `${picked[0].label} +${picked.length - 1}`
+    return `${picked[0].label} + ${picked.length - 1}`
   })
 
   function openMetricLibrary() {

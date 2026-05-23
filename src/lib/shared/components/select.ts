@@ -75,8 +75,8 @@ export function getSelectLabel(
   if (Array.isArray(selection)) {
     const matched = optionList.filter(o => selection.includes(o.value))
     if (matched.length === 0) return placeholder ?? 'None selected'
-    if (matched.length <= 2) return matched.map(o => o.label).join(', ')
-    return `${matched.length} selected`
+    if (matched.length === 1) return matched[0].label
+    return `${matched[0].label} + ${matched.length - 1}`
   }
   const single = optionList.find(o => o.value === selection)
   if (single) return single.label
