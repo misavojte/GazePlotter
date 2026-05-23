@@ -24,19 +24,20 @@
     children: Snippet
   }
 
-  const { title, summary, defaultOpen = false, children }: Props = $props()
+  const props: Props = $props()
+  const { title, summary, defaultOpen = false, children } = props
 
   // Stable ID derived from the title, so that when a user switches plots
   // (which recreates the sections but preserves the Pane.svelte state),
   // the previously open section (e.g., 'Group') remains open. Untitled
   // sections are uncollapsible and get a random UUID just in case.
-  const id = title ?? crypto.randomUUID()
+  const id = props.title ?? crypto.randomUUID()
   const accordion = getContext<PaneAccordion | undefined>(PANE_ACCORDION_KEY)
 
   // Fallback for the no-context case (component used standalone): the
   // section manages its own open state, defaulting to expanded only when
   // there's no heading.
-  let standaloneExpanded = $state(title === undefined)
+  let standaloneExpanded = $state(props.title === undefined)
 
   const isCollapsible = $derived(title !== undefined)
   const expanded = $derived(

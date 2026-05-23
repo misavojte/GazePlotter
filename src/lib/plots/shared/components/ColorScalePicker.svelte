@@ -31,15 +31,18 @@
     onCommit: (patch: string[]) => void
   }
 
-  let { colorScale, defaultMin, defaultMax, onCommit }: Props = $props()
+  const props: Props = $props()
+  const { colorScale, defaultMin, defaultMax, onCommit } = props
 
   const colorFields = $derived(
     getColorScaleCommitted(colorScale, defaultMin, defaultMax)
   )
 
-  let colorMin = $state(colorFields.colorMin)
-  let colorMiddle = $state(colorFields.colorMiddle)
-  let colorMax = $state(colorFields.colorMax)
+  const initialFields = getColorScaleCommitted(props.colorScale, props.defaultMin, props.defaultMax)
+
+  let colorMin = $state(initialFields.colorMin)
+  let colorMiddle = $state(initialFields.colorMiddle)
+  let colorMax = $state(initialFields.colorMax)
 
   $effect(() => {
     colorMin = colorFields.colorMin

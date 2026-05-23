@@ -25,7 +25,8 @@
     stimulusHasSegments?: boolean
   }
 
-  let { item, syncs, close, stimulusHasEvents = false, stimulusHasSegments = true }: Props = $props()
+  const props: Props = $props()
+  const { item, syncs, close, stimulusHasEvents = false, stimulusHasSegments = true } = props
 
   const eventDisplayOptions = [
     { value: 'segments', label: 'None' },
@@ -34,7 +35,7 @@
   ]
 
   // Local non-undefined mirror for the Radio bind:value (Radio rejects undefined)
-  let eventDisplayValue = $state(syncs.displayMode.value ?? 'overlay')
+  let eventDisplayValue = $state(props.syncs.displayMode.value ?? 'overlay')
 
   // Sync: external → local
   $effect(() => {

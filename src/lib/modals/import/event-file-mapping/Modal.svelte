@@ -11,7 +11,8 @@
     participantOptions: SelectOption[]
   }
 
-  let { fileNames, stimuliOptions, participantOptions }: Props = $props()
+  const props: Props = $props()
+  const { fileNames, stimuliOptions, participantOptions } = props
   const { modalState } = getGazePlotterSession()
 
   const IGNORE = 'ignore'
@@ -19,10 +20,10 @@
 
   // Per-file mapping state: stimulus + participant selections
   let stimulusSelections = $state<string[]>(
-    fileNames.map(() => stimuliOptions[0]?.value ?? '0')
+    props.fileNames.map(() => props.stimuliOptions[0]?.value ?? '0')
   )
   let participantSelections = $state<string[]>(
-    fileNames.map(() => IGNORE)
+    props.fileNames.map(() => IGNORE)
   )
 
   // When any file is set to "To all", hide individual participant options
