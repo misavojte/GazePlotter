@@ -62,15 +62,7 @@ export function formatDecimal(
  * @returns The average value, or 0 if array is empty
  */
 export function calculateAverage(values: readonly number[]): number {
-  const length = values.length
-  if (length === 0) return 0
-
-  let sum = 0
-  for (let i = 0; i < length; i++) {
-    sum += values[i]
-  }
-
-  return sum / length
+  return values.length === 0 ? 0 : sumArray(values) / values.length
 }
 
 /**
@@ -80,11 +72,7 @@ export function calculateAverage(values: readonly number[]): number {
  * @returns The sum of all values
  */
 export function sumArray(values: readonly number[]): number {
-  let sum = 0
-  for (let i = 0; i < values.length; i++) {
-    sum += values[i]
-  }
-  return sum
+  return values.reduce((sum, val) => sum + val, 0)
 }
 
 /**
@@ -95,17 +83,9 @@ export function sumArray(values: readonly number[]): number {
  */
 export function normalizeToPercentages(values: readonly number[]): number[] {
   const total = sumArray(values)
-  if (total === 0) {
-    // Avoid unnecessary iterations if total is zero
-    return new Array(values.length).fill(0)
-  }
-
-  const result = new Array(values.length)
-  for (let i = 0; i < values.length; i++) {
-    result[i] = (values[i] / total) * 100
-  }
-
-  return result
+  return total === 0
+    ? new Array(values.length).fill(0)
+    : values.map(val => (val / total) * 100)
 }
 
 /**
