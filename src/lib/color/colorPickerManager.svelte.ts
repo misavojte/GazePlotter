@@ -1,5 +1,6 @@
 import { tick } from 'svelte'
 import { findScrollableParents } from '$lib/context-menu/utils'
+import { computePlacement, adjustForViewport } from '$lib/shared/placement'
 
 /**
  * Manages the state and positioning logic for a color picker popup.
@@ -65,26 +66,22 @@ export class ColorPickerManager {
     await tick()
 
     const triggerRect = this.#triggerElement.getBoundingClientRect()
+    const popupWidth = this.#popupElement?.offsetWidth ?? 0
+    const popupHeight = this.#popupElement?.offsetHeight ?? 0
+    const floatingSize = { width: popupWidth, height: popupHeight }
 
-    // Default: position below the trigger
-    let top = triggerRect.bottom + 5
-    let left = triggerRect.left
-
-    if (this.#popupElement) {
-      const popupWidth = this.#popupElement.offsetWidth
-      const popupHeight = this.#popupElement.offsetHeight
-
-      // Adjust to prevent overflow on the right
-      if (left + popupWidth > window.innerWidth - 10) {
-        left = window.innerWidth - popupWidth - 10
-      }
-
-      // Adjust to prevent overflow on the bottom
-      if (top + popupHeight > window.innerHeight - 10) {
-        // Position above the trigger if there's no space below
-        top = Math.max(10, triggerRect.top - popupHeight - 5)
-      }
-    }
+    const preferred = computePlacement(
+      triggerRect,
+      floatingSize,
+      'bottom',
+      5,
+      'start',
+      'start'
+    )
+    const { left, top } = adjustForViewport(preferred, floatingSize, {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    })
 
     this.#position = { top, left }
   }

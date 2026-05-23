@@ -5,6 +5,7 @@
     TOOLTIP_TRANSITION_DURATION,
     TOOLTIP_ANIMATION_DURATION,
   } from './const'
+  import { portal } from '$lib/shared/actions/portal'
 
   import { cubicOut } from 'svelte/easing'
 
@@ -34,21 +35,7 @@
     }
   }
 
-  /**
-   * Simple portal action to move elements to a designated host or body.
-   */
-  export const portal = (
-    node: HTMLElement,
-    targetId: string = 'gp-tooltip-portal-host'
-  ) => {
-    const target = document.getElementById(targetId) || document.body
-    target.appendChild(node)
-    return {
-      destroy() {
-        node.remove()
-      },
-    }
-  }
+  export { portal }
 </script>
 
 <script lang="ts">
@@ -58,7 +45,7 @@
 {#each tooltipState.current ? [tooltipState.current] : [] as current (current.id)}
   <aside
     class="tooltip"
-    use:portal
+    use:portal={'gp-tooltip-portal-host'}
     animate:tooltipMove
     transition:fade={{ duration: TOOLTIP_TRANSITION_DURATION }}
     style="left: {current.x}px; top: {current.y}px; width: {current.width}px;"

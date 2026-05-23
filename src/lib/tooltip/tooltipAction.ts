@@ -1,8 +1,10 @@
 import { estimateTooltipWidth, updateTooltip } from './tooltipState.svelte'
 import { TOOLTIP_DEFAULT_OFFSET } from './const'
-
-type Position = 'top' | 'bottom' | 'left' | 'right'
-type Alignment = 'start' | 'center' | 'end'
+import {
+  computePlacement,
+  adjustForViewport,
+} from '$lib/shared/placement'
+import type { Position, Alignment, Dimensions } from '$lib/shared/placement'
 
 export interface TooltipActionOptions {
   content: string | { key: string; value: string }[]
@@ -17,48 +19,15 @@ export interface TooltipActionOptions {
 const normalizeContent = (content: TooltipActionOptions['content']) =>
   typeof content === 'string' ? [{ key: '', value: content }] : content
 
-const calculateAlignedPosition = (
-  base: number,
-  size: number,
-  targetSize: number,
-  align: Alignment
+/** Rough height estimate for the tooltip based on content row count. */
+const estimateTooltipHeight = (
+  content: Array<{ key: string; value: string }>
 ): number => {
-  const alignments = {
-    start: base,
-    center: base + size / 2 - targetSize / 2,
-    end: base + size - targetSize,
-  }
-  return alignments[align]
-}
-
-const calculatePosition = (
-  rect: DOMRect,
-  position: Position,
-  width: number,
-  offset: number,
-  hAlign: Alignment,
-  vAlign: Alignment
-): [number, number] => {
-  const positions: Record<Position, [number, number]> = {
-    top: [
-      calculateAlignedPosition(rect.left, rect.width, width, hAlign),
-      rect.top - offset,
-    ],
-    bottom: [
-      calculateAlignedPosition(rect.left, rect.width, width, hAlign),
-      rect.bottom + offset,
-    ],
-    left: [
-      rect.left - width - offset,
-      calculateAlignedPosition(rect.top, rect.height, 20, vAlign),
-    ],
-    right: [
-      rect.right + offset,
-      calculateAlignedPosition(rect.top, rect.height, 20, vAlign),
-    ],
-  }
-
-  return positions[position]
+  // Each row ≈ lineHeight(~14px) + padding(10px vertical total across item).
+  // A single-row tooltip is ~24px; each additional row adds ~14px.
+  const ROW_HEIGHT = 14
+  const BASE_PADDING = 10
+  return content.length * ROW_HEIGHT + BASE_PADDING
 }
 
 export const tooltipAction = (
@@ -88,20 +57,28 @@ export const tooltipAction = (
     if (state.disabled) return
     isHovering = true
     const rect = node.getBoundingClientRect()
-    const [x, y] = calculatePosition(
+    const floatingSize: Dimensions = {
+      width: state.width,
+      height: estimateTooltipHeight(state.content),
+    }
+    const preferred = computePlacement(
       rect,
+      floatingSize,
       state.position,
-      state.width,
       state.offset,
       state.hAlign,
       state.vAlign
     )
+    const { left, top } = adjustForViewport(preferred, floatingSize, {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    })
     updateTooltip({
       id: state.id,
       visible: true,
       content: state.content,
-      x,
-      y,
+      x: left,
+      y: top,
       width: state.width,
     })
   }

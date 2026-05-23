@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { adjustPlacementForViewport, getMenuSize } from './utils'
+  import { getMenuSize } from './utils'
+  import { adjustForViewport } from '$lib/shared/placement'
   import { MENU_WIDTH, DEFAULT_COMPONENT_HEIGHT } from './const'
   import {
     type MenuFlyoutItem,
@@ -43,7 +44,7 @@
       const initialX = rect.right - 4
       const initialY = rect.top - 2 // Slight vertical lift for better alignment
 
-      const res = adjustPlacementForViewport(
+      const res = adjustForViewport(
         { x: initialX, y: initialY }, // Use preferred point with overlap
         menuSize,
         { width: window.innerWidth, height: window.innerHeight },
@@ -52,7 +53,7 @@
       )
 
       // If flipped, we want the +4 overlap from the left side of anchor.
-      // The adjustPlacementForViewport uses rect.left - menuSize.width for flipped.
+      // The adjustForViewport uses rect.left - menuSize.width for flipped.
       // We adjust it here to ensure the 4px overlap.
       if (res.isFlippedX) {
         res.left = rect.left - menuSize.width + 4

@@ -1,19 +1,9 @@
 import type { Component } from 'svelte'
 import type { LucideIconComponent } from '$lib/shared/types'
+import type { Position, Alignment } from '$lib/shared/placement/types'
 
 export type SlideFrom = 'top' | 'left'
-export type Position = 'top' | 'bottom' | 'left' | 'right'
-export type Alignment = 'start' | 'center' | 'end'
 
-export interface Point {
-  x: number
-  y: number
-}
-
-export interface Dimensions {
-  width: number
-  height: number
-}
 
 interface MenuDisplayItem {
   label?: string
@@ -124,13 +114,6 @@ export interface ContextMenuState {
   ownerId: symbol
   /** Z-index for the menu, automatically computed based on whether anchor is in a modal. */
   zIndex: number
-}
-
-export interface PlacementResult {
-  left: number
-  top: number
-  isFlippedX: boolean
-  isFlippedY: boolean
 }
 
 export function isMenuDivider(item: MenuItem): item is MenuDividerItem {

@@ -2,16 +2,14 @@ import { clearOwnedContextMenu, isOwnedContextMenuState } from './behavior'
 import type { Action } from 'svelte/action'
 import { contextMenuState, updateContextMenu } from './contextMenuState.svelte'
 import {
-  adjustPlacementForViewport,
-  computePlacement,
   getMenuSize,
   findScrollableParents,
   computeZIndex,
 } from './utils'
+import { computePlacement, adjustForViewport } from '$lib/shared/placement'
+import type { Position, Alignment } from '$lib/shared/placement'
 import type {
   ContextMenuOptions,
-  Position,
-  Alignment,
   SlideFrom,
 } from './types'
 import { DEFAULT_OFFSET, MENU_SELECTOR } from './const'
@@ -157,7 +155,7 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
       state.vAlign
     )
 
-    const adjustedPlacement = adjustPlacementForViewport(
+    const adjustedPlacement = adjustForViewport(
       { x: initialPlacement.x, y: initialPlacement.y },
       menuSize,
       { width: window.innerWidth, height: window.innerHeight }
