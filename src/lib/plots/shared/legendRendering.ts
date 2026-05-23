@@ -299,11 +299,10 @@ export function computeFlatLegendGeometry(
   } = config
 
   // 1. Calculate max width needed by any item to ensure consistent column widths
-  let maxTextWidth = 0
-  for (let i = 0; i < items.length; i++) {
-    const w = estimateTextWidth(items[i].name, fontSize, fontFamily)
-    if (w > maxTextWidth) maxTextWidth = w
-  }
+  const maxTextWidth = items.reduce(
+    (max, item) => Math.max(max, estimateTextWidth(item.name, fontSize, fontFamily)),
+    0
+  )
 
   const uniformColumnWidth = Math.min(
     iconWidth + textPadding + maxTextWidth,
@@ -421,13 +420,17 @@ export function computeGroupedLegendGeometry(
   } = config
 
   // 1. Calculate max width needed by ANY item in ANY group
-  let maxTextWidth = 0
-  for (const group of groups) {
-    for (const item of group.items) {
-      const w = estimateTextWidth(item.name, fontSize, fontFamily)
-      if (w > maxTextWidth) maxTextWidth = w
-    }
-  }
+  const maxTextWidth = groups.reduce(
+    (max, g) =>
+      Math.max(
+        max,
+        g.items.reduce(
+          (m, item) => Math.max(m, estimateTextWidth(item.name, fontSize, fontFamily)),
+          0
+        )
+      ),
+    0
+  )
 
   const uniformColumnWidth = Math.min(
     iconWidth + textPadding + maxTextWidth,
