@@ -32,19 +32,18 @@ export const getEventChannels = (
       ? order
       : Array.from({ length: channels.length }, (_, i) => i)
 
-  const result: ExtendedInterpretedDataType[] = new Array(ids.length)
-  for (let i = 0; i < ids.length; i++) {
-    const id = ids[i]
-    const ch = channels[id]
-    if (!ch) continue
-    result[i] = {
-      id,
-      originalName: ch[0] ?? '',
-      displayedName: ch[1] ?? ch[0] ?? '',
-      color: ch[2] ?? '#888888',
-    }
-  }
-  return result
+  return ids
+    .map(id => {
+      const ch = channels[id]
+      if (!ch) return null
+      return {
+        id,
+        originalName: ch[0] ?? '',
+        displayedName: ch[1] ?? ch[0] ?? '',
+        color: ch[2] ?? '#888888',
+      }
+    })
+    .filter((ch): ch is ExtendedInterpretedDataType => ch !== null)
 }
 
 /**
@@ -83,20 +82,19 @@ export const getVisibleEventChannels = (
   const hidden = meta.eventData.hiddenChannels?.[stimulusId] ?? []
   const hiddenSet = hidden.length ? new Set<number>(hidden) : null
 
-  const result: ExtendedInterpretedDataType[] = []
-  for (let i = 0; i < ids.length; i++) {
-    const id = ids[i]
-    if (hiddenSet?.has(id)) continue
-    const ch = channels[id]
-    if (!ch) continue
-    result.push({
-      id,
-      originalName: ch[0] ?? '',
-      displayedName: ch[1] ?? ch[0] ?? '',
-      color: ch[2] ?? '#888888',
+  return ids
+    .filter(id => !hiddenSet?.has(id))
+    .map(id => {
+      const ch = channels[id]
+      if (!ch) return null
+      return {
+        id,
+        originalName: ch[0] ?? '',
+        displayedName: ch[1] ?? ch[0] ?? '',
+        color: ch[2] ?? '#888888',
+      }
     })
-  }
-  return result
+    .filter((ch): ch is ExtendedInterpretedDataType => ch !== null)
 }
 
 /**

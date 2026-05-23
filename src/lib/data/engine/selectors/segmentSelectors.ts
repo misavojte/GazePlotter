@@ -31,17 +31,11 @@ export const getStimulusHighestEndTime = (
   engine: DataEngine,
   stimulusIndex: number
 ): number => {
-  let max = 0
   const numParticipants = getNumberOfParticipants(engine)
-  for (
-    let participantIndex = 0;
-    participantIndex < numParticipants;
-    participantIndex++
-  ) {
-    const end = getParticipantEndTime(engine, stimulusIndex, participantIndex)
-    if (end > max) max = end
-  }
-  return max
+  return Array.from({ length: numParticipants }).reduce<number>(
+    (max, _, i) => Math.max(max, getParticipantEndTime(engine, stimulusIndex, i)),
+    0
+  )
 }
 
 export const getSegments = (
@@ -156,18 +150,15 @@ export const getSegment = (
   const hidden = getHiddenAois(engine, stimulusId)
   const hiddenSet = hidden.length ? new Set<number>(hidden) : null
   const rawIds = reader.getRawAois(absoluteIndex)
-  const aoi: ExtendedInterpretedDataType[] = []
-  const uniqueAois = new Set<number>()
 
-  for (let i = 0; i < rawIds.length; i++) {
-    const rawId = rawIds[i]
-    if (hiddenSet?.has(rawId)) continue
-    uniqueAois.add(engine.getAoiMapping(stimulusId, rawId))
-  }
-
-  for (const aoiId of uniqueAois) {
-    aoi.push(getAoiRaw(stimulusId, aoiId, metadata))
-  }
+  const uniqueAois = new Set(
+    rawIds
+      .filter(rawId => !hiddenSet?.has(rawId))
+      .map(rawId => engine.getAoiMapping(stimulusId, rawId))
+  )
+  const aoi = Array.from(uniqueAois).map(aoiId =>
+    getAoiRaw(stimulusId, aoiId, metadata)
+  )
 
   const categoryId = reader.getSegmentCategory(absoluteIndex)
 
