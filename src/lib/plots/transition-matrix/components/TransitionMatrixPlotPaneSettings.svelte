@@ -50,68 +50,72 @@
 
 <CommonPlotPaneFields {item} contract={transitionMatrixDefinition.consumesMetrics!} />
 
-<PaneSection title="Color scale">
-  <div class="inline-pair">
-    <InputNumber
-      id="tm-min-val"
-      label="Min"
-      value={range[0]}
-      min={0}
-      appearance="compact"
-      onValueChange={v => updateValueRange({ min: v ?? 0 })}
-    />
-    <InputNumber
-      id="tm-max-val"
-      label="Max (0 = Auto)"
-      value={range[1]}
-      min={0}
-      appearance="compact"
-      onValueChange={v => updateValueRange({ max: v ?? 0 })}
-    />
-  </div>
-  <ColorScalePicker
-    colorScale={settings.colorScale}
-    defaultMin={'#f7fbff'}
-    defaultMax={'#08306b'}
-    onCommit={patch => update({ colorScale: patch })}
-  />
-</PaneSection>
-
-<PaneSection title="Out of bounds">
-  <div class="inline-pair">
-    <InputColor
-      label="Below min"
-      size="xs"
-      value={settings.belowMinColor}
-      oninput={(e: CustomEvent<string>) => update({ belowMinColor: e.detail })}
-      width={40}
-    />
-    <div class="oob-check">
-      <InputCheck
-        label="Show text"
+<PaneSection title="Visualisation">
+  <div class="sub-group">
+    <div class="legend">Color scale</div>
+    <div class="inline-pair">
+      <InputNumber
+        id="tm-min-val"
+        label="Min"
+        value={range[0]}
+        min={0}
         appearance="compact"
-        size="xs"
-        checked={settings.showBelowMinLabels}
-        onchange={e => update({ showBelowMinLabels: (e as CustomEvent<boolean>).detail })}
+        onValueChange={v => updateValueRange({ min: v ?? 0 })}
+      />
+      <InputNumber
+        id="tm-max-val"
+        label="Max (0 = Auto)"
+        value={range[1]}
+        min={0}
+        appearance="compact"
+        onValueChange={v => updateValueRange({ max: v ?? 0 })}
       />
     </div>
-  </div>
-  <div class="inline-pair">
-    <InputColor
-      label="Above max"
-      size="xs"
-      value={settings.aboveMaxColor}
-      oninput={(e: CustomEvent<string>) => update({ aboveMaxColor: e.detail })}
-      width={40}
+    <ColorScalePicker
+      colorScale={settings.colorScale}
+      defaultMin={'#f7fbff'}
+      defaultMax={'#08306b'}
+      onCommit={patch => update({ colorScale: patch })}
     />
-    <div class="oob-check">
-      <InputCheck
-        label="Show text"
-        appearance="compact"
+  </div>
+
+  <div class="sub-group">
+    <div class="legend">Out of bounds</div>
+    <div class="inline-pair">
+      <InputColor
+        label="Below min"
         size="xs"
-        checked={settings.showAboveMaxLabels}
-        onchange={e => update({ showAboveMaxLabels: (e as CustomEvent<boolean>).detail })}
+        value={settings.belowMinColor}
+        oninput={(e: CustomEvent<string>) => update({ belowMinColor: e.detail })}
+        width={40}
       />
+      <div class="oob-check">
+        <InputCheck
+          label="Show text"
+          appearance="compact"
+          size="xs"
+          checked={settings.showBelowMinLabels}
+          onchange={e => update({ showBelowMinLabels: (e as CustomEvent<boolean>).detail })}
+        />
+      </div>
+    </div>
+    <div class="inline-pair">
+      <InputColor
+        label="Above max"
+        size="xs"
+        value={settings.aboveMaxColor}
+        oninput={(e: CustomEvent<string>) => update({ aboveMaxColor: e.detail })}
+        width={40}
+      />
+      <div class="oob-check">
+        <InputCheck
+          label="Show text"
+          appearance="compact"
+          size="xs"
+          checked={settings.showAboveMaxLabels}
+          onchange={e => update({ showAboveMaxLabels: (e as CustomEvent<boolean>).detail })}
+        />
+      </div>
     </div>
   </div>
 </PaneSection>
@@ -125,5 +129,25 @@
 
   .oob-check {
     padding-bottom: 2px;
+  }
+
+  .sub-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  .sub-group:first-of-type {
+    margin-top: 0;
+  }
+
+  .sub-group .legend {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--c-darkgrey);
+    line-height: 1.2;
+    letter-spacing: 0.01em;
   }
 </style>

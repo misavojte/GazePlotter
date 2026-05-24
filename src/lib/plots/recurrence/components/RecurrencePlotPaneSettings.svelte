@@ -121,28 +121,6 @@
       onValueChange={v => update({ gridSize: v ?? settings.gridSize })}
     />
   {/if}
-</PaneSection>
-
-<PaneSection title="Presentation">
-  <Radio
-    legend="Highlight"
-    options={[...RECURRENCE_HIGHLIGHTS]}
-    appearance="compact"
-    value={settings.highlight}
-    onchange={e =>
-      update({ highlight: (e as CustomEvent<string>).detail as RecurrenceHighlight })}
-  />
-  <Radio
-    legend="Masking"
-    options={[...RECURRENCE_MASKINGS]}
-    appearance="compact"
-    value={settings.masking}
-    onchange={e =>
-      update({ masking: (e as CustomEvent<string>).detail as RecurrenceMasking })}
-  />
-</PaneSection>
-
-<PaneSection title="Lines">
   <InputCheck
     label="Duration weighting"
     appearance="compact"
@@ -158,5 +136,24 @@
     max={20}
     appearance="compact"
     onValueChange={v => update({ minLineLength: v ?? settings.minLineLength })}
+  />
+</PaneSection>
+
+<PaneSection title="Visualisation">
+  <Radio
+    legend="Highlight"
+    options={[...RECURRENCE_HIGHLIGHTS]}
+    appearance="compact"
+    value={settings.highlight}
+    onchange={e =>
+      update({ highlight: (e as CustomEvent<string>).detail as RecurrenceHighlight })}
+  />
+  <Radio
+    legend="Masking"
+    options={[...RECURRENCE_MASKINGS]}
+    appearance="compact"
+    value={settings.masking}
+    onchange={e =>
+      update({ masking: (e as CustomEvent<string>).detail as RecurrenceMasking })}
   />
 </PaneSection>

@@ -51,10 +51,8 @@
       update({ alignment: v })
     }}
   />
-</PaneSection>
 
-{#if isRidgeline}
-  <PaneSection title="Ridgeline">
+  {#if isRidgeline}
     <InputNumber
       id="aoi-stream-ridge-scale"
       label="Ridge scale"
@@ -65,24 +63,22 @@
       appearance="compact"
       onValueChange={v => update({ ridgelineScale: v ?? RIDGELINE_SCALE })}
     />
-  </PaneSection>
-{/if}
+  {/if}
 
-<TimelineRangeSection {item} />
-
-<!-- Picker stays mounted regardless of alignment — toggling via an
-     outer `{#if}` broke the bindable plumbing in practice (the picker
-     remounted with stale bindings on re-entry and its writes never
-     reached parent state, so the colorScale commit never fired). Hide
-     visually when not heatmap, but keep the component instance alive
-     so the `bind:` bindings never tear down mid-edit. -->
-<div style:display={isHeatmap ? 'contents' : 'none'}>
-  <PaneSection title="Colors">
+  <!-- Picker stays mounted regardless of alignment — toggling via an
+       outer `{#if}` broke the bindable plumbing in practice (the picker
+       remounted with stale bindings on re-entry and its writes never
+       reached parent state, so the colorScale commit never fired). Hide
+       visually when not heatmap, but keep the component instance alive
+       so the `bind:` bindings never tear down mid-edit. -->
+  <div style:display={isHeatmap ? 'contents' : 'none'}>
     <ColorScalePicker
       colorScale={settings.colorScale}
       defaultMin={PRESET_PALETTES.HEAT.colors[0]}
       defaultMax={PRESET_PALETTES.HEAT.colors[2]}
       onCommit={patch => update({ colorScale: patch })}
     />
-  </PaneSection>
-</div>
+  </div>
+</PaneSection>
+
+<TimelineRangeSection {item} />

@@ -44,17 +44,14 @@
       update({ presentation: v })
     }}
   />
-</PaneSection>
-
-<TimelineRangeSection {item} />
-
-<div style:display={isHeatmap ? 'contents' : 'none'}>
-  <PaneSection title="Colors">
+  <div style:display={isHeatmap ? 'contents' : 'none'}>
     <ColorScalePicker
       colorScale={settings.colorScale}
       defaultMin={PRESET_PALETTES.HEAT.colors[0]}
       defaultMax={PRESET_PALETTES.HEAT.colors[2]}
       onCommit={patch => update({ colorScale: patch })}
     />
-  </PaneSection>
-</div>
+  </div>
+</PaneSection>
+
+<TimelineRangeSection {item} />

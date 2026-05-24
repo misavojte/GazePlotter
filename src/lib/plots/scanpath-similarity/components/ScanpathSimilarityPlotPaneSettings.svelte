@@ -67,10 +67,8 @@
       update({ view: v })
     }}
   />
-</PaneSection>
 
-{#if isScangraph}
-  <PaneSection title="Graph threshold">
+  {#if isScangraph}
     <InputNumber
       id="scanpath-threshold"
       label="Similarity threshold (0–1)"
@@ -81,17 +79,15 @@
       appearance="compact"
       onValueChange={v => update({ threshold: v ?? 0.5 })}
     />
-  </PaneSection>
-{/if}
+  {/if}
 
-<!-- Picker stays mounted regardless of view — toggling via an
-     outer `{#if}` broke the bindable plumbing in practice (the picker
-     remounted with stale bindings on re-entry and its writes never
-     reached parent state, so the colorScale commit never fired). Hide
-     visually when not matrix, but keep the component instance alive
-     so the `bind:` bindings never tear down mid-edit. -->
-<div style:display={isScangraph ? 'none' : 'contents'}>
-  <PaneSection title="Color scale">
+  <!-- Picker stays mounted regardless of view — toggling via an
+       outer `{#if}` broke the bindable plumbing in practice (the picker
+       remounted with stale bindings on re-entry and its writes never
+       reached parent state, so the colorScale commit never fired). Hide
+       visually when not matrix, but keep the component instance alive
+       so the `bind:` bindings never tear down mid-edit. -->
+  <div style:display={isScangraph ? 'none' : 'contents'}>
     <div class="inline-pair">
       <InputNumber
         id="scanpath-min-val"
@@ -120,8 +116,8 @@
       defaultMax={PRESET_PALETTES.BLUE.colors[2]}
       onCommit={patch => update({ colorScale: patch })}
     />
-  </PaneSection>
-</div>
+  </div>
+</PaneSection>
 
 <style>
   .inline-pair {

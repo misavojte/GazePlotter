@@ -38,22 +38,24 @@
 
 <CommonPlotPaneFields {item} contract={barPlotDefinition.consumesMetrics!} />
 
-<PaneSection title="Layout">
-  <Radio
-    legend="Statistical overlay"
-    options={[
-      { label: 'None', value: 'none' },
-      { label: 'Mean ± 95% CI', value: 'meanCi95' },
-      { label: 'Mean ± SD', value: 'meanSd' },
-      { label: 'Boxplot', value: 'boxplot' },
-    ]}
-    appearance="compact"
-    value={settings.statisticalOverlay}
-    onchange={e => {
-      const v = (e as CustomEvent<string>).detail as BarPlotSettings['statisticalOverlay']
-      update({ statisticalOverlay: v })
-    }}
-  />
+<PaneSection title="Visualisation">
+  <div class="statistical-overlay-group">
+    <Radio
+      legend="Statistical overlay"
+      options={[
+        { label: 'None', value: 'none' },
+        { label: 'Mean ± 95% CI', value: 'meanCi95' },
+        { label: 'Mean ± SD', value: 'meanSd' },
+        { label: 'Boxplot', value: 'boxplot' },
+      ]}
+      appearance="compact"
+      value={settings.statisticalOverlay}
+      onchange={e => {
+        const v = (e as CustomEvent<string>).detail as BarPlotSettings['statisticalOverlay']
+        update({ statisticalOverlay: v })
+      }}
+    />
+  </div>
   <Radio
     legend="Orientation"
     options={[
@@ -96,26 +98,26 @@
       update({ orderDirection: v })
     }}
   />
-</PaneSection>
-
-<PaneSection title="Scale range">
-  <div class="inline-pair">
-    <InputNumber
-      id="bar-min-scale"
-      label="Min"
-      value={minScale}
-      min={0}
-      appearance="compact"
-      onValueChange={v => updateScale({ min: v ?? 0 })}
-    />
-    <InputNumber
-      id="bar-max-scale"
-      label="Max (0 = Auto)"
-      value={maxScale}
-      min={0}
-      appearance="compact"
-      onValueChange={v => updateScale({ max: v ?? 0 })}
-    />
+  <div class="scale-range-group">
+    <div class="legend">Scale range</div>
+    <div class="inline-pair">
+      <InputNumber
+        id="bar-min-scale"
+        label="Min"
+        value={minScale}
+        min={0}
+        appearance="compact"
+        onValueChange={v => updateScale({ min: v ?? 0 })}
+      />
+      <InputNumber
+        id="bar-max-scale"
+        label="Max (0 = Auto)"
+        value={maxScale}
+        min={0}
+        appearance="compact"
+        onValueChange={v => updateScale({ max: v ?? 0 })}
+      />
+    </div>
   </div>
 </PaneSection>
 
@@ -125,5 +127,37 @@
   .inline-pair {
     display: flex;
     gap: 8px;
+  }
+
+  .scale-range-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  .scale-range-group .legend {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--c-darkgrey);
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+  }
+
+  .statistical-overlay-group {
+    width: 100%;
+  }
+
+  /* Two-column options grid if width is at least 240px */
+  .statistical-overlay-group :global(.options) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 5px 12px;
+    width: 100%;
+  }
+
+  .statistical-overlay-group :global(.option) {
+    width: auto;
   }
 </style>
