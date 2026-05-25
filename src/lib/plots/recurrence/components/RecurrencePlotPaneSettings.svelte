@@ -140,8 +140,6 @@
   />
 </PaneSection>
 
-<TimelineRangeSection {item} />
-
 <PaneSection title="Visualisation">
   <Radio
     legend="Highlight"
@@ -160,3 +158,5 @@
       update({ masking: (e as CustomEvent<string>).detail as RecurrenceMasking })}
   />
 </PaneSection>
+
+<TimelineRangeSection {item} />

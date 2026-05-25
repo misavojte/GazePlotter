@@ -56,8 +56,6 @@
 
 <CommonPlotPaneFields {item} contract={scanpathSimilarityDefinition.consumesMetrics!} />
 
-<TimelineRangeSection {item} />
-
 <PaneSection title="Visualisation">
   <Select
     options={[
@@ -121,6 +119,8 @@
     />
   </div>
 </PaneSection>
+
+<TimelineRangeSection {item} />
 
 <style>
   .inline-pair {

@@ -51,8 +51,6 @@
 
 <CommonPlotPaneFields {item} contract={transitionMatrixDefinition.consumesMetrics!} />
 
-<TimelineRangeSection {item} />
-
 <PaneSection title="Visualisation">
   <div class="sub-group">
     <div class="legend">Color scale</div>
@@ -122,6 +120,8 @@
     </div>
   </div>
 </PaneSection>
+
+<TimelineRangeSection {item} />
 
 <style>
   .inline-pair {
