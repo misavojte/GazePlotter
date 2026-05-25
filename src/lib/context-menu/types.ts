@@ -114,6 +114,8 @@ export interface ContextMenuState {
   ownerId: symbol
   /** Z-index for the menu, automatically computed based on whether anchor is in a modal. */
   zIndex: number
+  /** Cleanup callback to run when this menu is closed or replaced. */
+  cleanup?: () => void
 }
 
 export function isMenuDivider(item: MenuItem): item is MenuDividerItem {

@@ -175,6 +175,7 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
       width: options.width,
       ownerId,
       zIndex: computedZIndex + 1,
+      cleanup: finalizeClosure,
     })
 
     options.onOpen?.()
@@ -202,19 +203,6 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
 
   node.addEventListener('click', onTriggerClick)
   node.addEventListener('contextmenu', onContextMenu)
-
-  $effect(() => {
-    const value = contextMenuState.current
-    if (!isOwnedContextMenuState(ownerId, value)) {
-      finalizeClosure()
-      return
-    }
-
-    // Guard: If the anchor is removed from the DOM, close the menu
-    if (!node.isConnected) {
-      close()
-    }
-  })
 
   return {
     update(next: ContextMenuOptions) {

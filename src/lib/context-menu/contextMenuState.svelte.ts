@@ -12,11 +12,11 @@ export const contextMenuState = {
     return _state
   },
   set current(value: ContextMenuState | null) {
-    _state = value
+    updateContextMenu(value)
   },
   /** Clear the current menu state. */
   reset() {
-    _state = null
+    updateContextMenu(null)
   },
 }
 
@@ -31,9 +31,18 @@ export function updateContextMenu(
     | null
     | ((curr: ContextMenuState | null) => ContextMenuState | null)
 ): void {
+  const previous = _state
+  let incoming: ContextMenuState | null = null
+
   if (typeof next === 'function') {
-    _state = next(_state)
+    incoming = next(_state)
   } else {
-    _state = next
+    incoming = next
   }
+
+  if (previous && previous.cleanup && previous.ownerId !== incoming?.ownerId) {
+    previous.cleanup()
+  }
+
+  _state = incoming
 }
