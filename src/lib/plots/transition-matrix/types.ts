@@ -28,7 +28,7 @@ export type TransitionMatrixPlotItem = PlotItemContract<
 export interface TransitionMatrixData {
   matrix: Float64Array | number[]
   aoiLabels: string[]
-  aoiList: ExtendedInterpretedDataType[]
+  aoiList: readonly ExtendedInterpretedDataType[]
   /** True when the plot's `metricInstanceIds[0]` points to a missing instance. */
   noMetric?: boolean
 }

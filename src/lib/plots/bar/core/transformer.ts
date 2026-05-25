@@ -182,7 +182,7 @@ function extractIndividualValuesWithIdentity(
 
 function createLabeledData(
   rawData: number[],
-  aois: ExtendedInterpretedDataType[],
+  aois: readonly ExtendedInterpretedDataType[],
   noAoiTreatment: { displayedName: string; color: string },
   instance: MetricInstance,
   individualArrays: number[][] | null = null,

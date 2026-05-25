@@ -88,10 +88,15 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
   }
 
   function handleColorInput(group: EntityGroup, newColor: string) {
+    // In-place mutation, NOT array replacement. With Svelte 5 deep-proxy
+    // $state, this invalidates only consumers that read `.color` on this
+    // specific item — `buildGroups` (which reads `.id` and `.displayedName`
+    // only) doesn't re-run, and the table re-renders just the one swatch.
+    // Replacing `items = items.map(...)` here caused O(N²) re-derivation
+    // and full-table re-renders per color-picker input event.
     const leaderId = group.members[0].id
-    items = items.map(item =>
-      item.id === leaderId ? { ...item, color: newColor } : item
-    )
+    const leader = items.find(i => i.id === leaderId)
+    if (leader) leader.color = newColor
   }
 
   function handleNameInput(

@@ -18,15 +18,35 @@ export class AoiGroupReader {
   private groupPool = new Uint16Array(0) // Flat pool of mapped IDs
 
   /**
-   * Monotonic counter incremented at the end of every `updateMap()` call.
-   * Consumers (e.g. the metric cache in `runtime.ts`) include this in their
-   * cache keys so AOI-mapping changes — visibility toggles, renames that
-   * affect grouping — automatically invalidate dependent computations
-   * without requiring explicit `clearCache()` calls at every mutator.
+   * Structural version. Bumps inside `updateMap()` only — i.e. when AOI
+   * grouping, visibility, or order changes. Metric results depend exclusively
+   * on this; the metric cache in `runtime.ts` keys off it so cosmetic edits
+   * (color, displayedName-without-grouping-impact) don't invalidate counts/
+   * durations/transitions.
    */
   private _version = 0
   get version(): number {
     return this._version
+  }
+
+  /**
+   * Appearance version. Bumps on `updateMap()` AND on `bumpAppearance()`.
+   * Anything that depends on the display-side AOI fields (color, displayed
+   * name, originalName) — e.g. the memoized `getAois()` selector — keys off
+   * this. Structural changes implicitly bump appearance too.
+   */
+  private _appearanceVersion = 0
+  get appearanceVersion(): number {
+    return this._appearanceVersion
+  }
+
+  /**
+   * Bump only the appearance version. Use for AOI metadata edits that
+   * don't affect grouping (e.g. color-only saves). Leaves the metric cache
+   * intact while invalidating display-side caches.
+   */
+  bumpAppearance(): void {
+    this._appearanceVersion++
   }
 
   // Direct buffer access optimization
@@ -130,6 +150,7 @@ export class AoiGroupReader {
     }
 
     this._version++
+    this._appearanceVersion++
   }
 
   /**

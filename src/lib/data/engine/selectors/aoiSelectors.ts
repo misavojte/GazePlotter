@@ -2,8 +2,26 @@ import {
   type DataType,
   type ExtendedInterpretedDataType,
 } from '$lib/data/types'
+import type { BinaryBufferReader } from '$lib/data/binary'
 import type { DataEngine } from '../DataEngine.svelte'
 import { getAoiRaw } from '../utils/interpreters'
+
+/**
+ * Displayed-AOI list cache.
+ *
+ * Keyed by the underlying `BinaryBufferReader`: a fresh reader on every
+ * `DataEngine.loadDataset` makes the prior bucket unreachable, so the
+ * WeakMap GC's it for free. The string key folds in `stimulusId` and
+ * `AoiGroupReader.version` (bumps on every `updateMap()` call), so AOI
+ * visibility toggles, renames, and grouping changes invalidate
+ * automatically without explicit plumbing.
+ *
+ * Mirrors the metric cache strategy in `$lib/metrics/core/runtime.ts`.
+ */
+const _aoisCache = new WeakMap<
+  BinaryBufferReader,
+  Map<string, readonly ExtendedInterpretedDataType[]>
+>()
 
 const getAoiOrderVectorFromData = (
   stimulusId: number,
@@ -64,9 +82,20 @@ export const getAllAois = (
 export const getAois = (
   engine: DataEngine,
   stimulusId: number
-): ExtendedInterpretedDataType[] => {
+): readonly ExtendedInterpretedDataType[] => {
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
+
+  const reader = engine.getReader()
+  // Display-side cache: key on appearanceVersion so color / displayed-name
+  // edits refresh getAois even when the structural version doesn't change.
+  const appearance = engine.getAoiGroupReader?.()?.appearanceVersion ?? 0
+  const key = `${stimulusId}|a${appearance}`
+
+  if (reader) {
+    const hit = _aoisCache.get(reader)?.get(key)
+    if (hit) return hit
+  }
 
   const ids = getAoiOrderVectorFromData(stimulusId, meta)
   const hidden = meta.aois.hiddenAois?.[stimulusId] ?? []
@@ -80,7 +109,20 @@ export const getAois = (
     )
   )
 
-  return uniqueMappedIds.map(id => getAoiRaw(stimulusId, id, meta))
+  const list = Object.freeze(
+    uniqueMappedIds.map(id => getAoiRaw(stimulusId, id, meta))
+  ) as readonly ExtendedInterpretedDataType[]
+
+  if (reader) {
+    let bucket = _aoisCache.get(reader)
+    if (!bucket) {
+      bucket = new Map()
+      _aoisCache.set(reader, bucket)
+    }
+    bucket.set(key, list)
+  }
+
+  return list
 }
 
 export const getAoi = (

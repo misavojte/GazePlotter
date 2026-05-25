@@ -249,9 +249,9 @@ export function createScarfPlotAxis(
  * Data-only: no sizing properties (heights computed in presentation layer).
  */
 export function createStylingAndLegend(
-  aoiData: ExtendedInterpretedDataType[],
+  aoiData: readonly ExtendedInterpretedDataType[],
   noAoiTreatment: { displayedName: string; color: string },
-  eventChannelData: ExtendedInterpretedDataType[] = []
+  eventChannelData: readonly ExtendedInterpretedDataType[] = []
 ): ScarfStyling {
   const aoi: ScarfStyleItem[] = []
   for (let i = 0; i < aoiData.length; i++) {

@@ -11,7 +11,7 @@ export function collectScanpath(
   engine: DataEngine,
   stimulusId: number,
   participantId: number,
-  aois: ExtendedInterpretedDataType[],
+  aois: readonly ExtendedInterpretedDataType[],
   collapsed: boolean
 ): string {
   const reader = engine.getReader()
@@ -78,7 +78,7 @@ export function collectAllScanpaths(
   engine: DataEngine,
   stimulusId: number,
   participantIds: readonly number[],
-  aois: ExtendedInterpretedDataType[],
+  aois: readonly ExtendedInterpretedDataType[],
   collapsed: boolean
 ): { participantId: number; label: string; scanpath: string }[] {
   const meta = engine.metadata

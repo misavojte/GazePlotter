@@ -101,6 +101,12 @@ export class DataEngine {
     const meta = this.metadata
     if (!meta) return
 
+    // Grouping depends on display names + order. If neither changes within
+    // this batch, the rebuilt groupPool would be byte-identical — we can skip
+    // updateMap (and therefore preserve the metric cache) and just bump the
+    // appearance version so display-side caches refresh.
+    let groupingChanged = false
+
     for (let i = 0; i < updates.length; i++) {
       const { stimulusId, aois } = updates[i]
       if (stimulusId < 0 || stimulusId >= meta.aois.data.length) continue
@@ -108,18 +114,33 @@ export class DataEngine {
       const stimulusData = meta.aois.data[stimulusId]
       for (let j = 0; j < aois.length; j++) {
         const a = aois[j]
-        if (a.id >= 0 && a.id < stimulusData.length) {
-          stimulusData[a.id] = [a.originalName, a.displayedName, a.color]
+        if (a.id < 0 || a.id >= stimulusData.length) continue
+        const prev = stimulusData[a.id]
+        if (!prev || prev[0] !== a.originalName || prev[1] !== a.displayedName) {
+          groupingChanged = true
         }
+        stimulusData[a.id] = [a.originalName, a.displayedName, a.color]
       }
 
       if (!meta.aois.orderVector) meta.aois.orderVector = []
       while (meta.aois.orderVector.length <= stimulusId)
         meta.aois.orderVector.push([])
-      meta.aois.orderVector[stimulusId] = aois.map(a => a.id)
+      const prevOrder = meta.aois.orderVector[stimulusId]
+      const nextOrder = aois.map(a => a.id)
+      if (
+        prevOrder.length !== nextOrder.length ||
+        prevOrder.some((id, k) => id !== nextOrder[k])
+      ) {
+        groupingChanged = true
+      }
+      meta.aois.orderVector[stimulusId] = nextOrder
     }
 
-    if (this.metadata) this._aoiGroupReader?.updateMap(this.metadata)
+    if (groupingChanged) {
+      if (this.metadata) this._aoiGroupReader?.updateMap(this.metadata)
+    } else {
+      this._aoiGroupReader?.bumpAppearance()
+    }
   }
 
   updateParticipantsBatch(
