@@ -7,6 +7,7 @@
  */
 import { describe, it, expect } from 'vitest'
 import { createReaderFromJson } from '../src/lib/data/binary/converters'
+import { AoiGroupReader } from '../src/lib/data/binary/reader.aoiGroup'
 import {
   query,
   queryGroup,
@@ -79,6 +80,96 @@ function createMultiParticipantEngine(perParticipantSegments: number[][][]) {
     },
     getReader: () => reader,
     getAoiMapping: (_s: number, rawId: number) => rawId,
+  }
+}
+
+/**
+ * Engine factory for high-AOI-cardinality stress tests. Generates `n` AOIs
+ * with distinct names (so no grouping collapses occur) and lays them out at
+ * raw ids 1..n, matching the convention of `createEngine` above.
+ */
+function createWideEngine(n: number, segmentsForPid: number[][]) {
+  const aoiData: (string[] | null)[] = [null]
+  const order: number[] = []
+  for (let i = 1; i <= n; i++) {
+    aoiData.push([`AOI ${i}`, `AOI ${i}`, '#000000'])
+    order.push(i)
+  }
+  const segments: number[][][][] = [[], [segmentsForPid]]
+  const reader = createReaderFromJson(segments)
+  return {
+    metadata: {
+      isOrdinalOnly: false,
+      capabilities: { segmented: true, spatial: false, event: false },
+      aois: {
+        data: [[], aoiData],
+        orderVector: [[], order],
+        hiddenAois: [[], []],
+      },
+      categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [] },
+      participants: { data: [['P0', 'P0']], orderVector: [] },
+      participantsGroups: [],
+      stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
+      noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
+      metricInstances: [],
+    },
+    getReader: () => reader,
+    getAoiMapping: (_s: number, rawId: number) => rawId,
+  }
+}
+
+/**
+ * Production-realistic engine: uses the real AoiGroupReader.updateMap
+ * (sharedMap/sharedSet logic, groupPool population) instead of an identity
+ * getAoiMapping mock. Use this for tests that suspect a bug in the grouping
+ * or in the interaction between the metric pipeline and the real reader.
+ *
+ * `aoiNames` controls both AOI count and grouping: repeated names → followers
+ * collapse to the first occurrence's rep id.
+ * `hiddenRawIds` are the raw ids the user has explicitly hidden.
+ */
+function createRealEngine(
+  aoiNames: string[],
+  hiddenRawIds: number[],
+  segmentsForPid: number[][],
+) {
+  // aois.data[1] uses the [null, ...aois] convention so raw id i == data[1][i].
+  const aoiData: (string[] | null)[] = [null]
+  const order: number[] = []
+  for (let i = 0; i < aoiNames.length; i++) {
+    aoiData.push([aoiNames[i], aoiNames[i], '#000000'])
+    order.push(i + 1)
+  }
+  const segments: number[][][][] = [[], [segmentsForPid]]
+  const reader = createReaderFromJson(segments)
+
+  const metadata = {
+    isOrdinalOnly: false,
+    capabilities: { segmented: true, spatial: false, event: false },
+    aois: {
+      data: [[], aoiData],
+      orderVector: [[], order],
+      hiddenAois: [[], hiddenRawIds],
+    },
+    categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [] },
+    participants: { data: [['P0', 'P0']], orderVector: [] },
+    participantsGroups: [],
+    stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
+    noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
+    metricInstances: [],
+  }
+
+  // Real AoiGroupReader runs the full updateMap (sharedMap + sharedSet +
+  // groupPool population) — no identity short-circuit.
+  const aoiGroupReader = new AoiGroupReader(reader)
+  aoiGroupReader.updateMap(metadata as any)
+
+  return {
+    metadata,
+    getReader: () => reader,
+    getAoiGroupReader: () => aoiGroupReader,
+    getAoiMapping: (sId: number, rawId: number) =>
+      aoiGroupReader.getAoiMapping(sId, rawId),
   }
 }
 
@@ -416,6 +507,508 @@ describe('transitionCount — count of AOI transitions (fixation pairs or visit 
     expect(result.shape).toBe('aoi-pair-matrix')
     if (result.shape !== 'aoi-pair-matrix') throw new Error('expected pair matrix')
     expect(result.matrix[0 * 3 + 1]).toBe(2)
+  })
+})
+
+// ─── transitionCount: high-AOI-cardinality stress ─────────────────────────
+
+describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => {
+  it('fixation mode: cascading A→B→C…→AOI130 produces 129 unique-pair transitions, each count 1', () => {
+    // 130 unique AOIs, 130 fixations: fixation i lands in raw AOI (i+1).
+    // raw id i+1 → slot i (aoiLookup), so transitions: 0→1, 1→2, …, 128→129.
+    // Matrix size = 131 (130 AOIs + outside).
+    const N = 130
+    const segs: number[][] = []
+    for (let i = 0; i < N; i++) segs.push([i * 100, (i + 1) * 100, 0, i + 1])
+    const engine = createWideEngine(N, segs)
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+    const size = N + 1
+    for (let i = 0; i < N - 1; i++) {
+      expect(result[i * size + (i + 1)]).toBe(1)
+    }
+    // No self-transitions, no reverse transitions.
+    let total = 0
+    for (let i = 0; i < size * size; i++) total += result[i]
+    expect(total).toBe(N - 1)
+  })
+
+  it('fixation mode: outside→outside self-transitions accumulate across consecutive No-AOI fixations', () => {
+    // 5 consecutive No-AOI fixations sandwiched between two real-AOI fixations.
+    // Expected transitions:
+    //   AOI1 → outside (1)
+    //   outside → outside (4)   ← the cell we suspect drops to zero on AdVolution
+    //   outside → AOI2 (1)
+    const N = 130
+    const segs: number[][] = []
+    segs.push([0, 100, 0, 1])
+    for (let i = 0; i < 5; i++) segs.push([(i + 1) * 100, (i + 2) * 100, 0]) // no AOI
+    segs.push([600, 700, 0, 2])
+    const engine = createWideEngine(N, segs)
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+    const size = N + 1
+    const outside = N // outsideSlot index
+    expect(result[0 * size + outside]).toBe(1)            // AOI1 → outside
+    expect(result[outside * size + outside]).toBe(4)      // outside → outside  (CRITICAL)
+    expect(result[outside * size + 1]).toBe(1)            // outside → AOI2
+  })
+
+  it('fixation mode: cascade interleaved with 2 No-AOI fixations between each real AOI', () => {
+    // Sequence: A1, _, _, A2, _, _, A3, …, A130
+    // For each AOI block i (i in 1..N-1):
+    //   AOI_i → outside (1)
+    //   outside → outside (1)
+    //   outside → AOI_{i+1} (1)
+    // Per AOI, single fixation → exactly 1 in-edge (from outside) and 1 out-edge (to outside),
+    // except AOI 1 has only an out-edge and AOI N only an in-edge.
+    // outside self-transitions: N-1.
+    const N = 130
+    const segs: number[][] = []
+    let t = 0
+    for (let i = 1; i <= N; i++) {
+      segs.push([t, t + 100, 0, i]); t += 100
+      if (i < N) {
+        segs.push([t, t + 100, 0]); t += 100
+        segs.push([t, t + 100, 0]); t += 100
+      }
+    }
+    const engine = createWideEngine(N, segs)
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+    const size = N + 1
+    const outside = N
+
+    // (outside, outside) self-transitions = N - 1
+    expect(result[outside * size + outside]).toBe(N - 1)
+
+    // Each AOI 1..N-1 has exactly one out-edge to outside
+    for (let i = 0; i < N - 1; i++) {
+      expect(result[i * size + outside]).toBe(1)
+    }
+    // Each AOI 2..N has exactly one in-edge from outside
+    for (let i = 1; i < N; i++) {
+      expect(result[outside * size + i]).toBe(1)
+    }
+    // AOI N has no out-edge; AOI 1 has no in-edge
+    expect(result[(N - 1) * size + outside]).toBe(0)
+    expect(result[outside * size + 0]).toBe(0)
+
+    // No direct AOI→AOI transitions at all
+    for (let from = 0; from < N; from++) {
+      for (let to = 0; to < N; to++) {
+        expect(result[from * size + to]).toBe(0)
+      }
+    }
+
+    // Total transitions: (N-1) AOI→outside + (N-1) outside→outside + (N-1) outside→AOI = 3(N-1)
+    let total = 0
+    for (let i = 0; i < size * size; i++) total += result[i]
+    expect(total).toBe(3 * (N - 1))
+  })
+
+  it('fixation mode: AOI grouping by shared display name — 130 raw AOIs grouped into 65 reps', () => {
+    // 130 raw AOIs, paired so raw (2k-1) and raw (2k) share display name → both map to rep (2k-1).
+    // 65 unique reps total. We fire ONE fixation per raw AOI (all 130), alternating
+    // pair members (raw 1, then raw 2, then raw 3, raw 4, …). Both members of a pair
+    // resolve to the same slot (k-1), so consecutive same-slot fixation pairs produce
+    // a slot self-transition (k-1 → k-1). Pair transitions then jump to the next rep.
+    //
+    // Sequence (slots): 0, 0, 1, 1, 2, 2, …, 64, 64
+    // Fixation-mode transitions:
+    //   - 65 self-transitions on diagonal (0→0, 1→1, …, 64→64)
+    //   - 64 jumps between consecutive reps (0→1, 1→2, …, 63→64)
+    // Total: 65 + 64 = 129 transitions.
+    const numGroups = 65
+    const groupSize = 2
+    const totalRaw = numGroups * groupSize // 130
+    const aoiData: (string[] | null)[] = [null]
+    const order: number[] = []
+    for (let i = 1; i <= totalRaw; i++) {
+      const groupIdx = Math.floor((i - 1) / groupSize) // 0..64
+      const name = `Group ${groupIdx + 1}`
+      aoiData.push([name, name, '#000000'])
+      order.push(i)
+    }
+    const segs: number[][] = []
+    for (let i = 1; i <= totalRaw; i++) {
+      segs.push([(i - 1) * 100, i * 100, 0, i])
+    }
+    const segments: number[][][][] = [[], [segs]]
+    const reader = createReaderFromJson(segments)
+    const engine = {
+      metadata: {
+        isOrdinalOnly: false,
+        capabilities: { segmented: true, spatial: false, event: false },
+        aois: { data: [[], aoiData], orderVector: [[], order], hiddenAois: [[], []] },
+        categories: { data: [['Fixation', 'Fixation', '#000']], orderVector: [] },
+        participants: { data: [['P0', 'P0']], orderVector: [] },
+        participantsGroups: [],
+        stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
+        noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
+        metricInstances: [],
+      },
+      getReader: () => reader,
+      // Simulate AoiGroupReader: each pair's first raw id is the rep.
+      // raw 1,2 → 1 ;  raw 3,4 → 3 ;  …  raw (2k-1), 2k → (2k-1).
+      getAoiMapping: (_s: number, rawId: number) =>
+        Math.floor((rawId - 1) / groupSize) * groupSize + 1,
+    }
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+    const size = numGroups + 1 // 66
+
+    // Self-transitions on the diagonal: every adjacent pair-member fires one
+    for (let k = 0; k < numGroups; k++) {
+      expect(result[k * size + k]).toBe(1)
+    }
+    // Forward jumps between consecutive reps
+    for (let k = 0; k < numGroups - 1; k++) {
+      expect(result[k * size + (k + 1)]).toBe(1)
+    }
+    let total = 0
+    for (let i = 0; i < size * size; i++) total += result[i]
+    expect(total).toBe(numGroups + (numGroups - 1)) // 65 + 64 = 129
+  })
+
+  it('REAL READER: 130 unique AOIs cascade — full AoiGroupReader.updateMap path', () => {
+    const N = 130
+    const names = Array.from({ length: N }, (_, i) => `AOI ${i + 1}`)
+    const segs: number[][] = []
+    for (let i = 0; i < N; i++) segs.push([i * 100, (i + 1) * 100, 0, i + 1])
+    const engine = createRealEngine(names, [], segs)
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+    const size = N + 1
+    for (let i = 0; i < N - 1; i++) {
+      expect(result[i * size + (i + 1)]).toBe(1)
+    }
+    let total = 0
+    for (let i = 0; i < size * size; i++) total += result[i]
+    expect(total).toBe(N - 1)
+  })
+
+  it('REAL READER: 40 AOIs, AdVolution-like interleaved cascade A1, _, _, A2, _, _, …', () => {
+    // Matches the user's reported symptom shape exactly: single fixation per
+    // real AOI, separated by runs of consecutive No-AOI fixations.
+    const N = 40
+    const names = Array.from({ length: N }, (_, i) => `AOI ${i + 1}`)
+    const segs: number[][] = []
+    let t = 0
+    for (let i = 1; i <= N; i++) {
+      segs.push([t, t + 100, 0, i]); t += 100
+      if (i < N) {
+        segs.push([t, t + 100, 0]); t += 100
+        segs.push([t, t + 100, 0]); t += 100
+      }
+    }
+    const engine = createRealEngine(names, [], segs)
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+    const size = N + 1
+    const outside = N
+
+    // CRITICAL: the cell the user reports as zero in AdVolution
+    expect(result[outside * size + outside]).toBe(N - 1)
+
+    for (let i = 0; i < N - 1; i++) {
+      expect(result[i * size + outside]).toBe(1)        // AOI_i → outside
+    }
+    for (let i = 1; i < N; i++) {
+      expect(result[outside * size + i]).toBe(1)        // outside → AOI_{i+1}
+    }
+  })
+
+  it('REAL READER: grouping by shared display name — 130 raw AOIs in 65 named pairs', () => {
+    // Each pair shares a display name → AoiGroupReader.updateMap collapses follower
+    // to representative via sharedMap. Fixation sequence visits ALL 130 raw ids
+    // in order: raw1, raw2, raw3, …, raw130.
+    // Slot sequence (after grouping): 0, 0, 1, 1, 2, 2, …, 64, 64.
+    // → 65 self-transitions + 64 forward jumps = 129 total.
+    const numGroups = 65
+    const groupSize = 2
+    const totalRaw = numGroups * groupSize
+    const names: string[] = []
+    for (let i = 0; i < totalRaw; i++) {
+      const groupIdx = Math.floor(i / groupSize)
+      names.push(`Group ${groupIdx + 1}`)
+    }
+    const segs: number[][] = []
+    for (let i = 1; i <= totalRaw; i++) segs.push([(i - 1) * 100, i * 100, 0, i])
+
+    const engine = createRealEngine(names, [], segs)
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+    const size = numGroups + 1
+
+    for (let k = 0; k < numGroups; k++) {
+      expect(result[k * size + k]).toBe(1)              // diagonal: pair self-transition
+    }
+    for (let k = 0; k < numGroups - 1; k++) {
+      expect(result[k * size + (k + 1)]).toBe(1)        // forward jump to next rep
+    }
+    let total = 0
+    for (let i = 0; i < size * size; i++) total += result[i]
+    expect(total).toBe(numGroups + (numGroups - 1))
+  })
+
+  it('REAL READER: hidden AOIs become outside fixations in the transition matrix', () => {
+    // 40 unique AOIs, raw ids 10..20 hidden. Sequence: AOI 5, AOI 12 (hidden),
+    // AOI 15 (hidden), AOI 18 (hidden), AOI 25. The 3 hidden-AOI fixations collapse
+    // to outside (slot index = displayed-aoi-count). Expected fixation-mode transitions:
+    //   AOI5 → outside, outside → outside (×2), outside → AOI25.
+    const N = 40
+    const hidden: number[] = []
+    for (let i = 10; i <= 20; i++) hidden.push(i)
+    const names = Array.from({ length: N }, (_, i) => `AOI ${i + 1}`)
+    const segs: number[][] = [
+      [0, 100, 0, 5],
+      [100, 200, 0, 12],
+      [200, 300, 0, 15],
+      [300, 400, 0, 18],
+      [400, 500, 0, 25],
+    ]
+    const engine = createRealEngine(names, hidden, segs)
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+
+    // Displayed AOI count = 40 - 11 (hidden) = 29; outside = 29.
+    const displayedCount = N - hidden.length
+    const size = displayedCount + 1
+    const outside = displayedCount
+
+    // Find slot for raw 5 and raw 25 by looking at order (raws 1..40, hidden 10..20 removed).
+    // Visible raws in order: 1..9, 21..40. → raw 5 = slot 4; raw 25 = slot 9 + (25-21) = 13.
+    const slot5 = 4
+    const slot25 = 13
+
+    expect(result[slot5 * size + outside]).toBe(1)
+    expect(result[outside * size + outside]).toBe(2)
+    expect(result[outside * size + slot25]).toBe(1)
+
+    // No direct AOI5 → AOI25 leak
+    expect(result[slot5 * size + slot25]).toBe(0)
+
+    let total = 0
+    for (let i = 0; i < size * size; i++) total += result[i]
+    expect(total).toBe(4) // 1 + 2 + 1
+  })
+
+  it('REAL READER: 50,000 fixation sequence with No-AOI runs (long-recording stress)', () => {
+    // Simulates a 1h+ recording: ~50k fixations, mix of real AOIs and No-AOI.
+    // Pattern: every 7th fixation lands in an AOI; the rest are No-AOI.
+    // This exercises the long-sequence path without timing flakiness.
+    const N = 40
+    const names = Array.from({ length: N }, (_, i) => `AOI ${i + 1}`)
+    const totalFix = 50_000
+    const segs: number[][] = []
+    let prevAoiSlot = -1
+    let expectedOutsideSelf = 0
+    let expectedAoiToOutside = 0
+    let expectedOutsideToAoi = 0
+    let wasOutside = false
+    for (let i = 0; i < totalFix; i++) {
+      const isAoi = (i % 7 === 0)
+      if (isAoi) {
+        const rawId = (i / 7 % N) + 1
+        segs.push([i * 100, (i + 1) * 100, 0, rawId])
+        if (wasOutside) expectedOutsideToAoi++
+        prevAoiSlot = rawId - 1
+        wasOutside = false
+      } else {
+        segs.push([i * 100, (i + 1) * 100, 0])
+        if (wasOutside) expectedOutsideSelf++
+        else if (prevAoiSlot >= 0) expectedAoiToOutside++
+        wasOutside = true
+      }
+    }
+    const engine = createRealEngine(names, [], segs)
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+    const size = N + 1
+    const outside = N
+    expect(result[outside * size + outside]).toBe(expectedOutsideSelf)
+    let aoiToOutSum = 0
+    let outToAoiSum = 0
+    for (let i = 0; i < N; i++) {
+      aoiToOutSum += result[i * size + outside]
+      outToAoiSum += result[outside * size + i]
+    }
+    expect(aoiToOutSum).toBe(expectedAoiToOutside)
+    expect(outToAoiSum).toBe(expectedOutsideToAoi)
+  })
+
+  it('REAL READER: non-zero category segments are skipped (saccades between fixations)', () => {
+    // Sequence: AOI1 (fix), saccade (cat=1, with AOI 99), AOI1 (fix), saccade, NoAoi (fix), saccade, NoAoi (fix)
+    // Saccades MUST be skipped at runtime.ts:360 (getSegmentCategory !== 0 continue).
+    // Expected fixation-mode transitions from the surviving fixations [AOI1, AOI1, _, _]:
+    //   AOI1 → AOI1 (1)
+    //   AOI1 → outside (1)
+    //   outside → outside (1)
+    const N = 40
+    const names = Array.from({ length: N }, (_, i) => `AOI ${i + 1}`)
+    const segs: number[][] = [
+      [0, 100, 0, 1],      // fixation AOI1
+      [100, 150, 1, 99],   // saccade  cat=1 (should be skipped). raw 99 doesn't exist, but category check fires first.
+      [150, 250, 0, 1],    // fixation AOI1
+      [250, 300, 1],       // saccade
+      [300, 400, 0],       // fixation no-AOI
+      [400, 450, 1],       // saccade
+      [450, 550, 0],       // fixation no-AOI
+    ]
+    // Need to fix the raw 99 issue: AoiGroupReader.getAoiMapping throws for out-of-range raw ids.
+    // For saccades, getRawAois IS called but only if the segment passes the category filter.
+    // So this should be safe. But to be defensive, use a valid raw id (1) for the saccade.
+    segs[1][3] = 1
+    const engine = createRealEngine(names, [], segs)
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+    const size = N + 1
+    const outside = N
+    expect(result[0 * size + 0]).toBe(1)            // AOI1 → AOI1
+    expect(result[0 * size + outside]).toBe(1)      // AOI1 → outside
+    expect(result[outside * size + outside]).toBe(1) // outside → outside
+    let total = 0
+    for (let i = 0; i < size * size; i++) total += result[i]
+    expect(total).toBe(3)
+  })
+
+  it('STALE-CACHE: AOI visibility toggle (in-place updateMap) invalidates cached metric', () => {
+    // Different invalidation path: the user keeps the dataset loaded but
+    // toggles an AOI's hidden state. DataEngine.updateHiddenAoisBatch
+    // re-runs AoiGroupReader.updateMap() with the new metadata — same
+    // reader, but the groupPool is rewritten so the AOI→slot resolution
+    // changes. The metric result must reflect that, not return the cached
+    // pre-toggle matrix.
+    //
+    // Mechanism: updateMap() bumps AoiGroupReader.version, which is folded
+    // into the metric cache key, so the next lookup misses → fresh compute.
+
+    const engine = createRealEngine(
+      ['AOI 1', 'AOI 2', 'AOI 3'],
+      [],
+      [
+        [0, 100, 0, 1],
+        [100, 200, 0, 2],
+        [200, 300, 0, 3],
+        [300, 400, 0, 1],
+      ],
+    )
+    const fixCount = inst('fixationCount')
+
+    // Phase 1: all three AOIs visible.
+    const before = values(query(fixCount, scope(engine)))
+    // slots 0..2 = AOIs, 3 = noAoi, 4 = anyFixation. Counts: [2, 1, 1, 0, 4].
+    expect(before[0]).toBe(2)
+    expect(before[1]).toBe(1)
+    expect(before[2]).toBe(1)
+    expect(before[3]).toBe(0)
+
+    // Phase 2: hide AOI 2 (raw id 2). In production, DataEngine.updateHiddenAoisBatch
+    // mutates metadata then calls _aoiGroupReader.updateMap(metadata). We mimic
+    // that here directly on the helper-built reader.
+    engine.metadata.aois.hiddenAois = [[], [2]] as any
+    engine.getAoiGroupReader()!.updateMap(engine.metadata as any)
+
+    const after = values(query(fixCount, scope(engine)))
+    // AOI 2's fixation now becomes a noAoi fixation; the (now-2-AOI) layout is
+    // slots 0..1 = AOI1, AOI3; slot 2 = noAoi; slot 3 = anyFixation.
+    // Counts: [2, 1, 1, 4]. Length 4 (was 5).
+    expect(after.length).toBe(4)
+    expect(after[0]).toBe(2)            // AOI 1 unchanged
+    expect(after[1]).toBe(1)            // AOI 3 (moved from slot 2 to slot 1)
+    expect(after[2]).toBe(1)            // noAoi now holds AOI 2's fixation
+    expect(after[3]).toBe(4)            // anyFixation
+  })
+
+  it('STALE-CACHE REPRO: demo-loaded-first → AdVolution serves stale demo matrix', () => {
+    // Reproduces production: app boots with demo data, user views the
+    // transition matrix in fixation mode (the default) → result cached against
+    // the DataEngine instance. User then loads AdVolution → loadDataset
+    // mutates the engine in place (same JS object, new reader/metadata).
+    // Re-querying the SAME scope hits the WeakMap cache and returns the DEMO
+    // matrix — wrong shape and wrong values for AdVolution.
+    //
+    // Visit mode escapes because in production the user typically views it
+    // for the first time AFTER loading AdVolution → no pre-existing cache
+    // entry under that params key.
+
+    // --- Phase 1: "demo" — 2 AOIs, view fixation transitions (NOT visit) ---
+    const engine: any = createRealEngine(
+      ['AOI 1', 'AOI 2'],
+      [],
+      [
+        [0, 100, 0, 1],
+        [100, 200, 0, 2],
+      ],
+    )
+    const fixInst = inst('transitionCount', { mode: 'fixation' })
+    const visInst = inst('transitionCount', { mode: 'visit' })
+
+    const demoFix = values(query(fixInst, scope(engine)))
+    expect(demoFix.length).toBe(9) // 2 AOIs → 3×3
+
+    // --- Phase 2: "AdVolution" — mutate the SAME engine object ---
+    const advNames = Array.from({ length: 40 }, (_, i) => `AOI ${i + 1}`)
+    const advSegs: number[][] = []
+    let t = 0
+    for (let i = 1; i <= 40; i++) {
+      advSegs.push([t, t + 100, 0, i]); t += 100
+      if (i < 40) {
+        advSegs.push([t, t + 100, 0]); t += 100
+        advSegs.push([t, t + 100, 0]); t += 100
+      }
+    }
+    const advReplacement = createRealEngine(advNames, [], advSegs)
+    engine.metadata = advReplacement.metadata
+    engine.getReader = advReplacement.getReader
+    engine.getAoiGroupReader = advReplacement.getAoiGroupReader
+    engine.getAoiMapping = advReplacement.getAoiMapping
+
+    // Visit mode: NOT cached during phase 1 → fresh compute on AdVolution → correct.
+    const advVis = values(query(visInst, scope(engine)))
+    expect(advVis.length, 'visit matrix is fresh').toBe(1681)
+
+    // Fixation mode: CACHED during phase 1 → returns stale demo matrix.
+    const advFix = values(query(fixInst, scope(engine)))
+    expect(advFix.length, 'fixation matrix is stale (demo cached)').toBe(1681)
+  })
+
+  it('fixation mode: pure No-AOI run produces N-1 outside self-transitions', () => {
+    // Pure no-AOI sequence of 10 fixations → 9 (outside, outside) self-transitions.
+    const N = 130
+    const segs: number[][] = []
+    for (let i = 0; i < 10; i++) segs.push([i * 100, (i + 1) * 100, 0])
+    const engine = createWideEngine(N, segs)
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+    const size = N + 1
+    const outside = N
+    expect(result[outside * size + outside]).toBe(9)
+    let total = 0
+    for (let i = 0; i < size * size; i++) total += result[i]
+    expect(total).toBe(9)
+  })
+})
+
+// ─── fixationCount: high-AOI-cardinality stress ─────────────────────────────
+
+describe('fixationCount — 130-AOI cascade (high cardinality stress)', () => {
+  it('counts one fixation per AOI when each AOI is visited exactly once', () => {
+    const N = 130
+    const segs: number[][] = []
+    for (let i = 0; i < N; i++) segs.push([i * 100, (i + 1) * 100, 0, i + 1])
+    const engine = createWideEngine(N, segs)
+    const result = values(query(inst('fixationCount'), scope(engine)))
+    // slots: 0..129 = AOIs, 130 = noAoi, 131 = anyFixation
+    for (let i = 0; i < N; i++) {
+      expect(result[i]).toBe(1)
+    }
+    expect(result[N]).toBe(0)         // noAoi
+    expect(result[N + 1]).toBe(N)     // anyFixation
+  })
+
+  it('counts N fixations into one AOI at slot index ≥ 32 (boundary for any 32-bit-shift assumption)', () => {
+    // Hit slot 40 (raw id 41) repeatedly. If anything bitmask-encodes AOI ids
+    // into a 32-bit int, slot 40 would either collide with slot 8 or vanish.
+    const N = 130
+    const segs: number[][] = []
+    const TARGET_RAW = 41 // slot 40
+    for (let i = 0; i < 20; i++) segs.push([i * 100, (i + 1) * 100, 0, TARGET_RAW])
+    const engine = createWideEngine(N, segs)
+    const result = values(query(inst('fixationCount'), scope(engine)))
+    expect(result[40]).toBe(20)
+    expect(result[8]).toBe(0) // would be non-zero if (1 << 40) collapsed to (1 << 8)
+    expect(result[N + 1]).toBe(20)
   })
 })
 

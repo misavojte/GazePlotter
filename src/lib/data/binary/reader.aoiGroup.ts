@@ -17,6 +17,18 @@ export class AoiGroupReader {
   private indexTable = new Uint32Array(0) // [pointer, length] per stimulus
   private groupPool = new Uint16Array(0) // Flat pool of mapped IDs
 
+  /**
+   * Monotonic counter incremented at the end of every `updateMap()` call.
+   * Consumers (e.g. the metric cache in `runtime.ts`) include this in their
+   * cache keys so AOI-mapping changes — visibility toggles, renames that
+   * affect grouping — automatically invalidate dependent computations
+   * without requiring explicit `clearCache()` calls at every mutator.
+   */
+  private _version = 0
+  get version(): number {
+    return this._version
+  }
+
   // Direct buffer access optimization
   private segmentBuffer: Float32Array
   private aoiPool: Uint16Array
@@ -116,6 +128,8 @@ export class AoiGroupReader {
         }
       }
     }
+
+    this._version++
   }
 
   /**

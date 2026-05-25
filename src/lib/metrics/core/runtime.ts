@@ -1,4 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { BinaryBufferReader } from '$lib/data/binary'
 import { getAois, getParticipantEndTime } from '$lib/data/engine'
 import { buildAoiSlots } from './aoiSlots'
 import { resolveParams } from './params'
@@ -23,7 +24,22 @@ export interface Scope {
   timeEnd?: number
 }
 
-const _cache = new WeakMap<DataEngine, Map<string, number[]>>()
+/**
+ * Metric result cache.
+ *
+ * Keyed by the underlying `BinaryBufferReader` rather than the `DataEngine`
+ * instance: `DataEngine.loadDataset` builds a fresh reader on every reload,
+ * so the WeakMap bucket from the prior dataset becomes unreachable and is
+ * GC'd. This means a workspace switch (e.g. demo → real data) can no longer
+ * serve stale results from the previous dataset.
+ *
+ * The string cache key additionally includes `AoiGroupReader.version`, which
+ * bumps on every `updateMap()` call (visibility toggles, AOI renames that
+ * affect grouping). That way in-place AOI mutations that keep the same
+ * reader also invalidate dependent entries without needing explicit
+ * `clearCache()` plumbing at every call site.
+ */
+const _cache = new WeakMap<BinaryBufferReader, Map<string, number[]>>()
 
 /**
  * Scalar / vector / matrix result for a single metric instance over a scope.
@@ -394,9 +410,10 @@ function getAoiNames(scope: Scope): string[] {
 
 // ─── Cache (per-engine, keyed on baseId+params+time range) ────────────────────
 
-function cacheKey(instance: MetricInstance, scope: Scope, tStart: number, tEnd: number): string {
+function cacheKey(engine: DataEngine, instance: MetricInstance, scope: Scope, tStart: number, tEnd: number): string {
   const p = paramsKey(instance.params)
-  return `${instance.baseId}|${p}|${scope.stimulusId}|${scope.participantId}|${tStart}|${tEnd}`
+  const v = engine.getAoiGroupReader?.()?.version ?? 0
+  return `v${v}|${instance.baseId}|${p}|${scope.stimulusId}|${scope.participantId}|${tStart}|${tEnd}`
 }
 
 function paramsKey(params: Record<string, unknown> | undefined): string {
@@ -406,15 +423,19 @@ function paramsKey(params: Record<string, unknown> | undefined): string {
 }
 
 function cacheGet(engine: DataEngine, scope: Scope, instance: MetricInstance, tStart: number, tEnd: number): number[] | undefined {
-  const map = _cache.get(engine)
+  const reader = engine.getReader()
+  if (!reader) return undefined
+  const map = _cache.get(reader)
   if (!map) return undefined
-  return map.get(cacheKey(instance, scope, tStart, tEnd))
+  return map.get(cacheKey(engine, instance, scope, tStart, tEnd))
 }
 
 function cacheSet(engine: DataEngine, scope: Scope, instance: MetricInstance, tStart: number, tEnd: number, value: number[]): void {
-  let map = _cache.get(engine)
-  if (!map) { map = new Map(); _cache.set(engine, map) }
-  map.set(cacheKey(instance, scope, tStart, tEnd), value)
+  const reader = engine.getReader()
+  if (!reader) return
+  let map = _cache.get(reader)
+  if (!map) { map = new Map(); _cache.set(reader, map) }
+  map.set(cacheKey(engine, instance, scope, tStart, tEnd), value)
 }
 
 // Re-export PROJECTION_LEAVES and leafOf so runtime consumers can peek.
