@@ -6,6 +6,7 @@ import { barPlotDefinition } from './bar/definition'
 import { scarfPlotDefinition } from './scarf/definition'
 import { transitionMatrixDefinition } from './transition-matrix/definition'
 import { scanpathSimilarityDefinition } from './scanpath-similarity/definition'
+import { scanpathPlotDefinition } from './scanpath/definition'
 import { recurrencePlotDefinition } from './recurrence/definition'
 import { evolvingMetricsDefinition } from './evolving-metrics/definition'
 import { metricCorrelationDefinition } from './metric-correlation/definition'
@@ -16,6 +17,7 @@ export const plotRegistry = {
   barPlot: barPlotDefinition,
   aoiStreamPlot: aoiStreamPlotDefinition,
   scanpathSimilarity: scanpathSimilarityDefinition,
+  scanpath: scanpathPlotDefinition,
   recurrencePlot: recurrencePlotDefinition,
   evolvingMetrics: evolvingMetricsDefinition,
   metricCorrelation: metricCorrelationDefinition,

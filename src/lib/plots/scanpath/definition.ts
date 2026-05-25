@@ -1,0 +1,42 @@
+import ScanpathPlot from './components/ScanpathPlot.svelte'
+import ScanpathExportFigure from './components/ScanpathExportFigure.svelte'
+import ScanpathPlotPaneSettings from './components/ScanpathPlotPaneSettings.svelte'
+import { definePlot } from '$lib/plots/definePlot'
+import type { PlotSubtitleParts } from '$lib/plots/definePlot'
+import {
+  getStimuliOptions,
+  getParticipantOptions,
+} from '$lib/plots/shared'
+import type { ScanpathPlotSettings } from './types'
+
+export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSettings>({
+  type: 'scanpath',
+  name: 'Scanpath Plot',
+  component: ScanpathPlot,
+  paneSettings: ScanpathPlotPaneSettings,
+  export: { figure: ScanpathExportFigure },
+  getSubtitle: ({ item, engine }) => {
+    const parts: PlotSubtitleParts = []
+    const stim = getStimuliOptions(engine).find(
+      o => o.value === String(item.settings.stimulusId)
+    )
+    if (stim?.label) parts.push({ label: 'Stimulus', value: stim.label })
+    const participant = getParticipantOptions(engine).find(
+      o => o.value === String(item.settings.participantId)
+    )
+    if (participant?.label) {
+      parts.push({ label: 'Participant', value: participant.label })
+    }
+    return parts.length === 0 ? undefined : parts
+  },
+  getDefaultSettings: (params = {}) => ({
+    stimulusId: params.stimulusId ?? 0,
+    participantId: 0,
+    showFixationOrder: true,
+    showNumbers: true,
+  }),
+  getMinSize: () => ({ w: 12, h: 10 }),
+  getDefaultHeight: () => 12,
+  getDefaultWidth: () => 16,
+  requireCapabilities: [['segmented', 'spatial']],
+})
