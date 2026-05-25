@@ -18,11 +18,11 @@ export class AoiGroupReader {
   private groupPool = new Uint16Array(0) // Flat pool of mapped IDs
 
   /**
-   * Structural version. Bumps inside `updateMap()` only — i.e. when AOI
-   * grouping, visibility, or order changes. Metric results depend exclusively
-   * on this; the metric cache in `runtime.ts` keys off it so cosmetic edits
-   * (color, displayedName-without-grouping-impact) don't invalidate counts/
-   * durations/transitions.
+   * Structural version. Bumps inside `updateMap()` only when the rebuilt
+   * `groupPool` actually differs byte-for-byte from the previous one — i.e.
+   * grouping, visibility, or order *materially* changed. The metric cache
+   * (`runtime.ts`) keys off this; cosmetic edits (color, no-op hidden saves)
+   * leave it untouched without any per-mutator detection.
    */
   private _version = 0
   get version(): number {
@@ -30,23 +30,14 @@ export class AoiGroupReader {
   }
 
   /**
-   * Appearance version. Bumps on `updateMap()` AND on `bumpAppearance()`.
-   * Anything that depends on the display-side AOI fields (color, displayed
-   * name, originalName) — e.g. the memoized `getAois()` selector — keys off
-   * this. Structural changes implicitly bump appearance too.
+   * Appearance version. Bumps every time `updateMap()` is called, regardless
+   * of whether `groupPool` changed. Display-side caches (memoized `getAois`)
+   * key off this — they must refresh on any potential metadata mutation
+   * (color, displayedName) since the diff only inspects `groupPool`.
    */
   private _appearanceVersion = 0
   get appearanceVersion(): number {
     return this._appearanceVersion
-  }
-
-  /**
-   * Bump only the appearance version. Use for AOI metadata edits that
-   * don't affect grouping (e.g. color-only saves). Leaves the metric cache
-   * intact while invalidating display-side caches.
-   */
-  bumpAppearance(): void {
-    this._appearanceVersion++
   }
 
   // Direct buffer access optimization
@@ -102,9 +93,12 @@ export class AoiGroupReader {
       totalCap += len
     }
 
-    if (this.groupPool.length !== totalCap) {
-      this.groupPool = new Uint16Array(totalCap)
-    }
+    // Build into a fresh buffer so we can diff against the previous one and
+    // decide whether the structural version needs to bump. The allocation
+    // (~2 bytes per AOI per stimulus) is negligible compared to keeping the
+    // "did anything actually change?" decision out of every caller.
+    const prevPool = this.groupPool
+    const nextPool = new Uint16Array(totalCap)
 
     const { sharedMap, sharedSet } = this
     for (let sId = 0; sId < sCount; sId++) {
@@ -140,16 +134,30 @@ export class AoiGroupReader {
       // Populate groupPool with mapped IDs or HIDDEN_ID sentinel
       for (let id = 0; id < len; id++) {
         if (sharedSet.has(id)) {
-          this.groupPool[ptr + id] = AoiGroupReader.HIDDEN_ID
+          nextPool[ptr + id] = AoiGroupReader.HIDDEN_ID
         } else {
           const row = aois[id]
           const name = row ? (row[1] ?? row[0]).trim() : ''
-          this.groupPool[ptr + id] = sharedMap.get(name) ?? id
+          nextPool[ptr + id] = sharedMap.get(name) ?? id
         }
       }
     }
 
-    this._version++
+    // Single decision point: structural version bumps iff groupPool actually
+    // changed. Appearance always bumps because metadata fields not encoded in
+    // groupPool (color, displayedName-when-name-unchanged) may have moved.
+    let structurallyChanged = prevPool.length !== nextPool.length
+    if (!structurallyChanged) {
+      for (let i = 0; i < nextPool.length; i++) {
+        if (prevPool[i] !== nextPool[i]) {
+          structurallyChanged = true
+          break
+        }
+      }
+    }
+
+    this.groupPool = nextPool
+    if (structurallyChanged) this._version++
     this._appearanceVersion++
   }
 

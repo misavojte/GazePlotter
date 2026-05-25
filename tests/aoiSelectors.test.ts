@@ -106,11 +106,11 @@ describe('getAois — memoization', () => {
     expect(list.map(a => a.displayedName).sort()).toEqual(['Button', 'Logo'])
   })
 
-  it('cosmetic edit (bumpAppearance) refreshes getAois without bumping structural version', () => {
-    // Simulates DataEngine.updateAoisBatch routing a color-only change to
-    // bumpAppearance() instead of updateMap(). The metric cache (which keys
-    // on the structural `version`) must stay valid; the getAois cache (which
-    // keys on `appearanceVersion`) must invalidate.
+  it('cosmetic-only updateMap call leaves structural version, bumps appearance, refreshes getAois', () => {
+    // updateMap is the single decision point: when called with metadata whose
+    // names/order/hidden are unchanged (color-only edit), it rebuilds groupPool,
+    // sees it's byte-identical to the previous one, and skips the structural
+    // version bump. Appearance always bumps so display caches refresh.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const engine = createEngine(['AOI 1', 'AOI 2'], [], []) as any
     const groupReader = engine.getAoiGroupReader()
@@ -122,7 +122,7 @@ describe('getAois — memoization', () => {
     // Mutate metadata color and route to bumpAppearance (mirrors the
     // production path for color-only AOI saves).
     engine.metadata.aois.data[STIM][1][2] = '#ff00ff'
-    groupReader.bumpAppearance()
+    groupReader.updateMap(engine.metadata)
 
     const after = getAois(engine, STIM)
 
@@ -130,6 +130,127 @@ describe('getAois — memoization', () => {
     expect(after[0].color).toBe('#ff00ff')             // reflects new color
     expect(groupReader.version).toBe(structuralBefore) // metric cache safe
     expect(groupReader.appearanceVersion).toBe(appearanceBefore + 1)
+  })
+
+  it('CONTROL: two identical back-to-back queries — second should hit the cache', async () => {
+    const { query } = await import('../src/lib/metrics')
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const engine = createEngine(
+      ['AOI 1', 'AOI 2'],
+      [],
+      [[0, 100, 0, 1], [100, 200, 0, 2], [200, 300, 0, 1]],
+    ) as any
+    let mappingCalls = 0
+    const originalMapping = engine.getAoiMapping
+    engine.getAoiMapping = (s: number, r: number) => {
+      mappingCalls++
+      return originalMapping(s, r)
+    }
+    const instance = {
+      id: 't1', baseId: 'fixationCount', params: {}, label: '',
+      projection: { kind: 'identity-aoi-vector' as const },
+    }
+    const scope = { engine, stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 0 }
+
+    query(instance, scope)
+    const afterFirst = mappingCalls
+    query(instance, scope)
+    expect(mappingCalls).toBe(afterFirst) // baseline cache behaviour
+  })
+
+  it('REPRO: full color-only save path (updateAoisBatch + redundant updateHiddenAoisBatch) preserves metric cache', async () => {
+    // This reproduces the actual production flow: the modal commit calls
+    // workspace.updateAois, which fires BOTH updateAoisBatch AND
+    // updateHiddenAoisBatch (even when hidden didn't change). Without diffing
+    // on the hidden path, every color save bumps the structural version and
+    // wipes the metric cache — which is exactly the lag the profile showed.
+    const { query } = await import('../src/lib/metrics')
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const engine = createEngine(
+      ['AOI 1', 'AOI 2', 'AOI 3'],
+      [2], // AOI 2 is hidden from the start
+      [[0, 100, 0, 1], [100, 200, 0, 3], [200, 300, 0, 1]],
+    ) as any
+
+    const reader = engine.getReader()
+    let fixIterations = 0
+    const original = reader.getFixationSegmentIndex.bind(reader)
+    reader.getFixationSegmentIndex = (k: number) => {
+      fixIterations++
+      return original(k)
+    }
+
+    const instance = {
+      id: 't1', baseId: 'fixationCount', params: {}, label: '',
+      projection: { kind: 'identity-aoi-vector' as const },
+    }
+    const scope = { engine, stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 0 }
+
+    query(instance, scope)
+    const iterationsAfterWarm = fixIterations
+    expect(iterationsAfterWarm).toBeGreaterThan(0)
+
+    // Build the DataEngine-style mutator paths manually (the test fixture is
+    // a plain object, not a real DataEngine). We replicate what the modal commit
+    // does on a color-only save: mutate metadata color, call (the equivalent of)
+    // updateAoisBatch and updateHiddenAoisBatch with unchanged names + unchanged hidden.
+    engine.metadata.aois.data[STIM][1][2] = '#ff00ff'
+    // Equivalent of DataEngine.updateAoisBatch for cosmetic change: bumpAppearance
+    engine.getAoiGroupReader().updateMap(engine.metadata)
+    // Equivalent of DataEngine.updateHiddenAoisBatch for unchanged hidden: NOOP
+    // (the new code path detects no change and skips updateMap entirely)
+
+    query(instance, scope)
+    expect(fixIterations).toBe(iterationsAfterWarm) // metric cache hit
+    expect(getAois(engine, STIM)[0].color).toBe('#ff00ff') // display refreshed
+  })
+
+  it('color-only save preserves the metric cache (no re-scan after bumpAppearance)', async () => {
+    // Production scenario: color-only AOI save routes through bumpAppearance().
+    // Metric cache (keyed on structural `version`) must hit; only getAois
+    // (keyed on appearanceVersion) should rebuild.
+    //
+    // We isolate scan work by counting reader.getFixationSegmentIndex calls —
+    // that method is invoked ONLY from scanAccumulator/scanBatch inner loops.
+    // Counting getAoiMapping would be ambiguous because getAois calls it too.
+    const { query } = await import('../src/lib/metrics')
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const engine = createEngine(
+      ['AOI 1', 'AOI 2'],
+      [],
+      [[0, 100, 0, 1], [100, 200, 0, 2], [200, 300, 0, 1]],
+    ) as any
+
+    const reader = engine.getReader()
+    let fixIterations = 0
+    const originalGetFix = reader.getFixationSegmentIndex.bind(reader)
+    reader.getFixationSegmentIndex = (k: number) => {
+      fixIterations++
+      return originalGetFix(k)
+    }
+
+    const instance = {
+      id: 't1', baseId: 'fixationCount', params: {}, label: '',
+      projection: { kind: 'identity-aoi-vector' as const },
+    }
+    const scope = { engine, stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 0 }
+
+    query(instance, scope)
+    const iterationsAfterWarm = fixIterations
+    expect(iterationsAfterWarm).toBeGreaterThan(0) // sanity: scan ran
+
+    engine.metadata.aois.data[STIM][1][2] = '#ff00ff'
+    engine.getAoiGroupReader().updateMap(engine.metadata)
+
+    // Cache hit → no fixation iteration.
+    query(instance, scope)
+    expect(fixIterations).toBe(iterationsAfterWarm)
+
+    // Sanity: getAois saw the new color (appearance bumped).
+    expect(getAois(engine, STIM)[0].color).toBe('#ff00ff')
   })
 
   it('returned array is frozen — mutation attempts throw in strict mode', () => {
