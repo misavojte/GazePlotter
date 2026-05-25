@@ -11,6 +11,7 @@ import {
   validateRoundtrip,
   createReaderFromJson,
 } from '../src/lib/data/binary/converters'
+import { BinaryBufferReader } from '../src/lib/data/binary/reader.segment'
 
 describe('Binary Converters Roundtrip', () => {
   it('should handle empty segments', () => {
@@ -324,5 +325,78 @@ describe('Binary Converters Roundtrip', () => {
     expect(buffers.hasSpatialData).toBe(false)
     expect(converted.spatialData).toBeUndefined()
     expect(binarySegmentsToJson(buffers)).toEqual(segments)
+  })
+
+  describe('fixation-only index', () => {
+    it('points only at category-0 segments and partitions by (stimulus, participant)', () => {
+      // Two stimuli, two participants per stimulus. Mix of categories.
+      // s0 p0: [fix, saccade, fix, blink, fix]    → 3 fixations at indices 0, 2, 4
+      // s0 p1: [saccade, fix, fix]                → 2 fixations at indices 6, 7
+      // s1 p0: [fix, fix]                         → 2 fixations at indices 8, 9
+      // s1 p1: [saccade, blink, saccade]          → 0 fixations
+      const segments: number[][][][] = [
+        [
+          [[0, 100, 0], [100, 200, 1], [200, 300, 0], [300, 400, 2], [400, 500, 0]],
+          [[0, 100, 1], [100, 200, 0], [200, 300, 0]],
+        ],
+        [
+          [[0, 100, 0], [100, 200, 0]],
+          [[0, 100, 1], [100, 200, 2], [200, 300, 1]],
+        ],
+      ]
+      const buffers = jsonSegmentsToBinary(segments)
+
+      // Total fixations across the dataset = 3 + 2 + 2 + 0 = 7.
+      expect(buffers.fixationIndex).toBeDefined()
+      expect(buffers.fixationIndex!.length).toBe(7)
+
+      // Ranges per (s, p). maxParticipants = 2, so stride = 4 entries per stimulus.
+      const ft = buffers.fixationIndexTable!
+      expect(Array.from(ft.subarray(0, 2))).toEqual([0, 3])  // s0 p0
+      expect(Array.from(ft.subarray(2, 4))).toEqual([3, 5])  // s0 p1
+      expect(Array.from(ft.subarray(4, 6))).toEqual([5, 7])  // s1 p0
+      expect(Array.from(ft.subarray(6, 8))).toEqual([7, 7])  // s1 p1 (empty range)
+
+      // Verify each entry points at a category-0 segment.
+      const fi = buffers.fixationIndex!
+      const sb = buffers.segmentBuffer
+      const STRIDE = 6
+      const CAT = 2
+      for (let k = 0; k < fi.length; k++) {
+        const i = fi[k]
+        expect(sb[i * STRIDE + CAT] | 0).toBe(0)
+      }
+    })
+
+    it('reader.getFixationRange returns the same ranges as the precomputed table', () => {
+      const segments: number[][][][] = [[
+        [[0, 100, 1], [100, 200, 0], [200, 300, 0], [300, 400, 1], [400, 500, 0]],
+      ]]
+      const reader = createReaderFromJson(segments)
+      const range = reader.getFixationRange(0, 0)
+      expect(range.endIndex - range.startIndex).toBe(3)
+      // The 3 fixations are at segment indices 1, 2, 4 in the original layout.
+      const expectedSegmentIndices = [1, 2, 4]
+      for (let k = range.startIndex; k < range.endIndex; k++) {
+        expect(reader.getFixationSegmentIndex(k)).toBe(
+          expectedSegmentIndices[k - range.startIndex],
+        )
+      }
+    })
+
+    it('reader back-fills the fixation index when buffers lack one (legacy workspace)', () => {
+      // Build full buffers, then strip the fixation index — simulates loading
+      // a workspace serialized before this field existed.
+      const segments: number[][][][] = [[
+        [[0, 100, 0], [100, 200, 1], [200, 300, 0]],
+      ]]
+      const buffers = jsonSegmentsToBinary(segments)
+      const stripped = { ...buffers, fixationIndex: undefined, fixationIndexTable: undefined }
+      const reader = new BinaryBufferReader(stripped)
+      const range = reader.getFixationRange(0, 0)
+      expect(range.endIndex - range.startIndex).toBe(2)
+      expect(reader.getFixationSegmentIndex(range.startIndex)).toBe(0)
+      expect(reader.getFixationSegmentIndex(range.startIndex + 1)).toBe(2)
+    })
   })
 })

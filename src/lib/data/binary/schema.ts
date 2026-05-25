@@ -38,6 +38,20 @@ export interface BinarySegmentBuffers {
   indexTable: Uint32Array
 
   /**
+   * Flat list of segment indices where CATEGORY_ID === 0 (fixations only).
+   * Lets hot loops iterate fixations directly without paying a per-segment
+   * category-check on saccades/blinks. Built by `jsonSegmentsToBinary`;
+   * back-filled by the reader if absent (legacy workspaces).
+   */
+  fixationIndex?: Uint32Array
+
+  /**
+   * [start, end) pointers into `fixationIndex`, per (stimulus, participant) —
+   * same stride layout as `indexTable`. Always pairs with `fixationIndex`.
+   */
+  fixationIndexTable?: Uint32Array
+
+  /**
    * AOI overflow pool: flat array of AOI IDs for all segments.
    */
   aoiPool: Uint16Array

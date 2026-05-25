@@ -24,6 +24,8 @@ export function jsonSegmentsToBinary(
     return {
       segmentBuffer: new Float32Array(0),
       indexTable: new Uint32Array(0),
+      fixationIndex: new Uint32Array(0),
+      fixationIndexTable: new Uint32Array(0),
       aoiPool: new Uint16Array(0),
       hasSpatialData: false,
       maxParticipants: 0,
@@ -38,6 +40,7 @@ export function jsonSegmentsToBinary(
 
   let totalSegments = 0
   let totalAois = 0
+  let totalFixations = 0
 
   for (let s = 0; s < stimuliCount; s++) {
     const stimulus = segments[s] ?? []
@@ -48,12 +51,15 @@ export function jsonSegmentsToBinary(
       for (const segment of participantSegments) {
         const aoiCount = Math.max(0, segment.length - 3)
         totalAois += aoiCount
+        if ((segment[2] | 0) === 0) totalFixations++
       }
     }
   }
 
   const segmentBuffer = new Float32Array(totalSegments * SEGMENT_STRIDE)
   const indexTable = new Uint32Array(stimuliCount * maxParticipants * 2)
+  const fixationIndex = new Uint32Array(totalFixations)
+  const fixationIndexTable = new Uint32Array(stimuliCount * maxParticipants * 2)
   const aoiPool = new Uint16Array(totalAois)
   const hasSpatialData = spatialData !== undefined
   const spatialBuffer = hasSpatialData
@@ -62,6 +68,7 @@ export function jsonSegmentsToBinary(
 
   let segmentIndex = 0
   let aoiPoolIndex = 0
+  let fixationCursor = 0
 
   for (let s = 0; s < stimuliCount; s++) {
     const stimulus = segments[s] ?? []
@@ -70,6 +77,7 @@ export function jsonSegmentsToBinary(
     for (let p = 0; p < maxParticipants; p++) {
       const indexTableIdx = (s * maxParticipants + p) * 2
       const startSegmentIndex = segmentIndex
+      const startFixationCursor = fixationCursor
 
       const participantSegments = stimulus[p] ?? []
       const participantSpatial = spatialStimulus[p] ?? []
@@ -77,10 +85,11 @@ export function jsonSegmentsToBinary(
       for (let i = 0; i < participantSegments.length; i++) {
         const segment = participantSegments[i]
         const base = segmentIndex * SEGMENT_STRIDE
+        const categoryId = segment[2]
 
         segmentBuffer[base + SegmentField.START_TIME] = segment[0]
         segmentBuffer[base + SegmentField.END_TIME] = segment[1]
-        segmentBuffer[base + SegmentField.CATEGORY_ID] = segment[2]
+        segmentBuffer[base + SegmentField.CATEGORY_ID] = categoryId
 
         const aoiCount = Math.max(0, segment.length - 3)
         segmentBuffer[base + SegmentField.AOI_COUNT] = aoiCount
@@ -99,17 +108,25 @@ export function jsonSegmentsToBinary(
           }
         }
 
+        if ((categoryId | 0) === 0) {
+          fixationIndex[fixationCursor++] = segmentIndex
+        }
+
         segmentIndex++
       }
 
       indexTable[indexTableIdx] = startSegmentIndex
       indexTable[indexTableIdx + 1] = segmentIndex
+      fixationIndexTable[indexTableIdx] = startFixationCursor
+      fixationIndexTable[indexTableIdx + 1] = fixationCursor
     }
   }
 
   return {
     segmentBuffer,
     indexTable,
+    fixationIndex,
+    fixationIndexTable,
     aoiPool,
     hasSpatialData,
     spatialBuffer,

@@ -1,5 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import type { BinaryBufferReader } from '$lib/data/binary'
+import { type BinaryBufferReader, SEGMENT_STRIDE, SegmentField } from '$lib/data/binary'
 import { getAois, getParticipantEndTime } from '$lib/data/engine'
 import { buildAoiSlots } from './aoiSlots'
 import { resolveParams } from './params'
@@ -368,23 +368,33 @@ export function scanAccumulator(
   const acc = recipe.init(ctx)
 
   const { reader, hiddenAoisSet, aoiLookup } = slots
-  const { startIndex, endIndex } = reader.getSegmentRange(scope.stimulusId, scope.participantId)
+  const { startIndex: fStart, endIndex: fEnd } = reader.getFixationRange(
+    scope.stimulusId,
+    scope.participantId,
+  )
+  const segBuf = reader.segmentBufferRaw
+  const aoiPool = reader.aoiPoolRaw
+  const stim = scope.stimulusId
+  const engine = scope.engine
   const resolvedSlots: number[] = []
   let index = 0
 
-  for (let i = startIndex; i < endIndex; i++) {
-    if (reader.getSegmentCategory(i) !== 0) continue
-    const start = reader.getSegmentStart(i)
-    const end = reader.getSegmentEnd(i)
+  for (let k = fStart; k < fEnd; k++) {
+    const i = reader.getFixationSegmentIndex(k)
+    const base = i * SEGMENT_STRIDE
+    // `fixationIndex` is guaranteed category-0 by construction — no filter here.
+    const start = segBuf[base + SegmentField.START_TIME]
+    const end = segBuf[base + SegmentField.END_TIME]
     if (timeEnd > 0 && start >= timeEnd) break
     if (end <= timeStart) continue
 
     resolvedSlots.length = 0
-    const rawAois = reader.getRawAois(i)
-    for (let r = 0; r < rawAois.length; r++) {
-      const rawId = rawAois[r]
+    const aoiCount = segBuf[base + SegmentField.AOI_COUNT] | 0
+    const aoiPtr = segBuf[base + SegmentField.AOI_POINTER] | 0
+    for (let r = 0; r < aoiCount; r++) {
+      const rawId = aoiPool[aoiPtr + r]
       if (hiddenAoisSet?.has(rawId)) continue
-      const slot = aoiLookup.get(scope.engine.getAoiMapping(scope.stimulusId, rawId))
+      const slot = aoiLookup.get(engine.getAoiMapping(stim, rawId))
       // Dedupe so recipes testing `slots.length === 1` (e.g. RQA's
       // single-AOI filter) and counters iterating slots treat a fixation
       // tagged by multiple raw IDs that map to the same AOI slot as a

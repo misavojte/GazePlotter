@@ -1,4 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary'
 import { buildAoiSlots } from './aoiSlots'
 import { resolveParams } from './params'
 import { getRecipe } from './defineMetric'
@@ -47,21 +48,28 @@ export function scanBatch(
   if (active.length === 0) return new Map()
 
   const { reader, hiddenAoisSet, aoiLookup } = slots
-  const { startIndex, endIndex } = reader.getSegmentRange(stimulusId, participantId)
+  const { startIndex: fStart, endIndex: fEnd } = reader.getFixationRange(
+    stimulusId,
+    participantId,
+  )
+  const segBuf = reader.segmentBufferRaw
+  const aoiPool = reader.aoiPoolRaw
   const resolvedSlots: number[] = []
   let index = 0
 
-  for (let i = startIndex; i < endIndex; i++) {
-    if (reader.getSegmentCategory(i) !== 0) continue
-    const start = reader.getSegmentStart(i)
-    const end = reader.getSegmentEnd(i)
+  for (let k = fStart; k < fEnd; k++) {
+    const i = reader.getFixationSegmentIndex(k)
+    const base = i * SEGMENT_STRIDE
+    const start = segBuf[base + SegmentField.START_TIME]
+    const end = segBuf[base + SegmentField.END_TIME]
     if (timeEnd > 0 && start >= timeEnd) break
     if (end <= timeStart) continue
 
     resolvedSlots.length = 0
-    const rawAois = reader.getRawAois(i)
-    for (let r = 0; r < rawAois.length; r++) {
-      const rawId = rawAois[r]
+    const aoiCount = segBuf[base + SegmentField.AOI_COUNT] | 0
+    const aoiPtr = segBuf[base + SegmentField.AOI_POINTER] | 0
+    for (let r = 0; r < aoiCount; r++) {
+      const rawId = aoiPool[aoiPtr + r]
       if (hiddenAoisSet?.has(rawId)) continue
       const slot = aoiLookup.get(engine.getAoiMapping(stimulusId, rawId))
       if (slot !== undefined && resolvedSlots.indexOf(slot) === -1) resolvedSlots.push(slot)
