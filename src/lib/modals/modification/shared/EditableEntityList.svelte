@@ -9,7 +9,7 @@
   import Info from 'lucide-svelte/icons/info'
   import { tooltipAction } from '$lib/tooltip'
   import { createListReorder, type ListReorderConfig } from './listReorder.action'
-  import { clickOutside } from './clickOutside'
+  import { clickOutside } from './clickOutside.action'
   import type { EntityGroup } from './groupedEntityEditor.svelte'
   import type {
     BaseInterpretedDataType,

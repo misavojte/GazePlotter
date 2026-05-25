@@ -2,7 +2,7 @@
   import Replace from 'lucide-svelte/icons/replace'
   import { tooltipAction } from '$lib/tooltip'
   import PatternRenamingTool from './PatternRenamingTool.svelte'
-  import { clickOutside } from './clickOutside'
+  import { clickOutside } from './clickOutside.action'
 
   interface Props {
     onRename: (findText: string, replaceText: string) => void

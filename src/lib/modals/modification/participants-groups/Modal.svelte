@@ -13,7 +13,7 @@
   import ChevronDown from 'lucide-svelte/icons/chevron-down'
   import ChevronUp from 'lucide-svelte/icons/chevron-up'
   import Copy from 'lucide-svelte/icons/copy'
-  import { clickOutside } from '../shared/clickOutside'
+  import { clickOutside } from '../shared/clickOutside.action'
   import Plus from 'lucide-svelte/icons/plus'
   import { tick } from 'svelte'
   import { slide } from 'svelte/transition'
