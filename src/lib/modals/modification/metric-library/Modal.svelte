@@ -11,7 +11,7 @@
   import { InputNumber, Select } from '$lib/shared/components'
   import InputText from '$lib/shared/components/InputText.svelte'
   import type { SelectOption } from '$lib/shared/components'
-  import { createDragReorder } from '$lib/shared/actions/dragReorder'
+  import { createListReorder } from '../shared/listReorder.action'
   import { getGazePlotterSession } from '$lib/session'
   import {
     listMetrics,
@@ -91,7 +91,7 @@
 
   // ── Drag reorder ─────────────────────────────────────────
   let dragItemId = $state<string | null>(null)
-  const dragHandle = createDragReorder<string>({
+  const dragHandle = createListReorder<string>({
     itemSelector: '.metric-card',
     containerSelector: '.metric-grid',
     onDragStart: id => { dragItemId = id },

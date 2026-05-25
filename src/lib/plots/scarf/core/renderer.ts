@@ -5,7 +5,7 @@ import {
   ROW_LABEL_GAP,
 } from '$lib/plots/shared'
 import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
-import { desaturateToWhite } from '$lib/color/utility'
+import { desaturateToWhite } from '$lib/color'
 import { EVENT_STRIDE, RECT_STRIDE } from '../const'
 import type { ScarfData } from '../types'
 

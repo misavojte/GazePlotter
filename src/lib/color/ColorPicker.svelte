@@ -10,7 +10,7 @@
     rgbToHex,
     rgbToHsl,
     hexToRgb,
-  } from '$lib/color/utility'
+  } from '$lib/color'
   import { CATEGORICAL_PALETTE } from '$lib/color/palettes'
 
   interface Props {

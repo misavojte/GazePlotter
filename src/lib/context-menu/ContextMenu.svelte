@@ -6,13 +6,13 @@
   } from './behavior'
   import Check from 'lucide-svelte/icons/check'
   import { contextMenuState } from './contextMenuState.svelte'
-  import { MENU_MAX_HEIGHT, MENU_WIDTH } from './const'
+  import { MENU_MAX_HEIGHT, MENU_WIDTH } from './constants'
   import {
     type MenuInteractiveItem,
     isMenuDivider,
     isMenuFlyoutItem,
   } from './types'
-  import { portal } from './utils'
+  import { portal } from '$lib/shared/placement'
   import ContextSubMenu from './ContextSubMenu.svelte'
 
   // State for which inner submenu is active.

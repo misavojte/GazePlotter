@@ -1,42 +1,5 @@
-import {
-  MENU_WIDTH,
-  MENU_MAX_HEIGHT,
-  DEFAULT_Z_INDEX,
-  MODAL_Z_INDEX,
-  ITEM_HEIGHT,
-  DIVIDER_HEIGHT,
-} from './const'
-import { portal } from '$lib/shared/actions/portal'
-import type { MenuItem } from './types'
-import type { Dimensions } from '$lib/shared/placement'
-
-export { MENU_WIDTH, MENU_MAX_HEIGHT }
-export { portal }
-
-export const estimateMenuHeight = (
-  items: MenuItem[] | undefined,
-  hasContent: boolean
-): number => {
-  if (hasContent) return 50
-  if (items && items.length > 0) {
-    return items.reduce((acc, it) => {
-      if (it.isDivider) return acc + DIVIDER_HEIGHT
-      return acc + ITEM_HEIGHT
-    }, 0)
-  }
-  return 0
-}
-
-export const getMenuSize = (
-  items: MenuItem[] | undefined,
-  hasContent: boolean
-): Dimensions => {
-  const estimatedHeight = estimateMenuHeight(items, hasContent)
-  return {
-    width: MENU_WIDTH,
-    height: Math.min(estimatedHeight, MENU_MAX_HEIGHT),
-  }
-}
+export const DEFAULT_Z_INDEX = 1000
+export const MODAL_Z_INDEX = 1010
 
 /**
  * Check if the given element is inside a modal.
@@ -46,7 +9,7 @@ export const isElementInModal = (element: HTMLElement): boolean => {
 }
 
 /**
- * Compute the z-index for the context menu based on the anchor's context.
+ * Compute the z-index for a floating element based on the anchor's context.
  */
 export const computeZIndex = (anchor: HTMLElement): number => {
   return isElementInModal(anchor) ? MODAL_Z_INDEX : DEFAULT_Z_INDEX

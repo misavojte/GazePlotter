@@ -5,7 +5,7 @@
     TOOLTIP_TRANSITION_DURATION,
     TOOLTIP_ANIMATION_DURATION,
   } from './const'
-  import { portal } from '$lib/shared/actions/portal'
+  import { portal } from '$lib/shared/placement'
 
   import { cubicOut } from 'svelte/easing'
 

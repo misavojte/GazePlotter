@@ -8,7 +8,7 @@
   import GripVertical from 'lucide-svelte/icons/grip-vertical'
   import Info from 'lucide-svelte/icons/info'
   import { tooltipAction } from '$lib/tooltip'
-  import { createDragReorder, type DragReorderConfig } from '$lib/shared/actions/dragReorder'
+  import { createListReorder, type ListReorderConfig } from './listReorder.action'
   import { clickOutside } from './clickOutside'
   import type { EntityGroup } from './groupedEntityEditor.svelte'
   import type {
@@ -52,7 +52,7 @@
     grouped?: GroupedCallbacks
     onItemChange?: (id: number, key: string, value: string) => void
     onSort: (column: string, direction: 'asc' | 'desc') => void
-    onReorder: DragReorderConfig['onReorder']
+    onReorder: ListReorderConfig['onReorder']
     toolbar?: Snippet
   }
 
@@ -75,7 +75,7 @@
   let showSortMenu = $state(false)
   let dragItemKey: number | null = $state(null)
 
-  const dragHandle = createDragReorder({
+  const dragHandle = createListReorder({
     itemSelector: '.entity-card',
     containerSelector: '.entity-grid',
     onDragStart: key => {

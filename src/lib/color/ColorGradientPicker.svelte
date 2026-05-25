@@ -1,6 +1,6 @@
 <script lang="ts">
   import { ColorPicker, ColorPickerManager } from '$lib/color'
-  import { interpolateColor } from '$lib/color/utility'
+  import { interpolateColor } from './interpolation'
   import { PRESET_PALETTES } from '$lib/color/palettes'
   import { fade } from 'svelte/transition'
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getColorForValue } from '$lib/color/utility'
+  import { getColorForValue } from '$lib/color'
   import { updateTooltip } from '$lib/tooltip'
   import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
   import { untrack } from 'svelte'

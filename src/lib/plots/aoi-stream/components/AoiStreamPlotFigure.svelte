@@ -15,8 +15,7 @@
   } from '$lib/plots/shared'
   import { updateTooltip } from '$lib/tooltip'
   import { estimateTextWidth } from '$lib/shared/utils/textUtils'
-  import { desaturateToWhite } from '$lib/color/utility'
-  import { INACTIVE_COLOR } from '$lib/color'
+  import { desaturateToWhite, INACTIVE_COLOR } from '$lib/color'
   import { PRESET_PALETTES } from '$lib/color/palettes'
 
   import {

@@ -22,7 +22,7 @@ import {
   estimateTextWidth,
 } from '$lib/shared/utils/textUtils'
 import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
-import { desaturateToWhite } from '$lib/color/utility'
+import { desaturateToWhite } from '$lib/color'
 
 // ============================================================================
 // TYPES

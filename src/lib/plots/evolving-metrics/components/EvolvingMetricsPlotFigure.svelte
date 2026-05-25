@@ -15,7 +15,7 @@
   } from '$lib/plots/shared'
   import { updateTooltip } from '$lib/tooltip'
   import { estimateTextWidth } from '$lib/shared/utils/textUtils'
-  import { interpolateColor } from '$lib/color/utility'
+  import { interpolateColor } from '$lib/color'
   import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color/palettes'
 
   import {

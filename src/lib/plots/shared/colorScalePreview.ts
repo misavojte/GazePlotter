@@ -1,4 +1,4 @@
-import { interpolateColor } from '$lib/color/utility'
+import { interpolateColor } from '$lib/color'
 
 export interface ColorScaleFields {
   colorMin: string

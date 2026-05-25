@@ -1,4 +1,4 @@
-export interface DragReorderConfig<TId = number> {
+export interface ListReorderConfig<TId = number> {
   /** Selector for draggable item (e.g. '.aoi-card', '.accordion-item') */
   itemSelector: string
   /** Selector for container holding all items (e.g. '.aoi-grid', '.accordion') */
@@ -11,8 +11,8 @@ export interface DragReorderConfig<TId = number> {
   onReorder: (fromIndex: number, toIndex: number) => void
 }
 
-export function createDragReorder<TId = number>(
-  config: DragReorderConfig<TId>
+export function createListReorder<TId = number>(
+  config: ListReorderConfig<TId>
 ): (node: HTMLElement, itemId: TId) => { destroy(): void } {
   return (node: HTMLElement, itemId: TId) => {
     const onPointerDown = (e: PointerEvent) => {

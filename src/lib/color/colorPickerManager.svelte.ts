@@ -1,6 +1,5 @@
 import { tick } from 'svelte'
-import { findScrollableParents } from '$lib/context-menu/utils'
-import { computePlacement, adjustForViewport } from '$lib/shared/placement'
+import { computePlacement, adjustForViewport, findScrollableParents } from '$lib/shared/placement'
 
 /**
  * Manages the state and positioning logic for a color picker popup.

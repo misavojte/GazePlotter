@@ -19,7 +19,7 @@
   import { slide } from 'svelte/transition'
   import { flip } from 'svelte/animate'
   import GripVertical from 'lucide-svelte/icons/grip-vertical'
-  import { createDragReorder } from '$lib/shared/actions/dragReorder'
+  import { createListReorder } from '../shared/listReorder.action'
 
   interface Props {
     source: string
@@ -106,7 +106,7 @@
   // Drag reorder
   let dragGroupId: number | null = $state(null)
 
-  const dragHandle = createDragReorder({
+  const dragHandle = createListReorder({
     itemSelector: '.accordion-item',
     containerSelector: '.accordion',
     onDragStart: id => {

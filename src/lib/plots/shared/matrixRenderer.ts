@@ -1,4 +1,4 @@
-import { getContrastTextColor } from '$lib/color/utility'
+import { getContrastTextColor } from '$lib/color'
 import {
   truncateTextToPixelWidth,
   SYSTEM_SANS_SERIF_STACK,

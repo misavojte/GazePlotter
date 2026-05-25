@@ -1,7 +1,7 @@
 <script lang="ts">
   import InputScaffold from './InputScaffold.svelte'
   import { ColorPicker, ColorPickerManager } from '$lib/color'
-  import { getContrastTextColor, detectColorFormat } from '$lib/color/utility'
+  import { getContrastTextColor, detectColorFormat } from '$lib/color'
   import { untrack } from 'svelte'
   import { fade } from 'svelte/transition'
   import { isInPane } from './paneContext'

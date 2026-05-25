@@ -5,7 +5,7 @@
     shouldCloseMenuOnAction,
   } from './behavior'
   import { fade } from 'svelte/transition'
-  import { MENU_MAX_HEIGHT, MENU_WIDTH } from './const'
+  import { MENU_MAX_HEIGHT, MENU_WIDTH } from './constants'
   import {
     type MenuFlyoutItem,
     type MenuInteractiveItem,
@@ -13,10 +13,8 @@
     isMenuDivider,
     isMenuFlyoutItem,
   } from './types'
-
-
   import { contextMenuState } from './contextMenuState.svelte'
-  import { portal } from './utils'
+  import { portal } from '$lib/shared/placement'
   import ContextSubMenu from './ContextSubMenu.svelte'
 
   interface PositionAction {

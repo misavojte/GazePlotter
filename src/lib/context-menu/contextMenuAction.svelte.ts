@@ -3,16 +3,19 @@ import type { Action } from 'svelte/action'
 import { contextMenuState, updateContextMenu } from './contextMenuState.svelte'
 import {
   getMenuSize,
+} from './layout'
+import {
+  computePlacement,
+  adjustForViewport,
   findScrollableParents,
   computeZIndex,
-} from './utils'
-import { computePlacement, adjustForViewport } from '$lib/shared/placement'
+} from '$lib/shared/placement'
 import type { Position, Alignment } from '$lib/shared/placement'
 import type {
   ContextMenuOptions,
   SlideFrom,
 } from './types'
-import { DEFAULT_OFFSET, MENU_SELECTOR } from './const'
+import { DEFAULT_OFFSET, MENU_SELECTOR } from './constants'
 
 interface InternalState {
   anchor: HTMLElement

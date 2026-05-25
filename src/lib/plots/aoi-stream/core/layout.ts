@@ -6,7 +6,7 @@ import {
   Y_AXIS,
 } from '../const'
 import { calculateIdealStripHeight } from './ridgeline'
-import { desaturateToWhite, interpolateColor } from '$lib/color/utility'
+import { desaturateToWhite, interpolateColor } from '$lib/color'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import { computeNiceYAxis, niceStep } from './axis'
 
