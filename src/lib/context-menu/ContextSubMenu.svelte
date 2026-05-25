@@ -1,7 +1,7 @@
 <script lang="ts">
   import { getMenuSize } from './layout'
   import { adjustForViewport } from '$lib/shared/placement'
-  import { MENU_WIDTH, DEFAULT_COMPONENT_HEIGHT } from './constants'
+  import { MENU_WIDTH, DEFAULT_COMPONENT_HEIGHT } from './const'
   import {
     type MenuFlyoutItem,
     type MenuItem,

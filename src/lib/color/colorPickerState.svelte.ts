@@ -5,7 +5,7 @@ import { computePlacement, adjustForViewport, findScrollableParents } from '$lib
  * Manages the state and positioning logic for a color picker popup.
  * Detaches the floating UI logic from the input component.
  */
-export class ColorPickerManager {
+export class ColorPickerState {
   #isOpen = $state(false)
   #triggerElement = $state<HTMLElement | null>(null)
   #popupElement = $state<HTMLElement | null>(null)
@@ -144,4 +144,3 @@ export class ColorPickerManager {
     }
   }
 }
-

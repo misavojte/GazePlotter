@@ -1,6 +1,6 @@
 <script lang="ts">
   import InputScaffold from './InputScaffold.svelte'
-  import { ColorPicker, ColorPickerManager } from '$lib/color'
+  import { ColorPicker, ColorPickerState } from '$lib/color'
   import { getContrastTextColor, detectColorFormat } from '$lib/color'
   import { untrack } from 'svelte'
   import { fade } from 'svelte/transition'
@@ -8,7 +8,7 @@
 
   /**
    * Color picker input component wrapper.
-   * Uses ColorPickerManager for decoupled popup and positioning logic.
+   * Uses ColorPickerState for decoupled popup and positioning logic.
    */
 
   interface Props {
@@ -39,7 +39,7 @@
   const isCompact = $derived(compact || inPane)
 
   // Controller for the color picker popup logic
-  const picker = new ColorPickerManager()
+  const picker = new ColorPickerState()
 
   // Ensure minimum width constraint is met
   const actualWidth = $derived(Math.max(35, width))

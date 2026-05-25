@@ -15,7 +15,7 @@ import type {
   ContextMenuOptions,
   SlideFrom,
 } from './types'
-import { DEFAULT_OFFSET, MENU_SELECTOR } from './constants'
+import { DEFAULT_OFFSET, MENU_SELECTOR } from './const'
 
 interface InternalState {
   anchor: HTMLElement

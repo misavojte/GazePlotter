@@ -6,7 +6,7 @@
   } from './behavior'
   import Check from 'lucide-svelte/icons/check'
   import { contextMenuState } from './contextMenuState.svelte'
-  import { MENU_MAX_HEIGHT, MENU_WIDTH } from './constants'
+  import { MENU_MAX_HEIGHT, MENU_WIDTH } from './const'
   import {
     type MenuInteractiveItem,
     isMenuDivider,

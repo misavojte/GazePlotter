@@ -5,7 +5,7 @@
     shouldCloseMenuOnAction,
   } from './behavior'
   import { fade } from 'svelte/transition'
-  import { MENU_MAX_HEIGHT, MENU_WIDTH } from './constants'
+  import { MENU_MAX_HEIGHT, MENU_WIDTH } from './const'
   import {
     type MenuFlyoutItem,
     type MenuInteractiveItem,

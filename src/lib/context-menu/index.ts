@@ -1,5 +1,5 @@
-export { contextMenuAction } from './contextMenuAction.svelte'
-export { MENU_MAX_HEIGHT } from './constants'
+export { contextMenuAction } from './contextMenu.action'
+export { MENU_MAX_HEIGHT } from './const'
 export type {
   ContextMenuOptions,
   MenuActionItem,

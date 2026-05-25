@@ -3,7 +3,7 @@ import {
   MENU_MAX_HEIGHT,
   ITEM_HEIGHT,
   DIVIDER_HEIGHT,
-} from './constants'
+} from './const'
 import type { MenuItem } from './types'
 import type { Dimensions } from '$lib/shared/placement'
 

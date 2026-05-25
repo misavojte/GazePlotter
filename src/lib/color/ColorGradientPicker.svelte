@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ColorPicker, ColorPickerManager } from '$lib/color'
+  import { ColorPicker, ColorPickerState } from '$lib/color'
   import { interpolateColor } from './interpolation'
   import { PRESET_PALETTES } from '$lib/color/palettes'
   import { fade } from 'svelte/transition'
@@ -16,9 +16,9 @@
 
   let middleColorManuallySet = $state(false)
 
-  const minPicker = new ColorPickerManager()
-  const middlePicker = new ColorPickerManager()
-  const maxPicker = new ColorPickerManager()
+  const minPicker = new ColorPickerState()
+  const middlePicker = new ColorPickerState()
+  const maxPicker = new ColorPickerState()
 
   const gradientStyle = $derived.by(() => {
     return `linear-gradient(to right, ${colorMin}, ${colorMiddle}, ${colorMax})`
