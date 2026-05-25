@@ -12,6 +12,8 @@ export type TransitionMatrixPlotSettings = {
    * metric — the plot just renders whatever matrix the metric produces.
    */
   metricInstanceIds: string[]
+  timelineStart?: number
+  timelineEnd?: number
   stimuliColorValueRanges: [number, number][]
   belowMinColor: string
   aboveMaxColor: string

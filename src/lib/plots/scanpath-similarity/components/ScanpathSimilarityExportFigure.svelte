@@ -25,6 +25,8 @@
       settings.stimulusId,
       settings.groupId,
       settings.metricInstanceIds[0] ?? null,
+      settings.timelineStart ?? 0,
+      settings.timelineEnd ?? 0,
     )
   )
 

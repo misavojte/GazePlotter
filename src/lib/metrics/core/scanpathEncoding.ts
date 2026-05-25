@@ -6,13 +6,19 @@ import type { ExtendedInterpretedDataType } from '$lib/data/types'
  * Each fixation's primary AOI is mapped to a letter (A, B, C…); fixations
  * outside any visible AOI become '#'. With `collapsed=true`, consecutive
  * identical characters are folded so that "AABBC" becomes "ABC".
+ *
+ * Time window: a fixation is encoded when its onset falls in
+ * `[timeStart, timeEnd)`. `timeEnd <= 0` means "unbounded above";
+ * `timeStart <= 0` means "unbounded below".
  */
 export function collectScanpath(
   engine: DataEngine,
   stimulusId: number,
   participantId: number,
   aois: readonly ExtendedInterpretedDataType[],
-  collapsed: boolean
+  collapsed: boolean,
+  timeStart: number = 0,
+  timeEnd: number = 0,
 ): string {
   const reader = engine.getReader()
   const meta = engine.metadata
@@ -32,6 +38,7 @@ export function collectScanpath(
   const aoiBuffer = new Uint16Array(32)
   let result = ''
   let prevChar = ''
+  const hasUpperBound = timeEnd > 0
 
   const { startIndex, endIndex } = reader.getSegmentRange(
     stimulusId,
@@ -40,6 +47,10 @@ export function collectScanpath(
 
   for (let segIdx = startIndex; segIdx < endIndex; segIdx++) {
     if (reader.getSegmentCategory(segIdx) !== 0) continue
+
+    const segStart = reader.getSegmentStart(segIdx)
+    if (segStart < timeStart) continue
+    if (hasUpperBound && segStart >= timeEnd) break
 
     const aoiCount = aoiGroupReader.getSegmentAoisIntoUniqueTyped(
       segIdx,
@@ -79,7 +90,9 @@ export function collectAllScanpaths(
   stimulusId: number,
   participantIds: readonly number[],
   aois: readonly ExtendedInterpretedDataType[],
-  collapsed: boolean
+  collapsed: boolean,
+  timeStart: number = 0,
+  timeEnd: number = 0,
 ): { participantId: number; label: string; scanpath: string }[] {
   const meta = engine.metadata
   if (!meta) return []
@@ -87,6 +100,6 @@ export function collectAllScanpaths(
   return participantIds.map(pid => ({
     participantId: pid,
     label: meta.participants.data[pid]?.[1] ?? meta.participants.data[pid]?.[0] ?? `P${pid}`,
-    scanpath: collectScanpath(engine, stimulusId, pid, aois, collapsed),
+    scanpath: collectScanpath(engine, stimulusId, pid, aois, collapsed, timeStart, timeEnd),
   }))
 }

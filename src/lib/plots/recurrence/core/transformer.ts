@@ -24,6 +24,8 @@ export function getRecurrenceData(
     settings.radius,
     settings.gridSize,
     settings.showDuration,
-    settings.minLineLength
+    settings.minLineLength,
+    settings.timelineStart ?? 0,
+    settings.timelineEnd ?? 0,
   )
 }

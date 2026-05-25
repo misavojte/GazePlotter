@@ -5,6 +5,7 @@
   import {
     ColorScalePicker,
     CommonPlotPaneFields,
+    TimelineRangeSection,
   } from '$lib/plots/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
@@ -49,6 +50,8 @@
 </script>
 
 <CommonPlotPaneFields {item} contract={transitionMatrixDefinition.consumesMetrics!} />
+
+<TimelineRangeSection {item} />
 
 <PaneSection title="Visualisation">
   <div class="sub-group">

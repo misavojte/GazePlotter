@@ -18,6 +18,8 @@ export function getTransitionMatrixData(
   stimulusId: number,
   groupId: number,
   metricInstanceId: string | null,
+  timeStart: number = 0,
+  timeEnd: number = 0,
 ): TransitionMatrixData {
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
@@ -42,7 +44,13 @@ export function getTransitionMatrixData(
     return { matrix: new Float64Array(size * size), aoiLabels, aoiList }
   }
 
-  const scope: GroupScope = { engine, stimulusId, participantIds }
+  const scope: GroupScope = {
+    engine,
+    stimulusId,
+    participantIds,
+    timeStart,
+    timeEnd,
+  }
   const matrix = asAoiPairMatrix(queryGroup(resolved.instance, scope))
   return {
     matrix: matrix ? Float64Array.from(matrix.matrix) : new Float64Array(0),

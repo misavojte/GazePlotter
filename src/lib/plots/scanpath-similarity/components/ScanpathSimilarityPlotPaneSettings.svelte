@@ -5,6 +5,7 @@
   import {
     ColorScalePicker,
     CommonPlotPaneFields,
+    TimelineRangeSection,
   } from '$lib/plots/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
@@ -54,6 +55,8 @@
 </script>
 
 <CommonPlotPaneFields {item} contract={scanpathSimilarityDefinition.consumesMetrics!} />
+
+<TimelineRangeSection {item} />
 
 <PaneSection title="Visualisation">
   <Select

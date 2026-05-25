@@ -24,6 +24,8 @@ export function getScanpathSimilarityData(
   stimulusId: number,
   groupId: number,
   metricInstanceId: string | null,
+  timeStart: number = 0,
+  timeEnd: number = 0,
 ): ScanpathSimilarityData {
   const meta = engine.metadata
   if (!meta) {
@@ -44,7 +46,13 @@ export function getScanpathSimilarityData(
     return { labels: [], participantIds: [], matrix: new Float64Array(0), size: 0 }
   }
 
-  const scope: GroupScope = { engine, stimulusId, participantIds }
+  const scope: GroupScope = {
+    engine,
+    stimulusId,
+    participantIds,
+    timeStart,
+    timeEnd,
+  }
   const result = asParticipantPairMatrix(queryGroup(resolved.instance, scope))
   if (!result) {
     return { labels: [], participantIds: [], matrix: new Float64Array(0), size: 0, noMetric: true }

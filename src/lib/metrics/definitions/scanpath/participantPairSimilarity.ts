@@ -23,7 +23,9 @@ const params = [
  * - **Shape:** `participant-pair-matrix`
  * - **Unit:** `0–1` (1 = identical, 0 = completely different)
  * - **Category:** `scanpath`
- * - **Windowing:** not supported in Phase 1.
+ * - **Windowing:** sliding-window projection is not supported (`supportsWindowing: false`).
+ *   Time-of-interest cropping via `scope.timeStart/timeEnd` IS supported — a
+ *   fixation is encoded when its onset falls in `[timeStart, timeEnd)`.
  *
  * ### Parameters
  * - `method` (enum, default `'levenshtein'`): comparison kernel.
@@ -76,6 +78,8 @@ defineMetric({
       scope.participantIds,
       aois,
       collapsed,
+      scope.timeStart ?? 0,
+      scope.timeEnd ?? 0,
     )
     return {
       matrix: computeSimilarityMatrix(entries.map(e => e.scanpath), method),

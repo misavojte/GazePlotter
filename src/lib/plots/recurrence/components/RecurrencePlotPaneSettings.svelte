@@ -5,6 +5,7 @@
     getStimuliOptions,
     getParticipantOptions,
   } from '$lib/plots/shared'
+  import { TimelineRangeSection } from '$lib/plots/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import {
@@ -138,6 +139,8 @@
     onValueChange={v => update({ minLineLength: v ?? settings.minLineLength })}
   />
 </PaneSection>
+
+<TimelineRangeSection {item} />
 
 <PaneSection title="Visualisation">
   <Radio

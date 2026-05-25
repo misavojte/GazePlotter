@@ -5,12 +5,17 @@ import { computeRqa, computeRqaWithDuration } from '$lib/metrics/core/rqa'
 /**
  * Collect fixation records for a single participant on a stimulus.
  * Returns null if spatial data is unavailable.
+ *
+ * Time window: a fixation is kept when its onset falls in `[timeStart, timeEnd)`.
+ * `timeEnd <= 0` means "unbounded above"; `timeStart <= 0` means "unbounded below".
  */
 export function collectFixations(
   engine: DataEngine,
   stimulusId: number,
   participantId: number,
-  requireSpatial: boolean = true
+  requireSpatial: boolean = true,
+  timeStart: number = 0,
+  timeEnd: number = 0,
 ): FixationRecord[] | null {
   const reader = engine.getReader()
   const meta = engine.metadata
@@ -25,15 +30,19 @@ export function collectFixations(
 
   const hiddenAois = meta.aois.hiddenAois?.[stimulusId] ?? []
   const hiddenAoisSet = hiddenAois.length ? new Set(hiddenAois) : null
+  const hasUpperBound = timeEnd > 0
 
   for (let segIdx = startIndex; segIdx < endIndex; segIdx++) {
     if (reader.getSegmentCategory(segIdx) !== 0) continue
 
+    const segStart = reader.getSegmentStart(segIdx)
+    if (segStart < timeStart) continue
+    if (hasUpperBound && segStart >= timeEnd) break
+
     const spatial = reader.getSegmentSpatial(segIdx)
     if (requireSpatial && !spatial) continue
 
-    const duration =
-      reader.getSegmentEnd(segIdx) - reader.getSegmentStart(segIdx)
+    const duration = reader.getSegmentEnd(segIdx) - segStart
 
     // Collect AOI IDs for this fixation
     const rawAois = reader.getRawAois(segIdx)
@@ -66,9 +75,18 @@ export function collectRecurrenceData(
   radius: number,
   gridSize: number,
   showDuration: boolean,
-  minLineLength: number
+  minLineLength: number,
+  timeStart: number = 0,
+  timeEnd: number = 0,
 ): RecurrenceData | null {
-  const fixations = collectFixations(engine, stimulusId, participantId, method !== 'aoi')
+  const fixations = collectFixations(
+    engine,
+    stimulusId,
+    participantId,
+    method !== 'aoi',
+    timeStart,
+    timeEnd,
+  )
   if (!fixations || fixations.length < 2) return null
 
   const N = fixations.length

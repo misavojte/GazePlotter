@@ -20,6 +20,8 @@ export type RecurrencePlotSettings = {
   gridSize: number
   showDuration: boolean
   minLineLength: number
+  timelineStart?: number
+  timelineEnd?: number
   highlight: RecurrenceHighlight
   masking: RecurrenceMasking
 }

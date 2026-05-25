@@ -13,6 +13,8 @@ export type ScanpathSimilaritySettings = {
    * metric, not the plot.
    */
   metricInstanceIds: string[]
+  timelineStart?: number
+  timelineEnd?: number
   view: ScanpathSimilarityView
   /** Threshold parameter for scangraph adjacency (0-1) */
   threshold: number
