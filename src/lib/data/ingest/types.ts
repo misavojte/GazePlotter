@@ -91,3 +91,26 @@ export interface FileMetadataFailureType extends FileInputType {
  * Union type for file metadata that can represent either success or failure states.
  */
 export type FileMetadataType = FileMetadataSuccessType | FileMetadataFailureType
+
+/**
+ * Prepares the initial files for a GazePlotter session. The returned `File`s
+ * flow through the same ingest pipeline as drag-drop / the upload button —
+ * classification, parsing, and error reporting are the library's concern.
+ *
+ * Called **once per `<GazePlotter>` mount**. To re-trigger, call
+ * `resetLayout()` on the instance or remount via `{#key value}`.
+ *
+ * Contract:
+ * - **Files**: return one or more `File`s with meaningful names — the
+ *   extension drives classification (`.json` workspace, `.csv`, `.zip`, …).
+ *   Return `[]` to open an empty workspace with upload UI ready.
+ * - **Errors**: throw `Error` whose `message` is user-facing — GazePlotter
+ *   surfaces it verbatim. Use `new Error(msg, { cause })` to preserve the
+ *   underlying error in the metadata report.
+ * - **Cancellation**: the `signal` aborts when the load is superseded
+ *   (unmount or `resetLayout()`). Forward it to `fetch(..., { signal })`.
+ *   While `signal.aborted`, the library drops rejections silently; any
+ *   rejection that surfaces *before* abort — including stray `AbortError`s
+ *   from your own logic — is reported as a fatal-load error.
+ */
+export type DataLoader = (signal: AbortSignal) => Promise<File[]>

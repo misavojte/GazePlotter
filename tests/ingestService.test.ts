@@ -183,4 +183,129 @@ describe('IngestService', () => {
     expect(file.arrayBuffer).not.toHaveBeenCalled()
     expect(workerInstances[0]?.terminate).toHaveBeenCalledTimes(1)
   })
+
+  it('applyEmpty resets state to ready and clears all errors', async () => {
+    const { service, deps } = await loadHarness(() => {})
+
+    service.applyEmpty()
+
+    expect(service.status).toBe('ready')
+    expect(service.isLoading).toBe(false)
+    expect(service.metadata).toBeNull()
+    expect(service.input).toBeNull()
+    expect(service.progressPercent).toBe(0)
+    expect(deps.errorService.clearAll).toHaveBeenCalledTimes(1)
+    expect(deps.engine.loadDataset).toHaveBeenCalledTimes(1)
+    expect(deps.grid.reset).toHaveBeenCalledTimes(1)
+    expect(deps.resetWorkspaceHistory).toHaveBeenCalledTimes(1)
+  })
+
+  it('derived status reflects errorService.fatalLoad regardless of explicitStatus', async () => {
+    vi.resetModules()
+
+    class FakeWorker {
+      onmessage: ((event: MessageEvent) => void) | null = null
+      onerror: ((event: ErrorEvent) => void) | null = null
+      onmessageerror: ((event: MessageEvent) => void) | null = null
+      postMessage = vi.fn()
+      terminate = vi.fn()
+    }
+    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+    vi.stubGlobal('navigator', { userAgent: 'vitest' })
+
+    const { IngestService } = await import('$lib/data/ingest/service.svelte')
+    const { ErrorService } = await import('$lib/errors')
+
+    const toastState = {
+      addError: vi.fn(),
+      addInfo: vi.fn(),
+      addSuccess: vi.fn(),
+    }
+
+    function makeService(errorService: any) {
+      return new IngestService({
+        engine: { loadDataset: vi.fn() },
+        errorService,
+        grid: { reset: vi.fn() },
+        modalState: { open: vi.fn(), close: vi.fn() },
+        toastState,
+        resetWorkspaceHistory: vi.fn(),
+      } as any)
+    }
+
+    // We construct a fresh IngestService per observation point rather than
+    // mutating one in place. Cross-instance `$derived` invalidation isn't
+    // reliable outside a Svelte component scope, but each fresh derivation
+    // reads `errorService.fatalLoad` correctly on its first evaluation, which
+    // is what we want to assert: the truth table of the derivation.
+
+    // Case 1: no fatalLoad → status follows explicitStatus.
+    const cleanErrors = new ErrorService(toastState)
+    const readyService = makeService(cleanErrors)
+    readyService.applyEmpty() // explicitStatus = 'ready'
+    expect(readyService.status).toBe('ready')
+
+    // Case 2: fatalLoad set on errorService, observed by a fresh service whose
+    //         explicitStatus is still the initial 'loading' → 'error' wins.
+    const dirtyErrors = new ErrorService(toastState)
+    dirtyErrors.report({
+      origin: 'plot',
+      severity: 'fatal-load',
+      userMessage: 'plot stage exploded',
+      cause: new Error('boom'),
+    })
+    const erroredService = makeService(dirtyErrors)
+    expect(erroredService.status).toBe('error')
+
+    // Case 3: explicit = 'ready' AND fatalLoad set → 'error' wins (load-bearing
+    //         claim). Ordering matters: we must call applyEmpty FIRST (it calls
+    //         clearAll → fatalLoad := null), THEN report a fatal-load from
+    //         elsewhere, THEN read `status` for the first time so the lazy
+    //         derivation captures both inputs in one evaluation.
+    const errors3 = new ErrorService(toastState)
+    const service3 = makeService(errors3)
+    service3.applyEmpty()
+    errors3.report({
+      origin: 'plot',
+      severity: 'fatal-load',
+      userMessage: 'plot stage exploded after ingest went ready',
+      cause: new Error('boom'),
+    })
+    expect(service3.status).toBe('error')
+
+    // Case 4: fatalLoad cleared on the same errorService → fresh service sees
+    //         explicit again.
+    dirtyErrors.clearFatalLoad()
+    const recoveredService = makeService(dirtyErrors)
+    recoveredService.applyEmpty()
+    expect(recoveredService.status).toBe('ready')
+  })
+
+  it('loadFiles accepts a plain File[] (not just FileList)', async () => {
+    const { service, report, workerInstances } = await loadHarness(message => {
+      if (message.type === 'test-stream') {
+        throw new Error('Stream transfer is not supported in this environment')
+      }
+    })
+
+    const file = {
+      name: 'plain-array.csv',
+      size: 7,
+      stream: vi.fn(() => new ReadableStream()),
+      arrayBuffer: vi.fn().mockRejectedValue(new Error('arrayBuffer failed')),
+    } as unknown as File
+
+    const result = await service.loadFiles([file])
+
+    expect(result).toBe(false)
+    expect(report).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: expect.objectContaining({
+          fileNames: ['plain-array.csv'],
+          fileSizes: [7],
+        }),
+      })
+    )
+    expect(workerInstances[0]?.terminate).toHaveBeenCalledTimes(1)
+  }, 15000)
 })
