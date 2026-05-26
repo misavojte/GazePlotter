@@ -66,6 +66,7 @@
           currentFileInput,
           isSameAsSource,
           fileMetadata,
+          hasValidData: engine.hasValidData,
           recentErrors,
           generatedAt: exportDate.toISOString(),
         },
@@ -132,8 +133,12 @@
   <MetadataSection title="Source parsing (original eye tracking export)">
     {#if fileMetadata === null}
       <Card padding="sm">
-        This data was parsed before GazePlotter version 1.7.0 and original
-        parsing metadata is thus not available.
+        {#if engine.hasValidData}
+          This data was parsed before GazePlotter version 1.7.0 and original
+          parsing metadata is thus not available.
+        {:else}
+          No data has been loaded.
+        {/if}
       </Card>
     {:else if fileMetadata.status === 'failure'}
       <Card padding="sm" gap="0.5rem" class="failure-details">

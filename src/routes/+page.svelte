@@ -1,30 +1,20 @@
 <script lang="ts">
-  import { GazePlotter } from '$lib'
+  import { GazePlotter, fromUrl } from '$lib'
   import { Card } from '$lib/shared/components'
   import { base } from '$app/paths'
   import { browser } from '$app/environment'
-  import type { GazePlotterSession } from '$lib/session'
 
-  const pathToData = `${base}/data/demo.json?v=2`
+  const demoDataPath = `${base}/data/demo.json?v=2`
 
-  async function loadInitialData(session: GazePlotterSession): Promise<void> {
-    if (!pathToData || !browser)
-      return Promise.reject('No path to data or not in browser')
-
-    const blob = await fetch(pathToData).then(response => response.blob())
-    const file = new File([blob], 'demo.json', {
-      type: 'application/json',
-    })
-    const fileList = Object.assign([file], {
-      item: () => file,
-      length: 1,
-      [Symbol.iterator]: function* () {
-        yield file
-      },
-    }) as FileList
-
-    await session.ingest.loadFiles(fileList)
-  }
+  // Read `?dataUrl=` once at mount. Switching sources mid-session needs a
+  // page reload — matches GazePlotter's "load is one-shot" contract.
+  const dataUrl = browser
+    ? new URL(window.location.href).searchParams.get('dataUrl')
+    : null
+  const load = fromUrl(
+    dataUrl ?? demoDataPath,
+    dataUrl ? 'data.json' : 'demo.json'
+  )
 </script>
 
 <svelte:head>
@@ -46,7 +36,7 @@
     </p>
   </section>
   <section>
-    <GazePlotter {loadInitialData} />
+    <GazePlotter {load} />
   </section>
   <section class="main-section" id="about">
     <div class="about-grid">
