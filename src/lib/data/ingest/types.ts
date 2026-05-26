@@ -93,35 +93,24 @@ export interface FileMetadataFailureType extends FileInputType {
 export type FileMetadataType = FileMetadataSuccessType | FileMetadataFailureType
 
 /**
- * Function that prepares the initial files for a GazePlotter session. The
- * returned `File`s flow through the same ingest pipeline used by drag-drop
- * and the upload button — classification, parsing, and error reporting are
- * the library's concern, not the loader's.
+ * Prepares the initial files for a GazePlotter session. The returned `File`s
+ * flow through the same ingest pipeline as drag-drop / the upload button —
+ * classification, parsing, and error reporting are the library's concern.
  *
- * Called **once per `<GazePlotter>` mount**. To re-trigger the load
- * imperatively, call `resetLayout()` on the component instance. To re-trigger
- * declaratively when an input changes, wrap the component in `{#key value}`.
+ * Called **once per `<GazePlotter>` mount**. To re-trigger, call
+ * `resetLayout()` on the instance or remount via `{#key value}`.
  *
  * Contract:
- * - **Files**: return one or more `File` objects with meaningful names. The
+ * - **Files**: return one or more `File`s with meaningful names — the
  *   extension drives classification (`.json` workspace, `.csv`, `.zip`, …).
- *   Return `[]` to bootstrap with no preloaded data — the workspace opens
- *   ready, with the upload UI immediately available.
- * - **Errors**: throw an `Error` whose `message` is user-facing — GazePlotter
- *   surfaces it verbatim in the toast / "Data Load Failed" indicator. Wrap
- *   the underlying cause via `new Error(message, { cause })` to preserve it
- *   in the metadata report.
+ *   Return `[]` to open an empty workspace with upload UI ready.
+ * - **Errors**: throw `Error` whose `message` is user-facing — GazePlotter
+ *   surfaces it verbatim. Use `new Error(msg, { cause })` to preserve the
+ *   underlying error in the metadata report.
  * - **Cancellation**: the `signal` aborts when the load is superseded
- *   (component unmount or `resetLayout()`). Honour it by forwarding to
- *   `fetch(..., { signal })` and bailing on abort. When `signal.aborted`
- *   becomes true the library silently drops any subsequent rejection or
- *   result; rejections that surface while the signal is *not* aborted —
- *   including stray `AbortError`s from your own logic — are reported as
- *   fatal-load errors.
- *
- * How URLs, IndexedDB, host bridges, OAuth pickers, etc. produce these files
- * is out of scope for GazePlotter — that construction lives in the consumer.
- * For the common "single file over HTTP" case, use the bundled
- * {@link fromUrl} helper.
+ *   (unmount or `resetLayout()`). Forward it to `fetch(..., { signal })`.
+ *   While `signal.aborted`, the library drops rejections silently; any
+ *   rejection that surfaces *before* abort — including stray `AbortError`s
+ *   from your own logic — is reported as a fatal-load error.
  */
 export type DataLoader = (signal: AbortSignal) => Promise<File[]>
