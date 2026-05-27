@@ -2,17 +2,21 @@
  * Transformer for evolving-metrics data.
  *
  * Turns the runtime's `scalar-timeseries` output into a list of
- * `EvolvingMetricsWindow`s per participant. Each window carries a scientific
- * `centerMs` anchor (the midpoint of its data) plus paint boundaries that
- * drive heatmap rectangles. Overlay line plots anchor each point at
- * `centerMs`.
+ * `EvolvingMetricsWindow`s per participant. The list is a **step function on
+ * the time axis**: value `w.value` is held across `[w.startMs, w.endMs)`,
+ * with `w.centerMs` carrying the scientific anchor (midpoint of the data
+ * that produced the measurement) as semantic metadata. Every visualization
+ * — heatmap rectangles, overlay step lines, aggregate sampling, hover
+ * lookups — consumes this single signal definition.
  *
- *   - Fixation-windowed metrics paint the **middle fixation's own span** —
- *     `[timestamps[midFix], endTimestamps[midFix]]`. Adjacent windows are
- *     visually separated by the saccade between their middle fixations,
- *     making each SW measurement individually visible (critical for small
- *     windows like Ida's 21 fixations with a 20-fix / 1-step sliding metric,
- *     which produces just two measurements).
+ *   - Fixation-windowed metrics paint by **sample-and-hold from the middle
+ *     fixation's onset, one step forward**: `startMs = timestamps[midFix[k]]`,
+ *     `endMs = timestamps[midFix[k] + stepSize]` (which equals
+ *     `timestamps[midFix[k+1]]` for all but the last sample). The last cell
+ *     is the same width as the interior — symmetric to the `floor(W/2)`
+ *     leading fixations that have no anchor and stay unpainted. We never
+ *     paint past the recording's last fixation. Consecutive cells exactly
+ *     touch, so the overlay line connects naturally.
  *   - Time-windowed metrics paint Voronoi-style boundaries derived from
  *     adjacent centres — when `stepSize === windowSize` this equals the
  *     window's own span (non-overlapping), otherwise it equals `stepSize`
@@ -153,6 +157,12 @@ export function getEvolvingMetricsData(
 
   const windowUnit = metric.meta.windowUnit
   const halfWindowSize = window.windowSize / 2
+  // Centered anchor: each window's value is attributed to its middle
+  // fixation. Chosen for evolution-over-time semantics — zero phase lag,
+  // peaks appear where they occurred. TODO: a future event-locked plot
+  // (window ends at a marked event) will need retrospective anchoring
+  // (midOffsetFix = windowSize - 1). That's a separate plot type with its
+  // own transformer, not a setting on this one.
   const midOffsetFix = Math.floor(window.windowSize / 2)
 
   let valueMin = Infinity
@@ -183,16 +193,21 @@ export function getEvolvingMetricsData(
     const windows: EvolvingMetricsWindow[] = []
 
     if (windowUnit === 'fixations') {
-      // Middle-fixation painting: each SW measurement is visualised across
-      // the span of the single fixation that sits at the window's centre.
-      // Adjacent windows are naturally separated by the saccade between
-      // their centre fixations.
+      // Sample-and-hold from each measurement's middle-fixation onset to the
+      // next measurement's middle-fixation onset. Validity begins when the
+      // anchor fixation begins; every cell — *including the last* — spans
+      // exactly `stepSize` fixations forward, symmetric to the
+      // `floor(windowSize/2)` leading fixations that have no anchor and stay
+      // unpainted at the start. The `centerMs` anchor (middle fixation's
+      // midpoint) is unchanged.
       // Keep extract's filter in lock-step with the recipe's onFixation so
       // timeline indices stay aligned. For RQA metrics this is driven by the
       // instance's `include_no_aoi` boolean (default false).
       const includeNoAoi = Boolean(instance.params?.include_no_aoi)
       const seq = extractFixationSequence(engine, stimulusId, pid, { includeNoAoi })
       const totalFix = seq.timestamps.length
+      const stepFix = window.stepSize
+      const samples: { midFix: number; centerMs: number; value: number }[] = []
       for (let i = 0; i < N; i++) {
         const v = values[i]
         if (!Number.isFinite(v)) continue
@@ -201,9 +216,29 @@ export function getEvolvingMetricsData(
         const a = seq.timestamps[midFix]
         const b = seq.endTimestamps[midFix]
         if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) continue
-        windows.push({ startMs: a, endMs: b, centerMs: (a + b) / 2, value: v })
-        if (v < valueMin) valueMin = v
-        if (v > valueMax) valueMax = v
+        samples.push({ midFix, centerMs: (a + b) / 2, value: v })
+      }
+      for (let k = 0; k < samples.length; k++) {
+        const s = samples[k]
+        const startMs = seq.timestamps[s.midFix]
+        let endMs: number
+        if (k + 1 < samples.length) {
+          endMs = seq.timestamps[samples[k + 1].midFix]
+        } else {
+          // Last cell: extend exactly one step forward, mirroring how each
+          // interior cell spans its anchor + the `stepFix - 1` fixations
+          // that follow. If the next-step index would overshoot available
+          // fixations, end at the anchor fixation's own offset — never
+          // paint past real data.
+          const nextMid = s.midFix + stepFix
+          endMs = nextMid < totalFix
+            ? seq.timestamps[nextMid]
+            : seq.endTimestamps[s.midFix]
+        }
+        if (!Number.isFinite(endMs) || endMs <= startMs) continue
+        windows.push({ startMs, endMs, centerMs: s.centerMs, value: s.value })
+        if (s.value < valueMin) valueMin = s.value
+        if (s.value > valueMax) valueMax = s.value
       }
     } else {
       // Time-windowed: Voronoi boundaries give gap-free coverage (equal to

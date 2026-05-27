@@ -575,10 +575,12 @@
     const sampleToX = (i: number) =>
       floorLeft + ((i + 0.5) / sampleCount) * floorWidth
 
-    // Individual participants as center-aligned line plots — each window is
-    // plotted as a point at its `centerMs` (scientific anchor) and connected
-    // to its neighbours by straight lines. This is the classic SW-metric
-    // rendering; Voronoi paint boundaries only matter for the heatmap.
+    // Individual participants as step lines — each window's value is
+    // rendered as a horizontal segment across `[startMs, endMs)` joined to
+    // the next by a vertical riser. This is the same step function the
+    // heatmap paints and the aggregate samples: one signal, one shape, so
+    // an overlay line ends at the exact x-position the heatmap row's
+    // colour band ends.
     const alpha = Math.max(0.04, Math.min(0.5, 2 / Math.sqrt(participantCount)))
     ctx.lineWidth = participantCount > 30 ? 0.5 : 1
 
@@ -587,7 +589,7 @@
       const wins = data.participants[p].windows
       if (wins.length === 0) continue
       ctx.strokeStyle = `rgba(${OVERLAY_INDIVIDUAL_RGB}, ${alpha})`
-      drawCenterLinePath(ctx, wins, msToX, valueToY)
+      drawStepLinePath(ctx, wins, msToX, valueToY)
       ctx.stroke()
     }
 
@@ -651,13 +653,13 @@
       if (wins.length > 0) {
         ctx.strokeStyle = '#007acc'
         ctx.lineWidth = 1
-        drawCenterLinePath(ctx, wins, msToX, valueToY)
+        drawStepLinePath(ctx, wins, msToX, valueToY)
         ctx.stroke()
       }
     }
   }
 
-  function drawCenterLinePath(
+  function drawStepLinePath(
     ctx: CanvasRenderingContext2D,
     wins: readonly EvolvingMetricsWindow[],
     msToX: (ms: number) => number,
@@ -668,17 +670,20 @@
     for (let i = 0; i < wins.length; i++) {
       const w = wins[i]
       // Break the line if this window doesn't abut the previous — signals a
-      // data hole rather than stitching across it.
+      // data hole rather than stitching across it. The transformer no longer
+      // produces gaps, but keep the guard for robustness.
       const prev = i > 0 ? wins[i - 1] : null
       const hasGap = prev !== null && Math.abs(w.startMs - prev.endMs) > 0.5
-      const x = msToX(w.centerMs)
+      const x0 = msToX(w.startMs)
+      const x1 = msToX(w.endMs)
       const y = valueToY(w.value)
       if (!drawing || hasGap) {
-        ctx.moveTo(x, y)
-        drawing = true
+        ctx.moveTo(x0, y)
       } else {
-        ctx.lineTo(x, y)
+        ctx.lineTo(x0, y)
       }
+      ctx.lineTo(x1, y)
+      drawing = true
     }
   }
 
