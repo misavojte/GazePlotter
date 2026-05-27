@@ -1,7 +1,7 @@
 <script lang="ts">
   import Pencil from 'lucide-svelte/icons/pencil'
   import { getGazePlotterSession } from '$lib/session'
-  import { metricLibraryModal } from '$lib/modals/definitions'
+  import { configureMetricModal } from '$lib/modals/modification/metric-library/definition-steps'
   import { Select } from '$lib/shared/components'
   import type { SelectOption } from '$lib/shared/components/select'
   import {
@@ -100,11 +100,10 @@
   }
 
   function openLibraryEditing(metricId: string) {
-    modalState.open(metricLibraryModal, {
+    modalState.open(configureMetricModal, {
       contract,
       editMetricId: metricId,
       oncreateInstance,
-      ondeleteInstance,
       onrenameInstance,
     })
   }

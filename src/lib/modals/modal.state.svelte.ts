@@ -62,6 +62,15 @@ export class ModalState {
     activeModal.resolve(null)
   }
 
+  closeToRoot(): void {
+    if (this.stack.length <= 1) return
+    const popped = this.stack.slice(1)
+    this.stack = [this.stack[0]]
+    for (const entry of popped) {
+      entry.resolve(null)
+    }
+  }
+
   private createEntry<TDefinition extends ModalDefinition<Component<any>, any>>(
     definition: TDefinition,
     props: ModalProps<TDefinition>,
