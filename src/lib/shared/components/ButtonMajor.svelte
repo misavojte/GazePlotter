@@ -9,6 +9,7 @@
     href?: string
     noopener?: boolean
     type?: 'button' | 'submit' | 'link'
+    target?: '_self' | '_blank'
   }
 
   let {
@@ -20,6 +21,7 @@
     href,
     noopener = false,
     type = 'button',
+    target = '_blank',
   }: Props = $props()
 
   const isLink = untrack(() => type === 'link' || href !== undefined)
@@ -29,7 +31,7 @@
   <a
     class={[size, variant].join(' ')}
     {href}
-    target="_blank"
+    {target}
     rel={noopener ? 'noopener' : undefined}
     {onclick}
   >
