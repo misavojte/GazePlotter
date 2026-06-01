@@ -34,9 +34,9 @@ defineTransitionMetric<Params>({
   id: 'transitionProbability',
   label: 'Transition probability',
   description:
-    'Per AOI pair (row → column): row-normalised transition probability — the probability that the ' +
-    'next transition out of row-AOI lands on column-AOI (Markov-chain view). With step ≥ 2, returns ' +
-    'P^k — the probability of arriving at column-AOI after k transitions.',
+    'Per AOI pair (from → to): row-normalised transition probability — the probability that the ' +
+    'next transition out of source AOI lands on target AOI (Markov-chain view). With step ≥ 2, returns ' +
+    'P^k — the probability of arriving at target AOI after k transitions.',
   unit: '%',
   groupAggregation: 'mean',
   defaultLabel: p => {

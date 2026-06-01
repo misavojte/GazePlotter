@@ -30,7 +30,7 @@ defineTransitionMetric<Params>({
   id: 'transitionDwellSum',
   label: 'Transition dwell sum',
   description:
-    'Per AOI pair (row → column): sum of pre-transition dwell times before each row → column transition. ' +
+    'Per AOI pair (from → to): sum of pre-transition dwell times before each from → to transition. ' +
     'In fixation mode that\'s the duration of the single preceding fixation; in visit mode, the duration ' +
     'of the preceding visit (consecutive same-AOI fixations merged).',
   unit: 'ms',

@@ -56,7 +56,8 @@
     const unit = getMetric(inst.baseId)?.meta.unit ?? ''
     const params = formatParamReadout(inst)
     const projLine = formatProjectionReadout(inst)
-    return [unit, ...params, projLine].filter(Boolean).join(' · ')
+    const filteredProjLine = projLine && !inst.label.includes(projLine) ? projLine : null
+    return [unit, ...params, filteredProjLine].filter(Boolean).join(' · ')
   }
 
   const options = $derived<SelectOption[]>(

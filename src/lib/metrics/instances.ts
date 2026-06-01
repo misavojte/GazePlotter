@@ -95,24 +95,31 @@ export function resolveInstance(
 // ─── Label / readout helpers ─────────────────────────────────────────────────
 
 /**
- * Bare semantic name for a metric instance — answers "what does this metric
- * mean?" and nothing else. Never includes unit, params, window, projection,
- * or brackets. Shaping metadata is shown alongside as a subtitle in selection
- * UIs, and as `Label / unit` (IUPAC) on plot axes — both composed from the
- * recipe definition, not baked into this string.
+ * Human-readable default label for a metric instance. Combines the bare
+ * semantic name from the recipe with the projection suffix (when the
+ * projection is not an identity leaf).
+ *
+ * Examples:
+ *   - identity projection:         `"Transitions"`
+ *   - matrix-row from AOI "CTA":   `"Transitions · from AOI "CTA""`
+ *   - matrix-diagonal:             `"Transitions · self-transitions"`
  *
  * Recipes can supply `meta.defaultLabel(params)` when the bare name varies
- * with a param (e.g., a reducer choice that changes the quantity entirely);
+ * with a param (e.g., a mode switch that changes the quantity entirely);
  * those callbacks must also return a bare semantic name.
  */
 export function defaultInstanceLabel(
   baseId: string,
   params: Record<string, unknown>,
-  _projection?: Projection,
+  projection?: Projection,
 ): string {
   const m = getMetric(baseId)
   if (!m) return baseId
-  return m.meta.defaultLabel ? m.meta.defaultLabel(params) : m.meta.label
+  const baseName = m.meta.defaultLabel ? m.meta.defaultLabel(params) : m.meta.label
+  if (!projection) return baseName
+  const unit = m.meta.windowUnit ?? 'ms'
+  const projSuffix = projectionToLabel(projection, unit)
+  return projSuffix.length > 0 ? `${baseName} · ${projSuffix}` : baseName
 }
 
 /** Human-readable readout of the projection (including window suffix). */

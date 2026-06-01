@@ -5,7 +5,7 @@ interface Params { mode: 'fixation' | 'visit' }
 /**
  * ## Transition count
  *
- * Number of times gaze transitioned from AOI `i` (row) to AOI `j` (column).
+ * Number of times gaze transitioned from AOI `i` (source) to AOI `j` (target).
  *
  * - **Shape:** `aoi-pair-matrix`
  * - **Unit:** `count`
@@ -28,7 +28,7 @@ defineTransitionMetric<Params>({
   id: 'transitionCount',
   label: 'Transitions',
   description:
-    'Per AOI pair (row → column): count of times gaze transitioned from row-AOI to column-AOI. ' +
+    'Per AOI pair (from → to): count of times gaze transitioned from source AOI to target AOI. ' +
     'In fixation mode every consecutive fixation pair counts; in visit mode only actual AOI changes count.',
   unit: 'count',
   groupAggregation: 'sum',

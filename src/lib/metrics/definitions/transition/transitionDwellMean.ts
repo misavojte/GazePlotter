@@ -29,7 +29,7 @@ defineTransitionMetric<Params>({
   id: 'transitionDwellMean',
   label: 'Mean transition dwell time',
   description:
-    'Per AOI pair (row → column): mean pre-transition dwell time before each row → column transition. ' +
+    'Per AOI pair (from → to): mean pre-transition dwell time before each from → to transition. ' +
     'In fixation mode that\'s the duration of the single preceding fixation; in visit mode, the duration ' +
     'of the preceding visit.',
   unit: 'ms',

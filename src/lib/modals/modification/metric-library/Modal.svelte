@@ -137,7 +137,8 @@
         {@const unit = metric?.meta.unit ?? ''}
         {@const readout = formatParamReadout(inst)}
         {@const projLine = formatProjectionReadout(inst)}
-        {@const detail = [unit, ...readout, projLine].filter(Boolean).join(' · ')}
+        {@const showProjLine = projLine && !inst.label.includes(projLine) ? projLine : null}
+        {@const detail = [unit, ...readout, showProjLine].filter(Boolean).join(' · ')}
         <div
           class="metric-card"
           class:dragging={dragItemId === inst.id}

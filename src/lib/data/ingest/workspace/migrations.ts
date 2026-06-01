@@ -2,6 +2,7 @@ import { LEGACY_VISUALIZATION_TYPES } from '$lib/plots/registry'
 import {
   createDefaultMetricInstances,
   createMetricInstance,
+  defaultInstanceLabel,
   type MetricInstance,
 } from '$lib/metrics/instances'
 import type { MigratedJsonFormat } from '$lib/data/types'
@@ -333,7 +334,19 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
       ? payload.metricInstances.map((inst: any) => {
           if (!inst || typeof inst.baseId !== 'string') return inst
           const next = BASEID_RENAMES[inst.baseId]
-          return next ? { ...inst, baseId: next } : inst
+          const baseId = next ?? inst.baseId
+          let label = inst.label
+
+          // Upgrade legacy default bare labels to be projection-aware
+          if (baseId && inst.projection) {
+            const bareLabel = defaultInstanceLabel(baseId, inst.params ?? {}, undefined)
+            const fullLabel = defaultInstanceLabel(baseId, inst.params ?? {}, inst.projection)
+            if (!label || label.trim() === bareLabel) {
+              label = fullLabel
+            }
+          }
+
+          return { ...inst, baseId, label }
         })
       : createDefaultMetricInstances()
 

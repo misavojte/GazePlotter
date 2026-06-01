@@ -171,21 +171,21 @@ export const PROJECTION_LEAVES: Record<LeafKind, LeafKindDef> = {
   'matrix-diagonal': {
     outputShape: 'aoi-vector',
     rawShapes: ['aoi-pair-matrix'],
-    label: () => 'diagonal',
+    label: () => 'self-transitions',
     cacheKey: () => 'diag',
     apply: (_p, c) => matrixDiagonal(c),
   },
   'matrix-row': {
     outputShape: 'aoi-vector',
     rawShapes: ['aoi-pair-matrix'],
-    label:    (p) => `row ${aoiRefLabel((p as LeafProjection & { kind: 'matrix-row' }).aoiRef)}`,
+    label:    (p) => `from ${aoiRefLabel((p as LeafProjection & { kind: 'matrix-row' }).aoiRef)}`,
     cacheKey: (p) => `row:${aoiRefKey((p as LeafProjection & { kind: 'matrix-row' }).aoiRef)}`,
     apply:    (p, c) => matrixRowOrCol((p as LeafProjection & { kind: 'matrix-row' }).aoiRef, c, 'row'),
   },
   'matrix-col': {
     outputShape: 'aoi-vector',
     rawShapes: ['aoi-pair-matrix'],
-    label:    (p) => `column ${aoiRefLabel((p as LeafProjection & { kind: 'matrix-col' }).aoiRef)}`,
+    label:    (p) => `to ${aoiRefLabel((p as LeafProjection & { kind: 'matrix-col' }).aoiRef)}`,
     cacheKey: (p) => `col:${aoiRefKey((p as LeafProjection & { kind: 'matrix-col' }).aoiRef)}`,
     apply:    (p, c) => matrixRowOrCol((p as LeafProjection & { kind: 'matrix-col' }).aoiRef, c, 'col'),
   },
@@ -211,8 +211,8 @@ export const PROJECTION_LEAVES: Record<LeafKind, LeafKindDef> = {
     label: (p) => {
       const q = p as LeafProjection & { kind: 'matrix-aggregate' }
       return q.exclude === 'diagonal'
-        ? `${q.reducer} of off-diagonal cells`
-        : `${q.reducer} across matrix`
+        ? `${q.reducer} excluding self-transitions`
+        : `${q.reducer} across all pairs`
     },
     cacheKey: (p) => {
       const q = p as LeafProjection & { kind: 'matrix-aggregate' }

@@ -29,7 +29,7 @@ defineTransitionMetric<Params>({
   id: 'transitionRelativeFrequency',
   label: 'Transition relative frequency',
   description:
-    "Per AOI pair (row → column): share of the participant's total transitions that went row → column, " +
+    "Per AOI pair (from → to): share of the participant's total transitions that went from → to, " +
     'expressed as a percentage. Matrix sums to 100% per participant.',
   unit: '%',
   groupAggregation: 'mean',

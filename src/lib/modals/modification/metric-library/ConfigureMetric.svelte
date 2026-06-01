@@ -244,11 +244,11 @@
       case 'pick-aoi':         return 'Pick AOI'
       case 'pick-any-fixation': return 'Any fixation'
       case 'aggregate-aoi':    return 'Aggregate AOIs'
-      case 'matrix-diagonal':  return 'Diagonal'
-      case 'matrix-row':       return 'Row'
-      case 'matrix-col':       return 'Column'
-      case 'matrix-cell':      return 'Cell'
-      case 'matrix-aggregate': return 'Matrix aggregate'
+      case 'matrix-diagonal':  return 'Self-transitions'
+      case 'matrix-row':       return 'From AOI'
+      case 'matrix-col':       return 'To AOI'
+      case 'matrix-cell':      return 'Pair'
+      case 'matrix-aggregate': return 'All pairs'
     }
   }
 
@@ -476,7 +476,7 @@
                   leafDraft = { kind: 'matrix-aggregate', reducer, ...(on ? { exclude: 'diagonal' as const } : {}) }
                 }}
               />
-              Exclude diagonal (self-transitions)
+              Exclude self-transitions
             </label>
           {/if}
         </div>
