@@ -101,8 +101,8 @@ export function resolveInstance(
  *
  * Examples:
  *   - identity projection:         `"Transitions"`
- *   - matrix-row from AOI "CTA":   `"Transitions · from AOI "CTA""`
- *   - matrix-diagonal:             `"Transitions · self-transitions"`
+ *   - matrix-row from AOI "CTA":   `"Transitions from AOI "CTA""`
+ *   - matrix-diagonal:             `"Transitions self-transitions"`
  *
  * Recipes can supply `meta.defaultLabel(params)` when the bare name varies
  * with a param (e.g., a mode switch that changes the quantity entirely);
@@ -119,7 +119,7 @@ export function defaultInstanceLabel(
   if (!projection) return baseName
   const unit = m.meta.windowUnit ?? 'ms'
   const projSuffix = projectionToLabel(projection, unit)
-  return projSuffix.length > 0 ? `${baseName} · ${projSuffix}` : baseName
+  return projSuffix.length > 0 ? `${baseName} ${projSuffix}` : baseName
 }
 
 /** Human-readable readout of the projection (including window suffix). */
