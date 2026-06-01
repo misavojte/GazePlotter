@@ -19,12 +19,12 @@
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import {
-    aoiModificationModal,
     metricLibraryModal,
     participantModificationModal,
     participantsGroupsModal,
     stimulusModificationModal,
   } from '$lib/modals/definitions'
+  import AoiPaneSection from './AoiPaneSection.svelte'
   import {
     multiSelectMetricHandlers,
     singleSelectMetricHandlers,
@@ -68,12 +68,6 @@
 
   function openStimuli() {
     modalState.open(stimulusModificationModal, { source })
-  }
-  function openAois() {
-    modalState.open(aoiModificationModal, {
-      selectedStimulus: String(settings.stimulusId),
-      source,
-    })
   }
   function openGroups() {
     modalState.open(participantsGroupsModal, { source })
@@ -121,9 +115,10 @@
   />
   <PaneEditRow>
     <PaneEditLink onclick={openStimuli}>Edit stimulus library…</PaneEditLink>
-    <PaneEditLink onclick={openAois}>Edit AOIs…</PaneEditLink>
   </PaneEditRow>
 </PaneSection>
+
+<AoiPaneSection stimulusId={settings.stimulusId} {source} />
 
 <PaneSection title="Participant group" summary={groupSummary}>
   <Select
@@ -151,3 +146,5 @@
     <PaneEditLink onclick={openMetricLibrary}>Edit metric library…</PaneEditLink>
   </PaneSection>
 {/if}
+
+

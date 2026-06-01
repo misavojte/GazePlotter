@@ -9,10 +9,10 @@
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import {
-    aoiModificationModal,
     participantModificationModal,
     stimulusModificationModal,
   } from '$lib/modals/definitions'
+  import { AoiPaneSection } from '$lib/plots/shared/components'
   import {
     RECURRENCE_METHODS,
     RECURRENCE_HIGHLIGHTS,
@@ -49,11 +49,6 @@
   )
 
   const openStimuli = () => modalState.open(stimulusModificationModal, { source })
-  const openAois = () =>
-    modalState.open(aoiModificationModal, {
-      selectedStimulus: String(settings.stimulusId),
-      source,
-    })
   const openParticipants = () => modalState.open(participantModificationModal, { source })
 
   const hasSpatial = $derived(engine.capabilities.spatial)
@@ -75,9 +70,10 @@
   />
   <PaneEditRow>
     <PaneEditLink onclick={openStimuli}>Edit stimulus library…</PaneEditLink>
-    <PaneEditLink onclick={openAois}>Edit AOIs…</PaneEditLink>
   </PaneEditRow>
 </PaneSection>
+
+<AoiPaneSection stimulusId={settings.stimulusId} {source} />
 
 <PaneSection title="Participant" summary={participantSummary}>
   <Select
@@ -160,3 +156,5 @@
 </PaneSection>
 
 <TimelineRangeSection {item} />
+
+

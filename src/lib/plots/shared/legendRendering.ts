@@ -79,6 +79,8 @@ export interface LegendConfig {
   lineDash: readonly [number, number]
   /** Height of non-fixation items */
   nonFixationHeight: number
+  /** Gap between the inline title gutter and the item grid (grouped legends) */
+  titleGutterGap: number
 }
 
 /** Pre-computed geometry for a single legend item */
@@ -130,6 +132,7 @@ export const SCARF_LEGEND_CONFIG: LegendConfig = {
   topPadding: 0,
   lineDash: [2, 2] as const,
   nonFixationHeight: 4,
+  titleGutterGap: 16,
 }
 
 /** Default configuration matching existing stream plot legend */
@@ -148,6 +151,7 @@ export const STREAM_LEGEND_CONFIG: LegendConfig = {
   topPadding: 5,
   lineDash: [2, 2] as const,
   nonFixationHeight: 4,
+  titleGutterGap: 16,
 }
 
 function drawDirectionalLegendCompositeMarker(
@@ -219,6 +223,13 @@ function getLegendEventOutlineColor(baseColor: string): string {
 // ============================================================================
 // GEOMETRY COMPUTATION FUNCTIONS
 // ============================================================================
+
+/**
+ * Max fraction of the legend width the inline title gutter may occupy before the
+ * grouped legend falls back to the stacked (title-above) layout. Keeps the item
+ * grid from being starved on narrow tiles.
+ */
+const MAX_GUTTER_FRACTION = 0.45
 
 /**
  * Calculate optimal items per row for visually pleasing layout.
@@ -415,11 +426,13 @@ export function computeGroupedLegendGeometry(
     groupTitleSpacing,
     iconWidth,
     textPadding,
+    titleGutterGap,
     fontSize,
     fontFamily,
   } = config
 
-  // 1. Calculate max width needed by ANY item in ANY group
+  // 1. Uniform item-column width = widest item label across ALL groups, so every
+  //    column lines up into one regular grid (capped for readability).
   const maxTextWidth = groups.reduce(
     (max, g) =>
       Math.max(
@@ -437,14 +450,52 @@ export function computeGroupedLegendGeometry(
     250 // Cap width
   )
 
-  // 2. Determine items per row based on max items in any group AND actual width
+  // 2. Inline title gutter: group titles share a fixed-width left column (aligned in
+  //    one vertical strip) and the item grid begins to their right, reclaiming the
+  //    dedicated title lines of the stacked layout. Titles render at weight 600, so
+  //    widen the measured width slightly. Falls back to the stacked title-above layout
+  //    when the gutter would starve the item area on a narrow tile.
+  const maxTitleWidth = groups.reduce(
+    (max, g) =>
+      g.items.length === 0
+        ? max
+        : Math.max(max, estimateTextWidth(g.title, fontSize, fontFamily)),
+    0
+  )
+  const gutterWidth =
+    maxTitleWidth > 0 ? Math.ceil(maxTitleWidth * 1.08) + titleGutterGap : 0
+  const itemAreaWidth = availableWidth - gutterWidth
+  const useInline =
+    gutterWidth > 0 &&
+    itemAreaWidth >= uniformColumnWidth &&
+    gutterWidth <= availableWidth * MAX_GUTTER_FRACTION
+
+  const itemsStartX = useInline ? startX + gutterWidth : startX
+  const layoutWidth = useInline ? itemAreaWidth : availableWidth
+
+  // 3. Column count: most items that fit the width, then (inline only) balanced to
+  //    even out the rows of the largest group at that minimum row count — keeps the
+  //    grid regular without adding height. One global count so columns align across
+  //    groups.
   const maxItemsInGroup = groups.reduce(
     (max, g) => Math.max(max, g.items.length),
     0
   )
-  const effectiveItemsPerRow =
-    itemsPerRowOverride ??
-    getLegendItemsPerRow(availableWidth, config, maxTextWidth, maxItemsInGroup)
+  const maxFit = getLegendItemsPerRow(
+    layoutWidth,
+    config,
+    maxTextWidth,
+    maxItemsInGroup
+  )
+  let effectiveItemsPerRow: number
+  if (itemsPerRowOverride != null) {
+    effectiveItemsPerRow = itemsPerRowOverride
+  } else if (useInline && maxItemsInGroup > 0) {
+    const rows = Math.ceil(maxItemsInGroup / maxFit)
+    effectiveItemsPerRow = Math.max(1, Math.ceil(maxItemsInGroup / rows))
+  } else {
+    effectiveItemsPerRow = maxFit
+  }
 
   const geometryItems: LegendItemGeometry[] = []
   const groupTitles: LegendGroupTitleGeometry[] = []
@@ -457,25 +508,21 @@ export function computeGroupedLegendGeometry(
     // Skip empty groups
     if (group.items.length === 0) continue
 
-    // Add spacing before group (except first)
-    if (g > 0 && groupTitles.length > 0) {
+    // Add spacing before group (except the first rendered one)
+    if (groupTitles.length > 0) {
       currentY += groupSpacing
     }
 
-    // Group title
-    groupTitles.push({
-      title: group.title,
-      x: startX,
-      y: currentY,
-    })
-
-    // Items start after title
-    const itemsStartY = currentY + titleHeight + groupTitleSpacing
+    // Inline: items begin at the band top, the title is centered on the first row.
+    // Stacked: the title takes its own line and items begin below it.
+    const itemsStartY = useInline
+      ? currentY
+      : currentY + titleHeight + groupTitleSpacing
 
     // Calculate Rows
     const groupRows = Math.ceil(group.items.length / effectiveItemsPerRow)
 
-    // 3. Calculate dynamic row heights (Layout Pass 1)
+    // Dynamic row heights (Layout Pass 1)
     const rowHeights = new Float32Array(groupRows).fill(0)
     // Store icon heights to avoid re-calculating in placement pass
     const groupItemIconHeights = new Float32Array(group.items.length)
@@ -501,7 +548,7 @@ export function computeGroupedLegendGeometry(
       }
     }
 
-    // 4. Calculate Row Y positions (Layout Pass 2)
+    // Row Y positions (Layout Pass 2)
     const rowYPositions = new Float32Array(groupRows)
     let groupY = itemsStartY
     for (let r = 0; r < groupRows; r++) {
@@ -509,14 +556,30 @@ export function computeGroupedLegendGeometry(
       groupY += rowHeights[r] + rowPadding
     }
 
-    // 5. Place items (Layout Pass 3)
+    // Group title geometry
+    if (useInline) {
+      // Vertically center the title on the first item row (drawn with baseline 'top').
+      groupTitles.push({
+        title: group.title,
+        x: startX,
+        y: rowYPositions[0] + (rowHeights[0] - fontSize) / 2,
+      })
+    } else {
+      groupTitles.push({
+        title: group.title,
+        x: startX,
+        y: currentY,
+      })
+    }
+
+    // Place items (Layout Pass 3)
     for (let i = 0; i < group.items.length; i++) {
       const item = group.items[i]
 
       const col = Math.floor(i / groupRows)
       const row = i % groupRows
 
-      const x = startX + col * (uniformColumnWidth + itemSpacing)
+      const x = itemsStartX + col * (uniformColumnWidth + itemSpacing)
       const y = rowYPositions[row]
 
       geometryItems.push({

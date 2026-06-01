@@ -6,7 +6,7 @@ import {
 } from '$lib/plots/shared'
 import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
 import { desaturateToWhite } from '$lib/color'
-import { EVENT_STRIDE, RECT_STRIDE } from '../const'
+import { OVERLAY_EVENT_STRIDE, RECT_STRIDE, SCARF_LAYOUT } from '../const'
 import type { ScarfData } from '../types'
 
 export interface ScarfLayoutContext {
@@ -22,122 +22,16 @@ export interface ScarfLayoutContext {
   participantBarsHeight: number
   totalWidth: number
   marginLeft: number
-}
-
-// --- Event marker geometry constants ---
-/** Distance (in radius multiples) for merging nearby start/end markers into a dot */
-const MARKER_MERGE_DISTANCE = 1.8
-/** Margin (in radius multiples) from plot edge where markers are edge-clipped */
-const MARKER_EDGE_THRESHOLD = 1.2
-
-function drawDirectionalCompositeMarker(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  radius: number,
-  isStart: boolean,
-  color: string | null
-) {
-  const r = radius * 0.85
-  const offset = radius * 0.3
-  const tipOffset = radius * 1.2
-
-  ctx.beginPath()
-  if (isStart) {
-    const cx = x - offset
-    const px = x + tipOffset
-
-    ctx.arc(cx, y, r, Math.PI / 2, (3 * Math.PI) / 2, false)
-    ctx.bezierCurveTo(cx + r * 0.8, y - r, px - r * 0.6, y - r * 0.15, px, y)
-    ctx.bezierCurveTo(
-      px - r * 0.6,
-      y + r * 0.15,
-      cx + r * 0.8,
-      y + r,
-      cx,
-      y + r
-    )
-  } else {
-    const cx = x + offset
-    const px = x - tipOffset
-
-    ctx.arc(cx, y, r, Math.PI / 2, -Math.PI / 2, true)
-    ctx.bezierCurveTo(cx - r * 0.8, y - r, px + r * 0.6, y - r * 0.15, px, y)
-    ctx.bezierCurveTo(
-      px + r * 0.6,
-      y + r * 0.15,
-      cx - r * 0.8,
-      y + r,
-      cx,
-      y + r
-    )
-  }
-  ctx.closePath()
-
-  if (color === null) {
-    // Halo pass
-    ctx.lineJoin = 'round'
-    ctx.lineWidth = 5.5
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
-    ctx.stroke()
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
-    ctx.fill()
-  } else {
-    // Normal pass
-    ctx.fillStyle = color
-    ctx.fill()
-
-    ctx.lineJoin = 'miter'
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)'
-    ctx.lineWidth = 1
-    ctx.stroke()
-  }
-}
-
-function drawCircleEventMarker(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  radius: number,
-  color: string | null
-) {
-  const r = radius * 0.85
-
-  ctx.beginPath()
-  ctx.arc(x, y, r, 0, Math.PI * 2)
-  ctx.closePath()
-
-  if (color === null) {
-    ctx.lineJoin = 'round'
-    ctx.lineWidth = 5.5
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
-    ctx.stroke()
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
-    ctx.fill()
-  } else {
-    ctx.fillStyle = color
-    ctx.fill()
-
-    ctx.lineJoin = 'miter'
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)'
-    ctx.lineWidth = 1
-    ctx.stroke()
-  }
-}
-
-function drawDirectionalEventMarker(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  radius: number,
-  type: number,
-  color: string | null
-) {
-  if (type === 0) {
-    drawDirectionalCompositeMarker(ctx, x, y, radius, true, color)
-  } else {
-    drawDirectionalCompositeMarker(ctx, x, y, radius, false, color)
-  }
+  /** Combined-mode: height of one event lane (strip slot). 0 otherwise. */
+  eventLaneHeight: number
+  /** Combined-mode: total event-band height (lanes × laneHeight). 0 otherwise. */
+  eventZoneHeight: number
+  /** Combined-mode: y within a row where the event band begins, just below the
+   * AOI bar's bottom seam (events hang downward from here). 0 otherwise. */
+  eventBandTop: number
+  /** Combined (overlay) mode: non-fixations are centred on the seam (bar bottom)
+   * rather than within the gaze bar, for a symmetric layout. */
+  isOverlay: boolean
 }
 
 /**
@@ -244,6 +138,9 @@ export function drawScarfGrid(
       ctx.stroke()
     }
   } else {
+    // Dividers between participant rows (all modes). In combined mode the gaze
+    // and the event band are separated by the whitespace seam gap, so gray is
+    // used only here, to divide participants.
     ctx.strokeStyle = GRIDLINE_SECONDARY.COLOR
     ctx.lineWidth = GRIDLINE_SECONDARY.WIDTH
     for (let i = 0; i <= data.participants.length; i++) {
@@ -292,20 +189,24 @@ export function drawScarfRectangles(
       const hOrig = buffer[idx + 3]
       const yOrig = buffer[idx + 7]
 
-      let h = hOrig
-      let yInternal = yOrig
+      let h: number
+      let yInternal: number
 
-      if (layout.scaleFactor !== 1) {
-        if (hOrig === 4) {
-          // NON_FIXATION_HEIGHT default
-          h = layout.nonFixationHeight
-          yInternal =
-            layout.spaceAboveRect +
+      if (hOrig === SCARF_LAYOUT.HEIGHT_NON_FIXATION_DEFAULT) {
+        // Non-fixation (saccade / other). In overlay mode its BOTTOM edge is
+        // aligned with the fixation bottom (the seam baseline), so the whole gaze
+        // sequence shares one baseline; otherwise centred within the gaze bar.
+        h = layout.nonFixationHeight
+        yInternal = layout.isOverlay
+          ? layout.spaceAboveRect + layout.heightOfBar - layout.nonFixationHeight
+          : layout.spaceAboveRect +
             (layout.heightOfBar - layout.nonFixationHeight) / 2
-        } else {
-          h = hOrig * layout.scaleFactor
-          yInternal = layout.spaceAboveRect + (yOrig - 5) * layout.scaleFactor
-        }
+      } else {
+        // Fixation / AOI / no-AOI: rises from the top pad down to the seam.
+        h = hOrig * layout.scaleFactor
+        yInternal =
+          layout.spaceAboveRect +
+          (yOrig - SCARF_LAYOUT.SPACE_ABOVE_RECT_DEFAULT) * layout.scaleFactor
       }
 
       ctx.fillRect(
@@ -319,166 +220,81 @@ export function drawScarfRectangles(
 }
 
 /**
- * Core drawing for visibility event markers.
+ * Core drawing for COMBINED-mode (overlay) events: packed horizontal strips in
+ * the band hanging below the AOI seam (the row's symmetric centre).
+ *
+ * - The band hangs DOWN from the AOI bar's bottom seam; lane 0 is the slot
+ *   nearest the seam and lanes stack downward.
+ * - Intervals are rectangles spanning their full extent (so "when type X was
+ *   active" is directly visible), min-width-clamped so they never sub-px vanish.
+ * - Point (zero-duration) events are min-width diamonds — distinct from thin
+ *   interval rectangles even at the legibility floor.
+ * - Colour is keyed by event type. The AOI bar (above the seam) is never overdrawn.
  */
-export function drawScarfEvents(
+export function drawOverlayEventStrips(
   ctx: CanvasRenderingContext2D,
   data: ScarfData,
   layout: ScarfLayoutContext,
   styleArray: any[],
-  highlightMask: Uint8Array | null,
-  overrides: Map<number, number>
+  highlightMask: Uint8Array | null
 ) {
   const buckets = data.visualEventBuckets
+  if (layout.eventLaneHeight <= 0 || buckets.length === 0) return
+
   const isHighlightActive = highlightMask !== null
   const pLeft = Math.floor(layout.leftLabelWidth + layout.marginLeft)
   const pWidth = Math.floor(layout.plotAreaWidth)
+  const pRight = pLeft + pWidth
+  const laneH = layout.eventLaneHeight
+  const bandTop = layout.eventBandTop
+  const pitch = layout.heightOfBarWrap
+  const top = layout.effectiveMarginTop
+  const stripGap = layout.isCompact ? 0 : SCARF_LAYOUT.EVENT_LANE_GAP
+  const stripH = Math.max(1, laneH - stripGap)
+  const minInterval = SCARF_LAYOUT.MIN_INTERVAL_PX
+  const hw = SCARF_LAYOUT.MIN_POINT_PX / 2
 
-  for (let styleIdx = buckets.length - 1; styleIdx >= 0; styleIdx--) {
-    const buffer = buckets[styleIdx]
-    if (buffer.length === 0) continue
-
-    const segmentCount = buffer.length / EVENT_STRIDE
-    for (let i = 0; i < segmentCount; i++) {
-      const idx = i * EVENT_STRIDE
-      const xNorm = buffer[idx]
-      const pIdx = buffer[idx + 1]
-      const type = buffer[idx + 2] | 0
-
-      const key = styleIdx * 1000000 + i
-      const overrideY = layout.isCompact ? undefined : overrides.get(key)
-      const yInternal =
-        overrideY !== undefined
-          ? overrideY * layout.scaleFactor
-          : layout.spaceAboveRect + layout.heightOfBar / 2
-
-      const pxX = pLeft + xNorm * pWidth
-      const pxY =
-        pIdx * layout.heightOfBarWrap + yInternal + layout.effectiveMarginTop
-      const radius = Math.max(7, Math.min(12, layout.heightOfBar * 0.8)) / 2
-
-      if (type === 0 && i + 1 < segmentCount) {
-        const nextIdx = (i + 1) * EVENT_STRIDE
-        const nextPIdx = buffer[nextIdx + 1]
-        const nextType = buffer[nextIdx + 2] | 0
-
-        if (nextPIdx === pIdx && nextType === 1) {
-          const nextPxX = pLeft + buffer[nextIdx] * pWidth
-
-          // Merge overlapping markers into a single dot or edge-specific marker
-          if (nextPxX - pxX <= radius * MARKER_MERGE_DISTANCE) {
-            const centerX = (pxX + nextPxX) / 2
-            const edgeThreshold = radius * MARKER_EDGE_THRESHOLD
-
-            if (centerX - pLeft <= edgeThreshold) {
-              // Left edge: End marker (points left, outwards to indicate continuation)
-              drawDirectionalEventMarker(
-                ctx,
-                Math.max(pLeft, centerX),
-                pxY,
-                radius,
-                1,
-                null
-              )
-            } else if (pLeft + pWidth - centerX <= edgeThreshold) {
-              // Right edge: Start marker (points right, outwards to indicate continuation)
-              drawDirectionalEventMarker(
-                ctx,
-                Math.min(pLeft + pWidth, centerX),
-                pxY,
-                radius,
-                0,
-                null
-              )
-            } else {
-              // Inland: Normal circle
-              drawCircleEventMarker(ctx, centerX, pxY, radius, null)
-            }
-
-            i++ // Skip the next marker
-            continue
-          }
-        }
-      }
-
-      drawDirectionalEventMarker(ctx, pxX, pxY, radius, type, null)
-    }
-  }
-
-  for (let styleIdx = buckets.length - 1; styleIdx >= 0; styleIdx--) {
+  for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
     const buffer = buckets[styleIdx]
     if (buffer.length === 0) continue
 
     const isDimmed = isHighlightActive ? highlightMask[styleIdx] !== 1 : false
-    const color = isDimmed
-      ? desaturateToWhite(styleArray[styleIdx].normal.stroke, 0.85)
-      : styleArray[styleIdx].normal.stroke
-    const effectiveColor = isDimmed ? desaturateToWhite(color, 0.85) : color
+    const base =
+      styleArray[styleIdx]?.normal?.fill ??
+      styleArray[styleIdx]?.normal?.stroke ??
+      '#888888'
+    ctx.fillStyle = isDimmed ? desaturateToWhite(base, 0.85) : base
 
-    const segmentCount = buffer.length / EVENT_STRIDE
-    for (let i = 0; i < segmentCount; i++) {
-      const idx = i * EVENT_STRIDE
+    const count = buffer.length / OVERLAY_EVENT_STRIDE
+    for (let i = 0; i < count; i++) {
+      const idx = i * OVERLAY_EVENT_STRIDE
       const xNorm = buffer[idx]
       const pIdx = buffer[idx + 1]
-      const type = buffer[idx + 2] | 0
+      const wNorm = buffer[idx + 2]
+      const lane = buffer[idx + 3] | 0
+      const isPoint = buffer[idx + 4] | 0
 
-      const key = styleIdx * 1000000 + i
-      const overrideY = layout.isCompact ? undefined : overrides.get(key)
-      const yInternal =
-        overrideY !== undefined
-          ? overrideY * layout.scaleFactor
-          : layout.spaceAboveRect + layout.heightOfBar / 2
+      // Band hangs down from the seam: lane 0 nearest the bar, stacking downward.
+      const slotTop = pIdx * pitch + bandTop + lane * laneH + top
+      const x = pLeft + xNorm * pWidth
 
-      const pxX = pLeft + xNorm * pWidth
-      const pxY =
-        pIdx * layout.heightOfBarWrap + yInternal + layout.effectiveMarginTop
-      const radius = Math.max(7, Math.min(12, layout.heightOfBar * 0.8)) / 2
-
-      if (type === 0 && i + 1 < segmentCount) {
-        const nextIdx = (i + 1) * EVENT_STRIDE
-        const nextPIdx = buffer[nextIdx + 1]
-        const nextType = buffer[nextIdx + 2] | 0
-
-        if (nextPIdx === pIdx && nextType === 1) {
-          const nextPxX = pLeft + buffer[nextIdx] * pWidth
-
-          // Merge overlapping markers into a single dot or edge-specific marker
-          if (nextPxX - pxX <= radius * MARKER_MERGE_DISTANCE) {
-            const centerX = (pxX + nextPxX) / 2
-            const edgeThreshold = radius * MARKER_EDGE_THRESHOLD
-
-            if (centerX - pLeft <= edgeThreshold) {
-              // Left edge: End marker (points left, outwards to indicate continuation)
-              drawDirectionalEventMarker(
-                ctx,
-                Math.max(pLeft, centerX),
-                pxY,
-                radius,
-                1,
-                effectiveColor
-              )
-            } else if (pLeft + pWidth - centerX <= edgeThreshold) {
-              // Right edge: Start marker (points right, outwards to indicate continuation)
-              drawDirectionalEventMarker(
-                ctx,
-                Math.min(pLeft + pWidth, centerX),
-                pxY,
-                radius,
-                0,
-                effectiveColor
-              )
-            } else {
-              // Inland: Normal circle
-              drawCircleEventMarker(ctx, centerX, pxY, radius, effectiveColor)
-            }
-
-            i++ // Skip the next marker
-            continue
-          }
-        }
+      if (isPoint) {
+        const cy = slotTop + stripH / 2
+        const cx = Math.min(pRight - hw, Math.max(pLeft + hw, x))
+        ctx.beginPath()
+        ctx.moveTo(cx, slotTop)
+        ctx.lineTo(cx + hw, cy)
+        ctx.lineTo(cx, slotTop + stripH)
+        ctx.lineTo(cx - hw, cy)
+        ctx.closePath()
+        ctx.fill()
+      } else {
+        let w = wNorm * pWidth
+        if (w < minInterval) w = minInterval
+        if (x + w > pRight) w = pRight - x
+        if (w <= 0) continue
+        ctx.fillRect(x, slotTop, w, stripH)
       }
-
-      drawDirectionalEventMarker(ctx, pxX, pxY, radius, type, effectiveColor)
     }
   }
 }

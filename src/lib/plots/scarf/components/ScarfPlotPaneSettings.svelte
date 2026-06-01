@@ -9,11 +9,11 @@
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { hasEventsForStimulus } from '$lib/data/engine'
   import {
-    aoiModificationModal,
     participantModificationModal,
     participantsGroupsModal,
     stimulusModificationModal,
   } from '$lib/modals/definitions'
+  import { AoiPaneSection } from '$lib/plots/shared/components'
   import type {
     ScarfDisplayMode,
     ScarfPlotItem,
@@ -46,11 +46,6 @@
   )
 
   const openStimuli = () => modalState.open(stimulusModificationModal, { source })
-  const openAois = () =>
-    modalState.open(aoiModificationModal, {
-      selectedStimulus: String(settings.stimulusId),
-      source,
-    })
   const openGroups = () => modalState.open(participantsGroupsModal, { source })
   const openParticipants = () => modalState.open(participantModificationModal, { source })
 
@@ -105,9 +100,10 @@
   />
   <PaneEditRow>
     <PaneEditLink onclick={openStimuli}>Edit stimulus library…</PaneEditLink>
-    <PaneEditLink onclick={openAois}>Edit AOIs…</PaneEditLink>
   </PaneEditRow>
 </PaneSection>
+
+<AoiPaneSection stimulusId={settings.stimulusId} {source} />
 
 <PaneSection title="Participant group" summary={groupSummary}>
   <Select

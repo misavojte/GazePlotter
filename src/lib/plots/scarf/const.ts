@@ -45,9 +45,30 @@ export const SCARF_LAYOUT = {
   MIN_BAR_HEIGHT: 1,
   MIN_PLOT_HEIGHT_COMPACT: 100,
   COMPACT_MODE_THRESHOLD: 7,
+
+  // --- Combined-mode (overlay) symmetric layout ---
+  // Each row is built around a central SEAM = the shared bottom edge (baseline)
+  // of the gaze segments. Fixations AND non-fixations are bottom-aligned to the
+  // seam; the event band (packed strips) hangs below it, separated by a
+  // whitespace gap (EVENT_ZONE_GAP). That gap is the hue-independent separator —
+  // events stay distinct from same-coloured fixations regardless of the colours
+  // the user sets, with no outline/line needed. Gray is reserved for the
+  // dividers BETWEEN participants. Band height is H × (observed max concurrency),
+  // uniform across rows so the column scan stays even. Rows are always separated
+  // by ≥ MIN_ROW_GAP of whitespace; if that cannot be met at the legibility
+  // floor, the plot does not render.
+  EVENT_LANE_H: 6, // lane (strip slot) height at scale 1
+  MIN_EVENT_LANE_H: 4, // legibility floor (export/projector survival) — NOT 2px
+  EVENT_LANE_GAP: 1, // gap inside a lane slot → texture separation between stacked strips
+  EVENT_ZONE_GAP: 3, // whitespace gap between the gaze baseline (seam) and the event band
+  MIN_ROW_GAP: 3, // minimum whitespace between participant rows (hard floor)
+  MIN_INTERVAL_PX: 1, // a thin interval must never sub-pixel-vanish
+  MIN_POINT_PX: 3, // point events are min-width clamped + drawn distinct from intervals
 } as const
 
 // --- Buffer Strides ---
 export const RECT_STRIDE = 8
-export const EVENT_STRIDE = 5
+/** Events-only mode channel-rect buffer: [xNorm, wNorm, laneIndex, pIndex, channelIndex]. */
 export const EVENT_CHANNEL_STRIDE = 5
+/** Combined-mode (overlay) event-strip buffer: [xNorm, pIndex, wNorm, laneIndex, isPoint]. */
+export const OVERLAY_EVENT_STRIDE = 5

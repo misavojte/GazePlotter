@@ -126,7 +126,7 @@ In the legend, you can highlight all segments of a specific category (fixations,
 
 ## Event data
 
-GazePlotter supports event data that enriches the scarf plot with additional time-based information layers (e.g., dynamic AOI visibility intervals). Event channels are rendered as colored lines beneath each participant's gaze sequence row.
+GazePlotter supports event data that enriches the scarf plot with additional time-based layers (e.g., dynamic AOI visibility intervals). In **Overlay** mode the AOI gaze sequence sits above a shared baseline, while time-coded events hang below it as colored strips, separated by a small gap so the two layers stay distinct even when they share a color. Each strip spans the full extent of its interval (point events appear as small markers), overlapping events stack into lanes, and a thin gray line divides participants. If the plot is too short to show every row legibly, it asks for more height rather than rendering a cramped figure.
 
 Event files are uploaded together with eye-tracking data files via the **Import** button. For full details on exporting, uploading, and mapping event files, see [Event Data](/docs/upload-data/events/).
 
@@ -136,4 +136,4 @@ To modify event channel names, colors, ordering, or visibility, use **Event cust
 
 ### Interactivity of event data
 
-Each event channel is represented by a colored line beneath the participant's scarf row. Hovering over an event channel name in the legend expands and highlights the corresponding line across all participants.
+Each event channel is keyed by colour in the legend. Clicking an event channel in the legend highlights its strips across all participants (and dims the rest), the same way AOI categories are highlighted.

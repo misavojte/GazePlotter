@@ -37,19 +37,20 @@
     calculateIsCompactMode,
     calculateLegendStructuralHeight,
     calculateLeftLabelWidth,
+    calculateOverlayLayout,
+    calculateOverlayMinRowPitch,
     calculatePlotLayout,
     getScarfIdentifierSystem,
     getXAxisLabel,
   } from '../core/layout'
   import {
-    calculateEventLayoutOverrides,
     calculateHighlightMask,
     createStyleArrays,
     mapDataToLegendGroups,
   } from '../core/transformer'
   import {
     drawEventChannelRects,
-    drawScarfEvents,
+    drawOverlayEventStrips,
     drawScarfGrid,
     drawScarfLabels,
     drawScarfRectangles,
@@ -146,9 +147,26 @@
     )
   })
 
-  const isCompactMode = $derived(
-    calculateIsCompactMode(data.participants.length, netAvailableHeight)
-  )
+  const isOverlayMode = $derived(resolvedDisplayMode === 'overlay')
+
+  // Unified vertical layout. Overlay mode keeps the AOI bar anchored to the top
+  // of each row and hangs an event band (sized by the observed max concurrency)
+  // beneath it, with ≥ MIN_ROW_GAP whitespace between rows; other modes keep the
+  // classic bar geometry with a zero-height band.
+  const layout = $derived.by(() => {
+    const count = data.participants.length
+    if (isOverlayMode) {
+      return calculateOverlayLayout(
+        count,
+        data.eventZoneConcurrency ?? 0,
+        netAvailableHeight
+      )
+    }
+    const compact = calculateIsCompactMode(count, netAvailableHeight)
+    const base = calculatePlotLayout(count, netAvailableHeight, compact)
+    return { ...base, eventLaneHeight: 0, eventZoneHeight: 0, eventBandTop: 0 }
+  })
+  const isCompactMode = $derived(layout.isCompact)
 
   // Extract participant labels only when needed (normal mode)
   // Stops mapping thousands of names in compact mode
@@ -172,18 +190,6 @@
     )
   )
 
-  // 2. Dynamic Layout Logic - handles both shrinking AND scaling up
-  // Unified scale approach: single scaleFactor applied to bar dimensions
-  // Compact mode: when bars get too small, remove labels/gaps for density
-  // Iterative scaling: recalculate scale in compact mode to fill freed space
-  const layout = $derived(
-    calculatePlotLayout(
-      data.participants.length,
-      netAvailableHeight,
-      isCompactMode
-    )
-  )
-
   // 3. Derived dimensions using dynamic layout
   const participantBarsHeight = $derived(
     isEventsOnlyMode && eventOnlyLayout
@@ -191,7 +197,7 @@
       : data.participants.length * layout.heightOfBarWrap
   )
   const axisLabelY = $derived(participantBarsHeight + 30)
-  const legendY = $derived(participantBarsHeight + 45)
+  const legendY = $derived(participantBarsHeight + 50)
 
   // State management with Svelte 5 runes
   let hoveredRowIndex = $state<number | null>(null)
@@ -380,6 +386,7 @@
     for (let i = 0; i < len; i++) {
       const style = visibility[i]
       const baseStyle = {
+        fill: style.color,
         stroke: style.color,
         strokeWidth,
       }
@@ -420,10 +427,23 @@
   // In compact mode, we can render with much less space (min 1px per participant)
   // but we enforce a minimum plot area height to avoid cropping the rotated axis label
   const canRender = $derived.by(() => {
+    const count = data.participants.length
+
+    // Overlay: the event band has a per-lane legibility floor, so a row needs a
+    // minimum pitch. If it can't be met, ask for more height rather than crush
+    // the strips below the floor.
+    if (isOverlayMode) {
+      const minPitch = calculateOverlayMinRowPitch(data.eventZoneConcurrency ?? 0)
+      return (
+        netAvailableHeight >=
+        Math.max(count * minPitch, SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT)
+      )
+    }
+
     // Minimum plot height to avoid complete collapse
     const minPlotHeight = isCompactMode
       ? Math.max(
-          data.participants.length * SCARF_LAYOUT.MIN_BAR_HEIGHT,
+          count * SCARF_LAYOUT.MIN_BAR_HEIGHT,
           SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT
         )
       : SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT // Fallback min height
@@ -447,18 +467,6 @@
   )
   const rectStyleArray = $derived(styleArrays.rectStyles)
   const eventStyleArray = $derived(styleArrays.eventStyles)
-
-  // Calculate layout overrides for overlapping events
-  // IMPORTANT: This computation is expensive. We minimize reactive dependencies
-  // by using source data values directly and computing in normalized space.
-  const eventLayoutOverrides = $derived(
-    calculateEventLayoutOverrides(
-      isCompactMode,
-      visualEventBuckets,
-      data.barHeight,
-      data.heightOfBarWrap
-    )
-  )
 
   // Interaction handlers
   function handleLegendIdentifier(identifier: string) {
@@ -499,6 +507,10 @@
       participantBarsHeight: participantBarsHeight,
       totalWidth: totalWidth,
       marginLeft: marginLeft,
+      eventLaneHeight: layout.eventLaneHeight,
+      eventZoneHeight: layout.eventZoneHeight,
+      eventBandTop: layout.eventBandTop,
+      isOverlay: isOverlayMode,
     }
 
     // 1. Draw Axis/Grid structure
@@ -524,14 +536,13 @@
         rectStyleArray,
         highlightMaskByIndex
       )
-      if (resolvedDisplayMode !== 'segments') {
-        drawScarfEvents(
+      if (resolvedDisplayMode === 'overlay') {
+        drawOverlayEventStrips(
           ctx,
           data,
           renderCtx,
           eventStyleArray,
-          highlightMaskByIndex,
-          eventLayoutOverrides
+          highlightMaskByIndex
         )
       }
     }

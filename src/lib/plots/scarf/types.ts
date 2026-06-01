@@ -184,14 +184,22 @@ export type ScarfData = {
    * Rectangle buffer layout per style (RECT_STRIDE = 8):
    * [x, y, width, height, participantId, segmentId, orderId, reserved0]
    *
-   * Event buffer layout per style (EVENT_STRIDE = 5):
-   * [xNormalized, pIndex, eventType, participantId, reserved0]
+   * Combined-mode (overlay) event-strip buffer per style
+   * (OVERLAY_EVENT_STRIDE = 5):
+   * [xNormalized, pIndex, widthNormalized, laneIndex, isPoint]
    */
   visualRectBuckets: Float32Array[]
   visualEventBuckets: Float32Array[]
 
   /** Resolved display mode after auto-detection */
   resolvedDisplayMode: ScarfDisplayMode
+
+  /**
+   * Combined-mode (overlay) only: observed max simultaneous events across all
+   * participants. The event band height = this × lane height, uniform across
+   * rows so the AOI seam sits at a constant y. 0 when there is no event band.
+   */
+  eventZoneConcurrency?: number
 
   // --- Events-only mode data ---
   /** Event channel metadata for events-only rendering */
