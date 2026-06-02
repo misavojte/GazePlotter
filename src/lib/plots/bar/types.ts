@@ -48,6 +48,7 @@ export type BarPlotSettings = {
   timelineStart?: number
   timelineEnd?: number
   statisticalOverlay: StatisticalOverlayType
+  hideNoAoi?: boolean
 }
 
 export type BarPlotItem = PlotItemContract<'barPlot', BarPlotSettings>

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { PaneSection } from '$lib/workspace/pane'
-  import { InputNumber, Radio } from '$lib/shared/components'
+  import { InputNumber, Radio, InputCheck } from '$lib/shared/components'
   import {
     CommonPlotPaneFields,
     TimelineRangeSection,
@@ -118,6 +118,15 @@
         onValueChange={v => updateScale({ max: v ?? 0 })}
       />
     </div>
+  </div>
+  <div style="margin-top: 5px;">
+    <InputCheck
+      label="Hide No AOI"
+      appearance="compact"
+      size="xs"
+      checked={settings.hideNoAoi ?? false}
+      onchange={e => update({ hideNoAoi: (e as CustomEvent<boolean>).detail })}
+    />
   </div>
 </PaneSection>
 

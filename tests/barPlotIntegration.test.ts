@@ -181,4 +181,64 @@ describe('Bar Plot Transformer (Integration)', () => {
     expect(result.noMetric).toBe(true)
     expect(result.data).toEqual([])
   })
+
+  it('correctly filters out Outside (No AOI) when hideNoAoi is true', () => {
+    const engine = createMockEngine([
+      [
+        [
+          [0, 100, 0, 0],
+          [100, 300, 0, 1],
+          [300, 350, 0],
+        ],
+      ],
+    ])
+
+    const result = getBarPlotData(
+      engine as any,
+      {
+        stimulusId,
+        groupId,
+        metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
+        orderBy: 'aoi',
+        orderDirection: 'asc',
+        scaleRange: [0, 0],
+        hideNoAoi: true,
+      } as any
+    )
+
+    expect(result.data).toHaveLength(2)
+    expect(result.data[0].label).toBe('AOI A')
+    expect(result.data[0].value).toBe(100)
+    expect(result.data[1].label).toBe('AOI B')
+    expect(result.data[1].value).toBe(200)
+    expect(result.data.find(d => d.label === 'Outside')).toBeUndefined()
+  })
+
+  it('excludes Outside (No AOI) from dataMax calculation when hideNoAoi is true', () => {
+    const engine = createMockEngine([
+      [
+        [
+          [0, 100, 0, 0], // AOI A (100 ms)
+          [100, 200, 0, 1], // AOI B (100 ms)
+          [200, 700, 0], // Outside (500 ms)
+        ],
+      ],
+    ])
+
+    const result = getBarPlotData(
+      engine as any,
+      {
+        stimulusId,
+        groupId,
+        metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
+        orderBy: 'aoi',
+        orderDirection: 'asc',
+        scaleRange: [0, 0],
+        hideNoAoi: true,
+      } as any
+    )
+
+    // Max AOI value is 100 (Outside has 500 but should be excluded from scale dataMax calculation)
+    expect(result.dataMax).toBe(100)
+  })
 })

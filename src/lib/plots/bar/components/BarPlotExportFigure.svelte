@@ -27,6 +27,7 @@
       orderBy: settings.orderBy,
       orderDirection: settings.orderDirection,
       statisticalOverlay: settings.statisticalOverlay,
+      hideNoAoi: settings.hideNoAoi,
     })
   )
   const data = $derived(barPlotData.data)

@@ -39,6 +39,7 @@ export function getBarPlotData(
     | 'timelineStart'
     | 'timelineEnd'
     | 'statisticalOverlay'
+    | 'hideNoAoi'
   >
 ): BarPlotResult {
   const meta = engine.metadata
@@ -67,7 +68,8 @@ export function getBarPlotData(
 
   const timeStart = settings.timelineStart ?? 0
   const timeEnd = settings.timelineEnd ?? 0
-  const totalSlots = aois.length + 1
+  const hideNoAoi = settings.hideNoAoi ?? false
+  const totalSlots = hideNoAoi ? aois.length : aois.length + 1
 
   const participantDisplayNames = participantIds.map(id => {
     const pData = meta.participants.data[id]

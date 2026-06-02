@@ -274,6 +274,32 @@ describe('V4 → V5 bar-plot settings migration', () => {
     expect(scarf.settings.metricInstanceIds).toBeUndefined()
     expect(scarf.settings.aggregationMethod).toBeUndefined()
   })
+
+  it('initializes hideNoAoi to false when it is undefined on barPlot', () => {
+    const file = buildV4File([
+      {
+        id: 'bar-1',
+        type: 'barPlot',
+        x: 0, y: 0, w: 8, h: 8,
+        settings: { stimulusId: 0, groupId: -1, aggregationMethod: 'absoluteTime' },
+      },
+    ])
+    const m = runMigrations(file)
+    expect(m.gridItems[0].settings.hideNoAoi).toBe(false)
+  })
+
+  it('keeps hideNoAoi value if it is already defined', () => {
+    const file = buildV4File([
+      {
+        id: 'bar-1',
+        type: 'barPlot',
+        x: 0, y: 0, w: 8, h: 8,
+        settings: { stimulusId: 0, groupId: -1, aggregationMethod: 'absoluteTime', hideNoAoi: true },
+      },
+    ])
+    const m = runMigrations(file)
+    expect(m.gridItems[0].settings.hideNoAoi).toBe(true)
+  })
 })
 
 describe('V5 → V6 baseId rename migration', () => {
