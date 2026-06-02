@@ -6,7 +6,12 @@ import {
 } from '$lib/plots/shared'
 import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
 import { desaturateToWhite } from '$lib/color'
-import { OVERLAY_EVENT_STRIDE, RECT_STRIDE, SCARF_LAYOUT } from '../const'
+import {
+  EVENT_CHANNEL_STRIDE,
+  OVERLAY_EVENT_STRIDE,
+  RECT_STRIDE,
+  SCARF_LAYOUT,
+} from '../const'
 import type { ScarfData } from '../types'
 
 export interface ScarfLayoutContext {
@@ -198,7 +203,9 @@ export function drawScarfRectangles(
         // sequence shares one baseline; otherwise centred within the gaze bar.
         h = layout.nonFixationHeight
         yInternal = layout.isOverlay
-          ? layout.spaceAboveRect + layout.heightOfBar - layout.nonFixationHeight
+          ? layout.spaceAboveRect +
+            layout.heightOfBar -
+            layout.nonFixationHeight
           : layout.spaceAboveRect +
             (layout.heightOfBar - layout.nonFixationHeight) / 2
       } else {
@@ -317,7 +324,6 @@ export function drawEventChannelRects(
   const channels = data.eventChannels
   if (!channels || channels.length === 0) return
 
-  const EVENT_CHANNEL_STRIDE = 5
   const pLeft = Math.floor(layout.leftLabelWidth + layout.marginLeft)
   const pWidth = Math.floor(layout.plotAreaWidth)
   const segmentCount = buffer.length / EVENT_CHANNEL_STRIDE
@@ -347,6 +353,283 @@ export function drawEventChannelRects(
       : channel.color
     ctx.fillRect(pxX, pxY, pxW, laneHeight)
   }
+}
+
+/** Accumulates one identifier's segments within a single vertical band
+ * (participant row × element type). `vanished` holds the logical x-intervals of
+ * segments that don't fill a device pixel of colour on their own — the ring
+ * candidates — and `visible` holds the [x0, x1] logical spans of segments that
+ * clearly do. A candidate's ring is dropped when the colour actually renders:
+ * either the cluster covers ≥1 device pixel at the current DPI (one fat segment,
+ * or several packed thin ones together), or a visible span of the same type
+ * already sits under the ring — in every such case the identifier is locatable
+ * without it. */
+interface MarkerBand {
+  color: string
+  cy: number
+  rowTop: number
+  rowBottom: number
+  vanished: { x0: number; x1: number }[]
+  visible: number[] // flat [x0, x1, x0, x1, …] logical pairs
+}
+
+export interface ScarfHighlightMarkerOptions {
+  rectStyleArray: any[]
+  eventStyleArray: any[]
+  channelStyleIndices: number[] | null
+  highlightMask: Uint8Array | null
+  isEventsOnly: boolean
+  eventOnlyRowHeight: number
+  eventOnlyLaneHeight: number
+  /** Device pixels per logical pixel (devicePixelRatio, or dpiOverride/96 on
+   * export). Vanishing is judged in DEVICE pixels: a segment that's sub-pixel on
+   * screen may paint solid colour at export DPI, and then needs no ring. */
+  deviceScale: number
+}
+
+/**
+ * Rings the location of HIGHLIGHTED segments whose true duration is so brief
+ * they render sub-pixel-wide and would otherwise vanish among the desaturated
+ * neighbours. Covers every highlightable type — AOI fixations, category
+ * (saccade/other) segments, combined-mode event strips and events-only channel
+ * rects — keyed off the same highlight mask the dimming uses.
+ *
+ * The ring is an annotation, not a resized datum: it never inflates the
+ * segment's width, so the timeline stays truthful. Adjacent vanished segments
+ * of one identifier collapse into a single ring drawn at their centroid, and a
+ * cluster whose colour does paint (≥1 device pixel covered at the render DPI)
+ * is left ringless — the marker only ever stands in for colour you can't see.
+ */
+export function drawScarfHighlightMarkers(
+  ctx: CanvasRenderingContext2D,
+  data: ScarfData,
+  layout: ScarfLayoutContext,
+  opts: ScarfHighlightMarkerOptions
+) {
+  const { highlightMask } = opts
+  if (highlightMask === null) return
+
+  const pLeft = Math.floor(layout.leftLabelWidth + layout.marginLeft)
+  const pWidth = Math.floor(layout.plotAreaWidth)
+  const top = layout.effectiveMarginTop
+  const scale = opts.deviceScale > 0 ? opts.deviceScale : 1
+  // A segment is "vanished" only if it covers less than this many DEVICE pixels.
+  const VANISH = SCARF_LAYOUT.HIGHLIGHT_MARKER_VANISH_PX
+
+  // One band per (style × participant row). A segment whose device-pixel width
+  // falls below the floor is a ring candidate; a wider one is a visible span
+  // that, when overlapped, suppresses a ring.
+  const bands = new Map<string, MarkerBand>()
+  const band = (
+    key: string,
+    color: string,
+    cy: number,
+    rowTop: number,
+    rowBottom: number
+  ): MarkerBand => {
+    let b = bands.get(key)
+    if (!b) {
+      b = { color, cy, rowTop, rowBottom, vanished: [], visible: [] }
+      bands.set(key, b)
+    }
+    return b
+  }
+  const add = (b: MarkerBand, x0: number, wPx: number) => {
+    if (wPx * scale < VANISH) b.vanished.push({ x0, x1: x0 + wPx })
+    else b.visible.push(x0, x0 + wPx)
+  }
+
+  // --- AOI + category rectangles (bars & overlay modes) ---
+  if (!opts.isEventsOnly) {
+    const buckets = data.visualRectBuckets
+    const pitch = layout.heightOfBarWrap
+    // Ring the bar's vertical centre regardless of AOI-stacking, so every
+    // segment of one identifier in a row shares a band.
+    const barCenter = layout.spaceAboveRect + layout.heightOfBar / 2
+    for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
+      if (highlightMask[styleIdx] !== 1) continue
+      const buffer = buckets[styleIdx]
+      if (buffer.length === 0) continue
+      const color = opts.rectStyleArray[styleIdx]?.normal?.fill
+      if (!color) continue
+      const count = buffer.length / RECT_STRIDE
+      for (let i = 0; i < count; i++) {
+        const idx = i * RECT_STRIDE
+        const rowTop = buffer[idx + 1] * pitch + top
+        const cy = rowTop + barCenter
+        const b = band(`r${styleIdx}@${cy}`, color, cy, rowTop, rowTop + pitch)
+        add(b, pLeft + buffer[idx] * pWidth, buffer[idx + 2] * pWidth)
+      }
+    }
+  }
+
+  // --- Combined-mode event strips ---
+  if (!opts.isEventsOnly && layout.isOverlay && layout.eventLaneHeight > 0) {
+    const buckets = data.visualEventBuckets
+    const pitch = layout.heightOfBarWrap
+    const bandCenter = layout.eventBandTop + layout.eventZoneHeight / 2
+    const hw = SCARF_LAYOUT.MIN_POINT_PX / 2
+    for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
+      if (highlightMask[styleIdx] !== 1) continue
+      const buffer = buckets[styleIdx]
+      if (buffer.length === 0) continue
+      const style = opts.eventStyleArray[styleIdx]?.normal
+      const color = style?.fill ?? style?.stroke
+      if (!color) continue
+      const count = buffer.length / OVERLAY_EVENT_STRIDE
+      for (let i = 0; i < count; i++) {
+        const idx = i * OVERLAY_EVENT_STRIDE
+        const x0 = pLeft + buffer[idx] * pWidth
+        const rowTop = buffer[idx + 1] * pitch + top
+        const cy = rowTop + bandCenter
+        const b = band(`e${styleIdx}@${cy}`, color, cy, rowTop, rowTop + pitch)
+        // Point (zero-duration) events are intentional, always-visible diamonds:
+        // never ringed, but they count as a visible span of their type.
+        if ((buffer[idx + 4] | 0) === 1) b.visible.push(x0 - hw, x0 + hw)
+        else add(b, x0, buffer[idx + 2] * pWidth)
+      }
+    }
+  }
+
+  // --- Events-only channel rects ---
+  if (opts.isEventsOnly && opts.channelStyleIndices) {
+    const buffer = data.visualEventChannelBuffer
+    const channels = data.eventChannels
+    if (buffer && buffer.length > 0 && channels && channels.length > 0) {
+      const rowHeight = opts.eventOnlyRowHeight
+      const laneHeight = opts.eventOnlyLaneHeight
+      const count = buffer.length / EVENT_CHANNEL_STRIDE
+      for (let i = 0; i < count; i++) {
+        const idx = i * EVENT_CHANNEL_STRIDE
+        const chIdx = buffer[idx + 4] | 0
+        const styleIdx = opts.channelStyleIndices[chIdx]
+        if (styleIdx < 0 || highlightMask[styleIdx] !== 1) continue
+        const channel = channels[chIdx]
+        if (!channel) continue
+        const laneTop =
+          buffer[idx + 3] * rowHeight + (buffer[idx + 2] | 0) * laneHeight + top
+        const cy = laneTop + laneHeight / 2
+        const b = band(
+          `c${styleIdx}@${cy}`,
+          channel.color,
+          cy,
+          laneTop,
+          laneTop + laneHeight
+        )
+        add(b, pLeft + buffer[idx] * pWidth, buffer[idx + 1] * pWidth)
+      }
+    }
+  }
+
+  if (bands.size === 0) return
+
+  ctx.save()
+  for (const b of bands.values()) {
+    const segs = b.vanished
+    if (segs.length === 0) continue
+    // Fit the ring inside its row so neighbouring rows never overlap.
+    const r = Math.min(
+      SCARF_LAYOUT.HIGHLIGHT_MARKER_RADIUS,
+      Math.floor(Math.min(b.cy - b.rowTop, b.rowBottom - b.cy)) - 1
+    )
+    if (r < SCARF_LAYOUT.HIGHLIGHT_MARKER_MIN_RADIUS) continue
+
+    const clusterGap = 2 * r
+    segs.sort((p, q) => p.x0 + p.x1 - (q.x0 + q.x1))
+    let start = 0
+    for (let i = 1; i <= segs.length; i++) {
+      const prevC = (segs[i - 1].x0 + segs[i - 1].x1) / 2
+      const curC = i < segs.length ? (segs[i].x0 + segs[i].x1) / 2 : Infinity
+      if (curC - prevC <= clusterGap) continue
+
+      // Close the cluster segs[start..i). Skip the ring when the colour renders:
+      // the cluster covers ≥1 device pixel, or a visible span of this same type
+      // already lies under the footprint.
+      let sum = 0
+      for (let k = start; k < i; k++) sum += (segs[k].x0 + segs[k].x1) / 2
+      const centroid = sum / (i - start)
+      if (
+        !clusterPaintsDevicePixel(segs, start, i, scale, VANISH) &&
+        !spanOverlaps(centroid - r, centroid + r, b.visible)
+      ) {
+        drawHighlightRing(ctx, centroid, b.cy, r, b.color)
+      }
+      start = i
+    }
+  }
+  ctx.restore()
+}
+
+/** True if [a, b] intersects any [x0, x1] pair in the flat `spans` array. */
+function spanOverlaps(a: number, b: number, spans: number[]): boolean {
+  for (let k = 0; k < spans.length; k += 2) {
+    if (spans[k] <= b && spans[k + 1] >= a) return true
+  }
+  return false
+}
+
+/**
+ * True if the cluster `segs[start..end)` paints a contiguous run of colour at
+ * least `minCov` device pixels wide at `scale` — i.e. the colour is actually
+ * visible, so no ring is needed. Touching/overlapping segments merge into one
+ * run; the widest run is compared against the floor. A run ≥ 1 device pixel is a
+ * mark you can see, whether it comes from one segment or several packed thin
+ * ones. (Contiguous-length, not per-pixel coverage, so it's robust at the
+ * exact-pixel boundary.)
+ */
+function clusterPaintsDevicePixel(
+  segs: { x0: number; x1: number }[],
+  start: number,
+  end: number,
+  scale: number,
+  minCov: number
+): boolean {
+  if (end - start === 1) {
+    return (segs[start].x1 - segs[start].x0) * scale >= minCov
+  }
+  // A gap smaller than this (device px) won't show white between two marks, so
+  // they read as one — bridge it. Also absorbs float-rounding at exact abutment.
+  const BRIDGE = 0.5
+  const iv: [number, number][] = []
+  for (let k = start; k < end; k++) {
+    iv.push([segs[k].x0 * scale, segs[k].x1 * scale])
+  }
+  iv.sort((p, q) => p[0] - q[0])
+  let maxRun = 0
+  let curS = iv[0][0]
+  let curE = iv[0][1]
+  for (let k = 1; k < iv.length; k++) {
+    if (iv[k][0] <= curE + BRIDGE) {
+      if (iv[k][1] > curE) curE = iv[k][1]
+    } else {
+      if (curE - curS > maxRun) maxRun = curE - curS
+      curS = iv[k][0]
+      curE = iv[k][1]
+    }
+  }
+  if (curE - curS > maxRun) maxRun = curE - curS
+  return maxRun >= minCov
+}
+
+/** A colour ring over a white halo, so it reads on any backdrop. */
+function drawHighlightRing(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  r: number,
+  color: string
+) {
+  ctx.beginPath()
+  ctx.arc(cx, cy, r, 0, Math.PI * 2)
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
+  ctx.lineWidth = SCARF_LAYOUT.HIGHLIGHT_MARKER_RING_WIDTH + 2
+  ctx.stroke()
+
+  ctx.beginPath()
+  ctx.arc(cx, cy, r, 0, Math.PI * 2)
+  ctx.strokeStyle = color
+  ctx.lineWidth = SCARF_LAYOUT.HIGHLIGHT_MARKER_RING_WIDTH
+  ctx.stroke()
 }
 
 function calculateTickStep(len: number): number {

@@ -52,6 +52,7 @@
     drawEventChannelRects,
     drawOverlayEventStrips,
     drawScarfGrid,
+    drawScarfHighlightMarkers,
     drawScarfLabels,
     drawScarfRectangles,
     type ScarfLayoutContext,
@@ -209,7 +210,12 @@
     render: renderCanvas,
     getWidth: () => totalWidth,
     getHeight: () => totalHeight,
-    getMargins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
+    getMargins: () => ({
+      top: marginTop,
+      right: marginRight,
+      bottom: marginBottom,
+      left: marginLeft,
+    }),
     getDpiOverride: () => dpiOverride,
   })
 
@@ -410,8 +416,10 @@
   // Map event channel array index → identifier system style index (for highlight lookup)
   const channelStyleIndices = $derived.by(() => {
     if (!data.eventChannels) return null
-    return data.eventChannels.map(ch =>
-      identifierSystem.idToIndex.get(`${SCARF_IDENTIFIERS.EVENT}${ch.id}`) ?? -1
+    return data.eventChannels.map(
+      ch =>
+        identifierSystem.idToIndex.get(`${SCARF_IDENTIFIERS.EVENT}${ch.id}`) ??
+        -1
     )
   })
 
@@ -433,7 +441,9 @@
     // minimum pitch. If it can't be met, ask for more height rather than crush
     // the strips below the floor.
     if (isOverlayMode) {
-      const minPitch = calculateOverlayMinRowPitch(data.eventZoneConcurrency ?? 0)
+      const minPitch = calculateOverlayMinRowPitch(
+        data.eventZoneConcurrency ?? 0
+      )
       return (
         netAvailableHeight >=
         Math.max(count * minPitch, SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT)
@@ -482,7 +492,12 @@
     if (!ctx) return
 
     if (!canRender) {
-      drawCanvasPlaceholder(ctx, totalWidth, totalHeight, 'Increase height to view plot')
+      drawCanvasPlaceholder(
+        ctx,
+        totalWidth,
+        totalHeight,
+        'Increase height to view plot'
+      )
       finishCanvasDrawing(plot.canvasState)
       return
     }
@@ -491,14 +506,16 @@
     const scarfPlotWidth = Math.floor(plotAreaWidth)
 
     const renderCtx: ScarfLayoutContext = {
-      heightOfBar: isEventsOnlyMode && eventOnlyLayout
-        ? eventOnlyLayout.rowHeight
-        : layout.heightOfBar,
+      heightOfBar:
+        isEventsOnlyMode && eventOnlyLayout
+          ? eventOnlyLayout.rowHeight
+          : layout.heightOfBar,
       spaceAboveRect: isEventsOnlyMode ? 0 : layout.spaceAboveRect,
       nonFixationHeight: isEventsOnlyMode ? 0 : layout.nonFixationHeight,
-      heightOfBarWrap: isEventsOnlyMode && eventOnlyLayout
-        ? eventOnlyLayout.rowHeight
-        : layout.heightOfBarWrap,
+      heightOfBarWrap:
+        isEventsOnlyMode && eventOnlyLayout
+          ? eventOnlyLayout.rowHeight
+          : layout.heightOfBarWrap,
       scaleFactor: isEventsOnlyMode ? 1 : layout.scaleFactor,
       isCompact: isEventsOnlyMode ? false : layout.isCompact,
       leftLabelWidth: LEFT_LABEL_WIDTH,
@@ -546,6 +563,22 @@
         )
       }
     }
+
+    // 2.25. Ring highlighted segments that render sub-pixel-wide (their true
+    // duration is too brief to paint at this scale) so they don't vanish among
+    // the desaturated neighbours. No-op when nothing is highlighted.
+    drawScarfHighlightMarkers(ctx, data, renderCtx, {
+      rectStyleArray,
+      eventStyleArray,
+      channelStyleIndices,
+      highlightMask: highlightMaskByIndex,
+      isEventsOnly: isEventsOnlyMode,
+      eventOnlyRowHeight: eventOnlyLayout?.rowHeight ?? 0,
+      eventOnlyLaneHeight: eventOnlyLayout?.laneHeight ?? 0,
+      // Vanishing is judged in device pixels — at export DPI a sub-pixel segment
+      // may paint solid colour and then needs no ring.
+      deviceScale: plot.canvasState.pixelRatio ?? 1,
+    })
 
     // 2.5. Draw crosshair highlight (above data, below text/legend)
     drawCrosshairHighlight(
@@ -649,7 +682,10 @@
     if (!canvas) return
 
     // Get mouse position with correct scaling
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(plot.canvasState, event)
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(
+      plot.canvasState,
+      event
+    )
 
     // Check if mouse is over a legend item
     const legendItem = isMouseOverLegendItem(mouseX, mouseY)
@@ -731,21 +767,24 @@
     canvas.style.cursor = 'crosshair'
 
     // Update crosshair state
-    const rowHeight = isEventsOnlyMode && eventOnlyLayout
-      ? eventOnlyLayout.rowHeight
-      : layout.heightOfBarWrap
+    const rowHeight =
+      isEventsOnlyMode && eventOnlyLayout
+        ? eventOnlyLayout.rowHeight
+        : layout.heightOfBarWrap
     const relativeY = mouseY - effectiveMarginTop
     const newRowIndex = Math.floor(relativeY / rowHeight)
-    hoveredRowIndex = (newRowIndex >= 0 && newRowIndex < data.participants.length)
-      ? newRowIndex
-      : null
+    hoveredRowIndex =
+      newRowIndex >= 0 && newRowIndex < data.participants.length
+        ? newRowIndex
+        : null
     mouseXPx = mouseX
     plot.scheduleRender()
 
     // Find the segment under the mouse pointer using TypedArray
-    const hoveredSegment = hoveredRowIndex !== null
-      ? findSegmentAtRowAndTime(hoveredRowIndex, mouseX)
-      : null
+    const hoveredSegment =
+      hoveredRowIndex !== null
+        ? findSegmentAtRowAndTime(hoveredRowIndex, mouseX)
+        : null
 
     // If hovering over a new segment, show tooltip
     if (
@@ -762,7 +801,8 @@
       const pIndex = hoveredSegment.y
       const floorLeft = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
       const floorWidth = Math.floor(plotAreaWidth)
-      const segEndX = floorLeft + (hoveredSegment.x + hoveredSegment.width) * floorWidth
+      const segEndX =
+        floorLeft + (hoveredSegment.x + hoveredSegment.width) * floorWidth
       const rowBottomY = pIndex * rowHeight + rowHeight + effectiveMarginTop
 
       const tooltipPos = getTooltipPosition(
@@ -817,7 +857,10 @@
     if (!canvas) return
 
     // Get mouse position with correct scaling
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(plot.canvasState, event)
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(
+      plot.canvasState,
+      event
+    )
 
     // Check if clicking on a legend item
     const clickedLegendItem = isMouseOverLegendItem(mouseX, mouseY)
@@ -838,7 +881,6 @@
       dragStartX = mouseX
       dragStartY = mouseY
       hasDragStarted = false
-
     }
   }
 
@@ -858,7 +900,10 @@
     if (!canvas) return
 
     // Get mouse position with correct scaling
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(plot.canvasState, event)
+    const { x: mouseX, y: mouseY } = getScaledMousePosition(
+      plot.canvasState,
+      event
+    )
 
     // If we haven't started dragging yet, check if we should
     if (!hasDragStarted && dragStartX !== 0) {
@@ -884,7 +929,7 @@
     if (hoveredLegendItem) {
       isDragging = false
       hasDragStarted = false
-  
+
       dragStartX = 0
       dragStartY = 0
       return

@@ -64,6 +64,20 @@ export const SCARF_LAYOUT = {
   MIN_ROW_GAP: 3, // minimum whitespace between participant rows (hard floor)
   MIN_INTERVAL_PX: 1, // a thin interval must never sub-pixel-vanish
   MIN_POINT_PX: 3, // point events are min-width clamped + drawn distinct from intervals
+
+  // --- Highlight locator rings ---
+  // When an identifier is highlighted, non-highlighted segments desaturate and
+  // the highlighted ones keep full colour. But a highlighted segment whose true
+  // duration is too brief to paint even one pixel at the current timeline scale
+  // would simply vanish — invisible among the washed-out neighbours. Rather than
+  // inflate its width (which would falsify the duration), we RING its location:
+  // a scale-independent annotation that points at "it's here" without distorting
+  // the timeline. Adjacent vanished segments of the same identifier collapse into
+  // one ring at their centroid so a burst of micro-fixations reads as one marker.
+  HIGHLIGHT_MARKER_VANISH_PX: 1, // DEVICE pixels of colour a segment/cluster must cover to be "seen"; below this it counts as vanished. Judged at the render DPI, so a sub-pixel-on-screen segment that paints solid at export DPI — or several thin ones that together cover a pixel — needs no ring.
+  HIGHLIGHT_MARKER_RADIUS: 8, // desired ring radius (shrunk to fit short rows)
+  HIGHLIGHT_MARKER_MIN_RADIUS: 3, // below this the row is too short to host a ring — skip it
+  HIGHLIGHT_MARKER_RING_WIDTH: 1.5, // colored ring stroke; a white halo is drawn beneath for contrast
 } as const
 
 // --- Buffer Strides ---
