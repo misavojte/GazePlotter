@@ -300,6 +300,58 @@ describe('V4 → V5 bar-plot settings migration', () => {
     const m = runMigrations(file)
     expect(m.gridItems[0].settings.hideNoAoi).toBe(true)
   })
+
+  it('initializes hideNoAoi to false when it is undefined on aoiStreamPlot', () => {
+    const file = buildV4File([
+      {
+        id: 'stream-1',
+        type: 'aoiStreamPlot',
+        x: 0, y: 0, w: 8, h: 8,
+        settings: { stimulusId: 0, groupId: -1, binSize: 500 },
+      },
+    ])
+    const m = runMigrations(file)
+    expect(m.gridItems[0].settings.hideNoAoi).toBe(false)
+  })
+
+  it('keeps hideNoAoi value if it is already defined on aoiStreamPlot', () => {
+    const file = buildV4File([
+      {
+        id: 'stream-1',
+        type: 'aoiStreamPlot',
+        x: 0, y: 0, w: 8, h: 8,
+        settings: { stimulusId: 0, groupId: -1, binSize: 500, hideNoAoi: true },
+      },
+    ])
+    const m = runMigrations(file)
+    expect(m.gridItems[0].settings.hideNoAoi).toBe(true)
+  })
+
+  it('initializes hideNoAoi to false when it is undefined on transitionMatrix', () => {
+    const file = buildV4File([
+      {
+        id: 'tm-1',
+        type: 'transitionMatrix',
+        x: 0, y: 0, w: 8, h: 8,
+        settings: { stimulusId: 0, groupId: -1, aggregationMethod: 'sum' },
+      },
+    ])
+    const m = runMigrations(file)
+    expect(m.gridItems[0].settings.hideNoAoi).toBe(false)
+  })
+
+  it('keeps hideNoAoi value if it is already defined on transitionMatrix', () => {
+    const file = buildV4File([
+      {
+        id: 'tm-1',
+        type: 'transitionMatrix',
+        x: 0, y: 0, w: 8, h: 8,
+        settings: { stimulusId: 0, groupId: -1, aggregationMethod: 'sum', hideNoAoi: true },
+      },
+    ])
+    const m = runMigrations(file)
+    expect(m.gridItems[0].settings.hideNoAoi).toBe(true)
+  })
 })
 
 describe('V5 → V6 baseId rename migration', () => {

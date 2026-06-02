@@ -119,6 +119,16 @@
       </div>
     </div>
   </div>
+  <div class="sub-group">
+    <div class="legend">Hide data</div>
+    <InputCheck
+      label="No AOI data"
+      appearance="compact"
+      size="xs"
+      checked={settings.hideNoAoi ?? false}
+      onchange={e => update({ hideNoAoi: (e as CustomEvent<boolean>).detail })}
+    />
+  </div>
 </PaneSection>
 
 <TimelineRangeSection {item} />

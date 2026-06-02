@@ -65,7 +65,7 @@ export function getAoiStreamPlotData(
   engine: DataEngine,
   settings: Pick<
     AoiStreamPlotSettings,
-    'stimulusId' | 'groupId' | 'metricInstanceIds'
+    'stimulusId' | 'groupId' | 'metricInstanceIds' | 'hideNoAoi'
   > & {
     timelineMin?: number
     timelineMax?: number
@@ -118,7 +118,8 @@ export function getAoiStreamPlotData(
   // vectors by hardcoded indices.
   const { noAoiSlot } = result.slots
   const aoiCount = noAoiSlot
-  const totalSlots = aoiCount + 1 // AOI slots + the noAoi sentinel
+  const hideNoAoi = settings.hideNoAoi ?? false
+  const totalSlots = hideNoAoi ? aoiCount : aoiCount + 1 // AOI slots + the noAoi sentinel
   const orderedAois = getAois(engine, stimulusId)
 
   const vectors = result.vectors
@@ -132,8 +133,10 @@ export function getAoiStreamPlotData(
       const x = v[s]
       if (Number.isFinite(x)) accums[s][w] = x
     }
-    const noAoi = v[noAoiSlot]
-    if (Number.isFinite(noAoi)) accums[noAoiSlot][w] = noAoi
+    if (!hideNoAoi) {
+      const noAoi = v[noAoiSlot]
+      if (Number.isFinite(noAoi)) accums[noAoiSlot][w] = noAoi
+    }
   }
 
   const { noAoiTreatment } = meta
@@ -147,11 +150,13 @@ export function getAoiStreamPlotData(
       values: accums[i],
     }
   }
-  series[aoiCount] = {
-    id: -1,
-    label: noAoiTreatment.displayedName,
-    color: noAoiTreatment.color,
-    values: accums[aoiCount],
+  if (!hideNoAoi) {
+    series[aoiCount] = {
+      id: -1,
+      label: noAoiTreatment.displayedName,
+      color: noAoiTreatment.color,
+      values: accums[aoiCount],
+    }
   }
 
   let maxTotal = 0

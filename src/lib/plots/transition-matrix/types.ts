@@ -20,6 +20,7 @@ export type TransitionMatrixPlotSettings = {
   showBelowMinLabels: boolean
   showAboveMaxLabels: boolean
   colorScale: string[]
+  hideNoAoi?: boolean
 }
 
 export type TransitionMatrixPlotItem = PlotItemContract<

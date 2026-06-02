@@ -20,17 +20,21 @@ export function getTransitionMatrixData(
   metricInstanceId: string | null,
   timeStart: number = 0,
   timeEnd: number = 0,
+  hideNoAoi: boolean = false,
 ): TransitionMatrixData {
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
 
   const participantIds = getParticipantsIds(engine, groupId, stimulusId)
   const aoiList = getAois(engine, stimulusId)
-  const size = aoiList.length + 1
+  const aoiCount = aoiList.length
+  const size = hideNoAoi ? aoiCount : aoiCount + 1
   const aoiLabels = [
     ...aoiList.map(a => a.displayedName),
-    meta.noAoiTreatment.displayedName,
   ]
+  if (!hideNoAoi) {
+    aoiLabels.push(meta.noAoiTreatment.displayedName)
+  }
 
   const resolved = resolveMetric({
     instances: meta.metricInstances,
@@ -51,9 +55,22 @@ export function getTransitionMatrixData(
     timeStart,
     timeEnd,
   }
-  const matrix = asAoiPairMatrix(queryGroup(resolved.instance, scope))
+  const result = asAoiPairMatrix(queryGroup(resolved.instance, scope))
+  let rawMatrix = result ? Float64Array.from(result.matrix) : new Float64Array(0)
+
+  if (hideNoAoi && rawMatrix.length > 0) {
+    const origSize = aoiCount + 1
+    const filtered = new Float64Array(aoiCount * aoiCount)
+    for (let r = 0; r < aoiCount; r++) {
+      for (let c = 0; c < aoiCount; c++) {
+        filtered[r * aoiCount + c] = rawMatrix[r * origSize + c]
+      }
+    }
+    rawMatrix = filtered
+  }
+
   return {
-    matrix: matrix ? Float64Array.from(matrix.matrix) : new Float64Array(0),
+    matrix: rawMatrix,
     aoiLabels,
     aoiList,
   }

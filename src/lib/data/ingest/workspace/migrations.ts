@@ -466,7 +466,7 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
           item.type as keyof typeof LEGACY_VISUALIZATION_TYPES
         ]
       const nextItem = normalized ? { ...item, type: normalized } : item
-      if (nextItem.type === 'barPlot' && nextItem.settings && typeof nextItem.settings === 'object') {
+      if ((nextItem.type === 'barPlot' || nextItem.type === 'aoiStreamPlot' || nextItem.type === 'transitionMatrix') && nextItem.settings && typeof nextItem.settings === 'object') {
         if (nextItem.settings.hideNoAoi === undefined) {
           nextItem.settings = { ...nextItem.settings, hideNoAoi: false }
         }

@@ -43,6 +43,7 @@ export const transitionMatrixDefinition = definePlot<
     showBelowMinLabels: false,
     showAboveMaxLabels: false,
     colorScale: [...PRESET_PALETTES.BLUE.colors],
+    hideNoAoi: false,
   }),
   getMinSize: () => ({ w: 11, h: 10 }),
   getDefaultHeight: () => 12,

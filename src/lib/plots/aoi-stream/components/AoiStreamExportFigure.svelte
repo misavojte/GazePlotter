@@ -60,6 +60,7 @@
       metricInstanceIds: settings.metricInstanceIds,
       timelineMin: timelineMinValue,
       timelineMax: timelineMaxValue,
+      hideNoAoi: settings.hideNoAoi,
     })
   )
 </script>

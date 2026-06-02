@@ -1,6 +1,6 @@
 <script lang="ts">
   import { PaneSection } from '$lib/workspace/pane'
-  import { InputNumber, Radio, Select } from '$lib/shared/components'
+  import { InputNumber, Radio, Select, InputCheck } from '$lib/shared/components'
   import {
     ColorScalePicker,
     CommonPlotPaneFields,
@@ -79,6 +79,34 @@
       onCommit={patch => update({ colorScale: patch })}
     />
   </div>
+  <div class="sub-group">
+    <div class="legend">Hide data</div>
+    <InputCheck
+      label="No AOI data"
+      appearance="compact"
+      size="xs"
+      checked={settings.hideNoAoi ?? false}
+      onchange={e => update({ hideNoAoi: (e as CustomEvent<boolean>).detail })}
+    />
+  </div>
 </PaneSection>
 
 <TimelineRangeSection {item} />
+
+<style>
+  .sub-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  .sub-group .legend {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--c-darkgrey);
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+  }
+</style>

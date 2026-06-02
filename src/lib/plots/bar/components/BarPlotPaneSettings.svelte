@@ -119,9 +119,10 @@
       />
     </div>
   </div>
-  <div style="margin-top: 5px;">
+  <div class="sub-group">
+    <div class="legend">Hide data</div>
     <InputCheck
-      label="Hide No AOI"
+      label="No AOI data"
       appearance="compact"
       size="xs"
       checked={settings.hideNoAoi ?? false}
@@ -138,7 +139,8 @@
     gap: 8px;
   }
 
-  .scale-range-group {
+  .scale-range-group,
+  .sub-group {
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -146,7 +148,8 @@
     margin-top: 4px;
   }
 
-  .scale-range-group .legend {
+  .scale-range-group .legend,
+  .sub-group .legend {
     font-size: 11px;
     font-weight: 400;
     color: var(--c-darkgrey);

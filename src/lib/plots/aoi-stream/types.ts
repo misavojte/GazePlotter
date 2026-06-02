@@ -18,6 +18,7 @@ export type AoiStreamPlotSettings = {
   ridgelineScale?: number
   timelineStart?: number
   timelineEnd?: number
+  hideNoAoi?: boolean
 }
 
 export type AoiStreamPlotItem = PlotItemContract<
