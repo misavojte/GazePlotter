@@ -8,15 +8,25 @@
   import {
     drawPlotArea,
     usePlot,
+    toCanvasMargins,
     canvasBlockSelect,
     type BlockedRegion,
+    type CanvasExportProps,
   } from '$lib/plots/shared'
+  import { drawCanvasPlaceholder } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { UI_COLORS } from '$lib/color'
   import type {
     RecurrenceData,
     RecurrenceHighlight,
     RecurrenceMasking,
   } from '../types'
+
+  interface Props extends CanvasExportProps {
+    data: RecurrenceData
+    highlight?: RecurrenceHighlight
+    masking?: RecurrenceMasking
+    highlightMask?: Uint8Array | null
+  }
 
   let {
     data,
@@ -30,28 +40,15 @@
     marginRight = 0,
     marginBottom = 0,
     marginLeft = 0,
-  } = $props<{
-    data: RecurrenceData
-    highlight?: RecurrenceHighlight
-    masking?: RecurrenceMasking
-    highlightMask?: Uint8Array | null
-    width?: number
-    height?: number
-    dpiOverride?: number | null
-    marginTop?: number
-    marginRight?: number
-    marginBottom?: number
-    marginLeft?: number
-  }>()
+  }: Props = $props()
 
-  let canvas = $state<HTMLCanvasElement | null>(null)
   let hoveredCell = $state<{ row: number; col: number } | null>(null)
 
   const plot = usePlot({
     render: renderCanvas,
     width: () => width,
     height: () => height,
-    margins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
+    margins: () => toCanvasMargins({ marginTop, marginRight, marginBottom, marginLeft }),
     dpiOverride: () => dpiOverride,
     deps: () => [data, highlight, masking, highlightMask],
     onMouseMove: handlePlotMouseMove,
@@ -77,12 +74,9 @@
     const xAxisSpace =
       L.tickLength + L.tickFontSize + 6 + L.labelFontSize + L.axisTitleGap
 
-    // width/height are the TOTAL canvas; carve the export margins out first.
-    const contentW = width - marginLeft - marginRight
-    const contentH = height - marginTop - marginBottom
-
-    const availW = contentW - yAxisSpace - L.rightMargin
-    const availH = contentH - L.topMargin - xAxisSpace
+    // plot.plotAreaWidth/Height are the content area (total minus export margins).
+    const availW = plot.plotAreaWidth - yAxisSpace - L.rightMargin
+    const availH = plot.plotAreaHeight - L.topMargin - xAxisSpace
 
     const plotSize = Math.max(0, Math.min(availW, availH))
     const cellSize = N < 2 ? 0 : Math.max(L.minCellSize, plotSize / N)
@@ -147,11 +141,7 @@
     const { N, cellSize, gridSize, xOffset, yOffset } = layout
 
     if (N < 2) {
-      ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
-      ctx.fillStyle = UI_COLORS.TEXT_SECONDARY
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText('Not enough fixations', width >> 1, height >> 1)
+      drawCanvasPlaceholder(ctx, width, height, 'Not enough fixations')
       finishCanvasDrawing(plot.canvasState)
       return
     }
@@ -375,7 +365,7 @@
     _isOver: boolean
   ) {
     if (mouseX === null || mouseY === null) {
-      if (canvas) canvas.style.cursor = 'default'
+      plot.setCursor('default')
       if (hoveredCell) {
         hoveredCell = null
         plot.scheduleRender()
@@ -392,7 +382,7 @@
     const isOverCell = row >= 0 && row < N && col >= 0 && col < N
 
     if (isOverCell) {
-      if (canvas) canvas.style.cursor = 'crosshair'
+      plot.setCursor('crosshair')
       if (!hoveredCell || hoveredCell.row !== row || hoveredCell.col !== col) {
         hoveredCell = { row, col }
         plot.scheduleRender()
@@ -420,7 +410,7 @@
         140
       )
     } else {
-      if (canvas) canvas.style.cursor = 'default'
+      plot.setCursor('default')
       if (hoveredCell) {
         hoveredCell = null
         plot.scheduleRender()
@@ -431,7 +421,6 @@
 </script>
 
 <canvas
-  bind:this={canvas}
   use:plot.plotAction
   use:canvasBlockSelect={{ regions: blockedRegions }}
 ></canvas>

@@ -26,8 +26,7 @@
     type LegendItemGeometry,
   } from '$lib/plots/shared'
   import { UI_COLORS } from '$lib/color'
-  import { updateTooltip } from '$lib/tooltip'
-  import { onDestroy, untrack } from 'svelte'
+  import { onDestroy } from 'svelte'
   import { RECT_STRIDE, SCARF_IDENTIFIERS, SCARF_LAYOUT } from '../const'
   import {
     calculateEffectiveMarginTop,
@@ -691,7 +690,7 @@
     if (!over || mx === null || my === null) {
       if (hoveredLegendItem) {
         hoveredLegendItem = null
-        updateTooltip(null)
+        plot.hideTooltip(0)
       }
       if (hoveredRowIndex !== null || mouseXPx !== null) {
         hoveredRowIndex = null
@@ -702,7 +701,7 @@
         currentHoveredSegment = null
         onTooltipDeactivation()
       }
-      if (canvas) canvas.style.cursor = 'default'
+      plot.setCursor('default')
       
       // Reset drag state if leaving plot
       if (isDragging) {
@@ -734,28 +733,22 @@
           legendItem,
           SCARF_LEGEND_CONFIG
         )
-        const tooltipPos = getTooltipPosition(
-          plot.canvasState,
+
+        plot.showTooltip(
+          legendItem.identifier,
+          tooltipContent,
           tooltipItemPos.x,
           tooltipItemPos.y,
           { x: 0, y: 7 }
         )
-
-        updateTooltip({
-          id: legendItem.identifier,
-          visible: true,
-          content: tooltipContent,
-          x: tooltipPos.x,
-          y: tooltipPos.y,
-        })
       } else if (hoveredLegendItem) {
         hoveredLegendItem = null
-        updateTooltip(null)
+        plot.hideTooltip(0)
       }
     }
 
     if (hoveredLegendItem) {
-      if (canvas) canvas.style.cursor = 'pointer'
+      plot.setCursor('pointer')
       if (hoveredRowIndex !== null) {
         hoveredRowIndex = null
         mouseXPx = null
@@ -772,7 +765,7 @@
       my <= participantBarsHeight + effectiveMarginTop
 
     if (!inPlotArea) {
-      if (canvas) canvas.style.cursor = 'default'
+      plot.setCursor('default')
       if (hoveredRowIndex !== null) {
         hoveredRowIndex = null
         mouseXPx = null
@@ -785,7 +778,7 @@
       return
     }
 
-    if (canvas) canvas.style.cursor = 'crosshair'
+    plot.setCursor('crosshair')
 
     // Update crosshair state
     const rowHeight =
@@ -1005,7 +998,7 @@
   // Clean up tooltip when unmounting
   onDestroy(() => {
     if (hoveredLegendItem) {
-      updateTooltip(null)
+      plot.hideTooltip(0)
     }
   })
 </script>

@@ -1,10 +1,6 @@
 <script lang="ts">
   import { getColorForValue } from '$lib/color'
-  import { updateTooltip } from '$lib/tooltip'
-  import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
-  import { untrack } from 'svelte'
   import {
-    getTooltipPosition,
     beginCanvasDrawing,
     finishCanvasDrawing,
   } from '$lib/plots/shared/canvasUtils'
@@ -19,13 +15,29 @@
     drawGradientLegend,
     drawPlotArea,
     usePlot,
+    toCanvasMargins,
     renderMatrixContent,
     canvasBlockSelect,
     MATRIX_LEGEND_GAP,
     type BlockedRegion,
+    type CanvasExportProps,
     type MatrixRenderConfig,
   } from '$lib/plots/shared'
-  import { UI_COLORS } from '$lib/color'
+
+  interface Props extends CanvasExportProps {
+    TransitionMatrix: Float64Array | number[]
+    aoiLabels: string[]
+    colorScale?: string[]
+    xLabel?: string
+    yLabel?: string
+    legendTitle?: string
+    colorValueRange: [number, number]
+    belowMinColor?: string
+    aboveMaxColor?: string
+    showBelowMinLabels?: boolean
+    showAboveMaxLabels?: boolean
+    noMetric?: boolean
+  }
 
   let {
     TransitionMatrix = new Float64Array(0),
@@ -47,41 +59,17 @@
     marginBottom = 0,
     marginLeft = 0,
     noMetric = false,
-  } = $props<{
-    TransitionMatrix: Float64Array | number[]
-    aoiLabels: string[]
-    height?: number
-    width?: number
-    colorScale?: string[]
-    xLabel?: string
-    yLabel?: string
-    legendTitle?: string
-    colorValueRange: [number, number]
-    belowMinColor?: string
-    aboveMaxColor?: string
-    showBelowMinLabels?: boolean
-    showAboveMaxLabels?: boolean
-    dpiOverride?: number | null
-    marginTop?: number
-    marginRight?: number
-    marginBottom?: number
-    marginLeft?: number
-    noMetric?: boolean
-  }>()
-
-  let canvas = $state<HTMLCanvasElement | null>(null)
+  }: Props = $props()
 
   const plot = usePlot({
     render: renderCanvas,
     width: () => width,
     height: () => height,
-    margins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
+    margins: () => toCanvasMargins({ marginTop, marginRight, marginBottom, marginLeft }),
     dpiOverride: () => dpiOverride,
     deps: () => [
       TransitionMatrix,
       aoiLabels,
-      width,
-      height,
       colorScale,
       xLabel,
       yLabel,
@@ -91,11 +79,6 @@
       aboveMaxColor,
       showBelowMinLabels,
       showAboveMaxLabels,
-      dpiOverride,
-      marginTop,
-      marginRight,
-      marginBottom,
-      marginLeft,
     ],
     onMouseMove: handlePlotMouseMove,
   })
@@ -199,11 +182,7 @@
     }
 
     if (aoiLabels.length === 0) {
-      ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
-      ctx.fillStyle = UI_COLORS.TEXT_SECONDARY
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText('No AOI data available', width >> 1, height >> 1)
+      drawCanvasPlaceholder(ctx, width, height, 'No AOI data available')
       finishCanvasDrawing(plot.canvasState)
       return
     }
@@ -253,10 +232,11 @@
     }
   }
 
+  // Coordinates arrive already scaled from usePlot; null/!over marks mouse-leave.
   function handlePlotMouseMove(mx: number | null, my: number | null, over: boolean) {
     if (!over || mx === null || my === null) {
-      updateTooltip(null)
-      if (canvas) canvas.style.cursor = 'default'
+      plot.hideTooltip(0)
+      plot.setCursor('default')
       return
     }
 
@@ -273,38 +253,27 @@
       const x = xOffset + col * cellSize
       const y = yOffset + row * cellSize
 
-      const tooltipPos = getTooltipPosition(
-        plot.canvasState,
-        x + cellSize,
-        y + (cellSize >> 1),
-        { x: 10, y: 0 }
-      )
-
-      updateTooltip({
-        id: 'transition-matrix-tooltip',
-        x: tooltipPos.x,
-        y: tooltipPos.y,
-        content: [
+      plot.showTooltip(
+        'transition-matrix-tooltip',
+        [
           { key: 'From', value: aoiLabels[row] },
           { key: 'To', value: aoiLabels[col] },
           { key: 'Value', value: Number.isFinite(value) ? value.toString() : '—' },
         ],
-        visible: true,
-        width: 150,
-      })
+        x + cellSize,
+        y + (cellSize >> 1),
+        { x: 10, y: 0 },
+        150
+      )
     } else {
-      updateTooltip(null)
+      plot.hideTooltip(0)
     }
 
-    if (canvas) {
-      canvas.style.cursor = isOverCell ? 'pointer' : 'default'
-    }
+    plot.setCursor(isOverCell ? 'pointer' : 'default')
   }
-
 </script>
 
 <canvas
-  bind:this={canvas}
   use:plot.plotAction
   use:canvasBlockSelect={{ regions: blockedRegions }}
 ></canvas>

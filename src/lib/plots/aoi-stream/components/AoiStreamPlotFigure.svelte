@@ -8,6 +8,7 @@
     usePlot,
     canvasBlockSelect,
     type BlockedRegion,
+    type CanvasExportProps,
   } from '$lib/plots/shared'
   import { estimateTextWidth } from '$lib/shared/utils/textUtils'
   import { desaturateToWhite, INACTIVE_COLOR } from '$lib/color'
@@ -47,7 +48,6 @@
     type PlotAreaTicks,
   } from '$lib/plots/shared/plotArea'
   import { drawCanvasPlaceholder, METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
-  import { safeNumber } from '$lib/shared/utils/mathUtils'
   import {
     Y_AXIS,
     AXIS_CONFIG,
@@ -63,18 +63,11 @@
 
   // X-axis label moved after props to access data
 
-  type AoiStreamPlotFigureProps = {
-    width: number
-    height: number
+  interface Props extends CanvasExportProps {
     data: AoiStreamPlotResult
     highlights?: string[]
     alignment?: 'stream' | 'distribution' | 'ridgeline' | 'heatmap'
     onLegendClick?: (aoiId: number) => void
-    dpiOverride?: number | null
-    marginTop?: number
-    marginRight?: number
-    marginBottom?: number
-    marginLeft?: number
     syncedMTopOverride?: number | null
     ridgelineScale?: number
     colorScale?: string[]
@@ -95,7 +88,7 @@
     syncedMTopOverride = null,
     ridgelineScale,
     colorScale,
-  }: AoiStreamPlotFigureProps = $props()
+  }: Props = $props()
 
   // Single source of truth for the heatmap palette. When the user hasn't
   // explicitly picked a colorScale yet (initial switch to heatmap),
@@ -115,8 +108,6 @@
     COLOR: 'rgba(255, 255, 255, 0.4)',
     WIDTH: 1,
   }
-
-  let canvas = $state<HTMLCanvasElement | null>(null)
 
   // Render buckets (cached x/y positions for all series and workspace buffers)
   let renderBuckets = $state<RenderBuckets | null>(null)
@@ -143,17 +134,11 @@
 
   const MARGIN = AOI_MARGIN
 
-  // Memoized safe values (compute once per change). `width`/`height` are the
-  // TOTAL canvas; `contentWidth` is the drawable width after export margins are
-  // carved out — used for legend layout (the plot area itself comes from usePlot).
-  const safeWidth = $derived(Math.max(1, safeNumber(width, 1)))
-  const safeHeight = $derived(Math.max(1, safeNumber(height, 1)))
-  const safeMarginTop = $derived(safeNumber(marginTop, 0))
-  const safeMarginRight = $derived(safeNumber(marginRight, 0))
-  const safeMarginBottom = $derived(safeNumber(marginBottom, 0))
-  const safeMarginLeft = $derived(safeNumber(marginLeft, 0))
+  // `width`/`height` are the TOTAL canvas; `contentWidth` is the drawable width
+  // after export margins are carved out — used for legend layout (the plot area
+  // itself comes from usePlot).
   const contentWidth = $derived(
-    Math.max(1, safeWidth - safeMarginLeft - safeMarginRight)
+    Math.max(1, width - marginLeft - marginRight)
   )
 
   const maxAoiLabelWidth = $derived.by(() => {
@@ -218,16 +203,16 @@
   // the export margins fold into a single carve-margins object; usePlot carves
   // the plot area out of the total, so the export margins become outer padding.
   const margins = $derived({
-    top: safeMarginTop + MARGIN.TOP,
-    right: safeMarginRight + effectiveRightMargin,
-    bottom: safeMarginBottom + MARGIN.BOTTOM + legendHeight,
-    left: safeMarginLeft + effectiveLeftMargin,
+    top: marginTop + MARGIN.TOP,
+    right: marginRight + effectiveRightMargin,
+    bottom: marginBottom + MARGIN.BOTTOM + legendHeight,
+    left: marginLeft + effectiveLeftMargin,
   })
 
   const plot = usePlot({
     render: renderCanvas,
-    width: () => safeWidth,
-    height: () => safeHeight,
+    width: () => width,
+    height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
     deps: () => [
@@ -250,7 +235,7 @@
 
   // Compute full legend geometry for rendering (after we know plotBottom)
   const legendGeometry: LegendGeometry = $derived.by(() => {
-    const legendX = safeMarginLeft
+    const legendX = marginLeft
     const legendY = plotBottom + MARGIN.BOTTOM + STREAM_LEGEND_CONFIG.topPadding
     const legendWidth = Math.max(0, contentWidth)
 
@@ -290,7 +275,7 @@
     if (alignment !== 'heatmap') return null
 
     return computeGradientLegendGeometry({
-      x: safeMarginLeft,
+      x: marginLeft,
       y: plotBottom + MARGIN.BOTTOM,
       availableWidth: contentWidth,
       availableHeight: legendHeight,
@@ -712,7 +697,7 @@
     if (alignment === 'heatmap') {
       if (gradientLegendGeometry) {
         drawGradientLegend(ctx, gradientLegendGeometry, {
-          x: safeMarginLeft,
+          x: marginLeft,
           y: plotBottom + MARGIN.BOTTOM,
           availableWidth: contentWidth,
           availableHeight: legendHeight,
@@ -782,7 +767,7 @@
         hoveredLegendItem = null
         hoveredBinIndex = null
         plot.hideTooltip(0)
-        if (canvas) canvas.style.cursor = 'default'
+        plot.setCursor('default')
         plot.scheduleRender()
       }
       return
@@ -815,12 +800,12 @@
           { x: 0, y: 7 }
         )
 
-        if (canvas) canvas.style.cursor = 'pointer'
+        plot.setCursor('pointer')
       } else if (hoveredLegendItem) {
         // Hide tooltip when mouse leaves legend item
         hoveredLegendItem = null
         plot.hideTooltip(0)
-        if (canvas) canvas.style.cursor = 'default'
+        plot.setCursor('default')
       }
     }
 
@@ -898,11 +883,11 @@
           { x: 15, y: 15 } // Offset from cursor
         )
 
-        if (canvas) canvas.style.cursor = 'crosshair'
+        plot.setCursor('crosshair')
       } else if (!legendItem) {
         // Hide tooltip when not over bin or legend
         plot.hideTooltip(0)
-        if (canvas) canvas.style.cursor = 'default'
+        plot.setCursor('default')
       }
 
       // Re-render to show/hide bin highlight
@@ -928,7 +913,6 @@
 </script>
 
 <canvas
-  bind:this={canvas}
   use:plot.plotAction
   use:canvasBlockSelect={{ regions: blockedRegions }}
   onclick={handleClick}

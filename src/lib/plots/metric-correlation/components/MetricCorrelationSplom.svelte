@@ -14,23 +14,18 @@
     drawMatrixRowLabels,
     drawPlotArea,
     usePlot,
+    toCanvasMargins,
     canvasBlockSelect,
     type BlockedRegion,
+    type CanvasExportProps,
     type MatrixRenderConfig,
     type SquareMatrixLayout,
   } from '$lib/plots/shared'
   import { UI_COLORS } from '$lib/color'
   import type { MetricCorrelationResult } from '../types'
 
-  interface Props {
-    width: number
-    height: number
+  interface Props extends CanvasExportProps {
     result: MetricCorrelationResult
-    dpiOverride?: number | null
-    marginTop?: number
-    marginRight?: number
-    marginBottom?: number
-    marginLeft?: number
   }
 
   let {
@@ -44,13 +39,11 @@
     marginLeft = 0,
   }: Props = $props()
 
-  let canvas = $state<HTMLCanvasElement | null>(null)
-
   const plot = usePlot({
     render: renderCanvas,
     width: () => width,
     height: () => height,
-    margins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
+    margins: () => toCanvasMargins({ marginTop, marginRight, marginBottom, marginLeft }),
     dpiOverride: () => dpiOverride,
     deps: () => [result, labels, methodLabel],
     onMouseMove: handlePlotMouseMove,
@@ -244,7 +237,7 @@
   ) {
     if (mouseX === null || mouseY === null) {
       plot.hideTooltip(0)
-      if (canvas) canvas.style.cursor = 'default'
+      plot.setCursor('default')
       return
     }
 
@@ -275,14 +268,11 @@
       plot.hideTooltip(0)
     }
 
-    if (canvas) {
-      canvas.style.cursor = isOverCell ? 'pointer' : 'default'
-    }
+    plot.setCursor(isOverCell ? 'pointer' : 'default')
   }
 </script>
 
 <canvas
-  bind:this={canvas}
   use:plot.plotAction
   use:canvasBlockSelect={{ regions: blockedRegions }}
 ></canvas>

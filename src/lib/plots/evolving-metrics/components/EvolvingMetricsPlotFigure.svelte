@@ -8,6 +8,7 @@
     usePlot,
     canvasBlockSelect,
     type BlockedRegion,
+    type CanvasExportProps,
   } from '$lib/plots/shared'
   import { estimateTextWidth } from '$lib/shared/utils/textUtils'
   import { interpolateColor } from '$lib/color'
@@ -29,7 +30,6 @@
   } from '$lib/plots/shared/plotArea'
   import { drawCanvasPlaceholder, METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
-  import { safeNumber } from '$lib/shared/utils/mathUtils'
   import { MARGIN, AXIS_CONFIG } from '../const'
   import type { EvolvingMetricsResult, EvolvingMetricsWindow } from '../types'
 
@@ -41,17 +41,10 @@
   const OVERLAY_MEAN_LINE_WIDTH = 1.5
   const OVERLAY_INDIVIDUAL_RGB = '210, 210, 210'
 
-  type EvolvingMetricsFigureProps = {
-    width: number
-    height: number
+  interface Props extends CanvasExportProps {
     data: EvolvingMetricsResult
     alignment?: 'heatmap' | 'overlay'
     colorScale?: string[]
-    dpiOverride?: number | null
-    marginTop?: number
-    marginRight?: number
-    marginBottom?: number
-    marginLeft?: number
   }
 
   let {
@@ -65,7 +58,7 @@
     marginRight = 0,
     marginBottom = 0,
     marginLeft = 0,
-  }: EvolvingMetricsFigureProps = $props()
+  }: Props = $props()
 
   const X_AXIS_LABEL = $derived(data.xAxisLabel)
   const X_AXIS_LABEL_OFFSET = 30
@@ -75,27 +68,15 @@
   }
   const HEATMAP_LEGEND_HEIGHT = 60
 
-  let canvas = $state<HTMLCanvasElement | null>(null)
   // Track hover position in ms (not bin index) — the plot renders directly on
   // the ms axis, so ms is the primary coordinate for hit-testing.
   let hoveredMsTime = $state<number | null>(null)
   let hoveredParticipantIndex = $state<number | null>(null)
 
-  const safeWidth = $derived(Math.max(1, safeNumber(width, 1)))
-  const safeHeight = $derived(Math.max(1, safeNumber(height, 1)))
-  const safeMarginTop = $derived(safeNumber(marginTop, 0))
-  const safeMarginRight = $derived(safeNumber(marginRight, 0))
-  const safeMarginBottom = $derived(safeNumber(marginBottom, 0))
-  const safeMarginLeft = $derived(safeNumber(marginLeft, 0))
-
-  // `width`/`height` are the TOTAL canvas; content is the drawable area after the
-  // export margins are carved out. The plot area is carved from content.
-  const contentWidth = $derived(
-    Math.max(1, safeWidth - safeMarginLeft - safeMarginRight)
-  )
-  const contentHeight = $derived(
-    Math.max(1, safeHeight - safeMarginTop - safeMarginBottom)
-  )
+  // `width`/`height` are the TOTAL canvas; `contentWidth`/`contentHeight` are the
+  // drawable area after the export margins are carved out (used for the legend).
+  const contentWidth = $derived(Math.max(1, width - marginLeft - marginRight))
+  const contentHeight = $derived(Math.max(1, height - marginTop - marginBottom))
 
   const legendHeight = $derived(alignment === 'heatmap' ? HEATMAP_LEGEND_HEIGHT : 0)
 
@@ -125,21 +106,33 @@
     return Math.max(MARGIN.LEFT, Math.min(200, max + 20))
   })
 
-  const plotAreaWidth = $derived(
-    Math.floor(
-      Math.max(0, contentWidth - effectiveLeftMargin - MARGIN.RIGHT)
-    )
-  )
-  const plotAreaHeight = $derived(
-    Math.floor(
-      Math.max(0, contentHeight - MARGIN.TOP - MARGIN.BOTTOM - legendHeight)
-    )
-  )
+  // Chrome gutters (axes, legend) and export margins fold into one carve-margins
+  // object; usePlot carves the plot area out of the total canvas, so the export
+  // margins become outer padding (same pattern as bar / aoi-stream).
+  const margins = $derived({
+    top: marginTop + MARGIN.TOP,
+    right: marginRight + MARGIN.RIGHT,
+    bottom: marginBottom + MARGIN.BOTTOM + legendHeight,
+    left: marginLeft + effectiveLeftMargin,
+  })
 
-  const plotLeft = $derived(Math.floor(safeMarginLeft + effectiveLeftMargin))
-  const plotTop = $derived(Math.floor(safeMarginTop + MARGIN.TOP))
-  const plotBottom = $derived(plotTop + plotAreaHeight)
-  const plotRight = $derived(plotLeft + plotAreaWidth)
+  const plot = usePlot({
+    render: renderCanvas,
+    width: () => width,
+    height: () => height,
+    margins: () => margins,
+    dpiOverride: () => dpiOverride,
+    deps: () => [data, alignment],
+    onMouseMove: handlePlotMouseMove,
+  })
+
+  // Thin reactive aliases over usePlot's resolved layout bounds.
+  const plotAreaWidth = $derived(plot.plotAreaWidth)
+  const plotAreaHeight = $derived(plot.plotAreaHeight)
+  const plotLeft = $derived(plot.plotLeft)
+  const plotTop = $derived(plot.plotTop)
+  const plotBottom = $derived(plot.plotBottom)
+  const plotRight = $derived(plot.plotRight)
 
   // Evolving-metrics' only legend is the heatmap gradient (static, not
   // interactive), so only the plot area is blocked — everything else
@@ -159,7 +152,7 @@
   const gradientLegendGeometry = $derived.by(() => {
     if (alignment !== 'heatmap') return null
     return computeGradientLegendGeometry({
-      x: safeMarginLeft,
+      x: marginLeft,
       y: plotBottom + MARGIN.BOTTOM,
       availableWidth: contentWidth,
       availableHeight: legendHeight,
@@ -242,16 +235,6 @@
     if (f === c) return sorted[f]
     return sorted[f] * (c - k) + sorted[c] * (k - f)
   }
-
-  const plot = usePlot({
-    render: renderCanvas,
-    width: () => width,
-    height: () => height,
-    margins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
-    dpiOverride: () => dpiOverride,
-    deps: () => [data, alignment],
-    onMouseMove: handlePlotMouseMove,
-  })
 
   function findWindowAt(
     windows: readonly EvolvingMetricsWindow[],
@@ -537,7 +520,7 @@
     // Gradient legend (heatmap only)
     if (gradientLegendGeometry) {
       drawGradientLegend(ctx, gradientLegendGeometry, {
-        x: safeMarginLeft,
+        x: marginLeft,
         y: floorBottom + MARGIN.BOTTOM,
         availableWidth: contentWidth,
         availableHeight: legendHeight,
@@ -838,10 +821,10 @@
           { x: 15, y: 15 }
         )
 
-        if (canvas) canvas.style.cursor = 'crosshair'
+        plot.setCursor('crosshair')
       } else {
         plot.hideTooltip(0)
-        if (canvas) canvas.style.cursor = 'default'
+        plot.setCursor('default')
       }
 
       plot.scheduleRender()
@@ -853,7 +836,7 @@
       hoveredMsTime = null
       hoveredParticipantIndex = null
       plot.hideTooltip(0)
-      if (canvas) canvas.style.cursor = 'default'
+      plot.setCursor('default')
       plot.scheduleRender()
     }
   }
@@ -868,7 +851,6 @@
 </script>
 
 <canvas
-  bind:this={canvas}
   use:plot.plotAction
   use:canvasBlockSelect={{ regions: blockedRegions }}
   aria-label="Evolving Metrics visualization"

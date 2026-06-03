@@ -12,6 +12,7 @@
     canvasBlockSelect,
     type PlotAreaTicks,
     type BlockedRegion,
+    type CanvasExportProps,
   } from '$lib/plots/shared'
   import {
     calculateLabelOffset,
@@ -47,9 +48,7 @@
   const CATEGORY_LABEL_OFFSET = 15 // gap between plot border and AOI category labels
   const MIN_BAR_SPACING = 2 // minimum gap between bars when space is tight
 
-  type BarPlotFigureProps = {
-    width: number
-    height: number
+  interface Props extends CanvasExportProps {
     data: BarPlotDataItem[]
     timeline: AdaptiveTimeline
     axisLabel: string
@@ -60,11 +59,6 @@
       data: { value: number; label: string; color: string } | null
     ) => void
     statisticalOverlay?: StatisticalOverlayType
-    dpiOverride?: number | null
-    marginTop?: number
-    marginRight?: number
-    marginBottom?: number
-    marginLeft?: number
     noMetric?: boolean
   }
 
@@ -85,7 +79,7 @@
     marginBottom = 0,
     marginLeft = 0,
     noMetric = false,
-  }: BarPlotFigureProps = $props()
+  }: Props = $props()
 
   // Crosshair / hover constants
   const HIGHLIGHT_COLOR = '#007acc'
@@ -96,7 +90,6 @@
   let hoveredBarIndex = $state<number | null>(null)
   let mouseValuePx = $state<number | null>(null) // pixel position on value axis
 
-  let canvas = $state<HTMLCanvasElement | null>(null)
 
   // Calculate dynamic margins
   const effectiveTopMargin = $derived(TICK_LENGTH)
@@ -550,13 +543,13 @@
         mouseValuePx = null
         plot.hideTooltip(0)
         onDataHover(null)
-        if (canvas) canvas.style.cursor = 'default'
+        plot.setCursor('default')
         plot.scheduleRender()
       }
       return
     }
 
-    if (canvas) canvas.style.cursor = 'crosshair'
+    plot.setCursor('crosshair')
 
     const isVertical = barPlottingType === 'vertical'
     
@@ -684,7 +677,6 @@
 </script>
 
 <canvas
-  bind:this={canvas}
   use:plot.plotAction
   use:canvasBlockSelect={{ regions: blockedRegions }}
   aria-label="Bar plot visualization"

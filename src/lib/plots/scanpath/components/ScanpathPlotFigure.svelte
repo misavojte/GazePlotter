@@ -6,10 +6,12 @@
   import {
     drawPlotArea,
     usePlot,
+    toCanvasMargins,
     canvasBlockSelect,
     drawXAxisLabel,
     drawYAxisMainLabel,
     type BlockedRegion,
+    type CanvasExportProps,
   } from '$lib/plots/shared'
   import { FONT_PRIMARY } from '$lib/plots/shared/const'
   import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
@@ -19,6 +21,12 @@
     SCANPATH_LAYOUT,
   } from '../const'
   import type { ScanpathData } from '../types'
+
+  interface Props extends CanvasExportProps {
+    data: ScanpathData
+    showFixationOrder?: boolean
+    showNumbers?: boolean
+  }
 
   let {
     data,
@@ -31,20 +39,7 @@
     marginRight = 0,
     marginBottom = 0,
     marginLeft = 0,
-  } = $props<{
-    data: ScanpathData
-    showFixationOrder?: boolean
-    showNumbers?: boolean
-    width?: number
-    height?: number
-    dpiOverride?: number | null
-    marginTop?: number
-    marginRight?: number
-    marginBottom?: number
-    marginLeft?: number
-  }>()
-
-  let canvas = $state<HTMLCanvasElement | null>(null)
+  }: Props = $props()
 
   const L = SCANPATH_LAYOUT
   const TICK_FONT = `${FONT_PRIMARY.SIZE}px ${FONT_PRIMARY.FAMILY}`
@@ -192,15 +187,12 @@
       lastXLabelHalfWidth * 0.25 + L.rightSafetyPx
     )
 
-    // width/height are the TOTAL canvas; carve the export margins out first, then
-    // the axis margins, so the export margins become outer padding.
-    const contentW = width - marginLeft - marginRight
-    const contentH = height - marginTop - marginBottom
-
+    // plot.plotAreaWidth/Height are the content area (total minus export margins);
+    // carve the axis margins out of it so the export margins become outer padding.
     const xOffset = marginLeft + leftMargin
     const yOffset = marginTop + topMargin
-    const plotW = Math.max(1, contentW - leftMargin - rightMargin)
-    const plotH = Math.max(1, contentH - topMargin - bottomMargin)
+    const plotW = Math.max(1, plot.plotAreaWidth - leftMargin - rightMargin)
+    const plotH = Math.max(1, plot.plotAreaHeight - topMargin - bottomMargin)
 
     return {
       xOffset,
@@ -327,7 +319,7 @@
     render: renderCanvas,
     width: () => width,
     height: () => height,
-    margins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
+    margins: () => toCanvasMargins({ marginTop, marginRight, marginBottom, marginLeft }),
     dpiOverride: () => dpiOverride,
     deps: () => [data, showFixationOrder, showNumbers],
   })
@@ -335,7 +327,6 @@
 </script>
 
 <canvas
-  bind:this={canvas}
   use:plot.plotAction
   use:canvasBlockSelect={{ regions: blockedRegions }}
 ></canvas>

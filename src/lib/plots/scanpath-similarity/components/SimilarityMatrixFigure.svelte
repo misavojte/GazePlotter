@@ -16,13 +16,24 @@
     drawGradientLegend,
     drawPlotArea,
     usePlot,
+    toCanvasMargins,
     renderMatrixContent,
     canvasBlockSelect,
     MATRIX_LEGEND_GAP,
     type BlockedRegion,
+    type CanvasExportProps,
     type MatrixRenderConfig,
   } from '$lib/plots/shared'
   import { UI_COLORS } from '$lib/color'
+
+  interface Props extends CanvasExportProps {
+    matrix: Float64Array
+    labels: string[]
+    colorScale?: string[]
+    colorValueRange: [number, number]
+    legendTitle?: string
+    noMetric?: boolean
+  }
 
   let {
     matrix = new Float64Array(0),
@@ -38,29 +49,13 @@
     marginRight = 0,
     marginBottom = 0,
     marginLeft = 0,
-  } = $props<{
-    matrix: Float64Array
-    labels: string[]
-    height?: number
-    width?: number
-    colorScale?: string[]
-    colorValueRange: [number, number]
-    legendTitle?: string
-    noMetric?: boolean
-    dpiOverride?: number | null
-    marginTop?: number
-    marginRight?: number
-    marginBottom?: number
-    marginLeft?: number
-  }>()
-
-  let canvas = $state<HTMLCanvasElement | null>(null)
+  }: Props = $props()
 
   const plot = usePlot({
     render: renderCanvas,
     width: () => width,
     height: () => height,
-    margins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
+    margins: () => toCanvasMargins({ marginTop, marginRight, marginBottom, marginLeft }),
     dpiOverride: () => dpiOverride,
     deps: () => [matrix, labels, colorScale, colorValueRange, legendTitle],
     onMouseMove: handlePlotMouseMove,
@@ -201,7 +196,7 @@
   ) {
     if (mouseX === null || mouseY === null) {
       plot.hideTooltip(0)
-      if (canvas) canvas.style.cursor = 'default'
+      plot.setCursor('default')
       return
     }
 
@@ -232,14 +227,11 @@
       plot.hideTooltip(0)
     }
 
-    if (canvas) {
-      canvas.style.cursor = isOverCell ? 'pointer' : 'default'
-    }
+    plot.setCursor(isOverCell ? 'pointer' : 'default')
   }
 </script>
 
 <canvas
-  bind:this={canvas}
   use:plot.plotAction
   use:canvasBlockSelect={{ regions: blockedRegions }}
 ></canvas>

@@ -67,6 +67,9 @@ export interface UsePlotHandle {
   readonly handleMouseMove: (event: MouseEvent) => void
   readonly handleMouseLeave: () => void
 
+  /** Sets the canvas element's CSS cursor (no-op until the canvas is mounted). */
+  readonly setCursor: (cursor: string) => void
+
   /** Helper to build a linear projection mapping values to pixels (and vice versa). */
   createLinearProjection: (
     min: number,
@@ -166,6 +169,11 @@ export function usePlot(options: UsePlotOptions): UsePlotHandle {
       options.onMouseMove(null, null, false)
     }
     hideTooltip(0)
+  }
+
+  function setCursor(cursor: string) {
+    const c = plot.canvasState.canvas
+    if (c) c.style.cursor = cursor
   }
 
   // Composable projection builder
@@ -304,6 +312,7 @@ export function usePlot(options: UsePlotOptions): UsePlotHandle {
     get isOverPlotArea() { return isOverPlotArea },
     handleMouseMove,
     handleMouseLeave,
+    setCursor,
 
     createLinearProjection,
     showTooltip,

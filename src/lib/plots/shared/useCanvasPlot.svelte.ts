@@ -19,6 +19,21 @@ export interface CanvasPlotMargins {
   left: number
 }
 
+/** Maps a figure's `marginTop/Right/Bottom/Left` props to a `CanvasPlotMargins`. */
+export function toCanvasMargins(p: {
+  marginTop: number
+  marginRight: number
+  marginBottom: number
+  marginLeft: number
+}): CanvasPlotMargins {
+  return {
+    top: p.marginTop,
+    right: p.marginRight,
+    bottom: p.marginBottom,
+    left: p.marginLeft,
+  }
+}
+
 export interface UseCanvasPlotOptions {
   /** The canvas render function. Called on every scheduled redraw. */
   render: () => void

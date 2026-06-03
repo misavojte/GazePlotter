@@ -8,8 +8,10 @@
   import {
     drawPlotArea,
     usePlot,
+    toCanvasMargins,
     canvasBlockSelect,
     type BlockedRegion,
+    type CanvasExportProps,
   } from '$lib/plots/shared'
   import {
     drawCanvasPlaceholder,
@@ -22,6 +24,14 @@
   const HIGHLIGHT_COLOR = '#e53e3e'
   const HIGHLIGHT_FILL = '#fbbf24'
   const HIGHLIGHT_CONNECTED_STROKE = '#e53e3e'
+
+  interface Props extends CanvasExportProps {
+    data: ScangraphData
+    threshold?: number
+    highlights?: number[]
+    noMetric?: boolean
+    onNodeClick?: (nodeIndex: number) => void
+  }
 
   let {
     data,
@@ -36,39 +46,24 @@
     marginRight = 0,
     marginBottom = 0,
     marginLeft = 0,
-  } = $props<{
-    data: ScangraphData
-    height?: number
-    width?: number
-    threshold?: number
-    highlights?: number[]
-    noMetric?: boolean
-    onNodeClick?: (nodeIndex: number) => void
-    dpiOverride?: number | null
-    marginTop?: number
-    marginRight?: number
-    marginBottom?: number
-    marginLeft?: number
-  }>()
-
-  let canvas = $state<HTMLCanvasElement | null>(null)
+  }: Props = $props()
 
   const plot = usePlot({
     render: renderCanvas,
     width: () => width,
     height: () => height,
-    margins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
+    margins: () => toCanvasMargins({ marginTop, marginRight, marginBottom, marginLeft }),
     dpiOverride: () => dpiOverride,
     deps: () => [data, threshold, highlights],
     onMouseMove: handlePlotMouseMove,
   })
 
   // `width`/`height` are the TOTAL canvas; the force layout fills it and insets
-  // nodes by the margins. `contentWidth`/`contentHeight` are the drawable area.
+  // nodes by the margins. plot.plotAreaWidth/Height are the drawable content area.
   const canvasWidth = $derived(width)
   const canvasHeight = $derived(height)
-  const contentWidth = $derived(Math.max(1, width - marginLeft - marginRight))
-  const contentHeight = $derived(Math.max(1, height - marginTop - marginBottom))
+  const contentWidth = $derived(plot.plotAreaWidth)
+  const contentHeight = $derived(plot.plotAreaHeight)
 
   // Scangraph's entire content area is interactive (clickable nodes +
   // edges). There's no legend, so the plot area is the only blocked
@@ -402,7 +397,7 @@
     if (mx === null || my === null) {
       hoveredNode = null
       plot.hideTooltip(0)
-      if (canvas) canvas.style.cursor = 'default'
+      plot.setCursor('default')
       return
     }
 
@@ -432,9 +427,7 @@
       plot.hideTooltip(0)
     }
 
-    if (canvas) {
-      canvas.style.cursor = hoveredNode ? 'pointer' : 'default'
-    }
+    plot.setCursor(hoveredNode ? 'pointer' : 'default')
   }
 
   function handleClick() {
@@ -443,7 +436,6 @@
 </script>
 
 <canvas
-  bind:this={canvas}
   use:plot.plotAction
   use:canvasBlockSelect={{ regions: blockedRegions }}
   onclick={handleClick}
