@@ -1,19 +1,14 @@
 <script lang="ts">
-  import { untrack } from 'svelte'
   import {
-    canvasLifecycleAction,
     beginCanvasDrawing,
     finishCanvasDrawing,
-    getScaledMousePosition,
-    getTooltipPosition,
     alignToPixelCenter,
   } from '$lib/plots/shared/canvasUtils'
   import {
-    useCanvasPlot,
+    usePlot,
     canvasBlockSelect,
     type BlockedRegion,
   } from '$lib/plots/shared'
-  import { updateTooltip } from '$lib/tooltip'
   import { estimateTextWidth } from '$lib/shared/utils/textUtils'
   import { desaturateToWhite, INACTIVE_COLOR } from '$lib/color'
   import { PRESET_PALETTES } from '$lib/color/palettes'
@@ -182,14 +177,6 @@
       : MARGIN.RIGHT + 5 // +5 for tick length when not in ridgeline mode
   )
 
-  const plot = useCanvasPlot({
-    render: renderCanvas,
-    getWidth: () => width,
-    getHeight: () => height,
-    getMargins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
-    getDpiOverride: () => dpiOverride,
-  })
-
   // Convert series data to legend items format
   const legendItems: LegendItem[] = $derived(
     data.series.map(s => ({
@@ -222,22 +209,40 @@
     )
   })
 
-  // `width`/`height` already represent the drawable area excluding export margins.
-  // Export margins are applied as offsets and by growing the canvas size.
-  const plotAreaWidth = $derived(
-    Math.floor(
-      Math.max(0, safeWidth - effectiveLeftMargin - effectiveRightMargin)
-    )
-  )
-  const plotAreaHeight = $derived(
-    Math.floor(
-      Math.max(0, safeHeight - MARGIN.TOP - MARGIN.BOTTOM - legendHeight)
-    )
-  )
+  // `width`/`height` represent the drawable area excluding export margins.
+  // Chrome gutters (axes, legend) and export margins fold into a single
+  // margins object; the grown width/height feed usePlot so the canvas
+  // expands by the export margins while the plot area keeps its size.
+  const margins = $derived({
+    top: safeMarginTop + MARGIN.TOP,
+    right: safeMarginRight + effectiveRightMargin,
+    bottom: safeMarginBottom + MARGIN.BOTTOM + legendHeight,
+    left: safeMarginLeft + effectiveLeftMargin,
+  })
 
-  const plotLeft = $derived(Math.floor(safeMarginLeft + effectiveLeftMargin))
-  const plotTop = $derived(Math.floor(safeMarginTop + MARGIN.TOP))
-  const plotBottom = $derived(plotTop + plotAreaHeight)
+  const plot = usePlot({
+    render: renderCanvas,
+    width: () => safeWidth + safeMarginLeft + safeMarginRight,
+    height: () => safeHeight + safeMarginTop + safeMarginBottom,
+    margins: () => margins,
+    dpiOverride: () => dpiOverride,
+    deps: () => [
+      data,
+      alignment,
+      ridgelineScale,
+      syncedMTopOverride,
+      colorScale,
+      highlights,
+    ],
+    onMouseMove: handlePlotMouseMove,
+  })
+
+  // Thin reactive aliases over usePlot's resolved layout bounds.
+  const plotAreaWidth = $derived(plot.plotAreaWidth)
+  const plotAreaHeight = $derived(plot.plotAreaHeight)
+  const plotLeft = $derived(plot.plotLeft)
+  const plotTop = $derived(plot.plotTop)
+  const plotBottom = $derived(plot.plotBottom)
 
   // Compute full legend geometry for rendering (after we know plotBottom)
   const legendGeometry: LegendGeometry = $derived.by(() => {
@@ -760,11 +765,25 @@
     return Math.max(0, Math.min(data.binCount - 1, binIndex))
   }
 
-  // Mouse event handlers
-  function handleMouseMove(event: MouseEvent) {
-    if (!canvas) return
+  // Synchronous hover handler — coordinates arrive already scaled from usePlot.
+  // `isOver` reflects the plot area only; legend hit-testing runs regardless
+  // since the legend sits in the bottom margin, outside the plot area.
+  function handlePlotMouseMove(
+    mouseX: number | null,
+    mouseY: number | null,
+    _isOver: boolean
+  ) {
+    if (mouseX === null || mouseY === null) {
+      if (hoveredLegendItem || hoveredBinIndex !== null) {
+        hoveredLegendItem = null
+        hoveredBinIndex = null
+        plot.hideTooltip(0)
+        if (canvas) canvas.style.cursor = 'default'
+        plot.scheduleRender()
+      }
+      return
+    }
 
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(plot.canvasState, event)
     const legendItem = isMouseOverLegendItem(mouseX, mouseY)
     const binIndex = getHoveredBinIndex(mouseX, mouseY)
 
@@ -783,26 +802,20 @@
           legendItem,
           STREAM_LEGEND_CONFIG
         )
-        const tooltipPos = getTooltipPosition(
-          plot.canvasState,
+
+        plot.showTooltip(
+          legendItem.identifier,
+          tooltipContent,
           tooltipItemPos.x,
           tooltipItemPos.y,
           { x: 0, y: 7 }
         )
 
-        updateTooltip({
-          id: legendItem.identifier,
-          visible: true,
-          content: tooltipContent,
-          x: tooltipPos.x,
-          y: tooltipPos.y,
-        })
-
         if (canvas) canvas.style.cursor = 'pointer'
       } else if (hoveredLegendItem) {
         // Hide tooltip when mouse leaves legend item
         hoveredLegendItem = null
-        updateTooltip(null)
+        plot.hideTooltip(0)
         if (canvas) canvas.style.cursor = 'default'
       }
     }
@@ -873,25 +886,18 @@
         }
 
         // Position tooltip near mouse cursor
-        const tooltipPos = getTooltipPosition(
-          plot.canvasState,
+        plot.showTooltip(
+          'aoi-stream-bin-tooltip',
+          tooltipContent,
           mouseX,
           mouseY,
           { x: 15, y: 15 } // Offset from cursor
         )
 
-        updateTooltip({
-          id: 'aoi-stream-bin-tooltip',
-          visible: true,
-          content: tooltipContent,
-          x: tooltipPos.x,
-          y: tooltipPos.y,
-        })
-
         if (canvas) canvas.style.cursor = 'crosshair'
       } else if (!legendItem) {
         // Hide tooltip when not over bin or legend
-        updateTooltip(null)
+        plot.hideTooltip(0)
         if (canvas) canvas.style.cursor = 'default'
       }
 
@@ -900,59 +906,16 @@
     }
   }
 
-  function handleMouseLeave() {
+  // Legend clicks: the hovered legend item is tracked synchronously by
+  // handlePlotMouseMove, so the click handler needs no coordinates.
+  function handleClick() {
     if (hoveredLegendItem) {
-      hoveredLegendItem = null
-      updateTooltip(null)
-      if (canvas) canvas.style.cursor = 'default'
-    }
-
-    if (hoveredBinIndex !== null) {
-      hoveredBinIndex = null
-      updateTooltip(null)
-      if (canvas) canvas.style.cursor = 'default'
-      plot.scheduleRender()
-    }
-  }
-
-  function handleClick(event: MouseEvent) {
-    if (!canvas) return
-
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(plot.canvasState, event)
-    const legendItem = isMouseOverLegendItem(mouseX, mouseY)
-
-    if (legendItem) {
-      const aoiId = parseInt(legendItem.identifier)
+      const aoiId = parseInt(hoveredLegendItem.identifier)
       if (!isNaN(aoiId)) {
         onLegendClick(aoiId)
       }
     }
   }
-
-  // Optimized effect: Consolidate all reactive updates
-  $effect(() => {
-    // Track all dependencies explicitly. Omitting a prop here means
-    // changes to it don't re-render the canvas — colorScale and
-    // highlights were previously missing, which is why heatmap colors
-    // picked in the Pane didn't reflect until some *other* prop changed.
-    const deps = {
-      data,
-      alignment,
-      ridgelineScale,
-      w: safeWidth,
-      h: safeHeight,
-      dpi: dpiOverride,
-      mt: safeMarginTop,
-      mr: safeMarginRight,
-      mb: safeMarginBottom,
-      ml: safeMarginLeft,
-      referenceHeight: syncedMTopOverride,
-      colorScale,
-      highlights,
-    }
-
-    untrack(() => plot.refresh())
-  })
 
   function setUpFont(ctx: CanvasRenderingContext2D) {
     ctx.font = `${AXIS_CONFIG.fontSize}px ${AXIS_CONFIG.fontFamily}`
@@ -962,10 +925,8 @@
 
 <canvas
   bind:this={canvas}
-  use:canvasLifecycleAction={plot.actionOptions}
+  use:plot.plotAction
   use:canvasBlockSelect={{ regions: blockedRegions }}
-  onmousemove={handleMouseMove}
-  onmouseleave={handleMouseLeave}
   onclick={handleClick}
   aria-label="Time-binned AOI Occupancy visualization"
 ></canvas>
