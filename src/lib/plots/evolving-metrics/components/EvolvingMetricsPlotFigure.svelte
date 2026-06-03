@@ -93,6 +93,15 @@
   const safeMarginBottom = $derived(safeNumber(marginBottom, 0))
   const safeMarginLeft = $derived(safeNumber(marginLeft, 0))
 
+  // `width`/`height` are the TOTAL canvas; content is the drawable area after the
+  // export margins are carved out. The plot area is carved from content.
+  const contentWidth = $derived(
+    Math.max(1, safeWidth - safeMarginLeft - safeMarginRight)
+  )
+  const contentHeight = $derived(
+    Math.max(1, safeHeight - safeMarginTop - safeMarginBottom)
+  )
+
   const legendHeight = $derived(alignment === 'heatmap' ? HEATMAP_LEGEND_HEIGHT : 0)
 
   // Compact mode: when row height < font size, switch to index ticks (heatmap only)
@@ -100,7 +109,7 @@
   const isCompact = $derived(
     alignment === 'heatmap' &&
       data.participants.length > 0 &&
-      (safeHeight - MARGIN.TOP - MARGIN.BOTTOM - legendHeight) /
+      (contentHeight - MARGIN.TOP - MARGIN.BOTTOM - legendHeight) /
         data.participants.length <
         COMPACT_THRESHOLD
   )
@@ -123,12 +132,12 @@
 
   const plotAreaWidth = $derived(
     Math.floor(
-      Math.max(0, safeWidth - effectiveLeftMargin - MARGIN.RIGHT)
+      Math.max(0, contentWidth - effectiveLeftMargin - MARGIN.RIGHT)
     )
   )
   const plotAreaHeight = $derived(
     Math.floor(
-      Math.max(0, safeHeight - MARGIN.TOP - MARGIN.BOTTOM - legendHeight)
+      Math.max(0, contentHeight - MARGIN.TOP - MARGIN.BOTTOM - legendHeight)
     )
   )
 
@@ -157,7 +166,7 @@
     return computeGradientLegendGeometry({
       x: safeMarginLeft,
       y: plotBottom + MARGIN.BOTTOM,
-      availableWidth: safeWidth,
+      availableWidth: contentWidth,
       availableHeight: legendHeight,
       colorScale: palette,
       valueRange: [Math.round(data.valueMin), Math.round(data.valueMax)],
@@ -243,12 +252,6 @@
     render: renderCanvas,
     getWidth: () => width,
     getHeight: () => height,
-    getMargins: () => ({
-      top: marginTop,
-      right: marginRight,
-      bottom: marginBottom,
-      left: marginLeft,
-    }),
     getDpiOverride: () => dpiOverride,
   })
 
@@ -538,7 +541,7 @@
       drawGradientLegend(ctx, gradientLegendGeometry, {
         x: safeMarginLeft,
         y: floorBottom + MARGIN.BOTTOM,
-        availableWidth: safeWidth,
+        availableWidth: contentWidth,
         availableHeight: legendHeight,
         colorScale: palette,
         valueRange: [Math.round(data.valueMin), Math.round(data.valueMax)],

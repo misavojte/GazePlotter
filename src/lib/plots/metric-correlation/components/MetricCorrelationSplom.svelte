@@ -55,7 +55,6 @@
     render: renderCanvas,
     getWidth: () => width,
     getHeight: () => height,
-    getMargins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
     getDpiOverride: () => dpiOverride,
   })
 
@@ -67,8 +66,9 @@
 
   const layout = $derived.by(() =>
     computeSquareMatrixLayout({
-      width: width + marginLeft + marginRight,
-      height: height + marginTop + marginBottom,
+      // width/height are the TOTAL canvas; the layout carves margins out of it.
+      width,
+      height,
       labels,
       cellValueLabelLength: 5,
       layoutConfig: MATRIX_LAYOUT,
@@ -215,11 +215,8 @@
     const ctx = plot.canvasState.context
     if (!ctx) return
 
-    const totalW = width + marginLeft + marginRight
-    const totalH = height + marginTop + marginBottom
-
     if (result.noMetric || labels.length < 2) {
-      drawCanvasPlaceholder(ctx, totalW, totalH, METRIC_MISSING_MULTI_MESSAGE)
+      drawCanvasPlaceholder(ctx, width, height, METRIC_MISSING_MULTI_MESSAGE)
       finishCanvasDrawing(plot.canvasState)
       return
     }

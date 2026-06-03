@@ -54,7 +54,6 @@
     render: renderCanvas,
     getWidth: () => width,
     getHeight: () => height,
-    getMargins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
     getDpiOverride: () => dpiOverride,
   })
 
@@ -79,8 +78,9 @@
 
   const layout = $derived.by(() =>
     computeSquareMatrixLayout({
-      width: width + marginLeft + marginRight,
-      height: height + marginTop + marginBottom,
+      // width/height are the TOTAL canvas; the layout carves margins out of it.
+      width,
+      height,
       labels,
       // Longest value string is like "-1.00" (5 chars) or "—" when null
       cellValueLabelLength: 5,
@@ -151,11 +151,8 @@
     const ctx = plot.canvasState.context
     if (!ctx) return
 
-    const totalW = width + marginLeft + marginRight
-    const totalH = height + marginTop + marginBottom
-
     if (result.noMetric || labels.length < 2) {
-      drawCanvasPlaceholder(ctx, totalW, totalH, METRIC_MISSING_MULTI_MESSAGE)
+      drawCanvasPlaceholder(ctx, width, height, METRIC_MISSING_MULTI_MESSAGE)
       finishCanvasDrawing(plot.canvasState)
       return
     }
@@ -176,8 +173,7 @@
 
   const legendGeometry = $derived.by(() => {
     const { gridWidth, xOffset, matrixBottom } = layout
-    const totalH = height + marginTop + marginBottom
-    const availableLegendSpace = totalH - matrixBottom - MATRIX_LEGEND_GAP - marginBottom
+    const availableLegendSpace = height - matrixBottom - MATRIX_LEGEND_GAP - marginBottom
 
     return computeGradientLegendGeometry({
       x: xOffset,

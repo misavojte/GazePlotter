@@ -21,11 +21,16 @@ export interface PlotProjection {
 export interface UsePlotOptions {
   /** The canvas render function. Runs inside untrack() to prevent paint loop dependencies. */
   render: () => void
-  /** Getter returning the total logical width of the plot container in pixels. */
+  /**
+   * Getter returning the TOTAL logical canvas width in pixels — including the
+   * space taken by margins. The canvas always equals this value; `margins`
+   * carve the plot area out of it and never change the canvas size. This meaning
+   * is identical across every plot.
+   */
   width: () => number
-  /** Getter returning the total logical height of the plot container in pixels. */
+  /** Getter returning the TOTAL logical canvas height in pixels. See `width`. */
   height: () => number
-  /** Getter returning the reactive margins bounding the canvas plot area. */
+  /** Getter returning the margins that carve the plot area out of the canvas. */
   margins: () => CanvasPlotMargins
   /** Getter returning the DPI scale override for rendering exports. */
   dpiOverride?: () => number | null
@@ -97,23 +102,26 @@ export function usePlot(options: UsePlotOptions): UsePlotHandle {
     })
   }
 
-  // Delegate layout sizing logic reactively
-  const getWidth = () => Math.max(1, options.width() - options.margins().left - options.margins().right)
-  const getHeight = () => Math.max(1, options.height() - options.margins().top - options.margins().bottom)
-  const getMargins = () => options.margins()
+  // The canvas is the TOTAL size; useCanvasPlot no longer grows it. The plot
+  // area is carved out of the total by the margins.
+  const getWidth = () => Math.max(1, options.width())
+  const getHeight = () => Math.max(1, options.height())
   const getDpiOverride = () => (options.dpiOverride ? options.dpiOverride() : null)
 
   const plot = useCanvasPlot({
     render: renderWrapper,
     getWidth,
     getHeight,
-    getMargins,
     getDpiOverride,
   })
 
-  // Reactive layout boundaries
-  const plotAreaWidth = $derived(getWidth())
-  const plotAreaHeight = $derived(getHeight())
+  // Reactive layout boundaries (plot area carved out of the total canvas)
+  const plotAreaWidth = $derived(
+    Math.max(1, options.width() - options.margins().left - options.margins().right)
+  )
+  const plotAreaHeight = $derived(
+    Math.max(1, options.height() - options.margins().top - options.margins().bottom)
+  )
   const plotLeft = $derived(options.margins().left)
   const plotRight = $derived(options.width() - options.margins().right)
   const plotTop = $derived(options.margins().top)

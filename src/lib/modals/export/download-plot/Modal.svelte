@@ -52,13 +52,12 @@
   let marginBottom = $state(DEFAULT_CANVAS_EXPORT_MARGIN)
   let marginLeft = $state(DEFAULT_CANVAS_EXPORT_MARGIN)
 
-  // Computed content dimensions (what the plot figure receives)
-  const contentWidth = $derived(Math.max(1, width - marginLeft - marginRight))
-  const contentHeight = $derived(Math.max(1, height - marginTop - marginBottom))
-
+  // Figures receive the TOTAL canvas size (the user-typed export dimensions);
+  // every figure treats `width`/`height` as total and carves the export margins
+  // out of it, so the exported image is exactly width × height.
   const exportProps: PlotExportProps = $derived({
-    width: contentWidth,
-    height: contentHeight,
+    width: Math.max(1, width),
+    height: Math.max(1, height),
     dpiOverride: dpi,
     marginTop,
     marginRight,

@@ -143,13 +143,18 @@
 
   const MARGIN = AOI_MARGIN
 
-  // Memoized safe values (compute once per change)
+  // Memoized safe values (compute once per change). `width`/`height` are the
+  // TOTAL canvas; `contentWidth` is the drawable width after export margins are
+  // carved out — used for legend layout (the plot area itself comes from usePlot).
   const safeWidth = $derived(Math.max(1, safeNumber(width, 1)))
   const safeHeight = $derived(Math.max(1, safeNumber(height, 1)))
   const safeMarginTop = $derived(safeNumber(marginTop, 0))
   const safeMarginRight = $derived(safeNumber(marginRight, 0))
   const safeMarginBottom = $derived(safeNumber(marginBottom, 0))
   const safeMarginLeft = $derived(safeNumber(marginLeft, 0))
+  const contentWidth = $derived(
+    Math.max(1, safeWidth - safeMarginLeft - safeMarginRight)
+  )
 
   const maxAoiLabelWidth = $derived.by(() => {
     if (alignment !== 'heatmap') return 0
@@ -203,16 +208,15 @@
 
     return calculateFlatLegendHeight(
       legendItems.length,
-      Math.max(0, safeWidth),
+      Math.max(0, contentWidth),
       STREAM_LEGEND_CONFIG,
       maxTextWidth
     )
   })
 
-  // `width`/`height` represent the drawable area excluding export margins.
-  // Chrome gutters (axes, legend) and export margins fold into a single
-  // margins object; the grown width/height feed usePlot so the canvas
-  // expands by the export margins while the plot area keeps its size.
+  // `width`/`height` are the TOTAL canvas. The chrome gutters (axes, legend) and
+  // the export margins fold into a single carve-margins object; usePlot carves
+  // the plot area out of the total, so the export margins become outer padding.
   const margins = $derived({
     top: safeMarginTop + MARGIN.TOP,
     right: safeMarginRight + effectiveRightMargin,
@@ -222,8 +226,8 @@
 
   const plot = usePlot({
     render: renderCanvas,
-    width: () => safeWidth + safeMarginLeft + safeMarginRight,
-    height: () => safeHeight + safeMarginTop + safeMarginBottom,
+    width: () => safeWidth,
+    height: () => safeHeight,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
     deps: () => [
@@ -248,7 +252,7 @@
   const legendGeometry: LegendGeometry = $derived.by(() => {
     const legendX = safeMarginLeft
     const legendY = plotBottom + MARGIN.BOTTOM + STREAM_LEGEND_CONFIG.topPadding
-    const legendWidth = Math.max(0, safeWidth)
+    const legendWidth = Math.max(0, contentWidth)
 
     return computeFlatLegendGeometry(
       legendItems,
@@ -288,7 +292,7 @@
     return computeGradientLegendGeometry({
       x: safeMarginLeft,
       y: plotBottom + MARGIN.BOTTOM,
-      availableWidth: safeWidth,
+      availableWidth: contentWidth,
       availableHeight: legendHeight,
       colorScale: effectiveColorScale,
       valueRange: [0, Math.max(1, data.maxValue)],
@@ -710,7 +714,7 @@
         drawGradientLegend(ctx, gradientLegendGeometry, {
           x: safeMarginLeft,
           y: plotBottom + MARGIN.BOTTOM,
-          availableWidth: safeWidth,
+          availableWidth: contentWidth,
           availableHeight: legendHeight,
           colorScale: effectiveColorScale,
           valueRange: [0, Math.max(1, data.maxValue)],

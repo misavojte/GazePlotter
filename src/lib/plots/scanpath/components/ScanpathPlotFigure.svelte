@@ -194,10 +194,15 @@
       lastXLabelHalfWidth * 0.25 + L.rightSafetyPx
     )
 
+    // width/height are the TOTAL canvas; carve the export margins out first, then
+    // the axis margins, so the export margins become outer padding.
+    const contentW = width - marginLeft - marginRight
+    const contentH = height - marginTop - marginBottom
+
     const xOffset = marginLeft + leftMargin
     const yOffset = marginTop + topMargin
-    const plotW = Math.max(1, width - leftMargin - rightMargin)
-    const plotH = Math.max(1, height - topMargin - bottomMargin)
+    const plotW = Math.max(1, contentW - leftMargin - rightMargin)
+    const plotH = Math.max(1, contentH - topMargin - bottomMargin)
 
     return {
       xOffset,
@@ -324,12 +329,6 @@
     render: renderCanvas,
     getWidth: () => width,
     getHeight: () => height,
-    getMargins: () => ({
-      top: marginTop,
-      right: marginRight,
-      bottom: marginBottom,
-      left: marginLeft,
-    }),
     getDpiOverride: () => dpiOverride,
   })
 

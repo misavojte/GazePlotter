@@ -62,26 +62,29 @@
     render: renderCanvas,
     getWidth: () => width,
     getHeight: () => height,
-    getMargins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
     getDpiOverride: () => dpiOverride,
   })
 
-  const canvasWidth = $derived(width + marginLeft + marginRight)
-  const canvasHeight = $derived(height + marginTop + marginBottom)
+  // `width`/`height` are the TOTAL canvas; the force layout fills it and insets
+  // nodes by the margins. `contentWidth`/`contentHeight` are the drawable area.
+  const canvasWidth = $derived(width)
+  const canvasHeight = $derived(height)
+  const contentWidth = $derived(Math.max(1, width - marginLeft - marginRight))
+  const contentHeight = $derived(Math.max(1, height - marginTop - marginBottom))
 
   // Scangraph's entire content area is interactive (clickable nodes +
   // edges). There's no legend, so the plot area is the only blocked
   // region; everything outside (the margin frame around it) stays
   // clickable-to-select.
   const blockedRegions = $derived<BlockedRegion[]>([
-    { x: marginLeft, y: marginTop, w: width, h: height },
+    { x: marginLeft, y: marginTop, w: contentWidth, h: contentHeight },
   ])
 
 
   const nodeRadius = $derived.by(() => {
     const n = data?.nodes.length ?? 0
     if (n === 0) return SCANGRAPH_LAYOUT.nodeRadius
-    const minDim = Math.min(width, height)
+    const minDim = Math.min(contentWidth, contentHeight)
     return Math.round(Math.max(3, Math.min(8, minDim / (n * 1.2))) * 10) / 10
   })
 
@@ -313,8 +316,8 @@
     drawPlotArea(ctx, {
       x: marginLeft,
       y: marginTop,
-      width: width - 1,
-      height: height - 1,
+      width: contentWidth - 1,
+      height: contentHeight - 1,
     })
 
     // Draw labels — last step in rendering

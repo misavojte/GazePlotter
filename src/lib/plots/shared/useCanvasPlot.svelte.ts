@@ -19,17 +19,13 @@ export interface CanvasPlotMargins {
   left: number
 }
 
-const ZERO_MARGINS: CanvasPlotMargins = { top: 0, right: 0, bottom: 0, left: 0 }
-
 export interface UseCanvasPlotOptions {
   /** The canvas render function. Called on every scheduled redraw. */
   render: () => void
-  /** Returns content width (excluding margins). */
+  /** Returns the TOTAL canvas width. Margins are carved out of this by callers. */
   getWidth: () => number
-  /** Returns content height (excluding margins). */
+  /** Returns the TOTAL canvas height. */
   getHeight: () => number
-  /** Returns margin overrides. Defaults to zero margins. */
-  getMargins?: () => CanvasPlotMargins
   /** Returns DPI override for export, or null for screen rendering. */
   getDpiOverride?: () => number | null
 }
@@ -63,9 +59,8 @@ export interface CanvasPlotHandle {
  * ```ts
  * const plot = useCanvasPlot({
  *   render: renderCanvas,
- *   getWidth: () => width,
+ *   getWidth: () => width,   // TOTAL canvas width; carve margins yourself
  *   getHeight: () => height,
- *   getMargins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
  *   getDpiOverride: () => dpiOverride,
  * })
  *
@@ -90,7 +85,6 @@ export interface CanvasPlotHandle {
  * ```
  */
 export function useCanvasPlot(options: UseCanvasPlotOptions): CanvasPlotHandle {
-  const getMargins = options.getMargins ?? (() => ZERO_MARGINS)
   const getDpiOverride = options.getDpiOverride ?? (() => null)
 
   let canvasState = $state<CanvasState>(createCanvasState())
@@ -101,11 +95,12 @@ export function useCanvasPlot(options: UseCanvasPlotOptions): CanvasPlotHandle {
     EXPORT_SOURCE_CONTEXT
   )
 
+  // The canvas is exactly getWidth × getHeight (the total). Margins never grow
+  // the canvas — callers carve their plot area out of these dimensions.
   function getCanvasDimensions() {
-    const m = getMargins()
     return {
-      width: options.getWidth() + m.left + m.right,
-      height: options.getHeight() + m.top + m.bottom,
+      width: options.getWidth(),
+      height: options.getHeight(),
     }
   }
 

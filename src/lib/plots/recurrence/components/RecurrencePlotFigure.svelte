@@ -56,7 +56,6 @@
     render: renderCanvas,
     getWidth: () => width,
     getHeight: () => height,
-    getMargins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
     getDpiOverride: () => dpiOverride,
   })
 
@@ -80,8 +79,12 @@
     const xAxisSpace =
       L.tickLength + L.tickFontSize + 6 + L.labelFontSize + L.axisTitleGap
 
-    const availW = width - yAxisSpace - L.rightMargin
-    const availH = height - L.topMargin - xAxisSpace
+    // width/height are the TOTAL canvas; carve the export margins out first.
+    const contentW = width - marginLeft - marginRight
+    const contentH = height - marginTop - marginBottom
+
+    const availW = contentW - yAxisSpace - L.rightMargin
+    const availH = contentH - L.topMargin - xAxisSpace
 
     const plotSize = Math.max(0, Math.min(availW, availH))
     const cellSize = N < 2 ? 0 : Math.max(L.minCellSize, plotSize / N)
@@ -150,9 +153,7 @@
       ctx.fillStyle = UI_COLORS.TEXT_SECONDARY
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      const cw = width + marginLeft + marginRight
-      const ch = height + marginTop + marginBottom
-      ctx.fillText('Not enough fixations', cw >> 1, ch >> 1)
+      ctx.fillText('Not enough fixations', width >> 1, height >> 1)
       finishCanvasDrawing(plot.canvasState)
       return
     }

@@ -21,27 +21,28 @@
   )
 </script>
 
-<div
-  style="
-    padding:
-      {exportProps.marginTop}px
-      {exportProps.marginRight}px
-      {exportProps.marginBottom}px
-      {exportProps.marginLeft}px;
-    background: #fff;
-  "
->
-  {#if isSplom}
-    <MetricCorrelationSplom
-      width={exportProps.width}
-      height={exportProps.height}
-      {result}
-    />
-  {:else}
-    <MetricCorrelationHeatmap
-      width={exportProps.width}
-      height={exportProps.height}
-      {result}
-    />
-  {/if}
-</div>
+<!-- Margins are carved into the canvas by the figure (width/height are the total
+     canvas), consistent with every other plot — no CSS-padding wrapper. -->
+{#if isSplom}
+  <MetricCorrelationSplom
+    width={exportProps.width}
+    height={exportProps.height}
+    {result}
+    dpiOverride={exportProps.dpiOverride}
+    marginTop={exportProps.marginTop}
+    marginRight={exportProps.marginRight}
+    marginBottom={exportProps.marginBottom}
+    marginLeft={exportProps.marginLeft}
+  />
+{:else}
+  <MetricCorrelationHeatmap
+    width={exportProps.width}
+    height={exportProps.height}
+    {result}
+    dpiOverride={exportProps.dpiOverride}
+    marginTop={exportProps.marginTop}
+    marginRight={exportProps.marginRight}
+    marginBottom={exportProps.marginBottom}
+    marginLeft={exportProps.marginLeft}
+  />
+{/if}
