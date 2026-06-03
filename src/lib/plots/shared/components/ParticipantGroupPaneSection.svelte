@@ -39,7 +39,7 @@
     options={groupOptions}
     value={String(groupId)}
     onchange={e => {
-      onchange(Number((e as CustomEvent).detail))
+      onchange(Number(e.detail))
     }}
   />
   <PaneEditRow>

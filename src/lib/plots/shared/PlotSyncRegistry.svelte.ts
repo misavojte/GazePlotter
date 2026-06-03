@@ -12,16 +12,16 @@
  * shape-specific signature.
  */
 export class PlotSyncRegistry<E extends { dataMax: number }> {
-  protected entries = $state<Record<number, E>>({})
+  protected entries = $state(new Map<number, E>())
 
   /** Register or update a plot's contribution to its matching sync group. */
   setEntry(plotId: number, entry: E): void {
-    this.entries[plotId] = entry
+    this.entries.set(plotId, entry)
   }
 
   /** Remove a plot from the registry (call on component unmount). */
   clearEntry(plotId: number): void {
-    delete this.entries[plotId]
+    this.entries.delete(plotId)
   }
 
   /**
@@ -31,9 +31,12 @@ export class PlotSyncRegistry<E extends { dataMax: number }> {
    * its own typed match-key signature, calling this internally.
    */
   protected maxWhere(match: (entry: E) => boolean): number {
-    return Object.values(this.entries).reduce(
-      (max, e) => (match(e) && e.dataMax > max ? e.dataMax : max),
-      0
-    )
+    let max = 0
+    for (const e of this.entries.values()) {
+      if (match(e) && e.dataMax > max) {
+        max = e.dataMax
+      }
+    }
+    return max
   }
 }

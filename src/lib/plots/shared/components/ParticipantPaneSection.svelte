@@ -30,7 +30,7 @@
     options={participantOptions}
     value={String(participantId)}
     onchange={e => {
-      onchange(Number((e as CustomEvent).detail))
+      onchange(Number(e.detail))
     }}
   />
   <PaneEditLink onclick={openParticipants}>Edit participants…</PaneEditLink>

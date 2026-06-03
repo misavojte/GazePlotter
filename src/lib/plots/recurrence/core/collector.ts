@@ -236,16 +236,7 @@ function buildAoiMatrix(
       if (fixations[j].aoiIds.length === 0) continue
 
       // Check if any AOI is shared
-      let shared = false
-      for (const aoiI of fixations[i].aoiIds) {
-        for (const aoiJ of fixations[j].aoiIds) {
-          if (aoiI === aoiJ) {
-            shared = true
-            break
-          }
-        }
-        if (shared) break
-      }
+      const shared = fixations[i].aoiIds.some(aoi => fixations[j].aoiIds.includes(aoi))
 
       if (shared) {
         matrix[rowOffset + j] = 1

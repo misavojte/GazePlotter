@@ -30,7 +30,7 @@
     options={stimulusOptions}
     value={String(stimulusId)}
     onchange={e => {
-      onchange(Number((e as CustomEvent).detail))
+      onchange(Number(e.detail))
     }}
   />
   <PaneEditRow>
