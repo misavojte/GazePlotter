@@ -15,7 +15,7 @@
     drawGradientLegend,
     drawPlotArea,
     usePlot,
-    toCanvasMargins,
+    NO_MARGINS,
     renderMatrixContent,
     canvasBlockSelect,
     MATRIX_LEGEND_GAP,
@@ -54,10 +54,7 @@
     showBelowMinLabels = false,
     showAboveMaxLabels = false,
     dpiOverride = null,
-    marginTop = 0,
-    marginRight = 0,
-    marginBottom = 0,
-    marginLeft = 0,
+    margins = NO_MARGINS,
     noMetric = false,
   }: Props = $props()
 
@@ -65,7 +62,7 @@
     render: renderCanvas,
     width: () => width,
     height: () => height,
-    margins: () => toCanvasMargins({ marginTop, marginRight, marginBottom, marginLeft }),
+    margins: () => margins,
     dpiOverride: () => dpiOverride,
     deps: () => [
       TransitionMatrix,
@@ -98,10 +95,7 @@
     computeTransitionMatrixLayout({
       width,
       height,
-      marginTop,
-      marginRight,
-      marginBottom,
-      marginLeft,
+      margins,
       aoiLabels,
       effectiveMaxValue,
     })
@@ -203,7 +197,7 @@
 
   const legendGeometry = $derived.by(() => {
     const { gridWidth, xOffset, matrixBottom } = layout
-    const availableLegendSpace = height - matrixBottom - MATRIX_LEGEND_GAP - marginBottom
+    const availableLegendSpace = height - matrixBottom - MATRIX_LEGEND_GAP - margins.bottom
 
     return computeGradientLegendGeometry({
       x: xOffset,

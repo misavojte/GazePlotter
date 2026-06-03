@@ -39,10 +39,7 @@
   {@const data = obtainedData}
   <ScarfPlotFigure
     dpiOverride={exportProps.dpiOverride}
-    marginTop={exportProps.marginTop}
-    marginRight={exportProps.marginRight}
-    marginBottom={exportProps.marginBottom}
-    marginLeft={exportProps.marginLeft}
+    margins={exportProps.margins}
     {data}
     {settings}
     chartWidth={exportProps.width}

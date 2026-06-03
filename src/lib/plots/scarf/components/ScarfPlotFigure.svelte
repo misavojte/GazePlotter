@@ -18,9 +18,11 @@
     niceTimelineTicks,
     SCARF_LEGEND_CONFIG,
     usePlot,
+    NO_MARGINS,
     canvasBlockSelect,
     drawCanvasPlaceholder,
     type BlockedRegion,
+    type CanvasPlotMargins,
     type LegendGeometry,
     type LegendGroup,
     type LegendItemGeometry,
@@ -80,10 +82,7 @@
     chartWidth: number
     availableHeight: number // The actual pixel height from the Grid
     dpiOverride?: number | null // Override for DPI settings when exporting
-    marginTop?: number
-    marginRight?: number
-    marginBottom?: number
-    marginLeft?: number
+    margins?: CanvasPlotMargins
   }
 
   // Component props using Svelte 5 $props rune
@@ -100,10 +99,7 @@
     chartWidth = 0,
     availableHeight,
     dpiOverride = null,
-    marginTop = 0,
-    marginRight = 0,
-    marginBottom = 0,
-    marginLeft = 0,
+    margins = NO_MARGINS,
   }: Props = $props()
 
   // Crosshair / hover constants
@@ -125,9 +121,9 @@
   )
 
   // 2. Fixed vertical overhead (margins, padding, legend, axis space)
-  const fixedOverheadAbove = $derived(marginTop + INTERNAL_PADDING_TOP)
+  const fixedOverheadAbove = $derived(margins.top + INTERNAL_PADDING_TOP)
   const fixedOverheadBelow = $derived(
-    45 + legendHeight + marginBottom + INTERNAL_PADDING_BOTTOM
+    45 + legendHeight + margins.bottom + INTERNAL_PADDING_BOTTOM
   )
   const totalFixedOverhead = $derived(fixedOverheadAbove + fixedOverheadBelow)
 
@@ -181,8 +177,8 @@
     Math.max(
       0,
       chartWidth -
-        marginLeft -
-        marginRight -
+        margins.left -
+        margins.right -
         LEFT_LABEL_WIDTH -
         SCARF_LAYOUT.RIGHT_MARGIN
     )
@@ -206,12 +202,7 @@
     render: renderCanvas,
     width: () => totalWidth,
     height: () => totalHeight,
-    margins: () => ({
-      top: marginTop,
-      right: marginRight,
-      bottom: marginBottom,
-      left: marginLeft,
-    }),
+    margins: () => margins,
     dpiOverride: () => dpiOverride,
     deps: () => [
       data,
@@ -223,10 +214,10 @@
       chartWidth,
       availableHeight,
       dpiOverride,
-      marginLeft,
-      marginRight,
+      margins.left,
+      margins.right,
       effectiveMarginTop,
-      marginBottom,
+      margins.bottom,
     ],
     onMouseMove: handlePlotMouseMove,
   })
@@ -271,8 +262,8 @@
     calculateEffectiveMarginTop(
       availableHeight,
       intrinsicContentHeight,
-      marginTop,
-      marginBottom,
+      margins.top,
+      margins.bottom,
       INTERNAL_PADDING_TOP
     )
   )
@@ -290,7 +281,7 @@
       }
     }
 
-    const legendX = marginLeft
+    const legendX = margins.left
     const lY = legendY + effectiveMarginTop
 
     return computeGroupedLegendGeometry(
@@ -309,7 +300,7 @@
     const pad = Math.ceil(SCARF_LEGEND_CONFIG.itemSpacing / 2)
     const regions: BlockedRegion[] = [
       {
-        x: LEFT_LABEL_WIDTH + marginLeft,
+        x: LEFT_LABEL_WIDTH + margins.left,
         y: effectiveMarginTop,
         w: plotAreaWidth,
         h: participantBarsHeight,
@@ -437,7 +428,7 @@
 
   // Total content height with effective margins
   const totalContentHeight = $derived(
-    intrinsicContentHeight + effectiveMarginTop + marginBottom
+    intrinsicContentHeight + effectiveMarginTop + margins.bottom
   )
 
   // Canvas height is strictly the available height (no scrolling)
@@ -514,7 +505,7 @@
       return
     }
 
-    const scarfPlotLeft = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
+    const scarfPlotLeft = Math.floor(LEFT_LABEL_WIDTH + margins.left)
     const scarfPlotWidth = Math.floor(plotAreaWidth)
 
     const renderCtx: ScarfLayoutContext = {
@@ -535,7 +526,7 @@
       effectiveMarginTop: effectiveMarginTop,
       participantBarsHeight: participantBarsHeight,
       totalWidth: totalWidth,
-      marginLeft: marginLeft,
+      marginLeft: margins.left,
       eventLaneHeight: layout.eventLaneHeight,
       eventZoneHeight: layout.eventZoneHeight,
       eventBandTop: layout.eventBandTop,
@@ -759,8 +750,8 @@
 
     // Check if mouse is in the plot area
     const inPlotArea =
-      mx >= LEFT_LABEL_WIDTH + marginLeft &&
-      mx <= LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft &&
+      mx >= LEFT_LABEL_WIDTH + margins.left &&
+      mx <= LEFT_LABEL_WIDTH + plotAreaWidth + margins.left &&
       my >= effectiveMarginTop &&
       my <= participantBarsHeight + effectiveMarginTop
 
@@ -813,7 +804,7 @@
       }
 
       const pIndex = hoveredSegment.y
-      const floorLeft = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
+      const floorLeft = Math.floor(LEFT_LABEL_WIDTH + margins.left)
       const floorWidth = Math.floor(plotAreaWidth)
       const segEndX =
         floorLeft + (hoveredSegment.x + hoveredSegment.width) * floorWidth
@@ -858,8 +849,8 @@
 
     // Only prepare for potential drag in the chart area
     if (
-      mouseX >= LEFT_LABEL_WIDTH + marginLeft &&
-      mouseX <= LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft &&
+      mouseX >= LEFT_LABEL_WIDTH + margins.left &&
+      mouseX <= LEFT_LABEL_WIDTH + plotAreaWidth + margins.left &&
       mouseY >= effectiveMarginTop &&
       mouseY <= participantBarsHeight + effectiveMarginTop
     ) {
@@ -940,7 +931,7 @@
 
     const { indexToId } = identifierSystem
     const scale = layout.scaleFactor
-    const floorLeft = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
+    const floorLeft = Math.floor(LEFT_LABEL_WIDTH + margins.left)
     const floorWidth = Math.floor(plotAreaWidth)
 
     for (let styleIdx = buckets.length - 1; styleIdx >= 0; styleIdx--) {

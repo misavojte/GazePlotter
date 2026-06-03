@@ -6,7 +6,7 @@
   import {
     drawPlotArea,
     usePlot,
-    toCanvasMargins,
+    NO_MARGINS,
     canvasBlockSelect,
     drawXAxisLabel,
     drawYAxisMainLabel,
@@ -35,10 +35,7 @@
     width = 400,
     height = 400,
     dpiOverride = null,
-    marginTop = 0,
-    marginRight = 0,
-    marginBottom = 0,
-    marginLeft = 0,
+    margins = NO_MARGINS,
   }: Props = $props()
 
   const L = SCANPATH_LAYOUT
@@ -189,8 +186,8 @@
 
     // plot.plotAreaWidth/Height are the content area (total minus export margins);
     // carve the axis margins out of it so the export margins become outer padding.
-    const xOffset = marginLeft + leftMargin
-    const yOffset = marginTop + topMargin
+    const xOffset = margins.left + leftMargin
+    const yOffset = margins.top + topMargin
     const plotW = Math.max(1, plot.plotAreaWidth - leftMargin - rightMargin)
     const plotH = Math.max(1, plot.plotAreaHeight - topMargin - bottomMargin)
 
@@ -319,7 +316,7 @@
     render: renderCanvas,
     width: () => width,
     height: () => height,
-    margins: () => toCanvasMargins({ marginTop, marginRight, marginBottom, marginLeft }),
+    margins: () => margins,
     dpiOverride: () => dpiOverride,
     deps: () => [data, showFixationOrder, showNumbers],
   })

@@ -6,7 +6,7 @@
   } from '$lib/plots/shared/canvasUtils'
   import {
     usePlot,
-    toCanvasMargins,
+    NO_MARGINS,
     canvasBlockSelect,
     type BlockedRegion,
     type CanvasExportProps,
@@ -55,10 +55,7 @@
     alignment = 'heatmap',
     colorScale,
     dpiOverride = null,
-    marginTop = 0,
-    marginRight = 0,
-    marginBottom = 0,
-    marginLeft = 0,
+    margins = NO_MARGINS,
   }: Props = $props()
 
   const X_AXIS_LABEL = $derived(data.xAxisLabel)
@@ -83,7 +80,7 @@
     render: renderCanvas,
     width: () => width,
     height: () => height,
-    margins: () => toCanvasMargins({ marginTop, marginRight, marginBottom, marginLeft }),
+    margins: () => margins,
     dpiOverride: () => dpiOverride,
     deps: () => [data, alignment],
     onMouseMove: handlePlotMouseMove,
@@ -145,7 +142,7 @@
   const gradientLegendGeometry = $derived.by(() => {
     if (alignment !== 'heatmap') return null
     return computeGradientLegendGeometry({
-      x: marginLeft,
+      x: margins.left,
       y: plotBottom + MARGIN.BOTTOM,
       availableWidth: plot.plotAreaWidth,
       availableHeight: legendHeight,
@@ -513,7 +510,7 @@
     // Gradient legend (heatmap only)
     if (gradientLegendGeometry) {
       drawGradientLegend(ctx, gradientLegendGeometry, {
-        x: marginLeft,
+        x: margins.left,
         y: floorBottom + MARGIN.BOTTOM,
         availableWidth: plot.plotAreaWidth,
         availableHeight: legendHeight,

@@ -8,7 +8,7 @@
   import {
     drawPlotArea,
     usePlot,
-    toCanvasMargins,
+    NO_MARGINS,
     canvasBlockSelect,
     type BlockedRegion,
     type CanvasExportProps,
@@ -36,10 +36,7 @@
     width = 400,
     height = 400,
     dpiOverride = null,
-    marginTop = 0,
-    marginRight = 0,
-    marginBottom = 0,
-    marginLeft = 0,
+    margins = NO_MARGINS,
   }: Props = $props()
 
   let hoveredCell = $state<{ row: number; col: number } | null>(null)
@@ -48,7 +45,7 @@
     render: renderCanvas,
     width: () => width,
     height: () => height,
-    margins: () => toCanvasMargins({ marginTop, marginRight, marginBottom, marginLeft }),
+    margins: () => margins,
     dpiOverride: () => dpiOverride,
     deps: () => [data, highlight, masking, highlightMask],
     onMouseMove: handlePlotMouseMove,
@@ -82,8 +79,8 @@
     const cellSize = N < 2 ? 0 : Math.max(L.minCellSize, plotSize / N)
     const gridSize = cellSize * N
 
-    const xOffset = Math.floor(marginLeft + yAxisSpace + (availW - gridSize) / 2)
-    const yOffset = Math.floor(marginTop + L.topMargin)
+    const xOffset = Math.floor(margins.left + yAxisSpace + (availW - gridSize) / 2)
+    const yOffset = Math.floor(margins.top + L.topMargin)
 
     const tickStep = N <= 20 ? 1 : Math.ceil(N / 10)
 

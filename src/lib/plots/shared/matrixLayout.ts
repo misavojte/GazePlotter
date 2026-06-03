@@ -1,4 +1,5 @@
 import { getGradientLegendRequiredHeight } from './legendGradient'
+import type { CanvasPlotMargins } from './useCanvasPlot.svelte'
 
 const NICE_STEPS = [5, 10, 20, 25, 50, 100, 200, 500, 1000] as const
 const AXIS_TITLE_GAP = 12
@@ -35,10 +36,7 @@ export type SquareMatrixLayoutInput = {
   labels: string[]
   cellValueLabelLength: number
   layoutConfig: MatrixLayoutConfig
-  marginTop: number
-  marginRight: number
-  marginBottom: number
-  marginLeft: number
+  margins: CanvasPlotMargins
 }
 
 export type SquareMatrixLayout = {
@@ -87,11 +85,14 @@ export function computeSquareMatrixLayout(
     labels,
     cellValueLabelLength: labelLen,
     layoutConfig: cfg,
-    marginTop,
-    marginRight,
-    marginBottom,
-    marginLeft,
   } = input
+  // Adapt the geometry margins to the local names the math below uses.
+  const {
+    top: marginTop,
+    right: marginRight,
+    bottom: marginBottom,
+    left: marginLeft,
+  } = input.margins
 
   const count = labels.length
   const safeCount = Math.max(1, count)

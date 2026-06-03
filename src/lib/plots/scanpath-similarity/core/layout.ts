@@ -1,5 +1,5 @@
 import { computeSquareMatrixLayout, MATRIX_LAYOUT } from '$lib/plots/shared'
-import type { SquareMatrixLayout } from '$lib/plots/shared'
+import type { SquareMatrixLayout, CanvasPlotMargins } from '$lib/plots/shared'
 
 export type { SquareMatrixLayout as SimilarityMatrixLayout }
 
@@ -8,10 +8,7 @@ export type SimilarityMatrixLayoutInput = {
   height: number
   labels: string[]
   effectiveMaxValue: number
-  marginTop: number
-  marginRight: number
-  marginBottom: number
-  marginLeft: number
+  margins: CanvasPlotMargins
 }
 
 export function computeSimilarityMatrixLayout(
@@ -23,9 +20,6 @@ export function computeSimilarityMatrixLayout(
     labels: input.labels,
     cellValueLabelLength: 4,
     layoutConfig: MATRIX_LAYOUT,
-    marginTop: input.marginTop,
-    marginRight: input.marginRight,
-    marginBottom: input.marginBottom,
-    marginLeft: input.marginLeft,
+    margins: input.margins,
   })
 }

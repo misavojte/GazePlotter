@@ -30,7 +30,11 @@ export interface UsePlotOptions {
   width: () => number
   /** Getter returning the TOTAL logical canvas height in pixels. See `width`. */
   height: () => number
-  /** Getter returning the margins that carve the plot area out of the canvas. */
+  /**
+   * Getter returning the export margins that carve the plot area out of the
+   * canvas. Pass them inline:
+   * `margins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft })`.
+   */
   margins: () => CanvasPlotMargins
   /** Getter returning the DPI scale override for rendering exports. */
   dpiOverride?: () => number | null

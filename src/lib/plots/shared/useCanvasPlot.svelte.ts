@@ -12,6 +12,7 @@ import {
   registerCanvasExportSource,
 } from '$lib/data/export'
 
+/** Plot margins as a geometry rectangle. */
 export interface CanvasPlotMargins {
   top: number
   right: number
@@ -19,20 +20,8 @@ export interface CanvasPlotMargins {
   left: number
 }
 
-/** Maps a figure's `marginTop/Right/Bottom/Left` props to a `CanvasPlotMargins`. */
-export function toCanvasMargins(p: {
-  marginTop: number
-  marginRight: number
-  marginBottom: number
-  marginLeft: number
-}): CanvasPlotMargins {
-  return {
-    top: p.marginTop,
-    right: p.marginRight,
-    bottom: p.marginBottom,
-    left: p.marginLeft,
-  }
-}
+/** Zero margins — the default for on-screen rendering (export padding only). */
+export const NO_MARGINS: CanvasPlotMargins = { top: 0, right: 0, bottom: 0, left: 0 }
 
 export interface UseCanvasPlotOptions {
   /** The canvas render function. Called on every scheduled redraw. */

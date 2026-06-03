@@ -75,8 +75,5 @@
   alignment={settings.alignment ?? 'stream'}
   highlights={settings.highlights ?? []}
   dpiOverride={exportProps.dpiOverride}
-  marginTop={exportProps.marginTop}
-  marginRight={exportProps.marginRight}
-  marginBottom={exportProps.marginBottom}
-  marginLeft={exportProps.marginLeft}
+  margins={exportProps.margins}
 />

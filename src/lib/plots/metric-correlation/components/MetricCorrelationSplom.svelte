@@ -14,7 +14,7 @@
     drawMatrixRowLabels,
     drawPlotArea,
     usePlot,
-    toCanvasMargins,
+    NO_MARGINS,
     canvasBlockSelect,
     type BlockedRegion,
     type CanvasExportProps,
@@ -33,17 +33,14 @@
     height,
     result,
     dpiOverride = null,
-    marginTop = 0,
-    marginRight = 0,
-    marginBottom = 0,
-    marginLeft = 0,
+    margins = NO_MARGINS,
   }: Props = $props()
 
   const plot = usePlot({
     render: renderCanvas,
     width: () => width,
     height: () => height,
-    margins: () => toCanvasMargins({ marginTop, marginRight, marginBottom, marginLeft }),
+    margins: () => margins,
     dpiOverride: () => dpiOverride,
     deps: () => [result, labels, methodLabel],
     onMouseMove: handlePlotMouseMove,
@@ -63,10 +60,7 @@
       labels,
       cellValueLabelLength: 5,
       layoutConfig: MATRIX_LAYOUT,
-      marginTop,
-      marginRight,
-      marginBottom,
-      marginLeft,
+      margins,
     })
   )
 

@@ -16,7 +16,7 @@
     drawGradientLegend,
     drawPlotArea,
     usePlot,
-    toCanvasMargins,
+    NO_MARGINS,
     renderMatrixContent,
     canvasBlockSelect,
     MATRIX_LEGEND_GAP,
@@ -45,17 +45,14 @@
     legendTitle = 'Similarity',
     noMetric = false,
     dpiOverride = null,
-    marginTop = 0,
-    marginRight = 0,
-    marginBottom = 0,
-    marginLeft = 0,
+    margins = NO_MARGINS,
   }: Props = $props()
 
   const plot = usePlot({
     render: renderCanvas,
     width: () => width,
     height: () => height,
-    margins: () => toCanvasMargins({ marginTop, marginRight, marginBottom, marginLeft }),
+    margins: () => margins,
     dpiOverride: () => dpiOverride,
     deps: () => [matrix, labels, colorScale, colorValueRange, legendTitle],
     onMouseMove: handlePlotMouseMove,
@@ -78,10 +75,7 @@
       height,
       labels,
       effectiveMaxValue,
-      marginTop,
-      marginRight,
-      marginBottom,
-      marginLeft,
+      margins,
     })
   )
 
@@ -159,7 +153,7 @@
 
   const legendGeometry = $derived.by(() => {
     const { gridWidth, xOffset, matrixBottom } = layout
-    const availableLegendSpace = height - matrixBottom - MATRIX_LEGEND_GAP - marginBottom
+    const availableLegendSpace = height - matrixBottom - MATRIX_LEGEND_GAP - margins.bottom
 
     return computeGradientLegendGeometry({
       x: xOffset,

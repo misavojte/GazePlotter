@@ -29,10 +29,7 @@
     height={exportProps.height}
     {result}
     dpiOverride={exportProps.dpiOverride}
-    marginTop={exportProps.marginTop}
-    marginRight={exportProps.marginRight}
-    marginBottom={exportProps.marginBottom}
-    marginLeft={exportProps.marginLeft}
+    margins={exportProps.margins}
   />
 {:else}
   <MetricCorrelationHeatmap
@@ -40,9 +37,6 @@
     height={exportProps.height}
     {result}
     dpiOverride={exportProps.dpiOverride}
-    marginTop={exportProps.marginTop}
-    marginRight={exportProps.marginRight}
-    marginBottom={exportProps.marginBottom}
-    marginLeft={exportProps.marginLeft}
+    margins={exportProps.margins}
   />
 {/if}

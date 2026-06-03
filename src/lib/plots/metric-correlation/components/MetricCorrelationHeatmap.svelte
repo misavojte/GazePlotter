@@ -11,7 +11,7 @@
     drawGradientLegend,
     drawPlotArea,
     usePlot,
-    toCanvasMargins,
+    NO_MARGINS,
     renderMatrixContent,
     canvasBlockSelect,
     MATRIX_LEGEND_GAP,
@@ -31,17 +31,14 @@
     height,
     result,
     dpiOverride = null,
-    marginTop = 0,
-    marginRight = 0,
-    marginBottom = 0,
-    marginLeft = 0,
+    margins = NO_MARGINS,
   }: Props = $props()
 
   const plot = usePlot({
     render: renderCanvas,
     width: () => width,
     height: () => height,
-    margins: () => toCanvasMargins({ marginTop, marginRight, marginBottom, marginLeft }),
+    margins: () => margins,
     dpiOverride: () => dpiOverride,
     deps: () => [flatMatrix, labels, methodLabel],
     onMouseMove: handlePlotMouseMove,
@@ -75,10 +72,7 @@
       // Longest value string is like "-1.00" (5 chars) or "—" when null
       cellValueLabelLength: 5,
       layoutConfig: MATRIX_LAYOUT,
-      marginTop,
-      marginRight,
-      marginBottom,
-      marginLeft,
+      margins,
     })
   )
 
@@ -163,7 +157,7 @@
 
   const legendGeometry = $derived.by(() => {
     const { gridWidth, xOffset, matrixBottom } = layout
-    const availableLegendSpace = height - matrixBottom - MATRIX_LEGEND_GAP - marginBottom
+    const availableLegendSpace = height - matrixBottom - MATRIX_LEGEND_GAP - margins.bottom
 
     return computeGradientLegendGeometry({
       x: xOffset,

@@ -6,7 +6,7 @@
   } from '$lib/plots/shared/canvasUtils'
   import {
     usePlot,
-    toCanvasMargins,
+    NO_MARGINS,
     canvasBlockSelect,
     type BlockedRegion,
     type CanvasExportProps,
@@ -82,10 +82,7 @@
     alignment = 'stream',
     onLegendClick = () => {},
     dpiOverride = null,
-    marginTop = 0,
-    marginRight = 0,
-    marginBottom = 0,
-    marginLeft = 0,
+    margins = NO_MARGINS,
     syncedMTopOverride = null,
     ridgelineScale,
     colorScale,
@@ -178,7 +175,7 @@
     render: renderCanvas,
     width: () => width,
     height: () => height,
-    margins: () => toCanvasMargins({ marginTop, marginRight, marginBottom, marginLeft }),
+    margins: () => margins,
     dpiOverride: () => dpiOverride,
     deps: () => [
       data,
@@ -226,7 +223,7 @@
 
   // Compute full legend geometry for rendering (after we know plotBottom)
   const legendGeometry: LegendGeometry = $derived.by(() => {
-    const legendX = marginLeft
+    const legendX = margins.left
     const legendY = plotBottom + MARGIN.BOTTOM + STREAM_LEGEND_CONFIG.topPadding
     const legendWidth = Math.max(0, plot.plotAreaWidth)
 
@@ -266,7 +263,7 @@
     if (alignment !== 'heatmap') return null
 
     return computeGradientLegendGeometry({
-      x: marginLeft,
+      x: margins.left,
       y: plotBottom + MARGIN.BOTTOM,
       availableWidth: plot.plotAreaWidth,
       availableHeight: legendHeight,
@@ -688,7 +685,7 @@
     if (alignment === 'heatmap') {
       if (gradientLegendGeometry) {
         drawGradientLegend(ctx, gradientLegendGeometry, {
-          x: marginLeft,
+          x: margins.left,
           y: plotBottom + MARGIN.BOTTOM,
           availableWidth: plot.plotAreaWidth,
           availableHeight: legendHeight,

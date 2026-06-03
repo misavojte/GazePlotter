@@ -8,7 +8,7 @@
   import {
     drawPlotArea,
     usePlot,
-    toCanvasMargins,
+    NO_MARGINS,
     canvasBlockSelect,
     type BlockedRegion,
     type CanvasExportProps,
@@ -42,17 +42,14 @@
     noMetric = false,
     onNodeClick,
     dpiOverride = null,
-    marginTop = 0,
-    marginRight = 0,
-    marginBottom = 0,
-    marginLeft = 0,
+    margins = NO_MARGINS,
   }: Props = $props()
 
   const plot = usePlot({
     render: renderCanvas,
     width: () => width,
     height: () => height,
-    margins: () => toCanvasMargins({ marginTop, marginRight, marginBottom, marginLeft }),
+    margins: () => margins,
     dpiOverride: () => dpiOverride,
     deps: () => [data, threshold, highlights],
     onMouseMove: handlePlotMouseMove,
@@ -70,7 +67,7 @@
   // region; everything outside (the margin frame around it) stays
   // clickable-to-select.
   const blockedRegions = $derived<BlockedRegion[]>([
-    { x: marginLeft, y: marginTop, w: contentWidth, h: contentHeight },
+    { x: margins.left, y: margins.top, w: contentWidth, h: contentHeight },
   ])
 
 
@@ -99,10 +96,10 @@
   })
 
   const forceMargins = $derived<ForceLayoutMargins>({
-    top: marginTop,
-    right: marginRight,
-    bottom: marginBottom,
-    left: marginLeft,
+    top: margins.top,
+    right: margins.right,
+    bottom: margins.bottom,
+    left: margins.left,
   })
 
   const layoutResult = $derived.by((): LayoutResult => {
@@ -190,7 +187,7 @@
         const rect: Rect = { x: rx, y: baseY, w: labelW, h: labelH }
 
         // Out of canvas bounds?
-        if (rect.x < marginLeft || rect.y < marginTop || rect.x + rect.w > marginLeft + width || rect.y + rect.h > marginTop + height) {
+        if (rect.x < margins.left || rect.y < margins.top || rect.x + rect.w > margins.left + width || rect.y + rect.h > margins.top + height) {
           continue
         }
 
@@ -307,8 +304,8 @@
     // axis-label margin, so a full-size rect would draw its right/bottom stroke
     // half a pixel beyond the canvas and get cropped.
     drawPlotArea(ctx, {
-      x: marginLeft,
-      y: marginTop,
+      x: margins.left,
+      y: margins.top,
       width: contentWidth - 1,
       height: contentHeight - 1,
     })

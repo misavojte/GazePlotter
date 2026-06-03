@@ -7,9 +7,9 @@
     drawYAxisMainLabel,
     drawXAxisLabel,
     usePlot,
+    NO_MARGINS,
     drawPlotArea,
     fillPlotAreaBackground,
-    toCanvasMargins,
     canvasBlockSelect,
     type PlotAreaTicks,
     type BlockedRegion,
@@ -75,10 +75,7 @@
     onDataHover,
     statisticalOverlay = 'none',
     dpiOverride = null,
-    marginTop = 0,
-    marginRight = 0,
-    marginBottom = 0,
-    marginLeft = 0,
+    margins = NO_MARGINS,
     noMetric = false,
   }: Props = $props()
 
@@ -135,7 +132,7 @@
     // 1. Calculate a stable estimate for the plot area width
     const estimatedPlotAreaWidth = Math.max(
       100,
-      width - marginLeft - leftChrome - MARGIN.RIGHT - marginRight
+      width - margins.left - leftChrome - MARGIN.RIGHT - margins.right
     )
 
     // 2. Calculate the bar end X position (absolute canvas coords), CAPPING it at
@@ -143,7 +140,7 @@
     // so its label should appear at the plot-area edge, not miles away.
     const clippedValueRatio = Math.min(1, maxValue / timelineMax)
     const barEndX =
-      marginLeft + leftChrome + clippedValueRatio * estimatedPlotAreaWidth
+      margins.left + leftChrome + clippedValueRatio * estimatedPlotAreaWidth
 
     // 3. Estimate label width
     const labelText = maxValue.toString()
@@ -163,7 +160,7 @@
     render: renderCanvas,
     width: () => width,
     height: () => height,
-    margins: () => toCanvasMargins({ marginTop, marginRight, marginBottom, marginLeft }),
+    margins: () => margins,
     dpiOverride: () => dpiOverride,
     deps: () => [data, timeline, axisLabel, barPlottingType, barWidth, barSpacing, statisticalOverlay, noMetric],
     onMouseMove: handlePlotMouseMove
@@ -183,7 +180,7 @@
   const blockedRegions = $derived<BlockedRegion[]>([
     {
       x: trueLeftMargin,
-      y: effectiveTopMargin + marginTop,
+      y: effectiveTopMargin + margins.top,
       w: plotAreaWidth,
       h: plotAreaHeight,
     },
@@ -269,7 +266,7 @@
           2
 
       if (barPlottingType === 'vertical') {
-        const y = effectiveTopMargin + marginTop + plotAreaHeight - scaledValue
+        const y = effectiveTopMargin + margins.top + plotAreaHeight - scaledValue
         const h = scaledValue
         return {
           x:
@@ -288,7 +285,7 @@
           x: trueLeftMargin,
           y:
             effectiveTopMargin +
-            marginTop +
+            margins.top +
             startPosition +
             index * (optimalBarWidth + effectiveBarSpacing),
           width: scaledValue,
@@ -309,14 +306,14 @@
     const items = bars.map((bar, index) => ({
       categoryCenter: barPlottingType === 'vertical'
         ? Math.floor(trueLeftMargin) + (index + 0.5) * fullCategoryWidth
-        : Math.floor(effectiveTopMargin + marginTop) + (index + 0.5) * fullCategoryWidth,
+        : Math.floor(effectiveTopMargin + margins.top) + (index + 0.5) * fullCategoryWidth,
       categoryWidth: fullCategoryWidth,
       data: data[index],
     }))
 
     return {
       plotLeft: Math.floor(trueLeftMargin),
-      plotTop: Math.floor(effectiveTopMargin + marginTop),
+      plotTop: Math.floor(effectiveTopMargin + margins.top),
       plotWidth: Math.floor(plotAreaWidth),
       plotHeight: Math.floor(plotAreaHeight),
       barPlottingType,
@@ -352,7 +349,7 @@
 
     const floorLeft = Math.floor(trueLeftMargin)
     const floorWidth = Math.floor(plotAreaWidth)
-    const floorTop = Math.floor(effectiveTopMargin + marginTop)
+    const floorTop = Math.floor(effectiveTopMargin + margins.top)
     const floorHeight = Math.floor(plotAreaHeight)
 
     // --- Clipped data layers ---

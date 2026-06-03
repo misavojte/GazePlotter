@@ -59,10 +59,12 @@
     width: Math.max(1, width),
     height: Math.max(1, height),
     dpiOverride: dpi,
-    marginTop,
-    marginRight,
-    marginBottom,
-    marginLeft,
+    margins: {
+      top: marginTop,
+      right: marginRight,
+      bottom: marginBottom,
+      left: marginLeft,
+    },
   })
 </script>
 

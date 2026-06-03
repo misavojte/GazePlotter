@@ -230,10 +230,12 @@
           onTooltipDeactivation={handleTooltipDeactivation}
           onDragStepX={step => handleDragStepX(step, width)}
           onDragEnd={handleDragEnd}
-          marginTop={PLOT_MARGIN.TOP}
-          marginRight={PLOT_MARGIN.RIGHT}
-          marginBottom={PLOT_MARGIN.BOTTOM}
-          marginLeft={PLOT_MARGIN.LEFT}
+          margins={{
+            top: PLOT_MARGIN.TOP,
+            right: PLOT_MARGIN.RIGHT,
+            bottom: PLOT_MARGIN.BOTTOM,
+            left: PLOT_MARGIN.LEFT,
+          }}
           tooltipAreaElement={tooltipArea}
         />
       {/if}

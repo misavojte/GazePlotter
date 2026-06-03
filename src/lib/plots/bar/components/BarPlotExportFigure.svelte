@@ -60,8 +60,5 @@
   statisticalOverlay={settings.statisticalOverlay}
   noMetric={barPlotData.noMetric ?? false}
   dpiOverride={exportProps.dpiOverride}
-  marginTop={exportProps.marginTop}
-  marginRight={exportProps.marginRight}
-  marginBottom={exportProps.marginBottom}
-  marginLeft={exportProps.marginLeft}
+  margins={exportProps.margins}
 />

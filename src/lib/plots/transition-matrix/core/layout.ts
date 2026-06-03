@@ -1,15 +1,12 @@
 import { computeSquareMatrixLayout, MATRIX_LAYOUT } from '$lib/plots/shared'
-import type { SquareMatrixLayout } from '$lib/plots/shared'
+import type { SquareMatrixLayout, CanvasPlotMargins } from '$lib/plots/shared'
 
 export type { SquareMatrixLayout as TransitionMatrixLayout }
 
 export type TransitionMatrixLayoutInput = {
   width: number
   height: number
-  marginTop: number
-  marginRight: number
-  marginBottom: number
-  marginLeft: number
+  margins: CanvasPlotMargins
   aoiLabels: string[]
   effectiveMaxValue: number
 }
@@ -30,9 +27,6 @@ export function computeTransitionMatrixLayout(
     labels: input.aoiLabels,
     cellValueLabelLength: labelLen,
     layoutConfig: MATRIX_LAYOUT,
-    marginTop: input.marginTop,
-    marginRight: input.marginRight,
-    marginBottom: input.marginBottom,
-    marginLeft: input.marginLeft,
+    margins: input.margins,
   })
 }
