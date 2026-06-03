@@ -2,7 +2,6 @@
   import {
     alignToPixelCenter,
     beginCanvasDrawing,
-    canvasLifecycleAction,
     finishCanvasDrawing,
     getScaledMousePosition,
     getTooltipPosition,
@@ -18,7 +17,7 @@
     hitTestLegend,
     niceTimelineTicks,
     SCARF_LEGEND_CONFIG,
-    useCanvasPlot,
+    usePlot,
     canvasBlockSelect,
     drawCanvasPlaceholder,
     type BlockedRegion,
@@ -112,7 +111,6 @@
   const HIGHLIGHT_COLOR = '#007acc'
   const HIGHLIGHT_FILL_ALPHA = 0.2
   const HIGHLIGHT_DASH: number[] = [2, 2]
-  const FRAME_TIME = 1000 / 30 // Throttle to 30fps
 
   // Internal layout constants for compact rendering
   const INTERNAL_PADDING_TOP = 6 // Space for top ticks
@@ -203,20 +201,35 @@
   // State management with Svelte 5 runes
   let hoveredRowIndex = $state<number | null>(null)
   let mouseXPx = $state<number | null>(null)
-  let lastMouseMoveTime = $state(0)
   let isDragging = $state(false)
   let canvas = $state<HTMLCanvasElement | null>(null)
-  const plot = useCanvasPlot({
+  const plot = usePlot({
     render: renderCanvas,
-    getWidth: () => totalWidth,
-    getHeight: () => totalHeight,
-    getMargins: () => ({
+    width: () => totalWidth,
+    height: () => totalHeight,
+    margins: () => ({
       top: marginTop,
       right: marginRight,
       bottom: marginBottom,
       left: marginLeft,
     }),
-    getDpiOverride: () => dpiOverride,
+    dpiOverride: () => dpiOverride,
+    deps: () => [
+      data,
+      settings,
+      totalWidth,
+      totalHeight,
+      highlights,
+      usedHighlights,
+      chartWidth,
+      availableHeight,
+      dpiOverride,
+      marginLeft,
+      marginRight,
+      effectiveMarginTop,
+      marginBottom,
+    ],
+    onMouseMove: handlePlotMouseMove,
   })
 
   let dragStartX = $state(0) // Track drag start position
@@ -673,36 +686,46 @@
     return hitTestLegend(legendGeometry, SCARF_LEGEND_CONFIG, mouseX, mouseY)
   }
 
-  // Mouse event handling for canvas
-  function handleMouseMove(event: MouseEvent) {
-    const currentTime = performance.now()
-    if (currentTime - lastMouseMoveTime < FRAME_TIME) return
-    lastMouseMoveTime = currentTime
-
-    if (!canvas) return
-
-    // Get mouse position with correct scaling
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(
-      plot.canvasState,
-      event
-    )
+  // Mouse event handling for canvas via usePlot
+  function handlePlotMouseMove(mx: number | null, my: number | null, over: boolean) {
+    if (!over || mx === null || my === null) {
+      if (hoveredLegendItem) {
+        hoveredLegendItem = null
+        updateTooltip(null)
+      }
+      if (hoveredRowIndex !== null || mouseXPx !== null) {
+        hoveredRowIndex = null
+        mouseXPx = null
+        plot.scheduleRender()
+      }
+      if (currentHoveredSegment) {
+        currentHoveredSegment = null
+        onTooltipDeactivation()
+      }
+      if (canvas) canvas.style.cursor = 'default'
+      
+      // Reset drag state if leaving plot
+      if (isDragging) {
+        isDragging = false
+      }
+      hasDragStarted = false
+      dragStartX = 0
+      dragStartY = 0
+      return
+    }
 
     // Check if mouse is over a legend item
-    const legendItem = isMouseOverLegendItem(mouseX, mouseY)
+    const legendItem = isMouseOverLegendItem(mx, my)
 
     // Handle legend item tooltips
-    // Use identifier comparison to avoid "state_proxy_equality_mismatch"
-    // Svelte 5 proxies and raw objects are not equal, so we compare unique IDs
     const currentId = legendItem?.identifier
     const hoveredId = hoveredLegendItem?.identifier
 
     if (currentId !== hoveredId) {
       if (legendItem) {
-        // Show tooltip with "Highlight [FULLNAMEOFAOI]" or "Dehighlight [FULLNAMEOFAOI]" text
         hoveredLegendItem = legendItem
         const isHighlighted = usedHighlights.includes(legendItem.identifier)
 
-        // Use utility functions for tooltip
         const tooltipContent = getLegendTooltipContent(
           legendItem,
           isHighlighted
@@ -726,15 +749,13 @@
           y: tooltipPos.y,
         })
       } else if (hoveredLegendItem) {
-        // Hide tooltip when mouse leaves legend item
         hoveredLegendItem = null
         updateTooltip(null)
       }
     }
 
     if (hoveredLegendItem) {
-      canvas.style.cursor = 'pointer'
-      // Clear crosshair when over legend
+      if (canvas) canvas.style.cursor = 'pointer'
       if (hoveredRowIndex !== null) {
         hoveredRowIndex = null
         mouseXPx = null
@@ -745,13 +766,13 @@
 
     // Check if mouse is in the plot area
     const inPlotArea =
-      mouseX >= LEFT_LABEL_WIDTH + marginLeft &&
-      mouseX <= LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft &&
-      mouseY >= effectiveMarginTop &&
-      mouseY <= participantBarsHeight + effectiveMarginTop
+      mx >= LEFT_LABEL_WIDTH + marginLeft &&
+      mx <= LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft &&
+      my >= effectiveMarginTop &&
+      my <= participantBarsHeight + effectiveMarginTop
 
     if (!inPlotArea) {
-      canvas.style.cursor = 'default'
+      if (canvas) canvas.style.cursor = 'default'
       if (hoveredRowIndex !== null) {
         hoveredRowIndex = null
         mouseXPx = null
@@ -764,26 +785,26 @@
       return
     }
 
-    canvas.style.cursor = 'crosshair'
+    if (canvas) canvas.style.cursor = 'crosshair'
 
     // Update crosshair state
     const rowHeight =
       isEventsOnlyMode && eventOnlyLayout
         ? eventOnlyLayout.rowHeight
         : layout.heightOfBarWrap
-    const relativeY = mouseY - effectiveMarginTop
+    const relativeY = my - effectiveMarginTop
     const newRowIndex = Math.floor(relativeY / rowHeight)
     hoveredRowIndex =
       newRowIndex >= 0 && newRowIndex < data.participants.length
         ? newRowIndex
         : null
-    mouseXPx = mouseX
+    mouseXPx = mx
     plot.scheduleRender()
 
     // Find the segment under the mouse pointer using TypedArray
     const hoveredSegment =
       hoveredRowIndex !== null
-        ? findSegmentAtRowAndTime(hoveredRowIndex, mouseX)
+        ? findSegmentAtRowAndTime(hoveredRowIndex, mx)
         : null
 
     // If hovering over a new segment, show tooltip
@@ -822,34 +843,6 @@
       currentHoveredSegment = null
       onTooltipDeactivation()
     }
-  }
-
-  function handleMouseLeave() {
-    // Clear crosshair highlight
-    if (hoveredRowIndex !== null || mouseXPx !== null) {
-      hoveredRowIndex = null
-      mouseXPx = null
-      plot.scheduleRender()
-    }
-
-    if (hoveredLegendItem) {
-      hoveredLegendItem = null
-      updateTooltip(null)
-    }
-
-    if (currentHoveredSegment) {
-      currentHoveredSegment = null
-      onTooltipDeactivation()
-    }
-
-    // Reset drag state
-    if (isDragging) {
-      isDragging = false
-    }
-    hasDragStarted = false
-
-    dragStartX = 0
-    dragStartY = 0
   }
 
   // Drag handlers
@@ -946,26 +939,7 @@
     }
   }
 
-  // Re-render when any visual dependency changes.
-  // Svelte 5 tracks all reactive reads implicitly — listing them
-  // in an array is unnecessary but we reference them so the effect fires.
-  $effect(() => {
-    data
-    settings
-    totalWidth
-    totalHeight
-    highlights
-    usedHighlights
-    chartWidth
-    availableHeight
-    dpiOverride
-    marginLeft
-    marginRight
-    effectiveMarginTop
-    marginBottom
 
-    untrack(() => plot.refresh())
-  })
 
   function findSegmentAtRowAndTime(rowIndex: number, mouseX: number) {
     const buckets = visualRectBuckets
@@ -1041,12 +1015,8 @@
 <canvas
   class="scarf-plot-figure"
   style:pointer-events={canRender ? 'auto' : 'none'}
-  width={totalWidth}
-  height={totalHeight}
-  use:canvasLifecycleAction={plot.actionOptions}
+  use:plot.plotAction
   use:canvasBlockSelect={{ regions: blockedRegions }}
-  onmousemove={handleMouseMove}
-  onmouseleave={handleMouseLeave}
   onmousedown={handleMouseDown}
   bind:this={canvas}
   data-component="scarfplot"

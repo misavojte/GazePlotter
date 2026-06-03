@@ -4,11 +4,9 @@
   import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
   import { untrack } from 'svelte'
   import {
-    getScaledMousePosition,
     getTooltipPosition,
     beginCanvasDrawing,
     finishCanvasDrawing,
-    canvasLifecycleAction,
   } from '$lib/plots/shared/canvasUtils'
   import { drawCanvasPlaceholder, METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
   import {
@@ -20,7 +18,7 @@
     computeGradientLegendGeometry,
     drawGradientLegend,
     drawPlotArea,
-    useCanvasPlot,
+    usePlot,
     renderMatrixContent,
     canvasBlockSelect,
     MATRIX_LEGEND_GAP,
@@ -73,12 +71,33 @@
 
   let canvas = $state<HTMLCanvasElement | null>(null)
 
-  const plot = useCanvasPlot({
+  const plot = usePlot({
     render: renderCanvas,
-    getWidth: () => width,
-    getHeight: () => height,
-    getMargins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
-    getDpiOverride: () => dpiOverride,
+    width: () => width,
+    height: () => height,
+    margins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
+    dpiOverride: () => dpiOverride,
+    deps: () => [
+      TransitionMatrix,
+      aoiLabels,
+      width,
+      height,
+      colorScale,
+      xLabel,
+      yLabel,
+      legendTitle,
+      colorValueRange,
+      belowMinColor,
+      aboveMaxColor,
+      showBelowMinLabels,
+      showAboveMaxLabels,
+      dpiOverride,
+      marginTop,
+      marginRight,
+      marginBottom,
+      marginLeft,
+    ],
+    onMouseMove: handlePlotMouseMove,
   })
 
   const effectiveMaxValue = $derived.by(() => {
@@ -234,13 +253,16 @@
     }
   }
 
-  function handleMouseMove(event: MouseEvent) {
-    if (!canvas) return
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(plot.canvasState, event)
+  function handlePlotMouseMove(mx: number | null, my: number | null, over: boolean) {
+    if (!over || mx === null || my === null) {
+      updateTooltip(null)
+      if (canvas) canvas.style.cursor = 'default'
+      return
+    }
 
     const { xOffset, yOffset, cellSize } = layout
-    const col = Math.floor((mouseX - xOffset) / cellSize)
-    const row = Math.floor((mouseY - yOffset) / cellSize)
+    const col = Math.floor((mx - xOffset) / cellSize)
+    const row = Math.floor((my - yOffset) / cellSize)
 
     const isOverCell =
       row >= 0 && row < aoiLabels.length && col >= 0 && col < aoiLabels.length
@@ -279,47 +301,10 @@
     }
   }
 
-  function handleMouseLeave() {
-    updateTooltip(null)
-    if (canvas) canvas.style.cursor = 'default'
-  }
-
-  function handleMouseDown(event: MouseEvent) {
-    // Legacy shortcuts removed
-  }
-
-  $effect(() => {
-    const _ = [
-      TransitionMatrix,
-      aoiLabels,
-      width,
-      height,
-      colorScale,
-      xLabel,
-      yLabel,
-      legendTitle,
-      colorValueRange,
-      belowMinColor,
-      aboveMaxColor,
-      showBelowMinLabels,
-      showAboveMaxLabels,
-      dpiOverride,
-      marginTop,
-      marginRight,
-      marginBottom,
-      marginLeft,
-    ]
-
-    untrack(() => plot.refresh())
-  })
-
 </script>
 
 <canvas
   bind:this={canvas}
-  use:canvasLifecycleAction={plot.actionOptions}
+  use:plot.plotAction
   use:canvasBlockSelect={{ regions: blockedRegions }}
-  onmousemove={handleMouseMove}
-  onmouseleave={handleMouseLeave}
-  onmousedown={handleMouseDown}
 ></canvas>

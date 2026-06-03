@@ -18,6 +18,7 @@ import { describe, it, expect } from 'vitest'
 import { createReaderFromJson } from '../src/lib/data/binary/converters'
 import { AoiGroupReader } from '../src/lib/data/binary/reader.aoiGroup'
 import { getAois } from '../src/lib/data/engine/selectors/aoiSelectors'
+import { query } from '../src/lib/metrics'
 
 function createEngine(
   aoiNames: string[],
@@ -133,9 +134,8 @@ describe('getAois — memoization', () => {
   })
 
   it('CONTROL: two identical back-to-back queries — second should hit the cache', async () => {
-    const { query } = await import('../src/lib/metrics')
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const engine = createEngine(
       ['AOI 1', 'AOI 2'],
       [],
@@ -161,11 +161,7 @@ describe('getAois — memoization', () => {
 
   it('REPRO: full color-only save path (updateAoisBatch + redundant updateHiddenAoisBatch) preserves metric cache', async () => {
     // This reproduces the actual production flow: the modal commit calls
-    // workspace.updateAois, which fires BOTH updateAoisBatch AND
-    // updateHiddenAoisBatch (even when hidden didn't change). Without diffing
-    // on the hidden path, every color save bumps the structural version and
-    // wipes the metric cache — which is exactly the lag the profile showed.
-    const { query } = await import('../src/lib/metrics')
+
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const engine = createEngine(
@@ -215,8 +211,6 @@ describe('getAois — memoization', () => {
     // We isolate scan work by counting reader.getFixationSegmentIndex calls —
     // that method is invoked ONLY from scanAccumulator/scanBatch inner loops.
     // Counting getAoiMapping would be ambiguous because getAois calls it too.
-    const { query } = await import('../src/lib/metrics')
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const engine = createEngine(
       ['AOI 1', 'AOI 2'],

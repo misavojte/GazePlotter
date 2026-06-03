@@ -1,5 +1,5 @@
 /** Euclidean distance over which the tooltip will fade instead of slide */
-export const TOOLTIP_JUMP_THRESHOLD = 100
+export const TOOLTIP_JUMP_THRESHOLD = 300
 
 /** Duration of the fade transition in ms */
 export const TOOLTIP_TRANSITION_DURATION = 150

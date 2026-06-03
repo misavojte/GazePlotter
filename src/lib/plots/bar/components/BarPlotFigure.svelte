@@ -6,7 +6,7 @@
     getTimelinePositionRatio,
     drawYAxisMainLabel,
     drawXAxisLabel,
-    useCanvasPlot,
+    usePlot,
     drawPlotArea,
     fillPlotAreaBackground,
     canvasBlockSelect,
@@ -17,15 +17,10 @@
     calculateLabelOffset,
     truncateTextToPixelWidth,
   } from '$lib/shared/utils/textUtils'
-  import { updateTooltip } from '$lib/tooltip'
-  import { untrack } from 'svelte'
   import {
-    getScaledMousePosition,
-    getTooltipPosition,
     beginCanvasDrawing,
     finishCanvasDrawing,
     alignToPixelCenter,
-    canvasLifecycleAction,
   } from '$lib/plots/shared/canvasUtils'
   import { drawCanvasPlaceholder, METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
   import type { StatisticalOverlayType, BarPlotDataItem } from '$lib/plots/bar/types'
@@ -100,18 +95,8 @@
   // State management
   let hoveredBarIndex = $state<number | null>(null)
   let mouseValuePx = $state<number | null>(null) // pixel position on value axis
-  let lastMouseMoveTime = $state(0)
-  const FRAME_TIME = 1000 / 30 // Throttle to 30fps
 
   let canvas = $state<HTMLCanvasElement | null>(null)
-
-  const plot = useCanvasPlot({
-    render: renderCanvas,
-    getWidth: () => width,
-    getHeight: () => height,
-    getMargins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
-    getDpiOverride: () => dpiOverride,
-  })
 
   // Calculate dynamic margins
   const effectiveTopMargin = $derived(TICK_LENGTH)
@@ -120,7 +105,7 @@
   )
 
   // Calculate dynamic left margin based on plotting type and label lengths
-  const trueLeftMargin = $derived(
+  const trueLeftMarginVal = $derived(
     Math.floor(
       Math.min(
         width * 0.4, // Safety cap: never take more than 40% of width
@@ -140,7 +125,7 @@
     )
   )
 
-  const dynamicRightMargin = $derived.by(() => {
+  const dynamicRightMarginVal = $derived.by(() => {
     if (barPlottingType !== 'horizontal') return MARGIN.RIGHT + marginRight
 
     const values = data.map(d => d.value)
@@ -152,14 +137,14 @@
     // 1. Calculate a stable estimate for the plot area width
     const estimatedPlotAreaWidth = Math.max(
       100,
-      width - trueLeftMargin - MARGIN.RIGHT - marginRight
+      width - trueLeftMarginVal - MARGIN.RIGHT - marginRight
     )
 
     // 2. Calculate the bar end X position, CAPPING it at the estimated plot area width.
     // This is the KEY fix: if maxValue > timelineMax, we assume the bar is clipped
     // and its label should ideally appear at the edge of the plot area, not miles away.
     const clippedValueRatio = Math.min(1, maxValue / timelineMax)
-    const barEndX = trueLeftMargin + clippedValueRatio * estimatedPlotAreaWidth
+    const barEndX = trueLeftMarginVal + clippedValueRatio * estimatedPlotAreaWidth
 
     // 3. Estimate label width
     const labelText = maxValue.toString()
@@ -176,18 +161,27 @@
     return Math.floor(MARGIN.RIGHT + cappedOverflow + marginRight)
   })
 
-  // Calculate plot area dimensions - Ensure at least 1px to avoid layout collapse
-  const plotAreaWidth = $derived(
-    Math.max(1, Math.floor(width - trueLeftMargin - dynamicRightMargin))
-  )
-  const plotAreaHeight = $derived(
-    Math.max(
-      1,
-      Math.floor(
-        height - effectiveTopMargin - effectiveBottomMargin - marginTop - marginBottom
-      )
-    )
-  )
+  const margins = $derived({
+    top: effectiveTopMargin + marginTop,
+    right: dynamicRightMarginVal,
+    bottom: effectiveBottomMargin + marginBottom,
+    left: trueLeftMarginVal,
+  })
+
+  const plot = usePlot({
+    render: renderCanvas,
+    width: () => width,
+    height: () => height,
+    margins: () => margins,
+    dpiOverride: () => dpiOverride,
+    deps: () => [data, timeline, axisLabel, barPlottingType, barWidth, barSpacing, statisticalOverlay, noMetric],
+    onMouseMove: handlePlotMouseMove
+  })
+
+  // Decoupled coordinate projection mappings
+  const trueLeftMargin = $derived(plot.plotLeft)
+  const plotAreaWidth = $derived(plot.plotAreaWidth)
+  const plotAreaHeight = $derived(plot.plotAreaHeight)
 
   // Bar plot has no legend — only the data rectangle is blocked so
   // the surrounding chrome (axes, title, padding) opens the Pane.
@@ -548,36 +542,13 @@
     return result
   }
 
-  // Event handlers
-  function handleMouseMove(event: MouseEvent) {
-    const currentTime = performance.now()
-    if (currentTime - lastMouseMoveTime < FRAME_TIME) {
-      return
-    }
-    lastMouseMoveTime = currentTime
-
-    if (!canvas) return
-
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(plot.canvasState, event)
-
-    const isVertical = barPlottingType === 'vertical'
-    const floorLeft = Math.floor(trueLeftMargin)
-    const floorTop = Math.floor(effectiveTopMargin + marginTop)
-    const floorWidth = Math.floor(plotAreaWidth)
-    const floorHeight = Math.floor(plotAreaHeight)
-
-    // Check if mouse is inside the plot area
-    const inPlot =
-      mouseX >= floorLeft &&
-      mouseX <= floorLeft + floorWidth &&
-      mouseY >= floorTop &&
-      mouseY <= floorTop + floorHeight
-
-    if (!inPlot) {
+  // Synchronous hover and hit-test handler using usePlot coordinates
+  function handlePlotMouseMove(mx: number | null, my: number | null, over: boolean) {
+    if (!over || mx === null || my === null) {
       if (hoveredBarIndex !== null) {
         hoveredBarIndex = null
         mouseValuePx = null
-        updateTooltip(null)
+        plot.hideTooltip(0)
         onDataHover(null)
         if (canvas) canvas.style.cursor = 'default'
         plot.scheduleRender()
@@ -587,11 +558,13 @@
 
     if (canvas) canvas.style.cursor = 'crosshair'
 
+    const isVertical = barPlottingType === 'vertical'
+    
     // Store raw pixel position on value axis
-    mouseValuePx = isVertical ? mouseY : mouseX
+    mouseValuePx = isVertical ? my : mx
 
     // Determine which AOI category the mouse is over
-    const categoryPos = isVertical ? mouseX : mouseY
+    const categoryPos = isVertical ? mx : my
     let newIndex: number | null = null
     for (let i = 0; i < rendererLayout.items.length; i++) {
       const item = rendererLayout.items[i]
@@ -611,8 +584,8 @@
 
       // Compute value at mouse position on the value axis
       const ratio = isVertical
-        ? 1 - (mouseY - floorTop) / floorHeight
-        : (mouseX - floorLeft) / floorWidth
+        ? 1 - (my - plot.plotTop) / plot.plotAreaHeight
+        : (mx - plot.plotLeft) / plot.plotAreaWidth
       const mouseValue = timeline.minValue + ratio * (timeline.maxValue - timeline.minValue)
 
       const tooltipContent: { key: string; value: string }[] = [
@@ -632,12 +605,10 @@
         )
 
         if (nearbyParticipants.length > 0) {
-          // Check if this is a multi-value-per-participant metric
           const nameSet = new Set(names)
           const isMultiValueMetric = names.length > nameSet.size
 
           if (isMultiValueMetric) {
-            // Group by participant, show "name × count", ordered by count
             const counts = new Map<string, number>()
             for (const n of nearbyParticipants) {
               counts.set(n, (counts.get(n) ?? 0) + 1)
@@ -658,7 +629,6 @@
               })
             }
           } else {
-            // One value per participant — show first 4 by order, then others
             const unique = [...new Set(nearbyParticipants)]
             const maxShow = 4
             for (let i = 0; i < Math.min(maxShow, unique.length); i++) {
@@ -693,56 +663,29 @@
         )
       }
 
-      // Anchor tooltip to AOI strip edge: below row (horizontal) or right of column (vertical)
-      const hoveredItem = rendererLayout.items[newIndex]
-      const stripEdge = hoveredItem.categoryCenter + hoveredItem.categoryWidth / 2
-      const TOOLTIP_GAP = 8
-      const tooltipPos = getTooltipPosition(
-        plot.canvasState,
-        isVertical ? stripEdge + TOOLTIP_GAP : mouseX,
-        isVertical ? mouseY : stripEdge + TOOLTIP_GAP,
-        { x: 0, y: 0 }
+      // Position tooltip near mouse cursor (offset 15px from cursor)
+      plot.showTooltip(
+        'bar-crosshair',
+        tooltipContent,
+        mx,
+        my,
+        { x: 15, y: 15 },
+        180
       )
-
-      updateTooltip({
-        id: 'bar-crosshair',
-        x: tooltipPos.x,
-        y: tooltipPos.y,
-        content: tooltipContent,
-        visible: true,
-        width: 180,
-      }, 0)
 
       if (changed) onDataHover(dataItem)
     } else {
-      updateTooltip(null)
+      plot.hideTooltip(0)
       if (changed) onDataHover(null)
     }
 
     plot.scheduleRender()
   }
-
-  function handleMouseLeave() {
-    hoveredBarIndex = null
-    mouseValuePx = null
-    updateTooltip(null)
-    onDataHover(null)
-    if (canvas) canvas.style.cursor = 'default'
-    plot.scheduleRender()
-  }
-
-  // Track data changes and schedule renders
-  $effect(() => {
-    const _ = [data, width, height, timeline, barPlottingType, barWidth, barSpacing, statisticalOverlay, dpiOverride, marginTop, marginRight, marginBottom, marginLeft]
-    untrack(() => plot.refresh())
-  })
 </script>
 
 <canvas
   bind:this={canvas}
-  use:canvasLifecycleAction={plot.actionOptions}
+  use:plot.plotAction
   use:canvasBlockSelect={{ regions: blockedRegions }}
-  onmousemove={handleMouseMove}
-  onmouseleave={handleMouseLeave}
   aria-label="Bar plot visualization"
 ></canvas>
