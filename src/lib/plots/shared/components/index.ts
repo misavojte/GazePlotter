@@ -14,6 +14,13 @@ export { default as PlotSubheader } from './PlotSubheader.svelte'
 export { default as CanvasPlaceholder } from './CanvasPlaceholder.svelte'
 export { default as ContractMetricSelect } from './ContractMetricSelect.svelte'
 export { default as ColorScalePicker } from './ColorScalePicker.svelte'
-export { default as CommonPlotPaneFields } from './CommonPlotPaneFields.svelte'
 export { default as TimelineRangeSection } from './TimelineRangeSection.svelte'
 export { default as AoiPaneSection } from './AoiPaneSection.svelte'
+export { default as EventPaneSection } from './EventPaneSection.svelte'
+export { default as StimulusPaneSection } from './StimulusPaneSection.svelte'
+export { default as ParticipantGroupPaneSection } from './ParticipantGroupPaneSection.svelte'
+export { default as ParticipantPaneSection } from './ParticipantPaneSection.svelte'
+export { default as MetricPaneSection } from './MetricPaneSection.svelte'
+
+
+

@@ -1,14 +1,16 @@
 <script lang="ts">
   import { PaneSection } from '$lib/workspace/pane'
-  import { InputNumber, Radio, InputCheck } from '$lib/shared/components'
+  import { InputNumber, Radio, InputCheck, Select } from '$lib/shared/components'
   import {
-    CommonPlotPaneFields,
     TimelineRangeSection,
+    AoiPaneSection,
+    StimulusPaneSection,
+    ParticipantGroupPaneSection,
+    MetricPaneSection,
   } from '$lib/plots/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import type { BarPlotItem, BarPlotSettings } from '../types'
-  import { barPlotDefinition } from '../definition'
 
   interface Props {
     item: BarPlotItem
@@ -34,11 +36,32 @@
     ]
     update({ scaleRange: next })
   }
+
+  const orientationSummary = $derived(
+    settings.barPlottingType === 'horizontal' ? 'Horizontal' : 'Vertical'
+  )
 </script>
 
-<CommonPlotPaneFields {item} contract={barPlotDefinition.consumesMetrics!} />
+<StimulusPaneSection
+  stimulusId={settings.stimulusId}
+  onchange={id => update({ stimulusId: id })}
+  {source}
+/>
 
-<PaneSection title="Visualisation">
+<ParticipantGroupPaneSection
+  groupId={settings.groupId}
+  stimulusId={settings.stimulusId}
+  onchange={id => update({ groupId: id })}
+  {source}
+/>
+
+<MetricPaneSection
+  {item}
+  metricInstanceIds={settings.metricInstanceIds}
+  onchange={ids => update({ metricInstanceIds: ids })}
+/>
+
+<PaneSection title="Visualisation" summary={orientationSummary}>
   <div class="statistical-overlay-group">
     <Radio
       legend="Statistical overlay"
@@ -132,6 +155,9 @@
 </PaneSection>
 
 <TimelineRangeSection {item} />
+
+<AoiPaneSection stimulusId={settings.stimulusId} {source} />
+
 
 <style>
   .inline-pair {

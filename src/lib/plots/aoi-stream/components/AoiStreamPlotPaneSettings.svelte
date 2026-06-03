@@ -1,16 +1,21 @@
 <script lang="ts">
   import { PaneSection } from '$lib/workspace/pane'
-  import { InputNumber, Radio, Select, InputCheck } from '$lib/shared/components'
+  import { InputNumber, Select, InputCheck } from '$lib/shared/components'
   import {
     ColorScalePicker,
-    CommonPlotPaneFields,
     TimelineRangeSection,
+    AoiPaneSection,
+    StimulusPaneSection,
+    ParticipantGroupPaneSection,
+    MetricPaneSection,
   } from '$lib/plots/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { PRESET_PALETTES } from '$lib/color/palettes'
-  import { aoiStreamPlotDefinition } from '../definition'
   import { RIDGELINE_SCALE } from '../const'
+
+
+
   import type {
     AoiStreamPlotItem,
     AoiStreamPlotSettings,
@@ -33,11 +38,29 @@
   const alignment = $derived(settings.alignment ?? 'stream')
   const isRidgeline = $derived(alignment === 'ridgeline')
   const isHeatmap = $derived(alignment === 'heatmap')
+  const visSummary = $derived(alignment.charAt(0).toUpperCase() + alignment.slice(1))
 </script>
 
-<CommonPlotPaneFields {item} contract={aoiStreamPlotDefinition.consumesMetrics!} />
+<StimulusPaneSection
+  stimulusId={settings.stimulusId}
+  onchange={id => update({ stimulusId: id })}
+  {source}
+/>
 
-<PaneSection title="Visualisation">
+<ParticipantGroupPaneSection
+  groupId={settings.groupId}
+  stimulusId={settings.stimulusId}
+  onchange={id => update({ groupId: id })}
+  {source}
+/>
+
+<MetricPaneSection
+  {item}
+  metricInstanceIds={settings.metricInstanceIds}
+  onchange={ids => update({ metricInstanceIds: ids })}
+/>
+
+<PaneSection title="Visualisation" summary={visSummary}>
   <Select
     options={[
       { label: 'Stream', value: 'stream' },
@@ -92,6 +115,9 @@
 </PaneSection>
 
 <TimelineRangeSection {item} />
+
+<AoiPaneSection stimulusId={settings.stimulusId} {source} />
+
 
 <style>
   .sub-group {

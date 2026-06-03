@@ -3,13 +3,15 @@
   import { Radio, Select } from '$lib/shared/components'
   import {
     ColorScalePicker,
-    CommonPlotPaneFields,
     TimelineRangeSection,
+    AoiPaneSection,
+    StimulusPaneSection,
+    ParticipantGroupPaneSection,
+    MetricPaneSection,
   } from '$lib/plots/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { PRESET_PALETTES } from '$lib/color/palettes'
-  import { evolvingMetricsDefinition } from '../definition'
   import type { EvolvingMetricsItem, EvolvingMetricsSettings } from '../types'
 
   interface Props {
@@ -28,11 +30,29 @@
 
   const presentation = $derived(settings.presentation ?? 'heatmap')
   const isHeatmap = $derived(presentation === 'heatmap')
+  const visSummary = $derived(presentation.charAt(0).toUpperCase() + presentation.slice(1))
 </script>
 
-<CommonPlotPaneFields {item} contract={evolvingMetricsDefinition.consumesMetrics!} />
+<StimulusPaneSection
+  stimulusId={settings.stimulusId}
+  onchange={id => update({ stimulusId: id })}
+  {source}
+/>
 
-<PaneSection title="Visualisation">
+<ParticipantGroupPaneSection
+  groupId={settings.groupId}
+  stimulusId={settings.stimulusId}
+  onchange={id => update({ groupId: id })}
+  {source}
+/>
+
+<MetricPaneSection
+  {item}
+  metricInstanceIds={settings.metricInstanceIds}
+  onchange={ids => update({ metricInstanceIds: ids })}
+/>
+
+<PaneSection title="Visualisation" summary={visSummary}>
   <Select
     options={[
       { label: 'Heatmap', value: 'heatmap' },
@@ -55,3 +75,7 @@
 </PaneSection>
 
 <TimelineRangeSection {item} />
+
+<AoiPaneSection stimulusId={settings.stimulusId} {source} />
+
+

@@ -1,11 +1,14 @@
 <script lang="ts">
   import { PaneSection } from '$lib/workspace/pane'
-  import { InputNumber, InputCheck, InputColor } from '$lib/shared/components'
+  import { InputNumber, InputCheck, InputColor, Select } from '$lib/shared/components'
   import { buildValueRangePatch } from '$lib/plots/shared'
   import {
     ColorScalePicker,
-    CommonPlotPaneFields,
     TimelineRangeSection,
+    AoiPaneSection,
+    StimulusPaneSection,
+    ParticipantGroupPaneSection,
+    MetricPaneSection,
   } from '$lib/plots/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
@@ -13,7 +16,6 @@
     TransitionMatrixPlotItem,
     TransitionMatrixPlotSettings,
   } from '../types'
-  import { transitionMatrixDefinition } from '../definition'
 
   interface Props {
     item: TransitionMatrixPlotItem
@@ -49,9 +51,26 @@
   }
 </script>
 
-<CommonPlotPaneFields {item} contract={transitionMatrixDefinition.consumesMetrics!} />
+<StimulusPaneSection
+  stimulusId={settings.stimulusId}
+  onchange={id => update({ stimulusId: id })}
+  {source}
+/>
 
-<PaneSection title="Visualisation">
+<ParticipantGroupPaneSection
+  groupId={settings.groupId}
+  stimulusId={settings.stimulusId}
+  onchange={id => update({ groupId: id })}
+  {source}
+/>
+
+<MetricPaneSection
+  {item}
+  metricInstanceIds={settings.metricInstanceIds}
+  onchange={ids => update({ metricInstanceIds: ids })}
+/>
+
+<PaneSection title="Visualisation" summary="Matrix">
   <div class="sub-group">
     <div class="legend">Color scale</div>
     <div class="inline-pair">
@@ -132,6 +151,10 @@
 </PaneSection>
 
 <TimelineRangeSection {item} />
+
+<AoiPaneSection stimulusId={settings.stimulusId} {source} />
+
+
 
 <style>
   .inline-pair {

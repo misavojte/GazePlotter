@@ -1,17 +1,13 @@
 <script lang="ts">
-  import { PaneSection, PaneEditLink, PaneEditRow } from '$lib/workspace/pane'
-  import { InputCheck, Select } from '$lib/shared/components'
-  import {
-    getStimuliOptions,
-    getParticipantOptions,
-  } from '$lib/plots/shared'
+  import { PaneSection } from '$lib/workspace/pane'
+  import { InputCheck } from '$lib/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import {
-    participantModificationModal,
-    stimulusModificationModal,
-  } from '$lib/modals/definitions'
-  import { AoiPaneSection } from '$lib/plots/shared/components'
+    AoiPaneSection,
+    StimulusPaneSection,
+    ParticipantPaneSection,
+  } from '$lib/plots/shared/components'
   import type { ScanpathPlotItem, ScanpathPlotSettings } from '../types'
 
   interface Props {
@@ -19,7 +15,7 @@
   }
 
   let { item }: Props = $props()
-  const { engine, modalState, workspace } = getGazePlotterSession()
+  const { workspace } = getGazePlotterSession()
   const settings = $derived(item.settings)
 
   const source = $derived(createCommandSourcePlotPattern(item, 'pane'))
@@ -27,42 +23,19 @@
   function update(patch: Partial<ScanpathPlotSettings>) {
     workspace.updateItemSettings(item.id, patch, source)
   }
-
-  const stimulusOptions = $derived(getStimuliOptions(engine))
-  const participantOptions = $derived(getParticipantOptions(engine))
-  const stimulusSummary = $derived(
-    stimulusOptions.find(o => o.value === String(settings.stimulusId))?.label ?? ''
-  )
-  const participantSummary = $derived(
-    participantOptions.find(o => o.value === String(settings.participantId))?.label ?? ''
-  )
-
-  const openStimuli = () => modalState.open(stimulusModificationModal, { source })
-  const openParticipants = () =>
-    modalState.open(participantModificationModal, { source })
 </script>
 
-<PaneSection title="Stimulus" summary={stimulusSummary} defaultOpen>
-  <Select
-    options={stimulusOptions}
-    value={String(settings.stimulusId)}
-    onchange={e => update({ stimulusId: Number((e as CustomEvent).detail) })}
-  />
-  <PaneEditRow>
-    <PaneEditLink onclick={openStimuli}>Edit stimulus library…</PaneEditLink>
-  </PaneEditRow>
-</PaneSection>
+<StimulusPaneSection
+  stimulusId={settings.stimulusId}
+  onchange={id => update({ stimulusId: id })}
+  {source}
+/>
 
-<AoiPaneSection stimulusId={settings.stimulusId} {source} />
-
-<PaneSection title="Participant" summary={participantSummary}>
-  <Select
-    options={participantOptions}
-    value={String(settings.participantId)}
-    onchange={e => update({ participantId: Number((e as CustomEvent).detail) })}
-  />
-  <PaneEditLink onclick={openParticipants}>Edit participants…</PaneEditLink>
-</PaneSection>
+<ParticipantPaneSection
+  participantId={settings.participantId}
+  onchange={id => update({ participantId: id })}
+  {source}
+/>
 
 <PaneSection title="Display">
   <InputCheck
@@ -81,5 +54,7 @@
     onchange={e => update({ showNumbers: (e as CustomEvent<boolean>).detail })}
   />
 </PaneSection>
+
+<AoiPaneSection stimulusId={settings.stimulusId} {source} />
 
 

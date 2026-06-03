@@ -1,18 +1,14 @@
 <script lang="ts">
-  import { PaneSection, PaneEditLink, PaneEditRow } from '$lib/workspace/pane'
+  import { PaneSection } from '$lib/workspace/pane'
   import { InputCheck, InputNumber, Radio, Select } from '$lib/shared/components'
   import {
-    getStimuliOptions,
-    getParticipantOptions,
-  } from '$lib/plots/shared'
-  import { TimelineRangeSection } from '$lib/plots/shared/components'
+    TimelineRangeSection,
+    AoiPaneSection,
+    StimulusPaneSection,
+    ParticipantPaneSection,
+  } from '$lib/plots/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
-  import {
-    participantModificationModal,
-    stimulusModificationModal,
-  } from '$lib/modals/definitions'
-  import { AoiPaneSection } from '$lib/plots/shared/components'
   import {
     RECURRENCE_METHODS,
     RECURRENCE_HIGHLIGHTS,
@@ -30,7 +26,7 @@
   }
 
   let { item }: Props = $props()
-  const { engine, modalState, workspace } = getGazePlotterSession()
+  const { engine, workspace } = getGazePlotterSession()
   const settings = $derived(item.settings)
 
   const source = $derived(createCommandSourcePlotPattern(item, 'pane'))
@@ -38,18 +34,6 @@
   function update(patch: Partial<RecurrencePlotSettings>) {
     workspace.updateItemSettings(item.id, patch, source)
   }
-
-  const stimulusOptions = $derived(getStimuliOptions(engine))
-  const participantOptions = $derived(getParticipantOptions(engine))
-  const stimulusSummary = $derived(
-    stimulusOptions.find(o => o.value === String(settings.stimulusId))?.label ?? '',
-  )
-  const participantSummary = $derived(
-    participantOptions.find(o => o.value === String(settings.participantId))?.label ?? '',
-  )
-
-  const openStimuli = () => modalState.open(stimulusModificationModal, { source })
-  const openParticipants = () => modalState.open(participantModificationModal, { source })
 
   const hasSpatial = $derived(engine.capabilities.spatial)
   const availableMethods = $derived(
@@ -60,31 +44,24 @@
   const effectiveMethod = $derived(
     hasSpatial ? settings.recurrenceMethod : 'aoi'
   )
+  const methodSummary = $derived(
+    RECURRENCE_METHODS.find(m => m.value === effectiveMethod)?.label ?? effectiveMethod
+  )
 </script>
 
-<PaneSection title="Stimulus" summary={stimulusSummary} defaultOpen>
-  <Select
-    options={stimulusOptions}
-    value={String(settings.stimulusId)}
-    onchange={e => update({ stimulusId: Number((e as CustomEvent).detail) })}
-  />
-  <PaneEditRow>
-    <PaneEditLink onclick={openStimuli}>Edit stimulus library…</PaneEditLink>
-  </PaneEditRow>
-</PaneSection>
+<StimulusPaneSection
+  stimulusId={settings.stimulusId}
+  onchange={id => update({ stimulusId: id })}
+  {source}
+/>
 
-<AoiPaneSection stimulusId={settings.stimulusId} {source} />
+<ParticipantPaneSection
+  participantId={settings.participantId}
+  onchange={id => update({ participantId: id })}
+  {source}
+/>
 
-<PaneSection title="Participant" summary={participantSummary}>
-  <Select
-    options={participantOptions}
-    value={String(settings.participantId)}
-    onchange={e => update({ participantId: Number((e as CustomEvent).detail) })}
-  />
-  <PaneEditLink onclick={openParticipants}>Edit participants…</PaneEditLink>
-</PaneSection>
-
-<PaneSection title="Method" summary={effectiveMethod}>
+<PaneSection title="Method" summary={methodSummary}>
   <Radio
     ariaLabel="Recurrence method"
     options={[...availableMethods]}
@@ -156,5 +133,9 @@
 </PaneSection>
 
 <TimelineRangeSection {item} />
+
+<AoiPaneSection stimulusId={settings.stimulusId} {source} />
+
+
 
 

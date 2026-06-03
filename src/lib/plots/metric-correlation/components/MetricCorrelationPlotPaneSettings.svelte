@@ -2,8 +2,11 @@
   import { PaneSection } from '$lib/workspace/pane'
   import { Radio, Select } from '$lib/shared/components'
   import {
-    CommonPlotPaneFields,
     TimelineRangeSection,
+    AoiPaneSection,
+    StimulusPaneSection,
+    ParticipantGroupPaneSection,
+    MetricPaneSection,
   } from '$lib/plots/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
@@ -15,7 +18,6 @@
     MetricCorrelationItem,
     MetricCorrelationSettings,
   } from '../types'
-  import { metricCorrelationDefinition } from '../definition'
 
   interface Props {
     item: MetricCorrelationItem
@@ -30,15 +32,33 @@
   function update(patch: Partial<MetricCorrelationSettings>) {
     workspace.updateItemSettings(item.id, patch, source)
   }
+
+  const visSummary = $derived(
+    settings.view === 'heatmap' ? 'Heatmap' : 'Splom'
+  )
 </script>
 
-<CommonPlotPaneFields
-  {item}
-  contract={metricCorrelationDefinition.consumesMetrics!}
-  metricLabel="Metrics"
+<StimulusPaneSection
+  stimulusId={settings.stimulusId}
+  onchange={id => update({ stimulusId: id })}
+  {source}
 />
 
-<PaneSection title="Visualisation">
+<ParticipantGroupPaneSection
+  groupId={settings.groupId}
+  stimulusId={settings.stimulusId}
+  onchange={id => update({ groupId: id })}
+  {source}
+/>
+
+<MetricPaneSection
+  {item}
+  metricInstanceIds={settings.metricInstanceIds}
+  onchange={ids => update({ metricInstanceIds: ids })}
+  label="Metrics"
+/>
+
+<PaneSection title="Visualisation" summary={visSummary}>
   <Select
     options={METRIC_CORRELATION_VIEWS.map(v => ({
       label: v.label,
@@ -71,3 +91,7 @@
 </PaneSection>
 
 <TimelineRangeSection {item} />
+
+<AoiPaneSection stimulusId={settings.stimulusId} {source} />
+
+

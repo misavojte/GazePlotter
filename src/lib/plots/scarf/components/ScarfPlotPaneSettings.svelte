@@ -1,19 +1,16 @@
 <script lang="ts">
-  import { PaneSection, PaneEditLink, PaneEditRow } from '$lib/workspace/pane'
-  import { InputCheck, InputNumber, Radio, Select } from '$lib/shared/components'
-  import {
-    getStimuliOptions,
-    getParticipantsGroupOptions,
-  } from '$lib/plots/shared'
+  import { PaneSection } from '$lib/workspace/pane'
+  import { InputCheck, Radio, Select } from '$lib/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { hasEventsForStimulus } from '$lib/data/engine'
   import {
-    participantModificationModal,
-    participantsGroupsModal,
-    stimulusModificationModal,
-  } from '$lib/modals/definitions'
-  import { AoiPaneSection } from '$lib/plots/shared/components'
+    AoiPaneSection,
+    EventPaneSection,
+    StimulusPaneSection,
+    ParticipantGroupPaneSection,
+    TimelineRangeSection,
+  } from '$lib/plots/shared/components'
   import type {
     ScarfDisplayMode,
     ScarfPlotItem,
@@ -25,7 +22,7 @@
   }
 
   let { item }: Props = $props()
-  const { engine, modalState, workspace } = getGazePlotterSession()
+  const { engine, workspace } = getGazePlotterSession()
   const settings = $derived(item.settings)
 
   const source = $derived(createCommandSourcePlotPattern(item, 'pane'))
@@ -33,21 +30,6 @@
   function update(patch: Partial<ScarfPlotSettings>) {
     workspace.updateItemSettings(item.id, patch, source)
   }
-
-  const stimulusOptions = $derived(getStimuliOptions(engine))
-  const groupOptions = $derived(
-    getParticipantsGroupOptions(engine, true, settings.stimulusId)
-  )
-  const stimulusSummary = $derived(
-    stimulusOptions.find(o => o.value === String(settings.stimulusId))?.label ?? '',
-  )
-  const groupSummary = $derived(
-    groupOptions.find(o => o.value === String(settings.groupId))?.label ?? '',
-  )
-
-  const openStimuli = () => modalState.open(stimulusModificationModal, { source })
-  const openGroups = () => modalState.open(participantsGroupsModal, { source })
-  const openParticipants = () => modalState.open(participantModificationModal, { source })
 
   const isOrdinal = $derived(settings.timeline === 'ordinal')
   const isRelative = $derived(settings.timeline === 'relative')
@@ -64,6 +46,7 @@
     stimulusHasSegments && (isOrdinal || displayMode !== 'events')
   )
 
+  // Ordinal range title override for the shared TimelineRangeSection
   const rangeTitle = $derived(
     isRelative
       ? 'Time range [ms]'
@@ -71,94 +54,50 @@
         ? 'Ordinal range [indices]'
         : 'Time range [ms]'
   )
-  const rangeStart = $derived(
-    isOrdinal ? settings.ordinalStart : settings.timelineStart
-  )
-  const rangeEnd = $derived(
-    isOrdinal ? settings.ordinalEnd : settings.timelineEnd
-  )
-  function updateRange(boundary: 'start' | 'end', value: number | undefined) {
-    if (isOrdinal) {
-      update(
-        boundary === 'start' ? { ordinalStart: value } : { ordinalEnd: value }
-      )
-    } else {
-      update(
-        boundary === 'start'
-          ? { timelineStart: value }
-          : { timelineEnd: value }
-      )
-    }
+
+  function handleOrdinalChange(boundary: 'start' | 'end', value: number | undefined) {
+    update(
+      boundary === 'start' ? { ordinalStart: value } : { ordinalEnd: value }
+    )
   }
+  const timelineSummary = $derived(
+    settings.timeline ? settings.timeline.charAt(0).toUpperCase() + settings.timeline.slice(1) : ''
+  )
 </script>
 
-<PaneSection title="Stimulus" summary={stimulusSummary} defaultOpen>
-  <Select
-    options={stimulusOptions}
-    value={String(settings.stimulusId)}
-    onchange={e => update({ stimulusId: Number((e as CustomEvent).detail) })}
-  />
-  <PaneEditRow>
-    <PaneEditLink onclick={openStimuli}>Edit stimulus library…</PaneEditLink>
-  </PaneEditRow>
-</PaneSection>
+<StimulusPaneSection
+  stimulusId={settings.stimulusId}
+  onchange={id => update({ stimulusId: id })}
+  {source}
+/>
 
-<AoiPaneSection stimulusId={settings.stimulusId} {source} />
+<ParticipantGroupPaneSection
+  groupId={settings.groupId}
+  stimulusId={settings.stimulusId}
+  onchange={id => update({ groupId: id })}
+  {source}
+/>
 
-<PaneSection title="Participant group" summary={groupSummary}>
-  <Select
-    options={groupOptions}
-    value={String(settings.groupId)}
-    onchange={e => update({ groupId: Number((e as CustomEvent).detail) })}
-  />
-  <PaneEditRow>
-    <PaneEditLink onclick={openGroups}>Edit groups…</PaneEditLink>
-    <PaneEditLink onclick={openParticipants}>Edit participants…</PaneEditLink>
-  </PaneEditRow>
-</PaneSection>
+<PaneSection title="Visualisation" summary={timelineSummary}>
+  <div class="sub-group">
+    <div class="legend">Timeline mode</div>
+    <Select
+      options={[
+        { label: 'Absolute', value: 'absolute' },
+        { label: 'Relative', value: 'relative' },
+        { label: 'Ordinal', value: 'ordinal' },
+      ]}
+      value={settings.timeline}
+      onchange={e => {
+        const v = (e as CustomEvent<string>).detail as ScarfPlotSettings['timeline']
+        update({ timeline: v })
+      }}
+    />
+  </div>
 
-<PaneSection title="Timeline" summary={settings.timeline}>
-  <Select
-    options={[
-      { label: 'Absolute', value: 'absolute' },
-      { label: 'Relative', value: 'relative' },
-      { label: 'Ordinal', value: 'ordinal' },
-    ]}
-    value={settings.timeline}
-    onchange={e => {
-      const v = (e as CustomEvent<string>).detail as ScarfPlotSettings['timeline']
-      update({ timeline: v })
-    }}
-  />
-</PaneSection>
-  
-  <PaneSection title={rangeTitle}>
-    <div class="inline-pair">
-      <InputNumber
-        id="scarf-range-start"
-        label="Start"
-        value={rangeStart}
-        min={0}
-        appearance="compact"
-        allowEmpty={true}
-        onValueChange={v => updateRange('start', v)}
-      />
-      <InputNumber
-        id="scarf-range-end"
-        label="End (0 = Auto)"
-        value={rangeEnd}
-        min={0}
-        appearance="compact"
-        allowEmpty={true}
-        onValueChange={v => updateRange('end', v)}
-      />
-    </div>
-  </PaneSection>
-
-{#if showDisplayMode}
-  <PaneSection title="Event display">
+  {#if showDisplayMode}
     <Radio
-      ariaLabel="Event display"
+      legend="Event display"
       options={[
         { label: 'None', value: 'segments' },
         { label: 'Overlay', value: 'overlay' },
@@ -172,24 +111,53 @@
         update({ displayMode: v })
       }}
     />
-  </PaneSection>
-{/if}
+  {/if}
 
-{#if showHideNonFixations}
-  <PaneSection title="Segments">
-    <InputCheck
-      label="Hide non-fixations"
-      appearance="compact"
-      size="xs"
-      checked={settings.hideNonFixations ?? false}
-      onchange={e => update({ hideNonFixations: (e as CustomEvent<boolean>).detail })}
-    />
-  </PaneSection>
-{/if}
+  {#if showHideNonFixations}
+    <div class="sub-group">
+      <div class="legend">Hide data</div>
+      <InputCheck
+        label="Non-fixations"
+        appearance="compact"
+        size="xs"
+        checked={settings.hideNonFixations ?? false}
+        onchange={e => update({ hideNonFixations: (e as CustomEvent<boolean>).detail })}
+      />
+    </div>
+  {/if}
+</PaneSection>
+
+<TimelineRangeSection
+  {item}
+  title={rangeTitle}
+  ordinal={isOrdinal}
+  ordinalStart={settings.ordinalStart}
+  ordinalEnd={settings.ordinalEnd}
+  onOrdinalChange={handleOrdinalChange}
+/>
+
+<AoiPaneSection stimulusId={settings.stimulusId} {source} />
+
+<EventPaneSection stimulusId={settings.stimulusId} {source} />
 
 <style>
-  .inline-pair {
+  .sub-group {
     display: flex;
-    gap: 8px;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  .sub-group:first-of-type {
+    margin-top: 0;
+  }
+
+  .sub-group .legend {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--c-darkgrey);
+    line-height: 1.2;
+    letter-spacing: 0.01em;
   }
 </style>

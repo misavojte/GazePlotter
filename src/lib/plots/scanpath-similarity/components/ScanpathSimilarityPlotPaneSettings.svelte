@@ -4,13 +4,15 @@
   import { buildValueRangePatch } from '$lib/plots/shared'
   import {
     ColorScalePicker,
-    CommonPlotPaneFields,
     TimelineRangeSection,
+    AoiPaneSection,
+    StimulusPaneSection,
+    ParticipantGroupPaneSection,
+    MetricPaneSection,
   } from '$lib/plots/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { PRESET_PALETTES } from '$lib/color/palettes'
-  import { scanpathSimilarityDefinition } from '../definition'
   import type {
     ScanpathSimilarityItem,
     ScanpathSimilaritySettings,
@@ -33,6 +35,7 @@
 
   const view = $derived(settings.view ?? 'matrix')
   const isScangraph = $derived(view === 'scangraph')
+  const visSummary = $derived(view === 'matrix' ? 'Matrix' : 'ScanGraph')
 
   const range = $derived<[number, number]>(
     settings.stimuliColorValueRanges?.[settings.stimulusId] ?? [0, 0]
@@ -54,9 +57,26 @@
   }
 </script>
 
-<CommonPlotPaneFields {item} contract={scanpathSimilarityDefinition.consumesMetrics!} />
+<StimulusPaneSection
+  stimulusId={settings.stimulusId}
+  onchange={id => update({ stimulusId: id })}
+  {source}
+/>
 
-<PaneSection title="Visualisation">
+<ParticipantGroupPaneSection
+  groupId={settings.groupId}
+  stimulusId={settings.stimulusId}
+  onchange={id => update({ groupId: id })}
+  {source}
+/>
+
+<MetricPaneSection
+  {item}
+  metricInstanceIds={settings.metricInstanceIds}
+  onchange={ids => update({ metricInstanceIds: ids })}
+/>
+
+<PaneSection title="Visualisation" summary={visSummary}>
   <Select
     options={[
       { label: 'Matrix', value: 'matrix' },
@@ -121,6 +141,10 @@
 </PaneSection>
 
 <TimelineRangeSection {item} />
+
+<AoiPaneSection stimulusId={settings.stimulusId} {source} />
+
+
 
 <style>
   .inline-pair {
