@@ -226,3 +226,14 @@ export interface ScarfTooltipData {
   participantId: number
   stimulusId: number
 }
+
+export interface ScarfRectStyle {
+  normal: { fill: string }
+  dimmed: { fill: string; opacity: number }
+}
+
+export interface ScarfEventStyle {
+  normal: { fill: string; stroke: string; strokeWidth: number }
+  dimmed: { fill: string; stroke: string; strokeWidth: number; opacity: number }
+}
+

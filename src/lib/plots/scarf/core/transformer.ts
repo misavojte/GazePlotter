@@ -40,6 +40,8 @@ import type {
   ScarfPlotSettings,
   ScarfStyleItem,
   ScarfStyling,
+  ScarfRectStyle,
+  ScarfEventStyle,
 } from '../types'
 import type { LegendGroup } from '$lib/plots/shared'
 
@@ -1045,8 +1047,8 @@ export function calculateHighlightMask(
  */
 export function createStyleArrays(
   identifierSystem: { indexToId: Map<number, string> },
-  rectStyleMap: Map<string, { normal: any; dimmed: any }>,
-  eventStyleMap: Map<string, { normal: any; dimmed: any }>,
+  rectStyleMap: Map<string, ScarfRectStyle>,
+  eventStyleMap: Map<string, ScarfEventStyle>,
   rectBucketCount: number,
   eventBucketCount: number
 ) {

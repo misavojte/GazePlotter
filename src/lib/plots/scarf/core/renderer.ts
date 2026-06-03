@@ -12,7 +12,7 @@ import {
   RECT_STRIDE,
   SCARF_LAYOUT,
 } from '../const'
-import type { ScarfData } from '../types'
+import type { ScarfData, ScarfRectStyle, ScarfEventStyle } from '../types'
 
 export interface ScarfLayoutContext {
   heightOfBar: number
@@ -167,7 +167,7 @@ export function drawScarfRectangles(
   ctx: CanvasRenderingContext2D,
   data: ScarfData,
   layout: ScarfLayoutContext,
-  styleArray: any[],
+  styleArray: ScarfRectStyle[],
   highlightMask: Uint8Array | null
 ) {
   const buckets = data.visualRectBuckets
@@ -242,7 +242,7 @@ export function drawOverlayEventStrips(
   ctx: CanvasRenderingContext2D,
   data: ScarfData,
   layout: ScarfLayoutContext,
-  styleArray: any[],
+  styleArray: ScarfEventStyle[],
   highlightMask: Uint8Array | null
 ) {
   const buckets = data.visualEventBuckets
@@ -374,8 +374,8 @@ interface MarkerBand {
 }
 
 export interface ScarfHighlightMarkerOptions {
-  rectStyleArray: any[]
-  eventStyleArray: any[]
+  rectStyleArray: ScarfRectStyle[]
+  eventStyleArray: ScarfEventStyle[]
   channelStyleIndices: number[] | null
   highlightMask: Uint8Array | null
   isEventsOnly: boolean
