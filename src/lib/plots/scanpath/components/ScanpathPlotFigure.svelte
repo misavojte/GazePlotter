@@ -1,13 +1,11 @@
 <script lang="ts">
-  import { untrack } from 'svelte'
   import {
     beginCanvasDrawing,
     finishCanvasDrawing,
-    canvasLifecycleAction,
   } from '$lib/plots/shared/canvasUtils'
   import {
     drawPlotArea,
-    useCanvasPlot,
+    usePlot,
     canvasBlockSelect,
     drawXAxisLabel,
     drawYAxisMainLabel,
@@ -325,32 +323,19 @@
     finishCanvasDrawing(plot.canvasState)
   }
 
-  const plot = useCanvasPlot({
+  const plot = usePlot({
     render: renderCanvas,
-    getWidth: () => width,
-    getHeight: () => height,
-    getDpiOverride: () => dpiOverride,
+    width: () => width,
+    height: () => height,
+    margins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
+    dpiOverride: () => dpiOverride,
+    deps: () => [data, showFixationOrder, showNumbers],
   })
 
-  $effect(() => {
-    const _ = [
-      data,
-      showFixationOrder,
-      showNumbers,
-      width,
-      height,
-      dpiOverride,
-      marginTop,
-      marginRight,
-      marginBottom,
-      marginLeft,
-    ]
-    untrack(() => plot.refresh())
-  })
 </script>
 
 <canvas
   bind:this={canvas}
-  use:canvasLifecycleAction={plot.actionOptions}
+  use:plot.plotAction
   use:canvasBlockSelect={{ regions: blockedRegions }}
 ></canvas>

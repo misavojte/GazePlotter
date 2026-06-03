@@ -1,18 +1,13 @@
 <script lang="ts">
-  import { updateTooltip } from '$lib/tooltip'
   import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
-  import { untrack } from 'svelte'
   import {
-    getScaledMousePosition,
-    getTooltipPosition,
     beginCanvasDrawing,
     finishCanvasDrawing,
-    canvasLifecycleAction,
   } from '$lib/plots/shared/canvasUtils'
   import { UI_COLORS } from '$lib/color'
   import {
     drawPlotArea,
-    useCanvasPlot,
+    usePlot,
     canvasBlockSelect,
     type BlockedRegion,
   } from '$lib/plots/shared'
@@ -58,11 +53,14 @@
 
   let canvas = $state<HTMLCanvasElement | null>(null)
 
-  const plot = useCanvasPlot({
+  const plot = usePlot({
     render: renderCanvas,
-    getWidth: () => width,
-    getHeight: () => height,
-    getDpiOverride: () => dpiOverride,
+    width: () => width,
+    height: () => height,
+    margins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
+    dpiOverride: () => dpiOverride,
+    deps: () => [data, threshold, highlights],
+    onMouseMove: handlePlotMouseMove,
   })
 
   // `width`/`height` are the TOTAL canvas; the force layout fills it and insets
@@ -381,8 +379,10 @@
     return items
   }
 
-  function findNodeAtEvent(event: MouseEvent): NodePosition | null {
-    const { x: mx, y: my } = getScaledMousePosition(plot.canvasState, event)
+  // Tracked from the last hover so the click handler needs no coordinates.
+  let hoveredNode: NodePosition | null = null
+
+  function findNodeAt(mx: number, my: number): NodePosition | null {
     const hitR = nodeRadius + 4
     const hitR2 = hitR * hitR
     for (const node of layoutResult.nodes) {
@@ -393,17 +393,22 @@
     return null
   }
 
-  function handleMouseMove(event: MouseEvent) {
-    if (!canvas) return
-    const hoveredNode = findNodeAtEvent(event)
+  // Coordinates arrive already scaled from usePlot; null marks mouse-leave.
+  function handlePlotMouseMove(
+    mx: number | null,
+    my: number | null,
+    _isOver: boolean
+  ) {
+    if (mx === null || my === null) {
+      hoveredNode = null
+      plot.hideTooltip(0)
+      if (canvas) canvas.style.cursor = 'default'
+      return
+    }
+
+    hoveredNode = findNodeAt(mx, my)
 
     if (hoveredNode) {
-      const tooltipPos = getTooltipPosition(
-        plot.canvasState,
-        hoveredNode.x + 10,
-        hoveredNode.y,
-        { x: 10, y: 0 }
-      )
       const connectionItems = getConnectionItems(hoveredNode.id)
       const content: { key: string; value: string }[] = [
         { key: 'Participant', value: hoveredNode.label },
@@ -415,16 +420,16 @@
         }
       }
 
-      updateTooltip({
-        id: 'scangraph-tooltip',
-        x: tooltipPos.x,
-        y: tooltipPos.y,
+      plot.showTooltip(
+        'scangraph-tooltip',
         content,
-        visible: true,
-        width: 160,
-      })
+        hoveredNode.x + 10,
+        hoveredNode.y,
+        { x: 10, y: 0 },
+        160
+      )
     } else {
-      updateTooltip(null)
+      plot.hideTooltip(0)
     }
 
     if (canvas) {
@@ -432,31 +437,14 @@
     }
   }
 
-  function handleMouseLeave() {
-    updateTooltip(null)
-    if (canvas) canvas.style.cursor = 'default'
+  function handleClick() {
+    if (hoveredNode && onNodeClick) onNodeClick(hoveredNode.id)
   }
-
-  function handleClick(event: MouseEvent) {
-    if (!canvas || !onNodeClick) return
-    const node = findNodeAtEvent(event)
-    if (node) onNodeClick(node.id)
-  }
-
-  $effect(() => {
-    const _ = [data, width, height, threshold, highlights, dpiOverride, marginTop, marginRight, marginBottom, marginLeft]
-
-    untrack(() => {
-      plot.refresh()
-    })
-  })
 </script>
 
 <canvas
   bind:this={canvas}
-  use:canvasLifecycleAction={plot.actionOptions}
+  use:plot.plotAction
   use:canvasBlockSelect={{ regions: blockedRegions }}
-  onmousemove={handleMouseMove}
-  onmouseleave={handleMouseLeave}
   onclick={handleClick}
 ></canvas>

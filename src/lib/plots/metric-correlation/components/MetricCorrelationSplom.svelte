@@ -1,13 +1,8 @@
 <script lang="ts">
-  import { updateTooltip } from '$lib/tooltip'
   import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
-  import { untrack } from 'svelte'
   import {
-    getScaledMousePosition,
-    getTooltipPosition,
     beginCanvasDrawing,
     finishCanvasDrawing,
-    canvasLifecycleAction,
   } from '$lib/plots/shared/canvasUtils'
   import { drawCanvasPlaceholder, METRIC_MISSING_MULTI_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
   import {
@@ -18,7 +13,7 @@
     drawMatrixGrid,
     drawMatrixRowLabels,
     drawPlotArea,
-    useCanvasPlot,
+    usePlot,
     canvasBlockSelect,
     type BlockedRegion,
     type MatrixRenderConfig,
@@ -51,11 +46,14 @@
 
   let canvas = $state<HTMLCanvasElement | null>(null)
 
-  const plot = useCanvasPlot({
+  const plot = usePlot({
     render: renderCanvas,
-    getWidth: () => width,
-    getHeight: () => height,
-    getDpiOverride: () => dpiOverride,
+    width: () => width,
+    height: () => height,
+    margins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
+    dpiOverride: () => dpiOverride,
+    deps: () => [result, labels, methodLabel],
+    onMouseMove: handlePlotMouseMove,
   })
 
   const labels = $derived(result.metrics.map(m => m.label))
@@ -238,9 +236,18 @@
     finishCanvasDrawing(plot.canvasState)
   }
 
-  function handleMouseMove(event: MouseEvent) {
-    if (!canvas) return
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(plot.canvasState, event)
+  // Coordinates arrive already scaled from usePlot; null marks mouse-leave.
+  function handlePlotMouseMove(
+    mouseX: number | null,
+    mouseY: number | null,
+    _isOver: boolean
+  ) {
+    if (mouseX === null || mouseY === null) {
+      plot.hideTooltip(0)
+      if (canvas) canvas.style.cursor = 'default'
+      return
+    }
+
     const { xOffset, yOffset, cellSize } = layout
     const col = Math.floor((mouseX - xOffset) / cellSize)
     const row = Math.floor((mouseY - yOffset) / cellSize)
@@ -251,60 +258,31 @@
       const cell = result.cells[row * size + col]
       const x = xOffset + col * cellSize
       const y = yOffset + row * cellSize
-      const tooltipPos = getTooltipPosition(
-        plot.canvasState,
-        x + cellSize,
-        y + (cellSize >> 1),
-        { x: 10, y: 0 }
-      )
-      updateTooltip({
-        id: 'metric-correlation-tooltip',
-        x: tooltipPos.x,
-        y: tooltipPos.y,
-        content: [
+      plot.showTooltip(
+        'metric-correlation-tooltip',
+        [
           { key: 'Row', value: result.metrics[row].label },
           { key: 'Col', value: result.metrics[col].label },
           { key: methodLabel, value: cell.r === null ? '—' : cell.r.toFixed(4) },
           { key: 'n', value: String(cell.n) },
         ],
-        visible: true,
-        width: 220,
-      })
+        x + cellSize,
+        y + (cellSize >> 1),
+        { x: 10, y: 0 },
+        220
+      )
     } else {
-      updateTooltip(null)
+      plot.hideTooltip(0)
     }
 
     if (canvas) {
       canvas.style.cursor = isOverCell ? 'pointer' : 'default'
     }
   }
-
-  function handleMouseLeave() {
-    updateTooltip(null)
-    if (canvas) canvas.style.cursor = 'default'
-  }
-
-  $effect(() => {
-    const _ = [
-      result,
-      labels,
-      width,
-      height,
-      methodLabel,
-      dpiOverride,
-      marginTop,
-      marginRight,
-      marginBottom,
-      marginLeft,
-    ]
-    untrack(() => plot.refresh())
-  })
 </script>
 
 <canvas
   bind:this={canvas}
-  use:canvasLifecycleAction={plot.actionOptions}
+  use:plot.plotAction
   use:canvasBlockSelect={{ regions: blockedRegions }}
-  onmousemove={handleMouseMove}
-  onmouseleave={handleMouseLeave}
 ></canvas>

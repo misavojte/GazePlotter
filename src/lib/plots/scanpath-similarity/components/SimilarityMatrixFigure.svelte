@@ -1,18 +1,13 @@
 <script lang="ts">
   import { getColorForValue } from '$lib/color'
-  import { updateTooltip } from '$lib/tooltip'
   import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
   import {
     drawCanvasPlaceholder,
     METRIC_MISSING_MESSAGE,
   } from '$lib/plots/shared/drawCanvasPlaceholder'
-  import { untrack } from 'svelte'
   import {
-    getScaledMousePosition,
-    getTooltipPosition,
     beginCanvasDrawing,
     finishCanvasDrawing,
-    canvasLifecycleAction,
   } from '$lib/plots/shared/canvasUtils'
   import { SIMILARITY_MATRIX_LAYOUT } from '../const'
   import { computeSimilarityMatrixLayout } from '../core/layout'
@@ -20,7 +15,7 @@
     computeGradientLegendGeometry,
     drawGradientLegend,
     drawPlotArea,
-    useCanvasPlot,
+    usePlot,
     renderMatrixContent,
     canvasBlockSelect,
     MATRIX_LEGEND_GAP,
@@ -61,11 +56,14 @@
 
   let canvas = $state<HTMLCanvasElement | null>(null)
 
-  const plot = useCanvasPlot({
+  const plot = usePlot({
     render: renderCanvas,
-    getWidth: () => width,
-    getHeight: () => height,
-    getDpiOverride: () => dpiOverride,
+    width: () => width,
+    height: () => height,
+    margins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
+    dpiOverride: () => dpiOverride,
+    deps: () => [matrix, labels, colorScale, colorValueRange, legendTitle],
+    onMouseMove: handlePlotMouseMove,
   })
 
   const effectiveMaxValue = $derived.by(() => {
@@ -195,9 +193,18 @@
     }
   }
 
-  function handleMouseMove(event: MouseEvent) {
-    if (!canvas) return
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(plot.canvasState, event)
+  // Coordinates arrive already scaled from usePlot; null marks mouse-leave.
+  function handlePlotMouseMove(
+    mouseX: number | null,
+    mouseY: number | null,
+    _isOver: boolean
+  ) {
+    if (mouseX === null || mouseY === null) {
+      plot.hideTooltip(0)
+      if (canvas) canvas.style.cursor = 'default'
+      return
+    }
+
     const { xOffset, yOffset, cellSize } = layout
     const col = Math.floor((mouseX - xOffset) / cellSize)
     const row = Math.floor((mouseY - yOffset) / cellSize)
@@ -209,64 +216,30 @@
       const value = matrix[row * size + col] ?? 0
       const x = xOffset + col * cellSize
       const y = yOffset + row * cellSize
-      const tooltipPos = getTooltipPosition(
-        plot.canvasState,
-        x + cellSize,
-        y + (cellSize >> 1),
-        { x: 10, y: 0 }
-      )
-      updateTooltip({
-        id: 'similarity-matrix-tooltip',
-        x: tooltipPos.x,
-        y: tooltipPos.y,
-        content: [
+      plot.showTooltip(
+        'similarity-matrix-tooltip',
+        [
           { key: 'Row', value: labels[row] },
           { key: 'Column', value: labels[col] },
           { key: legendTitle, value: value.toFixed(3) },
         ],
-        visible: true,
-        width: 160,
-      })
+        x + cellSize,
+        y + (cellSize >> 1),
+        { x: 10, y: 0 },
+        160
+      )
     } else {
-      updateTooltip(null)
+      plot.hideTooltip(0)
     }
 
     if (canvas) {
       canvas.style.cursor = isOverCell ? 'pointer' : 'default'
     }
   }
-
-  function handleMouseLeave() {
-    updateTooltip(null)
-    if (canvas) canvas.style.cursor = 'default'
-  }
-
-  $effect(() => {
-    const _ = [
-      matrix,
-      labels,
-      width,
-      height,
-      colorScale,
-      colorValueRange,
-      dpiOverride,
-      legendTitle,
-      marginTop,
-      marginRight,
-      marginBottom,
-      marginLeft,
-    ]
-
-    untrack(() => {
-      plot.refresh()
-    })
-  })
 </script>
 
 <canvas
   bind:this={canvas}
-  use:canvasLifecycleAction={plot.actionOptions}
+  use:plot.plotAction
   use:canvasBlockSelect={{ regions: blockedRegions }}
-  onmousemove={handleMouseMove}
-  onmouseleave={handleMouseLeave}
 ></canvas>

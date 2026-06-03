@@ -1,19 +1,14 @@
 <script lang="ts">
-  import { untrack } from 'svelte'
   import {
-    canvasLifecycleAction,
     beginCanvasDrawing,
     finishCanvasDrawing,
-    getScaledMousePosition,
-    getTooltipPosition,
     alignToPixelCenter,
   } from '$lib/plots/shared/canvasUtils'
   import {
-    useCanvasPlot,
+    usePlot,
     canvasBlockSelect,
     type BlockedRegion,
   } from '$lib/plots/shared'
-  import { updateTooltip } from '$lib/tooltip'
   import { estimateTextWidth } from '$lib/shared/utils/textUtils'
   import { interpolateColor } from '$lib/color'
   import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color/palettes'
@@ -248,11 +243,14 @@
     return sorted[f] * (c - k) + sorted[c] * (k - f)
   }
 
-  const plot = useCanvasPlot({
+  const plot = usePlot({
     render: renderCanvas,
-    getWidth: () => width,
-    getHeight: () => height,
-    getDpiOverride: () => dpiOverride,
+    width: () => width,
+    height: () => height,
+    margins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
+    dpiOverride: () => dpiOverride,
+    deps: () => [data, alignment],
+    onMouseMove: handlePlotMouseMove,
   })
 
   function findWindowAt(
@@ -755,13 +753,18 @@
   // HOVER
   // ──────────────────────────────────────────────────────────────────
 
-  function handleMouseMove(event: MouseEvent) {
-    if (!canvas) return
-
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(
-      plot.canvasState,
-      event
-    )
+  // Coordinates arrive already scaled from usePlot; null marks mouse-leave. The
+  // plot bounds here are chrome-aware (the figure's own), so we hit-test them
+  // directly rather than relying on usePlot's export-margin-only isOver.
+  function handlePlotMouseMove(
+    mouseX: number | null,
+    mouseY: number | null,
+    _isOver: boolean
+  ) {
+    if (mouseX === null || mouseY === null) {
+      clearHover()
+      return
+    }
 
     if (
       mouseX < plotLeft ||
@@ -827,24 +830,17 @@
           },
         ]
 
-        const tooltipPos = getTooltipPosition(
-          plot.canvasState,
+        plot.showTooltip(
+          'evolving-metrics-tooltip',
+          tooltipContent,
           mouseX,
           mouseY,
           { x: 15, y: 15 }
         )
 
-        updateTooltip({
-          id: 'evolving-metrics-tooltip',
-          visible: true,
-          content: tooltipContent,
-          x: tooltipPos.x,
-          y: tooltipPos.y,
-        })
-
         if (canvas) canvas.style.cursor = 'crosshair'
       } else {
-        updateTooltip(null)
+        plot.hideTooltip(0)
         if (canvas) canvas.style.cursor = 'default'
       }
 
@@ -856,31 +852,11 @@
     if (hoveredMsTime !== null || hoveredParticipantIndex !== null) {
       hoveredMsTime = null
       hoveredParticipantIndex = null
-      updateTooltip(null)
+      plot.hideTooltip(0)
       if (canvas) canvas.style.cursor = 'default'
       plot.scheduleRender()
     }
   }
-
-  function handleMouseLeave() {
-    clearHover()
-  }
-
-  $effect(() => {
-    const _ = {
-      data,
-      alignment,
-      w: safeWidth,
-      h: safeHeight,
-      dpi: dpiOverride,
-      mt: safeMarginTop,
-      mr: safeMarginRight,
-      mb: safeMarginBottom,
-      ml: safeMarginLeft,
-    }
-
-    untrack(() => plot.refresh())
-  })
 
   function calculateTickStep(len: number): number {
     const niceSteps = [5, 10, 20, 25, 50, 100, 200, 500, 1000]
@@ -893,9 +869,7 @@
 
 <canvas
   bind:this={canvas}
-  use:canvasLifecycleAction={plot.actionOptions}
+  use:plot.plotAction
   use:canvasBlockSelect={{ regions: blockedRegions }}
-  onmousemove={handleMouseMove}
-  onmouseleave={handleMouseLeave}
   aria-label="Evolving Metrics visualization"
 ></canvas>

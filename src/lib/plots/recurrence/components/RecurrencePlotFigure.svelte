@@ -1,18 +1,13 @@
 <script lang="ts">
-  import { updateTooltip } from '$lib/tooltip'
   import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
-  import { untrack } from 'svelte'
   import {
-    getScaledMousePosition,
-    getTooltipPosition,
     beginCanvasDrawing,
     finishCanvasDrawing,
-    canvasLifecycleAction,
   } from '$lib/plots/shared/canvasUtils'
   import { RECURRENCE_LAYOUT } from '../const'
   import {
     drawPlotArea,
-    useCanvasPlot,
+    usePlot,
     canvasBlockSelect,
     type BlockedRegion,
   } from '$lib/plots/shared'
@@ -52,11 +47,14 @@
   let canvas = $state<HTMLCanvasElement | null>(null)
   let hoveredCell = $state<{ row: number; col: number } | null>(null)
 
-  const plot = useCanvasPlot({
+  const plot = usePlot({
     render: renderCanvas,
-    getWidth: () => width,
-    getHeight: () => height,
-    getDpiOverride: () => dpiOverride,
+    width: () => width,
+    height: () => height,
+    margins: () => ({ top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft }),
+    dpiOverride: () => dpiOverride,
+    deps: () => [data, highlight, masking, highlightMask],
+    onMouseMove: handlePlotMouseMove,
   })
 
   const L = RECURRENCE_LAYOUT
@@ -370,9 +368,21 @@
   }
 
 
-  function handleMouseMove(event: MouseEvent) {
-    if (!canvas) return
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(plot.canvasState, event)
+  // Coordinates arrive already scaled from usePlot; null marks mouse-leave.
+  function handlePlotMouseMove(
+    mouseX: number | null,
+    mouseY: number | null,
+    _isOver: boolean
+  ) {
+    if (mouseX === null || mouseY === null) {
+      if (canvas) canvas.style.cursor = 'default'
+      if (hoveredCell) {
+        hoveredCell = null
+        plot.scheduleRender()
+      }
+      plot.hideTooltip(0)
+      return
+    }
 
     const { N, cellSize, xOffset, yOffset } = layout
 
@@ -401,50 +411,27 @@
         content.push({ key: 'Duration sum', value: `${dur.toFixed(0)} ms` })
       }
 
-      const tooltipPos = getTooltipPosition(
-        plot.canvasState,
+      plot.showTooltip(
+        'recurrence-tooltip',
+        content,
         colToX(col) + cellSize,
         rowToY(row) + cellSize / 2,
-        { x: 10, y: 0 }
+        { x: 10, y: 0 },
+        140
       )
-
-      updateTooltip({
-        id: 'recurrence-tooltip',
-        x: tooltipPos.x,
-        y: tooltipPos.y,
-        content,
-        visible: true,
-        width: 140,
-      })
     } else {
       if (canvas) canvas.style.cursor = 'default'
       if (hoveredCell) {
         hoveredCell = null
         plot.scheduleRender()
       }
-      updateTooltip(null)
+      plot.hideTooltip(0)
     }
   }
-
-  function handleMouseLeave() {
-    if (canvas) canvas.style.cursor = 'default'
-    if (hoveredCell) {
-      hoveredCell = null
-      plot.scheduleRender()
-    }
-    updateTooltip(null)
-  }
-
-  $effect(() => {
-    const _ = [data, highlight, masking, highlightMask, width, height, dpiOverride, marginTop, marginRight, marginBottom, marginLeft]
-    untrack(() => plot.refresh())
-  })
 </script>
 
 <canvas
   bind:this={canvas}
-  use:canvasLifecycleAction={plot.actionOptions}
+  use:plot.plotAction
   use:canvasBlockSelect={{ regions: blockedRegions }}
-  onmousemove={handleMouseMove}
-  onmouseleave={handleMouseLeave}
 ></canvas>
