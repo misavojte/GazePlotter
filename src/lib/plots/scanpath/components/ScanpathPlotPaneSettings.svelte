@@ -23,6 +23,13 @@
   function update(patch: Partial<ScanpathPlotSettings>) {
     workspace.updateItemSettings(item.id, patch, source)
   }
+
+  const displaySummary = $derived.by(() => {
+    const parts: string[] = []
+    if (settings.showFixationOrder) parts.push('Order line')
+    if (settings.showNumbers) parts.push('Numbers')
+    return parts.length === 0 ? 'None' : parts.join(', ')
+  })
 </script>
 
 <StimulusPaneSection
@@ -37,7 +44,7 @@
   {source}
 />
 
-<PaneSection title="Display">
+<PaneSection title="Display" summary={displaySummary}>
   <InputCheck
     label="Show fixation order line"
     appearance="compact"

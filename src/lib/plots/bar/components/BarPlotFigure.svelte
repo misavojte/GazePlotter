@@ -548,6 +548,25 @@
       return
     }
 
+    const plotTop = effectiveTopMargin + margins.top
+    const inPlotArea =
+      mx >= trueLeftMargin &&
+      mx <= trueLeftMargin + plotAreaWidth &&
+      my >= plotTop &&
+      my <= plotTop + plotAreaHeight
+
+    if (!inPlotArea) {
+      plot.setCursor('default')
+      if (hoveredBarIndex !== null || mouseValuePx !== null) {
+        hoveredBarIndex = null
+        mouseValuePx = null
+        plot.hideTooltip(0)
+        onDataHover(null)
+        plot.scheduleRender()
+      }
+      return
+    }
+
     plot.setCursor('crosshair')
 
     const isVertical = barPlottingType === 'vertical'

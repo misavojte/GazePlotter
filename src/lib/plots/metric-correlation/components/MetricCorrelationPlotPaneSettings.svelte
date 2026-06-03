@@ -36,6 +36,9 @@
   const visSummary = $derived(
     settings.view === 'heatmap' ? 'Heatmap' : 'Splom'
   )
+  const methodSummary = $derived(
+    settings.correlationMethod === 'pearson' ? 'Pearson' : 'Spearman'
+  )
 </script>
 
 <StimulusPaneSection
@@ -72,7 +75,7 @@
   />
 </PaneSection>
 
-<PaneSection title="Correlation method">
+<PaneSection title="Correlation method" summary={methodSummary}>
   <Radio
     ariaLabel="Correlation method"
     options={METRIC_CORRELATION_METHODS.map(m => ({

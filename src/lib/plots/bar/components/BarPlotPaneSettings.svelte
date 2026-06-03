@@ -37,9 +37,17 @@
     update({ scaleRange: next })
   }
 
-  const orientationSummary = $derived(
-    settings.barPlottingType === 'horizontal' ? 'Horizontal' : 'Vertical'
-  )
+  const visSummary = $derived.by(() => {
+    const orientation = settings.barPlottingType === 'horizontal' ? 'Horizontal' : 'Vertical'
+    const overlay = settings.statisticalOverlay === 'none'
+      ? 'No overlay'
+      : settings.statisticalOverlay === 'meanCi95'
+        ? 'M ± 95% CI'
+        : settings.statisticalOverlay === 'meanSd'
+          ? 'M ± SD'
+          : 'Boxplot'
+    return `${orientation} (${overlay})`
+  })
 </script>
 
 <StimulusPaneSection
@@ -61,7 +69,7 @@
   onchange={ids => update({ metricInstanceIds: ids })}
 />
 
-<PaneSection title="Visualisation" summary={orientationSummary}>
+<PaneSection title="Visualisation" summary={visSummary}>
   <div class="statistical-overlay-group">
     <Radio
       legend="Statistical overlay"

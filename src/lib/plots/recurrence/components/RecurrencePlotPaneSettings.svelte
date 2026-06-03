@@ -47,6 +47,28 @@
   const methodSummary = $derived(
     RECURRENCE_METHODS.find(m => m.value === effectiveMethod)?.label ?? effectiveMethod
   )
+  const visSummary = $derived.by(() => {
+    const hl = settings.highlight
+    const mask = settings.masking
+
+    const hlLabel = hl === 'none'
+      ? ''
+      : hl === 'diagonal'
+        ? 'Diagonal'
+        : hl === 'horizontal'
+          ? 'Horizontal'
+          : 'Vertical'
+
+    const maskLabel = mask === 'none'
+      ? ''
+      : mask === 'diagonal'
+        ? 'No main diag.'
+        : 'Upper'
+
+    if (!hlLabel && !maskLabel) return 'Standard'
+    if (hlLabel && maskLabel) return `${hlLabel} (${maskLabel})`
+    return hlLabel || maskLabel
+  })
 </script>
 
 <StimulusPaneSection
@@ -113,7 +135,7 @@
   />
 </PaneSection>
 
-<PaneSection title="Visualisation">
+<PaneSection title="Visualisation" summary={visSummary}>
   <Radio
     legend="Highlight"
     options={[...RECURRENCE_HIGHLIGHTS]}
