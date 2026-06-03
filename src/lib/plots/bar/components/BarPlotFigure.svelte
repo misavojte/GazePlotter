@@ -9,6 +9,7 @@
     usePlot,
     drawPlotArea,
     fillPlotAreaBackground,
+    toCanvasMargins,
     canvasBlockSelect,
     type PlotAreaTicks,
     type BlockedRegion,
@@ -97,8 +98,12 @@
     barPlottingType === 'horizontal' ? MARGIN.BOTTOM : 30
   )
 
+  // Chrome gutters only (no export margins). `usePlot.margins` carries the export
+  // margins, so plot.plotAreaWidth is content; the plot rectangle below carves
+  // these chrome gutters out of it.
+
   // Calculate dynamic left margin based on plotting type and label lengths
-  const trueLeftMarginVal = $derived(
+  const leftChrome = $derived(
     Math.floor(
       Math.min(
         width * 0.4, // Safety cap: never take more than 40% of width
@@ -107,22 +112,22 @@
               150,
               calculateLabelOffset(data.map(item => item.label)) +
                 ROW_LABEL_GAP
-            ) + marginLeft
+            )
           : Math.max(
               65,
               calculateLabelOffset(timeline.ticks.map(tick => tick.label)) +
                 VALUE_LABEL_OFFSET +
                 30
-            ) + marginLeft
+            )
       )
     )
   )
 
-  const dynamicRightMarginVal = $derived.by(() => {
-    if (barPlottingType !== 'horizontal') return MARGIN.RIGHT + marginRight
+  const rightChrome = $derived.by(() => {
+    if (barPlottingType !== 'horizontal') return MARGIN.RIGHT
 
     const values = data.map(d => d.value)
-    if (values.length === 0) return MARGIN.RIGHT + marginRight
+    if (values.length === 0) return MARGIN.RIGHT
 
     const maxValue = Math.max(0, ...values)
     const timelineMax = timeline.maxValue || 1
@@ -130,51 +135,48 @@
     // 1. Calculate a stable estimate for the plot area width
     const estimatedPlotAreaWidth = Math.max(
       100,
-      width - trueLeftMarginVal - MARGIN.RIGHT - marginRight
+      width - marginLeft - leftChrome - MARGIN.RIGHT - marginRight
     )
 
-    // 2. Calculate the bar end X position, CAPPING it at the estimated plot area width.
-    // This is the KEY fix: if maxValue > timelineMax, we assume the bar is clipped
-    // and its label should ideally appear at the edge of the plot area, not miles away.
+    // 2. Calculate the bar end X position (absolute canvas coords), CAPPING it at
+    // the estimated plot area width. If maxValue > timelineMax the bar is clipped,
+    // so its label should appear at the plot-area edge, not miles away.
     const clippedValueRatio = Math.min(1, maxValue / timelineMax)
-    const barEndX = trueLeftMarginVal + clippedValueRatio * estimatedPlotAreaWidth
+    const barEndX =
+      marginLeft + leftChrome + clippedValueRatio * estimatedPlotAreaWidth
 
     // 3. Estimate label width
     const labelText = maxValue.toString()
     const labelWidth = labelText.length * LABEL_FONT_SIZE * 0.55
     const labelRightEdge = barEndX + VALUE_LABEL_OFFSET + labelWidth
 
-    // 4. Calculate overflow based on the CLIPPED position
+    // 4. Calculate overflow beyond the canvas right edge
     const overflow = Math.max(0, labelRightEdge - width)
 
-    // Cap the maximum possible overflow to prevent the plot area from disappearing
-    // if something goes wrong or labels are extremely long.
+    // Cap to prevent the plot area from disappearing for extremely long labels.
     const cappedOverflow = Math.min(overflow, width * 0.3)
 
-    return Math.floor(MARGIN.RIGHT + cappedOverflow + marginRight)
-  })
-
-  const margins = $derived({
-    top: effectiveTopMargin + marginTop,
-    right: dynamicRightMarginVal,
-    bottom: effectiveBottomMargin + marginBottom,
-    left: trueLeftMarginVal,
+    return Math.floor(MARGIN.RIGHT + cappedOverflow)
   })
 
   const plot = usePlot({
     render: renderCanvas,
     width: () => width,
     height: () => height,
-    margins: () => margins,
+    margins: () => toCanvasMargins({ marginTop, marginRight, marginBottom, marginLeft }),
     dpiOverride: () => dpiOverride,
     deps: () => [data, timeline, axisLabel, barPlottingType, barWidth, barSpacing, statisticalOverlay, noMetric],
     onMouseMove: handlePlotMouseMove
   })
 
-  // Decoupled coordinate projection mappings
-  const trueLeftMargin = $derived(plot.plotLeft)
-  const plotAreaWidth = $derived(plot.plotAreaWidth)
-  const plotAreaHeight = $derived(plot.plotAreaHeight)
+  // Plot rectangle = content (plot.plotArea*) carved by the chrome gutters.
+  const trueLeftMargin = $derived(plot.plotLeft + leftChrome)
+  const plotAreaWidth = $derived(
+    Math.max(0, plot.plotAreaWidth - leftChrome - rightChrome)
+  )
+  const plotAreaHeight = $derived(
+    Math.max(0, plot.plotAreaHeight - effectiveTopMargin - effectiveBottomMargin)
+  )
 
   // Bar plot has no legend — only the data rectangle is blocked so
   // the surrounding chrome (axes, title, padding) opens the Pane.

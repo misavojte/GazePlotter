@@ -6,6 +6,7 @@
   } from '$lib/plots/shared/canvasUtils'
   import {
     usePlot,
+    toCanvasMargins,
     canvasBlockSelect,
     type BlockedRegion,
     type CanvasExportProps,
@@ -73,21 +74,32 @@
   let hoveredMsTime = $state<number | null>(null)
   let hoveredParticipantIndex = $state<number | null>(null)
 
-  // `width`/`height` are the TOTAL canvas; `contentWidth`/`contentHeight` are the
-  // drawable area after the export margins are carved out (used for the legend).
-  const contentWidth = $derived(Math.max(1, width - marginLeft - marginRight))
-  const contentHeight = $derived(Math.max(1, height - marginTop - marginBottom))
-
   const legendHeight = $derived(alignment === 'heatmap' ? HEATMAP_LEGEND_HEIGHT : 0)
+
+  // usePlot.margins are the export margins only, so plot.plotAreaWidth/Height are
+  // the drawable CONTENT (total minus export padding). The gradient legend spans
+  // the full content width; the plot rectangle is content minus the chrome gutters.
+  const plot = usePlot({
+    render: renderCanvas,
+    width: () => width,
+    height: () => height,
+    margins: () => toCanvasMargins({ marginTop, marginRight, marginBottom, marginLeft }),
+    dpiOverride: () => dpiOverride,
+    deps: () => [data, alignment],
+    onMouseMove: handlePlotMouseMove,
+  })
+
+  // Plot-area height is content minus the top/bottom axis chrome and legend band.
+  const plotAreaHeight = $derived(
+    Math.max(0, plot.plotAreaHeight - MARGIN.TOP - MARGIN.BOTTOM - legendHeight)
+  )
 
   // Compact mode: when row height < font size, switch to index ticks (heatmap only)
   const COMPACT_THRESHOLD = AXIS_CONFIG.fontSize + 2
   const isCompact = $derived(
     alignment === 'heatmap' &&
       data.participants.length > 0 &&
-      (contentHeight - MARGIN.TOP - MARGIN.BOTTOM - legendHeight) /
-        data.participants.length <
-        COMPACT_THRESHOLD
+      plotAreaHeight / data.participants.length < COMPACT_THRESHOLD
   )
 
   // Compute effective left margin based on mode
@@ -106,33 +118,14 @@
     return Math.max(MARGIN.LEFT, Math.min(200, max + 20))
   })
 
-  // Chrome gutters (axes, legend) and export margins fold into one carve-margins
-  // object; usePlot carves the plot area out of the total canvas, so the export
-  // margins become outer padding (same pattern as bar / aoi-stream).
-  const margins = $derived({
-    top: marginTop + MARGIN.TOP,
-    right: marginRight + MARGIN.RIGHT,
-    bottom: marginBottom + MARGIN.BOTTOM + legendHeight,
-    left: marginLeft + effectiveLeftMargin,
-  })
-
-  const plot = usePlot({
-    render: renderCanvas,
-    width: () => width,
-    height: () => height,
-    margins: () => margins,
-    dpiOverride: () => dpiOverride,
-    deps: () => [data, alignment],
-    onMouseMove: handlePlotMouseMove,
-  })
-
-  // Thin reactive aliases over usePlot's resolved layout bounds.
-  const plotAreaWidth = $derived(plot.plotAreaWidth)
-  const plotAreaHeight = $derived(plot.plotAreaHeight)
-  const plotLeft = $derived(plot.plotLeft)
-  const plotTop = $derived(plot.plotTop)
-  const plotBottom = $derived(plot.plotBottom)
-  const plotRight = $derived(plot.plotRight)
+  // Plot rectangle = content carved by the chrome gutters.
+  const plotLeft = $derived(plot.plotLeft + effectiveLeftMargin)
+  const plotTop = $derived(plot.plotTop + MARGIN.TOP)
+  const plotAreaWidth = $derived(
+    Math.max(0, plot.plotAreaWidth - effectiveLeftMargin - MARGIN.RIGHT)
+  )
+  const plotBottom = $derived(plotTop + plotAreaHeight)
+  const plotRight = $derived(plotLeft + plotAreaWidth)
 
   // Evolving-metrics' only legend is the heatmap gradient (static, not
   // interactive), so only the plot area is blocked — everything else
@@ -154,7 +147,7 @@
     return computeGradientLegendGeometry({
       x: marginLeft,
       y: plotBottom + MARGIN.BOTTOM,
-      availableWidth: contentWidth,
+      availableWidth: plot.plotAreaWidth,
       availableHeight: legendHeight,
       colorScale: palette,
       valueRange: [Math.round(data.valueMin), Math.round(data.valueMax)],
@@ -522,7 +515,7 @@
       drawGradientLegend(ctx, gradientLegendGeometry, {
         x: marginLeft,
         y: floorBottom + MARGIN.BOTTOM,
-        availableWidth: contentWidth,
+        availableWidth: plot.plotAreaWidth,
         availableHeight: legendHeight,
         colorScale: palette,
         valueRange: [Math.round(data.valueMin), Math.round(data.valueMax)],

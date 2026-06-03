@@ -6,6 +6,7 @@
   } from '$lib/plots/shared/canvasUtils'
   import {
     usePlot,
+    toCanvasMargins,
     canvasBlockSelect,
     type BlockedRegion,
     type CanvasExportProps,
@@ -134,13 +135,6 @@
 
   const MARGIN = AOI_MARGIN
 
-  // `width`/`height` are the TOTAL canvas; `contentWidth` is the drawable width
-  // after export margins are carved out — used for legend layout (the plot area
-  // itself comes from usePlot).
-  const contentWidth = $derived(
-    Math.max(1, width - marginLeft - marginRight)
-  )
-
   const maxAoiLabelWidth = $derived.by(() => {
     if (alignment !== 'heatmap') return 0
     let max = 0
@@ -177,7 +171,27 @@
     }))
   )
 
-  // Calculate legend height for layout using the shared utility for consistency
+  // usePlot.margins are the export margins only, so plot.plotAreaWidth/Height are
+  // the drawable CONTENT (total minus export padding). The legend spans the full
+  // content width; the plot rectangle below is content minus the chrome gutters.
+  const plot = usePlot({
+    render: renderCanvas,
+    width: () => width,
+    height: () => height,
+    margins: () => toCanvasMargins({ marginTop, marginRight, marginBottom, marginLeft }),
+    dpiOverride: () => dpiOverride,
+    deps: () => [
+      data,
+      alignment,
+      ridgelineScale,
+      syncedMTopOverride,
+      colorScale,
+      highlights,
+    ],
+    onMouseMove: handlePlotMouseMove,
+  })
+
+  // Legend height — depends only on the content width + item labels.
   const legendHeight: number = $derived.by(() => {
     if (alignment === 'heatmap') return 60
     if (legendItems.length === 0) return 0
@@ -193,51 +207,28 @@
 
     return calculateFlatLegendHeight(
       legendItems.length,
-      Math.max(0, contentWidth),
+      Math.max(0, plot.plotAreaWidth),
       STREAM_LEGEND_CONFIG,
       maxTextWidth
     )
   })
 
-  // `width`/`height` are the TOTAL canvas. The chrome gutters (axes, legend) and
-  // the export margins fold into a single carve-margins object; usePlot carves
-  // the plot area out of the total, so the export margins become outer padding.
-  const margins = $derived({
-    top: marginTop + MARGIN.TOP,
-    right: marginRight + effectiveRightMargin,
-    bottom: marginBottom + MARGIN.BOTTOM + legendHeight,
-    left: marginLeft + effectiveLeftMargin,
-  })
-
-  const plot = usePlot({
-    render: renderCanvas,
-    width: () => width,
-    height: () => height,
-    margins: () => margins,
-    dpiOverride: () => dpiOverride,
-    deps: () => [
-      data,
-      alignment,
-      ridgelineScale,
-      syncedMTopOverride,
-      colorScale,
-      highlights,
-    ],
-    onMouseMove: handlePlotMouseMove,
-  })
-
-  // Thin reactive aliases over usePlot's resolved layout bounds.
-  const plotAreaWidth = $derived(plot.plotAreaWidth)
-  const plotAreaHeight = $derived(plot.plotAreaHeight)
-  const plotLeft = $derived(plot.plotLeft)
-  const plotTop = $derived(plot.plotTop)
-  const plotBottom = $derived(plot.plotBottom)
+  // Plot rectangle = content carved by the chrome gutters (axes + bottom legend band).
+  const plotLeft = $derived(plot.plotLeft + effectiveLeftMargin)
+  const plotTop = $derived(plot.plotTop + MARGIN.TOP)
+  const plotAreaWidth = $derived(
+    Math.max(0, plot.plotAreaWidth - effectiveLeftMargin - effectiveRightMargin)
+  )
+  const plotAreaHeight = $derived(
+    Math.max(0, plot.plotAreaHeight - MARGIN.TOP - MARGIN.BOTTOM - legendHeight)
+  )
+  const plotBottom = $derived(plotTop + plotAreaHeight)
 
   // Compute full legend geometry for rendering (after we know plotBottom)
   const legendGeometry: LegendGeometry = $derived.by(() => {
     const legendX = marginLeft
     const legendY = plotBottom + MARGIN.BOTTOM + STREAM_LEGEND_CONFIG.topPadding
-    const legendWidth = Math.max(0, contentWidth)
+    const legendWidth = Math.max(0, plot.plotAreaWidth)
 
     return computeFlatLegendGeometry(
       legendItems,
@@ -277,7 +268,7 @@
     return computeGradientLegendGeometry({
       x: marginLeft,
       y: plotBottom + MARGIN.BOTTOM,
-      availableWidth: contentWidth,
+      availableWidth: plot.plotAreaWidth,
       availableHeight: legendHeight,
       colorScale: effectiveColorScale,
       valueRange: [0, Math.max(1, data.maxValue)],
@@ -699,7 +690,7 @@
         drawGradientLegend(ctx, gradientLegendGeometry, {
           x: marginLeft,
           y: plotBottom + MARGIN.BOTTOM,
-          availableWidth: contentWidth,
+          availableWidth: plot.plotAreaWidth,
           availableHeight: legendHeight,
           colorScale: effectiveColorScale,
           valueRange: [0, Math.max(1, data.maxValue)],
