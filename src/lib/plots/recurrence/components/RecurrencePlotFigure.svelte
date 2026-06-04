@@ -12,6 +12,8 @@
     canvasBlockSelect,
     type BlockedRegion,
     type CanvasExportProps,
+    getXAxisHeight,
+    getXAxisLabelOffset,
   } from '$lib/plots/shared'
   import { drawCanvasPlaceholder } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { UI_COLORS } from '$lib/color'
@@ -69,7 +71,7 @@
       4
 
     const xAxisSpace =
-      L.tickLength + L.tickFontSize + 6 + L.labelFontSize + L.axisTitleGap
+      L.tickLength + getXAxisHeight(L.tickFontSize, L.labelFontSize, 2)
 
     // plot.plotAreaWidth/Height are the content area (total minus export margins).
     const availW = plot.plotAreaWidth - yAxisSpace - L.rightMargin
@@ -336,7 +338,7 @@
     ctx.fillText(
       'Fixation j',
       xOffset + gridSize / 2,
-      yOffset + gridSize + L.tickLength + L.tickFontSize + 6
+      yOffset + gridSize + L.tickLength + getXAxisLabelOffset(L.tickFontSize, 2)
     )
 
     ctx.save()

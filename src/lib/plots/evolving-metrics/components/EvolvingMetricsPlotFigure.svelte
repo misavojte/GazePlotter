@@ -11,18 +11,25 @@
     type BlockedRegion,
     type CanvasExportProps,
   } from '$lib/plots/shared'
-  import { estimateTextWidth } from '$lib/shared/utils/textUtils'
+  import { estimateTextWidth, measureTextHeight } from '$lib/shared/utils/textUtils'
   import { interpolateColor } from '$lib/color'
   import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color/palettes'
 
   import {
     FONT_PRIMARY,
+    PLOT_LEGEND_GAP,
   } from '$lib/plots/shared/const'
   import {
     computeGradientLegendGeometry,
     drawGradientLegend,
+    getGradientLegendRequiredHeight,
   } from '$lib/plots/shared/legendGradient'
-  import { drawXAxisLabel, drawYAxisMainLabel } from '$lib/plots/shared/axisUtils'
+  import {
+    drawXAxisLabel,
+    drawYAxisMainLabel,
+    getXAxisHeight,
+    getXAxisLabelOffset,
+  } from '$lib/plots/shared/axisUtils'
   import {
     drawPlotArea,
     fillPlotAreaBackground,
@@ -59,19 +66,16 @@
   }: Props = $props()
 
   const X_AXIS_LABEL = $derived(data.xAxisLabel)
-  const X_AXIS_LABEL_OFFSET = 30
   const AREA_DIVIDER = {
     COLOR: 'rgba(255, 255, 255, 0.4)',
     WIDTH: 1,
   }
-  const HEATMAP_LEGEND_HEIGHT = 60
-
   // Track hover position in ms (not bin index) — the plot renders directly on
   // the ms axis, so ms is the primary coordinate for hit-testing.
   let hoveredMsTime = $state<number | null>(null)
   let hoveredParticipantIndex = $state<number | null>(null)
 
-  const legendHeight = $derived(alignment === 'heatmap' ? HEATMAP_LEGEND_HEIGHT : 0)
+  const legendHeight = $derived(alignment === 'heatmap' ? getGradientLegendRequiredHeight(AXIS_CONFIG.fontSize) : 0)
 
   // usePlot.margins are the export margins only, so plot.plotAreaWidth/Height are
   // the drawable CONTENT (total minus export padding). The gradient legend spans
@@ -86,9 +90,38 @@
     onMouseMove: handlePlotMouseMove,
   })
 
+  const tickLabelHeight = $derived.by(() => {
+    let maxHeight = 0
+    for (let i = 0; i < data.timeline.ticks.length; i++) {
+      const h = measureTextHeight(data.timeline.ticks[i].label, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily)
+      if (h > maxHeight) maxHeight = h
+    }
+    return maxHeight
+  })
+
+  const axisTitleHeight = $derived(
+    X_AXIS_LABEL 
+      ? measureTextHeight(X_AXIS_LABEL, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily) 
+      : 0
+  )
+
+  const xAxisHeight = $derived.by(() => {
+    if (X_AXIS_LABEL) {
+      return getXAxisHeight(tickLabelHeight, axisTitleHeight, AXIS_CONFIG.tickLabelOffset)
+    } else {
+      return AXIS_CONFIG.tickLabelOffset + tickLabelHeight
+    }
+  })
+
+  const xAxisLabelOffset = $derived(getXAxisLabelOffset(tickLabelHeight, AXIS_CONFIG.tickLabelOffset))
+
+  const effectiveBottomMargin = $derived(
+    xAxisHeight + (legendHeight > 0 ? PLOT_LEGEND_GAP + legendHeight : 0)
+  )
+
   // Plot-area height is content minus the top/bottom axis chrome and legend band.
   const plotAreaHeight = $derived(
-    Math.max(0, plot.plotAreaHeight - MARGIN.TOP - MARGIN.BOTTOM - legendHeight)
+    Math.max(0, plot.plotAreaHeight - MARGIN.TOP - effectiveBottomMargin)
   )
 
   // Compact mode: when row height < font size, switch to index ticks (heatmap only)
@@ -143,7 +176,7 @@
     if (alignment !== 'heatmap') return null
     return computeGradientLegendGeometry({
       x: margins.left,
-      y: plotBottom + MARGIN.BOTTOM,
+      y: plotBottom + xAxisHeight + PLOT_LEGEND_GAP,
       availableWidth: plot.plotAreaWidth,
       availableHeight: legendHeight,
       colorScale: palette,
@@ -503,7 +536,7 @@
       floorLeft,
       floorWidth,
       floorBottom,
-      X_AXIS_LABEL_OFFSET,
+      xAxisLabelOffset,
       AXIS_CONFIG
     )
 
@@ -511,7 +544,7 @@
     if (gradientLegendGeometry) {
       drawGradientLegend(ctx, gradientLegendGeometry, {
         x: margins.left,
-        y: floorBottom + MARGIN.BOTTOM,
+        y: floorBottom + xAxisHeight,
         availableWidth: plot.plotAreaWidth,
         availableHeight: legendHeight,
         colorScale: palette,
@@ -709,7 +742,7 @@
       floorLeft,
       floorWidth,
       floorBottom,
-      X_AXIS_LABEL_OFFSET,
+      xAxisLabelOffset,
       AXIS_CONFIG
     )
 

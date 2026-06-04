@@ -14,10 +14,14 @@
     type PlotAreaTicks,
     type BlockedRegion,
     type CanvasExportProps,
+    getXAxisHeight,
+    getXAxisLabelOffset,
+    PLOT_TICK_LABEL_GAP,
   } from '$lib/plots/shared'
   import {
     calculateLabelOffset,
     truncateTextToPixelWidth,
+    measureTextHeight,
   } from '$lib/shared/utils/textUtils'
   import {
     beginCanvasDrawing,
@@ -46,7 +50,6 @@
   const TICK_LENGTH = 5
   const BAR_SPACING_TOLERANCE = 20 // px padding on both sides of the bar region
   const VALUE_LABEL_OFFSET = 5 // gap between axis edge and tick labels
-  const CATEGORY_LABEL_OFFSET = 15 // gap between plot border and AOI category labels
   const MIN_BAR_SPACING = 2 // minimum gap between bars when space is tight
 
   interface Props extends CanvasExportProps {
@@ -89,11 +92,48 @@
   let mouseValuePx = $state<number | null>(null) // pixel position on value axis
 
 
+  // Dynamic text height measurements (no magic numbers)
+  const categoryLabelHeight = $derived.by(() => {
+    if (data.length === 0) return 0
+    let maxHeight = 0
+    for (let i = 0; i < data.length; i++) {
+      const h = measureTextHeight(data[i].label, LABEL_FONT_SIZE)
+      if (h > maxHeight) maxHeight = h
+    }
+    return maxHeight
+  })
+
+  const tickLabelHeight = $derived.by(() => {
+    let maxHeight = 0
+    for (let i = 0; i < timeline.ticks.length; i++) {
+      const h = measureTextHeight(timeline.ticks[i].label, LABEL_FONT_SIZE)
+      if (h > maxHeight) maxHeight = h
+    }
+    return maxHeight
+  })
+
+  const axisTitleHeight = $derived(axisLabel ? measureTextHeight(axisLabel, LABEL_FONT_SIZE) : 0)
+
+  const CATEGORY_LABEL_GAP = 6
+  const CATEGORY_LABEL_OFFSET = $derived(CATEGORY_LABEL_GAP + Math.ceil(categoryLabelHeight / 2))
+
   // Calculate dynamic margins
   const effectiveTopMargin = $derived(TICK_LENGTH)
-  const effectiveBottomMargin = $derived(
-    barPlottingType === 'horizontal' ? MARGIN.BOTTOM : 30
-  )
+  const effectiveBottomMargin = $derived.by(() => {
+    if (barPlottingType === 'vertical') {
+      return data.length > 0
+        ? CATEGORY_LABEL_OFFSET + Math.ceil(categoryLabelHeight / 2)
+        : 2
+    } else {
+      if (axisLabel) {
+        return getXAxisHeight(tickLabelHeight, axisTitleHeight, PLOT_TICK_LABEL_GAP)
+      } else {
+        return PLOT_TICK_LABEL_GAP + tickLabelHeight
+      }
+    }
+  })
+
+  const xAxisLabelOffset = $derived(getXAxisLabelOffset(tickLabelHeight, PLOT_TICK_LABEL_GAP))
 
   // Chrome gutters only (no export margins). `usePlot.margins` carries the export
   // margins, so plot.plotAreaWidth is content; the plot rectangle below carves
@@ -397,7 +437,7 @@
     if (barPlottingType === 'vertical') {
       drawYAxisMainLabel(ctx, axisLabel, floorLeft, floorTop, floorHeight, Math.floor(trueLeftMargin - 15))
     } else {
-      drawXAxisLabel(ctx, axisLabel, floorLeft, floorWidth, floorTop + floorHeight, 35)
+      drawXAxisLabel(ctx, axisLabel, floorLeft, floorWidth, floorTop + floorHeight, xAxisLabelOffset)
     }
 
     finishCanvasDrawing(plot.canvasState)

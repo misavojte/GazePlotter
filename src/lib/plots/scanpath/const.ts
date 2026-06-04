@@ -1,3 +1,5 @@
+import { PLOT_AXIS_TITLE_GAP, PLOT_TICK_LABEL_GAP } from '../shared/const'
+
 /**
  * Layout costants. Margins are not declared here — they are *measured* per
  * render from the actual tick-label strings and the current font (see
@@ -11,12 +13,12 @@ export const SCANPATH_LAYOUT = {
   /** Right edge safety beyond the last-X-tick-label clamp inside drawPlotArea. */
   rightSafetyPx: 4,
   /** Bottom edge safety below the last line of the X axis title. */
-  bottomSafetyPx: 2,
+  bottomSafetyPx: 0,
   /** Left edge safety beyond the left rotated edge of the Y axis title. */
   leftSafetyPx: 2,
 
   /** Visible breathing room between tick labels and the axis title text. */
-  titleTickGapPx: 6,
+  titleTickGapPx: PLOT_AXIS_TITLE_GAP,
 
   /** Tick count per axis. */
   tickCount: 5,
@@ -40,7 +42,7 @@ export const SCANPATH_LAYOUT = {
  * and the tick-label baseline. Re-declared here so this module's layout math
  * matches `src/lib/plots/shared/plotArea.ts:24` without a runtime coupling.
  */
-export const PLOT_AREA_TICK_LABEL_GAP_PX = 10
+export const PLOT_AREA_TICK_LABEL_GAP_PX = PLOT_TICK_LABEL_GAP
 
 
 /**

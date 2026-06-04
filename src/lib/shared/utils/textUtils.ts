@@ -202,3 +202,44 @@ export function truncateTextToPixelWidth(
   // Return the truncated text with ellipsis
   return text.substring(0, low) + ellipsis
 }
+
+/**
+ * Measures the actual height of a text string using Canvas API.
+ * Falls back to estimated height if in SSR or if canvas is not available.
+ *
+ * @param text The text string to measure
+ * @param fontSize Font size in pixels
+ * @param fontFamily Font family defaults to system sans-serif stack
+ * @returns Height in pixels
+ */
+export function measureTextHeight(
+  text: string,
+  fontSize: number,
+  fontFamily: string = SYSTEM_SANS_SERIF_STACK
+): number {
+  if (typeof document !== 'undefined') {
+    const fontKey = `${fontSize}px ${fontFamily}`
+    let ctx = contextCache.get(fontKey)
+
+    if (!ctx) {
+      const canvas = document.createElement('canvas')
+      const newCtx = canvas.getContext('2d')
+      if (newCtx) {
+        newCtx.font = fontKey
+        contextCache.set(fontKey, newCtx)
+        ctx = newCtx
+      }
+    }
+
+    if (ctx && text) {
+      const metrics = ctx.measureText(text)
+      const ascent = metrics.actualBoundingBoxAscent
+      const descent = metrics.actualBoundingBoxDescent
+      if (Number.isFinite(ascent) && Number.isFinite(descent)) {
+        return ascent + descent
+      }
+    }
+  }
+
+  return fontSize
+}

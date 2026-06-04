@@ -12,6 +12,8 @@
     drawYAxisMainLabel,
     type BlockedRegion,
     type CanvasExportProps,
+    getXAxisLabelOffset,
+    getYAxisLabelOffset,
   } from '$lib/plots/shared'
   import { FONT_PRIMARY } from '$lib/plots/shared/const'
   import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
@@ -154,14 +156,12 @@
 
     // axisLabelOffsetX = distance from plot bottom to the TOP of the X title.
     //   tick-label gap + tick-label height + visible gap to the title.
-    const axisLabelOffsetX =
-      PLOT_AREA_TICK_LABEL_GAP_PX + xLabelMaxHeight + L.titleTickGapPx
+    const axisLabelOffsetX = getXAxisLabelOffset(xLabelMaxHeight, PLOT_AREA_TICK_LABEL_GAP_PX)
 
     // axisLabelOffsetY = distance from plot left to the RIGHT edge of the
     // rotated Y title (the rotated baseline). The title then extends
     // `yTitleCanvasWidth` further left.
-    const axisLabelOffsetY =
-      PLOT_AREA_TICK_LABEL_GAP_PX + yLabelMaxWidth + L.titleTickGapPx
+    const axisLabelOffsetY = getYAxisLabelOffset(yLabelMaxWidth, PLOT_AREA_TICK_LABEL_GAP_PX)
 
     // Y-axis chrome footprint vs the X-tick label that extends LEFT past
     // plotLeft (the leftmost X tick is centred on plotLeft). Left margin

@@ -303,13 +303,14 @@ export function calculateLegendStructuralHeight(
 export function calculateIntrinsicContentHeight(
   legendHeight: number,
   legendY: number,
-  axisLabelY: number,
+  xAxisHeight: number,
+  participantBarsHeight: number,
   internalPaddingBottom: number
 ): number {
   if (legendHeight > 0) {
     return legendY + legendHeight + internalPaddingBottom
   }
-  return axisLabelY + 20 + internalPaddingBottom
+  return participantBarsHeight + xAxisHeight + internalPaddingBottom
 }
 
 /**

@@ -45,3 +45,12 @@ export const PLOT_BASE_CHROME_HEIGHT = 99
  * visually with tick labels on the same edge.
  */
 export const ROW_LABEL_GAP = 10
+
+/** Visual gap in px between tick labels and the axis title (X or Y). */
+export const PLOT_AXIS_TITLE_GAP = 4
+
+/** Visual gap in px between bottommost axis element and the top of the legend. */
+export const PLOT_LEGEND_GAP = 14
+
+/** Standard/default gap in px from the axis baseline to its tick labels. */
+export const PLOT_TICK_LABEL_GAP = 10

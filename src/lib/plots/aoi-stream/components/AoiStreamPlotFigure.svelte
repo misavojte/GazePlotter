@@ -11,7 +11,7 @@
     type BlockedRegion,
     type CanvasExportProps,
   } from '$lib/plots/shared'
-  import { estimateTextWidth } from '$lib/shared/utils/textUtils'
+  import { estimateTextWidth, measureTextHeight } from '$lib/shared/utils/textUtils'
   import { desaturateToWhite, INACTIVE_COLOR } from '$lib/color'
   import { PRESET_PALETTES } from '$lib/color/palettes'
 
@@ -19,6 +19,7 @@
     GRIDLINE_SECONDARY,
     GRIDLINE_PRIMARY,
     FONT_PRIMARY,
+    PLOT_LEGEND_GAP,
   } from '$lib/plots/shared/const'
   import {
     computeFlatLegendGeometry,
@@ -35,10 +36,13 @@
   import {
     computeGradientLegendGeometry,
     drawGradientLegend,
+    getGradientLegendRequiredHeight,
   } from '$lib/plots/shared/legendGradient'
   import {
     drawXAxisLabel,
     drawYAxisMainLabel,
+    getXAxisHeight,
+    getXAxisLabelOffset,
   } from '$lib/plots/shared/axisUtils'
   import {
     drawPlotArea,
@@ -101,7 +105,6 @@
   )
 
   const X_AXIS_LABEL = $derived(`Elapsed time [${data.windowLabel}]`)
-  const X_AXIS_LABEL_OFFSET = 30
   const AREA_DIVIDER = {
     COLOR: 'rgba(255, 255, 255, 0.4)',
     WIDTH: 1,
@@ -190,7 +193,7 @@
 
   // Legend height — depends only on the content width + item labels.
   const legendHeight: number = $derived.by(() => {
-    if (alignment === 'heatmap') return 60
+    if (alignment === 'heatmap') return getGradientLegendRequiredHeight(AXIS_CONFIG.fontSize)
     if (legendItems.length === 0) return 0
 
     // Calculate max text width to ensure height calculation matches geometry calculation
@@ -210,6 +213,35 @@
     )
   })
 
+  const tickLabelHeight = $derived.by(() => {
+    let maxHeight = 0
+    for (let i = 0; i < data.timeline.ticks.length; i++) {
+      const h = measureTextHeight(data.timeline.ticks[i].label, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily)
+      if (h > maxHeight) maxHeight = h
+    }
+    return maxHeight
+  })
+
+  const axisTitleHeight = $derived(
+    X_AXIS_LABEL 
+      ? measureTextHeight(X_AXIS_LABEL, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily) 
+      : 0
+  )
+
+  const xAxisHeight = $derived.by(() => {
+    if (X_AXIS_LABEL) {
+      return getXAxisHeight(tickLabelHeight, axisTitleHeight, AXIS_CONFIG.tickLabelOffset)
+    } else {
+      return AXIS_CONFIG.tickLabelOffset + tickLabelHeight
+    }
+  })
+
+  const xAxisLabelOffset = $derived(getXAxisLabelOffset(tickLabelHeight, AXIS_CONFIG.tickLabelOffset))
+
+  const effectiveBottomMargin = $derived(
+    xAxisHeight + (legendHeight > 0 ? PLOT_LEGEND_GAP + legendHeight : 0)
+  )
+
   // Plot rectangle = content carved by the chrome gutters (axes + bottom legend band).
   const plotLeft = $derived(plot.plotLeft + effectiveLeftMargin)
   const plotTop = $derived(plot.plotTop + MARGIN.TOP)
@@ -217,14 +249,14 @@
     Math.max(0, plot.plotAreaWidth - effectiveLeftMargin - effectiveRightMargin)
   )
   const plotAreaHeight = $derived(
-    Math.max(0, plot.plotAreaHeight - MARGIN.TOP - MARGIN.BOTTOM - legendHeight)
+    Math.max(0, plot.plotAreaHeight - MARGIN.TOP - effectiveBottomMargin)
   )
   const plotBottom = $derived(plotTop + plotAreaHeight)
 
   // Compute full legend geometry for rendering (after we know plotBottom)
   const legendGeometry: LegendGeometry = $derived.by(() => {
     const legendX = margins.left
-    const legendY = plotBottom + MARGIN.BOTTOM + STREAM_LEGEND_CONFIG.topPadding
+    const legendY = plotBottom + xAxisHeight + PLOT_LEGEND_GAP
     const legendWidth = Math.max(0, plot.plotAreaWidth)
 
     return computeFlatLegendGeometry(
@@ -264,7 +296,7 @@
 
     return computeGradientLegendGeometry({
       x: margins.left,
-      y: plotBottom + MARGIN.BOTTOM,
+      y: plotBottom + xAxisHeight + PLOT_LEGEND_GAP,
       availableWidth: plot.plotAreaWidth,
       availableHeight: legendHeight,
       colorScale: effectiveColorScale,
@@ -674,10 +706,10 @@
     drawXAxisLabel(
       ctx,
       X_AXIS_LABEL,
-      floorLeft,
-      floorWidth,
-      floorBottom,
-      X_AXIS_LABEL_OFFSET,
+      plotLeft,
+      plotAreaWidth,
+      plotBottom,
+      xAxisLabelOffset,
       AXIS_CONFIG
     )
 
@@ -686,7 +718,7 @@
       if (gradientLegendGeometry) {
         drawGradientLegend(ctx, gradientLegendGeometry, {
           x: margins.left,
-          y: plotBottom + MARGIN.BOTTOM,
+          y: plotBottom + xAxisHeight,
           availableWidth: plot.plotAreaWidth,
           availableHeight: legendHeight,
           colorScale: effectiveColorScale,

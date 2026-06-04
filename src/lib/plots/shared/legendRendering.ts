@@ -148,7 +148,7 @@ export const STREAM_LEGEND_CONFIG: LegendConfig = {
   fontFamily: FONT_PRIMARY.FAMILY,
   fontSize: FONT_PRIMARY.SIZE,
   fontColor: FONT_PRIMARY.COLOR,
-  topPadding: 5,
+  topPadding: 0,
   lineDash: [2, 2] as const,
   nonFixationHeight: 4,
   titleGutterGap: 16,
@@ -250,7 +250,10 @@ export function getLegendItemsPerRow(
 
   const { iconWidth, textPadding, itemSpacing } = config
   const itemFullWidth = iconWidth + textPadding + avgTextWidth + itemSpacing
-  const maxItemsPerRow = Math.max(1, Math.floor(availableWidth / itemFullWidth))
+  const maxItemsPerRow = Math.max(
+    1,
+    Math.floor((availableWidth + itemSpacing) / itemFullWidth)
+  )
 
   // If no item count provided, return max possible
   if (!itemCount || itemCount <= 0) return maxItemsPerRow
@@ -278,7 +281,7 @@ export function calculateFlatLegendHeight(
     itemCount
   )
   const rows = Math.ceil(itemCount / itemsPerRow)
-  return rows > 0 ? topPadding + rows * (itemHeight + rowPadding) : 0
+  return rows > 0 ? topPadding + rows * itemHeight + (rows - 1) * rowPadding : 0
 }
 
 /**
@@ -390,7 +393,7 @@ export function computeFlatLegendGeometry(
     }
   }
 
-  const totalHeight = currentY - startY
+  const totalHeight = currentY - startY - (totalRows > 0 ? rowPadding : 0)
 
   return {
     items: geometryItems,
@@ -603,7 +606,7 @@ export function computeGroupedLegendGeometry(
   return {
     items: geometryItems,
     groupTitles,
-    totalHeight: currentY - startY,
+    totalHeight: currentY - startY - (groups.length > 0 ? rowPadding : 0),
     itemsPerRow: effectiveItemsPerRow,
   }
 }

@@ -21,14 +21,19 @@
     NO_MARGINS,
     canvasBlockSelect,
     drawCanvasPlaceholder,
+    FONT_PRIMARY,
     type BlockedRegion,
     type CanvasPlotMargins,
     type LegendGeometry,
     type LegendGroup,
     type LegendItemGeometry,
+    getXAxisHeight,
+    getXAxisLabelOffset,
+    PLOT_LEGEND_GAP,
   } from '$lib/plots/shared'
   import { UI_COLORS } from '$lib/color'
   import { onDestroy } from 'svelte'
+  import { measureTextHeight } from '$lib/shared/utils/textUtils'
   import { RECT_STRIDE, SCARF_IDENTIFIERS, SCARF_LAYOUT } from '../const'
   import {
     calculateEffectiveMarginTop,
@@ -116,15 +121,50 @@
 
   // 1. Calculate Legend structural metrics (data-only, no layout dependency)
   // This breaks the circular dependency: legend structural height depends only on data.
+  const xAxisLabel = $derived(
+    getXAxisLabel(
+      settings.timeline,
+      settings.timelineStart,
+      settings.timelineEnd
+    )
+  )
+
   const legendHeight = $derived(
     calculateLegendStructuralHeight(data.legendData?.groups ?? [], chartWidth)
   )
 
+  const tickLabelHeight = $derived.by(() => {
+    let maxHeight = 0
+    const ticks = niceTimelineTicks(data.timeline).labels || []
+    for (let i = 0; i < ticks.length; i++) {
+      const h = measureTextHeight(ticks[i], FONT_PRIMARY.SIZE, FONT_PRIMARY.FAMILY)
+      if (h > maxHeight) maxHeight = h
+    }
+    return maxHeight
+  })
+
+  const axisTitleHeight = $derived(
+    xAxisLabel 
+      ? measureTextHeight(xAxisLabel, FONT_PRIMARY.SIZE, FONT_PRIMARY.FAMILY) 
+      : 0
+  )
+
+  const xAxisHeight = $derived.by(() => {
+    if (xAxisLabel) {
+      return getXAxisHeight(tickLabelHeight, axisTitleHeight, 10)
+    } else {
+      return 10 + tickLabelHeight
+    }
+  })
+
+  const xAxisLabelOffset = $derived(getXAxisLabelOffset(tickLabelHeight, 10))
+
   // 2. Fixed vertical overhead (margins, padding, legend, axis space)
   const fixedOverheadAbove = $derived(margins.top + INTERNAL_PADDING_TOP)
-  const fixedOverheadBelow = $derived(
-    45 + legendHeight + margins.bottom + INTERNAL_PADDING_BOTTOM
-  )
+  const fixedOverheadBelow = $derived.by(() => {
+    const legendSpace = legendHeight > 0 ? PLOT_LEGEND_GAP + legendHeight : 0
+    return xAxisHeight + legendSpace + margins.bottom + INTERNAL_PADDING_BOTTOM
+  })
   const totalFixedOverhead = $derived(fixedOverheadAbove + fixedOverheadBelow)
 
   const netAvailableHeight = $derived(
@@ -190,8 +230,8 @@
       ? data.participants.length * eventOnlyLayout.rowHeight
       : data.participants.length * layout.heightOfBarWrap
   )
-  const axisLabelY = $derived(participantBarsHeight + 30)
-  const legendY = $derived(participantBarsHeight + 50)
+  const axisLabelY = $derived(participantBarsHeight + xAxisLabelOffset)
+  const legendY = $derived(participantBarsHeight + xAxisHeight + (legendHeight > 0 ? PLOT_LEGEND_GAP : 0))
 
   // State management with Svelte 5 runes
   let hoveredRowIndex = $state<number | null>(null)
@@ -230,13 +270,7 @@
 
   // Use highlights directly from props - workspace is the single source of truth
   const usedHighlights = $derived(highlights)
-  const xAxisLabel = $derived(
-    getXAxisLabel(
-      settings.timeline,
-      settings.timelineStart,
-      settings.timelineEnd
-    )
-  )
+
 
   // Convert ScarfLegendItem (data-only) to LegendItem (with presentation details)
   // Heights are determined here in the presentation layer using layout constants
@@ -251,7 +285,8 @@
     calculateIntrinsicContentHeight(
       legendHeight,
       legendY,
-      axisLabelY,
+      xAxisHeight,
+      participantBarsHeight,
       INTERNAL_PADDING_BOTTOM
     )
   )
@@ -610,7 +645,7 @@
       scarfPlotLeft,
       scarfPlotWidth,
       participantBarsHeight + effectiveMarginTop,
-      30
+      xAxisLabelOffset
     )
 
     // 4. Draw legend

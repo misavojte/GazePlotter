@@ -1,4 +1,4 @@
-import { GRIDLINE_PRIMARY, GRIDLINE_SECONDARY, FONT_PRIMARY } from './const'
+import { GRIDLINE_PRIMARY, GRIDLINE_SECONDARY, FONT_PRIMARY, PLOT_AXIS_TITLE_GAP, PLOT_TICK_LABEL_GAP } from './const'
 
 export interface AxisConfig {
   tickLength: number
@@ -74,4 +74,35 @@ export function drawYAxisMainLabel(
 
   ctx.fillText(label, 0, 0)
   ctx.restore()
+}
+
+/**
+ * Calculates the vertical offset from the bottom of the plot area to the top of the X-axis label.
+ */
+export function getXAxisLabelOffset(
+  tickLabelHeight: number,
+  tickLabelOffset: number = PLOT_TICK_LABEL_GAP
+): number {
+  return tickLabelOffset + tickLabelHeight + PLOT_AXIS_TITLE_GAP
+}
+
+/**
+ * Calculates the total vertical height required for the X-axis layout elements.
+ */
+export function getXAxisHeight(
+  tickLabelHeight: number,
+  axisTitleHeight: number,
+  tickLabelOffset: number = PLOT_TICK_LABEL_GAP
+): number {
+  return getXAxisLabelOffset(tickLabelHeight, tickLabelOffset) + axisTitleHeight
+}
+
+/**
+ * Calculates the horizontal offset from the left of the plot area to the rotated baseline of the Y-axis label.
+ */
+export function getYAxisLabelOffset(
+  tickLabelWidth: number,
+  tickLabelOffset: number = PLOT_TICK_LABEL_GAP
+): number {
+  return tickLabelOffset + tickLabelWidth + PLOT_AXIS_TITLE_GAP
 }
