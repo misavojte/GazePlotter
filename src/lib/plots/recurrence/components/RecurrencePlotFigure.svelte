@@ -1,22 +1,14 @@
 <script lang="ts">
-  import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
   import {
-    beginCanvasDrawing,
-    finishCanvasDrawing,
-  } from '$lib/plots/shared/canvasUtils'
-  import { RECURRENCE_LAYOUT } from '../const'
-  import {
-    drawPlotArea,
-    usePlot,
-    NO_MARGINS,
+    useFramedPlot,
+    categoryTicks,
     canvasBlockSelect,
-    type BlockedRegion,
+    NO_MARGINS,
     type CanvasExportProps,
-    getXAxisHeight,
-    getXAxisLabelOffset,
+    type PlotFrame,
+    type FrameHit,
   } from '$lib/plots/shared'
-  import { drawCanvasPlaceholder } from '$lib/plots/shared/drawCanvasPlaceholder'
-  import { UI_COLORS } from '$lib/color'
+  import { RECURRENCE_LAYOUT } from '../const'
   import type {
     RecurrenceData,
     RecurrenceHighlight,
@@ -41,63 +33,12 @@
     margins = NO_MARGINS,
   }: Props = $props()
 
-  let hoveredCell = $state<{ row: number; col: number } | null>(null)
-
-  const plot = usePlot({
-    render: renderCanvas,
-    width: () => width,
-    height: () => height,
-    margins: () => margins,
-    dpiOverride: () => dpiOverride,
-    deps: () => [data, highlight, masking, highlightMask],
-    onMouseMove: handlePlotMouseMove,
-  })
-
   const L = RECURRENCE_LAYOUT
 
-  const layout = $derived.by(() => {
-    const N = data.fixationCount
+  let hoveredCell = $state<{ row: number; col: number } | null>(null)
 
-    const maxDigits = N.toString().length
-    const approxCharWidth = L.tickFontSize * 0.6
-    const tickLabelWidth = maxDigits * approxCharWidth + 4
-
-    const yAxisSpace =
-      L.leftMargin +
-      L.labelFontSize +
-      L.axisTitleGap +
-      tickLabelWidth +
-      L.tickLength +
-      4
-
-    const xAxisSpace =
-      L.tickLength + getXAxisHeight(L.tickFontSize, L.labelFontSize, 2)
-
-    // plot.plotAreaWidth/Height are the content area (total minus export margins).
-    const availW = plot.plotAreaWidth - yAxisSpace - L.rightMargin
-    const availH = plot.plotAreaHeight - L.topMargin - xAxisSpace
-
-    const plotSize = Math.max(0, Math.min(availW, availH))
-    const cellSize = N < 2 ? 0 : Math.max(L.minCellSize, plotSize / N)
-    const gridSize = cellSize * N
-
-    const xOffset = Math.floor(margins.left + yAxisSpace + (availW - gridSize) / 2)
-    const yOffset = Math.floor(margins.top + L.topMargin)
-
-    const tickStep = N <= 20 ? 1 : Math.ceil(N / 10)
-
-    return { N, cellSize, gridSize, xOffset, yOffset, tickStep }
-  })
-
-  // Recurrence matrix body is the only blocked region; no legend.
-  const blockedRegions = $derived<BlockedRegion[]>([
-    {
-      x: layout.xOffset,
-      y: layout.yOffset,
-      w: layout.gridSize,
-      h: layout.gridSize,
-    },
-  ])
+  const N = $derived(data.fixationCount)
+  const tickStep = $derived(N <= 20 ? 1 : Math.ceil(N / 10))
 
   const maxDuration = $derived.by(() => {
     if (!data.durationMatrix) return 0
@@ -108,17 +49,80 @@
     return max
   })
 
-  function rowToY(row: number): number {
-    return layout.yOffset + (layout.N - 1 - row) * layout.cellSize
+  const plot = useFramedPlot({
+    width: () => width,
+    height: () => height,
+    margins: () => margins,
+    dpiOverride: () => dpiOverride,
+    deps: () => [data, highlight, masking, highlightMask],
+    placeholder: () => (N < 2 ? 'Not enough fixations' : null),
+    gutters: () => ({
+      square: true,
+      left: { tickLabels: [String(N)], title: 'Fixation i' },
+      bottom: { tickLabels: [String(N)], title: 'Fixation j' },
+    }),
+    drawData: drawGrid,
+    axes: () => ({
+      bottom: {
+        ticks: categoryTicks(N, { step: tickStep, edgesAlways: true }),
+        title: 'Fixation j',
+      },
+      left: {
+        ticks: categoryTicks(N, { step: tickStep, edgesAlways: true, invert: true }),
+        title: 'Fixation i',
+      },
+    }),
+    drawOverlay: drawHoverCrosshair,
+    hitTest: (x, y, frame) => {
+      const cell = cellAt(x, y, frame)
+      if (!cell) return null
+      const idx = cell.row * N + cell.col
+      const isRecurrent = !!data.matrix[idx]
+      const content: FrameHit['content'] = [
+        { key: 'Fixation j', value: (cell.col + 1).toString() },
+        { key: 'Fixation i', value: (cell.row + 1).toString() },
+        { key: 'Recurrent', value: isRecurrent ? 'Yes' : 'No' },
+      ]
+      if (isRecurrent && data.durationMatrix) {
+        content.push({
+          key: 'Duration sum',
+          value: `${data.durationMatrix[idx].toFixed(0)} ms`,
+        })
+      }
+      const cellSize = frame.width / N
+      return {
+        tooltipId: 'recurrence-tooltip',
+        content,
+        anchorX: frame.x + (cell.col + 1) * cellSize,
+        anchorY: frame.y + (N - 1 - cell.row) * cellSize + cellSize / 2,
+        offset: { x: 10, y: 0 },
+        tooltipWidth: 140,
+        data: cell,
+      }
+    },
+    onHoverChange: (hit) => {
+      const cell = (hit?.data as { row: number; col: number } | undefined) ?? null
+      const changed =
+        (cell?.row ?? null) !== (hoveredCell?.row ?? null) ||
+        (cell?.col ?? null) !== (hoveredCell?.col ?? null)
+      hoveredCell = cell
+      return changed
+    },
+  })
+
+  /** Map an absolute canvas position to a recurrence cell, or null if outside. */
+  function cellAt(
+    x: number,
+    y: number,
+    frame: PlotFrame
+  ): { row: number; col: number } | null {
+    const cellSize = frame.width / N
+    const col = Math.floor((x - frame.x) / cellSize)
+    const row = N - 1 - Math.floor((y - frame.y) / cellSize)
+    if (row < 0 || row >= N || col < 0 || col >= N) return null
+    return { row, col }
   }
 
-  function colToX(col: number): number {
-    return layout.xOffset + col * layout.cellSize
-  }
-
-  /**
-   * Get the accent color for the current highlight mode.
-   */
   function getHighlightColor(): string {
     switch (highlight) {
       case 'diagonal':
@@ -132,24 +136,16 @@
     }
   }
 
-  function renderCanvas() {
-    beginCanvasDrawing(plot.canvasState, true)
-    const ctx = plot.canvasState.context
-    if (!ctx) return
+  function drawGrid(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    const cellSize = frame.width / N
+    const gridSize = frame.width
+    const { x: xOffset, y: yOffset } = frame
+    const colToX = (col: number) => xOffset + col * cellSize
+    const rowToY = (row: number) => yOffset + (N - 1 - row) * cellSize
 
-    const { N, cellSize, gridSize, xOffset, yOffset } = layout
-
-    if (N < 2) {
-      drawCanvasPlaceholder(ctx, width, height, 'Not enough fixations')
-      finishCanvasDrawing(plot.canvasState)
-      return
-    }
-
-    // Grid background
+    // Grid background + lines
     ctx.fillStyle = L.gridBgColor
     ctx.fillRect(xOffset, yOffset, gridSize, gridSize)
-
-    // Grid lines
     ctx.strokeStyle = L.gridLineColor
     ctx.lineWidth = 0.5
     for (let i = 0; i <= N; i++) {
@@ -158,8 +154,6 @@
       ctx.moveTo(x, yOffset)
       ctx.lineTo(x, yOffset + gridSize)
       ctx.stroke()
-    }
-    for (let i = 0; i <= N; i++) {
       const y = yOffset + i * cellSize
       ctx.beginPath()
       ctx.moveTo(xOffset, y)
@@ -178,44 +172,28 @@
     for (let i = 0; i < N; i++) {
       const rowOffset = i * N
       for (let j = 0; j < N; j++) {
-        // Masking: gray out diagonal + visual lower triangle (i <= j)
         if (maskLower && i <= j) {
           ctx.fillStyle = L.diagonalColor
           ctx.fillRect(colToX(j), rowToY(i), cellSize, cellSize)
           continue
         }
-
-        // Masking: diagonal cells rendered as gray squares
         if (maskDiagonal && i === j) {
           ctx.fillStyle = L.diagonalColor
-          ctx.fillRect(
-            colToX(j) + 1,
-            rowToY(i) + 1,
-            cellSize - 2,
-            cellSize - 2
-          )
+          ctx.fillRect(colToX(j) + 1, rowToY(i) + 1, cellSize - 2, cellSize - 2)
           continue
         }
-
         if (!data.matrix[rowOffset + j]) continue
 
         const cx = colToX(j) + cellSize / 2
         const cy = rowToY(i) + cellSize / 2
 
-        // Base color: use AOI color if available, otherwise default
         let dotColor: string = L.dotColor
         let dotAlpha = 1
-
         const aoiColor = data.fixationAoiColors[j]
-        if (aoiColor) {
-          dotColor = aoiColor
-        }
+        if (aoiColor) dotColor = aoiColor
 
-        // Highlighting: accent for highlighted cells, dim the rest
         if (isHighlightActive && highlightMask) {
-          const idx = rowOffset + j
-          if (highlightMask[idx]) {
-            // Highlighted: keep AOI color if present, otherwise use accent
+          if (highlightMask[rowOffset + j]) {
             if (!aoiColor) dotColor = accentColor
           } else {
             dotColor = L.dimmedColor
@@ -223,203 +201,59 @@
           }
         }
 
-        // Duration weighting: always applied when available
         ctx.fillStyle = dotColor
+        const halfCell = cellSize / 2
         if (hasDuration && data.durationMatrix) {
-          const durVal = data.durationMatrix[rowOffset + j]
-          const ratio = Math.max(0.15, durVal / maxDuration)
-          const r = maxDotRadius * Math.sqrt(ratio)
-
+          const ratio = Math.max(0.15, data.durationMatrix[rowOffset + j] / maxDuration)
           ctx.globalAlpha = dotAlpha * (0.3 + 0.7 * ratio)
           ctx.beginPath()
-          ctx.arc(cx, cy, r, 0, Math.PI * 2)
+          ctx.arc(cx, cy, Math.min(halfCell, maxDotRadius * Math.sqrt(ratio)), 0, Math.PI * 2)
           ctx.fill()
         } else {
           ctx.globalAlpha = dotAlpha
-          const r = Math.max(1.5, maxDotRadius * 0.6)
           ctx.beginPath()
-          ctx.arc(cx, cy, r, 0, Math.PI * 2)
+          ctx.arc(cx, cy, Math.min(halfCell, Math.max(1.5, maxDotRadius * 0.6)), 0, Math.PI * 2)
           ctx.fill()
         }
-
         ctx.globalAlpha = 1
       }
     }
-
-    // Hover crosshair highlight
-    if (hoveredCell) {
-      const hCol = hoveredCell.col
-      const hRow = hoveredCell.row
-
-      ctx.save()
-      ctx.globalAlpha = 0.18
-      ctx.fillStyle = '#007acc'
-      ctx.fillRect(colToX(hCol), yOffset, cellSize, gridSize)
-      ctx.fillRect(xOffset, rowToY(hRow), gridSize, cellSize)
-      ctx.restore()
-
-      ctx.save()
-      ctx.strokeStyle = '#007acc'
-      ctx.lineWidth = 1
-      ctx.setLineDash([2, 2])
-
-      const colX = colToX(hCol)
-      const rowY = rowToY(hRow)
-
-      ctx.beginPath()
-      ctx.moveTo(colX, yOffset)
-      ctx.lineTo(colX, yOffset + gridSize)
-      ctx.moveTo(colX + cellSize, yOffset)
-      ctx.lineTo(colX + cellSize, yOffset + gridSize)
-      ctx.moveTo(xOffset, rowY)
-      ctx.lineTo(xOffset + gridSize, rowY)
-      ctx.moveTo(xOffset, rowY + cellSize)
-      ctx.lineTo(xOffset + gridSize, rowY + cellSize)
-      ctx.stroke()
-      ctx.restore()
-    }
-
-    // Plot outline
-    drawPlotArea(ctx, {
-      x: xOffset,
-      y: yOffset,
-      width: gridSize,
-      height: gridSize,
-    })
-
-    // Axis labels
-    drawAxisLabels(ctx)
-
-    finishCanvasDrawing(plot.canvasState)
   }
 
-  function drawAxisLabels(ctx: CanvasRenderingContext2D) {
-    const { N, cellSize, gridSize, xOffset, yOffset, tickStep } = layout
-
-    ctx.font = `${L.tickFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
-    ctx.strokeStyle = UI_COLORS.TEXT_SECONDARY
-    ctx.lineWidth = 1
-
-    ctx.fillStyle = UI_COLORS.TEXT_PRIMARY
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'top'
-
-    for (let i = 1; i <= N; i++) {
-      if (tickStep > 1 && i % tickStep !== 0 && i !== 1 && i !== N) continue
-      const x = xOffset + (i - 0.5) * cellSize
-      const y = yOffset + gridSize
-
-      ctx.beginPath()
-      ctx.moveTo(x, y)
-      ctx.lineTo(x, y + L.tickLength)
-      ctx.stroke()
-      ctx.fillText(i.toString(), x, y + L.tickLength + 2)
-    }
-
-    ctx.textAlign = 'right'
-    ctx.textBaseline = 'middle'
-    for (let i = 1; i <= N; i++) {
-      if (tickStep > 1 && i % tickStep !== 0 && i !== 1 && i !== N) continue
-      const x = xOffset
-      const y = rowToY(i - 1) + cellSize / 2
-
-      ctx.beginPath()
-      ctx.moveTo(x, y)
-      ctx.lineTo(x - L.tickLength, y)
-      ctx.stroke()
-      ctx.fillText(i.toString(), x - L.tickLength - 2, y)
-    }
-
-    ctx.font = `${L.labelFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
-    ctx.fillStyle = UI_COLORS.TEXT_PRIMARY
-
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'top'
-    ctx.fillText(
-      'Fixation j',
-      xOffset + gridSize / 2,
-      yOffset + gridSize + L.tickLength + getXAxisLabelOffset(L.tickFontSize, 2)
-    )
+  function drawHoverCrosshair(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    if (!hoveredCell) return
+    const cellSize = frame.width / N
+    const gridSize = frame.width
+    const { x: xOffset, y: yOffset } = frame
+    const colX = xOffset + hoveredCell.col * cellSize
+    const rowY = yOffset + (N - 1 - hoveredCell.row) * cellSize
 
     ctx.save()
-    ctx.translate(
-      xOffset -
-        L.tickLength -
-        L.tickFontSize * layout.N.toString().length * 0.6 -
-        14,
-      yOffset + gridSize / 2
-    )
-    ctx.rotate(-Math.PI / 2)
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'bottom'
-    ctx.fillText('Fixation i', 0, 0)
+    ctx.globalAlpha = 0.18
+    ctx.fillStyle = '#007acc'
+    ctx.fillRect(colX, yOffset, cellSize, gridSize)
+    ctx.fillRect(xOffset, rowY, gridSize, cellSize)
     ctx.restore()
-  }
 
-
-  // Coordinates arrive already scaled from usePlot; null marks mouse-leave.
-  function handlePlotMouseMove(
-    mouseX: number | null,
-    mouseY: number | null,
-    _isOver: boolean
-  ) {
-    if (mouseX === null || mouseY === null) {
-      plot.setCursor('default')
-      if (hoveredCell) {
-        hoveredCell = null
-        plot.scheduleRender()
-      }
-      plot.hideTooltip(0)
-      return
-    }
-
-    const { N, cellSize, xOffset, yOffset } = layout
-
-    const col = Math.floor((mouseX - xOffset) / cellSize)
-    const row = N - 1 - Math.floor((mouseY - yOffset) / cellSize)
-
-    const isOverCell = row >= 0 && row < N && col >= 0 && col < N
-
-    if (isOverCell) {
-      plot.setCursor('crosshair')
-      if (!hoveredCell || hoveredCell.row !== row || hoveredCell.col !== col) {
-        hoveredCell = { row, col }
-        plot.scheduleRender()
-      }
-
-      const idx = row * N + col
-      const isRecurrent = !!data.matrix[idx]
-      const content: { key: string; value: string }[] = [
-        { key: 'Fixation j', value: (col + 1).toString() },
-        { key: 'Fixation i', value: (row + 1).toString() },
-        { key: 'Recurrent', value: isRecurrent ? 'Yes' : 'No' },
-      ]
-
-      if (isRecurrent && data.durationMatrix) {
-        const dur = data.durationMatrix[idx]
-        content.push({ key: 'Duration sum', value: `${dur.toFixed(0)} ms` })
-      }
-
-      plot.showTooltip(
-        'recurrence-tooltip',
-        content,
-        colToX(col) + cellSize,
-        rowToY(row) + cellSize / 2,
-        { x: 10, y: 0 },
-        140
-      )
-    } else {
-      plot.setCursor('default')
-      if (hoveredCell) {
-        hoveredCell = null
-        plot.scheduleRender()
-      }
-      plot.hideTooltip(0)
-    }
+    ctx.save()
+    ctx.strokeStyle = '#007acc'
+    ctx.lineWidth = 1
+    ctx.setLineDash([2, 2])
+    ctx.beginPath()
+    ctx.moveTo(colX, yOffset)
+    ctx.lineTo(colX, yOffset + gridSize)
+    ctx.moveTo(colX + cellSize, yOffset)
+    ctx.lineTo(colX + cellSize, yOffset + gridSize)
+    ctx.moveTo(xOffset, rowY)
+    ctx.lineTo(xOffset + gridSize, rowY)
+    ctx.moveTo(xOffset, rowY + cellSize)
+    ctx.lineTo(xOffset + gridSize, rowY + cellSize)
+    ctx.stroke()
+    ctx.restore()
   }
 </script>
 
 <canvas
   use:plot.plotAction
-  use:canvasBlockSelect={{ regions: blockedRegions }}
+  use:canvasBlockSelect={{ regions: plot.blockedRegions }}
 ></canvas>

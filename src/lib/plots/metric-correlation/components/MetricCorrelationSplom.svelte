@@ -1,10 +1,6 @@
 <script lang="ts">
   import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
-  import {
-    beginCanvasDrawing,
-    finishCanvasDrawing,
-  } from '$lib/plots/shared/canvasUtils'
-  import { drawCanvasPlaceholder, METRIC_MISSING_MULTI_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
+  import { METRIC_MISSING_MULTI_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
   import {
     MATRIX_LAYOUT,
     computeSquareMatrixLayout,
@@ -13,11 +9,12 @@
     drawMatrixGrid,
     drawMatrixRowLabels,
     drawPlotArea,
-    usePlot,
+    useFramedPlot,
     NO_MARGINS,
     canvasBlockSelect,
     type BlockedRegion,
     type CanvasExportProps,
+    type FrameHit,
     type MatrixRenderConfig,
     type SquareMatrixLayout,
   } from '$lib/plots/shared'
@@ -36,14 +33,32 @@
     margins = NO_MARGINS,
   }: Props = $props()
 
-  const plot = usePlot({
-    render: renderCanvas,
+  const plot = useFramedPlot({
     width: () => width,
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
     deps: () => [result, labels, methodLabel],
-    onMouseMove: handlePlotMouseMove,
+    placeholder: () =>
+      result.noMetric || labels.length < 2 ? METRIC_MISSING_MULTI_MESSAGE : null,
+    gutters: () => ({}),
+    clipData: false,
+    drawData: (ctx) => {
+      drawCells(ctx, layout)
+      drawMatrixGrid(ctx, renderConfig)
+      drawMatrixAxisLabels(ctx, renderConfig)
+      ctx.font = `${layout.fontSize}px ${SYSTEM_SANS_SERIF_STACK}`
+      drawMatrixRowLabels(ctx, renderConfig, layout.fontSize)
+      drawMatrixColumnLabels(ctx, renderConfig, layout.fontSize)
+      drawPlotArea(ctx, {
+        x: layout.xOffset,
+        y: layout.yOffset,
+        width: layout.gridWidth,
+        height: layout.gridHeight,
+      })
+    },
+    hitTest: computeHit,
+    blockedRegions: () => blockedRegions,
   })
 
   const labels = $derived(result.metrics.map(m => m.label))
@@ -195,74 +210,28 @@
     showCellValue: () => false,
   })
 
-  function renderCanvas() {
-    beginCanvasDrawing(plot.canvasState, true)
-    const ctx = plot.canvasState.context
-    if (!ctx) return
-
-    if (result.noMetric || labels.length < 2) {
-      drawCanvasPlaceholder(ctx, width, height, METRIC_MISSING_MULTI_MESSAGE)
-      finishCanvasDrawing(plot.canvasState)
-      return
-    }
-
-    drawCells(ctx, layout)
-    drawMatrixGrid(ctx, renderConfig)
-    drawMatrixAxisLabels(ctx, renderConfig)
-    ctx.font = `${layout.fontSize}px ${SYSTEM_SANS_SERIF_STACK}`
-    drawMatrixRowLabels(ctx, renderConfig, layout.fontSize)
-    drawMatrixColumnLabels(ctx, renderConfig, layout.fontSize)
-
-    drawPlotArea(ctx, {
-      x: layout.xOffset,
-      y: layout.yOffset,
-      width: layout.gridWidth,
-      height: layout.gridHeight,
-    })
-
-    finishCanvasDrawing(plot.canvasState)
-  }
-
-  // Coordinates arrive already scaled from usePlot; null marks mouse-leave.
-  function handlePlotMouseMove(
-    mouseX: number | null,
-    mouseY: number | null,
-    _isOver: boolean
-  ) {
-    if (mouseX === null || mouseY === null) {
-      plot.hideTooltip(0)
-      plot.setCursor('default')
-      return
-    }
-
+  function computeHit(mx: number, my: number): FrameHit | null {
     const { xOffset, yOffset, cellSize } = layout
-    const col = Math.floor((mouseX - xOffset) / cellSize)
-    const row = Math.floor((mouseY - yOffset) / cellSize)
+    const col = Math.floor((mx - xOffset) / cellSize)
+    const row = Math.floor((my - yOffset) / cellSize)
     const size = labels.length
-    const isOverCell = row >= 0 && row < size && col >= 0 && col < size
+    if (row < 0 || row >= size || col < 0 || col >= size) return null
 
-    if (isOverCell) {
-      const cell = result.cells[row * size + col]
-      const x = xOffset + col * cellSize
-      const y = yOffset + row * cellSize
-      plot.showTooltip(
-        'metric-correlation-tooltip',
-        [
-          { key: 'Row', value: result.metrics[row].label },
-          { key: 'Col', value: result.metrics[col].label },
-          { key: methodLabel, value: cell.r === null ? '—' : cell.r.toFixed(4) },
-          { key: 'n', value: String(cell.n) },
-        ],
-        x + cellSize,
-        y + (cellSize >> 1),
-        { x: 10, y: 0 },
-        220
-      )
-    } else {
-      plot.hideTooltip(0)
+    const cell = result.cells[row * size + col]
+    return {
+      tooltipId: 'metric-correlation-tooltip',
+      content: [
+        { key: 'Row', value: result.metrics[row].label },
+        { key: 'Col', value: result.metrics[col].label },
+        { key: methodLabel, value: cell.r === null ? '—' : cell.r.toFixed(4) },
+        { key: 'n', value: String(cell.n) },
+      ],
+      anchorX: xOffset + col * cellSize + cellSize,
+      anchorY: yOffset + row * cellSize + (cellSize >> 1),
+      offset: { x: 10, y: 0 },
+      tooltipWidth: 220,
+      cursor: 'pointer',
     }
-
-    plot.setCursor(isOverCell ? 'pointer' : 'default')
   }
 </script>
 
