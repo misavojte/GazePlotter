@@ -1,6 +1,6 @@
 <script lang="ts">
   import {
-    useFramedPlot,
+    usePlot,
     canvasBlockSelect,
     NO_MARGINS,
     type CanvasExportProps,
@@ -73,7 +73,7 @@
     }
   })
 
-  const plot = useFramedPlot({
+  const plot = usePlot({
     width: () => width,
     height: () => height,
     margins: () => margins,

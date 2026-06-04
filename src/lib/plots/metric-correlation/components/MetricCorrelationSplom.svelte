@@ -9,7 +9,7 @@
     drawMatrixGrid,
     drawMatrixRowLabels,
     drawPlotArea,
-    useFramedPlot,
+    usePlot,
     NO_MARGINS,
     canvasBlockSelect,
     type BlockedRegion,
@@ -33,7 +33,7 @@
     margins = NO_MARGINS,
   }: Props = $props()
 
-  const plot = useFramedPlot({
+  const plot = usePlot({
     width: () => width,
     height: () => height,
     margins: () => margins,

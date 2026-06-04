@@ -1,7 +1,7 @@
 <script lang="ts">
   import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
   import {
-    useFramedPlot,
+    usePlot,
     NO_MARGINS,
     canvasBlockSelect,
     type BlockedRegion,
@@ -153,7 +153,7 @@
     }
     return calculateFlatLegendHeight(
       legendItems.length,
-      Math.max(0, plot.plot.plotAreaWidth),
+      Math.max(0, plot.plotAreaWidth),
       STREAM_LEGEND_CONFIG,
       maxTextWidth
     )
@@ -180,7 +180,7 @@
     xAxisHeight + (legendHeight > 0 ? PLOT_LEGEND_GAP + legendHeight : 0)
   )
 
-  const plot = useFramedPlot({
+  const plot = usePlot<{ kind: 'legend' | 'bin'; item?: LegendItemGeometry; binIndex?: number }>({
     width: () => width,
     height: () => height,
     margins: () => margins,
@@ -202,7 +202,7 @@
     legend: { hitTest: hitTestLegendBand },
     hitTest: hitTestBin,
     onHoverChange: (hit) => {
-      const tag = hit?.data as { kind: 'legend' | 'bin'; item?: LegendItemGeometry; binIndex?: number } | undefined
+      const tag = hit?.data
       const legendItem = tag?.kind === 'legend' ? tag.item! : null
       const binIndex = tag?.kind === 'bin' ? tag.binIndex! : null
       const changed = binIndex !== hoveredBinIndex // crosshair follows bin only
@@ -220,7 +220,7 @@
       STREAM_LEGEND_CONFIG,
       margins.left,
       plot.frame.bottom + xAxisHeight + PLOT_LEGEND_GAP,
-      Math.max(0, plot.plot.plotAreaWidth)
+      Math.max(0, plot.plotAreaWidth)
     )
   )
 
@@ -229,7 +229,7 @@
     return computeGradientLegendGeometry({
       x: margins.left,
       y: plot.frame.bottom + xAxisHeight + PLOT_LEGEND_GAP,
-      availableWidth: plot.plot.plotAreaWidth,
+      availableWidth: plot.plotAreaWidth,
       availableHeight: legendHeight,
       colorScale: effectiveColorScale,
       valueRange: [0, Math.max(1, data.maxValue)],
@@ -527,7 +527,7 @@
         drawGradientLegend(ctx, gradientLegendGeometry, {
           x: margins.left,
           y: frame.bottom + xAxisHeight,
-          availableWidth: plot.plot.plotAreaWidth,
+          availableWidth: plot.plotAreaWidth,
           availableHeight: legendHeight,
           colorScale: effectiveColorScale,
           valueRange: [0, Math.max(1, data.maxValue)],
@@ -542,7 +542,10 @@
     }
   }
 
-  function hitTestLegendBand(mx: number, my: number): FrameHit | null {
+  function hitTestLegendBand(
+    mx: number,
+    my: number
+  ): FrameHit<{ kind: 'legend' | 'bin'; item?: LegendItemGeometry; binIndex?: number }> | null {
     if (alignment === 'heatmap' || legendGeometry.items.length === 0 || legendHeight === 0) return null
     const item = hitTestLegend(legendGeometry, STREAM_LEGEND_CONFIG, mx, my)
     if (!item) return null
@@ -558,7 +561,11 @@
     }
   }
 
-  function hitTestBin(mx: number, my: number, frame: PlotFrame): FrameHit | null {
+  function hitTestBin(
+    mx: number,
+    my: number,
+    frame: PlotFrame
+  ): FrameHit<{ kind: 'legend' | 'bin'; item?: LegendItemGeometry; binIndex?: number }> | null {
     const binWidth = frame.width / data.binCount
     const binIndex = Math.max(0, Math.min(data.binCount - 1, Math.floor((mx - frame.x) / binWidth)))
 

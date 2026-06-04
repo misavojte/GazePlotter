@@ -10,7 +10,7 @@
     computeGradientLegendGeometry,
     drawGradientLegend,
     drawPlotArea,
-    useFramedPlot,
+    usePlot,
     NO_MARGINS,
     renderMatrixContent,
     canvasBlockSelect,
@@ -68,7 +68,7 @@
     computeTransitionMatrixLayout({ width, height, margins, aoiLabels, effectiveMaxValue })
   )
 
-  const plot = useFramedPlot({
+  const plot = usePlot({
     width: () => width,
     height: () => height,
     margins: () => margins,

@@ -4,7 +4,7 @@
     ROW_LABEL_GAP,
     type AdaptiveTimeline,
     getTimelinePositionRatio,
-    useFramedPlot,
+    usePlot,
     NO_MARGINS,
     fillPlotAreaBackground,
     canvasBlockSelect,
@@ -120,7 +120,7 @@
     return Math.floor(MARGIN_RIGHT + Math.min(overflow, width * 0.3))
   })
 
-  const plot = useFramedPlot({
+  const plot = usePlot<{ barIndex: number; valuePx: number }>({
     width: () => width,
     height: () => height,
     margins: () => margins,
@@ -150,7 +150,7 @@
     drawOverlay: drawCrosshairHighlight,
     hitTest: computeHit,
     onHoverChange: (hit) => {
-      const next = (hit?.data as { barIndex: number; valuePx: number } | undefined) ?? null
+      const next = hit?.data ?? null
       const changed = (next?.barIndex ?? null) !== hoveredBarIndex
       hoveredBarIndex = next?.barIndex ?? null
       mouseValuePx = next?.valuePx ?? null
@@ -356,7 +356,7 @@
     )
   }
 
-  function computeHit(x: number, y: number, frame: PlotFrame): FrameHit | null {
+  function computeHit(x: number, y: number, frame: PlotFrame): FrameHit<{ barIndex: number; valuePx: number }> | null {
     const layout = geom.rendererLayout
     const valuePx = isVertical ? y : x
     const categoryPos = isVertical ? x : y

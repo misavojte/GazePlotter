@@ -14,7 +14,7 @@
     hitTestLegend,
     niceTimelineTicks,
     SCARF_LEGEND_CONFIG,
-    useFramedPlot,
+    usePlot,
     NO_MARGINS,
     canvasBlockSelect,
     FONT_PRIMARY,
@@ -198,7 +198,7 @@
   const totalHeight = $derived(availableHeight)
   const usedHighlights = $derived(highlights)
 
-  const plot = useFramedPlot({
+  const plot = usePlot({
     width: () => totalWidth,
     height: () => totalHeight,
     margins: () => margins,
@@ -382,7 +382,7 @@
       isEventsOnly: isEventsOnlyMode,
       eventOnlyRowHeight: eventOnlyLayout?.rowHeight ?? 0,
       eventOnlyLaneHeight: eventOnlyLayout?.laneHeight ?? 0,
-      deviceScale: plot.plot.canvasState.pixelRatio ?? 1,
+      deviceScale: plot.canvasState.pixelRatio ?? 1,
     })
 
     drawCrosshairHighlight(
@@ -466,7 +466,7 @@
     if (!isOver) {
       if (hoveredLegendItem) {
         hoveredLegendItem = null
-        plot.plot.hideTooltip(0)
+        plot.hideTooltip(0)
       }
       if (hoveredRowIndex !== null || mouseXPx !== null) {
         hoveredRowIndex = null
@@ -477,7 +477,7 @@
         currentHoveredSegment = null
         onTooltipDeactivation()
       }
-      plot.plot.setCursor('default')
+      plot.setCursor('default')
       return
     }
 
@@ -486,7 +486,7 @@
       if (legendItem) {
         hoveredLegendItem = legendItem
         const pos = getLegendTooltipPosition(legendItem, SCARF_LEGEND_CONFIG)
-        plot.plot.showTooltip(
+        plot.showTooltip(
           legendItem.identifier,
           getLegendTooltipContent(legendItem, usedHighlights.includes(legendItem.identifier)),
           pos.x,
@@ -495,12 +495,12 @@
         )
       } else if (hoveredLegendItem) {
         hoveredLegendItem = null
-        plot.plot.hideTooltip(0)
+        plot.hideTooltip(0)
       }
     }
 
     if (hoveredLegendItem) {
-      plot.plot.setCursor('pointer')
+      plot.setCursor('pointer')
       if (hoveredRowIndex !== null) {
         hoveredRowIndex = null
         mouseXPx = null
@@ -510,7 +510,7 @@
     }
 
     if (!inPlotArea(mx, my)) {
-      plot.plot.setCursor('default')
+      plot.setCursor('default')
       if (hoveredRowIndex !== null) {
         hoveredRowIndex = null
         mouseXPx = null
@@ -523,7 +523,7 @@
       return
     }
 
-    plot.plot.setCursor('crosshair')
+    plot.setCursor('crosshair')
 
     const rowHeight =
       isEventsOnlyMode && eventOnlyLayout ? eventOnlyLayout.rowHeight : layout.heightOfBarWrap
@@ -550,7 +550,7 @@
       const floorWidth = Math.floor(plotAreaWidth)
       const segEndX = floorLeft + (hoveredSegment.x + hoveredSegment.width) * floorWidth
       const rowBottomY = hoveredSegment.y * rowHeight + rowHeight + effectiveMarginTop
-      const tooltipPos = getTooltipPosition(plot.plot.canvasState, segEndX, rowBottomY, { x: 5, y: 5 })
+      const tooltipPos = getTooltipPosition(plot.canvasState, segEndX, rowBottomY, { x: 5, y: 5 })
       onTooltipActivation({
         segmentOrderId: hoveredSegment.orderId,
         participantId: hoveredSegment.participantId,
@@ -654,7 +654,7 @@
   }
 
   onDestroy(() => {
-    if (hoveredLegendItem) plot.plot.hideTooltip(0)
+    if (hoveredLegendItem) plot.hideTooltip(0)
   })
 </script>
 

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
   import {
-    useFramedPlot,
+    usePlot,
     NO_MARGINS,
     canvasBlockSelect,
     type CanvasExportProps,
@@ -94,7 +94,7 @@
   // ← isCompact). Equals frame.height by construction, since the gutters carve
   // exactly MARGIN.TOP + effectiveBottomMargin out of the content height.
   const probeHeight = $derived.by(() =>
-    Math.max(0, plot.plot.plotAreaHeight - MARGIN.TOP - effectiveBottomMargin)
+    Math.max(0, plot.plotAreaHeight - MARGIN.TOP - effectiveBottomMargin)
   )
   const COMPACT_THRESHOLD = AXIS_CONFIG.fontSize + 2
   const isCompact = $derived(
@@ -114,7 +114,7 @@
     return Math.max(MARGIN.LEFT, Math.min(200, max + 20))
   })
 
-  const plot = useFramedPlot({
+  const plot = usePlot<{ t: number; participantIdx: number | null }>({
     width: () => width,
     height: () => height,
     margins: () => margins,
@@ -133,7 +133,7 @@
     drawData: drawEvolving,
     hitTest: computeHit,
     onHoverChange: (hit) => {
-      const tag = hit?.data as { t: number; participantIdx: number | null } | undefined
+      const tag = hit?.data
       const nextT = tag?.t ?? null
       const nextP = tag?.participantIdx ?? null
       const changed = nextT !== hoveredMsTime || nextP !== hoveredParticipantIndex
@@ -152,7 +152,7 @@
     return computeGradientLegendGeometry({
       x: margins.left,
       y: plot.frame.bottom + xAxisHeight + PLOT_LEGEND_GAP,
-      availableWidth: plot.plot.plotAreaWidth,
+      availableWidth: plot.plotAreaWidth,
       availableHeight: legendHeight,
       colorScale: palette,
       valueRange: [Math.round(data.valueMin), Math.round(data.valueMax)],
@@ -397,7 +397,7 @@
       drawGradientLegend(ctx, gradientLegendGeometry, {
         x: margins.left,
         y: floorBottom + xAxisHeight,
-        availableWidth: plot.plot.plotAreaWidth,
+        availableWidth: plot.plotAreaWidth,
         availableHeight: legendHeight,
         colorScale: palette,
         valueRange: [Math.round(data.valueMin), Math.round(data.valueMax)],
@@ -545,7 +545,11 @@
   }
 
   // ── HOVER ──
-  function computeHit(mx: number, my: number, frame: PlotFrame): FrameHit | null {
+  function computeHit(
+    mx: number,
+    my: number,
+    frame: PlotFrame
+  ): FrameHit<{ t: number; participantIdx: number | null }> | null {
     const timelineMin = data.timeline.minValue
     const duration = Math.max(1, data.timeline.maxValue - timelineMin)
     const t = timelineMin + ((mx - frame.x) / frame.width) * duration

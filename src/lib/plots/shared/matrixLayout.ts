@@ -1,5 +1,5 @@
 import { getGradientLegendRequiredHeight } from './legendGradient'
-import type { CanvasPlotMargins } from './useCanvasPlot.svelte'
+import type { CanvasPlotMargins } from './usePlot.svelte'
 
 const NICE_STEPS = [5, 10, 20, 25, 50, 100, 200, 500, 1000] as const
 const AXIS_TITLE_GAP = 12

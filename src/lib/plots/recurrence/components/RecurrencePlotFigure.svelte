@@ -1,6 +1,6 @@
 <script lang="ts">
   import {
-    useFramedPlot,
+    usePlot,
     categoryTicks,
     canvasBlockSelect,
     NO_MARGINS,
@@ -49,7 +49,7 @@
     return max
   })
 
-  const plot = useFramedPlot({
+  const plot = usePlot<{ row: number; col: number }>({
     width: () => width,
     height: () => height,
     margins: () => margins,
@@ -101,7 +101,7 @@
       }
     },
     onHoverChange: (hit) => {
-      const cell = (hit?.data as { row: number; col: number } | undefined) ?? null
+      const cell = hit?.data ?? null
       const changed =
         (cell?.row ?? null) !== (hoveredCell?.row ?? null) ||
         (cell?.col ?? null) !== (hoveredCell?.col ?? null)

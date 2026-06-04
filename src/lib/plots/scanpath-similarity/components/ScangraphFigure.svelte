@@ -3,7 +3,7 @@
   import { UI_COLORS } from '$lib/color'
   import {
     drawPlotArea,
-    useFramedPlot,
+    usePlot,
     NO_MARGINS,
     canvasBlockSelect,
     type CanvasExportProps,
@@ -39,7 +39,7 @@
     margins = NO_MARGINS,
   }: Props = $props()
 
-  const plot = useFramedPlot({
+  const plot = usePlot<NodePosition>({
     width: () => width,
     height: () => height,
     margins: () => margins,
@@ -59,7 +59,7 @@
     drawData: drawGraph,
     hitTest: computeHit,
     onHoverChange: (hit) => {
-      hoveredNode = (hit?.data as NodePosition | undefined) ?? null
+      hoveredNode = hit?.data ?? null
       return false // no hover overlay — tooltip only, no redraw
     },
   })
@@ -286,7 +286,7 @@
     return null
   }
 
-  function computeHit(mx: number, my: number): FrameHit | null {
+  function computeHit(mx: number, my: number): FrameHit<NodePosition> | null {
     const node = findNodeAt(mx, my)
     if (!node) return null
     const connectionItems = getConnectionItems(node.id)
