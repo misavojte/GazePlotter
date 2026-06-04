@@ -1,5 +1,5 @@
 import RecurrencePlot from './components/RecurrencePlot.svelte'
-import RecurrenceExportFigure from './components/RecurrenceExportFigure.svelte'
+import { deriveRecurrenceView } from './core/view'
 import RecurrencePlotPaneSettings from './components/RecurrencePlotPaneSettings.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
@@ -17,7 +17,7 @@ export const recurrencePlotDefinition = definePlot<
   name: 'Recurrence Plot',
   component: RecurrencePlot,
   paneSettings: RecurrencePlotPaneSettings,
-  export: { figure: RecurrenceExportFigure },
+  export: { deriveView: deriveRecurrenceView },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []
     const stim = getStimuliOptions(engine).find(

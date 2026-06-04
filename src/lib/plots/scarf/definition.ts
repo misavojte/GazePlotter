@@ -1,5 +1,5 @@
 import ScarfPlot from './components/ScarfPlot.svelte'
-import ScarfExportFigure from './components/ScarfExportFigure.svelte'
+import { deriveScarfView } from './core/view'
 import ScarfPlotPaneSettings from './components/ScarfPlotPaneSettings.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
@@ -14,7 +14,7 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
   name: 'Scarf Plot',
   component: ScarfPlot,
   paneSettings: ScarfPlotPaneSettings,
-  export: { figure: ScarfExportFigure },
+  export: { deriveView: deriveScarfView },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []
     const stim = getStimuliOptions(engine).find(

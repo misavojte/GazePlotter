@@ -1,5 +1,5 @@
 import AoiStreamPlot from './components/AoiStreamPlot.svelte'
-import AoiStreamExportFigure from './components/AoiStreamExportFigure.svelte'
+import { deriveAoiStreamView } from './core/view'
 import AoiStreamPlotPaneSettings from './components/AoiStreamPlotPaneSettings.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
@@ -17,7 +17,7 @@ export const aoiStreamPlotDefinition = definePlot<
   name: 'Time-binned AOI Occupancy',
   component: AoiStreamPlot,
   paneSettings: AoiStreamPlotPaneSettings,
-  export: { figure: AoiStreamExportFigure },
+  export: { deriveView: deriveAoiStreamView },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []
     const stim = getStimuliOptions(engine).find(

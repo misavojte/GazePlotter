@@ -1,5 +1,5 @@
 import BarPlot from './components/BarPlot.svelte'
-import BarPlotExportFigure from './components/BarPlotExportFigure.svelte'
+import { deriveBarView } from './core/view'
 import BarPlotPaneSettings from './components/BarPlotPaneSettings.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
@@ -14,7 +14,7 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
   name: 'Bar Plot',
   component: BarPlot,
   paneSettings: BarPlotPaneSettings,
-  export: { figure: BarPlotExportFigure },
+  export: { deriveView: deriveBarView },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []
     const stim = getStimuliOptions(engine).find(

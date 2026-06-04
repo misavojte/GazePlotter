@@ -12,11 +12,8 @@
     ScarfPlotItem,
     ScarfPlotSettings,
   } from '$lib/plots/scarf/types'
-  import {
-    tooltipScarfService,
-    transformDataToScarfPlot,
-    SCARF_LAYOUT,
-  } from '$lib/plots/scarf'
+  import { tooltipScarfService, SCARF_LAYOUT } from '$lib/plots/scarf'
+  import { getScarfData } from '$lib/plots/scarf/core/view'
   import { scarfTimelineSync } from '$lib/plots/scarf/core/sync.svelte'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
@@ -111,16 +108,10 @@
   })
 
   const scarfData = $derived.by(() => {
-    redrawTimestamp
-    const meta = engine.metadata
-    if (!meta) return null
-    return transformDataToScarfPlot(
-      engine,
-      currentStimulusId,
-      currentParticipantIds,
-      syncedSettings,
-      meta.noAoiTreatment
-    )
+    void redrawTimestamp
+    // Same data derivation the export modal renders from, with the screen's
+    // sync-adjusted settings.
+    return getScarfData(engine, syncedSettings)
   })
 
   const timelineMin = $derived.by(() => {
@@ -220,8 +211,8 @@
     <div class="scarf-viewport" style:height="{Math.floor(height)}px">
       {#if data}
         <ScarfPlotFigure
-          chartWidth={width}
-          availableHeight={height}
+          {width}
+          {height}
           data={scarfData}
           settings={effectiveSettings}
           {highlights}

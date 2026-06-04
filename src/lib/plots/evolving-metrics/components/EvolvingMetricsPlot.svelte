@@ -4,8 +4,7 @@
   import { EvolvingMetricsPlotFigure } from '$lib/plots/evolving-metrics/components'
   import { BasePlot } from '$lib/plots/shared/components'
 
-  import { getEvolvingMetricsData } from '../core'
-  import { getParticipants, getParticipantEndTime } from '$lib/data/engine'
+  import { computeEvolvingData } from '../core/view'
   import { getGazePlotterSession } from '$lib/session'
 
   import type { EvolvingMetricsItem } from '$lib/plots/evolving-metrics/types'
@@ -19,40 +18,16 @@
   const { engine } = getGazePlotterSession()
   const settings = $derived(item.settings)
 
-  const timelineMaxValue = $derived.by(() => {
-    if ((settings.timelineEnd ?? 0) > 0) return settings.timelineEnd!
-
-    const participants = getParticipants(
-      engine,
-      settings.groupId,
-      settings.stimulusId
-    )
-    return participants.reduce(
-      (max, participant) =>
-        Math.max(
-          max,
-          getParticipantEndTime(engine, settings.stimulusId, participant.id)
-        ),
-      0
-    )
-  })
-
+  // Same data derivation the export modal renders from; kept inside an effect
+  // (gated on redrawTimestamp + metadata) to match the prior recompute timing.
   let resultData = $state<EvolvingMetricsResult | null>(null)
-
   $effect(() => {
     const s = settings
-    const tMax = timelineMaxValue
     const meta = engine.metadata
     void item.redrawTimestamp
-
     if (!meta) return
-
     untrack(() => {
-      resultData = getEvolvingMetricsData(engine, {
-        ...s,
-        timelineMin: s.timelineStart ?? 0,
-        timelineMax: tMax,
-      })
+      resultData = computeEvolvingData(engine, s)
     })
   })
 </script>

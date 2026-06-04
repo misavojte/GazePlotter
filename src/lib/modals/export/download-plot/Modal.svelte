@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { Component } from 'svelte'
   import { untrack } from 'svelte'
   import { resolvePlotDefinition } from '$lib/plots/registry'
+  import type { PlotView, PlotViewContext } from '$lib/plots/definePlot'
   import {
     DEFAULT_CANVAS_EXPORT_MARGIN,
     getWorkspaceCanvasExportDimensions,
@@ -28,17 +28,24 @@
     getWorkspaceCanvasExportDimensions(item, grid.config, DEFAULT_CANVAS_EXPORT_MARGIN)
   )
 
-  // The export figure component is typed per-plot in the definition, but we
-  // resolve it generically here. The types are guaranteed to match at runtime
-  // since both item and figure come from the same plot definition.
-  const ExportFigure = $derived(
-    exportConfig?.figure as
-      | Component<{
-          item: AllGridTypes
-          engine: DataEngine
-          exportProps: PlotExportProps
-        }>
+  // Preferred path: the plot's `deriveView` yields the figure component + its
+  // data props; we render it generically with the export sizing. Both screen
+  // and export derive from the same view-model, so they can't drift. The
+  // definition is resolved generically, so deriveView is cast to a loose
+  // signature (its settings type is guaranteed to match `item` at runtime).
+  const deriveView = $derived(
+    exportConfig?.deriveView as
+      | ((engine: DataEngine, settings: unknown, ctx?: PlotViewContext) => PlotView | null)
       | undefined
+  )
+  const view = $derived(
+    deriveView
+      ? deriveView(engine, (item as { settings: unknown }).settings, {
+          gridItems: grid.items,
+          itemWidth: item.w,
+          itemHeight: item.h,
+        })
+      : null
   )
 
   // Export settings state
@@ -68,7 +75,7 @@
   })
 </script>
 
-{#if ExportFigure}
+{#if view}
   <div class="plot-export-container">
     <DownloadPlotSettings
       bind:typeOfExport
@@ -88,7 +95,14 @@
         fileType={typeOfExport}
         showDownloadButton={true}
       >
-        <ExportFigure {item} {engine} {exportProps} />
+        {@const Figure = view.component}
+        <Figure
+          {...view.props}
+          width={exportProps.width}
+          height={exportProps.height}
+          dpiOverride={exportProps.dpiOverride}
+          margins={exportProps.margins}
+        />
       </CanvasPreview>
     </Section>
   </div>

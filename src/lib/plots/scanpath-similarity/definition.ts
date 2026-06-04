@@ -1,5 +1,5 @@
 import ScanpathSimilarityPlot from './components/ScanpathSimilarityPlot.svelte'
-import ScanpathSimilarityExportFigure from './components/ScanpathSimilarityExportFigure.svelte'
+import { deriveScanpathSimilarityView } from './core/view'
 import ScanpathSimilarityPlotPaneSettings from './components/ScanpathSimilarityPlotPaneSettings.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
@@ -18,7 +18,7 @@ export const scanpathSimilarityDefinition = definePlot<
   name: 'Scanpath Similarity',
   component: ScanpathSimilarityPlot,
   paneSettings: ScanpathSimilarityPlotPaneSettings,
-  export: { figure: ScanpathSimilarityExportFigure },
+  export: { deriveView: deriveScanpathSimilarityView },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []
     const stim = getStimuliOptions(engine).find(

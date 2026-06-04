@@ -2,7 +2,7 @@
   import { getGazePlotterSession } from '$lib/session'
   import { BasePlot } from '$lib/plots/shared/components'
   import ScanpathPlotFigure from './ScanpathPlotFigure.svelte'
-  import { getScanpathData } from '../core/transformer'
+  import { getScanpathView } from '../core/view'
   import type { ScanpathPlotItem, ScanpathUnavailableReason } from '../types'
 
   interface Props {
@@ -11,14 +11,12 @@
 
   let { item }: Props = $props()
   const { engine } = getGazePlotterSession()
-  const settings = $derived(item.settings)
 
-  const result = $derived.by(() => getScanpathData(engine, settings))
+  // Same view-model the export modal renders from.
+  const view = $derived(getScanpathView(engine, item.settings))
 
   const unavailableMessage = $derived(
-    result.kind === 'unavailable'
-      ? messageForReason(result.reason)
-      : null
+    view.unavailableReason ? messageForReason(view.unavailableReason) : null
   )
 
   function messageForReason(reason: ScanpathUnavailableReason): string {
@@ -33,17 +31,11 @@
   }
 </script>
 
-<BasePlot {item} hasData={result.kind === 'ok'} {unavailableMessage}>
+<BasePlot {item} hasData={view.props !== null} {unavailableMessage}>
   {#snippet figure({ width, height })}
     <div class="figure-container">
-      {#if result.kind === 'ok'}
-        <ScanpathPlotFigure
-          data={result.data}
-          showFixationOrder={settings.showFixationOrder}
-          showNumbers={settings.showNumbers}
-          {width}
-          {height}
-        />
+      {#if view.props}
+        <ScanpathPlotFigure {...view.props} {width} {height} />
       {/if}
     </div>
   {/snippet}

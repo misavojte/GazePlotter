@@ -19,7 +19,7 @@
     canvasBlockSelect,
     FONT_PRIMARY,
     type BlockedRegion,
-    type CanvasPlotMargins,
+    type CanvasExportProps,
     type FramePointer,
     type FrameDrag,
     type LegendGeometry,
@@ -61,7 +61,9 @@
   } from '../core/renderer'
   import type { ScarfData, ScarfPlotSettings } from '../types'
 
-  interface Props {
+  // `width`/`height` are the standard total-canvas sizing props (CanvasExportProps),
+  // matching every other figure — the on-screen grid cell or the export dimensions.
+  interface Props extends CanvasExportProps {
     tooltipAreaElement: HTMLElement | SVGElement | null
     data: ScarfData
     settings: ScarfPlotSettings
@@ -76,10 +78,6 @@
     onTooltipDeactivation: () => void
     onDragStepX?: (stepChange: number) => void
     onDragEnd?: () => void
-    chartWidth: number
-    availableHeight: number
-    dpiOverride?: number | null
-    margins?: CanvasPlotMargins
   }
 
   let {
@@ -92,8 +90,8 @@
     onTooltipDeactivation = () => {},
     onDragStepX = () => {},
     onDragEnd = () => {},
-    chartWidth = 0,
-    availableHeight,
+    width = 0,
+    height,
     dpiOverride = null,
     margins = NO_MARGINS,
   }: Props = $props()
@@ -111,7 +109,7 @@
     getXAxisLabel(settings.timeline, settings.timelineStart, settings.timelineEnd)
   )
   const legendHeight = $derived(
-    calculateLegendStructuralHeight(data.legendData?.groups ?? [], chartWidth)
+    calculateLegendStructuralHeight(data.legendData?.groups ?? [], width)
   )
 
   const tickLabelHeight = $derived.by(() => {
@@ -137,7 +135,7 @@
     return xAxisHeight + legendSpace + margins.bottom + INTERNAL_PADDING_BOTTOM
   })
   const netAvailableHeight = $derived(
-    Math.max(1, availableHeight - fixedOverheadAbove - fixedOverheadBelow)
+    Math.max(1, height - fixedOverheadAbove - fixedOverheadBelow)
   )
 
   const eventOnlyLayout = $derived.by(() =>
@@ -171,7 +169,7 @@
   const plotAreaWidth = $derived(
     Math.max(
       0,
-      chartWidth - margins.left - margins.right - LEFT_LABEL_WIDTH - SCARF_LAYOUT.RIGHT_MARGIN
+      width - margins.left - margins.right - LEFT_LABEL_WIDTH - SCARF_LAYOUT.RIGHT_MARGIN
     )
   )
 
@@ -194,8 +192,8 @@
   let dragActive = false
   let lastDragX = 0
 
-  const totalWidth = $derived(chartWidth)
-  const totalHeight = $derived(availableHeight)
+  const totalWidth = $derived(width)
+  const totalHeight = $derived(height)
   const usedHighlights = $derived(highlights)
 
   const plot = usePlot({
@@ -205,7 +203,7 @@
     dpiOverride: () => dpiOverride,
     deps: () => [
       data, settings, totalWidth, totalHeight, highlights, usedHighlights,
-      chartWidth, availableHeight, dpiOverride,
+      width, height, dpiOverride,
       margins.left, margins.right, effectiveMarginTop, margins.bottom,
     ],
     placeholder: () => (canRender ? null : 'Increase height to view plot'),
@@ -234,7 +232,7 @@
 
   const effectiveMarginTop = $derived(
     calculateEffectiveMarginTop(
-      availableHeight, intrinsicContentHeight, margins.top, margins.bottom, INTERNAL_PADDING_TOP
+      height, intrinsicContentHeight, margins.top, margins.bottom, INTERNAL_PADDING_TOP
     )
   )
 
@@ -247,7 +245,7 @@
       SCARF_LEGEND_CONFIG,
       margins.left,
       legendY + effectiveMarginTop,
-      chartWidth
+      width
     )
   })
 

@@ -5,13 +5,11 @@
   import { BarPlotFigure } from '$lib/plots/bar/components'
   import { BasePlot } from '$lib/plots/shared/components'
 
-  import { getBarPlotData } from '$lib/plots/bar/core/transformer'
+  import { getBarView } from '$lib/plots/bar/core/view'
   import { barPlotValueAxisSync } from '$lib/plots/bar/core/sync.svelte'
   import { createAdaptiveTimeline } from '$lib/plots/shared'
-  import { resolveInstance } from '$lib/metrics'
 
   import type { BarPlotItem } from '$lib/plots/bar/types'
-  import { getBarPlotAxisLabel } from '$lib/plots/bar/const'
 
   interface Props {
     item: BarPlotItem
@@ -21,13 +19,9 @@
   const { engine } = getGazePlotterSession()
   const settings = $derived(item.settings)
 
-  const barPlotResult = $derived(getBarPlotData(engine, settings))
-  const labelededBarPlotData = $derived(barPlotResult.data)
-
-  const resolvedInstance = $derived(
-    resolveInstance(engine.metadata?.metricInstances ?? [], settings.metricInstanceIds[0] ?? null)
-  )
-  const syncKey = $derived(resolvedInstance?.id ?? null)
+  // Same view-model the export modal renders from; the screen adds value-axis
+  // sync (a synced timeline) on top — export never syncs.
+  const view = $derived(getBarView(engine, settings))
 
   const hasCustomScale = $derived(
     settings.scaleRange !== undefined &&
@@ -35,57 +29,30 @@
   )
 
   $effect(() => {
-    if (hasCustomScale || syncKey === null) {
+    if (hasCustomScale || view.syncKey === null) {
       barPlotValueAxisSync.clearEntry(item.id)
       return
     }
     barPlotValueAxisSync.setEntry(item.id, {
-      metricInstanceId: syncKey,
+      metricInstanceId: view.syncKey,
       w: item.w,
       h: item.h,
-      dataMax: barPlotResult.dataMax,
+      dataMax: view.dataMax,
     })
   })
   onDestroy(() => barPlotValueAxisSync.clearEntry(item.id))
 
   const timeline = $derived.by(() => {
-    const raw = barPlotResult.timeline
-    if (hasCustomScale || syncKey === null) return raw
-
-    const syncedMax = barPlotValueAxisSync.getSyncedMax(
-      syncKey,
-      item.w,
-      item.h
-    )
-    if (syncedMax <= barPlotResult.dataMax) return raw
-
+    const raw = view.props.timeline
+    if (hasCustomScale || view.syncKey === null) return raw
+    const syncedMax = barPlotValueAxisSync.getSyncedMax(view.syncKey, item.w, item.h)
+    if (syncedMax <= view.dataMax) return raw
     return createAdaptiveTimeline(raw.minValue, syncedMax, 6)
   })
-
-  const axisLabel = $derived(
-    getBarPlotAxisLabel(
-      resolvedInstance,
-      settings.timelineStart,
-      settings.timelineEnd,
-      settings.statisticalOverlay
-    )
-  )
 </script>
 
 <BasePlot {item}>
   {#snippet figure({ width, height })}
-    <BarPlotFigure
-      {width}
-      {height}
-      data={labelededBarPlotData}
-      {timeline}
-      {axisLabel}
-      barPlottingType={settings.barPlottingType}
-      barWidth={200}
-      barSpacing={20}
-      onDataHover={() => {}}
-      statisticalOverlay={settings.statisticalOverlay}
-      noMetric={barPlotResult.noMetric ?? false}
-    />
+    <BarPlotFigure {...view.props} {width} {height} {timeline} />
   {/snippet}
 </BasePlot>

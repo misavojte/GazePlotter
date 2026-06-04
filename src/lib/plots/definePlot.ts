@@ -2,7 +2,6 @@ import type { Component } from 'svelte'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import type { DataCapabilityRequirements } from '$lib/data/types'
 import type { PlotMetricContract } from '$lib/metrics'
-import type { PlotExportProps } from '$lib/modals/export/download-plot/types'
 
 export type DefaultPlotParams = {
   stimulusId?: number
@@ -29,17 +28,48 @@ export type PlotItemContract<TType extends string, TSettings> = {
 }
 
 /**
- * Declares how a plot can be exported as an image via the download modal.
- * When provided on a PlotDefinition, the generic download modal can render
- * this plot's export without a dedicated per-plot modal.
+ * A figure component + the data/config props to render it with — everything
+ * except the canvas-sizing props (`width`/`height`/`dpiOverride`/`margins`),
+ * which the host supplies (the grid for screen, the download modal for export).
+ * This is the single "what does this plot draw" view-model: the screen
+ * container and the export modal both render from it, so they can never drift.
  */
-export type PlotExportConfig<TType extends string, TSettings> = {
-  /** Component that derives plot data and renders the Figure for export. */
-  figure: Component<{
-    item: PlotItemContract<TType, TSettings>
-    engine: DataEngine
-    exportProps: PlotExportProps
-  }>
+export type PlotView = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  component: Component<any>
+  props: Record<string, unknown>
+}
+
+/**
+ * Host context for plots whose view depends on more than (engine, settings) —
+ * e.g. cross-plot timeline sync that scans sibling grid items. Most plots
+ * ignore it. Provided by the host (the grid on screen, the download modal for
+ * export) so screen and export resolve the same view.
+ */
+export type PlotViewContext = {
+  /** All workspace grid items (for cross-plot coordination). */
+  gridItems: readonly unknown[]
+  /** This plot's grid cell size, in grid units. */
+  itemWidth: number
+  itemHeight: number
+}
+
+/**
+ * Declares how a plot derives its view from (engine, settings). The generic
+ * download modal renders `deriveView(...)` directly — no per-plot export
+ * component — and the on-screen container derives from the same function.
+ */
+export type PlotExportConfig<TSettings> = {
+  /**
+   * Returns the view-model, or `null` when the plot has nothing to draw (no
+   * spatial data, no fixations) — the host then renders nothing. `ctx` carries
+   * host context for the few plots that coordinate across siblings; most ignore it.
+   */
+  deriveView: (
+    engine: DataEngine,
+    settings: TSettings,
+    ctx?: PlotViewContext
+  ) => PlotView | null
 }
 
 /**
@@ -71,7 +101,7 @@ export type PlotDefinition<
   getMinSize: (params?: TParams) => { w: number; h: number }
   requireCapabilities?: DataCapabilityRequirements
   /** Export configuration for the generic download modal. */
-  export?: PlotExportConfig<TType, TSettings>
+  export?: PlotExportConfig<TSettings>
   /**
    * Optional: the component rendered inside the workspace Pane when this
    * plot instance is selected. Receives the grid item as its prop and wires

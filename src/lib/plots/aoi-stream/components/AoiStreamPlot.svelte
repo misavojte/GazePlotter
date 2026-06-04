@@ -4,12 +4,8 @@
   import { AoiStreamPlotFigure } from '$lib/plots/aoi-stream/components'
   import { BasePlot } from '$lib/plots/shared/components'
 
-  import { getAoiStreamPlotData } from '../core'
-  import {
-    scanForDynamicRidgelineReferenceHeight,
-    scanForSynchronizedTimelineMax,
-  } from '../sync'
-  import { getParticipants, getParticipantEndTime } from '$lib/data/engine'
+  import { computeAoiStreamData } from '../core/view'
+  import { scanForDynamicRidgelineReferenceHeight } from '../sync'
   import { getGazePlotterSession } from '$lib/session'
 
   import type { AoiStreamPlotItem } from '$lib/plots/aoi-stream/types'
@@ -27,57 +23,26 @@
 
   const source = $derived.by(() => createCommandSourcePlotPattern(item, 'plot'))
 
-  const timelineMinValue = $derived.by(() => {
-    if ((settings.timelineStart ?? 0) > 0) return settings.timelineStart!
-    return settings.absoluteStimuliLimits[settings.stimulusId]?.[0] ?? 0
-  })
-
-  const timelineMaxValue = $derived.by(() => {
-    const maxValue =
-      settings.absoluteStimuliLimits[settings.stimulusId]?.[1] ?? 0
-    if ((settings.timelineEnd ?? 0) > 0) return settings.timelineEnd!
-    if (maxValue !== 0) return maxValue
-
-    const syncedMax = scanForSynchronizedTimelineMax(
-      engine,
-      grid.items,
-      item.w,
-      settings.stimulusId,
-      settings.absoluteStimuliLimits
-    )
-    if (syncedMax !== null) return syncedMax
-
-    const participants = getParticipants(
-      engine,
-      settings.groupId,
-      settings.stimulusId
-    )
-    return participants.reduce(
-      (max, participant) =>
-        Math.max(
-          max,
-          getParticipantEndTime(engine, settings.stimulusId, participant.id)
-        ),
-      0
-    )
-  })
-
+  // Same data derivation the export modal renders from — including the
+  // cross-plot timeline sync (via the grid items). Kept inside an effect
+  // (gated on redrawTimestamp + metadata) to match the prior recompute timing.
   let resultState = $state<{ data: AoiStreamPlotResult | null }>({ data: null })
 
   $effect(() => {
     const s = settings
-    const tMin = timelineMinValue
-    const tMax = timelineMaxValue
+    const gridItems = grid.items
+    const w = item.w
+    const h = item.h
     const meta = engine.metadata
     void item.redrawTimestamp
 
     if (!meta) return
 
     untrack(() => {
-      resultState.data = getAoiStreamPlotData(engine, {
-        ...s,
-        timelineMin: tMin,
-        timelineMax: tMax,
+      resultState.data = computeAoiStreamData(engine, s, {
+        gridItems,
+        itemWidth: w,
+        itemHeight: h,
       })
     })
   })

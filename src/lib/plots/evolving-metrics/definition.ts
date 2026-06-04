@@ -1,5 +1,5 @@
 import EvolvingMetricsPlot from './components/EvolvingMetricsPlot.svelte'
-import EvolvingMetricsExportFigure from './components/EvolvingMetricsExportFigure.svelte'
+import { deriveEvolvingMetricsView } from './core/view'
 import EvolvingMetricsPlotPaneSettings from './components/EvolvingMetricsPlotPaneSettings.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
@@ -17,7 +17,7 @@ export const evolvingMetricsDefinition = definePlot<
   name: 'Evolving Metrics',
   component: EvolvingMetricsPlot,
   paneSettings: EvolvingMetricsPlotPaneSettings,
-  export: { figure: EvolvingMetricsExportFigure },
+  export: { deriveView: deriveEvolvingMetricsView },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []
     const stim = getStimuliOptions(engine).find(

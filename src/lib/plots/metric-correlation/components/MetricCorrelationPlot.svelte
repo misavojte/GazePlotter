@@ -1,11 +1,8 @@
 <script lang="ts">
   import { getGazePlotterSession } from '$lib/session'
 
-  import MetricCorrelationHeatmap from './MetricCorrelationHeatmap.svelte'
-  import MetricCorrelationSplom from './MetricCorrelationSplom.svelte'
-
   import { BasePlot } from '$lib/plots/shared/components'
-  import { getMetricCorrelationData } from '../core/transformer'
+  import { deriveMetricCorrelationView } from '../core/view'
   import type { MetricCorrelationItem } from '../types'
 
   interface Props {
@@ -14,21 +11,14 @@
 
   let { item }: Props = $props()
   const { engine } = getGazePlotterSession()
-  const settings = $derived(item.settings)
 
-  const includePoints = $derived(settings.view === 'splom')
-
-  const result = $derived(
-    getMetricCorrelationData(engine, settings, { includePoints })
-  )
+  // Same view-model the export modal renders from.
+  const view = $derived(deriveMetricCorrelationView(engine, item.settings))
 </script>
 
 <BasePlot {item}>
   {#snippet figure({ width, height })}
-    {#if settings.view === 'splom'}
-      <MetricCorrelationSplom {width} {height} {result} />
-    {:else}
-      <MetricCorrelationHeatmap {width} {height} {result} />
-    {/if}
+    {@const Figure = view.component}
+    <Figure {...view.props} {width} {height} />
   {/snippet}
 </BasePlot>

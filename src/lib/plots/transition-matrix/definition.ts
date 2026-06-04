@@ -1,5 +1,5 @@
 import TransitionMatrixPlot from './components/TransitionMatrixPlot.svelte'
-import TransitionMatrixExportFigure from './components/TransitionMatrixExportFigure.svelte'
+import { deriveTransitionMatrixView } from './core/view'
 import TransitionMatrixPlotPaneSettings from './components/TransitionMatrixPlotPaneSettings.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
@@ -18,7 +18,7 @@ export const transitionMatrixDefinition = definePlot<
   name: 'Transition Matrix',
   component: TransitionMatrixPlot,
   paneSettings: TransitionMatrixPlotPaneSettings,
-  export: { figure: TransitionMatrixExportFigure },
+  export: { deriveView: deriveTransitionMatrixView },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []
     const stim = getStimuliOptions(engine).find(

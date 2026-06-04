@@ -1,5 +1,5 @@
 import MetricCorrelationPlot from './components/MetricCorrelationPlot.svelte'
-import MetricCorrelationExportFigure from './components/MetricCorrelationExportFigure.svelte'
+import { deriveMetricCorrelationView } from './core/view'
 import MetricCorrelationPlotPaneSettings from './components/MetricCorrelationPlotPaneSettings.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
@@ -17,7 +17,7 @@ export const metricCorrelationDefinition = definePlot<
   name: 'Metric Correlation',
   component: MetricCorrelationPlot,
   paneSettings: MetricCorrelationPlotPaneSettings,
-  export: { figure: MetricCorrelationExportFigure },
+  export: { deriveView: deriveMetricCorrelationView },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []
     const stim = getStimuliOptions(engine).find(
