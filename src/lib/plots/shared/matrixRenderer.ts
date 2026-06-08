@@ -53,7 +53,7 @@ export function drawMatrixGrid(
   }
 }
 
-export function drawMatrixCells(
+function drawMatrixCells(
   ctx: CanvasRenderingContext2D,
   config: MatrixRenderConfig
 ) {
@@ -72,7 +72,7 @@ export function drawMatrixCells(
   }
 }
 
-export function drawMatrixCellsText(
+function drawMatrixCellsText(
   ctx: CanvasRenderingContext2D,
   config: MatrixRenderConfig
 ) {

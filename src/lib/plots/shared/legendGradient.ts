@@ -75,16 +75,16 @@ export interface GradientLegendGeometry {
 // ============================================================================
 
 /** Gap between the title baseline and the top of the gradient bar. */
-export const GRADIENT_LEGEND_TITLE_GAP = 3
+const GRADIENT_LEGEND_TITLE_GAP = 3
 
 /** Height of the gradient colour bar itself. */
-export const GRADIENT_LEGEND_BAR_HEIGHT = 12
+const GRADIENT_LEGEND_BAR_HEIGHT = 12
 
 /** Gap between the bottom of the gradient bar and the value labels. */
-export const GRADIENT_LEGEND_LABEL_GAP = 10
+const GRADIENT_LEGEND_LABEL_GAP = 10
 
 /** Minimum available height before the legend switches to minimalist mode. */
-export const GRADIENT_LEGEND_MINIMALIST_THRESHOLD = 30
+const GRADIENT_LEGEND_MINIMALIST_THRESHOLD = 30
 
 /**
  * Compute the total vertical height the gradient legend needs in full mode
@@ -477,46 +477,4 @@ function drawRoundedRect(
   ctx.closePath()
 }
 
-/**
- * Hit test helper for legend interaction.
- */
-export function hitTestGradientLegend(
-  mouseX: number,
-  mouseY: number,
-  zones: GradientLegendInteractionZones
-): 'none' | 'gradient' | 'minValue' | 'maxValue' {
-  if (zones.minValueZone) {
-    const dx = mouseX - zones.minValueZone.x
-    const dy = mouseY - zones.minValueZone.y
-    if (
-      dx * dx + dy * dy <=
-      zones.minValueZone.radius * zones.minValueZone.radius
-    ) {
-      return 'minValue'
-    }
-  }
 
-  if (zones.maxValueZone) {
-    const dx = mouseX - zones.maxValueZone.x
-    const dy = mouseY - zones.maxValueZone.y
-    if (
-      dx * dx + dy * dy <=
-      zones.maxValueZone.radius * zones.maxValueZone.radius
-    ) {
-      return 'maxValue'
-    }
-  }
-
-  if (zones.gradientZone) {
-    if (
-      mouseX >= zones.gradientZone.x &&
-      mouseX <= zones.gradientZone.x + zones.gradientZone.width &&
-      mouseY >= zones.gradientZone.y &&
-      mouseY <= zones.gradientZone.y + zones.gradientZone.height
-    ) {
-      return 'gradient'
-    }
-  }
-
-  return 'none'
-}

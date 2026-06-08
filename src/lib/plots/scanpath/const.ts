@@ -38,14 +38,6 @@ export const SCANPATH_LAYOUT = {
 } as const
 
 /**
- * Inter-element gap that `drawPlotArea` itself bakes in between the plot edge
- * and the tick-label baseline. Re-declared here so this module's layout math
- * matches `src/lib/plots/shared/plotArea.ts:24` without a runtime coupling.
- */
-export const PLOT_AREA_TICK_LABEL_GAP_PX = PLOT_TICK_LABEL_GAP
-
-
-/**
  * Visual palette. Warm-orange fill with darker stroke is the cross-tool
  * convention (Tobii Pro Lab, BeGaze) for scanpath fixation markers.
  */

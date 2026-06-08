@@ -45,7 +45,7 @@ import type {
 } from '../types'
 import type { LegendGroup } from '$lib/plots/shared'
 
-export class Float32GrowBuffer {
+class Float32GrowBuffer {
   private buffer: Float32Array
   private writeIndex: number
 
@@ -159,7 +159,7 @@ export function getScarfParticipantBarHeight(): number {
 /**
  * Calculates the timeline range for the plot based on settings and participant data
  */
-export function calculateTimelineRange(
+function calculateTimelineRange(
   engine: DataEngine,
   participantIds: number[],
   stimulusId: number,
@@ -243,7 +243,7 @@ export function calculateTimelineRange(
 /**
  * Creates the axis breaks for the scarf plot
  */
-export function createScarfPlotAxis(
+function createScarfPlotAxis(
   engine: DataEngine,
   participantIds: number[],
   stimulusId: number,
@@ -273,7 +273,7 @@ export function createScarfPlotAxis(
  * Creates styling information for scarf plot segments.
  * Data-only: no sizing properties (heights computed in presentation layer).
  */
-export function createStylingAndLegend(
+function createStylingAndLegend(
   aoiData: readonly ExtendedInterpretedDataType[],
   noAoiTreatment: { displayedName: string; color: string },
   eventChannelData: readonly ExtendedInterpretedDataType[] = []
@@ -371,7 +371,7 @@ export function groupEventChannelsByDisplayedName(
  * When the current stimulus has no event data, always falls back to 'segments'
  * regardless of the user's setting.
  */
-export function resolveDisplayMode(
+function resolveDisplayMode(
   requested: ScarfDisplayMode | undefined,
   hasSegmented: boolean,
   stimulusHasEvents: boolean
@@ -436,7 +436,7 @@ export function assignEventDepths(events: number[]): {
 /**
  * Creates group-aware legend data from styling information.
  */
-export function createScarfLegendData(
+function createScarfLegendData(
   styling: ScarfStyling,
   hideNonFixations = false,
   displayMode: ScarfDisplayMode = 'overlay'

@@ -35,7 +35,6 @@ export const MARGIN = {
 
 export const FLOW_CURVE_TENSION = 0
 
-export const END_BIN_EPSILON = 1e-6
 export const FIXATION_CATEGORY_ID = 0
 
 export const AXIS_CONFIG = {

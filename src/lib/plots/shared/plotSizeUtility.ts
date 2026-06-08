@@ -20,7 +20,7 @@ import type { PlotDimensions } from './types'
  * @param verticalPadding Total vertical padding to subtract (top + bottom)
  * @returns Available plot dimensions in pixels
  */
-export function calculatePlotDimensions(
+function calculatePlotDimensions(
   gridWidth: number,
   gridHeight: number,
   gridConfig: GridConfig,

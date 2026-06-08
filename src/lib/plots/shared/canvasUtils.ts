@@ -43,7 +43,7 @@ export function createCanvasState(): CanvasState {
  * @param dpiOverride - Optional DPI override (for export functionality)
  * @returns Updated canvas state
  */
-export function setupCanvas(
+function setupCanvas(
   state: CanvasState,
   canvas: HTMLCanvasElement,
   dpiOverride: number | null
@@ -73,7 +73,7 @@ export function setupCanvas(
  * @param height - Desired height in CSS pixels
  * @returns Updated canvas state
  */
-export function resizeCanvas(
+function resizeCanvas(
   state: CanvasState,
   width: number,
   height: number
@@ -172,7 +172,7 @@ export function getTooltipPosition(
  * @param height - Height to set for the canvas
  * @param renderCallback - Function to call to re-render canvas
  */
-export function forceCanvasRedraw(
+function forceCanvasRedraw(
   state: CanvasState,
   width: number,
   height: number,
@@ -207,7 +207,7 @@ export function forceCanvasRedraw(
  * @param getDpiOverride - Optional DPI override getter (for export functionality)
  * @param renderCallback - Function to call to re-render canvas after update
  */
-export function updateDpiAndRect(
+function updateDpiAndRect(
   getState: () => CanvasState,
   setStateFn: (newState: CanvasState) => void,
   dpiOverride: number | null = null,
@@ -251,7 +251,7 @@ export function updateDpiAndRect(
  * @param renderCallback - Function to call to re-render canvas after update
  * @returns Cleanup function to remove event listeners
  */
-export function setupDpiChangeListeners(
+function setupDpiChangeListeners(
   getState: () => CanvasState,
   setStateFn: (newState: CanvasState) => void,
   getDpiOverride: () => number | null,
@@ -420,7 +420,7 @@ export interface CanvasLifecycleActionOptions
  * Initializes canvas state, resizes it to current layout dimensions, and attaches DPI listeners.
  * Returns a cleanup function for the listeners.
  */
-export function mountCanvasLifecycle(
+function mountCanvasLifecycle(
   options: CanvasLifecycleOptions
 ): () => void {
   if (!browser) return () => {}

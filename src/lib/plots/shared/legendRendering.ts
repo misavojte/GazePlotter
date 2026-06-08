@@ -240,7 +240,7 @@ const MAX_GUTTER_FRACTION = 0.45
  * @param config - Legend configuration
  * @param avgTextWidth - Average text width estimate
  */
-export function getLegendItemsPerRow(
+function getLegendItemsPerRow(
   availableWidth: number,
   config: LegendConfig,
   avgTextWidth: number = 90,

@@ -26,7 +26,7 @@ export interface RenderBuckets {
 /**
  * Initialize or reallocate render buckets when binCount or seriesCount changes.
  */
-export function ensureRenderBuckets(
+function ensureRenderBuckets(
   renderBuckets: RenderBuckets | null,
   binCount: number,
   seriesCount: number

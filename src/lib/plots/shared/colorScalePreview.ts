@@ -67,14 +67,3 @@ export function buildValueRangePatch(
   return ranges
 }
 
-/**
- * Derive the effective color scale from draft fields.
- * Optimizes to 2-element when middle is the auto-interpolated value.
- */
-export function deriveEffectiveColorScale(
-  draft: ColorScaleFields
-): string[] {
-  const autoMiddle = interpolateColor(draft.colorMin, draft.colorMax, 0.5)
-  if (draft.colorMiddle === autoMiddle) return [draft.colorMin, draft.colorMax]
-  return [draft.colorMin, draft.colorMiddle, draft.colorMax]
-}

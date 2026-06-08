@@ -232,7 +232,7 @@ function applySorting(
   )
 }
 
-export function computeSummaryStatistics(
+function computeSummaryStatistics(
   values: number[]
 ): AoiSummaryStatistics {
   const empty: AoiSummaryStatistics = {

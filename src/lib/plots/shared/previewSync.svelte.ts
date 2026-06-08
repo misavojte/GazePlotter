@@ -136,25 +136,3 @@ export class PreviewModel<
   }
 }
 
-/**
- * Creates a standard handleMenuClose callback for plot components.
- * Builds a patch from preview state, commits it via workspace, then resets.
- */
-export function createMenuCloseHandler<TFields extends PreviewFields, TPatch extends object>(
-  preview: PreviewModel<TFields, TPatch>,
-  commit: (patch: TPatch) => void
-): () => void {
-  return () => {
-    untrack(() => {
-      const updates = preview.buildPatch()
-
-      if (!updates || Object.keys(updates).length === 0) {
-        preview.resetAll()
-        return
-      }
-
-      commit($state.snapshot(updates) as TPatch)
-      preview.resetAll()
-    })
-  }
-}

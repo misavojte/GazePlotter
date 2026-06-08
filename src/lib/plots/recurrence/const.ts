@@ -32,12 +32,6 @@ export const RECURRENCE_MASKINGS: {
   { value: 'diagonalLower', label: 'Diagonal + lower' },
 ]
 
-export const RECURRENCE_DEFAULTS = {
-  radius: 50,
-  gridSize: 10,
-  minLineLength: 2,
-} as const
-
 export const RECURRENCE_LAYOUT = {
   leftMargin: 30,
   rightMargin: 10,
