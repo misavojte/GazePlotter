@@ -5,6 +5,7 @@ import type {
   ScanpathPlotSettings,
   ScanpathTransformResult,
 } from '../types'
+import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
 
 /**
  * Collects a single participant's fixation sequence on a stimulus.
@@ -34,7 +35,7 @@ export function getScanpathData(
   const fixations: ScanpathFixation[] = []
 
   for (let i = startIndex; i < endIndex; i++) {
-    if (reader.getSegmentCategory(i) !== 0) continue
+    if (reader.getSegmentCategory(i) !== FIXATION_CATEGORY_ID) continue
     anyFixation = true
 
     const spatial = reader.getSegmentSpatial(i)

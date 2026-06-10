@@ -2,6 +2,7 @@ import {
   type BinarySegmentBuffers,
   SEGMENT_STRIDE,
   SegmentField,
+  FIXATION_CATEGORY_ID,
 } from './schema'
 
 /**
@@ -237,7 +238,7 @@ function buildFixationIndex(
       const startIndex = indexTable[idx]
       const endIndex = indexTable[idx + 1]
       for (let i = startIndex; i < endIndex; i++) {
-        if ((segmentBuffer[i * SEGMENT_STRIDE + SegmentField.CATEGORY_ID] | 0) === 0) {
+        if ((segmentBuffer[i * SEGMENT_STRIDE + SegmentField.CATEGORY_ID] | 0) === FIXATION_CATEGORY_ID) {
           total++
         }
       }
@@ -255,7 +256,7 @@ function buildFixationIndex(
       const endIndex = indexTable[idx + 1]
       const fixStart = cursor
       for (let i = startIndex; i < endIndex; i++) {
-        if ((segmentBuffer[i * SEGMENT_STRIDE + SegmentField.CATEGORY_ID] | 0) === 0) {
+        if ((segmentBuffer[i * SEGMENT_STRIDE + SegmentField.CATEGORY_ID] | 0) === FIXATION_CATEGORY_ID) {
           fixationIndex[cursor++] = i
         }
       }

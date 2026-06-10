@@ -2,6 +2,7 @@ import { getParticipant, getSegment } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import { updateTooltip } from '$lib/tooltip'
 import type { ScarfTooltipData } from '$lib/plots/scarf/types'
+import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
 
 /**
  * Service function to fill the tooltip with data.
@@ -34,7 +35,7 @@ export const tooltipScarfService = (
     },
     { key: 'Category', value: segment.category.displayedName },
   ]
-  if (segment.category.displayedName === 'Fixation') {
+  if (segment.category.id === FIXATION_CATEGORY_ID) {
     content.push({ key: 'AOI', value: aoi })
   }
   const start = segment.start.toFixed(1)

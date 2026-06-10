@@ -2,6 +2,7 @@ import {
   type BinarySegmentBuffers,
   SEGMENT_STRIDE,
   SegmentField,
+  FIXATION_CATEGORY_ID,
 } from './schema'
 import { BinaryBufferReader } from './reader.segment'
 
@@ -51,7 +52,7 @@ export function jsonSegmentsToBinary(
       for (const segment of participantSegments) {
         const aoiCount = Math.max(0, segment.length - 3)
         totalAois += aoiCount
-        if ((segment[2] | 0) === 0) totalFixations++
+        if ((segment[2] | 0) === FIXATION_CATEGORY_ID) totalFixations++
       }
     }
   }
@@ -108,7 +109,7 @@ export function jsonSegmentsToBinary(
           }
         }
 
-        if ((categoryId | 0) === 0) {
+        if ((categoryId | 0) === FIXATION_CATEGORY_ID) {
           fixationIndex[fixationCursor++] = segmentIndex
         }
 

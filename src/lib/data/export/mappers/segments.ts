@@ -1,5 +1,5 @@
 import { type DataType } from '$lib/data/types'
-import { AoiGroupReader, BinaryBufferReader } from '$lib/data/binary'
+import { AoiGroupReader, BinaryBufferReader, FIXATION_CATEGORY_ID } from '$lib/data/binary'
 import { getAoiRaw } from '$lib/data/engine/utils/interpreters'
 import {
   type CsvFormatOptions,
@@ -69,7 +69,7 @@ function convertDataStructure(
         const end = reader.getSegmentEnd(segmentIndex)
         const category = reader.getSegmentCategory(segmentIndex)
 
-        if (filterFixations && category !== 0) return
+        if (filterFixations && category !== FIXATION_CATEGORY_ID) return
 
         const aoiCount = aoiGroupReader.getSegmentAoisIntoUniqueTyped(
           segmentIndex,

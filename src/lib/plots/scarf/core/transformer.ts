@@ -16,6 +16,7 @@ import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import {
   SegmentField,
   SEGMENT_STRIDE,
+  FIXATION_CATEGORY_ID,
   type ExtendedInterpretedDataType,
 } from '$lib/data/types'
 import {
@@ -688,7 +689,7 @@ export function transformDataToScarfPlot(
       const x = (start - clipMin) * scale
       const width = (end - start) * scale
 
-      if (categoryId !== 0) {
+      if (categoryId !== FIXATION_CATEGORY_ID) {
         if (settings.hideNonFixations) continue
 
         rectBuckets[

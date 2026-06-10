@@ -1,6 +1,7 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import type { RecurrenceData, RecurrenceMethod, FixationRecord } from '../types'
 import { computeRqa, computeRqaWithDuration } from '$lib/metrics/core/rqa'
+import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
 
 /**
  * Collect fixation records for a single participant on a stimulus.
@@ -33,7 +34,7 @@ export function collectFixations(
   const hasUpperBound = timeEnd > 0
 
   for (let segIdx = startIndex; segIdx < endIndex; segIdx++) {
-    if (reader.getSegmentCategory(segIdx) !== 0) continue
+    if (reader.getSegmentCategory(segIdx) !== FIXATION_CATEGORY_ID) continue
 
     const segStart = reader.getSegmentStart(segIdx)
     if (segStart < timeStart) continue

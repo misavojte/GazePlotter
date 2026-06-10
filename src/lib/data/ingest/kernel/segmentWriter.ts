@@ -1,4 +1,4 @@
-import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary'
+import { SEGMENT_STRIDE, SegmentField, FIXATION_CATEGORY_ID } from '$lib/data/binary'
 import type { DataType } from '$lib/data/types'
 import { DEFAULT_NO_AOI_TREATMENT } from '$lib/data/types'
 import { createDefaultMetricInstances } from '$lib/metrics/instances'
@@ -259,7 +259,7 @@ export class SegmentWriter {
     const aoiBytes = row.aoi
       ? row.aoi.map(a => encodeString(a, this.encoding))
       : null
-    const cat = row.category.charCodeAt(0) === 70 ? 0 : 1
+    const cat = row.category.charCodeAt(0) === 70 ? FIXATION_CATEGORY_ID : 1
     const start = Number(row.start)
     const end = Number(row.end)
     this.addSegmentBytes(start, end, cat, stimBytes, participantBytes, aoiBytes)

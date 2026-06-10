@@ -3,6 +3,7 @@ import { buildAoiSlots } from './aoiSlots'
 import { resolveParams } from './params'
 import { getRecipe } from './defineMetric'
 import type { MetricInstance } from '../instances'
+import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
 
 /**
  * Consumer-facing helpers for fixation-windowed metrics.
@@ -49,7 +50,7 @@ export function extractFixationSequence(
   const endTimestamps: number[] = []
   const aoiSet = new Set<number>()
   for (let i = startIndex; i < endIndex; i++) {
-    if (reader.getSegmentCategory(i) !== 0) continue
+    if (reader.getSegmentCategory(i) !== FIXATION_CATEGORY_ID) continue
     aoiSet.clear()
     const rawAois = reader.getRawAois(i)
     for (let r = 0; r < rawAois.length; r++) {

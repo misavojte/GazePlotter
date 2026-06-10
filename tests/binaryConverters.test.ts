@@ -12,6 +12,7 @@ import {
   createReaderFromJson,
 } from '../src/lib/data/binary/converters'
 import { BinaryBufferReader } from '../src/lib/data/binary/reader.segment'
+import { FIXATION_CATEGORY_ID } from '../src/lib/data/binary/schema'
 
 describe('Binary Converters Roundtrip', () => {
   it('should handle empty segments', () => {
@@ -204,7 +205,7 @@ describe('Binary Converters Roundtrip', () => {
     const range = reader.getSegmentRange(0, 0)
     expect(reader.getSegmentStart(range.startIndex)).toBe(0)
     expect(reader.getSegmentEnd(range.startIndex)).toBe(100)
-    expect(reader.getSegmentCategory(range.startIndex)).toBe(0)
+    expect(reader.getSegmentCategory(range.startIndex)).toBe(FIXATION_CATEGORY_ID)
     expect(reader.getSegmentAoiCount(range.startIndex)).toBe(1)
 
     // Check second segment
@@ -364,7 +365,7 @@ describe('Binary Converters Roundtrip', () => {
       const CAT = 2
       for (let k = 0; k < fi.length; k++) {
         const i = fi[k]
-        expect(sb[i * STRIDE + CAT] | 0).toBe(0)
+        expect(sb[i * STRIDE + CAT] | 0).toBe(FIXATION_CATEGORY_ID)
       }
     })
 

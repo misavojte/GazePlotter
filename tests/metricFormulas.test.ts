@@ -831,7 +831,7 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
 
   it('REAL READER: non-zero category segments are skipped (saccades between fixations)', () => {
     // Sequence: AOI1 (fix), saccade (cat=1, with AOI 99), AOI1 (fix), saccade, NoAoi (fix), saccade, NoAoi (fix)
-    // Saccades MUST be skipped at runtime.ts:360 (getSegmentCategory !== 0 continue).
+    // Saccades MUST be skipped (getSegmentCategory !== FIXATION_CATEGORY_ID continue).
     // Expected fixation-mode transitions from the surviving fixations [AOI1, AOI1, _, _]:
     //   AOI1 → AOI1 (1)
     //   AOI1 → outside (1)

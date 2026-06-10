@@ -10,6 +10,8 @@
  */
 export const SEGMENT_STRIDE = 6 as const // Fields per segment in master buffer
 
+export const FIXATION_CATEGORY_ID = 0 as const // Category ID reserved for fixations
+
 /**
  * Indices for segment fields in the master buffer (stride = 6)
  */

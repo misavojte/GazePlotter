@@ -3,6 +3,8 @@ import {
   GRIDLINE_SECONDARY,
   GRIDLINE_PRIMARY,
 } from '$lib/plots/shared/const'
+import { FIXATION_CATEGORY_ID } from '$lib/data/binary/schema'
+export { FIXATION_CATEGORY_ID }
 
 // Default ridge scale factor (equivalent to overlap ~60%)
 export const RIDGELINE_SCALE = 2.5
@@ -34,8 +36,6 @@ export const MARGIN = {
 }
 
 export const FLOW_CURVE_TENSION = 0
-
-export const FIXATION_CATEGORY_ID = 0
 
 export const AXIS_CONFIG = {
   tickLength: 5,

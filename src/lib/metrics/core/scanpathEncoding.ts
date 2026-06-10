@@ -1,5 +1,6 @@
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
+import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
 
 /**
  * Encode one participant's fixation sequence as an AOI-letter scanpath.
@@ -46,7 +47,7 @@ export function collectScanpath(
   )
 
   for (let segIdx = startIndex; segIdx < endIndex; segIdx++) {
-    if (reader.getSegmentCategory(segIdx) !== 0) continue
+    if (reader.getSegmentCategory(segIdx) !== FIXATION_CATEGORY_ID) continue
 
     const segStart = reader.getSegmentStart(segIdx)
     if (segStart < timeStart) continue

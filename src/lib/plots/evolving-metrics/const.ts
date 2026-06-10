@@ -3,8 +3,8 @@ import {
   GRIDLINE_SECONDARY,
   GRIDLINE_PRIMARY,
 } from '$lib/plots/shared/const'
-
-export const FIXATION_CATEGORY_ID = 0
+import { FIXATION_CATEGORY_ID } from '$lib/data/binary/schema'
+export { FIXATION_CATEGORY_ID }
 
 export const MARGIN = {
   TOP: 5,
