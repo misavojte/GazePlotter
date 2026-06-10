@@ -1,19 +1,26 @@
-import { EyePipeline } from './stream/Pipeline'
-import { PupilCloudPipeline } from './batch/PupilPipeline'
-import type { EyeSettingsType } from './types'
-import type { DataType } from '../types'
+import { IngestJob } from './kernel/job'
+import type { IngestContext } from './kernel/context'
+import type { IngestResult } from './kernel/result'
+import { bufferSource, streamSource } from './kernel/source'
+import { FORMAT_REGISTRY } from './formats/registry'
 
 /**
- * A worker file handling whole eyefiles processing.
- * It is a separate file to avoid blocking the main thread.
+ * Worker message bridge — the ONLY code that knows about postMessage.
+ * Translates inbound file messages into `IngestSource`s for one
+ * `IngestJob`, and the job's callbacks into outbound messages.
+ *
+ * Inbound:  'file-names' | 'test-stream' | 'stream' | 'buffer' |
+ *           'zip-buffer' | 'prompt-response'
+ * Outbound: 'progress' { processedBytes }
+ *           'prompt'   { promptId, payload }
+ *           'done'     { result: IngestResult }  (binary buffers transferred)
+ *           'fail'     { data: Error }
  */
 
+let job: IngestJob | null = null
 let fileNames: string[] = []
-let pipeline: EyePipeline | null = null
-let pupilCloudPipeline: PupilCloudPipeline | null = null
-let streams: ReadableStream[] = []
-let zipBuffers: ArrayBuffer[] = []
-let userInputResolver: (value: string) => void
+let nextSourceIndex = 0
+let promptResolver: ((value: string) => void) | null = null
 let processedBytes = 0
 let lastProgressMessageAt = 0
 
@@ -31,20 +38,6 @@ const isReadableStream = (data: unknown): data is ReadableStream => {
   return typeof (data as ReadableStream).getReader === 'function'
 }
 
-const requestUserInput = (): Promise<string> => {
-  self.postMessage({ type: 'request-user-input' })
-  return new Promise(resolve => {
-    userInputResolver = resolve
-  })
-}
-
-type PipelineResult = { data: DataType; settings: EyeSettingsType }
-
-const resetProgressState = (): void => {
-  processedBytes = 0
-  lastProgressMessageAt = 0
-}
-
 const postProgressMessage = (force = false): void => {
   const now = Date.now()
   if (!force && now - lastProgressMessageAt < PROGRESS_MESSAGE_INTERVAL_MS) {
@@ -55,157 +48,108 @@ const postProgressMessage = (force = false): void => {
   self.postMessage({ type: 'progress', processedBytes })
 }
 
-const recordProcessedBytes = (byteLength: number, force = false): void => {
-  if (!Number.isFinite(byteLength) || byteLength <= 0) return
-  processedBytes += byteLength
-  postProgressMessage(force)
+const ctx: IngestContext = {
+  prompt(promptId, payload) {
+    self.postMessage({ type: 'prompt', promptId, payload })
+    return new Promise<string>(resolve => {
+      promptResolver = resolve
+    })
+  },
+  reportBytes(byteLength, force = false) {
+    if (!Number.isFinite(byteLength) || byteLength <= 0) return
+    processedBytes += byteLength
+    postProgressMessage(force)
+  },
 }
 
-const resetZipState = (): void => {
-  zipBuffers = []
-  fileNames = []
-  pupilCloudPipeline = null
+const nextSourceName = (): string => {
+  const name = fileNames[nextSourceIndex]
+  if (name === undefined) throw new Error('File name is undefined')
+  nextSourceIndex++
+  return name
 }
 
-const postDoneMessage = (dataWithSettings: PipelineResult): void => {
-  const { data } = dataWithSettings
+const postDoneMessage = (result: IngestResult): void => {
   postProgressMessage(true)
   // Transfer large binary buffers to avoid costly copies
   const transferBuffers = [
-    data.segments.segmentBuffer.buffer,
-    data.segments.indexTable.buffer,
-    data.segments.aoiPool.buffer,
+    result.data.segments.segmentBuffer.buffer,
+    result.data.segments.indexTable.buffer,
+    result.data.segments.aoiPool.buffer,
   ]
 
-  self.postMessage(
-    {
-      type: 'done',
-      data,
-      classified: dataWithSettings.settings,
-    },
-    { transfer: transferBuffers }
-  )
+  self.postMessage({ type: 'done', result }, { transfer: transferBuffers })
 }
+
+const handleJobResult = (result: IngestResult | null): void => {
+  if (result === null) return
+  job = null
+  fileNames = []
+  nextSourceIndex = 0
+  postDoneMessage(result)
+}
+
 self.onmessage = async e => await processEvent(e)
 
 async function processEvent(e: MessageEvent): Promise<void> {
-  const { data, type } = e.data
+  const { data, type, promptId: _promptId, ...rest } = e.data
+  void rest
   try {
     switch (type) {
-      case 'file-names':
+      case 'file-names': {
         if (!isStringArray(data)) throw new Error('File names are not string[]')
         fileNames = data
-        resetProgressState()
-        // Check if files are ZIP files (Pupil Cloud) or regular eye-tracking files
-        const isZipFiles = fileNames.some(name =>
-          name.toLowerCase().endsWith('.zip')
-        )
-        if (isZipFiles) {
-          pupilCloudPipeline = new PupilCloudPipeline(fileNames)
-        } else {
-          pipeline = new EyePipeline(fileNames, requestUserInput, byteLength =>
-            recordProcessedBytes(byteLength)
-          )
-        }
+        nextSourceIndex = 0
+        processedBytes = 0
+        lastProgressMessageAt = 0
+        job = new IngestJob(fileNames, FORMAT_REGISTRY, ctx)
         return
+      }
       case 'test-stream':
         if (!isReadableStream(data))
           throw new Error('Stream is not ReadableStream')
         return
-      case 'stream':
-        return await evalStream(data)
-      case 'buffer':
-        return await evalBuffer(data)
-      case 'zip-buffer':
-        return await evalZipBuffer(data)
-      case 'user-input':
-        return userInputResolver(data)
+      case 'stream': {
+        if (!isReadableStream(data))
+          throw new Error('Stream is not ReadableStream')
+        if (job === null) throw new Error('Ingest job is not initialized')
+        handleJobResult(await job.add(streamSource(nextSourceName(), data)))
+        return
+      }
+      case 'buffer': {
+        if (job === null) throw new Error('Ingest job is not initialized')
+        handleJobResult(
+          await job.add(
+            bufferSource(nextSourceName(), new Uint8Array(data as ArrayBuffer))
+          )
+        )
+        return
+      }
+      case 'zip-buffer': {
+        const { buffer, zipName } = data as {
+          buffer: ArrayBuffer
+          zipName: string
+        }
+        if (job === null) throw new Error('Ingest job is not initialized')
+        // Advance the name cursor — zip buffers arrive in fileNames order too.
+        nextSourceName()
+        handleJobResult(
+          await job.add(bufferSource(zipName, new Uint8Array(buffer)))
+        )
+        return
+      }
+      case 'prompt-response': {
+        if (promptResolver === null)
+          throw new Error('No pending ingest prompt to resolve')
+        const resolve = promptResolver
+        promptResolver = null
+        resolve(typeof data === 'string' ? data : '')
+        return
+      }
       default:
         throw new Error('Unknown const type in worker', data)
     }
   } catch (error) {
     self.postMessage({ type: 'fail', data: error })
   }
-}
-
-/**
- * Converts ArrayBuffer to ReadableStream and passes it to evalStream
- * @param buffer - The buffer to convert.
- */
-const evalBuffer = async (buffer: ArrayBuffer): Promise<void> => {
-  const chunkSize = 1024 * 1024
-  const chunks = Math.ceil(buffer.byteLength / chunkSize)
-  const stream = new ReadableStream({
-    start(controller) {
-      for (let i = 0; i < chunks; i++) {
-        const start = i * chunkSize
-        const end = Math.min(start + chunkSize, buffer.byteLength)
-        controller.enqueue(new Uint8Array(buffer.slice(start, end)))
-      }
-      controller.close()
-    },
-  })
-  await evalStream(stream)
-}
-
-/**
- * Adds a new stream to the pipeline and processes it if all streams are present.
- * @param rs - The stream to add.
- */
-const evalStream = async (rs: ReadableStream): Promise<void> => {
-  if (pipeline === null) throw new Error('Pipeline is not initialized')
-  if (fileNames.length === 0) throw new Error('No files to process')
-  streams.push(rs)
-  // if have everything, process
-  if (streams.length === fileNames.length) {
-    for (const stream of streams) {
-      const dataWithSettings = await pipeline.addNewStream(stream)
-      if (dataWithSettings !== null) {
-        postDoneMessage(dataWithSettings)
-        streams = []
-        fileNames = []
-      }
-    }
-  }
-}
-
-/**
- * Handles ZIP buffer processing for Pupil Cloud files.
- * Accumulates buffers and processes them sequentially when all are received.
- * @param data - Object containing buffer and zipName
- */
-const evalZipBuffer = async (data: unknown): Promise<void> => {
-  const { buffer } = data as { buffer: ArrayBuffer; zipName: string }
-
-  if (pupilCloudPipeline === null)
-    throw new Error('Pupil Cloud pipeline is not initialized')
-  if (fileNames.length === 0) throw new Error('No files to process')
-
-  zipBuffers.push(buffer)
-
-  // Process all ZIPs when we have received them all
-  if (zipBuffers.length !== fileNames.length) {
-    return
-  }
-
-  // Process each ZIP sequentially once all ZIP inputs are present.
-  for (let i = 0; i < zipBuffers.length; i++) {
-    const dataWithSettings = await pupilCloudPipeline.addNewZip(
-      new Uint8Array(zipBuffers[i]),
-      fileNames[i]
-    )
-    recordProcessedBytes(zipBuffers[i].byteLength, true)
-    // Only the last ZIP should return the accumulated result.
-    if (dataWithSettings !== null) {
-      postDoneMessage(dataWithSettings)
-      resetZipState()
-      return
-    }
-  }
-
-  const processedZipNames = fileNames.join(', ')
-  resetZipState()
-  throw new Error(
-    `Pupil Cloud ZIP processing completed without producing final data for: ${processedZipNames}`
-  )
 }

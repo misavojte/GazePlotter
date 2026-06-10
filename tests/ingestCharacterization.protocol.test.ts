@@ -2,23 +2,26 @@
  * CHARACTERIZATION TESTS — worker message protocol.
  *
  * Phase 0 of the ingest v2 refactor. Drives the REAL worker module (real
- * pipeline, real classifier, real writer — nothing mocked) through its
- * postMessage protocol and pins:
+ * job, real registry, real writer — nothing mocked) through its postMessage
+ * protocol and pins:
  *   - the inbound message types it accepts ('file-names', 'buffer', 'stream',
- *     'zip-buffer', 'user-input'),
- *   - the outbound sequence (progress* → done) and payload shape,
+ *     'zip-buffer', 'prompt-response'),
+ *   - the outbound sequence (progress* → done) and payload shape
+ *     ('done' carries an IngestResult envelope),
  *   - binary buffers are TRANSFERRED (not copied) on 'done',
- *   - the 'request-user-input' round trip for tobii-with-event,
- *   - routing-by-extension to the Pupil Cloud zip pipeline,
+ *   - the 'prompt' round trip for tobii-with-event,
+ *   - routing-by-extension to the Pupil Cloud zip format,
  *   - failures surface as a 'fail' message carrying the original Error.
  *
- * Phase 4 of the refactor intentionally replaces 'request-user-input' with a
- * generic 'prompt' message — when that lands, THIS file is updated in the
- * same commit. Until then, this is the contract.
+ * Phase 4 of the refactor intentionally replaced 'request-user-input' with
+ * the generic 'prompt' message and the {data, classified} done payload with
+ * the IngestResult envelope; the pins below changed in that same commit.
+ * Everything pinned through the envelope (settings values, dataset digests,
+ * error strings, transfer list) is unchanged from the Phase 0 originals.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { testMobileTsvData } from './TobiiAdapter.test.data'
+import { testMobileTsvData } from './TobiiRowParser.test.data'
 
 type Posted = { message: any; options?: { transfer?: unknown[] } }
 
@@ -60,7 +63,7 @@ describe('worker protocol', () => {
     vi.resetModules()
   })
 
-  it("csv buffer: emits progress then 'done' with data + classified, transferring binary buffers", async () => {
+  it("csv buffer: emits progress then 'done' with an IngestResult envelope, transferring binary buffers", async () => {
     await send('file-names', ['data.csv'])
     expect(posted).toEqual([]) // file-names is acknowledged silently
 
@@ -72,7 +75,8 @@ describe('worker protocol', () => {
     expect(types.filter(t => t === 'progress').length).toBeGreaterThan(0)
 
     const done = posted[posted.length - 1]
-    expect(done.message.classified).toEqual({
+    expect(done.message.result.kind).toBe('dataset')
+    expect(done.message.result.settings).toEqual({
       type: 'csv',
       rowDelimiter: '\n',
       columnDelimiter: ',',
@@ -80,43 +84,43 @@ describe('worker protocol', () => {
       userInputSetting: '',
       headerRowId: 0,
     })
-    expect(done.message.data.stimuli.data).toEqual([['Map_A']])
-    expect(done.message.data.participants.data).toEqual([['P1']])
+    expect(done.message.result.data.stimuli.data).toEqual([['Map_A']])
+    expect(done.message.result.data.participants.data).toEqual([['P1']])
 
     // The three binary buffers ride the transfer list (zero-copy contract).
     expect(done.options?.transfer).toHaveLength(3)
     expect(done.options?.transfer).toContain(
-      done.message.data.segments.segmentBuffer.buffer
+      done.message.result.data.segments.segmentBuffer.buffer
     )
     expect(done.options?.transfer).toContain(
-      done.message.data.segments.indexTable.buffer
+      done.message.result.data.segments.indexTable.buffer
     )
     expect(done.options?.transfer).toContain(
-      done.message.data.segments.aoiPool.buffer
+      done.message.result.data.segments.aoiPool.buffer
     )
   })
 
-  it("tobii-with-event: 'request-user-input' round trip completes with the user's setting", async () => {
+  it("tobii-with-event: 'prompt' round trip completes with the user's setting", async () => {
     await send('file-names', ['tobii.tsv'])
 
     const processing = send('buffer', toBuffer(testMobileTsvData))
 
     await vi.waitFor(() => {
-      expect(
-        posted.some(p => p.message.type === 'request-user-input')
-      ).toBe(true)
+      expect(posted.some(p => p.message.type === 'prompt')).toBe(true)
     })
+    const prompt = posted.find(p => p.message.type === 'prompt')
+    expect(prompt!.message.promptId).toBe('tobii-parsing-input')
     // Worker is now suspended awaiting the answer; deliver it.
-    await send('user-input', 'IntervalStart;IntervalEnd')
+    await send('prompt-response', 'IntervalStart;IntervalEnd')
     await processing
 
     const done = posted.find(p => p.message.type === 'done')
     expect(done).toBeDefined()
-    expect(done!.message.classified.type).toBe('tobii-with-event')
-    expect(done!.message.classified.userInputSetting).toBe(
+    expect(done!.message.result.settings.type).toBe('tobii-with-event')
+    expect(done!.message.result.settings.userInputSetting).toBe(
       'IntervalStart;IntervalEnd'
     )
-    expect(done!.message.data.stimuli.data).toEqual([['geostul_snap']])
+    expect(done!.message.result.data.stimuli.data).toEqual([['geostul_snap']])
   })
 
   it("unclassifiable content surfaces as a 'fail' message with the original error", async () => {
@@ -129,7 +133,25 @@ describe('worker protocol', () => {
     expect((fail!.message.data as Error).message).toBe('Unknown file type')
   })
 
-  it(".zip file names route to the Pupil Cloud pipeline (extension-based fork) and bad zips 'fail'", async () => {
+  it('WORKSPACE PRECEDENCE: a leading .json claims the job; the other sources are never parsed', async () => {
+    // The historical first-file-wins JSON rule, now an explicit policy in
+    // IngestJob. '{}' is routed to the workspace format BY FILE NAME (it
+    // fails there as an invalid workspace) — content detection never runs,
+    // and the perfectly valid csv that follows is never parsed. If the
+    // precedence rule broke, this upload would either produce 'done' (csv
+    // parsed) or fail with 'Unknown file type' (json content-detected).
+    await send('file-names', ['workspace.json', 'data.csv'])
+    await send('buffer', toBuffer('{}'))
+    await send('buffer', toBuffer(csvContent))
+
+    expect(posted.some(p => p.message.type === 'done')).toBe(false)
+    const fail = posted.find(p => p.message.type === 'fail')
+    expect(fail).toBeDefined()
+    expect(fail!.message.data).toBeInstanceOf(Error)
+    expect((fail!.message.data as Error).message).not.toBe('Unknown file type')
+  })
+
+  it(".zip file names route to the Pupil Cloud format (file-name claim) and bad zips 'fail'", async () => {
     await send('file-names', ['recording.zip'])
     await send('zip-buffer', {
       buffer: toBuffer('this is not a zip archive'),

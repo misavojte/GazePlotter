@@ -2,16 +2,19 @@
  * CHARACTERIZATION TESTS — IngestService file routing.
  *
  * Phase 0 of the ingest v2 refactor. Pins how the main-thread service
- * decides WHERE each uploaded file goes today:
+ * decides WHERE each uploaded file goes:
  *   - .xml / event-CSV files are separated from eye-tracking files,
- *   - a leading .json file short-circuits to the workspace path and the
- *     remaining files are silently ignored (first-file-wins),
+ *   - everything else (workspace JSON included, since Phase 4) is dispatched
+ *     to the worker; the first-file-wins JSON rule became the explicit
+ *     workspace-precedence policy inside IngestJob (pinned at the worker
+ *     protocol level in ingestCharacterization.protocol.test.ts),
  *   - event-only uploads with no CSV event file fail with a specific message,
  *   - standalone CSV event files build an event-only dataset,
- *   - a worker 'done' message becomes a version-4 ParsedData envelope.
+ *   - a worker 'done' IngestResult envelope becomes a version-4 ParsedData
+ *     envelope.
  *
- * The v2 IngestJob must reproduce these outcomes (the first-file-wins JSON
- * rule becomes an explicit workspace-precedence rule with the same result).
+ * User-facing outcomes (toasts, error envelopes, metadata) are unchanged
+ * from the Phase 0 pins.
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -146,26 +149,36 @@ describe('IngestService routing', () => {
     expect(fileNames?.data).toEqual(['data.csv'])
   })
 
-  it('first-file-wins: a leading .json routes to the workspace path and other files are ignored', async () => {
-    const { service, report, posted } = loadHarness()
-    // Plain '{}' is valid JSON but not a Tobii event file, so it stays an
-    // "eye file"; the service then sees extension json on the FIRST file and
-    // takes the workspace path. The csv is never dispatched anywhere.
+  it('first-file-wins: a leading .json upload streams to the worker; a worker fail surfaces as the pinned error', async () => {
+    // Phase 4 moved workspace JSON parsing into the worker: the service now
+    // streams EVERY file (json included) and the first-file-wins rule lives
+    // in IngestJob as the explicit workspace-precedence policy (pinned at
+    // the worker protocol level). What the service still owns — and what
+    // this test pins — is dispatch (all files reach the worker) and the
+    // unchanged user-facing failure envelope.
+    const { service, report, posted, workerInstances } = loadHarness()
     const json = fakeFile('workspace.json', '{}')
     const csv = fakeFile('data.csv', gazeCsv)
 
-    const result = await service.loadFiles(createFileList([json, csv]))
+    const resultPromise = service.loadFiles(createFileList([json, csv]))
 
-    expect(result).toBe(false)
+    await vi.waitFor(() => {
+      expect(posted.filter(m => m.type === 'stream').length).toBe(2)
+    })
+    const fileNames = posted.find(m => m.type === 'file-names')
+    expect(fileNames?.data).toEqual(['workspace.json', 'data.csv'])
+
+    // The real worker rejects '{}' (not a valid workspace); simulate it.
+    workerInstances[0].onmessage?.({
+      data: { type: 'fail', data: new Error('Invalid workspace file') },
+    })
+
+    await expect(resultPromise).resolves.toBe(false)
     expect(report).toHaveBeenCalledWith(
       expect.objectContaining({
         userMessage: expect.stringMatching(/^Could not process the file: /),
       })
     )
-    // No worker traffic at all — csv silently ignored.
-    expect(posted).toEqual([])
-    expect(csv.stream).not.toHaveBeenCalled()
-    expect(csv.arrayBuffer).not.toHaveBeenCalled()
     expect(service.status).toBe('error')
   })
 
@@ -275,7 +288,10 @@ describe('IngestService routing', () => {
       headerRowId: 0,
     }
     workerInstances[0].onmessage?.({
-      data: { type: 'done', data: sentinelData, classified },
+      data: {
+        type: 'done',
+        result: { kind: 'dataset', data: sentinelData, settings: classified },
+      },
     })
 
     await expect(resultPromise).resolves.toBe(true)

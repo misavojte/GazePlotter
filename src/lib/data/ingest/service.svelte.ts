@@ -1,4 +1,3 @@
-import { tobiiParsingInputModal } from '$lib/modals/definitions'
 import { eventFileMappingModal } from '$lib/modals/import/definitions'
 import {
   isTobiiJson,
@@ -14,7 +13,9 @@ import {
 } from '$lib/modals/import/shared/csvEventParser'
 import { getStimuliOptions, getParticipantOptions } from '$lib/plots/shared'
 import { getStimulusHighestEndTime } from '$lib/data/engine'
-import { processJsonFileWithGrid } from './workspace/parser'
+import { isArchiveFileName } from './formats/routing'
+import { INGEST_PROMPTS } from './prompts'
+import type { IngestResult } from './kernel/result'
 import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace'
 import type { ErrorService } from '$lib/errors'
 import { formatDuration } from '$lib/shared/utils/timeUtils'
@@ -22,7 +23,7 @@ import { formatFileSize } from '$lib/shared/utils/fileUtils'
 import type { DataType, ParsedData } from '$lib/data/types'
 import { createDefaultMetricInstances } from '$lib/metrics/instances'
 import type {
-  EyeSettingsType,
+  ParseSettings,
   FileInputType,
   FileMetadataFailureType,
   FileMetadataSuccessType,
@@ -201,15 +202,6 @@ class IngestWorkerClient {
     this.parsingAnchorTime = Date.now()
     this.onProgress(0)
 
-    const firstFile = fileArray[0]
-    const parts = firstFile.name.split('.')
-    const extension = parts.length > 1 ? parts.pop()?.toLowerCase() : undefined
-
-    if (extension === 'json') {
-      this.processJsonWorkspace(firstFile)
-      return
-    }
-
     if (
       !this.postWorkerMessage(
         { type: 'file-names', data: this.fileNames },
@@ -220,7 +212,9 @@ class IngestWorkerClient {
       return
     }
 
-    if (extension === 'zip') {
+    // Archive formats need fully-materialized buffers (JSZip can't stream);
+    // everything else — including workspace JSON — streams to the worker.
+    if (isArchiveFileName(fileArray[0].name)) {
       void this.processZipFiles(fileArray)
     } else if (this.isStreamTransferable()) {
       this.processDataAsStream(fileArray)
@@ -356,41 +350,38 @@ class IngestWorkerClient {
     }
   }
 
-  private processJsonWorkspace(file: File): void {
-    const reader = new FileReader()
-    reader.onload = () => {
-      try {
-        const result = processJsonFileWithGrid(reader.result as string)
-        this.onProgress(100)
-        const timeString = formatDuration(
-          Date.now() - this.parsingAnchorTime + this.parsingSumTime
-        )
-        const formattedFileInfo = formatFileInfo([file.name], [file.size])
-        this.ui.toastState.addSuccess(
-          `${formattedFileInfo} workspace loaded successfully in ${timeString}`
-        )
-        if (!this.markSettled()) return
+  private handleDone(result: IngestResult): void {
+    if (result.kind === 'workspace') {
+      this.handleWorkspaceDone(result)
+      return
+    }
+    this.handleData({ data: result.data, classified: result.settings })
+  }
 
-        this.onData({
-          ...result,
-          current: {
-            fileNames: [file.name],
-            fileSizes: [file.size],
-            parseDate: new Date().toISOString(),
-          },
-        })
-      } catch (error) {
-        this.handleError(
-          error instanceof Error
-            ? error
-            : new Error('Failed to parse JSON file')
-        )
-      }
-    }
-    reader.onerror = () => {
-      this.handleError(new Error('Failed to read JSON file'))
-    }
-    reader.readAsText(file)
+  private handleWorkspaceDone(
+    result: Extract<IngestResult, { kind: 'workspace' }>
+  ): void {
+    this.onProgress(100)
+    const timeString = formatDuration(
+      Date.now() - this.parsingAnchorTime + this.parsingSumTime
+    )
+    const formattedFileInfo = formatFileInfo(this.fileNames, this.fileSizes)
+    this.ui.toastState.addSuccess(
+      `${formattedFileInfo} workspace loaded successfully in ${timeString}`
+    )
+    if (!this.markSettled()) return
+
+    this.onData({
+      version: result.version as ParsedData['version'],
+      data: result.data,
+      gridItems: result.gridItems,
+      fileMetadata: result.fileMetadata,
+      current: {
+        fileNames: this.fileNames,
+        fileSizes: this.fileSizes,
+        parseDate: new Date().toISOString(),
+      },
+    })
   }
 
   private handleData({
@@ -398,7 +389,7 @@ class IngestWorkerClient {
     classified,
   }: {
     data: DataType
-    classified: EyeSettingsType
+    classified: ParseSettings
   }): void {
     const parseDuration =
       Date.now() - this.parsingAnchorTime + this.parsingSumTime
@@ -440,16 +431,13 @@ class IngestWorkerClient {
         this.handleProgress(event.data.processedBytes)
         break
       case 'done':
-        this.handleData({
-          data: event.data.data,
-          classified: event.data.classified,
-        })
+        this.handleDone(event.data.result)
         break
       case 'fail':
         this.handleError(event.data.data)
         break
-      case 'request-user-input':
-        this.handleUserInputProcess()
+      case 'prompt':
+        this.handlePromptRequest(event.data.promptId)
         break
       default: {
         const workerMessageType =
@@ -528,15 +516,17 @@ class IngestWorkerClient {
     this.onFail(failureMetadata)
   }
 
-  private handleUserInputProcess(): void {
+  private handlePromptRequest(promptId: string): void {
     this.parsingSumTime += Date.now() - this.parsingAnchorTime
-    this.requestUserInput()
+    this.openPrompt(promptId)
       .then(userInput => {
         this.parsingAnchorTime = Date.now()
         if (
-          !this.postWorkerMessage({ type: 'user-input', data: userInput }, [], {
-            stage: 'dispatch-user-input',
-          })
+          !this.postWorkerMessage(
+            { type: 'prompt-response', data: userInput },
+            [],
+            { stage: 'dispatch-prompt-response', promptId }
+          )
         ) {
           this.ui.modalState.close()
           return
@@ -544,20 +534,24 @@ class IngestWorkerClient {
         this.ui.modalState.close()
       })
       .catch(error => {
-        this.handleError(error, { stage: 'request-user-input' })
+        this.handleError(error, { stage: 'ingest-prompt', promptId })
       })
   }
 
-  private requestUserInput(): Promise<string> {
-    return this.ui.modalState.open(tobiiParsingInputModal, {}).then(value => {
+  private openPrompt(promptId: string): Promise<string> {
+    const spec = INGEST_PROMPTS[promptId]
+    if (!spec) {
+      return Promise.reject(
+        new Error(`Unknown ingest prompt requested by worker: ${promptId}`)
+      )
+    }
+    return this.ui.modalState.open(spec.modal, {}).then(value => {
       if (value !== null) {
         return value
       }
 
-      this.ui.toastState.addInfo(
-        'User input was not provided. The file will be processed as Tobii without events'
-      )
-      return ''
+      if (spec.cancelToast) this.ui.toastState.addInfo(spec.cancelToast)
+      return spec.cancelValue
     })
   }
 }

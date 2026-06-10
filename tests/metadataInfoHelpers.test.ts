@@ -8,7 +8,7 @@ import {
   getMetadataMemoryInfo,
   isCurrentParsingSameAsSource,
 } from '$lib/modals/info/metadata-info/helpers'
-import type { EyeSettingsType } from '$lib/data/ingest'
+import type { ParseSettings } from '$lib/data/ingest'
 import type {
   FileInputType,
   FileMetadataFailureType,
@@ -23,8 +23,8 @@ const csvFormatters = {
 }
 
 function createParseSettings(
-  overrides: Partial<EyeSettingsType> = {}
-): EyeSettingsType {
+  overrides: Partial<ParseSettings> = {}
+): ParseSettings {
   return {
     rowDelimiter: '\n',
     columnDelimiter: ',',

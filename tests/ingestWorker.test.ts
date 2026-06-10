@@ -1,73 +1,87 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+/**
+ * Worker ZIP failure paths — drives the REAL worker module (real job,
+ * real Pupil Cloud format, real JSZip) with no mocks.
+ *
+ * The pre-refactor version of this file mocked `PupilCloudPipeline` to pin
+ * its "completed without producing final data" error. That state is
+ * structurally impossible in v2 (an IngestJob always produces a result or
+ * throws once all sources are in), so the pins here are the v2 failure
+ * surfaces a user can actually hit with a bad Pupil Cloud export.
+ */
+
+import JSZip from 'jszip'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+type Posted = { message: any; options?: { transfer?: unknown[] } }
+
+let posted: Posted[]
+let workerSelf: {
+  postMessage: (message: unknown, options?: { transfer?: unknown[] }) => void
+  onmessage: ((event: { data: unknown }) => Promise<void>) | null
+}
+
+async function bootWorker() {
+  posted = []
+  // Inherit from globalThis so transitive deps that environment-sniff via
+  // `self` (jszip → setimmediate) still find node's scheduling primitives.
+  workerSelf = Object.assign(Object.create(globalThis), {
+    postMessage: (message: unknown, options?: { transfer?: unknown[] }) => {
+      posted.push({ message, options })
+    },
+    onmessage: null,
+  })
+  vi.stubGlobal('self', workerSelf)
+  vi.resetModules()
+  await import('$lib/data/ingest/worker')
+}
+
+const send = (type: string, data?: unknown) =>
+  workerSelf.onmessage!({ data: { type, data } })
+
+const failMessage = () => {
+  const fail = posted.find(p => p.message.type === 'fail')
+  expect(fail).toBeDefined()
+  expect(fail!.message.data).toBeInstanceOf(Error)
+  return (fail!.message.data as Error).message
+}
 
 describe('ingest worker ZIP handling', () => {
+  beforeEach(bootWorker)
   afterEach(() => {
-    vi.restoreAllMocks()
-    vi.resetModules()
     vi.unstubAllGlobals()
-    vi.doUnmock('$lib/data/ingest/batch/PupilPipeline')
-    vi.doUnmock('$lib/data/ingest/stream/Pipeline')
+    vi.resetModules()
   })
 
-  it('posts a fail message when ZIP processing finishes without final data', async () => {
-    const addNewZip = vi.fn().mockResolvedValue(null)
+  it("a zip missing the required Pupil Cloud CSVs posts a 'fail' with the pinned message", async () => {
+    const zip = new JSZip()
+    zip.file('readme.txt', 'not a pupil export')
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' })
 
-    vi.doMock('$lib/data/ingest/batch/PupilPipeline', () => ({
-      PupilCloudPipeline: class {
-        constructor(_zipNames: string[]) {}
+    await send('file-names', ['broken.zip'])
+    await send('zip-buffer', { buffer, zipName: 'broken.zip' })
 
-        addNewZip = addNewZip
-      },
-    }))
+    expect(failMessage()).toBe('Missing sections.csv in ZIP')
+    expect(posted.some(p => p.message.type === 'done')).toBe(false)
+  })
 
-    vi.doMock('$lib/data/ingest/stream/Pipeline', () => ({
-      EyePipeline: class {},
-    }))
-
-    const consoleLogSpy = vi
-      .spyOn(console, 'log')
-      .mockImplementation(() => undefined)
-
-    const selfMock = {
-      postMessage: vi.fn(),
-      onmessage: null as ((event: MessageEvent) => Promise<void>) | null,
-    }
-    vi.stubGlobal('self', selfMock)
-
-    await import('$lib/data/ingest/worker')
-
-    await selfMock.onmessage?.({
-      data: {
-        type: 'file-names',
-        data: ['broken.zip'],
-      },
-    } as MessageEvent)
-
-    await selfMock.onmessage?.({
-      data: {
-        type: 'zip-buffer',
-        data: {
-          buffer: new ArrayBuffer(8),
-          zipName: 'broken.zip',
-        },
-      },
-    } as MessageEvent)
-
-    expect(addNewZip).toHaveBeenCalledTimes(1)
-    expect(consoleLogSpy).not.toHaveBeenCalled()
-
-    const failCall = selfMock.postMessage.mock.calls.find(
-      ([message]) => message?.type === 'fail'
+  it("a structurally valid but empty Pupil Cloud export posts the generic no-stimuli 'fail'", async () => {
+    const zip = new JSZip()
+    zip.file('sections.csv', 'section id,recording id,recording name\n')
+    zip.file(
+      'aoi_fixations.csv',
+      'aoi id,aoi name,section id,recording id,fixation id,fixation duration [ms]\n'
     )
+    zip.file(
+      'fixations.csv',
+      'section id,recording id,fixation id,start timestamp [ns],end timestamp [ns]\n'
+    )
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' })
 
-    expect(failCall?.[0]).toEqual(
-      expect.objectContaining({
-        type: 'fail',
-        data: expect.objectContaining({
-          message:
-            'Pupil Cloud ZIP processing completed without producing final data for: broken.zip',
-        }),
-      })
+    await send('file-names', ['empty.zip'])
+    await send('zip-buffer', { buffer, zipName: 'empty.zip' })
+
+    expect(failMessage()).toBe(
+      'Parsing unsuccessful: No stimuli found. Please check your data file.'
     )
   })
 })

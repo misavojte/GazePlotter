@@ -23,9 +23,8 @@ export const plotRegistry = {
   metricCorrelation: metricCorrelationDefinition,
 } as const
 
-export const LEGACY_VISUALIZATION_TYPES = {
-  TransitionMatrix: 'transitionMatrix',
-} as const
+export { LEGACY_VISUALIZATION_TYPES } from './legacyTypes'
+import { LEGACY_VISUALIZATION_TYPES } from './legacyTypes'
 
 type VisualizationType = keyof typeof plotRegistry
 type LegacyVisualizationType = keyof typeof LEGACY_VISUALIZATION_TYPES

@@ -1,20 +1,28 @@
 /**
  * CHARACTERIZATION TESTS — ingest format detection.
  *
- * Phase 0 of the ingest v2 refactor. These tests pin the CURRENT observable
- * behavior of format classification so the refactor can prove 1:1 parity.
- * They intentionally cover the gaps `EyeClassifier.test.ts` leaves open:
- * Tobii (+ the `tobii-with-event` variant), Varjo, detection precedence on
- * ambiguous content, encoding detection from raw bytes, the German-CSV
- * delimiter heuristic, and the unknown-type failure mode.
+ * Phase 0 of the ingest v2 refactor pinned the old `EyeClassifier`
+ * behavior; this file now drives the SAME assertions through the v2
+ * registry (`classifyProbe` / `detectTypeId` over a `SourceProbe`).
+ * The expected objects are unchanged from the pre-refactor pins — they
+ * prove the registry classifies 1:1 with the deleted classifier.
+ * (Also absorbs the classification pins of the old EyeClassifier.test.ts.)
  *
  * DO NOT "fix" surprising expectations here — they document behavior the
- * refactor must preserve. If a pinned behavior is genuinely a bug, change it
- * in a separate commit AFTER the refactor, with the pin updated deliberately.
+ * registry must preserve. If a pinned behavior is genuinely a bug, change
+ * it in a separate commit, with the pin updated deliberately.
  */
 
-import { EyeClassifier } from '$lib/data/ingest/stream/Classifier'
+import { probeFromBytes, probeFromText } from '$lib/data/ingest/kernel/source'
+import {
+  classifyProbe,
+  detectTypeId,
+} from '$lib/data/ingest/formats/registry'
+import { determineCsvDelimiter } from '$lib/data/ingest/formats/lib/rows/csvDelimiter'
 import { test, expect, describe } from 'vitest'
+
+const classify = (slice: string) => classifyProbe(probeFromText(slice))
+const detect = (slice: string) => detectTypeId(probeFromText(slice))
 
 const tobiiSlice = `Recording timestamp\tSensor\tParticipant name\tRecording name\tEye movement type\tGaze event duration\tAOI hit [Map_A - Region_1]
 123\tEye Tracker\tP1\tRec 1\tFixation\t100\t1`
@@ -25,10 +33,33 @@ const tobiiWithEventSlice = `Recording timestamp\tSensor\tParticipant name\tEven
 const varjoSlice = `Time;Actor Label;Gaze Status
 0.1;Wall;Valid`
 
-describe('detection: formats not covered by EyeClassifier.test.ts', () => {
+const beGazeSlice = `Event Start Trial Time [ms],Event End Trial Time [ms],Stimulus,Participant,Category,AOI Name
+0,100,Map_A,Participant_1,Fixation,Region_1`
+
+const gazePointSlice = `MEDIA_ID,MEDIA_NAME,TIME(2021/07/13 09:21:09.801),FPOGS,FPOGD,FPOGID,BKID,BKDUR,AOI
+0,Slide0,0.06689,0.00000,0.06689,1,0,0.00000,,`
+
+const ogamaSlice = `# Contents: Similarity Measurements of scanpaths.
+#
+#
+#
+#
+#
+Sequence Similarity,Scanpath string
+Participant_1,ABCD`
+
+const csvSlice =
+  'Time,Participant,Stimulus,AOI\r\n0,Participant_1,Map_A,Region_1\r\n1,Participant_1,Map_A,Region_1'
+
+const csvSegmentedSlice =
+  'From,To,Participant,Stimulus,AOI\r\n0,1,Participant_1,Map_A,Region_1\r\n1,2,Participant_1,Map_A,Region_1'
+
+const csvSegmentedDurationSlice =
+  'stimulus,participant,timestamp,duration,eyemovementtype,AOI\r\nSMI Base,Anna,226.2,72,1,\r\nSMI Base,Anna,298.2,120,0,Map'
+
+describe('detection: classification settings per format', () => {
   test('tobii', () => {
-    const sut = new EyeClassifier()
-    expect(sut.classify(tobiiSlice)).toEqual({
+    expect(classify(tobiiSlice)).toEqual({
       type: 'tobii',
       rowDelimiter: '\n',
       columnDelimiter: '\t',
@@ -39,8 +70,7 @@ describe('detection: formats not covered by EyeClassifier.test.ts', () => {
   })
 
   test('tobii with an Event column resolves to the tobii-with-event variant', () => {
-    const sut = new EyeClassifier()
-    expect(sut.classify(tobiiWithEventSlice)).toEqual({
+    expect(classify(tobiiWithEventSlice)).toEqual({
       type: 'tobii-with-event',
       rowDelimiter: '\n',
       columnDelimiter: '\t',
@@ -51,8 +81,7 @@ describe('detection: formats not covered by EyeClassifier.test.ts', () => {
   })
 
   test('varjo', () => {
-    const sut = new EyeClassifier()
-    expect(sut.classify(varjoSlice)).toEqual({
+    expect(classify(varjoSlice)).toEqual({
       type: 'varjo',
       rowDelimiter: '\n',
       columnDelimiter: ';',
@@ -61,78 +90,137 @@ describe('detection: formats not covered by EyeClassifier.test.ts', () => {
       headerRowId: 0,
     })
   })
+
+  test('begaze', () => {
+    expect(classify(beGazeSlice)).toEqual({
+      type: 'begaze',
+      rowDelimiter: '\n',
+      columnDelimiter: '\t',
+      encoding: 'utf-8',
+      userInputSetting: '',
+      headerRowId: 0,
+    })
+  })
+
+  test('gazepoint', () => {
+    expect(classify(gazePointSlice)).toEqual({
+      type: 'gazepoint',
+      rowDelimiter: '\n',
+      columnDelimiter: ',',
+      encoding: 'utf-8',
+      userInputSetting: '',
+      headerRowId: 0,
+    })
+  })
+
+  test('ogama (header on row 8)', () => {
+    expect(classify(ogamaSlice)).toEqual({
+      type: 'ogama',
+      rowDelimiter: '\n',
+      columnDelimiter: '\t',
+      encoding: 'utf-8',
+      userInputSetting: '',
+      headerRowId: 8,
+    })
+  })
+
+  test('csv (continuous time series)', () => {
+    expect(classify(csvSlice)).toEqual({
+      type: 'csv',
+      rowDelimiter: '\r\n',
+      columnDelimiter: ',',
+      encoding: 'utf-8',
+      userInputSetting: '',
+      headerRowId: 0,
+    })
+  })
+
+  test('csv-segmented (From/To columns)', () => {
+    expect(classify(csvSegmentedSlice)).toEqual({
+      type: 'csv-segmented',
+      rowDelimiter: '\r\n',
+      columnDelimiter: ',',
+      encoding: 'utf-8',
+      userInputSetting: '',
+      headerRowId: 0,
+    })
+  })
+
+  test('csv-segmented-duration (timestamp + duration)', () => {
+    expect(classify(csvSegmentedDurationSlice)).toEqual({
+      type: 'csv-segmented-duration',
+      rowDelimiter: '\r\n',
+      columnDelimiter: ',',
+      encoding: 'utf-8',
+      userInputSetting: '',
+      headerRowId: 0,
+    })
+  })
 })
 
-describe('detection precedence (order of checks is semantic)', () => {
+describe('detection precedence (registry order is semantic)', () => {
   test('tobii beats varjo when markers of both are present', () => {
-    const sut = new EyeClassifier()
     const ambiguous = `Recording timestamp\tTime\tActor Label\n1\t2\tWall`
-    expect(sut.getTypeFromSlice(ambiguous)).toBe('tobii')
+    expect(detect(ambiguous)).toBe('tobii')
   })
 
   test('gazepoint beats varjo when markers of both are present', () => {
-    const sut = new EyeClassifier()
     const ambiguous = `TIME(2021/07/13)\tActor Label\tFPOGS\tFPOGD\n0\tWall\t0\t0`
-    expect(sut.getTypeFromSlice(ambiguous)).toBe('gazepoint')
+    expect(detect(ambiguous)).toBe('gazepoint')
   })
 
   test('begaze beats varjo when markers of both are present', () => {
-    const sut = new EyeClassifier()
     const ambiguous = `Event Start Trial Time [ms]\tEvent End Trial Time [ms]\tTime\tActor Label`
-    expect(sut.getTypeFromSlice(ambiguous)).toBe('begaze')
+    expect(detect(ambiguous)).toBe('begaze')
   })
 
   test('varjo beats the csv family (checked before csv even with csv columns present)', () => {
-    const sut = new EyeClassifier()
-    // Contains everything isCsv wants AND the Varjo markers; Varjo is
-    // checked earlier in the chain and wins.
     const ambiguous = `Time,Participant,Stimulus,AOI,Actor Label\n0,P1,S1,A1,Wall`
-    expect(sut.getTypeFromSlice(ambiguous)).toBe('varjo')
+    expect(detect(ambiguous)).toBe('varjo')
+  })
+
+  test('more specific csv variants win: duration before From/To before plain', () => {
+    expect(detect(csvSegmentedDurationSlice)).toBe('csv-segmented-duration')
+    expect(detect(csvSegmentedSlice)).toBe('csv-segmented')
+    expect(detect(csvSlice)).toBe('csv')
   })
 
   test('unknown content throws "Unknown file type"', () => {
-    const sut = new EyeClassifier()
-    expect(() => sut.classify('hello world\nfoo bar')).toThrow(
-      'Unknown file type'
-    )
-    expect(sut.getTypeFromSlice('hello world\nfoo bar')).toBe('unknown')
+    expect(() => classify('hello world\nfoo bar')).toThrow('Unknown file type')
+    expect(detect('hello world\nfoo bar')).toBe('unknown')
   })
 })
 
 describe('detection: row delimiter and csv column-delimiter heuristics', () => {
   test('CRLF wins over LF; lone CR is recognized; LF is the default', () => {
-    const sut = new EyeClassifier()
     const csvHeader = 'Time,Participant,Stimulus,AOI'
-    expect(sut.classify(`${csvHeader}\r\n0,P1,S1,A1`).rowDelimiter).toBe('\r\n')
-    expect(sut.classify(`${csvHeader}\n0,P1,S1,A1`).rowDelimiter).toBe('\n')
-    expect(sut.classify(`${csvHeader}\r0,P1,S1,A1`).rowDelimiter).toBe('\r')
-    expect(sut.classify(csvHeader).rowDelimiter).toBe('\n')
+    expect(classify(`${csvHeader}\r\n0,P1,S1,A1`).rowDelimiter).toBe('\r\n')
+    expect(classify(`${csvHeader}\n0,P1,S1,A1`).rowDelimiter).toBe('\n')
+    expect(classify(`${csvHeader}\r0,P1,S1,A1`).rowDelimiter).toBe('\r')
+    expect(classify(csvHeader).rowDelimiter).toBe('\n')
   })
 
-  test('semicolon-delimited time-series CSV is NOT recognized (isCsv splits by comma only)', () => {
+  test('semicolon-delimited time-series CSV is NOT recognized (sniff splits by comma only)', () => {
     // Characterized quirk: the plain-csv sniffer splits the header by ','
     // exclusively, so a German-style semicolon time-series CSV falls through
     // every check and classifies as unknown. Only the segmented-CSV variants
     // (whose sniffers use substring checks) reach the ';' delimiter branch.
-    const sut = new EyeClassifier()
     const german = `Time;Participant;Stimulus;AOI\n0;P1;S1;A1`
-    expect(sut.getTypeFromSlice(german)).toBe('unknown')
-    expect(() => sut.classify(german)).toThrow('Unknown file type')
+    expect(detect(german)).toBe('unknown')
+    expect(() => classify(german)).toThrow('Unknown file type')
   })
 
   test('German-style segmented CSV (semicolons) IS recognized and gets ";"', () => {
-    const sut = new EyeClassifier()
     const german = `From;To;Participant;Stimulus;AOI\n0;1;P1;S1;A1`
-    expect(sut.classify(german)).toEqual(
+    expect(classify(german)).toEqual(
       expect.objectContaining({ type: 'csv-segmented', columnDelimiter: ';' })
     )
   })
 
   test('tie between commas and semicolons resolves to ";" (strictly-more-commas wins)', () => {
-    const sut = new EyeClassifier()
     // 2 commas and 2 semicolons in the header → counts equal → ';'
     const tie = `Time,Participant;Stimulus,AOI;X\n0,P1;S1,A1;9`
-    expect(sut.determineCsvDelimiter(tie)).toBe(';')
+    expect(determineCsvDelimiter(probeFromText(tie))).toBe(';')
   })
 })
 
@@ -172,38 +260,39 @@ describe('detection from raw bytes (encoding sniffing)', () => {
   }
 
   test('plain utf-8 bytes', () => {
-    const sut = new EyeClassifier()
-    const settings = sut.classifyFromBytes(utf8(csvText))
+    const settings = classifyProbe(probeFromBytes('a.csv', utf8(csvText)))
     expect(settings.encoding).toBe('utf-8')
     expect(settings.type).toBe('csv')
   })
 
   test('utf-8 BOM is stripped before classification', () => {
-    const sut = new EyeClassifier()
     const bom = new Uint8Array([0xef, 0xbb, 0xbf])
     const bytes = new Uint8Array([...bom, ...utf8(csvText)])
-    const settings = sut.classifyFromBytes(bytes)
+    const settings = classifyProbe(probeFromBytes('a.csv', bytes))
     expect(settings.encoding).toBe('utf-8')
     expect(settings.type).toBe('csv')
   })
 
   test('utf-16le with BOM', () => {
-    const sut = new EyeClassifier()
-    const settings = sut.classifyFromBytes(utf16le(csvText, true))
+    const settings = classifyProbe(
+      probeFromBytes('a.csv', utf16le(csvText, true))
+    )
     expect(settings.encoding).toBe('utf-16le')
     expect(settings.type).toBe('csv')
   })
 
   test('utf-16le WITHOUT BOM via the null-byte-position heuristic', () => {
-    const sut = new EyeClassifier()
-    const settings = sut.classifyFromBytes(utf16le(csvText, false))
+    const settings = classifyProbe(
+      probeFromBytes('a.csv', utf16le(csvText, false))
+    )
     expect(settings.encoding).toBe('utf-16le')
     expect(settings.type).toBe('csv')
   })
 
   test('utf-16be with BOM', () => {
-    const sut = new EyeClassifier()
-    const settings = sut.classifyFromBytes(utf16be(csvText, true))
+    const settings = classifyProbe(
+      probeFromBytes('a.csv', utf16be(csvText, true))
+    )
     expect(settings.encoding).toBe('utf-16be')
     expect(settings.type).toBe('csv')
   })

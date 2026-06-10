@@ -1,29 +1,34 @@
 /**
- * CHARACTERIZATION TESTS — ingest stream pipeline, end to end.
+ * CHARACTERIZATION TESTS — ingest, end to end.
  *
- * Phase 0 of the ingest v2 refactor. Runs the REAL `EyePipeline` in-process
+ * Phase 0 of the ingest v2 refactor. Runs the REAL `IngestJob` in-process
  * (no worker) over small synthetic files and pins the produced `DataType`
  * as a JSON digest: names, categories, capabilities, and the exact decoded
- * segment tuples per (stimulus, participant). The refactored kernel must
- * reproduce these digests byte-for-byte.
+ * segment tuples per (stimulus, participant). These digests were pinned
+ * against the pre-refactor `EyePipeline` and must never drift.
  *
  * Inline snapshots are auto-filled by vitest on first run and reviewed by
  * hand — they ARE the spec; do not regenerate them casually.
  */
 
 import { describe, expect, test } from 'vitest'
-import { EyePipeline } from '$lib/data/ingest/stream/Pipeline'
+import { IngestJob } from '$lib/data/ingest/kernel/job'
+import { streamSource } from '$lib/data/ingest/kernel/source'
+import type { IngestResult } from '$lib/data/ingest/kernel/result'
+import { FORMAT_REGISTRY } from '$lib/data/ingest/formats/registry'
 import { BinaryBufferReader } from '$lib/data/binary'
 import type { DataType } from '$lib/data/types'
-import type { EyeSettingsType } from '$lib/data/ingest/types'
-import { testMobileTsvData } from './TobiiAdapter.test.data'
+import type { ParseSettings } from '$lib/data/ingest/types'
+import { testMobileTsvData } from './TobiiRowParser.test.data'
 
 function streamFromString(content: string, chunkSize = 64 * 1024) {
   const bytes = new TextEncoder().encode(content)
   return new ReadableStream<Uint8Array>({
     start(controller) {
       for (let i = 0; i < bytes.length; i += chunkSize) {
-        controller.enqueue(bytes.subarray(i, Math.min(i + chunkSize, bytes.length)))
+        controller.enqueue(
+          bytes.subarray(i, Math.min(i + chunkSize, bytes.length))
+        )
       }
       controller.close()
     },
@@ -33,19 +38,24 @@ function streamFromString(content: string, chunkSize = 64 * 1024) {
 async function runPipeline(
   files: Array<{ name: string; content: string }>,
   options: { userInput?: string; chunkSize?: number } = {}
-): Promise<{ data: DataType; settings: EyeSettingsType }> {
-  const pipeline = new EyePipeline(
+): Promise<{ data: DataType; settings: ParseSettings }> {
+  const job = new IngestJob(
     files.map(f => f.name),
-    async () => options.userInput ?? ''
+    FORMAT_REGISTRY,
+    {
+      prompt: async () => options.userInput ?? '',
+      reportBytes: () => {},
+    }
   )
-  let result: { data: DataType; settings: EyeSettingsType } | null = null
+  let result: IngestResult | null = null
   for (const file of files) {
-    result = await pipeline.addNewStream(
-      streamFromString(file.content, options.chunkSize)
+    result = await job.add(
+      streamSource(file.name, streamFromString(file.content, options.chunkSize))
     )
   }
-  if (!result) throw new Error('pipeline did not produce a final result')
-  return result
+  if (!result) throw new Error('job did not produce a final result')
+  if (result.kind !== 'dataset') throw new Error('expected a dataset result')
+  return { data: result.data, settings: result.settings }
 }
 
 /**
@@ -229,10 +239,10 @@ describe('pipeline end-to-end: csv', () => {
   })
 
   test('CHARACTERIZED CONSTRAINT: the header row must fit in the first chunk', () => {
-    // Classification reads only the first chunk of the stream. If the header
+    // Detection sees only the source's first chunk (the probe). If the header
     // is split across chunks (never the case with real File streams, which
-    // deliver ≥64KB chunks), classification fails. The v2 kernel must keep
-    // an equivalent guarantee via probeBytes() or improve on it knowingly.
+    // deliver ≥64KB chunks), detection fails. Inherited from the v1 pipeline,
+    // kept knowingly.
     return expect(
       runPipeline([{ name: 'data.csv', content: csvContent }], { chunkSize: 3 })
     ).rejects.toThrow('Unknown file type')
@@ -242,10 +252,15 @@ describe('pipeline end-to-end: csv', () => {
     const second = `Time,Participant,Stimulus,AOI
 0,P3,Map_A,Region_2
 1,P3,Map_A,Region_2`
-    const pipeline = new EyePipeline(['a.csv', 'b.csv'], async () => '')
-    const first = await pipeline.addNewStream(streamFromString(csvContent))
+    const job = new IngestJob(['a.csv', 'b.csv'], FORMAT_REGISTRY, {
+      prompt: async () => '',
+      reportBytes: () => {},
+    })
+    const first = await job.add(
+      streamSource('a.csv', streamFromString(csvContent))
+    )
     expect(first).toBeNull()
-    const final = await pipeline.addNewStream(streamFromString(second))
+    const final = await job.add(streamSource('b.csv', streamFromString(second)))
     expect(final).not.toBeNull()
     const d = digest(final!.data)
     expect(d.participants).toEqual([['P1'], ['P2'], ['P3']])

@@ -7,7 +7,7 @@ import { processAndValidateData, validateBasicStructure } from './validator'
 
 /**
  * Processes a JSON file and returns the parsed and validated data.
- * Uses the migration pipeline to normalize legacy files.
+ * Uses the migration chain to normalize legacy files.
  *
  * @param fileContent - The content of the JSON file as a string
  * @returns The processed DataType object
