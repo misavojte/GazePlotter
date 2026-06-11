@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import {
   parseCsvEventText,
-  buildEventDataFromCsvRows,
+  resolveContributionsForEngine,
   mergeIntoStimulusMap,
-} from '$lib/modals/import/shared/csvEventParser'
+} from '$lib/data/ingest/formats/csvEvent'
 
 // --- parseCsvEventText ---
 
@@ -15,11 +15,11 @@ describe('parseCsvEventText', () => {
       'Image1,P01,AOI_Face,1200,300',
     ].join('\n')
 
-    const { rows, warnings } = parseCsvEventText(csv)
+    const { contributions: rows, warnings } = parseCsvEventText(csv)
     expect(warnings).toHaveLength(0)
     expect(rows).toEqual([
-      { stimulus: 'Image1', participant: 'P01', eventName: 'AOI_Face', start: 0, duration: 500 },
-      { stimulus: 'Image1', participant: 'P01', eventName: 'AOI_Face', start: 1200, duration: 300 },
+      { stimulus: 'Image1', participant: 'P01', channel: 'AOI_Face', start: 0, duration: 500 },
+      { stimulus: 'Image1', participant: 'P01', channel: 'AOI_Face', start: 1200, duration: 300 },
     ])
   })
 
@@ -29,7 +29,7 @@ describe('parseCsvEventText', () => {
       'Image1;P01;AOI_Face;0;500',
     ].join('\n')
 
-    const { rows, warnings } = parseCsvEventText(csv)
+    const { contributions: rows, warnings } = parseCsvEventText(csv)
     expect(warnings).toHaveLength(0)
     expect(rows).toHaveLength(1)
     expect(rows[0].stimulus).toBe('Image1')
@@ -41,17 +41,17 @@ describe('parseCsvEventText', () => {
       '500,AOI_Face,0,P01,Image1',
     ].join('\n')
 
-    const { rows, warnings } = parseCsvEventText(csv)
+    const { contributions: rows, warnings } = parseCsvEventText(csv)
     expect(warnings).toHaveLength(0)
     expect(rows[0]).toEqual({
-      stimulus: 'Image1', participant: 'P01', eventName: 'AOI_Face', start: 0, duration: 500,
+      stimulus: 'Image1', participant: 'P01', channel: 'AOI_Face', start: 0, duration: 500,
     })
   })
 
   it('handles CRLF line endings', () => {
     const csv = 'stimulus,participant,eventName,start,duration\r\nImage1,P01,AOI_Face,0,500\r\n'
 
-    const { rows, warnings } = parseCsvEventText(csv)
+    const { contributions: rows, warnings } = parseCsvEventText(csv)
     expect(warnings).toHaveLength(0)
     expect(rows).toHaveLength(1)
   })
@@ -66,7 +66,7 @@ describe('parseCsvEventText', () => {
       '',
     ].join('\n')
 
-    const { rows, warnings } = parseCsvEventText(csv)
+    const { contributions: rows, warnings } = parseCsvEventText(csv)
     expect(warnings).toHaveLength(0)
     expect(rows).toHaveLength(2)
   })
@@ -74,7 +74,7 @@ describe('parseCsvEventText', () => {
   it('warns on missing required column', () => {
     const csv = 'stimulus,participant,start,duration\nImage1,P01,0,500'
 
-    const { rows, warnings } = parseCsvEventText(csv)
+    const { contributions: rows, warnings } = parseCsvEventText(csv)
     expect(warnings).toHaveLength(1)
     expect(warnings[0]).toContain('eventName')
     expect(rows).toHaveLength(0)
@@ -88,7 +88,7 @@ describe('parseCsvEventText', () => {
       'Image1,P01,AOI_Face,100,200',
     ].join('\n')
 
-    const { rows, warnings } = parseCsvEventText(csv)
+    const { contributions: rows, warnings } = parseCsvEventText(csv)
     expect(warnings).toHaveLength(2)
     expect(rows).toHaveLength(1)
     expect(rows[0].start).toBe(100)
@@ -101,7 +101,7 @@ describe('parseCsvEventText', () => {
       'Image1,P01,,0,500',
     ].join('\n')
 
-    const { rows, warnings } = parseCsvEventText(csv)
+    const { contributions: rows, warnings } = parseCsvEventText(csv)
     expect(warnings).toHaveLength(2)
     expect(rows).toHaveLength(0)
   })
@@ -112,20 +112,20 @@ describe('parseCsvEventText', () => {
       'Image1,P01,Marker,2000,0',
     ].join('\n')
 
-    const { rows } = parseCsvEventText(csv)
+    const { contributions: rows } = parseCsvEventText(csv)
     expect(rows[0].duration).toBe(0)
   })
 
   it('returns empty result for empty file', () => {
-    const { rows, warnings } = parseCsvEventText('')
+    const { contributions: rows, warnings } = parseCsvEventText('')
     expect(rows).toHaveLength(0)
     expect(warnings.length).toBeGreaterThan(0)
   })
 })
 
-// --- buildEventDataFromCsvRows ---
+// --- resolveContributionsForEngine ---
 
-describe('buildEventDataFromCsvRows', () => {
+describe('resolveContributionsForEngine', () => {
   // Simulated engine metadata
   const stimuliData = [
     ['Image1', 'Image1', '#ff0000'],
@@ -144,11 +144,11 @@ describe('buildEventDataFromCsvRows', () => {
 
   it('resolves stimulus and participant names to IDs', () => {
     const rows = [
-      { stimulus: 'Image1', participant: 'P01', eventName: 'AOI_Face', start: 0, duration: 500 },
-      { stimulus: 'Image1', participant: 'P02', eventName: 'AOI_Face', start: 100, duration: 200 },
+      { stimulus: 'Image1', participant: 'P01', channel: 'AOI_Face', start: 0, duration: 500 },
+      { stimulus: 'Image1', participant: 'P02', channel: 'AOI_Face', start: 100, duration: 200 },
     ]
 
-    const { stimulusMap, warnings } = buildEventDataFromCsvRows(
+    const { stimulusMap, warnings } = resolveContributionsForEngine(
       rows, stimuliData, participantsData, participantCount, aoiData
     )
     expect(warnings).toHaveLength(0)
@@ -165,10 +165,10 @@ describe('buildEventDataFromCsvRows', () => {
 
   it('applies * participant to all participants', () => {
     const rows = [
-      { stimulus: 'Image1', participant: '*', eventName: 'Marker', start: 2000, duration: 0 },
+      { stimulus: 'Image1', participant: '*', channel: 'Marker', start: 2000, duration: 0 },
     ]
 
-    const { stimulusMap, warnings } = buildEventDataFromCsvRows(
+    const { stimulusMap, warnings } = resolveContributionsForEngine(
       rows, stimuliData, participantsData, participantCount
     )
     expect(warnings).toHaveLength(0)
@@ -181,10 +181,10 @@ describe('buildEventDataFromCsvRows', () => {
 
   it('warns on unmatched stimulus name', () => {
     const rows = [
-      { stimulus: 'Unknown', participant: 'P01', eventName: 'AOI_Face', start: 0, duration: 500 },
+      { stimulus: 'Unknown', participant: 'P01', channel: 'AOI_Face', start: 0, duration: 500 },
     ]
 
-    const { stimulusMap, warnings } = buildEventDataFromCsvRows(
+    const { stimulusMap, warnings } = resolveContributionsForEngine(
       rows, stimuliData, participantsData, participantCount
     )
     expect(warnings).toHaveLength(1)
@@ -194,10 +194,10 @@ describe('buildEventDataFromCsvRows', () => {
 
   it('warns on unmatched participant name', () => {
     const rows = [
-      { stimulus: 'Image1', participant: 'P99', eventName: 'AOI_Face', start: 0, duration: 500 },
+      { stimulus: 'Image1', participant: 'P99', channel: 'AOI_Face', start: 0, duration: 500 },
     ]
 
-    const { stimulusMap, warnings } = buildEventDataFromCsvRows(
+    const { stimulusMap, warnings } = resolveContributionsForEngine(
       rows, stimuliData, participantsData, participantCount
     )
     expect(warnings).toHaveLength(1)
@@ -207,10 +207,10 @@ describe('buildEventDataFromCsvRows', () => {
 
   it('inherits AOI color when channel name matches', () => {
     const rows = [
-      { stimulus: 'Image1', participant: 'P01', eventName: 'AOI_Face', start: 0, duration: 500 },
+      { stimulus: 'Image1', participant: 'P01', channel: 'AOI_Face', start: 0, duration: 500 },
     ]
 
-    const { stimulusMap } = buildEventDataFromCsvRows(
+    const { stimulusMap } = resolveContributionsForEngine(
       rows, stimuliData, participantsData, participantCount, aoiData
     )
     const channel = stimulusMap.get(0)!.get('AOI_Face')!
@@ -219,10 +219,10 @@ describe('buildEventDataFromCsvRows', () => {
 
   it('defaults to #888888 when no AOI match', () => {
     const rows = [
-      { stimulus: 'Image1', participant: 'P01', eventName: 'Custom', start: 0, duration: 500 },
+      { stimulus: 'Image1', participant: 'P01', channel: 'Custom', start: 0, duration: 500 },
     ]
 
-    const { stimulusMap } = buildEventDataFromCsvRows(
+    const { stimulusMap } = resolveContributionsForEngine(
       rows, stimuliData, participantsData, participantCount, aoiData
     )
     const channel = stimulusMap.get(0)!.get('Custom')!
@@ -231,11 +231,11 @@ describe('buildEventDataFromCsvRows', () => {
 
   it('accumulates multiple events for same channel and participant', () => {
     const rows = [
-      { stimulus: 'Image1', participant: 'P01', eventName: 'AOI_Face', start: 0, duration: 500 },
-      { stimulus: 'Image1', participant: 'P01', eventName: 'AOI_Face', start: 1200, duration: 300 },
+      { stimulus: 'Image1', participant: 'P01', channel: 'AOI_Face', start: 0, duration: 500 },
+      { stimulus: 'Image1', participant: 'P01', channel: 'AOI_Face', start: 1200, duration: 300 },
     ]
 
-    const { stimulusMap } = buildEventDataFromCsvRows(
+    const { stimulusMap } = resolveContributionsForEngine(
       rows, stimuliData, participantsData, participantCount
     )
     const channel = stimulusMap.get(0)!.get('AOI_Face')!
@@ -245,11 +245,11 @@ describe('buildEventDataFromCsvRows', () => {
 
   it('handles multiple stimuli in one file', () => {
     const rows = [
-      { stimulus: 'Image1', participant: 'P01', eventName: 'Ch1', start: 0, duration: 100 },
-      { stimulus: 'Image2', participant: 'P01', eventName: 'Ch2', start: 50, duration: 200 },
+      { stimulus: 'Image1', participant: 'P01', channel: 'Ch1', start: 0, duration: 100 },
+      { stimulus: 'Image2', participant: 'P01', channel: 'Ch2', start: 50, duration: 200 },
     ]
 
-    const { stimulusMap } = buildEventDataFromCsvRows(
+    const { stimulusMap } = resolveContributionsForEngine(
       rows, stimuliData, participantsData, participantCount
     )
     expect(stimulusMap.has(0)).toBe(true)

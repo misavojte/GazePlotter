@@ -137,10 +137,12 @@ export class IngestJob {
     }
 
     if (lastSettings === null) throw new Error('Unknown file type')
+    const data = sink.buildFinalData()
     return {
       kind: 'dataset',
-      data: sink.buildFinalData(),
+      data,
       settings: lastSettings,
+      ...(sink.warnings.length > 0 ? { warnings: [...sink.warnings] } : {}),
     }
   }
 }

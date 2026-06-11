@@ -98,6 +98,74 @@ export const getVisibleEventChannels = (
 }
 
 /**
+ * Aggregated view of event channels across ALL stimuli, keyed by original
+ * name — the unit the post-upload prune operates on ("remove MouseClick
+ * everywhere"). occurrenceCount counts stride-2 buffer entries.
+ */
+export const getEventChannelSummary = (
+  engine: DataEngine
+): { name: string; stimulusCount: number; occurrenceCount: number }[] => {
+  const meta = engine.metadata
+  if (!meta) return []
+  const ed = meta.eventData
+  const byName = new Map<
+    string,
+    { stimulusCount: number; occurrenceCount: number }
+  >()
+  for (let s = 0; s < ed.data.length; s++) {
+    const defs = ed.data[s] ?? []
+    for (let c = 0; c < defs.length; c++) {
+      const name = defs[c][0]
+      let entry = byName.get(name)
+      if (!entry) {
+        entry = { stimulusCount: 0, occurrenceCount: 0 }
+        byName.set(name, entry)
+      }
+      entry.stimulusCount++
+      for (const buffer of ed.events[s]?.[c] ?? []) {
+        entry.occurrenceCount += (buffer?.length ?? 0) / 2
+      }
+    }
+  }
+  return Array.from(byName, ([name, counts]) => ({ name, ...counts }))
+}
+
+/**
+ * Per-stimulus replacement payloads (for `updateEventData` commands) that
+ * drop every channel whose original name is in `namesToRemove`. Stimuli
+ * with no matching channel are omitted.
+ */
+export const buildEventDataWithoutChannels = (
+  engine: DataEngine,
+  namesToRemove: ReadonlySet<string>
+): { stimulusId: number; channelDefs: string[][]; eventBuffers: number[][][] }[] => {
+  const meta = engine.metadata
+  if (!meta) return []
+  const ed = meta.eventData
+  const updates: {
+    stimulusId: number
+    channelDefs: string[][]
+    eventBuffers: number[][][]
+  }[] = []
+  for (let s = 0; s < ed.data.length; s++) {
+    const defs = ed.data[s]
+    if (!defs?.length) continue
+    const keepIds = defs
+      .map((_, i) => i)
+      .filter(i => !namesToRemove.has(defs[i][0]))
+    if (keepIds.length === defs.length) continue
+    updates.push({
+      stimulusId: s,
+      channelDefs: keepIds.map(i => [...defs[i]]),
+      eventBuffers: keepIds.map(i =>
+        (ed.events[s]?.[i] ?? []).map(buffer => [...buffer])
+      ),
+    })
+  }
+  return updates
+}
+
+/**
  * Returns the stride-2 event buffer [start, duration, ...] for a specific channel and participant.
  * Returns null if channel has no events for this participant.
  */

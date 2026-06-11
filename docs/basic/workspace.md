@@ -10,10 +10,10 @@ When you first upload your eye-tracking data, GazePlotter jump-starts your analy
 
 Four distinct visualizations are created immediately upon data upload.
 
-- **[Scarf Plot](/docs/basic/scarf-plot/)**: Visualizes gaze sequences and temporal behavior.
-- **[Bar Plot](/docs/basic/bar-plot/)**: Provides highly structured statistical analysis metrics.
-- **[Transition Matrix](/docs/basic/transition-matrix/)**: Shows heat map views of gaze movement between Areas of Interest.
-- **[Time-binned AOI Occupancy](/docs/basic/aoi-occupancy/)**: Displays a flowing representation of attention distribution over time.
+- **[Scarf Plot](/docs/visualizations/scarf-plot/)**: Visualizes gaze sequences and temporal behavior.
+- **[AOI Metrics](/docs/visualizations/aoi-metrics/)**: Provides highly structured statistical analysis metrics.
+- **[Transition Matrix](/docs/visualizations/transition-matrix/)**: Shows heat map views of gaze movement between Areas of Interest.
+- **[Time-binned AOI Occupancy](/docs/visualizations/aoi-occupancy/)**: Displays a flowing representation of attention distribution over time.
 
 ## Workspace Toolbar
 
@@ -26,7 +26,7 @@ Locked to the left side of your screen is the vertical workspace toolbar. This t
 
 ### Adding Visualizations
 
-- **Add Visualization**: Opens a menu to instantiate a brand new Scarf Plot, Bar Plot, Transition Matrix, or Time-binned AOI Occupancy plot. New plots are appended to the nearest empty space in the grid layout.
+- **Add Visualization**: Opens a menu to instantiate a brand new Scarf Plot, AOI Metrics, Transition Matrix, or Time-binned AOI Occupancy plot. New plots are appended to the nearest empty space in the grid layout.
 
 ### General Information
 
@@ -36,7 +36,7 @@ Locked to the left side of your screen is the vertical workspace toolbar. This t
 
 Every individual visualization plot functions as an independent, interactive card. They can be freely manipulated using the drag-and-drop interface.
 
-_(For changing exactly what data is displayed inside the plot itself, consult the documentation for your specific plot type, e.g., [Scarf plot options](/docs/basic/scarf-plot/))._
+_(For changing exactly what data is displayed inside the plot itself, consult the documentation for your specific plot type, e.g., [Scarf plot options](/docs/visualizations/scarf-plot/))._
 
 ### Spatial Arrangement
 

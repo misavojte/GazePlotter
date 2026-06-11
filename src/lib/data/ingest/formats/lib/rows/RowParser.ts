@@ -1,3 +1,5 @@
+import type { EventContribution } from '../../../kernel/sink'
+
 type TextEncoding = 'utf-8' | 'utf-16le' | 'utf-16be'
 
 /**
@@ -27,6 +29,12 @@ export abstract class RowParser {
         spatial?: { x: number; y: number } | null
       ) => void)
     | null = null
+
+  /** Event-channel emission callback (cold path — event rows are sparse). */
+  onEvent: ((event: EventContribution) => void) | null = null
+
+  /** Non-fatal issue reporting (surfaced as a toast after the upload). */
+  onWarning: ((message: string) => void) | null = null
   protected readonly delim: string
   protected readonly encoding: TextEncoding
   private readonly encodingKind: 0 | 1 | 2
@@ -70,11 +78,14 @@ export abstract class RowParser {
 
   abstract finalize(): void
 
+  /** Shared empty result — getBytes is on the per-row path; no allocation. */
+  private static readonly EMPTY_BYTES = new Uint8Array(0)
+
   protected getBytes(index: number): Uint8Array {
-    if (this.currRangeStamp[index] !== this.rowId) return new Uint8Array(0)
+    if (this.currRangeStamp[index] !== this.rowId) return RowParser.EMPTY_BYTES
     const start = this.currRangeStart[index]
     const end = this.currRangeEnd[index]
-    if (end <= start) return new Uint8Array(0)
+    if (end <= start) return RowParser.EMPTY_BYTES
     return this.currRowBytes.subarray(start, end)
   }
 

@@ -310,25 +310,67 @@
       ctx.stroke()
     }
 
-    if (hoveredMsTime !== null && hoveredParticipantIndex !== null) {
-      const w = findWindowAt(data.participants[hoveredParticipantIndex].windows, hoveredMsTime)
+    if (hoveredMsTime !== null) {
+      let w: EvolvingMetricsWindow | null = null
+      if (hoveredParticipantIndex !== null) {
+        w = findWindowAt(data.participants[hoveredParticipantIndex].windows, hoveredMsTime)
+      }
+      if (!w) {
+        for (const p of data.participants) {
+          w = findWindowAt(p.windows, hoveredMsTime)
+          if (w) break
+        }
+      }
       if (w) {
-        const xStart = floorLeft + (w.startMs - timelineMin) * invMsPerPx
-        const xEnd = floorLeft + (w.endMs - timelineMin) * invMsPerPx
-        const rowY = floorTop + hoveredParticipantIndex * rowHeight
-        const x = Math.max(floorLeft, xStart)
+        // Calculate step boundaries (the 100ms step)
+        const stepXStart = floorLeft + (w.startMs - timelineMin) * invMsPerPx
+        const stepXEnd = floorLeft + (w.endMs - timelineMin) * invMsPerPx
+        const stepX = Math.max(floorLeft, stepXStart)
+        const stepWidth = Math.min(floorRight, stepXEnd) - stepX
+
+        // Calculate window boundaries (the 1000ms window)
+        const winStart = w.dataStartMs ?? (w.centerMs - 500)
+        const winEnd = w.dataEndMs ?? (w.centerMs + 500)
+        const winXStart = floorLeft + (winStart - timelineMin) * invMsPerPx
+        const winXEnd = floorLeft + (winEnd - timelineMin) * invMsPerPx
+        const x = Math.max(floorLeft, winXStart)
+        const rectWidth = Math.min(floorRight, winXEnd) - x
+
         ctx.save()
-        ctx.globalAlpha = 0.3
         ctx.fillStyle = '#007acc'
-        ctx.fillRect(x, rowY, Math.min(floorRight, xEnd) - x, rowHeight)
+
+        // 1. Draw the lighter window highlight (1000ms)
+        if (rectWidth > 0) {
+          ctx.globalAlpha = 0.08
+          ctx.fillRect(x, floorTop, rectWidth, floorHeight)
+        }
+
+        // 2. Draw the darker step highlight (100ms)
+        if (stepWidth > 0) {
+          ctx.globalAlpha = 0.15
+          ctx.fillRect(stepX, floorTop, stepWidth, floorHeight)
+        }
+
+        // 3. If a specific participant is hovered, highlight that cell slightly more
+        if (hoveredParticipantIndex !== null && stepWidth > 0) {
+          const rowY = floorTop + hoveredParticipantIndex * rowHeight
+          ctx.globalAlpha = 0.15
+          ctx.fillRect(stepX, rowY, stepWidth, rowHeight)
+        }
+
         ctx.restore()
       }
-    } else if (hoveredMsTime !== null) {
+
+      // Draw dashed interactive line showcasing where the cursor currently is
       const cx = alignToPixelCenter(floorLeft + (hoveredMsTime - timelineMin) * invMsPerPx)
       ctx.save()
-      ctx.globalAlpha = 0.15
-      ctx.fillStyle = '#007acc'
-      ctx.fillRect(cx - 0.5, floorTop, 1.5, floorHeight)
+      ctx.strokeStyle = '#007acc'
+      ctx.lineWidth = 1
+      ctx.setLineDash([2, 2])
+      ctx.beginPath()
+      ctx.moveTo(cx, floorTop)
+      ctx.lineTo(cx, floorBottom)
+      ctx.stroke()
       ctx.restore()
     }
   }
@@ -412,7 +454,7 @@
   function renderOverlay(
     ctx: CanvasRenderingContext2D,
     floorLeft: number, floorTop: number, floorWidth: number, floorHeight: number,
-    floorBottom: number, _floorRight: number, participantCount: number
+    floorBottom: number, floorRight: number, participantCount: number
   ) {
     if (!overlayAggregates) return
     const { meanValues, p25Values, p75Values, sampleCount } = overlayAggregates
@@ -470,11 +512,54 @@
     ctx.restore()
 
     if (hoveredMsTime !== null) {
+      let w: EvolvingMetricsWindow | null = null
+      if (hoveredParticipantIndex !== null) {
+        w = findWindowAt(data.participants[hoveredParticipantIndex].windows, hoveredMsTime)
+      }
+      if (!w) {
+        for (const p of data.participants) {
+          w = findWindowAt(p.windows, hoveredMsTime)
+          if (w) break
+        }
+      }
+      if (w) {
+        // Calculate step boundaries (the 100ms step)
+        const stepXStart = msToX(w.startMs)
+        const stepXEnd = msToX(w.endMs)
+        const stepX = Math.max(floorLeft, stepXStart)
+        const stepWidth = Math.min(floorRight, stepXEnd) - stepX
+
+        // Calculate window boundaries (the 1000ms window)
+        const winStart = w.dataStartMs ?? (w.centerMs - 500)
+        const winEnd = w.dataEndMs ?? (w.centerMs + 500)
+        const winXStart = msToX(winStart)
+        const winXEnd = msToX(winEnd)
+        const x = Math.max(floorLeft, winXStart)
+        const rectWidth = Math.min(floorRight, winXEnd) - x
+
+        ctx.save()
+        ctx.fillStyle = '#007acc'
+
+        // 1. Draw the lighter window highlight (1000ms)
+        if (rectWidth > 0) {
+          ctx.globalAlpha = 0.08
+          ctx.fillRect(x, floorTop, rectWidth, floorHeight)
+        }
+
+        // 2. Draw the darker step highlight (100ms)
+        if (stepWidth > 0) {
+          ctx.globalAlpha = 0.15
+          ctx.fillRect(stepX, floorTop, stepWidth, floorHeight)
+        }
+
+        ctx.restore()
+      }
+
       const cx = alignToPixelCenter(msToX(hoveredMsTime))
       ctx.save()
       ctx.strokeStyle = '#007acc'
       ctx.lineWidth = 1
-      ctx.setLineDash([3, 3])
+      ctx.setLineDash([2, 2])
       ctx.beginPath()
       ctx.moveTo(cx, floorTop)
       ctx.lineTo(cx, floorBottom)

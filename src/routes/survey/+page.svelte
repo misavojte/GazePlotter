@@ -57,10 +57,10 @@
   const group2Condition = createCondition() // Monitor for "Group 2" selection
   const aoiCustomizationCondition = createCondition() // Monitor for AOI grouping
   const transitionMatrixCondition = createCondition() // Monitor for Transition Matrix aggregation
-  const barPlotCondition = createCondition() // Monitor for Bar Plot aggregation
+  const barPlotCondition = createCondition() // Monitor for AOI Metrics aggregation
   const explorationCondition = createCondition() // Monitor for UI exploration completion
   const transitionMatrixStimulusCondition = createCondition() // Monitor for Transition Matrix stimulus
-  const barPlotStimulusCondition = createCondition() // Monitor for Bar Plot stimulus
+  const barPlotStimulusCondition = createCondition() // Monitor for AOI Metrics stimulus
 
   // State for forcing banner to close on any modal content
   let forceCloseBanner = $state(false)
@@ -296,19 +296,19 @@
       ),
     },
     {
-      text: 'Pan to Bar Plot and set its stimulus to Task 2',
+      text: 'Pan to AOI Metrics and set its stimulus to Task 2',
       condition: barPlotStimulusCondition, // Auto-completes when stimulus is set to Task 2
       onSkip: createSkipHandler(
         9,
-        'Pan to Bar Plot and set its stimulus to Task 2'
+        'Pan to AOI Metrics and set its stimulus to Task 2'
       ),
     },
     {
-      text: "On Bar Plot, set aggregation method to 'Visit count'",
+      text: "On AOI Metrics, set aggregation method to 'Visit count'",
       condition: barPlotCondition, // Auto-completes when aggregation is changed
       onSkip: createSkipHandler(
         10,
-        "On Bar Plot, set aggregation method to 'Visit count'"
+        "On AOI Metrics, set aggregation method to 'Visit count'"
       ),
     },
     {
@@ -497,7 +497,7 @@
       transitionMatrixCondition.set(true)
     }
 
-    // Check for Bar Plot aggregation change to 'Visit count'
+    // Check for AOI Metrics aggregation change to 'Visit count'
     if (
       command.type === 'updateSettings' &&
       command.settings &&
@@ -520,7 +520,7 @@
       transitionMatrixStimulusCondition.set(true)
     }
 
-    // Check for Bar Plot stimulus change to Task 2
+    // Check for AOI Metrics stimulus change to Task 2
     if (
       command.type === 'updateSettings' &&
       command.settings &&

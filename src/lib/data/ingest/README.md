@@ -1,7 +1,9 @@
 # Ingest
 
 **A Job probes Sources, the Registry's first matching Format reads them into
-the Sink, and the Result is a dataset or a workspace.**
+the Sink, and the Result is a dataset or a workspace; enrichment formats
+are claimed at detection but parse after the dataset exists, contributing
+events through the same sink currency.**
 
 That sentence is the whole architecture. Everything in this directory is one
 of those nouns:
@@ -12,7 +14,7 @@ of those nouns:
 | **Probe**    | The first chunk of a source, decoded — all that detection may see | `kernel/source.ts`    |
 | **Format**   | Self-contained module that detects its files and reads them       | `formats/*.ts`        |
 | **Registry** | The ordered list of all formats — order IS the detection contract | `formats/registry.ts` |
-| **Sink**     | Typed dataset contributions out (segments now, events next)       | `kernel/sink.ts`      |
+| **Sink**     | Typed dataset contributions out (segments and events)             | `kernel/sink.ts`      |
 | **Job**      | One upload: probe → detect → read → finalize                      | `kernel/job.ts`       |
 | **Result**   | `{ kind: 'dataset' }` or `{ kind: 'workspace' }` envelope         | `kernel/result.ts`    |
 
@@ -52,9 +54,24 @@ sort them out inside `read` — the job hands a format every source it
 claimed. Pupil already works this way (every zip detects as pupil; `read`
 iterates). No grouping machinery exists or is needed in the kernel.
 
-**Future contribution kinds** (marker/event streams from non-gaze
-instruments, e.g. EEG triggers): produce them via `sink.addEvent` — the
-sink, not the format contract, is the seam that grows.
+**Event contributions** (`sink.addEvent`): formats whose files interleave
+events with gaze rows emit them inline — Tobii's Event column is the live
+example (prompt-gated suffix pairing, see `lib/rows/tobiiParsingConfig.ts`).
+Resolution against stimulus/participant names happens once, at
+`buildFinalData`, via `mergeEvents` — contributions buffer raw names, so
+emission order never matters. Future marker streams (e.g. EEG triggers)
+use the same call; the sink, not the format contract, is the seam that
+grows.
+
+**Enrichment formats** (`kind: 'enrichment'`, e.g. `formats/csvEvent.ts`):
+event FILES, as opposed to event columns. Claimed by registry detection
+like every other kind (the main-thread service partitions uploads with
+`detectEnrichmentFormat` BEFORE anything reaches the worker), but parsed
+after the dataset exists — their names resolve against dictionaries that
+segments produce. Two consumption modes: `'contributions'` formats are
+pure text→`EventContribution[]` parses; `'interactive'` formats (legacy
+AOI-visibility XML/JSON) need the mapping modal and stay in
+`service.svelte.ts`. The worker job never sees enrichment sources.
 
 ## Invariants
 
@@ -80,6 +97,10 @@ rule, kept deliberately as an explicit rule (characterized in
 `tests/ingestCharacterization.routing.test.ts`). Otherwise archive files are
 read first as one group, then stream files sequentially in upload order
 (dictionary ids are assigned first-seen, so order is observable).
+Enrichment sources are claimed during the main-thread partition (a lone
+.json upload is never claimed — workspace precedence) and processed after
+the dataset exists; fresh datasets that gained event channels then open
+the one-time prune review.
 
 ## Hosts
 

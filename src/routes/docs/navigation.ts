@@ -45,7 +45,7 @@ export function buildDocBreadcrumbs(
     
     // In our simplified structure we rely on matchedLink, but if not found we format it
     breadcrumbs.push({
-      name: matchedLink?.name ?? formatDocSegmentName(segment),
+      name: matchedLink?.breadcrumbName ?? matchedLink?.name ?? formatDocSegmentName(segment),
       href: currentPath,
     })
   }

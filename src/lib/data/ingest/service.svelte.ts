@@ -1,16 +1,20 @@
 import { eventFileMappingModal } from '$lib/modals/import/definitions'
+import { eventPruneModal } from '$lib/modals/modification/definitions'
 import {
-  isTobiiJson,
   processAoiVisibilityFromText,
   buildEventChannelsFromParsed,
 } from '$lib/modals/import/shared/aoiVisibilityServices'
 import {
-  isCsvEventFile,
   parseCsvEventText,
-  buildEventDataFromCsvRows,
+  resolveContributionsForEngine,
   buildDataTypeFromCsvEvents,
   mergeIntoStimulusMap,
-} from '$lib/modals/import/shared/csvEventParser'
+} from './formats/csvEvent'
+import {
+  detectEnrichmentFormat,
+} from './formats/registry'
+import type { EnrichmentFormatDefinition } from './kernel/format'
+import { probeFromText } from './kernel/source'
 import { getStimuliOptions, getParticipantOptions } from '$lib/plots/shared'
 import { getStimulusHighestEndTime } from '$lib/data/engine'
 import { isArchiveFileName } from './formats/routing'
@@ -40,7 +44,7 @@ export type IngestStatus = 'loading' | 'ready' | 'error'
 type IngestUiServices = {
   errorService: Pick<ErrorService, 'report'>
   modalState: Pick<ModalState, 'open' | 'close'>
-  toastState: Pick<ToastState, 'addInfo' | 'addSuccess'>
+  toastState: Pick<ToastState, 'addInfo' | 'addSuccess' | 'addWarning'>
 }
 
 type IngestDependencies = {
@@ -115,46 +119,42 @@ function formatFileInfo(fileNames: string[], fileSizes: number[]): string {
   return fileInfo
 }
 
+/** An upload file claimed by an enrichment format during partition. */
+type ClaimedEventFile = {
+  file: File
+  format: EnrichmentFormatDefinition
+}
+
 /**
- * Separates uploaded files into eye-tracking data files and event files.
- * .xml → event file; .json with Tobii AOI structure → event file;
- * .csv with event columns → event file; rest → eye-tracking.
+ * Partitions uploaded files into eye-tracking sources (for the worker job)
+ * and event files (claimed by ENRICHMENT_FORMATS, consumed post-load).
+ * Detection is registry-driven — the same ordered contract as gaze
+ * formats. One routing policy lives here, not in a format: a LONE .json
+ * upload is never an event file (workspace first-file-wins precedence).
  */
-async function separateEventFiles(
+async function partitionUploadFiles(
   files: File[]
-): Promise<{ eyeFiles: File[]; eventFiles: File[] }> {
+): Promise<{ eyeFiles: File[]; eventFiles: ClaimedEventFile[] }> {
   const eyeFiles: File[] = []
-  const eventFiles: File[] = []
+  const eventFiles: ClaimedEventFile[] = []
   for (const file of files) {
     const ext = file.name.split('.').pop()?.toLowerCase()
-    if (ext === 'xml') {
-      eventFiles.push(file)
-    } else if (ext === 'json' && files.length > 1) {
-      // Multi-file upload: check if a JSON file is a Tobii event file
-      const text = await file.text()
-      try {
-        const json = JSON.parse(text)
-        if (isTobiiJson(json)) {
-          eventFiles.push(file)
-        } else {
-          eyeFiles.push(file)
-        }
-      } catch {
-        eyeFiles.push(file)
-      }
-    } else if (ext === 'csv') {
-      try {
-        if (await isCsvEventFile(file)) {
-          eventFiles.push(file)
-          continue
-        }
-      } catch {
-        // Fall through to eye-tracking
-      }
+    if (ext === 'json' && files.length === 1) {
       eyeFiles.push(file)
-    } else {
-      eyeFiles.push(file)
+      continue
     }
+    try {
+      const slice = await file.slice(0, 256 * 1024).text()
+      const probe = probeFromText(slice, { fileName: file.name })
+      const format = detectEnrichmentFormat(probe)
+      if (format) {
+        eventFiles.push({ file, format })
+        continue
+      }
+    } catch {
+      // Unreadable probe → let the worker job report the real error.
+    }
+    eyeFiles.push(file)
   }
   return { eyeFiles, eventFiles }
 }
@@ -355,6 +355,14 @@ class IngestWorkerClient {
       this.handleWorkspaceDone(result)
       return
     }
+    if (result.warnings?.length) {
+      const count = result.warnings.length
+      this.ui.toastState.addWarning(
+        `Parsing: ${count} warning${count > 1 ? 's' : ''} (${result.warnings
+          .slice(0, 3)
+          .join('; ')}${count > 3 ? '...' : ''})`
+      )
+    }
     this.handleData({ data: result.data, classified: result.settings })
   }
 
@@ -422,6 +430,7 @@ class IngestWorkerClient {
         fileSizes: this.fileSizes,
         parseDate: new Date().toISOString(),
       },
+      freshDataset: true,
     } as ParsedData)
   }
 
@@ -575,7 +584,7 @@ export class IngestService {
 
     try {
       const allFiles = Array.from(files)
-      const { eyeFiles, eventFiles } = await separateEventFiles(allFiles)
+      const { eyeFiles, eventFiles } = await partitionUploadFiles(allFiles)
 
       if (eyeFiles.length === 0 && eventFiles.length > 0) {
         return await this.processStandaloneEventFiles(eventFiles)
@@ -599,11 +608,15 @@ export class IngestService {
                     'Event files could not be processed. Eye-tracking data was loaded without events.',
                   cause: error,
                   context: {
-                    eventFileNames: eventFiles.map(f => f.name),
+                    eventFileNames: eventFiles.map(e => e.file.name),
                   },
                 })
               }
             }
+
+            // Pass 3: fresh datasets that brought event channels get the
+            // one-time prune review (restored workspaces are already curated).
+            if (data.freshDataset) this.maybeOpenEventPrune()
             resolve(true)
           },
           failureMetadata => {
@@ -650,6 +663,19 @@ export class IngestService {
     this.status = 'ready'
   }
 
+  /**
+   * Opens the one-time prune review when the just-loaded dataset carries
+   * event channels. No channels → no modal (identical to today's flow).
+   */
+  private maybeOpenEventPrune(): void {
+    const meta = this.deps.engine.metadata
+    if (!meta) return
+    if (!meta.eventData.data.some(defs => defs.length > 0)) return
+    void this.deps.modalState.open(eventPruneModal, {
+      source: 'ingest.eventPrune',
+    })
+  }
+
   applyFailure(failureMetadata: FileMetadataFailureType): void {
     this.progressPercent = 0
     this.deps.grid.reset([])
@@ -665,13 +691,13 @@ export class IngestService {
   }
 
   private async processStandaloneEventFiles(
-    eventFiles: File[]
+    eventFiles: ClaimedEventFile[]
   ): Promise<boolean> {
-    // Partition into CSV vs legacy event files
+    // Partition by consumption mode (claimed formats from the registry)
     const csvFiles: File[] = []
     const legacyFiles: File[] = []
-    for (const file of eventFiles) {
-      if (await isCsvEventFile(file)) {
+    for (const { file, format } of eventFiles) {
+      if (format.consume === 'contributions') {
         csvFiles.push(file)
       } else {
         legacyFiles.push(file)
@@ -687,7 +713,7 @@ export class IngestService {
         cause: new Error('No CSV event files found in event-only upload'),
         context: {
           eventFileCount: eventFiles.length,
-          eventFileNames: eventFiles.map(f => f.name),
+          eventFileNames: eventFiles.map(e => e.file.name),
         },
       })
       this.status = 'error'
@@ -700,17 +726,18 @@ export class IngestService {
       )
     }
 
-    // Parse all CSV files
-    const allRows: Parameters<typeof buildDataTypeFromCsvEvents>[0] = []
+    // Parse all CSV files into the shared event currency
+    const allContributions: Parameters<typeof buildDataTypeFromCsvEvents>[0] =
+      []
     const allWarnings: string[] = []
     for (const file of csvFiles) {
       const text = await file.text()
-      const { rows, warnings } = parseCsvEventText(text)
+      const { contributions, warnings } = parseCsvEventText(text)
       allWarnings.push(...warnings.map(w => `${file.name}: ${w}`))
-      allRows.push(...rows)
+      allContributions.push(...contributions)
     }
 
-    if (allRows.length === 0) {
+    if (allContributions.length === 0) {
       this.deps.errorService.report({
         origin: 'ingest',
         severity: 'fatal-load',
@@ -726,8 +753,9 @@ export class IngestService {
       return false
     }
 
-    // Build complete DataType from event rows
-    const { data, warnings: buildWarnings } = buildDataTypeFromCsvEvents(allRows)
+    // Build complete DataType from event contributions
+    const { data, warnings: buildWarnings } =
+      buildDataTypeFromCsvEvents(allContributions)
     allWarnings.push(...buildWarnings)
 
     if (allWarnings.length > 0) {
@@ -758,18 +786,20 @@ export class IngestService {
     return true
   }
 
-  private async processEventFilesPostLoad(eventFiles: File[]): Promise<void> {
+  private async processEventFilesPostLoad(
+    eventFiles: ClaimedEventFile[]
+  ): Promise<void> {
     const engine = this.deps.engine
     const meta = engine.metadata
     if (!meta) return
 
     const participantCount = meta.participants.data.length
 
-    // Partition into CSV event files vs legacy (XML/JSON) event files
+    // Partition by consumption mode (claimed formats from the registry)
     const csvFiles: File[] = []
     const legacyFiles: File[] = []
-    for (const file of eventFiles) {
-      if (await isCsvEventFile(file)) {
+    for (const { file, format } of eventFiles) {
+      if (format.consume === 'contributions') {
         csvFiles.push(file)
       } else {
         legacyFiles.push(file)
@@ -835,12 +865,13 @@ export class IngestService {
     const csvWarnings: string[] = []
     for (const file of csvFiles) {
       const text = await file.text()
-      const { rows, warnings: parseWarnings } = parseCsvEventText(text)
+      const { contributions, warnings: parseWarnings } =
+        parseCsvEventText(text)
       csvWarnings.push(...parseWarnings.map(w => `${file.name}: ${w}`))
 
       const { stimulusMap: csvMap, warnings: resolveWarnings } =
-        buildEventDataFromCsvRows(
-          rows,
+        resolveContributionsForEngine(
+          contributions,
           meta.stimuli.data,
           meta.participants.data,
           participantCount,

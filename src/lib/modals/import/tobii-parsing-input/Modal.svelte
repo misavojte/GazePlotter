@@ -2,24 +2,39 @@
   import InputText from '$lib/shared/components/InputText.svelte'
   import { ModalButtons } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
+  import type { TobiiParsingConfig } from '$lib/data/ingest/formats/lib/rows/tobiiParsingConfig'
+  import { serializeTobiiConfig } from '$lib/data/ingest/formats/lib/rows/tobiiParsingConfig'
 
   const { modalState } = getGazePlotterSession()
 
-  /**
-   * Trigger string to activate Web Stimulus parsing mode.
-   */
-  const WEB_STIMULUS_TRIGGER = 'WebStimulus'
-
   let selectedOption: string = $state('')
   let customMarkers: string = $state('_start;_end')
+  let eventStartSuffix: string = $state('')
+  let eventEndSuffix: string = $state('')
 
   /**
-   * Handles form submission by resolving the promise with the selected value.
+   * Handles form submission by resolving the promise with the serialized
+   * keyed config (see tobiiParsingConfig.ts — keys present iff active).
    */
   const handleSubmit = () => {
-    const finalValue =
-      selectedOption === 'custom' ? customMarkers : selectedOption
-    modalState.finish(finalValue)
+    const config: TobiiParsingConfig = {}
+    if (selectedOption === 'interval') {
+      config.stimulusStartSuffix = 'IntervalStart'
+      config.stimulusEndSuffix = 'IntervalEnd'
+    } else if (selectedOption === 'web') {
+      config.stimulusWeb = true
+    } else if (selectedOption === 'custom') {
+      const [start, end] = customMarkers.split(';').map(p => p.trim())
+      config.stimulusStartSuffix = start
+      config.stimulusEndSuffix = end
+    }
+    if (eventEndSuffix.trim()) {
+      config.eventEndSuffix = eventEndSuffix
+      if (eventStartSuffix.trim()) {
+        config.eventStartSuffix = eventStartSuffix
+      }
+    }
+    modalState.finish(serializeTobiiConfig(config))
   }
 
   /**
@@ -84,18 +99,14 @@
 
     <div
       class="option-card"
-      class:selected={selectedOption === ' IntervalStart; IntervalEnd'}
-      onclick={() => selectOption(' IntervalStart; IntervalEnd')}
-      onkeydown={event => handleKeydown(event, ' IntervalStart; IntervalEnd')}
+      class:selected={selectedOption === 'interval'}
+      onclick={() => selectOption('interval')}
+      onkeydown={event => handleKeydown(event, 'interval')}
       tabindex="0"
       role="button"
     >
       <label class="option-header">
-        <input
-          type="radio"
-          bind:group={selectedOption}
-          value=" IntervalStart; IntervalEnd"
-        />
+        <input type="radio" bind:group={selectedOption} value="interval" />
         <div class="option-content">
           <h4 class="option-title">Interval Events</h4>
           <p class="option-subtitle">Glasses experiments</p>
@@ -105,18 +116,14 @@
 
     <div
       class="option-card"
-      class:selected={selectedOption === WEB_STIMULUS_TRIGGER}
-      onclick={() => selectOption(WEB_STIMULUS_TRIGGER)}
-      onkeydown={event => handleKeydown(event, WEB_STIMULUS_TRIGGER)}
+      class:selected={selectedOption === 'web'}
+      onclick={() => selectOption('web')}
+      onkeydown={event => handleKeydown(event, 'web')}
       tabindex="0"
       role="button"
     >
       <label class="option-header">
-        <input
-          type="radio"
-          bind:group={selectedOption}
-          value={WEB_STIMULUS_TRIGGER}
-        />
+        <input type="radio" bind:group={selectedOption} value="web" />
         <div class="option-content">
           <h4 class="option-title">Web Stimulus Events</h4>
           <p class="option-subtitle">Individual URLs as stimuli</p>
@@ -153,6 +160,27 @@
           />
         </div>
       {/if}
+    </div>
+  </div>
+
+  <div class="event-section">
+    <h4 class="event-title">Duration events (optional)</h4>
+    <p class="event-subtitle">
+      Pair Event rows into duration events by name suffix — e.g. with end
+      suffix "&nbsp;end", "Task1" / "Task1 end" become one "Task1" event.
+      Other events are imported as instant events.
+    </p>
+    <div class="event-inputs">
+      <InputText
+        bind:value={eventStartSuffix}
+        label="Start suffix (optional)"
+        placeholder=" start"
+      />
+      <InputText
+        bind:value={eventEndSuffix}
+        label="End suffix"
+        placeholder=" end"
+      />
     </div>
   </div>
 </div>
@@ -255,5 +283,35 @@
   .custom-input {
     margin-top: 0.75rem;
     cursor: auto;
+  }
+
+  .event-section {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid #ddd;
+  }
+
+  .event-title {
+    margin: 0 0 0.25rem 0;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--c-text);
+    line-height: 1.3;
+  }
+
+  .event-subtitle {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.85rem;
+    color: #666;
+    line-height: 1.4;
+  }
+
+  .event-inputs {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .event-inputs > :global(*) {
+    flex: 1;
   }
 </style>

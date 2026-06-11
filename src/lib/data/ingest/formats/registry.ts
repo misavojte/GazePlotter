@@ -21,6 +21,7 @@
  */
 import type {
   ArchiveFormatDefinition,
+  EnrichmentFormatDefinition,
   StreamFormatDefinition,
   WorkspaceFormatDefinition,
 } from '../kernel/format'
@@ -39,6 +40,8 @@ import { csvSegmentedFromToFormat } from './csvSegmentedFromTo'
 import { csvSegmentedDurationFormat } from './csvSegmentedDuration'
 import { pupilCloudZipFormat } from './pupilCloudZip'
 import { workspaceJsonFormat } from './workspaceJson'
+import { csvEventFormat } from './csvEvent'
+import { legacyEventsFormat } from './legacyEvents'
 
 export const STREAM_FORMATS: readonly StreamFormatDefinition[] = [
   tobiiFormat,
@@ -58,6 +61,27 @@ export const ARCHIVE_FORMATS: readonly ArchiveFormatDefinition[] = [
 export const WORKSPACE_FORMATS: readonly WorkspaceFormatDefinition[] = [
   workspaceJsonFormat,
 ]
+
+/**
+ * Event-file formats, claimed during the main-thread upload partition and
+ * consumed AFTER the dataset exists (never by the worker job). Checked
+ * BEFORE stream detection — an event file must not fall through to a
+ * gaze format. Order within the list follows the usual specificity rule.
+ */
+export const ENRICHMENT_FORMATS: readonly EnrichmentFormatDefinition[] = [
+  csvEventFormat,
+  legacyEventsFormat,
+]
+
+/** First enrichment format claiming the probe, or null. */
+export function detectEnrichmentFormat(
+  probe: SourceProbe
+): EnrichmentFormatDefinition | null {
+  for (const def of ENRICHMENT_FORMATS) {
+    if (def.detect(probe)) return def
+  }
+  return null
+}
 
 /** The registry handed to `IngestJob` in production. */
 export const FORMAT_REGISTRY: FormatRegistry = {

@@ -428,5 +428,5 @@
 <canvas
   use:plot.plotAction
   use:canvasBlockSelect={{ regions: plot.blockedRegions }}
-  aria-label="Bar plot visualization"
+  aria-label="AOI metrics visualization"
 ></canvas>

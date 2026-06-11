@@ -53,6 +53,21 @@
     buildMetadataOverview(engine.metadata, engine.capabilities)
   )
 
+  /**
+   * Keyed user-input settings (the Tobii parsing config) render as
+   * label/value rows; any other value renders raw.
+   */
+  function userInputEntries(value: string): [string, string][] | null {
+    try {
+      const parsed: unknown = JSON.parse(value)
+      if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed))
+        return null
+      return Object.entries(parsed).map(([k, v]) => [k, String(v)])
+    } catch {
+      return null
+    }
+  }
+
   function exportMetadata(): void {
     try {
       const exportDate = new Date()
@@ -266,13 +281,25 @@
           </div>
 
           {#if 'userInputSetting' in fileMetadata.parseSettings}
-            <div class="settings-item">
-              <span class="settings-label">User input setting:</span>
-              <span class="settings-value"
-                >{fileMetadata.parseSettings.userInputSetting ||
-                  '(empty)'}</span
-              >
-            </div>
+            {@const entries = userInputEntries(
+              fileMetadata.parseSettings.userInputSetting
+            )}
+            {#if entries}
+              {#each entries as [key, value] (key)}
+                <div class="settings-item">
+                  <span class="settings-label">{key}:</span>
+                  <span class="settings-value">{value}</span>
+                </div>
+              {/each}
+            {:else}
+              <div class="settings-item">
+                <span class="settings-label">User input setting:</span>
+                <span class="settings-value"
+                  >{fileMetadata.parseSettings.userInputSetting ||
+                    '(empty)'}</span
+                >
+              </div>
+            {/if}
           {/if}
         </div>
       </Card>

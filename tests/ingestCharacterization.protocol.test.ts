@@ -111,14 +111,14 @@ describe('worker protocol', () => {
     const prompt = posted.find(p => p.message.type === 'prompt')
     expect(prompt!.message.promptId).toBe('tobii-parsing-input')
     // Worker is now suspended awaiting the answer; deliver it.
-    await send('prompt-response', 'IntervalStart;IntervalEnd')
+    await send('prompt-response', '{"stimulusStartSuffix":"IntervalStart","stimulusEndSuffix":"IntervalEnd"}')
     await processing
 
     const done = posted.find(p => p.message.type === 'done')
     expect(done).toBeDefined()
     expect(done!.message.result.settings.type).toBe('tobii-with-event')
     expect(done!.message.result.settings.userInputSetting).toBe(
-      'IntervalStart;IntervalEnd'
+      '{"stimulusStartSuffix":"IntervalStart","stimulusEndSuffix":"IntervalEnd"}'
     )
     expect(done!.message.result.data.stimuli.data).toEqual([['geostul_snap']])
   })

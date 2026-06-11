@@ -91,6 +91,8 @@ async function readRows(
       })
       // Bind once; the per-row call stays monomorphic (see DatasetSink).
       parser.onSegment = sink.addSegmentBytes
+      parser.onEvent = event => sink.addEvent(event)
+      parser.onWarning = message => sink.addWarning(message)
       state.parser = parser
       rowIndex++
       return

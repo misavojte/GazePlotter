@@ -1,8 +1,8 @@
-# Bar Plot
+# AOI Metrics
 
-Bar Plot in GazePlotter provides quantitative analysis of eye-tracking data through bar charts. It aggregates gaze metrics across Areas of Interest (AOIs) for statistical comparison and analysis.
+AOI Metrics in GazePlotter provides quantitative analysis of eye-tracking data through bar charts. It aggregates gaze metrics across Areas of Interest (AOIs) for statistical comparison and analysis.
 
-![Bar Plot showing aggregated AOI metrics for a selected stimulus.](/docs/images/eyetracking-bar-plot-gazeplotter.jpg)
+![AOI Metrics showing aggregated AOI metrics for a selected stimulus.](/docs/images/eyetracking-bar-plot-gazeplotter.jpg)
 
 > Interested on how to operate with plots in general within the workspace? See:
 >
@@ -14,11 +14,11 @@ Bar Plot in GazePlotter provides quantitative analysis of eye-tracking data thro
 
 ## Overview
 
-The Bar Plot visualization displays quantitative metrics for each AOI in your selected stimulus, allowing you to compare attention patterns, fixation durations, and other gaze measurements across different areas of interest.
+The AOI Metrics visualization displays quantitative metrics for each AOI in your selected stimulus, allowing you to compare attention patterns, fixation durations, and other gaze measurements across different areas of interest.
 
 ## Basic Controls
 
-In GazePlotter, bar plots have the following main controls:
+In GazePlotter, AOI metrics plots have the following main controls:
 
 - **[Stimulus](#stimulus)** - a drop-down menu for selecting the stimulus to be analyzed.
 - **[Group](#group)** - a drop-down menu for selecting the participant group.
@@ -138,7 +138,7 @@ Average duration of the very first fixation each participant made on each AOI.
 
 ### More options
 
-The bar plot menu (⋮) provides quick access to customization and specific features:
+The AOI metrics menu (⋮) provides quick access to customization and specific features:
 
 #### Customization Options
 
@@ -148,7 +148,7 @@ The bar plot menu (⋮) provides quick access to customization and specific feat
 
 #### Download plot
 
-Export individual bar plots as image files:
+Export individual AOI metrics plots as image files:
 
 - **File formats**: PNG (recommended) or JPG
 - **Dimensions**: Customizable width (height calculated automatically at 5:3 aspect ratio)
@@ -164,7 +164,7 @@ This provides access to all computed eye-tracking metrics (absolute time, relati
 
 ## Interpretation
 
-Use Bar Plot to:
+Use AOI Metrics to:
 
 - **Compare AOI performance** - identify which areas attract most/least attention
 - **Quantify differences** - get precise measurements rather than visual estimates

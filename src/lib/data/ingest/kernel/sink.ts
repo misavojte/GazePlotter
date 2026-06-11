@@ -7,10 +7,11 @@ import { SegmentWriter } from './segmentWriter'
  * for non-gaze instruments (marker streams, triggers, stimulus events).
  * Lands in `DataType.eventData` keyed by stimulus/participant ORIGINAL
  * names; occurrences referencing names that no segment produced are
- * dropped (same resolution rule as the post-load CSV event merge).
+ * dropped and reported as warnings.
  */
 export interface EventContribution {
   stimulus: string
+  /** Participant ORIGINAL name, or '*' to apply to every participant. */
   participant: string
   channel: string
   /** Start time in ms (same time base as the segments). */
@@ -44,6 +45,8 @@ export interface DatasetSink {
   addSegment(row: SegmentRow): void
   /** Emit one event-channel occurrence. */
   addEvent(event: EventContribution): void
+  /** Report a non-fatal issue (surfaced as a toast after the upload). */
+  addWarning(message: string): void
 }
 
 /**
@@ -54,6 +57,9 @@ export interface DatasetSink {
 export class DatasetBuilder implements DatasetSink {
   private readonly writer = new SegmentWriter()
   private readonly events: EventContribution[] = []
+
+  /** Resolution warnings produced by `buildFinalData` (read by the job). */
+  readonly warnings: string[] = []
 
   readonly addSegmentBytes = this.writer.addSegmentBytes.bind(this.writer)
 
@@ -74,9 +80,15 @@ export class DatasetBuilder implements DatasetSink {
     this.events.push(event)
   }
 
+  addWarning(message: string): void {
+    this.warnings.push(message)
+  }
+
   buildFinalData(): DataType {
     const data = this.writer.buildFinalData()
-    if (this.events.length > 0) mergeEvents(data, this.events)
+    if (this.events.length > 0) {
+      this.warnings.push(...mergeEvents(data, this.events))
+    }
     return data
   }
 }
@@ -86,8 +98,18 @@ export class DatasetBuilder implements DatasetSink {
  * the same layout the engine maintains:
  * `data[stimulusId][channelId] = [originalName, displayedName, color]`,
  * `events[stimulusId][channelId][participantId] = stride-2 [start, duration, …]`.
+ *
+ * `participant: '*'` applies the occurrence to every participant.
+ * Contributions referencing unknown stimulus/participant names are dropped;
+ * the returned warnings aggregate the drops per unknown name.
+ *
+ * Exported as THE event resolution rule — the post-load enrichment flows
+ * reuse it instead of maintaining a parallel implementation.
  */
-function mergeEvents(data: DataType, events: EventContribution[]): void {
+export function mergeEvents(
+  data: DataType,
+  events: EventContribution[]
+): string[] {
   const stimulusIdByName = new Map<string, number>()
   data.stimuli.data.forEach((row, i) => stimulusIdByName.set(row[0], i))
   const participantIdByName = new Map<string, number>()
@@ -95,6 +117,10 @@ function mergeEvents(data: DataType, events: EventContribution[]): void {
 
   const stimuliCount = data.stimuli.data.length
   const participantCount = data.participants.data.length
+  const allParticipantIds = Array.from(
+    { length: participantCount },
+    (_, i) => i
+  )
 
   // channelId lookup per stimulus, keyed by channel name.
   const channelIdByName: Array<Map<string, number>> = Array.from(
@@ -104,11 +130,32 @@ function mergeEvents(data: DataType, events: EventContribution[]): void {
 
   const ed = data.eventData
   let anyEvent = false
+  const droppedByStimulus = new Map<string, number>()
+  const droppedByParticipant = new Map<string, number>()
 
   for (const event of events) {
     const sId = stimulusIdByName.get(event.stimulus)
-    const pId = participantIdByName.get(event.participant)
-    if (sId === undefined || pId === undefined) continue
+    if (sId === undefined) {
+      droppedByStimulus.set(
+        event.stimulus,
+        (droppedByStimulus.get(event.stimulus) ?? 0) + 1
+      )
+      continue
+    }
+    let pIds: number[]
+    if (event.participant === '*') {
+      pIds = allParticipantIds
+    } else {
+      const pId = participantIdByName.get(event.participant)
+      if (pId === undefined) {
+        droppedByParticipant.set(
+          event.participant,
+          (droppedByParticipant.get(event.participant) ?? 0) + 1
+        )
+        continue
+      }
+      pIds = [pId]
+    }
 
     let chId = channelIdByName[sId].get(event.channel)
     if (chId === undefined) {
@@ -123,7 +170,9 @@ function mergeEvents(data: DataType, events: EventContribution[]): void {
         Array.from({ length: participantCount }, () => [] as number[])
       )
     }
-    ed.events[sId][chId][pId].push(event.start, event.duration)
+    for (const pId of pIds) {
+      ed.events[sId][chId][pId].push(event.start, event.duration)
+    }
     anyEvent = true
   }
 
@@ -135,4 +184,13 @@ function mergeEvents(data: DataType, events: EventContribution[]): void {
   ed.hiddenChannels = Array.from({ length: stimuliCount }, () => [])
 
   if (anyEvent) data.capabilities.event = true
+
+  const warnings: string[] = []
+  for (const [name, count] of droppedByStimulus) {
+    warnings.push(`${count} event(s) referenced unknown stimulus '${name}'`)
+  }
+  for (const [name, count] of droppedByParticipant) {
+    warnings.push(`${count} event(s) referenced unknown participant '${name}'`)
+  }
+  return warnings
 }
