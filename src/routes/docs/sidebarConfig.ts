@@ -1,6 +1,7 @@
 export interface SidebarLink {
   name: string
   href: string
+  breadcrumbName?: string
   description?: string
   slug?: string
 }
@@ -73,27 +74,6 @@ export const SIDEBAR: readonly SidebarSection[] = [
         href: '/docs/basic/workspace',
       },
       {
-        name: 'Scarf Plot',
-        href: '/docs/basic/scarf-plot',
-      },
-      {
-        name: 'Bar Plot',
-        href: '/docs/basic/bar-plot',
-      },
-      {
-        name: 'Transition Matrix',
-        href: '/docs/basic/transition-matrix',
-      },
-
-      {
-        name: 'AOI Occupancy Plot',
-        href: '/docs/basic/aoi-occupancy',
-      },
-      {
-        name: 'Recurrence Plot',
-        href: '/docs/basic/recurrence-plot',
-      },
-      {
         name: 'AOI Customization',
         href: '/docs/basic/aoi-customization',
       },
@@ -112,6 +92,36 @@ export const SIDEBAR: readonly SidebarSection[] = [
       {
         name: 'Stimuli Customization',
         href: '/docs/basic/stimuli-customization',
+      },
+    ],
+  },
+  {
+    title: 'Visualizations',
+    links: [
+      {
+        name: 'Eye-tracking Visualizations',
+        breadcrumbName: 'Visualizations',
+        href: '/docs/visualizations',
+      },
+      {
+        name: 'Scarf Plot',
+        href: '/docs/visualizations/scarf-plot',
+      },
+      {
+        name: 'AOI Metrics',
+        href: '/docs/visualizations/aoi-metrics',
+      },
+      {
+        name: 'Transition Matrix',
+        href: '/docs/visualizations/transition-matrix',
+      },
+      {
+        name: 'AOI Occupancy Plot',
+        href: '/docs/visualizations/aoi-occupancy',
+      },
+      {
+        name: 'Recurrence Plot',
+        href: '/docs/visualizations/recurrence-plot',
       },
     ],
   },

@@ -134,7 +134,7 @@ Use Transition Matrix in your eye-tracking analysis to:
 ### Reading the Matrix
 
 - **Diagonal values** - transitions within the same AOI (re-fixations)
-- **High-value cells** - common transition paths in your stimulus
+- **High-value cells** - common transition patterns in your stimulus
 - **Row patterns** - where gaze typically goes FROM each AOI
 - **Column patterns** - where gaze typically comes TO each AOI
 - **Empty cells** - transitions that rarely or never occur

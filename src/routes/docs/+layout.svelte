@@ -264,7 +264,7 @@
 
   .sidebar-main {
     flex: 1;
-    padding: 2rem;
+    padding: 1rem;
     padding-bottom: 96px; /* 1.5 header heights of space */
     overflow-y: auto;
     /* Hide scrollbar but keep functionality for a cleaner look */

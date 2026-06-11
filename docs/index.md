@@ -8,10 +8,11 @@ Whether you're a researcher analyzing attention patterns, a student learning abo
 
 ### Multiple Visualization Types
 
-- **[Scarf Plots](/docs/basic/scarf-plot/)** - Interactive timeline visualizations showing gaze sequences and patterns over time
-- **[Bar Plots](/docs/basic/bar-plot/)** - Statistical analysis with metrics like dwell time, fixation count, and time to first fixation
-- **[Transition Matrices](/docs/basic/transition-matrix/)** - Heat map visualizations of gaze movement patterns between Areas of Interest
-- **[Time-binned AOI Occupancy](/docs/basic/aoi-occupancy/)** - Flowing visualizations showing the distribution of attention over time
+- **[Scarf Plots](/docs/visualizations/scarf-plot/)** - Interactive timeline visualizations showing gaze sequences and patterns over time
+- **[AOI Metrics](/docs/visualizations/aoi-metrics/)** - Statistical analysis with metrics like dwell time, fixation count, and time to first fixation
+- **[Transition Matrices](/docs/visualizations/transition-matrix/)** - Heat map visualizations of gaze movement patterns between Areas of Interest
+- **[Time-binned AOI Occupancy](/docs/visualizations/aoi-occupancy/)** - Flowing visualizations showing the distribution of attention over time
+- **[Recurrence Plots](/docs/visualizations/recurrence-plot/)** - N×N matrix revealing temporal self-similarity in a single participant's fixation sequence
 
 ### Workspace Management
 

@@ -11,7 +11,7 @@ import type { BarPlotSettings } from './types'
 
 export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
   type: 'barPlot',
-  name: 'Bar Plot',
+  name: 'AOI Metrics',
   component: BarPlot,
   paneSettings: BarPlotPaneSettings,
   export: { deriveView: deriveBarView },

@@ -45,15 +45,11 @@ When you first open GazePlotter, you'll see a **scarf plot** (timeline visualiza
 - **9 participants** (people whose eye movements were recorded)
 - **3 participant groups** (organized for comparison)
 
-## Types of Visualizations
+## Visualizations
 
-GazePlotter offers three main ways to view your eye-tracking data:
+To help you analyze eye-tracking data, GazePlotter provides a set of visualization plots, including Scarf Plot, AOI Metrics, Transition Matrix, Time-binned AOI Occupancy, and Recurrence Plot.
 
-- **[Scarf Plot](/docs/basic/scarf-plot/)** - Timeline view showing the sequence of where people looked over time
-- **[Bar Plot](/docs/basic/bar-plot/)** - Bar charts comparing how much time was spent in different areas
-- **[Transition Matrix](/docs/basic/transition-matrix/)** - Heat map showing how gaze moved between areas
-- **[Time-binned AOI Occupancy](/docs/basic/aoi-occupancy/)** - Visualizations showing how attention is distributed across AOIs over time
-- **[Recurrence Plot](/docs/basic/recurrence-plot/)** - N×N matrix revealing temporal self-similarity in a single participant's fixation sequence
+For detailed information about each visualization type and how to interpret them, see the [Visualizations section](/docs/visualizations/).
 
 ## Customizing Your Analysis
 
@@ -69,7 +65,7 @@ You can personalize how your data appears and is organized:
 **Basic Operations:**
 
 - **Upload data** from any major eye-tracking software
-- **View data** in three different visualization types
+- **View data** in several different visualization types
 - **Move and resize** plots by dragging
 - **Add multiple plots** to compare different views
 - **Save your work** to continue later or share with others
