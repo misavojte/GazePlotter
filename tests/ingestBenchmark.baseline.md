@@ -23,6 +23,14 @@ Paired run for the keyed-JSON prompt config change (B1, 2026-06-11):
 pre 59.68 ms vs post 60.76 ms on tobii (+1.8%, within budget); csv path
 untouched (ran faster post-change inside its noise band).
 
+Paired run for inline event extraction (B2, 2026-06-11): pre 57.94 ms vs
+post 58.88 ms on tobii (mean +1.6%, min −3.5% — within budget). Event
+handling is composed INTO the stimulus updater so an empty Event cell
+costs exactly the baseline's one getBytes + length check; a first
+implementation with a separate per-row event updater measured +8% and was
+rejected. getBytes now returns a shared EMPTY_BYTES (allocation removed
+from the per-row path).
+
 Workloads are defined in `tests/ingestPipeline.bench.ts`:
 - **csv**: synthetic 4 stimuli × 25 participants × 1200 rows, generic
   compiled row parser + byte dictionaries.

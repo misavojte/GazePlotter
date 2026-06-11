@@ -45,6 +45,8 @@ export interface DatasetSink {
   addSegment(row: SegmentRow): void
   /** Emit one event-channel occurrence. */
   addEvent(event: EventContribution): void
+  /** Report a non-fatal issue (surfaced as a toast after the upload). */
+  addWarning(message: string): void
 }
 
 /**
@@ -76,6 +78,10 @@ export class DatasetBuilder implements DatasetSink {
 
   addEvent(event: EventContribution): void {
     this.events.push(event)
+  }
+
+  addWarning(message: string): void {
+    this.warnings.push(message)
   }
 
   buildFinalData(): DataType {

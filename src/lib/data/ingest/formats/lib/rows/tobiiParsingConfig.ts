@@ -53,3 +53,25 @@ export function hasEventDrivenStimuli(config: TobiiParsingConfig): boolean {
     config.stimulusWeb || config.stimulusStartSuffix || config.stimulusEndSuffix
   )
 }
+
+/**
+ * Tobii Pro Lab system events that never become event channels — recording
+ * lifecycle, sync pulses, and web-navigation markers (the latter drive
+ * web-stimulus parsing). Format-owned, not user config; applies only to
+ * the discrete remainder — suffix-declared pairs always win. Exact names,
+ * compared byte-for-byte against the Event column.
+ */
+export const TOBII_SYSTEM_EVENTS: readonly string[] = [
+  'RecordingStart',
+  'RecordingEnd',
+  'RecordingPause',
+  'RecordingResume',
+  'SyncPortInHigh',
+  'SyncPortInLow',
+  'SyncPortOutHigh',
+  'SyncPortOutLow',
+  'TTLIn',
+  'TTLOut',
+  'URLStart',
+  'URLEnd',
+]

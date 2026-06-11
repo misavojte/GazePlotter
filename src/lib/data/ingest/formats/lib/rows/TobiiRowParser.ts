@@ -1,6 +1,9 @@
 import { RowParser } from './RowParser'
 import type { TobiiParsingConfig } from './tobiiParsingConfig'
-import { parseTobiiUserInput } from './tobiiParsingConfig'
+import {
+  parseTobiiUserInput,
+  TOBII_SYSTEM_EVENTS,
+} from './tobiiParsingConfig'
 import {
   bytesEqual,
   encodeString,
@@ -26,6 +29,34 @@ type StimulusPackedCols = {
   pCategoryIndex: number
   pMappedFixationX: number
   pMappedFixationY: number
+}
+
+/** Stimulus context captured for an event row (names already decoded). */
+type EventStimulusRef = { key: number; name: string }
+
+/**
+ * An Event-column occurrence awaiting finalize-time resolution against
+ * `stimuliBaseTimes` (base times only stabilize as gaze rows arrive, so
+ * events buffer raw recording timestamps). `endMicros === null` = discrete.
+ */
+type PendingEvent = {
+  channel: string
+  stimuli: EventStimulusRef[]
+  participantFull: bigint
+  participant: string
+  startMicros: number
+  endMicros: number | null
+}
+
+/** A suffix-opened event waiting for its end marker (buffer-and-decide). */
+type OpenEvent = {
+  channel: string
+  stimuli: EventStimulusRef[]
+  participantFull: bigint
+  participant: string
+  startMicros: number
+  /** Opened by the explicit start suffix → unclosed clamps; bare → discrete. */
+  explicit: boolean
 }
 
 class BigIntNumberMap {
@@ -239,6 +270,21 @@ export class TobiiRowParser extends RowParser {
   private cachedStimulusStackBytes: Uint8Array[] = []
   private cachedStimulusStackKeys: number[] = []
 
+  /* ── Event extraction (Event column → event channels) ───────────── */
+  // Cold path throughout: event handling is composed INTO the stimulus
+  // updater so empty Event cells cost exactly what they did before events
+  // existed (one getBytes + length check in interval/web mode); only rows
+  // with a non-empty Event column reach `handleEventRow`.
+  private readonly eventTextDecoder: TextDecoder
+  private readonly eventDenylistBytes: Uint8Array[] = []
+  private readonly eventStartSuffixBytes: Uint8Array | null
+  private readonly eventEndSuffixBytes: Uint8Array | null
+  /** Open suffix-paired events, keyed by `channel+participantFull`. */
+  private readonly openEvents = new Map<string, OpenEvent>()
+  private readonly pendingEvents: PendingEvent[] = []
+  private unmatchedEndCount = 0
+  private clampedOpenCount = 0
+
   private readonly stimuliBaseTimes = new BigIntNumberMap(512)
   private readonly intervalStack: Map<number, Uint8Array> = new Map()
   private readonly intervalStartTimes = new BigIntNumberMap(256)
@@ -396,16 +442,51 @@ export class TobiiRowParser extends RowParser {
       this.aoiHitFlags = new Uint8Array(aoiInfo.names.length)
     }
 
+    /* Event extraction setup. System noise is denylisted by exact name;
+       stimulus marker rows are consumed by the stimulus handlers below and
+       never reach handleEventRow. */
     const config = parseTobiiUserInput(userInput)
+    this.eventTextDecoder = new TextDecoder(encoding)
+    for (const name of TOBII_SYSTEM_EVENTS) {
+      this.eventDenylistBytes.push(encodeString(name, this.encoding))
+    }
+    this.eventStartSuffixBytes = config.eventStartSuffix
+      ? encodeString(config.eventStartSuffix, this.encoding)
+      : null
+    this.eventEndSuffixBytes = config.eventEndSuffix
+      ? encodeString(config.eventEndSuffix, this.encoding)
+      : null
+
+    /* Per-row updater composition. Event handling rides the same single
+       Event-column read the stimulus handlers already do, so the hot path
+       (empty Event cell) stays at one getBytes + length check. */
+    const canHaveEvents = this.cEvent !== -1
     if (config.stimulusWeb) {
-      this.stimulusUpdater = this.constructWebStimulusUpdaterBinary()
+      const web = this.constructWebStimulusUpdaterBinary()
+      this.stimulusUpdater = (): void => {
+        const evtBytes = this.getBytes(this.pEvent)
+        if (!evtBytes.length) return
+        web(evtBytes)
+        if (canHaveEvents) this.handleEventRow(evtBytes)
+      }
     } else if (config.stimulusStartSuffix || config.stimulusEndSuffix) {
-      this.stimulusUpdater = this.constructIntervalStimulusUpdaterBinary(
-        config
-      )
+      const interval = this.constructIntervalStimulusUpdaterBinary(config)
+      this.stimulusUpdater = (): void => {
+        const evtBytes = this.getBytes(this.pEvent)
+        if (!evtBytes.length) return
+        if (interval(evtBytes)) return
+        if (canHaveEvents) this.handleEventRow(evtBytes)
+      }
     } else {
       this.mappedColumnsAllowed = false
-      this.stimulusUpdater = this.constructBaseStimulusUpdaterBinary()
+      const base = this.constructBaseStimulusUpdaterBinary()
+      this.stimulusUpdater = canHaveEvents
+        ? (): void => {
+            base()
+            const evtBytes = this.getBytes(this.pEvent)
+            if (evtBytes.length) this.handleEventRow(evtBytes)
+          }
+        : base
     }
   }
 
@@ -618,6 +699,11 @@ export class TobiiRowParser extends RowParser {
   }
 
   finalize(): void {
+    this.finalizeSegments()
+    this.flushEvents()
+  }
+
+  private finalizeSegments(): void {
     if (
       !this.mParticipantBytes ||
       !this.mStimulusBytes ||
@@ -972,6 +1058,11 @@ export class TobiiRowParser extends RowParser {
     }
   }
 
+  /**
+   * Interval-mode marker handler. Takes the row's (non-empty) Event bytes
+   * and returns true when the row was consumed as a stimulus marker — the
+   * caller routes unconsumed rows to event extraction.
+   */
   private constructIntervalStimulusUpdaterBinary(config: TobiiParsingConfig) {
     const startMarker = config.stimulusStartSuffix?.trim()
     const endMarker = config.stimulusEndSuffix?.trim()
@@ -981,10 +1072,7 @@ export class TobiiRowParser extends RowParser {
     const startMarkerBytes = encodeString(startMarker, this.encoding)
     const endMarkerBytes = encodeString(endMarker, this.encoding)
 
-    return (): void => {
-      const evtBytes = this.getBytes(this.pEvent)
-      if (!evtBytes.length) return
-
+    return (evtBytes: Uint8Array): boolean => {
       if (endsWithBytes(evtBytes, startMarkerBytes)) {
         const rawStimBytes = trimEndSpaces(
           evtBytes.subarray(0, evtBytes.length - startMarkerBytes.length),
@@ -1004,7 +1092,9 @@ export class TobiiRowParser extends RowParser {
           if (Number.isFinite(tsNum)) this.intervalStartTimes.set(key, tsNum)
           this.updateCachedStimulusStackBinary()
         }
-      } else if (endsWithBytes(evtBytes, endMarkerBytes)) {
+        return true
+      }
+      if (endsWithBytes(evtBytes, endMarkerBytes)) {
         const rawStimBytes = trimEndSpaces(
           evtBytes.subarray(0, evtBytes.length - endMarkerBytes.length),
           this.encoding
@@ -1013,15 +1103,18 @@ export class TobiiRowParser extends RowParser {
         if (this.intervalStack.delete(stimKey)) {
           this.updateCachedStimulusStackBinary()
         }
+        return true
       }
+      return false
     }
   }
 
+  /** Web-mode handler. Takes the row's (non-empty) Event bytes; URL
+      markers are also on the system denylist, so event extraction never
+      double-consumes them. */
   private constructWebStimulusUpdaterBinary() {
-    return (): void => {
+    return (evtBytes: Uint8Array): void => {
       if (this.cEventValue === -1) return
-      const evtBytes = this.getBytes(this.pEvent)
-      if (!evtBytes.length) return
 
       const evtValueBytes = this.getBytes(this.pEventValue)
 
@@ -1045,6 +1138,247 @@ export class TobiiRowParser extends RowParser {
         if (this.intervalStack.delete(urlKey)) {
           this.updateCachedStimulusStackBinary()
         }
+      }
+    }
+  }
+
+  /* ── Event extraction ───────────────────────────────────────────── */
+  /**
+   * Event-row handler — receives the (non-empty) Event bytes of a row the
+   * stimulus handler did not consume. Precedence within: system denylist →
+   * event end suffix → event start suffix → bare name (provisional open
+   * when pairing is on without a start suffix, discrete otherwise).
+   */
+  private handleEventRow(evtBytes: Uint8Array): void {
+    for (const deny of this.eventDenylistBytes) {
+      if (bytesEqual(evtBytes, deny)) return
+    }
+
+    const ts = this.getRecordingTimestampMicros()
+    if (!Number.isFinite(ts)) return
+
+    const recordingBytes = this.getBytes(this.pRecording)
+    const participantBytes = this.getBytes(this.pParticipant)
+    const participantFull = this.makeCompositeKey64(
+      this.makeKey(recordingBytes),
+      this.makeKey(participantBytes)
+    )
+
+    const endSuffix = this.eventEndSuffixBytes
+    if (endSuffix && endsWithBytes(evtBytes, endSuffix)) {
+      const channel = this.decodeEventName(evtBytes, endSuffix.length)
+      const key = `${channel}+${participantFull}`
+      const open = this.openEvents.get(key)
+      if (open) {
+        this.openEvents.delete(key)
+        this.pendingEvents.push({ ...open, endMicros: ts })
+      } else {
+        this.unmatchedEndCount++
+      }
+      return
+    }
+
+    const startSuffix = this.eventStartSuffixBytes
+    if (startSuffix && endsWithBytes(evtBytes, startSuffix)) {
+      const channel = this.decodeEventName(evtBytes, startSuffix.length)
+      this.openEvent(
+        channel,
+        participantFull,
+        recordingBytes,
+        participantBytes,
+        ts,
+        true
+      )
+      return
+    }
+
+    const channel = this.decodeEventName(evtBytes, 0)
+    if (endSuffix && !startSuffix) {
+      // Bare name with pairing on: provisionally open; resolves to a
+      // duration event if its end arrives, to a discrete event otherwise.
+      this.openEvent(
+        channel,
+        participantFull,
+        recordingBytes,
+        participantBytes,
+        ts,
+        false
+      )
+    } else {
+      this.pendingEvents.push({
+        channel,
+        stimuli: this.captureActiveStimuli(),
+        participantFull,
+        participant: this.decodeParticipantName(
+          recordingBytes,
+          participantBytes
+        ),
+        startMicros: ts,
+        endMicros: null,
+      })
+    }
+  }
+
+  /** Strip `suffixLength` bytes off the end, trim, decode. */
+  private decodeEventName(evtBytes: Uint8Array, suffixLength: number): string {
+    const base = trimEndSpaces(
+      evtBytes.subarray(0, evtBytes.length - suffixLength),
+      this.encoding
+    )
+    return this.eventTextDecoder.decode(base)
+  }
+
+  /** Same `recording participant` join the segment writer produces. */
+  private decodeParticipantName(
+    recordingBytes: Uint8Array,
+    participantBytes: Uint8Array
+  ): string {
+    return `${this.eventTextDecoder.decode(recordingBytes)} ${this.eventTextDecoder.decode(participantBytes)}`
+  }
+
+  /** Decoded snapshot of the stimuli active right now (event owners). */
+  private captureActiveStimuli(): EventStimulusRef[] {
+    const bytes = this.cachedStimulusStackBytes
+    const keys = this.cachedStimulusStackKeys
+    const out: EventStimulusRef[] = []
+    for (let i = 0; i < bytes.length; i++) {
+      out.push({ key: keys[i], name: this.eventTextDecoder.decode(bytes[i]) })
+    }
+    // Media mode: event rows leave the media column empty, which clears the
+    // cached stack — the current segment's stimulus is still the owner. In
+    // interval/web mode an empty stack genuinely means "outside any
+    // stimulus", so no fallback there.
+    if (out.length === 0 && !this.mappedColumnsAllowed && this.mStimulusBytes) {
+      out.push({
+        key: this.mStimulusKey,
+        name: this.eventTextDecoder.decode(this.mStimulusBytes),
+      })
+    }
+    return out
+  }
+
+  /**
+   * Open a paired event. A second open of the same key resolves the first
+   * one by its fallback rule (explicit → clamp at this timestamp; bare →
+   * it was a discrete event) before reopening.
+   */
+  private openEvent(
+    channel: string,
+    participantFull: bigint,
+    recordingBytes: Uint8Array,
+    participantBytes: Uint8Array,
+    ts: number,
+    explicit: boolean
+  ): void {
+    const key = `${channel}+${participantFull}`
+    const existing = this.openEvents.get(key)
+    if (existing) {
+      this.resolveOpenEvent(existing, explicit ? ts : null)
+    }
+    this.openEvents.set(key, {
+      channel,
+      stimuli: this.captureActiveStimuli(),
+      participantFull,
+      participant: this.decodeParticipantName(recordingBytes, participantBytes),
+      startMicros: ts,
+      explicit,
+    })
+  }
+
+  /**
+   * Resolve an open without its end marker. Explicit opens were
+   * unambiguously intended as intervals → clamp (and count); bare opens
+   * were apparently discrete events all along.
+   */
+  private resolveOpenEvent(
+    open: OpenEvent,
+    clampEndMicros: number | null
+  ): void {
+    if (open.explicit) {
+      this.clampedOpenCount++
+      this.pendingEvents.push({
+        channel: open.channel,
+        stimuli: open.stimuli,
+        participantFull: open.participantFull,
+        participant: open.participant,
+        startMicros: open.startMicros,
+        endMicros: clampEndMicros ?? open.startMicros,
+      })
+    } else {
+      this.pendingEvents.push({
+        channel: open.channel,
+        stimuli: open.stimuli,
+        participantFull: open.participantFull,
+        participant: open.participant,
+        startMicros: open.startMicros,
+        endMicros: null,
+      })
+    }
+  }
+
+  /**
+   * Finalize-time event emission: resolve unclosed opens, rebase every
+   * pending event to its stimulus's base time (the same reference frame
+   * segments use), and report drop/clamp counts as warnings.
+   */
+  private flushEvents(): void {
+    for (const open of this.openEvents.values()) {
+      this.resolveOpenEvent(open, this.lastEyeTrackerTimestamp)
+    }
+    this.openEvents.clear()
+
+    let droppedNoContext = 0
+    if (this.onEvent) {
+      for (const event of this.pendingEvents) {
+        if (event.stimuli.length === 0) {
+          droppedNoContext++
+          continue
+        }
+        let emitted = false
+        for (const stimulus of event.stimuli) {
+          const baseTime = this.stimuliBaseTimes.get(
+            this.makeCompositeKey32x64(stimulus.key, event.participantFull)
+          )
+          if (baseTime === undefined) continue
+          // Events between interval start and the first gaze sample land
+          // marginally before the segment time origin — clamp to 0.
+          const start = Math.max(
+            0,
+            (event.startMicros - baseTime) * TIME_MODIFIER
+          )
+          const duration =
+            event.endMicros === null
+              ? 0
+              : (event.endMicros - event.startMicros) * TIME_MODIFIER
+          this.onEvent({
+            stimulus: stimulus.name,
+            participant: event.participant,
+            channel: event.channel,
+            start,
+            duration,
+          })
+          emitted = true
+        }
+        if (!emitted) droppedNoContext++
+      }
+    }
+    this.pendingEvents.length = 0
+
+    if (this.onWarning) {
+      if (droppedNoContext > 0) {
+        this.onWarning(
+          `${droppedNoContext} event(s) occurred outside any stimulus and were dropped`
+        )
+      }
+      if (this.unmatchedEndCount > 0) {
+        this.onWarning(
+          `${this.unmatchedEndCount} event end marker(s) had no matching start`
+        )
+      }
+      if (this.clampedOpenCount > 0) {
+        this.onWarning(
+          `${this.clampedOpenCount} unclosed event(s) were clamped to the recording end`
+        )
       }
     }
   }
