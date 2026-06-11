@@ -16,6 +16,8 @@ export type IngestResult =
       data: DataType
       /** Parse settings of the last processed file (provenance display). */
       settings: ParseSettings
+      /** Non-fatal issues (e.g. dropped event contributions) for toasts. */
+      warnings?: string[]
     }
   | {
       kind: 'workspace'
