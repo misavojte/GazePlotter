@@ -1,12 +1,12 @@
-import type { WorkspaceCommandChain } from '$lib/workspace/commands'
+import type { WorkspaceCommandChain } from './types'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import { isHistoryCommand } from '$lib/workspace/commands'
+import { isHistoryCommand } from './utils'
 import { GridState } from '$lib/workspace/grid'
 import {
   createWorkspaceCommandRegistry,
   type WorkspaceCommandRegistryErrorContext,
-  UndoRedoStateStore,
-} from '$lib/workspace/commands'
+} from './registry'
+import { UndoRedoStateStore } from './store.svelte'
 import { getCommandLabel } from '$lib/workspace/commands/labels'
 
 /**

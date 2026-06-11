@@ -14,8 +14,6 @@ import {
 } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import {
-  SegmentField,
-  SEGMENT_STRIDE,
   FIXATION_CATEGORY_ID,
   type ExtendedInterpretedDataType,
 } from '$lib/data/types'
@@ -606,7 +604,8 @@ export function transformDataToScarfPlot(
   }
 
   // --- Segments or Overlay mode ---
-  if (!engine.segments) throw new Error('Data engine not initialized')
+  const reader = engine.getReader()
+  if (!reader) throw new Error('Data engine reader not initialized')
   const aoiGroupReader = engine.getAoiGroupReader()
   if (!aoiGroupReader) throw new Error('AOI reader not initialized')
 
@@ -638,7 +637,6 @@ export function transformDataToScarfPlot(
 
   const isOrdinal = settings.timeline === 'ordinal'
   const isRelative = settings.timeline === 'relative'
-  const { segmentBuffer, indexTable, maxParticipants } = engine.segments
   const participants: ScarfParticipant[] = new Array(participantIds.length)
   const overlapAoiBuffer = new Uint16Array(aoiBufferSize)
   // Observed (not theoretical) max simultaneous events across all participants.
@@ -668,19 +666,17 @@ export function transformDataToScarfPlot(
       scale = 1 / (clipMax - clipMin)
     }
 
-    const rangeIdx = (stimulusId * maxParticipants + pid) * 2
-    const startIndex = indexTable[rangeIdx]
-    const segmentCount = indexTable[rangeIdx + 1] - startIndex
+    const { startIndex, endIndex } = reader.getSegmentRange(stimulusId, pid)
 
-    for (let localId = 0; localId < segmentCount; localId++) {
-      const base = (startIndex + localId) * SEGMENT_STRIDE
-      const categoryId = segmentBuffer[base + SegmentField.CATEGORY_ID] | 0
+    for (let i = startIndex; i < endIndex; i++) {
+      const localId = i - startIndex
+      const categoryId = reader.getSegmentCategory(i)
       let start = isOrdinal
         ? localId
-        : segmentBuffer[base + SegmentField.START_TIME]
+        : reader.getSegmentStart(i)
       let end = isOrdinal
         ? localId + 1
-        : segmentBuffer[base + SegmentField.END_TIME]
+        : reader.getSegmentEnd(i)
 
       if (end <= clipMin || start >= clipMax) continue
       start = Math.max(clipMin, start)
@@ -707,7 +703,7 @@ export function transformDataToScarfPlot(
         )
       } else {
         const count = aoiGroupReader.getSegmentAoisIntoUniqueTyped(
-          startIndex + localId,
+          i,
           stimulusId,
           overlapAoiBuffer
         )
@@ -724,8 +720,8 @@ export function transformDataToScarfPlot(
           )
         } else {
           const h = HEIGHT_BAR_DEFAULT / count
-          for (let i = 0; i < count; i++) {
-            const bucketIdx = aoiOrderMap[overlapAoiBuffer[i]]
+          for (let idx = 0; idx < count; idx++) {
+            const bucketIdx = aoiOrderMap[overlapAoiBuffer[idx]]
             if (bucketIdx < 0) continue
             rectBuckets[bucketIdx].pushRect(
               x,
@@ -735,7 +731,7 @@ export function transformDataToScarfPlot(
               pid,
               localId,
               localId,
-              SPACE_ABOVE_RECT_DEFAULT + i * h
+              SPACE_ABOVE_RECT_DEFAULT + idx * h
             )
           }
         }

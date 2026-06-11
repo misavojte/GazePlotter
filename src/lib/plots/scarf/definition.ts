@@ -8,6 +8,9 @@ import {
   getParticipantsGroupOptions,
 } from '$lib/plots/shared'
 import type { ScarfPlotSettings } from './types'
+import { SCARF_IDENTIFIERS } from './const'
+import { getAois } from '$lib/data/engine'
+import type { WorkspaceCommand } from '$lib/workspace/commands'
 
 export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
   type: 'scarf',
@@ -42,4 +45,53 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
   getDefaultHeight: () => 12,
   getDefaultWidth: () => 20,
   requireCapabilities: [['segmented', 'event']],
+  onCommand: (command, item, engine): WorkspaceCommand | WorkspaceCommand[] | null => {
+    const settings = item.settings as ScarfPlotSettings
+    const highlights = settings.highlights ?? []
+    if (highlights.length === 0) return null
+
+    // Case 1: stimulus switch on this item — clear all AOI highlights
+    if (
+      command.type === 'updateSettings' &&
+      command.itemId === item.id &&
+      'stimulusId' in command.settings
+    ) {
+      const kept = highlights.filter(h =>
+        h.startsWith(SCARF_IDENTIFIERS.CATEGORY) ||
+        h.startsWith(SCARF_IDENTIFIERS.EVENT)
+      )
+      return kept.length < highlights.length
+        ? {
+            type: 'updateSettings',
+            itemId: item.id,
+            settings: { highlights: kept },
+            source: 'plot.onCommand',
+          }
+        : null
+    }
+
+    // Case 2: AOI grouping changed (could be propagated to this stimulus)
+    if (command.type === 'updateAois') {
+      const stimulusId = settings.stimulusId
+      const currentAois = getAois(engine, stimulusId)
+      const validAoiIds = new Set(
+        currentAois.map(a => `${SCARF_IDENTIFIERS.AOI}${a.id}`)
+      )
+      const kept = highlights.filter(h =>
+        !h.startsWith(SCARF_IDENTIFIERS.AOI) ||
+        h.startsWith(SCARF_IDENTIFIERS.CATEGORY) ||
+        validAoiIds.has(h)
+      )
+      return kept.length < highlights.length
+        ? {
+            type: 'updateSettings',
+            itemId: item.id,
+            settings: { highlights: kept },
+            source: 'plot.onCommand',
+          }
+        : null
+    }
+
+    return null
+  },
 })

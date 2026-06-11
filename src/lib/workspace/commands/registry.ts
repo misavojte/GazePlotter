@@ -4,7 +4,7 @@ import type {
 } from '$lib/workspace/commands'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import { createChildCommand } from '$lib/workspace/commands'
-import { SCARF_IDENTIFIERS } from '$lib/plots/scarf'
+import { resolvePlotDefinition } from '$lib/plots/registry'
 import { GridState } from '$lib/workspace/grid'
 import {
   updateHiddenAoisWithPropagation,
@@ -124,39 +124,23 @@ export function createWorkspaceCommandRegistry(
     })
   }
 
-  type AoiLike = { id: string | number }
-
-  function sanitizeScarfHighlightsAfterAoiRename(
-    command: Extract<WorkspaceCommandChain, { type: 'updateAois' }>,
+  function invokeOnCommandHooks(
+    command: WorkspaceCommandChain,
     context: WorkspaceCommandExecutionContext
   ) {
-    if (!command.isRootCommand || context.isUndoRedoOperation) return
-
-    const renamedAois = (command.aois || []) as AoiLike[]
-    const affectedIdentifiers = new Set<string>(
-      renamedAois.map(a => `${SCARF_IDENTIFIERS.AOI}${a.id}`)
-    )
-
     gridStore.items.forEach(item => {
-      if (item.type !== 'scarf') return
-      const highlights = item.settings.highlights ?? []
-      const hasMatch = highlights.some(h => affectedIdentifiers.has(h))
-      if (!hasMatch) return
+      const def = resolvePlotDefinition(item.type)
+      if (!def.onCommand) return
 
-      const newHighlights = highlights.filter(h => !affectedIdentifiers.has(h))
-      if (newHighlights.length === highlights.length) return
-
-      context.dispatch(
-        createChildCommand(
-          {
-            type: 'updateSettings',
-            itemId: item.id,
-            settings: { highlights: newHighlights },
-            source: 'aoi.rename',
-          },
-          command.chainId
-        )
-      )
+      const nextCommands = def.onCommand(command, item as any, engine)
+      if (nextCommands) {
+        const commandsArray = Array.isArray(nextCommands) ? nextCommands : [nextCommands]
+        commandsArray.forEach(childCmd => {
+          context.dispatch(
+            createChildCommand(childCmd, command.chainId)
+          )
+        })
+      }
     })
   }
 
@@ -168,7 +152,6 @@ export function createWorkspaceCommandRegistry(
         updateHiddenAoisWithPropagation(engine, stimulusId, hiddenAois, applyTo)
       }
       gridStore.triggerRedraw()
-      sanitizeScarfHighlightsAfterAoiRename(command, context)
     },
 
     updateParticipants: command => {
@@ -519,6 +502,9 @@ export function createWorkspaceCommandRegistry(
     context: WorkspaceCommandExecutionContext
   ): void {
     executeTypedCommand(command, context)
+    if (command.isRootCommand && !context.isUndoRedoOperation) {
+      invokeOnCommandHooks(command, context)
+    }
   }
 
   function executeTypedCommand<TType extends CommandType>(

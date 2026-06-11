@@ -2,6 +2,7 @@ import type { Component } from 'svelte'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import type { DataCapabilityRequirements } from '$lib/data/types'
 import type { PlotMetricContract } from '$lib/metrics'
+import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/workspace/commands'
 
 export type DefaultPlotParams = {
   stimulusId?: number
@@ -127,6 +128,17 @@ export type PlotDefinition<
    * source of truth so pane and modal can't drift.
    */
   consumesMetrics?: PlotMetricContract
+
+  /**
+   * Optional: called after a root command is executed (skipped during undo/redo).
+   * Gives the plot a chance to return one or more child commands to reconcile
+   * its own settings with the new world state (e.g. clearing stale highlights).
+   */
+  onCommand?: (
+    command: WorkspaceCommandChain,
+    item: PlotItemContract<TType, TSettings>,
+    engine: DataEngine
+  ) => WorkspaceCommand | WorkspaceCommand[] | null
 }
 
 export function definePlot<
