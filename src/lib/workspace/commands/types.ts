@@ -70,6 +70,12 @@ export interface UpdateNoAoiTreatmentCommand extends BaseCommandInterface {
   noAoiTreatment: { displayedName: string; color: string }
 }
 
+export interface UpdateCategoriesCommand extends BaseCommandInterface {
+  type: 'updateCategories'
+  categories: ExtendedInterpretedDataType[]
+  hiddenCategories?: number[]
+}
+
 // Settings change command
 export interface UpdateSettingsCommand extends BaseCommandInterface {
   type: 'updateSettings'
@@ -119,6 +125,7 @@ export type WorkspaceCommand =
   | UpdateEventChannelsCommand
   | UpdateParticipantsGroupsCommand
   | UpdateNoAoiTreatmentCommand
+  | UpdateCategoriesCommand
   | UpdateSettingsCommand // includes position and size updates
   | UpdateLayoutCommand
   | AddGridItemCommand

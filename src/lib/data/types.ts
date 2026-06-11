@@ -133,7 +133,7 @@ export interface DataType {
   isOrdinalOnly: boolean
   capabilities: DataCapabilities
   aois: AoiDataType
-  categories: AttributeDataType
+  categories: AttributeDataType & { hiddenCategories?: number[] }
   participants: AttributeDataType
   participantsGroups: ParticipantsGroup[]
   metricInstances: MetricInstance[]

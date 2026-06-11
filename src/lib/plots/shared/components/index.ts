@@ -18,6 +18,7 @@ export { default as StimulusPaneSection } from './StimulusPaneSection.svelte'
 export { default as ParticipantGroupPaneSection } from './ParticipantGroupPaneSection.svelte'
 export { default as ParticipantPaneSection } from './ParticipantPaneSection.svelte'
 export { default as MetricPaneSection } from './MetricPaneSection.svelte'
+export { default as EyeMovementTypePaneSection } from './EyeMovementTypePaneSection.svelte'
 
 
 

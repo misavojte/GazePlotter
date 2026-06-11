@@ -11,6 +11,8 @@ import {
   hasEventsForStimulus,
   getVisibleEventChannels,
   getEventBuffer,
+  getAllCategories,
+  getHiddenCategories,
 } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
 import {
@@ -272,10 +274,58 @@ function createScarfPlotAxis(
  * Creates styling information for scarf plot segments.
  * Data-only: no sizing properties (heights computed in presentation layer).
  */
+type GroupedCategory = ExtendedInterpretedDataType & {
+  memberIds: number[]
+}
+
+export function groupCategoriesByDisplayedName(
+  categories: ExtendedInterpretedDataType[]
+): GroupedCategory[] {
+  if (categories.length === 0) return []
+
+  const grouped: GroupedCategory[] = []
+  const processed = new Set<number>()
+
+  for (let i = 0; i < categories.length; i++) {
+    const category = categories[i]
+    if (processed.has(category.id)) continue
+
+    const trimmedName = (category.displayedName || '').trim()
+    const memberIds = [category.id]
+    processed.add(category.id)
+
+    if (trimmedName.length > 0) {
+      for (let j = i + 1; j < categories.length; j++) {
+        const candidate = categories[j]
+        if (processed.has(candidate.id)) continue
+        if ((candidate.displayedName || '').trim() === trimmedName) {
+          memberIds.push(candidate.id)
+          processed.add(candidate.id)
+        }
+      }
+    }
+
+    grouped.push({
+      id: category.id,
+      originalName: category.originalName,
+      displayedName: category.displayedName,
+      color: category.color,
+      memberIds,
+    })
+  }
+
+  return grouped
+}
+
+/**
+ * Creates styling information for scarf plot segments.
+ * Data-only: no sizing properties (heights computed in presentation layer).
+ */
 function createStylingAndLegend(
   aoiData: readonly ExtendedInterpretedDataType[],
   noAoiTreatment: { displayedName: string; color: string },
-  eventChannelData: readonly ExtendedInterpretedDataType[] = []
+  eventChannelData: readonly ExtendedInterpretedDataType[] = [],
+  categoryData: readonly ExtendedInterpretedDataType[] = []
 ): ScarfStyling {
   const aoi: ScarfStyleItem[] = []
   for (let i = 0; i < aoiData.length; i++) {
@@ -292,18 +342,18 @@ function createStylingAndLegend(
     color: noAoiTreatment.color,
   })
 
-  const category: ScarfStyleItem[] = [
-    {
-      identifier: `${SCARF_IDENTIFIERS.CATEGORY}1`,
-      name: 'Saccade',
-      color: '#555555',
-    },
-    {
-      identifier: `${SCARF_IDENTIFIERS.CATEGORY}${SCARF_IDENTIFIERS.NOT_DEFINED}`,
-      name: 'Other',
-      color: '#a6a6a6',
-    },
-  ]
+  const category: ScarfStyleItem[] = []
+  const groupedCategories = groupCategoriesByDisplayedName(
+    categoryData.filter(c => c.id !== FIXATION_CATEGORY_ID)
+  )
+  for (let i = 0; i < groupedCategories.length; i++) {
+    const g = groupedCategories[i]
+    category.push({
+      identifier: `${SCARF_IDENTIFIERS.CATEGORY}${g.id}`,
+      name: g.displayedName,
+      color: g.color,
+    })
+  }
 
   const visibility: ScarfStyleItem[] = []
   for (let i = 0; i < eventChannelData.length; i++) {
@@ -581,12 +631,17 @@ export function transformDataToScarfPlot(
     groupedEventChannels.length > 0 &&
     settings.timeline !== 'ordinal'
   const barWrapHeight = getScarfParticipantBarHeight()
+  const categoryData = getAllCategories(engine)
+  const hiddenCategories = getHiddenCategories(engine)
+  const hiddenCategoryIds = new Set(hiddenCategories)
+
   const stylingAndLegend = createStylingAndLegend(
     aoiData,
     noAoiTreatment,
     (showVisibilityMarkers || displayMode === 'events')
       ? groupedEventChannels
-      : []
+      : [],
+    categoryData
   )
 
   // --- Events-only mode ---
@@ -611,8 +666,25 @@ export function transformDataToScarfPlot(
 
   // Style mapping: pre-calculate indices for the hot loop
   const aoiStyleCount = stylingAndLegend.aoi.length
-  const saccadeStyleIdx = aoiStyleCount
-  const otherCategoryStyleIdx = aoiStyleCount + 1
+  
+  const groupedCategories = groupCategoriesByDisplayedName(
+    categoryData.filter(c => c.id !== FIXATION_CATEGORY_ID)
+  )
+  const categoryStyleIdxMap = new Int16Array(categoryData.length).fill(-1)
+  for (let i = 0; i < stylingAndLegend.category.length; i++) {
+    const item = stylingAndLegend.category[i]
+    if (item.identifier.endsWith(SCARF_IDENTIFIERS.NOT_DEFINED)) continue
+    const repId = parseInt(item.identifier.slice(SCARF_IDENTIFIERS.CATEGORY.length))
+    const group = groupedCategories.find(g => g.id === repId)
+    if (group) {
+      for (const memberId of group.memberIds) {
+        if (memberId >= 0 && memberId < categoryStyleIdxMap.length) {
+          categoryStyleIdxMap[memberId] = aoiStyleCount + i
+        }
+      }
+    }
+  }
+
   const visibilityBaseStyleIdx =
     aoiStyleCount + stylingAndLegend.category.length
 
@@ -687,10 +759,15 @@ export function transformDataToScarfPlot(
 
       if (categoryId !== FIXATION_CATEGORY_ID) {
         if (settings.hideNonFixations) continue
+        if (hiddenCategoryIds.has(categoryId)) continue
 
-        rectBuckets[
-          categoryId === 1 ? saccadeStyleIdx : otherCategoryStyleIdx
-        ].pushRect(
+        const styleIdx = categoryId >= 0 && categoryId < categoryStyleIdxMap.length
+          ? categoryStyleIdxMap[categoryId]
+          : -1
+
+        if (styleIdx === -1) continue
+
+        rectBuckets[styleIdx].pushRect(
           x,
           pIndex,
           width,

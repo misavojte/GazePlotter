@@ -16,6 +16,8 @@ import {
   updateEventData,
   updateEventChannels,
   updateHiddenEventChannels,
+  updateCategories,
+  getDefaultCategoryColor,
 } from '$lib/data/engine'
 import type {
   GridItemMap,
@@ -182,6 +184,12 @@ export function createWorkspaceCommandRegistry(
 
     updateNoAoiTreatment: command => {
       updateNoAoiTreatment(engine, command.noAoiTreatment)
+      gridStore.triggerRedraw()
+    },
+
+    updateCategories: command => {
+      const { categories, hiddenCategories } = command
+      updateCategories(engine, categories, hiddenCategories)
       gridStore.triggerRedraw()
     },
 
@@ -384,6 +392,37 @@ export function createWorkspaceCommandRegistry(
         {
           type: 'updateNoAoiTreatment',
           noAoiTreatment: currentNoAoiTreatment,
+        },
+        meta
+      )
+    },
+
+    updateCategories: (cmd, meta) => {
+      const dataMeta = requireMetadata()
+      const currentDefs = dataMeta.categories.data || []
+      const order = dataMeta.categories.orderVector || []
+      const ids =
+        order.length > 0
+          ? order
+          : Array.from({ length: currentDefs.length }, (_, i) => i)
+
+      const categories: ExtendedInterpretedDataType[] = ids.map(id => {
+        const c = currentDefs[id]
+        return {
+          id,
+          originalName: c?.[0] ?? '',
+          displayedName: c?.[1] ?? c?.[0] ?? '',
+          color: c?.[2] ?? getDefaultCategoryColor(id),
+        }
+      })
+
+      const shouldIncludeHidden = cmd.hiddenCategories !== undefined
+      const hidden = dataMeta.categories.hiddenCategories ?? []
+      return withMeta(
+        {
+          type: 'updateCategories',
+          categories,
+          ...(shouldIncludeHidden ? { hiddenCategories: [...hidden] } : {}),
         },
         meta
       )

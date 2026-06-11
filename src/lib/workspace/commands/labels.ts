@@ -66,6 +66,12 @@ export const WORKSPACE_COMMAND_LABELS: Record<
     default: 'No AOI treatment updated',
   },
 
+  updateCategories: {
+    undone: 'Undo eye-movement types update',
+    redone: 'Redo eye-movement types update',
+    default: 'Eye-movement types updated',
+  },
+
   // Settings change command
   updateSettings: {
     undone: 'Undo plot update',

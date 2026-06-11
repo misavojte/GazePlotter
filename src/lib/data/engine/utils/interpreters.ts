@@ -1,8 +1,13 @@
 import type { DataType, ExtendedInterpretedDataType } from '$lib/data/types'
-import { DEFAULT_AOI_COLORS, DEFAULT_CATEGORY_COLOR } from '$lib/color/palettes'
+import { DEFAULT_AOI_COLORS, DEFAULT_CATEGORY_COLORS } from '$lib/color/palettes'
 
 export const getDefaultColor = (index: number): string =>
   DEFAULT_AOI_COLORS[index % DEFAULT_AOI_COLORS.length]
+
+export const getDefaultCategoryColor = (index: number): string => {
+  const palIndex = index > 0 ? index - 1 : 0
+  return DEFAULT_CATEGORY_COLORS[palIndex % DEFAULT_CATEGORY_COLORS.length]
+}
 
 export const getAoiRaw = (
   stimulusId: number,
@@ -39,6 +44,6 @@ export const getCategoryRaw = (
     id: categoryId,
     originalName,
     displayedName: categoryArray[1] ?? originalName,
-    color: categoryArray[2] ?? DEFAULT_CATEGORY_COLOR,
+    color: categoryArray[2] ?? getDefaultCategoryColor(categoryId),
   }
 }

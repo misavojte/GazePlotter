@@ -10,6 +10,7 @@
     StimulusPaneSection,
     ParticipantGroupPaneSection,
     TimelineRangeSection,
+    EyeMovementTypePaneSection,
   } from '$lib/plots/shared/components'
   import type {
     ScarfDisplayMode,
@@ -137,6 +138,8 @@
 />
 
 <AoiPaneSection stimulusId={settings.stimulusId} {source} />
+
+<EyeMovementTypePaneSection {source} />
 
 <EventPaneSection stimulusId={settings.stimulusId} {source} />
 

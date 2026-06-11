@@ -9,6 +9,7 @@ import {
   type UpdateEventDataCommand,
   type UpdateEventChannelsCommand,
   type UpdateNoAoiTreatmentCommand,
+  type UpdateCategoriesCommand,
   type UpdateParticipantsCommand,
   type UpdateParticipantsGroupsCommand,
   type UpdateStimuliCommand,
@@ -314,6 +315,20 @@ export class WorkspaceService {
       type: 'updateNoAoiTreatment',
       noAoiTreatment,
       source,
+    }
+    return this.applyRoot(command)
+  }
+
+  updateCategories(
+    categories: ExtendedInterpretedDataType[],
+    source: string,
+    hiddenCategories?: number[]
+  ): boolean {
+    const command: UpdateCategoriesCommand = {
+      type: 'updateCategories',
+      categories,
+      source,
+      ...(hiddenCategories !== undefined ? { hiddenCategories } : {}),
     }
     return this.applyRoot(command)
   }
