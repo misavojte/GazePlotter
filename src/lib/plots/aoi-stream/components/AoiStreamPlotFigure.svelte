@@ -101,6 +101,7 @@
   let renderBuckets = $state<RenderBuckets | null>(null)
   let hoveredLegendItem = $state<LegendItemGeometry | null>(null)
   let hoveredBinIndex = $state<number | null>(null)
+  let mouseXPx = $state<number | null>(null)
 
   const usedHighlights = $derived(highlights)
 
@@ -201,13 +202,20 @@
     drawData: drawStream,
     legend: { hitTest: hitTestLegendBand },
     hitTest: hitTestBin,
-    onHoverChange: (hit) => {
+    onHoverChange: (hit, x, y) => {
       const tag = hit?.data
       const legendItem = tag?.kind === 'legend' ? tag.item! : null
       const binIndex = tag?.kind === 'bin' ? tag.binIndex! : null
-      const changed = binIndex !== hoveredBinIndex // crosshair follows bin only
+      const isBinHover = tag?.kind === 'bin'
+      const nextMouseXPx = isBinHover ? x : null
+      const nextBinIndex = isBinHover ? binIndex : null
+
+      const changed =
+        nextBinIndex !== hoveredBinIndex ||
+        nextMouseXPx !== mouseXPx
       hoveredLegendItem = legendItem
-      hoveredBinIndex = binIndex
+      hoveredBinIndex = nextBinIndex
+      mouseXPx = nextMouseXPx
       return changed
     },
     blockedRegions: () => blockedRegions,
@@ -407,20 +415,48 @@
     if (hoveredBinIndex !== null) {
       const binWidth = floorWidth / data.binCount
       const binX = floorLeft + hoveredBinIndex * binWidth
+
+      const binStartTime = data.timeline.minValue + hoveredBinIndex * data.stepSize
+      const binCenterTime = binStartTime + data.stepSize / 2
+      const windowStartTime = binCenterTime - data.windowSize / 2
+      const windowEndTime = binCenterTime + data.windowSize / 2
+
+      const timelineMin = data.timeline.minValue
+      const timelineMax = data.timeline.maxValue
+      const duration = Math.max(1, timelineMax - timelineMin)
+      const invMsPerPx = floorWidth / duration
+
+      const windowXStart = floorLeft + (windowStartTime - timelineMin) * invMsPerPx
+      const windowXEnd = floorLeft + (windowEndTime - timelineMin) * invMsPerPx
+      const xStart = Math.max(floorLeft, windowXStart)
+      const xEnd = Math.min(floorLeft + floorWidth, windowXEnd)
+      const rectWidth = xEnd - xStart
+
       ctx.save()
-      ctx.globalAlpha = 0.2
       ctx.fillStyle = '#007acc'
+
+      // 1. Draw the lighter window highlight (1000ms)
+      if (rectWidth > 0) {
+        ctx.globalAlpha = 0.08
+        ctx.fillRect(xStart, floorTop, rectWidth, floorHeight)
+      }
+
+      // 2. Draw the darker step highlight (100ms)
+      ctx.globalAlpha = 0.15
       ctx.fillRect(binX, floorTop, binWidth, floorHeight)
+
       ctx.restore()
+    }
+
+    if (mouseXPx !== null) {
       ctx.save()
       ctx.strokeStyle = '#007acc'
       ctx.lineWidth = 1
       ctx.setLineDash([2, 2])
       ctx.beginPath()
-      ctx.moveTo(binX, floorTop)
-      ctx.lineTo(binX, floorBottom)
-      ctx.moveTo(binX + binWidth, floorTop)
-      ctx.lineTo(binX + binWidth, floorBottom)
+      const x = alignToPixelCenter(mouseXPx)
+      ctx.moveTo(x, floorTop)
+      ctx.lineTo(x, floorBottom)
       ctx.stroke()
       ctx.restore()
     }

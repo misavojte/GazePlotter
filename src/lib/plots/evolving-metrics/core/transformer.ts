@@ -207,7 +207,7 @@ export function getEvolvingMetricsData(
       const seq = extractFixationSequence(engine, stimulusId, pid, { includeNoAoi })
       const totalFix = seq.timestamps.length
       const stepFix = window.stepSize
-      const samples: { midFix: number; centerMs: number; value: number }[] = []
+      const samples: { midFix: number; centerMs: number; value: number; dataStartMs: number; dataEndMs: number }[] = []
       for (let i = 0; i < N; i++) {
         const v = values[i]
         if (!Number.isFinite(v)) continue
@@ -216,7 +216,14 @@ export function getEvolvingMetricsData(
         const a = seq.timestamps[midFix]
         const b = seq.endTimestamps[midFix]
         if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) continue
-        samples.push({ midFix, centerMs: (a + b) / 2, value: v })
+
+        // Find raw window start and end in ms
+        const winStartIdx = timeline[i]
+        const winEndIdx = Math.min(totalFix - 1, timeline[i] + window.windowSize - 1)
+        const winStartMs = seq.timestamps[winStartIdx]
+        const winEndMs = seq.endTimestamps[winEndIdx]
+
+        samples.push({ midFix, centerMs: (a + b) / 2, value: v, dataStartMs: winStartMs, dataEndMs: winEndMs })
       }
       for (let k = 0; k < samples.length; k++) {
         const s = samples[k]
@@ -236,7 +243,14 @@ export function getEvolvingMetricsData(
             : seq.endTimestamps[s.midFix]
         }
         if (!Number.isFinite(endMs) || endMs <= startMs) continue
-        windows.push({ startMs, endMs, centerMs: s.centerMs, value: s.value })
+        windows.push({
+          startMs,
+          endMs,
+          centerMs: s.centerMs,
+          value: s.value,
+          dataStartMs: s.dataStartMs,
+          dataEndMs: s.dataEndMs
+        })
         if (s.value < valueMin) valueMin = s.value
         if (s.value > valueMax) valueMax = s.value
       }
@@ -262,7 +276,14 @@ export function getEvolvingMetricsData(
           endMs = timeline[i] + window.windowSize
         }
         if (endMs <= startMs) continue
-        windows.push({ startMs, endMs, centerMs: c, value: v })
+        windows.push({
+          startMs,
+          endMs,
+          centerMs: c,
+          value: v,
+          dataStartMs: c - window.windowSize / 2,
+          dataEndMs: c + window.windowSize / 2
+        })
         if (v < valueMin) valueMin = v
         if (v > valueMax) valueMax = v
       }

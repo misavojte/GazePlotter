@@ -40,6 +40,8 @@ export interface EvolvingMetricsWindow {
   endMs: number
   centerMs: number
   value: number
+  dataStartMs?: number
+  dataEndMs?: number
 }
 
 export interface EvolvingMetricsParticipant {
