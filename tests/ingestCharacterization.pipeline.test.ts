@@ -527,10 +527,10 @@ describe('pipeline end-to-end: tobii with events (user-input flow)', () => {
   test('interval-based media parsing produces the pinned dataset shape', async () => {
     const { data, settings } = await runPipeline(
       [{ name: 'tobii.tsv', content: testMobileTsvData }],
-      { userInput: 'IntervalStart;IntervalEnd' }
+      { userInput: '{"stimulusStartSuffix":"IntervalStart","stimulusEndSuffix":"IntervalEnd"}' }
     )
     expect(settings.type).toBe('tobii-with-event')
-    expect(settings.userInputSetting).toBe('IntervalStart;IntervalEnd')
+    expect(settings.userInputSetting).toBe('{"stimulusStartSuffix":"IntervalStart","stimulusEndSuffix":"IntervalEnd"}')
     const d = digest(data)
     expect(d.stimuli).toEqual([['geostul_snap']])
     // Characterized: Tobii participants are "<recording name> <participant name>".
@@ -575,7 +575,8 @@ describe('pipeline error strings (user-facing, must not change)', () => {
     const headerOnly = testMobileTsvData.split('\n')[0]
     await expect(
       runPipeline([{ name: 'tobii.tsv', content: headerOnly }], {
-        userInput: 'NoSuchStart;NoSuchEnd',
+        userInput:
+          '{"stimulusStartSuffix":"NoSuchStart","stimulusEndSuffix":"NoSuchEnd"}',
       })
     ).rejects.toThrow(
       'No intervals to form stimuli were found. Try default media parsing.'

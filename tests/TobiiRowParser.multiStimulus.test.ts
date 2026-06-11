@@ -153,7 +153,7 @@ describe('TobiiRowParser — multi-stimulus mapped columns', () => {
 
     const adapter = new TobiiRowParser(
       HEADER,
-      ' IntervalStart; IntervalEnd',
+      '{"stimulusStartSuffix":"IntervalStart","stimulusEndSuffix":"IntervalEnd"}',
       '\t'
     )
     const { outputs, processRows } = createAdapterHarness(adapter)

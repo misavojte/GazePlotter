@@ -1,21 +1,23 @@
 /**
  * PERFORMANCE BASELINE — ingest stream pipeline.
  *
- * Phase 0 of the ingest v2 refactor. Run with `npm run bench`. Record the
- * results in `tests/ingestBenchmark.baseline.md` BEFORE refactoring; re-run
- * after each refactor phase. Budget: within ±5% of baseline (noise band) —
- * the kernel must add no per-row or per-chunk overhead.
+ * Run with `npm run bench`. Record the results in
+ * `tests/ingestBenchmark.baseline.md` BEFORE refactoring; re-run after each
+ * refactor phase. Budget: within ±5% of baseline (noise band) — the kernel
+ * must add no per-row or per-chunk overhead.
  *
  * The workloads mirror the two hot real-world shapes:
  *  - a wide-ish plain CSV (120k rows), exercising the generic compiled
  *    row parser and the byte dictionaries;
  *  - the real Tobii mobile fixture body repeated (~32k rows), exercising
- *    the most complex adapter (interval-based media parsing, AOI columns).
+ *    the most complex RowParser (interval-based media parsing, AOI columns).
  */
 
 import { bench, describe } from 'vitest'
-import { EyePipeline } from '$lib/data/ingest/stream/Pipeline'
-import { testMobileTsvData } from './TobiiAdapter.test.data'
+import { IngestJob } from '$lib/data/ingest/kernel/job'
+import { streamSource } from '$lib/data/ingest/kernel/source'
+import { FORMAT_REGISTRY } from '$lib/data/ingest/formats/registry'
+import { testMobileTsvData } from './TobiiRowParser.test.data'
 
 const CHUNK = 1024 * 1024 // mirror worker.ts evalBuffer chunking
 
@@ -28,6 +30,15 @@ function streamFromBytes(bytes: Uint8Array) {
       controller.close()
     },
   })
+}
+
+async function runJob(name: string, bytes: Uint8Array, userInput: string) {
+  const job = new IngestJob([name], FORMAT_REGISTRY, {
+    prompt: async () => userInput,
+    reportBytes: () => {},
+  })
+  const result = await job.add(streamSource(name, streamFromBytes(bytes)))
+  if (!result) throw new Error('no result')
 }
 
 function buildCsv(stimuli: number, participants: number, rowsEach: number) {
@@ -58,9 +69,7 @@ describe('ingest pipeline throughput', () => {
   bench(
     'csv 120k rows → DataType',
     async () => {
-      const pipeline = new EyePipeline(['bench.csv'], async () => '')
-      const result = await pipeline.addNewStream(streamFromBytes(csvBytes))
-      if (!result) throw new Error('no result')
+      await runJob('bench.csv', csvBytes, '')
     },
     { time: 3000, warmupIterations: 2 }
   )
@@ -68,12 +77,11 @@ describe('ingest pipeline throughput', () => {
   bench(
     'tobii-with-event ~33k rows → DataType',
     async () => {
-      const pipeline = new EyePipeline(
-        ['bench.tsv'],
-        async () => 'IntervalStart;IntervalEnd'
+      await runJob(
+        'bench.tsv',
+        tobiiBytes,
+        '{"stimulusStartSuffix":"IntervalStart","stimulusEndSuffix":"IntervalEnd"}'
       )
-      const result = await pipeline.addNewStream(streamFromBytes(tobiiBytes))
-      if (!result) throw new Error('no result')
     },
     { time: 3000, warmupIterations: 2 }
   )

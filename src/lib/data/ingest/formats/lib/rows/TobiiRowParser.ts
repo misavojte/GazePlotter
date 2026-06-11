@@ -1,4 +1,6 @@
 import { RowParser } from './RowParser'
+import type { TobiiParsingConfig } from './tobiiParsingConfig'
+import { parseTobiiUserInput } from './tobiiParsingConfig'
 import {
   bytesEqual,
   encodeString,
@@ -11,7 +13,6 @@ import {
 } from '$lib/data/ingest/utils/byteUtils'
 
 const TIME_MODIFIER = 0.001 // µs → ms
-const EMPTY_STRING = ''
 const EMPTY_KEY = -1
 const MASK_64 = (1n << 64n) - 1n
 const AOI_HIT_PREFIX = 'AOI hit ['
@@ -19,7 +20,6 @@ const EYE_TRACKER_SENSOR = 'Eye Tracker'
 const MIN_SAMPLE_INTERVAL_US = 900
 const MAX_SAMPLE_INTERVAL_US = 50000
 const SAMPLE_INTERVAL_TOLERANCE_FACTOR = 1.5
-const WEB_STIMULUS_TRIGGER = 'WebStimulus'
 
 type StimulusPackedCols = {
   pCategory: number
@@ -396,15 +396,16 @@ export class TobiiRowParser extends RowParser {
       this.aoiHitFlags = new Uint8Array(aoiInfo.names.length)
     }
 
-    if (userInput === WEB_STIMULUS_TRIGGER) {
+    const config = parseTobiiUserInput(userInput)
+    if (config.stimulusWeb) {
       this.stimulusUpdater = this.constructWebStimulusUpdaterBinary()
-    } else if (userInput === EMPTY_STRING) {
+    } else if (config.stimulusStartSuffix || config.stimulusEndSuffix) {
+      this.stimulusUpdater = this.constructIntervalStimulusUpdaterBinary(
+        config
+      )
+    } else {
       this.mappedColumnsAllowed = false
       this.stimulusUpdater = this.constructBaseStimulusUpdaterBinary()
-    } else {
-      this.stimulusUpdater = this.constructIntervalStimulusUpdaterBinary(
-        userInput
-      )
     }
   }
 
@@ -971,13 +972,12 @@ export class TobiiRowParser extends RowParser {
     }
   }
 
-  private constructIntervalStimulusUpdaterBinary(userInput: string) {
-    const parts = userInput.split(';')
-    const trimmedParts = parts.map(p => p.trim())
-    if (trimmedParts.length !== 2 || !trimmedParts[0] || !trimmedParts[1]) {
+  private constructIntervalStimulusUpdaterBinary(config: TobiiParsingConfig) {
+    const startMarker = config.stimulusStartSuffix?.trim()
+    const endMarker = config.stimulusEndSuffix?.trim()
+    if (!startMarker || !endMarker) {
       throw new Error(`Invalid Tobii interval marker format.`)
     }
-    const [startMarker, endMarker] = trimmedParts
     const startMarkerBytes = encodeString(startMarker, this.encoding)
     const endMarkerBytes = encodeString(endMarker, this.encoding)
 

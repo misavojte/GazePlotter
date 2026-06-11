@@ -22,7 +22,7 @@ describe('TobiiRowParser', () => {
     const rows = lines.slice(1)
     const deserializer = new TobiiRowParser(
       header,
-      'IntervalStart;IntervalEnd',
+      '{"stimulusStartSuffix":"IntervalStart","stimulusEndSuffix":"IntervalEnd"}',
       '\t'
     )
     const { outputs, processRows } = createAdapterHarness(deserializer)
@@ -36,7 +36,7 @@ describe('TobiiRowParser', () => {
     const rows = lines.slice(1)
     const deserializer = new TobiiRowParser(
       header,
-      ' IntervalStart; IntervalEnd',
+      '{"stimulusStartSuffix":"IntervalStart","stimulusEndSuffix":"IntervalEnd"}',
       '\t'
     )
     const { outputs, processRows } = createAdapterHarness(deserializer)

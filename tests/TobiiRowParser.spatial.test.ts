@@ -10,7 +10,7 @@ describe('TobiiRowParser - Spatial Parsing', () => {
     const rows = lines.slice(1)
     const deserializer = new TobiiRowParser(
       header,
-      'geostul_snap IntervalStart;geostul_snap IntervalEnd',
+      '{"stimulusStartSuffix":"geostul_snap IntervalStart","stimulusEndSuffix":"geostul_snap IntervalEnd"}',
       '\t'
     )
     const { outputs, processRows } = createAdapterHarness(deserializer)
@@ -38,7 +38,7 @@ describe('TobiiRowParser - Spatial Parsing', () => {
     const rows = lines.slice(1)
     const deserializer = new TobiiRowParser(
       header,
-      'geostul_snap IntervalStart;geostul_snap IntervalEnd',
+      '{"stimulusStartSuffix":"geostul_snap IntervalStart","stimulusEndSuffix":"geostul_snap IntervalEnd"}',
       '\t'
     )
     const { outputs, processRows } = createAdapterHarness(deserializer)
@@ -66,7 +66,7 @@ describe('TobiiRowParser - Spatial Parsing', () => {
       // Both columns present, adapter should prefer mapped
       const deserializer = new TobiiRowParser(
         header,
-        'geostul_snap IntervalStart;geostul_snap IntervalEnd',
+        '{"stimulusStartSuffix":"geostul_snap IntervalStart","stimulusEndSuffix":"geostul_snap IntervalEnd"}',
         '\t'
       )
       const { outputs, processRows } = createAdapterHarness(deserializer)
@@ -83,7 +83,7 @@ describe('TobiiRowParser - Spatial Parsing', () => {
     const rows = lines.slice(1)
     const deserializer = new TobiiRowParser(
       header,
-      'geostul_snap IntervalStart;geostul_snap IntervalEnd',
+      '{"stimulusStartSuffix":"geostul_snap IntervalStart","stimulusEndSuffix":"geostul_snap IntervalEnd"}',
       '\t'
     )
     const { outputs, processRows } = createAdapterHarness(deserializer)
