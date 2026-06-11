@@ -44,7 +44,7 @@ export type IngestStatus = 'loading' | 'ready' | 'error'
 type IngestUiServices = {
   errorService: Pick<ErrorService, 'report'>
   modalState: Pick<ModalState, 'open' | 'close'>
-  toastState: Pick<ToastState, 'addInfo' | 'addSuccess'>
+  toastState: Pick<ToastState, 'addInfo' | 'addSuccess' | 'addWarning'>
 }
 
 type IngestDependencies = {
@@ -354,6 +354,14 @@ class IngestWorkerClient {
     if (result.kind === 'workspace') {
       this.handleWorkspaceDone(result)
       return
+    }
+    if (result.warnings?.length) {
+      const count = result.warnings.length
+      this.ui.toastState.addWarning(
+        `Parsing: ${count} warning${count > 1 ? 's' : ''} (${result.warnings
+          .slice(0, 3)
+          .join('; ')}${count > 3 ? '...' : ''})`
+      )
     }
     this.handleData({ data: result.data, classified: result.settings })
   }
