@@ -2,8 +2,44 @@
   import { page } from '$app/state'
   import { onMount } from 'svelte'
   import { buildDocBreadcrumbs, isMatchingDocPath } from './navigation'
+  import { slide } from 'svelte/transition'
   let { data, children } = $props()
   let sidebarOpen = $state(false)
+
+  let manualToggles = $state<Record<string, boolean>>({})
+
+  // Find the active section title based on the current pathname
+  let activeSectionTitle = $derived.by(() => {
+    for (const section of data.sections) {
+      if (section.links.some(link => isMatchingDocPath(link.href, page.url.pathname))) {
+        return section.title
+      }
+    }
+    return null
+  })
+
+  // Expand the active section automatically, collapse others when activeSectionTitle changes
+  $effect(() => {
+    if (activeSectionTitle) {
+      manualToggles[activeSectionTitle] = true
+      for (const section of data.sections) {
+        if (section.title !== activeSectionTitle) {
+          manualToggles[section.title] = false
+        }
+      }
+    }
+  })
+
+  function isSectionExpanded(title: string) {
+    if (manualToggles[title] !== undefined) {
+      return manualToggles[title]
+    }
+    return title === activeSectionTitle
+  }
+
+  function toggleSection(title: string) {
+    manualToggles[title] = !isSectionExpanded(title)
+  }
 
   onMount(() => {
     if (window.innerWidth <= 1024) return
@@ -112,21 +148,45 @@
         <nav class="docs-nav">
           {#each data.sections as section}
             <div class="nav-section">
-              <h3 class="nav-title">{section.title}</h3>
-              <ul class="nav-links">
-                {#each section.links as link}
-                  <li>
-                    <a
-                      href={link.href}
-                      class="nav-link"
-                      class:active={isMatchingDocPath(link.href, page.url.pathname)}
-                      onclick={() => (sidebarOpen = false)}
-                    >
-                      {link.name}
-                    </a>
-                  </li>
-                {/each}
-              </ul>
+              <button
+                type="button"
+                class="nav-section-trigger"
+                onclick={() => toggleSection(section.title)}
+                aria-expanded={isSectionExpanded(section.title)}
+              >
+                <span class="nav-title">{section.title}</span>
+                <svg
+                  class="chevron-icon"
+                  class:rotated={isSectionExpanded(section.title)}
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="3"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+              {#if isSectionExpanded(section.title)}
+                <ul class="nav-links" transition:slide={{ duration: 200 }}>
+                  {#each section.links as link}
+                    <li>
+                      <a
+                        href={link.href}
+                        class="nav-link"
+                        class:active={isMatchingDocPath(link.href, page.url.pathname)}
+                        onclick={() => (sidebarOpen = false)}
+                      >
+                        {link.name}
+                      </a>
+                    </li>
+                  {/each}
+                </ul>
+              {/if}
             </div>
           {/each}
         </nav>
@@ -215,7 +275,26 @@
   .docs-nav {
     display: flex;
     flex-direction: column;
-    gap: 2.5rem;
+    gap: 0.75rem;
+  }
+
+  .nav-section-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    margin: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+  }
+
+  .nav-section-trigger:hover {
+    background-color: #f1f5f9;
   }
 
   .nav-title {
@@ -224,16 +303,24 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: #475569;
-    margin-bottom: 1rem;
+  }
+
+  .chevron-icon {
+    color: #94a3b8;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .chevron-icon.rotated {
+    transform: rotate(90deg);
   }
 
   .nav-links {
     list-style: none;
     padding: 0;
-    margin: 0;
+    margin: 0.25rem 0 0.5rem 0.75rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.25rem;
   }
 
   .nav-link {
