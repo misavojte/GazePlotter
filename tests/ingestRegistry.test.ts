@@ -12,7 +12,12 @@
 
 import { describe, expect, test } from 'vitest'
 import { probeFromText } from '$lib/data/ingest/kernel/source'
-import { STREAM_FORMATS, detectTypeId } from '$lib/data/ingest/formats/registry'
+import {
+  ENRICHMENT_FORMATS,
+  STREAM_FORMATS,
+  detectEnrichmentFormat,
+  detectTypeId,
+} from '$lib/data/ingest/formats/registry'
 
 const detect = (slice: string) => detectTypeId(probeFromText(slice))
 
@@ -44,6 +49,52 @@ describe('registry shape', () => {
     for (const vendor of ['tobii', 'gazepoint', 'begaze', 'ogama']) {
       expect(order.indexOf(vendor)).toBeLessThan(varjo)
     }
+  })
+
+  test('enrichment ids are unique and disjoint from stream type ids', () => {
+    const enrichmentIds = ENRICHMENT_FORMATS.map(def => def.id)
+    expect(new Set(enrichmentIds).size).toBe(enrichmentIds.length)
+    const streamIds = new Set(STREAM_FORMATS.flatMap(def => def.ids))
+    for (const id of enrichmentIds) {
+      expect(streamIds.has(id)).toBe(false)
+    }
+  })
+})
+
+describe('enrichment detection (pre-stream partition)', () => {
+  test('csv event header is claimed by csv-event, never by a gaze format', () => {
+    const slice = `stimulus,participant,eventName,start,duration
+Map_A,P1,Click,100,0`
+    const probe = probeFromText(slice, { fileName: 'events.csv' })
+    expect(detectEnrichmentFormat(probe)?.id).toBe('csv-event')
+    // The stream sniffs must not claim it either (no Time/Participant set).
+    expect(detectTypeId(probe)).toBe('unknown')
+  })
+
+  test('xml files are claimed by legacy-aoi-events by extension', () => {
+    const probe = probeFromText('<AoiVisibility/>', { fileName: 'aois.xml' })
+    expect(detectEnrichmentFormat(probe)?.id).toBe('legacy-aoi-events')
+  })
+
+  test('tobii AOI json is claimed; arbitrary json is not', () => {
+    const tobii = probeFromText(
+      JSON.stringify({ Aois: { A1: { KeyFrames: { 0: {} } } } }),
+      { fileName: 'aois.json' }
+    )
+    expect(detectEnrichmentFormat(tobii)?.id).toBe('legacy-aoi-events')
+
+    const other = probeFromText(JSON.stringify({ version: 4, data: {} }), {
+      fileName: 'workspace.json',
+    })
+    expect(detectEnrichmentFormat(other)).toBeNull()
+  })
+
+  test('gaze csv files are not claimed by any enrichment format', () => {
+    const probe = probeFromText(
+      'Time,Participant,Stimulus,AOI\n0,P1,Map_A,Region_1',
+      { fileName: 'gaze.csv' }
+    )
+    expect(detectEnrichmentFormat(probe)).toBeNull()
   })
 })
 

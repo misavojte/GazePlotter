@@ -3,19 +3,24 @@
  * `src/lib/data/ingest/formats/` for every implementation.
  *
  * A format is a self-contained module that (1) recognizes its files from a
- * `SourceProbe` and (2) reads them into the `DatasetSink`. There are three
+ * `SourceProbe` and (2) reads them into the `DatasetSink`. There are four
  * kinds, distinguished by what they consume and produce:
  *
- *  - 'stream'    sequential text data, read file-by-file into the shared
- *                sink (all eye-tracker exports).
- *  - 'archive'   fully-materialized binary bundles, read as one group into
- *                the shared sink (Pupil Cloud zips).
- *  - 'workspace' a single self-describing file that IS the whole result
- *                (saved GazePlotter workspace JSON).
+ *  - 'stream'     sequential text data, read file-by-file into the shared
+ *                 sink (all eye-tracker exports).
+ *  - 'archive'    fully-materialized binary bundles, read as one group into
+ *                 the shared sink (Pupil Cloud zips).
+ *  - 'workspace'  a single self-describing file that IS the whole result
+ *                 (saved GazePlotter workspace JSON).
+ *  - 'enrichment' event files that annotate a dataset rather than carry
+ *                 gaze data. Claimed at detection like every other kind,
+ *                 but parsed AFTER the dataset exists (their names resolve
+ *                 against dictionaries that segments produce), on the main
+ *                 thread — the job never sees them.
  */
 import type { IngestContext } from './context'
 import type { IngestResult } from './result'
-import type { DatasetSink } from './sink'
+import type { DatasetSink, EventContribution } from './sink'
 import type { OpenedSource, SourceProbe } from './source'
 import type { ParseSettings } from '../types'
 
@@ -103,10 +108,36 @@ export interface WorkspaceFormatDefinition {
   read(bytes: Uint8Array, ctx: IngestContext): Promise<IngestResult>
 }
 
+/**
+ * Event files claimed at detection, consumed post-load. Two consumption
+ * modes: 'contributions' formats are self-contained text→events parses
+ * (resolution happens later via the shared event currency); 'interactive'
+ * formats need a main-thread mapping flow (the legacy AOI-visibility
+ * files, which carry no stimulus/participant names of their own).
+ */
+export type EnrichmentFormatDefinition = {
+  kind: 'enrichment'
+  id: string
+  displayName: string
+  /** Content sniff against the probe. Cheap and side-effect free, like
+      stream detection; enrichment runs BEFORE stream detection. */
+  detect(probe: SourceProbe): boolean
+} & (
+  | {
+      consume: 'contributions'
+      parse(text: string): {
+        contributions: EventContribution[]
+        warnings: string[]
+      }
+    }
+  | { consume: 'interactive' }
+)
+
 export type FormatDefinition =
   | StreamFormatDefinition
   | ArchiveFormatDefinition
   | WorkspaceFormatDefinition
+  | EnrichmentFormatDefinition
 
 export function resolveColumnDelimiter(
   def: StreamFormatDefinition,

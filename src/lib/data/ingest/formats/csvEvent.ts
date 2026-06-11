@@ -1,11 +1,19 @@
 /**
- * Parser for custom CSV event files.
+ * Custom CSV event files — the 'contributions' enrichment format.
  *
  * Expected columns: stimulus, participant, eventName, start, duration
  * Delimiter: auto-detected (, vs ;)
  * Participant value "*" applies events to all participants.
+ *
+ * Parsing produces `EventContribution`s (the shared event currency);
+ * resolution against a dataset happens later — `mergeEvents` for a
+ * dataset being built, `resolveContributionsForEngine` for the live
+ * engine (which additionally matches displayed names and inherits AOI
+ * colors, both meaningless for a fresh dataset).
  */
 
+import type { EnrichmentFormatDefinition } from '../kernel/format'
+import type { EventContribution } from '../kernel/sink'
 import type { DataType } from '$lib/data/types'
 import { DEFAULT_NO_AOI_TREATMENT } from '$lib/data/types'
 import { createDefaultMetricInstances } from '$lib/metrics/instances'
@@ -18,38 +26,12 @@ const REQUIRED_COLUMNS = [
   'duration',
 ] as const
 
-type CsvEventRow = {
-  stimulus: string
-  participant: string
-  eventName: string
-  start: number
-  duration: number
-}
-
-type CsvEventParseResult = {
-  rows: CsvEventRow[]
-  warnings: string[]
-}
-
 type StimulusMapEntry = {
   def: string[]
   perParticipant: number[][]
 }
 
-type StimulusMap = Map<number, Map<string, StimulusMapEntry>>
-
-/**
- * Detect whether a file is a CSV event file by checking the header
- * for all required columns. Reads only the first 1024 bytes.
- */
-export async function isCsvEventFile(file: File): Promise<boolean> {
-  const slice = await file.slice(0, 1024).text()
-  const headerLine = slice.split(/\r?\n/)[0]
-  if (!headerLine) return false
-  const delimiter = detectDelimiter(headerLine)
-  const columns = headerLine.split(delimiter).map(c => c.trim())
-  return REQUIRED_COLUMNS.every(col => columns.includes(col))
-}
+export type StimulusMap = Map<number, Map<string, StimulusMapEntry>>
 
 /**
  * Detect delimiter (, vs ;) by counting occurrences in the header line.
@@ -60,17 +42,28 @@ function detectDelimiter(headerLine: string): string {
   return commas >= semicolons ? ',' : ';'
 }
 
+/** Header sniff shared by the format's `detect` and the parser. */
+export function detectCsvEventHeader(headerLine: string): boolean {
+  if (!headerLine) return false
+  const delimiter = detectDelimiter(headerLine)
+  const columns = headerLine.split(delimiter).map(c => c.trim())
+  return REQUIRED_COLUMNS.every(col => columns.includes(col))
+}
+
 /**
- * Parse raw CSV event text into structured rows.
+ * Parse raw CSV event text into event contributions.
  */
-export function parseCsvEventText(text: string): CsvEventParseResult {
-  const rows: CsvEventRow[] = []
+export function parseCsvEventText(text: string): {
+  contributions: EventContribution[]
+  warnings: string[]
+} {
+  const contributions: EventContribution[] = []
   const warnings: string[] = []
 
   const lines = text.split(/\r?\n/)
   if (lines.length === 0) {
     warnings.push('Empty file')
-    return { rows, warnings }
+    return { contributions, warnings }
   }
 
   const headerLine = lines[0]
@@ -88,7 +81,7 @@ export function parseCsvEventText(text: string): CsvEventParseResult {
   for (const col of REQUIRED_COLUMNS) {
     if (idx[col] === -1) {
       warnings.push(`Missing required column: ${col}`)
-      return { rows, warnings }
+      return { contributions, warnings }
     }
   }
 
@@ -99,11 +92,11 @@ export function parseCsvEventText(text: string): CsvEventParseResult {
     const cells = line.split(delimiter)
     const stimulus = cells[idx.stimulus]?.trim() ?? ''
     const participant = cells[idx.participant]?.trim() ?? ''
-    const eventName = cells[idx.eventName]?.trim() ?? ''
+    const channel = cells[idx.eventName]?.trim() ?? ''
     const start = Number(cells[idx.start]?.trim())
     const duration = Number(cells[idx.duration]?.trim())
 
-    if (stimulus === '' || eventName === '') {
+    if (stimulus === '' || channel === '') {
       warnings.push(`Row ${i + 1}: empty stimulus or eventName, skipped`)
       continue
     }
@@ -112,18 +105,29 @@ export function parseCsvEventText(text: string): CsvEventParseResult {
       continue
     }
 
-    rows.push({ stimulus, participant, eventName, start, duration })
+    contributions.push({ stimulus, participant, channel, start, duration })
   }
 
-  return { rows, warnings }
+  return { contributions, warnings }
+}
+
+export const csvEventFormat: EnrichmentFormatDefinition = {
+  kind: 'enrichment',
+  id: 'csv-event',
+  displayName: 'CSV events',
+  consume: 'contributions',
+  detect: probe => detectCsvEventHeader(probe.headerRow),
+  parse: parseCsvEventText,
 }
 
 /**
- * Resolve parsed CSV event rows against loaded engine metadata.
- * Produces stimulus map entries compatible with the XML/JSON event path.
+ * Resolve contributions against LIVE engine metadata, producing the
+ * engine's per-stimulus channel layout. Unlike the kernel's `mergeEvents`
+ * (fresh datasets), this matches displayed names too (data may have been
+ * renamed) and inherits the color of a same-named AOI.
  */
-export function buildEventDataFromCsvRows(
-  rows: CsvEventRow[],
+export function resolveContributionsForEngine(
+  contributions: EventContribution[],
   stimuliData: string[][],
   participantsData: string[][],
   participantCount: number,
@@ -146,19 +150,23 @@ export function buildEventDataFromCsvRows(
 
   const stimulusMap: StimulusMap = new Map()
 
-  for (const row of rows) {
-    const stimulusId = stimulusLookup.get(row.stimulus)
+  for (const contribution of contributions) {
+    const stimulusId = stimulusLookup.get(contribution.stimulus)
     if (stimulusId === undefined) {
-      warnings.push(`Stimulus "${row.stimulus}" not found, row skipped`)
+      warnings.push(
+        `Stimulus "${contribution.stimulus}" not found, row skipped`
+      )
       continue
     }
 
     // Resolve participant: "*" means all
     let participantId: number | null = null
-    if (row.participant !== '*') {
-      const pid = participantLookup.get(row.participant)
+    if (contribution.participant !== '*') {
+      const pid = participantLookup.get(contribution.participant)
       if (pid === undefined) {
-        warnings.push(`Participant "${row.participant}" not found, row skipped`)
+        warnings.push(
+          `Participant "${contribution.participant}" not found, row skipped`
+        )
         continue
       }
       participantId = pid
@@ -171,31 +179,37 @@ export function buildEventDataFromCsvRows(
     const channelMap = stimulusMap.get(stimulusId)!
 
     // Get or create channel entry
-    if (!channelMap.has(row.eventName)) {
-      let color = '#888888'
+    if (!channelMap.has(contribution.channel)) {
+      let color = contribution.color ?? '#888888'
       const stimAoiData = aoiData?.[stimulusId]
       if (stimAoiData) {
         for (const aoiRow of stimAoiData) {
-          if (aoiRow[0] === row.eventName || aoiRow[1] === row.eventName) {
+          if (
+            aoiRow[0] === contribution.channel ||
+            aoiRow[1] === contribution.channel
+          ) {
             color = aoiRow[2] ?? color
             break
           }
         }
       }
-      channelMap.set(row.eventName, {
-        def: [row.eventName, row.eventName, color],
+      channelMap.set(contribution.channel, {
+        def: [contribution.channel, contribution.channel, color],
         perParticipant: Array.from({ length: participantCount }, () => []),
       })
     }
 
-    const entry = channelMap.get(row.eventName)!
+    const entry = channelMap.get(contribution.channel)!
 
     // Append stride-2 [start, duration] to appropriate participant slots
     if (participantId !== null) {
-      entry.perParticipant[participantId].push(row.start, row.duration)
+      entry.perParticipant[participantId].push(
+        contribution.start,
+        contribution.duration
+      )
     } else {
       for (let p = 0; p < participantCount; p++) {
-        entry.perParticipant[p].push(row.start, row.duration)
+        entry.perParticipant[p].push(contribution.start, contribution.duration)
       }
     }
   }
@@ -239,21 +253,22 @@ export function mergeIntoStimulusMap(
 }
 
 /**
- * Build a complete DataType from CSV event rows alone (no gaze data).
- * Extracts stimuli and participants from the CSV content itself.
+ * Build a complete DataType from event contributions alone (no gaze data).
+ * Extracts stimuli and participants from the contributions themselves.
  */
-export function buildDataTypeFromCsvEvents(
-  rows: CsvEventRow[]
-): { data: DataType; warnings: string[] } {
+export function buildDataTypeFromCsvEvents(contributions: EventContribution[]): {
+  data: DataType
+  warnings: string[]
+} {
   const warnings: string[] = []
 
   // Extract unique stimulus names (insertion order)
-  const stimulusNames = [...new Set(rows.map(r => r.stimulus))]
+  const stimulusNames = [...new Set(contributions.map(c => c.stimulus))]
   const stimuliData: string[][] = stimulusNames.map(name => [name, name])
 
   // Extract unique participant names, excluding "*"
   const participantNames = [
-    ...new Set(rows.map(r => r.participant).filter(p => p !== '*')),
+    ...new Set(contributions.map(c => c.participant).filter(p => p !== '*')),
   ]
   if (participantNames.length === 0) {
     participantNames.push('Participant')
@@ -269,13 +284,14 @@ export function buildDataTypeFromCsvEvents(
   const stimuliCount = stimuliData.length
   const participantCount = participantsData.length
 
-  // Resolve events using existing logic
-  const { stimulusMap, warnings: resolveWarnings } = buildEventDataFromCsvRows(
-    rows,
-    stimuliData,
-    participantsData,
-    participantCount
-  )
+  // Resolve events using the shared engine resolution
+  const { stimulusMap, warnings: resolveWarnings } =
+    resolveContributionsForEngine(
+      contributions,
+      stimuliData,
+      participantsData,
+      participantCount
+    )
   warnings.push(...resolveWarnings)
 
   // Convert stimulus map to EventDataType arrays
