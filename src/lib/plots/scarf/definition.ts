@@ -45,10 +45,10 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
   getDefaultHeight: () => 12,
   getDefaultWidth: () => 20,
   requireCapabilities: [['segmented', 'event']],
-  onCommand: (command, item, engine): WorkspaceCommand | WorkspaceCommand[] | null => {
+  onCommand: (command, item, engine, dispatch): void => {
     const settings = item.settings as ScarfPlotSettings
     const highlights = settings.highlights ?? []
-    if (highlights.length === 0) return null
+    if (highlights.length === 0) return
 
     // Case 1: stimulus switch on this item — clear all AOI highlights
     if (
@@ -60,14 +60,15 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
         h.startsWith(SCARF_IDENTIFIERS.CATEGORY) ||
         h.startsWith(SCARF_IDENTIFIERS.EVENT)
       )
-      return kept.length < highlights.length
-        ? {
-            type: 'updateSettings',
-            itemId: item.id,
-            settings: { highlights: kept },
-            source: 'plot.onCommand',
-          }
-        : null
+      if (kept.length < highlights.length) {
+        dispatch({
+          type: 'updateSettings',
+          itemId: item.id,
+          settings: { highlights: kept },
+          source: 'plot.onCommand',
+        })
+      }
+      return
     }
 
     // Case 2: AOI grouping changed (could be propagated to this stimulus)
@@ -82,16 +83,15 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
         h.startsWith(SCARF_IDENTIFIERS.CATEGORY) ||
         validAoiIds.has(h)
       )
-      return kept.length < highlights.length
-        ? {
-            type: 'updateSettings',
-            itemId: item.id,
-            settings: { highlights: kept },
-            source: 'plot.onCommand',
-          }
-        : null
+      if (kept.length < highlights.length) {
+        dispatch({
+          type: 'updateSettings',
+          itemId: item.id,
+          settings: { highlights: kept },
+          source: 'plot.onCommand',
+        })
+      }
+      return
     }
-
-    return null
   },
 })

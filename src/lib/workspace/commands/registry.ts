@@ -132,15 +132,11 @@ export function createWorkspaceCommandRegistry(
       const def = resolvePlotDefinition(item.type)
       if (!def.onCommand) return
 
-      const nextCommands = def.onCommand(command, item as any, engine)
-      if (nextCommands) {
-        const commandsArray = Array.isArray(nextCommands) ? nextCommands : [nextCommands]
-        commandsArray.forEach(childCmd => {
-          context.dispatch(
-            createChildCommand(childCmd, command.chainId)
-          )
-        })
-      }
+      def.onCommand(command, item as any, engine, (childCmd) => {
+        context.dispatch(
+          createChildCommand(childCmd, command.chainId)
+        )
+      })
     })
   }
 

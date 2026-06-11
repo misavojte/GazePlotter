@@ -137,8 +137,9 @@ export type PlotDefinition<
   onCommand?: (
     command: WorkspaceCommandChain,
     item: PlotItemContract<TType, TSettings>,
-    engine: DataEngine
-  ) => WorkspaceCommand | WorkspaceCommand[] | null
+    engine: DataEngine,
+    dispatch: (cmd: WorkspaceCommand) => void
+  ) => void
 }
 
 export function definePlot<
