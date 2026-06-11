@@ -192,7 +192,12 @@ export interface MigratedJsonFormat {
   fileMetadata?: unknown
 }
 
-export type ParsedData = JsonImportNewFormat & { current: FileInputType }
+export type ParsedData = JsonImportNewFormat & {
+  current: FileInputType
+  /** True for freshly parsed datasets (not restored workspaces) —
+      gates post-upload flows like the imported-events prune. */
+  freshDataset?: boolean
+}
 
 // Binary relational memory model
 export * from './binary'

@@ -1,4 +1,5 @@
 import { eventFileMappingModal } from '$lib/modals/import/definitions'
+import { eventPruneModal } from '$lib/modals/modification/definitions'
 import {
   isTobiiJson,
   processAoiVisibilityFromText,
@@ -422,6 +423,7 @@ class IngestWorkerClient {
         fileSizes: this.fileSizes,
         parseDate: new Date().toISOString(),
       },
+      freshDataset: true,
     } as ParsedData)
   }
 
@@ -604,6 +606,10 @@ export class IngestService {
                 })
               }
             }
+
+            // Pass 3: fresh datasets that brought event channels get the
+            // one-time prune review (restored workspaces are already curated).
+            if (data.freshDataset) this.maybeOpenEventPrune()
             resolve(true)
           },
           failureMetadata => {
@@ -648,6 +654,19 @@ export class IngestService {
     )
     this.deps.resetWorkspaceHistory()
     this.status = 'ready'
+  }
+
+  /**
+   * Opens the one-time prune review when the just-loaded dataset carries
+   * event channels. No channels → no modal (identical to today's flow).
+   */
+  private maybeOpenEventPrune(): void {
+    const meta = this.deps.engine.metadata
+    if (!meta) return
+    if (!meta.eventData.data.some(defs => defs.length > 0)) return
+    void this.deps.modalState.open(eventPruneModal, {
+      source: 'ingest.eventPrune',
+    })
   }
 
   applyFailure(failureMetadata: FileMetadataFailureType): void {
