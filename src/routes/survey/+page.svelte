@@ -537,6 +537,7 @@
   <title
     >GazePlotter | Free eye-tracking data visualisation via scarf plots</title
   >
+  <meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
 <main>
